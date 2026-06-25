@@ -1,0 +1,31 @@
+
+=== Tsavorite.Collection.Shared/Enumerator.cs (12166 bytes) ===
+UTF-8: INVALID ('utf-8' codec can't decode byte 0x83 in position 620: invalid start byte)
+CP932: VALID
+First 0x81 at pos 618, context hex: e382a4e383814583a020e38381e383
+Line 12 as CP932:     // Enumerator.MoveNext: 繧ｳ繝ｬ繧ｯ繧ｷ繝ｧ繝ｳ 遨ｺ false
+Line 12 as Latin-1:     // Enumerator.MoveNext: ã³ã¬ã¯ã·ã§ã³ ç©º false
+
+=== Tsavorite.Collection.Shared/HashSetTestBase.cs (18641 bytes) ===
+UTF-8: INVALID ('utf-8' codec can't decode byte 0x81 in position 70: invalid start byte)
+CP932: VALID
+  Line 3: /// HashSet 繝ｻ・ｽe繝ｻ・ｽX繝ｻ・ｽg繝ｻ・ｽ・悟・・ｿ・ｽ繝ｻ・ｽ・雁･・ｽｿ・ｽ繝ｻ・ｽN繝ｻ・ｽ繝ｻ・ｽ繝ｻ・ｽX繝ｻ・ｽB
+  Line 4: /// Dictionary 繝ｻ・ｽ繝ｻ・ｽ DictionaryTestBase 繝ｻ・ｽ・・屮・ｿ・ｽ繝ｻ・ｽl繝ｻ・ｽ・峨・
+  Line 5: /// 繝ｻ・ｽ繝ｻ・ｽ繝ｻ・ｽ繝ｻ・ｽ繝ｻ・ｽ ITsavoriteHashSet&lt;T&gt; 繝ｻ・ｽ﨟托ｽｼ謗･蜻ｼ縺ｳ蜃ｺ繝ｻ・ｽ繝ｻ・ｽ繝ｻ・ｽB
+First 0x81 at pos 70, context hex: 7420e383bb8145bd65e383bb8145bd
+Line 3 as CP932: /// HashSet 繝ｻ・ｽe繝ｻ・ｽX繝ｻ・ｽg繝ｻ・ｽ・悟・・ｿ・ｽ繝ｻ・ｽ・雁･・ｽｿ・ｽ繝ｻ・ｽN繝ｻ・ｽ繝ｻ・ｽ繝ｻ・ｽX繝ｻ・ｽB
+Line 3 as Latin-1: /// HashSet ã»E½eã»E½Xã»E½gã»E½EåEE¿E½ã»E½Eå¥E½¿E½ã»E½Nã»E½ã»E½ã»E½Xã»E
+
+=== Tsavorite.Collection.Shared/IDictionaryTestBase.cs (21639 bytes) ===
+UTF-8: INVALID ('utf-8' codec can't decode byte 0x81 in position 252: invalid start byte)
+CP932: VALID
+First 0x81 at pos 252, context hex: 3e20e7b9a78145a4e7b99defbdb3e7
+Line 8 as CP932: /// <see cref="IDictionary{TKey,TValue}"/> 郢ｧ・､郢晢ｽｳ郢ｧ・ｿ郢晢ｽｼ郢晁ｼ斐♂郢晢ｽｼ郢ｧ・ｹ驍ｨ讙守ｽｰ邵ｺ・ｮ郢昴・縺帷ｹ昜ｺ･貂戊手ｼ斐￠郢晢
+Line 8 as Latin-1: /// <see cref="IDictionary{TKey,TValue}"/> ç¹§E¤ç¹ï½³ç¹§E¿ç¹ï½¼ç¹è¼ãç¹ï½¼ç¹§E¹é¨æªç½°ç¸º
+
+=== Tsavorite.Collection.Shared/StoreCheckpoint.cs (19113 bytes) ===
+UTF-8: INVALID ('utf-8' codec can't decode bytes in position 6875-6876: invalid continuation byte)
+CP932: VALID
+First 0x81 at pos 6876, context hex: 9be7b99de38145e383a8e7b99de8bc
+Line 144 as CP932:     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:郢晏干ﾎ帷ｹ昴・繝ｨ郢晁ｼ斐°郢晢ｽｼ郢
+Line 144 as Latin-1:     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:ç¹å±Îç¹ãEã¨ç¹

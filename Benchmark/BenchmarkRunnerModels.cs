@@ -378,22 +378,41 @@ public sealed class CpuTableCell:ObservableObject{
                 if(this.Cpu.IsSelected!=value){
                     this.Cpu.IsSelected=value;
                 }
-                this.OnPropertyChanged(nameof(this.DisplayWithState));
             }
         }
     }
-
-    public string DisplayWithState => this.IsSelected ? "X "+this.DisplayText : "  "+this.DisplayText;
 }
 
 public sealed class CpuTableRow{
-    public CpuTableRow(string label,IReadOnlyList<CpuTableCell> cells){
+    public CpuTableRow(string label,CpuCoreKind coreKind,IReadOnlyList<CpuTableCell> cells,int columnCount){
         this.Label=label;
+        this.CoreKind=coreKind;
         this.Cells=cells;
+        this.GridCells=cells
+            .Cast<CpuTableCell?>()
+            .Concat(Enumerable.Repeat<CpuTableCell?>(null,Math.Max(0,columnCount-cells.Count)))
+            .ToArray();
     }
 
     public string Label { get; }
+    public CpuCoreKind CoreKind { get; }
     public IReadOnlyList<CpuTableCell> Cells { get; }
+    public IReadOnlyList<CpuTableCell?> GridCells { get; }
+    public string BadgeText => this.CoreKind switch{
+        CpuCoreKind.Performance => "P",
+        CpuCoreKind.Efficiency => "E",
+        _ => "U",
+    };
+    public Color BadgeBackgroundColor => this.CoreKind switch{
+        CpuCoreKind.Performance => Color.FromArgb("#DBEAFE"),
+        CpuCoreKind.Efficiency => Color.FromArgb("#DCFCE7"),
+        _ => Color.FromArgb("#E2E8F0"),
+    };
+    public Color BadgeTextColor => this.CoreKind switch{
+        CpuCoreKind.Performance => Color.FromArgb("#1D4ED8"),
+        CpuCoreKind.Efficiency => Color.FromArgb("#15803D"),
+        _ => Color.FromArgb("#475569"),
+    };
 }
 
 public sealed class CpuTableColumn:ObservableObject{
@@ -410,10 +429,17 @@ public sealed class CpuTableColumn:ObservableObject{
         CpuSelectionState.Mixed => "-",
         _ => string.Empty,
     };
+    public string StateGlyph => this.Section?.GetColumnState(this.Index) switch{
+        CpuSelectionState.Checked => "[X]",
+        CpuSelectionState.Mixed => "[-]",
+        _ => "[ ]",
+    };
     public string DisplayText => string.IsNullOrEmpty(this.StateText) ? this.Title : this.StateText+" "+this.Title;
+    public string HeaderText => "T"+this.Index;
 
     public void Refresh(){
         this.OnPropertyChanged(nameof(this.StateText));
+        this.OnPropertyChanged(nameof(this.StateGlyph));
         this.OnPropertyChanged(nameof(this.DisplayText));
     }
 }
@@ -450,6 +476,7 @@ public sealed class CpuTableSection:ObservableObject{
         private set{
             if(this.SetProperty(ref this.state,value)){
                 this.OnPropertyChanged(nameof(this.StateText));
+                this.OnPropertyChanged(nameof(this.StateGlyph));
             }
         }
     }
@@ -458,6 +485,26 @@ public sealed class CpuTableSection:ObservableObject{
         CpuSelectionState.Checked => "X",
         CpuSelectionState.Mixed => "-",
         _ => string.Empty,
+    };
+    public string StateGlyph => this.State switch{
+        CpuSelectionState.Checked => "[X]",
+        CpuSelectionState.Mixed => "[-]",
+        _ => "[ ]",
+    };
+    public string BadgeText => this.CoreKind switch{
+        CpuCoreKind.Performance => "P",
+        CpuCoreKind.Efficiency => "E",
+        _ => "U",
+    };
+    public Color BadgeBackgroundColor => this.CoreKind switch{
+        CpuCoreKind.Performance => Color.FromArgb("#DBEAFE"),
+        CpuCoreKind.Efficiency => Color.FromArgb("#DCFCE7"),
+        _ => Color.FromArgb("#E2E8F0"),
+    };
+    public Color BadgeTextColor => this.CoreKind switch{
+        CpuCoreKind.Performance => Color.FromArgb("#1D4ED8"),
+        CpuCoreKind.Efficiency => Color.FromArgb("#15803D"),
+        _ => Color.FromArgb("#475569"),
     };
 
     public CpuSelectionState GetColumnState(int columnIndex){

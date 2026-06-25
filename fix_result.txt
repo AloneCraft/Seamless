@@ -1,0 +1,39 @@
+Enumerator.cs: UTF8=True, src=12412B, dst=12197B, JP=104, ASCII=11831
+  Fix result:
+  L12: // Enumerator.MoveNext: コレクション 空 false
+  L20: // Enumerator.MoveNext: Chunk_LENGTH=2 アイチE�� チャンクパス (Index < Count)
+  L31: // Enumerator.MoveNext: 3アイチE��で褁E��チャンク (1チャンク目2件+2チャンク目1件)
+  L43: // Enumerator.Current の値確誁E    [BenchFact,Benchmark]
+  L54: // IEnumerator.Current (object 垁E
+  => WRITTEN to Enumerator.cs
+
+HashSetTestBase.cs: UTF8=True, src=22293B, dst=21497B, JP=576, ASCII=15413
+  Fix result:
+  L3: /// HashSet ・�E�e・�E�X・�E�g・�E��E��E�E��E�・�E��E�奁E���E�・�E�N・�E�・�E�・�E�X・�E�B
+  L4: /// Dictionary ・�E�・�E� DictionaryTestBase ・�E��E�E���E��E�・�E�l・�E��E�、E
+  L5: /// ・�E�・�E�・�E�・�E�・�E� ITsavoriteHashSet&lt;T&gt; ・�E�ｼ接呼び出・�E�・�E�・�E�B
+  L15: // ・�E��E�E��趣�E��E�・�E�・�E�p・�E��E�E�Eなゑｿ�E�・�E�・�E�・�E�・�E�
+  L22: // ・�E�V・�E�K・�E�v・�E�f・�E��E�追会ｿ�E�・�E�・�E� true ・�E�・�E��E�ゑ�E��E�・�E�・�E�・�E�・�E�
+  => WRITTEN to HashSetTestBase.cs
+
+IDictionaryTestBase.cs: UTF8=True, src=24014B, dst=22393B, JP=559, ASCII=19203
+  Fix result:
+  L8: /// <see cref="IDictionary{TKey,TValue}"/> 繧�E�繝ｳ繧�E�繝ｼ繝輔ぉ繝ｼ繧�E�邨檎罰縺�E�繝�Eせ繝亥渕蠎輔け繝ｩ繧�E�縲・/// <see cref="DictionaryTestBa
+  L21: // 隱�E�縺�E�蜿悶�E�蟆ら畑縺�E�縺�E�縺�E�縺・�E�E���E�
+  L28: // 霑ｽ蜉縺�E�縺阪�E�縺薙�E
+  L36: // 驥崎､・く繝ｼ縺�E�縺�E�萓句�E�悶↓縺�E�繧九！E���E�
+  L44: // 繝ｭ繧�E�縺梧�E�譚ｯ縺�E�縺�E�繧九�E萓句�E�悶↓縺�E�繧九！E���E�
+  => WRITTEN to IDictionaryTestBase.cs
+
+StoreCheckpoint.cs: UTF8=True, src=19814B, dst=19335B, JP=174, ASCII=18350
+  Fix result:
+  L263: // SaveAsync 縺悟�E譛溽噪縺�E�繝ｭ繝�Eけ繧貞叙蠕励�E�縺�E�縺九ｉ髱槫酔譛�EI/O 繧貞ｾ・�E�溘�E繧九◆繧√・        // await 縺帙�E繧�E�繧�E�繧�E�繧剁E��晁E��縺励※縺翫�
+  L278: // SaveLogOnlyAsync 縺悟�E譛溽噪縺�E�繝ｭ繝�Eけ繧貞叙蠕励�E�縺�E�縺九ｉ髱槫酔譛�EI/O 繧貞ｾ・�E�溘�E繧九◆繧√・        // await 縺帙�E繧�E�繧�E�繧�E�繧剁E��晁E�
+  L298: // 螟ｱ謨励�E�E��帙ｋ縺九�E縺・°縺�E�繧�E�繧�E�繝�Eメ
+  L300: // 繝�Eぉ繝�Eけ繝昴ぁE��ｳ繝磯�E�陦御�E��E�迥�E�諷九ｒ菴懊ｋ縺溘ａ縺�E�驕�E�E��E�(ms)
+  => WRITTEN to StoreCheckpoint.cs
+
+HashSetDebugView.cs: UTF8=True, src=941B, dst=794B, JP=0, ASCII=717
+  Fix result:
+  (no JP comments)
+  => SKIPPED (no Japanese text found)

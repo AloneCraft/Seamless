@@ -4,7 +4,7 @@ using Syncfusion.Maui.Toolkit.Hosting;
 namespace Benchmark;
 
 public static class MauiProgram {
-    private const string SyncfusionLicenseKey = "";
+    private const string SyncfusionLicenseKey = "Ngo9BigBOggjHTQxAR8/V1JHaF1cXmhOYVFzWmFZfVhgdl9HYVZRRmYuP1ZhSXxVdkNhXH9cc3VVR2VZUUV9XEE=";
 
     public static MauiApp CreateMauiApp() {
         StartupDiagnostics.InstallGlobalHandlers();
