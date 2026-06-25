@@ -5,6 +5,15 @@ using CommunityToolkit.Mvvm.Input;
 namespace Benchmark;
 
 public sealed class BenchmarkRunnerViewModel:ObservableObject{
+    private static readonly HashSet<string> DisplayBenchmarkProjects = new(StringComparer.OrdinalIgnoreCase){
+        BenchmarkComparisonFormatter.SystemFLinq,
+        BenchmarkComparisonFormatter.SystemZLinq,
+        BenchmarkComparisonFormatter.PersistedFLinq,
+        BenchmarkComparisonFormatter.PersistedLinq,
+        BenchmarkComparisonFormatter.TsavoriteFLinq,
+        BenchmarkComparisonFormatter.TsavoriteLinq,
+    };
+
     private readonly IBenchmarkCatalogService catalogService;
     private readonly ICpuTopologyService cpuTopologyService;
     private readonly IBenchmarkRunService runService;
@@ -418,6 +427,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
 
     private IReadOnlyList<BenchmarkTableRow> CreateMethodRows(IReadOnlyList<BenchmarkCase> cases){
         return cases
+            .Where(static item => DisplayBenchmarkProjects.Contains(item.Project))
             .GroupBy(static item => item.MethodName,StringComparer.OrdinalIgnoreCase)
             .OrderBy(static group => group.Key,StringComparer.OrdinalIgnoreCase)
             .Select(static group => new BenchmarkTableRow(
