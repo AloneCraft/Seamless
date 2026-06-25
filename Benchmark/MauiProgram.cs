@@ -7,6 +7,16 @@ namespace Benchmark;
 public static class MauiProgram {
     private const string SyncfusionLicenseKey = "Ngo9BigBOggjHTQxAR8/V1JHaF1cXmhOYVFzWmFZfVhgdl9HYVZRRmYuP1ZhSXxVdkNhXH9cc3VVR2VZUUV9XEE=";
 
+    private static async Task HandleWindowClosingAsync(Microsoft.UI.Xaml.Window window,App app){
+        try{
+            if(await app.RequestCloseAsync()){
+                window.DispatcherQueue.TryEnqueue(window.Close);
+            }
+        }catch(Exception ex){
+            StartupDiagnostics.Write("Window closing flow failed.",ex);
+        }
+    }
+
     public static MauiApp CreateMauiApp() {
         StartupDiagnostics.InstallGlobalHandlers();
         StartupDiagnostics.Write("CreateMauiApp started.");
@@ -25,15 +35,17 @@ public static class MauiProgram {
 #if WINDOWS
                 events.AddWindows(windows => {
                     windows.OnWindowCreated(window => {
-                        window.Closed+=async (_,args) => {
+                        window.AppWindow.Closing+=(sender,args) => {
                             if(Application.Current is not App app){
                                 return;
                             }
 
-                            args.Handled=true;
-                            if(await app.RequestCloseAsync()){
-                                window.Close();
+                            if(app.IsCloseConfirmed){
+                                return;
                             }
+
+                            args.Cancel=true;
+                            _=HandleWindowClosingAsync(window,app);
                         };
                     });
                 });

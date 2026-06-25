@@ -83,7 +83,7 @@ public sealed class MainPage:ContentPage{
             return true;
         }
 
-        if(this.viewModel.IsRunning){
+        if(this.viewModel.IsBenchmarkRunActive){
             var shouldClose = await this.DisplayAlert(
                 "Benchmark is running",
                 "Stop the running benchmark worker and close the application?",
@@ -97,15 +97,27 @@ public sealed class MainPage:ContentPage{
             await this.viewModel.CancelAndWaitAsync();
         }
 
-        var shouldSave = await this.DisplayAlert(
-            "Save benchmark state",
-            "Save selected CSV date and Benchmark x Project checks before closing?",
-            "Save",
-            "Don't save");
-        if(shouldSave){
-            this.viewModel.SaveUiState();
+        if(!this.viewModel.HasPendingCloseStateSave){
+            return true;
         }
-        return true;
+
+        var closeAction = await this.DisplayActionSheet(
+            "Save benchmark state",
+            "キャンセル",
+            null,
+            "はい",
+            "いいえ");
+        if(closeAction=="はい"){
+            this.viewModel.SaveUiState();
+            return true;
+        }
+
+        if(closeAction=="いいえ"){
+            this.viewModel.DiscardPendingCloseStateSave();
+            return true;
+        }
+
+        return false;
     }
 
     private BenchmarkRunnerViewModel CreateViewModel(){
