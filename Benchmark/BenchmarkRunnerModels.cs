@@ -265,11 +265,13 @@ public sealed class BenchmarkProjectCell:ObservableObject{
 public sealed class BenchmarkColumnSelectionGroup:ObservableObject{
     private bool? isChecked;
 
-    public BenchmarkColumnSelectionGroup(string headerText,IReadOnlyList<string> columnKeys){
+    public BenchmarkColumnSelectionGroup(string id,string headerText,IReadOnlyList<string> columnKeys){
+        this.Id=id;
         this.HeaderText=headerText;
         this.ColumnKeys=columnKeys;
     }
 
+    public string Id { get; }
     public string HeaderText { get; }
     public IReadOnlyList<string> ColumnKeys { get; }
 
