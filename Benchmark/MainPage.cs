@@ -7,15 +7,15 @@ using Syncfusion.Maui.Toolkit.Charts;
 namespace Benchmark;
 
 public sealed class MainPage:ContentPage{
-    private const double CpuCheckBoxWidth = 28;
-    private const double CpuCheckBoxHeight = 22;
+    private const double CpuCheckBoxWidth = 40;
+    private const double CpuCheckBoxHeight = 28;
     private const double BenchmarkSelectionColumnWidth = 52;
     private const double BenchmarkAggregateCheckBoxSize = 32;
     private const double BenchmarkCellCheckBoxSize = 28;
     private const double BenchmarkHeaderCheckSlotWidth = 48;
     private const double BenchmarkScrollBarSize = 20;
     private const double CpuLogicalColumnWidth = 220;
-    private const double CpuLogicalCheckColumnWidth = 34;
+    private const double CpuLogicalCheckColumnWidth = 46;
     private const double CpuLogicalNumberWidth = 164;
     private BenchmarkRunnerViewModel? viewModel;
 
@@ -851,7 +851,7 @@ public sealed class MainPage:ContentPage{
             CellTemplate=new DataTemplate(() => {
                 var layout = new Grid{
                     ColumnDefinitions = {
-                        new ColumnDefinition { Width = new GridLength(32) },
+                        new ColumnDefinition { Width = new GridLength(CpuLogicalCheckColumnWidth) },
                         new ColumnDefinition { Width = new GridLength(24) },
                         new ColumnDefinition { Width = GridLength.Star },
                     },
@@ -896,7 +896,7 @@ public sealed class MainPage:ContentPage{
         var labelWidth = section.Rows.Count==0
             ? 24
             : section.Rows.Max(static row => row.Label.Length)*7;
-        return Math.Max(112,32+24+labelWidth+22);
+        return Math.Max(126,CpuLogicalCheckColumnWidth+24+labelWidth+22);
     }
 
     private DataGridTemplateColumn CreateCpuLogicalColumn(CpuTableColumn column){
