@@ -11,7 +11,9 @@ public sealed class MainPage:ContentPage{
     private const double CpuCheckBoxHeight = 28;
     private const double BenchmarkSelectionColumnWidth = 52;
     private const double BenchmarkAggregateCheckBoxSize = 32;
-    private const double BenchmarkCellCheckBoxSize = 28;
+    private const double BenchmarkCellCheckBoxWidth = 40;
+    private const double BenchmarkCellCheckBoxHeight = 28;
+    private const double BenchmarkCellCheckSlotWidth = 46;
     private const double BenchmarkHeaderCheckSlotWidth = 48;
     private const double BenchmarkScrollBarSize = 20;
     private const double CpuLogicalColumnWidth = 220;
@@ -503,7 +505,7 @@ public sealed class MainPage:ContentPage{
             CellTemplate=new DataTemplate(() => {
                 var layout = new Grid{
                     ColumnDefinitions = {
-                        new ColumnDefinition { Width = new GridLength(34) },
+                        new ColumnDefinition { Width = new GridLength(BenchmarkCellCheckSlotWidth) },
                         new ColumnDefinition { Width = new GridLength(18) },
                         new ColumnDefinition { Width = new GridLength(18) },
                         new ColumnDefinition { Width = GridLength.Star },
@@ -512,7 +514,7 @@ public sealed class MainPage:ContentPage{
                     Padding=new Thickness(1,0),
                     VerticalOptions=LayoutOptions.Center,
                 };
-                var check = this.CreateSfCheckBox(BenchmarkCellCheckBoxSize,BenchmarkCellCheckBoxSize);
+                var check = this.CreateSfCheckBox(BenchmarkCellCheckBoxWidth,BenchmarkCellCheckBoxHeight);
                 check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(cellPath+"."+nameof(BenchmarkProjectCell.IsSelected),BindingMode.TwoWay));
                 check.SetBinding(IsEnabledProperty,cellPath+"."+nameof(BenchmarkProjectCell.HasCase));
                 var icon = new Label{
@@ -1006,8 +1008,7 @@ public sealed class MainPage:ContentPage{
                 return;
             }
 
-            this.TrySetMemberValue(visualContainer,"ScrollerWidth",BenchmarkScrollBarSize);
-            this.TrySetMemberValue(visualContainer,"ScrollerHeight",BenchmarkScrollBarSize);
+            this.ApplyDataGridScrollBarSize(visualContainer);
             this.TryInvokeMember(visualContainer,"UpdateScrollBars");
             visualContainer.InvalidateMeasure();
         }
@@ -1031,16 +1032,62 @@ public sealed class MainPage:ContentPage{
         grid.SizeChanged+=(_,_) => MainThread.BeginInvokeOnMainThread(ApplySafely);
     }
 
+    private void ApplyDataGridScrollBarSize(object visualContainer){
+        this.TrySetMemberValue(visualContainer,"ScrollerWidth",BenchmarkScrollBarSize);
+        this.TrySetMemberValue(visualContainer,"ScrollerHeight",BenchmarkScrollBarSize);
+
+        if(this.TryGetMemberValue(visualContainer,"HorizontalScrollbar") is { } horizontalScrollbar){
+            this.TrySetMemberValue(horizontalScrollbar,"Height",BenchmarkScrollBarSize);
+            this.TrySetMemberValue(horizontalScrollbar,"HeightRequest",BenchmarkScrollBarSize);
+            this.TrySetMemberValue(horizontalScrollbar,"MinimumHeightRequest",BenchmarkScrollBarSize);
+            this.TrySetMemberValue(horizontalScrollbar,"ScrollerHeight",BenchmarkScrollBarSize);
+        }
+
+        if(this.TryGetMemberValue(visualContainer,"VerticalScrollbar") is { } verticalScrollbar){
+            this.TrySetMemberValue(verticalScrollbar,"Width",BenchmarkScrollBarSize);
+            this.TrySetMemberValue(verticalScrollbar,"WidthRequest",BenchmarkScrollBarSize);
+            this.TrySetMemberValue(verticalScrollbar,"MinimumWidthRequest",BenchmarkScrollBarSize);
+            this.TrySetMemberValue(verticalScrollbar,"ScrollerWidth",BenchmarkScrollBarSize);
+        }
+    }
+
+    private object? TryGetMemberValue(object target,string name){
+        const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic;
+        var property = target.GetType().GetProperty(name,flags);
+        if(property is not null&&property.CanRead){
+            return property.GetValue(target);
+        }
+
+        return target.GetType().GetField(name,flags)?.GetValue(target);
+    }
+
     private void TrySetMemberValue(object target,string name,double value){
         const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic;
         var property = target.GetType().GetProperty(name,flags);
         if(property is not null&&property.CanWrite){
-            property.SetValue(target,value);
+            property.SetValue(target,this.ConvertMemberValue(value,property.PropertyType));
             return;
         }
 
         var field = target.GetType().GetField(name,flags);
-        field?.SetValue(target,value);
+        field?.SetValue(target,this.ConvertMemberValue(value,field.FieldType));
+    }
+
+    private object ConvertMemberValue(double value,Type type){
+        var targetType = Nullable.GetUnderlyingType(type)??type;
+        if(targetType==typeof(double)){
+            return value;
+        }
+
+        if(targetType==typeof(float)){
+            return (float)value;
+        }
+
+        if(targetType==typeof(int)){
+            return (int)value;
+        }
+
+        return Convert.ChangeType(value,targetType);
     }
 
     private void TryInvokeMember(object target,string name){

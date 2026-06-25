@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Docker": {
+      "commandName": "Docker",
+      "commandLineArgs": "--logical-cpu 0 --run-root /tmp/seamless-benchmark"
+    }
+  }
+}
