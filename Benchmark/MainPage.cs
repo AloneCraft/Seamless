@@ -101,18 +101,22 @@ public sealed class MainPage:ContentPage{
             return true;
         }
 
-        var closeAction = await this.DisplayActionSheet(
-            "Save benchmark state",
-            "キャンセル",
-            null,
-            "はい",
-            "いいえ");
-        if(closeAction=="はい"){
+        var shouldSave = await this.DisplayAlert(
+            "ベンチマーク状態の保存",
+            "保存して閉じますか？",
+            "保存して閉じる",
+            "保存せずに閉じる");
+        if(shouldSave){
             this.viewModel.SaveUiState();
             return true;
         }
 
-        if(closeAction=="いいえ"){
+        var shouldDiscard = await this.DisplayAlert(
+            "保存せずに閉じる",
+            "保存せずに閉じますか？",
+            "保存せずに閉じる",
+            "キャンセル");
+        if(shouldDiscard){
             this.viewModel.DiscardPendingCloseStateSave();
             return true;
         }

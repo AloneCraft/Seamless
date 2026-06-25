@@ -15,6 +15,11 @@ Console.OutputEncoding=Encoding.UTF8;
 Console.InputEncoding=Encoding.UTF8;
 const string ElementScaleEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_SCALE";
 const string ElementCountEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_COUNT";
+const int BenchmarkLaunchCount = 1;
+const int BenchmarkWarmupCount = 1;
+const int BenchmarkIterationCount = 1;
+const int BenchmarkInvocationCount = 1;
+const int BenchmarkUnrollFactor = 1;
 
 var logicalCpu = ReadRequiredIntArg(args,"--logical-cpu");
 var runRoot = ReadRequiredStringArg(args,"--run-root");
@@ -91,7 +96,13 @@ static WorkerResultMessage RunBenchmark(
         var config = ManualConfig
             .Create(DefaultConfig.Instance)
             .AddDiagnoser(MemoryDiagnoser.Default)
-            .AddJob(Job.Default.WithToolchain(InProcessEmitToolchain.Instance))
+            .AddJob(Job.Default
+                .WithToolchain(InProcessEmitToolchain.Instance)
+                .WithLaunchCount(BenchmarkLaunchCount)
+                .WithWarmupCount(BenchmarkWarmupCount)
+                .WithIterationCount(BenchmarkIterationCount)
+                .WithInvocationCount(BenchmarkInvocationCount)
+                .WithUnrollFactor(BenchmarkUnrollFactor))
             .WithArtifactsPath(task.ArtifactFolder);
         var summaries = BenchmarkSwitcher
             .FromTypes([benchmarkType])
