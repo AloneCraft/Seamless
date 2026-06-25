@@ -5,8 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <RootNamespace>Test.Collections</RootNamespace>
-    <AssemblyName>Test.Collections</AssemblyName>
+    <RootNamespace>Seamless.Collections</RootNamespace>
+    <AssemblyName>Seamless.Collections</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.*" />

@@ -1,7 +1,7 @@
 using Seamless.Tsavorite.Collections;
 using Seamless.Serialization;
 using Seamless.Tsavorite.Stores;
-namespace Test.Collections;
+namespace Seamless.Collections;
 
 public sealed class HashSetHandle<T>(IDisposable store,global::Seamless.Tsavorite.Collections.HashSet<T> set):IDisposable
     where T : IEquatable<T> {
@@ -22,9 +22,9 @@ public readonly struct StringHashSetValueProvider:IHashSetValueProvider<string> 
     public static string Create(int i) => i.ToString();
 }
 /// <summary>
-/// HashSet ï¿½eï¿½Xï¿½gï¿½Ìï¿½ï¿½ï¿½ï¿½í—ªï¿½B
-/// Dictionary ï¿½ï¿½ IDictTestStrategy ï¿½Æ“ï¿½ï¿½lï¿½ÉAï¿½lï¿½ï¿½ï¿½ï¿½ï¿½ÆƒXï¿½gï¿½Aï¿½ï¿½ï¿½ï¿½ï¿½Ì‚İ‚ï¿½Sï¿½ï¿½ï¿½B
-/// ï¿½ï¿½ï¿½ï¿½ï¿½ ITsavoriteHashSet&lt;T&gt; ï¿½ğ’¼ÚŒÄ‚Ñoï¿½ï¿½ï¿½B
+/// HashSet E½eE½XE½gE½Ìï¿½E½E½E½ú³ªE½B
+/// Dictionary E½E½ IDictTestStrategy E½Æ“ï¿½E½lE½ÉAE½lE½E½E½E½E½ÆƒXE½gE½AE½E½E½E½E½Ì‚İ‚ï¿½SE½E½E½B
+/// E½E½E½E½E½ ITsavoriteHashSet&lt;T&gt; E½ğ’¼ÚŒÄ‚ÑoE½E½E½B
 /// </summary>
 public interface IHashSetTestStrategy<T>
     where T : IEquatable<T> {

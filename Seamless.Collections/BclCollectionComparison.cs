@@ -1,4 +1,4 @@
-namespace Test.Collections;
+namespace Seamless.Collections;
 
 public static class BclCollectionComparison{
     public static void SequenceEqual<T>(IEnumerable<T> expected,IEnumerable<T> actual){

@@ -3,6 +3,15 @@
     <RunSettingsFilePath>$(MSBuildThisFileDirectory)test.runsettings</RunSettingsFilePath>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <WorkArtifactsProjectNames>;Benchmark.DotNet.Linq.Enumerable.FLinq;Benchmark.DotNet.Linq.Enumerable.ZLinq;Benchmark.Persisted.Linq.Enumerable.FLinq;Benchmark.Persisted.Linq.Enumerable.Linq;Benchmark.Tsavorite.Linq.Enumerable.FLinq;Benchmark.Tsavorite.Linq.Enumerable.Linq;Seamless.FLinq;Seamless;</WorkArtifactsProjectNames>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([System.String]::Copy('$(WorkArtifactsProjectNames)').Contains(';$(MSBuildProjectName);'))">
+    <UseArtifactsOutput>true</UseArtifactsOutput>
+    <ArtifactsPath>$(MSBuildThisFileDirectory)Work\artifacts</ArtifactsPath>
+  </PropertyGroup>
+
   <PropertyGroup Condition="$([System.String]::Copy('$(MSBuildProjectName)').StartsWith('Benchmark.'))">
     <OutputType>Library</OutputType>
     <GenerateProgramFile>false</GenerateProgramFile>

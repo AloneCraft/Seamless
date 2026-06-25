@@ -1,6 +1,6 @@
 using MemoryPack;
 
-using Test.Collections;
+using Seamless.Collections;
 
 using Seamless.Tsavorite.Collections;
 using Seamless.Tsavorite.Stores;

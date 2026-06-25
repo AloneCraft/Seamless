@@ -7,19 +7,19 @@ namespace Tsavorite.Collection.Shared;
 public class StoreCheckpoint {
     //private static string CreateFolder()=>Path.Combine(Environment.CurrentDirectory,"TsavoriteTest_"+Guid.NewGuid().ToString("N"));
     private static string CreateFolder() => TestPath.Directory<StoreCheckpoint>();
-    [Xunit.Fact]
+    [BenchFact]
     public async Task SaveAsync_CheckpointDirNotSet_ThrowsInvalidOperationException() {
         var ct = CancellationToken.None;
         using var store = Store.Create().Create<int>();
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.SaveAsync(ct: ct));
     }
-    [Xunit.Fact]
+    [BenchFact]
     public async Task LoadAsync_CheckpointDirNotSet_ThrowsInvalidOperationException() {
         var ct = CancellationToken.None;
         using var store = Store.Create().Create<int>();
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.LoadAsync(ct));
     }
-    [Xunit.Fact]
+    [BenchFact]
     public async Task SaveLogOnlyAsync_CheckpointDirNotSet_ThrowsInvalidOperationException() {
         var ct = CancellationToken.None;
         using var store = Store.Create().Create<int>();
@@ -141,7 +141,7 @@ public class StoreCheckpoint {
         }
     }
     [BenchFact,Benchmark]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:繝励Λ繝・ヨ繝輔か繝ｼ繝縺ｮ莠呈鋤諤ｧ繧呈､懆ｨｼ",Justification = "<菫晉蕗荳ｭ>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:繝励Λ繝�Eヨ繝輔か繝ｼ繝縺�E�莠呈鋤諤�E�繧呈､懁E���E�",Justification = "<菫晉蕗荳�E�>")]
     public async Task SaveAsync_LoadAsync_Dictionary_RecoveryIndexRestoresAndReadWorks() {
         var ct = CancellationToken.None;
         var folder = CreateFolder();
@@ -250,7 +250,7 @@ public class StoreCheckpoint {
         }
     }
 
-    [Xunit.Fact]
+    [BenchFact]
     public async Task SaveAsync_CheckpointFailed_ThrowsInvalidOperationException() {
         var ct = CancellationToken.None;
         var folder = CreateFolder();
@@ -260,12 +260,12 @@ public class StoreCheckpoint {
         using var store = Store.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
         using var set = store.Create();
         set.Add(1);
-        // SaveAsync 縺悟酔譛溽噪縺ｫ繝ｭ繝・け繧貞叙蠕励＠縺ｦ縺九ｉ髱槫酔譛・I/O 繧貞ｾ・ｩ溘☆繧九◆繧√・        // await 縺帙★繧ｿ繧ｹ繧ｯ繧剃ｿ晄戟縺励※縺翫￥縺薙→縺ｧ繝ｭ繝・け縺悟叙蠕励＆繧後◆迥ｶ諷九ｒ邯ｭ謖√〒縺阪ｋ
+        // SaveAsync 縺悟�E譛溽噪縺�E�繝ｭ繝�Eけ繧貞叙蠕励�E�縺�E�縺九ｉ髱槫酔譛�EI/O 繧貞ｾ・�E�溘�E繧九◆繧√・        // await 縺帙�E繧�E�繧�E�繧�E�繧剁E��晁E��縺励※縺翫�E�縺薙�E縺�E�繝ｭ繝�Eけ縺悟叙蠕励�E�E��後◆迥�E�諷九ｒ邯�E�謖�E〒縺阪�E�E
         var ongoingCheckpoint = store.SaveAsync(ct: ct).AsTask();
         await Assert.ThrowsAsync<InvalidOperationException>(() => store.SaveAsync(ct: ct).AsTask());
         await ongoingCheckpoint;
     }
-    [Xunit.Fact]
+    [BenchFact]
     public async Task SaveLogOnlyAsync_CheckpointFailed_ThrowsInvalidOperationException() {
         var ct = CancellationToken.None;
         var folder = CreateFolder();
@@ -275,12 +275,12 @@ public class StoreCheckpoint {
         using var store = Store.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
         using var set = store.Create();
         set.Add(1);
-        // SaveLogOnlyAsync 縺悟酔譛溽噪縺ｫ繝ｭ繝・け繧貞叙蠕励＠縺ｦ縺九ｉ髱槫酔譛・I/O 繧貞ｾ・ｩ溘☆繧九◆繧√・        // await 縺帙★繧ｿ繧ｹ繧ｯ繧剃ｿ晄戟縺励※縺翫￥縺薙→縺ｧ繝ｭ繝・け縺悟叙蠕励＆繧後◆迥ｶ諷九ｒ邯ｭ謖√〒縺阪ｋ
+        // SaveLogOnlyAsync 縺悟�E譛溽噪縺�E�繝ｭ繝�Eけ繧貞叙蠕励�E�縺�E�縺九ｉ髱槫酔譛�EI/O 繧貞ｾ・�E�溘�E繧九◆繧√・        // await 縺帙�E繧�E�繧�E�繧�E�繧剁E��晁E��縺励※縺翫�E�縺薙�E縺�E�繝ｭ繝�Eけ縺悟叙蠕励�E�E��後◆迥�E�諷九ｒ邯�E�謖�E〒縺阪�E�E
         var ongoingCheckpoint = store.SaveLogOnlyAsync(ct: ct).AsTask();
         await Assert.ThrowsAsync<InvalidOperationException>(() => store.SaveLogOnlyAsync(ct: ct).AsTask());
         await ongoingCheckpoint;
     }
-    [Xunit.Fact]
+    [BenchFact]
     public async Task SaveAsync_CompleteCheckpointAsyncCanceled_ThrowsOperationCanceledException() {
         var folder = CreateFolder();
         var checkpointDir = folder+"_checkpoint";
@@ -295,9 +295,9 @@ public class StoreCheckpoint {
     }
     [SupportedOSPlatform("windows")]
     private class SimulatedFlakyDevice(string path):LocalStorageDevice(path,false,false,false,-1,false,false,false) {
-        // 螟ｱ謨励＆縺帙ｋ縺九←縺・°縺ｮ繧ｹ繧､繝・メ
+        // 螟ｱ謨励�E�E��帙ｋ縺九�E縺・°縺�E�繧�E�繧�E�繝�Eメ
         public bool ShouldFail { get; set; } = false;
-        // 繝√ぉ繝・け繝昴う繝ｳ繝磯ｲ陦御ｸｭ迥ｶ諷九ｒ菴懊ｋ縺溘ａ縺ｮ驕・ｻｶ(ms)
+        // 繝�Eぉ繝�Eけ繝昴ぁE��ｳ繝磯�E�陦御�E��E�迥�E�諷九ｒ菴懊ｋ縺溘ａ縺�E�驕�E�E��E�(ms)
         public int WriteDelayMilliseconds { get; set; } = 0;
 
         public override void WriteAsync(IntPtr srcAddress,int alignedSourceNextAddress,ulong alignedDestinationAddress,uint numBytesToWrite,DeviceIOCompletionCallback callback,object callbackContext) {

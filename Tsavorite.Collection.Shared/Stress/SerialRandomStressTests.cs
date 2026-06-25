@@ -1,13 +1,11 @@
 using Seamless.Tsavorite.Stores;
 using System.Linq;
 using Tsavorite.core;
-using Test.Collections;
+using Seamless.Collections;
 namespace Tsavorite.Collection.Shared.Stress;
 
 /// <summary>
-/// シングルスレッドの決定論的 Add/Save/Load/Contains/Remove 連続実行テスト。
-/// 同じシードで毎回同じハッシュ結果になることを確認する。
-/// </summary>
+/// シングルスレチE��の決定論的 Add/Save/Load/Contains/Remove 連続実行テスト、E/// 同じシードで毎回同じハッシュ結果になることを確認する、E/// </summary>
 public class SerialRandomStressTests {
     private const int Seed = 20260417;
     private const double RemoveRate = 0.5;

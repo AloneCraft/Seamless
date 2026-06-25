@@ -29,13 +29,13 @@
   <ItemGroup>
     <Using Include="Benchmark.Shared" />
     <Using Include="BenchmarkDotNet.Attributes" />
-    <Using Include="Test.Collections" />
+    <Using Include="Seamless.Collections" />
     <Using Include="Xunit" />
     <Using Include="ZLinq" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
-    <ProjectReference Include="..\Test.Collections\Test.Collections.csproj" />
+    <ProjectReference Include="..\Seamless.Collections\Seamless.Collections.csproj" />
   </ItemGroup>
   <Import Project="..\Persisted.Collection.Shared\Persisted.Collection.Shared.projitems" Label="Shared" />
 </Project>

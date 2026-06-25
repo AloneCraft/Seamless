@@ -17,7 +17,6 @@
     <PackageReference Include="MemoryPack" Version="1.*" />
     <PackageReference Include="Microsoft.Garnet" Version="2.0.1-beta.5" />
     <PackageReference Include="ZLinq" Version="1.5.6" />
-    <PackageReference Include="xunit" Version="2.9.3" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="BenchmarkDotNet.Attributes" />
@@ -27,13 +26,12 @@
     <Using Include="Seamless.Serialization" />
     <Using Include="Seamless.Tsavorite.Collections" />
     <Using Include="Seamless.Tsavorite.Stores" />
-    <Using Include="Test.Collections" />
-    <Using Include="Xunit" />
+    <Using Include="Seamless.Collections" />
     <Using Include="ZLinq" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
-    <ProjectReference Include="..\Test.Collections\Test.Collections.csproj" />
+    <ProjectReference Include="..\Seamless.Collections\Seamless.Collections.csproj" />
   </ItemGroup>
   <Import Project="..\Tsavorite.Collection.Shared\Tsavorite.Collection.Shared.projitems" Label="Shared" />
 </Project>

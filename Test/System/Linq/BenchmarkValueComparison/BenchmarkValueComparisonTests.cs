@@ -7,7 +7,7 @@ namespace Test.System.Linq.BenchmarkValueComparison;
 public sealed class BenchmarkValueComparisonTests {
     private const int ComparisonElementCount = 1_000;
     private const string BenchmarkExecutionModeTypeName = "Benchmark.Shared.BenchmarkExecutionMode";
-    private const string Methods1TypeName = "Shared.Linq.Enumerable.Methods1";
+    private const string Methods1TypeName = "Seamless.Linq.Enumerable.Shared.Methods1";
 
     [Fact]
     public void Methods1_results_match() {

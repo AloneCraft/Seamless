@@ -47,7 +47,7 @@ namespace Test.Seamless.Database.Example {
 
 #if TSAVORITE1_1_1
         private static byte[] RoundTrip_Tsavorite1_1_1(byte[] keyBytes,byte[] valueBytes) {
-            var folder = global::Test.Collections.TestPath.Directory<使い方>();
+            var folder = global::Seamless.Collections.TestPath.Directory<使い方>();
             using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true);
 
             using var settings = new KVSettings<SpanByte,SpanByte> {

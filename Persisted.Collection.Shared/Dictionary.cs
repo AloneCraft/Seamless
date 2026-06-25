@@ -1,4 +1,4 @@
-using Test.Collections;
+using Seamless.Collections;
 
 namespace Persisted.Collection.Shared;
 

@@ -21,6 +21,15 @@ public sealed class BenchFactAttribute : Attribute;
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 public sealed class FactAttribute : Attribute;
 
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+public sealed class TheoryAttribute : Attribute;
+
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
+public sealed class InlineDataAttribute(params object?[] data) : Attribute
+{
+    public object?[] Data { get; } = data;
+}
+
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
 public sealed class TraitAttribute(string name, string value) : Attribute
 {

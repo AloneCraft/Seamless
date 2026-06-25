@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
 
-namespace Test.Collections;
+namespace Seamless.Collections;
 
 public static class TestPath {
     public static string Directory(object owner,params string[] segments) =>
