@@ -13,8 +13,10 @@ public sealed class BenchmarkTestIterationsAttribute(int count):Attribute {
 public static class BenchmarkExecutionMode {
     private const string TestModeKey = "Benchmark.Shared.TestMode";
     private const string ElementScaleKey = "SEAMLESS_BENCHMARK_ELEMENT_SCALE";
+    private const string ElementCountKey = "SEAMLESS_BENCHMARK_ELEMENT_COUNT";
     private static readonly AsyncLocal<int?> ComparisonElementLimit = new();
     private static readonly Lazy<double> ElementScale = new(ReadElementScale);
+    private static readonly Lazy<int?> ElementCount = new(ReadElementCount);
 
     public static bool IsTestMode =>
 #if BENCH_AS_TEST
@@ -48,6 +50,9 @@ public static class BenchmarkExecutionMode {
         if(elementCount<=0) {
             return elementCount;
         }
+        if(ElementCount.Value is { } absoluteCount) {
+            return absoluteCount;
+        }
 
         var scaled = elementCount*ElementScale.Value;
         if(!double.IsFinite(scaled)||scaled<=1) {
@@ -66,6 +71,14 @@ public static class BenchmarkExecutionMode {
             &&scale>0
             ? scale
             : 1;
+    }
+
+    private static int? ReadElementCount() {
+        var text = Environment.GetEnvironmentVariable(ElementCountKey);
+        return int.TryParse(text,System.Globalization.NumberStyles.Integer,System.Globalization.CultureInfo.InvariantCulture,out var count)
+            &&count>0
+            ? count
+            : null;
     }
 }
 

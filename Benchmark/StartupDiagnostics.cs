@@ -2,6 +2,12 @@ namespace Benchmark;
 
 internal static class StartupDiagnostics{
     private static readonly object Gate = new();
+    private static readonly string[] SyncfusionAssemblyNames = [
+        "Syncfusion.Licensing",
+        "Syncfusion.Maui.Core",
+        "Syncfusion.Maui.DataGrid",
+        "Syncfusion.Maui.Toolkit",
+    ];
 
     public static string LogPath { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -35,7 +41,39 @@ internal static class StartupDiagnostics{
         }
     }
 
+    public static void WriteSyncfusionAssemblies(string context){
+        try{
+            foreach(var assemblyName in SyncfusionAssemblyNames){
+                var assembly = AppDomain.CurrentDomain
+                    .GetAssemblies()
+                    .FirstOrDefault(assembly => string.Equals(
+                        assembly.GetName().Name,
+                        assemblyName,
+                        StringComparison.OrdinalIgnoreCase));
+                if(assembly is null){
+                    Write($"{context}: {assemblyName} is not loaded.");
+                    continue;
+                }
+
+                var location = assembly.Location;
+                var productVersion = "";
+                var fileVersion = "";
+                if(!string.IsNullOrWhiteSpace(location) && File.Exists(location)){
+                    var info = System.Diagnostics.FileVersionInfo.GetVersionInfo(location);
+                    productVersion=info.ProductVersion ?? "";
+                    fileVersion=info.FileVersion ?? "";
+                }
+
+                Write(
+                    $"{context}: {assemblyName} assembly={assembly.GetName().Version} product={productVersion} file={fileVersion} location={location}");
+            }
+        }catch(Exception ex){
+            Write($"{context}: failed to inspect Syncfusion assemblies.",ex);
+        }
+    }
+
     public static ContentPage CreateErrorPage(string title,Exception exception){
+        WriteSyncfusionAssemblies("CreateErrorPage");
         return new ContentPage{
             Title=title,
             BackgroundColor=Color.FromArgb("#F8FAFC"),

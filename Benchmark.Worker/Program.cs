@@ -14,6 +14,7 @@ using BenchmarkDotNet.Toolchains.InProcess.Emit;
 Console.OutputEncoding=Encoding.UTF8;
 Console.InputEncoding=Encoding.UTF8;
 const string ElementScaleEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_SCALE";
+const string ElementCountEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_COUNT";
 
 var logicalCpu = ReadRequiredIntArg(args,"--logical-cpu");
 var runRoot = ReadRequiredStringArg(args,"--run-root");
@@ -77,11 +78,15 @@ static WorkerResultMessage RunBenchmark(
     var originalOut = Console.Out;
     var originalError = Console.Error;
     var previousScale = Environment.GetEnvironmentVariable(ElementScaleEnvironmentVariable);
+    var previousElementCount = Environment.GetEnvironmentVariable(ElementCountEnvironmentVariable);
     Console.SetOut(logWriter);
     Console.SetError(logWriter);
     try{
         ApplyAffinity(logicalCpu);
         Environment.SetEnvironmentVariable(ElementScaleEnvironmentVariable,string.IsNullOrWhiteSpace(task.ElementScale)?"1":task.ElementScale);
+        Environment.SetEnvironmentVariable(
+            ElementCountEnvironmentVariable,
+            task.ElementCount>0?task.ElementCount.ToString(CultureInfo.InvariantCulture):null);
         var benchmarkType = ResolveBenchmarkType(task.AssemblyName,task.TypeFullName);
         var config = ManualConfig
             .Create(DefaultConfig.Instance)
@@ -112,6 +117,7 @@ static WorkerResultMessage RunBenchmark(
             log);
     }finally{
         Environment.SetEnvironmentVariable(ElementScaleEnvironmentVariable,previousScale);
+        Environment.SetEnvironmentVariable(ElementCountEnvironmentVariable,previousElementCount);
         Console.SetOut(protocolOutput);
         Console.SetError(protocolError);
     }
@@ -206,6 +212,7 @@ internal sealed record WorkerTaskMessage(
     string AssemblyName,
     string TypeFullName,
     string MethodName,
+    int ElementCount,
     string ElementScale,
     string ArtifactFolder);
 

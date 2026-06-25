@@ -355,15 +355,34 @@ public sealed class BenchmarkQueueService:IBenchmarkQueueService {
     }
 }
 
-public interface IBenchmarkWorkerProcessService {
+public interface IBenchmarkWorkerProcessService:IBenchmarkJobRunner {
     Task<BenchmarkRunResult> RunAsync(BenchmarkCase benchmark,string runRoot,string scale,int logicalCpu,CancellationToken cancellationToken);
 }
 
 public sealed class BenchmarkWorkerProcessService:IBenchmarkWorkerProcessService {
     private readonly BenchmarkWorkerClient client = new();
 
-    public Task<BenchmarkRunResult> RunAsync(BenchmarkCase benchmark,string runRoot,string scale,int logicalCpu,CancellationToken cancellationToken) =>
-        client.RunAsync(benchmark,runRoot,scale,logicalCpu,cancellationToken);
+    public Task<BenchmarkJobRunResult> RunAsync(BenchmarkJob job,string runRoot,int logicalCpu,TimeSpan timeout,CancellationToken cancellationToken) =>
+        client.RunAsync(job,runRoot,logicalCpu,timeout,cancellationToken);
+
+    public async Task<BenchmarkRunResult> RunAsync(BenchmarkCase benchmark,string runRoot,string scale,int logicalCpu,CancellationToken cancellationToken) {
+        var result = await client.RunAsync(benchmark,runRoot,0,scale,logicalCpu,TimeSpan.FromMinutes(60),cancellationToken);
+        return new BenchmarkRunResult(
+            result.Project,
+            result.Method,
+            result.TypeFullName,
+            result.Status,
+            result.Mean,
+            result.Error,
+            result.StdDev,
+            result.MeanNanoseconds,
+            result.ErrorNanoseconds,
+            result.StdDevNanoseconds,
+            result.AllocatedBytes,
+            result.ExitCode,
+            result.ArtifactFolder,
+            result.Log);
+    }
 }
 
 public interface IBenchmarkResultService {
@@ -372,11 +391,14 @@ public interface IBenchmarkResultService {
 
 public sealed class BenchmarkResultService:IBenchmarkResultService {
     public ReportRow ToReportRow(BenchmarkResultItem item) {
+        var method = item.ElementCount>0
+            ? item.Method+" [N="+item.ElementCount.ToString(CultureInfo.InvariantCulture)+"]"
+            : item.Method;
         return new ReportRow(
             item.Project,
-            item.Method,
+            method,
             string.Empty,
-            item.Method,
+            method,
             item.Status,
             item.Mean,
             string.Empty,
@@ -529,7 +551,9 @@ public interface IBenchmarkRunService {
     Task<BenchmarkRunReport> RunAsync(
         IReadOnlyList<BenchmarkCase> benchmarks,
         IReadOnlyList<int> logicalCpus,
-        string scale,
+        IReadOnlyList<int> elementCounts,
+        BenchmarkRunMode mode,
+        TimeSpan adaptiveThreshold,
         Action<BenchmarkResultItem> resultReceived,
         Action<string> statusChanged,
         CancellationToken cancellationToken);
@@ -555,10 +579,33 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
     public async Task<BenchmarkRunReport> RunAsync(
         IReadOnlyList<BenchmarkCase> benchmarks,
         IReadOnlyList<int> logicalCpus,
-        string scale,
+        IReadOnlyList<int> elementCounts,
+        BenchmarkRunMode mode,
+        TimeSpan adaptiveThreshold,
         Action<BenchmarkResultItem> resultReceived,
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
+        var orchestrationRoot = FindSolutionRoot() ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Seamless");
+        var benchmarkRoot = Path.Combine(orchestrationRoot,"Work","Benchmark");
+        var orchestrator = new BenchmarkOrchestrator(
+            new BenchmarkStateManager(benchmarkRoot),
+            new BenchmarkResultWriter(),
+            this.workerService);
+        var request = new BenchmarkRunRequest(
+            benchmarks,
+            logicalCpus,
+            elementCounts,
+            mode,
+            adaptiveThreshold,
+            TimeSpan.FromMinutes(60));
+        var orchestratorResult = await orchestrator.RunAsync(
+            request,
+            update => resultReceived(new BenchmarkResultItem(update.Job)),
+            statusChanged,
+            cancellationToken);
+        return new BenchmarkRunReport(orchestratorResult.RunRoot,orchestratorResult.CsvPaths);
+
+        var scale = "1";
         var runRoot = CreateRunRoot();
         var queue = queueService.CreateQueue(benchmarks);
         var results = new List<BenchmarkResultItem>();

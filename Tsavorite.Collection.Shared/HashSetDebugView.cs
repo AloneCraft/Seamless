@@ -4,7 +4,7 @@
 
 //public class HashSetDebugView{
 //    [BenchFact,Benchmark]
-//    public void Items_�S�G���g����Ԃ�(){
+//    public void Items_ReturnsAllEntries(){
 //        using var store=Store.Create().CreateHashSet<int>();
 //        using HashSet<int> set=store.Create();
 //        set.Add(10);
@@ -16,7 +16,7 @@
 //        Assert.Contains(20,items);
 //    }
 //    [BenchFact,Benchmark]
-//    public void ctor_null_��O(){
+//    public void ctor_null_throws(){
 //        Assert.Throws<ArgumentNullException>(()=>new DebugView<int>(null!));
 //    }
 //}

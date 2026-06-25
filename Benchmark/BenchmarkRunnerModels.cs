@@ -15,6 +15,11 @@ public enum BenchmarkMetricKind{
     Allocated,
 }
 
+public enum BenchmarkChartMode{
+    ElementComparison,
+    ScaleTrend,
+}
+
 public enum BenchmarkGridSortColumn{
     BenchmarkName,
     SystemRatioTime,
@@ -41,7 +46,31 @@ public sealed record ComparisonPairOption(string Key,string DisplayName,string L
 
 public sealed record ScaleOption(string DisplayName,string RunValue);
 
+public sealed class ElementCountOption:ObservableObject{
+    private bool isSelected;
+
+    public ElementCountOption(int value,bool isSelected){
+        this.Value=value;
+        this.DisplayName="N="+value.ToString("N0",CultureInfo.InvariantCulture);
+        this.isSelected=isSelected;
+    }
+
+    public int Value { get; }
+    public string DisplayName { get; }
+
+    public bool IsSelected{
+        get => this.isSelected;
+        set => this.SetProperty(ref this.isSelected,value);
+    }
+}
+
+public sealed record RunModeOption(string DisplayName,BenchmarkRunMode Mode);
+
 public sealed record MetricOption(string DisplayName,BenchmarkMetricKind Kind);
+
+public sealed record ChartModeOption(string DisplayName,BenchmarkChartMode Mode);
+
+public sealed record ResultElementCountOption(int Value,string DisplayName);
 
 public readonly record struct BenchmarkSortValue(string? Text,double? Number,bool IsMissing){
     public static BenchmarkSortValue FromText(string text) => new(text,null,string.IsNullOrWhiteSpace(text));
@@ -383,7 +412,9 @@ public sealed class CpuTableCell:ObservableObject{
     }
 }
 
-public sealed class CpuTableRow{
+public sealed class CpuTableRow:ObservableObject{
+    private CpuSelectionState state;
+
     public CpuTableRow(string label,CpuCoreKind coreKind,IReadOnlyList<CpuTableCell> cells,int columnCount){
         this.Label=label;
         this.CoreKind=coreKind;
@@ -392,12 +423,36 @@ public sealed class CpuTableRow{
             .Cast<CpuTableCell?>()
             .Concat(Enumerable.Repeat<CpuTableCell?>(null,Math.Max(0,columnCount-cells.Count)))
             .ToArray();
+        foreach(var cell in cells){
+            cell.PropertyChanged+=(_,args) => {
+                if(args.PropertyName==nameof(CpuTableCell.IsSelected)){
+                    this.RefreshState();
+                }
+            };
+        }
+        this.RefreshState();
     }
 
     public string Label { get; }
     public CpuCoreKind CoreKind { get; }
     public IReadOnlyList<CpuTableCell> Cells { get; }
     public IReadOnlyList<CpuTableCell?> GridCells { get; }
+    public CpuSelectionState State{
+        get => this.state;
+        private set{
+            if(this.SetProperty(ref this.state,value)){
+                this.OnPropertyChanged(nameof(this.IsChecked));
+            }
+        }
+    }
+    public bool IsChecked{
+        get => this.State==CpuSelectionState.Checked;
+        set{
+            foreach(var cell in this.Cells){
+                cell.IsSelected=value;
+            }
+        }
+    }
     public string BadgeText => this.CoreKind switch{
         CpuCoreKind.Performance => "P",
         CpuCoreKind.Efficiency => "E",
@@ -413,6 +468,23 @@ public sealed class CpuTableRow{
         CpuCoreKind.Efficiency => Color.FromArgb("#15803D"),
         _ => Color.FromArgb("#475569"),
     };
+
+    public void RefreshState(){
+        this.State=GetState(this.Cells);
+    }
+
+    private static CpuSelectionState GetState(IReadOnlyList<CpuTableCell> cells){
+        if(cells.Count==0){
+            return CpuSelectionState.Unchecked;
+        }
+
+        var selected = cells.Count(static cell => cell.IsSelected);
+        return selected==0
+            ? CpuSelectionState.Unchecked
+            : selected==cells.Count
+                ? CpuSelectionState.Checked
+                : CpuSelectionState.Mixed;
+    }
 }
 
 public sealed class CpuTableColumn:ObservableObject{
@@ -434,12 +506,14 @@ public sealed class CpuTableColumn:ObservableObject{
         CpuSelectionState.Mixed => "[-]",
         _ => "[ ]",
     };
+    public bool IsChecked => this.Section?.GetColumnState(this.Index)==CpuSelectionState.Checked;
     public string DisplayText => string.IsNullOrEmpty(this.StateText) ? this.Title : this.StateText+" "+this.Title;
     public string HeaderText => "T"+this.Index;
 
     public void Refresh(){
         this.OnPropertyChanged(nameof(this.StateText));
         this.OnPropertyChanged(nameof(this.StateGlyph));
+        this.OnPropertyChanged(nameof(this.IsChecked));
         this.OnPropertyChanged(nameof(this.DisplayText));
     }
 }
@@ -517,6 +591,9 @@ public sealed class CpuTableSection:ObservableObject{
 
     public void RefreshState(){
         this.State=GetState(this.Cells.ToArray());
+        foreach(var row in this.Rows){
+            row.RefreshState();
+        }
         foreach(var column in this.Columns){
             column.Refresh();
         }
@@ -543,9 +620,26 @@ public enum CpuSelectionState{
 }
 
 public sealed class BenchmarkResultItem{
+    public BenchmarkResultItem(BenchmarkJob job){
+        this.Project=job.Project;
+        this.Method=job.MethodName;
+        this.ElementCount=job.ElementCount;
+        this.Name=job.Project+" / "+job.MethodName+" / N="+job.ElementCount.ToString(CultureInfo.InvariantCulture);
+        this.Status=job.Status.ToString();
+        this.Mean=job.Status==JobStatus.Failed&&string.IsNullOrWhiteSpace(job.Mean) ? "Failed" : job.Mean;
+        this.AllocatedBytes=job.AllocatedBytes?.ToString("N0",CultureInfo.InvariantCulture)??string.Empty;
+        this.AllocatedBytesValue=job.AllocatedBytes;
+        this.MeanNanoseconds=job.MeanNanoseconds;
+        this.ErrorNanoseconds=job.ErrorNanoseconds;
+        this.StdDevNanoseconds=job.StdDevNanoseconds;
+        this.ArtifactFolder=job.ArtifactFolder;
+        this.ExitCode=job.ExitCode;
+    }
+
     public BenchmarkResultItem(BenchmarkRunResult result){
         this.Project=result.Project;
         this.Method=result.Method;
+        this.ElementCount=0;
         this.Name=result.Project+" / "+result.Method;
         this.Status=result.Status;
         this.Mean=result.Mean;
@@ -561,6 +655,7 @@ public sealed class BenchmarkResultItem{
     public BenchmarkResultItem(string project,string method,ProjectMetrics metrics){
         this.Project=project;
         this.Method=method;
+        this.ElementCount=0;
         this.Name=project+" / "+method;
         this.Status=metrics.HasValue?"Completed":"Missing";
         this.Mean=metrics.HasValue&&metrics.TimeNanoseconds is { } time ? BenchmarkFormatting.FormatNanoseconds(time) : string.Empty;
@@ -576,6 +671,7 @@ public sealed class BenchmarkResultItem{
     private BenchmarkResultItem(BenchmarkCase benchmark,Exception exception){
         this.Project=benchmark.Project;
         this.Method=benchmark.MethodName;
+        this.ElementCount=0;
         this.Name=benchmark.Project+" / "+benchmark.MethodName;
         this.Status="Failed";
         this.Mean=exception.GetType().Name;
@@ -586,6 +682,7 @@ public sealed class BenchmarkResultItem{
 
     public string Project { get; }
     public string Method { get; }
+    public int ElementCount { get; }
     public string Name { get; }
     public string Status { get; }
     public string Mean { get; }
@@ -630,4 +727,9 @@ public sealed class ChartComparisonPoint{
     public double? Ratio { get; }
 }
 
-public sealed record BenchmarkRunReport(string? CsvPath);
+public sealed record BenchmarkRunReport(string? RunRoot,IReadOnlyList<string> CsvPaths){
+    public BenchmarkRunReport(string? csvPath):this(csvPath,string.IsNullOrWhiteSpace(csvPath)?[]:[csvPath]){
+    }
+
+    public string? CsvPath => this.CsvPaths.FirstOrDefault();
+}

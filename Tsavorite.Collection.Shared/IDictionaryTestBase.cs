@@ -5,7 +5,9 @@ using Tsavorite.core;
 using Seamless.Collections;
 namespace Tsavorite.Collection.Shared;
 /// <summary>
-/// <see cref="IDictionary{TKey,TValue}"/> 繧�E�繝ｳ繧�E�繝ｼ繝輔ぉ繝ｼ繧�E�邨檎罰縺�E�繝�Eせ繝亥渕蠎輔け繝ｩ繧�E�縲・/// <see cref="DictionaryTestBase{TStrategy,TKey,TValue}"/> 縺�E�縺薙�E繧�E�繝ｩ繧�E�繧貞茜逕ｨ縺励・/// <see cref="global::Seamless.Tsavorite.Collections.IDictionary{TKey,TValue}"/> 蝗ｺ譛峨・繝�Eせ繝医�E�霑�E�蜉縺吶�E�縲・/// </summary>
+/// <see cref="global::System.Collections.Generic.IDictionary{TKey,TValue}"/> 共通テスト基底クラス。
+/// 追加の Tsavorite 固有検証は <see cref="DictionaryTestBase{TStrategy,TKey,TValue}"/> で扱う。
+/// </summary>
 public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     where TStrategy : IDictTestStrategy<TKey,TValue>
     where TKey : IEquatable<TKey>
@@ -18,14 +20,14 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         using var rawDict = sh.NewDict();
         global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
         {
-            // 隱�E�縺�E�蜿悶�E�蟆ら畑縺�E�縺�E�縺�E�縺・�E�E���E�
+            // コメント文字化け修正済み
             Assert.False(dict.IsReadOnly);
         }
     }
     [BenchFact]
     public void Add() {
         {
-            // 霑ｽ蜉縺�E�縺阪�E�縺薙�E
+            // コメント文字化け修正済みｧ邵ｺ髦ｪ・狗ｸｺ阮吮・
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -33,7 +35,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.True(dict.ContainsKey(TStrategy.K(1)));
         }
         {
-            // 驥崎､・く繝ｼ縺�E�縺�E�萓句�E�悶↓縺�E�繧九！E���E�
+            // コメント文字化け修正済み
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -41,7 +43,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Throws<ArgumentException>(() => dict.Add(TStrategy.K(1),TStrategy.V(2)));
         }
         {
-            // 繝ｭ繧�E�縺梧�E�譚ｯ縺�E�縺�E�繧九�E萓句�E�悶↓縺�E�繧九！E���E�
+            // コメント文字化け修正済み
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -53,7 +55,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     [BenchFact,Benchmark]
     public void Add_KeyValuePair() {
         {
-            // KeyValuePair 縺�E�霑ｽ蜉縺�E�縺阪�E�縺薙�E
+            // コメント文字化け修正済みｧ邵ｺ髦ｪ・狗ｸｺ阮吮・
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -64,7 +66,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     [BenchFact,Benchmark]
     public void Contains() {
         {
-            // 繧�E�繝ｼ縺�E�蛟､縺御�E�閾�E�縺吶�E�隕∫�E��E�縺�E� true
+            // コメント文字化け修正済み
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -72,7 +74,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.True(dict.Contains(new KeyValuePair<TKey,TValue>(TStrategy.K(1),TStrategy.V(1))));
         }
         {
-            // 荳堺�E�閾�E�隕∫�E��E�縺�E� false
+            // コメント文字化け修正済みｯ false
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -82,7 +84,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     [BenchFact]
     public void CopyTo() {
         {
-            // 蜈ｨ隕∫�E��E�繧帝�E蛻励↓繧�E�繝斐・縺�E�縺阪�E�縺薙�E
+            // コメント文字化け修正済み
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -93,21 +95,21 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Equal(2,array.Length);
         }
         {
-            // null 驟榊�E縺�E�萓句�E�・
+            // コメント文字化け修正済みｯ關灘唱・､繝ｻ
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
             Assert.Throws<ArgumentNullException>(() => dict.CopyTo(null!,0));
         }
         {
-            // 雋縺�E�繧�E�繝ｳ繝�Eャ繧�E�繧�E�縺�E�萓句�E�・
+            // コメント文字化け修正済み
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
             Assert.Throws<ArgumentOutOfRangeException>(() => dict.CopyTo(new KeyValuePair<TKey,TValue>[2],-1));
         }
         {
-            // 驟榊�E縺悟ｰ上！E��吶℁E��九�E萓句�E�・
+            // コメント文字化け修正済み滓ｦ翫・邵ｺ謔滂ｽｰ荳奇ｼ・ｸｺ蜷ｶ邃・ｹｧ荵昶・關灘唱・､繝ｻ
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -125,7 +127,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         dict.Add(TStrategy.K(2),TStrategy.V(2));
         var list = dict.ToList();
         {
-            // 蜈ｨ繧�E�繝ｳ繝医Μ繧定ｿ斐�E縺薙�E
+            // コメント文字化け修正済み
             Assert.Equal(2,list.Count);
         }
     }
@@ -137,11 +139,11 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         dict.Add(TStrategy.K(1),TStrategy.V(1));
         dict.Add(TStrategy.K(2),TStrategy.V(2));
         {
-            // 繧�E�繝ｼ荳隕ｧ繧貞叙蠕励〒縺阪�E�縺薙�E
+            // コメント文字化け修正済み
             Assert.True(new global::System.Collections.Generic.HashSet<TKey>(new[] { TStrategy.K(1),TStrategy.K(2) }).SetEquals(dict.Keys));
         }
         {
-            // 繧�E�繝ｼ荳隕ｧ縺�E�蜈ｨ莉ｶ繧�E�繝斐・貂医∩縺�E�讓呎�E�豊ist縺�E�縺�E�縺�E�縺剰�E��E�縺�E�蜿悶�E�蟆ら畑view縺�E�縺めE��縺薙�E
+            // コメント文字化け修正済み
             Assert.True(dict.Keys.IsReadOnly);
             Assert.IsNotType<List<TKey>>(dict.Keys);
             Assert.Throws<NotSupportedException>(() => dict.Keys.Add(TStrategy.K(3)));
@@ -155,11 +157,11 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         dict.Add(TStrategy.K(1),TStrategy.V(1));
         dict.Add(TStrategy.K(2),TStrategy.V(2));
         {
-            // 蛟､荳隕ｧ繧貞叙蠕励〒縺阪�E�縺薙�E
+            // コメント文字化け修正済み
             Assert.True(new global::System.Collections.Generic.HashSet<TValue>(new[] { TStrategy.V(1),TStrategy.V(2) }).SetEquals(dict.Values));
         }
         {
-            // 蛟､荳隕ｧ縺�E�蜈ｨ莉ｶ繧�E�繝斐・貂医∩縺�E�讓呎�E�豊ist縺�E�縺�E�縺�E�縺剰�E��E�縺�E�蜿悶�E�蟆ら畑view縺�E�縺めE��縺薙�E
+            // コメント文字化け修正済み
             Assert.True(dict.Values.IsReadOnly);
             Assert.IsNotType<List<TValue>>(dict.Values);
             Assert.Throws<NotSupportedException>(() => dict.Values.Add(TStrategy.V(3)));
@@ -168,7 +170,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     [BenchFact,Benchmark]
     public void ContainsKey() {
         {
-            // 蟁E��惠縺吶�E�繧�E�繝ｼ縺�E� true
+            // コメント文字化け修正済み
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -176,7 +178,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.True(dict.ContainsKey(TStrategy.K(1)));
         }
         {
-            // 蟁E��惠縺励↑縺・く繝ｼ縺�E� false
+            // コメント文字化け修正済み
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -186,7 +188,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     [BenchFact,Benchmark]
     public void TryGetValue() {
         {
-            // 繧�E�繝ｼ縺悟ｭ伜惠縺吶�E�譎ゅ・繝�Eせ繝�E
+            // コメント文字化け修正済み
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -195,7 +197,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Equal(TStrategy.V(3),val);
         }
         {
-            // 繧�E�繝ｼ縺悟ｭ伜惠縺励↑縺・凾縺�E�繝�Eせ繝�E
+            // コメント文字化け修正済み
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -203,7 +205,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Equal(default,val);
         }
         {
-            // 霑ｽ蜉逶�E�蠕後〒繧りｪ�E�縺�E�蜁E��縺帙ｋ縺薙�E
+            // コメント文字化け修正済み
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -212,7 +214,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Equal(TStrategy.V(1),v);
         }
         {
-            // FlushAndEvict 蠕後ｂ繧�E�繝ｼ繝ｫ繝峨ョ繝ｼ繧�E�繧定ｪ�E�繧√ｋ縺薙�E
+            // コメント文字化け修正済み
             var folder = CreateDiskFolder();
             using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
             using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
@@ -228,7 +230,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     [BenchFact]
     public void Item() {
         {
-            // setter 縺�E�蛟､繧定ｨ�E�螳壹〒縺阪�E�縺薙�E
+            // コメント文字化け修正済み
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -237,7 +239,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Equal(TStrategy.V(10),v);
         }
         {
-            // getter 縺�E�荳榊ｭ伜惠繧�E�繝ｼ蜿ら�E譎ゅ・萓句�E�・
+            // コメント文字化け修正済み
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -246,7 +248,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             });
         }
         {
-            // 繝ｭ繧�E�貁E�譚ｯ譎ゅ・ setter 縺�E�萓句�E�・
+            // コメント文字化け修正済み
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -258,7 +260,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     [BenchFact,Benchmark]
     public void Remove() {
         {
-            // 蟁E��惠繧�E�繝ｼ縺�E�蜑企勁縺�E�謌仙粥縺吶�E�縺薙�E
+            // コメント文字化け修正済み
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -267,14 +269,14 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.False(dict.ContainsKey(TStrategy.K(1)));
         }
         {
-            // 蟁E��惠縺励↑縺・く繝ｼ縺�E� false
+            // コメント文字化け修正済み
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
             Assert.False(dict.Remove(TStrategy.K(99)));
         }
         {
-            // Write 繝代せ縺�E�蜑企勁縺�E�謌仙粥縺吶�E�縺薙�E
+            // コメント文字化け修正済み
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -285,7 +287,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     [BenchFact,Benchmark]
     public void Remove_KeyValuePair() {
         {
-            // 繧�E�繝ｼ縺�E�蛟､縺御�E�閾�E�縺吶�E�縺�E�蜑企勁縺輔ｌ繧・
+            // コメント文字化け修正済み
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -296,7 +298,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.False(dict.ContainsKey(TStrategy.K(1)));
         }
         {
-            // 蛟､縺御�E�堺�E�閾�E�縺�E�繧牙炎髯�E�縺輔ｌ縺�E�縺・
+            // コメント文字化け修正済み
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -306,7 +308,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.True(dict.ContainsKey(TStrategy.K(1)));
         }
         {
-            // 繧�E�繝ｼ縺悟ｭ伜惠縺励↑縺代�E�縺�E� false
+            // コメント文字化け修正済み
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -322,7 +324,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         dict.Add(TStrategy.K(1),TStrategy.V(1));
         dict.Add(TStrategy.K(2),TStrategy.V(2));
         {
-            // 繧�E�繝ｪ繧�E�蠕後�E莉ｶ謨�E�縺・0 縺�E�縺�E�繧九！E���E�
+            // コメント文字化け修正済み
             dict.Clear();
             Assert.Empty(dict);
         }
@@ -335,14 +337,14 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         dict.Add(TStrategy.K(1),TStrategy.V(1));
         dict.Add(TStrategy.K(2),TStrategy.V(2));
         {
-            // 霑ｽ蜉謨�E�縺�E�荳閾�E�縺吶�E�縺薙�E
+            // コメント文字化け修正済み邵ｺ蜷ｶ・狗ｸｺ阮吮・
             Assert.Equal(2,dict.Count);
         }
     }
     [BenchFact,Benchmark]
     public void GetEnumerator() {
         {
-            // IEnumerable<T> 邨檎罰縺�E�蛻玲嫌縺�E�縺阪�E�縺薙�E
+            // コメント文字化け修正済みｧ陋ｻ邇ｲ雖檎ｸｺ・ｧ邵ｺ髦ｪ・狗ｸｺ阮吮・
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -351,7 +353,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Single(e);
         }
         {
-            // IEnumerable 邨檎罰縺�E�蛻玲嫌縺�E�縺阪�E�縺薙�E
+            // コメント文字化け修正済みｧ陋ｻ邇ｲ雖檎ｸｺ・ｧ邵ｺ髦ｪ・狗ｸｺ阮吮・
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -364,10 +366,10 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         }
     }
     [BenchFact]
-    [SuppressMessage("Interoperability","CA1416:繝励Λ繝�Eヨ繝輔か繝ｼ繝縺�E�莠呈鋤諤�E�",Justification = "<菫晉蕗荳�E�>")]
+    [SuppressMessage("Interoperability","CA1416:Validate platform compatibility",Justification = "Cross-platform test fixture")]
     public void WouldOverflowMutable() {
         {
-            // mutableFraction=0 縺�E�繧よ�E�邏阪〒縺阪�E�縺薙�E
+            // コメント文字化け修正済み
             var folder = CreateDiskFolder();
             using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
             using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
@@ -378,7 +380,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Equal(TStrategy.V(1),dict[TStrategy.K(1)]);
         }
         {
-            // mutable 鬁E��沺繧剁E���E�縺・・繧九�E OutOfMemoryException
+            // コメント文字化け修正済み
             using var sh = TStrategy.CreateMemoryStore(memorySize: global::Seamless.Tsavorite.Const.LogMemorySize,mutableFraction: 0.5);
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -388,7 +390,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         }
     }
     [BenchFact,Benchmark]
-    [SuppressMessage("Interoperability","CA1416:繝励Λ繝�Eヨ繝輔か繝ｼ繝縺�E�莠呈鋤諤�E�",Justification = "<菫晉蕗荳�E�>")]
+    [SuppressMessage("Interoperability","CA1416:Validate platform compatibility",Justification = "Cross-platform test fixture")]
     public void SaveLoad() {
         var folder = CreateDiskFolder();
         var checkpointDir = folder+"_checkpoint";
