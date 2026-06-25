@@ -2,22 +2,42 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using Benchmark.Worker;
 
 namespace Benchmark;
 
-public sealed class BenchmarkWorkerClient {
-    public async Task<BenchmarkRunResult> RunAsync(BenchmarkCase benchmark,string runRoot,string elementScale,int logicalCpu,CancellationToken cancellationToken) {
+public sealed class BenchmarkWorkerClient:IBenchmarkJobRunner {
+    public Task<BenchmarkJobRunResult> RunAsync(
+        BenchmarkJob job,
+        string runRoot,
+        int logicalCpu,
+        TimeSpan timeout,
+        CancellationToken cancellationToken) =>
+        this.RunAsync(job.ToBenchmarkCase(),runRoot,job.ElementCount,"1",logicalCpu,timeout,cancellationToken);
+
+    public async Task<BenchmarkJobRunResult> RunAsync(
+        BenchmarkCase benchmark,
+        string runRoot,
+        int elementCount,
+        string elementScale,
+        int logicalCpu,
+        TimeSpan timeout,
+        CancellationToken cancellationToken) {
         var workerPath = ResolveWorkerPath();
         var artifactFolder = Path.Combine(
             runRoot,
+            "N"+elementCount.ToString(CultureInfo.InvariantCulture),
             SanitizePathPart(benchmark.Project),
             SanitizePathPart(benchmark.MethodName));
         Directory.CreateDirectory(artifactFolder);
 
         using var process = StartWorker(workerPath,runRoot,logicalCpu);
+        using var timeoutSource = new CancellationTokenSource(timeout);
+        using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,timeoutSource.Token);
+        var effectiveToken = linkedSource.Token;
         WorkerResultMessage result;
         try {
-            var ready = await process.StandardOutput.ReadLineAsync(cancellationToken);
+            var ready = await process.StandardOutput.ReadLineAsync(effectiveToken);
             if(!string.Equals(ready,"ready",StringComparison.Ordinal)) {
                 throw new InvalidOperationException($"Benchmark worker did not become ready. First output: {ready}");
             }
@@ -28,29 +48,34 @@ public sealed class BenchmarkWorkerClient {
                 benchmark.AssemblyName,
                 benchmark.TypeFullName,
                 benchmark.MethodName,
+                elementCount,
                 elementScale,
                 artifactFolder);
 
-            await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(message).AsMemory(),cancellationToken);
-            await process.StandardInput.FlushAsync(cancellationToken);
+            await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(message).AsMemory(),effectiveToken);
+            await process.StandardInput.FlushAsync(effectiveToken);
 
-            var line = await process.StandardOutput.ReadLineAsync(cancellationToken)
+            var line = await process.StandardOutput.ReadLineAsync(effectiveToken)
                 ?? throw new InvalidOperationException("Benchmark worker closed without a result.");
             result = JsonSerializer.Deserialize<WorkerResultMessage>(line)
                 ?? throw new InvalidOperationException("Benchmark worker returned an empty result.");
 
-            await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new WorkerTaskMessage("shutdown",string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty)).AsMemory(),cancellationToken);
-            await process.StandardInput.FlushAsync(cancellationToken);
-            await process.WaitForExitAsync(cancellationToken);
+            await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new WorkerTaskMessage("shutdown",string.Empty,string.Empty,string.Empty,string.Empty,0,string.Empty,string.Empty)).AsMemory(),effectiveToken);
+            await process.StandardInput.FlushAsync(effectiveToken);
+            await process.WaitForExitAsync(effectiveToken);
         } catch(OperationCanceledException) {
             KillProcess(process);
+            if(timeoutSource.IsCancellationRequested&&!cancellationToken.IsCancellationRequested) {
+                throw new TimeoutException($"Benchmark job timed out after {timeout}.");
+            }
             throw;
         }
 
-        return new BenchmarkRunResult(
+        return new BenchmarkJobRunResult(
             benchmark.Project,
             benchmark.MethodName,
             benchmark.TypeFullName,
+            elementCount,
             result.Status,
             result.Mean,
             result.Error,
@@ -147,6 +172,7 @@ internal sealed record WorkerTaskMessage(
     string AssemblyName,
     string TypeFullName,
     string MethodName,
+    int ElementCount,
     string ElementScale,
     string ArtifactFolder);
 

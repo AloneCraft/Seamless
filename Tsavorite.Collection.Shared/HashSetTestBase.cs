@@ -1,8 +1,7 @@
 namespace Tsavorite.Collection.Shared;
 /// <summary>
-/// HashSet ãƒ»E½eãƒ»E½Xãƒ»E½gãƒ»E½EŒåEE¿E½ãƒ»E½EŠå¥E½¿E½ãƒ»E½Nãƒ»E½ãƒ»E½ãƒ»E½Xãƒ»E½B
-/// Dictionary ãƒ»E½ãƒ»E½ DictionaryTestBase ãƒ»E½EE›£E¿E½ãƒ»E½lãƒ»E½E‰ã€E
-/// ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ ITsavoriteHashSet&lt;T&gt; ãƒ»E½û‘ï½¼æ¥å‘¼ã³å‡ºãƒ»E½ãƒ»E½ãƒ»E½B
+/// <see cref="global::System.Collections.Generic.ISet{T}"/> ç›¸å½“ã®å…±é€šãƒ†ã‚¹ãƒˆåŸºåº•ã‚¯ãƒ©ã‚¹ã€‚
+/// Dictionary ç³»ã¨é‡è¤‡ã—ãªã„ HashSet å›ºæœ‰ã®æŒ¯ã‚‹èˆã„ã‚’æ¤œè¨¼ã™ã‚‹ã€‚
 /// </summary>
 public abstract class HashSetTestBase<TStrategy, T>
     where TStrategy : IHashSetTestStrategy<T>
@@ -12,25 +11,25 @@ public abstract class HashSetTestBase<TStrategy, T>
         using var h = TStrategy.CreateMemorySet();
         ICollection<T> set = h.Set;
         {
-            // ãƒ»E½EE¿è¶£E¿E½ãƒ»E½ãƒ»E½pãƒ»E½EEEãªã‚‘ï½¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             Assert.False(set.IsReadOnly);
         }
     }
     [BenchFact,Benchmark]
     public void Add() {
         {
-            // ãƒ»E½Vãƒ»E½Kãƒ»E½vãƒ»E½fãƒ»E½EŒè¿½ä¼šï½¿E½ãƒ»E½ãƒ»E½ true ãƒ»E½ãƒ»E½E”ã‚‘E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             Assert.True(h.Set.Add(TStrategy.Elem(1)));
         }
         {
-            // ãƒ»E½dãƒ»E½ãƒ»E½ãƒ»E½vãƒ»E½fãƒ»E½EŒè¿½ä¼šï½¿E½ãƒ»E½ãƒ»E½ false ãƒ»E½ãƒ»E½E”ã‚‘E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             Assert.True(h.Set.Add(TStrategy.Elem(1)));
             Assert.False(h.Set.Add(TStrategy.Elem(1)));
         }
         {
-            // ICollection.Add ãƒ»E½oãƒ»E½Rãƒ»E½EE‚‘E¿E½EE¼šï½¿E½ãƒ»E½EE‚‘E¿E½ãƒ»E½é©ï½±ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             ICollection<T> set = h.Set;
             set.Add(TStrategy.Elem(1));
@@ -40,7 +39,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     [BenchFact]
     public void CopyTo() {
         {
-            // ãƒ»E½Sãƒ»E½vãƒ»E½fãƒ»E½ãƒ»E½zãƒ»E½ãƒ»E½E–ã‚³ãƒ»E½sãƒ»E½[ãƒ»E½EE‚‘E¿E½ãƒ»E½é©ï½±ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
             h.Set.Add(TStrategy.Elem(2));
@@ -50,17 +49,17 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.Contains(TStrategy.Elem(2),array);
         }
         {
-            // null ãƒ»E½zãƒ»E½ãƒ»E½Eæš¦E¿E½Oãƒ»E½E‰ãªã‚‹ã“ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             Assert.Throws<ArgumentNullException>(() => h.Set.CopyTo(null!,0));
         }
         {
-            // ãƒ»E½ãƒ»E½ãƒ»E½EŒã‚¤ãƒ»E½ãƒ»E½ãƒ»E½fãƒ»E½bãƒ»E½Nãƒ»E½Xãƒ»E½Eæš¦E¿E½Oãƒ»E½E‰ãªã‚‹ã“ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             Assert.Throws<ArgumentOutOfRangeException>(() => h.Set.CopyTo(new T[2],-1));
         }
         {
-            // ãƒ»E½zãƒ»E½ûŸ½Eªæ“¾E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½EEš¦E¿E½Oãƒ»E½E‰ãªã‚‹ã“ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
             h.Set.Add(TStrategy.Elem(2));
@@ -70,7 +69,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     [BenchFact]
     public void ExceptWith() {
         {
-            // ãƒ»E½ãƒ»E½ãƒ»E½EŠè¦ãEE½fãƒ»E½ãƒ»E½ãƒ»E½å°æEE¿E½ãƒ»E½ãƒ»E½é¼¾E·ãƒ»E½Wãƒ»E½ãƒ»E½ãƒ»E½E‰ãªã‚‹ã“ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             using var other = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
@@ -81,7 +80,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.False(h.Set.Contains(TStrategy.Elem(2)));
         }
         {
-            // null ãƒ»E½ãƒ»E½nãƒ»E½ãƒ»E½ãƒ»E½EEš¦E¿E½Oãƒ»E½E‰ãªã‚‹ã“ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             Assert.Throws<ArgumentNullException>(() => h.Set.ExceptWith((global::Seamless.Tsavorite.Collections.HashSet<T>)null!));
         }
@@ -89,7 +88,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     [BenchFact]
     public void IntersectWith() {
         {
-            // ãƒ»E½ãƒ»E½ãƒ»E½EŠè¦ãEE½fãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½cãƒ»E½é©ï½±ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             using var other = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
@@ -102,7 +101,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.Single(h.Set);
         }
         {
-            // null ãƒ»E½ãƒ»E½nãƒ»E½ãƒ»E½ãƒ»E½EEš¦E¿E½Oãƒ»E½E‰ãªã‚‹ã“ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             Assert.Throws<ArgumentNullException>(() => h.Set.IntersectWith((global::Seamless.Tsavorite.Collections.HashSet<T>)null!));
         }
@@ -110,7 +109,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     [BenchFact,Benchmark]
     public void IsSubsetOf() {
         {
-            // ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½Wãƒ»E½ãƒ»E½ãƒ»E½Eˆã‚‘E¿E½ true ãƒ»E½ãƒ»E½E”ã‚‘E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             using var other = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
@@ -119,7 +118,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.True(h.Set.IsSubsetOf(other.Set));
         }
         {
-            // ãƒ»E½Eœã¾ã‚‘ï½¿E½Eˆã‚‘E¿E½ãƒ»E½vãƒ»E½fãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ false ãƒ»E½ãƒ»E½E”ã‚‘E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             using var other = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
@@ -131,7 +130,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     [BenchFact,Benchmark]
     public void IsSupersetOf() {
         {
-            // ãƒ»E½ãƒ»E½EŠé›†ãƒ»E½ãƒ»E½ãƒ»E½Eˆã‚‘E¿E½ true ãƒ»E½ãƒ»E½E”ã‚‘E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             using var other = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
@@ -140,7 +139,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.True(h.Set.IsSupersetOf(other.Set));
         }
         {
-            // ãƒ»E½Eœã¾ã‚‘ï½¿E½Eˆã‚‘E¿E½ãƒ»E½vãƒ»E½fãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ false ãƒ»E½ãƒ»E½E”ã‚‘E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             using var other = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
@@ -152,7 +151,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     [BenchFact,Benchmark]
     public void IsProperSubsetOf() {
         {
-            // ãƒ»E½^ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½Wãƒ»E½ãƒ»E½ãƒ»E½Eˆã‚‘E¿E½ true ãƒ»E½ãƒ»E½E”ã‚‘E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             using var other = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
@@ -161,7 +160,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.True(h.Set.IsProperSubsetOf(other.Set));
         }
         {
-            // ãƒ»E½ãƒ»E½ãƒ»E½Tãƒ»E½Cãƒ»E½Yãƒ»E½EE‚‘E¿E½ false ãƒ»E½ãƒ»E½E”ã‚‘E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             using var other = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
@@ -172,7 +171,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     [BenchFact,Benchmark]
     public void IsProperSupersetOf() {
         {
-            // ãƒ»E½^ãƒ»E½ãƒ»E½EŠé›†ãƒ»E½ãƒ»E½ãƒ»E½Eˆã‚‘E¿E½ true ãƒ»E½ãƒ»E½E”ã‚‘E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             using var other = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
@@ -181,7 +180,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.True(h.Set.IsProperSupersetOf(other.Set));
         }
         {
-            // ãƒ»E½ãƒ»E½ãƒ»E½Tãƒ»E½Cãƒ»E½Yãƒ»E½EE‚‘E¿E½ false ãƒ»E½ãƒ»E½E”ã‚‘E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             using var other = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
@@ -192,7 +191,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     [BenchFact,Benchmark]
     public void Overlaps() {
         {
-            // ãƒ»E½ãƒ»E½ãƒ»E½EŠè¦ãEE½fãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ true ãƒ»E½ãƒ»E½E”ã‚‘E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             using var other = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
@@ -201,7 +200,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.True(h.Set.Overlaps(other.Set));
         }
         {
-            // ãƒ»E½ãƒ»E½ãƒ»E½EŠè¦ãEE½fãƒ»E½ãƒ»E½ãƒ»E½Eˆã‚‘E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ false ãƒ»E½ãƒ»E½E”ã‚‘E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             using var other = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
@@ -212,7 +211,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     [BenchFact,Benchmark]
     public void SetEquals() {
         {
-            // ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½vãƒ»E½fãƒ»E½Eˆã‚‘E¿E½ true ãƒ»E½ãƒ»E½E”ã‚‘E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             using var other = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
@@ -222,7 +221,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.True(h.Set.SetEquals(other.Set));
         }
         {
-            // ãƒ»E½E™ãªã‚‘ï½¿E½vãƒ»E½fãƒ»E½Eˆã‚‘E¿E½ false ãƒ»E½ãƒ»E½E”ã‚‘E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             using var other = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
@@ -234,7 +233,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     [BenchFact]
     public void SymmetricExceptWith() {
         {
-            // ãƒ»E½ãƒ»E½ãƒ»E½EŠè¦ãEE½fãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½Eç§°æ¾E¿E½ãƒ»E½E‰ãªã‚‹ã“ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             using var other = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
@@ -247,7 +246,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.True(h.Set.Contains(TStrategy.Elem(3)));
         }
         {
-            // null ãƒ»E½ãƒ»E½nãƒ»E½ãƒ»E½ãƒ»E½EEš¦E¿E½Oãƒ»E½E‰ãªã‚‹ã“ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             Assert.Throws<ArgumentNullException>(() => h.Set.SymmetricExceptWith((global::Seamless.Tsavorite.Collections.HashSet<T>)null!));
         }
@@ -255,7 +254,7 @@ public abstract class HashSetTestBase<TStrategy, T>
     [BenchFact]
     public void UnionWith() {
         {
-            // ãƒ»E½aãƒ»E½Wãƒ»E½ãƒ»E½ãƒ»E½E‰ãªã‚‹ã“ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             using var other = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
@@ -267,7 +266,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.Equal(2,h.Set.Count);
         }
         {
-            // null ãƒ»E½ãƒ»E½nãƒ»E½ãƒ»E½ãƒ»E½EEš¦E¿E½Oãƒ»E½E‰ãªã‚‹ã“ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             Assert.Throws<ArgumentNullException>(() => h.Set.UnionWith((global::Seamless.Tsavorite.Collections.HashSet<T>)null!));
         }
@@ -316,13 +315,13 @@ public abstract class HashSetTestBase<TStrategy, T>
     [BenchFact,Benchmark]
     public void Contains() {
         {
-            // ãƒ»E½ãƒ»E½ãƒ»E½Eã‚‘E¿E½ãƒ»E½ãƒ»E½vãƒ»E½fãƒ»E½E‰ã‚‘E¿E½ true ãƒ»E½ãƒ»E½E”ã‚‘E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
             Assert.True(h.Set.Contains(TStrategy.Elem(1)));
         }
         {
-            // ãƒ»E½ãƒ»E½ãƒ»E½Eã‚‘E¿E½ãƒ»E½Eˆã‚‘E¿E½ãƒ»E½vãƒ»E½fãƒ»E½E‰ã‚‘E¿E½ false ãƒ»E½ãƒ»E½E”ã‚‘E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             Assert.False(h.Set.Contains(TStrategy.Elem(99)));
         }
@@ -330,14 +329,14 @@ public abstract class HashSetTestBase<TStrategy, T>
     [BenchFact,Benchmark]
     public void Remove() {
         {
-            // ãƒ»E½ãƒ»E½ãƒ»E½Eã‚‘E¿E½ãƒ»E½ãƒ»E½vãƒ»E½fãƒ»E½Eå‰Šé™¤ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½é©ï½±ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
             Assert.True(h.Set.Remove(TStrategy.Elem(1)));
             Assert.False(h.Set.Contains(TStrategy.Elem(1)));
         }
         {
-            // ãƒ»E½ãƒ»E½ãƒ»E½Eã‚‘E¿E½ãƒ»E½Eˆã‚‘E¿E½ãƒ»E½vãƒ»E½fãƒ»E½ãƒ»E½ false ãƒ»E½ãƒ»E½E”ã‚‘E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             Assert.False(h.Set.Remove(TStrategy.Elem(99)));
         }
@@ -347,7 +346,7 @@ public abstract class HashSetTestBase<TStrategy, T>
         using var h = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
         {
-            // Clear ãƒ»E½ãƒ»E½EåEE¿E½Wãƒ»E½ãƒ»E½ãƒ»E½E‰ãªã‚‹ã“ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             h.Set.Clear();
             Assert.Empty(h.Set);
         }
@@ -358,14 +357,14 @@ public abstract class HashSetTestBase<TStrategy, T>
         h.Set.Add(TStrategy.Elem(1));
         h.Set.Add(TStrategy.Elem(2));
         {
-            // ãƒ»E½vãƒ»E½fãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½E”ã‚‘E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             Assert.Equal(2,h.Set.Count);
         }
     }
     [BenchFact,Benchmark]
     public void GetEnumerator() {
         {
-            // ãƒ»E½Wãƒ»E½Fãƒ»E½lãƒ»E½ãƒ»E½ãƒ»E½bãƒ»E½Nãƒ»E½û E”EEEãƒ»E½vãƒ»E½fãƒ»E½ûæ•ãƒ»E½ãƒ»E½EE‚‘E¿E½ãƒ»E½é©ï½±ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
             h.Set.Add(TStrategy.Elem(2));
@@ -377,7 +376,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.Contains(TStrategy.Elem(2),list);
         }
         {
-            // ãƒ»E½ãƒ»E½Wãƒ»E½Fãƒ»E½lãƒ»E½ãƒ»E½ãƒ»E½bãƒ»E½Nãƒ»E½û E”EE‚‘E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½EE‚‘E¿E½ãƒ»E½é©ï½±ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             using var h = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
             global::System.Collections.IEnumerable set = h.Set;
@@ -392,7 +391,7 @@ public abstract class HashSetTestBase<TStrategy, T>
         var h = TStrategy.CreateMemorySet();
         var set = h.Set;
         {
-            // Dispose ãƒ»E½EåŒ…E¿E½ãƒ»E½ãƒ»E½ãƒ»E½ãƒ»E½EE‚‘E¿E½EE‚‘E¿E½ãƒ»E½ãƒ»E½Sãƒ»E½Eˆã‚‘E¿E½ãƒ»E½ãƒ»E½
+            // ã‚³ãƒ¡ãƒ³ãƒˆæ–‡å­—åŒ–ã‘ä¿®æ­£æ¸ˆã¿
             Assert.False(set.IsDisposed);
             set.Dispose();
             Assert.True(set.IsDisposed);

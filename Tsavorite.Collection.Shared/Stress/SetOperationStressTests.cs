@@ -5,8 +5,8 @@ using Seamless.Collections;
 namespace Tsavorite.Collection.Shared.Stress;
 
 /// <summary>
-/// HashSet 縺�E�髮・粋貍皮�E�・(IntersectWith / SymmetricExceptWith / UnionWith / ExceptWith)
-/// 縺�E�豎ｺ螳夊ｫ也噪 Stress 繝�Eせ繝医めE��繝ｼ繝蛾�E�E��・、E2 繧�E�繝�Eヨ繧呈ｧ狗ｯ峨�E�貍皮�E�礼�E�先棡繧偵ざ繝ｼ繝ｫ繝�EΦ豈碑ｼ・☁E��九・
+/// HashSet の集合演算 (IntersectWith / SymmetricExceptWith / UnionWith / ExceptWith)
+/// ランダムデータで繰り返し検証するストレステスト。
 /// </summary>
 public class SetOperationStressTests {
     private const int SeedA = 20260417;

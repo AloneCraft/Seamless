@@ -63,6 +63,25 @@ public sealed class MainPage:ContentPage{
         }
     }
 
+    public async Task<bool> RequestCloseAsync(){
+        if(this.viewModel is null||!this.viewModel.IsRunning){
+            return true;
+        }
+
+        var shouldClose = await this.DisplayAlert(
+            "Benchmark is running",
+            "Stop the running benchmark worker and close the application?",
+            "OK",
+            "Cancel");
+        if(!shouldClose){
+            return false;
+        }
+
+        this.viewModel.StatusText="Stopping before close...";
+        await this.viewModel.CancelAndWaitAsync();
+        return true;
+    }
+
     private BenchmarkRunnerViewModel CreateViewModel(){
         var resultService = new BenchmarkResultService();
         var comparisonService = new BenchmarkComparisonService(resultService);
@@ -88,14 +107,23 @@ public sealed class MainPage:ContentPage{
         var exportButton = this.CommandButton("Save CSV",nameof(BenchmarkRunnerViewModel.ExportCsvCommand));
         var loadButton = this.CommandButton("Load CSV",nameof(BenchmarkRunnerViewModel.LoadCsvCommand));
 
-        var scalePicker = new Picker{
-            WidthRequest=78,
+        var modePicker = new Picker{
+            WidthRequest=98,
             HeightRequest=30,
-            ItemDisplayBinding=new Binding(nameof(ScaleOption.DisplayName)),
+            ItemDisplayBinding=new Binding(nameof(RunModeOption.DisplayName)),
             Margin=new Thickness(0),
         };
-        scalePicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ScaleOptions));
-        scalePicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedScale));
+        modePicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.RunModes));
+        modePicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedRunMode));
+
+        var thresholdEntry = new Entry{
+            WidthRequest=64,
+            HeightRequest=30,
+            FontSize=12,
+            Keyboard=Keyboard.Numeric,
+            Margin=new Thickness(0),
+        };
+        thresholdEntry.SetBinding(Entry.TextProperty,nameof(BenchmarkRunnerViewModel.AdaptiveThresholdSecondsText));
 
         var statusLabel = new Label{
             FontSize=12,
@@ -118,6 +146,10 @@ public sealed class MainPage:ContentPage{
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Star },
             },
             ColumnSpacing=6,
@@ -125,13 +157,15 @@ public sealed class MainPage:ContentPage{
         grid.Add(refreshButton,0,0);
         grid.Add(selectAllButton,1,0);
         grid.Add(clearButton,2,0);
-        grid.Add(this.ToolbarLabel("Scale"),3,0);
-        grid.Add(scalePicker,4,0);
-        grid.Add(runButton,5,0);
-        grid.Add(cancelButton,6,0);
-        grid.Add(exportButton,7,0);
-        grid.Add(loadButton,8,0);
-        grid.Add(statusLabel,9,0);
+        grid.Add(this.ToolbarLabel("Mode"),3,0);
+        grid.Add(modePicker,4,0);
+        grid.Add(this.ToolbarLabel("Limit s"),5,0);
+        grid.Add(thresholdEntry,6,0);
+        grid.Add(runButton,7,0);
+        grid.Add(cancelButton,8,0);
+        grid.Add(exportButton,9,0);
+        grid.Add(loadButton,10,0);
+        grid.Add(statusLabel,11,0);
         return grid;
     }
 
@@ -177,6 +211,7 @@ public sealed class MainPage:ContentPage{
     }
 
     private View CreateBenchmarkGrid(){
+        StartupDiagnostics.WriteSyncfusionAssemblies("CreateBenchmarkGrid before SfDataGrid");
         var grid = new SfDataGrid{
             AutoGenerateColumnsMode=AutoGenerateColumnsMode.None,
             RowHeight=24,
@@ -207,6 +242,9 @@ public sealed class MainPage:ContentPage{
             HeaderText="",
             Width=36,
             AllowSorting=false,
+            HeaderTemplate=new DataTemplate(() => new BoxView{
+                BackgroundColor=Colors.Transparent,
+            }),
             CellTemplate=new DataTemplate(() => {
                 var check = new CheckBox{
                     HorizontalOptions=LayoutOptions.Center,
@@ -317,6 +355,22 @@ public sealed class MainPage:ContentPage{
         metricPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.Metrics));
         metricPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedMetric));
 
+        var resultNPicker = new Picker{
+            WidthRequest=116,
+            HeightRequest=30,
+            ItemDisplayBinding=new Binding(nameof(ResultElementCountOption.DisplayName)),
+        };
+        resultNPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ResultElementCountOptions));
+        resultNPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedResultElementCount));
+
+        var chartModePicker = new Picker{
+            WidthRequest=126,
+            HeightRequest=30,
+            ItemDisplayBinding=new Binding(nameof(ChartModeOption.DisplayName)),
+        };
+        chartModePicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ChartModes));
+        chartModePicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedChartMode));
+
         return new HorizontalStackLayout{
             Spacing=6,
             Padding=new Thickness(0,0,0,6),
@@ -324,6 +378,8 @@ public sealed class MainPage:ContentPage{
                 cpuButton,
                 resultsButton,
                 chartButton,
+                resultNPicker,
+                chartModePicker,
                 pairPicker,
                 metricPicker,
             },
@@ -339,8 +395,45 @@ public sealed class MainPage:ContentPage{
             },
         };
         list.SetBinding(ItemsView.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.CpuSections));
-        list.SetBinding(IsVisibleProperty,nameof(BenchmarkRunnerViewModel.IsCpuVisible));
-        return list;
+        var nList = new CollectionView{
+            SelectionMode=SelectionMode.None,
+            HeightRequest=84,
+            ItemsLayout=new LinearItemsLayout(ItemsLayoutOrientation.Horizontal){
+                ItemSpacing=8,
+            },
+            ItemTemplate=new DataTemplate(() => {
+                var row = new HorizontalStackLayout{
+                    Spacing=2,
+                    Padding=new Thickness(2,0),
+                };
+                var check = new CheckBox{
+                    WidthRequest=22,
+                    HeightRequest=22,
+                    Margin=new Thickness(0),
+                };
+                check.SetBinding(CheckBox.IsCheckedProperty,new Binding(nameof(ElementCountOption.IsSelected),BindingMode.TwoWay));
+                var label = new Label{
+                    FontSize=11,
+                    VerticalTextAlignment=TextAlignment.Center,
+                    TextColor=Color.FromArgb("#334155"),
+                };
+                label.SetBinding(Label.TextProperty,nameof(ElementCountOption.DisplayName));
+                row.Children.Add(check);
+                row.Children.Add(label);
+                return row;
+            }),
+        };
+        nList.SetBinding(ItemsView.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ElementCountOptions));
+
+        var layout = new VerticalStackLayout{
+            Spacing=8,
+            Children = {
+                nList,
+                list,
+            },
+        };
+        layout.SetBinding(IsVisibleProperty,nameof(BenchmarkRunnerViewModel.IsCpuVisible));
+        return layout;
     }
 
     private View CreateCpuSectionView(){
@@ -352,15 +445,16 @@ public sealed class MainPage:ContentPage{
         };
         var headerGrid = new Grid{
             ColumnDefinitions = {
-                new ColumnDefinition { Width = new GridLength(26) },
+                new ColumnDefinition { Width = new GridLength(24) },
                 new ColumnDefinition { Width = new GridLength(24) },
                 new ColumnDefinition { Width = GridLength.Star },
                 new ColumnDefinition { Width = new GridLength(24) },
             },
             ColumnSpacing=4,
         };
-        var sectionCheck = this.CreateSelectionStateBox();
-        sectionCheck.SetBinding(Label.TextProperty,nameof(CpuTableSection.StateGlyph));
+        var sectionCheck = this.CreateCpuCheckBox();
+        sectionCheck.InputTransparent=true;
+        sectionCheck.SetBinding(CheckBox.IsCheckedProperty,new Binding(nameof(CpuTableSection.State),BindingMode.OneWay,converter:new CpuSelectionStateToBoolConverter()));
         var badge = this.CreateCoreBadge();
         badge.SetBinding(BackgroundColorProperty,nameof(CpuTableSection.BadgeBackgroundColor));
         if(badge.Content is Label badgeLabel){
@@ -395,6 +489,7 @@ public sealed class MainPage:ContentPage{
         };
         header.GestureRecognizers.Add(headerTap);
 
+        StartupDiagnostics.WriteSyncfusionAssemblies("CreateCpuSectionView before SfDataGrid");
         var grid = new SfDataGrid{
             AutoGenerateColumnsMode=AutoGenerateColumnsMode.None,
             RowHeight=24,
@@ -424,28 +519,34 @@ public sealed class MainPage:ContentPage{
 
     private void RebuildCpuDataGridColumns(SfDataGrid grid,CpuTableSection section){
         grid.Columns.Clear();
-        grid.Columns.Add(this.CreateCpuCoreColumn());
+        grid.Columns.Add(this.CreateCpuCoreColumn(section));
         foreach(var column in section.Columns){
             grid.Columns.Add(this.CreateCpuLogicalColumn(column));
         }
     }
 
-    private DataGridTemplateColumn CreateCpuCoreColumn(){
+    private DataGridTemplateColumn CreateCpuCoreColumn(CpuTableSection section){
         return new DataGridTemplateColumn{
             MappingName=nameof(CpuTableRow.Label),
             HeaderText="Core",
-            Width=86,
+            Width=this.GetCpuCoreColumnWidth(section),
             AllowSorting=false,
             HeaderTemplate=this.CreateCpuSimpleHeaderTemplate("Core"),
             CellTemplate=new DataTemplate(() => {
                 var layout = new Grid{
                     ColumnDefinitions = {
+                        new ColumnDefinition { Width = new GridLength(22) },
                         new ColumnDefinition { Width = new GridLength(24) },
                         new ColumnDefinition { Width = GridLength.Star },
                     },
                     ColumnSpacing=4,
                     Padding=new Thickness(2,0),
+                    HorizontalOptions=LayoutOptions.Fill,
+                    VerticalOptions=LayoutOptions.Fill,
                 };
+                var check = this.CreateCpuCheckBox();
+                check.InputTransparent=true;
+                check.SetBinding(CheckBox.IsCheckedProperty,new Binding(nameof(CpuTableRow.IsChecked),BindingMode.OneWay));
                 var badge = this.CreateCoreBadge();
                 badge.SetBinding(BackgroundColorProperty,nameof(CpuTableRow.BadgeBackgroundColor));
                 if(badge.Content is Label badgeLabel){
@@ -460,11 +561,26 @@ public sealed class MainPage:ContentPage{
                     LineBreakMode=LineBreakMode.TailTruncation,
                 };
                 label.SetBinding(Label.TextProperty,nameof(CpuTableRow.Label));
-                layout.Add(badge,0,0);
-                layout.Add(label,1,0);
+                layout.Add(check,0,0);
+                layout.Add(badge,1,0);
+                layout.Add(label,2,0);
+                var tap = new TapGestureRecognizer();
+                tap.Tapped+=(_,_) => {
+                    if(layout.BindingContext is CpuTableRow row){
+                        this.viewModel?.ToggleCpuRow(row);
+                    }
+                };
+                layout.GestureRecognizers.Add(tap);
                 return layout;
             }),
         };
+    }
+
+    private double GetCpuCoreColumnWidth(CpuTableSection section){
+        var labelWidth = section.Rows.Count==0
+            ? 24
+            : section.Rows.Max(static row => row.Label.Length)*7;
+        return Math.Max(96,22+24+labelWidth+18);
     }
 
     private DataGridTemplateColumn CreateCpuLogicalColumn(CpuTableColumn column){
@@ -472,23 +588,17 @@ public sealed class MainPage:ContentPage{
         return new DataGridTemplateColumn{
             MappingName="Cpu"+column.Index,
             HeaderText=column.HeaderText,
-            Width=64,
+            Width=48,
             AllowSorting=false,
             HeaderTemplate=this.CreateCpuColumnHeaderTemplate(column),
             CellTemplate=new DataTemplate(() => {
                 var layout = new HorizontalStackLayout{
-                    Spacing=2,
+                    Spacing=0,
                     HorizontalOptions=LayoutOptions.Center,
                     VerticalOptions=LayoutOptions.Center,
                 };
                 layout.SetBinding(IsVisibleProperty,new Binding(cellPath,converter:new NullToBoolConverter()));
-                var check = new CheckBox{
-                    WidthRequest=24,
-                    HeightRequest=24,
-                    HorizontalOptions=LayoutOptions.Center,
-                    VerticalOptions=LayoutOptions.Center,
-                    Margin=new Thickness(0),
-                };
+                var check = this.CreateCpuCheckBox();
                 check.SetBinding(CheckBox.IsCheckedProperty,new Binding(cellPath+"."+nameof(CpuTableCell.IsSelected),BindingMode.TwoWay));
                 var label = new Label{
                     FontSize=10,
@@ -496,7 +606,7 @@ public sealed class MainPage:ContentPage{
                     HorizontalTextAlignment=TextAlignment.Start,
                     VerticalTextAlignment=TextAlignment.Center,
                     LineBreakMode=LineBreakMode.TailTruncation,
-                    WidthRequest=22,
+                    WidthRequest=18,
                 };
                 label.SetBinding(Label.TextProperty,cellPath+"."+nameof(CpuTableCell.DisplayText));
                 layout.Children.Add(check);
@@ -521,24 +631,15 @@ public sealed class MainPage:ContentPage{
 
     private DataTemplate CreateCpuColumnHeaderTemplate(CpuTableColumn column){
         return new DataTemplate(() => {
-            var layout = new HorizontalStackLayout{
-                Spacing=3,
-                HorizontalOptions=LayoutOptions.Center,
-                VerticalOptions=LayoutOptions.Center,
+            var layout = new Grid{
+                HorizontalOptions=LayoutOptions.Fill,
+                VerticalOptions=LayoutOptions.Fill,
                 BackgroundColor=Color.FromArgb("#F1F5F9"),
             };
-            var state = this.CreateSelectionStateBox();
-            state.SetBinding(Label.TextProperty,new Binding(nameof(CpuTableColumn.StateGlyph),source:column));
-            var label = new Label{
-                Text=column.HeaderText,
-                FontSize=10,
-                FontAttributes=FontAttributes.Bold,
-                TextColor=Color.FromArgb("#0F172A"),
-                HorizontalTextAlignment=TextAlignment.Center,
-                VerticalTextAlignment=TextAlignment.Center,
-            };
-            layout.Children.Add(state);
-            layout.Children.Add(label);
+            var check = this.CreateCpuCheckBox();
+            check.InputTransparent=true;
+            check.SetBinding(CheckBox.IsCheckedProperty,new Binding(nameof(CpuTableColumn.IsChecked),BindingMode.OneWay,source:column));
+            layout.Add(check,0,0);
             var tap = new TapGestureRecognizer();
             tap.Tapped+=(_,_) => {
                 if(column.Section is { } section){
@@ -548,6 +649,16 @@ public sealed class MainPage:ContentPage{
             layout.GestureRecognizers.Add(tap);
             return layout;
         });
+    }
+
+    private CheckBox CreateCpuCheckBox(){
+        return new CheckBox{
+            WidthRequest=22,
+            HeightRequest=22,
+            HorizontalOptions=LayoutOptions.Center,
+            VerticalOptions=LayoutOptions.Center,
+            Margin=new Thickness(0),
+        };
     }
 
     private Border CreateCoreBadge(){
@@ -588,7 +699,7 @@ public sealed class MainPage:ContentPage{
                 ItemSpacing=0,
             },
         };
-        resultList.SetBinding(ItemsView.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ResultItems));
+        resultList.SetBinding(ItemsView.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.VisibleResultItems));
         resultList.SetBinding(IsVisibleProperty,nameof(BenchmarkRunnerViewModel.IsResultsVisible));
         return resultList;
     }
@@ -746,6 +857,16 @@ public sealed class CountIsZeroConverter:IValueConverter{
 public sealed class NullToBoolConverter:IValueConverter{
     public object Convert(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture){
         return value is not null;
+    }
+
+    public object ConvertBack(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture){
+        throw new NotSupportedException();
+    }
+}
+
+public sealed class CpuSelectionStateToBoolConverter:IValueConverter{
+    public object Convert(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture){
+        return value is CpuSelectionState.Checked;
     }
 
     public object ConvertBack(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture){

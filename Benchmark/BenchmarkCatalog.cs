@@ -1,17 +1,10 @@
 using System.Reflection;
+using Benchmark.Worker;
 using BenchmarkDotNet.Attributes;
 
 namespace Benchmark;
 
 public sealed record BenchmarkProject(string DisplayName,string AssemblyName);
-
-public sealed record BenchmarkCase(
-    string Project,
-    string AssemblyName,
-    string TypeFullName,
-    string MethodName) {
-    public string DisplayName => $"{Project} / {MethodName}";
-}
 
 public static class BenchmarkCatalog {
     private static readonly BenchmarkProject[] projects = [

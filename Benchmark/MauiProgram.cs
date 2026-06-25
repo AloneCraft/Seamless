@@ -9,9 +9,11 @@ public static class MauiProgram {
     public static MauiApp CreateMauiApp() {
         StartupDiagnostics.InstallGlobalHandlers();
         StartupDiagnostics.Write("CreateMauiApp started.");
+        StartupDiagnostics.WriteSyncfusionAssemblies("CreateMauiApp started");
         if(!string.IsNullOrWhiteSpace(SyncfusionLicenseKey)) {
             Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(SyncfusionLicenseKey);
         }
+        StartupDiagnostics.WriteSyncfusionAssemblies("Syncfusion license registered");
 
         var builder = MauiApp.CreateBuilder();
         builder
@@ -20,6 +22,7 @@ public static class MauiProgram {
             .ConfigureSyncfusionToolkit();
 
         var app = builder.Build();
+        StartupDiagnostics.WriteSyncfusionAssemblies("CreateMauiApp completed");
         StartupDiagnostics.Write("CreateMauiApp completed.");
         return app;
     }

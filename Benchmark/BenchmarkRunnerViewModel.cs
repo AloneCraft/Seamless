@@ -17,7 +17,11 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     private BenchmarkTab selectedTab = BenchmarkTab.Cpu;
     private ComparisonPairOption selectedComparisonPair;
     private ScaleOption? selectedScale;
+    private RunModeOption selectedRunMode;
+    private string adaptiveThresholdSecondsText = "1";
     private MetricOption selectedMetric;
+    private ChartModeOption selectedChartMode;
+    private ResultElementCountOption? selectedResultElementCount;
     private double chartHeight = 300;
     private bool isApplyingCpuSelection;
     private BenchmarkGridSortColumn currentSortColumn = BenchmarkGridSortColumn.BenchmarkName;
@@ -43,11 +47,21 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             new ComparisonPairOption("PersistedFLinqTsavoriteFLinq","PersistedFLinq/TsavoriteFLinq",BenchmarkComparisonFormatter.PersistedFLinq,BenchmarkComparisonFormatter.TsavoriteFLinq),
         ];
         this.selectedComparisonPair=this.ComparisonPairs[0];
+        this.RunModes=[
+            new RunModeOption("Adaptive",BenchmarkRunMode.Adaptive),
+            new RunModeOption("Fixed",BenchmarkRunMode.Fixed),
+        ];
+        this.selectedRunMode=this.RunModes[0];
         this.Metrics=[
             new MetricOption("Time",BenchmarkMetricKind.Time),
             new MetricOption("Allocated",BenchmarkMetricKind.Allocated),
         ];
         this.selectedMetric=this.Metrics[0];
+        this.ChartModes=[
+            new ChartModeOption("N comparison",BenchmarkChartMode.ElementComparison),
+            new ChartModeOption("Scale trend",BenchmarkChartMode.ScaleTrend),
+        ];
+        this.selectedChartMode=this.ChartModes[0];
         this.ScaleOptions=[
             new ScaleOption("1/8","0.125"),
             new ScaleOption("1/4","0.25"),
@@ -58,6 +72,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             new ScaleOption("8","8"),
         ];
         this.selectedScale=this.ScaleOptions.First(static item => item.DisplayName=="1");
+        foreach(var value in BenchmarkElementCounts.All){
+            this.ElementCountOptions.Add(new ElementCountOption(value,BenchmarkElementCounts.DefaultInitial.Contains(value)));
+        }
         this.RefreshCommand=new AsyncRelayCommand(this.RefreshAsync);
         this.SelectAllCommand=new RelayCommand(() => this.SetAllBenchmarkSelection(true));
         this.ClearSelectionCommand=new RelayCommand(() => this.SetAllBenchmarkSelection(false));
@@ -83,12 +100,17 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
 
     public ObservableCollection<BenchmarkTableRow> BenchmarkRows { get; } = [];
     public ObservableCollection<BenchmarkResultItem> ResultItems { get; } = [];
+    public ObservableCollection<BenchmarkResultItem> VisibleResultItems { get; } = [];
     public ObservableCollection<CpuSelectionItem> CpuItems { get; } = [];
     public ObservableCollection<CpuTableSection> CpuSections { get; } = [];
     public ObservableCollection<ChartComparisonPoint> ChartPoints { get; } = [];
     public ObservableCollection<ScaleOption> ScaleOptions { get; } = [];
+    public ObservableCollection<ElementCountOption> ElementCountOptions { get; } = [];
+    public ObservableCollection<ResultElementCountOption> ResultElementCountOptions { get; } = [];
+    public IReadOnlyList<RunModeOption> RunModes { get; }
     public IReadOnlyList<ComparisonPairOption> ComparisonPairs { get; }
     public IReadOnlyList<MetricOption> Metrics { get; }
+    public IReadOnlyList<ChartModeOption> ChartModes { get; }
     public IAsyncRelayCommand RefreshCommand { get; }
     public IRelayCommand SelectAllCommand { get; }
     public IRelayCommand ClearSelectionCommand { get; }
@@ -111,6 +133,13 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             if(this.SetProperty(ref this.isRunning,value)){
                 this.RunCommand.NotifyCanExecuteChanged();
             }
+        }
+    }
+
+    public async Task CancelAndWaitAsync(){
+        this.Cancel();
+        while(this.IsRunning){
+            await Task.Delay(100);
         }
     }
 
@@ -143,10 +172,39 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         set => this.SetProperty(ref this.selectedScale,value);
     }
 
+    public RunModeOption SelectedRunMode{
+        get => this.selectedRunMode;
+        set => this.SetProperty(ref this.selectedRunMode,value);
+    }
+
+    public string AdaptiveThresholdSecondsText{
+        get => this.adaptiveThresholdSecondsText;
+        set => this.SetProperty(ref this.adaptiveThresholdSecondsText,value);
+    }
+
     public MetricOption SelectedMetric{
         get => this.selectedMetric;
         set{
             if(this.SetProperty(ref this.selectedMetric,value)){
+                this.UpdateChart();
+            }
+        }
+    }
+
+    public ChartModeOption SelectedChartMode{
+        get => this.selectedChartMode;
+        set{
+            if(this.SetProperty(ref this.selectedChartMode,value)){
+                this.UpdateChart();
+            }
+        }
+    }
+
+    public ResultElementCountOption? SelectedResultElementCount{
+        get => this.selectedResultElementCount;
+        set{
+            if(this.SetProperty(ref this.selectedResultElementCount,value)){
+                this.RefreshVisibleResults();
                 this.UpdateChart();
             }
         }
@@ -188,6 +246,11 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             .ToArray();
         var selected = section.GetColumnState(columnIndex)!=CpuSelectionState.Checked;
         this.ApplyCpuSelection(cells.Select(static cell => cell.Cpu),selected);
+    }
+
+    public void ToggleCpuRow(CpuTableRow row){
+        var selected = row.State!=CpuSelectionState.Checked;
+        this.ApplyCpuSelection(row.Cells.Select(static cell => cell.Cpu),selected);
     }
 
     private async Task RefreshAsync(){
@@ -248,6 +311,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         this.runCancellation=new CancellationTokenSource();
         this.IsRunning=true;
         this.ResultItems.Clear();
+        this.VisibleResultItems.Clear();
+        this.ResultElementCountOptions.Clear();
+        this.SelectedResultElementCount=null;
         this.comparisonRows=[];
         this.ChartPoints.Clear();
         this.ApplyComparisonRowsToTable();
@@ -259,9 +325,13 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             _ = await this.runService.RunAsync(
                 selected,
                 cpus,
-                this.SelectedScale?.RunValue??"1",
+                this.GetSelectedElementCounts(),
+                this.SelectedRunMode.Mode,
+                this.GetAdaptiveThreshold(),
                 result => MainThread.BeginInvokeOnMainThread(() => {
                     this.ResultItems.Add(result);
+                    this.RegisterResultElementCount(result.ElementCount);
+                    this.RefreshVisibleResults();
                     this.UpdateComparisonRowsFromResults();
                 }),
                 status => MainThread.BeginInvokeOnMainThread(() => this.StatusText=status),
@@ -278,6 +348,26 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
 
     private void Cancel(){
         this.runCancellation?.Cancel();
+    }
+
+    private IReadOnlyList<int> GetSelectedElementCounts(){
+        var selected = this.ElementCountOptions
+            .Where(static item => item.IsSelected)
+            .Select(static item => item.Value)
+            .ToArray();
+        return selected.Length==0 ? BenchmarkElementCounts.DefaultInitial : selected;
+    }
+
+    private TimeSpan GetAdaptiveThreshold(){
+        return double.TryParse(
+            this.AdaptiveThresholdSecondsText,
+            System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var seconds)
+            &&double.IsFinite(seconds)
+            &&seconds>0
+            ? TimeSpan.FromSeconds(seconds)
+            : TimeSpan.FromSeconds(1);
     }
 
     private async Task ExportCsvAsync(){
@@ -343,8 +433,34 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         }
     }
 
+    private void RegisterResultElementCount(int elementCount){
+        if(elementCount<=0||this.ResultElementCountOptions.Any(item => item.Value==elementCount)){
+            return;
+        }
+
+        var option = new ResultElementCountOption(elementCount,"N="+elementCount.ToString("N0",System.Globalization.CultureInfo.InvariantCulture));
+        var ordered = this.ResultElementCountOptions
+            .Append(option)
+            .OrderBy(static item => item.Value)
+            .ToArray();
+        this.ResultElementCountOptions.Clear();
+        foreach(var item in ordered){
+            this.ResultElementCountOptions.Add(item);
+        }
+        this.SelectedResultElementCount??=this.ResultElementCountOptions.FirstOrDefault();
+    }
+
+    private void RefreshVisibleResults(){
+        this.VisibleResultItems.Clear();
+        var selectedN = this.SelectedResultElementCount?.Value;
+        foreach(var item in this.ResultItems.Where(item => selectedN is null||item.ElementCount==0||item.ElementCount==selectedN)){
+            this.VisibleResultItems.Add(item);
+        }
+    }
+
     private void LoadComparisonRowsIntoResults(IReadOnlyList<BenchmarkComparisonRow> rows){
         this.ResultItems.Clear();
+        this.VisibleResultItems.Clear();
         foreach(var row in rows){
             this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.SystemFLinq,row.SystemFLinq);
             this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.SystemZLinq,row.SystemZLinq);
@@ -370,10 +486,82 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
 
     private void UpdateChart(){
         this.ChartPoints.Clear();
-        foreach(var item in this.comparisonService.BuildChartPoints(this.comparisonRows,this.SelectedComparisonPair,this.SelectedMetric.Kind)){
+        var points = this.SelectedChartMode.Mode==BenchmarkChartMode.ScaleTrend
+            ? this.BuildScaleTrendPoints()
+            : this.comparisonService.BuildChartPoints(this.comparisonRows,this.SelectedComparisonPair,this.SelectedMetric.Kind);
+        foreach(var item in points){
             this.ChartPoints.Add(item);
         }
         this.ChartHeight=Math.Max(300,this.ChartPoints.Count*28+72);
+    }
+
+    private IReadOnlyList<ChartComparisonPoint> BuildScaleTrendPoints(){
+        var method = this.BenchmarkRows.FirstOrDefault(static item => item.IsSelected)?.MethodName
+            ??this.ResultItems.FirstOrDefault()?.Method
+            ??string.Empty;
+        if(string.IsNullOrWhiteSpace(method)){
+            return [];
+        }
+
+        var rows = this.ResultItems
+            .Where(item => item.ElementCount>0&&string.Equals(item.Method,method,StringComparison.OrdinalIgnoreCase))
+            .GroupBy(static item => item.ElementCount)
+            .OrderBy(static group => group.Key)
+            .Select(group => CreateScaleTrendPoint(group.Key,group.ToArray(),this.SelectedComparisonPair,this.SelectedMetric.Kind))
+            .Where(static item => item is not null)
+            .Select(static item => item!)
+            .ToArray();
+        return rows;
+    }
+
+    private static ChartComparisonPoint? CreateScaleTrendPoint(
+        int elementCount,
+        IReadOnlyList<BenchmarkResultItem> results,
+        ComparisonPairOption pair,
+        BenchmarkMetricKind metric){
+        var left = results.FirstOrDefault(item => string.Equals(item.Project,pair.LeftProject,StringComparison.OrdinalIgnoreCase));
+        var right = results.FirstOrDefault(item => string.Equals(item.Project,pair.RightProject,StringComparison.OrdinalIgnoreCase));
+        if(left is null&&right is null){
+            return null;
+        }
+
+        var leftValue = GetMetricValue(left,metric);
+        var rightValue = GetMetricValue(right,metric);
+        var leftText = FormatMetric(leftValue,metric);
+        var rightText = FormatMetric(rightValue,metric);
+        return new ChartComparisonPoint(
+            "N="+elementCount.ToString("N0",System.Globalization.CultureInfo.InvariantCulture),
+            "N="+elementCount.ToString("N0",System.Globalization.CultureInfo.InvariantCulture),
+            Math.Max(0,leftValue??0),
+            Math.Max(0,rightValue??0),
+            leftText,
+            rightText,
+            $"{pair.LeftProject}: {FirstText(leftText,"-")}\n{pair.RightProject}: {FirstText(rightText,"-")}",
+            null);
+    }
+
+    private static double? GetMetricValue(BenchmarkResultItem? item,BenchmarkMetricKind metric){
+        if(item is null){
+            return null;
+        }
+
+        return metric==BenchmarkMetricKind.Time
+            ? item.MeanNanoseconds
+            : item.AllocatedBytesValue;
+    }
+
+    private static string FormatMetric(double? value,BenchmarkMetricKind metric){
+        if(value is null){
+            return string.Empty;
+        }
+
+        return metric==BenchmarkMetricKind.Time
+            ? BenchmarkFormatting.FormatNanoseconds(value)
+            : BenchmarkFormatting.FormatBytes((long)Math.Round(value.Value,MidpointRounding.AwayFromZero));
+    }
+
+    private static string FirstText(params string[] values){
+        return values.FirstOrDefault(static value => !string.IsNullOrWhiteSpace(value))??string.Empty;
     }
 
     private void ApplyCurrentSort(){
