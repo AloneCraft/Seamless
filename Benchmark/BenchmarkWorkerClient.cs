@@ -6,7 +6,7 @@ using System.Text.Json;
 namespace Benchmark;
 
 public sealed class BenchmarkWorkerClient {
-    public async Task<BenchmarkRunResult> RunAsync(BenchmarkCase benchmark,string runRoot,string elementScale,CancellationToken cancellationToken) {
+    public async Task<BenchmarkRunResult> RunAsync(BenchmarkCase benchmark,string runRoot,string elementScale,int logicalCpu,CancellationToken cancellationToken) {
         var workerPath = ResolveWorkerPath();
         var artifactFolder = Path.Combine(
             runRoot,
@@ -14,32 +14,38 @@ public sealed class BenchmarkWorkerClient {
             SanitizePathPart(benchmark.MethodName));
         Directory.CreateDirectory(artifactFolder);
 
-        using var process = StartWorker(workerPath,runRoot);
-        var ready = await process.StandardOutput.ReadLineAsync(cancellationToken);
-        if(!string.Equals(ready,"ready",StringComparison.Ordinal)) {
-            throw new InvalidOperationException($"Benchmark worker did not become ready. First output: {ready}");
+        using var process = StartWorker(workerPath,runRoot,logicalCpu);
+        WorkerResultMessage result;
+        try {
+            var ready = await process.StandardOutput.ReadLineAsync(cancellationToken);
+            if(!string.Equals(ready,"ready",StringComparison.Ordinal)) {
+                throw new InvalidOperationException($"Benchmark worker did not become ready. First output: {ready}");
+            }
+
+            var message = new WorkerTaskMessage(
+                "run",
+                Guid.NewGuid().ToString("N",CultureInfo.InvariantCulture),
+                benchmark.AssemblyName,
+                benchmark.TypeFullName,
+                benchmark.MethodName,
+                elementScale,
+                artifactFolder);
+
+            await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(message).AsMemory(),cancellationToken);
+            await process.StandardInput.FlushAsync(cancellationToken);
+
+            var line = await process.StandardOutput.ReadLineAsync(cancellationToken)
+                ?? throw new InvalidOperationException("Benchmark worker closed without a result.");
+            result = JsonSerializer.Deserialize<WorkerResultMessage>(line)
+                ?? throw new InvalidOperationException("Benchmark worker returned an empty result.");
+
+            await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new WorkerTaskMessage("shutdown",string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty)).AsMemory(),cancellationToken);
+            await process.StandardInput.FlushAsync(cancellationToken);
+            await process.WaitForExitAsync(cancellationToken);
+        } catch(OperationCanceledException) {
+            KillProcess(process);
+            throw;
         }
-
-        var message = new WorkerTaskMessage(
-            "run",
-            Guid.NewGuid().ToString("N",CultureInfo.InvariantCulture),
-            benchmark.AssemblyName,
-            benchmark.TypeFullName,
-            benchmark.MethodName,
-            elementScale,
-            artifactFolder);
-
-        await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(message).AsMemory(),cancellationToken);
-        await process.StandardInput.FlushAsync(cancellationToken);
-
-        var line = await process.StandardOutput.ReadLineAsync(cancellationToken)
-            ?? throw new InvalidOperationException("Benchmark worker closed without a result.");
-        var result = JsonSerializer.Deserialize<WorkerResultMessage>(line)
-            ?? throw new InvalidOperationException("Benchmark worker returned an empty result.");
-
-        await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new WorkerTaskMessage("shutdown",string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty)).AsMemory(),cancellationToken);
-        await process.StandardInput.FlushAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
 
         return new BenchmarkRunResult(
             benchmark.Project,
@@ -58,7 +64,7 @@ public sealed class BenchmarkWorkerClient {
             result.Log);
     }
 
-    private static Process StartWorker(string workerPath,string runRoot) {
+    private static Process StartWorker(string workerPath,string runRoot,int logicalCpu) {
         var isDll = string.Equals(Path.GetExtension(workerPath),".dll",StringComparison.OrdinalIgnoreCase);
         var startInfo = new ProcessStartInfo {
             FileName=isDll?"dotnet":workerPath,
@@ -76,7 +82,7 @@ public sealed class BenchmarkWorkerClient {
         }
 
         startInfo.ArgumentList.Add("--logical-cpu");
-        startInfo.ArgumentList.Add("0");
+        startInfo.ArgumentList.Add(logicalCpu.ToString(CultureInfo.InvariantCulture));
         startInfo.ArgumentList.Add("--run-root");
         startInfo.ArgumentList.Add(runRoot);
 
@@ -106,6 +112,16 @@ public sealed class BenchmarkWorkerClient {
         }
 
         return builder.ToString();
+    }
+
+    private static void KillProcess(Process process) {
+        try {
+            if(!process.HasExited) {
+                process.Kill(entireProcessTree:true);
+            }
+        } catch(InvalidOperationException) {
+        } catch(System.ComponentModel.Win32Exception) {
+        }
     }
 }
 
