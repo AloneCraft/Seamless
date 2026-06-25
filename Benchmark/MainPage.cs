@@ -1,3 +1,4 @@
+using Syncfusion.Maui.Buttons;
 using Syncfusion.Maui.DataGrid;
 using Syncfusion.Maui.Toolkit.Calendar;
 using Syncfusion.Maui.Toolkit.Charts;
@@ -298,12 +299,8 @@ public sealed class MainPage:ContentPage{
                 BackgroundColor=Colors.Transparent,
             }),
             CellTemplate=new DataTemplate(() => {
-                var check = new CheckBox{
-                    HorizontalOptions=LayoutOptions.Center,
-                    VerticalOptions=LayoutOptions.Center,
-                    Margin=new Thickness(0),
-                };
-                check.SetBinding(CheckBox.IsCheckedProperty,new Binding(nameof(BenchmarkTableRow.IsSelected),BindingMode.TwoWay));
+                var check = this.CreateSfCheckBox(24,24);
+                check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(nameof(BenchmarkTableRow.IsSelected),BindingMode.TwoWay));
                 return check;
             }),
         };
@@ -379,14 +376,8 @@ public sealed class MainPage:ContentPage{
                     Padding=new Thickness(1,0),
                     VerticalOptions=LayoutOptions.Center,
                 };
-                var check = new CheckBox{
-                    WidthRequest=24,
-                    HeightRequest=24,
-                    Margin=new Thickness(0),
-                    VerticalOptions=LayoutOptions.Center,
-                    HorizontalOptions=LayoutOptions.Center,
-                };
-                check.SetBinding(CheckBox.IsCheckedProperty,new Binding(cellPath+"."+nameof(BenchmarkProjectCell.IsSelected),BindingMode.TwoWay));
+                var check = this.CreateSfCheckBox(24,24);
+                check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(cellPath+"."+nameof(BenchmarkProjectCell.IsSelected),BindingMode.TwoWay));
                 check.SetBinding(IsEnabledProperty,cellPath+"."+nameof(BenchmarkProjectCell.HasCase));
                 var icon = new Label{
                     FontSize=12,
@@ -561,12 +552,8 @@ public sealed class MainPage:ContentPage{
                     Spacing=2,
                     Padding=new Thickness(2,0),
                 };
-                var check = new CheckBox{
-                    WidthRequest=22,
-                    HeightRequest=22,
-                    Margin=new Thickness(0),
-                };
-                check.SetBinding(CheckBox.IsCheckedProperty,new Binding(nameof(ElementCountOption.IsSelected),BindingMode.TwoWay));
+                var check = this.CreateSfCheckBox(22,22);
+                check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(nameof(ElementCountOption.IsSelected),BindingMode.TwoWay));
                 var label = new Label{
                     FontSize=11,
                     VerticalTextAlignment=TextAlignment.Center,
@@ -647,7 +634,7 @@ public sealed class MainPage:ContentPage{
         };
         var sectionCheck = this.CreateCpuCheckBox();
         sectionCheck.InputTransparent=true;
-        sectionCheck.SetBinding(CheckBox.IsCheckedProperty,new Binding(nameof(CpuTableSection.State),BindingMode.OneWay,converter:new CpuSelectionStateToBoolConverter()));
+        sectionCheck.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(nameof(CpuTableSection.State),BindingMode.OneWay,converter:new CpuSelectionStateToBoolConverter()));
         var badge = this.CreateCoreBadge();
         badge.SetBinding(BackgroundColorProperty,nameof(CpuTableSection.BadgeBackgroundColor));
         if(badge.Content is Label badgeLabel){
@@ -739,7 +726,7 @@ public sealed class MainPage:ContentPage{
                 };
                 var check = this.CreateCpuCheckBox();
                 check.InputTransparent=true;
-                check.SetBinding(CheckBox.IsCheckedProperty,new Binding(nameof(CpuTableRow.IsChecked),BindingMode.OneWay));
+                check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(nameof(CpuTableRow.IsChecked),BindingMode.OneWay));
                 var badge = this.CreateCoreBadge();
                 badge.SetBinding(BackgroundColorProperty,nameof(CpuTableRow.BadgeBackgroundColor));
                 if(badge.Content is Label badgeLabel){
@@ -798,7 +785,7 @@ public sealed class MainPage:ContentPage{
                 };
                 layout.SetBinding(IsVisibleProperty,new Binding(cellPath,converter:new NullToBoolConverter()));
                 var check = this.CreateCpuCheckBox();
-                check.SetBinding(CheckBox.IsCheckedProperty,new Binding(cellPath+"."+nameof(CpuTableCell.IsSelected),BindingMode.TwoWay));
+                check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(cellPath+"."+nameof(CpuTableCell.IsSelected),BindingMode.TwoWay));
                 var spinner = new ActivityIndicator{
                     WidthRequest=14,
                     HeightRequest=14,
@@ -847,7 +834,7 @@ public sealed class MainPage:ContentPage{
             };
             var check = this.CreateCpuCheckBox();
             check.InputTransparent=true;
-            check.SetBinding(CheckBox.IsCheckedProperty,new Binding(nameof(CpuTableColumn.IsChecked),BindingMode.OneWay,source:column));
+            check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(nameof(CpuTableColumn.IsChecked),BindingMode.OneWay,source:column));
             layout.Add(check,0,0);
             var tap = new TapGestureRecognizer();
             tap.Tapped+=(_,_) => {
@@ -860,10 +847,14 @@ public sealed class MainPage:ContentPage{
         });
     }
 
-    private CheckBox CreateCpuCheckBox(){
-        return new CheckBox{
-            WidthRequest=CpuCheckBoxWidth,
-            HeightRequest=CpuCheckBoxHeight,
+    private SfCheckBox CreateCpuCheckBox() =>
+        this.CreateSfCheckBox(CpuCheckBoxWidth,CpuCheckBoxHeight);
+
+    private SfCheckBox CreateSfCheckBox(double width,double height,bool isThreeState = false){
+        return new SfCheckBox{
+            WidthRequest=width,
+            HeightRequest=height,
+            IsThreeState=isThreeState,
             HorizontalOptions=LayoutOptions.Center,
             VerticalOptions=LayoutOptions.Center,
             Margin=new Thickness(0),
