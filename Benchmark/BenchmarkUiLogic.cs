@@ -1,5 +1,85 @@
 namespace Benchmark;
 
+public enum BenchmarkProjectLiveState{
+    Idle,
+    Running,
+    Completed,
+}
+
+internal static class BenchmarkTimestampDisplay{
+    public const string Format = "yyyy/MM/dd HH:mm:ss";
+
+    public static string FormatLocal(DateTimeOffset timestamp) =>
+        timestamp.ToLocalTime().ToString(Format,System.Globalization.CultureInfo.InvariantCulture);
+}
+
+internal static class BenchmarkCsvTimestampParser{
+    public static DateTimeOffset? TryExtractTimestamp(string path){
+        var fileTimestamp = TryParseTimestamp(System.IO.Path.GetFileNameWithoutExtension(path));
+        if(fileTimestamp is not null){
+            return fileTimestamp;
+        }
+
+        var directory = System.IO.Path.GetDirectoryName(path);
+        while(!string.IsNullOrWhiteSpace(directory)){
+            var folderTimestamp = TryParseTimestamp(System.IO.Path.GetFileName(directory));
+            if(folderTimestamp is not null){
+                return folderTimestamp;
+            }
+
+            directory=System.IO.Path.GetDirectoryName(directory);
+        }
+
+        return null;
+    }
+
+    private static DateTimeOffset? TryParseTimestamp(string text){
+        foreach(var pattern in TimestampPatterns()){
+            var match = System.Text.RegularExpressions.Regex.Match(text,pattern.Regex,System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if(!match.Success){
+                continue;
+            }
+
+            var value = match.Groups["value"].Value;
+            if(DateTime.TryParseExact(value,pattern.Format,System.Globalization.CultureInfo.InvariantCulture,System.Globalization.DateTimeStyles.AssumeLocal,out var date)){
+                return new DateTimeOffset(date);
+            }
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<(string Regex,string Format)> TimestampPatterns(){
+        yield return (@"(?<value>\d{8}-\d{6})","yyyyMMdd-HHmmss");
+        yield return (@"(?<value>\d{14})","yyyyMMddHHmmss");
+        yield return (@"(?<value>\d{4}-\d{2}-\d{2}[-_ ]\d{2}[-_]\d{2}[-_]\d{2})","yyyy-MM-dd HH-mm-ss");
+        yield return (@"(?<value>\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})","yyyy-MM-dd_HH-mm-ss");
+        yield return (@"(?<value>\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})","yyyy-MM-dd-HH-mm-ss");
+    }
+}
+
+internal static class BenchmarkProjectLiveStateLogic{
+    public static bool IsPending(BenchmarkProjectLiveState state,bool hasMetrics) =>
+        state==BenchmarkProjectLiveState.Idle&&!hasMetrics;
+
+    public static bool IsRunning(BenchmarkProjectLiveState state) =>
+        state==BenchmarkProjectLiveState.Running;
+
+    public static bool IsCompleted(BenchmarkProjectLiveState state) =>
+        state==BenchmarkProjectLiveState.Completed;
+}
+
+internal static class BenchmarkElementCountLogic{
+    public static IReadOnlyList<int> BuildAdaptiveCandidates(IReadOnlyList<int> elementCounts,int maxElementCount){
+        var candidates = elementCounts
+            .Where(count => count<=maxElementCount)
+            .Distinct()
+            .Order()
+            .ToArray();
+        return candidates.Length==0 ? [BenchmarkElementCounts.DefaultInitial[0]] : candidates;
+    }
+}
+
 internal sealed record CpuTableSectionDefinition(string Title,CpuCoreKind CoreKind,IReadOnlyList<CpuTableRowDefinition> Rows){
     public int ColumnCount => Rows.Count==0 ? 0 : Rows.Max(static row => row.LogicalProcessorIndexes.Count);
 }

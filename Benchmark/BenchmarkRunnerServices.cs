@@ -475,7 +475,7 @@ public sealed class BenchmarkComparisonService:IBenchmarkComparisonService {
     private static ChartComparisonPoint? CreateChartPoint(BenchmarkComparisonRow row,ComparisonPairOption pair,BenchmarkMetricKind metric) {
         var left = row.GetProject(pair.LeftProject);
         var right = row.GetProject(pair.RightProject);
-        if(!left.HasValue||!right.HasValue) {
+        if(!left.HasMeasuredValue||!right.HasMeasuredValue) {
             return null;
         }
 
@@ -507,7 +507,7 @@ public sealed class BenchmarkComparisonService:IBenchmarkComparisonService {
     }
 
     private static double? GetMetricValue(ProjectMetrics metrics,BenchmarkMetricKind metric) {
-        if(!metrics.HasValue) {
+        if(!metrics.HasMeasuredValue) {
             return null;
         }
 

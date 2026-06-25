@@ -146,7 +146,9 @@ internal sealed class BenchmarkOrchestrator {
 
         try {
             var result = await this.jobRunner.RunAsync(job,state.RunRoot,logicalCpu,timeout,cancellationToken);
-            job.Status=string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+            var completed = string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+                &&result.MeanNanoseconds is not null;
+            job.Status=completed
                 ? JobStatus.Completed
                 : JobStatus.Failed;
             job.Mean=result.Mean;
@@ -159,7 +161,11 @@ internal sealed class BenchmarkOrchestrator {
             job.ExitCode=result.ExitCode;
             job.ArtifactFolder=result.ArtifactFolder;
             if(job.Status==JobStatus.Failed) {
-                job.FailureReason=FirstText(result.Log,$"Worker returned status {result.Status}.");
+                job.FailureReason=FirstText(
+                    result.Log,
+                    string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+                        ? "Worker completed without benchmark statistics."
+                        : $"Worker returned status {result.Status}.");
             }
         } catch(OperationCanceledException) when(cancellationToken.IsCancellationRequested) {
             job.Status=JobStatus.Pending;

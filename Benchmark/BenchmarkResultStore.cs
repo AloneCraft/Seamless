@@ -17,8 +17,8 @@ public sealed record BenchmarkStoredResult(
     DateTimeOffset? SourceCsvAt,
     string SourcePath){
     public ProjectMetrics ToProjectMetrics() =>
-        string.Equals(this.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-            ? new ProjectMetrics(this.MeanNanoseconds,this.AllocatedBytes,true)
+        string.Equals(this.Status,"Completed",StringComparison.OrdinalIgnoreCase)&&this.MeanNanoseconds is not null
+            ? ProjectMetrics.FromMeasurement(this.MeanNanoseconds,this.AllocatedBytes)
             : ProjectMetrics.Missing;
 }
 
@@ -63,6 +63,10 @@ public sealed class BenchmarkResultStore{
     }
 
     public void Upsert(BenchmarkStoredResult result){
+        if(string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)&&result.MeanNanoseconds is null){
+            return;
+        }
+
         this.results[CreateKey(result.Project,result.Method,result.ElementCount)]=result;
     }
 
@@ -135,7 +139,7 @@ public sealed class BenchmarkResultStore{
 
     private static IEnumerable<ReportRow> CreateReportRows(string method,IReadOnlyDictionary<string,ProjectMetrics> metrics){
         foreach(var project in BenchmarkComparisonFormatter.ProjectOrder){
-            if(!metrics.TryGetValue(project,out var metric)||!metric.HasValue){
+            if(!metrics.TryGetValue(project,out var metric)||!metric.HasMeasuredValue){
                 continue;
             }
 
@@ -214,7 +218,7 @@ public sealed class BenchmarkCsvDiscoveryService{
             foreach(var row in rows){
                 foreach(var project in BenchmarkComparisonFormatter.ProjectOrder){
                     var metrics = row.GetProject(project);
-                    if(!metrics.HasValue){
+                    if(!metrics.HasMeasuredValue){
                         continue;
                     }
 
@@ -237,7 +241,7 @@ public sealed class BenchmarkCsvDiscoveryService{
             .OrderByDescending(static timestamp => timestamp)
             .Select(static timestamp => new CsvDateOption(
                 timestamp,
-                timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss",CultureInfo.InvariantCulture)))
+                BenchmarkTimestampDisplay.FormatLocal(timestamp)))
             .ToArray();
         var calendarDates = timestamps
             .Select(static timestamp => timestamp.ToLocalTime().Date)
@@ -248,22 +252,7 @@ public sealed class BenchmarkCsvDiscoveryService{
     }
 
     public static DateTimeOffset? TryExtractTimestamp(string path){
-        var fileTimestamp = TryParseTimestamp(Path.GetFileNameWithoutExtension(path));
-        if(fileTimestamp is not null){
-            return fileTimestamp;
-        }
-
-        var directory = Path.GetDirectoryName(path);
-        while(!string.IsNullOrWhiteSpace(directory)){
-            var folderTimestamp = TryParseTimestamp(Path.GetFileName(directory));
-            if(folderTimestamp is not null){
-                return folderTimestamp;
-            }
-
-            directory=Path.GetDirectoryName(directory);
-        }
-
-        return null;
+        return BenchmarkCsvTimestampParser.TryExtractTimestamp(path);
     }
 
     public static int TryExtractElementCount(string path){

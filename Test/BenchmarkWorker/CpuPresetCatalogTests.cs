@@ -133,6 +133,24 @@ public sealed class CpuPresetCatalogTests{
     }
 
     [Fact]
+    public void BenchmarkCsvTimestampParser_FormatsExtractedTimestamp_WithSlashSeparatedDisplay(){
+        var timestamp = BenchmarkCsvTimestampParser.TryExtractTimestamp(@"G:\GitHub\Seamless\Work\Benchmark\20260626-032235\BenchmarkComparison-N1.csv");
+
+        Assert.NotNull(timestamp);
+        Assert.Equal("2026/06/26 03:22:35",BenchmarkTimestampDisplay.FormatLocal(timestamp.Value));
+    }
+
+    [Fact]
+    public void BenchmarkProjectLiveStateLogic_UsesLiveStateOnlyForRunningAndCompletedVisuals(){
+        Assert.True(BenchmarkProjectLiveStateLogic.IsPending(BenchmarkProjectLiveState.Idle,false));
+        Assert.False(BenchmarkProjectLiveStateLogic.IsPending(BenchmarkProjectLiveState.Idle,true));
+        Assert.True(BenchmarkProjectLiveStateLogic.IsRunning(BenchmarkProjectLiveState.Running));
+        Assert.False(BenchmarkProjectLiveStateLogic.IsRunning(BenchmarkProjectLiveState.Completed));
+        Assert.True(BenchmarkProjectLiveStateLogic.IsCompleted(BenchmarkProjectLiveState.Completed));
+        Assert.False(BenchmarkProjectLiveStateLogic.IsCompleted(BenchmarkProjectLiveState.Idle));
+    }
+
+    [Fact]
     public void ComparisonFormatter_BuildsFixedPairs_WithLeftDividedByRight(){
         var rows = new[]{
             CreateReportRow("SystemFLinq","Select","Completed",5,10),
@@ -180,6 +198,69 @@ public sealed class CpuPresetCatalogTests{
 
         Assert.Contains("Select,,,4,0",csv,StringComparison.Ordinal);
         Assert.Equal("-",Assert.Single(rows).SystemRatio.TimeRatio.DisplayText);
+    }
+
+    [Fact]
+    public void ComparisonFormatter_TreatsCompletedRowsWithoutTimeAsMissing(){
+        var rows = BenchmarkComparisonFormatter.BuildComparisonRows([
+            CreateReportRow("SystemFLinq","Select","Completed",0,10),
+            CreateReportRow("SystemZLinq","Select","Completed",4,0),
+        ]);
+
+        var comparison = Assert.Single(rows);
+        var csv = BenchmarkComparisonFormatter.WriteCsv(rows);
+
+        Assert.False(comparison.SystemFLinq.HasMeasuredValue);
+        Assert.True(comparison.SystemZLinq.HasMeasuredValue);
+        Assert.Contains("Select,,,4,0",csv,StringComparison.Ordinal);
+        Assert.Equal("-",comparison.SystemRatio.TimeRatio.DisplayText);
+    }
+
+    [Fact]
+    public void ComparisonFormatter_ReadCsv_IgnoresAllocatedWithoutTime(){
+        var csv = BenchmarkComparisonFormatter.WriteCsv([
+            new BenchmarkComparisonRow(
+                "Select",
+                ProjectMetrics.FromMeasurement(5,10),
+                ProjectMetrics.FromMeasurement(4,0),
+                ProjectMetrics.Missing,
+                ProjectMetrics.Missing,
+                ProjectMetrics.Missing,
+                ProjectMetrics.Missing),
+        ]).Replace("Select,5,10,4,0","Select,,10,4,0",StringComparison.Ordinal);
+
+        var read = Assert.Single(BenchmarkComparisonFormatter.ReadCsv(csv));
+
+        Assert.False(read.SystemFLinq.HasMeasuredValue);
+        Assert.True(read.SystemZLinq.HasMeasuredValue);
+        Assert.Equal(0,read.SystemZLinq.AllocatedBytes);
+    }
+
+    [Fact]
+    public void ComparisonFormatter_WritesZeroAllocationOnlyWhenTimeExists(){
+        var csv = BenchmarkComparisonFormatter.WriteCsv([
+            new BenchmarkComparisonRow(
+                "Select",
+                ProjectMetrics.FromMeasurement(4400,0),
+                ProjectMetrics.FromMeasurement(6800,null),
+                ProjectMetrics.Missing,
+                ProjectMetrics.Missing,
+                ProjectMetrics.Missing,
+                ProjectMetrics.Missing),
+        ]);
+        var read = Assert.Single(BenchmarkComparisonFormatter.ReadCsv(csv));
+
+        Assert.Contains("Select,4400,0,6800,",csv,StringComparison.Ordinal);
+        Assert.Equal(0,read.SystemFLinq.AllocatedBytes);
+        Assert.Null(read.SystemZLinq.AllocatedBytes);
+    }
+
+    [Fact]
+    public void BenchmarkWorkerRuntime_CreateConfig_AllowsDebugBenchmarking(){
+        var config = BenchmarkWorkerRuntime.CreateConfig("artifacts");
+
+        Assert.True(BenchmarkWorkerRuntime.AllowsDebugBenchmarking(config));
+        Assert.False(BenchmarkWorkerRuntime.HasUsableStatistics(null));
     }
 
     [Fact]
