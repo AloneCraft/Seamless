@@ -17,6 +17,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     private CancellationTokenSource? runCancellation;
     private string statusText = "Ready";
     private bool isRunning;
+    private bool? isAllBenchmarkSelectionChecked;
     private BenchmarkTab selectedTab = BenchmarkTab.Cpu;
     private ComparisonPairOption selectedComparisonPair;
     private ScaleOption? selectedScale;
@@ -31,6 +32,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     private double chartHeight = 300;
     private bool isApplyingCpuSelection;
     private bool isApplyingUiState;
+    private bool isApplyingBenchmarkSelection;
     private BenchmarkGridSortColumn currentSortColumn = BenchmarkGridSortColumn.BenchmarkName;
     private bool currentSortDescending;
     private IReadOnlyList<BenchmarkComparisonRow> comparisonRows = [];
@@ -58,6 +60,20 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             new ComparisonPairOption("System","System FLinq/ZLinq",BenchmarkComparisonFormatter.SystemFLinq,BenchmarkComparisonFormatter.SystemZLinq),
             new ComparisonPairOption("Persisted","PersistedFLinq/PersistedLinq",BenchmarkComparisonFormatter.PersistedFLinq,BenchmarkComparisonFormatter.PersistedLinq),
             new ComparisonPairOption("Tsavorite","TsavoriteFLinq/TsavoriteLinq",BenchmarkComparisonFormatter.TsavoriteFLinq,BenchmarkComparisonFormatter.TsavoriteLinq),
+        ];
+        this.BenchmarkColumnSelectionGroups=[
+            new BenchmarkColumnSelectionGroup("System",[
+                BenchmarkComparisonFormatter.SystemFLinq,
+                BenchmarkComparisonFormatter.SystemZLinq,
+            ]),
+            new BenchmarkColumnSelectionGroup("Persisted",[
+                BenchmarkComparisonFormatter.PersistedFLinq,
+                BenchmarkComparisonFormatter.PersistedLinq,
+            ]),
+            new BenchmarkColumnSelectionGroup("Tsavorite",[
+                BenchmarkComparisonFormatter.TsavoriteFLinq,
+                BenchmarkComparisonFormatter.TsavoriteLinq,
+            ]),
         ];
         this.selectedComparisonPair=this.ComparisonPairs[0];
         this.RunModes=[
@@ -136,6 +152,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     public ObservableCollection<CsvDateOption> CsvDateOptions { get; } = [];
     public ObservableCollection<DateTime> CsvCalendarDates { get; } = [];
     public ObservableCollection<string> ChartWarnings { get; } = [];
+    public IReadOnlyList<BenchmarkColumnSelectionGroup> BenchmarkColumnSelectionGroups { get; }
     public IReadOnlyList<RunModeOption> RunModes { get; }
     public IReadOnlyList<ComparisonPairOption> ComparisonPairs { get; }
     public IReadOnlyList<MetricOption> Metrics { get; }
@@ -163,6 +180,11 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
                 this.RunCommand.NotifyCanExecuteChanged();
             }
         }
+    }
+
+    public bool? IsAllBenchmarkSelectionChecked{
+        get => this.isAllBenchmarkSelectionChecked;
+        private set => this.SetProperty(ref this.isAllBenchmarkSelectionChecked,value);
     }
 
     public async Task CancelAndWaitAsync(){
@@ -313,6 +335,19 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         this.ApplyCpuSelection(row.Cells.Select(static cell => cell.Cpu),selected);
     }
 
+    public void ToggleAllBenchmarkSelection(){
+        this.SetBenchmarkCells(this.BenchmarkRows.SelectMany(static row => row.ProjectCells),this.IsAllBenchmarkSelectionChecked is false);
+    }
+
+    public void ToggleBenchmarkColumnGroup(BenchmarkColumnSelectionGroup group){
+        var selected = group.IsChecked is false;
+        this.SetBenchmarkCells(this.GetBenchmarkCells(group.ColumnKeys),selected);
+    }
+
+    public void ToggleBenchmarkRow(BenchmarkTableRow row){
+        this.SetBenchmarkCells(row.ProjectCells,row.IsSelectionChecked is false);
+    }
+
     private async Task RefreshAsync(){
         this.IsRunning=true;
         this.StatusText="Loading";
@@ -349,6 +384,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             this.ApplyComparisonRowsToTable();
             this.ApplyStoredResultsToTable();
             this.RestoreCsvDateSelection(savedState.SelectedCsvTimestamp);
+            this.RefreshBenchmarkSelectionAggregates();
             this.ApplyCurrentSort();
             this.StatusText=this.BenchmarkRows.Count+" benchmarks";
         }catch(Exception ex){
@@ -372,30 +408,76 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     }
 
     private void SetAllBenchmarkSelection(bool selected){
-        this.isApplyingUiState=true;
-        foreach(var item in this.BenchmarkRows){
-            item.IsSelected=selected;
-            foreach(var cell in item.ProjectCells){
-                cell.IsSelected=selected;
-            }
-        }
-        this.isApplyingUiState=false;
-        this.SaveUiState();
+        this.SetBenchmarkCells(this.BenchmarkRows.SelectMany(static row => row.ProjectCells),selected);
     }
 
     private void SubscribeBenchmarkRow(BenchmarkTableRow row){
         row.PropertyChanged+=(_,args) => {
-            if(args.PropertyName==nameof(BenchmarkTableRow.IsSelected)&&!this.isApplyingUiState){
+            if(args.PropertyName==nameof(BenchmarkTableRow.IsSelected)&&!this.isApplyingUiState&&!this.isApplyingBenchmarkSelection){
                 this.SaveUiState();
             }
         };
         foreach(var cell in row.ProjectCells){
             cell.PropertyChanged+=(_,args) => {
-                if(args.PropertyName==nameof(BenchmarkProjectCell.IsSelected)&&!this.isApplyingUiState){
+                if(args.PropertyName==nameof(BenchmarkProjectCell.IsSelected)&&!this.isApplyingUiState&&!this.isApplyingBenchmarkSelection){
+                    this.RefreshBenchmarkSelectionAggregates();
                     this.SaveUiState();
                 }
             };
         }
+    }
+
+    private IEnumerable<BenchmarkProjectCell> GetBenchmarkCells(IReadOnlyList<string> projectKeys){
+        foreach(var row in this.BenchmarkRows){
+            foreach(var project in projectKeys){
+                if(row.GetProjectCell(project) is { } cell){
+                    yield return cell;
+                }
+            }
+        }
+    }
+
+    private void SetBenchmarkCells(IEnumerable<BenchmarkProjectCell> cells,bool selected){
+        var targets = cells.Where(static cell => cell.HasCase).Distinct().ToArray();
+        if(targets.Length==0){
+            this.RefreshBenchmarkSelectionAggregates();
+            return;
+        }
+
+        this.isApplyingBenchmarkSelection=true;
+        try{
+            foreach(var cell in targets){
+                cell.IsSelected=selected;
+            }
+            this.RefreshBenchmarkSelectionAggregates();
+        }finally{
+            this.isApplyingBenchmarkSelection=false;
+        }
+        this.SaveUiState();
+    }
+
+    private void RefreshBenchmarkSelectionAggregates(){
+        foreach(var row in this.BenchmarkRows){
+            row.RefreshSelectionState();
+        }
+        foreach(var group in this.BenchmarkColumnSelectionGroups){
+            group.IsChecked=GetSelectionState(this.GetBenchmarkCells(group.ColumnKeys));
+        }
+        this.IsAllBenchmarkSelectionChecked=GetSelectionState(this.BenchmarkRows.SelectMany(static row => row.ProjectCells));
+    }
+
+    private static bool? GetSelectionState(IEnumerable<BenchmarkProjectCell> cells){
+        var targets = cells.Where(static cell => cell.HasCase).ToArray();
+        if(targets.Length==0){
+            return false;
+        }
+
+        var selected = targets.Count(static cell => cell.IsSelected);
+        return selected==0
+            ? false
+            : selected==targets.Length
+                ? true
+                : null;
     }
 
     private void RefreshCsvScan(){
@@ -428,6 +510,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             }
         }finally{
             this.isApplyingUiState=false;
+            this.RefreshBenchmarkSelectionAggregates();
         }
     }
 

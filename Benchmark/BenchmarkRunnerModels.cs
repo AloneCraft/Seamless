@@ -262,8 +262,26 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     }
 }
 
+public sealed class BenchmarkColumnSelectionGroup:ObservableObject{
+    private bool? isChecked;
+
+    public BenchmarkColumnSelectionGroup(string headerText,IReadOnlyList<string> columnKeys){
+        this.HeaderText=headerText;
+        this.ColumnKeys=columnKeys;
+    }
+
+    public string HeaderText { get; }
+    public IReadOnlyList<string> ColumnKeys { get; }
+
+    public bool? IsChecked{
+        get => this.isChecked;
+        set => this.SetProperty(ref this.isChecked,value);
+    }
+}
+
 public sealed class BenchmarkTableRow:ObservableObject{
     private bool isSelected;
+    private bool? isSelectionChecked;
     private string systemRatioTimeText = string.Empty;
     private string systemRatioAllocatedText = string.Empty;
     private string systemFLinqTimeText = string.Empty;
@@ -309,6 +327,11 @@ public sealed class BenchmarkTableRow:ObservableObject{
     public bool IsSelected{
         get => this.isSelected;
         set => this.SetProperty(ref this.isSelected,value);
+    }
+
+    public bool? IsSelectionChecked{
+        get => this.isSelectionChecked;
+        private set => this.SetProperty(ref this.isSelectionChecked,value);
     }
 
     public string SystemRatioTimeText{
@@ -421,6 +444,26 @@ public sealed class BenchmarkTableRow:ObservableObject{
 
     public BenchmarkProjectCell? GetProjectCell(string project) =>
         this.ProjectCells.FirstOrDefault(cell => string.Equals(cell.Project,project,StringComparison.OrdinalIgnoreCase));
+
+    public void RefreshSelectionState(){
+        var state = GetSelectionState(this.ProjectCells);
+        this.IsSelectionChecked=state;
+        this.IsSelected=state is true or null;
+    }
+
+    private static bool? GetSelectionState(IEnumerable<BenchmarkProjectCell> cells){
+        var targets = cells.Where(static cell => cell.HasCase).ToArray();
+        if(targets.Length==0){
+            return false;
+        }
+
+        var selected = targets.Count(static cell => cell.IsSelected);
+        return selected==0
+            ? false
+            : selected==targets.Length
+                ? true
+                : null;
+    }
 
     public void ApplyStoredResult(BenchmarkStoredResult result){
         if(this.GetProjectCell(result.Project) is { } cell){
