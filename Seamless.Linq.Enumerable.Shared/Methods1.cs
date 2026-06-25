@@ -1,4 +1,4 @@
-namespace Shared.Linq.Enumerable;
+namespace Seamless.Linq.Enumerable.Shared;
 
 #if TSAVORITE
 public abstract class Methods1 : TsavoriteBase {
@@ -765,9 +765,9 @@ public abstract class Methods1:Base {
     private void ExecutionPlan_FilterJoinAggregate_Impl() => this.srcCount(JoinCount).AsX<int>()
         .Where(outer => (outer&1)==0)
         .Join(
-            this.src2Count(JoinCount).Where(inner => inner%3==0),
+            this.src2Count(JoinCount),
             outer => outer%4096,
-            inner => inner%4096,
+            inner => inner%3==0 ? inner%4096 : -1,
             (outer,inner) => outer+inner)
         .CountBy(value => value%512)
         .OrderByDescending(value => value.Value)

@@ -1,9 +1,9 @@
 namespace Benchmark.Persisted.Linq.Enumerable {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public class FLinq():global::Shared.Linq.Enumerable.Methods1(3_200_000);
+    public class FLinq():global::Seamless.Linq.Enumerable.Shared.Methods1(3_200_000);
 }
 
-namespace Shared.Linq.Enumerable {
+namespace Seamless.Linq.Enumerable.Shared {
     internal static class Route {
         public static Seamless.Persisted.Collections.Set<T> AsX<T>(
             this Seamless.Persisted.Collections.Set<T> source) => source;

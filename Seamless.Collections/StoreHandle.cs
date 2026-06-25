@@ -1,8 +1,8 @@
-namespace Test.Collections;
+namespace Seamless.Collections;
 
 /// <summary>
-/// ï¿½eï¿½Xï¿½gï¿½pï¿½Xï¿½gï¿½Aï¿½ï¿½ï¿½ìƒ‰ï¿½bï¿½pï¿½[ï¿½B
-/// ï¿½ï¿½Ì“Iï¿½ÈƒXï¿½gï¿½Aï¿½^ï¿½ï¿½Bï¿½ï¿½ï¿½ï¿½ï¿½AFlushAndEvict / Save / Load / Address / NewDict ï¿½ï¿½ñ‹Ÿ‚ï¿½ï¿½ï¿½B
+/// E½eE½XE½gE½pE½XE½gE½AE½E½E½E‰ï¿½bE½pE½[E½B
+/// E½E½Ì“IE½ÈƒXE½gE½AE½^E½E½BE½E½E½E½E½AFlushAndEvict / Save / Load / Address / NewDict E½E½ñ‹Ÿ‚E½E½E½B
 /// </summary>
 public sealed class StoreHandle<TKey, TValue>:IDisposable
     where TKey : IEquatable<TKey>

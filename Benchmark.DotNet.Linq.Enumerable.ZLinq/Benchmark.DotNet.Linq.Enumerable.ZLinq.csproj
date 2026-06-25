@@ -22,5 +22,5 @@
     <Using Include="Benchmark.Shared" />
     <Using Include="ZLinq" />
   </ItemGroup>
-  <Import Project="..\Benchmark.Shared\Benchmark.Linq.Enumerable.Core.projitems" Label="Shared" />
+  <Import Project="..\Seamless.Linq.Enumerable.Shared\Seamless.Linq.Enumerable.Shared.projitems" Label="Shared" />
 </Project>

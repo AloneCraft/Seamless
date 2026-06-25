@@ -1,12 +1,12 @@
 using Seamless.Tsavorite.Stores;
 using System.Linq;
 using Tsavorite.core;
-using Test.Collections;
+using Seamless.Collections;
 namespace Tsavorite.Collection.Shared.Stress;
 
 /// <summary>
-/// HashSet 縺ｮ髮・粋貍皮ｮ・(IntersectWith / SymmetricExceptWith / UnionWith / ExceptWith)
-/// 縺ｮ豎ｺ螳夊ｫ也噪 Stress 繝・せ繝医ゅす繝ｼ繝蛾＆縺・〒 2 繧ｻ繝・ヨ繧呈ｧ狗ｯ峨＠貍皮ｮ礼ｵ先棡繧偵ざ繝ｼ繝ｫ繝・Φ豈碑ｼ・☆繧九・
+/// HashSet 縺�E�髮・粋貍皮�E�・(IntersectWith / SymmetricExceptWith / UnionWith / ExceptWith)
+/// 縺�E�豎ｺ螳夊ｫ也噪 Stress 繝�Eせ繝医めE��繝ｼ繝蛾�E�E��・、E2 繧�E�繝�Eヨ繧呈ｧ狗ｯ峨�E�貍皮�E�礼�E�先棡繧偵ざ繝ｼ繝ｫ繝�EΦ豈碑ｼ・☁E��九・
 /// </summary>
 public class SetOperationStressTests {
     private const int SeedA = 20260417;

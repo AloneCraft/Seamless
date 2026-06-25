@@ -1,9 +1,9 @@
 namespace Test.Tsavorite.Linq.Enumerable {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public sealed class FLinq():global::Shared.Linq.Enumerable.Methods1(80_000);
+    public sealed class FLinq():global::Seamless.Linq.Enumerable.Shared.Methods1(80_000);
 }
 
-namespace Shared.Linq.Enumerable {
+namespace Seamless.Linq.Enumerable.Shared {
     internal static class Route {
         public static global::Seamless.Tsavorite.Collections.HashSet<T> AsX<T>(
             this global::Seamless.Tsavorite.Collections.HashSet<T> source) => source;

@@ -17,7 +17,7 @@ public class Enumerator {
         using var e = dict.GetEnumerator();
         Assert.False(e.MoveNext());
     }
-    // Enumerator.MoveNext: Chunk_LENGTH=2 アイテム チャンクパス (Index < Count)
+    // Enumerator.MoveNext: Chunk_LENGTH=2 アイチE�� チャンクパス (Index < Count)
     [BenchFact,Benchmark]
     public void MoveNext_WithinChunk_TwoItems() {
         using var store = Store.Create().Create<int,string>();
@@ -28,7 +28,7 @@ public class Enumerator {
         foreach(var _ in dict) count++;
         Assert.Equal(2,count);
     }
-    // Enumerator.MoveNext: 3アイテムで複数チャンク (1チャンク目2件+2チャンク目1件)
+    // Enumerator.MoveNext: 3アイチE��で褁E��チャンク (1チャンク目2件+2チャンク目1件)
     [BenchFact,Benchmark]
     public void MoveNext_MultiChunk_ThreeItems() {
         using var store = Store.Create().Create<int,string>();
@@ -40,8 +40,7 @@ public class Enumerator {
         foreach(var _ in dict) count++;
         Assert.Equal(3,count);
     }
-    // Enumerator.Current の値確認
-    [BenchFact,Benchmark]
+    // Enumerator.Current の値確誁E    [BenchFact,Benchmark]
     public void Current_ValueIsCorrect() {
         using var store = Store.Create().Create<int,string>();
         using var dict = store.Create();
@@ -52,7 +51,7 @@ public class Enumerator {
         Assert.Equal(42,kvp.Key);
         Assert.Equal("hello",kvp.Value);
     }
-    // IEnumerator.Current (object 型)
+    // IEnumerator.Current (object 垁E
     [BenchFact,Benchmark]
     public void Current_IEnumerator_Object() {
         using var store = Store.Create().Create<int,string>();
@@ -63,7 +62,7 @@ public class Enumerator {
         global::System.Collections.IEnumerator nonGeneric = e;
         Assert.NotNull(nonGeneric.Current);
     }
-    // Enumerator.Reset で再列挙可能
+    // Enumerator.Reset で再�E挙可能
     [BenchFact,Benchmark]
     public void Reset_ReenumeratesFromStart() {
         using var store = Store.Create().Create<int,string>();
@@ -77,7 +76,7 @@ public class Enumerator {
         while(e.MoveNext()) count++;
         Assert.Equal(2,count);
     }
-    // Enumerator.Dispose は安全
+    // Enumerator.Dispose は安�E
     [BenchFact,Benchmark]
     public void Dispose_IsSafe() {
         using var store = Store.Create().Create<int,string>();
@@ -87,7 +86,7 @@ public class Enumerator {
         e.MoveNext();
         e.Dispose();
     }
-    // HashSet における KeyEnumerable struct GetEnumerator() パス
+    // HashSet におけめEKeyEnumerable struct GetEnumerator() パス
     [BenchFact,Benchmark]
     public void MoveNext_HashSet_MultiChunk_ThreeItems() {
         var folder = CreateDiskFolder();
@@ -114,7 +113,7 @@ public class Enumerator {
             while(e.MoveNext()) {
                 steps++;
                 if(steps>Count*2)
-                    throw new Xunit.Sdk.XunitException($"Enumerator did not finish within expected steps. steps={steps}, unique={enumerated.Count}");
+                    throw new InvalidOperationException($"Enumerator did not finish within expected steps. steps={steps}, unique={enumerated.Count}");
                 enumerated.Add(e.Current);
             }
             Assert.Equal(Count,enumerated.Count);
@@ -147,10 +146,7 @@ public class Enumerator {
             foreach(var value in expected)
                 set.Add(value);
             var count0 = set.Count;
-            //Tsavorite 1.1.3 の BufferAndLoad が epoch.Resume() を保持したまま BumpCurrentEpoch を呼ぶ epoch デッドロックバグがある
-            // FlushAndEvict は HeadAddress=TailAddress にするため IterateLookup でスキャン不可。
-            // ShiftReadOnlyAddress でディスクに書き出しつつ HeadAddress は変えない。
-            store.Store.Log.ShiftReadOnlyAddress(store.Store.Log.TailAddress,wait: true);
+            //Tsavorite 1.1.3 の BufferAndLoad ぁEepoch.Resume() を保持したまま BumpCurrentEpoch を呼ぶ epoch チE��ドロチE��バグがあめE            // FlushAndEvict は HeadAddress=TailAddress にするため IterateLookup でスキャン不可、E            // ShiftReadOnlyAddress でチE��スクに書き�Eしつつ HeadAddress は変えなぁE��E            store.Store.Log.ShiftReadOnlyAddress(store.Store.Log.TailAddress,wait: true);
 
             var count1 = set.Count;
             var enumerated = new global::System.Collections.Generic.HashSet<int>();

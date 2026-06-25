@@ -38,5 +38,5 @@
   <ItemGroup>
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
   </ItemGroup>
-  <Import Project="..\Benchmark.Shared\Benchmark.Linq.Enumerable.Core.projitems" Label="Shared" />
+  <Import Project="..\Seamless.Linq.Enumerable.Shared\Seamless.Linq.Enumerable.Shared.projitems" Label="Shared" />
 </Project>

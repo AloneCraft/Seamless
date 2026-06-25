@@ -11,7 +11,7 @@ internal static class Program {
     public static void Main(string[] args) {
         SetCurrentDirectoryToProject();
 
-        var benchmarkAssembly = typeof(global::Shared.Linq.Enumerable.NoopLinqInterceptAttribute).Assembly;
+        var benchmarkAssembly = typeof(global::Seamless.Linq.Enumerable.Shared.NoopLinqInterceptAttribute).Assembly;
         if(IsListJsonMode(args)) {
             WriteBenchmarkListJson(benchmarkAssembly);
             return;
@@ -45,12 +45,12 @@ internal static class Program {
     }
 
     private static InteractiveSelection PromptInteractiveSelection(Assembly benchmarkAssembly) {
-        Console.WriteLine("=== ベンチマーク実行モード ===");
+        Console.WriteLine("=== ベンチ�Eーク実行モーチE===");
         Console.WriteLine("1: All benchmark");
         Console.WriteLine("2: Select benchmark");
         Console.WriteLine("3: All benchmark (single file report)");
         Console.WriteLine("4: Select benchmark (single file report)");
-        Console.Write("\n選択 > ");
+        Console.Write("\n選抁E> ");
         Console.Out.Flush();
 
         var modeInput = Console.ReadLine()?.Trim()??string.Empty;
@@ -62,14 +62,14 @@ internal static class Program {
         Console.WriteLine();
         if(!selectBenchmark) {
             Console.WriteLine(singleFileMode
-                ? "All benchmark (single file report) を実行します。"
-                : "All benchmark を実行します。");
+                ? "All benchmark (single file report) を実行します、E
+                : "All benchmark を実行します、E);
             return new InteractiveSelection(["--filter","*"],singleFileMode);
         }
 
         Console.WriteLine(singleFileMode
-            ? "Select benchmark (single file report) を選びました。"
-            : "Select benchmark を選びました。");
+            ? "Select benchmark (single file report) を選びました、E
+            : "Select benchmark を選びました、E);
         return new InteractiveSelection(SelectBenchmarks(benchmarkAssembly),singleFileMode);
     }
 
@@ -80,14 +80,14 @@ internal static class Program {
             return ["--filter","*"];
         }
 
-        Console.WriteLine("番号を選択してください。");
-        Console.WriteLine("カンマ区切りで複数選択可、Enter または * で全て実行します。\n");
+        Console.WriteLine("番号を選択してください、E);
+        Console.WriteLine("カンマ区刁E��で褁E��選択可、Enter また�E * で全て実行します、En");
 
         for(var i = 0;i<benchmarkMethods.Count;i++) {
             Console.WriteLine($"{i+1,3}: {benchmarkMethods[i].DisplayName}");
         }
 
-        Console.Write("\n選択 > ");
+        Console.Write("\n選抁E> ");
         Console.Out.Flush();
         var input = Console.ReadLine()?.Trim()??string.Empty;
 
@@ -105,7 +105,7 @@ internal static class Program {
         }
 
         if(selected.Count==0) {
-            Console.WriteLine("有効な番号がなかったため、全て実行します。");
+            Console.WriteLine("有効な番号がなかったため、�Eて実行します、E);
             return ["--filter","*"];
         }
 

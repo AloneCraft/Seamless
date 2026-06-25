@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildThisFileDirectory)Benchmark.TestInfrastructure.projitems" />
+  <Import Project="$(MSBuildThisFileDirectory)..\Benchmark.Shared\Benchmark.TestInfrastructure.projitems" />
   <PropertyGroup>
     <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
     <HasSharedItems>true</HasSharedItems>
@@ -10,5 +10,6 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Methods1.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Linq.Enumerable\**\*.cs" />
+    <None Include="$(MSBuildThisFileDirectory)Linq.Enumerable.Benchmark\Program.cs" />
   </ItemGroup>
 </Project>

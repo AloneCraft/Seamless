@@ -15,20 +15,18 @@
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageReference Include="MemoryPack" Version="1.*" />
     <PackageReference Include="ZLinq" Version="1.5.6" />
-    <PackageReference Include="xunit" Version="2.9.3" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="BenchmarkDotNet.Attributes" />
     <Using Include="BenchmarkDotNet.Configs" />
     <Using Include="BenchmarkDotNet.Engines" />
     <Using Include="Benchmark.Shared" />
-    <Using Include="Test.Collections" />
-    <Using Include="Xunit" />
+    <Using Include="Seamless.Collections" />
     <Using Include="ZLinq" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
-    <ProjectReference Include="..\Test.Collections\Test.Collections.csproj" />
+    <ProjectReference Include="..\Seamless.Collections\Seamless.Collections.csproj" />
   </ItemGroup>
   <Import Project="..\Persisted.Collection.Shared\Persisted.Collection.Shared.projitems" Label="Shared" />
 </Project>
