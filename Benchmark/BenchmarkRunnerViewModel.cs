@@ -113,17 +113,20 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         ];
         this.selectedRunMode=this.RunModes[0];
         this.ThresholdOptions=[
-            new ThresholdOption("1 ms",1),
-            new ThresholdOption("2 ms",2),
-            new ThresholdOption("4 ms",4),
-            new ThresholdOption("8 ms",8),
-            new ThresholdOption("16 ms",16),
-            new ThresholdOption("32 ms",32),
-            new ThresholdOption("64 ms",64),
-            new ThresholdOption("128 ms",128),
-            new ThresholdOption("256 ms",256),
-            new ThresholdOption("512 ms",512),
+            new ThresholdOption("   1 ms",   1),
+            new ThresholdOption("   2 ms",   2),
+            new ThresholdOption("   4 ms",   4),
+            new ThresholdOption("   8 ms",   8),
+            new ThresholdOption("  16 ms",  16),
+            new ThresholdOption("  32 ms",  32),
+            new ThresholdOption("  64 ms",  64),
+            new ThresholdOption(" 128 ms", 128),
+            new ThresholdOption(" 256 ms", 256),
+            new ThresholdOption(" 512 ms", 512),
             new ThresholdOption("1024 ms",1024),
+            new ThresholdOption("2048 ms",2048),
+            new ThresholdOption("4096 ms",4096),
+            new ThresholdOption("8192 ms",8192),
         ];
         this.selectedThreshold=this.ThresholdOptions[0];
         this.Metrics=[
