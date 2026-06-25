@@ -67,6 +67,69 @@ public sealed class CpuPresetCatalogTests{
     }
 
     [Fact]
+    public void CpuSelectionTable_BuildsCompactSections_ForHybridAndUnknownTopology(){
+        var cpuCores = CreateHybridCpuSet()
+            .Concat([
+                new CpuCoreInfo(28,CpuCoreKind.Unknown,11,0,0,true),
+                new CpuCoreInfo(29,CpuCoreKind.Unknown,11,0,0,true),
+            ])
+            .ToArray();
+
+        var sections = CpuSelectionTableLogic.BuildSections(cpuCores);
+
+        Assert.Equal(["P core","E core","Unknown core"],sections.Select(static section => section.Title).ToArray());
+        Assert.Equal(8,sections[0].Rows.Count);
+        Assert.Equal(2,sections[0].ColumnCount);
+        Assert.Equal("0-1",sections[0].Rows[0].Label);
+        Assert.Equal([0,1],sections[0].Rows[0].LogicalProcessorIndexes);
+        Assert.Equal(3,sections[1].Rows.Count);
+        Assert.Equal(4,sections[1].ColumnCount);
+        Assert.Equal("16-19",sections[1].Rows[0].Label);
+        Assert.Equal("28-29",sections[2].Rows[0].Label);
+    }
+
+    [Fact]
+    public void CpuSelectionTable_BulkSelection_KeepsAtLeastOneCpuSelected(){
+        var cpuCores = CreateHybridCpuSet().ToArray();
+        cpuCores[0].IsSelected=true;
+        cpuCores[5].IsSelected=true;
+
+        CpuSelectionTableLogic.ApplyBulkSelection(cpuCores,[0,5],false);
+
+        Assert.Single(cpuCores,static cpu => cpu.IsSelected);
+        Assert.True(cpuCores[0].IsSelected);
+
+        CpuSelectionTableLogic.ApplyBulkSelection(cpuCores,[16,17,18,19],true);
+
+        Assert.True(cpuCores[0].IsSelected);
+        Assert.True(cpuCores[16].IsSelected);
+        Assert.True(cpuCores[17].IsSelected);
+        Assert.True(cpuCores[18].IsSelected);
+        Assert.True(cpuCores[19].IsSelected);
+    }
+
+    [Fact]
+    public void UiSortValue_AlwaysPlacesMissingValuesLast(){
+        var values = new[]{
+            ("missing",UiSortValue.Missing),
+            ("two",UiSortValue.FromNumber(2)),
+            ("one",UiSortValue.FromNumber(1)),
+        };
+
+        var ascending = values
+            .OrderBy(static item => item.Item2,Comparer<UiSortValue>.Create((left,right) => UiSortValue.Compare(left,right,false)))
+            .Select(static item => item.Item1)
+            .ToArray();
+        var descending = values
+            .OrderBy(static item => item.Item2,Comparer<UiSortValue>.Create((left,right) => UiSortValue.Compare(left,right,true)))
+            .Select(static item => item.Item1)
+            .ToArray();
+
+        Assert.Equal(["one","two","missing"],ascending);
+        Assert.Equal(["two","one","missing"],descending);
+    }
+
+    [Fact]
     public void ComparisonFormatter_BuildsFixedPairs_WithLeftDividedByRight(){
         var rows = new[]{
             CreateReportRow("SystemFLinq","Select","Completed",5,10),

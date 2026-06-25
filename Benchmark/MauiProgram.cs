@@ -1,3 +1,4 @@
+using Syncfusion.Maui.Core.Hosting;
 using Syncfusion.Maui.Toolkit.Hosting;
 
 namespace Benchmark;
@@ -6,6 +7,8 @@ public static class MauiProgram {
     private const string SyncfusionLicenseKey = "";
 
     public static MauiApp CreateMauiApp() {
+        StartupDiagnostics.InstallGlobalHandlers();
+        StartupDiagnostics.Write("CreateMauiApp started.");
         if(!string.IsNullOrWhiteSpace(SyncfusionLicenseKey)) {
             Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(SyncfusionLicenseKey);
         }
@@ -13,8 +16,11 @@ public static class MauiProgram {
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()
+            .ConfigureSyncfusionCore()
             .ConfigureSyncfusionToolkit();
 
-        return builder.Build();
+        var app = builder.Build();
+        StartupDiagnostics.Write("CreateMauiApp completed.");
+        return app;
     }
 }

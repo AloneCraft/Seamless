@@ -5,22 +5,23 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Benchmark;
 
-public sealed class BenchmarkRunnerViewModel:ObservableObject {
+public sealed class BenchmarkRunnerViewModel:ObservableObject{
     private readonly IBenchmarkCatalogService catalogService;
     private readonly ICpuTopologyService cpuTopologyService;
     private readonly IBenchmarkRunService runService;
     private readonly IBenchmarkCsvService csvService;
     private readonly IBenchmarkComparisonService comparisonService;
     private CancellationTokenSource? runCancellation;
-    private string 状態テキスト = "準備完了";
-    private bool 実行中;
-    private BenchmarkTab 選択タブ値 = BenchmarkTab.Results;
-    private ComparisonPairOption 選択比較軸値;
-    private CpuPresetOption? 選択CPUプリセット値;
-    private スケール選択肢? 選択スケール値;
-    private 指標選択肢 選択指標値;
-    private double チャート高さ値 = 300;
-    private bool CPUプリセット適用中;
+    private string statusText = "Ready";
+    private bool isRunning;
+    private BenchmarkTab selectedTab = BenchmarkTab.Cpu;
+    private ComparisonPairOption selectedComparisonPair;
+    private ScaleOption? selectedScale;
+    private MetricOption selectedMetric;
+    private double chartHeight = 300;
+    private bool isApplyingCpuSelection;
+    private BenchmarkGridSortColumn currentSortColumn = BenchmarkGridSortColumn.BenchmarkName;
+    private bool currentSortDescending;
     private IReadOnlyList<BenchmarkComparisonRow> comparisonRows = [];
 
     public BenchmarkRunnerViewModel(
@@ -28,170 +29,197 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         ICpuTopologyService cpuTopologyService,
         IBenchmarkRunService runService,
         IBenchmarkCsvService csvService,
-        IBenchmarkComparisonService comparisonService) {
+        IBenchmarkComparisonService comparisonService){
         this.catalogService=catalogService;
         this.cpuTopologyService=cpuTopologyService;
         this.runService=runService;
         this.csvService=csvService;
         this.comparisonService=comparisonService;
-        this.比較軸一覧=[
+        this.ComparisonPairs=[
             new ComparisonPairOption("System","System FLinq/ZLinq",BenchmarkComparisonFormatter.SystemFLinq,BenchmarkComparisonFormatter.SystemZLinq),
             new ComparisonPairOption("Persisted","PersistedFLinq/PersistedLinq",BenchmarkComparisonFormatter.PersistedFLinq,BenchmarkComparisonFormatter.PersistedLinq),
             new ComparisonPairOption("Tsavorite","TsavoriteFLinq/TsavoriteLinq",BenchmarkComparisonFormatter.TsavoriteFLinq,BenchmarkComparisonFormatter.TsavoriteLinq),
             new ComparisonPairOption("PersistedLinqTsavoriteLinq","PersistedLinq/TsavoriteLinq",BenchmarkComparisonFormatter.PersistedLinq,BenchmarkComparisonFormatter.TsavoriteLinq),
             new ComparisonPairOption("PersistedFLinqTsavoriteFLinq","PersistedFLinq/TsavoriteFLinq",BenchmarkComparisonFormatter.PersistedFLinq,BenchmarkComparisonFormatter.TsavoriteFLinq),
         ];
-        this.選択比較軸値=this.比較軸一覧[0];
-        this.指標一覧=[
-            new 指標選択肢("時間",BenchmarkMetricKind.Time),
-            new 指標選択肢("割当",BenchmarkMetricKind.Allocated),
+        this.selectedComparisonPair=this.ComparisonPairs[0];
+        this.Metrics=[
+            new MetricOption("Time",BenchmarkMetricKind.Time),
+            new MetricOption("Allocated",BenchmarkMetricKind.Allocated),
         ];
-        this.選択指標値=this.指標一覧[0];
-        this.スケール一覧=[
-            new スケール選択肢("1/8","0.125"),
-            new スケール選択肢("1/4","0.25"),
-            new スケール選択肢("1/2","0.5"),
-            new スケール選択肢("1","1"),
-            new スケール選択肢("2","2"),
-            new スケール選択肢("4","4"),
-            new スケール選択肢("8","8"),
+        this.selectedMetric=this.Metrics[0];
+        this.ScaleOptions=[
+            new ScaleOption("1/8","0.125"),
+            new ScaleOption("1/4","0.25"),
+            new ScaleOption("1/2","0.5"),
+            new ScaleOption("1","1"),
+            new ScaleOption("2","2"),
+            new ScaleOption("4","4"),
+            new ScaleOption("8","8"),
         ];
-        this.選択スケール値=this.スケール一覧.First(static item => item.表示名=="1");
-        this.更新コマンド=new AsyncRelayCommand(this.RefreshAsync);
-        this.全選択コマンド=new RelayCommand(() => this.全行選択を設定(true));
-        this.選択解除コマンド=new RelayCommand(() => this.全行選択を設定(false));
-        this.実行コマンド=new AsyncRelayCommand(this.RunAsync,() => !this.実行中);
-        this.中止コマンド=new RelayCommand(this.Cancel);
-        this.CSV保存コマンド=new AsyncRelayCommand(this.ExportCsvAsync);
-        this.CSV読込コマンド=new AsyncRelayCommand(this.LoadCsvAsync);
-        this.結果表示コマンド=new RelayCommand(() => this.選択タブ=BenchmarkTab.Results);
-        this.チャート表示コマンド=new RelayCommand(() => this.選択タブ=BenchmarkTab.Chart);
+        this.selectedScale=this.ScaleOptions.First(static item => item.DisplayName=="1");
+        this.RefreshCommand=new AsyncRelayCommand(this.RefreshAsync);
+        this.SelectAllCommand=new RelayCommand(() => this.SetAllBenchmarkSelection(true));
+        this.ClearSelectionCommand=new RelayCommand(() => this.SetAllBenchmarkSelection(false));
+        this.RunCommand=new AsyncRelayCommand(this.RunAsync,() => !this.IsRunning);
+        this.CancelCommand=new RelayCommand(this.Cancel);
+        this.ExportCsvCommand=new AsyncRelayCommand(this.ExportCsvAsync);
+        this.LoadCsvCommand=new AsyncRelayCommand(this.LoadCsvAsync);
+        this.ShowCpuCommand=new RelayCommand(() => this.SelectedTab=BenchmarkTab.Cpu);
+        this.ShowResultsCommand=new RelayCommand(() => this.SelectedTab=BenchmarkTab.Results);
+        this.ShowChartCommand=new RelayCommand(() => this.SelectedTab=BenchmarkTab.Chart);
 
-        foreach(var cpu in this.cpuTopologyService.Load()) {
-            this.CPU一覧.Add(cpu);
-            cpu.PropertyChanged+=(_,_) => {
-                if(!this.CPUプリセット適用中) {
-                    this.最低1CPUを選択する();
+        foreach(var cpu in this.cpuTopologyService.Load()){
+            this.CpuItems.Add(cpu);
+            cpu.PropertyChanged+=(_,args) => {
+                if(args.PropertyName==nameof(CpuSelectionItem.IsSelected)&&!this.isApplyingCpuSelection){
+                    this.EnsureAtLeastOneCpuSelected(cpu);
+                    this.RefreshCpuSectionStates();
                 }
             };
         }
-        this.CPUプリセットを再構築();
+        this.RebuildCpuSections();
     }
 
-    public ObservableCollection<ベンチマーク行> ベンチマーク一覧 { get; } = [];
-    public ObservableCollection<BenchmarkResultItem> 結果一覧 { get; } = [];
-    public ObservableCollection<CpuSelectionItem> CPU一覧 { get; } = [];
-    public ObservableCollection<CpuPresetOption> CPUプリセット一覧 { get; } = [];
-    public ObservableCollection<ChartComparisonPoint> チャート点一覧 { get; } = [];
-    public ObservableCollection<スケール選択肢> スケール一覧 { get; } = [];
-    public IReadOnlyList<ComparisonPairOption> 比較軸一覧 { get; }
-    public IReadOnlyList<指標選択肢> 指標一覧 { get; }
-    public IAsyncRelayCommand 更新コマンド { get; }
-    public IRelayCommand 全選択コマンド { get; }
-    public IRelayCommand 選択解除コマンド { get; }
-    public IAsyncRelayCommand 実行コマンド { get; }
-    public IRelayCommand 中止コマンド { get; }
-    public IAsyncRelayCommand CSV保存コマンド { get; }
-    public IAsyncRelayCommand CSV読込コマンド { get; }
-    public IRelayCommand 結果表示コマンド { get; }
-    public IRelayCommand チャート表示コマンド { get; }
+    public ObservableCollection<BenchmarkTableRow> BenchmarkRows { get; } = [];
+    public ObservableCollection<BenchmarkResultItem> ResultItems { get; } = [];
+    public ObservableCollection<CpuSelectionItem> CpuItems { get; } = [];
+    public ObservableCollection<CpuTableSection> CpuSections { get; } = [];
+    public ObservableCollection<ChartComparisonPoint> ChartPoints { get; } = [];
+    public ObservableCollection<ScaleOption> ScaleOptions { get; } = [];
+    public IReadOnlyList<ComparisonPairOption> ComparisonPairs { get; }
+    public IReadOnlyList<MetricOption> Metrics { get; }
+    public IAsyncRelayCommand RefreshCommand { get; }
+    public IRelayCommand SelectAllCommand { get; }
+    public IRelayCommand ClearSelectionCommand { get; }
+    public IAsyncRelayCommand RunCommand { get; }
+    public IRelayCommand CancelCommand { get; }
+    public IAsyncRelayCommand ExportCsvCommand { get; }
+    public IAsyncRelayCommand LoadCsvCommand { get; }
+    public IRelayCommand ShowCpuCommand { get; }
+    public IRelayCommand ShowResultsCommand { get; }
+    public IRelayCommand ShowChartCommand { get; }
 
-    public string 状態テキスト表示 {
-        get => this.状態テキスト;
-        set => this.SetProperty(ref this.状態テキスト,value);
+    public string StatusText{
+        get => this.statusText;
+        set => this.SetProperty(ref this.statusText,value);
     }
 
-    public bool 実行中表示 {
-        get => this.実行中;
-        private set {
-            if(this.SetProperty(ref this.実行中,value)) {
-                this.実行コマンド.NotifyCanExecuteChanged();
+    public bool IsRunning{
+        get => this.isRunning;
+        private set{
+            if(this.SetProperty(ref this.isRunning,value)){
+                this.RunCommand.NotifyCanExecuteChanged();
             }
         }
     }
 
-    public BenchmarkTab 選択タブ {
-        get => this.選択タブ値;
-        set {
-            if(this.SetProperty(ref this.選択タブ値,value)) {
-                this.OnPropertyChanged(nameof(this.結果表示中));
-                this.OnPropertyChanged(nameof(this.チャート表示中));
+    public BenchmarkTab SelectedTab{
+        get => this.selectedTab;
+        set{
+            if(this.SetProperty(ref this.selectedTab,value)){
+                this.OnPropertyChanged(nameof(this.IsCpuVisible));
+                this.OnPropertyChanged(nameof(this.IsResultsVisible));
+                this.OnPropertyChanged(nameof(this.IsChartVisible));
             }
         }
     }
 
-    public bool 結果表示中 => this.選択タブ==BenchmarkTab.Results;
-    public bool チャート表示中 => this.選択タブ==BenchmarkTab.Chart;
+    public bool IsCpuVisible => this.SelectedTab==BenchmarkTab.Cpu;
+    public bool IsResultsVisible => this.SelectedTab==BenchmarkTab.Results;
+    public bool IsChartVisible => this.SelectedTab==BenchmarkTab.Chart;
 
-    public ComparisonPairOption 選択比較軸 {
-        get => this.選択比較軸値;
-        set {
-            if(this.SetProperty(ref this.選択比較軸値,value)) {
-                this.チャートを更新();
+    public ComparisonPairOption SelectedComparisonPair{
+        get => this.selectedComparisonPair;
+        set{
+            if(this.SetProperty(ref this.selectedComparisonPair,value)){
+                this.UpdateChart();
             }
         }
     }
 
-    public CpuPresetOption? 選択CPUプリセット {
-        get => this.選択CPUプリセット値;
-        set {
-            if(this.SetProperty(ref this.選択CPUプリセット値,value)&&value is not null) {
-                this.CPUプリセットを適用(value);
+    public ScaleOption? SelectedScale{
+        get => this.selectedScale;
+        set => this.SetProperty(ref this.selectedScale,value);
+    }
+
+    public MetricOption SelectedMetric{
+        get => this.selectedMetric;
+        set{
+            if(this.SetProperty(ref this.selectedMetric,value)){
+                this.UpdateChart();
             }
         }
     }
 
-    public スケール選択肢? 選択スケール {
-        get => this.選択スケール値;
-        set => this.SetProperty(ref this.選択スケール値,value);
+    public double ChartHeight{
+        get => this.chartHeight;
+        private set => this.SetProperty(ref this.chartHeight,value);
     }
 
-    public 指標選択肢 選択指標 {
-        get => this.選択指標値;
-        set {
-            if(this.SetProperty(ref this.選択指標値,value)) {
-                this.チャートを更新();
-            }
-        }
-    }
-
-    public double チャート高さ {
-        get => this.チャート高さ値;
-        private set => this.SetProperty(ref this.チャート高さ値,value);
-    }
-
-    public async Task InitializeAsync() {
+    public async Task InitializeAsync(){
         await this.RefreshAsync();
     }
 
-    private async Task RefreshAsync() {
-        this.実行中表示=true;
-        this.状態テキスト表示="読込中";
-        try {
+    public void SortBenchmarkRows(BenchmarkGridSortColumn column){
+        if(this.currentSortColumn==column){
+            this.currentSortDescending=!this.currentSortDescending;
+        }else{
+            this.currentSortColumn=column;
+            this.currentSortDescending=false;
+        }
+
+        this.ApplyCurrentSort();
+    }
+
+    public void ToggleCpu(CpuSelectionItem cpu){
+        cpu.IsSelected=!cpu.IsSelected;
+    }
+
+    public void ToggleCpuSection(CpuTableSection section){
+        var selected = section.State!=CpuSelectionState.Checked;
+        this.ApplyCpuSelection(section.Cells.Select(static cell => cell.Cpu),selected);
+    }
+
+    public void ToggleCpuColumn(CpuTableSection section,int columnIndex){
+        var cells = section.Rows
+            .Where(row => columnIndex<row.Cells.Count)
+            .Select(row => row.Cells[columnIndex])
+            .ToArray();
+        var selected = section.GetColumnState(columnIndex)!=CpuSelectionState.Checked;
+        this.ApplyCpuSelection(cells.Select(static cell => cell.Cpu),selected);
+    }
+
+    private async Task RefreshAsync(){
+        this.IsRunning=true;
+        this.StatusText="Loading";
+        try{
             var loaded = await this.catalogService.LoadAsync(CancellationToken.None);
-            var existingSelection = this.ベンチマーク一覧
-                .Where(static item => item.選択中)
-                .Select(static item => item.メソッド名)
+            var existingSelection = this.BenchmarkRows
+                .Where(static item => item.IsSelected)
+                .Select(static item => item.MethodName)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            this.ベンチマーク一覧.Clear();
-            foreach(var row in this.メソッド行を作成(loaded)) {
-                row.選択中=existingSelection.Contains(row.メソッド名);
-                this.ベンチマーク一覧.Add(row);
+            this.BenchmarkRows.Clear();
+            foreach(var row in this.CreateMethodRows(loaded)){
+                row.IsSelected=existingSelection.Contains(row.MethodName);
+                this.BenchmarkRows.Add(row);
             }
-            this.比較行を表へ反映();
-            this.状態テキスト表示=$"{this.ベンチマーク一覧.Count} 件のベンチマーク";
-        } catch(Exception ex) {
-            this.状態テキスト表示="読込失敗: "+ex.Message;
-        } finally {
-            this.実行中表示=false;
+            this.ApplyComparisonRowsToTable();
+            this.ApplyCurrentSort();
+            this.StatusText=this.BenchmarkRows.Count+" benchmarks";
+        }catch(Exception ex){
+            StartupDiagnostics.Write("Benchmark catalog load failed.",ex);
+            this.StatusText="Load failed: "+ex.Message;
+        }finally{
+            this.IsRunning=false;
         }
     }
 
-    private IReadOnlyList<ベンチマーク行> メソッド行を作成(IReadOnlyList<BenchmarkCase> cases) {
+    private IReadOnlyList<BenchmarkTableRow> CreateMethodRows(IReadOnlyList<BenchmarkCase> cases){
         return cases
             .GroupBy(static item => item.MethodName,StringComparer.OrdinalIgnoreCase)
             .OrderBy(static group => group.Key,StringComparer.OrdinalIgnoreCase)
-            .Select(static group => new ベンチマーク行(
+            .Select(static group => new BenchmarkTableRow(
                 group.Key,
                 group
                     .GroupBy(static item => item.Project,StringComparer.OrdinalIgnoreCase)
@@ -199,62 +227,63 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             .ToArray();
     }
 
-    private void 全行選択を設定(bool selected) {
-        foreach(var item in this.ベンチマーク一覧) {
-            item.選択中=selected;
+    private void SetAllBenchmarkSelection(bool selected){
+        foreach(var item in this.BenchmarkRows){
+            item.IsSelected=selected;
         }
     }
 
-    private async Task RunAsync() {
-        var selected = this.ベンチマーク一覧
-            .Where(static item => item.選択中)
-            .SelectMany(static item => item.実行ケース一覧())
+    private async Task RunAsync(){
+        var selected = this.BenchmarkRows
+            .Where(static item => item.IsSelected)
+            .SelectMany(static item => item.GetRunCases())
             .ToArray();
-        if(selected.Length==0) {
-            this.状態テキスト表示="選択なし";
+        if(selected.Length==0){
+            this.StatusText="No benchmark selected";
             return;
         }
 
+        this.SelectedTab=BenchmarkTab.Results;
         this.runCancellation?.Cancel();
         this.runCancellation=new CancellationTokenSource();
-        this.実行中表示=true;
-        this.結果一覧.Clear();
+        this.IsRunning=true;
+        this.ResultItems.Clear();
         this.comparisonRows=[];
-        this.チャート点一覧.Clear();
-        this.比較行を表へ反映();
-        try {
-            var cpus = this.CPU一覧
+        this.ChartPoints.Clear();
+        this.ApplyComparisonRowsToTable();
+        try{
+            var cpus = this.CpuItems
                 .Where(static cpu => cpu.IsSelected)
                 .Select(static cpu => cpu.LogicalProcessorIndex)
                 .ToArray();
             _ = await this.runService.RunAsync(
                 selected,
                 cpus,
-                this.選択スケール?.実行値??"1",
+                this.SelectedScale?.RunValue??"1",
                 result => MainThread.BeginInvokeOnMainThread(() => {
-                    this.結果一覧.Add(result);
-                    this.結果から比較行を更新();
+                    this.ResultItems.Add(result);
+                    this.UpdateComparisonRowsFromResults();
                 }),
-                status => MainThread.BeginInvokeOnMainThread(() => this.状態テキスト表示=status),
+                status => MainThread.BeginInvokeOnMainThread(() => this.StatusText=status),
                 this.runCancellation.Token);
-        } catch(OperationCanceledException) {
-            this.状態テキスト表示="中止";
-        } finally {
-            this.実行中表示=false;
+        }catch(OperationCanceledException){
+            this.StatusText="Canceled";
+        }finally{
+            this.IsRunning=false;
             this.runCancellation?.Dispose();
             this.runCancellation=null;
-            this.結果から比較行を更新();
+            this.UpdateComparisonRowsFromResults();
         }
     }
 
-    private void Cancel() {
+    private void Cancel(){
         this.runCancellation?.Cancel();
     }
 
-    private async Task ExportCsvAsync() {
+    private async Task ExportCsvAsync(){
         await Task.Yield();
-        if(this.結果一覧.Count==0&&this.comparisonRows.Count==0) {
-            this.状態テキスト表示="結果がありません";
+        if(this.ResultItems.Count==0&&this.comparisonRows.Count==0){
+            this.StatusText="No results";
             return;
         }
 
@@ -265,136 +294,199 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             DateTime.Now.ToString("yyyyMMdd-HHmmss",System.Globalization.CultureInfo.InvariantCulture));
         var rows = this.comparisonRows.Count>0
             ? this.comparisonRows
-            : this.comparisonService.BuildRows(this.結果一覧);
+            : this.comparisonService.BuildRows(this.ResultItems);
         var path = this.csvService.WriteComparisonCsv(root,rows);
-        this.状態テキスト表示="CSV保存: "+path;
+        this.StatusText="CSV saved: "+path;
     }
 
-    private async Task LoadCsvAsync() {
-        var file = await FilePicker.PickAsync(new PickOptions {
+    private async Task LoadCsvAsync(){
+        var file = await FilePicker.PickAsync(new PickOptions{
             PickerTitle="BenchmarkComparison.csv",
-            FileTypes=new FilePickerFileType(new Dictionary<DevicePlatform,IEnumerable<string>> {
+            FileTypes=new FilePickerFileType(new Dictionary<DevicePlatform,IEnumerable<string>>{
                 { DevicePlatform.WinUI, [".csv"] },
                 { DevicePlatform.macOS, ["csv"] },
                 { DevicePlatform.MacCatalyst, ["public.comma-separated-values-text"] },
             }),
         });
-        if(file is null) {
+        if(file is null){
             return;
         }
 
-        try {
+        try{
             this.comparisonRows=this.csvService.ReadComparisonCsv(file.FullPath);
-            this.比較行を結果一覧へ読込(this.comparisonRows);
-            this.比較行を表へ反映();
-            this.チャートを更新();
-            this.状態テキスト表示="CSV読込: "+file.FullPath;
-        } catch(Exception ex) {
-            this.状態テキスト表示="CSV読込失敗: "+ex.Message;
+            this.LoadComparisonRowsIntoResults(this.comparisonRows);
+            this.ApplyComparisonRowsToTable();
+            this.UpdateChart();
+            this.ApplyCurrentSort();
+            this.SelectedTab=BenchmarkTab.Chart;
+            this.StatusText="CSV loaded: "+file.FullPath;
+        }catch(Exception ex){
+            StartupDiagnostics.Write("CSV load failed.",ex);
+            this.StatusText="CSV load failed: "+ex.Message;
         }
     }
 
-    private void 結果から比較行を更新() {
-        if(this.結果一覧.Count==0) {
+    private void UpdateComparisonRowsFromResults(){
+        if(this.ResultItems.Count==0){
             this.comparisonRows=[];
-            this.チャートを更新();
-            this.比較行を表へ反映();
+            this.UpdateChart();
+            this.ApplyComparisonRowsToTable();
             return;
         }
 
-        try {
-            this.comparisonRows=this.comparisonService.BuildRows(this.結果一覧);
-            this.チャートを更新();
-            this.比較行を表へ反映();
-        } catch(InvalidDataException) {
+        try{
+            this.comparisonRows=this.comparisonService.BuildRows(this.ResultItems);
+            this.UpdateChart();
+            this.ApplyComparisonRowsToTable();
+            this.ApplyCurrentSort();
+        }catch(InvalidDataException){
         }
     }
 
-    private void 比較行を結果一覧へ読込(IReadOnlyList<BenchmarkComparisonRow> rows) {
-        this.結果一覧.Clear();
-        foreach(var row in rows) {
-            this.結果を追加(row.Benchmark,BenchmarkComparisonFormatter.SystemFLinq,row.SystemFLinq);
-            this.結果を追加(row.Benchmark,BenchmarkComparisonFormatter.SystemZLinq,row.SystemZLinq);
-            this.結果を追加(row.Benchmark,BenchmarkComparisonFormatter.PersistedFLinq,row.PersistedFLinq);
-            this.結果を追加(row.Benchmark,BenchmarkComparisonFormatter.PersistedLinq,row.PersistedLinq);
-            this.結果を追加(row.Benchmark,BenchmarkComparisonFormatter.TsavoriteFLinq,row.TsavoriteFLinq);
-            this.結果を追加(row.Benchmark,BenchmarkComparisonFormatter.TsavoriteLinq,row.TsavoriteLinq);
+    private void LoadComparisonRowsIntoResults(IReadOnlyList<BenchmarkComparisonRow> rows){
+        this.ResultItems.Clear();
+        foreach(var row in rows){
+            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.SystemFLinq,row.SystemFLinq);
+            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.SystemZLinq,row.SystemZLinq);
+            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.PersistedFLinq,row.PersistedFLinq);
+            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.PersistedLinq,row.PersistedLinq);
+            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.TsavoriteFLinq,row.TsavoriteFLinq);
+            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.TsavoriteLinq,row.TsavoriteLinq);
         }
     }
 
-    private void 結果を追加(string method,string project,ProjectMetrics metrics) {
-        if(metrics.HasValue) {
-            this.結果一覧.Add(new BenchmarkResultItem(project,method,metrics));
+    private void AddResult(string method,string project,ProjectMetrics metrics){
+        if(metrics.HasValue){
+            this.ResultItems.Add(new BenchmarkResultItem(project,method,metrics));
         }
     }
 
-    private void 比較行を表へ反映() {
+    private void ApplyComparisonRowsToTable(){
         var rowsByMethod = this.comparisonRows.ToDictionary(static item => item.Benchmark,StringComparer.OrdinalIgnoreCase);
-        foreach(var benchmark in this.ベンチマーク一覧) {
-            benchmark.比較行を反映(rowsByMethod.TryGetValue(benchmark.メソッド名,out var row) ? row : null);
+        foreach(var benchmark in this.BenchmarkRows){
+            benchmark.ApplyComparison(rowsByMethod.TryGetValue(benchmark.MethodName,out var row) ? row : null);
         }
     }
 
-    private void チャートを更新() {
-        this.チャート点一覧.Clear();
-        foreach(var item in this.comparisonService.BuildChartPoints(this.comparisonRows,this.選択比較軸,this.選択指標.種別)) {
-            this.チャート点一覧.Add(item);
+    private void UpdateChart(){
+        this.ChartPoints.Clear();
+        foreach(var item in this.comparisonService.BuildChartPoints(this.comparisonRows,this.SelectedComparisonPair,this.SelectedMetric.Kind)){
+            this.ChartPoints.Add(item);
         }
-        this.チャート高さ=Math.Max(300,this.チャート点一覧.Count*28+72);
+        this.ChartHeight=Math.Max(300,this.ChartPoints.Count*28+72);
     }
 
-    private void 最低1CPUを選択する() {
-        if(this.CPU一覧.Count==0||this.CPU一覧.Any(static cpu => cpu.IsSelected)) {
+    private void ApplyCurrentSort(){
+        if(this.BenchmarkRows.Count<2){
             return;
         }
 
-        this.CPU一覧[0].IsSelected=true;
-    }
-
-    private void CPUプリセットを再構築() {
-        this.CPUプリセット一覧.Clear();
-        if(this.CPU一覧.Count==0) {
-            return;
-        }
-
-        this.CPUプリセットを追加("FIRST","CPU 0",this.CPU一覧.Take(1));
-        this.CPUプリセットを追加("ALL","全CPU",this.CPU一覧);
-        this.CPUプリセットを追加("P","Pコア",this.CPU一覧.Where(static cpu => cpu.CoreKind==CpuCoreKind.Performance));
-        this.CPUプリセットを追加("E","Eコア",this.CPU一覧.Where(static cpu => cpu.CoreKind==CpuCoreKind.Efficiency));
-        this.CPUプリセットを追加("U","Unknown",this.CPU一覧.Where(static cpu => cpu.CoreKind==CpuCoreKind.Unknown));
-        this.選択CPUプリセット値=this.CPUプリセット一覧.FirstOrDefault();
-        this.OnPropertyChanged(nameof(this.選択CPUプリセット));
-    }
-
-    private void CPUプリセットを追加(string key,string displayName,IEnumerable<CpuSelectionItem> cpus) {
-        var indexes = cpus
-            .Select(static cpu => cpu.LogicalProcessorIndex)
-            .Distinct()
-            .Order()
+        var ordered = this.BenchmarkRows
+            .OrderBy(row => row,Comparer<BenchmarkTableRow>.Create((left,right) => {
+                var result = BenchmarkSortValue.Compare(
+                    left.GetSortValue(this.currentSortColumn),
+                    right.GetSortValue(this.currentSortColumn),
+                    this.currentSortDescending);
+                return result!=0
+                    ? result
+                    : string.Compare(left.BenchmarkName,right.BenchmarkName,StringComparison.OrdinalIgnoreCase);
+            }))
             .ToArray();
-        if(indexes.Length>0) {
-            this.CPUプリセット一覧.Add(new CpuPresetOption(key,displayName,indexes));
+        this.BenchmarkRows.Clear();
+        foreach(var row in ordered){
+            this.BenchmarkRows.Add(row);
         }
     }
 
-    private void CPUプリセットを適用(CpuPresetOption preset) {
-        var selected = preset.LogicalProcessorIndexes.ToHashSet();
-        this.CPUプリセット適用中=true;
-        try {
-            foreach(var cpu in this.CPU一覧) {
-                cpu.IsSelected=selected.Contains(cpu.LogicalProcessorIndex);
+    private void RebuildCpuSections(){
+        this.CpuSections.Clear();
+        this.AddCpuSection("P core",CpuCoreKind.Performance);
+        this.AddCpuSection("E core",CpuCoreKind.Efficiency);
+        this.AddCpuSection("Unknown core",CpuCoreKind.Unknown);
+    }
+
+    private void AddCpuSection(string title,CpuCoreKind kind){
+        var groups = this.CpuItems
+            .Where(cpu => cpu.CoreKind==kind)
+            .GroupBy(static cpu => cpu.PhysicalCoreIndex)
+            .OrderBy(static group => group.Min(static cpu => cpu.LogicalProcessorIndex))
+            .Select(static group => group.OrderBy(static cpu => cpu.LogicalProcessorIndex).ToArray())
+            .Where(static group => group.Length>0)
+            .ToArray();
+        if(groups.Length==0){
+            return;
+        }
+
+        var columnCount = groups.Max(static group => group.Length);
+        var columns = Enumerable.Range(0,columnCount)
+            .Select(static index => new CpuTableColumn(index,"Select"))
+            .ToArray();
+        var rows = groups
+            .Select(static group => new CpuTableRow(
+                CreateCpuRangeLabel(group),
+                group.Select(static cpu => new CpuTableCell(cpu)).ToArray()))
+            .ToArray();
+        this.CpuSections.Add(new CpuTableSection(title,kind,columns,rows));
+    }
+
+    private static string CreateCpuRangeLabel(IReadOnlyList<CpuSelectionItem> cpus){
+        var min = cpus.Min(static cpu => cpu.LogicalProcessorIndex);
+        var max = cpus.Max(static cpu => cpu.LogicalProcessorIndex);
+        return min==max
+            ? min.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            : min.ToString(System.Globalization.CultureInfo.InvariantCulture)+"-"+max.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private void ApplyCpuSelection(IEnumerable<CpuSelectionItem> cpus,bool selected){
+        var targets = cpus.Distinct().ToArray();
+        if(targets.Length==0){
+            return;
+        }
+
+        this.isApplyingCpuSelection=true;
+        try{
+            if(!selected){
+                var selectedOutsideTargets = this.CpuItems.Any(cpu => cpu.IsSelected&&!targets.Contains(cpu));
+                if(!selectedOutsideTargets&&this.CpuItems.Any(static cpu => cpu.IsSelected)){
+                    var keep = targets.FirstOrDefault(static cpu => cpu.IsSelected)??targets[0];
+                    foreach(var cpu in targets){
+                        cpu.IsSelected=ReferenceEquals(cpu,keep);
+                    }
+                    return;
+                }
             }
-        } finally {
-            this.CPUプリセット適用中=false;
-        }
 
-        this.最低1CPUを選択する();
+            foreach(var cpu in targets){
+                cpu.IsSelected=selected;
+            }
+        }finally{
+            this.isApplyingCpuSelection=false;
+            this.EnsureAtLeastOneCpuSelected(null);
+            this.RefreshCpuSectionStates();
+        }
     }
 
-    private string? FindSolutionRoot() {
+    private void EnsureAtLeastOneCpuSelected(CpuSelectionItem? fallback){
+        if(this.CpuItems.Count==0||this.CpuItems.Any(static cpu => cpu.IsSelected)){
+            return;
+        }
+
+        (fallback??this.CpuItems[0]).IsSelected=true;
+    }
+
+    private void RefreshCpuSectionStates(){
+        foreach(var section in this.CpuSections){
+            section.RefreshState();
+            foreach(var column in section.Columns){
+                this.OnPropertyChanged("CpuColumnState"+section.Title+column.Index);
+            }
+        }
+    }
+
+    private string? FindSolutionRoot(){
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while(directory is not null) {
-            if(File.Exists(Path.Combine(directory.FullName,"Seamless.slnx"))) {
+        while(directory is not null){
+            if(File.Exists(Path.Combine(directory.FullName,"Seamless.slnx"))){
                 return directory.FullName;
             }
             directory=directory.Parent;
