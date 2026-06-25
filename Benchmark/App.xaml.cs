@@ -40,6 +40,8 @@ public partial class App:Application {
         }
     }
 
+    public bool IsCloseConfirmed => this.closeConfirmed;
+
     private static MainPage? GetMainPage(){
         if(Shell.Current?.CurrentPage is MainPage page){
             return page;

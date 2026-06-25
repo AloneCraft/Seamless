@@ -42,6 +42,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     private bool isApplyingCpuSelection;
     private bool isApplyingUiState;
     private bool isApplyingBenchmarkSelection;
+    private bool hasPendingCloseStateSave;
     private BenchmarkGridSortColumn currentSortColumn = BenchmarkGridSortColumn.BenchmarkName;
     private bool currentSortDescending;
     private IReadOnlyList<BenchmarkComparisonRow> comparisonRows = [];
@@ -208,8 +209,16 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         private set{
             if(this.SetProperty(ref this.isRunning,value)){
                 this.RunCommand.NotifyCanExecuteChanged();
+                this.OnPropertyChanged(nameof(this.IsBenchmarkRunActive));
             }
         }
+    }
+
+    public bool IsBenchmarkRunActive => this.runCancellation is not null&&this.IsRunning;
+
+    public bool HasPendingCloseStateSave{
+        get => this.hasPendingCloseStateSave;
+        private set => this.SetProperty(ref this.hasPendingCloseStateSave,value);
     }
 
     public bool? IsAllBenchmarkSelectionChecked{
@@ -218,8 +227,12 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     }
 
     public async Task CancelAndWaitAsync(){
+        if(!this.IsBenchmarkRunActive){
+            return;
+        }
+
         this.Cancel();
-        while(this.IsRunning){
+        while(this.IsBenchmarkRunActive){
             await Task.Delay(100);
         }
     }
@@ -387,7 +400,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         this.IsRunning=true;
         this.StatusText="Loading";
         try{
-            this.RefreshCsvScan();
+            await this.RefreshCsvScanAsync(CancellationToken.None);
             var savedState = this.uiStateStore.Load();
             var loaded = await this.catalogService.LoadAsync(CancellationToken.None);
             var existingSelection = this.BenchmarkRows
@@ -519,8 +532,11 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
                 : null;
     }
 
-    private void RefreshCsvScan(){
-        var scan = this.csvDiscoveryService.Scan(this.benchmarkRoot);
+    private async Task RefreshCsvScanAsync(CancellationToken cancellationToken){
+        var scan = await Task.Run(() => {
+            cancellationToken.ThrowIfCancellationRequested();
+            return this.csvDiscoveryService.Scan(this.benchmarkRoot);
+        },cancellationToken);
         this.resultStore.UpsertMany(scan.Results);
         this.resultStore.Save();
         this.CsvDateOptions.Clear();
@@ -601,6 +617,11 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
                 .ToDictionary(static item => item.Key,static item => item.IsSelected,StringComparer.OrdinalIgnoreCase),
             this.BenchmarkRows.ToDictionary(static row => row.MethodName,static row => row.IsSelected,StringComparer.OrdinalIgnoreCase));
         this.uiStateStore.Save(state);
+        this.HasPendingCloseStateSave=false;
+    }
+
+    public void DiscardPendingCloseStateSave(){
+        this.HasPendingCloseStateSave=false;
     }
 
     private async Task RunAsync(){
@@ -637,18 +658,18 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
                 }),
                 status => MainThread.BeginInvokeOnMainThread(() => this.StatusText=status),
                 this.runCancellation.Token);
-            this.RefreshCsvScan();
+            await this.RefreshCsvScanAsync(this.runCancellation.Token);
         }catch(OperationCanceledException){
             this.StatusText="Canceled";
         }finally{
             this.IsRunning=false;
             this.runCancellation?.Dispose();
             this.runCancellation=null;
+            this.OnPropertyChanged(nameof(this.IsBenchmarkRunActive));
             this.comparisonRows=this.resultStore.BuildLatestComparisonRows();
             this.ApplyComparisonRowsToTable();
             this.ApplyStoredResultsToTable();
             this.UpdateChart();
-            this.SaveUiState();
         }
     }
 
@@ -670,6 +691,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             ||string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)){
             this.resultStore.Upsert(result,DateTimeOffset.Now,null,string.Empty);
             this.resultStore.Save();
+            this.HasPendingCloseStateSave=true;
             this.comparisonRows=this.resultStore.BuildLatestComparisonRows();
             this.ApplyComparisonRowsToTable();
             this.ApplyStoredResultsToTable();
