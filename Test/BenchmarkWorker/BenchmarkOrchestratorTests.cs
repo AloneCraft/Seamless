@@ -204,6 +204,167 @@ public sealed class BenchmarkOrchestratorTests{
     }
 
     [Fact]
+    public async Task Orchestrator_AdaptiveMode_AssignsMethodRowsToCpusAndRunsRowInElementProjectOrder(){
+        var root = CreateTempRoot();
+        var observed = new List<(string Method,string Project,int ElementCount,int Cpu)>();
+        var gate = new object();
+        var runner = new FakeRunner((job,cpu) => {
+            lock(gate) {
+                observed.Add((job.MethodName,job.Project,job.ElementCount,cpu));
+            }
+
+            return CompletedResult(job);
+        });
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [
+                    Case("System.Array.FLinq","Where"),
+                    Case("System.Array.ZLinq","Where"),
+                    Case("System.Array.FLinq","Select"),
+                    Case("System.Array.ZLinq","Select"),
+                    Case("System.Array.FLinq","Count"),
+                    Case("System.Array.ZLinq","Count"),
+                ],
+                [10,20],
+                [1,2],
+                BenchmarkRunMode.Adaptive,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30),
+                ExecutionProfile: BenchmarkExecutionProfile.Accurate),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        Assert.All(observed.Where(static item => item.Method=="Where"),static item => Assert.Equal(10,item.Cpu));
+        Assert.All(observed.Where(static item => item.Method=="Select"),static item => Assert.Equal(20,item.Cpu));
+        Assert.All(observed.Where(static item => item.Method=="Count"),static item => Assert.Equal(10,item.Cpu));
+        Assert.Equal(
+            [
+                ("System.Array.FLinq",1),
+                ("System.Array.ZLinq",1),
+                ("System.Array.FLinq",2),
+                ("System.Array.ZLinq",2),
+            ],
+            observed
+                .Where(static item => item.Method=="Where")
+                .Select(static item => (item.Project,item.ElementCount))
+                .ToArray());
+    }
+
+    [Fact]
+    public async Task Orchestrator_AdaptiveMode_FastRunsUnpersistedWarmupBeforeMeasuredN(){
+        var root = CreateTempRoot();
+        var observed = new List<(bool Warmup,string Project,int ElementCount)>();
+        var runner = new FakeRunner((job,_) => {
+            observed.Add((job.JobId.EndsWith("|warmup",StringComparison.Ordinal),job.Project,job.ElementCount));
+            return CompletedResult(job);
+        });
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
+                [0],
+                [1,2],
+                BenchmarkRunMode.Adaptive,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30),
+                ExecutionProfile: BenchmarkExecutionProfile.Fast),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        Assert.Equal(
+            [
+                (true,"System.Array.FLinq",1),
+                (true,"System.Array.ZLinq",1),
+                (false,"System.Array.FLinq",1),
+                (false,"System.Array.ZLinq",1),
+                (false,"System.Array.FLinq",2),
+                (false,"System.Array.ZLinq",2),
+            ],
+            observed);
+        var state = LoadOnlyState(root);
+        Assert.Equal(4,state.Jobs.Count);
+        Assert.DoesNotContain(state.Jobs,static job => job.JobId.EndsWith("|warmup",StringComparison.Ordinal));
+        Assert.True(File.Exists(Path.Combine(state.RunRoot,"System.Array","N1.csv")));
+        Assert.True(File.Exists(Path.Combine(state.RunRoot,"System.Array","N2.csv")));
+    }
+
+    [Fact]
+    public async Task Orchestrator_AdaptiveMode_AccurateDoesNotRunWarmup(){
+        var root = CreateTempRoot();
+        var observed = new List<bool>();
+        var runner = new FakeRunner((job,_) => {
+            observed.Add(job.JobId.EndsWith("|warmup",StringComparison.Ordinal));
+            return CompletedResult(job);
+        });
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
+                [0],
+                [1],
+                BenchmarkRunMode.Adaptive,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30),
+                ExecutionProfile: BenchmarkExecutionProfile.Accurate),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        Assert.Equal([false,false],observed);
+    }
+
+    [Fact]
+    public async Task Orchestrator_AdaptiveMode_WarmupFailurePersistsMeasuredNAsFailedAndStopsRow(){
+        var root = CreateTempRoot();
+        var runner = new FakeRunner((job,_) => job.JobId.EndsWith("|warmup",StringComparison.Ordinal)
+            ? new BenchmarkJobRunResult(
+                job.Project,
+                job.MethodName,
+                job.TypeFullName,
+                job.ElementCount,
+                "Failed",
+                "Warmup failed",
+                string.Empty,
+                string.Empty,
+                null,
+                null,
+                null,
+                null,
+                1,
+                job.ArtifactFolder,
+                "warmup boom")
+            : CompletedResult(job));
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
+                [0],
+                [1,2],
+                BenchmarkRunMode.Adaptive,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30),
+                ExecutionProfile: BenchmarkExecutionProfile.Fast),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        var state = LoadOnlyState(root);
+        var job = Assert.Single(state.Jobs);
+        Assert.Equal("System.Array.FLinq",job.Project);
+        Assert.Equal(1,job.ElementCount);
+        Assert.Equal(JobStatus.Failed,job.Status);
+        Assert.Contains("warmup boom",job.FailureReason,StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(state.RunRoot,"System.Array","N1.csv")));
+    }
+
+    [Fact]
     public async Task Orchestrator_FixedMode_UsesChangedCpuSelectionForLaterJobs(){
         var root = CreateTempRoot();
         var cpus = new[] { 0 };
@@ -590,7 +751,7 @@ public sealed class BenchmarkOrchestratorTests{
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_KeepsPairRunningWhenOnlyOneSideExceedsThreshold(){
+    public async Task Orchestrator_AdaptiveMode_StopsPairWhenEitherSideExceedsThreshold(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => {
             var mean = job.ElementCount>=256&&job.Project=="System.Array.ZLinq" ? 2_000_000_000d : 100d;
@@ -626,9 +787,9 @@ public sealed class BenchmarkOrchestratorTests{
             CancellationToken.None);
 
         var state = LoadOnlyState(root);
-        Assert.Equal([128,256,512],state.Jobs.Select(static job => job.ElementCount).Distinct().Order().ToArray());
-        Assert.Contains(state.Jobs,static job => job.Project=="System.Array.FLinq"&&job.ElementCount==512);
-        Assert.Contains(state.Jobs,static job => job.Project=="System.Array.ZLinq"&&job.ElementCount==512);
+        Assert.Equal([128,256],state.Jobs.Select(static job => job.ElementCount).Distinct().Order().ToArray());
+        Assert.DoesNotContain(state.Jobs,static job => job.Project=="System.Array.FLinq"&&job.ElementCount==512);
+        Assert.DoesNotContain(state.Jobs,static job => job.Project=="System.Array.ZLinq"&&job.ElementCount==512);
     }
 
     [Fact]

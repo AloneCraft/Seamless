@@ -27,7 +27,8 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private readonly string benchmarkRoot;
     private CancellationTokenSource? runCancellation;
     private string statusText = "Ready";
-    private bool isRunning;
+    private bool isBenchmarkRunning;
+    private bool isRefreshing;
     private bool? isAllBenchmarkSelectionChecked;
     private BenchmarkTab selectedTab = BenchmarkTab.Cpu;
     private ComparisonPairOption selectedComparisonPair;
@@ -53,6 +54,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private BenchmarkCellSelectionAnchor? benchmarkSelectionAnchor;
     private IReadOnlyList<BenchmarkComparisonRow> comparisonRows = [];
     private readonly List<BenchmarkResultItem> currentRunResultItems = [];
+    private BenchmarkSourceTab? currentRunSourceTab;
     private int[] selectedLogicalCpus = [];
 
     public BenchmarkRunnerViewModel(
@@ -125,7 +127,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.selectedScale=this.ScaleOptions.First(static item => item.DisplayName=="1");
         this.SelectAllCommand=new RelayCommand(() => this.SetAllBenchmarkSelection(true));
         this.ClearSelectionCommand=new RelayCommand(() => this.SetAllBenchmarkSelection(false));
-        this.RunCommand=new AsyncRelayCommand(this.RunAsync,() => !this.IsRunning);
+        this.RunCommand=new AsyncRelayCommand(this.RunAsync,() => this.CanChangeBenchmarkConditions);
         this.CancelCommand=new RelayCommand(this.Cancel);
         this.LoadCsvCommand=new AsyncRelayCommand(this.LoadCsvAsync);
         this.ShowCpuCommand=new RelayCommand(() => this.SelectedTab=BenchmarkTab.Cpu);
@@ -135,6 +137,20 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             this.CpuItems.Add(cpu);
             cpu.PropertyChanged+=(_,args) => {
                 if(args.PropertyName==nameof(CpuSelectionItem.IsSelected)&&!this.isApplyingCpuSelection) {
+                    if(!this.CanChangeBenchmarkConditions) {
+                        this.isApplyingCpuSelection=true;
+                        try {
+                            foreach(var item in this.CpuItems) {
+                                item.IsSelected=this.selectedLogicalCpus.Contains(item.LogicalProcessorIndex);
+                            }
+                        }
+                        finally {
+                            this.isApplyingCpuSelection=false;
+                            this.RefreshCpuSectionStates();
+                        }
+                        return;
+                    }
+
                     this.EnsureAtLeastOneCpuSelected(cpu);
                     this.RefreshSelectedLogicalCpus();
                     this.RefreshCpuSectionStates();
@@ -193,17 +209,36 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         set => this.SetProperty(ref this.statusText,value);
     }
 
-    public bool IsRunning {
-        get => this.isRunning;
+    public bool IsBenchmarkRunning {
+        get => this.isBenchmarkRunning;
         private set {
-            if(this.SetProperty(ref this.isRunning,value)) {
+            if(this.SetProperty(ref this.isBenchmarkRunning,value)) {
                 this.RunCommand.NotifyCanExecuteChanged();
+                this.OnPropertyChanged(nameof(this.IsRunning));
                 this.OnPropertyChanged(nameof(this.IsBenchmarkRunActive));
+                this.OnPropertyChanged(nameof(this.CanChangeBenchmarkConditions));
             }
         }
     }
 
-    public bool IsBenchmarkRunActive => this.runCancellation is not null&&this.IsRunning;
+    public bool IsRunning {
+        get => this.IsBenchmarkRunning;
+        private set => this.IsBenchmarkRunning=value;
+    }
+
+    public bool IsRefreshing {
+        get => this.isRefreshing;
+        private set {
+            if(this.SetProperty(ref this.isRefreshing,value)) {
+                this.RunCommand.NotifyCanExecuteChanged();
+                this.OnPropertyChanged(nameof(this.CanChangeBenchmarkConditions));
+            }
+        }
+    }
+
+    public bool CanChangeBenchmarkConditions => !this.IsBenchmarkRunning&&!this.IsRefreshing;
+
+    public bool IsBenchmarkRunActive => this.runCancellation is not null&&this.IsBenchmarkRunning;
 
     public bool HasPendingCloseStateSave {
         get => this.hasPendingCloseStateSave;
@@ -253,7 +288,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     public SourceTabOption SelectedSourceTab {
         get => this.selectedSourceTab;
         set {
-            if(this.IsRunning) {
+            if(!this.CanChangeBenchmarkConditions) {
                 return;
             }
 
@@ -261,6 +296,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 this.selectedComparisonPair=this.CreateComparisonPairs()[0];
                 this.OnPropertyChanged(nameof(this.SelectedComparisonPair));
                 this.OnPropertyChanged(nameof(this.SelectedSourceDefinition));
+                this.ClearSelectedRunDisplay();
                 _=this.RefreshAsync();
             }
         }
@@ -274,7 +310,11 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     public ExecutionProfileOption SelectedExecutionProfile {
         get => this.selectedExecutionProfile;
         set {
-            if(this.SetProperty(ref this.selectedExecutionProfile,value)&&!this.IsRunning) {
+            if(!this.CanChangeBenchmarkConditions) {
+                return;
+            }
+
+            if(this.SetProperty(ref this.selectedExecutionProfile,value)) {
                 _=this.RefreshRunsForSelectedProfileAsync();
             }
         }
@@ -295,8 +335,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         set {
             if(this.SetProperty(ref this.selectedRunOption,value)) {
                 if(!this.isApplyingUiState) {
-                    if(!this.IsRunning) {
+                    if(!this.IsBenchmarkRunning) {
                         this.currentRunResultItems.Clear();
+                        this.currentRunSourceTab=null;
                     }
                     this.RebuildResultElementCounts(value?.ElementCounts?? []);
                     this.LoadSelectedRunCsv();
@@ -338,7 +379,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 this.RefreshVisibleResults();
                 this.ApplySelectedElementCountToTable();
                 this.UpdateChart();
-                if(!this.isApplyingUiState&&!this.IsRunning) {
+                if(!this.isApplyingUiState&&!this.IsBenchmarkRunning) {
                     this.SaveUiState();
                 }
             }
@@ -389,15 +430,27 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     public void ToggleCpu(CpuSelectionItem cpu) {
+        if(!this.CanChangeBenchmarkConditions) {
+            return;
+        }
+
         cpu.IsSelected=!cpu.IsSelected;
     }
 
     public void ToggleCpuSection(CpuTableSection section) {
+        if(!this.CanChangeBenchmarkConditions) {
+            return;
+        }
+
         var selected = section.State!=CpuSelectionState.Checked;
         this.ApplyCpuSelection(section.Cells.Select(static cell => cell.Cpu),selected);
     }
 
     public void ToggleCpuColumn(CpuTableSection section,int columnIndex) {
+        if(!this.CanChangeBenchmarkConditions) {
+            return;
+        }
+
         var cells = section.Rows
             .Where(row => columnIndex<row.Cells.Count)
             .Select(row => row.Cells[columnIndex])
@@ -407,20 +460,36 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     public void ToggleCpuRow(CpuTableRow row) {
+        if(!this.CanChangeBenchmarkConditions) {
+            return;
+        }
+
         var selected = row.State!=CpuSelectionState.Checked;
         this.ApplyCpuSelection(row.Cells.Select(static cell => cell.Cpu),selected);
     }
 
     public void ToggleAllBenchmarkSelection() {
+        if(!this.CanChangeBenchmarkConditions) {
+            return;
+        }
+
         this.SetBenchmarkCells(this.BenchmarkRows.SelectMany(static row => row.ProjectCells),this.IsAllBenchmarkSelectionChecked is false);
     }
 
     public void ToggleBenchmarkColumnGroup(BenchmarkColumnSelectionGroup group) {
+        if(!this.CanChangeBenchmarkConditions) {
+            return;
+        }
+
         var selected = group.IsChecked is false;
         this.SetBenchmarkCells(this.GetBenchmarkCells(group.ColumnKeys),selected);
     }
 
     public void ToggleBenchmarkRow(BenchmarkTableRow row) {
+        if(!this.CanChangeBenchmarkConditions) {
+            return;
+        }
+
         this.SetBenchmarkCells(row.ProjectCells,row.IsSelectionChecked is false);
     }
 
@@ -461,6 +530,10 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     internal void ToggleBenchmarkCellCheck(BenchmarkTableRow row,string project) {
+        if(!this.CanChangeBenchmarkConditions) {
+            return;
+        }
+
         if(row.GetProjectCell(project) is not { } cell) {
             return;
         }
@@ -476,7 +549,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private async Task RefreshAsync() {
-        this.IsRunning=true;
+        this.IsRefreshing=true;
         this.StatusText="Loading";
         try {
             await this.RefreshCsvScanAsync(CancellationToken.None);
@@ -520,7 +593,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             this.StatusText="Load failed: "+ex.Message;
         }
         finally {
-            this.IsRunning=false;
+            this.IsRefreshing=false;
         }
     }
 
@@ -570,6 +643,10 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private void SetBenchmarkCells(IEnumerable<BenchmarkProjectCell> cells,bool selected) {
+        if(!this.CanChangeBenchmarkConditions) {
+            return;
+        }
+
         var targets = cells.Where(static cell => cell.HasCase).Distinct().ToArray();
         if(targets.Length==0) {
             this.RefreshBenchmarkSelectionAggregates();
@@ -747,6 +824,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.runCancellation?.Cancel();
         this.runCancellation=new CancellationTokenSource();
         this.IsRunning=true;
+        this.currentRunSourceTab=this.SelectedSourceDefinition.Tab;
         this.CurrentElementCountText="N=1";
         this.ResultItems.Clear();
         this.VisibleResultItems.Clear();
@@ -840,6 +918,10 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private void RestoreLatestCompletedLiveResult() {
+        if(!this.HasCurrentRunResultsForSelectedTab) {
+            return;
+        }
+
         var result = this.currentRunResultItems
             .LastOrDefault(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase));
         if(result is null) {
@@ -1012,6 +1094,17 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    private bool HasCurrentRunResultsForSelectedTab =>
+        this.currentRunSourceTab==this.SelectedSourceDefinition.Tab&&this.currentRunResultItems.Count>0;
+
+    private void ClearSelectedRunDisplay() {
+        this.comparisonRows= [];
+        this.ResultItems.Clear();
+        this.VisibleResultItems.Clear();
+        this.ClearBenchmarkResultDisplays();
+        this.UpdateChart();
+    }
+
     private void LoadComparisonRowsIntoResults(IReadOnlyList<BenchmarkComparisonRow> rows,int elementCount = 0) {
         this.ResultItems.Clear();
         this.VisibleResultItems.Clear();
@@ -1029,7 +1122,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     private void ApplyComparisonRowsToTable() {
         var rowsByMethod = this.comparisonRows.ToDictionary(static item => item.Benchmark,StringComparer.OrdinalIgnoreCase);
-        var preserveRetainedDisplay = this.currentRunResultItems.Count>0;
+        var preserveRetainedDisplay = this.HasCurrentRunResultsForSelectedTab;
         foreach(var benchmark in this.BenchmarkRows) {
             benchmark.ApplyComparison(rowsByMethod.TryGetValue(benchmark.MethodName,out var row) ? row : null,preserveRetainedDisplay);
         }
@@ -1058,7 +1151,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private void LoadSelectedRunCsv() {
-        if(this.isLoadingSelectedRunCsv||this.IsRunning) {
+        if(this.isLoadingSelectedRunCsv) {
             return;
         }
 
@@ -1067,11 +1160,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             var run = this.SelectedRunOption;
             var selectedN = this.SelectedResultElementCount?.Value;
             if(run is null||IsNewRunOption(run)||selectedN is null) {
-                this.comparisonRows= [];
-                this.ResultItems.Clear();
-                this.VisibleResultItems.Clear();
-                this.ClearBenchmarkResultDisplays();
-                this.UpdateChart();
+                this.ClearSelectedRunDisplay();
                 return;
             }
 
@@ -1080,11 +1169,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 this.SelectedSourceDefinition.Id,
                 "N"+selectedN.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)+".csv");
             if(!File.Exists(path)) {
-                this.comparisonRows= [];
-                this.ResultItems.Clear();
-                this.VisibleResultItems.Clear();
-                this.ClearBenchmarkResultDisplays();
-                this.UpdateChart();
+                this.ClearSelectedRunDisplay();
                 return;
             }
 
@@ -1114,7 +1199,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     private void ApplySelectedElementCountToTable() {
         var selectedN = this.SelectedResultElementCount?.Value;
-        if(this.currentRunResultItems.Count>0) {
+        if(this.HasCurrentRunResultsForSelectedTab) {
             this.comparisonRows=selectedN is { } currentElementCount
                 ? this.BuildCurrentRunComparisonRowsForElementCount(currentElementCount)
                 : this.BuildCurrentRunComparisonRows();
@@ -1193,7 +1278,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
                 var stoppedAt = this.FindPairStoppedAt(row.MethodName,pair.LeftProject,selectedElementCount);
                 if(stoppedAt is { } stoppedAtElementCount) {
-                    row.ApplyPairStopped(pair.LeftProject,pair.RightProject,stoppedAtElementCount,this.currentRunResultItems.Count>0);
+                    row.ApplyPairStopped(pair.LeftProject,pair.RightProject,stoppedAtElementCount,this.HasCurrentRunResultsForSelectedTab);
                     row.ApplySkipped(pair.LeftProject,stoppedAtElementCount,this.GetResultMetrics(row.MethodName,pair.LeftProject,stoppedAtElementCount));
                     row.ApplySkipped(pair.RightProject,stoppedAtElementCount,this.GetResultMetrics(row.MethodName,pair.RightProject,stoppedAtElementCount));
                 }
@@ -1206,15 +1291,15 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     ];
 
     private bool HasResult(string method,string project,int elementCount) =>
-        this.currentRunResultItems.Any(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
+        this.HasCurrentRunResultsForSelectedTab&&this.currentRunResultItems.Any(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
             &&string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase)
             &&result.ElementCount==elementCount)
-        ||(this.currentRunResultItems.Count==0&&this.ResultItems.Any(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
+        ||(!this.HasCurrentRunResultsForSelectedTab&&this.ResultItems.Any(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
             &&string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase)
             &&result.ElementCount==elementCount));
 
     private int? FindPairStoppedAt(string method,string project,int selectedElementCount) {
-        var measurements = this.currentRunResultItems.Count>0
+        var measurements = this.HasCurrentRunResultsForSelectedTab
             ? this.currentRunResultItems.Select(static result => new BenchmarkElementMeasurement(
                 result.Project,
                 result.Method,
@@ -1236,17 +1321,19 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private ProjectMetrics GetResultMetrics(string method,string project,int elementCount) {
-        for(var index = this.currentRunResultItems.Count-1; index>=0; index--) {
-            var item = this.currentRunResultItems[index];
-            if(string.Equals(item.Method,method,StringComparison.OrdinalIgnoreCase)
-                &&string.Equals(item.Project,project,StringComparison.OrdinalIgnoreCase)
-                &&item.ElementCount==elementCount
-                &&string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)) {
-                return ProjectMetrics.FromMeasurement(item.MeanNanoseconds,item.AllocatedBytesValue);
+        if(this.HasCurrentRunResultsForSelectedTab) {
+            for(var index = this.currentRunResultItems.Count-1; index>=0; index--) {
+                var item = this.currentRunResultItems[index];
+                if(string.Equals(item.Method,method,StringComparison.OrdinalIgnoreCase)
+                    &&string.Equals(item.Project,project,StringComparison.OrdinalIgnoreCase)
+                    &&item.ElementCount==elementCount
+                    &&string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)) {
+                    return ProjectMetrics.FromMeasurement(item.MeanNanoseconds,item.AllocatedBytesValue);
+                }
             }
         }
 
-        var selectedRunResult = this.currentRunResultItems.Count==0
+        var selectedRunResult = !this.HasCurrentRunResultsForSelectedTab
             ? this.ResultItems.LastOrDefault(item => string.Equals(item.Method,method,StringComparison.OrdinalIgnoreCase)
                 &&string.Equals(item.Project,project,StringComparison.OrdinalIgnoreCase)
                 &&item.ElementCount==elementCount
@@ -1496,6 +1583,10 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private void ApplyCpuSelection(IEnumerable<CpuSelectionItem> cpus,bool selected) {
+        if(!this.CanChangeBenchmarkConditions&&!this.isApplyingCpuSelection) {
+            return;
+        }
+
         var targets = cpus.Distinct().ToArray();
         if(targets.Length==0) {
             return;

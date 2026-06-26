@@ -179,6 +179,7 @@ public sealed class MainPage:ContentPage{
         };
         thresholdPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ThresholdOptions));
         thresholdPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedThreshold));
+        thresholdPicker.SetBinding(IsEnabledProperty,nameof(BenchmarkRunnerViewModel.CanChangeBenchmarkConditions));
 
         var executionProfilePicker = new Picker{
             WidthRequest=96,
@@ -188,6 +189,7 @@ public sealed class MainPage:ContentPage{
         };
         executionProfilePicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ExecutionProfiles));
         executionProfilePicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedExecutionProfile));
+        executionProfilePicker.SetBinding(IsEnabledProperty,nameof(BenchmarkRunnerViewModel.CanChangeBenchmarkConditions));
 
         var runPicker = new Picker{
             WidthRequest=220,
@@ -318,6 +320,7 @@ public sealed class MainPage:ContentPage{
                     this.viewModel.SelectedSourceTab=option;
                 }
             };
+            button.SetBinding(IsEnabledProperty,nameof(BenchmarkRunnerViewModel.CanChangeBenchmarkConditions));
             layout.Children.Add(button);
         }
 
