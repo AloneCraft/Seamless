@@ -552,6 +552,7 @@ public interface IBenchmarkRunService {
     Task<BenchmarkRunReport> RunAsync(
         IReadOnlyList<BenchmarkCase> benchmarks,
         IReadOnlyList<int> logicalCpus,
+        Func<IReadOnlyList<int>> logicalCpuProvider,
         IReadOnlyList<int> elementCounts,
         BenchmarkRunMode mode,
         TimeSpan adaptiveThreshold,
@@ -580,6 +581,7 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
     public async Task<BenchmarkRunReport> RunAsync(
         IReadOnlyList<BenchmarkCase> benchmarks,
         IReadOnlyList<int> logicalCpus,
+        Func<IReadOnlyList<int>> logicalCpuProvider,
         IReadOnlyList<int> elementCounts,
         BenchmarkRunMode mode,
         TimeSpan adaptiveThreshold,
@@ -598,7 +600,8 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
             elementCounts,
             mode,
             adaptiveThreshold,
-            TimeSpan.FromMinutes(60));
+            TimeSpan.FromMinutes(60),
+            logicalCpuProvider);
         var orchestratorResult = await orchestrator.RunAsync(
             request,
             update => resultReceived(new BenchmarkResultItem(update.Job)),

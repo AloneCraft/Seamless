@@ -59,17 +59,16 @@ internal sealed class BenchmarkOrchestrator {
         var queue = new ConcurrentQueue<BenchmarkJob>(state.Jobs.Where(static job => job.Status==JobStatus.Pending));
         var total = state.Jobs.Count(static job => job.Status is JobStatus.Pending or JobStatus.Completed or JobStatus.Failed);
         var completed = state.Jobs.Count(static job => job.Status is JobStatus.Completed or JobStatus.Failed);
-        var cpus = NormalizeCpus(request.LogicalCpus);
-        var workers = cpus.Select(cpu => Task.Run(async () => {
-            while(queue.TryDequeue(out var job)) {
-                cancellationToken.ThrowIfCancellationRequested();
+        await this.RunDynamicJobBatchAsync(
+            state,
+            queue,
+            request,
+            progress,
+            (job,cpu) => {
                 var current = Interlocked.Increment(ref completed);
                 statusChanged($"Running {current}/{total}: {job.MethodName} N={job.ElementCount} / CPU {cpu}");
-                await this.RunJobAsync(state,job,cpu,request.JobTimeout,progress,cancellationToken);
-            }
-        },cancellationToken)).ToArray();
-
-        await Task.WhenAll(workers);
+            },
+            cancellationToken);
     }
 
     private async Task RunAdaptiveAsync(
@@ -78,7 +77,6 @@ internal sealed class BenchmarkOrchestrator {
         Action<BenchmarkProgressUpdate> progress,
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
-        var cpus = NormalizeCpus(request.LogicalCpus);
         var benchmarks = state.Jobs.Count>0
             ? state.Jobs
                 .Select(static job => new BenchmarkCase(job.Project,job.AssemblyName,job.TypeFullName,job.MethodName))
@@ -102,7 +100,7 @@ internal sealed class BenchmarkOrchestrator {
             var pending = jobs.Where(static job => job.Status==JobStatus.Pending).ToArray();
             if(pending.Length>0) {
                 statusChanged($"Adaptive N={elementCount}: {pending.Length}/{activeCases.Length} cells");
-                await this.RunJobBatchAsync(state,pending,cpus,request.JobTimeout,progress,cancellationToken);
+                await this.RunJobBatchAsync(state,pending,request,progress,cancellationToken);
             }
 
             if(jobs.Any(static job => job.Status==JobStatus.Pending||job.Status==JobStatus.Running)) {
@@ -114,18 +112,81 @@ internal sealed class BenchmarkOrchestrator {
     private async Task RunJobBatchAsync(
         ProgressState state,
         IReadOnlyList<BenchmarkJob> jobs,
-        IReadOnlyList<int> cpus,
-        TimeSpan timeout,
+        BenchmarkRunRequest request,
         Action<BenchmarkProgressUpdate> progress,
         CancellationToken cancellationToken) {
         var queue = new ConcurrentQueue<BenchmarkJob>(jobs);
-        var workers = cpus.Select(cpu => Task.Run(async () => {
-            while(queue.TryDequeue(out var job)) {
-                cancellationToken.ThrowIfCancellationRequested();
-                await this.RunJobAsync(state,job,cpu,timeout,progress,cancellationToken);
+        await this.RunDynamicJobBatchAsync(state,queue,request,progress,null,cancellationToken);
+    }
+
+    private async Task RunDynamicJobBatchAsync(
+        ProgressState state,
+        ConcurrentQueue<BenchmarkJob> queue,
+        BenchmarkRunRequest request,
+        Action<BenchmarkProgressUpdate> progress,
+        Action<BenchmarkJob,int>? jobStarting,
+        CancellationToken cancellationToken) {
+        var running = 0;
+        var workers = new Dictionary<int,Task>();
+        while(true) {
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach(var worker in workers.Where(static item => item.Value.IsCompleted).ToArray()) {
+                if(worker.Value.IsFaulted) {
+                    await worker.Value;
+                }
+
+                workers.Remove(worker.Key);
             }
-        },cancellationToken)).ToArray();
-        await Task.WhenAll(workers);
+
+            foreach(var cpu in GetCurrentCpus(request)) {
+                if(!workers.ContainsKey(cpu)) {
+                    workers.Add(cpu,Task.Run(() => this.RunDynamicCpuWorkerAsync(
+                        state,
+                        queue,
+                        request,
+                        cpu,
+                        progress,
+                        jobStarting,
+                        () => Interlocked.Increment(ref running),
+                        () => Interlocked.Decrement(ref running),
+                        cancellationToken),cancellationToken));
+                }
+            }
+
+            if(queue.IsEmpty&&Volatile.Read(ref running)==0) {
+                break;
+            }
+
+            await Task.Delay(25,cancellationToken);
+        }
+
+        await Task.WhenAll(workers.Values);
+    }
+
+    private async Task RunDynamicCpuWorkerAsync(
+        ProgressState state,
+        ConcurrentQueue<BenchmarkJob> queue,
+        BenchmarkRunRequest request,
+        int logicalCpu,
+        Action<BenchmarkProgressUpdate> progress,
+        Action<BenchmarkJob,int>? jobStarting,
+        Action started,
+        Action finished,
+        CancellationToken cancellationToken) {
+        while(GetCurrentCpus(request).Contains(logicalCpu)) {
+            if(!queue.TryDequeue(out var job)) {
+                return;
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            started();
+            try {
+                jobStarting?.Invoke(job,logicalCpu);
+                await this.RunJobAsync(state,job,logicalCpu,request.JobTimeout,progress,cancellationToken);
+            } finally {
+                finished();
+            }
+        }
     }
 
     private async Task RunJobAsync(
@@ -283,6 +344,9 @@ internal sealed class BenchmarkOrchestrator {
 
     private static IReadOnlyList<int> NormalizeCpus(IReadOnlyList<int> cpus) =>
         cpus.Count==0 ? [0] : cpus.Distinct().Order().ToArray();
+
+    private static IReadOnlyList<int> GetCurrentCpus(BenchmarkRunRequest request) =>
+        NormalizeCpus(request.LogicalCpuProvider?.Invoke()??request.LogicalCpus);
 
     private static void ForceGcBeforeJob() {
         GC.Collect();
