@@ -14,12 +14,17 @@ public sealed class MainPage:ContentPage{
     private const double BenchmarkCellCheckBoxWidth = 40;
     private const double BenchmarkCellCheckBoxHeight = 28;
     private const double BenchmarkCellCheckSlotWidth = 46;
-    private const double BenchmarkHeaderCheckSlotWidth = 48;
+    private const double BenchmarkHeaderCheckSlotWidth = 38;
     private const double BenchmarkScrollBarSize = 20;
     private const double CpuLogicalColumnWidth = 220;
     private const double CpuLogicalCheckColumnWidth = 46;
     private const double CpuLogicalNumberWidth = 164;
     private BenchmarkRunnerViewModel? viewModel;
+
+#if WINDOWS
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern short GetKeyState(int virtualKey);
+#endif
 
     public MainPage(){
         try{
@@ -347,6 +352,10 @@ public sealed class MainPage:ContentPage{
             }),
             CellTemplate=new DataTemplate(() => {
                 var layout = new Grid{
+                    ColumnDefinitions = {
+                        new ColumnDefinition { Width = new GridLength(BenchmarkAggregateCheckBoxSize+4) },
+                        new ColumnDefinition { Width = GridLength.Star },
+                    },
                     WidthRequest=BenchmarkSelectionColumnWidth,
                     HorizontalOptions=LayoutOptions.Fill,
                     VerticalOptions=LayoutOptions.Fill,
@@ -354,14 +363,32 @@ public sealed class MainPage:ContentPage{
                 var check = this.CreateSfCheckBox(BenchmarkAggregateCheckBoxSize,BenchmarkAggregateCheckBoxSize,true);
                 check.InputTransparent=true;
                 check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(nameof(BenchmarkTableRow.IsSelectionChecked),BindingMode.OneWay));
-                layout.Add(check,0,0);
-                var tap = new TapGestureRecognizer();
-                tap.Tapped+=(_,_) => {
+                var checkHost = new Grid{
+                    HorizontalOptions=LayoutOptions.Fill,
+                    VerticalOptions=LayoutOptions.Fill,
+                };
+                checkHost.Add(check,0,0);
+                var checkTap = new TapGestureRecognizer();
+                checkTap.Tapped+=(_,_) => {
                     if(layout.BindingContext is BenchmarkTableRow row){
                         this.viewModel?.ToggleBenchmarkRow(row);
                     }
                 };
-                layout.GestureRecognizers.Add(tap);
+                checkHost.GestureRecognizers.Add(checkTap);
+                var selectionHost = new Grid{
+                    BackgroundColor=Colors.Transparent,
+                    HorizontalOptions=LayoutOptions.Fill,
+                    VerticalOptions=LayoutOptions.Fill,
+                };
+                var selectionTap = new TapGestureRecognizer();
+                selectionTap.Tapped+=(_,_) => {
+                    if(layout.BindingContext is BenchmarkTableRow row){
+                        this.viewModel?.SelectBenchmarkRow(row,CreateBenchmarkSelectionGesture());
+                    }
+                };
+                selectionHost.GestureRecognizers.Add(selectionTap);
+                layout.Add(checkHost,0,0);
+                layout.Add(selectionHost,1,0);
                 return layout;
             }),
         };
@@ -405,6 +432,34 @@ public sealed class MainPage:ContentPage{
         return [checkMapping,timeMapping,allocatedMapping];
     }
 
+    private string GetProjectFromCellPath(string cellPath){
+        return cellPath switch{
+            nameof(BenchmarkTableRow.SystemFLinqCell) => BenchmarkComparisonFormatter.SystemFLinq,
+            nameof(BenchmarkTableRow.SystemZLinqCell) => BenchmarkComparisonFormatter.SystemZLinq,
+            nameof(BenchmarkTableRow.PersistedFLinqCell) => BenchmarkComparisonFormatter.PersistedFLinq,
+            nameof(BenchmarkTableRow.PersistedLinqCell) => BenchmarkComparisonFormatter.PersistedLinq,
+            nameof(BenchmarkTableRow.TsavoriteFLinqCell) => BenchmarkComparisonFormatter.TsavoriteFLinq,
+            nameof(BenchmarkTableRow.TsavoriteLinqCell) => BenchmarkComparisonFormatter.TsavoriteLinq,
+            _ => cellPath,
+        };
+    }
+
+    private static BenchmarkCellSelectionGesture CreateBenchmarkSelectionGesture(){
+        var isShiftPressed = false;
+        var isControlPressed = false;
+#if WINDOWS
+        isShiftPressed=(GetKeyState(0x10)&0x8000)!=0;
+        isControlPressed=(GetKeyState(0x11)&0x8000)!=0;
+#endif
+        return isShiftPressed
+            ? isControlPressed
+                ? BenchmarkCellSelectionGesture.ExtendToggle
+                : BenchmarkCellSelectionGesture.Extend
+            : isControlPressed
+                ? BenchmarkCellSelectionGesture.Toggle
+                : BenchmarkCellSelectionGesture.Replace;
+    }
+
     private void AddBenchmarkSelectionGroup(DataGridStackedHeaderRow headerRow,BenchmarkColumnSelectionGroup group,IEnumerable<IReadOnlyList<string>> childMappings){
         var mappings = childMappings.SelectMany(static item => item).ToArray();
         headerRow.Columns.Add(new DataGridStackedColumn{
@@ -439,10 +494,16 @@ public sealed class MainPage:ContentPage{
             if(this.viewModel is not null){
                 this.BindAggregateCheckBox(check,this.viewModel,nameof(BenchmarkRunnerViewModel.IsAllBenchmarkSelectionChecked),() => this.viewModel.IsAllBenchmarkSelectionChecked);
             }
-            layout.Add(check,0,0);
-            var tap = new TapGestureRecognizer();
-            tap.Tapped+=(_,_) => this.viewModel?.ToggleAllBenchmarkSelection();
-            layout.GestureRecognizers.Add(tap);
+            var checkHost = this.CreateBenchmarkHeaderCheckHost(check);
+            var checkTap = new TapGestureRecognizer();
+            checkTap.Tapped+=(_,_) => this.viewModel?.ToggleAllBenchmarkSelection();
+            checkHost.GestureRecognizers.Add(checkTap);
+            var body = this.CreateBenchmarkHeaderBody(string.Empty);
+            var bodyTap = new TapGestureRecognizer();
+            bodyTap.Tapped+=(_,_) => this.viewModel?.SelectAllBenchmarkUiCells();
+            body.GestureRecognizers.Add(bodyTap);
+            layout.Add(checkHost,0,0);
+            layout.Add(body,1,0);
             return layout;
         });
     }
@@ -452,10 +513,16 @@ public sealed class MainPage:ContentPage{
             var layout = this.CreateBenchmarkHeaderCheckLayout(group.HeaderText);
             var check = this.CreateBenchmarkAggregateCheckBox();
             this.BindAggregateCheckBox(check,group,nameof(BenchmarkColumnSelectionGroup.IsChecked),() => group.IsChecked);
-            layout.Add(check,0,0);
-            var tap = new TapGestureRecognizer();
-            tap.Tapped+=(_,_) => this.viewModel?.ToggleBenchmarkColumnGroup(group);
-            layout.GestureRecognizers.Add(tap);
+            var checkHost = this.CreateBenchmarkHeaderCheckHost(check);
+            var checkTap = new TapGestureRecognizer();
+            checkTap.Tapped+=(_,_) => this.viewModel?.ToggleBenchmarkColumnGroup(group);
+            checkHost.GestureRecognizers.Add(checkTap);
+            var body = this.CreateBenchmarkHeaderBody(group.HeaderText);
+            var bodyTap = new TapGestureRecognizer();
+            bodyTap.Tapped+=(_,_) => this.viewModel?.SelectBenchmarkColumnGroup(group,CreateBenchmarkSelectionGesture());
+            body.GestureRecognizers.Add(bodyTap);
+            layout.Add(checkHost,0,0);
+            layout.Add(body,1,0);
             return layout;
         });
     }
@@ -472,18 +539,38 @@ public sealed class MainPage:ContentPage{
             HorizontalOptions=LayoutOptions.Fill,
             VerticalOptions=LayoutOptions.Fill,
         };
+        return layout;
+    }
+
+    private Grid CreateBenchmarkHeaderCheckHost(SfCheckBox check){
+        var host = new Grid{
+            BackgroundColor=Colors.Transparent,
+            HorizontalOptions=LayoutOptions.Fill,
+            VerticalOptions=LayoutOptions.Fill,
+        };
+        host.Add(check,0,0);
+        return host;
+    }
+
+    private Grid CreateBenchmarkHeaderBody(string text){
+        var body = new Grid{
+            BackgroundColor=Colors.Transparent,
+            HorizontalOptions=LayoutOptions.Fill,
+            VerticalOptions=LayoutOptions.Fill,
+        };
         if(!string.IsNullOrWhiteSpace(text)){
-            layout.Add(new Label{
+            body.Add(new Label{
                 Text=text,
                 FontSize=12,
                 FontAttributes=FontAttributes.Bold,
                 TextColor=Color.FromArgb("#0F172A"),
+                InputTransparent=true,
                 HorizontalTextAlignment=TextAlignment.Start,
                 VerticalTextAlignment=TextAlignment.Center,
                 LineBreakMode=LineBreakMode.TailTruncation,
-            },1,0);
+            },0,0);
         }
-        return layout;
+        return body;
     }
 
     private SfCheckBox CreateBenchmarkAggregateCheckBox(){
@@ -523,6 +610,22 @@ public sealed class MainPage:ContentPage{
             }),
             CellTemplate=new DataTemplate(() => {
                 var layout = new Grid{
+                    RowDefinitions = {
+                        new RowDefinition { Height = new GridLength(2) },
+                        new RowDefinition { Height = GridLength.Star },
+                        new RowDefinition { Height = new GridLength(2) },
+                    },
+                    ColumnDefinitions = {
+                        new ColumnDefinition { Width = new GridLength(2) },
+                        new ColumnDefinition { Width = GridLength.Star },
+                        new ColumnDefinition { Width = new GridLength(2) },
+                    },
+                    BackgroundColor=Colors.Transparent,
+                    VerticalOptions=LayoutOptions.Fill,
+                    HorizontalOptions=LayoutOptions.Fill,
+                };
+                this.AddBenchmarkUiSelectionBackground(layout,cellPath);
+                var content = new Grid{
                     ColumnDefinitions = {
                         new ColumnDefinition { Width = new GridLength(BenchmarkCellCheckSlotWidth) },
                         new ColumnDefinition { Width = GridLength.Star },
@@ -532,17 +635,47 @@ public sealed class MainPage:ContentPage{
                     VerticalOptions=LayoutOptions.Center,
                 };
                 var check = this.CreateSfCheckBox(BenchmarkCellCheckBoxWidth,BenchmarkCellCheckBoxHeight);
-                check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(cellPath+"."+nameof(BenchmarkProjectCell.IsSelected),BindingMode.TwoWay));
+                check.InputTransparent=true;
+                check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(cellPath+"."+nameof(BenchmarkProjectCell.IsSelected),BindingMode.OneWay));
                 check.SetBinding(IsEnabledProperty,cellPath+"."+nameof(BenchmarkProjectCell.HasCase));
+                var checkHost = new Grid{
+                    BackgroundColor=Colors.Transparent,
+                    HorizontalOptions=LayoutOptions.Fill,
+                    VerticalOptions=LayoutOptions.Fill,
+                };
+                checkHost.Add(check,0,0);
+                var checkTap = new TapGestureRecognizer();
+                checkTap.Tapped+=(_,_) => {
+                    if(layout.BindingContext is BenchmarkTableRow row){
+                        this.viewModel?.ToggleBenchmarkCellCheck(row,this.GetProjectFromCellPath(cellPath));
+                    }
+                };
+                checkHost.GestureRecognizers.Add(checkTap);
                 var detail = new Label{
                     FontSize=9,
                     TextColor=Color.FromArgb("#334155"),
+                    InputTransparent=true,
                     LineBreakMode=LineBreakMode.TailTruncation,
                     VerticalTextAlignment=TextAlignment.Center,
                 };
                 detail.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionText));
-                layout.Add(check,0,0);
-                layout.Add(detail,1,0);
+                var detailHost = new Grid{
+                    BackgroundColor=Colors.Transparent,
+                    HorizontalOptions=LayoutOptions.Fill,
+                    VerticalOptions=LayoutOptions.Fill,
+                };
+                detailHost.Add(detail,0,0);
+                var detailTap = new TapGestureRecognizer();
+                detailTap.Tapped+=(_,_) => {
+                    if(layout.BindingContext is BenchmarkTableRow row){
+                        this.viewModel?.SelectBenchmarkCell(row,this.GetProjectFromCellPath(cellPath),CreateBenchmarkSelectionGesture());
+                    }
+                };
+                detailHost.GestureRecognizers.Add(detailTap);
+                content.Add(checkHost,0,0);
+                content.Add(detailHost,1,0);
+                layout.Add(content,1,1);
+                this.AddBenchmarkUiSelectionBorder(layout,cellPath);
                 return layout;
             }),
         };
@@ -571,6 +704,7 @@ public sealed class MainPage:ContentPage{
                     VerticalOptions=LayoutOptions.Fill,
                     HorizontalOptions=LayoutOptions.Fill,
                 };
+                this.AddBenchmarkUiSelectionBackground(grid,cellPath);
                 var runningBackground = new BoxView{
                     BackgroundColor=Color.FromArgb("#DBEAFE"),
                     Opacity=0.85,
@@ -580,6 +714,7 @@ public sealed class MainPage:ContentPage{
                 var label = new Label{
                     FontSize=10,
                     TextColor=Color.FromArgb("#1E293B"),
+                    InputTransparent=true,
                     LineBreakMode=LineBreakMode.TailTruncation,
                     HorizontalTextAlignment=alignment,
                     VerticalTextAlignment=TextAlignment.Center,
@@ -594,9 +729,29 @@ public sealed class MainPage:ContentPage{
                 Grid.SetColumnSpan(label,3);
                 Grid.SetRowSpan(label,3);
                 this.AddMetricCompletedBorder(grid,cellPath);
+                this.AddBenchmarkUiSelectionBorder(grid,cellPath);
+                var tap = new TapGestureRecognizer();
+                tap.Tapped+=(_,_) => {
+                    if(grid.BindingContext is BenchmarkTableRow row){
+                        this.viewModel?.SelectBenchmarkCell(row,this.GetProjectFromCellPath(cellPath),CreateBenchmarkSelectionGesture());
+                    }
+                };
+                grid.GestureRecognizers.Add(tap);
                 return grid;
             }),
         };
+    }
+
+    private void AddBenchmarkUiSelectionBackground(Grid grid,string cellPath){
+        var background = new BoxView{
+            BackgroundColor=Color.FromArgb("#DBEAFE"),
+            Opacity=0.52,
+            InputTransparent=true,
+        };
+        background.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsUiSelected));
+        grid.Add(background,0,0);
+        Grid.SetColumnSpan(background,3);
+        Grid.SetRowSpan(background,3);
     }
 
     private void AddMetricCompletedBorder(Grid grid,string cellPath){
@@ -609,6 +764,26 @@ public sealed class MainPage:ContentPage{
         bottom.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsCompletedVisual));
         left.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsCompletedVisual));
         right.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsCompletedVisual));
+        grid.Add(top,0,0);
+        Grid.SetColumnSpan(top,3);
+        grid.Add(bottom,0,2);
+        Grid.SetColumnSpan(bottom,3);
+        grid.Add(left,0,0);
+        Grid.SetRowSpan(left,3);
+        grid.Add(right,2,0);
+        Grid.SetRowSpan(right,3);
+    }
+
+    private void AddBenchmarkUiSelectionBorder(Grid grid,string cellPath){
+        var color = Color.FromArgb("#2563EB");
+        var top = this.CreateMetricBorderSegment(color);
+        var bottom = this.CreateMetricBorderSegment(color);
+        var left = this.CreateMetricBorderSegment(color);
+        var right = this.CreateMetricBorderSegment(color);
+        top.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsUiSelected));
+        bottom.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsUiSelected));
+        left.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsUiSelected));
+        right.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsUiSelected));
         grid.Add(top,0,0);
         Grid.SetColumnSpan(top,3);
         grid.Add(bottom,0,2);
@@ -644,6 +819,15 @@ public sealed class MainPage:ContentPage{
                     Padding=new Thickness(2,0),
                 };
                 label.SetBinding(Label.TextProperty,property);
+                if(property==nameof(BenchmarkTableRow.BenchmarkName)){
+                    var tap = new TapGestureRecognizer();
+                    tap.Tapped+=(_,_) => {
+                        if(label.BindingContext is BenchmarkTableRow row){
+                            this.viewModel?.SelectBenchmarkRow(row,CreateBenchmarkSelectionGesture());
+                        }
+                    };
+                    label.GestureRecognizers.Add(tap);
+                }
                 return label;
             }),
         };
