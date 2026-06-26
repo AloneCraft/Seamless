@@ -1163,11 +1163,12 @@ public sealed class MainPage:ContentPage{
                     ColumnDefinitions = {
                         new ColumnDefinition { Width = new GridLength(CpuLogicalCheckColumnWidth) },
                         new ColumnDefinition { Width = new GridLength(18) },
-                        new ColumnDefinition { Width = new GridLength(CpuLogicalNumberWidth) },
+                        new ColumnDefinition { Width = new GridLength(24) },
+                        new ColumnDefinition { Width = new GridLength(30) },
+                        new ColumnDefinition { Width = GridLength.Star },
                     },
                     ColumnSpacing=2,
-                    WidthRequest=CpuLogicalCheckColumnWidth+CpuLogicalNumberWidth+22,
-                    HorizontalOptions=LayoutOptions.Center,
+                    HorizontalOptions=LayoutOptions.Fill,
                     VerticalOptions=LayoutOptions.Center,
                 };
                 layout.SetBinding(IsVisibleProperty,new Binding(cellPath,converter:new NullToBoolConverter()));
@@ -1182,18 +1183,33 @@ public sealed class MainPage:ContentPage{
                 };
                 spinner.SetBinding(ActivityIndicator.IsRunningProperty,new Binding(cellPath+"."+nameof(CpuTableCell.IsRunningJob)));
                 spinner.SetBinding(IsVisibleProperty,new Binding(cellPath+"."+nameof(CpuTableCell.IsRunningJob)));
-                var label = new Label{
+                var badge = this.CreateCoreBadge();
+                badge.SetBinding(BackgroundColorProperty,cellPath+"."+nameof(CpuTableCell.BadgeBackgroundColor));
+                if(badge.Content is Label badgeLabel){
+                    badgeLabel.SetBinding(Label.TextProperty,cellPath+"."+nameof(CpuTableCell.CoreKindLabel));
+                    badgeLabel.SetBinding(Label.TextColorProperty,cellPath+"."+nameof(CpuTableCell.BadgeTextColor));
+                }
+                var numberLabel = new Label{
                     FontSize=10,
                     TextColor=Color.FromArgb("#0F172A"),
                     HorizontalTextAlignment=TextAlignment.Start,
                     VerticalTextAlignment=TextAlignment.Center,
                     LineBreakMode=LineBreakMode.TailTruncation,
-                    WidthRequest=CpuLogicalNumberWidth,
                 };
-                label.SetBinding(Label.TextProperty,cellPath+"."+nameof(CpuTableCell.DisplayText));
+                numberLabel.SetBinding(Label.TextProperty,cellPath+"."+nameof(CpuTableCell.LogicalProcessorText));
+                var statusLabel = new Label{
+                    FontSize=10,
+                    TextColor=Color.FromArgb("#334155"),
+                    HorizontalTextAlignment=TextAlignment.Start,
+                    VerticalTextAlignment=TextAlignment.Center,
+                    LineBreakMode=LineBreakMode.TailTruncation,
+                };
+                statusLabel.SetBinding(Label.TextProperty,cellPath+"."+nameof(CpuTableCell.CellStatusText));
                 layout.Add(check,0,0);
                 layout.Add(spinner,1,0);
-                layout.Add(label,2,0);
+                layout.Add(badge,2,0);
+                layout.Add(numberLabel,3,0);
+                layout.Add(statusLabel,4,0);
                 return layout;
             }),
         };
@@ -1215,6 +1231,10 @@ public sealed class MainPage:ContentPage{
     private DataTemplate CreateCpuColumnHeaderTemplate(CpuTableColumn column){
         return new DataTemplate(() => {
             var layout = new Grid{
+                ColumnDefinitions = {
+                    new ColumnDefinition { Width = new GridLength(CpuLogicalCheckColumnWidth) },
+                    new ColumnDefinition { Width = GridLength.Star },
+                },
                 HorizontalOptions=LayoutOptions.Fill,
                 VerticalOptions=LayoutOptions.Fill,
                 BackgroundColor=Color.FromArgb("#F1F5F9"),
@@ -1222,14 +1242,20 @@ public sealed class MainPage:ContentPage{
             var check = this.CreateCpuCheckBox();
             check.InputTransparent=true;
             check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(nameof(CpuTableColumn.IsChecked),BindingMode.OneWay,source:column));
-            layout.Add(check,0,0);
+            var checkHost = new Grid{
+                BackgroundColor=Colors.Transparent,
+                HorizontalOptions=LayoutOptions.Fill,
+                VerticalOptions=LayoutOptions.Fill,
+            };
+            checkHost.Add(check,0,0);
+            layout.Add(checkHost,0,0);
             var tap = new TapGestureRecognizer();
             tap.Tapped+=(_,_) => {
                 if(column.Section is { } section){
                     this.viewModel?.ToggleCpuColumn(section,column.Index);
                 }
             };
-            layout.GestureRecognizers.Add(tap);
+            checkHost.GestureRecognizers.Add(tap);
             return layout;
         });
     }
