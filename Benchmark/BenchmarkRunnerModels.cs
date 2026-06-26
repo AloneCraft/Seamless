@@ -119,12 +119,17 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     private string statusIcon;
     private string statusText;
     private string executionText = string.Empty;
+    private string logicalProcessorText = string.Empty;
+    private string coreKindLabel = string.Empty;
     private string timeText = string.Empty;
     private string allocatedText = string.Empty;
     private bool isRunning;
+    private bool hasCpuDisplay;
     private BenchmarkProjectLiveState liveState;
     private DateTimeOffset? lastMeasuredAt;
     private ProjectMetrics metrics = ProjectMetrics.Missing;
+    private Color badgeBackgroundColor = Color.FromArgb("#E2E8F0");
+    private Color badgeTextColor = Color.FromArgb("#334155");
 
     public BenchmarkProjectCell(string project,bool hasCase){
         this.Project=project;
@@ -170,6 +175,16 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         private set => this.SetProperty(ref this.executionText,value);
     }
 
+    public string LogicalProcessorText{
+        get => this.logicalProcessorText;
+        private set => this.SetProperty(ref this.logicalProcessorText,value);
+    }
+
+    public string CoreKindLabel{
+        get => this.coreKindLabel;
+        private set => this.SetProperty(ref this.coreKindLabel,value);
+    }
+
     public string TimeText{
         get => this.timeText;
         private set => this.SetProperty(ref this.timeText,value);
@@ -183,6 +198,21 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     public bool IsRunning{
         get => this.isRunning;
         private set => this.SetProperty(ref this.isRunning,value);
+    }
+
+    public bool HasCpuDisplay{
+        get => this.hasCpuDisplay;
+        private set => this.SetProperty(ref this.hasCpuDisplay,value);
+    }
+
+    public Color BadgeBackgroundColor{
+        get => this.badgeBackgroundColor;
+        private set => this.SetProperty(ref this.badgeBackgroundColor,value);
+    }
+
+    public Color BadgeTextColor{
+        get => this.badgeTextColor;
+        private set => this.SetProperty(ref this.badgeTextColor,value);
     }
 
     public BenchmarkProjectLiveState LiveState{
@@ -228,6 +258,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             this.StatusText=result.Status;
         }
         this.LiveState=BenchmarkProjectLiveState.Idle;
+        this.ClearCpuDisplay();
         this.ExecutionText=result.SourceCsvAt is { } csvAt
             ? BenchmarkTimestampDisplay.FormatLocal(csvAt)
             : BenchmarkTimestampDisplay.FormatLocal(result.MeasuredAt);
@@ -252,9 +283,10 @@ public sealed class BenchmarkProjectCell:ObservableObject{
                 : string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)
                     ? "失敗"
                     : result.Status;
-        this.ExecutionText=cpu is null
-            ? "N="+result.ElementCount.ToString(CultureInfo.InvariantCulture)
-            : "CPU "+cpu.LogicalProcessorIndex.ToString(CultureInfo.InvariantCulture)+" "+cpu.CoreKindLabel+" N="+result.ElementCount.ToString(CultureInfo.InvariantCulture);
+        this.ApplyCpuDisplay(cpu);
+        this.ExecutionText=this.IsRunning
+            ? string.Empty
+            : BenchmarkTimestampDisplay.FormatLocal(result.StartedAt??DateTimeOffset.Now);
         this.LiveState=this.IsRunning
             ? BenchmarkProjectLiveState.Running
             : string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
@@ -289,6 +321,27 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         return metrics.HasMeasuredValue&&metrics.TimeNanoseconds is { } value
             ? BenchmarkFormatting.FormatNanoseconds(value)
             : string.Empty;
+    }
+
+    private void ApplyCpuDisplay(CpuSelectionItem? cpu){
+        if(cpu is null){
+            this.ClearCpuDisplay();
+            return;
+        }
+
+        this.HasCpuDisplay=true;
+        this.LogicalProcessorText=cpu.LogicalProcessorText;
+        this.CoreKindLabel=cpu.CoreKindLabel;
+        this.BadgeBackgroundColor=cpu.BadgeBackgroundColor;
+        this.BadgeTextColor=cpu.BadgeTextColor;
+    }
+
+    private void ClearCpuDisplay(){
+        this.HasCpuDisplay=false;
+        this.LogicalProcessorText=string.Empty;
+        this.CoreKindLabel=string.Empty;
+        this.BadgeBackgroundColor=Color.FromArgb("#E2E8F0");
+        this.BadgeTextColor=Color.FromArgb("#334155");
     }
 
     private static string FormatAllocated(ProjectMetrics metrics){
@@ -1018,6 +1071,7 @@ public sealed class BenchmarkResultItem{
         this.ArtifactFolder=job.ArtifactFolder;
         this.ExitCode=job.ExitCode;
         this.AssignedLogicalCpu=job.AssignedLogicalCpu;
+        this.StartedAt=job.StartedAt;
         this.FailureReason=job.FailureReason;
     }
 
@@ -1036,6 +1090,7 @@ public sealed class BenchmarkResultItem{
         this.ArtifactFolder=result.ArtifactFolder;
         this.ExitCode=result.ExitCode;
         this.AssignedLogicalCpu=null;
+        this.StartedAt=null;
         this.FailureReason=result.Log;
     }
 
@@ -1054,6 +1109,7 @@ public sealed class BenchmarkResultItem{
         this.ArtifactFolder=string.Empty;
         this.ExitCode=metrics.HasMeasuredValue?0:null;
         this.AssignedLogicalCpu=null;
+        this.StartedAt=null;
         this.FailureReason=string.Empty;
     }
 
@@ -1068,6 +1124,7 @@ public sealed class BenchmarkResultItem{
         this.ArtifactFolder=string.Empty;
         this.ExitCode=1;
         this.AssignedLogicalCpu=null;
+        this.StartedAt=null;
         this.FailureReason=exception.ToString();
     }
 
@@ -1085,6 +1142,7 @@ public sealed class BenchmarkResultItem{
     public string ArtifactFolder { get; }
     public int? ExitCode { get; }
     public int? AssignedLogicalCpu { get; }
+    public DateTimeOffset? StartedAt { get; }
     public string FailureReason { get; }
 
     public static BenchmarkResultItem Failed(BenchmarkCase benchmark,Exception exception) => new(benchmark,exception);

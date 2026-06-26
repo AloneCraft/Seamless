@@ -628,6 +628,9 @@ public sealed class MainPage:ContentPage{
                 var content = new Grid{
                     ColumnDefinitions = {
                         new ColumnDefinition { Width = new GridLength(BenchmarkCellCheckSlotWidth) },
+                        new ColumnDefinition { Width = new GridLength(18) },
+                        new ColumnDefinition { Width = new GridLength(24) },
+                        new ColumnDefinition { Width = new GridLength(26) },
                         new ColumnDefinition { Width = GridLength.Star },
                     },
                     ColumnSpacing=2,
@@ -651,8 +654,34 @@ public sealed class MainPage:ContentPage{
                     }
                 };
                 checkHost.GestureRecognizers.Add(checkTap);
+                var spinner = new ActivityIndicator{
+                    WidthRequest=14,
+                    HeightRequest=14,
+                    Color=Color.FromArgb("#2563EB"),
+                    VerticalOptions=LayoutOptions.Center,
+                    HorizontalOptions=LayoutOptions.Center,
+                };
+                spinner.SetBinding(ActivityIndicator.IsRunningProperty,new Binding(cellPath+"."+nameof(BenchmarkProjectCell.IsRunningVisual)));
+                spinner.SetBinding(IsVisibleProperty,new Binding(cellPath+"."+nameof(BenchmarkProjectCell.IsRunningVisual)));
+                var badge = this.CreateCoreBadge();
+                badge.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.HasCpuDisplay));
+                badge.SetBinding(BackgroundColorProperty,cellPath+"."+nameof(BenchmarkProjectCell.BadgeBackgroundColor));
+                if(badge.Content is Label badgeLabel){
+                    badgeLabel.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.CoreKindLabel));
+                    badgeLabel.SetBinding(Label.TextColorProperty,cellPath+"."+nameof(BenchmarkProjectCell.BadgeTextColor));
+                }
+                var cpuLabel = new Label{
+                    FontSize=10,
+                    TextColor=Color.FromArgb("#0F172A"),
+                    InputTransparent=true,
+                    LineBreakMode=LineBreakMode.TailTruncation,
+                    VerticalTextAlignment=TextAlignment.Center,
+                };
+                cpuLabel.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.HasCpuDisplay));
+                cpuLabel.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.LogicalProcessorText));
                 var detail = new Label{
                     FontSize=9,
+                    FontAttributes=FontAttributes.Bold,
                     TextColor=Color.FromArgb("#334155"),
                     InputTransparent=true,
                     LineBreakMode=LineBreakMode.TailTruncation,
@@ -673,7 +702,10 @@ public sealed class MainPage:ContentPage{
                 };
                 detailHost.GestureRecognizers.Add(detailTap);
                 content.Add(checkHost,0,0);
-                content.Add(detailHost,1,0);
+                content.Add(spinner,1,0);
+                content.Add(badge,2,0);
+                content.Add(cpuLabel,3,0);
+                content.Add(detailHost,4,0);
                 layout.Add(content,1,1);
                 return layout;
             }),
