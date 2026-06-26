@@ -314,6 +314,69 @@ public sealed class BenchmarkOrchestratorTests{
     }
 
     [Fact]
+    public async Task Orchestrator_AdaptiveMode_ResumedStateDoesNotRunUnselectedProjects(){
+        var root = CreateTempRoot();
+        var stateManager = new BenchmarkStateManager(root);
+        var runRoot = Path.Combine(root,"run");
+        var state = new ProgressState{
+            RunId="run",
+            RunRoot=runRoot,
+            Mode=BenchmarkRunMode.Adaptive,
+            CreatedAt=DateTimeOffset.UtcNow,
+            UpdatedAt=DateTimeOffset.UtcNow,
+            ElementCounts=[1],
+            AdaptiveThresholdNanoseconds=1_000_000,
+            AdaptiveStates=[
+                new AdaptiveBenchmarkState { MethodName="Where" },
+            ],
+            Jobs=[
+                new BenchmarkJob{
+                    JobId="system",
+                    Project="SystemFLinq",
+                    AssemblyName="Assembly",
+                    TypeFullName="Type",
+                    MethodName="Where",
+                    ElementCount=1,
+                    Status=JobStatus.Pending,
+                },
+                new BenchmarkJob{
+                    JobId="persisted",
+                    Project="PersistedFLinq",
+                    AssemblyName="Assembly",
+                    TypeFullName="Type",
+                    MethodName="Where",
+                    ElementCount=1,
+                    Status=JobStatus.Pending,
+                },
+            ],
+        };
+        var observedProjects = new List<string>();
+        var runner = new FakeRunner((job,_) => {
+            observedProjects.Add(job.Project);
+            return CompletedResult(job);
+        });
+        stateManager.Save(state);
+        stateManager.SaveLatestRun(runRoot);
+        var orchestrator = new BenchmarkOrchestrator(stateManager,new BenchmarkResultWriter(),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("SystemFLinq","Where")],
+                [0],
+                [1],
+                BenchmarkRunMode.Adaptive,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30)),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        var loaded = stateManager.Load(runRoot)!;
+        Assert.Equal(["SystemFLinq"],observedProjects);
+        Assert.All(loaded.Jobs,static job => Assert.Equal("SystemFLinq",job.Project));
+    }
+
+    [Fact]
     public async Task Orchestrator_AdaptiveMode_StopsOnlyCaseAfterThresholdExceeded(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => {
