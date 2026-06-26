@@ -272,7 +272,6 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             if(this.SetProperty(ref this.liveState,value)){
                 this.OnPropertyChanged(nameof(this.IsPendingVisual));
                 this.OnPropertyChanged(nameof(this.IsRunningVisual));
-                this.OnPropertyChanged(nameof(this.IsCompletedVisual));
             }
         }
     }
@@ -280,8 +279,6 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     public bool IsPendingVisual => BenchmarkProjectLiveStateLogic.IsPending(this.LiveState,this.Metrics.HasMeasuredValue);
 
     public bool IsRunningVisual => BenchmarkProjectLiveStateLogic.IsRunning(this.LiveState);
-
-    public bool IsCompletedVisual => BenchmarkProjectLiveStateLogic.IsCompleted(this.LiveState);
 
     public void ApplyMetrics(ProjectMetrics value,bool preserveRetainedDisplay = false){
         if(!value.HasMeasuredValue&&preserveRetainedDisplay&&this.metrics.HasMeasuredValue){
