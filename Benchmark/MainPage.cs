@@ -172,7 +172,7 @@ public sealed class MainPage:ContentPage{
         var cancelButton = this.CommandButton("Cancel",nameof(BenchmarkRunnerViewModel.CancelCommand));
 
         var thresholdPicker = new Picker{
-            WidthRequest=96,
+            WidthRequest=112,
             HeightRequest=30,
             ItemDisplayBinding=new Binding(nameof(ThresholdOption.DisplayName)),
             Margin=new Thickness(0),
@@ -200,35 +200,9 @@ public sealed class MainPage:ContentPage{
         runPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.RunOptions));
         runPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedRunOption));
 
-        var resultElementCountLabel = new Label{
-            WidthRequest=150,
-            MinimumWidthRequest=150,
-            HeightRequest=30,
-            FontSize=18,
-            FontAttributes=FontAttributes.Bold,
-            TextColor=Color.FromArgb("#0F172A"),
-            BackgroundColor=Color.FromArgb("#E0F2FE"),
-            Padding=new Thickness(10,2),
-            HorizontalTextAlignment=TextAlignment.Center,
-            VerticalTextAlignment=TextAlignment.Center,
-            Margin=new Thickness(0),
-        };
-        resultElementCountLabel.SetBinding(Label.TextProperty,nameof(BenchmarkRunnerViewModel.CurrentElementCountText));
-
-        var statusLabel = new Label{
-            FontSize=12,
-            TextColor=Color.FromArgb("#475569"),
-            LineBreakMode=LineBreakMode.TailTruncation,
-            VerticalTextAlignment=TextAlignment.Center,
-            HorizontalOptions=LayoutOptions.Fill,
-        };
-        statusLabel.SetBinding(Label.TextProperty,nameof(BenchmarkRunnerViewModel.StatusText));
-
         var grid = new Grid{
             Padding=new Thickness(10,8,10,6),
             ColumnDefinitions = {
-                new ColumnDefinition { Width = GridLength.Auto },
-                new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
@@ -249,9 +223,6 @@ public sealed class MainPage:ContentPage{
         grid.Add(cancelButton,5,0);
         grid.Add(this.ToolbarLabel("計測"),6,0);
         grid.Add(runPicker,7,0);
-        grid.Add(this.ToolbarLabel("N"),8,0);
-        grid.Add(resultElementCountLabel,9,0);
-        grid.Add(statusLabel,10,0);
         return grid;
     }
 
@@ -1610,13 +1581,11 @@ public sealed class MainPage:ContentPage{
         var chartContent = new Grid{
             RowDefinitions = {
                 new RowDefinition { Height = GridLength.Auto },
-                new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Star },
                 new RowDefinition { Height = GridLength.Auto },
             },
             RowSpacing=6,
             Children = {
-                this.CreateChartElementSlider(),
                 this.CreateChartPairTabs(),
                 new ScrollView{
                     Orientation=ScrollOrientation.Vertical,
@@ -1626,8 +1595,7 @@ public sealed class MainPage:ContentPage{
             },
         };
         chartContent.SetRow(chartContent.Children[1],1);
-        chartContent.SetRow(chartContent.Children[2],2);
-        chartContent.SetRow(warningList,3);
+        chartContent.SetRow(warningList,2);
 
         var grid = new Grid{
             Children = {
@@ -1637,41 +1605,6 @@ public sealed class MainPage:ContentPage{
         };
         grid.SetBinding(IsVisibleProperty,nameof(BenchmarkRunnerViewModel.IsChartVisible));
         emptyText.SetBinding(IsVisibleProperty,new Binding(nameof(BenchmarkRunnerViewModel.ChartPoints)+".Count",converter:new CountIsZeroConverter()));
-        return grid;
-    }
-
-    private View CreateChartElementSlider(){
-        var label = new Label{
-            Text="Current N",
-            FontSize=11,
-            TextColor=Color.FromArgb("#475569"),
-            VerticalTextAlignment=TextAlignment.Center,
-        };
-        var valueLabel = new Label{
-            FontSize=20,
-            FontAttributes=FontAttributes.Bold,
-            TextColor=Color.FromArgb("#0F172A"),
-            BackgroundColor=Color.FromArgb("#E0F2FE"),
-            Padding=new Thickness(12,3),
-            WidthRequest=150,
-            MinimumWidthRequest=150,
-            HorizontalTextAlignment=TextAlignment.Center,
-            VerticalTextAlignment=TextAlignment.Center,
-        };
-        valueLabel.SetBinding(Label.TextProperty,nameof(BenchmarkRunnerViewModel.CurrentElementCountText));
-        var grid = new Grid{
-            ColumnDefinitions = {
-                new ColumnDefinition { Width = GridLength.Auto },
-                new ColumnDefinition { Width = GridLength.Auto },
-            },
-            ColumnSpacing=8,
-            Padding=new Thickness(0,2,0,0),
-            Children = {
-                label,
-                valueLabel,
-            },
-        };
-        grid.SetColumn(valueLabel,1);
         return grid;
     }
 

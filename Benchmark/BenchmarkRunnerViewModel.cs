@@ -300,6 +300,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 this.OnPropertyChanged(nameof(this.SelectedComparisonPair));
                 this.OnPropertyChanged(nameof(this.SelectedSourceDefinition));
                 this.ClearSelectedRunDisplay();
+                this.UpdateChart(false);
                 _=this.RefreshAsync();
             }
         }
@@ -338,6 +339,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         set {
             if(this.SetProperty(ref this.selectedRunOption,value)) {
                 if(!this.isApplyingUiState) {
+                    if(IsNewRunOption(value)) {
+                        this.ClearSelectedSourceLiveResults();
+                    }
                     this.RebuildResultElementCounts(value?.ElementCounts?? []);
                     this.LoadSelectedRunCsv();
                     this.SaveUiState();
@@ -471,7 +475,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     public void ToggleAllBenchmarkSelection() {
-        if(!this.CanChangeBenchmarkConditions) {
+        if(this.IsRefreshing) {
             return;
         }
 
@@ -479,7 +483,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     public void ToggleBenchmarkColumnGroup(BenchmarkColumnSelectionGroup group) {
-        if(!this.CanChangeBenchmarkConditions) {
+        if(this.IsRefreshing) {
             return;
         }
 
@@ -488,7 +492,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     public void ToggleBenchmarkRow(BenchmarkTableRow row) {
-        if(!this.CanChangeBenchmarkConditions) {
+        if(this.IsRefreshing) {
             return;
         }
 
@@ -532,7 +536,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     internal void ToggleBenchmarkCellCheck(BenchmarkTableRow row,string project) {
-        if(!this.CanChangeBenchmarkConditions) {
+        if(this.IsRefreshing) {
             return;
         }
 
@@ -547,7 +551,10 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         var targets = cell.IsUiSelected&&selectedCells.Length>0
             ? selectedCells
             : [cell];
-        this.SetBenchmarkCells(targets,!cell.IsSelected);
+        var selected = targets.Length>1
+            ? true
+            : !cell.IsSelected;
+        this.SetBenchmarkCells(targets,selected);
     }
 
     private async Task RefreshAsync() {
@@ -565,11 +572,14 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 this.SubscribeBenchmarkRow(row);
                 row.IsSelected=this.benchmarkRowSelections.GetValueOrDefault(
                     CreateRowSelectionKey(row.SourceTab,row.MethodName),
-                    savedState.RowSelections.GetValueOrDefault(row.MethodName,true));
+                    savedState.RowSelections.GetValueOrDefault(row.MethodName,false));
                 foreach(var cell in row.ProjectCells) {
                     var key = BenchmarkUiStateStore.CreateCellKey(row.MethodName,cell.Project);
                     if(this.benchmarkCellSelections.TryGetValue(key,out var saved)) {
                         cell.IsSelected=saved;
+                    }
+                    else {
+                        cell.IsSelected=false;
                     }
                 }
                 this.BenchmarkRows.Add(row);
@@ -634,7 +644,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private void SetBenchmarkCells(IEnumerable<BenchmarkProjectCell> cells,bool selected) {
-        if(!this.CanChangeBenchmarkConditions) {
+        if(this.IsRefreshing) {
             return;
         }
 
@@ -1008,9 +1018,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             this.ClearBenchmarkResultDisplays();
             this.comparisonRows=this.csvService.ReadComparisonCsv(file.FullPath);
             this.LoadComparisonRowsIntoResults(this.comparisonRows);
-            this.ApplyComparisonRowsToTable();
-            this.UpdateChart();
             this.ApplyCurrentSort();
+            this.ApplyComparisonRowsToTable();
+            this.UpdateChart(false);
             this.SelectedTab=BenchmarkTab.Chart;
             this.StatusText="CSV loaded: "+file.FullPath;
         }
@@ -1023,7 +1033,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private void UpdateComparisonRowsFromResults() {
         if(this.ResultItems.Count==0) {
             this.comparisonRows= [];
-            this.UpdateChart();
+            this.UpdateChart(false);
             this.ApplyComparisonRowsToTable();
             return;
         }
@@ -1180,7 +1190,16 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.VisibleResultItems.Clear();
         this.CurrentElementCountText="-";
         this.ClearBenchmarkResultDisplays();
-        this.UpdateChart();
+        this.UpdateChart(false);
+    }
+
+    private void ClearSelectedSourceLiveResults() {
+        this.currentRunResultItemsByTab.Remove(this.SelectedSourceDefinition.Tab);
+        this.comparisonRows= [];
+        this.ResultItems.Clear();
+        this.VisibleResultItems.Clear();
+        this.CurrentElementCountText="-";
+        this.ClearBenchmarkResultDisplays();
     }
 
     private void LoadComparisonRowsIntoResults(IReadOnlyList<BenchmarkComparisonRow> rows,int elementCount = 0) {
@@ -1237,12 +1256,12 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         try {
             var run = this.SelectedRunOption;
             var selectedN = this.SelectedResultElementCount?.Value;
-            if(this.RestoreCurrentRunDisplayForSelectedTab()) {
+            if(run is null||IsNewRunOption(run)||selectedN is null) {
+                this.ClearSelectedRunDisplay();
                 return;
             }
 
-            if(run is null||IsNewRunOption(run)||selectedN is null) {
-                this.ClearSelectedRunDisplay();
+            if(this.RestoreCurrentRunDisplayForSelectedTab()) {
                 return;
             }
 
@@ -1259,8 +1278,8 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             this.LoadComparisonRowsIntoResults(this.comparisonRows,selectedN.Value);
             this.ApplyComparisonRowsToTable();
             this.RefreshVisibleResults();
-            this.UpdateChart();
             this.ApplyCurrentSort();
+            this.UpdateChart(false);
         }
         catch(Exception ex) {
             StartupDiagnostics.Write("Benchmark run CSV load failed.",ex);
@@ -1433,12 +1452,17 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             : ProjectMetrics.Missing;
     }
 
-    private void UpdateChart() {
+    private void UpdateChart(bool preserveExistingWhenNoMeasuredPoints = true) {
+        var elementComparisonRows = this.BuildElementComparisonRows();
+        var hasMeasuredPoint = elementComparisonRows.Any(static row => row.Left.HasMeasuredValue||row.Right.HasMeasuredValue);
+        if(preserveExistingWhenNoMeasuredPoints&&this.ChartPoints.Count>0&&!hasMeasuredPoint) {
+            return;
+        }
+
         this.ChartPoints.Clear();
         this.ChartWarnings.Clear();
-        var elementComparisonRows = this.BuildElementComparisonRows();
         var points = this.BuildBenchmarkChartPoints(elementComparisonRows);
-        foreach(var item in points) {
+        foreach(var item in points.Reverse()) {
             this.ChartPoints.Add(item);
         }
         foreach(var warning in this.BuildChartWarnings(elementComparisonRows)) {
@@ -1678,6 +1702,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         foreach(var row in ordered) {
             this.BenchmarkRows.Add(row);
         }
+        this.UpdateChart();
     }
 
     private void RebuildCpuSections() {
