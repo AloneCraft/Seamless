@@ -121,6 +121,7 @@ internal sealed class ProgressState {
     public BenchmarkRunMode Mode { get; set; }
     public BenchmarkExecutionProfile ExecutionProfile { get; set; } = BenchmarkExecutionProfile.Accurate;
     public string RunRoot { get; set; } = string.Empty;
+    public int RunNumber { get; set; }
     public List<int> ElementCounts { get; set; } = [];
     public double AdaptiveThresholdNanoseconds { get; set; }
     public List<BenchmarkJob> Jobs { get; set; } = [];
@@ -141,7 +142,8 @@ internal sealed record BenchmarkRunRequest(
     TimeSpan JobTimeout,
     Func<IReadOnlyList<int>>? LogicalCpuProvider = null,
     bool RestartFromRequestedElementCount = false,
-    BenchmarkExecutionProfile ExecutionProfile = BenchmarkExecutionProfile.Accurate);
+    BenchmarkExecutionProfile ExecutionProfile = BenchmarkExecutionProfile.Accurate,
+    string? RunRootOverride = null);
 
 public sealed record BenchmarkJobRunResult(
     string Project,

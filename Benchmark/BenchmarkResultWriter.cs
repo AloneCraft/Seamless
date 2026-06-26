@@ -19,7 +19,7 @@ internal sealed class BenchmarkResultWriter {
                 var rows = BenchmarkComparisonFormatter.BuildComparisonRows(group
                     .Select(static job => job.ToReportRow())
                     .ToArray());
-                var path = Path.Combine(state.RunRoot,$"BenchmarkComparison-N{group.Key}.csv");
+                var path = Path.Combine(state.RunRoot,$"N{group.Key}.csv");
                 AtomicWriteText(path,BenchmarkComparisonFormatter.WriteCsv(rows),new UTF8Encoding(true));
                 paths.Add(path);
             }

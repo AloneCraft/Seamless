@@ -34,20 +34,18 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     private ExecutionProfileOption selectedExecutionProfile;
     private ScaleOption? selectedScale;
     private ThresholdOption selectedThreshold;
-    private CsvDateOption? selectedCsvDateOption;
-    private DateTime? selectedCalendarDate;
+    private BenchmarkRunOption? selectedRunOption;
     private string adaptiveThresholdSecondsText = "1";
     private MetricOption selectedMetric;
     private ChartModeOption selectedChartMode;
-    private ElementCountOption selectedElementCountOption;
     private ResultElementCountOption? selectedResultElementCount;
     private double selectedResultElementCountIndex;
     private string currentElementCountText = "N=1";
-    private int loadedRunElementCount = BenchmarkElementCounts.DefaultInitial[0];
     private double chartHeight = 300;
     private bool isApplyingCpuSelection;
     private bool isApplyingUiState;
     private bool isApplyingBenchmarkSelection;
+    private bool isLoadingSelectedRunCsv;
     private bool hasPendingCloseStateSave;
     private BenchmarkGridSortColumn currentSortColumn = BenchmarkGridSortColumn.BenchmarkName;
     private bool currentSortDescending;
@@ -158,16 +156,11 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             new ScaleOption("8","8"),
         ];
         this.selectedScale=this.ScaleOptions.First(static item => item.DisplayName=="1");
-        foreach(var value in BenchmarkElementCounts.All){
-            this.ElementCountOptions.Add(new ElementCountOption(value));
-        }
-        this.selectedElementCountOption=this.ElementCountOptions.First(static item => item.Value==BenchmarkElementCounts.DefaultInitial[0]);
         this.RefreshCommand=new AsyncRelayCommand(this.RefreshAsync);
         this.SelectAllCommand=new RelayCommand(() => this.SetAllBenchmarkSelection(true));
         this.ClearSelectionCommand=new RelayCommand(() => this.SetAllBenchmarkSelection(false));
         this.RunCommand=new AsyncRelayCommand(this.RunAsync,() => !this.IsRunning);
         this.CancelCommand=new RelayCommand(this.Cancel);
-        this.ExportCsvCommand=new AsyncRelayCommand(this.ExportCsvAsync);
         this.LoadCsvCommand=new AsyncRelayCommand(this.LoadCsvAsync);
         this.ShowCpuCommand=new RelayCommand(() => this.SelectedTab=BenchmarkTab.Cpu);
         this.ShowChartCommand=new RelayCommand(() => this.SelectedTab=BenchmarkTab.Chart);
@@ -193,10 +186,8 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     public ObservableCollection<CpuTableSection> CpuSections { get; } = [];
     public ObservableCollection<ChartComparisonPoint> ChartPoints { get; } = [];
     public ObservableCollection<ScaleOption> ScaleOptions { get; } = [];
-    public ObservableCollection<ElementCountOption> ElementCountOptions { get; } = [];
     public ObservableCollection<ResultElementCountOption> ResultElementCountOptions { get; } = [];
-    public ObservableCollection<CsvDateOption> CsvDateOptions { get; } = [];
-    public ObservableCollection<DateTime> CsvCalendarDates { get; } = [];
+    public ObservableCollection<BenchmarkRunOption> RunOptions { get; } = [];
     public ObservableCollection<string> ChartWarnings { get; } = [];
     public IReadOnlyList<BenchmarkColumnSelectionGroup> BenchmarkColumnSelectionGroups { get; }
     public IReadOnlyList<BenchmarkColumnSelectionGroup> BenchmarkProjectSelectionGroups { get; }
@@ -210,7 +201,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     public IRelayCommand ClearSelectionCommand { get; }
     public IAsyncRelayCommand RunCommand { get; }
     public IRelayCommand CancelCommand { get; }
-    public IAsyncRelayCommand ExportCsvCommand { get; }
     public IAsyncRelayCommand LoadCsvCommand { get; }
     public IRelayCommand ShowCpuCommand { get; }
     public IRelayCommand ShowChartCommand { get; }
@@ -284,7 +274,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         get => this.selectedExecutionProfile;
         set{
             if(this.SetProperty(ref this.selectedExecutionProfile,value)&&!this.IsRunning) {
-                this.SelectLoadedRunElementCount();
+                _ = this.RefreshRunsForSelectedProfileAsync();
             }
         }
     }
@@ -299,38 +289,17 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         set => this.SetProperty(ref this.selectedThreshold,value);
     }
 
-    public ElementCountOption SelectedElementCountOption{
-        get => this.selectedElementCountOption;
+    public BenchmarkRunOption? SelectedRunOption{
+        get => this.selectedRunOption;
         set{
-            if(this.SetProperty(ref this.selectedElementCountOption,value)){
-                this.CurrentElementCountText=value.DisplayName;
-            }
-        }
-    }
-
-    public CsvDateOption? SelectedCsvDateOption{
-        get => this.selectedCsvDateOption;
-        set{
-            if(this.SetProperty(ref this.selectedCsvDateOption,value)){
-                this.selectedCalendarDate=value?.Timestamp.ToLocalTime().Date;
-                this.OnPropertyChanged(nameof(this.SelectedCalendarDate));
+            if(this.SetProperty(ref this.selectedRunOption,value)){
                 if(!this.isApplyingUiState){
-                    this.ApplyCsvDateFilter(value?.Timestamp);
+                    if(!this.IsRunning){
+                        this.currentRunResultItems.Clear();
+                    }
+                    this.RebuildResultElementCounts(value?.ElementCounts??[]);
+                    this.LoadSelectedRunCsv();
                     this.SaveUiState();
-                }
-            }
-        }
-    }
-
-    public DateTime? SelectedCalendarDate{
-        get => this.selectedCalendarDate;
-        set{
-            if(this.SetProperty(ref this.selectedCalendarDate,value)){
-                if(value is { } date){
-                    this.SelectedCsvDateOption=this.CsvDateOptions
-                        .Where(option => option.Timestamp.ToLocalTime().Date==date.Date)
-                        .OrderByDescending(static option => option.Timestamp)
-                        .FirstOrDefault();
                 }
             }
         }
@@ -368,6 +337,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
                 this.RefreshVisibleResults();
                 this.ApplySelectedElementCountToTable();
                 this.UpdateChart();
+                if(!this.isApplyingUiState&&!this.IsRunning){
+                    this.SaveUiState();
+                }
             }
         }
     }
@@ -535,10 +507,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
                 }
                 this.BenchmarkRows.Add(row);
             }
-            this.ApplySelectedElementCountToTable();
-            this.ApplyStoredResultsToTable();
-            this.RestoreCsvDateSelection(savedState.SelectedCsvTimestamp);
-            this.SelectLoadedRunElementCount();
+            this.RestoreRunSelection(savedState.SelectedRunNumber,savedState.SelectedResultElementCount);
             this.RefreshBenchmarkSelectionAggregates();
             this.ApplyCurrentSort();
             this.StatusText=this.BenchmarkRows.Count+" benchmarks";
@@ -676,87 +645,58 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     private async Task RefreshCsvScanAsync(CancellationToken cancellationToken){
         var scan = await Task.Run(() => {
             cancellationToken.ThrowIfCancellationRequested();
-            return this.csvDiscoveryService.Scan(this.benchmarkRoot);
+            return this.csvDiscoveryService.Scan(this.benchmarkRoot,this.SelectedExecutionProfile.Profile);
         },cancellationToken);
         this.resultStore.UpsertMany(scan.Results);
         this.resultStore.Save();
-        this.CsvDateOptions.Clear();
-        foreach(var option in scan.DateOptions){
-            this.CsvDateOptions.Add(option);
+        var selectedRunNumber = this.SelectedRunOption?.RunNumber;
+        this.RunOptions.Clear();
+        foreach(var option in scan.RunOptions){
+            this.RunOptions.Add(option);
         }
-        this.CsvCalendarDates.Clear();
-        foreach(var date in scan.CalendarDates){
-            this.CsvCalendarDates.Add(date);
-        }
-        foreach(var elementCount in scan.Results
-            .Select(static result => result.ElementCount)
-            .Where(static elementCount => elementCount>0)
-            .Distinct()
-            .Order()){
-            this.RegisterResultElementCount(elementCount);
-        }
-        this.ApplySelectedElementCountToTable();
-        this.UpdateChart();
+        this.SelectedRunOption=this.RunOptions.FirstOrDefault(option => option.RunNumber==selectedRunNumber)??this.RunOptions.FirstOrDefault();
+        this.RebuildResultElementCounts(this.SelectedRunOption?.ElementCounts??[]);
+        this.LoadSelectedRunCsv();
     }
 
-    private void RestoreCsvDateSelection(DateTimeOffset? timestamp){
-        if(timestamp is null){
-            return;
+    private async Task RefreshRunsForSelectedProfileAsync(){
+        try{
+            await this.RefreshCsvScanAsync(CancellationToken.None);
+        }catch(Exception ex){
+            StartupDiagnostics.Write("Benchmark run list refresh failed.",ex);
         }
+    }
 
+    private void RestoreRunSelection(int? runNumber,int? elementCount){
         this.isApplyingUiState=true;
         try{
-            this.SelectedCsvDateOption=this.CsvDateOptions.FirstOrDefault(option => option.Timestamp==timestamp.Value);
-            if(this.SelectedCsvDateOption is { } selected){
-                this.selectedCalendarDate=selected.Timestamp.ToLocalTime().Date;
-                this.OnPropertyChanged(nameof(this.SelectedCalendarDate));
-            }
+            this.SelectedRunOption=runNumber is { } number
+                ? this.RunOptions.FirstOrDefault(option => option.RunNumber==number)??this.RunOptions.FirstOrDefault()
+                : this.RunOptions.FirstOrDefault();
+            this.RebuildResultElementCounts(this.SelectedRunOption?.ElementCounts??[]);
+            this.SelectedResultElementCount=elementCount is { } selectedElementCount
+                ? this.ResultElementCountOptions.FirstOrDefault(option => option.Value==selectedElementCount)??this.SelectedResultElementCount
+                : this.SelectedResultElementCount;
         }finally{
             this.isApplyingUiState=false;
             this.RefreshBenchmarkSelectionAggregates();
         }
+        this.LoadSelectedRunCsv();
     }
 
-    private void ApplyStoredResultsToTable(){
-        foreach(var row in this.BenchmarkRows){
-            foreach(var cell in row.ProjectCells){
-                var stored = this.resultStore.GetLatest(row.MethodName,cell.Project);
-                if(stored is not null){
-                    row.ApplyStoredResult(stored);
-                }
-            }
-        }
-    }
-
-    private void ApplyCsvDateFilter(DateTimeOffset? selectedTimestamp){
-        if(selectedTimestamp is null){
+    private void SelectRunByRoot(string runRoot){
+        var option = this.RunOptions.FirstOrDefault(item => string.Equals(item.RunRoot,runRoot,StringComparison.OrdinalIgnoreCase));
+        if(option is null){
             return;
         }
 
-        this.isApplyingUiState=true;
-        try{
-            foreach(var row in this.BenchmarkRows){
-                var anySelected = false;
-                foreach(var cell in row.ProjectCells){
-                    if(!cell.HasCase){
-                        continue;
-                    }
-
-                    var lastMeasuredAt = this.resultStore.GetLatestMeasuredAt(row.MethodName,cell.Project);
-                    var shouldRun = lastMeasuredAt is null||lastMeasuredAt.Value<selectedTimestamp.Value;
-                    cell.IsSelected=shouldRun;
-                    anySelected|=shouldRun;
-                }
-                row.IsSelected=anySelected;
-            }
-        }finally{
-            this.isApplyingUiState=false;
-        }
+        this.SelectedRunOption=option;
     }
 
     public void SaveUiState(){
         var state = new BenchmarkUiState(
-            this.SelectedCsvDateOption?.Timestamp,
+            this.SelectedRunOption?.RunNumber,
+            this.SelectedResultElementCount?.Value,
             this.BenchmarkRows
                 .SelectMany(static row => row.ProjectCells.Select(cell => new {
                     Key=BenchmarkUiStateStore.CreateCellKey(row.MethodName,cell.Project),
@@ -786,7 +726,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         this.runCancellation?.Cancel();
         this.runCancellation=new CancellationTokenSource();
         this.IsRunning=true;
-        this.CurrentElementCountText=this.SelectedElementCountOption.DisplayName;
+        this.CurrentElementCountText="N=1";
         this.ResultItems.Clear();
         this.VisibleResultItems.Clear();
         this.currentRunResultItems.Clear();
@@ -800,7 +740,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
                 .Where(static cpu => cpu.IsSelected)
                 .Select(static cpu => cpu.LogicalProcessorIndex)
                 .ToArray();
-            _ = await this.runService.RunAsync(
+            var report = await this.runService.RunAsync(
                 selected,
                 cpus,
                 this.GetSelectedLogicalCpus,
@@ -808,12 +748,17 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
                 BenchmarkRunMode.Adaptive,
                 this.SelectedExecutionProfile.Profile,
                 this.GetAdaptiveThreshold(),
-                this.ShouldRestartFromSelectedElementCount(),
+                true,
+                this.SelectedRunOption?.RunRoot,
                 result => MainThread.BeginInvokeOnMainThread(() => {
                     this.HandleRunResult(result);
                 }),
                 status => MainThread.BeginInvokeOnMainThread(() => this.StatusText=status),
                 this.runCancellation.Token);
+            await this.RefreshCsvScanAsync(this.runCancellation.Token);
+            if(report.RunRoot is not null){
+                this.SelectRunByRoot(report.RunRoot);
+            }
         }catch(OperationCanceledException){
             this.StatusText="Canceled";
         }catch(Exception ex){
@@ -907,26 +852,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     private IReadOnlyList<int> GetSelectedElementCounts(){
         return BenchmarkElementCountLogic
             .BuildAdaptiveCandidates(BenchmarkElementCounts.All,BenchmarkElementCounts.All[^1])
-            .Where(count => count>=this.SelectedElementCountOption.Value)
             .ToArray();
-    }
-
-    private bool ShouldRestartFromSelectedElementCount() =>
-        this.SelectedElementCountOption.Value!=(this.GetLatestUnfinishedElementCount()??BenchmarkElementCounts.DefaultInitial[0]);
-
-    private void SelectLoadedRunElementCount(){
-        var nextElementCount = this.GetLatestUnfinishedElementCount()??BenchmarkElementCounts.DefaultInitial[0];
-        var option = this.ElementCountOptions.LastOrDefault(item => item.Value<=nextElementCount)??this.ElementCountOptions[0];
-        this.loadedRunElementCount=option.Value;
-        this.SelectedElementCountOption=option;
-    }
-
-    private int? GetLatestUnfinishedElementCount(){
-        var state = new BenchmarkStateManager(this.GetBenchmarkRoot(this.SelectedExecutionProfile.Profile)).LoadLatestUnfinished();
-        return state?.Jobs
-            .Where(static job => job.Status is JobStatus.Pending or JobStatus.Running)
-            .Select(static job => (int?)job.ElementCount)
-            .Min();
     }
 
     private string GetBenchmarkRoot(BenchmarkExecutionProfile profile) =>
@@ -934,24 +860,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
 
     private TimeSpan GetAdaptiveThreshold(){
         return TimeSpan.FromMilliseconds(this.SelectedThreshold.Milliseconds);
-    }
-
-    private async Task ExportCsvAsync(){
-        await Task.Yield();
-        if(this.currentRunResultItems.Count==0){
-            this.StatusText="No current run results";
-            return;
-        }
-
-        var root = Path.Combine(
-            this.FindSolutionRoot()??Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Work",
-            "Benchmark",
-            BenchmarkExecutionProfileNames.ToFolderName(this.SelectedExecutionProfile.Profile),
-            DateTime.Now.ToString("yyyyMMdd-HHmmss",System.Globalization.CultureInfo.InvariantCulture));
-        var rows = this.comparisonService.BuildRows(this.currentRunResultItems);
-        var path = this.csvService.WriteComparisonCsv(root,rows);
-        this.StatusText="CSV saved: "+path;
     }
 
     private async Task LoadCsvAsync(){
@@ -1023,6 +931,21 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             : this.SelectedResultElementCount??this.ResultElementCountOptions.FirstOrDefault();
     }
 
+    private void RebuildResultElementCounts(IReadOnlyList<int> elementCounts){
+        var selected = this.SelectedResultElementCount?.Value;
+        this.ResultElementCountOptions.Clear();
+        foreach(var elementCount in elementCounts.Where(static item => item>0).Distinct().Order()){
+            this.ResultElementCountOptions.Add(new ResultElementCountOption(elementCount,"N="+elementCount.ToString("N0",System.Globalization.CultureInfo.InvariantCulture)));
+        }
+
+        this.OnPropertyChanged(nameof(this.ChartElementCountSliderMaximum));
+        this.OnPropertyChanged(nameof(this.IsChartElementSliderVisible));
+        this.SelectedResultElementCount=selected is { } selectedElementCount
+            ? this.ResultElementCountOptions.FirstOrDefault(item => item.Value==selectedElementCount)??this.ResultElementCountOptions.FirstOrDefault()
+            : this.ResultElementCountOptions.FirstOrDefault();
+        this.SyncSelectedResultElementCountIndex();
+    }
+
     private void SelectResultElementCountByIndex(int index){
         if(this.ResultElementCountOptions.Count==0){
             if(this.SelectedResultElementCount is not null){
@@ -1062,22 +985,22 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         }
     }
 
-    private void LoadComparisonRowsIntoResults(IReadOnlyList<BenchmarkComparisonRow> rows){
+    private void LoadComparisonRowsIntoResults(IReadOnlyList<BenchmarkComparisonRow> rows,int elementCount = 0){
         this.ResultItems.Clear();
         this.VisibleResultItems.Clear();
         foreach(var row in rows){
-            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.SystemFLinq,row.SystemFLinq);
-            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.SystemZLinq,row.SystemZLinq);
-            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.PersistedFLinq,row.PersistedFLinq);
-            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.PersistedLinq,row.PersistedLinq);
-            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.TsavoriteFLinq,row.TsavoriteFLinq);
-            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.TsavoriteLinq,row.TsavoriteLinq);
+            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.SystemFLinq,row.SystemFLinq,elementCount);
+            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.SystemZLinq,row.SystemZLinq,elementCount);
+            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.PersistedFLinq,row.PersistedFLinq,elementCount);
+            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.PersistedLinq,row.PersistedLinq,elementCount);
+            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.TsavoriteFLinq,row.TsavoriteFLinq,elementCount);
+            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.TsavoriteLinq,row.TsavoriteLinq,elementCount);
         }
     }
 
-    private void AddResult(string method,string project,ProjectMetrics metrics){
+    private void AddResult(string method,string project,ProjectMetrics metrics,int elementCount){
         if(metrics.HasValue){
-            this.ResultItems.Add(new BenchmarkResultItem(project,method,metrics));
+            this.ResultItems.Add(new BenchmarkResultItem(project,method,metrics,elementCount));
         }
     }
 
@@ -1111,6 +1034,48 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         }
     }
 
+    private void LoadSelectedRunCsv(){
+        if(this.isLoadingSelectedRunCsv||this.IsRunning){
+            return;
+        }
+
+        this.isLoadingSelectedRunCsv=true;
+        try{
+            var run = this.SelectedRunOption;
+            var selectedN = this.SelectedResultElementCount?.Value;
+            if(run is null||selectedN is null){
+                this.comparisonRows=[];
+                this.ResultItems.Clear();
+                this.VisibleResultItems.Clear();
+                this.ClearBenchmarkResultDisplays();
+                this.UpdateChart();
+                return;
+            }
+
+            var path = Path.Combine(run.RunRoot,"N"+selectedN.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)+".csv");
+            if(!File.Exists(path)){
+                this.comparisonRows=[];
+                this.ResultItems.Clear();
+                this.VisibleResultItems.Clear();
+                this.ClearBenchmarkResultDisplays();
+                this.UpdateChart();
+                return;
+            }
+
+            this.comparisonRows=this.csvService.ReadComparisonCsv(path);
+            this.LoadComparisonRowsIntoResults(this.comparisonRows,selectedN.Value);
+            this.ApplyComparisonRowsToTable();
+            this.RefreshVisibleResults();
+            this.UpdateChart();
+            this.ApplyCurrentSort();
+        }catch(Exception ex){
+            StartupDiagnostics.Write("Benchmark run CSV load failed.",ex);
+            this.StatusText="CSV load failed: "+ex.Message;
+        }finally{
+            this.isLoadingSelectedRunCsv=false;
+        }
+    }
+
     private void ApplySelectedElementCountToTable(){
         var selectedN = this.SelectedResultElementCount?.Value;
         if(this.currentRunResultItems.Count>0){
@@ -1118,9 +1083,10 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
                 ? this.BuildCurrentRunComparisonRowsForElementCount(currentElementCount)
                 : this.BuildCurrentRunComparisonRows();
         }else{
-            this.comparisonRows=selectedN is { } elementCount
-                ? this.BuildComparisonRowsForElementCount(elementCount)
-                : this.resultStore.BuildLatestComparisonRows();
+            if(!this.isLoadingSelectedRunCsv){
+                this.LoadSelectedRunCsv();
+                return;
+            }
         }
         this.ApplyComparisonRowsToTable();
         if(selectedN is { } skippedElementCount){
@@ -1208,7 +1174,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         this.currentRunResultItems.Any(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
             &&string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase)
             &&result.ElementCount==elementCount)
-        ||(this.currentRunResultItems.Count==0&&this.resultStore.Get(method,project,elementCount) is not null);
+        ||(this.currentRunResultItems.Count==0&&this.ResultItems.Any(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
+            &&string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase)
+            &&result.ElementCount==elementCount));
 
     private int? FindPairStoppedAt(string method,string project,int selectedElementCount){
         var measurements = this.currentRunResultItems.Count>0
@@ -1218,7 +1186,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
                 result.ElementCount,
                 result.Status,
                 result.MeanNanoseconds))
-            : this.resultStore.Results.Select(static result => new BenchmarkElementMeasurement(
+            : this.ResultItems.Select(static result => new BenchmarkElementMeasurement(
                 result.Project,
                 result.Method,
                 result.ElementCount,
@@ -1243,11 +1211,14 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             }
         }
 
-        var stored = this.currentRunResultItems.Count==0
-            ? this.resultStore.Get(method,project,elementCount)
+        var selectedRunResult = this.currentRunResultItems.Count==0
+            ? this.ResultItems.LastOrDefault(item => string.Equals(item.Method,method,StringComparison.OrdinalIgnoreCase)
+                &&string.Equals(item.Project,project,StringComparison.OrdinalIgnoreCase)
+                &&item.ElementCount==elementCount
+                &&string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase))
             : null;
-        return stored is not null&&string.Equals(stored.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-            ? stored.ToProjectMetrics()
+        return selectedRunResult is not null
+            ? ProjectMetrics.FromMeasurement(selectedRunResult.MeanNanoseconds,selectedRunResult.AllocatedBytesValue)
             : ProjectMetrics.Missing;
     }
 
@@ -1552,15 +1523,4 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         }
     }
 
-    private string? FindSolutionRoot(){
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while(directory is not null){
-            if(File.Exists(Path.Combine(directory.FullName,"Seamless.slnx"))){
-                return directory.FullName;
-            }
-            directory=directory.Parent;
-        }
-
-        return null;
-    }
 }

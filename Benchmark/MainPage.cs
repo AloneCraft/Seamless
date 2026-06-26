@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using Syncfusion.Maui.Buttons;
 using Syncfusion.Maui.DataGrid;
-using Syncfusion.Maui.Toolkit.Calendar;
 using Syncfusion.Maui.Toolkit.Charts;
 
 namespace Benchmark;
@@ -172,7 +171,6 @@ public sealed class MainPage:ContentPage{
         var refreshButton = this.CommandButton("Refresh",nameof(BenchmarkRunnerViewModel.RefreshCommand));
         var runButton = this.CommandButton("Run",nameof(BenchmarkRunnerViewModel.RunCommand));
         var cancelButton = this.CommandButton("Cancel",nameof(BenchmarkRunnerViewModel.CancelCommand));
-        var exportButton = this.CommandButton("Save CSV",nameof(BenchmarkRunnerViewModel.ExportCsvCommand));
 
         var thresholdPicker = new Picker{
             WidthRequest=96,
@@ -183,15 +181,6 @@ public sealed class MainPage:ContentPage{
         thresholdPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ThresholdOptions));
         thresholdPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedThreshold));
 
-        var elementCountPicker = new Picker{
-            WidthRequest=112,
-            HeightRequest=30,
-            ItemDisplayBinding=new Binding(nameof(ElementCountOption.DisplayName)),
-            Margin=new Thickness(0),
-        };
-        elementCountPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ElementCountOptions));
-        elementCountPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedElementCountOption));
-
         var executionProfilePicker = new Picker{
             WidthRequest=96,
             HeightRequest=30,
@@ -201,14 +190,23 @@ public sealed class MainPage:ContentPage{
         executionProfilePicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ExecutionProfiles));
         executionProfilePicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedExecutionProfile));
 
-        var csvDatePicker = new Picker{
-            WidthRequest=168,
+        var runPicker = new Picker{
+            WidthRequest=220,
             HeightRequest=30,
-            ItemDisplayBinding=new Binding(nameof(CsvDateOption.DisplayName)),
+            ItemDisplayBinding=new Binding(nameof(BenchmarkRunOption.DisplayName)),
             Margin=new Thickness(0),
         };
-        csvDatePicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.CsvDateOptions));
-        csvDatePicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedCsvDateOption));
+        runPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.RunOptions));
+        runPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedRunOption));
+
+        var resultElementCountPicker = new Picker{
+            WidthRequest=96,
+            HeightRequest=30,
+            ItemDisplayBinding=new Binding(nameof(ResultElementCountOption.DisplayName)),
+            Margin=new Thickness(0),
+        };
+        resultElementCountPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ResultElementCountOptions));
+        resultElementCountPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedResultElementCount));
 
         var statusLabel = new Label{
             FontSize=12,
@@ -233,10 +231,6 @@ public sealed class MainPage:ContentPage{
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
-                new ColumnDefinition { Width = GridLength.Auto },
-                new ColumnDefinition { Width = GridLength.Auto },
-                new ColumnDefinition { Width = GridLength.Auto },
-                new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Star },
             },
             ColumnSpacing=6,
@@ -244,16 +238,15 @@ public sealed class MainPage:ContentPage{
         grid.Add(refreshButton,0,0);
         grid.Add(this.ToolbarLabel("計測時間"),1,0);
         grid.Add(thresholdPicker,2,0);
-        grid.Add(this.ToolbarLabel("要素数"),3,0);
-        grid.Add(elementCountPicker,4,0);
-        grid.Add(this.ToolbarLabel("Mode"),5,0);
-        grid.Add(executionProfilePicker,6,0);
-        grid.Add(runButton,7,0);
-        grid.Add(cancelButton,8,0);
-        grid.Add(exportButton,9,0);
-        grid.Add(this.ToolbarLabel("CSV"),10,0);
-        grid.Add(csvDatePicker,11,0);
-        grid.Add(statusLabel,12,0);
+        grid.Add(this.ToolbarLabel("Mode"),3,0);
+        grid.Add(executionProfilePicker,4,0);
+        grid.Add(runButton,5,0);
+        grid.Add(cancelButton,6,0);
+        grid.Add(this.ToolbarLabel("Run"),7,0);
+        grid.Add(runPicker,8,0);
+        grid.Add(this.ToolbarLabel("N"),9,0);
+        grid.Add(resultElementCountPicker,10,0);
+        grid.Add(statusLabel,11,0);
         return grid;
     }
 
@@ -1061,55 +1054,14 @@ public sealed class MainPage:ContentPage{
             },
         };
         list.SetBinding(ItemsView.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.CpuSections));
-        var topGrid = new Grid{
-            ColumnDefinitions = {
-                new ColumnDefinition { Width = GridLength.Star },
-                new ColumnDefinition { Width = new GridLength(260) },
-            },
-            ColumnSpacing=8,
-            Children = {
-                new BoxView{
-                    BackgroundColor=Colors.Transparent,
-                },
-                this.CreateCsvCalendar(),
-            },
-        };
-        topGrid.SetColumn(topGrid.Children[1],1);
-
         var layout = new VerticalStackLayout{
             Spacing=8,
             Children = {
-                topGrid,
                 list,
             },
         };
         layout.SetBinding(IsVisibleProperty,nameof(BenchmarkRunnerViewModel.IsCpuVisible));
         return layout;
-    }
-
-    private SfCalendar CreateCsvCalendar(){
-        var calendar = new SfCalendar{
-            View=CalendarView.Month,
-            HeightRequest=210,
-            MonthView=new CalendarMonthView(),
-        };
-        calendar.SetBinding(SfCalendar.SelectedDateProperty,new Binding(nameof(BenchmarkRunnerViewModel.SelectedCalendarDate),BindingMode.TwoWay));
-        this.ApplyCalendarSpecialDays(calendar);
-        if(this.viewModel is not null){
-            this.viewModel.CsvCalendarDates.CollectionChanged+=(_,_) => this.ApplyCalendarSpecialDays(calendar);
-        }
-        return calendar;
-    }
-
-    private void ApplyCalendarSpecialDays(SfCalendar calendar){
-        calendar.MonthView ??= new CalendarMonthView();
-        calendar.MonthView.SpecialDayPredicate=date => this.viewModel is not null
-            &&this.viewModel.CsvCalendarDates.Any(item => item.Date==date.Date)
-                ? new CalendarIconDetails{
-                    Icon=CalendarIcon.Dot,
-                    Fill=Color.FromArgb("#2563EB"),
-                }
-                : null!;
     }
 
     private View CreateCpuSectionView(){
