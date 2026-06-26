@@ -385,9 +385,10 @@ public sealed class BenchmarkWorkerProcessService:IBenchmarkWorkerProcessService
     }
 }
 
-public sealed class BenchmarkPersistentWorkerProcessService:IBenchmarkJobRunner,IAsyncDisposable {
+public sealed class BenchmarkPersistentWorkerProcessService:IBenchmarkJobRunner,IBenchmarkDynamicCpuSetRunner,IAsyncDisposable {
     private readonly BenchmarkWorkerClient client = new();
     private readonly ConcurrentDictionary<int,BenchmarkWorkerSession> sessions = new();
+    private readonly ConcurrentDictionary<int,int> activeJobs = new();
 
     public async Task<BenchmarkJobRunResult> RunAsync(
         BenchmarkJob job,
@@ -398,6 +399,7 @@ public sealed class BenchmarkPersistentWorkerProcessService:IBenchmarkJobRunner,
         var session = await this.GetSessionAsync(runRoot,logicalCpu,cancellationToken);
         using var timeoutSource = new CancellationTokenSource(timeout);
         using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,timeoutSource.Token);
+        this.activeJobs.AddOrUpdate(logicalCpu,1,static (_,count) => count+1);
         try {
             return await session.RunAsync(job.ToBenchmarkCase(),job.ElementCount,"1",linkedSource.Token);
         } catch(OperationCanceledException) {
@@ -410,6 +412,19 @@ public sealed class BenchmarkPersistentWorkerProcessService:IBenchmarkJobRunner,
         } catch {
             await this.ResetSessionAsync(logicalCpu,session);
             throw;
+        } finally {
+            this.activeJobs.AddOrUpdate(logicalCpu,0,static (_,count) => Math.Max(0,count-1));
+        }
+    }
+
+    public async Task ApplyCpuSetAsync(IReadOnlyList<int> logicalCpus) {
+        var active = logicalCpus.ToHashSet();
+        foreach(var pair in this.sessions.ToArray()) {
+            if(active.Contains(pair.Key)||this.activeJobs.GetValueOrDefault(pair.Key)>0) {
+                continue;
+            }
+
+            await this.ResetSessionAsync(pair.Key,pair.Value);
         }
     }
 
@@ -786,7 +801,7 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
             mode,
             adaptiveThreshold,
             TimeSpan.FromMinutes(60),
-            executionProfile==BenchmarkExecutionProfile.Accurate ? logicalCpuProvider : null,
+            logicalCpuProvider,
             RestartFromRequestedElementCount: restartFromRequestedElementCount,
             ExecutionProfile: executionProfile);
         try {

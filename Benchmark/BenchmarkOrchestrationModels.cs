@@ -169,6 +169,10 @@ public interface IBenchmarkJobRunner {
         CancellationToken cancellationToken);
 }
 
+public interface IBenchmarkDynamicCpuSetRunner {
+    Task ApplyCpuSetAsync(IReadOnlyList<int> logicalCpus);
+}
+
 internal sealed record BenchmarkProgressUpdate(ProgressState State,BenchmarkJob Job);
 
 internal sealed record BenchmarkOrchestratorResult(string RunRoot,IReadOnlyList<string> CsvPaths);

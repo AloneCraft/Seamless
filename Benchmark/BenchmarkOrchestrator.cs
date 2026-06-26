@@ -141,7 +141,12 @@ internal sealed class BenchmarkOrchestrator {
                 workers.Remove(worker.Key);
             }
 
-            foreach(var cpu in GetCurrentCpus(request)) {
+            var currentCpus = GetCurrentCpus(request);
+            if(this.jobRunner is IBenchmarkDynamicCpuSetRunner dynamicCpuSetRunner) {
+                await dynamicCpuSetRunner.ApplyCpuSetAsync(currentCpus);
+            }
+
+            foreach(var cpu in currentCpus) {
                 if(!workers.ContainsKey(cpu)) {
                     workers.Add(cpu,Task.Run(() => this.RunDynamicCpuWorkerAsync(
                         state,

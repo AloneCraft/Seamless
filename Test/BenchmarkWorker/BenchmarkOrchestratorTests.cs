@@ -241,6 +241,44 @@ public sealed class BenchmarkOrchestratorTests{
     }
 
     [Fact]
+    public async Task Orchestrator_FixedMode_NotifiesDynamicRunnerWhenCpuSelectionChanges(){
+        var root = CreateTempRoot();
+        var cpus = new[] { 0,1 };
+        var cpuOneStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseCpuOne = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var runner = new DynamicFakeRunner(async (job,cpu) => {
+            if(cpu==1) {
+                cpuOneStarted.SetResult();
+                await releaseCpuOne.Task;
+            } else {
+                await Task.Delay(40);
+            }
+
+            return CompletedResult(job);
+        });
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var run = orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("SystemFLinq","A"),Case("SystemFLinq","B"),Case("SystemFLinq","C"),Case("SystemFLinq","D")],
+                [0,1],
+                [1],
+                BenchmarkRunMode.Fixed,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30),
+                () => cpus),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        await cpuOneStarted.Task;
+        cpus=[0];
+        releaseCpuOne.SetResult();
+        await run;
+
+        Assert.Contains(runner.AppliedCpuSets,static item => item.SequenceEqual([0]));
+    }
+
+    [Fact]
     public async Task Orchestrator_FixedMode_AddedCpuJoinsRemainingJobs(){
         var root = CreateTempRoot();
         var cpus = new[] { 0 };
@@ -676,6 +714,29 @@ public sealed class BenchmarkOrchestratorTests{
     }
 
     private sealed class DelayedFakeRunner(Func<BenchmarkJob,int,Task<BenchmarkJobRunResult>> run):IBenchmarkJobRunner{
+        public async Task<BenchmarkJobRunResult> RunAsync(
+            BenchmarkJob job,
+            string runRoot,
+            int logicalCpu,
+            TimeSpan timeout,
+            CancellationToken cancellationToken){
+            job.ArtifactFolder=Path.Combine(runRoot,"artifacts",job.JobId);
+            return await run(job,logicalCpu);
+        }
+    }
+
+    private sealed class DynamicFakeRunner(Func<BenchmarkJob,int,Task<BenchmarkJobRunResult>> run):IBenchmarkJobRunner,IBenchmarkDynamicCpuSetRunner{
+        private readonly object gate = new();
+
+        public List<int[]> AppliedCpuSets { get; } = [];
+
+        public Task ApplyCpuSetAsync(IReadOnlyList<int> logicalCpus){
+            lock(gate) {
+                this.AppliedCpuSets.Add(logicalCpus.ToArray());
+            }
+            return Task.CompletedTask;
+        }
+
         public async Task<BenchmarkJobRunResult> RunAsync(
             BenchmarkJob job,
             string runRoot,
