@@ -1062,21 +1062,39 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
 
     private void ApplySkippedCells(int selectedElementCount){
         foreach(var row in this.BenchmarkRows){
-            foreach(var cell in row.ProjectCells.Where(static cell => cell.HasCase)){
-                if(this.resultStore.Get(row.MethodName,cell.Project,selectedElementCount) is not null
-                    ||this.currentRunResultItems.Any(result => string.Equals(result.Method,row.MethodName,StringComparison.OrdinalIgnoreCase)
-                        &&string.Equals(result.Project,cell.Project,StringComparison.OrdinalIgnoreCase)
-                        &&result.ElementCount==selectedElementCount)){
+            foreach(var pair in BenchmarkPairs()){
+                var left = row.GetProjectCell(pair.LeftProject);
+                var right = row.GetProjectCell(pair.RightProject);
+                if(left is not { HasCase: true }||right is not { HasCase: true }){
                     continue;
                 }
 
-                var stoppedAt = this.FindPairStoppedAt(row.MethodName,cell.Project,selectedElementCount);
+                if(this.HasResult(row.MethodName,pair.LeftProject,selectedElementCount)
+                    ||this.HasResult(row.MethodName,pair.RightProject,selectedElementCount)){
+                    continue;
+                }
+
+                var stoppedAt = this.FindPairStoppedAt(row.MethodName,pair.LeftProject,selectedElementCount);
                 if(stoppedAt is { } stoppedAtElementCount){
-                    row.ApplySkipped(cell.Project,stoppedAtElementCount,this.GetResultMetrics(row.MethodName,cell.Project,stoppedAtElementCount));
+                    row.ApplyPairStopped(pair.LeftProject,pair.RightProject,stoppedAtElementCount);
+                    row.ApplySkipped(pair.LeftProject,stoppedAtElementCount,this.GetResultMetrics(row.MethodName,pair.LeftProject,stoppedAtElementCount));
+                    row.ApplySkipped(pair.RightProject,stoppedAtElementCount,this.GetResultMetrics(row.MethodName,pair.RightProject,stoppedAtElementCount));
                 }
             }
         }
     }
+
+    private static IReadOnlyList<(string LeftProject,string RightProject)> BenchmarkPairs() => [
+        (BenchmarkComparisonFormatter.SystemFLinq,BenchmarkComparisonFormatter.SystemZLinq),
+        (BenchmarkComparisonFormatter.PersistedFLinq,BenchmarkComparisonFormatter.PersistedLinq),
+        (BenchmarkComparisonFormatter.TsavoriteFLinq,BenchmarkComparisonFormatter.TsavoriteLinq),
+    ];
+
+    private bool HasResult(string method,string project,int elementCount) =>
+        this.resultStore.Get(method,project,elementCount) is not null
+        ||this.currentRunResultItems.Any(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
+            &&string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase)
+            &&result.ElementCount==elementCount);
 
     private int? FindPairStoppedAt(string method,string project,int selectedElementCount){
         var measurements = this.resultStore.Results

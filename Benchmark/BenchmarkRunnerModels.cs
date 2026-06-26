@@ -319,8 +319,8 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.IsRunning=false;
         this.StatusIcon=stoppedAtElementCount.ToString(CultureInfo.InvariantCulture);
         this.StatusText="N="+stoppedAtElementCount.ToString(CultureInfo.InvariantCulture);
-        this.ExecutionText=stoppedAtElementCount.ToString(CultureInfo.InvariantCulture);
-        this.ExecutionTextColor=Color.FromArgb("#16A34A");
+        this.ExecutionText=string.Empty;
+        this.ExecutionTextColor=Color.FromArgb("#334155");
         this.LiveState=BenchmarkProjectLiveState.Idle;
         this.ClearCpuDisplay();
         this.OnPropertyChanged(nameof(this.IsPendingVisual));
@@ -403,18 +403,21 @@ public sealed class BenchmarkTableRow:ObservableObject{
     private bool? isSelectionChecked;
     private string systemRatioTimeText = string.Empty;
     private string systemRatioAllocatedText = string.Empty;
+    private string systemStopNText = string.Empty;
     private string systemFLinqTimeText = string.Empty;
     private string systemFLinqAllocatedText = string.Empty;
     private string systemZLinqTimeText = string.Empty;
     private string systemZLinqAllocatedText = string.Empty;
     private string persistedRatioTimeText = string.Empty;
     private string persistedRatioAllocatedText = string.Empty;
+    private string persistedStopNText = string.Empty;
     private string persistedFLinqTimeText = string.Empty;
     private string persistedFLinqAllocatedText = string.Empty;
     private string persistedLinqTimeText = string.Empty;
     private string persistedLinqAllocatedText = string.Empty;
     private string tsavoriteRatioTimeText = string.Empty;
     private string tsavoriteRatioAllocatedText = string.Empty;
+    private string tsavoriteStopNText = string.Empty;
     private string tsavoriteFLinqTimeText = string.Empty;
     private string tsavoriteFLinqAllocatedText = string.Empty;
     private string tsavoriteLinqTimeText = string.Empty;
@@ -472,6 +475,11 @@ public sealed class BenchmarkTableRow:ObservableObject{
         private set => this.SetProperty(ref this.systemRatioAllocatedText,value);
     }
 
+    public string SystemStopNText{
+        get => this.systemStopNText;
+        private set => this.SetProperty(ref this.systemStopNText,value);
+    }
+
     public string SystemFLinqTimeText{
         get => this.systemFLinqTimeText;
         private set => this.SetProperty(ref this.systemFLinqTimeText,value);
@@ -502,6 +510,11 @@ public sealed class BenchmarkTableRow:ObservableObject{
         private set => this.SetProperty(ref this.persistedRatioAllocatedText,value);
     }
 
+    public string PersistedStopNText{
+        get => this.persistedStopNText;
+        private set => this.SetProperty(ref this.persistedStopNText,value);
+    }
+
     public string PersistedFLinqTimeText{
         get => this.persistedFLinqTimeText;
         private set => this.SetProperty(ref this.persistedFLinqTimeText,value);
@@ -530,6 +543,11 @@ public sealed class BenchmarkTableRow:ObservableObject{
     public string TsavoriteRatioAllocatedText{
         get => this.tsavoriteRatioAllocatedText;
         private set => this.SetProperty(ref this.tsavoriteRatioAllocatedText,value);
+    }
+
+    public string TsavoriteStopNText{
+        get => this.tsavoriteStopNText;
+        private set => this.SetProperty(ref this.tsavoriteStopNText,value);
     }
 
     public string TsavoriteFLinqTimeText{
@@ -622,6 +640,17 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.SetProjectMetricText(project,FormatTime(stoppedMetrics),FormatAllocated(stoppedMetrics));
     }
 
+    public void ApplyPairStopped(string leftProject,string rightProject,int stoppedAtElementCount){
+        var text = stoppedAtElementCount.ToString(CultureInfo.InvariantCulture);
+        if(IsPair(leftProject,rightProject,BenchmarkComparisonFormatter.SystemFLinq,BenchmarkComparisonFormatter.SystemZLinq)){
+            this.SystemStopNText=text;
+        }else if(IsPair(leftProject,rightProject,BenchmarkComparisonFormatter.PersistedFLinq,BenchmarkComparisonFormatter.PersistedLinq)){
+            this.PersistedStopNText=text;
+        }else if(IsPair(leftProject,rightProject,BenchmarkComparisonFormatter.TsavoriteFLinq,BenchmarkComparisonFormatter.TsavoriteLinq)){
+            this.TsavoriteStopNText=text;
+        }
+    }
+
     public void ClearLiveState(){
         foreach(var cell in this.ProjectCells){
             cell.ClearLiveState();
@@ -636,6 +665,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
         }
 
         var value = row.Value;
+        this.ClearStopNText();
         this.SystemRatioTimeText=FormatRatio(value.SystemRatio.TimeRatio);
         this.SystemRatioAllocatedText=FormatRatio(value.SystemRatio.AllocatedRatio);
         this.SystemFLinqTimeText=FormatTime(value.SystemFLinq);
@@ -691,18 +721,21 @@ public sealed class BenchmarkTableRow:ObservableObject{
     private void ClearComparison(){
         this.SystemRatioTimeText=string.Empty;
         this.SystemRatioAllocatedText=string.Empty;
+        this.SystemStopNText=string.Empty;
         this.SystemFLinqTimeText=string.Empty;
         this.SystemFLinqAllocatedText=string.Empty;
         this.SystemZLinqTimeText=string.Empty;
         this.SystemZLinqAllocatedText=string.Empty;
         this.PersistedRatioTimeText=string.Empty;
         this.PersistedRatioAllocatedText=string.Empty;
+        this.PersistedStopNText=string.Empty;
         this.PersistedFLinqTimeText=string.Empty;
         this.PersistedFLinqAllocatedText=string.Empty;
         this.PersistedLinqTimeText=string.Empty;
         this.PersistedLinqAllocatedText=string.Empty;
         this.TsavoriteRatioTimeText=string.Empty;
         this.TsavoriteRatioAllocatedText=string.Empty;
+        this.TsavoriteStopNText=string.Empty;
         this.TsavoriteFLinqTimeText=string.Empty;
         this.TsavoriteFLinqAllocatedText=string.Empty;
         this.TsavoriteLinqTimeText=string.Empty;
@@ -733,6 +766,16 @@ public sealed class BenchmarkTableRow:ObservableObject{
             this.TsavoriteLinqAllocatedText=allocatedText;
         }
     }
+
+    private void ClearStopNText(){
+        this.SystemStopNText=string.Empty;
+        this.PersistedStopNText=string.Empty;
+        this.TsavoriteStopNText=string.Empty;
+    }
+
+    private static bool IsPair(string leftProject,string rightProject,string expectedLeft,string expectedRight) =>
+        string.Equals(leftProject,expectedLeft,StringComparison.OrdinalIgnoreCase)
+        &&string.Equals(rightProject,expectedRight,StringComparison.OrdinalIgnoreCase);
 
     private BenchmarkProjectCell CreateCell(string project) =>
         new(project,this.CasesByProject.ContainsKey(project));
