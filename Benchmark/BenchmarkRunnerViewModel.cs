@@ -49,6 +49,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     private bool currentSortDescending;
     private IReadOnlyList<BenchmarkComparisonRow> comparisonRows = [];
     private readonly List<BenchmarkResultItem> currentRunResultItems = [];
+    private int[] selectedLogicalCpus = [];
 
     public BenchmarkRunnerViewModel(
         IBenchmarkCatalogService catalogService,
@@ -165,11 +166,13 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             cpu.PropertyChanged+=(_,args) => {
                 if(args.PropertyName==nameof(CpuSelectionItem.IsSelected)&&!this.isApplyingCpuSelection){
                     this.EnsureAtLeastOneCpuSelected(cpu);
+                    this.RefreshSelectedLogicalCpus();
                     this.RefreshCpuSectionStates();
                 }
             };
         }
         this.RebuildCpuSections();
+        this.RefreshSelectedLogicalCpus();
     }
 
     public ObservableCollection<BenchmarkTableRow> BenchmarkRows { get; } = [];
@@ -680,6 +683,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             _ = await this.runService.RunAsync(
                 selected,
                 cpus,
+                this.GetSelectedLogicalCpus,
                 this.GetSelectedElementCounts(),
                 BenchmarkRunMode.Adaptive,
                 this.GetAdaptiveThreshold(),
@@ -1176,6 +1180,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         }finally{
             this.isApplyingCpuSelection=false;
             this.EnsureAtLeastOneCpuSelected(null);
+            this.RefreshSelectedLogicalCpus();
             this.RefreshCpuSectionStates();
         }
     }
@@ -1187,6 +1192,18 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
 
         (fallback??this.CpuItems[0]).IsSelected=true;
     }
+
+    private IReadOnlyList<int> GetSelectedLogicalCpus() =>
+        Volatile.Read(ref this.selectedLogicalCpus);
+
+    private void RefreshSelectedLogicalCpus() =>
+        Volatile.Write(ref this.selectedLogicalCpus,this.CreateSelectedLogicalCpus());
+
+    private int[] CreateSelectedLogicalCpus() =>
+        this.CpuItems
+            .Where(static cpu => cpu.IsSelected)
+            .Select(static cpu => cpu.LogicalProcessorIndex)
+            .ToArray();
 
     private void RefreshCpuSectionStates(){
         foreach(var section in this.CpuSections){

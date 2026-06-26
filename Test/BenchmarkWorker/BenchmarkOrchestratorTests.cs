@@ -127,6 +127,139 @@ public sealed class BenchmarkOrchestratorTests{
     }
 
     [Fact]
+    public async Task Orchestrator_FixedMode_UsesChangedCpuSelectionForLaterJobs(){
+        var root = CreateTempRoot();
+        var cpus = new[] { 0 };
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var observed = new List<int>();
+        var gate = new object();
+        var runner = new DelayedFakeRunner(async (job,cpu) => {
+            lock(gate) {
+                observed.Add(cpu);
+            }
+
+            if(job.MethodName=="A") {
+                started.SetResult();
+                await release.Task;
+            }
+
+            return CompletedResult(job);
+        });
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var run = orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("SystemFLinq","A"),Case("SystemFLinq","B")],
+                [0],
+                [1],
+                BenchmarkRunMode.Fixed,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30),
+                () => cpus),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        await started.Task;
+        cpus=[1];
+        release.SetResult();
+        await run;
+
+        Assert.Equal([0,1],observed);
+    }
+
+    [Fact]
+    public async Task Orchestrator_FixedMode_RemovedCpuFinishesCurrentJobOnly(){
+        var root = CreateTempRoot();
+        var cpus = new[] { 0,1 };
+        var cpuOneStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseCpuOne = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var observed = new List<int>();
+        var gate = new object();
+        var runner = new DelayedFakeRunner(async (job,cpu) => {
+            lock(gate) {
+                observed.Add(cpu);
+            }
+
+            if(cpu==1) {
+                cpuOneStarted.SetResult();
+                await releaseCpuOne.Task;
+            } else {
+                await Task.Delay(40);
+            }
+
+            return CompletedResult(job);
+        });
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var run = orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("SystemFLinq","A"),Case("SystemFLinq","B"),Case("SystemFLinq","C"),Case("SystemFLinq","D")],
+                [0,1],
+                [1],
+                BenchmarkRunMode.Fixed,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30),
+                () => cpus),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        await cpuOneStarted.Task;
+        cpus=[0];
+        releaseCpuOne.SetResult();
+        await run;
+
+        var cpuOneRuns = observed.Count(static cpu => cpu==1);
+        Assert.Equal(1,cpuOneRuns);
+        Assert.All(LoadOnlyState(root).Jobs,static job => Assert.Equal(JobStatus.Completed,job.Status));
+    }
+
+    [Fact]
+    public async Task Orchestrator_FixedMode_AddedCpuJoinsRemainingJobs(){
+        var root = CreateTempRoot();
+        var cpus = new[] { 0 };
+        var firstStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFirst = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var observed = new List<int>();
+        var gate = new object();
+        var runner = new DelayedFakeRunner(async (job,cpu) => {
+            lock(gate) {
+                observed.Add(cpu);
+            }
+
+            if(job.MethodName=="A") {
+                firstStarted.SetResult();
+                await releaseFirst.Task;
+            } else {
+                await Task.Delay(40);
+            }
+
+            return CompletedResult(job);
+        });
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var run = orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("SystemFLinq","A"),Case("SystemFLinq","B"),Case("SystemFLinq","C"),Case("SystemFLinq","D")],
+                [0],
+                [1],
+                BenchmarkRunMode.Fixed,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30),
+                () => cpus),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        await firstStarted.Task;
+        cpus=[0,1];
+        releaseFirst.SetResult();
+        await run;
+
+        Assert.Contains(1,observed);
+        Assert.All(LoadOnlyState(root).Jobs,static job => Assert.Equal(JobStatus.Completed,job.Status));
+    }
+
+    [Fact]
     public async Task StateManager_Save_IsSafeWhenCalledConcurrently(){
         var root = CreateTempRoot();
         var runRoot = Path.Combine(root,"run");
@@ -334,6 +467,24 @@ public sealed class BenchmarkOrchestratorTests{
             StartedAt=DateTimeOffset.UtcNow,
             FinishedAt=DateTimeOffset.UtcNow,
         };
+
+    private static BenchmarkJobRunResult CompletedResult(BenchmarkJob job) =>
+        new(
+            job.Project,
+            job.MethodName,
+            job.TypeFullName,
+            job.ElementCount,
+            "Completed",
+            "100 ns",
+            string.Empty,
+            string.Empty,
+            100,
+            0,
+            0,
+            0,
+            0,
+            job.ArtifactFolder,
+            string.Empty);
 
     private static string CreateTempRoot(){
         var root = Path.Combine(AppContext.BaseDirectory,"BenchmarkOrchestratorTests",Guid.NewGuid().ToString("N"));
