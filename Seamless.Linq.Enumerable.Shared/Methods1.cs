@@ -193,9 +193,18 @@ public abstract class Methods1:Base {
     [LinqIntercept(true)]
     private void ElementAt_index_Impl() {
         for(var i = 0; i<ElementAt_index_iterationCount; i++) {
+#if SYSTEM_RANGE
+            this.ElementAt_index_Core();
+#else
             this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<int>().ElementAt(ElementAt_index_index));
+#endif
         }
     }
+
+#if SYSTEM_RANGE
+    [LinqIntercept(false)]
+    private void ElementAt_index_Core() => this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<int>().ElementAt(ElementAt_index_index));
+#endif
     // [ElementAtOrDefault_index]
     [BenchFact, Benchmark]
     public void ElementAtOrDefault_index() => this.ElementAtOrDefault_index_Impl();
@@ -463,7 +472,7 @@ public abstract class Methods1:Base {
     [BenchmarkCategory(Categories.Linq)]
     public void Select_indexSelector() => this.Select_indexSelector_Impl();
 
-    [LinqIntercept(true)]
+    [LinqIntercept(false)]
     private void Select_indexSelector_Impl() => this.srcCount(StreamOneToOneCount).AsX<int>().Select((x,i) => x+i).Consume(this.consumer);
     // [Select_selector]
     [BenchFact, Benchmark]
@@ -482,13 +491,13 @@ public abstract class Methods1:Base {
     [BenchFact, Benchmark]
     public void SelectMany_indexSelector() => this.SelectMany_indexSelector_Impl();
 
-    [LinqIntercept(true)]
+    [LinqIntercept(false)]
     private void SelectMany_indexSelector_Impl() => this.srcNestedCount(NestedCount).AsX<IEnumerable<int>>().SelectMany((x,i) => x).Consume(this.consumer);
     // [SelectMany_indexSelector_resultSelector]
     [BenchFact, Benchmark]
     public void SelectMany_indexSelector_resultSelector() => this.SelectMany_indexSelector_resultSelector_Impl();
 
-    [LinqIntercept(true)]
+    [LinqIntercept(false)]
     private void SelectMany_indexSelector_resultSelector_Impl() => this.srcNestedCount(NestedCount).AsX<IEnumerable<int>>().SelectMany((x,i) => x,(outer,inner) => inner+1).Consume(this.consumer);
     // [SelectMany_resultSelector]
     [BenchFact, Benchmark]
@@ -569,7 +578,7 @@ public abstract class Methods1:Base {
     [BenchmarkCategory(Categories.Linq)]
     public void SkipWhile_indexPredicate() => this.SkipWhile_indexPredicate_Impl();
 
-    [LinqIntercept(true)]
+    [LinqIntercept(false)]
     private void SkipWhile_indexPredicate_Impl() => this.srcCount(StreamFilterCount).AsX<int>().SkipWhile((x,i) => i<StreamFilterCount/4).Consume(this.consumer);
     // [SkipWhile_predicate]
     [BenchFact, Benchmark]
@@ -609,7 +618,7 @@ public abstract class Methods1:Base {
     [BenchmarkCategory(Categories.Linq)]
     public void TakeWhile_indexPredicate() => this.TakeWhile_indexPredicate_Impl();
 
-    [LinqIntercept(true)]
+    [LinqIntercept(false)]
     private void TakeWhile_indexPredicate_Impl() => this.srcCount(StreamFilterCount).AsX<int>().TakeWhile((x,i) => i<StreamFilterCount*3/4).Consume(this.consumer);
     // [TakeWhile_predicate]
     [BenchFact, Benchmark]
@@ -701,7 +710,7 @@ public abstract class Methods1:Base {
     [BenchmarkCategory(Categories.Linq)]
     public void Where_indexPredicate() => this.Where_indexPredicate_Impl();
 
-    [LinqIntercept(true)]
+    [LinqIntercept(false)]
     private void Where_indexPredicate_Impl() => this.srcCount(StreamFilterCount).AsX<int>().Where((x,i) => i%2==0).Consume(this.consumer);
     // [Where_predicate]
     [BenchFact, Benchmark]
@@ -716,7 +725,7 @@ public abstract class Methods1:Base {
     public void Where_SourceShape() => this.Where_SourceShape_Impl();
 
     [LinqIntercept(true)]
-    private void Where_SourceShape_Impl() => this.array.Where(static x => (x&1)==0).Consume(this.consumer);
+    private void Where_SourceShape_Impl() => this.sourceShape().AsX<int>().Where(static x => (x&1)==0).Consume(this.consumer);
     // [Zip_second]
     [BenchFact, Benchmark]
     [BenchmarkCategory(Categories.Linq)]
@@ -795,8 +804,6 @@ public abstract class Methods1:Base {
     private int[] inner = [];
     private const int Threshold = 120;
 
-    private int[] array = [];
-    private List<int> list = [];
     private int sourceCount;
     protected Methods1(int count) : base(count) {
         this.Initialize();
@@ -806,9 +813,29 @@ public abstract class Methods1:Base {
         this.outer=global::System.Linq.Enumerable.Range(0,this.CountForComparison(SelectManyOuterCount)).ToArray();
         this.inner=global::System.Linq.Enumerable.Range(0,this.CountForComparison(SelectManyInnerCount)).ToArray();
         this.sourceCount=this.CountForComparison(this.CountForTestTiming(SourceShapeCount));
-        this.array=global::System.Linq.Enumerable.Range(1,this.sourceCount).ToArray();
-        this.list=this.array.ToList();
     }
+
+#if SYSTEM_RANGE
+    [LinqIntercept(false)]
+    private IEnumerable<int> sourceShape() =>
+        this.srcCount(SourceShapeCount);
+#elif SYSTEM_LIST
+    [LinqIntercept(false)]
+    private List<int> sourceShape() =>
+        this.srcCount(SourceShapeCount);
+#elif PERSISTED
+    [LinqIntercept(false)]
+    private Seamless.Persisted.Collections.Set<int> sourceShape() =>
+        this.srcCount(SourceShapeCount);
+#elif TSAVORITE
+    [LinqIntercept(false)]
+    private global::Seamless.Tsavorite.Collections.HashSet<int> sourceShape() =>
+        this.srcCount(SourceShapeCount);
+#else
+    [LinqIntercept(false)]
+    private int[] sourceShape() =>
+        this.srcCount(SourceShapeCount);
+#endif
 
     private static void ConsumeResult(global::Benchmark.Shared.Consumer consumer,bool result,int count) {
         consumer.Consume(result);

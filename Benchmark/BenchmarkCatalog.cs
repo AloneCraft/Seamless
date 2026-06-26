@@ -6,16 +6,16 @@ namespace Benchmark;
 public sealed record BenchmarkProject(string DisplayName,string AssemblyName);
 
 public static class BenchmarkCatalog {
-    private static readonly BenchmarkProject[] projects = [
-        new("SystemFLinq","Benchmark.DotNet.Linq.Enumerable.FLinq"),
-        new("SystemZLinq","Benchmark.DotNet.Linq.Enumerable.ZLinq"),
-        new("TsavoriteLinq","Benchmark.Tsavorite.Linq.Enumerable.Linq"),
-        new("TsavoriteFLinq","Benchmark.Tsavorite.Linq.Enumerable.FLinq"),
-        new("PersistedLinq","Benchmark.Persisted.Linq.Enumerable.Linq"),
-        new("PersistedFLinq","Benchmark.Persisted.Linq.Enumerable.FLinq"),
+    private static readonly BenchmarkProject[] projects = BenchmarkSourceTabs.All
+        .SelectMany(static tab => new[] {
+            new BenchmarkProject(tab.LeftProject,tab.LeftAssemblyName),
+            new BenchmarkProject(tab.RightProject,tab.RightAssemblyName),
+        })
+        .Concat([
         new("Persisted Collection","Benchmark.Persisted.Collection"),
         new("Tsavorite Collection","Benchmark.Tsavorite.Collection"),
-    ];
+        ])
+        .ToArray();
 
     public static IReadOnlyList<BenchmarkCase> Load() {
         var cases = new List<BenchmarkCase>();

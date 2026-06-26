@@ -12,11 +12,13 @@ public sealed class BenchmarkWorkerClient:IBenchmarkJobRunner {
         int logicalCpu,
         TimeSpan timeout,
         CancellationToken cancellationToken) =>
-        this.RunAsync(job.ToBenchmarkCase(),runRoot,job.ElementCount,"1",logicalCpu,timeout,cancellationToken);
+        this.RunAsync(job.ToBenchmarkCase(),runRoot,job.SourceTab,job.PreparedElementCounts,job.ElementCount,"1",logicalCpu,timeout,cancellationToken);
 
     public async Task<BenchmarkJobRunResult> RunAsync(
         BenchmarkCase benchmark,
         string runRoot,
+        BenchmarkSourceTab sourceTab,
+        IReadOnlyList<int> preparedElementCounts,
         int elementCount,
         string elementScale,
         int logicalCpu,
@@ -27,7 +29,7 @@ public sealed class BenchmarkWorkerClient:IBenchmarkJobRunner {
         var effectiveToken = linkedSource.Token;
         try {
             await using var session = await this.StartSessionAsync(runRoot,logicalCpu,effectiveToken);
-            var result = await session.RunAsync(benchmark,elementCount,elementScale,effectiveToken);
+            var result = await session.RunAsync(benchmark,sourceTab,preparedElementCounts,elementCount,elementScale,effectiveToken);
             await session.ShutdownAsync(effectiveToken);
             return result;
         } catch(OperationCanceledException) {
@@ -58,9 +60,10 @@ public sealed class BenchmarkWorkerClient:IBenchmarkJobRunner {
         }
     }
 
-    internal static string CreateArtifactFolder(string runRoot,BenchmarkCase benchmark,int elementCount) {
+    internal static string CreateArtifactFolder(string runRoot,BenchmarkCase benchmark,BenchmarkSourceTab sourceTab,int elementCount) {
         var artifactFolder = Path.Combine(
             runRoot,
+            BenchmarkSourceTabs.ToPathPart(sourceTab),
             "N"+elementCount.ToString(CultureInfo.InvariantCulture),
             SanitizePathPart(benchmark.Project),
             SanitizePathPart(benchmark.MethodName));
@@ -141,6 +144,8 @@ public sealed class BenchmarkWorkerSession:IAsyncDisposable {
 
     public async Task<BenchmarkJobRunResult> RunAsync(
         BenchmarkCase benchmark,
+        BenchmarkSourceTab sourceTab,
+        IReadOnlyList<int> preparedElementCounts,
         int elementCount,
         string elementScale,
         CancellationToken cancellationToken) {
@@ -148,13 +153,15 @@ public sealed class BenchmarkWorkerSession:IAsyncDisposable {
             throw new ObjectDisposedException(nameof(BenchmarkWorkerSession));
         }
 
-        var artifactFolder = BenchmarkWorkerClient.CreateArtifactFolder(this.runRoot,benchmark,elementCount);
+        var artifactFolder = BenchmarkWorkerClient.CreateArtifactFolder(this.runRoot,benchmark,sourceTab,elementCount);
         var message = new WorkerTaskMessage(
             "run",
             Guid.NewGuid().ToString("N",CultureInfo.InvariantCulture),
             benchmark.AssemblyName,
             benchmark.TypeFullName,
             benchmark.MethodName,
+            sourceTab,
+            preparedElementCounts.ToArray(),
             elementCount,
             elementScale,
             artifactFolder);
@@ -197,7 +204,7 @@ public sealed class BenchmarkWorkerSession:IAsyncDisposable {
         this.isClosed=true;
         try {
             if(!this.process.HasExited) {
-                await this.process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new WorkerTaskMessage("shutdown",string.Empty,string.Empty,string.Empty,string.Empty,0,string.Empty,string.Empty)).AsMemory(),cancellationToken);
+                await this.process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new WorkerTaskMessage("shutdown",string.Empty,string.Empty,string.Empty,string.Empty,BenchmarkSourceTab.SystemArray,[],0,string.Empty,string.Empty)).AsMemory(),cancellationToken);
                 await this.process.StandardInput.FlushAsync(cancellationToken);
                 await this.process.WaitForExitAsync(cancellationToken);
             }
@@ -252,6 +259,8 @@ internal sealed record WorkerTaskMessage(
     string AssemblyName,
     string TypeFullName,
     string MethodName,
+    BenchmarkSourceTab SourceTab,
+    int[] PreparedElementCounts,
     int ElementCount,
     string ElementScale,
     string ArtifactFolder);

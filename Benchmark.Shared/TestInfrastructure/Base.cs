@@ -10,10 +10,27 @@ public sealed class BenchmarkTestIterationsAttribute(int count):Attribute {
     public int Count { get; } = count;
 }
 
+[Flags]
+public enum BenchmarkSourceUsage {
+    None = 0,
+    Src = 1,
+    Src2 = 2,
+    SrcOne = 4,
+    Nested = 8,
+    SourceShape = 16,
+    All = Src|Src2|SrcOne|Nested|SourceShape,
+}
+
+[AttributeUsage(AttributeTargets.Method,AllowMultiple=false)]
+public sealed class BenchmarkSourceUsageAttribute(BenchmarkSourceUsage usage):Attribute {
+    public BenchmarkSourceUsage Usage { get; } = usage;
+}
+
 public static class BenchmarkExecutionMode {
     private const string TestModeKey = "Benchmark.Shared.TestMode";
     private const string ElementScaleKey = "SEAMLESS_BENCHMARK_ELEMENT_SCALE";
     private const string ElementCountKey = "SEAMLESS_BENCHMARK_ELEMENT_COUNT";
+    private const string PreparedElementCountsKey = "SEAMLESS_BENCHMARK_PREPARED_ELEMENT_COUNTS";
     private static readonly AsyncLocal<int?> ComparisonElementLimit = new();
     private static readonly AsyncLocal<int?> ElementCountOverride = new();
     private static readonly AsyncLocal<double?> ElementScaleOverride = new();
@@ -73,6 +90,21 @@ public static class BenchmarkExecutionMode {
         return scaled>=int.MaxValue
             ? int.MaxValue
             : Math.Max(1,(int)Math.Round(scaled,MidpointRounding.AwayFromZero));
+    }
+
+    internal static IReadOnlyList<int> ReadPreparedElementCounts() {
+        var text = Environment.GetEnvironmentVariable(PreparedElementCountsKey);
+        if(string.IsNullOrWhiteSpace(text)) {
+            return [];
+        }
+
+        return text
+            .Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries)
+            .Select(static value => int.TryParse(value,System.Globalization.NumberStyles.Integer,System.Globalization.CultureInfo.InvariantCulture,out var count) ? count : 0)
+            .Where(static count => count>0)
+            .Distinct()
+            .Order()
+            .ToArray();
     }
 
     private static double ReadElementScale() =>
@@ -203,6 +235,7 @@ public class Base {
     private static readonly object MissingResult = new();
     private static readonly object SourceCacheSync = new();
     private static readonly Dictionary<SourceCacheKey,int[]> SourceCache = [];
+    private static readonly Dictionary<SourceCacheKey,List<int>> ListSourceCache = [];
 
     protected readonly Consumer consumer = new();
     private protected object? Result;
@@ -210,6 +243,20 @@ public class Base {
 
     protected Base(int count = -1) =>
         this.count=count>=0?count:(BenchmarkExecutionMode.IsTestMode?TestDefaultCount:BenchmarkDefaultCount);
+
+    [GlobalSetup]
+    public void PrepareBenchmarkSources() {
+#if SYSTEM_RANGE
+        return;
+#else
+        var preparedElementCounts = BenchmarkExecutionMode.ReadPreparedElementCounts();
+        foreach(var elementCount in preparedElementCounts) {
+            _ = this.srcCount(elementCount);
+            _ = this.src2Count(elementCount);
+        }
+        _ = this.srcOne(1);
+#endif
+    }
 
     private protected int CountForTestTiming(int benchmarkCount) =>
         BenchmarkExecutionMode.ScaleElementCount(BenchmarkExecutionMode.IsTestMode? this.count :benchmarkCount);
@@ -421,48 +468,115 @@ public class Base {
         }
     }
 
+#if SYSTEM_RANGE
     [LinqIntercept(false)]
-    protected IEnumerable<int> src(int scale) => System.Linq.Enumerable.AsEnumerable(this.GetOrCreate(scale,SourceKind.Src,static length => {
+    protected IEnumerable<int> src(int scale) =>
+        System.Linq.Enumerable.Range(1,this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(this.count*scale)));
+
+    [LinqIntercept(false)]
+    protected IEnumerable<int> srcCount(int elementCount) =>
+        System.Linq.Enumerable.Range(1,this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount)));
+
+    [LinqIntercept(false)]
+    protected IEnumerable<int> src2(int scale) {
+        var length = this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(this.count*scale));
+        return System.Linq.Enumerable.Range(length/2+1,length/2);
+    }
+
+    [LinqIntercept(false)]
+    protected IEnumerable<int> src2Count(int elementCount) {
+        var length = this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount));
+        return System.Linq.Enumerable.Range(length/2+1,length/2);
+    }
+
+    [LinqIntercept(false)]
+    protected IEnumerable<int> srcOne(int scale) => System.Linq.Enumerable.Range(0,1);
+#elif SYSTEM_LIST
+    [LinqIntercept(false)]
+    protected List<int> src(int scale) => this.GetOrCreateList(scale,SourceKind.Src,static length => {
+        var values = new List<int>(length);
+        for(var i = 0;i<length;i++) {
+            values.Add(i+1);
+        }
+        return values;
+    });
+
+    [LinqIntercept(false)]
+    protected List<int> srcCount(int elementCount) => this.GetOrCreateListByLength(elementCount,SourceKind.SrcCount,static length => {
+        var values = new List<int>(length);
+        for(var i = 0;i<length;i++) {
+            values.Add(i+1);
+        }
+        return values;
+    });
+
+    [LinqIntercept(false)]
+    protected List<int> src2(int scale) => this.GetOrCreateList(scale,SourceKind.Src2,static length => {
+        var values = new List<int>(length/2);
+        var start = length/2+1;
+        for(var i = 0;i<length/2;i++) {
+            values.Add(start+i);
+        }
+        return values;
+    });
+
+    [LinqIntercept(false)]
+    protected List<int> src2Count(int elementCount) => this.GetOrCreateListByLength(elementCount,SourceKind.Src2Count,static length => {
+        var values = new List<int>(length/2);
+        var start = length/2+1;
+        for(var i = 0;i<length/2;i++) {
+            values.Add(start+i);
+        }
+        return values;
+    });
+
+    [LinqIntercept(false)]
+    protected List<int> srcOne(int scale) =>
+        this.GetOrCreateListByLength(1,SourceKind.SrcOne,static _ => [0]);
+#else
+    [LinqIntercept(false)]
+    protected int[] src(int scale) => this.GetOrCreate(scale,SourceKind.Src,static length => {
         var values = new int[length];
         for(var i = 0;i<values.Length;i++) {
             values[i]=i+1;
         }
         return values;
-    }));
+    });
 
     [LinqIntercept(false)]
-    protected IEnumerable<int> srcCount(int elementCount) => System.Linq.Enumerable.AsEnumerable(this.GetOrCreateByLength(elementCount,SourceKind.SrcCount,static length => {
+    protected int[] srcCount(int elementCount) => this.GetOrCreateByLength(elementCount,SourceKind.SrcCount,static length => {
         var values = new int[length];
         for(var i = 0;i<values.Length;i++) {
             values[i]=i+1;
         }
         return values;
-    }));
+    });
 
     [LinqIntercept(false)]
-    protected IEnumerable<int> src2(int scale) => System.Linq.Enumerable.AsEnumerable(this.GetOrCreate(scale,SourceKind.Src2,static length => {
+    protected int[] src2(int scale) => this.GetOrCreate(scale,SourceKind.Src2,static length => {
         var values = new int[length/2];
         var start = length/2+1;
         for(var i = 0;i<values.Length;i++) {
             values[i]=start+i;
         }
         return values;
-    }));
+    });
 
     [LinqIntercept(false)]
-    protected IEnumerable<int> src2Count(int elementCount) => System.Linq.Enumerable.AsEnumerable(this.GetOrCreateByLength(elementCount,SourceKind.Src2Count,static length => {
+    protected int[] src2Count(int elementCount) => this.GetOrCreateByLength(elementCount,SourceKind.Src2Count,static length => {
         var values = new int[length/2];
         var start = length/2+1;
         for(var i = 0;i<values.Length;i++) {
             values[i]=start+i;
         }
         return values;
-    }));
+    });
 
     [LinqIntercept(false)]
-    protected IEnumerable<int> srcOne(int scale) => System.Linq.Enumerable.AsEnumerable(GetOrCreate(
+    protected int[] srcOne(int scale) => GetOrCreate(
         new SourceCacheKey(SourceKind.SrcOne,1),
-        static _ => [0]));
+        static _ => [0]);
+#endif
 
     private int[] GetOrCreate(int scale,SourceKind kind,Func<int,int[]> factory) {
         var length= this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(this.count*scale));
@@ -482,6 +596,28 @@ public class Base {
 
             values=factory(key.Length);
             SourceCache.Add(key,values);
+            return values;
+        }
+    }
+
+    private List<int> GetOrCreateList(int scale,SourceKind kind,Func<int,List<int>> factory) {
+        var length= this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(this.count*scale));
+        return GetOrCreateList(new SourceCacheKey(kind,length),factory);
+    }
+
+    private List<int> GetOrCreateListByLength(int elementCount,SourceKind kind,Func<int,List<int>> factory) {
+        var effectiveLength= this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount));
+        return GetOrCreateList(new SourceCacheKey(kind,effectiveLength),factory);
+    }
+
+    private static List<int> GetOrCreateList(SourceCacheKey key,Func<int,List<int>> factory) {
+        lock(SourceCacheSync) {
+            if(ListSourceCache.TryGetValue(key,out var values)) {
+                return values;
+            }
+
+            values=factory(key.Length);
+            ListSourceCache.Add(key,values);
             return values;
         }
     }

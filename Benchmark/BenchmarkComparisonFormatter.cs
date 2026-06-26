@@ -8,64 +8,41 @@ namespace Benchmark;
 [global::Seamless.FLinq.LinqIntercept(false)]
 #endif
 internal static class BenchmarkComparisonFormatter{
-    public const string SystemFLinq = "SystemFLinq";
-    public const string SystemZLinq = "SystemZLinq";
-    public const string PersistedFLinq = "PersistedFLinq";
-    public const string PersistedLinq = "PersistedLinq";
-    public const string TsavoriteFLinq = "TsavoriteFLinq";
-    public const string TsavoriteLinq = "TsavoriteLinq";
+    public const string SystemFLinq = "System.Array.FLinq";
+    public const string SystemZLinq = "System.Array.ZLinq";
+    public const string PersistedFLinq = "Seamless.Persisted.FLinq";
+    public const string PersistedLinq = "Seamless.Persisted.Linq";
+    public const string TsavoriteFLinq = "Seamless.Tsavorite.FLinq";
+    public const string TsavoriteLinq = "Seamless.Tsavorite.Linq";
 
-    public static readonly string[] ProjectOrder = [
-        SystemFLinq,
-        SystemZLinq,
-        PersistedFLinq,
-        PersistedLinq,
-        TsavoriteFLinq,
-        TsavoriteLinq,
-    ];
+    public static readonly string[] ProjectOrder =
+        BenchmarkSourceTabs.All.SelectMany(static tab => tab.ProjectOrder).ToArray();
 
-    public static readonly ComparisonPairDefinition[] PairDefinitions = [
-        new("System", "System比", "SystemFLinq/SystemZLinq", SystemFLinq, SystemZLinq),
-        new("Persisted", "Persisted比", "PersistedFLinq/PersistedLinq", PersistedFLinq, PersistedLinq),
-        new("Tsavorite", "Tsavorite比", "TsavoriteFLinq/TsavoriteLinq", TsavoriteFLinq, TsavoriteLinq),
-        new("PersistedLinqTsavoriteLinq", "PersistedLinq/TsavoriteLinq比", "PersistedLinq/TsavoriteLinq", PersistedLinq, TsavoriteLinq),
-        new("PersistedFLinqTsavoriteFLinq", "PersistedFLinq/TsavoriteFLinq比", "PersistedFLinq/TsavoriteFLinq", PersistedFLinq, TsavoriteFLinq),
-    ];
-
-    private static readonly string[] csvHeader = [
-        "ベンチマーク",
-        "SystemFLinq時間ns",
-        "SystemFLinq割当bytes",
-        "SystemZLinq時間ns",
-        "SystemZLinq割当bytes",
-        "PersistedFLinq時間ns",
-        "PersistedFLinq割当bytes",
-        "PersistedLinq時間ns",
-        "PersistedLinq割当bytes",
-        "TsavoriteFLinq時間ns",
-        "TsavoriteFLinq割当bytes",
-        "TsavoriteLinq時間ns",
-        "TsavoriteLinq割当bytes",
-    ];
-
-    private static readonly System.Collections.Generic.HashSet<string> legacyProjectNames = new(StringComparer.OrdinalIgnoreCase){
-        "System LINQ",
-        "SystemLINQ",
-        "System FLinq",
-        "System ZLinq",
-        "Persisted FLinq",
-        "Persisted LINQ",
-        "Tsavorite FLinq",
-        "Tsavorite LINQ",
-    };
+    public static readonly ComparisonPairDefinition[] PairDefinitions =
+        BenchmarkSourceTabs.All
+            .Select(static tab => new ComparisonPairDefinition(
+                tab.Id,
+                tab.DisplayName,
+                tab.LeftProject+"/"+tab.RightProject,
+                tab.LeftProject,
+                tab.RightProject))
+            .ToArray();
 
     public static IReadOnlyList<BenchmarkComparisonRow> BuildComparisonRows(IReadOnlyList<ReportRow> rows){
-        EnsureSupportedRows(rows);
+        var tab = rows
+            .Select(row => BenchmarkSourceTabs.TryGetByProject(row.Project))
+            .FirstOrDefault(static item => item is not null)
+            ??BenchmarkSourceTabs.Default;
+        return BuildComparisonRows(rows,tab);
+    }
+
+    public static IReadOnlyList<BenchmarkComparisonRow> BuildComparisonRows(
+        IReadOnlyList<ReportRow> rows,
+        BenchmarkSourceTabDefinition sourceTab){
         var rowsByMethod = new Dictionary<string,Dictionary<string,ProjectMetrics>>(StringComparer.OrdinalIgnoreCase);
         foreach(var row in rows){
-            var project = NormalizeProjectName(row.Project);
-            if(project is null){
-                continue;
+            if(!sourceTab.ProjectOrder.Contains(row.Project,StringComparer.OrdinalIgnoreCase)){
+                throw new InvalidDataException($"Unknown benchmark project for {sourceTab.Id}: {row.Project}");
             }
 
             if(!rowsByMethod.TryGetValue(row.Method,out var metricsByProject)){
@@ -73,21 +50,30 @@ internal static class BenchmarkComparisonFormatter{
                 rowsByMethod.Add(row.Method,metricsByProject);
             }
 
-            metricsByProject[project] = CreateMetrics(row);
+            metricsByProject[NormalizeProjectName(row.Project,sourceTab)] = CreateMetrics(row);
         }
 
         return rowsByMethod
             .OrderBy(static item => item.Key,StringComparer.OrdinalIgnoreCase)
-            .Select(static item => CreateRow(item.Key,item.Value))
+            .Select(item => CreateRow(item.Key,item.Value,sourceTab))
             .ToArray();
     }
 
     public static string WriteCsv(IReadOnlyList<BenchmarkComparisonRow> rows){
+        var sourceTab = rows.FirstOrDefault().SourceTab;
+        if(sourceTab is null){
+            sourceTab=BenchmarkSourceTabs.Default;
+        }
+        return WriteCsv(rows,sourceTab);
+    }
+
+    public static string WriteCsv(IReadOnlyList<BenchmarkComparisonRow> rows,BenchmarkSourceTabDefinition sourceTab){
+        var header = CreateCsvHeader(sourceTab);
         var writer = new StringBuilder();
-        writer.AppendLine(string.Join(",",csvHeader));
+        writer.AppendLine(string.Join(",",header));
         foreach(var row in rows.OrderBy(static row => row.Benchmark,StringComparer.OrdinalIgnoreCase)){
             writer.AppendCsv(row.Benchmark);
-            foreach(var project in ProjectOrder){
+            foreach(var project in sourceTab.ProjectOrder){
                 var metrics = row.GetProject(project);
                 writer.Append(',');
                 if(metrics.HasMeasuredValue&&metrics.TimeNanoseconds is { } time){
@@ -127,7 +113,7 @@ internal static class BenchmarkComparisonFormatter{
             header[0]=header[0].TrimStart('\uFEFF');
         }
 
-        EnsureNewCsvHeader(header);
+        var sourceTab = ParseSourceTabFromHeader(header);
         var result = new List<BenchmarkComparisonRow>();
         while(!parser.EndOfData){
             var fields = parser.ReadFields()??[];
@@ -137,11 +123,11 @@ internal static class BenchmarkComparisonFormatter{
 
             var method = GetCell(fields,0);
             if(string.IsNullOrWhiteSpace(method)){
-                throw new InvalidDataException("新形式CSVのみ対応しています。ベンチマーク名が空です。");
+                throw new InvalidDataException("Benchmark name is required.");
             }
 
             var metrics = new Dictionary<string,ProjectMetrics>(StringComparer.OrdinalIgnoreCase);
-            for(var projectIndex=0;projectIndex<ProjectOrder.Length;projectIndex++){
+            for(var projectIndex=0;projectIndex<sourceTab.ProjectOrder.Count;projectIndex++){
                 var timeIndex = 1+(projectIndex*2);
                 var allocatedIndex = timeIndex+1;
                 var timeText = GetCell(fields,timeIndex);
@@ -150,15 +136,15 @@ internal static class BenchmarkComparisonFormatter{
                     continue;
                 }
 
-                var time = ParseDoubleCell(timeText,csvHeader[timeIndex]);
-                var allocated = ParseLongCell(allocatedText,csvHeader[allocatedIndex]);
+                var time = ParseDoubleCell(timeText,header[timeIndex]);
+                var allocated = ParseLongCell(allocatedText,header[allocatedIndex]);
                 var metric = ProjectMetrics.FromMeasurement(time,allocated);
                 if(metric.HasMeasuredValue){
-                    metrics[ProjectOrder[projectIndex]]=metric;
+                    metrics[sourceTab.ProjectOrder[projectIndex]]=metric;
                 }
             }
 
-            result.Add(CreateRow(method,metrics));
+            result.Add(CreateRow(method,metrics,sourceTab));
         }
 
         return result;
@@ -178,15 +164,15 @@ internal static class BenchmarkComparisonFormatter{
         }
 
         if(leftValue==0&&rightValue==0){
-            return new RatioValue(RatioValueKind.BothZero,null,"○",RatioJudgement.Tie);
+            return new RatioValue(RatioValueKind.BothZero,null,"0",RatioJudgement.Tie);
         }
 
         if(leftValue>0&&rightValue==0){
-            return new RatioValue(RatioValueKind.LeftOnly,null,"＋",RatioJudgement.LeftLose);
+            return new RatioValue(RatioValueKind.LeftOnly,null,"+",RatioJudgement.LeftLose);
         }
 
         if(leftValue==0&&rightValue>0){
-            return new RatioValue(RatioValueKind.RightOnly,null,"−",RatioJudgement.LeftWin);
+            return new RatioValue(RatioValueKind.RightOnly,null,"-",RatioJudgement.LeftWin);
         }
 
         return RatioValue.FromNumeric((double)leftValue/rightValue);
@@ -203,26 +189,24 @@ internal static class BenchmarkComparisonFormatter{
             CalculateAllocatedRatio(left,right));
     }
 
-    private static BenchmarkComparisonRow CreateRow(string method,IReadOnlyDictionary<string,ProjectMetrics> metrics){
+    private static BenchmarkComparisonRow CreateRow(
+        string method,
+        IReadOnlyDictionary<string,ProjectMetrics> metrics,
+        BenchmarkSourceTabDefinition sourceTab){
+        var left = metrics.GetValueOrDefault(sourceTab.LeftProject);
+        var right = metrics.GetValueOrDefault(sourceTab.RightProject);
         var row = new BenchmarkComparisonRow(
             method,
-            metrics.GetValueOrDefault(SystemFLinq),
-            metrics.GetValueOrDefault(SystemZLinq),
-            metrics.GetValueOrDefault(PersistedFLinq),
-            metrics.GetValueOrDefault(PersistedLinq),
-            metrics.GetValueOrDefault(TsavoriteFLinq),
-            metrics.GetValueOrDefault(TsavoriteLinq));
-        var system = CreatePairComparison(row,PairDefinitions[0]);
-        var persisted = CreatePairComparison(row,PairDefinitions[1]);
-        var tsavorite = CreatePairComparison(row,PairDefinitions[2]);
-        var persistedLinqTsavoriteLinq = CreatePairComparison(row,PairDefinitions[3]);
-        var persistedFLinqTsavoriteFLinq = CreatePairComparison(row,PairDefinitions[4]);
+            sourceTab,
+            left,
+            right);
         return row with{
-            SystemRatio = system,
-            PersistedRatio = persisted,
-            TsavoriteRatio = tsavorite,
-            PersistedLinqTsavoriteLinqRatio = persistedLinqTsavoriteLinq,
-            PersistedFLinqTsavoriteFLinqRatio = persistedFLinqTsavoriteFLinq,
+            PairRatio = CreatePairComparison(row,new ComparisonPairDefinition(
+                sourceTab.Id,
+                sourceTab.DisplayName,
+                sourceTab.LeftProject+"/"+sourceTab.RightProject,
+                sourceTab.LeftProject,
+                sourceTab.RightProject)),
         };
     }
 
@@ -236,40 +220,54 @@ internal static class BenchmarkComparisonFormatter{
         return ProjectMetrics.FromMeasurement(time,allocated);
     }
 
-    private static string? NormalizeProjectName(string project){
-        if(legacyProjectNames.Contains(project)){
-            throw new InvalidDataException("新形式CSVのみ対応しています。旧プロジェクト名またはSystemLINQ/System LINQを含むデータは読み込めません。");
+    private static string NormalizeProjectName(string project,BenchmarkSourceTabDefinition sourceTab){
+        if(string.Equals(project,sourceTab.LeftProject,StringComparison.OrdinalIgnoreCase)){
+            return sourceTab.LeftProject;
         }
 
-        return ProjectOrder.Contains(project,StringComparer.OrdinalIgnoreCase)
-            ? ProjectOrder.First(item => string.Equals(item,project,StringComparison.OrdinalIgnoreCase))
-            : null;
+        if(string.Equals(project,sourceTab.RightProject,StringComparison.OrdinalIgnoreCase)){
+            return sourceTab.RightProject;
+        }
+
+        return project;
     }
 
-    private static void EnsureSupportedRows(IReadOnlyList<ReportRow> rows){
-        foreach(var row in rows){
-            _ = NormalizeProjectName(row.Project);
-        }
-    }
+    private static string[] CreateCsvHeader(BenchmarkSourceTabDefinition sourceTab) => [
+        "Benchmark",
+        sourceTab.LeftProject+"時間ns",
+        sourceTab.LeftProject+"割当bytes",
+        sourceTab.RightProject+"時間ns",
+        sourceTab.RightProject+"割当bytes",
+    ];
 
-    private static void EnsureNewCsvHeader(string[] header){
-        if(header.Any(item => legacyProjectNames.Contains(item))
-            ||header.Any(static item => string.Equals(item,"Project",StringComparison.OrdinalIgnoreCase))
-            ||header.Any(static item => string.Equals(item,"Method",StringComparison.OrdinalIgnoreCase))
-            ||header.Any(static item => string.Equals(item,"Mean",StringComparison.OrdinalIgnoreCase))){
-            throw new InvalidDataException("新形式CSVのみ対応しています。旧CSV形式は読み込めません。");
-        }
-
-        if(header.Length!=csvHeader.Length){
-            throw new InvalidDataException("新形式CSVのみ対応しています。列数が一致しません。");
+    private static BenchmarkSourceTabDefinition ParseSourceTabFromHeader(string[] header){
+        if(header.Length!=5){
+            throw new InvalidDataException("Only the source-tab two-project CSV format is supported.");
         }
 
-        for(var i=0;i<csvHeader.Length;i++){
-            if(!string.Equals(header[i],csvHeader[i],StringComparison.Ordinal)){
-                throw new InvalidDataException($"新形式CSVのみ対応しています。列 '{csvHeader[i]}' が必要です。");
+        var leftProject = ExtractProjectName(header[1],"時間ns");
+        var rightProject = ExtractProjectName(header[3],"時間ns");
+        var sourceTab = BenchmarkSourceTabs.All.FirstOrDefault(tab =>
+            string.Equals(tab.LeftProject,leftProject,StringComparison.OrdinalIgnoreCase)
+            &&string.Equals(tab.RightProject,rightProject,StringComparison.OrdinalIgnoreCase));
+        if(sourceTab is null){
+            throw new InvalidDataException("Unknown benchmark source tab CSV header.");
+        }
+
+        var expected = CreateCsvHeader(sourceTab);
+        for(var i=0;i<expected.Length;i++){
+            if(!string.Equals(header[i],expected[i],StringComparison.Ordinal)){
+                throw new InvalidDataException("CSV header does not match the source-tab format.");
             }
         }
+
+        return sourceTab;
     }
+
+    private static string ExtractProjectName(string value,string suffix) =>
+        value.EndsWith(suffix,StringComparison.Ordinal)
+            ? value[..^suffix.Length]
+            : value;
 
     private static string GetCell(string[] row,int index){
         return index>=0&&index<row.Length
@@ -286,7 +284,7 @@ internal static class BenchmarkComparisonFormatter{
             return result;
         }
 
-        throw new InvalidDataException($"新形式CSVのみ対応しています。列 '{column}' は数値である必要があります。");
+        throw new InvalidDataException($"Column '{column}' must be numeric.");
     }
 
     private static long? ParseLongCell(string value,string column){
@@ -298,7 +296,7 @@ internal static class BenchmarkComparisonFormatter{
             return result;
         }
 
-        throw new InvalidDataException($"新形式CSVのみ対応しています。列 '{column}' は整数である必要があります。");
+        throw new InvalidDataException($"Column '{column}' must be an integer.");
     }
 }
 
@@ -340,40 +338,39 @@ public readonly record struct PairComparison(
 
 public readonly record struct BenchmarkComparisonRow(
     string Benchmark,
-    ProjectMetrics SystemFLinq,
-    ProjectMetrics SystemZLinq,
-    ProjectMetrics PersistedFLinq,
-    ProjectMetrics PersistedLinq,
-    ProjectMetrics TsavoriteFLinq,
-    ProjectMetrics TsavoriteLinq){
-    public PairComparison SystemRatio { get; init; }
-    public PairComparison PersistedRatio { get; init; }
-    public PairComparison TsavoriteRatio { get; init; }
-    public PairComparison PersistedLinqTsavoriteLinqRatio { get; init; }
-    public PairComparison PersistedFLinqTsavoriteFLinqRatio { get; init; }
+    BenchmarkSourceTabDefinition SourceTab,
+    ProjectMetrics Left,
+    ProjectMetrics Right){
+    public PairComparison PairRatio { get; init; }
+
+    public ProjectMetrics SystemFLinq => this.GetProject(BenchmarkComparisonFormatter.SystemFLinq);
+    public ProjectMetrics SystemZLinq => this.GetProject(BenchmarkComparisonFormatter.SystemZLinq);
+    public ProjectMetrics PersistedFLinq => this.GetProject(BenchmarkComparisonFormatter.PersistedFLinq);
+    public ProjectMetrics PersistedLinq => this.GetProject(BenchmarkComparisonFormatter.PersistedLinq);
+    public ProjectMetrics TsavoriteFLinq => this.GetProject(BenchmarkComparisonFormatter.TsavoriteFLinq);
+    public ProjectMetrics TsavoriteLinq => this.GetProject(BenchmarkComparisonFormatter.TsavoriteLinq);
+    public PairComparison SystemRatio => this.PairRatio;
+    public PairComparison PersistedRatio => this.PairRatio;
+    public PairComparison TsavoriteRatio => this.PairRatio;
+    public PairComparison PersistedLinqTsavoriteLinqRatio => this.PairRatio;
+    public PairComparison PersistedFLinqTsavoriteFLinqRatio => this.PairRatio;
 
     public ProjectMetrics GetProject(string project){
-        return project switch{
-            BenchmarkComparisonFormatter.SystemFLinq => this.SystemFLinq,
-            BenchmarkComparisonFormatter.SystemZLinq => this.SystemZLinq,
-            BenchmarkComparisonFormatter.PersistedFLinq => this.PersistedFLinq,
-            BenchmarkComparisonFormatter.PersistedLinq => this.PersistedLinq,
-            BenchmarkComparisonFormatter.TsavoriteFLinq => this.TsavoriteFLinq,
-            BenchmarkComparisonFormatter.TsavoriteLinq => this.TsavoriteLinq,
-            _ => ProjectMetrics.Missing,
-        };
+        if(string.Equals(project,this.SourceTab.LeftProject,StringComparison.OrdinalIgnoreCase)){
+            return this.Left;
+        }
+
+        if(string.Equals(project,this.SourceTab.RightProject,StringComparison.OrdinalIgnoreCase)){
+            return this.Right;
+        }
+
+        return ProjectMetrics.Missing;
     }
 
-    public PairComparison GetPair(string key){
-        return key switch{
-            "System" => this.SystemRatio,
-            "Persisted" => this.PersistedRatio,
-            "Tsavorite" => this.TsavoriteRatio,
-            "PersistedLinqTsavoriteLinq" => this.PersistedLinqTsavoriteLinqRatio,
-            "PersistedFLinqTsavoriteFLinq" => this.PersistedFLinqTsavoriteFLinqRatio,
-            _ => default,
-        };
-    }
+    public PairComparison GetPair(string key) =>
+        string.Equals(key,this.SourceTab.Id,StringComparison.OrdinalIgnoreCase)
+            ? this.PairRatio
+            : default;
 }
 
 public readonly record struct ComparisonPairDefinition(
@@ -384,14 +381,8 @@ public readonly record struct ComparisonPairDefinition(
     string RightProject);
 
 internal static class BenchmarkComparisonPairs{
-    private static readonly IReadOnlyList<IReadOnlyList<string>> Pairs = [
-        [BenchmarkComparisonFormatter.SystemFLinq,BenchmarkComparisonFormatter.SystemZLinq],
-        [BenchmarkComparisonFormatter.PersistedFLinq,BenchmarkComparisonFormatter.PersistedLinq],
-        [BenchmarkComparisonFormatter.TsavoriteFLinq,BenchmarkComparisonFormatter.TsavoriteLinq],
-    ];
-
     public static IReadOnlyList<string>? GetPairProjects(string project) =>
-        Pairs.FirstOrDefault(pair => pair.Contains(project,StringComparer.OrdinalIgnoreCase));
+        BenchmarkSourceTabs.TryGetByProject(project)?.ProjectOrder;
 }
 
 public enum RatioValueKind{

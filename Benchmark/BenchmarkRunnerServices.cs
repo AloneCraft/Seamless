@@ -356,7 +356,7 @@ public sealed class BenchmarkQueueService:IBenchmarkQueueService {
 }
 
 public interface IBenchmarkWorkerProcessService:IBenchmarkJobRunner {
-    Task<BenchmarkRunResult> RunAsync(BenchmarkCase benchmark,string runRoot,string scale,int logicalCpu,CancellationToken cancellationToken);
+    Task<BenchmarkRunResult> RunAsync(BenchmarkCase benchmark,string runRoot,BenchmarkSourceTab sourceTab,IReadOnlyList<int> preparedElementCounts,string scale,int logicalCpu,CancellationToken cancellationToken);
 }
 
 public sealed class BenchmarkWorkerProcessService:IBenchmarkWorkerProcessService {
@@ -365,8 +365,8 @@ public sealed class BenchmarkWorkerProcessService:IBenchmarkWorkerProcessService
     public Task<BenchmarkJobRunResult> RunAsync(BenchmarkJob job,string runRoot,int logicalCpu,TimeSpan timeout,CancellationToken cancellationToken) =>
         client.RunAsync(job,runRoot,logicalCpu,timeout,cancellationToken);
 
-    public async Task<BenchmarkRunResult> RunAsync(BenchmarkCase benchmark,string runRoot,string scale,int logicalCpu,CancellationToken cancellationToken) {
-        var result = await client.RunAsync(benchmark,runRoot,0,scale,logicalCpu,TimeSpan.FromMinutes(60),cancellationToken);
+    public async Task<BenchmarkRunResult> RunAsync(BenchmarkCase benchmark,string runRoot,BenchmarkSourceTab sourceTab,IReadOnlyList<int> preparedElementCounts,string scale,int logicalCpu,CancellationToken cancellationToken) {
+        var result = await client.RunAsync(benchmark,runRoot,sourceTab,preparedElementCounts,0,scale,logicalCpu,TimeSpan.FromMinutes(60),cancellationToken);
         return new BenchmarkRunResult(
             result.Project,
             result.Method,
@@ -401,7 +401,7 @@ public sealed class BenchmarkPersistentWorkerProcessService:IBenchmarkJobRunner,
         using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,timeoutSource.Token);
         this.activeJobs.AddOrUpdate(logicalCpu,1,static (_,count) => count+1);
         try {
-            return await session.RunAsync(job.ToBenchmarkCase(),job.ElementCount,"1",linkedSource.Token);
+            return await session.RunAsync(job.ToBenchmarkCase(),job.SourceTab,job.PreparedElementCounts,job.ElementCount,"1",linkedSource.Token);
         } catch(OperationCanceledException) {
             await this.ResetSessionAsync(logicalCpu,session);
             if(timeoutSource.IsCancellationRequested&&!cancellationToken.IsCancellationRequested) {
@@ -476,7 +476,7 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
         string runRoot,
         CancellationToken cancellationToken) {
         var benchmark = job.ToBenchmarkCase();
-        var artifactFolder = BenchmarkWorkerClient.CreateArtifactFolder(runRoot,benchmark,job.ElementCount);
+        var artifactFolder = BenchmarkWorkerClient.CreateArtifactFolder(runRoot,benchmark,job.SourceTab,job.ElementCount);
         var logPath = Path.Combine(artifactFolder,"inprocess.log");
         object? instance = null;
         try {
@@ -749,6 +749,7 @@ public interface IBenchmarkRunService {
         IReadOnlyList<int> logicalCpus,
         Func<IReadOnlyList<int>> logicalCpuProvider,
         IReadOnlyList<int> elementCounts,
+        BenchmarkSourceTab sourceTab,
         BenchmarkRunMode mode,
         BenchmarkExecutionProfile executionProfile,
         TimeSpan adaptiveThreshold,
@@ -781,6 +782,7 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
         IReadOnlyList<int> logicalCpus,
         Func<IReadOnlyList<int>> logicalCpuProvider,
         IReadOnlyList<int> elementCounts,
+        BenchmarkSourceTab sourceTab,
         BenchmarkRunMode mode,
         BenchmarkExecutionProfile executionProfile,
         TimeSpan adaptiveThreshold,
@@ -806,7 +808,8 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
             logicalCpuProvider,
             RestartFromRequestedElementCount: restartFromRequestedElementCount,
             ExecutionProfile: executionProfile,
-            RunRootOverride: runRootOverride);
+            RunRootOverride: runRootOverride,
+            SourceTab: sourceTab);
         try {
             var orchestratorResult = await orchestrator.RunAsync(
                 request,
@@ -837,7 +840,7 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
                 statusChanged($"実行中 {current}/{total}: {benchmark.MethodName} / CPU {cpu}");
                 BenchmarkResultItem item;
                 try {
-                    var result = await workerService.RunAsync(benchmark,runRoot,scale,cpu,cancellationToken);
+                    var result = await workerService.RunAsync(benchmark,runRoot,sourceTab,elementCounts,scale,cpu,cancellationToken);
                     item=new BenchmarkResultItem(result);
                 } catch(Exception ex) when(ex is not OperationCanceledException) {
                     item=BenchmarkResultItem.Failed(benchmark,ex);

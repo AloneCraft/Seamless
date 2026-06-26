@@ -5,6 +5,8 @@ namespace Benchmark.DotNet.Linq.Enumerable {
 
 namespace Seamless.Linq.Enumerable.Shared {
     internal static class Route {
+        public static T[] AsX<T>(this T[] source) => source;
+
         public static IEnumerable<T> AsX<T>(this IEnumerable<T> source) => source;
     }
 }

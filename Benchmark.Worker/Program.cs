@@ -11,6 +11,7 @@ Console.OutputEncoding=Encoding.UTF8;
 Console.InputEncoding=Encoding.UTF8;
 const string ElementScaleEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_SCALE";
 const string ElementCountEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_COUNT";
+const string PreparedElementCountsEnvironmentVariable = "SEAMLESS_BENCHMARK_PREPARED_ELEMENT_COUNTS";
 
 var logicalCpu = ReadRequiredIntArg(args,"--logical-cpu");
 var runRoot = ReadRequiredStringArg(args,"--run-root");
@@ -75,6 +76,7 @@ static WorkerResultMessage RunBenchmark(
     var originalError = Console.Error;
     var previousScale = Environment.GetEnvironmentVariable(ElementScaleEnvironmentVariable);
     var previousElementCount = Environment.GetEnvironmentVariable(ElementCountEnvironmentVariable);
+    var previousPreparedElementCounts = Environment.GetEnvironmentVariable(PreparedElementCountsEnvironmentVariable);
     Console.SetOut(logWriter);
     Console.SetError(logWriter);
     try{
@@ -83,6 +85,11 @@ static WorkerResultMessage RunBenchmark(
         Environment.SetEnvironmentVariable(
             ElementCountEnvironmentVariable,
             task.ElementCount>0?task.ElementCount.ToString(CultureInfo.InvariantCulture):null);
+        Environment.SetEnvironmentVariable(
+            PreparedElementCountsEnvironmentVariable,
+            task.PreparedElementCounts.Length>0
+                ? string.Join(",",task.PreparedElementCounts.Distinct().Order().Select(static count => count.ToString(CultureInfo.InvariantCulture)))
+                : null);
         var benchmarkType = ResolveBenchmarkType(task.AssemblyName,task.TypeFullName);
         using var elementScope = BeginElementCountScope(benchmarkType.Assembly,task.ElementCount,task.ElementScale);
         var config = BenchmarkWorkerRuntime.CreateConfig(task.ArtifactFolder);
@@ -129,6 +136,7 @@ static WorkerResultMessage RunBenchmark(
     }finally{
         Environment.SetEnvironmentVariable(ElementScaleEnvironmentVariable,previousScale);
         Environment.SetEnvironmentVariable(ElementCountEnvironmentVariable,previousElementCount);
+        Environment.SetEnvironmentVariable(PreparedElementCountsEnvironmentVariable,previousPreparedElementCounts);
         Console.SetOut(protocolOutput);
         Console.SetError(protocolError);
     }
@@ -249,9 +257,19 @@ internal sealed record WorkerTaskMessage(
     string AssemblyName,
     string TypeFullName,
     string MethodName,
+    BenchmarkSourceTab SourceTab,
+    int[] PreparedElementCounts,
     int ElementCount,
     string ElementScale,
     string ArtifactFolder);
+
+internal enum BenchmarkSourceTab{
+    SystemArray,
+    SystemRange,
+    SystemList,
+    SeamlessPersisted,
+    SeamlessTsavorite,
+}
 
 internal sealed record WorkerResultMessage(
     string TaskId,

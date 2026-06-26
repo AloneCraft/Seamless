@@ -9,23 +9,12 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         0,
         "新規",
         string.Empty,
-        BenchmarkExecutionProfile.Accurate,
+        BenchmarkExecutionProfile.Intermediate,
         DateTimeOffset.MinValue,
         DateTimeOffset.MinValue,
         0,
         0,
         []);
-
-    private static readonly string[] DisplayBenchmarkProjectOrder = [
-        BenchmarkComparisonFormatter.SystemFLinq,
-        BenchmarkComparisonFormatter.SystemZLinq,
-        BenchmarkComparisonFormatter.PersistedFLinq,
-        BenchmarkComparisonFormatter.PersistedLinq,
-        BenchmarkComparisonFormatter.TsavoriteFLinq,
-        BenchmarkComparisonFormatter.TsavoriteLinq,
-    ];
-
-    private static readonly HashSet<string> DisplayBenchmarkProjects = new(DisplayBenchmarkProjectOrder,StringComparer.OrdinalIgnoreCase);
 
     private readonly IBenchmarkCatalogService catalogService;
     private readonly ICpuTopologyService cpuTopologyService;
@@ -42,6 +31,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private bool? isAllBenchmarkSelectionChecked;
     private BenchmarkTab selectedTab = BenchmarkTab.Cpu;
     private ComparisonPairOption selectedComparisonPair;
+    private SourceTabOption selectedSourceTab;
     private ExecutionProfileOption selectedExecutionProfile;
     private ScaleOption? selectedScale;
     private ThresholdOption selectedThreshold;
@@ -84,52 +74,18 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.csvDiscoveryService=csvDiscoveryService;
         this.uiStateStore=uiStateStore;
         this.benchmarkRoot=benchmarkRoot;
-        this.ComparisonPairs= [
-            new ComparisonPairOption("System","System FLinq/ZLinq",BenchmarkComparisonFormatter.SystemFLinq,BenchmarkComparisonFormatter.SystemZLinq),
-            new ComparisonPairOption("Persisted","PersistedFLinq/PersistedLinq",BenchmarkComparisonFormatter.PersistedFLinq,BenchmarkComparisonFormatter.PersistedLinq),
-            new ComparisonPairOption("Tsavorite","TsavoriteFLinq/TsavoriteLinq",BenchmarkComparisonFormatter.TsavoriteFLinq,BenchmarkComparisonFormatter.TsavoriteLinq),
-        ];
-        this.BenchmarkColumnSelectionGroups= [
-            new BenchmarkColumnSelectionGroup("System","System",[
-                BenchmarkComparisonFormatter.SystemFLinq,
-                BenchmarkComparisonFormatter.SystemZLinq,
-            ]),
-            new BenchmarkColumnSelectionGroup("Persisted","Persisted",[
-                BenchmarkComparisonFormatter.PersistedFLinq,
-                BenchmarkComparisonFormatter.PersistedLinq,
-            ]),
-            new BenchmarkColumnSelectionGroup("Tsavorite","Tsavorite",[
-                BenchmarkComparisonFormatter.TsavoriteFLinq,
-                BenchmarkComparisonFormatter.TsavoriteLinq,
-            ]),
-        ];
-        this.BenchmarkProjectSelectionGroups= [
-            new BenchmarkColumnSelectionGroup(BenchmarkComparisonFormatter.SystemFLinq,"FLinq",[
-                BenchmarkComparisonFormatter.SystemFLinq,
-            ]),
-            new BenchmarkColumnSelectionGroup(BenchmarkComparisonFormatter.SystemZLinq,"ZLinq",[
-                BenchmarkComparisonFormatter.SystemZLinq,
-            ]),
-            new BenchmarkColumnSelectionGroup(BenchmarkComparisonFormatter.PersistedFLinq,"FLinq",[
-                BenchmarkComparisonFormatter.PersistedFLinq,
-            ]),
-            new BenchmarkColumnSelectionGroup(BenchmarkComparisonFormatter.PersistedLinq,"Linq",[
-                BenchmarkComparisonFormatter.PersistedLinq,
-            ]),
-            new BenchmarkColumnSelectionGroup(BenchmarkComparisonFormatter.TsavoriteFLinq,"FLinq",[
-                BenchmarkComparisonFormatter.TsavoriteFLinq,
-            ]),
-            new BenchmarkColumnSelectionGroup(BenchmarkComparisonFormatter.TsavoriteLinq,"Linq",[
-                BenchmarkComparisonFormatter.TsavoriteLinq,
-            ]),
-        ];
+        this.SourceTabs=BenchmarkSourceTabs.All.Select(static item => new SourceTabOption(item)).ToArray();
+        this.selectedSourceTab=this.SourceTabs[0];
+        this.ComparisonPairs=this.CreateComparisonPairs();
+        this.BenchmarkColumnSelectionGroups=this.CreateBenchmarkColumnSelectionGroups();
+        this.BenchmarkProjectSelectionGroups=this.CreateBenchmarkProjectSelectionGroups();
         this.selectedComparisonPair=this.ComparisonPairs[0];
         this.ExecutionProfiles= [
             new ExecutionProfileOption("正確",BenchmarkExecutionProfile.Accurate),
             new ExecutionProfileOption("中間",BenchmarkExecutionProfile.Intermediate),
             new ExecutionProfileOption("高速",BenchmarkExecutionProfile.Fast),
         ];
-        this.selectedExecutionProfile=this.ExecutionProfiles[0];
+        this.selectedExecutionProfile=this.ExecutionProfiles[1];
         this.ThresholdOptions= [
             new ThresholdOption("   1 ms",   1),
             new ThresholdOption("   2 ms",   2),
@@ -189,6 +145,23 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshSelectedLogicalCpus();
     }
 
+    private IReadOnlyList<ComparisonPairOption> CreateComparisonPairs() => [
+        new(
+            this.SelectedSourceDefinition.Id,
+            this.SelectedSourceDefinition.LeftHeader+"/"+this.SelectedSourceDefinition.RightHeader,
+            this.SelectedSourceDefinition.LeftProject,
+            this.SelectedSourceDefinition.RightProject),
+    ];
+
+    private IReadOnlyList<BenchmarkColumnSelectionGroup> CreateBenchmarkColumnSelectionGroups() => [
+        new BenchmarkColumnSelectionGroup("Active","Active",["Left","Right"]),
+    ];
+
+    private IReadOnlyList<BenchmarkColumnSelectionGroup> CreateBenchmarkProjectSelectionGroups() => [
+        new BenchmarkColumnSelectionGroup("Left","Left",["Left"]),
+        new BenchmarkColumnSelectionGroup("Right","Right",["Right"]),
+    ];
+
     public ObservableCollection<BenchmarkTableRow> BenchmarkRows { get; } = [];
     public ObservableCollection<BenchmarkResultItem> ResultItems { get; } = [];
     public ObservableCollection<BenchmarkResultItem> VisibleResultItems { get; } = [];
@@ -202,6 +175,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     public IReadOnlyList<BenchmarkColumnSelectionGroup> BenchmarkColumnSelectionGroups { get; }
     public IReadOnlyList<BenchmarkColumnSelectionGroup> BenchmarkProjectSelectionGroups { get; }
     public IReadOnlyList<ComparisonPairOption> ComparisonPairs { get; }
+    public IReadOnlyList<SourceTabOption> SourceTabs { get; }
     public IReadOnlyList<ExecutionProfileOption> ExecutionProfiles { get; }
     public IReadOnlyList<MetricOption> Metrics { get; }
     public IReadOnlyList<ChartModeOption> ChartModes { get; }
@@ -275,6 +249,24 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             }
         }
     }
+
+    public SourceTabOption SelectedSourceTab {
+        get => this.selectedSourceTab;
+        set {
+            if(this.IsRunning) {
+                return;
+            }
+
+            if(this.SetProperty(ref this.selectedSourceTab,value)) {
+                this.selectedComparisonPair=this.CreateComparisonPairs()[0];
+                this.OnPropertyChanged(nameof(this.SelectedComparisonPair));
+                this.OnPropertyChanged(nameof(this.SelectedSourceDefinition));
+                _=this.RefreshAsync();
+            }
+        }
+    }
+
+    public BenchmarkSourceTabDefinition SelectedSourceDefinition => this.SelectedSourceTab.Definition;
 
     public string ChartLeftLegendLabel => GetChartLegendLabel(this.SelectedComparisonPair.LeftProject);
     public string ChartRightLegendLabel => GetChartLegendLabel(this.SelectedComparisonPair.RightProject);
@@ -438,7 +430,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     internal void SelectBenchmarkCell(BenchmarkTableRow row,string project,BenchmarkCellSelectionGesture gesture) {
         var rowIndex = this.BenchmarkRows.IndexOf(row);
-        var columnIndex = GetProjectColumnIndex(project);
+        var columnIndex = this.GetProjectColumnIndex(project);
         if(rowIndex<0||columnIndex<0) {
             return;
         }
@@ -457,7 +449,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     internal void SelectBenchmarkColumnGroup(BenchmarkColumnSelectionGroup group,BenchmarkCellSelectionGesture gesture) {
         var columns = group.ColumnKeys
-            .Select(GetProjectColumnIndex)
+            .Select(this.GetProjectColumnIndex)
             .Where(static index => index>=0)
             .Order()
             .ToArray();
@@ -534,11 +526,12 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     private IReadOnlyList<BenchmarkTableRow> CreateMethodRows(IReadOnlyList<BenchmarkCase> cases) {
         return cases
-            .Where(static item => DisplayBenchmarkProjects.Contains(item.Project))
+            .Where(item => this.SelectedSourceDefinition.ProjectOrder.Contains(item.Project,StringComparer.OrdinalIgnoreCase))
             .GroupBy(static item => item.MethodName,StringComparer.OrdinalIgnoreCase)
             .OrderBy(static group => group.Key,StringComparer.OrdinalIgnoreCase)
-            .Select(static group => new BenchmarkTableRow(
+            .Select(group => new BenchmarkTableRow(
                 group.Key,
+                this.SelectedSourceDefinition,
                 group
                     .GroupBy(static item => item.Project,StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(static item => item.Key,static item => item.First(),StringComparer.OrdinalIgnoreCase)))
@@ -568,7 +561,8 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private IEnumerable<BenchmarkProjectCell> GetBenchmarkCells(IReadOnlyList<string> projectKeys) {
         foreach(var row in this.BenchmarkRows) {
             foreach(var project in projectKeys) {
-                if(row.GetProjectCell(project) is { } cell) {
+                var resolvedProject = this.ResolveProjectKey(project);
+                if(row.GetProjectCell(resolvedProject) is { } cell) {
                     yield return cell;
                 }
             }
@@ -598,7 +592,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private void ApplyBenchmarkCellSelection(BenchmarkCellSelectionTarget target,BenchmarkCellSelectionGesture gesture) {
         var result = BenchmarkCellSelectionLogic.Apply(
             this.BenchmarkRows.Count,
-            DisplayBenchmarkProjectOrder.Length,
+            this.SelectedSourceDefinition.ProjectOrder.Count,
             this.GetSelectedBenchmarkUiCoordinates(),
             this.benchmarkSelectionAnchor,
             target,
@@ -606,8 +600,8 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         var selected = result.SelectedCells;
         for(var rowIndex = 0; rowIndex<this.BenchmarkRows.Count; rowIndex++) {
             var row = this.BenchmarkRows[rowIndex];
-            for(var columnIndex = 0; columnIndex<DisplayBenchmarkProjectOrder.Length; columnIndex++) {
-                if(row.GetProjectCell(DisplayBenchmarkProjectOrder[columnIndex]) is { } cell) {
+            for(var columnIndex = 0; columnIndex<this.SelectedSourceDefinition.ProjectOrder.Count; columnIndex++) {
+                if(row.GetProjectCell(this.SelectedSourceDefinition.ProjectOrder[columnIndex]) is { } cell) {
                     cell.IsUiSelected=selected.Contains(new BenchmarkCellCoordinate(rowIndex,columnIndex));
                 }
             }
@@ -618,8 +612,8 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private IEnumerable<BenchmarkCellCoordinate> GetSelectedBenchmarkUiCoordinates() {
         for(var rowIndex = 0; rowIndex<this.BenchmarkRows.Count; rowIndex++) {
             var row = this.BenchmarkRows[rowIndex];
-            for(var columnIndex = 0; columnIndex<DisplayBenchmarkProjectOrder.Length; columnIndex++) {
-                if(row.GetProjectCell(DisplayBenchmarkProjectOrder[columnIndex]) is { IsUiSelected: true }) {
+            for(var columnIndex = 0; columnIndex<this.SelectedSourceDefinition.ProjectOrder.Count; columnIndex++) {
+                if(row.GetProjectCell(this.SelectedSourceDefinition.ProjectOrder[columnIndex]) is { IsUiSelected: true }) {
                     yield return new BenchmarkCellCoordinate(rowIndex,columnIndex);
                 }
             }
@@ -653,13 +647,23 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 : null;
     }
 
-    private static int GetProjectColumnIndex(string project) =>
-        Array.FindIndex(DisplayBenchmarkProjectOrder,item => string.Equals(item,project,StringComparison.OrdinalIgnoreCase));
+    private int GetProjectColumnIndex(string project) =>
+        this.SelectedSourceDefinition.ProjectOrder
+            .Select((item,index) => new { item,index })
+            .FirstOrDefault(item => string.Equals(item.item,this.ResolveProjectKey(project),StringComparison.OrdinalIgnoreCase))
+            ?.index??-1;
+
+    private string ResolveProjectKey(string project) =>
+        project switch {
+            "Left" => this.SelectedSourceDefinition.LeftProject,
+            "Right" => this.SelectedSourceDefinition.RightProject,
+            _ => project,
+        };
 
     private async Task RefreshCsvScanAsync(CancellationToken cancellationToken) {
         var scan = await Task.Run(() => {
             cancellationToken.ThrowIfCancellationRequested();
-            return this.csvDiscoveryService.Scan(this.benchmarkRoot,this.SelectedExecutionProfile.Profile);
+            return this.csvDiscoveryService.Scan(this.benchmarkRoot,this.SelectedExecutionProfile.Profile,this.SelectedSourceDefinition.Tab);
         },cancellationToken);
         this.resultStore.UpsertMany(scan.Results);
         this.resultStore.Save();
@@ -762,6 +766,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 cpus,
                 this.GetSelectedLogicalCpus,
                 this.GetSelectedElementCounts(),
+                this.SelectedSourceDefinition.Tab,
                 BenchmarkRunMode.Adaptive,
                 this.SelectedExecutionProfile.Profile,
                 this.GetAdaptiveThreshold(),
@@ -1011,12 +1016,8 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.ResultItems.Clear();
         this.VisibleResultItems.Clear();
         foreach(var row in rows) {
-            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.SystemFLinq,row.SystemFLinq,elementCount);
-            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.SystemZLinq,row.SystemZLinq,elementCount);
-            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.PersistedFLinq,row.PersistedFLinq,elementCount);
-            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.PersistedLinq,row.PersistedLinq,elementCount);
-            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.TsavoriteFLinq,row.TsavoriteFLinq,elementCount);
-            this.AddResult(row.Benchmark,BenchmarkComparisonFormatter.TsavoriteLinq,row.TsavoriteLinq,elementCount);
+            this.AddResult(row.Benchmark,row.SourceTab.LeftProject,row.Left,elementCount);
+            this.AddResult(row.Benchmark,row.SourceTab.RightProject,row.Right,elementCount);
         }
     }
 
@@ -1074,7 +1075,10 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 return;
             }
 
-            var path = Path.Combine(run.RunRoot,"N"+selectedN.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)+".csv");
+            var path = Path.Combine(
+                run.RunRoot,
+                this.SelectedSourceDefinition.Id,
+                "N"+selectedN.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)+".csv");
             if(!File.Exists(path)) {
                 this.comparisonRows= [];
                 this.ResultItems.Clear();
@@ -1137,7 +1141,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             .ToArray();
         return rows.Length==0
             ? []
-            : BenchmarkComparisonFormatter.BuildComparisonRows(rows);
+            : BenchmarkComparisonFormatter.BuildComparisonRows(rows,this.SelectedSourceDefinition);
     }
 
     private IReadOnlyList<BenchmarkComparisonRow> BuildCurrentRunComparisonRows() {
@@ -1153,7 +1157,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             .ToArray();
         return rows.Length==0
             ? []
-            : BenchmarkComparisonFormatter.BuildComparisonRows(rows);
+            : BenchmarkComparisonFormatter.BuildComparisonRows(rows,this.SelectedSourceDefinition);
     }
 
     private IReadOnlyList<BenchmarkComparisonRow> BuildComparisonRowsForElementCount(int elementCount) {
@@ -1170,12 +1174,12 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             .ToArray();
         return rows.Length==0
             ? []
-            : BenchmarkComparisonFormatter.BuildComparisonRows(rows);
+            : BenchmarkComparisonFormatter.BuildComparisonRows(rows,this.SelectedSourceDefinition);
     }
 
     private void ApplySkippedCells(int selectedElementCount) {
         foreach(var row in this.BenchmarkRows) {
-            foreach(var pair in BenchmarkPairs()) {
+            foreach(var pair in this.BenchmarkPairs()) {
                 var left = row.GetProjectCell(pair.LeftProject);
                 var right = row.GetProjectCell(pair.RightProject);
                 if(left is not { HasCase: true }||right is not { HasCase: true }) {
@@ -1197,10 +1201,8 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
-    private static IReadOnlyList<(string LeftProject,string RightProject)> BenchmarkPairs() => [
-        (BenchmarkComparisonFormatter.SystemFLinq,BenchmarkComparisonFormatter.SystemZLinq),
-        (BenchmarkComparisonFormatter.PersistedFLinq,BenchmarkComparisonFormatter.PersistedLinq),
-        (BenchmarkComparisonFormatter.TsavoriteFLinq,BenchmarkComparisonFormatter.TsavoriteLinq),
+    private IReadOnlyList<(string LeftProject,string RightProject)> BenchmarkPairs() => [
+        (this.SelectedSourceDefinition.LeftProject,this.SelectedSourceDefinition.RightProject),
     ];
 
     private bool HasResult(string method,string project,int elementCount) =>
@@ -1284,7 +1286,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             .ToArray();
         return results.Length==0
             ? []
-            : BenchmarkComparisonFormatter.BuildComparisonRows(results.Select(CreateReportRowForSelectedElementCount).ToArray());
+            : BenchmarkComparisonFormatter.BuildComparisonRows(results.Select(CreateReportRowForSelectedElementCount).ToArray(),this.SelectedSourceDefinition);
     }
 
     private static ReportRow CreateReportRowForSelectedElementCount(BenchmarkResultItem item) =>
@@ -1424,15 +1426,11 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private static string GetChartLegendLabel(string project) =>
-        project switch {
-            BenchmarkComparisonFormatter.SystemFLinq => "FLinq",
-            BenchmarkComparisonFormatter.SystemZLinq => "ZLinq",
-            BenchmarkComparisonFormatter.PersistedFLinq => "FLinq",
-            BenchmarkComparisonFormatter.PersistedLinq => "Linq",
-            BenchmarkComparisonFormatter.TsavoriteFLinq => "FLinq",
-            BenchmarkComparisonFormatter.TsavoriteLinq => "Linq",
-            _ => project,
-        };
+        BenchmarkSourceTabs.TryGetByProject(project) is { } tab
+            ? string.Equals(project,tab.LeftProject,StringComparison.OrdinalIgnoreCase)
+                ? tab.LeftHeader
+                : tab.RightHeader
+            : project;
 
     private void ApplyCurrentSort() {
         if(this.BenchmarkRows.Count<2) {
