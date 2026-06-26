@@ -496,7 +496,18 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             return;
         }
 
-        this.SetBenchmarkCells(row.ProjectCells,row.IsSelectionChecked is false);
+        var selectedRows = this.BenchmarkRows
+            .Where(static item => item.IsUiSelected)
+            .ToArray();
+        var targetRows = row.IsUiSelected&&selectedRows.Length>0
+            ? selectedRows
+            : [row];
+        var targetCells = targetRows
+            .SelectMany(static item => item.ProjectCells)
+            .Where(static cell => cell.HasCase)
+            .ToArray();
+        var selected = GetSelectionState(targetCells) is not true;
+        this.SetBenchmarkCells(targetCells,selected);
     }
 
     internal void SelectAllBenchmarkUiCells() {
@@ -1454,14 +1465,14 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     private void UpdateChart(bool preserveExistingWhenNoMeasuredPoints = true) {
         var elementComparisonRows = this.BuildElementComparisonRows();
-        var hasMeasuredPoint = elementComparisonRows.Any(static row => row.Left.HasMeasuredValue||row.Right.HasMeasuredValue);
+        var points = this.BuildBenchmarkChartPoints(elementComparisonRows);
+        var hasMeasuredPoint = points.Any(static point => point.LeftValue>0||point.RightValue>0);
         if(preserveExistingWhenNoMeasuredPoints&&this.ChartPoints.Count>0&&!hasMeasuredPoint) {
             return;
         }
 
         this.ChartPoints.Clear();
         this.ChartWarnings.Clear();
-        var points = this.BuildBenchmarkChartPoints(elementComparisonRows);
         foreach(var item in points.Reverse()) {
             this.ChartPoints.Add(item);
         }
@@ -1484,8 +1495,8 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         BenchmarkComparisonRow? comparisonRow = rowsByBenchmark.TryGetValue(row.MethodName,out var found)
             ? found
             : null;
-        var left = comparisonRow?.GetProject(this.SelectedComparisonPair.LeftProject)??ProjectMetrics.Missing;
-        var right = comparisonRow?.GetProject(this.SelectedComparisonPair.RightProject)??ProjectMetrics.Missing;
+        var left = this.GetChartMetrics(row,this.SelectedComparisonPair.LeftProject,comparisonRow);
+        var right = this.GetChartMetrics(row,this.SelectedComparisonPair.RightProject,comparisonRow);
         var leftValue = GetMetricValue(left,this.SelectedMetric.Kind);
         var rightValue = GetMetricValue(right,this.SelectedMetric.Kind);
         var leftNumber = Math.Max(0,leftValue??0);
@@ -1513,6 +1524,18 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             rightText,
             tooltip,
             ratio);
+    }
+
+    private ProjectMetrics GetChartMetrics(
+        BenchmarkTableRow row,
+        string project,
+        BenchmarkComparisonRow? comparisonRow) {
+        var cellMetrics = row.GetProjectCell(project)?.Metrics;
+        if(cellMetrics is { HasMeasuredValue: true }) {
+            return cellMetrics.Value;
+        }
+
+        return comparisonRow?.GetProject(project)??ProjectMetrics.Missing;
     }
 
     private IReadOnlyList<BenchmarkComparisonRow> BuildElementComparisonRows() {
