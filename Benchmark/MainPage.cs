@@ -864,7 +864,6 @@ public sealed class MainPage:ContentPage{
                 grid.Add(label,0,0);
                 Grid.SetColumnSpan(label,3);
                 Grid.SetRowSpan(label,3);
-                this.AddMetricCompletedBorder(grid,cellPath);
                 var tap = new TapGestureRecognizer();
                 tap.Tapped+=(_,_) => {
                     if(grid.BindingContext is BenchmarkTableRow row){
@@ -899,33 +898,6 @@ public sealed class MainPage:ContentPage{
         grid.Add(background,0,0);
         Grid.SetColumnSpan(background,Math.Max(1,grid.ColumnDefinitions.Count));
         Grid.SetRowSpan(background,Math.Max(1,grid.RowDefinitions.Count));
-    }
-
-    private void AddMetricCompletedBorder(Grid grid,string cellPath){
-        var color = Color.FromArgb("#22C55E");
-        var top = this.CreateMetricBorderSegment(color);
-        var bottom = this.CreateMetricBorderSegment(color);
-        var left = this.CreateMetricBorderSegment(color);
-        var right = this.CreateMetricBorderSegment(color);
-        top.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsCompletedVisual));
-        bottom.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsCompletedVisual));
-        left.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsCompletedVisual));
-        right.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsCompletedVisual));
-        grid.Add(top,0,0);
-        Grid.SetColumnSpan(top,3);
-        grid.Add(bottom,0,2);
-        Grid.SetColumnSpan(bottom,3);
-        grid.Add(left,0,0);
-        Grid.SetRowSpan(left,3);
-        grid.Add(right,2,0);
-        Grid.SetRowSpan(right,3);
-    }
-
-    private BoxView CreateMetricBorderSegment(Color color){
-        return new BoxView{
-            BackgroundColor=color,
-            InputTransparent=true,
-        };
     }
 
     private DataGridTemplateColumn CreateTextColumn(string header,string property,BenchmarkGridSortColumn sortColumn,double width,TextAlignment alignment){
