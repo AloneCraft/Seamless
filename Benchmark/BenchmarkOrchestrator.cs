@@ -26,6 +26,7 @@ internal sealed class BenchmarkOrchestrator {
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
         var state = this.stateManager.LoadLatestUnfinished()??this.CreateState(request);
+        this.ReconcileStateWithRequest(state,request);
         this.stateManager.SaveLatestRun(state.RunRoot);
         this.stateManager.Save(state);
 
@@ -281,6 +282,26 @@ internal sealed class BenchmarkOrchestrator {
         }
 
         return state;
+    }
+
+    private void ReconcileStateWithRequest(ProgressState state,BenchmarkRunRequest request) {
+        if(state.Jobs.Count>0) {
+            state.Jobs=state.Jobs
+                .Where(job => request.Benchmarks.Any(benchmark => SameCase(benchmark,job)))
+                .ToList();
+        }
+
+        if(state.Mode==BenchmarkRunMode.Adaptive) {
+            var requestedMethods = request.Benchmarks
+                .Select(static benchmark => benchmark.MethodName)
+                .ToHashSet(StringComparer.Ordinal);
+            state.AdaptiveStates=state.AdaptiveStates
+                .Where(adaptiveState => requestedMethods.Contains(adaptiveState.MethodName))
+                .ToList();
+            foreach(var method in requestedMethods.Where(method => state.AdaptiveStates.All(item => !string.Equals(item.MethodName,method,StringComparison.Ordinal)))) {
+                state.AdaptiveStates.Add(new AdaptiveBenchmarkState { MethodName=method });
+            }
+        }
     }
 
     private IEnumerable<BenchmarkJob> CreateJobs(IEnumerable<BenchmarkCase> benchmarks,IEnumerable<int> elementCounts) {
