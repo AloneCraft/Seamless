@@ -7,18 +7,20 @@ using Syncfusion.Maui.Toolkit.Charts;
 namespace Benchmark;
 
 public sealed class MainPage:ContentPage{
-    private const double CpuCheckBoxWidth = 40;
+    private const double CpuCheckBoxWidth = 34;
     private const double CpuCheckBoxHeight = 28;
     private const double BenchmarkSelectionColumnWidth = 52;
     private const double BenchmarkAggregateCheckBoxSize = 32;
-    private const double BenchmarkCellCheckBoxWidth = 40;
+    private const double BenchmarkCellCheckBoxWidth = 34;
     private const double BenchmarkCellCheckBoxHeight = 28;
-    private const double BenchmarkCellCheckSlotWidth = 46;
+    private const double BenchmarkProjectStatusColumnWidth = 202;
+    private const double BenchmarkProjectMetricColumnWidth = 78;
+    private const double BenchmarkCellCheckSlotWidth = 38;
     private const double BenchmarkHeaderCheckSlotWidth = 38;
     private const double BenchmarkScrollBarSize = 20;
     private const double CpuLogicalColumnWidth = 220;
-    private const double CpuLogicalCheckColumnWidth = 46;
-    private const double CpuLogicalNumberWidth = 164;
+    private const double CpuLogicalCheckColumnWidth = 38;
+    private const double CpuLogicalNumberWidth = 26;
     private BenchmarkRunnerViewModel? viewModel;
 
 #if WINDOWS
@@ -427,8 +429,8 @@ public sealed class MainPage:ContentPage{
         var timeMapping = cellPath+"Time";
         var allocatedMapping = cellPath+"Allocated";
         grid.Columns.Add(this.CreateProjectCheckColumn(checkMapping,cellPath));
-        grid.Columns.Add(this.CreateProjectTextColumn("Time",timeMapping,cellPath,cellPath+"."+nameof(BenchmarkProjectCell.TimeText),timeSortColumn,96,TextAlignment.End));
-        grid.Columns.Add(this.CreateProjectTextColumn("Allocated",allocatedMapping,cellPath,cellPath+"."+nameof(BenchmarkProjectCell.AllocatedText),allocatedSortColumn,96,TextAlignment.End));
+        grid.Columns.Add(this.CreateProjectTextColumn("Time",timeMapping,cellPath,cellPath+"."+nameof(BenchmarkProjectCell.TimeText),timeSortColumn,BenchmarkProjectMetricColumnWidth,TextAlignment.End));
+        grid.Columns.Add(this.CreateProjectTextColumn("Allocated",allocatedMapping,cellPath,cellPath+"."+nameof(BenchmarkProjectCell.AllocatedText),allocatedSortColumn,BenchmarkProjectMetricColumnWidth,TextAlignment.End));
         return [checkMapping,timeMapping,allocatedMapping];
     }
 
@@ -597,10 +599,10 @@ public sealed class MainPage:ContentPage{
         return new DataGridTemplateColumn{
             MappingName=mappingName,
             HeaderText=string.Empty,
-            Width=166,
+            Width=BenchmarkProjectStatusColumnWidth,
             AllowSorting=false,
             HeaderTemplate=new DataTemplate(() => new Label{
-                Text=string.Empty,
+                Text="N",
                 FontSize=12,
                 FontAttributes=FontAttributes.Bold,
                 TextColor=Color.FromArgb("#0F172A"),
@@ -679,6 +681,7 @@ public sealed class MainPage:ContentPage{
                 };
                 cpuLabel.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.HasCpuDisplay));
                 cpuLabel.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.LogicalProcessorText));
+                cpuLabel.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.LogicalProcessorText));
                 var detail = new Label{
                     FontSize=9,
                     FontAttributes=FontAttributes.Bold,
@@ -688,11 +691,14 @@ public sealed class MainPage:ContentPage{
                     VerticalTextAlignment=TextAlignment.Center,
                 };
                 detail.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionText));
+                detail.SetBinding(Label.TextColorProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionTextColor));
+                detail.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionText));
                 var detailHost = new Grid{
                     BackgroundColor=Colors.Transparent,
                     HorizontalOptions=LayoutOptions.Fill,
                     VerticalOptions=LayoutOptions.Fill,
                 };
+                detailHost.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionText));
                 detailHost.Add(detail,0,0);
                 var detailTap = new TapGestureRecognizer();
                 detailTap.Tapped+=(_,_) => {
@@ -753,6 +759,8 @@ public sealed class MainPage:ContentPage{
                     Padding=new Thickness(2,0),
                 };
                 label.SetBinding(Label.TextProperty,bindingPath);
+                label.SetBinding(ToolTipProperties.TextProperty,bindingPath);
+                grid.SetBinding(ToolTipProperties.TextProperty,bindingPath);
                 grid.Add(runningBackground,0,0);
                 Grid.SetColumnSpan(runningBackground,3);
                 Grid.SetRowSpan(runningBackground,3);
@@ -1044,7 +1052,7 @@ public sealed class MainPage:ContentPage{
         };
         var headerGrid = new Grid{
             ColumnDefinitions = {
-                new ColumnDefinition { Width = new GridLength(32) },
+                new ColumnDefinition { Width = new GridLength(CpuLogicalCheckColumnWidth) },
                 new ColumnDefinition { Width = new GridLength(24) },
                 new ColumnDefinition { Width = GridLength.Star },
                 new ColumnDefinition { Width = new GridLength(24) },
@@ -1179,7 +1187,7 @@ public sealed class MainPage:ContentPage{
         var labelWidth = section.Rows.Count==0
             ? 24
             : section.Rows.Max(static row => row.Label.Length)*7;
-        return Math.Max(126,CpuLogicalCheckColumnWidth+24+labelWidth+22);
+        return Math.Max(180,CpuLogicalCheckColumnWidth+24+labelWidth+42);
     }
 
     private DataGridTemplateColumn CreateCpuLogicalColumn(CpuTableColumn column){
@@ -1196,7 +1204,7 @@ public sealed class MainPage:ContentPage{
                         new ColumnDefinition { Width = new GridLength(CpuLogicalCheckColumnWidth) },
                         new ColumnDefinition { Width = new GridLength(18) },
                         new ColumnDefinition { Width = new GridLength(24) },
-                        new ColumnDefinition { Width = new GridLength(30) },
+                        new ColumnDefinition { Width = new GridLength(CpuLogicalNumberWidth) },
                         new ColumnDefinition { Width = GridLength.Star },
                     },
                     ColumnSpacing=2,
@@ -1229,6 +1237,7 @@ public sealed class MainPage:ContentPage{
                     LineBreakMode=LineBreakMode.TailTruncation,
                 };
                 numberLabel.SetBinding(Label.TextProperty,cellPath+"."+nameof(CpuTableCell.LogicalProcessorText));
+                numberLabel.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(CpuTableCell.LogicalProcessorText));
                 var statusLabel = new Label{
                     FontSize=10,
                     TextColor=Color.FromArgb("#334155"),
@@ -1237,6 +1246,8 @@ public sealed class MainPage:ContentPage{
                     LineBreakMode=LineBreakMode.TailTruncation,
                 };
                 statusLabel.SetBinding(Label.TextProperty,cellPath+"."+nameof(CpuTableCell.CellStatusText));
+                statusLabel.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(CpuTableCell.DisplayText));
+                layout.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(CpuTableCell.DisplayText));
                 layout.Add(check,0,0);
                 layout.Add(spinner,1,0);
                 layout.Add(badge,2,0);

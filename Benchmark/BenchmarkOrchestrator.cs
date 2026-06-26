@@ -89,7 +89,7 @@ internal sealed class BenchmarkOrchestrator {
             cancellationToken.ThrowIfCancellationRequested();
             var elementCount = state.ElementCounts[elementCountIndex];
             var activeCases = benchmarks
-                .Where(benchmark => !IsAdaptiveCaseStopped(state,benchmark))
+                .Where(benchmark => !IsAdaptivePairStopped(state,benchmarks,benchmark))
                 .OrderBy(static item => item.MethodName,StringComparer.OrdinalIgnoreCase)
                 .ThenBy(static item => item.Project,StringComparer.OrdinalIgnoreCase)
                 .ToArray();
@@ -355,13 +355,42 @@ internal sealed class BenchmarkOrchestrator {
         &&string.Equals(benchmark.TypeFullName,job.TypeFullName,StringComparison.Ordinal)
         &&string.Equals(benchmark.MethodName,job.MethodName,StringComparison.Ordinal);
 
-    private static bool IsAdaptiveCaseStopped(ProgressState state,BenchmarkCase benchmark) =>
+    private static bool IsAdaptivePairStopped(
+        ProgressState state,
+        IReadOnlyList<BenchmarkCase> benchmarks,
+        BenchmarkCase benchmark) {
+        if(IsAdaptiveCaseFailed(state,benchmark)) {
+            return true;
+        }
+
+        var pairProjects = BenchmarkComparisonPairs.GetPairProjects(benchmark.Project);
+        if(pairProjects is null) {
+            return IsAdaptiveCaseOverThreshold(state,benchmark);
+        }
+
+        var pairCases = pairProjects
+            .Select(project => benchmarks.FirstOrDefault(candidate =>
+                string.Equals(candidate.Project,project,StringComparison.OrdinalIgnoreCase)
+                &&string.Equals(candidate.MethodName,benchmark.MethodName,StringComparison.Ordinal)))
+            .Where(static candidate => candidate is not null)
+            .Select(static candidate => candidate!)
+            .ToArray();
+        if(pairCases.Length!=pairProjects.Count) {
+            return IsAdaptiveCaseOverThreshold(state,benchmark);
+        }
+
+        return pairCases.All(pairCase => IsAdaptiveCaseOverThreshold(state,pairCase));
+    }
+
+    private static bool IsAdaptiveCaseFailed(ProgressState state,BenchmarkCase benchmark) =>
+        state.Jobs.Any(job => SameCase(benchmark,job)&&job.Status==JobStatus.Failed);
+
+    private static bool IsAdaptiveCaseOverThreshold(ProgressState state,BenchmarkCase benchmark) =>
         state.Jobs.Any(job =>
             SameCase(benchmark,job)
-            &&(job.Status==JobStatus.Failed
-                ||(job.Status==JobStatus.Completed
-                    &&job.MeanNanoseconds is { } mean
-                    &&mean>state.AdaptiveThresholdNanoseconds)));
+            &&job.Status==JobStatus.Completed
+            &&job.MeanNanoseconds is { } mean
+            &&mean>state.AdaptiveThresholdNanoseconds);
 
     private static IReadOnlyList<int> NormalizeCpus(IReadOnlyList<int> cpus) =>
         cpus.Count==0 ? [0] : cpus.Distinct().Order().ToArray();
