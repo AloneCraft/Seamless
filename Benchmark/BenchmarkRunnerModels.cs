@@ -134,6 +134,8 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.statusText=hasCase?"未実行":"対象なし";
     }
 
+    public event EventHandler? UiSelectionChanged;
+
     public string Project { get; }
     public bool HasCase { get; }
     public ProjectMetrics Metrics => this.metrics;
@@ -146,7 +148,11 @@ public sealed class BenchmarkProjectCell:ObservableObject{
 
     public bool IsUiSelected{
         get => this.isUiSelected;
-        set => this.SetProperty(ref this.isUiSelected,this.HasCase&&value);
+        set{
+            if(this.SetProperty(ref this.isUiSelected,this.HasCase&&value)){
+                this.UiSelectionChanged?.Invoke(this,EventArgs.Empty);
+            }
+        }
     }
 
     public string StatusIcon{
@@ -313,6 +319,7 @@ public sealed class BenchmarkColumnSelectionGroup:ObservableObject{
 
 public sealed class BenchmarkTableRow:ObservableObject{
     private bool isSelected;
+    private bool isUiSelected;
     private bool? isSelectionChecked;
     private string systemRatioTimeText = string.Empty;
     private string systemRatioAllocatedText = string.Empty;
@@ -344,6 +351,10 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.PersistedLinqCell=this.CreateCell(BenchmarkComparisonFormatter.PersistedLinq);
         this.TsavoriteFLinqCell=this.CreateCell(BenchmarkComparisonFormatter.TsavoriteFLinq);
         this.TsavoriteLinqCell=this.CreateCell(BenchmarkComparisonFormatter.TsavoriteLinq);
+        foreach(var cell in this.ProjectCells){
+            cell.UiSelectionChanged+=this.OnCellUiSelectionChanged;
+        }
+        this.RefreshUiSelectionState();
     }
 
     public string MethodName { get; }
@@ -359,6 +370,11 @@ public sealed class BenchmarkTableRow:ObservableObject{
     public bool IsSelected{
         get => this.isSelected;
         set => this.SetProperty(ref this.isSelected,value);
+    }
+
+    public bool IsUiSelected{
+        get => this.isUiSelected;
+        private set => this.SetProperty(ref this.isUiSelected,value);
     }
 
     public bool? IsSelectionChecked{
@@ -481,6 +497,15 @@ public sealed class BenchmarkTableRow:ObservableObject{
         var state = GetSelectionState(this.ProjectCells);
         this.IsSelectionChecked=state;
         this.IsSelected=state is true or null;
+    }
+
+    public void RefreshUiSelectionState(){
+        this.IsUiSelected=BenchmarkRowUiSelectionLogic.IsWholeRowSelected(
+            this.ProjectCells.Select(static cell => new BenchmarkRowUiSelectionCell(cell.HasCase,cell.IsUiSelected)));
+    }
+
+    private void OnCellUiSelectionChanged(object? sender,EventArgs args){
+        this.RefreshUiSelectionState();
     }
 
     private static bool? GetSelectionState(IEnumerable<BenchmarkProjectCell> cells){

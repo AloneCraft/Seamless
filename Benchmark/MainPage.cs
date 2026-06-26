@@ -295,8 +295,7 @@ public sealed class MainPage:ContentPage{
             HeaderRowHeight=30,
             AllowTriStateSorting=false,
             SortingMode=DataGridSortingMode.None,
-            SelectionMode=DataGridSelectionMode.Extended,
-            SelectionUnit=DataGridSelectionUnit.Row,
+            SelectionMode=DataGridSelectionMode.None,
             HorizontalScrollBarVisibility=ScrollBarVisibility.Always,
             VerticalScrollBarVisibility=ScrollBarVisibility.Always,
             DefaultColumnWidth=92,
@@ -387,6 +386,7 @@ public sealed class MainPage:ContentPage{
                     }
                 };
                 selectionHost.GestureRecognizers.Add(selectionTap);
+                this.AddBenchmarkRowUiSelectionBackground(layout);
                 layout.Add(checkHost,0,0);
                 layout.Add(selectionHost,1,0);
                 return layout;
@@ -675,7 +675,6 @@ public sealed class MainPage:ContentPage{
                 content.Add(checkHost,0,0);
                 content.Add(detailHost,1,0);
                 layout.Add(content,1,1);
-                this.AddBenchmarkUiSelectionBorder(layout,cellPath);
                 return layout;
             }),
         };
@@ -729,7 +728,6 @@ public sealed class MainPage:ContentPage{
                 Grid.SetColumnSpan(label,3);
                 Grid.SetRowSpan(label,3);
                 this.AddMetricCompletedBorder(grid,cellPath);
-                this.AddBenchmarkUiSelectionBorder(grid,cellPath);
                 var tap = new TapGestureRecognizer();
                 tap.Tapped+=(_,_) => {
                     if(grid.BindingContext is BenchmarkTableRow row){
@@ -744,14 +742,26 @@ public sealed class MainPage:ContentPage{
 
     private void AddBenchmarkUiSelectionBackground(Grid grid,string cellPath){
         var background = new BoxView{
-            BackgroundColor=Color.FromArgb("#DBEAFE"),
-            Opacity=0.52,
+            BackgroundColor=Color.FromArgb("#E9D5FF"),
+            Opacity=0.75,
             InputTransparent=true,
         };
         background.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsUiSelected));
         grid.Add(background,0,0);
         Grid.SetColumnSpan(background,3);
         Grid.SetRowSpan(background,3);
+    }
+
+    private void AddBenchmarkRowUiSelectionBackground(Grid grid){
+        var background = new BoxView{
+            BackgroundColor=Color.FromArgb("#E9D5FF"),
+            Opacity=0.75,
+            InputTransparent=true,
+        };
+        background.SetBinding(IsVisibleProperty,nameof(BenchmarkTableRow.IsUiSelected));
+        grid.Add(background,0,0);
+        Grid.SetColumnSpan(background,Math.Max(1,grid.ColumnDefinitions.Count));
+        Grid.SetRowSpan(background,Math.Max(1,grid.RowDefinitions.Count));
     }
 
     private void AddMetricCompletedBorder(Grid grid,string cellPath){
@@ -764,26 +774,6 @@ public sealed class MainPage:ContentPage{
         bottom.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsCompletedVisual));
         left.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsCompletedVisual));
         right.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsCompletedVisual));
-        grid.Add(top,0,0);
-        Grid.SetColumnSpan(top,3);
-        grid.Add(bottom,0,2);
-        Grid.SetColumnSpan(bottom,3);
-        grid.Add(left,0,0);
-        Grid.SetRowSpan(left,3);
-        grid.Add(right,2,0);
-        Grid.SetRowSpan(right,3);
-    }
-
-    private void AddBenchmarkUiSelectionBorder(Grid grid,string cellPath){
-        var color = Color.FromArgb("#2563EB");
-        var top = this.CreateMetricBorderSegment(color);
-        var bottom = this.CreateMetricBorderSegment(color);
-        var left = this.CreateMetricBorderSegment(color);
-        var right = this.CreateMetricBorderSegment(color);
-        top.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsUiSelected));
-        bottom.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsUiSelected));
-        left.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsUiSelected));
-        right.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsUiSelected));
         grid.Add(top,0,0);
         Grid.SetColumnSpan(top,3);
         grid.Add(bottom,0,2);
@@ -809,9 +799,15 @@ public sealed class MainPage:ContentPage{
             AllowSorting=false,
             HeaderTemplate=this.CreateHeaderTemplate(header,sortColumn),
             CellTemplate=new DataTemplate(() => {
+                var grid = new Grid{
+                    BackgroundColor=Colors.Transparent,
+                    HorizontalOptions=LayoutOptions.Fill,
+                    VerticalOptions=LayoutOptions.Fill,
+                };
                 var label = new Label{
                     FontSize=10,
                     TextColor=Color.FromArgb("#1E293B"),
+                    InputTransparent=true,
                     LineBreakMode=LineBreakMode.TailTruncation,
                     HorizontalTextAlignment=alignment,
                     VerticalTextAlignment=TextAlignment.Center,
@@ -820,15 +816,17 @@ public sealed class MainPage:ContentPage{
                 };
                 label.SetBinding(Label.TextProperty,property);
                 if(property==nameof(BenchmarkTableRow.BenchmarkName)){
+                    this.AddBenchmarkRowUiSelectionBackground(grid);
                     var tap = new TapGestureRecognizer();
                     tap.Tapped+=(_,_) => {
-                        if(label.BindingContext is BenchmarkTableRow row){
+                        if(grid.BindingContext is BenchmarkTableRow row){
                             this.viewModel?.SelectBenchmarkRow(row,CreateBenchmarkSelectionGesture());
                         }
                     };
-                    label.GestureRecognizers.Add(tap);
+                    grid.GestureRecognizers.Add(tap);
                 }
-                return label;
+                grid.Add(label,0,0);
+                return grid;
             }),
         };
     }

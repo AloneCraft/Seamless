@@ -157,6 +157,26 @@ public sealed class BenchmarkCellSelectionLogicTests{
         Assert.Equal(anchor,result.Anchor);
     }
 
+    [Fact]
+    public void WholeRowUiSelectionRequiresAllCaseCells(){
+        Assert.True(BenchmarkRowUiSelectionLogic.IsWholeRowSelected([
+            new BenchmarkRowUiSelectionCell(true,true),
+            new BenchmarkRowUiSelectionCell(true,true),
+            new BenchmarkRowUiSelectionCell(false,false),
+        ]));
+
+        Assert.False(BenchmarkRowUiSelectionLogic.IsWholeRowSelected([
+            new BenchmarkRowUiSelectionCell(true,true),
+            new BenchmarkRowUiSelectionCell(true,false),
+            new BenchmarkRowUiSelectionCell(false,false),
+        ]));
+
+        Assert.False(BenchmarkRowUiSelectionLogic.IsWholeRowSelected([
+            new BenchmarkRowUiSelectionCell(false,false),
+            new BenchmarkRowUiSelectionCell(false,true),
+        ]));
+    }
+
     private static void AssertSelection(BenchmarkCellSelectionResult result,params (int Row,int Column)[] expected){
         var actual = result.SelectedCells
             .OrderBy(static item => item.RowIndex)
