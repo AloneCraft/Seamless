@@ -701,6 +701,20 @@ public sealed class CpuSelectionItem:ObservableObject{
         +" "+this.CoreKindLabel
         +" "+this.RunIcon
         +(string.IsNullOrWhiteSpace(this.CurrentJobText) ? string.Empty : " "+this.CurrentJobText);
+    public string LogicalProcessorText => this.LogicalProcessorIndex.ToString(CultureInfo.InvariantCulture);
+    public string CellStatusText =>
+        this.RunIcon
+        +(string.IsNullOrWhiteSpace(this.CurrentJobText) ? string.Empty : " "+this.CurrentJobText);
+    public Color BadgeBackgroundColor => this.CoreKind switch{
+        CpuCoreKind.Performance => Color.FromArgb("#DBEAFE"),
+        CpuCoreKind.Efficiency => Color.FromArgb("#DCFCE7"),
+        _ => Color.FromArgb("#E2E8F0"),
+    };
+    public Color BadgeTextColor => this.CoreKind switch{
+        CpuCoreKind.Performance => Color.FromArgb("#1D4ED8"),
+        CpuCoreKind.Efficiency => Color.FromArgb("#15803D"),
+        _ => Color.FromArgb("#334155"),
+    };
 
     public bool IsSelected{
         get => this.isSelected;
@@ -750,6 +764,11 @@ public sealed class CpuTableCell:ObservableObject{
                 ||args.PropertyName==nameof(CpuSelectionItem.RunIcon)
                 ||args.PropertyName==nameof(CpuSelectionItem.RunStatusText)){
                 this.OnPropertyChanged(nameof(this.DisplayText));
+                this.OnPropertyChanged(nameof(this.LogicalProcessorText));
+                this.OnPropertyChanged(nameof(this.CoreKindLabel));
+                this.OnPropertyChanged(nameof(this.CellStatusText));
+                this.OnPropertyChanged(nameof(this.BadgeBackgroundColor));
+                this.OnPropertyChanged(nameof(this.BadgeTextColor));
                 this.OnPropertyChanged(nameof(this.IsRunningJob));
             }
         };
@@ -757,6 +776,11 @@ public sealed class CpuTableCell:ObservableObject{
 
     public CpuSelectionItem Cpu { get; }
     public string DisplayText => this.Cpu.StatusDisplayText;
+    public string LogicalProcessorText => this.Cpu.LogicalProcessorText;
+    public string CoreKindLabel => this.Cpu.CoreKindLabel;
+    public string CellStatusText => this.Cpu.CellStatusText;
+    public Color BadgeBackgroundColor => this.Cpu.BadgeBackgroundColor;
+    public Color BadgeTextColor => this.Cpu.BadgeTextColor;
     public bool IsRunningJob => this.Cpu.IsRunningJob;
 
     public bool IsSelected{
