@@ -13,7 +13,7 @@ public sealed class MainPage:ContentPage{
     private const double BenchmarkAggregateCheckBoxSize = 32;
     private const double BenchmarkCellCheckBoxWidth = 34;
     private const double BenchmarkCellCheckBoxHeight = 28;
-    private const double BenchmarkProjectStatusColumnWidth = 202;
+    private const double BenchmarkProjectStatusColumnWidth = 392;
     private const double BenchmarkProjectMetricColumnWidth = 78;
     private const double BenchmarkPairStopNColumnWidth = 64;
     private const double BenchmarkCellCheckSlotWidth = 38;
@@ -615,11 +615,11 @@ public sealed class MainPage:ContentPage{
     private DataGridTemplateColumn CreateProjectCheckColumn(string mappingName,string cellPath){
         return new DataGridTemplateColumn{
             MappingName=mappingName,
-            HeaderText=string.Empty,
+            HeaderText="日時",
             Width=BenchmarkProjectStatusColumnWidth,
             AllowSorting=false,
             HeaderTemplate=new DataTemplate(() => new Label{
-                Text=string.Empty,
+                Text="日時",
                 FontSize=12,
                 FontAttributes=FontAttributes.Bold,
                 TextColor=Color.FromArgb("#0F172A"),
@@ -701,7 +701,6 @@ public sealed class MainPage:ContentPage{
                 cpuLabel.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.LogicalProcessorText));
                 var detail = new Label{
                     FontSize=9,
-                    FontAttributes=FontAttributes.Bold,
                     TextColor=Color.FromArgb("#334155"),
                     InputTransparent=true,
                     LineBreakMode=LineBreakMode.TailTruncation,
@@ -709,14 +708,28 @@ public sealed class MainPage:ContentPage{
                 };
                 detail.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionText));
                 detail.SetBinding(Label.TextColorProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionTextColor));
-                detail.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionText));
+                detail.SetBinding(Label.FontAttributesProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionFontAttributes));
+                var failureDetail = new Label{
+                    FontSize=9,
+                    TextColor=Color.FromArgb("#DC2626"),
+                    InputTransparent=true,
+                    LineBreakMode=LineBreakMode.TailTruncation,
+                    VerticalTextAlignment=TextAlignment.Center,
+                };
+                failureDetail.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.FailureExecutionText));
+                failureDetail.SetBinding(Label.TextColorProperty,cellPath+"."+nameof(BenchmarkProjectCell.FailureExecutionTextColor));
                 var detailHost = new Grid{
+                    ColumnDefinitions = {
+                        new ColumnDefinition { Width = GridLength.Auto },
+                        new ColumnDefinition { Width = GridLength.Auto },
+                    },
                     BackgroundColor=Colors.Transparent,
                     HorizontalOptions=LayoutOptions.Fill,
                     VerticalOptions=LayoutOptions.Fill,
                 };
-                detailHost.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionText));
+                detailHost.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionTooltipText));
                 detailHost.Add(detail,0,0);
+                detailHost.Add(failureDetail,1,0);
                 var detailTap = new TapGestureRecognizer();
                 detailTap.Tapped+=(_,_) => {
                     if(layout.BindingContext is BenchmarkTableRow row){
@@ -818,6 +831,8 @@ public sealed class MainPage:ContentPage{
                     Padding=new Thickness(2,0),
                 };
                 label.SetBinding(Label.TextProperty,bindingPath);
+                label.SetBinding(Label.TextColorProperty,cellPath+"."+nameof(BenchmarkProjectCell.MetricTextColor));
+                label.SetBinding(Label.FontAttributesProperty,cellPath+"."+nameof(BenchmarkProjectCell.MetricFontAttributes));
                 label.SetBinding(ToolTipProperties.TextProperty,bindingPath);
                 grid.SetBinding(ToolTipProperties.TextProperty,bindingPath);
                 grid.Add(runningBackground,0,0);

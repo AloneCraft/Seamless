@@ -514,6 +514,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
                 this.BenchmarkRows.Add(row);
             }
             this.ApplySelectedElementCountToTable();
+            this.ApplyStoredResultsToTable();
             this.RestoreCsvDateSelection(savedState.SelectedCsvTimestamp);
             this.RefreshBenchmarkSelectionAggregates();
             this.ApplyCurrentSort();
@@ -788,7 +789,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
                 }),
                 status => MainThread.BeginInvokeOnMainThread(() => this.StatusText=status),
                 this.runCancellation.Token);
-            await this.RefreshCsvScanAsync(this.runCancellation.Token);
         }catch(OperationCanceledException){
             this.StatusText="Canceled";
         }catch(Exception ex){
@@ -801,6 +801,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             this.OnPropertyChanged(nameof(this.IsBenchmarkRunActive));
             this.ApplySelectedElementCountToTable();
             this.RestoreLatestCompletedLiveResult();
+            this.ClearRunResultHighlights();
             this.UpdateChart();
         }
     }
@@ -817,6 +818,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         if(result.ElementCount>0){
             this.CurrentElementCountText="N="+result.ElementCount.ToString("N0",System.Globalization.CultureInfo.InvariantCulture);
         }
+        if(string.Equals(result.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase)){
+            this.RetainCompletedHighlightsForRunningElement(result.ElementCount);
+        }
         this.UpsertResultItem(result);
         this.UpsertCurrentRunResultItem(result);
         this.RegisterResultElementCount(result.ElementCount);
@@ -827,14 +831,15 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
                 benchmarkRow.ClearLiveState();
             }
         }
-        row?.ApplyRunResult(result,cpu);
+        var completedAt = DateTimeOffset.Now;
+        row?.ApplyRunResult(result,cpu,completedAt);
         if(string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
             ||string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)){
-            this.resultStore.Upsert(result,DateTimeOffset.Now,null,string.Empty);
+            this.resultStore.Upsert(result,completedAt,null,string.Empty);
             this.resultStore.Save();
             this.HasPendingCloseStateSave=true;
             this.ApplySelectedElementCountToTable();
-            row?.ApplyRunResult(result,cpu);
+            row?.ApplyRunResult(result,cpu,completedAt);
             this.UpdateChart();
         }
     }
@@ -847,7 +852,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         }
 
         var row = this.BenchmarkRows.FirstOrDefault(item => string.Equals(item.MethodName,result.Method,StringComparison.OrdinalIgnoreCase));
-        row?.ApplyRunResult(result,null);
+        row?.ApplyRunResult(result,null,DateTimeOffset.Now,false);
     }
 
     private void UpsertResultItem(BenchmarkResultItem result){
@@ -913,6 +918,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         }
 
         try{
+            this.ClearBenchmarkResultDisplays();
             this.comparisonRows=this.csvService.ReadComparisonCsv(file.FullPath);
             this.LoadComparisonRowsIntoResults(this.comparisonRows);
             this.ApplyComparisonRowsToTable();
@@ -1027,20 +1033,78 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
 
     private void ApplyComparisonRowsToTable(){
         var rowsByMethod = this.comparisonRows.ToDictionary(static item => item.Benchmark,StringComparer.OrdinalIgnoreCase);
+        var preserveRetainedDisplay = this.currentRunResultItems.Count>0;
         foreach(var benchmark in this.BenchmarkRows){
-            benchmark.ApplyComparison(rowsByMethod.TryGetValue(benchmark.MethodName,out var row) ? row : null);
+            benchmark.ApplyComparison(rowsByMethod.TryGetValue(benchmark.MethodName,out var row) ? row : null,preserveRetainedDisplay);
+        }
+    }
+
+    private void RetainCompletedHighlightsForRunningElement(int runningElementCount){
+        if(runningElementCount<=0){
+            return;
+        }
+
+        foreach(var row in this.BenchmarkRows){
+            row.RetainCompletedHighlightsForRunningElement(runningElementCount);
+        }
+    }
+
+    private void ClearRunResultHighlights(){
+        foreach(var row in this.BenchmarkRows){
+            row.ClearRunHighlights();
+        }
+    }
+
+    private void ClearBenchmarkResultDisplays(){
+        foreach(var row in this.BenchmarkRows){
+            row.ClearResultDisplay();
         }
     }
 
     private void ApplySelectedElementCountToTable(){
         var selectedN = this.SelectedResultElementCount?.Value;
-        this.comparisonRows=selectedN is { } elementCount
-            ? this.BuildComparisonRowsForElementCount(elementCount)
-            : this.resultStore.BuildLatestComparisonRows();
+        if(this.currentRunResultItems.Count>0){
+            this.comparisonRows=selectedN is { } currentElementCount
+                ? this.BuildCurrentRunComparisonRowsForElementCount(currentElementCount)
+                : this.BuildCurrentRunComparisonRows();
+        }else{
+            this.comparisonRows=selectedN is { } elementCount
+                ? this.BuildComparisonRowsForElementCount(elementCount)
+                : this.resultStore.BuildLatestComparisonRows();
+        }
         this.ApplyComparisonRowsToTable();
         if(selectedN is { } skippedElementCount){
             this.ApplySkippedCells(skippedElementCount);
         }
+    }
+
+    private IReadOnlyList<BenchmarkComparisonRow> BuildCurrentRunComparisonRowsForElementCount(int elementCount){
+        var rows = this.currentRunResultItems
+            .Where(result => result.ElementCount==elementCount
+                &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase))
+            .Select(CreateReportRowForSelectedElementCount)
+            .GroupBy(static row => row.Project+"|"+row.Method,StringComparer.OrdinalIgnoreCase)
+            .Select(static group => group.Last())
+            .ToArray();
+        return rows.Length==0
+            ? []
+            : BenchmarkComparisonFormatter.BuildComparisonRows(rows);
+    }
+
+    private IReadOnlyList<BenchmarkComparisonRow> BuildCurrentRunComparisonRows(){
+        var rows = this.currentRunResultItems
+            .Where(static result => string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase))
+            .GroupBy(static result => result.Method,StringComparer.OrdinalIgnoreCase)
+            .SelectMany(static group => group
+                .GroupBy(static result => result.Project,StringComparer.OrdinalIgnoreCase)
+                .Select(static projectGroup => CreateReportRowForSelectedElementCount(projectGroup
+                    .OrderByDescending(static result => result.StartedAt)
+                    .ThenByDescending(static result => result.ElementCount)
+                    .First())))
+            .ToArray();
+        return rows.Length==0
+            ? []
+            : BenchmarkComparisonFormatter.BuildComparisonRows(rows);
     }
 
     private IReadOnlyList<BenchmarkComparisonRow> BuildComparisonRowsForElementCount(int elementCount){
@@ -1091,25 +1155,25 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     ];
 
     private bool HasResult(string method,string project,int elementCount) =>
-        this.resultStore.Get(method,project,elementCount) is not null
-        ||this.currentRunResultItems.Any(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
+        this.currentRunResultItems.Any(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
             &&string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase)
-            &&result.ElementCount==elementCount);
+            &&result.ElementCount==elementCount)
+        ||(this.currentRunResultItems.Count==0&&this.resultStore.Get(method,project,elementCount) is not null);
 
     private int? FindPairStoppedAt(string method,string project,int selectedElementCount){
-        var measurements = this.resultStore.Results
-            .Select(static result => new BenchmarkElementMeasurement(
+        var measurements = this.currentRunResultItems.Count>0
+            ? this.currentRunResultItems.Select(static result => new BenchmarkElementMeasurement(
                 result.Project,
                 result.Method,
                 result.ElementCount,
                 result.Status,
                 result.MeanNanoseconds))
-            .Concat(this.currentRunResultItems.Select(static result => new BenchmarkElementMeasurement(
+            : this.resultStore.Results.Select(static result => new BenchmarkElementMeasurement(
                 result.Project,
                 result.Method,
                 result.ElementCount,
                 result.Status,
-                result.MeanNanoseconds)));
+                result.MeanNanoseconds));
         return BenchmarkSkippedDisplayLogic.FindPairStoppedAt(
             measurements,
             method,
@@ -1129,7 +1193,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             }
         }
 
-        var stored = this.resultStore.Get(method,project,elementCount);
+        var stored = this.currentRunResultItems.Count==0
+            ? this.resultStore.Get(method,project,elementCount)
+            : null;
         return stored is not null&&string.Equals(stored.Status,"Completed",StringComparison.OrdinalIgnoreCase)
             ? stored.ToProjectMetrics()
             : ProjectMetrics.Missing;

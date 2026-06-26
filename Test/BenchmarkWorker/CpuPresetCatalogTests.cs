@@ -151,6 +151,33 @@ public sealed class CpuPresetCatalogTests{
     }
 
     [Fact]
+    public void BenchmarkMeasurementHighlightLogic_RetainsFreshWhenSameElementIsRunning(){
+        var next = BenchmarkMeasurementHighlightLogic.AdvanceForRunningElement(
+            BenchmarkMeasurementHighlightState.Fresh,
+            4,
+            4);
+
+        Assert.Equal(BenchmarkMeasurementHighlightState.Fresh,next);
+    }
+
+    [Fact]
+    public void BenchmarkMeasurementHighlightLogic_DemotesFreshWhenNextElementStarts(){
+        var next = BenchmarkMeasurementHighlightLogic.AdvanceForRunningElement(
+            BenchmarkMeasurementHighlightState.Fresh,
+            4,
+            8);
+
+        Assert.Equal(BenchmarkMeasurementHighlightState.RetainedDuringRun,next);
+    }
+
+    [Fact]
+    public void BenchmarkMeasurementHighlightLogic_ClearsHighlightAfterRun(){
+        var next = BenchmarkMeasurementHighlightLogic.ClearAfterRun(BenchmarkMeasurementHighlightState.RetainedDuringRun);
+
+        Assert.Equal(BenchmarkMeasurementHighlightState.None,next);
+    }
+
+    [Fact]
     public void ComparisonFormatter_BuildsFixedPairs_WithLeftDividedByRight(){
         var rows = new[]{
             CreateReportRow("SystemFLinq","Select","Completed",5,10),
