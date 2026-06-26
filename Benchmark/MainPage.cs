@@ -239,7 +239,7 @@ public sealed class MainPage:ContentPage{
         grid.Add(executionProfilePicker,3,0);
         grid.Add(実行,4,0);
         grid.Add(cancelButton,5,0);
-        grid.Add(this.ToolbarLabel("実績"),6,0);
+        grid.Add(this.ToolbarLabel("計測"),6,0);
         grid.Add(runPicker,7,0);
         grid.Add(this.ToolbarLabel("N"),8,0);
         grid.Add(resultElementCountPicker,9,0);
