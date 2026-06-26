@@ -156,7 +156,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             new ScaleOption("8","8"),
         ];
         this.selectedScale=this.ScaleOptions.First(static item => item.DisplayName=="1");
-        this.RefreshCommand=new AsyncRelayCommand(this.RefreshAsync);
         this.SelectAllCommand=new RelayCommand(() => this.SetAllBenchmarkSelection(true));
         this.ClearSelectionCommand=new RelayCommand(() => this.SetAllBenchmarkSelection(false));
         this.RunCommand=new AsyncRelayCommand(this.RunAsync,() => !this.IsRunning);
@@ -196,7 +195,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     public IReadOnlyList<MetricOption> Metrics { get; }
     public IReadOnlyList<ChartModeOption> ChartModes { get; }
     public IReadOnlyList<ThresholdOption> ThresholdOptions { get; }
-    public IAsyncRelayCommand RefreshCommand { get; }
     public IRelayCommand SelectAllCommand { get; }
     public IRelayCommand ClearSelectionCommand { get; }
     public IAsyncRelayCommand RunCommand { get; }

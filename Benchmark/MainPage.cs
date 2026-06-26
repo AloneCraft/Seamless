@@ -168,8 +168,7 @@ public sealed class MainPage:ContentPage{
     }
 
     private View CreateToolbar(){
-        var refreshButton = this.CommandButton("Refresh",nameof(BenchmarkRunnerViewModel.RefreshCommand));
-        var runButton = this.CommandButton("Run",nameof(BenchmarkRunnerViewModel.RunCommand));
+        var 実行 = this.CommandButton("実行",nameof(BenchmarkRunnerViewModel.RunCommand));
         var cancelButton = this.CommandButton("Cancel",nameof(BenchmarkRunnerViewModel.CancelCommand));
 
         var thresholdPicker = new Picker{
@@ -230,23 +229,21 @@ public sealed class MainPage:ContentPage{
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
-                new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Star },
             },
             ColumnSpacing=6,
         };
-        grid.Add(refreshButton,0,0);
-        grid.Add(this.ToolbarLabel("計測時間"),1,0);
-        grid.Add(thresholdPicker,2,0);
-        grid.Add(this.ToolbarLabel("Mode"),3,0);
-        grid.Add(executionProfilePicker,4,0);
-        grid.Add(runButton,5,0);
-        grid.Add(cancelButton,6,0);
-        grid.Add(this.ToolbarLabel("Run"),7,0);
-        grid.Add(runPicker,8,0);
-        grid.Add(this.ToolbarLabel("N"),9,0);
-        grid.Add(resultElementCountPicker,10,0);
-        grid.Add(statusLabel,11,0);
+        grid.Add(this.ToolbarLabel("計測時間"),0,0);
+        grid.Add(thresholdPicker,1,0);
+        grid.Add(this.ToolbarLabel("Mode"),2,0);
+        grid.Add(executionProfilePicker,3,0);
+        grid.Add(実行,4,0);
+        grid.Add(cancelButton,5,0);
+        grid.Add(this.ToolbarLabel("実績"),6,0);
+        grid.Add(runPicker,7,0);
+        grid.Add(this.ToolbarLabel("N"),8,0);
+        grid.Add(resultElementCountPicker,9,0);
+        grid.Add(statusLabel,10,0);
         return grid;
     }
 
