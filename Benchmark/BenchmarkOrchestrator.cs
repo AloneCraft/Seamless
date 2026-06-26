@@ -262,6 +262,7 @@ internal sealed class BenchmarkOrchestrator {
         var state = new ProgressState {
             RunId=Guid.NewGuid().ToString("N",CultureInfo.InvariantCulture),
             Mode=request.Mode,
+            ExecutionProfile=request.ExecutionProfile,
             RunRoot=runRoot,
             ElementCounts=request.ElementCounts.Distinct().Order().ToList(),
             AdaptiveThresholdNanoseconds=request.AdaptiveThreshold.TotalMilliseconds*1_000_000,

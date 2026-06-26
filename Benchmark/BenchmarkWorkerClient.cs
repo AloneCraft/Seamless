@@ -22,73 +22,53 @@ public sealed class BenchmarkWorkerClient:IBenchmarkJobRunner {
         int logicalCpu,
         TimeSpan timeout,
         CancellationToken cancellationToken) {
+        using var timeoutSource = new CancellationTokenSource(timeout);
+        using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,timeoutSource.Token);
+        var effectiveToken = linkedSource.Token;
+        try {
+            await using var session = await this.StartSessionAsync(runRoot,logicalCpu,effectiveToken);
+            var result = await session.RunAsync(benchmark,elementCount,elementScale,effectiveToken);
+            await session.ShutdownAsync(effectiveToken);
+            return result;
+        } catch(OperationCanceledException) {
+            if(timeoutSource.IsCancellationRequested&&!cancellationToken.IsCancellationRequested) {
+                throw new TimeoutException($"Benchmark job timed out after {timeout}.");
+            }
+            throw;
+        }
+    }
+
+    public async Task<BenchmarkWorkerSession> StartSessionAsync(
+        string runRoot,
+        int logicalCpu,
+        CancellationToken cancellationToken) {
         var workerPath = ResolveWorkerPath();
+        var process = StartWorker(workerPath,runRoot,logicalCpu);
+        try {
+            var ready = await process.StandardOutput.ReadLineAsync(cancellationToken);
+            if(!string.Equals(ready,"ready",StringComparison.Ordinal)) {
+                throw new InvalidOperationException($"Benchmark worker did not become ready. First output: {ready}");
+            }
+
+            return new BenchmarkWorkerSession(process,runRoot);
+        } catch {
+            KillProcess(process);
+            process.Dispose();
+            throw;
+        }
+    }
+
+    internal static string CreateArtifactFolder(string runRoot,BenchmarkCase benchmark,int elementCount) {
         var artifactFolder = Path.Combine(
             runRoot,
             "N"+elementCount.ToString(CultureInfo.InvariantCulture),
             SanitizePathPart(benchmark.Project),
             SanitizePathPart(benchmark.MethodName));
         Directory.CreateDirectory(artifactFolder);
-
-        using var process = StartWorker(workerPath,runRoot,logicalCpu);
-        using var timeoutSource = new CancellationTokenSource(timeout);
-        using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,timeoutSource.Token);
-        var effectiveToken = linkedSource.Token;
-        WorkerResultMessage result;
-        try {
-            var ready = await process.StandardOutput.ReadLineAsync(effectiveToken);
-            if(!string.Equals(ready,"ready",StringComparison.Ordinal)) {
-                throw new InvalidOperationException($"Benchmark worker did not become ready. First output: {ready}");
-            }
-
-            var message = new WorkerTaskMessage(
-                "run",
-                Guid.NewGuid().ToString("N",CultureInfo.InvariantCulture),
-                benchmark.AssemblyName,
-                benchmark.TypeFullName,
-                benchmark.MethodName,
-                elementCount,
-                elementScale,
-                artifactFolder);
-
-            await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(message).AsMemory(),effectiveToken);
-            await process.StandardInput.FlushAsync(effectiveToken);
-
-            var line = await process.StandardOutput.ReadLineAsync(effectiveToken)
-                ?? throw new InvalidOperationException("Benchmark worker closed without a result.");
-            result = JsonSerializer.Deserialize<WorkerResultMessage>(line)
-                ?? throw new InvalidOperationException("Benchmark worker returned an empty result.");
-
-            await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new WorkerTaskMessage("shutdown",string.Empty,string.Empty,string.Empty,string.Empty,0,string.Empty,string.Empty)).AsMemory(),effectiveToken);
-            await process.StandardInput.FlushAsync(effectiveToken);
-            await process.WaitForExitAsync(effectiveToken);
-        } catch(OperationCanceledException) {
-            KillProcess(process);
-            if(timeoutSource.IsCancellationRequested&&!cancellationToken.IsCancellationRequested) {
-                throw new TimeoutException($"Benchmark job timed out after {timeout}.");
-            }
-            throw;
-        }
-
-        return new BenchmarkJobRunResult(
-            benchmark.Project,
-            benchmark.MethodName,
-            benchmark.TypeFullName,
-            elementCount,
-            result.Status,
-            result.Mean,
-            result.Error,
-            result.StdDev,
-            result.MeanNanoseconds,
-            result.ErrorNanoseconds,
-            result.StdDevNanoseconds,
-            result.AllocatedBytes,
-            result.ExitCode,
-            result.ArtifactFolder,
-            result.Log);
+        return artifactFolder;
     }
 
-    private static Process StartWorker(string workerPath,string runRoot,int logicalCpu) {
+    internal static Process StartWorker(string workerPath,string runRoot,int logicalCpu) {
         var isDll = string.Equals(Path.GetExtension(workerPath),".dll",StringComparison.OrdinalIgnoreCase);
         var startInfo = new ProcessStartInfo {
             FileName=isDll?"dotnet":workerPath,
@@ -114,7 +94,7 @@ public sealed class BenchmarkWorkerClient:IBenchmarkJobRunner {
             ?? throw new InvalidOperationException("Could not start Benchmark.Worker.");
     }
 
-    private static string ResolveWorkerPath() {
+    internal static string ResolveWorkerPath() {
         var baseDirectory = AppContext.BaseDirectory;
         var exePath = Path.Combine(baseDirectory,"Benchmark.Worker.exe");
         if(File.Exists(exePath)) {
@@ -129,7 +109,7 @@ public sealed class BenchmarkWorkerClient:IBenchmarkJobRunner {
         throw new FileNotFoundException("Benchmark.Worker was not found in the application output directory.",exePath);
     }
 
-    private static string SanitizePathPart(string text) {
+    internal static string SanitizePathPart(string text) {
         var builder = new StringBuilder(text.Length);
         foreach(var ch in text) {
             builder.Append(Path.GetInvalidFileNameChars().Contains(ch)?'_':ch);
@@ -138,7 +118,7 @@ public sealed class BenchmarkWorkerClient:IBenchmarkJobRunner {
         return builder.ToString();
     }
 
-    private static void KillProcess(Process process) {
+    internal static void KillProcess(Process process) {
         try {
             if(!process.HasExited) {
                 process.Kill(entireProcessTree:true);
@@ -146,6 +126,107 @@ public sealed class BenchmarkWorkerClient:IBenchmarkJobRunner {
         } catch(InvalidOperationException) {
         } catch(System.ComponentModel.Win32Exception) {
         }
+    }
+}
+
+public sealed class BenchmarkWorkerSession:IAsyncDisposable {
+    private readonly Process process;
+    private readonly string runRoot;
+    private bool isClosed;
+
+    internal BenchmarkWorkerSession(Process process,string runRoot) {
+        this.process=process;
+        this.runRoot=runRoot;
+    }
+
+    public async Task<BenchmarkJobRunResult> RunAsync(
+        BenchmarkCase benchmark,
+        int elementCount,
+        string elementScale,
+        CancellationToken cancellationToken) {
+        if(this.isClosed) {
+            throw new ObjectDisposedException(nameof(BenchmarkWorkerSession));
+        }
+
+        var artifactFolder = BenchmarkWorkerClient.CreateArtifactFolder(this.runRoot,benchmark,elementCount);
+        var message = new WorkerTaskMessage(
+            "run",
+            Guid.NewGuid().ToString("N",CultureInfo.InvariantCulture),
+            benchmark.AssemblyName,
+            benchmark.TypeFullName,
+            benchmark.MethodName,
+            elementCount,
+            elementScale,
+            artifactFolder);
+
+        try {
+            await this.process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(message).AsMemory(),cancellationToken);
+            await this.process.StandardInput.FlushAsync(cancellationToken);
+
+            var line = await this.process.StandardOutput.ReadLineAsync(cancellationToken)
+                ?? throw new InvalidOperationException("Benchmark worker closed without a result.");
+            var result = JsonSerializer.Deserialize<WorkerResultMessage>(line)
+                ?? throw new InvalidOperationException("Benchmark worker returned an empty result.");
+            return new BenchmarkJobRunResult(
+                benchmark.Project,
+                benchmark.MethodName,
+                benchmark.TypeFullName,
+                elementCount,
+                result.Status,
+                result.Mean,
+                result.Error,
+                result.StdDev,
+                result.MeanNanoseconds,
+                result.ErrorNanoseconds,
+                result.StdDevNanoseconds,
+                result.AllocatedBytes,
+                result.ExitCode,
+                result.ArtifactFolder,
+                result.Log);
+        } catch(OperationCanceledException) {
+            this.Kill();
+            throw;
+        }
+    }
+
+    public async Task ShutdownAsync(CancellationToken cancellationToken) {
+        if(this.isClosed) {
+            return;
+        }
+
+        this.isClosed=true;
+        try {
+            if(!this.process.HasExited) {
+                await this.process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new WorkerTaskMessage("shutdown",string.Empty,string.Empty,string.Empty,string.Empty,0,string.Empty,string.Empty)).AsMemory(),cancellationToken);
+                await this.process.StandardInput.FlushAsync(cancellationToken);
+                await this.process.WaitForExitAsync(cancellationToken);
+            }
+        } catch {
+            this.Kill();
+            throw;
+        } finally {
+            this.process.Dispose();
+        }
+    }
+
+    public async ValueTask DisposeAsync() {
+        if(this.isClosed) {
+            this.process.Dispose();
+            return;
+        }
+
+        using var shutdownSource = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        try {
+            await this.ShutdownAsync(shutdownSource.Token);
+        } catch {
+            this.Kill();
+            this.process.Dispose();
+        }
+    }
+
+    private void Kill() {
+        this.isClosed=true;
+        BenchmarkWorkerClient.KillProcess(this.process);
     }
 }
 

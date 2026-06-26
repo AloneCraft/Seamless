@@ -192,6 +192,15 @@ public sealed class MainPage:ContentPage{
         elementCountPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ElementCountOptions));
         elementCountPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedElementCountOption));
 
+        var executionProfilePicker = new Picker{
+            WidthRequest=96,
+            HeightRequest=30,
+            ItemDisplayBinding=new Binding(nameof(ExecutionProfileOption.DisplayName)),
+            Margin=new Thickness(0),
+        };
+        executionProfilePicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ExecutionProfiles));
+        executionProfilePicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedExecutionProfile));
+
         var csvDatePicker = new Picker{
             WidthRequest=168,
             HeightRequest=30,
@@ -237,12 +246,14 @@ public sealed class MainPage:ContentPage{
         grid.Add(thresholdPicker,2,0);
         grid.Add(this.ToolbarLabel("要素数"),3,0);
         grid.Add(elementCountPicker,4,0);
-        grid.Add(runButton,5,0);
-        grid.Add(cancelButton,6,0);
-        grid.Add(exportButton,7,0);
-        grid.Add(this.ToolbarLabel("CSV"),8,0);
-        grid.Add(csvDatePicker,9,0);
-        grid.Add(statusLabel,10,0);
+        grid.Add(this.ToolbarLabel("Mode"),5,0);
+        grid.Add(executionProfilePicker,6,0);
+        grid.Add(runButton,7,0);
+        grid.Add(cancelButton,8,0);
+        grid.Add(exportButton,9,0);
+        grid.Add(this.ToolbarLabel("CSV"),10,0);
+        grid.Add(csvDatePicker,11,0);
+        grid.Add(statusLabel,12,0);
         return grid;
     }
 

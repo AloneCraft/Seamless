@@ -15,8 +15,8 @@ public static class BenchmarkExecutionMode {
     private const string ElementScaleKey = "SEAMLESS_BENCHMARK_ELEMENT_SCALE";
     private const string ElementCountKey = "SEAMLESS_BENCHMARK_ELEMENT_COUNT";
     private static readonly AsyncLocal<int?> ComparisonElementLimit = new();
-    private static readonly Lazy<double> ElementScale = new(ReadElementScale);
-    private static readonly Lazy<int?> ElementCount = new(ReadElementCount);
+    private static readonly AsyncLocal<int?> ElementCountOverride = new();
+    private static readonly AsyncLocal<double?> ElementScaleOverride = new();
 
     public static bool IsTestMode =>
 #if BENCH_AS_TEST
@@ -41,6 +41,14 @@ public static class BenchmarkExecutionMode {
 
     public static void DisableComparisonMode() => ComparisonElementLimit.Value=null;
 
+    public static IDisposable UseElementCount(int elementCount,string? elementScale) {
+        var previousCount = ElementCountOverride.Value;
+        var previousScale = ElementScaleOverride.Value;
+        ElementCountOverride.Value=elementCount>0 ? elementCount : null;
+        ElementScaleOverride.Value=ReadElementScale(elementScale);
+        return new ElementCountScope(previousCount,previousScale);
+    }
+
     internal static int LimitForComparison(int elementCount) =>
         ComparisonElementLimit.Value is > 0 and var limit
             ? Math.Min(elementCount,limit)
@@ -50,11 +58,14 @@ public static class BenchmarkExecutionMode {
         if(elementCount<=0) {
             return elementCount;
         }
-        if(ElementCount.Value is { } absoluteCount) {
+        if(ElementCountOverride.Value is { } scopedCount) {
+            return scopedCount;
+        }
+        if(ReadElementCount() is { } absoluteCount) {
             return absoluteCount;
         }
 
-        var scaled = elementCount*ElementScale.Value;
+        var scaled = elementCount*(ElementScaleOverride.Value??ReadElementScale());
         if(!double.IsFinite(scaled)||scaled<=1) {
             return 1;
         }
@@ -64,8 +75,10 @@ public static class BenchmarkExecutionMode {
             : Math.Max(1,(int)Math.Round(scaled,MidpointRounding.AwayFromZero));
     }
 
-    private static double ReadElementScale() {
-        var text = Environment.GetEnvironmentVariable(ElementScaleKey);
+    private static double ReadElementScale() =>
+        ReadElementScale(Environment.GetEnvironmentVariable(ElementScaleKey));
+
+    private static double ReadElementScale(string? text) {
         return double.TryParse(text,System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var scale)
             &&double.IsFinite(scale)
             &&scale>0
@@ -79,6 +92,13 @@ public static class BenchmarkExecutionMode {
             &&count>0
             ? count
             : null;
+    }
+
+    private sealed class ElementCountScope(int? previousCount,double? previousScale):IDisposable {
+        public void Dispose() {
+            ElementCountOverride.Value=previousCount;
+            ElementScaleOverride.Value=previousScale;
+        }
     }
 }
 

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -384,6 +385,185 @@ public sealed class BenchmarkWorkerProcessService:IBenchmarkWorkerProcessService
     }
 }
 
+public sealed class BenchmarkPersistentWorkerProcessService:IBenchmarkJobRunner,IAsyncDisposable {
+    private readonly BenchmarkWorkerClient client = new();
+    private readonly ConcurrentDictionary<int,BenchmarkWorkerSession> sessions = new();
+
+    public async Task<BenchmarkJobRunResult> RunAsync(
+        BenchmarkJob job,
+        string runRoot,
+        int logicalCpu,
+        TimeSpan timeout,
+        CancellationToken cancellationToken) {
+        var session = await this.GetSessionAsync(runRoot,logicalCpu,cancellationToken);
+        using var timeoutSource = new CancellationTokenSource(timeout);
+        using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,timeoutSource.Token);
+        try {
+            return await session.RunAsync(job.ToBenchmarkCase(),job.ElementCount,"1",linkedSource.Token);
+        } catch(OperationCanceledException) {
+            await this.ResetSessionAsync(logicalCpu,session);
+            if(timeoutSource.IsCancellationRequested&&!cancellationToken.IsCancellationRequested) {
+                throw new TimeoutException($"Benchmark job timed out after {timeout}.");
+            }
+
+            throw;
+        } catch {
+            await this.ResetSessionAsync(logicalCpu,session);
+            throw;
+        }
+    }
+
+    public async ValueTask DisposeAsync() {
+        var values = this.sessions.Values.ToArray();
+        this.sessions.Clear();
+        foreach(var session in values) {
+            await session.DisposeAsync();
+        }
+    }
+
+    private async Task<BenchmarkWorkerSession> GetSessionAsync(
+        string runRoot,
+        int logicalCpu,
+        CancellationToken cancellationToken) {
+        if(this.sessions.TryGetValue(logicalCpu,out var existing)) {
+            return existing;
+        }
+
+        var created = await this.client.StartSessionAsync(runRoot,logicalCpu,cancellationToken);
+        if(this.sessions.TryAdd(logicalCpu,created)) {
+            return created;
+        }
+
+        await created.DisposeAsync();
+        return this.sessions[logicalCpu];
+    }
+
+    private async Task ResetSessionAsync(int logicalCpu,BenchmarkWorkerSession session) {
+        if(this.sessions.TryGetValue(logicalCpu,out var current)
+            &&ReferenceEquals(current,session)
+            &&this.sessions.TryRemove(logicalCpu,out _)) {
+            await session.DisposeAsync();
+        }
+    }
+}
+
+public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
+    public Task<BenchmarkJobRunResult> RunAsync(
+        BenchmarkJob job,
+        string runRoot,
+        int logicalCpu,
+        TimeSpan timeout,
+        CancellationToken cancellationToken) =>
+        Task.Run(() => Run(job,runRoot,cancellationToken),cancellationToken);
+
+    private static BenchmarkJobRunResult Run(
+        BenchmarkJob job,
+        string runRoot,
+        CancellationToken cancellationToken) {
+        var benchmark = job.ToBenchmarkCase();
+        var artifactFolder = BenchmarkWorkerClient.CreateArtifactFolder(runRoot,benchmark,job.ElementCount);
+        var logPath = Path.Combine(artifactFolder,"inprocess.log");
+        object? instance = null;
+        try {
+            cancellationToken.ThrowIfCancellationRequested();
+            var assembly = ResolveBenchmarkAssembly(benchmark.AssemblyName);
+            var type = assembly.GetType(benchmark.TypeFullName,throwOnError:true,ignoreCase:false)
+                ??throw new InvalidOperationException($"Benchmark type was not found: {benchmark.TypeFullName}");
+            var method = ResolveBenchmarkMethod(type,benchmark.MethodName);
+            instance=method.IsStatic ? null : Activator.CreateInstance(type);
+            using var elementScope = BeginElementCountScope(assembly,job.ElementCount,"1");
+            var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+            var stopwatch = Stopwatch.StartNew();
+            method.Invoke(instance,null);
+            stopwatch.Stop();
+            var allocatedAfter = GC.GetAllocatedBytesForCurrentThread();
+            var meanNanoseconds = stopwatch.Elapsed.TotalMilliseconds*1_000_000;
+            var allocatedBytes = Math.Max(0,allocatedAfter-allocatedBefore);
+            File.WriteAllText(
+                logPath,
+                $"In-process direct benchmark completed in {BenchmarkFormatting.FormatNanoseconds(meanNanoseconds)}.",
+                Encoding.UTF8);
+            return new BenchmarkJobRunResult(
+                benchmark.Project,
+                benchmark.MethodName,
+                benchmark.TypeFullName,
+                job.ElementCount,
+                "Completed",
+                BenchmarkFormatting.FormatNanoseconds(meanNanoseconds),
+                string.Empty,
+                string.Empty,
+                meanNanoseconds,
+                null,
+                null,
+                allocatedBytes,
+                0,
+                artifactFolder,
+                string.Empty);
+        } catch(Exception ex) when(ex is not OperationCanceledException) {
+            var actual = ex is TargetInvocationException { InnerException: { } inner } ? inner : ex;
+            File.WriteAllText(logPath,actual.ToString(),Encoding.UTF8);
+            return new BenchmarkJobRunResult(
+                benchmark.Project,
+                benchmark.MethodName,
+                benchmark.TypeFullName,
+                job.ElementCount,
+                "Failed",
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                null,
+                null,
+                null,
+                null,
+                1,
+                artifactFolder,
+                actual.ToString());
+        } finally {
+            if(instance is IDisposable disposable) {
+                disposable.Dispose();
+            }
+        }
+    }
+
+    private static Assembly ResolveBenchmarkAssembly(string assemblyName) =>
+        AppDomain.CurrentDomain
+            .GetAssemblies()
+            .FirstOrDefault(item => string.Equals(item.GetName().Name,assemblyName,StringComparison.OrdinalIgnoreCase))
+        ??Assembly.Load(new AssemblyName(assemblyName));
+
+    private static MethodInfo ResolveBenchmarkMethod(Type type,string methodName) {
+        var method = type.GetMethod(methodName,BindingFlags.Public|BindingFlags.Instance|BindingFlags.Static)
+            ??throw new MissingMethodException(type.FullName,methodName);
+        if(method.GetParameters().Length!=0||!HasBenchmarkAttribute(method)) {
+            throw new MissingMethodException(type.FullName,methodName+" [Benchmark]");
+        }
+
+        return method;
+    }
+
+    private static bool HasBenchmarkAttribute(MethodInfo method) =>
+        method.CustomAttributes.Any(static attribute => attribute.AttributeType.Name=="BenchmarkAttribute");
+
+    private static IDisposable BeginElementCountScope(Assembly assembly,int elementCount,string elementScale) {
+        var modeType = assembly.GetType("Benchmark.Shared.BenchmarkExecutionMode",throwOnError:false,ignoreCase:false);
+        var method = modeType?.GetMethod(
+            "UseElementCount",
+            BindingFlags.Public|BindingFlags.Static,
+            binder:null,
+            types:[typeof(int),typeof(string)],
+            modifiers:null);
+        return method?.Invoke(null,[elementCount,elementScale]) as IDisposable
+            ?? EmptyDisposable.Instance;
+    }
+
+    private sealed class EmptyDisposable:IDisposable {
+        public static EmptyDisposable Instance { get; } = new();
+
+        public void Dispose() {
+        }
+    }
+}
+
 public interface IBenchmarkResultService {
     ReportRow ToReportRow(BenchmarkResultItem item);
 }
@@ -555,6 +735,7 @@ public interface IBenchmarkRunService {
         Func<IReadOnlyList<int>> logicalCpuProvider,
         IReadOnlyList<int> elementCounts,
         BenchmarkRunMode mode,
+        BenchmarkExecutionProfile executionProfile,
         TimeSpan adaptiveThreshold,
         bool restartFromRequestedElementCount,
         Action<BenchmarkResultItem> resultReceived,
@@ -585,17 +766,19 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
         Func<IReadOnlyList<int>> logicalCpuProvider,
         IReadOnlyList<int> elementCounts,
         BenchmarkRunMode mode,
+        BenchmarkExecutionProfile executionProfile,
         TimeSpan adaptiveThreshold,
         bool restartFromRequestedElementCount,
         Action<BenchmarkResultItem> resultReceived,
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
         var orchestrationRoot = FindSolutionRoot() ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Seamless");
-        var benchmarkRoot = Path.Combine(orchestrationRoot,"Work","Benchmark");
+        var benchmarkRoot = Path.Combine(orchestrationRoot,"Work","Benchmark",BenchmarkExecutionProfileNames.ToFolderName(executionProfile));
+        var jobRunner = this.CreateJobRunner(executionProfile);
         var orchestrator = new BenchmarkOrchestrator(
             new BenchmarkStateManager(benchmarkRoot),
             new BenchmarkResultWriter(),
-            this.workerService);
+            jobRunner);
         var request = new BenchmarkRunRequest(
             benchmarks,
             logicalCpus,
@@ -603,14 +786,23 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
             mode,
             adaptiveThreshold,
             TimeSpan.FromMinutes(60),
-            logicalCpuProvider,
-            RestartFromRequestedElementCount: restartFromRequestedElementCount);
-        var orchestratorResult = await orchestrator.RunAsync(
-            request,
-            update => resultReceived(new BenchmarkResultItem(update.Job)),
-            statusChanged,
-            cancellationToken);
-        return new BenchmarkRunReport(orchestratorResult.RunRoot,orchestratorResult.CsvPaths);
+            executionProfile==BenchmarkExecutionProfile.Accurate ? logicalCpuProvider : null,
+            RestartFromRequestedElementCount: restartFromRequestedElementCount,
+            ExecutionProfile: executionProfile);
+        try {
+            var orchestratorResult = await orchestrator.RunAsync(
+                request,
+                update => resultReceived(new BenchmarkResultItem(update.Job)),
+                statusChanged,
+                cancellationToken);
+            return new BenchmarkRunReport(orchestratorResult.RunRoot,orchestratorResult.CsvPaths);
+        } finally {
+            if(jobRunner is IAsyncDisposable asyncDisposable) {
+                await asyncDisposable.DisposeAsync();
+            } else if(jobRunner is IDisposable disposable) {
+                disposable.Dispose();
+            }
+        }
 
         var scale = "1";
         var runRoot = CreateRunRoot();
@@ -658,6 +850,14 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
 
         return new BenchmarkRunReport(csvPath);
     }
+
+    private IBenchmarkJobRunner CreateJobRunner(BenchmarkExecutionProfile executionProfile) =>
+        executionProfile switch{
+            BenchmarkExecutionProfile.Accurate => this.workerService,
+            BenchmarkExecutionProfile.Intermediate => new BenchmarkPersistentWorkerProcessService(),
+            BenchmarkExecutionProfile.Fast => new BenchmarkInProcessJobRunner(),
+            _ => this.workerService,
+        };
 
     private static string CreateRunRoot() {
         var root = FindSolutionRoot() ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Seamless");
