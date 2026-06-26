@@ -46,16 +46,6 @@ public sealed record ExecutionProfileOption(string DisplayName,BenchmarkExecutio
 
 public sealed record ScaleOption(string DisplayName,string RunValue);
 
-public sealed class ElementCountOption{
-    public ElementCountOption(int value){
-        this.Value=value;
-        this.DisplayName="N="+value.ToString("N0",CultureInfo.InvariantCulture);
-    }
-
-    public int Value { get; }
-    public string DisplayName { get; }
-}
-
 public sealed record MetricOption(string DisplayName,BenchmarkMetricKind Kind);
 
 public sealed record ChartModeOption(string DisplayName,BenchmarkChartMode Mode);
@@ -1407,10 +1397,10 @@ public sealed class BenchmarkResultItem{
         this.FailureReason=result.Log;
     }
 
-    public BenchmarkResultItem(string project,string method,ProjectMetrics metrics){
+    public BenchmarkResultItem(string project,string method,ProjectMetrics metrics,int elementCount = 0){
         this.Project=project;
         this.Method=method;
-        this.ElementCount=0;
+        this.ElementCount=elementCount;
         this.Name=project+" / "+method;
         this.Status=metrics.HasMeasuredValue?"Completed":"Missing";
         this.Mean=metrics.HasMeasuredValue&&metrics.TimeNanoseconds is { } time ? BenchmarkFormatting.FormatNanoseconds(time) : string.Empty;

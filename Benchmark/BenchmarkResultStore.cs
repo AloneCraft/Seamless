@@ -22,11 +22,19 @@ public sealed record BenchmarkStoredResult(
             : ProjectMetrics.Missing;
 }
 
-public sealed record CsvDateOption(DateTimeOffset Timestamp,string DisplayName);
+public sealed record BenchmarkRunOption(
+    int RunNumber,
+    string DisplayName,
+    string RunRoot,
+    BenchmarkExecutionProfile ExecutionProfile,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt,
+    int CompletedJobs,
+    int TotalJobs,
+    IReadOnlyList<int> ElementCounts);
 
 public sealed record BenchmarkCsvScanResult(
-    IReadOnlyList<CsvDateOption> DateOptions,
-    IReadOnlyList<DateTime> CalendarDates,
+    IReadOnlyList<BenchmarkRunOption> RunOptions,
     IReadOnlyList<BenchmarkStoredResult> Results);
 
 public sealed class BenchmarkResultStore{
@@ -197,64 +205,85 @@ public sealed class BenchmarkCsvDiscoveryService{
         this.csvService=csvService;
     }
 
-    public BenchmarkCsvScanResult Scan(string benchmarkRoot){
-        if(!Directory.Exists(benchmarkRoot)){
-            return new BenchmarkCsvScanResult([],[],[]);
+    public BenchmarkCsvScanResult Scan(string benchmarkRoot,BenchmarkExecutionProfile executionProfile){
+        var profileRoot = Path.Combine(benchmarkRoot,BenchmarkExecutionProfileNames.ToFolderName(executionProfile));
+        if(!Directory.Exists(profileRoot)){
+            return new BenchmarkCsvScanResult([],[]);
         }
 
         var results = new List<BenchmarkStoredResult>();
-        var timestamps = new SortedSet<DateTimeOffset>();
-        foreach(var path in Directory.EnumerateFiles(benchmarkRoot,"*.csv",SearchOption.AllDirectories)){
-            var timestamp = TryExtractTimestamp(path);
-            if(timestamp is null){
+        var options = new List<BenchmarkRunOption>();
+        foreach(var runRoot in Directory.EnumerateDirectories(profileRoot).Where(static path => IsRunNumberFolder(path))){
+            var state = new BenchmarkStateManager(profileRoot).Load(runRoot);
+            var csvPaths = Directory.EnumerateFiles(runRoot,"N*.csv",SearchOption.TopDirectoryOnly)
+                .Where(static path => TryExtractElementCount(path)>0)
+                .OrderBy(static path => TryExtractElementCount(path))
+                .ToArray();
+            if(state is null&&csvPaths.Length==0){
                 continue;
             }
 
-            var elementCount = TryExtractElementCount(path);
-            IReadOnlyList<BenchmarkComparisonRow> rows;
-            try{
-                rows=this.csvService.ReadComparisonCsv(path);
-            }catch(InvalidDataException){
-                continue;
-            }catch(IOException){
-                continue;
-            }
+            var runNumber = state?.RunNumber>0
+                ? state.RunNumber
+                : TryParseRunNumber(runRoot);
+            var createdAt = state?.CreatedAt??Directory.GetCreationTimeUtc(runRoot);
+            var updatedAt = state?.UpdatedAt??Directory.GetLastWriteTimeUtc(runRoot);
+            var elementCounts = csvPaths
+                .Select(static path => TryExtractElementCount(path))
+                .Where(static elementCount => elementCount>0)
+                .Distinct()
+                .Order()
+                .ToArray();
+            var completedJobs = state?.Jobs.Count(static job => job.Status==JobStatus.Completed)??0;
+            var totalJobs = state?.Jobs.Count??0;
+            foreach(var path in csvPaths){
+                var elementCount = TryExtractElementCount(path);
+                IReadOnlyList<BenchmarkComparisonRow> rows;
+                try{
+                    rows=this.csvService.ReadComparisonCsv(path);
+                }catch(InvalidDataException){
+                    continue;
+                }catch(IOException){
+                    continue;
+                }
 
-            timestamps.Add(timestamp.Value);
-            foreach(var row in rows){
-                foreach(var project in BenchmarkComparisonFormatter.ProjectOrder){
-                    var metrics = row.GetProject(project);
-                    if(!metrics.HasMeasuredValue){
-                        continue;
+                foreach(var row in rows){
+                    foreach(var project in BenchmarkComparisonFormatter.ProjectOrder){
+                        var metrics = row.GetProject(project);
+                        if(!metrics.HasMeasuredValue){
+                            continue;
+                        }
+
+                        results.Add(new BenchmarkStoredResult(
+                            project,
+                            row.Benchmark,
+                            elementCount,
+                            "Completed",
+                            metrics.TimeNanoseconds?.ToString(CultureInfo.InvariantCulture)??string.Empty,
+                            metrics.TimeNanoseconds,
+                            metrics.AllocatedBytes,
+                            updatedAt,
+                            updatedAt,
+                            path));
                     }
-
-                    results.Add(new BenchmarkStoredResult(
-                        project,
-                        row.Benchmark,
-                        elementCount,
-                        "Completed",
-                        metrics.TimeNanoseconds?.ToString(CultureInfo.InvariantCulture)??string.Empty,
-                        metrics.TimeNanoseconds,
-                        metrics.AllocatedBytes,
-                        timestamp.Value,
-                        timestamp.Value,
-                        path));
                 }
             }
+
+            options.Add(new BenchmarkRunOption(
+                runNumber,
+                FormatRunDisplay(runNumber,createdAt,completedJobs,totalJobs),
+                runRoot,
+                state?.ExecutionProfile??executionProfile,
+                createdAt,
+                updatedAt,
+                completedJobs,
+                totalJobs,
+                elementCounts));
         }
 
-        var options = timestamps
-            .OrderByDescending(static timestamp => timestamp)
-            .Select(static timestamp => new CsvDateOption(
-                timestamp,
-                BenchmarkTimestampDisplay.FormatLocal(timestamp)))
-            .ToArray();
-        var calendarDates = timestamps
-            .Select(static timestamp => timestamp.ToLocalTime().Date)
-            .Distinct()
-            .OrderBy(static date => date)
-            .ToArray();
-        return new BenchmarkCsvScanResult(options,calendarDates,results);
+        return new BenchmarkCsvScanResult(
+            options.OrderByDescending(static option => option.RunNumber).ToArray(),
+            results);
     }
 
     public static DateTimeOffset? TryExtractTimestamp(string path){
@@ -268,6 +297,21 @@ public sealed class BenchmarkCsvDiscoveryService{
             ? value
             : 0;
     }
+
+    private static bool IsRunNumberFolder(string path) =>
+        TryParseRunNumber(path)>0;
+
+    private static int TryParseRunNumber(string runRoot){
+        var name = Path.GetFileName(Path.TrimEndingDirectorySeparator(runRoot));
+        return name.Length==6&&int.TryParse(name,NumberStyles.None,CultureInfo.InvariantCulture,out var number)
+            ? number
+            : 0;
+    }
+
+    private static string FormatRunDisplay(int runNumber,DateTimeOffset createdAt,int completedJobs,int totalJobs) =>
+        runNumber.ToString("D6",CultureInfo.InvariantCulture)+" "
+        +createdAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm",CultureInfo.InvariantCulture)+" "
+        +completedJobs.ToString(CultureInfo.InvariantCulture)+"/"+totalJobs.ToString(CultureInfo.InvariantCulture);
 
     private static DateTimeOffset? TryParseTimestamp(string text){
         foreach(var pattern in TimestampPatterns()){
@@ -308,12 +352,13 @@ public sealed class BenchmarkUiStateStore{
 
     public BenchmarkUiState Load(){
         if(!File.Exists(this.path)){
-            return new BenchmarkUiState(null,new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase),new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase));
+            return new BenchmarkUiState(null,null,new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase),new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase));
         }
 
         var state = JsonSerializer.Deserialize<BenchmarkUiStateSnapshot>(File.ReadAllText(this.path,Encoding.UTF8),JsonOptions);
         return new BenchmarkUiState(
-            state?.SelectedCsvTimestamp,
+            state?.SelectedRunNumber,
+            state?.SelectedResultElementCount,
             new Dictionary<string,bool>(state?.ProjectCellSelections??new Dictionary<string,bool>(),StringComparer.OrdinalIgnoreCase),
             new Dictionary<string,bool>(state?.RowSelections??new Dictionary<string,bool>(),StringComparer.OrdinalIgnoreCase));
     }
@@ -322,7 +367,9 @@ public sealed class BenchmarkUiStateStore{
         lock(this.fileGate){
             Directory.CreateDirectory(Path.GetDirectoryName(this.path)??".");
             var snapshot = new BenchmarkUiStateSnapshot(
-                state.SelectedCsvTimestamp,
+                state.SelectedRunNumber,
+                state.SelectedResultElementCount,
+                null,
                 state.ProjectCellSelections.OrderBy(static item => item.Key,StringComparer.OrdinalIgnoreCase).ToDictionary(static item => item.Key,static item => item.Value,StringComparer.OrdinalIgnoreCase),
                 state.RowSelections.OrderBy(static item => item.Key,StringComparer.OrdinalIgnoreCase).ToDictionary(static item => item.Key,static item => item.Value,StringComparer.OrdinalIgnoreCase));
             AtomicWrite(this.path,JsonSerializer.Serialize(snapshot,JsonOptions));
@@ -353,12 +400,15 @@ public sealed class BenchmarkUiStateStore{
     }
 
     private sealed record BenchmarkUiStateSnapshot(
+        int? SelectedRunNumber,
+        int? SelectedResultElementCount,
         DateTimeOffset? SelectedCsvTimestamp,
         Dictionary<string,bool> ProjectCellSelections,
         Dictionary<string,bool> RowSelections);
 }
 
 public sealed record BenchmarkUiState(
-    DateTimeOffset? SelectedCsvTimestamp,
+    int? SelectedRunNumber,
+    int? SelectedResultElementCount,
     Dictionary<string,bool> ProjectCellSelections,
     Dictionary<string,bool> RowSelections);

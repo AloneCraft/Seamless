@@ -25,9 +25,9 @@ internal sealed class BenchmarkOrchestrator {
         Action<BenchmarkProgressUpdate> progress,
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
-        var state = request.RestartFromRequestedElementCount
-            ? this.CreateState(request)
-            : this.stateManager.LoadLatestUnfinished()??this.CreateState(request);
+        var state = !string.IsNullOrWhiteSpace(request.RunRootOverride)
+            ? this.stateManager.Load(request.RunRootOverride)??this.CreateState(request)
+            : this.CreateState(request);
         this.ReconcileStateWithRequest(state,request);
         this.stateManager.SaveLatestRun(state.RunRoot);
         this.stateManager.Save(state);
@@ -261,14 +261,15 @@ internal sealed class BenchmarkOrchestrator {
 
     private ProgressState CreateState(BenchmarkRunRequest request) {
         var now = DateTimeOffset.UtcNow;
-        var runRoot = Path.Combine(
-            this.stateManager.BenchmarkRoot,
-            now.ToLocalTime().ToString("yyyyMMdd-HHmmss",CultureInfo.InvariantCulture));
+        var runRoot = string.IsNullOrWhiteSpace(request.RunRootOverride)
+            ? this.CreateNextRunRoot()
+            : request.RunRootOverride;
         var state = new ProgressState {
             RunId=Guid.NewGuid().ToString("N",CultureInfo.InvariantCulture),
             Mode=request.Mode,
             ExecutionProfile=request.ExecutionProfile,
             RunRoot=runRoot,
+            RunNumber=TryParseRunNumber(runRoot),
             ElementCounts=request.ElementCounts.Distinct().Order().ToList(),
             AdaptiveThresholdNanoseconds=request.AdaptiveThreshold.TotalMilliseconds*1_000_000,
             CreatedAt=now,
@@ -292,11 +293,50 @@ internal sealed class BenchmarkOrchestrator {
         return state;
     }
 
+    private string CreateNextRunRoot(){
+        Directory.CreateDirectory(this.stateManager.BenchmarkRoot);
+        var next = Directory.EnumerateDirectories(this.stateManager.BenchmarkRoot)
+            .Select(static path => TryParseRunNumber(path))
+            .DefaultIfEmpty(0)
+            .Max()+1;
+        while(true){
+            var runRoot = Path.Combine(this.stateManager.BenchmarkRoot,next.ToString("D6",CultureInfo.InvariantCulture));
+            if(!Directory.Exists(runRoot)){
+                Directory.CreateDirectory(runRoot);
+                return runRoot;
+            }
+
+            next++;
+        }
+    }
+
+    private static int TryParseRunNumber(string runRoot){
+        var name = Path.GetFileName(Path.TrimEndingDirectorySeparator(runRoot));
+        return name.Length==6
+            &&int.TryParse(name,NumberStyles.None,CultureInfo.InvariantCulture,out var number)
+                ? number
+                : 0;
+    }
+
     private void ReconcileStateWithRequest(ProgressState state,BenchmarkRunRequest request) {
+        if(state.RunNumber<=0){
+            state.RunNumber=TryParseRunNumber(state.RunRoot);
+        }
+        state.Mode=request.Mode;
+        state.ExecutionProfile=request.ExecutionProfile;
+        state.AdaptiveThresholdNanoseconds=request.AdaptiveThreshold.TotalMilliseconds*1_000_000;
+        state.ElementCounts=request.ElementCounts.Distinct().Order().ToList();
+        if(state.ElementCounts.Count==0){
+            state.ElementCounts=BenchmarkElementCounts.DefaultInitial.ToList();
+        }
         if(state.Jobs.Count>0) {
             state.Jobs=state.Jobs
                 .Where(job => request.Benchmarks.Any(benchmark => SameCase(benchmark,job)))
                 .ToList();
+        }
+
+        if(request.RestartFromRequestedElementCount&&state.ElementCounts.Count>0){
+            ResetJobsFromElementCount(state,state.ElementCounts[0]);
         }
 
         if(state.Mode==BenchmarkRunMode.Adaptive) {
@@ -309,6 +349,25 @@ internal sealed class BenchmarkOrchestrator {
             foreach(var method in requestedMethods.Where(method => state.AdaptiveStates.All(item => !string.Equals(item.MethodName,method,StringComparison.Ordinal)))) {
                 state.AdaptiveStates.Add(new AdaptiveBenchmarkState { MethodName=method });
             }
+        }
+    }
+
+    private static void ResetJobsFromElementCount(ProgressState state,int elementCount){
+        foreach(var job in state.Jobs.Where(job => job.ElementCount>=elementCount)){
+            job.Status=JobStatus.Pending;
+            job.AssignedLogicalCpu=null;
+            job.StartedAt=null;
+            job.FinishedAt=null;
+            job.FailureReason=string.Empty;
+            job.Mean=string.Empty;
+            job.Error=string.Empty;
+            job.StdDev=string.Empty;
+            job.MeanNanoseconds=null;
+            job.ErrorNanoseconds=null;
+            job.StdDevNanoseconds=null;
+            job.AllocatedBytes=null;
+            job.ExitCode=0;
+            job.ArtifactFolder=string.Empty;
         }
     }
 

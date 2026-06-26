@@ -78,6 +78,57 @@ public sealed class BenchmarkOrchestratorTests{
     }
 
     [Fact]
+    public async Task Orchestrator_RunAsync_CreatesNumberedRunRootAndNFiles(){
+        var root = CreateTempRoot();
+        var runner = new FakeRunner((job,_) => CompletedResult(job));
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+
+        var result = await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("SystemFLinq","Where"),Case("SystemZLinq","Where")],
+                [0],
+                [1,2],
+                BenchmarkRunMode.Fixed,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30)),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        Assert.Equal(Path.Combine(root,"000001"),result.RunRoot);
+        Assert.True(File.Exists(Path.Combine(result.RunRoot,"N1.csv")));
+        Assert.True(File.Exists(Path.Combine(result.RunRoot,"N2.csv")));
+        Assert.False(File.Exists(Path.Combine(result.RunRoot,"BenchmarkComparison-N1.csv")));
+        var state = new BenchmarkStateManager(root).Load(result.RunRoot)!;
+        Assert.Equal(1,state.RunNumber);
+    }
+
+    [Fact]
+    public async Task Orchestrator_RunAsync_UsesSelectedRunRoot(){
+        var root = CreateTempRoot();
+        var runRoot = Path.Combine(root,"000001");
+        var runner = new FakeRunner((job,_) => CompletedResult(job));
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+
+        var result = await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("SystemFLinq","Where")],
+                [0],
+                [1],
+                BenchmarkRunMode.Fixed,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30),
+                RunRootOverride: runRoot),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        Assert.Equal(runRoot,result.RunRoot);
+        Assert.Single(Directory.GetDirectories(root));
+        Assert.True(File.Exists(Path.Combine(runRoot,"N1.csv")));
+    }
+
+    [Fact]
     public async Task Orchestrator_FixedMode_DoesNotCrashWhenParallelJobsPersistProgress(){
         var root = CreateTempRoot();
         var runner = new DelayedFakeRunner(async (job,_) => {
@@ -371,8 +422,8 @@ public sealed class BenchmarkOrchestratorTests{
 
         await Task.WhenAll(Enumerable.Range(0,16).Select(_ => Task.Run(() => writer.WriteOutputs(state))));
 
-        Assert.True(File.Exists(Path.Combine(runRoot,"BenchmarkComparison-N128.csv")));
-        Assert.True(File.Exists(Path.Combine(runRoot,"BenchmarkComparison-N256.csv")));
+        Assert.True(File.Exists(Path.Combine(runRoot,"N128.csv")));
+        Assert.True(File.Exists(Path.Combine(runRoot,"N256.csv")));
         Assert.True(File.Exists(Path.Combine(runRoot,"BenchmarkRunSummary.txt")));
         Assert.Empty(Directory.GetFiles(runRoot,"*.tmp"));
     }
@@ -430,7 +481,8 @@ public sealed class BenchmarkOrchestratorTests{
                 [1],
                 BenchmarkRunMode.Adaptive,
                 TimeSpan.FromSeconds(1),
-                TimeSpan.FromSeconds(30)),
+                TimeSpan.FromSeconds(30),
+                RunRootOverride: runRoot),
             _ => { },
             _ => { },
             CancellationToken.None);
@@ -438,6 +490,103 @@ public sealed class BenchmarkOrchestratorTests{
         var loaded = stateManager.Load(runRoot)!;
         Assert.Equal(["SystemFLinq"],observedProjects);
         Assert.All(loaded.Jobs,static job => Assert.Equal("SystemFLinq",job.Project));
+    }
+
+    [Fact]
+    public async Task Orchestrator_AdaptiveMode_ResumedStateUsesRequestedThreshold(){
+        var root = CreateTempRoot();
+        var stateManager = new BenchmarkStateManager(root);
+        var runRoot = Path.Combine(root,"run");
+        var completedJob = CompletedJob("SystemFLinq","Where",1);
+        completedJob.Mean="10.56 ms";
+        completedJob.MeanNanoseconds=10_560_000;
+        var state = new ProgressState{
+            RunId="run",
+            RunRoot=runRoot,
+            Mode=BenchmarkRunMode.Adaptive,
+            CreatedAt=DateTimeOffset.UtcNow,
+            UpdatedAt=DateTimeOffset.UtcNow,
+            ElementCounts=[1,2],
+            AdaptiveThresholdNanoseconds=1_000_000,
+            AdaptiveStates=[
+                new AdaptiveBenchmarkState { MethodName="Where" },
+            ],
+            Jobs=[
+                completedJob,
+            ],
+        };
+        var observedElementCounts = new List<int>();
+        var runner = new FakeRunner((job,_) => {
+            observedElementCounts.Add(job.ElementCount);
+            return CompletedResult(job);
+        });
+        stateManager.Save(state);
+        stateManager.SaveLatestRun(runRoot);
+        var orchestrator = new BenchmarkOrchestrator(stateManager,new BenchmarkResultWriter(),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("SystemFLinq","Where")],
+                [0],
+                [1,2],
+                BenchmarkRunMode.Adaptive,
+                TimeSpan.FromMilliseconds(1024),
+                TimeSpan.FromSeconds(30),
+                RunRootOverride: runRoot),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        var loaded = stateManager.Load(runRoot)!;
+        Assert.Equal(1_024_000_000,loaded.AdaptiveThresholdNanoseconds);
+        Assert.Equal([2],observedElementCounts);
+    }
+
+    [Fact]
+    public async Task Orchestrator_AdaptiveMode_RestartFromRequestedElementCountRerunsCompletedJobs(){
+        var root = CreateTempRoot();
+        var stateManager = new BenchmarkStateManager(root);
+        var runRoot = Path.Combine(root,"run");
+        var state = new ProgressState{
+            RunId="run",
+            RunRoot=runRoot,
+            Mode=BenchmarkRunMode.Adaptive,
+            CreatedAt=DateTimeOffset.UtcNow,
+            UpdatedAt=DateTimeOffset.UtcNow,
+            ElementCounts=[1,2],
+            AdaptiveThresholdNanoseconds=1_000_000_000,
+            AdaptiveStates=[
+                new AdaptiveBenchmarkState { MethodName="Where" },
+            ],
+            Jobs=[
+                CompletedJob("SystemFLinq","Where",1),
+                CompletedJob("SystemFLinq","Where",2),
+            ],
+        };
+        var observedElementCounts = new List<int>();
+        var runner = new FakeRunner((job,_) => {
+            observedElementCounts.Add(job.ElementCount);
+            return CompletedResult(job);
+        });
+        stateManager.Save(state);
+        stateManager.SaveLatestRun(runRoot);
+        var orchestrator = new BenchmarkOrchestrator(stateManager,new BenchmarkResultWriter(),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("SystemFLinq","Where")],
+                [0],
+                [1,2],
+                BenchmarkRunMode.Adaptive,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30),
+                RestartFromRequestedElementCount: true,
+                RunRootOverride: runRoot),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        Assert.Equal([1,2],observedElementCounts);
     }
 
     [Fact]
