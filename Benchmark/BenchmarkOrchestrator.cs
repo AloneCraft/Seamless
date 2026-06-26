@@ -25,7 +25,9 @@ internal sealed class BenchmarkOrchestrator {
         Action<BenchmarkProgressUpdate> progress,
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
-        var state = this.stateManager.LoadLatestUnfinished()??this.CreateState(request);
+        var state = request.RestartFromRequestedElementCount
+            ? this.CreateState(request)
+            : this.stateManager.LoadLatestUnfinished()??this.CreateState(request);
         this.ReconcileStateWithRequest(state,request);
         this.stateManager.SaveLatestRun(state.RunRoot);
         this.stateManager.Save(state);

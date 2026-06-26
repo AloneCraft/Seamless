@@ -533,6 +533,8 @@ public sealed class BenchmarkTableRow:ObservableObject{
     private string systemRatioTimeText = string.Empty;
     private string systemRatioAllocatedText = string.Empty;
     private string systemStopNText = string.Empty;
+    private Color systemStopNTextColor = DefaultStopNTextColor;
+    private FontAttributes systemStopNFontAttributes;
     private string systemFLinqTimeText = string.Empty;
     private string systemFLinqAllocatedText = string.Empty;
     private string systemZLinqTimeText = string.Empty;
@@ -540,6 +542,8 @@ public sealed class BenchmarkTableRow:ObservableObject{
     private string persistedRatioTimeText = string.Empty;
     private string persistedRatioAllocatedText = string.Empty;
     private string persistedStopNText = string.Empty;
+    private Color persistedStopNTextColor = DefaultStopNTextColor;
+    private FontAttributes persistedStopNFontAttributes;
     private string persistedFLinqTimeText = string.Empty;
     private string persistedFLinqAllocatedText = string.Empty;
     private string persistedLinqTimeText = string.Empty;
@@ -547,11 +551,15 @@ public sealed class BenchmarkTableRow:ObservableObject{
     private string tsavoriteRatioTimeText = string.Empty;
     private string tsavoriteRatioAllocatedText = string.Empty;
     private string tsavoriteStopNText = string.Empty;
+    private Color tsavoriteStopNTextColor = DefaultStopNTextColor;
+    private FontAttributes tsavoriteStopNFontAttributes;
     private string tsavoriteFLinqTimeText = string.Empty;
     private string tsavoriteFLinqAllocatedText = string.Empty;
     private string tsavoriteLinqTimeText = string.Empty;
     private string tsavoriteLinqAllocatedText = string.Empty;
     private BenchmarkComparisonRow? comparisonRow;
+    private static readonly Color DefaultStopNTextColor = Color.FromArgb("#334155");
+    private static readonly Color HighlightStopNTextColor = Color.FromArgb("#16A34A");
 
     public BenchmarkTableRow(string methodName,IReadOnlyDictionary<string,BenchmarkCase> casesByProject){
         this.MethodName=methodName;
@@ -609,6 +617,16 @@ public sealed class BenchmarkTableRow:ObservableObject{
         private set => this.SetProperty(ref this.systemStopNText,value);
     }
 
+    public Color SystemStopNTextColor{
+        get => this.systemStopNTextColor;
+        private set => this.SetProperty(ref this.systemStopNTextColor,value);
+    }
+
+    public FontAttributes SystemStopNFontAttributes{
+        get => this.systemStopNFontAttributes;
+        private set => this.SetProperty(ref this.systemStopNFontAttributes,value);
+    }
+
     public string SystemFLinqTimeText{
         get => this.systemFLinqTimeText;
         private set => this.SetProperty(ref this.systemFLinqTimeText,value);
@@ -644,6 +662,16 @@ public sealed class BenchmarkTableRow:ObservableObject{
         private set => this.SetProperty(ref this.persistedStopNText,value);
     }
 
+    public Color PersistedStopNTextColor{
+        get => this.persistedStopNTextColor;
+        private set => this.SetProperty(ref this.persistedStopNTextColor,value);
+    }
+
+    public FontAttributes PersistedStopNFontAttributes{
+        get => this.persistedStopNFontAttributes;
+        private set => this.SetProperty(ref this.persistedStopNFontAttributes,value);
+    }
+
     public string PersistedFLinqTimeText{
         get => this.persistedFLinqTimeText;
         private set => this.SetProperty(ref this.persistedFLinqTimeText,value);
@@ -677,6 +705,16 @@ public sealed class BenchmarkTableRow:ObservableObject{
     public string TsavoriteStopNText{
         get => this.tsavoriteStopNText;
         private set => this.SetProperty(ref this.tsavoriteStopNText,value);
+    }
+
+    public Color TsavoriteStopNTextColor{
+        get => this.tsavoriteStopNTextColor;
+        private set => this.SetProperty(ref this.tsavoriteStopNTextColor,value);
+    }
+
+    public FontAttributes TsavoriteStopNFontAttributes{
+        get => this.tsavoriteStopNFontAttributes;
+        private set => this.SetProperty(ref this.tsavoriteStopNFontAttributes,value);
     }
 
     public string TsavoriteFLinqTimeText{
@@ -769,14 +807,17 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.SetProjectMetricText(project,FormatTime(stoppedMetrics),FormatAllocated(stoppedMetrics));
     }
 
-    public void ApplyPairStopped(string leftProject,string rightProject,int stoppedAtElementCount){
+    public void ApplyPairStopped(string leftProject,string rightProject,int stoppedAtElementCount,bool highlight){
         var text = stoppedAtElementCount.ToString(CultureInfo.InvariantCulture);
         if(IsPair(leftProject,rightProject,BenchmarkComparisonFormatter.SystemFLinq,BenchmarkComparisonFormatter.SystemZLinq)){
             this.SystemStopNText=text;
+            this.ApplySystemStopNStyle(highlight);
         }else if(IsPair(leftProject,rightProject,BenchmarkComparisonFormatter.PersistedFLinq,BenchmarkComparisonFormatter.PersistedLinq)){
             this.PersistedStopNText=text;
+            this.ApplyPersistedStopNStyle(highlight);
         }else if(IsPair(leftProject,rightProject,BenchmarkComparisonFormatter.TsavoriteFLinq,BenchmarkComparisonFormatter.TsavoriteLinq)){
             this.TsavoriteStopNText=text;
+            this.ApplyTsavoriteStopNStyle(highlight);
         }
     }
 
@@ -916,8 +957,26 @@ public sealed class BenchmarkTableRow:ObservableObject{
 
     private void ClearStopNText(){
         this.SystemStopNText=string.Empty;
+        this.ApplySystemStopNStyle(false);
         this.PersistedStopNText=string.Empty;
+        this.ApplyPersistedStopNStyle(false);
         this.TsavoriteStopNText=string.Empty;
+        this.ApplyTsavoriteStopNStyle(false);
+    }
+
+    private void ApplySystemStopNStyle(bool highlight){
+        this.SystemStopNTextColor=highlight ? HighlightStopNTextColor : DefaultStopNTextColor;
+        this.SystemStopNFontAttributes=highlight ? FontAttributes.Bold : FontAttributes.None;
+    }
+
+    private void ApplyPersistedStopNStyle(bool highlight){
+        this.PersistedStopNTextColor=highlight ? HighlightStopNTextColor : DefaultStopNTextColor;
+        this.PersistedStopNFontAttributes=highlight ? FontAttributes.Bold : FontAttributes.None;
+    }
+
+    private void ApplyTsavoriteStopNStyle(bool highlight){
+        this.TsavoriteStopNTextColor=highlight ? HighlightStopNTextColor : DefaultStopNTextColor;
+        this.TsavoriteStopNFontAttributes=highlight ? FontAttributes.Bold : FontAttributes.None;
     }
 
     private static bool IsPair(string leftProject,string rightProject,string expectedLeft,string expectedRight) =>

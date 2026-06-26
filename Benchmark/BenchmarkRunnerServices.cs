@@ -556,6 +556,7 @@ public interface IBenchmarkRunService {
         IReadOnlyList<int> elementCounts,
         BenchmarkRunMode mode,
         TimeSpan adaptiveThreshold,
+        bool restartFromRequestedElementCount,
         Action<BenchmarkResultItem> resultReceived,
         Action<string> statusChanged,
         CancellationToken cancellationToken);
@@ -585,6 +586,7 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
         IReadOnlyList<int> elementCounts,
         BenchmarkRunMode mode,
         TimeSpan adaptiveThreshold,
+        bool restartFromRequestedElementCount,
         Action<BenchmarkResultItem> resultReceived,
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
@@ -601,7 +603,8 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
             mode,
             adaptiveThreshold,
             TimeSpan.FromMinutes(60),
-            logicalCpuProvider);
+            logicalCpuProvider,
+            RestartFromRequestedElementCount: restartFromRequestedElementCount);
         var orchestratorResult = await orchestrator.RunAsync(
             request,
             update => resultReceived(new BenchmarkResultItem(update.Job)),

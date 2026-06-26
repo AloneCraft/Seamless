@@ -115,7 +115,8 @@ internal sealed record BenchmarkRunRequest(
     BenchmarkRunMode Mode,
     TimeSpan AdaptiveThreshold,
     TimeSpan JobTimeout,
-    Func<IReadOnlyList<int>>? LogicalCpuProvider = null);
+    Func<IReadOnlyList<int>>? LogicalCpuProvider = null,
+    bool RestartFromRequestedElementCount = false);
 
 public sealed record BenchmarkJobRunResult(
     string Project,

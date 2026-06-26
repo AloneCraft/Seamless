@@ -42,6 +42,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     private ResultElementCountOption? selectedResultElementCount;
     private double selectedResultElementCountIndex;
     private string currentElementCountText = "N=1";
+    private int loadedRunElementCount = BenchmarkElementCounts.DefaultInitial[0];
     private double chartHeight = 300;
     private bool isApplyingCpuSelection;
     private bool isApplyingUiState;
@@ -283,7 +284,11 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
 
     public ElementCountOption SelectedElementCountOption{
         get => this.selectedElementCountOption;
-        set => this.SetProperty(ref this.selectedElementCountOption,value);
+        set{
+            if(this.SetProperty(ref this.selectedElementCountOption,value)){
+                this.CurrentElementCountText=value.DisplayName;
+            }
+        }
     }
 
     public CsvDateOption? SelectedCsvDateOption{
@@ -516,6 +521,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             this.ApplySelectedElementCountToTable();
             this.ApplyStoredResultsToTable();
             this.RestoreCsvDateSelection(savedState.SelectedCsvTimestamp);
+            this.SelectLoadedRunElementCount();
             this.RefreshBenchmarkSelectionAggregates();
             this.ApplyCurrentSort();
             this.StatusText=this.BenchmarkRows.Count+" benchmarks";
@@ -763,7 +769,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         this.runCancellation?.Cancel();
         this.runCancellation=new CancellationTokenSource();
         this.IsRunning=true;
-        this.CurrentElementCountText="N=1";
+        this.CurrentElementCountText=this.SelectedElementCountOption.DisplayName;
         this.ResultItems.Clear();
         this.VisibleResultItems.Clear();
         this.currentRunResultItems.Clear();
@@ -784,6 +790,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
                 this.GetSelectedElementCounts(),
                 BenchmarkRunMode.Adaptive,
                 this.GetAdaptiveThreshold(),
+                this.ShouldRestartFromSelectedElementCount(),
                 result => MainThread.BeginInvokeOnMainThread(() => {
                     this.HandleRunResult(result);
                 }),
@@ -880,7 +887,28 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     }
 
     private IReadOnlyList<int> GetSelectedElementCounts(){
-        return BenchmarkElementCountLogic.BuildAdaptiveCandidates(BenchmarkElementCounts.All,BenchmarkElementCounts.All[^1]);
+        return BenchmarkElementCountLogic
+            .BuildAdaptiveCandidates(BenchmarkElementCounts.All,BenchmarkElementCounts.All[^1])
+            .Where(count => count>=this.SelectedElementCountOption.Value)
+            .ToArray();
+    }
+
+    private bool ShouldRestartFromSelectedElementCount() =>
+        this.SelectedElementCountOption.Value!=this.loadedRunElementCount;
+
+    private void SelectLoadedRunElementCount(){
+        var nextElementCount = this.GetLatestUnfinishedElementCount()??BenchmarkElementCounts.DefaultInitial[0];
+        var option = this.ElementCountOptions.LastOrDefault(item => item.Value<=nextElementCount)??this.ElementCountOptions[0];
+        this.loadedRunElementCount=option.Value;
+        this.SelectedElementCountOption=option;
+    }
+
+    private int? GetLatestUnfinishedElementCount(){
+        var state = new BenchmarkStateManager(this.benchmarkRoot).LoadLatestUnfinished();
+        return state?.Jobs
+            .Where(static job => job.Status is JobStatus.Pending or JobStatus.Running)
+            .Select(static job => (int?)job.ElementCount)
+            .Min();
     }
 
     private TimeSpan GetAdaptiveThreshold(){
@@ -1140,7 +1168,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
 
                 var stoppedAt = this.FindPairStoppedAt(row.MethodName,pair.LeftProject,selectedElementCount);
                 if(stoppedAt is { } stoppedAtElementCount){
-                    row.ApplyPairStopped(pair.LeftProject,pair.RightProject,stoppedAtElementCount);
+                    row.ApplyPairStopped(pair.LeftProject,pair.RightProject,stoppedAtElementCount,this.currentRunResultItems.Count>0);
                     row.ApplySkipped(pair.LeftProject,stoppedAtElementCount,this.GetResultMetrics(row.MethodName,pair.LeftProject,stoppedAtElementCount));
                     row.ApplySkipped(pair.RightProject,stoppedAtElementCount,this.GetResultMetrics(row.MethodName,pair.RightProject,stoppedAtElementCount));
                 }
