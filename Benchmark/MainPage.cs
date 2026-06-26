@@ -19,7 +19,7 @@ public sealed class MainPage:ContentPage{
     private const double BenchmarkCellCheckSlotWidth = 38;
     private const double BenchmarkHeaderCheckSlotWidth = 38;
     private const double BenchmarkScrollBarSize = 20;
-    private const double CpuLogicalColumnWidth = 220;
+    private const double CpuLogicalColumnWidth = 420;
     private const double CpuLogicalCheckColumnWidth = 38;
     private const double CpuLogicalNumberWidth = 26;
     private BenchmarkRunnerViewModel? viewModel;
@@ -183,17 +183,14 @@ public sealed class MainPage:ContentPage{
         thresholdPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ThresholdOptions));
         thresholdPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedThreshold));
 
-        var elementCountLabel = new Label{
-            FontSize=18,
-            FontAttributes=FontAttributes.Bold,
-            TextColor=Color.FromArgb("#0F172A"),
-            HorizontalTextAlignment=TextAlignment.Center,
-            VerticalTextAlignment=TextAlignment.Center,
-            MinimumWidthRequest=92,
+        var elementCountPicker = new Picker{
+            WidthRequest=112,
             HeightRequest=30,
-            Padding=new Thickness(8,0),
+            ItemDisplayBinding=new Binding(nameof(ElementCountOption.DisplayName)),
+            Margin=new Thickness(0),
         };
-        elementCountLabel.SetBinding(Label.TextProperty,nameof(BenchmarkRunnerViewModel.CurrentElementCountText));
+        elementCountPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ElementCountOptions));
+        elementCountPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedElementCountOption));
 
         var csvDatePicker = new Picker{
             WidthRequest=168,
@@ -239,7 +236,7 @@ public sealed class MainPage:ContentPage{
         grid.Add(this.ToolbarLabel("計測時間"),1,0);
         grid.Add(thresholdPicker,2,0);
         grid.Add(this.ToolbarLabel("要素数"),3,0);
-        grid.Add(elementCountLabel,4,0);
+        grid.Add(elementCountPicker,4,0);
         grid.Add(runButton,5,0);
         grid.Add(cancelButton,6,0);
         grid.Add(exportButton,7,0);
@@ -320,7 +317,12 @@ public sealed class MainPage:ContentPage{
         grid.Columns.Add(this.CreateTextColumn("Benchmark",nameof(BenchmarkTableRow.BenchmarkName),BenchmarkGridSortColumn.BenchmarkName,240,TextAlignment.Start));
         this.AddBenchmarkBaseStackedHeaders(categoryHeaderRow,projectHeaderRow);
         var systemLeftMappings = this.AddProjectColumns(grid,"FLinq",nameof(BenchmarkTableRow.SystemFLinqCell),BenchmarkGridSortColumn.SystemFLinqTime,BenchmarkGridSortColumn.SystemFLinqAllocated);
-        var systemStopMapping = this.AddPairStopNColumn(grid,"SystemStopN",nameof(BenchmarkTableRow.SystemStopNText));
+        var systemStopMapping = this.AddPairStopNColumn(
+            grid,
+            "SystemStopN",
+            nameof(BenchmarkTableRow.SystemStopNText),
+            nameof(BenchmarkTableRow.SystemStopNTextColor),
+            nameof(BenchmarkTableRow.SystemStopNFontAttributes));
         var systemRightMappings = this.AddProjectColumns(grid,"ZLinq",nameof(BenchmarkTableRow.SystemZLinqCell),BenchmarkGridSortColumn.SystemZLinqTime,BenchmarkGridSortColumn.SystemZLinqAllocated);
         IReadOnlyList<string>[] systemMappings = [systemLeftMappings,[systemStopMapping],systemRightMappings];
         this.AddBenchmarkSelectionGroup(categoryHeaderRow,this.GetBenchmarkSelectionGroup("System"),systemMappings);
@@ -328,7 +330,12 @@ public sealed class MainPage:ContentPage{
         this.AddBenchmarkStopNHeader(projectHeaderRow,systemStopMapping);
         this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup(BenchmarkComparisonFormatter.SystemZLinq,"ZLinq"),systemRightMappings);
         var persistedLeftMappings = this.AddProjectColumns(grid,"FLinq",nameof(BenchmarkTableRow.PersistedFLinqCell),BenchmarkGridSortColumn.PersistedFLinqTime,BenchmarkGridSortColumn.PersistedFLinqAllocated);
-        var persistedStopMapping = this.AddPairStopNColumn(grid,"PersistedStopN",nameof(BenchmarkTableRow.PersistedStopNText));
+        var persistedStopMapping = this.AddPairStopNColumn(
+            grid,
+            "PersistedStopN",
+            nameof(BenchmarkTableRow.PersistedStopNText),
+            nameof(BenchmarkTableRow.PersistedStopNTextColor),
+            nameof(BenchmarkTableRow.PersistedStopNFontAttributes));
         var persistedRightMappings = this.AddProjectColumns(grid,"Linq",nameof(BenchmarkTableRow.PersistedLinqCell),BenchmarkGridSortColumn.PersistedLinqTime,BenchmarkGridSortColumn.PersistedLinqAllocated);
         IReadOnlyList<string>[] persistedMappings = [persistedLeftMappings,[persistedStopMapping],persistedRightMappings];
         this.AddBenchmarkSelectionGroup(categoryHeaderRow,this.GetBenchmarkSelectionGroup("Persisted"),persistedMappings);
@@ -336,7 +343,12 @@ public sealed class MainPage:ContentPage{
         this.AddBenchmarkStopNHeader(projectHeaderRow,persistedStopMapping);
         this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup(BenchmarkComparisonFormatter.PersistedLinq,"Linq"),persistedRightMappings);
         var tsavoriteLeftMappings = this.AddProjectColumns(grid,"FLinq",nameof(BenchmarkTableRow.TsavoriteFLinqCell),BenchmarkGridSortColumn.TsavoriteFLinqTime,BenchmarkGridSortColumn.TsavoriteFLinqAllocated);
-        var tsavoriteStopMapping = this.AddPairStopNColumn(grid,"TsavoriteStopN",nameof(BenchmarkTableRow.TsavoriteStopNText));
+        var tsavoriteStopMapping = this.AddPairStopNColumn(
+            grid,
+            "TsavoriteStopN",
+            nameof(BenchmarkTableRow.TsavoriteStopNText),
+            nameof(BenchmarkTableRow.TsavoriteStopNTextColor),
+            nameof(BenchmarkTableRow.TsavoriteStopNFontAttributes));
         var tsavoriteRightMappings = this.AddProjectColumns(grid,"Linq",nameof(BenchmarkTableRow.TsavoriteLinqCell),BenchmarkGridSortColumn.TsavoriteLinqTime,BenchmarkGridSortColumn.TsavoriteLinqAllocated);
         IReadOnlyList<string>[] tsavoriteMappings = [tsavoriteLeftMappings,[tsavoriteStopMapping],tsavoriteRightMappings];
         this.AddBenchmarkSelectionGroup(categoryHeaderRow,this.GetBenchmarkSelectionGroup("Tsavorite"),tsavoriteMappings);
@@ -438,8 +450,8 @@ public sealed class MainPage:ContentPage{
         return [checkMapping,timeMapping,allocatedMapping];
     }
 
-    private string AddPairStopNColumn(SfDataGrid grid,string mappingName,string bindingPath){
-        grid.Columns.Add(this.CreatePairStopNColumn(mappingName,bindingPath));
+    private string AddPairStopNColumn(SfDataGrid grid,string mappingName,string bindingPath,string textColorPath,string fontAttributesPath){
+        grid.Columns.Add(this.CreatePairStopNColumn(mappingName,bindingPath,textColorPath,fontAttributesPath));
         return mappingName;
     }
 
@@ -748,7 +760,7 @@ public sealed class MainPage:ContentPage{
         };
     }
 
-    private DataGridTemplateColumn CreatePairStopNColumn(string mappingName,string bindingPath){
+    private DataGridTemplateColumn CreatePairStopNColumn(string mappingName,string bindingPath,string textColorPath,string fontAttributesPath){
         return new DataGridTemplateColumn{
             MappingName=mappingName,
             HeaderText="N",
@@ -772,8 +784,6 @@ public sealed class MainPage:ContentPage{
                 };
                 var label = new Label{
                     FontSize=9,
-                    FontAttributes=FontAttributes.Bold,
-                    TextColor=Color.FromArgb("#16A34A"),
                     InputTransparent=true,
                     LineBreakMode=LineBreakMode.TailTruncation,
                     HorizontalTextAlignment=TextAlignment.Center,
@@ -782,6 +792,8 @@ public sealed class MainPage:ContentPage{
                     Padding=new Thickness(2,0),
                 };
                 label.SetBinding(Label.TextProperty,bindingPath);
+                label.SetBinding(Label.TextColorProperty,textColorPath);
+                label.SetBinding(Label.FontAttributesProperty,fontAttributesPath);
                 label.SetBinding(ToolTipProperties.TextProperty,bindingPath);
                 grid.SetBinding(ToolTipProperties.TextProperty,bindingPath);
                 grid.Add(label,0,0);
@@ -1366,6 +1378,16 @@ public sealed class MainPage:ContentPage{
             };
             checkHost.Add(check,0,0);
             layout.Add(checkHost,0,0);
+            layout.Add(new Label{
+                Text="実行中のベンチマーク",
+                FontSize=10,
+                FontAttributes=FontAttributes.Bold,
+                TextColor=Color.FromArgb("#0F172A"),
+                HorizontalTextAlignment=TextAlignment.Start,
+                VerticalTextAlignment=TextAlignment.Center,
+                LineBreakMode=LineBreakMode.TailTruncation,
+                Padding=new Thickness(2,0),
+            },1,0);
             var tap = new TapGestureRecognizer();
             tap.Tapped+=(_,_) => {
                 if(column.Section is { } section){
