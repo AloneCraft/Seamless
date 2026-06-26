@@ -22,6 +22,29 @@ public enum BenchmarkRunMode {
     Adaptive,
 }
 
+public enum BenchmarkExecutionProfile {
+    Accurate,
+    Intermediate,
+    Fast,
+}
+
+internal static class BenchmarkExecutionProfileNames {
+    public static string ToFolderName(BenchmarkExecutionProfile profile) =>
+        profile switch{
+            BenchmarkExecutionProfile.Accurate => "Accurate",
+            BenchmarkExecutionProfile.Intermediate => "Intermediate",
+            BenchmarkExecutionProfile.Fast => "Fast",
+            _ => profile.ToString(),
+        };
+
+    public static string GetAllocatedBytesSource(BenchmarkExecutionProfile profile) =>
+        profile switch{
+            BenchmarkExecutionProfile.Fast => "GC.GetAllocatedBytesForCurrentThread",
+            BenchmarkExecutionProfile.Accurate or BenchmarkExecutionProfile.Intermediate => "BenchmarkDotNet MemoryDiagnoser",
+            _ => "Unknown",
+        };
+}
+
 public sealed class BenchmarkJob {
     public string JobId { get; set; } = string.Empty;
     public string Project { get; set; } = string.Empty;
@@ -96,6 +119,7 @@ internal sealed class ProgressState {
     public int SchemaVersion { get; set; } = 1;
     public string RunId { get; set; } = string.Empty;
     public BenchmarkRunMode Mode { get; set; }
+    public BenchmarkExecutionProfile ExecutionProfile { get; set; } = BenchmarkExecutionProfile.Accurate;
     public string RunRoot { get; set; } = string.Empty;
     public List<int> ElementCounts { get; set; } = [];
     public double AdaptiveThresholdNanoseconds { get; set; }
@@ -116,7 +140,8 @@ internal sealed record BenchmarkRunRequest(
     TimeSpan AdaptiveThreshold,
     TimeSpan JobTimeout,
     Func<IReadOnlyList<int>>? LogicalCpuProvider = null,
-    bool RestartFromRequestedElementCount = false);
+    bool RestartFromRequestedElementCount = false,
+    BenchmarkExecutionProfile ExecutionProfile = BenchmarkExecutionProfile.Accurate);
 
 public sealed record BenchmarkJobRunResult(
     string Project,

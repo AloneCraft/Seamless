@@ -7,6 +7,7 @@ namespace Test.System.Linq.BenchmarkValueComparison;
 public sealed class BenchmarkValueComparisonTests {
     private const int ComparisonElementCount = 1_000;
     private const string BenchmarkExecutionModeTypeName = "Benchmark.Shared.BenchmarkExecutionMode";
+    private const string ElementCountEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_COUNT";
     private const string Methods1TypeName = "Seamless.Linq.Enumerable.Shared.Methods1";
 
     [Fact]
@@ -53,6 +54,31 @@ public sealed class BenchmarkValueComparisonTests {
             foreach(var target in targets) {
                 target.DisableComparisonMode();
             }
+        }
+    }
+
+    [Fact]
+    public void BenchmarkExecutionMode_UseElementCount_IsScoped() {
+        var target=BenchmarkTarget.Load("Test.System.Linq.Enumerable.ZLinq","Test.System.Linq.Enumerable.ZLinq");
+
+        Assert.Equal(128,target.ScaleElementCount(128));
+        using(var scope=target.UseElementCount(7,"1")) {
+            Assert.Equal(7,target.ScaleElementCount(128));
+        }
+        Assert.Equal(128,target.ScaleElementCount(128));
+    }
+
+    [Fact]
+    public void BenchmarkExecutionMode_ElementCountEnvironment_IsReadPerCall() {
+        var target=BenchmarkTarget.Load("Test.System.Linq.Enumerable.ZLinq","Test.System.Linq.Enumerable.ZLinq");
+        var previous=Environment.GetEnvironmentVariable(ElementCountEnvironmentVariable);
+        try {
+            Environment.SetEnvironmentVariable(ElementCountEnvironmentVariable,"3");
+            Assert.Equal(3,target.ScaleElementCount(128));
+            Environment.SetEnvironmentVariable(ElementCountEnvironmentVariable,"5");
+            Assert.Equal(5,target.ScaleElementCount(128));
+        } finally {
+            Environment.SetEnvironmentVariable(ElementCountEnvironmentVariable,previous);
         }
     }
 
@@ -113,6 +139,8 @@ public sealed class BenchmarkValueComparisonTests {
         private readonly Type benchmarkExecutionModeType;
         private readonly MethodInfo enableComparisonMode;
         private readonly MethodInfo disableComparisonMode;
+        private readonly MethodInfo useElementCount;
+        private readonly MethodInfo scaleElementCount;
         private readonly MethodInfo captureResult;
 
         private BenchmarkTarget(Assembly assembly,Type type) {
@@ -130,6 +158,18 @@ public sealed class BenchmarkValueComparisonTests {
                 BindingFlags.Static|BindingFlags.Public,
                 binder:null,
                 types:Type.EmptyTypes,
+                modifiers:null)!;
+            useElementCount=benchmarkExecutionModeType.GetMethod(
+                "UseElementCount",
+                BindingFlags.Static|BindingFlags.Public,
+                binder:null,
+                types:[typeof(int),typeof(string)],
+                modifiers:null)!;
+            scaleElementCount=benchmarkExecutionModeType.GetMethod(
+                "ScaleElementCount",
+                BindingFlags.Static|BindingFlags.NonPublic,
+                binder:null,
+                types:[typeof(int)],
                 modifiers:null)!;
             captureResult=type.GetMethod(
                 "CaptureBenchmarkMethodResult",
@@ -154,6 +194,14 @@ public sealed class BenchmarkValueComparisonTests {
 
         public void DisableComparisonMode() =>
             Invoke(disableComparisonMode,null,null);
+
+        public IDisposable UseElementCount(int elementCount,string elementScale) =>
+            (IDisposable)(Invoke(useElementCount,null,[elementCount,elementScale])
+                ??throw new InvalidOperationException("UseElementCount returned null."));
+
+        public int ScaleElementCount(int elementCount) =>
+            (int)(Invoke(scaleElementCount,null,[elementCount])
+                ??throw new InvalidOperationException("ScaleElementCount returned null."));
 
         public object CreateInstance() =>
             Activator.CreateInstance(Type)

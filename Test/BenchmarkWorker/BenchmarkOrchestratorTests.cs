@@ -127,6 +127,32 @@ public sealed class BenchmarkOrchestratorTests{
     }
 
     [Fact]
+    public async Task Orchestrator_RunAsync_PersistsExecutionProfileInStateAndSummary(){
+        var root = CreateTempRoot();
+        var runner = new FakeRunner((job,_) => CompletedResult(job));
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("SystemFLinq","Where")],
+                [0],
+                [128],
+                BenchmarkRunMode.Fixed,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30),
+                ExecutionProfile: BenchmarkExecutionProfile.Fast),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        var state = LoadOnlyState(root);
+        var summary = File.ReadAllText(Path.Combine(state.RunRoot,"BenchmarkRunSummary.txt"));
+        Assert.Equal(BenchmarkExecutionProfile.Fast,state.ExecutionProfile);
+        Assert.Contains("ExecutionProfile: Fast",summary,StringComparison.Ordinal);
+        Assert.Contains("AllocatedBytesSource: GC.GetAllocatedBytesForCurrentThread",summary,StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Orchestrator_FixedMode_UsesChangedCpuSelectionForLaterJobs(){
         var root = CreateTempRoot();
         var cpus = new[] { 0 };

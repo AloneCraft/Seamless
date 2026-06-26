@@ -31,6 +31,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     private bool? isAllBenchmarkSelectionChecked;
     private BenchmarkTab selectedTab = BenchmarkTab.Cpu;
     private ComparisonPairOption selectedComparisonPair;
+    private ExecutionProfileOption selectedExecutionProfile;
     private ScaleOption? selectedScale;
     private ThresholdOption selectedThreshold;
     private CsvDateOption? selectedCsvDateOption;
@@ -114,6 +115,12 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             ]),
         ];
         this.selectedComparisonPair=this.ComparisonPairs[0];
+        this.ExecutionProfiles=[
+            new ExecutionProfileOption("正確",BenchmarkExecutionProfile.Accurate),
+            new ExecutionProfileOption("中間",BenchmarkExecutionProfile.Intermediate),
+            new ExecutionProfileOption("高速",BenchmarkExecutionProfile.Fast),
+        ];
+        this.selectedExecutionProfile=this.ExecutionProfiles[0];
         this.ThresholdOptions=[
             new ThresholdOption("   1 ms",   1),
             new ThresholdOption("   2 ms",   2),
@@ -194,6 +201,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     public IReadOnlyList<BenchmarkColumnSelectionGroup> BenchmarkColumnSelectionGroups { get; }
     public IReadOnlyList<BenchmarkColumnSelectionGroup> BenchmarkProjectSelectionGroups { get; }
     public IReadOnlyList<ComparisonPairOption> ComparisonPairs { get; }
+    public IReadOnlyList<ExecutionProfileOption> ExecutionProfiles { get; }
     public IReadOnlyList<MetricOption> Metrics { get; }
     public IReadOnlyList<ChartModeOption> ChartModes { get; }
     public IReadOnlyList<ThresholdOption> ThresholdOptions { get; }
@@ -271,6 +279,15 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
 
     public string ChartLeftLegendLabel => GetChartLegendLabel(this.SelectedComparisonPair.LeftProject);
     public string ChartRightLegendLabel => GetChartLegendLabel(this.SelectedComparisonPair.RightProject);
+
+    public ExecutionProfileOption SelectedExecutionProfile{
+        get => this.selectedExecutionProfile;
+        set{
+            if(this.SetProperty(ref this.selectedExecutionProfile,value)&&!this.IsRunning) {
+                this.SelectLoadedRunElementCount();
+            }
+        }
+    }
 
     public ScaleOption? SelectedScale{
         get => this.selectedScale;
@@ -789,6 +806,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
                 this.GetSelectedLogicalCpus,
                 this.GetSelectedElementCounts(),
                 BenchmarkRunMode.Adaptive,
+                this.SelectedExecutionProfile.Profile,
                 this.GetAdaptiveThreshold(),
                 this.ShouldRestartFromSelectedElementCount(),
                 result => MainThread.BeginInvokeOnMainThread(() => {
@@ -894,7 +912,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     }
 
     private bool ShouldRestartFromSelectedElementCount() =>
-        this.SelectedElementCountOption.Value!=this.loadedRunElementCount;
+        this.SelectedElementCountOption.Value!=(this.GetLatestUnfinishedElementCount()??BenchmarkElementCounts.DefaultInitial[0]);
 
     private void SelectLoadedRunElementCount(){
         var nextElementCount = this.GetLatestUnfinishedElementCount()??BenchmarkElementCounts.DefaultInitial[0];
@@ -904,12 +922,15 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     }
 
     private int? GetLatestUnfinishedElementCount(){
-        var state = new BenchmarkStateManager(this.benchmarkRoot).LoadLatestUnfinished();
+        var state = new BenchmarkStateManager(this.GetBenchmarkRoot(this.SelectedExecutionProfile.Profile)).LoadLatestUnfinished();
         return state?.Jobs
             .Where(static job => job.Status is JobStatus.Pending or JobStatus.Running)
             .Select(static job => (int?)job.ElementCount)
             .Min();
     }
+
+    private string GetBenchmarkRoot(BenchmarkExecutionProfile profile) =>
+        Path.Combine(this.benchmarkRoot,BenchmarkExecutionProfileNames.ToFolderName(profile));
 
     private TimeSpan GetAdaptiveThreshold(){
         return TimeSpan.FromMilliseconds(this.SelectedThreshold.Milliseconds);
@@ -926,6 +947,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             this.FindSolutionRoot()??Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Work",
             "Benchmark",
+            BenchmarkExecutionProfileNames.ToFolderName(this.SelectedExecutionProfile.Profile),
             DateTime.Now.ToString("yyyyMMdd-HHmmss",System.Globalization.CultureInfo.InvariantCulture));
         var rows = this.comparisonService.BuildRows(this.currentRunResultItems);
         var path = this.csvService.WriteComparisonCsv(root,rows);

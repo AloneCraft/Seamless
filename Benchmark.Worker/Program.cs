@@ -84,6 +84,7 @@ static WorkerResultMessage RunBenchmark(
             ElementCountEnvironmentVariable,
             task.ElementCount>0?task.ElementCount.ToString(CultureInfo.InvariantCulture):null);
         var benchmarkType = ResolveBenchmarkType(task.AssemblyName,task.TypeFullName);
+        using var elementScope = BeginElementCountScope(benchmarkType.Assembly,task.ElementCount,task.ElementScale);
         var config = BenchmarkWorkerRuntime.CreateConfig(task.ArtifactFolder);
         var summaries = BenchmarkSwitcher
             .FromTypes([benchmarkType])
@@ -140,6 +141,18 @@ static Type ResolveBenchmarkType(string assemblyName,string typeFullName){
         ?? Assembly.Load(new AssemblyName(assemblyName));
     return assembly.GetType(typeFullName,throwOnError:true,ignoreCase:false)
         ??throw new InvalidOperationException($"Benchmark type was not found: {typeFullName}");
+}
+
+static IDisposable BeginElementCountScope(Assembly assembly,int elementCount,string elementScale){
+    var modeType = assembly.GetType("Benchmark.Shared.BenchmarkExecutionMode",throwOnError:false,ignoreCase:false);
+    var method = modeType?.GetMethod(
+        "UseElementCount",
+        BindingFlags.Public|BindingFlags.Static,
+        binder:null,
+        types:[typeof(int),typeof(string)],
+        modifiers:null);
+    return method?.Invoke(null,[elementCount,string.IsNullOrWhiteSpace(elementScale)?"1":elementScale]) as IDisposable
+        ?? EmptyDisposable.Instance;
 }
 
 static string FormatNanoseconds(double? value){
@@ -253,3 +266,10 @@ internal sealed record WorkerResultMessage(
     int ExitCode,
     string ArtifactFolder,
     string Log);
+
+sealed class EmptyDisposable:IDisposable{
+    public static EmptyDisposable Instance { get; } = new();
+
+    public void Dispose(){
+    }
+}

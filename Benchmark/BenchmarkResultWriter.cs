@@ -33,6 +33,8 @@ internal sealed class BenchmarkResultWriter {
         var builder = new StringBuilder();
         builder.AppendLine($"RunId: {state.RunId}");
         builder.AppendLine($"Mode: {state.Mode}");
+        builder.AppendLine($"ExecutionProfile: {state.ExecutionProfile}");
+        builder.AppendLine($"AllocatedBytesSource: {BenchmarkExecutionProfileNames.GetAllocatedBytesSource(state.ExecutionProfile)}");
         builder.AppendLine($"Jobs: {state.Jobs.Count}");
         builder.AppendLine($"Completed: {state.Jobs.Count(static job => job.Status==JobStatus.Completed)}");
         builder.AppendLine($"Failed: {state.Jobs.Count(static job => job.Status==JobStatus.Failed)}");

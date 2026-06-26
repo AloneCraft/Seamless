@@ -42,6 +42,8 @@ public enum BenchmarkGridSortColumn{
 
 public sealed record ComparisonPairOption(string Key,string DisplayName,string LeftProject,string RightProject);
 
+public sealed record ExecutionProfileOption(string DisplayName,BenchmarkExecutionProfile Profile);
+
 public sealed record ScaleOption(string DisplayName,string RunValue);
 
 public sealed class ElementCountOption{
