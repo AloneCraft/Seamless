@@ -87,29 +87,59 @@ internal sealed class BenchmarkOrchestrator {
                 .Select(static group => group.First())
                 .ToArray()
             : request.Benchmarks;
-        for(var elementCountIndex=0;elementCountIndex<state.ElementCounts.Count;elementCountIndex++) {
-            cancellationToken.ThrowIfCancellationRequested();
-            var elementCount = state.ElementCounts[elementCountIndex];
-            var activeCases = benchmarks
-                .Where(benchmark => !IsAdaptivePairStopped(state,benchmarks,benchmark))
-                .OrderBy(static item => item.MethodName,StringComparer.OrdinalIgnoreCase)
-                .ThenBy(static item => item.Project,StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            if(activeCases.Length==0) {
-                break;
-            }
+        var methodGroups = benchmarks
+            .Select((benchmark,index) => new { Benchmark=benchmark, Index=index })
+            .GroupBy(static item => item.Benchmark.MethodName,StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static group => group.Min(static item => item.Index))
+            .Select(static group => group.OrderBy(static item => item.Index).Select(static item => item.Benchmark).ToArray())
+            .ToArray();
+        foreach(var methodCases in methodGroups) {
+            var cpuAssignments = CreateCpuAssignments(request,methodCases);
+            foreach(var elementCount in state.ElementCounts) {
+                cancellationToken.ThrowIfCancellationRequested();
+                var activeCases = methodCases
+                    .Where(benchmark => !IsAdaptivePairStopped(state,benchmarks,benchmark))
+                    .ToArray();
+                if(activeCases.Length==0) {
+                    break;
+                }
 
-            var jobs = this.GetOrCreateAdaptiveJobs(state,activeCases,elementCount);
-            var pending = jobs.Where(static job => job.Status==JobStatus.Pending).ToArray();
-            if(pending.Length>0) {
-                statusChanged($"Adaptive N={elementCount}: {pending.Length}/{activeCases.Length} cells");
-                await this.RunJobBatchAsync(state,pending,request,progress,cancellationToken);
-            }
+                var jobs = this.GetOrCreateAdaptiveJobs(state,activeCases,elementCount);
+                var pending = jobs.Where(static job => job.Status==JobStatus.Pending).ToArray();
+                if(pending.Length>0) {
+                    statusChanged($"Adaptive {methodCases[0].MethodName} N={elementCount}: {pending.Length}/{activeCases.Length} cells");
+                    await this.RunAssignedJobBatchAsync(state,pending,cpuAssignments,request,progress,cancellationToken);
+                }
 
-            if(jobs.Any(static job => job.Status==JobStatus.Pending||job.Status==JobStatus.Running)) {
-                break;
+                if(jobs.Any(static job => job.Status==JobStatus.Pending||job.Status==JobStatus.Running)) {
+                    break;
+                }
             }
         }
+    }
+
+    private async Task RunAssignedJobBatchAsync(
+        ProgressState state,
+        IReadOnlyList<BenchmarkJob> jobs,
+        IReadOnlyDictionary<string,int> cpuAssignments,
+        BenchmarkRunRequest request,
+        Action<BenchmarkProgressUpdate> progress,
+        CancellationToken cancellationToken) {
+        var currentCpus = GetCurrentCpus(request);
+        if(this.jobRunner is IBenchmarkDynamicCpuSetRunner dynamicCpuSetRunner) {
+            await dynamicCpuSetRunner.ApplyCpuSetAsync(currentCpus);
+        }
+
+        var tasks = jobs
+            .GroupBy(job => ResolveAssignedCpu(job,cpuAssignments,currentCpus))
+            .Select(group => Task.Run(async () => {
+                foreach(var job in group) {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    await this.RunJobAsync(state,job,group.Key,request.JobTimeout,progress,cancellationToken);
+                }
+            },cancellationToken))
+            .ToArray();
+        await Task.WhenAll(tasks);
     }
 
     private async Task RunJobBatchAsync(
@@ -270,6 +300,7 @@ internal sealed class BenchmarkOrchestrator {
             ExecutionProfile=request.ExecutionProfile,
             RunRoot=runRoot,
             RunNumber=TryParseRunNumber(runRoot),
+            SourceTab=request.SourceTab,
             ElementCounts=request.ElementCounts.Distinct().Order().ToList(),
             AdaptiveThresholdNanoseconds=request.AdaptiveThreshold.TotalMilliseconds*1_000_000,
             CreatedAt=now,
@@ -287,7 +318,7 @@ internal sealed class BenchmarkOrchestrator {
                 .Select(static method => new AdaptiveBenchmarkState { MethodName=method })
                 .ToList();
         } else {
-            state.Jobs=this.CreateJobs(request.Benchmarks,state.ElementCounts).ToList();
+            state.Jobs=this.CreateJobs(request.Benchmarks,state.ElementCounts,request.SourceTab).ToList();
         }
 
         return state;
@@ -324,6 +355,7 @@ internal sealed class BenchmarkOrchestrator {
         }
         state.Mode=request.Mode;
         state.ExecutionProfile=request.ExecutionProfile;
+        state.SourceTab=request.SourceTab;
         state.AdaptiveThresholdNanoseconds=request.AdaptiveThreshold.TotalMilliseconds*1_000_000;
         state.ElementCounts=request.ElementCounts.Distinct().Order().ToList();
         if(state.ElementCounts.Count==0){
@@ -371,10 +403,10 @@ internal sealed class BenchmarkOrchestrator {
         }
     }
 
-    private IEnumerable<BenchmarkJob> CreateJobs(IEnumerable<BenchmarkCase> benchmarks,IEnumerable<int> elementCounts) {
-        foreach(var elementCount in elementCounts) {
-            foreach(var benchmark in benchmarks.OrderBy(static item => item.MethodName,StringComparer.OrdinalIgnoreCase).ThenBy(static item => item.Project,StringComparer.OrdinalIgnoreCase)) {
-                yield return CreateJob(benchmark,elementCount);
+    private IEnumerable<BenchmarkJob> CreateJobs(IEnumerable<BenchmarkCase> benchmarks,IEnumerable<int> elementCounts,BenchmarkSourceTab sourceTab) {
+        foreach(var benchmark in benchmarks) {
+            foreach(var elementCount in elementCounts) {
+                yield return CreateJob(benchmark,elementCount,sourceTab,elementCounts);
             }
         }
     }
@@ -392,7 +424,7 @@ internal sealed class BenchmarkOrchestrator {
                 continue;
             }
 
-            state.Jobs.Add(CreateJob(benchmark,elementCount));
+            state.Jobs.Add(CreateJob(benchmark,elementCount,state.SourceTab,state.ElementCounts));
         }
         this.stateManager.Save(state);
         return state.Jobs
@@ -400,14 +432,20 @@ internal sealed class BenchmarkOrchestrator {
             .ToArray();
     }
 
-    private static BenchmarkJob CreateJob(BenchmarkCase benchmark,int elementCount) =>
+    private static BenchmarkJob CreateJob(
+        BenchmarkCase benchmark,
+        int elementCount,
+        BenchmarkSourceTab sourceTab,
+        IEnumerable<int> preparedElementCounts) =>
         new() {
             JobId=CreateJobId(benchmark,elementCount),
             Project=benchmark.Project,
             AssemblyName=benchmark.AssemblyName,
             TypeFullName=benchmark.TypeFullName,
             MethodName=benchmark.MethodName,
+            SourceTab=sourceTab,
             ElementCount=elementCount,
+            PreparedElementCounts=preparedElementCounts.Distinct().Order().ToList(),
         };
 
     private static string CreateJobId(BenchmarkCase benchmark,int elementCount) =>
@@ -464,6 +502,30 @@ internal sealed class BenchmarkOrchestrator {
 
     private static IReadOnlyList<int> GetCurrentCpus(BenchmarkRunRequest request) =>
         NormalizeCpus(request.LogicalCpuProvider?.Invoke()??request.LogicalCpus);
+
+    private static IReadOnlyDictionary<string,int> CreateCpuAssignments(
+        BenchmarkRunRequest request,
+        IReadOnlyList<BenchmarkCase> series) {
+        var cpus = GetCurrentCpus(request);
+        var result = new Dictionary<string,int>(StringComparer.Ordinal);
+        for(var index=0;index<series.Count;index++) {
+            result[CreateBenchmarkKey(series[index])]=cpus[index%cpus.Count];
+        }
+
+        return result;
+    }
+
+    private static int ResolveAssignedCpu(
+        BenchmarkJob job,
+        IReadOnlyDictionary<string,int> cpuAssignments,
+        IReadOnlyList<int> currentCpus) {
+        var key = CreateBenchmarkKey(job.ToBenchmarkCase());
+        if(cpuAssignments.TryGetValue(key,out var assigned)&&currentCpus.Contains(assigned)) {
+            return assigned;
+        }
+
+        return currentCpus[0];
+    }
 
     private static void ForceGcBeforeJob() {
         GC.Collect();

@@ -18,6 +18,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Benchmark.DotNet.Linq.Enumerable.FLinq\Benchmark.DotNet.Linq.Enumerable.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark.DotNet.Linq.Enumerable.ZLinq\Benchmark.DotNet.Linq.Enumerable.ZLinq.csproj" />
+    <ProjectReference Include="..\Benchmark.DotNet.Linq.Enumerable.Range.FLinq\Benchmark.DotNet.Linq.Enumerable.Range.FLinq.csproj" />
+    <ProjectReference Include="..\Benchmark.DotNet.Linq.Enumerable.Range.ZLinq\Benchmark.DotNet.Linq.Enumerable.Range.ZLinq.csproj" />
+    <ProjectReference Include="..\Benchmark.DotNet.Linq.Enumerable.List.FLinq\Benchmark.DotNet.Linq.Enumerable.List.FLinq.csproj" />
+    <ProjectReference Include="..\Benchmark.DotNet.Linq.Enumerable.List.ZLinq\Benchmark.DotNet.Linq.Enumerable.List.ZLinq.csproj" />
     <ProjectReference Include="..\Benchmark.Tsavorite.Linq.Enumerable.Linq\Benchmark.Tsavorite.Linq.Enumerable.Linq.csproj" />
     <ProjectReference Include="..\Benchmark.Tsavorite.Linq.Enumerable.FLinq\Benchmark.Tsavorite.Linq.Enumerable.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark.Persisted.Linq.Enumerable.Linq\Benchmark.Persisted.Linq.Enumerable.Linq.csproj" />

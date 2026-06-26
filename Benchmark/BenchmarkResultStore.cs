@@ -205,7 +205,7 @@ public sealed class BenchmarkCsvDiscoveryService{
         this.csvService=csvService;
     }
 
-    public BenchmarkCsvScanResult Scan(string benchmarkRoot,BenchmarkExecutionProfile executionProfile){
+    public BenchmarkCsvScanResult Scan(string benchmarkRoot,BenchmarkExecutionProfile executionProfile,BenchmarkSourceTab sourceTab){
         var profileRoot = Path.Combine(benchmarkRoot,BenchmarkExecutionProfileNames.ToFolderName(executionProfile));
         if(!Directory.Exists(profileRoot)){
             return new BenchmarkCsvScanResult([],[]);
@@ -213,12 +213,16 @@ public sealed class BenchmarkCsvDiscoveryService{
 
         var results = new List<BenchmarkStoredResult>();
         var options = new List<BenchmarkRunOption>();
+        var sourceDefinition = BenchmarkSourceTabs.Get(sourceTab);
         foreach(var runRoot in Directory.EnumerateDirectories(profileRoot).Where(static path => IsRunNumberFolder(path))){
             var state = new BenchmarkStateManager(profileRoot).Load(runRoot);
-            var csvPaths = Directory.EnumerateFiles(runRoot,"N*.csv",SearchOption.TopDirectoryOnly)
+            var sourceRoot = Path.Combine(runRoot,sourceDefinition.Id);
+            var csvPaths = Directory.Exists(sourceRoot)
+                ? Directory.EnumerateFiles(sourceRoot,"N*.csv",SearchOption.TopDirectoryOnly)
                 .Where(static path => TryExtractElementCount(path)>0)
                 .OrderBy(static path => TryExtractElementCount(path))
-                .ToArray();
+                .ToArray()
+                : [];
             if(state is null&&csvPaths.Length==0){
                 continue;
             }

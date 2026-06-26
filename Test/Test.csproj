@@ -39,6 +39,7 @@
     <Compile Include="..\Benchmark\BenchmarkOrchestrator.cs" Link="Benchmark\BenchmarkOrchestrator.cs" />
     <Compile Include="..\Benchmark\BenchmarkResultWriter.cs" Link="Benchmark\BenchmarkResultWriter.cs" />
     <Compile Include="..\Benchmark\BenchmarkSharedModels.cs" Link="Benchmark\BenchmarkSharedModels.cs" />
+    <Compile Include="..\Benchmark\BenchmarkSourceTabs.cs" Link="Benchmark\BenchmarkSourceTabs.cs" />
     <Compile Include="..\Benchmark\BenchmarkStateManager.cs" Link="Benchmark\BenchmarkStateManager.cs" />
     <Compile Include="..\Benchmark\BenchmarkUiLogic.cs" Link="Benchmark\BenchmarkUiLogic.cs" />
     <Compile Include="..\Benchmark\CpuPresetCatalog.cs" Link="Benchmark\CpuPresetCatalog.cs" />

@@ -21,7 +21,7 @@ public sealed class BenchmarkOrchestratorTests{
             Jobs=[
                 new BenchmarkJob{
                     JobId="job",
-                    Project="SystemFLinq",
+                    Project="System.Array.FLinq",
                     AssemblyName="Assembly",
                     TypeFullName="Type",
                     MethodName="Where",
@@ -62,7 +62,7 @@ public sealed class BenchmarkOrchestratorTests{
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
-                [Case("SystemFLinq","Where"),Case("SystemZLinq","Where")],
+                [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
                 [0],
                 [128,256],
                 BenchmarkRunMode.Fixed,
@@ -85,7 +85,7 @@ public sealed class BenchmarkOrchestratorTests{
 
         var result = await orchestrator.RunAsync(
             new BenchmarkRunRequest(
-                [Case("SystemFLinq","Where"),Case("SystemZLinq","Where")],
+                [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
                 [0],
                 [1,2],
                 BenchmarkRunMode.Fixed,
@@ -96,8 +96,8 @@ public sealed class BenchmarkOrchestratorTests{
             CancellationToken.None);
 
         Assert.Equal(Path.Combine(root,"000001"),result.RunRoot);
-        Assert.True(File.Exists(Path.Combine(result.RunRoot,"N1.csv")));
-        Assert.True(File.Exists(Path.Combine(result.RunRoot,"N2.csv")));
+        Assert.True(File.Exists(Path.Combine(result.RunRoot,"System.Array","N1.csv")));
+        Assert.True(File.Exists(Path.Combine(result.RunRoot,"System.Array","N2.csv")));
         Assert.False(File.Exists(Path.Combine(result.RunRoot,"BenchmarkComparison-N1.csv")));
         var state = new BenchmarkStateManager(root).Load(result.RunRoot)!;
         Assert.Equal(1,state.RunNumber);
@@ -112,7 +112,7 @@ public sealed class BenchmarkOrchestratorTests{
 
         var result = await orchestrator.RunAsync(
             new BenchmarkRunRequest(
-                [Case("SystemFLinq","Where")],
+                [Case("System.Array.FLinq","Where")],
                 [0],
                 [1],
                 BenchmarkRunMode.Fixed,
@@ -125,7 +125,7 @@ public sealed class BenchmarkOrchestratorTests{
 
         Assert.Equal(runRoot,result.RunRoot);
         Assert.Single(Directory.GetDirectories(root));
-        Assert.True(File.Exists(Path.Combine(runRoot,"N1.csv")));
+        Assert.True(File.Exists(Path.Combine(runRoot,"System.Array","N1.csv")));
     }
 
     [Fact]
@@ -155,12 +155,12 @@ public sealed class BenchmarkOrchestratorTests{
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
                 [
-                    Case("SystemFLinq","Where"),
-                    Case("SystemZLinq","Where"),
-                    Case("PersistedFLinq","Where"),
-                    Case("PersistedLinq","Where"),
-                    Case("TsavoriteFLinq","Where"),
-                    Case("TsavoriteLinq","Where"),
+                    Case("System.Array.FLinq","Where"),
+                    Case("System.Array.ZLinq","Where"),
+                    Case("System.Array.FLinq","Select"),
+                    Case("System.Array.ZLinq","Select"),
+                    Case("System.Array.FLinq","Count"),
+                    Case("System.Array.ZLinq","Count"),
                 ],
                 [0,1,2,3],
                 [128],
@@ -185,7 +185,7 @@ public sealed class BenchmarkOrchestratorTests{
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
-                [Case("SystemFLinq","Where")],
+                [Case("System.Array.FLinq","Where")],
                 [0],
                 [128],
                 BenchmarkRunMode.Fixed,
@@ -226,7 +226,7 @@ public sealed class BenchmarkOrchestratorTests{
         var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
         var run = orchestrator.RunAsync(
             new BenchmarkRunRequest(
-                [Case("SystemFLinq","A"),Case("SystemFLinq","B")],
+                [Case("System.Array.FLinq","A"),Case("System.Array.FLinq","B")],
                 [0],
                 [1],
                 BenchmarkRunMode.Fixed,
@@ -270,7 +270,7 @@ public sealed class BenchmarkOrchestratorTests{
         var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
         var run = orchestrator.RunAsync(
             new BenchmarkRunRequest(
-                [Case("SystemFLinq","A"),Case("SystemFLinq","B"),Case("SystemFLinq","C"),Case("SystemFLinq","D")],
+                [Case("System.Array.FLinq","A"),Case("System.Array.FLinq","B"),Case("System.Array.FLinq","C"),Case("System.Array.FLinq","D")],
                 [0,1],
                 [1],
                 BenchmarkRunMode.Fixed,
@@ -310,7 +310,7 @@ public sealed class BenchmarkOrchestratorTests{
         var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
         var run = orchestrator.RunAsync(
             new BenchmarkRunRequest(
-                [Case("SystemFLinq","A"),Case("SystemFLinq","B"),Case("SystemFLinq","C"),Case("SystemFLinq","D")],
+                [Case("System.Array.FLinq","A"),Case("System.Array.FLinq","B"),Case("System.Array.FLinq","C"),Case("System.Array.FLinq","D")],
                 [0,1],
                 [1],
                 BenchmarkRunMode.Fixed,
@@ -354,7 +354,7 @@ public sealed class BenchmarkOrchestratorTests{
         var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
         var run = orchestrator.RunAsync(
             new BenchmarkRunRequest(
-                [Case("SystemFLinq","A"),Case("SystemFLinq","B"),Case("SystemFLinq","C"),Case("SystemFLinq","D")],
+                [Case("System.Array.FLinq","A"),Case("System.Array.FLinq","B"),Case("System.Array.FLinq","C"),Case("System.Array.FLinq","D")],
                 [0],
                 [1],
                 BenchmarkRunMode.Fixed,
@@ -387,8 +387,8 @@ public sealed class BenchmarkOrchestratorTests{
             UpdatedAt=DateTimeOffset.UtcNow,
             ElementCounts=[128],
             Jobs=[
-                CompletedJob("SystemFLinq","Where",128),
-                CompletedJob("SystemZLinq","Where",128),
+                CompletedJob("System.Array.FLinq","Where",128),
+                CompletedJob("System.Array.ZLinq","Where",128),
             ],
         };
 
@@ -413,17 +413,17 @@ public sealed class BenchmarkOrchestratorTests{
             UpdatedAt=DateTimeOffset.UtcNow,
             ElementCounts=[128,256],
             Jobs=[
-                CompletedJob("SystemFLinq","Where",128),
-                CompletedJob("SystemZLinq","Where",128),
-                CompletedJob("SystemFLinq","Where",256),
-                CompletedJob("SystemZLinq","Where",256),
+                CompletedJob("System.Array.FLinq","Where",128),
+                CompletedJob("System.Array.ZLinq","Where",128),
+                CompletedJob("System.Array.FLinq","Where",256),
+                CompletedJob("System.Array.ZLinq","Where",256),
             ],
         };
 
         await Task.WhenAll(Enumerable.Range(0,16).Select(_ => Task.Run(() => writer.WriteOutputs(state))));
 
-        Assert.True(File.Exists(Path.Combine(runRoot,"N128.csv")));
-        Assert.True(File.Exists(Path.Combine(runRoot,"N256.csv")));
+        Assert.True(File.Exists(Path.Combine(runRoot,"System.Array","N128.csv")));
+        Assert.True(File.Exists(Path.Combine(runRoot,"System.Array","N256.csv")));
         Assert.True(File.Exists(Path.Combine(runRoot,"BenchmarkRunSummary.txt")));
         Assert.Empty(Directory.GetFiles(runRoot,"*.tmp"));
     }
@@ -447,7 +447,7 @@ public sealed class BenchmarkOrchestratorTests{
             Jobs=[
                 new BenchmarkJob{
                     JobId="system",
-                    Project="SystemFLinq",
+                    Project="System.Array.FLinq",
                     AssemblyName="Assembly",
                     TypeFullName="Type",
                     MethodName="Where",
@@ -456,7 +456,7 @@ public sealed class BenchmarkOrchestratorTests{
                 },
                 new BenchmarkJob{
                     JobId="persisted",
-                    Project="PersistedFLinq",
+                    Project="Seamless.Persisted.FLinq",
                     AssemblyName="Assembly",
                     TypeFullName="Type",
                     MethodName="Where",
@@ -476,7 +476,7 @@ public sealed class BenchmarkOrchestratorTests{
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
-                [Case("SystemFLinq","Where")],
+                [Case("System.Array.FLinq","Where")],
                 [0],
                 [1],
                 BenchmarkRunMode.Adaptive,
@@ -488,8 +488,8 @@ public sealed class BenchmarkOrchestratorTests{
             CancellationToken.None);
 
         var loaded = stateManager.Load(runRoot)!;
-        Assert.Equal(["SystemFLinq"],observedProjects);
-        Assert.All(loaded.Jobs,static job => Assert.Equal("SystemFLinq",job.Project));
+        Assert.Equal(["System.Array.FLinq"],observedProjects);
+        Assert.All(loaded.Jobs,static job => Assert.Equal("System.Array.FLinq",job.Project));
     }
 
     [Fact]
@@ -497,7 +497,7 @@ public sealed class BenchmarkOrchestratorTests{
         var root = CreateTempRoot();
         var stateManager = new BenchmarkStateManager(root);
         var runRoot = Path.Combine(root,"run");
-        var completedJob = CompletedJob("SystemFLinq","Where",1);
+        var completedJob = CompletedJob("System.Array.FLinq","Where",1);
         completedJob.Mean="10.56 ms";
         completedJob.MeanNanoseconds=10_560_000;
         var state = new ProgressState{
@@ -526,7 +526,7 @@ public sealed class BenchmarkOrchestratorTests{
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
-                [Case("SystemFLinq","Where")],
+                [Case("System.Array.FLinq","Where")],
                 [0],
                 [1,2],
                 BenchmarkRunMode.Adaptive,
@@ -559,8 +559,8 @@ public sealed class BenchmarkOrchestratorTests{
                 new AdaptiveBenchmarkState { MethodName="Where" },
             ],
             Jobs=[
-                CompletedJob("SystemFLinq","Where",1),
-                CompletedJob("SystemFLinq","Where",2),
+                CompletedJob("System.Array.FLinq","Where",1),
+                CompletedJob("System.Array.FLinq","Where",2),
             ],
         };
         var observedElementCounts = new List<int>();
@@ -574,7 +574,7 @@ public sealed class BenchmarkOrchestratorTests{
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
-                [Case("SystemFLinq","Where")],
+                [Case("System.Array.FLinq","Where")],
                 [0],
                 [1,2],
                 BenchmarkRunMode.Adaptive,
@@ -593,7 +593,7 @@ public sealed class BenchmarkOrchestratorTests{
     public async Task Orchestrator_AdaptiveMode_KeepsPairRunningWhenOnlyOneSideExceedsThreshold(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => {
-            var mean = job.ElementCount>=256&&job.Project=="SystemZLinq" ? 2_000_000_000d : 100d;
+            var mean = job.ElementCount>=256&&job.Project=="System.Array.ZLinq" ? 2_000_000_000d : 100d;
             return new BenchmarkJobRunResult(
                 job.Project,
                 job.MethodName,
@@ -615,7 +615,7 @@ public sealed class BenchmarkOrchestratorTests{
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
-                [Case("SystemFLinq","Where"),Case("SystemZLinq","Where")],
+                [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
                 [0],
                 [128,256,512],
                 BenchmarkRunMode.Adaptive,
@@ -627,8 +627,8 @@ public sealed class BenchmarkOrchestratorTests{
 
         var state = LoadOnlyState(root);
         Assert.Equal([128,256,512],state.Jobs.Select(static job => job.ElementCount).Distinct().Order().ToArray());
-        Assert.Contains(state.Jobs,static job => job.Project=="SystemFLinq"&&job.ElementCount==512);
-        Assert.Contains(state.Jobs,static job => job.Project=="SystemZLinq"&&job.ElementCount==512);
+        Assert.Contains(state.Jobs,static job => job.Project=="System.Array.FLinq"&&job.ElementCount==512);
+        Assert.Contains(state.Jobs,static job => job.Project=="System.Array.ZLinq"&&job.ElementCount==512);
     }
 
     [Fact]
@@ -659,12 +659,7 @@ public sealed class BenchmarkOrchestratorTests{
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
-                [
-                    Case("SystemFLinq","Where"),
-                    Case("SystemZLinq","Where"),
-                    Case("PersistedFLinq","Where"),
-                    Case("PersistedLinq","Where"),
-                ],
+                [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
                 [0],
                 [128,256,512],
                 BenchmarkRunMode.Adaptive,
@@ -675,12 +670,10 @@ public sealed class BenchmarkOrchestratorTests{
             CancellationToken.None);
 
         var state = LoadOnlyState(root);
-        Assert.Contains(state.Jobs,static job => job.Project=="SystemFLinq"&&job.ElementCount==256);
-        Assert.Contains(state.Jobs,static job => job.Project=="SystemZLinq"&&job.ElementCount==256);
-        Assert.DoesNotContain(state.Jobs,static job => job.Project=="SystemFLinq"&&job.ElementCount==512);
-        Assert.DoesNotContain(state.Jobs,static job => job.Project=="SystemZLinq"&&job.ElementCount==512);
-        Assert.Contains(state.Jobs,static job => job.Project=="PersistedFLinq"&&job.ElementCount==512);
-        Assert.Contains(state.Jobs,static job => job.Project=="PersistedLinq"&&job.ElementCount==512);
+        Assert.Contains(state.Jobs,static job => job.Project=="System.Array.FLinq"&&job.ElementCount==256);
+        Assert.Contains(state.Jobs,static job => job.Project=="System.Array.ZLinq"&&job.ElementCount==256);
+        Assert.DoesNotContain(state.Jobs,static job => job.Project=="System.Array.FLinq"&&job.ElementCount==512);
+        Assert.DoesNotContain(state.Jobs,static job => job.Project=="System.Array.ZLinq"&&job.ElementCount==512);
     }
 
     [Fact]
@@ -709,7 +702,7 @@ public sealed class BenchmarkOrchestratorTests{
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
-                [Case("SystemFLinq","Where")],
+                [Case("System.Array.FLinq","Where")],
                 [0],
                 [1,2,4,8],
                 BenchmarkRunMode.Adaptive,
@@ -747,7 +740,7 @@ public sealed class BenchmarkOrchestratorTests{
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
-                [Case("SystemFLinq","Where")],
+                [Case("System.Array.FLinq","Where")],
                 [0],
                 [1],
                 BenchmarkRunMode.Fixed,

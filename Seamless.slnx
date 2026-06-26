@@ -1,6 +1,10 @@
 <Solution>
   <Folder Name="/Benchmarks/">
     <Project Path="Benchmark.DotNet.Linq.Enumerable.FLinq/Benchmark.DotNet.Linq.Enumerable.FLinq.csproj" />
+    <Project Path="Benchmark.DotNet.Linq.Enumerable.List.FLinq/Benchmark.DotNet.Linq.Enumerable.List.FLinq.csproj" />
+    <Project Path="Benchmark.DotNet.Linq.Enumerable.List.ZLinq/Benchmark.DotNet.Linq.Enumerable.List.ZLinq.csproj" />
+    <Project Path="Benchmark.DotNet.Linq.Enumerable.Range.FLinq/Benchmark.DotNet.Linq.Enumerable.Range.FLinq.csproj" />
+    <Project Path="Benchmark.DotNet.Linq.Enumerable.Range.ZLinq/Benchmark.DotNet.Linq.Enumerable.Range.ZLinq.csproj" />
     <Project Path="Benchmark.DotNet.Linq.Enumerable.ZLinq/Benchmark.DotNet.Linq.Enumerable.ZLinq.csproj" />
     <Project Path="Benchmark.Persisted.Collection/Benchmark.Persisted.Collection.csproj" />
     <Project Path="Benchmark.Persisted.Linq.Enumerable.FLinq/Benchmark.Persisted.Linq.Enumerable.FLinq.csproj" />

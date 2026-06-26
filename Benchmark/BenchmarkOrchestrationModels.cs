@@ -51,7 +51,9 @@ public sealed class BenchmarkJob {
     public string AssemblyName { get; set; } = string.Empty;
     public string TypeFullName { get; set; } = string.Empty;
     public string MethodName { get; set; } = string.Empty;
+    public BenchmarkSourceTab SourceTab { get; set; } = BenchmarkSourceTab.SystemArray;
     public int ElementCount { get; set; }
+    public List<int> PreparedElementCounts { get; set; } = [];
     public JobStatus Status { get; set; } = JobStatus.Pending;
     public int? AssignedLogicalCpu { get; set; }
     public string Mean { get; set; } = string.Empty;
@@ -122,6 +124,7 @@ internal sealed class ProgressState {
     public BenchmarkExecutionProfile ExecutionProfile { get; set; } = BenchmarkExecutionProfile.Accurate;
     public string RunRoot { get; set; } = string.Empty;
     public int RunNumber { get; set; }
+    public BenchmarkSourceTab SourceTab { get; set; } = BenchmarkSourceTab.SystemArray;
     public List<int> ElementCounts { get; set; } = [];
     public double AdaptiveThresholdNanoseconds { get; set; }
     public List<BenchmarkJob> Jobs { get; set; } = [];
@@ -143,7 +146,8 @@ internal sealed record BenchmarkRunRequest(
     Func<IReadOnlyList<int>>? LogicalCpuProvider = null,
     bool RestartFromRequestedElementCount = false,
     BenchmarkExecutionProfile ExecutionProfile = BenchmarkExecutionProfile.Accurate,
-    string? RunRootOverride = null);
+    string? RunRootOverride = null,
+    BenchmarkSourceTab SourceTab = BenchmarkSourceTab.SystemArray);
 
 public sealed record BenchmarkJobRunResult(
     string Project,

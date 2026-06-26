@@ -20,6 +20,12 @@ public enum BenchmarkChartMode{
 
 public enum BenchmarkGridSortColumn{
     BenchmarkName,
+    PairRatioTime,
+    PairRatioAllocated,
+    LeftTime,
+    LeftAllocated,
+    RightTime,
+    RightAllocated,
     SystemRatioTime,
     SystemRatioAllocated,
     SystemFLinqTime,
@@ -41,6 +47,12 @@ public enum BenchmarkGridSortColumn{
 }
 
 public sealed record ComparisonPairOption(string Key,string DisplayName,string LeftProject,string RightProject);
+
+public sealed record SourceTabOption(BenchmarkSourceTabDefinition Definition){
+    public BenchmarkSourceTab Tab => this.Definition.Tab;
+    public string Id => this.Definition.Id;
+    public string DisplayName => this.Definition.DisplayName;
+}
 
 public sealed record ExecutionProfileOption(string DisplayName,BenchmarkExecutionProfile Profile);
 
@@ -550,16 +562,13 @@ public sealed class BenchmarkTableRow:ObservableObject{
     private static readonly Color DefaultStopNTextColor = Color.FromArgb("#334155");
     private static readonly Color HighlightStopNTextColor = Color.FromArgb("#16A34A");
 
-    public BenchmarkTableRow(string methodName,IReadOnlyDictionary<string,BenchmarkCase> casesByProject){
+    public BenchmarkTableRow(string methodName,BenchmarkSourceTabDefinition sourceTab,IReadOnlyDictionary<string,BenchmarkCase> casesByProject){
         this.MethodName=methodName;
         this.BenchmarkName=methodName;
+        this.SourceTab=sourceTab;
         this.CasesByProject=casesByProject;
-        this.SystemFLinqCell=this.CreateCell(BenchmarkComparisonFormatter.SystemFLinq);
-        this.SystemZLinqCell=this.CreateCell(BenchmarkComparisonFormatter.SystemZLinq);
-        this.PersistedFLinqCell=this.CreateCell(BenchmarkComparisonFormatter.PersistedFLinq);
-        this.PersistedLinqCell=this.CreateCell(BenchmarkComparisonFormatter.PersistedLinq);
-        this.TsavoriteFLinqCell=this.CreateCell(BenchmarkComparisonFormatter.TsavoriteFLinq);
-        this.TsavoriteLinqCell=this.CreateCell(BenchmarkComparisonFormatter.TsavoriteLinq);
+        this.LeftCell=this.CreateCell(sourceTab.LeftProject);
+        this.RightCell=this.CreateCell(sourceTab.RightProject);
         foreach(var cell in this.ProjectCells){
             cell.UiSelectionChanged+=this.OnCellUiSelectionChanged;
         }
@@ -568,13 +577,16 @@ public sealed class BenchmarkTableRow:ObservableObject{
 
     public string MethodName { get; }
     public string BenchmarkName { get; }
+    public BenchmarkSourceTabDefinition SourceTab { get; }
     public IReadOnlyDictionary<string,BenchmarkCase> CasesByProject { get; }
-    public BenchmarkProjectCell SystemFLinqCell { get; }
-    public BenchmarkProjectCell SystemZLinqCell { get; }
-    public BenchmarkProjectCell PersistedFLinqCell { get; }
-    public BenchmarkProjectCell PersistedLinqCell { get; }
-    public BenchmarkProjectCell TsavoriteFLinqCell { get; }
-    public BenchmarkProjectCell TsavoriteLinqCell { get; }
+    public BenchmarkProjectCell LeftCell { get; }
+    public BenchmarkProjectCell RightCell { get; }
+    public BenchmarkProjectCell SystemFLinqCell => this.LeftCell;
+    public BenchmarkProjectCell SystemZLinqCell => this.RightCell;
+    public BenchmarkProjectCell PersistedFLinqCell => this.LeftCell;
+    public BenchmarkProjectCell PersistedLinqCell => this.RightCell;
+    public BenchmarkProjectCell TsavoriteFLinqCell => this.LeftCell;
+    public BenchmarkProjectCell TsavoriteLinqCell => this.RightCell;
 
     public bool IsSelected{
         get => this.isSelected;
@@ -596,45 +608,63 @@ public sealed class BenchmarkTableRow:ObservableObject{
         private set => this.SetProperty(ref this.systemRatioTimeText,value);
     }
 
+    public string PairRatioTimeText => this.SystemRatioTimeText;
+
     public string SystemRatioAllocatedText{
         get => this.systemRatioAllocatedText;
         private set => this.SetProperty(ref this.systemRatioAllocatedText,value);
     }
+
+    public string PairRatioAllocatedText => this.SystemRatioAllocatedText;
 
     public string SystemStopNText{
         get => this.systemStopNText;
         private set => this.SetProperty(ref this.systemStopNText,value);
     }
 
+    public string StopNText => this.SystemStopNText;
+
     public Color SystemStopNTextColor{
         get => this.systemStopNTextColor;
         private set => this.SetProperty(ref this.systemStopNTextColor,value);
     }
+
+    public Color StopNTextColor => this.SystemStopNTextColor;
 
     public FontAttributes SystemStopNFontAttributes{
         get => this.systemStopNFontAttributes;
         private set => this.SetProperty(ref this.systemStopNFontAttributes,value);
     }
 
+    public FontAttributes StopNFontAttributes => this.SystemStopNFontAttributes;
+
     public string SystemFLinqTimeText{
         get => this.systemFLinqTimeText;
         private set => this.SetProperty(ref this.systemFLinqTimeText,value);
     }
+
+    public string LeftTimeText => this.SystemFLinqTimeText;
 
     public string SystemFLinqAllocatedText{
         get => this.systemFLinqAllocatedText;
         private set => this.SetProperty(ref this.systemFLinqAllocatedText,value);
     }
 
+    public string LeftAllocatedText => this.SystemFLinqAllocatedText;
+
     public string SystemZLinqTimeText{
         get => this.systemZLinqTimeText;
         private set => this.SetProperty(ref this.systemZLinqTimeText,value);
     }
 
+    public string RightTimeText => this.SystemZLinqTimeText;
+
     public string SystemZLinqAllocatedText{
         get => this.systemZLinqAllocatedText;
         private set => this.SetProperty(ref this.systemZLinqAllocatedText,value);
     }
+
+    public string RightAllocatedText => this.SystemZLinqAllocatedText;
 
     public string PersistedRatioTimeText{
         get => this.persistedRatioTimeText;
@@ -735,12 +765,8 @@ public sealed class BenchmarkTableRow:ObservableObject{
 
     public IEnumerable<BenchmarkProjectCell> ProjectCells{
         get{
-            yield return this.SystemFLinqCell;
-            yield return this.SystemZLinqCell;
-            yield return this.PersistedFLinqCell;
-            yield return this.PersistedLinqCell;
-            yield return this.TsavoriteFLinqCell;
-            yield return this.TsavoriteLinqCell;
+            yield return this.LeftCell;
+            yield return this.RightCell;
         }
     }
 
@@ -798,15 +824,12 @@ public sealed class BenchmarkTableRow:ObservableObject{
 
     public void ApplyPairStopped(string leftProject,string rightProject,int stoppedAtElementCount,bool highlight){
         var text = stoppedAtElementCount.ToString(CultureInfo.InvariantCulture);
-        if(IsPair(leftProject,rightProject,BenchmarkComparisonFormatter.SystemFLinq,BenchmarkComparisonFormatter.SystemZLinq)){
+        if(IsPair(leftProject,rightProject,this.SourceTab.LeftProject,this.SourceTab.RightProject)){
             this.SystemStopNText=text;
             this.ApplySystemStopNStyle(highlight);
-        }else if(IsPair(leftProject,rightProject,BenchmarkComparisonFormatter.PersistedFLinq,BenchmarkComparisonFormatter.PersistedLinq)){
-            this.PersistedStopNText=text;
-            this.ApplyPersistedStopNStyle(highlight);
-        }else if(IsPair(leftProject,rightProject,BenchmarkComparisonFormatter.TsavoriteFLinq,BenchmarkComparisonFormatter.TsavoriteLinq)){
-            this.TsavoriteStopNText=text;
-            this.ApplyTsavoriteStopNStyle(highlight);
+            this.OnPropertyChanged(nameof(this.StopNText));
+            this.OnPropertyChanged(nameof(this.StopNTextColor));
+            this.OnPropertyChanged(nameof(this.StopNFontAttributes));
         }
     }
 
@@ -841,36 +864,34 @@ public sealed class BenchmarkTableRow:ObservableObject{
 
         var value = row.Value;
         this.ClearStopNText();
-        this.SystemRatioTimeText=FormatRatio(value.SystemRatio.TimeRatio);
-        this.SystemRatioAllocatedText=FormatRatio(value.SystemRatio.AllocatedRatio);
-        this.SystemFLinqTimeText=FormatTime(value.SystemFLinq);
-        this.SystemFLinqAllocatedText=FormatAllocated(value.SystemFLinq);
-        this.SystemFLinqCell.ApplyMetrics(value.SystemFLinq,preserveRetainedDisplay);
-        this.SystemZLinqTimeText=FormatTime(value.SystemZLinq);
-        this.SystemZLinqAllocatedText=FormatAllocated(value.SystemZLinq);
-        this.SystemZLinqCell.ApplyMetrics(value.SystemZLinq,preserveRetainedDisplay);
-        this.PersistedRatioTimeText=FormatRatio(value.PersistedRatio.TimeRatio);
-        this.PersistedRatioAllocatedText=FormatRatio(value.PersistedRatio.AllocatedRatio);
-        this.PersistedFLinqTimeText=FormatTime(value.PersistedFLinq);
-        this.PersistedFLinqAllocatedText=FormatAllocated(value.PersistedFLinq);
-        this.PersistedFLinqCell.ApplyMetrics(value.PersistedFLinq,preserveRetainedDisplay);
-        this.PersistedLinqTimeText=FormatTime(value.PersistedLinq);
-        this.PersistedLinqAllocatedText=FormatAllocated(value.PersistedLinq);
-        this.PersistedLinqCell.ApplyMetrics(value.PersistedLinq,preserveRetainedDisplay);
-        this.TsavoriteRatioTimeText=FormatRatio(value.TsavoriteRatio.TimeRatio);
-        this.TsavoriteRatioAllocatedText=FormatRatio(value.TsavoriteRatio.AllocatedRatio);
-        this.TsavoriteFLinqTimeText=FormatTime(value.TsavoriteFLinq);
-        this.TsavoriteFLinqAllocatedText=FormatAllocated(value.TsavoriteFLinq);
-        this.TsavoriteFLinqCell.ApplyMetrics(value.TsavoriteFLinq,preserveRetainedDisplay);
-        this.TsavoriteLinqTimeText=FormatTime(value.TsavoriteLinq);
-        this.TsavoriteLinqAllocatedText=FormatAllocated(value.TsavoriteLinq);
-        this.TsavoriteLinqCell.ApplyMetrics(value.TsavoriteLinq,preserveRetainedDisplay);
+        this.SystemRatioTimeText=FormatRatio(value.PairRatio.TimeRatio);
+        this.SystemRatioAllocatedText=FormatRatio(value.PairRatio.AllocatedRatio);
+        this.OnPropertyChanged(nameof(this.PairRatioTimeText));
+        this.OnPropertyChanged(nameof(this.PairRatioAllocatedText));
+        var left = value.GetProject(this.SourceTab.LeftProject);
+        var right = value.GetProject(this.SourceTab.RightProject);
+        this.SystemFLinqTimeText=FormatTime(left);
+        this.SystemFLinqAllocatedText=FormatAllocated(left);
+        this.LeftCell.ApplyMetrics(left,preserveRetainedDisplay);
+        this.SystemZLinqTimeText=FormatTime(right);
+        this.SystemZLinqAllocatedText=FormatAllocated(right);
+        this.RightCell.ApplyMetrics(right,preserveRetainedDisplay);
+        this.OnPropertyChanged(nameof(this.LeftTimeText));
+        this.OnPropertyChanged(nameof(this.LeftAllocatedText));
+        this.OnPropertyChanged(nameof(this.RightTimeText));
+        this.OnPropertyChanged(nameof(this.RightAllocatedText));
     }
 
     public BenchmarkSortValue GetSortValue(BenchmarkGridSortColumn column){
         var row = this.comparisonRow;
         return column switch{
             BenchmarkGridSortColumn.BenchmarkName => BenchmarkSortValue.FromText(this.BenchmarkName),
+            BenchmarkGridSortColumn.PairRatioTime => row is { } value ? BenchmarkSortValue.FromRatio(value.PairRatio.TimeRatio) : BenchmarkSortValue.Missing,
+            BenchmarkGridSortColumn.PairRatioAllocated => row is { } value ? BenchmarkSortValue.FromRatio(value.PairRatio.AllocatedRatio) : BenchmarkSortValue.Missing,
+            BenchmarkGridSortColumn.LeftTime => BenchmarkSortValue.FromMetric(this.LeftCell.Metrics,BenchmarkMetricKind.Time),
+            BenchmarkGridSortColumn.LeftAllocated => BenchmarkSortValue.FromMetric(this.LeftCell.Metrics,BenchmarkMetricKind.Allocated),
+            BenchmarkGridSortColumn.RightTime => BenchmarkSortValue.FromMetric(this.RightCell.Metrics,BenchmarkMetricKind.Time),
+            BenchmarkGridSortColumn.RightAllocated => BenchmarkSortValue.FromMetric(this.RightCell.Metrics,BenchmarkMetricKind.Allocated),
             BenchmarkGridSortColumn.SystemRatioTime => row is { } value ? BenchmarkSortValue.FromRatio(value.SystemRatio.TimeRatio) : BenchmarkSortValue.Missing,
             BenchmarkGridSortColumn.SystemRatioAllocated => row is { } value ? BenchmarkSortValue.FromRatio(value.SystemRatio.AllocatedRatio) : BenchmarkSortValue.Missing,
             BenchmarkGridSortColumn.SystemFLinqTime => BenchmarkSortValue.FromMetric(this.SystemFLinqCell.Metrics,BenchmarkMetricKind.Time),
@@ -923,30 +944,25 @@ public sealed class BenchmarkTableRow:ObservableObject{
     }
 
     private void SetProjectMetricText(string project,string timeText,string allocatedText){
-        if(string.Equals(project,BenchmarkComparisonFormatter.SystemFLinq,StringComparison.OrdinalIgnoreCase)){
+        if(string.Equals(project,this.SourceTab.LeftProject,StringComparison.OrdinalIgnoreCase)){
             this.SystemFLinqTimeText=timeText;
             this.SystemFLinqAllocatedText=allocatedText;
-        }else if(string.Equals(project,BenchmarkComparisonFormatter.SystemZLinq,StringComparison.OrdinalIgnoreCase)){
+            this.OnPropertyChanged(nameof(this.LeftTimeText));
+            this.OnPropertyChanged(nameof(this.LeftAllocatedText));
+        }else if(string.Equals(project,this.SourceTab.RightProject,StringComparison.OrdinalIgnoreCase)){
             this.SystemZLinqTimeText=timeText;
             this.SystemZLinqAllocatedText=allocatedText;
-        }else if(string.Equals(project,BenchmarkComparisonFormatter.PersistedFLinq,StringComparison.OrdinalIgnoreCase)){
-            this.PersistedFLinqTimeText=timeText;
-            this.PersistedFLinqAllocatedText=allocatedText;
-        }else if(string.Equals(project,BenchmarkComparisonFormatter.PersistedLinq,StringComparison.OrdinalIgnoreCase)){
-            this.PersistedLinqTimeText=timeText;
-            this.PersistedLinqAllocatedText=allocatedText;
-        }else if(string.Equals(project,BenchmarkComparisonFormatter.TsavoriteFLinq,StringComparison.OrdinalIgnoreCase)){
-            this.TsavoriteFLinqTimeText=timeText;
-            this.TsavoriteFLinqAllocatedText=allocatedText;
-        }else if(string.Equals(project,BenchmarkComparisonFormatter.TsavoriteLinq,StringComparison.OrdinalIgnoreCase)){
-            this.TsavoriteLinqTimeText=timeText;
-            this.TsavoriteLinqAllocatedText=allocatedText;
+            this.OnPropertyChanged(nameof(this.RightTimeText));
+            this.OnPropertyChanged(nameof(this.RightAllocatedText));
         }
     }
 
     private void ClearStopNText(){
         this.SystemStopNText=string.Empty;
         this.ApplySystemStopNStyle(false);
+        this.OnPropertyChanged(nameof(this.StopNText));
+        this.OnPropertyChanged(nameof(this.StopNTextColor));
+        this.OnPropertyChanged(nameof(this.StopNFontAttributes));
         this.PersistedStopNText=string.Empty;
         this.ApplyPersistedStopNStyle(false);
         this.TsavoriteStopNText=string.Empty;

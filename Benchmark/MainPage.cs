@@ -48,7 +48,7 @@ public sealed class MainPage:ContentPage{
                 ColumnSpacing=1,
                 BackgroundColor=Color.FromArgb("#CBD5E1"),
             };
-            contentGrid.Add(this.WrapPanel("Benchmarks",this.CreateBenchmarkGrid()),0,0);
+            contentGrid.Add(this.WrapPanel("Benchmarks",this.CreateBenchmarkPanelContent()),0,0);
             contentGrid.Add(this.WrapPanel("Analysis",this.CreateRightPanel()),1,0);
 
             this.Content=new Grid{
@@ -288,6 +288,42 @@ public sealed class MainPage:ContentPage{
         return grid;
     }
 
+    private View CreateBenchmarkPanelContent(){
+        var grid = new Grid{
+            RowDefinitions = {
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Star },
+            },
+            RowSpacing=4,
+        };
+        var tabs = this.CreateSourceTabs();
+        var benchmarkGrid = this.CreateBenchmarkGrid();
+        grid.Add(tabs,0,0);
+        grid.Add(benchmarkGrid,0,1);
+        return grid;
+    }
+
+    private View CreateSourceTabs(){
+        var layout = new HorizontalStackLayout{
+            Spacing=4,
+        };
+        foreach(var option in this.viewModel?.SourceTabs??[]){
+            var button = this.CreateTabButton(option.DisplayName);
+            this.BindTabButtonState(
+                button,
+                nameof(BenchmarkRunnerViewModel.SelectedSourceTab),
+                viewModel => viewModel.SelectedSourceTab==option);
+            button.Clicked+=(_,_) => {
+                if(this.viewModel is not null){
+                    this.viewModel.SelectedSourceTab=option;
+                }
+            };
+            layout.Children.Add(button);
+        }
+
+        return layout;
+    }
+
     private View CreateBenchmarkGrid(){
         StartupDiagnostics.WriteSyncfusionAssemblies("CreateBenchmarkGrid before SfDataGrid");
         var grid = new SfDataGrid{
@@ -317,45 +353,19 @@ public sealed class MainPage:ContentPage{
         grid.Columns.Add(this.CreateCheckColumn());
         grid.Columns.Add(this.CreateTextColumn("Benchmark",nameof(BenchmarkTableRow.BenchmarkName),BenchmarkGridSortColumn.BenchmarkName,240,TextAlignment.Start));
         this.AddBenchmarkBaseStackedHeaders(categoryHeaderRow,projectHeaderRow);
-        var systemLeftMappings = this.AddProjectColumns(grid,"FLinq",nameof(BenchmarkTableRow.SystemFLinqCell),BenchmarkGridSortColumn.SystemFLinqTime,BenchmarkGridSortColumn.SystemFLinqAllocated);
-        var systemStopMapping = this.AddPairStopNColumn(
+        var leftMappings = this.AddProjectColumns(grid,"Left",nameof(BenchmarkTableRow.LeftCell),BenchmarkGridSortColumn.LeftTime,BenchmarkGridSortColumn.LeftAllocated);
+        var stopMapping = this.AddPairStopNColumn(
             grid,
-            "SystemStopN",
-            nameof(BenchmarkTableRow.SystemStopNText),
-            nameof(BenchmarkTableRow.SystemStopNTextColor),
-            nameof(BenchmarkTableRow.SystemStopNFontAttributes));
-        var systemRightMappings = this.AddProjectColumns(grid,"ZLinq",nameof(BenchmarkTableRow.SystemZLinqCell),BenchmarkGridSortColumn.SystemZLinqTime,BenchmarkGridSortColumn.SystemZLinqAllocated);
-        IReadOnlyList<string>[] systemMappings = [systemLeftMappings,[systemStopMapping],systemRightMappings];
-        this.AddBenchmarkSelectionGroup(categoryHeaderRow,this.GetBenchmarkSelectionGroup("System"),systemMappings);
-        this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup(BenchmarkComparisonFormatter.SystemFLinq,"FLinq"),systemLeftMappings);
-        this.AddBenchmarkStopNHeader(projectHeaderRow,systemStopMapping);
-        this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup(BenchmarkComparisonFormatter.SystemZLinq,"ZLinq"),systemRightMappings);
-        var persistedLeftMappings = this.AddProjectColumns(grid,"FLinq",nameof(BenchmarkTableRow.PersistedFLinqCell),BenchmarkGridSortColumn.PersistedFLinqTime,BenchmarkGridSortColumn.PersistedFLinqAllocated);
-        var persistedStopMapping = this.AddPairStopNColumn(
-            grid,
-            "PersistedStopN",
-            nameof(BenchmarkTableRow.PersistedStopNText),
-            nameof(BenchmarkTableRow.PersistedStopNTextColor),
-            nameof(BenchmarkTableRow.PersistedStopNFontAttributes));
-        var persistedRightMappings = this.AddProjectColumns(grid,"Linq",nameof(BenchmarkTableRow.PersistedLinqCell),BenchmarkGridSortColumn.PersistedLinqTime,BenchmarkGridSortColumn.PersistedLinqAllocated);
-        IReadOnlyList<string>[] persistedMappings = [persistedLeftMappings,[persistedStopMapping],persistedRightMappings];
-        this.AddBenchmarkSelectionGroup(categoryHeaderRow,this.GetBenchmarkSelectionGroup("Persisted"),persistedMappings);
-        this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup(BenchmarkComparisonFormatter.PersistedFLinq,"FLinq"),persistedLeftMappings);
-        this.AddBenchmarkStopNHeader(projectHeaderRow,persistedStopMapping);
-        this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup(BenchmarkComparisonFormatter.PersistedLinq,"Linq"),persistedRightMappings);
-        var tsavoriteLeftMappings = this.AddProjectColumns(grid,"FLinq",nameof(BenchmarkTableRow.TsavoriteFLinqCell),BenchmarkGridSortColumn.TsavoriteFLinqTime,BenchmarkGridSortColumn.TsavoriteFLinqAllocated);
-        var tsavoriteStopMapping = this.AddPairStopNColumn(
-            grid,
-            "TsavoriteStopN",
-            nameof(BenchmarkTableRow.TsavoriteStopNText),
-            nameof(BenchmarkTableRow.TsavoriteStopNTextColor),
-            nameof(BenchmarkTableRow.TsavoriteStopNFontAttributes));
-        var tsavoriteRightMappings = this.AddProjectColumns(grid,"Linq",nameof(BenchmarkTableRow.TsavoriteLinqCell),BenchmarkGridSortColumn.TsavoriteLinqTime,BenchmarkGridSortColumn.TsavoriteLinqAllocated);
-        IReadOnlyList<string>[] tsavoriteMappings = [tsavoriteLeftMappings,[tsavoriteStopMapping],tsavoriteRightMappings];
-        this.AddBenchmarkSelectionGroup(categoryHeaderRow,this.GetBenchmarkSelectionGroup("Tsavorite"),tsavoriteMappings);
-        this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup(BenchmarkComparisonFormatter.TsavoriteFLinq,"FLinq"),tsavoriteLeftMappings);
-        this.AddBenchmarkStopNHeader(projectHeaderRow,tsavoriteStopMapping);
-        this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup(BenchmarkComparisonFormatter.TsavoriteLinq,"Linq"),tsavoriteRightMappings);
+            "StopN",
+            nameof(BenchmarkTableRow.StopNText),
+            nameof(BenchmarkTableRow.StopNTextColor),
+            nameof(BenchmarkTableRow.StopNFontAttributes));
+        var rightMappings = this.AddProjectColumns(grid,"Right",nameof(BenchmarkTableRow.RightCell),BenchmarkGridSortColumn.RightTime,BenchmarkGridSortColumn.RightAllocated);
+        IReadOnlyList<string>[] mappings = [leftMappings,[stopMapping],rightMappings];
+        this.AddBenchmarkSelectionGroup(categoryHeaderRow,this.GetBenchmarkSelectionGroup("Active"),mappings);
+        this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup("Left","Left"),leftMappings);
+        this.AddBenchmarkStopNHeader(projectHeaderRow,stopMapping);
+        this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup("Right","Right"),rightMappings);
         return grid;
     }
 
@@ -458,6 +468,8 @@ public sealed class MainPage:ContentPage{
 
     private string GetProjectFromCellPath(string cellPath){
         return cellPath switch{
+            nameof(BenchmarkTableRow.LeftCell) => this.viewModel?.SelectedSourceDefinition.LeftProject??cellPath,
+            nameof(BenchmarkTableRow.RightCell) => this.viewModel?.SelectedSourceDefinition.RightProject??cellPath,
             nameof(BenchmarkTableRow.SystemFLinqCell) => BenchmarkComparisonFormatter.SystemFLinq,
             nameof(BenchmarkTableRow.SystemZLinqCell) => BenchmarkComparisonFormatter.SystemZLinq,
             nameof(BenchmarkTableRow.PersistedFLinqCell) => BenchmarkComparisonFormatter.PersistedFLinq,
