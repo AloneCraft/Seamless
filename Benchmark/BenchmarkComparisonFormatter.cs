@@ -383,6 +383,17 @@ public readonly record struct ComparisonPairDefinition(
     string LeftProject,
     string RightProject);
 
+internal static class BenchmarkComparisonPairs{
+    private static readonly IReadOnlyList<IReadOnlyList<string>> Pairs = [
+        [BenchmarkComparisonFormatter.SystemFLinq,BenchmarkComparisonFormatter.SystemZLinq],
+        [BenchmarkComparisonFormatter.PersistedFLinq,BenchmarkComparisonFormatter.PersistedLinq],
+        [BenchmarkComparisonFormatter.TsavoriteFLinq,BenchmarkComparisonFormatter.TsavoriteLinq],
+    ];
+
+    public static IReadOnlyList<string>? GetPairProjects(string project) =>
+        Pairs.FirstOrDefault(pair => pair.Contains(project,StringComparer.OrdinalIgnoreCase));
+}
+
 public enum RatioValueKind{
     Numeric,
     BothZero,

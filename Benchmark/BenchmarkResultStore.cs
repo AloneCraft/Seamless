@@ -85,6 +85,12 @@ public sealed class BenchmarkResultStore{
             .FirstOrDefault();
     }
 
+    public BenchmarkStoredResult? Get(string method,string project,int elementCount){
+        return this.results.TryGetValue(CreateKey(project,method,elementCount),out var result)
+            ? result
+            : null;
+    }
+
     public DateTimeOffset? GetLatestMeasuredAt(string method,string project) =>
         this.GetLatest(method,project)?.MeasuredAt;
 

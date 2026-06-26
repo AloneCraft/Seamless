@@ -2,16 +2,16 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Uno Benchmark Runner exe(Debug)",
+            "name": "Benchmark",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build-uno-desktop",
-            "program": "${workspaceFolder}/Benchmark.Runner.Uno/Benchmark.Runner.Uno/bin/Debug/net10.0-desktop/Benchmark.Runner.Uno.exe",
+            "preLaunchTask": "build-benchmark",
+            "program": "${workspaceFolder}/Benchmark/bin/Debug/net10.0-windows10.0.19041.0/win-x64/Benchmark.exe",
             "args": [],
             "env": {
                 "DOTNET_MODIFIABLE_ASSEMBLIES": "debug"
             },
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/Benchmark/bin/Debug/net10.0-windows10.0.19041.0/win-x64",
             "console": "internalConsole",
             "stopAtEntry": false
         }

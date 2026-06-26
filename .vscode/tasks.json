@@ -33,14 +33,14 @@
             "group": "build"
         },
         {
-            "label": "build-uno-desktop",
+            "label": "build-benchmark",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Benchmark.Runner.Uno/Benchmark.Runner.Uno/Benchmark.Runner.Uno.csproj",
+                "${workspaceFolder}/Benchmark/Benchmark.csproj",
                 "/property:GenerateFullPaths=true",
-                "/property:TargetFramework=net10.0-desktop",
+                "/property:TargetFramework=net10.0-windows10.0.19041.0",
                 "/consoleloggerparameters:NoSummary"
             ],
             "problemMatcher": "$msCompile"

@@ -377,7 +377,7 @@ public sealed class BenchmarkOrchestratorTests{
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_StopsOnlyCaseAfterThresholdExceeded(){
+    public async Task Orchestrator_AdaptiveMode_KeepsPairRunningWhenOnlyOneSideExceedsThreshold(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => {
             var mean = job.ElementCount>=256&&job.Project=="SystemZLinq" ? 2_000_000_000d : 100d;
@@ -415,7 +415,59 @@ public sealed class BenchmarkOrchestratorTests{
         var state = LoadOnlyState(root);
         Assert.Equal([128,256,512],state.Jobs.Select(static job => job.ElementCount).Distinct().Order().ToArray());
         Assert.Contains(state.Jobs,static job => job.Project=="SystemFLinq"&&job.ElementCount==512);
+        Assert.Contains(state.Jobs,static job => job.Project=="SystemZLinq"&&job.ElementCount==512);
+    }
+
+    [Fact]
+    public async Task Orchestrator_AdaptiveMode_StopsPairAfterBothSidesExceedThreshold(){
+        var root = CreateTempRoot();
+        var runner = new FakeRunner((job,_) => {
+            var mean = job.ElementCount>=256&&job.Project.StartsWith("System",StringComparison.Ordinal)
+                ? 2_000_000d
+                : 100d;
+            return new BenchmarkJobRunResult(
+                job.Project,
+                job.MethodName,
+                job.TypeFullName,
+                job.ElementCount,
+                "Completed",
+                mean+" ns",
+                string.Empty,
+                string.Empty,
+                mean,
+                0,
+                0,
+                0,
+                0,
+                job.ArtifactFolder,
+                string.Empty);
+        });
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [
+                    Case("SystemFLinq","Where"),
+                    Case("SystemZLinq","Where"),
+                    Case("PersistedFLinq","Where"),
+                    Case("PersistedLinq","Where"),
+                ],
+                [0],
+                [128,256,512],
+                BenchmarkRunMode.Adaptive,
+                TimeSpan.FromMilliseconds(1),
+                TimeSpan.FromSeconds(30)),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        var state = LoadOnlyState(root);
+        Assert.Contains(state.Jobs,static job => job.Project=="SystemFLinq"&&job.ElementCount==256);
+        Assert.Contains(state.Jobs,static job => job.Project=="SystemZLinq"&&job.ElementCount==256);
+        Assert.DoesNotContain(state.Jobs,static job => job.Project=="SystemFLinq"&&job.ElementCount==512);
         Assert.DoesNotContain(state.Jobs,static job => job.Project=="SystemZLinq"&&job.ElementCount==512);
+        Assert.Contains(state.Jobs,static job => job.Project=="PersistedFLinq"&&job.ElementCount==512);
+        Assert.Contains(state.Jobs,static job => job.Project=="PersistedLinq"&&job.ElementCount==512);
     }
 
     [Fact]
@@ -508,6 +560,31 @@ public sealed class BenchmarkOrchestratorTests{
     public void BenchmarkElementCounts_StartsAdaptiveWorkloadAtOne(){
         Assert.Equal(1,BenchmarkElementCounts.All[0]);
         Assert.Equal([1],BenchmarkElementCounts.DefaultInitial);
+    }
+
+    [Fact]
+    public void BenchmarkSkippedDisplayLogic_RequiresBothPairSidesBeforeSelectedElementCount(){
+        BenchmarkElementMeasurement[] measurements = [
+            new(BenchmarkComparisonFormatter.SystemFLinq,"Where",128,"Completed",2_000_000),
+            new(BenchmarkComparisonFormatter.SystemZLinq,"Where",256,"Completed",2_000_000),
+            new(BenchmarkComparisonFormatter.PersistedFLinq,"Where",128,"Completed",2_000_000),
+        ];
+
+        var stoppedAt = BenchmarkSkippedDisplayLogic.FindPairStoppedAt(
+            measurements,
+            "Where",
+            BenchmarkComparisonFormatter.SystemFLinq,
+            512,
+            1_000_000);
+        var oneSided = BenchmarkSkippedDisplayLogic.FindPairStoppedAt(
+            measurements,
+            "Where",
+            BenchmarkComparisonFormatter.PersistedFLinq,
+            512,
+            1_000_000);
+
+        Assert.Equal(256,stoppedAt);
+        Assert.Null(oneSided);
     }
 
     private static BenchmarkCase Case(string project,string method) =>

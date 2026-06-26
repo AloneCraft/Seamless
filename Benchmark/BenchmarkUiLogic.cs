@@ -80,6 +80,43 @@ internal static class BenchmarkElementCountLogic{
     }
 }
 
+internal sealed record BenchmarkElementMeasurement(
+    string Project,
+    string Method,
+    int ElementCount,
+    string Status,
+    double? MeanNanoseconds);
+
+internal static class BenchmarkSkippedDisplayLogic{
+    public static int? FindPairStoppedAt(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        string method,
+        string project,
+        int selectedElementCount,
+        double thresholdNanoseconds){
+        var pairProjects = BenchmarkComparisonPairs.GetPairProjects(project);
+        if(pairProjects is null){
+            return null;
+        }
+
+        var candidates = pairProjects
+            .Select(pairProject => measurements
+                .Where(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
+                    &&string.Equals(result.Project,pairProject,StringComparison.OrdinalIgnoreCase)
+                    &&result.ElementCount<selectedElementCount
+                    &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+                    &&result.MeanNanoseconds is { } mean
+                    &&mean>thresholdNanoseconds)
+                .OrderBy(static result => result.ElementCount)
+                .Select(static result => (int?)result.ElementCount)
+                .FirstOrDefault())
+            .ToArray();
+        return candidates.Length==pairProjects.Count&&candidates.All(static item => item is not null)
+            ? candidates.Max()
+            : null;
+    }
+}
+
 internal enum BenchmarkCellSelectionGesture{
     Replace,
     Toggle,

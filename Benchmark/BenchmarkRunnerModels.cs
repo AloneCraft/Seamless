@@ -123,6 +123,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     private string coreKindLabel = string.Empty;
     private string timeText = string.Empty;
     private string allocatedText = string.Empty;
+    private Color executionTextColor = Color.FromArgb("#334155");
     private bool isRunning;
     private bool hasCpuDisplay;
     private BenchmarkProjectLiveState liveState;
@@ -195,6 +196,11 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         private set => this.SetProperty(ref this.allocatedText,value);
     }
 
+    public Color ExecutionTextColor{
+        get => this.executionTextColor;
+        private set => this.SetProperty(ref this.executionTextColor,value);
+    }
+
     public bool IsRunning{
         get => this.isRunning;
         private set => this.SetProperty(ref this.isRunning,value);
@@ -262,12 +268,17 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.ExecutionText=result.SourceCsvAt is { } csvAt
             ? BenchmarkTimestampDisplay.FormatLocal(csvAt)
             : BenchmarkTimestampDisplay.FormatLocal(result.MeasuredAt);
+        this.ExecutionTextColor=Color.FromArgb("#334155");
     }
 
     public void ApplyRunResult(BenchmarkResultItem result,CpuSelectionItem? cpu){
         this.lastMeasuredAt=DateTimeOffset.Now;
-        this.TimeText=string.IsNullOrWhiteSpace(result.Mean) ? this.TimeText : result.Mean;
-        this.AllocatedText=string.IsNullOrWhiteSpace(result.AllocatedBytes) ? this.AllocatedText : result.AllocatedBytes;
+        this.TimeText=result.MeanNanoseconds is { } mean
+            ? BenchmarkFormatting.FormatNanoseconds(mean)
+            : string.IsNullOrWhiteSpace(result.Mean) ? this.TimeText : result.Mean;
+        this.AllocatedText=result.AllocatedBytesValue is { } allocated
+            ? BenchmarkFormatting.FormatBytes(allocated)
+            : string.IsNullOrWhiteSpace(result.AllocatedBytes) ? this.AllocatedText : result.AllocatedBytes;
         this.IsRunning=string.Equals(result.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase);
         this.StatusIcon=this.IsRunning
             ? "⟳"
@@ -287,6 +298,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.ExecutionText=this.IsRunning
             ? string.Empty
             : BenchmarkTimestampDisplay.FormatLocal(result.StartedAt??DateTimeOffset.Now);
+        this.ExecutionTextColor=Color.FromArgb("#334155");
         this.LiveState=this.IsRunning
             ? BenchmarkProjectLiveState.Running
             : string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
@@ -298,6 +310,20 @@ public sealed class BenchmarkProjectCell:ObservableObject{
                 result.AllocatedBytesValue);
             this.OnPropertyChanged(nameof(this.IsPendingVisual));
         }
+    }
+
+    public void ApplySkipped(int stoppedAtElementCount,ProjectMetrics stoppedMetrics){
+        this.metrics=stoppedMetrics;
+        this.TimeText=FormatTime(stoppedMetrics);
+        this.AllocatedText=FormatAllocated(stoppedMetrics);
+        this.IsRunning=false;
+        this.StatusIcon=stoppedAtElementCount.ToString(CultureInfo.InvariantCulture);
+        this.StatusText="N="+stoppedAtElementCount.ToString(CultureInfo.InvariantCulture);
+        this.ExecutionText=stoppedAtElementCount.ToString(CultureInfo.InvariantCulture);
+        this.ExecutionTextColor=Color.FromArgb("#16A34A");
+        this.LiveState=BenchmarkProjectLiveState.Idle;
+        this.ClearCpuDisplay();
+        this.OnPropertyChanged(nameof(this.IsPendingVisual));
     }
 
     public void ClearLiveState(){
@@ -314,6 +340,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             this.StatusIcon="○";
             this.StatusText="未実行";
             this.ExecutionText=string.Empty;
+            this.ExecutionTextColor=Color.FromArgb("#334155");
         }
     }
 
@@ -587,6 +614,14 @@ public sealed class BenchmarkTableRow:ObservableObject{
         }
     }
 
+    public void ApplySkipped(string project,int stoppedAtElementCount,ProjectMetrics stoppedMetrics){
+        if(this.GetProjectCell(project) is { } cell){
+            cell.ApplySkipped(stoppedAtElementCount,stoppedMetrics);
+        }
+
+        this.SetProjectMetricText(project,FormatTime(stoppedMetrics),FormatAllocated(stoppedMetrics));
+    }
+
     public void ClearLiveState(){
         foreach(var cell in this.ProjectCells){
             cell.ClearLiveState();
@@ -674,6 +709,28 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.TsavoriteLinqAllocatedText=string.Empty;
         foreach(var cell in this.ProjectCells){
             cell.ClearMetrics();
+        }
+    }
+
+    private void SetProjectMetricText(string project,string timeText,string allocatedText){
+        if(string.Equals(project,BenchmarkComparisonFormatter.SystemFLinq,StringComparison.OrdinalIgnoreCase)){
+            this.SystemFLinqTimeText=timeText;
+            this.SystemFLinqAllocatedText=allocatedText;
+        }else if(string.Equals(project,BenchmarkComparisonFormatter.SystemZLinq,StringComparison.OrdinalIgnoreCase)){
+            this.SystemZLinqTimeText=timeText;
+            this.SystemZLinqAllocatedText=allocatedText;
+        }else if(string.Equals(project,BenchmarkComparisonFormatter.PersistedFLinq,StringComparison.OrdinalIgnoreCase)){
+            this.PersistedFLinqTimeText=timeText;
+            this.PersistedFLinqAllocatedText=allocatedText;
+        }else if(string.Equals(project,BenchmarkComparisonFormatter.PersistedLinq,StringComparison.OrdinalIgnoreCase)){
+            this.PersistedLinqTimeText=timeText;
+            this.PersistedLinqAllocatedText=allocatedText;
+        }else if(string.Equals(project,BenchmarkComparisonFormatter.TsavoriteFLinq,StringComparison.OrdinalIgnoreCase)){
+            this.TsavoriteFLinqTimeText=timeText;
+            this.TsavoriteFLinqAllocatedText=allocatedText;
+        }else if(string.Equals(project,BenchmarkComparisonFormatter.TsavoriteLinq,StringComparison.OrdinalIgnoreCase)){
+            this.TsavoriteLinqTimeText=timeText;
+            this.TsavoriteLinqAllocatedText=allocatedText;
         }
     }
 
@@ -1062,8 +1119,12 @@ public sealed class BenchmarkResultItem{
         this.ElementCount=job.ElementCount;
         this.Name=job.Project+" / "+job.MethodName+" / N="+job.ElementCount.ToString(CultureInfo.InvariantCulture);
         this.Status=job.Status.ToString();
-        this.Mean=job.Status==JobStatus.Failed&&string.IsNullOrWhiteSpace(job.Mean) ? "Failed" : job.Mean;
-        this.AllocatedBytes=job.AllocatedBytes?.ToString("N0",CultureInfo.InvariantCulture)??string.Empty;
+        this.Mean=job.MeanNanoseconds is { } mean
+            ? BenchmarkFormatting.FormatNanoseconds(mean)
+            : job.Status==JobStatus.Failed&&string.IsNullOrWhiteSpace(job.Mean) ? "Failed" : job.Mean;
+        this.AllocatedBytes=job.AllocatedBytes is { } allocated
+            ? BenchmarkFormatting.FormatBytes(allocated)
+            : string.Empty;
         this.AllocatedBytesValue=job.AllocatedBytes;
         this.MeanNanoseconds=job.MeanNanoseconds;
         this.ErrorNanoseconds=job.ErrorNanoseconds;
@@ -1081,8 +1142,12 @@ public sealed class BenchmarkResultItem{
         this.ElementCount=0;
         this.Name=result.Project+" / "+result.Method;
         this.Status=result.Status;
-        this.Mean=result.Mean;
-        this.AllocatedBytes=result.AllocatedBytes?.ToString("N0",CultureInfo.InvariantCulture)??string.Empty;
+        this.Mean=result.MeanNanoseconds is { } mean
+            ? BenchmarkFormatting.FormatNanoseconds(mean)
+            : result.Mean;
+        this.AllocatedBytes=result.AllocatedBytes is { } allocated
+            ? BenchmarkFormatting.FormatBytes(allocated)
+            : string.Empty;
         this.AllocatedBytesValue=result.AllocatedBytes;
         this.MeanNanoseconds=result.MeanNanoseconds;
         this.ErrorNanoseconds=result.ErrorNanoseconds;
