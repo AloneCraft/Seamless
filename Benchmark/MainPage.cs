@@ -175,14 +175,17 @@ public sealed class MainPage:ContentPage{
         thresholdPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ThresholdOptions));
         thresholdPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedThreshold));
 
-        var elementCountPicker = new Picker{
-            WidthRequest=110,
+        var elementCountLabel = new Label{
+            FontSize=18,
+            FontAttributes=FontAttributes.Bold,
+            TextColor=Color.FromArgb("#0F172A"),
+            HorizontalTextAlignment=TextAlignment.Center,
+            VerticalTextAlignment=TextAlignment.Center,
+            MinimumWidthRequest=92,
             HeightRequest=30,
-            ItemDisplayBinding=new Binding(nameof(ElementCountOption.DisplayName)),
-            Margin=new Thickness(0),
+            Padding=new Thickness(8,0),
         };
-        elementCountPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ElementCountOptions));
-        elementCountPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedElementCountOption));
+        elementCountLabel.SetBinding(Label.TextProperty,nameof(BenchmarkRunnerViewModel.CurrentElementCountText));
 
         var csvDatePicker = new Picker{
             WidthRequest=168,
@@ -228,7 +231,7 @@ public sealed class MainPage:ContentPage{
         grid.Add(this.ToolbarLabel("計測時間"),1,0);
         grid.Add(thresholdPicker,2,0);
         grid.Add(this.ToolbarLabel("要素数"),3,0);
-        grid.Add(elementCountPicker,4,0);
+        grid.Add(elementCountLabel,4,0);
         grid.Add(runButton,5,0);
         grid.Add(cancelButton,6,0);
         grid.Add(exportButton,7,0);
@@ -1317,11 +1320,13 @@ public sealed class MainPage:ContentPage{
         var chartContent = new Grid{
             RowDefinitions = {
                 new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Star },
                 new RowDefinition { Height = GridLength.Auto },
             },
             RowSpacing=6,
             Children = {
+                this.CreateChartElementSlider(),
                 this.CreateChartPairTabs(),
                 new ScrollView{
                     Orientation=ScrollOrientation.Vertical,
@@ -1331,7 +1336,8 @@ public sealed class MainPage:ContentPage{
             },
         };
         chartContent.SetRow(chartContent.Children[1],1);
-        chartContent.SetRow(warningList,2);
+        chartContent.SetRow(chartContent.Children[2],2);
+        chartContent.SetRow(warningList,3);
 
         var grid = new Grid{
             Children = {
@@ -1341,6 +1347,49 @@ public sealed class MainPage:ContentPage{
         };
         grid.SetBinding(IsVisibleProperty,nameof(BenchmarkRunnerViewModel.IsChartVisible));
         emptyText.SetBinding(IsVisibleProperty,new Binding(nameof(BenchmarkRunnerViewModel.ChartPoints)+".Count",converter:new CountIsZeroConverter()));
+        return grid;
+    }
+
+    private View CreateChartElementSlider(){
+        var label = new Label{
+            Text="N",
+            FontSize=11,
+            TextColor=Color.FromArgb("#475569"),
+            VerticalTextAlignment=TextAlignment.Center,
+        };
+        var slider = new Slider{
+            Minimum=0,
+            WidthRequest=240,
+            HorizontalOptions=LayoutOptions.Fill,
+        };
+        slider.SetBinding(Slider.MaximumProperty,nameof(BenchmarkRunnerViewModel.ChartElementCountSliderMaximum));
+        slider.SetBinding(Slider.ValueProperty,new Binding(nameof(BenchmarkRunnerViewModel.SelectedResultElementCountIndex),BindingMode.TwoWay));
+        var valueLabel = new Label{
+            FontSize=16,
+            FontAttributes=FontAttributes.Bold,
+            TextColor=Color.FromArgb("#0F172A"),
+            MinimumWidthRequest=76,
+            HorizontalTextAlignment=TextAlignment.End,
+            VerticalTextAlignment=TextAlignment.Center,
+        };
+        valueLabel.SetBinding(Label.TextProperty,nameof(BenchmarkRunnerViewModel.SelectedChartElementCountText));
+        var grid = new Grid{
+            ColumnDefinitions = {
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = GridLength.Auto },
+            },
+            ColumnSpacing=8,
+            Padding=new Thickness(0,2,0,0),
+            Children = {
+                label,
+                slider,
+                valueLabel,
+            },
+        };
+        grid.SetColumn(slider,1);
+        grid.SetColumn(valueLabel,2);
+        grid.SetBinding(IsVisibleProperty,nameof(BenchmarkRunnerViewModel.IsChartElementSliderVisible));
         return grid;
     }
 

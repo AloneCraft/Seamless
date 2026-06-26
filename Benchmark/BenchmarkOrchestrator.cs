@@ -181,7 +181,11 @@ internal sealed class BenchmarkOrchestrator {
                 job.FinishedAt=DateTimeOffset.UtcNow;
             }
             this.stateManager.Save(state);
-            _ = this.resultWriter.WriteOutputs(state);
+            try{
+                _ = this.resultWriter.WriteOutputs(state);
+            }catch(Exception ex){
+                System.Diagnostics.Trace.WriteLine("Benchmark result output failed. "+ex);
+            }
             progress(new BenchmarkProgressUpdate(state,job));
         }
     }

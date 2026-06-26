@@ -38,6 +38,8 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     private ChartModeOption selectedChartMode;
     private ElementCountOption selectedElementCountOption;
     private ResultElementCountOption? selectedResultElementCount;
+    private double selectedResultElementCountIndex;
+    private string currentElementCountText = "N=1";
     private double chartHeight = 300;
     private bool isApplyingCpuSelection;
     private bool isApplyingUiState;
@@ -324,6 +326,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         get => this.selectedChartMode;
         set{
             if(this.SetProperty(ref this.selectedChartMode,value)){
+                this.OnPropertyChanged(nameof(this.IsChartElementSliderVisible));
                 this.UpdateChart();
             }
         }
@@ -333,10 +336,33 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         get => this.selectedResultElementCount;
         set{
             if(this.SetProperty(ref this.selectedResultElementCount,value)){
+                this.SyncSelectedResultElementCountIndex();
                 this.RefreshVisibleResults();
                 this.UpdateChart();
             }
         }
+    }
+
+    public double SelectedResultElementCountIndex{
+        get => this.selectedResultElementCountIndex;
+        set{
+            var rounded = Math.Round(value,MidpointRounding.AwayFromZero);
+            var clamped = Math.Clamp(rounded,0,this.ChartElementCountSliderMaximum);
+            if(this.SetProperty(ref this.selectedResultElementCountIndex,clamped)){
+                this.SelectResultElementCountByIndex((int)clamped);
+            }
+        }
+    }
+
+    public double ChartElementCountSliderMaximum => Math.Max(0,this.ResultElementCountOptions.Count-1);
+
+    public bool IsChartElementSliderVisible => this.ResultElementCountOptions.Count>1&&this.SelectedChartMode.Mode==BenchmarkChartMode.ElementComparison;
+
+    public string SelectedChartElementCountText => this.SelectedResultElementCount?.DisplayName??"N=-";
+
+    public string CurrentElementCountText{
+        get => this.currentElementCountText;
+        private set => this.SetProperty(ref this.currentElementCountText,value);
     }
 
     public double ChartHeight{
@@ -637,11 +663,15 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         this.runCancellation?.Cancel();
         this.runCancellation=new CancellationTokenSource();
         this.IsRunning=true;
+        this.CurrentElementCountText="N=1";
         this.ResultItems.Clear();
         this.VisibleResultItems.Clear();
         this.currentRunResultItems.Clear();
         this.ResultElementCountOptions.Clear();
         this.SelectedResultElementCount=null;
+        this.OnPropertyChanged(nameof(this.ChartElementCountSliderMaximum));
+        this.OnPropertyChanged(nameof(this.IsChartElementSliderVisible));
+        this.OnPropertyChanged(nameof(this.SelectedChartElementCountText));
         try{
             var cpus = this.CpuItems
                 .Where(static cpu => cpu.IsSelected)
@@ -661,6 +691,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             await this.RefreshCsvScanAsync(this.runCancellation.Token);
         }catch(OperationCanceledException){
             this.StatusText="Canceled";
+        }catch(Exception ex){
+            StartupDiagnostics.Write("Benchmark run failed.",ex);
+            this.StatusText="Run failed: "+ex.Message;
         }finally{
             this.IsRunning=false;
             this.runCancellation?.Dispose();
@@ -683,6 +716,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
             ? this.CpuItems.FirstOrDefault(item => item.LogicalProcessorIndex==logicalCpu)
             : null;
         cpu?.ApplyJob(result);
+        if(result.ElementCount>0){
+            this.CurrentElementCountText="N="+result.ElementCount.ToString("N0",System.Globalization.CultureInfo.InvariantCulture);
+        }
         this.UpsertResultItem(result);
         this.UpsertCurrentRunResultItem(result);
         this.RegisterResultElementCount(result.ElementCount);
@@ -743,7 +779,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     }
 
     private IReadOnlyList<int> GetSelectedElementCounts(){
-        return BenchmarkElementCountLogic.BuildAdaptiveCandidates(BenchmarkElementCounts.All,this.SelectedElementCountOption.Value);
+        return BenchmarkElementCountLogic.BuildAdaptiveCandidates(BenchmarkElementCounts.All,BenchmarkElementCounts.All[^1]);
     }
 
     private TimeSpan GetAdaptiveThreshold(){
@@ -813,6 +849,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
 
     private void RegisterResultElementCount(int elementCount){
         if(elementCount<=0||this.ResultElementCountOptions.Any(item => item.Value==elementCount)){
+            if(elementCount>0&&this.IsRunning){
+                this.SelectedResultElementCount=this.ResultElementCountOptions.FirstOrDefault(item => item.Value==elementCount)??this.SelectedResultElementCount;
+            }
             return;
         }
 
@@ -825,7 +864,42 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         foreach(var item in ordered){
             this.ResultElementCountOptions.Add(item);
         }
-        this.SelectedResultElementCount??=this.ResultElementCountOptions.FirstOrDefault();
+        this.OnPropertyChanged(nameof(this.ChartElementCountSliderMaximum));
+        this.OnPropertyChanged(nameof(this.IsChartElementSliderVisible));
+        this.SelectedResultElementCount=this.IsRunning
+            ? this.ResultElementCountOptions.FirstOrDefault(item => item.Value==elementCount)
+            : this.SelectedResultElementCount??this.ResultElementCountOptions.FirstOrDefault();
+    }
+
+    private void SelectResultElementCountByIndex(int index){
+        if(this.ResultElementCountOptions.Count==0){
+            if(this.SelectedResultElementCount is not null){
+                this.SelectedResultElementCount=null;
+            }
+            return;
+        }
+
+        var clamped = Math.Clamp(index,0,this.ResultElementCountOptions.Count-1);
+        var option = this.ResultElementCountOptions[clamped];
+        if(this.SelectedResultElementCount!=option){
+            this.SelectedResultElementCount=option;
+        }
+    }
+
+    private void SyncSelectedResultElementCountIndex(){
+        var index = this.SelectedResultElementCount is null
+            ? 0
+            : this.ResultElementCountOptions.IndexOf(this.SelectedResultElementCount);
+        if(index<0){
+            index=0;
+        }
+
+        if(Math.Abs(this.selectedResultElementCountIndex-index)>0.001){
+            this.selectedResultElementCountIndex=index;
+            this.OnPropertyChanged(nameof(this.SelectedResultElementCountIndex));
+        }
+        this.OnPropertyChanged(nameof(this.SelectedChartElementCountText));
+        this.OnPropertyChanged(nameof(this.IsChartElementSliderVisible));
     }
 
     private void RefreshVisibleResults(){
@@ -865,22 +939,64 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     private void UpdateChart(){
         this.ChartPoints.Clear();
         this.ChartWarnings.Clear();
+        var elementComparisonRows = this.BuildElementComparisonRows();
         var points = this.SelectedChartMode.Mode==BenchmarkChartMode.ScaleTrend
             ? this.BuildScaleTrendPoints()
-            : this.comparisonService.BuildChartPoints(this.comparisonRows,this.SelectedComparisonPair,this.SelectedMetric.Kind);
+            : this.comparisonService.BuildChartPoints(elementComparisonRows,this.SelectedComparisonPair,this.SelectedMetric.Kind);
         foreach(var item in points){
             this.ChartPoints.Add(item);
         }
         if(this.SelectedChartMode.Mode==BenchmarkChartMode.ElementComparison){
-            foreach(var warning in this.BuildChartWarnings()){
+            foreach(var warning in this.BuildChartWarnings(elementComparisonRows)){
                 this.ChartWarnings.Add(warning);
             }
         }
         this.ChartHeight=Math.Max(300,this.ChartPoints.Count*28+72);
     }
 
-    private IEnumerable<string> BuildChartWarnings(){
-        foreach(var row in this.comparisonRows){
+    private IReadOnlyList<BenchmarkComparisonRow> BuildElementComparisonRows(){
+        var selectedN = this.SelectedResultElementCount?.Value;
+        if(selectedN is null){
+            return this.comparisonRows;
+        }
+
+        var results = this.ResultItems
+            .Where(item => item.ElementCount==selectedN.Value)
+            .ToArray();
+        return results.Length==0
+            ? []
+            : BenchmarkComparisonFormatter.BuildComparisonRows(results.Select(CreateReportRowForSelectedElementCount).ToArray());
+    }
+
+    private static ReportRow CreateReportRowForSelectedElementCount(BenchmarkResultItem item) =>
+        new(
+            item.Project,
+            item.Method,
+            string.Empty,
+            item.Method,
+            item.Status,
+            item.Mean,
+            string.Empty,
+            string.Empty,
+            item.AllocatedBytesValue?.ToString(System.Globalization.CultureInfo.InvariantCulture)??string.Empty,
+            string.Empty,
+            string.Empty,
+            item.MeanNanoseconds??0,
+            item.ErrorNanoseconds??0,
+            item.StdDevNanoseconds??0,
+            item.AllocatedBytesValue??0,
+            0,
+            0,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            item.ArtifactFolder,
+            item.ExitCode);
+
+    private IEnumerable<string> BuildChartWarnings(IReadOnlyList<BenchmarkComparisonRow> rows){
+        foreach(var row in rows){
             var left = row.GetProject(this.SelectedComparisonPair.LeftProject);
             var right = row.GetProject(this.SelectedComparisonPair.RightProject);
             if(left.HasValue==right.HasValue){

@@ -468,6 +468,7 @@ public sealed class BenchmarkComparisonService:IBenchmarkComparisonService {
             .Where(static point => point is not null)
             .Select(static point => point!)
             .OrderByDescending(static point => point.Ratio??(point.LeftValue>0&&point.RightValue==0?double.PositiveInfinity:0))
+            .ThenByDescending(static point => Math.Abs(point.LeftValue-point.RightValue))
             .ThenBy(static point => point.Benchmark,StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
