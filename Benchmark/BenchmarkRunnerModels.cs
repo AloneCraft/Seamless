@@ -114,20 +114,34 @@ public readonly record struct BenchmarkSortValue(string? Text,double? Number,boo
 }
 
 public sealed class BenchmarkProjectCell:ObservableObject{
+    private static readonly Color DefaultExecutionTextColor = Color.FromArgb("#334155");
+    private static readonly Color DefaultMetricTextColor = Color.FromArgb("#1E293B");
+    private static readonly Color RunHighlightTextColor = Color.FromArgb("#16A34A");
+    private static readonly Color FailureExecutionTextColorValue = Color.FromArgb("#DC2626");
+
     private bool isSelected;
     private bool isUiSelected;
     private string statusIcon;
     private string statusText;
     private string executionText = string.Empty;
+    private string failureExecutionText = string.Empty;
+    private string executionTooltipText = string.Empty;
     private string logicalProcessorText = string.Empty;
     private string coreKindLabel = string.Empty;
     private string timeText = string.Empty;
     private string allocatedText = string.Empty;
-    private Color executionTextColor = Color.FromArgb("#334155");
+    private Color executionTextColor = DefaultExecutionTextColor;
+    private Color metricTextColor = DefaultMetricTextColor;
+    private FontAttributes executionFontAttributes;
+    private FontAttributes metricFontAttributes;
     private bool isRunning;
     private bool hasCpuDisplay;
     private BenchmarkProjectLiveState liveState;
     private DateTimeOffset? lastMeasuredAt;
+    private int? lastSuccessfulElementCount;
+    private int? lastFailedElementCount;
+    private DateTimeOffset? lastFailedAt;
+    private BenchmarkMeasurementHighlightState measurementHighlightState;
     private ProjectMetrics metrics = ProjectMetrics.Missing;
     private Color badgeBackgroundColor = Color.FromArgb("#E2E8F0");
     private Color badgeTextColor = Color.FromArgb("#334155");
@@ -146,6 +160,8 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     public bool HasCase { get; }
     public ProjectMetrics Metrics => this.metrics;
     public DateTimeOffset? LastMeasuredAt => this.lastMeasuredAt;
+    public int? LastSuccessfulElementCount => this.lastSuccessfulElementCount;
+    public BenchmarkMeasurementHighlightState MeasurementHighlightState => this.measurementHighlightState;
 
     public bool IsSelected{
         get => this.isSelected;
@@ -176,6 +192,16 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         private set => this.SetProperty(ref this.executionText,value);
     }
 
+    public string FailureExecutionText{
+        get => this.failureExecutionText;
+        private set => this.SetProperty(ref this.failureExecutionText,value);
+    }
+
+    public string ExecutionTooltipText{
+        get => this.executionTooltipText;
+        private set => this.SetProperty(ref this.executionTooltipText,value);
+    }
+
     public string LogicalProcessorText{
         get => this.logicalProcessorText;
         private set => this.SetProperty(ref this.logicalProcessorText,value);
@@ -199,6 +225,23 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     public Color ExecutionTextColor{
         get => this.executionTextColor;
         private set => this.SetProperty(ref this.executionTextColor,value);
+    }
+
+    public Color FailureExecutionTextColor => FailureExecutionTextColorValue;
+
+    public Color MetricTextColor{
+        get => this.metricTextColor;
+        private set => this.SetProperty(ref this.metricTextColor,value);
+    }
+
+    public FontAttributes ExecutionFontAttributes{
+        get => this.executionFontAttributes;
+        private set => this.SetProperty(ref this.executionFontAttributes,value);
+    }
+
+    public FontAttributes MetricFontAttributes{
+        get => this.metricFontAttributes;
+        private set => this.SetProperty(ref this.metricFontAttributes,value);
     }
 
     public bool IsRunning{
@@ -238,7 +281,12 @@ public sealed class BenchmarkProjectCell:ObservableObject{
 
     public bool IsCompletedVisual => BenchmarkProjectLiveStateLogic.IsCompleted(this.LiveState);
 
-    public void ApplyMetrics(ProjectMetrics value){
+    public void ApplyMetrics(ProjectMetrics value,bool preserveRetainedDisplay = false){
+        if(!value.HasMeasuredValue&&preserveRetainedDisplay&&this.metrics.HasMeasuredValue){
+            this.OnPropertyChanged(nameof(this.IsPendingVisual));
+            return;
+        }
+
         this.metrics=value;
         this.TimeText=FormatTime(value);
         this.AllocatedText=FormatAllocated(value);
@@ -250,8 +298,18 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     }
 
     public void ApplyStoredResult(BenchmarkStoredResult result){
-        this.lastMeasuredAt=result.MeasuredAt;
-        this.ApplyMetrics(result.ToProjectMetrics());
+        var measuredAt = result.SourceCsvAt??result.MeasuredAt;
+        this.lastMeasuredAt=measuredAt;
+        var resultMetrics = result.ToProjectMetrics();
+        if(resultMetrics.HasMeasuredValue){
+            this.ApplySuccessfulDisplay(resultMetrics,result.ElementCount,measuredAt,BenchmarkMeasurementHighlightState.None);
+            this.ClearFailureDisplay();
+        }else{
+            this.ApplyMetrics(resultMetrics);
+            if(string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)){
+                this.ApplyFailureDisplay(result.ElementCount,measuredAt);
+            }
+        }
         this.IsRunning=false;
         if(string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)){
             this.StatusIcon="✓";
@@ -265,20 +323,24 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         }
         this.LiveState=BenchmarkProjectLiveState.Idle;
         this.ClearCpuDisplay();
-        this.ExecutionText=result.SourceCsvAt is { } csvAt
-            ? BenchmarkTimestampDisplay.FormatLocal(csvAt)
-            : BenchmarkTimestampDisplay.FormatLocal(result.MeasuredAt);
-        this.ExecutionTextColor=Color.FromArgb("#334155");
+        this.ApplyMeasurementHighlight(BenchmarkMeasurementHighlightState.None);
     }
 
-    public void ApplyRunResult(BenchmarkResultItem result,CpuSelectionItem? cpu){
-        this.lastMeasuredAt=DateTimeOffset.Now;
-        this.TimeText=result.MeanNanoseconds is { } mean
-            ? BenchmarkFormatting.FormatNanoseconds(mean)
-            : string.IsNullOrWhiteSpace(result.Mean) ? this.TimeText : result.Mean;
-        this.AllocatedText=result.AllocatedBytesValue is { } allocated
-            ? BenchmarkFormatting.FormatBytes(allocated)
-            : string.IsNullOrWhiteSpace(result.AllocatedBytes) ? this.AllocatedText : result.AllocatedBytes;
+    public void ApplyRunResult(BenchmarkResultItem result,CpuSelectionItem? cpu,DateTimeOffset completedAt,bool highlightCompleted = true){
+        var isCompleted = string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase);
+        var isFailed = string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase);
+        if(isCompleted&&result.MeanNanoseconds is not null){
+            this.lastMeasuredAt=completedAt;
+            this.ApplySuccessfulDisplay(
+                ProjectMetrics.FromMeasurement(result.MeanNanoseconds,result.AllocatedBytesValue),
+                result.ElementCount,
+                completedAt,
+                highlightCompleted ? BenchmarkMeasurementHighlightState.Fresh : BenchmarkMeasurementHighlightState.None);
+            this.ClearFailureDisplay();
+        }else if(isFailed){
+            this.lastMeasuredAt=completedAt;
+            this.ApplyFailureDisplay(result.ElementCount,completedAt);
+        }
         this.IsRunning=string.Equals(result.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase);
         this.StatusIcon=this.IsRunning
             ? "⟳"
@@ -295,21 +357,11 @@ public sealed class BenchmarkProjectCell:ObservableObject{
                     ? "失敗"
                     : result.Status;
         this.ApplyCpuDisplay(cpu);
-        this.ExecutionText=this.IsRunning
-            ? string.Empty
-            : BenchmarkTimestampDisplay.FormatLocal(result.StartedAt??DateTimeOffset.Now);
-        this.ExecutionTextColor=Color.FromArgb("#334155");
         this.LiveState=this.IsRunning
             ? BenchmarkProjectLiveState.Running
             : string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
                 ? BenchmarkProjectLiveState.Completed
                 : BenchmarkProjectLiveState.Idle;
-        if(result.MeanNanoseconds is not null){
-            this.metrics=ProjectMetrics.FromMeasurement(
-                result.MeanNanoseconds,
-                result.AllocatedBytesValue);
-            this.OnPropertyChanged(nameof(this.IsPendingVisual));
-        }
     }
 
     public void ApplySkipped(int stoppedAtElementCount,ProjectMetrics stoppedMetrics){
@@ -320,7 +372,9 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.StatusIcon=stoppedAtElementCount.ToString(CultureInfo.InvariantCulture);
         this.StatusText="N="+stoppedAtElementCount.ToString(CultureInfo.InvariantCulture);
         this.ExecutionText=string.Empty;
-        this.ExecutionTextColor=Color.FromArgb("#334155");
+        this.FailureExecutionText=string.Empty;
+        this.ExecutionTooltipText=string.Empty;
+        this.ApplyMeasurementHighlight(BenchmarkMeasurementHighlightState.None);
         this.LiveState=BenchmarkProjectLiveState.Idle;
         this.ClearCpuDisplay();
         this.OnPropertyChanged(nameof(this.IsPendingVisual));
@@ -331,8 +385,23 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.LiveState=BenchmarkProjectLiveState.Idle;
     }
 
+    public void RetainCompletedHighlightForRunningElement(int runningElementCount){
+        this.ApplyMeasurementHighlight(BenchmarkMeasurementHighlightLogic.AdvanceForRunningElement(
+            this.MeasurementHighlightState,
+            this.LastSuccessfulElementCount,
+            runningElementCount));
+    }
+
+    public void ClearRunHighlight(){
+        this.ApplyMeasurementHighlight(BenchmarkMeasurementHighlightLogic.ClearAfterRun(this.MeasurementHighlightState));
+    }
+
     public void ClearMetrics(){
         this.metrics=ProjectMetrics.Missing;
+        this.lastSuccessfulElementCount=null;
+        this.lastMeasuredAt=null;
+        this.lastFailedElementCount=null;
+        this.lastFailedAt=null;
         this.TimeText=string.Empty;
         this.AllocatedText=string.Empty;
         this.ClearLiveState();
@@ -340,9 +409,69 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             this.StatusIcon="○";
             this.StatusText="未実行";
             this.ExecutionText=string.Empty;
-            this.ExecutionTextColor=Color.FromArgb("#334155");
+            this.FailureExecutionText=string.Empty;
+            this.ExecutionTooltipText=string.Empty;
+            this.ApplyMeasurementHighlight(BenchmarkMeasurementHighlightState.None);
         }
     }
+
+    private void ApplySuccessfulDisplay(
+        ProjectMetrics value,
+        int elementCount,
+        DateTimeOffset measuredAt,
+        BenchmarkMeasurementHighlightState highlightState){
+        this.metrics=value;
+        this.lastSuccessfulElementCount=elementCount;
+        this.lastMeasuredAt=measuredAt;
+        this.TimeText=FormatTime(value);
+        this.AllocatedText=FormatAllocated(value);
+        this.ExecutionText=FormatElementTimestamp(elementCount,measuredAt);
+        this.RefreshExecutionTooltipText();
+        this.ApplyMeasurementHighlight(highlightState);
+        this.OnPropertyChanged(nameof(this.IsPendingVisual));
+        this.OnPropertyChanged(nameof(this.LastSuccessfulElementCount));
+    }
+
+    private void ApplyFailureDisplay(int elementCount,DateTimeOffset failedAt){
+        this.lastFailedElementCount=elementCount;
+        this.lastFailedAt=failedAt;
+        this.FailureExecutionText="  "+FormatElementTimestamp(elementCount,failedAt);
+        this.RefreshExecutionTooltipText();
+    }
+
+    private void ClearFailureDisplay(){
+        this.lastFailedElementCount=null;
+        this.lastFailedAt=null;
+        this.FailureExecutionText=string.Empty;
+        this.RefreshExecutionTooltipText();
+    }
+
+    private void RefreshExecutionTooltipText(){
+        var failureText = this.lastFailedElementCount is { } failedN&&this.lastFailedAt is { } failedAt
+            ? "失敗 "+FormatElementTimestamp(failedN,failedAt)
+            : string.Empty;
+        this.ExecutionTooltipText=string.Join(
+            Environment.NewLine,
+            new[] { this.ExecutionText,failureText }.Where(static text => !string.IsNullOrWhiteSpace(text)));
+    }
+
+    private void ApplyMeasurementHighlight(BenchmarkMeasurementHighlightState value){
+        if(this.SetProperty(ref this.measurementHighlightState,value,nameof(this.MeasurementHighlightState))){
+            this.OnPropertyChanged(nameof(this.MeasurementHighlightState));
+        }
+
+        var isHighlighted = value is BenchmarkMeasurementHighlightState.Fresh or BenchmarkMeasurementHighlightState.RetainedDuringRun;
+        var attributes = value==BenchmarkMeasurementHighlightState.Fresh
+            ? FontAttributes.Bold
+            : FontAttributes.None;
+        this.ExecutionTextColor=isHighlighted ? RunHighlightTextColor : DefaultExecutionTextColor;
+        this.MetricTextColor=isHighlighted ? RunHighlightTextColor : DefaultMetricTextColor;
+        this.ExecutionFontAttributes=attributes;
+        this.MetricFontAttributes=attributes;
+    }
+
+    private static string FormatElementTimestamp(int elementCount,DateTimeOffset timestamp) =>
+        "N="+elementCount.ToString(CultureInfo.InvariantCulture)+" "+BenchmarkTimestampDisplay.FormatLocal(timestamp);
 
     private static string FormatTime(ProjectMetrics metrics){
         return metrics.HasMeasuredValue&&metrics.TimeNanoseconds is { } value
@@ -626,9 +755,9 @@ public sealed class BenchmarkTableRow:ObservableObject{
         }
     }
 
-    public void ApplyRunResult(BenchmarkResultItem result,CpuSelectionItem? cpu){
+    public void ApplyRunResult(BenchmarkResultItem result,CpuSelectionItem? cpu,DateTimeOffset completedAt,bool highlightCompleted = true){
         if(this.GetProjectCell(result.Project) is { } cell){
-            cell.ApplyRunResult(result,cpu);
+            cell.ApplyRunResult(result,cpu,completedAt,highlightCompleted);
         }
     }
 
@@ -657,10 +786,26 @@ public sealed class BenchmarkTableRow:ObservableObject{
         }
     }
 
-    public void ApplyComparison(BenchmarkComparisonRow? row){
+    public void RetainCompletedHighlightsForRunningElement(int runningElementCount){
+        foreach(var cell in this.ProjectCells){
+            cell.RetainCompletedHighlightForRunningElement(runningElementCount);
+        }
+    }
+
+    public void ClearRunHighlights(){
+        foreach(var cell in this.ProjectCells){
+            cell.ClearRunHighlight();
+        }
+    }
+
+    public void ClearResultDisplay(){
+        this.ClearComparison(false);
+    }
+
+    public void ApplyComparison(BenchmarkComparisonRow? row,bool preserveRetainedDisplay = false){
         this.comparisonRow=row;
         if(row is null){
-            this.ClearComparison();
+            this.ClearComparison(preserveRetainedDisplay);
             return;
         }
 
@@ -670,26 +815,26 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.SystemRatioAllocatedText=FormatRatio(value.SystemRatio.AllocatedRatio);
         this.SystemFLinqTimeText=FormatTime(value.SystemFLinq);
         this.SystemFLinqAllocatedText=FormatAllocated(value.SystemFLinq);
-        this.SystemFLinqCell.ApplyMetrics(value.SystemFLinq);
+        this.SystemFLinqCell.ApplyMetrics(value.SystemFLinq,preserveRetainedDisplay);
         this.SystemZLinqTimeText=FormatTime(value.SystemZLinq);
         this.SystemZLinqAllocatedText=FormatAllocated(value.SystemZLinq);
-        this.SystemZLinqCell.ApplyMetrics(value.SystemZLinq);
+        this.SystemZLinqCell.ApplyMetrics(value.SystemZLinq,preserveRetainedDisplay);
         this.PersistedRatioTimeText=FormatRatio(value.PersistedRatio.TimeRatio);
         this.PersistedRatioAllocatedText=FormatRatio(value.PersistedRatio.AllocatedRatio);
         this.PersistedFLinqTimeText=FormatTime(value.PersistedFLinq);
         this.PersistedFLinqAllocatedText=FormatAllocated(value.PersistedFLinq);
-        this.PersistedFLinqCell.ApplyMetrics(value.PersistedFLinq);
+        this.PersistedFLinqCell.ApplyMetrics(value.PersistedFLinq,preserveRetainedDisplay);
         this.PersistedLinqTimeText=FormatTime(value.PersistedLinq);
         this.PersistedLinqAllocatedText=FormatAllocated(value.PersistedLinq);
-        this.PersistedLinqCell.ApplyMetrics(value.PersistedLinq);
+        this.PersistedLinqCell.ApplyMetrics(value.PersistedLinq,preserveRetainedDisplay);
         this.TsavoriteRatioTimeText=FormatRatio(value.TsavoriteRatio.TimeRatio);
         this.TsavoriteRatioAllocatedText=FormatRatio(value.TsavoriteRatio.AllocatedRatio);
         this.TsavoriteFLinqTimeText=FormatTime(value.TsavoriteFLinq);
         this.TsavoriteFLinqAllocatedText=FormatAllocated(value.TsavoriteFLinq);
-        this.TsavoriteFLinqCell.ApplyMetrics(value.TsavoriteFLinq);
+        this.TsavoriteFLinqCell.ApplyMetrics(value.TsavoriteFLinq,preserveRetainedDisplay);
         this.TsavoriteLinqTimeText=FormatTime(value.TsavoriteLinq);
         this.TsavoriteLinqAllocatedText=FormatAllocated(value.TsavoriteLinq);
-        this.TsavoriteLinqCell.ApplyMetrics(value.TsavoriteLinq);
+        this.TsavoriteLinqCell.ApplyMetrics(value.TsavoriteLinq,preserveRetainedDisplay);
     }
 
     public BenchmarkSortValue GetSortValue(BenchmarkGridSortColumn column){
@@ -698,27 +843,27 @@ public sealed class BenchmarkTableRow:ObservableObject{
             BenchmarkGridSortColumn.BenchmarkName => BenchmarkSortValue.FromText(this.BenchmarkName),
             BenchmarkGridSortColumn.SystemRatioTime => row is { } value ? BenchmarkSortValue.FromRatio(value.SystemRatio.TimeRatio) : BenchmarkSortValue.Missing,
             BenchmarkGridSortColumn.SystemRatioAllocated => row is { } value ? BenchmarkSortValue.FromRatio(value.SystemRatio.AllocatedRatio) : BenchmarkSortValue.Missing,
-            BenchmarkGridSortColumn.SystemFLinqTime => row is { } value ? BenchmarkSortValue.FromMetric(value.SystemFLinq,BenchmarkMetricKind.Time) : BenchmarkSortValue.Missing,
-            BenchmarkGridSortColumn.SystemFLinqAllocated => row is { } value ? BenchmarkSortValue.FromMetric(value.SystemFLinq,BenchmarkMetricKind.Allocated) : BenchmarkSortValue.Missing,
-            BenchmarkGridSortColumn.SystemZLinqTime => row is { } value ? BenchmarkSortValue.FromMetric(value.SystemZLinq,BenchmarkMetricKind.Time) : BenchmarkSortValue.Missing,
-            BenchmarkGridSortColumn.SystemZLinqAllocated => row is { } value ? BenchmarkSortValue.FromMetric(value.SystemZLinq,BenchmarkMetricKind.Allocated) : BenchmarkSortValue.Missing,
+            BenchmarkGridSortColumn.SystemFLinqTime => BenchmarkSortValue.FromMetric(this.SystemFLinqCell.Metrics,BenchmarkMetricKind.Time),
+            BenchmarkGridSortColumn.SystemFLinqAllocated => BenchmarkSortValue.FromMetric(this.SystemFLinqCell.Metrics,BenchmarkMetricKind.Allocated),
+            BenchmarkGridSortColumn.SystemZLinqTime => BenchmarkSortValue.FromMetric(this.SystemZLinqCell.Metrics,BenchmarkMetricKind.Time),
+            BenchmarkGridSortColumn.SystemZLinqAllocated => BenchmarkSortValue.FromMetric(this.SystemZLinqCell.Metrics,BenchmarkMetricKind.Allocated),
             BenchmarkGridSortColumn.PersistedRatioTime => row is { } value ? BenchmarkSortValue.FromRatio(value.PersistedRatio.TimeRatio) : BenchmarkSortValue.Missing,
             BenchmarkGridSortColumn.PersistedRatioAllocated => row is { } value ? BenchmarkSortValue.FromRatio(value.PersistedRatio.AllocatedRatio) : BenchmarkSortValue.Missing,
-            BenchmarkGridSortColumn.PersistedFLinqTime => row is { } value ? BenchmarkSortValue.FromMetric(value.PersistedFLinq,BenchmarkMetricKind.Time) : BenchmarkSortValue.Missing,
-            BenchmarkGridSortColumn.PersistedFLinqAllocated => row is { } value ? BenchmarkSortValue.FromMetric(value.PersistedFLinq,BenchmarkMetricKind.Allocated) : BenchmarkSortValue.Missing,
-            BenchmarkGridSortColumn.PersistedLinqTime => row is { } value ? BenchmarkSortValue.FromMetric(value.PersistedLinq,BenchmarkMetricKind.Time) : BenchmarkSortValue.Missing,
-            BenchmarkGridSortColumn.PersistedLinqAllocated => row is { } value ? BenchmarkSortValue.FromMetric(value.PersistedLinq,BenchmarkMetricKind.Allocated) : BenchmarkSortValue.Missing,
+            BenchmarkGridSortColumn.PersistedFLinqTime => BenchmarkSortValue.FromMetric(this.PersistedFLinqCell.Metrics,BenchmarkMetricKind.Time),
+            BenchmarkGridSortColumn.PersistedFLinqAllocated => BenchmarkSortValue.FromMetric(this.PersistedFLinqCell.Metrics,BenchmarkMetricKind.Allocated),
+            BenchmarkGridSortColumn.PersistedLinqTime => BenchmarkSortValue.FromMetric(this.PersistedLinqCell.Metrics,BenchmarkMetricKind.Time),
+            BenchmarkGridSortColumn.PersistedLinqAllocated => BenchmarkSortValue.FromMetric(this.PersistedLinqCell.Metrics,BenchmarkMetricKind.Allocated),
             BenchmarkGridSortColumn.TsavoriteRatioTime => row is { } value ? BenchmarkSortValue.FromRatio(value.TsavoriteRatio.TimeRatio) : BenchmarkSortValue.Missing,
             BenchmarkGridSortColumn.TsavoriteRatioAllocated => row is { } value ? BenchmarkSortValue.FromRatio(value.TsavoriteRatio.AllocatedRatio) : BenchmarkSortValue.Missing,
-            BenchmarkGridSortColumn.TsavoriteFLinqTime => row is { } value ? BenchmarkSortValue.FromMetric(value.TsavoriteFLinq,BenchmarkMetricKind.Time) : BenchmarkSortValue.Missing,
-            BenchmarkGridSortColumn.TsavoriteFLinqAllocated => row is { } value ? BenchmarkSortValue.FromMetric(value.TsavoriteFLinq,BenchmarkMetricKind.Allocated) : BenchmarkSortValue.Missing,
-            BenchmarkGridSortColumn.TsavoriteLinqTime => row is { } value ? BenchmarkSortValue.FromMetric(value.TsavoriteLinq,BenchmarkMetricKind.Time) : BenchmarkSortValue.Missing,
-            BenchmarkGridSortColumn.TsavoriteLinqAllocated => row is { } value ? BenchmarkSortValue.FromMetric(value.TsavoriteLinq,BenchmarkMetricKind.Allocated) : BenchmarkSortValue.Missing,
+            BenchmarkGridSortColumn.TsavoriteFLinqTime => BenchmarkSortValue.FromMetric(this.TsavoriteFLinqCell.Metrics,BenchmarkMetricKind.Time),
+            BenchmarkGridSortColumn.TsavoriteFLinqAllocated => BenchmarkSortValue.FromMetric(this.TsavoriteFLinqCell.Metrics,BenchmarkMetricKind.Allocated),
+            BenchmarkGridSortColumn.TsavoriteLinqTime => BenchmarkSortValue.FromMetric(this.TsavoriteLinqCell.Metrics,BenchmarkMetricKind.Time),
+            BenchmarkGridSortColumn.TsavoriteLinqAllocated => BenchmarkSortValue.FromMetric(this.TsavoriteLinqCell.Metrics,BenchmarkMetricKind.Allocated),
             _ => BenchmarkSortValue.Missing,
         };
     }
 
-    private void ClearComparison(){
+    private void ClearComparison(bool preserveRetainedDisplay){
         this.SystemRatioTimeText=string.Empty;
         this.SystemRatioAllocatedText=string.Empty;
         this.SystemStopNText=string.Empty;
@@ -741,7 +886,9 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.TsavoriteLinqTimeText=string.Empty;
         this.TsavoriteLinqAllocatedText=string.Empty;
         foreach(var cell in this.ProjectCells){
-            cell.ClearMetrics();
+            if(!preserveRetainedDisplay){
+                cell.ClearMetrics();
+            }
         }
     }
 

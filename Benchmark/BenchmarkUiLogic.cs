@@ -6,6 +6,29 @@ public enum BenchmarkProjectLiveState{
     Completed,
 }
 
+public enum BenchmarkMeasurementHighlightState{
+    None,
+    Fresh,
+    RetainedDuringRun,
+}
+
+internal static class BenchmarkMeasurementHighlightLogic{
+    public static BenchmarkMeasurementHighlightState AdvanceForRunningElement(
+        BenchmarkMeasurementHighlightState current,
+        int? measuredElementCount,
+        int runningElementCount) =>
+        current==BenchmarkMeasurementHighlightState.Fresh
+        &&measuredElementCount is { } measured
+        &&runningElementCount>measured
+            ? BenchmarkMeasurementHighlightState.RetainedDuringRun
+            : current;
+
+    public static BenchmarkMeasurementHighlightState ClearAfterRun(BenchmarkMeasurementHighlightState current) =>
+        current==BenchmarkMeasurementHighlightState.None
+            ? BenchmarkMeasurementHighlightState.None
+            : BenchmarkMeasurementHighlightState.None;
+}
+
 internal static class BenchmarkTimestampDisplay{
     public const string Format = "yyyy/MM/dd HH:mm:ss";
 
