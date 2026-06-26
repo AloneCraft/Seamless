@@ -94,30 +94,99 @@ internal sealed class BenchmarkOrchestrator {
             .OrderBy(static group => group.Min(static item => item.Index))
             .Select(static group => group.OrderBy(static item => item.Index).Select(static item => item.Benchmark).ToArray())
             .ToArray();
-        var cpus = GetCurrentCpus(request);
-        if(this.jobRunner is IBenchmarkDynamicCpuSetRunner dynamicCpuSetRunner) {
-            await dynamicCpuSetRunner.ApplyCpuSetAsync(cpus);
+        var rows = methodGroups
+            .Select(static methodCases => new AdaptiveMethodRow(
+                methodCases[0].MethodName,
+                methodCases))
+            .ToArray();
+        var queue = new ConcurrentQueue<AdaptiveMethodRow>(rows);
+        await this.RunDynamicAdaptiveRowsAsync(
+            state,
+            queue,
+            request,
+            progress,
+            statusChanged,
+            cancellationToken);
+    }
+
+    private async Task RunDynamicAdaptiveRowsAsync(
+        ProgressState state,
+        ConcurrentQueue<AdaptiveMethodRow> queue,
+        BenchmarkRunRequest request,
+        Action<BenchmarkProgressUpdate> progress,
+        Action<string> statusChanged,
+        CancellationToken cancellationToken) {
+        var running = 0;
+        var workers = new Dictionary<int,Task>();
+        while(true) {
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach(var worker in workers.Where(static item => item.Value.IsCompleted).ToArray()) {
+                if(worker.Value.IsFaulted) {
+                    await worker.Value;
+                }
+
+                workers.Remove(worker.Key);
+            }
+
+            var currentCpus = GetCurrentCpus(request);
+            if(this.jobRunner is IBenchmarkDynamicCpuSetRunner dynamicCpuSetRunner) {
+                await dynamicCpuSetRunner.ApplyCpuSetAsync(currentCpus);
+            }
+
+            foreach(var cpu in currentCpus) {
+                if(!workers.ContainsKey(cpu)) {
+                    workers.Add(cpu,Task.Run(() => this.RunDynamicAdaptiveRowWorkerAsync(
+                        state,
+                        queue,
+                        request,
+                        cpu,
+                        progress,
+                        statusChanged,
+                        () => Interlocked.Increment(ref running),
+                        () => Interlocked.Decrement(ref running),
+                        cancellationToken),cancellationToken));
+                }
+            }
+
+            if(queue.IsEmpty&&Volatile.Read(ref running)==0) {
+                break;
+            }
+
+            await Task.Delay(25,cancellationToken);
         }
 
-        var rows = methodGroups
-            .Select((methodCases,index) => new AdaptiveMethodRow(
-                methodCases[0].MethodName,
-                methodCases,
-                cpus[index%cpus.Count]))
-            .ToArray();
-        var tasks = cpus
-            .Select(cpu => Task.Run(async () => {
-                foreach(var row in rows.Where(item => item.AssignedLogicalCpu==cpu)) {
-                    await this.RunAdaptiveMethodRowAsync(state,row,request,progress,statusChanged,cancellationToken);
-                }
-            },cancellationToken))
-            .ToArray();
-        await Task.WhenAll(tasks);
+        await Task.WhenAll(workers.Values);
+    }
+
+    private async Task RunDynamicAdaptiveRowWorkerAsync(
+        ProgressState state,
+        ConcurrentQueue<AdaptiveMethodRow> queue,
+        BenchmarkRunRequest request,
+        int logicalCpu,
+        Action<BenchmarkProgressUpdate> progress,
+        Action<string> statusChanged,
+        Action started,
+        Action finished,
+        CancellationToken cancellationToken) {
+        while(GetCurrentCpus(request).Contains(logicalCpu)) {
+            if(!queue.TryDequeue(out var row)) {
+                return;
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            started();
+            try {
+                await this.RunAdaptiveMethodRowAsync(state,row,logicalCpu,request,progress,statusChanged,cancellationToken);
+            } finally {
+                finished();
+            }
+        }
     }
 
     private async Task RunAdaptiveMethodRowAsync(
         ProgressState state,
         AdaptiveMethodRow row,
+        int logicalCpu,
         BenchmarkRunRequest request,
         Action<BenchmarkProgressUpdate> progress,
         Action<string> statusChanged,
@@ -139,6 +208,7 @@ internal sealed class BenchmarkOrchestrator {
                 var warmupFailure = await this.RunWarmupRowAsync(
                     state,
                     row,
+                    logicalCpu,
                     request,
                     statusChanged,
                     cancellationToken);
@@ -147,7 +217,7 @@ internal sealed class BenchmarkOrchestrator {
                         state,
                         warmupFailure.Benchmark,
                         elementCount,
-                        row.AssignedLogicalCpu,
+                        logicalCpu,
                         warmupFailure.FailureReason,
                         progress);
                     break;
@@ -165,8 +235,8 @@ internal sealed class BenchmarkOrchestrator {
 
             foreach(var job in pending) {
                 cancellationToken.ThrowIfCancellationRequested();
-                statusChanged($"Running {job.MethodName} N={job.ElementCount}: {job.Project} / CPU {row.AssignedLogicalCpu}");
-                await this.RunJobAsync(state,job,row.AssignedLogicalCpu,request.JobTimeout,progress,cancellationToken);
+                statusChanged($"Running {job.MethodName} N={job.ElementCount}: {job.Project} / CPU {logicalCpu}");
+                await this.RunJobAsync(state,job,logicalCpu,request.JobTimeout,progress,cancellationToken);
             }
 
             if(jobs.Any(static job => job.Status==JobStatus.Pending||job.Status==JobStatus.Running)) {
@@ -178,6 +248,7 @@ internal sealed class BenchmarkOrchestrator {
     private async Task<WarmupFailure?> RunWarmupRowAsync(
         ProgressState state,
         AdaptiveMethodRow row,
+        int logicalCpu,
         BenchmarkRunRequest request,
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
@@ -185,13 +256,13 @@ internal sealed class BenchmarkOrchestrator {
             cancellationToken.ThrowIfCancellationRequested();
             var warmupJob = CreateJob(benchmark,1,state.SourceTab,state.ElementCounts);
             warmupJob.JobId=warmupJob.JobId+"|warmup";
-            statusChanged($"Warmup {benchmark.MethodName} N=1: {benchmark.Project} / CPU {row.AssignedLogicalCpu}");
+            statusChanged($"Warmup {benchmark.MethodName} N=1: {benchmark.Project} / CPU {logicalCpu}");
             ForceGcBeforeJob();
             try {
                 var result = await this.jobRunner.RunAsync(
                     warmupJob,
                     state.RunRoot,
-                    row.AssignedLogicalCpu,
+                    logicalCpu,
                     request.JobTimeout,
                     cancellationToken);
                 if(!IsCompletedMeasurement(result)) {
@@ -638,8 +709,7 @@ internal sealed class BenchmarkOrchestrator {
 
     private sealed record AdaptiveMethodRow(
         string MethodName,
-        IReadOnlyList<BenchmarkCase> Cases,
-        int AssignedLogicalCpu);
+        IReadOnlyList<BenchmarkCase> Cases);
 
     private sealed record WarmupFailure(
         BenchmarkCase Benchmark,

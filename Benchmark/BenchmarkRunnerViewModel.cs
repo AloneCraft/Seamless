@@ -131,6 +131,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.SelectAllCommand=new RelayCommand(() => this.SetAllBenchmarkSelection(true));
         this.ClearSelectionCommand=new RelayCommand(() => this.SetAllBenchmarkSelection(false));
         this.RunCommand=new AsyncRelayCommand(this.RunAsync,() => this.CanChangeBenchmarkConditions);
+        this.ToggleRunCommand=new RelayCommand(this.ToggleRun,() => !this.IsRefreshing);
         this.CancelCommand=new RelayCommand(this.Cancel);
         this.LoadCsvCommand=new AsyncRelayCommand(this.LoadCsvAsync);
         this.ShowCpuCommand=new RelayCommand(() => this.SelectedTab=BenchmarkTab.Cpu);
@@ -140,7 +141,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             this.CpuItems.Add(cpu);
             cpu.PropertyChanged+=(_,args) => {
                 if(args.PropertyName==nameof(CpuSelectionItem.IsSelected)&&!this.isApplyingCpuSelection) {
-                    if(!this.CanChangeBenchmarkConditions) {
+                    if(this.IsRefreshing) {
                         this.isApplyingCpuSelection=true;
                         try {
                             foreach(var item in this.CpuItems) {
@@ -202,6 +203,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     public IRelayCommand SelectAllCommand { get; }
     public IRelayCommand ClearSelectionCommand { get; }
     public IAsyncRelayCommand RunCommand { get; }
+    public IRelayCommand ToggleRunCommand { get; }
     public IRelayCommand CancelCommand { get; }
     public IAsyncRelayCommand LoadCsvCommand { get; }
     public IRelayCommand ShowCpuCommand { get; }
@@ -217,9 +219,11 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         private set {
             if(this.SetProperty(ref this.isBenchmarkRunning,value)) {
                 this.RunCommand.NotifyCanExecuteChanged();
+                this.ToggleRunCommand.NotifyCanExecuteChanged();
                 this.OnPropertyChanged(nameof(this.IsRunning));
                 this.OnPropertyChanged(nameof(this.IsBenchmarkRunActive));
                 this.OnPropertyChanged(nameof(this.CanChangeBenchmarkConditions));
+                this.OnPropertyChanged(nameof(this.RunToggleText));
             }
         }
     }
@@ -234,6 +238,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         private set {
             if(this.SetProperty(ref this.isRefreshing,value)) {
                 this.RunCommand.NotifyCanExecuteChanged();
+                this.ToggleRunCommand.NotifyCanExecuteChanged();
                 this.OnPropertyChanged(nameof(this.CanChangeBenchmarkConditions));
             }
         }
@@ -242,6 +247,18 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     public bool CanChangeBenchmarkConditions => !this.IsBenchmarkRunning&&!this.IsRefreshing;
 
     public bool IsBenchmarkRunActive => this.runCancellation is not null&&this.IsBenchmarkRunning;
+
+    public string RunToggleText => this.IsBenchmarkRunActive ? "実行中" : "実行";
+
+    public BenchmarkSourceTab? ActiveRunSourceTab {
+        get => this.activeRunSourceTab;
+        private set {
+            if(this.SetProperty(ref this.activeRunSourceTab,value)) {
+                this.OnPropertyChanged(nameof(this.IsBenchmarkRunActive));
+                this.OnPropertyChanged(nameof(this.RunToggleText));
+            }
+        }
+    }
 
     public bool HasPendingCloseStateSave {
         get => this.hasPendingCloseStateSave;
@@ -856,7 +873,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.runCancellation=new CancellationTokenSource();
         this.IsRunning=true;
         var runSourceTab = this.SelectedSourceDefinition.Tab;
-        this.activeRunSourceTab=runSourceTab;
+        this.ActiveRunSourceTab=runSourceTab;
         this.CurrentElementCountText="1";
         this.ResultItems.Clear();
         this.VisibleResultItems.Clear();
@@ -901,7 +918,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         }
         finally {
             this.IsRunning=false;
-            this.activeRunSourceTab=null;
+            this.ActiveRunSourceTab=null;
             this.runCancellation?.Dispose();
             this.runCancellation=null;
             this.OnPropertyChanged(nameof(this.IsBenchmarkRunActive));
@@ -910,6 +927,15 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             this.ClearRunResultHighlights();
             this.UpdateChart();
         }
+    }
+
+    private void ToggleRun() {
+        if(this.IsBenchmarkRunActive) {
+            this.Cancel();
+            return;
+        }
+
+        _=this.RunAsync();
     }
 
     private void Cancel() {
@@ -921,7 +947,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             ? this.CpuItems.FirstOrDefault(item => item.LogicalProcessorIndex==logicalCpu)
             : null;
         cpu?.ApplyJob(result);
-        var resultSourceTab = this.activeRunSourceTab??this.SelectedSourceDefinition.Tab;
+        var resultSourceTab = this.ActiveRunSourceTab??this.SelectedSourceDefinition.Tab;
         var isResultForVisibleTab = resultSourceTab==this.SelectedSourceDefinition.Tab;
         if(isResultForVisibleTab&&result.ElementCount>0) {
             this.CurrentElementCountText=FormatElementCountText(result.ElementCount);
@@ -986,7 +1012,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private void UpsertCurrentRunResultItem(BenchmarkResultItem result) {
-        var sourceTab = this.activeRunSourceTab??this.SelectedSourceDefinition.Tab;
+        var sourceTab = this.ActiveRunSourceTab??this.SelectedSourceDefinition.Tab;
         var results = this.GetOrCreateCurrentRunResultItems(sourceTab);
         for(var index = results.Count-1; index>=0; index--) {
             var item = results[index];

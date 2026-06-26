@@ -168,8 +168,8 @@ public sealed class MainPage:ContentPage{
     }
 
     private View CreateToolbar(){
-        var 実行 = this.CommandButton("実行",nameof(BenchmarkRunnerViewModel.RunCommand));
-        var cancelButton = this.CommandButton("Cancel",nameof(BenchmarkRunnerViewModel.CancelCommand));
+        var runToggleButton = this.CommandButton("実行",nameof(BenchmarkRunnerViewModel.ToggleRunCommand));
+        this.BindRunToggleButtonState(runToggleButton);
 
         var thresholdPicker = new Picker{
             WidthRequest=112,
@@ -209,8 +209,6 @@ public sealed class MainPage:ContentPage{
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
-                new ColumnDefinition { Width = GridLength.Auto },
-                new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Star },
             },
             ColumnSpacing=6,
@@ -219,10 +217,9 @@ public sealed class MainPage:ContentPage{
         grid.Add(thresholdPicker,1,0);
         grid.Add(this.ToolbarLabel("Mode"),2,0);
         grid.Add(executionProfilePicker,3,0);
-        grid.Add(実行,4,0);
-        grid.Add(cancelButton,5,0);
-        grid.Add(this.ToolbarLabel("計測"),6,0);
-        grid.Add(runPicker,7,0);
+        grid.Add(runToggleButton,4,0);
+        grid.Add(this.ToolbarLabel("計測"),5,0);
+        grid.Add(runPicker,6,0);
         return grid;
     }
 
@@ -237,6 +234,34 @@ public sealed class MainPage:ContentPage{
         };
         button.SetBinding(Button.CommandProperty,commandPath);
         return button;
+    }
+
+    private void BindRunToggleButtonState(Button button){
+        void Apply(){
+            if(this.viewModel is null){
+                return;
+            }
+
+            var isRunning=this.viewModel.IsBenchmarkRunActive;
+            button.Text=this.viewModel.RunToggleText;
+            button.BackgroundColor=isRunning ? Color.FromArgb("#4C1D95") : Color.FromArgb("#F8FAFC");
+            button.TextColor=isRunning ? Colors.White : Color.FromArgb("#0F172A");
+            button.BorderColor=isRunning ? Color.FromArgb("#7C3AED") : Color.FromArgb("#CBD5E1");
+            button.BorderWidth=isRunning ? 2 : 1;
+            button.Padding=isRunning ? new Thickness(8,5,10,2) : new Thickness(9,3);
+            button.TranslationY=isRunning ? 2 : 0;
+            button.FontAttributes=isRunning ? FontAttributes.Bold : FontAttributes.None;
+        }
+
+        Apply();
+        if(this.viewModel is not null){
+            this.viewModel.PropertyChanged+=(_,args) => {
+                if(args.PropertyName==nameof(BenchmarkRunnerViewModel.IsBenchmarkRunActive)
+                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.RunToggleText)){
+                    MainThread.BeginInvokeOnMainThread(Apply);
+                }
+            };
+        }
     }
 
     private Label ToolbarLabel(string text){
@@ -292,6 +317,7 @@ public sealed class MainPage:ContentPage{
                 button,
                 nameof(BenchmarkRunnerViewModel.SelectedSourceTab),
                 viewModel => viewModel.SelectedSourceTab==option);
+            this.BindActiveRunSourceTabFrame(button,option.Tab);
             button.Clicked+=(_,_) => {
                 if(this.viewModel is not null){
                     this.viewModel.SelectedSourceTab=option;
@@ -1010,6 +1036,57 @@ public sealed class MainPage:ContentPage{
         if(this.viewModel is not null){
             this.viewModel.PropertyChanged+=(_,args) => {
                 if(args.PropertyName==propertyName){
+                    MainThread.BeginInvokeOnMainThread(Apply);
+                }
+            };
+        }
+    }
+
+    private void BindActiveRunSourceTabFrame(Button button,BenchmarkSourceTab sourceTab){
+        const string animationName = "ActiveRunSourceTabFrame";
+
+        void Stop(){
+            button.AbortAnimation(animationName);
+            button.BorderColor=Color.FromArgb("#CBD5E1");
+            button.BorderWidth=1;
+        }
+
+        void Start(){
+            button.AbortAnimation(animationName);
+            button.BorderColor=Color.FromArgb("#7C3AED");
+            var animation = new Animation(value => {
+                button.BorderWidth=value;
+                button.BorderColor=value>2.25
+                    ? Color.FromArgb("#7C3AED")
+                    : Color.FromArgb("#A78BFA");
+            },1.5,3.5,Easing.SinInOut);
+            animation.Commit(
+                button,
+                animationName,
+                16,
+                900,
+                Easing.SinInOut,
+                (value,canceled) => {
+                    if(!canceled&&this.viewModel?.ActiveRunSourceTab==sourceTab){
+                        Start();
+                    }
+                });
+        }
+
+        void Apply(){
+            if(this.viewModel?.ActiveRunSourceTab==sourceTab) {
+                Start();
+            }
+            else {
+                Stop();
+            }
+        }
+
+        Apply();
+        if(this.viewModel is not null){
+            this.viewModel.PropertyChanged+=(_,args) => {
+                if(args.PropertyName==nameof(BenchmarkRunnerViewModel.ActiveRunSourceTab)
+                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.IsBenchmarkRunActive)){
                     MainThread.BeginInvokeOnMainThread(Apply);
                 }
             };
