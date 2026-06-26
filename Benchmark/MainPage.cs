@@ -200,14 +200,20 @@ public sealed class MainPage:ContentPage{
         runPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.RunOptions));
         runPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedRunOption));
 
-        var resultElementCountPicker = new Picker{
-            WidthRequest=96,
+        var resultElementCountLabel = new Label{
+            WidthRequest=150,
+            MinimumWidthRequest=150,
             HeightRequest=30,
-            ItemDisplayBinding=new Binding(nameof(ResultElementCountOption.DisplayName)),
+            FontSize=18,
+            FontAttributes=FontAttributes.Bold,
+            TextColor=Color.FromArgb("#0F172A"),
+            BackgroundColor=Color.FromArgb("#E0F2FE"),
+            Padding=new Thickness(10,2),
+            HorizontalTextAlignment=TextAlignment.Center,
+            VerticalTextAlignment=TextAlignment.Center,
             Margin=new Thickness(0),
         };
-        resultElementCountPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ResultElementCountOptions));
-        resultElementCountPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedResultElementCount));
+        resultElementCountLabel.SetBinding(Label.TextProperty,nameof(BenchmarkRunnerViewModel.CurrentElementCountText));
 
         var statusLabel = new Label{
             FontSize=12,
@@ -244,7 +250,7 @@ public sealed class MainPage:ContentPage{
         grid.Add(this.ToolbarLabel("計測"),6,0);
         grid.Add(runPicker,7,0);
         grid.Add(this.ToolbarLabel("N"),8,0);
-        grid.Add(resultElementCountPicker,9,0);
+        grid.Add(resultElementCountLabel,9,0);
         grid.Add(statusLabel,10,0);
         return grid;
     }
@@ -320,7 +326,6 @@ public sealed class MainPage:ContentPage{
                     this.viewModel.SelectedSourceTab=option;
                 }
             };
-            button.SetBinding(IsEnabledProperty,nameof(BenchmarkRunnerViewModel.CanChangeBenchmarkConditions));
             layout.Children.Add(button);
         }
 
@@ -992,21 +997,12 @@ public sealed class MainPage:ContentPage{
         metricPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.Metrics));
         metricPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedMetric));
 
-        var chartModePicker = new Picker{
-            WidthRequest=126,
-            HeightRequest=30,
-            ItemDisplayBinding=new Binding(nameof(ChartModeOption.DisplayName)),
-        };
-        chartModePicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ChartModes));
-        chartModePicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedChartMode));
-
         return new HorizontalStackLayout{
             Spacing=6,
             Padding=new Thickness(0,0,0,6),
             Children = {
                 cpuButton,
                 chartButton,
-                chartModePicker,
                 metricPicker,
             },
         };
@@ -1646,44 +1642,36 @@ public sealed class MainPage:ContentPage{
 
     private View CreateChartElementSlider(){
         var label = new Label{
-            Text="N",
+            Text="Current N",
             FontSize=11,
             TextColor=Color.FromArgb("#475569"),
             VerticalTextAlignment=TextAlignment.Center,
         };
-        var slider = new Slider{
-            Minimum=0,
-            WidthRequest=240,
-            HorizontalOptions=LayoutOptions.Fill,
-        };
-        slider.SetBinding(Slider.MaximumProperty,nameof(BenchmarkRunnerViewModel.ChartElementCountSliderMaximum));
-        slider.SetBinding(Slider.ValueProperty,new Binding(nameof(BenchmarkRunnerViewModel.SelectedResultElementCountIndex),BindingMode.TwoWay));
         var valueLabel = new Label{
-            FontSize=16,
+            FontSize=20,
             FontAttributes=FontAttributes.Bold,
             TextColor=Color.FromArgb("#0F172A"),
-            MinimumWidthRequest=76,
-            HorizontalTextAlignment=TextAlignment.End,
+            BackgroundColor=Color.FromArgb("#E0F2FE"),
+            Padding=new Thickness(12,3),
+            WidthRequest=150,
+            MinimumWidthRequest=150,
+            HorizontalTextAlignment=TextAlignment.Center,
             VerticalTextAlignment=TextAlignment.Center,
         };
-        valueLabel.SetBinding(Label.TextProperty,nameof(BenchmarkRunnerViewModel.SelectedChartElementCountText));
+        valueLabel.SetBinding(Label.TextProperty,nameof(BenchmarkRunnerViewModel.CurrentElementCountText));
         var grid = new Grid{
             ColumnDefinitions = {
                 new ColumnDefinition { Width = GridLength.Auto },
-                new ColumnDefinition { Width = GridLength.Star },
                 new ColumnDefinition { Width = GridLength.Auto },
             },
             ColumnSpacing=8,
             Padding=new Thickness(0,2,0,0),
             Children = {
                 label,
-                slider,
                 valueLabel,
             },
         };
-        grid.SetColumn(slider,1);
-        grid.SetColumn(valueLabel,2);
-        grid.SetBinding(IsVisibleProperty,nameof(BenchmarkRunnerViewModel.IsChartElementSliderVisible));
+        grid.SetColumn(valueLabel,1);
         return grid;
     }
 
