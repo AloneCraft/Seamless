@@ -5,14 +5,16 @@ using CommunityToolkit.Mvvm.Input;
 namespace Benchmark;
 
 public sealed class BenchmarkRunnerViewModel:ObservableObject{
-    private static readonly HashSet<string> DisplayBenchmarkProjects = new(StringComparer.OrdinalIgnoreCase){
+    private static readonly string[] DisplayBenchmarkProjectOrder = [
         BenchmarkComparisonFormatter.SystemFLinq,
         BenchmarkComparisonFormatter.SystemZLinq,
         BenchmarkComparisonFormatter.PersistedFLinq,
         BenchmarkComparisonFormatter.PersistedLinq,
         BenchmarkComparisonFormatter.TsavoriteFLinq,
         BenchmarkComparisonFormatter.TsavoriteLinq,
-    };
+    ];
+
+    private static readonly HashSet<string> DisplayBenchmarkProjects = new(DisplayBenchmarkProjectOrder,StringComparer.OrdinalIgnoreCase);
 
     private readonly IBenchmarkCatalogService catalogService;
     private readonly ICpuTopologyService cpuTopologyService;
@@ -47,6 +49,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
     private bool hasPendingCloseStateSave;
     private BenchmarkGridSortColumn currentSortColumn = BenchmarkGridSortColumn.BenchmarkName;
     private bool currentSortDescending;
+    private BenchmarkCellSelectionAnchor? benchmarkSelectionAnchor;
     private IReadOnlyList<BenchmarkComparisonRow> comparisonRows = [];
     private readonly List<BenchmarkResultItem> currentRunResultItems = [];
     private int[] selectedLogicalCpus = [];
@@ -424,6 +427,57 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         this.SetBenchmarkCells(row.ProjectCells,row.IsSelectionChecked is false);
     }
 
+    internal void SelectAllBenchmarkUiCells(){
+        this.ApplyBenchmarkCellSelection(BenchmarkCellSelectionTarget.CornerHeader(),BenchmarkCellSelectionGesture.Replace);
+    }
+
+    internal void SelectBenchmarkCell(BenchmarkTableRow row,string project,BenchmarkCellSelectionGesture gesture){
+        var rowIndex = this.BenchmarkRows.IndexOf(row);
+        var columnIndex = GetProjectColumnIndex(project);
+        if(rowIndex<0||columnIndex<0){
+            return;
+        }
+
+        this.ApplyBenchmarkCellSelection(BenchmarkCellSelectionTarget.Cell(rowIndex,columnIndex),gesture);
+    }
+
+    internal void SelectBenchmarkRow(BenchmarkTableRow row,BenchmarkCellSelectionGesture gesture){
+        var rowIndex = this.BenchmarkRows.IndexOf(row);
+        if(rowIndex<0){
+            return;
+        }
+
+        this.ApplyBenchmarkCellSelection(BenchmarkCellSelectionTarget.RowHeader(rowIndex),gesture);
+    }
+
+    internal void SelectBenchmarkColumnGroup(BenchmarkColumnSelectionGroup group,BenchmarkCellSelectionGesture gesture){
+        var columns = group.ColumnKeys
+            .Select(GetProjectColumnIndex)
+            .Where(static index => index>=0)
+            .Order()
+            .ToArray();
+        if(columns.Length==0){
+            return;
+        }
+
+        this.ApplyBenchmarkCellSelection(BenchmarkCellSelectionTarget.ColumnHeader(columns[0],columns[^1]),gesture);
+    }
+
+    internal void ToggleBenchmarkCellCheck(BenchmarkTableRow row,string project){
+        if(row.GetProjectCell(project) is not { } cell){
+            return;
+        }
+
+        var selectedCells = this.BenchmarkRows
+            .SelectMany(static row => row.ProjectCells)
+            .Where(static cell => cell.IsUiSelected)
+            .ToArray();
+        var targets = cell.IsUiSelected&&selectedCells.Length>0
+            ? selectedCells
+            : [cell];
+        this.SetBenchmarkCells(targets,!cell.IsSelected);
+    }
+
     private async Task RefreshAsync(){
         this.IsRunning=true;
         this.StatusText="Loading";
@@ -442,6 +496,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
                 }))
                 .ToDictionary(static item => item.Key,static item => item.IsSelected,StringComparer.OrdinalIgnoreCase);
             this.BenchmarkRows.Clear();
+            this.benchmarkSelectionAnchor=null;
             foreach(var row in this.CreateMethodRows(loaded)){
                 this.SubscribeBenchmarkRow(row);
                 row.IsSelected=existingSelection.Count==0
@@ -533,6 +588,37 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
         this.SaveUiState();
     }
 
+    private void ApplyBenchmarkCellSelection(BenchmarkCellSelectionTarget target,BenchmarkCellSelectionGesture gesture){
+        var result = BenchmarkCellSelectionLogic.Apply(
+            this.BenchmarkRows.Count,
+            DisplayBenchmarkProjectOrder.Length,
+            this.GetSelectedBenchmarkUiCoordinates(),
+            this.benchmarkSelectionAnchor,
+            target,
+            gesture);
+        var selected = result.SelectedCells;
+        for(var rowIndex=0;rowIndex<this.BenchmarkRows.Count;rowIndex++){
+            var row = this.BenchmarkRows[rowIndex];
+            for(var columnIndex=0;columnIndex<DisplayBenchmarkProjectOrder.Length;columnIndex++){
+                if(row.GetProjectCell(DisplayBenchmarkProjectOrder[columnIndex]) is { } cell){
+                    cell.IsUiSelected=selected.Contains(new BenchmarkCellCoordinate(rowIndex,columnIndex));
+                }
+            }
+        }
+        this.benchmarkSelectionAnchor=result.Anchor;
+    }
+
+    private IEnumerable<BenchmarkCellCoordinate> GetSelectedBenchmarkUiCoordinates(){
+        for(var rowIndex=0;rowIndex<this.BenchmarkRows.Count;rowIndex++){
+            var row = this.BenchmarkRows[rowIndex];
+            for(var columnIndex=0;columnIndex<DisplayBenchmarkProjectOrder.Length;columnIndex++){
+                if(row.GetProjectCell(DisplayBenchmarkProjectOrder[columnIndex]) is { IsUiSelected: true }){
+                    yield return new BenchmarkCellCoordinate(rowIndex,columnIndex);
+                }
+            }
+        }
+    }
+
     private void RefreshBenchmarkSelectionAggregates(){
         foreach(var row in this.BenchmarkRows){
             row.RefreshSelectionState();
@@ -559,6 +645,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject{
                 ? true
                 : null;
     }
+
+    private static int GetProjectColumnIndex(string project) =>
+        Array.FindIndex(DisplayBenchmarkProjectOrder,item => string.Equals(item,project,StringComparison.OrdinalIgnoreCase));
 
     private async Task RefreshCsvScanAsync(CancellationToken cancellationToken){
         var scan = await Task.Run(() => {

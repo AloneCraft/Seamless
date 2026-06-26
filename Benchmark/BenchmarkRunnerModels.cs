@@ -115,6 +115,7 @@ public readonly record struct BenchmarkSortValue(string? Text,double? Number,boo
 
 public sealed class BenchmarkProjectCell:ObservableObject{
     private bool isSelected;
+    private bool isUiSelected;
     private string statusIcon;
     private string statusText;
     private string executionText = string.Empty;
@@ -141,6 +142,11 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     public bool IsSelected{
         get => this.isSelected;
         set => this.SetProperty(ref this.isSelected,this.HasCase&&value);
+    }
+
+    public bool IsUiSelected{
+        get => this.isUiSelected;
+        set => this.SetProperty(ref this.isUiSelected,this.HasCase&&value);
     }
 
     public string StatusIcon{
