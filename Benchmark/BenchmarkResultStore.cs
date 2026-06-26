@@ -252,7 +252,7 @@ public sealed class BenchmarkCsvDiscoveryService{
                 }
 
                 foreach(var row in rows){
-                    foreach(var project in BenchmarkComparisonFormatter.ProjectOrder){
+                    foreach(var project in sourceDefinition.ProjectOrder){
                         var metrics = row.GetProject(project);
                         if(!metrics.HasMeasuredValue){
                             continue;
