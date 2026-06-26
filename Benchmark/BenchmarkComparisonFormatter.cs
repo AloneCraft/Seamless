@@ -232,7 +232,8 @@ internal static class BenchmarkComparisonFormatter{
         }
 
         var time = row.MeanNanoseconds>0 ? row.MeanNanoseconds : (double?)null;
-        return ProjectMetrics.FromMeasurement(time,row.AllocatedBytesValue);
+        var allocated = string.IsNullOrWhiteSpace(row.AllocatedBytes) ? null : (long?)row.AllocatedBytesValue;
+        return ProjectMetrics.FromMeasurement(time,allocated);
     }
 
     private static string? NormalizeProjectName(string project){

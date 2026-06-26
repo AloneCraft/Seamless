@@ -13,6 +13,7 @@ internal sealed class BenchmarkStateManager {
         WriteIndented=true,
     };
 
+    private readonly object fileGate = new();
     private readonly string benchmarkRoot;
 
     public BenchmarkStateManager(string benchmarkRoot) {
@@ -56,14 +57,18 @@ internal sealed class BenchmarkStateManager {
     }
 
     public void Save(ProgressState state) {
-        state.UpdatedAt=DateTimeOffset.UtcNow;
-        Directory.CreateDirectory(state.RunRoot);
-        AtomicWrite(Path.Combine(state.RunRoot,ProgressFileName),state);
+        lock(this.fileGate){
+            state.UpdatedAt=DateTimeOffset.UtcNow;
+            Directory.CreateDirectory(state.RunRoot);
+            AtomicWrite(Path.Combine(state.RunRoot,ProgressFileName),state);
+        }
     }
 
     public void SaveLatestRun(string runRoot) {
-        Directory.CreateDirectory(this.benchmarkRoot);
-        AtomicWrite(Path.Combine(this.benchmarkRoot,LatestRunFileName),new LatestRunMarker(runRoot,DateTimeOffset.UtcNow));
+        lock(this.fileGate){
+            Directory.CreateDirectory(this.benchmarkRoot);
+            AtomicWrite(Path.Combine(this.benchmarkRoot,LatestRunFileName),new LatestRunMarker(runRoot,DateTimeOffset.UtcNow));
+        }
     }
 
     private LatestRunMarker? LoadLatestMarker() {
@@ -76,15 +81,29 @@ internal sealed class BenchmarkStateManager {
     }
 
     private static void AtomicWrite<T>(string path,T value) {
-        var tmpPath = path+".tmp";
+        var tmpPath = path+"."+Guid.NewGuid().ToString("N")+".tmp";
         Directory.CreateDirectory(Path.GetDirectoryName(path)??".");
         var bytes = JsonSerializer.SerializeToUtf8Bytes(value,JsonOptions);
-        using(var stream = new FileStream(tmpPath,FileMode.Create,FileAccess.Write,FileShare.None,bufferSize:8192,FileOptions.WriteThrough)) {
-            stream.Write(bytes);
-            stream.Flush(flushToDisk:true);
-        }
+        try{
+            using(var stream = new FileStream(tmpPath,FileMode.CreateNew,FileAccess.Write,FileShare.None,bufferSize:8192,FileOptions.WriteThrough)) {
+                stream.Write(bytes);
+                stream.Flush(flushToDisk:true);
+            }
 
-        File.Move(tmpPath,path,overwrite:true);
+            File.Move(tmpPath,path,overwrite:true);
+        }finally{
+            TryDelete(tmpPath);
+        }
+    }
+
+    private static void TryDelete(string path){
+        try{
+            if(File.Exists(path)){
+                File.Delete(path);
+            }
+        }catch(IOException){
+        }catch(UnauthorizedAccessException){
+        }
     }
 
     private sealed record LatestRunMarker(string RunRoot,DateTimeOffset UpdatedAt);

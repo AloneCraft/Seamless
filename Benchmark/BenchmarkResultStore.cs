@@ -293,6 +293,7 @@ public sealed class BenchmarkUiStateStore{
         WriteIndented=true,
     };
 
+    private readonly object fileGate = new();
     private readonly string path;
 
     public BenchmarkUiStateStore(string benchmarkRoot){
@@ -312,18 +313,38 @@ public sealed class BenchmarkUiStateStore{
     }
 
     public void Save(BenchmarkUiState state){
-        Directory.CreateDirectory(Path.GetDirectoryName(this.path)??".");
-        var snapshot = new BenchmarkUiStateSnapshot(
-            state.SelectedCsvTimestamp,
-            state.ProjectCellSelections.OrderBy(static item => item.Key,StringComparer.OrdinalIgnoreCase).ToDictionary(static item => item.Key,static item => item.Value,StringComparer.OrdinalIgnoreCase),
-            state.RowSelections.OrderBy(static item => item.Key,StringComparer.OrdinalIgnoreCase).ToDictionary(static item => item.Key,static item => item.Value,StringComparer.OrdinalIgnoreCase));
-        var tmpPath = this.path+".tmp";
-        File.WriteAllText(tmpPath,JsonSerializer.Serialize(snapshot,JsonOptions),Encoding.UTF8);
-        File.Move(tmpPath,this.path,overwrite:true);
+        lock(this.fileGate){
+            Directory.CreateDirectory(Path.GetDirectoryName(this.path)??".");
+            var snapshot = new BenchmarkUiStateSnapshot(
+                state.SelectedCsvTimestamp,
+                state.ProjectCellSelections.OrderBy(static item => item.Key,StringComparer.OrdinalIgnoreCase).ToDictionary(static item => item.Key,static item => item.Value,StringComparer.OrdinalIgnoreCase),
+                state.RowSelections.OrderBy(static item => item.Key,StringComparer.OrdinalIgnoreCase).ToDictionary(static item => item.Key,static item => item.Value,StringComparer.OrdinalIgnoreCase));
+            AtomicWrite(this.path,JsonSerializer.Serialize(snapshot,JsonOptions));
+        }
     }
 
     public static string CreateCellKey(string method,string project) =>
         method+"|"+project;
+
+    private static void AtomicWrite(string path,string text){
+        var tmpPath = path+"."+Guid.NewGuid().ToString("N")+".tmp";
+        try{
+            File.WriteAllText(tmpPath,text,Encoding.UTF8);
+            File.Move(tmpPath,path,overwrite:true);
+        }finally{
+            TryDelete(tmpPath);
+        }
+    }
+
+    private static void TryDelete(string path){
+        try{
+            if(File.Exists(path)){
+                File.Delete(path);
+            }
+        }catch(IOException){
+        }catch(UnauthorizedAccessException){
+        }
+    }
 
     private sealed record BenchmarkUiStateSnapshot(
         DateTimeOffset? SelectedCsvTimestamp,

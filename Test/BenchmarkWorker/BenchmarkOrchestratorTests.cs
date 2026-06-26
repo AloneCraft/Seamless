@@ -78,6 +78,109 @@ public sealed class BenchmarkOrchestratorTests{
     }
 
     [Fact]
+    public async Task Orchestrator_FixedMode_DoesNotCrashWhenParallelJobsPersistProgress(){
+        var root = CreateTempRoot();
+        var runner = new DelayedFakeRunner(async (job,_) => {
+            await Task.Delay(10);
+            return new BenchmarkJobRunResult(
+                job.Project,
+                job.MethodName,
+                job.TypeFullName,
+                job.ElementCount,
+                "Completed",
+                "100 ns",
+                string.Empty,
+                string.Empty,
+                100,
+                0,
+                0,
+                0,
+                0,
+                job.ArtifactFolder,
+                string.Empty);
+        });
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [
+                    Case("SystemFLinq","Where"),
+                    Case("SystemZLinq","Where"),
+                    Case("PersistedFLinq","Where"),
+                    Case("PersistedLinq","Where"),
+                    Case("TsavoriteFLinq","Where"),
+                    Case("TsavoriteLinq","Where"),
+                ],
+                [0,1,2,3],
+                [128],
+                BenchmarkRunMode.Fixed,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30)),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        var state = LoadOnlyState(root);
+        Assert.Equal(6,state.Jobs.Count);
+        Assert.All(state.Jobs,static job => Assert.Equal(JobStatus.Completed,job.Status));
+        Assert.Empty(Directory.GetFiles(state.RunRoot,"*.tmp"));
+    }
+
+    [Fact]
+    public async Task StateManager_Save_IsSafeWhenCalledConcurrently(){
+        var root = CreateTempRoot();
+        var runRoot = Path.Combine(root,"run");
+        var stateManager = new BenchmarkStateManager(root);
+        var state = new ProgressState{
+            RunId="run",
+            RunRoot=runRoot,
+            Mode=BenchmarkRunMode.Fixed,
+            CreatedAt=DateTimeOffset.UtcNow,
+            UpdatedAt=DateTimeOffset.UtcNow,
+            ElementCounts=[128],
+            Jobs=[
+                CompletedJob("SystemFLinq","Where",128),
+                CompletedJob("SystemZLinq","Where",128),
+            ],
+        };
+
+        await Task.WhenAll(Enumerable.Range(0,32).Select(_ => Task.Run(() => stateManager.Save(state))));
+
+        var loaded = stateManager.Load(runRoot);
+        Assert.NotNull(loaded);
+        Assert.Equal(2,loaded.Jobs.Count);
+        Assert.Empty(Directory.GetFiles(runRoot,"*.tmp"));
+    }
+
+    [Fact]
+    public async Task ResultWriter_WriteOutputs_IsSafeWhenCalledConcurrently(){
+        var root = CreateTempRoot();
+        var runRoot = Path.Combine(root,"run");
+        var writer = new BenchmarkResultWriter();
+        var state = new ProgressState{
+            RunId="run",
+            RunRoot=runRoot,
+            Mode=BenchmarkRunMode.Fixed,
+            CreatedAt=DateTimeOffset.UtcNow,
+            UpdatedAt=DateTimeOffset.UtcNow,
+            ElementCounts=[128,256],
+            Jobs=[
+                CompletedJob("SystemFLinq","Where",128),
+                CompletedJob("SystemZLinq","Where",128),
+                CompletedJob("SystemFLinq","Where",256),
+                CompletedJob("SystemZLinq","Where",256),
+            ],
+        };
+
+        await Task.WhenAll(Enumerable.Range(0,16).Select(_ => Task.Run(() => writer.WriteOutputs(state))));
+
+        Assert.True(File.Exists(Path.Combine(runRoot,"BenchmarkComparison-N128.csv")));
+        Assert.True(File.Exists(Path.Combine(runRoot,"BenchmarkComparison-N256.csv")));
+        Assert.True(File.Exists(Path.Combine(runRoot,"BenchmarkRunSummary.txt")));
+        Assert.Empty(Directory.GetFiles(runRoot,"*.tmp"));
+    }
+
+    [Fact]
     public async Task Orchestrator_AdaptiveMode_StopsOnlyCaseAfterThresholdExceeded(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => {
@@ -214,6 +317,24 @@ public sealed class BenchmarkOrchestratorTests{
     private static BenchmarkCase Case(string project,string method) =>
         new(project,"Assembly","Type",method);
 
+    private static BenchmarkJob CompletedJob(string project,string method,int elementCount) =>
+        new(){
+            JobId=project+"|"+method+"|"+elementCount,
+            Project=project,
+            AssemblyName="Assembly",
+            TypeFullName="Type",
+            MethodName=method,
+            ElementCount=elementCount,
+            Status=JobStatus.Completed,
+            Mean="100 ns",
+            MeanNanoseconds=100,
+            AllocatedBytes=0,
+            ExitCode=0,
+            ArtifactFolder=string.Empty,
+            StartedAt=DateTimeOffset.UtcNow,
+            FinishedAt=DateTimeOffset.UtcNow,
+        };
+
     private static string CreateTempRoot(){
         var root = Path.Combine(AppContext.BaseDirectory,"BenchmarkOrchestratorTests",Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
@@ -234,6 +355,18 @@ public sealed class BenchmarkOrchestratorTests{
             CancellationToken cancellationToken){
             job.ArtifactFolder=Path.Combine(runRoot,"artifacts",job.JobId);
             return Task.FromResult(run(job,logicalCpu));
+        }
+    }
+
+    private sealed class DelayedFakeRunner(Func<BenchmarkJob,int,Task<BenchmarkJobRunResult>> run):IBenchmarkJobRunner{
+        public async Task<BenchmarkJobRunResult> RunAsync(
+            BenchmarkJob job,
+            string runRoot,
+            int logicalCpu,
+            TimeSpan timeout,
+            CancellationToken cancellationToken){
+            job.ArtifactFolder=Path.Combine(runRoot,"artifacts",job.JobId);
+            return await run(job,logicalCpu);
         }
     }
 }
