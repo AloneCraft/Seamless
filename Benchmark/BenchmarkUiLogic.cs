@@ -120,6 +120,15 @@ internal sealed record BenchmarkCellSelectionResult(
     IReadOnlySet<BenchmarkCellCoordinate> SelectedCells,
     BenchmarkCellSelectionAnchor? Anchor);
 
+internal readonly record struct BenchmarkRowUiSelectionCell(bool HasCase,bool IsUiSelected);
+
+internal static class BenchmarkRowUiSelectionLogic{
+    public static bool IsWholeRowSelected(IEnumerable<BenchmarkRowUiSelectionCell> cells){
+        var targets = cells.Where(static cell => cell.HasCase).ToArray();
+        return targets.Length>0&&targets.All(static cell => cell.IsUiSelected);
+    }
+}
+
 internal static class BenchmarkCellSelectionLogic{
     public static BenchmarkCellSelectionResult Apply(
         int rowCount,
