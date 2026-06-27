@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -174,13 +174,23 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     ];
 
     private IReadOnlyList<BenchmarkColumnSelectionGroup> CreateBenchmarkColumnSelectionGroups() => [
-        new BenchmarkColumnSelectionGroup("Active","Active",["Left","Right"]),
+        new BenchmarkColumnSelectionGroup("Active",string.Empty,["Left","Right"]),
     ];
 
     private IReadOnlyList<BenchmarkColumnSelectionGroup> CreateBenchmarkProjectSelectionGroups() => [
-        new BenchmarkColumnSelectionGroup("Left","Left",["Left"]),
-        new BenchmarkColumnSelectionGroup("Right","Right",["Right"]),
+        new BenchmarkColumnSelectionGroup("Left",this.SelectedSourceDefinition.LeftHeader,["Left"]),
+        new BenchmarkColumnSelectionGroup("Right",this.SelectedSourceDefinition.RightHeader,["Right"]),
     ];
+
+    private void RefreshBenchmarkProjectHeaderTexts() {
+        foreach(var group in this.BenchmarkProjectSelectionGroups) {
+            if(group.Id=="Left") {
+                group.SetHeaderText(this.SelectedSourceDefinition.LeftHeader);
+            }else if(group.Id=="Right") {
+                group.SetHeaderText(this.SelectedSourceDefinition.RightHeader);
+            }
+        }
+    }
 
     public ObservableCollection<BenchmarkTableRow> BenchmarkRows { get; } = [];
     public ObservableCollection<BenchmarkResultItem> ResultItems { get; } = [];
@@ -248,7 +258,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     public bool IsBenchmarkRunActive => this.runCancellation is not null&&this.IsBenchmarkRunning;
 
-    public string RunToggleText => this.IsBenchmarkRunActive ? "実行中" : "実行";
+    public string RunToggleText => this.IsBenchmarkRunActive ? "螳溯｡御ｸｭ" : "螳溯｡・;
 
     public BenchmarkSourceTab? ActiveRunSourceTab {
         get => this.activeRunSourceTab;
@@ -316,6 +326,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 this.selectedComparisonPair=this.CreateComparisonPairs()[0];
                 this.OnPropertyChanged(nameof(this.SelectedComparisonPair));
                 this.OnPropertyChanged(nameof(this.SelectedSourceDefinition));
+                this.RefreshBenchmarkProjectHeaderTexts();
                 this.ClearSelectedRunDisplay();
                 this.UpdateChart(false);
                 _=this.RefreshAsync();
@@ -1641,7 +1652,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             }
 
             var missing = left.HasValue ? this.SelectedComparisonPair.RightProject : this.SelectedComparisonPair.LeftProject;
-            yield return BenchmarkFormatting.ShortName(row.Benchmark)+" / "+missing+" 未計測";
+            yield return BenchmarkFormatting.ShortName(row.Benchmark)+" / "+missing+" 譛ｪ險域ｸｬ";
         }
     }
 
