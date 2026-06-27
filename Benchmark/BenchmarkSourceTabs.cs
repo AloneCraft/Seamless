@@ -8,6 +8,8 @@ public enum BenchmarkSourceTab{
     SeamlessTsavorite,
 }
 
+public sealed record ComparisonPairOption(string Key,string DisplayName,string LeftProject,string RightProject);
+
 public sealed record BenchmarkSourceTabDefinition(
     BenchmarkSourceTab Tab,
     string Id,
@@ -19,6 +21,19 @@ public sealed record BenchmarkSourceTabDefinition(
     string RightHeader,
     string RightAssemblyName){
     public IReadOnlyList<string> ProjectOrder { get; } = [LeftProject,RightProject];
+    public IReadOnlyList<string> WarningProjectOrder { get; } = [LeftProject,RightProject];
+
+    public ComparisonPairOption Pair => new(
+        this.Id,
+        this.DisplayName,
+        this.LeftProject,
+        this.RightProject);
+
+    public bool ContainsProject(string project) =>
+        this.ProjectOrder.Contains(project,StringComparer.OrdinalIgnoreCase);
+
+    public bool ShouldWarnForProject(string project) =>
+        this.WarningProjectOrder.Contains(project,StringComparer.OrdinalIgnoreCase);
 }
 
 public static class BenchmarkSourceTabs{
@@ -91,8 +106,7 @@ public static class BenchmarkSourceTabs{
 
     public static BenchmarkSourceTabDefinition? TryGetByProject(string project) =>
         All.FirstOrDefault(item =>
-            string.Equals(item.LeftProject,project,StringComparison.OrdinalIgnoreCase)
-            ||string.Equals(item.RightProject,project,StringComparison.OrdinalIgnoreCase));
+            item.ContainsProject(project));
 
     public static string ToPathPart(BenchmarkSourceTab tab) =>
         Get(tab).Id;

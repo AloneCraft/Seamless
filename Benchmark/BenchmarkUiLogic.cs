@@ -122,21 +122,18 @@ internal static class BenchmarkSkippedDisplayLogic{
             return null;
         }
 
-        var candidates = pairProjects
-            .Select(pairProject => measurements
-                .Where(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
-                    &&string.Equals(result.Project,pairProject,StringComparison.OrdinalIgnoreCase)
-                    &&result.ElementCount<selectedElementCount
-                    &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-                    &&result.MeanNanoseconds is { } mean
-                    &&mean>thresholdNanoseconds)
-                .OrderBy(static result => result.ElementCount)
-                .Select(static result => (int?)result.ElementCount)
-                .FirstOrDefault())
-            .ToArray();
-        return candidates.Length==pairProjects.Count&&candidates.All(static item => item is not null)
-            ? candidates.Max()
-            : null;
+        return measurements
+            .Where(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
+                &&result.ElementCount<selectedElementCount
+                &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+                &&result.MeanNanoseconds is not null
+                &&pairProjects.Contains(result.Project,StringComparer.OrdinalIgnoreCase))
+            .GroupBy(static result => result.ElementCount)
+            .OrderBy(static group => group.Key)
+            .Where(group => pairProjects.All(pairProject => group.Any(result => string.Equals(result.Project,pairProject,StringComparison.OrdinalIgnoreCase))))
+            .Where(group => group.Any(result => result.MeanNanoseconds>thresholdNanoseconds))
+            .Select(group => (int?)group.Key)
+            .FirstOrDefault();
     }
 }
 

@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Collections.Specialized;
 using Syncfusion.Maui.Buttons;
 using Syncfusion.Maui.DataGrid;
 using Syncfusion.Maui.Toolkit.Charts;
@@ -22,9 +23,16 @@ public sealed class MainPage:ContentPage{
     private const double CpuLogicalColumnWidth = 420;
     private const double CpuLogicalCheckColumnWidth = 38;
     private const double CpuLogicalNumberWidth = 26;
+    private const double LowerTabBarHeight = 34;
+    private const double CpuSectionHeaderHeight = 34;
+    private const double CpuSectionGridHeaderHeight = 30;
+    private const double CpuSectionRowHeight = 24;
+    private const double CpuSectionGridExtraHeight = 2;
+    private const double CpuSectionSpacing = 3;
+    private const double CpuListSpacing = 10;
+    private const double CpuContentRowSpacing = 10;
     private BenchmarkRunnerViewModel? viewModel;
     private readonly List<Action> collapsibleSectionRefreshers = [];
-    private bool isCpuExpanded = true;
 
 #if WINDOWS
     [System.Runtime.InteropServices.DllImport("user32.dll")]
@@ -267,11 +275,11 @@ public sealed class MainPage:ContentPage{
 
     private View CreateBenchmarkPanelContent(){
         var tabView = new SfTabView{
-            HeightRequest=34,
-            TabBarHeight=34,
+            HeightRequest=30,
+            TabBarHeight=30,
             TabBarBackground=Color.FromArgb("#F8FAFC"),
-            IndicatorBackground=Color.FromArgb("#2563EB"),
-            HeaderItemSpacing=1,
+            IndicatorBackground=Color.FromArgb("#0F766E"),
+            HeaderItemSpacing=2,
             EnableSwiping=false,
             ContentTransitionDuration=0,
             BackgroundColor=Colors.White,
@@ -303,9 +311,9 @@ public sealed class MainPage:ContentPage{
                 new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Star },
             },
-            RowSpacing=6,
+            RowSpacing=3,
             BackgroundColor=Colors.White,
-            Padding=new Thickness(8),
+            Padding=new Thickness(6,4),
             Children = {
                 tabView,
                 content,
@@ -325,42 +333,128 @@ public sealed class MainPage:ContentPage{
                 new ColumnDefinition { Width = new GridLength(5,GridUnitType.Star) },
                 new ColumnDefinition { Width = new GridLength(5,GridUnitType.Star) },
             },
-            RowSpacing=6,
+            RowSpacing=4,
             ColumnSpacing=6,
         };
         var benchmarkGrid = this.CreateBenchmarkGrid();
         benchmarkGrid.VerticalOptions=LayoutOptions.Fill;
         grid.Add(benchmarkGrid,0,0);
         grid.Add(this.CreateBenchmarkChartPanel(),1,0);
-        var cpuSection = this.CreateCollapsibleSection(
-            "CPU",
-            () => this.isCpuExpanded,
-            value => this.isCpuExpanded=value,
-            this.CreateCpuView(),
-            null);
-        grid.Add(cpuSection,0,1);
-        grid.SetColumnSpan(cpuSection,2);
+        var lowerTabView = new SfTabView{
+            TabBarHeight=LowerTabBarHeight,
+            TabBarBackground=Color.FromArgb("#E2E8F0"),
+            IndicatorBackground=Color.FromArgb("#0F766E"),
+            HeaderItemSpacing=4,
+            EnableSwiping=false,
+            ContentTransitionDuration=0,
+            BackgroundColor=Color.FromArgb("#F8FAFC"),
+        };
+        var lowerItems = new TabItemCollection();
+        lowerItems.Add(new SfTabItem{
+            Header="CPU",
+            FontSize=12,
+            Content=this.CreateCpuView(),
+        });
+        lowerItems.Add(new SfTabItem{
+            Header="ログ",
+            FontSize=12,
+            Content=this.CreateLogView(),
+        });
+        lowerTabView.Items=lowerItems;
+        void ApplyLowerTabHeight(){
+            var height=LowerTabBarHeight+this.CalculateCpuTabContentHeight();
+            if(Math.Abs(lowerTabView.HeightRequest-height)>0.1){
+                lowerTabView.HeightRequest=height;
+            }
+        }
+
+        ApplyLowerTabHeight();
+        lowerTabView.Loaded+=(_,_) => ApplyLowerTabHeight();
+        lowerTabView.SizeChanged+=(_,_) => ApplyLowerTabHeight();
+        lowerTabView.SelectedIndex=(int)(this.viewModel?.SelectedLowerTab??BenchmarkLowerTab.Cpu);
+        lowerTabView.PropertyChanged+=(_,args) => {
+            if(args.PropertyName!=nameof(SfTabView.SelectedIndex)||this.viewModel is null){
+                return;
+            }
+
+            this.viewModel.SelectedLowerTab=lowerTabView.SelectedIndex==1
+                ? BenchmarkLowerTab.Log
+                : BenchmarkLowerTab.Cpu;
+        };
+        var lowerTabFrame = new Border{
+            Stroke=Color.FromArgb("#CBD5E1"),
+            StrokeThickness=1,
+            StrokeShape=new Microsoft.Maui.Controls.Shapes.RoundRectangle{
+                CornerRadius=6,
+            },
+            BackgroundColor=Color.FromArgb("#F8FAFC"),
+            Content=lowerTabView,
+        };
+        grid.Add(lowerTabFrame,0,1);
+        grid.SetColumnSpan(lowerTabFrame,2);
+        if(this.viewModel is not null){
+            this.viewModel.PropertyChanged+=(_,args) => {
+                if(args.PropertyName==nameof(BenchmarkRunnerViewModel.SelectedLowerTab)){
+                    MainThread.BeginInvokeOnMainThread(() => lowerTabView.SelectedIndex=(int)this.viewModel.SelectedLowerTab);
+                }
+            };
+        }
         return grid;
     }
+
+    private double CalculateCpuTabContentHeight(){
+        if(this.viewModel is null){
+            return 0;
+        }
+
+        var performanceHeight=this.CalculateCpuSectionListHeight(this.viewModel.PerformanceCpuSections);
+        var efficiencyHeight=this.CalculateCpuSectionListHeight(this.viewModel.EfficiencyCpuSections);
+        var unknownHeight=this.CalculateCpuSectionListHeight(this.viewModel.UnknownCpuSections);
+        var topRowHeight=Math.Max(performanceHeight,efficiencyHeight);
+        if(unknownHeight<=0){
+            return topRowHeight;
+        }
+
+        return topRowHeight<=0
+            ? unknownHeight
+            : topRowHeight+CpuContentRowSpacing+unknownHeight;
+    }
+
+    private double CalculateCpuSectionListHeight(IEnumerable<CpuTableSection> sections){
+        var heights=sections.Select(this.CalculateCpuSectionHeight).ToArray();
+        if(heights.Length==0){
+            return 0;
+        }
+
+        return heights.Sum()+((heights.Length-1)*CpuListSpacing);
+    }
+
+    private double CalculateCpuSectionHeight(CpuTableSection section) =>
+        CpuSectionHeaderHeight
+        +CpuSectionSpacing
+        +CpuSectionGridHeaderHeight
+        +(section.Rows.Count*CpuSectionRowHeight)
+        +CpuSectionGridExtraHeight;
 
     private View CreateBenchmarkChartPanel(){
         var header = new Grid{
             ColumnDefinitions = {
-                new ColumnDefinition { Width = GridLength.Star },
                 new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Star },
             },
             Padding=new Thickness(8,4),
             BackgroundColor=Color.FromArgb("#F1F5F9"),
             ColumnSpacing=8,
         };
+        header.Add(this.CreateMetricRadioGroup(),0,0);
         header.Add(new Label{
             Text="比較チャート",
             FontAttributes=FontAttributes.Bold,
             FontSize=13,
             VerticalTextAlignment=TextAlignment.Center,
             TextColor=Color.FromArgb("#0F172A"),
-        },0,0);
-        header.Add(this.CreateMetricPicker(),1,0);
+        },1,0);
 
         var panel = new Grid{
             RowDefinitions = {
@@ -459,16 +553,25 @@ public sealed class MainPage:ContentPage{
         return layout;
     }
 
-    private Picker CreateMetricPicker(){
-        var metricPicker = new Picker{
-            WidthRequest=86,
-            HeightRequest=30,
-            ItemDisplayBinding=new Binding(nameof(MetricOption.DisplayName)),
-            Margin=new Thickness(0),
+    private View CreateMetricRadioGroup(){
+        var group = new HorizontalStackLayout{
+            Spacing=8,
+            VerticalOptions=LayoutOptions.Center,
         };
-        metricPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.Metrics));
-        metricPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedMetric));
-        return metricPicker;
+        group.Children.Add(this.CreateMetricRadioButton("処理時間",nameof(BenchmarkRunnerViewModel.IsTimeMetricSelected)));
+        group.Children.Add(this.CreateMetricRadioButton("メモリ",nameof(BenchmarkRunnerViewModel.IsAllocatedMetricSelected)));
+        return group;
+    }
+
+    private RadioButton CreateMetricRadioButton(string text,string isCheckedPath){
+        var radio = new RadioButton{
+            Content=text,
+            GroupName="ChartMetric",
+            Margin=new Thickness(0),
+            FontSize=12,
+        };
+        radio.SetBinding(RadioButton.IsCheckedProperty,isCheckedPath,BindingMode.TwoWay);
+        return radio;
     }
 
     private View CreateBenchmarkGrid(){
@@ -621,12 +724,6 @@ public sealed class MainPage:ContentPage{
         return cellPath switch{
             nameof(BenchmarkTableRow.LeftCell) => this.viewModel?.SelectedSourceDefinition.LeftProject??cellPath,
             nameof(BenchmarkTableRow.RightCell) => this.viewModel?.SelectedSourceDefinition.RightProject??cellPath,
-            nameof(BenchmarkTableRow.SystemFLinqCell) => BenchmarkComparisonFormatter.SystemFLinq,
-            nameof(BenchmarkTableRow.SystemZLinqCell) => BenchmarkComparisonFormatter.SystemZLinq,
-            nameof(BenchmarkTableRow.PersistedFLinqCell) => BenchmarkComparisonFormatter.PersistedFLinq,
-            nameof(BenchmarkTableRow.PersistedLinqCell) => BenchmarkComparisonFormatter.PersistedLinq,
-            nameof(BenchmarkTableRow.TsavoriteFLinqCell) => BenchmarkComparisonFormatter.TsavoriteFLinq,
-            nameof(BenchmarkTableRow.TsavoriteLinqCell) => BenchmarkComparisonFormatter.TsavoriteLinq,
             _ => cellPath,
         };
     }
@@ -915,6 +1012,16 @@ public sealed class MainPage:ContentPage{
                 };
                 spinner.SetBinding(ActivityIndicator.IsRunningProperty,new Binding(cellPath+"."+nameof(BenchmarkProjectCell.IsRunningVisual)));
                 spinner.SetBinding(IsVisibleProperty,new Binding(cellPath+"."+nameof(BenchmarkProjectCell.IsRunningVisual)));
+                var statusIcon = new Label{
+                    FontSize=13,
+                    TextColor=Color.FromArgb("#0F172A"),
+                    InputTransparent=true,
+                    HorizontalTextAlignment=TextAlignment.Center,
+                    VerticalTextAlignment=TextAlignment.Center,
+                    LineBreakMode=LineBreakMode.TailTruncation,
+                };
+                statusIcon.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.StatusIcon));
+                statusIcon.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsStatusIconVisible));
                 var badge = this.CreateCoreBadge();
                 badge.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.HasCpuDisplay));
                 badge.SetBinding(BackgroundColorProperty,cellPath+"."+nameof(BenchmarkProjectCell.BadgeBackgroundColor));
@@ -971,6 +1078,7 @@ public sealed class MainPage:ContentPage{
                 };
                 detailHost.GestureRecognizers.Add(detailTap);
                 content.Add(checkHost,0,0);
+                content.Add(statusIcon,1,0);
                 content.Add(spinner,1,0);
                 content.Add(badge,2,0);
                 content.Add(cpuLabel,3,0);
@@ -1198,6 +1306,48 @@ public sealed class MainPage:ContentPage{
         return layout;
     }
 
+    private View CreateLogView(){
+        var logList = new CollectionView{
+            SelectionMode=SelectionMode.None,
+            VerticalOptions=LayoutOptions.Fill,
+            HorizontalOptions=LayoutOptions.Fill,
+            ItemTemplate=new DataTemplate(() => {
+                var label = new Label{
+                    FontSize=11,
+                    TextColor=Color.FromArgb("#0F172A"),
+                    LineBreakMode=LineBreakMode.WordWrap,
+                    Margin=new Thickness(0),
+                    Padding=new Thickness(0,2),
+                };
+                label.SetBinding(Label.TextProperty,".");
+                return label;
+            }),
+            ItemsLayout=new LinearItemsLayout(ItemsLayoutOrientation.Vertical){
+                ItemSpacing=0,
+            },
+        };
+        logList.SetBinding(ItemsView.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.LogEntries));
+        if(this.viewModel is not null){
+            this.viewModel.LogEntries.CollectionChanged+=(_,args) => {
+                if(args.Action is NotifyCollectionChangedAction.Add or NotifyCollectionChangedAction.Reset){
+                    MainThread.BeginInvokeOnMainThread(() => {
+                        if(this.viewModel?.LogEntries.Count>0){
+                            logList.ScrollTo(this.viewModel.LogEntries.Count-1,position:ScrollToPosition.End,animate:false);
+                        }
+                    });
+                }
+            };
+        }
+
+        return new Border{
+            Stroke=Color.FromArgb("#CBD5E1"),
+            StrokeThickness=1,
+            BackgroundColor=Color.FromArgb("#F8FAFC"),
+            Padding=new Thickness(8),
+            Content=logList,
+        };
+    }
+
     private VerticalStackLayout CreateCpuSectionList(string itemsSourcePath){
         var layout = new VerticalStackLayout{
             Spacing=10,
@@ -1276,7 +1426,7 @@ public sealed class MainPage:ContentPage{
             }
 
             this.RebuildCpuDataGridColumns(grid,section);
-            grid.HeightRequest=30+(section.Rows.Count*24)+2;
+            grid.HeightRequest=CpuSectionGridHeaderHeight+(section.Rows.Count*CpuSectionRowHeight)+CpuSectionGridExtraHeight;
             if(section.CoreKind==CpuCoreKind.Performance){
                 var maxWidth = this.GetCpuRightEdgeWidth(section);
                 grid.MaximumWidthRequest=maxWidth;
@@ -1737,23 +1887,6 @@ public sealed class MainPage:ContentPage{
         chart.Series.Add(leftSeries);
         chart.Series.Add(rightSeries);
 
-        var warningList = new CollectionView{
-            SelectionMode=SelectionMode.None,
-            HeightRequest=90,
-            ItemTemplate=new DataTemplate(() => {
-                var label = new Label{
-                    FontSize=11,
-                    TextColor=Color.FromArgb("#B45309"),
-                    LineBreakMode=LineBreakMode.TailTruncation,
-                    Padding=new Thickness(4,1),
-                };
-                label.SetBinding(Label.TextProperty,nameof(ChartWarningMessage.Text));
-                label.SetBinding(ToolTipProperties.TextProperty,nameof(ChartWarningMessage.Detail));
-                return label;
-            }),
-        };
-        warningList.SetBinding(ItemsView.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ChartWarnings));
-
         var emptyText = new Label{
             Text="Run benchmarks or load BenchmarkComparison.csv.",
             HorizontalOptions=LayoutOptions.Center,
@@ -1764,9 +1897,7 @@ public sealed class MainPage:ContentPage{
         var chartContent = new Grid{
             RowDefinitions = {
                 new RowDefinition { Height = GridLength.Star },
-                new RowDefinition { Height = GridLength.Auto },
             },
-            RowSpacing=6,
             VerticalOptions=LayoutOptions.Fill,
             Children = {
                 new ScrollView{
@@ -1774,10 +1905,8 @@ public sealed class MainPage:ContentPage{
                     VerticalOptions=LayoutOptions.Fill,
                     Content=chart,
                 },
-                warningList,
             },
         };
-        chartContent.SetRow(warningList,1);
 
         var grid = new Grid{
             Children = {

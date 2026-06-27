@@ -8,15 +8,11 @@ namespace Benchmark;
 [global::Seamless.FLinq.LinqIntercept(false)]
 #endif
 internal static class BenchmarkComparisonFormatter{
-    public const string SystemFLinq = "System.Array.FLinq";
-    public const string SystemZLinq = "System.Array.ZLinq";
-    public const string PersistedFLinq = "Seamless.Persisted.FLinq";
-    public const string PersistedLinq = "Seamless.Persisted.Linq";
-    public const string TsavoriteFLinq = "Seamless.Tsavorite.FLinq";
-    public const string TsavoriteLinq = "Seamless.Tsavorite.Linq";
-
     public static readonly string[] ProjectOrder =
-        BenchmarkSourceTabs.All.SelectMany(static tab => tab.ProjectOrder).ToArray();
+        BenchmarkSourceTabs.All
+            .SelectMany(static tab => tab.ProjectOrder)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
     public static readonly ComparisonPairDefinition[] PairDefinitions =
         BenchmarkSourceTabs.All
@@ -41,7 +37,7 @@ internal static class BenchmarkComparisonFormatter{
         BenchmarkSourceTabDefinition sourceTab){
         var rowsByMethod = new Dictionary<string,Dictionary<string,ProjectMetrics>>(StringComparer.OrdinalIgnoreCase);
         foreach(var row in rows){
-            if(!sourceTab.ProjectOrder.Contains(row.Project,StringComparer.OrdinalIgnoreCase)){
+            if(!sourceTab.ContainsProject(row.Project)){
                 throw new InvalidDataException($"Unknown benchmark project for {sourceTab.Id}: {row.Project}");
             }
 
@@ -342,18 +338,6 @@ public readonly record struct BenchmarkComparisonRow(
     ProjectMetrics Left,
     ProjectMetrics Right){
     public PairComparison PairRatio { get; init; }
-
-    public ProjectMetrics SystemFLinq => this.GetProject(BenchmarkComparisonFormatter.SystemFLinq);
-    public ProjectMetrics SystemZLinq => this.GetProject(BenchmarkComparisonFormatter.SystemZLinq);
-    public ProjectMetrics PersistedFLinq => this.GetProject(BenchmarkComparisonFormatter.PersistedFLinq);
-    public ProjectMetrics PersistedLinq => this.GetProject(BenchmarkComparisonFormatter.PersistedLinq);
-    public ProjectMetrics TsavoriteFLinq => this.GetProject(BenchmarkComparisonFormatter.TsavoriteFLinq);
-    public ProjectMetrics TsavoriteLinq => this.GetProject(BenchmarkComparisonFormatter.TsavoriteLinq);
-    public PairComparison SystemRatio => this.PairRatio;
-    public PairComparison PersistedRatio => this.PairRatio;
-    public PairComparison TsavoriteRatio => this.PairRatio;
-    public PairComparison PersistedLinqTsavoriteLinqRatio => this.PairRatio;
-    public PairComparison PersistedFLinqTsavoriteFLinqRatio => this.PairRatio;
 
     public ProjectMetrics GetProject(string project){
         if(string.Equals(project,this.SourceTab.LeftProject,StringComparison.OrdinalIgnoreCase)){
