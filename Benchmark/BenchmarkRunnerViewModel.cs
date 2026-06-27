@@ -131,10 +131,10 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.selectedScale=this.ScaleOptions.First(static item => item.DisplayName=="1");
         this.SelectAllCommand=new RelayCommand(
             () => this.SetAllBenchmarkSelection(true),
-            () => this.CanChangeBenchmarkConditions);
+            () => this.CanChangeBenchmarkSelection);
         this.ClearSelectionCommand=new RelayCommand(
             () => this.SetAllBenchmarkSelection(false),
-            () => this.CanChangeBenchmarkConditions);
+            () => this.CanChangeBenchmarkSelection);
         this.RunCommand=new AsyncRelayCommand(this.RunAsync,() => this.CanChangeBenchmarkConditions);
         this.ToggleRunCommand=new RelayCommand(this.ToggleRun,() => !this.IsRefreshing);
         this.CancelCommand=new RelayCommand(this.Cancel);
@@ -243,6 +243,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 this.ClearSelectionCommand.NotifyCanExecuteChanged();
                 this.OnPropertyChanged(nameof(this.IsRunning));
                 this.OnPropertyChanged(nameof(this.IsBenchmarkRunActive));
+                this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
                 this.OnPropertyChanged(nameof(this.CanChangeBenchmarkConditions));
                 this.OnPropertyChanged(nameof(this.RunToggleText));
             }
@@ -262,12 +263,16 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 this.ToggleRunCommand.NotifyCanExecuteChanged();
                 this.SelectAllCommand.NotifyCanExecuteChanged();
                 this.ClearSelectionCommand.NotifyCanExecuteChanged();
+                this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
                 this.OnPropertyChanged(nameof(this.CanChangeBenchmarkConditions));
             }
         }
     }
 
     public bool CanChangeBenchmarkConditions => !this.IsBenchmarkRunning&&!this.IsRefreshing;
+
+    public bool CanChangeBenchmarkSelection =>
+        !this.IsRefreshing&&(!this.IsBenchmarkRunActive||this.ActiveRunSourceTab!=this.SelectedSourceDefinition.Tab);
 
     public bool IsBenchmarkRunActive => this.runCancellation is not null&&this.IsBenchmarkRunning;
 
@@ -278,6 +283,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         private set {
             if(this.SetProperty(ref this.activeRunSourceTab,value)) {
                 this.OnPropertyChanged(nameof(this.IsBenchmarkRunActive));
+                this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
                 this.OnPropertyChanged(nameof(this.RunToggleText));
             }
         }
@@ -339,6 +345,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 this.selectedComparisonPair=this.ComparisonPairs.First(pair => pair.Key==this.SelectedSourceDefinition.Id);
                 this.OnPropertyChanged(nameof(this.SelectedComparisonPair));
                 this.OnPropertyChanged(nameof(this.SelectedSourceDefinition));
+                this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
                 this.RefreshBenchmarkProjectHeaderTexts();
                 this.UpdateChart(false);
                 _=this.RefreshAsync();
@@ -518,7 +525,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     public void ToggleAllBenchmarkSelection() {
-        if(!this.CanChangeBenchmarkConditions) {
+        if(!this.CanChangeBenchmarkSelection) {
             return;
         }
 
@@ -526,7 +533,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     public void ToggleBenchmarkColumnGroup(BenchmarkColumnSelectionGroup group) {
-        if(!this.CanChangeBenchmarkConditions) {
+        if(!this.CanChangeBenchmarkSelection) {
             return;
         }
 
@@ -535,7 +542,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     public void ToggleBenchmarkRow(BenchmarkTableRow row) {
-        if(!this.CanChangeBenchmarkConditions) {
+        if(!this.CanChangeBenchmarkSelection) {
             return;
         }
 
@@ -590,7 +597,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     internal void ToggleBenchmarkCellCheck(BenchmarkTableRow row,string project) {
-        if(!this.CanChangeBenchmarkConditions) {
+        if(!this.CanChangeBenchmarkSelection) {
             return;
         }
 
@@ -667,7 +674,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private void SetAllBenchmarkSelection(bool selected) {
-        if(!this.CanChangeBenchmarkConditions) {
+        if(!this.CanChangeBenchmarkSelection) {
             return;
         }
 
@@ -702,7 +709,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private void SetBenchmarkCells(IEnumerable<BenchmarkProjectCell> cells,bool selected) {
-        if(!this.CanChangeBenchmarkConditions) {
+        if(!this.CanChangeBenchmarkSelection) {
             return;
         }
 

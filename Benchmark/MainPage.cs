@@ -545,7 +545,7 @@ public sealed class MainPage:ContentPage{
                 checkHost.Add(check,0,0);
                 var checkTap = new TapGestureRecognizer();
                 checkTap.Tapped+=(_,_) => {
-                    if(this.viewModel is { IsBenchmarkRunActive: true }) {
+                    if(this.IsBenchmarkSelectionLockedForCurrentTab()) {
                         return;
                     }
 
@@ -647,6 +647,13 @@ public sealed class MainPage:ContentPage{
                 : BenchmarkCellSelectionGesture.Replace;
     }
 
+    private bool IsBenchmarkSelectionLockedForCurrentTab() {
+        return this.viewModel is {
+            IsBenchmarkRunActive: true,
+            ActiveRunSourceTab: not null,
+        } vm && vm.ActiveRunSourceTab==vm.SelectedSourceDefinition.Tab;
+    }
+
     private void AddBenchmarkSelectionGroup(DataGridStackedHeaderRow headerRow,BenchmarkColumnSelectionGroup group,IEnumerable<IReadOnlyList<string>> childMappings){
         var mappings = childMappings.SelectMany(static item => item).ToArray();
         headerRow.Columns.Add(new DataGridStackedColumn{
@@ -692,7 +699,7 @@ public sealed class MainPage:ContentPage{
             var checkHost = this.CreateBenchmarkHeaderCheckHost(check);
             var checkTap = new TapGestureRecognizer();
             checkTap.Tapped+=(_,_) => {
-                if(this.viewModel is { IsBenchmarkRunActive: true }) {
+                if(this.IsBenchmarkSelectionLockedForCurrentTab()) {
                     return;
                 }
 
@@ -717,7 +724,7 @@ public sealed class MainPage:ContentPage{
             var checkHost = this.CreateBenchmarkHeaderCheckHost(check);
             var checkTap = new TapGestureRecognizer();
             checkTap.Tapped+=(_,_) => {
-                if(this.viewModel is { IsBenchmarkRunActive: true }) {
+                if(this.IsBenchmarkSelectionLockedForCurrentTab()) {
                     return;
                 }
 
@@ -890,7 +897,7 @@ public sealed class MainPage:ContentPage{
                 checkHost.Add(check,0,0);
                 var checkTap = new TapGestureRecognizer();
                 checkTap.Tapped+=(_,_) => {
-                    if(this.viewModel is { IsBenchmarkRunActive: true }) {
+                    if(this.IsBenchmarkSelectionLockedForCurrentTab()) {
                         return;
                     }
 
