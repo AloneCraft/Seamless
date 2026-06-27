@@ -66,6 +66,7 @@ public sealed record ChartModeOption(string DisplayName,BenchmarkChartMode Mode)
 public sealed record ResultElementCountOption(int Value,string DisplayName);
 
 public sealed record ThresholdOption(string DisplayName,int Milliseconds);
+public sealed record ChartWarningMessage(string Text,string Detail);
 
 public readonly record struct BenchmarkSortValue(string? Text,double? Number,bool IsMissing){
     public static BenchmarkSortValue FromText(string text) => new(text,null,string.IsNullOrWhiteSpace(text));

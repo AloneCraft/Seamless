@@ -200,7 +200,7 @@ public sealed class MainPage:ContentPage{
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
-                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = GridLength.Auto },
             },
             ColumnSpacing=6,
         };
@@ -322,13 +322,14 @@ public sealed class MainPage:ContentPage{
                 new RowDefinition { Height = GridLength.Auto },
             },
             ColumnDefinitions = {
-                new ColumnDefinition { Width = GridLength.Star },
-                new ColumnDefinition { Width = new GridLength(460) },
+                new ColumnDefinition { Width = new GridLength(5,GridUnitType.Star) },
+                new ColumnDefinition { Width = new GridLength(5,GridUnitType.Star) },
             },
             RowSpacing=6,
             ColumnSpacing=6,
         };
         var benchmarkGrid = this.CreateBenchmarkGrid();
+        benchmarkGrid.VerticalOptions=LayoutOptions.Fill;
         grid.Add(benchmarkGrid,0,0);
         grid.Add(this.CreateBenchmarkChartPanel(),1,0);
         var cpuSection = this.CreateCollapsibleSection(
@@ -367,6 +368,7 @@ public sealed class MainPage:ContentPage{
                 new RowDefinition { Height = GridLength.Star },
             },
             BackgroundColor=Colors.White,
+            VerticalOptions=LayoutOptions.Fill,
         };
         panel.Add(header,0,0);
         panel.Add(this.CreateChartView(),0,1);
@@ -1248,6 +1250,14 @@ public sealed class MainPage:ContentPage{
 
             this.RebuildCpuDataGridColumns(grid,section);
             grid.HeightRequest=30+(section.Rows.Count*24)+2;
+            if(section.CoreKind==CpuCoreKind.Performance){
+                var maxWidth = this.GetCpuRightEdgeWidth(section);
+                grid.MaximumWidthRequest=maxWidth;
+                grid.WidthRequest=maxWidth;
+                grid.HorizontalOptions=LayoutOptions.Start;
+            }else{
+                grid.HorizontalOptions=LayoutOptions.Fill;
+            }
         };
 
         return new VerticalStackLayout{
@@ -1322,7 +1332,17 @@ public sealed class MainPage:ContentPage{
         var labelWidth = section.Rows.Count==0
             ? 24
             : section.Rows.Max(static row => row.Label.Length)*7;
-        return Math.Max(180,CpuLogicalCheckColumnWidth+24+labelWidth+42);
+        var baseWidth=Math.Max(180,CpuLogicalCheckColumnWidth+24+labelWidth+42);
+        return section.CoreKind switch{
+            CpuCoreKind.Performance or CpuCoreKind.Efficiency => Math.Max(1,baseWidth*0.5),
+            _ => baseWidth,
+        };
+    }
+
+    private double GetCpuRightEdgeWidth(CpuTableSection section){
+        return this.GetCpuCoreColumnWidth(section)
+            +section.Columns.Count*CpuLogicalColumnWidth
+            +2*CpuLogicalCheckColumnWidth;
     }
 
     private DataGridTemplateColumn CreateCpuLogicalColumn(CpuTableColumn column){
@@ -1642,8 +1662,8 @@ public sealed class MainPage:ContentPage{
                 FontSize=12,
                 Duration=4,
             },
+            VerticalOptions=LayoutOptions.Fill,
         };
-        chart.SetBinding(HeightRequestProperty,nameof(BenchmarkRunnerViewModel.ChartHeight));
         chart.XAxes.Add(new CategoryAxis{
             LabelPlacement=LabelPlacement.BetweenTicks,
         });
@@ -1700,7 +1720,8 @@ public sealed class MainPage:ContentPage{
                     LineBreakMode=LineBreakMode.TailTruncation,
                     Padding=new Thickness(4,1),
                 };
-                label.SetBinding(Label.TextProperty,".");
+                label.SetBinding(Label.TextProperty,nameof(ChartWarningMessage.Text));
+                label.SetBinding(ToolTipProperties.TextProperty,nameof(ChartWarningMessage.Detail));
                 return label;
             }),
         };
@@ -1719,10 +1740,11 @@ public sealed class MainPage:ContentPage{
                 new RowDefinition { Height = GridLength.Auto },
             },
             RowSpacing=6,
+            VerticalOptions=LayoutOptions.Fill,
             Children = {
                 new ScrollView{
                     Orientation=ScrollOrientation.Vertical,
-                    HeightRequest=320,
+                    VerticalOptions=LayoutOptions.Fill,
                     Content=chart,
                 },
                 warningList,

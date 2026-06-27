@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 namespace Benchmark;
 
 public sealed class BenchmarkRunnerViewModel:ObservableObject {
+    private const int N = 1024;
     private static readonly BenchmarkRunOption NewRunOption = new(
         0,
         "新規",
@@ -205,7 +206,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     public ObservableCollection<ScaleOption> ScaleOptions { get; } = [];
     public ObservableCollection<ResultElementCountOption> ResultElementCountOptions { get; } = [];
     public ObservableCollection<BenchmarkRunOption> RunOptions { get; } = [];
-    public ObservableCollection<string> ChartWarnings { get; } = [];
+    public ObservableCollection<ChartWarningMessage> ChartWarnings { get; } = [];
     public IReadOnlyList<BenchmarkColumnSelectionGroup> BenchmarkColumnSelectionGroups { get; }
     public IReadOnlyList<BenchmarkColumnSelectionGroup> BenchmarkProjectSelectionGroups { get; }
     public IReadOnlyList<ComparisonPairOption> ComparisonPairs { get; }
@@ -891,10 +892,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.IsRunning=true;
         var runSourceTab = this.SelectedSourceDefinition.Tab;
         this.ActiveRunSourceTab=runSourceTab;
+        this.ClearSelectedSourceLiveResults();
+        this.UpdateChart(false);
         this.CurrentElementCountText="1";
-        this.ResultItems.Clear();
-        this.VisibleResultItems.Clear();
-        this.currentRunResultItemsByTab.Remove(runSourceTab);
         this.ResultElementCountOptions.Clear();
         this.SelectedResultElementCount=null;
         this.OnPropertyChanged(nameof(this.ChartElementCountSliderMaximum));
@@ -1110,7 +1110,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             return;
         }
 
-        var option = new ResultElementCountOption(elementCount,elementCount.ToString("N0",System.Globalization.CultureInfo.InvariantCulture));
+        var option = new ResultElementCountOption(elementCount,FormatResultElementCountDisplayName(elementCount));
         var ordered = this.ResultElementCountOptions
             .Append(option)
             .OrderBy(static item => item.Value)
@@ -1132,10 +1132,16 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             : "-";
     }
 
+    private static string FormatResultElementCountDisplayName(int elementCount) {
+        return elementCount==N
+            ? "N"
+            : elementCount.ToString(System.Globalization.CultureInfo.InvariantCulture)+"N";
+    }
+
     private void RebuildResultElementCounts(IReadOnlyList<int> elementCounts) {
         this.ResultElementCountOptions.Clear();
         foreach(var elementCount in elementCounts.Where(static item => item>0).Distinct().Order()) {
-            this.ResultElementCountOptions.Add(new ResultElementCountOption(elementCount,elementCount.ToString("N0",System.Globalization.CultureInfo.InvariantCulture)));
+            this.ResultElementCountOptions.Add(new ResultElementCountOption(elementCount,FormatResultElementCountDisplayName(elementCount)));
         }
 
         this.OnPropertyChanged(nameof(this.ChartElementCountSliderMaximum));
@@ -1419,15 +1425,10 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     private IReadOnlyList<BenchmarkComparisonRow> BuildComparisonRowsForElementCount(BenchmarkSourceTabDefinition sourceTab,int elementCount) {
         var currentRunResults = this.GetCurrentRunResultItems(sourceTab.Tab);
-        var rows = this.resultStore.Results
+        var rows = currentRunResults
             .Where(result => result.ElementCount==elementCount
-                &&sourceTab.ProjectOrder.Contains(result.Project,StringComparer.OrdinalIgnoreCase)
                 &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase))
-            .Select(static result => CreateReportRow(result.Project,result.Method,result.ToProjectMetrics()))
-            .Concat(currentRunResults
-                .Where(result => result.ElementCount==elementCount
-                    &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase))
-                .Select(CreateReportRowForSelectedElementCount))
+            .Select(CreateReportRowForSelectedElementCount)
             .GroupBy(static row => row.Project+"|"+row.Method,StringComparer.OrdinalIgnoreCase)
             .Select(static group => group.Last())
             .ToArray();
@@ -1524,6 +1525,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     private void UpdateChart(bool preserveExistingWhenNoMeasuredPoints = true) {
         var elementComparisonRows = this.BuildElementComparisonRows();
+        var selectedElementCount = this.SelectedResultElementCount?.Value;
         var points = this.BuildBenchmarkChartPoints(elementComparisonRows);
         var hasMeasuredPoint = points.Any(static point => point.LeftValue>0||point.RightValue>0);
         if(preserveExistingWhenNoMeasuredPoints&&this.ChartPoints.Count>0&&!hasMeasuredPoint) {
@@ -1535,10 +1537,10 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         foreach(var item in points.Reverse()) {
             this.ChartPoints.Add(item);
         }
-        foreach(var warning in this.BuildChartWarnings(elementComparisonRows)) {
+        foreach(var warning in this.BuildChartWarnings(elementComparisonRows,selectedElementCount)) {
             this.ChartWarnings.Add(warning);
         }
-        this.ChartHeight=Math.Max(300,this.ChartPoints.Count*28+72);
+        this.ChartHeight=Math.Max(300,this.BenchmarkRows.Count*36+60);
     }
 
     private IReadOnlyList<ChartComparisonPoint> BuildBenchmarkChartPoints(IReadOnlyList<BenchmarkComparisonRow> rows) {
@@ -1589,6 +1591,10 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         BenchmarkTableRow row,
         string project,
         BenchmarkComparisonRow? comparisonRow) {
+        if(this.SelectedResultElementCount is not null) {
+            return comparisonRow?.GetProject(project)??ProjectMetrics.Missing;
+        }
+
         var cellMetrics = row.GetProjectCell(project)?.Metrics;
         if(cellMetrics is { HasMeasuredValue: true }) {
             return cellMetrics.Value;
@@ -1600,30 +1606,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private IReadOnlyList<BenchmarkComparisonRow> BuildElementComparisonRows() {
         var sourceTab = this.SelectedChartSourceDefinition;
         var selectedN = this.SelectedResultElementCount?.Value;
-        if(selectedN is null&&sourceTab.Tab==this.SelectedSourceDefinition.Tab) {
-            return this.comparisonRows;
-        }
-
-        if(selectedN is { } elementCount) {
-            var currentRows = this.BuildCurrentRunComparisonRowsForElementCount(sourceTab,elementCount);
-            if(currentRows.Count>0) {
-                return currentRows;
-            }
-
-            var csvRows = this.ReadSelectedRunComparisonRows(sourceTab,elementCount);
-            if(csvRows.Count>0) {
-                return csvRows;
-            }
-
-            return this.BuildComparisonRowsForElementCount(sourceTab,elementCount);
-        }
-
-        var currentLatestRows = this.BuildCurrentRunComparisonRows(sourceTab);
-        if(currentLatestRows.Count>0) {
-            return currentLatestRows;
-        }
-
-        return [];
+        return selectedN is { } elementCount
+            ? this.BuildCurrentRunComparisonRowsForElementCount(sourceTab,elementCount)
+            : this.BuildCurrentRunComparisonRows(sourceTab);
     }
 
     private IReadOnlyList<BenchmarkComparisonRow> ReadSelectedRunComparisonRows(BenchmarkSourceTabDefinition sourceTab,int elementCount) {
@@ -1695,7 +1680,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             string.Empty,
             metrics.HasMeasuredValue ? 0 : null);
 
-    private IEnumerable<string> BuildChartWarnings(IReadOnlyList<BenchmarkComparisonRow> rows) {
+    private IEnumerable<ChartWarningMessage> BuildChartWarnings(
+        IReadOnlyList<BenchmarkComparisonRow> rows,
+        int? selectedElementCount) {
         foreach(var row in rows) {
             var left = row.GetProject(this.SelectedComparisonPair.LeftProject);
             var right = row.GetProject(this.SelectedComparisonPair.RightProject);
@@ -1704,9 +1691,102 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             }
 
             var missing = left.HasValue ? this.SelectedComparisonPair.RightProject : this.SelectedComparisonPair.LeftProject;
-            yield return BenchmarkFormatting.ShortName(row.Benchmark)+" / "+missing+" 未計測";
+            var message = this.CreateChartWarningForMissingProject(row.Benchmark,missing,selectedElementCount);
+            if(message is not null) {
+                yield return message;
+            }
         }
     }
+
+    private ChartWarningMessage? CreateChartWarningForMissingProject(
+        string benchmark,
+        string missingProject,
+        int? selectedElementCount) {
+        if(selectedElementCount is { } elementCount) {
+            var stoppedAt = this.FindPairStoppedAt(benchmark,missingProject,elementCount);
+            if(stoppedAt is { } stoppedElementCount) {
+                return new ChartWarningMessage(
+                    $"{BenchmarkFormatting.ShortName(benchmark)} / {missingProject} 未計測（中断）",
+                    $"{missingProject} の実行は {FormatResultElementCountDisplayName(stoppedElementCount)} で中断した可能性があります。");
+            }
+        }
+
+        var failure = this.GetFailureResultForWarning(benchmark,missingProject,selectedElementCount);
+        if(failure is { }) {
+            return new ChartWarningMessage(
+                $"{BenchmarkFormatting.ShortName(benchmark)} / {missingProject} 未計測（失敗: {CreateFailureSummary(failure)}）",
+                this.BuildFailureDetail(failure));
+        }
+
+        return new ChartWarningMessage(
+            $"{BenchmarkFormatting.ShortName(benchmark)} / {missingProject} 未計測（未実行）",
+            string.Empty);
+    }
+
+    private BenchmarkResultItem? GetFailureResultForWarning(
+        string benchmark,
+        string project,
+        int? selectedElementCount) {
+        var currentRun = this.GetCurrentRunResultItemsForSelectedTab();
+        return this.FindLatestFailureResult(currentRun,benchmark,project,selectedElementCount);
+    }
+
+    private BenchmarkResultItem? FindLatestFailureResult(
+        IReadOnlyList<BenchmarkResultItem> results,
+        string benchmark,
+        string project,
+        int? selectedElementCount) {
+        var candidates = results
+            .Where(item => string.Equals(item.Method,benchmark,StringComparison.OrdinalIgnoreCase)
+                &&string.Equals(item.Project,project,StringComparison.OrdinalIgnoreCase)
+                &&string.Equals(item.Status,"Failed",StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if(selectedElementCount is { } elementCount) {
+            candidates = candidates.Where(item => item.ElementCount==elementCount).ToArray();
+        }
+
+        return candidates.Length==0
+            ? null
+            : candidates
+                .OrderByDescending(item => item.StartedAt??DateTimeOffset.MinValue)
+                .ThenByDescending(item => item.ElementCount)
+                .FirstOrDefault();
+    }
+
+    private static string CreateFailureSummary(BenchmarkResultItem failure) {
+        if(!string.IsNullOrWhiteSpace(failure.FailureReason)) {
+            var reason = failure.FailureReason
+                .Replace("\r","",StringComparison.Ordinal)
+                .Split('\n',2)[0]
+                .Trim();
+            if(!string.IsNullOrWhiteSpace(reason)) {
+                return reason.Length<=48
+                    ? reason
+                    : reason[..48]+"...";
+            }
+        }
+
+        if(!string.IsNullOrWhiteSpace(failure.Mean)&&!string.Equals(failure.Mean,"Failed",StringComparison.OrdinalIgnoreCase)) {
+            return failure.Mean;
+        }
+
+        return failure.ExitCode is { } exitCode
+            ? "ExitCode "+exitCode.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            : "失敗";
+    }
+
+    private string BuildFailureDetail(BenchmarkResultItem failure) =>
+        string.Join(
+            Environment.NewLine,
+            new string[] {
+                failure.Method+" / "+failure.Project,
+                "Status: "+failure.Status,
+                string.IsNullOrWhiteSpace(failure.FailureReason)
+                    ? string.Empty
+                    : "Detail: "+failure.FailureReason,
+                failure.ExitCode is { } exitCode ? "ExitCode: "+exitCode.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty,
+            }
+                .Where(static detail => !string.IsNullOrWhiteSpace(detail)));
 
     private IReadOnlyList<ChartComparisonPoint> BuildScaleTrendPoints() {
         var method = this.BenchmarkRows.FirstOrDefault(static item => item.IsSelected)?.MethodName

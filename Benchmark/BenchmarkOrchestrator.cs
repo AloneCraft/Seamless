@@ -720,9 +720,11 @@ internal sealed class BenchmarkOrchestrator {
 [global::Seamless.FLinq.LinqIntercept(false)]
 #endif
 internal static class BenchmarkElementCounts {
+    private const int N = 1024;
+
     public static IReadOnlyList<int> All { get; } =
-        Enumerable.Range(0,24).Select(static exponent => 1<<exponent).ToArray();
+        Enumerable.Range(10,14).Select(static exponent => 1<<exponent).ToArray();
 
     public static IReadOnlyList<int> DefaultInitial { get; } =
-        [1];
+        [N];
 }
