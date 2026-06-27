@@ -1,7 +1,11 @@
+using System.Text;
+
 namespace Benchmark;
 
 internal static class StartupDiagnostics{
     private static readonly object Gate = new();
+    private static readonly List<Action<string>> subscribers = [];
+    private static readonly StringBuilder logBuffer = new();
     private static readonly string[] SyncfusionAssemblyNames = [
         "Syncfusion.Licensing",
         "Syncfusion.Maui.Core",
@@ -27,17 +31,63 @@ internal static class StartupDiagnostics{
 
     public static void Write(string message,Exception? exception = null){
         try{
+            var text = BuildEntryText(message,exception);
             lock(Gate){
                 Directory.CreateDirectory(Path.GetDirectoryName(LogPath)!);
                 File.AppendAllText(
                     LogPath,
-                    DateTimeOffset.Now.ToString("O",System.Globalization.CultureInfo.InvariantCulture)
-                    +" "
-                    +message
-                    +Environment.NewLine
-                    +(exception is null ? "" : exception+Environment.NewLine));
+                    text);
+                logBuffer.Append(text);
+                NotifySubscribers(text);
             }
         }catch{
+        }
+    }
+
+    public static string GetLogText(){
+        lock(Gate){
+            return logBuffer.ToString();
+        }
+    }
+
+    public static IDisposable Subscribe(Action<string> onAppend){
+        lock(Gate){
+            subscribers.Add(onAppend);
+        }
+
+        return new Subscription(onAppend);
+    }
+
+    public static void InitializeFromExistingLog(){
+        try{
+            if(!File.Exists(LogPath)){
+                return;
+            }
+
+            var text = File.ReadAllText(LogPath);
+            lock(Gate){
+                if(logBuffer.Length==0){
+                    logBuffer.Append(text);
+                }
+            }
+        }catch{
+        }
+    }
+
+    private static string BuildEntryText(string message,Exception? exception){
+        return DateTimeOffset.Now.ToString("O",System.Globalization.CultureInfo.InvariantCulture)
+            +" "
+            +message
+            +Environment.NewLine
+            +(exception is null ? string.Empty : exception+Environment.NewLine);
+    }
+
+    private static void NotifySubscribers(string text){
+        foreach(var subscriber in subscribers.ToArray()){
+            try{
+                subscriber(text);
+            }catch{
+            }
         }
     }
 
@@ -109,5 +159,19 @@ internal static class StartupDiagnostics{
                 },
             },
         };
+    }
+
+    private sealed class Subscription:IDisposable{
+        private readonly Action<string> onAppend;
+
+        public Subscription(Action<string> onAppend){
+            this.onAppend=onAppend;
+        }
+
+        public void Dispose(){
+            lock(Gate){
+                subscribers.Remove(this.onAppend);
+            }
+        }
     }
 }

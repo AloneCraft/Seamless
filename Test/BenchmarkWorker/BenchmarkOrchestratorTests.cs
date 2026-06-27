@@ -930,27 +930,31 @@ public sealed class BenchmarkOrchestratorTests{
     }
 
     [Fact]
-    public void BenchmarkSkippedDisplayLogic_RequiresBothPairSidesBeforeSelectedElementCount(){
+    public void BenchmarkSkippedDisplayLogic_StopsWhenEitherPairSideExceedsThresholdAtSameElementCount(){
+        var systemTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
+        var persistedTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
         BenchmarkElementMeasurement[] measurements = [
-            new(BenchmarkComparisonFormatter.SystemFLinq,"Where",128,"Completed",2_000_000),
-            new(BenchmarkComparisonFormatter.SystemZLinq,"Where",256,"Completed",2_000_000),
-            new(BenchmarkComparisonFormatter.PersistedFLinq,"Where",128,"Completed",2_000_000),
+            new(systemTab.LeftProject,"Where",128,"Completed",2_000_000),
+            new(systemTab.RightProject,"Where",128,"Completed",900_000),
+            new(systemTab.LeftProject,"Where",256,"Completed",900_000),
+            new(systemTab.RightProject,"Where",256,"Completed",2_000_000),
+            new(persistedTab.LeftProject,"Where",128,"Completed",2_000_000),
         ];
 
         var stoppedAt = BenchmarkSkippedDisplayLogic.FindPairStoppedAt(
             measurements,
             "Where",
-            BenchmarkComparisonFormatter.SystemFLinq,
+            systemTab.LeftProject,
             512,
             1_000_000);
         var oneSided = BenchmarkSkippedDisplayLogic.FindPairStoppedAt(
             measurements,
             "Where",
-            BenchmarkComparisonFormatter.PersistedFLinq,
+            persistedTab.LeftProject,
             512,
             1_000_000);
 
-        Assert.Equal(256,stoppedAt);
+        Assert.Equal(128,stoppedAt);
         Assert.Null(oneSided);
     }
 

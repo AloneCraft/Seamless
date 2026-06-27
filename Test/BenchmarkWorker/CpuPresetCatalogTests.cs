@@ -186,8 +186,8 @@ public sealed class CpuPresetCatalogTests{
 
         var comparison = Assert.Single(BenchmarkComparisonFormatter.BuildComparisonRows(rows));
 
-        Assert.Equal("1.25",comparison.SystemRatio.TimeRatio.DisplayText);
-        Assert.Equal("+",comparison.SystemRatio.AllocatedRatio.DisplayText);
+        Assert.Equal("1.25",comparison.PairRatio.TimeRatio.DisplayText);
+        Assert.Equal("+",comparison.PairRatio.AllocatedRatio.DisplayText);
         Assert.Equal(BenchmarkSourceTab.SystemArray,comparison.SourceTab.Tab);
     }
 
@@ -204,9 +204,9 @@ public sealed class CpuPresetCatalogTests{
         Assert.Contains("System.Array.FLinq",csv,StringComparison.Ordinal);
         Assert.Contains("System.Array.ZLinq",csv,StringComparison.Ordinal);
         Assert.Contains("Select,5,10,4,0",csv,StringComparison.Ordinal);
-        Assert.Equal(5,read.SystemFLinq.TimeNanoseconds);
-        Assert.Equal(0,read.SystemZLinq.AllocatedBytes);
-        Assert.Equal("1.25",read.SystemRatio.TimeRatio.DisplayText);
+        Assert.Equal(5,read.Left.TimeNanoseconds);
+        Assert.Equal(0,read.Right.AllocatedBytes);
+        Assert.Equal("1.25",read.PairRatio.TimeRatio.DisplayText);
     }
 
     [Fact]
@@ -219,7 +219,7 @@ public sealed class CpuPresetCatalogTests{
         var csv = BenchmarkComparisonFormatter.WriteCsv(rows);
 
         Assert.Contains("Select,,,4,0",csv,StringComparison.Ordinal);
-        Assert.Equal("-",Assert.Single(rows).SystemRatio.TimeRatio.DisplayText);
+        Assert.Equal("-",Assert.Single(rows).PairRatio.TimeRatio.DisplayText);
     }
 
     [Fact]
@@ -232,10 +232,10 @@ public sealed class CpuPresetCatalogTests{
         var comparison = Assert.Single(rows);
         var csv = BenchmarkComparisonFormatter.WriteCsv(rows);
 
-        Assert.False(comparison.SystemFLinq.HasMeasuredValue);
-        Assert.True(comparison.SystemZLinq.HasMeasuredValue);
+        Assert.False(comparison.Left.HasMeasuredValue);
+        Assert.True(comparison.Right.HasMeasuredValue);
         Assert.Contains("Select,,,4,0",csv,StringComparison.Ordinal);
-        Assert.Equal("-",comparison.SystemRatio.TimeRatio.DisplayText);
+        Assert.Equal("-",comparison.PairRatio.TimeRatio.DisplayText);
     }
 
     [Fact]
@@ -250,9 +250,9 @@ public sealed class CpuPresetCatalogTests{
 
         var read = Assert.Single(BenchmarkComparisonFormatter.ReadCsv(csv));
 
-        Assert.False(read.SystemFLinq.HasMeasuredValue);
-        Assert.True(read.SystemZLinq.HasMeasuredValue);
-        Assert.Equal(0,read.SystemZLinq.AllocatedBytes);
+        Assert.False(read.Left.HasMeasuredValue);
+        Assert.True(read.Right.HasMeasuredValue);
+        Assert.Equal(0,read.Right.AllocatedBytes);
     }
 
     [Fact]
@@ -267,8 +267,8 @@ public sealed class CpuPresetCatalogTests{
         var read = Assert.Single(BenchmarkComparisonFormatter.ReadCsv(csv));
 
         Assert.Contains("Select,4400,0,6800,",csv,StringComparison.Ordinal);
-        Assert.Equal(0,read.SystemFLinq.AllocatedBytes);
-        Assert.Null(read.SystemZLinq.AllocatedBytes);
+        Assert.Equal(0,read.Left.AllocatedBytes);
+        Assert.Null(read.Right.AllocatedBytes);
     }
 
     [Fact]
@@ -288,6 +288,17 @@ public sealed class CpuPresetCatalogTests{
             CreateReportRow("System FLinq","Select","Completed",1,0),
         ]));
         Assert.Throws<InvalidDataException>(() => BenchmarkComparisonFormatter.ReadCsv("Project,Method,Mean\nSystemFLinq,Select,1 ns\n"));
+    }
+
+    [Fact]
+    public void ComparisonFormatter_RejectsProjectsOutsideSelectedSourceTab(){
+        var systemTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
+        var tsavoriteTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessTsavorite);
+
+        Assert.Throws<InvalidDataException>(() => BenchmarkComparisonFormatter.BuildComparisonRows([
+            CreateReportRow(systemTab.LeftProject,"Select","Completed",1,0),
+            CreateReportRow(tsavoriteTab.LeftProject,"Select","Completed",1,0),
+        ],systemTab));
     }
 
     [Fact]
