@@ -1841,6 +1841,7 @@ public sealed class MainPage:ContentPage{
             },
             VerticalOptions=LayoutOptions.Fill,
         };
+        chart.SetBinding(HeightRequestProperty,nameof(BenchmarkRunnerViewModel.ChartHeight));
         chart.XAxes.Add(new CategoryAxis{
             LabelPlacement=LabelPlacement.BetweenTicks,
         });
@@ -1907,10 +1908,17 @@ public sealed class MainPage:ContentPage{
                 },
             },
         };
+        // 枠はチャート全体の点滅ではなく、常時表示の外枠としてだけ使う。
+        var chartBorder = new Border{
+            Stroke=Color.FromArgb("#CBD5E1"),
+            StrokeThickness=1,
+            BackgroundColor=Colors.White,
+            Content=chartContent,
+        };
 
         var grid = new Grid{
             Children = {
-                chartContent,
+                chartBorder,
                 emptyText,
             },
         };

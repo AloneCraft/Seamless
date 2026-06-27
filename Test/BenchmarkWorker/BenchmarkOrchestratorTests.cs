@@ -920,13 +920,68 @@ public sealed class BenchmarkOrchestratorTests{
     public void BenchmarkElementCountLogic_BuildAdaptiveCandidates_UsesOneToSelectedMaximum(){
         var candidates = BenchmarkElementCountLogic.BuildAdaptiveCandidates(BenchmarkElementCounts.All,8192);
 
-        Assert.Equal([1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192],candidates);
+        Assert.Equal([1024,2048,4096,8192],candidates);
     }
 
     [Fact]
-    public void BenchmarkElementCounts_StartsAdaptiveWorkloadAtOne(){
-        Assert.Equal(1,BenchmarkElementCounts.All[0]);
-        Assert.Equal([1],BenchmarkElementCounts.DefaultInitial);
+    public void BenchmarkElementCounts_StartsAdaptiveWorkloadAtBaseElementCount(){
+        Assert.Equal(BenchmarkElementCounts.BaseElementCount,BenchmarkElementCounts.All[0]);
+        Assert.Equal(BenchmarkElementCounts.BaseElementCount,BenchmarkElementCounts.DefaultInitial[0]);
+        Assert.Equal([BenchmarkElementCounts.BaseElementCount],BenchmarkElementCounts.DefaultInitial);
+        Assert.Equal(1024,BenchmarkElementCounts.BaseElementCount);
+    }
+
+    [Fact]
+    public void BenchmarkResultWriter_UsesBaseElementCountInCsvFileName(){
+        var root = CreateTempRoot();
+        var runRoot = Path.Combine(root,"run");
+        var state = new ProgressState{
+            RunId="run",
+            RunRoot=runRoot,
+            Mode=BenchmarkRunMode.Fixed,
+            SourceTab=BenchmarkSourceTab.SystemArray,
+            ExecutionProfile=BenchmarkExecutionProfile.Fast,
+            CreatedAt=DateTimeOffset.UtcNow,
+            UpdatedAt=DateTimeOffset.UtcNow,
+            ElementCounts=[BenchmarkElementCounts.BaseElementCount],
+            Jobs=[
+                new BenchmarkJob{
+                    JobId="job-left",
+                    Project="System.Array.FLinq",
+                    AssemblyName="Assembly",
+                    TypeFullName="Type",
+                    MethodName="Where",
+                    ElementCount=BenchmarkElementCounts.BaseElementCount,
+                    Status=JobStatus.Completed,
+                    MeanNanoseconds=100,
+                    ErrorNanoseconds=0,
+                    StdDevNanoseconds=0,
+                    AllocatedBytes=0,
+                },
+                new BenchmarkJob{
+                    JobId="job-right",
+                    Project="System.Array.ZLinq",
+                    AssemblyName="Assembly",
+                    TypeFullName="Type",
+                    MethodName="Where",
+                    ElementCount=BenchmarkElementCounts.BaseElementCount,
+                    Status=JobStatus.Completed,
+                    MeanNanoseconds=120,
+                    ErrorNanoseconds=0,
+                    StdDevNanoseconds=0,
+                    AllocatedBytes=0,
+                },
+            ],
+        };
+
+        var writer = new BenchmarkResultWriter();
+        var paths = writer.WriteOutputs(state);
+
+        var path = Assert.Single(paths);
+        Assert.Equal(
+            Path.Combine(runRoot,"System.Array",$"N{BenchmarkElementCounts.BaseElementCount}.csv"),
+            path);
+        Assert.True(File.Exists(path));
     }
 
     [Fact]
@@ -956,6 +1011,35 @@ public sealed class BenchmarkOrchestratorTests{
 
         Assert.Equal(128,stoppedAt);
         Assert.Null(oneSided);
+    }
+
+    [Fact]
+    public void BenchmarkSkippedDisplayLogic_FindsLatestCompletedPairBeforeSelectedElementCount(){
+        var systemTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
+        BenchmarkElementMeasurement[] measurements = [
+            new(systemTab.LeftProject,"AggregateBy_keySelector",1024,"Completed",876_100),
+            new(systemTab.RightProject,"AggregateBy_keySelector",1024,"Completed",1_406_300),
+            new(systemTab.LeftProject,"AggregateBy_keySelector",2048,"Completed",900_000),
+            new(systemTab.RightProject,"AggregateBy_keySelector",2048,"Running",800_000),
+            new(systemTab.LeftProject,"AggregateBy_keySelector",4096,"Completed",1_200_000),
+            new(systemTab.RightProject,"AggregateBy_keySelector",4096,"Completed",1_300_000),
+        ];
+
+        var stoppedAt = BenchmarkSkippedDisplayLogic.FindLatestCompletedPairElementCountBefore(
+            measurements,
+            "AggregateBy_keySelector",
+            systemTab.LeftProject,
+            systemTab.RightProject,
+            4096);
+        var missingPair = BenchmarkSkippedDisplayLogic.FindLatestCompletedPairElementCountBefore(
+            measurements,
+            "Aggregate_func",
+            systemTab.LeftProject,
+            systemTab.RightProject,
+            4096);
+
+        Assert.Equal(1024,stoppedAt);
+        Assert.Null(missingPair);
     }
 
     private static BenchmarkCase Case(string project,string method) =>

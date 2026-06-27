@@ -135,6 +135,27 @@ internal static class BenchmarkSkippedDisplayLogic{
             .Select(group => (int?)group.Key)
             .FirstOrDefault();
     }
+
+    public static int? FindLatestCompletedPairElementCountBefore(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        string method,
+        string leftProject,
+        string rightProject,
+        int selectedElementCount) =>
+        measurements
+            .Where(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
+                &&result.ElementCount>0
+                &&result.ElementCount<selectedElementCount
+                &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+                &&result.MeanNanoseconds is not null
+                &&(string.Equals(result.Project,leftProject,StringComparison.OrdinalIgnoreCase)
+                    ||string.Equals(result.Project,rightProject,StringComparison.OrdinalIgnoreCase)))
+            .GroupBy(static result => result.ElementCount)
+            .OrderByDescending(static group => group.Key)
+            .Where(group => group.Any(result => string.Equals(result.Project,leftProject,StringComparison.OrdinalIgnoreCase))
+                &&group.Any(result => string.Equals(result.Project,rightProject,StringComparison.OrdinalIgnoreCase)))
+            .Select(group => (int?)group.Key)
+            .FirstOrDefault();
 }
 
 internal enum BenchmarkCellSelectionGesture{

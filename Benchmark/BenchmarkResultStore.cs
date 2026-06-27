@@ -234,6 +234,7 @@ public sealed class BenchmarkCsvDiscoveryService{
             var updatedAt = state?.UpdatedAt??Directory.GetLastWriteTimeUtc(runRoot);
             var elementCounts = csvPaths
                 .Select(static path => TryExtractElementCount(path))
+                .Concat(state?.Jobs.Select(static job => job.ElementCount)??[])
                 .Where(static elementCount => elementCount>0)
                 .Distinct()
                 .Order()
