@@ -545,6 +545,10 @@ public sealed class MainPage:ContentPage{
                 checkHost.Add(check,0,0);
                 var checkTap = new TapGestureRecognizer();
                 checkTap.Tapped+=(_,_) => {
+                    if(this.viewModel is { IsBenchmarkRunActive: true }) {
+                        return;
+                    }
+
                     if(layout.BindingContext is BenchmarkTableRow row){
                         this.viewModel?.ToggleBenchmarkRow(row);
                     }
@@ -687,7 +691,13 @@ public sealed class MainPage:ContentPage{
             }
             var checkHost = this.CreateBenchmarkHeaderCheckHost(check);
             var checkTap = new TapGestureRecognizer();
-            checkTap.Tapped+=(_,_) => this.viewModel?.ToggleAllBenchmarkSelection();
+            checkTap.Tapped+=(_,_) => {
+                if(this.viewModel is { IsBenchmarkRunActive: true }) {
+                    return;
+                }
+
+                this.viewModel?.ToggleAllBenchmarkSelection();
+            };
             checkHost.GestureRecognizers.Add(checkTap);
             var body = this.CreateBenchmarkHeaderBody(string.Empty);
             var bodyTap = new TapGestureRecognizer();
@@ -706,7 +716,13 @@ public sealed class MainPage:ContentPage{
             this.BindAggregateCheckBox(check,group,nameof(BenchmarkColumnSelectionGroup.IsChecked),() => group.IsChecked);
             var checkHost = this.CreateBenchmarkHeaderCheckHost(check);
             var checkTap = new TapGestureRecognizer();
-            checkTap.Tapped+=(_,_) => this.viewModel?.ToggleBenchmarkColumnGroup(group);
+            checkTap.Tapped+=(_,_) => {
+                if(this.viewModel is { IsBenchmarkRunActive: true }) {
+                    return;
+                }
+
+                this.viewModel?.ToggleBenchmarkColumnGroup(group);
+            };
             checkHost.GestureRecognizers.Add(checkTap);
             var body = this.CreateBenchmarkHeaderBody(nameof(BenchmarkColumnSelectionGroup.HeaderText));
             body.BindingContext=group;
@@ -874,6 +890,10 @@ public sealed class MainPage:ContentPage{
                 checkHost.Add(check,0,0);
                 var checkTap = new TapGestureRecognizer();
                 checkTap.Tapped+=(_,_) => {
+                    if(this.viewModel is { IsBenchmarkRunActive: true }) {
+                        return;
+                    }
+
                     if(layout.BindingContext is BenchmarkTableRow row){
                         this.viewModel?.ToggleBenchmarkCellCheck(row,this.GetProjectFromCellPath(cellPath));
                     }
