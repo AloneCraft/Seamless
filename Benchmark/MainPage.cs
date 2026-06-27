@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using Syncfusion.Maui.Buttons;
 using Syncfusion.Maui.DataGrid;
 using Syncfusion.Maui.Toolkit.Charts;
@@ -12,9 +12,9 @@ public sealed class MainPage:ContentPage{
     private const double BenchmarkAggregateCheckBoxSize = 32;
     private const double BenchmarkCellCheckBoxWidth = 34;
     private const double BenchmarkCellCheckBoxHeight = 28;
-    private const double BenchmarkProjectStatusColumnWidth = 392;
+    private const double BenchmarkProjectStatusColumnWidth = 248;
     private const double BenchmarkProjectMetricColumnWidth = 78;
-    private const double BenchmarkPairStopNColumnWidth = 64;
+    private const double BenchmarkPairStopNColumnWidth = 72;
     private const double BenchmarkCellCheckSlotWidth = 38;
     private const double BenchmarkHeaderCheckSlotWidth = 38;
     private const double BenchmarkScrollBarSize = 20;
@@ -110,7 +110,7 @@ public sealed class MainPage:ContentPage{
 
         var shouldSave = await this.DisplayAlert(
             "ベンチマーク状態の保存",
-            "保存して閉じますか？",
+            "保存して閉じますか?",
             "保存して閉じる",
             "保存せずに閉じる");
         if(shouldSave){
@@ -120,7 +120,7 @@ public sealed class MainPage:ContentPage{
 
         var shouldDiscard = await this.DisplayAlert(
             "保存せずに閉じる",
-            "保存せずに閉じますか？",
+            "保存せずに閉じますか?",
             "保存せずに閉じる",
             "キャンセル");
         if(shouldDiscard){
@@ -213,12 +213,12 @@ public sealed class MainPage:ContentPage{
             },
             ColumnSpacing=6,
         };
-        grid.Add(this.ToolbarLabel("計測時間"),0,0);
+        grid.Add(this.ToolbarLabel("險域ｸｬ譎る俣"),0,0);
         grid.Add(thresholdPicker,1,0);
         grid.Add(this.ToolbarLabel("Mode"),2,0);
         grid.Add(executionProfilePicker,3,0);
         grid.Add(runToggleButton,4,0);
-        grid.Add(this.ToolbarLabel("計測"),5,0);
+        grid.Add(this.ToolbarLabel("險域ｸｬ"),5,0);
         grid.Add(runPicker,6,0);
         return grid;
     }
@@ -566,7 +566,8 @@ public sealed class MainPage:ContentPage{
             var checkTap = new TapGestureRecognizer();
             checkTap.Tapped+=(_,_) => this.viewModel?.ToggleBenchmarkColumnGroup(group);
             checkHost.GestureRecognizers.Add(checkTap);
-            var body = this.CreateBenchmarkHeaderBody(group.HeaderText);
+            var body = this.CreateBenchmarkHeaderBody(nameof(BenchmarkColumnSelectionGroup.HeaderText));
+            body.BindingContext=group;
             var bodyTap = new TapGestureRecognizer();
             bodyTap.Tapped+=(_,_) => this.viewModel?.SelectBenchmarkColumnGroup(group,CreateBenchmarkSelectionGesture());
             body.GestureRecognizers.Add(bodyTap);
@@ -602,14 +603,13 @@ public sealed class MainPage:ContentPage{
     }
 
     private Grid CreateBenchmarkHeaderBody(string text){
-        var body = new Grid{
+            var body = new Grid{
             BackgroundColor=Colors.Transparent,
             HorizontalOptions=LayoutOptions.Fill,
             VerticalOptions=LayoutOptions.Fill,
         };
         if(!string.IsNullOrWhiteSpace(text)){
-            body.Add(new Label{
-                Text=text,
+            var label = new Label{
                 FontSize=12,
                 FontAttributes=FontAttributes.Bold,
                 TextColor=Color.FromArgb("#0F172A"),
@@ -617,7 +617,13 @@ public sealed class MainPage:ContentPage{
                 HorizontalTextAlignment=TextAlignment.Start,
                 VerticalTextAlignment=TextAlignment.Center,
                 LineBreakMode=LineBreakMode.TailTruncation,
-            },0,0);
+            };
+            if(text==nameof(BenchmarkColumnSelectionGroup.HeaderText)){
+                label.SetBinding(Label.TextProperty,nameof(BenchmarkColumnSelectionGroup.HeaderText));
+            }else{
+                label.Text=text;
+            }
+            body.Add(label,0,0);
         }
         return body;
     }
@@ -645,17 +651,45 @@ public sealed class MainPage:ContentPage{
     private DataGridTemplateColumn CreateProjectCheckColumn(string mappingName,string cellPath){
         return new DataGridTemplateColumn{
             MappingName=mappingName,
-            HeaderText="日時",
+            HeaderText="論理コア",
             Width=BenchmarkProjectStatusColumnWidth,
             AllowSorting=false,
-            HeaderTemplate=new DataTemplate(() => new Label{
-                Text="日時",
-                FontSize=12,
-                FontAttributes=FontAttributes.Bold,
-                TextColor=Color.FromArgb("#0F172A"),
-                BackgroundColor=Color.FromArgb("#F1F5F9"),
-                HorizontalTextAlignment=TextAlignment.Center,
-                VerticalTextAlignment=TextAlignment.Center,
+            HeaderTemplate=new DataTemplate(() => {
+                var header = new Grid{
+                    ColumnDefinitions = {
+                        new ColumnDefinition { Width = new GridLength(BenchmarkCellCheckSlotWidth) },
+                        new ColumnDefinition { Width = new GridLength(18) },
+                        new ColumnDefinition { Width = new GridLength(24) },
+                        new ColumnDefinition { Width = new GridLength(26) },
+                        new ColumnDefinition { Width = GridLength.Star },
+                    },
+                    ColumnSpacing=2,
+                    Padding=new Thickness(1,0),
+                    BackgroundColor=Color.FromArgb("#F1F5F9"),
+                };
+                var logicalCore = new Label{
+                    Text="論理コア",
+                    FontSize=10,
+                    FontAttributes=FontAttributes.Bold,
+                    TextColor=Color.FromArgb("#0F172A"),
+                    HorizontalTextAlignment=TextAlignment.Center,
+                    VerticalTextAlignment=TextAlignment.Center,
+                    LineBreakMode=LineBreakMode.TailTruncation,
+                };
+                var measuredAt = new Label{
+                    Text="日時",
+                    FontSize=10,
+                    FontAttributes=FontAttributes.Bold,
+                    TextColor=Color.FromArgb("#0F172A"),
+                    HorizontalTextAlignment=TextAlignment.Start,
+                    VerticalTextAlignment=TextAlignment.Center,
+                    LineBreakMode=LineBreakMode.TailTruncation,
+                    Padding=new Thickness(2,0),
+                };
+                header.Add(logicalCore,2,0);
+                header.SetColumnSpan(logicalCore,2);
+                header.Add(measuredAt,4,0);
+                return header;
             }),
             CellTemplate=new DataTemplate(() => {
                 var layout = new Grid{
@@ -781,11 +815,11 @@ public sealed class MainPage:ContentPage{
     private DataGridTemplateColumn CreatePairStopNColumn(string mappingName,string bindingPath,string textColorPath,string fontAttributesPath){
         return new DataGridTemplateColumn{
             MappingName=mappingName,
-            HeaderText="N",
+            HeaderText="要素数",
             Width=BenchmarkPairStopNColumnWidth,
             AllowSorting=false,
             HeaderTemplate=new DataTemplate(() => new Label{
-                Text="N",
+                Text="要素数",
                 FontSize=10,
                 FontAttributes=FontAttributes.Bold,
                 TextColor=Color.FromArgb("#0F172A"),
@@ -983,7 +1017,7 @@ public sealed class MainPage:ContentPage{
 
     private View CreateTabHeader(){
         var cpuButton = this.CommandTabButton("CPU",nameof(BenchmarkRunnerViewModel.ShowCpuCommand));
-        var chartButton = this.CommandTabButton("比率チャート",nameof(BenchmarkRunnerViewModel.ShowChartCommand));
+        var chartButton = this.CommandTabButton("比較チャート",nameof(BenchmarkRunnerViewModel.ShowChartCommand));
         this.BindTabButtonState(cpuButton,nameof(BenchmarkRunnerViewModel.SelectedTab),static viewModel => viewModel.SelectedTab==BenchmarkTab.Cpu);
         this.BindTabButtonState(chartButton,nameof(BenchmarkRunnerViewModel.SelectedTab),static viewModel => viewModel.SelectedTab==BenchmarkTab.Chart);
         var metricPicker = new Picker{
@@ -1370,7 +1404,7 @@ public sealed class MainPage:ContentPage{
             checkHost.Add(check,0,0);
             layout.Add(checkHost,0,0);
             layout.Add(new Label{
-                Text="実行中のベンチマーク",
+                Text="論理コア",
                 FontSize=10,
                 FontAttributes=FontAttributes.Bold,
                 TextColor=Color.FromArgb("#0F172A"),

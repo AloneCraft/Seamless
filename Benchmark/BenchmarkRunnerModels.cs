@@ -1,4 +1,5 @@
-using System.Globalization;
+﻿using System.Globalization;
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Benchmark;
@@ -127,6 +128,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     private bool isUiSelected;
     private string statusIcon;
     private string statusText;
+    private string elementCountText = string.Empty;
     private string executionText = string.Empty;
     private string failureExecutionText = string.Empty;
     private string executionTooltipText = string.Empty;
@@ -154,8 +156,8 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.Project=project;
         this.HasCase=hasCase;
         this.isSelected=hasCase;
-        this.statusIcon=hasCase?"○":"-";
-        this.statusText=hasCase?"未実行":"対象なし";
+        this.statusIcon=hasCase?"笳・:"-";
+        this.statusText=hasCase?"譛ｪ螳溯｡・:"蟇ｾ雎｡縺ｪ縺・;
     }
 
     public event EventHandler? UiSelectionChanged;
@@ -189,6 +191,11 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     public string StatusText{
         get => this.statusText;
         private set => this.SetProperty(ref this.statusText,value);
+    }
+
+    public string ElementCountText{
+        get => this.elementCountText;
+        private set => this.SetProperty(ref this.elementCountText,value);
     }
 
     public string ExecutionText{
@@ -293,8 +300,8 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.AllocatedText=FormatAllocated(value);
         this.OnPropertyChanged(nameof(this.IsPendingVisual));
         if(value.HasMeasuredValue&&!this.IsRunning){
-            this.StatusIcon="✓";
-            this.StatusText="完了";
+            this.StatusIcon="笨・;
+            this.StatusText="螳御ｺ・;
         }
     }
 
@@ -313,13 +320,13 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         }
         this.IsRunning=false;
         if(string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)){
-            this.StatusIcon="✓";
-            this.StatusText="完了";
+            this.StatusIcon="笨・;
+            this.StatusText="螳御ｺ・;
         }else if(string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)){
-            this.StatusIcon="×";
-            this.StatusText="失敗";
+            this.StatusIcon="ﾃ・;
+            this.StatusText="螟ｱ謨・;
         }else{
-            this.StatusIcon="○";
+            this.StatusIcon="笳・;
             this.StatusText=result.Status;
         }
         this.LiveState=BenchmarkProjectLiveState.Idle;
@@ -344,18 +351,18 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         }
         this.IsRunning=string.Equals(result.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase);
         this.StatusIcon=this.IsRunning
-            ? "⟳"
+            ? "筺ｳ"
             : string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-                ? "✓"
+                ? "笨・
                 : string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)
-                    ? "×"
-                    : "○";
+                    ? "ﾃ・
+                    : "笳・;
         this.StatusText=this.IsRunning
-            ? "実行中"
+            ? "螳溯｡御ｸｭ"
             : string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-                ? "完了"
+                ? "螳御ｺ・
                 : string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)
-                    ? "失敗"
+                    ? "螟ｱ謨・
                     : result.Status;
         this.ApplyCpuDisplay(cpu);
         this.LiveState=this.IsRunning
@@ -371,7 +378,8 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.AllocatedText=FormatAllocated(stoppedMetrics);
         this.IsRunning=false;
         this.StatusIcon=stoppedAtElementCount.ToString(CultureInfo.InvariantCulture);
-        this.StatusText="N="+stoppedAtElementCount.ToString(CultureInfo.InvariantCulture);
+        this.StatusText=FormatElementCount(stoppedAtElementCount);
+        this.ElementCountText=FormatElementCount(stoppedAtElementCount);
         this.ExecutionText=string.Empty;
         this.FailureExecutionText=string.Empty;
         this.ExecutionTooltipText=string.Empty;
@@ -405,10 +413,11 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.lastFailedAt=null;
         this.TimeText=string.Empty;
         this.AllocatedText=string.Empty;
+        this.ElementCountText=string.Empty;
         this.ClearLiveState();
         if(this.HasCase){
-            this.StatusIcon="○";
-            this.StatusText="未実行";
+            this.StatusIcon="笳・;
+            this.StatusText="譛ｪ螳溯｡・;
             this.ExecutionText=string.Empty;
             this.FailureExecutionText=string.Empty;
             this.ExecutionTooltipText=string.Empty;
@@ -426,7 +435,8 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.lastMeasuredAt=measuredAt;
         this.TimeText=FormatTime(value);
         this.AllocatedText=FormatAllocated(value);
-        this.ExecutionText=FormatElementTimestamp(elementCount,measuredAt);
+        this.ElementCountText=FormatElementCount(elementCount);
+        this.ExecutionText=FormatTimestamp(measuredAt);
         this.RefreshExecutionTooltipText();
         this.ApplyMeasurementHighlight(highlightState);
         this.OnPropertyChanged(nameof(this.IsPendingVisual));
@@ -436,7 +446,8 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     private void ApplyFailureDisplay(int elementCount,DateTimeOffset failedAt){
         this.lastFailedElementCount=elementCount;
         this.lastFailedAt=failedAt;
-        this.FailureExecutionText="  "+FormatElementTimestamp(elementCount,failedAt);
+        this.ElementCountText=FormatElementCount(elementCount);
+        this.FailureExecutionText="  "+FormatTimestamp(failedAt);
         this.RefreshExecutionTooltipText();
     }
 
@@ -449,11 +460,11 @@ public sealed class BenchmarkProjectCell:ObservableObject{
 
     private void RefreshExecutionTooltipText(){
         var failureText = this.lastFailedElementCount is { } failedN&&this.lastFailedAt is { } failedAt
-            ? "失敗 "+FormatElementTimestamp(failedN,failedAt)
+            ? "螟ｱ謨・"+FormatElementCount(failedN)+" "+FormatTimestamp(failedAt)
             : string.Empty;
         this.ExecutionTooltipText=string.Join(
             Environment.NewLine,
-            new[] { this.ExecutionText,failureText }.Where(static text => !string.IsNullOrWhiteSpace(text)));
+            new[] { FormatElementTooltip(this.ElementCountText,this.ExecutionText),failureText }.Where(static text => !string.IsNullOrWhiteSpace(text)));
     }
 
     private void ApplyMeasurementHighlight(BenchmarkMeasurementHighlightState value){
@@ -471,8 +482,18 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.MetricFontAttributes=attributes;
     }
 
-    private static string FormatElementTimestamp(int elementCount,DateTimeOffset timestamp) =>
-        "N="+elementCount.ToString(CultureInfo.InvariantCulture)+" "+BenchmarkTimestampDisplay.FormatLocal(timestamp);
+    private static string FormatElementCount(int elementCount) =>
+        elementCount.ToString(CultureInfo.InvariantCulture);
+
+    private static string FormatTimestamp(DateTimeOffset timestamp) =>
+        BenchmarkTimestampDisplay.FormatLocal(timestamp);
+
+    private static string FormatElementTooltip(string elementCountText,string timestampText) =>
+        string.IsNullOrWhiteSpace(elementCountText)
+            ? timestampText
+            : string.IsNullOrWhiteSpace(timestampText)
+                ? elementCountText
+                : elementCountText+" "+timestampText;
 
     private static string FormatTime(ProjectMetrics metrics){
         return metrics.HasMeasuredValue&&metrics.TimeNanoseconds is { } value
@@ -510,20 +531,28 @@ public sealed class BenchmarkProjectCell:ObservableObject{
 
 public sealed class BenchmarkColumnSelectionGroup:ObservableObject{
     private bool? isChecked;
+    private string headerText;
 
     public BenchmarkColumnSelectionGroup(string id,string headerText,IReadOnlyList<string> columnKeys){
         this.Id=id;
-        this.HeaderText=headerText;
+        this.headerText=headerText;
         this.ColumnKeys=columnKeys;
     }
 
     public string Id { get; }
-    public string HeaderText { get; }
+    public string HeaderText{
+        get => this.headerText;
+        private set => this.SetProperty(ref this.headerText,value);
+    }
     public IReadOnlyList<string> ColumnKeys { get; }
 
     public bool? IsChecked{
         get => this.isChecked;
         set => this.SetProperty(ref this.isChecked,value);
+    }
+
+    public void SetHeaderText(string value){
+        this.HeaderText=value;
     }
 }
 
@@ -571,6 +600,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.RightCell=this.CreateCell(sourceTab.RightProject);
         foreach(var cell in this.ProjectCells){
             cell.UiSelectionChanged+=this.OnCellUiSelectionChanged;
+            cell.PropertyChanged+=this.OnCellPropertyChanged;
         }
         this.RefreshUiSelectionState();
     }
@@ -622,7 +652,29 @@ public sealed class BenchmarkTableRow:ObservableObject{
         private set => this.SetProperty(ref this.systemStopNText,value);
     }
 
-    public string StopNText => this.SystemStopNText;
+    public string StopNText => string.IsNullOrWhiteSpace(this.SystemStopNText)
+        ? this.ElementCountText
+        : this.SystemStopNText;
+
+    private string ElementCountText{
+        get{
+            var left = this.LeftCell.ElementCountText;
+            var right = this.RightCell.ElementCountText;
+            if(string.Equals(left,right,StringComparison.Ordinal)){
+                return left;
+            }
+
+            if(string.IsNullOrWhiteSpace(left)){
+                return right;
+            }
+
+            if(string.IsNullOrWhiteSpace(right)){
+                return left;
+            }
+
+            return left+"/"+right;
+        }
+    }
 
     public Color SystemStopNTextColor{
         get => this.systemStopNTextColor;
@@ -786,6 +838,12 @@ public sealed class BenchmarkTableRow:ObservableObject{
 
     private void OnCellUiSelectionChanged(object? sender,EventArgs args){
         this.RefreshUiSelectionState();
+    }
+
+    private void OnCellPropertyChanged(object? sender,PropertyChangedEventArgs args){
+        if(args.PropertyName==nameof(BenchmarkProjectCell.ElementCountText)){
+            this.OnPropertyChanged(nameof(this.StopNText));
+        }
     }
 
     private static bool? GetSelectionState(IEnumerable<BenchmarkProjectCell> cells){
@@ -1016,8 +1074,8 @@ public sealed class BenchmarkTableRow:ObservableObject{
 
 public sealed class CpuSelectionItem:ObservableObject{
     private bool isSelected;
-    private string runStatusText = "待機";
-    private string runIcon = "○";
+    private string runStatusText = "蠕・ｩ・;
+    private string runIcon = "笳・;
     private string currentJobText = string.Empty;
     private bool isRunningJob;
 
@@ -1088,7 +1146,7 @@ public sealed class CpuSelectionItem:ObservableObject{
     public void ApplyJob(BenchmarkResultItem item){
         this.IsRunningJob=string.Equals(item.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase);
         this.RunIcon=this.IsRunningJob
-            ? "⟳"
+            ? "●"
             : string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)
                 ? "✓"
                 : string.Equals(item.Status,"Failed",StringComparison.OrdinalIgnoreCase)
@@ -1101,7 +1159,7 @@ public sealed class CpuSelectionItem:ObservableObject{
                 : string.Equals(item.Status,"Failed",StringComparison.OrdinalIgnoreCase)
                     ? "失敗"
                     : item.Status;
-        this.CurrentJobText=item.Project+" / "+item.Method+" / N="+item.ElementCount.ToString(CultureInfo.InvariantCulture);
+        this.CurrentJobText=item.Project+" / "+item.Method+" / "+item.ElementCount.ToString(CultureInfo.InvariantCulture);
         this.OnPropertyChanged(nameof(this.StatusDisplayText));
     }
 
