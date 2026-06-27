@@ -81,13 +81,11 @@ internal sealed class BenchmarkOrchestrator {
         Action<BenchmarkProgressUpdate> progress,
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
-        var benchmarks = state.Jobs.Count>0
-            ? state.Jobs
-                .Select(static job => new BenchmarkCase(job.Project,job.AssemblyName,job.TypeFullName,job.MethodName))
-                .GroupBy(CreateBenchmarkKey,StringComparer.Ordinal)
-                .Select(static group => group.First())
-                .ToArray()
-            : request.Benchmarks;
+        var benchmarks = request.Benchmarks
+            .Concat(state.Jobs.Select(static job => new BenchmarkCase(job.Project,job.AssemblyName,job.TypeFullName,job.MethodName)))
+            .GroupBy(CreateBenchmarkKey,StringComparer.Ordinal)
+            .Select(static group => group.First())
+            .ToArray();
         var methodGroups = benchmarks
             .Select((benchmark,index) => new { Benchmark=benchmark, Index=index })
             .GroupBy(static item => item.Benchmark.MethodName,StringComparer.OrdinalIgnoreCase)
@@ -690,8 +688,6 @@ internal sealed class BenchmarkOrchestrator {
 
     private static void ForceGcBeforeJob() {
         GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
     }
 
     private static void TryDeleteDirectory(string path) {
@@ -720,11 +716,11 @@ internal sealed class BenchmarkOrchestrator {
 [global::Seamless.FLinq.LinqIntercept(false)]
 #endif
 internal static class BenchmarkElementCounts {
-    private const int N = 1024;
+    internal const int BaseElementCount = 1024;
 
     public static IReadOnlyList<int> All { get; } =
         Enumerable.Range(10,14).Select(static exponent => 1<<exponent).ToArray();
 
     public static IReadOnlyList<int> DefaultInitial { get; } =
-        [N];
+        [BaseElementCount];
 }

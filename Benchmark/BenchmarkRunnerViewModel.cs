@@ -5,7 +5,6 @@ using CommunityToolkit.Mvvm.Input;
 namespace Benchmark;
 
 public sealed class BenchmarkRunnerViewModel:ObservableObject {
-    private const int N = 1024;
     private static readonly BenchmarkRunOption NewRunOption = new(
         0,
         "新規",
@@ -47,6 +46,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private bool isApplyingCpuSelection;
     private bool isApplyingUiState;
     private bool isApplyingBenchmarkSelection;
+    private bool isApplyingResultElementCount;
     private bool isLoadingSelectedRunCsv;
     private bool hasPendingCloseStateSave;
     private BenchmarkGridSortColumn currentSortColumn = BenchmarkGridSortColumn.BenchmarkName;
@@ -63,6 +63,11 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private BenchmarkLowerTab selectedLowerTab = BenchmarkLowerTab.Cpu;
     private IDisposable? logSubscription;
     private readonly HashSet<string> reportedMetadataWarnings = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string,ChartComparisonPoint> retainedChartPoints = new(StringComparer.OrdinalIgnoreCase);
+    private CancellationTokenSource? chartPointPulseCancellation;
+    private string activeChartMethodName = string.Empty;
+    private bool chartPointPulseActive;
+    private int runResultGeneration;
 
     public BenchmarkRunnerViewModel(
         IBenchmarkCatalogService catalogService,
@@ -353,6 +358,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 this.OnPropertyChanged(nameof(this.ChartRightLegendLabel));
                 this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
                 this.RefreshBenchmarkProjectHeaderTexts();
+                this.ClearRetainedChartPoints();
                 this.UpdateChart(false);
                 _=this.RefreshAsync();
             }
@@ -392,6 +398,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         set {
             if(this.SetProperty(ref this.selectedRunOption,value)) {
                 if(!this.isApplyingUiState) {
+                    this.ClearRetainedChartPoints();
                     if(IsNewRunOption(value)) {
                         this.ClearSelectedSourceLiveResults();
                     }
@@ -455,10 +462,12 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                     this.CurrentElementCountText=FormatElementCountText(value.Value);
                 }
                 this.SyncSelectedResultElementCountIndex();
-                this.RefreshVisibleResults();
-                this.ApplySelectedElementCountToTable();
-                this.UpdateChart();
-                if(!this.isApplyingUiState&&!this.IsBenchmarkRunning) {
+                if(!this.isApplyingResultElementCount) {
+                    this.RefreshVisibleResults();
+                    this.ApplySelectedElementCountToTable();
+                    this.UpdateChart();
+                }
+                if(!this.isApplyingUiState&&!this.isApplyingResultElementCount&&!this.IsBenchmarkRunning) {
                     this.SaveUiState();
                 }
             }
@@ -896,13 +905,14 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private static string CreateRowSelectionKey(BenchmarkSourceTabDefinition sourceTab,string method) =>
         sourceTab.Id+"|"+method;
 
-    private void SelectRunByRoot(string runRoot) {
+    private bool SelectRunByRoot(string runRoot) {
         var option = this.RunOptions.FirstOrDefault(item => string.Equals(item.RunRoot,runRoot,StringComparison.OrdinalIgnoreCase));
         if(option is null) {
-            return;
+            return false;
         }
 
         this.SelectedRunOption=option;
+        return true;
     }
 
     public void SaveUiState() {
@@ -922,7 +932,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     private async Task RunAsync() {
         var selected = this.BenchmarkRows
-            .Where(static item => item.IsSelected)
             .SelectMany(static item => item.GetRunCases())
             .ToArray();
         if(selected.Length==0) {
@@ -935,11 +944,15 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.SelectedLowerTab=BenchmarkLowerTab.Cpu;
         this.runCancellation?.Cancel();
         this.runCancellation=new CancellationTokenSource();
+        var runGeneration = unchecked(++this.runResultGeneration);
+        string? completedRunRoot = null;
         this.IsRunning=true;
         var runSourceTab = this.SelectedSourceDefinition.Tab;
         this.ActiveRunSourceTab=runSourceTab;
-        this.ClearSelectedSourceLiveResults();
-        this.UpdateChart(false);
+        this.activeChartMethodName=string.Empty;
+        this.StartChartPointPulse();
+        this.PrepareSelectedSourceLiveResultsForRun();
+        this.UpdateChart();
         this.CurrentElementCountText="1";
         this.ResultElementCountOptions.Clear();
         this.SelectedResultElementCount=null;
@@ -970,13 +983,14 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 true,
                 IsNewRunOption(this.SelectedRunOption) ? null : this.SelectedRunOption?.RunRoot,
                 result => MainThread.BeginInvokeOnMainThread(() => {
-                    this.HandleRunResult(result);
+                    this.HandleRunResult(result,runGeneration);
                 }),
                 status => {
                     StartupDiagnostics.Write(status);
                     MainThread.BeginInvokeOnMainThread(() => this.StatusText=status);
                 },
                 this.runCancellation.Token);
+            completedRunRoot=report.RunRoot;
             await this.RefreshCsvScanAsync(this.runCancellation.Token);
             if(report.RunRoot is not null) {
                 this.SelectRunByRoot(report.RunRoot);
@@ -995,13 +1009,26 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             this.StatusText="Run failed: "+ex.Message;
         }
         finally {
+            this.runResultGeneration=unchecked(this.runResultGeneration+1);
             this.IsRunning=false;
+            this.StopChartPointPulse();
+            this.activeChartMethodName=string.Empty;
             this.ActiveRunSourceTab=null;
             this.runCancellation?.Dispose();
             this.runCancellation=null;
             this.OnPropertyChanged(nameof(this.IsBenchmarkRunActive));
-            this.ApplySelectedElementCountToTable();
-            this.RestoreLatestCompletedLiveResult();
+            if(!string.IsNullOrWhiteSpace(completedRunRoot)) {
+                // 完了後はライブメモリより保存済み RunRoot を正とする。
+                // 途中 callback の欠落や順序差で currentRunResultItems が欠けても、
+                // ここで CSV + progress.json から復元し直して表示を確定させる。
+                if(this.SelectRunByRoot(completedRunRoot)
+                    ||string.Equals(this.SelectedRunOption?.RunRoot,completedRunRoot,StringComparison.OrdinalIgnoreCase)) {
+                    this.LoadSelectedRunCsv();
+                }
+            }else {
+                this.ApplySelectedElementCountToTable();
+                this.RestoreLatestCompletedLiveResult();
+            }
             this.ClearRunResultHighlights();
             this.UpdateChart();
         }
@@ -1020,7 +1047,12 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.runCancellation?.Cancel();
     }
 
-    private void HandleRunResult(BenchmarkResultItem result) {
+    private void HandleRunResult(BenchmarkResultItem result,int runGeneration) {
+        if(runGeneration!=this.runResultGeneration) {
+            // 別世代の callback は、次回実行や完了後の復元を汚さないよう捨てる。
+            return;
+        }
+
         StartupDiagnostics.Write(
             "Run result received. "
             +"Project="+result.Project+" "
@@ -1037,36 +1069,49 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         cpu?.ApplyJob(result);
         var resultSourceTab = this.ActiveRunSourceTab??this.SelectedSourceDefinition.Tab;
         var isResultForVisibleTab = resultSourceTab==this.SelectedSourceDefinition.Tab;
+        var isRunningResult = string.Equals(result.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase);
+        var isCompletedResult = string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase);
+        var isFailedResult = string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase);
+        var isTerminalResult = isCompletedResult||isFailedResult;
+        var hasResultElementCount = result.ElementCount>0;
         if(isResultForVisibleTab&&result.ElementCount>0) {
             this.CurrentElementCountText=FormatElementCountText(result.ElementCount);
         }
-        if(isResultForVisibleTab&&string.Equals(result.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase)) {
+        var row = this.BenchmarkRows.FirstOrDefault(item => string.Equals(item.MethodName,result.Method,StringComparison.OrdinalIgnoreCase));
+        if(isResultForVisibleTab&&isRunningResult) {
+            // Running は「今この method が進行中」という事実だけを反映し、
+            // 確定済み metrics や完了アイコンは上書きしない。
+            this.activeChartMethodName=result.Method;
+            this.ApplyChartRunningState();
             this.RetainCompletedHighlightsForRunningElement(result.ElementCount);
+            row?.ApplyRunResult(result,cpu,DateTimeOffset.Now);
+            return;
         }
-        this.UpsertCurrentRunResultItem(result);
-        if(isResultForVisibleTab) {
+
+        // terminal result だけを永続化・一覧化する。
+        if(isTerminalResult&&hasResultElementCount) {
+            this.UpsertCurrentRunResultItem(result);
+        }
+        if(isResultForVisibleTab&&isTerminalResult&&hasResultElementCount) {
             this.UpsertResultItem(result);
             this.RegisterResultElementCount(result.ElementCount);
             this.RefreshVisibleResults();
-        }
-        var row = this.BenchmarkRows.FirstOrDefault(item => string.Equals(item.MethodName,result.Method,StringComparison.OrdinalIgnoreCase));
-        if(isResultForVisibleTab&&string.Equals(result.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase)) {
-            foreach(var benchmarkRow in this.BenchmarkRows) {
-                benchmarkRow.ClearLiveState();
-            }
         }
         var completedAt = DateTimeOffset.Now;
         if(isResultForVisibleTab) {
             row?.ApplyRunResult(result,cpu,completedAt);
         }
-        if(string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-            ||string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)) {
+        if(isTerminalResult) {
             this.resultStore.Upsert(result,completedAt,null,string.Empty);
             this.resultStore.Save();
             this.HasPendingCloseStateSave=true;
             if(isResultForVisibleTab) {
+                // 完了時は現在の選択Nだけでなく、保持済みの停止行も再計算する。
                 this.ApplySelectedElementCountToTable();
                 row?.ApplyRunResult(result,cpu,completedAt);
+                if(string.Equals(this.activeChartMethodName,result.Method,StringComparison.OrdinalIgnoreCase)) {
+                    this.activeChartMethodName=string.Empty;
+                }
                 this.UpdateChart();
             }
         }
@@ -1140,6 +1185,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         }
 
         try {
+            this.ClearRetainedChartPoints();
             this.ClearBenchmarkResultDisplays();
             this.comparisonRows=this.csvService.ReadComparisonCsv(file.FullPath);
             this.LoadComparisonRowsIntoResults(this.comparisonRows);
@@ -1175,9 +1221,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     private void RegisterResultElementCount(int elementCount) {
         if(elementCount<=0||this.ResultElementCountOptions.Any(item => item.Value==elementCount)) {
-            if(elementCount>0&&this.IsRunning) {
-                this.SelectedResultElementCount=this.ResultElementCountOptions.FirstOrDefault(item => item.Value==elementCount)??this.SelectedResultElementCount;
-            }
             return;
         }
 
@@ -1192,9 +1235,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         }
         this.OnPropertyChanged(nameof(this.ChartElementCountSliderMaximum));
         this.OnPropertyChanged(nameof(this.IsChartElementSliderVisible));
-        this.SelectedResultElementCount=this.IsRunning
-            ? this.ResultElementCountOptions.FirstOrDefault(item => item.Value==elementCount)
-            : this.SelectedResultElementCount??this.ResultElementCountOptions.FirstOrDefault();
+        if(!this.IsRunning&&this.SelectedResultElementCount is null) {
+            this.SelectedResultElementCount=this.ResultElementCountOptions.FirstOrDefault();
+        }
     }
 
     private static string FormatElementCountText(int elementCount) {
@@ -1204,7 +1247,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private static string FormatResultElementCountDisplayName(int elementCount) {
-        return elementCount==N
+        return elementCount==BenchmarkElementCounts.BaseElementCount
             ? "N"
             : elementCount.ToString(System.Globalization.CultureInfo.InvariantCulture)+"N";
     }
@@ -1281,6 +1324,10 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private bool RestoreCurrentRunDisplayForSelectedTab() {
+        if(!this.IsBenchmarkRunActive) {
+            return false;
+        }
+
         var results = this.GetCurrentRunResultItemsForSelectedTab();
         if(results.Count==0) {
             return false;
@@ -1319,6 +1366,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private void ClearSelectedRunDisplay() {
+        this.ClearRetainedChartPoints();
         this.comparisonRows= [];
         this.ResultItems.Clear();
         this.VisibleResultItems.Clear();
@@ -1328,12 +1376,21 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private void ClearSelectedSourceLiveResults() {
+        this.ClearRetainedChartPoints();
         this.currentRunResultItemsByTab.Remove(this.SelectedSourceDefinition.Tab);
         this.comparisonRows= [];
         this.ResultItems.Clear();
         this.VisibleResultItems.Clear();
         this.CurrentElementCountText="-";
         this.ClearBenchmarkResultDisplays();
+    }
+
+    private void PrepareSelectedSourceLiveResultsForRun() {
+        this.currentRunResultItemsByTab.Remove(this.SelectedSourceDefinition.Tab);
+        this.comparisonRows= [];
+        this.ResultItems.Clear();
+        this.VisibleResultItems.Clear();
+        this.CurrentElementCountText="-";
     }
 
     private void LoadComparisonRowsIntoResults(IReadOnlyList<BenchmarkComparisonRow> rows,int elementCount = 0) {
@@ -1360,7 +1417,8 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     private void ApplyComparisonRowsToTable() {
         var rowsByMethod = this.comparisonRows.ToDictionary(static item => item.Benchmark,StringComparer.OrdinalIgnoreCase);
-        var preserveRetainedDisplay = this.HasCurrentRunResultsForSelectedTab;
+        // 実行中は空欄に戻さず、完了済みセルの表示を保持したまま比較行だけ差し替える。
+        var preserveRetainedDisplay = this.IsBenchmarkRunActive||this.HasCurrentRunResultsForSelectedTab;
         foreach(var benchmark in this.BenchmarkRows) {
             benchmark.ApplyComparison(rowsByMethod.TryGetValue(benchmark.MethodName,out var row) ? row : null,preserveRetainedDisplay);
         }
@@ -1396,8 +1454,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.isLoadingSelectedRunCsv=true;
         try {
             var run = this.SelectedRunOption;
-            var selectedN = this.SelectedResultElementCount?.Value;
-            if(run is null||IsNewRunOption(run)||selectedN is null) {
+            if(run is null||IsNewRunOption(run)) {
                 this.ClearSelectedRunDisplay();
                 return;
             }
@@ -1406,18 +1463,41 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 return;
             }
 
-            var path = Path.Combine(
-                run.RunRoot,
-                this.SelectedSourceDefinition.Id,
-                "N"+selectedN.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)+".csv");
-            if(!File.Exists(path)) {
+            // 完了後の復元は「選択N CSV」だけでは足りない。
+            // まず selectedN を決めて CSV を適用し、その後 progress.json の terminal jobs で
+            // 低Nで止まった行や失敗行を補う。
+            var selectedRunState = this.LoadSelectedRunState();
+            var selectedN = this.SelectedResultElementCount?.Value
+                ??FindLatestTerminalElementCount(selectedRunState)
+                ??run.ElementCounts.LastOrDefault();
+            if(selectedN<=0) {
                 this.ClearSelectedRunDisplay();
                 return;
             }
 
-            this.comparisonRows=this.csvService.ReadComparisonCsv(path);
-            this.LoadComparisonRowsIntoResults(this.comparisonRows,selectedN.Value);
-            this.ApplyComparisonRowsToTable();
+            this.SelectResultElementCountWithoutReload(selectedN);
+            this.ClearRetainedChartPoints();
+            this.ClearBenchmarkResultDisplays();
+            this.comparisonRows= [];
+            this.ResultItems.Clear();
+            this.VisibleResultItems.Clear();
+
+            var path = Path.Combine(
+                run.RunRoot,
+                this.SelectedSourceDefinition.Id,
+                "N"+selectedN.ToString(System.Globalization.CultureInfo.InvariantCulture)+".csv");
+            if(File.Exists(path)) {
+                this.comparisonRows=this.csvService.ReadComparisonCsv(path);
+                this.LoadComparisonRowsIntoResults(this.comparisonRows,selectedN);
+                this.ApplyComparisonRowsToTable();
+            }else {
+                this.ApplyComparisonRowsToTable();
+            }
+
+            // terminal job を全N分取り込んで、選択Nにない停止済み行も復元する。
+            this.ApplySelectedRunStateJobs(selectedRunState,selectedN);
+            // CSV/状態の両方で欠けた行だけ、停止Nの推定値を補う。
+            this.ApplySkippedCells(selectedN);
             this.RefreshVisibleResults();
             this.ApplyCurrentSort();
             this.UpdateChart(false);
@@ -1431,6 +1511,76 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    private void SelectResultElementCountWithoutReload(int elementCount) {
+        // Run 中は N を勝手に切り替えず、復元時だけ必要な N を静かに選ぶ。
+        var option = this.ResultElementCountOptions.FirstOrDefault(item => item.Value==elementCount);
+        if(option is null) {
+            option=new ResultElementCountOption(elementCount,FormatResultElementCountDisplayName(elementCount));
+            var ordered = this.ResultElementCountOptions
+                .Append(option)
+                .OrderBy(static item => item.Value)
+                .ToArray();
+            this.ResultElementCountOptions.Clear();
+            foreach(var item in ordered) {
+                this.ResultElementCountOptions.Add(item);
+            }
+            this.OnPropertyChanged(nameof(this.ChartElementCountSliderMaximum));
+            this.OnPropertyChanged(nameof(this.IsChartElementSliderVisible));
+        }
+
+        this.isApplyingResultElementCount=true;
+        try {
+            this.SelectedResultElementCount=option;
+        } finally {
+            this.isApplyingResultElementCount=false;
+        }
+    }
+
+    private static int? FindLatestTerminalElementCount(ProgressState? state) {
+        return state?.Jobs
+            .Where(static job => job.ElementCount>0&&IsTerminalJob(job))
+            .OrderBy(static job => job.FinishedAt??job.StartedAt??DateTimeOffset.MinValue)
+            .ThenBy(static job => job.ElementCount)
+            .LastOrDefault()
+            ?.ElementCount;
+    }
+
+    private void ApplySelectedRunStateJobs(ProgressState? state,int elementCount) {
+        if(state is null) {
+            return;
+        }
+
+        // 保存済み state の terminal job は「完了済みの事実」として全Nを保持する。
+        // ただし表の選択中 N への overlay は、その N の job だけに限定する。
+        var jobs = state.Jobs
+            .Where(job => this.SelectedSourceDefinition.ContainsProject(job.Project)
+                &&IsTerminalJob(job))
+            .GroupBy(static job => job.Project+"|"+job.MethodName,StringComparer.OrdinalIgnoreCase)
+            .SelectMany(static group => group
+                .GroupBy(static job => job.ElementCount)
+                .Select(static elementGroup => elementGroup
+                    .OrderBy(static job => job.FinishedAt??job.StartedAt??DateTimeOffset.MinValue)
+                    .Last()))
+            .ToArray();
+        foreach(var job in jobs) {
+            var item = new BenchmarkResultItem(job);
+            this.UpsertResultItem(item);
+            if(job.ElementCount!=elementCount) {
+                continue;
+            }
+
+            var cpu = item.AssignedLogicalCpu is { } logicalCpu
+                ? this.CpuItems.FirstOrDefault(cpuItem => cpuItem.LogicalProcessorIndex==logicalCpu)
+                : null;
+            var completedAt = job.FinishedAt??job.StartedAt??DateTimeOffset.Now;
+            var row = this.BenchmarkRows.FirstOrDefault(row => string.Equals(row.MethodName,job.MethodName,StringComparison.OrdinalIgnoreCase));
+            row?.ApplyRunResult(item,cpu,completedAt,false);
+        }
+    }
+
+    private static bool IsTerminalJob(BenchmarkJob job) =>
+        job.Status is JobStatus.Completed or JobStatus.Failed;
+
     private static BenchmarkRunOption CreateNewRunOption(BenchmarkExecutionProfile executionProfile) =>
         NewRunOption with {
             ExecutionProfile=executionProfile,
@@ -1441,12 +1591,17 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     private void ApplySelectedElementCountToTable() {
         var selectedN = this.SelectedResultElementCount?.Value;
-        if(this.HasCurrentRunResultsForSelectedTab) {
+        if(this.IsBenchmarkRunActive&&this.HasCurrentRunResultsForSelectedTab) {
             this.comparisonRows=selectedN is { } currentElementCount
                 ? this.BuildCurrentRunComparisonRowsForElementCount(currentElementCount)
                 : this.BuildCurrentRunComparisonRows();
         }
         else {
+            if(this.IsBenchmarkRunActive) {
+                this.ApplyComparisonRowsToTable();
+                return;
+            }
+
             if(!this.isLoadingSelectedRunCsv) {
                 this.LoadSelectedRunCsv();
                 return;
@@ -1466,6 +1621,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         var currentRunResults = this.GetCurrentRunResultItems(sourceTab.Tab);
         var rows = currentRunResults
             .Where(result => result.ElementCount==elementCount
+                &&result.ElementCount>0
                 &&sourceTab.ContainsProject(result.Project)
                 &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase))
             .Select(CreateReportRowForSelectedElementCount)
@@ -1484,7 +1640,8 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private IReadOnlyList<BenchmarkComparisonRow> BuildCurrentRunComparisonRows(BenchmarkSourceTabDefinition sourceTab) {
         var currentRunResults = this.GetCurrentRunResultItems(sourceTab.Tab);
         var rows = currentRunResults
-            .Where(result => sourceTab.ContainsProject(result.Project)
+            .Where(result => result.ElementCount>0
+                &&sourceTab.ContainsProject(result.Project)
                 &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase))
             .GroupBy(static result => result.Method,StringComparer.OrdinalIgnoreCase)
             .SelectMany(static group => group
@@ -1507,6 +1664,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         var currentRunResults = this.GetCurrentRunResultItems(sourceTab.Tab);
         var rows = currentRunResults
             .Where(result => result.ElementCount==elementCount
+                &&result.ElementCount>0
                 &&sourceTab.ContainsProject(result.Project)
                 &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase))
             .Select(CreateReportRowForSelectedElementCount)
@@ -1527,16 +1685,33 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                     continue;
                 }
 
-                if(this.HasResult(row.MethodName,pair.LeftProject,selectedElementCount)
-                    ||this.HasResult(row.MethodName,pair.RightProject,selectedElementCount)) {
+                var hasLeftResult = this.HasResult(row.MethodName,pair.LeftProject,selectedElementCount);
+                var hasRightResult = this.HasResult(row.MethodName,pair.RightProject,selectedElementCount);
+                if(hasLeftResult&&hasRightResult) {
                     continue;
                 }
 
-                var stoppedAt = this.FindPairStoppedAt(row.MethodName,pair.LeftProject,selectedElementCount);
+                // まず閾値ベースの stopN を探し、見つからない場合だけ
+                // 低Nで左右とも completed だった最新の N を停止Nとして復元する。
+                var stoppedAt = this.FindPairStoppedAt(row.MethodName,pair.LeftProject,selectedElementCount)
+                    ??this.FindPairStoppedAt(row.MethodName,pair.RightProject,selectedElementCount)
+                    ??this.FindLatestCompletedPairElementCountBefore(
+                        row.MethodName,
+                        pair.LeftProject,
+                        pair.RightProject,
+                        selectedElementCount);
                 if(stoppedAt is { } stoppedAtElementCount) {
-                    row.ApplyPairStopped(pair.LeftProject,pair.RightProject,stoppedAtElementCount,this.HasCurrentRunResultsForSelectedTab);
-                    this.ApplySkippedCell(row,pair.LeftProject,stoppedAtElementCount);
-                    this.ApplySkippedCell(row,pair.RightProject,stoppedAtElementCount);
+                    row.ApplyPairStopped(
+                        pair.LeftProject,
+                        pair.RightProject,
+                        stoppedAtElementCount,
+                        this.IsBenchmarkRunActive&&this.HasCurrentRunResultsForSelectedTab);
+                    if(!hasLeftResult) {
+                        this.ApplySkippedCell(row,pair.LeftProject,stoppedAtElementCount);
+                    }
+                    if(!hasRightResult) {
+                        this.ApplySkippedCell(row,pair.RightProject,stoppedAtElementCount);
+                    }
                 }
             }
         }
@@ -1567,25 +1742,17 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     ];
 
     private bool HasResult(string method,string project,int elementCount) {
-        var currentRunResults = this.GetCurrentRunResultItemsForSelectedTab();
-        return this.HasCurrentRunResultsForSelectedTab&&currentRunResults.Any(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
+        var results = this.GetResultSourceForDisplay();
+        return results.Any(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
                 &&string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase)
-                &&result.ElementCount==elementCount)
-            ||(!this.HasCurrentRunResultsForSelectedTab&&this.ResultItems.Any(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
-            &&string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase)
-            &&result.ElementCount==elementCount));
+                &&result.ElementCount==elementCount
+                &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+                &&result.MeanNanoseconds is not null);
     }
 
     private int? FindPairStoppedAt(string method,string project,int selectedElementCount) {
-        var currentRunResults = this.GetCurrentRunResultItemsForSelectedTab();
-        var measurements = this.HasCurrentRunResultsForSelectedTab
-            ? currentRunResults.Select(static result => new BenchmarkElementMeasurement(
-                result.Project,
-                result.Method,
-                result.ElementCount,
-                result.Status,
-                result.MeanNanoseconds))
-            : this.ResultItems.Select(static result => new BenchmarkElementMeasurement(
+        var measurements = this.GetResultSourceForDisplay()
+            .Select(static result => new BenchmarkElementMeasurement(
                 result.Project,
                 result.Method,
                 result.ElementCount,
@@ -1599,49 +1766,52 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             this.GetAdaptiveThreshold().TotalMilliseconds*1_000_000);
     }
 
-    private ProjectMetrics GetResultMetrics(string method,string project,int elementCount) {
-        if(this.HasCurrentRunResultsForSelectedTab) {
-            var currentRunResults = this.GetCurrentRunResultItemsForSelectedTab();
-            for(var index = currentRunResults.Count-1; index>=0; index--) {
-                var item = currentRunResults[index];
-                if(string.Equals(item.Method,method,StringComparison.OrdinalIgnoreCase)
-                    &&string.Equals(item.Project,project,StringComparison.OrdinalIgnoreCase)
-                    &&item.ElementCount==elementCount
-                    &&string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)) {
-                    return ProjectMetrics.FromMeasurement(item.MeanNanoseconds,item.AllocatedBytesValue);
-                }
-            }
-        }
+    private int? FindLatestCompletedPairElementCountBefore(string method,string leftProject,string rightProject,int selectedElementCount) {
+        var measurements = this.GetResultSourceForDisplay()
+            .Select(static result => new BenchmarkElementMeasurement(
+                result.Project,
+                result.Method,
+                result.ElementCount,
+                result.Status,
+                result.MeanNanoseconds));
+        return BenchmarkSkippedDisplayLogic.FindLatestCompletedPairElementCountBefore(
+            measurements,
+            method,
+            leftProject,
+            rightProject,
+            selectedElementCount);
+    }
 
-        var selectedRunResult = !this.HasCurrentRunResultsForSelectedTab
-            ? this.ResultItems.LastOrDefault(item => string.Equals(item.Method,method,StringComparison.OrdinalIgnoreCase)
+    private ProjectMetrics GetResultMetrics(string method,string project,int elementCount) {
+        var selectedRunResult = this.GetResultSourceForDisplay()
+            .LastOrDefault(item => string.Equals(item.Method,method,StringComparison.OrdinalIgnoreCase)
                 &&string.Equals(item.Project,project,StringComparison.OrdinalIgnoreCase)
                 &&item.ElementCount==elementCount
-                &&string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase))
-            : null;
+                &&string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+                &&item.MeanNanoseconds is not null);
         return selectedRunResult is not null
             ? ProjectMetrics.FromMeasurement(selectedRunResult.MeanNanoseconds,selectedRunResult.AllocatedBytesValue)
             : ProjectMetrics.Missing;
     }
 
     private BenchmarkResultItem? GetResultItem(string method,string project,int elementCount) {
-        var currentRunResults = this.GetCurrentRunResultItemsForSelectedTab();
-        for(var index = currentRunResults.Count-1; index>=0; index--) {
-            var item = currentRunResults[index];
-            if(IsResultMatch(item,method,project,elementCount)&&string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)) {
-                return item;
-            }
-        }
-
-        for(var index = this.ResultItems.Count-1; index>=0; index--) {
-            var item = this.ResultItems[index];
-            if(IsResultMatch(item,method,project,elementCount)&&string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)) {
+        var results = this.GetResultSourceForDisplay();
+        for(var index = results.Count-1; index>=0; index--) {
+            var item = results[index];
+            if(IsResultMatch(item,method,project,elementCount)
+                &&string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+                &&item.MeanNanoseconds is not null) {
                 return item;
             }
         }
 
         return null;
     }
+
+    private IReadOnlyList<BenchmarkResultItem> GetResultSourceForDisplay() =>
+        this.IsBenchmarkRunActive&&this.HasCurrentRunResultsForSelectedTab
+            ? this.GetCurrentRunResultItemsForSelectedTab()
+            : this.ResultItems;
 
     private ProgressState? LoadSelectedRunState() {
         var run = this.SelectedRunOption;
@@ -1684,16 +1854,34 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private void UpdateChart(bool preserveExistingWhenNoMeasuredPoints = true) {
         var elementComparisonRows = this.BuildElementComparisonRows();
         var points = this.BuildBenchmarkChartPoints(elementComparisonRows);
-        var hasMeasuredPoint = points.Any(static point => point.LeftValue>0||point.RightValue>0);
-        if(preserveExistingWhenNoMeasuredPoints&&this.ChartPoints.Count>0&&!hasMeasuredPoint) {
-            return;
+        // チャートは毎回全消しせず、既存ポイントを benchmark 単位で差し替えて再描画する。
+        this.SyncChartPoints(points.Reverse().ToArray());
+        this.ChartHeight=Math.Max(300,this.BenchmarkRows.Count*36+60);
+    }
+
+    private void SyncChartPoints(IReadOnlyList<ChartComparisonPoint> points) {
+        for(var index=0;index<points.Count;index++) {
+            var point = points[index];
+            if(index<this.ChartPoints.Count) {
+                if(this.ChartPoints[index].Benchmark==point.Benchmark
+                    &&this.ChartPoints[index].DisplayName==point.DisplayName
+                    &&Math.Abs(this.ChartPoints[index].LeftValue-point.LeftValue)<0.000001
+                    &&Math.Abs(this.ChartPoints[index].RightValue-point.RightValue)<0.000001
+                    &&this.ChartPoints[index].LeftText==point.LeftText
+                    &&this.ChartPoints[index].RightText==point.RightText
+                    &&this.ChartPoints[index].TooltipText==point.TooltipText) {
+                    continue;
+                }
+
+                this.ChartPoints[index]=point;
+            }else {
+                this.ChartPoints.Add(point);
+            }
         }
 
-        this.ChartPoints.Clear();
-        foreach(var item in points.Reverse()) {
-            this.ChartPoints.Add(item);
+        while(this.ChartPoints.Count>points.Count) {
+            this.ChartPoints.RemoveAt(this.ChartPoints.Count-1);
         }
-        this.ChartHeight=Math.Max(300,this.BenchmarkRows.Count*36+60);
     }
 
     private IReadOnlyList<ChartComparisonPoint> BuildBenchmarkChartPoints(IReadOnlyList<BenchmarkComparisonRow> rows) {
@@ -1709,10 +1897,27 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         BenchmarkComparisonRow? comparisonRow = rowsByBenchmark.TryGetValue(row.MethodName,out var found)
             ? found
             : null;
+        // まず比較 CSV の値を使い、足りないときだけセル保持値を fallback にする。
+        // これで完了後に一時的な Missing が混ざっても、前回の確定棒を消さない。
         var left = this.GetChartMetrics(row,this.SelectedComparisonPair.LeftProject,comparisonRow);
         var right = this.GetChartMetrics(row,this.SelectedComparisonPair.RightProject,comparisonRow);
         var leftValue = GetMetricValue(left,this.SelectedMetric.Kind);
         var rightValue = GetMetricValue(right,this.SelectedMetric.Kind);
+        var cacheKey = this.GetChartPointCacheKey(row.MethodName);
+        if(leftValue is not null&&rightValue is not null) {
+            var measuredPoint = this.CreateChartComparisonPoint(row.MethodName,leftValue,rightValue);
+            this.retainedChartPoints[cacheKey]=measuredPoint;
+            return this.ApplyChartRunningState(measuredPoint);
+        }
+
+        if(this.retainedChartPoints.TryGetValue(cacheKey,out var retainedPoint)) {
+            return this.ApplyChartRunningState(retainedPoint);
+        }
+
+        return this.ApplyChartRunningState(this.CreateChartComparisonPoint(row.MethodName,leftValue,rightValue));
+    }
+
+    private ChartComparisonPoint CreateChartComparisonPoint(string method,double? leftValue,double? rightValue) {
         var leftNumber = Math.Max(0,leftValue??0);
         var rightNumber = Math.Max(0,rightValue??0);
         var total = leftNumber+rightNumber;
@@ -1726,12 +1931,12 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             ? leftNumber/rightNumber
             : null;
         var metricName = this.SelectedMetric.Kind==BenchmarkMetricKind.Time?"処理時間":"メモリ";
-        var tooltip = row.MethodName+"\n"
+        var tooltip = method+"\n"
             +this.SelectedComparisonPair.LeftProject+" "+metricName+": "+FirstText(FormatMetric(leftValue,this.SelectedMetric.Kind),"-")+"\n"
             +this.SelectedComparisonPair.RightProject+" "+metricName+": "+FirstText(FormatMetric(rightValue,this.SelectedMetric.Kind),"-");
         return new ChartComparisonPoint(
-            row.MethodName,
-            BenchmarkFormatting.ShortName(row.MethodName),
+            method,
+            BenchmarkFormatting.ShortName(method),
             leftNumber,
             rightNumber,
             leftText,
@@ -1740,12 +1945,82 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             ratio);
     }
 
+    private string GetChartPointCacheKey(string method) =>
+        this.SelectedSourceDefinition.Id+"|"
+        +this.SelectedComparisonPair.LeftProject+"|"
+        +this.SelectedComparisonPair.RightProject+"|"
+        +this.SelectedMetric.Kind+"|"
+        +method;
+
+    private void ClearRetainedChartPoints() {
+        this.retainedChartPoints.Clear();
+    }
+
+    private ChartComparisonPoint ApplyChartRunningState(ChartComparisonPoint point) =>
+        point.WithRunningState(
+            this.IsBenchmarkRunActive&&string.Equals(point.Benchmark,this.activeChartMethodName,StringComparison.OrdinalIgnoreCase),
+            this.chartPointPulseActive);
+
+    private void ApplyChartRunningState() {
+        for(var index=0;index<this.ChartPoints.Count;index++) {
+            this.ChartPoints[index]=this.ApplyChartRunningState(this.ChartPoints[index]);
+        }
+    }
+
+    private void StartChartPointPulse() {
+        // 点滅は chart 全体ではなく、現在実行中の method の表示状態だけに使う。
+        this.chartPointPulseCancellation?.Cancel();
+        this.chartPointPulseCancellation?.Dispose();
+        var cancellation = new CancellationTokenSource();
+        this.chartPointPulseCancellation=cancellation;
+        _=this.PulseChartPointAsync(cancellation.Token);
+    }
+
+    private void StopChartPointPulse() {
+        // Run 終了時は点滅状態を必ず解除して、確定棒だけを残す。
+        this.chartPointPulseCancellation?.Cancel();
+        this.chartPointPulseCancellation?.Dispose();
+        this.chartPointPulseCancellation=null;
+        this.chartPointPulseActive=false;
+        this.ApplyChartRunningState();
+    }
+
+    private async Task PulseChartPointAsync(CancellationToken cancellationToken) {
+        try {
+            while(!cancellationToken.IsCancellationRequested) {
+                await Task.Delay(420,cancellationToken);
+                MainThread.BeginInvokeOnMainThread(() => {
+                    if(cancellationToken.IsCancellationRequested) {
+                        return;
+                    }
+
+                    this.chartPointPulseActive=!this.chartPointPulseActive;
+                    this.ApplyChartRunningState();
+                });
+            }
+        }
+        catch(OperationCanceledException) {
+        }
+    }
+
     private ProjectMetrics GetChartMetrics(
         BenchmarkTableRow row,
         string project,
         BenchmarkComparisonRow? comparisonRow) {
         if(this.SelectedResultElementCount is not null) {
-            return comparisonRow?.GetProject(project)??ProjectMetrics.Missing;
+            // N選択時は CSV の値を優先するが、比較行が欠けた瞬間でも
+            // 既にセルに残っている completed metrics があればそれを返す。
+            var comparisonMetrics = comparisonRow?.GetProject(project)??ProjectMetrics.Missing;
+            if(comparisonMetrics.HasMeasuredValue) {
+                return comparisonMetrics;
+            }
+
+            var retainedMetrics = row.GetProjectCell(project)?.Metrics;
+            if(retainedMetrics is { HasMeasuredValue: true }) {
+                return retainedMetrics.Value;
+            }
+
+            return ProjectMetrics.Missing;
         }
 
         var cellMetrics = row.GetProjectCell(project)?.Metrics;
@@ -1759,6 +2034,11 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private IReadOnlyList<BenchmarkComparisonRow> BuildElementComparisonRows() {
         var sourceTab = this.SelectedSourceDefinition;
         var selectedN = this.SelectedResultElementCount?.Value;
+        if(!this.IsBenchmarkRunActive) {
+            // 完了後は現在のライブ状態ではなく、復元済み comparisonRows をそのまま使う。
+            return this.comparisonRows;
+        }
+
         return selectedN is { } elementCount
             ? this.BuildCurrentRunComparisonRowsForElementCount(sourceTab,elementCount)
             : this.BuildCurrentRunComparisonRows(sourceTab);

@@ -112,6 +112,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     private bool isSelected;
     private bool isUiSelected;
     private bool isFailed;
+    private bool isCompletedWithoutMeasurement;
     private string statusIcon;
     private string statusText;
     private string elementCountText = string.Empty;
@@ -287,14 +288,25 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     public bool IsRunningVisual => BenchmarkProjectLiveStateLogic.IsRunning(this.LiveState);
 
     public void ApplyMetrics(ProjectMetrics value,bool preserveRetainedDisplay = false){
-        if(!value.HasMeasuredValue&&preserveRetainedDisplay&&this.metrics.HasMeasuredValue){
+        // preserveRetainedDisplay=true のときは、完了済みセルを Missing/待機に戻さない。
+        // 途中で比較行が欠けても、最後に見えていた確定値を画面上に残す。
+        if(!value.HasMeasuredValue&&preserveRetainedDisplay&&(this.metrics.HasMeasuredValue||this.isCompletedWithoutMeasurement||this.IsRunning)){
+            this.isFailed=false;
+            if(this.IsRunning){
+                this.LiveState=BenchmarkProjectLiveState.Running;
+            }else{
+                this.isCompletedWithoutMeasurement=!this.metrics.HasMeasuredValue;
+                this.LiveState=BenchmarkProjectLiveState.Completed;
+            }
             this.OnPropertyChanged(nameof(this.IsPendingVisual));
+            this.RefreshStatusDisplay();
             return;
         }
 
         if(!value.HasMeasuredValue){
             this.metrics=ProjectMetrics.Missing;
             this.isFailed=false;
+            this.isCompletedWithoutMeasurement=false;
             this.TimeText=string.Empty;
             this.AllocatedText=string.Empty;
             this.ElementCountText=string.Empty;
@@ -309,6 +321,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         }
 
         this.metrics=value;
+        this.isCompletedWithoutMeasurement=false;
         this.TimeText=FormatTime(value);
         this.AllocatedText=FormatAllocated(value);
         this.OnPropertyChanged(nameof(this.IsPendingVisual));
@@ -329,6 +342,11 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             this.ApplyMetrics(resultMetrics);
             if(string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)){
                 this.ApplyFailureDisplay(result.ElementCount,measuredAt);
+            }else if(string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)){
+                this.isCompletedWithoutMeasurement=true;
+                this.ElementCountText=FormatElementCount(result.ElementCount);
+                this.ExecutionText=FormatTimestamp(measuredAt);
+                this.RefreshExecutionTooltipText();
             }
         }
         this.IsRunning=false;
@@ -342,8 +360,31 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     public void ApplyRunResult(BenchmarkResultItem result,CpuSelectionItem? cpu,DateTimeOffset completedAt,bool highlightCompleted = true){
         var isCompleted = string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase);
         var isFailed = string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase);
+        var isRunning = string.Equals(result.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase);
+        if(isRunning){
+            // Running は確定値の更新ではなく、実行中の状態表示だけを切り替える。
+            this.IsRunning=true;
+            this.ApplyCpuDisplay(cpu);
+            this.LiveState=BenchmarkProjectLiveState.Running;
+            this.RefreshStatusDisplay();
+            return;
+        }
+
+        if(result.ElementCount<=0){
+            // ElementCount=0 の callback は比較表/チャートの確定データとして扱わない。
+            this.IsRunning=false;
+            this.ApplyCpuDisplay(cpu);
+            this.LiveState=this.Metrics.HasMeasuredValue||this.isCompletedWithoutMeasurement
+                ? BenchmarkProjectLiveState.Completed
+                : BenchmarkProjectLiveState.Idle;
+            this.RefreshStatusDisplay();
+            return;
+        }
+
         if(isCompleted&&result.MeanNanoseconds is not null){
+            // Completed かつ測定値ありだけが、棒グラフと表の確定値を更新する。
             this.isFailed=false;
+            this.isCompletedWithoutMeasurement=false;
             this.lastMeasuredAt=completedAt;
             this.ApplySuccessfulDisplay(
                 ProjectMetrics.FromMeasurement(result.MeanNanoseconds,result.AllocatedBytesValue),
@@ -351,18 +392,26 @@ public sealed class BenchmarkProjectCell:ObservableObject{
                 completedAt,
                 highlightCompleted ? BenchmarkMeasurementHighlightState.Fresh : BenchmarkMeasurementHighlightState.None);
             this.ClearFailureDisplay();
+        }else if(isCompleted){
+            // Completed でも測定値がない場合は、待機に戻さず「測定値なし」として終端表示する。
+            this.isFailed=false;
+            this.isCompletedWithoutMeasurement=true;
+            this.lastMeasuredAt=completedAt;
+            this.ElementCountText=FormatElementCount(result.ElementCount);
+            this.ExecutionText=FormatTimestamp(completedAt);
+            this.RefreshExecutionTooltipText();
+            this.ClearFailureDisplay();
         }else if(isFailed){
             this.isFailed=true;
+            this.isCompletedWithoutMeasurement=false;
             this.lastMeasuredAt=completedAt;
             this.ApplyFailureDisplay(result.ElementCount,completedAt);
         }
-        this.IsRunning=string.Equals(result.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase);
+        this.IsRunning=false;
         this.ApplyCpuDisplay(cpu);
-        this.LiveState=this.IsRunning
-            ? BenchmarkProjectLiveState.Running
-            : string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-                ? BenchmarkProjectLiveState.Completed
-                : BenchmarkProjectLiveState.Idle;
+        this.LiveState=isCompleted
+            ? BenchmarkProjectLiveState.Completed
+            : BenchmarkProjectLiveState.Idle;
         this.RefreshStatusDisplay();
     }
 
@@ -371,7 +420,9 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     }
 
     public void ApplySkipped(int stoppedAtElementCount,ProjectMetrics stoppedMetrics,CpuSelectionItem? cpu,DateTimeOffset? measuredAt,bool metadataMissing){
+        // adaptive で止まった行は、低い N の completed metrics をそのまま表示する。
         this.metrics=stoppedMetrics;
+        this.isCompletedWithoutMeasurement=false;
         this.TimeText=FormatTime(stoppedMetrics);
         this.AllocatedText=FormatAllocated(stoppedMetrics);
         this.IsRunning=false;
@@ -396,7 +447,10 @@ public sealed class BenchmarkProjectCell:ObservableObject{
 
     public void ClearLiveState(){
         this.IsRunning=false;
-        this.LiveState=BenchmarkProjectLiveState.Idle;
+        this.LiveState=this.Metrics.HasMeasuredValue||this.isCompletedWithoutMeasurement
+            ? BenchmarkProjectLiveState.Completed
+            : BenchmarkProjectLiveState.Idle;
+        this.RefreshStatusDisplay();
     }
 
     public void RetainCompletedHighlightForRunningElement(int runningElementCount){
@@ -413,6 +467,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     public void ClearMetrics(){
         this.metrics=ProjectMetrics.Missing;
         this.isFailed=false;
+        this.isCompletedWithoutMeasurement=false;
         this.lastSuccessfulElementCount=null;
         this.lastMeasuredAt=null;
         this.lastFailedElementCount=null;
@@ -439,6 +494,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         BenchmarkMeasurementHighlightState highlightState){
         this.metrics=value;
         this.isFailed=false;
+        this.isCompletedWithoutMeasurement=false;
         this.lastSuccessfulElementCount=elementCount;
         this.lastMeasuredAt=measuredAt;
         this.TimeText=FormatTime(value);
@@ -453,6 +509,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
 
     private void ApplyFailureDisplay(int elementCount,DateTimeOffset failedAt){
         this.isFailed=true;
+        this.isCompletedWithoutMeasurement=false;
         this.lastFailedElementCount=elementCount;
         this.lastFailedAt=failedAt;
         this.ElementCountText=FormatElementCount(elementCount);
@@ -500,6 +557,9 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         }else if(this.Metrics.HasMeasuredValue){
             this.StatusIcon="✓";
             this.StatusText="完了";
+        }else if(this.isCompletedWithoutMeasurement){
+            this.StatusIcon="!";
+            this.StatusText="測定値なし";
         }else if(this.IsSelected){
             this.StatusIcon="⏳";
             this.StatusText="待機";
@@ -762,6 +822,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
     public void ApplyRunResult(BenchmarkResultItem result,CpuSelectionItem? cpu,DateTimeOffset completedAt,bool highlightCompleted = true){
         if(this.GetProjectCell(result.Project) is { } cell){
             cell.ApplyRunResult(result,cpu,completedAt,highlightCompleted);
+            this.SetProjectMetricText(result.Project,FormatTime(cell.Metrics),FormatAllocated(cell.Metrics));
         }
     }
 
@@ -818,17 +879,18 @@ public sealed class BenchmarkTableRow:ObservableObject{
         }
 
         var value = row.Value;
+        // 比較 CSV の値があるときだけ比較ラベルを更新し、セルの保持値は別に残す。
         this.ClearStopNText();
         this.PairRatioTimeText=FormatRatio(value.PairRatio.TimeRatio);
         this.PairRatioAllocatedText=FormatRatio(value.PairRatio.AllocatedRatio);
         var left = value.GetProject(this.SourceTab.LeftProject);
         var right = value.GetProject(this.SourceTab.RightProject);
-        this.LeftTimeText=FormatTime(left);
-        this.LeftAllocatedText=FormatAllocated(left);
         this.LeftCell.ApplyMetrics(left,preserveRetainedDisplay);
-        this.RightTimeText=FormatTime(right);
-        this.RightAllocatedText=FormatAllocated(right);
         this.RightCell.ApplyMetrics(right,preserveRetainedDisplay);
+        this.LeftTimeText=FormatTime(this.LeftCell.Metrics);
+        this.LeftAllocatedText=FormatAllocated(this.LeftCell.Metrics);
+        this.RightTimeText=FormatTime(this.RightCell.Metrics);
+        this.RightAllocatedText=FormatAllocated(this.RightCell.Metrics);
     }
 
     public BenchmarkSortValue GetSortValue(BenchmarkGridSortColumn column){
@@ -849,10 +911,18 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.PairRatioTimeText=string.Empty;
         this.PairRatioAllocatedText=string.Empty;
         this.stopNText=string.Empty;
-        this.LeftTimeText=string.Empty;
-        this.LeftAllocatedText=string.Empty;
-        this.RightTimeText=string.Empty;
-        this.RightAllocatedText=string.Empty;
+        if(preserveRetainedDisplay){
+            // 実行中/完了後は、比較行が消えてもセルの確定値を維持する。
+            this.LeftTimeText=FormatTime(this.LeftCell.Metrics);
+            this.LeftAllocatedText=FormatAllocated(this.LeftCell.Metrics);
+            this.RightTimeText=FormatTime(this.RightCell.Metrics);
+            this.RightAllocatedText=FormatAllocated(this.RightCell.Metrics);
+        }else{
+            this.LeftTimeText=string.Empty;
+            this.LeftAllocatedText=string.Empty;
+            this.RightTimeText=string.Empty;
+            this.RightAllocatedText=string.Empty;
+        }
         this.OnPropertyChanged(nameof(this.StopNText));
         foreach(var cell in this.ProjectCells){
             if(!preserveRetainedDisplay){
@@ -1374,25 +1444,59 @@ public sealed class ChartComparisonPoint{
         string leftText,
         string rightText,
         string tooltipText,
-        double? ratio){
+        double? ratio)
+        : this(benchmark,displayName,leftValue,rightValue,leftText,rightText,tooltipText,ratio,false,false){
+    }
+
+    private ChartComparisonPoint(
+        string benchmark,
+        string displayName,
+        double leftValue,
+        double rightValue,
+        string leftText,
+        string rightText,
+        string tooltipText,
+        double? ratio,
+        bool isRunning,
+        bool isRunningPulseActive){
         this.Benchmark=benchmark;
-        this.DisplayName=displayName;
+        this.BaseDisplayName=displayName;
         this.LeftValue=leftValue;
         this.RightValue=rightValue;
         this.LeftText=leftText;
         this.RightText=rightText;
         this.TooltipText=tooltipText;
         this.Ratio=ratio;
+        this.IsRunning=isRunning;
+        this.IsRunningPulseActive=isRunningPulseActive;
     }
 
     public string Benchmark { get; }
-    public string DisplayName { get; }
+    public string BaseDisplayName { get; }
+    public string DisplayName => this.IsRunning
+        ? (this.IsRunningPulseActive ? "● " : "○ ")+this.BaseDisplayName
+        : this.BaseDisplayName;
     public double LeftValue { get; }
     public double RightValue { get; }
     public string LeftText { get; }
     public string RightText { get; }
     public string TooltipText { get; }
     public double? Ratio { get; }
+    public bool IsRunning { get; }
+    public bool IsRunningPulseActive { get; }
+
+    public ChartComparisonPoint WithRunningState(bool isRunning,bool isRunningPulseActive) =>
+        new(
+            this.Benchmark,
+            this.BaseDisplayName,
+            this.LeftValue,
+            this.RightValue,
+            this.LeftText,
+            this.RightText,
+            this.TooltipText,
+            this.Ratio,
+            isRunning,
+            isRunning&&isRunningPulseActive);
 }
 
 public sealed record BenchmarkRunReport(string? RunRoot,IReadOnlyList<string> CsvPaths){
