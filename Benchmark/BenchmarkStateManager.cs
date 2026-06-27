@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 
 namespace Benchmark;
@@ -22,6 +23,30 @@ internal sealed class BenchmarkStateManager {
 
     public string BenchmarkRoot => this.benchmarkRoot;
 
+    public string CreateNextRunRoot(){
+        Directory.CreateDirectory(this.benchmarkRoot);
+        var next = Directory.EnumerateDirectories(this.benchmarkRoot)
+            .Select(static path => TryParseRunNumber(path))
+            .DefaultIfEmpty(0)
+            .Max()+1;
+        while(true){
+            var runRoot = Path.Combine(this.benchmarkRoot,next.ToString("D6",CultureInfo.InvariantCulture));
+            if(!Directory.Exists(runRoot)){
+                Directory.CreateDirectory(runRoot);
+                return runRoot;
+            }
+
+            next++;
+        }
+    }
+
+    public static int TryParseRunNumber(string runRoot){
+        var name = Path.GetFileName(Path.TrimEndingDirectorySeparator(runRoot));
+        return name.Length==6&&int.TryParse(name,NumberStyles.None,CultureInfo.InvariantCulture,out var number)
+            ? number
+            : 0;
+    }
+
     public ProgressState? LoadLatestUnfinished() {
         var marker = this.LoadLatestMarker();
         if(marker is null||string.IsNullOrWhiteSpace(marker.RunRoot)) {
@@ -41,9 +66,9 @@ internal sealed class BenchmarkStateManager {
         var state = JsonSerializer.Deserialize<ProgressState>(File.ReadAllText(path),JsonOptions)
             ??throw new InvalidDataException("Progress state is empty.");
         var changed = false;
-        foreach(var job in state.Jobs.Where(static job => job.Status==JobStatus.Running)) {
+        foreach(var job in state.Jobs.Where(static job => job.Status is JobStatus.Running or JobStatus.Paused)) {
             job.Status=JobStatus.Failed;
-            job.FailureReason="Crash/OOM or process termination while job was Running.";
+            job.FailureReason="Crash/OOM or process termination while job was Running or Paused.";
             job.FinishedAt=DateTimeOffset.UtcNow;
             changed=true;
         }

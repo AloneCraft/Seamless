@@ -1445,7 +1445,7 @@ public sealed class ChartComparisonPoint{
         string rightText,
         string tooltipText,
         double? ratio)
-        : this(benchmark,displayName,leftValue,rightValue,leftText,rightText,tooltipText,ratio,false,false){
+        : this(benchmark,displayName,leftValue,rightValue,leftText,rightText,tooltipText,ratio,false){
     }
 
     private ChartComparisonPoint(
@@ -1457,8 +1457,7 @@ public sealed class ChartComparisonPoint{
         string rightText,
         string tooltipText,
         double? ratio,
-        bool isRunning,
-        bool isRunningPulseActive){
+        bool isRunning){
         this.Benchmark=benchmark;
         this.BaseDisplayName=displayName;
         this.LeftValue=leftValue;
@@ -1468,13 +1467,12 @@ public sealed class ChartComparisonPoint{
         this.TooltipText=tooltipText;
         this.Ratio=ratio;
         this.IsRunning=isRunning;
-        this.IsRunningPulseActive=isRunningPulseActive;
     }
 
     public string Benchmark { get; }
     public string BaseDisplayName { get; }
     public string DisplayName => this.IsRunning
-        ? (this.IsRunningPulseActive ? "● " : "○ ")+this.BaseDisplayName
+        ? "● "+this.BaseDisplayName
         : this.BaseDisplayName;
     public double LeftValue { get; }
     public double RightValue { get; }
@@ -1483,9 +1481,8 @@ public sealed class ChartComparisonPoint{
     public string TooltipText { get; }
     public double? Ratio { get; }
     public bool IsRunning { get; }
-    public bool IsRunningPulseActive { get; }
 
-    public ChartComparisonPoint WithRunningState(bool isRunning,bool isRunningPulseActive) =>
+    public ChartComparisonPoint WithRunningState(bool isRunning) =>
         new(
             this.Benchmark,
             this.BaseDisplayName,
@@ -1495,8 +1492,7 @@ public sealed class ChartComparisonPoint{
             this.RightText,
             this.TooltipText,
             this.Ratio,
-            isRunning,
-            isRunning&&isRunningPulseActive);
+            isRunning);
 }
 
 public sealed record BenchmarkRunReport(string? RunRoot,IReadOnlyList<string> CsvPaths){

@@ -23,6 +23,12 @@
   <ItemGroup>
     <MauiIcon Include="Resources\AppIcon\appicon.svg" />
     <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#1F2937" BaseSize="128,128" />
+    <MauiImage Include="Resources\Images\play.svg" BaseSize="24,24" />
+    <MauiImage Include="Resources\Images\pause.svg" BaseSize="24,24" />
+    <MauiImage Include="Resources\Images\stop.svg" BaseSize="24,24" />
+    <MauiImage Include="Resources\Images\save.svg" BaseSize="24,24" />
+    <MauiImage Include="Resources\Images\save_as.svg" BaseSize="24,24" />
+    <MauiImage Include="Resources\Images\open.svg" BaseSize="24,24" />
   </ItemGroup>
 
   <ItemGroup>
