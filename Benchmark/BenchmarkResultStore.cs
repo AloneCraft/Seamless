@@ -22,17 +22,6 @@ public sealed record BenchmarkStoredResult(
             : ProjectMetrics.Missing;
 }
 
-public sealed record BenchmarkRunOption(
-    int RunNumber,
-    string DisplayName,
-    string RunRoot,
-    BenchmarkExecutionProfile ExecutionProfile,
-    DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt,
-    int CompletedJobs,
-    int TotalJobs,
-    IReadOnlyList<int> ElementCounts);
-
 public sealed record BenchmarkCsvScanResult(
     IReadOnlyList<BenchmarkRunOption> RunOptions,
     IReadOnlyList<BenchmarkStoredResult> Results);

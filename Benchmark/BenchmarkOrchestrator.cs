@@ -439,7 +439,7 @@ internal sealed class BenchmarkOrchestrator {
             Mode=request.Mode,
             ExecutionProfile=request.ExecutionProfile,
             RunRoot=runRoot,
-            RunNumber=TryParseRunNumber(runRoot),
+            RunNumber=BenchmarkStateManager.TryParseRunNumber(runRoot),
             SourceTab=request.SourceTab,
             ElementCounts=request.ElementCounts.Distinct().Order().ToList(),
             AdaptiveThresholdNanoseconds=request.AdaptiveThreshold.TotalMilliseconds*1_000_000,
@@ -464,34 +464,11 @@ internal sealed class BenchmarkOrchestrator {
         return state;
     }
 
-    private string CreateNextRunRoot(){
-        Directory.CreateDirectory(this.stateManager.BenchmarkRoot);
-        var next = Directory.EnumerateDirectories(this.stateManager.BenchmarkRoot)
-            .Select(static path => TryParseRunNumber(path))
-            .DefaultIfEmpty(0)
-            .Max()+1;
-        while(true){
-            var runRoot = Path.Combine(this.stateManager.BenchmarkRoot,next.ToString("D6",CultureInfo.InvariantCulture));
-            if(!Directory.Exists(runRoot)){
-                Directory.CreateDirectory(runRoot);
-                return runRoot;
-            }
-
-            next++;
-        }
-    }
-
-    private static int TryParseRunNumber(string runRoot){
-        var name = Path.GetFileName(Path.TrimEndingDirectorySeparator(runRoot));
-        return name.Length==6
-            &&int.TryParse(name,NumberStyles.None,CultureInfo.InvariantCulture,out var number)
-                ? number
-                : 0;
-    }
+    private string CreateNextRunRoot() => this.stateManager.CreateNextRunRoot();
 
     private void ReconcileStateWithRequest(ProgressState state,BenchmarkRunRequest request) {
         if(state.RunNumber<=0){
-            state.RunNumber=TryParseRunNumber(state.RunRoot);
+            state.RunNumber=BenchmarkStateManager.TryParseRunNumber(state.RunRoot);
         }
         state.Mode=request.Mode;
         state.ExecutionProfile=request.ExecutionProfile;
@@ -716,7 +693,7 @@ internal sealed class BenchmarkOrchestrator {
 [global::Seamless.FLinq.LinqIntercept(false)]
 #endif
 internal static class BenchmarkElementCounts {
-    internal const int BaseElementCount = 1024;
+    internal const int BaseElementCount = 4096;
 
     public static IReadOnlyList<int> All { get; } =
         Enumerable.Range(10,14).Select(static exponent => 1<<exponent).ToArray();

@@ -89,41 +89,41 @@ public sealed class MainPage:ContentPage{
             return true;
         }
 
-        if(this.viewModel.IsBenchmarkRunActive){
+        if(this.viewModel.IsBenchmarkRunActive||this.viewModel.IsBenchmarkPaused){
             var shouldClose = await this.DisplayAlert(
-                "Benchmark is running",
-                "Stop the running benchmark worker and close the application?",
-                "OK",
-                "Cancel");
+                "終了確認",
+                "ベンチマークを中止して終了しますか？",
+                "はい",
+                "いいえ");
             if(!shouldClose){
                 return false;
             }
 
             this.viewModel.StatusText="Stopping before close...";
-            await this.viewModel.CancelAndWaitAsync();
+            await this.viewModel.StopAsync();
         }
 
-        if(!this.viewModel.HasPendingCloseStateSave){
+        if(!this.viewModel.HasUnsavedBenchmarkResults){
             return true;
         }
 
         var shouldSave = await this.DisplayAlert(
-            "ベンチマーク状態の保存",
-            "保存して閉じますか?",
-            "保存して閉じる",
-            "保存せずに閉じる");
+            "保存確認",
+            "保存しますか？",
+            "はい",
+            "いいえ");
         if(shouldSave){
-            this.viewModel.SaveUiState();
+            await this.viewModel.SaveCurrentBenchmarkResultsAsync(true);
             return true;
         }
 
-        var shouldDiscard = await this.DisplayAlert(
-            "保存せずに閉じる",
-            "保存せずに閉じますか?",
-            "保存せずに閉じる",
-            "キャンセル");
-        if(shouldDiscard){
-            this.viewModel.DiscardPendingCloseStateSave();
+        var shouldExit = await this.DisplayAlert(
+            "終了確認",
+            "終了しますか？",
+            "はい",
+            "いいえ");
+        if(shouldExit){
+            this.viewModel.DiscardUnsavedBenchmarkResults();
             return true;
         }
 
@@ -151,6 +151,8 @@ public sealed class MainPage:ContentPage{
             new BenchmarkResultStore(benchmarkRoot),
             new BenchmarkCsvDiscoveryService(csvService),
             new BenchmarkUiStateStore(benchmarkRoot),
+            new BenchmarkRunPersistenceService(),
+            new PageBenchmarkInteractionService(this),
             benchmarkRoot);
     }
 
@@ -166,9 +168,114 @@ public sealed class MainPage:ContentPage{
         return null;
     }
 
+    private sealed class PageBenchmarkInteractionService:IBenchmarkInteractionService{
+        private readonly MainPage page;
+
+        public PageBenchmarkInteractionService(MainPage page){
+            this.page=page;
+        }
+
+        public async Task<BenchmarkUnsavedChangeDecision> ConfirmUnsavedChangeAsync(string operationName){
+            var result = await this.page.DisplayActionSheet(
+                "未保存のベンチマーク結果があります。"+operationName+"か？",
+                "キャンセル",
+                null,
+                "保存して続行",
+                "破棄して続行");
+            return result switch{
+                "保存して続行" => BenchmarkUnsavedChangeDecision.SaveAndContinue,
+                "破棄して続行" => BenchmarkUnsavedChangeDecision.DiscardAndContinue,
+                _ => BenchmarkUnsavedChangeDecision.Cancel,
+            };
+        }
+
+        public Task<bool> ConfirmOverwriteExportAsync(string folder) =>
+            this.page.DisplayAlert(
+                "上書き確認",
+                "選択したフォルダには既存のベンチマーク出力があります。上書きしますか？",
+                "上書き",
+                "キャンセル");
+
+        public async Task<BenchmarkOpenTarget?> PickOpenTargetAsync(){
+            var result = await this.page.DisplayActionSheet(
+                "開く",
+                "キャンセル",
+                null,
+                "CSVを開く",
+                "フォルダを開く");
+            if(result=="CSVを開く"){
+                var file = await FilePicker.PickAsync(new PickOptions{
+                    PickerTitle="BenchmarkComparison.csv",
+                    FileTypes=new FilePickerFileType(new Dictionary<DevicePlatform,IEnumerable<string>>{
+                        { DevicePlatform.WinUI, [".csv"] },
+                        { DevicePlatform.macOS, ["csv"] },
+                        { DevicePlatform.MacCatalyst, ["public.comma-separated-values-text"] },
+                    }),
+                });
+                return file is null ? null : new BenchmarkOpenTarget(BenchmarkOpenTargetKind.Csv,file.FullPath);
+            }
+
+            if(result=="フォルダを開く"){
+                var folder = await this.PickFolderAsync();
+                return string.IsNullOrWhiteSpace(folder) ? null : new BenchmarkOpenTarget(BenchmarkOpenTargetKind.Folder,folder);
+            }
+
+            return null;
+        }
+
+        public Task<string?> PickSaveFolderAsync() => this.PickFolderAsync();
+
+        private async Task<string?> PickFolderAsync(){
+#if WINDOWS
+            var window = this.page.Window?.Handler?.PlatformView as Microsoft.UI.Xaml.Window;
+            if(window is null){
+                return null;
+            }
+
+            var picker = new Windows.Storage.Pickers.FolderPicker();
+            picker.FileTypeFilter.Add("*");
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker,hwnd);
+            var folder = await picker.PickSingleFolderAsync();
+            return folder?.Path;
+#else
+            await this.page.DisplayAlert("未対応","フォルダ選択はWindowsのみ対応です。","OK");
+            return null;
+#endif
+        }
+    }
+
     private View CreateToolbar(){
-        var runToggleButton = this.CommandButton("実行",nameof(BenchmarkRunnerViewModel.ToggleRunCommand));
-        this.BindRunToggleButtonState(runToggleButton);
+        var runButton = this.CreateToolbarIconButton(
+            "play.png",
+            nameof(BenchmarkRunnerViewModel.RunCommand),
+            nameof(BenchmarkRunnerViewModel.RunButtonText));
+        this.BindToolbarButtonState(runButton,ToolbarButtonRole.Run);
+        var stopButton = this.CreateToolbarIconButton(
+            "stop.png",
+            nameof(BenchmarkRunnerViewModel.StopCommand),
+            "停止");
+        this.BindToolbarButtonState(stopButton,ToolbarButtonRole.Stop);
+        var pauseButton = this.CreateToolbarIconButton(
+            "pause.png",
+            nameof(BenchmarkRunnerViewModel.PauseCommand),
+            "一時停止");
+        this.BindToolbarButtonState(pauseButton,ToolbarButtonRole.Pause);
+        var saveButton = this.CreateToolbarIconButton(
+            "save.png",
+            nameof(BenchmarkRunnerViewModel.SaveCommand),
+            "保存");
+        this.BindToolbarButtonState(saveButton,ToolbarButtonRole.Save);
+        var saveAsButton = this.CreateToolbarIconButton(
+            "save_as.png",
+            nameof(BenchmarkRunnerViewModel.SaveAsCommand),
+            "名前を付けて保存");
+        this.BindToolbarButtonState(saveAsButton,ToolbarButtonRole.SaveAs);
+        var openButton = this.CreateToolbarIconButton(
+            "open.png",
+            nameof(BenchmarkRunnerViewModel.OpenCommand),
+            "開く");
+        this.BindToolbarButtonState(openButton,ToolbarButtonRole.Open);
 
         var thresholdPicker = new Picker{
             WidthRequest=112,
@@ -209,6 +316,11 @@ public sealed class MainPage:ContentPage{
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Auto },
             },
             ColumnSpacing=6,
         };
@@ -216,47 +328,76 @@ public sealed class MainPage:ContentPage{
         grid.Add(thresholdPicker,1,0);
         grid.Add(this.ToolbarLabel("Mode"),2,0);
         grid.Add(executionProfilePicker,3,0);
-        grid.Add(runToggleButton,4,0);
-        grid.Add(this.ToolbarLabel("結果"),5,0);
-        grid.Add(runPicker,6,0);
+        grid.Add(runButton,4,0);
+        grid.Add(stopButton,5,0);
+        grid.Add(pauseButton,6,0);
+        grid.Add(saveButton,7,0);
+        grid.Add(saveAsButton,8,0);
+        grid.Add(openButton,9,0);
+        grid.Add(this.ToolbarLabel("結果"),10,0);
+        grid.Add(runPicker,11,0);
         return grid;
     }
 
-    private Button CommandButton(string text,string commandPath){
-        var button = new Button{
-            Text=text,
-            Padding=new Thickness(9,3),
-            MinimumHeightRequest=28,
+    private ImageButton CreateToolbarIconButton(string imageSource,string commandPath,string tooltipText){
+        var button = new ImageButton{
+            Source=ImageSource.FromFile(imageSource),
+            WidthRequest=30,
             HeightRequest=30,
-            FontSize=12,
+            BackgroundColor=Color.FromArgb("#F8FAFC"),
+            BorderColor=Color.FromArgb("#CBD5E1"),
+            BorderWidth=1,
+            CornerRadius=6,
+            Padding=new Thickness(5),
             Margin=new Thickness(0),
+            Aspect=Aspect.AspectFit,
         };
-        button.SetBinding(Button.CommandProperty,commandPath);
+        button.SetBinding(ImageButton.CommandProperty,commandPath);
+        if(tooltipText==nameof(BenchmarkRunnerViewModel.RunButtonText)){
+            button.SetBinding(ToolTipProperties.TextProperty,nameof(BenchmarkRunnerViewModel.RunButtonText));
+        }else{
+            button.SetValue(ToolTipProperties.TextProperty,tooltipText);
+        }
         return button;
     }
 
-    private void BindRunToggleButtonState(Button button){
+    private enum ToolbarButtonRole {
+        Run,
+        Stop,
+        Pause,
+        Save,
+        SaveAs,
+        Open,
+    }
+
+    private void BindToolbarButtonState(ImageButton button,ToolbarButtonRole role){
         void Apply(){
             if(this.viewModel is null){
                 return;
             }
 
-            var isRunning=this.viewModel.IsBenchmarkRunActive;
-            button.Text=this.viewModel.RunToggleText;
-            button.BackgroundColor=isRunning ? Color.FromArgb("#4C1D95") : Color.FromArgb("#F8FAFC");
-            button.TextColor=isRunning ? Colors.White : Color.FromArgb("#0F172A");
-            button.BorderColor=isRunning ? Color.FromArgb("#7C3AED") : Color.FromArgb("#CBD5E1");
-            button.BorderWidth=isRunning ? 2 : 1;
-            button.Padding=isRunning ? new Thickness(8,5,10,2) : new Thickness(9,3);
-            button.TranslationY=isRunning ? 2 : 0;
-            button.FontAttributes=isRunning ? FontAttributes.Bold : FontAttributes.None;
+            var isActive=this.viewModel.IsBenchmarkRunActive;
+            button.IsEnabled=role switch{
+                ToolbarButtonRole.Run => !this.viewModel.IsRefreshing,
+                ToolbarButtonRole.Stop => isActive||this.viewModel.IsBenchmarkPaused,
+                ToolbarButtonRole.Pause => isActive,
+                ToolbarButtonRole.Save => this.viewModel.CanSaveBenchmarkResults,
+                ToolbarButtonRole.SaveAs => this.viewModel.CanSaveAsBenchmarkResults,
+                ToolbarButtonRole.Open => !this.viewModel.IsRefreshing&&!isActive,
+                _ => !this.viewModel.IsRefreshing,
+            };
+            button.Opacity=button.IsEnabled ? 1 : 0.45;
         }
 
         Apply();
         if(this.viewModel is not null){
             this.viewModel.PropertyChanged+=(_,args) => {
                 if(args.PropertyName==nameof(BenchmarkRunnerViewModel.IsBenchmarkRunActive)
-                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.RunToggleText)){
+                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.IsBenchmarkPaused)
+                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.IsRefreshing)
+                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.CanSaveBenchmarkResults)
+                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.CanSaveAsBenchmarkResults)
+                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.HasUnsavedBenchmarkResults)){
                     MainThread.BeginInvokeOnMainThread(Apply);
                 }
             };

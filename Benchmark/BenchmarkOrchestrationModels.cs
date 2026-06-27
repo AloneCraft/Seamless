@@ -13,6 +13,7 @@ public sealed record BenchmarkCase(
 public enum JobStatus {
     Pending,
     Running,
+    Paused,
     Completed,
     Failed,
 }

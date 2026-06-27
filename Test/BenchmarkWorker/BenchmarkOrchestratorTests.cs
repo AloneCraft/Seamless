@@ -925,10 +925,10 @@ public sealed class BenchmarkOrchestratorTests{
 
     [Fact]
     public void BenchmarkElementCounts_StartsAdaptiveWorkloadAtBaseElementCount(){
-        Assert.Equal(BenchmarkElementCounts.BaseElementCount,BenchmarkElementCounts.All[0]);
+        Assert.Contains(BenchmarkElementCounts.BaseElementCount,BenchmarkElementCounts.All);
         Assert.Equal(BenchmarkElementCounts.BaseElementCount,BenchmarkElementCounts.DefaultInitial[0]);
         Assert.Equal([BenchmarkElementCounts.BaseElementCount],BenchmarkElementCounts.DefaultInitial);
-        Assert.Equal(1024,BenchmarkElementCounts.BaseElementCount);
+        Assert.Equal(4096,BenchmarkElementCounts.BaseElementCount);
     }
 
     [Fact]
