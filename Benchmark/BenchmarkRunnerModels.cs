@@ -156,8 +156,8 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.Project=project;
         this.HasCase=hasCase;
         this.isSelected=hasCase;
-        this.statusIcon=hasCase?"笳・:"-";
-        this.statusText=hasCase?"譛ｪ螳溯｡・:"蟇ｾ雎｡縺ｪ縺・;
+        this.statusIcon=hasCase?"○":"-";
+        this.statusText=hasCase?"未実行":"対象なし";
     }
 
     public event EventHandler? UiSelectionChanged;
@@ -300,8 +300,8 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.AllocatedText=FormatAllocated(value);
         this.OnPropertyChanged(nameof(this.IsPendingVisual));
         if(value.HasMeasuredValue&&!this.IsRunning){
-            this.StatusIcon="笨・;
-            this.StatusText="螳御ｺ・;
+            this.StatusIcon="✓";
+            this.StatusText="完了";
         }
     }
 
@@ -320,13 +320,13 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         }
         this.IsRunning=false;
         if(string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)){
-            this.StatusIcon="笨・;
-            this.StatusText="螳御ｺ・;
+            this.StatusIcon="✓";
+            this.StatusText="完了";
         }else if(string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)){
-            this.StatusIcon="ﾃ・;
-            this.StatusText="螟ｱ謨・;
+            this.StatusIcon="×";
+            this.StatusText="失敗";
         }else{
-            this.StatusIcon="笳・;
+            this.StatusIcon="○";
             this.StatusText=result.Status;
         }
         this.LiveState=BenchmarkProjectLiveState.Idle;
@@ -351,18 +351,18 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         }
         this.IsRunning=string.Equals(result.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase);
         this.StatusIcon=this.IsRunning
-            ? "筺ｳ"
+            ? "●"
             : string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-                ? "笨・
+                ? "✓"
                 : string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)
-                    ? "ﾃ・
-                    : "笳・;
+                    ? "×"
+                    : "○";
         this.StatusText=this.IsRunning
-            ? "螳溯｡御ｸｭ"
+            ? "実行中"
             : string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-                ? "螳御ｺ・
+                ? "完了"
                 : string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)
-                    ? "螟ｱ謨・
+                    ? "失敗"
                     : result.Status;
         this.ApplyCpuDisplay(cpu);
         this.LiveState=this.IsRunning
@@ -416,8 +416,8 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.ElementCountText=string.Empty;
         this.ClearLiveState();
         if(this.HasCase){
-            this.StatusIcon="笳・;
-            this.StatusText="譛ｪ螳溯｡・;
+            this.StatusIcon="○";
+            this.StatusText="未実行";
             this.ExecutionText=string.Empty;
             this.FailureExecutionText=string.Empty;
             this.ExecutionTooltipText=string.Empty;
@@ -460,7 +460,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
 
     private void RefreshExecutionTooltipText(){
         var failureText = this.lastFailedElementCount is { } failedN&&this.lastFailedAt is { } failedAt
-            ? "螟ｱ謨・"+FormatElementCount(failedN)+" "+FormatTimestamp(failedAt)
+            ? "失敗 "+FormatElementCount(failedN)+" "+FormatTimestamp(failedAt)
             : string.Empty;
         this.ExecutionTooltipText=string.Join(
             Environment.NewLine,
@@ -1074,8 +1074,8 @@ public sealed class BenchmarkTableRow:ObservableObject{
 
 public sealed class CpuSelectionItem:ObservableObject{
     private bool isSelected;
-    private string runStatusText = "蠕・ｩ・;
-    private string runIcon = "笳・;
+    private string runStatusText = "待機";
+    private string runIcon = "○";
     private string currentJobText = string.Empty;
     private bool isRunningJob;
 
@@ -1429,7 +1429,7 @@ public sealed class BenchmarkResultItem{
         this.Project=job.Project;
         this.Method=job.MethodName;
         this.ElementCount=job.ElementCount;
-        this.Name=job.Project+" / "+job.MethodName+" / N="+job.ElementCount.ToString(CultureInfo.InvariantCulture);
+        this.Name=job.Project+" / "+job.MethodName+" / "+job.ElementCount.ToString(CultureInfo.InvariantCulture);
         this.Status=job.Status.ToString();
         this.Mean=job.MeanNanoseconds is { } mean
             ? BenchmarkFormatting.FormatNanoseconds(mean)
