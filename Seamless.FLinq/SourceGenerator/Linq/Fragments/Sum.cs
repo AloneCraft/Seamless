@@ -27,8 +27,19 @@ public class Sum(int 番号, Enumerable source, string resultType) : BufferedSca
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     protected override string ComputeExpression => $"Compute({e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        RenderDirectEnumerableCallInline(source,destVar,destType,"Sum")
+        RenderDirectSpanSumInline(destVar,destType)
+        ?? RenderDirectEnumerableCallInline(source,destVar,destType,"Sum")
         ?? RenderComputeInline(destVar,destType);
+    private string? RenderDirectSpanSumInline(string destVar,string destType) {
+        var span=$"__span{result}";
+        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+            {{resultType}} sum=default!;
+            checked{
+                foreach(var item in {{spanName}}) sum+=item;
+            }
+            {{destVar}}=sum;
+            """);
+    }
     protected override string ComputeMembers => source.CanTryProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}

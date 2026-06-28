@@ -92,6 +92,43 @@ public abstract class Scalar(int 番号):Fragment(番号){
             """;
     }
 
+    protected string? RenderSpanInline(Enumerable source,string destVar,string destType,string spanVar,Func<string,string> renderBody) {
+        string srcExpr;
+        try {
+            srcExpr=source.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return null;
+        }
+
+        var srcVar=$"__src{result}";
+        var directSpanExpression=source.GetDirectSpanExpression(srcVar);
+        // Direct span roots materialize and scalar terminals without runtime probes.
+        // Example: `int[] src; src.ToArray()` can emit `var __span=__src.GetSpan();`
+        // and skip TryGetNonEnumeratedCount/TryCopyTo/TryGetSpan. IEnumerable<T>,
+        // Tsavorite, and Persisted roots return null here and keep their existing
+        // runtime or native-scan path.
+        if(directSpanExpression is not null) {
+            return $$"""
+                {{destType}} {{destVar}};
+                using(var {{srcVar}}={{srcExpr}}) {
+                    var {{spanVar}}={{directSpanExpression}};
+                    {{IndentLines(renderBody(spanVar),"    ")}}
+                }
+                """;
+        }
+        if(!source.CanProvideSpan) {
+            return null;
+        }
+
+        return $$"""
+            {{destType}} {{destVar}};
+            using(var {{srcVar}}={{srcExpr}}) {
+                {{srcVar}}.TryGetSpan(out var {{spanVar}});
+                {{IndentLines(renderBody(spanVar),"    ")}}
+            }
+            """;
+    }
+
     protected string? RenderDirectEnumerableToListHybridInline(Enumerable source,string destVar,string destType) {
         if(source.DirectEnumerableExpression is not { } sourceExpression) return null;
         var elementType = source.ElementType;

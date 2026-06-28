@@ -57,8 +57,17 @@ public class ToList(int 番号, Enumerable source, string resultType) : Buffered
     protected override string ComputeExpression => $"Compute({e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         RenderRangeToListInline(destVar,destType)
+        ?? RenderDirectSpanToListInline(destVar,destType)
         ?? RenderDirectEnumerableToListHybridInline(source,destVar,destType)
         ?? RenderComputeInline(destVar,destType);
+    private string? RenderDirectSpanToListInline(string destVar,string destType) {
+        var span=$"__span{result}";
+        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+            {{destVar}}=new({{spanName}}.Length);
+            global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({{destVar}},{{spanName}}.Length);
+            {{spanName}}.CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{destVar}}));
+            """);
+    }
     private string? RenderRangeToListInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
             return null;
@@ -82,7 +91,18 @@ public class ToList(int 番号, Enumerable source, string resultType) : Buffered
             }
             """;
     }
-    protected override string ComputeMembers => $$"""
+    protected override string ComputeMembers => source.CanProvideSpan
+        ? $$"""
+        {{AggressiveInliningAttribute}}
+        private static {{resultType}} Compute(TEnum source) {
+            source.TryGetSpan(out var __sourceSpan);
+            var __result=new global::System.Collections.Generic.List<{{source.ElementType}}>(__sourceSpan.Length);
+            global::System.Runtime.InteropServices.CollectionsMarshal.SetCount(__result,__sourceSpan.Length);
+            __sourceSpan.CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(__result));
+            return __result;
+        }
+        """
+        : $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
             using var enumerator = source;

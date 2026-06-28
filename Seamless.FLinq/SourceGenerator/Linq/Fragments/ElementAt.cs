@@ -11,8 +11,18 @@ public class ElementAt(int 番号, Enumerable source, string index, string resul
     protected override string ComputeExpression => $"Compute({e}, index)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         RenderRangeElementAtInline(destVar,destType)
+        ?? RenderDirectSpanElementAtInline(destVar,destType)
         ?? RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAt",index)
         ?? RenderComputeInline(destVar,destType,index);
+    private string? RenderDirectSpanElementAtInline(string destVar,string destType) {
+        var span=$"__span{result}";
+        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+            var __idx={{index}};
+            if(__idx<0) throw new global::System.ArgumentOutOfRangeException("index");
+            if((uint)__idx>=(uint){{spanName}}.Length) throw new global::System.ArgumentOutOfRangeException("index");
+            {{destVar}}={{spanName}}[__idx];
+            """);
+    }
     private string? RenderRangeElementAtInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
             return null;
@@ -71,8 +81,17 @@ public class ElementAt_index(int 番号, Enumerable source, string index, string
     protected override string ComputeExpression => $"Compute({e}, index)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         RenderRangeElementAtIndexInline(destVar,destType)
+        ?? RenderDirectSpanElementAtIndexInline(destVar,destType)
         ?? RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAt",index)
         ?? RenderComputeInline(destVar,destType,index);
+    private string? RenderDirectSpanElementAtIndexInline(string destVar,string destType) {
+        var span=$"__span{result}";
+        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+            var __idx=({{index}}).GetOffset({{spanName}}.Length);
+            if((uint)__idx>=(uint){{spanName}}.Length) throw new global::System.ArgumentOutOfRangeException("index");
+            {{destVar}}={{spanName}}[__idx];
+            """);
+    }
     private string? RenderRangeElementAtIndexInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
             return null;

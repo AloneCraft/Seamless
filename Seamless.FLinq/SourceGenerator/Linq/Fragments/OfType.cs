@@ -14,6 +14,8 @@ public class OfType(int 番号, Enumerable source, string resultElementType) : E
         : null;
     public override string? NonEnumeratedCountExpression => IsIdentityType ? source.NonEnumeratedCountExpression : null;
     public override bool CountPreserving => IsIdentityType && source.CountPreserving;
+    public override bool CanProvideSpan => IsIdentityType && source.CanProvideSpan;
+    public override bool CanTryProvideSpan => IsIdentityType && source.CanTryProvideSpan;
     public override string GetEnumerableExpression => IsIdentityType
         ? source.GetEnumerableExpression
         : DirectEnumerableExpression ?? base.GetEnumerableExpression;
@@ -27,6 +29,12 @@ public class OfType(int 番号, Enumerable source, string resultElementType) : E
     protected override string GetTryGetNonEnumeratedCountBody => IsIdentityType
         ? $"return this.{e}.TryGetNonEnumeratedCount(out count);"
         : base.GetTryGetNonEnumeratedCountBody;
+    protected override string GetTryGetSpanBody => IsIdentityType
+        ? $"return this.{e}.TryGetSpan(out span);"
+        : base.GetTryGetSpanBody;
+    protected override string GetTryCopyToBody => IsIdentityType
+        ? $"return this.{e}.TryCopyTo(destination,__offset);"
+        : base.GetTryCopyToBody;
     public override string GetTryGetNextBody => $$"""
         while({{e}}.MoveNext()) {
             if({{e}}.Current is {{resultElementType}} {{item}}) {

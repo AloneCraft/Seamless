@@ -36,8 +36,40 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
     protected override string ComputeExpression => $"Compute({e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        RenderDirectEnumerableCallInline(source,destVar,destType,"Average")
+        RenderDirectSpanAverageInline(destVar,destType)
+        ?? RenderDirectEnumerableCallInline(source,destVar,destType,"Average")
         ?? RenderComputeInline(destVar,destType);
+    private string? RenderDirectSpanAverageInline(string destVar,string destType) {
+        var span=$"__span{result}";
+        if(UseDecimalAccumulator) {
+            return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+                if({{spanName}}.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+                var sum=0m;
+                foreach(var item in {{spanName}}) sum+=item;
+                {{destVar}}=({{resultType}})(sum/{{spanName}}.Length);
+                """);
+        }
+        if(UseDoubleAccumulator) {
+            if(source.ElementType=="int") {
+                return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+                    if({{spanName}}.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+                    {{destVar}}=({{resultType}})global::Seamless.System.Carrier.ValueEnumerableExtensions.AverageIntSimd({{spanName}});
+                    """);
+            }
+            return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+                if({{spanName}}.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+                double sum=0;
+                foreach(var item in {{spanName}}) sum+=item;
+                {{destVar}}=({{resultType}})(sum/{{spanName}}.Length);
+                """);
+        }
+        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+            if({{spanName}}.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+            {{resultType}} sum=default!;
+            foreach(var item in {{spanName}}) sum+=item;
+            {{destVar}}=sum/({{resultType}}){{spanName}}.Length;
+            """);
+    }
     protected override string ComputeMembers => BuildComputeMembers(source.ElementType,"item","source.Current");
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
 

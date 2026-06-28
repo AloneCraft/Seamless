@@ -39,8 +39,20 @@ public class ToArray(int 番号, Enumerable source, string resultType) : Buffere
     protected override string ComputeExpression => $"Compute({e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         RenderRangeToArrayInline(destVar,destType)
+        ?? RenderDirectSpanToArrayInline(destVar,destType)
         ?? RenderDirectEnumerableToArrayHybridInline(source,destVar,destType)
         ?? RenderComputeInline(destVar,destType);
+    private string? RenderDirectSpanToArrayInline(string destVar,string destType) {
+        var span=$"__span{result}";
+        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+            if({{spanName}}.Length==0) {
+                {{destVar}}=global::System.Array.Empty<{{source.ElementType}}>();
+            } else {
+                {{destVar}}=global::System.GC.AllocateUninitializedArray<{{source.ElementType}}>({{spanName}}.Length);
+                {{spanName}}.CopyTo(global::System.MemoryExtensions.AsSpan({{destVar}}));
+            }
+            """);
+    }
     private string? RenderRangeToArrayInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
             return null;
@@ -61,7 +73,20 @@ public class ToArray(int 番号, Enumerable source, string resultType) : Buffere
             }
             """;
     }
-    protected override string ComputeMembers => $$"""
+    protected override string ComputeMembers => source.CanProvideSpan
+        ? $$"""
+        {{AggressiveInliningAttribute}}
+        private static {{resultType}} Compute(TEnum source) {
+            source.TryGetSpan(out var __sourceSpan);
+            if(__sourceSpan.Length==0) {
+                return global::System.Array.Empty<{{source.ElementType}}>();
+            }
+            var __result=global::System.GC.AllocateUninitializedArray<{{source.ElementType}}>(__sourceSpan.Length);
+            __sourceSpan.CopyTo(global::System.MemoryExtensions.AsSpan(__result));
+            return __result;
+        }
+        """
+        : $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
             using var enumerator = source;

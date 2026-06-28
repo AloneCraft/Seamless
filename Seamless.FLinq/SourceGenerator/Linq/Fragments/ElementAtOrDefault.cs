@@ -10,8 +10,16 @@ public class ElementAtOrDefault(int 番号, Enumerable source, string index, str
     protected override string ComputeExpression => $"Compute({e}, index)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         RenderRangeElementAtOrDefaultInline(destVar,destType)
+        ?? RenderDirectSpanElementAtOrDefaultInline(destVar,destType)
         ?? RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAtOrDefault",index)
         ?? RenderComputeInline(destVar,destType,index);
+    private string? RenderDirectSpanElementAtOrDefaultInline(string destVar,string destType) {
+        var span=$"__span{result}";
+        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+            var __idx={{index}};
+            {{destVar}}=(uint)__idx<(uint){{spanName}}.Length ? {{spanName}}[__idx] : default!;
+            """);
+    }
     private string? RenderRangeElementAtOrDefaultInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
             return null;
@@ -69,8 +77,16 @@ public class ElementAtOrDefault_index(int 番号, Enumerable source, string inde
     protected override string ComputeExpression => $"Compute({e}, index)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         RenderRangeElementAtOrDefaultIndexInline(destVar,destType)
+        ?? RenderDirectSpanElementAtOrDefaultIndexInline(destVar,destType)
         ?? RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAtOrDefault",index)
         ?? RenderComputeInline(destVar,destType,index);
+    private string? RenderDirectSpanElementAtOrDefaultIndexInline(string destVar,string destType) {
+        var span=$"__span{result}";
+        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+            var __idx=({{index}}).GetOffset({{spanName}}.Length);
+            {{destVar}}=(uint)__idx<(uint){{spanName}}.Length ? {{spanName}}[__idx] : default!;
+            """);
+    }
     private string? RenderRangeElementAtOrDefaultIndexInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
             return null;

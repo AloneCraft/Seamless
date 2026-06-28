@@ -570,6 +570,167 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             output);
     }
 
+    [Fact]
+    public void ArrayAndListMaterializeUseDirectSpanWithoutRuntimeFallback() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static int[] ArrayToArray(int[] src) => src.ToArray();
+                private static List<int> ArrayToList(int[] src) => src.ToList();
+                private static int[] ListToArray(List<int> src) => src.ToArray();
+                private static List<int> ListToList(List<int> src) => src.ToList();
+                public void Run(int[] array, List<int> list) {
+                    _ = ArrayToArray(array);
+                    _ = ArrayToList(array);
+                    _ = ListToArray(list);
+                    _ = ListToList(list);
+                }
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var methods = string.Concat(
+            GeneratedMethod(generated,"ArrayToArray"),
+            GeneratedMethod(generated,"ArrayToList"),
+            GeneratedMethod(generated,"ListToArray"),
+            GeneratedMethod(generated,"ListToList"));
+
+        GeneratedSourceAssert.True(
+            methods.Contains(".GetSpan();",StringComparison.Ordinal)
+            && generated.Contains("CollectionsMarshal.AsSpan(source).Slice",StringComparison.Ordinal)
+            && !methods.Contains("global::System.Linq.Enumerable.ToArray",StringComparison.Ordinal)
+            && !methods.Contains("global::System.Linq.Enumerable.ToList",StringComparison.Ordinal)
+            && !methods.Contains("TryGetSpan(out var __sourceSpan",StringComparison.Ordinal)
+            && !methods.Contains("TryGetNonEnumeratedCount(out var __count",StringComparison.Ordinal)
+            && !methods.Contains("TryCopyTo(global::System.MemoryExtensions.AsSpan(__result)",StringComparison.Ordinal),
+            "Array/List ToArray/ToList should use direct GetSpan materialization without runtime count/copy/span probing.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void EnumerableMaterializeKeepsRuntimeFallback() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static int[] ToArrayFallback(IEnumerable<int> src) => src.ToArray();
+                private static List<int> ToListFallback(IEnumerable<int> src) => src.ToList();
+                public void Run(IEnumerable<int> src) {
+                    _ = ToArrayFallback(src);
+                    _ = ToListFallback(src);
+                }
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("TryGetNonEnumeratedCount(out var __count",StringComparison.Ordinal)
+            && generated.Contains("TryCopyTo(global::System.MemoryExtensions.AsSpan(__result)",StringComparison.Ordinal)
+            && generated.Contains("TryGetSpan(out var __sourceSpan",StringComparison.Ordinal),
+            "IEnumerable<T> materialization should keep runtime count/copy/span fallback paths.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void DirectSpanScalarTerminalsAvoidRuntimeTryGetSpan() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static (int Sum,double Average,bool Contains,int Element,int Last,int Single) ArrayScalars(int[] src) =>
+                    (src.Sum(),src.Average(),src.Contains(3),src.ElementAt(0),src.Last(),src.Single());
+                private static (int Sum,bool Contains,int Last) ListScalars(List<int> src) =>
+                    (src.Sum(),src.Contains(3),src.Last());
+                public void Run(int[] array, List<int> list) {
+                    _ = ArrayScalars(array);
+                    _ = ListScalars(list);
+                }
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var methods = string.Concat(
+            GeneratedMethod(generated,"ArrayScalars"),
+            GeneratedMethod(generated,"ListScalars"));
+
+        GeneratedSourceAssert.True(
+            methods.Contains(".GetSpan();",StringComparison.Ordinal)
+            && generated.Contains("CollectionsMarshal.AsSpan(source).Slice",StringComparison.Ordinal)
+            && !methods.Contains(".TryGetSpan(out var __span)",StringComparison.Ordinal),
+            "Array/List scalar terminals should read direct GetSpan and avoid runtime TryGetSpan branches.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void DirectSpanCountPreservingPipelineMaterializesByIndexLoop() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static int[] SelectToArray(int[] src) =>
+                    src.Select(static x => x+1).ToArray();
+                private static List<int> SelectToList(int[] src) =>
+                    src.Select(static x => x*2).ToList();
+                public void Run(int[] src) {
+                    _ = SelectToArray(src);
+                    _ = SelectToList(src);
+                }
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var methods = string.Concat(
+            GeneratedMethod(generated,"SelectToArray"),
+            GeneratedMethod(generated,"SelectToList"));
+
+        GeneratedSourceAssert.True(
+            methods.Contains("__pipelineSpan",StringComparison.Ordinal)
+            && methods.Contains("__pipelineDestination",StringComparison.Ordinal)
+            && methods.Contains("=__pipelineSrc",StringComparison.Ordinal)
+            && !methods.Contains("TryCopyTo(global::System.MemoryExtensions.AsSpan(__linq",StringComparison.Ordinal)
+            && !methods.Contains("TryCopyTo(__pipelineDestination",StringComparison.Ordinal),
+            "Count-preserving Select over a direct span source should materialize with a span index loop, not TryCopyTo.",
+            generated,
+            output);
+    }
+
+    private static string GeneratedMethod(string generated,string methodName) {
+        var summaryMarker=$"<c>{methodName}()</c>";
+        var summaryIndex=generated.IndexOf(summaryMarker,StringComparison.Ordinal);
+        if(summaryIndex<0) {
+            return string.Empty;
+        }
+        var start=generated.IndexOf("public static",summaryIndex,StringComparison.Ordinal);
+        if(start<0) {
+            return string.Empty;
+        }
+        var openBrace=generated.IndexOf('{',start);
+        if(openBrace<0) {
+            return string.Empty;
+        }
+        var depth=0;
+        for(var index=openBrace;index<generated.Length;index++) {
+            if(generated[index]=='{') {
+                depth++;
+            } else if(generated[index]=='}') {
+                depth--;
+                if(depth==0) {
+                    return generated[start..(index+1)];
+                }
+            }
+        }
+        return generated[start..];
+    }
+
     private static string GeneratedSource(string source) {
         var comp = GeneratorTestHelpers.CreateCompilation([("Container.cs",source)]);
         GeneratorDriver driver = GeneratorTestHelpers.CreateDriver();
