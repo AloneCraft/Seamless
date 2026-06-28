@@ -9,8 +9,15 @@ public class LastOrDefault(int 番号, Enumerable source, string resultType) : B
     protected override string ComputeExpression => $"Compute({e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         RenderRangeLastOrDefaultInline(destVar,destType)
+        ?? RenderDirectSpanLastOrDefaultInline(destVar,destType)
         ?? RenderDirectEnumerableCallInline(source,destVar,destType,"LastOrDefault")
         ?? RenderComputeInline(destVar,destType);
+    private string? RenderDirectSpanLastOrDefaultInline(string destVar,string destType) {
+        var span=$"__span{result}";
+        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+            {{destVar}}={{spanName}}.Length==0 ? default! : {{spanName}}[{{spanName}}.Length-1];
+            """);
+    }
     private string? RenderRangeLastOrDefaultInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
             return null;
@@ -56,8 +63,15 @@ public class LastOrDefault_defaultValue(int 番号, Enumerable source, string de
     protected override string ComputeExpression => $"Compute({e}, defaultValue)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         RenderRangeLastOrDefaultDefaultValueInline(destVar,destType)
+        ?? RenderDirectSpanLastOrDefaultDefaultValueInline(destVar,destType)
         ?? RenderDirectEnumerableCallInline(source,destVar,destType,"LastOrDefault",defaultValue)
         ?? RenderComputeInline(destVar,destType);
+    private string? RenderDirectSpanLastOrDefaultDefaultValueInline(string destVar,string destType) {
+        var span=$"__span{result}";
+        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+            {{destVar}}={{spanName}}.Length==0 ? {{defaultValue}} : {{spanName}}[{{spanName}}.Length-1];
+            """);
+    }
     private string? RenderRangeLastOrDefaultDefaultValueInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
             return null;

@@ -10,8 +10,23 @@ public class Contains(int 番号, Enumerable source, string value, string result
     protected override string ComputeExpression => $"Compute({e}, value)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         RenderRangeContainsInline(destVar,destType)
+        ?? RenderDirectSpanContainsInline(destVar,destType)
         ?? RenderDirectEnumerableCallInline(source,destVar,destType,"Contains",value)
         ?? RenderComputeInline(destVar,destType);
+    private string? RenderDirectSpanContainsInline(string destVar,string destType) {
+        var span=$"__span{result}";
+        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+            var comparer=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
+            var __value={{value}};
+            {{destVar}}=false;
+            foreach(var item in {{spanName}}){
+                if(comparer.Equals(item,__value)) {
+                    {{destVar}}=true;
+                    break;
+                }
+            }
+            """);
+    }
     private string? RenderRangeContainsInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
             return null;
@@ -64,8 +79,24 @@ public class Contains_comparer(int 番号, Enumerable source, string value, stri
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, {source.ElementType} value, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     protected override string ComputeExpression => $"Compute({e}, value, comparer)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        RenderDirectEnumerableCallInline(source,destVar,destType,"Contains",value,comparer)
+        RenderDirectSpanContainsComparerInline(destVar,destType)
+        ?? RenderDirectEnumerableCallInline(source,destVar,destType,"Contains",value,comparer)
         ?? RenderComputeInline(destVar,destType);
+    private string? RenderDirectSpanContainsComparerInline(string destVar,string destType) {
+        var span=$"__span{result}";
+        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+            var __comparer={{comparer}};
+            __comparer??=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
+            var __value={{value}};
+            {{destVar}}=false;
+            foreach(var item in {{spanName}}){
+                if(__comparer.Equals(item,__value)) {
+                    {{destVar}}=true;
+                    break;
+                }
+            }
+            """);
+    }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}

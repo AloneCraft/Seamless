@@ -3899,9 +3899,144 @@ public sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pipe
         }
     }
     protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    private bool CanUseDirectSpanPipelineCopy() {
+        foreach(var stage in pipeline.Stages) {
+            switch(stage.Kind) {
+                case PipelineStageKind.AsEnumerable:
+                case PipelineStageKind.Cast:
+                    break;
+                case PipelineStageKind.Select:
+                    if(stage.UsesIndex || stage.Func is not { } func || !CanUseDirectSpanPipelineFunc(func)) {
+                        return false;
+                    }
+                    break;
+                default:
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    private static bool CanUseDirectSpanPipelineFunc(FuncFragment func) {
+        if(!func.CanInlineAssign
+            || func.CapturedLocals.Length!=0
+            || func.HoistedLocals.Length!=0
+            || func.RequiresStatementInlining
+            || func.ParameterNames.Length!=1
+            || string.IsNullOrWhiteSpace(func.ParameterNames[0])) {
+            return false;
+        }
+
+        var parameterPattern=$@"\b{System.Text.RegularExpressions.Regex.Escape(func.ParameterNames[0])}\b";
+        var body=System.Text.RegularExpressions.Regex.Replace(func.InlineBody,parameterPattern,"__p",System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        return !System.Text.RegularExpressions.Regex.IsMatch(body,@"\b(?!__p\b)[A-Za-z_@]\w*\b",System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+    }
+
+    private string? TryGetDirectSourceSpanSetup(string sourceVar,out string sourceExpression,out string directSpanExpression) {
+        sourceExpression=string.Empty;
+        directSpanExpression=string.Empty;
+        if(!CanUseDirectSpanPipelineCopy()) {
+            return null;
+        }
+        try {
+            sourceExpression=pipeline.Source.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return null;
+        }
+        directSpanExpression=pipeline.Source.GetDirectSpanExpression(sourceVar) ?? string.Empty;
+        return directSpanExpression.Length==0 ? null : string.Empty;
+    }
+
+    private string AppendDirectSpanPipelineStages(StringBuilder builder,string currentName,string indent) {
+        for(var index=0;index<pipeline.Stages.Count;index++) {
+            var stage=pipeline.Stages[index];
+            switch(stage.Kind) {
+                case PipelineStageKind.AsEnumerable:
+                    break;
+                case PipelineStageKind.Cast: {
+                    var nextName=$"__pipelineItem{result}_{index+1}";
+                    builder.AppendLine($"{indent}var {nextName}=({stage.OutputType})(object?){currentName};");
+                    currentName=nextName;
+                    break;
+                }
+                case PipelineStageKind.Select: {
+                    var nextName=$"__pipelineItem{result}_{index+1}";
+                    builder.AppendLine($"{indent}{stage.OutputType} {nextName}=default!;");
+                    builder.AppendLine(IndentLines(FuncAssignStatic(stage.Func!,nameof(PipelineStageKind.Select),nextName,currentName),indent));
+                    currentName=nextName;
+                    break;
+                }
+                default:
+                    throw new NotSupportedException($"{stage.Kind} is not a direct span pipeline copy stage.");
+            }
+        }
+        return currentName;
+    }
+
+    private string? RenderDirectSpanPipelineToList(string actualVariableName,string actualTypeName) {
+        var sourceName=$"__pipelineSrc{result}";
+        if(TryGetDirectSourceSpanSetup(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
+            return null;
+        }
+        var spanName=$"__pipelineSpan{result}";
+        var indexName=$"__pipelineIndex{result}";
+        var destinationName=$"__pipelineDestination{result}";
+        var sourceItemName=$"__pipelineItem{result}_0";
+        var builder=new StringBuilder();
+        // Direct span pipeline copy avoids runtime TryCopyTo for count-preserving chains.
+        // Example: `int[] src; src.Select(static x=>x+1).ToArray()` emits
+        // `var __pipelineSpan=__pipelineSrc.GetSpan();` and fills the destination by index.
+        // IEnumerable<T>, Tsavorite, and Persisted roots have no direct span expression, so
+        // they keep the runtime fallback or backend-native scan path.
+        builder.AppendLine($"{actualTypeName} {actualVariableName};");
+        builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
+        builder.AppendLine($"    var {spanName}={directSpanExpression};");
+        builder.AppendLine($"    {actualVariableName}=new({spanName}.Length);");
+        builder.AppendLine($"    global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({actualVariableName},{spanName}.Length);");
+        builder.AppendLine($"    var {destinationName}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({actualVariableName});");
+        builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
+        var currentName=AppendDirectSpanPipelineStages(builder,sourceItemName,"        ");
+        builder.AppendLine($"        {destinationName}[{indexName}]={currentName};");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+        return builder.ToString().TrimEnd();
+    }
+
+    private string? RenderDirectSpanPipelineToArray(string actualVariableName,string actualTypeName) {
+        var sourceName=$"__pipelineSrc{result}";
+        if(TryGetDirectSourceSpanSetup(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
+            return null;
+        }
+        var spanName=$"__pipelineSpan{result}";
+        var indexName=$"__pipelineIndex{result}";
+        var sourceItemName=$"__pipelineItem{result}_0";
+        var builder=new StringBuilder();
+        // See RenderDirectSpanPipelineToList: direct span roots prove the count at generation
+        // time, so Select/AsEnumerable/identity Cast materialization can skip TryCopyTo.
+        builder.AppendLine($"{actualTypeName} {actualVariableName};");
+        builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
+        builder.AppendLine($"    var {spanName}={directSpanExpression};");
+        builder.AppendLine($"    if({spanName}.Length==0) {{");
+        builder.AppendLine($"        {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
+        builder.AppendLine("    } else {");
+        builder.AppendLine($"        {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({spanName}.Length);");
+        builder.AppendLine($"        for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        builder.AppendLine($"            var {sourceItemName}={spanName}[{indexName}];");
+        var currentName=AppendDirectSpanPipelineStages(builder,sourceItemName,"            ");
+        builder.AppendLine($"            {actualVariableName}[{indexName}]={currentName};");
+        builder.AppendLine("        }");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+        return builder.ToString().TrimEnd();
+    }
+
     public string GetDirectExecutionStatement(string actualVariableName,string actualTypeName) {
         var builder = new StringBuilder();
         if(terminalKind==PipelineTerminalKind.ToList) {
+            if(RenderDirectSpanPipelineToList(actualVariableName,actualTypeName) is { } directSpanPipeline) {
+                return directSpanPipeline;
+            }
             builder.AppendLine($"using var {EnumeratorName()}={pipeline.GetEnumeratorExpression};");
             builder.AppendLine($"{actualTypeName} {actualVariableName};");
             builder.AppendLine($"if({EnumeratorName()}.TryGetNonEnumeratedCount(out var __count{result})) {{");
@@ -3919,6 +4054,9 @@ public sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pipe
             return builder.ToString().TrimEnd();
         }
         if(terminalKind==PipelineTerminalKind.ToArray) {
+            if(RenderDirectSpanPipelineToArray(actualVariableName,actualTypeName) is { } directSpanPipeline) {
+                return directSpanPipeline;
+            }
             var listName = $"{actualVariableName}_list";
             var countName = $"{actualVariableName}_count";
             var indexName = $"{actualVariableName}_index";

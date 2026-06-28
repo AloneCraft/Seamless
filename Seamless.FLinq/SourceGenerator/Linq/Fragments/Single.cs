@@ -31,8 +31,17 @@ public class Single(int 番号, Enumerable source, string resultType) : Buffered
             ? RangePredicateOptimizer.RenderSingle(range,番号,destVar,destType)
         : source is RepeatRoot repeat
             ? RangePredicateOptimizer.RenderSingle(repeat,番号,destVar,destType)
-            : RenderDirectEnumerableCallInline(source,destVar,destType,"Single")
+            : RenderDirectSpanSingleInline(destVar,destType)
+            ?? RenderDirectEnumerableCallInline(source,destVar,destType,"Single")
         ?? RenderComputeInline(destVar,destType);
+    private string? RenderDirectSpanSingleInline(string destVar,string destType) {
+        var span=$"__span{result}";
+        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+            if({{spanName}}.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+            if({{spanName}}.Length>1) throw new global::System.InvalidOperationException("Sequence contains more than one element");
+            {{destVar}}={{spanName}}[0];
+            """);
+    }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -75,9 +84,9 @@ public class Single_predicate(int 番号, Enumerable source, FuncFragment predic
                 ?? (TryRenderDirectLambda(predicate) is { } rangeLambda
                     ? RenderDirectEnumerableCallInline(source,destVar,destType,"Single",rangeLambda)
                     : RenderComputeInline(destVar,destType))
-        : TryRenderDirectLambda(predicate) is { } lambda
+        : (TryRenderDirectLambda(predicate) is { } lambda
             ? RenderDirectEnumerableCallInline(source,destVar,destType,"Single",lambda)
-            : RenderComputeInline(destVar,destType);
+            : RenderComputeInline(destVar,destType));
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}

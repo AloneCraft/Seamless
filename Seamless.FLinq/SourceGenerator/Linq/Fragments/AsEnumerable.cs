@@ -15,6 +15,9 @@ public class AsEnumerable(int 番号, Enumerable source) : Enumerable(番号) {
     public override string? NonEnumeratedCountExpression => source.NonEnumeratedCountExpression;
     public override bool CountPreserving => source.CountPreserving;
     public override string GetEnumeratorFields => string.Empty;
+    protected override string GetTryGetNonEnumeratedCountBody => $"return this.{e}.TryGetNonEnumeratedCount(out count);";
+    protected override string GetTryGetSpanBody => $"return this.{e}.TryGetSpan(out span);";
+    protected override string GetTryCopyToBody => $"return this.{e}.TryCopyTo(destination,__offset);";
     public override string GetTryGetNextBody => $$"""
         if({{e}}.MoveNext()) {
             current = this.{{currentValue}} = {{e}}.Current;

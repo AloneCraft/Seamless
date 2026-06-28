@@ -30,8 +30,16 @@ public class Last(int 番号, Enumerable source, string resultType) : BufferedSc
     protected override string ComputeExpression => $"Compute({e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         RenderRangeLastInline(destVar,destType)
+        ?? RenderDirectSpanLastInline(destVar,destType)
         ?? RenderDirectEnumerableCallInline(source,destVar,destType,"Last")
         ?? RenderComputeInline(destVar,destType);
+    private string? RenderDirectSpanLastInline(string destVar,string destType) {
+        var span=$"__span{result}";
+        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+            if({{spanName}}.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+            {{destVar}}={{spanName}}[{{spanName}}.Length-1];
+            """);
+    }
     private string? RenderRangeLastInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
             return null;

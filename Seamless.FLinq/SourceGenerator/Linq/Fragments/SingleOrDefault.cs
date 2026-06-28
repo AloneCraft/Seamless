@@ -13,8 +13,20 @@ public class SingleOrDefault(int 番号, Enumerable source, string resultType) :
             ? RangePredicateOptimizer.RenderSingleOrDefault(range,番号,destVar,destType)
         : source is RepeatRoot repeat
             ? RangePredicateOptimizer.RenderSingleOrDefault(repeat,番号,destVar,destType)
-            : RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault")
+            : RenderDirectSpanSingleOrDefaultInline(destVar,destType)
+            ?? RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault")
         ?? RenderComputeInline(destVar,destType);
+    private string? RenderDirectSpanSingleOrDefaultInline(string destVar,string destType) {
+        var span=$"__span{result}";
+        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+            if({{spanName}}.Length==0) {
+                {{destVar}}=default!;
+            } else {
+                if({{spanName}}.Length>1) throw new global::System.InvalidOperationException("Sequence contains more than one element");
+                {{destVar}}={{spanName}}[0];
+            }
+            """);
+    }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -51,8 +63,20 @@ public class SingleOrDefault_defaultValue(int 番号, Enumerable source, string 
             ? RangePredicateOptimizer.RenderSingleOrDefault(range,番号,destVar,destType,defaultValue)
         : source is RepeatRoot repeat
             ? RangePredicateOptimizer.RenderSingleOrDefault(repeat,番号,destVar,destType,defaultValue)
-            : RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault",defaultValue)
+            : RenderDirectSpanSingleOrDefaultDefaultInline(destVar,destType)
+            ?? RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault",defaultValue)
         ?? RenderComputeInline(destVar,destType);
+    private string? RenderDirectSpanSingleOrDefaultDefaultInline(string destVar,string destType) {
+        var span=$"__span{result}";
+        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+            if({{spanName}}.Length==0) {
+                {{destVar}}={{defaultValue}};
+            } else {
+                if({{spanName}}.Length>1) throw new global::System.InvalidOperationException("Sequence contains more than one element");
+                {{destVar}}={{spanName}}[0];
+            }
+            """);
+    }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
@@ -95,9 +119,9 @@ public class SingleOrDefault_predicate(int 番号, Enumerable source, FuncFragme
                 ?? (TryRenderDirectLambda(predicate) is { } rangeLambda
                     ? RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault",rangeLambda)
                     : RenderComputeInline(destVar,destType))
-        : TryRenderDirectLambda(predicate) is { } lambda
+        : (TryRenderDirectLambda(predicate) is { } lambda
             ? RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault",lambda)
-            : RenderComputeInline(destVar,destType);
+            : RenderComputeInline(destVar,destType));
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
