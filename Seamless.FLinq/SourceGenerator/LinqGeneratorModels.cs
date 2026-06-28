@@ -80,17 +80,17 @@ public sealed partial class FLinqIncrementalGenerator {
         public bool Equals(Linq傍受対象型? other) {
             if(other is null) return false;
             if(ReferenceEquals(this,other)) return true;
-            return string.Equals(InterceptsLocationAttributeText,other.InterceptsLocationAttributeText,StringComparison.Ordinal);
+            return string.Equals(this.InterceptsLocationAttributeText,other.InterceptsLocationAttributeText,StringComparison.Ordinal);
         }
-        public override bool Equals(object? obj)=>obj is Linq傍受対象型 other &&Equals(other);
-        public override int GetHashCode()=>InterceptsLocationAttributeText.GetHashCode(StringComparison.Ordinal);
+        public override bool Equals(object? obj)=>obj is Linq傍受対象型 other &&this.Equals(other);
+        public override int GetHashCode()=> this.InterceptsLocationAttributeText.GetHashCode(StringComparison.Ordinal);
         private string Identifier { get; } = identifier;
         public string ContainingMethodName { get; } = containingMethodName;
         public string InterceptsLocationAttributeText { get; } = interceptsLocationAttributeText;
         public IMethodSymbol Method { get; } = method;
         private IMethodSymbol TemplateMethod { get; } = templateMethod;
         public InvocationExpressionSyntax Invocation { get; } = invocation;
-        public string SourcePath=>Invocation.SyntaxTree.FilePath;
+        public string SourcePath=> this.Invocation.SyntaxTree.FilePath;
         public INamedTypeSymbol EnclosingType { get; } = enclosingType;
         public SemanticModel SemanticModel { get; } = semanticModel;
         private InterceptParameterSpec[] Parameters { get; } = parameters;
@@ -102,49 +102,49 @@ public sealed partial class FLinqIncrementalGenerator {
         public bool CounterInstrumentation { get; } = counterInstrumentation;
         private string SourceElementTypeName {
             get {
-                if(!string.IsNullOrWhiteSpace(ExplicitSourceElementTypeName)) {
-                    return ExplicitSourceElementTypeName;
+                if(!string.IsNullOrWhiteSpace(this.ExplicitSourceElementTypeName)) {
+                    return this.ExplicitSourceElementTypeName;
                 }
-                if(Method.TypeArguments.Length>0) {
-                    return Method.TypeArguments[0].ToDisplayString(完全修飾形式);
+                if(this.Method.TypeArguments.Length>0) {
+                    return this.Method.TypeArguments[0].ToDisplayString(完全修飾形式);
                 }
-                var parameters = TemplateMethod.Parameters;
+                var parameters = this.TemplateMethod.Parameters;
                 if(parameters.Length==0
                     ||parameters[0].Type is not INamedTypeSymbol sourceType
                     ||sourceType.TypeArguments.Length!=1) {
-                    throw new InvalidOperationException($"Could not determine source element type for '{TemplateMethod.ToDisplayString(完全修飾形式)}'.");
+                    throw new InvalidOperationException($"Could not determine source element type for '{this.TemplateMethod.ToDisplayString(完全修飾形式)}'.");
                 }
                 return sourceType.TypeArguments[0].ToDisplayString(完全修飾形式);
             }
         }
-        public string ReturnTypeName=>Method.ReturnsVoid ? "void" : Method.ReturnType.ToDisplayString(完全修飾形式);
+        public string ReturnTypeName=> this.Method.ReturnsVoid ? "void" : this.Method.ReturnType.ToDisplayString(完全修飾形式);
         public string InterceptorParameterList {
             get {
-                if(IsLocalMethodInterception) {
+                if(this.IsLocalMethodInterception) {
                     var parameters = new List<string>();
-                    if(!Method.IsStatic) {
-                        parameters.Add($"this {Method.ContainingType.ToDisplayString(完全修飾形式)} @this");
+                    if(!this.Method.IsStatic) {
+                        parameters.Add($"this {this.Method.ContainingType.ToDisplayString(完全修飾形式)} @this");
                     }
-                    parameters.AddRange(Parameters.Select(static parameter=>parameter.Declaration));
+                    parameters.AddRange(this.Parameters.Select(static parameter=>parameter.Declaration));
                     return string.Join(", ",parameters);
                 }
-                return $"this global::System.Collections.Generic.IEnumerable<{SourceElementTypeName}> source{MethodParameterList}";
+                return $"this global::System.Collections.Generic.IEnumerable<{this.SourceElementTypeName}> source{this.MethodParameterList}";
             }
         }
-        private string MethodParameterList=>Parameters.Length==0
+        private string MethodParameterList=> this.Parameters.Length==0
             ? string.Empty
-            : ", "+string.Join(", ",Parameters.Select(static parameter=>parameter.Declaration));
-        public string MethodTypeParameterList=>MethodTypeParameters.Length==0
+            : ", "+string.Join(", ",this.Parameters.Select(static parameter=>parameter.Declaration));
+        public string MethodTypeParameterList=> this.MethodTypeParameters.Length==0
             ? string.Empty
-            : "<"+string.Join(", ",MethodTypeParameters)+">";
-        public string MethodName=>$"{(OptimizeLinq ? "OptimizedLinq" : "MeasuredLinq")}_{Identifier}";
+            : "<"+string.Join(", ",this.MethodTypeParameters)+">";
+        public string MethodName=>$"{(this.OptimizeLinq ? "OptimizedLinq" : "MeasuredLinq")}_{this.Identifier}";
     }
     private sealed class InterceptParameterSpec(string name,string typeName,RefKind refKind = RefKind.None) {
         private string Name { get; } = name;
         private string TypeName { get; } = typeName;
         private RefKind RefKind { get; } = refKind;
-        public string Declaration=>$"{RefKindModifier}{TypeName} {Name}";
-        private string RefKindModifier=>RefKind switch {
+        public string Declaration=>$"{this.RefKindModifier}{this.TypeName} {this.Name}";
+        private string RefKindModifier=> this.RefKind switch {
             RefKind.Ref=>"ref ",
             RefKind.Out=>"out ",
             RefKind.In=>"in ",
@@ -178,17 +178,17 @@ public sealed partial class FLinqIncrementalGenerator {
         public bool Equals(PerFileInterceptGroup? other) {
             if(other is null) return false;
             if(ReferenceEquals(this,other)) return true;
-            if(!string.Equals(SourcePath,other.SourcePath,StringComparison.Ordinal)) return false;
-            if(Targets.Length!=other.Targets.Length) return false;
-            for(var i = 0;i<Targets.Length;i++) {
-                if(!Targets[i].Equals(other.Targets[i])) return false;
+            if(!string.Equals(this.SourcePath,other.SourcePath,StringComparison.Ordinal)) return false;
+            if(this.Targets.Length!=other.Targets.Length) return false;
+            for(var i = 0;i<this.Targets.Length;i++) {
+                if(!this.Targets[i].Equals(other.Targets[i])) return false;
             }
             return true;
         }
-        public override bool Equals(object? obj)=>obj is PerFileInterceptGroup other &&Equals(other);
+        public override bool Equals(object? obj)=>obj is PerFileInterceptGroup other &&this.Equals(other);
         public override int GetHashCode() {
-            var hc = StringComparer.Ordinal.GetHashCode(SourcePath);
-            foreach(var t in Targets) {
+            var hc = StringComparer.Ordinal.GetHashCode(this.SourcePath);
+            foreach(var t in this.Targets) {
                 hc=HashCode.Combine(hc,t.GetHashCode());
             }
             return hc;

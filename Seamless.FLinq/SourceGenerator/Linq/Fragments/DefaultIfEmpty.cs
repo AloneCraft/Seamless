@@ -32,30 +32,30 @@ public abstract class DefaultIfEmptyBase(int 番号, Enumerable source) : Enumer
     private Enumerable Source => source;
     // 自身が表す既定値の式。最内でない場合は EffectiveDefaultValue 経由で無視される。
     protected abstract string OwnDefaultValue { get; }
-    private Enumerable RootSource => Source is DefaultIfEmptyBase d ? d.RootSource : Source;
-    private string EffectiveDefaultValue => Source is DefaultIfEmptyBase d ? d.EffectiveDefaultValue : OwnDefaultValue;
-    protected override Enumerable PrimarySource => RootSource;
-    public override bool CanTryProvideSpan => RootSource.CanTryProvideSpan;
+    private Enumerable RootSource => this.Source is DefaultIfEmptyBase d ? d.RootSource : this.Source;
+    private string EffectiveDefaultValue => this.Source is DefaultIfEmptyBase d ? d.EffectiveDefaultValue : this.OwnDefaultValue;
+    protected override Enumerable PrimarySource => this.RootSource;
+    public override bool CanTryProvideSpan => this.RootSource.CanTryProvideSpan;
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorStruct => $$"""
-        {{RootSource.GetEnumeratorStruct}}
+        {{this.RootSource.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({RootSource.GetEnumeratorExpression}, {EffectiveDefaultValue})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, {RootSource.ElementType} defaultValue";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({this.RootSource.GetEnumeratorExpression}, {this.EffectiveDefaultValue})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, {this.RootSource.ElementType} defaultValue";
     public override string GetEnumeratorFields => $$"""
-        private bool {{hasValue}};
-        private bool {{yielded}};
+        private bool {{this.hasValue}};
+        private bool {{this.yielded}};
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{e}}.MoveNext()) {
-            this.{{hasValue}}=true;
-            current=this.{{currentValue}}={{e}}.Current;
+        if({{this.e}}.MoveNext()) {
+            this.{{this.hasValue}}=true;
+            current=this.{{this.currentValue}}={{this.e}}.Current;
             return true;
         }
-        if(!this.{{hasValue}}&&!this.{{yielded}}) {
-            this.{{yielded}}=true;
-            current=this.{{currentValue}}=defaultValue;
+        if(!this.{{this.hasValue}}&&!this.{{this.yielded}}) {
+            this.{{this.yielded}}=true;
+            current=this.{{this.currentValue}}=defaultValue;
             return true;
         }
         current=default!;
@@ -64,7 +64,7 @@ public abstract class DefaultIfEmptyBase(int 番号, Enumerable source) : Enumer
     // 非空なら RootSource の件数、空なら既定値1個ぶんの 1 を返す。
     // bool を呼び出し側が確認する実行時 fast path のため安全（CanProvideSpan は false のまま）。
     protected override string GetTryGetNonEnumeratedCountBody => $$"""
-        if({{e}}.TryGetNonEnumeratedCount(out var __c)) {
+        if({{this.e}}.TryGetNonEnumeratedCount(out var __c)) {
             if(__c==0) {
                 count=1;
             }else{
@@ -76,14 +76,14 @@ public abstract class DefaultIfEmptyBase(int 番号, Enumerable source) : Enumer
         return false;
         """;
     protected override string GetTryGetSpanBody => $$"""
-        if({{e}}.TryGetSpan(out span)&&span.Length!=0) {
+        if({{this.e}}.TryGetSpan(out span)&&span.Length!=0) {
             return true;
         }
         span=default;
         return false;
         """;
     protected override string GetTryCopyToBody => $$"""
-        if({{e}}.TryGetSpan(out var __span)&&__span.Length!=0) {
+        if({{this.e}}.TryGetSpan(out var __span)&&__span.Length!=0) {
             var __spanStart=__offset.GetOffset(__span.Length);
             if(__spanStart<0||__spanStart>__span.Length||destination.Length>__span.Length-__spanStart) {
                 return false;
@@ -91,7 +91,7 @@ public abstract class DefaultIfEmptyBase(int 番号, Enumerable source) : Enumer
             __span.Slice(__spanStart,destination.Length).CopyTo(destination);
             return true;
         }
-        if(!this.{{hasValue}}&&!this.{{yielded}}&&{{e}}.TryGetNonEnumeratedCount(out var __count)) {
+        if(!this.{{this.hasValue}}&&!this.{{this.yielded}}&&{{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
             if(__count==0) {
                 var __defaultStart=__offset.GetOffset(1);
                 if(__defaultStart<0||__defaultStart>1||destination.Length>1-__defaultStart) {
@@ -106,15 +106,15 @@ public abstract class DefaultIfEmptyBase(int 番号, Enumerable source) : Enumer
             if(__copyStart<0||__copyStart>__count||destination.Length>__count-__copyStart) {
                 return false;
             }
-            return destination.Length==0||{{e}}.TryCopyTo(destination,__offset);
+            return destination.Length==0||{{this.e}}.TryCopyTo(destination,__offset);
         }
-        if({{e}}.TryCopyTo(destination,__offset)) {
+        if({{this.e}}.TryCopyTo(destination,__offset)) {
             return true;
         }
         return false;
         """;
-    public override string GetCurrentExpression => currentValue;
-    public override string ElementType => RootSource.ElementType;
+    public override string GetCurrentExpression => this.currentValue;
+    public override string ElementType => this.RootSource.ElementType;
 }
 
 public class DefaultIfEmpty(int 番号, Enumerable source) : DefaultIfEmptyBase(番号, source) {

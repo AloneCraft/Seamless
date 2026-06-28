@@ -27,7 +27,7 @@ public abstract class LinqChain1TestBase(ITestOutputHelper output) {
     }
 
     public void AssertOptimized<T>(T expected,Func<T> actualFactory,long logicalDelegate,long physicalDelegate,[global::System.Runtime.CompilerServices.CallerMemberName] string label="") {
-        AssertOptimized(label,expected,actualFactory,logicalDelegate,physicalDelegate);
+        this.AssertOptimized(label,expected,actualFactory,logicalDelegate,physicalDelegate);
     }
 
     public void AssertOptimized<T>(string label,T expected,Func<T> actualFactory,long logicalDelegate,long physicalDelegate) {

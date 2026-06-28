@@ -27,9 +27,9 @@ namespace Seamless.System.Carrier {
         :IValueEnumerator<TSource>
         where TEnumerator : struct, IValueEnumerator<TSource>
         where TEnumerator2 : struct, IValueEnumerator<TKey> {
-        TEnumerator source = source;
-        ValueEnumerable<TEnumerator2,TKey> second = second;
-        HashSetSlim<TKey>? set;
+        private TEnumerator source = source;
+        private ValueEnumerable<TEnumerator2,TKey> second = second;
+        private HashSetSlim<TKey>? set;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -44,12 +44,12 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TSource> destination,Index offset) => false;
 
         public bool TryGetNext(out TSource current) {
-            if(set==null) {
-                set=second.ToHashSetSlim(comparer??EqualityComparer<TKey>.Default);
+            if(this.set==null) {
+                this.set=this.second.ToHashSetSlim(comparer??EqualityComparer<TKey>.Default);
             }
 
-            while(source.TryGetNext(out var value)) {
-                if(set.Add(keySelector(value))) {
+            while(this.source.TryGetNext(out var value)) {
+                if(this.set.Add(keySelector(value))) {
                     current=value;
                     return true;
                 }
@@ -60,8 +60,8 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            set?.Dispose();
-            source.Dispose();
+            this.set?.Dispose();
+            this.source.Dispose();
         }
     }
 

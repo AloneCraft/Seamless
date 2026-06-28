@@ -1,2 +1,2 @@
-global using Seamless.Persisted.Linq;
+global using Seamless.Linq;
 global using LinqInterceptAttribute = Seamless.FLinq.LinqInterceptAttribute;

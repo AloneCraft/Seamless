@@ -7,8 +7,8 @@ public sealed class Max(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void int_NoDelegate() {
         var expected=Source().Max();
-        MeasureOptimized(nameof(int_NoDelegateOptimized),()=>int_NoDelegateOptimized(expected));
-        MeasureOptimized(nameof(int_NoDelegateNoOptimized),()=>int_NoDelegateNoOptimized(expected));
+        this.MeasureOptimized(nameof(int_NoDelegateOptimized),()=>int_NoDelegateOptimized(expected));
+        this.MeasureOptimized(nameof(int_NoDelegateNoOptimized),()=>int_NoDelegateNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -26,8 +26,8 @@ public sealed class Max(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void selector_Nested() {
         var expected=Source().Max<int,int>(p => Source().Max(int (q) => q+p));
-        MeasureOptimized(nameof(selector_NestedOptimized),()=>selector_NestedOptimized(expected));
-        MeasureOptimized(nameof(selector_NestedNoOptimized),()=>selector_NestedNoOptimized(expected));
+        this.MeasureOptimized(nameof(selector_NestedOptimized),()=>selector_NestedOptimized(expected));
+        this.MeasureOptimized(nameof(selector_NestedNoOptimized),()=>selector_NestedNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -45,8 +45,8 @@ public sealed class Max(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void selector_Static() {
         var expected=Rows().Max(static row => row.Value);
-        MeasureOptimized(nameof(selector_StaticOptimized),()=>selector_StaticOptimized(expected));
-        MeasureOptimized(nameof(selector_StaticNoOptimized),()=>selector_StaticNoOptimized(expected));
+        this.MeasureOptimized(nameof(selector_StaticOptimized),()=>selector_StaticOptimized(expected));
+        this.MeasureOptimized(nameof(selector_StaticNoOptimized),()=>selector_StaticNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -64,8 +64,8 @@ public sealed class Max(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void selector_Lambda() {
         var expected=Rows().Max(row => row.Value);
-        MeasureOptimized(nameof(selector_LambdaOptimized),()=>selector_LambdaOptimized(expected));
-        MeasureOptimized(nameof(selector_LambdaNoOptimized),()=>selector_LambdaNoOptimized(expected));
+        this.MeasureOptimized(nameof(selector_LambdaOptimized),()=>selector_LambdaOptimized(expected));
+        this.MeasureOptimized(nameof(selector_LambdaNoOptimized),()=>selector_LambdaNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -84,8 +84,8 @@ public sealed class Max(ITestOutputHelper output):LinqChain1TestBase(output) {
     public void selector_Captured() {
         var offset=0;
         var expected=Rows().Max(row => row.Value+offset);
-        MeasureOptimized(nameof(selector_CapturedOptimized),()=>selector_CapturedOptimized(expected));
-        MeasureOptimized(nameof(selector_CapturedNoOptimized),()=>selector_CapturedNoOptimized(expected));
+        this.MeasureOptimized(nameof(selector_CapturedOptimized),()=>selector_CapturedOptimized(expected));
+        this.MeasureOptimized(nameof(selector_CapturedNoOptimized),()=>selector_CapturedNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -105,8 +105,8 @@ public sealed class Max(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void selector_DelegateSyntax() {
         var expected=Rows().Max(delegate(Chain1Row row) { return row.Value; });
-        MeasureOptimized(nameof(selector_DelegateSyntaxOptimized),()=>selector_DelegateSyntaxOptimized(expected));
-        MeasureOptimized(nameof(selector_DelegateSyntaxNoOptimized),()=>selector_DelegateSyntaxNoOptimized(expected));
+        this.MeasureOptimized(nameof(selector_DelegateSyntaxOptimized),()=>selector_DelegateSyntaxOptimized(expected));
+        this.MeasureOptimized(nameof(selector_DelegateSyntaxNoOptimized),()=>selector_DelegateSyntaxNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -125,8 +125,8 @@ public sealed class Max(ITestOutputHelper output):LinqChain1TestBase(output) {
     public void selector_Variable() {
         Func<Chain1Row,int> selector=row => row.Value;
         var expected=Rows().Max(selector);
-        MeasureOptimized(nameof(selector_VariableOptimized),()=>selector_VariableOptimized(expected));
-        MeasureOptimized(nameof(selector_VariableNoOptimized),()=>selector_VariableNoOptimized(expected));
+        this.MeasureOptimized(nameof(selector_VariableOptimized),()=>selector_VariableOptimized(expected));
+        this.MeasureOptimized(nameof(selector_VariableNoOptimized),()=>selector_VariableNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

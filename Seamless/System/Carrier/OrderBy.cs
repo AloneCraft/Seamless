@@ -90,26 +90,25 @@ namespace Seamless.System.Carrier {
         where TEnumerator : struct, IValueEnumerator<TSource> {
         internal TEnumerator source = source;
         internal OrderByComparable<TSource,TKey> comparable = new(keySelector,comparer,parent,descending); // boxed, this is safe to copy as struct state
+        private RentedArrayBox<TSource>? buffer;
+        private int index;
 
-        RentedArrayBox<TSource>? buffer;
-        int index;
-
-        public bool TryGetNonEnumeratedCount(out int count) => source.TryGetNonEnumeratedCount(out count);
+        public bool TryGetNonEnumeratedCount(out int count) => this.source.TryGetNonEnumeratedCount(out count);
 
         public bool TryGetSpan(out ReadOnlySpan<TSource> span) {
-            InitBuffer();
-            span=buffer.Span;
+            this.InitBuffer();
+            span=this.buffer.Span;
             return true;
         }
 
         public bool TryCopyTo(scoped Span<TSource> destination,Index offset) {
             // in-place sort needs full src buffer(no offset)
-            if(source.TryGetNonEnumeratedCount(out var count)&&offset.GetOffset(count)==0) {
+            if(this.source.TryGetNonEnumeratedCount(out var count)&&offset.GetOffset(count)==0) {
                 // destination must be larger than source
                 if(destination.Length>=count) {
                     // and ok to copy then sort.
-                    if(source.TryCopyTo(destination,0)) {
-                        Sort(destination.Slice(0,count));
+                    if(this.source.TryCopyTo(destination,0)) {
+                        this.Sort(destination.Slice(0,count));
                         return true;
                     }
                 }
@@ -117,17 +116,17 @@ namespace Seamless.System.Carrier {
 
             if(destination.Length==1) {
                 // Try to use quickselect algorithm instead of full sort
-                var (elementArray,elementCount)=new ValueEnumerable<TEnumerator,TSource>(source).ToArrayPool();
+                var (elementArray,elementCount)=new ValueEnumerable<TEnumerator,TSource>(this.source).ToArrayPool();
 
                 var elementAt = offset.GetOffset(elementCount);
                 if(elementCount==0) {
-                    buffer=RentedArrayBox<TSource>.Empty;
+                    this.buffer=RentedArrayBox<TSource>.Empty;
                     return false;
                 }
                 else if(unchecked((uint)elementAt)>=elementCount) {
                     // same as InitBuffer()
-                    buffer=new RentedArrayBox<TSource>(elementArray,elementCount); // keep rental array(don't return in this method)
-                    Sort(buffer.Span);
+                    this.buffer=new RentedArrayBox<TSource>(elementArray,elementCount); // keep rental array(don't return in this method)
+                    this.Sort(this.buffer.Span);
                     return false;
                 }
 
@@ -135,7 +134,7 @@ namespace Seamless.System.Carrier {
                     var span = elementArray.AsSpan(0,elementCount);
                     var (indexMap,size)=ValueEnumerable.Range(0,span.Length).ToArrayPool();
 
-                    using var comparer = comparable.GetComparer(span,null!);
+                    using var comparer = this.comparable.GetComparer(span,null!);
 
                     int elementIndex;
                     if(elementAt==0) {
@@ -159,8 +158,8 @@ namespace Seamless.System.Carrier {
                 return true;
             }
 
-            InitBuffer();
-            if(EnumeratorHelper.TryGetSlice<TSource>(buffer.Span,offset,destination.Length,out var slice)) {
+            this.InitBuffer();
+            if(EnumeratorHelper.TryGetSlice<TSource>(this.buffer.Span,offset,destination.Length,out var slice)) {
                 slice.CopyTo(destination);
                 return true;
             }
@@ -169,11 +168,11 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out TSource current) {
-            InitBuffer();
+            this.InitBuffer();
 
-            if((uint)index<(uint)buffer.Length) {
-                current=buffer.UnsafeGetAt(index);
-                index++;
+            if((uint)this.index<(uint)this.buffer.Length) {
+                current=this.buffer.UnsafeGetAt(this.index);
+                this.index++;
                 return true;
             }
 
@@ -182,28 +181,27 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            buffer?.Dispose();
+            this.buffer?.Dispose();
 
-            if(buffer!=null) {
+            if(this.buffer!=null) {
                 // source already disposed by enumeration in the InitBuffer()
                 // or the (destination.Length == 1) branch in TryCopyTo
                 return;
             }
 
-            source.Dispose();
+            this.source.Dispose();
         }
 
         [MemberNotNull(nameof(buffer))]
-        void InitBuffer() {
-            if(buffer==null) {
-                var (array,count)=new ValueEnumerable<TEnumerator,TSource>(source).ToArrayPool();
-                buffer=new RentedArrayBox<TSource>(array,count);
-                Sort(buffer.Span);
+        private void InitBuffer() {
+            if(this.buffer==null) {
+                var (array,count)=new ValueEnumerable<TEnumerator,TSource>(this.source).ToArrayPool();
+                this.buffer=new RentedArrayBox<TSource>(array,count);
+                this.Sort(this.buffer.Span);
             }
         }
-
-        void Sort(scoped Span<TSource> span) {
-            if(IsAllowDirectSort()) {
+        private void Sort(scoped Span<TSource> span) {
+            if(this.IsAllowDirectSort()) {
                 if(descending) {
                     span.Sort(DescendingDefaultComparer<TSource>.Default);
                 }
@@ -215,7 +213,7 @@ namespace Seamless.System.Carrier {
                 // faster(using SIMD) index map creation
                 var (indexMap,size)=ValueEnumerable.Range(0,span.Length).ToArrayPool();
 
-                using var comparer = comparable.GetComparer(span,null!);
+                using var comparer = this.comparable.GetComparer(span,null!);
                 indexMap.AsSpan(0,size).Sort(span,comparer);
                 ArrayPool<int>.Shared.Return(indexMap,clearArray: false);
             }
@@ -223,15 +221,14 @@ namespace Seamless.System.Carrier {
 
         public OrderBy<TEnumerator,TSource,TSecondKey> ThenBy<TSecondKey>(Func<TSource,TSecondKey> keySelector,IComparer<TSecondKey>? comparer = null) {
             ArgumentNullException.ThrowIfNull(keySelector);
-            return new OrderBy<TEnumerator,TSource,TSecondKey>(source,keySelector,comparer,comparable,descending: false);
+            return new OrderBy<TEnumerator,TSource,TSecondKey>(this.source,keySelector,comparer,this.comparable,descending: false);
         }
 
         public OrderBy<TEnumerator,TSource,TSecondKey> ThenByDescending<TSecondKey>(Func<TSource,TSecondKey> keySelector,IComparer<TSecondKey>? comparer = null) {
             ArgumentNullException.ThrowIfNull(keySelector);
-            return new OrderBy<TEnumerator,TSource,TSecondKey>(source,keySelector,comparer,comparable,descending: true);
+            return new OrderBy<TEnumerator,TSource,TSecondKey>(this.source,keySelector,comparer,this.comparable,descending: true);
         }
-
-        bool IsAllowDirectSort() {
+        private bool IsAllowDirectSort() {
             if(parent==null&&keySelector==UnsafeFunctions<TSource,TKey>.Identity&&OrderByHelper.TypeIsImplicitlyStable<TSource>()&&(comparer is null||comparer==Comparer<TSource>.Default)) {
                 return true;
             }
@@ -244,24 +241,22 @@ namespace Seamless.System.Carrier {
     public struct OrderBySkipTake<TEnumerator, TSource, TKey>
         :IValueEnumerator<TSource>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source;
-        OrderByComparable<TSource,TKey> comparable;
-        int minIndexInclusive;
-        int maxIndexInclusive;
-
-        RentedArrayBox<TSource>? buffer;
-        RentedArrayBox<int>? indexMap;
-        int maxIndex;
-        int index;
+        private TEnumerator source;
+        private OrderByComparable<TSource,TKey> comparable;
+        private int minIndexInclusive;
+        private int maxIndexInclusive;
+        private RentedArrayBox<TSource>? buffer;
+        private RentedArrayBox<int>? indexMap;
+        private int maxIndex;
+        private int index;
 
         public OrderBySkipTake(OrderBy<TEnumerator,TSource,TKey> orderBy,int minIndexInclusive,int maxIndexInclusive) {
-            source=orderBy.source;
-            comparable=orderBy.comparable;
+            this.source=orderBy.source;
+            this.comparable=orderBy.comparable;
             this.minIndexInclusive=minIndexInclusive;
             this.maxIndexInclusive=maxIndexInclusive;
         }
-
-        OrderBySkipTake(TEnumerator source,OrderByComparable<TSource,TKey> comparable,int minIndexInclusive,int maxIndexInclusive) {
+        private OrderBySkipTake(TEnumerator source,OrderByComparable<TSource,TKey> comparable,int minIndexInclusive,int maxIndexInclusive) {
             this.source=source;
             this.comparable=comparable;
             this.minIndexInclusive=minIndexInclusive;
@@ -269,13 +264,13 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(source.TryGetNonEnumeratedCount(out count)) {
-                if(count<=minIndexInclusive) {
+            if(this.source.TryGetNonEnumeratedCount(out count)) {
+                if(count<=this.minIndexInclusive) {
                     count=0;
                     return true;
                 }
 
-                count=(count<=maxIndexInclusive ? count : maxIndexInclusive+1)-minIndexInclusive;
+                count=(count<=this.maxIndexInclusive ? count : this.maxIndexInclusive+1)-this.minIndexInclusive;
                 return true;
             }
 
@@ -288,13 +283,13 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(scoped Span<TSource> destination,Index offset) {
-            InitBuffer();
-            if(indexMap!=null) {
-                var indexSlice = indexMap.Span.Slice(minIndexInclusive,(int)Math.Min((uint)maxIndexInclusive-minIndexInclusive+1,(uint)indexMap.Span.Length-minIndexInclusive));
+            this.InitBuffer();
+            if(this.indexMap!=null) {
+                var indexSlice = this.indexMap.Span.Slice(this.minIndexInclusive,(int)Math.Min((uint)this.maxIndexInclusive-this.minIndexInclusive+1,(uint)this.indexMap.Span.Length-this.minIndexInclusive));
 
                 if(EnumeratorHelper.TryGetSlice<int>(indexSlice,offset,destination.Length,out var slice)) {
                     for(var i = 0; (uint)i<(uint)slice.Length; i++) {
-                        destination[i]=buffer.UnsafeGetAt(slice[i]);
+                        destination[i]=this.buffer.UnsafeGetAt(slice[i]);
                     }
                     return true;
                 }
@@ -303,17 +298,17 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out TSource current) {
-            var buf = buffer;
+            var buf = this.buffer;
             if(buf==null) {
-                InitBuffer();
-                buf=buffer;
+                this.InitBuffer();
+                buf=this.buffer;
             }
 
-            var i = index+minIndexInclusive;
-            var map = indexMap;
-            if(map!=null&&i<=maxIndex) {
+            var i = this.index+this.minIndexInclusive;
+            var map = this.indexMap;
+            if(map!=null&&i<=this.maxIndex) {
                 current=buf.UnsafeGetAt(map!.UnsafeGetAt(i));
-                index++;
+                this.index++;
                 return true;
             }
 
@@ -322,58 +317,57 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            buffer?.Dispose();
-            indexMap?.Dispose();
-            source.Dispose();
+            this.buffer?.Dispose();
+            this.indexMap?.Dispose();
+            this.source.Dispose();
         }
 
         [MemberNotNull(nameof(buffer))]
-        void InitBuffer() {
-            if(buffer==null) {
-                var (array,count)=new ValueEnumerable<TEnumerator,TSource>(source).ToArrayPool();
-                buffer=new RentedArrayBox<TSource>(array,count);
-                Sort(buffer.Span);
+        private void InitBuffer() {
+            if(this.buffer==null) {
+                var (array,count)=new ValueEnumerable<TEnumerator,TSource>(this.source).ToArrayPool();
+                this.buffer=new RentedArrayBox<TSource>(array,count);
+                this.Sort(this.buffer.Span);
             }
         }
-
-        void Sort(ReadOnlySpan<TSource> span) // not sort element, only indexes
+        private void Sort(ReadOnlySpan<TSource> span) // not sort element, only indexes
         {
             var count = span.Length;
-            if(count>minIndexInclusive) {
-                maxIndex=maxIndexInclusive;
-                if(count<=maxIndex) {
-                    maxIndex=count-1;
+            if(count>this.minIndexInclusive) {
+                this.maxIndex=this.maxIndexInclusive;
+                if(count<=this.maxIndex) {
+                    this.maxIndex=count-1;
                 }
 
                 var (indexMapSource,size)=ValueEnumerable.Range(0,span.Length).ToArrayPool();
-                indexMap=new RentedArrayBox<int>(indexMapSource,size);
+                this.indexMap=new RentedArrayBox<int>(indexMapSource,size);
 
-                using var comparer = comparable.GetComparer(span,null!);
-                OrderByHelper.PartialQuickSort(indexMapSource,comparer,left: 0,right: size-1,minIdx: minIndexInclusive,maxIdx: maxIndex);
+                using var comparer = this.comparable.GetComparer(span,null!);
+                OrderByHelper.PartialQuickSort(indexMapSource,comparer,left: 0,right: size-1,minIdx: this.minIndexInclusive,maxIdx: this.maxIndex);
             }
         }
 
         internal OrderBySkipTake<TEnumerator,TSource,TKey> Skip(int count) {
-            var minIndex = minIndexInclusive+count;
-            if((uint)minIndex>(uint)maxIndexInclusive) {
-                return new OrderBySkipTake<TEnumerator,TSource,TKey>(source,comparable,0,-1); // Empty
+            var minIndex = this.minIndexInclusive+count;
+            if((uint)minIndex>(uint)this.maxIndexInclusive) {
+                return new OrderBySkipTake<TEnumerator,TSource,TKey>(this.source,this.comparable,0,-1); // Empty
             }
             else {
-                return new OrderBySkipTake<TEnumerator,TSource,TKey>(source,comparable,minIndex,maxIndexInclusive);
+                return new OrderBySkipTake<TEnumerator,TSource,TKey>(this.source,this.comparable,minIndex,this.maxIndexInclusive);
             }
         }
 
         internal OrderBySkipTake<TEnumerator,TSource,TKey> Take(int count) {
             if(count<=0) {
-                return new OrderBySkipTake<TEnumerator,TSource,TKey>(source,comparable,0,-1); // empty
+                return new OrderBySkipTake<TEnumerator,TSource,TKey>(this.source,this.comparable,0,-1); // empty
             }
 
-            var maxIndex = minIndexInclusive+count-1;
-            if(maxIndex<minIndexInclusive||maxIndex>=maxIndexInclusive) {
+            var maxIndex = this.minIndexInclusive+count-1;
+            if(maxIndex<this.minIndexInclusive||maxIndex>=this.maxIndexInclusive) {
                 return this;
             }
 
-            return new OrderBySkipTake<TEnumerator,TSource,TKey>(source,comparable,minIndexInclusive,maxIndex);
+            return new OrderBySkipTake<TEnumerator,TSource,TKey>(this.source,this.comparable,this.minIndexInclusive,maxIndex);
         }
     }
 
@@ -389,26 +383,26 @@ namespace Seamless.System.Carrier {
     }
 
     internal sealed class OrderByComparable<TSource, TKey>(Func<TSource,TKey> keySelector,IComparer<TKey>? comparer,IOrderByComparable<TSource>? parent,bool descending):IOrderByComparable<TSource> {
-        IComparer<TKey> comparer = comparer??Comparer<TKey>.Default;
+        private IComparer<TKey> comparer = comparer??Comparer<TKey>.Default;
 
         public IOrderByComparer GetComparer(ReadOnlySpan<TSource> source,IOrderByComparer? childComparer) {
-            var nextComparer = new OrderByComparer<TSource,TKey>(source,keySelector,comparer,childComparer,descending);
+            var nextComparer = new OrderByComparer<TSource,TKey>(source,keySelector,this.comparer,childComparer,descending);
             return parent?.GetComparer(source,nextComparer)??nextComparer;
         }
     }
 
     internal sealed class OrderByComparer<TSource, TKey>:IOrderByComparer {
-        TKey[] keys = default!; // must call Initialize before Compare
-        IComparer<TKey> comparer;
-        IOrderByComparer? childComparer;
-        bool descending;
+        private TKey[] keys = default!; // must call Initialize before Compare
+        private IComparer<TKey> comparer;
+        private IOrderByComparer? childComparer;
+        private bool descending;
 
         public OrderByComparer(ReadOnlySpan<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey> comparer,IOrderByComparer? childComparer,bool descending) {
             var tempArray = ArrayPool<TKey>.Shared.Rent(source.Length);
             for(var i = 0; (uint)i<(uint)source.Length; i++) {
                 tempArray[i]=keySelector(source[i]);
             }
-            keys=tempArray; // Compare range is [0, source.Length).
+            this.keys=tempArray; // Compare range is [0, source.Length).
             this.comparer=comparer;
             this.childComparer=childComparer;
             this.descending=descending;
@@ -416,17 +410,17 @@ namespace Seamless.System.Carrier {
 
         // index based sorting
         public int Compare(int index1,int index2) {
-            var compareResult = comparer.Compare(keys[index1],keys[index2]);
+            var compareResult = this.comparer.Compare(this.keys[index1],this.keys[index2]);
             if(compareResult!=0) {
                 // -int.MinValue does not get its sign flipped and remains as int.MinValue.
                 // Since only -1, 1 are needed for comparison, normalization is done here.
                 var sign = (compareResult>0) ? 1 : -1;
-                return descending ? -sign : sign;
+                return this.descending ? -sign : sign;
             }
 
             // same result => thenBy
-            if(childComparer!=null) {
-                return childComparer.Compare(index1,index2);
+            if(this.childComparer!=null) {
+                return this.childComparer.Compare(index1,index2);
             }
 
             // finally compare index to ensure stable sort
@@ -435,12 +429,12 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(keys!=null) {
-                ArrayPool<TKey>.Shared.Return(keys,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<TKey>());
-                keys=null!;
-                if(childComparer!=null) {
-                    childComparer.Dispose();
-                    childComparer=null;
+            if(this.keys!=null) {
+                ArrayPool<TKey>.Shared.Return(this.keys,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<TKey>());
+                this.keys=null!;
+                if(this.childComparer!=null) {
+                    this.childComparer.Dispose();
+                    this.childComparer=null;
                 }
             }
         }
@@ -452,8 +446,7 @@ namespace Seamless.System.Carrier {
 
     file class DescendingDefaultComparer<T>:IComparer<T> {
         public static IComparer<T> Default = new DescendingDefaultComparer<T>();
-
-        DescendingDefaultComparer() {
+        private DescendingDefaultComparer() {
 
         }
 

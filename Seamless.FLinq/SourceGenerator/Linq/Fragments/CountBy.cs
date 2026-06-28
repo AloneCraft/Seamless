@@ -22,7 +22,7 @@ public class CountBy(int 番号, Enumerable source, FuncFragment keySelector) : 
         keySelector.CardinalityUpperBound is > 0 and var upperBound
             ? $"global::System.Math.Min({sourceCountExpression},{upperBound})"
             : sourceCountExpression;
-    public override string StructMethod => FuncSupport(keySelector,nameof(keySelector));
+    public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumerableExpression =>
         $"global::Seamless.System.Carrier.ValueEnumerableExtensions.CountBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()})";
     public override string GetEnumeratorStruct => $$"""
@@ -30,48 +30,48 @@ public class CountBy(int 番号, Enumerable source, FuncFragment keySelector) : 
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(keySelector)})";
+        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {e}{ClosurePrimaryCtorSuffix(keySelector)}";
+        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector)}";
     public override string GetEnumeratorFields => $$"""
-        private global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>? {{lookup}};
-        private global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>.Enumerator {{innerEnumerator}};
+        private global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>? {{this.lookup}};
+        private global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>.Enumerator {{this.innerEnumerator}};
         """;
     public override string GetTryGetNextBody => $$"""
-        if(this.{{lookup}} is null) {
-            if({{e}}.TryGetSpan(out var __span)) {
-                this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>({{CapacityExpression("__span.Length")}});
+        if(this.{{this.lookup}} is null) {
+            if({{this.e}}.TryGetSpan(out var __span)) {
+                this.{{this.lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>({{this.CapacityExpression("__span.Length")}});
                 for(var __i=0;__i<__span.Length;__i++) {
-                    var {{item}}=__span[__i];
-                    {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
-                    {{FuncAssignIndented("            ",keySelector,nameof(keySelector),key,item)}}
-                    ref var __cnt=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookup}},{{key}},out var __exists);
+                    var {{this.item}}=__span[__i];
+                    {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
+                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
+                    ref var __cnt=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{this.lookup}},{{this.key}},out var __exists);
                     __cnt++;
                 }
             }else{
-                if({{e}}.TryGetNonEnumeratedCount(out var __count)) {
-                    this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>({{CapacityExpression("__count")}});
+                if({{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
+                    this.{{this.lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>({{this.CapacityExpression("__count")}});
                 }else{
-                    this.{{lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>();
+                    this.{{this.lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>();
                 }
-                while({{e}}.MoveNext()) {
-                    var {{item}}={{e}}.Current;
-                    {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
-                    {{FuncAssignIndented("            ",keySelector,nameof(keySelector),key,item)}}
-                    ref var __cnt=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{lookup}},{{key}},out var __exists);
+                while({{this.e}}.MoveNext()) {
+                    var {{this.item}}={{this.e}}.Current;
+                    {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
+                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
+                    ref var __cnt=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{this.lookup}},{{this.key}},out var __exists);
                     __cnt++;
                 }
             }
-            this.{{innerEnumerator}}=this.{{lookup}}.GetEnumerator();
+            this.{{this.innerEnumerator}}=this.{{this.lookup}}.GetEnumerator();
         }
-        if(this.{{innerEnumerator}}.MoveNext()) {
-            var __kv=this.{{innerEnumerator}}.Current;
-            current=this.{{currentValue}}=new global::System.Collections.Generic.KeyValuePair<{{FuncReturnTypeName(keySelector)}}, global::System.Int32>(__kv.Key,__kv.Value);
+        if(this.{{this.innerEnumerator}}.MoveNext()) {
+            var __kv=this.{{this.innerEnumerator}}.Current;
+            current=this.{{this.currentValue}}=new global::System.Collections.Generic.KeyValuePair<{{FuncReturnTypeName(keySelector)}}, global::System.Int32>(__kv.Key,__kv.Value);
             return true;
         }
         current=default!;
         return false;
         """;
-    public override string GetCurrentExpression => currentValue;
+    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => $"global::System.Collections.Generic.KeyValuePair<{FuncReturnTypeName(keySelector)}, global::System.Int32>";
 }

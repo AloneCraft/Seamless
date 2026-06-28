@@ -6,8 +6,7 @@ using Xunit.Sdk;
 [assembly:Benchmark.Shared.BenchmarkTiming]
 
 namespace Benchmark.Shared;
-
-sealed class BenchmarkTimingAttribute:BeforeAfterTestAttribute{
+internal sealed class BenchmarkTimingAttribute:BeforeAfterTestAttribute{
     public override void Before(MethodInfo methodUnderTest){
         if(methodUnderTest.GetCustomAttribute<BenchmarkAttribute>()==null){
             return;

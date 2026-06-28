@@ -7,8 +7,8 @@ public sealed class DefaultIfEmpty(ITestOutputHelper output):LinqChain1TestBase(
     [Fact, Trait("Category","Unit")]
     public void NoDelegate() {
         var expected=EmptySource().DefaultIfEmpty().ToList();
-        MeasureOptimized(nameof(NoDelegateOptimized),()=>NoDelegateOptimized(expected));
-        MeasureOptimized(nameof(NoDelegateNoOptimized),()=>NoDelegateNoOptimized(expected));
+        this.MeasureOptimized(nameof(NoDelegateOptimized),()=>NoDelegateOptimized(expected));
+        this.MeasureOptimized(nameof(NoDelegateNoOptimized),()=>NoDelegateNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -28,8 +28,8 @@ public sealed class DefaultIfEmpty(ITestOutputHelper output):LinqChain1TestBase(
     [Fact, Trait("Category","Unit")]
     public void defaultValue() {
         var expected=EmptySource().DefaultIfEmpty(42).ToList();
-        MeasureOptimized(nameof(defaultValueOptimized),()=>defaultValueOptimized(expected));
-        MeasureOptimized(nameof(defaultValueNoOptimized),()=>defaultValueNoOptimized(expected));
+        this.MeasureOptimized(nameof(defaultValueOptimized),()=>defaultValueOptimized(expected));
+        this.MeasureOptimized(nameof(defaultValueNoOptimized),()=>defaultValueNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

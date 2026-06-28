@@ -17,11 +17,11 @@ namespace Seamless.System.Carrier {
     public struct DefaultIfEmpty<TEnumerator, TSource>(TEnumerator source,TSource defaultValue)
         :IValueEnumerator<TSource>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        bool iterateDefault = true;
+        private TEnumerator source = source;
+        private bool iterateDefault = true;
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(source.TryGetNonEnumeratedCount(out count)) {
+            if(this.source.TryGetNonEnumeratedCount(out count)) {
                 if(count==0) {
                     // For empty collection, we'll return 1 item (the default value)
                     count=1;
@@ -32,7 +32,7 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetSpan(out ReadOnlySpan<TSource> span) {
-            if(source.TryGetSpan(out span)) {
+            if(this.source.TryGetSpan(out span)) {
                 if(span.Length==0) {
                     // We can't create a span with custom default value on the fly
                     return false;
@@ -46,7 +46,7 @@ namespace Seamless.System.Carrier {
             if(destination.Length==0) return true;
 
             // ignore offset when checking
-            if(source.TryGetNonEnumeratedCount(out var sourceCount)&&sourceCount==0&&destination.Length>=1) {
+            if(this.source.TryGetNonEnumeratedCount(out var sourceCount)&&sourceCount==0&&destination.Length>=1) {
                 // check offset
                 if(offset.GetOffset(sourceCount)==0) {
                     destination[0]=defaultValue;
@@ -55,18 +55,18 @@ namespace Seamless.System.Carrier {
                 return false;
             }
             else {
-                return source.TryCopyTo(destination,offset);
+                return this.source.TryCopyTo(destination,offset);
             }
         }
 
         public bool TryGetNext(out TSource current) {
-            if(source.TryGetNext(out current)) {
-                iterateDefault=false;
+            if(this.source.TryGetNext(out current)) {
+                this.iterateDefault=false;
                 return true;
             }
 
-            if(iterateDefault) {
-                iterateDefault=false;
+            if(this.iterateDefault) {
+                this.iterateDefault=false;
                 current=defaultValue;
                 return true;
             }
@@ -76,7 +76,7 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 }

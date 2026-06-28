@@ -5,17 +5,17 @@ public class Contains(int 番号, Enumerable source, string value, string result
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {value})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, {source.ElementType} value";
-    protected override string ComputeExpression => $"Compute({e}, value)";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {value})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, {source.ElementType} value";
+    protected override string ComputeExpression => $"Compute({this.e}, value)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        RenderRangeContainsInline(destVar,destType)
-        ?? RenderDirectSpanContainsInline(destVar,destType)
-        ?? RenderDirectEnumerableCallInline(source,destVar,destType,"Contains",value)
-        ?? RenderComputeInline(destVar,destType);
+        this.RenderRangeContainsInline(destVar,destType)
+        ??this.RenderDirectSpanContainsInline(destVar,destType)
+        ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"Contains",value)
+        ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanContainsInline(string destVar,string destType) {
-        var span=$"__span{result}";
-        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span=$"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
             var comparer=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
             var __value={{value}};
             {{destVar}}=false;
@@ -66,7 +66,7 @@ public class Contains(int 番号, Enumerable source, string value, string result
                 return false;
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
 public class Contains_comparer(int 番号, Enumerable source, string value, string comparer, string resultType) : BufferedScalar(番号, resultType) {
@@ -75,16 +75,16 @@ public class Contains_comparer(int 番号, Enumerable source, string value, stri
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {value}, {comparer})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, {source.ElementType} value, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
-    protected override string ComputeExpression => $"Compute({e}, value, comparer)";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {value}, {comparer})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, {source.ElementType} value, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
+    protected override string ComputeExpression => $"Compute({this.e}, value, comparer)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        RenderDirectSpanContainsComparerInline(destVar,destType)
-        ?? RenderDirectEnumerableCallInline(source,destVar,destType,"Contains",value,comparer)
-        ?? RenderComputeInline(destVar,destType);
+        this.RenderDirectSpanContainsComparerInline(destVar,destType)
+        ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"Contains",value,comparer)
+        ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanContainsComparerInline(string destVar,string destType) {
-        var span=$"__span{result}";
-        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span=$"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
             var __comparer={{comparer}};
             __comparer??=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
             var __value={{value}};
@@ -119,5 +119,5 @@ public class Contains_comparer(int 番号, Enumerable source, string value, stri
                 return false;
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }

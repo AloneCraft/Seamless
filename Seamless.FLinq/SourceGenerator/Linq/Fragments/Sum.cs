@@ -23,16 +23,16 @@ public class Sum(int 番号, Enumerable source, string resultType) : BufferedSca
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
-    protected override string ComputeExpression => $"Compute({e})";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
+    protected override string ComputeExpression => $"Compute({this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        RenderDirectSpanSumInline(destVar,destType)
-        ?? RenderDirectEnumerableCallInline(source,destVar,destType,"Sum")
-        ?? RenderComputeInline(destVar,destType);
+        this.RenderDirectSpanSumInline(destVar,destType)
+        ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"Sum")
+        ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanSumInline(string destVar,string destType) {
-        var span=$"__span{result}";
-        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span=$"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
             {{resultType}} sum=default!;
             checked{
                 foreach(var item in {{spanName}}) sum+=item;
@@ -65,43 +65,43 @@ public class Sum(int 番号, Enumerable source, string resultType) : BufferedSca
                 return sum;
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
 public class Sum_selector(int 番号, Enumerable source, FuncFragment selector, string resultType) : BufferedScalar(番号, resultType) {
     private string SelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(selector)}>";
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => FuncSupport(selector,nameof(selector));
+    public override string StructMethod => this.FuncSupport(selector,nameof(selector));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
-        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(selector)})";
+        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(selector)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {e}{ClosurePrimaryCtorSuffix(selector)}";
+        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(selector)}";
     protected override string ComputeExpression =>
-        $"Compute({e}{ClosureArgsSuffix(selector)})";
+        $"Compute({this.e}{this.ClosureArgsSuffix(selector)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        RenderComputeInline(destVar,destType)
+        this.RenderComputeInline(destVar,destType)
         ?? (TryRenderDirectLambda(selector) is { } lambda
-            ? RenderDirectEnumerableCallInline(source,destVar,destType,"Sum",lambda)
+            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Sum",lambda)
             : null);
     protected override string ComputeMembers => source.CanTryProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(selector)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
                 {{resultType}} sum = default!;
                 checked{
                     if(source.TryGetSpan(out var __span)){
-                        foreach(var {{item}} in __span){
-                            {{FuncReturnTypeName(selector)}} {{temp}}=default!;
-                            {{FuncAssignIndented("                ",selector,nameof(selector),temp,item)}}
-                            sum+={{temp}};
+                        foreach(var {{this.item}} in __span){
+                            {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
+                            {{this.FuncAssignIndented("                ",selector,nameof(selector),this.temp,this.item)}}
+                            sum+={{this.temp}};
                         }
                     }else{
                         while(source.MoveNext()){
-                            var {{item}}=source.Current;
-                            {{FuncReturnTypeName(selector)}} {{temp}}=default!;
-                            {{FuncAssignIndented("                ",selector,nameof(selector),temp,item)}}
-                            sum+={{temp}};
+                            var {{this.item}}=source.Current;
+                            {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
+                            {{this.FuncAssignIndented("                ",selector,nameof(selector),this.temp,this.item)}}
+                            sum+={{this.temp}};
                         }
                     }
                 }
@@ -110,18 +110,18 @@ public class Sum_selector(int 番号, Enumerable source, FuncFragment selector, 
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(selector)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
                 {{resultType}} sum = default!;
                 checked{
                     while(source.MoveNext()){
-                        var {{item}}=source.Current;
-                        {{FuncReturnTypeName(selector)}} {{temp}}=default!;
-                        {{FuncAssignIndented("            ",selector,nameof(selector),temp,item)}}
-                        sum+={{temp}};
+                        var {{this.item}}=source.Current;
+                        {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
+                        {{this.FuncAssignIndented("            ",selector,nameof(selector),this.temp,this.item)}}
+                        sum+={{this.temp}};
                     }
                 }
                 return sum;
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }

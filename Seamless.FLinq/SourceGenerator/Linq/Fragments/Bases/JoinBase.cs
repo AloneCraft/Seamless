@@ -31,51 +31,51 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
     protected readonly FuncFragment innerKey=innerKeySelector;
     protected readonly FuncFragment resultSelector=resultSelector;
     protected readonly string comparerExpression=comparer;
-    protected override Enumerable PrimarySource=> outerSource;
-    protected bool UseResultTypeParam=> resultSelector.RequiresResultTypeParameter;
-    protected string InnerKeyType=>FuncReturnTypeName(innerKey);
-    protected string InnerElementType=> innerSource.ElementType;
-    protected string OuterElementType=> outerSource.ElementType;
+    protected override Enumerable PrimarySource=> this.outerSource;
+    protected bool UseResultTypeParam=> this.resultSelector.RequiresResultTypeParameter;
+    protected string InnerKeyType=>FuncReturnTypeName(this.innerKey);
+    protected string InnerElementType=> this.innerSource.ElementType;
+    protected string OuterElementType=> this.outerSource.ElementType;
     protected string BuildLookupBody(bool skipNullKeyCheck,string logicalInnerCounterMethod)=>skipNullKeyCheck ? $$"""
-        private static global::System.Collections.Generic.Dictionary<{{InnerKeyType}},global::System.Collections.Generic.List<{{InnerElementType}}>> BuildLookup(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{InnerKeyType}}>? comparer{{ClosureMethodParameterSuffix(outerKey,innerKey,resultSelector)}}){
-            var {{lookup}}=new global::System.Collections.Generic.Dictionary<{{InnerKeyType}},global::System.Collections.Generic.List<{{InnerElementType}}>>(comparer ?? global::System.Collections.Generic.EqualityComparer<{{InnerKeyType}}>.Default);
-            using var {{innerEnumerator}}=inner;
-            while({{innerEnumerator}}.MoveNext()){
-                {{CounterCall(logicalInnerCounterMethod)}}
-                var {{item}}={{innerEnumerator}}.Current;
-                {{InnerKeyType}} {{key}}=default!;
-                {{FuncAssignStaticIndented("        ",innerKey,nameof(innerKey),key,item)}}
-                if(IsNullKey({{key}})){
+        private static global::System.Collections.Generic.Dictionary<{{this.InnerKeyType}},global::System.Collections.Generic.List<{{this.InnerElementType}}>> BuildLookup(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
+            var {{this.lookup}}=new global::System.Collections.Generic.Dictionary<{{this.InnerKeyType}},global::System.Collections.Generic.List<{{this.InnerElementType}}>>(comparer ?? global::System.Collections.Generic.EqualityComparer<{{this.InnerKeyType}}>.Default);
+            using var {{this.innerEnumerator}}=inner;
+            while({{this.innerEnumerator}}.MoveNext()){
+                {{this.CounterCall(logicalInnerCounterMethod)}}
+                var {{this.item}}={{this.innerEnumerator}}.Current;
+                {{this.InnerKeyType}} {{this.key}}=default!;
+                {{this.FuncAssignStaticIndented("        ",this.innerKey,nameof(this.innerKey),this.key,this.item)}}
+                if(IsNullKey({{this.key}})){
                     continue;
                 }
-                {{CounterCall("IncrementHashBuild")}}
-                if(!{{lookup}}.TryGetValue({{key}},out var {{group}})){
-                    {{group}}=new global::System.Collections.Generic.List<{{InnerElementType}}>();
-                    {{lookup}}.Add({{key}},{{group}});
+                {{this.CounterCall("IncrementHashBuild")}}
+                if(!{{this.lookup}}.TryGetValue({{this.key}},out var {{this.group}})){
+                    {{this.group}}=new global::System.Collections.Generic.List<{{this.InnerElementType}}>();
+                    {{this.lookup}}.Add({{this.key}},{{this.group}});
                 }
-                {{CounterCall("IncrementBufferAdd")}}
-                {{group}}.Add({{item}});
+                {{this.CounterCall("IncrementBufferAdd")}}
+                {{this.group}}.Add({{this.item}});
             }
-            return {{lookup}};
+            return {{this.lookup}};
         }
         """ : $$"""
-        private static global::System.Collections.Generic.Dictionary<{{InnerKeyType}},global::System.Collections.Generic.List<{{InnerElementType}}>> BuildLookup(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{InnerKeyType}}>? comparer{{ClosureMethodParameterSuffix(outerKey,innerKey,resultSelector)}}){
-            var {{lookup}}=new global::System.Collections.Generic.Dictionary<{{InnerKeyType}},global::System.Collections.Generic.List<{{InnerElementType}}>>(comparer ?? global::System.Collections.Generic.EqualityComparer<{{InnerKeyType}}>.Default);
-            using var {{innerEnumerator}}=inner;
-            while({{innerEnumerator}}.MoveNext()){
-                {{CounterCall(logicalInnerCounterMethod)}}
-                var {{item}}={{innerEnumerator}}.Current;
-                {{InnerKeyType}} {{key}}=default!;
-                {{FuncAssignStaticIndented("        ",innerKey,nameof(innerKey),key,item)}}
-                {{CounterCall("IncrementHashBuild")}}
-                if(!{{lookup}}.TryGetValue({{key}},out var {{group}})){
-                    {{group}}=new global::System.Collections.Generic.List<{{InnerElementType}}>();
-                    {{lookup}}.Add({{key}},{{group}});
+        private static global::System.Collections.Generic.Dictionary<{{this.InnerKeyType}},global::System.Collections.Generic.List<{{this.InnerElementType}}>> BuildLookup(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
+            var {{this.lookup}}=new global::System.Collections.Generic.Dictionary<{{this.InnerKeyType}},global::System.Collections.Generic.List<{{this.InnerElementType}}>>(comparer ?? global::System.Collections.Generic.EqualityComparer<{{this.InnerKeyType}}>.Default);
+            using var {{this.innerEnumerator}}=inner;
+            while({{this.innerEnumerator}}.MoveNext()){
+                {{this.CounterCall(logicalInnerCounterMethod)}}
+                var {{this.item}}={{this.innerEnumerator}}.Current;
+                {{this.InnerKeyType}} {{this.key}}=default!;
+                {{this.FuncAssignStaticIndented("        ",this.innerKey,nameof(this.innerKey),this.key,this.item)}}
+                {{this.CounterCall("IncrementHashBuild")}}
+                if(!{{this.lookup}}.TryGetValue({{this.key}},out var {{this.group}})){
+                    {{this.group}}=new global::System.Collections.Generic.List<{{this.InnerElementType}}>();
+                    {{this.lookup}}.Add({{this.key}},{{this.group}});
                 }
-                {{CounterCall("IncrementBufferAdd")}}
-                {{group}}.Add({{item}});
+                {{this.CounterCall("IncrementBufferAdd")}}
+                {{this.group}}.Add({{this.item}});
             }
-            return {{lookup}};
+            return {{this.lookup}};
         }
         """;
     protected static string BuildFactorySource(string structName,string factoryMethodName,string outerTypeName,string innerTypeName,string resultTypeName,string comparerTypeName,string outerCtorSuffix,string innerCtorSuffix,string resultCtorSuffix,string outerFactoryArgsSuffix,string innerFactoryArgsSuffix,string resultFactoryArgsSuffix,bool useResultTypeParam)=>!useResultTypeParam ? string.Empty : $$"""

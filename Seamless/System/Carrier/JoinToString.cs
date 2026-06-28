@@ -1,10 +1,10 @@
 namespace Seamless.System.Carrier;
 
 partial class ValueEnumerableExtensions {
-    const int StackallocCharBufferSizeLimit = 256;
+    private const int StackallocCharBufferSizeLimit = 256;
 
 #if NET8_0_OR_GREATER
-    static string FastAllocateString(int length) => string.Create(length,(object?)null,static (_,_) => { });
+    private static string FastAllocateString(int length) => string.Create(length,(object?)null,static (_,_) => { });
 #else
     static string FastAllocateString(int length) => new string('\0', length);
 #endif
@@ -109,8 +109,7 @@ partial class ValueEnumerableExtensions {
             return result.ToStringAndClear();
         }
     }
-
-    static string JoinToString(ReadOnlySpan<string> source,ReadOnlySpan<char> separator) {
+    private static string JoinToString(ReadOnlySpan<string> source,ReadOnlySpan<char> separator) {
         if(source.Length==0) return "";
         if(source.Length==1) return source[0];
 

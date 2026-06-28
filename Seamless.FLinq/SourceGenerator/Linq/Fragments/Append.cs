@@ -21,7 +21,7 @@ Append は source.Append(value) を、source を読み切った後に追加要�
 public class Append(int 番号, Enumerable source, string element) : Enumerable(番号) {
     private Enumerable Source => source;
     private string ElementExpression => element;
-    private Enumerable RootSource => Source is Append append ? append.RootSource : Source;
+    private Enumerable RootSource => this.Source is Append append ? append.RootSource : this.Source;
     private IReadOnlyList<string> FlattenedElements {
         get {
             var list = new List<string>();
@@ -30,41 +30,41 @@ public class Append(int 番号, Enumerable source, string element) : Enumerable(
         }
     }
     private string EnumeratorElementParameters =>
-        string.Concat(FlattenedElements.Select((_,index) => $", {ElementType} element{index}"));
+        string.Concat(this.FlattenedElements.Select((_,index) => $", {this.ElementType} element{index}"));
     private string EnumeratorElementArguments =>
-        string.Concat(FlattenedElements.Select((value,index) => $", {value}"));
+        string.Concat(this.FlattenedElements.Select((value,index) => $", {value}"));
     private static void CollectElements(Append append,List<string> list) {
         if(append.Source is Append nested) {
             CollectElements(nested,list);
         }
         list.Add(append.ElementExpression);
     }
-    protected override Enumerable PrimarySource => RootSource;
+    protected override Enumerable PrimarySource => this.RootSource;
     public override string StructMethod => string.Empty;
     public override string GetEnumerableExpression => base.GetEnumerableExpression;
     public override string GetEnumeratorStruct => $$"""
-        {{RootSource.GetEnumeratorStruct}}
+        {{this.RootSource.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({RootSource.GetEnumeratorExpression}{EnumeratorElementArguments})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}{EnumeratorElementParameters}";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({this.RootSource.GetEnumeratorExpression}{this.EnumeratorElementArguments})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}{this.EnumeratorElementParameters}";
     public override string GetEnumeratorFields => $$"""
-        private byte {{state}};
+        private byte {{this.state}};
         """;
     public override string GetTryGetNextBody {
         get {
             var builder = new StringBuilder();
-            builder.AppendLine($"if(this.{state}==0) {{");
-            builder.AppendLine($"    if({e}.MoveNext()) {{");
-            builder.AppendLine($"        current=this.{currentValue}={e}.Current;");
+            builder.AppendLine($"if(this.{this.state}==0) {{");
+            builder.AppendLine($"    if({this.e}.MoveNext()) {{");
+            builder.AppendLine($"        current=this.{this.currentValue}={this.e}.Current;");
             builder.AppendLine("        return true;");
             builder.AppendLine("    }");
-            builder.AppendLine($"    this.{state}=1;");
+            builder.AppendLine($"    this.{this.state}=1;");
             builder.AppendLine("}");
-            for(var i = 0; i <FlattenedElements.Count; i++) {
-                builder.AppendLine($"if(this.{state}=={i+1}) {{");
-                builder.AppendLine($"    this.{state}={i+2};");
-                builder.AppendLine($"    current=this.{currentValue}=element{i};");
+            for(var i = 0; i <this.FlattenedElements.Count; i++) {
+                builder.AppendLine($"if(this.{this.state}=={i+1}) {{");
+                builder.AppendLine($"    this.{this.state}={i+2};");
+                builder.AppendLine($"    current=this.{this.currentValue}=element{i};");
                 builder.AppendLine("    return true;");
                 builder.AppendLine("}");
             }
@@ -73,6 +73,6 @@ public class Append(int 番号, Enumerable source, string element) : Enumerable(
             return builder.ToString();
         }
     }
-    public override string GetCurrentExpression => currentValue;
+    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => source.ElementType;
 }

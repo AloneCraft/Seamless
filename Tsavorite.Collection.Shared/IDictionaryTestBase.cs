@@ -215,7 +215,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         }
         {
             // コメント文字化け修正済み
-            var folder = CreateDiskFolder();
+            var folder = this.CreateDiskFolder();
             using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
             using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
             using var sh = TStrategy.CreateStorageStore(logDevice,objDevice);
@@ -370,7 +370,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     public void WouldOverflowMutable() {
         {
             // コメント文字化け修正済み
-            var folder = CreateDiskFolder();
+            var folder = this.CreateDiskFolder();
             using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
             using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
             using var sh = TStrategy.CreateStorageStore(logDevice,objDevice,memorySize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity,mutableFraction: 0);
@@ -392,7 +392,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     [BenchFact,Benchmark]
     [SuppressMessage("Interoperability","CA1416:Validate platform compatibility",Justification = "Cross-platform test fixture")]
     public void SaveLoad() {
-        var folder = CreateDiskFolder();
+        var folder = this.CreateDiskFolder();
         var checkpointDir = folder+"_checkpoint";
         Guid token;
         {

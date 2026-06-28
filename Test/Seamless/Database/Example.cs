@@ -177,7 +177,7 @@ namespace Test.Seamless.Database.Example {
         }
 #endif
     }
-    static class DatabaseGenerator;
+    internal static class DatabaseGenerator;
     namespace Keys {
         public partial struct Key0 {
             public int Column0 { get; private init; } = Column0;
@@ -212,7 +212,7 @@ namespace Test.Seamless.Database.Example {
             }
             public readonly ref struct Stack {
                 private readonly ReadOnlySpan<byte> data;
-                public Stack(ReadOnlySpan<byte> input) => data=input;
+                public Stack(ReadOnlySpan<byte> input) => this.data=input;
 
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 public static implicit operator Key0(Stack view) =>
@@ -231,7 +231,7 @@ namespace Test.Seamless.Database.Example {
 
             public readonly ref struct Stack {
                 private readonly ReadOnlySpan<byte> data;
-                public Stack(ReadOnlySpan<byte> input) => data=input;
+                public Stack(ReadOnlySpan<byte> input) => this.data=input;
 
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 public static implicit operator Type0(Stack view) =>

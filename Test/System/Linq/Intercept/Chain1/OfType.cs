@@ -9,8 +9,8 @@ public sealed class OfType(ITestOutputHelper output):LinqChain1TestBase(output) 
     [Fact, Trait("Category","Unit")]
     public void NoDelegate() {
         var expected=CastObjects().OfType<int>().ToList();
-        MeasureOptimized(nameof(NoDelegateOptimized),()=>NoDelegateOptimized(expected));
-        MeasureOptimized(nameof(NoDelegateNoOptimized),()=>NoDelegateNoOptimized(expected));
+        this.MeasureOptimized(nameof(NoDelegateOptimized),()=>NoDelegateOptimized(expected));
+        this.MeasureOptimized(nameof(NoDelegateNoOptimized),()=>NoDelegateNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -30,8 +30,8 @@ public sealed class OfType(ITestOutputHelper output):LinqChain1TestBase(output) 
     [Fact, Trait("Category","Unit")]
     public void mixedTypes() {
         var expected=MixedObjects().OfType<int>().ToList();
-        MeasureOptimized(nameof(mixedTypesOptimized),()=>mixedTypesOptimized(expected));
-        MeasureOptimized(nameof(mixedTypesNoOptimized),()=>mixedTypesNoOptimized(expected));
+        this.MeasureOptimized(nameof(mixedTypesOptimized),()=>mixedTypesOptimized(expected));
+        this.MeasureOptimized(nameof(mixedTypesNoOptimized),()=>mixedTypesNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

@@ -21,14 +21,14 @@ namespace Seamless.System.Carrier {
     public struct Chunk<TEnumerator, TSource>(TEnumerator source,Int32 size)
         :IValueEnumerator<TSource[]>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        int index;
-        bool isInitialized;
-        bool isCompleted;
-        bool isCanGetSpan;
+        private TEnumerator source = source;
+        private int index;
+        private bool isInitialized;
+        private bool isCompleted;
+        private bool isCanGetSpan;
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(source.TryGetNonEnumeratedCount(out var sourceCount)) {
+            if(this.source.TryGetNonEnumeratedCount(out var sourceCount)) {
                 count=(sourceCount+size-1)/size; // Calculate the total number of chunks
                 return true;
             }
@@ -45,67 +45,67 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TSource[]> destination,Index offset) => false;
 
         public bool TryGetNext(out TSource[] current) {
-            if(isCompleted) {
+            if(this.isCompleted) {
                 current=default!;
                 return false;
             }
 
-            if(!isInitialized) {
-                isInitialized=true;
+            if(!this.isInitialized) {
+                this.isInitialized=true;
 
-                if(source.TryGetNonEnumeratedCount(out var count)) {
+                if(this.source.TryGetNonEnumeratedCount(out var count)) {
                     size=Math.Min(size,count); // no needs large buffer
                 }
 
-                if(source.TryGetSpan(out var span)) {
-                    isCanGetSpan=true;
+                if(this.source.TryGetSpan(out var span)) {
+                    this.isCanGetSpan=true;
                     if(span.Length==0) {
-                        isCompleted=true;
+                        this.isCompleted=true;
                         current=default!;
                         return false;
                     }
                 }
             }
 
-            if(isCanGetSpan) {
-                if(!source.TryGetSpan(out var span)) {
+            if(this.isCanGetSpan) {
+                if(!this.source.TryGetSpan(out var span)) {
                     current=default!;
-                    isCompleted=true;
+                    this.isCompleted=true;
                     return false;
                 }
-                var currentSpan = span.Slice(index,Math.Min(size,span.Length-index));
-                index+=currentSpan.Length;
+                var currentSpan = span.Slice(this.index,Math.Min(size,span.Length-this.index));
+                this.index+=currentSpan.Length;
                 current=currentSpan.ToArray();
-                if(index==span.Length) {
-                    isCompleted=true;
+                if(this.index==span.Length) {
+                    this.isCompleted=true;
                 }
                 return true;
             }
             else // noSpan
             {
-                index=0;
+                this.index=0;
                 current=null!;
-                while(source.TryGetNext(out var value)) {
+                while(this.source.TryGetNext(out var value)) {
                     if(current==null) current=new TSource[size];
 
-                    current[index++]=value;
-                    if(index==size) {
-                        index=0;
+                    current[this.index++]=value;
+                    if(this.index==size) {
+                        this.index=0;
                         return true;
                     }
                 }
 
-                isCompleted=true;
+                this.isCompleted=true;
                 if(current==null) return false;
-                if(current.Length!=index) {
-                    Array.Resize(ref current,index);
+                if(current.Length!=this.index) {
+                    Array.Resize(ref current,this.index);
                 }
                 return true;
             }
         }
 
         public void Dispose() {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 

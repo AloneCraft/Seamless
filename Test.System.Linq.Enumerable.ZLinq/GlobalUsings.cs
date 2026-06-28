@@ -1,1 +1,1 @@
-global using LinqInterceptAttribute = Seamless.Linq.Enumerable.Shared.NoopLinqInterceptAttribute;
+global using LinqInterceptAttribute = Seamless.Linq.Shared.NoopLinqInterceptAttribute;

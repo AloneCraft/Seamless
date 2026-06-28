@@ -6,10 +6,10 @@ public abstract class SymmetricExceptWith<TKey,TSet>:CommonWith<TKey,TSet>
     where TKey : IEquatable<TKey>
     where TSet : IHashSet<TKey>,IDisposable {
     [Fact, Trait("Category","Unit")]
-    public void SymmetricExceptWithAB() => RunWithAB();
+    public void SymmetricExceptWithAB() => this.RunWithAB();
 
     [Fact, Trait("Category","Unit")]
-    public void SymmetricExceptWithAA() => RunWithAA();
+    public void SymmetricExceptWithAA() => this.RunWithAA();
 }
 
 public sealed class ManagedSymmetricExceptWith:SymmetricExceptWith<string,global::Seamless.Tsavorite.Collections.HashSet<string>> {

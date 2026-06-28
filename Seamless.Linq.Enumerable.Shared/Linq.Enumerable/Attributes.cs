@@ -1,4 +1,4 @@
-namespace Seamless.Linq.Enumerable.Shared;
+namespace Seamless.Linq.Shared;
 
 [AttributeUsage(AttributeTargets.Method,AllowMultiple=false)]
 public sealed class NoopLinqInterceptAttribute(bool optimize):Attribute {

@@ -84,7 +84,7 @@ public abstract partial class CollectionStore<
     internal StorageOverflowMutableStrategy StorageOverflowMutableStrategy { get; }
     private bool Disposed;
     private int CheckpointInProgress;
-    private bool UsesStorageDevice => Settings is not null&&(Settings.LogDevice is not MemoryOnlyDevice||Settings.ObjectLogDevice is not MemoryOnlyDevice);
+    private bool UsesStorageDevice => this.Settings is not null&&(this.Settings.LogDevice is not MemoryOnlyDevice||this.Settings.ObjectLogDevice is not MemoryOnlyDevice);
 
     /// <summary>驛｢譏ｴ繝ｻ??驛｢譏懶ｽｺ・･繝ｻ・ｰ郢ｧ閾･闊樣Δ・ｧ繝ｻ・ｷ驛｢譎｢・ｽ・ｼ驛｢譎｢・｣・ｰ: TakeCheckpointAsync 髯橸ｽｳ郢晢ｽｻE???ECompleteCheckpointAsync 髯ｷ鮃ｹ莠らｫ頑･｢諠ｱ繝ｻ・ｼ驍ｵ・ｺ繝ｻ・ｳ髯ｷ繝ｻ・ｽ・ｺ驍ｵ・ｺ髴郁ｲｻ・ｽ讙趣ｽｹ・ｧ闕ｵ譏ｴ・・Δ譎｢・ｽ・ｼ驛｢譎｢・ｽ・ｫ驛｢譎√・郢晢ｽ｣驛｢・ｧ繝ｻ・ｯ驍ｵ・ｲ郢晢ｽｻ/summary>
     private protected CollectionStore(
@@ -115,10 +115,10 @@ public abstract partial class CollectionStore<
             throw new ArgumentOutOfRangeException(nameof(MutableFraction));
         if(ObjectLogDevice.Capacity!=-1&&(ObjectLogDevice.Capacity<Const.MinObjectLogCapacity||ObjectLogDevice.Capacity>Const.MaxObjectLogCapacity))
             throw new ArgumentOutOfRangeException(nameof(ObjectLogDevice),$"{nameof(ObjectLogDevice)} capacity must be -1 or between {Const.MinObjectLogCapacity} and {Const.MaxObjectLogCapacity}.");
-        LogMemorySize=MemorySize;
+        this.LogMemorySize=MemorySize;
         this.MutableFraction=MutableFraction;
         this.OverflowMutableStrategyKind=OverflowMutableStrategyKind;
-        StorageOverflowMutableStrategy=new(LogDevice.Capacity,StorageLimitFraction,StorageReserveBytes);
+        this.StorageOverflowMutableStrategy=new(LogDevice.Capacity,StorageLimitFraction,StorageReserveBytes);
         long objectLogSegmentSize;
         if(ObjectLogDevice.Capacity<0) {
             objectLogSegmentSize=Const.MinObjectLogCapacity;
@@ -128,7 +128,7 @@ public abstract partial class CollectionStore<
                 throw new ArgumentOutOfRangeException(nameof(ObjectLogDevice),$"ObjectLogDevice.Capacity must be a multiple of SegmentSize ({SegmentSize}), but was {ObjectLogDevice.Capacity}.");
             objectLogSegmentSize=ObjectLogDevice.Capacity;
         }
-        Settings=new() {
+        this.Settings=new() {
             IndexSize=IndexSize,
             LogMemorySize=MemorySize,
             PageSize=PageSize,
@@ -140,8 +140,8 @@ public abstract partial class CollectionStore<
             ObjectLogSegmentSize=objectLogSegmentSize,
             CheckpointDir=CheckpointDir,
         };
-        Store=new TsavoriteKV<TStoreFunctions,TAllocator>(
-            Settings,
+        this.Store=new TsavoriteKV<TStoreFunctions,TAllocator>(
+            this.Settings,
             StoreFunctions,
             allocatorFactory
         );
@@ -155,89 +155,89 @@ public abstract partial class CollectionStore<
     }
 
     public void AssertCheckpointDir() {
-        if(string.IsNullOrEmpty(Settings.CheckpointDir))
-            throw new InvalidOperationException($"{nameof(Settings.CheckpointDir)} is not set.");
+        if(string.IsNullOrEmpty(this.Settings.CheckpointDir))
+            throw new InvalidOperationException($"{nameof(this.Settings.CheckpointDir)} is not set.");
     }
 
     public async ValueTask<Guid> SaveAsync(CheckpointType CheckpointType = CheckpointType.Snapshot,CancellationToken ct = default) {
-        AssertCheckpointDir();
-        ThrowIfCheckpointInProgress();
+        this.AssertCheckpointDir();
+        this.ThrowIfCheckpointInProgress();
         try {
-            var (success,token)=await Store.TakeFullCheckpointAsync(CheckpointType,ct);
-            await Store.CompleteCheckpointAsync(ct);
+            var (success,token)=await this.Store.TakeFullCheckpointAsync(CheckpointType,ct);
+            await this.Store.CompleteCheckpointAsync(ct);
             if(success) {
-                WriteRecoveryIndexMetadata(token);
+                this.WriteRecoveryIndexMetadata(token);
                 return token;
             }
             throw new InvalidOperationException($"{nameof(Save)}Checkpoint failed.");
         }
         finally {
-            ReleaseCheckpoint();
+            this.ReleaseCheckpoint();
         }
     }
 
-    public Guid Save(CheckpointType CheckpointType = CheckpointType.Snapshot) => SaveAsync(CheckpointType).GetAwaiter().GetResult();
+    public Guid Save(CheckpointType CheckpointType = CheckpointType.Snapshot) => this.SaveAsync(CheckpointType).GetAwaiter().GetResult();
 
     public async ValueTask<Guid> SaveLogOnlyAsync(CheckpointType CheckpointType = CheckpointType.Snapshot,CancellationToken ct = default) {
-        AssertCheckpointDir();
-        ThrowIfCheckpointInProgress();
+        this.AssertCheckpointDir();
+        this.ThrowIfCheckpointInProgress();
         try {
-            var (success,token)=await Store.TakeHybridLogCheckpointAsync(CheckpointType,cancellationToken: ct);
-            await Store.CompleteCheckpointAsync(ct);
+            var (success,token)=await this.Store.TakeHybridLogCheckpointAsync(CheckpointType,cancellationToken: ct);
+            await this.Store.CompleteCheckpointAsync(ct);
             if(success) {
-                WriteRecoveryIndexMetadata(token);
+                this.WriteRecoveryIndexMetadata(token);
                 return token;
             }
             throw new InvalidOperationException($"{nameof(SaveLogOnly)}Checkpoint failed.");
         }
         finally {
-            ReleaseCheckpoint();
+            this.ReleaseCheckpoint();
         }
     }
 
     private void ThrowIfCheckpointInProgress() {
-        if(Interlocked.CompareExchange(ref CheckpointInProgress,1,0)!=0)
+        if(Interlocked.CompareExchange(ref this.CheckpointInProgress,1,0)!=0)
             throw new InvalidOperationException("Checkpoint already in progress.");
     }
 
     private void ReleaseCheckpoint() {
-        Volatile.Write(ref CheckpointInProgress,0);
+        Volatile.Write(ref this.CheckpointInProgress,0);
     }
 
     private void WriteRecoveryIndexMetadata(Guid token) {
-        global::Seamless.Tsavorite.Collections.Store.WriteRecoveryIndexMetadata(Settings.CheckpointDir!,token,GetRecoveryEntryCount());
+        global::Seamless.Tsavorite.Collections.Store.WriteRecoveryIndexMetadata(this.Settings.CheckpointDir!,token,this.GetRecoveryEntryCount());
     }
 
-    public Guid SaveLogOnly(CheckpointType CheckpointType = CheckpointType.Snapshot) => SaveLogOnlyAsync(CheckpointType).GetAwaiter().GetResult();
+    public Guid SaveLogOnly(CheckpointType CheckpointType = CheckpointType.Snapshot) => this.SaveLogOnlyAsync(CheckpointType).GetAwaiter().GetResult();
 
     public async ValueTask LoadAsync(CancellationToken ct = default) {
-        AssertCheckpointDir();
-        await Store.RecoverAsync(cancellationToken: ct);
+        this.AssertCheckpointDir();
+        await this.Store.RecoverAsync(cancellationToken: ct);
     }
 
-    public void Load() => LoadAsync().GetAwaiter().GetResult();
+    public void Load() => this.LoadAsync().GetAwaiter().GetResult();
 
     public async ValueTask LoadAsync(Guid token,CancellationToken ct = default) {
-        AssertCheckpointDir();
-        await Store.RecoverAsync(Guid.Empty,token,cancellationToken: ct);
+        this.AssertCheckpointDir();
+        await this.Store.RecoverAsync(Guid.Empty,token,cancellationToken: ct);
     }
 
     public void Load(Guid token) {
         var ct = CancellationToken.None;
-        LoadAsync(token,ct).GetAwaiter().GetResult();
+        this.LoadAsync(token,ct).GetAwaiter().GetResult();
     }
 
     public (long BeginAddress,long HeadAddress,long ReadOnlyAddress,long TailAddress) Address {
         get {
-            var Log = Store.Log;
+            var Log = this.Store.Log;
             return (Log.BeginAddress,Log.HeadAddress,Log.ReadOnlyAddress,Log.TailAddress);
         }
     }
 
     public void CompactWithLookup() {
-        var store = Store;
+        var store = this.Store;
         var beginAddress = store.Log.BeginAddress;
-        var segmentSize = Settings.SegmentSize;
+        var segmentSize = this.Settings.SegmentSize;
         var nextSegmentStart = (beginAddress/segmentSize+1)*segmentSize;
         var compactUntil = nextSegmentStart;
         var safeReadOnlyAddress = store.Log.SafeReadOnlyAddress;
@@ -247,7 +247,7 @@ public abstract partial class CollectionStore<
         if(compactUntil<=beginAddress) {
             return;
         }
-        var untilAddress = Store.Log.Compact<TKey,TValue,EqualityEmpty>(
+        var untilAddress = this.Store.Log.Compact<TKey,TValue,EqualityEmpty>(
             compactUntil,
             CompactionType.Lookup
         );
@@ -255,21 +255,21 @@ public abstract partial class CollectionStore<
     }
 
     public void Dispose() {
-        Dispose(true);
+        this.Dispose(true);
         GC.SuppressFinalize(this);
     }
 
     protected virtual void Dispose(bool disposing) {
-        if(Disposed) return;
-        Disposed=true;
+        if(this.Disposed) return;
+        this.Disposed=true;
         if(disposing) {
-            if(Store is not null&&UsesStorageDevice) {
-                Store.Log.FlushAndEvict(wait: true);
+            if(this.Store is not null&&this.UsesStorageDevice) {
+                this.Store.Log.FlushAndEvict(wait: true);
             }
         }
-        Store?.Dispose();
-        Settings?.Dispose();
+        this.Store?.Dispose();
+        this.Settings?.Dispose();
     }
 
-    ~CollectionStore() => Dispose(false);
+    ~CollectionStore() => this.Dispose(false);
 }

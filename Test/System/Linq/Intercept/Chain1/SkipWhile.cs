@@ -9,8 +9,8 @@ public sealed class SkipWhile(ITestOutputHelper output):LinqChain1TestBase(outpu
     [Fact, Trait("Category","Unit")]
     public void predicate_Static() {
         var expected=Source().SkipWhile(static v => v<3).ToList();
-        MeasureOptimized(nameof(predicate_StaticOptimized),()=>predicate_StaticOptimized(expected));
-        MeasureOptimized(nameof(predicate_StaticNoOptimized),()=>predicate_StaticNoOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_StaticOptimized),()=>predicate_StaticOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_StaticNoOptimized),()=>predicate_StaticNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -30,8 +30,8 @@ public sealed class SkipWhile(ITestOutputHelper output):LinqChain1TestBase(outpu
     [Fact, Trait("Category","Unit")]
     public void predicate_Nested() {
         var expected=Source().SkipWhile(p => Source().SkipWhile(q => q<p).Any()).ToList();
-        MeasureOptimized(nameof(predicate_NestedOptimized),()=>predicate_NestedOptimized(expected));
-        MeasureOptimized(nameof(predicate_NestedNoOptimized),()=>predicate_NestedNoOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_NestedOptimized),()=>predicate_NestedOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_NestedNoOptimized),()=>predicate_NestedNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -51,8 +51,8 @@ public sealed class SkipWhile(ITestOutputHelper output):LinqChain1TestBase(outpu
     [Fact, Trait("Category","Unit")]
     public void predicate_Lambda() {
         var expected=Source().SkipWhile(v => v<3).ToList();
-        MeasureOptimized(nameof(predicate_LambdaOptimized),()=>predicate_LambdaOptimized(expected));
-        MeasureOptimized(nameof(predicate_LambdaNoOptimized),()=>predicate_LambdaNoOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_LambdaOptimized),()=>predicate_LambdaOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_LambdaNoOptimized),()=>predicate_LambdaNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -73,8 +73,8 @@ public sealed class SkipWhile(ITestOutputHelper output):LinqChain1TestBase(outpu
     public void predicate_Captured() {
         var threshold=3;
         var expected=Source().SkipWhile(v => v<threshold).ToList();
-        MeasureOptimized(nameof(predicate_CapturedOptimized),()=>predicate_CapturedOptimized(expected));
-        MeasureOptimized(nameof(predicate_CapturedNoOptimized),()=>predicate_CapturedNoOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_CapturedOptimized),()=>predicate_CapturedOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_CapturedNoOptimized),()=>predicate_CapturedNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -96,8 +96,8 @@ public sealed class SkipWhile(ITestOutputHelper output):LinqChain1TestBase(outpu
     [Fact, Trait("Category","Unit")]
     public void predicate_DelegateSyntax() {
         var expected=Source().SkipWhile(delegate(int v) { return v<3; }).ToList();
-        MeasureOptimized(nameof(predicate_DelegateSyntaxOptimized),()=>predicate_DelegateSyntaxOptimized(expected));
-        MeasureOptimized(nameof(predicate_DelegateSyntaxNoOptimized),()=>predicate_DelegateSyntaxNoOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_DelegateSyntaxOptimized),()=>predicate_DelegateSyntaxOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_DelegateSyntaxNoOptimized),()=>predicate_DelegateSyntaxNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -118,8 +118,8 @@ public sealed class SkipWhile(ITestOutputHelper output):LinqChain1TestBase(outpu
     public void predicate_Variable() {
         Func<int,bool> predicate=v => v<3;
         var expected=Source().SkipWhile(predicate).ToList();
-        MeasureOptimized(nameof(predicate_VariableOptimized),()=>predicate_VariableOptimized(expected));
-        MeasureOptimized(nameof(predicate_VariableNoOptimized),()=>predicate_VariableNoOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_VariableOptimized),()=>predicate_VariableOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_VariableNoOptimized),()=>predicate_VariableNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -141,8 +141,8 @@ public sealed class SkipWhile(ITestOutputHelper output):LinqChain1TestBase(outpu
     [Fact, Trait("Category","Unit")]
     public void predicate_index_Static() {
         var expected=Source().SkipWhile(static (v,i) => v>i).ToList();
-        MeasureOptimized(nameof(predicate_index_StaticOptimized),()=>predicate_index_StaticOptimized(expected));
-        MeasureOptimized(nameof(predicate_index_StaticNoOptimized),()=>predicate_index_StaticNoOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_index_StaticOptimized),()=>predicate_index_StaticOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_index_StaticNoOptimized),()=>predicate_index_StaticNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -162,8 +162,8 @@ public sealed class SkipWhile(ITestOutputHelper output):LinqChain1TestBase(outpu
     [Fact, Trait("Category","Unit")]
     public void predicate_index_Lambda() {
         var expected=Source().SkipWhile((v,i) => v>i).ToList();
-        MeasureOptimized(nameof(predicate_index_LambdaOptimized),()=>predicate_index_LambdaOptimized(expected));
-        MeasureOptimized(nameof(predicate_index_LambdaNoOptimized),()=>predicate_index_LambdaNoOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_index_LambdaOptimized),()=>predicate_index_LambdaOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_index_LambdaNoOptimized),()=>predicate_index_LambdaNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -184,8 +184,8 @@ public sealed class SkipWhile(ITestOutputHelper output):LinqChain1TestBase(outpu
     public void predicate_index_Captured() {
         var predicate=new IntIndexPredicate(0);
         var expected=Source().SkipWhile(predicate.LessThanThreshold).ToList();
-        MeasureOptimized(nameof(predicate_index_CapturedOptimized),()=>predicate_index_CapturedOptimized(expected));
-        MeasureOptimized(nameof(predicate_index_CapturedNoOptimized),()=>predicate_index_CapturedNoOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_index_CapturedOptimized),()=>predicate_index_CapturedOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_index_CapturedNoOptimized),()=>predicate_index_CapturedNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -207,8 +207,8 @@ public sealed class SkipWhile(ITestOutputHelper output):LinqChain1TestBase(outpu
     [Fact, Trait("Category","Unit")]
     public void predicate_index_DelegateSyntax() {
         var expected=Source().SkipWhile(delegate(int v,int i) { return v>i; }).ToList();
-        MeasureOptimized(nameof(predicate_index_DelegateSyntaxOptimized),()=>predicate_index_DelegateSyntaxOptimized(expected));
-        MeasureOptimized(nameof(predicate_index_DelegateSyntaxNoOptimized),()=>predicate_index_DelegateSyntaxNoOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_index_DelegateSyntaxOptimized),()=>predicate_index_DelegateSyntaxOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_index_DelegateSyntaxNoOptimized),()=>predicate_index_DelegateSyntaxNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -229,8 +229,8 @@ public sealed class SkipWhile(ITestOutputHelper output):LinqChain1TestBase(outpu
     public void predicate_index_Variable() {
         Func<int,int,bool> predicate=(v,i) => v>i;
         var expected=Source().SkipWhile(predicate).ToList();
-        MeasureOptimized(nameof(predicate_index_VariableOptimized),()=>predicate_index_VariableOptimized(expected));
-        MeasureOptimized(nameof(predicate_index_VariableNoOptimized),()=>predicate_index_VariableNoOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_index_VariableOptimized),()=>predicate_index_VariableOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_index_VariableNoOptimized),()=>predicate_index_VariableNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

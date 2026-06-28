@@ -7,8 +7,8 @@ public sealed class Append(ITestOutputHelper output):LinqChain1TestBase(output) 
     [Fact, Trait("Category","Unit")]
     public void element() {
         var expected=Source().Append(5).ToList();
-        MeasureOptimized(nameof(elementOptimized),()=>elementOptimized(expected));
-        MeasureOptimized(nameof(elementNoOptimized),()=>elementNoOptimized(expected));
+        this.MeasureOptimized(nameof(elementOptimized),()=>elementOptimized(expected));
+        this.MeasureOptimized(nameof(elementNoOptimized),()=>elementNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

@@ -82,7 +82,7 @@ namespace Seamless.System.Carrier {
         }
 
         // Try... but throws exception when there are more than one element.
-        static bool TryGetSingle<TEnumerator, TSource>(ref TEnumerator source,out TSource value)
+        private static bool TryGetSingle<TEnumerator, TSource>(ref TEnumerator source,out TSource value)
             where TEnumerator : struct, IValueEnumerator<TSource> {
             if(source.TryGetSpan(out var span)) {
                 if(span.Length==1) {
@@ -105,8 +105,7 @@ namespace Seamless.System.Carrier {
             value=default!;
             return false;
         }
-
-        static bool TryGetSingle<TEnumerator, TSource>(ref TEnumerator source,Func<TSource,Boolean> predicate,out TSource value)
+        private static bool TryGetSingle<TEnumerator, TSource>(ref TEnumerator source,Func<TSource,Boolean> predicate,out TSource value)
             where TEnumerator : struct, IValueEnumerator<TSource> {
             value=default!;
             bool found = false;

@@ -28,114 +28,114 @@ public sealed class LinqCounter {
     private long logicalDelegate;
     private long physicalDelegate;
 
-    public long PhysicalMoveNext => Interlocked.Read(ref physicalMoveNext);
-    public long LogicalOperations => Interlocked.Read(ref logicalOperations);
-    public long LogicalWhere => Interlocked.Read(ref logicalWhere);
-    public long LogicalSelect => Interlocked.Read(ref logicalSelect);
-    public long LogicalSelectManyOuter => Interlocked.Read(ref logicalSelectManyOuter);
-    public long LogicalSelectManyInner => Interlocked.Read(ref logicalSelectManyInner);
-    public long LogicalJoinOuter => Interlocked.Read(ref logicalJoinOuter);
-    public long LogicalJoinInner => Interlocked.Read(ref logicalJoinInner);
-    public long LogicalGroupJoinOuter => Interlocked.Read(ref logicalGroupJoinOuter);
-    public long LogicalGroupJoinInner => Interlocked.Read(ref logicalGroupJoinInner);
-    public long LogicalLeftJoinOuter => Interlocked.Read(ref logicalLeftJoinOuter);
-    public long LogicalLeftJoinInner => Interlocked.Read(ref logicalLeftJoinInner);
-    public long LogicalRightJoinOuter => Interlocked.Read(ref logicalRightJoinOuter);
-    public long LogicalRightJoinInner => Interlocked.Read(ref logicalRightJoinInner);
-    public long HashBuild => Interlocked.Read(ref hashBuild);
-    public long HashProbe => Interlocked.Read(ref hashProbe);
-    public long BufferAdd => Interlocked.Read(ref bufferAdd);
-    public long TryGetNonEnumeratedCount => Interlocked.Read(ref tryGetNonEnumeratedCount);
-    public long LogicalDelegate => Interlocked.Read(ref logicalDelegate);
-    public long PhysicalDelegate => Interlocked.Read(ref physicalDelegate);
+    public long PhysicalMoveNext => Interlocked.Read(ref this.physicalMoveNext);
+    public long LogicalOperations => Interlocked.Read(ref this.logicalOperations);
+    public long LogicalWhere => Interlocked.Read(ref this.logicalWhere);
+    public long LogicalSelect => Interlocked.Read(ref this.logicalSelect);
+    public long LogicalSelectManyOuter => Interlocked.Read(ref this.logicalSelectManyOuter);
+    public long LogicalSelectManyInner => Interlocked.Read(ref this.logicalSelectManyInner);
+    public long LogicalJoinOuter => Interlocked.Read(ref this.logicalJoinOuter);
+    public long LogicalJoinInner => Interlocked.Read(ref this.logicalJoinInner);
+    public long LogicalGroupJoinOuter => Interlocked.Read(ref this.logicalGroupJoinOuter);
+    public long LogicalGroupJoinInner => Interlocked.Read(ref this.logicalGroupJoinInner);
+    public long LogicalLeftJoinOuter => Interlocked.Read(ref this.logicalLeftJoinOuter);
+    public long LogicalLeftJoinInner => Interlocked.Read(ref this.logicalLeftJoinInner);
+    public long LogicalRightJoinOuter => Interlocked.Read(ref this.logicalRightJoinOuter);
+    public long LogicalRightJoinInner => Interlocked.Read(ref this.logicalRightJoinInner);
+    public long HashBuild => Interlocked.Read(ref this.hashBuild);
+    public long HashProbe => Interlocked.Read(ref this.hashProbe);
+    public long BufferAdd => Interlocked.Read(ref this.bufferAdd);
+    public long TryGetNonEnumeratedCount => Interlocked.Read(ref this.tryGetNonEnumeratedCount);
+    public long LogicalDelegate => Interlocked.Read(ref this.logicalDelegate);
+    public long PhysicalDelegate => Interlocked.Read(ref this.physicalDelegate);
 
-    public void IncrementPhysicalMoveNext() => Interlocked.Increment(ref physicalMoveNext);
-    public void IncrementLogicalOperations() => Interlocked.Increment(ref logicalOperations);
+    public void IncrementPhysicalMoveNext() => Interlocked.Increment(ref this.physicalMoveNext);
+    public void IncrementLogicalOperations() => Interlocked.Increment(ref this.logicalOperations);
     public void IncrementLogicalWhere() {
-        Interlocked.Increment(ref logicalWhere);
-        Interlocked.Increment(ref logicalOperations);
+        Interlocked.Increment(ref this.logicalWhere);
+        Interlocked.Increment(ref this.logicalOperations);
     }
     public void IncrementLogicalSelect() {
-        Interlocked.Increment(ref logicalSelect);
-        Interlocked.Increment(ref logicalOperations);
+        Interlocked.Increment(ref this.logicalSelect);
+        Interlocked.Increment(ref this.logicalOperations);
     }
     public void IncrementLogicalSelectManyOuter() {
-        Interlocked.Increment(ref logicalSelectManyOuter);
-        Interlocked.Increment(ref logicalOperations);
+        Interlocked.Increment(ref this.logicalSelectManyOuter);
+        Interlocked.Increment(ref this.logicalOperations);
     }
     public void IncrementLogicalSelectManyInner() {
-        Interlocked.Increment(ref logicalSelectManyInner);
-        Interlocked.Increment(ref logicalOperations);
+        Interlocked.Increment(ref this.logicalSelectManyInner);
+        Interlocked.Increment(ref this.logicalOperations);
     }
     public void IncrementLogicalJoinOuter() {
-        Interlocked.Increment(ref logicalJoinOuter);
-        Interlocked.Increment(ref logicalOperations);
+        Interlocked.Increment(ref this.logicalJoinOuter);
+        Interlocked.Increment(ref this.logicalOperations);
     }
     public void IncrementLogicalJoinInner() {
-        Interlocked.Increment(ref logicalJoinInner);
-        Interlocked.Increment(ref logicalOperations);
+        Interlocked.Increment(ref this.logicalJoinInner);
+        Interlocked.Increment(ref this.logicalOperations);
     }
     public void IncrementLogicalGroupJoinOuter() {
-        Interlocked.Increment(ref logicalGroupJoinOuter);
-        Interlocked.Increment(ref logicalOperations);
+        Interlocked.Increment(ref this.logicalGroupJoinOuter);
+        Interlocked.Increment(ref this.logicalOperations);
     }
     public void IncrementLogicalGroupJoinInner() {
-        Interlocked.Increment(ref logicalGroupJoinInner);
-        Interlocked.Increment(ref logicalOperations);
+        Interlocked.Increment(ref this.logicalGroupJoinInner);
+        Interlocked.Increment(ref this.logicalOperations);
     }
     public void IncrementLogicalLeftJoinOuter() {
-        Interlocked.Increment(ref logicalLeftJoinOuter);
-        Interlocked.Increment(ref logicalOperations);
+        Interlocked.Increment(ref this.logicalLeftJoinOuter);
+        Interlocked.Increment(ref this.logicalOperations);
     }
     public void IncrementLogicalLeftJoinInner() {
-        Interlocked.Increment(ref logicalLeftJoinInner);
-        Interlocked.Increment(ref logicalOperations);
+        Interlocked.Increment(ref this.logicalLeftJoinInner);
+        Interlocked.Increment(ref this.logicalOperations);
     }
     public void IncrementLogicalRightJoinOuter() {
-        Interlocked.Increment(ref logicalRightJoinOuter);
-        Interlocked.Increment(ref logicalOperations);
+        Interlocked.Increment(ref this.logicalRightJoinOuter);
+        Interlocked.Increment(ref this.logicalOperations);
     }
     public void IncrementLogicalRightJoinInner() {
-        Interlocked.Increment(ref logicalRightJoinInner);
-        Interlocked.Increment(ref logicalOperations);
+        Interlocked.Increment(ref this.logicalRightJoinInner);
+        Interlocked.Increment(ref this.logicalOperations);
     }
-    public void IncrementHashBuild() => Interlocked.Increment(ref hashBuild);
-    public void IncrementHashProbe() => Interlocked.Increment(ref hashProbe);
-    public void IncrementBufferAdd() => Interlocked.Increment(ref bufferAdd);
-    public void IncrementTryGetNonEnumeratedCount() => Interlocked.Increment(ref tryGetNonEnumeratedCount);
-    public void IncrementLogicalDelegate() => Interlocked.Increment(ref logicalDelegate);
-    public void IncrementPhysicalDelegate() => Interlocked.Increment(ref physicalDelegate);
+    public void IncrementHashBuild() => Interlocked.Increment(ref this.hashBuild);
+    public void IncrementHashProbe() => Interlocked.Increment(ref this.hashProbe);
+    public void IncrementBufferAdd() => Interlocked.Increment(ref this.bufferAdd);
+    public void IncrementTryGetNonEnumeratedCount() => Interlocked.Increment(ref this.tryGetNonEnumeratedCount);
+    public void IncrementLogicalDelegate() => Interlocked.Increment(ref this.logicalDelegate);
+    public void IncrementPhysicalDelegate() => Interlocked.Increment(ref this.physicalDelegate);
     public T RecordLogicalDelegate<T>(T value) {
-        IncrementLogicalDelegate();
+        this.IncrementLogicalDelegate();
         return value;
     }
     public T RecordPhysicalDelegate<T>(T value) {
-        IncrementLogicalDelegate();
-        IncrementPhysicalDelegate();
+        this.IncrementLogicalDelegate();
+        this.IncrementPhysicalDelegate();
         return value;
     }
 
     public void Reset() {
-        Interlocked.Exchange(ref physicalMoveNext,0);
-        Interlocked.Exchange(ref logicalOperations,0);
-        Interlocked.Exchange(ref logicalWhere,0);
-        Interlocked.Exchange(ref logicalSelect,0);
-        Interlocked.Exchange(ref logicalSelectManyOuter,0);
-        Interlocked.Exchange(ref logicalSelectManyInner,0);
-        Interlocked.Exchange(ref logicalJoinOuter,0);
-        Interlocked.Exchange(ref logicalJoinInner,0);
-        Interlocked.Exchange(ref logicalGroupJoinOuter,0);
-        Interlocked.Exchange(ref logicalGroupJoinInner,0);
-        Interlocked.Exchange(ref logicalLeftJoinOuter,0);
-        Interlocked.Exchange(ref logicalLeftJoinInner,0);
-        Interlocked.Exchange(ref logicalRightJoinOuter,0);
-        Interlocked.Exchange(ref logicalRightJoinInner,0);
-        Interlocked.Exchange(ref hashBuild,0);
-        Interlocked.Exchange(ref hashProbe,0);
-        Interlocked.Exchange(ref bufferAdd,0);
-        Interlocked.Exchange(ref tryGetNonEnumeratedCount,0);
-        Interlocked.Exchange(ref logicalDelegate,0);
-        Interlocked.Exchange(ref physicalDelegate,0);
+        Interlocked.Exchange(ref this.physicalMoveNext,0);
+        Interlocked.Exchange(ref this.logicalOperations,0);
+        Interlocked.Exchange(ref this.logicalWhere,0);
+        Interlocked.Exchange(ref this.logicalSelect,0);
+        Interlocked.Exchange(ref this.logicalSelectManyOuter,0);
+        Interlocked.Exchange(ref this.logicalSelectManyInner,0);
+        Interlocked.Exchange(ref this.logicalJoinOuter,0);
+        Interlocked.Exchange(ref this.logicalJoinInner,0);
+        Interlocked.Exchange(ref this.logicalGroupJoinOuter,0);
+        Interlocked.Exchange(ref this.logicalGroupJoinInner,0);
+        Interlocked.Exchange(ref this.logicalLeftJoinOuter,0);
+        Interlocked.Exchange(ref this.logicalLeftJoinInner,0);
+        Interlocked.Exchange(ref this.logicalRightJoinOuter,0);
+        Interlocked.Exchange(ref this.logicalRightJoinInner,0);
+        Interlocked.Exchange(ref this.hashBuild,0);
+        Interlocked.Exchange(ref this.hashProbe,0);
+        Interlocked.Exchange(ref this.bufferAdd,0);
+        Interlocked.Exchange(ref this.tryGetNonEnumeratedCount,0);
+        Interlocked.Exchange(ref this.logicalDelegate,0);
+        Interlocked.Exchange(ref this.physicalDelegate,0);
     }
 }
 
@@ -156,11 +156,11 @@ public static class LinqCounterScope {
         private readonly LinqCounter? previous;
         public Scope(LinqCounter? previous,LinqCounter counter) {
             this.previous=previous;
-            Counter=counter;
+            this.Counter=counter;
         }
         public LinqCounter Counter { get; }
         public void Dispose() {
-            CurrentCounter.Value=previous;
+            CurrentCounter.Value=this.previous;
         }
     }
 }

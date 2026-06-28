@@ -21,25 +21,25 @@ public sealed class StoreHandle<TKey, TValue>:IDisposable
         Func<Guid> save,
         Action<Guid> load,
         Func<(long,long,long,long)> getAddress) {
-        _store=store;
-        _createDict=createDict;
-        _flushAndEvict=flushAndEvict;
-        _save=save;
-        _load=load;
-        _getAddress=getAddress;
+        this._store=store;
+        this._createDict=createDict;
+        this._flushAndEvict=flushAndEvict;
+        this._save=save;
+        this._load=load;
+        this._getAddress=getAddress;
     }
 
     public global::Seamless.Tsavorite.Collections.IDictionary<TKey,TValue> NewDict() =>
-        _createDict();
+        this._createDict();
     public void FlushAndEvict(bool wait = true) =>
-        _flushAndEvict(wait);
+        this._flushAndEvict(wait);
     public Guid Save() =>
-        _save();
+        this._save();
     public void Load(Guid token) =>
-        _load(token);
+        this._load(token);
     public (long Begin,long Head,long Ro,long Tail) Address =>
-        _getAddress();
+        this._getAddress();
     public void Dispose() {
-        _store.Dispose();
+        this._store.Dispose();
     }
 }

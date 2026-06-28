@@ -8,8 +8,8 @@ public sealed class Where_ToArray(ITestOutputHelper output):LinqChain2TestBase(o
     [Fact, Trait("Category","Unit")]
     public void Static() {
         var expected=Source().Where(static v => v>2).ToArray();
-        AssertOptimized(nameof(StaticOptimized),expected,()=>StaticOptimized());
-        AssertOptimized(nameof(StaticNoOptimized),expected,()=>StaticNoOptimized());
+        this.AssertOptimized(nameof(StaticOptimized),expected,()=>StaticOptimized());
+        this.AssertOptimized(nameof(StaticNoOptimized),expected,()=>StaticNoOptimized());
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

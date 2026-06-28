@@ -1,7 +1,7 @@
 using System.Reflection;
 
 using Seamless.FLinq;
-using PersistedEnumerable = Seamless.Persisted.Linq.Enumerable;
+using SeamlessEnumerable = Seamless.Linq.Enumerable;
 
 namespace Test.Seamless.Persisted.Linq.Enumerable;
 
@@ -10,7 +10,7 @@ public class EnumerableForwarderTests {
     [Fact, Trait("Category","Unit")]
     public void GeneratedEnumerable_ExposesAllApplicableSystemEnumerableOverloads() {
         var expected = GetSystemApplicableSignatures().Order(StringComparer.Ordinal).ToArray();
-        var actual = GetBackendSignatures(typeof(PersistedEnumerable)).Order(StringComparer.Ordinal).ToArray();
+        var actual = GetBackendSignatures(typeof(SeamlessEnumerable)).Order(StringComparer.Ordinal).ToArray();
 
         Assert.Empty(expected.Except(actual,StringComparer.Ordinal));
     }
@@ -27,17 +27,17 @@ public class EnumerableForwarderTests {
             var orderedSource = source.Order().ToArray();
 
             Assert.Equal(orderedSource.Where(static value => value%2==0).ToArray(),
-                PersistedEnumerable.Where(source,static value => value%2==0).ToArray());
+                SeamlessEnumerable.Where(source,static value => value%2==0).ToArray());
             Assert.Equal(orderedSource.Select(static value => value*10).ToArray(),
-                PersistedEnumerable.Select(source,static value => value*10).ToArray());
+                SeamlessEnumerable.Select(source,static value => value*10).ToArray());
             Assert.Equal(orderedSource.Count(static value => value>2),
-                PersistedEnumerable.Count(source,static value => value>2));
+                SeamlessEnumerable.Count(source,static value => value>2));
             Assert.Equal(orderedSource.Any(static value => value==3),
-                PersistedEnumerable.Any(source,static value => value==3));
+                SeamlessEnumerable.Any(source,static value => value==3));
             Assert.Equal(orderedSource.Sum(),
-                PersistedEnumerable.Sum(source));
+                SeamlessEnumerable.Sum(source));
             Assert.Equal(orderedSource.Union([3,4,5]).Order().ToArray(),
-                PersistedEnumerable.Union(source,[3,4,5]).Order().ToArray());
+                SeamlessEnumerable.Union(source,[3,4,5]).Order().ToArray());
         }
         finally {
             TryDeleteDirectory(path);

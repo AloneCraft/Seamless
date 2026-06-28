@@ -3,12 +3,12 @@ namespace Benchmark;
 public partial class App:Application {
     private bool closeConfirmed;
     private bool closeInProgress;
-    private Page? startupPage;
+    private readonly Page? startupPage;
 
     public App() {
         try{
             StartupDiagnostics.Write("App constructor started.");
-            InitializeComponent();
+            this.InitializeComponent();
             this.startupPage=new AppShell();
             StartupDiagnostics.Write("App constructor completed.");
         }catch(Exception ex){

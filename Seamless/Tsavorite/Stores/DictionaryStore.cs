@@ -25,32 +25,32 @@ public class DictionaryStore<TKey, TValue>:CollectionStore<TKey,TValue> {
     }
 
     public Collections.IDictionary<TKey,TValue> Create() {
-        if(keyUsesMemoryPackSerializer) {
-            if(valueUsesMemoryPackSerializer) {
+        if(this.keyUsesMemoryPackSerializer) {
+            if(this.valueUsesMemoryPackSerializer) {
                 return new Dictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(this);
             }
 
-            return CreateDictionary(
+            return this.CreateDictionary(
                 typeof(Dictionary<,,,>),
                 typeof(MemoryPackSerializer<>),
                 typeof(BlittableSerializer<>));
         }
 
-        if(valueUsesMemoryPackSerializer) {
-            return CreateDictionary(
+        if(this.valueUsesMemoryPackSerializer) {
+            return this.CreateDictionary(
                 typeof(Dictionary<,,,>),
                 typeof(BlittableSerializer<>),
                 typeof(MemoryPackSerializer<>));
         }
 
-        return CreateDictionary(
+        return this.CreateDictionary(
             typeof(Dictionary<,,,>),
             typeof(BlittableSerializer<>),
             typeof(BlittableSerializer<>));
     }
 
     private protected override long GetRecoveryEntryCount() {
-        using var dictionary = Create();
+        using var dictionary = this.Create();
         return dictionary.GetLongCount();
     }
 

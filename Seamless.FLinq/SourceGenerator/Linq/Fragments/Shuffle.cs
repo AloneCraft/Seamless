@@ -4,7 +4,7 @@ public class Shuffle(int 番号, Enumerable source) : BufferedSequence(番号, s
     protected override Enumerable PrimarySource => source;
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string StructMethod => string.Empty;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum source";
     protected override string BuildExpression => "Build(source)";
     protected override string BuildMembers => $$"""
@@ -16,8 +16,8 @@ public class Shuffle(int 番号, Enumerable source) : BufferedSequence(番号, s
                 result = new global::System.Collections.Generic.List<{{source.ElementType}}>();
             }
             try {
-                while(source.TryGetNext(out var {{item}})) {
-                    result.Add({{item}});
+                while(source.TryGetNext(out var {{this.item}})) {
+                    result.Add({{this.item}});
                 }
             } finally {
                 source.Dispose();

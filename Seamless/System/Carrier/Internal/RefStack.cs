@@ -4,11 +4,9 @@ namespace Seamless.System.Carrier.Internal;
 internal sealed class RefStack<T> where T : IDisposable
 {
     internal static readonly RefStack<T> DisposeSentinel = new(0);
-
-    static volatile int gate = 0;
-    static volatile RefStack<T>? Last = null;
-
-    RefStack<T>? Prev = null; // pooling property
+    private static volatile int gate = 0;
+    private static volatile RefStack<T>? Last = null;
+    private RefStack<T>? Prev = null; // pooling property
 
     public static RefStack<T> Rent()
     {
@@ -42,46 +40,44 @@ internal sealed class RefStack<T> where T : IDisposable
     }
 
     // ---
-
-    T[] array;
-    int size = 0;
-
-    RefStack(int initialSize)
+    private T[] array;
+    private int size = 0;
+    private RefStack(int initialSize)
     {
-        array = initialSize == 0 ? [] : new T[initialSize];
-        size = 0;
+        this.array = initialSize == 0 ? [] : new T[initialSize];
+        this.size = 0;
     }
 
     public void Push(T value)
     {
-        if (size ==array.Length)
+        if (this.size ==this.array.Length)
         {
-            Array.Resize(ref array,array.Length * 2); // I don't care if the stack is not deep enough to overflow.
+            Array.Resize(ref this.array,this.array.Length * 2); // I don't care if the stack is not deep enough to overflow.
         }
-        array[size++] = value;
+        this.array[this.size++] = value;
     }
 
     public void Pop()
     {
-        size--;
+        this.size--;
     }
 
     public ref T PeekRefOrNullRef()
     {
-        if (size == 0)
+        if (this.size == 0)
         {
             return ref Unsafe.NullRef<T>();
         }
-        return ref array[size - 1];
+        return ref this.array[this.size - 1];
     }
 
     public void Reset()
     {
-        for (int i = 0; i <size; i++)
+        for (int i = 0; i <this.size; i++)
         {
-            array[i].Dispose();
+            this.array[i].Dispose();
         }
 
-        size = 0;
+        this.size = 0;
     }
 }

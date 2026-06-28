@@ -91,16 +91,13 @@ namespace Seamless.System.Carrier {
 
     [StructLayout(LayoutKind.Auto)]
     public struct LookupBuilder<TKey, TElement> {
-        const int MinimumSize = 16; // minimum arraypool size
-        const double LoadFactor = 0.72;
-
-        readonly IEqualityComparer<TKey> comparer;
-
-        Grouping<TKey,TElement>[]? buckets;
-        int bucketsLength;
-
-        Grouping<TKey,TElement>? last;
-        int groupCount;
+        private const int MinimumSize = 16; // minimum arraypool size
+        private const double LoadFactor = 0.72;
+        private readonly IEqualityComparer<TKey> comparer;
+        private Grouping<TKey,TElement>[]? buckets;
+        private int bucketsLength;
+        private Grouping<TKey,TElement>? last;
+        private int groupCount;
 
         public LookupBuilder(IEqualityComparer<TKey>? comparer) {
             last=null;
@@ -109,13 +106,13 @@ namespace Seamless.System.Carrier {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        int GetBucketIndex(uint hashCode) {
+        private int GetBucketIndex(uint hashCode) {
             Debug.Assert(buckets is not null);
             return (int)(hashCode&(bucketsLength-1));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        uint InternalGetHashCode(TKey key) {
+        private uint InternalGetHashCode(TKey key) {
             // allows null
             return (uint)((key is null) ? 0 : comparer.GetHashCode(key)&0x7FFFFFFF);
         }
@@ -204,8 +201,7 @@ namespace Seamless.System.Carrier {
 
             return last?.NextGroupInAddOrder; // as first.
         }
-
-        void ResizeAndRehash() {
+        private void ResizeAndRehash() {
             Debug.Assert(buckets is not null);
             if(last is null) return;
             var group = last.NextGroupInAddOrder; // as first.
@@ -250,13 +246,11 @@ namespace Seamless.System.Carrier {
     [DebuggerTypeProxy(typeof(LookupDebugView<,>))]
     public sealed class Lookup<TKey, TElement>:ILookup<TKey,TElement>, ICollection<IGrouping<TKey,TElement>>, IReadOnlyCollection<IGrouping<TKey,TElement>> {
         internal static readonly Lookup<TKey,TElement> Empty = new Lookup<TKey,TElement>();
-
-        readonly Grouping<TKey,TElement>?[]? groups;
-        readonly Grouping<TKey,TElement>? last;
-        readonly int count;
-        readonly IEqualityComparer<TKey> comparer;
-
-        Lookup() // for empty
+        private readonly Grouping<TKey,TElement>?[]? groups;
+        private readonly Grouping<TKey,TElement>? last;
+        private readonly int count;
+        private readonly IEqualityComparer<TKey> comparer;
+        private Lookup() // for empty
         {
             groups=null;
             last=null;
@@ -347,14 +341,14 @@ namespace Seamless.System.Carrier {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        int GetBucketIndex(uint hashCode) {
+        private int GetBucketIndex(uint hashCode) {
             var buckets = groups;
             Debug.Assert(buckets is not null);
             return (int)(hashCode&(buckets.Length-1));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        uint InternalGetHashCode(TKey key) {
+        private uint InternalGetHashCode(TKey key) {
             // allows null.
             return (uint)((key is null) ? 0 : comparer.GetHashCode(key)&0x7FFFFFFF);
         }
@@ -399,10 +393,10 @@ namespace Seamless.System.Carrier {
     [DebuggerDisplay("Key = {Key}")]
     [DebuggerTypeProxy(typeof(GroupingDebugView<,>))]
     public sealed class Grouping<TKey, TElement>:IGrouping<TKey,TElement>, IList<TElement>, IReadOnlyList<TElement> {
-        TKey key;
-        uint hashCode;
-        TElement[] elements; // don't use ArrayPool. initial elements is 1.
-        int count; // elements count(index)
+        private TKey key;
+        private uint hashCode;
+        private TElement[] elements; // don't use ArrayPool. initial elements is 1.
+        private int count; // elements count(index)
 
         public Grouping<TKey,TElement>? NextGroupInAddOrder;  // to guarantees add order
         public Grouping<TKey,TElement>? NextGroupInSameHashCode; // linked-list node for chaining
@@ -481,8 +475,8 @@ namespace Seamless.System.Carrier {
     }
 
     internal sealed class GroupingDebugView<TKey, TElement> {
-        readonly Grouping<TKey,TElement> _grouping;
-        TElement[]? _cachedValues;
+        private readonly Grouping<TKey,TElement> _grouping;
+        private TElement[]? _cachedValues;
 
         public GroupingDebugView(Grouping<TKey,TElement> grouping) {
             _grouping=grouping;
@@ -495,8 +489,8 @@ namespace Seamless.System.Carrier {
     }
 
     internal sealed class LookupDebugView<TKey, TElement> {
-        readonly ILookup<TKey,TElement> _lookup;
-        IGrouping<TKey,TElement>[]? _cachedGroupings;
+        private readonly ILookup<TKey,TElement> _lookup;
+        private IGrouping<TKey,TElement>[]? _cachedGroupings;
 
         public LookupDebugView(ILookup<TKey,TElement> lookup) {
             _lookup=lookup;

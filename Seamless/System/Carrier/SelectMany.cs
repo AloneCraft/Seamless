@@ -46,9 +46,9 @@ namespace Seamless.System.Carrier {
     public struct SelectMany<TEnumerator, TSource, TResult>(TEnumerator source,Func<TSource,IEnumerable<TResult>> selector)
         :IValueEnumerator<TResult>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        FromEnumerable<TResult> innerEnumerator;
-        bool hasInner = false;
+        private TEnumerator source = source;
+        private FromEnumerable<TResult> innerEnumerator;
+        private bool hasInner = false;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -64,18 +64,18 @@ namespace Seamless.System.Carrier {
 
         public bool TryGetNext(out TResult current) {
         BEGIN:
-            if(hasInner) {
-                if(innerEnumerator.TryGetNext(out current)) {
+            if(this.hasInner) {
+                if(this.innerEnumerator.TryGetNext(out current)) {
                     return true;
                 }
 
-                innerEnumerator.Dispose();
-                hasInner=false;
+                this.innerEnumerator.Dispose();
+                this.hasInner=false;
             }
 
-            if(source.TryGetNext(out var value)) {
-                innerEnumerator=selector(value).AsValueEnumerable().Enumerator;
-                hasInner=true;
+            if(this.source.TryGetNext(out var value)) {
+                this.innerEnumerator=selector(value).AsValueEnumerable().Enumerator;
+                this.hasInner=true;
                 goto BEGIN;
             }
 
@@ -84,10 +84,10 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(hasInner) {
-                innerEnumerator.Dispose();
+            if(this.hasInner) {
+                this.innerEnumerator.Dispose();
             }
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -97,10 +97,10 @@ namespace Seamless.System.Carrier {
         :IValueEnumerator<TResult>
         where TEnumerator : struct, IValueEnumerator<TSource>
         where TEnumerator2 : struct, IValueEnumerator<TResult> {
-        TEnumerator source = source;
-        TEnumerator2 innerEnumerator;
-        bool hasInner = false;
-        int index = 0;
+        private TEnumerator source = source;
+        private TEnumerator2 innerEnumerator;
+        private bool hasInner = false;
+        private int index = 0;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -116,18 +116,18 @@ namespace Seamless.System.Carrier {
 
         public bool TryGetNext(out TResult current) {
         BEGIN:
-            if(hasInner) {
-                if(innerEnumerator.TryGetNext(out current)) {
+            if(this.hasInner) {
+                if(this.innerEnumerator.TryGetNext(out current)) {
                     return true;
                 }
 
-                innerEnumerator.Dispose();
-                hasInner=false;
+                this.innerEnumerator.Dispose();
+                this.hasInner=false;
             }
 
-            if(source.TryGetNext(out var value)) {
-                innerEnumerator=selector(value,index++).Enumerator;
-                hasInner=true;
+            if(this.source.TryGetNext(out var value)) {
+                this.innerEnumerator=selector(value,this.index++).Enumerator;
+                this.hasInner=true;
                 goto BEGIN;
             }
 
@@ -136,10 +136,10 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(hasInner) {
-                innerEnumerator.Dispose();
+            if(this.hasInner) {
+                this.innerEnumerator.Dispose();
             }
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -149,10 +149,10 @@ namespace Seamless.System.Carrier {
         :IValueEnumerator<TResult>
         where TEnumerator : struct, IValueEnumerator<TSource>
         where TEnumerator2 : struct, IValueEnumerator<TCollection> {
-        TEnumerator source = source;
-        TEnumerator2 innerEnumerator;
-        TSource currentSource = default!;
-        bool hasInner = false;
+        private TEnumerator source = source;
+        private TEnumerator2 innerEnumerator;
+        private TSource currentSource = default!;
+        private bool hasInner = false;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -168,20 +168,20 @@ namespace Seamless.System.Carrier {
 
         public bool TryGetNext(out TResult current) {
         BEGIN:
-            if(hasInner) {
-                if(innerEnumerator.TryGetNext(out var innerCurrent)) {
-                    current=resultSelector(currentSource,innerCurrent);
+            if(this.hasInner) {
+                if(this.innerEnumerator.TryGetNext(out var innerCurrent)) {
+                    current=resultSelector(this.currentSource,innerCurrent);
                     return true;
                 }
 
-                innerEnumerator.Dispose();
-                hasInner=false;
+                this.innerEnumerator.Dispose();
+                this.hasInner=false;
             }
 
-            if(source.TryGetNext(out var value)) {
-                currentSource=value;
-                innerEnumerator=collectionSelector(value).Enumerator;
-                hasInner=true;
+            if(this.source.TryGetNext(out var value)) {
+                this.currentSource=value;
+                this.innerEnumerator=collectionSelector(value).Enumerator;
+                this.hasInner=true;
                 goto BEGIN;
             }
 
@@ -190,10 +190,10 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(hasInner) {
-                innerEnumerator.Dispose();
+            if(this.hasInner) {
+                this.innerEnumerator.Dispose();
             }
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -203,11 +203,11 @@ namespace Seamless.System.Carrier {
         :IValueEnumerator<TResult>
         where TEnumerator : struct, IValueEnumerator<TSource>
         where TEnumerator2 : struct, IValueEnumerator<TCollection> {
-        TEnumerator source = source;
-        TEnumerator2 innerEnumerator;
-        TSource currentSource = default!;
-        int index;
-        bool hasInner = false;
+        private TEnumerator source = source;
+        private TEnumerator2 innerEnumerator;
+        private TSource currentSource = default!;
+        private int index;
+        private bool hasInner = false;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -223,20 +223,20 @@ namespace Seamless.System.Carrier {
 
         public bool TryGetNext(out TResult current) {
         BEGIN:
-            if(hasInner) {
-                if(innerEnumerator.TryGetNext(out var innerCurrent)) {
-                    current=resultSelector(currentSource,innerCurrent);
+            if(this.hasInner) {
+                if(this.innerEnumerator.TryGetNext(out var innerCurrent)) {
+                    current=resultSelector(this.currentSource,innerCurrent);
                     return true;
                 }
 
-                innerEnumerator.Dispose();
-                hasInner=false;
+                this.innerEnumerator.Dispose();
+                this.hasInner=false;
             }
 
-            if(source.TryGetNext(out var value)) {
-                currentSource=value;
-                innerEnumerator=collectionSelector(value,index++).Enumerator;
-                hasInner=true;
+            if(this.source.TryGetNext(out var value)) {
+                this.currentSource=value;
+                this.innerEnumerator=collectionSelector(value,this.index++).Enumerator;
+                this.hasInner=true;
                 goto BEGIN;
             }
 
@@ -245,10 +245,10 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(hasInner) {
-                innerEnumerator.Dispose();
+            if(this.hasInner) {
+                this.innerEnumerator.Dispose();
             }
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -260,9 +260,9 @@ namespace Seamless.System.Carrier {
         :IValueEnumerator<TResult>
         where TEnumerator : struct, IValueEnumerator<TSource>
         where TEnumerator2 : struct, IValueEnumerator<TResult> {
-        TEnumerator source = source;
-        TEnumerator2 innerEnumerator;
-        bool hasInner = false;
+        private TEnumerator source = source;
+        private TEnumerator2 innerEnumerator;
+        private bool hasInner = false;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -278,18 +278,18 @@ namespace Seamless.System.Carrier {
 
         public bool TryGetNext(out TResult current) {
         BEGIN:
-            if(hasInner) {
-                if(innerEnumerator.TryGetNext(out current)) {
+            if(this.hasInner) {
+                if(this.innerEnumerator.TryGetNext(out current)) {
                     return true;
                 }
 
-                innerEnumerator.Dispose();
-                hasInner=false;
+                this.innerEnumerator.Dispose();
+                this.hasInner=false;
             }
 
-            if(source.TryGetNext(out var value)) {
-                innerEnumerator=selector(value).Enumerator;
-                hasInner=true;
+            if(this.source.TryGetNext(out var value)) {
+                this.innerEnumerator=selector(value).Enumerator;
+                this.hasInner=true;
                 goto BEGIN;
             }
 
@@ -298,10 +298,10 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(hasInner) {
-                innerEnumerator.Dispose();
+            if(this.hasInner) {
+                this.innerEnumerator.Dispose();
             }
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -310,10 +310,10 @@ namespace Seamless.System.Carrier {
     public struct SelectMany2<TEnumerator, TSource, TResult>(TEnumerator source,Func<TSource,int,IEnumerable<TResult>> selector)
         :IValueEnumerator<TResult>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        FromEnumerable<TResult> innerEnumerator;
-        bool hasInner = false;
-        int index = 0;
+        private TEnumerator source = source;
+        private FromEnumerable<TResult> innerEnumerator;
+        private bool hasInner = false;
+        private int index = 0;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -329,18 +329,18 @@ namespace Seamless.System.Carrier {
 
         public bool TryGetNext(out TResult current) {
         BEGIN:
-            if(hasInner) {
-                if(innerEnumerator.TryGetNext(out current)) {
+            if(this.hasInner) {
+                if(this.innerEnumerator.TryGetNext(out current)) {
                     return true;
                 }
 
-                innerEnumerator.Dispose();
-                hasInner=false;
+                this.innerEnumerator.Dispose();
+                this.hasInner=false;
             }
 
-            if(source.TryGetNext(out var value)) {
-                innerEnumerator=selector(value,index++).AsValueEnumerable().Enumerator;
-                hasInner=true;
+            if(this.source.TryGetNext(out var value)) {
+                this.innerEnumerator=selector(value,this.index++).AsValueEnumerable().Enumerator;
+                this.hasInner=true;
                 goto BEGIN;
             }
 
@@ -349,10 +349,10 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(hasInner) {
-                innerEnumerator.Dispose();
+            if(this.hasInner) {
+                this.innerEnumerator.Dispose();
             }
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -361,10 +361,10 @@ namespace Seamless.System.Carrier {
     public struct SelectMany3<TEnumerator, TSource, TCollection, TResult>(TEnumerator source,Func<TSource,IEnumerable<TCollection>> collectionSelector,Func<TSource,TCollection,TResult> resultSelector)
         :IValueEnumerator<TResult>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        FromEnumerable<TCollection> innerEnumerator;
-        TSource currentSource = default!;
-        bool hasInner = false;
+        private TEnumerator source = source;
+        private FromEnumerable<TCollection> innerEnumerator;
+        private TSource currentSource = default!;
+        private bool hasInner = false;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -380,20 +380,20 @@ namespace Seamless.System.Carrier {
 
         public bool TryGetNext(out TResult current) {
         BEGIN:
-            if(hasInner) {
-                if(innerEnumerator.TryGetNext(out var innerCurrent)) {
-                    current=resultSelector(currentSource,innerCurrent);
+            if(this.hasInner) {
+                if(this.innerEnumerator.TryGetNext(out var innerCurrent)) {
+                    current=resultSelector(this.currentSource,innerCurrent);
                     return true;
                 }
 
-                innerEnumerator.Dispose();
-                hasInner=false;
+                this.innerEnumerator.Dispose();
+                this.hasInner=false;
             }
 
-            if(source.TryGetNext(out var value)) {
-                currentSource=value;
-                innerEnumerator=collectionSelector(value).AsValueEnumerable().Enumerator;
-                hasInner=true;
+            if(this.source.TryGetNext(out var value)) {
+                this.currentSource=value;
+                this.innerEnumerator=collectionSelector(value).AsValueEnumerable().Enumerator;
+                this.hasInner=true;
                 goto BEGIN;
             }
 
@@ -402,10 +402,10 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(hasInner) {
-                innerEnumerator.Dispose();
+            if(this.hasInner) {
+                this.innerEnumerator.Dispose();
             }
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -414,11 +414,11 @@ namespace Seamless.System.Carrier {
     public struct SelectMany4<TEnumerator, TSource, TCollection, TResult>(TEnumerator source,Func<TSource,int,IEnumerable<TCollection>> collectionSelector,Func<TSource,TCollection,TResult> resultSelector)
         :IValueEnumerator<TResult>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        FromEnumerable<TCollection> innerEnumerator;
-        TSource currentSource = default!;
-        int index;
-        bool hasInner = false;
+        private TEnumerator source = source;
+        private FromEnumerable<TCollection> innerEnumerator;
+        private TSource currentSource = default!;
+        private int index;
+        private bool hasInner = false;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -434,20 +434,20 @@ namespace Seamless.System.Carrier {
 
         public bool TryGetNext(out TResult current) {
         BEGIN:
-            if(hasInner) {
-                if(innerEnumerator.TryGetNext(out var innerCurrent)) {
-                    current=resultSelector(currentSource,innerCurrent);
+            if(this.hasInner) {
+                if(this.innerEnumerator.TryGetNext(out var innerCurrent)) {
+                    current=resultSelector(this.currentSource,innerCurrent);
                     return true;
                 }
 
-                innerEnumerator.Dispose();
-                hasInner=false;
+                this.innerEnumerator.Dispose();
+                this.hasInner=false;
             }
 
-            if(source.TryGetNext(out var value)) {
-                currentSource=value;
-                innerEnumerator=collectionSelector(value,index++).AsValueEnumerable().Enumerator;
-                hasInner=true;
+            if(this.source.TryGetNext(out var value)) {
+                this.currentSource=value;
+                this.innerEnumerator=collectionSelector(value,this.index++).AsValueEnumerable().Enumerator;
+                this.hasInner=true;
                 goto BEGIN;
             }
 
@@ -456,10 +456,10 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(hasInner) {
-                innerEnumerator.Dispose();
+            if(this.hasInner) {
+                this.innerEnumerator.Dispose();
             }
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 

@@ -21,12 +21,12 @@ namespace Seamless.System.Carrier {
         :IValueEnumerator<TSource>
         where TEnumerator1 : struct, IValueEnumerator<TSource>
         where TEnumerator2 : struct, IValueEnumerator<TSource> {
-        TEnumerator1 first = first;
-        TEnumerator2 second = second;
-        bool firstCompleted;
+        private TEnumerator1 first = first;
+        private TEnumerator2 second = second;
+        private bool firstCompleted;
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(first.TryGetNonEnumeratedCount(out var count1)&&second.TryGetNonEnumeratedCount(out var count2)) {
+            if(this.first.TryGetNonEnumeratedCount(out var count1)&&this.second.TryGetNonEnumeratedCount(out var count2)) {
                 count=checked(count1+count2);
                 return true;
             }
@@ -48,17 +48,17 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out TSource current) {
-            if(!firstCompleted) {
+            if(!this.firstCompleted) {
                 // iterate first
-                if(first.TryGetNext(out current)) {
+                if(this.first.TryGetNext(out current)) {
                     return true;
                 }
-                first.Dispose();
-                firstCompleted=true;
+                this.first.Dispose();
+                this.firstCompleted=true;
             }
 
             // iterate second
-            if(second.TryGetNext(out current)) {
+            if(this.second.TryGetNext(out current)) {
                 return true;
             }
 
@@ -67,10 +67,10 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(!firstCompleted) {
-                first.Dispose();
+            if(!this.firstCompleted) {
+                this.first.Dispose();
             }
-            second.Dispose();
+            this.second.Dispose();
         }
     }
 }

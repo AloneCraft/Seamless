@@ -8,11 +8,11 @@ public readonly struct ValueEnumerable<TEnumerator, T>(TEnumerator enumerator):I
     // internal operator should use this
     public readonly TEnumerator Enumerator = enumerator;
     // Cast and OfType are implemented as instance methods rather than extension methods to simplify type specification.
-    public ValueEnumerable<Cast<TEnumerator,T,TResult>,TResult> Cast<TResult>() => new(new(Enumerator));
-    public ValueEnumerable<OfType<TEnumerator,T,TResult>,TResult> OfType<TResult>() => new(new(Enumerator));
-    public IEnumerator<T> GetEnumerator() => new ValueEnumerator<TEnumerator,T>(Enumerator);
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-    string DebuggerDisplay => ValueEnumerableDebuggerDisplayHelper.BuildDisplayText(typeof(TEnumerator));
+    public ValueEnumerable<Cast<TEnumerator,T,TResult>,TResult> Cast<TResult>() => new(new(this.Enumerator));
+    public ValueEnumerable<OfType<TEnumerator,T,TResult>,TResult> OfType<TResult>() => new(new(this.Enumerator));
+    public IEnumerator<T> GetEnumerator() => new ValueEnumerator<TEnumerator,T>(this.Enumerator);
+    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+    private string DebuggerDisplay => ValueEnumerableDebuggerDisplayHelper.BuildDisplayText(typeof(TEnumerator));
 }
 // all implement types must be struct
 public interface IValueEnumerator<T>:IDisposable {
@@ -42,20 +42,20 @@ public interface IValueEnumerator<T>:IDisposable {
 [StructLayout(LayoutKind.Auto)]
 public struct ValueEnumerator<TEnumerator, T>(TEnumerator enumerator):IEnumerator<T>
     where TEnumerator : struct, IValueEnumerator<T> {
-    TEnumerator enumerator = enumerator;
-    T current = default!;
+    private TEnumerator enumerator = enumerator;
+    private T current = default!;
     public T Current {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => current;
+        get => this.current;
     }
-    object IEnumerator.Current => current!;
+    object IEnumerator.Current => this.current!;
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool MoveNext() {
-        if(enumerator.TryGetNext(out current)) {
+        if(this.enumerator.TryGetNext(out this.current)) {
             return true;
         }
         else {
-            current=default!;
+            this.current=default!;
             return false;
         }
     }
@@ -63,7 +63,7 @@ public struct ValueEnumerator<TEnumerator, T>(TEnumerator enumerator):IEnumerato
     public void Reset() => throw new NotSupportedException();
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Dispose() => enumerator.Dispose();
+    public void Dispose() => this.enumerator.Dispose();
 }
 
 public static partial class ValueEnumerableExtensions {
@@ -96,8 +96,7 @@ internal static class ValueEnumerableDebuggerDisplayHelper // avoid <T> for asse
         }
         return sb.ToString();
     }
-
-    static void BuildCore(StringBuilder sb,Type type) {
+    private static void BuildCore(StringBuilder sb,Type type) {
         if(type.IsGenericType) {
             var parent = type.GenericTypeArguments[0];
             if(parent.IsGenericType||(parent.Name is "FromRange" or "FromRange2" or "FromRangeDateTime" or "FromRangeDateTimeTo")) {
@@ -133,16 +132,16 @@ internal static class ValueEnumerableDebuggerDisplayHelper // avoid <T> for asse
 
 internal struct ValueEnumerableDebugView<TEnumerator, T>(ValueEnumerable<TEnumerator,T> source)
     where TEnumerator : struct, IValueEnumerator<T> {
-    readonly ValueEnumerable<TEnumerator,T> source = source;
-    T[]? items;
+    private readonly ValueEnumerable<TEnumerator,T> source = source;
+    private T[]? items;
     // avoiding side-effects so only run when opened.
     [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
     public T[] Items {
         get {
-            if(items==null) {
-                items=source.Take(100000).ToArray(); // max 100000 to avoid infinite call
+            if(this.items==null) {
+                this.items=this.source.Take(100000).ToArray(); // max 100000 to avoid infinite call
             }
-            return items;
+            return this.items;
         }
     }
 }

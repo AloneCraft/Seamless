@@ -34,9 +34,9 @@ public sealed class TsavoriteHashSetScanTerminal(
     PipelineTerminalKind terminalKind)
     : Scalar(番号),DirectExecutionFragment {
     private TsavoriteHashSetRoot Root => (TsavoriteHashSetRoot)pipeline.Source;
-    private string StateTypeName => $"{Struct}_TsavoriteHashSetScanState";
-    private string BodyMethodName => $"{Struct}_TsavoriteHashSetScanBody";
-    private string AccessorMethodName => $"{Struct}_TsavoriteHashSetScan";
+    private string StateTypeName => $"{this.Struct}_TsavoriteHashSetScanState";
+    private string BodyMethodName => $"{this.Struct}_TsavoriteHashSetScanBody";
+    private string AccessorMethodName => $"{this.Struct}_TsavoriteHashSetScan";
 
     protected override Enumerable PrimarySource => pipeline;
 
@@ -65,12 +65,12 @@ public sealed class TsavoriteHashSetScanTerminal(
     public override string StructMethod {
         get {
             var builder = new StringBuilder();
-            foreach(var func in Funcs()) {
-                AppendMember(builder,FuncSupport(func,"Scan"));
+            foreach(var func in this.Funcs()) {
+                AppendMember(builder,this.FuncSupport(func,"Scan"));
             }
-            AppendMember(builder,StateStructSource());
-            AppendMember(builder,BodyMethodSource());
-            AppendMember(builder,UnsafeAccessorSource());
+            AppendMember(builder,this.StateStructSource());
+            AppendMember(builder,this.BodyMethodSource());
+            AppendMember(builder,this.UnsafeAccessorSource());
             return builder.ToString().TrimEnd();
         }
     }
@@ -83,9 +83,9 @@ public sealed class TsavoriteHashSetScanTerminal(
         var sourceName=$"__tsavoriteScanSource{番号}";
         var stateName=$"__tsavoriteScanState{番号}";
         var builder = new StringBuilder();
-        builder.AppendLine($"var {sourceName}={Root.SourceExpression};");
-        builder.AppendLine($"var {stateName}=new {StateTypeName}[] {{ new {StateTypeName}({ClosureArgumentList()}) }};");
-        builder.AppendLine($"{AccessorMethodName}<{Root.ElementType}>(null,{sourceName},itemObject=>{BodyMethodName}(ref {stateName}[0],itemObject));");
+        builder.AppendLine($"var {sourceName}={this.Root.SourceExpression};");
+        builder.AppendLine($"var {stateName}=new {this.StateTypeName}[] {{ new {this.StateTypeName}({this.ClosureArgumentList()}) }};");
+        builder.AppendLine($"{this.AccessorMethodName}<{this.Root.ElementType}>(null,{sourceName},itemObject=>{this.BodyMethodName}(ref {stateName}[0],itemObject));");
         if(terminalKind==PipelineTerminalKind.Count) {
             builder.AppendLine($"{actualTypeName} {actualVariableName}=({actualTypeName}){stateName}[0].Count;");
         } else if(terminalKind==PipelineTerminalKind.Any) {
@@ -103,33 +103,33 @@ public sealed class TsavoriteHashSetScanTerminal(
 
     private string StateStructSource() {
         var builder = new StringBuilder();
-        builder.AppendLine($"private struct {StateTypeName} {{");
-        foreach(var capture in CapturedLocals()) {
+        builder.AppendLine($"private struct {this.StateTypeName} {{");
+        foreach(var capture in this.CapturedLocals()) {
             builder.AppendLine($"    public {capture.TypeName} {capture.Name};");
         }
-        foreach(var hoistedLocal in HoistedLocals()) {
+        foreach(var hoistedLocal in this.HoistedLocals()) {
             builder.AppendLine($"    public {hoistedLocal.TypeName} {hoistedLocal.Name};");
         }
-        foreach(var func in DelegateFuncs()) {
+        foreach(var func in this.DelegateFuncs()) {
             builder.AppendLine($"    public {func.DelegateTypeName} {func.DelegateFieldName};");
         }
         foreach(var (stage,index) in pipeline.Stages.Select(static (stage,index)=>(stage,index))) {
             if(stage.UsesIndex) {
-                builder.AppendLine($"    public int {IndexFieldName(index)};");
+                builder.AppendLine($"    public int {this.IndexFieldName(index)};");
             }
         }
         builder.AppendLine("    public int Count;");
         builder.AppendLine("    public bool Found;");
         builder.AppendLine($"    public {pipeline.ElementType} Value;");
-        var parameters = ClosureParameters().ToArray();
+        var parameters = this.ClosureParameters().ToArray();
         if(parameters.Length>0) {
-            builder.AppendLine($"    public {StateTypeName}({string.Join(", ",parameters.Select(static p=>$"{p.TypeName} {p.Name}"))}) {{");
+            builder.AppendLine($"    public {this.StateTypeName}({string.Join(", ",parameters.Select(static p=>$"{p.TypeName} {p.Name}"))}) {{");
             foreach(var parameter in parameters) {
                 builder.AppendLine($"        this.{parameter.Name}={parameter.Name};");
             }
             foreach(var (stage,index) in pipeline.Stages.Select(static (stage,index)=>(stage,index))) {
                 if(stage.UsesIndex) {
-                    builder.AppendLine($"        this.{IndexFieldName(index)}=-1;");
+                    builder.AppendLine($"        this.{this.IndexFieldName(index)}=-1;");
                 }
             }
             builder.AppendLine("        this.Count=0;");
@@ -137,10 +137,10 @@ public sealed class TsavoriteHashSetScanTerminal(
             builder.AppendLine("        this.Value=default!;");
             builder.AppendLine("    }");
         } else if(pipeline.Stages.Any(static stage=>stage.UsesIndex)) {
-            builder.AppendLine($"    public {StateTypeName}() {{");
+            builder.AppendLine($"    public {this.StateTypeName}() {{");
             foreach(var (stage,index) in pipeline.Stages.Select(static (stage,index)=>(stage,index))) {
                 if(stage.UsesIndex) {
-                    builder.AppendLine($"        this.{IndexFieldName(index)}=-1;");
+                    builder.AppendLine($"        this.{this.IndexFieldName(index)}=-1;");
                 }
             }
             builder.AppendLine("    }");
@@ -152,34 +152,34 @@ public sealed class TsavoriteHashSetScanTerminal(
     private string BodyMethodSource() {
         var builder = new StringBuilder();
         builder.AppendLine($"{AggressiveInliningAttribute}");
-        builder.AppendLine($"private static bool {BodyMethodName}(ref {StateTypeName} state,object? itemObject) {{");
-        foreach(var capture in CapturedLocals()) {
+        builder.AppendLine($"private static bool {this.BodyMethodName}(ref {this.StateTypeName} state,object? itemObject) {{");
+        foreach(var capture in this.CapturedLocals()) {
             builder.AppendLine($"    var {capture.Name}=state.{capture.Name};");
         }
-        foreach(var hoistedLocal in HoistedLocals()) {
+        foreach(var hoistedLocal in this.HoistedLocals()) {
             builder.AppendLine($"    var {hoistedLocal.Name}=state.{hoistedLocal.Name};");
         }
-        foreach(var func in DelegateFuncs()) {
+        foreach(var func in this.DelegateFuncs()) {
             builder.AppendLine($"    var {func.DelegateFieldName}=state.{func.DelegateFieldName};");
         }
-        builder.AppendLine($"    var current0=({Root.ElementType})itemObject!;");
+        builder.AppendLine($"    var current0=({this.Root.ElementType})itemObject!;");
         var currentName = "current0";
-        var currentType = Root.ElementType;
+        var currentType = this.Root.ElementType;
         var currentIndex = 0;
         foreach(var (stage,index) in pipeline.Stages.Select(static (stage,index)=>(stage,index))) {
             if(stage.Kind==PipelineStageKind.AsEnumerable) {
                 continue;
             }
             if(stage.UsesIndex) {
-                builder.AppendLine($"    checked {{ state.{IndexFieldName(index)}++; }}");
+                builder.AppendLine($"    checked {{ state.{this.IndexFieldName(index)}++; }}");
             }
             if(stage.Kind==PipelineStageKind.Where) {
                 var tempName=$"where{index}";
                 builder.AppendLine($"    bool {tempName}=default!;");
                 var args = stage.UsesIndex
-                    ? new[] { currentName,$"state.{IndexFieldName(index)}" }
+                    ? new[] { currentName,$"state.{this.IndexFieldName(index)}" }
                     : new[] { currentName };
-                AppendIndented(builder,FuncAssignStatic(stage.Func!,"Where",tempName,args),"    ");
+                AppendIndented(builder,this.FuncAssignStatic(stage.Func!,"Where",tempName,args),"    ");
                 builder.AppendLine($"    if(!{tempName}) return true;");
                 continue;
             }
@@ -187,9 +187,9 @@ public sealed class TsavoriteHashSetScanTerminal(
                 var nextName=$"current{++currentIndex}";
                 builder.AppendLine($"    {stage.OutputType} {nextName}=default!;");
                 var args = stage.UsesIndex
-                    ? new[] { currentName,$"state.{IndexFieldName(index)}" }
+                    ? new[] { currentName,$"state.{this.IndexFieldName(index)}" }
                     : new[] { currentName };
-                AppendIndented(builder,FuncAssignStatic(stage.Func!,"Select",nextName,args),"    ");
+                AppendIndented(builder,this.FuncAssignStatic(stage.Func!,"Select",nextName,args),"    ");
                 currentName=nextName;
                 currentType=stage.OutputType;
             }
@@ -211,8 +211,8 @@ public sealed class TsavoriteHashSetScanTerminal(
     }
 
     private string UnsafeAccessorSource() => $$"""
-        [global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.StaticMethod, Name = "{{UnsafeAccessorMethodName()}}")]
-        private static extern void {{AccessorMethodName}}<TElement>([global::System.Runtime.CompilerServices.UnsafeAccessorType("Seamless.Tsavorite.Collections.HashSetScanUnsafe, Seamless")] object? _,global::Seamless.Tsavorite.Collections.HashSet<TElement> source,global::System.Func<object?,bool> body);
+        [global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.StaticMethod, Name = "{{this.UnsafeAccessorMethodName()}}")]
+        private static extern void {{this.AccessorMethodName}}<TElement>([global::System.Runtime.CompilerServices.UnsafeAccessorType("Seamless.Tsavorite.Collections.HashSetScanUnsafe, Seamless")] object? _,global::Seamless.Tsavorite.Collections.HashSet<TElement> source,global::System.Func<object?,bool> body);
         """;
 
     private string UnsafeAccessorMethodName() => "Scan";
@@ -222,7 +222,7 @@ public sealed class TsavoriteHashSetScanTerminal(
 
     private IEnumerable<(string Name,string TypeName)> CapturedLocals() {
         var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach(var func in Funcs()) {
+        foreach(var func in this.Funcs()) {
             foreach(var capture in func.CapturedLocals) {
                 if(names.Add(capture.Name)) {
                     yield return capture;
@@ -233,7 +233,7 @@ public sealed class TsavoriteHashSetScanTerminal(
 
     private IEnumerable<HoistedLocal> HoistedLocals() {
         var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach(var func in Funcs()) {
+        foreach(var func in this.Funcs()) {
             foreach(var hoistedLocal in func.HoistedLocals) {
                 if(names.Add(hoistedLocal.Name)) {
                     yield return hoistedLocal;
@@ -244,7 +244,7 @@ public sealed class TsavoriteHashSetScanTerminal(
 
     private IEnumerable<FuncFragment> DelegateFuncs() {
         var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach(var func in Funcs()) {
+        foreach(var func in this.Funcs()) {
             if(func.CanInvokeAsDelegate && func.DelegateFieldName is { } name && names.Add(name)) {
                 yield return func;
             }
@@ -252,14 +252,14 @@ public sealed class TsavoriteHashSetScanTerminal(
     }
 
     private IEnumerable<(string Name,string TypeName)> ClosureParameters() =>
-        CapturedLocals()
-            .Concat(HoistedLocals().Select(static hoistedLocal=>(hoistedLocal.Name,hoistedLocal.TypeName)))
-            .Concat(DelegateFuncs().Select(static func=>(func.DelegateFieldName!,func.DelegateTypeName!)));
+        this.CapturedLocals()
+            .Concat(this.HoistedLocals().Select(static hoistedLocal=>(hoistedLocal.Name,hoistedLocal.TypeName)))
+            .Concat(this.DelegateFuncs().Select(static func=>(func.DelegateFieldName!,func.DelegateTypeName!)));
 
     private string ClosureArgumentList() {
-        var args = CapturedLocals().Select(static capture=>capture.Name)
-            .Concat(HoistedLocals().Select(static hoistedLocal=>hoistedLocal.ExpressionText))
-            .Concat(DelegateFuncs().Select(static func=>func.DelegateConstructorArg!))
+        var args = this.CapturedLocals().Select(static capture=>capture.Name)
+            .Concat(this.HoistedLocals().Select(static hoistedLocal=>hoistedLocal.ExpressionText))
+            .Concat(this.DelegateFuncs().Select(static func=>func.DelegateConstructorArg!))
             .ToArray();
         return string.Join(", ",args);
     }

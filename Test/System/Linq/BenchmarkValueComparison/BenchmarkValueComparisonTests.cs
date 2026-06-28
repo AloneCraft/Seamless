@@ -8,7 +8,7 @@ public sealed class BenchmarkValueComparisonTests {
     private const int ComparisonElementCount = 1_000;
     private const string BenchmarkExecutionModeTypeName = "Benchmark.Shared.BenchmarkExecutionMode";
     private const string ElementCountEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_COUNT";
-    private const string Methods1TypeName = "Seamless.Linq.Enumerable.Shared.Methods1";
+    private const string Methods1TypeName = "Seamless.Linq.Shared.Methods1";
 
     [Fact]
     public void Methods1_results_match() {
@@ -144,34 +144,34 @@ public sealed class BenchmarkValueComparisonTests {
         private readonly MethodInfo captureResult;
 
         private BenchmarkTarget(Assembly assembly,Type type) {
-            Assembly=assembly;
-            Type=type;
-            benchmarkExecutionModeType=assembly.GetType(BenchmarkExecutionModeTypeName,throwOnError:true)!;
-            enableComparisonMode=benchmarkExecutionModeType.GetMethod(
+            this.Assembly=assembly;
+            this.Type=type;
+            this.benchmarkExecutionModeType=assembly.GetType(BenchmarkExecutionModeTypeName,throwOnError:true)!;
+            this.enableComparisonMode=this.benchmarkExecutionModeType.GetMethod(
                 "EnableComparisonMode",
                 BindingFlags.Static|BindingFlags.Public,
                 binder:null,
                 types:[typeof(int)],
                 modifiers:null)!;
-            disableComparisonMode=benchmarkExecutionModeType.GetMethod(
+            this.disableComparisonMode=this.benchmarkExecutionModeType.GetMethod(
                 "DisableComparisonMode",
                 BindingFlags.Static|BindingFlags.Public,
                 binder:null,
                 types:Type.EmptyTypes,
                 modifiers:null)!;
-            useElementCount=benchmarkExecutionModeType.GetMethod(
+            this.useElementCount=this.benchmarkExecutionModeType.GetMethod(
                 "UseElementCount",
                 BindingFlags.Static|BindingFlags.Public,
                 binder:null,
                 types:[typeof(int),typeof(string)],
                 modifiers:null)!;
-            scaleElementCount=benchmarkExecutionModeType.GetMethod(
+            this.scaleElementCount=this.benchmarkExecutionModeType.GetMethod(
                 "ScaleElementCount",
                 BindingFlags.Static|BindingFlags.NonPublic,
                 binder:null,
                 types:[typeof(int)],
                 modifiers:null)!;
-            captureResult=type.GetMethod(
+            this.captureResult=type.GetMethod(
                 "CaptureBenchmarkMethodResult",
                 BindingFlags.Instance|BindingFlags.Public,
                 binder:null,
@@ -190,26 +190,26 @@ public sealed class BenchmarkValueComparisonTests {
         }
 
         public void EnableComparisonMode(int elementCount) =>
-            Invoke(enableComparisonMode,null,[elementCount]);
+            Invoke(this.enableComparisonMode,null,[elementCount]);
 
         public void DisableComparisonMode() =>
-            Invoke(disableComparisonMode,null,null);
+            Invoke(this.disableComparisonMode,null,null);
 
         public IDisposable UseElementCount(int elementCount,string elementScale) =>
-            (IDisposable)(Invoke(useElementCount,null,[elementCount,elementScale])
+            (IDisposable)(Invoke(this.useElementCount,null,[elementCount,elementScale])
                 ??throw new InvalidOperationException("UseElementCount returned null."));
 
         public int ScaleElementCount(int elementCount) =>
-            (int)(Invoke(scaleElementCount,null,[elementCount])
+            (int)(Invoke(this.scaleElementCount,null,[elementCount])
                 ??throw new InvalidOperationException("ScaleElementCount returned null."));
 
         public object CreateInstance() =>
-            Activator.CreateInstance(Type)
-            ??throw new InvalidOperationException("Could not create "+Type.FullName+".");
+            Activator.CreateInstance(this.Type)
+            ??throw new InvalidOperationException("Could not create "+this.Type.FullName+".");
 
         public string Capture(object instance,string methodName,bool invokeImpl) =>
-            (string)(Invoke(captureResult,instance,[methodName,invokeImpl])
-                ??throw new InvalidOperationException("Capture returned null for "+Type.FullName+"."+methodName+"."));
+            (string)(Invoke(this.captureResult,instance,[methodName,invokeImpl])
+                ??throw new InvalidOperationException("Capture returned null for "+this.Type.FullName+"."+methodName+"."));
 
         private static Assembly LoadAssembly(string assemblyName) {
             foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies()) {

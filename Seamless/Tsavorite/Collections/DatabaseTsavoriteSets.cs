@@ -23,13 +23,13 @@ public sealed class DelegateSet<TRecord>:IReadOnlyCollection<TRecord>, IDisposab
         this.dispose=dispose ?? (static () => { });
     }
 
-    public int Count => getCount();
-    public bool Add(TRecord item) => add(item);
-    public bool Remove(TRecord item) => remove(item);
-    public bool Contains(TRecord item) => contains(item);
-    public IEnumerator<TRecord> GetEnumerator() => getEnumerator();
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-    public void Dispose() => dispose();
+    public int Count => this.getCount();
+    public bool Add(TRecord item) => this.add(item);
+    public bool Remove(TRecord item) => this.remove(item);
+    public bool Contains(TRecord item) => this.contains(item);
+    public IEnumerator<TRecord> GetEnumerator() => this.getEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+    public void Dispose() => this.dispose();
 }
 
 public sealed class ReadSet<TRecord>:IReadOnlyCollection<TRecord>, IDisposable {
@@ -39,9 +39,9 @@ public sealed class ReadSet<TRecord>:IReadOnlyCollection<TRecord>, IDisposable {
         this.source=source;
     }
 
-    public int Count => checked((int)source.Count);
-    public long LongCount => source.Count;
-    public IEnumerator<TRecord> GetEnumerator() => source.GetEnumerator();
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-    public void Dispose() => source.Dispose();
+    public int Count => checked((int)this.source.Count);
+    public long LongCount => this.source.Count;
+    public IEnumerator<TRecord> GetEnumerator() => this.source.GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+    public void Dispose() => this.source.Dispose();
 }

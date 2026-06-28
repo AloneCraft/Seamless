@@ -7,8 +7,8 @@ public sealed class Skip_Take(ITestOutputHelper output):LinqChain2TestBase(outpu
     [Fact, Trait("Category","Unit")]
     public void NoDelegate() {
         var expected=Source().Skip(2).Take(3).ToList();
-        MeasureOptimized(nameof(NoDelegateOptimized),()=>NoDelegateOptimized(expected));
-        MeasureOptimized(nameof(NoDelegateNoOptimized),()=>NoDelegateNoOptimized(expected));
+        this.MeasureOptimized(nameof(NoDelegateOptimized),()=>NoDelegateOptimized(expected));
+        this.MeasureOptimized(nameof(NoDelegateNoOptimized),()=>NoDelegateNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

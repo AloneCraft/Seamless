@@ -8,28 +8,28 @@ public class Cast(int 番号, Enumerable source, string resultElementType) : Enu
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
-    public override bool CanProvideSpan => IsIdentityType && source.CanProvideSpan;
-    public override bool CanTryProvideSpan => IsIdentityType && source.CanTryProvideSpan;
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
+    public override bool CanProvideSpan => this.IsIdentityType && source.CanProvideSpan;
+    public override bool CanTryProvideSpan => this.IsIdentityType && source.CanTryProvideSpan;
     public override string? NonEnumeratedCountExpression => source.NonEnumeratedCountExpression;
     public override bool CountPreserving => source.CountPreserving;
     public override string GetEnumeratorFields => string.Empty;
-    protected override string GetTryGetNonEnumeratedCountBody => $"return this.{e}.TryGetNonEnumeratedCount(out count);";
-    protected override string GetTryGetSpanBody => IsIdentityType
-        ? $"return this.{e}.TryGetSpan(out span);"
+    protected override string GetTryGetNonEnumeratedCountBody => $"return this.{this.e}.TryGetNonEnumeratedCount(out count);";
+    protected override string GetTryGetSpanBody => this.IsIdentityType
+        ? $"return this.{this.e}.TryGetSpan(out span);"
         : base.GetTryGetSpanBody;
-    protected override string GetTryCopyToBody => IsIdentityType
-        ? $"return this.{e}.TryCopyTo(destination,__offset);"
+    protected override string GetTryCopyToBody => this.IsIdentityType
+        ? $"return this.{this.e}.TryCopyTo(destination,__offset);"
         : base.GetTryCopyToBody;
     public override string GetTryGetNextBody => $$"""
-        if({{e}}.MoveNext()) {
-            current = this.{{currentValue}} = ({{resultElementType}}){{e}}.Current!;
+        if({{this.e}}.MoveNext()) {
+            current = this.{{this.currentValue}} = ({{resultElementType}}){{this.e}}.Current!;
             return true;
         }
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => currentValue;
+    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => resultElementType;
 }

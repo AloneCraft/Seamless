@@ -25,33 +25,33 @@ public class AppendOnlyList<T, TSerializer>:IEnumerable<T>, IDisposable
             Directory.CreateDirectory(directoryPath);
         }
 
-        Path=path;
-        stream=new FileStream(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read,4096,FileOptions.SequentialScan);
-        if(stream.Length==0) {
-            stream.SetLength(initialDataCapacity);
-            stream.SetLength(0);
+        this.Path=path;
+        this.stream=new FileStream(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read,4096,FileOptions.SequentialScan);
+        if(this.stream.Length==0) {
+            this.stream.SetLength(initialDataCapacity);
+            this.stream.SetLength(0);
         }
-        Count=LoadCount();
-        stream.Position=stream.Length;
+        this.Count=this.LoadCount();
+        this.stream.Position=this.stream.Length;
     }
 
-    public long GetLongCount() => Count;
+    public long GetLongCount() => this.Count;
 
     public void Add(T item) {
-        ThrowIfDisposed();
+        this.ThrowIfDisposed();
         var bytes = TSerializer.Serialize(ref item).ToArray();
         Span<byte> lengthBytes = stackalloc byte[sizeof(int)];
         global::System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(lengthBytes,bytes.Length);
-        stream.Position=stream.Length;
-        stream.Write(lengthBytes);
-        stream.Write(bytes);
-        Count++;
+        this.stream.Position=this.stream.Length;
+        this.stream.Write(lengthBytes);
+        this.stream.Write(bytes);
+        this.Count++;
     }
 
     public IEnumerator<T> GetEnumerator() {
-        ThrowIfDisposed();
-        stream.Flush();
-        using var read = new FileStream(Path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite,4096,FileOptions.SequentialScan);
+        this.ThrowIfDisposed();
+        this.stream.Flush();
+        using var read = new FileStream(this.Path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite,4096,FileOptions.SequentialScan);
         while(read.Position<read.Length) {
             var lengthBytes = new byte[sizeof(int)];
             if(read.Read(lengthBytes)!=sizeof(int)) {
@@ -69,36 +69,36 @@ public class AppendOnlyList<T, TSerializer>:IEnumerable<T>, IDisposable
         }
     }
 
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
 
     public void Dispose() {
-        if(disposed) {
+        if(this.disposed) {
             return;
         }
-        disposed=true;
-        stream.Flush();
-        stream.Dispose();
+        this.disposed=true;
+        this.stream.Flush();
+        this.stream.Dispose();
     }
 
     private long LoadCount() {
         var count = 0L;
         Span<byte> lengthBytes = stackalloc byte[sizeof(int)];
-        stream.Position=0;
-        while(stream.Position<stream.Length) {
-            if(stream.Read(lengthBytes)!=sizeof(int)) {
+        this.stream.Position=0;
+        while(this.stream.Position<this.stream.Length) {
+            if(this.stream.Read(lengthBytes)!=sizeof(int)) {
                 throw new InvalidDataException("The append-only list contains a partial length prefix.");
             }
             var length = global::System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(lengthBytes);
-            if(length<0||stream.Position+length>stream.Length) {
+            if(length<0||this.stream.Position+length>this.stream.Length) {
                 throw new InvalidDataException("The append-only list contains an invalid record length.");
             }
-            stream.Position+=length;
+            this.stream.Position+=length;
             count++;
         }
         return count;
     }
 
     private void ThrowIfDisposed() {
-        ObjectDisposedException.ThrowIf(disposed,this);
+        ObjectDisposedException.ThrowIf(this.disposed,this);
     }
 }

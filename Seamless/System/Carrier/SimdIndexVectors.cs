@@ -12,8 +12,7 @@ internal static class SimdIndexVectors
     internal static readonly Vector<ulong> UInt64 = CreateUInt64();
     internal static readonly Vector<long> Int64 = CreateInt64();
     internal static readonly Vector<char> Char = CreateChar();
-
-    static Vector<byte> CreateByte()
+    private static Vector<byte> CreateByte()
     {
         var values = new byte[Vector<byte>.Count];
         for (var i = 0; i < values.Length; i++)
@@ -22,8 +21,7 @@ internal static class SimdIndexVectors
         }
         return new Vector<byte>(values);
     }
-
-    static Vector<sbyte> CreateSByte()
+    private static Vector<sbyte> CreateSByte()
     {
         var values = new sbyte[Vector<sbyte>.Count];
         for (var i = 0; i < values.Length; i++)
@@ -32,8 +30,7 @@ internal static class SimdIndexVectors
         }
         return new Vector<sbyte>(values);
     }
-
-    static Vector<ushort> CreateUInt16()
+    private static Vector<ushort> CreateUInt16()
     {
         var values = new ushort[Vector<ushort>.Count];
         for (var i = 0; i < values.Length; i++)
@@ -42,8 +39,7 @@ internal static class SimdIndexVectors
         }
         return new Vector<ushort>(values);
     }
-
-    static Vector<short> CreateInt16()
+    private static Vector<short> CreateInt16()
     {
         var values = new short[Vector<short>.Count];
         for (var i = 0; i < values.Length; i++)
@@ -52,8 +48,7 @@ internal static class SimdIndexVectors
         }
         return new Vector<short>(values);
     }
-
-    static Vector<uint> CreateUInt32()
+    private static Vector<uint> CreateUInt32()
     {
         var values = new uint[Vector<uint>.Count];
         for (var i = 0; i < values.Length; i++)
@@ -62,8 +57,7 @@ internal static class SimdIndexVectors
         }
         return new Vector<uint>(values);
     }
-
-    static Vector<int> CreateInt32()
+    private static Vector<int> CreateInt32()
     {
         var values = new int[Vector<int>.Count];
         for (var i = 0; i < values.Length; i++)
@@ -72,8 +66,7 @@ internal static class SimdIndexVectors
         }
         return new Vector<int>(values);
     }
-
-    static Vector<ulong> CreateUInt64()
+    private static Vector<ulong> CreateUInt64()
     {
         var values = new ulong[Vector<ulong>.Count];
         for (var i = 0; i < values.Length; i++)
@@ -82,8 +75,7 @@ internal static class SimdIndexVectors
         }
         return new Vector<ulong>(values);
     }
-
-    static Vector<long> CreateInt64()
+    private static Vector<long> CreateInt64()
     {
         var values = new long[Vector<long>.Count];
         for (var i = 0; i < values.Length; i++)
@@ -92,8 +84,7 @@ internal static class SimdIndexVectors
         }
         return new Vector<long>(values);
     }
-
-    static Vector<char> CreateChar()
+    private static Vector<char> CreateChar()
     {
         var values = new char[Vector<char>.Count];
         for (var i = 0; i < values.Length; i++)

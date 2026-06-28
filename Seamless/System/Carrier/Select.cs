@@ -37,7 +37,7 @@ namespace Seamless.System.Carrier {
         internal TEnumerator source = source;
         internal readonly Func<TSource,TResult> selector = selector;
 
-        public bool TryGetNonEnumeratedCount(out int count) => source.TryGetNonEnumeratedCount(out count);
+        public bool TryGetNonEnumeratedCount(out int count) => this.source.TryGetNonEnumeratedCount(out count);
 
         public bool TryGetSpan(out ReadOnlySpan<TResult> span) {
             span=default;
@@ -46,10 +46,10 @@ namespace Seamless.System.Carrier {
 
         public bool TryCopyTo(scoped Span<TResult> destination,Index offset) {
             // Iterate inlining
-            if(source.TryGetSpan(out var span)) {
+            if(this.source.TryGetSpan(out var span)) {
                 if(EnumeratorHelper.TryGetSlice(span,offset,destination.Length,out var slice)) {
                     for(var i = 0; (uint)i<(uint)slice.Length; i++) {
-                        destination[i]=selector(slice[i]);
+                        destination[i]=this.selector(slice[i]);
                     }
                     return true;
                 }
@@ -73,14 +73,14 @@ namespace Seamless.System.Carrier {
                 }
 #else
                 var current = default(TSource)!;
-                if(source.TryCopyTo(SingleSpan.Create(ref current),offset)) {
-                    destination[0]=selector(current);
+                if(this.source.TryCopyTo(SingleSpan.Create(ref current),offset)) {
+                    destination[0]=this.selector(current);
                     return true;
                 }
 #endif
 
-                if(EnumeratorHelper.TryConsumeGetAt(ref source,offset,out TSource value)) {
-                    destination[0]=selector(value);
+                if(EnumeratorHelper.TryConsumeGetAt(ref this.source,offset,out TSource value)) {
+                    destination[0]=this.selector(value);
                     return true;
                 }
             }
@@ -89,8 +89,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out TResult current) {
-            if(source.TryGetNext(out var value)) {
-                current=selector(value);
+            if(this.source.TryGetNext(out var value)) {
+                current=this.selector(value);
                 return true;
             }
 
@@ -99,11 +99,11 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            source.Dispose();
+            this.source.Dispose();
         }
 
         internal SelectWhere<TEnumerator,TSource,TResult> Where(Func<TResult,bool> predicate)
-            => new(source,selector,predicate);
+            => new(this.source,this.selector,predicate);
     }
 
     [StructLayout(LayoutKind.Auto)]
@@ -111,10 +111,10 @@ namespace Seamless.System.Carrier {
     public struct Select2<TEnumerator, TSource, TResult>(TEnumerator source,Func<TSource,Int32,TResult> selector)
         :IValueEnumerator<TResult>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        int index = 0;
+        private TEnumerator source = source;
+        private int index = 0;
 
-        public bool TryGetNonEnumeratedCount(out int count) => source.TryGetNonEnumeratedCount(out count);
+        public bool TryGetNonEnumeratedCount(out int count) => this.source.TryGetNonEnumeratedCount(out count);
 
         public bool TryGetSpan(out ReadOnlySpan<TResult> span) {
             span=default;
@@ -124,8 +124,8 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TResult> destination,Index offset) => false;
 
         public bool TryGetNext(out TResult current) {
-            if(source.TryGetNext(out var value)) {
-                current=selector(value,index++);
+            if(this.source.TryGetNext(out var value)) {
+                current=selector(value,this.index++);
                 return true;
             }
 
@@ -134,7 +134,7 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -145,7 +145,7 @@ namespace Seamless.System.Carrier {
         internal readonly int count = source.count;
         internal readonly int start = source.start;
         internal readonly int to = source.to;
-        int value = source.start;
+        private int value = source.start;
 
         // Select
         internal readonly Func<int,TResult> selector = selector;
@@ -161,10 +161,10 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(scoped Span<TResult> destination,Index offset) {
-            if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,out var fillCount)) {
-                var value = start+fillStart;
+            if(EnumeratorHelper.TryGetSliceRange(this.count,offset,destination.Length,out var fillStart,out var fillCount)) {
+                var value = this.start+fillStart;
                 for(int i = 0; i<fillCount; i++) {
-                    destination[i]=selector(value);
+                    destination[i]=this.selector(value);
                     value++;
                 }
                 return true;
@@ -174,9 +174,9 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out TResult current) {
-            if(value<to) {
-                current=selector(value);
-                value++;
+            if(this.value<this.to) {
+                current=this.selector(this.value);
+                this.value++;
                 return true;
             }
 
@@ -193,7 +193,7 @@ namespace Seamless.System.Carrier {
     public struct SelectWhere<TEnumerator, TSource, TResult>(TEnumerator source,Func<TSource,TResult> selector,Func<TResult,bool> predicate) // no in TEnumerator
         :IValueEnumerator<TResult>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
+        private TEnumerator source = source;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=default;
@@ -208,7 +208,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TResult> destination,Index offset) => false;
 
         public bool TryGetNext(out TResult current) {
-            while(source.TryGetNext(out var value)) {
+            while(this.source.TryGetNext(out var value)) {
                 var result = selector(value);
                 if(predicate(result)) {
                     current=result;
@@ -221,7 +221,7 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -230,10 +230,10 @@ namespace Seamless.System.Carrier {
     public struct ArraySelect<TSource, TResult>(TSource[] source,Func<TSource,TResult> selector):IValueEnumerator<TResult> {
         internal TSource[] source = source;
         internal readonly Func<TSource,TResult> selector = selector;
-        int index;
+        private int index;
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            count=source.Length;
+            count=this.source.Length;
             return true;
         }
 
@@ -244,13 +244,13 @@ namespace Seamless.System.Carrier {
 
         public bool TryCopyTo(scoped Span<TResult> destination,Index offset) {
             // AsSpan is failed by array variance
-            if(!typeof(TSource).IsValueType&&source.GetType()!=typeof(TSource[])) {
+            if(!typeof(TSource).IsValueType&&this.source.GetType()!=typeof(TSource[])) {
                 return false;
             }
 
-            if(EnumeratorHelper.TryGetSlice<TSource>(source.AsSpan(),offset,destination.Length,out var slice)) {
+            if(EnumeratorHelper.TryGetSlice<TSource>(this.source.AsSpan(),offset,destination.Length,out var slice)) {
                 for(var i = 0; (uint)i<(uint)slice.Length; i++) {
-                    destination[i]=selector(slice[i]);
+                    destination[i]=this.selector(slice[i]);
                 }
                 return true;
             }
@@ -259,8 +259,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out TResult current) {
-            if((uint)index<(uint)source.Length) {
-                current=selector(source[index++]); // must be index++
+            if((uint)this.index<(uint)this.source.Length) {
+                current=this.selector(this.source[this.index++]); // must be index++
                 return true;
             }
 
@@ -272,17 +272,17 @@ namespace Seamless.System.Carrier {
         }
 
         internal ArraySelectWhere<TSource,TResult> Where(Func<TResult,bool> predicate) {
-            return new ArraySelectWhere<TSource,TResult>(source,selector,predicate);
+            return new ArraySelectWhere<TSource,TResult>(this.source,this.selector,predicate);
         }
     }
 
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct ArraySelectWhere<TSource, TResult>(TSource[] source,Func<TSource,TResult> selector,Func<TResult,bool> predicate):IValueEnumerator<TResult> {
-        TSource[] source = source;
-        readonly Func<TSource,TResult> selector = selector;
-        Func<TResult,bool> predicate = predicate;
-        int index;
+        private TSource[] source = source;
+        private readonly Func<TSource,TResult> selector = selector;
+        private Func<TResult,bool> predicate = predicate;
+        private int index;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -299,9 +299,9 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out TResult current) {
-            while((uint)index<(uint)source.Length) {
-                current=selector(source[index++]);
-                if(predicate(current)) {
+            while((uint)this.index<(uint)this.source.Length) {
+                current=this.selector(this.source[this.index++]);
+                if(this.predicate(current)) {
                     return true;
                 }
             }
@@ -319,10 +319,10 @@ namespace Seamless.System.Carrier {
     public struct ListSelect<TSource, TResult>(List<TSource> source,Func<TSource,TResult> selector):IValueEnumerator<TResult> {
         internal List<TSource> source = source;
         internal readonly Func<TSource,TResult> selector = selector;
-        int index;
+        private int index;
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            count=source.Count;
+            count=this.source.Count;
             return true;
         }
 
@@ -332,9 +332,9 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(scoped Span<TResult> destination,Index offset) {
-            if(EnumeratorHelper.TryGetSlice<TSource>(CollectionsMarshal.AsSpan(source),offset,destination.Length,out var slice)) {
+            if(EnumeratorHelper.TryGetSlice<TSource>(CollectionsMarshal.AsSpan(this.source),offset,destination.Length,out var slice)) {
                 for(var i = 0; (uint)i<(uint)slice.Length; i++) {
-                    destination[i]=selector(slice[i]);
+                    destination[i]=this.selector(slice[i]);
                 }
                 return true;
             }
@@ -343,8 +343,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out TResult current) {
-            if((uint)index<(uint)source.Count) {
-                current=selector(source[index++]);
+            if((uint)this.index<(uint)this.source.Count) {
+                current=this.selector(this.source[this.index++]);
                 return true;
             }
 
@@ -356,17 +356,17 @@ namespace Seamless.System.Carrier {
         }
 
         internal ListSelectWhere<TSource,TResult> Where(Func<TResult,bool> predicate) {
-            return new ListSelectWhere<TSource,TResult>(source,selector,predicate);
+            return new ListSelectWhere<TSource,TResult>(this.source,this.selector,predicate);
         }
     }
 
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct ListSelectWhere<TSource, TResult>(List<TSource> source,Func<TSource,TResult> selector,Func<TResult,bool> predicate):IValueEnumerator<TResult> {
-        List<TSource> source = source;
-        readonly Func<TSource,TResult> selector = selector;
-        Func<TResult,bool> predicate = predicate;
-        int index;
+        private List<TSource> source = source;
+        private readonly Func<TSource,TResult> selector = selector;
+        private Func<TResult,bool> predicate = predicate;
+        private int index;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -383,10 +383,10 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out TResult current) {
-            var span = CollectionsMarshal.AsSpan(source);
-            while((uint)index<(uint)span.Length) {
-                current=selector(span[index++]);
-                if(predicate(current)) {
+            var span = CollectionsMarshal.AsSpan(this.source);
+            while((uint)this.index<(uint)span.Length) {
+                current=this.selector(span[this.index++]);
+                if(this.predicate(current)) {
                     return true;
                 }
             }

@@ -38,11 +38,11 @@ namespace Seamless.System.Carrier {
         :IValueEnumerator<(TFirst First,TSecond Second)>
             where TEnumerator : struct, IValueEnumerator<TFirst>
             where TEnumerator2 : struct, IValueEnumerator<TSecond> {
-        TEnumerator source = source;
-        TEnumerator2 second = second;
+        private TEnumerator source = source;
+        private TEnumerator2 second = second;
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(source.TryGetNonEnumeratedCount(out var count1)&&second.TryGetNonEnumeratedCount(out var count2)) {
+            if(this.source.TryGetNonEnumeratedCount(out var count1)&&this.second.TryGetNonEnumeratedCount(out var count2)) {
                 count=Math.Min(count1,count2);
                 return true;
             }
@@ -58,7 +58,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<(TFirst First,TSecond Second)> destination,Index offset) => false;
 
         public bool TryGetNext(out (TFirst First,TSecond Second) current) {
-            if(source.TryGetNext(out var firstValue)&&second.TryGetNext(out var secondValue)) {
+            if(this.source.TryGetNext(out var firstValue)&&this.second.TryGetNext(out var secondValue)) {
                 current=(firstValue,secondValue);
                 return true;
             }
@@ -67,8 +67,8 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            source.Dispose();
-            second.Dispose();
+            this.source.Dispose();
+            this.second.Dispose();
         }
     }
 
@@ -79,12 +79,12 @@ namespace Seamless.System.Carrier {
             where TEnumerator : struct, IValueEnumerator<TFirst>
             where TEnumerator2 : struct, IValueEnumerator<TSecond>
             where TEnumerator3 : struct, IValueEnumerator<TThird> {
-        TEnumerator source = source;
-        TEnumerator2 second = second;
-        TEnumerator3 third = third;
+        private TEnumerator source = source;
+        private TEnumerator2 second = second;
+        private TEnumerator3 third = third;
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(source.TryGetNonEnumeratedCount(out var count1)&&second.TryGetNonEnumeratedCount(out var count2)&&third.TryGetNonEnumeratedCount(out var count3)) {
+            if(this.source.TryGetNonEnumeratedCount(out var count1)&&this.second.TryGetNonEnumeratedCount(out var count2)&&this.third.TryGetNonEnumeratedCount(out var count3)) {
                 count=Math.Min(Math.Min(count1,count2),count3);
                 return true;
             }
@@ -100,7 +100,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<(TFirst First,TSecond Second,TThird Third)> destination,Index offset) => false;
 
         public bool TryGetNext(out (TFirst First,TSecond Second,TThird Third) current) {
-            if(source.TryGetNext(out var firstValue)&&second.TryGetNext(out var secondValue)&&third.TryGetNext(out var thirdValue)) {
+            if(this.source.TryGetNext(out var firstValue)&&this.second.TryGetNext(out var secondValue)&&this.third.TryGetNext(out var thirdValue)) {
                 current=(firstValue,secondValue,thirdValue);
                 return true;
             }
@@ -109,9 +109,9 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            source.Dispose();
-            second.Dispose();
-            third.Dispose();
+            this.source.Dispose();
+            this.second.Dispose();
+            this.third.Dispose();
         }
     }
 
@@ -121,11 +121,11 @@ namespace Seamless.System.Carrier {
         :IValueEnumerator<TResult>
             where TEnumerator : struct, IValueEnumerator<TFirst>
             where TEnumerator2 : struct, IValueEnumerator<TSecond> {
-        TEnumerator source = source;
-        TEnumerator2 second = second;
+        private TEnumerator source = source;
+        private TEnumerator2 second = second;
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(source.TryGetNonEnumeratedCount(out var count1)&&second.TryGetNonEnumeratedCount(out var count2)) {
+            if(this.source.TryGetNonEnumeratedCount(out var count1)&&this.second.TryGetNonEnumeratedCount(out var count2)) {
                 count=Math.Min(count1,count2);
                 return true;
             }
@@ -141,7 +141,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TResult> destination,Index offset) => false;
 
         public bool TryGetNext(out TResult current) {
-            if(source.TryGetNext(out var firstValue)&&second.TryGetNext(out var secondValue)) {
+            if(this.source.TryGetNext(out var firstValue)&&this.second.TryGetNext(out var secondValue)) {
                 current=resultSelector(firstValue,secondValue);
                 return true;
             }
@@ -150,8 +150,8 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            source.Dispose();
-            second.Dispose();
+            this.source.Dispose();
+            this.second.Dispose();
         }
     }
 }

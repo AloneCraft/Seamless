@@ -12,15 +12,15 @@ namespace Seamless.System.Carrier {
     public struct TakeLast<TEnumerator, TSource>(TEnumerator source,Int32 count)
         :IValueEnumerator<TSource>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        readonly int takeCount = Math.Max(0,count);
-        int state = 0; // 0: Initial, 1: Enumerating, 2: Dequeue, 3: Completed
-        RentedRingBuffer<TSource>? ringBuffer;
+        private TEnumerator source = source;
+        private readonly int takeCount = Math.Max(0,count);
+        private int state = 0; // 0: Initial, 1: Enumerating, 2: Dequeue, 3: Completed
+        private RentedRingBuffer<TSource>? ringBuffer;
 
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(source.TryGetNonEnumeratedCount(out count)) {
-                count=Math.Min(count,takeCount);
+            if(this.source.TryGetNonEnumeratedCount(out count)) {
+                count=Math.Min(count,this.takeCount);
                 return true;
             }
 
@@ -29,9 +29,9 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetSpan(out ReadOnlySpan<TSource> span) {
-            if(source.TryGetSpan(out span)) {
-                if(span.Length>takeCount) {
-                    span=span[^takeCount..];
+            if(this.source.TryGetSpan(out span)) {
+                if(span.Length>this.takeCount) {
+                    span=span[^this.takeCount..];
                 }
                 return true;
             }
@@ -40,8 +40,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(scoped Span<TSource> destination,Index offset) {
-            if(source.TryGetNonEnumeratedCount(out var count)) {
-                var actualTakeCount = Math.Min(count,takeCount);
+            if(this.source.TryGetNonEnumeratedCount(out var count)) {
+                var actualTakeCount = Math.Min(count,this.takeCount);
                 if(actualTakeCount<=0) {
                     return false;
                 }
@@ -61,20 +61,20 @@ namespace Seamless.System.Carrier {
                     return false;
                 }
 
-                return source.TryCopyTo(destination.Slice(0,elementsToCopy),sourceOffset);
+                return this.source.TryCopyTo(destination.Slice(0,elementsToCopy),sourceOffset);
             }
 
             return false;
         }
 
         public bool TryGetNext(out TSource current) {
-            switch(state) {
+            switch(this.state) {
                 case 0:
-                    return TryGetNextFirstPath(out current);
+                    return this.TryGetNextFirstPath(out current);
                 case 1:
-                    return source.TryGetNext(out current);
+                    return this.source.TryGetNext(out current);
                 case 2:
-                    return ringBuffer!.TryDequeue(out current);
+                    return this.ringBuffer!.TryDequeue(out current);
                 default:
                     Unsafe.SkipInit(out current);
                     return false;
@@ -82,47 +82,47 @@ namespace Seamless.System.Carrier {
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        bool TryGetNextFirstPath(out TSource current) {
+        private bool TryGetNextFirstPath(out TSource current) {
             Unsafe.SkipInit(out current);
-            if(takeCount==0) {
-                state=3;
+            if(this.takeCount==0) {
+                this.state=3;
                 return false;
             }
 
-            if(source.TryGetNonEnumeratedCount(out var totalCount)) {
-                var skipCount = Math.Max(0,totalCount-takeCount);
-                while(source.TryGetNext(out current)) {
+            if(this.source.TryGetNonEnumeratedCount(out var totalCount)) {
+                var skipCount = Math.Max(0,totalCount-this.takeCount);
+                while(this.source.TryGetNext(out current)) {
                     if(--skipCount>=0) continue;
-                    state=1; // Mark as enumerating
+                    this.state=1; // Mark as enumerating
                     return true;
                 }
 
                 // Source exhausted
-                state=3;
+                this.state=3;
                 return false;
             }
             else {
 
-                var buffer = ringBuffer=new(takeCount); // Use a reasonable default capacity;
+                var buffer = this.ringBuffer=new(this.takeCount); // Use a reasonable default capacity;
 
-                while(source.TryGetNext(out var item)) {
+                while(this.source.TryGetNext(out var item)) {
                     buffer.Enqueue(item);
                 }
 
-                state=2; // Mark as collected
+                this.state=2; // Mark as collected
 
                 if(buffer.TryDequeue(out current)) {
                     return true;
                 }
 
-                state=3;
+                this.state=3;
                 return false;
             }
         }
 
         public void Dispose() {
-            ringBuffer?.Dispose();
-            source.Dispose();
+            this.ringBuffer?.Dispose();
+            this.source.Dispose();
         }
     }
 }

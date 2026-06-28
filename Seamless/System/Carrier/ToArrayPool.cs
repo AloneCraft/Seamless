@@ -71,8 +71,8 @@ partial class ValueEnumerableExtensions {
 /// Please use it as is and avoid long-term retention.
 /// </summary>
 public struct PooledArray<TSource>:IDisposable {
-    TSource[] array;
-    int size;
+    private TSource[] array;
+    private int size;
 
     internal PooledArray(TSource[] array,int size) {
         this.array=array;
@@ -82,38 +82,38 @@ public struct PooledArray<TSource>:IDisposable {
     // for compatibility, we choose Size instead of Length/Count.
     public int Size {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => size;
+        get => this.size;
     }
 
     public Span<TSource> Span {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => array.AsSpan(0,size);
+        get => this.array.AsSpan(0,this.size);
     }
 
     public Memory<TSource> Memory {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => array.AsMemory(0,size);
+        get => this.array.AsMemory(0,this.size);
     }
 
     public ArraySegment<TSource> ArraySegment {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => new ArraySegment<TSource>(array,0,size);
+        get => new ArraySegment<TSource>(this.array,0,this.size);
     }
 
     public IEnumerable<TSource> AsEnumerable() {
-        return ArraySegment.AsEnumerable();
+        return this.ArraySegment.AsEnumerable();
     }
 
 #if NET9_0_OR_GREATER
     public ValueEnumerable<FromMemory<TSource>,TSource> AsValueEnumerable() {
-        return Memory.AsValueEnumerable();
+        return this.Memory.AsValueEnumerable();
     }
 #endif
 
     // for compatibility
 
     // get raw array.
-    public TSource[] Array => array;
+    public TSource[] Array => this.array;
 
     public void Deconstruct(out TSource[] array,out int size) {
         array=this.array;
@@ -124,9 +124,9 @@ public struct PooledArray<TSource>:IDisposable {
     }
 
     public void Dispose() {
-        if(array!=null) {
-            ArrayPool<TSource>.Shared.Return(array,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<TSource>());
-            array=null!;
+        if(this.array!=null) {
+            ArrayPool<TSource>.Shared.Return(this.array,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<TSource>());
+            this.array=null!;
         }
     }
 }

@@ -7,8 +7,8 @@ public sealed class ElementAt(ITestOutputHelper output):LinqChain1TestBase(outpu
     [Fact, Trait("Category","Unit")]
     public void index() {
         var expected=Source().ElementAt(2);
-        MeasureOptimized(nameof(indexOptimized),()=>indexOptimized(expected));
-        MeasureOptimized(nameof(indexNoOptimized),()=>indexNoOptimized(expected));
+        this.MeasureOptimized(nameof(indexOptimized),()=>indexOptimized(expected));
+        this.MeasureOptimized(nameof(indexNoOptimized),()=>indexNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -26,8 +26,8 @@ public sealed class ElementAt(ITestOutputHelper output):LinqChain1TestBase(outpu
     [Fact, Trait("Category","Unit")]
     public void indexFromEnd() {
         var expected=Source().ElementAt(^1);
-        MeasureOptimized(nameof(indexFromEndOptimized),()=>indexFromEndOptimized(expected));
-        MeasureOptimized(nameof(indexFromEndNoOptimized),()=>indexFromEndNoOptimized(expected));
+        this.MeasureOptimized(nameof(indexFromEndOptimized),()=>indexFromEndOptimized(expected));
+        this.MeasureOptimized(nameof(indexFromEndNoOptimized),()=>indexFromEndNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

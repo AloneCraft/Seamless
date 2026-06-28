@@ -9,8 +9,8 @@ public sealed class Index_Select(ITestOutputHelper output):LinqChain2TestBase(ou
     [Fact, Trait("Category","Unit")]
     public void Static() {
         var expected=Source().Index().Select(static pair => pair.Index+pair.Item).ToList();
-        MeasureOptimized(nameof(StaticOptimized),()=>StaticOptimized(expected));
-        MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
+        this.MeasureOptimized(nameof(StaticOptimized),()=>StaticOptimized(expected));
+        this.MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -30,8 +30,8 @@ public sealed class Index_Select(ITestOutputHelper output):LinqChain2TestBase(ou
     [Fact, Trait("Category","Unit")]
     public void Lambda() {
         var expected=Source().Index().Select(pair => pair.Index+pair.Item).ToList();
-        MeasureOptimized(nameof(LambdaOptimized),()=>LambdaOptimized(expected));
-        MeasureOptimized(nameof(LambdaNoOptimized),()=>LambdaNoOptimized(expected));
+        this.MeasureOptimized(nameof(LambdaOptimized),()=>LambdaOptimized(expected));
+        this.MeasureOptimized(nameof(LambdaNoOptimized),()=>LambdaNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

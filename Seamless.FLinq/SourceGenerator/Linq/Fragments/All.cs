@@ -18,28 +18,28 @@ All_predicate は source.All(predicate) を、最初に false になった要素
 */
 public class All_predicate(int 番号, Enumerable source, FuncFragment predicate) : BufferedScalar(番号, "bool") {
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => FuncSupport(predicate,nameof(predicate));
+    public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
-        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(predicate)})";
+        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
+        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
-        $"Compute({e}{ClosureArgsSuffix(predicate)})";
+        $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorConstructor =>
-        $"this.Current = Compute({e}{ClosureArgsSuffixForCtorBody(predicate)});";
+        $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
             ? RangePredicateOptimizer.RenderAll(range,predicate,番号,destVar,destType)
                 ?? (TryRenderDirectLambda(predicate) is { } rangeLambda
-                    ? RenderDirectEnumerableCallInline(source,destVar,destType,"All",rangeLambda) ?? RenderComputeInline(destVar,destType)
-                    : RenderComputeInline(destVar,destType))
+                    ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"All",rangeLambda) ??this.RenderComputeInline(destVar,destType)
+                    : this.RenderComputeInline(destVar,destType))
         : TryRenderDirectLambda(predicate) is { } lambda
-            ? RenderDirectEnumerableCallInline(source,destVar,destType,"All",lambda) ?? RenderComputeInline(destVar,destType)
-            : RenderComputeInline(destVar,destType);
+            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"All",lambda) ??this.RenderComputeInline(destVar,destType)
+            : this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers {
         get {
-            var (preCode, condExpr) = FuncInvokeConditionStatic(predicate, nameof(predicate), temp, item);
+            var (preCode, condExpr) =this.FuncInvokeConditionStatic(predicate, nameof(predicate),this.temp,this.item);
             var predicateCheck = string.IsNullOrEmpty(preCode)
                 ? $"if(!{WrapConditionExpression(condExpr)})"
                 : $"{preCode}\n        if(!{WrapConditionExpression(condExpr)})";
@@ -47,14 +47,14 @@ public class All_predicate(int 番号, Enumerable source, FuncFragment predicate
             return source.CanTryProvideSpan
                 ? $$"""
                     {{AggressiveInliningAttribute}}
-                    private static bool Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
+                    private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
                         if(source.TryGetSpan(out var __span)){
-                            foreach(var {{item}} in __span){
+                            foreach(var {{this.item}} in __span){
                                 {{predicateCheck}} return false;
                             }
                         }else{
                             while(source.MoveNext()) {
-                                var {{item}}=source.Current;
+                                var {{this.item}}=source.Current;
                                 {{predicateCheck}} return false;
                             }
                         }
@@ -63,9 +63,9 @@ public class All_predicate(int 番号, Enumerable source, FuncFragment predicate
                     """
                 : $$"""
                     {{AggressiveInliningAttribute}}
-                    private static bool Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
+                    private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
                         while(source.MoveNext()) {
-                            var {{item}}=source.Current;
+                            var {{this.item}}=source.Current;
                             {{predicateCheck}} return false;
                         }
                         return true;
@@ -73,5 +73,5 @@ public class All_predicate(int 番号, Enumerable source, FuncFragment predicate
                     """;
         }
     }
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }

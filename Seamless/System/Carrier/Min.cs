@@ -154,8 +154,7 @@ partial class ValueEnumerableExtensions {
             return MinSpanComparer(span,comparer);
         }
     }
-
-    static TSource? MinSpanComparer<TSource>(ReadOnlySpan<TSource> span,IComparer<TSource> comparer) {
+    private static TSource? MinSpanComparer<TSource>(ReadOnlySpan<TSource> span,IComparer<TSource> comparer) {
         TSource? value = default;
         if(value is null) {
             // reference type
@@ -212,7 +211,7 @@ partial class ValueEnumerableExtensions {
 
     // In case of float/double containing NaN, SIMD behavior might be inconsistent, so float/double shouldn't be processed with SIMD.
     // The current implementation correctly handles NaN through IComparer<T>.
-    static T SimdMinBinaryInteger<T>(ReadOnlySpan<T> span)
+    private static T SimdMinBinaryInteger<T>(ReadOnlySpan<T> span)
         where T : struct, IBinaryInteger<T> {
         if(span.Length==0) Throws.NoElements();
 
@@ -256,7 +255,7 @@ partial class ValueEnumerableExtensions {
     // float/double 用の SIMD Min。
     // NaN は IComparer<T>.Default の全順序で最小（System.Linq.Min と同じく NaN が 1 つでもあれば結果は NaN）。
     // ベクトル計算では NaN レーンを +Inf に置換して数値 Min を求め、別途 NaN 有無を追跡して最終判定する。
-    static T SimdMinFloat<T>(ReadOnlySpan<T> span)
+    private static T SimdMinFloat<T>(ReadOnlySpan<T> span)
         where T : struct, IFloatingPointIeee754<T> {
         if(span.Length==0) Throws.NoElements();
 

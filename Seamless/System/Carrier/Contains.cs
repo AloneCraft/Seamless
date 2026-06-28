@@ -36,8 +36,7 @@ namespace Seamless.System.Carrier {
     where TEnumerator : struct, IValueEnumerator<TSource> {
             return ContainsCore(ref source,value);
         }
-
-        static Boolean ContainsCore<TEnumerator, TSource>(ref ValueEnumerable<TEnumerator,TSource> source,TSource value)
+        private static Boolean ContainsCore<TEnumerator, TSource>(ref ValueEnumerable<TEnumerator,TSource> source,TSource value)
             where TEnumerator : struct, IValueEnumerator<TSource> {
             using(var enumerator = source.Enumerator) {
                 if(enumerator.TryGetSpan(out var span)) {

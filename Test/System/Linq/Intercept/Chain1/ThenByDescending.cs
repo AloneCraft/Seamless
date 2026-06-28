@@ -7,8 +7,8 @@ public sealed class ThenByDescending(ITestOutputHelper output):LinqChain1TestBas
     [Fact, Trait("Category","Unit")]
     public void keySelector_Static() {
         var expected=Rows().OrderBy(static row => row.Key).ThenByDescending(static row => row.Name).ToList();
-        MeasureOptimized(nameof(keySelector_StaticOptimized),()=>keySelector_StaticOptimized(expected));
-        MeasureOptimized(nameof(keySelector_StaticNoOptimized),()=>keySelector_StaticNoOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_StaticOptimized),()=>keySelector_StaticOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_StaticNoOptimized),()=>keySelector_StaticNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -28,8 +28,8 @@ public sealed class ThenByDescending(ITestOutputHelper output):LinqChain1TestBas
     [Fact, Trait("Category","Unit")]
     public void keySelector_Query() {
         var expected=Rows().OrderBy(row => row.Key).ThenByDescending(row => row.Name).ToList();
-        MeasureOptimized(nameof(keySelector_QueryOptimized),()=>keySelector_QueryOptimized(expected));
-        MeasureOptimized(nameof(keySelector_QueryNoOptimized),()=>keySelector_QueryNoOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_QueryOptimized),()=>keySelector_QueryOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_QueryNoOptimized),()=>keySelector_QueryNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -49,8 +49,8 @@ public sealed class ThenByDescending(ITestOutputHelper output):LinqChain1TestBas
     [Fact, Trait("Category","Unit")]
     public void keySelector_Lambda() {
         var expected=Rows().OrderBy(row => row.Key).ThenByDescending(row => row.Name).ToList();
-        MeasureOptimized(nameof(keySelector_LambdaOptimized),()=>keySelector_LambdaOptimized(expected));
-        MeasureOptimized(nameof(keySelector_LambdaNoOptimized),()=>keySelector_LambdaNoOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_LambdaOptimized),()=>keySelector_LambdaOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_LambdaNoOptimized),()=>keySelector_LambdaNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -71,8 +71,8 @@ public sealed class ThenByDescending(ITestOutputHelper output):LinqChain1TestBas
     public void keySelector_Captured() {
         var suffix="";
         var expected=Rows().OrderBy(row => row.Key).ThenByDescending(row => row.Name+suffix).ToList();
-        MeasureOptimized(nameof(keySelector_CapturedOptimized),()=>keySelector_CapturedOptimized(expected));
-        MeasureOptimized(nameof(keySelector_CapturedNoOptimized),()=>keySelector_CapturedNoOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_CapturedOptimized),()=>keySelector_CapturedOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_CapturedNoOptimized),()=>keySelector_CapturedNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -94,8 +94,8 @@ public sealed class ThenByDescending(ITestOutputHelper output):LinqChain1TestBas
     [Fact, Trait("Category","Unit")]
     public void keySelector_DelegateSyntax() {
         var expected=Rows().OrderBy(row => row.Key).ThenByDescending(delegate(Chain1Row row) { return row.Name; }).ToList();
-        MeasureOptimized(nameof(keySelector_DelegateSyntaxOptimized),()=>keySelector_DelegateSyntaxOptimized(expected));
-        MeasureOptimized(nameof(keySelector_DelegateSyntaxNoOptimized),()=>keySelector_DelegateSyntaxNoOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_DelegateSyntaxOptimized),()=>keySelector_DelegateSyntaxOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_DelegateSyntaxNoOptimized),()=>keySelector_DelegateSyntaxNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -116,8 +116,8 @@ public sealed class ThenByDescending(ITestOutputHelper output):LinqChain1TestBas
     public void keySelector_Variable() {
         Func<Chain1Row,string> keySelector=row => row.Name;
         var expected=Rows().OrderBy(row => row.Key).ThenByDescending(keySelector).ToList();
-        MeasureOptimized(nameof(keySelector_VariableOptimized),()=>keySelector_VariableOptimized(expected));
-        MeasureOptimized(nameof(keySelector_VariableNoOptimized),()=>keySelector_VariableNoOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_VariableOptimized),()=>keySelector_VariableOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_VariableNoOptimized),()=>keySelector_VariableNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -139,8 +139,8 @@ public sealed class ThenByDescending(ITestOutputHelper output):LinqChain1TestBas
     [Fact, Trait("Category","Unit")]
     public void keySelector_comparer() {
         var expected=Rows().OrderBy(static row => row.Key).ThenByDescending(static row => row.Name,StringComparer.Ordinal).ToList();
-        MeasureOptimized(nameof(keySelector_comparerOptimized),()=>keySelector_comparerOptimized(expected));
-        MeasureOptimized(nameof(keySelector_comparerNoOptimized),()=>keySelector_comparerNoOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_comparerOptimized),()=>keySelector_comparerOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_comparerNoOptimized),()=>keySelector_comparerNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

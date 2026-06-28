@@ -8,8 +8,8 @@ public sealed class Sequence(ITestOutputHelper output):LinqChain1TestBase(output
     [Fact,Trait("Category","Unit")]
     public void start_end_step() {
         var expected=SystemEnumerable.Sequence(1L,9L,2L).ToList();
-        MeasureOptimized(nameof(start_end_stepOptimized),()=>start_end_stepOptimized(expected));
-        MeasureOptimized(nameof(start_end_stepNoOptimized),()=>start_end_stepNoOptimized(expected));
+        this.MeasureOptimized(nameof(start_end_stepOptimized),()=>start_end_stepOptimized(expected));
+        this.MeasureOptimized(nameof(start_end_stepNoOptimized),()=>start_end_stepNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -27,8 +27,8 @@ public sealed class Sequence(ITestOutputHelper output):LinqChain1TestBase(output
     [Fact,Trait("Category","Unit")]
     public void descending() {
         var expected=SystemEnumerable.Sequence(9L,1L,-2L).ToList();
-        MeasureOptimized(nameof(descendingOptimized),()=>descendingOptimized(expected));
-        MeasureOptimized(nameof(descendingNoOptimized),()=>descendingNoOptimized(expected));
+        this.MeasureOptimized(nameof(descendingOptimized),()=>descendingOptimized(expected));
+        this.MeasureOptimized(nameof(descendingNoOptimized),()=>descendingNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

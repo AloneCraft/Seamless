@@ -17,7 +17,7 @@ namespace Seamless.System.Carrier {
     public struct TakeWhile<TEnumerator, TSource>(TEnumerator source,Func<TSource,Boolean> predicate)
         :IValueEnumerator<TSource>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
+        private TEnumerator source = source;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -32,7 +32,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TSource> destination,Index offset) => false;
 
         public bool TryGetNext(out TSource current) {
-            if(source.TryGetNext(out current)&&predicate(current)) {
+            if(this.source.TryGetNext(out current)&&predicate(current)) {
                 return true;
             }
 
@@ -41,7 +41,7 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -50,8 +50,8 @@ namespace Seamless.System.Carrier {
     public struct TakeWhile2<TEnumerator, TSource>(TEnumerator source,Func<TSource,Int32,Boolean> predicate)
         :IValueEnumerator<TSource>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        int index = 0;
+        private TEnumerator source = source;
+        private int index = 0;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -66,7 +66,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TSource> destination,Index offset) => false;
 
         public bool TryGetNext(out TSource current) {
-            if(source.TryGetNext(out current)&&predicate(current,index++)) {
+            if(this.source.TryGetNext(out current)&&predicate(current,this.index++)) {
                 return true;
             }
 
@@ -75,7 +75,7 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 }

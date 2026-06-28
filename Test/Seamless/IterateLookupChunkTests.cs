@@ -272,10 +272,10 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
             long numberOfRecords,
             out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
-            var index = Interlocked.Increment(ref Count)-1;
+            var index = Interlocked.Increment(ref this.Count)-1;
             if(index>=global::Seamless.Tsavorite.Const.Chunk_Length) {
-                Volatile.Write(ref Count,global::Seamless.Tsavorite.Const.Chunk_Length);
-                var lastAcceptedAddress = Volatile.Read(ref LastAcceptedAddress);
+                Volatile.Write(ref this.Count,global::Seamless.Tsavorite.Const.Chunk_Length);
+                var lastAcceptedAddress = Volatile.Read(ref this.LastAcceptedAddress);
                 if(recordMetadata.Address==lastAcceptedAddress) {
                     cursorRecordResult=
                         CursorRecordResult.Skip|
@@ -289,15 +289,15 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
                 }
                 return true;
             }
-            Chunk[index]=Deserialize(logRecord);
-            Volatile.Write(ref LastAcceptedAddress,recordMetadata.Address);
+            this.Chunk[index]=this.Deserialize(logRecord);
+            Volatile.Write(ref this.LastAcceptedAddress,recordMetadata.Address);
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
 
         public bool OnStart(long beginAddress,long endAddress) {
-            Volatile.Write(ref Count,0);
-            Volatile.Write(ref LastAcceptedAddress,0);
+            Volatile.Write(ref this.Count,0);
+            Volatile.Write(ref this.LastAcceptedAddress,0);
             return true;
         }
         public void OnStop(bool completed,long numberOfRecords) { }
@@ -317,33 +317,33 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
         private long Cursor = 0, Count;
         private int Index = -1;
         private bool Done;
-        public readonly T Current => Iterator.Chunk[Index];
-        readonly object? IEnumerator.Current => Current;
+        public readonly T Current => Iterator.Chunk[this.Index];
+        readonly object? IEnumerator.Current => this.Current;
         public bool MoveNext() {
-            if(++Index<Count)
+            if(++this.Index<this.Count)
                 return true;
-            if(Done) {
-                Index=-1;
+            if(this.Done) {
+                this.Index=-1;
                 return false;
             }
             Iterator.Count=0;
-            var まだデータがある = Session.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+            var まだデータがある = Session.IterateLookup(ref Iterator,ref this.Cursor,resetCursor: false);
             Session.BasicContext.CompletePending(wait: true);
-            Count=Iterator.Count;
-            if(!まだデータがある&&Count==0)
-                Done=true;
-            if(Count==0) {
-                Index=-1;
+            this.Count=Iterator.Count;
+            if(!まだデータがある&&this.Count==0)
+                this.Done=true;
+            if(this.Count==0) {
+                this.Index=-1;
                 return false;
             }
-            Index=0;
+            this.Index=0;
             return true;
         }
         public void Reset() {
-            Cursor=0;
-            Count=0;
-            Index=-1;
-            Done=false;
+            this.Cursor=0;
+            this.Count=0;
+            this.Index=-1;
+            this.Done=false;
         }
         public readonly void Dispose() {
         }

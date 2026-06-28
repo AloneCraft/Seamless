@@ -30,77 +30,77 @@ public class Select_selector(int 番号,Enumerable source,FuncFragment selector)
     private bool UseResultTypeParam => selector.RequiresResultTypeParameter;
     internal Enumerable Source => source;
     internal FuncFragment Selector => selector;
-    internal bool RequiresResultTypeParameter => UseResultTypeParam;
-    public override string ElementType => UseResultTypeParam ? "TResult" : FuncReturnTypeName(selector);
+    internal bool RequiresResultTypeParameter => this.UseResultTypeParam;
+    public override string ElementType => this.UseResultTypeParam ? "TResult" : FuncReturnTypeName(selector);
     protected override string StructTypeParameters =>
-        UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
+        this.UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
     protected override string StructTypeConstraints =>
-        UseResultTypeParam
+        this.UseResultTypeParam
             ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.System.Carrier.IValueEnumerator<{source.ElementType}>"
             : base.StructTypeConstraints;
     public override string EnumeratorTypeName =>
-        UseResultTypeParam ? $"{Struct}<{source.EnumeratorTypeName}, TResult>" : base.EnumeratorTypeName;
-    private string FactorySource => !UseResultTypeParam ? string.Empty : $$"""
+        this.UseResultTypeParam ? $"{this.Struct}<{source.EnumeratorTypeName}, TResult>" : base.EnumeratorTypeName;
+    private string FactorySource => !this.UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
-        private static global::Seamless.System.Carrier.ValueEnumerable<{{Struct}}<TEnum, TResult>, TResult> {{FactoryMethodName}}<TEnum, TResult>(TEnum {{e}}{{ClosurePrimaryCtorSuffix(selector)}})
+        private static global::Seamless.System.Carrier.ValueEnumerable<{{this.Struct}}<TEnum, TResult>, TResult> {{this.FactoryMethodName}}<TEnum, TResult>(TEnum {{this.e}}{{this.ClosurePrimaryCtorSuffix(selector)}})
             where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>, global::Seamless.System.Carrier.IValueEnumerator<{{source.ElementType}}>
-            => new(new {{Struct}}<TEnum, TResult>({{e}}{{ClosureArgsSuffixForFactory(selector)}}));
+            => new(new {{this.Struct}}<TEnum, TResult>({{this.e}}{{this.ClosureArgsSuffixForFactory(selector)}}));
         """;
-    public override string StructMethod => JoinStaticMethods(FuncSupport(selector,nameof(selector)),FactorySource);
+    public override string StructMethod => JoinStaticMethods(this.FuncSupport(selector,nameof(selector)),this.FactorySource);
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(selector)})";
+        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(selector)})";
     public override string GetEnumerableExpression =>
-        UseResultTypeParam
-            ? $"{FactoryMethodName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(selector)})"
+        this.UseResultTypeParam
+            ? $"{this.FactoryMethodName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(selector)})"
             : base.GetEnumerableExpression;
     public override string? NonEnumeratedCountExpression => source.NonEnumeratedCountExpression;
     public override bool CountPreserving => source.CountPreserving;
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {e}{ClosurePrimaryCtorSuffix(selector)}";
+        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(selector)}";
     public override string GetEnumeratorFields => string.Empty;
-    protected override string GetTryGetNonEnumeratedCountBody => $"return this.{e}.TryGetNonEnumeratedCount(out count);";
+    protected override string GetTryGetNonEnumeratedCountBody => $"return this.{this.e}.TryGetNonEnumeratedCount(out count);";
     protected override string GetTryCopyToBody => $$"""
-        if(!this.{{e}}.TryGetNonEnumeratedCount(out var __count)) {
+        if(!this.{{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
             return false;
         }
         var __start = __offset.GetOffset(__count);
         if(__start < 0 || __start > __count || destination.Length > __count - __start) {
             return false;
         }
-        if(this.{{e}}.TryGetSpan(out var __span)) {
+        if(this.{{this.e}}.TryGetSpan(out var __span)) {
             for(var __i=0; __i<destination.Length; __i++) {
-                var {{item}} = __span[__start + __i];
-                {{FuncAssignIndented("            ",selector,nameof(selector),"destination[__i]",item)}}
+                var {{this.item}} = __span[__start + __i];
+                {{this.FuncAssignIndented("            ",selector,nameof(selector),"destination[__i]",this.item)}}
             }
             return true;
         }
         for(var __i=0; __i<__start; __i++) {
-            if(!this.{{e}}.TryGetNext(out _)) {
+            if(!this.{{this.e}}.TryGetNext(out _)) {
                 return false;
             }
         }
         for(var __i=0; __i<destination.Length; __i++) {
-            if(!this.{{e}}.TryGetNext(out var {{item}})) {
+            if(!this.{{this.e}}.TryGetNext(out var {{this.item}})) {
                 return false;
             }
-            {{FuncAssignIndented("        ",selector,nameof(selector),"destination[__i]",item)}}
+            {{this.FuncAssignIndented("        ",selector,nameof(selector),"destination[__i]",this.item)}}
         }
         return true;
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{e}}.TryGetNext(out var {{item}})) {
-            {{CounterCall("IncrementLogicalSelect")}}
-            {{FuncAssignCurrentIndented("    ",selector,nameof(selector),$"this.{currentValue}",item)}}
+        if({{this.e}}.TryGetNext(out var {{this.item}})) {
+            {{this.CounterCall("IncrementLogicalSelect")}}
+            {{this.FuncAssignCurrentIndented("    ",selector,nameof(selector),$"this.{this.currentValue}",this.item)}}
             return true;
         }
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => currentValue;
+    public override string GetCurrentExpression => this.currentValue;
 }
 
 /*
@@ -131,27 +131,27 @@ public class Select_WithInlinedScalar(int 番号, Enumerable source, Fragment sc
         {{scalarFrag.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     public override string GetEnumeratorFields => string.Empty;
     public override string? NonEnumeratedCountExpression => source.NonEnumeratedCountExpression;
     public override bool CountPreserving => source.CountPreserving;
-    protected override string GetTryGetNonEnumeratedCountBody => $"return this.{e}.TryGetNonEnumeratedCount(out count);";
+    protected override string GetTryGetNonEnumeratedCountBody => $"return this.{this.e}.TryGetNonEnumeratedCount(out count);";
     public override string GetTryGetNextBody => $$"""
-        if({{e}}.TryGetNext(out var {{outerParamName}})) {
-            {{CounterCall("IncrementLogicalSelect")}}
-            var {{item}} = {{scalarFrag.GetEnumeratorExpression}};
-            {{item}}.TryGetNext(out var {{temp}});
-            {{item}}.Dispose();
-            this.{{currentValue}} = {{temp}};
-            current = this.{{currentValue}};
+        if({{this.e}}.TryGetNext(out var {{outerParamName}})) {
+            {{this.CounterCall("IncrementLogicalSelect")}}
+            var {{this.item}} = {{scalarFrag.GetEnumeratorExpression}};
+            {{this.item}}.TryGetNext(out var {{this.temp}});
+            {{this.item}}.Dispose();
+            this.{{this.currentValue}} = {{this.temp}};
+            current = this.{{this.currentValue}};
             return true;
         }
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => currentValue;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetCurrentExpression => this.currentValue;
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
 
     internal static bool TryBuild(
         SemanticModel semanticModel,
@@ -222,47 +222,47 @@ public class Select_indexSelector(int 番号, Enumerable source, FuncFragment se
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     protected override Enumerable PrimarySource => source;
     private bool UseResultTypeParam => selector.RequiresResultTypeParameter;
-    public override string ElementType => UseResultTypeParam ? "TResult" : FuncReturnTypeName(selector);
+    public override string ElementType => this.UseResultTypeParam ? "TResult" : FuncReturnTypeName(selector);
     protected override string StructTypeParameters =>
-        UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
+        this.UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
     protected override string StructTypeConstraints =>
-        UseResultTypeParam
+        this.UseResultTypeParam
             ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.System.Carrier.IValueEnumerator<{source.ElementType}>"
             : base.StructTypeConstraints;
     public override string EnumeratorTypeName =>
-        UseResultTypeParam ? $"{Struct}<{source.EnumeratorTypeName}, TResult>" : base.EnumeratorTypeName;
-    private string FactorySource => !UseResultTypeParam ? string.Empty : $$"""
+        this.UseResultTypeParam ? $"{this.Struct}<{source.EnumeratorTypeName}, TResult>" : base.EnumeratorTypeName;
+    private string FactorySource => !this.UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
-        private static global::Seamless.System.Carrier.ValueEnumerable<{{Struct}}<TEnum, TResult>, TResult> {{FactoryMethodName}}<TEnum, TResult>(TEnum {{e}}{{ClosurePrimaryCtorSuffix(selector)}})
+        private static global::Seamless.System.Carrier.ValueEnumerable<{{this.Struct}}<TEnum, TResult>, TResult> {{this.FactoryMethodName}}<TEnum, TResult>(TEnum {{this.e}}{{this.ClosurePrimaryCtorSuffix(selector)}})
             where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>, global::Seamless.System.Carrier.IValueEnumerator<{{source.ElementType}}>
-            => new(new {{Struct}}<TEnum, TResult>({{e}}{{ClosureArgsSuffixForFactory(selector)}}));
+            => new(new {{this.Struct}}<TEnum, TResult>({{this.e}}{{this.ClosureArgsSuffixForFactory(selector)}}));
         """;
-    public override string StructMethod => JoinStaticMethods(FuncSupport(selector,nameof(selector)),FactorySource);
+    public override string StructMethod => JoinStaticMethods(this.FuncSupport(selector,nameof(selector)),this.FactorySource);
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(selector)})";
+        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(selector)})";
     public override string GetEnumerableExpression =>
-        UseResultTypeParam
-            ? $"{FactoryMethodName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(selector)})"
+        this.UseResultTypeParam
+            ? $"{this.FactoryMethodName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(selector)})"
             : $"global::Seamless.System.Carrier.ValueEnumerableExtensions.Select({source.GetEnumerableExpression}, {selector.DelegateConstructorArg ?? selector.RenderAsLambda()})";
     public override string? NonEnumeratedCountExpression => source.NonEnumeratedCountExpression;
     public override bool CountPreserving => source.CountPreserving;
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {e}{ClosurePrimaryCtorSuffix(selector)}";
-    public override string GetEnumeratorFields => $"private int {a} = -1;";
-    protected override string GetTryGetNonEnumeratedCountBody => $"return this.{e}.TryGetNonEnumeratedCount(out count);";
+        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(selector)}";
+    public override string GetEnumeratorFields => $"private int {this.a} = -1;";
+    protected override string GetTryGetNonEnumeratedCountBody => $"return this.{this.e}.TryGetNonEnumeratedCount(out count);";
     public override string GetTryGetNextBody => $$"""
-        if({{e}}.TryGetNext(out var {{item}})) {
-            {{CounterCall("IncrementLogicalSelect")}}
-            this.{{a}}++;
-            {{FuncAssignCurrentIndented("    ",selector,nameof(selector),$"this.{currentValue}",item,$"this.{a}")}}
+        if({{this.e}}.TryGetNext(out var {{this.item}})) {
+            {{this.CounterCall("IncrementLogicalSelect")}}
+            this.{{this.a}}++;
+            {{this.FuncAssignCurrentIndented("    ",selector,nameof(selector),$"this.{this.currentValue}",this.item,$"this.{this.a}")}}
             return true;
         }
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => currentValue;
+    public override string GetCurrentExpression => this.currentValue;
 }

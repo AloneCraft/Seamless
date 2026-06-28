@@ -9,8 +9,8 @@ public sealed class AggregateBy_Select(ITestOutputHelper output):LinqChain2TestB
     [Fact, Trait("Category","Unit")]
     public void Static() {
         var expected=Rows().AggregateBy(static row => row.Key,0,static (total,row) => total+row.Value).Select(static pair => pair.Key+pair.Value).ToList();
-        MeasureOptimized(nameof(StaticOptimized),()=>StaticOptimized(expected));
-        MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
+        this.MeasureOptimized(nameof(StaticOptimized),()=>StaticOptimized(expected));
+        this.MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -30,8 +30,8 @@ public sealed class AggregateBy_Select(ITestOutputHelper output):LinqChain2TestB
     [Fact, Trait("Category","Unit")]
     public void Lambda() {
         var expected=Rows().AggregateBy(row => row.Key,0,(total,row) => total+row.Value).Select(pair => pair.Key+pair.Value).ToList();
-        MeasureOptimized(nameof(LambdaOptimized),()=>LambdaOptimized(expected));
-        MeasureOptimized(nameof(LambdaNoOptimized),()=>LambdaNoOptimized(expected));
+        this.MeasureOptimized(nameof(LambdaOptimized),()=>LambdaOptimized(expected));
+        this.MeasureOptimized(nameof(LambdaNoOptimized),()=>LambdaNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

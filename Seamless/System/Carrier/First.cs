@@ -80,8 +80,7 @@ namespace Seamless.System.Carrier {
                 enumerator.Dispose();
             }
         }
-
-        static bool TryGetFirst<TEnumerator, TSource>(ref TEnumerator source,out TSource value)
+        private static bool TryGetFirst<TEnumerator, TSource>(ref TEnumerator source,out TSource value)
             where TEnumerator : struct, IValueEnumerator<TSource> {
             var current = default(TSource)!;
 #if NETSTANDARD2_0
@@ -106,8 +105,7 @@ namespace Seamless.System.Carrier {
             value=default!;
             return false;
         }
-
-        static bool TryGetFirst<TEnumerator, TSource>(ref TEnumerator source,Func<TSource,Boolean> predicate,out TSource value)
+        private static bool TryGetFirst<TEnumerator, TSource>(ref TEnumerator source,Func<TSource,Boolean> predicate,out TSource value)
             where TEnumerator : struct, IValueEnumerator<TSource> {
             if(source.TryGetSpan(out var span)) {
                 foreach(var item in span) {

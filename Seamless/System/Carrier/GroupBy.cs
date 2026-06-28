@@ -41,10 +41,10 @@ namespace Seamless.System.Carrier {
     public struct GroupBy<TEnumerator, TSource, TKey>(TEnumerator source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer)
         :IValueEnumerator<IGrouping<TKey,TSource>>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        bool init;
-        Grouping<TKey,TSource>? rootGrouping;
-        Grouping<TKey,TSource>? currentGrouping;
+        private TEnumerator source = source;
+        private bool init;
+        private Grouping<TKey,TSource>? rootGrouping;
+        private Grouping<TKey,TSource>? currentGrouping;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -59,43 +59,42 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<IGrouping<TKey,TSource>> destination,Index offset) => false;
 
         public bool TryGetNext(out IGrouping<TKey,TSource> current) {
-            if(!init) {
-                init=true;
-                rootGrouping=BuildRoot();
-                if(rootGrouping!=null) {
-                    current=rootGrouping;
-                    currentGrouping=rootGrouping;
+            if(!this.init) {
+                this.init=true;
+                this.rootGrouping=this.BuildRoot();
+                if(this.rootGrouping!=null) {
+                    current=this.rootGrouping;
+                    this.currentGrouping=this.rootGrouping;
                     return true;
                 }
             }
 
-            currentGrouping=currentGrouping?.NextGroupInAddOrder;
+            this.currentGrouping=this.currentGrouping?.NextGroupInAddOrder;
 
-            if(currentGrouping==null||currentGrouping==rootGrouping) {
+            if(this.currentGrouping==null||this.currentGrouping==this.rootGrouping) {
                 current=default!;
                 return false;
             }
             else {
-                current=currentGrouping;
+                current=this.currentGrouping;
                 return true;
             }
         }
 
         public void Dispose() {
-            source.Dispose();
+            this.source.Dispose();
         }
-
-        Grouping<TKey,TSource>? BuildRoot() {
+        private Grouping<TKey,TSource>? BuildRoot() {
             var lookupBuilder = new LookupBuilder<TKey,TSource>(comparer??EqualityComparer<TKey>.Default);
 
-            if(source.TryGetSpan(out var span)) {
+            if(this.source.TryGetSpan(out var span)) {
                 foreach(var item in span) {
                     lookupBuilder.Add(keySelector(item),item);
                 }
             }
             else {
-                using(source) {
-                    while(source.TryGetNext(out var item)) {
+                using(this.source) {
+                    while(this.source.TryGetNext(out var item)) {
                         lookupBuilder.Add(keySelector(item),item);
                     }
                 }
@@ -110,10 +109,10 @@ namespace Seamless.System.Carrier {
     public struct GroupBy2<TEnumerator, TSource, TKey, TElement>(TEnumerator source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,IEqualityComparer<TKey>? comparer)
         :IValueEnumerator<IGrouping<TKey,TElement>>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        bool init;
-        Grouping<TKey,TElement>? rootGrouping;
-        Grouping<TKey,TElement>? currentGrouping;
+        private TEnumerator source = source;
+        private bool init;
+        private Grouping<TKey,TElement>? rootGrouping;
+        private Grouping<TKey,TElement>? currentGrouping;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -128,43 +127,42 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<IGrouping<TKey,TElement>> destination,Index offset) => false;
 
         public bool TryGetNext(out IGrouping<TKey,TElement> current) {
-            if(!init) {
-                init=true;
-                rootGrouping=BuildRoot();
-                if(rootGrouping!=null) {
-                    current=rootGrouping;
-                    currentGrouping=rootGrouping;
+            if(!this.init) {
+                this.init=true;
+                this.rootGrouping=this.BuildRoot();
+                if(this.rootGrouping!=null) {
+                    current=this.rootGrouping;
+                    this.currentGrouping=this.rootGrouping;
                     return true;
                 }
             }
 
-            currentGrouping=currentGrouping?.NextGroupInAddOrder;
+            this.currentGrouping=this.currentGrouping?.NextGroupInAddOrder;
 
-            if(currentGrouping==null||currentGrouping==rootGrouping) {
+            if(this.currentGrouping==null||this.currentGrouping==this.rootGrouping) {
                 current=default!;
                 return false;
             }
             else {
-                current=currentGrouping;
+                current=this.currentGrouping;
                 return true;
             }
         }
 
         public void Dispose() {
-            source.Dispose();
+            this.source.Dispose();
         }
-
-        Grouping<TKey,TElement>? BuildRoot() {
+        private Grouping<TKey,TElement>? BuildRoot() {
             var lookupBuilder = new LookupBuilder<TKey,TElement>(comparer??EqualityComparer<TKey>.Default);
 
-            if(source.TryGetSpan(out var span)) {
+            if(this.source.TryGetSpan(out var span)) {
                 foreach(var item in span) {
                     lookupBuilder.Add(keySelector(item),elementSelector(item));
                 }
             }
             else {
-                using(source) {
-                    while(source.TryGetNext(out var item)) {
+                using(this.source) {
+                    while(this.source.TryGetNext(out var item)) {
                         lookupBuilder.Add(keySelector(item),elementSelector(item));
                     }
                 }
@@ -179,10 +177,10 @@ namespace Seamless.System.Carrier {
     public struct GroupBy3<TEnumerator, TSource, TKey, TResult>(TEnumerator source,Func<TSource,TKey> keySelector,Func<TKey,IEnumerable<TSource>,TResult> resultSelector,IEqualityComparer<TKey>? comparer)
         :IValueEnumerator<TResult>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        bool init;
-        Grouping<TKey,TSource>? rootGrouping;
-        Grouping<TKey,TSource>? currentGrouping;
+        private TEnumerator source = source;
+        private bool init;
+        private Grouping<TKey,TSource>? rootGrouping;
+        private Grouping<TKey,TSource>? currentGrouping;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -197,43 +195,42 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TResult> destination,Index offset) => false;
 
         public bool TryGetNext(out TResult current) {
-            if(!init) {
-                init=true;
-                rootGrouping=BuildRoot();
-                if(rootGrouping!=null) {
-                    current=resultSelector(rootGrouping.Key,rootGrouping);
-                    currentGrouping=rootGrouping;
+            if(!this.init) {
+                this.init=true;
+                this.rootGrouping=this.BuildRoot();
+                if(this.rootGrouping!=null) {
+                    current=resultSelector(this.rootGrouping.Key,this.rootGrouping);
+                    this.currentGrouping=this.rootGrouping;
                     return true;
                 }
             }
 
-            currentGrouping=currentGrouping?.NextGroupInAddOrder;
+            this.currentGrouping=this.currentGrouping?.NextGroupInAddOrder;
 
-            if(currentGrouping==null||currentGrouping==rootGrouping) {
+            if(this.currentGrouping==null||this.currentGrouping==this.rootGrouping) {
                 current=default!;
                 return false;
             }
             else {
-                current=resultSelector(currentGrouping.Key,currentGrouping);
+                current=resultSelector(this.currentGrouping.Key,this.currentGrouping);
                 return true;
             }
         }
 
         public void Dispose() {
-            source.Dispose();
+            this.source.Dispose();
         }
-
-        Grouping<TKey,TSource>? BuildRoot() {
+        private Grouping<TKey,TSource>? BuildRoot() {
             var lookupBuilder = new LookupBuilder<TKey,TSource>(comparer??EqualityComparer<TKey>.Default);
 
-            if(source.TryGetSpan(out var span)) {
+            if(this.source.TryGetSpan(out var span)) {
                 foreach(var item in span) {
                     lookupBuilder.Add(keySelector(item),item);
                 }
             }
             else {
-                using(source) {
-                    while(source.TryGetNext(out var item)) {
+                using(this.source) {
+                    while(this.source.TryGetNext(out var item)) {
                         lookupBuilder.Add(keySelector(item),item);
                     }
                 }
@@ -248,10 +245,10 @@ namespace Seamless.System.Carrier {
     public struct GroupBy4<TEnumerator, TSource, TKey, TElement, TResult>(TEnumerator source,Func<TSource,TKey> keySelector,Func<TSource,TElement> elementSelector,Func<TKey,IEnumerable<TElement>,TResult> resultSelector,IEqualityComparer<TKey>? comparer)
         :IValueEnumerator<TResult>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        bool init;
-        Grouping<TKey,TElement>? rootGrouping;
-        Grouping<TKey,TElement>? currentGrouping;
+        private TEnumerator source = source;
+        private bool init;
+        private Grouping<TKey,TElement>? rootGrouping;
+        private Grouping<TKey,TElement>? currentGrouping;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -266,43 +263,42 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TResult> destination,Index offset) => false;
 
         public bool TryGetNext(out TResult current) {
-            if(!init) {
-                init=true;
-                rootGrouping=BuildRoot();
-                if(rootGrouping!=null) {
-                    current=resultSelector(rootGrouping.Key,rootGrouping);
-                    currentGrouping=rootGrouping;
+            if(!this.init) {
+                this.init=true;
+                this.rootGrouping=this.BuildRoot();
+                if(this.rootGrouping!=null) {
+                    current=resultSelector(this.rootGrouping.Key,this.rootGrouping);
+                    this.currentGrouping=this.rootGrouping;
                     return true;
                 }
             }
 
-            currentGrouping=currentGrouping?.NextGroupInAddOrder;
+            this.currentGrouping=this.currentGrouping?.NextGroupInAddOrder;
 
-            if(currentGrouping==null||currentGrouping==rootGrouping) {
+            if(this.currentGrouping==null||this.currentGrouping==this.rootGrouping) {
                 current=default!;
                 return false;
             }
             else {
-                current=resultSelector(currentGrouping.Key,currentGrouping);
+                current=resultSelector(this.currentGrouping.Key,this.currentGrouping);
                 return true;
             }
         }
 
         public void Dispose() {
-            source.Dispose();
+            this.source.Dispose();
         }
-
-        Grouping<TKey,TElement>? BuildRoot() {
+        private Grouping<TKey,TElement>? BuildRoot() {
             var lookupBuilder = new LookupBuilder<TKey,TElement>(comparer??EqualityComparer<TKey>.Default);
 
-            if(source.TryGetSpan(out var span)) {
+            if(this.source.TryGetSpan(out var span)) {
                 foreach(var item in span) {
                     lookupBuilder.Add(keySelector(item),elementSelector(item));
                 }
             }
             else {
-                using(source) {
-                    while(source.TryGetNext(out var item)) {
+                using(this.source) {
+                    while(this.source.TryGetNext(out var item)) {
                         lookupBuilder.Add(keySelector(item),elementSelector(item));
                     }
                 }

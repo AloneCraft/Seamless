@@ -111,7 +111,7 @@ namespace Seamless.System.Carrier {
         internal readonly int count = count;
         internal readonly int start = start;
         internal readonly int to = start+count;
-        int value = start;
+        private int value = start;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=this.count;
@@ -124,9 +124,9 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(Span<int> destination,Index offset) {
-            if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,
+            if(EnumeratorHelper.TryGetSliceRange(this.count,offset,destination.Length,out var fillStart,
                    out var fillCount)) {
-                FillIncremental(destination.Slice(0,fillCount),start+fillStart);
+                FillIncremental(destination.Slice(0,fillCount),this.start+fillStart);
                 return true;
             }
 
@@ -134,9 +134,9 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out int current) {
-            if(value<to) {
-                current=value;
-                value++;
+            if(this.value<this.to) {
+                current=this.value;
+                this.value++;
                 return true;
             }
 
@@ -191,11 +191,10 @@ namespace Seamless.System.Carrier {
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromRange<T, TStep>(T start,int count,TStep step):IValueEnumerator<T>
         where T : IAdditionOperators<T,TStep,T> {
-        readonly int count = count;
-        readonly TStep step = step;
-
-        T value = start;
-        int index = 0;
+        private readonly int count = count;
+        private readonly TStep step = step;
+        private T value = start;
+        private int index = 0;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=this.count;
@@ -212,15 +211,15 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out T current) {
-            if(index<count) {
-                if(index!=0) {
+            if(this.index<this.count) {
+                if(this.index!=0) {
                     checked {
-                        value+=step;
+                        this.value+=this.step;
                     }
                 }
 
-                current=value;
-                index++;
+                current=this.value;
+                this.index++;
                 return true;
             }
 
@@ -237,11 +236,10 @@ namespace Seamless.System.Carrier {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromRangeDateTime(DateTime start,int count,TimeSpan step):IValueEnumerator<DateTime> {
-        readonly int count = count;
-        readonly TimeSpan timeSpan = step;
-
-        int index = 0;
-        DateTime value = start;
+        private readonly int count = count;
+        private readonly TimeSpan timeSpan = step;
+        private int index = 0;
+        private DateTime value = start;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=this.count;
@@ -258,15 +256,15 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out DateTime current) {
-            if(index<count) {
-                if(index!=0) {
+            if(this.index<this.count) {
+                if(this.index!=0) {
                     checked {
-                        value+=timeSpan;
+                        this.value+=this.timeSpan;
                     }
                 }
 
-                current=value;
-                index++;
+                current=this.value;
+                this.index++;
                 return true;
             }
 
@@ -282,11 +280,10 @@ namespace Seamless.System.Carrier {
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromRangeDateTimeOffset(DateTimeOffset start,int count,TimeSpan step)
         :IValueEnumerator<DateTimeOffset> {
-        readonly int count = count;
-        readonly TimeSpan timeSpan = step;
-
-        int index = 0;
-        DateTimeOffset value = start;
+        private readonly int count = count;
+        private readonly TimeSpan timeSpan = step;
+        private int index = 0;
+        private DateTimeOffset value = start;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=this.count;
@@ -303,15 +300,15 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out DateTimeOffset current) {
-            if(index<count) {
-                if(index!=0) {
+            if(this.index<this.count) {
+                if(this.index!=0) {
                     checked {
-                        value+=timeSpan;
+                        this.value+=this.timeSpan;
                     }
                 }
 
-                current=value;
-                index++;
+                current=this.value;
+                this.index++;
                 return true;
             }
 
@@ -331,14 +328,14 @@ namespace Seamless.System.Carrier {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromRange2(int start,int count,bool isInfinite):IValueEnumerator<int> {
-        readonly int count = count;
-        readonly int start = start;
-        readonly int to = isInfinite ? int.MaxValue-start : start+count;
-        readonly bool isInfinite = isInfinite;
-        int value = start;
+        private readonly int count = count;
+        private readonly int start = start;
+        private readonly int to = isInfinite ? int.MaxValue-start : start+count;
+        private readonly bool isInfinite = isInfinite;
+        private int value = start;
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(isInfinite) {
+            if(this.isInfinite) {
                 count=0;
                 return false;
             }
@@ -353,11 +350,11 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(Span<int> destination,Index offset) {
-            if(isInfinite) return false;
+            if(this.isInfinite) return false;
 
-            if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,
+            if(EnumeratorHelper.TryGetSliceRange(this.count,offset,destination.Length,out var fillStart,
                    out var fillCount)) {
-                FromRange.FillIncremental(destination.Slice(0,fillCount),start+fillStart);
+                FromRange.FillIncremental(destination.Slice(0,fillCount),this.start+fillStart);
                 return true;
             }
 
@@ -365,10 +362,10 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out int current) {
-            if(value<to) {
-                current=value;
+            if(this.value<this.to) {
+                current=this.value;
                 checked {
-                    value++;
+                    this.value++;
                 }
 
                 return true;
@@ -389,13 +386,12 @@ namespace Seamless.System.Carrier {
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromRangeTo<T, TStep>(T start,T end,TStep step,RightBound rightBound):IValueEnumerator<T>
         where T : IAdditionOperators<T,TStep,T>, IComparisonOperators<T,T,bool> {
-        readonly T end = end;
-        readonly TStep step = step;
-        readonly RightBound rightBound = rightBound;
-        bool forward = start<end;
-
-        T value = start;
-        bool first = true;
+        private readonly T end = end;
+        private readonly TStep step = step;
+        private readonly RightBound rightBound = rightBound;
+        private bool forward = start<end;
+        private T value = start;
+        private bool first = true;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -412,25 +408,25 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out T current) {
-            if(first) {
-                current=value;
-                first=false;
+            if(this.first) {
+                current=this.value;
+                this.first=false;
                 return true;
             }
 
             checked {
-                value+=step;
+                this.value+=this.step;
             }
 
-            if(forward) {
-                if(value<end||(rightBound==RightBound.Inclusive&&value<=end)) {
-                    current=value;
+            if(this.forward) {
+                if(this.value<this.end||(this.rightBound==RightBound.Inclusive&&this.value<=this.end)) {
+                    current=this.value;
                     return true;
                 }
             }
             else {
-                if(value>end||(rightBound==RightBound.Inclusive&&value>=end)) {
-                    current=value;
+                if(this.value>this.end||(this.rightBound==RightBound.Inclusive&&this.value>=this.end)) {
+                    current=this.value;
                     return true;
                 }
             }
@@ -450,13 +446,12 @@ namespace Seamless.System.Carrier {
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromRangeDateTimeTo(DateTime start,DateTime end,TimeSpan step,RightBound rightBound)
         :IValueEnumerator<DateTime> {
-        readonly DateTime end = end;
-        readonly TimeSpan step = step;
-        readonly RightBound rightBound = rightBound;
-        bool forward = start<end;
-
-        DateTime value = start;
-        bool first = true;
+        private readonly DateTime end = end;
+        private readonly TimeSpan step = step;
+        private readonly RightBound rightBound = rightBound;
+        private bool forward = start<end;
+        private DateTime value = start;
+        private bool first = true;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -473,25 +468,25 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out DateTime current) {
-            if(first) {
-                current=value;
-                first=false;
+            if(this.first) {
+                current=this.value;
+                this.first=false;
                 return true;
             }
 
             checked {
-                value+=step;
+                this.value+=this.step;
             }
 
-            if(forward) {
-                if(value<end||(rightBound==RightBound.Inclusive&&value<=end)) {
-                    current=value;
+            if(this.forward) {
+                if(this.value<this.end||(this.rightBound==RightBound.Inclusive&&this.value<=this.end)) {
+                    current=this.value;
                     return true;
                 }
             }
             else {
-                if(value>end||(rightBound==RightBound.Inclusive&&value>=end)) {
-                    current=value;
+                if(this.value>this.end||(this.rightBound==RightBound.Inclusive&&this.value>=this.end)) {
+                    current=this.value;
                     return true;
                 }
             }
@@ -508,13 +503,12 @@ namespace Seamless.System.Carrier {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromRangeDateTimeOffsetTo(DateTimeOffset start,DateTimeOffset end,TimeSpan step,RightBound rightBound):IValueEnumerator<DateTimeOffset> {
-        readonly DateTimeOffset end = end;
-        readonly TimeSpan step = step;
-        readonly RightBound rightBound = rightBound;
-
-        DateTimeOffset value = start;
-        bool first = true;
-        bool forward = start<end;
+        private readonly DateTimeOffset end = end;
+        private readonly TimeSpan step = step;
+        private readonly RightBound rightBound = rightBound;
+        private DateTimeOffset value = start;
+        private bool first = true;
+        private bool forward = start<end;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -531,25 +525,25 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out DateTimeOffset current) {
-            if(first) {
-                current=value;
-                first=false;
+            if(this.first) {
+                current=this.value;
+                this.first=false;
                 return true;
             }
 
             checked {
-                value+=step;
+                this.value+=this.step;
             }
 
-            if(forward) {
-                if(value<end||(rightBound==RightBound.Inclusive&&value<=end)) {
-                    current=value;
+            if(this.forward) {
+                if(this.value<this.end||(this.rightBound==RightBound.Inclusive&&this.value<=this.end)) {
+                    current=this.value;
                     return true;
                 }
             }
             else {
-                if(value>end||(rightBound==RightBound.Inclusive&&value>=end)) {
-                    current=value;
+                if(this.value>this.end||(this.rightBound==RightBound.Inclusive&&this.value>=this.end)) {
+                    current=this.value;
                     return true;
                 }
             }

@@ -28,40 +28,40 @@ public class Where_predicate(int 番号, Enumerable source, FuncFragment predica
     protected override Enumerable PrimarySource => source;
     internal Enumerable Source => source;
     internal FuncFragment Predicate => predicate;
-    public override string StructMethod => FuncSupport(predicate,nameof(predicate));
+    public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(predicate)})";
+        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
+        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody {
         get {
-            var (preCode, condExpr) =FuncInvokeCondition(predicate, nameof(predicate),temp,item);
+            var (preCode, condExpr) =this.FuncInvokeCondition(predicate, nameof(predicate),this.temp,this.item);
             var predicateCheck = string.IsNullOrEmpty(preCode)
                 ? $"if(!{WrapConditionExpression(condExpr)})"
                 : $"{preCode}\n        if(!{WrapConditionExpression(condExpr)})";
 
             return $$"""
-                {{Start}}:
-                if(!{{e}}.TryGetNext(out var {{item}})) {
+                {{this.Start}}:
+                if(!{{this.e}}.TryGetNext(out var {{this.item}})) {
                     current = default!;
                     return false;
                 }
-                {{CounterCall("IncrementLogicalWhere")}}
+                {{this.CounterCall("IncrementLogicalWhere")}}
                 {{predicateCheck}}
-                    goto {{Skip}};
-                current = this.{{currentValue}} = {{item}};
+                    goto {{this.Skip}};
+                current = this.{{this.currentValue}} = {{this.item}};
                 return true;
-                {{Skip}}:
-                goto {{Start}};
+                {{this.Skip}}:
+                goto {{this.Start}};
                 """;
         }
     }
-    public override string GetCurrentExpression => currentValue;
+    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => source.ElementType;
 }
 
@@ -94,25 +94,25 @@ public class Where_WithInlinedScalarPredicate(int 番号, Enumerable source, Fra
         {{scalarFrag.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
-        while({{e}}.TryGetNext(out var {{outerParamName}})) {
-            {{CounterCall("IncrementLogicalWhere")}}
-            var {{item}} = {{scalarFrag.GetEnumeratorExpression}};
-            {{item}}.TryGetNext(out var {{temp}});
-            {{item}}.Dispose();
-            if(!{{temp}}) continue;
-            this.{{currentValue}} = {{outerParamName}};
-            current = this.{{currentValue}};
+        while({{this.e}}.TryGetNext(out var {{outerParamName}})) {
+            {{this.CounterCall("IncrementLogicalWhere")}}
+            var {{this.item}} = {{scalarFrag.GetEnumeratorExpression}};
+            {{this.item}}.TryGetNext(out var {{this.temp}});
+            {{this.item}}.Dispose();
+            if(!{{this.temp}}) continue;
+            this.{{this.currentValue}} = {{outerParamName}};
+            current = this.{{this.currentValue}};
             return true;
         }
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => currentValue;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetCurrentExpression => this.currentValue;
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
 
     internal static bool TryBuild(
         SemanticModel semanticModel,
@@ -176,33 +176,33 @@ public class Where_indexPredicate(int 番号, Enumerable source, FuncFragment pr
         method.Parameters.Length > 0 &&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     public override string GetEnumeratorExpression =>
-        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(predicate)})";
+        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
+        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     public override string GetEnumeratorFields => $$"""
-        private int {{a}} = -1;
+        private int {{this.a}} = -1;
         """;
     public override string GetTryGetNextBody {
         get {
-            var (preCode, condExpr) =FuncInvokeCondition(predicate, nameof(predicate),temp,item,a);
+            var (preCode, condExpr) =this.FuncInvokeCondition(predicate, nameof(predicate),this.temp,this.item,this.a);
             var predicateCheck = string.IsNullOrEmpty(preCode)
                 ? $"if(!{WrapConditionExpression(condExpr)})"
                 : $"{preCode}\n        if(!{WrapConditionExpression(condExpr)})";
 
             return $$"""
-                {{Start}}:
-                if(!{{e}}.TryGetNext(out var {{item}})) {
+                {{this.Start}}:
+                if(!{{this.e}}.TryGetNext(out var {{this.item}})) {
                     current = default!;
                     return false;
                 }
-                {{CounterCall("IncrementLogicalWhere")}}
-                this.{{a}}++;
+                {{this.CounterCall("IncrementLogicalWhere")}}
+                this.{{this.a}}++;
                 {{predicateCheck}}
-                    goto {{Skip}};
-                current = this.{{currentValue}} = {{item}};
+                    goto {{this.Skip}};
+                current = this.{{this.currentValue}} = {{this.item}};
                 return true;
-                {{Skip}}:
-                goto {{Start}};
+                {{this.Skip}}:
+                goto {{this.Start}};
                 """;
         }
     }

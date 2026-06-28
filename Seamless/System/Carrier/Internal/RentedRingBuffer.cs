@@ -5,68 +5,68 @@ internal class RentedRingBuffer<T>(int capacity) : IDisposable
 {
     public T[]? Buffer = ArrayPool<T>.Shared.Rent(4);
     public readonly int Capacity = capacity;
-    int head = 0;
+    private int head = 0;
     public int Count = 0;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Enqueue(T item)
     {
-        if (head ==Buffer!.Length &&Count !=Capacity)
+        if (this.head ==this.Buffer!.Length &&this.Count !=this.Capacity)
         {
-            Expand();
+            this.Expand();
         }
 
 
-        Buffer![head] = item;
-        var newHead = (head + 1);
-        head = newHead %Capacity;
-        Count = Math.Min(Count + 1,Capacity);
+        this.Buffer![this.head] = item;
+        var newHead = (this.head + 1);
+        this.head = newHead %this.Capacity;
+        this.Count = Math.Min(this.Count + 1,this.Capacity);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TryDequeue(out T item)
     {
-        if (Count == 0)
+        if (this.Count == 0)
         {
             item = default!;
             return false;
         }
 
-        var tail = ((long)head -Count +Capacity) %Capacity;
-        ref var tailRef = ref Buffer![tail];
+        var tail = ((long)this.head -this.Count +this.Capacity) %this.Capacity;
+        ref var tailRef = ref this.Buffer![tail];
         item = tailRef;
         tailRef = default!;
-        Count--;
+        this.Count--;
         return true;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    void Expand()
+    private void Expand()
     {
-        var newBuffer = ArrayPool<T>.Shared.Rent(Buffer!.Length * 2);
-        var prevSpan = Buffer.AsSpan();
+        var newBuffer = ArrayPool<T>.Shared.Rent(this.Buffer!.Length * 2);
+        var prevSpan = this.Buffer.AsSpan();
         prevSpan.CopyTo(newBuffer);
         if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
         {
             prevSpan.Clear();
         }
 
-        ArrayPool<T>.Shared.Return(Buffer);
-        Buffer = newBuffer;
+        ArrayPool<T>.Shared.Return(this.Buffer);
+        this.Buffer = newBuffer;
     }
 
     public void Dispose()
     {
-        if (Buffer != null)
+        if (this.Buffer != null)
         {
             // Clear the buffer if T contains references
             if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
             {
-                Buffer.AsSpan(0,Count).Clear();
+                this.Buffer.AsSpan(0,this.Count).Clear();
             }
 
-            ArrayPool<T>.Shared.Return(Buffer);
-            Buffer = null;
+            ArrayPool<T>.Shared.Return(this.Buffer);
+            this.Buffer = null;
         }
     }
 }

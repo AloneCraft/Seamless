@@ -7,8 +7,8 @@ public sealed class OrderDescending(ITestOutputHelper output):LinqChain1TestBase
     [Fact, Trait("Category","Unit")]
     public void NoDelegate() {
         var expected=SourceWithDuplicates().OrderDescending().ToList();
-        MeasureOptimized(nameof(NoDelegateOptimized),()=>NoDelegateOptimized(expected));
-        MeasureOptimized(nameof(NoDelegateNoOptimized),()=>NoDelegateNoOptimized(expected));
+        this.MeasureOptimized(nameof(NoDelegateOptimized),()=>NoDelegateOptimized(expected));
+        this.MeasureOptimized(nameof(NoDelegateNoOptimized),()=>NoDelegateNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -26,8 +26,8 @@ public sealed class OrderDescending(ITestOutputHelper output):LinqChain1TestBase
     [Fact, Trait("Category","Unit")]
     public void comparer() {
         var expected=SourceWithDuplicates().OrderDescending(Comparer<int>.Default).ToList();
-        MeasureOptimized(nameof(comparerOptimized),()=>comparerOptimized(expected));
-        MeasureOptimized(nameof(comparerNoOptimized),()=>comparerNoOptimized(expected));
+        this.MeasureOptimized(nameof(comparerOptimized),()=>comparerOptimized(expected));
+        this.MeasureOptimized(nameof(comparerNoOptimized),()=>comparerNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

@@ -4,17 +4,17 @@ namespace Seamless.System.Carrier.Internal;
 internal sealed class RefBox<T>(T value): IDisposable
     where T : struct, IDisposable
 {
-    T value = value;
-    bool isDisposed;
+    private T value = value;
+    private bool isDisposed;
 
-    public ref T GetValueRef() => ref value;
+    public ref T GetValueRef() => ref this.value;
 
     public void Dispose()
     {
-        if (!isDisposed)
+        if (!this.isDisposed)
         {
-            isDisposed = true;
-            value.Dispose();
+            this.isDisposed = true;
+            this.value.Dispose();
         }
     }
 }

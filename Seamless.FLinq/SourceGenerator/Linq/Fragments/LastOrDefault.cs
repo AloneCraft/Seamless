@@ -4,17 +4,17 @@ public class LastOrDefault(int 番号, Enumerable source, string resultType) : B
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
-    protected override string ComputeExpression => $"Compute({e})";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
+    protected override string ComputeExpression => $"Compute({this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        RenderRangeLastOrDefaultInline(destVar,destType)
-        ?? RenderDirectSpanLastOrDefaultInline(destVar,destType)
-        ?? RenderDirectEnumerableCallInline(source,destVar,destType,"LastOrDefault")
-        ?? RenderComputeInline(destVar,destType);
+        this.RenderRangeLastOrDefaultInline(destVar,destType)
+        ??this.RenderDirectSpanLastOrDefaultInline(destVar,destType)
+        ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"LastOrDefault")
+        ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanLastOrDefaultInline(string destVar,string destType) {
-        var span=$"__span{result}";
-        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span=$"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
             {{destVar}}={{spanName}}.Length==0 ? default! : {{spanName}}[{{spanName}}.Length-1];
             """);
     }
@@ -49,7 +49,7 @@ public class LastOrDefault(int 番号, Enumerable source, string resultType) : B
                 return result;
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
 public class LastOrDefault_defaultValue(int 番号, Enumerable source, string defaultValue, string resultType) : BufferedScalar(番号, resultType) {
@@ -58,17 +58,17 @@ public class LastOrDefault_defaultValue(int 番号, Enumerable source, string de
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {defaultValue})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, {resultType} defaultValue";
-    protected override string ComputeExpression => $"Compute({e}, defaultValue)";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {defaultValue})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, {resultType} defaultValue";
+    protected override string ComputeExpression => $"Compute({this.e}, defaultValue)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        RenderRangeLastOrDefaultDefaultValueInline(destVar,destType)
-        ?? RenderDirectSpanLastOrDefaultDefaultValueInline(destVar,destType)
-        ?? RenderDirectEnumerableCallInline(source,destVar,destType,"LastOrDefault",defaultValue)
-        ?? RenderComputeInline(destVar,destType);
+        this.RenderRangeLastOrDefaultDefaultValueInline(destVar,destType)
+        ??this.RenderDirectSpanLastOrDefaultDefaultValueInline(destVar,destType)
+        ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"LastOrDefault",defaultValue)
+        ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanLastOrDefaultDefaultValueInline(string destVar,string destType) {
-        var span=$"__span{result}";
-        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span=$"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
             {{destVar}}={{spanName}}.Length==0 ? {{defaultValue}} : {{spanName}}[{{spanName}}.Length-1];
             """);
     }
@@ -103,28 +103,28 @@ public class LastOrDefault_defaultValue(int 番号, Enumerable source, string de
                 return result;
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
 public class LastOrDefault_predicate(int 番号, Enumerable source, FuncFragment predicate, string resultType) : BufferedScalar(番号, resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length > 0 && method.Parameters[0].Type.TypeKind == TypeKind.Delegate;
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => FuncSupport(predicate, nameof(predicate));
+    public override string StructMethod => this.FuncSupport(predicate, nameof(predicate));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
-        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(predicate)})";
+        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
+        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
-        $"Compute({e}{ClosureArgsSuffix(predicate)})";
+        $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorConstructor =>
-        $"this.Current = Compute({e}{ClosureArgsSuffixForCtorBody(predicate)});";
+        $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        RenderRangeLastOrDefaultPredicateInline(destVar,destType)
+        this.RenderRangeLastOrDefaultPredicateInline(destVar,destType)
         ?? (TryRenderDirectLambda(predicate) is { } lambda
-            ? RenderDirectEnumerableCallInline(source,destVar,destType,"LastOrDefault",lambda)
-            : RenderComputeInline(destVar,destType));
+            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"LastOrDefault",lambda)
+            : this.RenderComputeInline(destVar,destType));
     private string? RenderRangeLastOrDefaultPredicateInline(string destVar,string destType) {
         if(source is not RangeRoot range
             || source.ElementType!="int"
@@ -141,11 +141,11 @@ public class LastOrDefault_predicate(int 番号, Enumerable source, FuncFragment
                 var {{start}}={{range.StartExpression}};
                 var {{count}}={{range.CountExpression}};
                 for(var {{index}}={{count}}-1;{{index}}>=0;{{index}}--) {
-                    var {{item}}={{start}} + {{index}};
-                    bool {{temp}}=default!;
-            {{IndentLines(FuncAssignStatic(predicate,nameof(predicate),temp,item),"        ")}}
-                    if({{temp}}) {
-                        {{destVar}}={{item}};
+                    var {{this.item}}={{start}} + {{index}};
+                    bool {{this.temp}}=default!;
+            {{IndentLines(this.FuncAssignStatic(predicate,nameof(predicate),this.temp,this.item),"        ")}}
+                    if({{this.temp}}) {
+                        {{destVar}}={{this.item}};
                         break;
                     }
                 }
@@ -155,15 +155,15 @@ public class LastOrDefault_predicate(int 番号, Enumerable source, FuncFragment
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
                 {{resultType}} result = default!;
                 source.TryGetSpan(out var __span);
                 for(var __i=__span.Length-1;__i>=0;__i--){
-                    var {{item}}=__span[__i];
-                    bool {{temp}}=default!;
-                    {{FuncAssignStaticIndented("        ",predicate,nameof(predicate),temp,item)}}
-                    if({{temp}}){
-                        return {{item}};
+                    var {{this.item}}=__span[__i];
+                    bool {{this.temp}}=default!;
+                    {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
+                    if({{this.temp}}){
+                        return {{this.item}};
                     }
                 }
                 return result;
@@ -171,16 +171,16 @@ public class LastOrDefault_predicate(int 番号, Enumerable source, FuncFragment
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
                 {{resultType}} result = default!;
                 while(source.MoveNext()) {
-                    var {{item}} = source.Current;
-                    bool {{temp}} = default!;
-                    {{FuncAssignStaticIndented("        ",predicate, nameof(predicate),temp,item)}}
-                    if({{temp}}) result = {{item}};
+                    var {{this.item}} = source.Current;
+                    bool {{this.temp}} = default!;
+                    {{this.FuncAssignStaticIndented("        ",predicate, nameof(predicate),this.temp,this.item)}}
+                    if({{this.temp}}) result = {{this.item}};
                 }
                 return result;
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }

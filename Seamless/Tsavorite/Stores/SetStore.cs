@@ -14,7 +14,7 @@ public class SetStore<TKey, TRecord>:CollectionStore<TKey,TRecord>
     }
 
     private protected override long GetRecoveryEntryCount() {
-        using var set = Create();
+        using var set = this.Create();
         return set.GetLongCount();
     }
 

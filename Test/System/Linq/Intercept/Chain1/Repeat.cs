@@ -8,8 +8,8 @@ public sealed class Repeat(ITestOutputHelper output):LinqChain1TestBase(output) 
     [Fact, Trait("Category","Unit")]
     public void element_count() {
         var expected=SystemEnumerable.Repeat(7,3).ToList();
-        MeasureOptimized(nameof(element_countOptimized),()=>element_countOptimized(expected));
-        MeasureOptimized(nameof(element_countNoOptimized),()=>element_countNoOptimized(expected));
+        this.MeasureOptimized(nameof(element_countOptimized),()=>element_countOptimized(expected));
+        this.MeasureOptimized(nameof(element_countNoOptimized),()=>element_countNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

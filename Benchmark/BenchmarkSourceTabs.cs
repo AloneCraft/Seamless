@@ -81,7 +81,7 @@ public static class BenchmarkSourceTabs{
             "Seamless.Persisted.FLinq",
             "FLinq",
             "Benchmark.Persisted.Linq.Enumerable.FLinq",
-            "Seamless.Persisted.Linq",
+            "Seamless.Linq",
             "Linq",
             "Benchmark.Persisted.Linq.Enumerable.Linq"),
         new(
@@ -91,7 +91,7 @@ public static class BenchmarkSourceTabs{
             "Seamless.Tsavorite.FLinq",
             "FLinq",
             "Benchmark.Tsavorite.Linq.Enumerable.FLinq",
-            "Seamless.Tsavorite.Linq",
+            "Seamless.Linq",
             "Linq",
             "Benchmark.Tsavorite.Linq.Enumerable.Linq"),
     ];

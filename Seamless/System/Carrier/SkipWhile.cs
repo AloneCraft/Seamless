@@ -17,8 +17,8 @@ namespace Seamless.System.Carrier {
     public struct SkipWhile<TEnumerator, TSource>(TEnumerator source,Func<TSource,Boolean> predicate)
         :IValueEnumerator<TSource>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        bool skippingDone = false;
+        private TEnumerator source = source;
+        private bool skippingDone = false;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -35,14 +35,14 @@ namespace Seamless.System.Carrier {
         public bool TryGetNext(out TSource current) {
             // If we've already found an element that doesn't match the predicate,
             // we can just return elements directly from the source
-            if(skippingDone) {
-                return source.TryGetNext(out current);
+            if(this.skippingDone) {
+                return this.source.TryGetNext(out current);
             }
 
             // Skip all elements that match the predicate
-            while(source.TryGetNext(out current)) {
+            while(this.source.TryGetNext(out current)) {
                 if(!predicate(current)) {
-                    skippingDone=true;
+                    this.skippingDone=true;
                     return true;
                 }
             }
@@ -52,7 +52,7 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -61,9 +61,9 @@ namespace Seamless.System.Carrier {
     public struct SkipWhile2<TEnumerator, TSource>(TEnumerator source,Func<TSource,Int32,Boolean> predicate)
         :IValueEnumerator<TSource>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        bool skippingDone = false;
-        int index = 0;
+        private TEnumerator source = source;
+        private bool skippingDone = false;
+        private int index = 0;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -80,9 +80,9 @@ namespace Seamless.System.Carrier {
         public bool TryGetNext(out TSource current) {
             // If we've already found an element that doesn't match the predicate,
             // we can just return elements directly from the source
-            if(skippingDone) {
-                if(source.TryGetNext(out current)) {
-                    index++;
+            if(this.skippingDone) {
+                if(this.source.TryGetNext(out current)) {
+                    this.index++;
                     return true;
                 }
 
@@ -91,13 +91,13 @@ namespace Seamless.System.Carrier {
             }
 
             // Skip all elements that match the predicate
-            while(source.TryGetNext(out current)) {
-                if(!predicate(current,index)) {
-                    skippingDone=true;
-                    index++;
+            while(this.source.TryGetNext(out current)) {
+                if(!predicate(current,this.index)) {
+                    this.skippingDone=true;
+                    this.index++;
                     return true;
                 }
-                index++;
+                this.index++;
             }
 
             Unsafe.SkipInit(out current);
@@ -105,7 +105,7 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 

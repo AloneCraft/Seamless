@@ -73,8 +73,7 @@ public static class EnumeratorHelper
             }
         }
     }
-
-    static bool TryConsumeGetFirst<TEnumerator, T>(ref TEnumerator enumerator, out T first)
+    private static bool TryConsumeGetFirst<TEnumerator, T>(ref TEnumerator enumerator, out T first)
        where TEnumerator : struct, IValueEnumerator<T>
 #if NET9_0_OR_GREATER
        , allows ref struct
@@ -89,8 +88,7 @@ public static class EnumeratorHelper
         first = default!;
         return false;
     }
-
-    static bool TryConsumeGetAt<TEnumerator, T>(ref TEnumerator enumerator, int index, out T value)
+    private static bool TryConsumeGetAt<TEnumerator, T>(ref TEnumerator enumerator, int index, out T value)
        where TEnumerator : struct, IValueEnumerator<T>
 #if NET9_0_OR_GREATER
        , allows ref struct
@@ -108,8 +106,7 @@ public static class EnumeratorHelper
         value = default!;
         return false;
     }
-
-    static bool TryConsumeGetLast<TEnumerator, T>(ref TEnumerator enumerator, out T last)
+    private static bool TryConsumeGetLast<TEnumerator, T>(ref TEnumerator enumerator, out T last)
        where TEnumerator : struct, IValueEnumerator<T>
 #if NET9_0_OR_GREATER
        , allows ref struct
@@ -128,8 +125,7 @@ public static class EnumeratorHelper
         last = default!;
         return false;
     }
-
-    static bool TryConsumeGetFromLast<TEnumerator, T>(ref TEnumerator enumerator, int indexFromEnd, out T value)
+    private static bool TryConsumeGetFromLast<TEnumerator, T>(ref TEnumerator enumerator, int indexFromEnd, out T value)
        where TEnumerator : struct, IValueEnumerator<T>
 #if NET9_0_OR_GREATER
        , allows ref struct
