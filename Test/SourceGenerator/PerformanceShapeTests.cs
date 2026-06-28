@@ -375,6 +375,117 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
+    public void ArrayDirectConsumeUsesDirectSpanWithoutRuntimeFallback() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer<T> {
+                public void Consume(T item) {
+                }
+            }
+            public static class ConsumeSupport {
+                public static void Consume<T>(this IEnumerable<T> source, Consumer<T> consumer) {
+                    foreach(var item in source) {
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public class Container {
+                private static void RunFast(int[] first, int[] second, Consumer<int> consumer) {
+                    first.Except(second).Consume(consumer);
+                    first.Distinct().Consume(consumer);
+                    first.AsEnumerable().Consume(consumer);
+                }
+                public void Run(int[] first, int[] second, Consumer<int> consumer) => RunFast(first, second, consumer);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var normalized = generated.Replace("\r\n","\n",StringComparison.Ordinal);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("=__src0.GetSpan();",StringComparison.Ordinal)
+            && generated.Contains("=__sec0.GetSpan();",StringComparison.Ordinal)
+            && generated.Contains(".GetSpan();",StringComparison.Ordinal)
+            && !normalized.Contains("if(__src0.TryGetSpan(out var __setSrcSpan",StringComparison.Ordinal)
+            && !normalized.Contains("}else{\n    while(__src0.TryGetNext",StringComparison.Ordinal),
+            "Array roots should use direct GetSpan() traversal and avoid runtime TryGetSpan fallback branches.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void ListDirectConsumeUsesCollectionsMarshalBackedDirectSpan() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer<T> {
+                public void Consume(T item) {
+                }
+            }
+            public static class ConsumeSupport {
+                public static void Consume<T>(this IEnumerable<T> source, Consumer<T> consumer) {
+                    foreach(var item in source) {
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public class Container {
+                private static void RunFast(List<int> first, List<int> second, Consumer<int> consumer) =>
+                    first.Except(second).Consume(consumer);
+                public void Run(List<int> first, List<int> second, Consumer<int> consumer) => RunFast(first, second, consumer);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("CollectionsMarshal.AsSpan(source).Slice",StringComparison.Ordinal)
+            && generated.Contains("=__src0.GetSpan();",StringComparison.Ordinal)
+            && generated.Contains("=__sec0.GetSpan();",StringComparison.Ordinal),
+            "List roots should expose a direct GetSpan() backed by CollectionsMarshal.AsSpan.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void EnumerableRuntimeSpanPathKeepsFallback() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer<T> {
+                public void Consume(T item) {
+                }
+            }
+            public static class ConsumeSupport {
+                public static void Consume<T>(this IEnumerable<T> source, Consumer<T> consumer) {
+                    foreach(var item in source) {
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public class Container {
+                private static void RunFallback(IEnumerable<int> source, Consumer<int> consumer) =>
+                    source.Distinct().Consume(consumer);
+                public void Run(IEnumerable<int> source, Consumer<int> consumer) => RunFallback(source, consumer);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("if(__src0.TryGetSpan(out var __distinctSpan",StringComparison.Ordinal)
+            && generated.Contains("}else{",StringComparison.Ordinal)
+            && generated.Contains("while(__src0.TryGetNext",StringComparison.Ordinal),
+            "IEnumerable<T> roots only have runtime span probing, so the fallback branch must remain.",
+            generated,
+            output);
+    }
+
+    [Fact]
     public void BinarySetByOperationsUseHashSetSlim() {
         const string source = """
             using System.Collections.Generic;

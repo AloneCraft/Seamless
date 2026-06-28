@@ -73,13 +73,24 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
             if({{lookup}}.Add(value)){
                 {{consumerName}}.Consume(value);
             }
-            """,source.CanTryProvideSpan);
+            """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName));
         return builder.ToString().TrimEnd();
     }
 
     private void AppendSortedIntDistinctFastPath(StringBuilder builder,string sourceName,string consumerName) {
         var spanName=$"__distinctSpan{番号}";
         var sortedName=$"__distinctSorted{番号}";
+        var directSpanExpression=source.GetDirectSpanExpression(sourceName);
+        if(directSpanExpression is not null) {
+            builder.AppendLine($"var {spanName}={directSpanExpression};");
+            AppendSortedIntDistinctFastPathBody(builder,spanName,sortedName,consumerName,string.Empty);
+            return;
+        }
+        if(source.CanProvideSpan) {
+            builder.AppendLine($"{sourceName}.TryGetSpan(out var {spanName});");
+            AppendSortedIntDistinctFastPathBody(builder,spanName,sortedName,consumerName,string.Empty);
+            return;
+        }
         builder.AppendLine($"if({sourceName}.TryGetSpan(out var {spanName})){{");
         builder.AppendLine($"    var {sortedName}=true;");
         builder.AppendLine($"    for(var __i=1;__i<{spanName}.Length;__i++){{");
@@ -95,6 +106,22 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
         builder.AppendLine("        return;");
         builder.AppendLine("    }");
         builder.AppendLine("}");
+    }
+
+    private static void AppendSortedIntDistinctFastPathBody(StringBuilder builder,string spanName,string sortedName,string consumerName,string indent) {
+        builder.AppendLine($"{indent}var {sortedName}=true;");
+        builder.AppendLine($"{indent}for(var __i=1;__i<{spanName}.Length;__i++){{");
+        builder.AppendLine($"{indent}    if({spanName}[__i]<={spanName}[__i-1]){{");
+        builder.AppendLine($"{indent}        {sortedName}=false;");
+        builder.AppendLine($"{indent}        break;");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}}}");
+        builder.AppendLine($"{indent}if({sortedName}){{");
+        builder.AppendLine($"{indent}    for(var __i=0;__i<{spanName}.Length;__i++){{");
+        builder.AppendLine($"{indent}        {consumerName}.Consume({spanName}[__i]);");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}    return;");
+        builder.AppendLine($"{indent}}}");
     }
 
     private static bool IsInt32Type(string typeName) =>
@@ -186,7 +213,7 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
             if({{lookup}}.Add({{keyName}})){
                 {{consumerName}}.Consume(value);
             }
-            """,source.CanTryProvideSpan);
+            """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName));
         return builder.ToString().TrimEnd();
     }
 
@@ -225,7 +252,7 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
                 {{seenName}}[{{seenIndexName}}]=true;
                 {{consumerName}}.Consume(value);
             }
-            """,source.CanTryProvideSpan);
+            """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName));
         return true;
     }
 

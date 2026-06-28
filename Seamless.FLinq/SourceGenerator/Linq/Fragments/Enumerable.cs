@@ -34,6 +34,12 @@ public abstract class Enumerable(int 番号):Fragment(番号),ConsumeDirectExecu
     public virtual bool CanProvideSpan => false;
     // TryGetSpan を実行時に試してよいか。false の可能性があるため呼び出し側は必ず fallback を持つ。
     public virtual bool CanTryProvideSpan => CanProvideSpan;
+    // Direct span expression for already-created enumerator locals.
+    // Example: int[] first; first.Except(second).Consume(c) can generate
+    // `var __setSrcSpan0=__src0.GetSpan();` instead of
+    // `if(__src0.TryGetSpan(...)) { ... } else { while(__src0.TryGetNext(...)) ... }`.
+    // IEnumerable<T>, Tsavorite, and Persisted roots return null, so they keep the runtime/fallback path.
+    public virtual string? GetDirectSpanExpression(string enumeratorName) => null;
     public virtual string? NonEnumeratedCountExpression => null;
     public virtual bool CountPreserving => false;
     // interceptor が IEnumerable<T> を返すときに使う ValueEnumerable 構築式。
@@ -54,7 +60,15 @@ public abstract class Enumerable(int 番号):Fragment(番号),ConsumeDirectExecu
         var enumeratorName=$"__ce{番号}";
         var valueName=$"__cv{番号}";
         builder.AppendLine($"using var {enumeratorName}={GetEnumeratorExpression};");
-        TraversalSupport.AppendTraversalLoop(builder,enumeratorName,ElementType,valueName,$"{consumerName}.Consume({valueName});",CanTryProvideSpan);
+        TraversalSupport.AppendTraversalLoop(
+            builder,
+            enumeratorName,
+            ElementType,
+            valueName,
+            $"{consumerName}.Consume({valueName});",
+            CanTryProvideSpan,
+            CanProvideSpan,
+            GetDirectSpanExpression(enumeratorName));
         return builder.ToString().TrimEnd();
     }
 }
