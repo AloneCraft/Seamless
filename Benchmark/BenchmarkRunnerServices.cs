@@ -468,19 +468,22 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
         string runRoot,
         int logicalCpu,
         TimeSpan timeout,
-        CancellationToken cancellationToken) =>
-        Task.Run(() => Run(job,runRoot,cancellationToken),cancellationToken);
+        CancellationToken cancellationToken) {
+        if(cancellationToken.IsCancellationRequested) {
+            return Task.FromCanceled<BenchmarkJobRunResult>(cancellationToken);
+        }
+
+        return Task.Run(() => Run(job,runRoot));
+    }
 
     private static BenchmarkJobRunResult Run(
         BenchmarkJob job,
-        string runRoot,
-        CancellationToken cancellationToken) {
+        string runRoot) {
         var benchmark = job.ToBenchmarkCase();
         var artifactFolder = BenchmarkWorkerClient.CreateArtifactFolder(runRoot,benchmark,job.SourceTab,job.ElementCount);
         var logPath = Path.Combine(artifactFolder,"inprocess.log");
         object? instance = null;
         try {
-            cancellationToken.ThrowIfCancellationRequested();
             var assembly = ResolveBenchmarkAssembly(benchmark.AssemblyName);
             var type = assembly.GetType(benchmark.TypeFullName,throwOnError:true,ignoreCase:false)
                 ??throw new InvalidOperationException($"Benchmark type was not found: {benchmark.TypeFullName}");

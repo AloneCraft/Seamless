@@ -38,6 +38,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private bool isBenchmarkRunning;
     private bool isRefreshing;
     private bool? isAllBenchmarkSelectionChecked;
+    private bool hasSelectedBenchmarkCells;
     private BenchmarkTab selectedTab = BenchmarkTab.Cpu;
     private SourceTabOption selectedSourceTab;
     private ExecutionProfileOption selectedExecutionProfile;
@@ -162,7 +163,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.ClearSelectionCommand=new RelayCommand(
             () => this.SetAllBenchmarkSelection(false),
             () => this.CanChangeBenchmarkSelection);
-        this.RunCommand=new AsyncRelayCommand(this.RunOrResumeAsync,() => !this.IsRefreshing&&!this.IsBenchmarkRunning);
+        this.RunCommand=new AsyncRelayCommand(this.RunOrResumeAsync,() => this.CanUseRunToolbarButton);
         this.ToggleRunCommand=new RelayCommand(this.ToggleRun,() => !this.IsRefreshing);
         this.StopCommand=new AsyncRelayCommand(this.StopAsync,() => this.IsBenchmarkRunActive||this.IsBenchmarkPaused);
         this.PauseCommand=new AsyncRelayCommand(this.PauseAsync,() => this.IsBenchmarkRunActive);
@@ -170,7 +171,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.LoadCsvCommand=new AsyncRelayCommand(this.LoadCsvAsync);
         this.SaveCommand=new AsyncRelayCommand(() => this.SaveCurrentBenchmarkResultsAsync(true),() => this.CanSaveBenchmarkResults);
         this.SaveAsCommand=new AsyncRelayCommand(this.SaveAsAsync,() => this.CanSaveAsBenchmarkResults);
-        this.OpenCommand=new AsyncRelayCommand(this.OpenAsync,() => !this.IsRefreshing&&!this.IsBenchmarkRunActive);
+        this.OpenCommand=new AsyncRelayCommand(this.OpenAsync,() => this.CanOpenBenchmarkResults);
         this.ShowCpuCommand=new RelayCommand(() => this.SelectedTab=BenchmarkTab.Cpu);
         this.ShowChartCommand=new RelayCommand(() => this.SelectedTab=BenchmarkTab.Chart);
         StartupDiagnostics.InitializeFromExistingLog();
@@ -286,7 +287,13 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 this.OnPropertyChanged(nameof(this.IsBenchmarkPaused));
                 this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
                 this.OnPropertyChanged(nameof(this.CanChangeBenchmarkConditions));
+                this.OnPropertyChanged(nameof(this.CanRunBenchmark));
+                this.OnPropertyChanged(nameof(this.CanResumeBenchmark));
+                this.OnPropertyChanged(nameof(this.CanUseRunToolbarButton));
                 this.OnPropertyChanged(nameof(this.RunButtonText));
+                this.OnPropertyChanged(nameof(this.RunButtonTooltipText));
+                this.OnPropertyChanged(nameof(this.CanOpenBenchmarkResults));
+                this.OnPropertyChanged(nameof(this.ToolbarStateInput));
             }
         }
     }
@@ -309,11 +316,19 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 this.ClearSelectionCommand.NotifyCanExecuteChanged();
                 this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
                 this.OnPropertyChanged(nameof(this.CanChangeBenchmarkConditions));
+                this.OnPropertyChanged(nameof(this.CanRunBenchmark));
+                this.OnPropertyChanged(nameof(this.CanResumeBenchmark));
+                this.OnPropertyChanged(nameof(this.CanUseRunToolbarButton));
+                this.OnPropertyChanged(nameof(this.CanOpenBenchmarkResults));
+                this.OnPropertyChanged(nameof(this.ToolbarStateInput));
             }
         }
     }
 
-    public bool CanChangeBenchmarkConditions => !this.IsBenchmarkRunning&&!this.IsRefreshing;
+    public bool CanChangeBenchmarkConditions =>
+        !this.IsBenchmarkRunning
+        &&!this.IsRefreshing
+        &&!this.IsBenchmarkPaused;
 
     public bool CanChangeBenchmarkSelection =>
         !this.IsRefreshing&&(!this.IsBenchmarkRunActive||this.ActiveRunSourceTab!=this.SelectedSourceDefinition.Tab);
@@ -324,6 +339,32 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     public string RunButtonText => this.IsBenchmarkPaused ? "再開" : "実行";
 
+    public bool CanResumeBenchmark => !this.IsRefreshing&&this.IsBenchmarkPaused;
+
+    public bool CanRunBenchmark =>
+        !this.IsRefreshing&&!this.IsBenchmarkRunning&&this.HasSelectedBenchmarkCells;
+
+    public bool CanUseRunToolbarButton => this.CanRunBenchmark||this.CanResumeBenchmark;
+
+    public bool HasSelectedBenchmarkCells {
+        get => this.hasSelectedBenchmarkCells;
+        private set {
+            if(this.SetProperty(ref this.hasSelectedBenchmarkCells,value)) {
+                this.RunCommand.NotifyCanExecuteChanged();
+                this.ToggleRunCommand.NotifyCanExecuteChanged();
+                this.OnPropertyChanged(nameof(this.CanRunBenchmark));
+                this.OnPropertyChanged(nameof(this.CanUseRunToolbarButton));
+                this.OnPropertyChanged(nameof(this.RunButtonTooltipText));
+                this.OnPropertyChanged(nameof(this.ToolbarStateInput));
+            }
+        }
+    }
+
+    public string RunButtonTooltipText =>
+        this.IsBenchmarkPaused||this.HasSelectedBenchmarkCells
+            ? this.RunButtonText
+            : "ベンチマークを1つ以上チェックしてください";
+
     public BenchmarkSourceTab? ActiveRunSourceTab {
         get => this.activeRunSourceTab;
         private set {
@@ -332,6 +373,11 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
                 this.OnPropertyChanged(nameof(this.RunButtonText));
                 this.OnPropertyChanged(nameof(this.IsBenchmarkPaused));
+                this.OnPropertyChanged(nameof(this.CanChangeBenchmarkConditions));
+                this.OnPropertyChanged(nameof(this.CanResumeBenchmark));
+                this.OnPropertyChanged(nameof(this.CanUseRunToolbarButton));
+                this.OnPropertyChanged(nameof(this.CanOpenBenchmarkResults));
+                this.OnPropertyChanged(nameof(this.ToolbarStateInput));
             }
         }
     }
@@ -347,6 +393,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             if(this.SetProperty(ref this.hasUnsavedBenchmarkResults,value)) {
                 this.OnPropertyChanged(nameof(this.CanSaveBenchmarkResults));
                 this.RefreshSaveCommandStates();
+                this.OnPropertyChanged(nameof(this.ToolbarStateInput));
             }
         }
     }
@@ -354,11 +401,32 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     public bool CanSaveBenchmarkResults =>
         this.HasUnsavedBenchmarkResults
         &&!this.IsBenchmarkRunActive
+        &&!this.IsBenchmarkPaused
         &&this.HasDisplayResults;
 
     public bool CanSaveAsBenchmarkResults =>
         !this.IsBenchmarkRunActive
+        &&!this.IsBenchmarkPaused
         &&this.HasDisplayResults;
+
+    public bool CanOpenBenchmarkResults =>
+        !this.IsRefreshing
+        &&!this.IsBenchmarkRunActive
+        &&!this.IsBenchmarkPaused;
+
+    internal BenchmarkToolbarStateInput ToolbarStateInput => new(
+        this.IsRefreshing,
+        this.IsBenchmarkRunActive,
+        this.IsBenchmarkPaused,
+        this.CanUseRunToolbarButton,
+        this.IsBenchmarkRunActive||this.IsBenchmarkPaused,
+        !this.IsRefreshing&&this.IsBenchmarkRunActive,
+        this.CanSaveBenchmarkResults,
+        this.CanSaveAsBenchmarkResults,
+        this.CanOpenBenchmarkResults);
+
+    internal BenchmarkToolbarButtonState GetToolbarButtonState(BenchmarkToolbarButtonRole role) =>
+        BenchmarkToolbarStateLogic.CreateState(role,this.ToolbarStateInput);
 
     public bool? IsAllBenchmarkSelectionChecked {
         get => this.isAllBenchmarkSelectionChecked;
@@ -411,6 +479,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.activeRunRoot=runRoot;
         this.OnPropertyChanged(nameof(this.IsBenchmarkPaused));
         this.OnPropertyChanged(nameof(this.RunButtonText));
+        this.RunCommand.NotifyCanExecuteChanged();
         this.StopCommand.NotifyCanExecuteChanged();
         this.RefreshSaveCommandStates();
     }
@@ -776,6 +845,19 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.SetBenchmarkCells(targets,selected);
     }
 
+    internal void SelectBenchmarkCellFromChart(string benchmark,string project) {
+        if(!this.CanChangeBenchmarkSelection) {
+            return;
+        }
+
+        var row = this.BenchmarkRows.FirstOrDefault(item => StringComparer.OrdinalIgnoreCase.Equals(item.MethodName,benchmark));
+        if(row?.GetProjectCell(project) is not { HasCase: true } cell) {
+            return;
+        }
+
+        this.SetBenchmarkCells([cell],true);
+    }
+
     private async Task RefreshAsync() {
         this.IsRefreshing=true;
         this.StatusText="Loading";
@@ -933,7 +1015,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         foreach(var group in this.BenchmarkProjectSelectionGroups) {
             group.IsChecked=GetSelectionState(this.GetBenchmarkCells(group.ColumnKeys));
         }
-        this.IsAllBenchmarkSelectionChecked=GetSelectionState(this.BenchmarkRows.SelectMany(static row => row.ProjectCells));
+        var allCells = this.BenchmarkRows.SelectMany(static row => row.ProjectCells).ToArray();
+        this.IsAllBenchmarkSelectionChecked=GetSelectionState(allCells);
+        this.HasSelectedBenchmarkCells=allCells.Any(static cell => cell.HasCase&&cell.IsSelected);
     }
 
     private static bool? GetSelectionState(IEnumerable<BenchmarkProjectCell> cells) {
@@ -1011,6 +1095,12 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     private async Task SelectRunOptionAsync(BenchmarkRunOption? option) {
         var previous = this.SelectedRunOption;
+        if(!this.CanSelectRunOption(option)) {
+            this.SetSelectedRunOption(previous,false,false);
+            this.OnPropertyChanged(nameof(this.SelectedRunOption));
+            return;
+        }
+
         if(!await this.ConfirmDiscardUnsavedResultsAsync("結果を切り替えます")) {
             this.SetSelectedRunOption(previous,false,false);
             return;
@@ -1018,6 +1108,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
         this.SetSelectedRunOption(option,true,true);
     }
+
+    private bool CanSelectRunOption(BenchmarkRunOption? option) =>
+        !this.HasDisplayResults||IsNewRunOption(option);
 
     private void SetSelectedRunOption(BenchmarkRunOption? option,bool load,bool saveUiState) {
         this.isApplyingRunOptionSelection=true;
@@ -1818,6 +1911,8 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private void RefreshSaveCommandStates() {
         this.OnPropertyChanged(nameof(this.CanSaveBenchmarkResults));
         this.OnPropertyChanged(nameof(this.CanSaveAsBenchmarkResults));
+        this.OnPropertyChanged(nameof(this.CanOpenBenchmarkResults));
+        this.OnPropertyChanged(nameof(this.ToolbarStateInput));
         this.SaveCommand.NotifyCanExecuteChanged();
         this.SaveAsCommand.NotifyCanExecuteChanged();
         this.OpenCommand.NotifyCanExecuteChanged();

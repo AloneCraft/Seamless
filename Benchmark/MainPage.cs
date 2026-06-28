@@ -32,7 +32,12 @@ public sealed class MainPage:ContentPage{
     private const double CpuListSpacing = 10;
     private const double CpuContentRowSpacing = 10;
     private BenchmarkRunnerViewModel? viewModel;
+    private Grid? rootLayout;
+    private View? activeDialogOverlay;
     private readonly List<Action> collapsibleSectionRefreshers = [];
+    private readonly Dictionary<BenchmarkToolbarButtonRole,ImageButton> toolbarButtons = [];
+    private IDispatcherTimer? pausedToolbarPulseTimer;
+    private bool pausedToolbarPulseOn;
 
 #if WINDOWS
     [System.Runtime.InteropServices.DllImport("user32.dll")]
@@ -50,7 +55,7 @@ public sealed class MainPage:ContentPage{
             var toolbar = this.CreateToolbar();
             var content = this.CreateBenchmarkPanelContent();
 
-            this.Content=new Grid{
+            this.rootLayout=new Grid{
                 RowDefinitions = {
                     new RowDefinition { Height = GridLength.Auto },
                     new RowDefinition { Height = GridLength.Star },
@@ -60,6 +65,7 @@ public sealed class MainPage:ContentPage{
                     content,
                 },
             };
+            this.Content=this.rootLayout;
             Grid.SetRow(content,1);
             this.Loaded+=this.OnLoadedAsync;
             StartupDiagnostics.Write("MainPage constructor completed.");
@@ -89,45 +95,32 @@ public sealed class MainPage:ContentPage{
             return true;
         }
 
-        if(this.viewModel.IsBenchmarkRunActive||this.viewModel.IsBenchmarkPaused){
-            var shouldClose = await this.DisplayAlert(
-                "終了確認",
-                "ベンチマークを中止して終了しますか？",
-                "はい",
-                "いいえ");
-            if(!shouldClose){
-                return false;
-            }
+        var isBenchmarkActive = this.viewModel.IsBenchmarkRunActive;
+        var isBenchmarkPaused = this.viewModel.IsBenchmarkPaused;
+        var hasUnsavedResults = this.viewModel.HasUnsavedBenchmarkResults;
+        if(!isBenchmarkActive&&!isBenchmarkPaused&&!hasUnsavedResults){
+            return true;
+        }
 
+        var action = await this.ShowCloseConfirmDialogAsync(isBenchmarkActive,isBenchmarkPaused,hasUnsavedResults);
+        if(action==BenchmarkCloseAction.Cancel){
+            return false;
+        }
+
+        if(isBenchmarkActive||isBenchmarkPaused){
             this.viewModel.StatusText="Stopping before close...";
             await this.viewModel.StopAsync();
         }
 
-        if(!this.viewModel.HasUnsavedBenchmarkResults){
-            return true;
+        if(action is BenchmarkCloseAction.SaveAndClose or BenchmarkCloseAction.StopSaveAndClose){
+            return await this.viewModel.SaveCurrentBenchmarkResultsAsync(true);
         }
 
-        var shouldSave = await this.DisplayAlert(
-            "保存確認",
-            "保存しますか？",
-            "はい",
-            "いいえ");
-        if(shouldSave){
-            await this.viewModel.SaveCurrentBenchmarkResultsAsync(true);
-            return true;
-        }
-
-        var shouldExit = await this.DisplayAlert(
-            "終了確認",
-            "終了しますか？",
-            "はい",
-            "いいえ");
-        if(shouldExit){
+        if(action is BenchmarkCloseAction.DiscardAndClose or BenchmarkCloseAction.StopDiscardAndClose){
             this.viewModel.DiscardUnsavedBenchmarkResults();
-            return true;
         }
 
-        return false;
+        return true;
     }
 
     private BenchmarkRunnerViewModel CreateViewModel(){
@@ -168,6 +161,198 @@ public sealed class MainPage:ContentPage{
         return null;
     }
 
+    private async Task<BenchmarkCloseAction> ShowCloseConfirmDialogAsync(bool isBenchmarkActive,bool isBenchmarkPaused,bool hasUnsavedResults){
+        var options = this.CreateCloseConfirmOptions(isBenchmarkActive,isBenchmarkPaused,hasUnsavedResults);
+        var result = await this.ShowConfirmDialogAsync(
+            "終了確認",
+            CreateCloseConfirmMessage(isBenchmarkActive,isBenchmarkPaused,hasUnsavedResults),
+            options);
+        return Enum.TryParse<BenchmarkCloseAction>(result,out var action)
+            ? action
+            : BenchmarkCloseAction.Cancel;
+    }
+
+    private IReadOnlyList<ConfirmDialogOption> CreateCloseConfirmOptions(bool isBenchmarkActive,bool isBenchmarkPaused,bool hasUnsavedResults){
+        var options = BenchmarkCloseDialogLogic.CreateOptions(isBenchmarkActive,isBenchmarkPaused,hasUnsavedResults);
+        return options
+            .Select(option => new ConfirmDialogOption(option.Text,option.Action.ToString(),option.Kind switch{
+                BenchmarkToolbarButtonRole.Save => ConfirmDialogButtonKind.Primary,
+                BenchmarkToolbarButtonRole.Stop => ConfirmDialogButtonKind.Danger,
+                _ => ConfirmDialogButtonKind.Neutral,
+            }))
+            .ToArray();
+    }
+
+    private static string CreateCloseConfirmMessage(bool isBenchmarkActive,bool isBenchmarkPaused,bool hasUnsavedResults){
+        if(isBenchmarkPaused){
+            return "一時停止中のベンチマークを停止して終了しますか？";
+        }
+
+        if(isBenchmarkActive){
+            if(hasUnsavedResults){
+                return "実行中のベンチマークを中止し、未保存の結果をどう扱うか選んでください。";
+            }
+
+            return "実行中のベンチマークを中止して終了しますか？";
+        }
+
+        return hasUnsavedResults
+            ? "未保存のベンチマーク結果があります。どう扱って終了しますか？"
+            : "終了確認";
+    }
+
+    private Task<bool> ShowBooleanConfirmDialogAsync(string title,string message,string accept,string cancel) =>
+        this.ShowConfirmDialogAsync(
+            title,
+            message,
+            [
+                new ConfirmDialogOption(accept,"accept",ConfirmDialogButtonKind.Primary),
+                new ConfirmDialogOption(cancel,"cancel",ConfirmDialogButtonKind.Neutral),
+            ])
+            .ContinueWith(static task => task.Status==TaskStatus.RanToCompletion&&task.Result=="accept",TaskScheduler.Default);
+
+    private Task<string> ShowConfirmDialogAsync(string title,string message,IReadOnlyList<ConfirmDialogOption> options){
+        var root = this.rootLayout;
+        if(root is null||options.Count==0){
+            return Task.FromResult(options.LastOrDefault()?.Value??string.Empty);
+        }
+
+        if(this.activeDialogOverlay is not null){
+            root.Children.Remove(this.activeDialogOverlay);
+            this.activeDialogOverlay=null;
+        }
+
+        var completion = new TaskCompletionSource<string>();
+        var overlay = this.CreateConfirmDialogOverlay(title,message,options,value => {
+            if(this.activeDialogOverlay is not null){
+                root.Children.Remove(this.activeDialogOverlay);
+                this.activeDialogOverlay=null;
+            }
+
+            completion.TrySetResult(value);
+        });
+        this.activeDialogOverlay=overlay;
+        root.Add(overlay,0,0);
+        Grid.SetRowSpan(overlay,2);
+        return completion.Task;
+    }
+
+    private View CreateConfirmDialogOverlay(
+        string title,
+        string message,
+        IReadOnlyList<ConfirmDialogOption> options,
+        Action<string> completed){
+        var overlay = new Grid{
+            BackgroundColor=Color.FromRgba(15,23,42,110),
+            Padding=new Thickness(24),
+            HorizontalOptions=LayoutOptions.Fill,
+            VerticalOptions=LayoutOptions.Fill,
+            InputTransparent=false,
+        };
+        var card = new Border{
+            BackgroundColor=Colors.White,
+            Stroke=Color.FromArgb("#CBD5E1"),
+            StrokeThickness=1,
+            StrokeShape=new Microsoft.Maui.Controls.Shapes.RoundRectangle{
+                CornerRadius=14,
+            },
+            Shadow=new Shadow{
+                Brush=Brush.Black,
+                Opacity=0.18f,
+                Radius=18,
+                Offset=new Point(0,8),
+            },
+            Padding=new Thickness(24,22),
+            MaximumWidthRequest=640,
+            HorizontalOptions=LayoutOptions.Center,
+            VerticalOptions=LayoutOptions.Center,
+        };
+        var content = new VerticalStackLayout{
+            Spacing=18,
+        };
+        content.Children.Add(new Label{
+            Text=title,
+            FontSize=18,
+            FontAttributes=FontAttributes.Bold,
+            TextColor=Color.FromArgb("#0F172A"),
+            HorizontalTextAlignment=TextAlignment.Center,
+            LineBreakMode=LineBreakMode.WordWrap,
+        });
+        if(!string.IsNullOrWhiteSpace(message)){
+            content.Children.Add(new Label{
+                Text=message,
+                FontSize=14,
+                TextColor=Color.FromArgb("#334155"),
+                HorizontalTextAlignment=TextAlignment.Center,
+                LineBreakMode=LineBreakMode.WordWrap,
+            });
+        }
+
+        content.Children.Add(this.CreateConfirmDialogButtons(options,completed));
+        card.Content=content;
+        overlay.Children.Add(card);
+        return overlay;
+    }
+
+    private View CreateConfirmDialogButtons(IReadOnlyList<ConfirmDialogOption> options,Action<string> completed){
+        var grid = new Grid{
+            ColumnSpacing=10,
+            HorizontalOptions=LayoutOptions.Fill,
+        };
+        foreach(var _ in options){
+            grid.ColumnDefinitions.Add(new ColumnDefinition{ Width=GridLength.Star });
+        }
+
+        for(var index=0;index<options.Count;index++){
+            var option = options[index];
+            var button = this.CreateConfirmDialogButton(option);
+            button.Clicked+=(_,_) => completed(option.Value);
+            grid.Add(button,index,0);
+        }
+
+        return grid;
+    }
+
+    private Button CreateConfirmDialogButton(ConfirmDialogOption option){
+        var button = new Button{
+            Text=option.Text,
+            HeightRequest=42,
+            MinimumWidthRequest=128,
+            CornerRadius=8,
+            BorderWidth=1,
+            FontSize=14,
+            FontAttributes=FontAttributes.Bold,
+            Padding=new Thickness(16,0),
+        };
+        switch(option.Kind){
+            case ConfirmDialogButtonKind.Primary:
+                button.BackgroundColor=Color.FromArgb("#0F766E");
+                button.BorderColor=Color.FromArgb("#0F766E");
+                button.TextColor=Colors.White;
+                break;
+            case ConfirmDialogButtonKind.Danger:
+                button.BackgroundColor=Color.FromArgb("#FEF2F2");
+                button.BorderColor=Color.FromArgb("#FCA5A5");
+                button.TextColor=Color.FromArgb("#991B1B");
+                break;
+            default:
+                button.BackgroundColor=Colors.White;
+                button.BorderColor=Color.FromArgb("#CBD5E1");
+                button.TextColor=Color.FromArgb("#334155");
+                break;
+        }
+
+        return button;
+    }
+
+    private enum ConfirmDialogButtonKind{
+        Primary,
+        Neutral,
+        Danger,
+    }
+
+    private sealed record ConfirmDialogOption(string Text,string Value,ConfirmDialogButtonKind Kind);
+
     private sealed class PageBenchmarkInteractionService:IBenchmarkInteractionService{
         private readonly MainPage page;
 
@@ -176,21 +361,23 @@ public sealed class MainPage:ContentPage{
         }
 
         public async Task<BenchmarkUnsavedChangeDecision> ConfirmUnsavedChangeAsync(string operationName){
-            var result = await this.page.DisplayActionSheet(
+            var result = await this.page.ShowConfirmDialogAsync(
                 "未保存のベンチマーク結果があります。"+operationName+"か？",
-                "キャンセル",
-                null,
-                "保存して続行",
-                "破棄して続行");
+                string.Empty,
+                [
+                    new ConfirmDialogOption("保存して続行","save",ConfirmDialogButtonKind.Primary),
+                    new ConfirmDialogOption("破棄して続行","discard",ConfirmDialogButtonKind.Danger),
+                    new ConfirmDialogOption("キャンセル","cancel",ConfirmDialogButtonKind.Neutral),
+                ]);
             return result switch{
-                "保存して続行" => BenchmarkUnsavedChangeDecision.SaveAndContinue,
-                "破棄して続行" => BenchmarkUnsavedChangeDecision.DiscardAndContinue,
+                "save" => BenchmarkUnsavedChangeDecision.SaveAndContinue,
+                "discard" => BenchmarkUnsavedChangeDecision.DiscardAndContinue,
                 _ => BenchmarkUnsavedChangeDecision.Cancel,
             };
         }
 
         public Task<bool> ConfirmOverwriteExportAsync(string folder) =>
-            this.page.DisplayAlert(
+            this.page.ShowBooleanConfirmDialogAsync(
                 "上書き確認",
                 "選択したフォルダには既存のベンチマーク出力があります。上書きしますか？",
                 "上書き",
@@ -248,34 +435,28 @@ public sealed class MainPage:ContentPage{
     private View CreateToolbar(){
         var runButton = this.CreateToolbarIconButton(
             "play.png",
-            nameof(BenchmarkRunnerViewModel.RunCommand),
-            nameof(BenchmarkRunnerViewModel.RunButtonText));
-        this.BindToolbarButtonState(runButton,ToolbarButtonRole.Run);
+            nameof(BenchmarkRunnerViewModel.RunButtonTooltipText));
+        this.BindToolbarButtonState(runButton,BenchmarkToolbarButtonRole.Run);
         var stopButton = this.CreateToolbarIconButton(
             "stop.png",
-            nameof(BenchmarkRunnerViewModel.StopCommand),
             "停止");
-        this.BindToolbarButtonState(stopButton,ToolbarButtonRole.Stop);
+        this.BindToolbarButtonState(stopButton,BenchmarkToolbarButtonRole.Stop);
         var pauseButton = this.CreateToolbarIconButton(
             "pause.png",
-            nameof(BenchmarkRunnerViewModel.PauseCommand),
             "一時停止");
-        this.BindToolbarButtonState(pauseButton,ToolbarButtonRole.Pause);
+        this.BindToolbarButtonState(pauseButton,BenchmarkToolbarButtonRole.Pause);
         var saveButton = this.CreateToolbarIconButton(
             "save.png",
-            nameof(BenchmarkRunnerViewModel.SaveCommand),
             "保存");
-        this.BindToolbarButtonState(saveButton,ToolbarButtonRole.Save);
+        this.BindToolbarButtonState(saveButton,BenchmarkToolbarButtonRole.Save);
         var saveAsButton = this.CreateToolbarIconButton(
             "save_as.png",
-            nameof(BenchmarkRunnerViewModel.SaveAsCommand),
             "名前を付けて保存");
-        this.BindToolbarButtonState(saveAsButton,ToolbarButtonRole.SaveAs);
+        this.BindToolbarButtonState(saveAsButton,BenchmarkToolbarButtonRole.SaveAs);
         var openButton = this.CreateToolbarIconButton(
             "open.png",
-            nameof(BenchmarkRunnerViewModel.OpenCommand),
             "開く");
-        this.BindToolbarButtonState(openButton,ToolbarButtonRole.Open);
+        this.BindToolbarButtonState(openButton,BenchmarkToolbarButtonRole.Open);
 
         var thresholdPicker = new Picker{
             WidthRequest=112,
@@ -339,7 +520,7 @@ public sealed class MainPage:ContentPage{
         return grid;
     }
 
-    private ImageButton CreateToolbarIconButton(string imageSource,string commandPath,string tooltipText){
+    private ImageButton CreateToolbarIconButton(string imageSource,string tooltipText){
         var button = new ImageButton{
             Source=ImageSource.FromFile(imageSource),
             WidthRequest=30,
@@ -352,41 +533,23 @@ public sealed class MainPage:ContentPage{
             Margin=new Thickness(0),
             Aspect=Aspect.AspectFit,
         };
-        button.SetBinding(ImageButton.CommandProperty,commandPath);
-        if(tooltipText==nameof(BenchmarkRunnerViewModel.RunButtonText)){
-            button.SetBinding(ToolTipProperties.TextProperty,nameof(BenchmarkRunnerViewModel.RunButtonText));
+        if(tooltipText==nameof(BenchmarkRunnerViewModel.RunButtonTooltipText)){
+            button.SetBinding(ToolTipProperties.TextProperty,nameof(BenchmarkRunnerViewModel.RunButtonTooltipText));
         }else{
             button.SetValue(ToolTipProperties.TextProperty,tooltipText);
         }
         return button;
     }
 
-    private enum ToolbarButtonRole {
-        Run,
-        Stop,
-        Pause,
-        Save,
-        SaveAs,
-        Open,
-    }
-
-    private void BindToolbarButtonState(ImageButton button,ToolbarButtonRole role){
+    private void BindToolbarButtonState(ImageButton button,BenchmarkToolbarButtonRole role){
+        this.toolbarButtons[role]=button;
+        button.Clicked+=async (_,_) => await this.HandleToolbarButtonClickAsync(role);
         void Apply(){
             if(this.viewModel is null){
                 return;
             }
 
-            var isActive=this.viewModel.IsBenchmarkRunActive;
-            button.IsEnabled=role switch{
-                ToolbarButtonRole.Run => !this.viewModel.IsRefreshing,
-                ToolbarButtonRole.Stop => isActive||this.viewModel.IsBenchmarkPaused,
-                ToolbarButtonRole.Pause => isActive,
-                ToolbarButtonRole.Save => this.viewModel.CanSaveBenchmarkResults,
-                ToolbarButtonRole.SaveAs => this.viewModel.CanSaveAsBenchmarkResults,
-                ToolbarButtonRole.Open => !this.viewModel.IsRefreshing&&!isActive,
-                _ => !this.viewModel.IsRefreshing,
-            };
-            button.Opacity=button.IsEnabled ? 1 : 0.45;
+            this.ApplyToolbarButtonState(button,this.viewModel.GetToolbarButtonState(role));
         }
 
         Apply();
@@ -395,12 +558,167 @@ public sealed class MainPage:ContentPage{
                 if(args.PropertyName==nameof(BenchmarkRunnerViewModel.IsBenchmarkRunActive)
                     ||args.PropertyName==nameof(BenchmarkRunnerViewModel.IsBenchmarkPaused)
                     ||args.PropertyName==nameof(BenchmarkRunnerViewModel.IsRefreshing)
+                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.CanRunBenchmark)
+                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.CanResumeBenchmark)
+                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.CanUseRunToolbarButton)
+                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.HasSelectedBenchmarkCells)
                     ||args.PropertyName==nameof(BenchmarkRunnerViewModel.CanSaveBenchmarkResults)
                     ||args.PropertyName==nameof(BenchmarkRunnerViewModel.CanSaveAsBenchmarkResults)
-                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.HasUnsavedBenchmarkResults)){
+                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.CanOpenBenchmarkResults)
+                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.HasUnsavedBenchmarkResults)
+                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.ToolbarStateInput)){
                     MainThread.BeginInvokeOnMainThread(Apply);
                 }
             };
+        }
+    }
+
+    private void ApplyToolbarButtonState(ImageButton button,BenchmarkToolbarButtonState state){
+        button.IsEnabled=state.IsEnabled;
+        button.InputTransparent=false;
+        button.Opacity=state.ShowDisabledVisual ? 0.45 : 1;
+        button.BorderColor=state.ShouldPulse&&this.pausedToolbarPulseOn
+            ? Color.FromArgb("#EA580C")
+            : Color.FromArgb("#CBD5E1");
+        button.BackgroundColor=state.ShouldPulse&&this.pausedToolbarPulseOn
+            ? Color.FromArgb("#FFF7ED")
+            : Color.FromArgb("#F8FAFC");
+        button.Scale=state.ShouldPulse&&this.pausedToolbarPulseOn ? 1.08 : 1;
+        this.RefreshPausedToolbarPulse();
+    }
+
+    private async Task HandleToolbarButtonClickAsync(BenchmarkToolbarButtonRole role){
+        if(this.viewModel is null){
+            return;
+        }
+
+        var state = this.viewModel.GetToolbarButtonState(role);
+        if(!state.IsEnabled){
+            return;
+        }
+
+        if(BenchmarkToolbarPauseGuardLogic.RequiresDecisionDialog(role,this.viewModel.IsBenchmarkPaused)){
+            await this.ShowPausedToolbarDecisionDialogAsync(role);
+            return;
+        }
+
+        if(!state.InvokesPrimaryAction){
+            return;
+        }
+
+        await this.ExecuteToolbarButtonCommandAsync(role);
+    }
+
+    private async Task ExecuteToolbarButtonCommandAsync(BenchmarkToolbarButtonRole role){
+        if(this.viewModel is null){
+            return;
+        }
+
+        switch(role){
+            case BenchmarkToolbarButtonRole.Run:
+                if(this.viewModel.RunCommand.CanExecute(null)){
+                    await this.viewModel.RunCommand.ExecuteAsync(null);
+                }
+                break;
+            case BenchmarkToolbarButtonRole.Stop:
+                if(this.viewModel.StopCommand.CanExecute(null)){
+                    await this.viewModel.StopCommand.ExecuteAsync(null);
+                }
+                break;
+            case BenchmarkToolbarButtonRole.Pause:
+                if(this.viewModel.PauseCommand.CanExecute(null)){
+                    await this.viewModel.PauseCommand.ExecuteAsync(null);
+                }
+                break;
+            case BenchmarkToolbarButtonRole.Save:
+                if(this.viewModel.SaveCommand.CanExecute(null)){
+                    await this.viewModel.SaveCommand.ExecuteAsync(null);
+                }
+                break;
+            case BenchmarkToolbarButtonRole.SaveAs:
+                if(this.viewModel.SaveAsCommand.CanExecute(null)){
+                    await this.viewModel.SaveAsCommand.ExecuteAsync(null);
+                }
+                break;
+            case BenchmarkToolbarButtonRole.Open:
+                if(this.viewModel.OpenCommand.CanExecute(null)){
+                    await this.viewModel.OpenCommand.ExecuteAsync(null);
+                }
+                break;
+        }
+    }
+
+    private async Task ShowPausedToolbarDecisionDialogAsync(BenchmarkToolbarButtonRole role){
+        var result = await this.ShowConfirmDialogAsync(
+            "一時停止中",
+            CreatePausedToolbarDecisionMessage(role),
+            [
+                new ConfirmDialogOption("再開","resume",ConfirmDialogButtonKind.Primary),
+                new ConfirmDialogOption("停止","stop",ConfirmDialogButtonKind.Danger),
+                new ConfirmDialogOption("キャンセル","cancel",ConfirmDialogButtonKind.Neutral),
+            ]);
+        switch(result){
+            case "resume":
+                await this.ExecuteToolbarButtonCommandAsync(BenchmarkToolbarButtonRole.Run);
+                break;
+            case "stop":
+                await this.ExecuteToolbarButtonCommandAsync(BenchmarkToolbarButtonRole.Stop);
+                break;
+        }
+    }
+
+    private static string CreatePausedToolbarDecisionMessage(BenchmarkToolbarButtonRole role) =>
+        role switch{
+            BenchmarkToolbarButtonRole.Save => "一時停止中は保存できません。続けるなら再開、終了するなら停止を選んでください。",
+            BenchmarkToolbarButtonRole.SaveAs => "一時停止中は名前を付けて保存できません。続けるなら再開、終了するなら停止を選んでください。",
+            BenchmarkToolbarButtonRole.Open => "一時停止中は別の結果を開けません。続けるなら再開、終了するなら停止を選んでください。",
+            _ => "一時停止中です。続けるなら再開、終了するなら停止を選んでください。",
+        };
+
+    private void RefreshPausedToolbarPulse(){
+        if(this.viewModel is null){
+            this.StopPausedToolbarPulse();
+            return;
+        }
+
+        var shouldPulse = this.toolbarButtons.Keys
+            .Any(role => this.viewModel.GetToolbarButtonState(role).ShouldPulse);
+        if(!shouldPulse){
+            this.StopPausedToolbarPulse();
+            return;
+        }
+
+        if(this.pausedToolbarPulseTimer is not null){
+            return;
+        }
+
+        this.pausedToolbarPulseTimer=this.Dispatcher.CreateTimer();
+        this.pausedToolbarPulseTimer.Interval=TimeSpan.FromMilliseconds(420);
+        this.pausedToolbarPulseTimer.Tick+=(_,_) => {
+            this.pausedToolbarPulseOn=!this.pausedToolbarPulseOn;
+            this.ApplyToolbarButtonVisualStates();
+        };
+        this.pausedToolbarPulseTimer.Start();
+    }
+
+    private void StopPausedToolbarPulse(){
+        this.pausedToolbarPulseTimer?.Stop();
+        this.pausedToolbarPulseTimer=null;
+        if(!this.pausedToolbarPulseOn){
+            return;
+        }
+
+        this.pausedToolbarPulseOn=false;
+        this.ApplyToolbarButtonVisualStates();
+    }
+
+    private void ApplyToolbarButtonVisualStates(){
+        if(this.viewModel is null){
+            return;
+        }
+
+        foreach(var pair in this.toolbarButtons){
+            this.ApplyToolbarButtonState(pair.Value,this.viewModel.GetToolbarButtonState(pair.Key));
         }
     }
 
@@ -2007,6 +2325,11 @@ public sealed class MainPage:ContentPage{
         leftSeries.SetBinding(ChartSeries.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ChartPoints));
         leftSeries.LabelTemplate=this.CreateDataLabelTemplate(nameof(ChartComparisonPoint.LeftText));
         leftSeries.TooltipTemplate=this.CreateTooltipTemplate();
+        var leftSelection = new DataPointSelectionBehavior{
+            SelectionBrush=new SolidColorBrush(Color.FromArgb("#1D4ED8")),
+        };
+        leftSelection.SelectionChanged+=(_,args) => this.SelectBenchmarkCellFromChart(args,false);
+        leftSeries.SelectionBehavior=leftSelection;
 
         var rightSeries = new StackingColumn100Series{
             XBindingPath=nameof(ChartComparisonPoint.DisplayName),
@@ -2024,6 +2347,11 @@ public sealed class MainPage:ContentPage{
         rightSeries.SetBinding(ChartSeries.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ChartPoints));
         rightSeries.LabelTemplate=this.CreateDataLabelTemplate(nameof(ChartComparisonPoint.RightText));
         rightSeries.TooltipTemplate=this.CreateTooltipTemplate();
+        var rightSelection = new DataPointSelectionBehavior{
+            SelectionBrush=new SolidColorBrush(Color.FromArgb("#EA580C")),
+        };
+        rightSelection.SelectionChanged+=(_,args) => this.SelectBenchmarkCellFromChart(args,true);
+        rightSeries.SelectionBehavior=rightSelection;
         this.BindChartSeriesLabels(leftSeries,rightSeries);
 
         chart.Series.Add(leftSeries);
@@ -2065,6 +2393,27 @@ public sealed class MainPage:ContentPage{
         };
         emptyText.SetBinding(IsVisibleProperty,new Binding(nameof(BenchmarkRunnerViewModel.ChartPoints)+".Count",converter:new CountIsZeroConverter()));
         return grid;
+    }
+
+    private void SelectBenchmarkCellFromChart(ChartSelectionChangedEventArgs args,bool isRightSeries){
+        if(this.viewModel is null) {
+            return;
+        }
+
+        if(args.NewIndexes.Count==0) {
+            return;
+        }
+
+        var index = args.NewIndexes.LastOrDefault();
+        if(index<0||index>=this.viewModel.ChartPoints.Count) {
+            return;
+        }
+
+        var point = this.viewModel.ChartPoints[index];
+        var project = isRightSeries
+            ? this.viewModel.SelectedComparisonPair.RightProject
+            : this.viewModel.SelectedComparisonPair.LeftProject;
+        this.viewModel.SelectBenchmarkCellFromChart(point.Benchmark,project);
     }
 
     private void BindChartSeriesLabels(StackingColumn100Series leftSeries,StackingColumn100Series rightSeries){

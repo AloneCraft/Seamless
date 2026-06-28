@@ -158,6 +158,128 @@ internal static class BenchmarkSkippedDisplayLogic{
             .FirstOrDefault();
 }
 
+internal enum BenchmarkToolbarButtonRole{
+    Run,
+    Stop,
+    Pause,
+    Save,
+    SaveAs,
+    Open,
+}
+
+internal readonly record struct BenchmarkToolbarStateInput(
+    bool IsRefreshing,
+    bool IsBenchmarkRunActive,
+    bool IsBenchmarkPaused,
+    bool CanUseRunButton,
+    bool CanStopBenchmark,
+    bool CanPauseBenchmark,
+    bool CanSaveBenchmarkResults,
+    bool CanSaveAsBenchmarkResults,
+    bool CanOpenResults);
+
+internal readonly record struct BenchmarkToolbarButtonState(
+    bool IsEnabled,
+    bool InvokesPrimaryAction,
+    bool ShowDisabledVisual,
+    bool ShouldPulse);
+
+internal static class BenchmarkToolbarStateLogic{
+    public static BenchmarkToolbarButtonState CreateState(BenchmarkToolbarButtonRole role,BenchmarkToolbarStateInput input){
+        if(input.IsBenchmarkPaused){
+            return role switch{
+                BenchmarkToolbarButtonRole.Run => new BenchmarkToolbarButtonState(
+                    input.CanUseRunButton,
+                    input.CanUseRunButton,
+                    !input.CanUseRunButton,
+                    input.CanUseRunButton),
+                BenchmarkToolbarButtonRole.Stop => new BenchmarkToolbarButtonState(
+                    input.CanStopBenchmark,
+                    input.CanStopBenchmark,
+                    !input.CanStopBenchmark,
+                    input.CanStopBenchmark),
+                BenchmarkToolbarButtonRole.Pause => new BenchmarkToolbarButtonState(true,false,true,false),
+                BenchmarkToolbarButtonRole.Save => new BenchmarkToolbarButtonState(true,false,true,false),
+                BenchmarkToolbarButtonRole.SaveAs => new BenchmarkToolbarButtonState(true,false,true,false),
+                BenchmarkToolbarButtonRole.Open => new BenchmarkToolbarButtonState(true,false,true,false),
+                _ => new BenchmarkToolbarButtonState(false,false,true,false),
+            };
+        }
+
+        return role switch{
+            BenchmarkToolbarButtonRole.Run => CreateDirectActionState(input.CanUseRunButton),
+            BenchmarkToolbarButtonRole.Stop => CreateDirectActionState(input.CanStopBenchmark),
+            BenchmarkToolbarButtonRole.Pause => CreateDirectActionState(input.CanPauseBenchmark),
+            BenchmarkToolbarButtonRole.Save => CreateDirectActionState(input.CanSaveBenchmarkResults),
+            BenchmarkToolbarButtonRole.SaveAs => CreateDirectActionState(input.CanSaveAsBenchmarkResults),
+            BenchmarkToolbarButtonRole.Open => CreateDirectActionState(input.CanOpenResults),
+            _ => new BenchmarkToolbarButtonState(false,false,true,false),
+        };
+    }
+
+    public static bool IsEnabled(BenchmarkToolbarButtonRole role,BenchmarkToolbarStateInput input) =>
+        CreateState(role,input).IsEnabled;
+
+    private static BenchmarkToolbarButtonState CreateDirectActionState(bool isEnabled) =>
+        new(isEnabled,isEnabled,!isEnabled,false);
+}
+
+internal static class BenchmarkToolbarPauseGuardLogic{
+    public static bool RequiresDecisionDialog(BenchmarkToolbarButtonRole role,bool isBenchmarkPaused) =>
+        isBenchmarkPaused&&role is BenchmarkToolbarButtonRole.Pause
+            or BenchmarkToolbarButtonRole.Save
+            or BenchmarkToolbarButtonRole.SaveAs
+            or BenchmarkToolbarButtonRole.Open;
+}
+
+internal enum BenchmarkCloseAction{
+    Cancel,
+    SaveAndClose,
+    DiscardAndClose,
+    StopAndClose,
+    StopSaveAndClose,
+    StopDiscardAndClose,
+}
+
+internal static class BenchmarkCloseDialogLogic{
+    public static IReadOnlyList<(string Text,BenchmarkCloseAction Action,BenchmarkToolbarButtonRole Kind)> CreateOptions(
+        bool isBenchmarkRunActive,
+        bool isBenchmarkPaused,
+        bool hasUnsavedResults){
+        if(isBenchmarkPaused){
+            return [
+                ("停止して閉じる",BenchmarkCloseAction.StopAndClose,BenchmarkToolbarButtonRole.Stop),
+                ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Open),
+            ];
+        }
+
+        if(isBenchmarkRunActive&&hasUnsavedResults){
+            return [
+                ("中止して保存して終了",BenchmarkCloseAction.StopSaveAndClose,BenchmarkToolbarButtonRole.Save),
+                ("中止して破棄して終了",BenchmarkCloseAction.StopDiscardAndClose,BenchmarkToolbarButtonRole.Stop),
+                ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Open),
+            ];
+        }
+
+        if(isBenchmarkRunActive){
+            return [
+                ("中止して終了",BenchmarkCloseAction.StopAndClose,BenchmarkToolbarButtonRole.Stop),
+                ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Open),
+            ];
+        }
+
+        return hasUnsavedResults
+            ? [
+                ("保存して終了",BenchmarkCloseAction.SaveAndClose,BenchmarkToolbarButtonRole.Save),
+                ("破棄して終了",BenchmarkCloseAction.DiscardAndClose,BenchmarkToolbarButtonRole.Stop),
+                ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Open),
+            ]
+            : [
+                ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Open),
+            ];
+    }
+}
+
 internal enum BenchmarkCellSelectionGesture{
     Replace,
     Toggle,
