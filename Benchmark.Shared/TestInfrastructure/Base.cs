@@ -264,6 +264,9 @@ public class Base {
     private protected int CountForComparison(int elementCount) =>
         BenchmarkExecutionMode.LimitForComparison(elementCount);
 
+    protected int EffectiveSourceCount(int elementCount) =>
+        this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount));
+
     public string CaptureBenchmarkMethodResult(string methodName,bool invokeImpl) {
         if(string.IsNullOrWhiteSpace(methodName)) {
             throw new ArgumentException("Method name is required.",nameof(methodName));
