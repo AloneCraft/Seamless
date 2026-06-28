@@ -186,6 +186,7 @@ ArrayRoot は配列 source 専用。IEnumerator<T> を作らず index で直接�
 */
 public class ArrayRoot(int 番号, string sourceExpression, string elementType) : Enumerable(番号) {
     public override bool CanProvideSpan => true;
+    public override string? GetDirectSpanExpression(string enumeratorName) => $"{enumeratorName}.GetSpan()";
     public override string? NonEnumeratedCountExpression => $"{sourceExpression}.Length";
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
@@ -225,6 +226,9 @@ public class ArrayRoot(int 番号, string sourceExpression, string elementType) 
                 span = global::System.MemoryExtensions.AsSpan(source, {{e}} + 1);
                 return true;
             }
+            {{AggressiveInliningAttribute}}
+            public global::System.ReadOnlySpan<{{elementType}}> GetSpan()
+                => global::System.MemoryExtensions.AsSpan(source, {{e}} + 1);
             {{AggressiveInliningAttribute}}
             public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) {
                 var remaining = global::System.MemoryExtensions.AsSpan(source, {{e}} + 1);
@@ -266,6 +270,7 @@ CollectionsMarshal.AsSpan(list) を index で読む。
 */
 public class ListRoot(int 番号, string sourceExpression, string elementType) : Enumerable(番号) {
     public override bool CanProvideSpan => true;
+    public override string? GetDirectSpanExpression(string enumeratorName) => $"{enumeratorName}.GetSpan()";
     public override string? NonEnumeratedCountExpression => $"{sourceExpression}.Count";
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
@@ -306,6 +311,9 @@ public class ListRoot(int 番号, string sourceExpression, string elementType) :
                 span = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source).Slice({{e}} + 1);
                 return true;
             }
+            {{AggressiveInliningAttribute}}
+            public global::System.ReadOnlySpan<{{elementType}}> GetSpan()
+                => global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source).Slice({{e}} + 1);
             {{AggressiveInliningAttribute}}
             public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) {
                 var remaining = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source).Slice({{e}} + 1);

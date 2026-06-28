@@ -21,6 +21,9 @@ public class FLinqNativeScanTests {
             var generated = GeneratedInterceptorAssert.SourceFor<FLinqNativeScanTests>(nameof(AnyGreaterThanThreeImpl));
             Assert.Contains("PersistedSetScanState",generated);
             Assert.Contains("PersistedSetScanUnsafe",generated);
+            Assert.DoesNotContain("MemoryExtensions.AsSpan",generated);
+            Assert.DoesNotContain("CollectionsMarshal.AsSpan",generated);
+            Assert.DoesNotContain(".GetSpan();",generated);
         }
         finally {
             source=null;

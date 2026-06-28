@@ -108,22 +108,22 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
                 if({{setName}}.Add(value)){
                     {{consumerName}}.Consume(value);
                 }
-                """,source.CanTryProvideSpan);
+                """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName));
             TraversalSupport.AppendTraversalLoop(builder,secondName,second.ElementType,"value",$$"""
                 if({{setName}}.Add({{SecondValueExpression("value")}})){
                     {{consumerName}}.Consume({{SecondValueExpression("value")}});
                 }
-                """,second.CanTryProvideSpan);
+                """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(secondName));
             return builder.ToString().TrimEnd();
         }
         TraversalSupport.AppendTraversalLoop(builder,secondName,second.ElementType,"value",$$"""
             {{setName}}.Add({{SecondValueExpression("value")}});
-            """,second.CanTryProvideSpan);
+            """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(secondName));
         TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
             if({{setName}}.{{operation.SourceAcceptMethod}}(value)){
                 {{consumerName}}.Consume(value);
             }
-            """,source.CanTryProvideSpan);
+            """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName));
         return builder.ToString().TrimEnd();
     }
     private string SecondValueExpression(string valueName){
@@ -147,7 +147,22 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
         var sorted=$"__setSorted{番号}";
         var j=$"__setJ{番号}";
         var value=$"__setValue{番号}";
-        builder.AppendLine($"if({sourceName}.TryGetSpan(out var {sourceSpan})&&{secondName}.TryGetSpan(out var {secondSpan})){{");
+        var sourceDirectSpanExpression=source.GetDirectSpanExpression(sourceName);
+        var secondDirectSpanExpression=second.GetDirectSpanExpression(secondName);
+        if(sourceDirectSpanExpression is not null && secondDirectSpanExpression is not null) {
+            builder.AppendLine($"var {sourceSpan}={sourceDirectSpanExpression};");
+            builder.AppendLine($"var {secondSpan}={secondDirectSpanExpression};");
+            AppendSortedIntSetFastPathBody(builder,sourceSpan,secondSpan,sorted,j,value,consumerName,string.Empty);
+            return;
+        }
+        if(source.CanProvideSpan && second.CanProvideSpan) {
+            builder.AppendLine($"{sourceName}.TryGetSpan(out var {sourceSpan});");
+            builder.AppendLine($"{secondName}.TryGetSpan(out var {secondSpan});");
+            AppendSortedIntSetFastPathBody(builder,sourceSpan,secondSpan,sorted,j,value,consumerName,string.Empty);
+            return;
+        }
+        builder.AppendLine($"if({sourceName}.TryGetSpan(out var {sourceSpan})"
+            + $"&&{secondName}.TryGetSpan(out var {secondSpan})){{");
         builder.AppendLine($"    var {sorted}=true;");
         builder.AppendLine($"    for(var __i=1;__i<{sourceSpan}.Length;__i++){{");
         builder.AppendLine($"        if({sourceSpan}[__i]<={sourceSpan}[__i-1]){{");
@@ -185,7 +200,53 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
         builder.AppendLine("}");
     }
 
-    private static bool IsInt32Type(string typeName) =>
+    private void AppendSortedIntSetFastPathBody(
+        StringBuilder builder,
+        string sourceSpan,
+        string secondSpan,
+        string sorted,
+        string j,
+        string value,
+        string consumerName,
+        string indent) {
+        builder.AppendLine($"{indent}var {sorted}=true;");
+        builder.AppendLine($"{indent}for(var __i=1;__i<{sourceSpan}.Length;__i++){{");
+        builder.AppendLine($"{indent}    if({sourceSpan}[__i]<={sourceSpan}[__i-1]){{");
+        builder.AppendLine($"{indent}        {sorted}=false;");
+        builder.AppendLine($"{indent}        break;");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}}}");
+        builder.AppendLine($"{indent}if({sorted}){{");
+        builder.AppendLine($"{indent}    for(var __i=1;__i<{secondSpan}.Length;__i++){{");
+        builder.AppendLine($"{indent}        if({secondSpan}[__i]<={secondSpan}[__i-1]){{");
+        builder.AppendLine($"{indent}            {sorted}=false;");
+        builder.AppendLine($"{indent}            break;");
+        builder.AppendLine($"{indent}        }}");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}}}");
+        builder.AppendLine($"{indent}if({sorted}){{");
+        builder.AppendLine($"{indent}    var {j}=0;");
+        builder.AppendLine($"{indent}    for(var __i=0;__i<{sourceSpan}.Length;__i++){{");
+        builder.AppendLine($"{indent}        var {value}={sourceSpan}[__i];");
+        builder.AppendLine($"{indent}        while({j}<{secondSpan}.Length&&{secondSpan}[{j}]<{value}){{");
+        builder.AppendLine($"{indent}            {j}++;");
+        builder.AppendLine($"{indent}        }}");
+        if(operation.SourceAcceptMethod=="Add") {
+            builder.AppendLine($"{indent}        if({j}>={secondSpan}.Length||{secondSpan}[{j}]!={value}){{");
+            builder.AppendLine($"{indent}            {consumerName}.Consume({value});");
+            builder.AppendLine($"{indent}        }}");
+        } else {
+            builder.AppendLine($"{indent}        if({j}<{secondSpan}.Length&&{secondSpan}[{j}]=={value}){{");
+            builder.AppendLine($"{indent}            {consumerName}.Consume({value});");
+            builder.AppendLine($"{indent}        }}");
+        }
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}    return;");
+        builder.AppendLine($"{indent}}}");
+    }
+
+    private static bool IsInt32Type(string typeName)
+        =>
         string.Equals(typeName,"int",StringComparison.Ordinal)
         || string.Equals(typeName,"System.Int32",StringComparison.Ordinal)
         || string.Equals(typeName,"global::System.Int32",StringComparison.Ordinal);
@@ -332,23 +393,23 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
                     if({{setName}}.Add(value)){
                         {{consumerName}}.Consume(value);
                     }
-                    """,source.CanTryProvideSpan);
+                    """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName));
                 TraversalSupport.AppendTraversalLoop(builder,secondName,second.ElementType,"value",$$"""
                     if({{setName}}.Add(value)){
                         {{consumerName}}.Consume(value);
                     }
-                    """,second.CanTryProvideSpan);
+                    """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(secondName));
                 return builder.ToString().TrimEnd();
             }
             TraversalSupport.AppendTraversalLoop(builder,secondName,second.ElementType,"value",$$"""
                 {{setName}}.Add(value);
-                """,second.CanTryProvideSpan);
+                """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(secondName));
             TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
                 if(!{{setName}}.{{operation.SourceAcceptMethod}}(value)){
                     continue;
                 }
                 {{consumerName}}.Consume(value);
-            """,source.CanTryProvideSpan);
+            """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName));
             return builder.ToString().TrimEnd();
         }
         TraversalSupport.AppendHashSetInitialization(builder,setName,FuncReturnTypeName(keySelector),secondName,Comparer);
@@ -361,7 +422,7 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
             {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
             {{FuncAssignIndented("",keySelector,nameof(keySelector),key,"value")}}
             {{setName}}.Add({{key}});
-            """,second.CanTryProvideSpan);
+            """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(enumeratorName));
     }
     private void AppendSetByConsumeLoop(StringBuilder builder,string enumeratorName,string consumerName,string setName,string operationMethod){
         TraversalSupport.AppendTraversalLoop(builder,enumeratorName,source.ElementType,"value",$$"""
@@ -371,7 +432,7 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
                 continue;
             }
             {{consumerName}}.Consume(value);
-            """,source.CanTryProvideSpan);
+            """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(enumeratorName));
     }
     private string SecondKeyExpression(string valueName){
         if(FuncReturnTypeName(keySelector)==second.ElementType){
@@ -395,6 +456,20 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
         var sorted=$"__setSorted{番号}";
         var j=$"__setJ{番号}";
         var value=$"__setValue{番号}";
+        var sourceDirectSpanExpression=source.GetDirectSpanExpression(sourceName);
+        var secondDirectSpanExpression=second.GetDirectSpanExpression(secondName);
+        if(sourceDirectSpanExpression is not null && secondDirectSpanExpression is not null) {
+            builder.AppendLine($"var {sourceSpan}={sourceDirectSpanExpression};");
+            builder.AppendLine($"var {secondSpan}={secondDirectSpanExpression};");
+            AppendSortedIntSetFastPathBody(builder,sourceSpan,secondSpan,sorted,j,value,consumerName,string.Empty);
+            return;
+        }
+        if(source.CanProvideSpan && second.CanProvideSpan) {
+            builder.AppendLine($"{sourceName}.TryGetSpan(out var {sourceSpan});");
+            builder.AppendLine($"{secondName}.TryGetSpan(out var {secondSpan});");
+            AppendSortedIntSetFastPathBody(builder,sourceSpan,secondSpan,sorted,j,value,consumerName,string.Empty);
+            return;
+        }
         builder.AppendLine($"if({sourceName}.TryGetSpan(out var {sourceSpan})&&{secondName}.TryGetSpan(out var {secondSpan})){{");
         builder.AppendLine($"    var {sorted}=true;");
         builder.AppendLine($"    for(var __i=1;__i<{sourceSpan}.Length;__i++){{");
@@ -431,6 +506,51 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
         builder.AppendLine("        return;");
         builder.AppendLine("    }");
         builder.AppendLine("}");
+    }
+
+    private void AppendSortedIntSetFastPathBody(
+        StringBuilder builder,
+        string sourceSpan,
+        string secondSpan,
+        string sorted,
+        string j,
+        string value,
+        string consumerName,
+        string indent) {
+        builder.AppendLine($"{indent}var {sorted}=true;");
+        builder.AppendLine($"{indent}for(var __i=1;__i<{sourceSpan}.Length;__i++){{");
+        builder.AppendLine($"{indent}    if({sourceSpan}[__i]<={sourceSpan}[__i-1]){{");
+        builder.AppendLine($"{indent}        {sorted}=false;");
+        builder.AppendLine($"{indent}        break;");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}}}");
+        builder.AppendLine($"{indent}if({sorted}){{");
+        builder.AppendLine($"{indent}    for(var __i=1;__i<{secondSpan}.Length;__i++){{");
+        builder.AppendLine($"{indent}        if({secondSpan}[__i]<={secondSpan}[__i-1]){{");
+        builder.AppendLine($"{indent}            {sorted}=false;");
+        builder.AppendLine($"{indent}            break;");
+        builder.AppendLine($"{indent}        }}");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}}}");
+        builder.AppendLine($"{indent}if({sorted}){{");
+        builder.AppendLine($"{indent}    var {j}=0;");
+        builder.AppendLine($"{indent}    for(var __i=0;__i<{sourceSpan}.Length;__i++){{");
+        builder.AppendLine($"{indent}        var {value}={sourceSpan}[__i];");
+        builder.AppendLine($"{indent}        while({j}<{secondSpan}.Length&&{secondSpan}[{j}]<{value}){{");
+        builder.AppendLine($"{indent}            {j}++;");
+        builder.AppendLine($"{indent}        }}");
+        if(operation.SourceAcceptMethod=="Add") {
+            builder.AppendLine($"{indent}        if({j}>={secondSpan}.Length||{secondSpan}[{j}]!={value}){{");
+            builder.AppendLine($"{indent}            {consumerName}.Consume({value});");
+            builder.AppendLine($"{indent}        }}");
+        } else {
+            builder.AppendLine($"{indent}        if({j}<{secondSpan}.Length&&{secondSpan}[{j}]=={value}){{");
+            builder.AppendLine($"{indent}            {consumerName}.Consume({value});");
+            builder.AppendLine($"{indent}        }}");
+        }
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}    return;");
+        builder.AppendLine($"{indent}}}");
     }
 
     private static bool IsInt32Type(string typeName) =>

@@ -1,26 +1,50 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
 internal static class TraversalSupport{
-    public static void AppendTraversalLoop(StringBuilder builder,string enumeratorName,string elementType,string valueName,string statement,bool canTryProvideSpan){
-        // span を提供できない断片（PipelineEnumerable など TryGetSpan が常に false を返す）では
-        // span 分岐は到達不能なので while(TryGetNext) だけを生成する。
+    public static void AppendTraversalLoop(
+        StringBuilder builder,
+        string enumeratorName,
+        string elementType,
+        string valueName,
+        string statement,
+        bool canTryProvideSpan,
+        bool canProvideSpan=false,
+        string? directSpanExpression=null){
+        var spanName=$"__sp_{enumeratorName}";
+        if(directSpanExpression is not null){
+            // Direct span roots avoid probing and fallback code.
+            // Example: int[] first; first.Except(second).Consume(c) emits
+            // `var __sp___src0=__src0.GetSpan(); for(...) ...`.
+            // IEnumerable<T>, Tsavorite, and Persisted roots do not expose a direct span expression.
+            builder.AppendLine($"var {spanName}={directSpanExpression};");
+            AppendSpanLoop(builder,spanName,enumeratorName,valueName,statement);
+            return;
+        }
+        if(canProvideSpan){
+            builder.AppendLine($"{enumeratorName}.TryGetSpan(out var {spanName});");
+            AppendSpanLoop(builder,spanName,enumeratorName,valueName,statement);
+            return;
+        }
         if(!canTryProvideSpan){
             builder.AppendLine($"while({enumeratorName}.TryGetNext(out {elementType} {valueName})){{");
             builder.AppendLine(IndentBlock(statement,"    "));
             builder.AppendLine("}");
             return;
         }
-        var spanName=$"__sp_{enumeratorName}";
         builder.AppendLine($"if({enumeratorName}.TryGetSpan(out var {spanName})){{");
-        builder.AppendLine($"    for(var __i_{enumeratorName}=0;__i_{enumeratorName}<{spanName}.Length;__i_{enumeratorName}++){{");
-        builder.AppendLine($"        var {valueName}={spanName}[__i_{enumeratorName}];");
-        builder.AppendLine(IndentBlock(statement,"        "));
-        builder.AppendLine("    }");
+        AppendSpanLoop(builder,spanName,enumeratorName,valueName,statement,"    ");
         builder.AppendLine("}else{");
         builder.AppendLine($"    while({enumeratorName}.TryGetNext(out {elementType} {valueName})){{");
         builder.AppendLine(IndentBlock(statement,"        "));
         builder.AppendLine("    }");
         builder.AppendLine("}");
+    }
+
+    private static void AppendSpanLoop(StringBuilder builder,string spanName,string enumeratorName,string valueName,string statement,string indent=""){
+        builder.AppendLine($"{indent}for(var __i_{enumeratorName}=0;__i_{enumeratorName}<{spanName}.Length;__i_{enumeratorName}++){{");
+        builder.AppendLine($"{indent}    var {valueName}={spanName}[__i_{enumeratorName}];");
+        builder.AppendLine(IndentBlock(statement,$"{indent}    "));
+        builder.AppendLine($"{indent}}}");
     }
 
     public static void AppendHashSetInitialization(StringBuilder builder,string setName,string elementType,string enumeratorName,string comparer,string? capacityHint=null){
