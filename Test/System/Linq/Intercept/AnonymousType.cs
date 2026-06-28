@@ -87,12 +87,14 @@ public sealed class AnonymousType {
         Assert.Equal(expectedGroup,GenericGroupByIdentityLocal<int>(Source()).ToList());
     }
 
+#pragma warning disable Tsavorite001
     private static IEnumerable<int> GenericNestedAnonymousLocal<TAnonymous>(int[]source) =>
         source.Select(p=>new{a=p}).Select(p=>new{p}).Select(r=>r.p.a);
 
     private static IEnumerable<string> GenericGroupByIdentityLocal<TAnonymous>(int[]source) =>
         source.Select(p=>new{p}).GroupBy(p=>p,p=>new{x=p})
             .Select(g=>$"{g.Key.p}:{string.Join(",",g.Select(e=>e.x.p))}");
+#pragma warning restore Tsavorite001
 
     [Fact,Trait("Category","Unit")]
     public void Select() {

@@ -82,9 +82,9 @@ public class AppendOnlyList<T, TSerializer>:IEnumerable<T>, IDisposable
 
     private long LoadCount() {
         var count = 0L;
+        Span<byte> lengthBytes = stackalloc byte[sizeof(int)];
         stream.Position=0;
         while(stream.Position<stream.Length) {
-            Span<byte> lengthBytes = stackalloc byte[sizeof(int)];
             if(stream.Read(lengthBytes)!=sizeof(int)) {
                 throw new InvalidDataException("The append-only list contains a partial length prefix.");
             }

@@ -27,7 +27,7 @@ public readonly struct Remove_KeyValuePair<TValue, TStrategy>:
     // 繧ｭ繝ｼ蟄伜惠譎ゑｼ・utable・ｽE・ｽ・ｽE Value 縺御ｸ閾ｴ縺吶ｋ蝣ｴ蜷茨ｿｽE縺ｿ ExpireAndStop 縺ｧ隲也炊蜑企勁
     public bool InPlaceUpdater(ref LogRecord logRecord,ref TValue input,ref bool output,ref RMWInfo rmwInfo) {
         var storedValue = TStrategy.Deserialize(logRecord.ValueSpan);
-        if(storedValue.Equals(input)) {
+        if(EqualityComparer<TValue>.Default.Equals(storedValue,input)) {
             output=true;
             rmwInfo.Action=RMWAction.ExpireAndStop;
         }
@@ -41,7 +41,7 @@ public readonly struct Remove_KeyValuePair<TValue, TStrategy>:
     // 繧ｭ繝ｼ蟄伜惠譎ゑｼ・eadOnly/Disk・ｽE・ｽ・ｽE蛟､縺御ｸ閾ｴ縺励◆蝣ｴ蜷茨ｿｽE縺ｿ Mutable 縺ｫ蜑企勁繝ｬ繧ｳ繝ｼ繝峨ｒ霑ｽ蜉縺吶ｋ
     public bool NeedCopyUpdate<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref TValue input,ref bool output,ref RMWInfo rmwInfo) where TSourceLogRecord : ISourceLogRecord {
         var storedValue = TStrategy.Deserialize(srcLogRecord.ValueSpan);
-        return storedValue.Equals(input);
+        return EqualityComparer<TValue>.Default.Equals(storedValue,input);
     }
     public bool CopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo) where TSourceLogRecord : ISourceLogRecord {
         output=true;

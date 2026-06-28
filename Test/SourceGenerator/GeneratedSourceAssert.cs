@@ -17,7 +17,7 @@ internal static class GeneratedSourceAssert {
 
         var details = BuildFailureMessage(message, generatedSource, diagnostics);
         WriteFailureOutput(output, details);
-        Assert.True(false, details);
+        Assert.Fail(details);
     }
 
     public static void NoErrors(
@@ -30,7 +30,7 @@ internal static class GeneratedSourceAssert {
 
         var details = BuildFailureMessage("Source generator diagnostics contained errors.", generatedSource, diagnostics);
         WriteFailureOutput(output, details);
-        Assert.True(false, details);
+        Assert.Fail(details);
     }
 
     private static string BuildFailureMessage(

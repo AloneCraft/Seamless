@@ -6,32 +6,22 @@ namespace Benchmark;
 #if TSAVORITE2_0BETA3
 [global::Seamless.FLinq.LinqIntercept(false)]
 #endif
-internal sealed class BenchmarkOrchestrator {
-    private readonly BenchmarkStateManager stateManager;
-    private readonly BenchmarkResultWriter resultWriter;
-    private readonly IBenchmarkJobRunner jobRunner;
-    private readonly object stateGate = new();
-
-    public BenchmarkOrchestrator(
-        BenchmarkStateManager stateManager,
-        BenchmarkResultWriter resultWriter,
-        IBenchmarkJobRunner jobRunner) {
-        this.stateManager=stateManager;
-        this.resultWriter=resultWriter;
-        this.jobRunner=jobRunner;
-    }
-
+internal sealed class BenchmarkOrchestrator(
+    BenchmarkStateManager stateManager,
+    BenchmarkResultWriter resultWriter,
+    IBenchmarkJobRunner jobRunner) {
+    private readonly Lock stateGate = new();
     public async Task<BenchmarkOrchestratorResult> RunAsync(
         BenchmarkRunRequest request,
         Action<BenchmarkProgressUpdate> progress,
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
         var state = !string.IsNullOrWhiteSpace(request.RunRootOverride)
-            ? this.stateManager.Load(request.RunRootOverride)??this.CreateState(request)
+            ? stateManager.Load(request.RunRootOverride)??this.CreateState(request)
             : this.CreateState(request);
         this.ReconcileStateWithRequest(state,request);
-        this.stateManager.SaveLatestRun(state.RunRoot);
-        this.stateManager.Save(state);
+        stateManager.SaveLatestRun(state.RunRoot);
+        stateManager.Save(state);
 
         try {
             if(state.Mode==BenchmarkRunMode.Adaptive) {
@@ -46,11 +36,11 @@ internal sealed class BenchmarkOrchestrator {
                 job.StartedAt=null;
                 job.FailureReason=string.Empty;
             }
-            this.stateManager.Save(state);
+            stateManager.Save(state);
             throw;
         }
 
-        var paths = this.resultWriter.WriteOutputs(state);
+        var paths = resultWriter.WriteOutputs(state);
         return new BenchmarkOrchestratorResult(state.RunRoot,paths);
     }
 
@@ -127,7 +117,7 @@ internal sealed class BenchmarkOrchestrator {
             }
 
             var currentCpus = GetCurrentCpus(request);
-            if(this.jobRunner is IBenchmarkDynamicCpuSetRunner dynamicCpuSetRunner) {
+            if(jobRunner is IBenchmarkDynamicCpuSetRunner dynamicCpuSetRunner) {
                 await dynamicCpuSetRunner.ApplyCpuSetAsync(currentCpus);
             }
 
@@ -257,7 +247,7 @@ internal sealed class BenchmarkOrchestrator {
             statusChanged($"Warmup {benchmark.MethodName} N=1: {benchmark.Project} / CPU {logicalCpu}");
             ForceGcBeforeJob();
             try {
-                var result = await this.jobRunner.RunAsync(
+                var result = await jobRunner.RunAsync(
                     warmupJob,
                     state.RunRoot,
                     logicalCpu,
@@ -312,7 +302,7 @@ internal sealed class BenchmarkOrchestrator {
             }
 
             var currentCpus = GetCurrentCpus(request);
-            if(this.jobRunner is IBenchmarkDynamicCpuSetRunner dynamicCpuSetRunner) {
+            if(jobRunner is IBenchmarkDynamicCpuSetRunner dynamicCpuSetRunner) {
                 await dynamicCpuSetRunner.ApplyCpuSetAsync(currentCpus);
             }
 
@@ -380,11 +370,11 @@ internal sealed class BenchmarkOrchestrator {
         job.StartedAt=DateTimeOffset.UtcNow;
         job.FinishedAt=null;
         job.FailureReason=string.Empty;
-        this.stateManager.Save(state);
+        stateManager.Save(state);
         progress(new BenchmarkProgressUpdate(state,job));
 
         try {
-            var result = await this.jobRunner.RunAsync(job,state.RunRoot,logicalCpu,timeout,cancellationToken);
+            var result = await jobRunner.RunAsync(job,state.RunRoot,logicalCpu,timeout,cancellationToken);
             var completed = string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
                 &&result.MeanNanoseconds is not null;
             job.Status=completed
@@ -419,9 +409,9 @@ internal sealed class BenchmarkOrchestrator {
             if(job.Status!=JobStatus.Pending) {
                 job.FinishedAt=DateTimeOffset.UtcNow;
             }
-            this.stateManager.Save(state);
+            stateManager.Save(state);
             try{
-                _ = this.resultWriter.WriteOutputs(state);
+                _ = resultWriter.WriteOutputs(state);
             }catch(Exception ex){
                 System.Diagnostics.Trace.WriteLine("Benchmark result output failed. "+ex);
             }
@@ -464,7 +454,7 @@ internal sealed class BenchmarkOrchestrator {
         return state;
     }
 
-    private string CreateNextRunRoot() => this.stateManager.CreateNextRunRoot();
+    private string CreateNextRunRoot() => stateManager.CreateNextRunRoot();
 
     private void ReconcileStateWithRequest(ProgressState state,BenchmarkRunRequest request) {
         if(state.RunNumber<=0){
@@ -545,7 +535,7 @@ internal sealed class BenchmarkOrchestrator {
                 state.Jobs.Add(CreateJob(benchmark,elementCount,state.SourceTab,state.ElementCounts));
             }
 
-            this.stateManager.Save(state);
+            stateManager.Save(state);
             return state.Jobs
                 .Where(job => job.ElementCount==elementCount&&cases.Any(item => SameCase(item,job)))
                 .ToArray();
@@ -588,9 +578,9 @@ internal sealed class BenchmarkOrchestrator {
             job.AllocatedBytes=null;
             job.ExitCode=1;
             job.FailureReason=FirstText(failureReason,"Warmup failed.");
-            this.stateManager.Save(state);
+            stateManager.Save(state);
             try{
-                _ = this.resultWriter.WriteOutputs(state);
+                _ = resultWriter.WriteOutputs(state);
             }catch(Exception ex){
                 System.Diagnostics.Trace.WriteLine("Benchmark result output failed. "+ex);
             }

@@ -28,7 +28,9 @@ public sealed partial class FLinqIncrementalGenerator {
 
     private static string インターセプターソース構築(ImmutableArray<Linq傍受対象型> targets,List<Diagnostic> diagnostics) {
         var builder=new StringBuilder();
-        builder.AppendLine("#nullable enable");
+        builder.AppendLine("#nullable enable annotations");
+        builder.AppendLine("#nullable disable warnings");
+        builder.AppendLine("#pragma warning disable CS0414, CS0649");
         builder.AppendLine("using System.Linq;");
 
         // このファイルで生成する匿名型→record struct 透過置換のレジストリを用意し、

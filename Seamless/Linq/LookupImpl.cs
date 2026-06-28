@@ -26,7 +26,7 @@ public sealed class LookupImpl<TKey,TElement>(IEqualityComparer<TKey>? Comparer)
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     private Grouping<TKey,TElement>? Find(TKey key) {
         foreach(var group in Groups) {
-            if(Comparer.Equals(x: group.Key,y: key)) return group;
+            if((Comparer??EqualityComparer<TKey>.Default).Equals(x: group.Key,y: key)) return group;
         }
         return null;
     }

@@ -4,10 +4,15 @@ namespace Benchmark.Shared;
 #pragma warning disable xUnit1013
 #endif
 
-public class TsavoriteBase(int count = 80_000):Base(NormalizeCount(count)),IDisposable {
+public class TsavoriteBase:Base,IDisposable {
+    private readonly int ElementCount;
     private readonly Dictionary<int,SourceHandle<int>> srcCache = [];
     private readonly Dictionary<int,SourceHandle<int>> src2Cache = [];
     private readonly Dictionary<int,SourceHandle<int>> srcOneCache = [];
+
+    public TsavoriteBase(int Count = 80_000):base(NormalizeCount(Count)) {
+        this.ElementCount=Count;
+    }
 
     protected new global::Seamless.Tsavorite.Collections.HashSet<int> src(int scale) =>
         GetOrCreate(scale,srcCache,static length => CreateRange(1,length));
@@ -59,7 +64,7 @@ public class TsavoriteBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
         int scale,
         Dictionary<int,SourceHandle<int>> cache,
         Func<int,int[]> factory) {
-        var length=CountForComparison(CountForTestTiming(count*scale));
+        var length=CountForComparison(CountForTestTiming(this.ElementCount*scale));
         if(cache.TryGetValue(length,out var handle)) {
             return handle.Set;
         }

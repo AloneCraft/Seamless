@@ -5,49 +5,41 @@ namespace Seamless.Linq;
 
 public static class SetEnumerableExtensions {
     public static Select<TSource, TResult> Select<TInput, TSource, TResult>(this Select<TInput, TSource> source, Func<TSource, TResult> selector) {
-        ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(selector);
         return new Select<TSource, TResult>(source, selector);
     }
 
     public static Select<TSource, TResult> Select<TInput, TSource, TResult>(this Select<TInput, TSource> source, Func<TSource, int, TResult> selector) {
-        ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(selector);
         return new Select<TSource, TResult>(source, selector);
     }
 
     public static Where<TSource> Where<TInput, TSource>(this Select<TInput, TSource> source, Func<TSource, bool> predicate) {
-        ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(predicate);
         return new Where<TSource>(source, predicate);
     }
 
     public static Where<TSource> Where<TInput, TSource>(this Select<TInput, TSource> source, Func<TSource, int, bool> predicate) {
-        ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(predicate);
         return new Where<TSource>(source, predicate);
     }
 
     public static Select<TSource, TResult> Select<TSource, TResult>(this Where<TSource> source, Func<TSource, TResult> selector) {
-        ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(selector);
         return new Select<TSource, TResult>(source, selector);
     }
 
     public static Select<TSource, TResult> Select<TSource, TResult>(this Where<TSource> source, Func<TSource, int, TResult> selector) {
-        ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(selector);
         return new Select<TSource, TResult>(source, selector);
     }
 
     public static Where<TSource> Where<TSource>(this Where<TSource> source, Func<TSource, bool> predicate) {
-        ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(predicate);
         return new Where<TSource>(source, predicate);
     }
 
     public static Where<TSource> Where<TSource>(this Where<TSource> source, Func<TSource, int, bool> predicate) {
-        ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(predicate);
         return new Where<TSource>(source, predicate);
     }
@@ -77,7 +69,7 @@ public struct Enumerator(IEnumerable<TSource> source, Func<TSource, TResult>? se
     Func<TSource, TResult>? selector = selector;
     Func<TSource, int, TResult>? selectorWithIndex = selectorWithIndex;
     int index;
-    TResult current;
+    TResult current = default!;
 
         public TResult Current => current!;
 
@@ -123,7 +115,7 @@ public struct Enumerator(IEnumerable<TSource> source, Func<TSource, bool>? predi
     Func<TSource, bool>? predicate = predicate;
     Func<TSource, int, bool>? predicateWithIndex = predicateWithIndex;
     int index;
-    TSource current;
+    TSource current = default!;
 
         public TSource Current => current!;
 
