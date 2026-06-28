@@ -12,6 +12,108 @@ public enum BenchmarkMeasurementHighlightState{
     RetainedDuringRun,
 }
 
+public enum BenchmarkStatusImageKind{
+    None,
+    Waiting,
+    Running,
+    Completed,
+    FinalCompleted,
+    Failed,
+    NoMeasurement,
+}
+
+internal static class BenchmarkStatusImageNames{
+    public const string Waiting = "status_waiting.png";
+    public const string Completed = "status_completed.png";
+    public const string FinalCompleted = "status_final_completed.png";
+    public const string Failed = "status_failed.png";
+    public const string NoMeasurement = "status_no_measurement.png";
+    public const string CpuIdle = "status_cpu_idle.png";
+    public const string CpuRunning = "status_cpu_running.png";
+
+    public static string FromKind(BenchmarkStatusImageKind kind) =>
+        kind switch{
+            BenchmarkStatusImageKind.Waiting => Waiting,
+            BenchmarkStatusImageKind.Completed => Completed,
+            BenchmarkStatusImageKind.FinalCompleted => FinalCompleted,
+            BenchmarkStatusImageKind.Failed => Failed,
+            BenchmarkStatusImageKind.NoMeasurement => NoMeasurement,
+            BenchmarkStatusImageKind.Running => CpuRunning,
+            _ => string.Empty,
+        };
+}
+
+internal static class BenchmarkCpuCoreImageNames{
+    public const string Performance = "cpu_p_core.png";
+    public const string Efficiency = "cpu_e_core.png";
+
+    public static string FromCoreKind(CpuCoreKind kind) =>
+        kind switch{
+            CpuCoreKind.Performance => Performance,
+            CpuCoreKind.Efficiency => Efficiency,
+            _ => string.Empty,
+        };
+}
+
+internal readonly record struct BenchmarkStatusImageInput(
+    bool HasCase,
+    bool IsRunning,
+    bool IsFailed,
+    bool HasMeasuredValue,
+    bool IsCompletedWithoutMeasurement,
+    bool IsSelected,
+    bool IsRowFinalCompleted);
+
+internal static class BenchmarkStatusImageLogic{
+    public static BenchmarkStatusImageKind GetProjectKind(BenchmarkStatusImageInput input){
+        if(!input.HasCase){
+            return BenchmarkStatusImageKind.None;
+        }
+
+        if(input.IsRunning){
+            return BenchmarkStatusImageKind.Running;
+        }
+
+        if(input.IsFailed){
+            return BenchmarkStatusImageKind.Failed;
+        }
+
+        if(input.HasMeasuredValue){
+            return input.IsRowFinalCompleted
+                ? BenchmarkStatusImageKind.FinalCompleted
+                : BenchmarkStatusImageKind.Completed;
+        }
+
+        if(input.IsCompletedWithoutMeasurement){
+            return BenchmarkStatusImageKind.NoMeasurement;
+        }
+
+        return input.IsSelected
+            ? BenchmarkStatusImageKind.Waiting
+            : BenchmarkStatusImageKind.None;
+    }
+}
+
+internal static class BenchmarkCpuStatusImageLogic{
+    public static string GetImageSource(string status) =>
+        string.Equals(status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase)
+            ? BenchmarkStatusImageNames.CpuRunning
+            : string.Equals(status,"Completed",StringComparison.OrdinalIgnoreCase)
+                ? BenchmarkStatusImageNames.Completed
+                : string.Equals(status,"Failed",StringComparison.OrdinalIgnoreCase)
+                    ? BenchmarkStatusImageNames.Failed
+                    : BenchmarkStatusImageNames.CpuIdle;
+
+    public static string GetStatusText(string status) =>
+        string.Equals(status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase)
+            ? "実行中"
+            : string.Equals(status,"Completed",StringComparison.OrdinalIgnoreCase)
+                ? "完了"
+                : string.Equals(status,"Failed",StringComparison.OrdinalIgnoreCase)
+                    ? "失敗"
+                    : status;
+}
+
 internal static class BenchmarkMeasurementHighlightLogic{
     public static BenchmarkMeasurementHighlightState AdvanceForRunningElement(
         BenchmarkMeasurementHighlightState current,
@@ -109,6 +211,61 @@ internal sealed record BenchmarkElementMeasurement(
     int ElementCount,
     string Status,
     double? MeanNanoseconds);
+
+internal static class BenchmarkRowCompletionLogic{
+    public static bool IsFinalCompleted(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        string method,
+        string leftProject,
+        string rightProject,
+        int maxElementCount,
+        double thresholdNanoseconds){
+        var methodMeasurements = measurements
+            .Where(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if(methodMeasurements.Length==0){
+            return false;
+        }
+
+        return HasThresholdCompletion(methodMeasurements,leftProject,rightProject,thresholdNanoseconds)
+            ||HasCompletedMaxElementCount(methodMeasurements,leftProject,rightProject,maxElementCount);
+    }
+
+    private static bool HasThresholdCompletion(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        string leftProject,
+        string rightProject,
+        double thresholdNanoseconds) =>
+        measurements.Any(result =>
+            IsPairProject(result.Project,leftProject,rightProject)
+            &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+            &&result.MeanNanoseconds is { } mean
+            &&mean>thresholdNanoseconds);
+
+    private static bool HasCompletedMaxElementCount(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        string leftProject,
+        string rightProject,
+        int maxElementCount){
+        if(maxElementCount<=0){
+            return false;
+        }
+
+        return HasCompletedMeasurement(measurements,leftProject,maxElementCount)
+            &&HasCompletedMeasurement(measurements,rightProject,maxElementCount);
+    }
+
+    private static bool HasCompletedMeasurement(IEnumerable<BenchmarkElementMeasurement> measurements,string project,int elementCount) =>
+        measurements.Any(result =>
+            string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase)
+            &&result.ElementCount==elementCount
+            &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+            &&result.MeanNanoseconds is not null);
+
+    private static bool IsPairProject(string project,string leftProject,string rightProject) =>
+        string.Equals(project,leftProject,StringComparison.OrdinalIgnoreCase)
+        ||string.Equals(project,rightProject,StringComparison.OrdinalIgnoreCase);
+}
 
 internal static class BenchmarkSkippedDisplayLogic{
     public static int? FindPairStoppedAt(

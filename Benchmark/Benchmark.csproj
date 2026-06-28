@@ -29,6 +29,15 @@
     <MauiImage Include="Resources\Images\save.svg" BaseSize="24,24" />
     <MauiImage Include="Resources\Images\save_as.svg" BaseSize="24,24" />
     <MauiImage Include="Resources\Images\open.svg" BaseSize="24,24" />
+    <MauiImage Include="Resources\Images\status_waiting.svg" BaseSize="24,24" />
+    <MauiImage Include="Resources\Images\status_completed.svg" BaseSize="24,24" />
+    <MauiImage Include="Resources\Images\status_final_completed.svg" BaseSize="24,24" />
+    <MauiImage Include="Resources\Images\status_failed.svg" BaseSize="24,24" />
+    <MauiImage Include="Resources\Images\status_no_measurement.svg" BaseSize="24,24" />
+    <MauiImage Include="Resources\Images\status_cpu_idle.svg" BaseSize="24,24" />
+    <MauiImage Include="Resources\Images\status_cpu_running.svg" BaseSize="24,24" />
+    <MauiImage Include="Resources\Images\cpu_p_core.svg" BaseSize="24,24" />
+    <MauiImage Include="Resources\Images\cpu_e_core.svg" BaseSize="24,24" />
   </ItemGroup>
 
   <ItemGroup>
