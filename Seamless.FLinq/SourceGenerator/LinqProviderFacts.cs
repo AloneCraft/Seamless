@@ -57,6 +57,16 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
+    private static bool IsPersistedConcreteListType(ITypeSymbol? type,out ITypeSymbol elementType) {
+        if(TryMatchGenericNamedType(type,"Seamless.Persisted.Collections","PersistedList`1",out var named)) {
+            elementType=named.TypeArguments[0];
+            return true;
+        }
+
+        elementType=null!;
+        return false;
+    }
+
     private static bool TryMatchGenericNamedType(
         ITypeSymbol? type,
         string namespaceName,

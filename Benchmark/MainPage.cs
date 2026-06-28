@@ -26,14 +26,21 @@ public sealed class MainPage:ContentPage {
     private const double CpuLogicalNumberWidth = 26;
     private const double LowerTabBarHeight = 34;
     private const double CpuSectionHeaderHeight = 34;
-    private const double CpuSectionGridHeaderHeight = 30;
-    private const double CpuSectionRowHeight = 24;
+    private const double BenchmarkGridRowHeight = 24;
+    private const double BenchmarkGridHeaderRowHeight = 30;
+    private const double BenchmarkGridCellFontSize = 10;
+    private const double BenchmarkGridDetailFontSize = 9;
+    private const double CpuGridRowHeight = 24;
+    private const double CpuGridHeaderRowHeight = 30;
+    private const double CpuGridCellFontSize = 10;
+    private const double CpuSectionGridHeaderHeight = CpuGridHeaderRowHeight;
+    private const double CpuSectionRowHeight = CpuGridRowHeight;
     private const double CpuSectionGridExtraHeight = 2;
     private const double CpuSectionSpacing = 3;
     private const double CpuListSpacing = 10;
     private const double CpuContentRowSpacing = 10;
-    private BenchmarkRunnerViewModel? viewModel;
-    private Grid? rootLayout;
+    private readonly BenchmarkRunnerViewModel? viewModel;
+    private readonly Grid? rootLayout;
     private View? activeDialogOverlay;
     private readonly List<Action> collapsibleSectionRefreshers = [];
     private readonly Dictionary<BenchmarkToolbarButtonRole,ImageButton> toolbarButtons = [];
@@ -272,7 +279,7 @@ public sealed class MainPage:ContentPage {
                 Offset=new Point(0,8),
             },
             Padding=new Thickness(24,22),
-            MaximumWidthRequest=640,
+            MaximumWidthRequest=860,
             HorizontalOptions=LayoutOptions.Center,
             VerticalOptions=LayoutOptions.Center,
         };
@@ -331,7 +338,7 @@ public sealed class MainPage:ContentPage {
             BorderWidth=1,
             FontSize=14,
             FontAttributes=FontAttributes.Bold,
-            Padding=new Thickness(16,0),
+            Padding=new Thickness(12,0),
         };
         switch(option.Kind) {
             case ConfirmDialogButtonKind.Primary:
@@ -1120,8 +1127,8 @@ public sealed class MainPage:ContentPage {
         StartupDiagnostics.WriteSyncfusionAssemblies("CreateBenchmarkGrid before SfDataGrid");
         var grid = new SfDataGrid {
             AutoGenerateColumnsMode=AutoGenerateColumnsMode.None,
-            RowHeight=36,
-            HeaderRowHeight=30,
+            RowHeight=BenchmarkGridRowHeight,
+            HeaderRowHeight=BenchmarkGridHeaderRowHeight,
             AllowTriStateSorting=false,
             SortingMode=DataGridSortingMode.None,
             SelectionMode=DataGridSelectionMode.None,
@@ -1132,7 +1139,7 @@ public sealed class MainPage:ContentPage {
         };
         grid.QueryRowHeight+=(_,args) => {
             if(args.RowIndex<2) {
-                args.Height=30;
+                args.Height=BenchmarkGridHeaderRowHeight;
             }
         };
         grid.SetBinding(SfDataGrid.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.BenchmarkRows));
@@ -1476,7 +1483,7 @@ public sealed class MainPage:ContentPage {
                 };
                 var logicalCore = new Label {
                     Text="論理コア",
-                    FontSize=10,
+                    FontSize=BenchmarkGridCellFontSize,
                     FontAttributes=FontAttributes.Bold,
                     TextColor=Color.FromArgb("#0F172A"),
                     HorizontalTextAlignment=TextAlignment.Center,
@@ -1587,7 +1594,7 @@ public sealed class MainPage:ContentPage {
                 CPU.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.LogicalProcessorText));
                 CPU.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.LogicalProcessorText));
                 var detail = new Label {
-                    FontSize=9,
+                    FontSize=BenchmarkGridDetailFontSize,
                     TextColor=Color.FromArgb("#334155"),
                     InputTransparent=true,
                     LineBreakMode=LineBreakMode.TailTruncation,
@@ -1597,7 +1604,7 @@ public sealed class MainPage:ContentPage {
                 detail.SetBinding(Label.TextColorProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionTextColor));
                 detail.SetBinding(Label.FontAttributesProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionFontAttributes));
                 var failureDetail = new Label {
-                    FontSize=9,
+                    FontSize=BenchmarkGridDetailFontSize,
                     TextColor=Color.FromArgb("#DC2626"),
                     InputTransparent=true,
                     LineBreakMode=LineBreakMode.TailTruncation,
@@ -2019,8 +2026,8 @@ public sealed class MainPage:ContentPage {
         StartupDiagnostics.WriteSyncfusionAssemblies("CreateCpuSectionView before SfDataGrid");
         var grid = new SfDataGrid {
             AutoGenerateColumnsMode=AutoGenerateColumnsMode.None,
-            RowHeight=24,
-            HeaderRowHeight=30,
+            RowHeight=CpuGridRowHeight,
+            HeaderRowHeight=CpuGridHeaderRowHeight,
             AllowTriStateSorting=false,
             SortingMode=DataGridSortingMode.None,
             GridLinesVisibility=GridLinesVisibility.Both,
@@ -2118,7 +2125,7 @@ public sealed class MainPage:ContentPage {
                         new Binding(nameof(CpuTableRow.BadgeImageSource),converter: new ImageFileSourceConverter()));
                 }
                 var label = new Label {
-                    FontSize=10,
+                    FontSize=CpuGridCellFontSize,
                     TextColor=Color.FromArgb("#334155"),
                     HorizontalTextAlignment=TextAlignment.Start,
                     VerticalTextAlignment=TextAlignment.Center,
@@ -2216,7 +2223,7 @@ public sealed class MainPage:ContentPage {
                         new Binding(cellPath+"."+nameof(CpuTableCell.CoreKindImageSource),converter: new ImageFileSourceConverter()));
                 }
                 var numberLabel = new Label {
-                    FontSize=10,
+                    FontSize=CpuGridCellFontSize,
                     TextColor=Color.FromArgb("#0F172A"),
                     HorizontalTextAlignment=TextAlignment.Start,
                     VerticalTextAlignment=TextAlignment.Center,

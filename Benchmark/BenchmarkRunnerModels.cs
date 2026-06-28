@@ -1080,8 +1080,7 @@ public sealed class CpuSelectionItem:ObservableObject{
         +" "+this.RunStatusText
         +(string.IsNullOrWhiteSpace(this.CurrentJobText) ? string.Empty : " "+this.CurrentJobText);
     public string LogicalProcessorText => this.LogicalProcessorIndex.ToString(CultureInfo.InvariantCulture);
-    public string CellStatusText =>
-        string.IsNullOrWhiteSpace(this.CurrentJobText) ? this.RunStatusText : this.CurrentJobText;
+    public string CellStatusText => BenchmarkCpuStatusImageLogic.GetCellStatusText(this.RunStatusText,this.CurrentJobText);
     public Color BadgeBackgroundColor => this.CoreKind switch{
         CpuCoreKind.Performance => Color.FromArgb("#DBEAFE"),
         CpuCoreKind.Efficiency => Color.FromArgb("#DCFCE7"),

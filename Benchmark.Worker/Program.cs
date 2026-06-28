@@ -284,8 +284,7 @@ internal sealed record WorkerResultMessage(
     int ExitCode,
     string ArtifactFolder,
     string Log);
-
-sealed class EmptyDisposable:IDisposable{
+internal sealed class EmptyDisposable:IDisposable{
     public static EmptyDisposable Instance { get; } = new();
 
     public void Dispose(){
