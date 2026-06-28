@@ -279,7 +279,7 @@ public abstract class ListTestBase<TStrategy, T>
             var chunkList = chunks.ToList();
             Assert.Equal(4,chunkList.Count);
             Assert.Equal(3,chunkList[0].Length);
-            Assert.Equal(1,chunkList[3].Length);
+            Assert.Single(chunkList[3]);
         }
         finally {
             TryDeleteDirectory(path);
@@ -310,8 +310,10 @@ public abstract class ListTestBase<TStrategy, T>
             h.List.Add(TStrategy.Elem(1));
             h.List.Add(TStrategy.Elem(2));
 
-            Assert.True(h.List.Contains(TStrategy.Elem(1)));
-            Assert.False(h.List.Contains(TStrategy.Elem(99)));
+            Assert.Contains(TStrategy.Elem(1),h.List);
+#pragma warning disable xUnit2012
+            Assert.False(h.List.Any(item => EqualityComparer<T>.Default.Equals(item,TStrategy.Elem(99))));
+#pragma warning restore xUnit2012
         }
         finally {
             TryDeleteDirectory(path);
@@ -323,7 +325,7 @@ public abstract class ListTestBase<TStrategy, T>
         var path = CreatePath();
         try {
             using var h = TStrategy.CreateList(path);
-            Assert.Equal(0,h.List.Count());
+            Assert.Empty(h.List);
             h.List.Add(TStrategy.Elem(1));
             h.List.Add(TStrategy.Elem(2));
             Assert.Equal(2,h.List.Count());

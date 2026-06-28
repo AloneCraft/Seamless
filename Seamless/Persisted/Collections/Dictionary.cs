@@ -115,7 +115,13 @@ public class SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>
     }
 
     private sealed class SerializedKeyComparer:IComparer<TKey> {
-        public int Compare(TKey x,TKey y) {
+        public int Compare(TKey? x,TKey? y) {
+            if(x is null) {
+                return y is null ? 0 : -1;
+            }
+            if(y is null) {
+                return 1;
+            }
             var left = x;
             var right = y;
             var leftBytes = TKeySerializer.Serialize(ref left);

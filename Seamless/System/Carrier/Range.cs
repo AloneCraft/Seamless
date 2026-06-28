@@ -261,7 +261,7 @@ namespace Seamless.System.Carrier {
             if(index<count) {
                 if(index!=0) {
                     checked {
-                        value+=step;
+                        value+=timeSpan;
                     }
                 }
 
@@ -306,7 +306,7 @@ namespace Seamless.System.Carrier {
             if(index<count) {
                 if(index!=0) {
                     checked {
-                        value+=step;
+                        value+=timeSpan;
                     }
                 }
 

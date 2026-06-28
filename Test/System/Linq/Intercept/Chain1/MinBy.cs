@@ -12,13 +12,13 @@ public sealed class MinBy(ITestOutputHelper output):LinqChain1TestBase(output) {
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
-    private static void keySelector_StaticOptimized(dynamic expected) {
+    private static void keySelector_StaticOptimized(dynamic? expected) {
         var actual=Rows().MinBy(static row => row.Key);
         Assert.Equal(expected,actual);
     }
 
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
-    private static void keySelector_StaticNoOptimized(dynamic expected) {
+    private static void keySelector_StaticNoOptimized(dynamic? expected) {
         var actual=Rows().MinBy(static row => row.Key);
         Assert.Equal(expected,actual);
     }
@@ -31,13 +31,13 @@ public sealed class MinBy(ITestOutputHelper output):LinqChain1TestBase(output) {
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
-    private static void keySelector_LambdaOptimized(dynamic expected) {
+    private static void keySelector_LambdaOptimized(dynamic? expected) {
         var actual=Rows().MinBy(row => row.Key);
         Assert.Equal(expected,actual);
     }
 
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
-    private static void keySelector_LambdaNoOptimized(dynamic expected) {
+    private static void keySelector_LambdaNoOptimized(dynamic? expected) {
         var actual=Rows().MinBy(row => row.Key);
         Assert.Equal(expected,actual);
     }
@@ -51,14 +51,14 @@ public sealed class MinBy(ITestOutputHelper output):LinqChain1TestBase(output) {
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
-    private static void keySelector_CapturedOptimized(dynamic expected) {
+    private static void keySelector_CapturedOptimized(dynamic? expected) {
         var offset=0;
         var actual=Rows().MinBy(row => row.Key+offset);
         Assert.Equal(expected,actual);
     }
 
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
-    private static void keySelector_CapturedNoOptimized(dynamic expected) {
+    private static void keySelector_CapturedNoOptimized(dynamic? expected) {
         var offset=0;
         var actual=Rows().MinBy(row => row.Key+offset);
         Assert.Equal(expected,actual);
@@ -72,13 +72,13 @@ public sealed class MinBy(ITestOutputHelper output):LinqChain1TestBase(output) {
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
-    private static void keySelector_DelegateSyntaxOptimized(dynamic expected) {
+    private static void keySelector_DelegateSyntaxOptimized(dynamic? expected) {
         var actual=Rows().MinBy(delegate(Chain1Row row) { return row.Key; });
         Assert.Equal(expected,actual);
     }
 
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
-    private static void keySelector_DelegateSyntaxNoOptimized(dynamic expected) {
+    private static void keySelector_DelegateSyntaxNoOptimized(dynamic? expected) {
         var actual=Rows().MinBy(delegate(Chain1Row row) { return row.Key; });
         Assert.Equal(expected,actual);
     }
@@ -92,14 +92,14 @@ public sealed class MinBy(ITestOutputHelper output):LinqChain1TestBase(output) {
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
-    private static void keySelector_VariableOptimized(dynamic expected) {
+    private static void keySelector_VariableOptimized(dynamic? expected) {
         Func<Chain1Row,int> keySelector=row => row.Key;
         var actual=Rows().MinBy(keySelector);
         Assert.Equal(expected,actual);
     }
 
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
-    private static void keySelector_VariableNoOptimized(dynamic expected) {
+    private static void keySelector_VariableNoOptimized(dynamic? expected) {
         Func<Chain1Row,int> keySelector=row => row.Key;
         var actual=Rows().MinBy(keySelector);
         Assert.Equal(expected,actual);

@@ -393,7 +393,7 @@ public sealed class MainPage:ContentPage {
                 "キャンセル");
 
         public async Task<BenchmarkOpenTarget?> PickOpenTargetAsync() {
-            var result = await this.page.DisplayActionSheet(
+            var result = await this.page.DisplayActionSheetAsync(
                 "開く",
                 "キャンセル",
                 null,

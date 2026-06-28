@@ -75,7 +75,7 @@ public sealed class Counter {
     }
 
     [Fact,Trait("Category","Unit")]
-    public static void CounterScope_can_share_counter_across_parallel_tasks() {
+    public static async Task CounterScope_can_share_counter_across_parallel_tasks() {
         using var scope = LinqCounterScope.Start();
         var counter = scope.Counter;
         var tasks = Enumerable.Range(0,4)
@@ -85,7 +85,7 @@ public sealed class Counter {
             }))
             .ToArray();
 
-        Task.WaitAll(tasks);
+        await Task.WhenAll(tasks);
 
         LinqCounterDiagnostics.EmitActual(nameof(CounterScope_can_share_counter_across_parallel_tasks),scope.Counter);
         Assert.All(tasks,static task => Assert.Equal([5,7,9],task.Result));

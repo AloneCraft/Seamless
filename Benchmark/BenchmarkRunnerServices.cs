@@ -690,7 +690,7 @@ public sealed class BenchmarkComparisonService:IBenchmarkComparisonService {
         double? ratio = leftNumber>0&&rightNumber>0
             ? leftNumber/rightNumber
             : null;
-        var metricName = metric==BenchmarkMetricKind.Time?"時間":"割当";
+        var metricName = metric==BenchmarkMetricKind.Time?"Time":"Allocated";
         var leftText = total>0 ? (leftNumber/total).ToString("P0",CultureInfo.InvariantCulture) : "0%";
         var rightText = total>0 ? (rightNumber/total).ToString("P0",CultureInfo.InvariantCulture) : "0%";
         var tooltip = $"{row.Benchmark}\n{pair.LeftProject} {metricName}: {FirstText(leftText,"-")}\n{pair.RightProject} {metricName}: {FirstText(rightText,"-")}\n比率: {(ratio is { } value?value.ToString("0.00",CultureInfo.InvariantCulture):"-")}";
@@ -828,51 +828,6 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
             }
         }
 
-        var scale = "1";
-        var runRoot = CreateRunRoot();
-        var queue = queueService.CreateQueue(benchmarks);
-        var results = new List<BenchmarkResultItem>();
-        var gate = new object();
-        var completed = 0;
-        var total = benchmarks.Count;
-        var cpus = logicalCpus.Count==0?[0]:logicalCpus;
-        var workers = cpus.Select(cpu => Task.Run(async () => {
-            while(queue.TryDequeue(out var benchmark)) {
-                cancellationToken.ThrowIfCancellationRequested();
-                var current = Interlocked.Increment(ref completed);
-                statusChanged($"実行中 {current}/{total}: {benchmark.MethodName} / CPU {cpu}");
-                BenchmarkResultItem item;
-                try {
-                    var result = await workerService.RunAsync(benchmark,runRoot,sourceTab,elementCounts,scale,cpu,cancellationToken);
-                    item=new BenchmarkResultItem(result);
-                } catch(Exception ex) when(ex is not OperationCanceledException) {
-                    item=BenchmarkResultItem.Failed(benchmark,ex);
-                }
-
-                lock(gate) {
-                    results.Add(item);
-                }
-                resultReceived(item);
-            }
-        },cancellationToken)).ToArray();
-
-        var canceled = false;
-        string? csvPath = null;
-        try {
-            await Task.WhenAll(workers);
-        } catch(OperationCanceledException) when(cancellationToken.IsCancellationRequested) {
-            canceled=true;
-        } finally {
-            IReadOnlyList<BenchmarkComparisonRow> rows;
-            lock(gate) {
-                rows=comparisonService.BuildRows(results);
-            }
-            csvPath=csvService.WriteComparisonCsv(runRoot,rows);
-            WriteSummary(runRoot,benchmarks.Count,results.Count,csvPath);
-            statusChanged(canceled?$"中止: {csvPath}":$"完了: {csvPath}");
-        }
-
-        return new BenchmarkRunReport(csvPath);
     }
 
     private IBenchmarkJobRunner CreateJobRunner(BenchmarkExecutionProfile executionProfile) =>

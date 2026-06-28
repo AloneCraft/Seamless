@@ -42,11 +42,10 @@ namespace Test.Seamless.Database.Database0 {
             Assert.Equal(インターセプト後,インターセプト前);
         }
         private readonly struct StructInstanceSelect0(int a) {
-            public int selector0(int p) => p*p;
+            public int selector0(int p) => p*p+a*0;
         }
         [Fact, Trait("Category","Unit")]
         public void Select非staticデリゲートだが実質staticデリゲート() {
-            var a = 3;
             var インターセプト前 = new int[3].Select(p => p*p);//非staticだが実質staticに出来るのでインライン成功している
             var インターセプト後 = 置き換え先メソッド();
             static List<int> 置き換え先メソッド() {
