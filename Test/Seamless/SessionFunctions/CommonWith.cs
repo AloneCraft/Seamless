@@ -11,8 +11,8 @@ public abstract class CommonWith<TKey,TSet>
     protected abstract void ExpectedWith(global::System.Collections.Generic.HashSet<TKey> set,global::System.Collections.Generic.HashSet<TKey> other);
 
     protected void RunWithAB(int iterations = 10) {
-        var (setA,storeA)=CreateSet();
-        var (setB,storeB)=CreateSet();
+        var (setA,storeA)=this.CreateSet();
+        var (setB,storeB)=this.CreateSet();
         using var _storeA = storeA;
         using var _storeB = storeB;
         using var _setA = setA;
@@ -20,24 +20,24 @@ public abstract class CommonWith<TKey,TSet>
         var hashSetA = new global::System.Collections.Generic.HashSet<TKey>();
         var hashSetB = new global::System.Collections.Generic.HashSet<TKey>();
         for(var b = 0; b<iterations; b++) {
-            ResetWithRange(hashSetA,setA,0);
-            ResetWithRange(hashSetB,setB,b);
-            With(setA,setB);
-            ExpectedWith(hashSetA,hashSetB);
+            this.ResetWithRange(hashSetA,setA,0);
+            this.ResetWithRange(hashSetB,setB,b);
+            this.With(setA,setB);
+            this.ExpectedWith(hashSetA,hashSetB);
             Assert.Equal(hashSetA.Count,setA.Count);
             Assert.Equal(hashSetB.Count,setB.Count);
         }
     }
 
     protected void RunWithAA(int iterations = 8) {
-        var (setA,storeA)=CreateSet();
+        var (setA,storeA)=this.CreateSet();
         using var _storeA = storeA;
         using var _setA = setA;
         var hashSetA = new global::System.Collections.Generic.HashSet<TKey>();
         for(var b = 0; b<iterations; b++) {
-            ResetWithRange(hashSetA,setA,b);
-            With(setA,setA);
-            ExpectedWith(hashSetA,hashSetA);
+            this.ResetWithRange(hashSetA,setA,b);
+            this.With(setA,setA);
+            this.ExpectedWith(hashSetA,hashSetA);
             Assert.Equal(hashSetA.Count,setA.Count);
         }
     }
@@ -46,7 +46,7 @@ public abstract class CommonWith<TKey,TSet>
         hashSet.Clear();
         set.Clear();
         for(var a = 0; a<8; a++) {
-            var key = CreateKey(a+offset);
+            var key = this.CreateKey(a+offset);
             hashSet.Add(key);
             set.Add(key);
         }

@@ -28,13 +28,12 @@ namespace Seamless.System.Carrier {
         :IValueEnumerator<TResult>
             where TEnumerator : struct, IValueEnumerator<TOuter>
             where TEnumerator2 : struct, IValueEnumerator<TInner> {
-        TEnumerator source = source;
-        TEnumerator2 inner = inner;
-
-        Lookup<TKey,TOuter>? outerLookup;
-        Grouping<TKey,TOuter>? currentGroup;
-        int currentGroupIndex;
-        TInner currentInner = default!;
+        private TEnumerator source = source;
+        private TEnumerator2 inner = inner;
+        private Lookup<TKey,TOuter>? outerLookup;
+        private Grouping<TKey,TOuter>? currentGroup;
+        private int currentGroupIndex;
+        private TInner currentInner = default!;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -49,38 +48,38 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TResult> destination,Index offset) => false;
 
         public bool TryGetNext(out TResult current) {
-            if(outerLookup==null) {
+            if(this.outerLookup==null) {
                 try {
                     // CreateForJoin excludes null.
                     // If we want to accept null keys, we should create a lookup with null keys and join them.
                     // However, this behavior matches the official dotnet implementation.
-                    outerLookup=Lookup.CreateForJoin(ref source,outerKeySelector,comparer);
+                    this.outerLookup=Lookup.CreateForJoin(ref this.source,outerKeySelector,comparer);
                 }
                 finally {
-                    source.Dispose();
+                    this.source.Dispose();
                 }
             }
 
             // iterating group
         ITERATE:
-            if(currentGroup!=null) {
-                if(currentGroupIndex<currentGroup.Count) {
-                    current=resultSelector(currentGroup[currentGroupIndex],currentInner);
-                    currentGroupIndex++;
+            if(this.currentGroup!=null) {
+                if(this.currentGroupIndex<this.currentGroup.Count) {
+                    current=resultSelector(this.currentGroup[this.currentGroupIndex],this.currentInner);
+                    this.currentGroupIndex++;
                     return true;
                 }
                 else {
-                    currentGroup=null;
+                    this.currentGroup=null;
                 }
             }
 
-            while(inner.TryGetNext(out var value)) {
+            while(this.inner.TryGetNext(out var value)) {
                 var key = innerKeySelector(value);
-                var group = outerLookup.GetGroup(key);
+                var group = this.outerLookup.GetGroup(key);
                 if(group!=null) {
-                    currentInner=value;
-                    currentGroup=group;
-                    currentGroupIndex=0;
+                    this.currentInner=value;
+                    this.currentGroup=group;
+                    this.currentGroupIndex=0;
                     goto ITERATE;
                 }
                 else {
@@ -95,11 +94,11 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(outerLookup==null) // source is outer
+            if(this.outerLookup==null) // source is outer
             {
-                source.Dispose();
+                this.source.Dispose();
             }
-            inner.Dispose();
+            this.inner.Dispose();
         }
     }
 }

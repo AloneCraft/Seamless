@@ -85,12 +85,12 @@ public class LinqRewriteAttributeTests(ITestOutputHelper output) {
 
     [Fact]
     public void NoLinqRewrite_OnMethod_NotIntercepted() {
-        AssertNotIntercepted(NoRewriteOnMethod);
+        this.AssertNotIntercepted(NoRewriteOnMethod);
     }
 
     [Fact]
     public void NoAttribute_DefaultsToIntercepted() {
-        AssertIntercepted(DefaultRewrite);
+        this.AssertIntercepted(DefaultRewrite);
     }
 
     [Fact]
@@ -110,22 +110,22 @@ public class LinqRewriteAttributeTests(ITestOutputHelper output) {
 
     [Fact]
     public void NoLinqRewrite_OnClass_NotIntercepted() {
-        AssertNotIntercepted(NoRewriteOnClass);
+        this.AssertNotIntercepted(NoRewriteOnClass);
     }
 
     [Fact]
     public void LinqRewrite_OnMethod_OverridesNoRewriteOnClass() {
-        AssertIntercepted(MethodOverridesClass);
+        this.AssertIntercepted(MethodOverridesClass);
     }
 
     [Fact]
     public void LinqRewrite_OnClass_OverridesNoRewriteOnAssembly() {
-        AssertIntercepted(ClassOverridesAssembly);
+        this.AssertIntercepted(ClassOverridesAssembly);
     }
 
     [Fact]
     public void LinqRewrite_OnInnerClass_OverridesNoRewriteOnOuterClass() {
-        AssertIntercepted(InnerClassOverridesOuter);
+        this.AssertIntercepted(InnerClassOverridesOuter);
     }
 
     private void AssertIntercepted(string source) {

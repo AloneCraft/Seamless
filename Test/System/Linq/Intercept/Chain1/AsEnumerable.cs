@@ -9,8 +9,8 @@ public sealed class AsEnumerable(ITestOutputHelper output):LinqChain1TestBase(ou
     [Fact, Trait("Category","Unit")]
     public void NoDelegate() {
         var expected=Source().AsEnumerable().ToList();
-        MeasureOptimized(nameof(NoDelegateOptimized),()=>NoDelegateOptimized(expected));
-        MeasureOptimized(nameof(NoDelegateNoOptimized),()=>NoDelegateNoOptimized(expected));
+        this.MeasureOptimized(nameof(NoDelegateOptimized),()=>NoDelegateOptimized(expected));
+        this.MeasureOptimized(nameof(NoDelegateNoOptimized),()=>NoDelegateNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

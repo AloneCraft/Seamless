@@ -15,7 +15,7 @@ public sealed class IEnumerable<T>:SystemCollectionsGeneric.IEnumerable<T> {
     public static implicit operator IEnumerable<T>(List<T> source) => new(source);
     public static implicit operator IEnumerable<T>(SerializedList<T> source) => new(source);
 
-    public IEnumerator<T> GetEnumerator() => source.GetEnumerator();
+    public IEnumerator<T> GetEnumerator() => this.source.GetEnumerator();
 
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
 }

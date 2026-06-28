@@ -363,10 +363,10 @@ public sealed class BenchmarkWorkerProcessService:IBenchmarkWorkerProcessService
     private readonly BenchmarkWorkerClient client = new();
 
     public Task<BenchmarkJobRunResult> RunAsync(BenchmarkJob job,string runRoot,int logicalCpu,TimeSpan timeout,CancellationToken cancellationToken) =>
-        client.RunAsync(job,runRoot,logicalCpu,timeout,cancellationToken);
+        this.client.RunAsync(job,runRoot,logicalCpu,timeout,cancellationToken);
 
     public async Task<BenchmarkRunResult> RunAsync(BenchmarkCase benchmark,string runRoot,BenchmarkSourceTab sourceTab,IReadOnlyList<int> preparedElementCounts,string scale,int logicalCpu,CancellationToken cancellationToken) {
-        var result = await client.RunAsync(benchmark,runRoot,sourceTab,preparedElementCounts,0,scale,logicalCpu,TimeSpan.FromMinutes(60),cancellationToken);
+        var result = await this.client.RunAsync(benchmark,runRoot,sourceTab,preparedElementCounts,0,scale,logicalCpu,TimeSpan.FromMinutes(60),cancellationToken);
         return new BenchmarkRunResult(
             result.Project,
             result.Method,
@@ -653,7 +653,7 @@ public sealed class BenchmarkComparisonService:IBenchmarkComparisonService {
     }
 
     public IReadOnlyList<BenchmarkComparisonRow> BuildRows(IEnumerable<BenchmarkResultItem> results) {
-        var reportRows = results.Select(resultService.ToReportRow).ToArray();
+        var reportRows = results.Select(this.resultService.ToReportRow).ToArray();
         return BenchmarkComparisonFormatter.BuildComparisonRows(reportRows);
     }
 
@@ -742,7 +742,7 @@ public sealed class MemoryLogService:ILogService {
     }
 
     public void Append(string text) {
-        append(text);
+        this.append(text);
     }
 }
 

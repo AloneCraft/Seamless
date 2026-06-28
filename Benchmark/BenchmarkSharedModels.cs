@@ -12,7 +12,7 @@ public abstract class BenchmarkBindableObject:INotifyPropertyChanged{
         }
 
         field=value;
-        OnPropertyChanged(propertyName);
+        this.OnPropertyChanged(propertyName);
         return true;
     }
 
@@ -39,13 +39,13 @@ public sealed class CpuCoreInfo:BenchmarkBindableObject{
         int kindCoreIndex,
         long affinityMask,
         bool supportsAffinity){
-        LogicalProcessorIndex=logicalProcessorIndex;
-        CoreKind=coreKind;
-        PhysicalCoreIndex=physicalCoreIndex;
-        KindCoreIndex=kindCoreIndex;
-        AffinityMask=affinityMask;
-        SupportsAffinity=supportsAffinity;
-        isSelected=false;
+        this.LogicalProcessorIndex=logicalProcessorIndex;
+        this.CoreKind=coreKind;
+        this.PhysicalCoreIndex=physicalCoreIndex;
+        this.KindCoreIndex=kindCoreIndex;
+        this.AffinityMask=affinityMask;
+        this.SupportsAffinity=supportsAffinity;
+        this.isSelected=false;
     }
 
     public int LogicalProcessorIndex { get; }
@@ -54,27 +54,27 @@ public sealed class CpuCoreInfo:BenchmarkBindableObject{
     public int KindCoreIndex { get; }
     public long AffinityMask { get; }
     public bool SupportsAffinity { get; }
-    public string GroupDisplayText => CoreLabel;
-    public string CpuDisplayText => $"{LogicalProcessorIndex}({GroupDisplayText})";
+    public string GroupDisplayText => this.CoreLabel;
+    public string CpuDisplayText => $"{this.LogicalProcessorIndex}({this.GroupDisplayText})";
 
     public bool IsSelected{
-        get => isSelected;
+        get => this.isSelected;
         set{
-            if(SetProperty(ref isSelected,value)){
-                OnPropertyChanged(nameof(CheckGlyph));
+            if(this.SetProperty(ref this.isSelected,value)){
+                this.OnPropertyChanged(nameof(this.CheckGlyph));
             }
         }
     }
 
-    public string DisplayText => CpuDisplayText;
-    public string CheckGlyph => isSelected?"X":string.Empty;
-    public string CoreLabel => CoreKind switch{
-        CpuCoreKind.Performance => $"P{KindCoreIndex}",
-        CpuCoreKind.Efficiency => $"E{KindCoreIndex}",
-        _ => $"Core {PhysicalCoreIndex}",
+    public string DisplayText => this.CpuDisplayText;
+    public string CheckGlyph => this.isSelected ?"X":string.Empty;
+    public string CoreLabel => this.CoreKind switch{
+        CpuCoreKind.Performance => $"P{this.KindCoreIndex}",
+        CpuCoreKind.Efficiency => $"E{this.KindCoreIndex}",
+        _ => $"Core {this.PhysicalCoreIndex}",
     };
-    public string AffinityText => SupportsAffinity
-        ? $"mask {AffinityMask}"
+    public string AffinityText => this.SupportsAffinity
+        ? $"mask {this.AffinityMask}"
         : "affinity unsupported";
 }
 

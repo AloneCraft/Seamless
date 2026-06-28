@@ -29,10 +29,9 @@ namespace Seamless.System.Carrier {
         :IValueEnumerator<TResult>
         where TEnumerator : struct, IValueEnumerator<TOuter>
         where TEnumerator2 : struct, IValueEnumerator<TInner> {
-        TEnumerator source = source;
-        TEnumerator2 inner = inner;
-
-        Lookup<TKey,TInner>? innerLookup;
+        private TEnumerator source = source;
+        private TEnumerator2 inner = inner;
+        private Lookup<TKey,TInner>? innerLookup;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -47,19 +46,19 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TResult> destination,Index offset) => false;
 
         public bool TryGetNext(out TResult current) {
-            if(innerLookup==null) {
+            if(this.innerLookup==null) {
                 try {
-                    innerLookup=Lookup.CreateForJoin(ref inner,innerKeySelector,comparer);
+                    this.innerLookup=Lookup.CreateForJoin(ref this.inner,innerKeySelector,comparer);
                 }
                 finally {
-                    inner.Dispose();
+                    this.inner.Dispose();
                 }
             }
 
-            while(source.TryGetNext(out var value)) {
+            while(this.source.TryGetNext(out var value)) {
                 var key = outerKeySelector(value);
                 // Enumerable.GroupJoin allows null unlike Join
-                var group = innerLookup.GetGroup(key);
+                var group = this.innerLookup.GetGroup(key);
                 if(group!=null) {
                     current=resultSelector(value,group);
                     return true;
@@ -76,10 +75,10 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(innerLookup==null) {
-                inner.Dispose();
+            if(this.innerLookup==null) {
+                this.inner.Dispose();
             }
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 }

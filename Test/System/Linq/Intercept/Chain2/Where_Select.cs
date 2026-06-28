@@ -7,8 +7,8 @@ public sealed class Where_Select(ITestOutputHelper output):LinqChain2TestBase(ou
     [Fact, Trait("Category","Unit")]
     public void Static() {
         var expected=Source().Where(static v => v>2).Select(static v => v*10).ToList();
-        MeasureOptimized(nameof(StaticOptimized),()=>StaticOptimized(expected));
-        MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
+        this.MeasureOptimized(nameof(StaticOptimized),()=>StaticOptimized(expected));
+        this.MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -28,8 +28,8 @@ public sealed class Where_Select(ITestOutputHelper output):LinqChain2TestBase(ou
     [Fact, Trait("Category","Unit")]
     public void Query() {
         var expected=Source().Where(v => v>2).Select(v => v*10).ToList();
-        MeasureOptimized(nameof(QueryOptimized),()=>QueryOptimized(expected));
-        MeasureOptimized(nameof(QueryNoOptimized),()=>QueryNoOptimized(expected));
+        this.MeasureOptimized(nameof(QueryOptimized),()=>QueryOptimized(expected));
+        this.MeasureOptimized(nameof(QueryNoOptimized),()=>QueryNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -49,8 +49,8 @@ public sealed class Where_Select(ITestOutputHelper output):LinqChain2TestBase(ou
     [Fact, Trait("Category","Unit")]
     public void Lambda() {
         var expected=Source().Where(v => v>2).Select(v => v*10).ToList();
-        MeasureOptimized(nameof(LambdaOptimized),()=>LambdaOptimized(expected));
-        MeasureOptimized(nameof(LambdaNoOptimized),()=>LambdaNoOptimized(expected));
+        this.MeasureOptimized(nameof(LambdaOptimized),()=>LambdaOptimized(expected));
+        this.MeasureOptimized(nameof(LambdaNoOptimized),()=>LambdaNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

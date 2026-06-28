@@ -69,7 +69,7 @@ public class Any(int 番号,Enumerable source):Scalar(番号){
     }
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string InlineSupportingMembers => source.GetEnumeratorStruct;
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
@@ -78,8 +78,8 @@ public class Any(int 番号,Enumerable source):Scalar(番号){
             ? RangePredicateOptimizer.RenderAny(repeat,番号,destVar,destType)
         : source.NonEnumeratedCountExpression is { } countExpression
             ? $"{destType} {destVar}=({countExpression})!=0;"
-        : RenderDirectEnumerableCallInline(source,destVar,destType,"Any")
-            ?? RenderEnumeratorInline(destVar,destType);
+        : this.RenderDirectEnumerableCallInline(source,destVar,destType,"Any")
+            ??this.RenderEnumeratorInline(destVar,destType);
     private string RenderEnumeratorInline(string destVar,string destType) {
         var enumeratorName=$"__s{番号}";
         return $$"""
@@ -95,28 +95,28 @@ public class Any(int 番号,Enumerable source):Scalar(番号){
     }
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
-        {{DefineScalarEnumeratorStruct("bool")}}
+        {{this.DefineScalarEnumeratorStruct("bool")}}
         """;
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     public override string GetEnumeratorFields => $$"""
-        private bool {{yielded}} = false;
+        private bool {{this.yielded}} = false;
         """;
     public override string GetTryGetNextBody => $$"""
-        if(this.{{yielded}}) {
+        if(this.{{this.yielded}}) {
             current = default;
             return false;
         }
-        this.{{yielded}} = true;
-        if({{e}}.TryGetNonEnumeratedCount(out var __count)) {
-            this.{{currentValue}} = __count != 0;
+        this.{{this.yielded}} = true;
+        if({{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
+            this.{{this.currentValue}} = __count != 0;
         }else{
-            this.{{currentValue}} = {{e}}.MoveNext();
+            this.{{this.currentValue}} = {{this.e}}.MoveNext();
         }
-        current = this.{{currentValue}};
+        current = this.{{this.currentValue}};
         return true;
         """;
-    public override string GetCurrentExpression => currentValue;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    public override string GetCurrentExpression => this.currentValue;
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
 /*
@@ -133,79 +133,79 @@ source が span を確実に返せる場合は foreach(span) を生成し、そ�
 public class Any_predicate(int 番号, Enumerable source, FuncFragment predicate) : BufferedScalar(番号, "bool") {
     private string PredicateFuncType => $"global::System.Func<{source.ElementType}, bool>";
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => FuncSupport(predicate,nameof(predicate));
+    public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
-        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(predicate)})";
+        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
+        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
-        $"Compute({e}{ClosureArgsSuffix(predicate)})";
+        $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorConstructor =>
-        $"this.Current = Compute({e}{ClosureArgsSuffixForCtorBody(predicate)});";
+        $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
             ? RangePredicateOptimizer.RenderAny(range,predicate,番号,destVar,destType)
                 ?? (TryRenderDirectLambda(predicate) is { } rangeLambda
-                    ? RenderDirectEnumerableCallInline(source,destVar,destType,"Any",rangeLambda) ?? RenderComputeInline(destVar,destType)
-                    : RenderComputeInline(destVar,destType))
+                    ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Any",rangeLambda) ??this.RenderComputeInline(destVar,destType)
+                    : this.RenderComputeInline(destVar,destType))
         : TryRenderDirectLambda(predicate) is { } lambda
-            ? RenderDirectEnumerableCallInline(source,destVar,destType,"Any",lambda) ?? RenderComputeInline(destVar,destType)
-            : RenderComputeInline(destVar,destType);
+            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Any",lambda) ??this.RenderComputeInline(destVar,destType)
+            : this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static bool Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
+            private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
                 source.TryGetSpan(out var __span);
-                foreach(var {{item}} in __span){
-                    bool {{temp}}=default!;
-                    {{FuncAssignStaticIndented("        ",predicate,nameof(predicate),temp,item)}}
-                    if({{temp}}) return true;
+                foreach(var {{this.item}} in __span){
+                    bool {{this.temp}}=default!;
+                    {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
+                    if({{this.temp}}) return true;
                 }
                 return false;
             }
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static bool Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
+            private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
                 while(source.MoveNext()) {
-                    var {{item}}=source.Current;
-                    bool {{temp}}=default!;
-                    {{FuncAssignStaticIndented("        ",predicate,nameof(predicate),temp,item)}}
-                    if({{temp}}) return true;
+                    var {{this.item}}=source.Current;
+                    bool {{this.temp}}=default!;
+                    {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
+                    if({{this.temp}}) return true;
                 }
                 return false;
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
 public class Any_indexPredicate(int 番号, Enumerable source, FuncFragment predicate) : BufferedScalar(番号, "bool") {
     private string PredicateFuncType => $"global::System.Func<{source.ElementType}, int, bool>";
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => FuncSupport(predicate,nameof(predicate));
+    public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
-        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(predicate)})";
+        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {e}{ClosurePrimaryCtorSuffix(predicate)}";
+        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
-        $"Compute({e}{ClosureArgsSuffix(predicate)})";
+        $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorConstructor =>
-        $"this.Current = Compute({e}{ClosureArgsSuffixForCtorBody(predicate)});";
+        $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
-        private static bool Compute(TEnum source{{ClosureMethodParameterSuffix(predicate)}}) {
-            var {{a}}=0;
+        private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+            var {{this.a}}=0;
             while(source.MoveNext()) {
-                var {{item}}=source.Current;
-                bool {{temp}}=default!;
-                {{FuncAssignStaticIndented("        ",predicate,nameof(predicate),temp,item,a)}}
-                if({{temp}}) return true;
-                {{a}}++;
+                var {{this.item}}=source.Current;
+                bool {{this.temp}}=default!;
+                {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item,this.a)}}
+                if({{this.temp}}) return true;
+                {{this.a}}++;
             }
             return false;
         }
         """;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }

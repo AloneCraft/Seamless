@@ -29,32 +29,32 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
         if(funcSetup is null) return null;
         var fold = source.CanTryProvideSpan
             ? $$"""
-                {{source.ElementType}} {{result}};
+                {{source.ElementType}} {{this.result}};
                 if({{srcVar}}.TryGetSpan(out var __span)){
                     if(__span.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                    {{result}}=default!;
+                    {{this.result}}=default!;
                     var __first=true;
                     foreach(var __item in __span){
                         if(__first){
-                            {{result}}=__item;
+                            {{this.result}}=__item;
                             __first=false;
                         }else{
-                            {{this.FuncAssignInlineIndented("            ",func,nameof(func),funcVar,result,result,"__item")}}
+                            {{this.FuncAssignInlineIndented("            ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
                         }
                     }
                 }else{
                     if(!{{srcVar}}.TryGetNext(out var __item)) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                    {{result}}=__item;
+                    {{this.result}}=__item;
                     while({{srcVar}}.TryGetNext(out __item)){
-                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,result,result,"__item")}}
+                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
                     }
                 }
                 """
             : $$"""
                 if(!{{srcVar}}.TryGetNext(out var __item)) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                var {{result}}=__item;
+                var {{this.result}}=__item;
                 while({{srcVar}}.TryGetNext(out __item)){
-                    {{this.FuncAssignInlineIndented("    ",func,nameof(func),funcVar,result,result,"__item")}}
+                    {{this.FuncAssignInlineIndented("    ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
                 }
                 """;
         return $$"""
@@ -62,71 +62,71 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
             {{funcSetup}}
             using(var {{srcVar}}={{srcExpr}}){
                 {{fold}}
-                {{destVar}}={{result}};
+                {{destVar}}={{this.result}};
             }
             """;
     }
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => FuncSupport(func,nameof(func));
+    public override string StructMethod => this.FuncSupport(func,nameof(func));
     public override string GetEnumeratorExpression =>
-        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(func)})";
+        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(func)})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
-        {{DefineScalarEnumeratorStruct(source.ElementType)}}
+        {{this.DefineScalarEnumeratorStruct(source.ElementType)}}
         """;
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {e}{ClosurePrimaryCtorSuffix(func)}";
+        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(func)}";
     public override string GetEnumeratorFields => $$"""
-        private bool {{yielded}} = false;
+        private bool {{this.yielded}} = false;
         """;
     public override string GetTryGetNextBody => source.CanTryProvideSpan
         ? $$"""
-            if(this.{{yielded}}) {
+            if(this.{{this.yielded}}) {
                 current = default!;
                 return false;
             }
-            this.{{yielded}} = true;
-            {{source.ElementType}} {{result}};
-            if({{e}}.TryGetSpan(out var __span)){
+            this.{{this.yielded}} = true;
+            {{source.ElementType}} {{this.result}};
+            if({{this.e}}.TryGetSpan(out var __span)){
                 if(__span.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                {{result}}=default!;
+                {{this.result}}=default!;
                 var __first=true;
                 foreach(var __item in __span){
                     if(__first){
-                        {{result}}=__item;
+                        {{this.result}}=__item;
                         __first=false;
                     }else{
-                        {{FuncAssignIndented("            ",func,nameof(func),result,result,"__item")}}
+                        {{this.FuncAssignIndented("            ",func,nameof(func),this.result,this.result,"__item")}}
                     }
                 }
             }else{
-                if(!{{e}}.TryGetNext(out var {{item}})) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                {{result}}={{item}};
-                while({{e}}.TryGetNext(out {{item}})){
-                    {{FuncAssignIndented("        ",func,nameof(func),result,result,item)}}
+                if(!{{this.e}}.TryGetNext(out var {{this.item}})) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+                {{this.result}}={{this.item}};
+                while({{this.e}}.TryGetNext(out {{this.item}})){
+                    {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,this.item)}}
                 }
             }
-            this.{{currentValue}}={{result}};
-            current=this.{{currentValue}};
+            this.{{this.currentValue}}={{this.result}};
+            current=this.{{this.currentValue}};
             return true;
             """
         : $$"""
-            if(this.{{yielded}}) {
+            if(this.{{this.yielded}}) {
                 current = default!;
                 return false;
             }
-            this.{{yielded}} = true;
-            if(!{{e}}.TryGetNext(out var {{item}})) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-            var {{result}}={{item}};
-            while({{e}}.TryGetNext(out {{item}})){
-                {{FuncAssignIndented("    ",func,nameof(func),result,result,item)}}
+            this.{{this.yielded}} = true;
+            if(!{{this.e}}.TryGetNext(out var {{this.item}})) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+            var {{this.result}}={{this.item}};
+            while({{this.e}}.TryGetNext(out {{this.item}})){
+                {{this.FuncAssignIndented("    ",func,nameof(func),this.result,this.result,this.item)}}
             }
-            this.{{currentValue}}={{result}};
-            current=this.{{currentValue}};
+            this.{{this.currentValue}}={{this.result}};
+            current=this.{{this.currentValue}};
             return true;
             """;
-    public override string GetCurrentExpression => currentValue;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    public override string GetCurrentExpression => this.currentValue;
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
 /*
@@ -159,79 +159,79 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
             ? $$"""
                 if({{srcVar}}.TryGetSpan(out var __span)){
                     foreach(var __item in __span){
-                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,result,result,"__item")}}
+                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
                     }
                 }else{
                     while({{srcVar}}.TryGetNext(out var __item)){
-                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,result,result,"__item")}}
+                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
                     }
                 }
                 """
             : $$"""
                 while({{srcVar}}.TryGetNext(out var __item)){
-                    {{this.FuncAssignInlineIndented("    ",func,nameof(func),funcVar,result,result,"__item")}}
+                    {{this.FuncAssignInlineIndented("    ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
                 }
                 """;
         return $$"""
             {{destType}} {{destVar}};
             {{funcSetup}}
             using(var {{srcVar}}={{srcExpr}}){
-                var {{result}} = {{seed}};
+                var {{this.result}} = {{seed}};
                 {{fold}}
-                {{destVar}}={{result}};
+                {{destVar}}={{this.result}};
             }
             """;
     }
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => FuncSupport(func,nameof(func));
+    public override string StructMethod => this.FuncSupport(func,nameof(func));
     public override string GetEnumeratorExpression =>
-        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(func)})";
+        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(func)})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
-        {{DefineScalarEnumeratorStruct(FuncParameterTypeName(func,0))}}
+        {{this.DefineScalarEnumeratorStruct(FuncParameterTypeName(func,0))}}
         """;
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {e}{ClosurePrimaryCtorSuffix(func)}";
+        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(func)}";
     public override string GetEnumeratorFields => $$"""
-        private bool {{yielded}} = false;
+        private bool {{this.yielded}} = false;
         """;
     public override string GetTryGetNextBody => source.CanTryProvideSpan
         ? $$"""
-            if(this.{{yielded}}) {
+            if(this.{{this.yielded}}) {
                 current = default!;
                 return false;
             }
-            this.{{yielded}} = true;
-            var {{result}} = {{seed}};
-            if({{e}}.TryGetSpan(out var __span)){
+            this.{{this.yielded}} = true;
+            var {{this.result}} = {{seed}};
+            if({{this.e}}.TryGetSpan(out var __span)){
                 foreach(var __item in __span){
-                    {{FuncAssignIndented("        ",func,nameof(func),result,result,"__item")}}
+                    {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,"__item")}}
                 }
             }else{
-                while({{e}}.TryGetNext(out var {{item}})){
-                    {{FuncAssignIndented("        ",func,nameof(func),result,result,item)}}
+                while({{this.e}}.TryGetNext(out var {{this.item}})){
+                    {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,this.item)}}
                 }
             }
-            this.{{currentValue}}={{result}};
-            current=this.{{currentValue}};
+            this.{{this.currentValue}}={{this.result}};
+            current=this.{{this.currentValue}};
             return true;
             """
         : $$"""
-            if(this.{{yielded}}) {
+            if(this.{{this.yielded}}) {
                 current = default!;
                 return false;
             }
-            this.{{yielded}} = true;
-            var {{result}} = {{seed}};
-            while({{e}}.TryGetNext(out var {{item}})){
-                {{FuncAssignIndented("    ",func,nameof(func),result,result,item)}}
+            this.{{this.yielded}} = true;
+            var {{this.result}} = {{seed}};
+            while({{this.e}}.TryGetNext(out var {{this.item}})){
+                {{this.FuncAssignIndented("    ",func,nameof(func),this.result,this.result,this.item)}}
             }
-            this.{{currentValue}}={{result}};
-            current=this.{{currentValue}};
+            this.{{this.currentValue}}={{this.result}};
+            current=this.{{this.currentValue}};
             return true;
             """;
-    public override string GetCurrentExpression => currentValue;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    public override string GetCurrentExpression => this.currentValue;
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
 /*
@@ -265,17 +265,17 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
             ? $$"""
                 if({{srcVar}}.TryGetSpan(out var __span)){
                     foreach(var __item in __span){
-                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,result,result,"__item")}}
+                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
                     }
                 }else{
                     while({{srcVar}}.TryGetNext(out var __item)){
-                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,result,result,"__item")}}
+                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
                     }
                 }
                 """
             : $$"""
                 while({{srcVar}}.TryGetNext(out var __item)){
-                    {{this.FuncAssignInlineIndented("    ",func,nameof(func),funcVar,result,result,"__item")}}
+                    {{this.FuncAssignInlineIndented("    ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
                 }
                 """;
         return $$"""
@@ -283,65 +283,65 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
             {{funcSetup}}
             {{resultSelectorSetup}}
             using(var {{srcVar}}={{srcExpr}}){
-                var {{result}} = {{seed}};
+                var {{this.result}} = {{seed}};
                 {{fold}}
-                {{this.FuncAssignInlineIndented("    ",resultSelector,nameof(resultSelector),resultSelectorVar,destVar,result)}}
+                {{this.FuncAssignInlineIndented("    ",resultSelector,nameof(resultSelector),resultSelectorVar,destVar,this.result)}}
             }
             """;
     }
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => $$"""
-        {{FuncSupport(func,nameof(func))}}
-        {{FuncSupport(resultSelector,nameof(resultSelector))}}
+        {{this.FuncSupport(func,nameof(func))}}
+        {{this.FuncSupport(resultSelector,nameof(resultSelector))}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}{ClosureArgsSuffix(func,resultSelector)})";
+        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(func,resultSelector)})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
-        {{DefineScalarEnumeratorStruct(FuncReturnTypeName(resultSelector))}}
+        {{this.DefineScalarEnumeratorStruct(FuncReturnTypeName(resultSelector))}}
         """;
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        $"TEnum {e}{ClosurePrimaryCtorSuffix(func,resultSelector)}";
+        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(func,resultSelector)}";
     public override string GetEnumeratorFields => $$"""
-        private bool {{yielded}} = false;
+        private bool {{this.yielded}} = false;
         """;
     public override string GetTryGetNextBody => source.CanTryProvideSpan
         ? $$"""
-            if(this.{{yielded}}) {
+            if(this.{{this.yielded}}) {
                 current = default!;
                 return false;
             }
-            this.{{yielded}} = true;
-            var {{result}} = {{seed}};
-            if({{e}}.TryGetSpan(out var __span)){
+            this.{{this.yielded}} = true;
+            var {{this.result}} = {{seed}};
+            if({{this.e}}.TryGetSpan(out var __span)){
                 foreach(var __item in __span){
-                    {{FuncAssignIndented("        ",func,nameof(func),result,result,"__item")}}
+                    {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,"__item")}}
                 }
             }else{
-                while({{e}}.TryGetNext(out var {{item}})){
-                    {{FuncAssignIndented("        ",func,nameof(func),result,result,item)}}
+                while({{this.e}}.TryGetNext(out var {{this.item}})){
+                    {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,this.item)}}
                 }
             }
-            {{FuncAssignIndented("",resultSelector,nameof(resultSelector),$"this.{currentValue}",result)}}
-            current=this.{{currentValue}};
+            {{this.FuncAssignIndented("",resultSelector,nameof(resultSelector),$"this.{this.currentValue}",this.result)}}
+            current=this.{{this.currentValue}};
             return true;
             """
         : $$"""
-            if(this.{{yielded}}) {
+            if(this.{{this.yielded}}) {
                 current = default!;
                 return false;
             }
-            this.{{yielded}} = true;
-            var {{result}} = {{seed}};
-            while({{e}}.TryGetNext(out var {{item}})){
-                {{FuncAssignIndented("    ",func,nameof(func),result,result,item)}}
+            this.{{this.yielded}} = true;
+            var {{this.result}} = {{seed}};
+            while({{this.e}}.TryGetNext(out var {{this.item}})){
+                {{this.FuncAssignIndented("    ",func,nameof(func),this.result,this.result,this.item)}}
             }
-            {{FuncAssignIndented("",resultSelector,nameof(resultSelector),$"this.{currentValue}",result)}}
-            current=this.{{currentValue}};
+            {{this.FuncAssignIndented("",resultSelector,nameof(resultSelector),$"this.{this.currentValue}",this.result)}}
+            current=this.{{this.currentValue}};
             return true;
             """;
-    public override string GetCurrentExpression => currentValue;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    public override string GetCurrentExpression => this.currentValue;
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
 file static class AggregateInlineDelegateSupport {

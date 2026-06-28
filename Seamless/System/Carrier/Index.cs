@@ -13,11 +13,11 @@ namespace Seamless.System.Carrier {
     public struct Index<TEnumerator, TSource>(TEnumerator source)
         :IValueEnumerator<(int Index,TSource Item)>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        int index = -1;
+        private TEnumerator source = source;
+        private int index = -1;
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            return source.TryGetNonEnumeratedCount(out count);
+            return this.source.TryGetNonEnumeratedCount(out count);
         }
 
         public bool TryGetSpan(out ReadOnlySpan<(int Index,TSource Item)> span) {
@@ -27,7 +27,7 @@ namespace Seamless.System.Carrier {
 
         public bool TryCopyTo(scoped Span<(int Index,TSource Item)> destination,Index offset) {
             // Iterate inlining
-            if(source.TryGetSpan(out var span)) {
+            if(this.source.TryGetSpan(out var span)) {
                 if(EnumeratorHelper.TryGetSlice(span,offset,destination.Length,out var slice)) {
                     var index = offset.GetOffset(span.Length);
                     for(var i = 0; (uint)i<(uint)slice.Length; i++) {
@@ -42,9 +42,9 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out (int Index,TSource Item) current) {
-            if(source.TryGetNext(out var value)) {
-                checked { index++; }
-                current=(index,value);
+            if(this.source.TryGetNext(out var value)) {
+                checked { this.index++; }
+                current=(this.index,value);
                 return true;
             }
 
@@ -53,7 +53,7 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 }

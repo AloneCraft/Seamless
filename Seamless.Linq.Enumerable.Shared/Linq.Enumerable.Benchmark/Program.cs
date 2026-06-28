@@ -11,7 +11,7 @@ internal static class Program {
     public static void Main(string[] args) {
         SetCurrentDirectoryToProject();
 
-        var benchmarkAssembly = typeof(global::Seamless.Linq.Enumerable.Shared.NoopLinqInterceptAttribute).Assembly;
+        var benchmarkAssembly = typeof(global::Seamless.Linq.Shared.NoopLinqInterceptAttribute).Assembly;
         if(IsListJsonMode(args)) {
             WriteBenchmarkListJson(benchmarkAssembly);
             return;

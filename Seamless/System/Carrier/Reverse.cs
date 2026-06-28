@@ -13,33 +13,33 @@ namespace Seamless.System.Carrier {
     public struct Reverse<TEnumerator, TSource>(TEnumerator source)
         :IValueEnumerator<TSource>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        RentedArrayBox<TSource>? buffer;
-        int index;
+        private TEnumerator source = source;
+        private RentedArrayBox<TSource>? buffer;
+        private int index;
 
-        public bool TryGetNonEnumeratedCount(out int count) => source.TryGetNonEnumeratedCount(out count);
+        public bool TryGetNonEnumeratedCount(out int count) => this.source.TryGetNonEnumeratedCount(out count);
 
         public bool TryGetSpan(out ReadOnlySpan<TSource> span) {
-            InitBuffer();
-            span=buffer.Span;
+            this.InitBuffer();
+            span=this.buffer.Span;
             return true;
         }
 
         public bool TryCopyTo(scoped Span<TSource> destination,Index offset) {
             // in-place reverse needs full src buffer(no offset)
-            if(source.TryGetNonEnumeratedCount(out var count)&&offset.GetOffset(count)==0) {
+            if(this.source.TryGetNonEnumeratedCount(out var count)&&offset.GetOffset(count)==0) {
                 // destination must be larger than source
                 if(destination.Length>=count) {
                     // and ok to copy then reverse.
-                    if(source.TryCopyTo(destination,0)) {
+                    if(this.source.TryCopyTo(destination,0)) {
                         MemoryExtensions.Reverse(destination.Slice(0,count));
                         return true;
                     }
                 }
             }
 
-            InitBuffer();
-            if(EnumeratorHelper.TryGetSlice<TSource>(buffer.Span,offset,destination.Length,out var slice)) {
+            this.InitBuffer();
+            if(EnumeratorHelper.TryGetSlice<TSource>(this.buffer.Span,offset,destination.Length,out var slice)) {
                 slice.CopyTo(destination);
                 return true;
             }
@@ -48,10 +48,10 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out TSource current) {
-            InitBuffer();
+            this.InitBuffer();
 
-            if((uint)index<(uint)buffer.Length) {
-                current=buffer.UnsafeGetAt(index++);
+            if((uint)this.index<(uint)this.buffer.Length) {
+                current=this.buffer.UnsafeGetAt(this.index++);
                 return true;
             }
 
@@ -60,21 +60,21 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            if(buffer!=null) {
-                buffer.Dispose();
+            if(this.buffer!=null) {
+                this.buffer.Dispose();
                 // source already disposed by enumeration in InitBuffer()
                 return;
             }
 
-            source.Dispose();
+            this.source.Dispose();
         }
 
         [MemberNotNull(nameof(buffer))]
-        void InitBuffer() {
-            if(buffer==null) {
-                var (array,count)=new ValueEnumerable<TEnumerator,TSource>(source).ToArrayPool();
-                buffer=new RentedArrayBox<TSource>(array,count);
-                MemoryExtensions.Reverse(buffer.Span);
+        private void InitBuffer() {
+            if(this.buffer==null) {
+                var (array,count)=new ValueEnumerable<TEnumerator,TSource>(this.source).ToArrayPool();
+                this.buffer=new RentedArrayBox<TSource>(array,count);
+                MemoryExtensions.Reverse(this.buffer.Span);
             }
         }
     }

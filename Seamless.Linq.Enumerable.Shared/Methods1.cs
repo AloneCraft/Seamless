@@ -1,4 +1,4 @@
-namespace Seamless.Linq.Enumerable.Shared;
+namespace Seamless.Linq.Shared;
 
 #if TSAVORITE
 public abstract class Methods1 : TsavoriteBase {

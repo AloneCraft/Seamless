@@ -14,7 +14,7 @@ namespace Seamless.System.Carrier {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromRepeat<T>(T _element,int _count):IValueEnumerator<T> {
-        int index;
+        private int index;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=_count;
@@ -36,7 +36,7 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out T current) {
-            if(index++<_count) {
+            if(this.index++<_count) {
                 current=_element;
                 return true;
             }

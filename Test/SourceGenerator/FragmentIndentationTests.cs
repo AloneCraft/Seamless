@@ -46,13 +46,13 @@ public sealed class FragmentIndentationTests(ITestOutputHelper output) {
         var generated = GeneratedSource(GroupJoinSource);
         var lines = generated.Replace("\r\n", "\n").Split('\n');
 
-        AssertAssignmentAligned(
+        this.AssertAssignmentAligned(
             lines,
             @"^\s*__k\d+=__ov\d+;$",
             @"^\s*var __ov\d+=",
             @"^\s*if\(__lk\d+\.TryGetValue");
 
-        AssertAssignmentAligned(
+        this.AssertAssignmentAligned(
             lines,
             @"^\s*__k\d+=__it\d+;$",
             @"^\s*int __k\d+=default!;$",

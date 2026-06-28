@@ -157,8 +157,7 @@ partial class ValueEnumerableExtensions {
             return MaxSpanComparer(span,comparer);
         }
     }
-
-    static TSource? MaxSpanComparer<TSource>(ReadOnlySpan<TSource> span,IComparer<TSource> comparer) {
+    private static TSource? MaxSpanComparer<TSource>(ReadOnlySpan<TSource> span,IComparer<TSource> comparer) {
         TSource? value = default;
         if(value is null) {
             // reference type
@@ -215,7 +214,7 @@ partial class ValueEnumerableExtensions {
 
     // In case of float/double containing NaN, SIMD behavior might be inconsistent, so float/double shouldn't be processed with SIMD.
     // The current implementation correctly handles NaN through IComparer<T>.
-    static T SimdMaxBinaryInteger<T>(ReadOnlySpan<T> span)
+    private static T SimdMaxBinaryInteger<T>(ReadOnlySpan<T> span)
         where T : struct, IBinaryInteger<T> {
         if(span.Length==0) Throws.NoElements();
 
@@ -259,7 +258,7 @@ partial class ValueEnumerableExtensions {
     // float/double 用の SIMD Max。
     // NaN は全順序で最小なので無視する（System.Linq.Max と同じく、全要素 NaN のときのみ NaN を返す）。
     // ベクトル計算では NaN レーンを -Inf に置換して数値 Max を求め、非 NaN が 1 つでもあったかを追跡する。
-    static T SimdMaxFloat<T>(ReadOnlySpan<T> span)
+    private static T SimdMaxFloat<T>(ReadOnlySpan<T> span)
         where T : struct, IFloatingPointIeee754<T> {
         if(span.Length==0) Throws.NoElements();
 

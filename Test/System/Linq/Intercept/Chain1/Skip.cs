@@ -9,8 +9,8 @@ public sealed class Skip(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void count() {
         var expected=Source().Skip(2).ToList();
-        MeasureOptimized(nameof(countOptimized),()=>countOptimized(expected));
-        MeasureOptimized(nameof(countNoOptimized),()=>countNoOptimized(expected));
+        this.MeasureOptimized(nameof(countOptimized),()=>countOptimized(expected));
+        this.MeasureOptimized(nameof(countNoOptimized),()=>countNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

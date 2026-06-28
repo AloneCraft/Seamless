@@ -29,22 +29,22 @@ public class ToArray(int 番号, Enumerable source, string resultType) : Buffere
     // {Struct}_Buf 命名は補助クラス退避の正規表現（Struct\d+_接尾辞）にマッチしリネーム衝突を防ぐ。
     public override string StructMethod => $$"""
         [global::System.Runtime.CompilerServices.InlineArray({{InlineCapacity}})]
-        private struct {{Struct}}_Buf {
+        private struct {{this.Struct}}_Buf {
             private {{source.ElementType}} _element0;
         }
         """;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
-    protected override string ComputeExpression => $"Compute({e})";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
+    protected override string ComputeExpression => $"Compute({this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        RenderRangeToArrayInline(destVar,destType)
-        ?? RenderDirectSpanToArrayInline(destVar,destType)
-        ?? RenderDirectEnumerableToArrayHybridInline(source,destVar,destType)
-        ?? RenderComputeInline(destVar,destType);
+        this.RenderRangeToArrayInline(destVar,destType)
+        ??this.RenderDirectSpanToArrayInline(destVar,destType)
+        ??this.RenderDirectEnumerableToArrayHybridInline(source,destVar,destType)
+        ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanToArrayInline(string destVar,string destType) {
-        var span=$"__span{result}";
-        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span=$"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
             if({{spanName}}.Length==0) {
                 {{destVar}}=global::System.Array.Empty<{{source.ElementType}}>();
             } else {
@@ -115,7 +115,7 @@ public class ToArray(int 番号, Enumerable source, string resultType) : Buffere
             // 要素数が InlineCapacity 以内ならスタック上の InlineArray だけで受け、ArrayPool/List の
             // ヒープ確保もスレッドセーフな Rent/Return も一切回避する。溢れたときだけ ArrayPool へスピルし、
             // 最後に正確なサイズの配列へ1回だけコピーする。MoveNext/Current のみで TEnum 制約に依存しない。
-            {{Struct}}_Buf __inline = default;
+            {{this.Struct}}_Buf __inline = default;
             global::System.Span<{{source.ElementType}}> __stack = __inline;
             {{source.ElementType}}[]? __heap = null;
             var n = 0;

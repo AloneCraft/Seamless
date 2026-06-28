@@ -1122,7 +1122,7 @@ public sealed class BenchmarkOrchestratorTests{
         public List<int[]> AppliedCpuSets { get; } = [];
 
         public Task ApplyCpuSetAsync(IReadOnlyList<int> logicalCpus){
-            lock(gate) {
+            lock(this.gate) {
                 this.AppliedCpuSets.Add(logicalCpus.ToArray());
             }
             return Task.CompletedTask;

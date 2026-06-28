@@ -26,13 +26,13 @@ namespace Seamless.System.Carrier {
     public struct Take<TEnumerator, TSource>(TEnumerator source,Int32 count)
         :IValueEnumerator<TSource>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
+        private TEnumerator source = source;
         internal readonly int takeCount = Math.Max(0,count); // allows negative count
-        int index;
+        private int index;
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(source.TryGetNonEnumeratedCount(out count)) {
-                count=Math.Min(count,takeCount); // take smaller
+            if(this.source.TryGetNonEnumeratedCount(out count)) {
+                count=Math.Min(count,this.takeCount); // take smaller
                 return true;
             }
 
@@ -41,8 +41,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetSpan(out ReadOnlySpan<TSource> span) {
-            if(source.TryGetSpan(out span)) {
-                span=span.Slice(0,Math.Min(span.Length,takeCount));
+            if(this.source.TryGetSpan(out span)) {
+                span=span.Slice(0,Math.Min(span.Length,this.takeCount));
                 return true;
             }
 
@@ -51,8 +51,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(scoped Span<TSource> destination,Index offset) {
-            if(source.TryGetNonEnumeratedCount(out var count)) {
-                var actualTakeCount = Math.Min(count,takeCount);
+            if(this.source.TryGetNonEnumeratedCount(out var count)) {
+                var actualTakeCount = Math.Min(count,this.takeCount);
 
                 // When offset IsFromEnd, calculate the source offset from take count.
                 var sourceOffset = offset.GetOffset(actualTakeCount);
@@ -67,14 +67,14 @@ namespace Seamless.System.Carrier {
                     : actualTakeCount-sourceOffset;
 
                 var elementsToCopy = Math.Min(remainingElements,destination.Length);
-                return source.TryCopyTo(destination.Slice(0,elementsToCopy),sourceOffset);
+                return this.source.TryCopyTo(destination.Slice(0,elementsToCopy),sourceOffset);
             }
 
             return false;
         }
 
         public bool TryGetNext(out TSource current) {
-            if(index++<takeCount&&source.TryGetNext(out current)) {
+            if(this.index++<this.takeCount&&this.source.TryGetNext(out current)) {
                 return true;
             }
 
@@ -83,11 +83,11 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            source.Dispose();
+            this.source.Dispose();
         }
 
         // Optimize
-        internal TakeSkip<TEnumerator,TSource> Skip(int skipCount) => new(source,takeCount: takeCount,skipCount: skipCount);
+        internal TakeSkip<TEnumerator,TSource> Skip(int skipCount) => new(this.source,takeCount: this.takeCount,skipCount: skipCount);
     }
 
     [StructLayout(LayoutKind.Auto)]
@@ -100,87 +100,87 @@ namespace Seamless.System.Carrier {
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         public void Initialize(int? knownCount = null) {
-            if(Remains!=-2) return;
+            if(this.Remains!=-2) return;
 
             if(knownCount.HasValue) {
-                InitializeWithKnownCount(knownCount.Value);
+                this.InitializeWithKnownCount(knownCount.Value);
             }
-            else if(!Range.Start.IsFromEnd&&!Range.End.IsFromEnd) {
-                InitializeBothFromStart();
+            else if(!this.Range.Start.IsFromEnd&&!this.Range.End.IsFromEnd) {
+                this.InitializeBothFromStart();
             }
             else {
-                InitializeWithUnknownCount();
+                this.InitializeWithUnknownCount();
             }
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        void InitializeBothFromStart() {
-            SkipIndex=Range.Start.Value;
-            var length = Range.End.Value-Range.Start.Value;
-            Remains=Math.Max(0,length);
+        private void InitializeBothFromStart() {
+            this.SkipIndex=this.Range.Start.Value;
+            var length = this.Range.End.Value-this.Range.Start.Value;
+            this.Remains=Math.Max(0,length);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        void InitializeWithKnownCount(int count) {
-            var start = Range.Start.IsFromEnd
-                ? Math.Max(0,count-Range.Start.Value)
-                : Range.Start.Value;
-            var end = Range.End.IsFromEnd
-                ? Math.Max(0,count-Range.End.Value)
-                : Range.End.Value;
+        private void InitializeWithKnownCount(int count) {
+            var start = this.Range.Start.IsFromEnd
+                ? Math.Max(0,count-this.Range.Start.Value)
+                : this.Range.Start.Value;
+            var end = this.Range.End.IsFromEnd
+                ? Math.Max(0,count-this.Range.End.Value)
+                : this.Range.End.Value;
 
-            SkipIndex=Math.Min(start,count);
-            Remains=Math.Max(0,Math.Min(end,count)-SkipIndex);
+            this.SkipIndex=Math.Min(start,count);
+            this.Remains=Math.Max(0,Math.Min(end,count)-this.SkipIndex);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        void InitializeWithUnknownCount() {
-            if(!Range.Start.IsFromEnd&&Range.End.IsFromEnd) {
-                SkipIndex=Range.Start.Value;
-                Remains=Range.End.Value==0 ? int.MaxValue : -1;
+        private void InitializeWithUnknownCount() {
+            if(!this.Range.Start.IsFromEnd&&this.Range.End.IsFromEnd) {
+                this.SkipIndex=this.Range.Start.Value;
+                this.Remains=this.Range.End.Value==0 ? int.MaxValue : -1;
 
-                if(Range.End.Value>0) {
-                    FromEndQueueSize=Range.End.Value;
+                if(this.Range.End.Value>0) {
+                    this.FromEndQueueSize=this.Range.End.Value;
                 }
             }
-            else if(Range.Start.IsFromEnd&&!Range.End.IsFromEnd) {
-                SkipIndex=0;
-                Remains=-1;
-                FromEndQueueSize=Math.Max(1,Range.Start.Value);
+            else if(this.Range.Start.IsFromEnd&&!this.Range.End.IsFromEnd) {
+                this.SkipIndex=0;
+                this.Remains=-1;
+                this.FromEndQueueSize=Math.Max(1,this.Range.Start.Value);
             }
             else {
-                SkipIndex=0;
-                var maxCount = Range.Start.Value-Range.End.Value;
-                Remains=maxCount<=0 ? 0 : -1;
+                this.SkipIndex=0;
+                var maxCount = this.Range.Start.Value-this.Range.End.Value;
+                this.Remains=maxCount<=0 ? 0 : -1;
 
                 if(maxCount>0) {
-                    FromEndQueueSize=Math.Max(1,Range.Start.Value);
+                    this.FromEndQueueSize=Math.Max(1,this.Range.Start.Value);
                 }
             }
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         public void CalculateRemainsFromQueue(int totalCount,int queueCount) {
-            var start = Range.Start.IsFromEnd
-                ? Math.Max(0,totalCount-Range.Start.Value)
-                : Range.Start.Value;
-            var end = Range.End.IsFromEnd
-                ? Math.Max(0,totalCount-Range.End.Value)
-                : Range.End.Value;
+            var start = this.Range.Start.IsFromEnd
+                ? Math.Max(0,totalCount-this.Range.Start.Value)
+                : this.Range.Start.Value;
+            var end = this.Range.End.IsFromEnd
+                ? Math.Max(0,totalCount-this.Range.End.Value)
+                : this.Range.End.Value;
 
-            Remains=Math.Max(0,end-start);
+            this.Remains=Math.Max(0,end-start);
 
             var currentPosition = totalCount-queueCount;
             var toSkip = Math.Max(0,start-currentPosition);
 
-            Remains=Math.Min(Remains-toSkip,queueCount-toSkip);
+            this.Remains=Math.Min(this.Remains-toSkip,queueCount-toSkip);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         public int GetQueueSkipCount(int totalCount,int queueCount) {
-            var start = Range.Start.IsFromEnd
-                ? Math.Max(0,totalCount-Range.Start.Value)
-                : Range.Start.Value;
+            var start = this.Range.Start.IsFromEnd
+                ? Math.Max(0,totalCount-this.Range.Start.Value)
+                : this.Range.Start.Value;
 
             var currentPosition = totalCount-queueCount;
             return Math.Max(0,start-currentPosition);
@@ -189,7 +189,7 @@ namespace Seamless.System.Carrier {
         [MethodImpl(MethodImplOptions.NoInlining)]
         public (int offsetInRange,int elementsToCopy) CalculateCopyParameters(
             int totalCount,int destinationLength,Index offset) {
-            var effectiveRemains = Math.Min(Remains,Math.Max(0,totalCount-SkipIndex));
+            var effectiveRemains = Math.Min(this.Remains,Math.Max(0,totalCount-this.SkipIndex));
             if(effectiveRemains<=0)
                 return (-1,0);
 
@@ -203,9 +203,9 @@ namespace Seamless.System.Carrier {
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         public void SkipQueue<TSource>(ref ValueQueue<TSource> queue) {
-            CalculateRemainsFromQueue(Index,queue.Count);
+            this.CalculateRemainsFromQueue(this.Index,queue.Count);
 
-            var toSkip = GetQueueSkipCount(Index,queue.Count);
+            var toSkip = this.GetQueueSkipCount(this.Index,queue.Count);
             while(toSkip>0&&queue.Count>0) {
                 queue.Dequeue();
                 toSkip--;
@@ -218,37 +218,37 @@ namespace Seamless.System.Carrier {
     public struct TakeRange<TEnumerator, TSource>(TEnumerator source,Range range)
         :IValueEnumerator<TSource>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        RangeProcessor rangeProcessor = new(range);
-        RefBox<ValueQueue<TSource>>? q;
+        private TEnumerator source = source;
+        private RangeProcessor rangeProcessor = new(range);
+        private RefBox<ValueQueue<TSource>>? q;
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        void Init() {
-            if(rangeProcessor.Remains!=-2) return;
+        private void Init() {
+            if(this.rangeProcessor.Remains!=-2) return;
 
-            if(source.TryGetNonEnumeratedCount(out var count)) {
-                rangeProcessor.Initialize(count);
+            if(this.source.TryGetNonEnumeratedCount(out var count)) {
+                this.rangeProcessor.Initialize(count);
             }
             else {
-                rangeProcessor.Initialize();
+                this.rangeProcessor.Initialize();
             }
 
-            if(rangeProcessor.FromEndQueueSize>0) {
-                q=new(new(Math.Min(rangeProcessor.FromEndQueueSize,16)));
+            if(this.rangeProcessor.FromEndQueueSize>0) {
+                this.q=new(new(Math.Min(this.rangeProcessor.FromEndQueueSize,16)));
             }
         }
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(!source.TryGetNonEnumeratedCount(out count)) {
+            if(!this.source.TryGetNonEnumeratedCount(out count)) {
                 return false;
             }
 
-            if(rangeProcessor.Remains==-2) {
-                rangeProcessor.Initialize(count);
+            if(this.rangeProcessor.Remains==-2) {
+                this.rangeProcessor.Initialize(count);
             }
 
-            if(rangeProcessor.Remains>=0) {
-                count=rangeProcessor.Remains;
+            if(this.rangeProcessor.Remains>=0) {
+                count=this.rangeProcessor.Remains;
                 return true;
             }
 
@@ -257,10 +257,10 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetSpan(out ReadOnlySpan<TSource> span) {
-            Init();
+            this.Init();
 
-            if(rangeProcessor.Remains>=0&&source.TryGetSpan(out span)) {
-                span=span.Slice(rangeProcessor.SkipIndex,rangeProcessor.Remains);
+            if(this.rangeProcessor.Remains>=0&&this.source.TryGetSpan(out span)) {
+                span=span.Slice(this.rangeProcessor.SkipIndex,this.rangeProcessor.Remains);
                 return true;
             }
 
@@ -269,24 +269,24 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(scoped Span<TSource> destination,Index offset) {
-            Init();
+            this.Init();
 
-            if(rangeProcessor.Remains<0||!source.TryGetNonEnumeratedCount(out var totalCount))
+            if(this.rangeProcessor.Remains<0||!this.source.TryGetNonEnumeratedCount(out var totalCount))
                 return false;
 
-            var (offsetInRange,elementsToCopy)=rangeProcessor.CalculateCopyParameters(
+            var (offsetInRange,elementsToCopy)=this.rangeProcessor.CalculateCopyParameters(
                 totalCount,destination.Length,offset);
 
             if(elementsToCopy<=0)
                 return false;
 
-            return source.TryCopyTo(destination[..elementsToCopy],rangeProcessor.SkipIndex+offsetInRange);
+            return this.source.TryCopyTo(destination[..elementsToCopy],this.rangeProcessor.SkipIndex+offsetInRange);
         }
 
         public bool TryGetNext(out TSource current) {
-            var remains = rangeProcessor.Remains;
+            var remains = this.rangeProcessor.Remains;
             if(remains==-2) {
-                Init();
+                this.Init();
             }
 
             if(remains==0) {
@@ -294,15 +294,14 @@ namespace Seamless.System.Carrier {
                 return false;
             }
 
-            return q==null
-                ? TryGetNextSimple(out current)
-                : TryGetNextWithQueue(out current);
+            return this.q==null
+                ? this.TryGetNextSimple(out current)
+                : this.TryGetNextWithQueue(out current);
         }
-
-        bool TryGetNextSimple(out TSource current) {
+        private bool TryGetNextSimple(out TSource current) {
             ref var rangeProcessor = ref this.rangeProcessor;
             while(rangeProcessor.Index<rangeProcessor.SkipIndex) {
-                if(!source.TryGetNext(out _)) {
+                if(!this.source.TryGetNext(out _)) {
                     rangeProcessor.Remains=0;
                     Unsafe.SkipInit(out current);
                     return false;
@@ -312,7 +311,7 @@ namespace Seamless.System.Carrier {
             }
 
             if(rangeProcessor.Remains>0) {
-                if(source.TryGetNext(out current)) {
+                if(this.source.TryGetNext(out current)) {
                     if(rangeProcessor.Remains!=int.MaxValue)
                         rangeProcessor.Remains--;
                     return true;
@@ -323,10 +322,9 @@ namespace Seamless.System.Carrier {
             Unsafe.SkipInit(out current);
             return false;
         }
-
-        bool TryGetNextWithQueue(out TSource current) {
+        private bool TryGetNextWithQueue(out TSource current) {
             ref var rangeProcessor = ref this.rangeProcessor;
-            ref var queue = ref q!.GetValueRef();
+            ref var queue = ref this.q!.GetValueRef();
 
             // Fast path: dequeue from processed queue
             if(rangeProcessor.Remains>0&&queue.Count>0) {
@@ -336,7 +334,7 @@ namespace Seamless.System.Carrier {
             // Fill queue from source
             var useSlidingWindow = !rangeProcessor.Range.Start.IsFromEnd&&rangeProcessor.Range.End.IsFromEnd;
 
-            while(source.TryGetNext(out current)) {
+            while(this.source.TryGetNext(out current)) {
                 if(rangeProcessor.Index++<rangeProcessor.SkipIndex)
                     continue;
 
@@ -373,8 +371,8 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            q?.Dispose();
-            source.Dispose();
+            this.q?.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -384,20 +382,20 @@ namespace Seamless.System.Carrier {
     public struct TakeSkip<TEnumerator, TSource>(TEnumerator source,Int32 takeCount,Int32 skipCount)
         :IValueEnumerator<TSource>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        readonly int takeCount = Math.Max(0,takeCount); // ensure non-negative
-        readonly int skipCount = Math.Max(0,skipCount); // ensure non-negative
-        int taken;
-        int skipped;
-        bool reachedTakeLimit;
+        private TEnumerator source = source;
+        private readonly int takeCount = Math.Max(0,takeCount); // ensure non-negative
+        private readonly int skipCount = Math.Max(0,skipCount); // ensure non-negative
+        private int taken;
+        private int skipped;
+        private bool reachedTakeLimit;
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            if(source.TryGetNonEnumeratedCount(out count)) {
+            if(this.source.TryGetNonEnumeratedCount(out count)) {
                 // Apply take limit first
-                count=Math.Min(count,takeCount);
+                count=Math.Min(count,this.takeCount);
 
                 // Then apply skip
-                count=Math.Max(0,count-skipCount);
+                count=Math.Max(0,count-this.skipCount);
 
                 return true;
             }
@@ -407,12 +405,12 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryCopyTo(scoped Span<TSource> destination,Index offset) {
-            if(source.TryGetNonEnumeratedCount(out var sourceCount)) {
+            if(this.source.TryGetNonEnumeratedCount(out var sourceCount)) {
                 // First limit by take
-                var afterTake = Math.Min(sourceCount,takeCount);
+                var afterTake = Math.Min(sourceCount,this.takeCount);
 
                 // Then apply skip
-                var actualSkipCount = Math.Min(afterTake,skipCount);
+                var actualSkipCount = Math.Min(afterTake,this.skipCount);
                 var actualCount = afterTake-actualSkipCount;
 
                 if(actualCount<=0) {
@@ -439,26 +437,26 @@ namespace Seamless.System.Carrier {
                     return false;
                 }
 
-                return source.TryCopyTo(destination.Slice(0,elementsToCopy),sourceOffset);
+                return this.source.TryCopyTo(destination.Slice(0,elementsToCopy),sourceOffset);
             }
 
             return false;
         }
 
         public bool TryGetSpan(out ReadOnlySpan<TSource> span) {
-            if(source.TryGetSpan(out span)) {
+            if(this.source.TryGetSpan(out span)) {
                 // First apply take limit
-                if(span.Length>takeCount) {
-                    span=span.Slice(0,takeCount);
+                if(span.Length>this.takeCount) {
+                    span=span.Slice(0,this.takeCount);
                 }
 
                 // Then skip elements
-                if(span.Length<=skipCount) {
+                if(span.Length<=this.skipCount) {
                     span=default;
                     return true;
                 }
 
-                span=span.Slice(skipCount);
+                span=span.Slice(this.skipCount);
                 return true;
             }
 
@@ -467,68 +465,67 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out TSource current) {
-            if(IsResultEmpty()) {
+            if(this.IsResultEmpty()) {
                 Unsafe.SkipInit(out current);
                 return false;
             }
 
             // Once we've reached the take limit, we're done
-            if(reachedTakeLimit) {
+            if(this.reachedTakeLimit) {
                 Unsafe.SkipInit(out current);
                 return false;
             }
 
             // Skip elements that have been emitted from the take portion
-            while(skipped<skipCount) {
+            while(this.skipped<this.skipCount) {
                 // First ensure we haven't exceeded the take limit
-                if(taken>=takeCount) {
-                    reachedTakeLimit=true;
+                if(this.taken>=this.takeCount) {
+                    this.reachedTakeLimit=true;
                     Unsafe.SkipInit(out current);
                     return false;
                 }
 
                 // Get next element from source
-                if(!source.TryGetNext(out var _)) {
+                if(!this.source.TryGetNext(out var _)) {
                     Unsafe.SkipInit(out current);
                     return false;
                 }
 
-                taken++;
+                this.taken++;
 
                 // If we've reached the take limit before finishing skipping,
                 // we won't be able to return any elements
-                if(taken>=takeCount) {
-                    reachedTakeLimit=true;
+                if(this.taken>=this.takeCount) {
+                    this.reachedTakeLimit=true;
                     Unsafe.SkipInit(out current);
                     return false;
                 }
 
-                skipped++;
+                this.skipped++;
             }
 
             // Check if we've reached the take limit
-            if(taken>=takeCount) {
-                reachedTakeLimit=true;
+            if(this.taken>=this.takeCount) {
+                this.reachedTakeLimit=true;
                 Unsafe.SkipInit(out current);
                 return false;
             }
 
             // Return elements after taking and skipping
-            if(source.TryGetNext(out current)) {
-                taken++;
+            if(this.source.TryGetNext(out current)) {
+                this.taken++;
                 return true;
             }
 
             Unsafe.SkipInit(out current);
             return false;
         }
-
-        bool IsResultEmpty() {
-            if(takeCount==0) {
+        private bool IsResultEmpty() {
+            if(this.takeCount==0) {
                 return true;
             }
 
-            if(skipCount>=takeCount) {
+            if(this.skipCount>=this.takeCount) {
                 return true;
             }
 
@@ -536,7 +533,7 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            source.Dispose();
+            this.source.Dispose();
         }
 
         // Optimize
@@ -548,14 +545,14 @@ namespace Seamless.System.Carrier {
 
             // check overflow
             int newSkipCount;
-            if(count>0&&skipCount>int.MaxValue-count) {
+            if(count>0&&this.skipCount>int.MaxValue-count) {
                 newSkipCount=int.MaxValue;
             }
             else {
-                newSkipCount=skipCount+count;
+                newSkipCount=this.skipCount+count;
             }
 
-            return new TakeSkip<TEnumerator,TSource>(source,takeCount,newSkipCount);
+            return new TakeSkip<TEnumerator,TSource>(this.source,this.takeCount,newSkipCount);
         }
     }
 }

@@ -63,20 +63,20 @@ public readonly struct Upsert<TValue, TStrategy>:
     }
 
     public bool InPlaceWriter(ref LogRecord logRecord,ref TValue input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo) {
-        RecordSizeInfo sizeInfo=new(){ FieldInfo=GetUpsertFieldInfo(logRecord,srcValue,ref input) };
+        RecordSizeInfo sizeInfo=new(){ FieldInfo=this.GetUpsertFieldInfo(logRecord,srcValue,ref input) };
         logRecord.PopulateRecordSizeInfoForIPU(ref sizeInfo);
         return logRecord.TrySetValueSpanAndPrepareOptionals(srcValue,in sizeInfo);
     }
 
     public bool InPlaceWriter(ref LogRecord logRecord,ref TValue input,IHeapObject srcValue,ref bool output,ref UpsertInfo upsertInfo) {
-        RecordSizeInfo sizeInfo=new(){ FieldInfo=GetUpsertFieldInfo(logRecord,srcValue,ref input) };
+        RecordSizeInfo sizeInfo=new(){ FieldInfo=this.GetUpsertFieldInfo(logRecord,srcValue,ref input) };
         logRecord.PopulateRecordSizeInfoForIPU(ref sizeInfo);
         return logRecord.TrySetValueObjectAndPrepareOptionals(srcValue,in sizeInfo);
     }
 
     public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,ref TValue input,in TSourceLogRecord inputLogRecord,ref bool output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        RecordSizeInfo sizeInfo=new(){ FieldInfo=GetUpsertFieldInfo(dstLogRecord,in inputLogRecord,ref input) };
+        RecordSizeInfo sizeInfo=new(){ FieldInfo=this.GetUpsertFieldInfo(dstLogRecord,in inputLogRecord,ref input) };
         dstLogRecord.PopulateRecordSizeInfoForIPU(ref sizeInfo);
         return dstLogRecord.TryCopyFrom(in inputLogRecord,in sizeInfo);
     }

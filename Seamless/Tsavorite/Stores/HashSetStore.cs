@@ -11,7 +11,7 @@ public class HashSetStore<TKey>:CollectionStore<TKey,EqualityEmpty> {
         base(IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,new MemoryOnlyDevice(SegmentSize*2),new MemoryOnlyDevice(Const.MinObjectLogCapacity),null,OverflowMutableStrategyKind.Memory) { }
 
     private protected override long GetRecoveryEntryCount() {
-        using var set = Create();
+        using var set = this.Create();
         return set.GetLongCount();
     }
 

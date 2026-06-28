@@ -20,6 +20,7 @@ public class FLinqNativeScanTests {
             var generated = GeneratedInterceptorAssert.SourceFor<FLinqNativeScanTests>(nameof(CountEvenImpl));
             Assert.Contains("TsavoriteHashSetScanState",generated);
             Assert.Contains("HashSetScanUnsafe",generated);
+            Assert.DoesNotContain("Seamless.Linq.Enumerable",generated);
             Assert.DoesNotContain("MemoryExtensions.AsSpan",generated);
             Assert.DoesNotContain("CollectionsMarshal.AsSpan",generated);
             Assert.DoesNotContain(".GetSpan();",generated);

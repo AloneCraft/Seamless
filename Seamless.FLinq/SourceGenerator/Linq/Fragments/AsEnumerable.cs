@@ -7,25 +7,25 @@ public class AsEnumerable(int 番号, Enumerable source) : Enumerable(番号) {
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     public override string? DirectEnumerableExpression => source.DirectEnumerableExpression;
     public override bool CanProvideSpan => source.CanProvideSpan;
     public override bool CanTryProvideSpan => source.CanTryProvideSpan;
     public override string? NonEnumeratedCountExpression => source.NonEnumeratedCountExpression;
     public override bool CountPreserving => source.CountPreserving;
     public override string GetEnumeratorFields => string.Empty;
-    protected override string GetTryGetNonEnumeratedCountBody => $"return this.{e}.TryGetNonEnumeratedCount(out count);";
-    protected override string GetTryGetSpanBody => $"return this.{e}.TryGetSpan(out span);";
-    protected override string GetTryCopyToBody => $"return this.{e}.TryCopyTo(destination,__offset);";
+    protected override string GetTryGetNonEnumeratedCountBody => $"return this.{this.e}.TryGetNonEnumeratedCount(out count);";
+    protected override string GetTryGetSpanBody => $"return this.{this.e}.TryGetSpan(out span);";
+    protected override string GetTryCopyToBody => $"return this.{this.e}.TryCopyTo(destination,__offset);";
     public override string GetTryGetNextBody => $$"""
-        if({{e}}.MoveNext()) {
-            current = this.{{currentValue}} = {{e}}.Current;
+        if({{this.e}}.MoveNext()) {
+            current = this.{{this.currentValue}} = {{this.e}}.Current;
             return true;
         }
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => currentValue;
+    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => source.ElementType;
 }

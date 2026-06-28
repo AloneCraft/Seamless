@@ -29,10 +29,9 @@ namespace Seamless.System.Carrier {
     public struct AggregateBy<TEnumerator, TSource, TKey, TAccumulate>(TEnumerator source,Func<TSource,TKey> keySelector,TAccumulate seed,Func<TAccumulate,TSource,TAccumulate> func,IEqualityComparer<TKey>? keyComparer)
         :IValueEnumerator<KeyValuePair<TKey,TAccumulate>>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-
-        DictionarySlim<TKey,TAccumulate>? dictionary;
-        DictionarySlim<TKey,TAccumulate>.Enumerator enumerator;
+        private TEnumerator source = source;
+        private DictionarySlim<TKey,TAccumulate>? dictionary;
+        private DictionarySlim<TKey,TAccumulate>.Enumerator enumerator;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -47,30 +46,29 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<KeyValuePair<TKey,TAccumulate>> destination,Index offset) => false;
 
         public bool TryGetNext(out KeyValuePair<TKey,TAccumulate> current) {
-            if(dictionary==null) {
+            if(this.dictionary==null) {
                 // if empty, don't create dictionary.
-                if(source.TryGetNonEnumeratedCount(out var count)&&count==0) {
+                if(this.source.TryGetNonEnumeratedCount(out var count)&&count==0) {
                     Unsafe.SkipInit(out current);
                     return false;
                 }
-                Initialize();
+                this.Initialize();
             }
 
-            if(enumerator.TryGetNext(out current)) {
+            if(this.enumerator.TryGetNext(out current)) {
                 return true;
             }
 
             Unsafe.SkipInit(out current);
             return false;
         }
-
-        void Initialize() {
+        private void Initialize() {
             var dict = keyComparer!=null
                 ? new DictionarySlim<TKey,TAccumulate>(keyComparer)
                 : new DictionarySlim<TKey,TAccumulate>();
 
-            using(source) {
-                if(source.TryGetSpan(out var span)) {
+            using(this.source) {
+                if(this.source.TryGetSpan(out var span)) {
                     foreach(var item in span) {
                         var key = keySelector(item);
                         ref var accumulate = ref dict.GetValueRefOrAddDefault(key,out var exists);
@@ -78,7 +76,7 @@ namespace Seamless.System.Carrier {
                     }
                 }
                 else {
-                    while(source.TryGetNext(out var item)) {
+                    while(this.source.TryGetNext(out var item)) {
                         var key = keySelector(item);
                         ref var accumulate = ref dict.GetValueRefOrAddDefault(key,out var exists);
                         accumulate=func(exists ? accumulate! : seed,item);
@@ -86,13 +84,13 @@ namespace Seamless.System.Carrier {
                 }
             }
 
-            dictionary=dict;
-            enumerator=dict.GetEnumerator();
+            this.dictionary=dict;
+            this.enumerator=dict.GetEnumerator();
         }
 
         public void Dispose() {
-            dictionary?.Dispose();
-            source.Dispose();
+            this.dictionary?.Dispose();
+            this.source.Dispose();
         }
     }
 
@@ -101,10 +99,9 @@ namespace Seamless.System.Carrier {
     public struct AggregateBy2<TEnumerator, TSource, TKey, TAccumulate>(TEnumerator source,Func<TSource,TKey> keySelector,Func<TKey,TAccumulate> seedSelector,Func<TAccumulate,TSource,TAccumulate> func,IEqualityComparer<TKey>? keyComparer)
         :IValueEnumerator<KeyValuePair<TKey,TAccumulate>>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-
-        DictionarySlim<TKey,TAccumulate>? dictionary;
-        DictionarySlim<TKey,TAccumulate>.Enumerator enumerator;
+        private TEnumerator source = source;
+        private DictionarySlim<TKey,TAccumulate>? dictionary;
+        private DictionarySlim<TKey,TAccumulate>.Enumerator enumerator;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -119,31 +116,30 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<KeyValuePair<TKey,TAccumulate>> destination,Index offset) => false;
 
         public bool TryGetNext(out KeyValuePair<TKey,TAccumulate> current) {
-            if(dictionary==null) {
+            if(this.dictionary==null) {
                 // if empty, don't create dictionary.
-                if(source.TryGetNonEnumeratedCount(out var count)&&count==0) {
+                if(this.source.TryGetNonEnumeratedCount(out var count)&&count==0) {
                     Unsafe.SkipInit(out current);
                     return false;
                 }
 
-                Initialize();
+                this.Initialize();
             }
 
-            if(enumerator.TryGetNext(out current)) {
+            if(this.enumerator.TryGetNext(out current)) {
                 return true;
             }
 
             Unsafe.SkipInit(out current);
             return false;
         }
-
-        void Initialize() {
+        private void Initialize() {
             var dict = keyComparer!=null
                 ? new DictionarySlim<TKey,TAccumulate>(keyComparer)
                 : new DictionarySlim<TKey,TAccumulate>();
 
-            using(source) {
-                if(source.TryGetSpan(out var span)) {
+            using(this.source) {
+                if(this.source.TryGetSpan(out var span)) {
                     foreach(var item in span) {
                         var key = keySelector(item);
                         ref var accumulate = ref dict.GetValueRefOrAddDefault(key,out var exists);
@@ -151,7 +147,7 @@ namespace Seamless.System.Carrier {
                     }
                 }
                 else {
-                    while(source.TryGetNext(out var item)) {
+                    while(this.source.TryGetNext(out var item)) {
                         var key = keySelector(item);
                         ref var accumulate = ref dict.GetValueRefOrAddDefault(key,out var exists);
                         accumulate=func(exists ? accumulate! : seedSelector(key),item);
@@ -159,13 +155,13 @@ namespace Seamless.System.Carrier {
                 }
             }
 
-            dictionary=dict;
-            enumerator=dict.GetEnumerator();
+            this.dictionary=dict;
+            this.enumerator=dict.GetEnumerator();
         }
 
         public void Dispose() {
-            dictionary?.Dispose();
-            source.Dispose();
+            this.dictionary?.Dispose();
+            this.source.Dispose();
         }
     }
 }

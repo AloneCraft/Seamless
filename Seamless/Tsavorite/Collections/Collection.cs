@@ -47,7 +47,7 @@ public abstract class Collection<
         public int Count;
         public bool HasPendingItem => false;
         public void ResetChunk() {
-            Count=0;
+            this.Count=0;
         }
         private protected virtual bool ShouldRead<TSourceLogRecord>(in TSourceLogRecord logRecord)
             where TSourceLogRecord : ISourceLogRecord => true;
@@ -55,16 +55,16 @@ public abstract class Collection<
             where TSourceLogRecord : ISourceLogRecord;
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
-            if(!ShouldRead(logRecord)||logRecord.Info.Tombstone) {
+            if(!this.ShouldRead(logRecord)||logRecord.Info.Tombstone) {
                 cursorRecordResult=CursorRecordResult.Skip;
                 return true;
             }
-            if(Count>=Chunk.Length) {
+            if(this.Count>=this.Chunk.Length) {
                 cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
                 return true;
             }
 
-            Chunk[Count++]=Deserialize(logRecord);
+            this.Chunk[this.Count++]=this.Deserialize(logRecord);
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
@@ -114,16 +114,16 @@ public abstract class Collection<
         TStoreFunctions,
         TAllocator
     > CollectionStore;
-    private protected TsavoriteKV<TStoreFunctions,TAllocator> Store => CollectionStore.Store;
+    private protected TsavoriteKV<TStoreFunctions,TAllocator> Store => this.CollectionStore.Store;
     public TryAddResult TryAdd(TKey Key,TValue Value) {
-        VerifyThreadAffinity();
-        return PrivateTryAdd(Key,Value);
+        this.VerifyThreadAffinity();
+        return this.PrivateTryAdd(Key,Value);
     }
     public void Add(TKey Key,TValue Value) {
-        var Result = TryAdd(Key,Value);
+        var Result = this.TryAdd(Key,Value);
         switch(Result) {
             case TryAddResult.LogFull:
-                throw ThrowLogFull();
+                throw this.ThrowLogFull();
             case TryAddResult.KeyAlreadyExists:
                 throw new ArgumentException($"An item with the same key has already been added. Key: {Key}");
         }
@@ -135,11 +135,11 @@ public abstract class Collection<
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord sourceLogRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
             cursorRecordResult=CursorRecordResult.Accept;
-            Counter++;
+            this.Counter++;
             return true;
         }
         public bool OnStart(long beginAddress,long endAddress) {
-            Counter=0;
+            this.Counter=0;
             return true;
         }
         public void OnException(Exception exception,long numberOfRecords) {
@@ -148,15 +148,15 @@ public abstract class Collection<
         }
     }
     public long GetLongCount() {
-        VerifyThreadAffinity();
+        this.VerifyThreadAffinity();
         var iterator = new CounterIterator();
         var cursor = 0L;
-        ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
-        ReadSession.BasicContext.CompletePending(wait: true);
+        this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+        this.ReadSession.BasicContext.CompletePending(wait: true);
         return iterator.Counter;
     }
     private protected unsafe bool PrivateProtectedContainsKey(ReadOnlySpan<byte> KeyBytes) {
-        var Session = ContainsDeleteSession;
+        var Session = this.ContainsDeleteSession;
         var Output = false;
         Status Status;
         // FixedSpanByteKey requires the key span to stay fixed through any pending completion.
@@ -176,25 +176,25 @@ public abstract class Collection<
         > CollectionStore
     ) {
         this.CollectionStore=CollectionStore;
-        RecreateCoreSessions();
+        this.RecreateCoreSessions();
     }
     private void RecreateCoreSessions() {
-        var Store = CollectionStore.Store;
-        ReadSession=Store.NewSession<
+        var Store = this.CollectionStore.Store;
+        this.ReadSession=Store.NewSession<
             FixedSpanByteKey,
             EqualityEmpty,
             TReadOutput,
             EqualityEmpty,
             TReadFunctions
         >(TReadFunctions.Create());
-        Add_ClientSession=Store.NewSession<
+        this.Add_ClientSession=Store.NewSession<
             FixedSpanByteKey,
             TAddInput,
             bool,
             EqualityEmpty,
             TAddFunctions
         >(TAddFunctions.Create());
-        ContainsDeleteSession=Store.NewSession<
+        this.ContainsDeleteSession=Store.NewSession<
             FixedSpanByteKey,
             EqualityEmpty,
             bool,
@@ -203,9 +203,9 @@ public abstract class Collection<
         >(TContainsDeleteFunctions.Create());
     }
     private void DisposeCoreSessions() {
-        CompletePendingAndDispose(ReadSession);
-        CompletePendingAndDispose(Add_ClientSession);
-        CompletePendingAndDispose(ContainsDeleteSession);
+        CompletePendingAndDispose(this.ReadSession);
+        CompletePendingAndDispose(this.Add_ClientSession);
+        CompletePendingAndDispose(this.ContainsDeleteSession);
     }
     private protected virtual void DisposeAdditionalSessions() {
     }
@@ -230,25 +230,25 @@ public abstract class Collection<
         session.Dispose();
     }
     public void Clear() {
-        VerifyThreadAffinity();
-        DisposeAdditionalSessions();
-        DisposeCoreSessions();
-        CollectionStore.Store.Reset();
-        RecreateCoreSessions();
-        RecreateAdditionalSessions();
+        this.VerifyThreadAffinity();
+        this.DisposeAdditionalSessions();
+        this.DisposeCoreSessions();
+        this.CollectionStore.Store.Reset();
+        this.RecreateCoreSessions();
+        this.RecreateAdditionalSessions();
     }
     public virtual void Refresh() {
-        VerifyThreadAffinity();
+        this.VerifyThreadAffinity();
         // Refresh() performs log truncation/segment deletion, then recreates sessions.
         // Dispose active sessions, reset store, then recreate session objects.
-        DisposeAdditionalSessions();
-        DisposeCoreSessions();
-        RecreateCoreSessions();
-        RecreateAdditionalSessions();
+        this.DisposeAdditionalSessions();
+        this.DisposeCoreSessions();
+        this.RecreateCoreSessions();
+        this.RecreateAdditionalSessions();
     }
     public bool TryGetValue(TKey Key,[MaybeNullWhen(false)] out TValue Value) {
-        VerifyThreadAffinity();
-        var Status = Read(Key,out Value);
+        this.VerifyThreadAffinity();
+        var Status = this.Read(Key,out Value);
         if(Status.NotFound) {
             Value=default;
             return false;
@@ -381,7 +381,7 @@ public abstract class Collection<
         public TStrategy Strategy = strategy;
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
-            return TStrategy.Reader(ref Strategy,in logRecord,recordMetadata,numberOfRecords,out cursorRecordResult);
+            return TStrategy.Reader(ref this.Strategy,in logRecord,recordMetadata,numberOfRecords,out cursorRecordResult);
         }
         public bool OnStart(long beginAddress,long endAddress) => true;
         public void OnStop(bool completed,long numberOfRecords) {
@@ -539,51 +539,51 @@ public abstract class Collection<
             return true;
         }
     }
-    private long LogMemorySize => CollectionStore.LogMemorySize;
-    private double MutableFraction => CollectionStore.MutableFraction;
+    private long LogMemorySize => this.CollectionStore.LogMemorySize;
+    private double MutableFraction => this.CollectionStore.MutableFraction;
     private protected OutOfMemoryException ThrowLogFull() {
-        var Log = CollectionStore.Store.Log;
+        var Log = this.CollectionStore.Store.Log;
         return new OutOfMemoryException($"Tsavorite mutable log is full. BeginAddress: {Log.BeginAddress}, HeadAddress: {Log.HeadAddress}, TailAddress: {Log.TailAddress}");
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private protected bool WouldOverflowMutable(int KeyLength,int ValueLength) {
-        Debug.Assert(LogMemorySize>=8192);
-        var Log = CollectionStore.Store.Log;
-        return CollectionStore.OverflowMutableStrategyKind switch {
-            OverflowMutableStrategyKind.Memory => MemoryOverflowMutableStrategy.WouldOverflowMutable(LogMemorySize,MutableFraction,Log.BeginAddress,Log.TailAddress,KeyLength,ValueLength),
-            OverflowMutableStrategyKind.Storage => CollectionStore.StorageOverflowMutableStrategy.WouldOverflowMutable(Log.TailAddress,KeyLength,ValueLength),
+        Debug.Assert(this.LogMemorySize>=8192);
+        var Log = this.CollectionStore.Store.Log;
+        return this.CollectionStore.OverflowMutableStrategyKind switch {
+            OverflowMutableStrategyKind.Memory => MemoryOverflowMutableStrategy.WouldOverflowMutable(this.LogMemorySize,this.MutableFraction,Log.BeginAddress,Log.TailAddress,KeyLength,ValueLength),
+            OverflowMutableStrategyKind.Storage => this.CollectionStore.StorageOverflowMutableStrategy.WouldOverflowMutable(Log.TailAddress,KeyLength,ValueLength),
             _ => throw new UnreachableException(),
         };
     }
-    public int Count => checked((int)GetLongCount());
-    public long EntryCount => CollectionStore.Store.EntryCount;
+    public int Count => checked((int)this.GetLongCount());
+    public long EntryCount => this.CollectionStore.Store.EntryCount;
     private protected abstract Status Read(TKey Key,out TValue Output);
     public abstract bool IsDisposed { get; }
     private bool disposed;
     public void Dispose() {
-        Dispose(true);
+        this.Dispose(true);
         GC.SuppressFinalize(this);
     }
     protected virtual void Dispose(bool disposing) {
-        if(disposed)
+        if(this.disposed)
             return;
         if(disposing) {
-            DisposeAdditionalSessions();
-            DisposeCoreSessions();
+            this.DisposeAdditionalSessions();
+            this.DisposeCoreSessions();
         }
         else {
         }
-        disposed=true;
+        this.disposed=true;
     }
-    ~Collection() => Dispose(false);
+    ~Collection() => this.Dispose(false);
     [global::System.Diagnostics.Conditional("DEBUG")]
     internal void VerifyThreadAffinity([global::System.Runtime.CompilerServices.CallerMemberName] string operation = "") {
-        if(ThreadOwnerManagedThreadId==Environment.CurrentManagedThreadId)
+        if(this.ThreadOwnerManagedThreadId==Environment.CurrentManagedThreadId)
             return;
-        if(global::System.Threading.Interlocked.CompareExchange(ref ThreadAffinityWarningRaised,1,0)!=0)
+        if(global::System.Threading.Interlocked.CompareExchange(ref this.ThreadAffinityWarningRaised,1,0)!=0)
             return;
         Debug.WriteLine(
-            $"[Tsavorite] Thread-affinity warning: {GetType().Name} should be used from thread {ThreadOwnerManagedThreadId}, " +
+            $"[Tsavorite] Thread-affinity warning: {this.GetType().Name} should be used from thread {this.ThreadOwnerManagedThreadId}, " +
             $"current thread {Environment.CurrentManagedThreadId} at {operation}. " +
             "Create a new collection instance from Store.Create() for each thread.");
     }
@@ -602,7 +602,7 @@ public abstract class Collection<
         public bool IsSubset = true;
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
-            if(!IsSubset) {
+            if(!this.IsSubset) {
                 cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
                 return true;
             }
@@ -610,7 +610,7 @@ public abstract class Collection<
                 cursorRecordResult=CursorRecordResult.Accept;
                 return true;
             }
-            IsSubset=false;
+            this.IsSubset=false;
             cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
             return true;
         }
@@ -633,12 +633,12 @@ public abstract class Collection<
         public bool FoundOverlap = false;
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
-            if(FoundOverlap) {
+            if(this.FoundOverlap) {
                 cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
                 return true;
             }
             if(self.PrivateProtectedContainsKey(logRecord.Key)) {
-                FoundOverlap=true;
+                this.FoundOverlap=true;
                 cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
                 return true;
             }
@@ -1051,92 +1051,92 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
             SpanByteStoreFunctions,
             SpanByteStoreAllocator
         > collection) {
-            CollectionInstance=collection;
-            _session=session;
-            _untilAddress=untilAddress;
-            _iterator=iterator;
-            Cursor=0;
-            Index=-1;
-            Count=0;
-            Done=false;
-            CurrentValue=default!;
+            this.CollectionInstance=collection;
+            this._session=session;
+            this._untilAddress=untilAddress;
+            this._iterator=iterator;
+            this.Cursor=0;
+            this.Index=-1;
+            this.Count=0;
+            this.Done=false;
+            this.CurrentValue=default!;
         }
-        public readonly T Current => CurrentValue;
-        readonly object? IEnumerator.Current => Current;
+        public readonly T Current => this.CurrentValue;
+        readonly object? IEnumerator.Current => this.Current;
         public bool MoveNext() {
-            CollectionInstance.VerifyThreadAffinity();
-            var nextIndex = Index+1;
-            if(nextIndex<Count) {
-                Index=nextIndex;
-                CurrentValue=_iterator.Chunk[Index];
+            this.CollectionInstance.VerifyThreadAffinity();
+            var nextIndex = this.Index+1;
+            if(nextIndex<this.Count) {
+                this.Index=nextIndex;
+                this.CurrentValue=this._iterator.Chunk[this.Index];
                 return true;
             }
 
-            if(Done) {
-                Index=-1;
-                CurrentValue=default!;
+            if(this.Done) {
+                this.Index=-1;
+                this.CurrentValue=default!;
                 return false;
             }
 
             while(true) {
-                _iterator.ResetChunk();
-                var scanFunctions = _iterator;
-                var mayHaveMore = _session.ScanCursor(
-                    ref Cursor,
-                    _iterator.Chunk.Length,
+                this._iterator.ResetChunk();
+                var scanFunctions = this._iterator;
+                var mayHaveMore = this._session.ScanCursor(
+                    ref this.Cursor,
+                    this._iterator.Chunk.Length,
                     scanFunctions,
-                    _untilAddress,
+                    this._untilAddress,
                     true,
-                    _untilAddress,
+                    this._untilAddress,
                     false,
                     false);
-                _session.BasicContext.CompletePending(wait: true);
-                Count=_iterator.Count;
+                this._session.BasicContext.CompletePending(wait: true);
+                this.Count=this._iterator.Count;
 
-                if(!mayHaveMore&&!_iterator.HasPendingItem)
-                    Done=true;
+                if(!mayHaveMore&&!this._iterator.HasPendingItem)
+                    this.Done=true;
 
-                if(Count==0) {
-                    Done=true;
-                    Index=-1;
-                    CurrentValue=default!;
+                if(this.Count==0) {
+                    this.Done=true;
+                    this.Index=-1;
+                    this.CurrentValue=default!;
                     return false;
                 }
 
-                Index=0;
-                CurrentValue=_iterator.Chunk[0];
+                this.Index=0;
+                this.CurrentValue=this._iterator.Chunk[0];
                 return true;
             }
         }
         public void Reset() {
-            Cursor=0;
-            Count=0;
-            Index=-1;
-            Done=false;
-            CurrentValue=default!;
-            _iterator.ResetChunk();
+            this.Cursor=0;
+            this.Count=0;
+            this.Index=-1;
+            this.Done=false;
+            this.CurrentValue=default!;
+            this._iterator.ResetChunk();
         }
         public void Dispose() {
-            Done=true;
-            Index=-1;
-            Count=0;
-            CurrentValue=default!;
+            this.Done=true;
+            this.Index=-1;
+            this.Count=0;
+            this.CurrentValue=default!;
         }
     }
     private protected Collection(CollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
     }
     public bool ContainsKey(TKey Key) {
-        VerifyThreadAffinity(nameof(ContainsKey));
-        return PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
+        this.VerifyThreadAffinity(nameof(ContainsKey));
+        return this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
     }
     public bool Contains(TKey Key) {
-        VerifyThreadAffinity(nameof(Contains));
-        return PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
+        this.VerifyThreadAffinity(nameof(Contains));
+        return this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
     }
     private protected override unsafe Status Read(TKey Key,out TValue Value) {
-        VerifyThreadAffinity(nameof(Read));
+        this.VerifyThreadAffinity(nameof(Read));
         var KeyBytes = TKeySerializer.Serialize(ref Key);
-        var Session = ReadSession;
+        var Session = this.ReadSession;
         TValue Output = default!;
         Status Status;
         fixed(byte* _ = KeyBytes) {
@@ -1152,8 +1152,8 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
         return Status;
     }
     public unsafe bool Remove(TKey key) {
-        VerifyThreadAffinity();
-        var ClientSession = ContainsDeleteSession;
+        this.VerifyThreadAffinity();
+        var ClientSession = this.ContainsDeleteSession;
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var Input = default(EqualityEmpty);
         var Output = false;
@@ -1166,12 +1166,12 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
         return Output;
     }
     private protected override unsafe TryAddResult PrivateTryAdd(TKey key,TValue value) {
-        VerifyThreadAffinity(nameof(PrivateTryAdd));
+        this.VerifyThreadAffinity(nameof(PrivateTryAdd));
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var serializedValueSize = TValueSerializer.Serialize(ref value).Length;
-        if(WouldOverflowMutable(KeyBytes.Length,serializedValueSize))
+        if(this.WouldOverflowMutable(KeyBytes.Length,serializedValueSize))
             return TryAddResult.LogFull;
-        var ClientSession = Add_ClientSession;
+        var ClientSession = this.Add_ClientSession;
         var Output = false;
         Status Status;
         fixed(byte* _ = KeyBytes) {
@@ -1186,12 +1186,12 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
     }
 
     private protected unsafe void PrivateUpsert(TKey key,TValue value) {
-        VerifyThreadAffinity(nameof(PrivateUpsert));
+        this.VerifyThreadAffinity(nameof(PrivateUpsert));
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var ValueBytes = TValueSerializer.Serialize(ref value);
-        if(WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))
-            throw ThrowLogFull();
-        var ClientSession = Add_ClientSession;
+        if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))
+            throw this.ThrowLogFull();
+        var ClientSession = this.Add_ClientSession;
         Status Status;
         fixed(byte* _ = KeyBytes) {
             var FixedKey = (FixedSpanByteKey)KeyBytes;

@@ -7,8 +7,8 @@ public sealed class LeftJoin(ITestOutputHelper output):LinqChain1TestBase(output
     [Fact,Trait("Category","Unit")]
     public void keySelectors_resultSelector() {
         var expected=Rows().LeftJoin(OtherRows(),static row => row.Key,static other => other.Key,static (row,other) => $"{row.Name}:{other?.Name??"none"}").ToList();
-        MeasureOptimized(nameof(keySelectors_resultSelectorOptimized),()=>keySelectors_resultSelectorOptimized(expected));
-        MeasureOptimized(nameof(keySelectors_resultSelectorNoOptimized),()=>keySelectors_resultSelectorNoOptimized(expected));
+        this.MeasureOptimized(nameof(keySelectors_resultSelectorOptimized),()=>keySelectors_resultSelectorOptimized(expected));
+        this.MeasureOptimized(nameof(keySelectors_resultSelectorNoOptimized),()=>keySelectors_resultSelectorNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

@@ -15,8 +15,8 @@ public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : 
     public string IndexPath { get; }
     public long DataLength { get; private set; }
     public long DataCapacity { get; private set; }
-    public override FileAccess OptimizationMode => tuning.OptimizationMode;
-    public override FileOptions AccessPattern => tuning.AccessPattern;
+    public override FileAccess OptimizationMode => this.tuning.OptimizationMode;
+    public override FileOptions AccessPattern => this.tuning.AccessPattern;
 
     public SerializedList(string path,long initialCapacity = 16,long initialDataCapacity = 4096) : base(path) {
         if(initialCapacity<1)
@@ -24,54 +24,54 @@ public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : 
         if(initialDataCapacity<1)
             throw new ArgumentOutOfRangeException(nameof(initialDataCapacity));
 
-        IndexPath=path+".index";
-        indexStream=OpenStream(IndexPath);
-        dataStream=OpenStream(Path);
+        this.IndexPath=path+".index";
+        this.indexStream=this.OpenStream(this.IndexPath);
+        this.dataStream=this.OpenStream(this.Path);
 
-        if(indexStream.Length==0&&dataStream.Length==0) {
-            Count=0;
-            Capacity=AlignIndexCapacity(initialCapacity);
-            DataLength=0;
-            DataCapacity=AlignDataCapacity(initialDataCapacity);
-            indexStream.SetLength(GetIndexFileLength(Capacity));
-            dataStream.SetLength(GetDataFileLength(DataCapacity));
-            CreateMappings();
-            InitializeIndexRange(0,Capacity);
-            persistedCount=0;
+        if(this.indexStream.Length==0&&this.dataStream.Length==0) {
+            this.Count=0;
+            this.Capacity=this.AlignIndexCapacity(initialCapacity);
+            this.DataLength=0;
+            this.DataCapacity=this.AlignDataCapacity(initialDataCapacity);
+            this.indexStream.SetLength(this.GetIndexFileLength(this.Capacity));
+            this.dataStream.SetLength(this.GetDataFileLength(this.DataCapacity));
+            this.CreateMappings();
+            this.InitializeIndexRange(0,this.Capacity);
+            this.persistedCount=0;
         }
         else {
-            if(indexStream.Length==0||dataStream.Length==0)
+            if(this.indexStream.Length==0||this.dataStream.Length==0)
                 throw new InvalidDataException("List companion files are incomplete.");
-            CreateMappings();
-            LoadState();
+            this.CreateMappings();
+            this.LoadState();
         }
 
-        ApplyTuning();
+        this.ApplyTuning();
     }
     public override void SetTuning(TempListTuning tuning) {
-        ThrowIfDisposed();
+        this.ThrowIfDisposed();
         if(this.tuning.Equals(tuning))
             return;
 
         var requiresReopen = MemoryMappedListTuning.RequiresReopen(this.tuning,tuning);
         this.tuning=tuning;
         if(requiresReopen) {
-            ReopenMappings();
+            this.ReopenMappings();
             return;
         }
 
-        ApplyTuning();
+        this.ApplyTuning();
     }
 
     public override void Add(T item) {
-        ThrowIfDisposed();
+        this.ThrowIfDisposed();
         var bytes = TSerializer.Serialize(ref item);
-        AppendRecord(bytes.ToArray());
+        this.AppendRecord(bytes.ToArray());
     }
 
     internal void AddRawBytes(ReadOnlySpan<byte> item) {
-        ThrowIfDisposed();
-        AppendRecord(item.ToArray());
+        this.ThrowIfDisposed();
+        this.AppendRecord(item.ToArray());
     }
 
     //    public override void Add(scoped ReadOnlySpan<byte> item) {
@@ -87,135 +87,135 @@ public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : 
 #endif
 
     public void DuplicateRemoval() {
-        ThrowIfDisposed();
-        if(Count<2)
+        this.ThrowIfDisposed();
+        if(this.Count<2)
             return;
 
-        SortBySerializedBits();
+        this.SortBySerializedBits();
 
         var writeIndex = 1L;
-        var previousOffset = ReadIndexUnchecked(0);
-        for(var readIndex = 1L; readIndex<Count; readIndex++) {
-            var currentOffset = ReadIndexUnchecked(readIndex);
-            if(CompareData(previousOffset,currentOffset)==0)
+        var previousOffset = this.ReadIndexUnchecked(0);
+        for(var readIndex = 1L; readIndex<this.Count; readIndex++) {
+            var currentOffset = this.ReadIndexUnchecked(readIndex);
+            if(this.CompareData(previousOffset,currentOffset)==0)
                 continue;
             if(writeIndex!=readIndex) {
-                WriteIndexUnchecked(writeIndex,currentOffset);
+                this.WriteIndexUnchecked(writeIndex,currentOffset);
             }
             previousOffset=currentOffset;
             writeIndex++;
         }
 
-        Count=writeIndex;
-        OnCountChanged();
-        indexAccessor.Flush();
+        this.Count=writeIndex;
+        this.OnCountChanged();
+        this.indexAccessor.Flush();
     }
 
     private void LoadState() {
-        if(indexStream.Length%sizeof(long)!=0)
+        if(this.indexStream.Length%sizeof(long)!=0)
             throw new InvalidDataException("The managed list index file length is invalid.");
 
-        Capacity=indexStream.Length/sizeof(long);
-        DataCapacity=dataStream.Length;
-        if(Capacity<1)
+        this.Capacity=this.indexStream.Length/sizeof(long);
+        this.DataCapacity=this.dataStream.Length;
+        if(this.Capacity<1)
             throw new InvalidDataException("The managed list index file is empty.");
-        if(DataCapacity<1)
+        if(this.DataCapacity<1)
             throw new InvalidDataException("The managed list data file is empty.");
 
-        Count=LoadCount();
-        DataLength=LoadDataLength();
-        persistedCount=Count;
+        this.Count=this.LoadCount();
+        this.DataLength=this.LoadDataLength();
+        this.persistedCount=this.Count;
     }
 
     private void CreateMappings() {
-        indexMappedFile=MemoryMappedFile.CreateFromFile(indexStream,null,indexStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
-        indexAccessor=indexMappedFile.CreateViewAccessor(0,indexStream.Length,MemoryMappedFileAccess.ReadWrite);
-        dataMappedFile=MemoryMappedFile.CreateFromFile(dataStream,null,dataStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
-        dataAccessor=dataMappedFile.CreateViewAccessor(0,dataStream.Length,MemoryMappedFileAccess.ReadWrite);
+        this.indexMappedFile=MemoryMappedFile.CreateFromFile(this.indexStream,null,this.indexStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
+        this.indexAccessor=this.indexMappedFile.CreateViewAccessor(0,this.indexStream.Length,MemoryMappedFileAccess.ReadWrite);
+        this.dataMappedFile=MemoryMappedFile.CreateFromFile(this.dataStream,null,this.dataStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
+        this.dataAccessor=this.dataMappedFile.CreateViewAccessor(0,this.dataStream.Length,MemoryMappedFileAccess.ReadWrite);
     }
 
     private void ReopenMappings() {
-        indexAccessor.Flush();
-        dataAccessor.Flush();
-        indexAccessor.Dispose();
-        indexMappedFile.Dispose();
-        indexStream.Dispose();
-        dataAccessor.Dispose();
-        dataMappedFile.Dispose();
-        dataStream.Dispose();
-        indexStream=OpenStream(IndexPath);
-        dataStream=OpenStream(Path);
-        CreateMappings();
-        ApplyTuning();
+        this.indexAccessor.Flush();
+        this.dataAccessor.Flush();
+        this.indexAccessor.Dispose();
+        this.indexMappedFile.Dispose();
+        this.indexStream.Dispose();
+        this.dataAccessor.Dispose();
+        this.dataMappedFile.Dispose();
+        this.dataStream.Dispose();
+        this.indexStream=this.OpenStream(this.IndexPath);
+        this.dataStream=this.OpenStream(this.Path);
+        this.CreateMappings();
+        this.ApplyTuning();
     }
 
     protected void Rewrite(IEnumerable<T> items) {
-        ThrowIfDisposed();
+        this.ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(items);
         var materialized = items.ToArray();
-        Count=0;
-        DataLength=0;
-        OnCountChanged();
-        InitializeIndexRange(0,Capacity);
+        this.Count=0;
+        this.DataLength=0;
+        this.OnCountChanged();
+        this.InitializeIndexRange(0,this.Capacity);
         foreach(var item in materialized) {
-            Add(item);
+            this.Add(item);
         }
-        indexAccessor.Flush();
-        dataAccessor.Flush();
+        this.indexAccessor.Flush();
+        this.dataAccessor.Flush();
     }
     private void AppendRecord(byte[] bytes) {
-        EnsureIndexCapacity(Count+1);
-        var recordOffset = DataLength;
+        this.EnsureIndexCapacity(this.Count+1);
+        var recordOffset = this.DataLength;
         var recordLength = checked(sizeof(int)+(long)bytes.Length);
-        EnsureDataCapacity(recordOffset+recordLength);
-        WriteRecord(recordOffset,bytes);
-        WriteIndexUnchecked(Count,recordOffset);
-        Count++;
-        DataLength=recordOffset+recordLength;
-        OnCountChanged();
+        this.EnsureDataCapacity(recordOffset+recordLength);
+        this.WriteRecord(recordOffset,bytes);
+        this.WriteIndexUnchecked(this.Count,recordOffset);
+        this.Count++;
+        this.DataLength=recordOffset+recordLength;
+        this.OnCountChanged();
     }
 
     private void EnsureIndexCapacity(long minimumCapacity) {
-        if(minimumCapacity<=Capacity)
+        if(minimumCapacity<=this.Capacity)
             return;
-        var newCapacity = AlignIndexCapacity(Math.Max(Capacity*2,minimumCapacity));
-        RemapIndex(newCapacity);
+        var newCapacity = this.AlignIndexCapacity(Math.Max(this.Capacity*2,minimumCapacity));
+        this.RemapIndex(newCapacity);
     }
 
     private void EnsureDataCapacity(long minimumLength) {
-        if(minimumLength<=DataCapacity)
+        if(minimumLength<=this.DataCapacity)
             return;
-        var newCapacity = AlignDataCapacity(Math.Max(DataCapacity*2,minimumLength));
-        RemapData(newCapacity);
+        var newCapacity = this.AlignDataCapacity(Math.Max(this.DataCapacity*2,minimumLength));
+        this.RemapData(newCapacity);
     }
 
     private void RemapIndex(long newCapacity) {
-        var oldCapacity = Capacity;
-        indexAccessor.Flush();
-        indexAccessor.Dispose();
-        indexMappedFile.Dispose();
-        Capacity=newCapacity;
-        indexStream.SetLength(GetIndexFileLength(newCapacity));
-        indexMappedFile=MemoryMappedFile.CreateFromFile(indexStream,null,indexStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
-        indexAccessor=indexMappedFile.CreateViewAccessor(0,indexStream.Length,MemoryMappedFileAccess.ReadWrite);
-        InitializeIndexRange(oldCapacity,newCapacity);
-        ApplyTuning();
+        var oldCapacity = this.Capacity;
+        this.indexAccessor.Flush();
+        this.indexAccessor.Dispose();
+        this.indexMappedFile.Dispose();
+        this.Capacity=newCapacity;
+        this.indexStream.SetLength(this.GetIndexFileLength(newCapacity));
+        this.indexMappedFile=MemoryMappedFile.CreateFromFile(this.indexStream,null,this.indexStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
+        this.indexAccessor=this.indexMappedFile.CreateViewAccessor(0,this.indexStream.Length,MemoryMappedFileAccess.ReadWrite);
+        this.InitializeIndexRange(oldCapacity,newCapacity);
+        this.ApplyTuning();
     }
 
     private void RemapData(long newCapacity) {
-        dataAccessor.Flush();
-        dataAccessor.Dispose();
-        dataMappedFile.Dispose();
-        DataCapacity=newCapacity;
-        dataStream.SetLength(GetDataFileLength(newCapacity));
-        dataMappedFile=MemoryMappedFile.CreateFromFile(dataStream,null,dataStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
-        dataAccessor=dataMappedFile.CreateViewAccessor(0,dataStream.Length,MemoryMappedFileAccess.ReadWrite);
-        ApplyTuning();
+        this.dataAccessor.Flush();
+        this.dataAccessor.Dispose();
+        this.dataMappedFile.Dispose();
+        this.DataCapacity=newCapacity;
+        this.dataStream.SetLength(this.GetDataFileLength(newCapacity));
+        this.dataMappedFile=MemoryMappedFile.CreateFromFile(this.dataStream,null,this.dataStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
+        this.dataAccessor=this.dataMappedFile.CreateViewAccessor(0,this.dataStream.Length,MemoryMappedFileAccess.ReadWrite);
+        this.ApplyTuning();
     }
 
     private void SortBySerializedBits() {
         var stack = new Stack<(long Left,long Right)>();
-        stack.Push((0,Count-1));
+        stack.Push((0,this.Count-1));
 
         while(stack.Count>0) {
             var (leftStart,rightStart)=stack.Pop();
@@ -225,18 +225,18 @@ public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : 
             while(left<right) {
                 var i = left;
                 var j = right;
-                var pivotOffset = ReadIndexUnchecked(left+((right-left)>>1));
+                var pivotOffset = this.ReadIndexUnchecked(left+((right-left)>>1));
 
                 while(i<=j) {
-                    while(CompareData(ReadIndexUnchecked(i),pivotOffset)<0) {
+                    while(this.CompareData(this.ReadIndexUnchecked(i),pivotOffset)<0) {
                         i++;
                     }
-                    while(CompareData(ReadIndexUnchecked(j),pivotOffset)>0) {
+                    while(this.CompareData(this.ReadIndexUnchecked(j),pivotOffset)>0) {
                         j--;
                     }
                     if(i<=j) {
                         if(i!=j) {
-                            SwapIndex(i,j);
+                            this.SwapIndex(i,j);
                         }
                         i++;
                         j--;
@@ -260,25 +260,25 @@ public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : 
     }
 
     private void SwapIndex(long left,long right) {
-        var leftOffset = ReadIndexUnchecked(left);
-        var rightOffset = ReadIndexUnchecked(right);
-        WriteIndexUnchecked(left,rightOffset);
-        WriteIndexUnchecked(right,leftOffset);
+        var leftOffset = this.ReadIndexUnchecked(left);
+        var rightOffset = this.ReadIndexUnchecked(right);
+        this.WriteIndexUnchecked(left,rightOffset);
+        this.WriteIndexUnchecked(right,leftOffset);
     }
 
     private int CompareData(long leftOffset,long rightOffset) {
         if(leftOffset==rightOffset)
             return 0;
 
-        var leftLength = ReadRecordLength(leftOffset);
-        var rightLength = ReadRecordLength(rightOffset);
-        var leftPosition = GetRecordPosition(leftOffset)+sizeof(int);
-        var rightPosition = GetRecordPosition(rightOffset)+sizeof(int);
+        var leftLength = this.ReadRecordLength(leftOffset);
+        var rightLength = this.ReadRecordLength(rightOffset);
+        var leftPosition = this.GetRecordPosition(leftOffset)+sizeof(int);
+        var rightPosition = this.GetRecordPosition(rightOffset)+sizeof(int);
         var minimumLength = Math.Min(leftLength,rightLength);
 
         for(var i = 0; i<minimumLength; i++) {
-            var leftByte = dataAccessor.ReadByte(leftPosition+i);
-            var rightByte = dataAccessor.ReadByte(rightPosition+i);
+            var leftByte = this.dataAccessor.ReadByte(leftPosition+i);
+            var rightByte = this.dataAccessor.ReadByte(rightPosition+i);
             if(leftByte!=rightByte)
                 return leftByte.CompareTo(rightByte);
         }
@@ -287,58 +287,58 @@ public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : 
     }
 
     protected override T GetItem(long index) {
-        return DeserializeAt(ReadIndexUnchecked(index));
+        return this.DeserializeAt(this.ReadIndexUnchecked(index));
     }
 
     protected override void OnCountChanged() {
-        if(Count<persistedCount) {
-            InitializeIndexRange(Count,persistedCount);
+        if(this.Count<this.persistedCount) {
+            this.InitializeIndexRange(this.Count,this.persistedCount);
         }
-        persistedCount=Count;
+        this.persistedCount=this.Count;
     }
 
     protected override void DisposeCore() {
-        indexAccessor.Flush();
-        dataAccessor.Flush();
-        indexAccessor.Dispose();
-        indexMappedFile.Dispose();
-        indexStream.Dispose();
-        dataAccessor.Dispose();
-        dataMappedFile.Dispose();
-        dataStream.Dispose();
+        this.indexAccessor.Flush();
+        this.dataAccessor.Flush();
+        this.indexAccessor.Dispose();
+        this.indexMappedFile.Dispose();
+        this.indexStream.Dispose();
+        this.dataAccessor.Dispose();
+        this.dataMappedFile.Dispose();
+        this.dataStream.Dispose();
     }
 
     private T DeserializeAt(long recordOffset) {
-        var bytes = ReadRecord(recordOffset);
+        var bytes = this.ReadRecord(recordOffset);
         return TSerializer.Deserialize(bytes);
     }
 
     private byte[] ReadRecord(long recordOffset) {
-        var length = ReadRecordLength(recordOffset);
+        var length = this.ReadRecordLength(recordOffset);
         var bytes = new byte[length];
         if(length==0)
             return bytes;
-        dataAccessor.ReadArray(GetRecordPosition(recordOffset)+sizeof(int),bytes,0,length);
+        this.dataAccessor.ReadArray(this.GetRecordPosition(recordOffset)+sizeof(int),bytes,0,length);
         return bytes;
     }
 
-    private int ReadRecordLength(long recordOffset) => ReadRecordLength(recordOffset,DataLength);
+    private int ReadRecordLength(long recordOffset) => this.ReadRecordLength(recordOffset,this.DataLength);
 
     private int ReadRecordLength(long recordOffset,long dataLength) {
         if(recordOffset<0||recordOffset>dataLength-sizeof(int))
             throw new InvalidDataException("The managed list record offset is invalid.");
 
-        var length = dataAccessor.ReadInt32(GetRecordPosition(recordOffset));
+        var length = this.dataAccessor.ReadInt32(this.GetRecordPosition(recordOffset));
         if(length<0||recordOffset+sizeof(int)+(long)length>dataLength)
             throw new InvalidDataException("The managed list record length is invalid.");
         return length;
     }
 
     private void WriteRecord(long recordOffset,byte[] bytes) {
-        var position = GetRecordPosition(recordOffset);
-        dataAccessor.Write(position,bytes.Length);
+        var position = this.GetRecordPosition(recordOffset);
+        this.dataAccessor.Write(position,bytes.Length);
         if(bytes.Length!=0) {
-            dataAccessor.WriteArray(position+sizeof(int),bytes,0,bytes.Length);
+            this.dataAccessor.WriteArray(position+sizeof(int),bytes,0,bytes.Length);
         }
     }
 
@@ -351,25 +351,25 @@ public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : 
     private long AlignDataCapacity(long capacity) => MemoryMappedListTuning.AlignBytes(capacity);
 
     private FileStream OpenStream(string path) {
-        return new(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read,BufferSize,MemoryMappedListTuning.GetFileOptions(Tuning));
+        return new(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read,BufferSize,MemoryMappedListTuning.GetFileOptions(this.Tuning));
     }
 
     private void ApplyTuning() {
-        MemoryMappedListTuning.ApplyTuning(indexStream,indexAccessor,Tuning);
-        MemoryMappedListTuning.ApplyTuning(dataStream,dataAccessor,Tuning);
+        MemoryMappedListTuning.ApplyTuning(this.indexStream,this.indexAccessor,this.Tuning);
+        MemoryMappedListTuning.ApplyTuning(this.dataStream,this.dataAccessor,this.Tuning);
     }
 
-    private long ReadIndexUnchecked(long index) => indexAccessor.ReadInt64(GetIndexOffset(index));
+    private long ReadIndexUnchecked(long index) => this.indexAccessor.ReadInt64(this.GetIndexOffset(index));
 
     private void WriteIndexUnchecked(long index,long recordOffset) {
-        indexAccessor.Write(GetIndexOffset(index),recordOffset);
+        this.indexAccessor.Write(this.GetIndexOffset(index),recordOffset);
     }
 
     private long LoadCount() {
         var count = 0L;
         var foundUnused = false;
-        for(var index = 0L; index<Capacity; index++) {
-            var recordOffset = ReadIndexUnchecked(index);
+        for(var index = 0L; index<this.Capacity; index++) {
+            var recordOffset = this.ReadIndexUnchecked(index);
             if(recordOffset==UnusedIndex) {
                 foundUnused=true;
                 continue;
@@ -385,9 +385,9 @@ public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : 
 
     private long LoadDataLength() {
         var dataLength = 0L;
-        for(var index = 0L; index<Count; index++) {
-            var recordOffset = ReadIndexUnchecked(index);
-            var recordLength = ReadRecordLength(recordOffset,DataCapacity);
+        for(var index = 0L; index<this.Count; index++) {
+            var recordOffset = this.ReadIndexUnchecked(index);
+            var recordLength = this.ReadRecordLength(recordOffset,this.DataCapacity);
             var recordEnd = checked(recordOffset+sizeof(int)+(long)recordLength);
             if(recordEnd>dataLength)
                 dataLength=recordEnd;
@@ -397,7 +397,7 @@ public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : 
 
     private void InitializeIndexRange(long startIndex,long endIndexExclusive) {
         for(var index = startIndex; index<endIndexExclusive; index++) {
-            WriteIndexUnchecked(index,UnusedIndex);
+            this.WriteIndexUnchecked(index,UnusedIndex);
         }
     }
 }
@@ -410,110 +410,110 @@ public sealed class BlittableList<T>:PersistedList<T>
     private MemoryMappedViewAccessor accessor = null!;
     private TempListTuning tuning = new(FileAccess.ReadWrite,FileOptions.SequentialScan);
 
-    public override FileAccess OptimizationMode => tuning.OptimizationMode;
-    public override FileOptions AccessPattern => tuning.AccessPattern;
+    public override FileAccess OptimizationMode => this.tuning.OptimizationMode;
+    public override FileOptions AccessPattern => this.tuning.AccessPattern;
 
     public BlittableList(string path,long initialCapacity = 16) : base(path) {
         if(initialCapacity<1)
             throw new ArgumentOutOfRangeException(nameof(initialCapacity));
-        stream=OpenStream(Path);
+        this.stream=this.OpenStream(this.Path);
         var elementSize = Unsafe.SizeOf<T>();
-        var initializeHeader = stream.Length==0;
-        if(stream.Length==0) {
-            Count=0;
-            Capacity=AlignCapacity(initialCapacity,elementSize);
-            stream.SetLength(GetFileLength(Capacity,elementSize));
+        var initializeHeader = this.stream.Length==0;
+        if(this.stream.Length==0) {
+            this.Count=0;
+            this.Capacity=this.AlignCapacity(initialCapacity,elementSize);
+            this.stream.SetLength(this.GetFileLength(this.Capacity,elementSize));
         }
         else {
-            if(stream.Length<HeaderLength||(stream.Length-HeaderLength)%elementSize!=0)
+            if(this.stream.Length<HeaderLength||(this.stream.Length-HeaderLength)%elementSize!=0)
                 throw new InvalidDataException("The fixed list file length is invalid.");
-            Capacity=(stream.Length-HeaderLength)/elementSize;
+            this.Capacity=(this.stream.Length-HeaderLength)/elementSize;
         }
-        CreateMapping();
+        this.CreateMapping();
         if(initializeHeader)
-            WriteCount();
+            this.WriteCount();
         else {
-            Count=LoadCount();
-            if(Count<0||Count>Capacity)
+            this.Count=this.LoadCount();
+            if(this.Count<0||this.Count>this.Capacity)
                 throw new InvalidDataException("The fixed list count is invalid.");
         }
-        ApplyTuning();
+        this.ApplyTuning();
     }
 
     public override void Add(T item) {
-        ThrowIfDisposed();
-        EnsureCapacity(Count+1);
-        accessor.Write(GetOffset(Count),ref item);
-        Count++;
-        OnCountChanged();
+        this.ThrowIfDisposed();
+        this.EnsureCapacity(this.Count+1);
+        this.accessor.Write(this.GetOffset(this.Count),ref item);
+        this.Count++;
+        this.OnCountChanged();
     }
 
     public override void SetTuning(TempListTuning tuning) {
-        ThrowIfDisposed();
+        this.ThrowIfDisposed();
         if(this.tuning.Equals(tuning))
             return;
         var requiresReopen = MemoryMappedListTuning.RequiresReopen(this.tuning,tuning);
         this.tuning=tuning;
         if(requiresReopen) {
-            ReopenMapping();
+            this.ReopenMapping();
             return;
         }
-        ApplyTuning();
+        this.ApplyTuning();
     }
 
     protected override T GetItem(long index) {
-        accessor.Read(GetOffset(index),out T value);
+        this.accessor.Read(this.GetOffset(index),out T value);
         return value;
     }
 
     protected override void OnCountChanged() {
-        WriteCount();
+        this.WriteCount();
     }
 
     protected override void DisposeCore() {
-        accessor.Flush();
-        accessor.Dispose();
-        mappedFile.Dispose();
-        stream.Dispose();
+        this.accessor.Flush();
+        this.accessor.Dispose();
+        this.mappedFile.Dispose();
+        this.stream.Dispose();
     }
 
     private void EnsureCapacity(long minimumCapacity) {
-        if(minimumCapacity<=Capacity)
+        if(minimumCapacity<=this.Capacity)
             return;
         var elementSize = Unsafe.SizeOf<T>();
-        var newCapacity = AlignCapacity(Math.Max(Capacity*2,minimumCapacity),elementSize);
-        accessor.Flush();
-        accessor.Dispose();
-        mappedFile.Dispose();
-        Capacity=newCapacity;
-        stream.SetLength(GetFileLength(newCapacity,elementSize));
-        CreateMapping();
-        ApplyTuning();
+        var newCapacity = this.AlignCapacity(Math.Max(this.Capacity*2,minimumCapacity),elementSize);
+        this.accessor.Flush();
+        this.accessor.Dispose();
+        this.mappedFile.Dispose();
+        this.Capacity=newCapacity;
+        this.stream.SetLength(this.GetFileLength(newCapacity,elementSize));
+        this.CreateMapping();
+        this.ApplyTuning();
     }
 
     private void CreateMapping() {
-        mappedFile=MemoryMappedFile.CreateFromFile(stream,null,stream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
-        accessor=mappedFile.CreateViewAccessor(0,stream.Length,MemoryMappedFileAccess.ReadWrite);
+        this.mappedFile=MemoryMappedFile.CreateFromFile(this.stream,null,this.stream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
+        this.accessor=this.mappedFile.CreateViewAccessor(0,this.stream.Length,MemoryMappedFileAccess.ReadWrite);
     }
 
     private void ReopenMapping() {
-        accessor.Flush();
-        accessor.Dispose();
-        mappedFile.Dispose();
-        stream.Dispose();
-        stream=OpenStream(Path);
-        CreateMapping();
-        ApplyTuning();
+        this.accessor.Flush();
+        this.accessor.Dispose();
+        this.mappedFile.Dispose();
+        this.stream.Dispose();
+        this.stream=this.OpenStream(this.Path);
+        this.CreateMapping();
+        this.ApplyTuning();
     }
 
     private FileStream OpenStream(string path) =>
-        new(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read,BufferSize,MemoryMappedListTuning.GetFileOptions(Tuning));
+        new(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read,BufferSize,MemoryMappedListTuning.GetFileOptions(this.Tuning));
 
     private void ApplyTuning() =>
-        MemoryMappedListTuning.ApplyTuning(stream,accessor,Tuning);
+        MemoryMappedListTuning.ApplyTuning(this.stream,this.accessor,this.Tuning);
 
-    private long LoadCount() => accessor.ReadInt64(0);
-    private void WriteCount() => accessor.Write(0,Count);
+    private long LoadCount() => this.accessor.ReadInt64(0);
+    private void WriteCount() => this.accessor.Write(0,this.Count);
 
     private long GetOffset(long index) => checked(HeaderLength+index*(long)Unsafe.SizeOf<T>());
     private long GetFileLength(long capacity,int elementSize) => checked(HeaderLength+capacity*(long)elementSize);

@@ -1,6 +1,5 @@
 namespace Benchmark.Shared;
-
-static class Categories{
+internal static class Categories{
     public const string Linq="LINQ";
     public const string FLinq="FLinq";
     public const string ZLinq="ZLinq";

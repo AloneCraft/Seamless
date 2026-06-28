@@ -1,7 +1,6 @@
 using ZLinq;
 namespace Benchmark.Shared;
-
-static class ConsumerExtensions{
+internal static class ConsumerExtensions{
     public static void Consume<T>(this IEnumerable<T> source,Consumer consumer){
         foreach(var item in source){
             consumer.Consume(item);

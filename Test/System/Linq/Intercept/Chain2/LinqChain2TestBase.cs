@@ -21,7 +21,7 @@ public abstract class LinqChain2TestBase(ITestOutputHelper output) {
         using var scope=LinqCounterScope.Start();
         var actual=actualFactory();
         LinqCounterDiagnostics.EmitActual(label,scope.Counter);
-        WriteCounterMessage(label,scope.Counter);
+        this.WriteCounterMessage(label,scope.Counter);
         Assert.Equal(expected,actual);
     }
 
@@ -29,7 +29,7 @@ public abstract class LinqChain2TestBase(ITestOutputHelper output) {
         using var scope=LinqCounterScope.Start();
         action();
         LinqCounterDiagnostics.EmitActual(label,scope.Counter);
-        WriteCounterMessage(label,scope.Counter);
+        this.WriteCounterMessage(label,scope.Counter);
     }
 
     private void WriteCounterMessage(string label,LinqCounter counter) {

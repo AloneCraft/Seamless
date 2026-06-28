@@ -52,17 +52,17 @@ public class ToList(int 番号, Enumerable source, string resultType) : Buffered
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
-    protected override string ComputeExpression => $"Compute({e})";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
+    protected override string ComputeExpression => $"Compute({this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        RenderRangeToListInline(destVar,destType)
-        ?? RenderDirectSpanToListInline(destVar,destType)
-        ?? RenderDirectEnumerableToListHybridInline(source,destVar,destType)
-        ?? RenderComputeInline(destVar,destType);
+        this.RenderRangeToListInline(destVar,destType)
+        ??this.RenderDirectSpanToListInline(destVar,destType)
+        ??this.RenderDirectEnumerableToListHybridInline(source,destVar,destType)
+        ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanToListInline(string destVar,string destType) {
-        var span=$"__span{result}";
-        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span=$"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
             {{destVar}}=new({{spanName}}.Length);
             global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({{destVar}},{{spanName}}.Length);
             {{spanName}}.CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{destVar}}));

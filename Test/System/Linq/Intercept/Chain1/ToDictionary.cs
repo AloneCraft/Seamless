@@ -7,8 +7,8 @@ public sealed class ToDictionary(ITestOutputHelper output):LinqChain1TestBase(ou
     [Fact, Trait("Category","Unit")]
     public void keySelector_Static() {
         var expected=Rows().Take(3).ToDictionary(static row => row.Key);
-        MeasureOptimized(nameof(keySelector_StaticOptimized),()=>keySelector_StaticOptimized(expected));
-        MeasureOptimized(nameof(keySelector_StaticNoOptimized),()=>keySelector_StaticNoOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_StaticOptimized),()=>keySelector_StaticOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_StaticNoOptimized),()=>keySelector_StaticNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -26,8 +26,8 @@ public sealed class ToDictionary(ITestOutputHelper output):LinqChain1TestBase(ou
     [Fact, Trait("Category","Unit")]
     public void keySelector_elementSelector_Static() {
         var expected=Rows().Take(3).ToDictionary(static row => row.Key,static row => row.Value);
-        MeasureOptimized(nameof(keySelector_elementSelector_StaticOptimized),()=>keySelector_elementSelector_StaticOptimized(expected));
-        MeasureOptimized(nameof(keySelector_elementSelector_StaticNoOptimized),()=>keySelector_elementSelector_StaticNoOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_elementSelector_StaticOptimized),()=>keySelector_elementSelector_StaticOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_elementSelector_StaticNoOptimized),()=>keySelector_elementSelector_StaticNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -45,8 +45,8 @@ public sealed class ToDictionary(ITestOutputHelper output):LinqChain1TestBase(ou
     [Fact, Trait("Category","Unit")]
     public void keySelector_comparer() {
         var expected=Rows().Take(3).ToDictionary(static row => row.Key,EqualityComparer<int>.Default);
-        MeasureOptimized(nameof(keySelector_comparerOptimized),()=>keySelector_comparerOptimized(expected));
-        MeasureOptimized(nameof(keySelector_comparerNoOptimized),()=>keySelector_comparerNoOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_comparerOptimized),()=>keySelector_comparerOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_comparerNoOptimized),()=>keySelector_comparerNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -64,8 +64,8 @@ public sealed class ToDictionary(ITestOutputHelper output):LinqChain1TestBase(ou
     [Fact, Trait("Category","Unit")]
     public void keySelector_elementSelector_comparer() {
         var expected=Rows().Take(3).ToDictionary(static row => row.Key,static row => row.Value,EqualityComparer<int>.Default);
-        MeasureOptimized(nameof(keySelector_elementSelector_comparerOptimized),()=>keySelector_elementSelector_comparerOptimized(expected));
-        MeasureOptimized(nameof(keySelector_elementSelector_comparerNoOptimized),()=>keySelector_elementSelector_comparerNoOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_elementSelector_comparerOptimized),()=>keySelector_elementSelector_comparerOptimized(expected));
+        this.MeasureOptimized(nameof(keySelector_elementSelector_comparerNoOptimized),()=>keySelector_elementSelector_comparerNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

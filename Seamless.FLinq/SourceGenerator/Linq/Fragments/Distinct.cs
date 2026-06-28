@@ -28,49 +28,49 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
     protected override Enumerable PrimarySource=>source;
     private string Comparer=>ComparerExpressionSupport.RenderEqualityComparer(comparer,source.ElementType);
     public override string StructMethod=>string.Empty;
-    public override string GetEnumerableExpression=>$"global::Seamless.System.Carrier.ValueEnumerableExtensions.Distinct({source.GetEnumerableExpression},{Comparer})";
+    public override string GetEnumerableExpression=>$"global::Seamless.System.Carrier.ValueEnumerableExtensions.Distinct({source.GetEnumerableExpression},{this.Comparer})";
     public override string GetEnumeratorStruct=>$$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression=>$"new {EnumeratorTypeName}({source.GetEnumeratorExpression},{Comparer})";
-    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {e},global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
-    public override string GetEnumeratorConstructor=>$"this.{lookup}=CreateLookup({e},comparer);";
+    public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{this.Comparer})";
+    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
+    public override string GetEnumeratorConstructor=>$"this.{this.lookup}=CreateLookup({this.e},comparer);";
     public override string GetEnumeratorFields=>$$"""
-        private global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}> {{lookup}};
+        private global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}> {{this.lookup}};
         private static global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
             // Distinct は列挙途中で set を更新し続けるため、ここでは root の型に応じた span 判定を入れない。
             // 生成時点で root が span 直走査できる場合は上位の consumer 専用 lowering が選ばれ、それ以外はこの enumerator 経路に落ちる。
-            if(source.TryGetNonEnumeratedCount(out var {{count}})){
-                return new global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}>({{count}},comparer);
+            if(source.TryGetNonEnumeratedCount(out var {{this.count}})){
+                return new global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}>({{this.count}},comparer);
             }else{
                 return new global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}>(comparer);
             }
         }
         """;
     public override string GetTryGetNextBody=>$$"""
-        while({{e}}.TryGetNext(out var {{item}})){
-            if(this.{{lookup}}.Add({{item}})){
-                current=this.{{currentValue}}={{item}};
+        while({{this.e}}.TryGetNext(out var {{this.item}})){
+            if(this.{{this.lookup}}.Add({{this.item}})){
+                current=this.{{this.currentValue}}={{this.item}};
                 return true;
             }
         }
         current=default!;
         return false;
         """;
-    public override string GetCurrentExpression=> currentValue;
+    public override string GetCurrentExpression=> this.currentValue;
     public override string ElementType=>source.ElementType;
-    protected override string GetEnumeratorDisposeBody=>$"{lookup}.Dispose();\n{e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody=>$"{this.lookup}.Dispose();\n{this.e}.Dispose();";
     public override string GetConsumeExecutionStatement(string consumerName){
         var sourceName=$"__src{番号}";
         var builder=new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
         if(ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,source.ElementType)&&IsInt32Type(source.ElementType)&&source.CanTryProvideSpan) {
-            AppendSortedIntDistinctFastPath(builder,sourceName,consumerName);
+            this.AppendSortedIntDistinctFastPath(builder,sourceName,consumerName);
         }
-        TraversalSupport.AppendHashSetInitialization(builder,lookup,source.ElementType,sourceName,Comparer);
+        TraversalSupport.AppendHashSetInitialization(builder,this.lookup,source.ElementType,sourceName,this.Comparer);
         TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
-            if({{lookup}}.Add(value)){
+            if({{this.lookup}}.Add(value)){
                 {{consumerName}}.Consume(value);
             }
             """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName));
@@ -153,55 +153,55 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
     protected override Enumerable PrimarySource=>source;
     private FuncFragment KeySelector=>keySelector;
     private string Comparer=>ComparerExpressionSupport.RenderEqualityComparer(comparer,FuncReturnTypeName(keySelector));
-    public override string StructMethod=> FuncSupport(keySelector,nameof(keySelector));
-    public override string GetEnumerableExpression=>$"global::Seamless.System.Carrier.ValueEnumerableExtensions.DistinctBy({source.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{Comparer})";
+    public override string StructMethod=> this.FuncSupport(keySelector,nameof(keySelector));
+    public override string GetEnumerableExpression=>$"global::Seamless.System.Carrier.ValueEnumerableExtensions.DistinctBy({source.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{this.Comparer})";
     public override string GetEnumeratorStruct=>$$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression=>$"new {EnumeratorTypeName}({source.GetEnumeratorExpression},{Comparer}{ClosureArgsSuffix(keySelector)})";
-    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {e},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{ClosurePrimaryCtorSuffix(keySelector)}";
-    public override string GetEnumeratorConstructor=>$"this.{lookup}=CreateLookup({e},comparer);";
+    public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{this.Comparer}{this.ClosureArgsSuffix(keySelector)})";
+    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector)}";
+    public override string GetEnumeratorConstructor=>$"this.{this.lookup}=CreateLookup({this.e},comparer);";
     public override string GetEnumeratorFields=>$$"""
-        private global::Seamless.System.Carrier.HashSetSlim<{{FuncReturnTypeName(keySelector)}}> {{lookup}};
+        private global::Seamless.System.Carrier.HashSetSlim<{{FuncReturnTypeName(keySelector)}}> {{this.lookup}};
         private static global::Seamless.System.Carrier.HashSetSlim<{{FuncReturnTypeName(keySelector)}}> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer){
             // DistinctBy も同じで、span 走査かどうかの判定はここではしない。
             // コンパイル時に root 形状が分かる場合は上位で専用生成されるため、ここは汎用経路として最小状態だけを保持する。
-            {{CreateLookupBody(FuncReturnTypeName(keySelector))}}
+            {{this.CreateLookupBody(FuncReturnTypeName(keySelector))}}
         }
         """;
     public override string GetTryGetNextBody=>$$"""
-        while({{e}}.TryGetNext(out var {{item}})){
-            {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
-            {{FuncAssignIndented("    ",keySelector,nameof(keySelector),key,item)}}
-            if(this.{{lookup}}.Add({{key}})){
-                current=this.{{currentValue}}={{item}};
+        while({{this.e}}.TryGetNext(out var {{this.item}})){
+            {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
+            {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),this.key,this.item)}}
+            if(this.{{this.lookup}}.Add({{this.key}})){
+                current=this.{{this.currentValue}}={{this.item}};
                 return true;
             }
         }
         current=default!;
         return false;
         """;
-    public override string GetCurrentExpression=> currentValue;
+    public override string GetCurrentExpression=> this.currentValue;
     public override string ElementType=>source.ElementType;
-    protected override string GetEnumeratorDisposeBody=>$"{lookup}.Dispose();\n{e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody=>$"{this.lookup}.Dispose();\n{this.e}.Dispose();";
     public override string GetConsumeExecutionStatement(string consumerName){
         if(source is DistinctByBase previous
-            && CanMergeWith(previous)) {
+            &&this.CanMergeWith(previous)) {
             return previous.GetConsumeExecutionStatement(consumerName);
         }
         var sourceName=$"__src{番号}";
         var keyName=$"__key{番号}";
         var builder=new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
-        var hoistedDeclarations=HoistedLocalDeclarations(keySelector);
+        var hoistedDeclarations= this.HoistedLocalDeclarations(keySelector);
         if(!string.IsNullOrEmpty(hoistedDeclarations)) {
             builder.AppendLine(hoistedDeclarations);
         }
-        if(TryAppendSmallIntegralRangeConsume(builder,sourceName,keyName,consumerName)) {
+        if(this.TryAppendSmallIntegralRangeConsume(builder,sourceName,keyName,consumerName)) {
             return builder.ToString().TrimEnd();
         }
-        TraversalSupport.AppendHashSetInitialization(builder,lookup,FuncReturnTypeName(keySelector),sourceName,Comparer,KeyCapacityHint);
+        TraversalSupport.AppendHashSetInitialization(builder,this.lookup,FuncReturnTypeName(keySelector),sourceName,this.Comparer,this.KeyCapacityHint);
         TraversalSupport.AppendTraversalLoop(
             builder,
             sourceName,
@@ -209,8 +209,8 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
             "value",
             $$"""
             {{FuncReturnTypeName(keySelector)}} {{keyName}}=default!;
-            {{FuncAssignIndented("",keySelector,nameof(keySelector),keyName,"value")}}
-            if({{lookup}}.Add({{keyName}})){
+            {{this.FuncAssignIndented("",keySelector,nameof(keySelector),keyName,"value")}}
+            if({{this.lookup}}.Add({{keyName}})){
                 {{consumerName}}.Consume(value);
             }
             """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName));
@@ -246,7 +246,7 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
             "value",
             $$"""
             {{keyType}} {{keyName}}=default!;
-            {{FuncAssignIndented("",keySelector,nameof(keySelector),keyName,"value")}}
+            {{this.FuncAssignIndented("",keySelector,nameof(keySelector),keyName,"value")}}
             var {{seenIndexName}}={{keyName}}-({{min}});
             if(!{{seenName}}[{{seenIndexName}}]){
                 {{seenName}}[{{seenIndexName}}]=true;
@@ -257,34 +257,34 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
     }
 
     private string CreateLookupBody(string keyType) =>
-        KeyCapacityHint is { } capacityHint
+        this.KeyCapacityHint is { } capacityHint
             ? $"return new global::Seamless.System.Carrier.HashSetSlim<{keyType}>({capacityHint},comparer);"
             : $$"""
-              if(source.TryGetNonEnumeratedCount(out var {{count}})){
-                  return new global::Seamless.System.Carrier.HashSetSlim<{{keyType}}>({{count}},comparer);
+              if(source.TryGetNonEnumeratedCount(out var {{this.count}})){
+                  return new global::Seamless.System.Carrier.HashSetSlim<{{keyType}}>({{this.count}},comparer);
               }else{
                   return new global::Seamless.System.Carrier.HashSetSlim<{{keyType}}>(comparer);
               }
               """;
 
     private bool CanMergeWith(DistinctByBase previous) {
-        if(KeySelector.ContainsAnchor
+        if(this.KeySelector.ContainsAnchor
             || previous.KeySelector.ContainsAnchor
-            || !string.Equals(Comparer,previous.Comparer,StringComparison.Ordinal)
-            || KeySelector.RequiresStatementInlining
+            || !string.Equals(this.Comparer,previous.Comparer,StringComparison.Ordinal)
+            ||this.KeySelector.RequiresStatementInlining
             || previous.KeySelector.RequiresStatementInlining
-            || KeySelector.ParameterNames.Length!=previous.KeySelector.ParameterNames.Length
-            || KeySelector.ParameterTypeNames.Length!=previous.KeySelector.ParameterTypeNames.Length
-            || KeySelector.ReturnTypeName!=previous.KeySelector.ReturnTypeName) {
+            ||this.KeySelector.ParameterNames.Length!=previous.KeySelector.ParameterNames.Length
+            ||this.KeySelector.ParameterTypeNames.Length!=previous.KeySelector.ParameterTypeNames.Length
+            ||this.KeySelector.ReturnTypeName!=previous.KeySelector.ReturnTypeName) {
             return false;
         }
-        for(var index=0; index<KeySelector.ParameterTypeNames.Length; index++) {
-            if(KeySelector.ParameterTypeNames[index]!=previous.KeySelector.ParameterTypeNames[index]) {
+        for(var index=0; index<this.KeySelector.ParameterTypeNames.Length; index++) {
+            if(this.KeySelector.ParameterTypeNames[index]!=previous.KeySelector.ParameterTypeNames[index]) {
                 return false;
             }
         }
         try {
-            return string.Equals(KeySelector.RenderAsLambda(),previous.KeySelector.RenderAsLambda(),StringComparison.Ordinal);
+            return string.Equals(this.KeySelector.RenderAsLambda(),previous.KeySelector.RenderAsLambda(),StringComparison.Ordinal);
         } catch(InvalidOperationException) {
             return false;
         }

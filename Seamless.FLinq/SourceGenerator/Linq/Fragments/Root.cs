@@ -35,29 +35,29 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
     public override string StructMethod => string.Empty;
     // 型引数を埋め込んだ完全な struct 名（呼び出し側では具象型引数を持つ）。
     public override string EnumeratorTypeName => useEnumerableInterface
-        ? Struct
-        : $"{Struct}<{enumeratorTypeName}>";
+        ? this.Struct
+        : $"{this.Struct}<{enumeratorTypeName}>";
     public override string? DirectEnumerableExpression => useEnumerableInterface
         ? $"((global::System.Collections.Generic.IEnumerable<{elementType}>)({sourceExpression}))"
         : null;
     public override string GetEnumeratorExpression {
         get {
             if(useEnumerableInterface) {
-                return $"new {EnumeratorTypeName}(((global::System.Collections.Generic.IEnumerable<{elementType}>)({sourceExpression})))";
+                return $"new {this.EnumeratorTypeName}(((global::System.Collections.Generic.IEnumerable<{elementType}>)({sourceExpression})))";
             }
             var sourceExpr = sourceExpression;
-            return $"new {EnumeratorTypeName}({sourceExpr}.GetEnumerator())";
+            return $"new {this.EnumeratorTypeName}({sourceExpr}.GetEnumerator())";
         }
     }
     // TEnum でパラメータ化された struct を手動で出力する（where 制約が struct 宣言の opening brace より前に来る必要があるため）。
     public override string GetEnumeratorStruct => useEnumerableInterface
-        ? GetEnumerableInterfaceStruct()
+        ? this.GetEnumerableInterfaceStruct()
         : $$"""
-        private struct {{Struct}}<TEnum> : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}}<TEnum> : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
             where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
-            private TEnum {{e}};
-            public {{Struct}}(TEnum {{e}}) { this.{{e}} = {{e}}; }
+            private TEnum {{this.e}};
+            public {{this.Struct}}(TEnum {{this.e}}) { this.{{this.e}} = {{this.e}}; }
             public {{elementType}} Current { get; private set; } = default!;
             object? global::System.Collections.IEnumerator.Current => Current;
             {{AggressiveInliningAttribute}}
@@ -78,8 +78,8 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
             public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) => false;
             {{AggressiveInliningAttribute}}
             public bool TryGetNext(out {{elementType}} current) {
-                if({{e}}.MoveNext()) {
-                    current = this.Current = {{e}}.Current;
+                if({{this.e}}.MoveNext()) {
+                    current = this.Current = {{this.e}}.Current;
                     return true;
                 }
                 current = default!;
@@ -87,18 +87,18 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
             }
             {{AggressiveInliningAttribute}}
             public void Dispose() {
-                {{e}}.Dispose();
+                {{this.e}}.Dispose();
             }
         }
         """;
 
     private string GetEnumerableInterfaceStruct() => $$"""
-        private struct {{Struct}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private global::System.Collections.Generic.IEnumerable<{{elementType}}> source;
-            private global::System.Collections.Generic.IEnumerator<{{elementType}}>? {{e}};
+            private global::System.Collections.Generic.IEnumerator<{{elementType}}>? {{this.e}};
             private int __index = -1;
-            public {{Struct}}(global::System.Collections.Generic.IEnumerable<{{elementType}}> source) { this.source = source; }
+            public {{this.Struct}}(global::System.Collections.Generic.IEnumerable<{{elementType}}> source) { this.source = source; }
             public {{elementType}} Current { get; private set; } = default!;
             object? global::System.Collections.IEnumerator.Current => Current;
             {{AggressiveInliningAttribute}}
@@ -139,10 +139,10 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
             }
             {{AggressiveInliningAttribute}}
             public bool TryGetNext(out {{elementType}} current) {
-                this.{{e}} ??= source.GetEnumerator();
-                if(this.{{e}}.MoveNext()) {
+                this.{{this.e}} ??= source.GetEnumerator();
+                if(this.{{this.e}}.MoveNext()) {
                     __index++;
-                    current = this.Current = this.{{e}}.Current;
+                    current = this.Current = this.{{this.e}}.Current;
                     return true;
                 }
                 current = default!;
@@ -150,22 +150,22 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
             }
             {{AggressiveInliningAttribute}}
             public void Dispose() {
-                this.{{e}}?.Dispose();
+                this.{{this.e}}?.Dispose();
             }
         }
         """;
     // GetEnumeratorStruct を手動出力しているのでこれらは使われないが実装が必要。
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
-        if({{e}}.MoveNext()) {
-            current = this.Current = {{e}}.Current;
+        if({{this.e}}.MoveNext()) {
+            current = this.Current = {{this.e}}.Current;
             return true;
         }
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => currentValue;
+    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => elementType;
 }
 
@@ -191,25 +191,25 @@ public class ArrayRoot(int 番号, string sourceExpression, string elementType) 
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
     // PrimarySource == null なので基底の EnumeratorTypeName は Struct のみ（型パラメータなし）を返す。
-    public override string GetEnumeratorExpression => $"new {Struct}({sourceExpression})";
+    public override string GetEnumeratorExpression => $"new {this.Struct}({sourceExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"{elementType}[] source";
-    public override string GetEnumeratorFields => $"private int {e} = -1;";
+    public override string GetEnumeratorFields => $"private int {this.e} = -1;";
     public override string GetTryGetNextBody => $$"""
-        if(++{{e}} < source.Length) {
-            current = source[{{e}}];
+        if(++{{this.e}} < source.Length) {
+            current = source[{{this.e}}];
             return true;
         }
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => $"source[{e}]";
+    public override string GetCurrentExpression => $"source[{this.e}]";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{Struct}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private {{elementType}}[] source;
-            private int {{e}} = -1;
-            public {{Struct}}({{elementType}}[] source) { this.source = source; }
+            private int {{this.e}} = -1;
+            public {{this.Struct}}({{elementType}}[] source) { this.source = source; }
             public {{elementType}} Current { get; private set; } = default!;
             object? global::System.Collections.IEnumerator.Current => Current;
             {{AggressiveInliningAttribute}}
@@ -218,28 +218,28 @@ public class ArrayRoot(int 番号, string sourceExpression, string elementType) 
             public bool MoveNext() => TryGetNext(out _);
             {{AggressiveInliningAttribute}}
             public bool TryGetNonEnumeratedCount(out int count) {
-                count = source.Length - ({{e}} + 1);
+                count = source.Length - ({{this.e}} + 1);
                 return true;
             }
             {{AggressiveInliningAttribute}}
             public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) {
-                span = global::System.MemoryExtensions.AsSpan(source, {{e}} + 1);
+                span = global::System.MemoryExtensions.AsSpan(source, {{this.e}} + 1);
                 return true;
             }
             {{AggressiveInliningAttribute}}
             public global::System.ReadOnlySpan<{{elementType}}> GetSpan()
-                => global::System.MemoryExtensions.AsSpan(source, {{e}} + 1);
+                => global::System.MemoryExtensions.AsSpan(source, {{this.e}} + 1);
             {{AggressiveInliningAttribute}}
             public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) {
-                var remaining = global::System.MemoryExtensions.AsSpan(source, {{e}} + 1);
+                var remaining = global::System.MemoryExtensions.AsSpan(source, {{this.e}} + 1);
                 var start = offset.GetOffset(remaining.Length);
                 remaining.Slice(start).CopyTo(destination);
                 return true;
             }
             {{AggressiveInliningAttribute}}
             public bool TryGetNext(out {{elementType}} current) {
-                if(++{{e}} < source.Length) {
-                    current = this.Current = source[{{e}}];
+                if(++{{this.e}} < source.Length) {
+                    current = this.Current = source[{{this.e}}];
                     return true;
                 }
                 current = default!;
@@ -275,13 +275,13 @@ public class ListRoot(int 番号, string sourceExpression, string elementType) :
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
     // PrimarySource == null なので基底の EnumeratorTypeName は Struct のみ（型パラメータなし）を返す。
-    public override string GetEnumeratorExpression => $"new {Struct}({sourceExpression})";
+    public override string GetEnumeratorExpression => $"new {this.Struct}({sourceExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"global::System.Collections.Generic.List<{elementType}> source";
-    public override string GetEnumeratorFields => $"private int {e} = -1;";
+    public override string GetEnumeratorFields => $"private int {this.e} = -1;";
     public override string GetTryGetNextBody => $$"""
-        var {{temp}} = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source);
-        if(++{{e}} < {{temp}}.Length) {
-            current = {{temp}}[{{e}}];
+        var {{this.temp}} = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source);
+        if(++{{this.e}} < {{this.temp}}.Length) {
+            current = {{this.temp}}[{{this.e}}];
             return true;
         }
         current = default!;
@@ -290,11 +290,11 @@ public class ListRoot(int 番号, string sourceExpression, string elementType) :
     public override string GetCurrentExpression => "Current";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{Struct}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private global::System.Collections.Generic.List<{{elementType}}> source;
-            private int {{e}} = -1;
-            public {{Struct}}(global::System.Collections.Generic.List<{{elementType}}> source) { this.source = source; }
+            private int {{this.e}} = -1;
+            public {{this.Struct}}(global::System.Collections.Generic.List<{{elementType}}> source) { this.source = source; }
             public {{elementType}} Current { get; private set; } = default!;
             object? global::System.Collections.IEnumerator.Current => Current;
             {{AggressiveInliningAttribute}}
@@ -303,29 +303,29 @@ public class ListRoot(int 番号, string sourceExpression, string elementType) :
             public bool MoveNext() => TryGetNext(out _);
             {{AggressiveInliningAttribute}}
             public bool TryGetNonEnumeratedCount(out int count) {
-                count = source.Count - ({{e}} + 1);
+                count = source.Count - ({{this.e}} + 1);
                 return true;
             }
             {{AggressiveInliningAttribute}}
             public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) {
-                span = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source).Slice({{e}} + 1);
+                span = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source).Slice({{this.e}} + 1);
                 return true;
             }
             {{AggressiveInliningAttribute}}
             public global::System.ReadOnlySpan<{{elementType}}> GetSpan()
-                => global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source).Slice({{e}} + 1);
+                => global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source).Slice({{this.e}} + 1);
             {{AggressiveInliningAttribute}}
             public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) {
-                var remaining = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source).Slice({{e}} + 1);
+                var remaining = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source).Slice({{this.e}} + 1);
                 var start = offset.GetOffset(remaining.Length);
                 remaining.Slice(start).CopyTo(destination);
                 return true;
             }
             {{AggressiveInliningAttribute}}
             public bool TryGetNext(out {{elementType}} current) {
-                var {{temp}} = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source);
-                if(++{{e}} < {{temp}}.Length) {
-                    current = this.Current = {{temp}}[{{e}}];
+                var {{this.temp}} = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source);
+                if(++{{this.e}} < {{this.temp}}.Length) {
+                    current = this.Current = {{this.temp}}[{{this.e}}];
                     return true;
                 }
                 current = default!;
@@ -344,25 +344,25 @@ public class ListRoot(int 番号, string sourceExpression, string elementType) :
 // その場合は通常の Root パスで処理されるため、ここには到達しない。
 public class DuckTypingRoot(int 番号, string sourceExpression, string elementType, string concreteEnumeratorType) : Enumerable(番号) {
     public override string StructMethod => string.Empty;
-    public override string EnumeratorTypeName => Struct;
-    public override string GetEnumeratorExpression => $"new {Struct}({sourceExpression}.GetEnumerator())";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"{concreteEnumeratorType} {e}";
+    public override string EnumeratorTypeName => this.Struct;
+    public override string GetEnumeratorExpression => $"new {this.Struct}({sourceExpression}.GetEnumerator())";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"{concreteEnumeratorType} {this.e}";
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
-        if({{e}}.MoveNext()) {
-            current = this.Current = {{e}}.Current;
+        if({{this.e}}.MoveNext()) {
+            current = this.Current = {{this.e}}.Current;
             return true;
         }
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => currentValue;
+    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{Struct}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
-            private {{concreteEnumeratorType}} {{e}};
-            public {{Struct}}({{concreteEnumeratorType}} {{e}}) { this.{{e}} = {{e}}; }
+            private {{concreteEnumeratorType}} {{this.e}};
+            public {{this.Struct}}({{concreteEnumeratorType}} {{this.e}}) { this.{{this.e}} = {{this.e}}; }
             public {{elementType}} Current { get; private set; } = default!;
             object? global::System.Collections.IEnumerator.Current => Current;
             {{AggressiveInliningAttribute}}
@@ -383,8 +383,8 @@ public class DuckTypingRoot(int 番号, string sourceExpression, string elementT
             public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) => false;
             {{AggressiveInliningAttribute}}
             public bool TryGetNext(out {{elementType}} current) {
-                if({{e}}.MoveNext()) {
-                    current = this.Current = {{e}}.Current;
+                if({{this.e}}.MoveNext()) {
+                    current = this.Current = {{this.e}}.Current;
                     return true;
                 }
                 current = default!;
@@ -416,12 +416,12 @@ public sealed class RangeRoot(int 番号,string startExpression,string countExpr
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Range({startExpression}, {countExpression})";
-    public override string GetEnumeratorExpression => $"new {Struct}({startExpression}, {countExpression})";
+    public override string GetEnumeratorExpression => $"new {this.Struct}({startExpression}, {countExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => "int start, int count";
-    public override string GetEnumeratorFields => $"private int {e} = -1;";
+    public override string GetEnumeratorFields => $"private int {this.e} = -1;";
     public override string GetTryGetNextBody => $$"""
-        if(++{{e}} < count) {
-            current = this.Current = start + {{e}};
+        if(++{{this.e}} < count) {
+            current = this.Current = start + {{this.e}};
             return true;
         }
         current = default;
@@ -430,12 +430,12 @@ public sealed class RangeRoot(int 番号,string startExpression,string countExpr
     public override string GetCurrentExpression => "Current";
     public override string ElementType => "int";
     public override string GetEnumeratorStruct => $$"""
-        private struct {{Struct}} : global::Seamless.System.Carrier.IValueEnumerator<int>, global::System.Collections.Generic.IEnumerator<int>
+        private struct {{this.Struct}} : global::Seamless.System.Carrier.IValueEnumerator<int>, global::System.Collections.Generic.IEnumerator<int>
         {
             private int start;
             private int count;
-            private int {{e}} = -1;
-            public {{Struct}}(int start,int count) { this.start = start; this.count = count; }
+            private int {{this.e}} = -1;
+            public {{this.Struct}}(int start,int count) { this.start = start; this.count = count; }
             public int Current { get; private set; } = default!;
             object? global::System.Collections.IEnumerator.Current => Current;
             {{AggressiveInliningAttribute}}
@@ -444,7 +444,7 @@ public sealed class RangeRoot(int 番号,string startExpression,string countExpr
             public bool MoveNext() => TryGetNext(out _);
             {{AggressiveInliningAttribute}}
             public bool TryGetNonEnumeratedCount(out int count) {
-                count = this.count - ({{e}} + 1);
+                count = this.count - ({{this.e}} + 1);
                 return true;
             }
             {{AggressiveInliningAttribute}}
@@ -456,8 +456,8 @@ public sealed class RangeRoot(int 番号,string startExpression,string countExpr
             public bool TryCopyTo(scoped global::System.Span<int> destination, global::System.Index offset) => false;
             {{AggressiveInliningAttribute}}
             public bool TryGetNext(out int current) {
-                if(++{{e}} < count) {
-                    current = this.Current = start + {{e}};
+                if(++{{this.e}} < count) {
+                    current = this.Current = start + {{this.e}};
                     return true;
                 }
                 current = default;
@@ -483,12 +483,12 @@ public sealed class DescendingRangeRoot(int 番号,string startExpression,string
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Range({startExpression}, {countExpression}).Reverse()";
-    public override string GetEnumeratorExpression => $"new {Struct}({startExpression}, {countExpression})";
+    public override string GetEnumeratorExpression => $"new {this.Struct}({startExpression}, {countExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => "int start, int count";
-    public override string GetEnumeratorFields => $"private int {e} = -1;";
+    public override string GetEnumeratorFields => $"private int {this.e} = -1;";
     public override string GetTryGetNextBody => $$"""
-        if(++{{e}} < count) {
-            current = this.Current = start + count - 1 - {{e}};
+        if(++{{this.e}} < count) {
+            current = this.Current = start + count - 1 - {{this.e}};
             return true;
         }
         current = default;
@@ -497,12 +497,12 @@ public sealed class DescendingRangeRoot(int 番号,string startExpression,string
     public override string GetCurrentExpression => "Current";
     public override string ElementType => "int";
     public override string GetEnumeratorStruct => $$"""
-        private struct {{Struct}} : global::Seamless.System.Carrier.IValueEnumerator<int>, global::System.Collections.Generic.IEnumerator<int>
+        private struct {{this.Struct}} : global::Seamless.System.Carrier.IValueEnumerator<int>, global::System.Collections.Generic.IEnumerator<int>
         {
             private int start;
             private int count;
-            private int {{e}} = -1;
-            public {{Struct}}(int start,int count) { this.start = start; this.count = count; }
+            private int {{this.e}} = -1;
+            public {{this.Struct}}(int start,int count) { this.start = start; this.count = count; }
             public int Current { get; private set; } = default!;
             object? global::System.Collections.IEnumerator.Current => Current;
             {{AggressiveInliningAttribute}}
@@ -511,7 +511,7 @@ public sealed class DescendingRangeRoot(int 番号,string startExpression,string
             public bool MoveNext() => TryGetNext(out _);
             {{AggressiveInliningAttribute}}
             public bool TryGetNonEnumeratedCount(out int count) {
-                count = this.count - ({{e}} + 1);
+                count = this.count - ({{this.e}} + 1);
                 return true;
             }
             {{AggressiveInliningAttribute}}
@@ -523,8 +523,8 @@ public sealed class DescendingRangeRoot(int 番号,string startExpression,string
             public bool TryCopyTo(scoped global::System.Span<int> destination, global::System.Index offset) => false;
             {{AggressiveInliningAttribute}}
             public bool TryGetNext(out int current) {
-                if(++{{e}} < count) {
-                    current = this.Current = start + count - 1 - {{e}};
+                if(++{{this.e}} < count) {
+                    current = this.Current = start + count - 1 - {{this.e}};
                     return true;
                 }
                 current = default;
@@ -560,7 +560,7 @@ public sealed class EmptyRoot(int 番号,string elementType) : Enumerable(番号
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Empty<{elementType}>()";
-    public override string GetEnumeratorExpression => $"new {Struct}()";
+    public override string GetEnumeratorExpression => $"new {this.Struct}()";
     public override string GetEnumeratorPrimaryConstructorParameters => string.Empty;
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
@@ -570,7 +570,7 @@ public sealed class EmptyRoot(int 番号,string elementType) : Enumerable(番号
     public override string GetCurrentExpression => "default!";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{Struct}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             public {{elementType}} Current => default!;
             object? global::System.Collections.IEnumerator.Current => default;
@@ -621,11 +621,11 @@ public sealed class RepeatRoot(int 番号,string valueExpression,string countExp
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Repeat<{elementType}>({valueExpression}, {countExpression})";
-    public override string GetEnumeratorExpression => $"new {Struct}({valueExpression}, {countExpression})";
+    public override string GetEnumeratorExpression => $"new {this.Struct}({valueExpression}, {countExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"{elementType} value, int count";
-    public override string GetEnumeratorFields => $"private int {e} = -1;";
+    public override string GetEnumeratorFields => $"private int {this.e} = -1;";
     public override string GetTryGetNextBody => $$"""
-        if(++{{e}} < count) {
+        if(++{{this.e}} < count) {
             current = this.Current = value;
             return true;
         }
@@ -635,12 +635,12 @@ public sealed class RepeatRoot(int 番号,string valueExpression,string countExp
     public override string GetCurrentExpression => "Current";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{Struct}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private {{elementType}} value;
             private int count;
-            private int {{e}} = -1;
-            public {{Struct}}({{elementType}} value,int count) { this.value = value; this.count = count; }
+            private int {{this.e}} = -1;
+            public {{this.Struct}}({{elementType}} value,int count) { this.value = value; this.count = count; }
             public {{elementType}} Current { get; private set; } = default!;
             object? global::System.Collections.IEnumerator.Current => Current;
             {{AggressiveInliningAttribute}}
@@ -649,7 +649,7 @@ public sealed class RepeatRoot(int 番号,string valueExpression,string countExp
             public bool MoveNext() => TryGetNext(out _);
             {{AggressiveInliningAttribute}}
             public bool TryGetNonEnumeratedCount(out int count) {
-                count = this.count - ({{e}} + 1);
+                count = this.count - ({{this.e}} + 1);
                 return true;
             }
             {{AggressiveInliningAttribute}}
@@ -661,7 +661,7 @@ public sealed class RepeatRoot(int 番号,string valueExpression,string countExp
             public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) => false;
             {{AggressiveInliningAttribute}}
             public bool TryGetNext(out {{elementType}} current) {
-                if(++{{e}} < count) {
+                if(++{{this.e}} < count) {
                     current = this.Current = value;
                     return true;
                 }
@@ -686,11 +686,11 @@ public sealed class RepeatRoot(int 番号,string valueExpression,string countExp
 public sealed class InfiniteSequenceRoot(int 番号,string startExpression,string stepExpression,string elementType) : Enumerable(番号) {
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.InfiniteSequence<{elementType}>({startExpression}, {stepExpression})";
-    public override string GetEnumeratorExpression => $"new {Struct}({startExpression}, {stepExpression})";
+    public override string GetEnumeratorExpression => $"new {this.Struct}({startExpression}, {stepExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"{elementType} start, {elementType} step";
     public override string GetEnumeratorConstructor => $"ValidateNotNull(start, nameof(start));\nValidateNotNull(step, nameof(step));";
     public override string GetEnumeratorFields => $$"""
-        private bool {{hasValue}};
+        private bool {{this.hasValue}};
         private static void ValidateNotNull<T>(T value, string name) {
             if(value is null) {
                 throw new global::System.ArgumentNullException(name);
@@ -701,8 +701,8 @@ public sealed class InfiniteSequenceRoot(int 番号,string startExpression,strin
             => left + right;
         """;
     public override string GetTryGetNextBody => $$"""
-        if(!this.{{hasValue}}) {
-            this.{{hasValue}} = true;
+        if(!this.{{this.hasValue}}) {
+            this.{{this.hasValue}} = true;
             current = this.Current = start;
             return true;
         }
@@ -710,7 +710,7 @@ public sealed class InfiniteSequenceRoot(int 番号,string startExpression,strin
         current = this.Current = start;
         return true;
         """;
-    public override string GetCurrentExpression => currentValue;
+    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => elementType;
     protected override string GetEnumeratorDisposeBody => string.Empty;
 }
@@ -731,15 +731,15 @@ SequenceRoot は start/end/step で表せる数列を生成する root。
 public sealed class SequenceRoot(int 番号,string startExpression,string endInclusiveExpression,string stepExpression,string elementType) : Enumerable(番号) {
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Sequence<{elementType}>({startExpression}, {endInclusiveExpression}, {stepExpression})";
-    public override string GetEnumeratorExpression => $"new {Struct}({startExpression}, {endInclusiveExpression}, {stepExpression})";
+    public override string GetEnumeratorExpression => $"new {this.Struct}({startExpression}, {endInclusiveExpression}, {stepExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"{elementType} start, {elementType} endInclusive, {elementType} step";
     public override string GetEnumeratorConstructor => $$"""
         Validate<{{elementType}}>(start, endInclusive, step);
-        this.{{state}} = IsIncrement<{{elementType}}>(step);
+        this.{{this.state}} = IsIncrement<{{elementType}}>(step);
         """;
     public override string GetEnumeratorFields => $$"""
-        private bool {{hasValue}};
-        private readonly bool {{state}};
+        private bool {{this.hasValue}};
+        private readonly bool {{this.state}};
         private static void Validate<T>(T start, T endInclusive, T step)
             where T : global::System.Numerics.INumber<T> {
             if(start is null) {
@@ -796,14 +796,14 @@ public sealed class SequenceRoot(int 番号,string startExpression,string endInc
             => left != right;
         """;
     public override string GetTryGetNextBody => $$"""
-        if(!this.{{hasValue}}) {
-            this.{{hasValue}} = true;
+        if(!this.{{this.hasValue}}) {
+            this.{{this.hasValue}} = true;
             current = this.Current = start;
             return true;
         }
 
         var next = Add<{{elementType}}>(this.Current, step);
-        if(this.{{state}}) {
+        if(this.{{this.state}}) {
             if(GreaterThanOrEqual<{{elementType}}>(next, endInclusive) || LessThanOrEqual<{{elementType}}>(next, this.Current)) {
                 if(Equal<{{elementType}}>(next, endInclusive) && NotEqual<{{elementType}}>(this.Current, next)) {
                     current = this.Current = next;
@@ -829,7 +829,7 @@ public sealed class SequenceRoot(int 番号,string startExpression,string endInc
         current = this.Current = next;
         return true;
         """;
-    public override string GetCurrentExpression => currentValue;
+    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => elementType;
     protected override string GetEnumeratorDisposeBody => string.Empty;
 }
@@ -837,21 +837,21 @@ public sealed class SequenceRoot(int 番号,string startExpression,string endInc
 // Cast<T> の source は System.Collections.IEnumerable なので、generic Root とは別に object として流す。
 public class NonGenericRoot(int 番号, string sourceExpression) : Enumerable(番号) {
     public override string StructMethod => string.Empty;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({sourceExpression})";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({sourceExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => "global::System.Collections.IEnumerable source";
-    public override string GetEnumeratorConstructor => $"this.{e} = source.GetEnumerator();";
-    public override string GetEnumeratorFields => $"private global::System.Collections.IEnumerator {e};";
+    public override string GetEnumeratorConstructor => $"this.{this.e} = source.GetEnumerator();";
+    public override string GetEnumeratorFields => $"private global::System.Collections.IEnumerator {this.e};";
     public override string GetTryGetNextBody => $$"""
-        if({{e}}.MoveNext()) {
-            current = this.Current = {{e}}.Current;
+        if({{this.e}}.MoveNext()) {
+            current = this.Current = {{this.e}}.Current;
             return true;
         }
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => currentValue;
+    public override string GetCurrentExpression => this.currentValue;
     protected override string GetEnumeratorDisposeBody => $$"""
-        if({{e}} is global::System.IDisposable disposable) {
+        if({{this.e}} is global::System.IDisposable disposable) {
             disposable.Dispose();
         }
         """;

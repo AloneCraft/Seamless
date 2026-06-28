@@ -53,8 +53,7 @@ namespace Seamless.System.Carrier {
                 enumerator.Dispose();
             }
         }
-
-        static bool TryGetElementAt<TEnumerator, TSource>(ref TEnumerator source,Index index,out TSource value)
+        private static bool TryGetElementAt<TEnumerator, TSource>(ref TEnumerator source,Index index,out TSource value)
            where TEnumerator : struct, IValueEnumerator<TSource> {
             var current = default(TSource)!;
 #if NETSTANDARD2_0

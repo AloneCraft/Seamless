@@ -28,10 +28,10 @@ namespace Seamless.System.Carrier {
        :IValueEnumerator<TSource>
        where TEnumerator : struct, IValueEnumerator<TSource>
         where TEnumerator2 : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        TEnumerator2 second = second;
-        HashSetSlim<TSource>? set;
-        byte state = 0;
+        private TEnumerator source = source;
+        private TEnumerator2 second = second;
+        private HashSetSlim<TSource>? set;
+        private byte state = 0;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -46,39 +46,39 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TSource> destination,Index offset) {
             if(destination.Length==1&&offset.Value==0) // as TryGetFirst
             {
-                return source.TryCopyTo(destination,offset);
+                return this.source.TryCopyTo(destination,offset);
             }
 
             return false;
         }
 
         public bool TryGetNext(out TSource current) {
-            if(state==0) {
-                var hint = EnumeratorHelper.GetCapacityHint<TEnumerator,TSource>(ref source)
-                    +EnumeratorHelper.GetCapacityHint<TEnumerator2,TSource>(ref second);
-                set=hint>0 ? new HashSetSlim<TSource>(hint,comparer) : new HashSetSlim<TSource>(comparer);
-                state=1;
+            if(this.state==0) {
+                var hint = EnumeratorHelper.GetCapacityHint<TEnumerator,TSource>(ref this.source)
+                    +EnumeratorHelper.GetCapacityHint<TEnumerator2,TSource>(ref this.second);
+                this.set=hint>0 ? new HashSetSlim<TSource>(hint,comparer) : new HashSetSlim<TSource>(comparer);
+                this.state=1;
             }
 
-            if(state==1) {
-                while(source.TryGetNext(out var value)) {
-                    if(set!.Add(value)) {
+            if(this.state==1) {
+                while(this.source.TryGetNext(out var value)) {
+                    if(this.set!.Add(value)) {
                         current=value;
                         return true;
                     }
                 }
-                state=2;
+                this.state=2;
             }
 
-            if(state==2) {
-                while(second.TryGetNext(out var value)) {
-                    if(set!.Add(value)) {
+            if(this.state==2) {
+                while(this.second.TryGetNext(out var value)) {
+                    if(this.set!.Add(value)) {
                         current=value;
                         return true;
                     }
                 }
 
-                state=3;
+                this.state=3;
             }
 
             Unsafe.SkipInit(out current);
@@ -86,10 +86,10 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            state=3;
-            set?.Dispose();
-            source.Dispose();
-            second.Dispose();
+            this.state=3;
+            this.set?.Dispose();
+            this.source.Dispose();
+            this.second.Dispose();
         }
     }
 }

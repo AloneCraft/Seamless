@@ -80,8 +80,7 @@ namespace Seamless.System.Carrier {
                 enumerator.Dispose();
             }
         }
-
-        static bool TryGetLast<TEnumerator, TSource>(ref TEnumerator source,out TSource value)
+        private static bool TryGetLast<TEnumerator, TSource>(ref TEnumerator source,out TSource value)
            where TEnumerator : struct, IValueEnumerator<TSource> {
 
             var current = default(TSource)!;
@@ -107,8 +106,7 @@ namespace Seamless.System.Carrier {
             value=default!;
             return false;
         }
-
-        static bool TryGetLast<TEnumerator, TSource>(ref TEnumerator source,Func<TSource,Boolean> predicate,out TSource value)
+        private static bool TryGetLast<TEnumerator, TSource>(ref TEnumerator source,Func<TSource,Boolean> predicate,out TSource value)
             where TEnumerator : struct, IValueEnumerator<TSource> {
             if(source.TryGetSpan(out var span)) {
                 // search from last

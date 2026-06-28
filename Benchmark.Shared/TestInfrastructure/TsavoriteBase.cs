@@ -15,13 +15,13 @@ public class TsavoriteBase:Base,IDisposable {
     }
 
     protected new global::Seamless.Tsavorite.Collections.HashSet<int> src(int scale) =>
-        GetOrCreate(scale,srcCache,static length => CreateRange(1,length));
+        this.GetOrCreate(scale,this.srcCache,static length => CreateRange(1,length));
 
     protected new global::Seamless.Tsavorite.Collections.HashSet<int> srcCount(int elementCount) =>
-        GetOrCreateByLength(elementCount,srcCache,static length => CreateRange(1,length));
+        this.GetOrCreateByLength(elementCount,this.srcCache,static length => CreateRange(1,length));
 
     protected new global::Seamless.Tsavorite.Collections.HashSet<int> src2(int scale) =>
-        GetOrCreate(scale,src2Cache,static length => {
+        this.GetOrCreate(scale,this.src2Cache,static length => {
             var result = new int[length/2];
             var start = length/2+1;
             for(var index = 0;index<result.Length;index++) {
@@ -31,7 +31,7 @@ public class TsavoriteBase:Base,IDisposable {
         });
 
     protected new global::Seamless.Tsavorite.Collections.HashSet<int> src2Count(int elementCount) =>
-        GetOrCreateByLength(elementCount,src2Cache,static length => {
+        this.GetOrCreateByLength(elementCount,this.src2Cache,static length => {
             var result = new int[length/2];
             var start = length/2+1;
             for(var index = 0;index<result.Length;index++) {
@@ -41,16 +41,16 @@ public class TsavoriteBase:Base,IDisposable {
         });
 
     protected new global::Seamless.Tsavorite.Collections.HashSet<int> srcOne(int scale) =>
-        GetOrCreate(scale,srcOneCache,static _ => [0]);
+        this.GetOrCreate(scale,this.srcOneCache,static _ => [0]);
 
     [GlobalCleanup]
     public void Cleanup() {
-        DisposeAll(srcCache);
-        DisposeAll(src2Cache);
-        DisposeAll(srcOneCache);
+        DisposeAll(this.srcCache);
+        DisposeAll(this.src2Cache);
+        DisposeAll(this.srcOneCache);
     }
 
-    public void Dispose() => Cleanup();
+    public void Dispose() => this.Cleanup();
 
     private static int NormalizeCount(int count) {
 #if BENCH_AS_TEST
@@ -64,7 +64,7 @@ public class TsavoriteBase:Base,IDisposable {
         int scale,
         Dictionary<int,SourceHandle<int>> cache,
         Func<int,int[]> factory) {
-        var length=CountForComparison(CountForTestTiming(this.ElementCount*scale));
+        var length= this.CountForComparison(this.CountForTestTiming(this.ElementCount*scale));
         if(cache.TryGetValue(length,out var handle)) {
             return handle.Set;
         }
@@ -79,7 +79,7 @@ public class TsavoriteBase:Base,IDisposable {
         int length,
         Dictionary<int,SourceHandle<int>> cache,
         Func<int,int[]> factory) {
-        var effectiveLength=CountForComparison(CountForTestTiming(length));
+        var effectiveLength= this.CountForComparison(this.CountForTestTiming(length));
         if(cache.TryGetValue(effectiveLength,out var handle)) {
             return handle.Set;
         }
@@ -136,7 +136,7 @@ public class TsavoriteBase:Base,IDisposable {
         public global::Seamless.Tsavorite.Collections.HashSet<T> Set { get; } = set;
 
         public void Dispose() {
-            Set.Dispose();
+            this.Set.Dispose();
             store.Dispose();
         }
     }

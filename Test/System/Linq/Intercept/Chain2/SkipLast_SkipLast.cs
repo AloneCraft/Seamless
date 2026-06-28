@@ -10,8 +10,8 @@ public sealed class SkipLast_SkipLast(ITestOutputHelper output):LinqChain2TestBa
     public void SpanFusion() {
                 //span経路(配列)・引数違いで加算融合になること
         var expected=Source().SkipLast(1).SkipLast(2).ToList();
-        MeasureOptimized(nameof(SpanFusionOptimized),()=>SpanFusionOptimized(expected));
-        MeasureOptimized(nameof(SpanFusionNoOptimized),()=>SpanFusionNoOptimized(expected));
+        this.MeasureOptimized(nameof(SpanFusionOptimized),()=>SpanFusionOptimized(expected));
+        this.MeasureOptimized(nameof(SpanFusionNoOptimized),()=>SpanFusionNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -34,8 +34,8 @@ public sealed class SkipLast_SkipLast(ITestOutputHelper output):LinqChain2TestBa
     public void SpanChain3() {
                 //span経路・3段連鎖(合計が要素数を超えるケース)
         var expected=Source().SkipLast(2).SkipLast(2).SkipLast(2).ToList();
-        MeasureOptimized(nameof(SpanChain3Optimized),()=>SpanChain3Optimized(expected));
-        MeasureOptimized(nameof(SpanChain3NoOptimized),()=>SpanChain3NoOptimized(expected));
+        this.MeasureOptimized(nameof(SpanChain3Optimized),()=>SpanChain3Optimized(expected));
+        this.MeasureOptimized(nameof(SpanChain3NoOptimized),()=>SpanChain3NoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -58,8 +58,8 @@ public sealed class SkipLast_SkipLast(ITestOutputHelper output):LinqChain2TestBa
     public void NonSpanQueuePath() {
                 //非span経路(Where挟みでQueue経路)
         var expected=Source().Where(p => p>0).SkipLast(1).SkipLast(2).ToList();
-        MeasureOptimized(nameof(NonSpanQueuePathOptimized),()=>NonSpanQueuePathOptimized(expected));
-        MeasureOptimized(nameof(NonSpanQueuePathNoOptimized),()=>NonSpanQueuePathNoOptimized(expected));
+        this.MeasureOptimized(nameof(NonSpanQueuePathOptimized),()=>NonSpanQueuePathOptimized(expected));
+        this.MeasureOptimized(nameof(NonSpanQueuePathNoOptimized),()=>NonSpanQueuePathNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

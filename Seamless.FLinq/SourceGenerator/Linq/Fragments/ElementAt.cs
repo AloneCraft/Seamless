@@ -6,17 +6,17 @@ public class ElementAt(int 番号, Enumerable source, string index, string resul
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {index})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, int index";
-    protected override string ComputeExpression => $"Compute({e}, index)";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {index})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int index";
+    protected override string ComputeExpression => $"Compute({this.e}, index)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        RenderRangeElementAtInline(destVar,destType)
-        ?? RenderDirectSpanElementAtInline(destVar,destType)
-        ?? RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAt",index)
-        ?? RenderComputeInline(destVar,destType,index);
+        this.RenderRangeElementAtInline(destVar,destType)
+        ??this.RenderDirectSpanElementAtInline(destVar,destType)
+        ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAt",index)
+        ??this.RenderComputeInline(destVar,destType,index);
     private string? RenderDirectSpanElementAtInline(string destVar,string destType) {
-        var span=$"__span{result}";
-        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span=$"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
             var __idx={{index}};
             if(__idx<0) throw new global::System.ArgumentOutOfRangeException("index");
             if((uint)__idx>=(uint){{spanName}}.Length) throw new global::System.ArgumentOutOfRangeException("index");
@@ -63,7 +63,7 @@ public class ElementAt(int 番号, Enumerable source, string index, string resul
                 throw new global::System.ArgumentOutOfRangeException(nameof(index));
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
 public class ElementAt_index(int 番号, Enumerable source, string index, string resultType) : BufferedScalar(番号, resultType) {
@@ -76,17 +76,17 @@ public class ElementAt_index(int 番号, Enumerable source, string index, string
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {index})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {e}, global::System.Index index";
-    protected override string ComputeExpression => $"Compute({e}, index)";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {index})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, global::System.Index index";
+    protected override string ComputeExpression => $"Compute({this.e}, index)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        RenderRangeElementAtIndexInline(destVar,destType)
-        ?? RenderDirectSpanElementAtIndexInline(destVar,destType)
-        ?? RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAt",index)
-        ?? RenderComputeInline(destVar,destType,index);
+        this.RenderRangeElementAtIndexInline(destVar,destType)
+        ??this.RenderDirectSpanElementAtIndexInline(destVar,destType)
+        ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAt",index)
+        ??this.RenderComputeInline(destVar,destType,index);
     private string? RenderDirectSpanElementAtIndexInline(string destVar,string destType) {
-        var span=$"__span{result}";
-        return RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span=$"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
             var __idx=({{index}}).GetOffset({{spanName}}.Length);
             if((uint)__idx>=(uint){{spanName}}.Length) throw new global::System.ArgumentOutOfRangeException("index");
             {{destVar}}={{spanName}}[__idx];
@@ -145,5 +145,5 @@ public class ElementAt_index(int 番号, Enumerable source, string index, string
                 }
             }
             """;
-    protected override string GetEnumeratorDisposeBody => $"{e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }

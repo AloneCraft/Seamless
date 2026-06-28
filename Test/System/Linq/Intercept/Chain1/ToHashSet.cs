@@ -7,8 +7,8 @@ public sealed class ToHashSet(ITestOutputHelper output):LinqChain1TestBase(outpu
     [Fact, Trait("Category","Unit")]
     public void NoDelegate() {
         var expected=Source().ToHashSet();
-        MeasureOptimized(nameof(NoDelegateOptimized),()=>NoDelegateOptimized(expected));
-        MeasureOptimized(nameof(NoDelegateNoOptimized),()=>NoDelegateNoOptimized(expected));
+        this.MeasureOptimized(nameof(NoDelegateOptimized),()=>NoDelegateOptimized(expected));
+        this.MeasureOptimized(nameof(NoDelegateNoOptimized),()=>NoDelegateNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -26,8 +26,8 @@ public sealed class ToHashSet(ITestOutputHelper output):LinqChain1TestBase(outpu
     [Fact, Trait("Category","Unit")]
     public void comparer() {
         var expected=Source().ToHashSet(EqualityComparer<int>.Default);
-        MeasureOptimized(nameof(comparerOptimized),()=>comparerOptimized(expected));
-        MeasureOptimized(nameof(comparerNoOptimized),()=>comparerNoOptimized(expected));
+        this.MeasureOptimized(nameof(comparerOptimized),()=>comparerOptimized(expected));
+        this.MeasureOptimized(nameof(comparerNoOptimized),()=>comparerNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

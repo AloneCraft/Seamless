@@ -7,8 +7,8 @@ public sealed class RightJoin(ITestOutputHelper output):LinqChain1TestBase(outpu
     [Fact,Trait("Category","Unit")]
     public void keySelectors_resultSelector() {
         var expected=Rows().RightJoin(OtherRows(),static row => row.Key,static other => other.Key,static (row,other) => $"{row?.Name??"none"}:{other.Name}").ToList();
-        MeasureOptimized(nameof(keySelectors_resultSelectorOptimized),()=>keySelectors_resultSelectorOptimized(expected));
-        MeasureOptimized(nameof(keySelectors_resultSelectorNoOptimized),()=>keySelectors_resultSelectorNoOptimized(expected));
+        this.MeasureOptimized(nameof(keySelectors_resultSelectorOptimized),()=>keySelectors_resultSelectorOptimized(expected));
+        this.MeasureOptimized(nameof(keySelectors_resultSelectorNoOptimized),()=>keySelectors_resultSelectorNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

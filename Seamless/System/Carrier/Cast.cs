@@ -15,10 +15,10 @@ namespace Seamless.System.Carrier {
     public struct Cast<TEnumerator, TSource, TResult>(TEnumerator source)
         :IValueEnumerator<TResult>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
+        private TEnumerator source = source;
 
         public bool TryGetNonEnumeratedCount(out int count) {
-            return source.TryGetNonEnumeratedCount(out count);
+            return this.source.TryGetNonEnumeratedCount(out count);
         }
 
         public bool TryGetSpan(out ReadOnlySpan<TResult> span) {
@@ -29,7 +29,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TResult> destination,Index offset) => false;
 
         public bool TryGetNext(out TResult current) {
-            while(source.TryGetNext(out var value)) {
+            while(this.source.TryGetNext(out var value)) {
                 current=(TResult)(object)value!;
                 return true;
             }
@@ -39,7 +39,7 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 }

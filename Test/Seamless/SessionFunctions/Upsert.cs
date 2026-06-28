@@ -242,7 +242,7 @@ public sealed class Upsert:AddTests<int,string> {
     }
     [Fact, Trait("Category","Unit")]
     public void TryAddAfterFlushReportsExisting_Managed(){
-        var folder= CreateDiskFolder();
+        var folder= this.CreateDiskFolder();
         using var LogDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
         using var ObjDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
         using var store=Store.Create(MemorySize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity).Create<int,string>(LogDevice,ObjDevice);
@@ -253,7 +253,7 @@ public sealed class Upsert:AddTests<int,string> {
     }
     [Fact, Trait("Category","Unit")]
     public void ReadAfterFlush_Managed(){
-        var folder= CreateDiskFolder();
+        var folder= this.CreateDiskFolder();
         using var LogDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
         using var ObjDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
         using var store=Store.Create(MemorySize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity).Create<int,string>(LogDevice,ObjDevice);

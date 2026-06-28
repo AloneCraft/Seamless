@@ -19,7 +19,7 @@
 
   <PropertyGroup>
     <SeamlessGenerateLinqEnumerable>true</SeamlessGenerateLinqEnumerable>
-    <SeamlessLinqEnumerableNamespace>Seamless.Tsavorite.Linq,Seamless.Persisted.Linq</SeamlessLinqEnumerableNamespace>
+    <SeamlessLinqEnumerableNamespace>Seamless.Linq</SeamlessLinqEnumerableNamespace>
     <SeamlessLinqEnumerableSourceType>global::Seamless.Collections.ISet&lt;TSource&gt;</SeamlessLinqEnumerableSourceType>
   </PropertyGroup>
 

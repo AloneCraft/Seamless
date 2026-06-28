@@ -599,7 +599,7 @@ internal static class BenchmarkCellSelectionLogic{
 }
 
 internal sealed record CpuTableSectionDefinition(string Title,CpuCoreKind CoreKind,IReadOnlyList<CpuTableRowDefinition> Rows){
-    public int ColumnCount => Rows.Count==0 ? 0 : Rows.Max(static row => row.LogicalProcessorIndexes.Count);
+    public int ColumnCount => this.Rows.Count==0 ? 0 : this.Rows.Max(static row => row.LogicalProcessorIndexes.Count);
 }
 
 internal sealed record CpuTableRowDefinition(string Label,IReadOnlyList<int> LogicalProcessorIndexes);

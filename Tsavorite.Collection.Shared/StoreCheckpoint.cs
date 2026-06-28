@@ -301,22 +301,22 @@ public class StoreCheckpoint {
         public int WriteDelayMilliseconds { get; set; } = 0;
 
         public override void WriteAsync(IntPtr srcAddress,int alignedSourceNextAddress,ulong alignedDestinationAddress,uint numBytesToWrite,DeviceIOCompletionCallback callback,object callbackContext) {
-            if(ShouldFail) {
+            if(this.ShouldFail) {
                 // Complete the callback with an error code to simulate device failure.
                 const uint ERROR_CODE = 0xFFFFFFFF;
                 callback(ERROR_CODE,numBytesToWrite,callbackContext);
                 return;
             }
 
-            if(WriteDelayMilliseconds>0)
-                Thread.Sleep(WriteDelayMilliseconds);
+            if(this.WriteDelayMilliseconds>0)
+                Thread.Sleep(this.WriteDelayMilliseconds);
 
             // Use the normal device path when failure is disabled.
             base.WriteAsync(srcAddress,alignedSourceNextAddress,alignedDestinationAddress,numBytesToWrite,callback,callbackContext);
         }
 
         public override void ReadAsync(int segmentId,ulong sourceAddress,IntPtr destinationAddress,uint readLength,DeviceIOCompletionCallback callback,object callbackContext) {
-            if(ShouldFail) {
+            if(this.ShouldFail) {
                 const uint ERROR_CODE = 0xFFFFFFFF;
                 callback(ERROR_CODE,readLength,callbackContext);
                 return;

@@ -51,7 +51,7 @@ namespace Seamless.System.Carrier {
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromSequence<T>(T currentValue,T endInclusive,T step,bool isIncrement):IValueEnumerator<T>
         where T : INumber<T> {
-        bool calledGetNext;
+        private bool calledGetNext;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -68,8 +68,8 @@ namespace Seamless.System.Carrier {
         }
 
         public bool TryGetNext(out T current) {
-            if(!calledGetNext) {
-                calledGetNext=true;
+            if(!this.calledGetNext) {
+                this.calledGetNext=true;
                 current=currentValue;
                 return true;
             }

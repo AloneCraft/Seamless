@@ -35,11 +35,11 @@ namespace Seamless.System.Carrier {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromSequenceDateTime(DateTime currentValue,DateTime endInclusive,TimeSpan step,bool isIncrement):IValueEnumerator<DateTime> {
-        bool calledGetNext;
+        private bool calledGetNext;
 
         public bool TryGetNext(out DateTime current) {
-            if(!calledGetNext) {
-                calledGetNext=true;
+            if(!this.calledGetNext) {
+                this.calledGetNext=true;
                 current=currentValue;
                 return true;
             }
@@ -137,11 +137,11 @@ namespace Seamless.System.Carrier {
         DateTimeOffset endInclusive,
         TimeSpan step,
         bool isIncrement):IValueEnumerator<DateTimeOffset> {
-        bool calledGetNext;
+        private bool calledGetNext;
 
         public bool TryGetNext(out DateTimeOffset current) {
-            if(!calledGetNext) {
-                calledGetNext=true;
+            if(!this.calledGetNext) {
+                this.calledGetNext=true;
                 current=currentValue;
                 return true;
             }

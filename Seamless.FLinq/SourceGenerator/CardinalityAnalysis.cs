@@ -6,7 +6,7 @@ namespace Seamless.FLinq;
 
 internal static class CardinalityAnalysis {
     public readonly record struct IntegralRange(int Min,int Max) {
-        public long Count => (long)Max-Min+1;
+        public long Count => (long)this.Max-this.Min+1;
     }
 
     public static int? TryGetUpperBound(ExpressionSyntax expression,SemanticModel? semanticModel) {

@@ -11,7 +11,7 @@ public sealed class AppShell:Shell {
             page=StartupDiagnostics.CreateErrorPage("Benchmark page failed",ex);
         }
 
-        Items.Add(new ShellContent {
+        this.Items.Add(new ShellContent {
             Title="Benchmark",
             Content=page,
         });

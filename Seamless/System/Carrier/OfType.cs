@@ -14,9 +14,9 @@ namespace Seamless.System.Carrier {
     public struct OfType<TEnumerator, TSource, TResult>(TEnumerator source)
         :IValueEnumerator<TResult>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
+        private TEnumerator source = source;
 
-        internal TEnumerator GetSource() => source;
+        internal TEnumerator GetSource() => this.source;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -31,7 +31,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TResult> destination,Index offset) => false;
 
         public bool TryGetNext(out TResult current) {
-            while(source.TryGetNext(out var value)) {
+            while(this.source.TryGetNext(out var value)) {
                 if(value is TResult v) {
                     current=v;
                     return true;
@@ -43,7 +43,7 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            source.Dispose();
+            this.source.Dispose();
         }
     }
 }

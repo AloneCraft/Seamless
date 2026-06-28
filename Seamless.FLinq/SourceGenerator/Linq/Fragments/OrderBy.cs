@@ -43,40 +43,40 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
         }
     }
 
-    protected override Enumerable PrimarySource => UnorderedSource;
-    public override string ElementType => UnorderedSource.ElementType;
-    public override string GetCurrentExpression => currentValue;
+    protected override Enumerable PrimarySource => this.UnorderedSource;
+    public override string ElementType => this.UnorderedSource.ElementType;
+    public override string GetCurrentExpression => this.currentValue;
 
     public override string StructMethod =>
-        PrimaryOrdering is { } po
-            ? JoinStaticMethods(FuncSupport(keySelector, nameof(keySelector)),FuncSupport(po.OwnKeySelector, "primaryKeySelector"))
-            : FuncSupport(keySelector, nameof(keySelector));
+        this.PrimaryOrdering is { } po
+            ? JoinStaticMethods(this.FuncSupport(keySelector, nameof(keySelector)),this.FuncSupport(po.OwnKeySelector, "primaryKeySelector"))
+            : this.FuncSupport(keySelector, nameof(keySelector));
 
     public override string GetEnumeratorStruct => $$"""
-        {{UnorderedSource.GetEnumeratorStruct}}
-        {{DefineEnumeratorStructCore(ElementType,GetEnumeratorDisposeBody)}}
+        {{this.UnorderedSource.GetEnumeratorStruct}}
+        {{this.DefineEnumeratorStructCore(this.ElementType,this.GetEnumeratorDisposeBody)}}
         """;
 
     public override string GetEnumeratorExpression =>
-        PrimaryOrdering is { } po
-            ? $"new {EnumeratorTypeName}({UnorderedSource.GetEnumeratorExpression}, {OwnComparer}, {po.OwnComparer}{ClosureArgsSuffix(keySelector, po.OwnKeySelector)})"
-            : $"new {EnumeratorTypeName}({source.GetEnumeratorExpression}, {OwnComparer}{ClosureArgsSuffix(keySelector)})";
+        this.PrimaryOrdering is { } po
+            ? $"new {this.EnumeratorTypeName}({this.UnorderedSource.GetEnumeratorExpression}, {this.OwnComparer}, {po.OwnComparer}{this.ClosureArgsSuffix(keySelector, po.OwnKeySelector)})"
+            : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.OwnComparer}{this.ClosureArgsSuffix(keySelector)})";
 
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        PrimaryOrdering is { } po
-            ? $"TEnum source, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(keySelector)}>? comparer, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(po.OwnKeySelector)}>? primaryComparer{ClosurePrimaryCtorSuffix(keySelector, po.OwnKeySelector)}"
-            : $"TEnum source, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(keySelector)}>? comparer{ClosurePrimaryCtorSuffix(keySelector)}";
+        this.PrimaryOrdering is { } po
+            ? $"TEnum source, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(keySelector)}>? comparer, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(po.OwnKeySelector)}>? primaryComparer{this.ClosurePrimaryCtorSuffix(keySelector, po.OwnKeySelector)}"
+            : $"TEnum source, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector)}";
 
     public override string GetEnumeratorConstructor =>
-        PrimaryOrdering is { } po
-            ? $"this.Build(comparer,primaryComparer{ClosureArgsSuffixForCtorBody(keySelector, po.OwnKeySelector)});"
-            : $"this.Build(comparer{ClosureArgsSuffixForCtorBody(keySelector)});";
+        this.PrimaryOrdering is { } po
+            ? $"this.Build(comparer,primaryComparer{this.ClosureArgsSuffixForCtorBody(keySelector, po.OwnKeySelector)});"
+            : $"this.Build(comparer{this.ClosureArgsSuffixForCtorBody(keySelector)});";
 
     public override string GetEnumeratorFields =>
-        PrimaryOrdering is { } po ? BuildMembersCombined(po) : BuildMembersSingle();
+        this.PrimaryOrdering is { } po ? this.BuildMembersCombined(po) : this.BuildMembersSingle();
 
     private string BuildMembersSingle() => $$"""
-        private {{ElementType}}[]? values;
+        private {{this.ElementType}}[]? values;
         private {{FuncReturnTypeName(keySelector)}}[]? keys;
         private int[]? indexMap;
         private int count;
@@ -113,7 +113,7 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
             if(capacity<minimum) {
                 capacity=minimum;
             }
-            var newValues=global::System.Buffers.ArrayPool<{{ElementType}}>.Shared.Rent(capacity);
+            var newValues=global::System.Buffers.ArrayPool<{{this.ElementType}}>.Shared.Rent(capacity);
             var newKeys=global::System.Buffers.ArrayPool<{{FuncReturnTypeName(keySelector)}}>.Shared.Rent(capacity);
             var newIndexMap=global::System.Buffers.ArrayPool<int>.Shared.Rent(capacity);
             if(this.count!=0) {
@@ -130,20 +130,20 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
             this.keys=newKeys;
             this.indexMap=newIndexMap;
         }
-        private void AddItem({{ElementType}} value,{{FuncReturnTypeName(keySelector)}} key) {
+        private void AddItem({{this.ElementType}} value,{{FuncReturnTypeName(keySelector)}} key) {
             this.EnsureCapacity(this.count+1);
             this.values![this.count]=value;
             this.keys![this.count]=key;
             this.indexMap![this.count]=this.count;
             this.count++;
         }
-        private void Build(global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{ClosureMethodParameterSuffix(keySelector)}}) {
+        private void Build(global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector)}}) {
             comparer ??= global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
             try {
                 if(this.source.TryGetNonEnumeratedCount(out var __count) && __count>0) {
                     this.EnsureCapacity(__count);
                 }
-                {{SortLoopSingle}}
+                {{this.SortLoopSingle}}
                 if(this.count>1) {
                     global::System.Array.Sort(this.indexMap!,0,this.count,new IndexComparer(comparer,this.keys!));
                 }
@@ -155,25 +155,25 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
         }
         """;
 
-    private string SortLoopSingle => UnorderedSource.CanProvideSpan
+    private string SortLoopSingle => this.UnorderedSource.CanProvideSpan
         ? $$"""
                 this.source.TryGetSpan(out var __span);
-                foreach(var {{item}} in __span) {
-                    {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
-                    {{FuncAssignIndented("                ",keySelector,nameof(keySelector),key,item)}}
-                    this.AddItem({{item}},{{key}});
+                foreach(var {{this.item}} in __span) {
+                    {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
+                    {{this.FuncAssignIndented("                ",keySelector,nameof(keySelector),this.key,this.item)}}
+                    this.AddItem({{this.item}},{{this.key}});
                 }
             """
         : $$"""
-                while(this.source.TryGetNext(out var {{item}})) {
-                    {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
-                    {{FuncAssignIndented("                ",keySelector,nameof(keySelector),key,item)}}
-                    this.AddItem({{item}},{{key}});
+                while(this.source.TryGetNext(out var {{this.item}})) {
+                    {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
+                    {{this.FuncAssignIndented("                ",keySelector,nameof(keySelector),this.key,this.item)}}
+                    this.AddItem({{this.item}},{{this.key}});
                 }
             """;
 
     private string BuildMembersCombined(OrderingBase po) => $$"""
-        private {{ElementType}}[]? values;
+        private {{this.ElementType}}[]? values;
         private {{FuncReturnTypeName(po.OwnKeySelector)}}[]? primaryKeys;
         private {{FuncReturnTypeName(keySelector)}}[]? keys;
         private int[]? indexMap;
@@ -219,7 +219,7 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
             if(capacity<minimum) {
                 capacity=minimum;
             }
-            var newValues=global::System.Buffers.ArrayPool<{{ElementType}}>.Shared.Rent(capacity);
+            var newValues=global::System.Buffers.ArrayPool<{{this.ElementType}}>.Shared.Rent(capacity);
             var newPrimaryKeys=global::System.Buffers.ArrayPool<{{FuncReturnTypeName(po.OwnKeySelector)}}>.Shared.Rent(capacity);
             var newKeys=global::System.Buffers.ArrayPool<{{FuncReturnTypeName(keySelector)}}>.Shared.Rent(capacity);
             var newIndexMap=global::System.Buffers.ArrayPool<int>.Shared.Rent(capacity);
@@ -240,7 +240,7 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
             this.keys=newKeys;
             this.indexMap=newIndexMap;
         }
-        private void AddItem({{ElementType}} value,{{FuncReturnTypeName(po.OwnKeySelector)}} primaryKey,{{FuncReturnTypeName(keySelector)}} key) {
+        private void AddItem({{this.ElementType}} value,{{FuncReturnTypeName(po.OwnKeySelector)}} primaryKey,{{FuncReturnTypeName(keySelector)}} key) {
             this.EnsureCapacity(this.count+1);
             this.values![this.count]=value;
             this.primaryKeys![this.count]=primaryKey;
@@ -248,14 +248,14 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
             this.indexMap![this.count]=this.count;
             this.count++;
         }
-        private void Build(global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(keySelector)}}>? comparer,global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(po.OwnKeySelector)}}>? primaryComparer{{ClosureMethodParameterSuffix(keySelector, po.OwnKeySelector)}}) {
+        private void Build(global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(keySelector)}}>? comparer,global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(po.OwnKeySelector)}}>? primaryComparer{{this.ClosureMethodParameterSuffix(keySelector, po.OwnKeySelector)}}) {
             comparer ??= global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
             primaryComparer ??= global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(po.OwnKeySelector)}}>.Default;
             try {
                 if(this.source.TryGetNonEnumeratedCount(out var __count) && __count>0) {
                     this.EnsureCapacity(__count);
                 }
-                {{SortLoopCombined(po)}}
+                {{this.SortLoopCombined(po)}}
                 if(this.count>1) {
                     global::System.Array.Sort(this.indexMap!,0,this.count,new IndexComparer(primaryComparer,comparer,this.primaryKeys!,this.keys!));
                 }
@@ -267,24 +267,24 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
         }
         """;
 
-    private string SortLoopCombined(OrderingBase po) => UnorderedSource.CanProvideSpan
+    private string SortLoopCombined(OrderingBase po) => this.UnorderedSource.CanProvideSpan
         ? $$"""
                 this.source.TryGetSpan(out var __span);
-                foreach(var {{item}} in __span) {
-                    {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
-                    {{FuncAssignIndented("                ",keySelector,nameof(keySelector),key,item)}}
-                    {{FuncReturnTypeName(po.OwnKeySelector)}} {{a}}=default!;
-                    {{FuncAssignIndented("                ",po.OwnKeySelector,"primaryKeySelector",a,item)}}
-                    this.AddItem({{item}},{{a}},{{key}});
+                foreach(var {{this.item}} in __span) {
+                    {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
+                    {{this.FuncAssignIndented("                ",keySelector,nameof(keySelector),this.key,this.item)}}
+                    {{FuncReturnTypeName(po.OwnKeySelector)}} {{this.a}}=default!;
+                    {{this.FuncAssignIndented("                ",po.OwnKeySelector,"primaryKeySelector",this.a,this.item)}}
+                    this.AddItem({{this.item}},{{this.a}},{{this.key}});
                 }
             """
         : $$"""
-                while(this.source.TryGetNext(out var {{item}})) {
-                    {{FuncReturnTypeName(keySelector)}} {{key}}=default!;
-                    {{FuncAssignIndented("                ",keySelector,nameof(keySelector),key,item)}}
-                    {{FuncReturnTypeName(po.OwnKeySelector)}} {{a}}=default!;
-                    {{FuncAssignIndented("                ",po.OwnKeySelector,"primaryKeySelector",a,item)}}
-                    this.AddItem({{item}},{{a}},{{key}});
+                while(this.source.TryGetNext(out var {{this.item}})) {
+                    {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
+                    {{this.FuncAssignIndented("                ",keySelector,nameof(keySelector),this.key,this.item)}}
+                    {{FuncReturnTypeName(po.OwnKeySelector)}} {{this.a}}=default!;
+                    {{this.FuncAssignIndented("                ",po.OwnKeySelector,"primaryKeySelector",this.a,this.item)}}
+                    this.AddItem({{this.item}},{{this.a}},{{this.key}});
                 }
             """;
 

@@ -16,8 +16,8 @@ namespace Seamless.System.Carrier {
     public struct DistinctBy<TEnumerator, TSource, TKey>(TEnumerator source,Func<TSource,TKey> keySelector,IEqualityComparer<TKey>? comparer)
         :IValueEnumerator<TSource>
         where TEnumerator : struct, IValueEnumerator<TSource> {
-        TEnumerator source = source;
-        HashSetSlim<TKey>? set;
+        private TEnumerator source = source;
+        private HashSetSlim<TKey>? set;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -32,13 +32,13 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TSource> destination,Index offset) => false;
 
         public bool TryGetNext(out TSource current) {
-            if(set==null) {
-                var hint = EnumeratorHelper.GetCapacityHint<TEnumerator,TSource>(ref source);
-                set=hint>0 ? new HashSetSlim<TKey>(hint,comparer) : new HashSetSlim<TKey>(comparer);
+            if(this.set==null) {
+                var hint = EnumeratorHelper.GetCapacityHint<TEnumerator,TSource>(ref this.source);
+                this.set=hint>0 ? new HashSetSlim<TKey>(hint,comparer) : new HashSetSlim<TKey>(comparer);
             }
 
-            while(source.TryGetNext(out var value)) {
-                if(set.Add(keySelector(value))) {
+            while(this.source.TryGetNext(out var value)) {
+                if(this.set.Add(keySelector(value))) {
                     current=value;
                     return true;
                 }
@@ -49,8 +49,8 @@ namespace Seamless.System.Carrier {
         }
 
         public void Dispose() {
-            set?.Dispose();
-            source.Dispose();
+            this.set?.Dispose();
+            this.source.Dispose();
         }
     }
 }

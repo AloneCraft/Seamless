@@ -143,10 +143,10 @@ public sealed class DynamicLinqRunnerReport(ITestOutputHelper output) {
     private sealed record ProcessResult(int ExitCode,string Output);
 
     private sealed record DynamicLinqReport(string Artifact,IReadOnlyList<DynamicLinqRow> Rows) {
-        public int Total => Rows.Count;
-        public int Ok => Rows.Count(static row => row.Status=="OK");
-        public int SkipVerify => Rows.Count(static row => row.Status=="SKIP_VERIFY");
-        public int Failed => Rows.Count(static row => row.Status!="OK" && row.Status!="SKIP_VERIFY");
+        public int Total => this.Rows.Count;
+        public int Ok => this.Rows.Count(static row => row.Status=="OK");
+        public int SkipVerify => this.Rows.Count(static row => row.Status=="SKIP_VERIFY");
+        public int Failed => this.Rows.Count(static row => row.Status!="OK" && row.Status!="SKIP_VERIFY");
 
         public static DynamicLinqReport Parse(string output) {
             var artifact = string.Empty;
@@ -204,7 +204,7 @@ public sealed class DynamicLinqRunnerReport(ITestOutputHelper output) {
         long NoOptimizedLogicalDelegate,
         long NoOptimizedPhysicalDelegate,
         string Status) {
-        public double Ratio => SystemNs<=0 ? 0.0 : (double)FLinqNs/SystemNs;
+        public double Ratio => this.SystemNs<=0 ? 0.0 : (double)this.FLinqNs/this.SystemNs;
 
         public static DynamicLinqRow Parse(string[] parts) =>
             parts.Length==30

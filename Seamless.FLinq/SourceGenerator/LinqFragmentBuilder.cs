@@ -677,6 +677,8 @@ public sealed partial class FLinqIncrementalGenerator {
             ? new ArrayRoot(_num, _srcExpr, elementTypeName)
             : IsListType(expressionType)
                 ? new ListRoot(_num, _srcExpr, elementTypeName)
+                : IsTsavoriteConcreteSetType(expressionType,out _)
+                    ? new TsavoriteSetRoot(_num, _srcExpr, elementTypeName, enumeratorTypeName)
                 : IsTsavoriteConcreteHashSetType(expressionType,out _)
                     ? new TsavoriteHashSetRoot(_num, _srcExpr, elementTypeName, enumeratorTypeName)
                 : IsPersistedConcreteSetType(expressionType,out _)
@@ -920,7 +922,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
         public override SyntaxNode? Visit(SyntaxNode? node) {
             if(node is ExpressionSyntax expression
-                && replacements.TryGetValue(expression,out var replacement)) {
+                &&this.replacements.TryGetValue(expression,out var replacement)) {
                 return SyntaxFactory.IdentifierName(replacement).WithTriviaFrom(expression);
             }
             return base.Visit(node);
@@ -2120,6 +2122,8 @@ public sealed partial class FLinqIncrementalGenerator {
             ? new ArrayRoot(number, sourceExpression, elementTypeName)
             : IsListType(expressionType)
                 ? new ListRoot(number, sourceExpression, elementTypeName)
+                : IsTsavoriteConcreteSetType(expressionType,out _)
+                    ? new TsavoriteSetRoot(number, sourceExpression, elementTypeName, enumeratorTypeName)
                 : IsTsavoriteConcreteHashSetType(expressionType,out _)
                     ? new TsavoriteHashSetRoot(number, sourceExpression, elementTypeName, enumeratorTypeName)
                 : IsPersistedConcreteSetType(expressionType,out _)
@@ -2353,15 +2357,15 @@ public sealed partial class FLinqIncrementalGenerator {
         public override SyntaxNode? VisitAnonymousMethodExpression(AnonymousMethodExpressionSyntax node)=>node;
         public override SyntaxNode? VisitLocalFunctionStatement(LocalFunctionStatementSyntax node)=>node;
         public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node)
-            => TryRewriteGeneratedExpression(node,out var rewritten)
+            => this.TryRewriteGeneratedExpression(node,out var rewritten)
                 ? rewritten
                 : base.VisitInvocationExpression(node);
         public override SyntaxNode? VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
-            => TryRewriteGeneratedExpression(node,out var rewritten)
+            => this.TryRewriteGeneratedExpression(node,out var rewritten)
                 ? rewritten
                 : base.VisitMemberAccessExpression(node);
         public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node)
-            => TryRewriteGeneratedExpression(node,out var rewritten)
+            => this.TryRewriteGeneratedExpression(node,out var rewritten)
                 ? rewritten
                 : base.VisitIdentifierName(node);
         public override SyntaxNode? VisitReturnStatement(ReturnStatementSyntax node) {
