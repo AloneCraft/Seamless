@@ -69,7 +69,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private readonly Dictionary<string,bool> benchmarkCellSelections = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string,bool> benchmarkRowSelections = new(StringComparer.OrdinalIgnoreCase);
     private BenchmarkSourceTab? activeRunSourceTab;
-    private bool hasLoadedUiSelectionCache;
     private int[] selectedLogicalCpus = [];
     private string logText = string.Empty;
     private BenchmarkLowerTab selectedLowerTab = BenchmarkLowerTab.Cpu;
@@ -864,8 +863,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         StartupDiagnostics.Write("Benchmark catalog refresh started.");
         try {
             await this.RefreshCsvScanAsync(CancellationToken.None,true);
-            var savedState = this.uiStateStore.Load();
-            this.EnsureUiSelectionCache(savedState);
             this.CaptureCurrentBenchmarkSelections();
             var loaded = await this.catalogService.LoadAsync(CancellationToken.None);
             this.BenchmarkRows.Clear();
@@ -874,7 +871,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 this.SubscribeBenchmarkRow(row);
                 row.IsSelected=this.benchmarkRowSelections.GetValueOrDefault(
                     CreateRowSelectionKey(row.SourceTab,row.MethodName),
-                    savedState.RowSelections.GetValueOrDefault(row.MethodName,false));
+                    false);
                 foreach(var cell in row.ProjectCells) {
                     var key = BenchmarkUiStateStore.CreateCellKey(row.MethodName,cell.Project);
                     if(this.benchmarkCellSelections.TryGetValue(key,out var saved)) {
@@ -886,7 +883,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 }
                 this.BenchmarkRows.Add(row);
             }
-            this.RestoreRunSelection(savedState.SelectedRunNumber,savedState.SelectedResultElementCount);
+            this.RestoreRunSelection(null,null);
             this.RefreshBenchmarkSelectionAggregates();
             this.ApplyCurrentSort();
             this.StatusText=this.BenchmarkRows.Count+" benchmarks";
@@ -1156,20 +1153,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         if(load&&!IsTransientRunOption(option)) {
             this.LoadSelectedRunCsv();
         }
-    }
-
-    private void EnsureUiSelectionCache(BenchmarkUiState savedState) {
-        if(this.hasLoadedUiSelectionCache) {
-            return;
-        }
-
-        foreach(var item in savedState.ProjectCellSelections) {
-            this.benchmarkCellSelections[item.Key]=item.Value;
-        }
-        foreach(var item in savedState.RowSelections) {
-            this.benchmarkRowSelections[item.Key]=item.Value;
-        }
-        this.hasLoadedUiSelectionCache=true;
     }
 
     private void CaptureCurrentBenchmarkSelections() {
@@ -1725,6 +1708,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                     this.activeChartMethodName=string.Empty;
                 }
                 this.UpdateChart();
+                this.RefreshFinalCompletionStates();
             }
         }
     }
@@ -2062,6 +2046,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         foreach(var row in this.BenchmarkRows) {
             row.ClearResultDisplay();
         }
+        this.ClearFinalCompletionStates();
     }
 
     private void LoadSelectedRunCsv() {
@@ -2272,6 +2257,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         if(selectedN is { } skippedElementCount) {
             this.ApplySkippedCells(skippedElementCount);
         }
+        this.RefreshFinalCompletionStates();
     }
 
     private IReadOnlyList<BenchmarkComparisonRow> BuildCurrentRunComparisonRowsForElementCount(int elementCount) {
@@ -2391,6 +2377,55 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 }
             }
         }
+    }
+
+    private void RefreshFinalCompletionStates() {
+        var measurements = this.GetResultSourceForDisplay()
+            .Select(static result => new BenchmarkElementMeasurement(
+                result.Project,
+                result.Method,
+                result.ElementCount,
+                result.Status,
+                result.MeanNanoseconds))
+            .ToArray();
+        if(measurements.Length==0) {
+            this.ClearFinalCompletionStates();
+            return;
+        }
+
+        var maxElementCount = this.GetFinalCompletionMaxElementCount();
+        var thresholdNanoseconds = this.GetAdaptiveThreshold().TotalMilliseconds*1_000_000;
+        foreach(var row in this.BenchmarkRows) {
+            var isFinalCompleted = this.BenchmarkPairs().Any(pair =>
+                BenchmarkRowCompletionLogic.IsFinalCompleted(
+                    measurements,
+                    row.MethodName,
+                    pair.LeftProject,
+                    pair.RightProject,
+                    maxElementCount,
+                    thresholdNanoseconds));
+            row.SetFinalCompleted(isFinalCompleted);
+        }
+    }
+
+    private void ClearFinalCompletionStates() {
+        foreach(var row in this.BenchmarkRows) {
+            row.SetFinalCompleted(false);
+        }
+    }
+
+    private int GetFinalCompletionMaxElementCount() {
+        if(this.IsBenchmarkRunActive||this.HasCurrentRunResultsForSelectedTab) {
+            return this.GetSelectedElementCounts().LastOrDefault();
+        }
+
+        var runElementCounts = this.SelectedRunOption?.ElementCounts
+            .Where(static item => item>0)
+            .Order()
+            .ToArray();
+        return runElementCounts is { Length: > 0 }
+            ? runElementCounts[^1]
+            : this.GetSelectedElementCounts().LastOrDefault();
     }
 
     private void ApplySkippedCell(BenchmarkTableRow row,string project,int stoppedAtElementCount) {

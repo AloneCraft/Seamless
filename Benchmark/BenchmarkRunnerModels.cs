@@ -113,7 +113,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     private bool isUiSelected;
     private bool isFailed;
     private bool isCompletedWithoutMeasurement;
-    private string statusIcon;
+    private string statusImageSource;
     private string statusText;
     private string elementCountText = string.Empty;
     private string executionText = string.Empty;
@@ -121,6 +121,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     private string executionTooltipText = string.Empty;
     private string logicalProcessorText = string.Empty;
     private string coreKindLabel = string.Empty;
+    private string coreKindImageSource = string.Empty;
     private string timeText = string.Empty;
     private string allocatedText = string.Empty;
     private Color executionTextColor = DefaultExecutionTextColor;
@@ -138,12 +139,13 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     private ProjectMetrics metrics = ProjectMetrics.Missing;
     private Color badgeBackgroundColor = Color.FromArgb("#E2E8F0");
     private Color badgeTextColor = Color.FromArgb("#334155");
+    private bool isRowFinalCompleted;
 
     public BenchmarkProjectCell(string project,bool hasCase){
         this.Project=project;
         this.HasCase=hasCase;
         this.isSelected=hasCase;
-        this.statusIcon=hasCase?"⏳":string.Empty;
+        this.statusImageSource=hasCase ? BenchmarkStatusImageNames.Waiting : string.Empty;
         this.statusText=hasCase?"待機":"対象なし";
     }
 
@@ -174,12 +176,12 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         }
     }
 
-    public string StatusIcon{
-        get => this.statusIcon;
-        private set => this.SetProperty(ref this.statusIcon,value);
+    public string StatusImageSource{
+        get => this.statusImageSource;
+        private set => this.SetProperty(ref this.statusImageSource,value);
     }
 
-    public bool IsStatusIconVisible => !string.IsNullOrWhiteSpace(this.StatusIcon)&&!this.IsRunningVisual;
+    public bool IsStatusIconVisible => !string.IsNullOrWhiteSpace(this.StatusImageSource)&&!this.IsRunningVisual;
 
     public string StatusText{
         get => this.statusText;
@@ -214,6 +216,11 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     public string CoreKindLabel{
         get => this.coreKindLabel;
         private set => this.SetProperty(ref this.coreKindLabel,value);
+    }
+
+    public string CoreKindImageSource{
+        get => this.coreKindImageSource;
+        private set => this.SetProperty(ref this.coreKindImageSource,value);
     }
 
     public string TimeText{
@@ -286,6 +293,14 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     public bool IsPendingVisual => BenchmarkProjectLiveStateLogic.IsPending(this.LiveState,this.Metrics.HasMeasuredValue);
 
     public bool IsRunningVisual => BenchmarkProjectLiveStateLogic.IsRunning(this.LiveState);
+
+    public bool IsRowFinalCompleted => this.isRowFinalCompleted;
+
+    public void SetRowFinalCompleted(bool value){
+        if(this.SetProperty(ref this.isRowFinalCompleted,value,nameof(this.IsRowFinalCompleted))){
+            this.RefreshStatusDisplay();
+        }
+    }
 
     public void ApplyMetrics(ProjectMetrics value,bool preserveRetainedDisplay = false){
         // preserveRetainedDisplay=true のときは、完了済みセルを Missing/待機に戻さない。
@@ -477,7 +492,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.ElementCountText=string.Empty;
         this.ClearLiveState();
         if(this.HasCase){
-            this.StatusIcon="⏳";
+            this.StatusImageSource=BenchmarkStatusImageNames.Waiting;
             this.StatusText="待機";
             this.ExecutionText=string.Empty;
             this.FailureExecutionText=string.Empty;
@@ -545,26 +560,28 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     }
 
     private void RefreshStatusDisplay(){
+        var kind = BenchmarkStatusImageLogic.GetProjectKind(new BenchmarkStatusImageInput(
+            this.HasCase,
+            this.IsRunning,
+            this.isFailed,
+            this.Metrics.HasMeasuredValue,
+            this.isCompletedWithoutMeasurement,
+            this.IsSelected,
+            this.IsRowFinalCompleted));
+        this.StatusImageSource=BenchmarkStatusImageNames.FromKind(kind);
         if(!this.HasCase){
-            this.StatusIcon=string.Empty;
             this.StatusText="対象なし";
         }else if(this.IsRunning){
-            this.StatusIcon=string.Empty;
             this.StatusText="実行中";
         }else if(this.isFailed){
-            this.StatusIcon="×";
             this.StatusText="失敗";
         }else if(this.Metrics.HasMeasuredValue){
-            this.StatusIcon="✓";
             this.StatusText="完了";
         }else if(this.isCompletedWithoutMeasurement){
-            this.StatusIcon="!";
             this.StatusText="測定値なし";
         }else if(this.IsSelected){
-            this.StatusIcon="⏳";
             this.StatusText="待機";
         }else{
-            this.StatusIcon=string.Empty;
             this.StatusText="予定なし";
         }
 
@@ -599,6 +616,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.HasCpuDisplay=true;
         this.LogicalProcessorText=cpu.LogicalProcessorText;
         this.CoreKindLabel=cpu.CoreKindLabel;
+        this.CoreKindImageSource=cpu.CoreKindImageSource;
         this.BadgeBackgroundColor=cpu.BadgeBackgroundColor;
         this.BadgeTextColor=cpu.BadgeTextColor;
     }
@@ -607,6 +625,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.HasCpuDisplay=false;
         this.LogicalProcessorText=string.Empty;
         this.CoreKindLabel=string.Empty;
+        this.CoreKindImageSource=string.Empty;
         this.BadgeBackgroundColor=Color.FromArgb("#E2E8F0");
         this.BadgeTextColor=Color.FromArgb("#334155");
     }
@@ -659,6 +678,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
     private string rightTimeText = string.Empty;
     private string rightAllocatedText = string.Empty;
     private BenchmarkComparisonRow? comparisonRow;
+    private bool isFinalCompleted;
     private static readonly Color DefaultStopNTextColor = Color.FromArgb("#334155");
 
     public BenchmarkTableRow(string methodName,BenchmarkSourceTabDefinition sourceTab,IReadOnlyDictionary<string,BenchmarkCase> casesByProject){
@@ -695,6 +715,17 @@ public sealed class BenchmarkTableRow:ObservableObject{
     public bool? IsSelectionChecked{
         get => this.isSelectionChecked;
         private set => this.SetProperty(ref this.isSelectionChecked,value);
+    }
+
+    public bool IsFinalCompleted{
+        get => this.isFinalCompleted;
+        private set{
+            if(this.SetProperty(ref this.isFinalCompleted,value)){
+                foreach(var cell in this.ProjectCells){
+                    cell.SetRowFinalCompleted(value);
+                }
+            }
+        }
     }
 
     public string PairRatioTimeText{
@@ -789,6 +820,10 @@ public sealed class BenchmarkTableRow:ObservableObject{
             this.ProjectCells.Select(static cell => new BenchmarkRowUiSelectionCell(cell.HasCase,cell.IsUiSelected)));
     }
 
+    public void SetFinalCompleted(bool value){
+        this.IsFinalCompleted=value;
+    }
+
     private void OnCellUiSelectionChanged(object? sender,EventArgs args){
         this.RefreshUiSelectionState();
     }
@@ -869,6 +904,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
 
     public void ClearResultDisplay(){
         this.ClearComparison(false);
+        this.SetFinalCompleted(false);
     }
 
     public void ApplyComparison(BenchmarkComparisonRow? row,bool preserveRetainedDisplay = false){
@@ -985,7 +1021,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
 public sealed class CpuSelectionItem:ObservableObject{
     private bool isSelected;
     private string runStatusText = "待機";
-    private string runIcon = "○";
+    private string statusImageSource = BenchmarkStatusImageNames.CpuIdle;
     private string currentJobText = string.Empty;
     private bool isRunningJob;
 
@@ -1011,14 +1047,15 @@ public sealed class CpuSelectionItem:ObservableObject{
         CpuCoreKind.Efficiency => "E",
         _ => "U",
     };
+    public string CoreKindImageSource => BenchmarkCpuCoreImageNames.FromCoreKind(this.CoreKind);
     public string DisplayName => "CPU "+this.LogicalProcessorIndex+" ("+this.CoreLabel+")";
     public string RunStatusText{
         get => this.runStatusText;
         private set => this.SetProperty(ref this.runStatusText,value);
     }
-    public string RunIcon{
-        get => this.runIcon;
-        private set => this.SetProperty(ref this.runIcon,value);
+    public string StatusImageSource{
+        get => this.statusImageSource;
+        private set => this.SetProperty(ref this.statusImageSource,value);
     }
     public string CurrentJobText{
         get => this.currentJobText;
@@ -1031,12 +1068,11 @@ public sealed class CpuSelectionItem:ObservableObject{
     public string StatusDisplayText =>
         this.LogicalProcessorIndex.ToString(CultureInfo.InvariantCulture)
         +" "+this.CoreKindLabel
-        +" "+this.RunIcon
+        +" "+this.RunStatusText
         +(string.IsNullOrWhiteSpace(this.CurrentJobText) ? string.Empty : " "+this.CurrentJobText);
     public string LogicalProcessorText => this.LogicalProcessorIndex.ToString(CultureInfo.InvariantCulture);
     public string CellStatusText =>
-        this.RunIcon
-        +(string.IsNullOrWhiteSpace(this.CurrentJobText) ? string.Empty : " "+this.CurrentJobText);
+        string.IsNullOrWhiteSpace(this.CurrentJobText) ? this.RunStatusText : this.CurrentJobText;
     public Color BadgeBackgroundColor => this.CoreKind switch{
         CpuCoreKind.Performance => Color.FromArgb("#DBEAFE"),
         CpuCoreKind.Efficiency => Color.FromArgb("#DCFCE7"),
@@ -1055,30 +1091,20 @@ public sealed class CpuSelectionItem:ObservableObject{
 
     public void ApplyJob(BenchmarkResultItem item){
         this.IsRunningJob=string.Equals(item.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase);
-        this.RunIcon=this.IsRunningJob
-            ? "●"
-            : string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-                ? "✓"
-                : string.Equals(item.Status,"Failed",StringComparison.OrdinalIgnoreCase)
-                    ? "×"
-                    : "○";
-        this.RunStatusText=this.IsRunningJob
-            ? "実行中"
-            : string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-                ? "完了"
-                : string.Equals(item.Status,"Failed",StringComparison.OrdinalIgnoreCase)
-                    ? "失敗"
-                    : item.Status;
+        this.StatusImageSource=BenchmarkCpuStatusImageLogic.GetImageSource(item.Status);
+        this.RunStatusText=BenchmarkCpuStatusImageLogic.GetStatusText(item.Status);
         this.CurrentJobText=item.Project+" / "+item.Method+" / "+item.ElementCount.ToString(CultureInfo.InvariantCulture);
         this.OnPropertyChanged(nameof(this.StatusDisplayText));
+        this.OnPropertyChanged(nameof(this.CellStatusText));
     }
 
     public void ClearJob(){
         this.IsRunningJob=false;
-        this.RunIcon="○";
+        this.StatusImageSource=BenchmarkStatusImageNames.CpuIdle;
         this.RunStatusText="待機";
         this.CurrentJobText=string.Empty;
         this.OnPropertyChanged(nameof(this.StatusDisplayText));
+        this.OnPropertyChanged(nameof(this.CellStatusText));
     }
 }
 
@@ -1093,8 +1119,9 @@ public sealed class CpuTableCell:ObservableObject{
                 this.IsSelected=cpu.IsSelected;
             }else if(args.PropertyName==nameof(CpuSelectionItem.StatusDisplayText)
                 ||args.PropertyName==nameof(CpuSelectionItem.CurrentJobText)
-                ||args.PropertyName==nameof(CpuSelectionItem.RunIcon)
-                ||args.PropertyName==nameof(CpuSelectionItem.RunStatusText)){
+                ||args.PropertyName==nameof(CpuSelectionItem.StatusImageSource)
+                ||args.PropertyName==nameof(CpuSelectionItem.RunStatusText)
+                ||args.PropertyName==nameof(CpuSelectionItem.IsRunningJob)){
                 this.OnPropertyChanged(nameof(this.DisplayText));
                 this.OnPropertyChanged(nameof(this.LogicalProcessorText));
                 this.OnPropertyChanged(nameof(this.CoreKindLabel));
@@ -1102,6 +1129,8 @@ public sealed class CpuTableCell:ObservableObject{
                 this.OnPropertyChanged(nameof(this.BadgeBackgroundColor));
                 this.OnPropertyChanged(nameof(this.BadgeTextColor));
                 this.OnPropertyChanged(nameof(this.IsRunningJob));
+                this.OnPropertyChanged(nameof(this.StatusImageSource));
+                this.OnPropertyChanged(nameof(this.IsStatusImageVisible));
             }
         };
     }
@@ -1110,7 +1139,10 @@ public sealed class CpuTableCell:ObservableObject{
     public string DisplayText => this.Cpu.StatusDisplayText;
     public string LogicalProcessorText => this.Cpu.LogicalProcessorText;
     public string CoreKindLabel => this.Cpu.CoreKindLabel;
+    public string CoreKindImageSource => this.Cpu.CoreKindImageSource;
     public string CellStatusText => this.Cpu.CellStatusText;
+    public string StatusImageSource => this.Cpu.StatusImageSource;
+    public bool IsStatusImageVisible => !this.IsRunningJob&&!string.IsNullOrWhiteSpace(this.StatusImageSource);
     public Color BadgeBackgroundColor => this.Cpu.BadgeBackgroundColor;
     public Color BadgeTextColor => this.Cpu.BadgeTextColor;
     public bool IsRunningJob => this.Cpu.IsRunningJob;
@@ -1173,6 +1205,7 @@ public sealed class CpuTableRow:ObservableObject{
         CpuCoreKind.Efficiency => "E",
         _ => "U",
     };
+    public string BadgeImageSource => BenchmarkCpuCoreImageNames.FromCoreKind(this.CoreKind);
     public Color BadgeBackgroundColor => this.CoreKind switch{
         CpuCoreKind.Performance => Color.FromArgb("#DBEAFE"),
         CpuCoreKind.Efficiency => Color.FromArgb("#DCFCE7"),
@@ -1285,6 +1318,7 @@ public sealed class CpuTableSection:ObservableObject{
         CpuCoreKind.Efficiency => "E",
         _ => "U",
     };
+    public string BadgeImageSource => BenchmarkCpuCoreImageNames.FromCoreKind(this.CoreKind);
     public Color BadgeBackgroundColor => this.CoreKind switch{
         CpuCoreKind.Performance => Color.FromArgb("#DBEAFE"),
         CpuCoreKind.Efficiency => Color.FromArgb("#DCFCE7"),

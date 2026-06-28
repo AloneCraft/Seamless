@@ -489,6 +489,10 @@ public sealed class MainPage:ContentPage{
 
         var grid = new Grid{
             Padding=new Thickness(10,8,10,6),
+            RowDefinitions = {
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Auto },
+            },
             ColumnDefinitions = {
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
@@ -517,6 +521,56 @@ public sealed class MainPage:ContentPage{
         grid.Add(openButton,9,0);
         grid.Add(this.ToolbarLabel("結果"),10,0);
         grid.Add(runPicker,11,0);
+        var preview = this.CreateStatusIconPreview();
+        grid.Add(preview,0,1);
+        Grid.SetColumnSpan(preview,12);
+        return grid;
+    }
+
+    private View CreateStatusIconPreview(){
+        var layout = new HorizontalStackLayout{
+            Spacing=10,
+            Padding=new Thickness(0,6,0,0),
+            VerticalOptions=LayoutOptions.Center,
+        };
+        foreach(var item in new[] {
+            ("待機",BenchmarkStatusImageNames.Waiting),
+            ("N完了",BenchmarkStatusImageNames.Completed),
+            ("完全完了",BenchmarkStatusImageNames.FinalCompleted),
+            ("失敗",BenchmarkStatusImageNames.Failed),
+            ("測定値なし",BenchmarkStatusImageNames.NoMeasurement),
+            ("CPU P",BenchmarkCpuCoreImageNames.Performance),
+            ("CPU E",BenchmarkCpuCoreImageNames.Efficiency),
+        }){
+            layout.Add(this.CreateStatusIconPreviewItem(item.Item1,item.Item2));
+        }
+
+        return layout;
+    }
+
+    private View CreateStatusIconPreviewItem(string text,string imageSource){
+        var grid = new Grid{
+            ColumnDefinitions = {
+                new ColumnDefinition { Width = new GridLength(18) },
+                new ColumnDefinition { Width = GridLength.Auto },
+            },
+            ColumnSpacing=3,
+            VerticalOptions=LayoutOptions.Center,
+        };
+        grid.Add(new Image{
+            Source=ImageSource.FromFile(imageSource),
+            WidthRequest=16,
+            HeightRequest=16,
+            Aspect=Aspect.AspectFit,
+            VerticalOptions=LayoutOptions.Center,
+            HorizontalOptions=LayoutOptions.Center,
+        },0,0);
+        grid.Add(new Label{
+            Text=text,
+            FontSize=9,
+            TextColor=Color.FromArgb("#334155"),
+            VerticalTextAlignment=TextAlignment.Center,
+        },1,0);
         return grid;
     }
 
@@ -1471,22 +1525,25 @@ public sealed class MainPage:ContentPage{
                 };
                 spinner.SetBinding(ActivityIndicator.IsRunningProperty,new Binding(cellPath+"."+nameof(BenchmarkProjectCell.IsRunningVisual)));
                 spinner.SetBinding(IsVisibleProperty,new Binding(cellPath+"."+nameof(BenchmarkProjectCell.IsRunningVisual)));
-                var statusIcon = new Label{
-                    FontSize=13,
-                    TextColor=Color.FromArgb("#0F172A"),
+                var statusIcon = new Image{
+                    WidthRequest=14,
+                    HeightRequest=14,
                     InputTransparent=true,
-                    HorizontalTextAlignment=TextAlignment.Center,
-                    VerticalTextAlignment=TextAlignment.Center,
-                    LineBreakMode=LineBreakMode.TailTruncation,
+                    HorizontalOptions=LayoutOptions.Center,
+                    VerticalOptions=LayoutOptions.Center,
+                    Aspect=Aspect.AspectFit,
                 };
-                statusIcon.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.StatusIcon));
+                statusIcon.SetBinding(
+                    Image.SourceProperty,
+                    new Binding(cellPath+"."+nameof(BenchmarkProjectCell.StatusImageSource),converter:new ImageFileSourceConverter()));
                 statusIcon.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsStatusIconVisible));
                 var badge = this.CreateCoreBadge();
                 badge.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.HasCpuDisplay));
                 badge.SetBinding(BackgroundColorProperty,cellPath+"."+nameof(BenchmarkProjectCell.BadgeBackgroundColor));
-                if(badge.Content is Label badgeLabel){
-                    badgeLabel.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.CoreKindLabel));
-                    badgeLabel.SetBinding(Label.TextColorProperty,cellPath+"."+nameof(BenchmarkProjectCell.BadgeTextColor));
+                if(badge.Content is Image badgeImage){
+                    badgeImage.SetBinding(
+                        Image.SourceProperty,
+                        new Binding(cellPath+"."+nameof(BenchmarkProjectCell.CoreKindImageSource),converter:new ImageFileSourceConverter()));
                 }
                 var cpuLabel = new Label{
                     FontSize=10,
@@ -1837,9 +1894,10 @@ public sealed class MainPage:ContentPage{
         sectionCheck.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(nameof(CpuTableSection.State),BindingMode.OneWay,converter:new CpuSelectionStateToBoolConverter()));
         var badge = this.CreateCoreBadge();
         badge.SetBinding(BackgroundColorProperty,nameof(CpuTableSection.BadgeBackgroundColor));
-        if(badge.Content is Label badgeLabel){
-            badgeLabel.SetBinding(Label.TextProperty,nameof(CpuTableSection.BadgeText));
-            badgeLabel.SetBinding(Label.TextColorProperty,nameof(CpuTableSection.BadgeTextColor));
+        if(badge.Content is Image badgeImage){
+            badgeImage.SetBinding(
+                Image.SourceProperty,
+                new Binding(nameof(CpuTableSection.BadgeImageSource),converter:new ImageFileSourceConverter()));
         }
         var title = new Label{
             FontSize=12,
@@ -1937,9 +1995,10 @@ public sealed class MainPage:ContentPage{
                 check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(nameof(CpuTableRow.IsChecked),BindingMode.OneWay));
                 var badge = this.CreateCoreBadge();
                 badge.SetBinding(BackgroundColorProperty,nameof(CpuTableRow.BadgeBackgroundColor));
-                if(badge.Content is Label badgeLabel){
-                    badgeLabel.SetBinding(Label.TextProperty,nameof(CpuTableRow.BadgeText));
-                    badgeLabel.SetBinding(Label.TextColorProperty,nameof(CpuTableRow.BadgeTextColor));
+                if(badge.Content is Image badgeImage){
+                    badgeImage.SetBinding(
+                        Image.SourceProperty,
+                        new Binding(nameof(CpuTableRow.BadgeImageSource),converter:new ImageFileSourceConverter()));
                 }
                 var label = new Label{
                     FontSize=10,
@@ -2014,11 +2073,24 @@ public sealed class MainPage:ContentPage{
                 };
                 spinner.SetBinding(ActivityIndicator.IsRunningProperty,new Binding(cellPath+"."+nameof(CpuTableCell.IsRunningJob)));
                 spinner.SetBinding(IsVisibleProperty,new Binding(cellPath+"."+nameof(CpuTableCell.IsRunningJob)));
+                var statusIcon = new Image{
+                    WidthRequest=14,
+                    HeightRequest=14,
+                    InputTransparent=true,
+                    HorizontalOptions=LayoutOptions.Center,
+                    VerticalOptions=LayoutOptions.Center,
+                    Aspect=Aspect.AspectFit,
+                };
+                statusIcon.SetBinding(
+                    Image.SourceProperty,
+                    new Binding(cellPath+"."+nameof(CpuTableCell.StatusImageSource),converter:new ImageFileSourceConverter()));
+                statusIcon.SetBinding(IsVisibleProperty,cellPath+"."+nameof(CpuTableCell.IsStatusImageVisible));
                 var badge = this.CreateCoreBadge();
                 badge.SetBinding(BackgroundColorProperty,cellPath+"."+nameof(CpuTableCell.BadgeBackgroundColor));
-                if(badge.Content is Label badgeLabel){
-                    badgeLabel.SetBinding(Label.TextProperty,cellPath+"."+nameof(CpuTableCell.CoreKindLabel));
-                    badgeLabel.SetBinding(Label.TextColorProperty,cellPath+"."+nameof(CpuTableCell.BadgeTextColor));
+                if(badge.Content is Image badgeImage){
+                    badgeImage.SetBinding(
+                        Image.SourceProperty,
+                        new Binding(cellPath+"."+nameof(CpuTableCell.CoreKindImageSource),converter:new ImageFileSourceConverter()));
                 }
                 var numberLabel = new Label{
                     FontSize=10,
@@ -2040,6 +2112,7 @@ public sealed class MainPage:ContentPage{
                 statusLabel.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(CpuTableCell.DisplayText));
                 layout.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(CpuTableCell.DisplayText));
                 layout.Add(check,0,0);
+                layout.Add(statusIcon,1,0);
                 layout.Add(spinner,1,0);
                 layout.Add(badge,2,0);
                 layout.Add(numberLabel,3,0);
@@ -2221,11 +2294,12 @@ public sealed class MainPage:ContentPage{
             Stroke=Color.FromArgb("#CBD5E1"),
             StrokeThickness=1,
             Padding=new Thickness(0),
-            Content=new Label{
-                FontSize=10,
-                FontAttributes=FontAttributes.Bold,
-                HorizontalTextAlignment=TextAlignment.Center,
-                VerticalTextAlignment=TextAlignment.Center,
+            Content=new Image{
+                WidthRequest=12,
+                HeightRequest=12,
+                Aspect=Aspect.AspectFit,
+                HorizontalOptions=LayoutOptions.Center,
+                VerticalOptions=LayoutOptions.Center,
             },
         };
     }
@@ -2479,6 +2553,18 @@ public sealed class CountIsZeroConverter:IValueConverter{
 public sealed class NullToBoolConverter:IValueConverter{
     public object Convert(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture){
         return value is not null;
+    }
+
+    public object ConvertBack(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture){
+        throw new NotSupportedException();
+    }
+}
+
+public sealed class ImageFileSourceConverter:IValueConverter{
+    public object? Convert(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture){
+        return value is string path&&!string.IsNullOrWhiteSpace(path)
+            ? ImageSource.FromFile(path)
+            : null;
     }
 
     public object ConvertBack(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture){
