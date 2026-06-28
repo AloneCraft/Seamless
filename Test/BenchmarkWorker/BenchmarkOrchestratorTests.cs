@@ -237,20 +237,30 @@ public sealed class BenchmarkOrchestratorTests{
             _ => { },
             CancellationToken.None);
 
-        Assert.All(observed.Where(static item => item.Method=="Where"),static item => Assert.Equal(10,item.Cpu));
-        Assert.All(observed.Where(static item => item.Method=="Select"),static item => Assert.Equal(20,item.Cpu));
-        Assert.All(observed.Where(static item => item.Method=="Count"),static item => Assert.Equal(10,item.Cpu));
+        Assert.All(observed,static item => Assert.True(item.Cpu is 10 or 20));
+        Assert.Contains(10,observed.Select(static item => item.Cpu));
+        Assert.Contains(20,observed.Select(static item => item.Cpu));
         Assert.Equal(
             [
-                ("System.Array.FLinq",1),
-                ("System.Array.ZLinq",1),
-                ("System.Array.FLinq",2),
-                ("System.Array.ZLinq",2),
+                ("Where",10),
+                ("Select",20),
             ],
-            observed
-                .Where(static item => item.Method=="Where")
-                .Select(static item => (item.Project,item.ElementCount))
+            new[] { "Where","Select" }
+                .Select(method => (method,observed.Where(item => item.Method==method).Select(static item => item.Cpu).Distinct().Single()))
                 .ToArray());
+        foreach(var method in new[] { "Where","Select","Count" }) {
+            Assert.Equal(
+                [
+                    ("System.Array.FLinq",1),
+                    ("System.Array.ZLinq",1),
+                    ("System.Array.FLinq",2),
+                    ("System.Array.ZLinq",2),
+                ],
+                observed
+                    .Where(item => item.Method==method)
+                    .Select(static item => (item.Project,item.ElementCount))
+                    .ToArray());
+        }
     }
 
     [Fact]

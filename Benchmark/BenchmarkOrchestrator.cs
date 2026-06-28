@@ -122,18 +122,22 @@ internal sealed class BenchmarkOrchestrator(
             }
 
             foreach(var cpu in currentCpus) {
-                if(!workers.ContainsKey(cpu)) {
-                    workers.Add(cpu,Task.Run(() => this.RunDynamicAdaptiveRowWorkerAsync(
-                        state,
-                        queue,
-                        request,
-                        cpu,
-                        progress,
-                        statusChanged,
-                        () => Interlocked.Increment(ref running),
-                        () => Interlocked.Decrement(ref running),
-                        cancellationToken),cancellationToken));
+                if(workers.ContainsKey(cpu)) {
+                    continue;
                 }
+
+                if(!queue.TryDequeue(out var row)) {
+                    continue;
+                }
+
+                workers.Add(cpu,Task.Run(async () => {
+                    Interlocked.Increment(ref running);
+                    try {
+                        await this.RunAdaptiveMethodRowAsync(state,row,cpu,request,progress,statusChanged,cancellationToken);
+                    } finally {
+                        Interlocked.Decrement(ref running);
+                    }
+                },cancellationToken));
             }
 
             if(queue.IsEmpty&&Volatile.Read(ref running)==0) {
@@ -144,31 +148,6 @@ internal sealed class BenchmarkOrchestrator(
         }
 
         await Task.WhenAll(workers.Values);
-    }
-
-    private async Task RunDynamicAdaptiveRowWorkerAsync(
-        ProgressState state,
-        ConcurrentQueue<AdaptiveMethodRow> queue,
-        BenchmarkRunRequest request,
-        int logicalCpu,
-        Action<BenchmarkProgressUpdate> progress,
-        Action<string> statusChanged,
-        Action started,
-        Action finished,
-        CancellationToken cancellationToken) {
-        while(GetCurrentCpus(request).Contains(logicalCpu)) {
-            if(!queue.TryDequeue(out var row)) {
-                return;
-            }
-
-            cancellationToken.ThrowIfCancellationRequested();
-            started();
-            try {
-                await this.RunAdaptiveMethodRowAsync(state,row,logicalCpu,request,progress,statusChanged,cancellationToken);
-            } finally {
-                finished();
-            }
-        }
     }
 
     private async Task RunAdaptiveMethodRowAsync(

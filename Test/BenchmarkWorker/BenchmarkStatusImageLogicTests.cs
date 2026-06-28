@@ -95,4 +95,11 @@ public sealed class BenchmarkStatusImageLogicTests{
         Assert.EndsWith(".png",BenchmarkStatusImageNames.Waiting,StringComparison.Ordinal);
         Assert.EndsWith(".png",BenchmarkCpuCoreImageNames.Performance,StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void CpuGridWaitingCellUsesIconWithoutText(){
+        Assert.Equal(string.Empty,BenchmarkCpuStatusImageLogic.GetCellStatusText("待機",string.Empty));
+        Assert.Equal("Count",BenchmarkCpuStatusImageLogic.GetCellStatusText("Running","Count"));
+        Assert.Equal(BenchmarkStatusImageNames.CpuIdle,BenchmarkCpuStatusImageLogic.GetImageSource("待機"));
+    }
 }

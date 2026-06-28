@@ -72,7 +72,7 @@ partial class ValueEnumerableExtensions {
 /// </summary>
 public struct PooledArray<TSource>:IDisposable {
     private TSource[] array;
-    private int size;
+    private readonly int size;
 
     internal PooledArray(TSource[] array,int size) {
         this.array=array;

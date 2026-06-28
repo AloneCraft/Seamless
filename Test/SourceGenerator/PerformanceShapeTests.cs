@@ -703,6 +703,43 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             output);
     }
 
+    [Fact]
+    public void PersistedListAsXUsesPersistedListRoot() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public static class Route {
+                public static IEnumerable<T> AsX<T>(this global::Seamless.Persisted.Collections.PersistedList<T> source) => source;
+            }
+            public class Container {
+                private static int CountList(global::Seamless.Persisted.Collections.PersistedList<int> source) =>
+                    source.AsX().Count();
+                private static int[] SelectToArray(global::Seamless.Persisted.Collections.PersistedList<int> source) =>
+                    source.AsX().Where(static x => x>0).Select(static x => x+1).ToArray();
+                public void Run(global::Seamless.Persisted.Collections.PersistedList<int> source) {
+                    _ = CountList(source);
+                    _ = SelectToArray(source);
+                }
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var methods = string.Concat(
+            GeneratedMethod(generated,"CountList"),
+            GeneratedMethod(generated,"SelectToArray"));
+
+        GeneratedSourceAssert.True(
+            generated.Contains("global::Seamless.Persisted.Collections.PersistedList<int>",StringComparison.Ordinal)
+            && generated.Contains(".GetSpan();",StringComparison.Ordinal)
+            && generated.Contains("source.AsSpan",StringComparison.Ordinal)
+            && !methods.Contains("global::System.Linq.Enumerable.Count",StringComparison.Ordinal)
+            && !methods.Contains("global::System.Linq.Enumerable.ToArray",StringComparison.Ordinal),
+            "AsX should be treated as a transparent test/benchmark route and the original PersistedList<T> receiver should become the optimized root.",
+            generated,
+            output);
+    }
+
     private static string GeneratedMethod(string generated,string methodName) {
         var summaryMarker=$"<c>{methodName}()</c>";
         var summaryIndex=generated.IndexOf(summaryMarker,StringComparison.Ordinal);

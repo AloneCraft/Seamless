@@ -383,7 +383,7 @@ namespace Seamless.System.Carrier {
     }
 
     internal sealed class OrderByComparable<TSource, TKey>(Func<TSource,TKey> keySelector,IComparer<TKey>? comparer,IOrderByComparable<TSource>? parent,bool descending):IOrderByComparable<TSource> {
-        private IComparer<TKey> comparer = comparer??Comparer<TKey>.Default;
+        private readonly IComparer<TKey> comparer = comparer??Comparer<TKey>.Default;
 
         public IOrderByComparer GetComparer(ReadOnlySpan<TSource> source,IOrderByComparer? childComparer) {
             var nextComparer = new OrderByComparer<TSource,TKey>(source,keySelector,this.comparer,childComparer,descending);
@@ -393,9 +393,9 @@ namespace Seamless.System.Carrier {
 
     internal sealed class OrderByComparer<TSource, TKey>:IOrderByComparer {
         private TKey[] keys = default!; // must call Initialize before Compare
-        private IComparer<TKey> comparer;
+        private readonly IComparer<TKey> comparer;
         private IOrderByComparer? childComparer;
-        private bool descending;
+        private readonly bool descending;
 
         public OrderByComparer(ReadOnlySpan<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey> comparer,IOrderByComparer? childComparer,bool descending) {
             var tempArray = ArrayPool<TKey>.Shared.Rent(source.Length);
@@ -445,7 +445,7 @@ namespace Seamless.System.Carrier {
     }
 
     file class DescendingDefaultComparer<T>:IComparer<T> {
-        public static IComparer<T> Default = new DescendingDefaultComparer<T>();
+        public static readonly IComparer<T> Default = new DescendingDefaultComparer<T>();
         private DescendingDefaultComparer() {
 
         }

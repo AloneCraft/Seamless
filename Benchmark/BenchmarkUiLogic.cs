@@ -104,6 +104,11 @@ internal static class BenchmarkCpuStatusImageLogic{
                     ? BenchmarkStatusImageNames.Failed
                     : BenchmarkStatusImageNames.CpuIdle;
 
+    public static string GetCellStatusText(string status,string currentJobText) =>
+        string.IsNullOrWhiteSpace(currentJobText)
+            ? (string.Equals(status,"待機",StringComparison.Ordinal) ? string.Empty : status)
+            : currentJobText;
+
     public static string GetStatusText(string status) =>
         string.Equals(status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase)
             ? "実行中"

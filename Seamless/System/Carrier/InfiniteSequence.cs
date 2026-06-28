@@ -43,7 +43,7 @@ namespace Seamless.System.Carrier {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromUInt16InfiniteSequence(UInt16 start,UInt16 step):IValueEnumerator<UInt16> {
-        bool calledGetNext;
+        private bool calledGetNext;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -76,7 +76,7 @@ namespace Seamless.System.Carrier {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromSByteInfiniteSequence(SByte start,SByte step):IValueEnumerator<SByte> {
-        bool calledGetNext;
+        private bool calledGetNext;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -109,7 +109,7 @@ namespace Seamless.System.Carrier {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromByteInfiniteSequence(Byte start,Byte step):IValueEnumerator<Byte> {
-        bool calledGetNext;
+        private bool calledGetNext;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -146,7 +146,7 @@ namespace Seamless.System.Carrier {
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromInfiniteSequence<T>(T start,T step):IValueEnumerator<T>
         where T : IAdditionOperators<T,T,T> {
-        bool calledGetNext;
+        private bool calledGetNext;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -180,7 +180,7 @@ namespace Seamless.System.Carrier {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromInfiniteSequenceDateTime(DateTime start,TimeSpan step):IValueEnumerator<DateTime> {
-        bool calledGetNext;
+        private bool calledGetNext;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -215,7 +215,7 @@ namespace Seamless.System.Carrier {
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromInfiniteSequenceDateTimeOffset(DateTimeOffset start,TimeSpan step)
         :IValueEnumerator<DateTimeOffset> {
-        bool calledGetNext;
+        private bool calledGetNext;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -253,7 +253,7 @@ namespace Seamless.System.Carrier {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromInt16InfiniteSequence(Int16 start,Int16 step):IValueEnumerator<Int16> {
-        bool calledGetNext;
+        private bool calledGetNext;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -293,7 +293,7 @@ namespace Seamless.System.Carrier {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromUInt32InfiniteSequence(UInt32 start,UInt32 step):IValueEnumerator<UInt32> {
-        bool calledGetNext;
+        private bool calledGetNext;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -333,7 +333,7 @@ namespace Seamless.System.Carrier {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromInt32InfiniteSequence(Int32 start,Int32 step):IValueEnumerator<Int32> {
-        bool calledGetNext;
+        private bool calledGetNext;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -373,7 +373,7 @@ namespace Seamless.System.Carrier {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromUInt64InfiniteSequence(UInt64 start,UInt64 step):IValueEnumerator<UInt64> {
-        bool calledGetNext;
+        private bool calledGetNext;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -413,7 +413,7 @@ namespace Seamless.System.Carrier {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromInt64InfiniteSequence(Int64 start,Int64 step):IValueEnumerator<Int64> {
-        bool calledGetNext;
+        private bool calledGetNext;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -453,7 +453,7 @@ namespace Seamless.System.Carrier {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromCharInfiniteSequence(Char start,Char step):IValueEnumerator<Char> {
-        bool calledGetNext;
+        private bool calledGetNext;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -493,7 +493,7 @@ namespace Seamless.System.Carrier {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromSingleInfiniteSequence(Single start,Single step):IValueEnumerator<Single> {
-        bool calledGetNext;
+        private bool calledGetNext;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -533,7 +533,7 @@ namespace Seamless.System.Carrier {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromDoubleInfiniteSequence(Double start,Double step):IValueEnumerator<Double> {
-        bool calledGetNext;
+        private bool calledGetNext;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;
@@ -573,7 +573,7 @@ namespace Seamless.System.Carrier {
     [StructLayout(LayoutKind.Auto)]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public struct FromDecimalInfiniteSequence(Decimal start,Decimal step):IValueEnumerator<Decimal> {
-        bool calledGetNext;
+        private bool calledGetNext;
 
         public bool TryGetNonEnumeratedCount(out int count) {
             count=0;

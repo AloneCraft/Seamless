@@ -6,7 +6,7 @@ internal ref struct SegmentedArrayProvider<T>
     private const int ArrayMaxLength = 0X7FFFFFC7;
     private Span<T> currentSegment;
     private int countInCurrentSegment;
-    private Span<T> initialBuffer;
+    private readonly Span<T> initialBuffer;
     private InlineArray27<T[]> segments; // rented buffers
     private int segmentsCount;
     private int countInFinishedSegments;

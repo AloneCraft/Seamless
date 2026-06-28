@@ -342,6 +342,72 @@ public class ListRoot(int 番号, string sourceExpression, string elementType) :
 // TEnum の struct 制約が不要なため CS0315 が発生しない。
 // Dispose() は no-op。duck-typing で IDisposable も実装するなら IEnumerator<T> も実装するはずで、
 // その場合は通常の Root パスで処理されるため、ここには到達しない。
+public class PersistedListRoot(int 番号,string sourceExpression,string elementType) : Enumerable(番号) {
+    public override bool CanProvideSpan => true;
+    public override string? GetDirectSpanExpression(string enumeratorName) => $"{enumeratorName}.GetSpan()";
+    public override string? NonEnumeratedCountExpression => $"checked((int){sourceExpression}.Count)";
+    public override bool CountPreserving => true;
+    public override string StructMethod => string.Empty;
+    public override string GetEnumeratorExpression => $"new {this.Struct}({sourceExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"global::Seamless.Persisted.Collections.PersistedList<{elementType}> source";
+    public override string GetEnumeratorFields => $"private long {this.e} = -1;";
+    public override string GetTryGetNextBody => $$"""
+        if(++{{this.e}} < source.Count) {
+            current = source[{{this.e}}];
+            return true;
+        }
+        current = default!;
+        return false;
+        """;
+    public override string GetCurrentExpression => "Current";
+    public override string ElementType => elementType;
+    public override string GetEnumeratorStruct => $$"""
+        private struct {{this.Struct}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        {
+            private global::Seamless.Persisted.Collections.PersistedList<{{elementType}}> source;
+            private long {{this.e}} = -1;
+            public {{this.Struct}}(global::Seamless.Persisted.Collections.PersistedList<{{elementType}}> source) { this.source = source; }
+            public {{elementType}} Current { get; private set; } = default!;
+            object? global::System.Collections.IEnumerator.Current => Current;
+            {{AggressiveInliningAttribute}}
+            void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
+            {{AggressiveInliningAttribute}}
+            public bool MoveNext() => TryGetNext(out _);
+            {{AggressiveInliningAttribute}}
+            public bool TryGetNonEnumeratedCount(out int count) {
+                count = checked((int)(source.Count - ({{this.e}} + 1)));
+                return true;
+            }
+            {{AggressiveInliningAttribute}}
+            public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) {
+                span = this.GetSpan();
+                return true;
+            }
+            {{AggressiveInliningAttribute}}
+            public global::System.ReadOnlySpan<{{elementType}}> GetSpan()
+                => source.AsSpan({{this.e}} + 1,checked((int)(source.Count - ({{this.e}} + 1))));
+            {{AggressiveInliningAttribute}}
+            public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) {
+                var remaining = this.GetSpan();
+                var start = offset.GetOffset(remaining.Length);
+                remaining.Slice(start).CopyTo(destination);
+                return true;
+            }
+            {{AggressiveInliningAttribute}}
+            public bool TryGetNext(out {{elementType}} current) {
+                if(++{{this.e}} < source.Count) {
+                    current = this.Current = source[{{this.e}}];
+                    return true;
+                }
+                current = default!;
+                return false;
+            }
+            {{AggressiveInliningAttribute}}
+            public void Dispose() { }
+        }
+        """;
+}
+
 public class DuckTypingRoot(int 番号, string sourceExpression, string elementType, string concreteEnumeratorType) : Enumerable(番号) {
     public override string StructMethod => string.Empty;
     public override string EnumeratorTypeName => this.Struct;

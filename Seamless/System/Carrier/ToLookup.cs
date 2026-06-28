@@ -393,8 +393,8 @@ namespace Seamless.System.Carrier {
     [DebuggerDisplay("Key = {Key}")]
     [DebuggerTypeProxy(typeof(GroupingDebugView<,>))]
     public sealed class Grouping<TKey, TElement>:IGrouping<TKey,TElement>, IList<TElement>, IReadOnlyList<TElement> {
-        private TKey key;
-        private uint hashCode;
+        private readonly TKey key;
+        private readonly uint hashCode;
         private TElement[] elements; // don't use ArrayPool. initial elements is 1.
         private int count; // elements count(index)
 

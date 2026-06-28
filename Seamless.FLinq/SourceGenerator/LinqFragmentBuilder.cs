@@ -681,6 +681,8 @@ public sealed partial class FLinqIncrementalGenerator {
                     ? new TsavoriteSetRoot(_num, _srcExpr, elementTypeName, enumeratorTypeName)
                 : IsTsavoriteConcreteHashSetType(expressionType,out _)
                     ? new TsavoriteHashSetRoot(_num, _srcExpr, elementTypeName, enumeratorTypeName)
+                : IsPersistedConcreteListType(expressionType,out _)
+                    ? new PersistedListRoot(_num, _srcExpr, elementTypeName)
                 : IsPersistedConcreteSetType(expressionType,out _)
                     ? new PersistedSetRoot(_num, _srcExpr, elementTypeName, enumeratorTypeName)
                 : isDuckTyping && concreteEnumeratorTypeName is not null
@@ -2126,6 +2128,8 @@ public sealed partial class FLinqIncrementalGenerator {
                     ? new TsavoriteSetRoot(number, sourceExpression, elementTypeName, enumeratorTypeName)
                 : IsTsavoriteConcreteHashSetType(expressionType,out _)
                     ? new TsavoriteHashSetRoot(number, sourceExpression, elementTypeName, enumeratorTypeName)
+                : IsPersistedConcreteListType(expressionType,out _)
+                    ? new PersistedListRoot(number, sourceExpression, elementTypeName)
                 : IsPersistedConcreteSetType(expressionType,out _)
                     ? new PersistedSetRoot(number, sourceExpression, elementTypeName, enumeratorTypeName)
                 : isDuckTyping && concreteEnumeratorTypeName is not null
