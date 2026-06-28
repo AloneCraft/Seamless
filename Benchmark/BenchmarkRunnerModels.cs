@@ -712,6 +712,11 @@ public sealed class BenchmarkTableRow:ObservableObject{
         private set => this.SetProperty(ref this.isUiSelected,value);
     }
 
+    public bool IsLeftUiSelected => this.LeftCell.IsUiSelected;
+    public bool IsRightUiSelected => this.RightCell.IsUiSelected;
+    public bool IsLeftPartialUiSelected => this.LeftCell.IsUiSelected&&!this.IsUiSelected;
+    public bool IsRightPartialUiSelected => this.RightCell.IsUiSelected&&!this.IsUiSelected;
+
     public bool? IsSelectionChecked{
         get => this.isSelectionChecked;
         private set => this.SetProperty(ref this.isSelectionChecked,value);
@@ -818,6 +823,10 @@ public sealed class BenchmarkTableRow:ObservableObject{
     public void RefreshUiSelectionState(){
         this.IsUiSelected=BenchmarkRowUiSelectionLogic.IsWholeRowSelected(
             this.ProjectCells.Select(static cell => new BenchmarkRowUiSelectionCell(cell.HasCase,cell.IsUiSelected)));
+        this.OnPropertyChanged(nameof(this.IsLeftUiSelected));
+        this.OnPropertyChanged(nameof(this.IsRightUiSelected));
+        this.OnPropertyChanged(nameof(this.IsLeftPartialUiSelected));
+        this.OnPropertyChanged(nameof(this.IsRightPartialUiSelected));
     }
 
     public void SetFinalCompleted(bool value){
@@ -1479,7 +1488,7 @@ public sealed class ChartComparisonPoint{
         string rightText,
         string tooltipText,
         double? ratio)
-        : this(benchmark,displayName,leftValue,rightValue,leftText,rightText,tooltipText,ratio,false){
+        : this(benchmark,displayName,leftValue,rightValue,leftText,rightText,tooltipText,ratio,false,false,false,false){
     }
 
     private ChartComparisonPoint(
@@ -1491,7 +1500,10 @@ public sealed class ChartComparisonPoint{
         string rightText,
         string tooltipText,
         double? ratio,
-        bool isRunning){
+        bool isRunning,
+        bool isLeftUiSelected,
+        bool isRightUiSelected,
+        bool isRowUiSelected){
         this.Benchmark=benchmark;
         this.BaseDisplayName=displayName;
         this.LeftValue=leftValue;
@@ -1501,6 +1513,9 @@ public sealed class ChartComparisonPoint{
         this.TooltipText=tooltipText;
         this.Ratio=ratio;
         this.IsRunning=isRunning;
+        this.IsLeftUiSelected=isLeftUiSelected;
+        this.IsRightUiSelected=isRightUiSelected;
+        this.IsRowUiSelected=isRowUiSelected;
     }
 
     public string Benchmark { get; }
@@ -1515,6 +1530,9 @@ public sealed class ChartComparisonPoint{
     public string TooltipText { get; }
     public double? Ratio { get; }
     public bool IsRunning { get; }
+    public bool IsLeftUiSelected { get; }
+    public bool IsRightUiSelected { get; }
+    public bool IsRowUiSelected { get; }
 
     public ChartComparisonPoint WithRunningState(bool isRunning) =>
         new(
@@ -1526,7 +1544,25 @@ public sealed class ChartComparisonPoint{
             this.RightText,
             this.TooltipText,
             this.Ratio,
-            isRunning);
+            isRunning,
+            this.IsLeftUiSelected,
+            this.IsRightUiSelected,
+            this.IsRowUiSelected);
+
+    public ChartComparisonPoint WithUiSelection(bool isLeftUiSelected,bool isRightUiSelected,bool isRowUiSelected) =>
+        new(
+            this.Benchmark,
+            this.BaseDisplayName,
+            this.LeftValue,
+            this.RightValue,
+            this.LeftText,
+            this.RightText,
+            this.TooltipText,
+            this.Ratio,
+            this.IsRunning,
+            isLeftUiSelected,
+            isRightUiSelected,
+            isRowUiSelected);
 }
 
 public sealed record BenchmarkRunReport(string? RunRoot,IReadOnlyList<string> CsvPaths){

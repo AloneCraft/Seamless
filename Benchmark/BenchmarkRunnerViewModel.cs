@@ -844,17 +844,23 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.SetBenchmarkCells(targets,selected);
     }
 
-    internal void SelectBenchmarkCellFromChart(string benchmark,string project) {
-        if(!this.CanChangeBenchmarkSelection) {
+    internal void SelectBenchmarkCellFromChart(string benchmark,string project,BenchmarkCellSelectionGesture gesture) {
+        var rowIndex = this.GetBenchmarkRowIndex(benchmark);
+        var columnIndex = this.GetProjectColumnIndex(project);
+        if(rowIndex<0||columnIndex<0) {
             return;
         }
 
-        var row = this.BenchmarkRows.FirstOrDefault(item => StringComparer.OrdinalIgnoreCase.Equals(item.MethodName,benchmark));
-        if(row?.GetProjectCell(project) is not { HasCase: true } cell) {
+        this.ApplyBenchmarkCellSelection(BenchmarkCellSelectionTarget.Cell(rowIndex,columnIndex),gesture);
+    }
+
+    internal void SelectBenchmarkRowFromChart(string benchmark,BenchmarkCellSelectionGesture gesture) {
+        var rowIndex = this.GetBenchmarkRowIndex(benchmark);
+        if(rowIndex<0) {
             return;
         }
 
-        this.SetBenchmarkCells([cell],true);
+        this.ApplyBenchmarkCellSelection(BenchmarkCellSelectionTarget.RowHeader(rowIndex),gesture);
     }
 
     private async Task RefreshAsync() {
@@ -989,6 +995,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             }
         }
         this.benchmarkSelectionAnchor=result.Anchor;
+        this.RefreshChartUiSelection();
     }
 
     private IEnumerable<BenchmarkCellCoordinate> GetSelectedBenchmarkUiCoordinates() {
@@ -1029,6 +1036,16 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             : selected==targets.Length
                 ? true
                 : null;
+    }
+
+    private int GetBenchmarkRowIndex(string benchmark) {
+        for(var index=0;index<this.BenchmarkRows.Count;index++) {
+            if(string.Equals(this.BenchmarkRows[index].MethodName,benchmark,StringComparison.OrdinalIgnoreCase)) {
+                return index;
+            }
+        }
+
+        return -1;
     }
 
     private int GetProjectColumnIndex(string project) =>
@@ -1619,6 +1636,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             this.OnPropertyChanged(nameof(this.IsBenchmarkRunActive));
             this.ApplySelectedElementCountToTable();
             this.RestoreLatestCompletedLiveResult();
+            this.ClearCpuJobs();
             if(!this.IsBenchmarkPaused) {
                 this.SetActiveRunRoot(null);
             }
@@ -1630,6 +1648,12 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     private void Cancel() {
         this.runCancellation?.Cancel();
+    }
+
+    private void ClearCpuJobs() {
+        foreach(var cpu in this.CpuItems) {
+            cpu.ClearJob();
+        }
     }
 
     private void ToggleRun() {
@@ -2580,7 +2604,10 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                     &&Math.Abs(this.ChartPoints[index].RightValue-point.RightValue)<0.000001
                     &&this.ChartPoints[index].LeftText==point.LeftText
                     &&this.ChartPoints[index].RightText==point.RightText
-                    &&this.ChartPoints[index].TooltipText==point.TooltipText) {
+                    &&this.ChartPoints[index].TooltipText==point.TooltipText
+                    &&this.ChartPoints[index].IsLeftUiSelected==point.IsLeftUiSelected
+                    &&this.ChartPoints[index].IsRightUiSelected==point.IsRightUiSelected
+                    &&this.ChartPoints[index].IsRowUiSelected==point.IsRowUiSelected) {
                     continue;
                 }
 
@@ -2616,16 +2643,16 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         var rightValue = GetMetricValue(right,this.SelectedMetric.Kind);
         var cacheKey = this.GetChartPointCacheKey(row.MethodName);
         if(leftValue is not null&&rightValue is not null) {
-            var measuredPoint = this.CreateChartComparisonPoint(row.MethodName,leftValue,rightValue);
+            var measuredPoint = this.ApplyChartUiSelection(row,this.CreateChartComparisonPoint(row.MethodName,leftValue,rightValue));
             this.retainedChartPoints[cacheKey]=measuredPoint;
             return this.ApplyChartRunningState(measuredPoint);
         }
 
         if(this.retainedChartPoints.TryGetValue(cacheKey,out var retainedPoint)) {
-            return this.ApplyChartRunningState(retainedPoint);
+            return this.ApplyChartRunningState(this.ApplyChartUiSelection(row,retainedPoint));
         }
 
-        return this.ApplyChartRunningState(this.CreateChartComparisonPoint(row.MethodName,leftValue,rightValue));
+        return this.ApplyChartRunningState(this.ApplyChartUiSelection(row,this.CreateChartComparisonPoint(row.MethodName,leftValue,rightValue)));
     }
 
     private ChartComparisonPoint CreateChartComparisonPoint(string method,double? leftValue,double? rightValue) {
@@ -2670,6 +2697,29 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private ChartComparisonPoint ApplyChartRunningState(ChartComparisonPoint point) =>
         point.WithRunningState(
             this.IsBenchmarkRunActive&&string.Equals(point.Benchmark,this.activeChartMethodName,StringComparison.OrdinalIgnoreCase));
+
+    private ChartComparisonPoint ApplyChartUiSelection(BenchmarkTableRow row,ChartComparisonPoint point) =>
+        point.WithUiSelection(row.LeftCell.IsUiSelected,row.RightCell.IsUiSelected,row.IsUiSelected);
+
+    private void RefreshChartUiSelection() {
+        for(var index=0;index<this.ChartPoints.Count;index++) {
+            var point = this.ChartPoints[index];
+            var rowIndex = this.GetBenchmarkRowIndex(point.Benchmark);
+            if(rowIndex<0) {
+                continue;
+            }
+
+            var row = this.BenchmarkRows[rowIndex];
+            var next = this.ApplyChartUiSelection(row,point);
+            if(next.IsLeftUiSelected==point.IsLeftUiSelected
+                &&next.IsRightUiSelected==point.IsRightUiSelected
+                &&next.IsRowUiSelected==point.IsRowUiSelected) {
+                continue;
+            }
+
+            this.ChartPoints[index]=next;
+        }
+    }
 
     private void ApplyChartRunningState() {
         for(var index=0;index<this.ChartPoints.Count;index++) {

@@ -16,7 +16,6 @@ public abstract class Methods1:Base {
     private const int SingleOrDefault_iterationCount=100;
     private const int TryGetNonEnumeratedCount_iterationCount=100;
     private const int ElementAt_index_iterationCount=1;
-    private const int ElementAt_index_index=500;
 #else
     private const int Any_iterationCount = 800_000;
     private const int Empty_iterationCount = 25_000;
@@ -26,7 +25,6 @@ public abstract class Methods1:Base {
     private const int SingleOrDefault_iterationCount = 4_500;
     private const int TryGetNonEnumeratedCount_iterationCount = 2_000;
     private const int ElementAt_index_iterationCount = 3;
-    private const int ElementAt_index_index = 500_000;
 #endif
     private const int Contains_value_iterationCount = 3;
     private const int ImmediateShortCircuitCount = 96_000_000;
@@ -48,6 +46,12 @@ public abstract class Methods1:Base {
     private const int SourceShapeCount = 60_000_000;
     private const int SelectManyOuterCount = 12_000;
     private const int SelectManyInnerCount = 1_280;
+
+    private int MidpointIndex(int elementCount) =>
+        global::System.Math.Max(0,this.EffectiveSourceCount(elementCount)/2);
+
+    private int MidpointValue(int elementCount) =>
+        global::System.Math.Max(1,this.EffectiveSourceCount(elementCount)/2);
     // [Aggregate_func]
     [BenchFact, Benchmark]
     public void Aggregate_func() => this.Aggregate_func_Impl();
@@ -96,7 +100,10 @@ public abstract class Methods1:Base {
     public void Any_predicate() => this.Any_predicate_Impl();
 
     [LinqIntercept(true)]
-    private void Any_predicate_Impl() => this.consumer.Consume(this.srcCount(ImmediatePredicateScanCount).AsX<int>().Any(x => x>999_999));
+    private void Any_predicate_Impl() {
+        var value = this.MidpointValue(ImmediatePredicateScanCount);
+        this.consumer.Consume(this.srcCount(ImmediatePredicateScanCount).AsX<int>().Any(x => x>=value));
+    }
     // [Append_element]
     [BenchFact, Benchmark]
     [BenchmarkCategory(Categories.Linq)]
@@ -142,7 +149,7 @@ public abstract class Methods1:Base {
 
     [LinqIntercept(true)]
     private void Contains_value_Impl() {
-        const int value = 500_000;
+        var value = this.MidpointValue(ImmediateShortCircuitCount);
         for(var i = 0; i<Contains_value_iterationCount; i++) {
             this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<int>().Contains(value));
         }
@@ -192,25 +199,29 @@ public abstract class Methods1:Base {
 
     [LinqIntercept(true)]
     private void ElementAt_index_Impl() {
+        var index = this.MidpointIndex(ImmediateShortCircuitCount);
         for(var i = 0; i<ElementAt_index_iterationCount; i++) {
 #if SYSTEM_RANGE
-            this.ElementAt_index_Core();
+            this.ElementAt_index_Core(index);
 #else
-            this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<int>().ElementAt(ElementAt_index_index));
+            this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<int>().ElementAt(index));
 #endif
         }
     }
 
 #if SYSTEM_RANGE
     [LinqIntercept(false)]
-    private void ElementAt_index_Core() => this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<int>().ElementAt(ElementAt_index_index));
+    private void ElementAt_index_Core(int index) => this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<int>().ElementAt(index));
 #endif
     // [ElementAtOrDefault_index]
     [BenchFact, Benchmark]
     public void ElementAtOrDefault_index() => this.ElementAtOrDefault_index_Impl();
 
     [LinqIntercept(true)]
-    private void ElementAtOrDefault_index_Impl() => this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<int>().ElementAtOrDefault(500_000));
+    private void ElementAtOrDefault_index_Impl() {
+        var index = this.MidpointIndex(ImmediateShortCircuitCount);
+        this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<int>().ElementAtOrDefault(index));
+    }
     // [Empty]
     [BenchFact, Benchmark]
     public void Empty() => this.Empty_Impl();
@@ -260,7 +271,10 @@ public abstract class Methods1:Base {
     public void FirstOrDefault_predicate() => this.FirstOrDefault_predicate_Impl();
 
     [LinqIntercept(true)]
-    private void FirstOrDefault_predicate_Impl() => this.consumer.Consume(this.srcCount(ImmediatePredicateScanCount).AsX<int>().FirstOrDefault(x => x>500_000));
+    private void FirstOrDefault_predicate_Impl() {
+        var value = this.MidpointValue(ImmediatePredicateScanCount);
+        this.consumer.Consume(this.srcCount(ImmediatePredicateScanCount).AsX<int>().FirstOrDefault(x => x>=value));
+    }
     // [GroupBy_elementSelector]
     [BenchFact, Benchmark]
     public void GroupBy_elementSelector() => this.GroupBy_elementSelector_Impl();
@@ -358,7 +372,10 @@ public abstract class Methods1:Base {
     public void LastOrDefault_predicate() => this.LastOrDefault_predicate_Impl();
 
     [LinqIntercept(true)]
-    private void LastOrDefault_predicate_Impl() => this.consumer.Consume(this.srcCount(ImmediatePredicateScanCount).AsX<int>().LastOrDefault(x => x>500000));
+    private void LastOrDefault_predicate_Impl() {
+        var value = this.MidpointValue(ImmediatePredicateScanCount);
+        this.consumer.Consume(this.srcCount(ImmediatePredicateScanCount).AsX<int>().LastOrDefault(x => x>=value));
+    }
     // [LongCount]
     [BenchFact, Benchmark]
     public void LongCount() => this.LongCount_Impl();
