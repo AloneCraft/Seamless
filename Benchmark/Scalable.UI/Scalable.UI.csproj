@@ -51,5 +51,5 @@
     <Copy SourceFiles="@(_BenchmarkWorkerFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="'@(_BenchmarkWorkerFiles)' != ''" />
   </Target>
 
-  <Import Project="..\..\Shared\UI.projitems" Label="Shared" />
+  <Import Project="..\Shared\UI.projitems" Label="Shared" />
 </Project>

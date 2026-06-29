@@ -366,3 +366,6 @@ MigrationBackup/
 FodyWeavers.xsd
 /src/Benchmark/Benchmark
 /.dotnethome/.dotnet
+
+# One-off local/AI generated Python scripts
+/*.py

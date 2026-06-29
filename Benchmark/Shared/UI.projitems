@@ -4,7 +4,7 @@
     <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
     <HasSharedItems>true</HasSharedItems>
   </PropertyGroup>
-  <Import Project="$(MSBuildThisFileDirectory)UI.Core.projitems" />
+  <Import Project="$(MSBuildThisFileDirectory)..\..\Shared\UI.Core.projitems" />
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)UI\*.cs" />
     <MauiXaml Include="$(MSBuildThisFileDirectory)UI\App.xaml" Link="App.xaml" />

@@ -18,6 +18,11 @@
     <Project Path="Benchmark/UI/UI.csproj" />
     <Project Path="Benchmark/Worker/Worker.csproj" />
   </Folder>
+  <Folder Name="/Benchmark/Shared/">
+    <Project Path="Benchmark/Shared/UI.shproj" />
+    <File Path="Benchmark/Shared/UI.projitems" />
+  </Folder>
+  <Folder Name="/Dcoument/" />
   <Folder Name="/Shared/">
     <Project Path="Shared/Collections.shproj" />
     <Project Path="Shared/Common.shproj" />
@@ -28,7 +33,6 @@
     <Project Path="Shared/Scalable.Tsavorite.Collections.shproj" />
     <Project Path="Shared/Seamless.Linq.Enumerable.shproj" />
     <Project Path="Shared/Tsavorite.Collections.shproj" />
-    <Project Path="Shared/UI.shproj" />
     <Project Path="Shared/UI.Core.shproj" />
     <File Path="Shared/Collections.projitems" />
     <File Path="Shared/Common.projitems" />
@@ -40,7 +44,6 @@
     <File Path="Shared/Seamless.Linq.Enumerable.projitems" />
     <File Path="Shared/Seamless.Linq.Enumerable/Linq.Enumerable.Benchmark/Program.cs" />
     <File Path="Shared/Tsavorite.Collections.projitems" />
-    <File Path="Shared/UI.projitems" />
     <File Path="Shared/UI.Core.projitems" />
   </Folder>
   <Folder Name="/solution/">

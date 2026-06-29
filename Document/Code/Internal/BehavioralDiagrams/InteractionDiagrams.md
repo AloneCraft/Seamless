@@ -6,7 +6,7 @@ evidence_sources:
   - FLinq/SourceGenerator/interceptor.cs
   - Tsavorite.Collections/Stores/HashStore.cs
   - Benchmark/MainPage.xaml.cs
-  - Shared/UI/BenchmarkWorkerClient.cs
+  - Benchmark/Shared/UI/BenchmarkWorkerClient.cs
 confidence: medium
 review_status: draft
 ---
@@ -75,7 +75,7 @@ sequenceDiagram
     UI->>Report: Write CSV/HTML
 ```
 
-根拠: `Benchmark/CpuTopologyProvider.cs:7`, `Benchmark/MainPage.xaml.cs:688`, `Benchmark/MainPage.xaml.cs:752`, `Shared/UI/BenchmarkWorkerClient.cs:90`, `Benchmark/MainPage.xaml.cs:1153`。
+根拠: `Benchmark/CpuTopologyProvider.cs:7`, `Benchmark/MainPage.xaml.cs:688`, `Benchmark/MainPage.xaml.cs:752`, `Benchmark/Shared/UI/BenchmarkWorkerClient.cs:90`, `Benchmark/MainPage.xaml.cs:1153`。
 
 ## Review Gate: Code Internal
 
