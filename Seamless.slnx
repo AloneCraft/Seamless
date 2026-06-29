@@ -70,7 +70,12 @@
   </Folder>
   <Project Path="Document/Document.csproj" Id="b6f45f7e-1008-41c4-a1d3-7f9efbf33610" />
   <Project Path="DynamicLinq.Shared/DynamicLinq.Shared.shproj" />
+  <Project Path="Seamless.Abstractions/Seamless.Abstractions.csproj" />
   <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
+  <Project Path="Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj" />
+  <Project Path="Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj" />
+  <Project Path="Seamless.Linq/Seamless.Linq.csproj" />
   <Project Path="Seamless.Linq.Enumerable.Shared/Seamless.Linq.Enumerable.Shared.shproj" />
+  <Project Path="Seamless.Serialization/Seamless.Serialization.csproj" />
   <Project Path="Seamless/Seamless.csproj" />
 </Solution>
