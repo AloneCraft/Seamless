@@ -25,7 +25,7 @@ review_status: draft
 | `Tsavorite.Collections` collection API | `IDictionary<TKey,TValue>`、`IHashSet<T>`、`ISet<TRecord>`、`IMemoryCollection<T>` 相当の操作。 | `Tsavorite.Collections/Collections/IDictionary.cs:9`, `Tsavorite.Collections/Collections/IHashSet.cs:8`, `Tsavorite.Collections/Collections/ISet.cs:3`, `Tsavorite.Collections/Collections/IMemoryCollection.cs:6` |
 | `Tsavorite.Collections` LINQ API | `IHashSet<T>` に対する LINQ-like extension。 | `Tsavorite.Collections/Linq/Enumerable.cs:8`, `Tsavorite.Collections/Linq/Enumerable.cs:18`, `Tsavorite.Collections/Linq/Enumerable.cs:2238`, `Tsavorite.Collections/Linq/Enumerable.cs:2258` |
 | `Seamless.Database` source generator | `DatabaseGenerator` marker と schema partial struct を入力に、MemoryPack 対応 generated source を出す。 | `Seamless.Database/SourceGenerator/GenerateDatabase.cs:37`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:52`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:114` |
-| `Benchmark` | desktop UI と worker mode。Benchmark method discovery、CPU 選択、CSV/HTML report 出力。 | `Shared/UI/BenchmarkWorkerClient.cs:17`, `Benchmark/MainPage.xaml.cs:841`, `Benchmark/MainPage.xaml.cs:1153` |
+| `Benchmark` | desktop UI と worker mode。Benchmark method discovery、CPU 選択、CSV/HTML report 出力。 | `Benchmark/Shared/UI/BenchmarkWorkerClient.cs:17`, `Benchmark/MainPage.xaml.cs:841`, `Benchmark/MainPage.xaml.cs:1153` |
 
 ## API 利用順序
 

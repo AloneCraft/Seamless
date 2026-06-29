@@ -25,7 +25,7 @@ review_status: draft
 | Roslyn Source Generator | `FLinq`, `Seamless.Database`。 | `FLinq/FLinq.csproj:8`, `Seamless.Database/Seamless.Database.csproj:8`, `FLinq/FLinq.csproj:14`, `Seamless.Database/Seamless.Database.csproj:14` |
 | MemoryPack | collection serialization と schema generated record。 | `Tsavorite.Collections/Tsavorite.Collections.csproj:14`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:161` |
 | Microsoft.Garnet / Tsavorite | collection backing store。 | `Tsavorite.Collections/Tsavorite.Collections.csproj:15`, `Tsavorite.Collections/Stores/HashStore.cs:7` |
-| BenchmarkDotNet | benchmark projects と MAUI runner worker。 | `Benchmark/UI/UI.csproj:33`, `Shared/UI/BenchmarkWorkerClient.cs:9` |
+| BenchmarkDotNet | benchmark projects と MAUI runner worker。 | `Benchmark/UI/UI.csproj:33`, `Benchmark/Shared/UI/BenchmarkWorkerClient.cs:9` |
 | Syncfusion Toolkit for .NET MAUI | desktop benchmark runner。 | `Benchmark/UI/UI.csproj:1`, `Benchmark/UI/UI.csproj:24` |
 | xUnit | tests と benchmark-as-test。 | `Common/Infrastructure/BenchFact.cs:7`, `Test/SourceGenerator/GeneratorTestHelpers.cs:11` |
 
