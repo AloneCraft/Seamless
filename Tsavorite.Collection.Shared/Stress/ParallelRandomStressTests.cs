@@ -1,13 +1,13 @@
 using Seamless.Tsavorite.Stores;
 using System.Linq;
 using Tsavorite.core;
-namespace Tsavorite.Collection.Shared.Stress;
+namespace Tsavorite.Collection.Stress;
 
 /// <summary>
-/// ãƒãƒ«ãƒã‚¹ãƒ¬ãƒƒãƒ‰ Stress ãƒ†ã‚¹ãƒˆã€‚
-/// 1 ã¤ã® Store ã‚’å…±æœ‰ã—ã€ã‚¹ãƒ¬ãƒƒãƒ‰ã”ã¨ã« store.Create() ã§ç‹¬ç«‹ã—ãŸã‚³ãƒ¬ã‚¯ã‚·ãƒ§ãƒ³ãƒãƒ³ãƒ‰ãƒ«
-/// (ç‹¬ç«‹ ClientSession) ã‚’å–å¾—ã™ã‚‹ã€‚å„ã‚¹ãƒ¬ãƒƒãƒ‰ã¯äº’ã„ã«ç´ ãªã‚­ãƒ¼åˆ†å‰²ã§æ“ä½œã™ã‚‹ã“ã¨ã§
-/// æœ€çµ‚çŠ¶æ…‹ã®æ±ºå®šè«–ã‚’ä¿è¨¼ã™ã‚‹ã€‚
+/// ƒ}ƒ‹ƒ`ƒXƒŒƒbƒh Stress ƒeƒXƒgB
+/// 1 ‚Â‚Ì Store ‚ğ‹¤—L‚µAƒXƒŒƒbƒh‚²‚Æ‚É store.Create() ‚Å“Æ—§‚µ‚½ƒRƒŒƒNƒVƒ‡ƒ“ƒnƒ“ƒhƒ‹
+/// (“Æ—§ ClientSession) ‚ğæ“¾‚·‚éBŠeƒXƒŒƒbƒh‚ÍŒİ‚¢‚É‘f‚ÈƒL[•ªŠ„‚Å‘€ì‚·‚é‚±‚Æ‚Å
+/// ÅIó‘Ô‚ÌŒˆ’è˜_‚ğ•ÛØ‚·‚éB
 /// </summary>
 public class ParallelRandomStressTests {
     private const int Seed = 20260417;
@@ -26,7 +26,7 @@ public class ParallelRandomStressTests {
         catch { }
     }
 
-    /// <summary>ã‚­ãƒ¼ã‚’ã‚¹ãƒ¬ãƒƒãƒ‰æ•°ã§ mod åˆ†å‰²ã™ã‚‹ã€‚</summary>
+    /// <summary>ƒL[‚ğƒXƒŒƒbƒh”‚Å mod •ªŠ„‚·‚éB</summary>
     private static int[][] Partition(int[] keys,int threads) {
         var buckets = new List<int>[threads];
         for(var t = 0; t<threads; t++) buckets[t]=[];
@@ -68,7 +68,7 @@ public class ParallelRandomStressTests {
                         foreach(var k in partitions[t])
                             dict.Add(k,k*2);
                     });
-                    // å…¨ä½“ãƒãƒƒã‚·ãƒ¥ã¯å˜ä¸€ãƒãƒ³ãƒ‰ãƒ«çµŒç”±ã§åˆ—æŒ™ã—ã¦å¾—ã‚‹ã€‚
+                    // ‘S‘ÌƒnƒbƒVƒ…‚Í’Pˆêƒnƒ“ƒhƒ‹Œo—R‚Å—ñ‹“‚µ‚Ä“¾‚éB
                     using(var dict = store.Create()) {
                         StressReferenceAssert.DictionaryEquals(keys,expected,key => {
                             var found = dict.TryGetValue(key,out var value);

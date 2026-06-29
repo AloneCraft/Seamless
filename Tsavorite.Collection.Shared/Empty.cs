@@ -1,5 +1,5 @@
 using EqualityEmpty = Seamless.Tsavorite.Collections.EqualityEmpty;
-namespace Tsavorite.Collection.Shared;
+namespace Tsavorite.Collection;
 
 
 public class TestEqualityEmpty {

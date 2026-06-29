@@ -1,7 +1,7 @@
 using System.Linq;
 using System.Runtime.CompilerServices;
 
-namespace Persisted.Collection.Shared;
+namespace Persisted.Collection;
 
 public abstract class ListTestBase<TStrategy, T>
     where TStrategy : IListTestStrategy<T> {
@@ -28,8 +28,7 @@ public abstract class ListTestBase<TStrategy, T>
     }
 
     // ============================================================
-    // List 基本操作テスト
-    // ============================================================
+    // List 基本操作テスチE    // ============================================================
 
     [BenchFact,Benchmark]
     public void Add_Enumerate_AndIndexer() {
@@ -167,14 +166,14 @@ public abstract class ListTestBase<TStrategy, T>
     public void SequentialAdd() {
         var path = CreatePath();
         try {
-            const int 要素数 = 32;
+            const int count = 32;
             using var h = TStrategy.CreateList(path,initialCapacity: 1);
-            for(var i = 0; i<要素数; i++) {
+            for(var i = 0; i<count; i++) {
                 h.List.Add(TStrategy.Elem(i));
             }
 
-            Assert.Equal(要素数,h.List.Count);
-            for(var i = 0; i<要素数; i++) {
+            Assert.Equal(count,h.List.Count);
+            for(var i = 0; i<count; i++) {
                 Assert.Equal(TStrategy.Elem(i),h.List[i]);
             }
         }
@@ -184,8 +183,7 @@ public abstract class ListTestBase<TStrategy, T>
     }
 
     // ============================================================
-    // System.Linq.Enumerable メソッドテスト
-    // ============================================================
+    // System.Linq.Enumerable メソチE��チE��チE    // ============================================================
 
     [BenchFact,Benchmark]
     public void Enumerable_Aggregate() {

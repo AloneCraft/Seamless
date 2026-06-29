@@ -5,7 +5,7 @@ using Seamless.Collections;
 using Seamless.Tsavorite.Collections;
 using Seamless.Tsavorite.Stores;
 
-namespace Tsavorite.Collection.Shared;
+namespace Tsavorite.Collection;
 
 [MemoryPackable]
 public partial record struct ManagedSetRecord(int Key,string Name):global::Seamless.Collections.IRecord<int>;

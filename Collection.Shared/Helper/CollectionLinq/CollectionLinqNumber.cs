@@ -1,6 +1,6 @@
 using Seamless.Collections;
 
-namespace Collection.Shared.Helper.CollectionLinq;
+namespace Collection.Helper.CollectionLinq;
 
 public static class CollectionLinqNumber {
     public static int Parse<T>(T value) =>

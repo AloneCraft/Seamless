@@ -1,6 +1,6 @@
 using Seamless.Collections;
 
-namespace Tsavorite.Collection.Shared;
+namespace Tsavorite.Collection;
 
 public abstract class BlittableHashSet<TStrategy, T> : HashSetTestBase<TStrategy, T>
     where TStrategy : IHashSetTestStrategy<T>

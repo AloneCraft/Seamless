@@ -1,4 +1,4 @@
-namespace Tsavorite.Collection.Shared.Stress;
+namespace Tsavorite.Collection.Stress;
 
 internal static class StressScale {
     // Scale=1 is the calibrated baseline. Increase for heavier stress runs.

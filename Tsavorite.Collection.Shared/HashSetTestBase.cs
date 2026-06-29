@@ -1,8 +1,6 @@
-namespace Tsavorite.Collection.Shared;
+namespace Tsavorite.Collection;
 /// <summary>
-/// <see cref="global::System.Collections.Generic.ISet{T}"/> 相当の共通テスト基底クラス。
-/// Dictionary 系と重複しない HashSet 固有の振る舞いを検証する。
-/// </summary>
+/// <see cref="global::System.Collections.Generic.ISet{T}"/> 相当�E共通テスト基底クラス、E/// Dictionary 系と重褁E��なぁEHashSet 固有�E振る�EぁE��検証する、E/// </summary>
 public abstract class HashSetTestBase<TStrategy, T>
     where TStrategy : IHashSetTestStrategy<T>
     where T : IEquatable<T> {

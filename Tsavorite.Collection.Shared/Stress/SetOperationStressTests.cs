@@ -2,12 +2,11 @@ using Seamless.Tsavorite.Stores;
 using System.Linq;
 using Tsavorite.core;
 using Seamless.Collections;
-namespace Tsavorite.Collection.Shared.Stress;
+namespace Tsavorite.Collection.Stress;
 
 /// <summary>
-/// HashSet の集合演算 (IntersectWith / SymmetricExceptWith / UnionWith / ExceptWith)
-/// ランダムデータで繰り返し検証するストレステスト。
-/// </summary>
+/// HashSet の雁E��演箁E(IntersectWith / SymmetricExceptWith / UnionWith / ExceptWith)
+/// ランダムチE�Eタで繰り返し検証するストレスチE��ト、E/// </summary>
 public class SetOperationStressTests {
     private const int SeedA = 20260417;
     private const int SeedB = 20260419;

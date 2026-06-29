@@ -1,8 +1,8 @@
 using Seamless.Collections;
-using Collection.Shared.Test.CollectionLinqChain1;
-using Tsavorite.Collection.Shared.Strategy.CollectionLinq;
+using Collection.Test.CollectionLinqChain1;
+using Tsavorite.Collection.Strategy.CollectionLinq;
 
-namespace Tsavorite.Collection.Shared.Test.CollectionLinqChain1;
+namespace Tsavorite.Collection.Test.CollectionLinqChain1;
 
 public sealed class HashSetMemoryPackInt32
     :HashSetLinqChain1<TsavoriteHashSetCollectionLinqStrategy<MemoryPackHashSetStrategy<Int32HashSetValueProvider,int>,int>,HashSetHandle<int>,int,int,int>;

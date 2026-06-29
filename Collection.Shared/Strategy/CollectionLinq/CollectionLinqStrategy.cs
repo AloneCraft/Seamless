@@ -1,4 +1,4 @@
-namespace Collection.Shared.Strategy.CollectionLinq;
+namespace Collection.Strategy.CollectionLinq;
 
 public interface ICollectionLinqStrategy<TSource,TElement,TKey,TValue>
     where TSource : IDisposable

@@ -2,7 +2,7 @@ using System.Linq;
 
 using Seamless.Tsavorite.Collections;
 using Seamless.Tsavorite.Stores;
-namespace Tsavorite.Collection.Shared;
+namespace Tsavorite.Collection;
 
 
 public class Enumerator {

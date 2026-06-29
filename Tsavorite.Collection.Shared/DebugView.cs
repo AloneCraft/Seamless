@@ -1,5 +1,5 @@
 using Seamless.Tsavorite.Stores;
-namespace Tsavorite.Collection.Shared;
+namespace Tsavorite.Collection;
 
 
 public class DebugView {
