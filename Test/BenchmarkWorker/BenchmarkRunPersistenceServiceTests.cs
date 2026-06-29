@@ -49,6 +49,30 @@ public sealed class BenchmarkRunPersistenceServiceTests{
     }
 
     [Fact]
+    public void SaveManagedRun_WritesAllSourceTabsAndBenchmarkSelections(){
+        var root = CreateTempRoot();
+        var service = new BenchmarkRunPersistenceService();
+        var state = CreateState(Path.Combine(root,".unsaved","run"));
+        state.Jobs.Add(CompletedJob(BenchmarkSourceTab.SystemList,"System.List.FLinq","Where",128,90));
+        state.Jobs.Add(CompletedJob(BenchmarkSourceTab.SystemList,"System.List.ZLinq","Where",128,110));
+        state.BenchmarkSelection.ProjectCellSelections["Where|System.Array.FLinq"]=true;
+        state.BenchmarkSelection.ProjectCellSelections["Where|System.List.ZLinq"]=false;
+        state.BenchmarkSelection.RowSelections["System.Array|Where"]=true;
+        state.BenchmarkSelection.RowSelections["System.List|Where"]=false;
+
+        var option = service.SaveManagedRun(root,BenchmarkExecutionProfile.Fast,state);
+
+        Assert.True(File.Exists(Path.Combine(option.RunRoot,"System.Array","N128.csv")));
+        Assert.True(File.Exists(Path.Combine(option.RunRoot,"System.List","N128.csv")));
+        var loaded = service.ReadProgressState(option.RunRoot)!;
+        Assert.Equal(7,loaded.Jobs.Count);
+        Assert.True(loaded.BenchmarkSelection.ProjectCellSelections["Where|System.Array.FLinq"]);
+        Assert.False(loaded.BenchmarkSelection.ProjectCellSelections["Where|System.List.ZLinq"]);
+        Assert.True(loaded.BenchmarkSelection.RowSelections["System.Array|Where"]);
+        Assert.False(loaded.BenchmarkSelection.RowSelections["System.List|Where"]);
+    }
+
+    [Fact]
     public void ExportRun_WritesProgressAndCsv(){
         var root = CreateTempRoot();
         var folder = Path.Combine(root,"export");
@@ -149,6 +173,10 @@ public sealed class BenchmarkRunPersistenceServiceTests{
     }
 
     private static BenchmarkJob CompletedJob(string project,string method,int elementCount,double meanNanoseconds){
+        return CompletedJob(BenchmarkSourceTab.SystemArray,project,method,elementCount,meanNanoseconds);
+    }
+
+    private static BenchmarkJob CompletedJob(BenchmarkSourceTab sourceTab,string project,string method,int elementCount,double meanNanoseconds){
         var now = DateTimeOffset.UtcNow;
         return new BenchmarkJob{
             JobId=project+"|"+method+"|"+elementCount,
@@ -156,7 +184,7 @@ public sealed class BenchmarkRunPersistenceServiceTests{
             AssemblyName="Assembly",
             TypeFullName="Type",
             MethodName=method,
-            SourceTab=BenchmarkSourceTab.SystemArray,
+            SourceTab=sourceTab,
             ElementCount=elementCount,
             PreparedElementCounts=[128,256,512],
             Status=JobStatus.Completed,

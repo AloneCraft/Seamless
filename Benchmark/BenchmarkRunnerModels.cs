@@ -52,6 +52,8 @@ public sealed record ResultElementCountOption(int Value,string DisplayName);
 
 public sealed record ThresholdOption(string DisplayName,int Milliseconds);
 
+public sealed record BenchmarkAutoScrollRequest(BenchmarkSourceTab SourceTab,string MethodName,int Sequence);
+
 public readonly record struct BenchmarkSortValue(string? Text,double? Number,bool IsMissing){
     public static BenchmarkSortValue FromText(string text) => new(text,null,string.IsNullOrWhiteSpace(text));
 
@@ -119,6 +121,8 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     private string executionText = string.Empty;
     private string failureExecutionText = string.Empty;
     private string executionTooltipText = string.Empty;
+    private string resultCheckText = string.Empty;
+    private string resultSeedText = string.Empty;
     private string logicalProcessorText = string.Empty;
     private string coreKindLabel = string.Empty;
     private string coreKindImageSource = string.Empty;
@@ -206,6 +210,16 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     public string ExecutionTooltipText{
         get => this.executionTooltipText;
         private set => this.SetProperty(ref this.executionTooltipText,value);
+    }
+
+    public string ResultCheckText{
+        get => this.resultCheckText;
+        private set => this.SetProperty(ref this.resultCheckText,value);
+    }
+
+    public string ResultSeedText{
+        get => this.resultSeedText;
+        private set => this.SetProperty(ref this.resultSeedText,value);
     }
 
     public string LogicalProcessorText{
@@ -328,6 +342,8 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             this.ExecutionText=string.Empty;
             this.FailureExecutionText=string.Empty;
             this.ExecutionTooltipText=string.Empty;
+            this.ResultCheckText=string.Empty;
+            this.ResultSeedText=string.Empty;
             this.ClearCpuDisplay();
             this.ApplyMeasurementHighlight(BenchmarkMeasurementHighlightState.None);
             this.OnPropertyChanged(nameof(this.IsPendingVisual));
@@ -366,6 +382,8 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         }
         this.IsRunning=false;
         this.isFailed=string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase);
+        this.ResultCheckText=string.Empty;
+        this.ResultSeedText=string.Empty;
         this.LiveState=BenchmarkProjectLiveState.Idle;
         this.ClearCpuDisplay();
         this.ApplyMeasurementHighlight(BenchmarkMeasurementHighlightState.None);
@@ -384,6 +402,9 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             this.RefreshStatusDisplay();
             return;
         }
+
+        this.ResultCheckText=result.ResultCheckText;
+        this.ResultSeedText=result.ResultSeedText;
 
         if(result.ElementCount<=0){
             // ElementCount=0 の callback は比較表/チャートの確定データとして扱わない。
@@ -428,6 +449,11 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             ? BenchmarkProjectLiveState.Completed
             : BenchmarkProjectLiveState.Idle;
         this.RefreshStatusDisplay();
+    }
+
+    public void ApplyResultCheck(string checkText,string seedText){
+        this.ResultCheckText=checkText;
+        this.ResultSeedText=seedText;
     }
 
     public void ApplySkipped(int stoppedAtElementCount,ProjectMetrics stoppedMetrics){
@@ -494,9 +520,11 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         if(this.HasCase){
             this.StatusImageSource=BenchmarkStatusImageNames.Waiting;
             this.StatusText="待機";
-            this.ExecutionText=string.Empty;
-            this.FailureExecutionText=string.Empty;
-            this.ExecutionTooltipText=string.Empty;
+        this.ExecutionText=string.Empty;
+        this.FailureExecutionText=string.Empty;
+        this.ExecutionTooltipText=string.Empty;
+        this.ResultCheckText=string.Empty;
+        this.ResultSeedText=string.Empty;
             this.ApplyMeasurementHighlight(BenchmarkMeasurementHighlightState.None);
             this.RefreshStatusDisplay();
         }
@@ -868,6 +896,10 @@ public sealed class BenchmarkTableRow:ObservableObject{
             cell.ApplyRunResult(result,cpu,completedAt,highlightCompleted);
             this.SetProjectMetricText(result.Project,FormatTime(cell.Metrics),FormatAllocated(cell.Metrics));
         }
+    }
+
+    public void ApplyResultCheck(string project,string checkText,string seedText){
+        this.GetProjectCell(project)?.ApplyResultCheck(checkText,seedText);
     }
 
     public void ApplySkipped(string project,int stoppedAtElementCount,ProjectMetrics stoppedMetrics){
@@ -1380,6 +1412,7 @@ public sealed class BenchmarkResultItem{
     public BenchmarkResultItem(BenchmarkJob job){
         this.Project=job.Project;
         this.Method=job.MethodName;
+        this.SourceTab=job.SourceTab;
         this.ElementCount=job.ElementCount;
         this.Name=job.Project+" / "+job.MethodName+" / "+job.ElementCount.ToString(CultureInfo.InvariantCulture);
         this.Status=job.Status.ToString();
@@ -1393,6 +1426,9 @@ public sealed class BenchmarkResultItem{
         this.MeanNanoseconds=job.MeanNanoseconds;
         this.ErrorNanoseconds=job.ErrorNanoseconds;
         this.StdDevNanoseconds=job.StdDevNanoseconds;
+        this.RandomSeed=job.RandomSeed;
+        this.ResultDigest=job.ResultDigest;
+        this.ResultCheckText=job.ResultCheckText;
         this.ArtifactFolder=job.ArtifactFolder;
         this.ExitCode=job.ExitCode;
         this.AssignedLogicalCpu=job.AssignedLogicalCpu;
@@ -1403,6 +1439,7 @@ public sealed class BenchmarkResultItem{
     public BenchmarkResultItem(BenchmarkRunResult result){
         this.Project=result.Project;
         this.Method=result.Method;
+        this.SourceTab=BenchmarkSourceTabs.TryGetByProject(result.Project)?.Tab??BenchmarkSourceTab.SystemArray;
         this.ElementCount=0;
         this.Name=result.Project+" / "+result.Method;
         this.Status=result.Status;
@@ -1416,6 +1453,9 @@ public sealed class BenchmarkResultItem{
         this.MeanNanoseconds=result.MeanNanoseconds;
         this.ErrorNanoseconds=result.ErrorNanoseconds;
         this.StdDevNanoseconds=result.StdDevNanoseconds;
+        this.RandomSeed=result.RandomSeed;
+        this.ResultDigest=result.ResultDigest;
+        this.ResultCheckText=string.Empty;
         this.ArtifactFolder=result.ArtifactFolder;
         this.ExitCode=result.ExitCode;
         this.AssignedLogicalCpu=null;
@@ -1426,6 +1466,7 @@ public sealed class BenchmarkResultItem{
     public BenchmarkResultItem(string project,string method,ProjectMetrics metrics,int elementCount = 0){
         this.Project=project;
         this.Method=method;
+        this.SourceTab=BenchmarkSourceTabs.TryGetByProject(project)?.Tab??BenchmarkSourceTab.SystemArray;
         this.ElementCount=elementCount;
         this.Name=project+" / "+method;
         this.Status=metrics.HasMeasuredValue?"Completed":"Missing";
@@ -1435,6 +1476,9 @@ public sealed class BenchmarkResultItem{
         this.MeanNanoseconds=metrics.TimeNanoseconds;
         this.ErrorNanoseconds=null;
         this.StdDevNanoseconds=null;
+        this.RandomSeed=null;
+        this.ResultDigest=string.Empty;
+        this.ResultCheckText=string.Empty;
         this.ArtifactFolder=string.Empty;
         this.ExitCode=metrics.HasMeasuredValue?0:null;
         this.AssignedLogicalCpu=null;
@@ -1445,11 +1489,15 @@ public sealed class BenchmarkResultItem{
     private BenchmarkResultItem(BenchmarkCase benchmark,Exception exception){
         this.Project=benchmark.Project;
         this.Method=benchmark.MethodName;
+        this.SourceTab=BenchmarkSourceTabs.TryGetByProject(benchmark.Project)?.Tab??BenchmarkSourceTab.SystemArray;
         this.ElementCount=0;
         this.Name=benchmark.Project+" / "+benchmark.MethodName;
         this.Status="Failed";
         this.Mean=exception.GetType().Name;
         this.AllocatedBytes=string.Empty;
+        this.RandomSeed=null;
+        this.ResultDigest=string.Empty;
+        this.ResultCheckText=string.Empty;
         this.ArtifactFolder=string.Empty;
         this.ExitCode=1;
         this.AssignedLogicalCpu=null;
@@ -1459,6 +1507,7 @@ public sealed class BenchmarkResultItem{
 
     public string Project { get; }
     public string Method { get; }
+    public BenchmarkSourceTab SourceTab { get; }
     public int ElementCount { get; }
     public string Name { get; }
     public string Status { get; }
@@ -1468,6 +1517,10 @@ public sealed class BenchmarkResultItem{
     public double? MeanNanoseconds { get; }
     public double? ErrorNanoseconds { get; }
     public double? StdDevNanoseconds { get; }
+    public int? RandomSeed { get; }
+    public string ResultDigest { get; }
+    public string ResultCheckText { get; set; }
+    public string ResultSeedText => this.RandomSeed?.ToString(CultureInfo.InvariantCulture)??string.Empty;
     public string ArtifactFolder { get; }
     public int? ExitCode { get; }
     public int? AssignedLogicalCpu { get; }

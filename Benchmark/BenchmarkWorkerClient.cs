@@ -189,7 +189,9 @@ public sealed class BenchmarkWorkerSession:IAsyncDisposable {
                 result.AllocatedBytes,
                 result.ExitCode,
                 result.ArtifactFolder,
-                result.Log);
+                result.Log,
+                result.RandomSeed,
+                result.ResultDigest);
         } catch(OperationCanceledException) {
             this.Kill();
             throw;
@@ -251,7 +253,9 @@ public sealed record BenchmarkRunResult(
     long? AllocatedBytes,
     int ExitCode,
     string ArtifactFolder,
-    string Log);
+    string Log,
+    int? RandomSeed = null,
+    string ResultDigest = "");
 
 internal sealed record WorkerTaskMessage(
     string Command,
@@ -277,4 +281,6 @@ internal sealed record WorkerResultMessage(
     long? AllocatedBytes,
     int ExitCode,
     string ArtifactFolder,
-    string Log);
+    string Log,
+    int? RandomSeed = null,
+    string ResultDigest = "");

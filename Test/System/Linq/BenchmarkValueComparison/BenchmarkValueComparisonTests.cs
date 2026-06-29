@@ -5,7 +5,7 @@ using System.Text;
 namespace Test.System.Linq.BenchmarkValueComparison;
 
 public sealed class BenchmarkValueComparisonTests {
-    private const int ComparisonElementCount = 1_000;
+    private const int ComparisonIterationCount = 3;
     private const string BenchmarkExecutionModeTypeName = "Benchmark.Shared.BenchmarkExecutionMode";
     private const string ElementCountEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_COUNT";
     private const string Methods1TypeName = "Seamless.Linq.Shared.Methods1";
@@ -15,24 +15,34 @@ public sealed class BenchmarkValueComparisonTests {
         var flinq=BenchmarkTarget.Load("Test.System.Linq.Enumerable.FLinq","Test.System.Linq.Enumerable.FLinq");
         var zlinq=BenchmarkTarget.Load("Test.System.Linq.Enumerable.ZLinq","Test.System.Linq.Enumerable.ZLinq");
         var targets=new[] { flinq,zlinq };
+        var seedBase=Random.Shared.Next();
+        var elementCountBase=Random.Shared.Next(384,2049);
 
         try {
-            foreach(var target in targets) {
-                target.EnableComparisonMode(ComparisonElementCount);
-            }
-
             var methodNames=DiscoverMethodNames(zlinq.Type);
             var failures=new List<string>();
-            var flinqInstance=flinq.CreateInstance();
-            var zlinqInstance=zlinq.CreateInstance();
+            for(var iteration=0;iteration<ComparisonIterationCount;iteration++) {
+                var seed=unchecked(seedBase+iteration*1_000_003);
+                var elementCount=elementCountBase+iteration*97;
+                foreach(var target in targets) {
+                    target.EnableComparisonMode(elementCount);
+                }
+                using var flinqSeed=flinq.UseRandomSourceSeed(seed);
+                using var zlinqSeed=zlinq.UseRandomSourceSeed(seed);
+                var flinqInstance=flinq.CreateInstance();
+                var zlinqInstance=zlinq.CreateInstance();
 
-            foreach(var methodName in methodNames) {
-                try {
-                    var expected=zlinq.Capture(zlinqInstance,methodName,invokeImpl:false);
-                    AddFailureIfDifferent(failures,methodName,"FLinq public",expected,flinq.Capture(flinqInstance,methodName,invokeImpl:false));
-                    AddFailureIfDifferent(failures,methodName,"FLinq private Impl",expected,flinq.Capture(flinqInstance,methodName,invokeImpl:true));
-                } catch(Exception ex) {
-                    failures.Add(methodName+": "+ex.GetType().FullName+": "+ex.Message);
+                foreach(var methodName in methodNames) {
+                    try {
+                        var expected=zlinq.Capture(zlinqInstance,methodName,invokeImpl:false);
+                        AddFailureIfDifferent(failures,methodName,"FLinq public",seed,elementCount,expected,flinq.Capture(flinqInstance,methodName,invokeImpl:false));
+                        AddFailureIfDifferent(failures,methodName,"FLinq private Impl",seed,elementCount,expected,flinq.Capture(flinqInstance,methodName,invokeImpl:true));
+                    } catch(Exception ex) {
+                        failures.Add(methodName
+                            +" / Seed="+seed
+                            +" / ElementCount="+elementCount
+                            +": "+ex.GetType().FullName+": "+ex.Message);
+                    }
                 }
             }
 
@@ -115,6 +125,8 @@ public sealed class BenchmarkValueComparisonTests {
         List<string> failures,
         string methodName,
         string scenario,
+        int seed,
+        int elementCount,
         string expected,
         string actual) {
         if(StringComparer.Ordinal.Equals(expected,actual)) {
@@ -122,6 +134,8 @@ public sealed class BenchmarkValueComparisonTests {
         }
 
         failures.Add(methodName+" / "+scenario
+            +" / Seed="+seed
+            +" / ElementCount="+elementCount
             +Environment.NewLine+"Expected: "+expected
             +Environment.NewLine+"Actual:   "+actual);
     }
@@ -140,6 +154,7 @@ public sealed class BenchmarkValueComparisonTests {
         private readonly MethodInfo enableComparisonMode;
         private readonly MethodInfo disableComparisonMode;
         private readonly MethodInfo useElementCount;
+        private readonly MethodInfo useRandomSourceSeed;
         private readonly MethodInfo scaleElementCount;
         private readonly MethodInfo captureResult;
 
@@ -164,6 +179,12 @@ public sealed class BenchmarkValueComparisonTests {
                 BindingFlags.Static|BindingFlags.Public,
                 binder:null,
                 types:[typeof(int),typeof(string)],
+                modifiers:null)!;
+            this.useRandomSourceSeed=this.benchmarkExecutionModeType.GetMethod(
+                "UseRandomSourceSeed",
+                BindingFlags.Static|BindingFlags.Public,
+                binder:null,
+                types:[typeof(int)],
                 modifiers:null)!;
             this.scaleElementCount=this.benchmarkExecutionModeType.GetMethod(
                 "ScaleElementCount",
@@ -198,6 +219,10 @@ public sealed class BenchmarkValueComparisonTests {
         public IDisposable UseElementCount(int elementCount,string elementScale) =>
             (IDisposable)(Invoke(this.useElementCount,null,[elementCount,elementScale])
                 ??throw new InvalidOperationException("UseElementCount returned null."));
+
+        public IDisposable UseRandomSourceSeed(int seed) =>
+            (IDisposable)(Invoke(this.useRandomSourceSeed,null,[seed])
+                ??throw new InvalidOperationException("UseRandomSourceSeed returned null."));
 
         public int ScaleElementCount(int elementCount) =>
             (int)(Invoke(this.scaleElementCount,null,[elementCount])

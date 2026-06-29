@@ -14,7 +14,7 @@ public sealed class MainPage:ContentPage {
     private const double BenchmarkAggregateCheckBoxSize = 32;
     private const double BenchmarkCellCheckBoxWidth = 34;
     private const double BenchmarkCellCheckBoxHeight = 28;
-    private const double BenchmarkProjectStatusColumnWidth = 248;
+    private const double BenchmarkProjectStatusColumnWidth = 268;
     private const double BenchmarkProjectMetricColumnWidth = 78;
     private const double BenchmarkPairStopNColumnWidth = 72;
     private const double BenchmarkCellCheckSlotWidth = 38;
@@ -44,10 +44,13 @@ public sealed class MainPage:ContentPage {
     private View? activeDialogOverlay;
     private readonly List<Action> collapsibleSectionRefreshers = [];
     private readonly Dictionary<BenchmarkToolbarButtonRole,ImageButton> toolbarButtons = [];
+    private SfDataGrid? benchmarkGrid;
+    private SfTabView? sourceTabView;
     private IDispatcherTimer? pausedToolbarPulseTimer;
     private bool pausedToolbarPulseOn;
     private IDispatcherTimer? benchmarkSelectionPulseTimer;
     private bool benchmarkSelectionPulseOn;
+    private bool isApplyingSourceTabViewSelection;
 
     public double BenchmarkSelectionStrokeOpacity => this.benchmarkSelectionPulseOn ? 1 : 0.25;
 
@@ -844,8 +847,13 @@ public sealed class MainPage:ContentPage {
 
         tabView.Items=tabItems;
         tabView.SelectedIndex=0;
+        this.sourceTabView=tabView;
         tabView.PropertyChanged+=(_,args) => {
             if(args.PropertyName!=nameof(SfTabView.SelectedIndex)||this.viewModel is null) {
+                return;
+            }
+
+            if(this.isApplyingSourceTabViewSelection) {
                 return;
             }
 
@@ -854,6 +862,18 @@ public sealed class MainPage:ContentPage {
                 this.viewModel.SelectedSourceTab=this.viewModel.SourceTabs[index];
             }
         };
+        if(this.viewModel is not null) {
+            this.viewModel.PropertyChanged+=(_,args) => {
+                if(args.PropertyName==nameof(BenchmarkRunnerViewModel.SelectedSourceTab)) {
+                    MainThread.BeginInvokeOnMainThread(this.SyncSourceTabViewSelection);
+                }else if(args.PropertyName==nameof(BenchmarkRunnerViewModel.LatestBenchmarkAutoScrollRequest)) {
+                    var request = this.viewModel.LatestBenchmarkAutoScrollRequest;
+                    if(request is not null) {
+                        MainThread.BeginInvokeOnMainThread(() => this.ScrollBenchmarkGridToLatestExecutionAsync(request));
+                    }
+                }
+            };
+        }
         var content = this.CreateBenchmarkTabContent();
         var grid = new Grid {
             RowDefinitions= {
@@ -870,6 +890,80 @@ public sealed class MainPage:ContentPage {
         };
         Grid.SetRow(content,1);
         return grid;
+    }
+
+    private void SyncSourceTabViewSelection() {
+        if(this.viewModel is null||this.sourceTabView is null) {
+            return;
+        }
+
+        var index = -1;
+        for(var i=0;i<this.viewModel.SourceTabs.Count;i++) {
+            if(this.viewModel.SourceTabs[i]==this.viewModel.SelectedSourceTab) {
+                index=i;
+                break;
+            }
+        }
+        if(index<0||this.sourceTabView.SelectedIndex==index) {
+            return;
+        }
+
+        this.isApplyingSourceTabViewSelection=true;
+        try {
+            this.sourceTabView.SelectedIndex=index;
+        }
+        finally {
+            this.isApplyingSourceTabViewSelection=false;
+        }
+    }
+
+    private async void ScrollBenchmarkGridToLatestExecutionAsync(BenchmarkAutoScrollRequest request) {
+        this.SyncSourceTabViewSelection();
+        this.ScrollBenchmarkGridToMethod(request.MethodName);
+        await Task.Delay(150);
+        MainThread.BeginInvokeOnMainThread(() => this.ScrollBenchmarkGridToMethod(request.MethodName));
+    }
+
+    private void ScrollBenchmarkGridToMethod(string methodName) {
+        if(this.viewModel is null||this.benchmarkGrid is null) {
+            return;
+        }
+
+        var rowIndex = -1;
+        for(var index=0;index<this.viewModel.BenchmarkRows.Count;index++) {
+            if(string.Equals(this.viewModel.BenchmarkRows[index].MethodName,methodName,StringComparison.OrdinalIgnoreCase)) {
+                rowIndex=index;
+                break;
+            }
+        }
+
+        if(rowIndex<0) {
+            return;
+        }
+
+        this.TryScrollBenchmarkGridToRow(rowIndex);
+    }
+
+    private void TryScrollBenchmarkGridToRow(int rowIndex) {
+        if(this.benchmarkGrid is null) {
+            return;
+        }
+
+        try {
+            var headerOffset = this.benchmarkGrid.StackedHeaderRows.Count+1;
+            this.TryInvokeMember(this.benchmarkGrid,"ScrollToRowIndex",rowIndex+headerOffset);
+            this.TryInvokeMember(this.benchmarkGrid,"ScrollToRowIndex",rowIndex+1);
+            this.TryInvokeMember(this.benchmarkGrid,"ScrollToRowIndex",rowIndex);
+            var visualContainer = this.benchmarkGrid.GetVisualContainer();
+            if(visualContainer is not null) {
+                this.TryInvokeMember(visualContainer,"ScrollToRowIndex",rowIndex+headerOffset);
+                this.TryInvokeMember(visualContainer,"ScrollToRowIndex",rowIndex+1);
+                this.TryInvokeMember(visualContainer,"ScrollToRowIndex",rowIndex);
+            }
+        }
+        catch(Exception ex) {
+            StartupDiagnostics.Write("Failed to scroll benchmark grid to latest execution.",ex);
+        }
     }
 
     private View CreateBenchmarkTabContent() {
@@ -1137,6 +1231,7 @@ public sealed class MainPage:ContentPage {
             GridLinesVisibility=GridLinesVisibility.Both,
             DefaultColumnWidth=92,
         };
+        this.benchmarkGrid=grid;
         grid.QueryRowHeight+=(_,args) => {
             if(args.RowIndex<2) {
                 args.Height=BenchmarkGridHeaderRowHeight;
@@ -1475,6 +1570,7 @@ public sealed class MainPage:ContentPage {
                         new ColumnDefinition { Width = new GridLength(18) },
                         new ColumnDefinition { Width = new GridLength(24) },
                         new ColumnDefinition { Width = new GridLength(26) },
+                        new ColumnDefinition { Width = new GridLength(20) },
                         new ColumnDefinition { Width = GridLength.Star },
                     },
                     ColumnSpacing=2,
@@ -1500,9 +1596,19 @@ public sealed class MainPage:ContentPage {
                     LineBreakMode=LineBreakMode.TailTruncation,
                     Padding=new Thickness(2,0),
                 };
+                var resultHeader = new Label {
+                    Text="結果",
+                    FontSize=10,
+                    FontAttributes=FontAttributes.Bold,
+                    TextColor=Color.FromArgb("#0F172A"),
+                    HorizontalTextAlignment=TextAlignment.Center,
+                    VerticalTextAlignment=TextAlignment.Center,
+                    LineBreakMode=LineBreakMode.TailTruncation,
+                };
                 header.Add(logicalCore,2,0);
                 header.SetColumnSpan(logicalCore,2);
-                header.Add(measuredAt,4,0);
+                header.Add(resultHeader,4,0);
+                header.Add(measuredAt,5,0);
                 return header;
             }),
             CellTemplate=new DataTemplate(() => {
@@ -1527,6 +1633,7 @@ public sealed class MainPage:ContentPage {
                         new ColumnDefinition { Width = new GridLength(18) },
                         new ColumnDefinition { Width = new GridLength(24) },
                         new ColumnDefinition { Width = new GridLength(26) },
+                        new ColumnDefinition { Width = new GridLength(20) },
                         new ColumnDefinition { Width = GridLength.Star },
                     },
                     ColumnSpacing=2,
@@ -1593,6 +1700,17 @@ public sealed class MainPage:ContentPage {
                 CPU.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.HasCpuDisplay));
                 CPU.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.LogicalProcessorText));
                 CPU.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.LogicalProcessorText));
+                var resultCheck = new Label {
+                    FontSize=10,
+                    FontAttributes=FontAttributes.Bold,
+                    TextColor=Color.FromArgb("#0F172A"),
+                    InputTransparent=true,
+                    HorizontalTextAlignment=TextAlignment.Center,
+                    VerticalTextAlignment=TextAlignment.Center,
+                    LineBreakMode=LineBreakMode.TailTruncation,
+                };
+                resultCheck.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.ResultCheckText));
+                resultCheck.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.ResultSeedText));
                 var detail = new Label {
                     FontSize=BenchmarkGridDetailFontSize,
                     TextColor=Color.FromArgb("#334155"),
@@ -1636,7 +1754,8 @@ public sealed class MainPage:ContentPage {
                 content.Add(spinner,1,0);
                 content.Add(badge,2,0);
                 content.Add(CPU,3,0);
-                content.Add(detailHost,4,0);
+                content.Add(resultCheck,4,0);
+                content.Add(detailHost,5,0);
                 layout.Add(content,1,1);
                 this.AddBenchmarkProjectUiSelectionOutline(layout,this.GetBenchmarkProjectSelectionSide(cellPath),BenchmarkProjectSelectionSegment.First);
                 return layout;
@@ -2423,9 +2542,12 @@ public sealed class MainPage:ContentPage {
         return Convert.ChangeType(value,targetType);
     }
 
-    private void TryInvokeMember(object target,string name) {
+    private void TryInvokeMember(object target,string name,params object[] arguments) {
         const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic;
-        target.GetType().GetMethod(name,flags)?.Invoke(target,null);
+        var method = target.GetType()
+            .GetMethods(flags)
+            .FirstOrDefault(item => item.Name==name&&item.GetParameters().Length==arguments.Length);
+        method?.Invoke(target,arguments);
     }
 
     private Border CreateCoreBadge() {
@@ -2477,7 +2599,9 @@ public sealed class MainPage:ContentPage {
             Padding=new Thickness(0),
             HeightRequest=22,
             ColumnDefinitions= {
-                new ColumnDefinition { Width = new GridLength(2.2,GridUnitType.Star) },
+                new ColumnDefinition { Width = new GridLength(2.0,GridUnitType.Star) },
+                new ColumnDefinition { Width = new GridLength(0.8,GridUnitType.Star) },
+                new ColumnDefinition { Width = new GridLength(0.4,GridUnitType.Star) },
                 new ColumnDefinition { Width = new GridLength(0.8,GridUnitType.Star) },
                 new ColumnDefinition { Width = new GridLength(1.1,GridUnitType.Star) },
                 new ColumnDefinition { Width = new GridLength(1.0,GridUnitType.Star) },
@@ -2486,8 +2610,10 @@ public sealed class MainPage:ContentPage {
         };
         grid.Add(this.BoundCell(nameof(BenchmarkResultItem.Name),11,TextAlignment.Start),0,0);
         grid.Add(this.BoundCell(nameof(BenchmarkResultItem.Status),11,TextAlignment.Start),1,0);
-        grid.Add(this.BoundCell(nameof(BenchmarkResultItem.Mean),11,TextAlignment.End),2,0);
-        grid.Add(this.BoundCell(nameof(BenchmarkResultItem.AllocatedBytes),11,TextAlignment.End),3,0);
+        grid.Add(this.BoundCell(nameof(BenchmarkResultItem.ResultCheckText),11,TextAlignment.Center),2,0);
+        grid.Add(this.BoundCell(nameof(BenchmarkResultItem.ResultSeedText),11,TextAlignment.End),3,0);
+        grid.Add(this.BoundCell(nameof(BenchmarkResultItem.Mean),11,TextAlignment.End),4,0);
+        grid.Add(this.BoundCell(nameof(BenchmarkResultItem.AllocatedBytes),11,TextAlignment.End),5,0);
         return grid;
     }
 
