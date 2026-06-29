@@ -21,28 +21,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <MauiIcon Include="Resources\AppIcon\appicon.svg" />
-    <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#1F2937" BaseSize="128,128" />
-    <MauiImage Include="Resources\Images\play.svg" BaseSize="24,24" />
-    <MauiImage Include="Resources\Images\pause.svg" BaseSize="24,24" />
-    <MauiImage Include="Resources\Images\stop.svg" BaseSize="24,24" />
-    <MauiImage Include="Resources\Images\save.svg" BaseSize="24,24" />
-    <MauiImage Include="Resources\Images\save_as.svg" BaseSize="24,24" />
-    <MauiImage Include="Resources\Images\open.svg" BaseSize="24,24" />
-    <MauiImage Include="Resources\Images\status_waiting.svg" BaseSize="24,24" />
-    <MauiImage Include="Resources\Images\status_completed.svg" BaseSize="24,24" />
-    <MauiImage Include="Resources\Images\status_final_completed.svg" BaseSize="24,24" />
-    <MauiImage Include="Resources\Images\status_failed.svg" BaseSize="24,24" />
-    <MauiImage Include="Resources\Images\status_no_measurement.svg" BaseSize="24,24" />
-    <MauiImage Include="Resources\Images\status_cpu_idle.svg" BaseSize="24,24" />
-    <MauiImage Include="Resources\Images\status_cpu_running.svg" BaseSize="24,24" />
-    <MauiImage Include="Resources\Images\cpu_p_core.svg" BaseSize="24,24" />
-    <MauiImage Include="Resources\Images\cpu_e_core.svg" BaseSize="24,24" />
-    <MauiImage Include="Resources\Images\sort_asc.svg" BaseSize="24,24" />
-    <MauiImage Include="Resources\Images\sort_desc.svg" BaseSize="24,24" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
@@ -81,4 +59,6 @@
 
     <Copy SourceFiles="@(_BenchmarkWorkerFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="'@(_BenchmarkWorkerFiles)' != ''" />
   </Target>
+
+  <Import Project="..\Benchmark.UI.Shared\Benchmark.UI.Shared.projitems" Label="Shared" />
 </Project>

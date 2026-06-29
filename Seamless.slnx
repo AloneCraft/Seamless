@@ -9,7 +9,11 @@
     <Project Path="Benchmark.Persisted.Collection/Benchmark.Persisted.Collection.csproj" />
     <Project Path="Benchmark.Persisted.Linq.Enumerable.FLinq/Benchmark.Persisted.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Benchmark.Persisted.Linq.Enumerable.Linq/Benchmark.Persisted.Linq.Enumerable.Linq.csproj" />
+    <Project Path="Benchmark.Scalable.Persisted.Collection/Benchmark.Scalable.Persisted.Collection.csproj" />
+    <Project Path="Benchmark.Scalable.Tsavorite.Collection/Benchmark.Scalable.Tsavorite.Collection.csproj" />
+    <Project Path="Benchmark.Scalable/Benchmark.Scalable.csproj" />
     <Project Path="Benchmark.Shared/Benchmark.Shared.shproj" />
+    <Project Path="Benchmark.UI.Shared/Benchmark.UI.Shared.shproj" />
     <Project Path="Benchmark.Tsavorite.Collection/Benchmark.Tsavorite.Collection.csproj" />
     <Project Path="Benchmark.Tsavorite.Linq.Enumerable.FLinq/Benchmark.Tsavorite.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Benchmark.Tsavorite.Linq.Enumerable.Linq/Benchmark.Tsavorite.Linq.Enumerable.Linq.csproj" />
@@ -19,16 +23,23 @@
   <Folder Name="/Collection.Shared/">
     <Project Path="Collection.Shared/Collection.Shared.shproj" />
     <Project Path="Persisted.Collection.Shared/Persisted.Collection.Shared.shproj" />
+    <Project Path="Scalable.Collection.Shared/Scalable.Collection.Shared.shproj" />
+    <Project Path="Scalable.Persisted.Collection.Shared/Scalable.Persisted.Collection.Shared.shproj" />
+    <Project Path="Scalable.Tsavorite.Collection.Shared/Scalable.Tsavorite.Collection.Shared.shproj" />
     <Project Path="Tsavorite.Collection.Shared/Tsavorite.Collection.Shared.shproj" />
   </Folder>
   <Folder Name="/solution/">
     <File Path="AGENTS.md" />
     <File Path="Seamless.Linq.Enumerable.Shared\Seamless.Linq.Enumerable.Shared.projitems" />
+    <File Path="Benchmark.UI.Shared\Benchmark.UI.Shared.projitems" />
     <File Path="Benchmark.Shared\Benchmark.TestInfrastructure.projitems" />
     <File Path="Seamless.Linq.Enumerable.Shared\Linq.Enumerable.Benchmark\Program.cs" />
     <File Path="Collection.Shared\Collection.Shared.projitems" />
     <File Path="DynamicLinq.Shared\DynamicLinq.Shared.projitems" />
     <File Path="Persisted.Collection.Shared\Persisted.Collection.Shared.projitems" />
+    <File Path="Scalable.Collection.Shared\Scalable.Collection.Shared.projitems" />
+    <File Path="Scalable.Persisted.Collection.Shared\Scalable.Persisted.Collection.Shared.projitems" />
+    <File Path="Scalable.Tsavorite.Collection.Shared\Scalable.Tsavorite.Collection.Shared.projitems" />
     <File Path="Tsavorite.Collection.Shared\Tsavorite.Collection.Shared.projitems" />
     <File Path="AI_SYNTAX_RULES.md" />
     <File Path="CLAUDE.md" />
@@ -47,6 +58,8 @@
     <Project Path="Test.Persisted.Linq.Enumerable.FLinq/Test.Persisted.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Test.Persisted.Linq.Enumerable.Linq/Test.Persisted.Linq.Enumerable.Linq.csproj" />
     <Project Path="Test.Persisted/Test.Persisted.csproj" />
+    <Project Path="Test.Scalable.Persisted.Collection/Test.Scalable.Persisted.Collection.csproj" />
+    <Project Path="Test.Scalable.Tsavorite.Collection/Test.Scalable.Tsavorite.Collection.csproj" />
     <Project Path="Test.System.Linq.Enumerable.FLinq/Test.System.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Test.System.Linq.Enumerable.ZLinq/Test.System.Linq.Enumerable.ZLinq.csproj" />
     <Project Path="Test.Tsavorite.Collection/Test.Tsavorite.Collection.csproj" />

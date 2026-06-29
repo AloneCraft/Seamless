@@ -841,7 +841,7 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
         var orchestrationRoot = FindSolutionRoot() ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Seamless");
-        var benchmarkRoot = Path.Combine(orchestrationRoot,"Work","Benchmark",BenchmarkExecutionProfileNames.ToFolderName(executionProfile));
+        var benchmarkRoot = Path.Combine(orchestrationRoot,"Work",BenchmarkAppProfile.WorkRootName,BenchmarkExecutionProfileNames.ToFolderName(executionProfile));
         var jobRunner = this.CreateJobRunner(executionProfile);
         var orchestrator = new BenchmarkOrchestrator(
             new BenchmarkStateManager(benchmarkRoot),

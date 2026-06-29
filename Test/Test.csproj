@@ -18,6 +18,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageReference Include="JetBrains.Profiler.Api" Version="1.*" />
     <PackageReference Include="MemoryPack" Version="1.*" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />
@@ -33,19 +34,20 @@
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\Benchmark\BenchmarkComparisonFormatter.cs" Link="Benchmark\BenchmarkComparisonFormatter.cs" />
-    <Compile Include="..\Benchmark\BenchmarkImprovementPromptBuilder.cs" Link="Benchmark\BenchmarkImprovementPromptBuilder.cs" />
-    <Compile Include="..\Benchmark\BenchmarkOrchestrationModels.cs" Link="Benchmark\BenchmarkOrchestrationModels.cs" />
-    <Compile Include="..\Benchmark\BenchmarkOrchestrator.cs" Link="Benchmark\BenchmarkOrchestrator.cs" />
-    <Compile Include="..\Benchmark\BenchmarkResultWriter.cs" Link="Benchmark\BenchmarkResultWriter.cs" />
-    <Compile Include="..\Benchmark\BenchmarkRunOptions.cs" Link="Benchmark\BenchmarkRunOptions.cs" />
-    <Compile Include="..\Benchmark\BenchmarkRunPersistenceService.cs" Link="Benchmark\BenchmarkRunPersistenceService.cs" />
-    <Compile Include="..\Benchmark\BenchmarkSharedModels.cs" Link="Benchmark\BenchmarkSharedModels.cs" />
-    <Compile Include="..\Benchmark\BenchmarkSourceTabs.cs" Link="Benchmark\BenchmarkSourceTabs.cs" />
-    <Compile Include="..\Benchmark\BenchmarkStateManager.cs" Link="Benchmark\BenchmarkStateManager.cs" />
-    <Compile Include="..\Benchmark\BenchmarkUiLogic.cs" Link="Benchmark\BenchmarkUiLogic.cs" />
-    <Compile Include="..\Benchmark\CpuPresetCatalog.cs" Link="Benchmark\CpuPresetCatalog.cs" />
-    <Compile Include="..\Benchmark\CsvStringBuilderExtensions.cs" Link="Benchmark\CsvStringBuilderExtensions.cs" />
+    <Compile Include="..\Benchmark.UI.Shared\BenchmarkComparisonFormatter.cs" Link="Benchmark\BenchmarkComparisonFormatter.cs" />
+    <Compile Include="..\Benchmark.UI.Shared\BenchmarkCatalog.cs" Link="Benchmark\BenchmarkCatalog.cs" />
+    <Compile Include="..\Benchmark.UI.Shared\BenchmarkImprovementPromptBuilder.cs" Link="Benchmark\BenchmarkImprovementPromptBuilder.cs" />
+    <Compile Include="..\Benchmark.UI.Shared\BenchmarkOrchestrationModels.cs" Link="Benchmark\BenchmarkOrchestrationModels.cs" />
+    <Compile Include="..\Benchmark.UI.Shared\BenchmarkOrchestrator.cs" Link="Benchmark\BenchmarkOrchestrator.cs" />
+    <Compile Include="..\Benchmark.UI.Shared\BenchmarkResultWriter.cs" Link="Benchmark\BenchmarkResultWriter.cs" />
+    <Compile Include="..\Benchmark.UI.Shared\BenchmarkRunOptions.cs" Link="Benchmark\BenchmarkRunOptions.cs" />
+    <Compile Include="..\Benchmark.UI.Shared\BenchmarkRunPersistenceService.cs" Link="Benchmark\BenchmarkRunPersistenceService.cs" />
+    <Compile Include="..\Benchmark.UI.Shared\BenchmarkSharedModels.cs" Link="Benchmark\BenchmarkSharedModels.cs" />
+    <Compile Include="..\Benchmark.UI.Shared\BenchmarkSourceTabs.cs" Link="Benchmark\BenchmarkSourceTabs.cs" />
+    <Compile Include="..\Benchmark.UI.Shared\BenchmarkStateManager.cs" Link="Benchmark\BenchmarkStateManager.cs" />
+    <Compile Include="..\Benchmark.UI.Shared\BenchmarkUiLogic.cs" Link="Benchmark\BenchmarkUiLogic.cs" />
+    <Compile Include="..\Benchmark.UI.Shared\CpuPresetCatalog.cs" Link="Benchmark\CpuPresetCatalog.cs" />
+    <Compile Include="..\Benchmark.UI.Shared\CsvStringBuilderExtensions.cs" Link="Benchmark\CsvStringBuilderExtensions.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="ZLinq">

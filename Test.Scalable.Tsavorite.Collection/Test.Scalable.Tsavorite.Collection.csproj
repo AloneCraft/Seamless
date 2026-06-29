@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Test.Scalable.Tsavorite.Collection</RootNamespace>
+    <AssemblyName>Test.Scalable.Tsavorite.Collection</AssemblyName>
+    <DefineConstants>$(DefineConstants);BENCH_AS_TEST</DefineConstants>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
+    <PackageReference Include="coverlet.collector" Version="6.0.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="MemoryPack" Version="1.*" />
+    <PackageReference Include="Microsoft.Garnet" Version="2.0.1-beta.5" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="ZLinq" Version="1.5.6" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="xunit" Version="2.9.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Benchmark.Shared" />
+    <Using Include="BenchmarkDotNet.Attributes" />
+    <Using Include="Seamless.Collections" />
+    <Using Include="Seamless.Serialization" />
+    <Using Include="Seamless.Tsavorite.Collections" />
+    <Using Include="Seamless.Tsavorite.Stores" />
+    <Using Include="Xunit" />
+    <Using Include="ZLinq" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Seamless\Seamless.csproj" />
+    <ProjectReference Include="..\Seamless.Collections\Seamless.Collections.csproj" />
+  </ItemGroup>
+  <Import Project="..\Scalable.Tsavorite.Collection.Shared\Scalable.Tsavorite.Collection.Shared.projitems" Label="Shared" />
+</Project>

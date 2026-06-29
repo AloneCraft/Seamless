@@ -71,6 +71,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private readonly Dictionary<string,bool> benchmarkCellSelections = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string,bool> benchmarkRowSelections = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string,BenchmarkCase> benchmarkCasesByProjectMethod = new(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyList<BenchmarkCase> catalogCases = [];
     private BenchmarkSourceTab? activeRunSourceTab;
     private int[] selectedLogicalCpus = [];
     private string logText = string.Empty;
@@ -175,6 +176,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.SaveCommand=new AsyncRelayCommand(() => this.SaveCurrentBenchmarkResultsAsync(true),() => this.CanSaveBenchmarkResults);
         this.SaveAsCommand=new AsyncRelayCommand(this.SaveAsAsync,() => this.CanSaveAsBenchmarkResults);
         this.OpenCommand=new AsyncRelayCommand(this.OpenAsync,() => this.CanOpenBenchmarkResults);
+        this.CopyImprovementPromptCommand=new AsyncRelayCommand(this.CopyImprovementPromptAsync,() => this.CanCopyImprovementPrompt);
         this.ShowCpuCommand=new RelayCommand(() => this.SelectedTab=BenchmarkTab.Cpu);
         this.ShowChartCommand=new RelayCommand(() => this.SelectedTab=BenchmarkTab.Chart);
         StartupDiagnostics.InitializeFromExistingLog();
@@ -266,6 +268,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     public IAsyncRelayCommand SaveCommand { get; }
     public IAsyncRelayCommand SaveAsCommand { get; }
     public IAsyncRelayCommand OpenCommand { get; }
+    public IAsyncRelayCommand CopyImprovementPromptCommand { get; }
     public IRelayCommand ShowCpuCommand { get; }
     public IRelayCommand ShowChartCommand { get; }
 
@@ -291,8 +294,15 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     public string ImprovementPromptText {
         get => this.improvementPromptText;
-        private set => this.SetProperty(ref this.improvementPromptText,value);
+        private set {
+            if(this.SetProperty(ref this.improvementPromptText,value)){
+                this.OnPropertyChanged(nameof(this.CanCopyImprovementPrompt));
+                this.CopyImprovementPromptCommand.NotifyCanExecuteChanged();
+            }
+        }
     }
+
+    public bool CanCopyImprovementPrompt => !string.IsNullOrWhiteSpace(this.ImprovementPromptText);
 
     public bool IsBenchmarkRunning {
         get => this.isBenchmarkRunning;
@@ -579,6 +589,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 this.ClearRetainedChartPoints();
                 this.UpdateChart(false);
                 _=this.RefreshAsync();
+                this.RefreshSourceTabProgresses();
             }
         }
         finally {
@@ -895,6 +906,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             await this.RefreshCsvScanAsync(CancellationToken.None,true);
             this.CaptureCurrentBenchmarkSelections();
             var loaded = await this.catalogService.LoadAsync(CancellationToken.None);
+            this.catalogCases=loaded;
             this.RefreshBenchmarkCaseIndex(loaded);
             this.BenchmarkRows.Clear();
             this.benchmarkSelectionAnchor=null;
@@ -916,6 +928,12 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             }
             this.RestoreRunSelection(null,null);
             this.RefreshBenchmarkSelectionAggregates();
+            if(this.IsBenchmarkRunActive&&!this.RestoreCurrentRunDisplayForSelectedTab()) {
+                this.RefreshVisibleResults();
+                this.ApplySelectedElementCountToTable();
+                this.RefreshImprovementPrompt();
+            }
+            this.RefreshSourceTabProgresses();
             this.ApplyCurrentSort();
             this.StatusText=this.BenchmarkRows.Count+" benchmarks";
             StartupDiagnostics.Write($"Benchmark catalog loaded. Rows={this.BenchmarkRows.Count}");
@@ -1051,6 +1069,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         var allCells = this.BenchmarkRows.SelectMany(static row => row.ProjectCells).ToArray();
         this.IsAllBenchmarkSelectionChecked=GetSelectionState(allCells);
         this.HasSelectedBenchmarkCells=allCells.Any(static cell => cell.HasCase&&cell.IsSelected);
+        this.RefreshSourceTabProgresses();
     }
 
     private static bool? GetSelectionState(IEnumerable<BenchmarkProjectCell> cells) {
@@ -1717,6 +1736,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.OnPropertyChanged(nameof(this.ChartElementCountSliderMaximum));
         this.OnPropertyChanged(nameof(this.IsChartElementSliderVisible));
         this.OnPropertyChanged(nameof(this.SelectedChartElementCountText));
+        this.RefreshSourceTabProgresses();
         StartupDiagnostics.Write(
             "Benchmark run requested. "
             +"SourceTab="+runSourceTab+" "
@@ -1858,7 +1878,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             return;
         }
         if(isRunningResult) {
-            this.RequestBenchmarkAutoScroll(resultSourceTab,result.Method,row?.RowKey??string.Empty);
             return;
         }
 
@@ -1866,6 +1885,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         if(isTerminalResult&&hasResultElementCount) {
             this.UpsertCurrentRunResultItem(result);
             this.RefreshResultChecks(resultSourceTab);
+            this.RefreshSourceTabProgresses();
         }
         if(isResultForVisibleTab&&isTerminalResult&&hasResultElementCount) {
             this.UpsertResultItem(result);
@@ -1882,6 +1902,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             this.resultStore.Save();
             this.HasPendingCloseStateSave=true;
             this.HasUnsavedBenchmarkResults=true;
+            this.RefreshSourceTabProgresses();
             if(isResultForVisibleTab) {
                 // 完了時は現在の選択Nだけでなく、保持済みの停止行も再計算する。
                 this.ApplySelectedElementCountToTable();
@@ -1896,11 +1917,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private void RequestBenchmarkAutoScroll(BenchmarkSourceTab sourceTab,string methodName,string rowKey) {
-        var option = this.SourceTabs.FirstOrDefault(item => item.Tab==sourceTab);
-        if(option is not null&&option!=this.SelectedSourceTab) {
-            this.ApplySourceTabSelection(option);
-        }
-
         this.LatestBenchmarkAutoScrollRequest=new BenchmarkAutoScrollRequest(
             sourceTab,
             methodName,
@@ -2199,6 +2215,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.ApplySelectedElementCountToTable();
         this.RefreshImprovementPrompt();
         this.UpdateChart();
+        this.RefreshSourceTabProgresses();
         return true;
     }
 
@@ -2212,6 +2229,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.BenchmarkRatioSummaryText=string.Empty;
         this.ImprovementPromptText=string.Empty;
         this.UpdateChart(false);
+        this.RefreshSourceTabProgresses();
         this.RefreshSaveCommandStates();
     }
 
@@ -2225,6 +2243,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.ClearBenchmarkResultDisplays();
         this.BenchmarkRatioSummaryText=string.Empty;
         this.RefreshImprovementPrompt();
+        this.RefreshSourceTabProgresses();
         this.RefreshSaveCommandStates();
     }
 
@@ -2236,6 +2255,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.CurrentElementCountText="-";
         this.BenchmarkRatioSummaryText=string.Empty;
         this.ImprovementPromptText=string.Empty;
+        this.RefreshSourceTabProgresses();
         this.RefreshSaveCommandStates();
     }
 
@@ -2292,6 +2312,71 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.ImprovementPromptText=state is null
             ? string.Empty
             : BenchmarkImprovementPromptBuilder.BuildPrompt(state);
+    }
+
+    private async Task CopyImprovementPromptAsync() {
+        if(string.IsNullOrWhiteSpace(this.ImprovementPromptText)) {
+            return;
+        }
+
+        await Microsoft.Maui.ApplicationModel.DataTransfer.Clipboard.Default.SetTextAsync(this.ImprovementPromptText);
+        this.StatusText="改善プロンプトをコピーしました";
+    }
+
+    private void RefreshSourceTabProgresses() {
+        foreach(var option in this.SourceTabs) {
+            option.SetProgress(this.CreateSourceTabProgress(option.Definition));
+        }
+    }
+
+    private BenchmarkTabProgress CreateSourceTabProgress(BenchmarkSourceTabDefinition sourceTab) {
+        if(this.catalogCases.Count==0) {
+            return new BenchmarkTabProgress(0,0);
+        }
+
+        var cells = this.CreateProgressCells(sourceTab);
+        var measurements = this.CreateProgressMeasurements(sourceTab);
+        return BenchmarkTabProgressLogic.Calculate(
+            cells,
+            measurements,
+            sourceTab.LeftProject,
+            sourceTab.RightProject,
+            this.GetSelectedElementCounts().LastOrDefault(),
+            this.GetAdaptiveThreshold().TotalMilliseconds*1_000_000);
+    }
+
+    private IReadOnlyList<BenchmarkTabProgressCell> CreateProgressCells(BenchmarkSourceTabDefinition sourceTab) {
+        if(sourceTab.Tab==this.SelectedSourceDefinition.Tab&&this.BenchmarkRows.Count>0) {
+            return this.BenchmarkRows
+                .SelectMany(row => row.ProjectCells.Select(cell => new BenchmarkTabProgressCell(row.MethodName,cell.Project,cell.HasCase&&cell.IsSelected)))
+                .ToArray();
+        }
+
+        return BenchmarkRowGroupingLogic.CreateRows(this.catalogCases,sourceTab)
+            .SelectMany(row => sourceTab.ProjectOrder.Select(project => new BenchmarkTabProgressCell(
+                row.MethodName,
+                project,
+                row.CasesByProject.ContainsKey(project)
+                &&this.benchmarkCellSelections.TryGetValue(
+                    BenchmarkUiStateStore.CreateCellKey(row.RowKey,project),
+                    out var selected)
+                &&selected)))
+            .ToArray();
+    }
+
+    private IReadOnlyList<BenchmarkElementMeasurement> CreateProgressMeasurements(BenchmarkSourceTabDefinition sourceTab) {
+        return this.GetCurrentRunResultItems(sourceTab.Tab)
+            .Concat(this.ResultItems.Where(item => sourceTab.ContainsProject(item.Project)))
+            .Where(static item => item.ElementCount>0)
+            .GroupBy(static item => item.Project+"|"+item.Method+"|"+item.ElementCount.ToString(System.Globalization.CultureInfo.InvariantCulture),StringComparer.OrdinalIgnoreCase)
+            .Select(static group => group.Last())
+            .Select(static item => new BenchmarkElementMeasurement(
+                item.Project,
+                item.Method,
+                item.ElementCount,
+                item.Status,
+                item.MeanNanoseconds))
+            .ToArray();
     }
 
     private ProgressState? GetProgressStateForImprovementPrompt() {
@@ -2464,6 +2549,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             var row = this.FindBenchmarkRow(job);
             row?.ApplyRunResult(item,cpu,completedAt,false);
         }
+        this.RefreshSourceTabProgresses();
     }
 
     private static bool IsTerminalJob(BenchmarkJob job) =>
@@ -2932,7 +3018,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         var leftText = leftNumber>0&&rightNumber>0
             ? (leftNumber/rightNumber).ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)
             : string.Empty;
-        var rightText = string.Empty;
+        var rightText = leftNumber>0&&rightNumber>0
+            ? (rightNumber/leftNumber).ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)
+            : string.Empty;
         double? ratio = leftNumber>0&&rightNumber>0
             ? leftNumber/rightNumber
             : null;

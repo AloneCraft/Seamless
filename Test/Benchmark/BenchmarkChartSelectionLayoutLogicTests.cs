@@ -33,4 +33,18 @@ public sealed class BenchmarkChartSelectionLayoutLogicTests{
         Assert.Equal(100,BenchmarkChartSelectionLayoutLogic.CalculateStackBoundary(100,500,-10));
         Assert.Equal(500,BenchmarkChartSelectionLayoutLogic.CalculateStackBoundary(100,500,110));
     }
+
+    [Fact]
+    public void CreateBarLabelPoints_UsesEachBarLeftEdge(){
+        var points = BenchmarkChartSelectionLayoutLogic.CreateBarLabelPoints(
+            new BenchmarkChartBarRect(100,250,150),
+            new BenchmarkChartBarRect(250,500,250),
+            y:24,
+            padding:6);
+
+        Assert.Equal(106,points.LeftLabelPoint.X);
+        Assert.Equal(256,points.RightLabelPoint.X);
+        Assert.Equal(24,points.LeftLabelPoint.Y);
+        Assert.Equal(24,points.RightLabelPoint.Y);
+    }
 }
