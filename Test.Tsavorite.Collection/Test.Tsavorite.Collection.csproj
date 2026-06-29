@@ -8,7 +8,7 @@
     <IsTestProject>true</IsTestProject>
     <RootNamespace>Test.Tsavorite.Collection</RootNamespace>
     <AssemblyName>Test.Tsavorite.Collection</AssemblyName>
-    <DefineConstants>$(DefineConstants);BENCH_AS_TEST;TSAVORITE2_0BETA3</DefineConstants>
+    <DefineConstants>$(DefineConstants);BENCH_AS_TEST</DefineConstants>
     <OutputType>Library</OutputType>
   </PropertyGroup>
   <ItemGroup>

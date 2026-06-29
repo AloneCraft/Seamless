@@ -36,6 +36,7 @@
     <Project Path="Seamless.SourceGenerator/Seamless.SourceGenerator.csproj" />
   </Folder>
   <Folder Name="/Tests/">
+    <Project Path="DynamicLinq.Runner/DynamicLinq.Runner.csproj" />
     <Project Path="Test.Persisted.Collection/Test.Persisted.Collection.csproj" />
     <Project Path="Test.Persisted.Linq.Enumerable.FLinq/Test.Persisted.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Test.Persisted.Linq.Enumerable.Linq/Test.Persisted.Linq.Enumerable.Linq.csproj" />

@@ -2,9 +2,7 @@ using System.Text;
 
 namespace Benchmark;
 
-#if TSAVORITE2_0BETA3
 [global::Seamless.FLinq.LinqIntercept(false)]
-#endif
 internal sealed class BenchmarkResultWriter {
     private readonly object writeGate = new();
 
@@ -29,6 +27,10 @@ internal sealed class BenchmarkResultWriter {
             }
 
             this.WriteSummary(state,paths);
+            AtomicWriteText(
+                Path.Combine(state.RunRoot,BenchmarkImprovementPromptBuilder.FileName),
+                BenchmarkImprovementPromptBuilder.BuildPrompt(state),
+                Encoding.UTF8);
             return paths;
         }
     }

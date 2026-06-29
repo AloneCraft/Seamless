@@ -3,9 +3,7 @@ using System.Globalization;
 
 namespace Benchmark;
 
-#if TSAVORITE2_0BETA3
 [global::Seamless.FLinq.LinqIntercept(false)]
-#endif
 internal sealed class BenchmarkOrchestrator(
     BenchmarkStateManager stateManager,
     BenchmarkResultWriter resultWriter,
@@ -660,11 +658,9 @@ internal sealed class BenchmarkOrchestrator(
         string FailureReason);
 }
 
-#if TSAVORITE2_0BETA3
 [global::Seamless.FLinq.LinqIntercept(false)]
-#endif
 internal static class BenchmarkElementCounts {
-    internal const int BaseElementCount = 4096;
+    internal const int BaseElementCount = 1<<16;
 
     public static IReadOnlyList<int> All { get; } =
         Enumerable.Range(10,14).Select(static exponent => 1<<exponent).ToArray();

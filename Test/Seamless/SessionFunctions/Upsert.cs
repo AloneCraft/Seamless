@@ -17,11 +17,7 @@ public sealed class Upsert:AddTests<int,string> {
     }
     private static byte[] SerInt(int v) => MemoryPackSerializer.Serialize(v);
     private static byte[] SerStr(string v) => MemoryPackSerializer.Serialize(v);
-#if TSAVORITE2_0BETA3
     private static FixedSpanByteKey MakeKey(byte[] b)=>(FixedSpanByteKey)(ReadOnlySpan<byte>)b;
-#elif TSAVORITE1_1_1
-    private static SpanByte MakeKey(byte[] b) => SpanByte.FromPinnedSpan(b);
-#endif
     protected override int Key(int seed) => seed;
     protected override string Value(int seed) => $"v{seed}";
     protected override (global::System.Collections.Generic.IDictionary<int,string> Dict,IDisposable Store) CreateMemory(){
@@ -38,21 +34,12 @@ public sealed class Upsert:AddTests<int,string> {
         ((global::Seamless.Tsavorite.Collections.IDictionary<int,string>)dict).TryAdd(key,value);
     protected override void DoUpsert(){
         using var store=Store.Create().Create<int,string>();
-#if TSAVORITE2_0BETA3
         using var session=store.Store.NewSession<FixedSpanByteKey, string, bool, EqualityEmpty, global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>>(new());
-#elif TSAVORITE1_1_1
-        using var session=store.Store.NewSession<SpanByte,bool,EqualityEmpty,global::Seamless.Tsavorite.SessionFunctions.Upsert>(new());
-#endif
         var bc=session.BasicContext;
         var key=MakeKey(SerInt(200));
         //InitialWriter(ReadOnlySpan<byte>)��closing}��ʂ�
         {
-#if TSAVORITE2_0BETA3
             var status=bc.Upsert(key,SerStr("new"));
-#elif TSAVORITE1_1_1
-            var val=MakeKey(SerStr("new"));
-            var status=bc.Upsert(ref key,ref val);
-#endif
             if(status.IsPending){
                 bc.CompletePendingWithOutputs(out var completed,wait: true);
                 completed.Dispose();
@@ -61,21 +48,12 @@ public sealed class Upsert:AddTests<int,string> {
     }
     protected override void DoInPlaceWriter(){
         using var store=Store.Create().Create<int,string>();
-#if TSAVORITE2_0BETA3
         using var session=store.Store.NewSession<FixedSpanByteKey, string, bool, EqualityEmpty, global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>>(new());
-#elif TSAVORITE1_1_1
-        using var session=store.Store.NewSession<SpanByte,bool,EqualityEmpty,global::Seamless.Tsavorite.SessionFunctions.Upsert>(default);
-#endif
         var bc=session.BasicContext;
         var key=MakeKey(SerInt(200));
         //InitialWriter(ReadOnlySpan<byte>)��closing}��ʂ�
         {
-#if TSAVORITE2_0BETA3
             var status=bc.Upsert(key,SerStr("new"));
-#elif TSAVORITE1_1_1
-            var val=MakeKey(SerStr("new"));
-            var status=bc.Upsert(ref key,ref val);
-#endif
             if(status.IsPending){
                 bc.CompletePendingWithOutputs(out var completed,wait: true);
                 completed.Dispose();
@@ -83,19 +61,13 @@ public sealed class Upsert:AddTests<int,string> {
         }
         //InPlaceWriter(ReadOnlySpan<byte>)��closing}��ʂ�
         {
-#if TSAVORITE2_0BETA3
             var status=bc.Upsert(key,SerStr("updated"));
-#elif TSAVORITE1_1_1
-            var val=MakeKey(SerStr("updated"));
-            var status=bc.Upsert(ref key,ref val);
-#endif
             if(status.IsPending){
                 bc.CompletePendingWithOutputs(out var completed,wait: true);
                 completed.Dispose();
             }
         }
     }
-#if TSAVORITE2_0BETA3
     private sealed class DummyHeapObject:IHeapObject {
         public static int MaxSerializedObjectSize=>0;
         public long HeapMemorySize=>0;
@@ -136,8 +108,6 @@ public sealed class Upsert:AddTests<int,string> {
 #pragma warning restore CS8601
         }
     }
-#endif
-#if TSAVORITE2_0BETA3
     private sealed class ScanAndUpsertFunctions(
         ClientSession<
             FixedSpanByteKey,
@@ -196,28 +166,17 @@ public sealed class Upsert:AddTests<int,string> {
         var inplaceFuncs=new ScanAndUpsertFunctions(session,null);
         store.Store.Log.Scan(ref inplaceFuncs,addr1,addr2,DiskScanBufferingMode.NoBuffering);
     }
-#endif
 
     protected override void DoRMW(){
         using var store=Store.Create().Create<int,string>();
         var key=MakeKey(SerInt(1));
-#if TSAVORITE2_0BETA3
         using var session=store.Store.NewSession<FixedSpanByteKey, string, bool, EqualityEmpty, global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>>(new());
         var input0="v1";
         var input1="v2";
-#elif TSAVORITE1_1_1
-        using var session=store.Store.NewSession<SpanByte,bool,EqualityEmpty,global::Seamless.Tsavorite.SessionFunctions.Upsert>(default);
-        var input0=SpanByte.FromPinnedSpan(SerStr("v1"));
-        var input1=SpanByte.FromPinnedSpan(SerStr("v2"));
-#endif
         var bc=session.BasicContext;
         {
             var output=false;
-#if TSAVORITE2_0BETA3
             var status=bc.RMW(key,ref input0,ref output);
-#elif TSAVORITE1_1_1
-            var status=bc.RMW(ref key,ref input0,ref output);
-#endif
             if(status.IsPending){
                 bc.CompletePendingWithOutputs(out var completed,wait: true);
                 completed.Dispose();
@@ -226,11 +185,7 @@ public sealed class Upsert:AddTests<int,string> {
         }
         {
             var output=false;
-#if TSAVORITE2_0BETA3
             var status=bc.RMW(key,ref input1,ref output);
-#elif TSAVORITE1_1_1
-            var status=bc.RMW(ref key,ref input1,ref output);
-#endif
             if(status.IsPending){
                 bc.CompletePendingWithOutputs(out var completed,wait: true);
                 completed.Next();
@@ -264,66 +219,9 @@ public sealed class Upsert:AddTests<int,string> {
         Assert.Equal("target",v);
     }
     protected override void DoConcurrentWriter(){
-#if TSAVORITE1_1_1
-        // �����l�ŏ���Upsert��A�Z���l�ō�Upsert �� src.Length<=dst.Length �� in-place �R�s�[�����ʂ�
-        using var store=Store.Create().Create<int,string>();
-        using var session=store.Store.NewSession<SpanByte,bool,EqualityEmpty,global::Seamless.Tsavorite.SessionFunctions.Upsert>(default);
-        var bc=session.BasicContext;
-        var key=MakeKey(SerInt(300));
-        var valLong=MakeKey(SerStr("hello_world_test"));
-        bc.Upsert(ref key,ref valLong);
-        var valShort=MakeKey(SerStr("hi"));
-        var status=bc.Upsert(ref key,ref valShort);
-        if(status.IsPending){
-            bc.CompletePendingWithOutputs(out var c,wait: true);
-            c.Dispose();
-        }
-#endif
     }
     protected override void DoSingleReader(){
-#if TSAVORITE1_1_1
-        // ShiftReadOnlyAddress �̓y�[�W�t���b�V���𔺂����� ManagedLocalStorageDevice ���K�v
-        var folder=CreateDiskFolder();
-        using var LogDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
-        using var ObjDevice= global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
-        using var store=Store.Create(MemorySize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity).Create<int,string>(LogDevice,ObjDevice);
-        using var session=store.Store.NewSession<SpanByte,bool,EqualityEmpty,global::Seamless.Tsavorite.SessionFunctions.Upsert>(default);
-        var bc=session.BasicContext;
-        var key1=MakeKey(SerInt(400));
-        var val1=MakeKey(SerStr("single"));
-        bc.Upsert(ref key1,ref val1);
-        // ReadOnlyAddress ��TailAddress�܂Ői�߂� �� ���������R�[�h�� in-memory read-only �̈�� �� SingleReader ���Ă΂��
-        store.Store.Log.ShiftReadOnlyAddress(store.Store.Log.TailAddress,wait: true);
-        var status1=bc.Read(key1,out _);
-        if(status1.IsPending){
-            bc.CompletePendingWithOutputs(out var c1,wait: true);
-            c1.Dispose();
-        }
-        Assert.True(status1.Found);
-        // IsEmpty ����: ��l�� read-only �̈�ɒu���� Read �� Span.IsEmpty=true �p�X��ʂ�
-        var key2=MakeKey(SerInt(401));
-        var empty=default(SpanByte);
-        bc.Upsert(ref key2,ref empty);
-        store.Store.Log.ShiftReadOnlyAddress(store.Store.Log.TailAddress,wait: true);
-        var status2=bc.Read(key2,out _);
-        if(status2.IsPending){
-            bc.CompletePendingWithOutputs(out var c2,wait: true);
-            c2.Dispose();
-        }
-        Assert.True(status2.Found);
-#endif
     }
     protected override void DoConcurrentReaderEmpty(){
-#if TSAVORITE1_1_1
-        // mutable �̈�ɋ�l��u���� Read �� ConcurrentReader �� Span.IsEmpty=true �����ʂ�
-        using var store=Store.Create().Create<int,string>();
-        using var session=store.Store.NewSession<SpanByte,bool,EqualityEmpty,global::Seamless.Tsavorite.SessionFunctions.Upsert>(default);
-        var bc=session.BasicContext;
-        var key=MakeKey(SerInt(500));
-        var empty=default(SpanByte);
-        bc.Upsert(ref key,ref empty);
-        var status=bc.Read(key,out _);
-        Assert.True(status.Found);
-#endif
     }
 }

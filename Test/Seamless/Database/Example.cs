@@ -3,15 +3,7 @@ using System.Runtime.CompilerServices;
 using MemoryPack;
 using Test.Seamless.Database.Example.Keys;
 
-#if TSAVORITE1_1_1
-using Tsavorite.core;
-using StoreFunc = Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>;
-using StoreAllocator = Tsavorite.core.SpanByteAllocator<Tsavorite.core.StoreFunctions<Tsavorite.core.SpanByte,Tsavorite.core.SpanByte,Tsavorite.core.SpanByteComparer,Tsavorite.core.SpanByteRecordDisposer>>;
-#endif
-
-#if TSAVORITE2_0BETA3
 using Seamless.Tsavorite.Stores;
-#endif
 
 namespace Test.Seamless.Database.Example {
 
@@ -28,15 +20,7 @@ namespace Test.Seamless.Database.Example {
             // 値は「Read で bytes を受け取り、それを Stack view に渡して復元する」前提で bytes として保存する。
             var valueBytes = MemoryPackSerializer.Serialize(書き込みたいデータ);
 
-#if TSAVORITE1_1_1
-            var keyBytes = MemoryPackSerializer.Serialize(key);
-            var readBytes = RoundTrip_Tsavorite1_1_1(keyBytes,valueBytes);
-#elif TSAVORITE2_0BETA3
             var readBytes = RoundTrip_Tsavorite2_0BETA3(key,valueBytes);
-#else
-            // どちらの Tsavorite 定数も無い場合は、このファイルはサンプル用途なのでスキップ。
-            return;
-#endif
 
             // Read で得た bytes を Stack view に渡して復元 (implicit cast)
             Records.Type0 castedValue = new Records.Type0.Stack(readBytes);
@@ -45,126 +29,6 @@ namespace Test.Seamless.Database.Example {
             Assert.Equal(書き込みたいデータ.Column3,castedValue.Column3);
         }
 
-#if TSAVORITE1_1_1
-        private static byte[] RoundTrip_Tsavorite1_1_1(byte[] keyBytes,byte[] valueBytes) {
-            var folder = global::Seamless.Collections.TestPath.Directory<使い方>();
-            using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true);
-
-            using var settings = new KVSettings<SpanByte,SpanByte> {
-                IndexSize=1L<<6,
-                MemorySize=global::Seamless.Tsavorite.Const.MinObjectLogCapacity,
-                PageSize=1L<<12,
-                SegmentSize=1L<<20,
-                MutableFraction=1,
-                LogDevice=logDevice,
-            };
-
-            var storeFunctions = new StoreFunc(
-                new SpanByteComparer(),
-                static () => null,
-                static () => null,
-                new SpanByteRecordDisposer());
-
-            using var store = new TsavoriteKV<SpanByte,SpanByte,StoreFunc,StoreAllocator>(
-                settings,
-                storeFunctions,
-                static (allocSettings,funcs) => new StoreAllocator(allocSettings,funcs));
-
-            using var session = store.NewSession<SpanByte,byte[]?,Empty,ByteStoreFunctions>(new());
-            var basic = session.BasicContext;
-
-            var key = SpanByte.FromPinnedSpan(keyBytes);
-            var value = SpanByte.FromPinnedSpan(valueBytes);
-
-            var status = basic.Upsert(ref key,ref value);
-            if(status.IsPending)
-                basic.CompletePending(wait: true);
-
-            byte[]? output = null;
-            status=basic.Read(ref key,ref output);
-            status=CompletePending(session,status,ref output);
-
-            Assert.True(status.Found);
-            Assert.NotNull(output);
-            return output!;
-        }
-
-        private static Status CompletePending(
-            ClientSession<SpanByte,SpanByte,SpanByte,byte[]?,Empty,ByteStoreFunctions,StoreFunc,StoreAllocator> session,
-            Status status,
-            ref byte[]? output) {
-            if(!status.IsPending)
-                return status;
-
-            session.BasicContext.CompletePendingWithOutputs(out var completedOutputs,wait: true);
-            using(completedOutputs) {
-                if(completedOutputs.Next()) {
-                    status=completedOutputs.Current.Status;
-                    output=completedOutputs.Current.Output;
-                }
-            }
-
-            return status;
-        }
-
-        private readonly struct ByteStoreFunctions:
-            ISessionFunctions<SpanByte,SpanByte,SpanByte,byte[]?,Empty> {
-            public bool SingleReader(ref SpanByte key,ref SpanByte input,ref SpanByte value,ref byte[]? output,ref ReadInfo readInfo) {
-                output=value.AsReadOnlySpan().ToArray();
-                return true;
-            }
-
-            public bool ConcurrentReader(ref SpanByte key,ref SpanByte input,ref SpanByte value,ref byte[]? output,ref ReadInfo readInfo,ref RecordInfo recordInfo) {
-                output=value.AsReadOnlySpan().ToArray();
-                return true;
-            }
-
-            public void ReadCompletionCallback(ref SpanByte key,ref SpanByte input,ref byte[]? output,Empty ctx,Status status,RecordMetadata recordMetadata) { }
-
-            public bool SingleWriter(ref SpanByte key,ref SpanByte input,ref SpanByte src,ref SpanByte dst,ref byte[]? output,ref UpsertInfo upsertInfo,WriteReason reason,ref RecordInfo recordInfo) {
-                src.CopyTo(ref dst);
-                return true;
-            }
-
-            public void PostSingleWriter(ref SpanByte key,ref SpanByte input,ref SpanByte src,ref SpanByte dst,ref byte[]? output,ref UpsertInfo upsertInfo,WriteReason reason) { }
-
-            public bool ConcurrentWriter(ref SpanByte key,ref SpanByte input,ref SpanByte src,ref SpanByte dst,ref byte[]? output,ref UpsertInfo upsertInfo,ref RecordInfo recordInfo) {
-                if(src.Length>dst.Length)
-                    return false;
-                src.CopyTo(ref dst);
-                return true;
-            }
-
-            public void PostUpsertOperation<TEpochAccessor>(ref SpanByte key,ref SpanByte input,ref SpanByte src,ref UpsertInfo upsertInfo,TEpochAccessor epoch)
-                where TEpochAccessor : IEpochAccessor { }
-
-            public int GetUpsertValueLength(ref SpanByte value,ref SpanByte input) => value.Length+4;
-
-            // このサンプルは Upsert / Read のみ使う (RMW / Delete は未対応)
-            private static T ThrowNotSupported<T>() => throw new NotSupportedException();
-
-            public bool NeedInitialUpdate(ref SpanByte key,ref SpanByte input,ref byte[]? output,ref RMWInfo rmwInfo) => ThrowNotSupported<bool>();
-            public bool InitialUpdater(ref SpanByte key,ref SpanByte input,ref SpanByte value,ref byte[]? output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) => ThrowNotSupported<bool>();
-            public bool InPlaceUpdater(ref SpanByte key,ref SpanByte input,ref SpanByte value,ref byte[]? output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) => ThrowNotSupported<bool>();
-            public void PostInitialUpdater(ref SpanByte key,ref SpanByte input,ref SpanByte value,ref byte[]? output,ref RMWInfo rmwInfo) => throw new NotSupportedException();
-            public bool NeedCopyUpdate(ref SpanByte key,ref SpanByte input,ref SpanByte value,ref byte[]? output,ref RMWInfo rmwInfo) => ThrowNotSupported<bool>();
-            public bool CopyUpdater(ref SpanByte key,ref SpanByte input,ref SpanByte oldValue,ref SpanByte newValue,ref byte[]? output,ref RMWInfo rmwInfo,ref RecordInfo recordInfo) => ThrowNotSupported<bool>();
-            public bool PostCopyUpdater(ref SpanByte key,ref SpanByte input,ref SpanByte oldValue,ref SpanByte newValue,ref byte[]? output,ref RMWInfo rmwInfo) => ThrowNotSupported<bool>();
-            public int GetRMWModifiedValueLength(ref SpanByte value,ref SpanByte input) => ThrowNotSupported<int>();
-            public int GetRMWInitialValueLength(ref SpanByte input) => ThrowNotSupported<int>();
-            public void PostRMWOperation<TEpochAccessor>(ref SpanByte key,ref SpanByte input,ref RMWInfo rmwInfo,TEpochAccessor epoch)
-                where TEpochAccessor : IEpochAccessor => throw new NotSupportedException();
-            public void RMWCompletionCallback(ref SpanByte key,ref SpanByte input,ref byte[]? output,Empty ctx,Status status,RecordMetadata recordMetadata) => throw new NotSupportedException();
-            public bool SingleDeleter(ref SpanByte key,ref SpanByte value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo) => ThrowNotSupported<bool>();
-            public void PostSingleDeleter(ref SpanByte key,ref DeleteInfo deleteInfo) => throw new NotSupportedException();
-            public bool ConcurrentDeleter(ref SpanByte key,ref SpanByte value,ref DeleteInfo deleteInfo,ref RecordInfo recordInfo) => ThrowNotSupported<bool>();
-            public void PostDeleteOperation<TEpochAccessor>(ref SpanByte key,ref DeleteInfo deleteInfo,TEpochAccessor epoch)
-                where TEpochAccessor : IEpochAccessor => throw new NotSupportedException();
-            public void ConvertOutputToHeap(ref SpanByte input,ref byte[]? output) { }
-        }
-#endif
-
-#if TSAVORITE2_0BETA3
         private static byte[] RoundTrip_Tsavorite2_0BETA3(Key0 key,byte[] valueBytes) {
             using var store = Store.Create().Create<Key0,byte[]>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
             using var dict = store.Create();
@@ -175,7 +39,6 @@ namespace Test.Seamless.Database.Example {
             Assert.NotNull(readBytes);
             return readBytes!;
         }
-#endif
     }
     internal static class DatabaseGenerator;
     namespace Keys {

@@ -14,7 +14,7 @@ public sealed class MainPage:ContentPage {
     private const double BenchmarkAggregateCheckBoxSize = 32;
     private const double BenchmarkCellCheckBoxWidth = 34;
     private const double BenchmarkCellCheckBoxHeight = 28;
-    private const double BenchmarkProjectStatusColumnWidth = 268;
+    private const double BenchmarkProjectStatusColumnWidth = 248;
     private const double BenchmarkProjectMetricColumnWidth = 78;
     private const double BenchmarkPairStopNColumnWidth = 72;
     private const double BenchmarkCellCheckSlotWidth = 38;
@@ -969,6 +969,7 @@ public sealed class MainPage:ContentPage {
     private View CreateBenchmarkTabContent() {
         var grid = new Grid {
             RowDefinitions= {
+                new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Star },
                 new RowDefinition { Height = GridLength.Auto },
             },
@@ -979,10 +980,21 @@ public sealed class MainPage:ContentPage {
             RowSpacing=4,
             ColumnSpacing=6,
         };
+        var summary = new Label {
+            FontSize=12,
+            FontAttributes=FontAttributes.Bold,
+            TextColor=Color.FromArgb("#0F172A"),
+            BackgroundColor=Color.FromArgb("#ECFDF5"),
+            Padding=new Thickness(8,3),
+            LineBreakMode=LineBreakMode.TailTruncation,
+        };
+        summary.SetBinding(Label.TextProperty,nameof(BenchmarkRunnerViewModel.BenchmarkRatioSummaryText));
+        grid.Add(summary,0,0);
+        grid.SetColumnSpan(summary,2);
         var benchmarkGrid = this.CreateBenchmarkGrid();
         benchmarkGrid.VerticalOptions=LayoutOptions.Fill;
-        grid.Add(benchmarkGrid,0,0);
-        grid.Add(this.CreateBenchmarkChartPanel(),1,0);
+        grid.Add(benchmarkGrid,0,1);
+        grid.Add(this.CreateBenchmarkChartPanel(),1,1);
         var lowerTabView = new SfTabView {
             TabBarHeight=LowerTabBarHeight,
             TabBarBackground=Color.FromArgb("#E2E8F0"),
@@ -1003,6 +1015,11 @@ public sealed class MainPage:ContentPage {
             FontSize=12,
             Content=this.CreateLogView(),
         });
+        lowerItems.Add(new SfTabItem {
+            Header="改善プロンプト",
+            FontSize=12,
+            Content=this.CreateImprovementPromptView(),
+        });
         lowerTabView.Items=lowerItems;
         void ApplyLowerTabHeight() {
             var height = LowerTabBarHeight+this.CalculateCpuTabContentHeight();
@@ -1020,9 +1037,11 @@ public sealed class MainPage:ContentPage {
                 return;
             }
 
-            this.viewModel.SelectedLowerTab=lowerTabView.SelectedIndex==1
-                ? BenchmarkLowerTab.Log
-                : BenchmarkLowerTab.Cpu;
+            this.viewModel.SelectedLowerTab=lowerTabView.SelectedIndex switch {
+                1 => BenchmarkLowerTab.Log,
+                2 => BenchmarkLowerTab.ImprovementPrompt,
+                _ => BenchmarkLowerTab.Cpu,
+            };
         };
         var lowerTabFrame = new Border {
             Stroke=Color.FromArgb("#CBD5E1"),
@@ -1033,7 +1052,7 @@ public sealed class MainPage:ContentPage {
             BackgroundColor=Color.FromArgb("#F8FAFC"),
             Content=lowerTabView,
         };
-        grid.Add(lowerTabFrame,0,1);
+        grid.Add(lowerTabFrame,0,2);
         grid.SetColumnSpan(lowerTabFrame,2);
         if(this.viewModel is not null) {
             this.viewModel.PropertyChanged+=(_,args) => {
@@ -1247,7 +1266,7 @@ public sealed class MainPage:ContentPage {
         grid.StackedHeaderRows.Add(projectHeaderRow);
 
         grid.Columns.Add(this.CreateCheckColumn());
-        grid.Columns.Add(this.CreateTextColumn("Benchmark",nameof(BenchmarkTableRow.BenchmarkName),BenchmarkGridSortColumn.BenchmarkName,240,TextAlignment.Start));
+        grid.Columns.Add(this.CreateTextColumn("ベンチマーク",nameof(BenchmarkTableRow.BenchmarkName),BenchmarkGridSortColumn.BenchmarkName,240,TextAlignment.Start));
         this.AddBenchmarkBaseStackedHeaders(categoryHeaderRow,projectHeaderRow);
         var leftMappings = this.AddProjectColumns(grid,"Left",nameof(BenchmarkTableRow.LeftCell),BenchmarkGridSortColumn.LeftTime,BenchmarkGridSortColumn.LeftAllocated);
         var stopMapping = this.AddPairStopNColumn(
@@ -1255,12 +1274,19 @@ public sealed class MainPage:ContentPage {
             "StopN",
             nameof(BenchmarkTableRow.StopNText),
             nameof(BenchmarkTableRow.StopNTextColor),
-            nameof(BenchmarkTableRow.StopNFontAttributes));
+            nameof(BenchmarkTableRow.StopNFontAttributes),
+            BenchmarkGridSortColumn.ElementCount);
+        var timeRatioMapping = nameof(BenchmarkTableRow.PairRatioTimeText);
+        var allocatedRatioMapping = nameof(BenchmarkTableRow.PairRatioAllocatedText);
+        grid.Columns.Add(this.CreateTextColumn("時間比",timeRatioMapping,BenchmarkGridSortColumn.PairRatioTime,BenchmarkPairStopNColumnWidth,TextAlignment.End));
+        grid.Columns.Add(this.CreateTextColumn("メモリ比",allocatedRatioMapping,BenchmarkGridSortColumn.PairRatioAllocated,BenchmarkPairStopNColumnWidth,TextAlignment.End));
         var rightMappings = this.AddProjectColumns(grid,"Right",nameof(BenchmarkTableRow.RightCell),BenchmarkGridSortColumn.RightTime,BenchmarkGridSortColumn.RightAllocated);
-        IReadOnlyList<string>[] mappings = [leftMappings,[stopMapping],rightMappings];
+        IReadOnlyList<string>[] mappings = [leftMappings,[stopMapping,timeRatioMapping,allocatedRatioMapping],rightMappings];
         this.AddBenchmarkSelectionGroup(categoryHeaderRow,this.GetBenchmarkSelectionGroup("Active"),mappings);
         this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup("Left","Left"),leftMappings);
         this.AddBenchmarkStopNHeader(projectHeaderRow,stopMapping);
+        this.AddBenchmarkRatioHeader(projectHeaderRow,timeRatioMapping,"時間比");
+        this.AddBenchmarkRatioHeader(projectHeaderRow,allocatedRatioMapping,"メモリ比");
         this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup("Right","Right"),rightMappings);
         return grid;
     }
@@ -1356,13 +1382,19 @@ public sealed class MainPage:ContentPage {
         var timeMapping = cellPath+"Time";
         var allocatedMapping = cellPath+"Allocated";
         grid.Columns.Add(this.CreateProjectCheckColumn(checkMapping,cellPath));
-        grid.Columns.Add(this.CreateProjectTextColumn("Time",timeMapping,cellPath,cellPath+"."+nameof(BenchmarkProjectCell.TimeText),timeSortColumn,BenchmarkProjectMetricColumnWidth,TextAlignment.End,BenchmarkProjectSelectionSegment.Middle));
-        grid.Columns.Add(this.CreateProjectTextColumn("Allocated",allocatedMapping,cellPath,cellPath+"."+nameof(BenchmarkProjectCell.AllocatedText),allocatedSortColumn,BenchmarkProjectMetricColumnWidth,TextAlignment.End,BenchmarkProjectSelectionSegment.Last));
+        grid.Columns.Add(this.CreateProjectTextColumn("時間",timeMapping,cellPath,cellPath+"."+nameof(BenchmarkProjectCell.TimeText),timeSortColumn,BenchmarkProjectMetricColumnWidth,TextAlignment.End,BenchmarkProjectSelectionSegment.Middle));
+        grid.Columns.Add(this.CreateProjectTextColumn("メモリ",allocatedMapping,cellPath,cellPath+"."+nameof(BenchmarkProjectCell.AllocatedText),allocatedSortColumn,BenchmarkProjectMetricColumnWidth,TextAlignment.End,BenchmarkProjectSelectionSegment.Last));
         return [checkMapping,timeMapping,allocatedMapping];
     }
 
-    private string AddPairStopNColumn(SfDataGrid grid,string mappingName,string bindingPath,string textColorPath,string fontAttributesPath) {
-        grid.Columns.Add(this.CreatePairStopNColumn(mappingName,bindingPath,textColorPath,fontAttributesPath));
+    private string AddPairStopNColumn(
+        SfDataGrid grid,
+        string mappingName,
+        string bindingPath,
+        string textColorPath,
+        string fontAttributesPath,
+        BenchmarkGridSortColumn sortColumn) {
+        grid.Columns.Add(this.CreatePairStopNColumn(mappingName,bindingPath,textColorPath,fontAttributesPath,sortColumn));
         return mappingName;
     }
 
@@ -1417,6 +1449,14 @@ public sealed class MainPage:ContentPage {
     private void AddBenchmarkStopNHeader(DataGridStackedHeaderRow headerRow,string mappingName) {
         headerRow.Columns.Add(new DataGridStackedColumn {
             MappingName="BenchmarkStopN"+mappingName,
+            ColumnMappingNames=mappingName,
+            Text=string.Empty,
+        });
+    }
+
+    private void AddBenchmarkRatioHeader(DataGridStackedHeaderRow headerRow,string mappingName,string text) {
+        headerRow.Columns.Add(new DataGridStackedColumn {
+            MappingName="BenchmarkRatio"+mappingName,
             ColumnMappingNames=mappingName,
             Text=string.Empty,
         });
@@ -1570,7 +1610,6 @@ public sealed class MainPage:ContentPage {
                         new ColumnDefinition { Width = new GridLength(18) },
                         new ColumnDefinition { Width = new GridLength(24) },
                         new ColumnDefinition { Width = new GridLength(26) },
-                        new ColumnDefinition { Width = new GridLength(20) },
                         new ColumnDefinition { Width = GridLength.Star },
                     },
                     ColumnSpacing=2,
@@ -1582,9 +1621,10 @@ public sealed class MainPage:ContentPage {
                     FontSize=BenchmarkGridCellFontSize,
                     FontAttributes=FontAttributes.Bold,
                     TextColor=Color.FromArgb("#0F172A"),
-                    HorizontalTextAlignment=TextAlignment.Center,
+                    HorizontalTextAlignment=TextAlignment.Start,
                     VerticalTextAlignment=TextAlignment.Center,
                     LineBreakMode=LineBreakMode.TailTruncation,
+                    Padding=new Thickness(2,0),
                 };
                 var measuredAt = new Label {
                     Text="日時",
@@ -1596,19 +1636,9 @@ public sealed class MainPage:ContentPage {
                     LineBreakMode=LineBreakMode.TailTruncation,
                     Padding=new Thickness(2,0),
                 };
-                var resultHeader = new Label {
-                    Text="結果",
-                    FontSize=10,
-                    FontAttributes=FontAttributes.Bold,
-                    TextColor=Color.FromArgb("#0F172A"),
-                    HorizontalTextAlignment=TextAlignment.Center,
-                    VerticalTextAlignment=TextAlignment.Center,
-                    LineBreakMode=LineBreakMode.TailTruncation,
-                };
                 header.Add(logicalCore,2,0);
                 header.SetColumnSpan(logicalCore,2);
-                header.Add(resultHeader,4,0);
-                header.Add(measuredAt,5,0);
+                header.Add(measuredAt,4,0);
                 return header;
             }),
             CellTemplate=new DataTemplate(() => {
@@ -1633,7 +1663,6 @@ public sealed class MainPage:ContentPage {
                         new ColumnDefinition { Width = new GridLength(18) },
                         new ColumnDefinition { Width = new GridLength(24) },
                         new ColumnDefinition { Width = new GridLength(26) },
-                        new ColumnDefinition { Width = new GridLength(20) },
                         new ColumnDefinition { Width = GridLength.Star },
                     },
                     ColumnSpacing=2,
@@ -1700,17 +1729,6 @@ public sealed class MainPage:ContentPage {
                 CPU.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.HasCpuDisplay));
                 CPU.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.LogicalProcessorText));
                 CPU.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.LogicalProcessorText));
-                var resultCheck = new Label {
-                    FontSize=10,
-                    FontAttributes=FontAttributes.Bold,
-                    TextColor=Color.FromArgb("#0F172A"),
-                    InputTransparent=true,
-                    HorizontalTextAlignment=TextAlignment.Center,
-                    VerticalTextAlignment=TextAlignment.Center,
-                    LineBreakMode=LineBreakMode.TailTruncation,
-                };
-                resultCheck.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.ResultCheckText));
-                resultCheck.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.ResultSeedText));
                 var detail = new Label {
                     FontSize=BenchmarkGridDetailFontSize,
                     TextColor=Color.FromArgb("#334155"),
@@ -1754,8 +1772,7 @@ public sealed class MainPage:ContentPage {
                 content.Add(spinner,1,0);
                 content.Add(badge,2,0);
                 content.Add(CPU,3,0);
-                content.Add(resultCheck,4,0);
-                content.Add(detailHost,5,0);
+                content.Add(detailHost,4,0);
                 layout.Add(content,1,1);
                 this.AddBenchmarkProjectUiSelectionOutline(layout,this.GetBenchmarkProjectSelectionSide(cellPath),BenchmarkProjectSelectionSegment.First);
                 return layout;
@@ -1763,22 +1780,18 @@ public sealed class MainPage:ContentPage {
         };
     }
 
-    private DataGridTemplateColumn CreatePairStopNColumn(string mappingName,string bindingPath,string textColorPath,string fontAttributesPath) {
+    private DataGridTemplateColumn CreatePairStopNColumn(
+        string mappingName,
+        string bindingPath,
+        string textColorPath,
+        string fontAttributesPath,
+        BenchmarkGridSortColumn sortColumn) {
         return new DataGridTemplateColumn {
             MappingName=mappingName,
             HeaderText="要素数",
             Width=BenchmarkPairStopNColumnWidth,
             AllowSorting=false,
-            HeaderTemplate=new DataTemplate(() => new Label {
-                Text="要素数",
-                FontSize=10,
-                FontAttributes=FontAttributes.Bold,
-                TextColor=Color.FromArgb("#0F172A"),
-                BackgroundColor=Color.FromArgb("#F1F5F9"),
-                HorizontalTextAlignment=TextAlignment.Center,
-                VerticalTextAlignment=TextAlignment.Center,
-                Padding=new Thickness(2,0),
-            }),
+            HeaderTemplate=this.CreateHeaderTemplate("要素数",sortColumn),
             CellTemplate=new DataTemplate(() => {
                 var grid = new Grid {
                     BackgroundColor=Colors.Transparent,
@@ -1993,21 +2006,58 @@ public sealed class MainPage:ContentPage {
 
     private DataTemplate CreateHeaderTemplate(string text,BenchmarkGridSortColumn sortColumn) {
         return new DataTemplate(() => {
+            var grid = new Grid {
+                ColumnDefinitions= {
+                    new ColumnDefinition { Width = GridLength.Star },
+                    new ColumnDefinition { Width = new GridLength(12) },
+                },
+                BackgroundColor=Color.FromArgb("#F1F5F9"),
+                Padding=new Thickness(2,0),
+            };
             var label = new Label {
                 Text=text,
                 FontSize=10,
                 FontAttributes=FontAttributes.Bold,
                 TextColor=Color.FromArgb("#0F172A"),
-                BackgroundColor=Color.FromArgb("#F1F5F9"),
-                HorizontalTextAlignment=TextAlignment.Center,
+                HorizontalTextAlignment=TextAlignment.Start,
                 VerticalTextAlignment=TextAlignment.Center,
                 LineBreakMode=LineBreakMode.TailTruncation,
-                Padding=new Thickness(2,0),
             };
+            var icon = new Image {
+                WidthRequest=10,
+                HeightRequest=10,
+                Aspect=Aspect.AspectFit,
+                VerticalOptions=LayoutOptions.Center,
+                HorizontalOptions=LayoutOptions.Center,
+            };
+            void RefreshIcon() {
+                if(this.viewModel is null||this.viewModel.CurrentSortColumn!=sortColumn) {
+                    icon.IsVisible=false;
+                    return;
+                }
+
+                icon.IsVisible=true;
+                icon.Source=ImageSource.FromFile(this.viewModel.CurrentSortDescending ? "sort_desc.png" : "sort_asc.png");
+            }
+
+            RefreshIcon();
+            if(this.viewModel is not null) {
+                PropertyChangedEventHandler handler = (_,args) => {
+                    if(args.PropertyName==nameof(BenchmarkRunnerViewModel.CurrentSortColumn)
+                        ||args.PropertyName==nameof(BenchmarkRunnerViewModel.CurrentSortDescending)) {
+                        MainThread.BeginInvokeOnMainThread(RefreshIcon);
+                    }
+                };
+                this.viewModel.PropertyChanged+=handler;
+                grid.Unloaded+=(_,_) => this.viewModel.PropertyChanged-=handler;
+            }
+
+            grid.Add(label,0,0);
+            grid.Add(icon,1,0);
             var tap = new TapGestureRecognizer();
             tap.Tapped+=(_,_) => this.viewModel?.SortBenchmarkRows(sortColumn);
-            label.GestureRecognizers.Add(tap);
-            return label;
+            grid.GestureRecognizers.Add(tap);
+            return grid;
         });
     }
 
@@ -2078,6 +2128,27 @@ public sealed class MainPage:ContentPage {
             BackgroundColor=Color.FromArgb("#F8FAFC"),
             Padding=new Thickness(8),
             Content=logList,
+        };
+    }
+
+    private View CreateImprovementPromptView() {
+        var label = new Label {
+            FontSize=11,
+            TextColor=Color.FromArgb("#0F172A"),
+            LineBreakMode=LineBreakMode.WordWrap,
+            Margin=new Thickness(0),
+            Padding=new Thickness(0),
+        };
+        label.SetBinding(Label.TextProperty,nameof(BenchmarkRunnerViewModel.ImprovementPromptText));
+        return new Border {
+            Stroke=Color.FromArgb("#CBD5E1"),
+            StrokeThickness=1,
+            BackgroundColor=Color.FromArgb("#F8FAFC"),
+            Padding=new Thickness(8),
+            Content=new ScrollView {
+                Orientation=ScrollOrientation.Vertical,
+                Content=label,
+            },
         };
     }
 

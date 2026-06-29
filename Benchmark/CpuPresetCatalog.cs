@@ -2,9 +2,7 @@ namespace Benchmark;
 
 internal sealed record CpuPresetDefinition(string Key,string Label,IReadOnlyList<int> LogicalProcessorIndexes);
 
-#if TSAVORITE2_0BETA3
 [global::Seamless.FLinq.LinqIntercept(false)]
-#endif
 internal static class CpuPresetCatalog{
     public static IReadOnlyList<CpuPresetDefinition> Build(IReadOnlyList<CpuCoreInfo> cpuCores){
         if(cpuCores.Count==0){

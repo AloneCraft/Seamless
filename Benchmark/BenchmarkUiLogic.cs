@@ -609,9 +609,7 @@ internal sealed record CpuTableSectionDefinition(string Title,CpuCoreKind CoreKi
 
 internal sealed record CpuTableRowDefinition(string Label,IReadOnlyList<int> LogicalProcessorIndexes);
 
-#if TSAVORITE2_0BETA3
 [global::Seamless.FLinq.LinqIntercept(false)]
-#endif
 internal static class CpuSelectionTableLogic{
     public static IReadOnlyList<CpuTableSectionDefinition> BuildSections(IReadOnlyList<CpuCoreInfo> cpuCores){
         return [

@@ -7,7 +7,6 @@
     <IsTestProject>true</IsTestProject>
     <RootNamespace>Test.Tsavorite</RootNamespace>
     <AssemblyName>Test.Tsavorite</AssemblyName>
-    <DefineConstants>$(DefineConstants);TSAVORITE2_0BETA3</DefineConstants>
     <OutputType>Library</OutputType>
   </PropertyGroup>
   <ItemGroup>

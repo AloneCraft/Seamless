@@ -40,11 +40,6 @@ public class ParallelRandomStressTests {
     [Theory, InlineData(StressCountSmall), InlineData(StressCountLarge)]
     public void UnmanagedIntDictionary_ParallelAddRemove_Deterministic(int count) {
         const int Count = 1;
-#if TSAVORITE1_1_1
-        _=Count;
-        _=count;
-        return;
-#else
         var repeat = StressScale.Apply(Count);
         var temp = CreateTempDir($"uintdict-{count}");
         try {
@@ -99,17 +94,11 @@ public class ParallelRandomStressTests {
         finally {
             TryCleanup(temp);
         }
-#endif
     }
 
     [Theory, InlineData(StressCountSmall)]
     public void ManagedStringDictionary_ParallelAddRemove_Deterministic(int count) {
         const int Count = 5;
-#if TSAVORITE1_1_1
-        _=Count;
-        _=count;
-        return;
-#else
         var repeat = StressScale.Apply(Count);
         var temp = CreateTempDir($"strdict-{count}");
         try {
@@ -171,17 +160,11 @@ public class ParallelRandomStressTests {
         finally {
             TryCleanup(temp);
         }
-#endif
     }
 
     [Theory, InlineData(StressCountSmall), InlineData(StressCountLarge)]
     public void UnmanagedIntHashSet_ParallelAddRemove_Deterministic(int count) {
         const int Count = 1;
-#if TSAVORITE1_1_1
-        _=Count;
-        _=count;
-        return;
-#else
         var repeat = StressScale.Apply(Count);
         var temp = CreateTempDir($"uintset-{count}");
         try {
@@ -222,17 +205,11 @@ public class ParallelRandomStressTests {
         finally {
             TryCleanup(temp);
         }
-#endif
     }
 
     [Theory, InlineData(StressCountSmall)]
     public void ManagedStringHashSet_ParallelAddRemove_Deterministic(int count) {
         const int Count = 5;
-#if TSAVORITE1_1_1
-        _=Count;
-        _=count;
-        return;
-#else
         var repeat = StressScale.Apply(Count);
         var temp = CreateTempDir($"strset-{count}");
         try {
@@ -275,6 +252,5 @@ public class ParallelRandomStressTests {
         finally {
             TryCleanup(temp);
         }
-#endif
     }
 }

@@ -12,6 +12,7 @@ public enum BenchmarkTab{
 public enum BenchmarkLowerTab{
     Cpu,
     Log,
+    ImprovementPrompt,
 }
 
 public enum BenchmarkMetricKind{
@@ -26,6 +27,7 @@ public enum BenchmarkChartMode{
 
 public enum BenchmarkGridSortColumn{
     BenchmarkName,
+    ElementCount,
     PairRatioTime,
     PairRatioAllocated,
     LeftTime,
@@ -71,7 +73,7 @@ public readonly record struct BenchmarkSortValue(string? Text,double? Number,boo
         return ratio.Kind switch{
             RatioValueKind.Numeric when ratio.NumericValue is { } value => FromNumber(value),
             RatioValueKind.BothZero => FromNumber(0),
-            RatioValueKind.LeftOnly => FromNumber(double.PositiveInfinity),
+            RatioValueKind.LeftOnly => FromFiniteOrInfinity(double.PositiveInfinity),
             RatioValueKind.RightOnly => FromNumber(0),
             _ => Missing,
         };
@@ -79,6 +81,12 @@ public readonly record struct BenchmarkSortValue(string? Text,double? Number,boo
 
     public static BenchmarkSortValue FromNumber(double? value){
         return value is { } number&&double.IsFinite(number)
+            ? new(null,number,false)
+            : Missing;
+    }
+
+    public static BenchmarkSortValue FromFiniteOrInfinity(double? value){
+        return value is { } number&&!double.IsNaN(number)
             ? new(null,number,false)
             : Missing;
     }
@@ -775,6 +783,16 @@ public sealed class BenchmarkTableRow:ObservableObject{
         ? this.ElementCountText
         : this.stopNText;
 
+    public double? ElementCountSortValue{
+        get{
+            var values = new[] {
+                this.LeftCell.LastSuccessfulElementCount,
+                this.RightCell.LastSuccessfulElementCount,
+            }.Where(static value => value is not null).Select(static value => (double)value!.Value).ToArray();
+            return values.Length==0 ? null : values.Max();
+        }
+    }
+
     private string ElementCountText{
         get{
             var left = this.LeftCell.ElementCountText;
@@ -974,6 +992,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
         var row = this.comparisonRow;
         return column switch{
             BenchmarkGridSortColumn.BenchmarkName => BenchmarkSortValue.FromText(this.BenchmarkName),
+            BenchmarkGridSortColumn.ElementCount => BenchmarkSortValue.FromNumber(this.ElementCountSortValue),
             BenchmarkGridSortColumn.PairRatioTime => row is { } value ? BenchmarkSortValue.FromRatio(value.PairRatio.TimeRatio) : BenchmarkSortValue.Missing,
             BenchmarkGridSortColumn.PairRatioAllocated => row is { } value ? BenchmarkSortValue.FromRatio(value.PairRatio.AllocatedRatio) : BenchmarkSortValue.Missing,
             BenchmarkGridSortColumn.LeftTime => BenchmarkSortValue.FromMetric(this.LeftCell.Metrics,BenchmarkMetricKind.Time),

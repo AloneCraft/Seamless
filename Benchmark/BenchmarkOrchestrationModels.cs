@@ -104,9 +104,7 @@ public sealed class BenchmarkJob {
             this.ExitCode);
 }
 
-#if TSAVORITE2_0BETA3
 [global::Seamless.FLinq.LinqIntercept(false)]
-#endif
 internal sealed class AdaptiveBenchmarkState {
     public string MethodName { get; set; } = string.Empty;
     public bool IsStopped { get; set; }
@@ -118,9 +116,7 @@ internal sealed class AdaptiveBenchmarkState {
     public double? TriggerMeanNanoseconds { get; set; }
 }
 
-#if TSAVORITE2_0BETA3
 [global::Seamless.FLinq.LinqIntercept(false)]
-#endif
 internal sealed class ProgressState {
     public int SchemaVersion { get; set; } = 1;
     public string RunId { get; set; } = string.Empty;

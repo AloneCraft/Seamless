@@ -193,10 +193,7 @@ public class Enumerator {
             var expected = Enumerable.Range(0,2048).Select(i => "s"+i).ToArray();
             foreach(var value in expected)
                 set.Add(value);
-
-#if TSAVORITE2_0BETA3
             store.Store.Log.FlushAndEvict(wait:true);
-#endif
 
             var enumerated = new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
             foreach(var value in set)
@@ -214,10 +211,7 @@ public class Enumerator {
             var toArraySet = toArray.ToHashSet(StringComparer.Ordinal);
             Assert.Equal(expected.Length,toArraySet.Count);
             Assert.All(expected,value => Assert.Contains(value,toArraySet));
-
-#if TSAVORITE2_0BETA3
             store.Store.Log.FlushAndEvict(wait:true);
-#endif
         }
         finally {
             try {
