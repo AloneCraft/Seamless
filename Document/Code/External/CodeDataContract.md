@@ -32,7 +32,7 @@ review_status: draft
 
 - checkpoint metadata は filesystem 上に JSON として保存される（`Tsavorite.Collections/Stores/HashStore.cs:94`）。
 - schema generated record は MemoryPack serialization を実装する（`Seamless.Database/SourceGenerator/GenerateDatabase.cs:161`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:170`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:175`）。
-- benchmark runner は worker protocol に JSON serialization を使い、最終 report は CSV/HTML に出力する（`Benchmark/BenchmarkWorkerHost.cs:39`, `Benchmark/MainPage.xaml.cs:1153`, `Benchmark/MainPage.xaml.cs:1160`）。
+- benchmark runner は worker protocol に JSON serialization を使い、最終 report は CSV/HTML に出力する（`Shared/UI/BenchmarkWorkerClient.cs:39`, `Benchmark/MainPage.xaml.cs:1153`, `Benchmark/MainPage.xaml.cs:1160`）。
 
 ## Review Gate: Code External
 

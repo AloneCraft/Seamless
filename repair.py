@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Tsavorite.Collection.Shared 文字化け修復"""
+"""Shared/Tsavorite.Collections 文字化け修復"""
 import pathlib, shutil
 
-BASE = pathlib.Path("g:/GitHub/Seamless/Tsavorite.Collection.Shared")
+BASE = pathlib.Path("g:/GitHub/Seamless/Shared/Tsavorite.Collections")
 
 def fix_file(fn, method):
     path = BASE / fn

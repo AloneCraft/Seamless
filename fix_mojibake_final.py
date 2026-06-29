@@ -22,7 +22,7 @@ FILES = [
     "HashSetDebugView.cs",
 ]
 
-BASE = pathlib.Path("g:/GitHub/Seamless/Tsavorite.Collection.Shared")
+BASE = pathlib.Path("g:/GitHub/Seamless/Shared/Tsavorite.Collections")
 REPORT_PATH = pathlib.Path("g:/GitHub/Seamless/fix_final_report.txt")
 
 def recover_from_mojibake(text: str) -> str | None:

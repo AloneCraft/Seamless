@@ -20,8 +20,8 @@ flowchart LR
     FLinq[FLinq / Tsavorite.SourceGenerator]
     DB[Seamless.Database SourceGenerator]
     Collections[Tsavorite.Collections]
-    BenchShared[Benchmark.Shared]
-    BenchProjects[Benchmark.* Projects]
+    BenchShared[Common]
+    BenchProjects[Benchmark workload Projects]
     Tests[Test Projects]
     Uno[Benchmark]
 
@@ -44,7 +44,7 @@ flowchart LR
 | `FLinq` | LINQ interceptor source generator。 | `FLinq/FLinq.csproj:8`, `FLinq/FLinq.csproj:14`, `FLinq/FLinq.csproj:19` |
 | `Seamless.Database` | schema source generator。 | `Seamless.Database/Seamless.Database.csproj:8`, `Seamless.Database/Seamless.Database.csproj:14`, `Seamless.Database/Seamless.Database.csproj:19` |
 | `Tsavorite.Collections` | collection runtime と LINQ/counter runtime。 | `Tsavorite.Collections/Tsavorite.Collections.csproj:4`, `Tsavorite.Collections/Tsavorite.Collections.csproj:14`, `Tsavorite.Collections/Tsavorite.Collections.csproj:15` |
-| `Benchmark` | benchmark UI/worker host。 | `Benchmark/Benchmark.csproj:1`, `Benchmark/Benchmark.csproj:33`, `Benchmark/Benchmark.csproj:34` |
+| `Benchmark` | benchmark UI/worker host。 | `Benchmark/UI/UI.csproj:1`, `Benchmark/UI/UI.csproj:33`, `Benchmark/UI/UI.csproj:34` |
 | `Test.*` | xUnit と生成コード検証。 | `Seamless.slnx:28`, `Seamless.slnx:31`, `Seamless.slnx:40` |
 
 ## Review Gate: Code Internal

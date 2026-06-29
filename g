@@ -2,7 +2,7 @@
 """Debug position 639 in Enumerator.cs"""
 import pathlib
 
-raw = pathlib.Path("g:/GitHub/Seamless/Tsavorite.Collection.Shared/Enumerator.cs").read_bytes()
+raw = pathlib.Path("g:/GitHub/Seamless/Shared/Tsavorite.Collections/Enumerator.cs").read_bytes()
 
 with open("g:/GitHub/Seamless/debug_639.txt", "w", encoding="utf-8") as f:
     start = max(0, 620)

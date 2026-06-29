@@ -6,7 +6,7 @@ namespace Test.System.Linq.BenchmarkValueComparison;
 
 public sealed class BenchmarkValueComparisonTests {
     private const int ComparisonIterationCount = 3;
-    private const string BenchmarkExecutionModeTypeName = "Benchmark.Shared.BenchmarkExecutionMode";
+    private const string BenchmarkExecutionModeTypeName = "Common.BenchmarkExecutionMode";
     private const string ElementCountEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_COUNT";
     private const string Methods1TypeName = "Seamless.Linq.Shared.Methods1";
 

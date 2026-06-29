@@ -6,7 +6,7 @@ FLinq は LINQ chain をコンパイル時に展開し、delegate 呼び出し�
 `src/Tsavorite.Collections/Linq/AnchorExtensions.cs` には `value.Anchor()` 拡張メソッドがあり、現在は `SelectMany` の一部 hoist 抑止で文字列検出されているだけである。
 
 ## 現状の観察
-- `sandbox/Benchmark.Shared/Benchmarks/DistinctBy_keySelector.cs` は `DistinctBy(x => x % 1000)` を 1-4 段重ねる。
+- `Shared/Common/Benchmarks/DistinctBy_keySelector.cs` は `DistinctBy(x => x % 1000)` を 1-4 段重ねる。
 - BDN 実測では `FLinq4` が特に遅く、生成コードでは各段ごとに `HashSet<int>` が作られている。
 - `Pipeline.NormalizeStages` には連続 `DistinctBy` を畳む処理があるが、`.Consume(this.consumer)` の Fragment 経路には効いていない。
 - `AlgebraicRewriter` には `Where` 並べ替え用の安全判定があるが、今後の方針では既定を副作用なしとし、ユーザーが `Anchor` で境界を明示する。
@@ -38,7 +38,7 @@ FLinq は LINQ chain をコンパイル時に展開し、delegate 呼び出し�
 - `src/FLinq/SourceGenerator/LinqGeneratedCodeRendering.cs`
 - `src/FLinq/SourceGenerator/Linq/Fragments/Pipeline.cs`
 - `src/FLinq/SourceGenerator/Linq/Fragments/SelectMany.cs`
-- `tests/Test.Tsavorite.Collections` または `sandbox/Benchmark.Tests`
+- `tests/Test.Tsavorite.Collections` または `Test`
 
 ## 移行手順
 - `Anchor()` 呼び出しは `Anchor` プロパティへ置き換える。
@@ -50,7 +50,7 @@ FLinq は LINQ chain をコンパイル時に展開し、delegate 呼び出し�
 - `DistinctBy(x => x % 1000).DistinctBy(x => x % 1000)` が 1 段へ畳まれること。
 - `DistinctBy(x => GetKey(x).Anchor).DistinctBy(x => GetKey(x).Anchor)` は 2 段を維持し、`GetKey` の評価回数を保つこと。
 - `Anchor` があっても `Where` / `Select` / `Consume` 直結は継続すること。
-- `dotnet test sandbox/Benchmark.Tests/Benchmark.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~DistinctBy_keySelector` を通す。
+- `dotnet test Test/Tests.csproj -c Release --no-restore --filter FullyQualifiedName~DistinctBy_keySelector` を通す。
 - 可能なら既存 DLL または再ビルド後の BDN で `DistinctBy_keySelector` を再測定する。
 
 ## リスクと対策

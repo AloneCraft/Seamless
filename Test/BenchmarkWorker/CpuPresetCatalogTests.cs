@@ -1,4 +1,4 @@
-using Benchmark;
+using UI;
 
 namespace Test.BenchmarkWorker;
 

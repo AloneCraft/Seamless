@@ -11,7 +11,7 @@ FILES = [
     "HashSetDebugView.cs",
 ]
 
-BASE = pathlib.Path("g:/GitHub/Seamless/Tsavorite.Collection.Shared")
+BASE = pathlib.Path("g:/GitHub/Seamless/Shared/Tsavorite.Collections")
 OUT = pathlib.Path("g:/GitHub/Seamless/byte_analysis.txt")
 
 with open(OUT, "w", encoding="utf-8") as f:

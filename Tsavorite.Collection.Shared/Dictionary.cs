@@ -1,9 +1,0 @@
-namespace Tsavorite.Collection;
-
-public class DictionaryStringString : DictionaryTestBase<ManagedStoreDictionaryStrategy<StringDictTypeProvider, StringDictTypeProvider, string, string>, string, string>;
-public class DictionaryStringInt32 : DictionaryTestBase<UnmanagedValueDictionaryStrategy<StringDictTypeProvider, IntDictTypeProvider, string, int>, string, int>;
-public class DictionaryInt32String : DictionaryTestBase<UnmanagedKeyDictionaryStrategy<IntDictTypeProvider, StringDictTypeProvider, int, string>, int, string>;
-public class DictionaryInt32Int32 : DictionaryTestBase<UnmanagedStoreDictionaryStrategy<IntDictTypeProvider, IntDictTypeProvider, int, int>, int, int>;
-public class DictionaryUnmanagedStructUnmanagedStruct : DictionaryTestBase<UnmanagedStoreDictionaryStrategy<UnmanagedStructDictTypeProvider, UnmanagedStructDictTypeProvider, UnmanagedStruct, UnmanagedStruct>, UnmanagedStruct, UnmanagedStruct>;
-public class DictionaryManagedStructManagedStruct : DictionaryTestBase<ManagedStoreDictionaryStrategy<ManagedStructDictTypeProvider, ManagedStructDictTypeProvider, ManagedStruct, ManagedStruct>, ManagedStruct, ManagedStruct>;
-public class DictionaryManagedClassManagedClass : DictionaryTestBase<ManagedStoreDictionaryStrategy<ManagedClassDictTypeProvider, ManagedClassDictTypeProvider, ManagedClass, ManagedClass>, ManagedClass, ManagedClass>;

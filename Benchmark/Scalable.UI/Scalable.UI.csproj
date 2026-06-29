@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net10.0-windows10.0.19041.0</TargetFrameworks>
+    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('OSX'))">$(TargetFrameworks);net10.0-maccatalyst</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>UI</RootNamespace>
+    <AssemblyName>Scalable.UI</AssemblyName>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
+    <DefineConstants>$(DefineConstants);SCALABLE_BENCHMARK</DefineConstants>
+    <ApplicationTitle>Seamless Scalable Benchmark</ApplicationTitle>
+    <ApplicationId>com.seamless.benchmark.scalable</ApplicationId>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.19041.0</SupportedOSPlatformVersion>
+    <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.19041.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
+    <WindowsPackageType Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">None</WindowsPackageType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
+    <PackageReference Include="Syncfusion.Maui.Buttons" Version="33.2.15" />
+    <PackageReference Include="Syncfusion.Maui.DataGrid" Version="33.2.15" />
+    <PackageReference Include="Syncfusion.Licensing" Version="33.2.15" />
+    <PackageReference Include="Syncfusion.Maui.Toolkit" Version="1.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Seamless.FLinq\Seamless.FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" SetTargetFramework="TargetFramework=net10.0" />
+    <ProjectReference Include="..\Scalable.Persisted.Collections\Scalable.Persisted.Collections.csproj" />
+    <ProjectReference Include="..\Scalable.Tsavorite.Collections\Scalable.Tsavorite.Collections.csproj" />
+  </ItemGroup>
+
+  <Target Name="CopyBenchmarkWorkerHost" AfterTargets="Build" Condition="'$(IsCrossTargetingBuild)' != 'true' and '$(TargetDir)' != ''">
+    <MSBuild Projects="$(MSBuildProjectDirectory)\..\Worker\Worker.csproj" Targets="Build" Properties="Configuration=$(Configuration);TargetFramework=net10.0" />
+
+    <ItemGroup>
+      <_BenchmarkWorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.exe" Condition="Exists('$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.exe')" />
+      <_BenchmarkWorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.dll" Condition="Exists('$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.dll')" />
+      <_BenchmarkWorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.deps.json" Condition="Exists('$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.deps.json')" />
+      <_BenchmarkWorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.runtimeconfig.json" Condition="Exists('$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.runtimeconfig.json')" />
+      <_BenchmarkWorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.pdb" Condition="Exists('$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.pdb')" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(_BenchmarkWorkerFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="'@(_BenchmarkWorkerFiles)' != ''" />
+  </Target>
+
+  <Import Project="..\..\Shared\UI.projitems" Label="Shared" />
+</Project>

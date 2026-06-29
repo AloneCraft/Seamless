@@ -1,6 +1,6 @@
 ---
 name: calibrate-linq-test-workloads
-description: Seamless の System LINQ benchmark-as-test 負荷を再調整する。Benchmark.Shared/Methods1.cs の要素数または反復回数を、Test.System.Linq.Enumerable.Linq、Test.System.Linq.Enumerable.FLinq、Test.System.Linq.Enumerable.ZLinq の Release 直列 Stopwatch 計測が目標時間内に収まるよう調整するときに使う。
+description: Seamless の System LINQ benchmark-as-test 負荷を再調整する。Shared/Seamless.Linq.Enumerable/Methods1.cs の要素数または反復回数を、Test.System.Linq.Enumerable.Linq、Test.System.Linq.Enumerable.FLinq、Test.System.Linq.Enumerable.ZLinq の Release 直列 Stopwatch 計測が目標時間内に収まるよう調整するときに使う。
 ---
 
 # LINQ テスト負荷調整
@@ -12,7 +12,7 @@ description: Seamless の System LINQ benchmark-as-test 負荷を再調整する
 ## 対象範囲
 
 - 対象は `Test.System.Linq.Enumerable.Linq`、`Test.System.Linq.Enumerable.FLinq`、`Test.System.Linq.Enumerable.ZLinq` のみ。
-- ユーザーが明示的に範囲を広げない限り、調整対象は `Benchmark.Shared/Methods1.cs` の負荷定数と `*_iterationCount` だけにする。
+- ユーザーが明示的に範囲を広げない限り、調整対象は `Shared/Seamless.Linq.Enumerable/Methods1.cs` の負荷定数と `*_iterationCount` だけにする。
 - 要素数の基準は LINQ の Release 直列 Stopwatch 計測に置く。
 - LINQ の benchmark メソッドは `500 ms` 目安に対して余裕を持たせ、`450 ms` 以下を目標にする。
 - FLinq と ZLinq は成功確認だけを行う。FLinq または ZLinq の時間超過だけを理由に、共有負荷を追加で縮小しない。
@@ -36,7 +36,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\.codex\skills\calibrate-li
 
 1. warmup 有効で LINQ の Release 計測を行う。
 2. `ElapsedMs` が `450` を超える行を探す。
-3. 遅いメソッドを、`Benchmark.Shared/Methods1.cs` 内で使っている負荷定数または `*_iterationCount` に対応付ける。
+3. 遅いメソッドを、`Shared/Seamless.Linq.Enumerable/Methods1.cs` 内で使っている負荷定数または `*_iterationCount` に対応付ける。
 4. 複数メソッドが同じ定数を共有する場合は、その定数に依存する LINQ メソッドのうち最も遅いものを基準にする。
 5. `current * 450 / elapsedMs` で縮小後の値を計算し、次の規則で切り下げる。
    - `>= 1_000_000`: 直近下位の `100_000` 単位

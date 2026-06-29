@@ -1,8 +1,8 @@
-# Benchmark.Shared の BENCH_AS_TEST 条件分岐削減
+# Common の BENCH_AS_TEST 条件分岐削減
 
 ## 背景
 
-`sandbox/Benchmark.Shared/Benchmarks` の各ベンチマーククラスには、xUnit 実行時だけ有効な `#if BENCH_AS_TEST` が散在している。
+`Shared/Common/Benchmarks` の各ベンチマーククラスには、xUnit 実行時だけ有効な `#if BENCH_AS_TEST` が散在している。
 主な用途は、クラス単位の `Xunit.TestCaseOrderer`、結果比較用の `Results_match`、最適化なし比較用の `FLinqNoOptimized` である。
 
 一方、`Base.cs` 内の `#if BENCH_AS_TEST` は、テスト時の件数縮小、`Consumer` の capture、`AssertResults` の実比較など、BenchmarkDotNet 実行条件に関わる分岐を含む。
@@ -10,9 +10,9 @@
 
 ## 現状の観察
 
-- `sandbox/Benchmark.Shared/Benchmark.Shared.projitems` は `Benchmarks/**/*.cs` を `sandbox/Benchmark` と `sandbox/Benchmark.Tests` の両方へ取り込む。
-- `sandbox/Benchmark.Tests/Benchmark.Tests.csproj` は `BENCH_AS_TEST` を定義し、xUnit 参照と `Using Include="Xunit"` を持つ。
-- `sandbox/Benchmark/Benchmark.csproj` は `BENCH_AS_TEST` を定義せず、BenchmarkDotNet 実行を目的にする。
+- `Shared/Common/Common.projitems` は `Benchmarks/**/*.cs` を `Benchmark/UI` と `Test` の両方へ取り込む。
+- `Test/Tests.csproj` は `BENCH_AS_TEST` を定義し、xUnit 参照と `Using Include="Xunit"` を持つ。
+- `Benchmark/UI/UI/UI.csproj` は `BENCH_AS_TEST` を定義せず、BenchmarkDotNet 実行を目的にする。
 - `BenchFact.cs` は `BENCH_AS_TEST` 時に xUnit の `FactAttribute` / trait / orderer を定義し、非 `BENCH_AS_TEST` 時は `BenchFactAttribute` だけを no-op として定義している。
 - 各ベンチマーククラスには同じ `#if BENCH_AS_TEST [Xunit.TestCaseOrderer(typeof(TestPriorityOrderer))] #endif` が重複している。
 - `Xunit.TestCaseOrdererAttribute` は assembly に適用できるため、クラスごとの指定は assembly 属性へ集約できる。
@@ -74,11 +74,11 @@
 
 ## 影響範囲
 
-- `sandbox/Benchmark.Shared/Benchmarks/BenchFact.cs`
-- `sandbox/Benchmark.Shared/Benchmarks/Base.cs`
-- `sandbox/Benchmark.Shared/Benchmarks/*.cs`
-- `sandbox/Benchmark.Tests/Benchmark.Tests.csproj` での xUnit 実行
-- `sandbox/Benchmark/Benchmark.csproj` での BenchmarkDotNet ビルド
+- `Shared/Common/Benchmarks/BenchFact.cs`
+- `Shared/Common/Benchmarks/Base.cs`
+- `Shared/Common/Benchmarks/*.cs`
+- `Test/Tests.csproj` での xUnit 実行
+- `Benchmark/UI/UI/UI.csproj` での BenchmarkDotNet ビルド
 
 ## 移行手順
 
@@ -90,8 +90,8 @@
 
 ## テスト計画
 
-- `dotnet test sandbox/Benchmark.Tests/Benchmark.Tests.csproj --no-restore`
-- `dotnet build sandbox/Benchmark/Benchmark.csproj --no-restore`
+- `dotnet test Test/Tests.csproj --no-restore`
+- `dotnet build Benchmark/UI/UI/UI.csproj --no-restore`
 - 必要に応じて代表ケースを filter して確認する。
   - 単発スカラー: `Aggregate_func`
   - 4 段チェーン: `Where_predicate`
@@ -102,7 +102,7 @@
 - リスク: BDN 側で `Results_match` が何らかの方法で呼ばれると `NotSupportedException` になる。
   - 対策: `[Benchmark]` を付けず、テスト用メソッドとして明示する。これは意図的な fail-fast とする。
 - リスク: assembly orderer が想定外のテストにも適用される。
-  - 対策: 適用対象は `Benchmark.Shared` を取り込む `Benchmark.Tests` アセンブリ全体。現状の用途では全ベンチ共有テストへの一律適用が意図に合う。
+  - 対策: 適用対象は `Common` を取り込む `Tests` アセンブリ全体。現状の用途では全ベンチ共有テストへの一律適用が意図に合う。
 - リスク: BDN 側に `FLinqNoOptimized` が存在することで source generator の出力が増える。
   - 対策: ユーザー合意済み。測定対象ではないため実行時測定には影響させない。
 - リスク: 機械的削除で `#if` / `#endif` の対応を壊す。
