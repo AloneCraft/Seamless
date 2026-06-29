@@ -245,7 +245,7 @@ public class SelectMany_selector_resultSelector(int 番号, Enumerable source, F
 
 /// <summary>
 /// selector の本体 LINQ チェーンを struct のまま展開する SelectMany。
-/// <br/>IEnumerator&lt;T&gt;? ではなく具象 struct 型フィールドを使うことで、
+/// source generator の生成コードを検証する。
 /// インターフェースディスパッチを排除し、毎外要素でのデリゲート呼び出しもなくす。
 /// </summary>
 /*
@@ -283,7 +283,7 @@ public class SelectMany_WithInlinedInner(int 番号, Enumerable source, Enumerab
     // No selector parameter — outer struct only needs the outer source enumerator
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
 
-    // Use concrete struct type + bool flag instead of IEnumerator<T>?
+    // source generator の生成コードを検証する。
     public override string GetEnumeratorFields => $$"""
         private {{this.InnerEnumeratorTypeName}} innerEnumerator = default!;
         private bool {{this.hasValue}} = false;

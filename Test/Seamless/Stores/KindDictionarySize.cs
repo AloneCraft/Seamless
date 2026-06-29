@@ -2,12 +2,12 @@ using Seamless.Tsavorite.Stores;
 namespace Test.Seamless.Stores;
 
 /// <summary>
-/// 4��ނ�Dictionary�����O�T�C�Y�ɍ����o�邱�Ƃ�m�F����e�X�g�B
-/// int �L�[ + int �l �� N ���}����� TailAddress ���r����B
+/// Dictionaryの動作を検証する。
+/// Dictionaryの動作を検証する。
 /// </summary>
 public partial class KindDictionarySize(ITestOutputHelper output) {
     private const int N = 1000;
-    private const long MemorySize = 1L<<20; // 1MB: N=1000�G���g���ɂ͏\��
+    private const long MemorySize = 1L<<20;
     private static readonly string[] KindOrder = [
         "UnmanagedUnmanaged",
         "UnmanagedManaged",

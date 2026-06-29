@@ -141,7 +141,7 @@ public class StoreCheckpoint {
         }
     }
     [BenchFact,Benchmark]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:繝励Λ繝�Eヨ繝輔か繝ｼ繝縺�E�莠呈鋤諤�E�繧呈､懁E���E�",Justification = "<菫晉蕗荳�E�>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416: Validate platform compatibility",Justification = "Test exercises platform-specific Tsavorite device APIs.")]
     public async Task SaveAsync_LoadAsync_Dictionary_RecoveryIndexRestoresAndReadWorks() {
         var ct = CancellationToken.None;
         var folder = CreateFolder();
@@ -260,7 +260,7 @@ public class StoreCheckpoint {
         using var store = Store.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
         using var set = store.Create();
         set.Add(1);
-        // SaveAsync 縺悟�E譛溽噪縺�E�繝ｭ繝�Eけ繧貞叙蠕励�E�縺�E�縺九ｉ髱槫酔譛�EI/O 繧貞ｾ・�E�溘�E繧九◆繧√・        // await 縺帙�E繧�E�繧�E�繧�E�繧剁E��晁E��縺励※縺翫�E�縺薙�E縺�E�繝ｭ繝�Eけ縺悟叙蠕励�E�E��後◆迥�E�諷九ｒ邯�E�謖�E〒縺阪�E�E
+        // この分岐の動作を検証する。
         var ongoingCheckpoint = store.SaveAsync(ct: ct).AsTask();
         await Assert.ThrowsAsync<InvalidOperationException>(() => store.SaveAsync(ct: ct).AsTask());
         await ongoingCheckpoint;
@@ -275,7 +275,7 @@ public class StoreCheckpoint {
         using var store = Store.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
         using var set = store.Create();
         set.Add(1);
-        // SaveLogOnlyAsync 縺悟�E譛溽噪縺�E�繝ｭ繝�Eけ繧貞叙蠕励�E�縺�E�縺九ｉ髱槫酔譛�EI/O 繧貞ｾ・�E�溘�E繧九◆繧√・        // await 縺帙�E繧�E�繧�E�繧�E�繧剁E��晁E��縺励※縺翫�E�縺薙�E縺�E�繝ｭ繝�Eけ縺悟叙蠕励�E�E��後◆迥�E�諷九ｒ邯�E�謖�E〒縺阪�E�E
+        // この分岐の動作を検証する。
         var ongoingCheckpoint = store.SaveLogOnlyAsync(ct: ct).AsTask();
         await Assert.ThrowsAsync<InvalidOperationException>(() => store.SaveLogOnlyAsync(ct: ct).AsTask());
         await ongoingCheckpoint;
@@ -295,9 +295,9 @@ public class StoreCheckpoint {
     }
     [SupportedOSPlatform("windows")]
     private class SimulatedFlakyDevice(string path):LocalStorageDevice(path,false,false,false,-1,false,false,false) {
-        // 螟ｱ謨励�E�E��帙ｋ縺九�E縺・°縺�E�繧�E�繧�E�繝�Eメ
+        // この分岐の動作を検証する。
         public bool ShouldFail { get; set; } = false;
-        // 繝�Eぉ繝�Eけ繝昴ぁE��ｳ繝磯�E�陦御�E��E�迥�E�諷九ｒ菴懊ｋ縺溘ａ縺�E�驕�E�E��E�(ms)
+        // この分岐の動作を検証する。
         public int WriteDelayMilliseconds { get; set; } = 0;
 
         public override void WriteAsync(IntPtr srcAddress,int alignedSourceNextAddress,ulong alignedDestinationAddress,uint numBytesToWrite,DeviceIOCompletionCallback callback,object callbackContext) {

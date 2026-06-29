@@ -37,7 +37,7 @@ public sealed class Upsert:AddTests<int,string> {
         using var session=store.Store.NewSession<FixedSpanByteKey, string, bool, EqualityEmpty, global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>>(new());
         var bc=session.BasicContext;
         var key=MakeKey(SerInt(200));
-        //InitialWriter(ReadOnlySpan<byte>)��closing}��ʂ�
+        // Upsert writerの動作を検証する。
         {
             var status=bc.Upsert(key,SerStr("new"));
             if(status.IsPending){
@@ -51,7 +51,7 @@ public sealed class Upsert:AddTests<int,string> {
         using var session=store.Store.NewSession<FixedSpanByteKey, string, bool, EqualityEmpty, global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>>(new());
         var bc=session.BasicContext;
         var key=MakeKey(SerInt(200));
-        //InitialWriter(ReadOnlySpan<byte>)��closing}��ʂ�
+        // Upsert writerの動作を検証する。
         {
             var status=bc.Upsert(key,SerStr("new"));
             if(status.IsPending){
@@ -59,7 +59,7 @@ public sealed class Upsert:AddTests<int,string> {
                 completed.Dispose();
             }
         }
-        //InPlaceWriter(ReadOnlySpan<byte>)��closing}��ʂ�
+        // Upsert writerの動作を検証する。
         {
             var status=bc.Upsert(key,SerStr("updated"));
             if(status.IsPending){
@@ -85,17 +85,17 @@ public sealed class Upsert:AddTests<int,string> {
         using var session=store.Store.NewSession<FixedSpanByteKey, string, bool, EqualityEmpty, global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>>(new());
         var bc=session.BasicContext;
         var key=MakeKey(SerInt(500));
-        // �V�K�L�[ �� GetUpsertFieldInfo(IHeapObject), InitialWriter(IHeapObject)
-        // SpanByteAllocator�ł�InitialWriter(IHeapObject)��false��Ԃ�����PostInitialWriter(IHeapObject)�͌Ă΂�Ȃ�
+        // Upsert 経路はこの処理では使用しない。
+        // Upsert writerの動作を検証する。
         bc.Upsert(key,(IHeapObject)new DummyHeapObject());
-        // PostUpsertOperation(IHeapObject) �� finally�u���b�N�ŏ�ɌĂ΂��
+        // Upsert 経路はこの処理では使用しない。
         bc.Upsert(key,(IHeapObject)new DummyHeapObject());
-        // �X�p���l�Ŏ��O�o�^��IHeapObject��Upsert �� �������R�[�h������InPlaceWriter(IHeapObject)���Ă΂��
-        // SpanByteAllocator��ValueIsObject�r�b�g��N���A���邽��InPlaceWriter��false��Ԃ�
+        // Upsert 経路はこの処理では使用しない。
+        // Upsert 経路はこの処理では使用しない。
         var key2=MakeKey(SerInt(502));
         bc.Upsert(key2,SerStr("seed"));
         bc.Upsert(key2,(IHeapObject)new DummyHeapObject());
-        // PostInitialWriter(IHeapObject)��SpanByteAllocator�ł͓��B���Ȃ����ߒ��ڌĂяo���ibody����Ȃ̂�default�����ň��S�j
+        // Upsert writerの動作を検証する。
         {
             var f=new global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>();
             var lr=default(LogRecord);
@@ -159,10 +159,10 @@ public sealed class Upsert:AddTests<int,string> {
         var addr1=store.Store.Log.TailAddress;
         session.BasicContext.Upsert(MakeKey(SerInt(600)),SerStr("log"));
         var addr2=store.Store.Log.TailAddress;
-        // �V�K�L�[(9999) �� GetUpsertFieldInfo<TKey,TSourceLogRecord>, InitialWriter<TSourceLogRecord>, PostInitialWriter<TSourceLogRecord>
+        // Upsert 経路はこの処理では使用しない。
         var initFuncs=new ScanAndUpsertFunctions(session,SerInt(9999));
         store.Store.Log.Scan(ref initFuncs,addr1,addr2,DiskScanBufferingMode.NoBuffering);
-        // �����L�[(600) �� GetUpsertFieldInfo<TSourceLogRecord,TSourceLogRecord>, InPlaceWriter<TSourceLogRecord>
+        // Upsert writerの動作を検証する。
         var inplaceFuncs=new ScanAndUpsertFunctions(session,null);
         store.Store.Log.Scan(ref inplaceFuncs,addr1,addr2,DiskScanBufferingMode.NoBuffering);
     }

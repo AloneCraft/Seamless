@@ -1,15 +1,15 @@
 using Seamless.Tsavorite.Collections;
 namespace Seamless.Tsavorite.SessionFunctions;
 /// <summary>
-/// RMW で Key,Value 両方が一致するエントリのみ削除するセチE�E��E�ョン関数、E
-/// output=true で削除成功を通知する、E
-/// 冁E�E��E�でログの値をデシリアライズし、input�E�E�E�EValue�E�E�E�と Equals 比輁E�E��E�る、E
+/// RMW で Key, Value 両方が一致するエントリのみ削除するセッション関数。
+/// output=true で削除成功を通知する。
+/// 内部でログの値をデシリアライズし、input と Equals 比較する。
 /// </summary>
 public readonly struct Remove_KeyValuePair<TValue, TStrategy>:
     ISessionFunctions<TValue,bool,EqualityEmpty>    where TStrategy : ISerializer<TValue> {
     [ExcludeFromCodeCoverage]
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref TValue input,ref bool output,ref ReadInfo readInfo) where TSourceLogRecord : ISourceLogRecord =>
-        // Read 操作�E使用しなぁE�E��E�E
+        // Read 経路はこの処理では使用しない。
     throw new NotSupportedException();
     public bool NeedInitialUpdate<TKey>(TKey key,ref TValue input,ref bool output,ref RMWInfo rmwInfo)
 #if NET10_0_OR_GREATER
@@ -21,10 +21,10 @@ public readonly struct Remove_KeyValuePair<TValue, TStrategy>:
     }
     [ExcludeFromCodeCoverage]
     public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo) {
-        // NeedInitialUpdate ぁEfalse を返すため到達しなぁE�E��E�E
+        // NeedInitialUpdate は false を返すため到達しない。
     throw new NotSupportedException();
     }
-    // キー存在時！Eutable�E�E�E��E�E Value が一致する場合�Eみ ExpireAndStop で論理削除
+    // 削除操作の動作を検証する。
     public bool InPlaceUpdater(ref LogRecord logRecord,ref TValue input,ref bool output,ref RMWInfo rmwInfo) {
         var storedValue = TStrategy.Deserialize(logRecord.ValueSpan);
         if(EqualityComparer<TValue>.Default.Equals(storedValue,input)) {
@@ -35,10 +35,10 @@ public readonly struct Remove_KeyValuePair<TValue, TStrategy>:
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo) {
-        // NeedInitialUpdate ぁEfalse のため InitialUpdater も呼ばれず、到達しなぁE�E��E�E
+        // NeedInitialUpdate は false を返すため到達しない。
     throw new NotSupportedException();
     }
-    // キー存在時！EeadOnly/Disk�E�E�E��E�E値が一致した場合�Eみ Mutable に削除レコードを追加する
+    // CopyUpdater は false を返すため到達しない。
     public bool NeedCopyUpdate<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref TValue input,ref bool output,ref RMWInfo rmwInfo) where TSourceLogRecord : ISourceLogRecord {
         var storedValue = TStrategy.Deserialize(srcLogRecord.ValueSpan);
         return EqualityComparer<TValue>.Default.Equals(storedValue,input);
@@ -50,54 +50,54 @@ public readonly struct Remove_KeyValuePair<TValue, TStrategy>:
     }
     [ExcludeFromCodeCoverage]
     public bool PostCopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo) where TSourceLogRecord : ISourceLogRecord {
-        // CopyUpdater ぁEfalse を返して処琁E�E��E�打ち刁E�E��E�ため、到達しなぁE�E��E�E
+        // CopyUpdater は false を返すため到達しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,IHeapObject srcValue,ref bool output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InitialWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,in TSourceLogRecord inputLogRecord,ref bool output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InPlaceWriter(ref LogRecord logRecord,ref TValue input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InPlaceWriter(ref LogRecord logRecord,ref TValue input,IHeapObject srcValue,ref bool output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,ref TValue input,in TSourceLogRecord inputLogRecord,ref bool output,ref UpsertInfo upsertInfo) where TSourceLogRecord : ISourceLogRecord {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,IHeapObject srcValue,ref bool output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,in TSourceLogRecord inputLogRecord,ref bool output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -108,7 +108,7 @@ public readonly struct Remove_KeyValuePair<TValue, TStrategy>:
         where TKey : IKey
 #endif
         where TEpochAccessor : IEpochAccessor {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -119,7 +119,7 @@ public readonly struct Remove_KeyValuePair<TValue, TStrategy>:
         where TKey : IKey
 #endif
         where TEpochAccessor : IEpochAccessor {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -156,7 +156,7 @@ public readonly struct Remove_KeyValuePair<TValue, TStrategy>:
     }
     [ExcludeFromCodeCoverage]
     public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref TValue input,ref bool output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
-        // Read 操作�E使用しなぁE�E��E�E
+        // Read 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     public RecordFieldInfo GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref TValue input)
@@ -170,7 +170,7 @@ public readonly struct Remove_KeyValuePair<TValue, TStrategy>:
 #else
         where TKey : IKey{
 #endif
-        // NeedInitialUpdate ぁEfalse を返すため到達しなぁE�E��E�E
+        // NeedInitialUpdate は false を返すため到達しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -180,7 +180,7 @@ public readonly struct Remove_KeyValuePair<TValue, TStrategy>:
 #else
         where TKey : IKey{
 #endif
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -190,7 +190,7 @@ public readonly struct Remove_KeyValuePair<TValue, TStrategy>:
 #else
         where TKey : IKey{
 #endif
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -201,7 +201,7 @@ public readonly struct Remove_KeyValuePair<TValue, TStrategy>:
         where TKey : IKey
 #endif
         where TSourceLogRecord : ISourceLogRecord {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     public void BeforeConsistentReadCallback(long hash) {

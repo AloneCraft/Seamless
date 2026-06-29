@@ -34,7 +34,7 @@ public interface IDictTestStrategy<TKey, TValue>
     where TValue : IEquatable<TValue> {
     static abstract TKey K(int i);
     static abstract TValue V(int i);
-    /// <summary>どの V(i) とも一致しなぁE��。値不一致チE��ト用、E/summary>
+    /// <summary>どの V(i) とも一致しない値。値不一致テスト用。</summary>
     static abstract TValue VWrong();
     static abstract StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = global::Seamless.Tsavorite.Const.LogMemorySize,

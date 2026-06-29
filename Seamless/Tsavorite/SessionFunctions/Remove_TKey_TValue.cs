@@ -2,15 +2,15 @@ using Seamless.Tsavorite.Collections;
 namespace Seamless.Tsavorite.SessionFunctions;
 
 /// <summary>
-/// Dictionary 用の Remove(key, out value) セチE�E��E�ョン関数、E
-/// 取得した値は session 冁E�E��E� TValue にチE�E��E�リアライズして返す、E
+/// Dictionaryの動作を検証する。
+/// 削除操作の動作を検証する。
 /// </summary>
 public readonly struct Remove_TKey_TValue<TValue, TStrategy>:
     ISessionFunctions<EqualityEmpty,TValue,EqualityEmpty>    where TStrategy : ISerializer<TValue> {
     [ExcludeFromCodeCoverage]
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input,ref TValue output,ref ReadInfo readInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        // Read 操作�E使用しなぁE�E��E�E
+        // Read 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     public bool NeedInitialUpdate<TKey>(TKey key,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo)
@@ -23,7 +23,7 @@ public readonly struct Remove_TKey_TValue<TValue, TStrategy>:
     }
     [ExcludeFromCodeCoverage]
     public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo) {
-        // NeedInitialUpdate ぁEfalse を返すため到達しなぁE�E��E�E
+        // NeedInitialUpdate は false を返すため到達しない。
     throw new NotSupportedException();
     }
     public bool InPlaceUpdater(ref LogRecord logRecord,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo) {
@@ -33,7 +33,7 @@ public readonly struct Remove_TKey_TValue<TValue, TStrategy>:
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo) {
-        // NeedInitialUpdate ぁEfalse のため InitialUpdater も呼ばれず、到達しなぁE�E��E�E
+        // NeedInitialUpdate は false を返すため到達しない。
     throw new NotSupportedException();
     }
     public bool NeedCopyUpdate<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo)
@@ -49,55 +49,55 @@ public readonly struct Remove_TKey_TValue<TValue, TStrategy>:
     [ExcludeFromCodeCoverage]
     public bool PostCopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        // CopyUpdater ぁEfalse を返して処琁E�E��E�打ち刁E�E��E�ため、到達しなぁE�E��E�E
+        // CopyUpdater は false を返すため到達しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref TValue output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,IHeapObject srcValue,ref TValue output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InitialWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref TValue output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InPlaceWriter(ref LogRecord logRecord,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref TValue output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InPlaceWriter(ref LogRecord logRecord,ref EqualityEmpty input,IHeapObject srcValue,ref TValue output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref TValue output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref TValue output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,IHeapObject srcValue,ref TValue output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref TValue output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -108,7 +108,7 @@ public readonly struct Remove_TKey_TValue<TValue, TStrategy>:
         where TKey : IKey
     #endif
         where TEpochAccessor : IEpochAccessor {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -119,7 +119,7 @@ public readonly struct Remove_TKey_TValue<TValue, TStrategy>:
         where TKey : IKey
     #endif
         where TEpochAccessor : IEpochAccessor {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -158,7 +158,7 @@ public readonly struct Remove_TKey_TValue<TValue, TStrategy>:
     }
     [ExcludeFromCodeCoverage]
     public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref EqualityEmpty input,ref TValue output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
-        // Read 操作�E使用しなぁE�E��E�E
+        // Read 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     public RecordFieldInfo GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input)
@@ -172,7 +172,7 @@ public readonly struct Remove_TKey_TValue<TValue, TStrategy>:
         #else
         where TKey : IKey{
         #endif
-        // NeedInitialUpdate ぁEfalse を返すため到達しなぁE�E��E�E
+        // NeedInitialUpdate は false を返すため到達しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -182,7 +182,7 @@ public readonly struct Remove_TKey_TValue<TValue, TStrategy>:
         #else
         where TKey : IKey{
         #endif
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -192,7 +192,7 @@ public readonly struct Remove_TKey_TValue<TValue, TStrategy>:
         #else
         where TKey : IKey{
         #endif
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -203,7 +203,7 @@ public readonly struct Remove_TKey_TValue<TValue, TStrategy>:
         where TKey : IKey
         #endif
         where TSourceLogRecord : ISourceLogRecord {
-        // Upsert 操作�E使用しなぁE�E��E�E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     public void BeforeConsistentReadCallback(long hash) {

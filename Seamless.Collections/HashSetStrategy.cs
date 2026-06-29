@@ -31,9 +31,9 @@ public readonly struct ManagedClassHashSetValueProvider:IHashSetValueProvider<Ma
     public static ManagedClass Create(int i) => new() { Name=$"C{i}" };
 }
 /// <summary>
-/// HashSet E½eE½XE½gE½Ìï¿½E½E½E½ú³ªE½B
-/// Dictionary E½E½ IDictTestStrategy E½Æ“ï¿½E½lE½ÉAE½lE½E½E½E½E½ÆƒXE½gE½AE½E½E½E½E½Ì‚İ‚ï¿½SE½E½E½B
-/// E½E½E½E½E½ ITsavoriteHashSet&lt;T&gt; E½ğ’¼ÚŒÄ‚ÑoE½E½E½B
+/// HashSetã®å‹•ä½œã‚’æ¤œè¨¼ã™ã‚‹ã€‚
+/// HashSetã®å‹•ä½œã‚’æ¤œè¨¼ã™ã‚‹ã€‚
+/// HashSetã®å‹•ä½œã‚’æ¤œè¨¼ã™ã‚‹ã€‚
 /// </summary>
 public interface IHashSetTestStrategy<T>
     where T : IEquatable<T> {

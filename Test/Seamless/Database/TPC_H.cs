@@ -8,8 +8,8 @@ using Tsavorite.core;
 #pragma warning disable CS8981
 
 namespace Test.Seamless.Database.TPC_H {
-    // DatabaseGenerator marker ? Keys / Records гѓ»ЃEЅгѓ»ЃEЅ schema struct гѓ»ЃEЅгѓ»ЃEЅ namespace Keys / Records гѓ»ЃEЅЃE‰жЉµЃEїЃEЅгѓ»ЃEЅЃEље®ЈиЁЂгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅB
-    // source generator гѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅ{гѓ»ЃEЅCгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅ[гѓ»ЃEЅRгѓ»ЃEЅ[гѓ»ЃEЅh (гѓ»ЃEЅRгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅXгѓ»ЃEЅgгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅNгѓ»ЃEЅ^гѓ»ЃEЅ[гѓ»ЃEЅE_u/_m гѓ»ЃEЅtгѓ»ЃEЅBгѓ»ЃEЅ[гѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅhгѓ»ЃEЅEMemoryPack гѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅ) гѓ»ЃEЅыќЏпЅ¶ж’°ЃEїЃEЅгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅB
+    // TPC-H г‚Їг‚ЁгѓЄгЃ®е‹•дЅњг‚’ж¤њиЁјгЃ™г‚‹гЂ‚
+    // source generator гЃ®з”џж€ђг‚ігѓјгѓ‰г‚’ж¤њиЁјгЃ™г‚‹гЂ‚
     internal static partial class DatabaseGenerator;
 
     [global::Seamless.FLinq.LinqIntercept(false)]
@@ -464,7 +464,7 @@ namespace Test.Seamless.Database.TPC_H {
         internal static Container Load() {
             var container = new Container();
 
-            // TPC-H v3.0.1 гѓ»ЃEЅЃEЊж§‹гЃEЃEЅгѓ»ЃEЅгѓ»ЃEЅEгѓ»ЃEЅиЊЃEЅ¦гѓ»ЃEЅЃE‰жђѕЃEїЃEЅгѓ»ЃEЅеўІЃE№гѓ»ЃEЅгѓ»ЃEЅBгѓ»ЃEЅeгѓ»ЃEЅXгѓ»ЃEЅgгѓ»ЃEЅЃEЌи¶ЈЃEїЃEЅгѓ»ЃEЅsгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅЃE”гЃEг‚‘пЅїЃEЅгѓ»ЃEЅгѓ»ЃEЅ 1/100 гѓ»ЃEЅXгѓ»ЃEЅPгѓ»ЃEЅ[гѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅЃEЃE’°ЃEїЃEЅгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅB
+            // TPC-H г‚Їг‚ЁгѓЄгЃ®е‹•дЅњг‚’ж¤њиЁјгЃ™г‚‹гЂ‚
             const int unitScaleDivisor = 1000;
             var supplierCount = (int)Math.Max(5,SF*10000/unitScaleDivisor);
             var customerCount = (int)Math.Max(10,SF*150000/unitScaleDivisor);
@@ -823,8 +823,8 @@ namespace Test.Seamless.Database.TPC_H {
         }
     }
 
-    // TPC-H гѓ»ЃEЅгѓ»ЃEЅ 8 гѓ»ЃEЅeгѓ»ЃEЅ[гѓ»ЃEЅuгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅЃE‰еЇѕдјљпЅїЃEЅгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅй©›йЇ‰пЅїЃEЅRгѓ»ЃEЅ[гѓ»ЃEЅh structгѓ»ЃEЅB
-    // source generator гѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅRгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅXгѓ»ЃEЅgгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅNгѓ»ЃEЅ^гѓ»ЃEЅ[гѓ»ЃEЅE_u/_m гѓ»ЃEЅtгѓ»ЃEЅBгѓ»ЃEЅ[гѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅhгѓ»ЃEЅEMemoryPack гѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅз«“пЅ®гѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅгѓ»ЃEЅB
+    // TPC-H г‚Їг‚ЁгѓЄгЃ®е‹•дЅњг‚’ж¤њиЁјгЃ™г‚‹гЂ‚
+    // source generator гЃ®з”џж€ђг‚ігѓјгѓ‰г‚’ж¤њиЁјгЃ™г‚‹гЂ‚
     namespace Records {
         public partial struct region {
             public partial int r_regionkey { get; }

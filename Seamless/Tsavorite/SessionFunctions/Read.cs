@@ -4,8 +4,8 @@ namespace Seamless.Tsavorite.SessionFunctions;
 
 using global::System.Diagnostics.CodeAnalysis;
 /// <summary>
-/// Collection 用セチE�E��E�ョン関数、EanagedRead は Read でのみ使われる、E
-/// Reader 冁E�E��E�ログメモリから直接 TValue へチE�E��E�リアライズ�E�E�E�ゼロコピ�Eリード）、E
+/// Read 経路はこの処理では使用しない。
+/// Read 経路はこの処理では使用しない。
 /// </summary>
 public readonly struct Read<TValue, TStrategy>():
     ISessionFunctions<EqualityEmpty,TValue,EqualityEmpty>,
@@ -14,18 +14,18 @@ public readonly struct Read<TValue, TStrategy>():
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]
     private static void ThrowReadOnlyEntryPoint() {
-        // Read は Read にだけバインドされる。書き込み・更新・削除のコールバックには到達しなぁE�E��E�E
+        // Read 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]
     private static T ThrowReadOnlyEntryPoint<T>() {
-        // Read は Read にだけバインドされる。書き込み・更新・削除のコールバックには到達しなぁE�E��E�E
+        // Read 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input,ref TValue output,ref ReadInfo readInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        // ログメモリから直接チE�E��E�リアライズ。コピ�Eなし、E
+        // Read 経路はこの処理では使用しない。
     output=TStrategy.Deserialize(srcLogRecord.ValueSpan);
         return true;
     }

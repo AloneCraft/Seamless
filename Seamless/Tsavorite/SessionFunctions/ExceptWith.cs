@@ -1,12 +1,12 @@
 namespace Seamless.Tsavorite.SessionFunctions;
 
 /// <summary>
-/// ExceptWith 逕ｨ縺�E� Delete 繧�E�繝�Eす繝ｧ繝ｳ髢�E�謨�E�縲・
+/// ExceptWithの動作を検証する。
 /// <list type="bullet">
-///   <item><see cref="Collections.HashSet{TKey}.ExceptWith"/> 竊�EDelete</item>
-///   <item><see cref="Collections.HashSet{TKey}.ExceptWith"/> 竊�EDelete</item>
+///   <item><see cref="Collections.HashSet{TKey}.ExceptWith"/> HashSetの動作を検証する。</item>
+///   <item><see cref="Collections.HashSet{TKey}.ExceptWith"/> HashSetの動作を検証する。</item>
 /// </list>
-/// Read / Upsert / RMW 縺�E�菴�E�逕ｨ縺励↑縺・・
+/// Upsert 経路はこの処理では使用しない。
 /// </summary>
 internal readonly struct ExceptWith:
     ISessionFunctions<EqualityEmpty,EqualityEmpty,EqualityEmpty> {

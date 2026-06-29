@@ -5,8 +5,8 @@ using Seamless.Collections;
 namespace Tsavorite.Collection.Stress;
 
 /// <summary>
-/// HashSet の雁E��演箁E(IntersectWith / SymmetricExceptWith / UnionWith / ExceptWith)
-/// ランダムチE�Eタで繰り返し検証するストレスチE��ト、E/// </summary>
+/// HashSetの動作を検証する。
+/// Stress テストの動作を検証する。
 public class SetOperationStressTests {
     private const int SeedA = 20260417;
     private const int SeedB = 20260419;

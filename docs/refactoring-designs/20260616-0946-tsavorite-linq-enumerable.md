@@ -1,30 +1,63 @@
-# Tsavorite.Linq.Enumerable 移行設訁E
+# Tsavorite.Linq.Enumerable 移行設計
+
 ## 背景
 
-`System.Linq.Enumerable` は `System.Collections.Generic.IEnumerable<T>` を中忁E��した LINQ API である。一方、`Tsavorite.Collections` には Tsavorite backed な `IHashSet<T>`/`IDictionary<TKey,TValue>`/memory-mapped `List<T>` があり、これらには Tsavorite の storage/session/scan を前提にした LINQ API が忁E��になる、E
-現状は `Tsavorite.Linq.HashSet` ぁE`IHashSet<T>` 向け LINQ API に相当してぁE��が、名前が対象型に寁E��すぎており、`System.Linq.Enumerable` に対応すめEAPI としては `Tsavorite.Linq.Enumerable` が適刁E��ある、E
-## 現状の観寁E
-- `src/Tsavorite.Collections/Linq/HashSet.cs` は `namespace Tsavorite.Linq; public static partial class HashSet` として庁E�� LINQ API を提供してぁE��、E- `HashSet.cs` の多くの iterator は `global::System.Collections.Generic.List<T>` / `HashSet<T>` / `Dictionary<TKey,TValue>` に材料化してから返しており、大容量中間バチE��ァ禁止方針と衝突する、E- `src/Tsavorite.Collections/Collections/IHashSet.cs` の既宁E`IntersectWith` / `SymmetricExceptWith` めE`System.Collections.Generic.List<T>` を中間に使ってぁE��、E- `Collection.Default.cs` の `Enumerator` は `IterateLookup` 結果めE`InMemoryList<T>` に全件格納してから列挙しており、Tsavorite の並列性と大容量�E挙�E観点で見直し対象、E- `src/FLinq/SourceGenerator` は `System.Linq.Enumerable` 固定判定が多い。代表例�E `LinqTargetDiscovery.cs`, `LinqMethodBodyRewriter.cs`, `LinqCounterOnlyMethodBodyRewriter.cs`, `LinqFragmentBuilder.cs`, `LinqGeneratorModels.cs`, 吁E`Fragments`、E- `tests/Test.Tsavorite.Collections/Intercept/System/Linq` には Chain1/Chain2/FragmentCoverage/Optimization の豊富なチE��トがある、E- `tests/Test.Tsavorite.Collections/Intercept/Tsavorite/Linq` には既孁E`Tsavorite.Linq.HashSet` 向けチE��トがある、E- `sandbox/Benchmark.Shared` は共通ソース化�E下地として使える、E- `src/Tsavorite.Collections/Tsavorite.Collections.csproj` は `Microsoft.Garnet 2.0.1-beta.2`、`src/Seamless.Data/Seamless.Data.csproj` は `2.0.0-beta.3` を参照してぁE��。方針確認により、どちらも NuGet 上�E最新 prerelease `2.0.1-beta.3` へ更新する、E- Garnet/Tsavorite は read/upsert/delete/RMW を中忁E��した narrow-waist storage API を提供する、とぁE��公開説明がある、E- `Tsavorite.Collections.HashSet<TKey>` は `AutoSerializer<TKey>` を使っており、`RuntimeHelpers.IsReferenceOrContainsReferences<T>()` に応じて MemoryPack また�E blittable span を選ぶ。したがって receiver が既孁E`HashSet<T>` の場合、managed/unmanaged serializer 差は LINQ 展開の主な制紁E��はなぁE��E
-## 目皁E
-- `Tsavorite.Linq.Enumerable` を正要EAPI にする、E- 既孁E`Tsavorite.Linq.HashSet` は互換レイヤーに移す、E- `Tsavorite.Collections.HashSet<T>` / `IHashSet<T>` めEgenerator の intercept 対象にする、E- System LINQ 用の既存テストをできるだけ�E有し、同じ�E力ソースめESystem/Tsavorite の両方に適用できる構造にする、E- 大容量中間バチE��ァとして `System.Collections.Generic` を使わなぁE��E- Tsavorite の storage/session/scan/RMW 前提を壊さず、並列性を殺す�E件ロチE��めE�E件メモリ材料化を避ける、E
-## 非目皁E
-- `System.Linq.Enumerable` の全 API を一度で完�E互換にすること、E- チE��トコード�Eの小規模期征E��生�EめE��規化まで完�Eに `System.Collections.Generic` 禁止にすること、E- `List<T>` めETsavorite backed に変更すること。`List<T>` は memory-mapped file のまま扱ぁE��E- 既存�E閁EAPI を即時削除すること、E
-## 提案設訁E
-1. API 吁E   - `namespace Tsavorite.Linq; public static partial class Enumerable` を追加する、E   - 実裁E��ァイルは `Enumerable.HashSet.cs`, `Enumerable.Dictionary.cs`, `Enumerable.List.cs`, `Enumerable.Set.cs`, `Enumerable.Internal.*.cs` に刁E��る、E   - `Tsavorite.Linq.HashSet` は互換用 partial class として残し、可能な篁E��で `Enumerable` に委譲する、E
-2. Tsavorite LINQ の戻り値
-   - 単純な `Where` / `Select` / `Take` などは遁E��列挙できる専用 enumerable/enumerator を返す、E   - set/join/group/order 系で状態が忁E��なも�Eは、`System.Collections.Generic` の大容量バチE��ァではなぁETsavorite backed `HashSet`/`Dictionary` また�E memory-mapped `List<T>` を使ぁE��E   - `ToHashSet`/`ToDictionary` は Tsavorite collection を返す overload を追加する。System 互換名が曖昧になる場合�E `ToTsavoriteHashSet` / `ToTsavoriteDictionary` を併設する、E
-3. 走査基盤
-   - 現在の `IEnumerable<T>` enumerator は全件 `InMemoryList<T>` に積�Eため、intercept と専用演算では `ForEach<TCollection,TStrategy>` / `IScanIteratorFunctions` ベ�Eスのストリーミング走査を優先する、E   - `IHashSet<T>` の静的型でも、`IEnumerable<T>` と同じぁE`GetEnumerator()` めEroot にした LINQ-level 展開は可能とする、E   - storage-level 展開では `IHashSet<T>` の `foreach` に戻さず、Tsavorite 専用 scan strategy を呼ぶコードを生�Eする、E   - storage-level 展開を要求する経路で対応できなぁE��合�E既孁Eenumerator 経由へ黙って戻さず、例外を生�Eする。完�E展開できなぁELINQ はチE��トで検�Eできる状態にする、E
-4. Source Generator
-   - `System.Linq.Enumerable` 固定判定を `LinqMethodFamily` のような冁E�� descriptor に置き換える、E   - family は最低限 `SystemEnumerable` と `TsavoriteEnumerable` を持つ、E- `TsavoriteEnumerable` は `Tsavorite.Linq.Enumerable` の reduced extension call、かつ receiver ぁE`Tsavorite.Collections.IHashSet<T>` また�E具象 `Tsavorite.Collections.HashSet<T>` のも�Eを対象にする、E   - 初期対応�E `IHashSet<T>` の LINQ-level 展開と、�E象 `Tsavorite.Collections.HashSet<T>` の storage-level 展開を�Eけて扱ぁE��E   - 最初�E実裁E��象は `HashSet<T>` receiver の scalar 系とする。対象は `Any` / `All` / `Count` / `LongCount` / `Contains` / `First` / `FirstOrDefault` / `Aggregate`、E   - `Where` / `Select` / `ToArray` など列挙結果を返すも�Eは、LINQ-level 展開なめE`GetEnumerator()` root で初期対応できる。storage-level 展開では scan callback と結果 enumerable の寿命管琁E��別途設計し、�E件 `GetEnumerator()` fallback は使わなぁE��E   - `GroupBy` / `Join` / `OrderBy` / `Distinct` / `Except` / `Intersect` / `Union` は専用 storage-backed 中間構造が整ってから段階対応する、E
-5. チE��チEベンチ�E通化
-   - 共通�EチE��トシナリオは `Shared` 化し、source factory を差し替える、E   - System 版�E `int[]` / `System.Collections.Generic.HashSet<T>` を返す factory、E   - Tsavorite 版�E `Store.Create().Create<T>().CreateOwned()` で `Tsavorite.Collections.HashSet<T>` を返す factory、E   - using/alias で `Enumerable` の解決先を刁E��替える案を使ぁE��ただぁEextension method の解決衝突が出る箁E��は明示 static call また�E namespace 刁E��にする、E   - `sandbox/Benchmark.Shared` は正式な共有�Eロジェクトまた�E `Directory.Build.props` からの Compile Include に移すか、少なくとめE`src/Benchmark` と `tests/Test.Tsavorite.Collections.Benchmark` が同じソースを参照する構�Eにする、E
-6. 最新 Tsavorite API 対忁E   - `Microsoft.Garnet 2.0.1-beta.3` に上げ、`Tsavorite.core.xml` と reflection で `TsavoriteKV`, `ClientSession`, `IScanIteratorFunctions`, `IterateLookup`, `NewSession`, `BasicContext` の使用箁E��を確認する、E   - API 直接依存を `Collection` 冁E��の薁E�� scan/session helper に雁E��E��、次の beta での差刁E��局所化する、E
-## 展開可能性の刁E��E
-展開は次の 2 段階に刁E��て扱ぁE��E
-- LINQ-level 展開: `IHashSet<T>` の静的型でめE`IEnumerable<T>` と同じく、`GetEnumerator()` めEroot にして LINQ iterator/delegate を生成コード�Eループへ畳み込む。これ�E可能であり、�E期対応に含める、E- storage-level 展開: `Tsavorite.Collections.HashSet<T>` また�E専用 scan interface から直接走査し、`IEnumerable<T>` fallback めE��容釁E`System.Collections.Generic` 中間材料化を使わなぁE��これを最終的な完�E展開と呼ぶ、E
-### 初期対応候裁E
-以下�E状態をほぼ持たなぁE��また�E定数サイズの状態だけで走査できるため、`IHashSet<T>` の LINQ-level 展開にも、Tsavorite scan strategy への storage-level 展開にも落とし込みめE��ぁE��E
+`System.Linq.Enumerable` は `IEnumerable<T>` を中心にした LINQ API である。一方、`Tsavorite.Collections` には Tsavorite backed な `IHashSet<T>`、`IDictionary<TKey,TValue>`、memory-mapped `List<T>` があり、storage、session、scan を前提にした LINQ API が必要になる。
+
+現状の `Tsavorite.Linq.HashSet` は `IHashSet<T>` 向け API に寄っているため、System LINQ と対応する API 名としては `Tsavorite.Linq.Enumerable` へ移行する。
+
+## 目的
+
+- `Tsavorite.Linq.Enumerable` を正規 API 名にする。
+- 既存の `Tsavorite.Linq.HashSet` は互換レイヤーへ移す。
+- `Tsavorite.Collections.HashSet<T>` と `IHashSet<T>` を generator の intercept 対象にする。
+- System LINQ 用テストを共有し、System と Tsavorite の両方へ適用できる構造にする。
+- 大容量中間バッファとして `System.Collections.Generic` を使わない。
+- Tsavorite の storage、session、scan、RMW 前提を壊さず、全件ロックや全件メモリ材料化を避ける。
+
+## 非目的
+
+- `System.Linq.Enumerable` の全 API を一度で完全互換にすること。
+- テストコード内の小規模な一時材料化まで完全に禁止すること。
+- `List<T>` を Tsavorite backed に変更すること。`List<T>` は memory-mapped file のまま扱う。
+- 既存公開 API を即時削除すること。
+
+## 提案設計
+
+1. `namespace Tsavorite.Linq; public static partial class Enumerable` を追加する。
+2. 実装ファイルを `Enumerable.HashSet.cs`、`Enumerable.Dictionary.cs`、`Enumerable.List.cs`、`Enumerable.Set.cs`、`Enumerable.Internal.*.cs` に分ける。
+3. `Tsavorite.Linq.HashSet` は互換用 partial class として残し、可能な範囲で `Enumerable` に委譲する。
+4. 単純な `Where`、`Select`、`Take` などは遅延列挙できる専用 enumerable/enumerator を返す。
+5. set、join、group、order 系で状態が必要な処理は、Tsavorite backed collection または memory-mapped `List<T>` を使う。
+6. `ToHashSet` と `ToDictionary` は Tsavorite collection を返す overload を追加する。曖昧になる場合は `ToTsavoriteHashSet` と `ToTsavoriteDictionary` を併設する。
+
+## 走査基盤
+
+現在の `IEnumerable<T>` enumerator は全件を `InMemoryList<T>` に積むため、intercept と専用演算では `ForEach<TCollection,TStrategy>` や `IScanIteratorFunctions` ベースのストリーミング走査を優先する。
+
+`IHashSet<T>` の静的型でも、`GetEnumerator()` を root にした LINQ-level 展開は可能とする。ただし storage-level 展開では `foreach` に戻さず、Tsavorite 専用 scan strategy を呼ぶ生成コードを使う。
+
+storage-level 展開を要求する経路で対応できない fragment は、既存 enumerator へ黙って fallback せず例外にする。
+
+## Source Generator
+
+- `System.Linq.Enumerable` 固定判定を `LinqMethodFamily` のような descriptor に置き換える。
+- family は最低限 `SystemEnumerable` と `TsavoriteEnumerable` を持つ。
+- `TsavoriteEnumerable` は `Tsavorite.Linq.Enumerable` の reduced extension call を対象にする。
+- receiver が `Tsavorite.Collections.IHashSet<T>` または具象 `Tsavorite.Collections.HashSet<T>` の場合を扱う。
+- 初期対応は `Any`、`All`、`Count`、`LongCount`、`Contains`、`First`、`FirstOrDefault`、`Aggregate` から始める。
+- `GroupBy`、`Join`、`OrderBy`、`Distinct`、`Except`、`Intersect`、`Union` は storage-backed 中間構造が整ってから段階対応する。
+
+## 展開可能性
+
+LINQ-level 展開は、`IHashSet<T>` の静的型でも `IEnumerable<T>` と同じく `GetEnumerator()` を root にして LINQ chain を生成コードの loop へ畳み込む方式である。互換性は高いが、現在の enumerator が全件材料化する場合は storage-level 展開ではない。
+
+storage-level 展開は、`Tsavorite.Collections.HashSet<T>` または専用 scan interface から直接走査し、`IEnumerable<T>` fallback や `System.Collections.Generic` 中間材料化を使わない方式である。これを最終的な完全展開と呼ぶ。
+
+## 初期対応候補
+
+状態をほぼ持たない、または定数サイズの状態だけで走査できる API を優先する。
+
 - `Where`
 - `Select`
 - `Any`
@@ -61,9 +94,10 @@
 - `Cast`
 - `OfType`
 
-`ToArray` は最終結果が�E列であるため例外的に許可する。`ToList` は System `List<T>` ではなぁEmemory-mapped `Tsavorite.Collections.List<T>` を返す overload を追加する場合に初期対応候補に入れる、E
-### Tsavorite-backed 中間構造が忁E��E
-以下�E現衁ESystem LINQ fragment ぁE`System.Collections.Generic.List/HashSet/Dictionary/Queue` を大容量中間構造として生�Eするため、そのままでは Tsavorite 版�E完�E展開とはみなさなぁE��Tsavorite backed `HashSet`/`Dictionary` また�E memory-mapped `List<T>` へ置換してから対応する、E
+## Tsavorite-backed 中間構造が必要な API
+
+以下は System LINQ fragment が `System.Collections.Generic.List`、`HashSet`、`Dictionary`、`Queue` を大容量中間構造として使いやすいため、そのままでは Tsavorite 版の完全展開とはみなさない。
+
 - `Distinct`
 - `DistinctBy`
 - `Except`
@@ -72,19 +106,12 @@
 - `IntersectBy`
 - `Union`
 - `UnionBy`
-- `Order`
 - `OrderBy`
-- `OrderDescending`
-- `OrderByDescending`
 - `ThenBy`
-- `ThenByDescending`
 - `GroupBy`
 - `GroupJoin`
 - `Join`
-- `LeftJoin`
-- `RightJoin`
 - `Reverse`
-- `Shuffle`
 - `SkipLast`
 - `TakeLast`
 - `ToHashSet`
@@ -93,27 +120,14 @@
 - `CountBy`
 - `AggregateBy`
 
-### 対象外また�E特殊扱ぁE
-- `AsQueryable`: LINQ to Objects の展開ではなぁE`IQueryable` 化なので、�E期対応対象外、E- `TryGetNonEnumeratedCount`: LINQ chain fragment ではなぁEcount 取征EAPI として、`HashSet<T>.EntryCount` / `GetLongCount` / 専用 count helper に直接落とす、E- `Empty`, `Range`, `Repeat`, `InfiniteSequence`, `Sequence`: collection receiver を持たなぁEroot generator。Tsavorite collection 用ではなぁEroot sequence として扱ぁE��E
-### 静的型による制紁E
-receiver の静的型が `IHashSet<T>` のままでも、現在の interface だけで LINQ-level 展開はできる。ただぁEinterface が�E開してぁE��のは列挙子であり、現在の `HashSet<T>` enumerator は冁E��で `InMemoryList<T>` に積�Eため、storage-level 展開にはならなぁE��E
-storage-level 展開まで行うには次のぁE��れかが忁E��、E
-- `Tsavorite.Collections.HashSet<T>` など具象型を generator が認識する、E- `IHashSet<T>` に非�E持Escan/for-each 用の専用 primitive を追加する、E- `where TSource : ITsavoriteEnumerableSource<T>` のような generic 制紁E��、展開可能な source contract を�E示する、E
-### InMemoryList と展開の関俁E
-`InMemoryList` を経由してめELINQ-level 展開はできる。つまめE`IHashSet<T>.GetEnumerator()` めEroot にして、`Where` / `Select` / `Count` などの LINQ chain を生成コード�Eループへ畳み込むことはできる、E
-ただぁE`HashSet<T>.GetEnumerator()` は `Collection.Default.Enumerator` の constructor で `new InMemoryList<T>` を作り、`IterateLookup` と `CompletePending` めEconstructor 中に完亁E��せ、`MoveNext()` はそ�E list を読むだけになる。この時点で Tsavorite storage との接続が刁E��るため、storage-level 展開とはみなさなぁE��E
-`InMemoryList` 経由ぁEstorage-level 展開ではなぁE��由は次の通り、E
-- `Any` / `First` / `Take` のような早期終亁E��能な演算でも、�E挙子生成時点で全件 scan と全件格納が走る、E- `Where` の predicate めE`Take` の件数制限を Tsavorite の scan callback に押し込めなぁE��E- 中間に `System.Collections.Generic.List<T>` が残り、大容量中間バチE��ァを避けるとぁE��目皁E��満たせなぁE��E- scan 中に処琁E��止める、E��計だけを保持する、結果だけを Tsavorite-backed collection に流す、とぁE��た専用戦略めEgenerator が選べなぁE��E
-推奨実裁E�E、互換性のための LINQ-level 展開と、E��性能な storage-level 展開を�E示皁E��刁E��る、E
-1. `IHashSet<T>` では `GetEnumerator()` root の LINQ-level 展開を許容する。ただしこれ�E互換・段階移行用であり、storage-level 完�E展開とは呼ばなぁE��E2. `HashSet<T>` には既存�E `HashSet.Scan<TStrategy>(ref TStrategy)` を土台に、source generator から参�Eできる scan contract を追加する、E3. scan contract は `void Scan<TStrategy>(ref TStrategy strategy)` とし、`TStrategy` は `struct` + `static abstract` reader/invoker を持つ。delegate めEinterface dispatch を避け、predicate/projection/aggregate state めEstruct に畳み込む、E4. generator は receiver ぁEscan contract を満たす場合だぁEstorage-level code path を生成する。満たさなぁE`IHashSet<T>` は LINQ-level code path に落とすか、storage-level を要求すめEAPI では例外にする、E5. `Where` / `Select` / `Any` / `All` / `Count` / `First` / `Aggregate` などは scan strategy の合�Eで実裁E��、`Distinct` / `GroupBy` / `Join` / `OrderBy` などは Tsavorite-backed 中間構造ができてから対応する、E
-### scan contract の具体侁E
-scan contract とは、`IEnumerator<T>` を返す代わりに、storage scan 中に 1 レコードずつ struct strategy を呼ぶための共送EAPI である、E
-最小形は次のようにする、E
+## Scan Contract
+
+scan contract は、`IEnumerator<T>` を返す代わりに storage scan 中に 1 record ずつ struct strategy を呼ぶための共通 API である。
+
 ```csharp
 public interface ITsavoriteScanStrategy<TSelf, T>
     where TSelf : struct, ITsavoriteScanStrategy<TSelf, T>
 {
-    // true: scan 継続、false: scan 停止
     static abstract bool Invoke(ref TSelf self, in T item);
 }
 
@@ -124,200 +138,15 @@ public interface ITsavoriteScanSource<T>
 }
 ```
 
-`HashSet<T>` は既存�E `HashSet.Scan<TStrategy>(ref TStrategy)` と `IHashSetScanStrategy<TSelf,T>` をこの public/internal contract に寁E��て実裁E��る、E
-```csharp
-public partial class HashSet<T> : ITsavoriteScanSource<T>
-{
-    public void Scan<TStrategy>(ref TStrategy strategy)
-        where TStrategy : struct, ITsavoriteScanStrategy<TStrategy, T>
-    {
-        var state = new ScanState<TStrategy>(strategy);
-        var adapter = new ScanAdapter<TStrategy>(state);
+`Any`、`First`、`Take` は strategy の戻り値で早期終了を表現する。`Count` と `Aggregate` は strategy の状態だけを更新する。
 
-        this.Store.Log.ShiftReadOnlyAddress(this.Store.Log.TailAddress, wait: true);
-        this.ReadSession.IterateLookupSnapshot(ref adapter, includeTombstones: false);
-        this.ReadSession.BasicContext.CompletePending(wait: true);
+## GetEnumerator 方針
 
-        strategy = state.Strategy;
-    }
-}
-```
+`GetEnumerator()` が行っている eager な全件材料化は、`MoveNext()` 時に `ScanCursor` を進める chunked external iterator へ置き換える。列挙開始時の `TailAddress` を固定し、snapshot に近い意味論を維持する。
 
-例えばユーザーコードが次の場合、E
-```csharp
-var result = source.Where(x => x > 10).Count();
-```
+論理チャンクは `Math.Max(Const.Chunk_Length, 4096)` records を現在の固定上限とし、将来的には target byte size で調整できるようにする。
 
-LINQ-level 展開では次のように列挙孁Eroot になる。この場合、`GetEnumerator()` の時点で `InMemoryList<T>` への全件読み込みが発生する、E
-```csharp
-var count = 0;
-using var e = source.GetEnumerator();
-while (e.MoveNext())
-{
-    var x = e.Current;
-    if (x > 10)
-        count++;
-}
-var result = count;
-```
-
-storage-level 展開では次のような strategy に変換する、E
-```csharp
-private struct WhereCountGreaterThan10
-    : ITsavoriteScanStrategy<WhereCountGreaterThan10, int>
-{
-    public int Count;
-
-    public static bool Invoke(ref WhereCountGreaterThan10 self, in int item)
-    {
-        if (item > 10)
-            self.Count++;
-
-        return true;
-    }
-}
-```
-
-呼び出し�Eは列挙子を作らず、Tsavorite scan に strategy を渡す、E
-```csharp
-var strategy = new WhereCountGreaterThan10();
-source.Scan(ref strategy);
-var result = strategy.Count;
-```
-
-`First` のような早期終亁E�� strategy の戻り値で表現する、E
-```csharp
-private struct FirstGreaterThan10
-    : ITsavoriteScanStrategy<FirstGreaterThan10, int>
-{
-    public bool Found;
-    public int Value;
-
-    public static bool Invoke(ref FirstGreaterThan10 self, in int item)
-    {
-        if (item <= 10)
-            return true;
-
-        self.Found = true;
-        self.Value = item;
-        return false;
-    }
-}
-```
-
-こ�E形なめE`Any` / `First` / `Take` が�E件 `InMemoryList<T>` を作らずに途中停止できる。`Where` / `Select` / `Aggregate` は strategy の状態として畳み込める。`ToArray` / `ToList` のように結果を蓄積するものは、strategy 冁E�E出力�Eを�E刁Ebuilder、memory-mapped `List<T>`、また�E Tsavorite-backed collection にする、E
-### 外部 iterator と冁E�� iterator
-
-こ�E設計�E、外部 iterator と冁E�� iterator の使ぁE�Eけでもある、E
-- 外部 iterator: 呼び出し�EぁE`IEnumerator<T>` を受け取り、`MoveNext()` / `Current` で pull する、EINQ to Objects の標準形、E- 冁E�� iterator: collection 側ぁEscan を所有し、各 record に対して strategy/callback を呼ぶ。Tsavorite storage に近い場所で処琁E�� push する、E
-外部 iterator でめEgenerator は LINQ chain をループへ展開できる。ただし現在の `HashSet<T>.GetEnumerator()` は列挙子構築時に `InMemoryList<T>` へ全件材料化するため、storage 側で predicate、projection、aggregate、早期終亁E��融合できなぁE��E
-冁E�� iterator の利点は、ネイチE��ブコードになるとぁE��意味ではなく、storage-native な実行計画にできる点である。`struct` strategy と generic/static abstract 呼び出しにすれば delegate allocation めEinterface dispatch を避けやすく、JIT ぁEinline しやすい形になる。さらに `Any` / `First` / `Take` は scan 中に停止でき、`Count` / `Aggregate` は状態だけを持てる、E
-ただし�E部 iterator が常に速いとは限らなぁE��小さぁEin-memory collection では外部 iterator のほぁE��単純で十�Eな場合がある。今回冁E�� iterator を優先する理由は、Tsavorite-backed collection で全件 `InMemoryList<T>` 材料化を避け、storage/session/scan の並列性と早期終亁E��保つためである、E
-### GetEnumerator の外部 iterator 化方釁E
-`GetEnumerator()` が行ってぁE��現在の eager 全件材料化�E、外部 iterator 方式へ置き換える、E
-現状の `Collection.Default.Enumerator` は constructor で `InMemoryList<T>` を作り、`IterateLookup` を最後まで走らせてから `MoveNext()` で list を読む。このため public API は `IEnumerator<T>` だが、実�Eは列挙開始前の全件 materialize である、E
-新方針では、`MoveNext()` が忁E��になった時だぁETsavorite scan を進める chunked external iterator にする。実裁E��は `ClientSession.ScanCursor(ref cursor, count, ...)` を使ぁE��`IterateLookup(ref iterator, ref cursor, resetCursor: false)` と `CursorRecordResult.EndBatch` / `RetryLastRecord` も候補だったが、可変長 disk record を小さぁEcount で再開すると欠落するケースがあったため、�E挙子本体では `ScanCursor` を採用する。既存�E `tests/Test.Tsavorite.Collections/Tsavorite/IterateLookupChunkTests.cs` は低レベル cursor 動作�E参老E��して残す、E
-外部 iterator 化後�E概形は次の通り、E
-```csharp
-public struct Enumerator<TIterator, T> : IEnumerator<T>
-    where TIterator : ChunkScanIteratorFunctions<T>
-{
-    private long cursor;
-    private int index = -1;
-    private int count;
-    private bool done;
-    private TIterator iterator;
-
-    public T Current => this.iterator.Chunk[this.index];
-
-    public bool MoveNext()
-    {
-        if (++this.index < this.count)
-            return true;
-
-        if (this.done)
-            return false;
-
-        this.iterator.ResetChunk();
-
-        var mayHaveMore = this.session.ScanCursor(
-            ref this.cursor,
-            this.iterator.Chunk.Length,
-            this.iterator,
-            this.untilAddress,
-            validateCursor: true,
-            maxAddress: this.untilAddress,
-            resetCursor: false,
-            includeTombstones: false);
-
-        this.session.BasicContext.CompletePending(wait: true);
-
-        this.count = this.iterator.Count;
-        this.done = !mayHaveMore;
-
-        if (this.count == 0)
-            return false;
-
-        this.index = 0;
-        return true;
-    }
-}
-```
-
-こ�E方針では `InMemoryList<T>` は `GetEnumerator()` の中間バチE��ァとして使わなぁE��忁E��なのは固定長また�E小容量�E chunk buffer だけであり、�E件刁E�E `System.Collections.Generic.List<T>` は作らなぁE��実裁E���E下限は `4096` records とし、`Const.Chunk_Length` がそれより大きい場合�Eそちらを使ぁE��これ�E可変長 disk record の cursor validation 墁E��で欠落しなぁE��め�E固定上限 block であり、�E件材料化ではなぁE��E
-外部 iterator 化によって、E��常の `foreach` / `IEnumerable<T>` / 既孁ELINQ は大容釁Ematerialize を避けられる。ただぁEgenerator ぁE`Any` / `First` / `Take` などを完�Eに storage-level fuse したぁE��合�E、�E部 iterator / scan strategy 経路を使ぁE��地を残す、E
-未決事頁E�E列挙中更新の意味論である。旧実裁E�E enumerator constructor 時点で全件 materialize するため、その後�E更新は列挙結果に混ざりにくい。lazy 外部 iterator では `MoveNext()` 時点で scan が進むため、更新が観測される可能性が変わる。互換性を優先するなら、�E挙開始時に TailAddress を固定すめEsnapshot 寁E��の設計が忁E��になる、E
-### InMemoryList 全件材料化後�E for loop との比輁E
-`InMemoryList` に全件を積んだ後で次のように回す方式�E、外部 iterator ではなく、�E件 materialize + index loop である、E
-```csharp
-var items = new InMemoryList<T>(Const.Chunk_Length);
-// IterateLookup で全件 items に Add する
-for (var i = 0L; i < items.Count; i++)
-{
-    var item = items[i];
-    // LINQ fragment を展開した処琁E}
-```
-
-こ�E方式�E、材料化後�E処琁E��け見れば `IEnumerator<T>` より速くしやすい。`MoveNext()` / `Current` の状態機械を通らず、`Count` と indexer で単純な loop にできるためである。また、�E挙開始時点の snapshot に近い結果を作りめE��く、褁E��回走査する処琁E�� `OrderBy` のようにどのみち全件 buffer が忁E��な処琁E��は使える、E
-ただし、Tsavorite LINQ の標準実行経路としては採用しなぁE��E
-- `Any` / `First` / `Take` でも�E琁E��に全件 `InMemoryList` へ入る、E- `Where` で落ちる要素まで全件 deserialization と list 追加が走る、E- `System.Collections.Generic.List<T>` ベ�Eスの大容量中間バチE��ァを使ぁE��め、今回の制紁E��反する、E- storage scan と LINQ fragment が融合せず、並刁Escan の結果めElock 付き list add に雁E��E��めE��ぁE��E
-採用する基本形は、�E件 buffer ではなぁEchunk buffer + index loop である、E
-```csharp
-while (true)
-{
-    iterator.ResetChunk();
-
-    var mayHaveMore = session.ScanCursor(
-        ref cursor,
-        iterator.Chunk.Length,
-        iterator,
-        untilAddress,
-        validateCursor: true,
-        maxAddress: untilAddress,
-        resetCursor: false,
-        includeTombstones: false);
-
-    session.BasicContext.CompletePending(wait: true);
-
-    for (var i = 0; i < iterator.Count; i++)
-    {
-        var item = iterator.Chunk[i];
-        // LINQ fragment を展開した処琁E    }
-
-    if (!mayHaveMore)
-        break;
-}
-```
-
-こ�E形なら、�E側は `for` の単紁Eloop にできる一方で、�E件 `InMemoryList` は作らなぁE��`Any` / `First` / `Take` は chunk 冁E��条件を満たした時点で終亁E��き、次の chunk を読まなぁE��`ToArray` / `OrderBy` / `GroupBy` など全件蓁E��が本質皁E��忁E��な演算だけ、専用の出劁Ebuffer また�E storage-backed 中間構造へ明示皁E��積�E、E
-### 物琁E��ロチE��と論理チャンク
-
-ここでぁE�� chunk は、常に memory-mapped file の物琁E��ロチE��そ�Eも�Eを指すわけではなぁE��次の 2 種類を刁E��る、E
-- 物琁E��ロチE��: memory-mapped file、OS page、Tsavorite log page/segment など、storage が実際に読み書きする単位、E- 論理チャンク: LINQ/enumerator が一度の `MoveNext()` 補�Eで扱ぁErecord のまとまり。�E側めE`for` で回すための小さな buffer、E
-`List<T>` は memory-mapped file 前提なので、論理チャンクを物琁E��ロチE��また�E mapped view の墁E��に寁E��る�Eが�E然である。固定長要素なめE`blockBytes / sizeof(T)` に近い件数で chunk を�Eれる。可変長要素めEmanaged 参�Eを含む場合�E、件数ではなぁEbyte budget と index table を持つ、E
-`HashSet<T>` / `Dictionary<TKey,TValue>` は Tsavorite storage 前提なので、論理チャンクは memory-mapped file block ではなぁE`ScanCursor` の count/cursor 単位である。scan 結果を固定上限の record buffer に受けてから `for` で処琁E��る、E
-したがって、`List<T>` では物琁E��ロチE��と論理チャンクを一致させめE��ぁE��一方、`HashSet<T>` / `Dictionary<TKey,TValue>` では物琁E�E置に強く結�Eつけず、`Math.Max(Const.Chunk_Length, 4096)` を現在の固宁Eblock とし、封E�� target byte size で調整できる論理チャンクにする、E
-## 影響篁E��
+## 影響範囲
 
 - `src/Tsavorite.Collections/Linq/*`
 - `src/Tsavorite.Collections/Collections/IHashSet.cs`
@@ -330,20 +159,47 @@ while (true)
 - `sandbox/Benchmark.Shared/*`
 - `src/Benchmark/*`
 
-## 移行手頁E
-1. `Tsavorite.Linq.Enumerable` を追加し、既孁E`HashSet` API を移植する、E2. `HashSet` を互換レイヤーにして、既存テストを壊さなぁE��E3. `System.Collections.Generic` 大容量材料化を使ぁEiterator を�E類し、単純遅延・Tsavorite-backed state・memory-mapped state に刁E��る、E4. generator の LINQ family 判定を導�Eする、E5. `IHashSet<T>` / `HashSet<T>` 向けの最封Efragment を通す、E6. 既孁ETsavorite HashSet intercept チE��トを `Enumerable` 名前へ移行する、E7. System LINQ チE��トを共朁Esource factory 化し、Tsavorite 版を追加する、E8. ベンチ�E有化めE`Benchmark.Shared` ベ�Eスで整琁E��る、E9. 依存更新を行う場合�E Garnet 更新後に build/test を通す、E
-## チE��ト計画
+## 移行手順
+
+1. `Tsavorite.Linq.Enumerable` を追加し、既存 `HashSet` API を移植する。
+2. `HashSet` を互換レイヤーにして、既存テストを壊さない。
+3. `System.Collections.Generic` 大容量材料化を使う iterator を分類する。
+4. generator の LINQ family 判定を導入する。
+5. `IHashSet<T>` と `HashSet<T>` 向けの最初の fragment を通す。
+6. 既存 Tsavorite HashSet intercept テストを `Enumerable` 名へ移行する。
+7. System LINQ テストを共通 source factory 化し、Tsavorite 版を追加する。
+8. benchmark 共有化を `Benchmark.Shared` ベースで整理する。
+9. Garnet 更新後に restore、build、test を通す。
+
+## テスト計画
 
 - `dotnet test tests/Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj`
 - `dotnet test tests/Test.Tsavorite.Collections.Benchmark/Test.Tsavorite.Collections.Benchmark.csproj`
-- Chain1 のぁE��初期対忁Efragment の System/Tsavorite 共有テスト、E- Chain2 の `Where_Select`, `Select_Where`, `Where_Count`, `Select_Sum` から開始、E- Generated source assertion で `Tsavorite.Linq.Enumerable` ぁEintercept 対象になることを確認、E- 大容量中間バチE��ァ禁止の静的検査として、`Tsavorite.Linq.Enumerable` 実裁E�Eの `global::System.Collections.Generic.List/HashSet/Dictionary` 使用めE`rg` で検�Eする、E
-## リスクと対筁E
-- extension method 解決ぁE`System.Linq` と `Tsavorite.Linq` で衝突する、E  - チE��ト名前空間と using alias を�Eけ、忁E��な箁E��は明示 static call にする、E- `IEnumerable<T>` 戻り値を維持すると全件バッファ enumerator に戻りやすい、E  - generator 展開と専用 enumerable を優先し、未対忁Efragment は例外にする、E- `GroupBy`/`Join`/`OrderBy` は状態管琁E��大きく、�E期対応で破綻しやすい、E  - 初期篁E��から外し、storage-backed 中間構造を�Eに設計する、E- Garnet prerelease 更新で Tsavorite API が動く可能性がある、E  - session/scan API を�E部 helper に閉じる、E
-## 未決事頁E
-- `ToHashSet` / `ToDictionary` の戻り値めETsavorite collection に寁E��るか、System 互換を残して `ToTsavorite*` を追加するか、E
-## 合意状況E
-- 合意済み: 正要EAPI 名�E `Tsavorite.Linq.Enumerable`、E- 合意済み: 既孁E`Tsavorite.Linq.HashSet` は妥当名ではなぁE��め移行対象、E- 合意済み: System LINQ 用 intercept/チE��トを参老E�� Tsavorite 版を作る、E- 合意済み: storage-level 展開を要求する経路では、未対忁Efragment めE���E展開できなぁELINQ は fallback せず例外にする、E- 合意済み: `Microsoft.Garnet` は最新 prerelease `2.0.1-beta.3` へ更新する、E- 合意済み: `GetEnumerator()` は全件 `InMemoryList<T>` 材料化ではなく、外部 iterator 方式�E固宁Eblock scan にする、E- 実施済み: `src/Tsavorite.Collections/Tsavorite.Collections.csproj` と `src/Seamless.Data/Seamless.Data.csproj` の `Microsoft.Garnet` 参�EめE`2.0.1-beta.3` に更新した、E- 検証済み: `dotnet restore` と `dotnet build --no-restore` は両プロジェクトで成功した。`Tsavorite.Collections` には既存�E nullable/CS9124 警告が残るが、Garnet 更新によるエラーは出てぁE��ぁE��E- 実施済み: `Collection.Default.Enumerator` めEconstructor 全件材料化かめE`MoveNext()` 時�E `ScanCursor` 補�Eへ変更した。`HashSet<T>` / `Dictionary<TKey,TValue>` / `Set<TKey,TRecord>` は列挙開始時の `TailAddress` を渡す、E- 実施済み: scan buffer は `Math.Max(Const.Chunk_Length, 4096)` records とし、可変長 disk record の cursor validation 墁E��で欠落しなぁE��ぁE`validateCursor: true` を使ぁE��E- 検証済み: `dotnet test tests/Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj --no-restore --filter "FullyQualifiedName~Enumerator|FullyQualifiedName~IterateLookupChunkTests"` は 41 件成功した、E
-## 参�E
+- Chain1 と Chain2 の System/Tsavorite 共有テスト。
+- Generated source assertion で `Tsavorite.Linq.Enumerable` が intercept 対象になることを確認する。
+- `Tsavorite.Linq.Enumerable` 実装内の大容量 `System.Collections.Generic` 使用を `rg` で検出する。
+
+## リスクと対策
+
+- extension method 解決が `System.Linq` と `Tsavorite.Linq` で衝突する。
+  - テスト名前空間と using alias を分け、必要な箇所は明示 static call にする。
+- `IEnumerable<T>` 戻り値を維持すると全件バッファ enumerator に戻りやすい。
+  - generator 展開と専用 enumerable を優先し、未対応 fragment は例外にする。
+- `GroupBy`、`Join`、`OrderBy` は状態管理が大きい。
+  - 初期範囲から外し、storage-backed 中間構造を先に設計する。
+- Garnet prerelease 更新で Tsavorite API が変わる可能性がある。
+  - session/scan API を内部 helper に閉じる。
+
+## 合意状況
+
+- 正規 API 名は `Tsavorite.Linq.Enumerable` とする。
+- 既存 `Tsavorite.Linq.HashSet` は移行対象とする。
+- System LINQ 用 intercept/test を参考に Tsavorite 版を作る。
+- storage-level 展開で未対応 fragment を silent fallback しない。
+- `Microsoft.Garnet` は最新 prerelease へ更新する。
+- `GetEnumerator()` は全件 `InMemoryList<T>` 材料化ではなく、外部 iterator 方式と固定 block scan にする。
+
+## 参照
 
 - NuGet `Microsoft.Garnet`: https://www.nuget.org/packages/Microsoft.Garnet
 - Garnet repository: https://github.com/microsoft/garnet

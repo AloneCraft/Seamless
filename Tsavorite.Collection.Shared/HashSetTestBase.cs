@@ -1,6 +1,6 @@
 namespace Tsavorite.Collection;
 /// <summary>
-/// <see cref="global::System.Collections.Generic.ISet{T}"/> 相当�E共通テスト基底クラス、E/// Dictionary 系と重褁E��なぁEHashSet 固有�E振る�EぁE��検証する、E/// </summary>
+/// HashSetの動作を検証する。
 public abstract class HashSetTestBase<TStrategy, T>
     where TStrategy : IHashSetTestStrategy<T>
     where T : IEquatable<T> {
@@ -314,12 +314,12 @@ public abstract class HashSetTestBase<TStrategy, T>
     public void Contains() {
         {
             // コメント文字化け修正済み
+            // コメント文字化け修正済み
             using var h = TStrategy.CreateMemorySet();
             h.Set.Add(TStrategy.Elem(1));
             Assert.True(h.Set.Contains(TStrategy.Elem(1)));
         }
         {
-            // コメント文字化け修正済み
             using var h = TStrategy.CreateMemorySet();
             Assert.False(h.Set.Contains(TStrategy.Elem(99)));
         }

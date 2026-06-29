@@ -3,7 +3,7 @@ using Seamless.Tsavorite.Collections;
 using Tsavorite.core;
 namespace Tsavorite.Collection;
 /// <summary>
-/// <see cref="global::Seamless.Tsavorite.Collections.IDictionary{TKey,TValue}"/> 固有�EチE��ト基底クラス、E/// <see cref="global::System.Collections.Generic.IDictionary{TKey,TValue}"/> 共通テスト�E <see cref="IDictionaryTestBase{TStrategy,TKey,TValue}"/> に雁E��E��れており、E/// こ�Eクラスでは追加で TryAdd、Remove(out value)、Dispose、EntryCount を確認する、E/// </summary>
+/// IDictionaryの動作を検証する。
 public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTestBase<TStrategy,TKey,TValue>
     where TStrategy : IDictTestStrategy<TKey,TValue>
     where TKey : IEquatable<TKey>
@@ -20,7 +20,7 @@ public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTes
             Assert.Equal(TryAddResult.Success,result);
         }
         {
-            // 重褁E��ーの追加は KeyAlreadyExists
+            // Dictionaryの動作を検証する。
             using var sh = TStrategy.CreateMemoryStore();
             using var dict = sh.NewDict();
             dict.Add(TStrategy.K(1),TStrategy.V(1));
@@ -28,7 +28,7 @@ public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTes
             Assert.Equal(TryAddResult.KeyAlreadyExists,result);
         }
         {
-            // コールドデータ読み込み後�E重褁E��加でめEKeyAlreadyExists
+            // Dictionaryの動作を検証する。
             var folder = this.CreateDiskFolder();
             using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
             using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
@@ -52,7 +52,7 @@ public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTes
             Assert.False(dict.ContainsKey(TStrategy.K(1)));
         }
         {
-            // 存在しなぁE��ーは false と default を返す
+            // Dictionaryの動作を検証する。
             using var sh = TStrategy.CreateMemoryStore();
             using var dict = sh.NewDict();
             var removed = dict.Remove(TStrategy.K(99),out var value);
@@ -65,7 +65,7 @@ public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTes
         var sh = TStrategy.CreateMemoryStore();
         var dict = sh.NewDict();
         {
-            // Dispose は褁E��回呼んでも安�Eなこと
+            // Dictionaryの動作を検証する。
             Assert.False(dict.IsDisposed);
             dict.Dispose();
             Assert.True(dict.IsDisposed);
@@ -79,7 +79,7 @@ public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTes
         using var dict = sh.NewDict();
         dict.Add(TStrategy.K(1),TStrategy.V(1));
         {
-            // ストア上�E件数ぁE1 以上であること
+            // Dictionaryの動作を検証する。
             Assert.True(dict.EntryCount>=1);
         }
     }
