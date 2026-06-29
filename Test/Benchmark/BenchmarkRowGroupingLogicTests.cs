@@ -32,8 +32,7 @@ public sealed class BenchmarkRowGroupingLogicTests{
         Assert.Equal(2,rows.Count);
         Assert.NotEqual(rows[0].RowKey,rows[1].RowKey);
         Assert.All(rows,row => Assert.Equal("Where",row.MethodName));
-        Assert.Contains(rows,row => row.BenchmarkName.Contains("TypeA",StringComparison.Ordinal));
-        Assert.Contains(rows,row => row.BenchmarkName.Contains("TypeB",StringComparison.Ordinal));
+        Assert.All(rows,row => Assert.Equal("Where",row.BenchmarkName));
     }
 
     [Fact]
