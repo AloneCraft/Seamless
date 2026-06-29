@@ -1,8 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-
-
 namespace Test.System.Linq.Intercept.FragmentCoverage;
 
 public sealed class OfType {

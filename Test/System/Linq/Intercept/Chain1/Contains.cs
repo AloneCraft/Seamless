@@ -1,5 +1,3 @@
-using SystemEnumerable = System.Linq.Enumerable;
-
 namespace Test.System.Linq.Intercept.Chain1;
 
 public sealed class Contains(ITestOutputHelper output):LinqChain1TestBase(output) {

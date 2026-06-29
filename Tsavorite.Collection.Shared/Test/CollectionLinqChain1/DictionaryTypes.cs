@@ -1,4 +1,3 @@
-using Seamless.Collections;
 using Collection.Test.CollectionLinqChain1;
 using Tsavorite.Collection.Strategy.CollectionLinq;
 

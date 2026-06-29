@@ -1,8 +1,5 @@
-using Seamless.Tsavorite.Collections;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using Tsavorite.core;
-using Seamless.Collections;
 namespace Tsavorite.Collection;
 /// <summary>
 /// IDictionaryの動作を検証する。

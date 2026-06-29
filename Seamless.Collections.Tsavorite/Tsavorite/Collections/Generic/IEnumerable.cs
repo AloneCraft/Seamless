@@ -1,4 +1,3 @@
-using SystemCollections = System.Collections;
 using SystemCollectionsGeneric = System.Collections.Generic;
 
 namespace Seamless.Tsavorite.Collections.Generic;

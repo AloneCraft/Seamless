@@ -1,8 +1,3 @@
-using System.Linq;
-
-using Test.System.Linq.Intercept;
-
-
 namespace Test.System.Linq.Intercept.Chain1;
 
 public sealed class TakeLast(ITestOutputHelper output):LinqChain1TestBase(output) {

@@ -1,6 +1,3 @@
-using System.Linq;
-
-
 namespace Test.System.Linq.Intercept.Chain2;
 
 // 2 個目がスカラー終端演算子（Sum）のケース。

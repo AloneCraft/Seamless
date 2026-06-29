@@ -1,10 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-
-using Test.System.Linq.Intercept;
-
-
 namespace Test.System.Linq.Intercept.FragmentCoverage;
 
 public sealed class Cast {

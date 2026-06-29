@@ -1,5 +1,3 @@
-using Seamless.Collections;
-
 namespace Scalable.Tsavorite.Collection.Set;
 
 public sealed class SetInt32

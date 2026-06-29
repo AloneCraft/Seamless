@@ -1,8 +1,6 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 using System.Text;
-using Xunit.Abstractions;
-
 namespace Test.SourceGenerator;
 
 public class InterceptorLanguageShapeTests(ITestOutputHelper output)

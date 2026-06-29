@@ -1,5 +1,3 @@
-using Xunit.Abstractions;
-
 namespace Test.SourceGenerator;
 
 public class LinqRewriteAttributeTests(ITestOutputHelper output) {

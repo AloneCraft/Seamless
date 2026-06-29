@@ -1,7 +1,5 @@
 using Collection.Helper.CollectionLinq;
 using Collection.Strategy.CollectionLinq;
-using Seamless.Collections;
-
 namespace Tsavorite.Collection.Strategy.CollectionLinq;
 
 public sealed class TsavoriteDictionaryLinqSource<TKey,TValue>(

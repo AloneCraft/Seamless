@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Seamless.Tsavorite.Stores;
 namespace Seamless.Tsavorite.Collections;
 
 /// <summary>

@@ -1,5 +1,3 @@
-using Seamless.Tsavorite.Collections;
-
 namespace Test.System.Linq.Intercept;
 
 internal static class LinqCounterDiagnostics {

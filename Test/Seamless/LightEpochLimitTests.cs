@@ -1,6 +1,4 @@
 using Seamless.Tsavorite.Stores;
-
-using System.Linq;
 namespace Test.Seamless;
 
 /// <summary>

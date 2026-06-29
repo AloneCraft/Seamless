@@ -2,9 +2,6 @@ using System.Buffers;
 using System.Runtime.CompilerServices;
 using MemoryPack;
 using Test.Seamless.Database.Example.Keys;
-
-using Seamless.Tsavorite.Stores;
-
 namespace Test.Seamless.Database.Example {
 
     /// <summary>

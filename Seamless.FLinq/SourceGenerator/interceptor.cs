@@ -1,12 +1,5 @@
 // #define Tsavorite_ENUMERATOR_MODE  // コメントを外すと常に Enumerator struct 方式になる（フラットループ無効化）
-
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
-using static Seamless.SourceGenerator.GeneratorHelpers;
-
-using Seamless.FLinq.Linq.Fragments;
-using Enumerable = Seamless.FLinq.Linq.Fragments.Enumerable;
-
 namespace Seamless.FLinq;
 
 [Generator]

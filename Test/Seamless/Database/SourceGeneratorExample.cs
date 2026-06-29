@@ -1,5 +1,3 @@
-using System.Linq;
-using System.Reflection;
 using Seamless.Linq;
 
 namespace Test.Seamless.Database.Database0 {

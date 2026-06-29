@@ -1,7 +1,5 @@
 using Microsoft.CodeAnalysis;
 using Seamless.FLinq;
-using Xunit.Abstractions;
-
 namespace Test.SourceGenerator;
 
 [LinqIntercept(false)]

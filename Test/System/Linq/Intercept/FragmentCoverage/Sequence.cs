@@ -1,7 +1,3 @@
-using System.Linq;
-
-using Test.System.Linq.Intercept;
-
 using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.System.Linq.Intercept.FragmentCoverage;

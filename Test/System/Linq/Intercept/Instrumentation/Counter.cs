@@ -1,8 +1,4 @@
-using Seamless.Tsavorite.Collections;
 using Seamless.FLinq;
-
-using Test.System.Linq.Intercept;
-
 namespace Test.System.Linq.Intercept.Instrumentation;
 
 public sealed class Counter {

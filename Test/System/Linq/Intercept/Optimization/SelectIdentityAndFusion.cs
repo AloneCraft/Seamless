@@ -1,8 +1,3 @@
-using System.Linq;
-
-using Test.System.Linq.Intercept;
-
-
 namespace Test.System.Linq.Intercept.Optimization;
 
 // §1: Select(f).Select(g) 融合（ループ融合で達成済み）と 恒等 Select(x=>x) 除去。

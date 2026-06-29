@@ -1,6 +1,5 @@
 using Collection.Helper.CollectionLinq;
 using Collection.Strategy.CollectionLinq;
-using Seamless.Collections;
 using Seamless.Serialization;
 
 namespace Persisted.Collection.Strategy.CollectionLinq;

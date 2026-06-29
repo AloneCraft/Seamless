@@ -1,6 +1,5 @@
 using Tsavorite.core;
 using System.Diagnostics.CodeAnalysis;
-using Seamless.Tsavorite.Stores;
 namespace Tsavorite.Collection;
 
 /// <summary>

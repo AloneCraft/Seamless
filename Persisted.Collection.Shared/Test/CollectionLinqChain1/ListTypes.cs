@@ -1,7 +1,5 @@
 using Collection.Test.CollectionLinqChain1;
 using Persisted.Collection.Strategy.CollectionLinq;
-using Seamless.Collections;
-
 namespace Persisted.Collection.Test.CollectionLinqChain1;
 
 public sealed class ListInt32

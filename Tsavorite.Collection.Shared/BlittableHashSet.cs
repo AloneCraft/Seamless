@@ -1,5 +1,3 @@
-using Seamless.Collections;
-
 namespace Tsavorite.Collection;
 
 public abstract class BlittableHashSet<TStrategy, T> : HashSetTestBase<TStrategy, T>

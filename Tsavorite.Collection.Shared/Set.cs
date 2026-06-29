@@ -1,10 +1,4 @@
 using MemoryPack;
-
-using Seamless.Collections;
-
-using Seamless.Tsavorite.Collections;
-using Seamless.Tsavorite.Stores;
-
 namespace Tsavorite.Collection;
 
 [MemoryPackable]

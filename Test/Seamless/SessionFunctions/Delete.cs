@@ -1,4 +1,3 @@
-using Seamless.Tsavorite.Collections;
 using Seamless.Tsavorite.Stores;
 using Tsavorite.core;
 namespace Test.Seamless.SessionFunctions;

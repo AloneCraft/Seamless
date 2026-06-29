@@ -1,8 +1,3 @@
-using System.Linq;
-
-using Test.System.Linq.Intercept;
-
-
 namespace Test.System.Linq.Intercept.Chain1;
 
 public sealed class TryGetNonEnumeratedCount(ITestOutputHelper output):LinqChain1TestBase(output) {

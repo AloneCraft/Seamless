@@ -1,5 +1,3 @@
-using Seamless.Collections;
-
 namespace Tsavorite.Collection;
 
 public class DictionaryStringString : DictionaryTestBase<ManagedStoreDictionaryStrategy<StringDictTypeProvider, StringDictTypeProvider, string, string>, string, string>;

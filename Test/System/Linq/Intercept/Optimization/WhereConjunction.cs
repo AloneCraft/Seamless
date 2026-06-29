@@ -1,8 +1,3 @@
-using System.Linq;
-
-using Test.System.Linq.Intercept;
-
-
 namespace Test.System.Linq.Intercept.Optimization;
 
 // §1: Where(f).Where(g) -> Where(f&&g)（Pipeline.MergeWhereStages の単一短絡ステージ化）。意味保存を確認。

@@ -1,6 +1,3 @@
-using System.Linq;
-
-
 namespace Test.System.Linq.Intercept.Chain1;
 
 public sealed class Intersect(ITestOutputHelper output):LinqChain1TestBase(output) {

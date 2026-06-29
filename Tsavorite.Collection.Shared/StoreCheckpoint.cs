@@ -1,5 +1,3 @@
-using Seamless.Tsavorite.Stores;
-using System.Linq;
 using System.Runtime.Versioning;
 using Tsavorite.core;
 namespace Tsavorite.Collection;

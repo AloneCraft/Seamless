@@ -1,8 +1,5 @@
 #if NET8_0_OR_GREATER
 #endif
-
-using Seamless.Linq;
-
 namespace Seamless.System.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromRange,int> Range(int start,int count) {

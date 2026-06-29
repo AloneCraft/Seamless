@@ -1,7 +1,5 @@
 using System.Text;
 using Microsoft.CodeAnalysis;
-using Xunit.Abstractions;
-
 namespace Test.SourceGenerator;
 
 internal static class GeneratedSourceAssert {

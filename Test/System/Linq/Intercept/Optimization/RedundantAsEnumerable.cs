@@ -1,8 +1,3 @@
-using System.Linq;
-
-using Test.System.Linq.Intercept;
-
-
 namespace Test.System.Linq.Intercept.Optimization;
 
 // §1: 冗長な AsEnumerable() の排除。後続に別の Enumerable 拡張がある中段でのみ除去（最外段は素通しのため残す）。

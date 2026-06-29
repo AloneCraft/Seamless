@@ -1,10 +1,4 @@
 #pragma warning disable
-
-using System;
-using System.Buffers;
-using System.Collections;
-using System.Diagnostics;
-
 namespace Seamless.System.Carrier {
     partial class ValueEnumerableExtensions {
         public static ILookup<TKey,TSource> ToLookup<TEnumerator, TSource, TKey>(this ValueEnumerable<TEnumerator,TSource> source,Func<TSource,TKey> keySelector)

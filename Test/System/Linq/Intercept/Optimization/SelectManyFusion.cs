@@ -1,5 +1,3 @@
-using System.Linq;
-
 namespace Test.System.Linq.Intercept.Optimization;
 
 public sealed class SelectManyFusion:OptimizationTestBase{
