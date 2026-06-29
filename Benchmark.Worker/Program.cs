@@ -12,6 +12,7 @@ Console.InputEncoding=Encoding.UTF8;
 const string ElementScaleEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_SCALE";
 const string ElementCountEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_COUNT";
 const string PreparedElementCountsEnvironmentVariable = "SEAMLESS_BENCHMARK_PREPARED_ELEMENT_COUNTS";
+const string RandomSourceSeedEnvironmentVariable = "SEAMLESS_BENCHMARK_RANDOM_SOURCE_SEED";
 
 var logicalCpu = ReadRequiredIntArg(args,"--logical-cpu");
 var runRoot = ReadRequiredStringArg(args,"--run-root");
@@ -55,7 +56,9 @@ while(await Console.In.ReadLineAsync() is { } line){
             null,
             1,
             task?.ArtifactFolder??string.Empty,
-            ex.ToString());
+            ex.ToString(),
+            null,
+            string.Empty);
         await protocolOutput.WriteLineAsync(JsonSerializer.Serialize(result));
         await protocolOutput.FlushAsync();
     }
@@ -77,10 +80,12 @@ static WorkerResultMessage RunBenchmark(
     var previousScale = Environment.GetEnvironmentVariable(ElementScaleEnvironmentVariable);
     var previousElementCount = Environment.GetEnvironmentVariable(ElementCountEnvironmentVariable);
     var previousPreparedElementCounts = Environment.GetEnvironmentVariable(PreparedElementCountsEnvironmentVariable);
+    var previousRandomSourceSeed = Environment.GetEnvironmentVariable(RandomSourceSeedEnvironmentVariable);
     Console.SetOut(logWriter);
     Console.SetError(logWriter);
     try{
         ApplyAffinity(logicalCpu);
+        var randomSeed = CreateRandomSourceSeed(task);
         Environment.SetEnvironmentVariable(ElementScaleEnvironmentVariable,string.IsNullOrWhiteSpace(task.ElementScale)?"1":task.ElementScale);
         Environment.SetEnvironmentVariable(
             ElementCountEnvironmentVariable,
@@ -90,8 +95,11 @@ static WorkerResultMessage RunBenchmark(
             task.PreparedElementCounts.Length>0
                 ? string.Join(",",task.PreparedElementCounts.Distinct().Order().Select(static count => count.ToString(CultureInfo.InvariantCulture)))
                 : null);
+        Environment.SetEnvironmentVariable(RandomSourceSeedEnvironmentVariable,randomSeed.ToString(CultureInfo.InvariantCulture));
         var benchmarkType = ResolveBenchmarkType(task.AssemblyName,task.TypeFullName);
         using var elementScope = BeginElementCountScope(benchmarkType.Assembly,task.ElementCount,task.ElementScale);
+        using var randomSourceScope = BeginRandomSourceSeedScope(benchmarkType.Assembly,randomSeed);
+        var resultDigest = CaptureBenchmarkResultDigest(benchmarkType,task.MethodName);
         var config = BenchmarkWorkerRuntime.CreateConfig(task.ArtifactFolder);
         var summaries = BenchmarkSwitcher
             .FromTypes([benchmarkType])
@@ -117,7 +125,9 @@ static WorkerResultMessage RunBenchmark(
                 task.ArtifactFolder,
                 string.IsNullOrWhiteSpace(log)
                     ? "BenchmarkDotNet did not produce result statistics."
-                    : log);
+                    : log,
+                randomSeed,
+                resultDigest);
         }
 
         return new WorkerResultMessage(
@@ -132,11 +142,14 @@ static WorkerResultMessage RunBenchmark(
             allocatedBytes,
             0,
             task.ArtifactFolder,
-            log);
+            log,
+            randomSeed,
+            resultDigest);
     }finally{
         Environment.SetEnvironmentVariable(ElementScaleEnvironmentVariable,previousScale);
         Environment.SetEnvironmentVariable(ElementCountEnvironmentVariable,previousElementCount);
         Environment.SetEnvironmentVariable(PreparedElementCountsEnvironmentVariable,previousPreparedElementCounts);
+        Environment.SetEnvironmentVariable(RandomSourceSeedEnvironmentVariable,previousRandomSourceSeed);
         Console.SetOut(protocolOutput);
         Console.SetError(protocolError);
     }
@@ -161,6 +174,55 @@ static IDisposable BeginElementCountScope(Assembly assembly,int elementCount,str
         modifiers:null);
     return method?.Invoke(null,[elementCount,string.IsNullOrWhiteSpace(elementScale)?"1":elementScale]) as IDisposable
         ?? EmptyDisposable.Instance;
+}
+
+static IDisposable BeginRandomSourceSeedScope(Assembly assembly,int seed){
+    var modeType = assembly.GetType("Benchmark.Shared.BenchmarkExecutionMode",throwOnError:false,ignoreCase:false);
+    var method = modeType?.GetMethod(
+        "UseRandomSourceSeed",
+        BindingFlags.Public|BindingFlags.Static,
+        binder:null,
+        types:[typeof(int)],
+        modifiers:null);
+    return method?.Invoke(null,[seed]) as IDisposable
+        ?? EmptyDisposable.Instance;
+}
+
+static string CaptureBenchmarkResultDigest(Type benchmarkType,string methodName){
+    var instance = Activator.CreateInstance(benchmarkType);
+    var method = benchmarkType.GetMethod(
+        "CaptureBenchmarkMethodResult",
+        BindingFlags.Public|BindingFlags.Instance,
+        binder:null,
+        types:[typeof(string),typeof(bool)],
+        modifiers:null)
+        ??throw new MissingMethodException(benchmarkType.FullName,"CaptureBenchmarkMethodResult");
+    return method.Invoke(instance,[methodName,false]) as string
+        ??throw new InvalidOperationException("Benchmark result digest was empty.");
+}
+
+static int CreateRandomSourceSeed(WorkerTaskMessage task){
+    var runRoot = TryGetRunRoot(task.ArtifactFolder);
+    return StableHash(runRoot+"|"+task.SourceTab+"|"+task.MethodName+"|"+task.ElementCount.ToString(CultureInfo.InvariantCulture));
+}
+
+static string TryGetRunRoot(string artifactFolder){
+    var directory = new DirectoryInfo(artifactFolder);
+    for(var i=0;i<4&&directory is not null;i++){
+        directory=directory.Parent;
+    }
+    return directory?.FullName??artifactFolder;
+}
+
+static int StableHash(string text){
+    unchecked{
+        var hash = (int)2166136261;
+        foreach(var ch in text){
+            hash^=ch;
+            hash*=16777619;
+        }
+        return hash==0 ? 1 : hash;
+    }
 }
 
 static string FormatNanoseconds(double? value){
@@ -283,7 +345,9 @@ internal sealed record WorkerResultMessage(
     long? AllocatedBytes,
     int ExitCode,
     string ArtifactFolder,
-    string Log);
+    string Log,
+    int? RandomSeed,
+    string ResultDigest);
 internal sealed class EmptyDisposable:IDisposable{
     public static EmptyDisposable Instance { get; } = new();
 

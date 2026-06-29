@@ -51,9 +51,17 @@ internal sealed class BenchmarkRunPersistenceService {
             return true;
         }
 
-        var sourceRoot = Path.Combine(folder,BenchmarkSourceTabs.Get(sourceTab).Id);
-        return Directory.Exists(sourceRoot)
-            &&Directory.EnumerateFiles(sourceRoot,"N*.csv",SearchOption.TopDirectoryOnly).Any();
+        foreach(var tab in BenchmarkSourceTabs.All) {
+            var sourceRoot = Path.Combine(folder,tab.Id);
+            if(Directory.Exists(sourceRoot)
+                &&Directory.EnumerateFiles(sourceRoot,"N*.csv",SearchOption.TopDirectoryOnly).Any()) {
+                return true;
+            }
+        }
+
+        var legacySourceRoot = Path.Combine(folder,BenchmarkSourceTabs.Get(sourceTab).Id);
+        return Directory.Exists(legacySourceRoot)
+            &&Directory.EnumerateFiles(legacySourceRoot,"N*.csv",SearchOption.TopDirectoryOnly).Any();
     }
 
     public static BenchmarkRunOption CreateRunOption(ProgressState state) {
@@ -96,6 +104,7 @@ internal sealed class BenchmarkRunPersistenceService {
             AdaptiveThresholdNanoseconds=source.AdaptiveThresholdNanoseconds,
             Jobs=source.Jobs.Select(CloneJob).ToList(),
             AdaptiveStates=source.AdaptiveStates.Select(CloneAdaptiveState).ToList(),
+            BenchmarkSelection=CloneBenchmarkSelection(source.BenchmarkSelection),
             CreatedAt=resetIdentity ? now : source.CreatedAt,
             UpdatedAt=now,
         };
@@ -128,6 +137,9 @@ internal sealed class BenchmarkRunPersistenceService {
             ErrorNanoseconds=source.ErrorNanoseconds,
             StdDevNanoseconds=source.StdDevNanoseconds,
             AllocatedBytes=source.AllocatedBytes,
+            RandomSeed=source.RandomSeed,
+            ResultDigest=source.ResultDigest,
+            ResultCheckText=source.ResultCheckText,
             ExitCode=source.ExitCode,
             ArtifactFolder=source.ArtifactFolder,
             FailureReason=source.FailureReason,
@@ -145,6 +157,12 @@ internal sealed class BenchmarkRunPersistenceService {
             Reason=source.Reason,
             TriggerProject=source.TriggerProject,
             TriggerMeanNanoseconds=source.TriggerMeanNanoseconds,
+        };
+
+    private static ProgressBenchmarkSelectionState CloneBenchmarkSelection(ProgressBenchmarkSelectionState source) =>
+        new() {
+            ProjectCellSelections=new Dictionary<string,bool>(source.ProjectCellSelections,StringComparer.OrdinalIgnoreCase),
+            RowSelections=new Dictionary<string,bool>(source.RowSelections,StringComparer.OrdinalIgnoreCase),
         };
 
     private static string FormatRunDisplay(int runNumber,DateTimeOffset createdAt,int completedJobs,int totalJobs) =>

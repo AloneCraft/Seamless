@@ -12,17 +12,18 @@ internal sealed class BenchmarkResultWriter {
         lock(this.writeGate){
             Directory.CreateDirectory(state.RunRoot);
             var paths = new List<string>();
-            var sourceTab = BenchmarkSourceTabs.Get(state.SourceTab);
-            var sourceRoot = Path.Combine(state.RunRoot,sourceTab.Id);
-            Directory.CreateDirectory(sourceRoot);
             foreach(var group in state.Jobs
                 .Where(static job => job.Status==JobStatus.Completed)
-                .GroupBy(static job => job.ElementCount)
-                .OrderBy(static group => group.Key)) {
-                var rows = BenchmarkComparisonFormatter.BuildComparisonRows(group
-                    .Select(static job => job.ToReportRow())
-                    .ToArray(),sourceTab);
-                var path = Path.Combine(sourceRoot,$"N{group.Key}.csv");
+                .GroupBy(static job => new { job.SourceTab,job.ElementCount })
+                .OrderBy(static group => BenchmarkSourceTabs.Get(group.Key.SourceTab).Id,StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static group => group.Key.ElementCount)) {
+                var sourceTab = BenchmarkSourceTabs.Get(group.Key.SourceTab);
+                var sourceRoot = Path.Combine(state.RunRoot,sourceTab.Id);
+                Directory.CreateDirectory(sourceRoot);
+                var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
+                    group.Select(static job => job.ToReportRow()).ToArray(),
+                    sourceTab);
+                var path = Path.Combine(sourceRoot,$"N{group.Key.ElementCount}.csv");
                 AtomicWriteText(path,BenchmarkComparisonFormatter.WriteCsv(rows,sourceTab),new UTF8Encoding(true));
                 paths.Add(path);
             }
@@ -37,7 +38,7 @@ internal sealed class BenchmarkResultWriter {
         builder.AppendLine($"RunId: {state.RunId}");
         builder.AppendLine($"Mode: {state.Mode}");
         builder.AppendLine($"ExecutionProfile: {state.ExecutionProfile}");
-        builder.AppendLine($"SourceTab: {BenchmarkSourceTabs.Get(state.SourceTab).Id}");
+        builder.AppendLine($"SourceTabs: {string.Join(",",state.Jobs.Select(static job => job.SourceTab).Distinct().Select(static tab => BenchmarkSourceTabs.Get(tab).Id))}");
         builder.AppendLine($"AllocatedBytesSource: {BenchmarkExecutionProfileNames.GetAllocatedBytesSource(state.ExecutionProfile)}");
         builder.AppendLine($"Jobs: {state.Jobs.Count}");
         builder.AppendLine($"Completed: {state.Jobs.Count(static job => job.Status==JobStatus.Completed)}");

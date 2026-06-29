@@ -64,6 +64,9 @@ public sealed class BenchmarkJob {
     public double? ErrorNanoseconds { get; set; }
     public double? StdDevNanoseconds { get; set; }
     public long? AllocatedBytes { get; set; }
+    public int? RandomSeed { get; set; }
+    public string ResultDigest { get; set; } = string.Empty;
+    public string ResultCheckText { get; set; } = string.Empty;
     public int? ExitCode { get; set; }
     public string ArtifactFolder { get; set; } = string.Empty;
     public string FailureReason { get; set; } = string.Empty;
@@ -130,6 +133,7 @@ internal sealed class ProgressState {
     public double AdaptiveThresholdNanoseconds { get; set; }
     public List<BenchmarkJob> Jobs { get; set; } = [];
     public List<AdaptiveBenchmarkState> AdaptiveStates { get; set; } = [];
+    public ProgressBenchmarkSelectionState BenchmarkSelection { get; set; } = new();
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 
@@ -165,7 +169,9 @@ public sealed record BenchmarkJobRunResult(
     long? AllocatedBytes,
     int ExitCode,
     string ArtifactFolder,
-    string Log);
+    string Log,
+    int? RandomSeed = null,
+    string ResultDigest = "");
 
 public interface IBenchmarkJobRunner {
     Task<BenchmarkJobRunResult> RunAsync(
@@ -174,6 +180,11 @@ public interface IBenchmarkJobRunner {
         int logicalCpu,
         TimeSpan timeout,
         CancellationToken cancellationToken);
+}
+
+internal sealed class ProgressBenchmarkSelectionState {
+    public Dictionary<string,bool> ProjectCellSelections { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string,bool> RowSelections { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 public interface IBenchmarkDynamicCpuSetRunner {
