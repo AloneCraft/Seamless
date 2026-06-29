@@ -2,7 +2,7 @@ using Seamless.Tsavorite.Stores;
 using System.Linq;
 using System.Runtime.Versioning;
 using Tsavorite.core;
-namespace Tsavorite.Collection.Shared;
+namespace Tsavorite.Collection;
 
 public class StoreCheckpoint {
     //private static string CreateFolder()=>Path.Combine(Environment.CurrentDirectory,"TsavoriteTest_"+Guid.NewGuid().ToString("N"));
@@ -260,7 +260,7 @@ public class StoreCheckpoint {
         using var store = Store.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
         using var set = store.Create();
         set.Add(1);
-        // SaveAsync ã®å®Œäº†å‰ã«å†å®Ÿè¡Œã™ã‚‹ã¨ InvalidOperationException ã«ãªã‚‹ã“ã¨ã‚’ç¢ºèªã™ã‚‹ã€‚
+        // SaveAsync ‚ÌŠ®—¹‘O‚ÉÄÀs‚·‚é‚Æ InvalidOperationException ‚É‚È‚é‚±‚Æ‚ğŠm”F‚·‚éB
         var ongoingCheckpoint = store.SaveAsync(ct: ct).AsTask();
         await Assert.ThrowsAsync<InvalidOperationException>(() => store.SaveAsync(ct: ct).AsTask());
         await ongoingCheckpoint;
@@ -275,7 +275,7 @@ public class StoreCheckpoint {
         using var store = Store.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
         using var set = store.Create();
         set.Add(1);
-        // SaveLogOnlyAsync ã®å®Œäº†å‰ã«å†å®Ÿè¡Œã™ã‚‹ã¨ InvalidOperationException ã«ãªã‚‹ã“ã¨ã‚’ç¢ºèªã™ã‚‹ã€‚
+        // SaveLogOnlyAsync ‚ÌŠ®—¹‘O‚ÉÄÀs‚·‚é‚Æ InvalidOperationException ‚É‚È‚é‚±‚Æ‚ğŠm”F‚·‚éB
         var ongoingCheckpoint = store.SaveLogOnlyAsync(ct: ct).AsTask();
         await Assert.ThrowsAsync<InvalidOperationException>(() => store.SaveLogOnlyAsync(ct: ct).AsTask());
         await ongoingCheckpoint;
@@ -295,9 +295,9 @@ public class StoreCheckpoint {
     }
     [SupportedOSPlatform("windows")]
     private class SimulatedFlakyDevice(string path):LocalStorageDevice(path,false,false,false,-1,false,false,false) {
-        // true ã®å ´åˆã¯æ›¸ãè¾¼ã¿/èª­ã¿è¾¼ã¿ã§æ“¬ä¼¼çš„ã«å¤±æ•—ã•ã›ã‚‹ã€‚
+        // true ‚Ìê‡‚Í‘‚«‚İ/“Ç‚İ‚İ‚Å‹[—“I‚É¸”s‚³‚¹‚éB
         public bool ShouldFail { get; set; } = false;
-        // ãƒ†ã‚¹ãƒˆã§é…å»¶ã‚’å†ç¾ã™ã‚‹ãŸã‚ã®å¾…æ©Ÿæ™‚é–“ (ms)ã€‚
+        // ƒeƒXƒg‚Å’x‰„‚ğÄŒ»‚·‚é‚½‚ß‚Ì‘Ò‹@ŠÔ (ms)B
         public int WriteDelayMilliseconds { get; set; } = 0;
 
         public override void WriteAsync(IntPtr srcAddress,int alignedSourceNextAddress,ulong alignedDestinationAddress,uint numBytesToWrite,DeviceIOCompletionCallback callback,object callbackContext) {

@@ -1,9 +1,9 @@
-using Collection.Shared.Helper.CollectionLinq;
-using Collection.Shared.Strategy.CollectionLinq;
+using Collection.Helper.CollectionLinq;
+using Collection.Strategy.CollectionLinq;
 using Seamless.Collections;
 using Seamless.Serialization;
 
-namespace Persisted.Collection.Shared.Strategy.CollectionLinq;
+namespace Persisted.Collection.Strategy.CollectionLinq;
 
 public sealed class PersistedSetLinqSource<T>(string path,global::Seamless.Persisted.Collections.Set<T> set):IDisposable
     where T : IEquatable<T>

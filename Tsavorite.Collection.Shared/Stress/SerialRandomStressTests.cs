@@ -2,7 +2,7 @@ using Seamless.Tsavorite.Stores;
 using System.Linq;
 using Tsavorite.core;
 using Seamless.Collections;
-namespace Tsavorite.Collection.Shared.Stress;
+namespace Tsavorite.Collection.Stress;
 
 /// <summary>
 /// シングルスレチE��の決定論的 Add/Save/Load/Contains/Remove 連続実行テスト、E/// 同じシードで毎回同じハッシュ結果になることを確認する、E/// </summary>

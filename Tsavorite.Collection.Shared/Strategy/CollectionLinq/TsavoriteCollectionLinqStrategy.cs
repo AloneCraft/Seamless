@@ -1,8 +1,8 @@
-using Collection.Shared.Helper.CollectionLinq;
-using Collection.Shared.Strategy.CollectionLinq;
+using Collection.Helper.CollectionLinq;
+using Collection.Strategy.CollectionLinq;
 using Seamless.Collections;
 
-namespace Tsavorite.Collection.Shared.Strategy.CollectionLinq;
+namespace Tsavorite.Collection.Strategy.CollectionLinq;
 
 public sealed class TsavoriteDictionaryLinqSource<TKey,TValue>(
     StoreHandle<TKey,TValue> store,

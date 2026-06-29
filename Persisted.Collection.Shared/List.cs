@@ -1,4 +1,4 @@
-namespace Persisted.Collection.Shared;
+namespace Persisted.Collection;
 
 public abstract class ListBase<TStrategy, T>:ListTestBase<TStrategy,T>
     where TStrategy : IListTestStrategy<T>;

@@ -1,8 +1,8 @@
 using Seamless.Collections;
-using Collection.Shared.Test.CollectionLinqChain1;
-using Tsavorite.Collection.Shared.Strategy.CollectionLinq;
+using Collection.Test.CollectionLinqChain1;
+using Tsavorite.Collection.Strategy.CollectionLinq;
 
-namespace Tsavorite.Collection.Shared.Test.CollectionLinqChain1;
+namespace Tsavorite.Collection.Test.CollectionLinqChain1;
 
 public sealed class DictionaryStringString
     :DictionaryLinqChain1<TsavoriteDictionaryCollectionLinqStrategy<ManagedStoreDictionaryStrategy<StringDictTypeProvider,StringDictTypeProvider,string,string>,string,string>,TsavoriteDictionaryLinqSource<string,string>,KeyValuePair<string,string>,string,string>;

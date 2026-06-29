@@ -1,4 +1,4 @@
-namespace Collection.Shared.Helper.CollectionLinq;
+namespace Collection.Helper.CollectionLinq;
 
 public static class CollectionLinqSourceSizing {
     public static long GetMemorySize(int count) {

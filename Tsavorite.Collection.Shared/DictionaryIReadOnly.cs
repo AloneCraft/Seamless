@@ -1,7 +1,7 @@
 using Seamless.Tsavorite.Stores;
 
 using System.Linq;
-namespace Tsavorite.Collection.Shared;
+namespace Tsavorite.Collection;
 
 public class DictionaryIReadOnly {
     [BenchFact,Benchmark]

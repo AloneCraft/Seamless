@@ -1,7 +1,7 @@
 using BenchmarkDotNet.Attributes;
-using Collection.Shared.Strategy.CollectionLinq;
+using Collection.Strategy.CollectionLinq;
 
-namespace Collection.Shared.Test.CollectionLinqChain1;
+namespace Collection.Test.CollectionLinqChain1;
 
 public abstract class ListLinqChain1<TStrategy,TSource,TElement,TKey,TValue>
     :CollectionLinqChain1<TStrategy,TSource,TElement,TKey,TValue>

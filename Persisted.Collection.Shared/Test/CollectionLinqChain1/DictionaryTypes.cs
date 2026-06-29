@@ -1,8 +1,8 @@
-using Collection.Shared.Test.CollectionLinqChain1;
-using Persisted.Collection.Shared.Strategy.CollectionLinq;
+using Collection.Test.CollectionLinqChain1;
+using Persisted.Collection.Strategy.CollectionLinq;
 using Seamless.Collections;
 
-namespace Persisted.Collection.Shared.Test.CollectionLinqChain1;
+namespace Persisted.Collection.Test.CollectionLinqChain1;
 
 public sealed class DictionaryStringString
     :DictionaryLinqChain1<PersistedSerializedDictionaryCollectionLinqStrategy<ManagedStoreDictionaryStrategy<StringDictTypeProvider,StringDictTypeProvider,string,string>,string,string>,PersistedDictionaryLinqSource<string,string>,KeyValuePair<string,string>,string,string>;

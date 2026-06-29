@@ -1,8 +1,8 @@
-using Collection.Shared.Test.CollectionLinqChain1;
-using Persisted.Collection.Shared.Strategy.CollectionLinq;
+using Collection.Test.CollectionLinqChain1;
+using Persisted.Collection.Strategy.CollectionLinq;
 using Seamless.Collections;
 
-namespace Persisted.Collection.Shared.Test.CollectionLinqChain1;
+namespace Persisted.Collection.Test.CollectionLinqChain1;
 
 public sealed class ListInt32
     :ListLinqChain1<PersistedListCollectionLinqStrategy<BlittableListStrategy<Int32ListValueProvider,int>,int>,PersistedListLinqSource<int>,int,int,int>;

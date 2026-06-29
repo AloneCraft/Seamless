@@ -1,6 +1,6 @@
 using Seamless.Collections;
 
-namespace Persisted.Collection.Shared;
+namespace Persisted.Collection;
 
 public class Set {
     [BenchFact,Benchmark]
