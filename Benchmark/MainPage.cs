@@ -314,22 +314,19 @@ public sealed class MainPage:ContentPage {
     }
 
     private View CreateConfirmDialogButtons(IReadOnlyList<ConfirmDialogOption> options,Action<string> completed) {
-        var grid = new Grid {
-            ColumnSpacing=10,
-            HorizontalOptions=LayoutOptions.Fill,
+        var layout = new HorizontalStackLayout {
+            Spacing=10,
+            HorizontalOptions=LayoutOptions.Center,
         };
-        foreach(var _ in options) {
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width=GridLength.Star });
-        }
 
         for(var index = 0; index<options.Count; index++) {
             var option = options[index];
             var button = this.CreateConfirmDialogButton(option);
             button.Clicked+=(_,_) => completed(option.Value);
-            grid.Add(button,index,0);
+            layout.Children.Add(button);
         }
 
-        return grid;
+        return layout;
     }
 
     private Button CreateConfirmDialogButton(ConfirmDialogOption option) {
@@ -337,6 +334,7 @@ public sealed class MainPage:ContentPage {
             Text=option.Text,
             HeightRequest=42,
             MinimumWidthRequest=128,
+            WidthRequest=168,
             CornerRadius=8,
             BorderWidth=1,
             FontSize=14,
