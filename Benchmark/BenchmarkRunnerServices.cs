@@ -640,7 +640,7 @@ public sealed class BenchmarkResultService:IBenchmarkResultService {
         return new ReportRow(
             item.Project,
             method,
-            string.Empty,
+            item.TypeFullName,
             method,
             item.Status,
             item.Mean,

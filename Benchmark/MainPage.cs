@@ -917,19 +917,27 @@ public sealed class MainPage:ContentPage {
 
     private async void ScrollBenchmarkGridToLatestExecutionAsync(BenchmarkAutoScrollRequest request) {
         this.SyncSourceTabViewSelection();
-        this.ScrollBenchmarkGridToMethod(request.MethodName);
+        this.ScrollBenchmarkGridToMethod(request.MethodName,request.RowKey);
         await Task.Delay(150);
-        MainThread.BeginInvokeOnMainThread(() => this.ScrollBenchmarkGridToMethod(request.MethodName));
+        MainThread.BeginInvokeOnMainThread(() => this.ScrollBenchmarkGridToMethod(request.MethodName,request.RowKey));
     }
 
-    private void ScrollBenchmarkGridToMethod(string methodName) {
+    private void ScrollBenchmarkGridToMethod(string methodName,string rowKey) {
         if(this.viewModel is null||this.benchmarkGrid is null) {
             return;
         }
 
         var rowIndex = -1;
         for(var index=0;index<this.viewModel.BenchmarkRows.Count;index++) {
-            if(string.Equals(this.viewModel.BenchmarkRows[index].MethodName,methodName,StringComparison.OrdinalIgnoreCase)) {
+            var row = this.viewModel.BenchmarkRows[index];
+            if(!string.IsNullOrWhiteSpace(rowKey)
+                &&string.Equals(row.RowKey,rowKey,StringComparison.OrdinalIgnoreCase)) {
+                rowIndex=index;
+                break;
+            }
+
+            if(string.IsNullOrWhiteSpace(rowKey)
+                &&string.Equals(row.MethodName,methodName,StringComparison.OrdinalIgnoreCase)) {
                 rowIndex=index;
                 break;
             }
@@ -3020,7 +3028,7 @@ internal sealed class BenchmarkChartSelectionOverlayDrawable:IDrawable {
 
     private IReadOnlyList<BenchmarkChartSelectionLayoutRow> CreateLayout(IReadOnlyList<ChartComparisonPoint> points,SizeF size) {
         var plotLeft = this.GetAxisCoordinate(this.yAxis,0,MathF.Min(LabelHitWidth,size.Width*0.42f),size.Width);
-        var plotRight = this.GetAxisCoordinate(this.yAxis,100,size.Width-OuterPadding,size.Width);
+        var plotRight = size.Width-OuterPadding;
         if(plotRight<plotLeft) {
             (plotLeft,plotRight)=(plotRight,plotLeft);
         }
@@ -3040,24 +3048,19 @@ internal sealed class BenchmarkChartSelectionOverlayDrawable:IDrawable {
             var fallbackCenter = top+rowHeight*(index+0.5f);
             var center = this.GetAxisCoordinate(this.xAxis,index,fallbackCenter,size.Height);
             var y = center-barHeight/2;
-            var total = point.LeftValue+point.RightValue;
-            var leftPercent = total>0
-                ? (float)Math.Clamp(point.LeftValue/total*100,0,100)
-                : 0;
-            var leftEnd = this.GetAxisCoordinate(
-                this.yAxis,
-                leftPercent,
-                plotLeft+(plotRight-plotLeft)*leftPercent/100,
-                size.Width);
-            leftEnd=Math.Clamp(leftEnd,plotLeft,plotRight);
+            var barRects = BenchmarkChartSelectionLayoutLogic.CreateBarRects(
+                plotLeft,
+                plotRight,
+                point.LeftValue,
+                point.RightValue);
             var hitTop = center-rowHeight/2;
             rows[index]=new BenchmarkChartSelectionLayoutRow(
                 point,
                 plotLeft,
                 plotRight,
                 new RectF(OuterPadding,y,MathF.Max(1,plotRight-OuterPadding),barHeight),
-                new RectF(plotLeft,y,MathF.Max(1,leftEnd-plotLeft),barHeight),
-                new RectF(leftEnd,y,MathF.Max(1,plotRight-leftEnd),barHeight),
+                new RectF(barRects.LeftBarRect.Left,y,barRects.LeftBarRect.Width,barHeight),
+                new RectF(barRects.RightBarRect.Left,y,barRects.RightBarRect.Width,barHeight),
                 new RectF(OuterPadding,hitTop,MathF.Max(1,plotRight-OuterPadding),rowHeight));
         }
 

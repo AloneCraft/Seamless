@@ -33,23 +33,33 @@ internal static class BenchmarkComparisonFormatter{
     public static IReadOnlyList<BenchmarkComparisonRow> BuildComparisonRows(
         IReadOnlyList<ReportRow> rows,
         BenchmarkSourceTabDefinition sourceTab){
-        var rowsByMethod = new Dictionary<string,Dictionary<string,ProjectMetrics>>(StringComparer.OrdinalIgnoreCase);
+        var rowsByMethod = new Dictionary<string,BenchmarkComparisonBucket>(StringComparer.OrdinalIgnoreCase);
+        var duplicatedProjectMethods = rows
+            .GroupBy(static row => row.Project+"|"+row.Method,StringComparer.OrdinalIgnoreCase)
+            .Where(static group => group.Select(static row => row.TypeFullName).Distinct(StringComparer.OrdinalIgnoreCase).Count()>1)
+            .Select(static group => group.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach(var row in rows){
             if(!sourceTab.ContainsProject(row.Project)){
                 throw new InvalidDataException($"Unknown benchmark project for {sourceTab.Id}: {row.Project}");
             }
 
-            if(!rowsByMethod.TryGetValue(row.Method,out var metricsByProject)){
-                metricsByProject = new Dictionary<string,ProjectMetrics>(StringComparer.OrdinalIgnoreCase);
-                rowsByMethod.Add(row.Method,metricsByProject);
+            var typeDiscriminator = duplicatedProjectMethods.Contains(row.Project+"|"+row.Method)
+                ? ShortTypeName(row.TypeFullName)
+                : string.Empty;
+            var key = CreateComparisonKey(row.Method,typeDiscriminator);
+            if(!rowsByMethod.TryGetValue(key,out var bucket)){
+                bucket = new BenchmarkComparisonBucket(row.Method,typeDiscriminator);
+                rowsByMethod.Add(key,bucket);
             }
 
-            metricsByProject[NormalizeProjectName(row.Project,sourceTab)] = CreateMetrics(row);
+            bucket.MetricsByProject[NormalizeProjectName(row.Project,sourceTab)] = CreateMetrics(row);
         }
 
         return rowsByMethod
-            .OrderBy(static item => item.Key,StringComparer.OrdinalIgnoreCase)
-            .Select(item => CreateRow(item.Key,item.Value,sourceTab))
+            .OrderBy(static item => item.Value.Method,StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static item => item.Value.TypeFullName,StringComparer.OrdinalIgnoreCase)
+            .Select(item => CreateRow(item.Value.Method,item.Value.TypeFullName,item.Value.MetricsByProject,sourceTab))
             .ToArray();
     }
 
@@ -138,7 +148,7 @@ internal static class BenchmarkComparisonFormatter{
                 }
             }
 
-            result.Add(CreateRow(method,metrics,sourceTab));
+            result.Add(CreateRow(method,string.Empty,metrics,sourceTab));
         }
 
         return result;
@@ -185,6 +195,7 @@ internal static class BenchmarkComparisonFormatter{
 
     private static BenchmarkComparisonRow CreateRow(
         string method,
+        string typeFullName,
         IReadOnlyDictionary<string,ProjectMetrics> metrics,
         BenchmarkSourceTabDefinition sourceTab){
         var left = metrics.GetValueOrDefault(sourceTab.LeftProject);
@@ -195,6 +206,7 @@ internal static class BenchmarkComparisonFormatter{
             left,
             right);
         return row with{
+            TypeFullName = typeFullName,
             PairRatio = CreatePairComparison(row,new ComparisonPairDefinition(
                 sourceTab.Id,
                 sourceTab.DisplayName,
@@ -202,6 +214,31 @@ internal static class BenchmarkComparisonFormatter{
                 sourceTab.LeftProject,
                 sourceTab.RightProject)),
         };
+    }
+
+    private static string CreateComparisonKey(string method,string typeFullName) =>
+        method+"|"+typeFullName;
+
+    private static string ShortTypeName(string typeFullName){
+        if(string.IsNullOrWhiteSpace(typeFullName)){
+            return string.Empty;
+        }
+
+        var index = typeFullName.LastIndexOf('.');
+        return index<0||index==typeFullName.Length-1
+            ? typeFullName
+            : typeFullName[(index+1)..];
+    }
+
+    private sealed class BenchmarkComparisonBucket{
+        public BenchmarkComparisonBucket(string method,string typeFullName){
+            this.Method=method;
+            this.TypeFullName=typeFullName;
+        }
+
+        public string Method { get; }
+        public string TypeFullName { get; }
+        public Dictionary<string,ProjectMetrics> MetricsByProject { get; } = new(StringComparer.OrdinalIgnoreCase);
     }
 
     private static ProjectMetrics CreateMetrics(ReportRow row){
@@ -335,9 +372,14 @@ public readonly record struct BenchmarkComparisonRow(
     BenchmarkSourceTabDefinition SourceTab,
     ProjectMetrics Left,
     ProjectMetrics Right){
+    public string TypeFullName { get; init; } = string.Empty;
     public PairComparison PairRatio { get; init; }
 
     public ProjectMetrics GetProject(string project){
+        if(this.SourceTab is null){
+            return ProjectMetrics.Missing;
+        }
+
         if(string.Equals(project,this.SourceTab.LeftProject,StringComparison.OrdinalIgnoreCase)){
             return this.Left;
         }

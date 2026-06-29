@@ -1,0 +1,36 @@
+namespace Benchmark;
+
+public sealed class BenchmarkChartSelectionLayoutLogicTests{
+    [Fact]
+    public void CreateBarRects_RightBarEndsAtPlotRightForEvenValues(){
+        var rects = BenchmarkChartSelectionLayoutLogic.CreateBarRects(
+            plotLeft:100,
+            plotRight:500,
+            leftValue:50,
+            rightValue:50);
+
+        Assert.Equal(300,rects.LeftBarRect.Right);
+        Assert.Equal(rects.LeftBarRect.Right,rects.RightBarRect.Left);
+        Assert.Equal(500,rects.RightBarRect.Right);
+        Assert.Equal(200,rects.RightBarRect.Width);
+    }
+
+    [Fact]
+    public void CreateBarRects_RightBarCoversRemainingWidthForUnevenValues(){
+        var rects = BenchmarkChartSelectionLayoutLogic.CreateBarRects(
+            plotLeft:100,
+            plotRight:500,
+            leftValue:96,
+            rightValue:100);
+
+        Assert.Equal(rects.LeftBarRect.Right,rects.RightBarRect.Left);
+        Assert.Equal(500,rects.RightBarRect.Right);
+        Assert.Equal(rects.RightBarRect.Right-rects.RightBarRect.Left,rects.RightBarRect.Width);
+    }
+
+    [Fact]
+    public void CalculateStackBoundary_ClampsPercentToPlotRange(){
+        Assert.Equal(100,BenchmarkChartSelectionLayoutLogic.CalculateStackBoundary(100,500,-10));
+        Assert.Equal(500,BenchmarkChartSelectionLayoutLogic.CalculateStackBoundary(100,500,110));
+    }
+}
