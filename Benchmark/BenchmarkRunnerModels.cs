@@ -54,7 +54,7 @@ public sealed record ResultElementCountOption(int Value,string DisplayName);
 
 public sealed record ThresholdOption(string DisplayName,int Milliseconds);
 
-public sealed record BenchmarkAutoScrollRequest(BenchmarkSourceTab SourceTab,string MethodName,int Sequence);
+public sealed record BenchmarkAutoScrollRequest(BenchmarkSourceTab SourceTab,string MethodName,string RowKey,int Sequence);
 
 public readonly record struct BenchmarkSortValue(string? Text,double? Number,bool IsMissing){
     public static BenchmarkSortValue FromText(string text) => new(text,null,string.IsNullOrWhiteSpace(text));
@@ -717,9 +717,15 @@ public sealed class BenchmarkTableRow:ObservableObject{
     private bool isFinalCompleted;
     private static readonly Color DefaultStopNTextColor = Color.FromArgb("#334155");
 
-    public BenchmarkTableRow(string methodName,BenchmarkSourceTabDefinition sourceTab,IReadOnlyDictionary<string,BenchmarkCase> casesByProject){
+    public BenchmarkTableRow(
+        string rowKey,
+        string methodName,
+        string benchmarkName,
+        BenchmarkSourceTabDefinition sourceTab,
+        IReadOnlyDictionary<string,BenchmarkCase> casesByProject){
+        this.RowKey=rowKey;
         this.MethodName=methodName;
-        this.BenchmarkName=methodName;
+        this.BenchmarkName=benchmarkName;
         this.SourceTab=sourceTab;
         this.CasesByProject=casesByProject;
         this.LeftCell=this.CreateCell(sourceTab.LeftProject);
@@ -731,6 +737,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.RefreshUiSelectionState();
     }
 
+    public string RowKey { get; }
     public string MethodName { get; }
     public string BenchmarkName { get; }
     public BenchmarkSourceTabDefinition SourceTab { get; }
@@ -1431,6 +1438,7 @@ public sealed class BenchmarkResultItem{
     public BenchmarkResultItem(BenchmarkJob job){
         this.Project=job.Project;
         this.Method=job.MethodName;
+        this.TypeFullName=job.TypeFullName;
         this.SourceTab=job.SourceTab;
         this.ElementCount=job.ElementCount;
         this.Name=job.Project+" / "+job.MethodName+" / "+job.ElementCount.ToString(CultureInfo.InvariantCulture);
@@ -1458,6 +1466,7 @@ public sealed class BenchmarkResultItem{
     public BenchmarkResultItem(BenchmarkRunResult result){
         this.Project=result.Project;
         this.Method=result.Method;
+        this.TypeFullName=result.TypeFullName;
         this.SourceTab=BenchmarkSourceTabs.TryGetByProject(result.Project)?.Tab??BenchmarkSourceTab.SystemArray;
         this.ElementCount=0;
         this.Name=result.Project+" / "+result.Method;
@@ -1485,6 +1494,7 @@ public sealed class BenchmarkResultItem{
     public BenchmarkResultItem(string project,string method,ProjectMetrics metrics,int elementCount = 0){
         this.Project=project;
         this.Method=method;
+        this.TypeFullName=string.Empty;
         this.SourceTab=BenchmarkSourceTabs.TryGetByProject(project)?.Tab??BenchmarkSourceTab.SystemArray;
         this.ElementCount=elementCount;
         this.Name=project+" / "+method;
@@ -1508,6 +1518,7 @@ public sealed class BenchmarkResultItem{
     private BenchmarkResultItem(BenchmarkCase benchmark,Exception exception){
         this.Project=benchmark.Project;
         this.Method=benchmark.MethodName;
+        this.TypeFullName=benchmark.TypeFullName;
         this.SourceTab=BenchmarkSourceTabs.TryGetByProject(benchmark.Project)?.Tab??BenchmarkSourceTab.SystemArray;
         this.ElementCount=0;
         this.Name=benchmark.Project+" / "+benchmark.MethodName;
@@ -1526,6 +1537,7 @@ public sealed class BenchmarkResultItem{
 
     public string Project { get; }
     public string Method { get; }
+    public string TypeFullName { get; }
     public BenchmarkSourceTab SourceTab { get; }
     public int ElementCount { get; }
     public string Name { get; }

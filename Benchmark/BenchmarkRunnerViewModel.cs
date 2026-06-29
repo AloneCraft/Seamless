@@ -901,10 +901,10 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             foreach(var row in this.CreateMethodRows(loaded)) {
                 this.SubscribeBenchmarkRow(row);
                 row.IsSelected=this.benchmarkRowSelections.GetValueOrDefault(
-                    CreateRowSelectionKey(row.SourceTab,row.MethodName),
+                    CreateRowSelectionKey(row.SourceTab,row.RowKey),
                     false);
                 foreach(var cell in row.ProjectCells) {
-                    var key = BenchmarkUiStateStore.CreateCellKey(row.MethodName,cell.Project);
+                    var key = BenchmarkUiStateStore.CreateCellKey(row.RowKey,cell.Project);
                     if(this.benchmarkCellSelections.TryGetValue(key,out var saved)) {
                         cell.IsSelected=saved;
                     }
@@ -930,23 +930,20 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private IReadOnlyList<BenchmarkTableRow> CreateMethodRows(IReadOnlyList<BenchmarkCase> cases) {
-        return cases
-            .Where(item => this.SelectedSourceDefinition.ContainsProject(item.Project))
-            .GroupBy(static item => item.MethodName,StringComparer.OrdinalIgnoreCase)
-            .OrderBy(static group => group.Key,StringComparer.OrdinalIgnoreCase)
-            .Select(group => new BenchmarkTableRow(
-                group.Key,
+        return BenchmarkRowGroupingLogic.CreateRows(cases,this.SelectedSourceDefinition)
+            .Select(row => new BenchmarkTableRow(
+                row.RowKey,
+                row.MethodName,
+                row.BenchmarkName,
                 this.SelectedSourceDefinition,
-                group
-                    .GroupBy(static item => item.Project,StringComparer.OrdinalIgnoreCase)
-                    .ToDictionary(static item => item.Key,static item => item.First(),StringComparer.OrdinalIgnoreCase)))
+                row.CasesByProject))
             .ToArray();
     }
 
     private void RefreshBenchmarkCaseIndex(IReadOnlyList<BenchmarkCase> cases) {
         this.benchmarkCasesByProjectMethod.Clear();
         foreach(var benchmark in cases) {
-            this.benchmarkCasesByProjectMethod[CreateBenchmarkCaseKey(benchmark.MethodName,benchmark.Project)]=benchmark;
+            this.benchmarkCasesByProjectMethod[CreateBenchmarkCaseKey(benchmark.MethodName,benchmark.Project,benchmark.TypeFullName)]=benchmark;
         }
     }
 
@@ -1070,9 +1067,21 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 : null;
     }
 
-    private int GetBenchmarkRowIndex(string benchmark) {
+    private int GetBenchmarkRowIndex(string benchmark,string rowKey = "") {
         for(var index=0;index<this.BenchmarkRows.Count;index++) {
-            if(string.Equals(this.BenchmarkRows[index].MethodName,benchmark,StringComparison.OrdinalIgnoreCase)) {
+            var row = this.BenchmarkRows[index];
+            if(!string.IsNullOrWhiteSpace(rowKey)
+                &&string.Equals(row.RowKey,rowKey,StringComparison.OrdinalIgnoreCase)) {
+                return index;
+            }
+
+            if(string.IsNullOrWhiteSpace(rowKey)
+                &&string.Equals(row.RowKey,benchmark,StringComparison.OrdinalIgnoreCase)) {
+                return index;
+            }
+
+            if(string.IsNullOrWhiteSpace(rowKey)
+                &&string.Equals(row.MethodName,benchmark,StringComparison.OrdinalIgnoreCase)) {
                 return index;
             }
         }
@@ -1206,15 +1215,15 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     private void CaptureCurrentBenchmarkSelections() {
         foreach(var row in this.BenchmarkRows) {
-            this.benchmarkRowSelections[CreateRowSelectionKey(row.SourceTab,row.MethodName)]=row.IsSelected;
+            this.benchmarkRowSelections[CreateRowSelectionKey(row.SourceTab,row.RowKey)]=row.IsSelected;
             foreach(var cell in row.ProjectCells) {
-                this.benchmarkCellSelections[BenchmarkUiStateStore.CreateCellKey(row.MethodName,cell.Project)]=cell.IsSelected;
+                this.benchmarkCellSelections[BenchmarkUiStateStore.CreateCellKey(row.RowKey,cell.Project)]=cell.IsSelected;
             }
         }
     }
 
-    private static string CreateRowSelectionKey(BenchmarkSourceTabDefinition sourceTab,string method) =>
-        sourceTab.Id+"|"+method;
+    private static string CreateRowSelectionKey(BenchmarkSourceTabDefinition sourceTab,string rowKey) =>
+        sourceTab.Id+"|"+rowKey;
 
     public void SaveUiState() {
         this.CaptureCurrentBenchmarkSelections();
@@ -1330,10 +1339,10 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             }
             foreach(var row in this.BenchmarkRows) {
                 row.IsSelected=this.benchmarkRowSelections.GetValueOrDefault(
-                    CreateRowSelectionKey(row.SourceTab,row.MethodName),
+                    CreateRowSelectionKey(row.SourceTab,row.RowKey),
                     false);
                 foreach(var cell in row.ProjectCells) {
-                    var key = BenchmarkUiStateStore.CreateCellKey(row.MethodName,cell.Project);
+                    var key = BenchmarkUiStateStore.CreateCellKey(row.RowKey,cell.Project);
                     cell.IsSelected=this.benchmarkCellSelections.TryGetValue(key,out var selected)&&selected;
                 }
             }
@@ -1455,7 +1464,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         BenchmarkResultItem result,
         BenchmarkSourceTabDefinition sourceTab,
         IReadOnlyList<int> preparedElementCounts) {
-        var benchmark = this.FindBenchmarkCase(result.Method,result.Project);
+        var benchmark = this.FindBenchmarkCase(result.Method,result.Project,result.TypeFullName);
         var status = ParseJobStatus(result.Status);
         var finishedAt = result.StartedAt??DateTimeOffset.UtcNow;
         return new BenchmarkJob {
@@ -1487,19 +1496,63 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         };
     }
 
-    private BenchmarkCase? FindBenchmarkCase(string method,string project) {
-        if(this.benchmarkCasesByProjectMethod.TryGetValue(CreateBenchmarkCaseKey(method,project),out var benchmark)) {
+    private BenchmarkCase? FindBenchmarkCase(string method,string project,string typeFullName = "") {
+        if(this.benchmarkCasesByProjectMethod.TryGetValue(CreateBenchmarkCaseKey(method,project,typeFullName),out var benchmark)) {
             return benchmark;
         }
 
         return this.BenchmarkRows
-            .FirstOrDefault(row => string.Equals(row.MethodName,method,StringComparison.OrdinalIgnoreCase))
+            .FirstOrDefault(row => row.CasesByProject.TryGetValue(project,out var candidate)
+                &&string.Equals(candidate.MethodName,method,StringComparison.OrdinalIgnoreCase)
+                &&(string.IsNullOrWhiteSpace(typeFullName)
+                    ||string.Equals(candidate.TypeFullName,typeFullName,StringComparison.OrdinalIgnoreCase)))
             ?.CasesByProject
             .GetValueOrDefault(project);
     }
 
-    private static string CreateBenchmarkCaseKey(string method,string project) =>
-        project+"|"+method;
+    private static string CreateBenchmarkCaseKey(string method,string project,string typeFullName) =>
+        BenchmarkRowGroupingLogic.CreateCaseKey(project,typeFullName,method);
+
+    private static string ShortTypeName(string typeFullName) {
+        if(string.IsNullOrWhiteSpace(typeFullName)) {
+            return string.Empty;
+        }
+
+        var index = typeFullName.LastIndexOf('.');
+        return index<0||index==typeFullName.Length-1
+            ? typeFullName
+            : typeFullName[(index+1)..];
+    }
+
+    private BenchmarkTableRow? FindBenchmarkRow(BenchmarkResultItem result) =>
+        this.BenchmarkRows.FirstOrDefault(row => IsResultForRow(row,result))
+        ??this.BenchmarkRows.FirstOrDefault(row => string.Equals(row.MethodName,result.Method,StringComparison.OrdinalIgnoreCase)
+            &&row.GetProjectCell(result.Project) is { HasCase: true });
+
+    private BenchmarkTableRow? FindBenchmarkRow(BenchmarkJob job) =>
+        this.BenchmarkRows.FirstOrDefault(row => IsJobForRow(row,job))
+        ??this.BenchmarkRows.FirstOrDefault(row => string.Equals(row.MethodName,job.MethodName,StringComparison.OrdinalIgnoreCase)
+            &&row.GetProjectCell(job.Project) is { HasCase: true });
+
+    private static bool IsResultForRow(BenchmarkTableRow row,BenchmarkResultItem result) {
+        if(row.CasesByProject.TryGetValue(result.Project,out var benchmark)) {
+            return string.Equals(benchmark.MethodName,result.Method,StringComparison.OrdinalIgnoreCase)
+                &&(string.IsNullOrWhiteSpace(result.TypeFullName)
+                    ||string.Equals(benchmark.TypeFullName,result.TypeFullName,StringComparison.OrdinalIgnoreCase));
+        }
+
+        return false;
+    }
+
+    private static bool IsJobForRow(BenchmarkTableRow row,BenchmarkJob job) {
+        if(row.CasesByProject.TryGetValue(job.Project,out var benchmark)) {
+            return string.Equals(benchmark.MethodName,job.MethodName,StringComparison.OrdinalIgnoreCase)
+                &&(string.IsNullOrWhiteSpace(job.TypeFullName)
+                    ||string.Equals(benchmark.TypeFullName,job.TypeFullName,StringComparison.OrdinalIgnoreCase));
+        }
+
+        return false;
+    }
 
     private static JobStatus ParseJobStatus(string status) =>
         Enum.TryParse<JobStatus>(status,true,out var value)
@@ -1793,19 +1846,19 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         if(isResultForVisibleTab&&result.ElementCount>0) {
             this.CurrentElementCountText=FormatElementCountText(result.ElementCount);
         }
-        var row = this.BenchmarkRows.FirstOrDefault(item => string.Equals(item.MethodName,result.Method,StringComparison.OrdinalIgnoreCase));
+        var row = this.FindBenchmarkRow(result);
         if(isResultForVisibleTab&&isRunningResult) {
-            this.RequestBenchmarkAutoScroll(resultSourceTab,result.Method);
+            this.RequestBenchmarkAutoScroll(resultSourceTab,result.Method,row?.RowKey??string.Empty);
             // Running は「今この method が進行中」という事実だけを反映し、 
             // 確定済み metrics や完了アイコンは上書きしない。
-            this.activeChartMethodName=result.Method;
+            this.activeChartMethodName=row?.RowKey??result.Method;
             this.ApplyChartRunningState();
             this.RetainCompletedHighlightsForRunningElement(result.ElementCount);
             row?.ApplyRunResult(result,cpu,DateTimeOffset.Now);
             return;
         }
         if(isRunningResult) {
-            this.RequestBenchmarkAutoScroll(resultSourceTab,result.Method);
+            this.RequestBenchmarkAutoScroll(resultSourceTab,result.Method,row?.RowKey??string.Empty);
             return;
         }
 
@@ -1833,7 +1886,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 // 完了時は現在の選択Nだけでなく、保持済みの停止行も再計算する。
                 this.ApplySelectedElementCountToTable();
                 row?.ApplyRunResult(result,cpu,completedAt);
-                if(string.Equals(this.activeChartMethodName,result.Method,StringComparison.OrdinalIgnoreCase)) {
+                if(string.Equals(this.activeChartMethodName,row?.RowKey??result.Method,StringComparison.OrdinalIgnoreCase)) {
                     this.activeChartMethodName=string.Empty;
                 }
                 this.UpdateChart();
@@ -1842,7 +1895,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
-    private void RequestBenchmarkAutoScroll(BenchmarkSourceTab sourceTab,string methodName) {
+    private void RequestBenchmarkAutoScroll(BenchmarkSourceTab sourceTab,string methodName,string rowKey) {
         var option = this.SourceTabs.FirstOrDefault(item => item.Tab==sourceTab);
         if(option is not null&&option!=this.SelectedSourceTab) {
             this.ApplySourceTabSelection(option);
@@ -1851,6 +1904,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.LatestBenchmarkAutoScrollRequest=new BenchmarkAutoScrollRequest(
             sourceTab,
             methodName,
+            rowKey,
             unchecked(++this.benchmarkAutoScrollSequence));
         this.OnPropertyChanged(nameof(this.LatestBenchmarkAutoScrollRequest));
     }
@@ -1866,7 +1920,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             return;
         }
 
-        var row = this.BenchmarkRows.FirstOrDefault(item => string.Equals(item.MethodName,result.Method,StringComparison.OrdinalIgnoreCase));
+        var row = this.FindBenchmarkRow(result);
         row?.ApplyRunResult(result,null,DateTimeOffset.Now,false);
     }
 
@@ -1891,6 +1945,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             var item = this.ResultItems[index];
             if(string.Equals(item.Project,result.Project,StringComparison.OrdinalIgnoreCase)
                 &&string.Equals(item.Method,result.Method,StringComparison.OrdinalIgnoreCase)
+                &&(string.IsNullOrWhiteSpace(item.TypeFullName)
+                    ||string.IsNullOrWhiteSpace(result.TypeFullName)
+                    ||string.Equals(item.TypeFullName,result.TypeFullName,StringComparison.OrdinalIgnoreCase))
                 &&item.ElementCount==result.ElementCount) {
                 this.ResultItems.RemoveAt(index);
             }
@@ -1905,6 +1962,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             var item = results[index];
             if(string.Equals(item.Project,result.Project,StringComparison.OrdinalIgnoreCase)
                 &&string.Equals(item.Method,result.Method,StringComparison.OrdinalIgnoreCase)
+                &&(string.IsNullOrWhiteSpace(item.TypeFullName)
+                    ||string.IsNullOrWhiteSpace(result.TypeFullName)
+                    ||string.Equals(item.TypeFullName,result.TypeFullName,StringComparison.OrdinalIgnoreCase))
                 &&item.ElementCount==result.ElementCount) {
                 results.RemoveAt(index);
             }
@@ -1917,7 +1977,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         var results = this.GetCurrentRunResultItems(sourceTab.Tab)
             .Concat(this.ResultItems.Where(item => sourceTab.ContainsProject(item.Project)))
             .Where(static item => item.ElementCount>0)
-            .GroupBy(static item => item.Method+"|"+item.ElementCount.ToString(System.Globalization.CultureInfo.InvariantCulture),StringComparer.OrdinalIgnoreCase);
+            .GroupBy(item => this.CreateResultRowKey(item)+"|"+item.ElementCount.ToString(System.Globalization.CultureInfo.InvariantCulture),StringComparer.OrdinalIgnoreCase);
         foreach(var group in results) {
             var left = group.LastOrDefault(item => string.Equals(item.Project,sourceTab.LeftProject,StringComparison.OrdinalIgnoreCase));
             var right = group.LastOrDefault(item => string.Equals(item.Project,sourceTab.RightProject,StringComparison.OrdinalIgnoreCase));
@@ -1933,9 +1993,12 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    private string CreateResultRowKey(BenchmarkResultItem result) =>
+        this.FindBenchmarkRow(result)?.RowKey??result.Method;
+
     private void ApplyResultCheck(BenchmarkResultItem result,string checkText) {
         result.ResultCheckText=checkText;
-        var row = this.BenchmarkRows.FirstOrDefault(row => string.Equals(row.MethodName,result.Method,StringComparison.OrdinalIgnoreCase));
+        var row = this.FindBenchmarkRow(result);
         row?.ApplyResultCheck(result.Project,checkText,result.ResultSeedText);
         foreach(var item in this.ResultItems.Where(item => IsResultMatch(item,result.Method,result.Project,result.ElementCount))) {
             item.ResultCheckText=checkText;
@@ -2202,13 +2265,22 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private void ApplyComparisonRowsToTable() {
-        var rowsByMethod = this.comparisonRows.ToDictionary(static item => item.Benchmark,StringComparer.OrdinalIgnoreCase);
         // 実行中は空欄に戻さず、完了済みセルの表示を保持したまま比較行だけ差し替える。
         var preserveRetainedDisplay = this.IsBenchmarkRunActive||this.HasCurrentRunResultsForSelectedTab;
         foreach(var benchmark in this.BenchmarkRows) {
-            benchmark.ApplyComparison(rowsByMethod.TryGetValue(benchmark.MethodName,out var row) ? row : null,preserveRetainedDisplay);
+            benchmark.ApplyComparison(this.FindComparisonRow(benchmark),preserveRetainedDisplay);
         }
         this.RefreshBenchmarkRatioSummary();
+    }
+
+    private BenchmarkComparisonRow? FindComparisonRow(BenchmarkTableRow row) {
+        foreach(var item in this.comparisonRows) {
+            if(IsComparisonRowMatch(row,item)) {
+                return item;
+            }
+        }
+
+        return null;
     }
 
     private void RefreshBenchmarkRatioSummary() {
@@ -2371,7 +2443,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         var jobs = state.Jobs
             .Where(job => this.SelectedSourceDefinition.ContainsProject(job.Project)
                 &&IsTerminalJob(job))
-            .GroupBy(static job => job.Project+"|"+job.MethodName,StringComparer.OrdinalIgnoreCase)
+            .GroupBy(static job => BenchmarkRowGroupingLogic.CreateCaseKey(job.Project,job.TypeFullName,job.MethodName),StringComparer.OrdinalIgnoreCase)
             .SelectMany(static group => group
                 .GroupBy(static job => job.ElementCount)
                 .Select(static elementGroup => elementGroup
@@ -2389,7 +2461,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 ? this.CpuItems.FirstOrDefault(cpuItem => cpuItem.LogicalProcessorIndex==logicalCpu)
                 : null;
             var completedAt = job.FinishedAt??job.StartedAt??DateTimeOffset.Now;
-            var row = this.BenchmarkRows.FirstOrDefault(row => string.Equals(row.MethodName,job.MethodName,StringComparison.OrdinalIgnoreCase));
+            var row = this.FindBenchmarkRow(job);
             row?.ApplyRunResult(item,cpu,completedAt,false);
         }
     }
@@ -2807,27 +2879,24 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private IReadOnlyList<ChartComparisonPoint> BuildBenchmarkChartPoints(IReadOnlyList<BenchmarkComparisonRow> rows) {
-        var rowsByBenchmark = rows.ToDictionary(static item => item.Benchmark,StringComparer.OrdinalIgnoreCase);
         return this.BenchmarkRows
-            .Select(row => this.CreateBenchmarkChartPoint(row,rowsByBenchmark))
+            .Select(row => this.CreateBenchmarkChartPoint(row,rows))
             .ToArray();
     }
 
     private ChartComparisonPoint CreateBenchmarkChartPoint(
         BenchmarkTableRow row,
-        IReadOnlyDictionary<string,BenchmarkComparisonRow> rowsByBenchmark) {
-        BenchmarkComparisonRow? comparisonRow = rowsByBenchmark.TryGetValue(row.MethodName,out var found)
-            ? found
-            : null;
+        IReadOnlyList<BenchmarkComparisonRow> rows) {
+        var comparisonRow = FindComparisonRow(row,rows);
         // まず比較 CSV の値を使い、足りないときだけセル保持値を fallback にする。
         // これで完了後に一時的な Missing が混ざっても、前回の確定棒を消さない。
         var left = this.GetChartMetrics(row,this.SelectedComparisonPair.LeftProject,comparisonRow);
         var right = this.GetChartMetrics(row,this.SelectedComparisonPair.RightProject,comparisonRow);
         var leftValue = GetMetricValue(left,this.SelectedMetric.Kind);
         var rightValue = GetMetricValue(right,this.SelectedMetric.Kind);
-        var cacheKey = this.GetChartPointCacheKey(row.MethodName);
+        var cacheKey = this.GetChartPointCacheKey(row.RowKey);
         if(leftValue is not null&&rightValue is not null) {
-            var measuredPoint = this.ApplyChartUiSelection(row,this.CreateChartComparisonPoint(row.MethodName,leftValue,rightValue));
+            var measuredPoint = this.ApplyChartUiSelection(row,this.CreateChartComparisonPoint(row,leftValue,rightValue));
             this.retainedChartPoints[cacheKey]=measuredPoint;
             return this.ApplyChartRunningState(measuredPoint);
         }
@@ -2836,10 +2905,28 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             return this.ApplyChartRunningState(this.ApplyChartUiSelection(row,retainedPoint));
         }
 
-        return this.ApplyChartRunningState(this.ApplyChartUiSelection(row,this.CreateChartComparisonPoint(row.MethodName,leftValue,rightValue)));
+        return this.ApplyChartRunningState(this.ApplyChartUiSelection(row,this.CreateChartComparisonPoint(row,leftValue,rightValue)));
     }
 
-    private ChartComparisonPoint CreateChartComparisonPoint(string method,double? leftValue,double? rightValue) {
+    private static BenchmarkComparisonRow? FindComparisonRow(BenchmarkTableRow row,IReadOnlyList<BenchmarkComparisonRow> rows) {
+        foreach(var item in rows) {
+            if(IsComparisonRowMatch(row,item)) {
+                return item;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsComparisonRowMatch(BenchmarkTableRow row,BenchmarkComparisonRow item) =>
+        string.Equals(item.Benchmark,row.MethodName,StringComparison.OrdinalIgnoreCase)
+        &&(string.IsNullOrWhiteSpace(item.TypeFullName)
+            ||row.CasesByProject.Values.Any(benchmark => string.Equals(ShortTypeName(benchmark.TypeFullName),item.TypeFullName,StringComparison.OrdinalIgnoreCase)));
+
+    private ChartComparisonPoint CreateChartComparisonPoint(BenchmarkTableRow row,double? leftValue,double? rightValue) =>
+        this.CreateChartComparisonPoint(row.RowKey,row.BenchmarkName,leftValue,rightValue);
+
+    private ChartComparisonPoint CreateChartComparisonPoint(string benchmark,string displayName,double? leftValue,double? rightValue) {
         var leftNumber = Math.Max(0,leftValue??0);
         var rightNumber = Math.Max(0,rightValue??0);
         var leftText = leftNumber>0&&rightNumber>0
@@ -2850,12 +2937,12 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             ? leftNumber/rightNumber
             : null;
         var metricName = this.SelectedMetric.Kind==BenchmarkMetricKind.Time?"処理時間":"メモリ";
-        var tooltip = method+"\n"
+        var tooltip = displayName+"\n"
             +this.SelectedComparisonPair.LeftProject+" "+metricName+": "+FirstText(FormatMetric(leftValue,this.SelectedMetric.Kind),"-")+"\n"
             +this.SelectedComparisonPair.RightProject+" "+metricName+": "+FirstText(FormatMetric(rightValue,this.SelectedMetric.Kind),"-");
         return new ChartComparisonPoint(
-            method,
-            BenchmarkFormatting.ShortName(method),
+            benchmark,
+            BenchmarkFormatting.ShortName(displayName),
             leftNumber,
             rightNumber,
             leftText,
@@ -2968,7 +3055,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         new(
             item.Project,
             item.Method,
-            string.Empty,
+            item.TypeFullName,
             item.Method,
             item.Status,
             item.Mean,

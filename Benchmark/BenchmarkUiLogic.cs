@@ -210,6 +210,117 @@ internal static class BenchmarkElementCountLogic{
     }
 }
 
+internal readonly record struct BenchmarkChartBarRect(float Left,float Right,float Width);
+
+internal static class BenchmarkChartSelectionLayoutLogic{
+    public static float CalculateStackBoundary(float plotLeft,float plotRight,float leftPercent) =>
+        plotLeft+(plotRight-plotLeft)*Math.Clamp(leftPercent,0,100)/100;
+
+    public static (BenchmarkChartBarRect LeftBarRect,BenchmarkChartBarRect RightBarRect) CreateBarRects(
+        float plotLeft,
+        float plotRight,
+        double leftValue,
+        double rightValue){
+        var total = leftValue+rightValue;
+        var leftPercent = total>0
+            ? (float)Math.Clamp(leftValue/total*100,0,100)
+            : 0;
+        var leftEnd = Math.Clamp(CalculateStackBoundary(plotLeft,plotRight,leftPercent),plotLeft,plotRight);
+        return (
+            new BenchmarkChartBarRect(plotLeft,leftEnd,MathF.Max(1,leftEnd-plotLeft)),
+            new BenchmarkChartBarRect(leftEnd,plotRight,MathF.Max(1,plotRight-leftEnd)));
+    }
+}
+
+internal readonly record struct BenchmarkRowDefinition(
+    string RowKey,
+    string MethodName,
+    string BenchmarkName,
+    IReadOnlyDictionary<string,BenchmarkCase> CasesByProject);
+
+internal static class BenchmarkRowGroupingLogic{
+    public static IReadOnlyList<BenchmarkRowDefinition> CreateRows(
+        IReadOnlyList<BenchmarkCase> cases,
+        BenchmarkSourceTabDefinition sourceTab){
+        var rows = new List<BenchmarkRowDefinition>();
+        foreach(var methodGroup in cases
+            .Where(item => sourceTab.ContainsProject(item.Project))
+            .GroupBy(static item => item.MethodName,StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static group => group.Key,StringComparer.OrdinalIgnoreCase)){
+            var casesByProject = sourceTab.ProjectOrder
+                .ToDictionary(
+                    static project => project,
+                    project => methodGroup
+                        .Where(item => string.Equals(item.Project,project,StringComparison.OrdinalIgnoreCase))
+                        .OrderBy(static item => item.TypeFullName,StringComparer.OrdinalIgnoreCase)
+                        .ThenBy(static item => item.AssemblyName,StringComparer.OrdinalIgnoreCase)
+                        .ToArray(),
+                    StringComparer.OrdinalIgnoreCase);
+            var rowCount = Math.Max(1,casesByProject.Values.Max(static items => items.Length));
+            for(var index=0;index<rowCount;index++){
+                var rowCases = new Dictionary<string,BenchmarkCase>(StringComparer.OrdinalIgnoreCase);
+                foreach(var project in sourceTab.ProjectOrder){
+                    var projectCases = casesByProject[project];
+                    if(index<projectCases.Length){
+                        rowCases[project]=projectCases[index];
+                    }
+                }
+
+                rows.Add(new BenchmarkRowDefinition(
+                    CreateRowKey(sourceTab,methodGroup.Key,rowCases),
+                    methodGroup.Key,
+                    CreateBenchmarkName(methodGroup.Key,rowCases,rowCount),
+                    rowCases));
+            }
+        }
+
+        return rows;
+    }
+
+    public static string CreateCaseKey(string project,string typeFullName,string methodName) =>
+        project+"|"+typeFullName+"|"+methodName;
+
+    public static string CreateRowKey(
+        BenchmarkSourceTabDefinition sourceTab,
+        string methodName,
+        IReadOnlyDictionary<string,BenchmarkCase> casesByProject){
+        var parts = sourceTab.ProjectOrder
+            .Select(project => casesByProject.TryGetValue(project,out var benchmark)
+                ? CreateCaseKey(benchmark.Project,benchmark.TypeFullName,benchmark.MethodName)
+                : project+"||"+methodName);
+        return sourceTab.Id+"|"+string.Join("||",parts);
+    }
+
+    private static string CreateBenchmarkName(
+        string methodName,
+        IReadOnlyDictionary<string,BenchmarkCase> casesByProject,
+        int rowCount){
+        if(rowCount<=1){
+            return methodName;
+        }
+
+        var typeNames = casesByProject.Values
+            .Select(static item => ShortTypeName(item.TypeFullName))
+            .Where(static item => !string.IsNullOrWhiteSpace(item))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        return typeNames.Length==0
+            ? methodName
+            : methodName+" ("+string.Join(" / ",typeNames)+")";
+    }
+
+    private static string ShortTypeName(string typeFullName){
+        if(string.IsNullOrWhiteSpace(typeFullName)){
+            return string.Empty;
+        }
+
+        var index = typeFullName.LastIndexOf('.');
+        return index<0||index==typeFullName.Length-1
+            ? typeFullName
+            : typeFullName[(index+1)..];
+    }
+}
+
 internal sealed record BenchmarkElementMeasurement(
     string Project,
     string Method,
