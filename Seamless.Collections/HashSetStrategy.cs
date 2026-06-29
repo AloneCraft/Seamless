@@ -21,6 +21,15 @@ public readonly struct Int32HashSetValueProvider:IHashSetValueProvider<int> {
 public readonly struct StringHashSetValueProvider:IHashSetValueProvider<string> {
     public static string Create(int i) => i.ToString();
 }
+public readonly struct UnmanagedStructHashSetValueProvider:IHashSetValueProvider<UnmanagedStruct> {
+    public static UnmanagedStruct Create(int i) => new() { Value=i };
+}
+public readonly struct ManagedStructHashSetValueProvider:IHashSetValueProvider<ManagedStruct> {
+    public static ManagedStruct Create(int i) => new() { Name=$"N{i}" };
+}
+public readonly struct ManagedClassHashSetValueProvider:IHashSetValueProvider<ManagedClass> {
+    public static ManagedClass Create(int i) => new() { Name=$"C{i}" };
+}
 /// <summary>
 /// HashSet ・ｽe・ｽX・ｽg・ｽﾌ撰ｿｽ・ｽ・ｽ・ｽ嵭ｪ・ｽB
 /// Dictionary ・ｽ・ｽ IDictTestStrategy ・ｽﾆ難ｿｽ・ｽl・ｽﾉ、・ｽl・ｽ・ｽ・ｽ・ｽ・ｽﾆス・ｽg・ｽA・ｽ・ｽ・ｽ・ｽ・ｽﾌみゑｿｽS・ｽ・ｽ・ｽB

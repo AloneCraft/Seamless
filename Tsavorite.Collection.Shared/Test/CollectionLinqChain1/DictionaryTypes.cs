@@ -1,0 +1,26 @@
+using Seamless.Collections;
+using Collection.Shared.Test.CollectionLinqChain1;
+using Tsavorite.Collection.Shared.Strategy.CollectionLinq;
+
+namespace Tsavorite.Collection.Shared.Test.CollectionLinqChain1;
+
+public sealed class DictionaryStringString
+    :DictionaryLinqChain1<TsavoriteDictionaryCollectionLinqStrategy<ManagedStoreDictionaryStrategy<StringDictTypeProvider,StringDictTypeProvider,string,string>,string,string>,TsavoriteDictionaryLinqSource<string,string>,KeyValuePair<string,string>,string,string>;
+
+public sealed class DictionaryStringInt32
+    :DictionaryLinqChain1<TsavoriteDictionaryCollectionLinqStrategy<UnmanagedValueDictionaryStrategy<StringDictTypeProvider,IntDictTypeProvider,string,int>,string,int>,TsavoriteDictionaryLinqSource<string,int>,KeyValuePair<string,int>,string,int>;
+
+public sealed class DictionaryInt32String
+    :DictionaryLinqChain1<TsavoriteDictionaryCollectionLinqStrategy<UnmanagedKeyDictionaryStrategy<IntDictTypeProvider,StringDictTypeProvider,int,string>,int,string>,TsavoriteDictionaryLinqSource<int,string>,KeyValuePair<int,string>,int,string>;
+
+public sealed class DictionaryInt32Int32
+    :DictionaryLinqChain1<TsavoriteDictionaryCollectionLinqStrategy<UnmanagedStoreDictionaryStrategy<IntDictTypeProvider,IntDictTypeProvider,int,int>,int,int>,TsavoriteDictionaryLinqSource<int,int>,KeyValuePair<int,int>,int,int>;
+
+public sealed class DictionaryUnmanagedStructUnmanagedStruct
+    :DictionaryLinqChain1<TsavoriteDictionaryCollectionLinqStrategy<UnmanagedStoreDictionaryStrategy<UnmanagedStructDictTypeProvider,UnmanagedStructDictTypeProvider,UnmanagedStruct,UnmanagedStruct>,UnmanagedStruct,UnmanagedStruct>,TsavoriteDictionaryLinqSource<UnmanagedStruct,UnmanagedStruct>,KeyValuePair<UnmanagedStruct,UnmanagedStruct>,UnmanagedStruct,UnmanagedStruct>;
+
+public sealed class DictionaryManagedStructManagedStruct
+    :DictionaryLinqChain1<TsavoriteDictionaryCollectionLinqStrategy<ManagedStoreDictionaryStrategy<ManagedStructDictTypeProvider,ManagedStructDictTypeProvider,ManagedStruct,ManagedStruct>,ManagedStruct,ManagedStruct>,TsavoriteDictionaryLinqSource<ManagedStruct,ManagedStruct>,KeyValuePair<ManagedStruct,ManagedStruct>,ManagedStruct,ManagedStruct>;
+
+public sealed class DictionaryManagedClassManagedClass
+    :DictionaryLinqChain1<TsavoriteDictionaryCollectionLinqStrategy<ManagedStoreDictionaryStrategy<ManagedClassDictTypeProvider,ManagedClassDictTypeProvider,ManagedClass,ManagedClass>,ManagedClass,ManagedClass>,TsavoriteDictionaryLinqSource<ManagedClass,ManagedClass>,KeyValuePair<ManagedClass,ManagedClass>,ManagedClass,ManagedClass>;

@@ -11,3 +11,7 @@ public abstract class BlittableHashSet<TStrategy, T> : HashSetTestBase<TStrategy
 public sealed class BlittableHashSet_Int : BlittableHashSet<BlittableHashSetStrategy<Int32HashSetValueProvider, int>, int>
 {
 }
+
+public sealed class BlittableHashSet_UnmanagedStruct : BlittableHashSet<BlittableHashSetStrategy<UnmanagedStructHashSetValueProvider, UnmanagedStruct>, UnmanagedStruct>
+{
+}
