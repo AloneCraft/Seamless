@@ -6,6 +6,9 @@ public enum BenchmarkSourceTab{
     SystemList,
     SeamlessPersisted,
     SeamlessTsavorite,
+    ScalableSet,
+    ScalableDictionary,
+    ScalablePersistedList,
 }
 
 public sealed record ComparisonPairOption(string Key,string DisplayName,string LeftProject,string RightProject);
@@ -20,8 +23,11 @@ public sealed record BenchmarkSourceTabDefinition(
     string RightProject,
     string RightHeader,
     string RightAssemblyName){
-    public IReadOnlyList<string> ProjectOrder { get; } = [LeftProject,RightProject];
-    public IReadOnlyList<string> WarningProjectOrder { get; } = [LeftProject,RightProject];
+    public IReadOnlyList<string> ProjectOrder { get; } =
+        new[] { LeftProject,RightProject }.Where(static project => !string.IsNullOrWhiteSpace(project)).ToArray();
+
+    public IReadOnlyList<string> WarningProjectOrder { get; } =
+        new[] { LeftProject,RightProject }.Where(static project => !string.IsNullOrWhiteSpace(project)).ToArray();
 
     public ComparisonPairOption Pair => new(
         this.Id,
@@ -42,8 +48,44 @@ public static class BenchmarkSourceTabs{
     public const string SystemListId = "System.List";
     public const string SeamlessPersistedId = "Seamless.Persisted";
     public const string SeamlessTsavoriteId = "Seamless.Tsavorite";
+    public const string ScalableSetId = "Scalable.Set";
+    public const string ScalableDictionaryId = "Scalable.Dictionary";
+    public const string ScalablePersistedListId = "Scalable.Persisted.List";
 
-    public static IReadOnlyList<BenchmarkSourceTabDefinition> All { get; } = [
+    public static IReadOnlyList<BenchmarkSourceTabDefinition> ScalableAll { get; } = [
+        new(
+            BenchmarkSourceTab.ScalableSet,
+            ScalableSetId,
+            "Scalable.Set",
+            "Scalable.Persisted.Set",
+            "Persisted",
+            "Benchmark.Scalable.Persisted.Collection",
+            "Scalable.Tsavorite.Set",
+            "Tsavorite",
+            "Benchmark.Scalable.Tsavorite.Collection"),
+        new(
+            BenchmarkSourceTab.ScalableDictionary,
+            ScalableDictionaryId,
+            "Scalable.Dictionary",
+            "Scalable.Persisted.Dictionary",
+            "Persisted",
+            "Benchmark.Scalable.Persisted.Collection",
+            "Scalable.Tsavorite.Dictionary",
+            "Tsavorite",
+            "Benchmark.Scalable.Tsavorite.Collection"),
+        new(
+            BenchmarkSourceTab.ScalablePersistedList,
+            ScalablePersistedListId,
+            "Scalable.Persisted.List",
+            "Scalable.Persisted.List",
+            "Persisted",
+            "Benchmark.Scalable.Persisted.Collection",
+            string.Empty,
+            string.Empty,
+            string.Empty),
+    ];
+
+    public static IReadOnlyList<BenchmarkSourceTabDefinition> StandardAll { get; } = [
         new(
             BenchmarkSourceTab.SystemArray,
             SystemArrayId,
@@ -95,6 +137,12 @@ public static class BenchmarkSourceTabs{
             "Linq",
             "Benchmark.Tsavorite.Linq.Enumerable.Linq"),
     ];
+
+#if SCALABLE_BENCHMARK
+    public static IReadOnlyList<BenchmarkSourceTabDefinition> All => ScalableAll;
+#else
+    public static IReadOnlyList<BenchmarkSourceTabDefinition> All => StandardAll;
+#endif
 
     public static BenchmarkSourceTabDefinition Default => All[0];
 

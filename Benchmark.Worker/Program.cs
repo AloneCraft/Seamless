@@ -331,6 +331,9 @@ internal enum BenchmarkSourceTab{
     SystemList,
     SeamlessPersisted,
     SeamlessTsavorite,
+    ScalableSet,
+    ScalableDictionary,
+    ScalablePersistedList,
 }
 
 internal sealed record WorkerResultMessage(

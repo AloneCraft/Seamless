@@ -212,6 +212,8 @@ internal static class BenchmarkElementCountLogic{
 
 internal readonly record struct BenchmarkChartBarRect(float Left,float Right,float Width);
 
+internal readonly record struct BenchmarkChartLabelPoint(float X,float Y);
+
 internal static class BenchmarkChartSelectionLayoutLogic{
     public static float CalculateStackBoundary(float plotLeft,float plotRight,float leftPercent) =>
         plotLeft+(plotRight-plotLeft)*Math.Clamp(leftPercent,0,100)/100;
@@ -230,6 +232,70 @@ internal static class BenchmarkChartSelectionLayoutLogic{
             new BenchmarkChartBarRect(plotLeft,leftEnd,MathF.Max(1,leftEnd-plotLeft)),
             new BenchmarkChartBarRect(leftEnd,plotRight,MathF.Max(1,plotRight-leftEnd)));
     }
+
+    public static (BenchmarkChartLabelPoint LeftLabelPoint,BenchmarkChartLabelPoint RightLabelPoint) CreateBarLabelPoints(
+        BenchmarkChartBarRect leftBarRect,
+        BenchmarkChartBarRect rightBarRect,
+        float y,
+        float padding) =>
+        (
+            new BenchmarkChartLabelPoint(leftBarRect.Left+padding,y),
+            new BenchmarkChartLabelPoint(rightBarRect.Left+padding,y));
+}
+
+public readonly record struct BenchmarkTabProgress(int Completed,int Total){
+    public double Fraction => this.Total<=0 ? 0 : (double)this.Completed/this.Total;
+    public string FractionText => this.Total<=0
+        ? string.Empty
+        : this.Completed.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            +"/"
+            +this.Total.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    public string GaugeText => this.Total<=0
+        ? string.Empty
+        : CreateGauge(this.Fraction);
+
+    private static string CreateGauge(double fraction){
+        const int width = 8;
+        var filled = (int)Math.Round(Math.Clamp(fraction,0,1)*width,MidpointRounding.AwayFromZero);
+        return "["+new string('#',filled)+new string('-',width-filled)+"]";
+    }
+}
+
+internal readonly record struct BenchmarkTabProgressCell(string Method,string Project,bool IsSelected);
+
+internal static class BenchmarkTabProgressLogic{
+    public static BenchmarkTabProgress Calculate(
+        IEnumerable<BenchmarkTabProgressCell> cells,
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        string leftProject,
+        string rightProject,
+        int maxElementCount,
+        double thresholdNanoseconds){
+        var selectedCells = cells.Where(static cell => cell.IsSelected).ToArray();
+        if(selectedCells.Length==0){
+            return new BenchmarkTabProgress(0,0);
+        }
+
+        var measurementArray = measurements.ToArray();
+        var completed = selectedCells.Count(cell =>
+            HasTerminalMeasurement(measurementArray,cell)
+            ||BenchmarkRowCompletionLogic.IsFinalCompleted(
+                measurementArray,
+                cell.Method,
+                leftProject,
+                rightProject,
+                maxElementCount,
+                thresholdNanoseconds));
+        return new BenchmarkTabProgress(completed,selectedCells.Length);
+    }
+
+    private static bool HasTerminalMeasurement(IEnumerable<BenchmarkElementMeasurement> measurements,BenchmarkTabProgressCell cell) =>
+        measurements.Any(result =>
+            string.Equals(result.Method,cell.Method,StringComparison.OrdinalIgnoreCase)
+            &&string.Equals(result.Project,cell.Project,StringComparison.OrdinalIgnoreCase)
+            &&result.ElementCount>0
+            &&(string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+                ||string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)));
 }
 
 internal readonly record struct BenchmarkRowDefinition(

@@ -62,7 +62,7 @@ public sealed class MainPage:ContentPage {
     public MainPage() {
         try {
             StartupDiagnostics.Write("MainPage constructor started.");
-            this.Title="Seamless Benchmark";
+            this.Title=BenchmarkAppProfile.Title;
             this.BackgroundColor=Color.FromArgb("#F8FAFC");
             this.viewModel=this.CreateViewModel();
             this.BindingContext=this.viewModel;
@@ -149,7 +149,7 @@ public sealed class MainPage:ContentPage {
         var benchmarkRoot = Path.Combine(
             this.FindSolutionRoot()??Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Work",
-            "Benchmark");
+            BenchmarkAppProfile.WorkRootName);
         return new BenchmarkRunnerViewModel(
             new BenchmarkCatalogService(),
             new CpuTopologyService(),
@@ -836,11 +836,17 @@ public sealed class MainPage:ContentPage {
         };
         var tabItems = new TabItemCollection();
         foreach(var option in this.viewModel?.SourceTabs?? []) {
-            tabItems.Add(new SfTabItem {
-                Header=option.DisplayName,
+            var tabItem = new SfTabItem {
+                Header=option.HeaderText,
                 FontSize=12,
                 Content=new Grid(),
-            });
+            };
+            option.PropertyChanged+=(_,args) => {
+                if(args.PropertyName==nameof(SourceTabOption.HeaderText)) {
+                    MainThread.BeginInvokeOnMainThread(() => tabItem.Header=option.HeaderText);
+                }
+            };
+            tabItems.Add(tabItem);
         }
 
         tabView.Items=tabItems;
@@ -2146,15 +2152,44 @@ public sealed class MainPage:ContentPage {
             Padding=new Thickness(0),
         };
         label.SetBinding(Label.TextProperty,nameof(BenchmarkRunnerViewModel.ImprovementPromptText));
+        var copyButton = new Button {
+            Text="⧉",
+            WidthRequest=30,
+            HeightRequest=28,
+            Padding=new Thickness(0),
+            FontSize=14,
+            FontAttributes=FontAttributes.Bold,
+            TextColor=Color.FromArgb("#0F172A"),
+            BackgroundColor=Color.FromArgb("#E2E8F0"),
+        };
+        copyButton.SetBinding(Button.CommandProperty,nameof(BenchmarkRunnerViewModel.CopyImprovementPromptCommand));
+        copyButton.SetBinding(IsEnabledProperty,nameof(BenchmarkRunnerViewModel.CanCopyImprovementPrompt));
+        ToolTipProperties.SetText(copyButton,"改善プロンプトをコピー");
+        var header = new Grid {
+            ColumnDefinitions= {
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = GridLength.Auto },
+            },
+            Padding=new Thickness(0,0,0,6),
+        };
+        header.Add(copyButton,1,0);
+        var content = new Grid {
+            RowDefinitions= {
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Star },
+            },
+        };
+        content.Add(header,0,0);
+        content.Add(new ScrollView {
+            Orientation=ScrollOrientation.Vertical,
+            Content=label,
+        },0,1);
         return new Border {
             Stroke=Color.FromArgb("#CBD5E1"),
             StrokeThickness=1,
             BackgroundColor=Color.FromArgb("#F8FAFC"),
             Padding=new Thickness(8),
-            Content=new ScrollView {
-                Orientation=ScrollOrientation.Vertical,
-                Content=label,
-            },
+            Content=content,
         };
     }
 
@@ -2732,7 +2767,7 @@ public sealed class MainPage:ContentPage {
         var leftSeries = new StackingColumn100Series {
             XBindingPath=nameof(ChartComparisonPoint.DisplayName),
             YBindingPath=nameof(ChartComparisonPoint.LeftValue),
-            ShowDataLabels=true,
+            ShowDataLabels=false,
             EnableTooltip=true,
             Spacing=0,
             Width=0.88,
@@ -2743,13 +2778,12 @@ public sealed class MainPage:ContentPage {
             },
         };
         leftSeries.SetBinding(ChartSeries.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ChartPoints));
-        leftSeries.LabelTemplate=this.CreateDataLabelTemplate(nameof(ChartComparisonPoint.LeftText));
         leftSeries.TooltipTemplate=this.CreateTooltipTemplate();
 
         var rightSeries = new StackingColumn100Series {
             XBindingPath=nameof(ChartComparisonPoint.DisplayName),
             YBindingPath=nameof(ChartComparisonPoint.RightValue),
-            ShowDataLabels=true,
+            ShowDataLabels=false,
             EnableTooltip=true,
             Spacing=0,
             Width=0.88,
@@ -2760,7 +2794,6 @@ public sealed class MainPage:ContentPage {
             },
         };
         rightSeries.SetBinding(ChartSeries.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ChartPoints));
-        rightSeries.LabelTemplate=this.CreateDataLabelTemplate(nameof(ChartComparisonPoint.RightText));
         rightSeries.TooltipTemplate=this.CreateTooltipTemplate();
         this.BindChartSeriesLabels(leftSeries,rightSeries);
 
@@ -2769,6 +2802,7 @@ public sealed class MainPage:ContentPage {
 
         var overlayDrawable = new BenchmarkChartSelectionOverlayDrawable(
             () => this.viewModel?.ChartPoints??[],
+            () => this.BenchmarkSelectionStrokeOpacity,
             chart,
             xAxis,
             yAxis);
@@ -2780,7 +2814,6 @@ public sealed class MainPage:ContentPage {
             HorizontalOptions=LayoutOptions.Fill,
         };
         chartOverlay.SetBinding(HeightRequestProperty,nameof(BenchmarkRunnerViewModel.ChartHeight));
-        chartOverlay.SetBinding(OpacityProperty,new Binding(nameof(this.BenchmarkSelectionStrokeOpacity),source: this));
         if(this.viewModel is not null) {
             NotifyCollectionChangedEventHandler handler = (_,_) => chartOverlay.Invalidate();
             this.viewModel.ChartPoints.CollectionChanged+=handler;
@@ -2959,17 +2992,21 @@ internal sealed class BenchmarkChartSelectionOverlayDrawable:IDrawable {
     private const float StrokeWidth = 2;
     private const float OuterPadding = 4;
     private const float LabelHitWidth = 280;
+    private const float BarLabelPadding = 6;
     private readonly Func<IReadOnlyList<ChartComparisonPoint>> getPoints;
+    private readonly Func<double> getSelectionOpacity;
     private readonly SfCartesianChart chart;
     private readonly CategoryAxis xAxis;
     private readonly NumericalAxis yAxis;
 
     public BenchmarkChartSelectionOverlayDrawable(
         Func<IReadOnlyList<ChartComparisonPoint>> getPoints,
+        Func<double> getSelectionOpacity,
         SfCartesianChart chart,
         CategoryAxis xAxis,
         NumericalAxis yAxis) {
         this.getPoints=getPoints;
+        this.getSelectionOpacity=getSelectionOpacity;
         this.chart=chart;
         this.xAxis=xAxis;
         this.yAxis=yAxis;
@@ -2981,7 +3018,19 @@ internal sealed class BenchmarkChartSelectionOverlayDrawable:IDrawable {
             return;
         }
 
-        canvas.StrokeColor=Color.FromArgb("#22C55E");
+        canvas.FontColor=Colors.White;
+        canvas.FontSize=10;
+        foreach(var row in this.CreateLayout(points,new SizeF(dirtyRect.Width,dirtyRect.Height))) {
+            var labelPoints = BenchmarkChartSelectionLayoutLogic.CreateBarLabelPoints(
+                new BenchmarkChartBarRect(row.LeftBarRect.Left,row.LeftBarRect.Right,row.LeftBarRect.Width),
+                new BenchmarkChartBarRect(row.RightBarRect.Left,row.RightBarRect.Right,row.RightBarRect.Width),
+                row.LeftBarRect.Top+row.LeftBarRect.Height/2,
+                BarLabelPadding);
+            this.DrawBarLabel(canvas,row.Point.LeftText,labelPoints.LeftLabelPoint,row.LeftBarRect);
+            this.DrawBarLabel(canvas,row.Point.RightText,labelPoints.RightLabelPoint,row.RightBarRect);
+        }
+
+        canvas.StrokeColor=Color.FromArgb("#22C55E").WithAlpha((float)Math.Clamp(this.getSelectionOpacity(),0,1));
         canvas.StrokeSize=StrokeWidth;
         foreach(var row in this.CreateLayout(points,new SizeF(dirtyRect.Width,dirtyRect.Height))) {
             if(row.Point.IsRowUiSelected) {
@@ -2997,6 +3046,23 @@ internal sealed class BenchmarkChartSelectionOverlayDrawable:IDrawable {
                 canvas.DrawRectangle(row.RightBarRect);
             }
         }
+    }
+
+    private void DrawBarLabel(ICanvas canvas,string text,BenchmarkChartLabelPoint point,RectF barRect) {
+        if(string.IsNullOrWhiteSpace(text)) {
+            return;
+        }
+
+        var rect = new RectF(
+            point.X,
+            barRect.Top,
+            MathF.Max(1,barRect.Right-point.X-BarLabelPadding),
+            barRect.Height);
+        if(rect.Width<1) {
+            rect=new RectF(barRect.Left,barRect.Top,barRect.Width,barRect.Height);
+        }
+
+        canvas.DrawString(text,rect,HorizontalAlignment.Left,VerticalAlignment.Center);
     }
 
     public BenchmarkChartSelectionHit? HitTest(SizeF size,float x,float y) {

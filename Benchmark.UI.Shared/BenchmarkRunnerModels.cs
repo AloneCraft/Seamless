@@ -36,10 +36,32 @@ public enum BenchmarkGridSortColumn{
     RightAllocated,
 }
 
-public sealed record SourceTabOption(BenchmarkSourceTabDefinition Definition){
+public sealed class SourceTabOption:ObservableObject{
+    private BenchmarkTabProgress progress;
+
+    public SourceTabOption(BenchmarkSourceTabDefinition definition){
+        this.Definition=definition;
+    }
+
+    public BenchmarkSourceTabDefinition Definition { get; }
     public BenchmarkSourceTab Tab => this.Definition.Tab;
     public string Id => this.Definition.Id;
     public string DisplayName => this.Definition.DisplayName;
+    public BenchmarkTabProgress Progress{
+        get => this.progress;
+        private set{
+            if(this.SetProperty(ref this.progress,value)){
+                this.OnPropertyChanged(nameof(this.HeaderText));
+            }
+        }
+    }
+    public string HeaderText => this.Progress.Total<=0
+        ? this.DisplayName
+        : this.DisplayName+" "+this.Progress.GaugeText+" "+this.Progress.FractionText;
+
+    public void SetProgress(BenchmarkTabProgress value){
+        this.Progress=value;
+    }
 }
 
 public sealed record ExecutionProfileOption(string DisplayName,BenchmarkExecutionProfile Profile);

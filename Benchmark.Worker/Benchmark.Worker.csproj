@@ -28,6 +28,8 @@
     <ProjectReference Include="..\Benchmark.Persisted.Linq.Enumerable.FLinq\Benchmark.Persisted.Linq.Enumerable.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark.Persisted.Collection\Benchmark.Persisted.Collection.csproj" />
     <ProjectReference Include="..\Benchmark.Tsavorite.Collection\Benchmark.Tsavorite.Collection.csproj" />
+    <ProjectReference Include="..\Benchmark.Scalable.Persisted.Collection\Benchmark.Scalable.Persisted.Collection.csproj" />
+    <ProjectReference Include="..\Benchmark.Scalable.Tsavorite.Collection\Benchmark.Scalable.Tsavorite.Collection.csproj" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
