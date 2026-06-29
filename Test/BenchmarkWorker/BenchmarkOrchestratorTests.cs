@@ -2,9 +2,7 @@ using Benchmark;
 
 namespace Test.BenchmarkWorker;
 
-#if TSAVORITE2_0BETA3
 [global::Seamless.FLinq.LinqIntercept(false)]
-#endif
 public sealed class BenchmarkOrchestratorTests{
     [Fact]
     public void StateManager_Load_MarksRunningJobsAsFailed(){

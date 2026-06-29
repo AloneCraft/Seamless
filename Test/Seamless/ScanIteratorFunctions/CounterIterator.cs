@@ -15,11 +15,7 @@ public class CounterIterator{
 
     [Fact,Trait("Category","Unit")]
     public void OnExceptionDoesNotThrow(){
-#if TSAVORITE2_0BETA3
         var iter=new global::Seamless.Tsavorite.Collections.HashSet<int>.CounterIterator();
-#elif TSAVORITE1_1_1
-        var iter=new global::Seamless.Tsavorite.Collections.HashSet<int>.ScanIteratorFunctions_Counter();
-#endif
         iter.OnException(new Exception("test"),0);
     }
 }

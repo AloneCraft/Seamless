@@ -2,9 +2,7 @@ using Benchmark;
 
 namespace Test.BenchmarkWorker;
 
-#if TSAVORITE2_0BETA3
 [global::Seamless.FLinq.LinqIntercept(false)]
-#endif
 public sealed class CpuPresetCatalogTests{
     [Fact]
     public void CpuCoreInfo_DisplayText_UsesLogicalCpuAndGroup(){

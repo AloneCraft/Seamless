@@ -51,6 +51,8 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private ResultElementCountOption? selectedResultElementCount;
     private double selectedResultElementCountIndex;
     private string currentElementCountText = "1";
+    private string benchmarkRatioSummaryText = string.Empty;
+    private string improvementPromptText = string.Empty;
     private double chartHeight = 300;
     private bool isApplyingCpuSelection;
     private bool isApplyingUiState;
@@ -270,6 +272,26 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     public string StatusText {
         get => this.statusText;
         set => this.SetProperty(ref this.statusText,value);
+    }
+
+    public BenchmarkGridSortColumn CurrentSortColumn {
+        get => this.currentSortColumn;
+        private set => this.SetProperty(ref this.currentSortColumn,value);
+    }
+
+    public bool CurrentSortDescending {
+        get => this.currentSortDescending;
+        private set => this.SetProperty(ref this.currentSortDescending,value);
+    }
+
+    public string BenchmarkRatioSummaryText {
+        get => this.benchmarkRatioSummaryText;
+        private set => this.SetProperty(ref this.benchmarkRatioSummaryText,value);
+    }
+
+    public string ImprovementPromptText {
+        get => this.improvementPromptText;
+        private set => this.SetProperty(ref this.improvementPromptText,value);
     }
 
     public bool IsBenchmarkRunning {
@@ -504,12 +526,14 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             if(this.SetProperty(ref this.selectedLowerTab,value)) {
                 this.OnPropertyChanged(nameof(this.IsCpuLowerTabVisible));
                 this.OnPropertyChanged(nameof(this.IsLogLowerTabVisible));
+                this.OnPropertyChanged(nameof(this.IsImprovementPromptLowerTabVisible));
             }
         }
     }
 
     public bool IsCpuLowerTabVisible => this.SelectedLowerTab==BenchmarkLowerTab.Cpu;
     public bool IsLogLowerTabVisible => this.SelectedLowerTab==BenchmarkLowerTab.Log;
+    public bool IsImprovementPromptLowerTabVisible => this.SelectedLowerTab==BenchmarkLowerTab.ImprovementPrompt;
 
     public ComparisonPairOption SelectedComparisonPair => this.SelectedSourceDefinition.Pair;
 
@@ -700,12 +724,12 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     public void SortBenchmarkRows(BenchmarkGridSortColumn column) {
-        if(this.currentSortColumn==column) {
-            this.currentSortDescending=!this.currentSortDescending;
+        if(this.CurrentSortColumn==column) {
+            this.CurrentSortDescending=!this.CurrentSortDescending;
         }
         else {
-            this.currentSortColumn=column;
-            this.currentSortDescending=false;
+            this.CurrentSortColumn=column;
+            this.CurrentSortDescending=false;
         }
 
         this.ApplyCurrentSort();
@@ -1627,6 +1651,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.SetActiveRunRoot(runRoot);
         var runGeneration = unchecked(++this.runResultGeneration);
         string? completedRunRoot = null;
+        var completedNormally = false;
         this.IsRunning=true;
         var runSourceTab = this.SelectedSourceDefinition.Tab;
         this.ActiveRunSourceTab=runSourceTab;
@@ -1672,6 +1697,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 this.runCancellation.Token);
             completedRunRoot=report.RunRoot;
             this.currentUnsavedRunRoot=report.RunRoot;
+            completedNormally=true;
             StartupDiagnostics.Write(
                 "Benchmark run completed. "
                 +"RunRoot="+report.RunRoot+" "
@@ -1710,6 +1736,10 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             }
             this.RefreshUnsavedRunSelection();
             this.ClearRunResultHighlights();
+            if(completedNormally) {
+                this.ApplyFinalBenchmarkSort();
+            }
+            this.RefreshImprovementPrompt();
             this.UpdateChart();
         }
     }
@@ -2104,6 +2134,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             : this.BuildCurrentRunComparisonRows();
         this.ApplyComparisonRowsToTable();
         this.ApplySelectedElementCountToTable();
+        this.RefreshImprovementPrompt();
         this.UpdateChart();
         return true;
     }
@@ -2115,6 +2146,8 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.VisibleResultItems.Clear();
         this.CurrentElementCountText="-";
         this.ClearBenchmarkResultDisplays();
+        this.BenchmarkRatioSummaryText=string.Empty;
+        this.ImprovementPromptText=string.Empty;
         this.UpdateChart(false);
         this.RefreshSaveCommandStates();
     }
@@ -2127,6 +2160,8 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.VisibleResultItems.Clear();
         this.CurrentElementCountText="-";
         this.ClearBenchmarkResultDisplays();
+        this.BenchmarkRatioSummaryText=string.Empty;
+        this.RefreshImprovementPrompt();
         this.RefreshSaveCommandStates();
     }
 
@@ -2136,6 +2171,8 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.ResultItems.Clear();
         this.VisibleResultItems.Clear();
         this.CurrentElementCountText="-";
+        this.BenchmarkRatioSummaryText=string.Empty;
+        this.ImprovementPromptText=string.Empty;
         this.RefreshSaveCommandStates();
     }
 
@@ -2171,6 +2208,26 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         foreach(var benchmark in this.BenchmarkRows) {
             benchmark.ApplyComparison(rowsByMethod.TryGetValue(benchmark.MethodName,out var row) ? row : null,preserveRetainedDisplay);
         }
+        this.RefreshBenchmarkRatioSummary();
+    }
+
+    private void RefreshBenchmarkRatioSummary() {
+        this.BenchmarkRatioSummaryText=BenchmarkImprovementPromptBuilder.CreateSummary(this.comparisonRows).DisplayText;
+    }
+
+    private void RefreshImprovementPrompt() {
+        var state = this.GetProgressStateForImprovementPrompt();
+        this.ImprovementPromptText=state is null
+            ? string.Empty
+            : BenchmarkImprovementPromptBuilder.BuildPrompt(state);
+    }
+
+    private ProgressState? GetProgressStateForImprovementPrompt() {
+        if(this.currentRunResultItemsByTab.Values.Any(static results => results.Count>0)) {
+            return this.CreateProgressStateFromAllTabResults(this.currentUnsavedRunRoot??string.Empty);
+        }
+
+        return this.LoadSelectedRunState();
     }
 
     private void RetainCompletedHighlightsForRunningElement(int runningElementCount) {
@@ -2257,6 +2314,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             this.ApplySkippedCells(selectedN);
             this.RefreshVisibleResults();
             this.ApplyCurrentSort();
+            this.RefreshImprovementPrompt();
             this.UpdateChart(false);
         }
         catch(Exception ex) {
@@ -2784,13 +2842,10 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private ChartComparisonPoint CreateChartComparisonPoint(string method,double? leftValue,double? rightValue) {
         var leftNumber = Math.Max(0,leftValue??0);
         var rightNumber = Math.Max(0,rightValue??0);
-        var total = leftNumber+rightNumber;
-        var leftText = total>0&&leftValue is not null
-            ? (leftNumber/total).ToString("P0",System.Globalization.CultureInfo.InvariantCulture)
+        var leftText = leftNumber>0&&rightNumber>0
+            ? (leftNumber/rightNumber).ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)
             : string.Empty;
-        var rightText = total>0&&rightValue is not null
-            ? (rightNumber/total).ToString("P0",System.Globalization.CultureInfo.InvariantCulture)
-            : string.Empty;
+        var rightText = string.Empty;
         double? ratio = leftNumber>0&&rightNumber>0
             ? leftNumber/rightNumber
             : null;
@@ -3076,9 +3131,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         var ordered = this.BenchmarkRows
             .OrderBy(row => row,Comparer<BenchmarkTableRow>.Create((left,right) => {
                 var result = BenchmarkSortValue.Compare(
-                    left.GetSortValue(this.currentSortColumn),
-                    right.GetSortValue(this.currentSortColumn),
-                    this.currentSortDescending);
+                    left.GetSortValue(this.CurrentSortColumn),
+                    right.GetSortValue(this.CurrentSortColumn),
+                    this.CurrentSortDescending);
                 return result!=0
                     ? result
                     : string.Compare(left.BenchmarkName,right.BenchmarkName,StringComparison.OrdinalIgnoreCase);
@@ -3089,6 +3144,12 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             this.BenchmarkRows.Add(row);
         }
         this.UpdateChart();
+    }
+
+    private void ApplyFinalBenchmarkSort() {
+        this.CurrentSortColumn=BenchmarkGridSortColumn.PairRatioTime;
+        this.CurrentSortDescending=true;
+        this.ApplyCurrentSort();
     }
 
     private void RebuildCpuSections() {

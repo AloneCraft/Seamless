@@ -79,13 +79,6 @@ public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : 
     //        this.AppendRecord(item.ToArray());
     //    }
 
-#if TSAVORITE1_1_1
-    public void Add(global::Tsavorite.core.SpanByte item) {
-        this.ThrowIfDisposed();
-        this.AppendRecord(item.ToByteArray());
-    }
-#endif
-
     public void DuplicateRemoval() {
         this.ThrowIfDisposed();
         if(this.Count<2)

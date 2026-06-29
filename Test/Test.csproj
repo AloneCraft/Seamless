@@ -10,7 +10,6 @@
     <IsTestProject>true</IsTestProject>
     <AssemblyName>Test</AssemblyName>
     <RootNamespace>Test</RootNamespace>
-    <DefineConstants>$(DefineConstants);TSAVORITE2_0BETA3</DefineConstants>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <CompilerGeneratedFilesOutputPath>$(MSBuildProjectDirectory)\..\Work\Generated\$(MSBuildProjectName)\$(Configuration)\$(TargetFramework)</CompilerGeneratedFilesOutputPath>
   </PropertyGroup>
@@ -35,6 +34,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Benchmark\BenchmarkComparisonFormatter.cs" Link="Benchmark\BenchmarkComparisonFormatter.cs" />
+    <Compile Include="..\Benchmark\BenchmarkImprovementPromptBuilder.cs" Link="Benchmark\BenchmarkImprovementPromptBuilder.cs" />
     <Compile Include="..\Benchmark\BenchmarkOrchestrationModels.cs" Link="Benchmark\BenchmarkOrchestrationModels.cs" />
     <Compile Include="..\Benchmark\BenchmarkOrchestrator.cs" Link="Benchmark\BenchmarkOrchestrator.cs" />
     <Compile Include="..\Benchmark\BenchmarkResultWriter.cs" Link="Benchmark\BenchmarkResultWriter.cs" />

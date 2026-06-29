@@ -2,9 +2,7 @@ using Benchmark;
 
 namespace Test.BenchmarkWorker;
 
-#if TSAVORITE2_0BETA3
 [global::Seamless.FLinq.LinqIntercept(false)]
-#endif
 public sealed class BenchmarkRunPersistenceServiceTests{
     [Fact]
     public void SaveManagedRun_CreatesNumberedRunAndWritesProgressAndCsv(){
@@ -70,6 +68,42 @@ public sealed class BenchmarkRunPersistenceServiceTests{
         Assert.False(loaded.BenchmarkSelection.ProjectCellSelections["Where|System.List.ZLinq"]);
         Assert.True(loaded.BenchmarkSelection.RowSelections["System.Array|Where"]);
         Assert.False(loaded.BenchmarkSelection.RowSelections["System.List|Where"]);
+    }
+
+    [Fact]
+    public void CreateSummary_UsesGeometricMeanAndExcludesMissingRatios(){
+        var rows = BenchmarkComparisonFormatter.BuildComparisonRows([
+            CompletedJob("System.Array.FLinq","Half",128,50,10).ToReportRow(),
+            CompletedJob("System.Array.ZLinq","Half",128,100,10).ToReportRow(),
+            CompletedJob("System.Array.FLinq","Double",128,200,40).ToReportRow(),
+            CompletedJob("System.Array.ZLinq","Double",128,100,10).ToReportRow(),
+            CompletedJob("System.Array.FLinq","MissingRight",128,100,10).ToReportRow(),
+        ],BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray));
+
+        var summary = BenchmarkImprovementPromptBuilder.CreateSummary(rows);
+
+        Assert.Equal(1.0,summary.TimeGeometricMean!.Value,precision: 12);
+        Assert.Equal(2,summary.TimeIncludedCount);
+        Assert.Equal(1,summary.TimeExcludedCount);
+        Assert.Equal(2.0,summary.AllocatedGeometricMean!.Value,precision: 12);
+        Assert.Equal(2,summary.AllocatedIncludedCount);
+        Assert.Equal(1,summary.AllocatedExcludedCount);
+    }
+
+    [Fact]
+    public void SaveManagedRun_WritesImprovementPrompt(){
+        var root = CreateTempRoot();
+        var service = new BenchmarkRunPersistenceService();
+        var state = CreateState(Path.Combine(root,".unsaved","run"));
+
+        var option = service.SaveManagedRun(root,BenchmarkExecutionProfile.Fast,state);
+
+        var promptPath = Path.Combine(option.RunRoot,BenchmarkImprovementPromptBuilder.FileName);
+        Assert.True(File.Exists(promptPath));
+        var prompt = File.ReadAllText(promptPath);
+        Assert.Contains("タブ別幾何平均",prompt,StringComparison.Ordinal);
+        Assert.Contains("時間比ランキング",prompt,StringComparison.Ordinal);
+        Assert.Contains("メモリ比ランキング",prompt,StringComparison.Ordinal);
     }
 
     [Fact]
@@ -172,11 +206,11 @@ public sealed class BenchmarkRunPersistenceServiceTests{
         };
     }
 
-    private static BenchmarkJob CompletedJob(string project,string method,int elementCount,double meanNanoseconds){
-        return CompletedJob(BenchmarkSourceTab.SystemArray,project,method,elementCount,meanNanoseconds);
+    private static BenchmarkJob CompletedJob(string project,string method,int elementCount,double meanNanoseconds,long allocatedBytes = 0){
+        return CompletedJob(BenchmarkSourceTab.SystemArray,project,method,elementCount,meanNanoseconds,allocatedBytes);
     }
 
-    private static BenchmarkJob CompletedJob(BenchmarkSourceTab sourceTab,string project,string method,int elementCount,double meanNanoseconds){
+    private static BenchmarkJob CompletedJob(BenchmarkSourceTab sourceTab,string project,string method,int elementCount,double meanNanoseconds,long allocatedBytes = 0){
         var now = DateTimeOffset.UtcNow;
         return new BenchmarkJob{
             JobId=project+"|"+method+"|"+elementCount,
@@ -192,7 +226,7 @@ public sealed class BenchmarkRunPersistenceServiceTests{
             MeanNanoseconds=meanNanoseconds,
             ErrorNanoseconds=0,
             StdDevNanoseconds=0,
-            AllocatedBytes=0,
+            AllocatedBytes=allocatedBytes,
             ExitCode=0,
             ArtifactFolder=string.Empty,
             StartedAt=now,

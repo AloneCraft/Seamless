@@ -4,9 +4,7 @@ using Microsoft.VisualBasic.FileIO;
 
 namespace Benchmark;
 
-#if TSAVORITE2_0BETA3
 [global::Seamless.FLinq.LinqIntercept(false)]
-#endif
 internal static class BenchmarkComparisonFormatter{
     public static readonly string[] ProjectOrder =
         BenchmarkSourceTabs.All

@@ -22,7 +22,6 @@ public sealed class ManagedIntersectWith:IntersectWith<string,global::Seamless.T
     protected override void With(global::Seamless.Tsavorite.Collections.HashSet<string> set,global::Seamless.Tsavorite.Collections.HashSet<string> other) => set.IntersectWith(other);
     protected override void ExpectedWith(global::System.Collections.Generic.HashSet<string> set,global::System.Collections.Generic.HashSet<string> other) => set.IntersectWith(other);
 
-#if TSAVORITE2_0BETA3
     [Fact, Trait("Category","Unit")]
     [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416",Justification="Storage-backed Tsavorite test path is Windows-only in this workspace")]
     public void FlushAndEvict後もIntersectWithで共通要素だけ残る() {
@@ -57,7 +56,6 @@ public sealed class ManagedIntersectWith:IntersectWith<string,global::Seamless.T
             Assert.Equal((i&1)==0,setA.Contains(this.CreateKey(i)));
         }
     }
-#endif
 }
 
 public sealed class UnmanagedIntersectWith:IntersectWith<int,global::Seamless.Tsavorite.Collections.HashSet<int>> {
@@ -69,7 +67,6 @@ public sealed class UnmanagedIntersectWith:IntersectWith<int,global::Seamless.Ts
     protected override void With(global::Seamless.Tsavorite.Collections.HashSet<int> set,global::Seamless.Tsavorite.Collections.HashSet<int> other) => set.IntersectWith(other);
     protected override void ExpectedWith(global::System.Collections.Generic.HashSet<int> set,global::System.Collections.Generic.HashSet<int> other) => set.IntersectWith(other);
 
-#if TSAVORITE2_0BETA3
     [Fact, Trait("Category","Unit")]
     [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416",Justification="Storage-backed Tsavorite test path is Windows-only in this workspace")]
     public void FlushAndEvict後もIntersectWithで共通要素だけ残る() {
@@ -104,5 +101,4 @@ public sealed class UnmanagedIntersectWith:IntersectWith<int,global::Seamless.Ts
             Assert.Equal((i&1)==0,setA.Contains(this.CreateKey(i)));
         }
     }
-#endif
 }
