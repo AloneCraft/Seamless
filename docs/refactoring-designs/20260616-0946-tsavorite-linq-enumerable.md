@@ -156,7 +156,7 @@ public interface ITsavoriteScanSource<T>
 - `tests/Test.Tsavorite.Collections/Intercept/System/Linq/*`
 - `tests/Test.Tsavorite.Collections/Intercept/Tsavorite/Linq/*`
 - `tests/Test.Tsavorite.Collections.Benchmark/*`
-- `sandbox/Benchmark.Shared/*`
+- `Shared/Common/*`
 - `src/Benchmark/*`
 
 ## 移行手順
@@ -168,13 +168,13 @@ public interface ITsavoriteScanSource<T>
 5. `IHashSet<T>` と `HashSet<T>` 向けの最初の fragment を通す。
 6. 既存 Tsavorite HashSet intercept テストを `Enumerable` 名へ移行する。
 7. System LINQ テストを共通 source factory 化し、Tsavorite 版を追加する。
-8. benchmark 共有化を `Benchmark.Shared` ベースで整理する。
+8. benchmark 共有化を `Common` ベースで整理する。
 9. Garnet 更新後に restore、build、test を通す。
 
 ## テスト計画
 
 - `dotnet test tests/Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj`
-- `dotnet test tests/Test.Tsavorite.Collections.Benchmark/Test.Tsavorite.Collections.Benchmark.csproj`
+- `dotnet test tests/Test.Tsavorite.Collections.Benchmark/Test.Tsavorite.Collections.csproj`
 - Chain1 と Chain2 の System/Tsavorite 共有テスト。
 - Generated source assertion で `Tsavorite.Linq.Enumerable` が intercept 対象になることを確認する。
 - `Tsavorite.Linq.Enumerable` 実装内の大容量 `System.Collections.Generic` 使用を `rg` で検出する。

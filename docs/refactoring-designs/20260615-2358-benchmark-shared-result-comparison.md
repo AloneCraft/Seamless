@@ -1,15 +1,15 @@
-# Benchmark.Shared の結果比較横展開
+# Common の結果比較横展開
 
 ## 背景
 
-`sandbox/Benchmark.Shared/Benchmarks` は `sandbox/Benchmark` の BenchmarkDotNet 実行と、`sandbox/Benchmark.Tests` の xUnit 実行で共有されている。従来は多くのベンチが `Consumer` へ結果を流すだけで、LINQ / FLinq / ZLinq の結果一致は確認していなかった。
+`Shared/Common/Benchmarks` は `Benchmark/UI` の BenchmarkDotNet 実行と、`Test` の xUnit 実行で共有されている。従来は多くのベンチが `Consumer` へ結果を流すだけで、LINQ / FLinq / ZLinq の結果一致は確認していなかった。
 
 `Aggregate_func` では、ベンチ本体で計算値を `Base.Result` に保存しつつ `consumer.Consume(result)` することで、BenchmarkDotNet の測定を維持しながら、`BENCH_AS_TEST` 時に `AssertResults` で結果比較できることを確認した。
 
 ## 現状の観察
 
-- `Aggregate_func` は `dotnet test sandbox/Benchmark.Tests/Benchmark.Tests.csproj --filter "FullyQualifiedName~Aggregate_func" --no-restore` で成功した。
-- `Aggregate_func` は `dotnet run --project sandbox/Benchmark/Benchmark.csproj -c Release --no-restore -- --filter *Aggregate_func* --join` で LINQ / FLinq / ZLinq の 3 ベンチが実行できた。
+- `Aggregate_func` は `dotnet test Test/Tests.csproj --filter "FullyQualifiedName~Aggregate_func" --no-restore` で成功した。
+- `Aggregate_func` は `dotnet run --project Benchmark/UI/UI/UI.csproj -c Release --no-restore -- --filter *Aggregate_func* --join` で LINQ / FLinq / ZLinq の 3 ベンチが実行できた。
 - `Base` には `Result` と `AssertResults(Action linq, Action flinq, Action noOptimized, Action zlinq)` がある。
 - `BenchFact.cs` には `[TestPriority]` と `TestPriorityOrderer` があり、`Results_match` を低優先度で後ろに回せる。
 - ベンチには以下の形が混在する。
@@ -65,11 +65,11 @@
 
 ## 影響範囲
 
-- `sandbox/Benchmark.Shared/Benchmarks/Base.cs`
-- `sandbox/Benchmark.Shared/Benchmarks/BenchFact.cs`
-- `sandbox/Benchmark.Shared/Benchmarks/*.cs`
-- `sandbox/Benchmark.Tests/Benchmark.Tests.csproj` の xUnit 実行
-- `sandbox/Benchmark/Benchmark.csproj` の BenchmarkDotNet 実行
+- `Shared/Common/Benchmarks/Base.cs`
+- `Shared/Common/Benchmarks/BenchFact.cs`
+- `Shared/Common/Benchmarks/*.cs`
+- `Test/Tests.csproj` の xUnit 実行
+- `Benchmark/UI/UI/UI.csproj` の BenchmarkDotNet 実行
 
 ## 移行手順
 
@@ -78,14 +78,14 @@
 3. 単発シーケンス系へ横展開する。
 4. `Linq1..4` 系へ横展開する。
 5. 特殊系を個別対応する。
-6. `dotnet test sandbox/Benchmark.Tests/Benchmark.Tests.csproj --no-build` を通す。
-7. `dotnet build sandbox/Benchmark/Benchmark.csproj --no-restore` を通す。
+6. `dotnet test Test/Tests.csproj --no-build` を通す。
+7. `dotnet build Benchmark/UI/UI/UI.csproj --no-restore` を通す。
 8. 代表ベンチとして `Aggregate_func` を BenchmarkDotNet で実行する。
 
 ## テスト計画
 
 - `Aggregate_func` の xUnit と BenchmarkDotNet 実行。
-- `Benchmark.Tests` 全体。
+- `Tests` 全体。
 - `Benchmark` プロジェクトのビルド。
 - 横展開後、代表として以下を個別 filter で xUnit 実行する。
   - スカラー: `Aggregate_func`
@@ -112,5 +112,5 @@
 ## 合意状況
 
 - `Aggregate_func` の Test/Benchmark 実行は成功済み。
-- ZLinq 非対応や特殊系も含めて `Benchmark.Shared/Benchmarks` 配下の全ベンチクラスへ適用することで合意済み。
-- 全体横展開後、`Benchmark.Tests` 全体、`Benchmark` ビルド、`Aggregate_func` BenchmarkDotNet 実行が成功済み。
+- ZLinq 非対応や特殊系も含めて `Common/Benchmarks` 配下の全ベンチクラスへ適用することで合意済み。
+- 全体横展開後、`Tests` 全体、`Benchmark` ビルド、`Aggregate_func` BenchmarkDotNet 実行が成功済み。

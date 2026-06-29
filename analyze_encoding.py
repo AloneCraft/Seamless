@@ -2,10 +2,10 @@
 import pathlib, sys
 
 FILES = [
-    "Tsavorite.Collection.Shared/Enumerator.cs",
-    "Tsavorite.Collection.Shared/HashSetTestBase.cs",
-    "Tsavorite.Collection.Shared/IDictionaryTestBase.cs",
-    "Tsavorite.Collection.Shared/StoreCheckpoint.cs",
+    "Shared/Tsavorite.Collections/Enumerator.cs",
+    "Shared/Tsavorite.Collections/HashSetTestBase.cs",
+    "Shared/Tsavorite.Collections/IDictionaryTestBase.cs",
+    "Shared/Tsavorite.Collections/StoreCheckpoint.cs",
 ]
 
 outpath = pathlib.Path("g:/GitHub/Seamless/encoding_analysis.txt")

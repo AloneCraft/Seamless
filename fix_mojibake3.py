@@ -22,7 +22,7 @@ FILES = [
     ("HashSetDebugView.cs", ".bak"),
 ]
 
-BASE = pathlib.Path("g:/GitHub/Seamless/Tsavorite.Collection.Shared")
+BASE = pathlib.Path("g:/GitHub/Seamless/Shared/Tsavorite.Collections")
 
 def is_valid_utf8_start(b: int) -> bool:
     """UTF-8リードバイトかどうか判定"""

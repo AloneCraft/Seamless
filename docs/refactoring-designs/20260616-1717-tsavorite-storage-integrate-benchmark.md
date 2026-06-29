@@ -7,7 +7,7 @@
 - `HashSetIntegrate.cs` はセグメントファイル増加、単調増加、compaction 後の active segment 減少、複数セッション refresh、checkpoint restore を同じ統合テスト基底で扱っている。
 - `DictionaryIntegrate.cs` も同様に、セグメント増加系と refresh/checkpoint restore を同じ統合テストに含めている。
 - `src/Benchmark` には `HashSetApiSurfaceBenchmark`、`DictionaryApiSurfaceBenchmark`、`ListApiSurfaceBenchmark` があり、`Managed/Blittable` と `Mutable/Immutable/Storage` の比較軸がすでにある。
-- `src/Benchmark/SeamlessBenchmark.csproj` は `Compile Include` を明示列挙しているため、新しいベンチファイルは csproj に追加する必要がある。
+- `src/Benchmark/Seamlesscsproj` は `Compile Include` を明示列挙しているため、新しいベンチファイルは csproj に追加する必要がある。
 
 ## 目的
 統合テストは「メモリ上の領域と storage 領域の境界で値が壊れない」ことを最小限に検証する。性能・規模・セグメント挙動の観察は BenchmarkDotNet の `src/Benchmark` へ移す。
@@ -33,18 +33,18 @@
 ## 影響範囲
 - `tests/Test.Tsavorite.Collections/Integrate/HashSetIntegrate.cs`
 - `tests/Test.Tsavorite.Collections/Integrate/DictionaryIntegrate.cs`
-- `src/Benchmark/TsavoriteStorageMaintenanceBenchmark.cs`
-- `src/Benchmark/SeamlessBenchmark.csproj`
+- `src/Benchmark/TsavoriteStorageMaintenancecs`
+- `src/Benchmark/Seamlesscsproj`
 
 ## 移行手順
 1. 統合テストを storage boundary correctness のみに書き換える。
 2. 旧統合テストの性能/規模シナリオを BenchmarkDotNet クラスへ移植する。
-3. `src/Benchmark/SeamlessBenchmark.csproj` に新ファイルを追加する。
+3. `src/Benchmark/Seamlesscsproj` に新ファイルを追加する。
 4. 対象テストと benchmark project build を通す。
 
 ## テスト計画
 - `dotnet test tests/Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj --no-restore --filter FullyQualifiedName~Integrate`
-- `dotnet build src/Benchmark/SeamlessBenchmark.csproj --no-restore`
+- `dotnet build src/Benchmark/Seamlesscsproj --no-restore`
 
 ## リスクと対策
 - 統合テストを縮小すると、セグメント挙動の CI 回帰検出力は下がる。代わりに正しさ境界だけは小さく残し、性能/規模観察は BenchmarkDotNet で比較可能にする。

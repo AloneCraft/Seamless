@@ -1,4 +1,4 @@
-namespace Benchmark;
+namespace UI;
 
 public sealed class BenchmarkToolbarAndCloseLogicTests{
     [Fact]

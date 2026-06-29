@@ -4,7 +4,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <WorkArtifactsProjectNames>;Benchmark.DotNet.Linq.Enumerable.FLinq;Benchmark.DotNet.Linq.Enumerable.ZLinq;Benchmark.Persisted.Linq.Enumerable.FLinq;Benchmark.Persisted.Linq.Enumerable.Linq;Benchmark.Tsavorite.Linq.Enumerable.FLinq;Benchmark.Tsavorite.Linq.Enumerable.Linq;Seamless.FLinq;Seamless;</WorkArtifactsProjectNames>
+    <WorkArtifactsProjectNames>;DotNet.Linq.Enumerable.FLinq;DotNet.Linq.Enumerable.ZLinq;Persisted.Linq.Enumerable.FLinq;Persisted.Linq.Enumerable.Linq;Tsavorite.Linq.Enumerable.FLinq;Tsavorite.Linq.Enumerable.Linq;Seamless.FLinq;Seamless;</WorkArtifactsProjectNames>
   </PropertyGroup>
 
   <PropertyGroup Condition="$([System.String]::Copy('$(WorkArtifactsProjectNames)').Contains(';$(MSBuildProjectName);'))">

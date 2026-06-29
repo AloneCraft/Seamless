@@ -70,7 +70,7 @@ classDiagram
 - `FLinqIncrementalGenerator` は incremental generator の入口である（`FLinq/SourceGenerator/interceptor.cs:13`, `FLinq/SourceGenerator/interceptor.cs:55`）。
 - `HashStore` は Dictionary/HashSet/Set store factory を持つ（`Tsavorite.Collections/Stores/HashStore.cs:146`, `Tsavorite.Collections/Stores/HashStore.cs:240`, `Tsavorite.Collections/Stores/HashStore.cs:280`）。
 - `DatabaseSchemaGenerator` は schema generated source を追加する（`Seamless.Database/SourceGenerator/GenerateDatabase.cs:8`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:21`）。
-- Benchmark runner は `MainPage`、`BenchmarkWorkerHost`、model 群で構成される（`Benchmark/MainPage.xaml.cs:688`, `Benchmark/BenchmarkWorkerHost.cs:14`, `Benchmark/BenchmarkRunnerModels.cs:162`）。
+- Benchmark runner は `MainPage`、`BenchmarkWorkerHost`、model 群で構成される（`Benchmark/MainPage.xaml.cs:688`, `Shared/UI/BenchmarkWorkerClient.cs:14`, `Benchmark/BenchmarkRunnerModels.cs:162`）。
 
 ## Review Gate: Code Internal
 

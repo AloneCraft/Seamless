@@ -29,7 +29,7 @@
     <Using Include="BenchmarkDotNet.Attributes" />
     <Using Include="BenchmarkDotNet.Configs" />
     <Using Include="BenchmarkDotNet.Engines" />
-    <Using Include="Benchmark.Shared" />
+    <Using Include="Common" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
@@ -37,6 +37,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
   </ItemGroup>
-  <Import Project="..\Seamless.Linq.Enumerable.Shared\Seamless.Linq.Enumerable.Shared.projitems" Label="Shared" />
+  <Import Project="..\Shared\Seamless.Linq.Enumerable.projitems" Label="Shared" />
 </Project>
 

@@ -7,7 +7,7 @@ evidence_sources:
   - Tsavorite.Collections/Collections/
   - Tsavorite.Collections/LinqCounter.cs
   - Benchmark/MainPage.xaml.cs
-  - Benchmark/BenchmarkWorkerHost.cs
+  - Shared/UI/BenchmarkWorkerClient.cs
 derived_from:
   - Reverse/Code/Internal/
 confidence: medium
@@ -25,7 +25,7 @@ review_status: draft
 | `LinqCounterScope` | `Start` で counter を AsyncLocal に設定。 | operations が counter を increment。 | `Scope.Dispose` で前 counter へ復帰。 | `Tsavorite.Collections/LinqCounter.cs:142`, `Tsavorite.Collections/LinqCounter.cs:148`, `Tsavorite.Collections/LinqCounter.cs:155`, `Tsavorite.Collections/LinqCounter.cs:162` |
 | `Seamless.Database` generator | Roslyn incremental pipeline 初期化。 | schema type 収集、generated source 構築。 | compiler pipeline に従う。 | `Seamless.Database/SourceGenerator/GenerateDatabase.cs:9`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:11`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:17` |
 | `Benchmark` UI | desktop host 起動、benchmark project/method 読み込み。 | worker 起動、queue 処理、UI 更新。 | process kill/graceful stop、report 出力。 | `Benchmark/Platforms/Desktop/Program.cs:22`, `Benchmark/MainPage.xaml.cs:841`, `Benchmark/MainPage.xaml.cs:688`, `Benchmark/MainPage.xaml.cs:738`, `Benchmark/MainPage.xaml.cs:831` |
-| `BenchmarkWorkerHost` | worker mode args で起動。 | stdin task を deserialize、BenchmarkDotNet 実行。 | result message 返却、exit code 設定。 | `Benchmark/Platforms/Desktop/Program.cs:10`, `Benchmark/BenchmarkWorkerHost.cs:17`, `Benchmark/BenchmarkWorkerHost.cs:39`, `Benchmark/BenchmarkWorkerHost.cs:96` |
+| `BenchmarkWorkerHost` | worker mode args で起動。 | stdin task を deserialize、BenchmarkDotNet 実行。 | result message 返却、exit code 設定。 | `Benchmark/Platforms/Desktop/Program.cs:10`, `Shared/UI/BenchmarkWorkerClient.cs:17`, `Shared/UI/BenchmarkWorkerClient.cs:39`, `Shared/UI/BenchmarkWorkerClient.cs:96` |
 
 ## 制約
 

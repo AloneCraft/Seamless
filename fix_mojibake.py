@@ -1,6 +1,6 @@
 """
 文字化け修正スクリプト
-Tsavorite.Collection.Shared の .cs ファイルの日本語コメントが文字化けしているのを修復する
+Shared/Tsavorite.Collections の .cs ファイルの日本語コメントが文字化けしているのを修復する
 
 文字化けパターン分析:
 オリジナルのUTF-8日本語テキストが、何らかの経路でCP932(Shift-JIS)として解釈された後、
@@ -15,11 +15,11 @@ UTF-8に再変換されることで二重エンコード状態になっている
 import pathlib
 
 FILES = [
-    "Tsavorite.Collection.Shared/Enumerator.cs",
-    "Tsavorite.Collection.Shared/HashSetTestBase.cs",
-    "Tsavorite.Collection.Shared/IDictionaryTestBase.cs",
-    "Tsavorite.Collection.Shared/StoreCheckpoint.cs",
-    "Tsavorite.Collection.Shared/HashSetDebugView.cs",
+    "Shared/Tsavorite.Collections/Enumerator.cs",
+    "Shared/Tsavorite.Collections/HashSetTestBase.cs",
+    "Shared/Tsavorite.Collections/IDictionaryTestBase.cs",
+    "Shared/Tsavorite.Collections/StoreCheckpoint.cs",
+    "Shared/Tsavorite.Collections/HashSetDebugView.cs",
 ]
 
 def attempt_fix_v1_latin1_cp932_utf8(raw: bytes) -> tuple[bool, bytes]:

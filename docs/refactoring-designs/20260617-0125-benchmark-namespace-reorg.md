@@ -2,7 +2,7 @@
 
 ## 背景
 
-`sandbox/Benchmark.Shared/Benchmarks` と `sandbox/Benchmark.Tests` は現在 `Seamless.Benchmarks` namespace 直下にあり、内容は `System.Linq.Enumerable` の intercept benchmark/test として扱われている。一方で Tsavorite 向けには `TsavoriteEnumerableCatalog.cs` が追加されているが、同じ `Seamless.Benchmarks` namespace に置かれており、System 側との役割境界が見えにくい。
+`Shared/Common/Benchmarks` と `Test` は現在 `Seamless.Benchmarks` namespace 直下にあり、内容は `System.Linq.Enumerable` の intercept benchmark/test として扱われている。一方で Tsavorite 向けには `TsavoriteEnumerableCatalog.cs` が追加されているが、同じ `Seamless.Benchmarks` namespace に置かれており、System 側との役割境界が見えにくい。
 
 ユーザー要望は次の 3 点。
 
@@ -12,13 +12,13 @@
 
 ## 現状の観察
 
-- `sandbox/Benchmark.Shared/Benchmarks/*.cs` の多くが `namespace Seamless.Benchmarks;` を持つ。
-- `sandbox/Benchmark.Shared/Benchmarks/BenchFact.cs` は assembly 属性で `Seamless.Benchmarks.TestPriorityOrderer` を参照している。
-- `sandbox/Benchmark.Tests/Benchmark.Tests.csproj` は `<RootNamespace>Seamless.Benchmarks</RootNamespace>` を持つ。
-- `sandbox/Benchmark.Shared/Benchmark.Shared.projitems` は `<Import_RootNamespace>Seamless.Benchmarks</Import_RootNamespace>` を持つ。
-- `sandbox/Benchmark/Program.cs` は benchmark 型を assembly reflection で拾っており、個別 namespace への直接参照は見つかっていない。
-- `tests/Test.Tsavorite.Collections/Benchmark/RecordSetBenchmark.cs` に `namespace Test.Tsavorite.Benchmarks;` がある。
-- `sandbox/Benchmark.Shared/Benchmarks/TsavoriteEnumerableCatalog.cs` は Tsavorite と System の結果比較を行う catalog 形式の benchmark/test として存在している。
+- `Shared/Common/Benchmarks/*.cs` の多くが `namespace Seamless.Benchmarks;` を持つ。
+- `Shared/Common/Benchmarks/BenchFact.cs` は assembly 属性で `Seamless.Benchmarks.TestPriorityOrderer` を参照している。
+- `Test/Tests.csproj` は `<RootNamespace>Seamless.Benchmarks</RootNamespace>` を持つ。
+- `Shared/Common/Common.projitems` は `<Import_RootNamespace>Seamless.Benchmarks</Import_RootNamespace>` を持つ。
+- `Benchmark/UI/Program.cs` は benchmark 型を assembly reflection で拾っており、個別 namespace への直接参照は見つかっていない。
+- `tests/Test.Tsavorite.Collections/Benchmark/RecordSetcs` に `namespace Test.Tsavorite.Benchmarks;` がある。
+- `Shared/Common/Benchmarks/TsavoriteEnumerableCatalog.cs` は Tsavorite と System の結果比較を行う catalog 形式の benchmark/test として存在している。
 
 ## 目的
 
@@ -38,16 +38,16 @@
 
 System 側は namespace のみ移動する。
 
-- `sandbox/Benchmark.Shared/Benchmarks/*.cs`
+- `Shared/Common/Benchmarks/*.cs`
   - 原則 `Seamless.Benchmarks` から `Test.Benchmarks.Intercept.System.Linq.Enumerable` へ変更する。
   - `TsavoriteEnumerableCatalog.cs` は例外として `Test.Benchmarks.Intercept.Tsavorite.Linq.Enumerable` に変更する。
-- `sandbox/Benchmark.Tests/*.cs`
+- `Test/*.cs`
   - `BenchmarkTiming.cs`、`BenchmarkParameters.cs` などの test helper も System intercept benchmark/test の helper として `Test.Benchmarks.Intercept.System.Linq.Enumerable` に変更する。
-- `sandbox/Benchmark.Shared/Benchmarks/BenchFact.cs`
+- `Shared/Common/Benchmarks/BenchFact.cs`
   - `TestPriorityOrderer` の assembly 参照も新 namespace に変更する。
-- `sandbox/Benchmark.Tests/Benchmark.Tests.csproj`
+- `Test/Tests.csproj`
   - `<RootNamespace>` を `Test.Benchmarks.Intercept.System.Linq.Enumerable` に変更する。
-- `sandbox/Benchmark.Shared/Benchmark.Shared.projitems`
+- `Shared/Common/Common.projitems`
   - `<Import_RootNamespace>` を `Test.Benchmarks.Intercept.System.Linq.Enumerable` に変更する。
 
 Tsavorite 側は既存の `TsavoriteEnumerableCatalog.cs` を基点にする。
@@ -58,15 +58,15 @@ Tsavorite 側は既存の `TsavoriteEnumerableCatalog.cs` を基点にする。
 
 `Test.Tsavorite.Benchmarks` は `Test.Benchmarks` へ移動する。
 
-- `tests/Test.Tsavorite.Collections/Benchmark/RecordSetBenchmark.cs` の namespace を `Test.Benchmarks` に変更する。
+- `tests/Test.Tsavorite.Collections/Benchmark/RecordSetcs` の namespace を `Test.Benchmarks` に変更する。
 - 参照があれば同時に更新する。
 
 ## 影響範囲
 
-- `sandbox/Benchmark.Shared/Benchmarks`
-- `sandbox/Benchmark.Tests`
-- `sandbox/Benchmark.Shared/Benchmark.Shared.projitems`
-- `tests/Test.Tsavorite.Collections/Benchmark/RecordSetBenchmark.cs`
+- `Shared/Common/Benchmarks`
+- `Test`
+- `Shared/Common/Common.projitems`
+- `tests/Test.Tsavorite.Collections/Benchmark/RecordSetcs`
 - namespace 参照を持つ関連ファイル
 
 benchmark runner は assembly reflection ベースのため、namespace 変更そのものでは型 discovery の方式を変えない。
@@ -81,7 +81,7 @@ benchmark runner は assembly reflection ベースのため、namespace 変更�
 
 ## テスト計画
 
-- `dotnet test sandbox/Benchmark.Tests/Benchmark.Tests.csproj --no-restore -v:minimal`
+- `dotnet test Test/Tests.csproj --no-restore -v:minimal`
 - 必要に応じて Tsavorite 関連だけに絞った test filter で追加確認する。
 - build/test が既存の未復元 package などで失敗した場合は、失敗理由を記録する。
 
