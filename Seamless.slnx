@@ -16,11 +16,17 @@
     <Project Path="Benchmark.Worker/Benchmark.Worker.csproj" />
     <Project Path="Benchmark/Benchmark.csproj" />
   </Folder>
+  <Folder Name="/Collection.Shared/">
+    <Project Path="Collection.Shared/Collection.Shared.shproj" />
+    <Project Path="Persisted.Collection.Shared/Persisted.Collection.Shared.shproj" />
+    <Project Path="Tsavorite.Collection.Shared/Tsavorite.Collection.Shared.shproj" />
+  </Folder>
   <Folder Name="/solution/">
     <File Path="AGENTS.md" />
     <File Path="Seamless.Linq.Enumerable.Shared\Seamless.Linq.Enumerable.Shared.projitems" />
     <File Path="Benchmark.Shared\Benchmark.TestInfrastructure.projitems" />
     <File Path="Seamless.Linq.Enumerable.Shared\Linq.Enumerable.Benchmark\Program.cs" />
+    <File Path="Collection.Shared\Collection.Shared.projitems" />
     <File Path="DynamicLinq.Shared\DynamicLinq.Shared.projitems" />
     <File Path="Persisted.Collection.Shared\Persisted.Collection.Shared.projitems" />
     <File Path="Tsavorite.Collection.Shared\Tsavorite.Collection.Shared.projitems" />
@@ -51,9 +57,7 @@
   </Folder>
   <Project Path="Document/Document.csproj" Id="b6f45f7e-1008-41c4-a1d3-7f9efbf33610" />
   <Project Path="DynamicLinq.Shared/DynamicLinq.Shared.shproj" />
-  <Project Path="Persisted.Collection.Shared/Persisted.Collection.Shared.shproj" />
   <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
   <Project Path="Seamless.Linq.Enumerable.Shared/Seamless.Linq.Enumerable.Shared.shproj" />
   <Project Path="Seamless/Seamless.csproj" />
-  <Project Path="Tsavorite.Collection.Shared/Tsavorite.Collection.Shared.shproj" />
 </Solution>
