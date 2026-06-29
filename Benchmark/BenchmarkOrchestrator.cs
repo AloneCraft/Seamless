@@ -660,10 +660,12 @@ internal sealed class BenchmarkOrchestrator(
 
 [global::Seamless.FLinq.LinqIntercept(false)]
 internal static class BenchmarkElementCounts {
-    internal const int BaseElementCount = 1<<16;
+    private const int BaseElementCountExponent = 16;
+    private const int ElementCountExponentCount = 8;
+    internal const int BaseElementCount = 1<<BaseElementCountExponent;
 
     public static IReadOnlyList<int> All { get; } =
-        Enumerable.Range(10,14).Select(static exponent => 1<<exponent).ToArray();
+        Enumerable.Range(BaseElementCountExponent,ElementCountExponentCount).Select(static exponent => 1<<exponent).ToArray();
 
     public static IReadOnlyList<int> DefaultInitial { get; } =
         [BaseElementCount];
