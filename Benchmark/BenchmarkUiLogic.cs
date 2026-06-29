@@ -269,7 +269,7 @@ internal static class BenchmarkRowGroupingLogic{
                 rows.Add(new BenchmarkRowDefinition(
                     CreateRowKey(sourceTab,methodGroup.Key,rowCases),
                     methodGroup.Key,
-                    CreateBenchmarkName(methodGroup.Key,rowCases,rowCount),
+                    methodGroup.Key,
                     rowCases));
             }
         }
@@ -291,34 +291,6 @@ internal static class BenchmarkRowGroupingLogic{
         return sourceTab.Id+"|"+string.Join("||",parts);
     }
 
-    private static string CreateBenchmarkName(
-        string methodName,
-        IReadOnlyDictionary<string,BenchmarkCase> casesByProject,
-        int rowCount){
-        if(rowCount<=1){
-            return methodName;
-        }
-
-        var typeNames = casesByProject.Values
-            .Select(static item => ShortTypeName(item.TypeFullName))
-            .Where(static item => !string.IsNullOrWhiteSpace(item))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        return typeNames.Length==0
-            ? methodName
-            : methodName+" ("+string.Join(" / ",typeNames)+")";
-    }
-
-    private static string ShortTypeName(string typeFullName){
-        if(string.IsNullOrWhiteSpace(typeFullName)){
-            return string.Empty;
-        }
-
-        var index = typeFullName.LastIndexOf('.');
-        return index<0||index==typeFullName.Length-1
-            ? typeFullName
-            : typeFullName[(index+1)..];
-    }
 }
 
 internal sealed record BenchmarkElementMeasurement(
