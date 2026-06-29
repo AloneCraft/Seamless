@@ -1,30 +1,30 @@
 using Seamless.Tsavorite.Stores;
 namespace Test.Seamless.Stores;
 /// <summary>
-/// src/Seamless.Tsavorite.Collections/Store/CollectionStore`2.cs �̑S�����J�o�[����B
-/// �����e�X�g(CoverInternals��)�ŃJ�o�[���Ă��Ȃ�����ɒ��͂���B
+/// CollectionStoreの境界条件を検証する。
+/// CollectionStoreの境界条件を検証する。
 /// </summary>
 
 public class CollectionStore {
     private static string CreateFolder() => TestPath.Directory<CollectionStore>();
     private const long TestMemorySize = global::Seamless.Tsavorite.Const.MinObjectLogCapacity;
-    //CollectionStore �R���X�g���N�^: ObjectLogDevice.Capacity<0 �̕���
-    //Capacity=-1�̃f�o�C�X��n����ObjectLogSegmentSize=global::Seamless.Tsavorite.Const.MinObjectLogCapacity�ɂȂ�
+    // CollectionStoreの境界条件を検証する。
+    // CollectionStoreの境界条件を検証する。
     [Fact, Trait("Category","Unit")]
     public void Constructor_ObjectLogCapacity_Negative() {
         var folder = CreateFolder();
         using var LogDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
-        //Capacity��w�肵�Ȃ��ƃf�t�H���g=-1�ɂȂ�(Capacity<0�����ʂ�)
+        // CollectionStoreの境界条件を検証する。
         using var ObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true);
-        //Capacity<0 �� ObjectLogSegmentSize=global::Seamless.Tsavorite.Const.MinObjectLogCapacity �Ƃ��Đ���ɍ\�z����邱��
+        // CollectionStoreの境界条件を検証する。
         using var store = Store.Create(MemorySize: TestMemorySize).Create<int,string>(LogDevice,ObjDevice);
         using var dict = store.Create();
         dict.Add(1,"a");
         Assert.Equal("a",dict[1]);
     }
-    //CollectionFactory.CompactWithLookup: CompactUntil<=BeginAddress �̑���return����
-    //return�̌��2.0���ƃJ�o�[�ł���
-    //�f�[�^�Ȃ��܂��͒����2��ڌĂяo����SafeReadOnlyAddress<CompactUntil�ƂȂ�ꍇ
+    // CollectionStoreの境界条件を検証する。
+    // CollectionStoreの境界条件を検証する。
+    // Read 経路はこの処理では使用しない。
     [Fact, Trait("Category","Unit")]
     public void CompactWithLookup_EarlyReturn() {
         var folder = CreateFolder();
@@ -32,7 +32,7 @@ public class CollectionStore {
         using var ObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
         using var store = Store.Create(MemorySize: TestMemorySize,MutableFraction: 0.1).Create<int,string>(LogDevice,ObjDevice);
         using var dict = store.Create();
-        //�f�[�^����������CompactWithLookup����s
+        // CollectionStoreの境界条件を検証する。
         for(var a = 0; a<1000; a++) {
             dict.Add(a,$"v{a}");
         }
@@ -42,36 +42,36 @@ public class CollectionStore {
             var after = store.Address;
             Assert.True(after.BeginAddress>=before.BeginAddress);
         }
-        //2��ڌĂяo��: BeginAddress���i�񂾌�ɂ���ɌĂяo��
-        //SafeReadOnlyAddress��BeginAddress�ȉ��ɂȂ��CompactUntil<=BeginAddress�̑���return����������
+        // CollectionStoreの境界条件を検証する。
+        // Read 経路はこの処理では使用しない。
         {
             var beforeSecond = store.Address;
             store.CompactWithLookup();
             var afterSecond = store.Address;
-            //��O�������������튮�����邱�Ƃ�m�F
+            // CollectionStoreの境界条件を検証する。
             Assert.True(afterSecond.BeginAddress>=beforeSecond.BeginAddress);
         }
-        //�A���Ăяo��: ����return��else�o�H��J�o�[ (BeginAddress=CompactUntil�ɂȂ�ꍇ)
+        // CollectionStoreの境界条件を検証する。
         store.CompactWithLookup();
         store.CompactWithLookup();
     }
-    //1.1.1CollectionFactory.CompactWithLookup: CompactUntil>SafeReadOnlyAddress �ŃN���b�v����镪��
+    // Read 経路はこの処理では使用しない。
     [Fact, Trait("Category","Unit")]
     public void CompactWithLookup() {
-        //1.1.1��
+        // CollectionStoreの境界条件を検証する。
         var folder = CreateFolder();
         using var LogDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var ObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
         using var store = Store.Create(MemorySize: TestMemorySize,MutableFraction: 0.1).Create<int,string>(LogDevice,ObjDevice);
         using var dict = store.Create();
-        //�f�[�^����������CompactWithLookup����s
+        // CollectionStoreの境界条件を検証する。
         for(var a = 0; a<1000; a++) {
             dict.Add(a,$"v{a}");
         }
-        //1.1.1�ł�ReadOnlyAddress�̐i�s���o�b�t�@�e�ʃx�[�X�̂���10000���ł�SafeReadOnlyAddress��
-        //BeginAddress�𒴂�������return�ɂȂ�BShiftReadOnlyAddress�ŋ����I��TailAddress�܂�
-        //�ǂݎ���p�ɂ���SafeReadOnlyAddress��i�߁ACompactWithLookup�����ۂɃR���p�N�V������
-        //���s�ł����Ԃɂ���B2.0beta3�ł͊���ReadOnlyAddress���i��ł��邽�ߙp���Ŗ��Q�B
+        // CollectionStoreの境界条件を検証する。
+        // CollectionStoreの境界条件を検証する。
+        // CollectionStoreの境界条件を検証する。
+        // CollectionStoreの境界条件を検証する。
         store.Store.Log.ShiftReadOnlyAddress(store.Store.Log.TailAddress,true);
         {
             var before = store.Address;
@@ -79,32 +79,32 @@ public class CollectionStore {
             var after = store.Address;
             Assert.True(after.BeginAddress>=before.BeginAddress);
         }
-        //2��ڌĂяo��: BeginAddress���i�񂾌�ɂ���ɌĂяo��
-        //SafeReadOnlyAddress��BeginAddress�ȉ��ɂȂ��CompactUntil<=BeginAddress�̑���return����������
+        // CollectionStoreの境界条件を検証する。
+        // Read 経路はこの処理では使用しない。
         {
             var beforeSecond = store.Address;
             store.CompactWithLookup();
             var afterSecond = store.Address;
-            //��O�������������튮�����邱�Ƃ�m�F
+            // CollectionStoreの境界条件を検証する。
             Assert.True(afterSecond.BeginAddress>=beforeSecond.BeginAddress);
         }
     }
-    //2.0CollectionFactory.CompactWithLookup: CompactUntil>SafeReadOnlyAddress �ŃN���b�v����镪��
+    // Read 経路はこの処理では使用しない。
     [Fact, Trait("Category","Unit")]
     public void CompactWithLookup_ClipToSafeReadOnly() {
         var folder = CreateFolder();
         using var LogDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: TestMemorySize);
         using var ObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
-        //MutableFraction=0�őS�f�[�^�𑦎��ǂݎ���p�ɂ���
+        // CollectionStoreの境界条件を検証する。
         using var store = Store.Create(MemorySize: TestMemorySize,MutableFraction: 0).Create<int,string>(LogDevice,ObjDevice);
         using var dict = store.Create();
-        //���ʂ̃f�[�^��ǉ�����SafeReadOnlyAddress��SegmentSize�ȉ��ɂȂ�󋵂���
+        // Read 経路はこの処理では使用しない。
         dict.Add(1,"a");
         dict.Add(2,"b");
         var address = store.Address;
-        //SafeReadOnlyAddress����������Ԃ�CompactWithLookup �� CompactUntil>SafeReadOnlyAddress�̃N���b�v����
+        // Read 経路はこの処理では使用しない。
         store.CompactWithLookup();
-        //��O�Ȃ��������邱��
+        // CollectionStoreの境界条件を検証する。
         Assert.True(store.Address.BeginAddress>=address.BeginAddress);
     }
     [Fact, Trait("Category","Unit")]

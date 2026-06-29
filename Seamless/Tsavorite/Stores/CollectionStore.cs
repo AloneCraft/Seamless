@@ -2,7 +2,7 @@ using Seamless.Tsavorite.Devices;
 namespace Seamless.Tsavorite.Stores;
 
 public abstract class CollectionStore{
-    /// <summary>2é‚µEºãƒ»E®é©æ“¾E½E¯é—•ï½µèœ‰ï½±E‚ï½°é‚µEºãƒ»E©é‚µEºç¹ï½»E‚ï½°éƒ¢E§è£E¤ãƒ»E¢ãƒ»Eºé««E±é«¦Eªç¬˜ãEE¹E§ç¹ï½»/summary>
+    /// <summary>CollectionStoreã®å¢ƒç•Œæ¡ä»¶ã‚’æ¤œè¨¼ã™ã‚‹ã€‚</summary>
     [Conditional("DEBUG")]
     private protected static void AssertIsPowerOfTwo(long value,string paramName){
         Debug.Assert(value>0,$"{paramName} must be positive");
@@ -65,8 +65,8 @@ public abstract partial class CollectionStore<TKey, TValue> {
 
 
 /// <summary>
-/// Tsavorite éƒ¢E§ãƒ»E¹éƒ¢æ™ç¾ç¸ºãƒ»E¹E§è£E¤ãƒ»E®ãƒ»E¡?E??éƒ¢E§è›¹Eºè±E¦´å¯°ãƒ»E¡é™œé›£E½Eºé™Ÿæ‰‹E¼æ–ï¿ éƒ¢æ™¢E½E©éƒ¢E§ãƒ»E¹é‚µE²ç¹ï½»
-/// DictionaryStore é‚µEºé„™ï½«ãƒ»è‚²E¸Eºãƒ»E³ HashSetStore é‚µEºãƒ»E®é™·èŒ¨E½E±é¬¨E¾è¢E¼ãƒ»E®è²E½¯ãƒ»E£ç¹ï½»??éš°E°é™œä¼šï½½E¾èŸ¶å®ãƒ»éƒ¢E§èµæ•–Â€ç¹ï½»
+/// CollectionStoreã®å¢ƒç•Œæ¡ä»¶ã‚’æ¤œè¨¼ã™ã‚‹ã€‚
+/// CollectionStoreã®å¢ƒç•Œæ¡ä»¶ã‚’æ¤œè¨¼ã™ã‚‹ã€‚
 /// </summary>
 public abstract partial class CollectionStore<
     TKey,
@@ -86,7 +86,7 @@ public abstract partial class CollectionStore<
     private int CheckpointInProgress;
     private bool UsesStorageDevice => this.Settings is not null&&(this.Settings.LogDevice is not MemoryOnlyDevice||this.Settings.ObjectLogDevice is not MemoryOnlyDevice);
 
-    /// <summary>éƒ¢æ˜´ãƒ»??éƒ¢æ˜œï½ºE¥ãƒ»E°ç¹§è‡¥èˆéƒ¢E§ãƒ»E·éƒ¢æ™¢E½E¼éƒ¢æ™¢E£E°: TakeCheckpointAsync é™ï½³ç¹ï½»E???ECompleteCheckpointAsync é™·é·¹äº‚ç«Šæ¥¢æƒ±ãƒ»E¼é‚µEºãƒ»E³é™·ãƒ»E½Eºé‚µEºéœˆè²»E½æªï½¹E§èµæ˜´EEƒ¢æ™¢E½E¼éƒ¢æ™¢E½E«éƒ¢æ™ãEç¹ï½£éƒ¢E§ãƒ»E¯é‚µE²ç¹ï½»/summary>
+    /// <summary>CollectionStoreã®å¢ƒç•Œæ¡ä»¶ã‚’æ¤œè¨¼ã™ã‚‹ã€‚</summary>
     private protected CollectionStore(
         TStoreFunctions StoreFunctions,
         Func<AllocatorSettings,TStoreFunctions,TAllocator> allocatorFactory,

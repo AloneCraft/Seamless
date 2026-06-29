@@ -28,7 +28,7 @@ public abstract class ListTestBase<TStrategy, T>
     }
 
     // ============================================================
-    // List 基本操作テスチE    // ============================================================
+    // List 基本操作テスト
 
     [BenchFact,Benchmark]
     public void Add_Enumerate_AndIndexer() {
@@ -183,7 +183,7 @@ public abstract class ListTestBase<TStrategy, T>
     }
 
     // ============================================================
-    // System.Linq.Enumerable メソチE��チE��チE    // ============================================================
+    // System.Linq.Enumerable 互換テスト。
 
     [BenchFact,Benchmark]
     public void Enumerable_Aggregate() {

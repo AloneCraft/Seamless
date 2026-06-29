@@ -34,7 +34,7 @@ public readonly struct Store {
         this.StorageReserveBytes=StorageReserveBytes;
         this.CheckpointDir=CheckpointDir;
     }
-    /// <summary>構�Eパラメータを指定して Store を生成する、E/summary>
+    /// HashStoreの境界条件を検証する。
     public static Store Create(
         long IndexSize = Const.IndexSize,
         long PageSize = Const.PageSize,
@@ -200,7 +200,7 @@ public readonly struct Store {
             keyUsesMemoryPackSerializer: UsesMemoryPackSerializer<TKey>(),
             valueUsesMemoryPackSerializer: UsesMemoryPackSerializer<TValue>());
 
-    /// <summary>Managed Key ÁEManaged Value�E�ストレージ付き�E�E/summary>
+    /// HashStoreの境界条件を検証する。
     public DictionaryStore<TKey,TValue> Create<TKey, TValue>(
         IDevice LogDevice,
         IDevice ObjectLogDevice,

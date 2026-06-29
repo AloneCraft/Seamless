@@ -5,7 +5,7 @@ using Tsavorite.core;
 using Seamless.Collections;
 namespace Tsavorite.Collection;
 /// <summary>
-/// <see cref="global::System.Collections.Generic.IDictionary{TKey,TValue}"/> 共通テスト基底クラス、E/// 追加の Tsavorite 固有検証は <see cref="DictionaryTestBase{TStrategy,TKey,TValue}"/> で扱ぁE��E/// </summary>
+/// IDictionaryの動作を検証する。
 public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     where TStrategy : IDictTestStrategy<TKey,TValue>
     where TKey : IEquatable<TKey>
@@ -25,7 +25,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     [BenchFact]
     public void Add() {
         {
-            // コメント文字化け修正済み�E�邵�E�髦�E�・狗ｸ�E�阮吮・
+            // IDictionaryの動作を検証する。
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -53,7 +53,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     [BenchFact,Benchmark]
     public void Add_KeyValuePair() {
         {
-            // コメント文字化け修正済み�E�邵�E�髦�E�・狗ｸ�E�阮吮・
+            // IDictionaryの動作を検証する。
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -72,7 +72,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.True(dict.Contains(new KeyValuePair<TKey,TValue>(TStrategy.K(1),TStrategy.V(1))));
         }
         {
-            // コメント文字化け修正済み�E� false
+            // IDictionaryの動作を検証する。
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -93,7 +93,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Equal(2,array.Length);
         }
         {
-            // コメント文字化け修正済み�E�關灘唱・�E�繝ｻ
+            // IDictionaryの動作を検証する。
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -107,7 +107,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Throws<ArgumentOutOfRangeException>(() => dict.CopyTo(new KeyValuePair<TKey,TValue>[2],-1));
         }
         {
-            // コメント文字化け修正済み滓ｦ翫・邵�E�謔滂ｽ�E�荳奁E��・�E��E�蜷�E�邁E�E�E��E�荵昶・關灘唱・�E�繝ｻ
+            // IDictionaryの動作を検証する。
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -335,14 +335,14 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         dict.Add(TStrategy.K(1),TStrategy.V(1));
         dict.Add(TStrategy.K(2),TStrategy.V(2));
         {
-            // コメント文字化け修正済み邵�E�蜷�E�・狗ｸ�E�阮吮・
+            // IDictionaryの動作を検証する。
             Assert.Equal(2,dict.Count);
         }
     }
     [BenchFact,Benchmark]
     public void GetEnumerator() {
         {
-            // コメント文字化け修正済み�E�陋ｻ邁E��雖檎ｸ�E�・�E�邵�E�髦�E�・狗ｸ�E�阮吮・
+            // IDictionaryの動作を検証する。
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -351,7 +351,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Single(e);
         }
         {
-            // コメント文字化け修正済み�E�陋ｻ邁E��雖檎ｸ�E�・�E�邵�E�髦�E�・狗ｸ�E�阮吮・
+            // IDictionaryの動作を検証する。
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;

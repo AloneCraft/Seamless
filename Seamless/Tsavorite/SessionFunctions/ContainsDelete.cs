@@ -1,7 +1,7 @@
 using Seamless.Tsavorite.Stores;
 namespace Seamless.Tsavorite.SessionFunctions;
 /// <summary>
-/// Read でキーの存在確認！Eontains�E�、RMW で Tombstone 挿入による論理削除�E�Eelete�E�を行うセチE��ョン関数、E/// Tsavorite の Type-Based Dispatch により Read と RMW が独立してチE��スパッチされるため、E/// 非競合な Contains と Delete めE1 クラスに統合できる、E/// </summary>
+/// Delete API は使わず、RMW で Tombstone を挿入する。
 public readonly struct ContainsDelete:
     ISessionFunctions<EqualityEmpty,bool,EqualityEmpty>,
     ICreate<ContainsDelete> {
@@ -12,7 +12,7 @@ public readonly struct ContainsDelete:
         output=true;
         return true;
     }
-    // Delete: キー未存在時�E新規作�EしなぁE
+    // NeedInitialUpdate は false を返すため到達しない。
     public bool NeedInitialUpdate<TKey>(TKey key,ref EqualityEmpty input,ref bool output,ref RMWInfo rmwInfo)
 #if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct {
@@ -23,10 +23,10 @@ public readonly struct ContainsDelete:
     }
     [ExcludeFromCodeCoverage]
     public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref bool output,ref RMWInfo rmwInfo) {
-        // NeedInitialUpdate ぁEfalse を返すため到達しなぁE��E
+        // NeedInitialUpdate は false を返すため到達しない。
     throw new NotSupportedException();
     }
-    // Delete: キー存在時�E Tombstone を挿入して削除。output=trueで成功を通知、E
+    // Delete API は使わず、RMW で Tombstone を挿入する。
     public bool InPlaceUpdater(ref LogRecord logRecord,ref EqualityEmpty input,ref bool output,ref RMWInfo rmwInfo) {
         output=true;
         rmwInfo.Action=RMWAction.ExpireAndStop;
@@ -34,7 +34,7 @@ public readonly struct ContainsDelete:
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref bool output,ref RMWInfo rmwInfo) {
-        // NeedInitialUpdate ぁEfalse を返すため到達しなぁE��E
+        // NeedInitialUpdate は false を返すため到達しない。
     throw new NotSupportedException();
     }
     public bool NeedCopyUpdate<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input,ref bool output,ref RMWInfo rmwInfo) where TSourceLogRecord : ISourceLogRecord {
@@ -47,7 +47,7 @@ public readonly struct ContainsDelete:
     }
     [ExcludeFromCodeCoverage]
     public bool PostCopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref bool output,ref RMWInfo rmwInfo) where TSourceLogRecord : ISourceLogRecord {
-        // CopyUpdater ぁEfalse を返して処琁E��打ち刁E��ため、到達しなぁE��E
+        // CopyUpdater は false を返すため到達しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -153,7 +153,7 @@ public readonly struct ContainsDelete:
 #else
         where TKey : IKey{
 #endif
-        // NeedInitialUpdate ぁEfalse を返すため到達しなぁE��E
+        // NeedInitialUpdate は false を返すため到達しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]

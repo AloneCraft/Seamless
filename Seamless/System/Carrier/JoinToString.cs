@@ -71,7 +71,7 @@ partial class ValueEnumerableExtensions {
             }
 
             if(!e.TryGetNext(out var second)) {
-                return first!.ToString()??""; // return only first
+                return first!.ToString()??"";
             }
 
             var result = new ValueStringBuilder(stackalloc char[StackallocCharBufferSizeLimit]);

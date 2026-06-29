@@ -1,10 +1,10 @@
 namespace Tsavorite.Collection.Stress;
 
 /// <summary>
-/// Stress チE��ト用の乱数ユーチE��リチE��、E/// 再現可能なキー列と削除マスクを生成する、E/// </summary>
+/// Stress テストの動作を検証する。
 internal static class StressScript {
     /// <summary>
-    /// [0, range) から重褁E��し�EキーめEcount 件サンプリングする、E    /// Fisher-Yates シャチE��ルを使ぁE��め、count は range 以下である忁E��がある、E    /// </summary>
+    /// Stress テストの動作を検証する。
     public static int[] SampleKeys(int seed,int range,int count) {
         if(count>range)
             throw new ArgumentOutOfRangeException(nameof(count));
@@ -20,7 +20,7 @@ internal static class StressScript {
     }
 
     /// <summary>
-    /// length 件の削除マスクを作�Eする。各要素ぁEtrue になる確玁E�E removeRate、E    /// </summary>
+    /// Stress テストの動作を検証する。
     public static bool[] RemoveMask(int seed,int length,double removeRate) {
         var rng = new Random(seed);
         var mask = new bool[length];

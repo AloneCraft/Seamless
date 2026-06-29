@@ -5,55 +5,55 @@ internal readonly struct SymmetricExceptWith:
     [ExcludeFromCodeCoverage]
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input,ref EqualityEmpty output,ref ReadInfo readInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        // Read 操作�E使用しなぁE��E
+        // Read 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref EqualityEmpty output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作�E使用しなぁE��E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,IHeapObject srcValue,ref EqualityEmpty output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作�E使用しなぁE��E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InitialWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref EqualityEmpty output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        // Upsert 操作�E使用しなぁE��E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InPlaceWriter(ref LogRecord logRecord,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref EqualityEmpty output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作�E使用しなぁE��E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InPlaceWriter(ref LogRecord logRecord,ref EqualityEmpty input,IHeapObject srcValue,ref EqualityEmpty output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作�E使用しなぁE��E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InPlaceWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref EqualityEmpty output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        // Upsert 操作�E使用しなぁE��E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref EqualityEmpty output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作�E使用しなぁE��E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialWriter(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,IHeapObject srcValue,ref EqualityEmpty output,ref UpsertInfo upsertInfo) {
-        // Upsert 操作�E使用しなぁE��E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialWriter<TSourceLogRecord>(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,in TSourceLogRecord inputLogRecord,ref EqualityEmpty output,ref UpsertInfo upsertInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        // Upsert 操作�E使用しなぁE��E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -64,7 +64,7 @@ internal readonly struct SymmetricExceptWith:
         where TKey : IKey
     #endif
         where TEpochAccessor : IEpochAccessor {
-        // Upsert 操作�E使用しなぁE��E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -75,7 +75,7 @@ internal readonly struct SymmetricExceptWith:
         where TKey : IKey
     #endif
         where TEpochAccessor : IEpochAccessor {
-        // Upsert 操作�E使用しなぁE��E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     public bool NeedInitialUpdate<TKey>(TKey key,ref EqualityEmpty input,ref EqualityEmpty output,ref RMWInfo rmwInfo)
@@ -84,14 +84,14 @@ internal readonly struct SymmetricExceptWith:
         #else
         where TKey : IKey{
         #endif
-        return true;// キー未存在時�E新規作�Eする
+        return true;
     }
     public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref EqualityEmpty output,ref RMWInfo rmwInfo) {
         //NeedInitialUpdateがtrueを返すときに呼ばれる
     return dstLogRecord.TrySetValueSpanAndPrepareOptionals(ReadOnlySpan<byte>.Empty,in sizeInfo);
     }
     public bool InPlaceUpdater(ref LogRecord logRecord,ref EqualityEmpty input,ref EqualityEmpty output,ref RMWInfo rmwInfo) {
-        rmwInfo.Action=RMWAction.ExpireAndStop;//キーが存在する場合�E削除する。SymmetricExceptWithなので、更新はせずに削除のみ行う、E
+        rmwInfo.Action=RMWAction.ExpireAndStop;
     return false;
     }
     [ExcludeFromCodeCoverage]
@@ -109,7 +109,7 @@ internal readonly struct SymmetricExceptWith:
     [ExcludeFromCodeCoverage]
     public bool PostCopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref EqualityEmpty output,ref RMWInfo rmwInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        // CopyUpdater ぁEfalse を返して処琁E��打ち刁E��ため、到達しなぁE��E
+        // CopyUpdater は false を返すため到達しない。
     throw new NotSupportedException();
     }
     public void PostRMWOperation<TKey, TEpochAccessor>(TKey key,ref EqualityEmpty input,ref RMWInfo rmwInfo,TEpochAccessor epochAccessor)
@@ -119,24 +119,24 @@ internal readonly struct SymmetricExceptWith:
         where TKey : IKey
     #endif
         where TEpochAccessor : IEpochAccessor {
-        //RMWが�E功しても失敗しても、両方のケースで呼ばれる。SymmetricExceptWith では RMW の結果に関わらず何もしなぁE��E
+        // ExceptWithの動作を検証する。
     }
     public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref EqualityEmpty input,ref EqualityEmpty output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
         //CompletePendingWithOutputs
     }
     [ExcludeFromCodeCoverage]
     public bool InitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) {
-        // Tsavorite Delete API は使用しなぁE��RMW による Tombstone 挿入で削除する、E
+        // Delete API は使わず、RMW で Tombstone を挿入する。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void PostInitialDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) {
-        // Tsavorite Delete API は使用しなぁE��RMW による Tombstone 挿入で削除する、E
+        // Delete API は使わず、RMW で Tombstone を挿入する。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InPlaceDeleter(ref LogRecord dstLogRecord,ref DeleteInfo deleteInfo) {
-        // Tsavorite Delete API は使用しなぁE��RMW による Tombstone 挿入で削除する、E
+        // Delete API は使わず、RMW で Tombstone を挿入する。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -147,12 +147,12 @@ internal readonly struct SymmetricExceptWith:
         where TKey : IKey
     #endif
         where TEpochAccessor : IEpochAccessor {
-        // Tsavorite Delete API は使用しなぁE��RMW による Tombstone 挿入で削除する、E
+        // Delete API は使わず、RMW で Tombstone を挿入する。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref EqualityEmpty input,ref EqualityEmpty output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
-        // ReadCompletionCallback は非同朁ERead 時�Eみ呼ばれる。RMW のみ使用するため到達しなぁE��E
+        // ReadCompletionCallback 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     public RecordFieldInfo GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input)
@@ -174,7 +174,7 @@ internal readonly struct SymmetricExceptWith:
         #else
         where TKey : IKey{
         #endif
-        // Upsert 操作�E使用しなぁE��E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -184,7 +184,7 @@ internal readonly struct SymmetricExceptWith:
         #else
         where TKey : IKey{
         #endif
-        // Upsert 操作�E使用しなぁE��E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
@@ -195,7 +195,7 @@ internal readonly struct SymmetricExceptWith:
         where TKey : IKey
         #endif
         where TSourceLogRecord : ISourceLogRecord {
-        // Upsert 操作�E使用しなぁE��E
+        // Upsert 経路はこの処理では使用しない。
     throw new NotSupportedException();
     }
     public void BeforeConsistentReadCallback(long hash) {

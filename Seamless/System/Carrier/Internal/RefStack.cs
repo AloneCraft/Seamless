@@ -6,7 +6,7 @@ internal sealed class RefStack<T> where T : IDisposable
     internal static readonly RefStack<T> DisposeSentinel = new(0);
     private static volatile int gate = 0;
     private static volatile RefStack<T>? Last = null;
-    private RefStack<T>? Prev = null; // pooling property
+    private RefStack<T>? Prev = null;
 
     public static RefStack<T> Rent()
     {

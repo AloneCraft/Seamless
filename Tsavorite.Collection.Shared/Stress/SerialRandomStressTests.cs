@@ -5,7 +5,7 @@ using Seamless.Collections;
 namespace Tsavorite.Collection.Stress;
 
 /// <summary>
-/// シングルスレチE��の決定論的 Add/Save/Load/Contains/Remove 連続実行テスト、E/// 同じシードで毎回同じハッシュ結果になることを確認する、E/// </summary>
+/// Stress テストの動作を検証する。
 public class SerialRandomStressTests {
     private const int Seed = 20260417;
     private const double RemoveRate = 0.5;
@@ -22,7 +22,7 @@ public class SerialRandomStressTests {
         catch { /* best-effort */ }
     }
 
-    // ──────────── Dictionary<int,int> ────────────
+    // 笏笏笏笏笏笏笏笏笏笏笏笏 Dictionary<int,int> 笏笏笏笏笏笏笏笏笏笏笏笏
     [Theory, InlineData(StressCountSmall), InlineData(StressCountLarge)]
     public void UnmanagedIntDictionary_AddEvictSaveLoadRemove_Deterministic(int count) {
         const int Count = 1;
@@ -83,7 +83,7 @@ public class SerialRandomStressTests {
         }
     }
 
-    // ──────────── Dictionary<string,string> ────────────
+    // 笏笏笏笏笏笏笏笏笏笏笏笏 Dictionary<string,string> 笏笏笏笏笏笏笏笏笏笏笏笏
     [Theory, InlineData(StressCountSmall), InlineData(StressCountLarge)]
     public void ManagedStringDictionary_AddEvictSaveLoadRemove_Deterministic(int count) {
         const int Count = 3;
@@ -147,7 +147,7 @@ public class SerialRandomStressTests {
         }
     }
 
-    // ──────────── HashSet<int> ────────────
+    // 笏笏笏笏笏笏笏笏笏笏笏笏 HashSet<int> 笏笏笏笏笏笏笏笏笏笏笏笏
     [Theory, InlineData(StressCountSmall), InlineData(StressCountLarge)]
     public void UnmanagedIntHashSet_AddEvictSaveLoadRemove_Deterministic(int count) {
         const int Count = 1;
@@ -201,7 +201,7 @@ public class SerialRandomStressTests {
         }
     }
 
-    // ──────────── HashSet<string> ────────────
+    // 笏笏笏笏笏笏笏笏笏笏笏笏 HashSet<string> 笏笏笏笏笏笏笏笏笏笏笏笏
     [Theory, InlineData(StressCountSmall), InlineData(StressCountLarge)]
     public void ManagedStringHashSet_AddEvictSaveLoadRemove_Deterministic(int count) {
         const int Count = 5;

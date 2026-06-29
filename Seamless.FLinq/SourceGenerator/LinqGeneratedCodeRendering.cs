@@ -10,7 +10,7 @@ namespace Seamless.FLinq;
 public sealed partial class FLinqIncrementalGenerator {
 
     /// <summary>
-    /// 2 つの補助静的メソッド文字列を改行で連結する。空文字列・空白のみの文字列は無視する。
+    /// source generator の生成コードを検証する。
     /// Fragment 構築中に積み上がる <c>staticMethods</c> を逐次マージするために使う。
     /// </summary>
     private static string 静的メソッドコード連結(string left,string right) {
@@ -148,7 +148,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <br/>アルゴリズム:
     /// <list type="number">
     ///   <item><description>補助メソッド群が空なら何もしない。</description></item>
-    ///   <item><description>正規表現 <c>\bStruct\d+(_suffix)?\b</c> で <c>staticMethods</c> と <c>body</c> の両方を一括置換する。</description></item>
+    /// source generator の生成コードを検証する。
     ///   <item><description><see cref="補助Struct関数へAggressiveInlining付与"/> で <c>Compute</c>/<c>Build</c> メソッドに <c>AggressiveInlining</c> を付与する。</description></item>
     /// </list>
     /// </summary>
@@ -191,7 +191,7 @@ public sealed partial class FLinqIncrementalGenerator {
             },
             System.Text.RegularExpressions.RegexOptions.CultureInvariant);
     }
-    // インターセプト対象メソッドで宣言・使用されているすべての識別子名を収集する。
+    // source generator の生成コードを検証する。
     // 生成コードの変数名がユーザーコードと衝突しないようにするための前処理。
     // ラムダ/匿名メソッドの内部はラムダスコープであるため再帰を止め収集しない。
     private static HashSet<string> CollectMethodBodyIdentifiers(MethodDeclarationSyntax methodSyntax, IMethodSymbol method) {
@@ -205,7 +205,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <summary>
     /// ノード以下の識別子をすべて <paramref name="names"/> に収集する再帰ヘルパー。
     /// ラムダ／匿名メソッドに入ったら再帰を止める（別スコープなので生成変数の衝突に使わない）。
-    /// 対象: 変数宣言子・foreach 変数・catch 宣言・パターンの単変数指定。
+    /// source generator の生成コードを検証する。
     /// </summary>
     private static void CollectMethodScopeIdentifiers(SyntaxNode node, HashSet<string> names) {
         // ラムダ/匿名メソッドは別スコープなので子孫まで降りない
@@ -269,7 +269,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <summary>
     /// <paramref name="value"/> の各行先頭に <paramref name="indent"/> を付けて
     /// <paramref name="builder"/> に追記する。空行はインデントなしで出力する。
-    /// CRLF・LF のどちらにも対応する。
+    /// source generator の生成コードを検証する。
     /// </summary>
     private static void インデント付き追記(StringBuilder builder,string value,string indent) {
         foreach(var line in value.Replace("\r\n","\n").Split('\n')) {
@@ -684,7 +684,7 @@ public sealed partial class FLinqIncrementalGenerator {
             // \b は両端が単語文字であることを要求するため、`...Aggregate(x=>x)` のように
             // キーが括弧などの非単語文字で終わる（メソッド呼び出し式は常にこの形）場合、
             // 直後が `;`/`,`/`)`/文字列終端などの非単語文字だと \b が一致せず置換が無発火になる。
-            // 単語文字との境界のみを要求する (?<!\w) / (?!\w) に置き換えて両端の非単語文字同士は許容する。
+            // source generator の生成コードを検証する。
             text=System.Text.RegularExpressions.Regex.Replace(
                 text,
                 $@"(?<!\w){System.Text.RegularExpressions.Regex.Escape(normalizedKey)}(?!\w)",
@@ -1067,7 +1067,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <summary>
     /// 式テキスト内のパラメータ名を実引数テキストに置換する。
     /// <see cref="InlineParameterReferenceRewriter"/> で構文木を書き換えることで、
-    /// 単純な文字列置換では不可能な「メンバー名・ラベル等としてのパラメータ名を置換しない」制約を実現する。
+    /// source generator の生成コードを検証する。
     /// </summary>
     private static string ReplaceInlineParameterReferences(string expressionText,ImmutableArray<IParameterSymbol> parameters,IReadOnlyList<string> actualArguments) {
         var replacements = new Dictionary<string,string>(StringComparer.Ordinal);

@@ -199,7 +199,7 @@ namespace Seamless.System.Carrier {
 
             ArrayPool<Grouping<TKey,TElement>>.Shared.Return(buckets,clearArray: true);
 
-            return last?.NextGroupInAddOrder; // as first.
+            return last?.NextGroupInAddOrder;
         }
         private void ResizeAndRehash() {
             Debug.Assert(buckets is not null);
@@ -398,8 +398,8 @@ namespace Seamless.System.Carrier {
         private TElement[] elements; // don't use ArrayPool. initial elements is 1.
         private int count; // elements count(index)
 
-        public Grouping<TKey,TElement>? NextGroupInAddOrder;  // to guarantees add order
-        public Grouping<TKey,TElement>? NextGroupInSameHashCode; // linked-list node for chaining
+        public Grouping<TKey,TElement>? NextGroupInAddOrder;
+        public Grouping<TKey,TElement>? NextGroupInSameHashCode;
 
         public Grouping(TKey key,uint hashCode,TElement value) {
             this.key=key;

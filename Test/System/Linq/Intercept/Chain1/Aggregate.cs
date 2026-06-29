@@ -3,7 +3,7 @@ using System.Linq;
 using Seamless.Tsavorite.Collections;
 using Seamless.FLinq;
 // ReSharper disable ConvertClosureToMethodGroup
-//���ڎw�肷��ƃC���^�[�Z�v�g����Ȃ�
+// Aggregateの動作を検証する。
 
 namespace Test.System.Linq.Intercept.Chain1;
 

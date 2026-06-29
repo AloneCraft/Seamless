@@ -5,7 +5,7 @@ namespace Seamless.System.Carrier {
             return SequenceEqual(source,Throws.IfNull(second).AsValueEnumerable(),null);
         }
 
-        public static Boolean SequenceEqual<TEnumerator, TSource>(this ValueEnumerable<TEnumerator,TSource> source,IEnumerable<TSource> second,IEqualityComparer<TSource>? comparer) // comparer is nullable
+        public static Boolean SequenceEqual<TEnumerator, TSource>(this ValueEnumerable<TEnumerator,TSource> source,IEnumerable<TSource> second,IEqualityComparer<TSource>? comparer)
             where TEnumerator : struct, IValueEnumerator<TSource> {
             return SequenceEqual(source,Throws.IfNull(second).AsValueEnumerable(),comparer);
         }
@@ -16,7 +16,7 @@ namespace Seamless.System.Carrier {
             return SequenceEqual(source,second,null);
         }
 
-        public static Boolean SequenceEqual<TEnumerator, TEnumerator2, TSource>(this ValueEnumerable<TEnumerator,TSource> source,ValueEnumerable<TEnumerator2,TSource> second,IEqualityComparer<TSource>? comparer) // comparer is nullable
+        public static Boolean SequenceEqual<TEnumerator, TEnumerator2, TSource>(this ValueEnumerable<TEnumerator,TSource> source,ValueEnumerable<TEnumerator2,TSource> second,IEqualityComparer<TSource>? comparer)
             where TEnumerator : struct, IValueEnumerator<TSource>
             where TEnumerator2 : struct, IValueEnumerator<TSource> {
             using var e1 = source.Enumerator;

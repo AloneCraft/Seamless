@@ -408,7 +408,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 例:
     /// source.Aggregate(seed, func) → Aggregate_seed_func(sourceFragment, seed, funcFragment)
     /// source.Select(selector) → Select(sourceFragment, selectorFragment)
-    /// source.Join(inner, outerKey, innerKey, result, comparer?)
+    /// source generator の生成コードを検証する。
     ///   → Join(outerFragment, innerFragment, outerKeyFragment, innerKeyFragment, resultFragment, comparer)
     /// </summary>
     private static bool 登録済みフラグメント生成を試行(
@@ -588,7 +588,7 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         // キャプチャ付きラムダ/delegate 式は struct closure として primary constructor に閉じ込め、
-        // ループ内では式へ展開する。delegate 変数・メソッドグループは受け付けない。
+        // source generator の生成コードを検証する。
         if(funcFragment is LambdaFunc) {
             return true;
         }
@@ -934,7 +934,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <summary>
     /// ソース型の public な非明示的実装 <c>GetEnumerator()</c> を探し、具象エニュメレータ型名と
     /// duck-typing フラグを返す。
-    /// <br/>インターフェース型・配列・戻り値がインターフェースや抽象型の場合は <c>(null, false)</c>。
+    /// source generator の生成コードを検証する。
     /// <br/><c>isDuckTyping=true</c>: エニュメレータが <c>IEnumerator&lt;T&gt;</c> を実装しない
     /// duck-typing struct（例: <c>ImmutableArray&lt;T&gt;.Enumerator</c>）。
     /// この場合 struct 制約 (<c>where TEnum : struct, IEnumerator&lt;T&gt;</c>) に渡せず
@@ -1091,7 +1091,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
         if(expression is LambdaExpressionSyntax lambda) {
             // 複数文ブロック本体（=>{ ...; return x; ... }、try-catch 含む）は BlockFunc で文インライン化する。
-            // 式本体・単一 return 文は従来どおり下の式インライン経路へ流す。
+            // source generator の生成コードを検証する。
             if(lambda.Body is BlockSyntax lambdaBlock
                 && !IsSingleReturnBlock(lambdaBlock)
                 && TryBuildBlockFunc(lambdaBlock,GetLambdaParameters(lambda),delegateType,semanticModel,containingType,out var lambdaBlockFunc)) {
@@ -1107,7 +1107,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 return true;
             }
 
-            // 出口パス: 引数・戻り値の両方に匿名型がある場合（struct record → 匿名型への変換が必要）。
+            // source generator の生成コードを検証する。
             // TryBuildRegistryMappedLambdaFunc がこのケースを除外するため、ここで専用フラグメントを生成する。
             if(TryBuildAnonExitDelegateFuncFragment(lambda,delegateType,ref uniqueNumber,out var anonExitFragment,semanticModel,containingType)) {
                 fragment = anonExitFragment;
@@ -1207,7 +1207,7 @@ public sealed partial class FLinqIncrementalGenerator {
                     body=RenderExpressionForGeneratedMethod(lambdaBodyExpr,semanticModel,containingType,bodyCollector,hoistReplacementMap);
                     bodyAccessorCodes = bodyAccessorCodes.Concat(bodyCollector).ToArray();
                 }
-                // ラムダがキャプチャしているローカル変数・外側パラメータを検出する。
+                // source generator の生成コードを検証する。
                 // lambda 自身のパラメータと暗黙の this は除外する。
                 var dataFlow = semanticModel.AnalyzeDataFlow(originalLambdaBodyExpr);
                 if(dataFlow?.Succeeded == true) {
@@ -1426,9 +1426,9 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <summary>
     /// delegate 型に匿名型が含まれるラムダを、匿名型→ジェネリック record struct 透過置換で
     /// 名指し可能な型へ写像し、通常の <see cref="LambdaFunc"/>（インライン展開）として構築する。
-    /// <br/>・引数型の匿名型 → record struct（メンバーアクセスはプロパティ名一致につき本体は書き換え不要）
-    /// <br/>・戻り値の匿名型 → record struct（本体ルートの <c>new {...}</c> を <c>new record(...)</c> へ再帰的に書き換え）
-    /// <br/>レジストリ未設定・匿名型なし・本体が匿名生成式でない戻り匿名型などは false を返し、従来経路へ委ねる。
+    /// source generator の生成コードを検証する。
+    /// source generator の生成コードを検証する。
+    /// source generator の生成コードを検証する。
     /// </summary>
     private static bool TryBuildRegistryMappedLambdaFunc(
         LambdaExpressionSyntax lambda,
@@ -1520,7 +1520,7 @@ public sealed partial class FLinqIncrementalGenerator {
     }
 
     /// <summary>
-    /// 引数型・戻り値型の両方に匿名型が含まれるラムダを、struct record → 元の匿名型への再構成で
+    /// source generator の生成コードを検証する。
     /// <see cref="AnonymousDelegateFuncFragment"/> として構築する。
     /// <br/>対象: 引数が struct record に置換済みで、戻り値は実際の匿名型を返す必要がある「出口ステップ」。
     /// <br/>例1: GroupBy key selector <c>p=&gt;p</c> (identity) → <c>(struct_rec p)=&gt;new{p.field,...}</c>
@@ -2403,9 +2403,9 @@ public sealed partial class FLinqIncrementalGenerator {
     }
 
     /// <summary>
-    /// ラムダ式から <see cref="LambdaSpec"/>（戻り値型・パラメータ型・パラメータ名・本体）を抽出する。
+    /// source generator の生成コードを検証する。
     /// 本体が式本体か単一 <c>return</c> 文の場合のみ成功する。
-    /// デリゲート型が <c>Func&lt;…&gt;</c> でない場合・匿名型が混在する場合も失敗を返す。
+    /// source generator の生成コードを検証する。
     /// </summary>
     private static bool TryCreateLambdaFuncFragment(LambdaExpressionSyntax lambda,ITypeSymbol delegateType,out LambdaSpec fragment) {
         fragment=null!;
