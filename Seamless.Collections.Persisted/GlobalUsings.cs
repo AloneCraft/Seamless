@@ -1,0 +1,11 @@
+global using System;
+global using System.Buffers;
+global using System.Collections;
+global using System.Collections.Generic;
+global using System.Diagnostics.CodeAnalysis;
+global using System.IO;
+global using System.Linq;
+global using System.Runtime.CompilerServices;
+global using System.Runtime.InteropServices;
+global using Seamless.Collections;
+global using Seamless.Serialization;

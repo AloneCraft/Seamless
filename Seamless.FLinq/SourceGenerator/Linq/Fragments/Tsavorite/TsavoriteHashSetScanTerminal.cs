@@ -212,7 +212,7 @@ public sealed class TsavoriteHashSetScanTerminal(
 
     private string UnsafeAccessorSource() => $$"""
         [global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.StaticMethod, Name = "{{this.UnsafeAccessorMethodName()}}")]
-        private static extern void {{this.AccessorMethodName}}<TElement>([global::System.Runtime.CompilerServices.UnsafeAccessorType("Seamless.Tsavorite.Collections.HashSetScanUnsafe, Seamless")] object? _,global::Seamless.Tsavorite.Collections.HashSet<TElement> source,global::System.Func<object?,bool> body);
+        private static extern void {{this.AccessorMethodName}}<TElement>([global::System.Runtime.CompilerServices.UnsafeAccessorType("Seamless.Tsavorite.Collections.HashSetScanUnsafe, Seamless.Collections.Tsavorite")] object? _,global::Seamless.Tsavorite.Collections.HashSet<TElement> source,global::System.Func<object?,bool> body);
         """;
 
     private string UnsafeAccessorMethodName() => "Scan";

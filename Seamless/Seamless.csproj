@@ -8,13 +8,17 @@
     <AssemblyName>Seamless</AssemblyName>
     <PackageId>Seamless</PackageId>
     <Title>Seamless</Title>
-    <Description>Unified runtime for Seamless collections and LINQ.</Description>
+    <Description>Convenience entry package for Seamless runtime, collections, LINQ, and database generation.</Description>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MemoryPack" Version="1.*" />
-    <PackageReference Include="Microsoft.Garnet" Version="2.0.1-beta.5" GeneratePathProperty="true" />
+    <ProjectReference Include="..\Seamless.Abstractions\Seamless.Abstractions.csproj" />
+    <ProjectReference Include="..\Seamless.Serialization\Seamless.Serialization.csproj" />
+    <ProjectReference Include="..\Seamless.Linq\Seamless.Linq.csproj" />
+    <ProjectReference Include="..\Seamless.Collections.Persisted\Seamless.Collections.Persisted.csproj" />
+    <ProjectReference Include="..\Seamless.Collections.Tsavorite\Seamless.Collections.Tsavorite.csproj" />
     <ProjectReference Include="..\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+    <ProjectReference Include="..\Seamless.Database\Seamless.Database.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
   </ItemGroup>
 
   <PropertyGroup>

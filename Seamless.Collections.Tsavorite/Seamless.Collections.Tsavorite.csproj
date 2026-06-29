@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14</LangVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Seamless</RootNamespace>
+    <AssemblyName>Seamless.Collections.Tsavorite</AssemblyName>
+    <PackageId>Seamless.Collections.Tsavorite</PackageId>
+    <Title>Seamless Tsavorite Collections</Title>
+    <Description>Tsavorite-backed collections for Seamless.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Garnet" Version="2.0.1-beta.5" GeneratePathProperty="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Seamless.Abstractions\Seamless.Abstractions.csproj" />
+    <ProjectReference Include="..\Seamless.Serialization\Seamless.Serialization.csproj" />
+    <ProjectReference Include="..\Seamless.Collections.Persisted\Seamless.Collections.Persisted.csproj" />
+  </ItemGroup>
+</Project>
