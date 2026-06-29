@@ -1,7 +1,4 @@
-using Seamless.Tsavorite.Stores;
-using System.Linq;
 using Tsavorite.core;
-using Seamless.Collections;
 namespace Tsavorite.Collection.Stress;
 
 /// <summary>

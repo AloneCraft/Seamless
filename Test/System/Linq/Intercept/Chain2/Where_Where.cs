@@ -1,8 +1,3 @@
-using System.Linq;
-
-using Test.System.Linq.Intercept;
-
-
 namespace Test.System.Linq.Intercept.Chain2;
 
 public sealed class Where_Where(ITestOutputHelper output):LinqChain2TestBase(output) {

@@ -1,5 +1,3 @@
-using System.Linq;
-
 using SystemEnumerable = System.Linq.Enumerable;
 
 namespace Test.System.Linq.Intercept.Chain1;

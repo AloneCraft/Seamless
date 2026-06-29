@@ -1,9 +1,6 @@
 using Garnet.common;
 
 using MemoryPack;
-
-using Seamless.Tsavorite.Collections;
-using Seamless.Tsavorite.Collections;
 using Seamless.Tsavorite.Stores;
 using Tsavorite.core;
 

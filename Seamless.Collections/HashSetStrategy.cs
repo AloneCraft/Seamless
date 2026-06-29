@@ -1,6 +1,5 @@
 using Seamless.Tsavorite.Collections;
 using Seamless.Serialization;
-using Seamless.Tsavorite.Stores;
 namespace Seamless.Collections;
 
 public sealed class HashSetHandle<T>(IDisposable store,global::Seamless.Tsavorite.Collections.HashSet<T> set):IDisposable

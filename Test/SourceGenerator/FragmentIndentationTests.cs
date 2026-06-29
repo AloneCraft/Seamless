@@ -1,7 +1,5 @@
 using System.Text.RegularExpressions;
 using Seamless.FLinq;
-using Xunit.Abstractions;
-
 namespace Test.SourceGenerator;
 
 [LinqIntercept(false)]

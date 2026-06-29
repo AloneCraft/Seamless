@@ -1,5 +1,3 @@
-using System.Linq;
-
 using Seamless.FLinq;
 
 namespace Test.System.Linq.Intercept.Chain1;

@@ -1,4 +1,3 @@
-using BenchmarkDotNet.Attributes;
 using Collection.Strategy.CollectionLinq;
 
 namespace Collection.Test.CollectionLinqChain1;

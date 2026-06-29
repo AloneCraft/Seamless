@@ -1,8 +1,3 @@
-using System.Linq;
-
-using Test.System.Linq.Intercept;
-
-
 namespace Test.System.Linq.Intercept.Optimization;
 
 public sealed class SelectManyFragmentBackedBoundary:OptimizationTestBase{

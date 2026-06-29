@@ -1,5 +1,3 @@
-using Seamless.Collections;
-
 namespace Persisted.Collection;
 
 public sealed class Dictionary{

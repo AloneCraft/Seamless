@@ -1,6 +1,3 @@
-using System.Linq;
-
-
 namespace Test.System.Linq.Intercept.Chain1;
 
 public sealed class Index(ITestOutputHelper output):LinqChain1TestBase(output) {

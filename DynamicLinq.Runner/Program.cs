@@ -2,8 +2,6 @@ using System.Diagnostics;
 using System.Globalization;
 
 using Seamless.Linq;
-using Seamless.Tsavorite.Collections;
-
 using DynamicLinq;
 
 var options = RunnerOptions.Parse(args);

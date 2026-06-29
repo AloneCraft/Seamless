@@ -1,5 +1,3 @@
-using Seamless.Collections;
-
 namespace Scalable.Persisted.Collection.List;
 
 public sealed class ListInt32

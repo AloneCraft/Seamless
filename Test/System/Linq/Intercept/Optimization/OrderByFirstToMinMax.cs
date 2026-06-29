@@ -1,6 +1,3 @@
-using System;
-using System.Linq;
-
 namespace Test.System.Linq.Intercept.Optimization;
 
 public sealed class OrderByFirstToMinMax:OptimizationTestBase{

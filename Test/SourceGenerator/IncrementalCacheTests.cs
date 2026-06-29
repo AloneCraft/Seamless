@@ -1,6 +1,4 @@
 using Microsoft.CodeAnalysis;
-using Xunit.Abstractions;
-
 namespace Test.SourceGenerator;
 
 public class IncrementalCacheTests(ITestOutputHelper output) {

@@ -1,6 +1,3 @@
-using System.Linq;
-
-
 namespace Test.System.Linq.Intercept.Chain2;
 
 // 2 個目が終端演算子（ToArray）のケース。materialize して直接比較する。

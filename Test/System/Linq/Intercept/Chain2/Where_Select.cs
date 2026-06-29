@@ -1,6 +1,3 @@
-using System.Linq;
-
-
 namespace Test.System.Linq.Intercept.Chain2;
 
 public sealed class Where_Select(ITestOutputHelper output):LinqChain2TestBase(output) {

@@ -1,4 +1,3 @@
-using Seamless.Persisted.Collections;
 namespace Seamless.Tsavorite.Collections;
 /// <summary>
 /// これはSystem.Collections.Generic.List<T>に使えるならそれに置き換えてこれは削除して

@@ -1,7 +1,6 @@
 using System.Buffers.Binary;
 using Garnet.common;
 using global::System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Tsavorite.core;

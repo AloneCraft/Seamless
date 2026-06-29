@@ -1,5 +1,3 @@
-using Seamless.Collections;
-
 namespace Collection.Helper.CollectionLinq;
 
 public static class CollectionLinqNumber {

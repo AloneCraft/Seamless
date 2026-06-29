@@ -2,9 +2,6 @@
 // support for all platforms
 // byte/sbyte/ushort/char/short/uint/int/ulong/long (+SIMD optimize)
 // float/double/decimal/DateTime/DateTimeOffset
-
-using Seamless.Linq;
-
 namespace Seamless.System.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromByteSequence,Byte> Sequence(Byte start,Byte endInclusive,Byte step) {

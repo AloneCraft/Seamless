@@ -1,5 +1,3 @@
-using Seamless.Collections;
-
 namespace Scalable.Tsavorite.Collection.Dictionary;
 
 public sealed class DictionaryStringString

@@ -1,6 +1,4 @@
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-
 namespace Seamless.FLinq.Linq.Fragments;
 
 internal static class RangePredicateOptimizer {

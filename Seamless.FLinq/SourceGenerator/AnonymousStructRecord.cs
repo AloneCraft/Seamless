@@ -1,11 +1,4 @@
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-
 namespace Seamless.FLinq;
 
 // 匿名型を「名指し可能なジェネリック record struct」へ透過置換するためのレジストリ。

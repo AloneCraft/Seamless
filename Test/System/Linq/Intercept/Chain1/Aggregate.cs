@@ -1,6 +1,3 @@
-using System.Linq;
-
-using Seamless.Tsavorite.Collections;
 using Seamless.FLinq;
 // ReSharper disable ConvertClosureToMethodGroup
 // Aggregateの動作を検証する。

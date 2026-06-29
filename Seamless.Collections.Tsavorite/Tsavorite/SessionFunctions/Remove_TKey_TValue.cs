@@ -1,4 +1,3 @@
-using Seamless.Tsavorite.Collections;
 namespace Seamless.Tsavorite.SessionFunctions;
 
 /// <summary>

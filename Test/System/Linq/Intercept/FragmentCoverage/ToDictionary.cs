@@ -1,7 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
-
-
 using Test.System.Linq.Intercept.Chain1;
 
 namespace Test.System.Linq.Intercept.FragmentCoverage;

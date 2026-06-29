@@ -1,5 +1,3 @@
-using Seamless.Collections;
-
 namespace Scalable.Persisted.Collection.Set;
 
 public sealed class SetInt32

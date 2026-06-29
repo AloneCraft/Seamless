@@ -1,7 +1,4 @@
 #if NET8_0_OR_GREATER
-
-using Seamless.Linq;
-
 namespace Seamless.System.Carrier {
     public static partial class ValueEnumerable {
         public static ValueEnumerable<FromInfiniteSequence<T>,T> InfiniteSequence<T>(T start,T step)

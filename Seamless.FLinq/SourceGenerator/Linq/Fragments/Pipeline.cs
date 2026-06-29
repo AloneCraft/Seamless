@@ -1,7 +1,3 @@
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Seamless.FLinq;
-
 namespace Seamless.FLinq.Linq.Fragments;
 
 public enum PipelineStageKind {

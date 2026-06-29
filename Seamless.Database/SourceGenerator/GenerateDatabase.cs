@@ -1,5 +1,3 @@
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.Text;
 using static Seamless.SourceGenerator.GeneratorHelpers;
 
 namespace Seamless.Database.SourceGenerator;

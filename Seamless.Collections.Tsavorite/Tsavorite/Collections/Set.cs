@@ -1,4 +1,3 @@
-using Seamless.Tsavorite.Stores;
 namespace Seamless.Tsavorite.Collections;
 
 public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,AutoSerializer<TRecord>>,ISet<TKey,TRecord>, IMemoryCollection<TRecord>
