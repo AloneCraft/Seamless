@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>{83166EE2-EDC1-485C-AD57-BAC99778BB33}</SharedGUID>
+  </PropertyGroup>
+  <Import Project="$(MSBuildThisFileDirectory)UI.Core.projitems" />
+  <Import Project="$(MSBuildThisFileDirectory)DynamicLinq.projitems" />
+</Project>

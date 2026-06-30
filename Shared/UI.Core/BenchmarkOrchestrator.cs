@@ -673,9 +673,7 @@ internal sealed class BenchmarkOrchestrator(
 
     private static bool IsAdaptiveRowStopped(ProgressState state,IReadOnlyList<BenchmarkCase> cases) =>
         cases.Any(benchmark => IsAdaptiveCaseFailed(state,benchmark))
-        ||cases.Any(benchmark =>
-            !IsScalableSourceTab(GetBenchmarkSourceTab(benchmark,state.SourceTab))
-            &&IsAdaptiveCaseOverThreshold(state,benchmark));
+        ||cases.Any(benchmark => IsAdaptiveCaseOverThreshold(state,benchmark));
 
     private static bool IsAdaptiveCaseFailed(ProgressState state,BenchmarkCase benchmark) =>
         state.Jobs.Any(job => SameCase(benchmark,job)&&job.Status==JobStatus.Failed);

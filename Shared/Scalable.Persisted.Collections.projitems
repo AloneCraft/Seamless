@@ -2,9 +2,10 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildThisFileDirectory)Collections.projitems" />
   <Import Project="$(MSBuildThisFileDirectory)Scalable.Collections.projitems" />
-  <PropertyGroup>
+  <PropertyGroup Label="Globals">
     <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
     <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>{F5C099C8-A4C9-48FD-96F1-97CB98E4E85F}</SharedGUID>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Scalable.Persisted.Collections\Bases.cs" />

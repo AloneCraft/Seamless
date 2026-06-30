@@ -4,7 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace UI;
 
-public sealed class BenchmarkRunnerViewModel:ObservableObject {
+public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private const int NewRunNumber = 0;
     private const int UnsavedRunNumber = -1;
     private const int ExternalRunNumber = -2;
@@ -76,7 +76,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private readonly Dictionary<string,BenchmarkCase> benchmarkCasesByProjectMethod = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<BenchmarkCase> catalogCases = [];
     private BenchmarkSourceTab? activeRunSourceTab;
-    private readonly HashSet<BenchmarkSourceTab> activeRunSourceTabs = [];
     private IReadOnlyList<BenchmarkCase> currentRunSelectedBenchmarkCases = [];
     private int[] selectedLogicalCpus = [];
     private string logText = string.Empty;
@@ -130,22 +129,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             new ExecutionProfileOption("高速",BenchmarkExecutionProfile.Fast),
         ];
         this.selectedExecutionProfile=this.ExecutionProfiles.First(static item => item.Profile==BenchmarkExecutionProfile.Fast);
-        this.ThresholdOptions= [
-            new ThresholdOption("   1 ms",   1),
-            new ThresholdOption("   2 ms",   2),
-            new ThresholdOption("   4 ms",   4),
-            new ThresholdOption("   8 ms",   8),
-            new ThresholdOption("  16 ms",  16),
-            new ThresholdOption("  32 ms",  32),
-            new ThresholdOption("  64 ms",  64),
-            new ThresholdOption(" 128 ms", 128),
-            new ThresholdOption(" 256 ms", 256),
-            new ThresholdOption(" 512 ms", 512),
-            new ThresholdOption("1024 ms",1024),
-            new ThresholdOption("2048 ms",2048),
-            new ThresholdOption("4096 ms",4096),
-            new ThresholdOption("8192 ms",8192),
-        ];
+        this.ThresholdOptions=CreateThresholdOptions();
         this.selectedThreshold=this.ThresholdOptions[0];
         this.Metrics= [
             new MetricOption("Time",BenchmarkMetricKind.Time),
@@ -374,10 +358,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         &&!this.IsBenchmarkPaused;
 
     public bool CanChangeBenchmarkSelection =>
-        !this.IsRefreshing&&!this.IsBenchmarkSelectionLockedForSelectedSourceTab;
-
-    public bool IsBenchmarkSelectionLockedForSelectedSourceTab =>
-        this.IsBenchmarkRunActive&&this.activeRunSourceTabs.Contains(this.SelectedSourceDefinition.Tab);
+        !this.IsRefreshing;
 
     public bool IsBenchmarkRunActive => this.runCancellation is not null&&this.IsBenchmarkRunning;
 
@@ -417,7 +398,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             if(this.SetProperty(ref this.activeRunSourceTab,value)) {
                 this.OnPropertyChanged(nameof(this.IsBenchmarkRunActive));
                 this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
-                this.OnPropertyChanged(nameof(this.IsBenchmarkSelectionLockedForSelectedSourceTab));
                 this.OnPropertyChanged(nameof(this.RunButtonText));
                 this.OnPropertyChanged(nameof(this.IsBenchmarkPaused));
                 this.OnPropertyChanged(nameof(this.CanChangeBenchmarkConditions));
@@ -606,7 +586,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 this.OnPropertyChanged(nameof(this.ChartLeftLegendLabel));
                 this.OnPropertyChanged(nameof(this.ChartRightLegendLabel));
                 this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
-                this.OnPropertyChanged(nameof(this.IsBenchmarkSelectionLockedForSelectedSourceTab));
                 this.RefreshBenchmarkProjectHeaderTexts();
                 this.ClearRetainedChartPoints();
                 this.UpdateChart(false);
@@ -1806,9 +1785,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.IsRunning=true;
         var runSourceTab = this.SelectedSourceDefinition.Tab;
         this.ActiveRunSourceTab=runSourceTab;
-        this.activeRunSourceTabs.Clear();
         this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
-        this.OnPropertyChanged(nameof(this.IsBenchmarkSelectionLockedForSelectedSourceTab));
         this.activeChartMethodName=string.Empty;
         this.PrepareSelectedSourceLiveResultsForRun();
         this.UpdateChart();
@@ -1881,9 +1858,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             this.IsRunning=false;
             this.activeChartMethodName=string.Empty;
             this.ActiveRunSourceTab=null;
-            this.activeRunSourceTabs.Clear();
             this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
-            this.OnPropertyChanged(nameof(this.IsBenchmarkSelectionLockedForSelectedSourceTab));
             this.runCancellation?.Dispose();
             this.runCancellation=null;
             this.pendingRunTerminationKind=RunTerminationKind.None;
@@ -2019,10 +1994,6 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     private void MarkActiveRunSourceTab(BenchmarkSourceTab sourceTab) {
         this.ActiveRunSourceTab=sourceTab;
-        if(this.activeRunSourceTabs.Add(sourceTab)) {
-            this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
-            this.OnPropertyChanged(nameof(this.IsBenchmarkSelectionLockedForSelectedSourceTab));
-        }
     }
 
     private void RequestBenchmarkAutoScroll(BenchmarkSourceTab sourceTab,string methodName,string rowKey) {
@@ -2132,6 +2103,24 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     private string GetBenchmarkRoot(BenchmarkExecutionProfile profile) =>
         Path.Combine(this.benchmarkRoot,BenchmarkExecutionProfileNames.ToFolderName(profile));
+
+    private static IReadOnlyList<ThresholdOption> CreateThresholdOptions() {
+        var settings = new ThresholdOptionSettings();
+        ConfigureThresholdOptions(settings);
+        return ThresholdOptionSettings.Values
+            .Select(value => new ThresholdOption(
+                value.ToString(System.Globalization.CultureInfo.InvariantCulture)+" "+settings.Unit,
+                checked(value*settings.MillisecondsScale)))
+            .ToArray();
+    }
+
+    static partial void ConfigureThresholdOptions(ThresholdOptionSettings settings);
+
+    private sealed class ThresholdOptionSettings {
+        public static readonly IReadOnlyList<int> Values = [1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192];
+        public int MillisecondsScale { get; set; } = 1;
+        public string Unit { get; set; } = "ms";
+    }
 
     private TimeSpan GetAdaptiveThreshold() {
         return TimeSpan.FromMilliseconds(this.SelectedThreshold.Milliseconds);
