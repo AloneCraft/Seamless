@@ -108,4 +108,8 @@ public sealed record ReportRow(
     string StartedAt,
     string FinishedAt,
     string ArtifactFolder,
-    int? ExitCode);
+    int? ExitCode,
+    string ArgumentKey = "",
+    IReadOnlyList<BenchmarkArgument>? ArgumentValues = null){
+    public IReadOnlyList<BenchmarkArgument> Arguments { get; } = ArgumentValues??[];
+}

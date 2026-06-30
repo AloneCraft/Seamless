@@ -1,4 +1,4 @@
-# Tsavorite Storage Integrate Benchmark 移行
+﻿# Tsavorite Storage Integrate Benchmark 移行
 
 ## 背景
 `tests/Test.Tsavorite.Collections/Integrate` には、storage device を使った正しさ検証と、セグメント増加・compaction 効果・大量 churn のような性能/規模観察が混在している。

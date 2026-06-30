@@ -2,12 +2,40 @@ using System.Globalization;
 
 namespace UI;
 
-public sealed record BenchmarkCase(
-    string Project,
-    string AssemblyName,
-    string TypeFullName,
-    string MethodName) {
+public sealed record BenchmarkArgument(string Name,string Value);
+
+public sealed class BenchmarkCase {
+    public BenchmarkCase(
+        string project,
+        string assemblyName,
+        string typeFullName,
+        string methodName)
+        : this(project,assemblyName,typeFullName,methodName,string.Empty,[]) {
+    }
+
+    public BenchmarkCase(
+        string project,
+        string assemblyName,
+        string typeFullName,
+        string methodName,
+        string argumentKey,
+        IReadOnlyList<BenchmarkArgument> arguments) {
+        this.Project=project;
+        this.AssemblyName=assemblyName;
+        this.TypeFullName=typeFullName;
+        this.MethodName=methodName;
+        this.ArgumentKey=argumentKey;
+        this.Arguments=arguments;
+    }
+
+    public string Project { get; }
+    public string AssemblyName { get; }
+    public string TypeFullName { get; }
+    public string MethodName { get; }
+    public string ArgumentKey { get; }
+    public IReadOnlyList<BenchmarkArgument> Arguments { get; }
     public string DisplayName => $"{this.Project} / {this.MethodName}";
+    public int CountArgument => BenchmarkArgumentFormatting.GetInt(this.Arguments,"Count");
 }
 
 public enum JobStatus {
@@ -52,6 +80,8 @@ public sealed class BenchmarkJob {
     public string AssemblyName { get; set; } = string.Empty;
     public string TypeFullName { get; set; } = string.Empty;
     public string MethodName { get; set; } = string.Empty;
+    public string ArgumentKey { get; set; } = string.Empty;
+    public List<BenchmarkArgument> Arguments { get; set; } = [];
     public BenchmarkSourceTab SourceTab { get; set; } = BenchmarkSourceTab.SystemArray;
     public int ElementCount { get; set; }
     public List<int> PreparedElementCounts { get; set; } = [];
@@ -74,7 +104,7 @@ public sealed class BenchmarkJob {
     public DateTimeOffset? FinishedAt { get; set; }
 
     public BenchmarkCase ToBenchmarkCase() =>
-        new(this.Project,this.AssemblyName,this.TypeFullName,this.MethodName);
+        new(this.Project,this.AssemblyName,this.TypeFullName,this.MethodName,this.ArgumentKey,this.Arguments);
 
     public ReportRow ToReportRow() =>
         new(
@@ -101,7 +131,9 @@ public sealed class BenchmarkJob {
             this.StartedAt?.ToString("O",CultureInfo.InvariantCulture)??string.Empty,
             this.FinishedAt?.ToString("O",CultureInfo.InvariantCulture)??string.Empty,
             this.ArtifactFolder,
-            this.ExitCode);
+            this.ExitCode,
+            this.ArgumentKey,
+            this.Arguments);
 }
 
 [global::Seamless.FLinq.LinqIntercept(false)]
@@ -168,7 +200,11 @@ public sealed record BenchmarkJobRunResult(
     string ArtifactFolder,
     string Log,
     int? RandomSeed = null,
-    string ResultDigest = "");
+    string ResultDigest = "",
+    string ArgumentKey = "",
+    IReadOnlyList<BenchmarkArgument>? ArgumentValues = null){
+    public IReadOnlyList<BenchmarkArgument> Arguments { get; } = ArgumentValues??[];
+}
 
 public interface IBenchmarkJobRunner {
     Task<BenchmarkJobRunResult> RunAsync(
@@ -191,3 +227,29 @@ public interface IBenchmarkDynamicCpuSetRunner {
 internal sealed record BenchmarkProgressUpdate(ProgressState State,BenchmarkJob Job);
 
 internal sealed record BenchmarkOrchestratorResult(string RunRoot,IReadOnlyList<string> CsvPaths);
+
+internal static class BenchmarkArgumentFormatting {
+    public static string CreateKey(IReadOnlyList<BenchmarkArgument> arguments) =>
+        string.Join(",",arguments.Select(static argument => argument.Name+"="+argument.Value));
+
+    public static string GetValue(IReadOnlyList<BenchmarkArgument> arguments,string name) =>
+        arguments.FirstOrDefault(argument => string.Equals(argument.Name,name,StringComparison.OrdinalIgnoreCase))?.Value??string.Empty;
+
+    public static int GetInt(IReadOnlyList<BenchmarkArgument> arguments,string name) =>
+        int.TryParse(GetValue(arguments,name),NumberStyles.Integer,CultureInfo.InvariantCulture,out var value)
+            ? value
+            : 0;
+
+    public static object?[] ToObjects(IReadOnlyList<BenchmarkArgument> arguments) =>
+        arguments.Select(static argument => ParseValue(argument.Value)).ToArray();
+
+    private static object ParseValue(string value) {
+        if(long.TryParse(value,NumberStyles.Integer,CultureInfo.InvariantCulture,out var longValue)){
+            return longValue;
+        }
+        if(double.TryParse(value,NumberStyles.Float,CultureInfo.InvariantCulture,out var doubleValue)){
+            return doubleValue;
+        }
+        return value;
+    }
+}

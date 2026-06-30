@@ -84,6 +84,7 @@ public abstract partial class CollectionStore<
     internal StorageOverflowMutableStrategy StorageOverflowMutableStrategy { get; }
     private bool Disposed;
     private int CheckpointInProgress;
+    private bool CheckpointFailed;
     private bool UsesStorageDevice => this.Settings is not null&&(this.Settings.LogDevice is not MemoryOnlyDevice||this.Settings.ObjectLogDevice is not MemoryOnlyDevice);
 
     /// <summary>CollectionStoreの境界条件を検証する。</summary>
@@ -166,10 +167,14 @@ public abstract partial class CollectionStore<
             var (success,token)=await this.Store.TakeFullCheckpointAsync(CheckpointType,ct);
             await this.Store.CompleteCheckpointAsync(ct);
             if(success) {
+                this.CheckpointFailed=false;
                 this.WriteRecoveryIndexMetadata(token);
                 return token;
             }
             throw new InvalidOperationException($"{nameof(Save)}Checkpoint failed.");
+        }catch{
+            this.CheckpointFailed=true;
+            throw;
         }
         finally {
             this.ReleaseCheckpoint();
@@ -185,10 +190,14 @@ public abstract partial class CollectionStore<
             var (success,token)=await this.Store.TakeHybridLogCheckpointAsync(CheckpointType,cancellationToken: ct);
             await this.Store.CompleteCheckpointAsync(ct);
             if(success) {
+                this.CheckpointFailed=false;
                 this.WriteRecoveryIndexMetadata(token);
                 return token;
             }
             throw new InvalidOperationException($"{nameof(SaveLogOnly)}Checkpoint failed.");
+        }catch{
+            this.CheckpointFailed=true;
+            throw;
         }
         finally {
             this.ReleaseCheckpoint();
@@ -213,6 +222,7 @@ public abstract partial class CollectionStore<
     public async ValueTask LoadAsync(CancellationToken ct = default) {
         this.AssertCheckpointDir();
         await this.Store.RecoverAsync(cancellationToken: ct);
+        this.CheckpointFailed=false;
     }
 
     public void Load() => this.LoadAsync().GetAwaiter().GetResult();
@@ -220,6 +230,7 @@ public abstract partial class CollectionStore<
     public async ValueTask LoadAsync(Guid token,CancellationToken ct = default) {
         this.AssertCheckpointDir();
         await this.Store.RecoverAsync(Guid.Empty,token,cancellationToken: ct);
+        this.CheckpointFailed=false;
     }
 
     public void Load(Guid token) {
@@ -263,7 +274,7 @@ public abstract partial class CollectionStore<
         if(this.Disposed) return;
         this.Disposed=true;
         if(disposing) {
-            if(this.Store is not null&&this.UsesStorageDevice) {
+            if(this.Store is not null&&this.UsesStorageDevice&&!this.CheckpointFailed) {
                 this.Store.Log.FlushAndEvict(wait: true);
             }
         }

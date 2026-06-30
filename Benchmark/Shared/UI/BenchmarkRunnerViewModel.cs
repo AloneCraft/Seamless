@@ -949,7 +949,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private IReadOnlyList<BenchmarkTableRow> CreateMethodRows(IReadOnlyList<BenchmarkCase> cases) {
-        return BenchmarkRowGroupingLogic.CreateRows(cases,this.SelectedSourceDefinition)
+        return BenchmarkRowGroupingLogic.CreateRows(cases,this.SelectedSourceDefinition,this.SelectedResultElementCount?.Value??0)
             .Select(row => new BenchmarkTableRow(
                 row.RowKey,
                 row.MethodName,
@@ -1483,7 +1483,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.CaptureCurrentBenchmarkSelections();
         var results = sourceResults
             .Where(static result => result.ElementCount>0)
-            .GroupBy(static result => CreateResultIdentityKey(result.Project,result.TypeFullName,result.Method,result.ElementCount),StringComparer.OrdinalIgnoreCase)
+            .GroupBy(static result => CreateResultIdentityKey(result.Project,result.TypeFullName,result.Method,result.ElementCount,result.ArgumentKey),StringComparer.OrdinalIgnoreCase)
             .Select(static group => group.Last())
             .ToArray();
         var elementCounts = results
@@ -1601,7 +1601,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private static bool IsResultForRow(BenchmarkTableRow row,BenchmarkResultItem result) {
         if(row.CasesByProject.TryGetValue(result.Project,out var benchmark)) {
             return string.Equals(benchmark.MethodName,result.Method,StringComparison.OrdinalIgnoreCase)
-                &&IsMatchingTypeForRow(row,result.TypeFullName,benchmark.TypeFullName);
+                &&IsMatchingTypeForRow(row,result.TypeFullName,benchmark.TypeFullName)
+                &&IsMatchingArgumentForRow(row.SourceTab.Tab,benchmark.ArgumentKey,result.ArgumentKey);
         }
 
         return false;
@@ -1610,7 +1611,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private static bool IsJobForRow(BenchmarkTableRow row,BenchmarkJob job) {
         if(row.CasesByProject.TryGetValue(job.Project,out var benchmark)) {
             return string.Equals(benchmark.MethodName,job.MethodName,StringComparison.OrdinalIgnoreCase)
-                &&IsMatchingTypeForRow(row,job.TypeFullName,benchmark.TypeFullName);
+                &&IsMatchingTypeForRow(row,job.TypeFullName,benchmark.TypeFullName)
+                &&IsMatchingArgumentForRow(row.SourceTab.Tab,benchmark.ArgumentKey,job.ArgumentKey);
         }
 
         return false;
@@ -1626,10 +1628,18 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             ||string.Equals(expectedTypeFullName,actualTypeFullName,StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool IsMatchingArgumentForRow(BenchmarkSourceTab sourceTab,string expectedArgumentKey,string actualArgumentKey) =>
+        !IsScalableSourceTab(sourceTab)
+        ||string.Equals(expectedArgumentKey,actualArgumentKey,StringComparison.OrdinalIgnoreCase);
+
     private static bool IsScalableSourceTab(BenchmarkSourceTab sourceTab) =>
         sourceTab is BenchmarkSourceTab.ScalableSet
             or BenchmarkSourceTab.ScalableDictionary
-            or BenchmarkSourceTab.ScalablePersistedList;
+            or BenchmarkSourceTab.ScalablePersistedList
+            or BenchmarkSourceTab.ScalablePersistedSet
+            or BenchmarkSourceTab.ScalableTsavoriteSet
+            or BenchmarkSourceTab.ScalablePersistedDictionary
+            or BenchmarkSourceTab.ScalableTsavoriteDictionary;
 
     private static JobStatus ParseJobStatus(string status) =>
         Enum.TryParse<JobStatus>(status,true,out var value)
@@ -2465,7 +2475,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return this.GetCurrentRunResultItems(sourceTab.Tab)
             .Concat(this.ResultItems.Where(item => sourceTab.ContainsProject(item.Project)))
             .Where(static item => item.ElementCount>0)
-            .GroupBy(static item => CreateResultIdentityKey(item.Project,item.TypeFullName,item.Method,item.ElementCount),StringComparer.OrdinalIgnoreCase)
+            .GroupBy(static item => CreateResultIdentityKey(item.Project,item.TypeFullName,item.Method,item.ElementCount,item.ArgumentKey),StringComparer.OrdinalIgnoreCase)
             .Select(static group => group.Last())
             .Select(static item => new BenchmarkElementMeasurement(
                 item.Project,
@@ -2696,6 +2706,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
 
     private void ApplySelectedElementCountToTable() {
         var selectedN = this.SelectedResultElementCount?.Value;
+        foreach(var row in this.BenchmarkRows) {
+            row.RefreshBenchmarkName(selectedN??0);
+        }
         if((this.IsBenchmarkRunActive||IsUnsavedRunOption(this.SelectedRunOption))&&this.HasCurrentRunResultsForSelectedTab) {
             this.comparisonRows=selectedN is { } currentElementCount
                 ? this.BuildCurrentRunComparisonRowsForElementCount(currentElementCount)
@@ -2807,22 +2820,24 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 }
 
                 var typeFullName = GetRowTypeFullName(row,pair.LeftProject);
-                var hasLeftResult = this.HasResult(row.MethodName,pair.LeftProject,typeFullName,selectedElementCount);
-                var hasRightResult = this.HasResult(row.MethodName,pair.RightProject,typeFullName,selectedElementCount);
+                var argumentKey = GetRowArgumentKey(row,pair.LeftProject);
+                var hasLeftResult = this.HasResult(row.MethodName,pair.LeftProject,typeFullName,selectedElementCount,argumentKey);
+                var hasRightResult = this.HasResult(row.MethodName,pair.RightProject,typeFullName,selectedElementCount,argumentKey);
                 if(hasLeftResult&&hasRightResult) {
                     continue;
                 }
 
                 // まず閾値ベースの stopN を探し、見つからない場合だけ
                 // 低Nで左右とも completed だった最新の N を停止Nとして復元する。
-                var stoppedAt = this.FindPairStoppedAt(row.MethodName,typeFullName,pair.LeftProject,selectedElementCount)
-                    ??this.FindPairStoppedAt(row.MethodName,typeFullName,pair.RightProject,selectedElementCount)
+                var stoppedAt = this.FindPairStoppedAt(row.MethodName,typeFullName,pair.LeftProject,selectedElementCount,argumentKey)
+                    ??this.FindPairStoppedAt(row.MethodName,typeFullName,pair.RightProject,selectedElementCount,argumentKey)
                     ??this.FindLatestCompletedPairElementCountBefore(
                         row.MethodName,
                         typeFullName,
                         pair.LeftProject,
                         pair.RightProject,
-                        selectedElementCount);
+                        selectedElementCount,
+                        argumentKey);
                 if(stoppedAt is { } stoppedAtElementCount) {
                     row.ApplyPairStopped(
                         pair.LeftProject,
@@ -2893,7 +2908,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
 
     private void ApplySkippedCell(BenchmarkTableRow row,string project,int stoppedAtElementCount) {
         var typeFullName = GetRowTypeFullName(row,project);
-        var result = this.GetResultItem(row.MethodName,project,typeFullName,stoppedAtElementCount);
+        var argumentKey = GetRowArgumentKey(row,project);
+        var result = this.GetResultItem(row.MethodName,project,typeFullName,stoppedAtElementCount,argumentKey);
         var cpu = result?.AssignedLogicalCpu is { } logicalCpu
             ? this.CpuItems.FirstOrDefault(item => item.LogicalProcessorIndex==logicalCpu)
             : null;
@@ -2906,7 +2922,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         row.ApplySkipped(
             project,
             stoppedAtElementCount,
-            this.GetResultMetrics(row.MethodName,project,typeFullName,stoppedAtElementCount),
+            this.GetResultMetrics(row.MethodName,project,typeFullName,stoppedAtElementCount,argumentKey),
             cpu,
             measuredAt,
             metadataMissing);
@@ -2921,18 +2937,25 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             ? benchmark.TypeFullName
             : row.CasesByProject.Values.FirstOrDefault()?.TypeFullName??string.Empty;
 
-    private bool HasResult(string method,string project,string typeFullName,int elementCount) {
+    private static string GetRowArgumentKey(BenchmarkTableRow row,string project) =>
+        row.CasesByProject.TryGetValue(project,out var benchmark)
+            ? benchmark.ArgumentKey
+            : row.CasesByProject.Values.FirstOrDefault()?.ArgumentKey??string.Empty;
+
+    private bool HasResult(string method,string project,string typeFullName,int elementCount,string argumentKey = "") {
         var results = this.GetResultSourceForDisplay();
         return results.Any(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
                 &&string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase)
                 &&IsSameType(result.TypeFullName,typeFullName)
+                &&(string.IsNullOrWhiteSpace(argumentKey)||string.Equals(result.ArgumentKey,argumentKey,StringComparison.OrdinalIgnoreCase))
                 &&result.ElementCount==elementCount
                 &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
                 &&result.MeanNanoseconds is not null);
     }
 
-    private int? FindPairStoppedAt(string method,string typeFullName,string project,int selectedElementCount) {
+    private int? FindPairStoppedAt(string method,string typeFullName,string project,int selectedElementCount,string argumentKey = "") {
         var measurements = this.GetResultSourceForDisplay()
+            .Where(result => string.IsNullOrWhiteSpace(argumentKey)||string.Equals(result.ArgumentKey,argumentKey,StringComparison.OrdinalIgnoreCase))
             .Select(static result => new BenchmarkElementMeasurement(
                 result.Project,
                 result.Method,
@@ -2949,8 +2972,15 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             this.GetAdaptiveThreshold().TotalMilliseconds*1_000_000);
     }
 
-    private int? FindLatestCompletedPairElementCountBefore(string method,string typeFullName,string leftProject,string rightProject,int selectedElementCount) {
+    private int? FindLatestCompletedPairElementCountBefore(
+        string method,
+        string typeFullName,
+        string leftProject,
+        string rightProject,
+        int selectedElementCount,
+        string argumentKey = "") {
         var measurements = this.GetResultSourceForDisplay()
+            .Where(result => string.IsNullOrWhiteSpace(argumentKey)||string.Equals(result.ArgumentKey,argumentKey,StringComparison.OrdinalIgnoreCase))
             .Select(static result => new BenchmarkElementMeasurement(
                 result.Project,
                 result.Method,
@@ -2967,11 +2997,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             selectedElementCount);
     }
 
-    private ProjectMetrics GetResultMetrics(string method,string project,string typeFullName,int elementCount) {
+    private ProjectMetrics GetResultMetrics(string method,string project,string typeFullName,int elementCount,string argumentKey = "") {
         var selectedRunResult = this.GetResultSourceForDisplay()
             .LastOrDefault(item => string.Equals(item.Method,method,StringComparison.OrdinalIgnoreCase)
                 &&string.Equals(item.Project,project,StringComparison.OrdinalIgnoreCase)
                 &&IsSameType(item.TypeFullName,typeFullName)
+                &&(string.IsNullOrWhiteSpace(argumentKey)||string.Equals(item.ArgumentKey,argumentKey,StringComparison.OrdinalIgnoreCase))
                 &&item.ElementCount==elementCount
                 &&string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)
                 &&item.MeanNanoseconds is not null);
@@ -2980,11 +3011,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             : ProjectMetrics.Missing;
     }
 
-    private BenchmarkResultItem? GetResultItem(string method,string project,string typeFullName,int elementCount) {
+    private BenchmarkResultItem? GetResultItem(string method,string project,string typeFullName,int elementCount,string argumentKey = "") {
         var results = this.GetResultSourceForDisplay();
         for(var index = results.Count-1; index>=0; index--) {
             var item = results[index];
-            if(IsResultMatch(item,method,project,typeFullName,elementCount)
+            if(IsResultMatch(item,method,project,typeFullName,elementCount,argumentKey)
                 &&string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)
                 &&item.MeanNanoseconds is not null) {
                 return item;
@@ -3033,16 +3064,17 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private static bool IsResultMatch(BenchmarkResultItem item,BenchmarkResultItem result) =>
-        IsResultMatch(item,result.Method,result.Project,result.TypeFullName,result.ElementCount);
+        IsResultMatch(item,result.Method,result.Project,result.TypeFullName,result.ElementCount,result.ArgumentKey);
 
-    private static bool IsResultMatch(BenchmarkResultItem item,string method,string project,string typeFullName,int elementCount) =>
+    private static bool IsResultMatch(BenchmarkResultItem item,string method,string project,string typeFullName,int elementCount,string argumentKey = "") =>
         string.Equals(item.Method,method,StringComparison.OrdinalIgnoreCase)
         &&string.Equals(item.Project,project,StringComparison.OrdinalIgnoreCase)
         &&IsSameType(item.TypeFullName,typeFullName)
+        &&(string.IsNullOrWhiteSpace(argumentKey)||string.Equals(item.ArgumentKey,argumentKey,StringComparison.OrdinalIgnoreCase))
         &&item.ElementCount==elementCount;
 
-    private static string CreateResultIdentityKey(string project,string typeFullName,string method,int elementCount) =>
-        string.Join("|",project,typeFullName,method,elementCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    private static string CreateResultIdentityKey(string project,string typeFullName,string method,int elementCount,string argumentKey = "") =>
+        string.Join("|",project,typeFullName,method,argumentKey,elementCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
     private static bool IsSameType(string left,string right) =>
         string.IsNullOrWhiteSpace(right)
@@ -3296,20 +3328,23 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             string.Empty,
             string.Empty,
             item.ArtifactFolder,
-            item.ExitCode);
+            item.ExitCode,
+            item.ArgumentKey,
+            item.Arguments);
 
     private ReportRow[] CreateReportRowsForComparison(BenchmarkSourceTabDefinition sourceTab,IReadOnlyList<BenchmarkResultItem> sourceResults) {
         var rows = sourceResults
             .Select(CreateReportRowForSelectedElementCount)
             .ToList();
-        if(sourceTab.Tab==BenchmarkSourceTab.ScalablePersistedList&&!string.IsNullOrWhiteSpace(sourceTab.RightProject)) {
+        if(ScalableBenchmarkNameFormatter.UsesPreviousRightColumn(sourceTab.Tab)&&!string.IsNullOrWhiteSpace(sourceTab.RightProject)) {
             foreach(var result in sourceResults) {
                 var previous = this.resultStore.GetPrevious(
                     result.Method,
                     result.Project,
                     result.TypeFullName,
                     result.ElementCount,
-                    result.StartedAt);
+                    result.StartedAt,
+                    result.ArgumentKey);
                 if(previous is null) {
                     continue;
                 }
@@ -3318,17 +3353,25 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                     sourceTab.RightProject,
                     result.Method,
                     result.TypeFullName,
-                    previous.ToProjectMetrics()));
+                    previous.ToProjectMetrics(),
+                    previous.ArgumentKey,
+                    previous.Arguments));
             }
         }
 
         return rows
-            .GroupBy(static row => row.Project+"|"+row.TypeFullName+"|"+row.Method,StringComparer.OrdinalIgnoreCase)
+            .GroupBy(static row => row.Project+"|"+row.TypeFullName+"|"+row.Method+"|"+row.ArgumentKey,StringComparer.OrdinalIgnoreCase)
             .Select(static group => group.Last())
             .ToArray();
     }
 
-    private static ReportRow CreateReportRow(string project,string method,string typeFullName,ProjectMetrics metrics) =>
+    private static ReportRow CreateReportRow(
+        string project,
+        string method,
+        string typeFullName,
+        ProjectMetrics metrics,
+        string argumentKey = "",
+        IReadOnlyList<BenchmarkArgument>? arguments = null) =>
         new(
             project,
             method,
@@ -3353,7 +3396,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             string.Empty,
             string.Empty,
             string.Empty,
-            metrics.HasMeasuredValue ? 0 : null);
+            metrics.HasMeasuredValue ? 0 : null,
+            argumentKey,
+            arguments);
 
     private IReadOnlyList<ChartComparisonPoint> BuildScaleTrendPoints() {
         var selectedRow = this.BenchmarkRows.FirstOrDefault(static item => item.IsSelected);

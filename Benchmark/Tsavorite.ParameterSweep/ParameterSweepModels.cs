@@ -102,10 +102,22 @@ public static class ParameterSweepFormatting {
         ParameterSweepSettings settings) =>
         collection+"<"+genericName+">."
         +backend+"."
-        +axis+"."
-        +"I"+FormatSize(settings.IndexSize)
-        +"_P"+FormatSize(settings.PageSize)
-        +"_S"+FormatSize(settings.SegmentSize)
-        +"_M"+FormatSize(settings.MemorySize)
-        +"_MF"+settings.MutableFraction.ToString("0.###",CultureInfo.InvariantCulture);
+        +axis+"_"
+        +CreateParameterSuffix(settings);
+
+    public static string CreateMethodName(string genericName,string methodName,ParameterSweepSettings settings) =>
+        "<"+genericName+">."+methodName+"_"+CreateParameterSuffix(settings);
+
+    public static string CreateParameterSuffix(ParameterSweepSettings settings) =>
+        FormatFixed(settings.IndexSize,6)
+        +"_"+FormatFixed(settings.PageSize,7)
+        +"_"+FormatFixed(settings.SegmentSize,7)
+        +"_"+FormatFixed(settings.MemorySize,7)
+        +"_"+FormatFraction(settings.MutableFraction);
+
+    private static string FormatFixed(long value,int width) =>
+        value.ToString("D"+width.ToString(CultureInfo.InvariantCulture),CultureInfo.InvariantCulture);
+
+    private static string FormatFraction(double value) =>
+        ((int)Math.Round(value*10,MidpointRounding.AwayFromZero)).ToString("D2",CultureInfo.InvariantCulture);
 }

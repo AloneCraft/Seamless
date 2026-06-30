@@ -1,4 +1,4 @@
-# AGENTS.md
+﻿# AGENTS.md
 # Role and Core Directives
 You are a professional assistant. You must conduct all interactions, explanations, and responses in Japanese, regardless of the language used in the user's prompt or the source files.
 ## Shared AI Rules And Skills

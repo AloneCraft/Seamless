@@ -1,6 +1,30 @@
 namespace UI;
 
+internal readonly record struct ScalableBenchmarkParameters(
+    long IndexSize,
+    long PageSize,
+    long SegmentSize,
+    long MemorySize,
+    double MutableFraction);
+
+internal enum ScalableBenchmarkArgumentColumn{
+    Count,
+    Index,
+    Page,
+    Segment,
+    Memory,
+    Fraction,
+    Initial,
+    Data,
+}
+
 internal static class ScalableBenchmarkNameFormatter{
+    private const long DefaultIndexSize = 64;
+    private const long DefaultPageSize = 4096;
+    private const long DefaultSegmentSize = 8192;
+    private const long DefaultMemorySize = 16384;
+    private const double DefaultMutableFraction = 0.5;
+
     private static readonly string[] KnownTypeTokens = [
         "UnmanagedStruct",
         "ManagedStruct",
@@ -24,6 +48,17 @@ internal static class ScalableBenchmarkNameFormatter{
     public static bool IsScalableSourceTab(BenchmarkSourceTab sourceTab) =>
         sourceTab is BenchmarkSourceTab.ScalableSet
             or BenchmarkSourceTab.ScalableDictionary
+            or BenchmarkSourceTab.ScalablePersistedList
+            or BenchmarkSourceTab.ScalablePersistedSet
+            or BenchmarkSourceTab.ScalableTsavoriteSet
+            or BenchmarkSourceTab.ScalablePersistedDictionary
+            or BenchmarkSourceTab.ScalableTsavoriteDictionary;
+
+    public static bool UsesPreviousRightColumn(BenchmarkSourceTab sourceTab) =>
+        sourceTab is BenchmarkSourceTab.ScalablePersistedSet
+            or BenchmarkSourceTab.ScalableTsavoriteSet
+            or BenchmarkSourceTab.ScalablePersistedDictionary
+            or BenchmarkSourceTab.ScalableTsavoriteDictionary
             or BenchmarkSourceTab.ScalablePersistedList;
 
     public static string CreateBenchmarkName(
@@ -40,11 +75,31 @@ internal static class ScalableBenchmarkNameFormatter{
             return methodName;
         }
 
-        var suffix = elementCount>0
-            ? "/"+elementCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
-            : string.Empty;
-        return CreateCanonicalProject(sourceTab)+"<"+genericText+">."+methodName+suffix;
+        return "<"+genericText+">."+methodName;
     }
+
+    public static string CreateBenchmarkName(
+        string genericText,
+        string methodName,
+        ScalableBenchmarkParameters parameters) =>
+        "<"+genericText+">."+methodName;
+
+    public static string CreateBenchmarkName(string typeFullName,string methodName){
+        var genericText=CreateGenericTypeText(typeFullName);
+        return string.IsNullOrWhiteSpace(genericText)
+            ? methodName
+            : "<"+genericText+">."+methodName;
+    }
+
+    public static string GetArgumentValue(IReadOnlyList<BenchmarkArgument> arguments,ScalableBenchmarkArgumentColumn column) =>
+        BenchmarkArgumentFormatting.GetValue(arguments,column.ToString());
+
+    public static string CreateParameterSuffix(ScalableBenchmarkParameters parameters) =>
+        FormatFixed(parameters.IndexSize,6)
+        +"_"+FormatFixed(parameters.PageSize,7)
+        +"_"+FormatFixed(parameters.SegmentSize,7)
+        +"_"+FormatFixed(parameters.MemorySize,7)
+        +"_"+FormatFraction(parameters.MutableFraction);
 
     public static string CreateGenericTypeText(string typeFullName){
         var typeName = ShortTypeName(typeFullName);
@@ -72,10 +127,43 @@ internal static class ScalableBenchmarkNameFormatter{
             : typeFullName[(index+1)..];
     }
 
-    private static string CreateCanonicalProject(BenchmarkSourceTabDefinition sourceTab) =>
-        sourceTab.Tab==BenchmarkSourceTab.ScalablePersistedList
-            ? sourceTab.LeftProject
-            : sourceTab.RightProject;
+    private static ScalableBenchmarkParameters CreateParameters(BenchmarkSourceTabDefinition sourceTab,int elementCount) {
+        var memorySize = elementCount>0
+            ? GetScalableMemorySize(elementCount)
+            : DefaultMemorySize;
+        return sourceTab.Tab switch{
+            BenchmarkSourceTab.ScalableTsavoriteSet
+                or BenchmarkSourceTab.ScalableTsavoriteDictionary
+                or BenchmarkSourceTab.ScalableSet
+                or BenchmarkSourceTab.ScalableDictionary => new(
+                    131072,
+                    4096,
+                    4096,
+                    memorySize,
+                    1.0),
+            _ => new(
+                DefaultIndexSize,
+                DefaultPageSize,
+                DefaultSegmentSize,
+                memorySize,
+                DefaultMutableFraction),
+        };
+    }
+
+    private static long GetScalableMemorySize(int count) {
+        var required = Math.Max(8192L,count*128L);
+        var result = 1L;
+        while(result<required) {
+            result<<=1;
+        }
+        return result;
+    }
+
+    private static string FormatFixed(long value,int width) =>
+        value.ToString("D"+width.ToString(System.Globalization.CultureInfo.InvariantCulture),System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string FormatFraction(double value) =>
+        ((int)Math.Round(value*10,MidpointRounding.AwayFromZero)).ToString("D2",System.Globalization.CultureInfo.InvariantCulture);
 
     private static IEnumerable<string> SplitTypeTokens(string text){
         for(var index=0;index<text.Length;){

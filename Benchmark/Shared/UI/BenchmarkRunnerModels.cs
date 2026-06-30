@@ -28,6 +28,14 @@ public enum BenchmarkChartMode{
 public enum BenchmarkGridSortColumn{
     BenchmarkName,
     ElementCount,
+    ArgumentCount,
+    ArgumentIndex,
+    ArgumentPage,
+    ArgumentSegment,
+    ArgumentMemory,
+    ArgumentFraction,
+    ArgumentInitial,
+    ArgumentData,
     PairRatioTime,
     PairRatioAllocated,
     LeftTime,
@@ -741,6 +749,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
     private string leftAllocatedText = string.Empty;
     private string rightTimeText = string.Empty;
     private string rightAllocatedText = string.Empty;
+    private string benchmarkName = string.Empty;
     private BenchmarkComparisonRow? comparisonRow;
     private bool isFinalCompleted;
     private static readonly Color DefaultStopNTextColor = Color.FromArgb("#334155");
@@ -753,7 +762,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
         IReadOnlyDictionary<string,BenchmarkCase> casesByProject){
         this.RowKey=rowKey;
         this.MethodName=methodName;
-        this.BenchmarkName=benchmarkName;
+        this.benchmarkName=benchmarkName;
         this.SourceTab=sourceTab;
         this.CasesByProject=casesByProject;
         this.LeftCell=this.CreateCell(sourceTab.LeftProject);
@@ -767,11 +776,22 @@ public sealed class BenchmarkTableRow:ObservableObject{
 
     public string RowKey { get; }
     public string MethodName { get; }
-    public string BenchmarkName { get; }
+    public string BenchmarkName{
+        get => this.benchmarkName;
+        private set => this.SetProperty(ref this.benchmarkName,value);
+    }
     public BenchmarkSourceTabDefinition SourceTab { get; }
     public IReadOnlyDictionary<string,BenchmarkCase> CasesByProject { get; }
     public BenchmarkProjectCell LeftCell { get; }
     public BenchmarkProjectCell RightCell { get; }
+    public string CountArgument => this.GetArgumentValue("Count");
+    public string IndexArgument => this.GetArgumentValue("Index");
+    public string PageArgument => this.GetArgumentValue("Page");
+    public string SegmentArgument => this.GetArgumentValue("Segment");
+    public string MemoryArgument => this.GetArgumentValue("Memory");
+    public string FractionArgument => this.GetArgumentValue("Fraction");
+    public string InitialArgument => this.GetArgumentValue("Initial");
+    public string DataArgument => this.GetArgumentValue("Data");
 
     public bool IsSelected{
         get => this.isSelected;
@@ -1028,6 +1048,14 @@ public sealed class BenchmarkTableRow:ObservableObject{
         return column switch{
             BenchmarkGridSortColumn.BenchmarkName => BenchmarkSortValue.FromText(this.BenchmarkName),
             BenchmarkGridSortColumn.ElementCount => BenchmarkSortValue.FromNumber(this.ElementCountSortValue),
+            BenchmarkGridSortColumn.ArgumentCount => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.CountArgument)),
+            BenchmarkGridSortColumn.ArgumentIndex => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.IndexArgument)),
+            BenchmarkGridSortColumn.ArgumentPage => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.PageArgument)),
+            BenchmarkGridSortColumn.ArgumentSegment => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.SegmentArgument)),
+            BenchmarkGridSortColumn.ArgumentMemory => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.MemoryArgument)),
+            BenchmarkGridSortColumn.ArgumentFraction => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.FractionArgument)),
+            BenchmarkGridSortColumn.ArgumentInitial => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.InitialArgument)),
+            BenchmarkGridSortColumn.ArgumentData => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.DataArgument)),
             BenchmarkGridSortColumn.PairRatioTime => row is { } value ? BenchmarkSortValue.FromRatio(value.PairRatio.TimeRatio) : BenchmarkSortValue.Missing,
             BenchmarkGridSortColumn.PairRatioAllocated => row is { } value ? BenchmarkSortValue.FromRatio(value.PairRatio.AllocatedRatio) : BenchmarkSortValue.Missing,
             BenchmarkGridSortColumn.LeftTime => BenchmarkSortValue.FromMetric(this.LeftCell.Metrics,BenchmarkMetricKind.Time),
@@ -1089,6 +1117,23 @@ public sealed class BenchmarkTableRow:ObservableObject{
 
     private BenchmarkProjectCell CreateCell(string project) =>
         new(project,this.CasesByProject.ContainsKey(project));
+
+    public void RefreshBenchmarkName(int elementCount) {
+        var typeFullName = this.CasesByProject.Values
+            .Select(static item => item.TypeFullName)
+            .FirstOrDefault(static text => !string.IsNullOrWhiteSpace(text))??string.Empty;
+        this.BenchmarkName=ScalableBenchmarkNameFormatter.CreateBenchmarkName(typeFullName,this.MethodName);
+    }
+
+    private string GetArgumentValue(string name) =>
+        this.CasesByProject.Values
+            .Select(item => BenchmarkArgumentFormatting.GetValue(item.Arguments,name))
+            .FirstOrDefault(static value => !string.IsNullOrWhiteSpace(value))??string.Empty;
+
+    private static double? ParseArgumentNumber(string text) =>
+        double.TryParse(text,NumberStyles.Float,CultureInfo.InvariantCulture,out var value)
+            ? value
+            : null;
 
     private static string FormatTime(ProjectMetrics metrics){
         return metrics.HasMeasuredValue&&metrics.TimeNanoseconds is { } value
@@ -1470,6 +1515,8 @@ public sealed class BenchmarkResultItem{
         this.SourceTab=job.SourceTab;
         this.ElementCount=job.ElementCount;
         this.Name=job.Project+" / "+job.MethodName+" / "+job.ElementCount.ToString(CultureInfo.InvariantCulture);
+        this.ArgumentKey=job.ArgumentKey;
+        this.Arguments=job.Arguments.ToArray();
         this.Status=job.Status.ToString();
         this.Mean=job.MeanNanoseconds is { } mean
             ? BenchmarkFormatting.FormatNanoseconds(mean)
@@ -1498,6 +1545,8 @@ public sealed class BenchmarkResultItem{
         this.SourceTab=BenchmarkSourceTabs.TryGetByProject(result.Project)?.Tab??BenchmarkSourceTab.SystemArray;
         this.ElementCount=0;
         this.Name=result.Project+" / "+result.Method;
+        this.ArgumentKey=string.Empty;
+        this.Arguments=[];
         this.Status=result.Status;
         this.Mean=result.MeanNanoseconds is { } mean
             ? BenchmarkFormatting.FormatNanoseconds(mean)
@@ -1519,12 +1568,21 @@ public sealed class BenchmarkResultItem{
         this.FailureReason=result.Log;
     }
 
-    public BenchmarkResultItem(string project,string method,ProjectMetrics metrics,int elementCount = 0){
+    public BenchmarkResultItem(
+        string project,
+        string method,
+        ProjectMetrics metrics,
+        int elementCount = 0,
+        string typeFullName = "",
+        string argumentKey = "",
+        IReadOnlyList<BenchmarkArgument>? arguments = null){
         this.Project=project;
         this.Method=method;
-        this.TypeFullName=string.Empty;
+        this.TypeFullName=typeFullName;
         this.SourceTab=BenchmarkSourceTabs.TryGetByProject(project)?.Tab??BenchmarkSourceTab.SystemArray;
         this.ElementCount=elementCount;
+        this.ArgumentKey=argumentKey;
+        this.Arguments=arguments??[];
         this.Name=project+" / "+method;
         this.Status=metrics.HasMeasuredValue?"Completed":"Missing";
         this.Mean=metrics.HasMeasuredValue&&metrics.TimeNanoseconds is { } time ? BenchmarkFormatting.FormatNanoseconds(time) : string.Empty;
@@ -1544,15 +1602,26 @@ public sealed class BenchmarkResultItem{
     }
 
     public BenchmarkResultItem(BenchmarkStoredResult result)
-        : this(result.Project,result.Method,result.TypeFullName,result.ToProjectMetrics(),result.ElementCount,result.Status,result.MeasuredAt){
+        : this(result.Project,result.Method,result.TypeFullName,result.ToProjectMetrics(),result.ElementCount,result.Status,result.MeasuredAt,result.ArgumentKey,result.Arguments){
     }
 
-    private BenchmarkResultItem(string project,string method,string typeFullName,ProjectMetrics metrics,int elementCount,string status,DateTimeOffset measuredAt){
+    private BenchmarkResultItem(
+        string project,
+        string method,
+        string typeFullName,
+        ProjectMetrics metrics,
+        int elementCount,
+        string status,
+        DateTimeOffset measuredAt,
+        string argumentKey = "",
+        IReadOnlyList<BenchmarkArgument>? arguments = null){
         this.Project=project;
         this.Method=method;
         this.TypeFullName=typeFullName;
         this.SourceTab=BenchmarkSourceTabs.TryGetByProject(project)?.Tab??BenchmarkSourceTab.SystemArray;
         this.ElementCount=elementCount;
+        this.ArgumentKey=argumentKey;
+        this.Arguments=arguments??[];
         this.Name=project+" / "+method;
         this.Status=status;
         this.Mean=metrics.HasMeasuredValue&&metrics.TimeNanoseconds is { } time ? BenchmarkFormatting.FormatNanoseconds(time) : string.Empty;
@@ -1577,6 +1646,8 @@ public sealed class BenchmarkResultItem{
         this.TypeFullName=benchmark.TypeFullName;
         this.SourceTab=BenchmarkSourceTabs.TryGetByProject(benchmark.Project)?.Tab??BenchmarkSourceTab.SystemArray;
         this.ElementCount=0;
+        this.ArgumentKey=benchmark.ArgumentKey;
+        this.Arguments=benchmark.Arguments;
         this.Name=benchmark.Project+" / "+benchmark.MethodName;
         this.Status="Failed";
         this.Mean=exception.GetType().Name;
@@ -1596,6 +1667,8 @@ public sealed class BenchmarkResultItem{
     public string TypeFullName { get; }
     public BenchmarkSourceTab SourceTab { get; }
     public int ElementCount { get; }
+    public string ArgumentKey { get; }
+    public IReadOnlyList<BenchmarkArgument> Arguments { get; }
     public string Name { get; }
     public string Status { get; }
     public string Mean { get; }

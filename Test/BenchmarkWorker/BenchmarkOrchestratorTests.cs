@@ -1010,13 +1010,13 @@ public sealed class BenchmarkOrchestratorTests{
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
-                [Case("Scalable.Persisted.Set","Add"),Case("Scalable.Tsavorite.Set","Add")],
+                [Case("Scalable.Persisted.Set","Add")],
                 [0],
                 [1024,2048,4096],
                 BenchmarkRunMode.Adaptive,
                 TimeSpan.FromMilliseconds(1),
                 TimeSpan.FromSeconds(30),
-                SourceTab: BenchmarkSourceTab.ScalableSet),
+                SourceTab: BenchmarkSourceTab.ScalablePersistedSet),
             _ => { },
             _ => { },
             CancellationToken.None);

@@ -6,6 +6,10 @@ namespace Scalable.Collections;
 
 public abstract class ScalableBenchmarkBase{
     public string CaptureBenchmarkMethodResult(string methodName,bool invokeImpl){
+        return this.CaptureBenchmarkMethodResult(methodName,invokeImpl,[]);
+    }
+
+    public string CaptureBenchmarkMethodResult(string methodName,bool invokeImpl,object?[] arguments){
         if(string.IsNullOrWhiteSpace(methodName)){
             throw new ArgumentException("Method name is required.",nameof(methodName));
         }
@@ -15,7 +19,7 @@ public abstract class ScalableBenchmarkBase{
             : FindBenchmarkMethod(this.GetType(),methodName);
         object? returnValue;
         try{
-            returnValue=method.Invoke(this,null);
+            returnValue=method.Invoke(this,arguments);
         }catch(TargetInvocationException ex) when(ex.InnerException is not null){
             System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
             throw new InvalidOperationException("Unreachable.");
@@ -102,9 +106,6 @@ public abstract class ScalableBenchmarkBase{
             var method=current.GetMethod(methodName,flags);
             if(method is null){
                 continue;
-            }
-            if(method.GetParameters().Length!=0){
-                throw new InvalidOperationException($"{current.FullName}.{methodName} must not declare parameters.");
             }
             return method;
         }

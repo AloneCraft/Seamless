@@ -489,13 +489,14 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
                 ??throw new InvalidOperationException($"Benchmark type was not found: {benchmark.TypeFullName}");
             var method = ResolveBenchmarkMethod(type,benchmark.MethodName);
             instance=method.IsStatic ? null : Activator.CreateInstance(type);
-            var randomSeed = CreateRandomSourceSeed(runRoot,job.SourceTab,benchmark.MethodName,job.ElementCount);
+            var randomSeed = CreateRandomSourceSeed(runRoot,job.SourceTab,benchmark.MethodName,job.ArgumentKey,job.ElementCount);
             using var elementScope = BeginElementCountScope(assembly,job.ElementCount,"1");
             using var randomSourceScope = BeginRandomSourceSeedScope(assembly,randomSeed);
-            var resultDigest = CaptureBenchmarkResultDigest(type,benchmark.MethodName);
+            var arguments = BenchmarkArgumentFormatting.ToObjects(benchmark.Arguments);
+            var resultDigest = CaptureBenchmarkResultDigest(type,benchmark.MethodName,arguments);
             var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
             var stopwatch = Stopwatch.StartNew();
-            method.Invoke(instance,null);
+            method.Invoke(instance,arguments);
             stopwatch.Stop();
             var allocatedAfter = GC.GetAllocatedBytesForCurrentThread();
             var meanNanoseconds = stopwatch.Elapsed.TotalMilliseconds*1_000_000;
@@ -521,7 +522,9 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
                 artifactFolder,
                 string.Empty,
                 randomSeed,
-                resultDigest);
+                resultDigest,
+                benchmark.ArgumentKey,
+                benchmark.Arguments);
         } catch(Exception ex) when(ex is not OperationCanceledException) {
             var actual = ex is TargetInvocationException { InnerException: { } inner } ? inner : ex;
             File.WriteAllText(logPath,actual.ToString(),Encoding.UTF8);
@@ -542,7 +545,9 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
                 artifactFolder,
                 actual.ToString(),
                 null,
-                string.Empty);
+                string.Empty,
+                benchmark.ArgumentKey,
+                benchmark.Arguments);
         } finally {
             if(instance is IDisposable disposable) {
                 disposable.Dispose();
@@ -559,7 +564,7 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
     private static MethodInfo ResolveBenchmarkMethod(Type type,string methodName) {
         var method = type.GetMethod(methodName,BindingFlags.Public|BindingFlags.Instance|BindingFlags.Static)
             ??throw new MissingMethodException(type.FullName,methodName);
-        if(method.GetParameters().Length!=0||!HasBenchmarkAttribute(method)) {
+        if(!HasBenchmarkAttribute(method)) {
             throw new MissingMethodException(type.FullName,methodName+" [Benchmark]");
         }
 
@@ -593,21 +598,21 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
             ?? EmptyDisposable.Instance;
     }
 
-    private static string CaptureBenchmarkResultDigest(Type benchmarkType,string methodName) {
+    private static string CaptureBenchmarkResultDigest(Type benchmarkType,string methodName,object?[] arguments) {
         var instance = Activator.CreateInstance(benchmarkType);
         var method = benchmarkType.GetMethod(
             "CaptureBenchmarkMethodResult",
             BindingFlags.Public|BindingFlags.Instance,
             binder:null,
-            types:[typeof(string),typeof(bool)],
+            types:[typeof(string),typeof(bool),typeof(object[])],
             modifiers:null)
             ??throw new MissingMethodException(benchmarkType.FullName,"CaptureBenchmarkMethodResult");
-        return method.Invoke(instance,[methodName,false]) as string
+        return method.Invoke(instance,[methodName,false,arguments]) as string
             ??throw new InvalidOperationException("Benchmark result digest was empty.");
     }
 
-    private static int CreateRandomSourceSeed(string runRoot,BenchmarkSourceTab sourceTab,string methodName,int elementCount) =>
-        StableHash(runRoot+"|"+sourceTab+"|"+methodName+"|"+elementCount.ToString(CultureInfo.InvariantCulture));
+    private static int CreateRandomSourceSeed(string runRoot,BenchmarkSourceTab sourceTab,string methodName,string argumentKey,int elementCount) =>
+        StableHash(runRoot+"|"+sourceTab+"|"+methodName+"|"+argumentKey+"|"+elementCount.ToString(CultureInfo.InvariantCulture));
 
     private static int StableHash(string text) {
         unchecked {
@@ -661,7 +666,9 @@ public sealed class BenchmarkResultService:IBenchmarkResultService {
             string.Empty,
             string.Empty,
             item.ArtifactFolder,
-            item.ExitCode);
+            item.ExitCode,
+            item.ArgumentKey,
+            item.Arguments);
     }
 }
 

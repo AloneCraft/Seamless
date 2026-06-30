@@ -154,7 +154,7 @@ internal sealed class BenchmarkOrchestrator(
         var warmedUp = false;
         foreach(var elementCount in state.ElementCounts) {
             cancellationToken.ThrowIfCancellationRequested();
-            if(IsAdaptiveRowStopped(state,row.Cases)) {
+            if(IsAdaptiveRowStopped(state,row.SourceTab,row.Cases)) {
                 break;
             }
 
@@ -486,6 +486,11 @@ internal sealed class BenchmarkOrchestrator(
 
     private IEnumerable<BenchmarkJob> CreateJobs(IEnumerable<BenchmarkCase> benchmarks,IEnumerable<int> elementCounts,BenchmarkSourceTab sourceTab) {
         foreach(var benchmark in benchmarks) {
+            if(IsScalableSourceTab(GetBenchmarkSourceTab(benchmark,sourceTab))&&benchmark.CountArgument>0){
+                yield return CreateJob(benchmark,benchmark.CountArgument,sourceTab,[benchmark.CountArgument]);
+                continue;
+            }
+
             foreach(var elementCount in elementCounts) {
                 yield return CreateJob(benchmark,elementCount,sourceTab,elementCounts);
             }
@@ -574,16 +579,18 @@ internal sealed class BenchmarkOrchestrator(
             AssemblyName=benchmark.AssemblyName,
             TypeFullName=benchmark.TypeFullName,
             MethodName=benchmark.MethodName,
+            ArgumentKey=benchmark.ArgumentKey,
+            Arguments=benchmark.Arguments.ToList(),
             SourceTab=sourceTab,
             ElementCount=elementCount,
             PreparedElementCounts=preparedElementCounts.Distinct().Order().ToList(),
         };
 
     private static string CreateJobId(BenchmarkCase benchmark,int elementCount) =>
-        string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName,elementCount);
+        string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey,elementCount);
 
     private static string CreateBenchmarkKey(BenchmarkCase benchmark) =>
-        string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName);
+        string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey);
 
     private static string CreateAdaptiveGroupKey(BenchmarkSourceTab sourceTab,BenchmarkCase benchmark) =>
         IsScalableSourceTab(GetBenchmarkSourceTab(benchmark,sourceTab))
@@ -633,7 +640,7 @@ internal sealed class BenchmarkOrchestrator(
 
     private IReadOnlyList<AdaptiveMethodRow> CreateAdaptiveRows(ProgressState state,BenchmarkRunRequest request) {
         var benchmarks = (request.BenchmarkProvider?.Invoke()??request.Benchmarks)
-            .Concat(state.Jobs.Select(static job => new BenchmarkCase(job.Project,job.AssemblyName,job.TypeFullName,job.MethodName)))
+            .Concat(state.Jobs.Select(static job => new BenchmarkCase(job.Project,job.AssemblyName,job.TypeFullName,job.MethodName,job.ArgumentKey,job.Arguments)))
             .GroupBy(CreateBenchmarkKey,StringComparer.Ordinal)
             .Select(static group => group.First())
             .ToArray();
@@ -659,7 +666,8 @@ internal sealed class BenchmarkOrchestrator(
         string.Equals(benchmark.Project,job.Project,StringComparison.OrdinalIgnoreCase)
         &&string.Equals(benchmark.AssemblyName,job.AssemblyName,StringComparison.Ordinal)
         &&string.Equals(benchmark.TypeFullName,job.TypeFullName,StringComparison.Ordinal)
-        &&string.Equals(benchmark.MethodName,job.MethodName,StringComparison.Ordinal);
+        &&string.Equals(benchmark.MethodName,job.MethodName,StringComparison.Ordinal)
+        &&string.Equals(benchmark.ArgumentKey,job.ArgumentKey,StringComparison.Ordinal);
 
     private static int IndexOfCase(IReadOnlyList<BenchmarkCase> cases,BenchmarkJob job) {
         for(var index=0;index<cases.Count;index++) {
@@ -671,9 +679,11 @@ internal sealed class BenchmarkOrchestrator(
         return int.MaxValue;
     }
 
-    private static bool IsAdaptiveRowStopped(ProgressState state,IReadOnlyList<BenchmarkCase> cases) =>
+    private static bool IsAdaptiveRowStopped(ProgressState state,BenchmarkSourceTab sourceTab,IReadOnlyList<BenchmarkCase> cases) =>
+        !IsScalableSourceTab(sourceTab)
+        &&(
         cases.Any(benchmark => IsAdaptiveCaseFailed(state,benchmark))
-        ||cases.Any(benchmark => IsAdaptiveCaseOverThreshold(state,benchmark));
+        ||cases.Any(benchmark => IsAdaptiveCaseOverThreshold(state,benchmark)));
 
     private static bool IsAdaptiveCaseFailed(ProgressState state,BenchmarkCase benchmark) =>
         state.Jobs.Any(job => SameCase(benchmark,job)&&job.Status==JobStatus.Failed);
@@ -688,7 +698,11 @@ internal sealed class BenchmarkOrchestrator(
     private static bool IsScalableSourceTab(BenchmarkSourceTab sourceTab) =>
         sourceTab is BenchmarkSourceTab.ScalableSet
             or BenchmarkSourceTab.ScalableDictionary
-            or BenchmarkSourceTab.ScalablePersistedList;
+            or BenchmarkSourceTab.ScalablePersistedList
+            or BenchmarkSourceTab.ScalablePersistedSet
+            or BenchmarkSourceTab.ScalableTsavoriteSet
+            or BenchmarkSourceTab.ScalablePersistedDictionary
+            or BenchmarkSourceTab.ScalableTsavoriteDictionary;
 
     private static IReadOnlyList<int> NormalizeCpus(IReadOnlyList<int> cpus) =>
         cpus.Count==0 ? [0] : cpus.Distinct().Order().ToArray();

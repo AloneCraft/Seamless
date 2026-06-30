@@ -4,6 +4,7 @@ namespace UI;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
 internal sealed class BenchmarkResultWriter {
+    private static readonly object GlobalWriteGate = new();
     private readonly object writeGate = new();
 
     public IReadOnlyList<string> WriteOutputs(ProgressState state) {
@@ -66,10 +67,28 @@ internal sealed class BenchmarkResultWriter {
                 stream.Flush(flushToDisk:true);
             }
 
-            File.Move(tmpPath,path,overwrite:true);
+            lock(GlobalWriteGate) {
+                MoveWithRetry(tmpPath,path);
+            }
         }finally{
             TryDelete(tmpPath);
         }
+    }
+
+    private static void MoveWithRetry(string sourcePath,string destinationPath) {
+        const int attempts = 8;
+        for(var attempt=1;attempt<=attempts;attempt++) {
+            try{
+                File.Move(sourcePath,destinationPath,overwrite:true);
+                return;
+            }catch(IOException) when(attempt<attempts){
+                Thread.Sleep(25*attempt);
+            }catch(UnauthorizedAccessException) when(attempt<attempts){
+                Thread.Sleep(25*attempt);
+            }
+        }
+
+        File.Move(sourcePath,destinationPath,overwrite:true);
     }
 
     private static void TryDelete(string path){

@@ -1,4 +1,4 @@
-# FLinq Anchor Side Effect Policy
+﻿# FLinq Anchor Side Effect Policy
 
 ## 背景
 FLinq は LINQ chain をコンパイル時に展開し、delegate 呼び出し、iterator allocation、不要な stage を減らす。既存実装では `DistinctBy` 連続削減や `Where` 並べ替えのような評価回数・評価順を変え得る最適化が複数箇所に分散している。

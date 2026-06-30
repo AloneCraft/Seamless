@@ -1,4 +1,4 @@
-# FLinq SourceGenerator Notes
+﻿# FLinq SourceGenerator Notes
 
 このドキュメントは、以前 `interceptor.cs` 冒頭に置かれていた仕様メモ、TODO、編集方針を退避したものです。
 実装本体は `FLinqIncrementalGenerator` の partial ファイルへ責務別に分割しています。

@@ -1,4 +1,4 @@
----
+﻿---
 phase: code-internal-reverse
 reverse_document: true
 canonical_target: Document/Code/Internal/Seamless.DatabaseSourceGeneratorInternalDesign.md

@@ -37,7 +37,21 @@ public static class BenchmarkCatalog {
             var assembly = Assembly.Load(new AssemblyName(project.AssemblyName));
             foreach(var type in assembly.GetTypes().Where(type => IsConcreteBenchmarkType(type,project.TypePrefix)).OrderBy(static type => type.FullName,StringComparer.Ordinal)) {
                 foreach(var method in type.GetMethods(BindingFlags.Public|BindingFlags.Instance|BindingFlags.Static).Where(HasBenchmarkAttribute).OrderBy(static method => method.Name,StringComparer.Ordinal)) {
-                    cases.Add(new BenchmarkCase(project.DisplayName,project.AssemblyName,type.FullName!,method.Name));
+                    var arguments = GetBenchmarkArguments(method).ToArray();
+                    if(arguments.Length==0){
+                        cases.Add(new BenchmarkCase(project.DisplayName,project.AssemblyName,type.FullName!,method.Name));
+                        continue;
+                    }
+
+                    foreach(var argumentSet in arguments){
+                        cases.Add(new BenchmarkCase(
+                            project.DisplayName,
+                            project.AssemblyName,
+                            type.FullName!,
+                            method.Name,
+                            BenchmarkArgumentFormatting.CreateKey(argumentSet),
+                            argumentSet));
+                    }
                 }
             }
         }
@@ -52,4 +66,40 @@ public static class BenchmarkCatalog {
 
     private static bool HasBenchmarkAttribute(MethodInfo method) =>
         method.GetCustomAttribute<BenchmarkAttribute>() is not null;
+
+    private static IEnumerable<IReadOnlyList<BenchmarkArgument>> GetBenchmarkArguments(MethodInfo method){
+        var parameterNames = method.GetParameters().Select(static parameter => parameter.Name??string.Empty).ToArray();
+        foreach(var attribute in method.CustomAttributes.Where(static attribute =>
+            attribute.AttributeType.Name is "BenchArgumentsAttribute" or "ArgumentsAttribute")){
+            var values = attribute.ConstructorArguments
+                .SelectMany(static argument => argument.ArgumentType==typeof(object[])
+                    ? argument.Value is IEnumerable<CustomAttributeTypedArgument> values
+                        ? values.Select(static value => value.Value)
+                        : []
+                    : [argument.Value])
+                .ToArray();
+            yield return parameterNames
+                .Select((name,index) => new BenchmarkArgument(
+                    NormalizeArgumentName(name),
+                    index<values.Length ? FormatArgumentValue(values[index]) : string.Empty))
+                .ToArray();
+        }
+    }
+
+    private static string NormalizeArgumentName(string name) =>
+        name switch{
+            "IndexSize" => "Index",
+            "PageSize" => "Page",
+            "SegmentSize" => "Segment",
+            "MemorySize" => "Memory",
+            "MutableFraction" => "Fraction",
+            "InitialCapacity" => "Initial",
+            "InitialDataCapacity" => "Data",
+            _ => name,
+        };
+
+    private static string FormatArgumentValue(object? value) =>
+        value is IFormattable formattable
+            ? formattable.ToString(null,System.Globalization.CultureInfo.InvariantCulture)
+            : value?.ToString()??string.Empty;
 }

@@ -1,4 +1,4 @@
-# Pipeline Buffering Characteristics
+﻿# Pipeline Buffering Characteristics
 
 この文書は FLinq の `PipelineEnumerable` が特殊扱いする LINQ stage の特性を定義する。目的は、どのメソッドが中間バッファ、結果バッファ、集合判定用バッファを持つかを明確にし、融合時にどのバッファを共有できるかを判断できるようにすること。
 

@@ -38,7 +38,9 @@ public interface IDictTestStrategy<TKey, TValue>
     static abstract StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = global::Seamless.Tsavorite.Const.LogMemorySize,
         double mutableFraction = 1.0,
-        long indexSize = global::Seamless.Tsavorite.Const.IndexSize);
+        long indexSize = global::Seamless.Tsavorite.Const.IndexSize,
+        long pageSize = global::Seamless.Tsavorite.Const.PageSize,
+        long segmentSize = global::Seamless.Tsavorite.Const.SegmentSize);
     static abstract StoreHandle<TKey,TValue> CreateStorageStore(
         IDevice logDevice,
         IDevice objDevice,
@@ -70,8 +72,10 @@ public readonly struct ManagedStoreDictionaryStrategy<TKeyProvider, TValueProvid
     public static StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = global::Seamless.Tsavorite.Const.LogMemorySize,
         double mutableFraction = 1.0,
-        long indexSize = global::Seamless.Tsavorite.Const.IndexSize) {
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize).Create<TKey,TValue>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
+        long indexSize = global::Seamless.Tsavorite.Const.IndexSize,
+        long pageSize = global::Seamless.Tsavorite.Const.PageSize,
+        long segmentSize = global::Seamless.Tsavorite.Const.SegmentSize) {
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize,PageSize: pageSize,SegmentSize: segmentSize).Create<TKey,TValue>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -99,8 +103,10 @@ public readonly struct UnmanagedKeyDictionaryStrategy<TKeyProvider, TValueProvid
     public static StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = global::Seamless.Tsavorite.Const.LogMemorySize,
         double mutableFraction = 1.0,
-        long indexSize = global::Seamless.Tsavorite.Const.IndexSize) {
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize).Create<TKey,TValue>(new BlittableStrategy(),new MemoryPackSerializerStrategy());
+        long indexSize = global::Seamless.Tsavorite.Const.IndexSize,
+        long pageSize = global::Seamless.Tsavorite.Const.PageSize,
+        long segmentSize = global::Seamless.Tsavorite.Const.SegmentSize) {
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize,PageSize: pageSize,SegmentSize: segmentSize).Create<TKey,TValue>(new BlittableStrategy(),new MemoryPackSerializerStrategy());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -128,8 +134,10 @@ public readonly struct UnmanagedValueDictionaryStrategy<TKeyProvider, TValueProv
     public static StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = global::Seamless.Tsavorite.Const.LogMemorySize,
         double mutableFraction = 1.0,
-        long indexSize = global::Seamless.Tsavorite.Const.IndexSize) {
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize).Create<TKey,TValue>(new MemoryPackSerializerStrategy(),new BlittableStrategy());
+        long indexSize = global::Seamless.Tsavorite.Const.IndexSize,
+        long pageSize = global::Seamless.Tsavorite.Const.PageSize,
+        long segmentSize = global::Seamless.Tsavorite.Const.SegmentSize) {
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize,PageSize: pageSize,SegmentSize: segmentSize).Create<TKey,TValue>(new MemoryPackSerializerStrategy(),new BlittableStrategy());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -157,9 +165,11 @@ public readonly struct UnmanagedStoreDictionaryStrategy<TKeyProvider, TValueProv
     public static StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = global::Seamless.Tsavorite.Const.LogMemorySize,
         double mutableFraction = 1.0,
-        long indexSize = global::Seamless.Tsavorite.Const.IndexSize
+        long indexSize = global::Seamless.Tsavorite.Const.IndexSize,
+        long pageSize = global::Seamless.Tsavorite.Const.PageSize,
+        long segmentSize = global::Seamless.Tsavorite.Const.SegmentSize
     ) {
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize).Create<TKey,TValue>(new BlittableStrategy(),new BlittableStrategy());
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize,PageSize: pageSize,SegmentSize: segmentSize).Create<TKey,TValue>(new BlittableStrategy(),new BlittableStrategy());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);

@@ -6,6 +6,17 @@ namespace UI;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
 internal static class BenchmarkComparisonFormatter{
+    private static readonly string[] ArgumentColumnNames = [
+        "Count",
+        "Index",
+        "Page",
+        "Segment",
+        "Memory",
+        "Fraction",
+        "Initial",
+        "Data",
+    ];
+
     public static readonly string[] ProjectOrder =
         BenchmarkSourceTabs.All
             .SelectMany(static tab => tab.ProjectOrder)
@@ -48,9 +59,9 @@ internal static class BenchmarkComparisonFormatter{
             var typeDiscriminator = ScalableBenchmarkNameFormatter.IsScalableSourceTab(sourceTab.Tab)||duplicatedProjectMethods.Contains(row.Project+"|"+row.Method)
                 ? ScalableBenchmarkNameFormatter.ShortTypeName(row.TypeFullName)
                 : string.Empty;
-            var key = CreateComparisonKey(row.Method,typeDiscriminator);
+            var key = CreateComparisonKey(row.Method,typeDiscriminator,row.ArgumentKey);
             if(!rowsByMethod.TryGetValue(key,out var bucket)){
-                bucket = new BenchmarkComparisonBucket(row.Method,typeDiscriminator,row.TypeFullName);
+                bucket = new BenchmarkComparisonBucket(row.Method,typeDiscriminator,row.TypeFullName,row.ArgumentKey,row.Arguments);
                 rowsByMethod.Add(key,bucket);
             }
 
@@ -60,12 +71,15 @@ internal static class BenchmarkComparisonFormatter{
         return rowsByMethod
             .OrderBy(static item => item.Value.Method,StringComparer.OrdinalIgnoreCase)
             .ThenBy(static item => item.Value.TypeFullName,StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static item => item.Value.ArgumentKey,StringComparer.OrdinalIgnoreCase)
             .Select(item => CreateRow(
                 CreateBenchmarkName(item.Value,sourceTab,elementCount),
                 item.Value.Method,
                 item.Value.TypeFullName,
                 item.Value.MetricsByProject,
-                sourceTab))
+                sourceTab,
+                item.Value.ArgumentKey,
+                item.Value.Arguments))
             .ToArray();
     }
 
@@ -78,11 +92,18 @@ internal static class BenchmarkComparisonFormatter{
     }
 
     public static string WriteCsv(IReadOnlyList<BenchmarkComparisonRow> rows,BenchmarkSourceTabDefinition sourceTab){
-        var header = CreateCsvHeader(sourceTab);
+        var header = CreateCsvHeaderWithArguments(sourceTab);
         var writer = new StringBuilder();
         writer.AppendLine(string.Join(",",header));
-        foreach(var row in rows.OrderBy(static row => row.Benchmark,StringComparer.OrdinalIgnoreCase)){
+        foreach(var row in rows
+            .OrderBy(static row => row.Benchmark,StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static row => row.ArgumentKey,StringComparer.OrdinalIgnoreCase)){
             writer.AppendCsv(row.Benchmark);
+            foreach(var column in ArgumentColumnNames){
+                writer.Append(',');
+                writer.AppendCsv(BenchmarkArgumentFormatting.GetValue(row.Arguments,column));
+            }
+
             foreach(var project in sourceTab.ProjectOrder){
                 var metrics = row.GetProject(project);
                 writer.Append(',');
@@ -124,6 +145,7 @@ internal static class BenchmarkComparisonFormatter{
         }
 
         var sourceTab = ParseSourceTabFromHeader(header);
+        var metricsStartIndex = HasArgumentColumns(header) ? 1+ArgumentColumnNames.Length : 1;
         var result = new List<BenchmarkComparisonRow>();
         while(!parser.EndOfData){
             var fields = parser.ReadFields()??[];
@@ -136,9 +158,11 @@ internal static class BenchmarkComparisonFormatter{
                 throw new InvalidDataException("Benchmark name is required.");
             }
 
+            var arguments = ReadArgumentColumns(header,fields);
+            var argumentKey = BenchmarkArgumentFormatting.CreateKey(arguments);
             var metrics = new Dictionary<string,ProjectMetrics>(StringComparer.OrdinalIgnoreCase);
             for(var projectIndex=0;projectIndex<sourceTab.ProjectOrder.Count;projectIndex++){
-                var timeIndex = 1+(projectIndex*2);
+                var timeIndex = metricsStartIndex+(projectIndex*2);
                 var allocatedIndex = timeIndex+1;
                 var timeText = GetCell(fields,timeIndex);
                 var allocatedText = GetCell(fields,allocatedIndex);
@@ -154,7 +178,7 @@ internal static class BenchmarkComparisonFormatter{
                 }
             }
 
-            result.Add(CreateRow(method,method,string.Empty,metrics,sourceTab));
+            result.Add(CreateRow(method,method,string.Empty,metrics,sourceTab,argumentKey,arguments));
         }
 
         return result;
@@ -204,7 +228,9 @@ internal static class BenchmarkComparisonFormatter{
         string method,
         string typeFullName,
         IReadOnlyDictionary<string,ProjectMetrics> metrics,
-        BenchmarkSourceTabDefinition sourceTab){
+        BenchmarkSourceTabDefinition sourceTab,
+        string argumentKey = "",
+        IReadOnlyList<BenchmarkArgument>? arguments = null){
         var left = metrics.GetValueOrDefault(sourceTab.LeftProject);
         var right = metrics.GetValueOrDefault(sourceTab.RightProject);
         var row = new BenchmarkComparisonRow(
@@ -215,6 +241,8 @@ internal static class BenchmarkComparisonFormatter{
         return row with{
             MethodName = method,
             TypeFullName = typeFullName,
+            ArgumentKey = argumentKey,
+            Arguments = arguments??[],
             PairRatio = CreatePairComparison(row,new ComparisonPairDefinition(
                 sourceTab.Id,
                 sourceTab.DisplayName,
@@ -229,22 +257,31 @@ internal static class BenchmarkComparisonFormatter{
         BenchmarkSourceTabDefinition sourceTab,
         int elementCount) =>
         ScalableBenchmarkNameFormatter.IsScalableSourceTab(sourceTab.Tab)
-            ? ScalableBenchmarkNameFormatter.CreateBenchmarkName(sourceTab,bucket.SourceTypeFullName,bucket.Method,elementCount)
+            ? ScalableBenchmarkNameFormatter.CreateBenchmarkName(bucket.SourceTypeFullName,bucket.Method)
             : bucket.Method;
 
-    private static string CreateComparisonKey(string method,string typeFullName) =>
-        method+"|"+typeFullName;
+    private static string CreateComparisonKey(string method,string typeFullName,string argumentKey) =>
+        method+"|"+typeFullName+"|"+argumentKey;
 
     private sealed class BenchmarkComparisonBucket{
-        public BenchmarkComparisonBucket(string method,string typeFullName,string sourceTypeFullName){
+        public BenchmarkComparisonBucket(
+            string method,
+            string typeFullName,
+            string sourceTypeFullName,
+            string argumentKey,
+            IReadOnlyList<BenchmarkArgument> arguments){
             this.Method=method;
             this.TypeFullName=typeFullName;
             this.SourceTypeFullName=sourceTypeFullName;
+            this.ArgumentKey=argumentKey;
+            this.Arguments=arguments;
         }
 
         public string Method { get; }
         public string TypeFullName { get; }
         public string SourceTypeFullName { get; }
+        public string ArgumentKey { get; }
+        public IReadOnlyList<BenchmarkArgument> Arguments { get; }
         public Dictionary<string,ProjectMetrics> MetricsByProject { get; } = new(StringComparer.OrdinalIgnoreCase);
     }
 
@@ -279,6 +316,10 @@ internal static class BenchmarkComparisonFormatter{
     ];
 
     private static BenchmarkSourceTabDefinition ParseSourceTabFromHeader(string[] header){
+        if(HasArgumentColumns(header)){
+            return ParseSourceTabFromArgumentHeader(header);
+        }
+
         if(header.Length!=5){
             throw new InvalidDataException("Only the source-tab two-project CSV format is supported.");
         }
@@ -300,6 +341,51 @@ internal static class BenchmarkComparisonFormatter{
         }
 
         return sourceTab;
+    }
+
+    private static string[] CreateCsvHeaderWithArguments(BenchmarkSourceTabDefinition sourceTab){
+        var baseHeader = CreateCsvHeader(sourceTab);
+        return [baseHeader[0],..ArgumentColumnNames,..baseHeader.Skip(1)];
+    }
+
+    private static BenchmarkSourceTabDefinition ParseSourceTabFromArgumentHeader(string[] header){
+        if(header.Length!=1+ArgumentColumnNames.Length+4){
+            throw new InvalidDataException("Only the source-tab two-project CSV format is supported.");
+        }
+
+        var compactHeader = new[] {
+            header[0],
+            header[1+ArgumentColumnNames.Length],
+            header[2+ArgumentColumnNames.Length],
+            header[3+ArgumentColumnNames.Length],
+            header[4+ArgumentColumnNames.Length],
+        };
+        var sourceTab = ParseSourceTabFromHeader(compactHeader);
+        var expected = CreateCsvHeaderWithArguments(sourceTab);
+        for(var i=0;i<expected.Length;i++){
+            if(!string.Equals(header[i],expected[i],StringComparison.Ordinal)){
+                throw new InvalidDataException("CSV header does not match the source-tab format.");
+            }
+        }
+
+        return sourceTab;
+    }
+
+    private static bool HasArgumentColumns(string[] header) =>
+        header.Length>=1+ArgumentColumnNames.Length
+        &&ArgumentColumnNames
+            .Select((name,index) => string.Equals(header[index+1],name,StringComparison.Ordinal))
+            .All(static item => item);
+
+    private static IReadOnlyList<BenchmarkArgument> ReadArgumentColumns(string[] header,string[] fields){
+        if(!HasArgumentColumns(header)){
+            return [];
+        }
+
+        return ArgumentColumnNames
+            .Select((name,index) => new BenchmarkArgument(name,GetCell(fields,index+1)))
+            .Where(static argument => !string.IsNullOrWhiteSpace(argument.Value))
+            .ToArray();
     }
 
     private static string ExtractProjectName(string value,string suffix) =>
@@ -381,6 +467,8 @@ public readonly record struct BenchmarkComparisonRow(
     ProjectMetrics Right){
     public string MethodName { get; init; } = Benchmark;
     public string TypeFullName { get; init; } = string.Empty;
+    public string ArgumentKey { get; init; } = string.Empty;
+    public IReadOnlyList<BenchmarkArgument> Arguments { get; init; } = [];
     public PairComparison PairRatio { get; init; }
 
     public ProjectMetrics GetProject(string project){

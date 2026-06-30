@@ -14,6 +14,8 @@ public sealed class MainPage:ContentPage {
     private const double BenchmarkAggregateCheckBoxSize = 32;
     private const double BenchmarkCellCheckBoxWidth = 34;
     private const double BenchmarkCellCheckBoxHeight = 28;
+    private const double BenchmarkNameColumnWidth = 420;
+    private const double BenchmarkArgumentColumnWidth = 72;
     private const double BenchmarkProjectStatusColumnWidth = 248;
     private const double BenchmarkProjectMetricColumnWidth = 78;
     private const double BenchmarkPairStopNColumnWidth = 72;
@@ -1444,6 +1446,7 @@ public sealed class MainPage:ContentPage {
             RowHeight=BenchmarkGridRowHeight,
             HeaderRowHeight=BenchmarkGridHeaderRowHeight,
             AllowTriStateSorting=false,
+            AllowResizingColumns=true,
             SortingMode=DataGridSortingMode.None,
             SelectionMode=DataGridSelectionMode.None,
             HorizontalScrollBarVisibility=ScrollBarVisibility.Always,
@@ -1457,6 +1460,7 @@ public sealed class MainPage:ContentPage {
                 args.Height=BenchmarkGridHeaderRowHeight;
             }
         };
+        grid.CellDoubleTapped+=this.OnBenchmarkGridCellDoubleTapped;
         grid.SetBinding(SfDataGrid.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.BenchmarkRows));
         this.ConfigureDataGridLines(grid);
         this.ConfigureDataGridScrollBars(grid);
@@ -1467,8 +1471,9 @@ public sealed class MainPage:ContentPage {
         grid.StackedHeaderRows.Add(projectHeaderRow);
 
         grid.Columns.Add(this.CreateCheckColumn());
-        grid.Columns.Add(this.CreateTextColumn("ベンチマーク",nameof(BenchmarkTableRow.BenchmarkName),BenchmarkGridSortColumn.BenchmarkName,240,TextAlignment.Start));
-        this.AddBenchmarkBaseStackedHeaders(categoryHeaderRow,projectHeaderRow);
+        grid.Columns.Add(this.CreateTextColumn("ベンチマーク",nameof(BenchmarkTableRow.BenchmarkName),BenchmarkGridSortColumn.BenchmarkName,BenchmarkNameColumnWidth,TextAlignment.End));
+        var argumentMappings = this.AddArgumentColumns(grid);
+        this.AddBenchmarkBaseStackedHeaders(categoryHeaderRow,projectHeaderRow,argumentMappings);
         var leftMappings = this.AddProjectColumns(grid,"Left",nameof(BenchmarkTableRow.LeftCell),BenchmarkGridSortColumn.LeftTime,BenchmarkGridSortColumn.LeftAllocated);
         var stopMapping = this.AddPairStopNColumn(
             grid,
@@ -1482,7 +1487,7 @@ public sealed class MainPage:ContentPage {
         grid.Columns.Add(this.CreateTextColumn("時間比",timeRatioMapping,BenchmarkGridSortColumn.PairRatioTime,BenchmarkPairStopNColumnWidth,TextAlignment.End));
         grid.Columns.Add(this.CreateTextColumn("メモリ比",allocatedRatioMapping,BenchmarkGridSortColumn.PairRatioAllocated,BenchmarkPairStopNColumnWidth,TextAlignment.End));
         var rightMappings = this.AddProjectColumns(grid,"Right",nameof(BenchmarkTableRow.RightCell),BenchmarkGridSortColumn.RightTime,BenchmarkGridSortColumn.RightAllocated);
-        IReadOnlyList<string>[] mappings = [leftMappings,[stopMapping,timeRatioMapping,allocatedRatioMapping],rightMappings];
+        IReadOnlyList<string>[] mappings = [argumentMappings,leftMappings,[stopMapping,timeRatioMapping,allocatedRatioMapping],rightMappings];
         this.AddBenchmarkSelectionGroup(categoryHeaderRow,this.GetBenchmarkSelectionGroup("Active"),mappings);
         this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup("Left","Left"),leftMappings);
         this.AddBenchmarkStopNHeader(projectHeaderRow,stopMapping);
@@ -1491,6 +1496,69 @@ public sealed class MainPage:ContentPage {
         this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup("Right","Right"),rightMappings);
         return grid;
     }
+
+    private void OnBenchmarkGridCellDoubleTapped(object? sender,DataGridCellDoubleTappedEventArgs args) {
+        if(sender is not SfDataGrid grid||args.Column is null||args.RowData is not null) {
+            return;
+        }
+
+        var calculatedWidth = this.CalculateBenchmarkColumnAutoWidth(args.Column)+8;
+        var minimumWidth = args.Column.MinimumWidth;
+        var maximumWidth = args.Column.MaximumWidth;
+        var width = Math.Max(calculatedWidth,double.IsNaN(minimumWidth) ? 0 : minimumWidth);
+        if(!double.IsNaN(maximumWidth)&&maximumWidth>0) {
+            width=Math.Min(width,maximumWidth);
+        }
+
+        args.Column.Width=width;
+    }
+
+    private double CalculateBenchmarkColumnAutoWidth(DataGridColumn column) {
+        var headerWidth = MeasureBenchmarkColumnText(column.HeaderText);
+        var rows = this.viewModel?.BenchmarkRows?? [];
+        var contentWidth = rows
+            .Select(row => MeasureBenchmarkColumnText(GetBenchmarkColumnText(row,column.MappingName)))
+            .DefaultIfEmpty(0)
+            .Max();
+        return Math.Clamp(Math.Max(headerWidth,contentWidth)+14,48,900);
+    }
+
+    private static double MeasureBenchmarkColumnText(string? text) {
+        if(string.IsNullOrWhiteSpace(text)) {
+            return 0;
+        }
+
+        var label = new Label {
+            Text=text,
+            FontSize=10,
+            LineBreakMode=LineBreakMode.NoWrap,
+            Padding=new Thickness(2,0),
+        };
+        return label.Measure(double.PositiveInfinity,BenchmarkGridRowHeight).Width;
+    }
+
+    private static string GetBenchmarkColumnText(BenchmarkTableRow row,string mappingName) =>
+        mappingName switch {
+            nameof(BenchmarkTableRow.BenchmarkName) => row.BenchmarkName,
+            nameof(BenchmarkTableRow.CountArgument) => row.CountArgument,
+            nameof(BenchmarkTableRow.IndexArgument) => row.IndexArgument,
+            nameof(BenchmarkTableRow.PageArgument) => row.PageArgument,
+            nameof(BenchmarkTableRow.SegmentArgument) => row.SegmentArgument,
+            nameof(BenchmarkTableRow.MemoryArgument) => row.MemoryArgument,
+            nameof(BenchmarkTableRow.FractionArgument) => row.FractionArgument,
+            nameof(BenchmarkTableRow.InitialArgument) => row.InitialArgument,
+            nameof(BenchmarkTableRow.DataArgument) => row.DataArgument,
+            nameof(BenchmarkTableRow.StopNText) or "StopN" => row.StopNText,
+            nameof(BenchmarkTableRow.PairRatioTimeText) => row.PairRatioTimeText,
+            nameof(BenchmarkTableRow.PairRatioAllocatedText) => row.PairRatioAllocatedText,
+            nameof(BenchmarkTableRow.LeftTimeText) or "LeftCellTime" => row.LeftTimeText,
+            nameof(BenchmarkTableRow.LeftAllocatedText) or "LeftCellAllocated" => row.LeftAllocatedText,
+            nameof(BenchmarkTableRow.RightTimeText) or "RightCellTime" => row.RightTimeText,
+            nameof(BenchmarkTableRow.RightAllocatedText) or "RightCellAllocated" => row.RightAllocatedText,
+            "LeftCellCheck" => row.LeftCell.ExecutionText,
+            "RightCellCheck" => row.RightCell.ExecutionText,
+            _ => string.Empty,
+        };
 
     private DataGridTemplateColumn CreateCheckColumn() {
         return new DataGridTemplateColumn {
@@ -1546,7 +1614,10 @@ public sealed class MainPage:ContentPage {
         };
     }
 
-    private void AddBenchmarkBaseStackedHeaders(DataGridStackedHeaderRow categoryHeaderRow,DataGridStackedHeaderRow projectHeaderRow) {
+    private void AddBenchmarkBaseStackedHeaders(
+        DataGridStackedHeaderRow categoryHeaderRow,
+        DataGridStackedHeaderRow projectHeaderRow,
+        IReadOnlyList<string> argumentMappings) {
         categoryHeaderRow.Columns.Add(new DataGridStackedColumn {
             MappingName="AllBenchmarkSelection",
             ColumnMappingNames=nameof(BenchmarkTableRow.IsSelectionChecked),
@@ -1567,6 +1638,28 @@ public sealed class MainPage:ContentPage {
             ColumnMappingNames=nameof(BenchmarkTableRow.BenchmarkName),
             Text=string.Empty,
         });
+        projectHeaderRow.Columns.Add(new DataGridStackedColumn {
+            MappingName="BenchmarkArgumentsProjectSpacer",
+            ColumnMappingNames=string.Join(",",argumentMappings),
+            Text=string.Empty,
+        });
+    }
+
+    private IReadOnlyList<string> AddArgumentColumns(SfDataGrid grid) {
+        var columns = new[] {
+            ("Count",nameof(BenchmarkTableRow.CountArgument),BenchmarkGridSortColumn.ArgumentCount),
+            ("Index",nameof(BenchmarkTableRow.IndexArgument),BenchmarkGridSortColumn.ArgumentIndex),
+            ("Page",nameof(BenchmarkTableRow.PageArgument),BenchmarkGridSortColumn.ArgumentPage),
+            ("Segment",nameof(BenchmarkTableRow.SegmentArgument),BenchmarkGridSortColumn.ArgumentSegment),
+            ("Memory",nameof(BenchmarkTableRow.MemoryArgument),BenchmarkGridSortColumn.ArgumentMemory),
+            ("Fraction",nameof(BenchmarkTableRow.FractionArgument),BenchmarkGridSortColumn.ArgumentFraction),
+            ("Initial",nameof(BenchmarkTableRow.InitialArgument),BenchmarkGridSortColumn.ArgumentInitial),
+            ("Data",nameof(BenchmarkTableRow.DataArgument),BenchmarkGridSortColumn.ArgumentData),
+        };
+        foreach(var column in columns){
+            grid.Columns.Add(this.CreateTextColumn(column.Item1,column.Item2,column.Item3,BenchmarkArgumentColumnWidth,TextAlignment.End));
+        }
+        return columns.Select(static column => column.Item2).ToArray();
     }
 
     private IReadOnlyList<string> AddProjectColumns(

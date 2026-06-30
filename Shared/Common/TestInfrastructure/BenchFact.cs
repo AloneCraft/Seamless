@@ -7,16 +7,30 @@ namespace Common;
 public sealed class BenchFactAttribute : FactAttribute;
 
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+public sealed class BenchTheoryAttribute : TheoryAttribute;
+
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
+public sealed class BenchArgumentsAttribute(params object?[] data) : InlineDataAttribute(data);
+
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 public sealed class TestPriorityAttribute(int priority) : Attribute
 {
     public int Priority { get; } = priority;
 }
 
 #else
+using BenchmarkDotNet.Attributes;
+
 namespace Common;
 
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 public sealed class BenchFactAttribute : Attribute;
+
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+public sealed class BenchTheoryAttribute : Attribute;
+
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
+public sealed class BenchArgumentsAttribute(params object?[] data) : ArgumentsAttribute(data);
 
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 public sealed class FactAttribute : Attribute;
