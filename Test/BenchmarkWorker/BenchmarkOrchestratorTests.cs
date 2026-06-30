@@ -887,6 +887,48 @@ public sealed class BenchmarkOrchestratorTests{
     }
 
     [Fact]
+    public async Task Orchestrator_AdaptiveMode_ScalableTabsIgnoreThresholdStop(){
+        var root = CreateTempRoot();
+        var runner = new FakeRunner((job,_) => {
+            var mean = 2_000_000d;
+            return new BenchmarkJobRunResult(
+                job.Project,
+                job.MethodName,
+                job.TypeFullName,
+                job.ElementCount,
+                "Completed",
+                mean+" ns",
+                string.Empty,
+                string.Empty,
+                mean,
+                0,
+                0,
+                0,
+                0,
+                job.ArtifactFolder,
+                string.Empty);
+        });
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("Scalable.Persisted.Set","Add"),Case("Scalable.Tsavorite.Set","Add")],
+                [0],
+                [1024,2048,4096],
+                BenchmarkRunMode.Adaptive,
+                TimeSpan.FromMilliseconds(1),
+                TimeSpan.FromSeconds(30),
+                SourceTab: BenchmarkSourceTab.ScalableSet),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        var state = LoadOnlyState(root);
+        Assert.Equal([1024,2048,4096],state.Jobs.Select(static job => job.ElementCount).Distinct().Order().ToArray());
+        Assert.All(state.Jobs,static job => Assert.Equal(JobStatus.Completed,job.Status));
+    }
+
+    [Fact]
     public async Task Orchestrator_RunAsync_TreatsCompletedWithoutStatisticsAsFailed(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => new BenchmarkJobRunResult(

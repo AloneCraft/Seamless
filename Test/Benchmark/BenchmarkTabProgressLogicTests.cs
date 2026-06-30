@@ -21,7 +21,7 @@ public sealed class BenchmarkTabProgressLogicTests{
         Assert.Equal(1,progress.Completed);
         Assert.Equal(2,progress.Total);
         Assert.Equal("1/2",progress.FractionText);
-        Assert.Equal("[####----]",progress.GaugeText);
+        Assert.Equal(0.5,progress.Fraction);
     }
 
     [Fact]

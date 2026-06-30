@@ -25,9 +25,13 @@ public sealed class MainPage:ContentPage {
     private const double CpuLogicalCheckColumnWidth = 38;
     private const double CpuLogicalNumberWidth = 26;
     private const double LowerTabBarHeight = 34;
+    private const double SourceTabProgressHeight = 3;
+    private const double OverallSourceProgressHeight = 4;
     private const double CpuSectionHeaderHeight = 34;
     private const double BenchmarkGridRowHeight = 24;
     private const double BenchmarkGridHeaderRowHeight = 30;
+    private const double BenchmarkGridStackedHeaderRowCount = 2;
+    private const double BenchmarkGridExtraHeight = 2;
     private const double BenchmarkGridCellFontSize = 10;
     private const double BenchmarkGridDetailFontSize = 9;
     private const double CpuGridRowHeight = 24;
@@ -505,7 +509,7 @@ public sealed class MainPage:ContentPage {
         runPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedRunOption));
 
         var grid = new Grid {
-            Padding=new Thickness(10,8,10,6),
+            Padding=new Thickness(8,4,8,3),
             RowDefinitions= {
                 new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Auto },
@@ -547,7 +551,7 @@ public sealed class MainPage:ContentPage {
     private View CreateStatusIconPreview() {
         var layout = new HorizontalStackLayout {
             Spacing=10,
-            Padding=new Thickness(0,6,0,0),
+            Padding=new Thickness(0,2,0,0),
             VerticalOptions=LayoutOptions.Center,
         };
         foreach(var item in new[] {
@@ -836,8 +840,10 @@ public sealed class MainPage:ContentPage {
         };
         var tabItems = new TabItemCollection();
         foreach(var option in this.viewModel?.SourceTabs?? []) {
+            var header = this.CreateSourceTabHeader(option);
             var tabItem = new SfTabItem {
                 Header=option.HeaderText,
+                HeaderContent=header,
                 FontSize=12,
                 Content=new Grid(),
             };
@@ -879,21 +885,149 @@ public sealed class MainPage:ContentPage {
             };
         }
         var content = this.CreateBenchmarkTabContent();
+        var overallProgress = this.CreateOverallSourceProgressView();
         var grid = new Grid {
             RowDefinitions= {
                 new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Star },
             },
-            RowSpacing=3,
+            RowSpacing=1,
             BackgroundColor=Colors.White,
-            Padding=new Thickness(6,4),
+            Padding=new Thickness(4,1,4,2),
             Children= {
+                overallProgress,
                 tabView,
                 content,
             },
         };
-        Grid.SetRow(content,1);
+        Grid.SetRow(tabView,1);
+        Grid.SetRow(content,2);
         return grid;
+    }
+
+    private View CreateOverallSourceProgressView() {
+        var fill = new BoxView {
+            Color=Color.FromArgb("#0F766E"),
+            HeightRequest=OverallSourceProgressHeight,
+            HorizontalOptions=LayoutOptions.Start,
+            VerticalOptions=LayoutOptions.Center,
+        };
+        var track = new Grid {
+            HeightRequest=OverallSourceProgressHeight,
+            BackgroundColor=Color.FromArgb("#E2E8F0"),
+            HorizontalOptions=LayoutOptions.Fill,
+            VerticalOptions=LayoutOptions.Center,
+            Children= {
+                fill,
+            },
+        };
+        var text = new Label {
+            FontSize=12,
+            TextColor=Color.FromArgb("#334155"),
+            VerticalTextAlignment=TextAlignment.Center,
+            HorizontalTextAlignment=TextAlignment.End,
+            LineBreakMode=LineBreakMode.NoWrap,
+            WidthRequest=64,
+        };
+        var layout = new Grid {
+            ColumnDefinitions= {
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = GridLength.Auto },
+            },
+            ColumnSpacing=8,
+            HeightRequest=18,
+            Children= {
+                track,
+                text,
+            },
+        };
+        Grid.SetColumn(text,1);
+        void Apply() {
+            if(this.viewModel is null) {
+                fill.WidthRequest=0;
+                text.Text="0/0";
+                return;
+            }
+
+            var progress = this.viewModel.OverallSourceTabProgress;
+            fill.WidthRequest=CalculateProgressWidth(track.Width,progress);
+            text.Text=progress.Total<=0 ? "0/0" : progress.FractionText;
+            text.TextColor=progress.Total<=0 ? Color.FromArgb("#94A3B8") : Color.FromArgb("#334155");
+        }
+        layout.Loaded+=(_,_) => Apply();
+        track.SizeChanged+=(_,_) => Apply();
+        if(this.viewModel is not null) {
+            this.viewModel.PropertyChanged+=(_,args) => {
+                if(args.PropertyName==nameof(BenchmarkRunnerViewModel.OverallSourceTabProgress)) {
+                    MainThread.BeginInvokeOnMainThread(Apply);
+                }
+            };
+        }
+        Apply();
+        return layout;
+    }
+
+    private View CreateSourceTabHeader(SourceTabOption option) {
+        var fill = new BoxView {
+            Color=Color.FromArgb("#0F766E"),
+            HeightRequest=SourceTabProgressHeight,
+            HorizontalOptions=LayoutOptions.Start,
+            VerticalOptions=LayoutOptions.Start,
+        };
+        var track = new Grid {
+            HeightRequest=SourceTabProgressHeight,
+            BackgroundColor=Color.FromArgb("#D1FAE5"),
+            HorizontalOptions=LayoutOptions.Fill,
+            VerticalOptions=LayoutOptions.Start,
+            Children= {
+                fill,
+            },
+        };
+        var label = new Label {
+            Text=option.HeaderText,
+            FontSize=12,
+            TextColor=Color.FromArgb("#334155"),
+            HorizontalTextAlignment=TextAlignment.Center,
+            VerticalTextAlignment=TextAlignment.Center,
+            LineBreakMode=LineBreakMode.TailTruncation,
+            Margin=new Thickness(6,2,6,0),
+        };
+        var layout = new Grid {
+            RowDefinitions= {
+                new RowDefinition { Height = new GridLength(SourceTabProgressHeight) },
+                new RowDefinition { Height = GridLength.Star },
+            },
+            BackgroundColor=Colors.Transparent,
+            Children= {
+                track,
+                label,
+            },
+        };
+        Grid.SetRow(label,1);
+        void Apply() {
+            label.Text=option.HeaderText;
+            fill.WidthRequest=CalculateProgressWidth(track.Width,option.Progress);
+            fill.IsVisible=option.Progress.Total>0;
+        }
+        layout.Loaded+=(_,_) => Apply();
+        track.SizeChanged+=(_,_) => Apply();
+        option.PropertyChanged+=(_,args) => {
+            if(args.PropertyName==nameof(SourceTabOption.HeaderText)
+                ||args.PropertyName==nameof(SourceTabOption.Progress)) {
+                MainThread.BeginInvokeOnMainThread(Apply);
+            }
+        };
+        Apply();
+        return layout;
+    }
+
+    private static double CalculateProgressWidth(double trackWidth,BenchmarkTabProgress progress) {
+        if(trackWidth<=0||progress.Total<=0) {
+            return 0;
+        }
+
+        return Math.Round(trackWidth*progress.Fraction,MidpointRounding.AwayFromZero);
     }
 
     private void SyncSourceTabViewSelection() {
@@ -982,7 +1116,7 @@ public sealed class MainPage:ContentPage {
         var grid = new Grid {
             RowDefinitions= {
                 new RowDefinition { Height = GridLength.Auto },
-                new RowDefinition { Height = GridLength.Star },
+                new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Auto },
             },
             ColumnDefinitions= {
@@ -1005,8 +1139,18 @@ public sealed class MainPage:ContentPage {
         grid.SetColumnSpan(summary,2);
         var benchmarkGrid = this.CreateBenchmarkGrid();
         benchmarkGrid.VerticalOptions=LayoutOptions.Fill;
-        grid.Add(benchmarkGrid,0,1);
-        grid.Add(this.CreateBenchmarkChartPanel(),1,1);
+        var benchmarkDisplayHost = new Grid {
+            ColumnDefinitions= {
+                new ColumnDefinition { Width = new GridLength(5,GridUnitType.Star) },
+                new ColumnDefinition { Width = new GridLength(5,GridUnitType.Star) },
+            },
+            ColumnSpacing=6,
+            VerticalOptions=LayoutOptions.Start,
+        };
+        benchmarkDisplayHost.Add(benchmarkGrid,0,0);
+        benchmarkDisplayHost.Add(this.CreateBenchmarkChartPanel(),1,0);
+        grid.Add(benchmarkDisplayHost,0,1);
+        grid.SetColumnSpan(benchmarkDisplayHost,2);
         var lowerTabView = new SfTabView {
             TabBarHeight=LowerTabBarHeight,
             TabBarBackground=Color.FromArgb("#E2E8F0"),
@@ -1066,14 +1210,58 @@ public sealed class MainPage:ContentPage {
         };
         grid.Add(lowerTabFrame,0,2);
         grid.SetColumnSpan(lowerTabFrame,2);
+        void ApplyBenchmarkDisplayHeight() {
+            var availableHeight = grid.Height
+                -summary.Height
+                -lowerTabFrame.Height
+                -(grid.RowSpacing*2);
+            if(availableHeight<=0) {
+                return;
+            }
+
+            var contentHeight = this.CalculateBenchmarkGridContentHeight();
+            var height = Math.Min(contentHeight,availableHeight);
+            if(height<=0) {
+                return;
+            }
+
+            if(Math.Abs(benchmarkDisplayHost.HeightRequest-height)>0.1) {
+                benchmarkDisplayHost.HeightRequest=height;
+            }
+        }
+
+        void ApplyBenchmarkDisplayHeightLater() {
+            MainThread.BeginInvokeOnMainThread(ApplyBenchmarkDisplayHeight);
+        }
+
+        ApplyBenchmarkDisplayHeightLater();
+        grid.SizeChanged+=(_,_) => ApplyBenchmarkDisplayHeightLater();
+        summary.SizeChanged+=(_,_) => ApplyBenchmarkDisplayHeightLater();
+        lowerTabFrame.SizeChanged+=(_,_) => ApplyBenchmarkDisplayHeightLater();
+        if(this.viewModel is not null) {
+            NotifyCollectionChangedEventHandler handler = (_,_) => ApplyBenchmarkDisplayHeightLater();
+            this.viewModel.BenchmarkRows.CollectionChanged+=handler;
+            benchmarkDisplayHost.Unloaded+=(_,_) => this.viewModel.BenchmarkRows.CollectionChanged-=handler;
+        }
+
         if(this.viewModel is not null) {
             this.viewModel.PropertyChanged+=(_,args) => {
                 if(args.PropertyName==nameof(BenchmarkRunnerViewModel.SelectedLowerTab)) {
                     MainThread.BeginInvokeOnMainThread(() => lowerTabView.SelectedIndex=(int)this.viewModel.SelectedLowerTab);
+                    ApplyBenchmarkDisplayHeightLater();
                 }
             };
         }
         return grid;
+    }
+
+    private double CalculateBenchmarkGridContentHeight() {
+        var rowCount = this.viewModel?.BenchmarkRows.Count??0;
+        return (BenchmarkGridStackedHeaderRowCount*BenchmarkGridHeaderRowHeight)
+            +BenchmarkGridHeaderRowHeight
+            +(rowCount*BenchmarkGridRowHeight)
+            +BenchmarkScrollBarSize
+            +BenchmarkGridExtraHeight;
     }
 
     private double CalculateCpuTabContentHeight() {
@@ -2775,7 +2963,7 @@ public sealed class MainPage:ContentPage {
             ShowDataLabels=false,
             EnableTooltip=true,
             Spacing=0,
-            Width=0.88,
+            Width=0.58,
             Fill=new SolidColorBrush(Color.FromArgb("#2563EB")),
             DataLabelSettings=new CartesianDataLabelSettings {
                 BarAlignment=DataLabelAlignment.Middle,
@@ -2791,7 +2979,7 @@ public sealed class MainPage:ContentPage {
             ShowDataLabels=false,
             EnableTooltip=true,
             Spacing=0,
-            Width=0.88,
+            Width=0.58,
             Fill=new SolidColorBrush(Color.FromArgb("#F97316")),
             DataLabelSettings=new CartesianDataLabelSettings {
                 BarAlignment=DataLabelAlignment.Middle,
@@ -3112,7 +3300,7 @@ internal sealed class BenchmarkChartSelectionOverlayDrawable:IDrawable {
         var top = 42f;
         var bottomPadding = 16f;
         var rowHeight = MathF.Max(1,(size.Height-top-bottomPadding)/Math.Max(1,points.Count));
-        var barHeight = MathF.Min(28,MathF.Max(8,rowHeight*0.72f));
+        var barHeight = MathF.Min(16,MathF.Max(6,rowHeight*0.58f));
         var rows = new BenchmarkChartSelectionLayoutRow[points.Count];
         for(var index=0;index<points.Count;index++) {
             var point = points[index];

@@ -4,7 +4,7 @@ import pathlib
 
 raw = pathlib.Path("g:/GitHub/Seamless/Shared/Tsavorite.Collections/Enumerator.cs").read_bytes()
 
-with open("g:/GitHub/Seamless/debug_639.txt", "w", encoding="utf-8") as f:
+with open("g:/GitH実装しました。[####----] の文字ゲージを撤去して、共有UI側でタブ上部の段階式横線ゲージと、TabView上の全体進捗バー + 完了数/母数 を描画するようにしています。Benchmark/Shared/UI 側なので UI.exe と Scalable.UI.exe の両方に反映されます。b/Seamless/debug_639.txt", "w", encoding="utf-8") as f:
     start = max(0, 620)
     end = min(len(raw), 680)
     f.write(f"Bytes around position 639 (len={len(raw)}):\n")
