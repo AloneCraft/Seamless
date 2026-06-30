@@ -32,6 +32,7 @@
     <Project Path="Shared/Scalable.Persisted.Collections.shproj" />
     <Project Path="Shared/Scalable.Tsavorite.Collections.shproj" />
     <Project Path="Shared/Seamless.Linq.Enumerable.shproj" />
+    <Project Path="Shared/Test.Shared.shproj" />
     <Project Path="Shared/Tsavorite.Collections.shproj" />
     <Project Path="Shared/UI.Core.shproj" />
     <File Path="Shared/Collections.projitems" />

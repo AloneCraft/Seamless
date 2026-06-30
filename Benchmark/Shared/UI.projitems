@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <PropertyGroup>
+  <PropertyGroup Label="Globals">
     <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
     <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>{9A75284D-0FA1-40D3-A0D4-81DF6C571B36}</SharedGUID>
   </PropertyGroup>
   <Import Project="$(MSBuildThisFileDirectory)..\..\Shared\UI.Core.projitems" />
   <ItemGroup>

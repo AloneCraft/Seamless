@@ -53,6 +53,5 @@
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
     <ProjectReference Include="..\Seamless.Collections\Seamless.Collections.csproj" />
   </ItemGroup>
-  <Import Project="..\Shared\UI.Core.projitems" Label="Shared" />
-  <Import Project="..\Shared\DynamicLinq.projitems" Label="Shared" />
+  <Import Project="..\Shared\Test.Shared.projitems" Label="Shared" />
 </Project>

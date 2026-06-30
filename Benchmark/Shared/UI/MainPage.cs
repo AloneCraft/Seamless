@@ -1521,10 +1521,6 @@ public sealed class MainPage:ContentPage {
                 checkHost.Add(check,0,0);
                 var checkTap = new TapGestureRecognizer();
                 checkTap.Tapped+=(_,_) => {
-                    if(this.IsBenchmarkSelectionLockedForCurrentTab()) {
-                        return;
-                    }
-
                     if(layout.BindingContext is BenchmarkTableRow row) {
                         this.viewModel?.ToggleBenchmarkRow(row);
                     }
@@ -1623,10 +1619,6 @@ public sealed class MainPage:ContentPage {
                 : BenchmarkCellSelectionGesture.Replace;
     }
 
-    private bool IsBenchmarkSelectionLockedForCurrentTab() {
-        return this.viewModel?.IsBenchmarkSelectionLockedForSelectedSourceTab==true;
-    }
-
     private void AddBenchmarkSelectionGroup(DataGridStackedHeaderRow headerRow,BenchmarkColumnSelectionGroup group,IEnumerable<IReadOnlyList<string>> childMappings) {
         var mappings = childMappings.SelectMany(static item => item).ToArray();
         headerRow.Columns.Add(new DataGridStackedColumn {
@@ -1680,10 +1672,6 @@ public sealed class MainPage:ContentPage {
             var checkHost = this.CreateBenchmarkHeaderCheckHost(check);
             var checkTap = new TapGestureRecognizer();
             checkTap.Tapped+=(_,_) => {
-                if(this.IsBenchmarkSelectionLockedForCurrentTab()) {
-                    return;
-                }
-
                 this.viewModel?.ToggleAllBenchmarkSelection();
             };
             checkHost.GestureRecognizers.Add(checkTap);
@@ -1705,10 +1693,6 @@ public sealed class MainPage:ContentPage {
             var checkHost = this.CreateBenchmarkHeaderCheckHost(check);
             var checkTap = new TapGestureRecognizer();
             checkTap.Tapped+=(_,_) => {
-                if(this.IsBenchmarkSelectionLockedForCurrentTab()) {
-                    return;
-                }
-
                 this.viewModel?.ToggleBenchmarkColumnGroup(group);
             };
             checkHost.GestureRecognizers.Add(checkTap);
@@ -1882,10 +1866,6 @@ public sealed class MainPage:ContentPage {
                 checkHost.Add(check,0,0);
                 var checkTap = new TapGestureRecognizer();
                 checkTap.Tapped+=(_,_) => {
-                    if(this.IsBenchmarkSelectionLockedForCurrentTab()) {
-                        return;
-                    }
-
                     if(layout.BindingContext is BenchmarkTableRow row) {
                         this.viewModel?.ToggleBenchmarkCellCheck(row,this.GetProjectFromCellPath(cellPath));
                     }
@@ -3005,6 +2985,9 @@ public sealed class MainPage:ContentPage {
         chart.SetBinding(HeightRequestProperty,nameof(BenchmarkRunnerViewModel.ChartHeight));
         var xAxis = new CategoryAxis {
             LabelPlacement=LabelPlacement.BetweenTicks,
+            LabelStyle=new ChartAxisLabelStyle {
+                LabelAlignment=ChartAxisLabelAlignment.Start,
+            },
         };
         var yAxis = new NumericalAxis {
             Minimum=0,

@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildThisFileDirectory)Common.projitems" />
-  <PropertyGroup>
+  <PropertyGroup Label="Globals">
     <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
     <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>{0F2B7F4D-77F4-4D0D-8CDB-3F95A79A6C42}</SharedGUID>
     <DefineConstants Condition="'$(Tsavorite)' == 'true'">$(DefineConstants);TSAVORITE</DefineConstants>
     <DefineConstants Condition="'$(Persisted)' == 'true'">$(DefineConstants);PERSISTED</DefineConstants>
   </PropertyGroup>
