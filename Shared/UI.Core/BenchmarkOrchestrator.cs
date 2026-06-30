@@ -152,18 +152,23 @@ internal sealed class BenchmarkOrchestrator(
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
         var warmedUp = false;
-        foreach(var elementCount in state.ElementCounts) {
+        foreach(var elementCount in GetAdaptiveElementCounts(state,row)) {
             cancellationToken.ThrowIfCancellationRequested();
-            if(IsAdaptiveRowStopped(state,row.SourceTab,row.Cases)) {
-                break;
-            }
-
-            var existingJobs = this.GetExistingAdaptiveJobs(state,row.Cases,elementCount);
-            if(existingJobs.Count==row.Cases.Count&&existingJobs.All(static job => job.Status!=JobStatus.Pending)) {
+            var rowCases = GetAdaptiveCases(row,elementCount);
+            if(rowCases.Count==0) {
                 continue;
             }
 
-            if(!warmedUp&&ShouldRunWarmup(request.ExecutionProfile)) {
+            if(IsAdaptiveRowStopped(state,row.SourceTab,rowCases)) {
+                break;
+            }
+
+            var existingJobs = this.GetExistingAdaptiveJobs(state,rowCases,elementCount);
+            if(existingJobs.Count==rowCases.Count&&existingJobs.All(static job => job.Status!=JobStatus.Pending)) {
+                continue;
+            }
+
+            if(!warmedUp&&!IsScalableSourceTab(row.SourceTab)&&ShouldRunWarmup(request.ExecutionProfile)) {
                 warmedUp=true;
                 var warmupFailure = await this.RunWarmupRowAsync(
                     state,
@@ -184,7 +189,7 @@ internal sealed class BenchmarkOrchestrator(
                 }
             }
 
-            var jobs = this.GetOrCreateAdaptiveJobs(state,row.Cases,elementCount);
+            var jobs = this.GetOrCreateAdaptiveJobs(state,rowCases,elementCount);
             var pending = jobs
                 .Where(static job => job.Status==JobStatus.Pending)
                 .OrderBy(job => IndexOfCase(row.Cases,job))
@@ -204,6 +209,25 @@ internal sealed class BenchmarkOrchestrator(
             }
         }
     }
+
+    private static IReadOnlyList<int> GetAdaptiveElementCounts(ProgressState state,AdaptiveMethodRow row) {
+        if(!IsScalableSourceTab(row.SourceTab)) {
+            return state.ElementCounts;
+        }
+
+        var counts = row.Cases
+            .Select(static benchmark => benchmark.CountArgument)
+            .Where(static count => count>0)
+            .Distinct()
+            .Order()
+            .ToArray();
+        return counts.Length>0 ? counts : state.ElementCounts;
+    }
+
+    private static IReadOnlyList<BenchmarkCase> GetAdaptiveCases(AdaptiveMethodRow row,int elementCount) =>
+        IsScalableSourceTab(row.SourceTab)
+            ? row.Cases.Where(benchmark => benchmark.CountArgument==elementCount).ToArray()
+            : row.Cases;
 
     private async Task<WarmupFailure?> RunWarmupRowAsync(
         ProgressState state,

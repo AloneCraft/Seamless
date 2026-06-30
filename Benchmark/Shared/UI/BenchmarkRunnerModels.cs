@@ -784,14 +784,14 @@ public sealed class BenchmarkTableRow:ObservableObject{
     public IReadOnlyDictionary<string,BenchmarkCase> CasesByProject { get; }
     public BenchmarkProjectCell LeftCell { get; }
     public BenchmarkProjectCell RightCell { get; }
-    public string CountArgument => this.GetArgumentValue("Count");
-    public string IndexArgument => this.GetArgumentValue("Index");
-    public string PageArgument => this.GetArgumentValue("Page");
-    public string SegmentArgument => this.GetArgumentValue("Segment");
-    public string MemoryArgument => this.GetArgumentValue("Memory");
-    public string FractionArgument => this.GetArgumentValue("Fraction");
-    public string InitialArgument => this.GetArgumentValue("Initial");
-    public string DataArgument => this.GetArgumentValue("Data");
+    public string CountArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Count);
+    public string IndexArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Index);
+    public string PageArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Page);
+    public string SegmentArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Segment);
+    public string MemoryArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Memory);
+    public string FractionArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Fraction);
+    public string InitialArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Initial);
+    public string DataArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Data);
 
     public bool IsSelected{
         get => this.isSelected;
@@ -1125,9 +1125,9 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.BenchmarkName=ScalableBenchmarkNameFormatter.CreateBenchmarkName(typeFullName,this.MethodName);
     }
 
-    private string GetArgumentValue(string name) =>
+    private string GetArgumentValue(ScalableBenchmarkArgumentColumn column) =>
         this.CasesByProject.Values
-            .Select(item => BenchmarkArgumentFormatting.GetValue(item.Arguments,name))
+            .Select(item => ScalableBenchmarkNameFormatter.GetDisplayArgumentValue(this.SourceTab,item.Arguments,column))
             .FirstOrDefault(static value => !string.IsNullOrWhiteSpace(value))??string.Empty;
 
     private static double? ParseArgumentNumber(string text) =>

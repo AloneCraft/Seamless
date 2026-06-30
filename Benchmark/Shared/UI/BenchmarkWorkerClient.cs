@@ -66,6 +66,7 @@ public sealed class BenchmarkWorkerClient:IBenchmarkJobRunner {
             BenchmarkSourceTabs.ToPathPart(sourceTab),
             "N"+elementCount.ToString(CultureInfo.InvariantCulture),
             SanitizePathPart(benchmark.Project),
+            SanitizePathPart(benchmark.TypeFullName),
             SanitizePathPart(benchmark.MethodName),
             string.IsNullOrWhiteSpace(benchmark.ArgumentKey) ? "default" : SanitizePathPart(benchmark.ArgumentKey));
         Directory.CreateDirectory(artifactFolder);

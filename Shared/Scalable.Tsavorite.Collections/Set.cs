@@ -1,16 +1,16 @@
 namespace Scalable.Tsavorite.Collections.Set;
 
-public sealed class SetInt32
+public class SetInt32
     :TsavoriteSetScalable<MemoryPackHashSetStrategy<Int32HashSetValueProvider,int>,int>;
 
-public sealed class SetString
+public class SetString
     :TsavoriteSetScalable<MemoryPackHashSetStrategy<StringHashSetValueProvider,string>,string>;
 
-public sealed class SetUnmanagedStruct
+public class SetUnmanagedStruct
     :TsavoriteSetScalable<MemoryPackHashSetStrategy<UnmanagedStructHashSetValueProvider,UnmanagedStruct>,UnmanagedStruct>;
 
-public sealed class SetManagedStruct
+public class SetManagedStruct
     :TsavoriteSetScalable<MemoryPackHashSetStrategy<ManagedStructHashSetValueProvider,ManagedStruct>,ManagedStruct>;
 
-public sealed class SetManagedClass
+public class SetManagedClass
     :TsavoriteSetScalable<MemoryPackHashSetStrategy<ManagedClassHashSetValueProvider,ManagedClass>,ManagedClass>;

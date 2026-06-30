@@ -1,5 +1,7 @@
 #if BENCH_AS_TEST
+using System.Reflection;
 using Xunit;
+using Xunit.Sdk;
 
 namespace Common;
 
@@ -10,7 +12,13 @@ public sealed class BenchFactAttribute : FactAttribute;
 public sealed class BenchTheoryAttribute : TheoryAttribute;
 
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-public sealed class BenchArgumentsAttribute(params object?[] data) : InlineDataAttribute(data);
+public sealed class BenchArgumentsAttribute(params object?[] data) : DataAttribute
+{
+    public override IEnumerable<object?[]> GetData(MethodInfo testMethod)
+    {
+        yield return data;
+    }
+}
 
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 public sealed class TestPriorityAttribute(int priority) : Attribute
