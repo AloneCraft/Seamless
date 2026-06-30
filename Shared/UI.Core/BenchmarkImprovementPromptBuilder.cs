@@ -59,15 +59,15 @@ internal static class BenchmarkImprovementPromptBuilder{
 
             IReadOnlyList<BenchmarkComparisonRow> rows;
             try{
-                rows=BenchmarkComparisonFormatter.BuildComparisonRows(reportRows,sourceTab);
+                rows=BenchmarkComparisonFormatter.BuildComparisonRows(reportRows,sourceTab,group.Key.ElementCount);
             }catch(InvalidDataException){
                 continue;
             }
 
             foreach(var row in rows){
-                var left = group.LastOrDefault(job => string.Equals(job.MethodName,row.Benchmark,StringComparison.OrdinalIgnoreCase)
+                var left = group.LastOrDefault(job => string.Equals(job.MethodName,row.MethodName,StringComparison.OrdinalIgnoreCase)
                     &&string.Equals(job.Project,sourceTab.LeftProject,StringComparison.OrdinalIgnoreCase));
-                var right = group.LastOrDefault(job => string.Equals(job.MethodName,row.Benchmark,StringComparison.OrdinalIgnoreCase)
+                var right = group.LastOrDefault(job => string.Equals(job.MethodName,row.MethodName,StringComparison.OrdinalIgnoreCase)
                     &&string.Equals(job.Project,sourceTab.RightProject,StringComparison.OrdinalIgnoreCase));
                 if(left is null||right is null){
                     continue;

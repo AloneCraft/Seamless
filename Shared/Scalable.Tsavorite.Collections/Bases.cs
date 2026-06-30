@@ -6,10 +6,12 @@ public abstract class TsavoriteSetScalable<TStrategy,T>
     :ScalableBenchmarkBase
     where TStrategy : IHashSetTestStrategy<T>
     where T : IEquatable<T> {
+    private const long ScalableIndexSize = 131072;
+
     [BenchFact,Benchmark]
     public long Add() {
         var count = ScalableWorkload.ElementCount;
-        using var handle = TStrategy.CreateMemorySet(memorySize: CollectionLinqSourceSizing.GetMemorySize(count));
+        using var handle = TStrategy.CreateMemorySet(memorySize: CollectionLinqSourceSizing.GetMemorySize(count),indexSize: ScalableIndexSize);
         for(var i=0;i<count;i++) {
             handle.Set.Add(TStrategy.Elem(i));
         }
@@ -20,7 +22,7 @@ public abstract class TsavoriteSetScalable<TStrategy,T>
     [BenchFact,Benchmark]
     public int Contains() {
         var count = ScalableWorkload.ElementCount;
-        using var handle = TStrategy.CreateMemorySet(memorySize: CollectionLinqSourceSizing.GetMemorySize(count));
+        using var handle = TStrategy.CreateMemorySet(memorySize: CollectionLinqSourceSizing.GetMemorySize(count),indexSize: ScalableIndexSize);
         for(var i=0;i<count;i++) {
             handle.Set.Add(TStrategy.Elem(i));
         }
@@ -40,10 +42,12 @@ public abstract class TsavoriteDictionaryScalable<TStrategy,TKey,TValue>
     where TStrategy : IDictTestStrategy<TKey,TValue>
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue> {
+    private const long ScalableIndexSize = 131072;
+
     [BenchFact,Benchmark]
     public long Add() {
         var count = ScalableWorkload.ElementCount;
-        using var store = TStrategy.CreateMemoryStore(memorySize: CollectionLinqSourceSizing.GetMemorySize(count));
+        using var store = TStrategy.CreateMemoryStore(memorySize: CollectionLinqSourceSizing.GetMemorySize(count),indexSize: ScalableIndexSize);
         using var dictionary = store.NewDict();
         AddRange(dictionary,count);
         Assert.Equal(count,dictionary.Count);
@@ -53,7 +57,7 @@ public abstract class TsavoriteDictionaryScalable<TStrategy,TKey,TValue>
     [BenchFact,Benchmark]
     public int TryGetValue() {
         var count = ScalableWorkload.ElementCount;
-        using var store = TStrategy.CreateMemoryStore(memorySize: CollectionLinqSourceSizing.GetMemorySize(count));
+        using var store = TStrategy.CreateMemoryStore(memorySize: CollectionLinqSourceSizing.GetMemorySize(count),indexSize: ScalableIndexSize);
         using var dictionary = store.NewDict();
         AddRange(dictionary,count);
         var found = 0;

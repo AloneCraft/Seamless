@@ -396,94 +396,11 @@ internal static class BenchmarkRowGroupingLogic{
         BenchmarkSourceTabDefinition sourceTab,
         string methodName,
         IReadOnlyDictionary<string,BenchmarkCase> casesByProject){
-        if(!IsScalableSourceTab(sourceTab.Tab)){
-            return methodName;
-        }
-
         var typeFullName = sourceTab.ProjectOrder
             .Select(project => casesByProject.TryGetValue(project,out var benchmark) ? benchmark.TypeFullName : string.Empty)
             .FirstOrDefault(static text => !string.IsNullOrWhiteSpace(text))??string.Empty;
-        var typeText = CreateScalableTypeText(typeFullName);
-        return string.IsNullOrWhiteSpace(typeText)
-            ? methodName
-            : typeText+" "+methodName;
+        return ScalableBenchmarkNameFormatter.CreateBenchmarkName(sourceTab,typeFullName,methodName);
     }
-
-    private static bool IsScalableSourceTab(BenchmarkSourceTab sourceTab) =>
-        sourceTab is BenchmarkSourceTab.ScalableSet
-            or BenchmarkSourceTab.ScalableDictionary
-            or BenchmarkSourceTab.ScalablePersistedList;
-
-    private static string CreateScalableTypeText(string typeFullName){
-        var typeName = typeFullName.Split('.').LastOrDefault()??string.Empty;
-        if(typeName.StartsWith("Dictionary",StringComparison.Ordinal)){
-            return string.Join(",",SplitTypeTokens(typeName["Dictionary".Length..]).Select(FormatTypeToken));
-        }
-        if(typeName.StartsWith("List",StringComparison.Ordinal)){
-            return FormatTypeToken(typeName["List".Length..]);
-        }
-        if(typeName.StartsWith("Set",StringComparison.Ordinal)){
-            return FormatTypeToken(typeName["Set".Length..]);
-        }
-
-        return string.Empty;
-    }
-
-    private static IEnumerable<string> SplitTypeTokens(string text){
-        var knownTokens = new[] {
-            "UnmanagedStruct",
-            "ManagedStruct",
-            "ManagedClass",
-            "Boolean",
-            "Decimal",
-            "Double",
-            "Single",
-            "String",
-            "UInt64",
-            "UInt32",
-            "UInt16",
-            "Int64",
-            "Int32",
-            "Int16",
-            "Byte",
-            "SByte",
-            "Char",
-        };
-        for(var index=0;index<text.Length;){
-            var token = knownTokens.FirstOrDefault(candidate => text[index..].StartsWith(candidate,StringComparison.Ordinal));
-            if(token is not null){
-                yield return token;
-                index+=token.Length;
-                continue;
-            }
-
-            var next=index+1;
-            yield return text[index..next];
-            index=next;
-        }
-    }
-
-    private static string FormatTypeToken(string token) =>
-        token switch{
-            "String" => "string",
-            "Int32" => "int",
-            "Decimal" => "decimal",
-            "Boolean" => "System.Boolean",
-            "Double" => "System.Double",
-            "Single" => "System.Single",
-            "UInt64" => "System.UInt64",
-            "UInt32" => "System.UInt32",
-            "UInt16" => "System.UInt16",
-            "Int64" => "System.Int64",
-            "Int16" => "System.Int16",
-            "Byte" => "System.Byte",
-            "SByte" => "System.SByte",
-            "Char" => "System.Char",
-            "ManagedClass" => "Seamless.Collections.ManagedClass",
-            "ManagedStruct" => "Seamless.Collections.ManagedStruct",
-            "UnmanagedStruct" => "Seamless.Collections.UnmanagedStruct",
-            _ => token,
-        };
 
     public static string CreateRowKey(
         BenchmarkSourceTabDefinition sourceTab,

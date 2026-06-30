@@ -46,9 +46,9 @@ public sealed class BenchmarkRowGroupingLogicTests{
             ],
             sourceTab);
 
-        Assert.Contains(rows,row => row.BenchmarkName=="string Add");
-        Assert.Contains(rows,row => row.BenchmarkName=="int Add");
-        Assert.Contains(rows,row => row.BenchmarkName=="System.Boolean Add");
+        Assert.Contains(rows,row => row.BenchmarkName=="Scalable.Persisted.List<string>.Add");
+        Assert.Contains(rows,row => row.BenchmarkName=="Scalable.Persisted.List<int>.Add");
+        Assert.Contains(rows,row => row.BenchmarkName=="Scalable.Persisted.List<System.Boolean>.Add");
         Assert.All(rows,row => Assert.Equal("Add",row.MethodName));
     }
 
@@ -64,8 +64,8 @@ public sealed class BenchmarkRowGroupingLogicTests{
             ],
             sourceTab);
 
-        Assert.Contains(rows,row => row.BenchmarkName=="string,int Add");
-        Assert.Contains(rows,row => row.BenchmarkName=="Seamless.Collections.ManagedStruct,Seamless.Collections.ManagedStruct Add");
+        Assert.Contains(rows,row => row.BenchmarkName=="Scalable.Tsavorite.Dictionary<string,int>.Add");
+        Assert.Contains(rows,row => row.BenchmarkName=="Scalable.Tsavorite.Dictionary<ManagedStruct,ManagedStruct>.Add");
         Assert.All(rows,row => Assert.Equal("Add",row.MethodName));
     }
 
@@ -111,8 +111,45 @@ public sealed class BenchmarkRowGroupingLogicTests{
             sourceTab);
 
         var row = Assert.Single(rows);
-        Assert.Equal("Add",row.Benchmark);
+        Assert.Equal("Scalable.Persisted.List<int>.Add",row.Benchmark);
         Assert.Equal("ListInt32",row.TypeFullName);
+    }
+
+    [Fact]
+    public void BuildComparisonRowsUsesScalableSetFullNameWithElementCount(){
+        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalableSet);
+        var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
+            [
+                Report(sourceTab.LeftProject,"Add","Scalable.Persisted.Collections.Set.SetInt32",10),
+                Report(sourceTab.RightProject,"Add","Scalable.Tsavorite.Collections.Set.SetInt32",20),
+            ],
+            sourceTab,
+            131072);
+
+        var row = Assert.Single(rows);
+        Assert.Equal("Scalable.Tsavorite.Set<int>.Add/131072",row.Benchmark);
+        Assert.Equal("Add",row.MethodName);
+        Assert.Equal("SetInt32",row.TypeFullName);
+    }
+
+    [Fact]
+    public void BuildComparisonRowsUsesScalableDictionaryFullNameWithElementCount(){
+        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalableDictionary);
+        var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
+            [
+                Report(sourceTab.LeftProject,"Add","Scalable.Persisted.Collections.Dictionary.DictionaryStringInt32",10),
+                Report(sourceTab.RightProject,"Add","Scalable.Tsavorite.Collections.Dictionary.DictionaryStringInt32",20),
+            ],
+            sourceTab,
+            131072);
+
+        var row = Assert.Single(rows);
+        var csv = BenchmarkComparisonFormatter.WriteCsv(rows,sourceTab);
+
+        Assert.Equal("Scalable.Tsavorite.Dictionary<string,int>.Add/131072",row.Benchmark);
+        Assert.Contains("Scalable.Tsavorite.Dictionary<string,int>.Add/131072",csv,StringComparison.Ordinal);
+        Assert.Equal("Add",row.MethodName);
+        Assert.Equal("DictionaryStringInt32",row.TypeFullName);
     }
 
     [Fact]
