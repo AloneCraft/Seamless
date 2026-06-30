@@ -69,26 +69,14 @@ internal sealed class BenchmarkOrchestrator(
         Action<BenchmarkProgressUpdate> progress,
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
-        var benchmarks = request.Benchmarks
-            .Concat(state.Jobs.Select(static job => new BenchmarkCase(job.Project,job.AssemblyName,job.TypeFullName,job.MethodName)))
-            .GroupBy(CreateBenchmarkKey,StringComparer.Ordinal)
-            .Select(static group => group.First())
-            .ToArray();
-        var methodGroups = benchmarks
-            .Select((benchmark,index) => new { Benchmark=benchmark, Index=index })
-            .GroupBy(static item => item.Benchmark.MethodName,StringComparer.OrdinalIgnoreCase)
-            .OrderBy(static group => group.Min(static item => item.Index))
-            .Select(static group => group.OrderBy(static item => item.Index).Select(static item => item.Benchmark).ToArray())
-            .ToArray();
-        var rows = methodGroups
-            .Select(static methodCases => new AdaptiveMethodRow(
-                methodCases[0].MethodName,
-                methodCases))
-            .ToArray();
-        var queue = new ConcurrentQueue<AdaptiveMethodRow>(rows);
+        var queue = new ConcurrentQueue<AdaptiveMethodRow>();
+        var queuedKeys = new global::System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var completedKeys = new global::System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
         await this.RunDynamicAdaptiveRowsAsync(
             state,
             queue,
+            queuedKeys,
+            completedKeys,
             request,
             progress,
             statusChanged,
@@ -98,22 +86,29 @@ internal sealed class BenchmarkOrchestrator(
     private async Task RunDynamicAdaptiveRowsAsync(
         ProgressState state,
         ConcurrentQueue<AdaptiveMethodRow> queue,
+        global::System.Collections.Generic.HashSet<string> queuedKeys,
+        global::System.Collections.Generic.HashSet<string> completedKeys,
         BenchmarkRunRequest request,
         Action<BenchmarkProgressUpdate> progress,
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
         var running = 0;
-        var workers = new Dictionary<int,Task>();
+        var workers = new Dictionary<int,AdaptiveWorker>();
         while(true) {
             cancellationToken.ThrowIfCancellationRequested();
             foreach(var worker in workers.Where(static item => item.Value.IsCompleted).ToArray()) {
-                if(worker.Value.IsFaulted) {
-                    await worker.Value;
+                if(worker.Value.Task.IsFaulted) {
+                    await worker.Value.Task;
+                }
+
+                lock(queuedKeys) {
+                    completedKeys.Add(worker.Value.RowKey);
                 }
 
                 workers.Remove(worker.Key);
             }
 
+            this.EnqueueCurrentAdaptiveRows(state,queue,queuedKeys,completedKeys,request);
             var currentCpus = GetCurrentCpus(request);
             if(jobRunner is IBenchmarkDynamicCpuSetRunner dynamicCpuSetRunner) {
                 await dynamicCpuSetRunner.ApplyCpuSetAsync(currentCpus);
@@ -124,28 +119,28 @@ internal sealed class BenchmarkOrchestrator(
                     continue;
                 }
 
-                if(!queue.TryDequeue(out var row)) {
+                if(!this.TryDequeueCurrentAdaptiveRow(state,queue,queuedKeys,request,out var row)) {
                     continue;
                 }
 
-                workers.Add(cpu,Task.Run(async () => {
+                workers.Add(cpu,new AdaptiveWorker(row.Key,Task.Run(async () => {
                     Interlocked.Increment(ref running);
                     try {
                         await this.RunAdaptiveMethodRowAsync(state,row,cpu,request,progress,statusChanged,cancellationToken);
                     } finally {
                         Interlocked.Decrement(ref running);
                     }
-                },cancellationToken));
+                },cancellationToken)));
             }
 
-            if(queue.IsEmpty&&Volatile.Read(ref running)==0) {
+            if(queue.IsEmpty&&Volatile.Read(ref running)==0&&workers.Count==0) {
                 break;
             }
 
             await Task.Delay(25,cancellationToken);
         }
 
-        await Task.WhenAll(workers.Values);
+        await Task.WhenAll(workers.Values.Select(static worker => worker.Task));
     }
 
     private async Task RunAdaptiveMethodRowAsync(
@@ -219,7 +214,7 @@ internal sealed class BenchmarkOrchestrator(
         CancellationToken cancellationToken) {
         foreach(var benchmark in row.Cases) {
             cancellationToken.ThrowIfCancellationRequested();
-            var warmupJob = CreateJob(benchmark,1,state.SourceTab,state.ElementCounts);
+            var warmupJob = CreateJob(benchmark,1,row.SourceTab,state.ElementCounts);
             warmupJob.JobId=warmupJob.JobId+"|warmup";
             statusChanged($"Warmup {benchmark.MethodName} N=1: {benchmark.Project} / CPU {logicalCpu}");
             ForceGcBeforeJob();
@@ -421,10 +416,10 @@ internal sealed class BenchmarkOrchestrator(
 
         if(request.Mode==BenchmarkRunMode.Adaptive) {
             state.AdaptiveStates=request.Benchmarks
-                .Select(static item => item.MethodName)
+                .Select(benchmark => CreateAdaptiveGroupKey(request.SourceTab,benchmark))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(static method => method,StringComparer.OrdinalIgnoreCase)
-                .Select(static method => new AdaptiveBenchmarkState { MethodName=method })
+                .OrderBy(static key => key,StringComparer.OrdinalIgnoreCase)
+                .Select(static key => new AdaptiveBenchmarkState { MethodName=key })
                 .ToList();
         } else {
             state.Jobs=this.CreateJobs(request.Benchmarks,state.ElementCounts,request.SourceTab).ToList();
@@ -459,13 +454,13 @@ internal sealed class BenchmarkOrchestrator(
 
         if(state.Mode==BenchmarkRunMode.Adaptive) {
             var requestedMethods = request.Benchmarks
-                .Select(static benchmark => benchmark.MethodName)
+                .Select(benchmark => CreateAdaptiveGroupKey(request.SourceTab,benchmark))
                 .ToHashSet(StringComparer.Ordinal);
             state.AdaptiveStates=state.AdaptiveStates
                 .Where(adaptiveState => requestedMethods.Contains(adaptiveState.MethodName))
                 .ToList();
-            foreach(var method in requestedMethods.Where(method => state.AdaptiveStates.All(item => !string.Equals(item.MethodName,method,StringComparison.Ordinal)))) {
-                state.AdaptiveStates.Add(new AdaptiveBenchmarkState { MethodName=method });
+            foreach(var key in requestedMethods.Where(key => state.AdaptiveStates.All(item => !string.Equals(item.MethodName,key,StringComparison.Ordinal)))) {
+                state.AdaptiveStates.Add(new AdaptiveBenchmarkState { MethodName=key });
             }
         }
     }
@@ -511,7 +506,7 @@ internal sealed class BenchmarkOrchestrator(
                     continue;
                 }
 
-                state.Jobs.Add(CreateJob(benchmark,elementCount,state.SourceTab,state.ElementCounts));
+                state.Jobs.Add(CreateJob(benchmark,elementCount,GetBenchmarkSourceTab(benchmark,state.SourceTab),state.ElementCounts));
             }
 
             stateManager.Save(state);
@@ -539,7 +534,7 @@ internal sealed class BenchmarkOrchestrator(
         BenchmarkJob job;
         lock(this.stateGate) {
             job=state.Jobs.FirstOrDefault(item => item.ElementCount==elementCount&&SameCase(benchmark,item))
-                ??CreateJob(benchmark,elementCount,state.SourceTab,state.ElementCounts);
+                ??CreateJob(benchmark,elementCount,GetBenchmarkSourceTab(benchmark,state.SourceTab),state.ElementCounts);
             if(!state.Jobs.Contains(job)) {
                 state.Jobs.Add(job);
             }
@@ -590,6 +585,76 @@ internal sealed class BenchmarkOrchestrator(
     private static string CreateBenchmarkKey(BenchmarkCase benchmark) =>
         string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName);
 
+    private static string CreateAdaptiveGroupKey(BenchmarkSourceTab sourceTab,BenchmarkCase benchmark) =>
+        IsScalableSourceTab(GetBenchmarkSourceTab(benchmark,sourceTab))
+            ? CreateBenchmarkKey(benchmark)
+            : GetBenchmarkSourceTab(benchmark,sourceTab).ToString()+"|"+benchmark.MethodName;
+
+    private void EnqueueCurrentAdaptiveRows(
+        ProgressState state,
+        ConcurrentQueue<AdaptiveMethodRow> queue,
+        global::System.Collections.Generic.HashSet<string> queuedKeys,
+        global::System.Collections.Generic.HashSet<string> completedKeys,
+        BenchmarkRunRequest request) {
+        foreach(var row in this.CreateAdaptiveRows(state,request)) {
+            lock(queuedKeys) {
+                if(queuedKeys.Contains(row.Key)||completedKeys.Contains(row.Key)) {
+                    continue;
+                }
+
+                queuedKeys.Add(row.Key);
+                queue.Enqueue(row);
+            }
+        }
+    }
+
+    private bool TryDequeueCurrentAdaptiveRow(
+        ProgressState state,
+        ConcurrentQueue<AdaptiveMethodRow> queue,
+        global::System.Collections.Generic.HashSet<string> queuedKeys,
+        BenchmarkRunRequest request,
+        out AdaptiveMethodRow row) {
+        while(queue.TryDequeue(out var candidate)) {
+            var current = this.CreateAdaptiveRows(state,request)
+                .FirstOrDefault(item => string.Equals(item.Key,candidate.Key,StringComparison.OrdinalIgnoreCase));
+            if(current is not null) {
+                row=current;
+                return true;
+            }
+
+            lock(queuedKeys) {
+                queuedKeys.Remove(candidate.Key);
+            }
+        }
+
+        row=null!;
+        return false;
+    }
+
+    private IReadOnlyList<AdaptiveMethodRow> CreateAdaptiveRows(ProgressState state,BenchmarkRunRequest request) {
+        var benchmarks = (request.BenchmarkProvider?.Invoke()??request.Benchmarks)
+            .Concat(state.Jobs.Select(static job => new BenchmarkCase(job.Project,job.AssemblyName,job.TypeFullName,job.MethodName)))
+            .GroupBy(CreateBenchmarkKey,StringComparer.Ordinal)
+            .Select(static group => group.First())
+            .ToArray();
+        return benchmarks
+            .Select((benchmark,index) => new { Benchmark=benchmark, Index=index })
+            .GroupBy(item => CreateAdaptiveGroupKey(request.SourceTab,item.Benchmark),StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static group => group.Min(static item => item.Index))
+            .Select(group => {
+                var methodCases = group.OrderBy(static item => item.Index).Select(static item => item.Benchmark).ToArray();
+                return new AdaptiveMethodRow(
+                    group.Key,
+                    GetBenchmarkSourceTab(methodCases[0],request.SourceTab),
+                    methodCases[0].MethodName,
+                    methodCases);
+            })
+            .ToArray();
+    }
+
+    private static BenchmarkSourceTab GetBenchmarkSourceTab(BenchmarkCase benchmark,BenchmarkSourceTab fallbackSourceTab) =>
+        BenchmarkSourceTabs.TryGetByProject(benchmark.Project)?.Tab??fallbackSourceTab;
+
     private static bool SameCase(BenchmarkCase benchmark,BenchmarkJob job) =>
         string.Equals(benchmark.Project,job.Project,StringComparison.OrdinalIgnoreCase)
         &&string.Equals(benchmark.AssemblyName,job.AssemblyName,StringComparison.Ordinal)
@@ -608,7 +673,9 @@ internal sealed class BenchmarkOrchestrator(
 
     private static bool IsAdaptiveRowStopped(ProgressState state,IReadOnlyList<BenchmarkCase> cases) =>
         cases.Any(benchmark => IsAdaptiveCaseFailed(state,benchmark))
-        ||(!IsScalableSourceTab(state.SourceTab)&&cases.Any(benchmark => IsAdaptiveCaseOverThreshold(state,benchmark)));
+        ||cases.Any(benchmark =>
+            !IsScalableSourceTab(GetBenchmarkSourceTab(benchmark,state.SourceTab))
+            &&IsAdaptiveCaseOverThreshold(state,benchmark));
 
     private static bool IsAdaptiveCaseFailed(ProgressState state,BenchmarkCase benchmark) =>
         state.Jobs.Any(job => SameCase(benchmark,job)&&job.Status==JobStatus.Failed);
@@ -656,8 +723,14 @@ internal sealed class BenchmarkOrchestrator(
         values.FirstOrDefault(static value => !string.IsNullOrWhiteSpace(value))??string.Empty;
 
     private sealed record AdaptiveMethodRow(
+        string Key,
+        BenchmarkSourceTab SourceTab,
         string MethodName,
         IReadOnlyList<BenchmarkCase> Cases);
+
+    private sealed record AdaptiveWorker(string RowKey,Task Task) {
+        public bool IsCompleted => this.Task.IsCompleted;
+    }
 
     private sealed record WarmupFailure(
         BenchmarkCase Benchmark,

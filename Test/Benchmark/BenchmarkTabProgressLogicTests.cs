@@ -61,4 +61,22 @@ public sealed class BenchmarkTabProgressLogicTests{
         Assert.Equal(2,progress.Completed);
         Assert.Equal(2,progress.Total);
     }
+
+    [Fact]
+    public void Calculate_DoesNotCompleteDifferentScalableTypeWithSameMethod(){
+        var progress = BenchmarkTabProgressLogic.Calculate(
+            [
+                new BenchmarkTabProgressCell("Add","Scalable.Persisted.List","Scalable.Persisted.Collections.List.ListString",true),
+            ],
+            [
+                new BenchmarkElementMeasurement("Scalable.Persisted.List","Add","Scalable.Persisted.Collections.List.ListInt32",4096,"Completed",100),
+            ],
+            "Scalable.Persisted.List",
+            "Scalable.Persisted.List.Previous",
+            8192,
+            1_000_000);
+
+        Assert.Equal(0,progress.Completed);
+        Assert.Equal(1,progress.Total);
+    }
 }

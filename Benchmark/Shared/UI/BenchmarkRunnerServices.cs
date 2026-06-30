@@ -804,6 +804,7 @@ public interface IBenchmarkRunService {
         TimeSpan adaptiveThreshold,
         bool restartFromRequestedElementCount,
         string? runRootOverride,
+        Func<IReadOnlyList<BenchmarkCase>>? benchmarkProvider,
         Action<BenchmarkResultItem> resultReceived,
         Action<string> statusChanged,
         CancellationToken cancellationToken);
@@ -837,6 +838,7 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
         TimeSpan adaptiveThreshold,
         bool restartFromRequestedElementCount,
         string? runRootOverride,
+        Func<IReadOnlyList<BenchmarkCase>>? benchmarkProvider,
         Action<BenchmarkResultItem> resultReceived,
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
@@ -858,7 +860,8 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
             RestartFromRequestedElementCount: restartFromRequestedElementCount,
             ExecutionProfile: executionProfile,
             RunRootOverride: runRootOverride,
-            SourceTab: sourceTab);
+            SourceTab: sourceTab,
+            BenchmarkProvider: benchmarkProvider);
         try {
             var orchestratorResult = await orchestrator.RunAsync(
                 request,
