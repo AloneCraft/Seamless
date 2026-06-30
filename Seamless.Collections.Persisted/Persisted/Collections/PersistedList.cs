@@ -2,28 +2,103 @@ using System.IO.MemoryMappedFiles;
 
 namespace Seamless.Persisted.Collections;
 
-public readonly record struct TempListTuning(FileAccess OptimizationMode,FileOptions accessPattern) {
-    public FileAccess OptimizationMode { get; } = ValidateOptimizationMode(OptimizationMode);
-    public FileOptions AccessPattern { get; } = ValidateAccessPattern(accessPattern);
+public enum StorageAccessPattern {
+    Auto,
+    Sequential,
+    Random,
+}
+
+public enum StorageBufferingMode {
+    Auto,
+    Buffered,
+    Unbuffered,
+}
+
+public enum StorageBufferSizeStrategy {
+    Auto,
+    Explicit,
+}
+
+public readonly record struct StorageTuning {
+    public static StorageTuning Default => new(FileAccess.ReadWrite,StorageAccessPattern.Sequential);
+
+    public FileAccess OptimizationMode { get; }
+    public StorageAccessPattern AccessPattern { get; }
+    public StorageBufferingMode BufferingMode { get; }
+    public StorageBufferSizeStrategy BufferSizeStrategy { get; }
+    public int BufferSize { get; }
+
+    public StorageTuning(
+        FileAccess optimizationMode,
+        StorageAccessPattern accessPattern = StorageAccessPattern.Sequential,
+        StorageBufferingMode bufferingMode = StorageBufferingMode.Auto,
+        StorageBufferSizeStrategy bufferSizeStrategy = StorageBufferSizeStrategy.Auto,
+        int bufferSize = 0) {
+        this.OptimizationMode=ValidateOptimizationMode(optimizationMode);
+        this.AccessPattern=ValidateAccessPattern(accessPattern);
+        this.BufferingMode=ValidateBufferingMode(bufferingMode);
+        this.BufferSizeStrategy=ValidateBufferSizeStrategy(bufferSizeStrategy);
+        this.BufferSize=ValidateBufferSize(bufferSizeStrategy,bufferSize);
+    }
 
     private static FileAccess ValidateOptimizationMode(FileAccess optimizationMode) =>
         optimizationMode is FileAccess.Read or FileAccess.Write or FileAccess.ReadWrite
             ? optimizationMode
             : throw new ArgumentOutOfRangeException(nameof(optimizationMode));
 
-    private static FileOptions ValidateAccessPattern(FileOptions accessPattern) {
-        const FileOptions supportedAccessPatterns = FileOptions.SequentialScan|FileOptions.RandomAccess;
+    private static StorageAccessPattern ValidateAccessPattern(StorageAccessPattern accessPattern) =>
+        Enum.IsDefined(accessPattern)
+            ? accessPattern
+            : throw new ArgumentOutOfRangeException(nameof(accessPattern));
 
-        if((accessPattern&~supportedAccessPatterns)!=0)
-            throw new ArgumentOutOfRangeException(nameof(accessPattern));
-        if(accessPattern==supportedAccessPatterns)
-            throw new ArgumentException("SequentialScan and RandomAccess cannot be combined.",nameof(accessPattern));
-        return accessPattern;
+    private static StorageBufferingMode ValidateBufferingMode(StorageBufferingMode bufferingMode) =>
+        Enum.IsDefined(bufferingMode)
+            ? bufferingMode
+            : throw new ArgumentOutOfRangeException(nameof(bufferingMode));
+
+    private static StorageBufferSizeStrategy ValidateBufferSizeStrategy(StorageBufferSizeStrategy bufferSizeStrategy) =>
+        Enum.IsDefined(bufferSizeStrategy)
+            ? bufferSizeStrategy
+            : throw new ArgumentOutOfRangeException(nameof(bufferSizeStrategy));
+
+    private static int ValidateBufferSize(StorageBufferSizeStrategy strategy,int bufferSize) {
+        if(strategy==StorageBufferSizeStrategy.Auto) {
+            if(bufferSize!=0)
+                throw new ArgumentException("Auto buffer sizing does not accept an explicit buffer size.",nameof(bufferSize));
+            return 0;
+        }
+
+        if(bufferSize<1)
+            throw new ArgumentOutOfRangeException(nameof(bufferSize));
+        return bufferSize;
+    }
+
+    public int ResolveBufferSize(uint sectorSize = 0) {
+        if(this.BufferSizeStrategy==StorageBufferSizeStrategy.Explicit)
+            return this.BufferSize;
+
+        var sectorAlignment = sectorSize==0
+            ? 1
+            : checked((int)Math.Min((uint)int.MaxValue,sectorSize));
+        var alignment = Math.Max(4096,Math.Max(Environment.SystemPageSize,sectorAlignment));
+        return this.AccessPattern switch {
+            StorageAccessPattern.Random => Math.Min(64*1024,alignment),
+            _ => Math.Min(1024*1024,Math.Max(64*1024,alignment*16)),
+        };
+    }
+
+    public FileOptions ToFileOptions() {
+        if(this.BufferingMode==StorageBufferingMode.Unbuffered)
+            throw new NotSupportedException("Unbuffered Persisted FileStream access is not supported by this backend.");
+        return this.AccessPattern switch {
+            StorageAccessPattern.Sequential => FileOptions.SequentialScan,
+            StorageAccessPattern.Random => FileOptions.RandomAccess,
+            _ => FileOptions.None,
+        };
     }
 }
 
 public abstract class PersistedList<T>:IReadOnlyList<T>, IDisposable {
-    private protected const int BufferSize = 4096;
     public string Path { get; }
     public long Count { get; protected set; }
     public long Capacity { get; protected set; }
@@ -87,18 +162,24 @@ public abstract class PersistedList<T>:IReadOnlyList<T>, IDisposable {
     public long GetLongCount() => this.Count;
     public abstract void Add(T item);
 
-    public abstract FileAccess OptimizationMode { get; }
-    public abstract FileOptions AccessPattern { get; }
-    public TempListTuning Tuning => new(this.OptimizationMode,this.AccessPattern);
+    public abstract StorageTuning Tuning { get; }
+    public FileAccess OptimizationMode => this.Tuning.OptimizationMode;
+    public StorageAccessPattern AccessPattern => this.Tuning.AccessPattern;
+    public StorageBufferingMode BufferingMode => this.Tuning.BufferingMode;
+    public int BufferSize => this.Tuning.ResolveBufferSize();
     public void SetOptimizationMode(FileAccess optimizationMode) {
-        this.SetTuning(new(optimizationMode,this.AccessPattern));
+        this.SetTuning(new(optimizationMode,this.AccessPattern,this.BufferingMode,this.Tuning.BufferSizeStrategy,this.Tuning.BufferSize));
     }
 
-    public void SetAccessPattern(FileOptions accessPattern) {
-        this.SetTuning(new(this.OptimizationMode,accessPattern));
+    public void SetAccessPattern(StorageAccessPattern accessPattern) {
+        this.SetTuning(new(this.OptimizationMode,accessPattern,this.BufferingMode,this.Tuning.BufferSizeStrategy,this.Tuning.BufferSize));
     }
 
-    public abstract void SetTuning(TempListTuning tuning);
+    public void SetBufferingMode(StorageBufferingMode bufferingMode) {
+        this.SetTuning(new(this.OptimizationMode,this.AccessPattern,bufferingMode,this.Tuning.BufferSizeStrategy,this.Tuning.BufferSize));
+    }
+
+    public abstract void SetTuning(StorageTuning tuning);
 
     //public abstract void Add(scoped ReadOnlySpan<byte> item);
 
@@ -206,19 +287,21 @@ internal static class MemoryMappedListTuning {
         return AlignBytes(bytes)/elementSize;
     }
 
-    public static FileOptions GetFileOptions(TempListTuning tuning) {
+    public static FileOptions GetFileOptions(StorageTuning tuning) {
         if(!OperatingSystem.IsWindows())
             return FileOptions.None;
 
-        return tuning.AccessPattern;
+        return tuning.ToFileOptions();
     }
 
-    public static bool RequiresReopen(TempListTuning currentTuning,TempListTuning nextTuning) {
+    public static bool RequiresReopen(StorageTuning currentTuning,StorageTuning nextTuning) {
         return OperatingSystem.IsWindows()
-            &&currentTuning.AccessPattern!=nextTuning.AccessPattern;
+            &&(currentTuning.AccessPattern!=nextTuning.AccessPattern
+                ||currentTuning.BufferingMode!=nextTuning.BufferingMode
+                ||currentTuning.ResolveBufferSize()!=nextTuning.ResolveBufferSize());
     }
 
-    public static void ApplyTuning(FileStream stream,MemoryMappedViewAccessor accessor,TempListTuning tuning) {
+    public static void ApplyTuning(FileStream stream,MemoryMappedViewAccessor accessor,StorageTuning tuning) {
         ArgumentNullException.ThrowIfNull(stream);
         ArgumentNullException.ThrowIfNull(accessor);
 
@@ -227,7 +310,7 @@ internal static class MemoryMappedListTuning {
 
         if(OperatingSystem.IsWindows()) {
             if(tuning.OptimizationMode==FileAccess.Read
-                &&tuning.AccessPattern==FileOptions.SequentialScan) {
+                &&tuning.AccessPattern==StorageAccessPattern.Sequential) {
                 PrefetchWindows(accessor);
             }
             return;
@@ -240,7 +323,7 @@ internal static class MemoryMappedListTuning {
     }
 
 
-    private static void ApplyPosixFileHint(FileStream stream,TempListTuning tuning) {
+    private static void ApplyPosixFileHint(FileStream stream,StorageTuning tuning) {
         try {
             var fileDescriptor = unchecked((int)stream.SafeFileHandle.DangerousGetHandle());
             var advice = tuning.OptimizationMode==FileAccess.Write
@@ -254,7 +337,7 @@ internal static class MemoryMappedListTuning {
         }
     }
 
-    private static unsafe void ApplyPosixMemoryHint(MemoryMappedViewAccessor accessor,TempListTuning tuning) {
+    private static unsafe void ApplyPosixMemoryHint(MemoryMappedViewAccessor accessor,StorageTuning tuning) {
         byte* pointer = null;
         accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref pointer);
         try {
@@ -276,15 +359,15 @@ internal static class MemoryMappedListTuning {
         }
     }
 
-    private static int GetPosixFileAdvice(FileOptions accessPattern) => accessPattern switch {
-        FileOptions.SequentialScan => PosixFadvSequential,
-        FileOptions.RandomAccess => PosixFadvRandom,
+    private static int GetPosixFileAdvice(StorageAccessPattern accessPattern) => accessPattern switch {
+        StorageAccessPattern.Sequential => PosixFadvSequential,
+        StorageAccessPattern.Random => PosixFadvRandom,
         _ => PosixFadvNormal,
     };
 
-    private static int GetPosixMemoryAdvice(FileOptions accessPattern) => accessPattern switch {
-        FileOptions.SequentialScan => MadvSequential,
-        FileOptions.RandomAccess => MadvRandom,
+    private static int GetPosixMemoryAdvice(StorageAccessPattern accessPattern) => accessPattern switch {
+        StorageAccessPattern.Sequential => MadvSequential,
+        StorageAccessPattern.Random => MadvRandom,
         _ => MadvNormal,
     };
 

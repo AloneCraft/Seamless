@@ -2984,10 +2984,7 @@ public sealed class MainPage:ContentPage {
         };
         chart.SetBinding(HeightRequestProperty,nameof(BenchmarkRunnerViewModel.ChartHeight));
         var xAxis = new CategoryAxis {
-            LabelPlacement=LabelPlacement.BetweenTicks,
-            LabelStyle=new ChartAxisLabelStyle {
-                LabelAlignment=ChartAxisLabelAlignment.Start,
-            },
+            LabelPlacement=LabelPlacement.BetweenTicks
         };
         var yAxis = new NumericalAxis {
             Minimum=0,

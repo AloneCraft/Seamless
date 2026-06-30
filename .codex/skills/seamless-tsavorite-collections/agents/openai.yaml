@@ -1,0 +1,4 @@
+interface:
+  display_name: "Seamless Tsavorite Collections"
+  short_description: "Rules for Seamless Tsavorite Iterate traversal."
+  default_prompt: "Use this skill when changing Seamless Tsavorite collection traversal, provider-native FLinq terminals, Iterate APIs, or IterateLookup behavior."

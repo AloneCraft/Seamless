@@ -1,6 +1,6 @@
 using System.IO.MemoryMappedFiles;
 namespace Seamless.Persisted.Collections;
-public class SerializedList<T>(string path,long initialCapacity=16,long initialDataCapacity=4096):SerializedList<T,MemoryPackSerializer<T>>(path,initialCapacity,initialDataCapacity);
+public class SerializedList<T>(string path,long initialCapacity=16,long initialDataCapacity=4096,StorageTuning? tuning=null):SerializedList<T,MemoryPackSerializer<T>>(path,initialCapacity,initialDataCapacity,tuning);
 public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : ISerializer<T> {
     private const long UnusedIndex = -1;
     private FileStream indexStream = null!;
@@ -10,20 +10,20 @@ public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : 
     private MemoryMappedFile dataMappedFile = null!;
     private MemoryMappedViewAccessor dataAccessor = null!;
     private long persistedCount;
-    private TempListTuning tuning = new(FileAccess.ReadWrite,FileOptions.SequentialScan);
+    private StorageTuning tuning;
 
     public string IndexPath { get; }
     public long DataLength { get; private set; }
     public long DataCapacity { get; private set; }
-    public override FileAccess OptimizationMode => this.tuning.OptimizationMode;
-    public override FileOptions AccessPattern => this.tuning.AccessPattern;
+    public override StorageTuning Tuning => this.tuning;
 
-    public SerializedList(string path,long initialCapacity = 16,long initialDataCapacity = 4096) : base(path) {
+    public SerializedList(string path,long initialCapacity = 16,long initialDataCapacity = 4096,StorageTuning? tuning = null) : base(path) {
         if(initialCapacity<1)
             throw new ArgumentOutOfRangeException(nameof(initialCapacity));
         if(initialDataCapacity<1)
             throw new ArgumentOutOfRangeException(nameof(initialDataCapacity));
 
+        this.tuning=tuning??StorageTuning.Default;
         this.IndexPath=path+".index";
         this.indexStream=this.OpenStream(this.IndexPath);
         this.dataStream=this.OpenStream(this.Path);
@@ -48,7 +48,7 @@ public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : 
 
         this.ApplyTuning();
     }
-    public override void SetTuning(TempListTuning tuning) {
+    public override void SetTuning(StorageTuning tuning) {
         this.ThrowIfDisposed();
         if(this.tuning.Equals(tuning))
             return;
@@ -344,7 +344,7 @@ public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : 
     private long AlignDataCapacity(long capacity) => MemoryMappedListTuning.AlignBytes(capacity);
 
     private FileStream OpenStream(string path) {
-        return new(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read,BufferSize,MemoryMappedListTuning.GetFileOptions(this.Tuning));
+        return new(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read,this.Tuning.ResolveBufferSize(),MemoryMappedListTuning.GetFileOptions(this.Tuning));
     }
 
     private void ApplyTuning() {
@@ -401,14 +401,14 @@ public sealed class BlittableList<T>:PersistedList<T>
     private FileStream stream = null!;
     private MemoryMappedFile mappedFile = null!;
     private MemoryMappedViewAccessor accessor = null!;
-    private TempListTuning tuning = new(FileAccess.ReadWrite,FileOptions.SequentialScan);
+    private StorageTuning tuning;
 
-    public override FileAccess OptimizationMode => this.tuning.OptimizationMode;
-    public override FileOptions AccessPattern => this.tuning.AccessPattern;
+    public override StorageTuning Tuning => this.tuning;
 
-    public BlittableList(string path,long initialCapacity = 16) : base(path) {
+    public BlittableList(string path,long initialCapacity = 16,StorageTuning? tuning = null) : base(path) {
         if(initialCapacity<1)
             throw new ArgumentOutOfRangeException(nameof(initialCapacity));
+        this.tuning=tuning??StorageTuning.Default;
         this.stream=this.OpenStream(this.Path);
         var elementSize = Unsafe.SizeOf<T>();
         var initializeHeader = this.stream.Length==0;
@@ -441,7 +441,7 @@ public sealed class BlittableList<T>:PersistedList<T>
         this.OnCountChanged();
     }
 
-    public override void SetTuning(TempListTuning tuning) {
+    public override void SetTuning(StorageTuning tuning) {
         this.ThrowIfDisposed();
         if(this.tuning.Equals(tuning))
             return;
@@ -500,7 +500,7 @@ public sealed class BlittableList<T>:PersistedList<T>
     }
 
     private FileStream OpenStream(string path) =>
-        new(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read,BufferSize,MemoryMappedListTuning.GetFileOptions(this.Tuning));
+        new(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read,this.Tuning.ResolveBufferSize(),MemoryMappedListTuning.GetFileOptions(this.Tuning));
 
     private void ApplyTuning() =>
         MemoryMappedListTuning.ApplyTuning(this.stream,this.accessor,this.Tuning);
