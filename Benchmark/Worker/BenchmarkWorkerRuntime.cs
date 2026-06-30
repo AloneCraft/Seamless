@@ -1,7 +1,7 @@
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Diagnosers;
 using BenchmarkDotNet.Jobs;
-using BenchmarkDotNet.Toolchains.InProcess.Emit;
+using BenchmarkDotNet.Toolchains.InProcess.NoEmit;
 
 public static class BenchmarkWorkerRuntime{
     private const int BenchmarkLaunchCount = 1;
@@ -16,7 +16,7 @@ public static class BenchmarkWorkerRuntime{
             .WithOptions(ConfigOptions.DisableOptimizationsValidator)
             .AddDiagnoser(MemoryDiagnoser.Default)
             .AddJob(Job.Default
-                .WithToolchain(InProcessEmitToolchain.Instance)
+                .WithToolchain(InProcessNoEmitToolchain.Instance)
                 .WithLaunchCount(BenchmarkLaunchCount)
                 .WithWarmupCount(BenchmarkWarmupCount)
                 .WithIterationCount(BenchmarkIterationCount)

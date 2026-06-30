@@ -105,46 +105,48 @@ public sealed class MainPage:ContentPage {
     private Grid CreateHeaderRow() {
         var grid = CreateResultGrid();
         grid.BackgroundColor=Color.FromArgb("#E2E8F0");
-        AddHeader(grid,"Collection",0);
-        AddHeader(grid,"Generic",1);
-        AddHeader(grid,"Backend",2);
-        AddHeader(grid,"Sweep",3);
-        AddHeader(grid,"Index",4);
-        AddHeader(grid,"Page",5);
-        AddHeader(grid,"Segment",6);
-        AddHeader(grid,"Memory",7);
-        AddHeader(grid,"MF",8);
-        AddHeader(grid,"MaxCount",9);
-        AddHeader(grid,"Failure",10);
-        AddHeader(grid,"Add",11);
-        AddHeader(grid,"Lookup",12);
-        AddHeader(grid,"CountDelta",13);
-        AddHeader(grid,"AddRatio",14);
-        AddHeader(grid,"LookupRatio",15);
-        AddHeader(grid,"FailureChanged",16);
+        AddHeader(grid,"CaseName",0);
+        AddHeader(grid,"Collection",1);
+        AddHeader(grid,"Generic",2);
+        AddHeader(grid,"Backend",3);
+        AddHeader(grid,"Sweep",4);
+        AddHeader(grid,"Index",5);
+        AddHeader(grid,"Page",6);
+        AddHeader(grid,"Segment",7);
+        AddHeader(grid,"Memory",8);
+        AddHeader(grid,"MF",9);
+        AddHeader(grid,"MaxCount",10);
+        AddHeader(grid,"Failure",11);
+        AddHeader(grid,"Add",12);
+        AddHeader(grid,"Lookup",13);
+        AddHeader(grid,"CountDelta",14);
+        AddHeader(grid,"AddRatio",15);
+        AddHeader(grid,"LookupRatio",16);
+        AddHeader(grid,"FailureChanged",17);
         return grid;
     }
 
     private static Grid CreateResultRow() {
         var grid = CreateResultGrid();
         grid.BackgroundColor=Colors.White;
-        AddBound(grid,nameof(ParameterSweepComparisonViewRow.Collection),0);
-        AddBound(grid,nameof(ParameterSweepComparisonViewRow.Generic),1);
-        AddBound(grid,nameof(ParameterSweepComparisonViewRow.Backend),2);
-        AddBound(grid,nameof(ParameterSweepComparisonViewRow.Sweep),3);
-        AddBound(grid,nameof(ParameterSweepComparisonViewRow.IndexSize),4);
-        AddBound(grid,nameof(ParameterSweepComparisonViewRow.PageSize),5);
-        AddBound(grid,nameof(ParameterSweepComparisonViewRow.SegmentSize),6);
-        AddBound(grid,nameof(ParameterSweepComparisonViewRow.MemorySize),7);
-        AddBound(grid,nameof(ParameterSweepComparisonViewRow.MutableFraction),8);
-        AddBound(grid,nameof(ParameterSweepComparisonViewRow.MaxSuccessfulCount),9);
-        AddBound(grid,nameof(ParameterSweepComparisonViewRow.FailureKind),10);
-        AddBound(grid,nameof(ParameterSweepComparisonViewRow.AddElapsed),11);
-        AddBound(grid,nameof(ParameterSweepComparisonViewRow.LookupMean),12);
-        AddBound(grid,nameof(ParameterSweepComparisonViewRow.MaxCountDelta),13);
-        AddBound(grid,nameof(ParameterSweepComparisonViewRow.AddElapsedRatio),14);
-        AddBound(grid,nameof(ParameterSweepComparisonViewRow.LookupRatio),15);
-        AddBound(grid,nameof(ParameterSweepComparisonViewRow.FailureChanged),16);
+        AddBound(grid,nameof(ParameterSweepComparisonViewRow.CaseName),0);
+        AddBound(grid,nameof(ParameterSweepComparisonViewRow.Collection),1);
+        AddBound(grid,nameof(ParameterSweepComparisonViewRow.Generic),2);
+        AddBound(grid,nameof(ParameterSweepComparisonViewRow.Backend),3);
+        AddBound(grid,nameof(ParameterSweepComparisonViewRow.Sweep),4);
+        AddBound(grid,nameof(ParameterSweepComparisonViewRow.IndexSize),5);
+        AddBound(grid,nameof(ParameterSweepComparisonViewRow.PageSize),6);
+        AddBound(grid,nameof(ParameterSweepComparisonViewRow.SegmentSize),7);
+        AddBound(grid,nameof(ParameterSweepComparisonViewRow.MemorySize),8);
+        AddBound(grid,nameof(ParameterSweepComparisonViewRow.MutableFraction),9);
+        AddBound(grid,nameof(ParameterSweepComparisonViewRow.MaxSuccessfulCount),10);
+        AddBound(grid,nameof(ParameterSweepComparisonViewRow.FailureKind),11);
+        AddBound(grid,nameof(ParameterSweepComparisonViewRow.AddElapsed),12);
+        AddBound(grid,nameof(ParameterSweepComparisonViewRow.LookupMean),13);
+        AddBound(grid,nameof(ParameterSweepComparisonViewRow.MaxCountDelta),14);
+        AddBound(grid,nameof(ParameterSweepComparisonViewRow.AddElapsedRatio),15);
+        AddBound(grid,nameof(ParameterSweepComparisonViewRow.LookupRatio),16);
+        AddBound(grid,nameof(ParameterSweepComparisonViewRow.FailureChanged),17);
         return grid;
     }
 
@@ -152,6 +154,7 @@ public sealed class MainPage:ContentPage {
         new() {
             HeightRequest=30,
             ColumnDefinitions= {
+                new ColumnDefinition { Width = 360 },
                 new ColumnDefinition { Width = 86 },
                 new ColumnDefinition { Width = 160 },
                 new ColumnDefinition { Width = 72 },

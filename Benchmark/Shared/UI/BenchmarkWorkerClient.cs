@@ -66,7 +66,8 @@ public sealed class BenchmarkWorkerClient:IBenchmarkJobRunner {
             BenchmarkSourceTabs.ToPathPart(sourceTab),
             "N"+elementCount.ToString(CultureInfo.InvariantCulture),
             SanitizePathPart(benchmark.Project),
-            SanitizePathPart(benchmark.MethodName));
+            SanitizePathPart(benchmark.MethodName),
+            string.IsNullOrWhiteSpace(benchmark.ArgumentKey) ? "default" : SanitizePathPart(benchmark.ArgumentKey));
         Directory.CreateDirectory(artifactFolder);
         return artifactFolder;
     }
@@ -160,6 +161,8 @@ public sealed class BenchmarkWorkerSession:IAsyncDisposable {
             benchmark.AssemblyName,
             benchmark.TypeFullName,
             benchmark.MethodName,
+            benchmark.ArgumentKey,
+            benchmark.Arguments.ToArray(),
             sourceTab,
             preparedElementCounts.ToArray(),
             elementCount,
@@ -191,7 +194,9 @@ public sealed class BenchmarkWorkerSession:IAsyncDisposable {
                 result.ArtifactFolder,
                 result.Log,
                 result.RandomSeed,
-                result.ResultDigest);
+                result.ResultDigest,
+                benchmark.ArgumentKey,
+                benchmark.Arguments);
         } catch(OperationCanceledException) {
             this.Kill();
             throw;
@@ -206,7 +211,7 @@ public sealed class BenchmarkWorkerSession:IAsyncDisposable {
         this.isClosed=true;
         try {
             if(!this.process.HasExited) {
-                await this.process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new WorkerTaskMessage("shutdown",string.Empty,string.Empty,string.Empty,string.Empty,BenchmarkSourceTab.SystemArray,[],0,string.Empty,string.Empty)).AsMemory(),cancellationToken);
+                await this.process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new WorkerTaskMessage("shutdown",string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,[],BenchmarkSourceTab.SystemArray,[],0,string.Empty,string.Empty)).AsMemory(),cancellationToken);
                 await this.process.StandardInput.FlushAsync(cancellationToken);
                 await this.process.WaitForExitAsync(cancellationToken);
             }
@@ -263,6 +268,8 @@ internal sealed record WorkerTaskMessage(
     string AssemblyName,
     string TypeFullName,
     string MethodName,
+    string ArgumentKey,
+    BenchmarkArgument[] Arguments,
     BenchmarkSourceTab SourceTab,
     int[] PreparedElementCounts,
     int ElementCount,

@@ -40,7 +40,9 @@ public interface IHashSetTestStrategy<T>
     static abstract HashSetHandle<T> CreateMemorySet(
         long memorySize = global::Seamless.Tsavorite.Const.LogMemorySize,
         double mutableFraction = 1.0,
-        long indexSize = global::Seamless.Tsavorite.Const.IndexSize);
+        long indexSize = global::Seamless.Tsavorite.Const.IndexSize,
+        long pageSize = global::Seamless.Tsavorite.Const.PageSize,
+        long segmentSize = global::Seamless.Tsavorite.Const.SegmentSize);
 }
 public readonly struct MemoryPackHashSetStrategy<TProvider, T>:IHashSetTestStrategy<T>
     where TProvider : IHashSetValueProvider<T>
@@ -49,8 +51,10 @@ public readonly struct MemoryPackHashSetStrategy<TProvider, T>:IHashSetTestStrat
     public static HashSetHandle<T> CreateMemorySet(
         long memorySize = global::Seamless.Tsavorite.Const.LogMemorySize,
         double mutableFraction = 1.0,
-        long indexSize = global::Seamless.Tsavorite.Const.IndexSize){
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize).Create<T>(new MemoryPackSerializerStrategy());
+        long indexSize = global::Seamless.Tsavorite.Const.IndexSize,
+        long pageSize = global::Seamless.Tsavorite.Const.PageSize,
+        long segmentSize = global::Seamless.Tsavorite.Const.SegmentSize){
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize,PageSize: pageSize,SegmentSize: segmentSize).Create<T>(new MemoryPackSerializerStrategy());
         return new HashSetHandle<T>(store,store.Create());
     }
 }
@@ -61,8 +65,10 @@ public readonly struct BlittableHashSetStrategy<TProvider, T>:IHashSetTestStrate
     public static HashSetHandle<T> CreateMemorySet(
         long memorySize = global::Seamless.Tsavorite.Const.LogMemorySize,
         double mutableFraction = 1.0,
-        long indexSize = global::Seamless.Tsavorite.Const.IndexSize){
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize).Create<T>();
+        long indexSize = global::Seamless.Tsavorite.Const.IndexSize,
+        long pageSize = global::Seamless.Tsavorite.Const.PageSize,
+        long segmentSize = global::Seamless.Tsavorite.Const.SegmentSize){
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize,PageSize: pageSize,SegmentSize: segmentSize).Create<T>();
         return new HashSetHandle<T>(store,store.Create());
     }
 }

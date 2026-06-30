@@ -1,4 +1,4 @@
-# Tsavorite LINQ Intercept Fragment 実装計画
+﻿# Tsavorite LINQ Intercept Fragment 実装計画
 
 ## 背景
 

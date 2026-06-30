@@ -1,4 +1,4 @@
----
+﻿---
 phase: code-conceptual-reverse
 reverse_document: true
 canonical_target: Document/Code/Concept/TechStackSelection.md

@@ -1,4 +1,4 @@
----
+﻿---
 phase: code-external-reverse
 reverse_document: true
 canonical_target: Document/Code/External/CodeDataContract.md

@@ -4,6 +4,8 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Runtime.InteropServices;
+using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Filters;
 using BenchmarkDotNet.Running;
 
 Console.OutputEncoding=Encoding.UTF8;
@@ -98,13 +100,17 @@ static WorkerResultMessage RunBenchmark(
         var benchmarkType = ResolveBenchmarkType(task.AssemblyName,task.TypeFullName);
         using var elementScope = BeginElementCountScope(benchmarkType.Assembly,task.ElementCount,task.ElementScale);
         using var randomSourceScope = BeginRandomSourceSeedScope(benchmarkType.Assembly,randomSeed);
-        var resultDigest = CaptureBenchmarkResultDigest(benchmarkType,task.MethodName);
-        var config = BenchmarkWorkerRuntime.CreateConfig(task.ArtifactFolder);
+        var argumentValues = BenchmarkArgumentFormatting.ToObjects(task.Arguments);
+        var resultDigest = CaptureBenchmarkResultDigest(benchmarkType,task.MethodName,argumentValues);
+        var config = ManualConfig
+            .Create(BenchmarkWorkerRuntime.CreateConfig(task.ArtifactFolder))
+            .AddFilter(new WorkerTaskFilter(task));
         var summaries = BenchmarkSwitcher
             .FromTypes([benchmarkType])
-            .Run(["--filter","*."+task.MethodName],config);
+            .Run(["--filter","*."+task.MethodName+"*"],config);
         var summary = summaries.FirstOrDefault();
-        var report = summary?.Reports.FirstOrDefault();
+        var report = summary?.Reports.FirstOrDefault(report => IsReportForArguments(report.BenchmarkCase,task.Arguments))
+            ??summary?.Reports.FirstOrDefault();
         var stats = report?.ResultStatistics;
         var allocatedBytes = GetAllocatedBytes(report);
         var log = logWriter.ToString();
@@ -187,22 +193,32 @@ static IDisposable BeginRandomSourceSeedScope(Assembly assembly,int seed){
         ?? EmptyDisposable.Instance;
 }
 
-static string CaptureBenchmarkResultDigest(Type benchmarkType,string methodName){
+static string CaptureBenchmarkResultDigest(Type benchmarkType,string methodName,object?[] arguments){
     var instance = Activator.CreateInstance(benchmarkType);
     var method = benchmarkType.GetMethod(
         "CaptureBenchmarkMethodResult",
         BindingFlags.Public|BindingFlags.Instance,
         binder:null,
-        types:[typeof(string),typeof(bool)],
+        types:[typeof(string),typeof(bool),typeof(object[])],
         modifiers:null)
         ??throw new MissingMethodException(benchmarkType.FullName,"CaptureBenchmarkMethodResult");
-    return method.Invoke(instance,[methodName,false]) as string
+    return method.Invoke(instance,[methodName,false,arguments]) as string
         ??throw new InvalidOperationException("Benchmark result digest was empty.");
 }
 
 static int CreateRandomSourceSeed(WorkerTaskMessage task){
     var runRoot = TryGetRunRoot(task.ArtifactFolder);
-    return StableHash(runRoot+"|"+task.SourceTab+"|"+task.MethodName+"|"+task.ElementCount.ToString(CultureInfo.InvariantCulture));
+    return StableHash(runRoot+"|"+task.SourceTab+"|"+task.MethodName+"|"+task.ArgumentKey+"|"+task.ElementCount.ToString(CultureInfo.InvariantCulture));
+}
+
+static bool IsReportForArguments(BenchmarkDotNet.Running.BenchmarkCase benchmarkCase,BenchmarkArgument[] arguments){
+    if(arguments.Length==0){
+        return true;
+    }
+    var display = benchmarkCase.DisplayInfo;
+    return arguments.All(argument =>
+        display.Contains(argument.Name,StringComparison.OrdinalIgnoreCase)
+        &&display.Contains(argument.Value,StringComparison.OrdinalIgnoreCase));
 }
 
 static string TryGetRunRoot(string artifactFolder){
@@ -318,11 +334,30 @@ internal sealed record WorkerTaskMessage(
     string AssemblyName,
     string TypeFullName,
     string MethodName,
+    string ArgumentKey,
+    BenchmarkArgument[] Arguments,
     BenchmarkSourceTab SourceTab,
     int[] PreparedElementCounts,
     int ElementCount,
     string ElementScale,
     string ArtifactFolder);
+
+internal sealed record BenchmarkArgument(string Name,string Value);
+
+internal static class BenchmarkArgumentFormatting{
+    public static object?[] ToObjects(IReadOnlyList<BenchmarkArgument> arguments) =>
+        arguments.Select(static argument => ParseValue(argument.Value)).ToArray();
+
+    private static object ParseValue(string value) {
+        if(long.TryParse(value,NumberStyles.Integer,CultureInfo.InvariantCulture,out var longValue)){
+            return longValue;
+        }
+        if(double.TryParse(value,NumberStyles.Float,CultureInfo.InvariantCulture,out var doubleValue)){
+            return doubleValue;
+        }
+        return value;
+    }
+}
 
 internal enum BenchmarkSourceTab{
     SystemArray,
@@ -333,6 +368,10 @@ internal enum BenchmarkSourceTab{
     ScalableSet,
     ScalableDictionary,
     ScalablePersistedList,
+    ScalablePersistedSet,
+    ScalableTsavoriteSet,
+    ScalablePersistedDictionary,
+    ScalableTsavoriteDictionary,
 }
 
 internal sealed record WorkerResultMessage(
@@ -354,5 +393,21 @@ internal sealed class EmptyDisposable:IDisposable{
     public static EmptyDisposable Instance { get; } = new();
 
     public void Dispose(){
+    }
+}
+
+internal sealed class WorkerTaskFilter(WorkerTaskMessage task) : IFilter{
+    public bool Predicate(BenchmarkDotNet.Running.BenchmarkCase benchmarkCase) =>
+        benchmarkCase.Descriptor.WorkloadMethod.Name==task.MethodName
+        &&IsReportForArguments(benchmarkCase,task.Arguments);
+
+    private static bool IsReportForArguments(BenchmarkDotNet.Running.BenchmarkCase benchmarkCase,BenchmarkArgument[] arguments){
+        if(arguments.Length==0){
+            return true;
+        }
+        var display = benchmarkCase.DisplayInfo;
+        return arguments.All(argument =>
+            display.Contains(argument.Name,StringComparison.OrdinalIgnoreCase)
+            &&display.Contains(argument.Value,StringComparison.OrdinalIgnoreCase));
     }
 }

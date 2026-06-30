@@ -353,12 +353,14 @@ internal readonly record struct BenchmarkRowDefinition(
 internal static class BenchmarkRowGroupingLogic{
     public static IReadOnlyList<BenchmarkRowDefinition> CreateRows(
         IReadOnlyList<BenchmarkCase> cases,
-        BenchmarkSourceTabDefinition sourceTab){
+        BenchmarkSourceTabDefinition sourceTab,
+        int elementCount = 0){
         var rows = new List<BenchmarkRowDefinition>();
         foreach(var methodGroup in cases
             .Where(item => sourceTab.ContainsProject(item.Project))
-            .GroupBy(static item => item.MethodName,StringComparer.OrdinalIgnoreCase)
+            .GroupBy(static item => item.MethodName+"|"+item.ArgumentKey,StringComparer.OrdinalIgnoreCase)
             .OrderBy(static group => group.Key,StringComparer.OrdinalIgnoreCase)){
+            var firstCase = methodGroup.First();
             var casesByProject = sourceTab.ProjectOrder
                 .ToDictionary(
                     static project => project,
@@ -379,9 +381,9 @@ internal static class BenchmarkRowGroupingLogic{
                 }
 
                 rows.Add(new BenchmarkRowDefinition(
-                    CreateRowKey(sourceTab,methodGroup.Key,rowCases),
-                    methodGroup.Key,
-                    CreateBenchmarkName(sourceTab,methodGroup.Key,rowCases),
+                    CreateRowKey(sourceTab,firstCase.MethodName,rowCases),
+                    firstCase.MethodName,
+                    CreateBenchmarkName(sourceTab,firstCase.MethodName,rowCases,elementCount),
                     rowCases));
             }
         }
@@ -389,17 +391,18 @@ internal static class BenchmarkRowGroupingLogic{
         return rows;
     }
 
-    public static string CreateCaseKey(string project,string typeFullName,string methodName) =>
-        project+"|"+typeFullName+"|"+methodName;
+    public static string CreateCaseKey(string project,string typeFullName,string methodName,string argumentKey = "") =>
+        project+"|"+typeFullName+"|"+methodName+"|"+argumentKey;
 
     private static string CreateBenchmarkName(
         BenchmarkSourceTabDefinition sourceTab,
         string methodName,
-        IReadOnlyDictionary<string,BenchmarkCase> casesByProject){
+        IReadOnlyDictionary<string,BenchmarkCase> casesByProject,
+        int elementCount){
         var typeFullName = sourceTab.ProjectOrder
             .Select(project => casesByProject.TryGetValue(project,out var benchmark) ? benchmark.TypeFullName : string.Empty)
             .FirstOrDefault(static text => !string.IsNullOrWhiteSpace(text))??string.Empty;
-        return ScalableBenchmarkNameFormatter.CreateBenchmarkName(sourceTab,typeFullName,methodName);
+        return ScalableBenchmarkNameFormatter.CreateBenchmarkName(sourceTab,typeFullName,methodName,elementCount);
     }
 
     public static string CreateRowKey(
@@ -408,7 +411,7 @@ internal static class BenchmarkRowGroupingLogic{
         IReadOnlyDictionary<string,BenchmarkCase> casesByProject){
         var parts = sourceTab.ProjectOrder
             .Select(project => casesByProject.TryGetValue(project,out var benchmark)
-                ? CreateCaseKey(benchmark.Project,benchmark.TypeFullName,benchmark.MethodName)
+                ? CreateCaseKey(benchmark.Project,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey)
                 : project+"||"+methodName);
         return sourceTab.Id+"|"+string.Join("||",parts);
     }

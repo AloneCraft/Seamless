@@ -9,6 +9,10 @@ public enum BenchmarkSourceTab{
     ScalableSet,
     ScalableDictionary,
     ScalablePersistedList,
+    ScalablePersistedSet,
+    ScalableTsavoriteSet,
+    ScalablePersistedDictionary,
+    ScalableTsavoriteDictionary,
 }
 
 public sealed record ComparisonPairOption(string Key,string DisplayName,string LeftProject,string RightProject);
@@ -50,33 +54,57 @@ public static class BenchmarkSourceTabs{
     public const string SeamlessTsavoriteId = "Seamless.Tsavorite";
     public const string ScalableSetId = "Scalable.Set";
     public const string ScalableDictionaryId = "Scalable.Dictionary";
+    public const string ScalablePersistedSetId = "Scalable.Persisted.Set";
+    public const string ScalableTsavoriteSetId = "Scalable.Tsavorite.Set";
+    public const string ScalablePersistedDictionaryId = "Scalable.Persisted.Dictionary";
+    public const string ScalableTsavoriteDictionaryId = "Scalable.Tsavorite.Dictionary";
     public const string ScalablePersistedListId = "Scalable.Persisted.List";
 
     public static IReadOnlyList<BenchmarkSourceTabDefinition> ScalableAll { get; } = [
         new(
-            BenchmarkSourceTab.ScalableSet,
-            ScalableSetId,
-            "Scalable.Set",
+            BenchmarkSourceTab.ScalablePersistedSet,
+            ScalablePersistedSetId,
+            "Persisted.Set<T> IndexSize_PageSize_SegmentSize_MemorySize_MutableFraction",
             "Scalable.Persisted.Set",
             "Persisted",
             "Scalable.Persisted.Collections",
+            "Scalable.Persisted.Set.Previous",
+            "Previous",
+            string.Empty),
+        new(
+            BenchmarkSourceTab.ScalableTsavoriteSet,
+            ScalableTsavoriteSetId,
+            "Tsavorite.Set<T> IndexSize_PageSize_SegmentSize_MemorySize_MutableFraction",
             "Scalable.Tsavorite.Set",
             "Tsavorite",
-            "Scalable.Tsavorite.Collections"),
+            "Scalable.Tsavorite.Collections",
+            "Scalable.Tsavorite.Set.Previous",
+            "Previous",
+            string.Empty),
         new(
-            BenchmarkSourceTab.ScalableDictionary,
-            ScalableDictionaryId,
-            "Scalable.Dictionary",
+            BenchmarkSourceTab.ScalablePersistedDictionary,
+            ScalablePersistedDictionaryId,
+            "Persisted.Dictionary<TKey,TValue> IndexSize_PageSize_SegmentSize_MemorySize_MutableFraction",
             "Scalable.Persisted.Dictionary",
             "Persisted",
             "Scalable.Persisted.Collections",
+            "Scalable.Persisted.Dictionary.Previous",
+            "Previous",
+            string.Empty),
+        new(
+            BenchmarkSourceTab.ScalableTsavoriteDictionary,
+            ScalableTsavoriteDictionaryId,
+            "Tsavorite.Dictionary<TKey,TValue> IndexSize_PageSize_SegmentSize_MemorySize_MutableFraction",
             "Scalable.Tsavorite.Dictionary",
             "Tsavorite",
-            "Scalable.Tsavorite.Collections"),
+            "Scalable.Tsavorite.Collections",
+            "Scalable.Tsavorite.Dictionary.Previous",
+            "Previous",
+            string.Empty),
         new(
             BenchmarkSourceTab.ScalablePersistedList,
             ScalablePersistedListId,
-            "Scalable.Persisted.List",
+            "Persisted.List<T> IndexSize_PageSize_SegmentSize_MemorySize_MutableFraction",
             "Scalable.Persisted.List",
             "Persisted",
             "Scalable.Persisted.Collections",

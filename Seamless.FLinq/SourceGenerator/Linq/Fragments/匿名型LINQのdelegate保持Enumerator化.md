@@ -1,4 +1,4 @@
-# 匿名型LINQのdelegate保持Enumerator化 実装計画
+﻿# 匿名型LINQのdelegate保持Enumerator化 実装計画
 
 ## 背景
 

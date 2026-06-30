@@ -1,4 +1,4 @@
-# Tsavorite.Linq.Enumerable 正規化
+﻿# Tsavorite.Linq.Enumerable 正規化
 
 ## 背景
 

@@ -1,4 +1,4 @@
----
+﻿---
 name: calibrate-linq-test-workloads
 description: Seamless の System LINQ benchmark-as-test 負荷を再調整する。Shared/Seamless.Linq.Enumerable/Methods1.cs の要素数または反復回数を、Test.System.Linq.Enumerable.Linq、Test.System.Linq.Enumerable.FLinq、Test.System.Linq.Enumerable.ZLinq の Release 直列 Stopwatch 計測が目標時間内に収まるよう調整するときに使う。
 ---

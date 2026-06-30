@@ -38,3 +38,6 @@ dotnet_style_qualification_for_event = true:warning
 
 # 「this は冗長です」(IDE0003) を無効化
 dotnet_diagnostic.IDE0003.severity = none
+
+[*.md]
+charset = utf-8-bom

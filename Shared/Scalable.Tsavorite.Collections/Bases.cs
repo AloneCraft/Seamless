@@ -6,12 +6,18 @@ public abstract class TsavoriteSetScalable<TStrategy,T>
     :ScalableBenchmarkBase
     where TStrategy : IHashSetTestStrategy<T>
     where T : IEquatable<T> {
-    private const long ScalableIndexSize = 131072;
-
-    [BenchFact,Benchmark]
-    public long Add() {
-        var count = ScalableWorkload.ElementCount;
-        using var handle = TStrategy.CreateMemorySet(memorySize: CollectionLinqSourceSizing.GetMemorySize(count),indexSize: ScalableIndexSize);
+    [Benchmark,BenchTheory]
+    [BenchArguments(65536,131072,4096,4096,8388608,1.0)]
+    [BenchArguments(131072,131072,4096,4096,16777216,1.0)]
+    [BenchArguments(262144,131072,4096,4096,33554432,1.0)]
+    [BenchArguments(524288,131072,4096,4096,67108864,1.0)]
+    [BenchArguments(1048576,131072,4096,4096,134217728,1.0)]
+    [BenchArguments(2097152,131072,4096,4096,268435456,1.0)]
+    [BenchArguments(4194304,131072,4096,4096,536870912,1.0)]
+    [BenchArguments(8388608,131072,4096,4096,1073741824,1.0)]
+    public long Add(long Count,long Index,long Page,long Segment,long Memory,double Fraction) {
+        var count = checked((int)Count);
+        using var handle = TStrategy.CreateMemorySet(memorySize: Memory,mutableFraction: Fraction,indexSize: Index,pageSize: Page,segmentSize: Segment);
         for(var i=0;i<count;i++) {
             handle.Set.Add(TStrategy.Elem(i));
         }
@@ -19,10 +25,18 @@ public abstract class TsavoriteSetScalable<TStrategy,T>
         return handle.Set.Count;
     }
 
-    [BenchFact,Benchmark]
-    public int Contains() {
-        var count = ScalableWorkload.ElementCount;
-        using var handle = TStrategy.CreateMemorySet(memorySize: CollectionLinqSourceSizing.GetMemorySize(count),indexSize: ScalableIndexSize);
+    [Benchmark,BenchTheory]
+    [BenchArguments(65536,131072,4096,4096,8388608,1.0)]
+    [BenchArguments(131072,131072,4096,4096,16777216,1.0)]
+    [BenchArguments(262144,131072,4096,4096,33554432,1.0)]
+    [BenchArguments(524288,131072,4096,4096,67108864,1.0)]
+    [BenchArguments(1048576,131072,4096,4096,134217728,1.0)]
+    [BenchArguments(2097152,131072,4096,4096,268435456,1.0)]
+    [BenchArguments(4194304,131072,4096,4096,536870912,1.0)]
+    [BenchArguments(8388608,131072,4096,4096,1073741824,1.0)]
+    public int Contains(long Count,long Index,long Page,long Segment,long Memory,double Fraction) {
+        var count = checked((int)Count);
+        using var handle = TStrategy.CreateMemorySet(memorySize: Memory,mutableFraction: Fraction,indexSize: Index,pageSize: Page,segmentSize: Segment);
         for(var i=0;i<count;i++) {
             handle.Set.Add(TStrategy.Elem(i));
         }
@@ -42,22 +56,36 @@ public abstract class TsavoriteDictionaryScalable<TStrategy,TKey,TValue>
     where TStrategy : IDictTestStrategy<TKey,TValue>
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue> {
-    private const long ScalableIndexSize = 131072;
-
-    [BenchFact,Benchmark]
-    public long Add() {
-        var count = ScalableWorkload.ElementCount;
-        using var store = TStrategy.CreateMemoryStore(memorySize: CollectionLinqSourceSizing.GetMemorySize(count),indexSize: ScalableIndexSize);
+    [Benchmark,BenchTheory]
+    [BenchArguments(65536,131072,4096,4096,8388608,1.0)]
+    [BenchArguments(131072,131072,4096,4096,16777216,1.0)]
+    [BenchArguments(262144,131072,4096,4096,33554432,1.0)]
+    [BenchArguments(524288,131072,4096,4096,67108864,1.0)]
+    [BenchArguments(1048576,131072,4096,4096,134217728,1.0)]
+    [BenchArguments(2097152,131072,4096,4096,268435456,1.0)]
+    [BenchArguments(4194304,131072,4096,4096,536870912,1.0)]
+    [BenchArguments(8388608,131072,4096,4096,1073741824,1.0)]
+    public long Add(long Count,long Index,long Page,long Segment,long Memory,double Fraction) {
+        var count = checked((int)Count);
+        using var store = TStrategy.CreateMemoryStore(memorySize: Memory,mutableFraction: Fraction,indexSize: Index,pageSize: Page,segmentSize: Segment);
         using var dictionary = store.NewDict();
         AddRange(dictionary,count);
         Assert.Equal(count,dictionary.Count);
         return dictionary.Count;
     }
 
-    [BenchFact,Benchmark]
-    public int TryGetValue() {
-        var count = ScalableWorkload.ElementCount;
-        using var store = TStrategy.CreateMemoryStore(memorySize: CollectionLinqSourceSizing.GetMemorySize(count),indexSize: ScalableIndexSize);
+    [Benchmark,BenchTheory]
+    [BenchArguments(65536,131072,4096,4096,8388608,1.0)]
+    [BenchArguments(131072,131072,4096,4096,16777216,1.0)]
+    [BenchArguments(262144,131072,4096,4096,33554432,1.0)]
+    [BenchArguments(524288,131072,4096,4096,67108864,1.0)]
+    [BenchArguments(1048576,131072,4096,4096,134217728,1.0)]
+    [BenchArguments(2097152,131072,4096,4096,268435456,1.0)]
+    [BenchArguments(4194304,131072,4096,4096,536870912,1.0)]
+    [BenchArguments(8388608,131072,4096,4096,1073741824,1.0)]
+    public int TryGetValue(long Count,long Index,long Page,long Segment,long Memory,double Fraction) {
+        var count = checked((int)Count);
+        using var store = TStrategy.CreateMemoryStore(memorySize: Memory,mutableFraction: Fraction,indexSize: Index,pageSize: Page,segmentSize: Segment);
         using var dictionary = store.NewDict();
         AddRange(dictionary,count);
         var found = 0;

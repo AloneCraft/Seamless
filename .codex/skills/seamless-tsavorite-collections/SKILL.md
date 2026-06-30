@@ -1,4 +1,4 @@
----
+﻿---
 name: seamless-tsavorite-collections
 description: Seamless Tsavorite collection implementation rules. Use when changing Seamless.Collections.Tsavorite traversal, HashSet/Set/Dictionary enumeration, provider-native FLinq terminals, Iterate APIs, IterateLookup behavior, tombstone handling, or any code that might choose between IterateLookup and ScanCursor.
 ---

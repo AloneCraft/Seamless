@@ -1,4 +1,4 @@
-# Tsavorite.Linq.Enumerable shared benchmark 設計
+﻿# Tsavorite.Linq.Enumerable shared benchmark 設計
 
 ## 背景
 

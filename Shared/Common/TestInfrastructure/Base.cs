@@ -293,6 +293,10 @@ public class Base {
         this.CountForComparison(this.CountForTestTiming(elementCount));
 
     public string CaptureBenchmarkMethodResult(string methodName,bool invokeImpl) {
+        return this.CaptureBenchmarkMethodResult(methodName,invokeImpl,[]);
+    }
+
+    public string CaptureBenchmarkMethodResult(string methodName,bool invokeImpl,object?[] arguments) {
         if(string.IsNullOrWhiteSpace(methodName)) {
             throw new ArgumentException("Method name is required.",nameof(methodName));
         }
@@ -307,7 +311,7 @@ public class Base {
         Exception? invocationError=null;
         var consumed=string.Empty;
         try {
-            returnValue=method.Invoke(this,null);
+            returnValue=method.Invoke(this,arguments);
         } catch(System.Reflection.TargetInvocationException ex) when(ex.InnerException is not null) {
             invocationError=ex.InnerException;
         } finally {
@@ -461,9 +465,6 @@ public class Base {
             var method=current.GetMethod(methodName,flags);
             if(method is null) {
                 continue;
-            }
-            if(method.GetParameters().Length!=0) {
-                throw new InvalidOperationException($"{current.FullName}.{methodName} must not declare parameters.");
             }
             return method;
         }

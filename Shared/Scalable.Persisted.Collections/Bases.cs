@@ -7,12 +7,20 @@ public abstract class PersistedSetScalable<TProvider,T>
     :ScalableBenchmarkBase
     where TProvider : IHashSetValueProvider<T>
     where T : IEquatable<T> {
-    [BenchFact,Benchmark]
-    public long Add() {
-        var count = ScalableWorkload.ElementCount;
+    [Benchmark,BenchTheory]
+    [BenchArguments(65536,1,4096)]
+    [BenchArguments(131072,1,4096)]
+    [BenchArguments(262144,1,4096)]
+    [BenchArguments(524288,1,4096)]
+    [BenchArguments(1048576,1,4096)]
+    [BenchArguments(2097152,1,4096)]
+    [BenchArguments(4194304,1,4096)]
+    [BenchArguments(8388608,1,4096)]
+    public long Add(long Count,long Initial,long Data) {
+        var count = checked((int)Count);
         var path = ScalablePath.Create<TProvider,T>(nameof(Add));
         try {
-            using var set = new global::Seamless.Persisted.Collections.Set<T>(path,initialCapacity: 1,initialDataCapacity: 4096);
+            using var set = new global::Seamless.Persisted.Collections.Set<T>(path,initialCapacity: Initial,initialDataCapacity: Data);
             for(var i=0;i<count;i++) {
                 set.Add(TProvider.Create(i));
             }
@@ -23,12 +31,20 @@ public abstract class PersistedSetScalable<TProvider,T>
         }
     }
 
-    [BenchFact,Benchmark]
-    public int Contains() {
-        var count = ScalableWorkload.ElementCount;
+    [Benchmark,BenchTheory]
+    [BenchArguments(65536,1,4096)]
+    [BenchArguments(131072,1,4096)]
+    [BenchArguments(262144,1,4096)]
+    [BenchArguments(524288,1,4096)]
+    [BenchArguments(1048576,1,4096)]
+    [BenchArguments(2097152,1,4096)]
+    [BenchArguments(4194304,1,4096)]
+    [BenchArguments(8388608,1,4096)]
+    public int Contains(long Count,long Initial,long Data) {
+        var count = checked((int)Count);
         var path = ScalablePath.Create<TProvider,T>(nameof(Contains));
         try {
-            using var set = new global::Seamless.Persisted.Collections.Set<T>(path,initialCapacity: 1,initialDataCapacity: 4096);
+            using var set = new global::Seamless.Persisted.Collections.Set<T>(path,initialCapacity: Initial,initialDataCapacity: Data);
             for(var i=0;i<count;i++) {
                 set.Add(TProvider.Create(i));
             }
@@ -49,12 +65,20 @@ public abstract class PersistedSetScalable<TProvider,T>
 public abstract class PersistedListScalable<TStrategy,T>
     :ScalableBenchmarkBase
     where TStrategy : IListTestStrategy<T> {
-    [BenchFact,Benchmark]
-    public long Add() {
-        var count = ScalableWorkload.ElementCount;
+    [Benchmark,BenchTheory]
+    [BenchArguments(65536,1,4096)]
+    [BenchArguments(131072,1,4096)]
+    [BenchArguments(262144,1,4096)]
+    [BenchArguments(524288,1,4096)]
+    [BenchArguments(1048576,1,4096)]
+    [BenchArguments(2097152,1,4096)]
+    [BenchArguments(4194304,1,4096)]
+    [BenchArguments(8388608,1,4096)]
+    public long Add(long Count,long Initial,long Data) {
+        var count = checked((int)Count);
         var path = ScalablePath.Create<TStrategy,T>(nameof(Add));
         try {
-            using var handle = TStrategy.CreateList(path,initialCapacity: 1,initialDataCapacity: 4096);
+            using var handle = TStrategy.CreateList(path,initialCapacity: Initial,initialDataCapacity: Data);
             for(var i=0;i<count;i++) {
                 handle.List.Add(TStrategy.Elem(i));
             }
@@ -65,12 +89,20 @@ public abstract class PersistedListScalable<TStrategy,T>
         }
     }
 
-    [BenchFact,Benchmark]
-    public long Remove() {
-        var count = ScalableWorkload.ElementCount;
+    [Benchmark,BenchTheory]
+    [BenchArguments(65536,1,4096)]
+    [BenchArguments(131072,1,4096)]
+    [BenchArguments(262144,1,4096)]
+    [BenchArguments(524288,1,4096)]
+    [BenchArguments(1048576,1,4096)]
+    [BenchArguments(2097152,1,4096)]
+    [BenchArguments(4194304,1,4096)]
+    [BenchArguments(8388608,1,4096)]
+    public long Remove(long Count,long Initial,long Data) {
+        var count = checked((int)Count);
         var path = ScalablePath.Create<TStrategy,T>(nameof(Remove));
         try {
-            using var handle = TStrategy.CreateList(path,initialCapacity: 1,initialDataCapacity: 4096);
+            using var handle = TStrategy.CreateList(path,initialCapacity: Initial,initialDataCapacity: Data);
             for(var i=0;i<count;i++) {
                 handle.List.Add(TStrategy.Elem(i));
             }
@@ -84,12 +116,20 @@ public abstract class PersistedListScalable<TStrategy,T>
         }
     }
 
-    [BenchFact,Benchmark]
-    public long Indexer() {
-        var count = ScalableWorkload.ElementCount;
+    [Benchmark,BenchTheory]
+    [BenchArguments(65536,1,4096)]
+    [BenchArguments(131072,1,4096)]
+    [BenchArguments(262144,1,4096)]
+    [BenchArguments(524288,1,4096)]
+    [BenchArguments(1048576,1,4096)]
+    [BenchArguments(2097152,1,4096)]
+    [BenchArguments(4194304,1,4096)]
+    [BenchArguments(8388608,1,4096)]
+    public long Indexer(long Count,long Initial,long Data) {
+        var count = checked((int)Count);
         var path = ScalablePath.Create<TStrategy,T>(nameof(Indexer));
         try {
-            using var handle = TStrategy.CreateList(path,initialCapacity: 1,initialDataCapacity: 4096);
+            using var handle = TStrategy.CreateList(path,initialCapacity: Initial,initialDataCapacity: Data);
             for(var i=0;i<count;i++) {
                 handle.List.Add(TStrategy.Elem(i));
             }
@@ -108,12 +148,20 @@ public abstract class PersistedBlittableDictionaryScalable<TProvider,TKey,TValue
     where TProvider : IDictTestStrategy<TKey,TValue>
     where TKey : unmanaged, IEquatable<TKey>
     where TValue : unmanaged, IEquatable<TValue> {
-    [BenchFact,Benchmark]
-    public long Add() {
-        var count = ScalableWorkload.ElementCount;
+    [Benchmark,BenchTheory]
+    [BenchArguments(65536,1,4096)]
+    [BenchArguments(131072,1,4096)]
+    [BenchArguments(262144,1,4096)]
+    [BenchArguments(524288,1,4096)]
+    [BenchArguments(1048576,1,4096)]
+    [BenchArguments(2097152,1,4096)]
+    [BenchArguments(4194304,1,4096)]
+    [BenchArguments(8388608,1,4096)]
+    public long Add(long Count,long Initial,long Data) {
+        var count = checked((int)Count);
         var path = ScalablePath.Create<TProvider,KeyValuePair<TKey,TValue>>(nameof(Add));
         try {
-            using var dictionary = new global::Seamless.Persisted.Collections.BlittableDictionary<TKey,TValue>(path,initialCapacity: 1,initialDataCapacity: 4096);
+            using var dictionary = new global::Seamless.Persisted.Collections.BlittableDictionary<TKey,TValue>(path,initialCapacity: Initial,initialDataCapacity: Data);
             AddRange(dictionary,count);
             Assert.Equal(count,dictionary.Count);
             return dictionary.Count;
@@ -122,12 +170,20 @@ public abstract class PersistedBlittableDictionaryScalable<TProvider,TKey,TValue
         }
     }
 
-    [BenchFact,Benchmark]
-    public int TryGetValue() {
-        var count = ScalableWorkload.ElementCount;
+    [Benchmark,BenchTheory]
+    [BenchArguments(65536,1,4096)]
+    [BenchArguments(131072,1,4096)]
+    [BenchArguments(262144,1,4096)]
+    [BenchArguments(524288,1,4096)]
+    [BenchArguments(1048576,1,4096)]
+    [BenchArguments(2097152,1,4096)]
+    [BenchArguments(4194304,1,4096)]
+    [BenchArguments(8388608,1,4096)]
+    public int TryGetValue(long Count,long Initial,long Data) {
+        var count = checked((int)Count);
         var path = ScalablePath.Create<TProvider,KeyValuePair<TKey,TValue>>(nameof(TryGetValue));
         try {
-            using var dictionary = new global::Seamless.Persisted.Collections.BlittableDictionary<TKey,TValue>(path,initialCapacity: 1,initialDataCapacity: 4096);
+            using var dictionary = new global::Seamless.Persisted.Collections.BlittableDictionary<TKey,TValue>(path,initialCapacity: Initial,initialDataCapacity: Data);
             AddRange(dictionary,count);
             var found = 0;
             for(var i=0;i<count;i++) {
@@ -154,12 +210,20 @@ public abstract class PersistedSerializedDictionaryScalable<TProvider,TKey,TValu
     where TProvider : IDictTestStrategy<TKey,TValue>
     where TKey : notnull, IEquatable<TKey>
     where TValue : IEquatable<TValue> {
-    [BenchFact,Benchmark]
-    public long Add() {
-        var count = ScalableWorkload.ElementCount;
+    [Benchmark,BenchTheory]
+    [BenchArguments(65536,1,4096)]
+    [BenchArguments(131072,1,4096)]
+    [BenchArguments(262144,1,4096)]
+    [BenchArguments(524288,1,4096)]
+    [BenchArguments(1048576,1,4096)]
+    [BenchArguments(2097152,1,4096)]
+    [BenchArguments(4194304,1,4096)]
+    [BenchArguments(8388608,1,4096)]
+    public long Add(long Count,long Initial,long Data) {
+        var count = checked((int)Count);
         var path = ScalablePath.Create<TProvider,KeyValuePair<TKey,TValue>>(nameof(Add));
         try {
-            using var dictionary = new global::Seamless.Persisted.Collections.SerializedDictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(path,initialCapacity: 1,initialDataCapacity: 4096);
+            using var dictionary = new global::Seamless.Persisted.Collections.SerializedDictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(path,initialCapacity: Initial,initialDataCapacity: Data);
             AddRange(dictionary,count);
             Assert.Equal(count,dictionary.Count);
             return dictionary.Count;
@@ -168,12 +232,20 @@ public abstract class PersistedSerializedDictionaryScalable<TProvider,TKey,TValu
         }
     }
 
-    [BenchFact,Benchmark]
-    public int TryGetValue() {
-        var count = ScalableWorkload.ElementCount;
+    [Benchmark,BenchTheory]
+    [BenchArguments(65536,1,4096)]
+    [BenchArguments(131072,1,4096)]
+    [BenchArguments(262144,1,4096)]
+    [BenchArguments(524288,1,4096)]
+    [BenchArguments(1048576,1,4096)]
+    [BenchArguments(2097152,1,4096)]
+    [BenchArguments(4194304,1,4096)]
+    [BenchArguments(8388608,1,4096)]
+    public int TryGetValue(long Count,long Initial,long Data) {
+        var count = checked((int)Count);
         var path = ScalablePath.Create<TProvider,KeyValuePair<TKey,TValue>>(nameof(TryGetValue));
         try {
-            using var dictionary = new global::Seamless.Persisted.Collections.SerializedDictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(path,initialCapacity: 1,initialDataCapacity: 4096);
+            using var dictionary = new global::Seamless.Persisted.Collections.SerializedDictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(path,initialCapacity: Initial,initialDataCapacity: Data);
             AddRange(dictionary,count);
             var found = 0;
             for(var i=0;i<count;i++) {

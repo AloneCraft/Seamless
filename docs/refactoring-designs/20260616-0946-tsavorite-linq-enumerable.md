@@ -1,4 +1,4 @@
-# Tsavorite.Linq.Enumerable 移行設計
+﻿# Tsavorite.Linq.Enumerable 移行設計
 
 ## 背景
 

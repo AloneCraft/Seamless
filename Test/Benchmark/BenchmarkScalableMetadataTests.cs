@@ -8,20 +8,23 @@ public sealed class BenchmarkScalableMetadataTests {
     public void ScalableSourceTabs_AreSetDictionaryAndPersistedList() {
         Assert.Equal(
             [
-                BenchmarkSourceTabs.ScalableSetId,
-                BenchmarkSourceTabs.ScalableDictionaryId,
+                BenchmarkSourceTabs.ScalablePersistedSetId,
+                BenchmarkSourceTabs.ScalableTsavoriteSetId,
+                BenchmarkSourceTabs.ScalablePersistedDictionaryId,
+                BenchmarkSourceTabs.ScalableTsavoriteDictionaryId,
                 BenchmarkSourceTabs.ScalablePersistedListId,
             ],
             BenchmarkSourceTabs.ScalableAll.Select(static tab => tab.Id).ToArray());
 
         var set = BenchmarkSourceTabs.ScalableAll[0];
         Assert.Equal("Persisted",set.LeftHeader);
-        Assert.Equal("Tsavorite",set.RightHeader);
+        Assert.Equal("Previous",set.RightHeader);
+        Assert.Equal("Scalable.Persisted.Set.Previous",set.RightProject);
 
-        var list = BenchmarkSourceTabs.ScalableAll[2];
+        var list = BenchmarkSourceTabs.ScalableAll[4];
         Assert.Equal("Scalable.Persisted.List",list.LeftProject);
-        Assert.Empty(list.RightProject);
-        Assert.Single(list.ProjectOrder);
+        Assert.Equal("Scalable.Persisted.List.Previous",list.RightProject);
+        Assert.Equal(2,list.ProjectOrder.Count);
     }
 
     [Fact]

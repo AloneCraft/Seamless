@@ -1,4 +1,4 @@
-# AI Syntax Rules
+﻿# AI Syntax Rules
 
 このファイルは、GPT/Codex、Claude、DeepSeek などの AI エージェントが Seamless ソリューション全体を編集するときに参照する共通の構文ルールです。
 
