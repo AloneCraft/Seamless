@@ -39,7 +39,8 @@ public interface IHashSetTestStrategy<T>
     static abstract T Elem(int i);
     static abstract HashSetHandle<T> CreateMemorySet(
         long memorySize = global::Seamless.Tsavorite.Const.LogMemorySize,
-        double mutableFraction = 1.0);
+        double mutableFraction = 1.0,
+        long indexSize = global::Seamless.Tsavorite.Const.IndexSize);
 }
 public readonly struct MemoryPackHashSetStrategy<TProvider, T>:IHashSetTestStrategy<T>
     where TProvider : IHashSetValueProvider<T>
@@ -47,8 +48,9 @@ public readonly struct MemoryPackHashSetStrategy<TProvider, T>:IHashSetTestStrat
     public static T Elem(int i) => TProvider.Create(i);
     public static HashSetHandle<T> CreateMemorySet(
         long memorySize = global::Seamless.Tsavorite.Const.LogMemorySize,
-        double mutableFraction = 1.0){
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<T>(new MemoryPackSerializerStrategy());
+        double mutableFraction = 1.0,
+        long indexSize = global::Seamless.Tsavorite.Const.IndexSize){
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize).Create<T>(new MemoryPackSerializerStrategy());
         return new HashSetHandle<T>(store,store.Create());
     }
 }
@@ -58,8 +60,9 @@ public readonly struct BlittableHashSetStrategy<TProvider, T>:IHashSetTestStrate
     public static T Elem(int i) => TProvider.Create(i);
     public static HashSetHandle<T> CreateMemorySet(
         long memorySize = global::Seamless.Tsavorite.Const.LogMemorySize,
-        double mutableFraction = 1.0){
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<T>();
+        double mutableFraction = 1.0,
+        long indexSize = global::Seamless.Tsavorite.Const.IndexSize){
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize).Create<T>();
         return new HashSetHandle<T>(store,store.Create());
     }
 }

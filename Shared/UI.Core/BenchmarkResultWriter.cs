@@ -20,7 +20,8 @@ internal sealed class BenchmarkResultWriter {
                 Directory.CreateDirectory(sourceRoot);
                 var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
                     group.Select(static job => job.ToReportRow()).ToArray(),
-                    sourceTab);
+                    sourceTab,
+                    group.Key.ElementCount);
                 var path = Path.Combine(sourceRoot,$"N{group.Key.ElementCount}.csv");
                 AtomicWriteText(path,BenchmarkComparisonFormatter.WriteCsv(rows,sourceTab),new UTF8Encoding(true));
                 paths.Add(path);

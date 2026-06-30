@@ -2366,8 +2366,8 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
 
     private void AddComparisonRowsIntoResults(IReadOnlyList<BenchmarkComparisonRow> rows,int elementCount,ProgressState? selectedRunState) {
         foreach(var row in rows) {
-            this.AddResult(row.Benchmark,row.TypeFullName,row.SourceTab.LeftProject,row.Left,elementCount,selectedRunState);
-            this.AddResult(row.Benchmark,row.TypeFullName,row.SourceTab.RightProject,row.Right,elementCount,selectedRunState);
+            this.AddResult(row.MethodName,row.TypeFullName,row.SourceTab.LeftProject,row.Left,elementCount,selectedRunState);
+            this.AddResult(row.MethodName,row.TypeFullName,row.SourceTab.RightProject,row.Right,elementCount,selectedRunState);
         }
     }
 
@@ -2792,7 +2792,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         var rows = this.CreateReportRowsForComparison(sourceTab,sourceResults);
         return rows.Length==0
             ? []
-            : BenchmarkComparisonFormatter.BuildComparisonRows(rows,sourceTab);
+            : BenchmarkComparisonFormatter.BuildComparisonRows(rows,sourceTab,elementCount);
     }
 
     private IReadOnlyList<BenchmarkComparisonRow> BuildDisplayedRowsForElementCount(BenchmarkSourceTabDefinition sourceTab,int elementCount) {
@@ -3140,12 +3140,17 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private static bool IsComparisonRowMatch(BenchmarkTableRow row,BenchmarkComparisonRow item) =>
-        string.Equals(item.Benchmark,row.MethodName,StringComparison.OrdinalIgnoreCase)
+        IsComparisonBenchmarkNameMatch(row,item)
         &&(IsScalableSourceTab(row.SourceTab.Tab)
             ? !string.IsNullOrWhiteSpace(item.TypeFullName)
                 &&row.CasesByProject.Values.Any(benchmark => string.Equals(ShortTypeName(benchmark.TypeFullName),item.TypeFullName,StringComparison.OrdinalIgnoreCase))
             : string.IsNullOrWhiteSpace(item.TypeFullName)
                 ||row.CasesByProject.Values.Any(benchmark => string.Equals(ShortTypeName(benchmark.TypeFullName),item.TypeFullName,StringComparison.OrdinalIgnoreCase)));
+
+    private static bool IsComparisonBenchmarkNameMatch(BenchmarkTableRow row,BenchmarkComparisonRow item) =>
+        string.Equals(item.MethodName,row.MethodName,StringComparison.OrdinalIgnoreCase)
+        ||string.Equals(item.Benchmark,row.BenchmarkName,StringComparison.OrdinalIgnoreCase)
+        ||item.Benchmark.StartsWith(row.BenchmarkName+"/",StringComparison.OrdinalIgnoreCase);
 
     private ChartComparisonPoint CreateChartComparisonPoint(BenchmarkTableRow row,double? leftValue,double? rightValue) =>
         this.CreateChartComparisonPoint(row.RowKey,row.BenchmarkName,leftValue,rightValue);

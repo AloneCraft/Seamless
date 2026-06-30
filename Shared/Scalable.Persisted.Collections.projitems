@@ -7,6 +7,9 @@
     <HasSharedItems>true</HasSharedItems>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)Scalable.Persisted.Collections\**\*.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Scalable.Persisted.Collections\Bases.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Scalable.Persisted.Collections\Dictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Scalable.Persisted.Collections\List.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Scalable.Persisted.Collections\Set.cs" />
   </ItemGroup>
 </Project>

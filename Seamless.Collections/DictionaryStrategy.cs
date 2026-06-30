@@ -37,7 +37,8 @@ public interface IDictTestStrategy<TKey, TValue>
     static abstract TValue VWrong();
     static abstract StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = global::Seamless.Tsavorite.Const.LogMemorySize,
-        double mutableFraction = 1.0);
+        double mutableFraction = 1.0,
+        long indexSize = global::Seamless.Tsavorite.Const.IndexSize);
     static abstract StoreHandle<TKey,TValue> CreateStorageStore(
         IDevice logDevice,
         IDevice objDevice,
@@ -68,8 +69,9 @@ public readonly struct ManagedStoreDictionaryStrategy<TKeyProvider, TValueProvid
     public static TValue VWrong() => TValueProvider.Wrong();
     public static StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = global::Seamless.Tsavorite.Const.LogMemorySize,
-        double mutableFraction = 1.0) {
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
+        double mutableFraction = 1.0,
+        long indexSize = global::Seamless.Tsavorite.Const.IndexSize) {
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize).Create<TKey,TValue>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -96,8 +98,9 @@ public readonly struct UnmanagedKeyDictionaryStrategy<TKeyProvider, TValueProvid
     public static TValue VWrong() => TValueProvider.Wrong();
     public static StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = global::Seamless.Tsavorite.Const.LogMemorySize,
-        double mutableFraction = 1.0) {
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new BlittableStrategy(),new MemoryPackSerializerStrategy());
+        double mutableFraction = 1.0,
+        long indexSize = global::Seamless.Tsavorite.Const.IndexSize) {
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize).Create<TKey,TValue>(new BlittableStrategy(),new MemoryPackSerializerStrategy());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -124,8 +127,9 @@ public readonly struct UnmanagedValueDictionaryStrategy<TKeyProvider, TValueProv
     public static TValue VWrong() => TValueProvider.Wrong();
     public static StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = global::Seamless.Tsavorite.Const.LogMemorySize,
-        double mutableFraction = 1.0) {
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new MemoryPackSerializerStrategy(),new BlittableStrategy());
+        double mutableFraction = 1.0,
+        long indexSize = global::Seamless.Tsavorite.Const.IndexSize) {
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize).Create<TKey,TValue>(new MemoryPackSerializerStrategy(),new BlittableStrategy());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -152,9 +156,10 @@ public readonly struct UnmanagedStoreDictionaryStrategy<TKeyProvider, TValueProv
     public static TValue VWrong() => TValueProvider.Wrong();
     public static StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = global::Seamless.Tsavorite.Const.LogMemorySize,
-        double mutableFraction = 1.0
+        double mutableFraction = 1.0,
+        long indexSize = global::Seamless.Tsavorite.Const.IndexSize
     ) {
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction).Create<TKey,TValue>(new BlittableStrategy(),new BlittableStrategy());
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize).Create<TKey,TValue>(new BlittableStrategy(),new BlittableStrategy());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
