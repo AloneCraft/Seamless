@@ -146,14 +146,17 @@ public static class BenchmarkSourceTabs{
 
     public static BenchmarkSourceTabDefinition Default => All[0];
 
+    private static IEnumerable<BenchmarkSourceTabDefinition> AllDefinitions =>
+        StandardAll.Concat(ScalableAll);
+
     public static BenchmarkSourceTabDefinition Get(BenchmarkSourceTab tab) =>
-        All.First(item => item.Tab==tab);
+        AllDefinitions.First(item => item.Tab==tab);
 
     public static BenchmarkSourceTabDefinition GetById(string id) =>
-        All.First(item => string.Equals(item.Id,id,StringComparison.OrdinalIgnoreCase));
+        AllDefinitions.First(item => string.Equals(item.Id,id,StringComparison.OrdinalIgnoreCase));
 
     public static BenchmarkSourceTabDefinition? TryGetByProject(string project) =>
-        All.FirstOrDefault(item =>
+        AllDefinitions.FirstOrDefault(item =>
             item.ContainsProject(project));
 
     public static string ToPathPart(BenchmarkSourceTab tab) =>

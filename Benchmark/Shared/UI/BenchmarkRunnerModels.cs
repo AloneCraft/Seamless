@@ -57,7 +57,7 @@ public sealed class SourceTabOption:ObservableObject{
     }
     public string HeaderText => this.Progress.Total<=0
         ? this.DisplayName
-        : this.DisplayName+" "+this.Progress.GaugeText+" "+this.Progress.FractionText;
+        : this.DisplayName+" "+this.Progress.FractionText;
 
     public void SetProgress(BenchmarkTabProgress value){
         this.Progress=value;

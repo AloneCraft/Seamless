@@ -8,6 +8,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private const int NewRunNumber = 0;
     private const int UnsavedRunNumber = -1;
     private const int ExternalRunNumber = -2;
+    private const double BenchmarkChartRowHeight = 24;
+    private const double BenchmarkChartVerticalPadding = 82;
+    private const double BenchmarkChartMinimumHeight = 120;
 
     private static readonly BenchmarkRunOption NewRunOption = new(
         NewRunNumber,
@@ -76,6 +79,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     private int[] selectedLogicalCpus = [];
     private string logText = string.Empty;
     private BenchmarkLowerTab selectedLowerTab = BenchmarkLowerTab.Cpu;
+    private BenchmarkTabProgress overallSourceTabProgress;
     private IDisposable? logSubscription;
     private readonly HashSet<string> reportedMetadataWarnings = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string,ChartComparisonPoint> retainedChartPoints = new(StringComparer.OrdinalIgnoreCase);
@@ -253,6 +257,10 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
     public IReadOnlyList<BenchmarkColumnSelectionGroup> BenchmarkColumnSelectionGroups { get; }
     public IReadOnlyList<BenchmarkColumnSelectionGroup> BenchmarkProjectSelectionGroups { get; }
     public IReadOnlyList<SourceTabOption> SourceTabs { get; }
+    public BenchmarkTabProgress OverallSourceTabProgress{
+        get => this.overallSourceTabProgress;
+        private set => this.SetProperty(ref this.overallSourceTabProgress,value);
+    }
     public IReadOnlyList<ExecutionProfileOption> ExecutionProfiles { get; }
     public IReadOnlyList<MetricOption> Metrics { get; }
     public IReadOnlyList<ChartModeOption> ChartModes { get; }
@@ -512,7 +520,14 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         this.activeRunRoot=runRoot;
         this.OnPropertyChanged(nameof(this.IsBenchmarkPaused));
         this.OnPropertyChanged(nameof(this.RunButtonText));
+        this.OnPropertyChanged(nameof(this.CanResumeBenchmark));
+        this.OnPropertyChanged(nameof(this.CanRunBenchmark));
+        this.OnPropertyChanged(nameof(this.CanUseRunToolbarButton));
+        this.OnPropertyChanged(nameof(this.CanChangeBenchmarkConditions));
+        this.OnPropertyChanged(nameof(this.CanOpenBenchmarkResults));
+        this.OnPropertyChanged(nameof(this.ToolbarStateInput));
         this.RunCommand.NotifyCanExecuteChanged();
+        this.ToggleRunCommand.NotifyCanExecuteChanged();
         this.StopCommand.NotifyCanExecuteChanged();
         this.RefreshSaveCommandStates();
     }
@@ -1068,9 +1083,12 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         }
         var allCells = this.BenchmarkRows.SelectMany(static row => row.ProjectCells).ToArray();
         this.IsAllBenchmarkSelectionChecked=GetSelectionState(allCells);
-        this.HasSelectedBenchmarkCells=allCells.Any(static cell => cell.HasCase&&cell.IsSelected);
+        this.HasSelectedBenchmarkCells=this.HasAnySelectedBenchmarkCell();
         this.RefreshSourceTabProgresses();
     }
+
+    private bool HasAnySelectedBenchmarkCell() =>
+        this.SourceTabs.Any(option => this.CreateProgressCells(option.Definition).Any(static cell => cell.IsSelected));
 
     private static bool? GetSelectionState(IEnumerable<BenchmarkProjectCell> cells) {
         var targets = cells.Where(static cell => cell.HasCase).ToArray();
@@ -1724,6 +1742,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         var runGeneration = unchecked(++this.runResultGeneration);
         string? completedRunRoot = null;
         var completedNormally = false;
+        var keepPausedRunRoot = false;
         this.IsRunning=true;
         var runSourceTab = this.SelectedSourceDefinition.Tab;
         this.ActiveRunSourceTab=runSourceTab;
@@ -1781,6 +1800,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
                 this.StatusText="Paused";
                 StartupDiagnostics.Write("Benchmark run paused.");
                 this.SetActiveRunRoot(completedRunRoot ?? runRoot);
+                keepPausedRunRoot=true;
             }else{
                 this.StatusText="Canceled";
                 StartupDiagnostics.Write("Benchmark run canceled.");
@@ -1804,7 +1824,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
             this.ApplySelectedElementCountToTable();
             this.RestoreLatestCompletedLiveResult();
             this.ClearCpuJobs();
-            if(!this.IsBenchmarkPaused) {
+            if(!keepPausedRunRoot) {
                 this.SetActiveRunRoot(null);
             }
             this.RefreshUnsavedRunSelection();
@@ -2327,6 +2347,9 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         foreach(var option in this.SourceTabs) {
             option.SetProgress(this.CreateSourceTabProgress(option.Definition));
         }
+        this.OverallSourceTabProgress=new BenchmarkTabProgress(
+            this.SourceTabs.Sum(static option => option.Progress.Completed),
+            this.SourceTabs.Sum(static option => option.Progress.Total));
     }
 
     private BenchmarkTabProgress CreateSourceTabProgress(BenchmarkSourceTabDefinition sourceTab) {
@@ -2933,7 +2956,7 @@ public sealed class BenchmarkRunnerViewModel:ObservableObject {
         var points = this.BuildBenchmarkChartPoints(elementComparisonRows);
         // チャートは毎回全消しせず、既存ポイントを benchmark 単位で差し替えて再描画する。
         this.SyncChartPoints(points.Reverse().ToArray());
-        this.ChartHeight=Math.Max(300,this.BenchmarkRows.Count*36+60);
+        this.ChartHeight=Math.Max(BenchmarkChartMinimumHeight,points.Count*BenchmarkChartRowHeight+BenchmarkChartVerticalPadding);
     }
 
     private void SyncChartPoints(IReadOnlyList<ChartComparisonPoint> points) {

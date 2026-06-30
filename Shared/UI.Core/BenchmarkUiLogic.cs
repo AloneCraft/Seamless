@@ -250,15 +250,6 @@ public readonly record struct BenchmarkTabProgress(int Completed,int Total){
         : this.Completed.ToString(System.Globalization.CultureInfo.InvariantCulture)
             +"/"
             +this.Total.ToString(System.Globalization.CultureInfo.InvariantCulture);
-    public string GaugeText => this.Total<=0
-        ? string.Empty
-        : CreateGauge(this.Fraction);
-
-    private static string CreateGauge(double fraction){
-        const int width = 8;
-        var filled = (int)Math.Round(Math.Clamp(fraction,0,1)*width,MidpointRounding.AwayFromZero);
-        return "["+new string('#',filled)+new string('-',width-filled)+"]";
-    }
 }
 
 internal readonly record struct BenchmarkTabProgressCell(string Method,string Project,bool IsSelected);

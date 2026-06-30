@@ -607,7 +607,8 @@ internal sealed class BenchmarkOrchestrator(
     }
 
     private static bool IsAdaptiveRowStopped(ProgressState state,IReadOnlyList<BenchmarkCase> cases) =>
-        cases.Any(benchmark => IsAdaptiveCaseFailed(state,benchmark)||IsAdaptiveCaseOverThreshold(state,benchmark));
+        cases.Any(benchmark => IsAdaptiveCaseFailed(state,benchmark))
+        ||(!IsScalableSourceTab(state.SourceTab)&&cases.Any(benchmark => IsAdaptiveCaseOverThreshold(state,benchmark)));
 
     private static bool IsAdaptiveCaseFailed(ProgressState state,BenchmarkCase benchmark) =>
         state.Jobs.Any(job => SameCase(benchmark,job)&&job.Status==JobStatus.Failed);
@@ -618,6 +619,11 @@ internal sealed class BenchmarkOrchestrator(
             &&job.Status==JobStatus.Completed
             &&job.MeanNanoseconds is { } mean
             &&mean>state.AdaptiveThresholdNanoseconds);
+
+    private static bool IsScalableSourceTab(BenchmarkSourceTab sourceTab) =>
+        sourceTab is BenchmarkSourceTab.ScalableSet
+            or BenchmarkSourceTab.ScalableDictionary
+            or BenchmarkSourceTab.ScalablePersistedList;
 
     private static IReadOnlyList<int> NormalizeCpus(IReadOnlyList<int> cpus) =>
         cpus.Count==0 ? [0] : cpus.Distinct().Order().ToArray();
