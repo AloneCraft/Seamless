@@ -13,11 +13,10 @@ internal static class GeneratedInterceptorAssert {
         // 等に誤マッチするため `class {Name}` 宣言で判定する。
         var markerName = typeof(TMarker).Name;
         var markerNamespace = typeof(TMarker).Namespace ?? string.Empty;
-        var matches = new List<string>();
+        var matches = new List<(string Text, DateTime LastWriteTimeUtc)>();
         var existingRoots = GeneratedSourceRoots<TMarker>().Where(Directory.Exists).ToArray();
         Assert.NotEmpty(existingRoots);
         foreach(var generatedRoot in existingRoots) {
-            matches.Clear();
             foreach(var file in Directory.EnumerateFiles(generatedRoot,"*.g.cs",SearchOption.AllDirectories)) {
                 var text = File.ReadAllText(file);
                 if(!text.Contains($"namespace Intercept.{markerNamespace}",StringComparison.Ordinal)) {
@@ -29,10 +28,7 @@ internal static class GeneratedInterceptorAssert {
                 if(!text.Contains($"<c>{methodName}()</c>",StringComparison.Ordinal)) {
                     continue;
                 }
-                matches.Add(text);
-            }
-            if(matches.Count>0) {
-                break;
+                matches.Add((text,File.GetLastWriteTimeUtc(file)));
             }
         }
 
@@ -40,8 +36,10 @@ internal static class GeneratedInterceptorAssert {
             Assert.Fail("Generated source file does not exist for "+typeof(TMarker).FullName+"."+methodName);
         }
 
-        Assert.Single(matches);
-        return matches[0];
+        return matches
+            .OrderByDescending(static match=>match.LastWriteTimeUtc)
+            .Select(static match=>match.Text)
+            .First();
     }
 
     internal static void ContainsMethod<TMarker>(string methodName) {

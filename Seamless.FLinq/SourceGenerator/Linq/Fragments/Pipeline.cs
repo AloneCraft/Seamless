@@ -190,11 +190,11 @@ public static class PipelineBuilder {
             if(terminalResultType is null) {
                 return false;
             }
-            if(TsavoriteHashSetScanTerminal.TryCreate(snapshot,pipeline,terminal,out var tsavoriteScanTerminal)) {
-                fragment=tsavoriteScanTerminal;
+            if(TsavoriteHashSetIterateTerminal.TryCreate(snapshot,pipeline,terminal,out var tsavoriteIterateTerminal)) {
+                fragment=tsavoriteIterateTerminal;
                 snapshot++;
-            } else if(PersistedSetScanTerminal.TryCreate(snapshot,pipeline,terminal,out var persistedScanTerminal)) {
-                fragment=persistedScanTerminal;
+            } else if(PersistedSetIterateTerminal.TryCreate(snapshot,pipeline,terminal,out var persistedIterateTerminal)) {
+                fragment=persistedIterateTerminal;
                 snapshot++;
             } else {
                 fragment=new PipelineTerminal(snapshot++,pipeline,terminal,terminalFunc1,terminalFunc2,terminalComparer);
@@ -4169,8 +4169,6 @@ public sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pipe
 
     private string EnumeratorName() => $"__pipeline{this.result}";
     private static void AppendIndented(StringBuilder sb,string text,string indent) {
-        foreach(var line in text.Replace("\r\n","\n").Split('\n')) {
-            if(!string.IsNullOrWhiteSpace(line)) sb.AppendLine($"{indent}{line.Trim()}");
-        }
+        GeneratedCodeWriter.AppendIndented(sb,text,indent);
     }
 }

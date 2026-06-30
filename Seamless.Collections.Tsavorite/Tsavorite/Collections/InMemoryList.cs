@@ -5,10 +5,9 @@ namespace Seamless.Tsavorite.Collections;
 /// <typeparam name="T"></typeparam>
 public sealed class InMemoryList<T>:PersistedList<T> {
     private readonly List<T> items;
-    private TempListTuning tuning = new(FileAccess.ReadWrite,FileOptions.SequentialScan);
+    private StorageTuning tuning = StorageTuning.Default;
 
-    public override FileAccess OptimizationMode => this.tuning.OptimizationMode;
-    public override FileOptions AccessPattern => this.tuning.AccessPattern;
+    public override StorageTuning Tuning => this.tuning;
 
     public InMemoryList(long initialCapacity = 16) {
         if(initialCapacity<1)
@@ -28,7 +27,7 @@ public sealed class InMemoryList<T>:PersistedList<T> {
         this.Capacity=this.items.Capacity;
     }
 
-    public override void SetTuning(TempListTuning tuning) {
+    public override void SetTuning(StorageTuning tuning) {
         this.ThrowIfDisposed();
         this.tuning=tuning;
     }

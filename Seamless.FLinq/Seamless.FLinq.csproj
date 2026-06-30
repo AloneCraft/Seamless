@@ -11,7 +11,7 @@
     <Description>Compile-time LINQ rewriting source generator for Seamless.</Description>
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
-    <NoWarn>$(NoWarn);RS1041;RS2008</NoWarn>
+    <NoWarn>$(NoWarn);RS1041;RS2008;CS9107</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

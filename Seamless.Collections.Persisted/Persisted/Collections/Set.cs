@@ -1,11 +1,16 @@
 namespace Seamless.Persisted.Collections;
 
+public interface ISetIterateStrategy<TSelf, T>
+    where TSelf : struct, ISetIterateStrategy<TSelf,T> {
+    static abstract bool Invoke(ref TSelf self,T item);
+}
+
 public sealed class Set<T>:Seamless.Collections.ISet<T>, IDisposable {
     private readonly PersistedList<T> list;
     private readonly IReadOnlySet<T> set;
 
-    public Set(string path,long initialCapacity = 16,long initialDataCapacity = 4096) {
-        this.list=CreateCore(path,initialCapacity,initialDataCapacity);
+    public Set(string path,long initialCapacity = 16,long initialDataCapacity = 4096,StorageTuning? tuning = null) {
+        this.list=CreateCore(path,initialCapacity,initialDataCapacity,tuning);
         this.set=(IReadOnlySet<T>)this.list;
     }
 
@@ -32,39 +37,34 @@ public sealed class Set<T>:Seamless.Collections.ISet<T>, IDisposable {
     IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
     public void Dispose() => this.list.Dispose();
 
-    internal void ScanUnsafeDelegate(Func<object?,bool> body) {
-        ArgumentNullException.ThrowIfNull(body);
+    public void Iterate<TStrategy>(ref TStrategy strategy)
+        where TStrategy : struct, ISetIterateStrategy<TStrategy,T> {
         foreach(var item in this) {
-            if(!body(item))
+            if(!TStrategy.Invoke(ref strategy,item))
                 break;
         }
     }
 
-    private static PersistedList<T> CreateCore(string path,long initialCapacity,long initialDataCapacity) {
+    private static PersistedList<T> CreateCore(string path,long initialCapacity,long initialDataCapacity,StorageTuning? tuning) {
         if(RuntimeHelpers.IsReferenceOrContainsReferences<T>())
-            return new SerializedSet<T,MemoryPackSerializer<T>>(path,initialCapacity,initialDataCapacity);
+            return new SerializedSet<T,MemoryPackSerializer<T>>(path,initialCapacity,initialDataCapacity,tuning);
 
         var type = typeof(BlittableSet<>).MakeGenericType(typeof(T));
-        return (PersistedList<T>)Activator.CreateInstance(type,path,initialCapacity,initialDataCapacity)!;
+        return (PersistedList<T>)Activator.CreateInstance(type,path,initialCapacity,initialDataCapacity,tuning)!;
     }
-}
-
-internal static class PersistedSetScanUnsafe {
-    internal static void Scan<T>(Set<T> source,Func<object?,bool> body) =>
-        source.ScanUnsafeDelegate(body);
 }
 
 public class SerializedSet<T>:SerializedSet<T,MemoryPackSerializer<T>>
     where T : struct {
-    public SerializedSet(string path,long initialCapacity = 16,long initialDataCapacity = 4096)
-        : base(path,initialCapacity,initialDataCapacity) {
+    public SerializedSet(string path,long initialCapacity = 16,long initialDataCapacity = 4096,StorageTuning? tuning = null)
+        : base(path,initialCapacity,initialDataCapacity,tuning) {
     }
 }
 
 public class SerializedSet<T, TSerializer>:SerializedList<T,TSerializer>, IReadOnlySet<T>
     where TSerializer : ISerializer<T> {
-    public SerializedSet(string path,long initialCapacity = 16,long initialDataCapacity = 4096)
-        : base(path,initialCapacity,initialDataCapacity) {
+    public SerializedSet(string path,long initialCapacity = 16,long initialDataCapacity = 4096,StorageTuning? tuning = null)
+        : base(path,initialCapacity,initialDataCapacity,tuning) {
     }
 
     public SerializedSet<T,TSerializer> Compact() {
@@ -92,7 +92,7 @@ public class SerializedSet<T, TSerializer>:SerializedList<T,TSerializer>, IReadO
 
 public sealed class BlittableSet<T>:SerializedSet<T,BlittableSerializer<T>>
     where T : unmanaged {
-    public BlittableSet(string path,long initialCapacity = 16,long initialDataCapacity = 4096)
-        : base(path,initialCapacity,initialDataCapacity) {
+    public BlittableSet(string path,long initialCapacity = 16,long initialDataCapacity = 4096,StorageTuning? tuning = null)
+        : base(path,initialCapacity,initialDataCapacity,tuning) {
     }
 }

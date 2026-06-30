@@ -133,11 +133,11 @@ public sealed partial class FLinqIncrementalGenerator {
             関数式フラグメント生成,
             (name,variant,n,extraArgs)=>{
                 if(extraArgs is [Enumerable sourceFragment]
-                    && TryCreateBackendNativeScanFragment(name,variant,n,sourceFragment,null,out var nativeFragment)) {
+                    && TryCreateBackendNativeIterateFragment(name,variant,n,sourceFragment,null,[n,..extraArgs],out var nativeFragment)) {
                     return nativeFragment;
                 }
                 if(extraArgs is [Enumerable sourceFragmentWithPredicate,FuncFragment predicateFragment]
-                    && TryCreateBackendNativeScanFragment(name,variant,n,sourceFragmentWithPredicate,predicateFragment,out var nativePredicateFragment)) {
+                    && TryCreateBackendNativeIterateFragment(name,variant,n,sourceFragmentWithPredicate,predicateFragment,[n,..extraArgs],out var nativePredicateFragment)) {
                     return nativePredicateFragment;
                 }
                 if(!フラグメント候補選択(name,variant,out var c)) return null;
@@ -436,7 +436,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
         constructorArguments.Add(sourceFragment);
         staticMethods=sourceStaticMethods;
-        FuncFragment? predicateFragmentForNativeScan=null;
+        FuncFragment? predicateFragmentForNativeIterate=null;
 
         var argumentIndex = argumentStartIndex;
         for(var parameterIndex = 1; parameterIndex<candidate.Parameters.Length; parameterIndex++) {
@@ -473,7 +473,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 }
 
                 constructorArguments.Add(funcFragment);
-                predicateFragmentForNativeScan ??= funcFragment;
+                predicateFragmentForNativeIterate ??= funcFragment;
                 argumentIndex++;
                 continue;
             }
@@ -496,12 +496,13 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
 
-        if(TryCreateBackendNativeScanFragment(
+        if(TryCreateBackendNativeIterateFragment(
             candidate.MethodName,
             candidate.VariantName,
             fragmentNumber,
             sourceFragment,
-            predicateFragmentForNativeScan,
+            predicateFragmentForNativeIterate,
+            constructorArguments,
             out var nativeScanFragment)) {
             fragment=nativeScanFragment;
             staticMethods=Fragment.JoinStaticMethods(staticMethods,fragment.StructMethod);
@@ -517,46 +518,82 @@ public sealed partial class FLinqIncrementalGenerator {
         return true;
     }
 
-    private static bool TryCreateBackendNativeScanFragment(
+    private static bool TryCreateBackendNativeIterateFragment(
         string methodName,
         string variantName,
         int number,
         Enumerable source,
         FuncFragment? predicate,
+        IReadOnlyList<object?> constructorArguments,
         out Fragment fragment) {
         fragment=null!;
-        if(variantName is not ("" or "predicate")) {
+        if(!IsSupportedBackendNativeIterateVariant(methodName,variantName)) {
             return false;
         }
-        if(variantName=="predicate" && predicate is null) {
+        if((variantName=="predicate" || methodName=="All") && predicate is null) {
             return false;
         }
 
         var terminalKind = methodName switch {
-            "Any" => PipelineTerminalKind.Any,
-            "Count" => PipelineTerminalKind.Count,
-            "First" => PipelineTerminalKind.First,
-            _ => (PipelineTerminalKind?)null
+            "Any" => ProviderIterateTerminalKind.Any,
+            "Count" => ProviderIterateTerminalKind.Count,
+            "First" => ProviderIterateTerminalKind.First,
+            "All" => ProviderIterateTerminalKind.All,
+            "FirstOrDefault" => ProviderIterateTerminalKind.FirstOrDefault,
+            "Contains" => ProviderIterateTerminalKind.Contains,
+            _ => (ProviderIterateTerminalKind?)null
         };
         if(terminalKind is null) {
             return false;
         }
 
-        var stages = predicate is null
-            ? Array.Empty<PipelineStage>()
-            : [new PipelineStage(PipelineStageKind.Where,predicate,null,source.ElementType,source.ElementType)];
-        var pipeline = new PipelineEnumerable(number,source,stages,source.ElementType);
-        if(TsavoriteHashSetScanTerminal.TryCreate(number,pipeline,terminalKind.Value,out var tsavoriteTerminal)) {
+        var root = source;
+        var stages = new List<PipelineStage>();
+        var currentElementType = source.ElementType;
+        if(source is PipelineEnumerable existingPipeline) {
+            root=existingPipeline.Source;
+            stages.AddRange(existingPipeline.Stages);
+            currentElementType=existingPipeline.ElementType;
+        }
+
+        var terminalPredicate = methodName=="All" ? predicate : null;
+        if(predicate is not null && methodName!="All") {
+            stages.Add(new PipelineStage(PipelineStageKind.Where,predicate,null,currentElementType,currentElementType));
+        }
+
+        var containsValue = TryGetBackendNativeContainsValue(methodName,constructorArguments);
+        var containsComparer = TryGetBackendNativeContainsComparer(methodName,variantName,constructorArguments);
+        var pipeline = new PipelineEnumerable(number,root,stages,currentElementType);
+        if(TsavoriteHashSetIterateTerminal.TryCreate(number,pipeline,terminalKind.Value,terminalPredicate,containsValue,containsComparer,out var tsavoriteTerminal)) {
             fragment=tsavoriteTerminal;
             return true;
         }
-        if(PersistedSetScanTerminal.TryCreate(number,pipeline,terminalKind.Value,out var persistedTerminal)) {
+        if(PersistedSetIterateTerminal.TryCreate(number,pipeline,terminalKind.Value,terminalPredicate,containsValue,containsComparer,out var persistedTerminal)) {
             fragment=persistedTerminal;
             return true;
         }
 
         return false;
     }
+
+    private static bool IsSupportedBackendNativeIterateVariant(string methodName,string variantName) =>
+        methodName switch {
+            "Any" or "Count" or "First" => variantName is "" or "predicate",
+            "All" => variantName=="predicate",
+            "FirstOrDefault" => variantName is "" or "predicate",
+            "Contains" => variantName is "" or "comparer",
+            _ => false,
+        };
+
+    private static string? TryGetBackendNativeContainsValue(string methodName,IReadOnlyList<object?> constructorArguments) =>
+        methodName=="Contains" && constructorArguments.Count>2
+            ? constructorArguments[2] as string
+            : null;
+
+    private static string? TryGetBackendNativeContainsComparer(string methodName,string variantName,IReadOnlyList<object?> constructorArguments) =>
+        methodName=="Contains" && variantName=="comparer" && constructorArguments.Count>3
+            ? constructorArguments[3] as string
+            : null;
 
     private static bool TryResolveSyntheticStringArgument(ParameterInfo parameter,IMethodSymbol method,out string value) {
         value=string.Empty;

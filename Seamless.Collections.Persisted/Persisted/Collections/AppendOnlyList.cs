@@ -1,32 +1,35 @@
 namespace Seamless.Persisted.Collections;
 
 public class AppendOnlyList<T>:AppendOnlyList<T,MemoryPackSerializer<T>> {
-    public AppendOnlyList(string path,long initialDataCapacity = 4096)
-        : base(path,initialDataCapacity) {
+    public AppendOnlyList(string path,long initialDataCapacity = 4096,StorageTuning? tuning = null)
+        : base(path,initialDataCapacity,tuning) {
     }
 }
 
 public class AppendOnlyList<T, TSerializer>:IEnumerable<T>, IDisposable
     where TSerializer : ISerializer<T> {
     private readonly FileStream stream;
+    private readonly StorageTuning tuning;
     private bool disposed;
 
     public string Path { get; }
     public long Count { get; private set; }
+    public StorageTuning Tuning => this.tuning;
 
-    public AppendOnlyList(string path,long initialDataCapacity = 4096) {
+    public AppendOnlyList(string path,long initialDataCapacity = 4096,StorageTuning? tuning = null) {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         if(initialDataCapacity<1) {
             throw new ArgumentOutOfRangeException(nameof(initialDataCapacity));
         }
 
+        this.tuning=tuning??StorageTuning.Default;
         var directoryPath = global::System.IO.Path.GetDirectoryName(path);
         if(!string.IsNullOrEmpty(directoryPath)) {
             Directory.CreateDirectory(directoryPath);
         }
 
         this.Path=path;
-        this.stream=new FileStream(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read,4096,FileOptions.SequentialScan);
+        this.stream=this.OpenStream(FileAccess.ReadWrite,FileShare.Read);
         if(this.stream.Length==0) {
             this.stream.SetLength(initialDataCapacity);
             this.stream.SetLength(0);
@@ -51,7 +54,7 @@ public class AppendOnlyList<T, TSerializer>:IEnumerable<T>, IDisposable
     public IEnumerator<T> GetEnumerator() {
         this.ThrowIfDisposed();
         this.stream.Flush();
-        using var read = new FileStream(this.Path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite,4096,FileOptions.SequentialScan);
+        using var read = this.OpenStream(FileAccess.Read,FileShare.ReadWrite);
         while(read.Position<read.Length) {
             var lengthBytes = new byte[sizeof(int)];
             if(read.Read(lengthBytes)!=sizeof(int)) {
@@ -101,4 +104,13 @@ public class AppendOnlyList<T, TSerializer>:IEnumerable<T>, IDisposable
     private void ThrowIfDisposed() {
         ObjectDisposedException.ThrowIf(this.disposed,this);
     }
+
+    private FileStream OpenStream(FileAccess access,FileShare share) =>
+        new(
+            this.Path,
+            access==FileAccess.Read ? FileMode.Open : FileMode.OpenOrCreate,
+            access,
+            share,
+            this.tuning.ResolveBufferSize(),
+            MemoryMappedListTuning.GetFileOptions(this.tuning));
 }
