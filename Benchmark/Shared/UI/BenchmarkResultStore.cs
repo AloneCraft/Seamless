@@ -8,6 +8,7 @@ namespace UI;
 public sealed record BenchmarkStoredResult(
     string Project,
     string Method,
+    string TypeFullName,
     int ElementCount,
     string Status,
     string Mean,
@@ -49,6 +50,7 @@ public sealed class BenchmarkResultStore{
         this.Upsert(new BenchmarkStoredResult(
             item.Project,
             item.Method,
+            item.TypeFullName,
             item.ElementCount,
             item.Status,
             item.Mean,
@@ -64,7 +66,7 @@ public sealed class BenchmarkResultStore{
             return;
         }
 
-        this.results[CreateKey(result.Project,result.Method,result.ElementCount)]=result;
+        this.results[CreateKey(result.Project,result.TypeFullName,result.Method,result.ElementCount,result.MeasuredAt)]=result;
     }
 
     public void UpsertMany(IEnumerable<BenchmarkStoredResult> items){
@@ -73,19 +75,37 @@ public sealed class BenchmarkResultStore{
         }
     }
 
-    public BenchmarkStoredResult? GetLatest(string method,string project){
+    public BenchmarkStoredResult? GetLatest(string method,string project,string typeFullName = ""){
         return this.results.Values
             .Where(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
-                &&string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase))
+                &&string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase)
+                &&IsSameType(result.TypeFullName,typeFullName))
             .OrderByDescending(static result => result.MeasuredAt)
             .ThenByDescending(static result => result.ElementCount)
             .FirstOrDefault();
     }
 
-    public BenchmarkStoredResult? Get(string method,string project,int elementCount){
-        return this.results.TryGetValue(CreateKey(project,method,elementCount),out var result)
-            ? result
-            : null;
+    public BenchmarkStoredResult? GetPrevious(string method,string project,string typeFullName,int elementCount,DateTimeOffset? before){
+        return this.results.Values
+            .Where(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
+                &&string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase)
+                &&IsSameType(result.TypeFullName,typeFullName)
+                &&result.ElementCount==elementCount
+                &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+                &&result.MeanNanoseconds is not null
+                &&(before is null||result.MeasuredAt<before.Value))
+            .OrderByDescending(static result => result.MeasuredAt)
+            .FirstOrDefault();
+    }
+
+    public BenchmarkStoredResult? Get(string method,string project,int elementCount,string typeFullName = ""){
+        return this.results.Values
+            .Where(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
+                &&string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase)
+                &&IsSameType(result.TypeFullName,typeFullName)
+                &&result.ElementCount==elementCount)
+            .OrderByDescending(static result => result.MeasuredAt)
+            .FirstOrDefault();
     }
 
     public DateTimeOffset? GetLatestMeasuredAt(string method,string project) =>
@@ -94,7 +114,7 @@ public sealed class BenchmarkResultStore{
     public IReadOnlyList<BenchmarkComparisonRow> BuildLatestComparisonRows(){
         var rows = this.results.Values
             .Where(static result => string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase))
-            .GroupBy(static result => result.Method,StringComparer.OrdinalIgnoreCase)
+            .GroupBy(static result => result.Method+"|"+result.TypeFullName,StringComparer.OrdinalIgnoreCase)
             .Select(group => {
                 var metrics = group
                     .GroupBy(static result => result.Project,StringComparer.OrdinalIgnoreCase)
@@ -106,7 +126,8 @@ public sealed class BenchmarkResultStore{
                             .First()
                             .ToProjectMetrics(),
                         StringComparer.OrdinalIgnoreCase);
-                return CreateReportRows(group.Key,metrics);
+                var result = group.First();
+                return CreateReportRows(result.Method,result.TypeFullName,metrics);
             })
             .SelectMany(static item => item)
             .ToArray();
@@ -119,8 +140,10 @@ public sealed class BenchmarkResultStore{
         Directory.CreateDirectory(Path.GetDirectoryName(this.path)??".");
         var snapshot = new BenchmarkResultStoreSnapshot(this.results.Values
             .OrderBy(static result => result.Method,StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static result => result.TypeFullName,StringComparer.OrdinalIgnoreCase)
             .ThenBy(static result => result.Project,StringComparer.OrdinalIgnoreCase)
             .ThenBy(static result => result.ElementCount)
+            .ThenBy(static result => result.MeasuredAt)
             .ToArray());
         AtomicWrite(this.path,snapshot);
     }
@@ -140,7 +163,7 @@ public sealed class BenchmarkResultStore{
         }
     }
 
-    private static IEnumerable<ReportRow> CreateReportRows(string method,IReadOnlyDictionary<string,ProjectMetrics> metrics){
+    private static IEnumerable<ReportRow> CreateReportRows(string method,string typeFullName,IReadOnlyDictionary<string,ProjectMetrics> metrics){
         foreach(var project in BenchmarkComparisonFormatter.ProjectOrder){
             if(!metrics.TryGetValue(project,out var metric)||!metric.HasMeasuredValue){
                 continue;
@@ -149,7 +172,7 @@ public sealed class BenchmarkResultStore{
             yield return new ReportRow(
                 project,
                 method,
-                string.Empty,
+                typeFullName,
                 method,
                 "Completed",
                 metric.TimeNanoseconds?.ToString(CultureInfo.InvariantCulture)??string.Empty,
@@ -174,8 +197,27 @@ public sealed class BenchmarkResultStore{
         }
     }
 
-    private static string CreateKey(string project,string method,int elementCount) =>
-        string.Join("|",project,method,elementCount.ToString(CultureInfo.InvariantCulture));
+    private static string CreateKey(string project,string typeFullName,string method,int elementCount,DateTimeOffset measuredAt) =>
+        string.Join("|",project,typeFullName,method,elementCount.ToString(CultureInfo.InvariantCulture),measuredAt.ToString("O",CultureInfo.InvariantCulture));
+
+    private static bool IsSameType(string left,string right) =>
+        string.IsNullOrWhiteSpace(right)
+            ? true
+            : !string.IsNullOrWhiteSpace(left)
+                &&(string.Equals(left,right,StringComparison.OrdinalIgnoreCase)
+                    ||string.Equals(ShortTypeName(left),right,StringComparison.OrdinalIgnoreCase)
+                    ||string.Equals(left,ShortTypeName(right),StringComparison.OrdinalIgnoreCase));
+
+    private static string ShortTypeName(string typeFullName){
+        if(string.IsNullOrWhiteSpace(typeFullName)){
+            return string.Empty;
+        }
+
+        var index = typeFullName.LastIndexOf('.');
+        return index<0||index==typeFullName.Length-1
+            ? typeFullName
+            : typeFullName[(index+1)..];
+    }
 
     private static void AtomicWrite<T>(string path,T value){
         var tmpPath = path+".tmp";
@@ -251,6 +293,7 @@ public sealed class BenchmarkCsvDiscoveryService{
                         results.Add(new BenchmarkStoredResult(
                             project,
                             row.Benchmark,
+                            row.TypeFullName,
                             elementCount,
                             "Completed",
                             metrics.TimeNanoseconds?.ToString(CultureInfo.InvariantCulture)??string.Empty,

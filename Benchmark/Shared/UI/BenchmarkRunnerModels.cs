@@ -150,6 +150,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     private string elementCountText = string.Empty;
     private string executionText = string.Empty;
     private string failureExecutionText = string.Empty;
+    private string failureReasonText = string.Empty;
     private string executionTooltipText = string.Empty;
     private string resultCheckText = string.Empty;
     private string resultSeedText = string.Empty;
@@ -371,6 +372,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             this.ElementCountText=string.Empty;
             this.ExecutionText=string.Empty;
             this.FailureExecutionText=string.Empty;
+            this.failureReasonText=string.Empty;
             this.ExecutionTooltipText=string.Empty;
             this.ResultCheckText=string.Empty;
             this.ResultSeedText=string.Empty;
@@ -402,7 +404,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         }else{
             this.ApplyMetrics(resultMetrics);
             if(string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)){
-                this.ApplyFailureDisplay(result.ElementCount,measuredAt);
+                this.ApplyFailureDisplay(result.ElementCount,measuredAt,string.Empty);
             }else if(string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)){
                 this.isCompletedWithoutMeasurement=true;
                 this.ElementCountText=FormatElementCount(result.ElementCount);
@@ -471,7 +473,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             this.isFailed=true;
             this.isCompletedWithoutMeasurement=false;
             this.lastMeasuredAt=completedAt;
-            this.ApplyFailureDisplay(result.ElementCount,completedAt);
+            this.ApplyFailureDisplay(result.ElementCount,completedAt,result.FailureReason);
         }
         this.IsRunning=false;
         this.ApplyCpuDisplay(cpu);
@@ -543,6 +545,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.lastMeasuredAt=null;
         this.lastFailedElementCount=null;
         this.lastFailedAt=null;
+        this.failureReasonText=string.Empty;
         this.TimeText=string.Empty;
         this.AllocatedText=string.Empty;
         this.ElementCountText=string.Empty;
@@ -552,6 +555,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             this.StatusText="待機";
         this.ExecutionText=string.Empty;
         this.FailureExecutionText=string.Empty;
+        this.failureReasonText=string.Empty;
         this.ExecutionTooltipText=string.Empty;
         this.ResultCheckText=string.Empty;
         this.ResultSeedText=string.Empty;
@@ -580,11 +584,12 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.OnPropertyChanged(nameof(this.LastSuccessfulElementCount));
     }
 
-    private void ApplyFailureDisplay(int elementCount,DateTimeOffset failedAt){
+    private void ApplyFailureDisplay(int elementCount,DateTimeOffset failedAt,string failureReason){
         this.isFailed=true;
         this.isCompletedWithoutMeasurement=false;
         this.lastFailedElementCount=elementCount;
         this.lastFailedAt=failedAt;
+        this.failureReasonText=BenchmarkFailureDisplayLogic.CreateTooltipReason(failureReason);
         this.ElementCountText=FormatElementCount(elementCount);
         this.FailureExecutionText="  "+FormatTimestamp(failedAt);
         this.RefreshExecutionTooltipText();
@@ -593,6 +598,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     private void ClearFailureDisplay(){
         this.lastFailedElementCount=null;
         this.lastFailedAt=null;
+        this.failureReasonText=string.Empty;
         this.FailureExecutionText=string.Empty;
         this.RefreshExecutionTooltipText();
     }
@@ -603,7 +609,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             : string.Empty;
         this.ExecutionTooltipText=string.Join(
             Environment.NewLine,
-            new[] { FormatElementTooltip(this.ElementCountText,this.ExecutionText),failureText }.Where(static text => !string.IsNullOrWhiteSpace(text)));
+            new[] { FormatElementTooltip(this.ElementCountText,this.ExecutionText),failureText,this.failureReasonText }.Where(static text => !string.IsNullOrWhiteSpace(text)));
     }
 
     private void ApplyMeasurementHighlight(BenchmarkMeasurementHighlightState value){
@@ -1534,6 +1540,34 @@ public sealed class BenchmarkResultItem{
         this.ExitCode=metrics.HasMeasuredValue?0:null;
         this.AssignedLogicalCpu=null;
         this.StartedAt=null;
+        this.FailureReason=string.Empty;
+    }
+
+    public BenchmarkResultItem(BenchmarkStoredResult result)
+        : this(result.Project,result.Method,result.TypeFullName,result.ToProjectMetrics(),result.ElementCount,result.Status,result.MeasuredAt){
+    }
+
+    private BenchmarkResultItem(string project,string method,string typeFullName,ProjectMetrics metrics,int elementCount,string status,DateTimeOffset measuredAt){
+        this.Project=project;
+        this.Method=method;
+        this.TypeFullName=typeFullName;
+        this.SourceTab=BenchmarkSourceTabs.TryGetByProject(project)?.Tab??BenchmarkSourceTab.SystemArray;
+        this.ElementCount=elementCount;
+        this.Name=project+" / "+method;
+        this.Status=status;
+        this.Mean=metrics.HasMeasuredValue&&metrics.TimeNanoseconds is { } time ? BenchmarkFormatting.FormatNanoseconds(time) : string.Empty;
+        this.AllocatedBytes=metrics.HasMeasuredValue&&metrics.AllocatedBytes is { } allocated ? BenchmarkFormatting.FormatBytes(allocated) : string.Empty;
+        this.AllocatedBytesValue=metrics.AllocatedBytes;
+        this.MeanNanoseconds=metrics.TimeNanoseconds;
+        this.ErrorNanoseconds=null;
+        this.StdDevNanoseconds=null;
+        this.RandomSeed=null;
+        this.ResultDigest=string.Empty;
+        this.ResultCheckText=string.Empty;
+        this.ArtifactFolder=string.Empty;
+        this.ExitCode=metrics.HasMeasuredValue?0:null;
+        this.AssignedLogicalCpu=null;
+        this.StartedAt=measuredAt;
         this.FailureReason=string.Empty;
     }
 

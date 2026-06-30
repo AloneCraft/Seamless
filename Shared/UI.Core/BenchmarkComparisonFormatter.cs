@@ -44,7 +44,7 @@ internal static class BenchmarkComparisonFormatter{
                 throw new InvalidDataException($"Unknown benchmark project for {sourceTab.Id}: {row.Project}");
             }
 
-            var typeDiscriminator = duplicatedProjectMethods.Contains(row.Project+"|"+row.Method)
+            var typeDiscriminator = IsScalableSourceTab(sourceTab.Tab)||duplicatedProjectMethods.Contains(row.Project+"|"+row.Method)
                 ? ShortTypeName(row.TypeFullName)
                 : string.Empty;
             var key = CreateComparisonKey(row.Method,typeDiscriminator);
@@ -229,6 +229,11 @@ internal static class BenchmarkComparisonFormatter{
             ? typeFullName
             : typeFullName[(index+1)..];
     }
+
+    private static bool IsScalableSourceTab(BenchmarkSourceTab sourceTab) =>
+        sourceTab is BenchmarkSourceTab.ScalableSet
+            or BenchmarkSourceTab.ScalableDictionary
+            or BenchmarkSourceTab.ScalablePersistedList;
 
     private sealed class BenchmarkComparisonBucket{
         public BenchmarkComparisonBucket(string method,string typeFullName){

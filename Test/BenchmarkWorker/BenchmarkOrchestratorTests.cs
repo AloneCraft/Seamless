@@ -262,6 +262,104 @@ public sealed class BenchmarkOrchestratorTests{
     }
 
     [Fact]
+    public async Task Orchestrator_AdaptiveMode_WritesMixedSourceTabsToSourceFolders(){
+        var root = CreateTempRoot();
+        var runner = new FakeRunner((job,_) => CompletedResult(job));
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [
+                    Case("System.Array.FLinq","Where"),
+                    Case("System.Array.ZLinq","Where"),
+                    Case("System.List.FLinq","Where"),
+                    Case("System.List.ZLinq","Where"),
+                ],
+                [0],
+                [1],
+                BenchmarkRunMode.Adaptive,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30)),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        var state = LoadOnlyState(root);
+        Assert.True(File.Exists(Path.Combine(state.RunRoot,"System.Array","N1.csv")));
+        Assert.True(File.Exists(Path.Combine(state.RunRoot,"System.List","N1.csv")));
+        Assert.Contains(state.Jobs,static job => job.SourceTab==BenchmarkSourceTab.SystemArray);
+        Assert.Contains(state.Jobs,static job => job.SourceTab==BenchmarkSourceTab.SystemList);
+    }
+
+    [Fact]
+    public async Task Orchestrator_AdaptiveMode_UsesLiveProviderForRowsNotStartedYet(){
+        var root = CreateTempRoot();
+        var selected = new List<BenchmarkCase> { Case("System.Array.FLinq","A") };
+        var observed = new List<string>();
+        var runner = new FakeRunner((job,_) => {
+            observed.Add(job.MethodName);
+            if(job.MethodName=="A") {
+                selected=new List<BenchmarkCase> {
+                    Case("System.Array.FLinq","A"),
+                    Case("System.Array.FLinq","B"),
+                };
+            }
+
+            return CompletedResult(job);
+        });
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                selected,
+                [0],
+                [1],
+                BenchmarkRunMode.Adaptive,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30),
+                BenchmarkProvider: () => selected),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        Assert.Equal(["A","B"],observed);
+    }
+
+    [Fact]
+    public async Task Orchestrator_AdaptiveMode_SkipsDeselectedRowsNotStartedYet(){
+        var root = CreateTempRoot();
+        var selected = new List<BenchmarkCase> {
+            Case("System.Array.FLinq","A"),
+            Case("System.Array.FLinq","B"),
+        };
+        var observed = new List<string>();
+        var runner = new FakeRunner((job,_) => {
+            observed.Add(job.MethodName);
+            if(job.MethodName=="A") {
+                selected=new List<BenchmarkCase> { Case("System.Array.FLinq","A") };
+            }
+
+            return CompletedResult(job);
+        });
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                selected,
+                [0],
+                [1],
+                BenchmarkRunMode.Adaptive,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30),
+                BenchmarkProvider: () => selected),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        Assert.Equal(["A"],observed);
+    }
+
+    [Fact]
     public async Task Orchestrator_AdaptiveMode_FastRunsUnpersistedWarmupBeforeMeasuredN(){
         var root = CreateTempRoot();
         var observed = new List<(bool Warmup,string Project,int ElementCount)>();

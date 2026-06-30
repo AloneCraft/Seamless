@@ -80,8 +80,8 @@ public static class BenchmarkSourceTabs{
             "Scalable.Persisted.List",
             "Persisted",
             "Scalable.Persisted.Collections",
-            string.Empty,
-            string.Empty,
+            "Scalable.Persisted.List.Previous",
+            "前回",
             string.Empty),
     ];
 

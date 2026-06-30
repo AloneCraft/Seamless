@@ -4,6 +4,7 @@ using Seamless.Serialization;
 namespace Scalable.Persisted.Collections;
 
 public abstract class PersistedSetScalable<TProvider,T>
+    :ScalableBenchmarkBase
     where TProvider : IHashSetValueProvider<T>
     where T : IEquatable<T> {
     [BenchFact,Benchmark]
@@ -46,6 +47,7 @@ public abstract class PersistedSetScalable<TProvider,T>
 }
 
 public abstract class PersistedListScalable<TStrategy,T>
+    :ScalableBenchmarkBase
     where TStrategy : IListTestStrategy<T> {
     [BenchFact,Benchmark]
     public long Add() {
@@ -102,6 +104,7 @@ public abstract class PersistedListScalable<TStrategy,T>
 }
 
 public abstract class PersistedBlittableDictionaryScalable<TProvider,TKey,TValue>
+    :ScalableBenchmarkBase
     where TProvider : IDictTestStrategy<TKey,TValue>
     where TKey : unmanaged, IEquatable<TKey>
     where TValue : unmanaged, IEquatable<TValue> {
@@ -147,6 +150,7 @@ public abstract class PersistedBlittableDictionaryScalable<TProvider,TKey,TValue
 }
 
 public abstract class PersistedSerializedDictionaryScalable<TProvider,TKey,TValue>
+    :ScalableBenchmarkBase
     where TProvider : IDictTestStrategy<TKey,TValue>
     where TKey : notnull, IEquatable<TKey>
     where TValue : IEquatable<TValue> {

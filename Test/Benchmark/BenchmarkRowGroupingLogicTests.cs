@@ -36,6 +36,40 @@ public sealed class BenchmarkRowGroupingLogicTests{
     }
 
     [Fact]
+    public void CreateRowsUsesScalableListTypeInBenchmarkName(){
+        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalablePersistedList);
+        var rows = BenchmarkRowGroupingLogic.CreateRows(
+            [
+                Case(sourceTab.LeftProject,"Scalable.Persisted.Collections","Scalable.Persisted.Collections.List.ListString","Add"),
+                Case(sourceTab.LeftProject,"Scalable.Persisted.Collections","Scalable.Persisted.Collections.List.ListInt32","Add"),
+                Case(sourceTab.LeftProject,"Scalable.Persisted.Collections","Scalable.Persisted.Collections.List.ListBoolean","Add"),
+            ],
+            sourceTab);
+
+        Assert.Contains(rows,row => row.BenchmarkName=="string Add");
+        Assert.Contains(rows,row => row.BenchmarkName=="int Add");
+        Assert.Contains(rows,row => row.BenchmarkName=="System.Boolean Add");
+        Assert.All(rows,row => Assert.Equal("Add",row.MethodName));
+    }
+
+    [Fact]
+    public void CreateRowsUsesScalableDictionaryKeyAndValueTypesInBenchmarkName(){
+        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalableDictionary);
+        var rows = BenchmarkRowGroupingLogic.CreateRows(
+            [
+                Case(sourceTab.LeftProject,"Scalable.Persisted.Collections","Scalable.Persisted.Collections.Dictionary.DictionaryStringInt32","Add"),
+                Case(sourceTab.RightProject,"Scalable.Tsavorite.Collections","Scalable.Tsavorite.Collections.Dictionary.DictionaryStringInt32","Add"),
+                Case(sourceTab.LeftProject,"Scalable.Persisted.Collections","Scalable.Persisted.Collections.Dictionary.DictionaryManagedStructManagedStruct","Add"),
+                Case(sourceTab.RightProject,"Scalable.Tsavorite.Collections","Scalable.Tsavorite.Collections.Dictionary.DictionaryManagedStructManagedStruct","Add"),
+            ],
+            sourceTab);
+
+        Assert.Contains(rows,row => row.BenchmarkName=="string,int Add");
+        Assert.Contains(rows,row => row.BenchmarkName=="Seamless.Collections.ManagedStruct,Seamless.Collections.ManagedStruct Add");
+        Assert.All(rows,row => Assert.Equal("Add",row.MethodName));
+    }
+
+    [Fact]
     public void BuildComparisonRowsUsesTypeOnlyForDuplicateProjectMethods(){
         var sourceTab = BenchmarkSourceTabs.Default;
         var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
@@ -65,6 +99,20 @@ public sealed class BenchmarkRowGroupingLogicTests{
         Assert.Equal(2,rows.Count);
         Assert.Contains(rows,row => row.TypeFullName=="TypeA");
         Assert.Contains(rows,row => row.TypeFullName=="TypeB");
+    }
+
+    [Fact]
+    public void BuildComparisonRowsKeepsScalableTypeForSingleMethod(){
+        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalablePersistedList);
+        var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
+            [
+                Report(sourceTab.LeftProject,"Add","Scalable.Persisted.Collections.List.ListInt32",10),
+            ],
+            sourceTab);
+
+        var row = Assert.Single(rows);
+        Assert.Equal("Add",row.Benchmark);
+        Assert.Equal("ListInt32",row.TypeFullName);
     }
 
     [Fact]

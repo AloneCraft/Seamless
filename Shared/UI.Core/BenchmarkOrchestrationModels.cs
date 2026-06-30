@@ -148,7 +148,8 @@ internal sealed record BenchmarkRunRequest(
     bool RestartFromRequestedElementCount = false,
     BenchmarkExecutionProfile ExecutionProfile = BenchmarkExecutionProfile.Accurate,
     string? RunRootOverride = null,
-    BenchmarkSourceTab SourceTab = BenchmarkSourceTab.SystemArray);
+    BenchmarkSourceTab SourceTab = BenchmarkSourceTab.SystemArray,
+    Func<IReadOnlyList<BenchmarkCase>>? BenchmarkProvider = null);
 
 public sealed record BenchmarkJobRunResult(
     string Project,

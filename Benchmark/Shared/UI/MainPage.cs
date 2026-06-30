@@ -34,6 +34,7 @@ public sealed class MainPage:ContentPage {
     private const double BenchmarkGridExtraHeight = 2;
     private const double BenchmarkGridCellFontSize = 10;
     private const double BenchmarkGridDetailFontSize = 9;
+    private const double BenchmarkHoverCellExpansionPadding = 14;
     private const double CpuGridRowHeight = 24;
     private const double CpuGridHeaderRowHeight = 30;
     private const double CpuGridCellFontSize = 10;
@@ -1623,10 +1624,7 @@ public sealed class MainPage:ContentPage {
     }
 
     private bool IsBenchmarkSelectionLockedForCurrentTab() {
-        return this.viewModel is {
-            IsBenchmarkRunActive: true,
-            ActiveRunSourceTab: not null,
-        } vm&&vm.ActiveRunSourceTab==vm.SelectedSourceDefinition.Tab;
+        return this.viewModel?.IsBenchmarkSelectionLockedForSelectedSourceTab==true;
     }
 
     private void AddBenchmarkSelectionGroup(DataGridStackedHeaderRow headerRow,BenchmarkColumnSelectionGroup group,IEnumerable<IReadOnlyList<string>> childMappings) {
@@ -1914,6 +1912,7 @@ public sealed class MainPage:ContentPage {
                     Image.SourceProperty,
                     new Binding(cellPath+"."+nameof(BenchmarkProjectCell.StatusImageSource),converter: new ImageFileSourceConverter()));
                 statusIcon.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsStatusIconVisible));
+                statusIcon.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionTooltipText));
                 var badge = this.CreateCoreBadge();
                 badge.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.HasCpuDisplay));
                 badge.SetBinding(BackgroundColorProperty,cellPath+"."+nameof(BenchmarkProjectCell.BadgeBackgroundColor));
@@ -2016,6 +2015,7 @@ public sealed class MainPage:ContentPage {
                 label.SetBinding(ToolTipProperties.TextProperty,bindingPath);
                 grid.SetBinding(ToolTipProperties.TextProperty,bindingPath);
                 grid.Add(label,0,0);
+                this.EnableHoverCellExpansion(grid,label,TextAlignment.Center);
                 this.AddBenchmarkRowUiSelectionOutline(grid,false,true,true,false);
                 return grid;
             }),
@@ -2080,6 +2080,7 @@ public sealed class MainPage:ContentPage {
                 grid.Add(label,0,0);
                 Grid.SetColumnSpan(label,3);
                 Grid.SetRowSpan(label,3);
+                this.EnableHoverCellExpansion(grid,label,alignment);
                 var tap = new TapGestureRecognizer();
                 tap.Tapped+=(_,_) => {
                     if(grid.BindingContext is BenchmarkTableRow row) {
@@ -2189,6 +2190,8 @@ public sealed class MainPage:ContentPage {
                     Padding=new Thickness(2,0),
                 };
                 label.SetBinding(Label.TextProperty,property);
+                label.SetBinding(ToolTipProperties.TextProperty,property);
+                grid.SetBinding(ToolTipProperties.TextProperty,property);
                 if(property==nameof(BenchmarkTableRow.BenchmarkName)) {
                     var tap = new TapGestureRecognizer();
                     tap.Tapped+=(_,_) => {
@@ -2199,12 +2202,65 @@ public sealed class MainPage:ContentPage {
                     grid.GestureRecognizers.Add(tap);
                 }
                 grid.Add(label,0,0);
+                this.EnableHoverCellExpansion(grid,label,alignment);
                 if(property==nameof(BenchmarkTableRow.BenchmarkName)) {
                     this.AddBenchmarkRowUiSelectionOutline(grid,false,true,true,false);
                 }
                 return grid;
             }),
         };
+    }
+
+    private void EnableHoverCellExpansion(Grid host,Label label,TextAlignment alignment) {
+        var pointer = new PointerGestureRecognizer();
+        var originalWidthRequest = label.WidthRequest;
+        var originalMinimumWidthRequest = label.MinimumWidthRequest;
+        var originalBackground = label.BackgroundColor;
+        var originalLineBreakMode = label.LineBreakMode;
+        var originalHorizontalOptions = label.HorizontalOptions;
+        var originalHostZIndex = host.ZIndex;
+        var originalLabelZIndex = label.ZIndex;
+        var isExpanded = false;
+
+        pointer.PointerEntered+=(_,_) => {
+            if(isExpanded||string.IsNullOrWhiteSpace(label.Text)||host.Width<=0) {
+                return;
+            }
+
+            var desiredWidth = label.Measure(double.PositiveInfinity,BenchmarkGridRowHeight).Width
+                +BenchmarkHoverCellExpansionPadding;
+            if(desiredWidth<=host.Width+1) {
+                return;
+            }
+
+            isExpanded=true;
+            host.ZIndex=1000;
+            label.ZIndex=1000;
+            label.LineBreakMode=LineBreakMode.NoWrap;
+            label.WidthRequest=desiredWidth;
+            label.MinimumWidthRequest=desiredWidth;
+            label.BackgroundColor=Colors.White;
+            label.HorizontalOptions=alignment switch {
+                TextAlignment.End => LayoutOptions.End,
+                TextAlignment.Center => LayoutOptions.Center,
+                _ => LayoutOptions.Start,
+            };
+        };
+        pointer.PointerExited+=(_,_) => {
+            if(!isExpanded) {
+                return;
+            }
+
+            isExpanded=false;
+            label.WidthRequest=originalWidthRequest;
+            label.MinimumWidthRequest=originalMinimumWidthRequest;
+            label.BackgroundColor=originalBackground;
+            label.LineBreakMode=originalLineBreakMode;
+            label.HorizontalOptions=originalHorizontalOptions;
+            host.ZIndex=originalHostZIndex;
+            label.ZIndex=originalLabelZIndex;
+        };
+        host.GestureRecognizers.Add(pointer);
     }
 
     private DataTemplate CreateHeaderTemplate(string text,BenchmarkGridSortColumn sortColumn) {

@@ -3,6 +3,7 @@ using Scalable.Collections;
 namespace Scalable.Tsavorite.Collections;
 
 public abstract class TsavoriteSetScalable<TStrategy,T>
+    :ScalableBenchmarkBase
     where TStrategy : IHashSetTestStrategy<T>
     where T : IEquatable<T> {
     [BenchFact,Benchmark]
@@ -35,6 +36,7 @@ public abstract class TsavoriteSetScalable<TStrategy,T>
 }
 
 public abstract class TsavoriteDictionaryScalable<TStrategy,TKey,TValue>
+    :ScalableBenchmarkBase
     where TStrategy : IDictTestStrategy<TKey,TValue>
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue> {
