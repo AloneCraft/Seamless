@@ -1,16 +1,16 @@
 namespace Scalable.Persisted.Collections.Set;
 
-public sealed class SetInt32
+public class SetInt32
     :PersistedSetScalable<Int32HashSetValueProvider,int>;
 
-public sealed class SetString
+public class SetString
     :PersistedSetScalable<StringHashSetValueProvider,string>;
 
-public sealed class SetUnmanagedStruct
+public class SetUnmanagedStruct
     :PersistedSetScalable<UnmanagedStructHashSetValueProvider,UnmanagedStruct>;
 
-public sealed class SetManagedStruct
+public class SetManagedStruct
     :PersistedSetScalable<ManagedStructHashSetValueProvider,ManagedStruct>;
 
-public sealed class SetManagedClass
+public class SetManagedClass
     :PersistedSetScalable<ManagedClassHashSetValueProvider,ManagedClass>;

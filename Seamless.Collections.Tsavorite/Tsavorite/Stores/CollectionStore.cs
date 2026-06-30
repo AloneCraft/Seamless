@@ -33,11 +33,11 @@ public abstract partial class CollectionStore<TKey, TValue>
 
 
 public abstract partial class CollectionStore<TKey, TValue> {
-    private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,OverflowMutableStrategyKind OverflowMutableStrategyKind,double StorageLimitFraction = StorageOverflowMutableStrategy.DefaultLimitFraction,long StorageReserveBytes = StorageOverflowMutableStrategy.DefaultReserveBytes) :
+    private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,OverflowMutableStrategyKind OverflowMutableStrategyKind,double StorageLimitFraction = StorageOverflowMutableStrategy.DefaultLimitFraction,long StorageReserveBytes = StorageOverflowMutableStrategy.DefaultReserveBytes,long? ObjectLogSegmentSize = null) :
         base(
             new SpanByteStoreFunctions(new SpanByteComparer(),static () => null,DefaultRecordTriggers.Instance),
             static (allocSettings,storeFuncs) => new SpanByteStoreAllocator(allocSettings,storeFuncs),
-            IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,OverflowMutableStrategyKind,StorageLimitFraction,StorageReserveBytes
+            IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,OverflowMutableStrategyKind,StorageLimitFraction,StorageReserveBytes,ObjectLogSegmentSize
         ) {
     }
 
@@ -91,11 +91,15 @@ public abstract partial class CollectionStore<
     private protected CollectionStore(
         TStoreFunctions StoreFunctions,
         Func<AllocatorSettings,TStoreFunctions,TAllocator> allocatorFactory,
-        long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,OverflowMutableStrategyKind OverflowMutableStrategyKind,double StorageLimitFraction = StorageOverflowMutableStrategy.DefaultLimitFraction,long StorageReserveBytes = StorageOverflowMutableStrategy.DefaultReserveBytes) {
+        long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,OverflowMutableStrategyKind OverflowMutableStrategyKind,double StorageLimitFraction = StorageOverflowMutableStrategy.DefaultLimitFraction,long StorageReserveBytes = StorageOverflowMutableStrategy.DefaultReserveBytes,long? ObjectLogSegmentSize = null) {
         ValidatePowerOfTwo(IndexSize,nameof(IndexSize));
         ValidatePowerOfTwo(PageSize,nameof(PageSize));
         ValidatePowerOfTwo(SegmentSize,nameof(SegmentSize));
         ValidatePowerOfTwo(MemorySize,nameof(MemorySize));
+        if(ObjectLogSegmentSize is { } explicitObjectLogSegmentSize) {
+            ValidatePowerOfTwo(explicitObjectLogSegmentSize,nameof(ObjectLogSegmentSize));
+            AssertIsPowerOfTwo(explicitObjectLogSegmentSize,nameof(ObjectLogSegmentSize));
+        }
         AssertIsPowerOfTwo(IndexSize,nameof(IndexSize));
         AssertIsPowerOfTwo(PageSize,nameof(PageSize));
         AssertIsPowerOfTwo(SegmentSize,nameof(SegmentSize));
@@ -112,6 +116,8 @@ public abstract partial class CollectionStore<
             throw new ArgumentOutOfRangeException(nameof(MemorySize),$"{nameof(MemorySize)} must be >= 2*{nameof(PageSize)}.");
         if(SegmentSize>1L<<62)
             throw new ArgumentOutOfRangeException(nameof(SegmentSize),$"{nameof(SegmentSize)} must be <= 1L<<62.");
+        if(ObjectLogSegmentSize is { } objectLogSegmentSizeValue&&objectLogSegmentSizeValue<PageSize)
+            throw new ArgumentOutOfRangeException(nameof(ObjectLogSegmentSize),$"{nameof(ObjectLogSegmentSize)} must be >= {nameof(PageSize)}.");
         if(double.IsNaN(MutableFraction)||MutableFraction<0||MutableFraction>1)
             throw new ArgumentOutOfRangeException(nameof(MutableFraction));
         if(ObjectLogDevice.Capacity!=-1&&(ObjectLogDevice.Capacity<Const.MinObjectLogCapacity||ObjectLogDevice.Capacity>Const.MaxObjectLogCapacity))
@@ -122,12 +128,14 @@ public abstract partial class CollectionStore<
         this.StorageOverflowMutableStrategy=new(LogDevice.Capacity,StorageLimitFraction,StorageReserveBytes);
         long objectLogSegmentSize;
         if(ObjectLogDevice.Capacity<0) {
-            objectLogSegmentSize=Const.MinObjectLogCapacity;
+            objectLogSegmentSize=ObjectLogSegmentSize??Const.MinObjectLogCapacity;
         }
         else {
-            if(ObjectLogDevice.Capacity%SegmentSize!=0)
-                throw new ArgumentOutOfRangeException(nameof(ObjectLogDevice),$"ObjectLogDevice.Capacity must be a multiple of SegmentSize ({SegmentSize}), but was {ObjectLogDevice.Capacity}.");
-            objectLogSegmentSize=ObjectLogDevice.Capacity;
+            objectLogSegmentSize=ObjectLogSegmentSize??ObjectLogDevice.Capacity;
+            if(ObjectLogDevice.Capacity%objectLogSegmentSize!=0)
+                throw new ArgumentOutOfRangeException(nameof(ObjectLogSegmentSize),$"ObjectLogDevice.Capacity must be a multiple of ObjectLogSegmentSize ({objectLogSegmentSize}), but was {ObjectLogDevice.Capacity}.");
+            if(objectLogSegmentSize>ObjectLogDevice.Capacity)
+                throw new ArgumentOutOfRangeException(nameof(ObjectLogSegmentSize),$"{nameof(ObjectLogSegmentSize)} must be <= ObjectLogDevice.Capacity.");
         }
         this.Settings=new() {
             IndexSize=IndexSize,

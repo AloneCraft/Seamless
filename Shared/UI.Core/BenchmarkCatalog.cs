@@ -78,13 +78,30 @@ public static class BenchmarkCatalog {
                         : []
                     : [argument.Value])
                 .ToArray();
-            yield return parameterNames
+            var names = ResolveArgumentNames(parameterNames,values.Length);
+            yield return names
                 .Select((name,index) => new BenchmarkArgument(
                     NormalizeArgumentName(name),
                     index<values.Length ? FormatArgumentValue(values[index]) : string.Empty))
                 .ToArray();
         }
     }
+
+    private static string[] ResolveArgumentNames(string[] parameterNames,int valueCount) {
+        if(parameterNames.Length==valueCount&&!IsParamsDataOnly(parameterNames)) {
+            return parameterNames;
+        }
+
+        return valueCount switch{
+            3 => ["Count","Initial","Data"],
+            6 => ["Count","Index","Page","Segment","Memory","Fraction"],
+            _ => parameterNames,
+        };
+    }
+
+    private static bool IsParamsDataOnly(string[] parameterNames) =>
+        parameterNames.Length==1
+        &&string.Equals(parameterNames[0],"data",StringComparison.OrdinalIgnoreCase);
 
     private static string NormalizeArgumentName(string name) =>
         name switch{

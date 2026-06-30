@@ -94,6 +94,27 @@ internal static class ScalableBenchmarkNameFormatter{
     public static string GetArgumentValue(IReadOnlyList<BenchmarkArgument> arguments,ScalableBenchmarkArgumentColumn column) =>
         BenchmarkArgumentFormatting.GetValue(arguments,column.ToString());
 
+    public static string GetDisplayArgumentValue(
+        BenchmarkSourceTabDefinition sourceTab,
+        IReadOnlyList<BenchmarkArgument> arguments,
+        ScalableBenchmarkArgumentColumn column){
+        var value=GetArgumentValue(arguments,column);
+        if(!string.IsNullOrWhiteSpace(value)||!IsScalableSourceTab(sourceTab.Tab)){
+            return value;
+        }
+
+        var count=BenchmarkArgumentFormatting.GetInt(arguments,ScalableBenchmarkArgumentColumn.Count.ToString());
+        var parameters=CreateParameters(sourceTab,count);
+        return column switch{
+            ScalableBenchmarkArgumentColumn.Index => parameters.IndexSize.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ScalableBenchmarkArgumentColumn.Page => parameters.PageSize.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ScalableBenchmarkArgumentColumn.Segment => parameters.SegmentSize.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ScalableBenchmarkArgumentColumn.Memory => parameters.MemorySize.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ScalableBenchmarkArgumentColumn.Fraction => parameters.MutableFraction.ToString("0.###",System.Globalization.CultureInfo.InvariantCulture),
+            _ => value,
+        };
+    }
+
     public static string CreateParameterSuffix(ScalableBenchmarkParameters parameters) =>
         FormatFixed(parameters.IndexSize,6)
         +"_"+FormatFixed(parameters.PageSize,7)

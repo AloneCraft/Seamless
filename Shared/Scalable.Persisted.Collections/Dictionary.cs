@@ -1,22 +1,22 @@
 namespace Scalable.Persisted.Collections.Dictionary;
 
-public sealed class DictionaryStringString
+public class DictionaryStringString
     :PersistedSerializedDictionaryScalable<ManagedStoreDictionaryStrategy<StringDictTypeProvider,StringDictTypeProvider,string,string>,string,string>;
 
-public sealed class DictionaryStringInt32
+public class DictionaryStringInt32
     :PersistedSerializedDictionaryScalable<UnmanagedValueDictionaryStrategy<StringDictTypeProvider,IntDictTypeProvider,string,int>,string,int>;
 
-public sealed class DictionaryInt32String
+public class DictionaryInt32String
     :PersistedSerializedDictionaryScalable<UnmanagedKeyDictionaryStrategy<IntDictTypeProvider,StringDictTypeProvider,int,string>,int,string>;
 
-public sealed class DictionaryInt32Int32
+public class DictionaryInt32Int32
     :PersistedBlittableDictionaryScalable<UnmanagedStoreDictionaryStrategy<IntDictTypeProvider,IntDictTypeProvider,int,int>,int,int>;
 
-public sealed class DictionaryUnmanagedStructUnmanagedStruct
+public class DictionaryUnmanagedStructUnmanagedStruct
     :PersistedBlittableDictionaryScalable<UnmanagedStoreDictionaryStrategy<UnmanagedStructDictTypeProvider,UnmanagedStructDictTypeProvider,UnmanagedStruct,UnmanagedStruct>,UnmanagedStruct,UnmanagedStruct>;
 
-public sealed class DictionaryManagedStructManagedStruct
+public class DictionaryManagedStructManagedStruct
     :PersistedSerializedDictionaryScalable<ManagedStoreDictionaryStrategy<ManagedStructDictTypeProvider,ManagedStructDictTypeProvider,ManagedStruct,ManagedStruct>,ManagedStruct,ManagedStruct>;
 
-public sealed class DictionaryManagedClassManagedClass
+public class DictionaryManagedClassManagedClass
     :PersistedSerializedDictionaryScalable<ManagedStoreDictionaryStrategy<ManagedClassDictTypeProvider,ManagedClassDictTypeProvider,ManagedClass,ManagedClass>,ManagedClass,ManagedClass>;

@@ -501,7 +501,7 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
             var allocatedAfter = GC.GetAllocatedBytesForCurrentThread();
             var meanNanoseconds = stopwatch.Elapsed.TotalMilliseconds*1_000_000;
             var allocatedBytes = Math.Max(0,allocatedAfter-allocatedBefore);
-            File.WriteAllText(
+            WriteInProcessLog(
                 logPath,
                 $"In-process direct benchmark completed in {BenchmarkFormatting.FormatNanoseconds(meanNanoseconds)}.",
                 Encoding.UTF8);
@@ -527,7 +527,7 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
                 benchmark.Arguments);
         } catch(Exception ex) when(ex is not OperationCanceledException) {
             var actual = ex is TargetInvocationException { InnerException: { } inner } ? inner : ex;
-            File.WriteAllText(logPath,actual.ToString(),Encoding.UTF8);
+            WriteInProcessLog(logPath,actual.ToString(),Encoding.UTF8);
             return new BenchmarkJobRunResult(
                 benchmark.Project,
                 benchmark.MethodName,
@@ -552,6 +552,17 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
             if(instance is IDisposable disposable) {
                 disposable.Dispose();
             }
+        }
+    }
+
+    private static void WriteInProcessLog(string logPath,string text,Encoding encoding) {
+        try {
+            Directory.CreateDirectory(Path.GetDirectoryName(logPath)??".");
+            File.WriteAllText(logPath,text,encoding);
+        } catch(IOException ex) {
+            Trace.WriteLine("In-process benchmark log write failed. "+ex);
+        } catch(UnauthorizedAccessException ex) {
+            Trace.WriteLine("In-process benchmark log write failed. "+ex);
         }
     }
 
