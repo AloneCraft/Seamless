@@ -1,11 +1,73 @@
 namespace Seamless.Persisted.Collections;
 
+internal interface IPersistedDictionary<TKey,TValue>:IReadOnlyDictionary<TKey,TValue>, IDisposable
+    where TKey : notnull {
+    string Path { get; }
+    void Add(TKey key,TValue value);
+    IPersistedDictionary<TKey,TValue> Compact();
+    void SetDisposeAction(Action? action);
+}
+
+public sealed class Dictionary<TKey,TValue>:IReadOnlyDictionary<TKey,TValue>, IDisposable
+    where TKey : notnull {
+    private readonly IPersistedDictionary<TKey,TValue> dictionary;
+
+    public Dictionary(string path,long initialCapacity = 16,long initialDataCapacity = 4096,StorageTuning? tuning = null) {
+        this.dictionary=CreateCore(path,initialCapacity,initialDataCapacity,tuning);
+    }
+
+    public string Path => this.dictionary.Path;
+    public IEnumerable<TKey> Keys => this.dictionary.Keys;
+    public IEnumerable<TValue> Values => this.dictionary.Values;
+    public int Count => this.dictionary.Count;
+    public TValue this[TKey key] => this.dictionary[key];
+
+    public void Add(TKey key,TValue value) =>
+        this.dictionary.Add(key,value);
+
+    public Dictionary<TKey,TValue> Compact() {
+        this.dictionary.Compact();
+        return this;
+    }
+
+    public bool ContainsKey(TKey key) =>
+        this.dictionary.ContainsKey(key);
+
+    public bool TryGetValue(TKey key,[MaybeNullWhen(false)] out TValue value) =>
+        this.dictionary.TryGetValue(key,out value);
+
+    public IEnumerator<KeyValuePair<TKey,TValue>> GetEnumerator() =>
+        this.dictionary.GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator() =>
+        this.GetEnumerator();
+
+    public void Dispose() =>
+        this.dictionary.Dispose();
+
+    internal void SetDisposeAction(Action? action) =>
+        this.dictionary.SetDisposeAction(action);
+
+    private static IPersistedDictionary<TKey,TValue> CreateCore(string path,long initialCapacity,long initialDataCapacity,StorageTuning? tuning) {
+        if(!RuntimeHelpers.IsReferenceOrContainsReferences<TKey>()&&!RuntimeHelpers.IsReferenceOrContainsReferences<TValue>()) {
+            var type=typeof(BlittableDictionary<,>).MakeGenericType(typeof(TKey),typeof(TValue));
+            return (IPersistedDictionary<TKey,TValue>)Activator.CreateInstance(type,path,initialCapacity,initialDataCapacity,tuning)!;
+        }
+
+        return new SerializedDictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(path,initialCapacity,initialDataCapacity,tuning);
+    }
+}
+
 public class SerializedDictionary<TKey,TValue>
     : SerializedDictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>
     where TKey : struct
     where TValue : struct {
     public SerializedDictionary(string path,long initialCapacity = 16,long initialDataCapacity = 4096)
         : base(path,initialCapacity,initialDataCapacity) {
+    }
+
+    public SerializedDictionary(string path,long initialCapacity,long initialDataCapacity,StorageTuning? tuning)
+        : base(path,initialCapacity,initialDataCapacity,tuning) {
     }
 }
 
@@ -16,10 +78,14 @@ public sealed class BlittableDictionary<TKey,TValue>
     public BlittableDictionary(string path,long initialCapacity = 16,long initialDataCapacity = 4096)
         : base(path,initialCapacity,initialDataCapacity) {
     }
+
+    public BlittableDictionary(string path,long initialCapacity,long initialDataCapacity,StorageTuning? tuning)
+        : base(path,initialCapacity,initialDataCapacity,tuning) {
+    }
 }
 
 public class SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>
-    : SerializedList<SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>.Entry,SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>.EntrySerializer>, IReadOnlyDictionary<TKey,TValue>
+    : SerializedList<SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>.Entry,SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>.EntrySerializer>, IPersistedDictionary<TKey,TValue>
     where TKey : notnull
     where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
@@ -63,6 +129,10 @@ public class SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>
         : base(path,initialCapacity,initialDataCapacity) {
     }
 
+    public SerializedDictionary(string path,long initialCapacity,long initialDataCapacity,StorageTuning? tuning)
+        : base(path,initialCapacity,initialDataCapacity,tuning) {
+    }
+
     public IEnumerable<TKey> Keys => this.EnumerateLatest().Select(static pair => pair.Key);
     public IEnumerable<TValue> Values => this.EnumerateLatest().Select(static pair => pair.Value);
     public new int Count => checked((int)this.EnumerateLatest().LongCount());
@@ -89,7 +159,7 @@ public class SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>
     }
 
     public SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer> Compact() {
-        var latest = new Dictionary<TKey,TValue>();
+        var latest = new global::System.Collections.Generic.Dictionary<TKey,TValue>();
         foreach(var entry in this) {
             latest[entry.Key]=entry.Value;
         }
@@ -105,7 +175,7 @@ public class SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>
     IEnumerator IEnumerable.GetEnumerator() => this.EnumerateLatest().GetEnumerator();
 
     private IEnumerable<KeyValuePair<TKey,TValue>> EnumerateLatest() {
-        var latest = new Dictionary<TKey,TValue>();
+        var latest = new global::System.Collections.Generic.Dictionary<TKey,TValue>();
         foreach(var entry in (IEnumerable<Entry>)this) {
             latest[entry.Key]=entry.Value;
         }
@@ -136,4 +206,12 @@ public class SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>
             return leftBytes.Length.CompareTo(rightBytes.Length);
         }
     }
+
+    IPersistedDictionary<TKey,TValue> IPersistedDictionary<TKey,TValue>.Compact() {
+        this.Compact();
+        return this;
+    }
+
+    void IPersistedDictionary<TKey,TValue>.SetDisposeAction(Action? action) =>
+        this.SetDisposeAction(action);
 }

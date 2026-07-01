@@ -1,101 +1,79 @@
 namespace Seamless.Persisted.Collections;
 
-public readonly struct Store {
-    private readonly string? temporaryRoot;
+public static class Store {
+    public static PersistedList<T> CreateList<T>(
+        string Path,
+        long InitialCapacity = 16,
+        long InitialDataCapacity = 4096,
+        StorageTuning? StorageTuning = null) =>
+        RuntimeHelpers.IsReferenceOrContainsReferences<T>()
+            ? new SerializedList<T,MemoryPackSerializer<T>>(Path,InitialCapacity,InitialDataCapacity,StorageTuning)
+            : CreateBlittableList<T>(Path,InitialCapacity,StorageTuning);
 
-    private Store(string? temporaryRoot) {
-        this.temporaryRoot=temporaryRoot;
+    public static Set<T> CreateSet<T>(
+        string Path,
+        long InitialCapacity = 16,
+        long InitialDataCapacity = 4096,
+        StorageTuning? StorageTuning = null) =>
+        new(Path,InitialCapacity,InitialDataCapacity,StorageTuning);
+
+    public static Dictionary<TKey,TValue> CreateDictionary<TKey,TValue>(
+        string Path,
+        long InitialCapacity = 16,
+        long InitialDataCapacity = 4096,
+        StorageTuning? StorageTuning = null)
+        where TKey : notnull =>
+        new(Path,InitialCapacity,InitialDataCapacity,StorageTuning);
+
+    public static AppendOnlyList<T> CreateAppendOnlyList<T>(
+        string Path,
+        long InitialDataCapacity = 4096,
+        StorageTuning? StorageTuning = null) =>
+        new(Path,InitialDataCapacity,StorageTuning);
+
+    public static PersistedList<T> CreateTempList<T>(
+        long InitialCapacity = 16,
+        long InitialDataCapacity = 4096,
+        StorageTuning? StorageTuning = null,
+        string? TemporaryRoot = null) {
+        var path=CreateTemporaryPath(TemporaryRoot);
+        var list=CreateList<T>(path,InitialCapacity,InitialDataCapacity,StorageTuning);
+        list.SetDisposeAction(()=>DeleteTemporaryDirectory(path));
+        return list;
     }
 
-    public static Store Create(string? temporaryRoot = null) => new(temporaryRoot);
+    public static Set<T> CreateTempSet<T>(
+        long InitialCapacity = 16,
+        long InitialDataCapacity = 4096,
+        StorageTuning? StorageTuning = null,
+        string? TemporaryRoot = null) {
+        var path=CreateTemporaryPath(TemporaryRoot);
+        var set=CreateSet<T>(path,InitialCapacity,InitialDataCapacity,StorageTuning);
+        set.SetDisposeAction(()=>DeleteTemporaryDirectory(path));
+        return set;
+    }
 
-    public PersistedList<T> Create<T>(
-        string path,
-        long initialCapacity = 16,
-        long initialDataCapacity = 4096
-    ) => RuntimeHelpers.IsReferenceOrContainsReferences<T>()
-        ? new SerializedList<T,MemoryPackSerializer<T>>(path,initialCapacity,initialDataCapacity)
-        : CreateBlittableList<T>(path,initialCapacity,null);
+    public static Dictionary<TKey,TValue> CreateTempDictionary<TKey,TValue>(
+        long InitialCapacity = 16,
+        long InitialDataCapacity = 4096,
+        StorageTuning? StorageTuning = null,
+        string? TemporaryRoot = null)
+        where TKey : notnull {
+        var path=CreateTemporaryPath(TemporaryRoot);
+        var dictionary=CreateDictionary<TKey,TValue>(path,InitialCapacity,InitialDataCapacity,StorageTuning);
+        dictionary.SetDisposeAction(()=>DeleteTemporaryDirectory(path));
+        return dictionary;
+    }
 
-    public PersistedList<T> Create<T>(
-        string path,
-        StorageTuning tuning,
-        long initialCapacity = 16,
-        long initialDataCapacity = 4096
-    ) => RuntimeHelpers.IsReferenceOrContainsReferences<T>()
-        ? new SerializedList<T,MemoryPackSerializer<T>>(path,initialCapacity,initialDataCapacity,tuning)
-        : CreateBlittableList<T>(path,initialCapacity,tuning);
-
-    [OverloadResolutionPriority(1)]
-    public BlittableList<T> Create<T>(
-        string path,
-        long initialCapacity = 16,
-        BlittableStrategy _ = default
-    )
-        where T : unmanaged =>
-        new(path,initialCapacity);
-
-    public BlittableList<T> Create<T>(
-        string path,
-        StorageTuning tuning,
-        long initialCapacity = 16,
-        BlittableStrategy _ = default
-    )
-        where T : unmanaged =>
-        new(path,initialCapacity,tuning);
-
-    public SerializedList<T> Create<T>(
-        string path,
-        long initialCapacity = 16,
-        long initialDataCapacity = 4096,
-        MemoryPackSerializerStrategy _ = default
-    ) =>
-        new(path,initialCapacity,initialDataCapacity);
-
-    public SerializedList<T> Create<T>(
-        string path,
-        StorageTuning tuning,
-        long initialCapacity = 16,
-        long initialDataCapacity = 4096,
-        MemoryPackSerializerStrategy _ = default
-    ) =>
-        new(path,initialCapacity,initialDataCapacity,tuning);
-
-    public PersistedList<T> CreateTemp<T>(
-        long initialCapacity = 16,
-        long initialDataCapacity = 4096
-    ) => this.Create<T>(this.CreateTemporaryPath(),initialCapacity,initialDataCapacity);
-
-    public PersistedList<T> CreateTemp<T>(
-        StorageTuning tuning,
-        long initialCapacity = 16,
-        long initialDataCapacity = 4096
-    ) => this.Create<T>(this.CreateTemporaryPath(),tuning,initialCapacity,initialDataCapacity);
-
-    [OverloadResolutionPriority(1)]
-    public BlittableList<T> CreateTemp<T>(
-        long initialCapacity = 16,
-        BlittableStrategy _ = default
-    )
-        where T : unmanaged =>
-        this.Create<T>(this.CreateTemporaryPath(),initialCapacity,_);
-
-    public BlittableList<T> CreateTemp<T>(
-        StorageTuning tuning,
-        long initialCapacity = 16,
-        BlittableStrategy _ = default
-    )
-        where T : unmanaged =>
-        this.Create<T>(this.CreateTemporaryPath(),tuning,initialCapacity,_);
-
-    public AppendOnlyList<T> CreateAppendOnly<T>(
-        string path,
-        long initialDataCapacity = 4096,
-        StorageTuning? tuning = null
-    ) => new(path,initialDataCapacity,tuning);
-
-    public AppendOnlyList<T> CreateTempAppendOnly<T>(long initialDataCapacity = 4096,StorageTuning? tuning = null) =>
-        this.CreateAppendOnly<T>(this.CreateTemporaryPath(),initialDataCapacity,tuning);
+    public static AppendOnlyList<T> CreateTempAppendOnlyList<T>(
+        long InitialDataCapacity = 4096,
+        StorageTuning? StorageTuning = null,
+        string? TemporaryRoot = null) {
+        var path=CreateTemporaryPath(TemporaryRoot);
+        var list=CreateAppendOnlyList<T>(path,InitialDataCapacity,StorageTuning);
+        list.SetDisposeAction(()=>DeleteTemporaryDirectory(path));
+        return list;
+    }
 
     private static PersistedList<T> CreateBlittableList<T>(string path,long initialCapacity,StorageTuning? tuning) =>
         (PersistedList<T>)Activator.CreateInstance(
@@ -104,12 +82,26 @@ public readonly struct Store {
             initialCapacity,
             tuning)!;
 
-    private string CreateTemporaryPath() {
-        var root = string.IsNullOrWhiteSpace(this.temporaryRoot)
+    private static string CreateTemporaryPath(string? temporaryRoot) {
+        var root=string.IsNullOrWhiteSpace(temporaryRoot)
             ? Path.Combine(Path.GetTempPath(),"Seamless","Persisted")
-            : this.temporaryRoot!;
-        var directory = Path.Combine(root,Guid.NewGuid().ToString("N"));
+            : temporaryRoot!;
+        var directory=Path.Combine(root,Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
         return Path.Combine(directory,"items.dat");
+    }
+
+    private static void DeleteTemporaryDirectory(string path) {
+        var directory=Path.GetDirectoryName(path);
+        if(string.IsNullOrWhiteSpace(directory)) {
+            return;
+        }
+        try {
+            Directory.Delete(directory,recursive: true);
+        }
+        catch(IOException) {
+        }
+        catch(UnauthorizedAccessException) {
+        }
     }
 }

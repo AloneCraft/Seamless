@@ -23,6 +23,9 @@ internal sealed class BenchmarkTimingAttribute:BeforeAfterTestAttribute{
         if(targetType==null||targetType.IsAbstract){
             return;
         }
+        if(methodUnderTest.GetParameters().Length!=0){
+            return;
+        }
         var instance=Activator.CreateInstance(targetType);
         for(var i=0;i<BenchmarkParameters.WarmupCount;i++){
             methodUnderTest.Invoke(instance,null);

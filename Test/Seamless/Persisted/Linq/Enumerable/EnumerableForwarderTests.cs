@@ -19,7 +19,7 @@ public class EnumerableForwarderTests {
     public void GeneratedEnumerable_RepresentativeResults_MatchSystemEnumerable() {
         var path = CreatePath();
         try {
-            using var source = new global::Seamless.Persisted.Collections.Set<int>(path,initialCapacity: 1,initialDataCapacity: 128);
+            using var source = global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
             foreach(var value in new[] { 1,2,3,4 })
                 source.Add(value);
             source.Compact();

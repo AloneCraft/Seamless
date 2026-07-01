@@ -10,6 +10,7 @@ public class AppendOnlyList<T, TSerializer>:IEnumerable<T>, IDisposable
     where TSerializer : ISerializer<T> {
     private readonly FileStream stream;
     private readonly StorageTuning tuning;
+    private Action? disposeAction;
     private bool disposed;
 
     public string Path { get; }
@@ -79,9 +80,17 @@ public class AppendOnlyList<T, TSerializer>:IEnumerable<T>, IDisposable
             return;
         }
         this.disposed=true;
-        this.stream.Flush();
-        this.stream.Dispose();
+        try {
+            this.stream.Flush();
+            this.stream.Dispose();
+        }
+        finally {
+            this.disposeAction?.Invoke();
+        }
     }
+
+    internal void SetDisposeAction(Action? action) =>
+        this.disposeAction=action;
 
     private long LoadCount() {
         var count = 0L;

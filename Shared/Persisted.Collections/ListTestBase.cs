@@ -118,7 +118,7 @@ public abstract class ListTestBase<TStrategy, T>
         string? path = null;
         global::Seamless.Persisted.Collections.PersistedList<T>? list = null;
         try {
-            list=global::Seamless.Persisted.Collections.Store.Create().CreateTemp<T>(initialCapacity: 1);
+            list=global::Seamless.Persisted.Collections.Store.CreateTempList<T>(InitialCapacity: 1);
             path=list.Path;
             list.Add(TStrategy.Elem(1));
             Assert.Equal(1L,list.Count);
@@ -126,11 +126,13 @@ public abstract class ListTestBase<TStrategy, T>
 
             list.Dispose();
             Assert.True(list.IsDisposed);
+            Assert.False(Directory.Exists(Path.GetDirectoryName(path)));
         }
         finally {
             list?.Dispose();
-            if(path is not null)
+            if(path is not null) {
                 TryDeleteDirectory(path);
+            }
         }
     }
 
@@ -201,7 +203,7 @@ public abstract class ListTestBase<TStrategy, T>
                 global::Seamless.Persisted.Collections.StorageBufferingMode.Buffered,
                 global::Seamless.Persisted.Collections.StorageBufferSizeStrategy.Explicit,
                 8192);
-            using var list = global::Seamless.Persisted.Collections.Store.Create().CreateAppendOnly<T>(path,initialDataCapacity: 128,tuning: tuning);
+            using var list = global::Seamless.Persisted.Collections.Store.CreateAppendOnlyList<T>(path,InitialDataCapacity: 128,StorageTuning: tuning);
 
             list.Add(TStrategy.Elem(1));
             list.Add(TStrategy.Elem(2));
@@ -212,6 +214,36 @@ public abstract class ListTestBase<TStrategy, T>
         finally {
             TryDeleteDirectory(path);
         }
+    }
+
+    [BenchFact,Benchmark]
+    public void Store_CreateSet_WithTuning_RoundTrips() {
+        var path = CreatePath();
+        try {
+            var tuning = new global::Seamless.Persisted.Collections.StorageTuning(
+                FileAccess.ReadWrite,
+                global::Seamless.Persisted.Collections.StorageAccessPattern.Random);
+            using var set = global::Seamless.Persisted.Collections.Store.CreateSet<T>(path,InitialCapacity: 1,InitialDataCapacity: 128,StorageTuning: tuning);
+
+            set.Add(TStrategy.Elem(1));
+            set.Add(TStrategy.Elem(2));
+            set.Compact();
+
+            Assert.True(set.Contains(TStrategy.Elem(1)));
+            Assert.True(set.Contains(TStrategy.Elem(2)));
+        }
+        finally {
+            TryDeleteDirectory(path);
+        }
+    }
+
+    [BenchFact,Benchmark]
+    public void Store_CreateTempSet_DeletesDirectoryOnDispose() {
+        var set = global::Seamless.Persisted.Collections.Store.CreateTempSet<T>(InitialCapacity: 1,InitialDataCapacity: 128);
+        var path = set.Path;
+        set.Add(TStrategy.Elem(1));
+        set.Dispose();
+        Assert.False(Directory.Exists(Path.GetDirectoryName(path)));
     }
 
     [BenchFact,Benchmark]

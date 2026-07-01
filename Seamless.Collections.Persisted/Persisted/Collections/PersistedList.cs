@@ -99,6 +99,7 @@ public readonly record struct StorageTuning {
 }
 
 public abstract class PersistedList<T>:IReadOnlyList<T>, IDisposable {
+    private Action? disposeAction;
     public string Path { get; }
     public long Count { get; protected set; }
     public long Capacity { get; protected set; }
@@ -206,8 +207,16 @@ public abstract class PersistedList<T>:IReadOnlyList<T>, IDisposable {
         if(this.IsDisposed)
             return;
         this.IsDisposed=true;
-        this.DisposeCore();
+        try {
+            this.DisposeCore();
+        }
+        finally {
+            this.disposeAction?.Invoke();
+        }
     }
+
+    internal void SetDisposeAction(Action? action) =>
+        this.disposeAction=action;
 
     protected void ThrowIfDisposed() {
         ObjectDisposedException.ThrowIf(this.IsDisposed,this);

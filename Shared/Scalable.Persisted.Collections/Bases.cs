@@ -20,7 +20,7 @@ public abstract class PersistedSetScalable<TProvider,T>
         var count = checked((int)Count);
         var path = ScalablePath.Create<TProvider,T>(nameof(Add));
         try {
-            using var set = new global::Seamless.Persisted.Collections.Set<T>(path,initialCapacity: Initial,initialDataCapacity: Data);
+            using var set = global::Seamless.Persisted.Collections.Store.CreateSet<T>(path,InitialCapacity: Initial,InitialDataCapacity: Data);
             for(var i=0;i<count;i++) {
                 set.Add(TProvider.Create(i));
             }
@@ -44,7 +44,7 @@ public abstract class PersistedSetScalable<TProvider,T>
         var count = checked((int)Count);
         var path = ScalablePath.Create<TProvider,T>(nameof(Contains));
         try {
-            using var set = new global::Seamless.Persisted.Collections.Set<T>(path,initialCapacity: Initial,initialDataCapacity: Data);
+            using var set = global::Seamless.Persisted.Collections.Store.CreateSet<T>(path,InitialCapacity: Initial,InitialDataCapacity: Data);
             for(var i=0;i<count;i++) {
                 set.Add(TProvider.Create(i));
             }
@@ -161,7 +161,7 @@ public abstract class PersistedBlittableDictionaryScalable<TProvider,TKey,TValue
         var count = checked((int)Count);
         var path = ScalablePath.Create<TProvider,KeyValuePair<TKey,TValue>>(nameof(Add));
         try {
-            using var dictionary = new global::Seamless.Persisted.Collections.BlittableDictionary<TKey,TValue>(path,initialCapacity: Initial,initialDataCapacity: Data);
+            using var dictionary = global::Seamless.Persisted.Collections.Store.CreateDictionary<TKey,TValue>(path,InitialCapacity: Initial,InitialDataCapacity: Data);
             AddRange(dictionary,count);
             Assert.Equal(count,dictionary.Count);
             return dictionary.Count;
@@ -183,7 +183,7 @@ public abstract class PersistedBlittableDictionaryScalable<TProvider,TKey,TValue
         var count = checked((int)Count);
         var path = ScalablePath.Create<TProvider,KeyValuePair<TKey,TValue>>(nameof(TryGetValue));
         try {
-            using var dictionary = new global::Seamless.Persisted.Collections.BlittableDictionary<TKey,TValue>(path,initialCapacity: Initial,initialDataCapacity: Data);
+            using var dictionary = global::Seamless.Persisted.Collections.Store.CreateDictionary<TKey,TValue>(path,InitialCapacity: Initial,InitialDataCapacity: Data);
             AddRange(dictionary,count);
             var found = 0;
             for(var i=0;i<count;i++) {
@@ -198,7 +198,7 @@ public abstract class PersistedBlittableDictionaryScalable<TProvider,TKey,TValue
         }
     }
 
-    private static void AddRange(global::Seamless.Persisted.Collections.BlittableDictionary<TKey,TValue> dictionary,int count) {
+    private static void AddRange(global::Seamless.Persisted.Collections.Dictionary<TKey,TValue> dictionary,int count) {
         for(var i=0;i<count;i++) {
             dictionary.Add(TProvider.K(i),TProvider.V(i));
         }
@@ -223,7 +223,7 @@ public abstract class PersistedSerializedDictionaryScalable<TProvider,TKey,TValu
         var count = checked((int)Count);
         var path = ScalablePath.Create<TProvider,KeyValuePair<TKey,TValue>>(nameof(Add));
         try {
-            using var dictionary = new global::Seamless.Persisted.Collections.SerializedDictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(path,initialCapacity: Initial,initialDataCapacity: Data);
+            using var dictionary = global::Seamless.Persisted.Collections.Store.CreateDictionary<TKey,TValue>(path,InitialCapacity: Initial,InitialDataCapacity: Data);
             AddRange(dictionary,count);
             Assert.Equal(count,dictionary.Count);
             return dictionary.Count;
@@ -245,7 +245,7 @@ public abstract class PersistedSerializedDictionaryScalable<TProvider,TKey,TValu
         var count = checked((int)Count);
         var path = ScalablePath.Create<TProvider,KeyValuePair<TKey,TValue>>(nameof(TryGetValue));
         try {
-            using var dictionary = new global::Seamless.Persisted.Collections.SerializedDictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(path,initialCapacity: Initial,initialDataCapacity: Data);
+            using var dictionary = global::Seamless.Persisted.Collections.Store.CreateDictionary<TKey,TValue>(path,InitialCapacity: Initial,InitialDataCapacity: Data);
             AddRange(dictionary,count);
             var found = 0;
             for(var i=0;i<count;i++) {
@@ -260,7 +260,7 @@ public abstract class PersistedSerializedDictionaryScalable<TProvider,TKey,TValu
         }
     }
 
-    private static void AddRange(global::Seamless.Persisted.Collections.SerializedDictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>> dictionary,int count) {
+    private static void AddRange(global::Seamless.Persisted.Collections.Dictionary<TKey,TValue> dictionary,int count) {
         for(var i=0;i<count;i++) {
             dictionary.Add(TProvider.K(i),TProvider.V(i));
         }

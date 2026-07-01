@@ -10,6 +10,7 @@
     <AssemblyName>Test.Scalable.Tsavorite.Collections</AssemblyName>
     <DefineConstants>$(DefineConstants);BENCH_AS_TEST</DefineConstants>
     <OutputType>Library</OutputType>
+    <NoWarn>$(NoWarn);BDN1400</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
