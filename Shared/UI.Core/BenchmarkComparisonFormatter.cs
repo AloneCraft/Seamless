@@ -6,17 +6,6 @@ namespace UI;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
 internal static class BenchmarkComparisonFormatter{
-    private static readonly string[] ArgumentColumnNames = [
-        "Count",
-        "Index",
-        "Page",
-        "Segment",
-        "Memory",
-        "Fraction",
-        "Initial",
-        "Data",
-    ];
-
     public static readonly string[] ProjectOrder =
         BenchmarkSourceTabs.All
             .SelectMany(static tab => tab.ProjectOrder)
@@ -93,13 +82,14 @@ internal static class BenchmarkComparisonFormatter{
 
     public static string WriteCsv(IReadOnlyList<BenchmarkComparisonRow> rows,BenchmarkSourceTabDefinition sourceTab){
         var header = CreateCsvHeaderWithArguments(sourceTab);
+        var argumentColumnNames = BenchmarkArgumentColumns.GetNames(sourceTab);
         var writer = new StringBuilder();
         writer.AppendLine(string.Join(",",header));
         foreach(var row in rows
             .OrderBy(static row => row.Benchmark,StringComparer.OrdinalIgnoreCase)
             .ThenBy(static row => row.ArgumentKey,StringComparer.OrdinalIgnoreCase)){
             writer.AppendCsv(row.Benchmark);
-            foreach(var column in ArgumentColumnNames){
+            foreach(var column in argumentColumnNames){
                 writer.Append(',');
                 writer.AppendCsv(BenchmarkArgumentFormatting.GetValue(row.Arguments,column));
             }
@@ -144,8 +134,9 @@ internal static class BenchmarkComparisonFormatter{
             header[0]=header[0].TrimStart('\uFEFF');
         }
 
-        var sourceTab = ParseSourceTabFromHeader(header);
-        var metricsStartIndex = HasArgumentColumns(header) ? 1+ArgumentColumnNames.Length : 1;
+        var headerInfo = ParseSourceTabFromHeader(header);
+        var sourceTab = headerInfo.SourceTab;
+        var metricsStartIndex = 1+headerInfo.ArgumentColumnNames.Count;
         var result = new List<BenchmarkComparisonRow>();
         while(!parser.EndOfData){
             var fields = parser.ReadFields()??[];
@@ -158,7 +149,7 @@ internal static class BenchmarkComparisonFormatter{
                 throw new InvalidDataException("Benchmark name is required.");
             }
 
-            var arguments = ReadArgumentColumns(header,fields);
+            var arguments = ReadArgumentColumns(headerInfo.ArgumentColumnNames,fields);
             var argumentKey = BenchmarkArgumentFormatting.CreateKey(arguments);
             var metrics = new Dictionary<string,ProjectMetrics>(StringComparer.OrdinalIgnoreCase);
             for(var projectIndex=0;projectIndex<sourceTab.ProjectOrder.Count;projectIndex++){
@@ -315,83 +306,34 @@ internal static class BenchmarkComparisonFormatter{
         sourceTab.RightProject+"割当bytes",
     ];
 
-    private static BenchmarkSourceTabDefinition ParseSourceTabFromHeader(string[] header){
-        if(HasArgumentColumns(header)){
-            return ParseSourceTabFromArgumentHeader(header);
-        }
-
-        if(header.Length!=5){
-            throw new InvalidDataException("Only the source-tab two-project CSV format is supported.");
-        }
-
-        var leftProject = ExtractProjectName(header[1],"時間ns");
-        var rightProject = ExtractProjectName(header[3],"時間ns");
-        var sourceTab = BenchmarkSourceTabs.All.FirstOrDefault(tab =>
-            string.Equals(tab.LeftProject,leftProject,StringComparison.OrdinalIgnoreCase)
-            &&string.Equals(tab.RightProject,rightProject,StringComparison.OrdinalIgnoreCase));
-        if(sourceTab is null){
-            throw new InvalidDataException("Unknown benchmark source tab CSV header.");
-        }
-
-        var expected = CreateCsvHeader(sourceTab);
-        for(var i=0;i<expected.Length;i++){
-            if(!string.Equals(header[i],expected[i],StringComparison.Ordinal)){
-                throw new InvalidDataException("CSV header does not match the source-tab format.");
+    private static BenchmarkCsvHeaderInfo ParseSourceTabFromHeader(string[] header){
+        foreach(var sourceTab in BenchmarkSourceTabs.All){
+            var expected = CreateCsvHeaderWithArguments(sourceTab);
+            if(IsSameHeader(header,expected)){
+                return new BenchmarkCsvHeaderInfo(sourceTab,BenchmarkArgumentColumns.GetNames(sourceTab));
             }
         }
 
-        return sourceTab;
+        throw new InvalidDataException("CSV header does not match the source-tab format.");
     }
 
     private static string[] CreateCsvHeaderWithArguments(BenchmarkSourceTabDefinition sourceTab){
         var baseHeader = CreateCsvHeader(sourceTab);
-        return [baseHeader[0],..ArgumentColumnNames,..baseHeader.Skip(1)];
+        return [baseHeader[0],..BenchmarkArgumentColumns.GetNames(sourceTab),..baseHeader.Skip(1)];
     }
 
-    private static BenchmarkSourceTabDefinition ParseSourceTabFromArgumentHeader(string[] header){
-        if(header.Length!=1+ArgumentColumnNames.Length+4){
-            throw new InvalidDataException("Only the source-tab two-project CSV format is supported.");
-        }
-
-        var compactHeader = new[] {
-            header[0],
-            header[1+ArgumentColumnNames.Length],
-            header[2+ArgumentColumnNames.Length],
-            header[3+ArgumentColumnNames.Length],
-            header[4+ArgumentColumnNames.Length],
-        };
-        var sourceTab = ParseSourceTabFromHeader(compactHeader);
-        var expected = CreateCsvHeaderWithArguments(sourceTab);
-        for(var i=0;i<expected.Length;i++){
-            if(!string.Equals(header[i],expected[i],StringComparison.Ordinal)){
-                throw new InvalidDataException("CSV header does not match the source-tab format.");
-            }
-        }
-
-        return sourceTab;
-    }
-
-    private static bool HasArgumentColumns(string[] header) =>
-        header.Length>=1+ArgumentColumnNames.Length
-        &&ArgumentColumnNames
-            .Select((name,index) => string.Equals(header[index+1],name,StringComparison.Ordinal))
+    private static bool IsSameHeader(string[] actual,string[] expected) =>
+        actual.Length==expected.Length
+        &&actual
+            .Select((value,index) => string.Equals(value,expected[index],StringComparison.Ordinal))
             .All(static item => item);
 
-    private static IReadOnlyList<BenchmarkArgument> ReadArgumentColumns(string[] header,string[] fields){
-        if(!HasArgumentColumns(header)){
-            return [];
-        }
-
-        return ArgumentColumnNames
+    private static IReadOnlyList<BenchmarkArgument> ReadArgumentColumns(IReadOnlyList<string> argumentColumnNames,string[] fields){
+        return argumentColumnNames
             .Select((name,index) => new BenchmarkArgument(name,GetCell(fields,index+1)))
             .Where(static argument => !string.IsNullOrWhiteSpace(argument.Value))
             .ToArray();
     }
-
-    private static string ExtractProjectName(string value,string suffix) =>
-        value.EndsWith(suffix,StringComparison.Ordinal)
-            ? value[..^suffix.Length]
-            : value;
 
     private static string GetCell(string[] row,int index){
         return index>=0&&index<row.Length
@@ -422,6 +364,10 @@ internal static class BenchmarkComparisonFormatter{
 
         throw new InvalidDataException($"Column '{column}' must be an integer.");
     }
+
+    private sealed record BenchmarkCsvHeaderInfo(
+        BenchmarkSourceTabDefinition SourceTab,
+        IReadOnlyList<string> ArgumentColumnNames);
 }
 
 public readonly record struct ProjectMetrics(double? TimeNanoseconds,long? AllocatedBytes,bool HasValue){

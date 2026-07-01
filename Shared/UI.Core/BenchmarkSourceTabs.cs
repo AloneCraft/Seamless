@@ -64,7 +64,7 @@ public static class BenchmarkSourceTabs{
         new(
             BenchmarkSourceTab.ScalablePersistedSet,
             ScalablePersistedSetId,
-            "Persisted.Set<T> IndexSize_PageSize_SegmentSize_MemorySize_MutableFraction",
+            "Persisted.Set<T> InitialCapacity_InitialDataCapacity",
             "Scalable.Persisted.Set",
             "Persisted",
             "Scalable.Persisted.Collections",
@@ -84,7 +84,7 @@ public static class BenchmarkSourceTabs{
         new(
             BenchmarkSourceTab.ScalablePersistedDictionary,
             ScalablePersistedDictionaryId,
-            "Persisted.Dictionary<TKey,TValue> IndexSize_PageSize_SegmentSize_MemorySize_MutableFraction",
+            "Persisted.Dictionary<TKey,TValue> InitialCapacity_InitialDataCapacity",
             "Scalable.Persisted.Dictionary",
             "Persisted",
             "Scalable.Persisted.Collections",
@@ -104,7 +104,7 @@ public static class BenchmarkSourceTabs{
         new(
             BenchmarkSourceTab.ScalablePersistedList,
             ScalablePersistedListId,
-            "Persisted.List<T> IndexSize_PageSize_SegmentSize_MemorySize_MutableFraction",
+            "Persisted.List<T> InitialCapacity_InitialDataCapacity",
             "Scalable.Persisted.List",
             "Persisted",
             "Scalable.Persisted.Collections",

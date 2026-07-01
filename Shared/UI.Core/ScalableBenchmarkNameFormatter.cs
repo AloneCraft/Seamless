@@ -18,6 +18,41 @@ internal enum ScalableBenchmarkArgumentColumn{
     Data,
 }
 
+internal static class BenchmarkArgumentColumns{
+    private static readonly ScalableBenchmarkArgumentColumn[] PersistedColumns = [
+        ScalableBenchmarkArgumentColumn.Count,
+        ScalableBenchmarkArgumentColumn.Initial,
+        ScalableBenchmarkArgumentColumn.Data,
+    ];
+    private static readonly ScalableBenchmarkArgumentColumn[] TsavoriteColumns = [
+        ScalableBenchmarkArgumentColumn.Count,
+        ScalableBenchmarkArgumentColumn.Index,
+        ScalableBenchmarkArgumentColumn.Page,
+        ScalableBenchmarkArgumentColumn.Segment,
+        ScalableBenchmarkArgumentColumn.Memory,
+        ScalableBenchmarkArgumentColumn.Fraction,
+    ];
+    private static readonly ScalableBenchmarkArgumentColumn[] EmptyColumns = [];
+
+    public static IReadOnlyList<ScalableBenchmarkArgumentColumn> Get(BenchmarkSourceTabDefinition sourceTab) =>
+        Get(sourceTab.Tab);
+
+    public static IReadOnlyList<ScalableBenchmarkArgumentColumn> Get(BenchmarkSourceTab sourceTab) =>
+        sourceTab switch{
+            BenchmarkSourceTab.ScalablePersistedList
+                or BenchmarkSourceTab.ScalablePersistedSet
+                or BenchmarkSourceTab.ScalablePersistedDictionary => PersistedColumns,
+            BenchmarkSourceTab.ScalableTsavoriteSet
+                or BenchmarkSourceTab.ScalableTsavoriteDictionary
+                or BenchmarkSourceTab.ScalableSet
+                or BenchmarkSourceTab.ScalableDictionary => TsavoriteColumns,
+            _ => EmptyColumns,
+        };
+
+    public static IReadOnlyList<string> GetNames(BenchmarkSourceTabDefinition sourceTab) =>
+        Get(sourceTab).Select(static column => column.ToString()).ToArray();
+}
+
 internal static class ScalableBenchmarkNameFormatter{
     private const long DefaultIndexSize = 64;
     private const long DefaultPageSize = 4096;
@@ -103,6 +138,10 @@ internal static class ScalableBenchmarkNameFormatter{
             return value;
         }
 
+        if(!UsesTsavoriteStorageArguments(sourceTab.Tab)){
+            return value;
+        }
+
         var count=BenchmarkArgumentFormatting.GetInt(arguments,ScalableBenchmarkArgumentColumn.Count.ToString());
         var parameters=CreateParameters(sourceTab,count);
         return column switch{
@@ -114,6 +153,12 @@ internal static class ScalableBenchmarkNameFormatter{
             _ => value,
         };
     }
+
+    private static bool UsesTsavoriteStorageArguments(BenchmarkSourceTab sourceTab) =>
+        sourceTab is BenchmarkSourceTab.ScalableTsavoriteSet
+            or BenchmarkSourceTab.ScalableTsavoriteDictionary
+            or BenchmarkSourceTab.ScalableSet
+            or BenchmarkSourceTab.ScalableDictionary;
 
     public static string CreateParameterSuffix(ScalableBenchmarkParameters parameters) =>
         FormatFixed(parameters.IndexSize,6)

@@ -1010,7 +1010,11 @@ public sealed class BenchmarkOrchestratorTests{
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
-                [Case("Scalable.Persisted.Set","Add")],
+                [
+                    CountCase("Scalable.Persisted.Set","Add",1024),
+                    CountCase("Scalable.Persisted.Set","Add",2048),
+                    CountCase("Scalable.Persisted.Set","Add",4096),
+                ],
                 [0],
                 [1024,2048,4096],
                 BenchmarkRunMode.Adaptive,
@@ -1192,6 +1196,19 @@ public sealed class BenchmarkOrchestratorTests{
 
     private static BenchmarkCase Case(string project,string method) =>
         new(project,"Assembly","Type",method);
+
+    private static BenchmarkCase CountCase(string project,string method,int count) {
+        var arguments = new BenchmarkArgument[] {
+            new("Count",count.ToString(global::System.Globalization.CultureInfo.InvariantCulture)),
+        };
+        return new BenchmarkCase(
+            project,
+            "Assembly",
+            "Type",
+            method,
+            BenchmarkArgumentFormatting.CreateKey(arguments),
+            arguments);
+    }
 
     private static BenchmarkJob CompletedJob(string project,string method,int elementCount) =>
         new(){

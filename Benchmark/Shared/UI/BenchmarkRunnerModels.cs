@@ -1162,20 +1162,12 @@ public sealed class BenchmarkTableRow:ObservableObject{
 
 internal static class BenchmarkArgumentTooltipFormatter {
     public static string CreateArgumentTooltip(BenchmarkTableRow row) {
-        var summary = new[] {
-            ("Count",row.CountArgument),
-            ("Memory",row.MemoryArgument),
-        };
-        var items = new[] {
-            ("Count",row.CountArgument),
-            ("Index",row.IndexArgument),
-            ("Page",row.PageArgument),
-            ("Segment",row.SegmentArgument),
-            ("Memory",row.MemoryArgument),
-            ("Fraction",row.FractionArgument),
-            ("Initial",row.InitialArgument),
-            ("Data",row.DataArgument),
-        };
+        var items = BenchmarkArgumentColumns.Get(row.SourceTab)
+            .Select(column => (column.ToString(),GetArgumentValue(row,column)))
+            .ToArray();
+        var summary = items
+            .Where(static item => item.Item1 is "Count" or "Memory" or "Initial")
+            .ToArray();
         var summaryText = string.Join(
             " / ",
             summary
@@ -1194,6 +1186,19 @@ internal static class BenchmarkArgumentTooltipFormatter {
             ? summaryText
             : summaryText+"\n"+detailText;
     }
+
+    private static string GetArgumentValue(BenchmarkTableRow row,ScalableBenchmarkArgumentColumn column) =>
+        column switch{
+            ScalableBenchmarkArgumentColumn.Count => row.CountArgument,
+            ScalableBenchmarkArgumentColumn.Index => row.IndexArgument,
+            ScalableBenchmarkArgumentColumn.Page => row.PageArgument,
+            ScalableBenchmarkArgumentColumn.Segment => row.SegmentArgument,
+            ScalableBenchmarkArgumentColumn.Memory => row.MemoryArgument,
+            ScalableBenchmarkArgumentColumn.Fraction => row.FractionArgument,
+            ScalableBenchmarkArgumentColumn.Initial => row.InitialArgument,
+            ScalableBenchmarkArgumentColumn.Data => row.DataArgument,
+            _ => string.Empty,
+        };
 }
 
 public sealed class CpuSelectionItem:ObservableObject{

@@ -16,6 +16,9 @@ public sealed class MainPage:ContentPage {
     private const double BenchmarkCellCheckBoxHeight = 28;
     private const double BenchmarkNameColumnWidth = 420;
     private const double BenchmarkArgumentColumnWidth = 72;
+    private const double BenchmarkCountArgumentColumnWidth = 78;
+    private const double BenchmarkMemoryArgumentColumnWidth = 96;
+    private const double BenchmarkCompactArgumentColumnWidth = 64;
     private const double BenchmarkProjectStatusColumnWidth = 248;
     private const double BenchmarkProjectMetricColumnWidth = 78;
     private const double BenchmarkPairStopNColumnWidth = 72;
@@ -878,7 +881,10 @@ public sealed class MainPage:ContentPage {
         if(this.viewModel is not null) {
             this.viewModel.PropertyChanged+=(_,args) => {
                 if(args.PropertyName==nameof(BenchmarkRunnerViewModel.SelectedSourceTab)) {
-                    MainThread.BeginInvokeOnMainThread(this.SyncSourceTabViewSelection);
+                    MainThread.BeginInvokeOnMainThread(() => {
+                        this.SyncSourceTabViewSelection();
+                        this.RebuildBenchmarkGridColumns();
+                    });
                 }else if(args.PropertyName==nameof(BenchmarkRunnerViewModel.LatestBenchmarkAutoScrollRequest)) {
                     var request = this.viewModel.LatestBenchmarkAutoScrollRequest;
                     if(request is not null) {
@@ -1465,6 +1471,21 @@ public sealed class MainPage:ContentPage {
         this.ConfigureDataGridLines(grid);
         this.ConfigureDataGridScrollBars(grid);
 
+        this.RebuildBenchmarkGridColumns(grid);
+        return grid;
+    }
+
+    private void RebuildBenchmarkGridColumns() {
+        if(this.benchmarkGrid is not { } grid) {
+            return;
+        }
+
+        this.RebuildBenchmarkGridColumns(grid);
+    }
+
+    private void RebuildBenchmarkGridColumns(SfDataGrid grid) {
+        grid.Columns.Clear();
+        grid.StackedHeaderRows.Clear();
         var categoryHeaderRow = new DataGridStackedHeaderRow();
         var projectHeaderRow = new DataGridStackedHeaderRow();
         grid.StackedHeaderRows.Add(categoryHeaderRow);
@@ -1472,7 +1493,8 @@ public sealed class MainPage:ContentPage {
 
         grid.Columns.Add(this.CreateCheckColumn());
         grid.Columns.Add(this.CreateTextColumn("ベンチマーク",nameof(BenchmarkTableRow.BenchmarkName),BenchmarkGridSortColumn.BenchmarkName,BenchmarkNameColumnWidth,TextAlignment.End));
-        var argumentMappings = this.AddArgumentColumns(grid);
+        var sourceTab = this.viewModel?.SelectedSourceDefinition??BenchmarkSourceTabs.Default;
+        var argumentMappings = this.AddArgumentColumns(grid,sourceTab);
         this.AddBenchmarkBaseStackedHeaders(categoryHeaderRow,projectHeaderRow,argumentMappings);
         var leftMappings = this.AddProjectColumns(grid,"Left",nameof(BenchmarkTableRow.LeftCell),BenchmarkGridSortColumn.LeftTime,BenchmarkGridSortColumn.LeftAllocated);
         var stopMapping = this.AddPairStopNColumn(
@@ -1494,7 +1516,6 @@ public sealed class MainPage:ContentPage {
         this.AddBenchmarkRatioHeader(projectHeaderRow,timeRatioMapping,"時間比");
         this.AddBenchmarkRatioHeader(projectHeaderRow,allocatedRatioMapping,"メモリ比");
         this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup("Right","Right"),rightMappings);
-        return grid;
     }
 
     private void OnBenchmarkGridCellDoubleTapped(object? sender,DataGridCellDoubleTappedEventArgs args) {
@@ -1638,29 +1659,43 @@ public sealed class MainPage:ContentPage {
             ColumnMappingNames=nameof(BenchmarkTableRow.BenchmarkName),
             Text=string.Empty,
         });
-        projectHeaderRow.Columns.Add(new DataGridStackedColumn {
-            MappingName="BenchmarkArgumentsProjectSpacer",
-            ColumnMappingNames=string.Join(",",argumentMappings),
-            Text=string.Empty,
-        });
+        if(argumentMappings.Count>0) {
+            projectHeaderRow.Columns.Add(new DataGridStackedColumn {
+                MappingName="BenchmarkArgumentsProjectSpacer",
+                ColumnMappingNames=string.Join(",",argumentMappings),
+                Text=string.Empty,
+            });
+        }
     }
 
-    private IReadOnlyList<string> AddArgumentColumns(SfDataGrid grid) {
-        var columns = new[] {
-            ("Count",nameof(BenchmarkTableRow.CountArgument),BenchmarkGridSortColumn.ArgumentCount),
-            ("Index",nameof(BenchmarkTableRow.IndexArgument),BenchmarkGridSortColumn.ArgumentIndex),
-            ("Page",nameof(BenchmarkTableRow.PageArgument),BenchmarkGridSortColumn.ArgumentPage),
-            ("Segment",nameof(BenchmarkTableRow.SegmentArgument),BenchmarkGridSortColumn.ArgumentSegment),
-            ("Memory",nameof(BenchmarkTableRow.MemoryArgument),BenchmarkGridSortColumn.ArgumentMemory),
-            ("Fraction",nameof(BenchmarkTableRow.FractionArgument),BenchmarkGridSortColumn.ArgumentFraction),
-            ("Initial",nameof(BenchmarkTableRow.InitialArgument),BenchmarkGridSortColumn.ArgumentInitial),
-            ("Data",nameof(BenchmarkTableRow.DataArgument),BenchmarkGridSortColumn.ArgumentData),
-        };
-        foreach(var column in columns){
-            grid.Columns.Add(this.CreateTextColumn(column.Item1,column.Item2,column.Item3,BenchmarkArgumentColumnWidth,TextAlignment.End));
+    private IReadOnlyList<string> AddArgumentColumns(SfDataGrid grid,BenchmarkSourceTabDefinition sourceTab) {
+        var mappings = new List<string>();
+        foreach(var argumentColumn in BenchmarkArgumentColumns.Get(sourceTab)){
+            var column = GetArgumentColumnUi(argumentColumn);
+            grid.Columns.Add(this.CreateTextColumn(column.Header,column.Property,column.SortColumn,column.Width,TextAlignment.End));
+            mappings.Add(column.Property);
         }
-        return columns.Select(static column => column.Item2).ToArray();
+        return mappings;
     }
+
+    private static BenchmarkArgumentColumnUi GetArgumentColumnUi(ScalableBenchmarkArgumentColumn column) =>
+        column switch{
+            ScalableBenchmarkArgumentColumn.Count => new("Count",nameof(BenchmarkTableRow.CountArgument),BenchmarkGridSortColumn.ArgumentCount,BenchmarkCountArgumentColumnWidth),
+            ScalableBenchmarkArgumentColumn.Index => new("Index",nameof(BenchmarkTableRow.IndexArgument),BenchmarkGridSortColumn.ArgumentIndex,BenchmarkArgumentColumnWidth),
+            ScalableBenchmarkArgumentColumn.Page => new("Page",nameof(BenchmarkTableRow.PageArgument),BenchmarkGridSortColumn.ArgumentPage,BenchmarkCompactArgumentColumnWidth),
+            ScalableBenchmarkArgumentColumn.Segment => new("Segment",nameof(BenchmarkTableRow.SegmentArgument),BenchmarkGridSortColumn.ArgumentSegment,BenchmarkArgumentColumnWidth),
+            ScalableBenchmarkArgumentColumn.Memory => new("Memory",nameof(BenchmarkTableRow.MemoryArgument),BenchmarkGridSortColumn.ArgumentMemory,BenchmarkMemoryArgumentColumnWidth),
+            ScalableBenchmarkArgumentColumn.Fraction => new("Fraction",nameof(BenchmarkTableRow.FractionArgument),BenchmarkGridSortColumn.ArgumentFraction,BenchmarkCompactArgumentColumnWidth),
+            ScalableBenchmarkArgumentColumn.Initial => new("Initial",nameof(BenchmarkTableRow.InitialArgument),BenchmarkGridSortColumn.ArgumentInitial,BenchmarkCompactArgumentColumnWidth),
+            ScalableBenchmarkArgumentColumn.Data => new("Data",nameof(BenchmarkTableRow.DataArgument),BenchmarkGridSortColumn.ArgumentData,BenchmarkCompactArgumentColumnWidth),
+            _ => throw new ArgumentOutOfRangeException(nameof(column)),
+        };
+
+    private readonly record struct BenchmarkArgumentColumnUi(
+        string Header,
+        string Property,
+        BenchmarkGridSortColumn SortColumn,
+        double Width);
 
     private IReadOnlyList<string> AddProjectColumns(
         SfDataGrid grid,
