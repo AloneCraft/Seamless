@@ -10,7 +10,7 @@ public class FLinqNativeIterateTests {
     public void PersistedSetRoot_UsesNativeIterateTerminalForAny() {
         var path = CreatePath();
         try {
-            using var set = new global::Seamless.Persisted.Collections.Set<int>(path,initialCapacity: 1,initialDataCapacity: 128);
+            using var set = global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
             foreach(var value in new[] { 1,2,3,4 })
                 set.Add(value);
             set.Compact();
@@ -38,7 +38,7 @@ public class FLinqNativeIterateTests {
     public void PersistedSetRoot_UsesNativeIterateTerminalForAllAndFirstOrDefault() {
         var path = CreatePath();
         try {
-            using var set = new global::Seamless.Persisted.Collections.Set<int>(path,initialCapacity: 1,initialDataCapacity: 128);
+            using var set = global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
             foreach(var value in new[] { 1,2,3,4 })
                 set.Add(value);
             set.Compact();

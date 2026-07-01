@@ -77,10 +77,10 @@ public class PersistedBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
         var path = Path.Combine(this.rootPath,Guid.NewGuid().ToString("N"),"items.dat");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var count = values.TryGetNonEnumeratedCount(out var knownCount) ? knownCount : 80_000;
-        var set = new Seamless.Persisted.Collections.Set<T>(
+        var set = Seamless.Persisted.Collections.Store.CreateSet<T>(
             path,
-            initialCapacity: Math.Max(1,count),
-            initialDataCapacity: Math.Max(4096,count*16));
+            InitialCapacity: Math.Max(1,count),
+            InitialDataCapacity: Math.Max(4096,count*16));
         foreach(var value in values) {
             set.Add(value);
         }

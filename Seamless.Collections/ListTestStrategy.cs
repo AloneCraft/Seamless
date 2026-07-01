@@ -29,7 +29,7 @@ public readonly struct MemoryPackListStrategy<TProvider, T>:IListTestStrategy<T>
     where TProvider : IListValueProvider<T> {
     public static T Elem(int i) => TProvider.Create(i);
     public static ListHandle<T> CreateList(string path,long initialCapacity = 16,long initialDataCapacity = 4096) {
-        var list = global::Seamless.Persisted.Collections.Store.Create().Create<T>(path,initialCapacity,initialDataCapacity);
+        var list = global::Seamless.Persisted.Collections.Store.CreateList<T>(path,InitialCapacity: initialCapacity,InitialDataCapacity: initialDataCapacity);
         return new ListHandle<T>(path,list);
     }
 }
@@ -39,7 +39,7 @@ public readonly struct BlittableListStrategy<TProvider, T>:IListTestStrategy<T>
     where T : unmanaged {
     public static T Elem(int i) => TProvider.Create(i);
     public static ListHandle<T> CreateList(string path,long initialCapacity = 16,long initialDataCapacity = 4096) {
-        var list = global::Seamless.Persisted.Collections.Store.Create().Create<T>(path,initialCapacity,default(BlittableStrategy));
+        var list = global::Seamless.Persisted.Collections.Store.CreateList<T>(path,InitialCapacity: initialCapacity,InitialDataCapacity: initialDataCapacity);
         return new ListHandle<T>(path,list);
     }
 }

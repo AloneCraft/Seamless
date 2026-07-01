@@ -675,12 +675,12 @@ namespace Test.Seamless.Database.TPC_H {
         private void AssertStorageListRoundTrip(int query) {
             var expected = QueryRows(this.Container,query,false);
             var folder = TestPath.Directory<TpchTests>($"Q{query:D2}");
-            using(var list = global::Seamless.Persisted.Collections.Store.Create().Create<string>(Path.Combine(folder,"result.data"),initialCapacity: 8,initialDataCapacity: 4096)) {
+            using(var list = global::Seamless.Persisted.Collections.Store.CreateList<string>(Path.Combine(folder,"result.data"),InitialCapacity: 8,InitialDataCapacity: 4096)) {
                 foreach(var row in expected) {
                     list.Add(row);
                 }
             }
-            using(var list = global::Seamless.Persisted.Collections.Store.Create().Create<string>(Path.Combine(folder,"result.data"),initialCapacity: 8,initialDataCapacity: 4096)) {
+            using(var list = global::Seamless.Persisted.Collections.Store.CreateList<string>(Path.Combine(folder,"result.data"),InitialCapacity: 8,InitialDataCapacity: 4096)) {
                 var actual = list.OrderBy(row => row,StringComparer.Ordinal).ToArray();
                 Assert.Equal(expected,actual);
             }
@@ -902,5 +902,4 @@ namespace Test.Seamless.Database.TPC_H {
         }
     }
 }
-
 

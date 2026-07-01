@@ -14,6 +14,7 @@ public sealed class Set<T>:Seamless.Collections.ISet<T>, IDisposable {
         this.set=(IReadOnlySet<T>)this.list;
     }
 
+    public string Path => this.list.Path;
     public int Count => checked((int)this.list.Count);
     public long GetLongCount() => this.list.Count;
     public bool IsDisposed => this.list.IsDisposed;
@@ -36,6 +37,8 @@ public sealed class Set<T>:Seamless.Collections.ISet<T>, IDisposable {
     IEnumerator<T> IEnumerable<T>.GetEnumerator() => this.GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
     public void Dispose() => this.list.Dispose();
+    internal void SetDisposeAction(Action? action) =>
+        this.list.SetDisposeAction(action);
 
     public void Iterate<TStrategy>(ref TStrategy strategy)
         where TStrategy : struct, ISetIterateStrategy<TStrategy,T> {

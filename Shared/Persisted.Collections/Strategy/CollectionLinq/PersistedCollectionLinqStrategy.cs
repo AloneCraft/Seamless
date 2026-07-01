@@ -71,7 +71,7 @@ public readonly struct PersistedSetCollectionLinqStrategy<TProvider,TElement>
 
     private static PersistedSetLinqSource<TElement> CreateRange(string tag,int start,int count) {
         var path = PersistedCollectionLinqPaths.CreatePath<PersistedSetCollectionLinqStrategy<TProvider,TElement>,TElement>(tag);
-        var set = new global::Seamless.Persisted.Collections.Set<TElement>(path,initialCapacity: 1,initialDataCapacity: 4096);
+        var set = global::Seamless.Persisted.Collections.Store.CreateSet<TElement>(path,InitialCapacity: 1,InitialDataCapacity: 4096);
         for(var index = 0;index<count;index++) {
             set.Add(TProvider.Create(start+index));
         }
@@ -157,13 +157,13 @@ public readonly struct PersistedBlittableDictionaryCollectionLinqStrategy<TProvi
 
     private static PersistedDictionaryLinqSource<TKey,TValue> CreateRange(string tag,int start,int count) {
         var path = PersistedCollectionLinqPaths.CreatePath<PersistedBlittableDictionaryCollectionLinqStrategy<TProvider,TKey,TValue>,KeyValuePair<TKey,TValue>>(tag);
-        var dictionary = new global::Seamless.Persisted.Collections.BlittableDictionary<TKey,TValue>(path,initialCapacity: 1,initialDataCapacity: 4096);
+        var dictionary = global::Seamless.Persisted.Collections.Store.CreateDictionary<TKey,TValue>(path,InitialCapacity: 1,InitialDataCapacity: 4096);
         Populate(dictionary,start,count);
         dictionary.Compact();
         return new PersistedDictionaryLinqSource<TKey,TValue>(path,dictionary,dictionary);
     }
 
-    private static void Populate(global::Seamless.Persisted.Collections.BlittableDictionary<TKey,TValue> dictionary,int start,int count) {
+    private static void Populate(global::Seamless.Persisted.Collections.Dictionary<TKey,TValue> dictionary,int start,int count) {
         for(var index = 0;index<count;index++) {
             var value = start+index;
             dictionary.Add(TProvider.K(value),TProvider.V(value));
@@ -209,13 +209,13 @@ public readonly struct PersistedSerializedDictionaryCollectionLinqStrategy<TProv
 
     private static PersistedDictionaryLinqSource<TKey,TValue> CreateRange(string tag,int start,int count) {
         var path = PersistedCollectionLinqPaths.CreatePath<PersistedSerializedDictionaryCollectionLinqStrategy<TProvider,TKey,TValue>,KeyValuePair<TKey,TValue>>(tag);
-        var dictionary = new global::Seamless.Persisted.Collections.SerializedDictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(path,initialCapacity: 1,initialDataCapacity: 4096);
+        var dictionary = global::Seamless.Persisted.Collections.Store.CreateDictionary<TKey,TValue>(path,InitialCapacity: 1,InitialDataCapacity: 4096);
         Populate(dictionary,start,count);
         dictionary.Compact();
         return new PersistedDictionaryLinqSource<TKey,TValue>(path,dictionary,dictionary);
     }
 
-    private static void Populate(global::Seamless.Persisted.Collections.SerializedDictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>> dictionary,int start,int count) {
+    private static void Populate(global::Seamless.Persisted.Collections.Dictionary<TKey,TValue> dictionary,int start,int count) {
         for(var index = 0;index<count;index++) {
             var value = start+index;
             dictionary.Add(TProvider.K(value),TProvider.V(value));
