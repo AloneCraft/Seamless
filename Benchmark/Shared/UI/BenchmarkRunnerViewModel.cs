@@ -113,6 +113,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.benchmarkRoot=benchmarkRoot;
         this.SourceTabs=BenchmarkSourceTabs.All.Select(static item => new SourceTabOption(item)).ToArray();
         this.selectedSourceTab=this.SourceTabs[0];
+        this.ApplySourceTabVisualSelection();
         this.BenchmarkColumnSelectionGroups=this.CreateBenchmarkColumnSelectionGroups();
         this.BenchmarkProjectSelectionGroups=this.CreateBenchmarkProjectSelectionGroups();
         this.ExecutionProfiles= [
@@ -541,6 +542,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.isApplyingSourceTabSelection=true;
         try {
             if(this.SetProperty(ref this.selectedSourceTab,option)) {
+                this.ApplySourceTabVisualSelection();
                 this.OnPropertyChanged(nameof(this.SelectedComparisonPair));
                 this.OnPropertyChanged(nameof(this.SelectedSourceDefinition));
                 this.OnPropertyChanged(nameof(this.ChartLeftLegendLabel));
@@ -555,6 +557,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
         finally {
             this.isApplyingSourceTabSelection=false;
+        }
+    }
+
+    private void ApplySourceTabVisualSelection() {
+        foreach(var item in this.SourceTabs) {
+            item.SetSelected(ReferenceEquals(item,this.selectedSourceTab));
         }
     }
 

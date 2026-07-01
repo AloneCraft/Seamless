@@ -846,14 +846,15 @@ public sealed class MainPage:ContentPage {
 
     private View CreateSourceTabHeader(SourceTabOption option) {
         var label = new Label {
-            Text=option.HeaderText,
             FontSize=12,
-            TextColor=Color.FromArgb("#334155"),
             HorizontalTextAlignment=TextAlignment.Center,
             VerticalTextAlignment=TextAlignment.Center,
             LineBreakMode=LineBreakMode.TailTruncation,
             Margin=new Thickness(8,3),
         };
+        label.SetBinding(Label.TextProperty,new Binding(nameof(SourceTabOption.HeaderText),source: option));
+        label.SetBinding(Label.FontAttributesProperty,new Binding(nameof(SourceTabOption.HeaderFontAttributes),source: option));
+        label.SetBinding(Label.TextColorProperty,new Binding(nameof(SourceTabOption.HeaderTextColor),source: option));
         var layout = new Border {
             StrokeThickness=1,
             StrokeShape=new Microsoft.Maui.Controls.Shapes.RoundRectangle {
@@ -862,29 +863,17 @@ public sealed class MainPage:ContentPage {
             Content=label,
             Margin=new Thickness(1,0),
         };
-        void Apply() {
-            var isSelected = this.viewModel is not null&&ReferenceEquals(this.viewModel.SelectedSourceTab,option);
-            label.Text=option.HeaderText;
-            label.FontAttributes=isSelected ? FontAttributes.Bold : FontAttributes.None;
-            label.TextColor=isSelected ? Color.FromArgb("#0F172A") : Color.FromArgb("#475569");
-            layout.BackgroundColor=isSelected ? Colors.White : Color.FromArgb("#F1F5F9");
-            layout.Stroke=isSelected ? Color.FromArgb("#0F766E") : Color.FromArgb("#CBD5E1");
-        }
-        layout.Loaded+=(_,_) => Apply();
-        option.PropertyChanged+=(_,args) => {
-            if(args.PropertyName==nameof(SourceTabOption.HeaderText)
-                ||args.PropertyName==nameof(SourceTabOption.Progress)) {
-                MainThread.BeginInvokeOnMainThread(Apply);
-            }
-        };
+        layout.SetBinding(BackgroundColorProperty,new Binding(nameof(SourceTabOption.HeaderBackgroundColor),source: option));
+        layout.SetBinding(Border.StrokeProperty,new Binding(nameof(SourceTabOption.HeaderStroke),source: option));
         if(this.viewModel is not null) {
-            this.viewModel.PropertyChanged+=(_,args) => {
-                if(args.PropertyName==nameof(BenchmarkRunnerViewModel.SelectedSourceTab)) {
-                    MainThread.BeginInvokeOnMainThread(Apply);
+            var tap = new TapGestureRecognizer();
+            tap.Tapped+=(_,_) => {
+                if(this.viewModel.SelectedSourceTab!=option) {
+                    this.viewModel.SelectedSourceTab=option;
                 }
             };
+            layout.GestureRecognizers.Add(tap);
         }
-        Apply();
         return layout;
     }
 
