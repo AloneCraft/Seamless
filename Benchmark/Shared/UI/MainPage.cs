@@ -116,7 +116,7 @@ public sealed class MainPage:ContentPage {
         }
         catch(Exception ex) {
             StartupDiagnostics.Write("MainPage InitializeAsync failed.",ex);
-            this.viewModel.StatusText="Startup load failed: "+ex.Message;
+            this.viewModel.StatusText="起動時読み込み失敗: "+ex.Message;
         }
     }
 
@@ -138,7 +138,7 @@ public sealed class MainPage:ContentPage {
         }
 
         if(isBenchmarkActive||isBenchmarkPaused) {
-            this.viewModel.StatusText="Stopping before close...";
+            this.viewModel.StatusText="終了前に停止しています...";
             await this.viewModel.StopAsync();
         }
 
@@ -445,7 +445,7 @@ public sealed class MainPage:ContentPage {
         };
         grid.Add(this.ToolbarLabel("測定時間"),0,0);
         grid.Add(thresholdPicker,1,0);
-        grid.Add(this.ToolbarLabel("Mode"),2,0);
+        grid.Add(this.ToolbarLabel("モード"),2,0);
         grid.Add(executionProfilePicker,3,0);
         grid.Add(runButton,4,0);
         grid.Add(stopButton,5,0);
@@ -850,17 +850,59 @@ public sealed class MainPage:ContentPage {
             HorizontalTextAlignment=TextAlignment.Center,
             VerticalTextAlignment=TextAlignment.Center,
             LineBreakMode=LineBreakMode.TailTruncation,
-            Margin=new Thickness(8,3),
+            Margin=new Thickness(8,3,4,3),
         };
         label.SetBinding(Label.TextProperty,new Binding(nameof(SourceTabOption.HeaderText),source: option));
         label.SetBinding(Label.FontAttributesProperty,new Binding(nameof(SourceTabOption.HeaderFontAttributes),source: option));
         label.SetBinding(Label.TextColorProperty,new Binding(nameof(SourceTabOption.HeaderTextColor),source: option));
+        var progress = new BenchmarkCircularProgressView {
+            WidthRequest=16,
+            HeightRequest=16,
+            VerticalOptions=LayoutOptions.Center,
+            HorizontalOptions=LayoutOptions.Center,
+        };
+        progress.SetBinding(BenchmarkCircularProgressView.ProgressProperty,new Binding(nameof(SourceTabOption.ProgressFraction),source: option));
+        progress.SetBinding(IsVisibleProperty,new Binding(nameof(SourceTabOption.HasProgress),source: option));
+        progress.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: option));
+        var spinner = new ActivityIndicator {
+            WidthRequest=14,
+            HeightRequest=14,
+            VerticalOptions=LayoutOptions.Center,
+            HorizontalOptions=LayoutOptions.Center,
+            Color=Color.FromArgb("#0F766E"),
+        };
+        spinner.SetBinding(ActivityIndicator.IsRunningProperty,new Binding(nameof(SourceTabOption.IsRunning),source: option));
+        spinner.SetBinding(IsVisibleProperty,new Binding(nameof(SourceTabOption.IsRunning),source: option));
+        spinner.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: option));
+        var indicatorHost = new Grid {
+            WidthRequest=22,
+            HeightRequest=22,
+            VerticalOptions=LayoutOptions.Center,
+            HorizontalOptions=LayoutOptions.Center,
+            Margin=new Thickness(0,0,6,0),
+            Children= {
+                progress,
+                spinner,
+            },
+        };
+        var content = new Grid {
+            ColumnDefinitions= {
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = GridLength.Auto },
+            },
+            ColumnSpacing=2,
+            Children= {
+                label,
+                indicatorHost,
+            },
+        };
+        Grid.SetColumn(indicatorHost,1);
         var layout = new Border {
             StrokeThickness=1,
             StrokeShape=new Microsoft.Maui.Controls.Shapes.RoundRectangle {
                 CornerRadius=new CornerRadius(6),
             },
-            Content=label,
+            Content=content,
             Margin=new Thickness(1,0),
         };
         layout.SetBinding(BackgroundColorProperty,new Binding(nameof(SourceTabOption.HeaderBackgroundColor),source: option));
@@ -1355,8 +1397,6 @@ public sealed class MainPage:ContentPage {
         grid.Columns.Add(this.CreateTextColumn("時間比",timeRatioMapping,BenchmarkGridSortColumn.PairRatioTime,BenchmarkPairStopNColumnWidth,TextAlignment.End));
         grid.Columns.Add(this.CreateTextColumn("メモリ比",allocatedRatioMapping,BenchmarkGridSortColumn.PairRatioAllocated,BenchmarkPairStopNColumnWidth,TextAlignment.End));
         var rightMappings = this.AddProjectColumns(grid,"Right",nameof(BenchmarkTableRow.RightCell),BenchmarkGridSortColumn.RightTime,BenchmarkGridSortColumn.RightAllocated);
-        IReadOnlyList<string>[] mappings = [argumentMappings,leftMappings,[stopMapping,timeRatioMapping,allocatedRatioMapping],rightMappings];
-        this.AddBenchmarkSelectionGroup(categoryHeaderRow,this.GetBenchmarkSelectionGroup("Active"),mappings);
         this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup("Left","Left"),leftMappings);
         this.AddBenchmarkStopNHeader(projectHeaderRow,stopMapping);
         this.AddBenchmarkRatioHeader(projectHeaderRow,timeRatioMapping,"時間比");
@@ -1593,15 +1633,6 @@ public sealed class MainPage:ContentPage {
                 : BenchmarkCellSelectionGesture.Replace;
     }
 
-    private void AddBenchmarkSelectionGroup(DataGridStackedHeaderRow headerRow,BenchmarkColumnSelectionGroup group,IEnumerable<IReadOnlyList<string>> childMappings) {
-        var mappings = childMappings.SelectMany(static item => item).ToArray();
-        headerRow.Columns.Add(new DataGridStackedColumn {
-            MappingName="BenchmarkGroup"+group.Id,
-            ColumnMappingNames=string.Join(",",mappings),
-            Template=this.CreateBenchmarkColumnGroupHeaderTemplate(group),
-        });
-    }
-
     private void AddBenchmarkProjectSelectionGroup(DataGridStackedHeaderRow headerRow,BenchmarkColumnSelectionGroup group,IReadOnlyList<string> childMappings) {
         headerRow.Columns.Add(new DataGridStackedColumn {
             MappingName="BenchmarkProjectGroup"+group.Id,
@@ -1624,11 +1655,6 @@ public sealed class MainPage:ContentPage {
             ColumnMappingNames=mappingName,
             Text=string.Empty,
         });
-    }
-
-    private BenchmarkColumnSelectionGroup GetBenchmarkSelectionGroup(string id) {
-        return this.viewModel?.BenchmarkColumnSelectionGroups.FirstOrDefault(group => group.Id==id)
-            ??new BenchmarkColumnSelectionGroup(id,id,[]);
     }
 
     private BenchmarkColumnSelectionGroup GetBenchmarkProjectSelectionGroup(string id,string headerText) {
@@ -2532,10 +2558,10 @@ public sealed class MainPage:ContentPage {
     private DataGridTemplateColumn CreateCpuCoreColumn(CpuTableSection section) {
         return new DataGridTemplateColumn {
             MappingName=nameof(CpuTableRow.Label),
-            HeaderText="Core",
+            HeaderText="コア",
             Width=this.GetCpuCoreColumnWidth(section),
             AllowSorting=false,
-            HeaderTemplate=this.CreateCpuSimpleHeaderTemplate("Core"),
+            HeaderTemplate=this.CreateCpuSimpleHeaderTemplate("コア"),
             CellTemplate=new DataTemplate(() => {
                 var layout = new Grid {
                     ColumnDefinitions= {
@@ -3116,7 +3142,7 @@ public sealed class MainPage:ContentPage {
         chartHost.GestureRecognizers.Add(chartTap);
 
         var emptyText = new Label {
-            Text="Run benchmarks or select a saved DB run.",
+            Text="ベンチマークを実行するか、保存済み DB 実行を選択してください。",
             HorizontalOptions=LayoutOptions.Center,
             VerticalOptions=LayoutOptions.Center,
             TextColor=Color.FromArgb("#64748B"),
@@ -3430,6 +3456,56 @@ internal readonly record struct BenchmarkChartSelectionLayoutRow(
     RectF LeftBarRect,
     RectF RightBarRect,
     RectF HitRect);
+
+public sealed class BenchmarkCircularProgressView:GraphicsView {
+    public static readonly BindableProperty ProgressProperty = BindableProperty.Create(
+        nameof(Progress),
+        typeof(double),
+        typeof(BenchmarkCircularProgressView),
+        0d,
+        propertyChanged:static (bindable,_,_) => ((BenchmarkCircularProgressView)bindable).Invalidate());
+
+    private static readonly Color TrackColor = Color.FromArgb("#CBD5E1");
+    private static readonly Color ProgressColor = Color.FromArgb("#0F766E");
+
+    public BenchmarkCircularProgressView() {
+        this.Drawable=new BenchmarkCircularProgressDrawable(this);
+    }
+
+    public double Progress{
+        get => (double)this.GetValue(ProgressProperty);
+        set => this.SetValue(ProgressProperty,value);
+    }
+
+    private sealed class BenchmarkCircularProgressDrawable(BenchmarkCircularProgressView owner):IDrawable {
+        public void Draw(ICanvas canvas,RectF dirtyRect) {
+            var size=MathF.Min(dirtyRect.Width,dirtyRect.Height);
+            if(size<=0) {
+                return;
+            }
+
+            var stroke=MathF.Max(2,size*0.14f);
+            var radius=(size-stroke)/2f;
+            var centerX=dirtyRect.X+dirtyRect.Width/2f;
+            var centerY=dirtyRect.Y+dirtyRect.Height/2f;
+            var left=centerX-radius;
+            var top=centerY-radius;
+            var diameter=radius*2f;
+            canvas.StrokeSize=stroke;
+            canvas.StrokeLineCap=LineCap.Round;
+            canvas.StrokeColor=TrackColor;
+            canvas.DrawCircle(centerX,centerY,radius);
+
+            var progress=Math.Clamp(owner.Progress,0,1);
+            if(progress<=0) {
+                return;
+            }
+
+            canvas.StrokeColor=ProgressColor;
+            canvas.DrawArc(left,top,diameter,diameter,-90,(float)(-90+(360*progress)),false,false);
+        }
+    }
+}
 
 public sealed class CountIsZeroConverter:IValueConverter {
     public object Convert(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture) {

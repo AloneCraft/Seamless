@@ -47,6 +47,7 @@ public enum BenchmarkGridSortColumn{
 public sealed class SourceTabOption:ObservableObject{
     private BenchmarkTabProgress progress;
     private bool isSelected;
+    private bool isRunning;
 
     public SourceTabOption(BenchmarkSourceTabDefinition definition){
         this.Definition=definition;
@@ -76,15 +77,29 @@ public sealed class SourceTabOption:ObservableObject{
         private set{
             if(this.SetProperty(ref this.progress,value)){
                 this.OnPropertyChanged(nameof(this.HeaderText));
+                this.OnPropertyChanged(nameof(this.HasProgress));
+                this.OnPropertyChanged(nameof(this.ProgressFraction));
+                this.OnPropertyChanged(nameof(this.ProgressText));
+                this.OnPropertyChanged(nameof(this.ProgressTooltipText));
             }
         }
     }
-    public string HeaderText => this.Progress.Total<=0
-        ? this.DisplayName
-        : this.DisplayName+" "+this.Progress.FractionText;
+    public string HeaderText => this.DisplayName;
+    public bool HasProgress => this.Progress.Total>0;
+    public double ProgressFraction => this.Progress.Total<=0 ? 0 : this.Progress.Fraction;
+    public string ProgressText => this.Progress.Total<=0 ? "0/0" : this.Progress.FractionText;
+    public string ProgressTooltipText => "確定 "+this.ProgressText;
+    public bool IsRunning{
+        get => this.isRunning;
+        private set => this.SetProperty(ref this.isRunning,value);
+    }
 
     public void SetProgress(BenchmarkTabProgress value){
         this.Progress=value;
+    }
+
+    public void SetRunning(bool value){
+        this.IsRunning=value;
     }
 
     public void SetSelected(bool value){
@@ -457,6 +472,10 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         if(isRunning){
             // Running は確定値の更新ではなく、実行中の状態表示だけを切り替える。
             this.IsRunning=true;
+            this.isFailed=false;
+            this.isCompletedWithoutMeasurement=false;
+            this.FailureExecutionText=string.Empty;
+            this.failureReasonText=string.Empty;
             if(result.ElementCount>0){
                 this.ElementCountText=FormatElementCount(result.ElementCount);
             }

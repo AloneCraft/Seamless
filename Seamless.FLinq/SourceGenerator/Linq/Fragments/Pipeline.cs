@@ -151,14 +151,17 @@ public static class PipelineBuilder {
         stages=NormalizeStages(stages,services.JoinStaticMethods);
         if(TryOptimizeRangeSetStages(sourceFragment,stages,ref snapshot,out var optimizedSetSource)) {
             AddUnsafeAccessors(stages,unsafeAccessorCollector);
-            if(terminalKind is { } optimizedTerminal) {
-                if(terminalResultType is null) {
-                    return false;
-                }
-                var terminalPipeline = new PipelineEnumerable(snapshot++,optimizedSetSource,Array.Empty<PipelineStage>(),currentElementType);
-                fragment=new PipelineTerminal(snapshot++,terminalPipeline,optimizedTerminal,terminalFunc1,terminalFunc2,terminalComparer);
-            } else {
-                fragment=optimizedSetSource;
+            if(!TryCreateOptimizedFragment(
+                optimizedSetSource,
+                currentElementType,
+                terminalKind,
+                terminalResultType,
+                terminalFunc1,
+                terminalFunc2,
+                terminalComparer,
+                ref snapshot,
+                out fragment)) {
+                return false;
             }
             uniqueNumber=snapshot;
             staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
@@ -170,14 +173,17 @@ public static class PipelineBuilder {
 
         if(TryOptimizeOrderedRange(sourceFragment,stages,ref snapshot,out var optimizedSource)) {
             AddUnsafeAccessors(stages,unsafeAccessorCollector);
-            if(terminalKind is { } optimizedTerminal) {
-                if(terminalResultType is null) {
-                    return false;
-                }
-                var terminalPipeline = new PipelineEnumerable(snapshot++,optimizedSource,Array.Empty<PipelineStage>(),currentElementType);
-                fragment=new PipelineTerminal(snapshot++,terminalPipeline,optimizedTerminal,terminalFunc1,terminalFunc2,terminalComparer);
-            } else {
-                fragment=optimizedSource;
+            if(!TryCreateOptimizedFragment(
+                optimizedSource,
+                currentElementType,
+                terminalKind,
+                terminalResultType,
+                terminalFunc1,
+                terminalFunc2,
+                terminalComparer,
+                ref snapshot,
+                out fragment)) {
+                return false;
             }
             uniqueNumber=snapshot;
             staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
@@ -210,6 +216,30 @@ public static class PipelineBuilder {
             || currentElementType.IndexOf("<anonymous type",StringComparison.Ordinal)>=0) {
             return false;
         }
+        return true;
+    }
+
+    private static bool TryCreateOptimizedFragment(
+        Enumerable optimizedSource,
+        string currentElementType,
+        PipelineTerminalKind? terminalKind,
+        string? terminalResultType,
+        FuncFragment? terminalFunc1,
+        FuncFragment? terminalFunc2,
+        string? terminalComparer,
+        ref int uniqueNumber,
+        out Fragment fragment) {
+        if(terminalKind is not { } terminal) {
+            fragment=optimizedSource;
+            return true;
+        }
+        if(terminalResultType is null) {
+            fragment=null!;
+            return false;
+        }
+
+        var terminalPipeline = new PipelineEnumerable(uniqueNumber++,optimizedSource,Array.Empty<PipelineStage>(),currentElementType);
+        fragment=new PipelineTerminal(uniqueNumber++,terminalPipeline,terminal,terminalFunc1,terminalFunc2,terminalComparer);
         return true;
     }
 

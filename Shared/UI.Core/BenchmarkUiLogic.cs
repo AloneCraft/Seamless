@@ -106,16 +106,16 @@ internal static class BenchmarkCpuStatusImageLogic{
 
     public static string GetCellStatusText(string status,string currentJobText) =>
         string.IsNullOrWhiteSpace(currentJobText)
-            ? (string.Equals(status,JobStatus.Pending.ToString(),StringComparison.OrdinalIgnoreCase) ? string.Empty : status)
+            ? (string.Equals(status,JobStatus.Pending.ToString(),StringComparison.OrdinalIgnoreCase) ? string.Empty : GetStatusText(status))
             : currentJobText;
 
     public static string GetStatusText(string status) =>
         string.Equals(status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase)
-            ? "Running"
+            ? "実行中"
             : string.Equals(status,"Completed",StringComparison.OrdinalIgnoreCase)
-                ? "Completed"
+                ? "完了"
                 : string.Equals(status,"Failed",StringComparison.OrdinalIgnoreCase)
-                    ? "Failed"
+                    ? "失敗"
                     : status;
 }
 
@@ -207,8 +207,72 @@ public readonly record struct BenchmarkTabProgress(int Completed,int Total){
             +this.Total.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }
 
+internal readonly record struct BenchmarkSourceTabRunningJob(
+    BenchmarkSourceTab SourceTab,
+    string Project,
+    string Method,
+    string TypeFullName,
+    string ArgumentKey,
+    int AxisCount);
+
+internal sealed class BenchmarkSourceTabRunningState{
+    private readonly System.Collections.Generic.HashSet<BenchmarkSourceTabRunningJob> runningJobs = [];
+
+    public bool Apply(BenchmarkResultItem result){
+        var job = CreateJob(result);
+        if(string.Equals(result.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase)){
+            return this.runningJobs.Add(job);
+        }
+
+        if(string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+            ||string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)){
+            return this.runningJobs.Remove(job);
+        }
+
+        return false;
+    }
+
+    public bool IsRunning(BenchmarkSourceTab sourceTab) =>
+        this.runningJobs.Any(job => job.SourceTab==sourceTab);
+
+    public bool Clear(){
+        if(this.runningJobs.Count==0){
+            return false;
+        }
+
+        this.runningJobs.Clear();
+        return true;
+    }
+
+    private static BenchmarkSourceTabRunningJob CreateJob(BenchmarkResultItem result) =>
+        new(
+            result.SourceTab,
+            result.Project,
+            result.Method,
+            result.TypeFullName,
+            result.ArgumentKey,
+            result.AxisCount);
+}
+
+internal static class BenchmarkTabProgressSourceLogic{
+    public static IReadOnlyList<BenchmarkTabProgressCell> CreateCellsFromSelectedCases(
+        IEnumerable<BenchmarkCase> selectedCases,
+        BenchmarkSourceTabDefinition sourceTab) =>
+        selectedCases
+            .Where(benchmark => sourceTab.ContainsProject(benchmark.Project))
+            .GroupBy(static benchmark => string.Join("|",benchmark.Project,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey),StringComparer.OrdinalIgnoreCase)
+            .Select(static group => group.First())
+            .Select(static benchmark => new BenchmarkTabProgressCell(
+                benchmark.MethodName,
+                benchmark.Project,
+                benchmark.TypeFullName,
+                benchmark.ArgumentKey,
+                true))
+            .ToArray();
+}
+
 internal static class BenchmarkFailureDisplayLogic{
-    public const string DefaultFailureReason = "Failure reason was not reported.";
+    public const string DefaultFailureReason = "失敗理由が報告されていません。";
 
     public static string CreateTooltipReason(string failureReason){
         var firstLine = GetFirstNonEmptyLine(failureReason);
@@ -683,27 +747,27 @@ internal static class BenchmarkCloseDialogLogic{
         bool hasUnsavedResults){
         if(isBenchmarkPaused){
             return [
-                ("Stop and close",BenchmarkCloseAction.StopAndClose,BenchmarkToolbarButtonRole.Stop),
-                ("Cancel",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Pause),
+                ("停止して閉じる",BenchmarkCloseAction.StopAndClose,BenchmarkToolbarButtonRole.Stop),
+                ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Pause),
             ];
         }
 
         if(isBenchmarkRunActive){
             return [
-                ("Stop and finish",BenchmarkCloseAction.StopAndClose,BenchmarkToolbarButtonRole.Stop),
-                ("Cancel",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Pause),
+                ("停止して終了",BenchmarkCloseAction.StopAndClose,BenchmarkToolbarButtonRole.Stop),
+                ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Pause),
             ];
         }
 
         if(hasUnsavedResults){
             return [
-                ("Discard and close",BenchmarkCloseAction.StopAndClose,BenchmarkToolbarButtonRole.Stop),
-                ("Cancel",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Pause),
+                ("破棄して閉じる",BenchmarkCloseAction.StopAndClose,BenchmarkToolbarButtonRole.Stop),
+                ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Pause),
             ];
         }
 
         return [
-            ("Cancel",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Pause),
+            ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Pause),
         ];
     }
 }

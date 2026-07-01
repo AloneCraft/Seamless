@@ -56,7 +56,7 @@ internal sealed class BenchmarkOrchestrator(
             progress,
             (job,cpu) => {
                 var current = Interlocked.Increment(ref completed);
-                statusChanged($"Running {current}/{total}: {job.MethodName} {CreateAxisStatusText(job)} / CPU {cpu}");
+                statusChanged($"実行中 {current}/{total}: {job.MethodName} {CreateAxisStatusText(job)} / CPU {cpu}");
             },
             cancellationToken);
     }
@@ -199,7 +199,7 @@ internal sealed class BenchmarkOrchestrator(
 
             foreach(var job in pending) {
                 cancellationToken.ThrowIfCancellationRequested();
-                statusChanged($"Running {job.MethodName} {CreateAxisStatusText(job)}: {job.Project} / CPU {logicalCpu}");
+                statusChanged($"実行中 {job.MethodName} {CreateAxisStatusText(job)}: {job.Project} / CPU {logicalCpu}");
                 await this.RunJobAsync(state,job,logicalCpu,request.JobTimeout,progress,cancellationToken);
             }
 
@@ -307,7 +307,7 @@ internal sealed class BenchmarkOrchestrator(
             cancellationToken.ThrowIfCancellationRequested();
             var warmupJob = CreateJob(benchmark,1,row.SourceTab,state.ElementCounts);
             warmupJob.JobId=warmupJob.JobId+"|warmup";
-            statusChanged($"Warmup {benchmark.MethodName} "+CreateAxisStatusText(warmupJob)+$": {benchmark.Project} / CPU {logicalCpu}");
+            statusChanged($"ウォームアップ {benchmark.MethodName} "+CreateAxisStatusText(warmupJob)+$": {benchmark.Project} / CPU {logicalCpu}");
             ForceGcBeforeJob();
             try {
                 var result = await jobRunner.RunAsync(
