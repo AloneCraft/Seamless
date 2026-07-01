@@ -65,9 +65,9 @@ public sealed class BenchmarkRowGroupingLogicTests{
             ],
             sourceTab);
 
-        Assert.Contains(rows,row => row.BenchmarkName=="<string>.Add_000064_0004096_0008192_0016384_05");
-        Assert.Contains(rows,row => row.BenchmarkName=="<int>.Add_000064_0004096_0008192_0016384_05");
-        Assert.Contains(rows,row => row.BenchmarkName=="<System.Boolean>.Add_000064_0004096_0008192_0016384_05");
+        Assert.Contains(rows,row => row.BenchmarkName=="<string>.Add");
+        Assert.Contains(rows,row => row.BenchmarkName=="<int>.Add");
+        Assert.Contains(rows,row => row.BenchmarkName=="<System.Boolean>.Add");
         Assert.All(rows,row => Assert.Equal("Add",row.MethodName));
     }
 
@@ -81,8 +81,8 @@ public sealed class BenchmarkRowGroupingLogicTests{
             ],
             sourceTab);
 
-        Assert.Contains(rows,row => row.BenchmarkName=="<string,int>.Add_131072_0004096_0004096_0016384_10");
-        Assert.Contains(rows,row => row.BenchmarkName=="<ManagedStruct,ManagedStruct>.Add_131072_0004096_0004096_0016384_10");
+        Assert.Contains(rows,row => row.BenchmarkName=="<string,int>.Add");
+        Assert.Contains(rows,row => row.BenchmarkName=="<ManagedStruct,ManagedStruct>.Add");
         Assert.All(rows,row => Assert.Equal("Add",row.MethodName));
     }
 
@@ -128,7 +128,7 @@ public sealed class BenchmarkRowGroupingLogicTests{
             sourceTab);
 
         var row = Assert.Single(rows);
-        Assert.Equal("<int>.Add_000064_0004096_0008192_0016384_05",row.Benchmark);
+        Assert.Equal("<int>.Add",row.Benchmark);
         Assert.Equal("ListInt32",row.TypeFullName);
     }
 
@@ -143,7 +143,7 @@ public sealed class BenchmarkRowGroupingLogicTests{
             131072);
 
         var row = Assert.Single(rows);
-        Assert.Equal("<int>.Add_131072_0004096_0004096_16777216_10",row.Benchmark);
+        Assert.Equal("<int>.Add",row.Benchmark);
         Assert.Equal("Add",row.MethodName);
         Assert.Equal("SetInt32",row.TypeFullName);
     }
@@ -161,8 +161,8 @@ public sealed class BenchmarkRowGroupingLogicTests{
         var row = Assert.Single(rows);
         var csv = BenchmarkComparisonFormatter.WriteCsv(rows,sourceTab);
 
-        Assert.Equal("<string,int>.Add_131072_0004096_0004096_16777216_10",row.Benchmark);
-        Assert.Contains("<string,int>.Add_131072_0004096_0004096_16777216_10",csv,StringComparison.Ordinal);
+        Assert.Equal("<string,int>.Add",row.Benchmark);
+        Assert.Contains("<string,int>.Add",csv,StringComparison.Ordinal);
         Assert.Equal("Add",row.MethodName);
         Assert.Equal("DictionaryStringInt32",row.TypeFullName);
     }
