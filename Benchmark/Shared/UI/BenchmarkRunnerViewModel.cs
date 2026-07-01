@@ -962,7 +962,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private void RefreshBenchmarkCaseIndex(IReadOnlyList<BenchmarkCase> cases) {
         this.benchmarkCasesByProjectMethod.Clear();
         foreach(var benchmark in cases) {
-            this.benchmarkCasesByProjectMethod[CreateBenchmarkCaseKey(benchmark.MethodName,benchmark.Project,benchmark.TypeFullName)]=benchmark;
+            this.benchmarkCasesByProjectMethod[CreateBenchmarkCaseKey(benchmark.MethodName,benchmark.Project,benchmark.TypeFullName,benchmark.ArgumentKey)]=benchmark;
         }
     }
 
@@ -1258,7 +1258,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.CaptureCurrentBenchmarkSelections();
         return this.SourceTabs
             .SelectMany(option => this.CreateSelectedBenchmarkCases(option.Definition))
-            .GroupBy(static benchmark => string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName),StringComparer.OrdinalIgnoreCase)
+            .GroupBy(static benchmark => string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey),StringComparer.OrdinalIgnoreCase)
             .Select(static group => group.First())
             .ToArray();
     }
@@ -1513,7 +1513,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             UpdatedAt=now,
         };
         state.AdaptiveStates=state.Jobs
-            .Select(static job => BenchmarkRowGroupingLogic.CreateCaseKey(job.Project,job.TypeFullName,job.MethodName))
+            .Select(static job => BenchmarkRowGroupingLogic.CreateCaseKey(job.Project,job.TypeFullName,job.MethodName,job.ArgumentKey))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(static key => key,StringComparer.OrdinalIgnoreCase)
             .Select(static key => new AdaptiveBenchmarkState {
@@ -1528,15 +1528,21 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         BenchmarkResultItem result,
         BenchmarkSourceTabDefinition sourceTab,
         IReadOnlyList<int> preparedElementCounts) {
-        var benchmark = this.FindBenchmarkCase(result.Method,result.Project,result.TypeFullName);
+        var benchmark = this.FindBenchmarkCase(result.Method,result.Project,result.TypeFullName,result.ArgumentKey);
+        var argumentKey = FirstText(result.ArgumentKey,benchmark?.ArgumentKey??string.Empty);
+        var arguments = result.Arguments.Count>0
+            ? result.Arguments.ToList()
+            : benchmark?.Arguments.ToList()??[];
         var status = ParseJobStatus(result.Status);
         var finishedAt = result.StartedAt??DateTimeOffset.UtcNow;
         return new BenchmarkJob {
-            JobId=string.Join("|",result.Project,benchmark?.AssemblyName??string.Empty,benchmark?.TypeFullName??string.Empty,result.Method,result.ElementCount),
+            JobId=string.Join("|",result.Project,benchmark?.AssemblyName??string.Empty,benchmark?.TypeFullName??string.Empty,result.Method,argumentKey,result.ElementCount),
             Project=result.Project,
             AssemblyName=benchmark?.AssemblyName??string.Empty,
             TypeFullName=benchmark?.TypeFullName??string.Empty,
             MethodName=result.Method,
+            ArgumentKey=argumentKey,
+            Arguments=arguments,
             SourceTab=sourceTab.Tab,
             ElementCount=result.ElementCount,
             PreparedElementCounts=preparedElementCounts.ToList(),
@@ -1560,8 +1566,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         };
     }
 
-    private BenchmarkCase? FindBenchmarkCase(string method,string project,string typeFullName = "") {
-        if(this.benchmarkCasesByProjectMethod.TryGetValue(CreateBenchmarkCaseKey(method,project,typeFullName),out var benchmark)) {
+    private BenchmarkCase? FindBenchmarkCase(string method,string project,string typeFullName = "",string argumentKey = "") {
+        if(this.benchmarkCasesByProjectMethod.TryGetValue(CreateBenchmarkCaseKey(method,project,typeFullName,argumentKey),out var benchmark)) {
             return benchmark;
         }
 
@@ -1569,13 +1575,15 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             .FirstOrDefault(row => row.CasesByProject.TryGetValue(project,out var candidate)
                 &&string.Equals(candidate.MethodName,method,StringComparison.OrdinalIgnoreCase)
                 &&(string.IsNullOrWhiteSpace(typeFullName)
-                    ||string.Equals(candidate.TypeFullName,typeFullName,StringComparison.OrdinalIgnoreCase)))
+                    ||string.Equals(candidate.TypeFullName,typeFullName,StringComparison.OrdinalIgnoreCase))
+                &&(string.IsNullOrWhiteSpace(argumentKey)
+                    ||string.Equals(candidate.ArgumentKey,argumentKey,StringComparison.OrdinalIgnoreCase)))
             ?.CasesByProject
             .GetValueOrDefault(project);
     }
 
-    private static string CreateBenchmarkCaseKey(string method,string project,string typeFullName) =>
-        BenchmarkRowGroupingLogic.CreateCaseKey(project,typeFullName,method);
+    private static string CreateBenchmarkCaseKey(string method,string project,string typeFullName,string argumentKey = "") =>
+        BenchmarkRowGroupingLogic.CreateCaseKey(project,typeFullName,method,argumentKey);
 
     private static string ShortTypeName(string typeFullName) {
         if(string.IsNullOrWhiteSpace(typeFullName)) {
@@ -2636,7 +2644,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         var jobs = state.Jobs
             .Where(job => this.SelectedSourceDefinition.ContainsProject(job.Project)
                 &&IsTerminalJob(job))
-            .GroupBy(static job => BenchmarkRowGroupingLogic.CreateCaseKey(job.Project,job.TypeFullName,job.MethodName),StringComparer.OrdinalIgnoreCase)
+            .GroupBy(static job => BenchmarkRowGroupingLogic.CreateCaseKey(job.Project,job.TypeFullName,job.MethodName,job.ArgumentKey),StringComparer.OrdinalIgnoreCase)
             .SelectMany(static group => group
                 .GroupBy(static job => job.ElementCount)
                 .Select(static elementGroup => elementGroup
@@ -2765,7 +2773,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             .Where(result => result.ElementCount>0
                 &&sourceTab.ContainsProject(result.Project)
                 &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase))
-            .GroupBy(static result => result.Method+"|"+result.TypeFullName,StringComparer.OrdinalIgnoreCase)
+            .GroupBy(static result => result.Method+"|"+result.TypeFullName+"|"+result.ArgumentKey,StringComparer.OrdinalIgnoreCase)
             .SelectMany(static group => group
                 .GroupBy(static result => result.Project,StringComparer.OrdinalIgnoreCase)
                 .Select(static projectGroup => projectGroup
@@ -3087,8 +3095,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private void UpdateChart(bool preserveExistingWhenNoMeasuredPoints = true) {
         var elementComparisonRows = this.BuildElementComparisonRows();
         var points = this.BuildBenchmarkChartPoints(elementComparisonRows);
-        // チャートは毎回全消しせず、既存ポイントを benchmark 単位で差し替えて再描画する。
-        this.SyncChartPoints(points.Reverse().ToArray());
+        this.SyncChartPoints(points);
         this.ChartHeight=Math.Max(BenchmarkChartMinimumHeight,points.Count*BenchmarkChartRowHeight+BenchmarkChartVerticalPadding);
     }
 
@@ -3174,9 +3181,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         ||item.Benchmark.StartsWith(row.BenchmarkName+"/",StringComparison.OrdinalIgnoreCase);
 
     private ChartComparisonPoint CreateChartComparisonPoint(BenchmarkTableRow row,double? leftValue,double? rightValue) =>
-        this.CreateChartComparisonPoint(row.RowKey,row.BenchmarkName,leftValue,rightValue);
+        this.CreateChartComparisonPoint(row.RowKey,row.BenchmarkName,leftValue,rightValue,row);
 
-    private ChartComparisonPoint CreateChartComparisonPoint(string benchmark,string displayName,double? leftValue,double? rightValue) {
+    private ChartComparisonPoint CreateChartComparisonPoint(string benchmark,string displayName,double? leftValue,double? rightValue,BenchmarkTableRow row) {
         var leftNumber = Math.Max(0,leftValue??0);
         var rightNumber = Math.Max(0,rightValue??0);
         var leftText = leftNumber>0&&rightNumber>0
@@ -3189,9 +3196,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             ? leftNumber/rightNumber
             : null;
         var metricName = this.SelectedMetric.Kind==BenchmarkMetricKind.Time?"処理時間":"メモリ";
-        var tooltip = displayName+"\n"
+        var tooltip = BenchmarkFormatting.ShortName(displayName)+"\n"
             +this.SelectedComparisonPair.LeftProject+" "+metricName+": "+FirstText(FormatMetric(leftValue,this.SelectedMetric.Kind),"-")+"\n"
-            +this.SelectedComparisonPair.RightProject+" "+metricName+": "+FirstText(FormatMetric(rightValue,this.SelectedMetric.Kind),"-");
+            +this.SelectedComparisonPair.RightProject+" "+metricName+": "+FirstText(FormatMetric(rightValue,this.SelectedMetric.Kind),"-")
+            +(string.IsNullOrWhiteSpace(BenchmarkArgumentTooltipFormatter.CreateArgumentTooltip(row))
+                ? string.Empty
+                : "\n"+BenchmarkArgumentTooltipFormatter.CreateArgumentTooltip(row));
         return new ChartComparisonPoint(
             benchmark,
             BenchmarkFormatting.ShortName(displayName),
@@ -3201,6 +3211,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             rightText,
             tooltip,
             ratio);
+    }
+
+    private string CreateChartArgumentTooltip(BenchmarkTableRow row) {
+        return BenchmarkArgumentTooltipFormatter.CreateArgumentTooltip(row);
     }
 
     private string GetChartPointCacheKey(string method) =>

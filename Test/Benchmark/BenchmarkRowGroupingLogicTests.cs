@@ -36,6 +36,25 @@ public sealed class BenchmarkRowGroupingLogicTests{
     }
 
     [Fact]
+    public void CreateRowsSplitsSameProjectMethodByArgumentKey(){
+        var sourceTab = BenchmarkSourceTabs.Default;
+        var rows = BenchmarkRowGroupingLogic.CreateRows(
+            [
+                Case(sourceTab.LeftProject,"Left.Assembly","Left.TypeA","Add","Count=1",[new BenchmarkArgument("Count","1")]),
+                Case(sourceTab.LeftProject,"Left.Assembly","Left.TypeA","Add","Count=2",[new BenchmarkArgument("Count","2")]),
+                Case(sourceTab.RightProject,"Right.Assembly","Right.TypeA","Add","Count=1",[new BenchmarkArgument("Count","1")]),
+                Case(sourceTab.RightProject,"Right.Assembly","Right.TypeA","Add","Count=2",[new BenchmarkArgument("Count","2")]),
+            ],
+            sourceTab);
+
+        Assert.Equal(2,rows.Count);
+        Assert.NotEqual(rows[0].RowKey,rows[1].RowKey);
+        Assert.Contains(rows,row => row.RowKey.Contains("Count=1",StringComparison.Ordinal));
+        Assert.Contains(rows,row => row.RowKey.Contains("Count=2",StringComparison.Ordinal));
+        Assert.All(rows,row => Assert.Equal("Add",row.MethodName));
+    }
+
+    [Fact]
     public void CreateRowsUsesScalableListTypeInBenchmarkName(){
         var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalablePersistedList);
         var rows = BenchmarkRowGroupingLogic.CreateRows(
@@ -159,6 +178,9 @@ public sealed class BenchmarkRowGroupingLogicTests{
 
     private static BenchmarkCase Case(string project,string assembly,string type,string method) =>
         new(project,assembly,type,method);
+
+    private static BenchmarkCase Case(string project,string assembly,string type,string method,string argumentKey,IReadOnlyList<BenchmarkArgument> arguments) =>
+        new(project,assembly,type,method,argumentKey,arguments);
 
     private static ReportRow Report(string project,string method,string type,double mean) =>
         new(

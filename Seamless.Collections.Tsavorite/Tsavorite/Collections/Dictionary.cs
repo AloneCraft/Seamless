@@ -166,13 +166,13 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
         return new Enumerator<MemoryKeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadSession,new(),this.Store.Log.TailAddress,this);
     }
     private ReadOnlyCollectionView<TIterator,T> CreateCollectionView<TIterator,T>()
-        where TIterator : ScanIteratorFunctions_List<T>,ICreate<TIterator> =>
+        where TIterator : IterateLookupIteratorFunctions_List<T>,ICreate<TIterator> =>
         new(this);
 
     private sealed class ReadOnlyCollectionView<TIterator,T>(
         Dictionary<TKey,TValue,TKeySerializer,TValueSerializer> dictionary
     ):ICollection<T>
-        where TIterator : ScanIteratorFunctions_List<T>,ICreate<TIterator> {
+        where TIterator : IterateLookupIteratorFunctions_List<T>,ICreate<TIterator> {
         public int Count => checked((int)dictionary.GetLongCount());
         public bool IsReadOnly => true;
         public void Add(T item) => throw new NotSupportedException();

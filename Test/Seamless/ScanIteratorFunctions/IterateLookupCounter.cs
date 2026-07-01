@@ -1,6 +1,6 @@
 namespace Test.Seamless.ScanIteratorFunctions;
 
-public class CounterIterator{
+public class IterateLookupCounter{
     [Fact,Trait("Category","Unit")]
     public void CountsAllAddedElements(){
         const int Count=300;
@@ -14,7 +14,7 @@ public class CounterIterator{
 
     [Fact,Trait("Category","Unit")]
     public void OnExceptionDoesNotThrow(){
-        var iter=new global::Seamless.Tsavorite.Collections.HashSet<int>.CounterIterator();
+        var iter=new global::Seamless.Tsavorite.Collections.HashSet<int>.IterateLookupCounter();
         iter.OnException(new Exception("test"),0);
     }
 }

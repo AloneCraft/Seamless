@@ -38,13 +38,14 @@ public abstract class Collection<
     /// IterateLookup から読んだレコードをデシリアライズしてチャンクへ格納します。
     /// 列挙時は ResetChunk() で Count を初期化して再利用します。
     /// </summary>
-    public abstract class ScanIteratorFunctions_List<T>:IScanIteratorFunctions {
+    public abstract class IterateLookupIteratorFunctions_List<T>:IScanIteratorFunctions {
         private const int MinimumScanChunkLength = 4096;
         public readonly T[] Chunk = new T[Math.Max(Const.Chunk_Length,MinimumScanChunkLength)];
         public int Count;
-        public bool HasPendingItem => false;
+        private long LastAcceptedAddress;
         public void ResetChunk() {
             this.Count=0;
+            this.LastAcceptedAddress=0;
         }
         private protected virtual bool ShouldRead<TSourceLogRecord>(in TSourceLogRecord logRecord)
             where TSourceLogRecord : ISourceLogRecord => true;
@@ -57,11 +58,16 @@ public abstract class Collection<
                 return true;
             }
             if(this.Count>=this.Chunk.Length) {
-                cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
+                if(recordMetadata.Address==this.LastAcceptedAddress) {
+                    cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
+                } else {
+                    cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch|CursorRecordResult.RetryLastRecord;
+                }
                 return true;
             }
 
             this.Chunk[this.Count++]=this.Deserialize(logRecord);
+            this.LastAcceptedAddress=recordMetadata.Address;
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
@@ -72,7 +78,7 @@ public abstract class Collection<
         }
     }
 
-    public abstract class MemoryScanIteratorFunctions<T>:ScanIteratorFunctions_List<T> {
+    public abstract class MemoryIterateLookupIteratorFunctions<T>:IterateLookupIteratorFunctions_List<T> {
         private protected sealed override bool ShouldRead<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             typeof(TSourceLogRecord)!=typeof(DiskLogRecord);
     }
@@ -126,13 +132,16 @@ public abstract class Collection<
         }
         Debug.Assert(Result==TryAddResult.Success);
     }
-    // TODO: Counter iterator used by GetLongCount().
-    internal sealed class CounterIterator:IScanIteratorFunctions {
+    internal sealed class IterateLookupCounter:IScanIteratorFunctions {
         public long Counter;
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord sourceLogRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
-            cursorRecordResult=CursorRecordResult.Accept;
-            this.Counter++;
+            if(sourceLogRecord.Info.Tombstone) {
+                cursorRecordResult=CursorRecordResult.Skip;
+            } else {
+                cursorRecordResult=CursorRecordResult.Accept;
+                this.Counter++;
+            }
             return true;
         }
         public bool OnStart(long beginAddress,long endAddress) {
@@ -146,7 +155,7 @@ public abstract class Collection<
     }
     public long GetLongCount() {
         this.VerifyThreadAffinity();
-        var iterator = new CounterIterator();
+        var iterator = new IterateLookupCounter();
         var cursor = 0L;
         this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
         this.ReadSession.BasicContext.CompletePending(wait: true);
@@ -363,8 +372,8 @@ public abstract class Collection<
         catch {
         }
     }
-    private protected interface IForEachStrategy<TSelf>
-        where TSelf : struct, IForEachStrategy<TSelf> {
+    private protected interface IIterateLookupForEachStrategy<TSelf>
+        where TSelf : struct, IIterateLookupForEachStrategy<TSelf> {
         static abstract bool Reader<TSourceLogRecord>(
             ref TSelf self,
             in TSourceLogRecord logRecord,
@@ -373,11 +382,15 @@ public abstract class Collection<
             out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord;
     }
-    private protected struct ForEachIterator<TStrategy>(TStrategy strategy):IScanIteratorFunctions
-        where TStrategy : struct, IForEachStrategy<TStrategy> {
+    private protected struct IterateLookupForEachIterator<TStrategy>(TStrategy strategy):IScanIteratorFunctions
+        where TStrategy : struct, IIterateLookupForEachStrategy<TStrategy> {
         public TStrategy Strategy = strategy;
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
+            if(logRecord.Info.Tombstone) {
+                cursorRecordResult=CursorRecordResult.Skip;
+                return true;
+            }
             return TStrategy.Reader(ref this.Strategy,in logRecord,recordMetadata,numberOfRecords,out cursorRecordResult);
         }
         public bool OnStart(long beginAddress,long endAddress) => true;
@@ -398,11 +411,11 @@ public abstract class Collection<
             TStoreFunctions,
             TAllocator
         >
-        where TStrategy : struct, IForEachStrategy<TStrategy> {
+        where TStrategy : struct, IIterateLookupForEachStrategy<TStrategy> {
         ArgumentNullException.ThrowIfNull(collection);
         collection.VerifyThreadAffinity(nameof(ForEach));
         var readSession = collection.ReadSession;
-        var iterator = new ForEachIterator<TStrategy>(strategy);
+        var iterator = new IterateLookupForEachIterator<TStrategy>(strategy);
         var cursor = 0L;
         readSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
         readSession.BasicContext.CompletePending(wait: true);
@@ -417,7 +430,7 @@ public abstract class Collection<
                 TSessionFunctions,
                 TStoreFunctions,
                 TAllocator
-            > session):IForEachStrategy<DeleteSessionForEachStrategy<TSessionFunctions>>
+            > session):IIterateLookupForEachStrategy<DeleteSessionForEachStrategy<TSessionFunctions>>
         where TSessionFunctions : struct, ISessionFunctions<
             EqualityEmpty,
             EqualityEmpty,
@@ -457,7 +470,7 @@ public abstract class Collection<
                 TSessionFunctions,
                 TStoreFunctions,
                 TAllocator
-            > session):IForEachStrategy<RmwSessionForEachStrategy<TSessionFunctions>>
+            > session):IIterateLookupForEachStrategy<RmwSessionForEachStrategy<TSessionFunctions>>
         where TSessionFunctions : struct, ISessionFunctions<
             EqualityEmpty,
             EqualityEmpty,
@@ -502,7 +515,7 @@ public abstract class Collection<
                 TSessionFunctions,
                 TStoreFunctions,
                 TAllocator
-            > session):IForEachStrategy<UpsertLogRecordForEachStrategy<TSessionFunctions>>
+            > session):IIterateLookupForEachStrategy<UpsertLogRecordForEachStrategy<TSessionFunctions>>
         where TSessionFunctions : struct, ISessionFunctions<
             TAddInput,
             bool,
@@ -584,7 +597,7 @@ public abstract class Collection<
             $"current thread {Environment.CurrentManagedThreadId} at {operation}. " +
             "Create a new collection instance from Store.Create() for each thread.");
     }
-    private struct ScanIteratorFunctions_IsSubsetOf<TCollection>(TCollection other):IScanIteratorFunctions
+    private struct IterateLookupIsSubsetOf<TCollection>(TCollection other):IScanIteratorFunctions
         where TCollection : Collection<
             TKey,
             TValue,
@@ -599,6 +612,10 @@ public abstract class Collection<
         public bool IsSubset = true;
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
+            if(logRecord.Info.Tombstone) {
+                cursorRecordResult=CursorRecordResult.Skip;
+                return true;
+            }
             if(!this.IsSubset) {
                 cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
                 return true;
@@ -615,7 +632,7 @@ public abstract class Collection<
         public void OnException(Exception exception,long numberOfRecords) { }
         public void OnStop(bool completed,long numberOfRecords) { }
     }
-    private struct ScanIteratorFunctions_Overlaps<TCollection>(TCollection self):IScanIteratorFunctions
+    private struct IterateLookupOverlaps<TCollection>(TCollection self):IScanIteratorFunctions
         where TCollection : Collection<
             TKey,
             TValue,
@@ -630,6 +647,10 @@ public abstract class Collection<
         public bool FoundOverlap = false;
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
+            if(logRecord.Info.Tombstone) {
+                cursorRecordResult=CursorRecordResult.Skip;
+                return true;
+            }
             if(this.FoundOverlap) {
                 cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
                 return true;
@@ -662,7 +683,7 @@ public abstract class Collection<
         self.VerifyThreadAffinity(nameof(IsSubsetOfSet));
         other.VerifyThreadAffinity(nameof(IsSubsetOfSet));
         var ReadSession = self.ReadSession;
-        var Iterator = new ScanIteratorFunctions_IsSubsetOf<TCollection>(other);
+        var Iterator = new IterateLookupIsSubsetOf<TCollection>(other);
         var Cursor = 0L;
         ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
@@ -735,7 +756,7 @@ public abstract class Collection<
         self.VerifyThreadAffinity(nameof(OverlapsSet));
         other.VerifyThreadAffinity(nameof(OverlapsSet));
         var ReadSession = other.ReadSession;
-        var Iterator = new ScanIteratorFunctions_Overlaps<TCollection>(self);
+        var Iterator = new IterateLookupOverlaps<TCollection>(self);
         var Cursor = 0L;
         ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
         ReadSession.BasicContext.CompletePending(wait: true);
@@ -799,7 +820,7 @@ public abstract class Collection<
         var workListPath = CreateTemporaryWorkListPath("intersect-with");
         try {
             using var keysToExpire = new SerializedList<byte[],RawByteArraySerializer>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
-            var Iterator = new ScanIteratorFunctions_IntersectWith<TCollection>(other,keysToExpire);
+            var Iterator = new IterateLookupIntersectWith<TCollection>(other,keysToExpire);
             // IntersectWith first collects keys to expire, then tombstones them with RMW.
             // This keeps the scan separate from the delete phase and avoids advancing TailAddress early.
             var Cursor = 0L;
@@ -919,7 +940,7 @@ public abstract class Collection<
         ForEach(other,ref strategy);
         Session.BasicContext.CompletePending(wait: true);
     }
-    private readonly struct ScanIteratorFunctions_IntersectWith<TCollection>(
+    private readonly struct IterateLookupIntersectWith<TCollection>(
         TCollection other,
         SerializedList<byte[],RawByteArraySerializer> keysToExpire
     ):IScanIteratorFunctions
@@ -936,6 +957,10 @@ public abstract class Collection<
         > {
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
+            if(logRecord.Info.Tombstone) {
+                cursorRecordResult=CursorRecordResult.Skip;
+                return true;
+            }
             ReadOnlySpan<byte> KeyBytes = logRecord.KeyBytes;
             if(other.PrivateProtectedContainsKey(KeyBytes)) {
             }
@@ -965,32 +990,32 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
     SpanByteStoreAllocator//TAllocator
 >    where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
-    public sealed class KeyIterator:ScanIteratorFunctions_List<TKey>,ICreate<KeyIterator> {
+    public sealed class KeyIterator:IterateLookupIteratorFunctions_List<TKey>,ICreate<KeyIterator> {
         public static KeyIterator Create() => new();
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TKeySerializer.Deserialize(logRecord.Key);
     }
-    private protected sealed class MemoryKeyIterator:MemoryScanIteratorFunctions<TKey> {
+    private protected sealed class MemoryKeyIterator:MemoryIterateLookupIteratorFunctions<TKey> {
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TKeySerializer.Deserialize(logRecord.Key);
     }
-    private protected sealed class ValueIterator:ScanIteratorFunctions_List<TValue>,ICreate<ValueIterator> {
+    private protected sealed class ValueIterator:IterateLookupIteratorFunctions_List<TValue>,ICreate<ValueIterator> {
         public static ValueIterator Create() => new();
         private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TValueSerializer.Deserialize(logRecord.ValueSpan);
     }
-    private protected sealed class MemoryValueIterator:MemoryScanIteratorFunctions<TValue> {
+    private protected sealed class MemoryValueIterator:MemoryIterateLookupIteratorFunctions<TValue> {
         private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TValueSerializer.Deserialize(logRecord.ValueSpan);
     }
-    public sealed class KeyValueIterator:ScanIteratorFunctions_List<KeyValuePair<TKey,TValue>> {
+    public sealed class KeyValueIterator:IterateLookupIteratorFunctions_List<KeyValuePair<TKey,TValue>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) {
             var Key = TKeySerializer.Deserialize(logRecord.Key);
             var Value = TValueSerializer.Deserialize(logRecord.ValueSpan);
             return new(Key,Value);
         }
     }
-    private protected sealed class MemoryKeyValueIterator:MemoryScanIteratorFunctions<KeyValuePair<TKey,TValue>> {
+    private protected sealed class MemoryKeyValueIterator:MemoryIterateLookupIteratorFunctions<KeyValuePair<TKey,TValue>> {
         private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) {
             var Key = TKeySerializer.Deserialize(logRecord.Key);
             var Value = TValueSerializer.Deserialize(logRecord.ValueSpan);
@@ -998,7 +1023,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
         }
     }
     public struct Enumerator<TIterator, T>:IEnumerator<T>
-        where TIterator : ScanIteratorFunctions_List<T> {
+        where TIterator : IterateLookupIteratorFunctions_List<T> {
         private readonly Collection<
             TKey,
             TValue,
@@ -1025,7 +1050,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
             SpanByteStoreAllocator
         > _session;
         private readonly long _untilAddress;
-        private readonly TIterator _iterator;
+        private TIterator _iterator;
         public Enumerator(ClientSession<
             FixedSpanByteKey,//TKey
             EqualityEmpty,//TInput
@@ -1077,27 +1102,20 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
 
             while(true) {
                 this._iterator.ResetChunk();
-                var scanFunctions = this._iterator;
-                var mayHaveMore = this._session.ScanCursor(
-                    ref this.Cursor,
-                    this._iterator.Chunk.Length,
-                    scanFunctions,
-                    this._untilAddress,
-                    true,
-                    this._untilAddress,
-                    false,
-                    false);
+                var mayHaveMore = this._session.IterateLookup(ref this._iterator,ref this.Cursor,resetCursor: false);
                 this._session.BasicContext.CompletePending(wait: true);
                 this.Count=this._iterator.Count;
 
-                if(!mayHaveMore&&!this._iterator.HasPendingItem)
+                if(!mayHaveMore)
                     this.Done=true;
 
                 if(this.Count==0) {
-                    this.Done=true;
-                    this.Index=-1;
-                    this.CurrentValue=default!;
-                    return false;
+                    if(this.Done) {
+                        this.Index=-1;
+                        this.CurrentValue=default!;
+                        return false;
+                    }
+                    continue;
                 }
 
                 this.Index=0;

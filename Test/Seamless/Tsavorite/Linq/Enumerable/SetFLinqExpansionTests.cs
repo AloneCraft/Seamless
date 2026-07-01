@@ -23,6 +23,7 @@ public sealed class SetFLinqExpansionTests {
             Assert.DoesNotContain("System.Linq.Enumerable.Where",generated);
             Assert.DoesNotContain("System.Linq.Enumerable.Select",generated);
             Assert.DoesNotContain("System.Linq.Enumerable.Sum",generated);
+            Assert.DoesNotContain("ScanCursor",generated);
         }
         finally {
             source=null;
