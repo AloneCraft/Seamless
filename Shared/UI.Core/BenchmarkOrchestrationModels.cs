@@ -84,6 +84,7 @@ public sealed class BenchmarkJob {
     public List<BenchmarkArgument> Arguments { get; set; } = [];
     public BenchmarkSourceTab SourceTab { get; set; } = BenchmarkSourceTab.SystemArray;
     public int ElementCount { get; set; }
+    public int LoopCount { get; set; } = BenchmarkWorkloadAxis.DefaultLoopCount;
     public List<int> PreparedElementCounts { get; set; } = [];
     public JobStatus Status { get; set; } = JobStatus.Pending;
     public int? AssignedLogicalCpu { get; set; }
@@ -202,7 +203,8 @@ public sealed record BenchmarkJobRunResult(
     int? RandomSeed = null,
     string ResultDigest = "",
     string ArgumentKey = "",
-    IReadOnlyList<BenchmarkArgument>? ArgumentValues = null){
+    IReadOnlyList<BenchmarkArgument>? ArgumentValues = null,
+    int LoopCount = 0){
     public IReadOnlyList<BenchmarkArgument> Arguments { get; } = ArgumentValues??[];
 }
 

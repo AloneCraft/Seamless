@@ -1,12 +1,12 @@
-using Seamless.UI.Storage;
+﻿using Seamless.UI.Storage;
 
 namespace Test.Benchmark;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
-public sealed class BenchmarkUiRunRepositoryTests{
+public sealed class BenchmarkUiRunRepository{
     [Fact]
     public async Task QueueSaveResult_RestoresResultItemsFromDatabase(){
-        var store = new UiRunStore(CreateDatabasePath());
+        var store = new global::Seamless.UI.Storage.UiRunStore(CreateDatabasePath());
         var repository = new global::UI.BenchmarkUiRunRepository(store);
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var runId = await repository.CreateRunAsync(UiRunAppKind.Benchmark,"Benchmark","Fast",sourceTab.Tab);
@@ -25,7 +25,7 @@ public sealed class BenchmarkUiRunRepositoryTests{
 
     [Fact]
     public async Task QueueSaveResult_ReplacesMeasurementForSameJob(){
-        var store = new UiRunStore(CreateDatabasePath());
+        var store = new global::Seamless.UI.Storage.UiRunStore(CreateDatabasePath());
         var repository = new global::UI.BenchmarkUiRunRepository(store);
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var runId = await repository.CreateRunAsync(UiRunAppKind.Benchmark,"Benchmark","Fast",sourceTab.Tab);
@@ -43,7 +43,7 @@ public sealed class BenchmarkUiRunRepositoryTests{
 
     [Fact]
     public async Task LoadResultItems_PreservesScalableTypeAndArgumentKey(){
-        var store = new UiRunStore(CreateDatabasePath());
+        var store = new global::Seamless.UI.Storage.UiRunStore(CreateDatabasePath());
         var repository = new global::UI.BenchmarkUiRunRepository(store);
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.ScalableTsavoriteSet);
         var arguments = new[] {
@@ -110,3 +110,6 @@ public sealed class BenchmarkUiRunRepositoryTests{
         return Path.Combine(root,"runs.db");
     }
 }
+
+
+

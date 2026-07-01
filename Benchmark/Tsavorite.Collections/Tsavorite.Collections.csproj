@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>preview</LangVersion>
@@ -32,5 +32,6 @@
     <ProjectReference Include="..\..\Seamless\Seamless.csproj" />
     <ProjectReference Include="..\..\Seamless.Collections\Seamless.Collections.csproj" />
   </ItemGroup>
-  <Import Project="..\..\Shared\Tsavorite.Collections.projitems" Label="Shared" />
+  <Import Project="..\..\Shared\Tsavorite.Collections\Tsavorite.Collections.projitems" Label="Shared" />
 </Project>
+

@@ -48,6 +48,7 @@ public sealed record UiJobRecord(
     string JobKey,
     UiRunStatus Status,
     long? ElementCount,
+    long? LoopCount,
     int? AssignedLogicalCpu,
     DateTimeOffset? StartedAt,
     DateTimeOffset? FinishedAt,

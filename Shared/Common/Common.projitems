@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>{32F8552A-51B0-447B-B9DE-35153A29BA29}</SharedGUID>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\AssemblyInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\Assert.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\Base.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\BenchFact.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\BenchmarkParameters.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\BenchmarkTiming.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\Categories.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\ConsumerExtensions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\OptimizationSupport.cs" />
+  </ItemGroup>
+</Project>

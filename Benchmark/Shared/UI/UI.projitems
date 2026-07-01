@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>{9A75284D-0FA1-40D3-A0D4-81DF6C571B36}</SharedGUID>
+  </PropertyGroup>
+  <Import Project="$(MSBuildThisFileDirectory)..\..\..\Shared\UI.Core\UI.Core.projitems" />
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)*.cs" />
+    <MauiXaml Include="$(MSBuildThisFileDirectory)App.xaml" />
+  </ItemGroup>
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+    <Compile Include="$(MSBuildThisFileDirectory)Platforms\Windows\*.cs" />
+    <ApplicationDefinition Include="$(MSBuildThisFileDirectory)Platforms\Windows\App.xaml" />
+  </ItemGroup>
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+    <Compile Include="$(MSBuildThisFileDirectory)Platforms\MacCatalyst\*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <MauiIcon Include="$(MSBuildThisFileDirectory)Resources\AppIcon\appicon.svg" />
+    <MauiSplashScreen Include="$(MSBuildThisFileDirectory)Resources\Splash\splash.svg" Color="#1F2937" BaseSize="128,128" />
+    <MauiImage Include="$(MSBuildThisFileDirectory)Resources\Images\*.svg" BaseSize="24,24" />
+  </ItemGroup>
+</Project>

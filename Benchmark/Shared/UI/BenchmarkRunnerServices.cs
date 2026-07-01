@@ -366,7 +366,7 @@ public sealed class BenchmarkWorkerProcessService:IBenchmarkWorkerProcessService
         this.client.RunAsync(job,runRoot,logicalCpu,timeout,cancellationToken);
 
     public async Task<BenchmarkRunResult> RunAsync(BenchmarkCase benchmark,string runRoot,BenchmarkSourceTab sourceTab,IReadOnlyList<int> preparedElementCounts,string scale,int logicalCpu,CancellationToken cancellationToken) {
-        var result = await this.client.RunAsync(benchmark,runRoot,sourceTab,preparedElementCounts,0,scale,logicalCpu,TimeSpan.FromMinutes(60),cancellationToken);
+        var result = await this.client.RunAsync(benchmark,runRoot,sourceTab,preparedElementCounts,0,1,scale,logicalCpu,TimeSpan.FromMinutes(60),cancellationToken);
         return new BenchmarkRunResult(
             result.Project,
             result.Method,
@@ -401,7 +401,7 @@ public sealed class BenchmarkPersistentWorkerProcessService:IBenchmarkJobRunner,
         using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,timeoutSource.Token);
         this.activeJobs.AddOrUpdate(logicalCpu,1,static (_,count) => count+1);
         try {
-            return await session.RunAsync(job.ToBenchmarkCase(),job.SourceTab,job.PreparedElementCounts,job.ElementCount,"1",linkedSource.Token);
+            return await session.RunAsync(job.ToBenchmarkCase(),job.SourceTab,job.PreparedElementCounts,job.ElementCount,job.LoopCount,"1",linkedSource.Token);
         } catch(OperationCanceledException) {
             await this.ResetSessionAsync(logicalCpu,session);
             if(timeoutSource.IsCancellationRequested&&!cancellationToken.IsCancellationRequested) {
@@ -480,7 +480,8 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
         BenchmarkJob job,
         string runRoot) {
         var benchmark = job.ToBenchmarkCase();
-        var artifactFolder = BenchmarkWorkerClient.CreateArtifactFolder(runRoot,benchmark,job.SourceTab,job.ElementCount);
+        var loopCount = Math.Max(1,job.LoopCount);
+        var artifactFolder = BenchmarkWorkerClient.CreateArtifactFolder(runRoot,benchmark,job.SourceTab,job.ElementCount,loopCount);
         var logPath = Path.Combine(artifactFolder,"inprocess.log");
         object? instance = null;
         try {
@@ -489,14 +490,16 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
                 ??throw new InvalidOperationException($"Benchmark type was not found: {benchmark.TypeFullName}");
             var method = ResolveBenchmarkMethod(type,benchmark.MethodName);
             instance=method.IsStatic ? null : Activator.CreateInstance(type);
-            var randomSeed = CreateRandomSourceSeed(runRoot,job.SourceTab,benchmark.MethodName,job.ArgumentKey,job.ElementCount);
+            var randomSeed = CreateRandomSourceSeed(runRoot,job.SourceTab,benchmark.MethodName,job.ArgumentKey,job.ElementCount,loopCount);
             using var elementScope = BeginElementCountScope(assembly,job.ElementCount,"1");
             using var randomSourceScope = BeginRandomSourceSeedScope(assembly,randomSeed);
             var arguments = BenchmarkArgumentFormatting.ToObjects(benchmark.Arguments);
             var resultDigest = CaptureBenchmarkResultDigest(type,benchmark.MethodName,arguments);
             var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
             var stopwatch = Stopwatch.StartNew();
-            method.Invoke(instance,arguments);
+            for(var index = 0;index<loopCount;index++) {
+                method.Invoke(instance,arguments);
+            }
             stopwatch.Stop();
             var allocatedAfter = GC.GetAllocatedBytesForCurrentThread();
             var meanNanoseconds = stopwatch.Elapsed.TotalMilliseconds*1_000_000;
@@ -524,7 +527,8 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
                 randomSeed,
                 resultDigest,
                 benchmark.ArgumentKey,
-                benchmark.Arguments);
+                benchmark.Arguments,
+                loopCount);
         } catch(Exception ex) when(ex is not OperationCanceledException) {
             var actual = ex is TargetInvocationException { InnerException: { } inner } ? inner : ex;
             WriteInProcessLog(logPath,actual.ToString(),Encoding.UTF8);
@@ -547,7 +551,8 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
                 null,
                 string.Empty,
                 benchmark.ArgumentKey,
-                benchmark.Arguments);
+                benchmark.Arguments,
+                loopCount);
         } finally {
             if(instance is IDisposable disposable) {
                 disposable.Dispose();
@@ -622,8 +627,8 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
             ??throw new InvalidOperationException("Benchmark result digest was empty.");
     }
 
-    private static int CreateRandomSourceSeed(string runRoot,BenchmarkSourceTab sourceTab,string methodName,string argumentKey,int elementCount) =>
-        StableHash(runRoot+"|"+sourceTab+"|"+methodName+"|"+argumentKey+"|"+elementCount.ToString(CultureInfo.InvariantCulture));
+    private static int CreateRandomSourceSeed(string runRoot,BenchmarkSourceTab sourceTab,string methodName,string argumentKey,int elementCount,int loopCount) =>
+        StableHash(runRoot+"|"+sourceTab+"|"+methodName+"|"+argumentKey+"|"+elementCount.ToString(CultureInfo.InvariantCulture)+"|"+loopCount.ToString(CultureInfo.InvariantCulture));
 
     private static int StableHash(string text) {
         unchecked {

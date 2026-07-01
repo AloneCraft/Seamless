@@ -1,11 +1,11 @@
-using UI;
+﻿using UI;
 
 namespace Test.BenchmarkWorker;
 
-public sealed class BenchmarkCellSelectionLogicTests{
+public sealed class BenchmarkCellSelectionLogic{
     [Fact]
     public void CellSelectionUsesExcelModifiers(){
-        var result = BenchmarkCellSelectionLogic.Apply(
+        var result = global::UI.BenchmarkCellSelectionLogic.Apply(
             5,
             4,
             [],
@@ -16,7 +16,7 @@ public sealed class BenchmarkCellSelectionLogicTests{
         AssertSelection(result,(1,1));
         Assert.Equal(new BenchmarkCellCoordinate(1,1),result.Anchor?.Cell);
 
-        result=BenchmarkCellSelectionLogic.Apply(
+        result=global::UI.BenchmarkCellSelectionLogic.Apply(
             5,
             4,
             result.SelectedCells,
@@ -27,7 +27,7 @@ public sealed class BenchmarkCellSelectionLogicTests{
         AssertSelection(result,(1,1),(3,2));
         Assert.Equal(new BenchmarkCellCoordinate(3,2),result.Anchor?.Cell);
 
-        result=BenchmarkCellSelectionLogic.Apply(
+        result=global::UI.BenchmarkCellSelectionLogic.Apply(
             5,
             4,
             result.SelectedCells,
@@ -49,7 +49,7 @@ public sealed class BenchmarkCellSelectionLogicTests{
             new BenchmarkCellCoordinate(1,1),
         };
 
-        var result = BenchmarkCellSelectionLogic.Apply(
+        var result = global::UI.BenchmarkCellSelectionLogic.Apply(
             4,
             4,
             current,
@@ -60,7 +60,7 @@ public sealed class BenchmarkCellSelectionLogicTests{
         AssertSelection(result);
         Assert.Equal(anchor,result.Anchor);
 
-        result=BenchmarkCellSelectionLogic.Apply(
+        result=global::UI.BenchmarkCellSelectionLogic.Apply(
             4,
             4,
             [new BenchmarkCellCoordinate(0,0)],
@@ -73,7 +73,7 @@ public sealed class BenchmarkCellSelectionLogicTests{
 
     [Fact]
     public void RowHeaderShiftSelectsRowRangeAcrossAllColumns(){
-        var result = BenchmarkCellSelectionLogic.Apply(
+        var result = global::UI.BenchmarkCellSelectionLogic.Apply(
             5,
             3,
             [],
@@ -85,7 +85,7 @@ public sealed class BenchmarkCellSelectionLogicTests{
         Assert.Equal(BenchmarkCellSelectionTargetKind.RowHeader,result.Anchor?.Kind);
         Assert.Equal(new BenchmarkCellCoordinate(1,0),result.Anchor?.Cell);
 
-        result=BenchmarkCellSelectionLogic.Apply(
+        result=global::UI.BenchmarkCellSelectionLogic.Apply(
             5,
             3,
             result.SelectedCells,
@@ -98,7 +98,7 @@ public sealed class BenchmarkCellSelectionLogicTests{
 
     [Fact]
     public void ColumnHeaderShiftSelectsColumnRangeAcrossAllRows(){
-        var result = BenchmarkCellSelectionLogic.Apply(
+        var result = global::UI.BenchmarkCellSelectionLogic.Apply(
             3,
             5,
             [],
@@ -110,7 +110,7 @@ public sealed class BenchmarkCellSelectionLogicTests{
         Assert.Equal(BenchmarkCellSelectionTargetKind.ColumnHeader,result.Anchor?.Kind);
         Assert.Equal(new BenchmarkCellCoordinate(0,1),result.Anchor?.Cell);
 
-        result=BenchmarkCellSelectionLogic.Apply(
+        result=global::UI.BenchmarkCellSelectionLogic.Apply(
             3,
             5,
             result.SelectedCells,
@@ -123,7 +123,7 @@ public sealed class BenchmarkCellSelectionLogicTests{
 
     [Fact]
     public void MixedHeaderShiftUsesNormalRectangle(){
-        var result = BenchmarkCellSelectionLogic.Apply(
+        var result = global::UI.BenchmarkCellSelectionLogic.Apply(
             5,
             5,
             [],
@@ -131,7 +131,7 @@ public sealed class BenchmarkCellSelectionLogicTests{
             BenchmarkCellSelectionTarget.RowHeader(2),
             BenchmarkCellSelectionGesture.Replace);
 
-        result=BenchmarkCellSelectionLogic.Apply(
+        result=global::UI.BenchmarkCellSelectionLogic.Apply(
             5,
             5,
             result.SelectedCells,
@@ -145,7 +145,7 @@ public sealed class BenchmarkCellSelectionLogicTests{
     [Fact]
     public void CornerHeaderAlwaysSelectsAllCellsAndKeepsAnchor(){
         var anchor = new BenchmarkCellSelectionAnchor(BenchmarkCellSelectionTargetKind.Cell,new BenchmarkCellCoordinate(1,1));
-        var result = BenchmarkCellSelectionLogic.Apply(
+        var result = global::UI.BenchmarkCellSelectionLogic.Apply(
             2,
             3,
             [new BenchmarkCellCoordinate(1,1)],
@@ -186,3 +186,5 @@ public sealed class BenchmarkCellSelectionLogicTests{
         Assert.Equal(expected,actual);
     }
 }
+
+

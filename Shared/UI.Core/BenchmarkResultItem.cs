@@ -7,6 +7,7 @@ public sealed record BenchmarkStoredResult(
     string Method,
     string TypeFullName,
     int ElementCount,
+    int LoopCount,
     string Status,
     string Mean,
     double? MeanNanoseconds,
@@ -31,7 +32,8 @@ public sealed class BenchmarkResultItem{
         this.TypeFullName=job.TypeFullName;
         this.SourceTab=job.SourceTab;
         this.ElementCount=job.ElementCount;
-        this.Name=job.Project+" / "+job.MethodName+" / "+job.ElementCount.ToString(CultureInfo.InvariantCulture);
+        this.LoopCount=job.LoopCount;
+        this.Name=job.Project+" / "+job.MethodName+" / "+this.AxisCount.ToString(CultureInfo.InvariantCulture);
         this.ArgumentKey=job.ArgumentKey;
         this.Arguments=job.Arguments.ToArray();
         this.Status=job.Status.ToString();
@@ -67,7 +69,8 @@ public sealed class BenchmarkResultItem{
         this.Method=method;
         this.TypeFullName=typeFullName;
         this.SourceTab=BenchmarkSourceTabs.TryGetByProject(project)?.Tab??BenchmarkSourceTab.SystemArray;
-        this.ElementCount=elementCount;
+        this.ElementCount=BenchmarkWorkloadAxis.ResolveElementCount(this.SourceTab,elementCount);
+        this.LoopCount=BenchmarkWorkloadAxis.ResolveLoopCount(this.SourceTab,elementCount);
         this.ArgumentKey=argumentKey;
         this.Arguments=arguments??[];
         this.Name=project+" / "+method;
@@ -89,7 +92,7 @@ public sealed class BenchmarkResultItem{
     }
 
     public BenchmarkResultItem(BenchmarkStoredResult result)
-        : this(result.Project,result.Method,result.TypeFullName,result.ToProjectMetrics(),result.ElementCount,result.Status,result.MeasuredAt,result.ArgumentKey,result.Arguments){
+        : this(result.Project,result.Method,result.TypeFullName,result.ToProjectMetrics(),result.ElementCount,result.LoopCount,result.Status,result.MeasuredAt,result.ArgumentKey,result.Arguments){
     }
 
     private BenchmarkResultItem(
@@ -98,6 +101,7 @@ public sealed class BenchmarkResultItem{
         string typeFullName,
         ProjectMetrics metrics,
         int elementCount,
+        int loopCount,
         string status,
         DateTimeOffset measuredAt,
         string argumentKey = "",
@@ -107,6 +111,7 @@ public sealed class BenchmarkResultItem{
         this.TypeFullName=typeFullName;
         this.SourceTab=BenchmarkSourceTabs.TryGetByProject(project)?.Tab??BenchmarkSourceTab.SystemArray;
         this.ElementCount=elementCount;
+        this.LoopCount=loopCount>0 ? loopCount : BenchmarkWorkloadAxis.DefaultLoopCount;
         this.ArgumentKey=argumentKey;
         this.Arguments=arguments??[];
         this.Name=project+" / "+method;
@@ -133,6 +138,7 @@ public sealed class BenchmarkResultItem{
         this.TypeFullName=benchmark.TypeFullName;
         this.SourceTab=BenchmarkSourceTabs.TryGetByProject(benchmark.Project)?.Tab??BenchmarkSourceTab.SystemArray;
         this.ElementCount=0;
+        this.LoopCount=BenchmarkWorkloadAxis.DefaultLoopCount;
         this.ArgumentKey=benchmark.ArgumentKey;
         this.Arguments=benchmark.Arguments;
         this.Name=benchmark.Project+" / "+benchmark.MethodName;
@@ -158,6 +164,8 @@ public sealed class BenchmarkResultItem{
     public string TypeFullName { get; }
     public BenchmarkSourceTab SourceTab { get; }
     public int ElementCount { get; }
+    public int LoopCount { get; }
+    public int AxisCount => BenchmarkWorkloadAxis.GetAxisCount(this);
     public string ArgumentKey { get; }
     public IReadOnlyList<BenchmarkArgument> Arguments { get; }
     public string Name { get; }

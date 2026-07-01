@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>net10.0-windows10.0.19041.0</TargetFrameworks>
     <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('OSX'))">$(TargetFrameworks);net10.0-maccatalyst</TargetFrameworks>
@@ -52,5 +52,6 @@
     <Copy SourceFiles="@(_BenchmarkWorkerFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="'@(_BenchmarkWorkerFiles)' != ''" />
   </Target>
 
-  <Import Project="..\Shared\UI.projitems" Label="Shared" />
+  <Import Project="..\Shared\UI\UI.projitems" Label="Shared" />
 </Project>
+

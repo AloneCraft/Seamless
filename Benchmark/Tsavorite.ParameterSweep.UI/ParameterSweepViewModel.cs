@@ -223,6 +223,7 @@ public sealed class ParameterSweepViewModel:INotifyPropertyChanged {
             result.CaseName,
             status,
             result.MaxSuccessfulCount,
+            1,
             null,
             result.MeasuredAt,
             DateTimeOffset.UtcNow,

@@ -56,7 +56,7 @@ internal sealed class BenchmarkOrchestrator(
             progress,
             (job,cpu) => {
                 var current = Interlocked.Increment(ref completed);
-                statusChanged($"Running {current}/{total}: {job.MethodName} N={job.ElementCount} / CPU {cpu}");
+                statusChanged($"Running {current}/{total}: {job.MethodName} {CreateAxisStatusText(job)} / CPU {cpu}");
             },
             cancellationToken);
     }
@@ -199,7 +199,7 @@ internal sealed class BenchmarkOrchestrator(
 
             foreach(var job in pending) {
                 cancellationToken.ThrowIfCancellationRequested();
-                statusChanged($"Running {job.MethodName} N={job.ElementCount}: {job.Project} / CPU {logicalCpu}");
+                statusChanged($"Running {job.MethodName} {CreateAxisStatusText(job)}: {job.Project} / CPU {logicalCpu}");
                 await this.RunJobAsync(state,job,logicalCpu,request.JobTimeout,progress,cancellationToken);
             }
 
@@ -307,7 +307,7 @@ internal sealed class BenchmarkOrchestrator(
             cancellationToken.ThrowIfCancellationRequested();
             var warmupJob = CreateJob(benchmark,1,row.SourceTab,state.ElementCounts);
             warmupJob.JobId=warmupJob.JobId+"|warmup";
-            statusChanged($"Warmup {benchmark.MethodName} N=1: {benchmark.Project} / CPU {logicalCpu}");
+            statusChanged($"Warmup {benchmark.MethodName} "+CreateAxisStatusText(warmupJob)+$": {benchmark.Project} / CPU {logicalCpu}");
             ForceGcBeforeJob();
             try {
                 var result = await jobRunner.RunAsync(
@@ -444,6 +444,9 @@ internal sealed class BenchmarkOrchestrator(
                 ? JobStatus.Completed
                 : JobStatus.Failed;
             job.Mean=result.Mean;
+            if(result.LoopCount>0){
+                job.LoopCount=result.LoopCount;
+            }
             job.Error=result.Error;
             job.StdDev=result.StdDev;
             job.MeanNanoseconds=result.MeanNanoseconds;
@@ -552,7 +555,7 @@ internal sealed class BenchmarkOrchestrator(
     }
 
     private static void ResetJobsFromElementCount(ProgressState state,int elementCount){
-        foreach(var job in state.Jobs.Where(job => job.ElementCount>=elementCount)){
+        foreach(var job in state.Jobs.Where(job => BenchmarkWorkloadAxis.GetAxisCount(job)>=elementCount)){
             job.Status=JobStatus.Pending;
             job.AssignedLogicalCpu=null;
             job.StartedAt=null;
@@ -586,14 +589,14 @@ internal sealed class BenchmarkOrchestrator(
     private IReadOnlyList<BenchmarkJob> GetOrCreateAdaptiveJobs(ProgressState state,IReadOnlyList<BenchmarkCase> cases,int elementCount) {
         lock(this.stateGate) {
             var existing = state.Jobs
-                .Where(job => job.ElementCount==elementCount&&cases.Any(item => SameCase(item,job)))
+                .Where(job => BenchmarkWorkloadAxis.GetAxisCount(job)==elementCount&&cases.Any(item => SameCase(item,job)))
                 .ToArray();
             if(existing.Length==cases.Count) {
                 return existing;
             }
 
             foreach(var benchmark in cases) {
-                if(state.Jobs.Any(job => job.ElementCount==elementCount&&SameCase(benchmark,job))) {
+                if(state.Jobs.Any(job => BenchmarkWorkloadAxis.GetAxisCount(job)==elementCount&&SameCase(benchmark,job))) {
                     continue;
                 }
 
@@ -602,7 +605,7 @@ internal sealed class BenchmarkOrchestrator(
 
             stateManager.Save(state);
             return state.Jobs
-                .Where(job => job.ElementCount==elementCount&&cases.Any(item => SameCase(item,job)))
+                .Where(job => BenchmarkWorkloadAxis.GetAxisCount(job)==elementCount&&cases.Any(item => SameCase(item,job)))
                 .ToArray();
         }
     }
@@ -610,7 +613,7 @@ internal sealed class BenchmarkOrchestrator(
     private IReadOnlyList<BenchmarkJob> GetExistingAdaptiveJobs(ProgressState state,IReadOnlyList<BenchmarkCase> cases,int elementCount) {
         lock(this.stateGate) {
             return state.Jobs
-                .Where(job => job.ElementCount==elementCount&&cases.Any(item => SameCase(item,job)))
+                .Where(job => BenchmarkWorkloadAxis.GetAxisCount(job)==elementCount&&cases.Any(item => SameCase(item,job)))
                 .ToArray();
         }
     }
@@ -624,7 +627,7 @@ internal sealed class BenchmarkOrchestrator(
         Action<BenchmarkProgressUpdate> progress) {
         BenchmarkJob job;
         lock(this.stateGate) {
-            job=state.Jobs.FirstOrDefault(item => item.ElementCount==elementCount&&SameCase(benchmark,item))
+            job=state.Jobs.FirstOrDefault(item => BenchmarkWorkloadAxis.GetAxisCount(item)==elementCount&&SameCase(benchmark,item))
                 ??CreateJob(benchmark,elementCount,GetBenchmarkSourceTab(benchmark,state.SourceTab),state.ElementCounts);
             if(!state.Jobs.Contains(job)) {
                 state.Jobs.Add(job);
@@ -655,7 +658,7 @@ internal sealed class BenchmarkOrchestrator(
         BenchmarkSourceTab sourceTab,
         IEnumerable<int> preparedElementCounts) =>
         new() {
-            JobId=CreateJobId(benchmark,elementCount),
+            JobId=CreateJobId(benchmark,sourceTab,elementCount),
             Project=benchmark.Project,
             AssemblyName=benchmark.AssemblyName,
             TypeFullName=benchmark.TypeFullName,
@@ -663,12 +666,13 @@ internal sealed class BenchmarkOrchestrator(
             ArgumentKey=benchmark.ArgumentKey,
             Arguments=benchmark.Arguments.ToList(),
             SourceTab=sourceTab,
-            ElementCount=elementCount,
+            ElementCount=BenchmarkWorkloadAxis.ResolveElementCount(sourceTab,elementCount),
+            LoopCount=BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab,elementCount),
             PreparedElementCounts=preparedElementCounts.Distinct().Order().ToList(),
         };
 
-    private static string CreateJobId(BenchmarkCase benchmark,int elementCount) =>
-        string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey,elementCount);
+    private static string CreateJobId(BenchmarkCase benchmark,BenchmarkSourceTab sourceTab,int axisCount) =>
+        string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey,BenchmarkWorkloadAxis.ResolveElementCount(sourceTab,axisCount),BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab,axisCount));
 
     private static string CreateBenchmarkKey(BenchmarkCase benchmark) =>
         string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey);
@@ -798,13 +802,12 @@ internal sealed class BenchmarkOrchestrator(
     }
 
     private static bool IsScalableSourceTab(BenchmarkSourceTab sourceTab) =>
-        sourceTab is BenchmarkSourceTab.ScalableSet
-            or BenchmarkSourceTab.ScalableDictionary
-            or BenchmarkSourceTab.ScalablePersistedList
-            or BenchmarkSourceTab.ScalablePersistedSet
-            or BenchmarkSourceTab.ScalableTsavoriteSet
-            or BenchmarkSourceTab.ScalablePersistedDictionary
-            or BenchmarkSourceTab.ScalableTsavoriteDictionary;
+        BenchmarkWorkloadAxis.IsScalableSourceTab(sourceTab);
+
+    private static string CreateAxisStatusText(BenchmarkJob job) =>
+        BenchmarkWorkloadAxis.UsesLoopCount(job.SourceTab)
+            ? "Loop="+job.LoopCount.ToString(CultureInfo.InvariantCulture)+" / N="+job.ElementCount.ToString(CultureInfo.InvariantCulture)
+            : "N="+job.ElementCount.ToString(CultureInfo.InvariantCulture);
 
     private static IReadOnlyList<int> NormalizeCpus(IReadOnlyList<int> cpus) =>
         cpus.Count==0 ? [0] : cpus.Distinct().Order().ToArray();
@@ -859,14 +862,20 @@ internal static class BenchmarkElementCounts {
     private const int ElementCountExponentCount = 8;
 #else
     private const int BaseElementCountExponent = 12;
-    private const int FirstElementCountExponent = 10;
-    private const int ElementCountExponentCount = 8;
 #endif
     internal const int BaseElementCount = 1<<BaseElementCountExponent;
 
+#if SCALABLE_BENCHMARK
     public static IReadOnlyList<int> All { get; } =
         Enumerable.Range(FirstElementCountExponent,ElementCountExponentCount).Select(static exponent => 1<<exponent).ToArray();
 
     public static IReadOnlyList<int> DefaultInitial { get; } =
         [BaseElementCount];
+#else
+    public static IReadOnlyList<int> All { get; } =
+        [1,2,4,8,16,32,64,128];
+
+    public static IReadOnlyList<int> DefaultInitial { get; } =
+        [1];
+#endif
 }

@@ -1,5 +1,5 @@
-<maui:MauiWinUIApplication
-    x:Class="UI.WinUI.App"
+﻿<maui:MauiWinUIApplication
+    x:Class="UI.Platforms.Windows.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:maui="using:Microsoft.Maui">
@@ -9,3 +9,4 @@
         <x:Double x:Key="ScrollBarHorizontalThumbMinHeight">20</x:Double>
     </maui:MauiWinUIApplication.Resources>
 </maui:MauiWinUIApplication>
+

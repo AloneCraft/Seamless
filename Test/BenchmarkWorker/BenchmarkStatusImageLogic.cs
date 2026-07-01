@@ -1,11 +1,11 @@
-using UI;
+﻿using UI;
 
 namespace Test.BenchmarkWorker;
 
-public sealed class BenchmarkStatusImageLogicTests{
+public sealed class BenchmarkStatusImageLogic{
     [Fact]
     public void ProjectStatusUsesProgressCheckForMeasuredValueBeforeFinalCompletion(){
-        var kind = BenchmarkStatusImageLogic.GetProjectKind(new BenchmarkStatusImageInput(
+        var kind = global::UI.BenchmarkStatusImageLogic.GetProjectKind(new BenchmarkStatusImageInput(
             HasCase:true,
             IsRunning:false,
             IsFailed:false,
@@ -20,7 +20,7 @@ public sealed class BenchmarkStatusImageLogicTests{
 
     [Fact]
     public void ProjectStatusUsesDoubleCheckOnlyForFinalCompletedRows(){
-        var kind = BenchmarkStatusImageLogic.GetProjectKind(new BenchmarkStatusImageInput(
+        var kind = global::UI.BenchmarkStatusImageLogic.GetProjectKind(new BenchmarkStatusImageInput(
             HasCase:true,
             IsRunning:false,
             IsFailed:false,
@@ -35,7 +35,7 @@ public sealed class BenchmarkStatusImageLogicTests{
 
     [Fact]
     public void ProjectStatusKeepsFailureSeparateFromFinalCompletion(){
-        var kind = BenchmarkStatusImageLogic.GetProjectKind(new BenchmarkStatusImageInput(
+        var kind = global::UI.BenchmarkStatusImageLogic.GetProjectKind(new BenchmarkStatusImageInput(
             HasCase:true,
             IsRunning:false,
             IsFailed:true,
@@ -134,8 +134,10 @@ public sealed class BenchmarkStatusImageLogicTests{
 
     [Fact]
     public void CpuGridWaitingCellUsesIconWithoutText(){
-        Assert.Equal(string.Empty,BenchmarkCpuStatusImageLogic.GetCellStatusText("待機",string.Empty));
+        Assert.Equal(string.Empty,BenchmarkCpuStatusImageLogic.GetCellStatusText(JobStatus.Pending.ToString(),string.Empty));
         Assert.Equal("Count",BenchmarkCpuStatusImageLogic.GetCellStatusText("Running","Count"));
-        Assert.Equal(BenchmarkStatusImageNames.CpuIdle,BenchmarkCpuStatusImageLogic.GetImageSource("待機"));
+        Assert.Equal(BenchmarkStatusImageNames.CpuIdle,BenchmarkCpuStatusImageLogic.GetImageSource(JobStatus.Pending.ToString()));
     }
 }
+
+

@@ -1,9 +1,9 @@
-using UI;
+﻿using UI;
 using System.Reflection;
 
 namespace Test.Benchmark;
 
-public sealed class BenchmarkScalableMetadataTests {
+public sealed class BenchmarkScalableMetadata {
     [Fact]
     public void ScalableSourceTabs_AreSetDictionaryAndPersistedList() {
         Assert.Equal(
@@ -51,3 +51,4 @@ public sealed class BenchmarkScalableMetadataTests {
         Assert.Equal(65536,baseElementCount);
     }
 }
+

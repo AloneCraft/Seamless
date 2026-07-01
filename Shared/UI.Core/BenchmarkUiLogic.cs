@@ -1,4 +1,4 @@
-namespace UI;
+﻿namespace UI;
 
 public enum BenchmarkProjectLiveState{
     Idle,
@@ -106,16 +106,16 @@ internal static class BenchmarkCpuStatusImageLogic{
 
     public static string GetCellStatusText(string status,string currentJobText) =>
         string.IsNullOrWhiteSpace(currentJobText)
-            ? (string.Equals(status,"待機",StringComparison.Ordinal) ? string.Empty : status)
+            ? (string.Equals(status,JobStatus.Pending.ToString(),StringComparison.OrdinalIgnoreCase) ? string.Empty : status)
             : currentJobText;
 
     public static string GetStatusText(string status) =>
         string.Equals(status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase)
-            ? "実行中"
+            ? "Running"
             : string.Equals(status,"Completed",StringComparison.OrdinalIgnoreCase)
-                ? "完了"
+                ? "Completed"
                 : string.Equals(status,"Failed",StringComparison.OrdinalIgnoreCase)
-                    ? "失敗"
+                    ? "Failed"
                     : status;
 }
 
@@ -279,17 +279,7 @@ internal static class BenchmarkTabProgressLogic{
         }
 
         var measurementArray = measurements.ToArray();
-        var completed = selectedCells.Count(cell =>
-            HasTerminalMeasurement(measurementArray,cell)
-            ||BenchmarkRowCompletionLogic.IsFinalCompleted(
-                measurementArray,
-                cell.Method,
-                cell.TypeFullName,
-                cell.ArgumentKey,
-                leftProject,
-                rightProject,
-                maxElementCount,
-                thresholdNanoseconds));
+        var completed = selectedCells.Count(cell => HasTerminalMeasurement(measurementArray,cell));
         return new BenchmarkTabProgress(completed,selectedCells.Length);
     }
 
@@ -693,27 +683,27 @@ internal static class BenchmarkCloseDialogLogic{
         bool hasUnsavedResults){
         if(isBenchmarkPaused){
             return [
-                ("停止して閉じる",BenchmarkCloseAction.StopAndClose,BenchmarkToolbarButtonRole.Stop),
-                ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Pause),
+                ("Stop and close",BenchmarkCloseAction.StopAndClose,BenchmarkToolbarButtonRole.Stop),
+                ("Cancel",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Pause),
             ];
         }
 
         if(isBenchmarkRunActive){
             return [
-                ("中止して終了",BenchmarkCloseAction.StopAndClose,BenchmarkToolbarButtonRole.Stop),
-                ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Pause),
+                ("Stop and finish",BenchmarkCloseAction.StopAndClose,BenchmarkToolbarButtonRole.Stop),
+                ("Cancel",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Pause),
             ];
         }
 
         if(hasUnsavedResults){
             return [
-                ("破棄して閉じる",BenchmarkCloseAction.StopAndClose,BenchmarkToolbarButtonRole.Stop),
-                ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Pause),
+                ("Discard and close",BenchmarkCloseAction.StopAndClose,BenchmarkToolbarButtonRole.Stop),
+                ("Cancel",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Pause),
             ];
         }
 
         return [
-            ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Pause),
+            ("Cancel",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Pause),
         ];
     }
 }
@@ -990,3 +980,4 @@ internal readonly record struct UiSortValue(string? Text,double? Number,bool IsM
         return descending ? -result : result;
     }
 }
+
