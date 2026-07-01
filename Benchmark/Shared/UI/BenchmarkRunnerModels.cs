@@ -437,6 +437,11 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         if(isRunning){
             // Running は確定値の更新ではなく、実行中の状態表示だけを切り替える。
             this.IsRunning=true;
+            if(result.ElementCount>0){
+                this.ElementCountText=FormatElementCount(result.ElementCount);
+            }
+            this.ExecutionText=FormatTimestamp(BenchmarkRunTimestampDisplayLogic.ResolveRunningTimestamp(result.StartedAt,completedAt));
+            this.RefreshExecutionTooltipText();
             this.ApplyCpuDisplay(cpu);
             this.LiveState=BenchmarkProjectLiveState.Running;
             this.RefreshStatusDisplay();

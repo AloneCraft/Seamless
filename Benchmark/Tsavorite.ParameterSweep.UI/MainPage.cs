@@ -30,7 +30,7 @@ public sealed class MainPage:ContentPage {
 
         var runPicker = new Picker {
             WidthRequest=260,
-            ItemDisplayBinding=new Binding(nameof(ParameterSweepRunSummary.RunId)),
+            ItemDisplayBinding=new Binding(nameof(Seamless.UI.Storage.UiRunRecord.DisplayName)),
         };
         runPicker.SetBinding(Picker.ItemsSourceProperty,nameof(ParameterSweepViewModel.RunHistory));
         runPicker.SetBinding(Picker.SelectedItemProperty,nameof(ParameterSweepViewModel.SelectedBaselineRun));

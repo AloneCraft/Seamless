@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Seamless.UI.Storage;
 
 namespace UI;
 
@@ -32,6 +33,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private readonly BenchmarkCsvDiscoveryService csvDiscoveryService;
     private readonly BenchmarkUiStateStore uiStateStore;
     private readonly BenchmarkRunPersistenceService runPersistenceService;
+    private readonly UiRunStore uiRunStore;
     private readonly IBenchmarkInteractionService interactionService;
     private readonly string benchmarkRoot;
     private CancellationTokenSource? runCancellation;
@@ -89,6 +91,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private int benchmarkAutoScrollSequence;
     private string? currentUnsavedRunRoot;
     private ProgressState? loadedExternalState;
+    private long? activeUiRunId;
 
     private enum RunTerminationKind {
         None,
@@ -106,6 +109,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         BenchmarkCsvDiscoveryService csvDiscoveryService,
         BenchmarkUiStateStore uiStateStore,
         BenchmarkRunPersistenceService runPersistenceService,
+        UiRunStore uiRunStore,
         IBenchmarkInteractionService interactionService,
         string benchmarkRoot) {
         this.catalogService=catalogService;
@@ -117,6 +121,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.csvDiscoveryService=csvDiscoveryService;
         this.uiStateStore=uiStateStore;
         this.runPersistenceService=runPersistenceService;
+        this.uiRunStore=uiRunStore;
         this.interactionService=interactionService;
         this.benchmarkRoot=benchmarkRoot;
         this.SourceTabs=BenchmarkSourceTabs.All.Select(static item => new SourceTabOption(item)).ToArray();
@@ -1797,11 +1802,16 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.currentUnsavedRunRoot=runRoot;
         this.SetActiveRunRoot(runRoot);
         var runGeneration = unchecked(++this.runResultGeneration);
+        var runSourceTab = this.SelectedSourceDefinition.Tab;
+        var uiRunId = runRootOverride is not null&&this.activeUiRunId is not null
+            ? this.activeUiRunId
+            : this.CreateUiRun(runSourceTab);
+        this.activeUiRunId=uiRunId;
+        this.SetUiRunStatus(uiRunId,UiRunStatus.Running,"Benchmark run started.");
         string? completedRunRoot = null;
         var completedNormally = false;
         var keepPausedRunRoot = false;
         this.IsRunning=true;
-        var runSourceTab = this.SelectedSourceDefinition.Tab;
         this.ActiveRunSourceTab=runSourceTab;
         this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
         this.activeChartMethodName=string.Empty;
@@ -1839,7 +1849,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 runRoot,
                 this.GetCurrentRunSelectedBenchmarkCases,
                 result => MainThread.BeginInvokeOnMainThread(() => {
-                    this.HandleRunResult(result,runGeneration);
+                    this.HandleRunResult(result,runGeneration,uiRunId);
                 }),
                 status => {
                     StartupDiagnostics.Write(status);
@@ -1849,6 +1859,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             completedRunRoot=report.RunRoot;
             this.currentUnsavedRunRoot=report.RunRoot;
             completedNormally=true;
+            this.SetUiRunStatus(uiRunId,UiRunStatus.Completed,"Benchmark run completed.");
             StartupDiagnostics.Write(
                 "Benchmark run completed. "
                 +"RunRoot="+report.RunRoot+" "
@@ -1857,11 +1868,13 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         catch(OperationCanceledException) {
             if(this.pendingRunTerminationKind==RunTerminationKind.Pause) {
                 this.StatusText="Paused";
+                this.SetUiRunStatus(uiRunId,UiRunStatus.Paused,"Benchmark run paused.");
                 StartupDiagnostics.Write("Benchmark run paused.");
                 this.SetActiveRunRoot(completedRunRoot ?? runRoot);
                 keepPausedRunRoot=true;
             }else{
                 this.StatusText="Canceled";
+                this.SetUiRunStatus(uiRunId,UiRunStatus.Stopped,"Benchmark run canceled.");
                 StartupDiagnostics.Write("Benchmark run canceled.");
                 this.SetActiveRunRoot(null);
             }
@@ -1869,10 +1882,13 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         catch(Exception ex) {
             StartupDiagnostics.Write("Benchmark run failed.",ex);
             this.StatusText="Run failed: "+ex.Message;
+            this.SetUiRunStatus(uiRunId,UiRunStatus.Failed,ex.Message);
             this.SetActiveRunRoot(null);
         }
         finally {
-            this.runResultGeneration=unchecked(this.runResultGeneration+1);
+            if(!completedNormally&&!keepPausedRunRoot) {
+                this.runResultGeneration=unchecked(this.runResultGeneration+1);
+            }
             this.IsRunning=false;
             this.activeChartMethodName=string.Empty;
             this.ActiveRunSourceTab=null;
@@ -1886,6 +1902,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             this.ClearCpuJobs();
             if(!keepPausedRunRoot) {
                 this.SetActiveRunRoot(null);
+                if(this.activeUiRunId==uiRunId) {
+                    this.activeUiRunId=null;
+                }
             }
             this.RefreshUnsavedRunSelection();
             this.ClearRunResultHighlights();
@@ -1895,6 +1914,104 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             this.RefreshImprovementPrompt();
             this.UpdateChart();
         }
+    }
+
+    private long? CreateUiRun(BenchmarkSourceTab runSourceTab) {
+        try {
+            this.uiRunStore.Initialize();
+            var run = this.uiRunStore.CreateRun(new(
+                GetUiRunAppKind(),
+                BenchmarkAppProfile.Title+" "+DateTimeOffset.Now.ToString("yyyy/MM/dd HH:mm:ss",System.Globalization.CultureInfo.InvariantCulture),
+                this.SelectedExecutionProfile.Profile.ToString(),
+                runSourceTab.ToString(),
+                DateTimeOffset.UtcNow));
+            return run.RunId;
+        }
+        catch(Exception ex) {
+            StartupDiagnostics.Write("UI DB run create failed.",ex);
+            return null;
+        }
+    }
+
+    private void SetUiRunStatus(long? runId,UiRunStatus status,string message) {
+        if(runId is not { } value) {
+            return;
+        }
+
+        try {
+            this.uiRunStore.SetRunStatus(value,status,message);
+        }
+        catch(Exception ex) {
+            StartupDiagnostics.Write("UI DB run status update failed.",ex);
+        }
+    }
+
+    private void SaveBenchmarkResultToDatabase(BenchmarkResultItem result,long? runId) {
+        if(runId is not { } value) {
+            return;
+        }
+
+        var isCompletedResult = string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase);
+        var isFailedResult = string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase);
+        if(!isCompletedResult&&!isFailedResult) {
+            return;
+        }
+
+        try {
+            var rowKey = this.CreateResultRowKey(result);
+            var caseKey = result.SourceTab+"|"+result.Project+"|"+rowKey+"|"+result.ArgumentKey;
+            var arguments = result.Arguments
+                .GroupBy(static item => item.Name,StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(static item => item.Key,static item => item.Last().Value,StringComparer.OrdinalIgnoreCase);
+            arguments["ElementCount"]=result.ElementCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            arguments["SourceTab"]=result.SourceTab.ToString();
+            var testCase = this.uiRunStore.UpsertCase(
+                value,
+                caseKey,
+                rowKey,
+                result.Project,
+                result.Method,
+                result.TypeFullName,
+                arguments);
+            var job = this.uiRunStore.UpsertJob(
+                value,
+                testCase.CaseId,
+                caseKey+"|N="+result.ElementCount.ToString(System.Globalization.CultureInfo.InvariantCulture)+"|CPU="+(result.AssignedLogicalCpu?.ToString(System.Globalization.CultureInfo.InvariantCulture)??"-"),
+                isCompletedResult ? UiRunStatus.Completed : UiRunStatus.Failed,
+                result.ElementCount,
+                result.AssignedLogicalCpu,
+                result.StartedAt,
+                DateTimeOffset.UtcNow,
+                result.Status,
+                result.FailureReason);
+            var metrics = new List<UiMetricValueWrite>();
+            if(result.MeanNanoseconds is { } meanNanoseconds) {
+                metrics.Add(new("MeanNanoseconds",meanNanoseconds,"ns"));
+            }
+            if(result.ErrorNanoseconds is { } errorNanoseconds) {
+                metrics.Add(new("ErrorNanoseconds",errorNanoseconds,"ns"));
+            }
+            if(result.StdDevNanoseconds is { } stdDevNanoseconds) {
+                metrics.Add(new("StdDevNanoseconds",stdDevNanoseconds,"ns"));
+            }
+            if(result.AllocatedBytesValue is { } allocatedBytes) {
+                metrics.Add(new("AllocatedBytes",allocatedBytes,"bytes"));
+            }
+            if(metrics.Count>0) {
+                this.uiRunStore.SaveMeasurement(job.JobId,metrics,DateTimeOffset.UtcNow);
+            }
+        }
+        catch(Exception ex) {
+            StartupDiagnostics.Write("UI DB benchmark result save failed.",ex);
+        }
+    }
+
+    private static UiRunAppKind GetUiRunAppKind() {
+#if SCALABLE_BENCHMARK
+        return UiRunAppKind.ScalableBenchmark;
+#else
+        return UiRunAppKind.Benchmark;
+#endif
     }
 
     private void Cancel() {
@@ -1916,7 +2033,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         _=this.RunAsync(null);
     }
 
-    private void HandleRunResult(BenchmarkResultItem result,int runGeneration) {
+    private void HandleRunResult(BenchmarkResultItem result,int runGeneration,long? uiRunId) {
+        this.SaveBenchmarkResultToDatabase(result,uiRunId);
         if(runGeneration!=this.runResultGeneration) {
             // 別世代の callback は、次回実行や完了後の復元を汚さないよう捨てる。
             return;
@@ -1932,9 +2050,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             +"Status="+result.Status+" "
             +"Mean="+result.Mean+" "
             +"Allocated="+result.AllocatedBytes);
-        var cpu = result.AssignedLogicalCpu is { } logicalCpu
-            ? this.CpuItems.FirstOrDefault(item => item.LogicalProcessorIndex==logicalCpu)
-            : null;
+        var cpu = this.FindAssignedCpu(result);
         cpu?.ApplyJob(result);
         var resultSourceTab = result.SourceTab;
         var isResultForVisibleTab = resultSourceTab==this.SelectedSourceDefinition.Tab;
@@ -2035,7 +2151,16 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
 
         var row = this.FindBenchmarkRow(result);
-        row?.ApplyRunResult(result,null,DateTimeOffset.Now,false);
+        row?.ApplyRunResult(result,this.FindAssignedCpu(result),DateTimeOffset.Now,false);
+    }
+
+    private CpuSelectionItem? FindAssignedCpu(BenchmarkResultItem result) {
+        var logicalCpu = BenchmarkResultCpuDisplayLogic.ResolveAssignedLogicalCpu(
+            result.AssignedLogicalCpu,
+            this.CpuItems.Select(static item => item.LogicalProcessorIndex));
+        return logicalCpu is { } value
+            ? this.CpuItems.FirstOrDefault(item => item.LogicalProcessorIndex==value)
+            : null;
     }
 
     private void RefreshUnsavedRunSelection() {
@@ -2354,11 +2479,13 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private void PrepareSelectedSourceLiveResultsForRun() {
+        this.ClearRetainedChartPoints();
         this.currentRunResultItemsByTab.Remove(this.SelectedSourceDefinition.Tab);
         this.comparisonRows= [];
         this.ResultItems.Clear();
         this.VisibleResultItems.Clear();
         this.CurrentElementCountText="-";
+        this.ClearBenchmarkResultDisplays();
         this.BenchmarkRatioSummaryText=string.Empty;
         this.ImprovementPromptText=string.Empty;
         this.RefreshSourceTabProgresses();
@@ -2373,20 +2500,32 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
 
     private void AddComparisonRowsIntoResults(IReadOnlyList<BenchmarkComparisonRow> rows,int elementCount,ProgressState? selectedRunState) {
         foreach(var row in rows) {
-            this.AddResult(row.MethodName,row.TypeFullName,row.SourceTab.LeftProject,row.Left,elementCount,selectedRunState);
-            this.AddResult(row.MethodName,row.TypeFullName,row.SourceTab.RightProject,row.Right,elementCount,selectedRunState);
+            this.AddResult(row.MethodName,row.TypeFullName,row.ArgumentKey,row.Arguments,row.SourceTab.LeftProject,row.Left,elementCount,selectedRunState);
+            this.AddResult(row.MethodName,row.TypeFullName,row.ArgumentKey,row.Arguments,row.SourceTab.RightProject,row.Right,elementCount,selectedRunState);
         }
     }
 
-    private void AddResult(string method,string typeFullName,string project,ProjectMetrics metrics,int elementCount,ProgressState? selectedRunState) {
+    private void AddResult(
+        string method,
+        string typeFullName,
+        string argumentKey,
+        IReadOnlyList<BenchmarkArgument> arguments,
+        string project,
+        ProjectMetrics metrics,
+        int elementCount,
+        ProgressState? selectedRunState) {
         if(metrics.HasValue) {
             var job = selectedRunState?.Jobs.LastOrDefault(job => string.Equals(job.MethodName,method,StringComparison.OrdinalIgnoreCase)
                 &&string.Equals(job.Project,project,StringComparison.OrdinalIgnoreCase)
                 &&IsSameType(job.TypeFullName,typeFullName)
+                &&IsSameArgument(job.ArgumentKey,argumentKey)
                 &&job.ElementCount==elementCount
                 &&job.Status==JobStatus.Completed);
             this.ResultItems.Add(job is null
-                ? new BenchmarkResultItem(new BenchmarkStoredResult(project,method,typeFullName,elementCount,"Completed",metrics.TimeNanoseconds?.ToString(System.Globalization.CultureInfo.InvariantCulture)??string.Empty,metrics.TimeNanoseconds,metrics.AllocatedBytes,DateTimeOffset.Now,null,string.Empty))
+                ? new BenchmarkResultItem(new BenchmarkStoredResult(project,method,typeFullName,elementCount,"Completed",metrics.TimeNanoseconds?.ToString(System.Globalization.CultureInfo.InvariantCulture)??string.Empty,metrics.TimeNanoseconds,metrics.AllocatedBytes,DateTimeOffset.Now,null,string.Empty) {
+                    ArgumentKey=argumentKey,
+                    Arguments=arguments,
+                })
                 : new BenchmarkResultItem(job));
         }
     }
@@ -2458,25 +2597,40 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private IReadOnlyList<BenchmarkTabProgressCell> CreateProgressCells(BenchmarkSourceTabDefinition sourceTab) {
         if(sourceTab.Tab==this.SelectedSourceDefinition.Tab&&this.BenchmarkRows.Count>0) {
             return this.BenchmarkRows
-                .SelectMany(row => row.ProjectCells.Select(cell => new BenchmarkTabProgressCell(
-                    row.MethodName,
-                    cell.Project,
-                    row.CasesByProject.TryGetValue(cell.Project,out var benchmark) ? benchmark.TypeFullName : string.Empty,
-                    cell.HasCase&&cell.IsSelected)))
+                .SelectMany(row => row.ProjectCells.Select(cell => CreateProgressCell(row,cell.Project,cell.HasCase&&cell.IsSelected)))
                 .ToArray();
         }
 
         return BenchmarkRowGroupingLogic.CreateRows(this.catalogCases,sourceTab)
-            .SelectMany(row => sourceTab.ProjectOrder.Select(project => new BenchmarkTabProgressCell(
-                row.MethodName,
+            .SelectMany(row => sourceTab.ProjectOrder.Select(project => CreateProgressCell(
+                row,
                 project,
-                row.CasesByProject.TryGetValue(project,out var benchmark) ? benchmark.TypeFullName : string.Empty,
                 row.CasesByProject.ContainsKey(project)
-                &&this.benchmarkCellSelections.TryGetValue(
+                    &&this.benchmarkCellSelections.TryGetValue(
                     BenchmarkUiStateStore.CreateCellKey(row.RowKey,project),
                     out var selected)
-                &&selected)))
+                    &&selected)))
             .ToArray();
+    }
+
+    private static BenchmarkTabProgressCell CreateProgressCell(BenchmarkRowDefinition row,string project,bool isSelected) {
+        row.CasesByProject.TryGetValue(project,out var benchmark);
+        return new BenchmarkTabProgressCell(
+            row.MethodName,
+            project,
+            benchmark?.TypeFullName??string.Empty,
+            benchmark?.ArgumentKey??string.Empty,
+            isSelected);
+    }
+
+    private static BenchmarkTabProgressCell CreateProgressCell(BenchmarkTableRow row,string project,bool isSelected) {
+        row.CasesByProject.TryGetValue(project,out var benchmark);
+        return new BenchmarkTabProgressCell(
+            row.MethodName,
+            project,
+            benchmark?.TypeFullName??string.Empty,
+            benchmark?.ArgumentKey??string.Empty,
+            isSelected);
     }
 
     private IReadOnlyList<BenchmarkElementMeasurement> CreateProgressMeasurements(BenchmarkSourceTabDefinition sourceTab) {
@@ -2489,6 +2643,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 item.Project,
                 item.Method,
                 item.TypeFullName,
+                item.ArgumentKey,
                 item.ElementCount,
                 item.Status,
                 item.MeanNanoseconds))
@@ -2869,6 +3024,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 result.Project,
                 result.Method,
                 result.TypeFullName,
+                result.ArgumentKey,
                 result.ElementCount,
                 result.Status,
                 result.MeanNanoseconds))
@@ -2886,6 +3042,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                     measurements,
                     row.MethodName,
                     GetRowTypeFullName(row,pair.LeftProject),
+                    GetRowArgumentKey(row,pair.LeftProject),
                     pair.LeftProject,
                     pair.RightProject,
                     maxElementCount,
@@ -2955,7 +3112,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return results.Any(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
                 &&string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase)
                 &&IsSameType(result.TypeFullName,typeFullName)
-                &&(string.IsNullOrWhiteSpace(argumentKey)||string.Equals(result.ArgumentKey,argumentKey,StringComparison.OrdinalIgnoreCase))
+                &&IsSameArgument(result.ArgumentKey,argumentKey)
                 &&result.ElementCount==elementCount
                 &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
                 &&result.MeanNanoseconds is not null);
@@ -2963,11 +3120,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
 
     private int? FindPairStoppedAt(string method,string typeFullName,string project,int selectedElementCount,string argumentKey = "") {
         var measurements = this.GetResultSourceForDisplay()
-            .Where(result => string.IsNullOrWhiteSpace(argumentKey)||string.Equals(result.ArgumentKey,argumentKey,StringComparison.OrdinalIgnoreCase))
             .Select(static result => new BenchmarkElementMeasurement(
                 result.Project,
                 result.Method,
                 result.TypeFullName,
+                result.ArgumentKey,
                 result.ElementCount,
                 result.Status,
                 result.MeanNanoseconds));
@@ -2975,6 +3132,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             measurements,
             method,
             typeFullName,
+            argumentKey,
             project,
             selectedElementCount,
             this.GetAdaptiveThreshold().TotalMilliseconds*1_000_000);
@@ -2988,11 +3146,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         int selectedElementCount,
         string argumentKey = "") {
         var measurements = this.GetResultSourceForDisplay()
-            .Where(result => string.IsNullOrWhiteSpace(argumentKey)||string.Equals(result.ArgumentKey,argumentKey,StringComparison.OrdinalIgnoreCase))
             .Select(static result => new BenchmarkElementMeasurement(
                 result.Project,
                 result.Method,
                 result.TypeFullName,
+                result.ArgumentKey,
                 result.ElementCount,
                 result.Status,
                 result.MeanNanoseconds));
@@ -3000,6 +3158,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             measurements,
             method,
             typeFullName,
+            argumentKey,
             leftProject,
             rightProject,
             selectedElementCount);
@@ -3010,7 +3169,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             .LastOrDefault(item => string.Equals(item.Method,method,StringComparison.OrdinalIgnoreCase)
                 &&string.Equals(item.Project,project,StringComparison.OrdinalIgnoreCase)
                 &&IsSameType(item.TypeFullName,typeFullName)
-                &&(string.IsNullOrWhiteSpace(argumentKey)||string.Equals(item.ArgumentKey,argumentKey,StringComparison.OrdinalIgnoreCase))
+                &&IsSameArgument(item.ArgumentKey,argumentKey)
                 &&item.ElementCount==elementCount
                 &&string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)
                 &&item.MeanNanoseconds is not null);
@@ -3078,7 +3237,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         string.Equals(item.Method,method,StringComparison.OrdinalIgnoreCase)
         &&string.Equals(item.Project,project,StringComparison.OrdinalIgnoreCase)
         &&IsSameType(item.TypeFullName,typeFullName)
-        &&(string.IsNullOrWhiteSpace(argumentKey)||string.Equals(item.ArgumentKey,argumentKey,StringComparison.OrdinalIgnoreCase))
+        &&IsSameArgument(item.ArgumentKey,argumentKey)
         &&item.ElementCount==elementCount;
 
     private static string CreateResultIdentityKey(string project,string typeFullName,string method,int elementCount,string argumentKey = "") =>
@@ -3091,6 +3250,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 &&(string.Equals(left,right,StringComparison.OrdinalIgnoreCase)
                     ||string.Equals(ShortTypeName(left),right,StringComparison.OrdinalIgnoreCase)
                     ||string.Equals(left,ShortTypeName(right),StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsSameArgument(string left,string right) =>
+        BenchmarkArgumentKeyMatchLogic.IsExactMatch(left,right);
 
     private void UpdateChart(bool preserveExistingWhenNoMeasuredPoints = true) {
         var elementComparisonRows = this.BuildElementComparisonRows();
@@ -3168,17 +3330,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private static bool IsComparisonRowMatch(BenchmarkTableRow row,BenchmarkComparisonRow item) =>
-        IsComparisonBenchmarkNameMatch(row,item)
-        &&(IsScalableSourceTab(row.SourceTab.Tab)
-            ? !string.IsNullOrWhiteSpace(item.TypeFullName)
-                &&row.CasesByProject.Values.Any(benchmark => string.Equals(ShortTypeName(benchmark.TypeFullName),item.TypeFullName,StringComparison.OrdinalIgnoreCase))
-            : string.IsNullOrWhiteSpace(item.TypeFullName)
-                ||row.CasesByProject.Values.Any(benchmark => string.Equals(ShortTypeName(benchmark.TypeFullName),item.TypeFullName,StringComparison.OrdinalIgnoreCase)));
-
-    private static bool IsComparisonBenchmarkNameMatch(BenchmarkTableRow row,BenchmarkComparisonRow item) =>
-        string.Equals(item.MethodName,row.MethodName,StringComparison.OrdinalIgnoreCase)
-        ||string.Equals(item.Benchmark,row.BenchmarkName,StringComparison.OrdinalIgnoreCase)
-        ||item.Benchmark.StartsWith(row.BenchmarkName+"/",StringComparison.OrdinalIgnoreCase);
+        BenchmarkComparisonRowMatchLogic.IsMatch(
+            row.MethodName,
+            row.BenchmarkName,
+            row.SourceTab.Tab,
+            row.CasesByProject.Values.Select(static benchmark => new BenchmarkComparisonRowMatchCase(benchmark.TypeFullName,benchmark.ArgumentKey)),
+            item);
 
     private ChartComparisonPoint CreateChartComparisonPoint(BenchmarkTableRow row,double? leftValue,double? rightValue) =>
         this.CreateChartComparisonPoint(row.RowKey,row.BenchmarkName,leftValue,rightValue,row);

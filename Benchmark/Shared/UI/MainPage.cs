@@ -4,6 +4,7 @@ using Syncfusion.Maui.Buttons;
 using Syncfusion.Maui.DataGrid;
 using Syncfusion.Maui.Toolkit.Charts;
 using Syncfusion.Maui.Toolkit.TabView;
+using Seamless.UI.Storage;
 
 namespace UI;
 
@@ -174,6 +175,7 @@ public sealed class MainPage:ContentPage {
             new BenchmarkCsvDiscoveryService(csvService),
             new BenchmarkUiStateStore(benchmarkRoot),
             new BenchmarkRunPersistenceService(),
+            new UiRunStore(UiRunDatabasePathResolver.Resolve(this.FindSolutionRoot())),
             new PageBenchmarkInteractionService(this),
             benchmarkRoot);
     }

@@ -79,4 +79,24 @@ public sealed class BenchmarkTabProgressLogicTests{
         Assert.Equal(0,progress.Completed);
         Assert.Equal(1,progress.Total);
     }
+
+    [Fact]
+    public void Calculate_DoesNotCompleteDifferentArgumentKeyWithSameMethodAndType(){
+        var progress = BenchmarkTabProgressLogic.Calculate(
+            [
+                new BenchmarkTabProgressCell("Add","Left","Type","Count=2",true),
+                new BenchmarkTabProgressCell("Add","Right","Type","Count=2",true),
+            ],
+            [
+                new BenchmarkElementMeasurement("Left","Add","Type","Count=1",4096,"Completed",2_000_000),
+                new BenchmarkElementMeasurement("Right","Add","Type","Count=1",4096,"Completed",100),
+            ],
+            "Left",
+            "Right",
+            4096,
+            1_000_000);
+
+        Assert.Equal(0,progress.Completed);
+        Assert.Equal(2,progress.Total);
+    }
 }

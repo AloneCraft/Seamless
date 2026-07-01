@@ -217,7 +217,7 @@ public sealed class BenchmarkResultStore{
         string.Join("|",project,typeFullName,method,argumentKey,elementCount.ToString(CultureInfo.InvariantCulture),measuredAt.ToString("O",CultureInfo.InvariantCulture));
 
     private static bool IsSameArgument(string left,string right) =>
-        string.IsNullOrWhiteSpace(right)||string.Equals(left,right,StringComparison.OrdinalIgnoreCase);
+        BenchmarkArgumentKeyMatchLogic.IsExactMatch(left,right);
 
     private static bool IsSameType(string left,string right) =>
         string.IsNullOrWhiteSpace(right)

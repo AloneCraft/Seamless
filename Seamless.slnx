@@ -37,6 +37,7 @@
     <Project Path="Shared/Test.Shared.shproj" />
     <Project Path="Shared/Tsavorite.Collections.shproj" />
     <Project Path="Shared/UI.Core.shproj" />
+    <Project Path="Shared/UI.Storage/UI.Storage.csproj" />
     <File Path="Shared/Collections.projitems" />
     <File Path="Shared/Common.projitems" />
     <File Path="Shared/DynamicLinq.projitems" />
