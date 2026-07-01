@@ -1,19 +1,19 @@
 using System.Globalization;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace UI;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
 internal sealed class BenchmarkStateManager {
-    public const string ProgressFileName = "progress.json";
-    public const string LatestRunFileName = "latest-run.json";
-
     private static readonly JsonSerializerOptions JsonOptions = new() {
         WriteIndented=true,
     };
 
     private readonly object fileGate = new();
     private readonly string benchmarkRoot;
+    private static readonly ConcurrentDictionary<string,ProgressState> States = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string,string> LatestRuns = new(StringComparer.OrdinalIgnoreCase);
 
     public BenchmarkStateManager(string benchmarkRoot) {
         this.benchmarkRoot=benchmarkRoot;
@@ -46,23 +46,20 @@ internal sealed class BenchmarkStateManager {
     }
 
     public ProgressState? LoadLatestUnfinished() {
-        var marker = this.LoadLatestMarker();
-        if(marker is null||string.IsNullOrWhiteSpace(marker.RunRoot)) {
+        if(!LatestRuns.TryGetValue(this.benchmarkRoot,out var runRoot)||string.IsNullOrWhiteSpace(runRoot)) {
             return null;
         }
 
-        var state = this.Load(marker.RunRoot);
+        var state = this.Load(runRoot);
         return state is not null&&state.HasUnfinishedJobs ? state : null;
     }
 
     public ProgressState? Load(string runRoot) {
-        var path = Path.Combine(runRoot,ProgressFileName);
-        if(!File.Exists(path)) {
+        if(!States.TryGetValue(runRoot,out var state)) {
             return null;
         }
 
-        var state = JsonSerializer.Deserialize<ProgressState>(File.ReadAllText(path),JsonOptions)
-            ??throw new InvalidDataException("Progress state is empty.");
+        state=Clone(state);
         var changed = false;
         foreach(var job in state.Jobs.Where(static job => job.Status is JobStatus.Running or JobStatus.Paused)) {
             job.Status=JobStatus.Failed;
@@ -83,51 +80,20 @@ internal sealed class BenchmarkStateManager {
         lock(this.fileGate){
             state.UpdatedAt=DateTimeOffset.UtcNow;
             Directory.CreateDirectory(state.RunRoot);
-            AtomicWrite(Path.Combine(state.RunRoot,ProgressFileName),state);
+            States[state.RunRoot]=Clone(state);
         }
     }
 
     public void SaveLatestRun(string runRoot) {
         lock(this.fileGate){
             Directory.CreateDirectory(this.benchmarkRoot);
-            AtomicWrite(Path.Combine(this.benchmarkRoot,LatestRunFileName),new LatestRunMarker(runRoot,DateTimeOffset.UtcNow));
+            LatestRuns[this.benchmarkRoot]=runRoot;
         }
     }
 
-    private LatestRunMarker? LoadLatestMarker() {
-        var path = Path.Combine(this.benchmarkRoot,LatestRunFileName);
-        if(!File.Exists(path)) {
-            return null;
-        }
-
-        return JsonSerializer.Deserialize<LatestRunMarker>(File.ReadAllText(path),JsonOptions);
+    private static ProgressState Clone(ProgressState source) {
+        var json = JsonSerializer.Serialize(source,JsonOptions);
+        return JsonSerializer.Deserialize<ProgressState>(json,JsonOptions)
+            ??throw new InvalidDataException("Progress state is empty.");
     }
-
-    private static void AtomicWrite<T>(string path,T value) {
-        var tmpPath = path+"."+Guid.NewGuid().ToString("N")+".tmp";
-        Directory.CreateDirectory(Path.GetDirectoryName(path)??".");
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(value,JsonOptions);
-        try{
-            using(var stream = new FileStream(tmpPath,FileMode.CreateNew,FileAccess.Write,FileShare.None,bufferSize:8192,FileOptions.WriteThrough)) {
-                stream.Write(bytes);
-                stream.Flush(flushToDisk:true);
-            }
-
-            File.Move(tmpPath,path,overwrite:true);
-        }finally{
-            TryDelete(tmpPath);
-        }
-    }
-
-    private static void TryDelete(string path){
-        try{
-            if(File.Exists(path)){
-                File.Delete(path);
-            }
-        }catch(IOException){
-        }catch(UnauthorizedAccessException){
-        }
-    }
-
-    private sealed record LatestRunMarker(string RunRoot,DateTimeOffset UpdatedAt);
 }

@@ -11,10 +11,7 @@ public sealed class BenchmarkToolbarAndCloseLogicTests{
                 IsBenchmarkPaused:false,
                 CanUseRunButton:true,
                 CanStopBenchmark:false,
-                CanPauseBenchmark:false,
-                CanSaveBenchmarkResults:false,
-                CanSaveAsBenchmarkResults:false,
-                CanOpenResults:true));
+                CanPauseBenchmark:false));
 
         Assert.True(state.IsEnabled);
         Assert.True(state.InvokesPrimaryAction);
@@ -32,10 +29,7 @@ public sealed class BenchmarkToolbarAndCloseLogicTests{
                 IsBenchmarkPaused:false,
                 CanUseRunButton:false,
                 CanStopBenchmark:false,
-                CanPauseBenchmark:false,
-                CanSaveBenchmarkResults:false,
-                CanSaveAsBenchmarkResults:false,
-                CanOpenResults:true));
+                CanPauseBenchmark:false));
 
         Assert.False(state.IsEnabled);
         Assert.False(state.InvokesPrimaryAction);
@@ -53,10 +47,7 @@ public sealed class BenchmarkToolbarAndCloseLogicTests{
                 IsBenchmarkPaused:false,
                 CanUseRunButton:false,
                 CanStopBenchmark:true,
-                CanPauseBenchmark:true,
-                CanSaveBenchmarkResults:false,
-                CanSaveAsBenchmarkResults:false,
-                CanOpenResults:false));
+                CanPauseBenchmark:true));
 
         Assert.True(state.IsEnabled);
         Assert.True(state.InvokesPrimaryAction);
@@ -74,10 +65,7 @@ public sealed class BenchmarkToolbarAndCloseLogicTests{
                 IsBenchmarkPaused:true,
                 CanUseRunButton:true,
                 CanStopBenchmark:true,
-                CanPauseBenchmark:false,
-                CanSaveBenchmarkResults:false,
-                CanSaveAsBenchmarkResults:false,
-                CanOpenResults:false));
+                CanPauseBenchmark:false));
 
         Assert.True(state.IsEnabled);
         Assert.True(state.InvokesPrimaryAction);
@@ -86,19 +74,16 @@ public sealed class BenchmarkToolbarAndCloseLogicTests{
     }
 
     [Fact]
-    public void PausedSaveButtonLooksDisabledButStaysClickableForGuardDialog(){
+    public void PausedPauseButtonLooksDisabledButStaysClickableForGuardDialog(){
         var state = BenchmarkToolbarStateLogic.CreateState(
-            BenchmarkToolbarButtonRole.Save,
+            BenchmarkToolbarButtonRole.Pause,
             new BenchmarkToolbarStateInput(
                 IsRefreshing:false,
                 IsBenchmarkRunActive:false,
                 IsBenchmarkPaused:true,
                 CanUseRunButton:true,
                 CanStopBenchmark:true,
-                CanPauseBenchmark:false,
-                CanSaveBenchmarkResults:false,
-                CanSaveAsBenchmarkResults:false,
-                CanOpenResults:false));
+                CanPauseBenchmark:false));
 
         Assert.True(state.IsEnabled);
         Assert.False(state.InvokesPrimaryAction);
@@ -107,10 +92,10 @@ public sealed class BenchmarkToolbarAndCloseLogicTests{
     }
 
     [Fact]
-    public void PausedSaveButtonRequiresDecisionDialog(){
-        Assert.True(BenchmarkToolbarPauseGuardLogic.RequiresDecisionDialog(BenchmarkToolbarButtonRole.Save,true));
+    public void PausedPauseButtonRequiresDecisionDialog(){
+        Assert.True(BenchmarkToolbarPauseGuardLogic.RequiresDecisionDialog(BenchmarkToolbarButtonRole.Pause,true));
         Assert.False(BenchmarkToolbarPauseGuardLogic.RequiresDecisionDialog(BenchmarkToolbarButtonRole.Run,true));
-        Assert.False(BenchmarkToolbarPauseGuardLogic.RequiresDecisionDialog(BenchmarkToolbarButtonRole.Save,false));
+        Assert.False(BenchmarkToolbarPauseGuardLogic.RequiresDecisionDialog(BenchmarkToolbarButtonRole.Pause,false));
     }
 
     [Fact]
@@ -128,7 +113,26 @@ public sealed class BenchmarkToolbarAndCloseLogicTests{
             },
             option => {
                 Assert.Equal(BenchmarkCloseAction.Cancel,option.Action);
-                Assert.Equal(BenchmarkToolbarButtonRole.Open,option.Kind);
+                Assert.Equal(BenchmarkToolbarButtonRole.Pause,option.Kind);
+            });
+    }
+
+    [Fact]
+    public void CloseDialogWithUnsavedIdleResultsOffersDiscardAndCancel(){
+        var options = BenchmarkCloseDialogLogic.CreateOptions(
+            isBenchmarkRunActive:false,
+            isBenchmarkPaused:false,
+            hasUnsavedResults:true);
+
+        Assert.Collection(
+            options,
+            option => {
+                Assert.Equal(BenchmarkCloseAction.StopAndClose,option.Action);
+                Assert.Equal(BenchmarkToolbarButtonRole.Stop,option.Kind);
+            },
+            option => {
+                Assert.Equal(BenchmarkCloseAction.Cancel,option.Action);
+                Assert.Equal(BenchmarkToolbarButtonRole.Pause,option.Kind);
             });
     }
 }

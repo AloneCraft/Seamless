@@ -14,6 +14,10 @@ review_status: draft
 
 # Benchmark Binding And State Specification
 
+## Current Specification Notice
+
+This reverse document captures historical binding and state behavior. References to CSV, `progress.json`, Save/Open commands, or old persistence services are retained only as reverse evidence. Current DB-canonical behavior is defined in `Document/UI/UiStorageSpecification.md`.
+
 ## ViewModel構造
 
 `BenchmarkRunnerViewModel` は `ObservableObject` を継承する単一の画面状態コンテナです。画面の主要データは `ObservableCollection` とプロパティ通知で公開され、コマンドは CommunityToolkit の `IRelayCommand` / `IAsyncRelayCommand` として提供されます。
@@ -184,4 +188,3 @@ UI上の主なモデル:
 
 - 画面表示テキストの一部は現行ソースで文字化けしており、意図された日本語文言は実装だけでは判断できません。
 - UI状態ストアの保存内容の完全なキー一覧は追加調査対象です。現時点では `SaveUiState` 呼び出しと選択プロパティの関係までを仕様化しています。
-

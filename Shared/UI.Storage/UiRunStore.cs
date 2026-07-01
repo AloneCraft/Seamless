@@ -291,6 +291,16 @@ public sealed class UiRunStore{
         using var connection = this.OpenConnection();
         using var transaction = connection.BeginTransaction();
         var actualMeasuredAt = measuredAt??DateTimeOffset.UtcNow;
+        using(var delete = connection.CreateCommand()){
+            delete.Transaction=transaction;
+            delete.CommandText="""
+                DELETE FROM Measurements
+                WHERE JobId=$jobId;
+                """;
+            delete.Parameters.AddWithValue("$jobId",jobId);
+            delete.ExecuteNonQuery();
+        }
+
         long measurementId;
         using(var command = connection.CreateCommand()){
             command.Transaction=transaction;
@@ -315,6 +325,37 @@ public sealed class UiRunStore{
             command.Parameters.AddWithValue("$metricName",metric.MetricName);
             command.Parameters.AddWithValue("$numericValue",metric.NumericValue);
             command.Parameters.AddWithValue("$unit",metric.Unit);
+            command.ExecuteNonQuery();
+        }
+
+        transaction.Commit();
+    }
+
+    public void SaveComparisons(long runId,IReadOnlyList<UiComparisonWrite> comparisons){
+        ArgumentNullException.ThrowIfNull(comparisons);
+        using var connection = this.OpenConnection();
+        using var transaction = connection.BeginTransaction();
+        using(var delete = connection.CreateCommand()){
+            delete.Transaction=transaction;
+            delete.CommandText="DELETE FROM Comparisons WHERE RunId=$runId;";
+            delete.Parameters.AddWithValue("$runId",runId);
+            delete.ExecuteNonQuery();
+        }
+
+        foreach(var comparison in comparisons){
+            using var command = connection.CreateCommand();
+            command.Transaction=transaction;
+            command.CommandText="""
+                INSERT INTO Comparisons(RunId,CaseId,BaselineRunId,MetricName,Ratio,Delta,Judgement)
+                VALUES($runId,$caseId,$baselineRunId,$metricName,$ratio,$delta,$judgement);
+                """;
+            command.Parameters.AddWithValue("$runId",runId);
+            command.Parameters.AddWithValue("$caseId",comparison.CaseId);
+            command.Parameters.AddWithValue("$baselineRunId",ToDbValue(comparison.BaselineRunId));
+            command.Parameters.AddWithValue("$metricName",comparison.MetricName);
+            command.Parameters.AddWithValue("$ratio",ToDbValue(comparison.Ratio));
+            command.Parameters.AddWithValue("$delta",ToDbValue(comparison.Delta));
+            command.Parameters.AddWithValue("$judgement",comparison.Judgement);
             command.ExecuteNonQuery();
         }
 
@@ -416,6 +457,30 @@ public sealed class UiRunStore{
         return values;
     }
 
+    public IReadOnlyList<UiRunStateRecord> ListRunStates(long runId){
+        using var connection = this.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText="""
+            SELECT RunStateId,RunId,Status,Message,ChangedAt
+            FROM RunStates
+            WHERE RunId=$runId
+            ORDER BY ChangedAt,RunStateId;
+            """;
+        command.Parameters.AddWithValue("$runId",runId);
+        using var reader = command.ExecuteReader();
+        var values = new List<UiRunStateRecord>();
+        while(reader.Read()){
+            values.Add(new(
+                reader.GetInt64(0),
+                reader.GetInt64(1),
+                Enum.Parse<UiRunStatus>(reader.GetString(2)),
+                reader.GetString(3),
+                FromText(reader.GetString(4))));
+        }
+
+        return values;
+    }
+
     public IReadOnlyList<UiCaseRecord> ListCases(long runId){
         using var connection = this.OpenConnection();
         using var command = connection.CreateCommand();
@@ -486,6 +551,32 @@ public sealed class UiRunStore{
                 reader.IsDBNull(8) ? null : FromText(reader.GetString(8)),
                 reader.GetString(9),
                 reader.GetString(10)));
+        }
+
+        return values;
+    }
+
+    public IReadOnlyList<UiComparisonRecord> ListComparisons(long runId){
+        using var connection = this.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText="""
+            SELECT RunId,CaseId,BaselineRunId,MetricName,Ratio,Delta,Judgement
+            FROM Comparisons
+            WHERE RunId=$runId
+            ORDER BY CaseId,MetricName;
+            """;
+        command.Parameters.AddWithValue("$runId",runId);
+        using var reader = command.ExecuteReader();
+        var values = new List<UiComparisonRecord>();
+        while(reader.Read()){
+            values.Add(new(
+                reader.GetInt64(0),
+                reader.GetInt64(1),
+                reader.IsDBNull(2) ? null : reader.GetInt64(2),
+                reader.GetString(3),
+                reader.IsDBNull(4) ? null : reader.GetDouble(4),
+                reader.IsDBNull(5) ? null : reader.GetDouble(5),
+                reader.GetString(6)));
         }
 
         return values;
@@ -642,6 +733,8 @@ public sealed class UiRunStore{
     private static object ToDbValue(int? value) => value is { } actual ? actual : DBNull.Value;
 
     private static object ToDbValue(long? value) => value is { } actual ? actual : DBNull.Value;
+
+    private static object ToDbValue(double? value) => value is { } actual ? actual : DBNull.Value;
 
     private static object ToDbValue(DateTimeOffset? value) => value is { } actual ? ToText(actual) : DBNull.Value;
 

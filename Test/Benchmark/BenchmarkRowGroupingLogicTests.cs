@@ -159,10 +159,8 @@ public sealed class BenchmarkRowGroupingLogicTests{
             131072);
 
         var row = Assert.Single(rows);
-        var csv = BenchmarkComparisonFormatter.WriteCsv(rows,sourceTab);
 
         Assert.Equal("<string,int>.Add",row.Benchmark);
-        Assert.Contains("<string,int>.Add",csv,StringComparison.Ordinal);
         Assert.Equal("Add",row.MethodName);
         Assert.Equal("DictionaryStringInt32",row.TypeFullName);
     }

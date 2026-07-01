@@ -143,51 +143,6 @@ internal static class BenchmarkTimestampDisplay{
         timestamp.ToLocalTime().ToString(Format,System.Globalization.CultureInfo.InvariantCulture);
 }
 
-internal static class BenchmarkCsvTimestampParser{
-    public static DateTimeOffset? TryExtractTimestamp(string path){
-        var fileTimestamp = TryParseTimestamp(System.IO.Path.GetFileNameWithoutExtension(path));
-        if(fileTimestamp is not null){
-            return fileTimestamp;
-        }
-
-        var directory = System.IO.Path.GetDirectoryName(path);
-        while(!string.IsNullOrWhiteSpace(directory)){
-            var folderTimestamp = TryParseTimestamp(System.IO.Path.GetFileName(directory));
-            if(folderTimestamp is not null){
-                return folderTimestamp;
-            }
-
-            directory=System.IO.Path.GetDirectoryName(directory);
-        }
-
-        return null;
-    }
-
-    private static DateTimeOffset? TryParseTimestamp(string text){
-        foreach(var pattern in TimestampPatterns()){
-            var match = System.Text.RegularExpressions.Regex.Match(text,pattern.Regex,System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            if(!match.Success){
-                continue;
-            }
-
-            var value = match.Groups["value"].Value;
-            if(DateTime.TryParseExact(value,pattern.Format,System.Globalization.CultureInfo.InvariantCulture,System.Globalization.DateTimeStyles.AssumeLocal,out var date)){
-                return new DateTimeOffset(date);
-            }
-        }
-
-        return null;
-    }
-
-    private static IEnumerable<(string Regex,string Format)> TimestampPatterns(){
-        yield return (@"(?<value>\d{8}-\d{6})","yyyyMMdd-HHmmss");
-        yield return (@"(?<value>\d{14})","yyyyMMddHHmmss");
-        yield return (@"(?<value>\d{4}-\d{2}-\d{2}[-_ ]\d{2}[-_]\d{2}[-_]\d{2})","yyyy-MM-dd HH-mm-ss");
-        yield return (@"(?<value>\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})","yyyy-MM-dd_HH-mm-ss");
-        yield return (@"(?<value>\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})","yyyy-MM-dd-HH-mm-ss");
-    }
-}
-
 internal static class BenchmarkProjectLiveStateLogic{
     public static bool IsPending(BenchmarkProjectLiveState state,bool hasMetrics) =>
         state==BenchmarkProjectLiveState.Idle&&!hasMetrics;
@@ -671,9 +626,6 @@ internal enum BenchmarkToolbarButtonRole{
     Run,
     Stop,
     Pause,
-    Save,
-    SaveAs,
-    Open,
 }
 
 internal readonly record struct BenchmarkToolbarStateInput(
@@ -682,10 +634,7 @@ internal readonly record struct BenchmarkToolbarStateInput(
     bool IsBenchmarkPaused,
     bool CanUseRunButton,
     bool CanStopBenchmark,
-    bool CanPauseBenchmark,
-    bool CanSaveBenchmarkResults,
-    bool CanSaveAsBenchmarkResults,
-    bool CanOpenResults);
+    bool CanPauseBenchmark);
 
 internal readonly record struct BenchmarkToolbarButtonState(
     bool IsEnabled,
@@ -708,9 +657,6 @@ internal static class BenchmarkToolbarStateLogic{
                     !input.CanStopBenchmark,
                     input.CanStopBenchmark),
                 BenchmarkToolbarButtonRole.Pause => new BenchmarkToolbarButtonState(true,false,true,false),
-                BenchmarkToolbarButtonRole.Save => new BenchmarkToolbarButtonState(true,false,true,false),
-                BenchmarkToolbarButtonRole.SaveAs => new BenchmarkToolbarButtonState(true,false,true,false),
-                BenchmarkToolbarButtonRole.Open => new BenchmarkToolbarButtonState(true,false,true,false),
                 _ => new BenchmarkToolbarButtonState(false,false,true,false),
             };
         }
@@ -719,9 +665,6 @@ internal static class BenchmarkToolbarStateLogic{
             BenchmarkToolbarButtonRole.Run => CreateDirectActionState(input.CanUseRunButton),
             BenchmarkToolbarButtonRole.Stop => CreateDirectActionState(input.CanStopBenchmark),
             BenchmarkToolbarButtonRole.Pause => CreateDirectActionState(input.CanPauseBenchmark),
-            BenchmarkToolbarButtonRole.Save => CreateDirectActionState(input.CanSaveBenchmarkResults),
-            BenchmarkToolbarButtonRole.SaveAs => CreateDirectActionState(input.CanSaveAsBenchmarkResults),
-            BenchmarkToolbarButtonRole.Open => CreateDirectActionState(input.CanOpenResults),
             _ => new BenchmarkToolbarButtonState(false,false,true,false),
         };
     }
@@ -735,19 +678,12 @@ internal static class BenchmarkToolbarStateLogic{
 
 internal static class BenchmarkToolbarPauseGuardLogic{
     public static bool RequiresDecisionDialog(BenchmarkToolbarButtonRole role,bool isBenchmarkPaused) =>
-        isBenchmarkPaused&&role is BenchmarkToolbarButtonRole.Pause
-            or BenchmarkToolbarButtonRole.Save
-            or BenchmarkToolbarButtonRole.SaveAs
-            or BenchmarkToolbarButtonRole.Open;
+        isBenchmarkPaused&&role==BenchmarkToolbarButtonRole.Pause;
 }
 
 internal enum BenchmarkCloseAction{
     Cancel,
-    SaveAndClose,
-    DiscardAndClose,
     StopAndClose,
-    StopSaveAndClose,
-    StopDiscardAndClose,
 }
 
 internal static class BenchmarkCloseDialogLogic{
@@ -758,34 +694,27 @@ internal static class BenchmarkCloseDialogLogic{
         if(isBenchmarkPaused){
             return [
                 ("停止して閉じる",BenchmarkCloseAction.StopAndClose,BenchmarkToolbarButtonRole.Stop),
-                ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Open),
-            ];
-        }
-
-        if(isBenchmarkRunActive&&hasUnsavedResults){
-            return [
-                ("中止して保存して終了",BenchmarkCloseAction.StopSaveAndClose,BenchmarkToolbarButtonRole.Save),
-                ("中止して破棄して終了",BenchmarkCloseAction.StopDiscardAndClose,BenchmarkToolbarButtonRole.Stop),
-                ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Open),
+                ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Pause),
             ];
         }
 
         if(isBenchmarkRunActive){
             return [
                 ("中止して終了",BenchmarkCloseAction.StopAndClose,BenchmarkToolbarButtonRole.Stop),
-                ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Open),
+                ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Pause),
             ];
         }
 
-        return hasUnsavedResults
-            ? [
-                ("保存して終了",BenchmarkCloseAction.SaveAndClose,BenchmarkToolbarButtonRole.Save),
-                ("破棄して終了",BenchmarkCloseAction.DiscardAndClose,BenchmarkToolbarButtonRole.Stop),
-                ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Open),
-            ]
-            : [
-                ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Open),
+        if(hasUnsavedResults){
+            return [
+                ("破棄して閉じる",BenchmarkCloseAction.StopAndClose,BenchmarkToolbarButtonRole.Stop),
+                ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Pause),
             ];
+        }
+
+        return [
+            ("キャンセル",BenchmarkCloseAction.Cancel,BenchmarkToolbarButtonRole.Pause),
+        ];
     }
 }
 

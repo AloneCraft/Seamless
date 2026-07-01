@@ -63,6 +63,23 @@ public sealed record UiMetricValueRecord(
     string Unit,
     DateTimeOffset MeasuredAt);
 
+public sealed record UiComparisonWrite(
+    long CaseId,
+    long? BaselineRunId,
+    string MetricName,
+    double? Ratio,
+    double? Delta,
+    string Judgement);
+
+public sealed record UiComparisonRecord(
+    long RunId,
+    long CaseId,
+    long? BaselineRunId,
+    string MetricName,
+    double? Ratio,
+    double? Delta,
+    string Judgement);
+
 public sealed record UiRunStateRecord(
     long RunStateId,
     long RunId,

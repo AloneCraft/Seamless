@@ -32,7 +32,7 @@ public sealed class BenchmarkCatalogArgumentTests {
     }
 
     [Fact]
-    public void WriteCsv_IncludesScalableTsavoriteArgumentColumns() {
+    public void BuildComparisonRows_IncludesScalableTsavoriteArguments() {
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.ScalableTsavoriteSet);
         var arguments = GetArgumentSets(LoadMethod("Scalable.Tsavorite.Collections","Scalable.Tsavorite.Collections.Set.SetInt32","Add")).First();
         var rows = global::UI.BenchmarkComparisonFormatter.BuildComparisonRows(
@@ -41,13 +41,18 @@ public sealed class BenchmarkCatalogArgumentTests {
             ],
             sourceTab);
 
-        var csv = global::UI.BenchmarkComparisonFormatter.WriteCsv(rows,sourceTab);
+        var row = Assert.Single(rows);
 
-        Assert.Contains(",65536,131072,4096,4096,8388608,1,1,0,,",csv,StringComparison.Ordinal);
+        Assert.Equal("65536",global::UI.BenchmarkArgumentFormatting.GetValue(row.Arguments,"Count"));
+        Assert.Equal("131072",global::UI.BenchmarkArgumentFormatting.GetValue(row.Arguments,"Index"));
+        Assert.Equal("4096",global::UI.BenchmarkArgumentFormatting.GetValue(row.Arguments,"Page"));
+        Assert.Equal("4096",global::UI.BenchmarkArgumentFormatting.GetValue(row.Arguments,"Segment"));
+        Assert.Equal("8388608",global::UI.BenchmarkArgumentFormatting.GetValue(row.Arguments,"Memory"));
+        Assert.Equal("1",global::UI.BenchmarkArgumentFormatting.GetValue(row.Arguments,"Fraction"));
     }
 
     [Fact]
-    public void WriteCsv_IncludesScalablePersistedArgumentColumnsOnly() {
+    public void BuildComparisonRows_IncludesScalablePersistedArgumentsOnly() {
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.ScalablePersistedSet);
         var arguments = GetArgumentSets(LoadMethod("Scalable.Persisted.Collections","Scalable.Persisted.Collections.Set.SetInt32","Add")).First();
         var rows = global::UI.BenchmarkComparisonFormatter.BuildComparisonRows(
@@ -56,31 +61,16 @@ public sealed class BenchmarkCatalogArgumentTests {
             ],
             sourceTab);
 
-        var csv = global::UI.BenchmarkComparisonFormatter.WriteCsv(rows,sourceTab);
+        var row = Assert.Single(rows);
 
-        Assert.StartsWith("Benchmark,Count,Initial,Data,",csv,StringComparison.Ordinal);
-        Assert.DoesNotContain("Index",csv,StringComparison.Ordinal);
-        Assert.DoesNotContain("Page",csv,StringComparison.Ordinal);
-        Assert.DoesNotContain("Segment",csv,StringComparison.Ordinal);
-        Assert.DoesNotContain("Memory",csv,StringComparison.Ordinal);
-        Assert.DoesNotContain("Fraction",csv,StringComparison.Ordinal);
-        Assert.Contains(",65536,1,4096,1,0,,",csv,StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void ReadCsv_RejectsLegacyFixedEightArgumentColumns() {
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.ScalablePersistedSet);
-        var arguments = GetArgumentSets(LoadMethod("Scalable.Persisted.Collections","Scalable.Persisted.Collections.Set.SetInt32","Add")).First();
-        var rows = global::UI.BenchmarkComparisonFormatter.BuildComparisonRows(
-            [
-                Report(sourceTab.LeftProject,"Add","Scalable.Persisted.Collections.Set.SetInt32",arguments),
-            ],
-            sourceTab);
-        var csv = global::UI.BenchmarkComparisonFormatter.WriteCsv(rows,sourceTab)
-            .Replace("Benchmark,Count,Initial,Data,","Benchmark,Count,Index,Page,Segment,Memory,Fraction,Initial,Data,",StringComparison.Ordinal)
-            .Replace(",65536,1,4096,1,0,,",",65536,64,4096,8192,8388608,0.5,1,4096,1,0,,",StringComparison.Ordinal);
-
-        Assert.Throws<InvalidDataException>(() => global::UI.BenchmarkComparisonFormatter.ReadCsv(csv));
+        Assert.Equal("65536",global::UI.BenchmarkArgumentFormatting.GetValue(row.Arguments,"Count"));
+        Assert.Equal("1",global::UI.BenchmarkArgumentFormatting.GetValue(row.Arguments,"Initial"));
+        Assert.Equal("4096",global::UI.BenchmarkArgumentFormatting.GetValue(row.Arguments,"Data"));
+        Assert.DoesNotContain(row.Arguments,argument => string.Equals(argument.Name,"Index",StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(row.Arguments,argument => string.Equals(argument.Name,"Page",StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(row.Arguments,argument => string.Equals(argument.Name,"Segment",StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(row.Arguments,argument => string.Equals(argument.Name,"Memory",StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(row.Arguments,argument => string.Equals(argument.Name,"Fraction",StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

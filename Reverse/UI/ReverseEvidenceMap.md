@@ -6,19 +6,28 @@ evidence_sources:
   - Benchmark/Shared/UI/MainPage.cs
   - Benchmark/Shared/UI/BenchmarkRunnerViewModel.cs
   - Benchmark/Shared/UI/BenchmarkRunnerModels.cs
-  - Benchmark/Shared/UI/BenchmarkResultStore.cs
-  - Shared/UI.Core/BenchmarkRunPersistenceService.cs
-  - Shared/UI.Core/BenchmarkStateManager.cs
+  - Shared/UI.Core/BenchmarkRunSession.cs
+  - Shared/UI.Core/BenchmarkRunProjectionService.cs
+  - Shared/UI.Core/BenchmarkUiRunRepository.cs
+  - Shared/UI.Storage/UiRunStore.cs
   - Benchmark/UI/UI.csproj
   - Benchmark/Scalable.UI/Scalable.UI.csproj
   - Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs
   - Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs
-  - Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs
+  - Shared/UI.Storage/UiRunStore.cs
 confidence: medium
 review_status: draft
 ---
 
 # UI Reverse Evidence Map
+
+## Current Specification Notice
+
+This file is a historical reverse-engineering evidence map. Some evidence entries below describe the pre-DB canonical implementation, including CSV/JSON persistence paths that have since been removed. The current forward specification is maintained in `Document/UI/UiStorageSpecification.md` and `Document/UI/RebuildImplementationStatus.md`.
+
+## Current Code Boundary Notice
+
+The current implementation uses `Shared/UI.Storage/UiRunStore.cs` as the low-level SQLite boundary. Benchmark-specific conversion is in `Shared/UI.Core/BenchmarkUiRunRepository.cs`; live UI result truth is in `Shared/UI.Core/BenchmarkRunSession.cs`; display/comparison derivation is in `Shared/UI.Core/BenchmarkRunProjectionService.cs`. References below to `BenchmarkResultStore`, `BenchmarkRunPersistenceService`, `ParameterSweepPersistence`, CSV files, or `progress.json` are historical evidence only.
 
 ## Formalized Forward Specification
 

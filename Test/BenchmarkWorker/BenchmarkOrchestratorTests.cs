@@ -1,4 +1,4 @@
-using UI;
+﻿using UI;
 
 namespace Test.BenchmarkWorker;
 
@@ -56,7 +56,7 @@ public sealed class BenchmarkOrchestratorTests{
             0,
             job.ArtifactFolder,
             string.Empty));
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -79,7 +79,7 @@ public sealed class BenchmarkOrchestratorTests{
     public async Task Orchestrator_RunAsync_CreatesNumberedRunRootAndNFiles(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => CompletedResult(job));
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         var result = await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -94,9 +94,7 @@ public sealed class BenchmarkOrchestratorTests{
             CancellationToken.None);
 
         Assert.Equal(Path.Combine(root,"000001"),result.RunRoot);
-        Assert.True(File.Exists(Path.Combine(result.RunRoot,"System.Array","N1.csv")));
-        Assert.True(File.Exists(Path.Combine(result.RunRoot,"System.Array","N2.csv")));
-        Assert.False(File.Exists(Path.Combine(result.RunRoot,"BenchmarkComparison-N1.csv")));
+        Assert.Empty(Directory.EnumerateFiles(result.RunRoot,"*.csv",SearchOption.AllDirectories));
         var state = new BenchmarkStateManager(root).Load(result.RunRoot)!;
         Assert.Equal(1,state.RunNumber);
     }
@@ -106,7 +104,7 @@ public sealed class BenchmarkOrchestratorTests{
         var root = CreateTempRoot();
         var runRoot = Path.Combine(root,"000001");
         var runner = new FakeRunner((job,_) => CompletedResult(job));
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         var result = await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -123,7 +121,7 @@ public sealed class BenchmarkOrchestratorTests{
 
         Assert.Equal(runRoot,result.RunRoot);
         Assert.Single(Directory.GetDirectories(root));
-        Assert.True(File.Exists(Path.Combine(runRoot,"System.Array","N1.csv")));
+        Assert.Empty(Directory.EnumerateFiles(runRoot,"*.csv",SearchOption.AllDirectories));
     }
 
     [Fact]
@@ -148,7 +146,7 @@ public sealed class BenchmarkOrchestratorTests{
                 job.ArtifactFolder,
                 string.Empty);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -179,7 +177,7 @@ public sealed class BenchmarkOrchestratorTests{
     public async Task Orchestrator_RunAsync_PersistsExecutionProfileInStateAndSummary(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => CompletedResult(job));
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -195,10 +193,8 @@ public sealed class BenchmarkOrchestratorTests{
             CancellationToken.None);
 
         var state = LoadOnlyState(root);
-        var summary = File.ReadAllText(Path.Combine(state.RunRoot,"BenchmarkRunSummary.txt"));
         Assert.Equal(BenchmarkExecutionProfile.Fast,state.ExecutionProfile);
-        Assert.Contains("ExecutionProfile: Fast",summary,StringComparison.Ordinal);
-        Assert.Contains("AllocatedBytesSource: GC.GetAllocatedBytesForCurrentThread",summary,StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(state.RunRoot,"BenchmarkRunSummary.txt")));
     }
 
     [Fact]
@@ -213,7 +209,7 @@ public sealed class BenchmarkOrchestratorTests{
 
             return CompletedResult(job);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -265,7 +261,7 @@ public sealed class BenchmarkOrchestratorTests{
     public async Task Orchestrator_AdaptiveMode_WritesMixedSourceTabsToSourceFolders(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => CompletedResult(job));
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -285,8 +281,7 @@ public sealed class BenchmarkOrchestratorTests{
             CancellationToken.None);
 
         var state = LoadOnlyState(root);
-        Assert.True(File.Exists(Path.Combine(state.RunRoot,"System.Array","N1.csv")));
-        Assert.True(File.Exists(Path.Combine(state.RunRoot,"System.List","N1.csv")));
+        Assert.Empty(Directory.EnumerateFiles(state.RunRoot,"*.csv",SearchOption.AllDirectories));
         Assert.Contains(state.Jobs,static job => job.SourceTab==BenchmarkSourceTab.SystemArray);
         Assert.Contains(state.Jobs,static job => job.SourceTab==BenchmarkSourceTab.SystemList);
     }
@@ -307,7 +302,7 @@ public sealed class BenchmarkOrchestratorTests{
 
             return CompletedResult(job);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -341,7 +336,7 @@ public sealed class BenchmarkOrchestratorTests{
 
             return CompletedResult(job);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -367,7 +362,7 @@ public sealed class BenchmarkOrchestratorTests{
             observed.Add((job.JobId.EndsWith("|warmup",StringComparison.Ordinal),job.Project,job.ElementCount));
             return CompletedResult(job);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -395,8 +390,7 @@ public sealed class BenchmarkOrchestratorTests{
         var state = LoadOnlyState(root);
         Assert.Equal(4,state.Jobs.Count);
         Assert.DoesNotContain(state.Jobs,static job => job.JobId.EndsWith("|warmup",StringComparison.Ordinal));
-        Assert.True(File.Exists(Path.Combine(state.RunRoot,"System.Array","N1.csv")));
-        Assert.True(File.Exists(Path.Combine(state.RunRoot,"System.Array","N2.csv")));
+        Assert.Empty(Directory.EnumerateFiles(state.RunRoot,"*.csv",SearchOption.AllDirectories));
     }
 
     [Fact]
@@ -407,7 +401,7 @@ public sealed class BenchmarkOrchestratorTests{
             observed.Add(job.JobId.EndsWith("|warmup",StringComparison.Ordinal));
             return CompletedResult(job);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -446,7 +440,7 @@ public sealed class BenchmarkOrchestratorTests{
                 job.ArtifactFolder,
                 "warmup boom")
             : CompletedResult(job));
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -490,7 +484,7 @@ public sealed class BenchmarkOrchestratorTests{
 
             return CompletedResult(job);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
         var run = orchestrator.RunAsync(
             new BenchmarkRunRequest(
                 [Case("System.Array.FLinq","A"),Case("System.Array.FLinq","B")],
@@ -534,7 +528,7 @@ public sealed class BenchmarkOrchestratorTests{
 
             return CompletedResult(job);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
         var run = orchestrator.RunAsync(
             new BenchmarkRunRequest(
                 [Case("System.Array.FLinq","A"),Case("System.Array.FLinq","B"),Case("System.Array.FLinq","C"),Case("System.Array.FLinq","D")],
@@ -574,7 +568,7 @@ public sealed class BenchmarkOrchestratorTests{
 
             return CompletedResult(job);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
         var run = orchestrator.RunAsync(
             new BenchmarkRunRequest(
                 [Case("System.Array.FLinq","A"),Case("System.Array.FLinq","B"),Case("System.Array.FLinq","C"),Case("System.Array.FLinq","D")],
@@ -618,7 +612,7 @@ public sealed class BenchmarkOrchestratorTests{
 
             return CompletedResult(job);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
         var run = orchestrator.RunAsync(
             new BenchmarkRunRequest(
                 [Case("System.Array.FLinq","A"),Case("System.Array.FLinq","B"),Case("System.Array.FLinq","C"),Case("System.Array.FLinq","D")],
@@ -668,34 +662,6 @@ public sealed class BenchmarkOrchestratorTests{
     }
 
     [Fact]
-    public async Task ResultWriter_WriteOutputs_IsSafeWhenCalledConcurrently(){
-        var root = CreateTempRoot();
-        var runRoot = Path.Combine(root,"run");
-        var writer = new BenchmarkResultWriter();
-        var state = new ProgressState{
-            RunId="run",
-            RunRoot=runRoot,
-            Mode=BenchmarkRunMode.Fixed,
-            CreatedAt=DateTimeOffset.UtcNow,
-            UpdatedAt=DateTimeOffset.UtcNow,
-            ElementCounts=[128,256],
-            Jobs=[
-                CompletedJob("System.Array.FLinq","Where",128),
-                CompletedJob("System.Array.ZLinq","Where",128),
-                CompletedJob("System.Array.FLinq","Where",256),
-                CompletedJob("System.Array.ZLinq","Where",256),
-            ],
-        };
-
-        await Task.WhenAll(Enumerable.Range(0,16).Select(_ => Task.Run(() => writer.WriteOutputs(state))));
-
-        Assert.True(File.Exists(Path.Combine(runRoot,"System.Array","N128.csv")));
-        Assert.True(File.Exists(Path.Combine(runRoot,"System.Array","N256.csv")));
-        Assert.True(File.Exists(Path.Combine(runRoot,"BenchmarkRunSummary.txt")));
-        Assert.Empty(Directory.GetFiles(runRoot,"*.tmp"));
-    }
-
-    [Fact]
     public async Task Orchestrator_AdaptiveMode_ResumedStateDoesNotRunUnselectedProjects(){
         var root = CreateTempRoot();
         var stateManager = new BenchmarkStateManager(root);
@@ -739,7 +705,7 @@ public sealed class BenchmarkOrchestratorTests{
         });
         stateManager.Save(state);
         stateManager.SaveLatestRun(runRoot);
-        var orchestrator = new BenchmarkOrchestrator(stateManager,new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(stateManager,runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -789,7 +755,7 @@ public sealed class BenchmarkOrchestratorTests{
         });
         stateManager.Save(state);
         stateManager.SaveLatestRun(runRoot);
-        var orchestrator = new BenchmarkOrchestrator(stateManager,new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(stateManager,runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -837,7 +803,7 @@ public sealed class BenchmarkOrchestratorTests{
         });
         stateManager.Save(state);
         stateManager.SaveLatestRun(runRoot);
-        var orchestrator = new BenchmarkOrchestrator(stateManager,new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(stateManager,runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -878,7 +844,7 @@ public sealed class BenchmarkOrchestratorTests{
                 job.ArtifactFolder,
                 string.Empty);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -922,7 +888,7 @@ public sealed class BenchmarkOrchestratorTests{
                 job.ArtifactFolder,
                 string.Empty);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -965,7 +931,7 @@ public sealed class BenchmarkOrchestratorTests{
                 job.ArtifactFolder,
                 string.Empty);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -1006,7 +972,7 @@ public sealed class BenchmarkOrchestratorTests{
                 job.ArtifactFolder,
                 string.Empty);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -1049,7 +1015,7 @@ public sealed class BenchmarkOrchestratorTests{
             0,
             job.ArtifactFolder,
             string.Empty));
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),new BenchmarkResultWriter(),runner);
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -1081,59 +1047,6 @@ public sealed class BenchmarkOrchestratorTests{
         Assert.Equal(BenchmarkElementCounts.BaseElementCount,BenchmarkElementCounts.DefaultInitial[0]);
         Assert.Equal([BenchmarkElementCounts.BaseElementCount],BenchmarkElementCounts.DefaultInitial);
         Assert.Equal(4096,BenchmarkElementCounts.BaseElementCount);
-    }
-
-    [Fact]
-    public void BenchmarkResultWriter_UsesBaseElementCountInCsvFileName(){
-        var root = CreateTempRoot();
-        var runRoot = Path.Combine(root,"run");
-        var state = new ProgressState{
-            RunId="run",
-            RunRoot=runRoot,
-            Mode=BenchmarkRunMode.Fixed,
-            SourceTab=BenchmarkSourceTab.SystemArray,
-            ExecutionProfile=BenchmarkExecutionProfile.Fast,
-            CreatedAt=DateTimeOffset.UtcNow,
-            UpdatedAt=DateTimeOffset.UtcNow,
-            ElementCounts=[BenchmarkElementCounts.BaseElementCount],
-            Jobs=[
-                new BenchmarkJob{
-                    JobId="job-left",
-                    Project="System.Array.FLinq",
-                    AssemblyName="Assembly",
-                    TypeFullName="Type",
-                    MethodName="Where",
-                    ElementCount=BenchmarkElementCounts.BaseElementCount,
-                    Status=JobStatus.Completed,
-                    MeanNanoseconds=100,
-                    ErrorNanoseconds=0,
-                    StdDevNanoseconds=0,
-                    AllocatedBytes=0,
-                },
-                new BenchmarkJob{
-                    JobId="job-right",
-                    Project="System.Array.ZLinq",
-                    AssemblyName="Assembly",
-                    TypeFullName="Type",
-                    MethodName="Where",
-                    ElementCount=BenchmarkElementCounts.BaseElementCount,
-                    Status=JobStatus.Completed,
-                    MeanNanoseconds=120,
-                    ErrorNanoseconds=0,
-                    StdDevNanoseconds=0,
-                    AllocatedBytes=0,
-                },
-            ],
-        };
-
-        var writer = new BenchmarkResultWriter();
-        var paths = writer.WriteOutputs(state);
-
-        var path = Assert.Single(paths);
-        Assert.Equal(
-            Path.Combine(runRoot,"System.Array",$"N{BenchmarkElementCounts.BaseElementCount}.csv"),
-            path);
-        Assert.True(File.Exists(path));
     }
 
     [Fact]

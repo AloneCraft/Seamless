@@ -14,6 +14,12 @@ review_status: draft
 
 # UI Debt Findings
 
+## Current Specification Notice
+
+This file is a historical reverse-engineering debt report. Items that mention CSV/JSON persistence or old Save/Open flows describe the implementation state at the time of reverse engineering. The current UI storage specification is maintained in `Document/UI/UiStorageSpecification.md` and `Document/UI/RebuildImplementationStatus.md`.
+
+Current implementation note: DB history restore is the active scenario. Mentions of CSV import/read/write in the findings below are retained only as historical evidence and should not be treated as current requirements.
+
 ## 1. 巨大なコードビハインドとViewModel
 
 `Benchmark\Shared\UI\MainPage.cs` は画面生成、イベント配線、ダイアログ、チャート、CPU表、データグリッド列生成、コンバータ、描画オーバーレイを1ファイルで抱えています。`BenchmarkRunnerViewModel.cs` も実行制御、保存/読込、選択状態、チャート生成、CPU選択、結果変換を1クラスに集約しています。UI負債解消では、画面構築、操作ハンドラ、描画補助、状態変換、永続化連携の分離が主候補です。
@@ -90,4 +96,3 @@ UI仕様を安定化するには、初期表示、実行中、停止中、未保
 - 表示文言を定数またはリソースへ移し、文字化けを解消する。
 - ParameterSweep UI に入力無効化、キャンセル、詳細エラー、実行ログを追加する。
 - スクリーンショットまたはUIスナップショット検証を整備する。
-
