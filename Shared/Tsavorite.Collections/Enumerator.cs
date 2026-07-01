@@ -36,6 +36,55 @@ public class Enumerator {
         foreach(var _ in dict) count++;
         Assert.Equal(3,count);
     }
+    [BenchFact,Benchmark]
+    public void MoveNext_HashSet_DoesNotReturnRemovedOrDuplicateKeys() {
+        using var store = Store.Create().Create<int>();
+        using var set = store.Create();
+        for(var i = 0;i<32;i++)
+            set.Add(i);
+        for(var i = 0;i<32;i+=2)
+            Assert.True(set.Remove(i));
+        for(var i = 0;i<32;i+=4)
+            Assert.True(set.Add(i));
+
+        var expected = Enumerable.Range(0,32).Where(static i => (i&1)!=0 || (i&3)==0).ToHashSet();
+        var actual = new global::System.Collections.Generic.HashSet<int>();
+        foreach(var value in set)
+            Assert.True(actual.Add(value),$"Duplicate key {value} was returned.");
+
+        Assert.Equal(expected.Count,set.Count);
+        Assert.Equal(expected.Count,actual.Count);
+        Assert.All(expected,value => Assert.Contains(value,actual));
+        Assert.True(!actual.Contains(2));
+    }
+    [BenchFact,Benchmark]
+    public void MoveNext_Dictionary_KeysAndValuesDoNotReturnRemovedOrDuplicateEntries() {
+        using var store = Store.Create().Create<int,int>();
+        using var dict = store.Create();
+        for(var i = 0;i<32;i++)
+            dict.Add(i,i*10);
+        for(var i = 0;i<32;i+=2)
+            Assert.True(dict.Remove(i,out _));
+        for(var i = 0;i<32;i+=4)
+            dict.Add(i,i*100);
+
+        var expectedKeys = Enumerable.Range(0,32).Where(static i => (i&1)!=0 || (i&3)==0).ToHashSet();
+        var actualKeys = new global::System.Collections.Generic.HashSet<int>();
+        foreach(var key in dict.Keys)
+            Assert.True(actualKeys.Add(key),$"Duplicate key {key} was returned.");
+
+        var actualValues = new global::System.Collections.Generic.HashSet<int>();
+        foreach(var value in dict.Values)
+            Assert.True(actualValues.Add(value),$"Duplicate value {value} was returned.");
+
+        Assert.Equal(expectedKeys.Count,dict.Count);
+        Assert.Equal(expectedKeys.Count,actualKeys.Count);
+        Assert.All(expectedKeys,key => Assert.Contains(key,actualKeys));
+        Assert.True(!actualKeys.Contains(2));
+        Assert.Contains(0,actualValues);
+        Assert.Contains(400,actualValues);
+        Assert.True(!actualValues.Contains(20));
+    }
     // Enumerator.Current の値確誁E    [BenchFact,Benchmark]
     public void Current_ValueIsCorrect() {
         using var store = Store.Create().Create<int,string>();
@@ -163,6 +212,46 @@ public class Enumerator {
             Assert.All(expected,value => Assert.Contains(value,toArraySet));
 
             store.Store.Log.FlushAndEvict(wait: true);
+        }
+        finally {
+            try {
+                Directory.Delete(folder,true);
+            }
+            catch {
+            }
+            try {
+                Directory.Delete(folder+"_obj",true);
+            }
+            catch {
+            }
+        }
+    }
+
+    [BenchFact,Benchmark]
+    public void HashSet_AfterFlushAndEvict_DoesNotReturnRemovedOrDuplicateKeys() {
+        var folder = CreateDiskFolder();
+        try {
+            using var logDevice = Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+            using var objDevice = Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+            using var store = Store.Create(MemorySize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDevice,objDevice,new BlittableStrategy());
+            using var set = store.Create();
+            for(var i = 0;i<128;i++)
+                set.Add(i);
+            for(var i = 0;i<128;i+=2)
+                Assert.True(set.Remove(i));
+            for(var i = 0;i<128;i+=4)
+                Assert.True(set.Add(i));
+            store.Store.Log.FlushAndEvict(wait: true);
+
+            var expected = Enumerable.Range(0,128).Where(static i => (i&1)!=0 || (i&3)==0).ToHashSet();
+            var actual = new global::System.Collections.Generic.HashSet<int>();
+            foreach(var value in set)
+                Assert.True(actual.Add(value),$"Duplicate key {value} was returned.");
+
+            Assert.Equal(expected.Count,set.Count);
+            Assert.Equal(expected.Count,actual.Count);
+            Assert.All(expected,value => Assert.Contains(value,actual));
+            Assert.True(!actual.Contains(2));
         }
         finally {
             try {

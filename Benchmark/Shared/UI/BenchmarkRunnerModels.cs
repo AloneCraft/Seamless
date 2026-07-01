@@ -1130,6 +1130,8 @@ public sealed class BenchmarkTableRow:ObservableObject{
             .Select(item => ScalableBenchmarkNameFormatter.GetDisplayArgumentValue(this.SourceTab,item.Arguments,column))
             .FirstOrDefault(static value => !string.IsNullOrWhiteSpace(value))??string.Empty;
 
+    public string BenchmarkArgumentTooltipText => BenchmarkArgumentTooltipFormatter.CreateArgumentTooltip(this);
+
     private static double? ParseArgumentNumber(string text) =>
         double.TryParse(text,NumberStyles.Float,CultureInfo.InvariantCulture,out var value)
             ? value
@@ -1155,6 +1157,42 @@ public sealed class BenchmarkTableRow:ObservableObject{
             RatioValueKind.RightOnly => "0",
             _ => string.Empty,
         };
+    }
+}
+
+internal static class BenchmarkArgumentTooltipFormatter {
+    public static string CreateArgumentTooltip(BenchmarkTableRow row) {
+        var summary = new[] {
+            ("Count",row.CountArgument),
+            ("Memory",row.MemoryArgument),
+        };
+        var items = new[] {
+            ("Count",row.CountArgument),
+            ("Index",row.IndexArgument),
+            ("Page",row.PageArgument),
+            ("Segment",row.SegmentArgument),
+            ("Memory",row.MemoryArgument),
+            ("Fraction",row.FractionArgument),
+            ("Initial",row.InitialArgument),
+            ("Data",row.DataArgument),
+        };
+        var summaryText = string.Join(
+            " / ",
+            summary
+                .Where(static item => !string.IsNullOrWhiteSpace(item.Item2))
+                .Select(static item => item.Item1+"="+item.Item2));
+        var detailText = string.Join(
+            " / ",
+            items
+                .Where(static item => !string.IsNullOrWhiteSpace(item.Item2))
+                .Select(static item => item.Item1+"="+item.Item2));
+        if(string.IsNullOrWhiteSpace(summaryText)) {
+            return detailText;
+        }
+
+        return string.IsNullOrWhiteSpace(detailText)
+            ? summaryText
+            : summaryText+"\n"+detailText;
     }
 }
 
@@ -1700,12 +1738,32 @@ public sealed class ChartComparisonPoint{
         string rightText,
         string tooltipText,
         double? ratio)
-        : this(benchmark,displayName,leftValue,rightValue,leftText,rightText,tooltipText,ratio,false,false,false,false){
+        : this(benchmark,displayName,string.Empty,displayName,false,false,leftValue,rightValue,leftText,rightText,tooltipText,ratio,false,false,false,false){
+    }
+
+    public ChartComparisonPoint(
+        string benchmark,
+        string displayName,
+        string groupDisplayName,
+        string rowDisplayName,
+        bool isGroupFirst,
+        bool isGroupLast,
+        double leftValue,
+        double rightValue,
+        string leftText,
+        string rightText,
+        string tooltipText,
+        double? ratio)
+        : this(benchmark,displayName,groupDisplayName,rowDisplayName,isGroupFirst,isGroupLast,leftValue,rightValue,leftText,rightText,tooltipText,ratio,false,false,false,false){
     }
 
     private ChartComparisonPoint(
         string benchmark,
         string displayName,
+        string groupDisplayName,
+        string rowDisplayName,
+        bool isGroupFirst,
+        bool isGroupLast,
         double leftValue,
         double rightValue,
         string leftText,
@@ -1718,6 +1776,10 @@ public sealed class ChartComparisonPoint{
         bool isRowUiSelected){
         this.Benchmark=benchmark;
         this.BaseDisplayName=displayName;
+        this.GroupDisplayName=groupDisplayName;
+        this.RowDisplayName=rowDisplayName;
+        this.IsGroupFirst=isGroupFirst;
+        this.IsGroupLast=isGroupLast;
         this.LeftValue=leftValue;
         this.RightValue=rightValue;
         this.LeftText=leftText;
@@ -1735,6 +1797,10 @@ public sealed class ChartComparisonPoint{
     public string DisplayName => this.IsRunning
         ? "● "+this.BaseDisplayName
         : this.BaseDisplayName;
+    public string GroupDisplayName { get; }
+    public string RowDisplayName { get; }
+    public bool IsGroupFirst { get; }
+    public bool IsGroupLast { get; }
     public double LeftValue { get; }
     public double RightValue { get; }
     public string LeftText { get; }
@@ -1750,6 +1816,10 @@ public sealed class ChartComparisonPoint{
         new(
             this.Benchmark,
             this.BaseDisplayName,
+            this.GroupDisplayName,
+            this.RowDisplayName,
+            this.IsGroupFirst,
+            this.IsGroupLast,
             this.LeftValue,
             this.RightValue,
             this.LeftText,
@@ -1765,6 +1835,10 @@ public sealed class ChartComparisonPoint{
         new(
             this.Benchmark,
             this.BaseDisplayName,
+            this.GroupDisplayName,
+            this.RowDisplayName,
+            this.IsGroupFirst,
+            this.IsGroupLast,
             this.LeftValue,
             this.RightValue,
             this.LeftText,
@@ -1775,6 +1849,25 @@ public sealed class ChartComparisonPoint{
             isLeftUiSelected,
             isRightUiSelected,
             isRowUiSelected);
+
+    public ChartComparisonPoint WithGroupDisplay(string groupDisplayName,string rowDisplayName,bool isGroupFirst,bool isGroupLast) =>
+        new(
+            this.Benchmark,
+            rowDisplayName,
+            groupDisplayName,
+            rowDisplayName,
+            isGroupFirst,
+            isGroupLast,
+            this.LeftValue,
+            this.RightValue,
+            this.LeftText,
+            this.RightText,
+            this.TooltipText,
+            this.Ratio,
+            this.IsRunning,
+            this.IsLeftUiSelected,
+            this.IsRightUiSelected,
+            this.IsRowUiSelected);
 }
 
 public sealed record BenchmarkRunReport(string? RunRoot,IReadOnlyList<string> CsvPaths){

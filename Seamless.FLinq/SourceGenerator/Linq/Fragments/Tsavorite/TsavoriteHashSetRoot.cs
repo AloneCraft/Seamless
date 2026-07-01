@@ -3,7 +3,7 @@ namespace Seamless.FLinq.Linq.Fragments;
 /*
 TsavoriteHashSetRoot keeps the original HashSet expression available for provider-native
 terminal fragments. Tsavorite native terminals must call HashSet.Iterate(ref state),
-not ScanCursor or legacy unsafe delegate helpers, so generated LINQ sees the logical
+not raw log traversal or legacy unsafe delegate helpers, so generated LINQ sees the logical
 collection state instead of raw log records.
 */
 public sealed class TsavoriteHashSetRoot(

@@ -68,6 +68,34 @@ public class Set {
     }
 
     [BenchFact,Benchmark]
+    public void ManagedSet_EnumerationDoesNotReturnRemovedOrDuplicateRecords() {
+        using var store = Store.Create().CreateSet<int,ManagedSetRecord>();
+        using var set = store.Create();
+        for(var i = 0;i<32;i++)
+            set.Add(new(i,"n"+i));
+        for(var i = 0;i<32;i+=2)
+            Assert.True(set.Remove(i,out _));
+        for(var i = 0;i<32;i+=4)
+            Assert.True(set.Add(new(i,"r"+i)));
+
+        var expectedKeys = Enumerable.Range(0,32).Where(static i => (i&1)!=0 || (i&3)==0).ToHashSet();
+        var actualKeys = new global::System.Collections.Generic.HashSet<int>();
+        foreach(var record in set)
+            Assert.True(actualKeys.Add(record.Key),$"Duplicate key {record.Key} was returned.");
+
+        var copied = new ManagedSetRecord[expectedKeys.Count];
+        set.CopyTo(copied,0);
+        var copiedKeys = copied.Select(static record => record.Key).ToHashSet();
+
+        Assert.Equal(expectedKeys.Count,set.Count);
+        Assert.Equal(expectedKeys.Count,actualKeys.Count);
+        Assert.Equal(expectedKeys.Count,copiedKeys.Count);
+        Assert.All(expectedKeys,key => Assert.Contains(key,actualKeys));
+        Assert.All(expectedKeys,key => Assert.Contains(key,copiedKeys));
+        Assert.True(!actualKeys.Contains(2));
+    }
+
+    [BenchFact,Benchmark]
     public void ManagedSet_FunctionalOperations_WithManagedSet_KeepReturnTypesAndValues() {
         using var store = Store.Create().CreateSet<int,ManagedSetRecord>();
         using var otherStore = Store.Create().CreateSet<int,ManagedSetRecord>();

@@ -21,6 +21,7 @@ public class FLinqNativeIterateTests {
             Assert.Contains("TsavoriteHashSetIterateState",generated);
             Assert.Contains("IHashSetIterateStrategy",generated);
             Assert.Contains(".Iterate(ref __TsavoriteHashSetIterateState",generated);
+            Assert.DoesNotContain("ScanCursor",generated);
             Assert.DoesNotContain("HashSetScanUnsafe",generated);
             Assert.DoesNotContain("ScanUnsafeDelegate",generated);
             Assert.DoesNotContain("Seamless.Linq.Enumerable",generated);
@@ -102,6 +103,7 @@ public class FLinqNativeIterateTests {
         Assert.Contains("TsavoriteHashSetIterateState",generated);
         Assert.Contains("IHashSetIterateStrategy",generated);
         Assert.Contains(".Iterate(ref __TsavoriteHashSetIterateState",generated);
+        Assert.DoesNotContain("ScanCursor",generated);
         Assert.DoesNotContain("HashSetScanUnsafe",generated);
         Assert.DoesNotContain("ScanUnsafeDelegate",generated);
         Assert.DoesNotContain("Seamless.Linq.Enumerable",generated);

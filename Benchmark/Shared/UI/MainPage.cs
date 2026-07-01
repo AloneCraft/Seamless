@@ -2266,6 +2266,7 @@ public sealed class MainPage:ContentPage {
                 label.SetBinding(ToolTipProperties.TextProperty,property);
                 grid.SetBinding(ToolTipProperties.TextProperty,property);
                 if(property==nameof(BenchmarkTableRow.BenchmarkName)) {
+                    grid.SetBinding(ToolTipProperties.TextProperty,nameof(BenchmarkTableRow.BenchmarkArgumentTooltipText));
                     var tap = new TapGestureRecognizer();
                     tap.Tapped+=(_,_) => {
                         if(grid.BindingContext is BenchmarkTableRow row) {
@@ -3141,14 +3142,84 @@ public sealed class MainPage:ContentPage {
             this.viewModel.ChartPoints.CollectionChanged+=handler;
             chartOverlay.Unloaded+=(_,_) => this.viewModel.ChartPoints.CollectionChanged-=handler;
         }
+        var chartLabelTooltipText = new Label {
+            FontSize=12,
+            Padding=new Thickness(8,6),
+            TextColor=Colors.White,
+            BackgroundColor=Color.FromArgb("#0F172A"),
+            LineBreakMode=LineBreakMode.WordWrap,
+        };
+        var chartLabelTooltip = new Border {
+            Stroke=Color.FromArgb("#334155"),
+            StrokeThickness=1,
+            BackgroundColor=Color.FromArgb("#0F172A"),
+            StrokeShape=new Microsoft.Maui.Controls.Shapes.RoundRectangle {
+                CornerRadius=4,
+            },
+            Content=chartLabelTooltipText,
+            IsVisible=false,
+            InputTransparent=true,
+            HorizontalOptions=LayoutOptions.Start,
+            VerticalOptions=LayoutOptions.Start,
+            ZIndex=2000,
+        };
         var chartHost = new Grid {
             VerticalOptions=LayoutOptions.Fill,
             Children= {
                 chart,
                 chartOverlay,
+                chartLabelTooltip,
             },
         };
         chartHost.SetBinding(HeightRequestProperty,nameof(BenchmarkRunnerViewModel.ChartHeight));
+        void HideChartLabelTooltip() {
+            chartLabelTooltip.IsVisible=false;
+        }
+
+        void UpdateChartLabelTooltip(Point point) {
+            if(chartHost.Width<=0||chartHost.Height<=0) {
+                HideChartLabelTooltip();
+                return;
+            }
+
+            var hit = overlayDrawable.HitTest(
+                new SizeF((float)chartHost.Width,(float)chartHost.Height),
+                (float)point.X,
+                (float)point.Y);
+            if(hit is not BenchmarkChartSelectionHit { Target: BenchmarkChartSelectionTarget.Row } labelHit) {
+                HideChartLabelTooltip();
+                return;
+            }
+
+            var tooltip = this.viewModel?.ChartPoints
+                .FirstOrDefault(item => string.Equals(item.Benchmark,labelHit.Benchmark,StringComparison.OrdinalIgnoreCase))
+                ?.TooltipText??string.Empty;
+            if(string.IsNullOrWhiteSpace(tooltip)) {
+                HideChartLabelTooltip();
+                return;
+            }
+
+            chartLabelTooltipText.Text=tooltip;
+            chartLabelTooltip.MaximumWidthRequest=Math.Max(240,Math.Min(720,chartHost.Width-24));
+            var x = Math.Min(point.X+12,Math.Max(8,chartHost.Width-360));
+            var y = Math.Max(8,point.Y-18);
+            chartLabelTooltip.Margin=new Thickness(x,y,0,0);
+            chartLabelTooltip.IsVisible=true;
+        }
+
+        var chartPointer = new PointerGestureRecognizer();
+        chartPointer.PointerEntered+=(_,args) => {
+            if(args.GetPosition(chartHost) is { } point) {
+                UpdateChartLabelTooltip(point);
+            }
+        };
+        chartPointer.PointerMoved+=(_,args) => {
+            if(args.GetPosition(chartHost) is { } point) {
+                UpdateChartLabelTooltip(point);
+            }
+        };
+        chartPointer.PointerExited+=(_,_) => HideChartLabelTooltip();
+        chartHost.GestureRecognizers.Add(chartPointer);
         var chartTap = new TapGestureRecognizer();
         chartTap.Tapped+=(_,args) => {
             var position = args.GetPosition(chartHost);
