@@ -1,9 +1,11 @@
-namespace UI;
+﻿using UI;
 
-public sealed class BenchmarkTabProgressLogicTests{
+namespace Test.Benchmark;
+
+public sealed class BenchmarkTabProgressLogic{
     [Fact]
     public void Calculate_UsesSelectedCellsAsDenominator(){
-        var progress = BenchmarkTabProgressLogic.Calculate(
+        var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
             [
                 new BenchmarkTabProgressCell("Where","Left",true),
                 new BenchmarkTabProgressCell("Where","Right",false),
@@ -26,7 +28,7 @@ public sealed class BenchmarkTabProgressLogicTests{
 
     [Fact]
     public void Calculate_TreatsFailedCellsAsTerminal(){
-        var progress = BenchmarkTabProgressLogic.Calculate(
+        var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
             [
                 new BenchmarkTabProgressCell("Where","Left",true),
             ],
@@ -44,7 +46,7 @@ public sealed class BenchmarkTabProgressLogicTests{
 
     [Fact]
     public void Calculate_TreatsAdaptiveThresholdStopAsTerminalForSelectedPairCells(){
-        var progress = BenchmarkTabProgressLogic.Calculate(
+        var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
             [
                 new BenchmarkTabProgressCell("Where","Left",true),
                 new BenchmarkTabProgressCell("Where","Right",true),
@@ -64,7 +66,7 @@ public sealed class BenchmarkTabProgressLogicTests{
 
     [Fact]
     public void Calculate_DoesNotCompleteDifferentScalableTypeWithSameMethod(){
-        var progress = BenchmarkTabProgressLogic.Calculate(
+        var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
             [
                 new BenchmarkTabProgressCell("Add","Scalable.Persisted.List","Scalable.Persisted.Collections.List.ListString",true),
             ],
@@ -82,7 +84,7 @@ public sealed class BenchmarkTabProgressLogicTests{
 
     [Fact]
     public void Calculate_DoesNotCompleteDifferentArgumentKeyWithSameMethodAndType(){
-        var progress = BenchmarkTabProgressLogic.Calculate(
+        var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
             [
                 new BenchmarkTabProgressCell("Add","Left","Type","Count=2",true),
                 new BenchmarkTabProgressCell("Add","Right","Type","Count=2",true),
@@ -100,3 +102,6 @@ public sealed class BenchmarkTabProgressLogicTests{
         Assert.Equal(2,progress.Total);
     }
 }
+
+
+

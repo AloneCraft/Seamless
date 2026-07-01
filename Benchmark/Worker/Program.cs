@@ -12,6 +12,7 @@ Console.OutputEncoding=Encoding.UTF8;
 Console.InputEncoding=Encoding.UTF8;
 const string ElementScaleEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_SCALE";
 const string ElementCountEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_COUNT";
+const string LoopCountEnvironmentVariable = "SEAMLESS_BENCHMARK_LOOP_COUNT";
 const string PreparedElementCountsEnvironmentVariable = "SEAMLESS_BENCHMARK_PREPARED_ELEMENT_COUNTS";
 const string RandomSourceSeedEnvironmentVariable = "SEAMLESS_BENCHMARK_RANDOM_SOURCE_SEED";
 
@@ -80,6 +81,7 @@ static WorkerResultMessage RunBenchmark(
     var originalError = Console.Error;
     var previousScale = Environment.GetEnvironmentVariable(ElementScaleEnvironmentVariable);
     var previousElementCount = Environment.GetEnvironmentVariable(ElementCountEnvironmentVariable);
+    var previousLoopCount = Environment.GetEnvironmentVariable(LoopCountEnvironmentVariable);
     var previousPreparedElementCounts = Environment.GetEnvironmentVariable(PreparedElementCountsEnvironmentVariable);
     var previousRandomSourceSeed = Environment.GetEnvironmentVariable(RandomSourceSeedEnvironmentVariable);
     Console.SetOut(logWriter);
@@ -87,10 +89,12 @@ static WorkerResultMessage RunBenchmark(
     try{
         ApplyAffinity(logicalCpu);
         var randomSeed = CreateRandomSourceSeed(task);
+        var loopCount = Math.Max(1,task.LoopCount);
         Environment.SetEnvironmentVariable(ElementScaleEnvironmentVariable,string.IsNullOrWhiteSpace(task.ElementScale)?"1":task.ElementScale);
         Environment.SetEnvironmentVariable(
             ElementCountEnvironmentVariable,
             task.ElementCount>0?task.ElementCount.ToString(CultureInfo.InvariantCulture):null);
+        Environment.SetEnvironmentVariable(LoopCountEnvironmentVariable,loopCount.ToString(CultureInfo.InvariantCulture));
         Environment.SetEnvironmentVariable(
             PreparedElementCountsEnvironmentVariable,
             task.PreparedElementCounts.Length>0
@@ -103,7 +107,7 @@ static WorkerResultMessage RunBenchmark(
         var argumentValues = BenchmarkArgumentFormatting.ToObjects(task.Arguments);
         var resultDigest = CaptureBenchmarkResultDigest(benchmarkType,task.MethodName,argumentValues);
         var config = ManualConfig
-            .Create(BenchmarkWorkerRuntime.CreateConfig(task.ArtifactFolder))
+            .Create(BenchmarkWorkerRuntime.CreateConfig(task.ArtifactFolder,loopCount))
             .AddFilter(new WorkerTaskFilter(task));
         var summaries = BenchmarkSwitcher
             .FromTypes([benchmarkType])
@@ -135,16 +139,20 @@ static WorkerResultMessage RunBenchmark(
                 resultDigest);
         }
 
+        var totalMean = stats?.Mean*loopCount;
+        var totalError = stats?.StandardError*loopCount;
+        var totalStdDev = stats?.StandardDeviation*loopCount;
+        long? totalAllocatedBytes = allocatedBytes is { } bytes ? bytes*loopCount : null;
         return new WorkerResultMessage(
             task.TaskId,
             "Completed",
-            FormatNanoseconds(stats?.Mean),
-            FormatNanoseconds(stats?.StandardError),
-            FormatNanoseconds(stats?.StandardDeviation),
-            stats?.Mean,
-            stats?.StandardError,
-            stats?.StandardDeviation,
-            allocatedBytes,
+            FormatNanoseconds(totalMean),
+            FormatNanoseconds(totalError),
+            FormatNanoseconds(totalStdDev),
+            totalMean,
+            totalError,
+            totalStdDev,
+            totalAllocatedBytes,
             0,
             task.ArtifactFolder,
             log,
@@ -153,6 +161,7 @@ static WorkerResultMessage RunBenchmark(
     }finally{
         Environment.SetEnvironmentVariable(ElementScaleEnvironmentVariable,previousScale);
         Environment.SetEnvironmentVariable(ElementCountEnvironmentVariable,previousElementCount);
+        Environment.SetEnvironmentVariable(LoopCountEnvironmentVariable,previousLoopCount);
         Environment.SetEnvironmentVariable(PreparedElementCountsEnvironmentVariable,previousPreparedElementCounts);
         Environment.SetEnvironmentVariable(RandomSourceSeedEnvironmentVariable,previousRandomSourceSeed);
         Console.SetOut(protocolOutput);
@@ -208,7 +217,7 @@ static string CaptureBenchmarkResultDigest(Type benchmarkType,string methodName,
 
 static int CreateRandomSourceSeed(WorkerTaskMessage task){
     var runRoot = TryGetRunRoot(task.ArtifactFolder);
-    return StableHash(runRoot+"|"+task.SourceTab+"|"+task.MethodName+"|"+task.ArgumentKey+"|"+task.ElementCount.ToString(CultureInfo.InvariantCulture));
+    return StableHash(runRoot+"|"+task.SourceTab+"|"+task.MethodName+"|"+task.ArgumentKey+"|"+task.ElementCount.ToString(CultureInfo.InvariantCulture)+"|"+task.LoopCount.ToString(CultureInfo.InvariantCulture));
 }
 
 static bool IsReportForArguments(BenchmarkDotNet.Running.BenchmarkCase benchmarkCase,BenchmarkArgument[] arguments){
@@ -339,6 +348,7 @@ internal sealed record WorkerTaskMessage(
     BenchmarkSourceTab SourceTab,
     int[] PreparedElementCounts,
     int ElementCount,
+    int LoopCount,
     string ElementScale,
     string ArtifactFolder);
 

@@ -29,19 +29,19 @@ internal sealed class BenchmarkRunSession{
             .Where(item => item.Key.SourceTab==sourceTab)
             .Select(static item => item.Value)
             .OrderBy(static item => item.StartedAt)
-            .ThenBy(static item => item.ElementCount)
+            .ThenBy(static item => item.AxisCount)
             .ToArray();
 
     public IReadOnlyList<BenchmarkResultItem> GetAllResults() =>
         this.results.Values
             .OrderBy(static item => item.SourceTab)
             .ThenBy(static item => item.StartedAt)
-            .ThenBy(static item => item.ElementCount)
+            .ThenBy(static item => item.AxisCount)
             .ToArray();
 
     public IReadOnlyList<int> GetElementCounts(BenchmarkSourceTab sourceTab) =>
         this.GetResults(sourceTab)
-            .Select(static item => item.ElementCount)
+            .Select(static item => item.AxisCount)
             .Where(static item => item>0)
             .Distinct()
             .Order()
@@ -86,12 +86,12 @@ internal sealed class BenchmarkRunSession{
         DateTimeOffset? timestamp = null){
         var now = timestamp??DateTimeOffset.UtcNow;
         var results = sourceResults
-            .Where(static result => result.ElementCount>0)
-            .GroupBy(static result => CreateResultIdentityKey(result.Project,result.TypeFullName,result.Method,result.ElementCount,result.ArgumentKey),StringComparer.OrdinalIgnoreCase)
+            .Where(static result => result.AxisCount>0)
+            .GroupBy(static result => CreateResultIdentityKey(result.Project,result.TypeFullName,result.Method,result.AxisCount,result.ArgumentKey),StringComparer.OrdinalIgnoreCase)
             .Select(static group => group.Last())
             .ToArray();
         var elementCounts = results
-            .Select(static result => result.ElementCount)
+            .Select(static result => result.AxisCount)
             .Where(static item => item>0)
             .Distinct()
             .Order()
@@ -141,7 +141,7 @@ internal sealed class BenchmarkRunSession{
         var status = ParseJobStatus(result.Status);
         var finishedAt = result.StartedAt??DateTimeOffset.UtcNow;
         return new BenchmarkJob{
-            JobId=string.Join("|",result.Project,benchmark?.AssemblyName??string.Empty,benchmark?.TypeFullName??string.Empty,result.Method,argumentKey,result.ElementCount),
+            JobId=string.Join("|",result.Project,benchmark?.AssemblyName??string.Empty,benchmark?.TypeFullName??string.Empty,result.Method,argumentKey,result.AxisCount),
             Project=result.Project,
             AssemblyName=benchmark?.AssemblyName??string.Empty,
             TypeFullName=benchmark?.TypeFullName??string.Empty,
@@ -150,6 +150,7 @@ internal sealed class BenchmarkRunSession{
             Arguments=arguments,
             SourceTab=sourceTab.Tab,
             ElementCount=result.ElementCount,
+            LoopCount=result.LoopCount,
             PreparedElementCounts=preparedElementCounts.ToList(),
             Status=status,
             AssignedLogicalCpu=result.AssignedLogicalCpu,
@@ -197,5 +198,5 @@ internal readonly record struct BenchmarkRunResultKey(
             result.TypeFullName,
             result.Method,
             result.ArgumentKey,
-            result.ElementCount);
+            result.AxisCount);
 }

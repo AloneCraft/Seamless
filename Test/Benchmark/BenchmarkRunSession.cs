@@ -1,7 +1,7 @@
-namespace Test.Benchmark;
+﻿namespace Test.Benchmark;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
-public sealed class BenchmarkRunSessionTests{
+public sealed class BenchmarkRunSession{
     [Fact]
     public void UpsertResult_ReplacesSameResultKey(){
         var session = new global::UI.BenchmarkRunSession();
@@ -86,3 +86,4 @@ public sealed class BenchmarkRunSessionTests{
             arguments){
         };
 }
+

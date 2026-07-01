@@ -1,4 +1,4 @@
-<Solution>
+﻿<Solution>
   <Folder Name="/Benchmark/">
     <Project Path="Benchmark/DotNet.Linq.Enumerable.FLinq/DotNet.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Benchmark/DotNet.Linq.Enumerable.List.FLinq/DotNet.Linq.Enumerable.List.FLinq.csproj" />
@@ -21,34 +21,35 @@
     <Project Path="Benchmark/Worker/Worker.csproj" />
   </Folder>
   <Folder Name="/Benchmark/Shared/">
-    <Project Path="Benchmark/Shared/UI.shproj" />
-    <File Path="Benchmark/Shared/UI.projitems" />
+    <Project Path="Benchmark/Shared/UI/UI.shproj" />
+    <File Path="Benchmark/Shared/UI/UI.projitems" />
   </Folder>
   <Folder Name="/Dcoument/" />
   <Folder Name="/Shared/">
-    <Project Path="Shared/Collections.shproj" />
-    <Project Path="Shared/Common.shproj" />
-    <Project Path="Shared/DynamicLinq.shproj" />
-    <Project Path="Shared/Persisted.Collections.shproj" />
-    <Project Path="Shared/Scalable.Collections.shproj" />
-    <Project Path="Shared/Scalable.Persisted.Collections.shproj" />
-    <Project Path="Shared/Scalable.Tsavorite.Collections.shproj" />
-    <Project Path="Shared/Seamless.Linq.Enumerable.shproj" />
-    <Project Path="Shared/Test.Shared.shproj" />
-    <Project Path="Shared/Tsavorite.Collections.shproj" />
-    <Project Path="Shared/UI.Core.shproj" />
+    <Project Path="Shared/Collections/Collections.shproj" />
+    <Project Path="Shared/Common/Common.shproj" />
+    <Project Path="Shared/DynamicLinq/DynamicLinq.shproj" />
+    <Project Path="Shared/Persisted.Collections/Persisted.Collections.shproj" />
+    <Project Path="Shared/Scalable.Collections/Scalable.Collections.shproj" />
+    <Project Path="Shared/Scalable.Persisted.Collections/Scalable.Persisted.Collections.shproj" />
+    <Project Path="Shared/Scalable.Tsavorite.Collections/Scalable.Tsavorite.Collections.shproj" />
+    <Project Path="Shared/Seamless.Linq.Enumerable/Seamless.Linq.Enumerable.shproj" />
+    <Project Path="Shared/Test.Shared/Test.Shared.shproj" />
+    <Project Path="Shared/Tsavorite.Collections/Tsavorite.Collections.shproj" />
+    <Project Path="Shared/UI.Core/UI.Core.shproj" />
     <Project Path="Shared/UI.Storage/UI.Storage.csproj" />
-    <File Path="Shared/Collections.projitems" />
-    <File Path="Shared/Common.projitems" />
-    <File Path="Shared/DynamicLinq.projitems" />
-    <File Path="Shared/Persisted.Collections.projitems" />
-    <File Path="Shared/Scalable.Collections.projitems" />
-    <File Path="Shared/Scalable.Persisted.Collections.projitems" />
-    <File Path="Shared/Scalable.Tsavorite.Collections.projitems" />
-    <File Path="Shared/Seamless.Linq.Enumerable.projitems" />
+    <File Path="Shared/Collections/Collections.projitems" />
+    <File Path="Shared/Common/Common.projitems" />
+    <File Path="Shared/DynamicLinq/DynamicLinq.projitems" />
+    <File Path="Shared/Persisted.Collections/Persisted.Collections.projitems" />
+    <File Path="Shared/Scalable.Collections/Scalable.Collections.projitems" />
+    <File Path="Shared/Scalable.Persisted.Collections/Scalable.Persisted.Collections.projitems" />
+    <File Path="Shared/Scalable.Tsavorite.Collections/Scalable.Tsavorite.Collections.projitems" />
+    <File Path="Shared/Seamless.Linq.Enumerable/Seamless.Linq.Enumerable.projitems" />
     <File Path="Shared/Seamless.Linq.Enumerable/Linq.Enumerable.Benchmark/Program.cs" />
-    <File Path="Shared/Tsavorite.Collections.projitems" />
-    <File Path="Shared/UI.Core.projitems" />
+    <File Path="Shared/Test.Shared/Test.Shared.projitems" />
+    <File Path="Shared/Tsavorite.Collections/Tsavorite.Collections.projitems" />
+    <File Path="Shared/UI.Core/UI.Core.projitems" />
   </Folder>
   <Folder Name="/solution/">
     <File Path="AGENTS.md" />
@@ -89,3 +90,4 @@
   <Project Path="Seamless.Serialization/Seamless.Serialization.csproj" />
   <Project Path="Seamless/Seamless.csproj" />
 </Solution>
+

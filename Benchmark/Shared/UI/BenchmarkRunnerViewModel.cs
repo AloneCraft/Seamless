@@ -1108,8 +1108,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
 
     private BenchmarkRunOption CreateRunOption(UiRunRecord run) {
         var jobs = this.uiRunStore.ListJobs(run.RunId);
+        var sourceTab = Enum.TryParse<BenchmarkSourceTab>(run.SourceTab,true,out var parsedSourceTab)
+            ? parsedSourceTab
+            : this.SelectedSourceDefinition.Tab;
         var elementCounts = jobs
-            .Select(static job => (int)(job.ElementCount??0))
+            .Select(job => (int)(BenchmarkWorkloadAxis.UsesLoopCount(sourceTab) ? job.LoopCount??0 : job.ElementCount??0))
             .Where(static elementCount => elementCount>0)
             .Distinct()
             .Order()
@@ -1767,6 +1770,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             +"Method="+result.Method+" "
             +"Type="+(string.IsNullOrWhiteSpace(result.TypeFullName) ? "-" : result.TypeFullName)+" "
             +"N="+result.ElementCount.ToString(System.Globalization.CultureInfo.InvariantCulture)+" "
+            +"Loop="+result.LoopCount.ToString(System.Globalization.CultureInfo.InvariantCulture)+" "
             +"CPU="+(result.AssignedLogicalCpu?.ToString(System.Globalization.CultureInfo.InvariantCulture)??"-")+" "
             +"Status="+result.Status+" "
             +"Mean="+result.Mean+" "
@@ -1779,7 +1783,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         var isCompletedResult = string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase);
         var isFailedResult = string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase);
         var isTerminalResult = isCompletedResult||isFailedResult;
-        var hasResultElementCount = result.ElementCount>0;
+        var hasResultElementCount = result.AxisCount>0;
         if(isRunningResult) {
             this.MarkActiveRunSourceTab(resultSourceTab);
         }
@@ -1788,21 +1792,21 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             StartupDiagnostics.Write(BenchmarkFailureDisplayLogic.CreateLogText(
                 result.Project,
                 result.Method,
-                result.ElementCount,
+                result.AxisCount,
                 result.AssignedLogicalCpu,
                 result.ArtifactFolder,
                 result.FailureReason,
                 result.TypeFullName));
         }
-        if(isResultForVisibleTab&&result.ElementCount>0) {
-            this.CurrentElementCountText=FormatElementCountText(result.ElementCount);
+        if(isResultForVisibleTab&&result.AxisCount>0) {
+            this.CurrentElementCountText=FormatElementCountText(result.AxisCount);
         }
         var row = this.FindBenchmarkRow(result);
         if(isResultForVisibleTab&&isRunningResult) {
             this.RequestBenchmarkAutoScroll(resultSourceTab,result.Method,row?.RowKey??string.Empty);
             this.activeChartMethodName=row?.RowKey??result.Method;
             this.ApplyChartRunningState();
-            this.RetainCompletedHighlightsForRunningElement(result.ElementCount);
+            this.RetainCompletedHighlightsForRunningElement(result.AxisCount);
             row?.ApplyRunResult(result,cpu,DateTimeOffset.Now);
             return;
         }
@@ -1817,7 +1821,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
         if(isResultForVisibleTab&&isTerminalResult&&hasResultElementCount) {
             this.UpsertResultItem(result);
-            this.RegisterResultElementCount(result.ElementCount);
+            this.RegisterResultElementCount(result.AxisCount);
             this.RefreshResultChecks(resultSourceTab);
             this.RefreshVisibleResults();
         }
@@ -1886,7 +1890,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
 
         var elementCounts = this.currentRunSession.GetAllResults()
-            .Select(static item => item.ElementCount)
+            .Select(static item => item.AxisCount)
             .Where(static item => item>0)
             .Distinct()
             .Order()
@@ -1913,8 +1917,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         var sourceTab = BenchmarkSourceTabs.Get(sourceTabValue);
         var results = this.GetCurrentRunResultItems(sourceTab.Tab)
             .Concat(this.ResultItems.Where(item => sourceTab.ContainsProject(item.Project)))
-            .Where(static item => item.ElementCount>0)
-            .GroupBy(item => this.CreateResultRowKey(item)+"|"+item.ElementCount.ToString(System.Globalization.CultureInfo.InvariantCulture),StringComparer.OrdinalIgnoreCase);
+            .Where(static item => item.AxisCount>0)
+            .GroupBy(item => this.CreateResultRowKey(item)+"|"+item.AxisCount.ToString(System.Globalization.CultureInfo.InvariantCulture),StringComparer.OrdinalIgnoreCase);
         foreach(var group in results) {
             var left = group.LastOrDefault(item => string.Equals(item.Project,sourceTab.LeftProject,StringComparison.OrdinalIgnoreCase));
             var right = group.LastOrDefault(item => string.Equals(item.Project,sourceTab.RightProject,StringComparison.OrdinalIgnoreCase));
@@ -2000,7 +2004,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             return;
         }
 
-        var option = new ResultElementCountOption(elementCount,FormatResultElementCountDisplayName(elementCount));
+        var option = new ResultElementCountOption(elementCount,this.FormatResultElementCountDisplayName(elementCount));
         var ordered = this.ResultElementCountOptions
             .Append(option)
             .OrderBy(static item => item.Value)
@@ -2022,16 +2026,17 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             : "-";
     }
 
-    private static string FormatResultElementCountDisplayName(int elementCount) {
-        return elementCount==BenchmarkElementCounts.BaseElementCount
-            ? "N"
-            : elementCount.ToString(System.Globalization.CultureInfo.InvariantCulture)+"N";
-    }
+    private string FormatResultElementCountDisplayName(int elementCount) =>
+        BenchmarkWorkloadAxis.UsesLoopCount(this.SelectedSourceDefinition.Tab)
+            ? "Loop "+elementCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            : elementCount==BenchmarkElementCounts.BaseElementCount
+                ? "N"
+                : elementCount.ToString(System.Globalization.CultureInfo.InvariantCulture)+"N";
 
     private void RebuildResultElementCounts(IReadOnlyList<int> elementCounts) {
         this.ResultElementCountOptions.Clear();
         foreach(var elementCount in elementCounts.Where(static item => item>0).Distinct().Order()) {
-            this.ResultElementCountOptions.Add(new ResultElementCountOption(elementCount,FormatResultElementCountDisplayName(elementCount)));
+            this.ResultElementCountOptions.Add(new ResultElementCountOption(elementCount,this.FormatResultElementCountDisplayName(elementCount)));
         }
 
         this.OnPropertyChanged(nameof(this.ChartElementCountSliderMaximum));
@@ -2104,11 +2109,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
 
         var latestElementCount = results
-            .Where(static item => item.ElementCount>0)
+            .Where(static item => item.AxisCount>0)
             .OrderBy(static item => item.StartedAt??DateTimeOffset.MinValue)
-            .ThenBy(static item => item.ElementCount)
+            .ThenBy(static item => item.AxisCount)
             .LastOrDefault()
-            ?.ElementCount;
+            ?.AxisCount;
         this.ResultItems.Clear();
         this.VisibleResultItems.Clear();
         foreach(var item in results) {
@@ -2116,7 +2121,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
 
         this.RebuildResultElementCounts(results
-            .Select(static item => item.ElementCount)
+            .Select(static item => item.AxisCount)
             .Where(static item => item>0)
             .Distinct()
             .Order()
@@ -2140,7 +2145,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
 
     private void ApplyCurrentRunResultsToTable(IReadOnlyList<BenchmarkResultItem> results) {
         var selectedN = this.SelectedResultElementCount?.Value;
-        foreach(var result in results.Where(result => selectedN is null||result.ElementCount==selectedN)) {
+        foreach(var result in results.Where(result => selectedN is null||result.AxisCount==selectedN)) {
             var row = this.FindBenchmarkRow(result);
             row?.ApplyRunResult(result,this.FindAssignedCpu(result),result.StartedAt??DateTimeOffset.Now,false);
         }
@@ -2215,10 +2220,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 &&string.Equals(job.Project,project,StringComparison.OrdinalIgnoreCase)
                 &&IsSameType(job.TypeFullName,typeFullName)
                 &&IsSameArgument(job.ArgumentKey,argumentKey)
-                &&job.ElementCount==elementCount
+                &&BenchmarkWorkloadAxis.GetAxisCount(job)==elementCount
                 &&job.Status==JobStatus.Completed);
             this.ResultItems.Add(job is null
-                ? new BenchmarkResultItem(new BenchmarkStoredResult(project,method,typeFullName,elementCount,"Completed",metrics.TimeNanoseconds?.ToString(System.Globalization.CultureInfo.InvariantCulture)??string.Empty,metrics.TimeNanoseconds,metrics.AllocatedBytes,DateTimeOffset.Now,null,string.Empty) {
+                ? new BenchmarkResultItem(new BenchmarkStoredResult(project,method,typeFullName,BenchmarkWorkloadAxis.ResolveElementCount(this.SelectedSourceDefinition.Tab,elementCount),BenchmarkWorkloadAxis.ResolveLoopCount(this.SelectedSourceDefinition.Tab,elementCount),"Completed",metrics.TimeNanoseconds?.ToString(System.Globalization.CultureInfo.InvariantCulture)??string.Empty,metrics.TimeNanoseconds,metrics.AllocatedBytes,DateTimeOffset.Now,null,string.Empty) {
                     ArgumentKey=argumentKey,
                     Arguments=arguments,
                 })
@@ -2330,15 +2335,15 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private IReadOnlyList<BenchmarkElementMeasurement> CreateProgressMeasurements(BenchmarkSourceTabDefinition sourceTab) {
         return this.GetCurrentRunResultItems(sourceTab.Tab)
             .Concat(this.ResultItems.Where(item => sourceTab.ContainsProject(item.Project)))
-            .Where(static item => item.ElementCount>0)
-            .GroupBy(static item => CreateResultIdentityKey(item.Project,item.TypeFullName,item.Method,item.ElementCount,item.ArgumentKey),StringComparer.OrdinalIgnoreCase)
+            .Where(static item => item.AxisCount>0)
+            .GroupBy(static item => CreateResultIdentityKey(item.Project,item.TypeFullName,item.Method,item.AxisCount,item.ArgumentKey),StringComparer.OrdinalIgnoreCase)
             .Select(static group => group.Last())
             .Select(static item => new BenchmarkElementMeasurement(
                 item.Project,
                 item.Method,
                 item.TypeFullName,
                 item.ArgumentKey,
-                item.ElementCount,
+                item.AxisCount,
                 item.Status,
                 item.MeanNanoseconds))
             .ToArray();
@@ -2383,7 +2388,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             }
 
             this.RebuildResultElementCounts(this.ResultItems
-                .Select(static item => item.ElementCount)
+                .Select(static item => item.AxisCount)
                 .Where(static item => item>0)
                 .Distinct()
                 .Order()
@@ -2469,7 +2474,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private void SelectResultElementCountWithoutReload(int elementCount) {
         var option = this.ResultElementCountOptions.FirstOrDefault(item => item.Value==elementCount);
         if(option is null) {
-            option=new ResultElementCountOption(elementCount,FormatResultElementCountDisplayName(elementCount));
+            option=new ResultElementCountOption(elementCount,this.FormatResultElementCountDisplayName(elementCount));
             var ordered = this.ResultElementCountOptions
                 .Append(option)
                 .OrderBy(static item => item.Value)
@@ -2492,11 +2497,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
 
     private static int? FindLatestTerminalElementCount(ProgressState? state,BenchmarkSourceTabDefinition sourceTab) {
         return state?.Jobs
-            .Where(job => job.ElementCount>0&&IsTerminalJob(job)&&sourceTab.ContainsProject(job.Project))
+            .Where(job => BenchmarkWorkloadAxis.GetAxisCount(job)>0&&IsTerminalJob(job)&&sourceTab.ContainsProject(job.Project))
             .OrderBy(static job => job.FinishedAt??job.StartedAt??DateTimeOffset.MinValue)
-            .ThenBy(static job => job.ElementCount)
+            .ThenBy(static job => BenchmarkWorkloadAxis.GetAxisCount(job))
             .LastOrDefault()
-            ?.ElementCount;
+            is { } job ? BenchmarkWorkloadAxis.GetAxisCount(job) : null;
     }
 
     private void ApplySelectedRunStateJobs(ProgressState? state,int elementCount) {
@@ -2509,7 +2514,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 &&IsTerminalJob(job))
             .GroupBy(static job => BenchmarkRowGroupingLogic.CreateCaseKey(job.Project,job.TypeFullName,job.MethodName,job.ArgumentKey),StringComparer.OrdinalIgnoreCase)
             .SelectMany(static group => group
-                .GroupBy(static job => job.ElementCount)
+                .GroupBy(static job => BenchmarkWorkloadAxis.GetAxisCount(job))
                 .Select(static elementGroup => elementGroup
                     .OrderBy(static job => job.FinishedAt??job.StartedAt??DateTimeOffset.MinValue)
                     .Last()))
@@ -2517,7 +2522,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         foreach(var job in jobs) {
             var item = new BenchmarkResultItem(job);
             this.UpsertResultItem(item);
-            if(job.ElementCount!=elementCount) {
+            if(BenchmarkWorkloadAxis.GetAxisCount(job)!=elementCount) {
                 continue;
             }
 
@@ -2640,8 +2645,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private IReadOnlyList<BenchmarkComparisonRow> BuildComparisonRowsForElementCount(BenchmarkSourceTabDefinition sourceTab,int elementCount) {
         var currentRunResults = this.GetCurrentRunResultItems(sourceTab.Tab);
         var sourceResults = currentRunResults
-            .Where(result => result.ElementCount==elementCount
-                &&result.ElementCount>0
+            .Where(result => result.AxisCount==elementCount
+                &&result.AxisCount>0
                 &&sourceTab.ContainsProject(result.Project)
                 &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase))
             .ToArray();
@@ -2716,7 +2721,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 result.Method,
                 result.TypeFullName,
                 result.ArgumentKey,
-                result.ElementCount,
+                result.AxisCount,
                 result.Status,
                 result.MeanNanoseconds))
             .ToArray();
@@ -2804,7 +2809,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 &&string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase)
                 &&IsSameType(result.TypeFullName,typeFullName)
                 &&IsSameArgument(result.ArgumentKey,argumentKey)
-                &&result.ElementCount==elementCount
+                &&result.AxisCount==elementCount
                 &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
                 &&result.MeanNanoseconds is not null);
     }
@@ -2816,7 +2821,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 result.Method,
                 result.TypeFullName,
                 result.ArgumentKey,
-                result.ElementCount,
+                result.AxisCount,
                 result.Status,
                 result.MeanNanoseconds));
         return BenchmarkSkippedDisplayLogic.FindPairStoppedAt(
@@ -2842,7 +2847,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 result.Method,
                 result.TypeFullName,
                 result.ArgumentKey,
-                result.ElementCount,
+                result.AxisCount,
                 result.Status,
                 result.MeanNanoseconds));
         return BenchmarkSkippedDisplayLogic.FindLatestCompletedPairElementCountBefore(
@@ -2861,7 +2866,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 &&string.Equals(item.Project,project,StringComparison.OrdinalIgnoreCase)
                 &&IsSameType(item.TypeFullName,typeFullName)
                 &&IsSameArgument(item.ArgumentKey,argumentKey)
-                &&item.ElementCount==elementCount
+                &&item.AxisCount==elementCount
                 &&string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)
                 &&item.MeanNanoseconds is not null);
         return selectedRunResult is not null
@@ -2927,14 +2932,14 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private static bool IsResultMatch(BenchmarkResultItem item,BenchmarkResultItem result) =>
-        IsResultMatch(item,result.Method,result.Project,result.TypeFullName,result.ElementCount,result.ArgumentKey);
+        IsResultMatch(item,result.Method,result.Project,result.TypeFullName,result.AxisCount,result.ArgumentKey);
 
     private static bool IsResultMatch(BenchmarkResultItem item,string method,string project,string typeFullName,int elementCount,string argumentKey = "") =>
         string.Equals(item.Method,method,StringComparison.OrdinalIgnoreCase)
         &&string.Equals(item.Project,project,StringComparison.OrdinalIgnoreCase)
         &&IsSameType(item.TypeFullName,typeFullName)
         &&IsSameArgument(item.ArgumentKey,argumentKey)
-        &&item.ElementCount==elementCount;
+        &&item.AxisCount==elementCount;
 
     private static string CreateResultIdentityKey(string project,string typeFullName,string method,int elementCount,string argumentKey = "") =>
         string.Join("|",project,typeFullName,method,argumentKey,elementCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
@@ -2988,10 +2993,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private IReadOnlyList<ChartComparisonPoint> BuildBenchmarkChartPoints(IReadOnlyList<BenchmarkComparisonRow> rows) {
         return this.BenchmarkRows
             .Select(row => this.CreateBenchmarkChartPoint(row,rows))
+            .Where(static point => point is not null)
+            .Select(static point => point!)
             .ToArray();
     }
 
-    private ChartComparisonPoint CreateBenchmarkChartPoint(
+    private ChartComparisonPoint? CreateBenchmarkChartPoint(
         BenchmarkTableRow row,
         IReadOnlyList<BenchmarkComparisonRow> rows) {
         var comparisonRow = FindComparisonRow(row,rows);
@@ -3006,11 +3013,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             return this.ApplyChartRunningState(measuredPoint);
         }
 
-        if(this.retainedChartPoints.TryGetValue(cacheKey,out var retainedPoint)) {
-            return this.ApplyChartRunningState(this.ApplyChartUiSelection(row,retainedPoint));
-        }
-
-        return this.ApplyChartRunningState(this.ApplyChartUiSelection(row,this.CreateChartComparisonPoint(row,leftValue,rightValue)));
+        this.retainedChartPoints.Remove(cacheKey);
+        return null;
     }
 
     private static BenchmarkComparisonRow? FindComparisonRow(BenchmarkTableRow row,IReadOnlyList<BenchmarkComparisonRow> rows) {
@@ -3191,7 +3195,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                     result.Method,
                     result.Project,
                     result.TypeFullName,
-                    result.ElementCount,
+                    result.AxisCount,
                     result.StartedAt,
                     result.ArgumentKey);
                 if(previous is null) {
@@ -3263,10 +3267,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         var currentRunResults = this.GetCurrentRunResultItems(sourceTab.Tab);
         var rows = this.uiRunRepository.LoadResultItems(GetUiRunAppKind(),sourceTab)
             .Concat(currentRunResults.Where(item => sourceTab.ContainsProject(item.Project)))
-            .Where(item => item.ElementCount>0
+            .Where(item => item.AxisCount>0
                 &&string.Equals(item.Method,method,StringComparison.OrdinalIgnoreCase)
                 &&IsSameType(item.TypeFullName,typeFullName))
-            .GroupBy(static item => item.ElementCount)
+            .GroupBy(static item => item.AxisCount)
             .OrderBy(static group => group.Key)
             .Select(group => CreateScaleTrendPoint(group.Key,group.ToArray(),this.SelectedComparisonPair,this.SelectedMetric.Kind))
             .Where(static item => item is not null)
@@ -3282,12 +3286,17 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         BenchmarkMetricKind metric) {
         var left = results.FirstOrDefault(item => string.Equals(item.Project,pair.LeftProject,StringComparison.OrdinalIgnoreCase));
         var right = results.FirstOrDefault(item => string.Equals(item.Project,pair.RightProject,StringComparison.OrdinalIgnoreCase));
-        if(left is null&&right is null) {
+        if(left is null||right is null
+            ||!string.Equals(left.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+            ||!string.Equals(right.Status,"Completed",StringComparison.OrdinalIgnoreCase)) {
             return null;
         }
 
         var leftValue = GetMetricValue(left,metric);
         var rightValue = GetMetricValue(right,metric);
+        if(leftValue is null||rightValue is null) {
+            return null;
+        }
         var leftText = FormatMetric(leftValue,metric);
         var rightText = FormatMetric(rightValue,metric);
         return new ChartComparisonPoint(

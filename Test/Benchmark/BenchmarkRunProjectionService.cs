@@ -1,7 +1,7 @@
-namespace Test.Benchmark;
+﻿namespace Test.Benchmark;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
-public sealed class BenchmarkRunProjectionServiceTests{
+public sealed class BenchmarkRunProjectionService{
     [Fact]
     public void GetVisibleResults_KeepsUnscopedRowsAndSelectedElementCount(){
         var service = new global::UI.BenchmarkRunProjectionService();
@@ -13,7 +13,7 @@ public sealed class BenchmarkRunProjectionServiceTests{
 
         var visible = service.GetVisibleResults(results,16);
 
-        Assert.Equal([0,16],visible.Select(static item => item.ElementCount).ToArray());
+        Assert.Equal([0,16],visible.Select(static item => item.AxisCount).ToArray());
     }
 
     [Fact]
@@ -114,7 +114,8 @@ public sealed class BenchmarkRunProjectionServiceTests{
             MethodName=method,
             TypeFullName="Sample.Type",
             SourceTab=global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray,
-            ElementCount=elementCount,
+            ElementCount=global::UI.BenchmarkWorkloadAxis.ResolveElementCount(global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray,elementCount),
+            LoopCount=global::UI.BenchmarkWorkloadAxis.ResolveLoopCount(global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray,elementCount),
             Status=global::UI.JobStatus.Completed,
             MeanNanoseconds=mean,
             AllocatedBytes=128,
@@ -128,9 +129,11 @@ public sealed class BenchmarkRunProjectionServiceTests{
             MethodName=method,
             TypeFullName="Sample.Type",
             SourceTab=global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray,
-            ElementCount=elementCount,
+            ElementCount=global::UI.BenchmarkWorkloadAxis.ResolveElementCount(global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray,elementCount),
+            LoopCount=global::UI.BenchmarkWorkloadAxis.ResolveLoopCount(global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray,elementCount),
             Status=global::UI.JobStatus.Failed,
             StartedAt=DateTimeOffset.UtcNow,
             ExitCode=1,
         });
 }
+

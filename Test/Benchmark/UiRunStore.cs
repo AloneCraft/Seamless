@@ -1,12 +1,12 @@
-using Seamless.UI.Storage;
+﻿using Seamless.UI.Storage;
 
 namespace Test.Benchmark;
 
-public sealed class UiRunStoreTests{
+public sealed class UiRunStore{
     [Fact]
     public void CreateRun_InitializesSchemaAndListsRun(){
         var path = CreateDatabasePath();
-        var store = new UiRunStore(path);
+        var store = new global::Seamless.UI.Storage.UiRunStore(path);
 
         var run = store.CreateRun(new(
             UiRunAppKind.Benchmark,
@@ -27,7 +27,7 @@ public sealed class UiRunStoreTests{
     [Fact]
     public void UpsertCaseJobAndMeasurement_RoundTripsNormalizedMetrics(){
         var path = CreateDatabasePath();
-        var store = new UiRunStore(path);
+        var store = new global::Seamless.UI.Storage.UiRunStore(path);
         var run = store.CreateRun(new(
             UiRunAppKind.ScalableBenchmark,
             "Scalable",
@@ -50,6 +50,7 @@ public sealed class UiRunStoreTests{
             "Aggregate|Left|64|0",
             UiRunStatus.Completed,
             64,
+            1,
             0,
             DateTimeOffset.UtcNow,
             DateTimeOffset.UtcNow,
@@ -63,17 +64,46 @@ public sealed class UiRunStoreTests{
         store.SetRunStatus(run.RunId,UiRunStatus.Completed,"done");
 
         var metrics = store.ListMetrics(run.RunId);
+        var jobs = store.ListJobs(run.RunId);
         var loadedRun = Assert.Single(store.ListRuns(UiRunAppKind.ScalableBenchmark));
 
         Assert.Equal(UiRunStatus.Completed,loadedRun.Status);
+        Assert.Equal(1,Assert.Single(jobs).LoopCount);
         Assert.Contains(metrics,item => item.MetricName=="MeanNanoseconds"&&Math.Abs(item.NumericValue-123.5)<0.001);
         Assert.Contains(metrics,item => item.MetricName=="AllocatedBytes"&&Math.Abs(item.NumericValue-4096)<0.001);
     }
 
     [Fact]
+    public void AnalysisViews_ReturnExpectedRows(){
+        var path = CreateDatabasePath();
+        var store = new global::Seamless.UI.Storage.UiRunStore(path);
+        var run = store.CreateRun(new(
+            UiRunAppKind.Benchmark,
+            "Benchmark",
+            "Fast",
+            "SystemArray",
+            DateTimeOffset.UtcNow));
+        var leftCase = store.UpsertCase(run.RunId,"left","Aggregate","System.Array.FLinq","Aggregate","Sample.Type");
+        var rightCase = store.UpsertCase(run.RunId,"right","Aggregate","System.Array.ZLinq","Aggregate","Sample.Type");
+        var leftJob = store.UpsertJob(run.RunId,leftCase.CaseId,"left-job",UiRunStatus.Completed,4096,8,0,DateTimeOffset.UtcNow,DateTimeOffset.UtcNow,"",string.Empty);
+        var rightJob = store.UpsertJob(run.RunId,rightCase.CaseId,"right-job",UiRunStatus.Completed,4096,8,0,DateTimeOffset.UtcNow,DateTimeOffset.UtcNow,"",string.Empty);
+        store.SaveMeasurement(leftJob.JobId,[new("MeanNanoseconds",200,"ns")]);
+        store.SaveMeasurement(rightJob.JobId,[new("MeanNanoseconds",100,"ns")]);
+
+        using var connection = new Microsoft.Data.Sqlite.SqliteConnection(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder{
+            DataSource=path,
+        }.ToString());
+        connection.Open();
+
+        Assert.Equal(2,Scalar<long>(connection,"SELECT COUNT(*) FROM BenchmarkFlatResults WHERE LoopCount=8;"));
+        Assert.Equal(1,Scalar<long>(connection,"SELECT COUNT(*) FROM BenchmarkPairComparisons WHERE LoopCount=8 AND MeanRatio=2;"));
+        Assert.Equal(2,Scalar<long>(connection,"SELECT COUNT(*) FROM BenchmarkTrendResults WHERE ElementCount=4096 AND LoopCount=8;"));
+    }
+
+    [Fact]
     public void UiState_RoundTripsSelectionsAndViewState(){
         var path = CreateDatabasePath();
-        var store = new UiRunStore(path);
+        var store = new global::Seamless.UI.Storage.UiRunStore(path);
         var run = store.CreateRun(new(
             UiRunAppKind.ParameterSweep,
             "Sweep",
@@ -95,9 +125,19 @@ public sealed class UiRunStoreTests{
         Assert.Equal("Chart",viewState.StateValue);
     }
 
+    private static T Scalar<T>(Microsoft.Data.Sqlite.SqliteConnection connection,string sql){
+        using var command = connection.CreateCommand();
+        command.CommandText=sql;
+        return (T)command.ExecuteScalar()!;
+    }
+
     private static string CreateDatabasePath(){
         var root = Path.Combine(AppContext.BaseDirectory,"UiRunStoreTests",Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         return Path.Combine(root,"runs.db");
     }
 }
+
+
+
+

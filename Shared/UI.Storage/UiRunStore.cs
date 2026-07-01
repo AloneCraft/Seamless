@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 namespace Seamless.UI.Storage;
 
 public sealed class UiRunStore{
-    private const int SchemaVersion = 1;
+    private const int SchemaVersion = 2;
     private readonly string databasePath;
 
     public UiRunStore(string databasePath){
@@ -83,6 +83,7 @@ public sealed class UiRunStore{
                 JobKey TEXT NOT NULL,
                 Status TEXT NOT NULL,
                 ElementCount INTEGER NULL,
+                LoopCount INTEGER NULL,
                 AssignedLogicalCpu INTEGER NULL,
                 StartedAt TEXT NULL,
                 FinishedAt TEXT NULL,
@@ -154,6 +155,8 @@ public sealed class UiRunStore{
             CREATE INDEX IF NOT EXISTS IX_Jobs_Run_Status ON Jobs(RunId,Status);
             CREATE INDEX IF NOT EXISTS IX_MetricValues_MetricName ON MetricValues(MetricName);
             """);
+        EnsureColumn(connection,transaction,"Jobs","LoopCount","INTEGER NULL");
+        CreateAnalysisViews(connection,transaction);
         UpsertMigration(connection,transaction,SchemaVersion);
         foreach(var appKind in Enum.GetValues<UiRunAppKind>()){
             EnsureApp(connection,transaction,appKind);
@@ -251,6 +254,7 @@ public sealed class UiRunStore{
         string jobKey,
         UiRunStatus status,
         long? elementCount,
+        long? loopCount,
         int? assignedLogicalCpu,
         DateTimeOffset? startedAt,
         DateTimeOffset? finishedAt,
@@ -259,12 +263,13 @@ public sealed class UiRunStore{
         using var connection = this.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText="""
-            INSERT INTO Jobs(RunId,CaseId,JobKey,Status,ElementCount,AssignedLogicalCpu,StartedAt,FinishedAt,FailureKind,FailureReason)
-            VALUES($runId,$caseId,$jobKey,$status,$elementCount,$assignedLogicalCpu,$startedAt,$finishedAt,$failureKind,$failureReason)
+            INSERT INTO Jobs(RunId,CaseId,JobKey,Status,ElementCount,LoopCount,AssignedLogicalCpu,StartedAt,FinishedAt,FailureKind,FailureReason)
+            VALUES($runId,$caseId,$jobKey,$status,$elementCount,$loopCount,$assignedLogicalCpu,$startedAt,$finishedAt,$failureKind,$failureReason)
             ON CONFLICT(RunId,JobKey) DO UPDATE SET
                 CaseId=excluded.CaseId,
                 Status=excluded.Status,
                 ElementCount=excluded.ElementCount,
+                LoopCount=excluded.LoopCount,
                 AssignedLogicalCpu=excluded.AssignedLogicalCpu,
                 StartedAt=excluded.StartedAt,
                 FinishedAt=excluded.FinishedAt,
@@ -277,13 +282,14 @@ public sealed class UiRunStore{
         command.Parameters.AddWithValue("$jobKey",jobKey);
         command.Parameters.AddWithValue("$status",status.ToString());
         command.Parameters.AddWithValue("$elementCount",ToDbValue(elementCount));
+        command.Parameters.AddWithValue("$loopCount",ToDbValue(loopCount));
         command.Parameters.AddWithValue("$assignedLogicalCpu",ToDbValue(assignedLogicalCpu));
         command.Parameters.AddWithValue("$startedAt",ToDbValue(startedAt));
         command.Parameters.AddWithValue("$finishedAt",ToDbValue(finishedAt));
         command.Parameters.AddWithValue("$failureKind",failureKind);
         command.Parameters.AddWithValue("$failureReason",failureReason);
         var jobId = (long)(command.ExecuteScalar()??0L);
-        return new(jobId,runId,caseId,jobKey,status,elementCount,assignedLogicalCpu,startedAt,finishedAt,failureKind,failureReason);
+        return new(jobId,runId,caseId,jobKey,status,elementCount,loopCount,assignedLogicalCpu,startedAt,finishedAt,failureKind,failureReason);
     }
 
     public void SaveMeasurement(long jobId,IReadOnlyList<UiMetricValueWrite> metrics,DateTimeOffset? measuredAt = null){
@@ -530,7 +536,7 @@ public sealed class UiRunStore{
         using var connection = this.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText="""
-            SELECT JobId,RunId,CaseId,JobKey,Status,ElementCount,AssignedLogicalCpu,StartedAt,FinishedAt,FailureKind,FailureReason
+            SELECT JobId,RunId,CaseId,JobKey,Status,ElementCount,LoopCount,AssignedLogicalCpu,StartedAt,FinishedAt,FailureKind,FailureReason
             FROM Jobs
             WHERE RunId=$runId
             ORDER BY JobId;
@@ -546,11 +552,12 @@ public sealed class UiRunStore{
                 reader.GetString(3),
                 Enum.Parse<UiRunStatus>(reader.GetString(4)),
                 reader.IsDBNull(5) ? null : reader.GetInt64(5),
-                reader.IsDBNull(6) ? null : reader.GetInt32(6),
-                reader.IsDBNull(7) ? null : FromText(reader.GetString(7)),
+                reader.IsDBNull(6) ? null : reader.GetInt64(6),
+                reader.IsDBNull(7) ? null : reader.GetInt32(7),
                 reader.IsDBNull(8) ? null : FromText(reader.GetString(8)),
-                reader.GetString(9),
-                reader.GetString(10)));
+                reader.IsDBNull(9) ? null : FromText(reader.GetString(9)),
+                reader.GetString(10),
+                reader.GetString(11)));
         }
 
         return values;
@@ -721,6 +728,117 @@ public sealed class UiRunStore{
         command.Parameters.AddWithValue("$version",version);
         command.Parameters.AddWithValue("$appliedAt",ToText(DateTimeOffset.UtcNow));
         command.ExecuteNonQuery();
+    }
+
+    private static void EnsureColumn(SqliteConnection connection,SqliteTransaction transaction,string table,string column,string definition){
+        using(var command = connection.CreateCommand()){
+            command.Transaction=transaction;
+            command.CommandText="SELECT COUNT(*) FROM pragma_table_info($table) WHERE name=$column;";
+            command.Parameters.AddWithValue("$table",table);
+            command.Parameters.AddWithValue("$column",column);
+            if((long)(command.ExecuteScalar()??0L)>0){
+                return;
+            }
+        }
+
+        using(var command = connection.CreateCommand()){
+            command.Transaction=transaction;
+            command.CommandText="ALTER TABLE "+table+" ADD COLUMN "+column+" "+definition+";";
+            command.ExecuteNonQuery();
+        }
+    }
+
+    private static void CreateAnalysisViews(SqliteConnection connection,SqliteTransaction transaction){
+        ExecuteNonQuery(connection,transaction,"""
+            CREATE VIEW IF NOT EXISTS BenchmarkFlatResults AS
+            SELECT
+                Runs.RunId,
+                Apps.AppKind,
+                Runs.DisplayName,
+                Runs.ExecutionProfile,
+                Runs.SourceTab,
+                Runs.CurrentStatus AS RunStatus,
+                Cases.CaseId,
+                Cases.CaseKey,
+                Cases.Name,
+                Cases.Project,
+                Cases.Method,
+                Cases.TypeFullName,
+                Jobs.JobId,
+                Jobs.JobKey,
+                Jobs.Status AS JobStatus,
+                Jobs.ElementCount,
+                Jobs.LoopCount,
+                Jobs.AssignedLogicalCpu,
+                Jobs.StartedAt,
+                Jobs.FinishedAt,
+                Jobs.FailureKind,
+                Jobs.FailureReason,
+                Measurements.MeasuredAt,
+                MAX(CASE WHEN MetricValues.MetricName='MeanNanoseconds' THEN MetricValues.NumericValue END) AS MeanNanoseconds,
+                MAX(CASE WHEN MetricValues.MetricName='ErrorNanoseconds' THEN MetricValues.NumericValue END) AS ErrorNanoseconds,
+                MAX(CASE WHEN MetricValues.MetricName='StdDevNanoseconds' THEN MetricValues.NumericValue END) AS StdDevNanoseconds,
+                MAX(CASE WHEN MetricValues.MetricName='AllocatedBytes' THEN MetricValues.NumericValue END) AS AllocatedBytes
+            FROM Jobs
+            INNER JOIN Runs ON Runs.RunId=Jobs.RunId
+            INNER JOIN Apps ON Apps.AppId=Runs.AppId
+            INNER JOIN Cases ON Cases.CaseId=Jobs.CaseId
+            LEFT JOIN Measurements ON Measurements.JobId=Jobs.JobId
+            LEFT JOIN MetricValues ON MetricValues.MeasurementId=Measurements.MeasurementId
+            GROUP BY Jobs.JobId;
+            """);
+        ExecuteNonQuery(connection,transaction,"""
+            CREATE VIEW IF NOT EXISTS BenchmarkPairComparisons AS
+            SELECT
+                leftResult.RunId,
+                leftResult.SourceTab,
+                leftResult.Method,
+                leftResult.TypeFullName,
+                leftResult.ElementCount,
+                leftResult.LoopCount,
+                leftResult.Project AS LeftProject,
+                rightResult.Project AS RightProject,
+                leftResult.MeanNanoseconds AS LeftMeanNanoseconds,
+                rightResult.MeanNanoseconds AS RightMeanNanoseconds,
+                CASE
+                    WHEN rightResult.MeanNanoseconds IS NULL OR rightResult.MeanNanoseconds=0 THEN NULL
+                    ELSE leftResult.MeanNanoseconds/rightResult.MeanNanoseconds
+                END AS MeanRatio,
+                leftResult.AllocatedBytes AS LeftAllocatedBytes,
+                rightResult.AllocatedBytes AS RightAllocatedBytes
+            FROM BenchmarkFlatResults leftResult
+            INNER JOIN BenchmarkFlatResults rightResult
+                ON rightResult.RunId=leftResult.RunId
+                AND rightResult.Method=leftResult.Method
+                AND rightResult.TypeFullName=leftResult.TypeFullName
+                AND COALESCE(rightResult.ElementCount,-1)=COALESCE(leftResult.ElementCount,-1)
+                AND COALESCE(rightResult.LoopCount,-1)=COALESCE(leftResult.LoopCount,-1)
+                AND rightResult.Project>leftResult.Project
+            WHERE leftResult.JobStatus='Completed'
+                AND rightResult.JobStatus='Completed'
+                AND leftResult.MeanNanoseconds IS NOT NULL
+                AND rightResult.MeanNanoseconds IS NOT NULL;
+            """);
+        ExecuteNonQuery(connection,transaction,"""
+            CREATE VIEW IF NOT EXISTS BenchmarkTrendResults AS
+            SELECT
+                RunId,
+                AppKind,
+                SourceTab,
+                Project,
+                Method,
+                TypeFullName,
+                ElementCount,
+                LoopCount,
+                Name,
+                MeanNanoseconds,
+                AllocatedBytes,
+                FinishedAt,
+                MeasuredAt
+            FROM BenchmarkFlatResults
+            WHERE JobStatus='Completed'
+            ORDER BY SourceTab,Project,Method,TypeFullName,ElementCount,LoopCount,FinishedAt;
+            """);
     }
 
     private static void ExecuteNonQuery(SqliteConnection connection,SqliteTransaction transaction,string text){

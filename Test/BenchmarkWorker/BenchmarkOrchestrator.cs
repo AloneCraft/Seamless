@@ -3,7 +3,7 @@
 namespace Test.BenchmarkWorker;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
-public sealed class BenchmarkOrchestratorTests{
+public sealed class BenchmarkOrchestrator{
     [Fact]
     public void StateManager_Load_MarksRunningJobsAsFailed(){
         var root = CreateTempRoot();
@@ -44,7 +44,7 @@ public sealed class BenchmarkOrchestratorTests{
             job.Project,
             job.MethodName,
             job.TypeFullName,
-            job.ElementCount,
+            BenchmarkWorkloadAxis.GetAxisCount(job),
             "Completed",
             "100 ns",
             string.Empty,
@@ -56,7 +56,7 @@ public sealed class BenchmarkOrchestratorTests{
             0,
             job.ArtifactFolder,
             string.Empty));
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -79,7 +79,7 @@ public sealed class BenchmarkOrchestratorTests{
     public async Task Orchestrator_RunAsync_CreatesNumberedRunRootAndNFiles(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => CompletedResult(job));
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         var result = await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -104,7 +104,7 @@ public sealed class BenchmarkOrchestratorTests{
         var root = CreateTempRoot();
         var runRoot = Path.Combine(root,"000001");
         var runner = new FakeRunner((job,_) => CompletedResult(job));
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         var result = await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -133,7 +133,7 @@ public sealed class BenchmarkOrchestratorTests{
                 job.Project,
                 job.MethodName,
                 job.TypeFullName,
-                job.ElementCount,
+                BenchmarkWorkloadAxis.GetAxisCount(job),
                 "Completed",
                 "100 ns",
                 string.Empty,
@@ -146,7 +146,7 @@ public sealed class BenchmarkOrchestratorTests{
                 job.ArtifactFolder,
                 string.Empty);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -177,7 +177,7 @@ public sealed class BenchmarkOrchestratorTests{
     public async Task Orchestrator_RunAsync_PersistsExecutionProfileInStateAndSummary(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => CompletedResult(job));
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -204,12 +204,12 @@ public sealed class BenchmarkOrchestratorTests{
         var gate = new object();
         var runner = new FakeRunner((job,cpu) => {
             lock(gate) {
-                observed.Add((job.MethodName,job.Project,job.ElementCount,cpu));
+                observed.Add((job.MethodName,job.Project,BenchmarkWorkloadAxis.GetAxisCount(job),cpu));
             }
 
             return CompletedResult(job);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -261,7 +261,7 @@ public sealed class BenchmarkOrchestratorTests{
     public async Task Orchestrator_AdaptiveMode_WritesMixedSourceTabsToSourceFolders(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => CompletedResult(job));
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -302,7 +302,7 @@ public sealed class BenchmarkOrchestratorTests{
 
             return CompletedResult(job);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -336,7 +336,7 @@ public sealed class BenchmarkOrchestratorTests{
 
             return CompletedResult(job);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -359,10 +359,10 @@ public sealed class BenchmarkOrchestratorTests{
         var root = CreateTempRoot();
         var observed = new List<(bool Warmup,string Project,int ElementCount)>();
         var runner = new FakeRunner((job,_) => {
-            observed.Add((job.JobId.EndsWith("|warmup",StringComparison.Ordinal),job.Project,job.ElementCount));
+            observed.Add((job.JobId.EndsWith("|warmup",StringComparison.Ordinal),job.Project,BenchmarkWorkloadAxis.GetAxisCount(job)));
             return CompletedResult(job);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -401,7 +401,7 @@ public sealed class BenchmarkOrchestratorTests{
             observed.Add(job.JobId.EndsWith("|warmup",StringComparison.Ordinal));
             return CompletedResult(job);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -427,7 +427,7 @@ public sealed class BenchmarkOrchestratorTests{
                 job.Project,
                 job.MethodName,
                 job.TypeFullName,
-                job.ElementCount,
+                BenchmarkWorkloadAxis.GetAxisCount(job),
                 "Failed",
                 "Warmup failed",
                 string.Empty,
@@ -440,7 +440,7 @@ public sealed class BenchmarkOrchestratorTests{
                 job.ArtifactFolder,
                 "warmup boom")
             : CompletedResult(job));
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -458,7 +458,7 @@ public sealed class BenchmarkOrchestratorTests{
         var state = LoadOnlyState(root);
         var job = Assert.Single(state.Jobs);
         Assert.Equal("System.Array.FLinq",job.Project);
-        Assert.Equal(1,job.ElementCount);
+        Assert.Equal(1,BenchmarkWorkloadAxis.GetAxisCount(job));
         Assert.Equal(JobStatus.Failed,job.Status);
         Assert.Contains("warmup boom",job.FailureReason,StringComparison.Ordinal);
         Assert.False(File.Exists(Path.Combine(state.RunRoot,"System.Array","N1.csv")));
@@ -484,7 +484,7 @@ public sealed class BenchmarkOrchestratorTests{
 
             return CompletedResult(job);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
         var run = orchestrator.RunAsync(
             new BenchmarkRunRequest(
                 [Case("System.Array.FLinq","A"),Case("System.Array.FLinq","B")],
@@ -528,7 +528,7 @@ public sealed class BenchmarkOrchestratorTests{
 
             return CompletedResult(job);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
         var run = orchestrator.RunAsync(
             new BenchmarkRunRequest(
                 [Case("System.Array.FLinq","A"),Case("System.Array.FLinq","B"),Case("System.Array.FLinq","C"),Case("System.Array.FLinq","D")],
@@ -568,7 +568,7 @@ public sealed class BenchmarkOrchestratorTests{
 
             return CompletedResult(job);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
         var run = orchestrator.RunAsync(
             new BenchmarkRunRequest(
                 [Case("System.Array.FLinq","A"),Case("System.Array.FLinq","B"),Case("System.Array.FLinq","C"),Case("System.Array.FLinq","D")],
@@ -612,7 +612,7 @@ public sealed class BenchmarkOrchestratorTests{
 
             return CompletedResult(job);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
         var run = orchestrator.RunAsync(
             new BenchmarkRunRequest(
                 [Case("System.Array.FLinq","A"),Case("System.Array.FLinq","B"),Case("System.Array.FLinq","C"),Case("System.Array.FLinq","D")],
@@ -705,7 +705,7 @@ public sealed class BenchmarkOrchestratorTests{
         });
         stateManager.Save(state);
         stateManager.SaveLatestRun(runRoot);
-        var orchestrator = new BenchmarkOrchestrator(stateManager,runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(stateManager,runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -750,12 +750,14 @@ public sealed class BenchmarkOrchestratorTests{
         };
         var observedElementCounts = new List<int>();
         var runner = new FakeRunner((job,_) => {
-            observedElementCounts.Add(job.ElementCount);
+            if(!job.JobId.EndsWith("|warmup",StringComparison.Ordinal)){
+                observedElementCounts.Add(BenchmarkWorkloadAxis.GetAxisCount(job));
+            }
             return CompletedResult(job);
         });
         stateManager.Save(state);
         stateManager.SaveLatestRun(runRoot);
-        var orchestrator = new BenchmarkOrchestrator(stateManager,runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(stateManager,runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -798,12 +800,12 @@ public sealed class BenchmarkOrchestratorTests{
         };
         var observedElementCounts = new List<int>();
         var runner = new FakeRunner((job,_) => {
-            observedElementCounts.Add(job.ElementCount);
+            observedElementCounts.Add(BenchmarkWorkloadAxis.GetAxisCount(job));
             return CompletedResult(job);
         });
         stateManager.Save(state);
         stateManager.SaveLatestRun(runRoot);
-        var orchestrator = new BenchmarkOrchestrator(stateManager,runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(stateManager,runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -826,12 +828,12 @@ public sealed class BenchmarkOrchestratorTests{
     public async Task Orchestrator_AdaptiveMode_StopsPairWhenEitherSideExceedsThreshold(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => {
-            var mean = job.ElementCount>=256&&job.Project=="System.Array.ZLinq" ? 2_000_000_000d : 100d;
+            var mean = BenchmarkWorkloadAxis.GetAxisCount(job)>=256&&job.Project=="System.Array.ZLinq" ? 2_000_000_000d : 100d;
             return new BenchmarkJobRunResult(
                 job.Project,
                 job.MethodName,
                 job.TypeFullName,
-                job.ElementCount,
+                BenchmarkWorkloadAxis.GetAxisCount(job),
                 "Completed",
                 mean+" ns",
                 string.Empty,
@@ -844,7 +846,7 @@ public sealed class BenchmarkOrchestratorTests{
                 job.ArtifactFolder,
                 string.Empty);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -859,23 +861,23 @@ public sealed class BenchmarkOrchestratorTests{
             CancellationToken.None);
 
         var state = LoadOnlyState(root);
-        Assert.Equal([128,256],state.Jobs.Select(static job => job.ElementCount).Distinct().Order().ToArray());
-        Assert.DoesNotContain(state.Jobs,static job => job.Project=="System.Array.FLinq"&&job.ElementCount==512);
-        Assert.DoesNotContain(state.Jobs,static job => job.Project=="System.Array.ZLinq"&&job.ElementCount==512);
+        Assert.Equal([128,256],state.Jobs.Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Distinct().Order().ToArray());
+        Assert.DoesNotContain(state.Jobs,static job => job.Project=="System.Array.FLinq"&&BenchmarkWorkloadAxis.GetAxisCount(job)==512);
+        Assert.DoesNotContain(state.Jobs,static job => job.Project=="System.Array.ZLinq"&&BenchmarkWorkloadAxis.GetAxisCount(job)==512);
     }
 
     [Fact]
     public async Task Orchestrator_AdaptiveMode_StopsPairAfterBothSidesExceedThreshold(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => {
-            var mean = job.ElementCount>=256&&job.Project.StartsWith("System",StringComparison.Ordinal)
+            var mean = BenchmarkWorkloadAxis.GetAxisCount(job)>=256&&job.Project.StartsWith("System",StringComparison.Ordinal)
                 ? 2_000_000d
                 : 100d;
             return new BenchmarkJobRunResult(
                 job.Project,
                 job.MethodName,
                 job.TypeFullName,
-                job.ElementCount,
+                BenchmarkWorkloadAxis.GetAxisCount(job),
                 "Completed",
                 mean+" ns",
                 string.Empty,
@@ -888,7 +890,7 @@ public sealed class BenchmarkOrchestratorTests{
                 job.ArtifactFolder,
                 string.Empty);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -903,22 +905,22 @@ public sealed class BenchmarkOrchestratorTests{
             CancellationToken.None);
 
         var state = LoadOnlyState(root);
-        Assert.Contains(state.Jobs,static job => job.Project=="System.Array.FLinq"&&job.ElementCount==256);
-        Assert.Contains(state.Jobs,static job => job.Project=="System.Array.ZLinq"&&job.ElementCount==256);
-        Assert.DoesNotContain(state.Jobs,static job => job.Project=="System.Array.FLinq"&&job.ElementCount==512);
-        Assert.DoesNotContain(state.Jobs,static job => job.Project=="System.Array.ZLinq"&&job.ElementCount==512);
+        Assert.Contains(state.Jobs,static job => job.Project=="System.Array.FLinq"&&BenchmarkWorkloadAxis.GetAxisCount(job)==256);
+        Assert.Contains(state.Jobs,static job => job.Project=="System.Array.ZLinq"&&BenchmarkWorkloadAxis.GetAxisCount(job)==256);
+        Assert.DoesNotContain(state.Jobs,static job => job.Project=="System.Array.FLinq"&&BenchmarkWorkloadAxis.GetAxisCount(job)==512);
+        Assert.DoesNotContain(state.Jobs,static job => job.Project=="System.Array.ZLinq"&&BenchmarkWorkloadAxis.GetAxisCount(job)==512);
     }
 
     [Fact]
     public async Task Orchestrator_AdaptiveMode_StopsAfterThresholdExceededBeforeNextElementCount(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => {
-            var mean = job.ElementCount>=4 ? 2_000_000d : 100d;
+            var mean = BenchmarkWorkloadAxis.GetAxisCount(job)>=4 ? 2_000_000d : 100d;
             return new BenchmarkJobRunResult(
                 job.Project,
                 job.MethodName,
                 job.TypeFullName,
-                job.ElementCount,
+                BenchmarkWorkloadAxis.GetAxisCount(job),
                 "Completed",
                 mean+" ns",
                 string.Empty,
@@ -931,7 +933,7 @@ public sealed class BenchmarkOrchestratorTests{
                 job.ArtifactFolder,
                 string.Empty);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -946,20 +948,20 @@ public sealed class BenchmarkOrchestratorTests{
             CancellationToken.None);
 
         var state = LoadOnlyState(root);
-        Assert.Equal([1,2,4],state.Jobs.Select(static job => job.ElementCount).Order().ToArray());
-        Assert.DoesNotContain(state.Jobs,static job => job.ElementCount==8);
+        Assert.Equal([1,2,4],state.Jobs.Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
+        Assert.DoesNotContain(state.Jobs,static job => BenchmarkWorkloadAxis.GetAxisCount(job)==8);
     }
 
     [Fact]
     public async Task Orchestrator_AdaptiveMode_DoublesPastRequestedElementCountsUntilThresholdExceeded(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => {
-            var mean = job.ElementCount>=262144 ? 2_000_000d : 100d;
+            var mean = BenchmarkWorkloadAxis.GetAxisCount(job)>=262144 ? 2_000_000d : 100d;
             return new BenchmarkJobRunResult(
                 job.Project,
                 job.MethodName,
                 job.TypeFullName,
-                job.ElementCount,
+                BenchmarkWorkloadAxis.GetAxisCount(job),
                 "Completed",
                 mean+" ns",
                 string.Empty,
@@ -972,7 +974,7 @@ public sealed class BenchmarkOrchestratorTests{
                 job.ArtifactFolder,
                 string.Empty);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -987,20 +989,20 @@ public sealed class BenchmarkOrchestratorTests{
             CancellationToken.None);
 
         var state = LoadOnlyState(root);
-        Assert.Equal([65536,131072,262144],state.Jobs.Select(static job => job.ElementCount).Order().ToArray());
-        Assert.Contains(262144,state.ElementCounts);
-        Assert.DoesNotContain(state.Jobs,static job => job.ElementCount==524288);
+        Assert.Equal([65536,131072],state.Jobs.Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
+        Assert.DoesNotContain(262144,state.ElementCounts);
+        Assert.DoesNotContain(state.Jobs,static job => BenchmarkWorkloadAxis.GetAxisCount(job)==524288);
     }
 
     [Fact]
     public async Task Orchestrator_AdaptiveMode_FailedJobStopsBeforeDynamicElementCount(){
         var root = CreateTempRoot();
-        var runner = new FakeRunner((job,_) => job.ElementCount==131072
+        var runner = new FakeRunner((job,_) => BenchmarkWorkloadAxis.GetAxisCount(job)==131072
             ? new BenchmarkJobRunResult(
                 job.Project,
                 job.MethodName,
                 job.TypeFullName,
-                job.ElementCount,
+                BenchmarkWorkloadAxis.GetAxisCount(job),
                 "Failed",
                 string.Empty,
                 string.Empty,
@@ -1013,7 +1015,7 @@ public sealed class BenchmarkOrchestratorTests{
                 job.ArtifactFolder,
                 "boom")
             : CompletedResult(job));
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -1028,8 +1030,8 @@ public sealed class BenchmarkOrchestratorTests{
             CancellationToken.None);
 
         var state = LoadOnlyState(root);
-        Assert.Equal([65536,131072],state.Jobs.Select(static job => job.ElementCount).Order().ToArray());
-        Assert.DoesNotContain(state.Jobs,static job => job.ElementCount==262144);
+        Assert.Equal([65536,131072],state.Jobs.Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
+        Assert.DoesNotContain(state.Jobs,static job => BenchmarkWorkloadAxis.GetAxisCount(job)==262144);
     }
 
     [Fact]
@@ -1041,7 +1043,7 @@ public sealed class BenchmarkOrchestratorTests{
                 job.Project,
                 job.MethodName,
                 job.TypeFullName,
-                job.ElementCount,
+                BenchmarkWorkloadAxis.GetAxisCount(job),
                 "Completed",
                 mean+" ns",
                 string.Empty,
@@ -1054,7 +1056,7 @@ public sealed class BenchmarkOrchestratorTests{
                 job.ArtifactFolder,
                 string.Empty);
         });
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -1074,7 +1076,7 @@ public sealed class BenchmarkOrchestratorTests{
             CancellationToken.None);
 
         var state = LoadOnlyState(root);
-        Assert.Equal([1024],state.Jobs.Select(static job => job.ElementCount).Distinct().Order().ToArray());
+        Assert.Equal([1024],state.Jobs.Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Distinct().Order().ToArray());
         Assert.All(state.Jobs,static job => Assert.Equal(JobStatus.Completed,job.Status));
     }
 
@@ -1085,7 +1087,7 @@ public sealed class BenchmarkOrchestratorTests{
             job.Project,
             job.MethodName,
             job.TypeFullName,
-            job.ElementCount,
+            BenchmarkWorkloadAxis.GetAxisCount(job),
             "Completed",
             string.Empty,
             string.Empty,
@@ -1097,7 +1099,7 @@ public sealed class BenchmarkOrchestratorTests{
             0,
             job.ArtifactFolder,
             string.Empty));
-        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
@@ -1118,16 +1120,16 @@ public sealed class BenchmarkOrchestratorTests{
 
     [Fact]
     public void BenchmarkElementCountLogic_BuildAdaptiveCandidates_UsesOneToSelectedMaximum(){
-        var candidates = BenchmarkElementCountLogic.BuildAdaptiveCandidates(BenchmarkElementCounts.All,8192);
+        var candidates = BenchmarkElementCountLogic.BuildAdaptiveCandidates(BenchmarkElementCounts.All,128);
 
-        Assert.Equal([1024,2048,4096,8192],candidates);
+        Assert.Equal([1,2,4,8,16,32,64,128],candidates);
     }
 
     [Fact]
     public void BenchmarkElementCounts_StartsAdaptiveWorkloadAtBaseElementCount(){
-        Assert.Contains(BenchmarkElementCounts.BaseElementCount,BenchmarkElementCounts.All);
-        Assert.Equal(BenchmarkElementCounts.BaseElementCount,BenchmarkElementCounts.DefaultInitial[0]);
-        Assert.Equal([BenchmarkElementCounts.BaseElementCount],BenchmarkElementCounts.DefaultInitial);
+        Assert.DoesNotContain(BenchmarkElementCounts.BaseElementCount,BenchmarkElementCounts.All);
+        Assert.Equal(1,BenchmarkElementCounts.DefaultInitial[0]);
+        Assert.Equal([1],BenchmarkElementCounts.DefaultInitial);
         Assert.Equal(4096,BenchmarkElementCounts.BaseElementCount);
     }
 
@@ -1212,7 +1214,9 @@ public sealed class BenchmarkOrchestratorTests{
             AssemblyName="Assembly",
             TypeFullName="Type",
             MethodName=method,
-            ElementCount=elementCount,
+            SourceTab=global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray,
+            ElementCount=global::UI.BenchmarkWorkloadAxis.ResolveElementCount(global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray,elementCount),
+            LoopCount=global::UI.BenchmarkWorkloadAxis.ResolveLoopCount(global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray,elementCount),
             Status=JobStatus.Completed,
             Mean="100 ns",
             MeanNanoseconds=100,
@@ -1228,7 +1232,7 @@ public sealed class BenchmarkOrchestratorTests{
             job.Project,
             job.MethodName,
             job.TypeFullName,
-            job.ElementCount,
+            BenchmarkWorkloadAxis.GetAxisCount(job),
             "Completed",
             "100 ns",
             string.Empty,
@@ -1299,3 +1303,6 @@ public sealed class BenchmarkOrchestratorTests{
         }
     }
 }
+
+
+

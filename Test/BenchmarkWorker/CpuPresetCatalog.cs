@@ -1,9 +1,9 @@
-using UI;
+﻿using UI;
 
 namespace Test.BenchmarkWorker;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
-public sealed class CpuPresetCatalogTests{
+public sealed class CpuPresetCatalog{
     [Fact]
     public void CpuCoreInfo_DisplayText_UsesLogicalCpuAndGroup(){
         var performancePrimary = new CpuCoreInfo(0,CpuCoreKind.Performance,0,0,1,true);
@@ -21,7 +21,7 @@ public sealed class CpuPresetCatalogTests{
     public void Build_CreatesExpectedPresets_ForHybridTopology(){
         var cpuCores = CreateHybridCpuSet();
 
-        var presets = CpuPresetCatalog.Build(cpuCores)
+        var presets = global::UI.CpuPresetCatalog.Build(cpuCores)
             .ToDictionary(static preset => preset.Key,static preset => preset.LogicalProcessorIndexes.ToArray(),StringComparer.Ordinal);
 
         Assert.Equal(Enumerable.Range(0,28).ToArray(),presets["ALL"]);
@@ -43,7 +43,7 @@ public sealed class CpuPresetCatalogTests{
             new CpuCoreInfo(3,CpuCoreKind.Efficiency,1,1,0,true),
         ];
 
-        var presetKeys = CpuPresetCatalog.Build(cpuCores)
+        var presetKeys = global::UI.CpuPresetCatalog.Build(cpuCores)
             .Select(static preset => preset.Key)
             .ToArray();
 
@@ -63,8 +63,8 @@ public sealed class CpuPresetCatalogTests{
             new CpuCoreInfo(1,CpuCoreKind.Unknown,1,1,0,false),
         ];
 
-        Assert.Equal(["ALL","CLEAR","P1T","P2T"],CpuPresetCatalog.Build(performanceOnly).Select(static preset => preset.Key).ToArray());
-        Assert.Equal(["ALL","CLEAR"],CpuPresetCatalog.Build(unknownOnly).Select(static preset => preset.Key).ToArray());
+        Assert.Equal(["ALL","CLEAR","P1T","P2T"],global::UI.CpuPresetCatalog.Build(performanceOnly).Select(static preset => preset.Key).ToArray());
+        Assert.Equal(["ALL","CLEAR"],global::UI.CpuPresetCatalog.Build(unknownOnly).Select(static preset => preset.Key).ToArray());
     }
 
     [Fact]
@@ -311,3 +311,5 @@ public sealed class CpuPresetCatalogTests{
         return new ReportRow(project,method,string.Empty,string.Empty,status,meanNanoseconds+" ns",string.Empty,string.Empty,allocatedBytes+" B",string.Empty,string.Empty,meanNanoseconds,0,0,allocatedBytes,0,0,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,null);
     }
 }
+
+

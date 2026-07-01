@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildThisFileDirectory)..\Collections\Collections.projitems" />
+  <Import Project="$(MSBuildThisFileDirectory)..\Scalable.Collections\Scalable.Collections.projitems" />
+  <PropertyGroup Label="Globals">
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>{C37513C4-1907-44C8-AB78-21F0333D33FA}</SharedGUID>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Bases.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Dictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)List.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Set.cs" />
+  </ItemGroup>
+</Project>

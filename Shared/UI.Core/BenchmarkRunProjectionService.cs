@@ -6,7 +6,7 @@ internal sealed class BenchmarkRunProjectionService{
         IEnumerable<BenchmarkResultItem> results,
         int? selectedElementCount) =>
         results
-            .Where(item => selectedElementCount is null||item.ElementCount==0||item.ElementCount==selectedElementCount)
+            .Where(item => selectedElementCount is null||item.AxisCount==0||item.AxisCount==selectedElementCount)
             .ToArray();
 
     public IReadOnlyList<BenchmarkComparisonRow> BuildComparisonRowsForElementCount(
@@ -15,8 +15,8 @@ internal sealed class BenchmarkRunProjectionService{
         int elementCount,
         Func<BenchmarkSourceTabDefinition,IReadOnlyList<BenchmarkResultItem>,ReportRow[]> createRows){
         var sourceResults = session.GetResults(sourceTab.Tab)
-            .Where(result => result.ElementCount==elementCount
-                &&result.ElementCount>0
+            .Where(result => result.AxisCount==elementCount
+                &&result.AxisCount>0
                 &&sourceTab.ContainsProject(result.Project)
                 &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase))
             .ToArray();
@@ -31,7 +31,7 @@ internal sealed class BenchmarkRunProjectionService{
         BenchmarkSourceTabDefinition sourceTab,
         Func<BenchmarkSourceTabDefinition,IReadOnlyList<BenchmarkResultItem>,ReportRow[]> createRows){
         var sourceResults = session.GetResults(sourceTab.Tab)
-            .Where(result => result.ElementCount>0
+            .Where(result => result.AxisCount>0
                 &&sourceTab.ContainsProject(result.Project)
                 &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase))
             .GroupBy(static result => result.Method+"|"+result.TypeFullName+"|"+result.ArgumentKey,StringComparer.OrdinalIgnoreCase)
@@ -49,8 +49,8 @@ internal sealed class BenchmarkRunProjectionService{
         int elementCount,
         Func<BenchmarkSourceTabDefinition,IReadOnlyList<BenchmarkResultItem>,ReportRow[]> createRows){
         var sourceResults = results
-            .Where(result => result.ElementCount==elementCount
-                &&result.ElementCount>0
+            .Where(result => result.AxisCount==elementCount
+                &&result.AxisCount>0
                 &&sourceTab.ContainsProject(result.Project)
                 &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase))
             .ToArray();
@@ -65,7 +65,7 @@ internal sealed class BenchmarkRunProjectionService{
         BenchmarkSourceTabDefinition sourceTab,
         Func<BenchmarkSourceTabDefinition,IReadOnlyList<BenchmarkResultItem>,ReportRow[]> createRows){
         var sourceResults = results
-            .Where(result => result.ElementCount>0
+            .Where(result => result.AxisCount>0
                 &&sourceTab.ContainsProject(result.Project)
                 &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase))
             .ToArray();
@@ -79,7 +79,7 @@ internal sealed class BenchmarkRunProjectionService{
         IGrouping<string,BenchmarkResultItem> methodGroup,
         BenchmarkSourceTabDefinition sourceTab){
         var elementGroup = methodGroup
-            .GroupBy(static result => result.ElementCount)
+            .GroupBy(static result => result.AxisCount)
             .Select(group => new LatestElementCountGroup(
                 group.Key,
                 group.Max(static result => result.StartedAt??DateTimeOffset.MinValue),

@@ -1,6 +1,8 @@
-namespace UI;
+﻿using UI;
 
-public sealed class BenchmarkToolbarAndCloseLogicTests{
+namespace Test.Benchmark;
+
+public sealed class BenchmarkToolbarAndCloseLogic{
     [Fact]
     public void IdleRunButtonUsesDirectState(){
         var state = BenchmarkToolbarStateLogic.CreateState(
@@ -136,3 +138,5 @@ public sealed class BenchmarkToolbarAndCloseLogicTests{
             });
     }
 }
+
+

@@ -7,10 +7,9 @@ public static class BenchmarkWorkerRuntime{
     private const int BenchmarkLaunchCount = 1;
     private const int BenchmarkWarmupCount = 1;
     private const int BenchmarkIterationCount = 1;
-    private const int BenchmarkInvocationCount = 1;
     private const int BenchmarkUnrollFactor = 1;
 
-    public static IConfig CreateConfig(string artifactFolder) =>
+    public static IConfig CreateConfig(string artifactFolder,int loopCount = 1) =>
         ManualConfig
             .Create(DefaultConfig.Instance)
             .WithOptions(ConfigOptions.DisableOptimizationsValidator)
@@ -20,7 +19,7 @@ public static class BenchmarkWorkerRuntime{
                 .WithLaunchCount(BenchmarkLaunchCount)
                 .WithWarmupCount(BenchmarkWarmupCount)
                 .WithIterationCount(BenchmarkIterationCount)
-                .WithInvocationCount(BenchmarkInvocationCount)
+                .WithInvocationCount(Math.Max(1,loopCount))
                 .WithUnrollFactor(BenchmarkUnrollFactor))
             .WithArtifactsPath(artifactFolder);
 

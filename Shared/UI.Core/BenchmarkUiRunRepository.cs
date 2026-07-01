@@ -132,6 +132,7 @@ internal sealed class BenchmarkUiRunRepository{
                 : new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
             var visibleArguments = caseArguments
                 .Where(static item => !string.Equals(item.Key,"ElementCount",StringComparison.OrdinalIgnoreCase)
+                    &&!string.Equals(item.Key,"LoopCount",StringComparison.OrdinalIgnoreCase)
                     &&!string.Equals(item.Key,"SourceTab",StringComparison.OrdinalIgnoreCase))
                 .OrderBy(static item => item.Key,StringComparer.OrdinalIgnoreCase)
                 .Select(static item => new BenchmarkArgument(item.Key,item.Value))
@@ -144,6 +145,7 @@ internal sealed class BenchmarkUiRunRepository{
                 testCase.Method,
                 testCase.TypeFullName,
                 (int)(job.ElementCount??0),
+                (int)(job.LoopCount??BenchmarkWorkloadAxis.DefaultLoopCount),
                 job.Status.ToString(),
                 mean?.ToString(System.Globalization.CultureInfo.InvariantCulture)??string.Empty,
                 mean,
@@ -173,7 +175,7 @@ internal sealed class BenchmarkUiRunRepository{
                 &&string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase)
                 &&IsSameType(result.TypeFullName,typeFullName)
                 &&BenchmarkArgumentKeyMatchLogic.IsExactMatch(result.ArgumentKey,argumentKey)
-                &&result.ElementCount==elementCount
+                &&result.AxisCount==elementCount
                 &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
                 &&result.MeanNanoseconds is not null
                 &&result.StartedAt is { } measuredAt
@@ -184,6 +186,7 @@ internal sealed class BenchmarkUiRunRepository{
                 result.Method,
                 result.TypeFullName,
                 result.ElementCount,
+                result.LoopCount,
                 result.Status,
                 result.Mean,
                 result.MeanNanoseconds,
@@ -206,6 +209,7 @@ internal sealed class BenchmarkUiRunRepository{
             .GroupBy(static item => item.Name,StringComparer.OrdinalIgnoreCase)
             .ToDictionary(static item => item.Key,static item => item.Last().Value,StringComparer.OrdinalIgnoreCase);
         arguments["ElementCount"]=result.ElementCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        arguments["LoopCount"]=result.LoopCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
         arguments["SourceTab"]=result.SourceTab.ToString();
         var metrics = new List<UiMetricValueWrite>();
         if(result.MeanNanoseconds is { } meanNanoseconds){
@@ -228,9 +232,10 @@ internal sealed class BenchmarkUiRunRepository{
             result.Method,
             result.TypeFullName,
             arguments,
-            caseKey+"|N="+result.ElementCount.ToString(System.Globalization.CultureInfo.InvariantCulture)+"|CPU="+(result.AssignedLogicalCpu?.ToString(System.Globalization.CultureInfo.InvariantCulture)??"-"),
+            caseKey+"|N="+result.ElementCount.ToString(System.Globalization.CultureInfo.InvariantCulture)+"|Loop="+result.LoopCount.ToString(System.Globalization.CultureInfo.InvariantCulture)+"|CPU="+(result.AssignedLogicalCpu?.ToString(System.Globalization.CultureInfo.InvariantCulture)??"-"),
             isCompletedResult ? UiRunStatus.Completed : UiRunStatus.Failed,
             result.ElementCount,
+            result.LoopCount,
             result.AssignedLogicalCpu,
             result.StartedAt,
             DateTimeOffset.UtcNow,
@@ -255,6 +260,7 @@ internal sealed class BenchmarkUiRunRepository{
             result.JobKey,
             result.Status,
             result.ElementCount,
+            result.LoopCount,
             result.AssignedLogicalCpu,
             result.StartedAt,
             result.FinishedAt,
@@ -323,6 +329,7 @@ internal sealed record BenchmarkResultPersistenceSnapshot(
     string JobKey,
     UiRunStatus Status,
     long ElementCount,
+    long LoopCount,
     int? AssignedLogicalCpu,
     DateTimeOffset? StartedAt,
     DateTimeOffset FinishedAt,

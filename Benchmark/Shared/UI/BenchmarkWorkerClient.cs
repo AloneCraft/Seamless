@@ -12,7 +12,7 @@ public sealed class BenchmarkWorkerClient:IBenchmarkJobRunner {
         int logicalCpu,
         TimeSpan timeout,
         CancellationToken cancellationToken) =>
-        this.RunAsync(job.ToBenchmarkCase(),runRoot,job.SourceTab,job.PreparedElementCounts,job.ElementCount,"1",logicalCpu,timeout,cancellationToken);
+        this.RunAsync(job.ToBenchmarkCase(),runRoot,job.SourceTab,job.PreparedElementCounts,job.ElementCount,job.LoopCount,"1",logicalCpu,timeout,cancellationToken);
 
     public async Task<BenchmarkJobRunResult> RunAsync(
         BenchmarkCase benchmark,
@@ -20,6 +20,7 @@ public sealed class BenchmarkWorkerClient:IBenchmarkJobRunner {
         BenchmarkSourceTab sourceTab,
         IReadOnlyList<int> preparedElementCounts,
         int elementCount,
+        int loopCount,
         string elementScale,
         int logicalCpu,
         TimeSpan timeout,
@@ -29,7 +30,7 @@ public sealed class BenchmarkWorkerClient:IBenchmarkJobRunner {
         var effectiveToken = linkedSource.Token;
         try {
             await using var session = await this.StartSessionAsync(runRoot,logicalCpu,effectiveToken);
-            var result = await session.RunAsync(benchmark,sourceTab,preparedElementCounts,elementCount,elementScale,effectiveToken);
+            var result = await session.RunAsync(benchmark,sourceTab,preparedElementCounts,elementCount,loopCount,elementScale,effectiveToken);
             await session.ShutdownAsync(effectiveToken);
             return result;
         } catch(OperationCanceledException) {
@@ -60,11 +61,12 @@ public sealed class BenchmarkWorkerClient:IBenchmarkJobRunner {
         }
     }
 
-    internal static string CreateArtifactFolder(string runRoot,BenchmarkCase benchmark,BenchmarkSourceTab sourceTab,int elementCount) {
+    internal static string CreateArtifactFolder(string runRoot,BenchmarkCase benchmark,BenchmarkSourceTab sourceTab,int elementCount,int loopCount) {
         var artifactFolder = Path.Combine(
             runRoot,
             BenchmarkSourceTabs.ToPathPart(sourceTab),
             "N"+elementCount.ToString(CultureInfo.InvariantCulture),
+            "Loop"+Math.Max(1,loopCount).ToString(CultureInfo.InvariantCulture),
             SanitizePathPart(benchmark.Project),
             SanitizePathPart(benchmark.TypeFullName),
             SanitizePathPart(benchmark.MethodName),
@@ -149,13 +151,14 @@ public sealed class BenchmarkWorkerSession:IAsyncDisposable {
         BenchmarkSourceTab sourceTab,
         IReadOnlyList<int> preparedElementCounts,
         int elementCount,
+        int loopCount,
         string elementScale,
         CancellationToken cancellationToken) {
         if(this.isClosed) {
             throw new ObjectDisposedException(nameof(BenchmarkWorkerSession));
         }
 
-        var artifactFolder = BenchmarkWorkerClient.CreateArtifactFolder(this.runRoot,benchmark,sourceTab,elementCount);
+        var artifactFolder = BenchmarkWorkerClient.CreateArtifactFolder(this.runRoot,benchmark,sourceTab,elementCount,loopCount);
         var message = new WorkerTaskMessage(
             "run",
             Guid.NewGuid().ToString("N",CultureInfo.InvariantCulture),
@@ -167,6 +170,7 @@ public sealed class BenchmarkWorkerSession:IAsyncDisposable {
             sourceTab,
             preparedElementCounts.ToArray(),
             elementCount,
+            loopCount,
             elementScale,
             artifactFolder);
 
@@ -197,7 +201,8 @@ public sealed class BenchmarkWorkerSession:IAsyncDisposable {
                 result.RandomSeed,
                 result.ResultDigest,
                 benchmark.ArgumentKey,
-                benchmark.Arguments);
+                benchmark.Arguments,
+                loopCount);
         } catch(OperationCanceledException) {
             this.Kill();
             throw;
@@ -212,7 +217,7 @@ public sealed class BenchmarkWorkerSession:IAsyncDisposable {
         this.isClosed=true;
         try {
             if(!this.process.HasExited) {
-                await this.process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new WorkerTaskMessage("shutdown",string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,[],BenchmarkSourceTab.SystemArray,[],0,string.Empty,string.Empty)).AsMemory(),cancellationToken);
+                await this.process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new WorkerTaskMessage("shutdown",string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,[],BenchmarkSourceTab.SystemArray,[],0,0,string.Empty,string.Empty)).AsMemory(),cancellationToken);
                 await this.process.StandardInput.FlushAsync(cancellationToken);
                 await this.process.WaitForExitAsync(cancellationToken);
             }
@@ -260,6 +265,7 @@ public sealed record BenchmarkRunResult(
     int ExitCode,
     string ArtifactFolder,
     string Log,
+    int LoopCount = 1,
     int? RandomSeed = null,
     string ResultDigest = "");
 
@@ -274,6 +280,7 @@ internal sealed record WorkerTaskMessage(
     BenchmarkSourceTab SourceTab,
     int[] PreparedElementCounts,
     int ElementCount,
+    int LoopCount,
     string ElementScale,
     string ArtifactFolder);
 

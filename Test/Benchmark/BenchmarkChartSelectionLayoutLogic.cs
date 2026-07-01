@@ -1,9 +1,11 @@
-namespace UI;
+﻿using UI;
 
-public sealed class BenchmarkChartSelectionLayoutLogicTests{
+namespace Test.Benchmark;
+
+public sealed class BenchmarkChartSelectionLayoutLogic{
     [Fact]
     public void CreateBarRects_RightBarEndsAtPlotRightForEvenValues(){
-        var rects = BenchmarkChartSelectionLayoutLogic.CreateBarRects(
+        var rects = global::UI.BenchmarkChartSelectionLayoutLogic.CreateBarRects(
             plotLeft:100,
             plotRight:500,
             leftValue:50,
@@ -17,7 +19,7 @@ public sealed class BenchmarkChartSelectionLayoutLogicTests{
 
     [Fact]
     public void CreateBarRects_RightBarCoversRemainingWidthForUnevenValues(){
-        var rects = BenchmarkChartSelectionLayoutLogic.CreateBarRects(
+        var rects = global::UI.BenchmarkChartSelectionLayoutLogic.CreateBarRects(
             plotLeft:100,
             plotRight:500,
             leftValue:96,
@@ -30,13 +32,13 @@ public sealed class BenchmarkChartSelectionLayoutLogicTests{
 
     [Fact]
     public void CalculateStackBoundary_ClampsPercentToPlotRange(){
-        Assert.Equal(100,BenchmarkChartSelectionLayoutLogic.CalculateStackBoundary(100,500,-10));
-        Assert.Equal(500,BenchmarkChartSelectionLayoutLogic.CalculateStackBoundary(100,500,110));
+        Assert.Equal(100,global::UI.BenchmarkChartSelectionLayoutLogic.CalculateStackBoundary(100,500,-10));
+        Assert.Equal(500,global::UI.BenchmarkChartSelectionLayoutLogic.CalculateStackBoundary(100,500,110));
     }
 
     [Fact]
     public void CreateBarLabelPoints_UsesEachBarLeftEdge(){
-        var points = BenchmarkChartSelectionLayoutLogic.CreateBarLabelPoints(
+        var points = global::UI.BenchmarkChartSelectionLayoutLogic.CreateBarLabelPoints(
             new BenchmarkChartBarRect(100,250,150),
             new BenchmarkChartBarRect(250,500,250),
             y:24,
@@ -48,3 +50,6 @@ public sealed class BenchmarkChartSelectionLayoutLogicTests{
         Assert.Equal(24,points.RightLabelPoint.Y);
     }
 }
+
+
+

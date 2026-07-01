@@ -31,8 +31,6 @@ public sealed class MainPage:ContentPage {
     private const double CpuLogicalCheckColumnWidth = 38;
     private const double CpuLogicalNumberWidth = 26;
     private const double LowerTabBarHeight = 34;
-    private const double SourceTabProgressHeight = 3;
-    private const double OverallSourceProgressHeight = 4;
     private const double CpuSectionHeaderHeight = 34;
     private const double BenchmarkGridRowHeight = 24;
     private const double BenchmarkGridHeaderRowHeight = 30;
@@ -721,7 +719,7 @@ public sealed class MainPage:ContentPage {
             HeightRequest=30,
             TabBarHeight=30,
             TabBarBackground=Color.FromArgb("#F8FAFC"),
-            IndicatorBackground=Color.FromArgb("#0F766E"),
+            IndicatorBackground=Colors.Transparent,
             HeaderItemSpacing=2,
             EnableSwiping=false,
             ContentTransitionDuration=0,
@@ -799,56 +797,42 @@ public sealed class MainPage:ContentPage {
     }
 
     private View CreateOverallSourceProgressView() {
-        var fill = new BoxView {
-            Color=Color.FromArgb("#0F766E"),
-            HeightRequest=OverallSourceProgressHeight,
-            HorizontalOptions=LayoutOptions.Start,
-            VerticalOptions=LayoutOptions.Center,
-        };
-        var track = new Grid {
-            HeightRequest=OverallSourceProgressHeight,
-            BackgroundColor=Color.FromArgb("#E2E8F0"),
-            HorizontalOptions=LayoutOptions.Fill,
-            VerticalOptions=LayoutOptions.Center,
-            Children= {
-                fill,
-            },
-        };
         var text = new Label {
             FontSize=12,
             TextColor=Color.FromArgb("#334155"),
             VerticalTextAlignment=TextAlignment.Center,
-            HorizontalTextAlignment=TextAlignment.End,
+            HorizontalTextAlignment=TextAlignment.Center,
             LineBreakMode=LineBreakMode.NoWrap,
-            WidthRequest=64,
+            Margin=new Thickness(8,2),
+        };
+        var badge = new Border {
+            Stroke=Color.FromArgb("#CBD5E1"),
+            StrokeThickness=1,
+            BackgroundColor=Color.FromArgb("#F8FAFC"),
+            StrokeShape=new Microsoft.Maui.Controls.Shapes.RoundRectangle {
+                CornerRadius=new CornerRadius(6),
+            },
+            Content=text,
+            HorizontalOptions=LayoutOptions.End,
+            VerticalOptions=LayoutOptions.Center,
         };
         var layout = new Grid {
-            ColumnDefinitions= {
-                new ColumnDefinition { Width = GridLength.Star },
-                new ColumnDefinition { Width = GridLength.Auto },
-            },
-            ColumnSpacing=8,
             HeightRequest=18,
             Children= {
-                track,
-                text,
+                badge,
             },
         };
-        Grid.SetColumn(text,1);
         void Apply() {
             if(this.viewModel is null) {
-                fill.WidthRequest=0;
-                text.Text="0/0";
+                text.Text="確定 0/0";
                 return;
             }
 
             var progress = this.viewModel.OverallSourceTabProgress;
-            fill.WidthRequest=CalculateProgressWidth(track.Width,progress);
-            text.Text=progress.Total<=0 ? "0/0" : progress.FractionText;
+            text.Text="確定 "+(progress.Total<=0 ? "0/0" : progress.FractionText);
             text.TextColor=progress.Total<=0 ? Color.FromArgb("#94A3B8") : Color.FromArgb("#334155");
         }
         layout.Loaded+=(_,_) => Apply();
-        track.SizeChanged+=(_,_) => Apply();
         if(this.viewModel is not null) {
             this.viewModel.PropertyChanged+=(_,args) => {
                 if(args.PropertyName==nameof(BenchmarkRunnerViewModel.OverallSourceTabProgress)) {
@@ -861,21 +845,6 @@ public sealed class MainPage:ContentPage {
     }
 
     private View CreateSourceTabHeader(SourceTabOption option) {
-        var fill = new BoxView {
-            Color=Color.FromArgb("#0F766E"),
-            HeightRequest=SourceTabProgressHeight,
-            HorizontalOptions=LayoutOptions.Start,
-            VerticalOptions=LayoutOptions.Start,
-        };
-        var track = new Grid {
-            HeightRequest=SourceTabProgressHeight,
-            BackgroundColor=Color.FromArgb("#D1FAE5"),
-            HorizontalOptions=LayoutOptions.Fill,
-            VerticalOptions=LayoutOptions.Start,
-            Children= {
-                fill,
-            },
-        };
         var label = new Label {
             Text=option.HeaderText,
             FontSize=12,
@@ -883,33 +852,38 @@ public sealed class MainPage:ContentPage {
             HorizontalTextAlignment=TextAlignment.Center,
             VerticalTextAlignment=TextAlignment.Center,
             LineBreakMode=LineBreakMode.TailTruncation,
-            Margin=new Thickness(6,2,6,0),
+            Margin=new Thickness(8,3),
         };
-        var layout = new Grid {
-            RowDefinitions= {
-                new RowDefinition { Height = new GridLength(SourceTabProgressHeight) },
-                new RowDefinition { Height = GridLength.Star },
+        var layout = new Border {
+            StrokeThickness=1,
+            StrokeShape=new Microsoft.Maui.Controls.Shapes.RoundRectangle {
+                CornerRadius=new CornerRadius(6),
             },
-            BackgroundColor=Colors.Transparent,
-            Children= {
-                track,
-                label,
-            },
+            Content=label,
+            Margin=new Thickness(1,0),
         };
-        Grid.SetRow(label,1);
         void Apply() {
+            var isSelected = this.viewModel is not null&&ReferenceEquals(this.viewModel.SelectedSourceTab,option);
             label.Text=option.HeaderText;
-            fill.WidthRequest=CalculateProgressWidth(track.Width,option.Progress);
-            fill.IsVisible=option.Progress.Total>0;
+            label.FontAttributes=isSelected ? FontAttributes.Bold : FontAttributes.None;
+            label.TextColor=isSelected ? Color.FromArgb("#0F172A") : Color.FromArgb("#475569");
+            layout.BackgroundColor=isSelected ? Colors.White : Color.FromArgb("#F1F5F9");
+            layout.Stroke=isSelected ? Color.FromArgb("#0F766E") : Color.FromArgb("#CBD5E1");
         }
         layout.Loaded+=(_,_) => Apply();
-        track.SizeChanged+=(_,_) => Apply();
         option.PropertyChanged+=(_,args) => {
             if(args.PropertyName==nameof(SourceTabOption.HeaderText)
                 ||args.PropertyName==nameof(SourceTabOption.Progress)) {
                 MainThread.BeginInvokeOnMainThread(Apply);
             }
         };
+        if(this.viewModel is not null) {
+            this.viewModel.PropertyChanged+=(_,args) => {
+                if(args.PropertyName==nameof(BenchmarkRunnerViewModel.SelectedSourceTab)) {
+                    MainThread.BeginInvokeOnMainThread(Apply);
+                }
+            };
+        }
         Apply();
         return layout;
     }
@@ -1046,7 +1020,7 @@ public sealed class MainPage:ContentPage {
         var lowerTabView = new SfTabView {
             TabBarHeight=LowerTabBarHeight,
             TabBarBackground=Color.FromArgb("#E2E8F0"),
-            IndicatorBackground=Color.FromArgb("#0F766E"),
+            IndicatorBackground=Colors.Transparent,
             HeaderItemSpacing=4,
             EnableSwiping=false,
             ContentTransitionDuration=0,

@@ -1,10 +1,12 @@
-namespace UI;
+﻿using UI;
 
-public sealed class BenchmarkRowGroupingLogicTests{
+namespace Test.Benchmark;
+
+public sealed class BenchmarkRowGroupingLogic{
     [Fact]
     public void CreateRowsKeepsSingleComparisonRowWhenEachProjectHasOneMethod(){
         var sourceTab = BenchmarkSourceTabs.Default;
-        var rows = BenchmarkRowGroupingLogic.CreateRows(
+        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
             [
                 Case(sourceTab.LeftProject,"Left.Assembly","Left.Route","Where"),
                 Case(sourceTab.RightProject,"Right.Assembly","Right.Route","Where"),
@@ -20,7 +22,7 @@ public sealed class BenchmarkRowGroupingLogicTests{
     [Fact]
     public void CreateRowsSplitsSameProjectMethodByType(){
         var sourceTab = BenchmarkSourceTabs.Default;
-        var rows = BenchmarkRowGroupingLogic.CreateRows(
+        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
             [
                 Case(sourceTab.LeftProject,"Left.Assembly","Left.TypeA","Where"),
                 Case(sourceTab.LeftProject,"Left.Assembly","Left.TypeB","Where"),
@@ -38,7 +40,7 @@ public sealed class BenchmarkRowGroupingLogicTests{
     [Fact]
     public void CreateRowsSplitsSameProjectMethodByArgumentKey(){
         var sourceTab = BenchmarkSourceTabs.Default;
-        var rows = BenchmarkRowGroupingLogic.CreateRows(
+        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
             [
                 Case(sourceTab.LeftProject,"Left.Assembly","Left.TypeA","Add","Count=1",[new BenchmarkArgument("Count","1")]),
                 Case(sourceTab.LeftProject,"Left.Assembly","Left.TypeA","Add","Count=2",[new BenchmarkArgument("Count","2")]),
@@ -57,7 +59,7 @@ public sealed class BenchmarkRowGroupingLogicTests{
     [Fact]
     public void CreateRowsUsesScalableListTypeInBenchmarkName(){
         var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalablePersistedList);
-        var rows = BenchmarkRowGroupingLogic.CreateRows(
+        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
             [
                 Case(sourceTab.LeftProject,"Scalable.Persisted.Collections","Scalable.Persisted.Collections.List.ListString","Add"),
                 Case(sourceTab.LeftProject,"Scalable.Persisted.Collections","Scalable.Persisted.Collections.List.ListInt32","Add"),
@@ -74,7 +76,7 @@ public sealed class BenchmarkRowGroupingLogicTests{
     [Fact]
     public void CreateRowsUsesScalableDictionaryKeyAndValueTypesInBenchmarkName(){
         var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalableTsavoriteDictionary);
-        var rows = BenchmarkRowGroupingLogic.CreateRows(
+        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
             [
                 Case(sourceTab.LeftProject,"Scalable.Tsavorite.Collections","Scalable.Tsavorite.Collections.Dictionary.DictionaryStringInt32","Add"),
                 Case(sourceTab.LeftProject,"Scalable.Tsavorite.Collections","Scalable.Tsavorite.Collections.Dictionary.DictionaryManagedStructManagedStruct","Add"),
@@ -224,7 +226,7 @@ public sealed class BenchmarkRowGroupingLogicTests{
             type,
             method,
             "Completed",
-            mean.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            mean.ToString(global::System.Globalization.CultureInfo.InvariantCulture),
             string.Empty,
             string.Empty,
             "0",
@@ -245,3 +247,7 @@ public sealed class BenchmarkRowGroupingLogicTests{
             0);
 
 }
+
+
+
+

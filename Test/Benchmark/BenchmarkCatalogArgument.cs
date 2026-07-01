@@ -1,10 +1,10 @@
-using System.Reflection;
+﻿using System.Reflection;
 using UI;
 
 namespace Test.Benchmark;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
-public sealed class BenchmarkCatalogArgumentTests {
+public sealed class BenchmarkCatalogArgument {
     [Fact]
     public void GetBenchmarkArguments_UsesScalableTsavoriteArgumentNames() {
         var method = LoadMethod("Scalable.Tsavorite.Collections","Scalable.Tsavorite.Collections.Set.SetInt32","Add");
@@ -129,3 +129,4 @@ public sealed class BenchmarkCatalogArgumentTests {
             global::UI.BenchmarkArgumentFormatting.CreateKey(arguments),
             arguments);
 }
+
