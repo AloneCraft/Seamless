@@ -53,6 +53,8 @@ public sealed class MainPage:ContentPage {
     private readonly BenchmarkRunnerViewModel? viewModel;
     private readonly Grid? rootLayout;
     private View? activeDialogOverlay;
+    private TaskCompletionSource<string>? activeDialogCompletion;
+    private string activeDialogFallbackValue = string.Empty;
     private readonly List<Action> collapsibleSectionRefreshers = [];
     private readonly Dictionary<BenchmarkToolbarButtonRole,ImageButton> toolbarButtons = [];
     private SfDataGrid? benchmarkGrid;
@@ -226,28 +228,43 @@ public sealed class MainPage:ContentPage {
 
     private Task<string> ShowConfirmDialogAsync(string title,string message,IReadOnlyList<ConfirmDialogOption> options) {
         var root = this.rootLayout;
+        var fallbackValue = ResolveDialogFallbackValue(options);
         if(root is null||options.Count==0) {
-            return Task.FromResult(options.LastOrDefault()?.Value??string.Empty);
+            return Task.FromResult(fallbackValue);
         }
 
+        this.CompleteActiveDialog(root,this.activeDialogFallbackValue);
+
+        var completion = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var overlay = this.CreateConfirmDialogOverlay(title,message,options,value => {
+            this.CompleteActiveDialog(root,value);
+        });
+        this.activeDialogOverlay=overlay;
+        this.activeDialogCompletion=completion;
+        this.activeDialogFallbackValue=fallbackValue;
+        root.Add(overlay,0,0);
+        Grid.SetRowSpan(overlay,2);
+        return completion.Task;
+    }
+
+    private void CompleteActiveDialog(Grid root,string value) {
         if(this.activeDialogOverlay is not null) {
             root.Children.Remove(this.activeDialogOverlay);
             this.activeDialogOverlay=null;
         }
 
-        var completion = new TaskCompletionSource<string>();
-        var overlay = this.CreateConfirmDialogOverlay(title,message,options,value => {
-            if(this.activeDialogOverlay is not null) {
-                root.Children.Remove(this.activeDialogOverlay);
-                this.activeDialogOverlay=null;
-            }
+        var completion = this.activeDialogCompletion;
+        this.activeDialogCompletion=null;
+        this.activeDialogFallbackValue=string.Empty;
+        completion?.TrySetResult(value);
+    }
 
-            completion.TrySetResult(value);
-        });
-        this.activeDialogOverlay=overlay;
-        root.Add(overlay,0,0);
-        Grid.SetRowSpan(overlay,2);
-        return completion.Task;
+    private static string ResolveDialogFallbackValue(IReadOnlyList<ConfirmDialogOption> options) {
+        var cancelOption = options.FirstOrDefault(static option =>
+            string.Equals(option.Value,"Cancel",StringComparison.OrdinalIgnoreCase)
+            ||string.Equals(option.Value,"cancel",StringComparison.OrdinalIgnoreCase)
+            ||string.Equals(option.Text,"キャンセル",StringComparison.OrdinalIgnoreCase));
+        return cancelOption?.Value??options.LastOrDefault()?.Value??string.Empty;
     }
 
     private View CreateConfirmDialogOverlay(

@@ -150,13 +150,14 @@ internal sealed class BenchmarkOrchestrator(
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
         var warmedUp = false;
-        foreach(var elementCount in GetAdaptiveElementCounts(state,row)) {
+        foreach(var elementCount in EnumerateAdaptiveElementCounts(state,row)) {
             cancellationToken.ThrowIfCancellationRequested();
             var rowCases = GetAdaptiveCases(row,elementCount);
             if(rowCases.Count==0) {
                 continue;
             }
 
+            EnsureAdaptiveElementCount(state,elementCount);
             if(IsAdaptiveRowStopped(state,row.SourceTab,rowCases)) {
                 break;
             }
@@ -208,6 +209,33 @@ internal sealed class BenchmarkOrchestrator(
         }
     }
 
+    private static IEnumerable<int> EnumerateAdaptiveElementCounts(ProgressState state,AdaptiveMethodRow row) {
+        var seeds = GetAdaptiveElementCounts(state,row)
+            .Where(static count => count>0)
+            .Distinct()
+            .Order()
+            .ToArray();
+        var last = 0;
+        foreach(var count in seeds) {
+            last=count;
+            yield return count;
+        }
+
+        if(last!=BenchmarkElementCounts.All[^1]) {
+            yield break;
+        }
+
+        while(last>0&&last<int.MaxValue) {
+            if(last>int.MaxValue/2) {
+                last=int.MaxValue;
+            }else{
+                last*=2;
+            }
+
+            yield return last;
+        }
+    }
+
     private static IReadOnlyList<int> GetAdaptiveElementCounts(ProgressState state,AdaptiveMethodRow row) {
         if(!IsScalableSourceTab(row.SourceTab)) {
             return state.ElementCounts;
@@ -224,8 +252,49 @@ internal sealed class BenchmarkOrchestrator(
 
     private static IReadOnlyList<BenchmarkCase> GetAdaptiveCases(AdaptiveMethodRow row,int elementCount) =>
         IsScalableSourceTab(row.SourceTab)
-            ? row.Cases.Where(benchmark => benchmark.CountArgument==elementCount).ToArray()
+            ? GetScalableAdaptiveCases(row,elementCount)
             : row.Cases;
+
+    private static IReadOnlyList<BenchmarkCase> GetScalableAdaptiveCases(AdaptiveMethodRow row,int elementCount) {
+        var exact = row.Cases
+            .Where(benchmark => benchmark.CountArgument==elementCount)
+            .ToArray();
+        if(exact.Length>0) {
+            return exact;
+        }
+
+        return row.Cases
+            .Where(static benchmark => benchmark.CountArgument>0)
+            .Select(benchmark => CloneWithCountArgument(benchmark,elementCount))
+            .ToArray();
+    }
+
+    private static BenchmarkCase CloneWithCountArgument(BenchmarkCase benchmark,int elementCount) {
+        var arguments = benchmark.Arguments
+            .Select(argument => string.Equals(argument.Name,"Count",StringComparison.OrdinalIgnoreCase)
+                ? new BenchmarkArgument(argument.Name,elementCount.ToString(CultureInfo.InvariantCulture))
+                : argument)
+            .ToArray();
+        return new BenchmarkCase(
+            benchmark.Project,
+            benchmark.AssemblyName,
+            benchmark.TypeFullName,
+            benchmark.MethodName,
+            BenchmarkArgumentFormatting.CreateKey(arguments),
+            arguments);
+    }
+
+    private void EnsureAdaptiveElementCount(ProgressState state,int elementCount) {
+        lock(this.stateGate) {
+            if(state.ElementCounts.Contains(elementCount)) {
+                return;
+            }
+
+            state.ElementCounts.Add(elementCount);
+            state.ElementCounts=state.ElementCounts.Distinct().Order().ToList();
+            stateManager.Save(state);
+        }
+    }
 
     private async Task<WarmupFailure?> RunWarmupRowAsync(
         ProgressState state,
@@ -693,24 +762,34 @@ internal sealed class BenchmarkOrchestrator(
     }
 
     private bool IsAdaptiveRowStopped(ProgressState state,BenchmarkSourceTab sourceTab,IReadOnlyList<BenchmarkCase> cases) {
-        if(IsScalableSourceTab(sourceTab)) {
-            return false;
+        var jobs = this.GetJobsSnapshot(state);
+        if(cases.Any(benchmark => IsAdaptiveCaseFailed(jobs,sourceTab,benchmark))) {
+            return true;
         }
 
-        var jobs = this.GetJobsSnapshot(state);
-        return cases.Any(benchmark => IsAdaptiveCaseFailed(jobs,benchmark))
-            ||cases.Any(benchmark => IsAdaptiveCaseOverThreshold(state,jobs,benchmark));
+        return cases.Any(benchmark => IsAdaptiveCaseOverThreshold(state,jobs,sourceTab,benchmark));
     }
 
-    private static bool IsAdaptiveCaseFailed(IReadOnlyList<BenchmarkJob> jobs,BenchmarkCase benchmark) =>
-        jobs.Any(job => SameCase(benchmark,job)&&job.Status==JobStatus.Failed);
+    private static bool IsAdaptiveCaseFailed(IReadOnlyList<BenchmarkJob> jobs,BenchmarkSourceTab sourceTab,BenchmarkCase benchmark) =>
+        jobs.Any(job => SameAdaptiveSeries(sourceTab,benchmark,job)&&job.Status==JobStatus.Failed);
 
-    private static bool IsAdaptiveCaseOverThreshold(ProgressState state,IReadOnlyList<BenchmarkJob> jobs,BenchmarkCase benchmark) =>
+    private static bool IsAdaptiveCaseOverThreshold(ProgressState state,IReadOnlyList<BenchmarkJob> jobs,BenchmarkSourceTab sourceTab,BenchmarkCase benchmark) =>
         jobs.Any(job =>
-            SameCase(benchmark,job)
+            SameAdaptiveSeries(sourceTab,benchmark,job)
             &&job.Status==JobStatus.Completed
             &&job.MeanNanoseconds is { } mean
             &&mean>state.AdaptiveThresholdNanoseconds);
+
+    private static bool SameAdaptiveSeries(BenchmarkSourceTab sourceTab,BenchmarkCase benchmark,BenchmarkJob job) {
+        if(!IsScalableSourceTab(sourceTab)) {
+            return SameCase(benchmark,job);
+        }
+
+        return string.Equals(benchmark.Project,job.Project,StringComparison.OrdinalIgnoreCase)
+            &&string.Equals(benchmark.AssemblyName,job.AssemblyName,StringComparison.Ordinal)
+            &&string.Equals(benchmark.TypeFullName,job.TypeFullName,StringComparison.Ordinal)
+            &&string.Equals(benchmark.MethodName,job.MethodName,StringComparison.Ordinal);
+    }
 
     private IReadOnlyList<BenchmarkJob> GetJobsSnapshot(ProgressState state) {
         lock(this.stateGate) {
