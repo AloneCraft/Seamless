@@ -46,6 +46,7 @@ public enum BenchmarkGridSortColumn{
 
 public sealed class SourceTabOption:ObservableObject{
     private BenchmarkTabProgress progress;
+    private bool isSelected;
 
     public SourceTabOption(BenchmarkSourceTabDefinition definition){
         this.Definition=definition;
@@ -55,6 +56,21 @@ public sealed class SourceTabOption:ObservableObject{
     public BenchmarkSourceTab Tab => this.Definition.Tab;
     public string Id => this.Definition.Id;
     public string DisplayName => this.Definition.DisplayName;
+    public bool IsSelected{
+        get => this.isSelected;
+        private set{
+            if(this.SetProperty(ref this.isSelected,value)){
+                this.OnPropertyChanged(nameof(this.HeaderFontAttributes));
+                this.OnPropertyChanged(nameof(this.HeaderTextColor));
+                this.OnPropertyChanged(nameof(this.HeaderBackgroundColor));
+                this.OnPropertyChanged(nameof(this.HeaderStroke));
+            }
+        }
+    }
+    public FontAttributes HeaderFontAttributes => this.IsSelected ? FontAttributes.Bold : FontAttributes.None;
+    public Color HeaderTextColor => this.IsSelected ? Color.FromArgb("#0F172A") : Color.FromArgb("#475569");
+    public Color HeaderBackgroundColor => this.IsSelected ? Colors.White : Color.FromArgb("#F1F5F9");
+    public Brush HeaderStroke => this.IsSelected ? new SolidColorBrush(Color.FromArgb("#0F766E")) : new SolidColorBrush(Color.FromArgb("#CBD5E1"));
     public BenchmarkTabProgress Progress{
         get => this.progress;
         private set{
@@ -69,6 +85,10 @@ public sealed class SourceTabOption:ObservableObject{
 
     public void SetProgress(BenchmarkTabProgress value){
         this.Progress=value;
+    }
+
+    public void SetSelected(bool value){
+        this.IsSelected=value;
     }
 }
 
