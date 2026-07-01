@@ -5,6 +5,39 @@ using System.Text;
 namespace Scalable.Collections;
 
 public abstract class ScalableBenchmarkBase{
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<ScalableSourceArrayKey,Lazy<object>> SharedSourceArrays = new();
+
+    protected static T[] GetSharedValues<TOwner,T>(int count,Func<int,T> factory){
+        if(count<0){
+            throw new ArgumentOutOfRangeException(nameof(count));
+        }
+
+        var key=new ScalableSourceArrayKey(typeof(TOwner),typeof(T),nameof(GetSharedValues),count);
+        return (T[])SharedSourceArrays.GetOrAdd(
+            key,
+            static (sourceKey,state) => new Lazy<object>(
+                () => CreateArray(sourceKey.Count,state.Factory),
+                LazyThreadSafetyMode.ExecutionAndPublication),
+            new ScalableValueArrayFactory<T>(factory)).Value;
+    }
+
+    protected static KeyValuePair<TKey,TValue>[] GetSharedPairs<TOwner,TKey,TValue>(
+        int count,
+        Func<int,TKey> keyFactory,
+        Func<int,TValue> valueFactory){
+        if(count<0){
+            throw new ArgumentOutOfRangeException(nameof(count));
+        }
+
+        var key=new ScalableSourceArrayKey(typeof(TOwner),typeof(KeyValuePair<TKey,TValue>),nameof(GetSharedPairs),count);
+        return (KeyValuePair<TKey,TValue>[])SharedSourceArrays.GetOrAdd(
+            key,
+            static (sourceKey,state) => new Lazy<object>(
+                () => CreatePairs(sourceKey.Count,state.KeyFactory,state.ValueFactory),
+                LazyThreadSafetyMode.ExecutionAndPublication),
+            (KeyFactory: keyFactory,ValueFactory: valueFactory)).Value;
+    }
+
     public string CaptureBenchmarkMethodResult(string methodName,bool invokeImpl){
         return this.CaptureBenchmarkMethodResult(methodName,invokeImpl,[]);
     }
@@ -121,4 +154,26 @@ public abstract class ScalableBenchmarkBase{
         }
         return false;
     }
+
+    private static T[] CreateArray<T>(int count,Func<int,T> factory){
+        var values=GC.AllocateUninitializedArray<T>(count);
+        for(var index=0;index<count;index++){
+            values[index]=factory(index);
+        }
+        return values;
+    }
+
+    private static KeyValuePair<TKey,TValue>[] CreatePairs<TKey,TValue>(
+        int count,
+        Func<int,TKey> keyFactory,
+        Func<int,TValue> valueFactory){
+        var values=GC.AllocateUninitializedArray<KeyValuePair<TKey,TValue>>(count);
+        for(var index=0;index<count;index++){
+            values[index]=new KeyValuePair<TKey,TValue>(keyFactory(index),valueFactory(index));
+        }
+        return values;
+    }
+
+    private readonly record struct ScalableSourceArrayKey(Type OwnerType,Type ElementType,string Kind,int Count);
+    private sealed record ScalableValueArrayFactory<T>(Func<int,T> Factory);
 }

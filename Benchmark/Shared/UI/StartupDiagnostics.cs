@@ -139,7 +139,7 @@ internal static class StartupDiagnostics{
                             TextColor=Color.FromArgb("#991B1B"),
                         },
                         new Label{
-                            Text="Startup failed. See log:",
+                            Text="起動に失敗しました。ログを確認してください:",
                             FontSize=13,
                             TextColor=Color.FromArgb("#334155"),
                         },

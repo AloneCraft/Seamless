@@ -17,7 +17,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private static readonly BenchmarkRunOption NewRunOption = new(
         NewRunNumber,
         0,
-        "New",
+        "新規",
         string.Empty,
         BenchmarkExecutionProfile.Fast,
         DateTimeOffset.MinValue,
@@ -37,7 +37,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private CancellationTokenSource? runCancellation;
     private string? activeRunRoot;
     private RunTerminationKind pendingRunTerminationKind;
-    private string statusText = "Ready";
+    private string statusText = "準備完了";
     private bool isBenchmarkRunning;
     private bool isRefreshing;
     private bool? isAllBenchmarkSelectionChecked;
@@ -74,6 +74,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private readonly Dictionary<string,bool> benchmarkCellSelections = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string,bool> benchmarkRowSelections = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string,BenchmarkCase> benchmarkCasesByProjectMethod = new(StringComparer.OrdinalIgnoreCase);
+    private readonly BenchmarkSourceTabRunningState sourceTabRunningState = new();
     private IReadOnlyList<BenchmarkCase> catalogCases = [];
     private BenchmarkSourceTab? activeRunSourceTab;
     private IReadOnlyList<BenchmarkCase> currentRunSelectedBenchmarkCases = [];
@@ -117,9 +118,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.BenchmarkColumnSelectionGroups=this.CreateBenchmarkColumnSelectionGroups();
         this.BenchmarkProjectSelectionGroups=this.CreateBenchmarkProjectSelectionGroups();
         this.ExecutionProfiles= [
-            new ExecutionProfileOption("Accurate",BenchmarkExecutionProfile.Accurate),
-            new ExecutionProfileOption("Intermediate",BenchmarkExecutionProfile.Intermediate),
-            new ExecutionProfileOption("Fast",BenchmarkExecutionProfile.Fast),
+            new ExecutionProfileOption("正確",BenchmarkExecutionProfile.Accurate),
+            new ExecutionProfileOption("バランス",BenchmarkExecutionProfile.Intermediate),
+            new ExecutionProfileOption("高速",BenchmarkExecutionProfile.Fast),
         ];
         this.selectedExecutionProfile=this.ExecutionProfiles.First(static item => item.Profile==BenchmarkExecutionProfile.Fast);
         this.ThresholdOptions=CreateThresholdOptions();
@@ -193,9 +194,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshSelectedLogicalCpus();
     }
 
-    private IReadOnlyList<BenchmarkColumnSelectionGroup> CreateBenchmarkColumnSelectionGroups() => [
-        new BenchmarkColumnSelectionGroup("Active",string.Empty,["Left","Right"]),
-    ];
+    private IReadOnlyList<BenchmarkColumnSelectionGroup> CreateBenchmarkColumnSelectionGroups() => [];
 
     private IReadOnlyList<BenchmarkColumnSelectionGroup> CreateBenchmarkProjectSelectionGroups() => [
         new BenchmarkColumnSelectionGroup("Left",this.SelectedSourceDefinition.LeftHeader,["Left"]),
@@ -347,7 +346,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
 
     public bool IsBenchmarkPaused => this.runCancellation is null&&this.activeRunRoot is not null;
 
-    public string RunButtonText => this.IsBenchmarkPaused ? "Resume" : "Run";
+    public string RunButtonText => this.IsBenchmarkPaused ? "再開" : "実行";
 
     public bool CanResumeBenchmark => !this.IsRefreshing&&this.IsBenchmarkPaused;
 
@@ -373,7 +372,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     public string RunButtonTooltipText =>
         this.IsBenchmarkPaused||this.HasSelectedBenchmarkCells
             ? this.RunButtonText
-            : "Select one or more benchmarks";
+            : "ベンチマークを1つ以上選択してください";
 
     public BenchmarkSourceTab? ActiveRunSourceTab {
         get => this.activeRunSourceTab;
@@ -869,7 +868,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
 
     private async Task RefreshAsync() {
         this.IsRefreshing=true;
-        this.StatusText="Loading";
+        this.StatusText="読み込み中";
         StartupDiagnostics.Write("Benchmark catalog refresh started.");
         try {
             await this.RefreshDbRunListAsync(CancellationToken.None,true);
@@ -904,12 +903,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             }
             this.RefreshSourceTabProgresses();
             this.ApplyCurrentSort();
-            this.StatusText=this.BenchmarkRows.Count+" benchmarks";
+            this.StatusText=this.BenchmarkRows.Count+" 件のベンチマーク";
             StartupDiagnostics.Write($"Benchmark catalog loaded. Rows={this.BenchmarkRows.Count}");
         }
         catch(Exception ex) {
             StartupDiagnostics.Write("Benchmark catalog load failed.",ex);
-            this.StatusText="Load failed: "+ex.Message;
+            this.StatusText="読み込み失敗: "+ex.Message;
         }
         finally {
             this.IsRefreshing=false;
@@ -1587,7 +1586,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshCurrentRunBenchmarkSelectionSnapshot();
         var selected = this.GetCurrentRunSelectedBenchmarkCases().ToArray();
         if(selected.Length==0) {
-            this.StatusText="No benchmark selected";
+            this.StatusText="ベンチマークが選択されていません";
             StartupDiagnostics.Write("Benchmark run aborted: no benchmark selected.");
             return;
         }
@@ -1615,6 +1614,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         var keepPausedRunRoot = false;
         this.IsRunning=true;
         this.ActiveRunSourceTab=runSourceTab;
+        this.ClearSourceTabRunningStates();
         this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
         this.activeChartMethodName=string.Empty;
         this.PrepareSelectedSourceLiveResultsForRun();
@@ -1668,13 +1668,13 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
         catch(OperationCanceledException) {
             if(this.pendingRunTerminationKind==RunTerminationKind.Pause) {
-                this.StatusText="Paused";
+                this.StatusText="一時停止";
                 await this.SetUiRunStatusAsync(uiRunId,UiRunStatus.Paused,"Benchmark run paused.");
                 StartupDiagnostics.Write("Benchmark run paused.");
                 this.SetActiveRunRoot(completedRunRoot ?? runRoot);
                 keepPausedRunRoot=true;
             }else{
-                this.StatusText="Canceled";
+                this.StatusText="キャンセルしました";
                 await this.SetUiRunStatusAsync(uiRunId,UiRunStatus.Stopped,"Benchmark run canceled.");
                 StartupDiagnostics.Write("Benchmark run canceled.");
                 this.SetActiveRunRoot(null);
@@ -1682,7 +1682,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
         catch(Exception ex) {
             StartupDiagnostics.Write("Benchmark run failed.",ex);
-            this.StatusText="Run failed: "+ex.Message;
+            this.StatusText="実行失敗: "+ex.Message;
             await this.SetUiRunStatusAsync(uiRunId,UiRunStatus.Failed,ex.Message);
             this.SetActiveRunRoot(null);
         }
@@ -1693,6 +1693,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             this.IsRunning=false;
             this.activeChartMethodName=string.Empty;
             this.ActiveRunSourceTab=null;
+            this.ClearSourceTabRunningStates();
             this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
             this.runCancellation?.Dispose();
             this.runCancellation=null;
@@ -1792,6 +1793,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         var isFailedResult = string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase);
         var isTerminalResult = isCompletedResult||isFailedResult;
         var hasResultElementCount = result.AxisCount>0;
+        if(isRunningResult||isTerminalResult){
+            this.ApplySourceTabRunningResult(result);
+        }
         if(isRunningResult) {
             this.MarkActiveRunSourceTab(resultSourceTab);
         }
@@ -1810,6 +1814,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             this.CurrentElementCountText=FormatElementCountText(result.AxisCount);
         }
         var row = this.FindBenchmarkRow(result);
+        if(isRunningResult&&hasResultElementCount) {
+            this.UpsertCurrentRunResultItem(result);
+            this.RefreshSourceTabProgresses();
+        }
         if(isResultForVisibleTab&&isRunningResult) {
             this.RequestBenchmarkAutoScroll(resultSourceTab,result.Method,row?.RowKey??string.Empty);
             this.activeChartMethodName=row?.RowKey??result.Method;
@@ -1856,6 +1864,27 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
 
     private void MarkActiveRunSourceTab(BenchmarkSourceTab sourceTab) {
         this.ActiveRunSourceTab=sourceTab;
+    }
+
+    private void ApplySourceTabRunningResult(BenchmarkResultItem result){
+        if(this.sourceTabRunningState.Apply(result)){
+            this.RefreshSourceTabRunningStates();
+        }
+    }
+
+    private void ClearSourceTabRunningStates(){
+        if(this.sourceTabRunningState.Clear()){
+            this.RefreshSourceTabRunningStates();
+            return;
+        }
+
+        this.RefreshSourceTabRunningStates();
+    }
+
+    private void RefreshSourceTabRunningStates(){
+        foreach(var option in this.SourceTabs){
+            option.SetRunning(this.sourceTabRunningState.IsRunning(option.Tab));
+        }
     }
 
     private void RequestBenchmarkAutoScroll(BenchmarkSourceTab sourceTab,string methodName,string rowKey) {
@@ -2111,6 +2140,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.currentRunSession.GetResults(sourceTab);
 
     private bool RestoreCurrentRunDisplayForSelectedTab() {
+        this.ClearSourceTabRunningStates();
         var results = this.GetCurrentRunResultItemsForSelectedTab();
         if(results.Count==0) {
             return false;
@@ -2160,6 +2190,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private void ClearSelectedRunDisplay() {
+        this.ClearSourceTabRunningStates();
         this.ClearRetainedChartPoints();
         this.comparisonRows= [];
         this.ResultItems.Clear();
@@ -2273,7 +2304,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
 
         await Microsoft.Maui.ApplicationModel.DataTransfer.Clipboard.Default.SetTextAsync(this.ImprovementPromptText);
-            this.StatusText="Improvement prompt copied.";
+            this.StatusText="改善プロンプトをコピーしました";
     }
 
     private void RefreshSourceTabProgresses() {
@@ -2302,6 +2333,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private IReadOnlyList<BenchmarkTabProgressCell> CreateProgressCells(BenchmarkSourceTabDefinition sourceTab) {
+        var currentRunCells = this.CreateCurrentRunProgressCells(sourceTab);
+        if(currentRunCells.Count>0) {
+            return currentRunCells;
+        }
+
         if(sourceTab.Tab==this.SelectedSourceDefinition.Tab&&this.BenchmarkRows.Count>0) {
             return this.BenchmarkRows
                 .SelectMany(row => row.ProjectCells.Select(cell => CreateProgressCell(row,cell.Project,cell.HasCase&&cell.IsSelected)))
@@ -2318,6 +2354,17 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                     out var selected)
                     &&selected)))
             .ToArray();
+    }
+
+    private IReadOnlyList<BenchmarkTabProgressCell> CreateCurrentRunProgressCells(BenchmarkSourceTabDefinition sourceTab) {
+        if(!this.IsBenchmarkRunActive&&!this.currentRunSession.HasAnyResults) {
+            return [];
+        }
+
+        var selectedCases = this.GetCurrentRunSelectedBenchmarkCases();
+        return selectedCases.Count==0
+            ? []
+            : BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases(selectedCases,sourceTab);
     }
 
     private static BenchmarkTabProgressCell CreateProgressCell(BenchmarkRowDefinition row,string project,bool isSelected) {
@@ -2416,7 +2463,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
         catch(Exception ex) {
             StartupDiagnostics.Write("Benchmark run DB load failed.",ex);
-            this.StatusText="DB load failed: "+ex.Message;
+            this.StatusText="DB 読み込み失敗: "+ex.Message;
         }
     }
 
@@ -2471,7 +2518,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
         catch(Exception ex) {
             StartupDiagnostics.Write("Benchmark run DB load failed.",ex);
-            this.StatusText="DB load failed: "+ex.Message;
+            this.StatusText="DB 読み込み失敗: "+ex.Message;
         }
         finally {
             this.isLoadingSelectedRunDb=false;
@@ -2568,7 +2615,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         new(
             UnsavedRunNumber,
             this.activeUiRunId??0,
-            "Unsaved",
+            "未保存",
             runRoot,
             this.SelectedExecutionProfile.Profile,
             DateTimeOffset.Now,

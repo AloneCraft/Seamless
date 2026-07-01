@@ -4,6 +4,25 @@ namespace Test.Benchmark;
 
 public sealed class BenchmarkTabProgressLogic{
     [Fact]
+    public void CreateCellsFromSelectedCases_UsesRunSelectionSnapshotForSourceTab(){
+        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
+
+        var cells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases(
+            [
+                Case("System.Array.FLinq","System.Array","Where","Count=4096"),
+                Case("System.Array.ZLinq","System.Array","Where","Count=4096"),
+                Case("System.List.FLinq","System.Collections.Generic.List","Where","Count=4096"),
+                Case("System.Array.FLinq","System.Array","Where","Count=4096"),
+            ],
+            sourceTab);
+
+        Assert.Equal(2,cells.Count);
+        Assert.All(cells,static cell => Assert.True(cell.IsSelected));
+        Assert.Contains(cells,static cell => cell.Project=="System.Array.FLinq");
+        Assert.Contains(cells,static cell => cell.Project=="System.Array.ZLinq");
+    }
+
+    [Fact]
     public void Calculate_UsesSelectedCellsAsDenominator(){
         var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
             [
@@ -101,6 +120,9 @@ public sealed class BenchmarkTabProgressLogic{
         Assert.Equal(0,progress.Completed);
         Assert.Equal(2,progress.Total);
     }
+
+    private static BenchmarkCase Case(string project,string type,string method,string argumentKey) =>
+        new(project,"Test.Assembly",type,method,argumentKey,[]);
 }
 
 

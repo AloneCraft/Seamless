@@ -48,6 +48,36 @@ public sealed class BenchmarkStatusImageLogic{
     }
 
     [Fact]
+    public void ProjectStatusUsesRunningBeforeCompletedWithoutMeasurement(){
+        var kind = global::UI.BenchmarkStatusImageLogic.GetProjectKind(new BenchmarkStatusImageInput(
+            HasCase:true,
+            IsRunning:true,
+            IsFailed:false,
+            HasMeasuredValue:false,
+            IsCompletedWithoutMeasurement:true,
+            IsSelected:true,
+            IsRowFinalCompleted:false));
+
+        Assert.Equal(BenchmarkStatusImageKind.Running,kind);
+        Assert.Equal(BenchmarkStatusImageNames.CpuRunning,BenchmarkStatusImageNames.FromKind(kind));
+    }
+
+    [Fact]
+    public void ProjectStatusUsesRunningBeforeMeasuredCompletion(){
+        var kind = global::UI.BenchmarkStatusImageLogic.GetProjectKind(new BenchmarkStatusImageInput(
+            HasCase:true,
+            IsRunning:true,
+            IsFailed:false,
+            HasMeasuredValue:true,
+            IsCompletedWithoutMeasurement:false,
+            IsSelected:true,
+            IsRowFinalCompleted:true));
+
+        Assert.Equal(BenchmarkStatusImageKind.Running,kind);
+        Assert.Equal(BenchmarkStatusImageNames.CpuRunning,BenchmarkStatusImageNames.FromKind(kind));
+    }
+
+    [Fact]
     public void RowCompletionUsesThresholdOrMaxElementCompletion(){
         var measurements = new[] {
             new BenchmarkElementMeasurement("Left","Aggregate",4096,"Completed",900_000),
@@ -138,6 +168,7 @@ public sealed class BenchmarkStatusImageLogic{
         Assert.Equal("Count",BenchmarkCpuStatusImageLogic.GetCellStatusText("Running","Count"));
         Assert.Equal(BenchmarkStatusImageNames.CpuIdle,BenchmarkCpuStatusImageLogic.GetImageSource(JobStatus.Pending.ToString()));
     }
+
 }
 
 
