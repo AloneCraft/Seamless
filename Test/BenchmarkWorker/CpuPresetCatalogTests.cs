@@ -131,14 +131,6 @@ public sealed class CpuPresetCatalogTests{
     }
 
     [Fact]
-    public void BenchmarkCsvTimestampParser_FormatsExtractedTimestamp_WithSlashSeparatedDisplay(){
-        var timestamp = BenchmarkCsvTimestampParser.TryExtractTimestamp(@"G:\GitHub\Seamless\Work\Benchmark\20260626-032235\BenchmarkComparison-N1.csv");
-
-        Assert.NotNull(timestamp);
-        Assert.Equal("2026/06/26 03:22:35",BenchmarkTimestampDisplay.FormatLocal(timestamp.Value));
-    }
-
-    [Fact]
     public void BenchmarkProjectLiveStateLogic_UsesLiveStateOnlyForRunningAndCompletedVisuals(){
         Assert.True(BenchmarkProjectLiveStateLogic.IsPending(BenchmarkProjectLiveState.Idle,false));
         Assert.False(BenchmarkProjectLiveStateLogic.IsPending(BenchmarkProjectLiveState.Idle,true));
@@ -190,34 +182,30 @@ public sealed class CpuPresetCatalogTests{
     }
 
     [Fact]
-    public void ComparisonFormatter_WritesAndReadsWideNumericCsv(){
+    public void ComparisonFormatter_BuildsWideNumericRows(){
         var rows = BenchmarkComparisonFormatter.BuildComparisonRows([
             CreateReportRow("System.Array.FLinq","Select","Completed",5,10),
             CreateReportRow("System.Array.ZLinq","Select","Completed",4,0),
         ]);
 
-        var csv = BenchmarkComparisonFormatter.WriteCsv(rows);
-        var read = Assert.Single(BenchmarkComparisonFormatter.ReadCsv(csv));
+        var read = Assert.Single(rows);
 
-        Assert.Contains("System.Array.FLinq",csv,StringComparison.Ordinal);
-        Assert.Contains("System.Array.ZLinq",csv,StringComparison.Ordinal);
-        Assert.Contains("Select,5,10,4,0",csv,StringComparison.Ordinal);
         Assert.Equal(5,read.Left.TimeNanoseconds);
         Assert.Equal(0,read.Right.AllocatedBytes);
         Assert.Equal("1.25",read.PairRatio.TimeRatio.DisplayText);
     }
 
     [Fact]
-    public void ComparisonFormatter_UsesEmptyCsvCells_ForMissingValues(){
+    public void ComparisonFormatter_UsesMissingMetrics_ForMissingValues(){
         var rows = BenchmarkComparisonFormatter.BuildComparisonRows([
             CreateReportRow("System.Array.FLinq","Select","Failed",5,10),
             CreateReportRow("System.Array.ZLinq","Select","Completed",4,0),
         ]);
 
-        var csv = BenchmarkComparisonFormatter.WriteCsv(rows);
-
-        Assert.Contains("Select,,,4,0",csv,StringComparison.Ordinal);
-        Assert.Equal("-",Assert.Single(rows).PairRatio.TimeRatio.DisplayText);
+        var comparison = Assert.Single(rows);
+        Assert.False(comparison.Left.HasMeasuredValue);
+        Assert.True(comparison.Right.HasMeasuredValue);
+        Assert.Equal("-",comparison.PairRatio.TimeRatio.DisplayText);
     }
 
     [Fact]
@@ -228,25 +216,18 @@ public sealed class CpuPresetCatalogTests{
         ]);
 
         var comparison = Assert.Single(rows);
-        var csv = BenchmarkComparisonFormatter.WriteCsv(rows);
 
         Assert.False(comparison.Left.HasMeasuredValue);
         Assert.True(comparison.Right.HasMeasuredValue);
-        Assert.Contains("Select,,,4,0",csv,StringComparison.Ordinal);
         Assert.Equal("-",comparison.PairRatio.TimeRatio.DisplayText);
     }
 
     [Fact]
-    public void ComparisonFormatter_ReadCsv_IgnoresAllocatedWithoutTime(){
-        var csv = BenchmarkComparisonFormatter.WriteCsv([
-            new BenchmarkComparisonRow(
-                "Select",
-                BenchmarkSourceTabs.Default,
-                ProjectMetrics.FromMeasurement(5,10),
-                ProjectMetrics.FromMeasurement(4,0)),
-        ]).Replace("Select,5,10,4,0","Select,,10,4,0",StringComparison.Ordinal);
-
-        var read = Assert.Single(BenchmarkComparisonFormatter.ReadCsv(csv));
+    public void ComparisonFormatter_IgnoresAllocatedWithoutTime(){
+        var read = Assert.Single(BenchmarkComparisonFormatter.BuildComparisonRows([
+            CreateReportRow("System.Array.FLinq","Select","Completed",0,10),
+            CreateReportRow("System.Array.ZLinq","Select","Completed",4,0),
+        ]));
 
         Assert.False(read.Left.HasMeasuredValue);
         Assert.True(read.Right.HasMeasuredValue);
@@ -254,19 +235,14 @@ public sealed class CpuPresetCatalogTests{
     }
 
     [Fact]
-    public void ComparisonFormatter_WritesZeroAllocationOnlyWhenTimeExists(){
-        var csv = BenchmarkComparisonFormatter.WriteCsv([
-            new BenchmarkComparisonRow(
-                "Select",
-                BenchmarkSourceTabs.Default,
-                ProjectMetrics.FromMeasurement(4400,0),
-                ProjectMetrics.FromMeasurement(6800,null)),
-        ]);
-        var read = Assert.Single(BenchmarkComparisonFormatter.ReadCsv(csv));
+    public void ComparisonFormatter_KeepsZeroAllocationOnlyWhenTimeExists(){
+        var read = Assert.Single(BenchmarkComparisonFormatter.BuildComparisonRows([
+            CreateReportRow("System.Array.FLinq","Select","Completed",4400,0),
+            CreateReportRow("System.Array.ZLinq","Select","Completed",6800,0),
+        ]));
 
-        Assert.Contains("Select,4400,0,6800,",csv,StringComparison.Ordinal);
         Assert.Equal(0,read.Left.AllocatedBytes);
-        Assert.Null(read.Right.AllocatedBytes);
+        Assert.Equal(0,read.Right.AllocatedBytes);
     }
 
     [Fact]
@@ -278,14 +254,13 @@ public sealed class CpuPresetCatalogTests{
     }
 
     [Fact]
-    public void ComparisonFormatter_RejectsOldNamesAndOldCsv(){
+    public void ComparisonFormatter_RejectsOldProjectNames(){
         Assert.Throws<InvalidDataException>(() => BenchmarkComparisonFormatter.BuildComparisonRows([
             CreateReportRow("System LINQ","Select","Completed",1,0),
         ]));
         Assert.Throws<InvalidDataException>(() => BenchmarkComparisonFormatter.BuildComparisonRows([
             CreateReportRow("System FLinq","Select","Completed",1,0),
         ]));
-        Assert.Throws<InvalidDataException>(() => BenchmarkComparisonFormatter.ReadCsv("Project,Method,Mean\nSystemFLinq,Select,1 ns\n"));
     }
 
     [Fact]

@@ -13,6 +13,10 @@ review_status: draft
 
 # Benchmark UI Specification
 
+## Current Specification Notice
+
+This reverse document captures the historical Benchmark UI implementation. CSV/JSON persistence, Save/Save As/Open, and external CSV import descriptions below are no longer the current forward specification. Current Benchmark and Scalable UI storage behavior is defined in `Document/UI/UiStorageSpecification.md`.
+
 ## 対象
 
 この文書は `Benchmark\UI` と `Benchmark\Scalable.UI` が共有する MAUI ベンチマーク実行UIの現状仕様を、実装から復元したものです。通常版はアプリ名 `Seamless Benchmark`、Scalable版は `Seamless Scalable Benchmark` として構成されます。両方とも `Benchmark\Shared\UI.projitems` 経由で同じ共有UIコードを取り込みます。

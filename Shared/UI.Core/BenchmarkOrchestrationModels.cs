@@ -226,7 +226,7 @@ public interface IBenchmarkDynamicCpuSetRunner {
 
 internal sealed record BenchmarkProgressUpdate(ProgressState State,BenchmarkJob Job);
 
-internal sealed record BenchmarkOrchestratorResult(string RunRoot,IReadOnlyList<string> CsvPaths);
+internal sealed record BenchmarkOrchestratorResult(string RunRoot,ProgressState State);
 
 internal static class BenchmarkArgumentFormatting {
     public static string CreateKey(IReadOnlyList<BenchmarkArgument> arguments) =>

@@ -11,8 +11,11 @@ public sealed class MemoryOnlyDevice(long Capacity,byte[]? BackingBuffer = null)
     public override void ReadAsync(int segmentId,ulong sourceAddress,IntPtr destinationAddress,uint readLength,DeviceIOCompletionCallback callback,object context) {
         this.ThrowIfDisposed();
         this.ThrowIfOutOfRange(sourceAddress,readLength);
+        if(destinationAddress==IntPtr.Zero) {
+            throw new IOException(nameof(destinationAddress));
+        }
         Marshal.Copy(this.buffer,checked((int)sourceAddress),destinationAddress,checked((int)readLength));
-        callback(0,readLength,context);
+        callback?.Invoke(0,readLength,context);
     }
     public override void Dispose() {
         this.disposed=true;
@@ -30,8 +33,11 @@ public sealed class MemoryOnlyDevice(long Capacity,byte[]? BackingBuffer = null)
     public override void WriteAsync(IntPtr sourceAddress,int segmentId,ulong destinationAddress,uint numBytesToWrite,DeviceIOCompletionCallback callback,object context) {
         this.ThrowIfDisposed();
         this.ThrowIfOutOfRange(destinationAddress,numBytesToWrite);
+        if(sourceAddress==IntPtr.Zero) {
+            throw new OutOfMemoryException(nameof(sourceAddress));
+        }
         Marshal.Copy(sourceAddress,this.buffer,checked((int)destinationAddress),checked((int)numBytesToWrite));
-        callback(0,numBytesToWrite,context);
+        callback?.Invoke(0,numBytesToWrite,context);
     }
     /// <summary>
     /// HandCapacity を超える書き込み要求があった場合に呼び出される。セグメントに属するページをすべて解放し、確保量を減算する。
@@ -43,7 +49,6 @@ public sealed class MemoryOnlyDevice(long Capacity,byte[]? BackingBuffer = null)
     /// <param name="result"></param>
     public override void RemoveSegmentAsync(int segment,AsyncCallback callback,IAsyncResult result) {
         Trace.WriteLine(nameof(RemoveSegmentAsync));
-        callback(result);
     }
 
     private void ThrowIfDisposed() {

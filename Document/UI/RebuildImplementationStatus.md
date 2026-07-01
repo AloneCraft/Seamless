@@ -1,34 +1,44 @@
 # UI Rebuild Implementation Status
 
-## 実装済み
+## 完了
 
-- 共通SQLite保存Project `Shared/UI.Storage` を追加。
-- DB schemaをRun、Case、Job、Metric、UI状態へ正規化。
-- `Seamless.slnx`、Benchmark通常UI、Scalable UI、ParameterSweep UI、Test projectから保存Projectを参照。
-- ParameterSweep UI のRun履歴、結果保存、ベースライン比較読込をDB化。
-- Benchmark通常UI/Scalable UI のRun開始、状態遷移、完了/失敗結果、測定値をDBへ追記。
-- Benchmark結果コールバックへDB RunIdを渡し、再実行後の古いコールバックが新Runへ混ざらないようにした。
-- 完了直後の表示欠落候補だった `runResultGeneration` の完了時即時更新を抑制し、完了Runの遅延結果を捨てにくくした。
+- 共通SQLite保存Project `Shared/UI.Storage` を追加し、Benchmark通常UI、Scalable UI、ParameterSweep UI、Test projectから参照した。
+- DB schemaを `Run`、`Case`、`Job`、`Measurement`、`Metric`、`Comparison`、`UiSelection`、`UiViewState` へ正規化した。
+- Benchmark通常UI/Scalable UIのRun一覧、結果復元、比較行、再開用snapshotをDB正本へ切り替えた。
+- Benchmark通常UI/Scalable UIのToolbarから `Save`、`Save As`、`Open`、外部CSV読込導線を削除した。
+- `BenchmarkCsvDiscoveryService`、`BenchmarkRunPersistenceService`、`BenchmarkResultWriter`、`CsvStringBuilderExtensions`、`IBenchmarkCsvService`、`BenchmarkCsvService`、旧UI interaction保存経路を削除した。
+- Coreの `BenchmarkOrchestrator` はCSV成果物契約を持たず、in-memory `ProgressState` とprogress updateを返す設計へ変更した。
+- ParameterSweep UIの旧CSV保存を削除し、Run履歴、結果保存、baseline比較復元をDB保存へ統一した。
+- Benchmark開始時のUIフリーズを避けるため、SQLite書き込みをRepository側の直列バックグラウンドキューへ閉じ込めた。
+- タブ復帰時の結果消失と待機表示混入を修正し、ライブ結果は `BenchmarkRunSession` から復元するようにした。
+- 終了確認で「キャンセル」だけが出る状態を修正し、未保存結果がある場合も閉じる選択肢を表示するようにした。
+- `BenchmarkRunSession`、`BenchmarkRunProjectionService`、`BenchmarkUiRunRepository` をCore側のテスト可能な境界へ整理した。
+- `MemoryOnlyDevice` と `TsavoriteCheckpointCapacity` の既存テスト失敗を、全体テストグリーン化の付随修正として反映した。
 
-## まだ残っている旧経路
+## 検証済み
 
-- Benchmark側のCSV出力、CSV読込、`progress.json`、Save/Save As/Open UI。
-- Benchmark表示の正本はまだ `ResultItems`、`currentRunResultItemsByTab`、`comparisonRows` に残っている。
-- BenchmarkのRun履歴UIはDBではなく既存RunOption経路が残っている。
+- `dotnet build Shared\UI.Storage\UI.Storage.csproj -v:minimal`
+- `dotnet build Benchmark\UI\UI.csproj -v:minimal`
+- `dotnet build Benchmark\Scalable.UI\Scalable.UI.csproj -v:minimal`
+- `dotnet build Benchmark\Tsavorite.ParameterSweep.UI\Tsavorite.ParameterSweep.UI.csproj -v:minimal`
+- `dotnet test Test\Test.csproj -v:minimal`
+- `dotnet test Test.Tsavorite.ParameterSweep\Test.Tsavorite.ParameterSweep.csproj -v:minimal`
+- 3 UI EXEの短時間起動スモーク
 
-## 次の実装単位
+## 追加済み回帰テスト
 
-1. BenchmarkのRun一覧を `UiRunStore.ListRuns` から構築する。
-2. Benchmarkの結果復元をCSV/`progress.json` ではなくDBから行う。
-3. `Save`、`Save As`、`Open`、外部CSV読込をToolbarから削除する。
-4. `BenchmarkCsvDiscoveryService` と `BenchmarkRunPersistenceService` のUI依存を外す。
-5. Benchmarkの比較行生成をDBの `MetricValues` / `Comparisons` から構築する。
+- `BenchmarkRunSession`: 同一キーUpsert置換、SourceTab別取得、ElementCount復元、ProgressState生成。
+- `BenchmarkRunProjectionService`: 選択N投影、完了結果だけの比較行生成、最新結果復元。
+- `BenchmarkUiRunRepository`: temp SQLite DBでRun復元、Measurement置換、Scalableの `TypeFullName` / `ArgumentKey` 保持。
+- Close logic: 未保存状態で閉じる選択肢とキャンセルが出ること。
 
-## 受け入れ確認
+## 残件
 
-- `Shared/UI.Storage` build。
-- Benchmark通常UI build。
-- Scalable UI build。
-- ParameterSweep UI build。
-- `UiRunStoreTests` 成功。
-- 追加確認として、3アプリの起動とスクリーンショット取得を行う。
+- 将来のUI自動操作テスト強化。具体的には、Benchmark開始、タブ切替、履歴復元、比較表示、終了確認を実画面操作で検証する。
+
+## 差分整理メモ
+
+- `Artifacts/UiSmoke` のスクリーンショットはローカル検証証跡であり、最終差分には含めない。
+- 既存 `Work` 配下の旧CSV/JSONは削除しない。
+- `csv` 文字列の残存は「CSVが生成されないこと」を検証するテスト、またはReverse配下の歴史的証跡だけ許容する。
+

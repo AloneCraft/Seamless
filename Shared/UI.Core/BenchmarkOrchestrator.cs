@@ -6,7 +6,6 @@ namespace UI;
 [global::Seamless.FLinq.LinqIntercept(false)]
 internal sealed class BenchmarkOrchestrator(
     BenchmarkStateManager stateManager,
-    BenchmarkResultWriter resultWriter,
     IBenchmarkJobRunner jobRunner) {
     private readonly Lock stateGate = new();
     public async Task<BenchmarkOrchestratorResult> RunAsync(
@@ -38,8 +37,7 @@ internal sealed class BenchmarkOrchestrator(
             throw;
         }
 
-        var paths = resultWriter.WriteOutputs(state);
-        return new BenchmarkOrchestratorResult(state.RunRoot,paths);
+        return new BenchmarkOrchestratorResult(state.RunRoot,state);
     }
 
     private async Task RunFixedAsync(
@@ -408,11 +406,6 @@ internal sealed class BenchmarkOrchestrator(
                 job.FinishedAt=DateTimeOffset.UtcNow;
             }
             stateManager.Save(state);
-            try{
-                _ = resultWriter.WriteOutputs(state);
-            }catch(Exception ex){
-                System.Diagnostics.Trace.WriteLine("Benchmark result output failed. "+ex);
-            }
             progress(new BenchmarkProgressUpdate(state,job));
         }
     }
@@ -582,11 +575,6 @@ internal sealed class BenchmarkOrchestrator(
             job.ExitCode=1;
             job.FailureReason=FirstText(failureReason,"Warmup failed.");
             stateManager.Save(state);
-            try{
-                _ = resultWriter.WriteOutputs(state);
-            }catch(Exception ex){
-                System.Diagnostics.Trace.WriteLine("Benchmark result output failed. "+ex);
-            }
         }
 
         progress(new BenchmarkProgressUpdate(state,job));
@@ -663,8 +651,9 @@ internal sealed class BenchmarkOrchestrator(
     }
 
     private IReadOnlyList<AdaptiveMethodRow> CreateAdaptiveRows(ProgressState state,BenchmarkRunRequest request) {
+        var jobs = this.GetJobsSnapshot(state);
         var benchmarks = (request.BenchmarkProvider?.Invoke()??request.Benchmarks)
-            .Concat(state.Jobs.Select(static job => new BenchmarkCase(job.Project,job.AssemblyName,job.TypeFullName,job.MethodName,job.ArgumentKey,job.Arguments)))
+            .Concat(jobs.Select(static job => new BenchmarkCase(job.Project,job.AssemblyName,job.TypeFullName,job.MethodName,job.ArgumentKey,job.Arguments)))
             .GroupBy(CreateBenchmarkKey,StringComparer.Ordinal)
             .Select(static group => group.First())
             .ToArray();
@@ -703,21 +692,31 @@ internal sealed class BenchmarkOrchestrator(
         return int.MaxValue;
     }
 
-    private static bool IsAdaptiveRowStopped(ProgressState state,BenchmarkSourceTab sourceTab,IReadOnlyList<BenchmarkCase> cases) =>
-        !IsScalableSourceTab(sourceTab)
-        &&(
-        cases.Any(benchmark => IsAdaptiveCaseFailed(state,benchmark))
-        ||cases.Any(benchmark => IsAdaptiveCaseOverThreshold(state,benchmark)));
+    private bool IsAdaptiveRowStopped(ProgressState state,BenchmarkSourceTab sourceTab,IReadOnlyList<BenchmarkCase> cases) {
+        if(IsScalableSourceTab(sourceTab)) {
+            return false;
+        }
 
-    private static bool IsAdaptiveCaseFailed(ProgressState state,BenchmarkCase benchmark) =>
-        state.Jobs.Any(job => SameCase(benchmark,job)&&job.Status==JobStatus.Failed);
+        var jobs = this.GetJobsSnapshot(state);
+        return cases.Any(benchmark => IsAdaptiveCaseFailed(jobs,benchmark))
+            ||cases.Any(benchmark => IsAdaptiveCaseOverThreshold(state,jobs,benchmark));
+    }
 
-    private static bool IsAdaptiveCaseOverThreshold(ProgressState state,BenchmarkCase benchmark) =>
-        state.Jobs.Any(job =>
+    private static bool IsAdaptiveCaseFailed(IReadOnlyList<BenchmarkJob> jobs,BenchmarkCase benchmark) =>
+        jobs.Any(job => SameCase(benchmark,job)&&job.Status==JobStatus.Failed);
+
+    private static bool IsAdaptiveCaseOverThreshold(ProgressState state,IReadOnlyList<BenchmarkJob> jobs,BenchmarkCase benchmark) =>
+        jobs.Any(job =>
             SameCase(benchmark,job)
             &&job.Status==JobStatus.Completed
             &&job.MeanNanoseconds is { } mean
             &&mean>state.AdaptiveThresholdNanoseconds);
+
+    private IReadOnlyList<BenchmarkJob> GetJobsSnapshot(ProgressState state) {
+        lock(this.stateGate) {
+            return state.Jobs.ToArray();
+        }
+    }
 
     private static bool IsScalableSourceTab(BenchmarkSourceTab sourceTab) =>
         sourceTab is BenchmarkSourceTab.ScalableSet

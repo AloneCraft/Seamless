@@ -82,19 +82,13 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
     [MemberData(nameof(CheckpointModes))]
     public void Save_Load_Stores1024_RestoresDataAndCreatesSegmentFiles(CheckpointMode mode) {
         var root = TestPath.Directory<TsavoriteCheckpointCapacity>(mode.Name);
-        var stores = new List<StoreHandle>(StoreCount);
         var descriptors = new StoreDescriptor[StoreCount];
         try {
             for(var i=0;i<StoreCount;i++) {
                 var descriptor = CreateDescriptor(root,i);
                 descriptors[i]=descriptor;
-                stores.Add(CreateAndPopulateStore(descriptor,i,mode));
+                using var store = CreateAndPopulateStore(descriptor,i,mode);
             }
-
-            foreach(var store in stores) {
-                store.Dispose();
-            }
-            stores.Clear();
 
             Assert.Equal(2048,descriptors.Length*2);
             Assert.Equal(StoreCount,descriptors.Sum(static descriptor => CountDeviceFiles(descriptor.LogPath)+CountDeviceFiles(descriptor.ObjectLogPath)));
@@ -105,9 +99,6 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
                 AssertStoreData(handle.Store,i);
             }
         } finally {
-            foreach(var store in stores) {
-                store.Dispose();
-            }
             TryDelete(root);
         }
     }

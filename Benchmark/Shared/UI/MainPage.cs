@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Collections.Specialized;
 using Syncfusion.Maui.Buttons;
 using Syncfusion.Maui.DataGrid;
@@ -142,21 +142,12 @@ public sealed class MainPage:ContentPage {
             await this.viewModel.StopAsync();
         }
 
-        if(action is BenchmarkCloseAction.SaveAndClose or BenchmarkCloseAction.StopSaveAndClose) {
-            return await this.viewModel.SaveCurrentBenchmarkResultsAsync(true);
-        }
-
-        if(action is BenchmarkCloseAction.DiscardAndClose or BenchmarkCloseAction.StopDiscardAndClose) {
-            this.viewModel.DiscardUnsavedBenchmarkResults();
-        }
-
         return true;
     }
 
     private BenchmarkRunnerViewModel CreateViewModel() {
         var resultService = new BenchmarkResultService();
         var comparisonService = new BenchmarkComparisonService(resultService);
-        var csvService = new BenchmarkCsvService();
         var benchmarkRoot = Path.Combine(
             this.FindSolutionRoot()??Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Work",
@@ -167,16 +158,9 @@ public sealed class MainPage:ContentPage {
             new BenchmarkRunService(
                 new BenchmarkQueueService(),
                 new BenchmarkWorkerProcessService(),
-                csvService,
                 comparisonService),
-            csvService,
             comparisonService,
-            new BenchmarkResultStore(benchmarkRoot),
-            new BenchmarkCsvDiscoveryService(csvService),
-            new BenchmarkUiStateStore(benchmarkRoot),
-            new BenchmarkRunPersistenceService(),
             new UiRunStore(UiRunDatabasePathResolver.Resolve(this.FindSolutionRoot())),
-            new PageBenchmarkInteractionService(this),
             benchmarkRoot);
     }
 
@@ -206,11 +190,9 @@ public sealed class MainPage:ContentPage {
     private IReadOnlyList<ConfirmDialogOption> CreateCloseConfirmOptions(bool isBenchmarkActive,bool isBenchmarkPaused,bool hasUnsavedResults) {
         var options = BenchmarkCloseDialogLogic.CreateOptions(isBenchmarkActive,isBenchmarkPaused,hasUnsavedResults);
         return options
-            .Select(option => new ConfirmDialogOption(option.Text,option.Action.ToString(),option.Kind switch {
-                BenchmarkToolbarButtonRole.Save => ConfirmDialogButtonKind.Primary,
-                BenchmarkToolbarButtonRole.Stop => ConfirmDialogButtonKind.Danger,
-                _ => ConfirmDialogButtonKind.Neutral,
-            }))
+            .Select(option => new ConfirmDialogOption(option.Text,option.Action.ToString(),option.Kind==BenchmarkToolbarButtonRole.Stop
+                ? ConfirmDialogButtonKind.Danger
+                : ConfirmDialogButtonKind.Neutral))
             .ToArray();
     }
 
@@ -382,85 +364,6 @@ public sealed class MainPage:ContentPage {
 
     private sealed record ConfirmDialogOption(string Text,string Value,ConfirmDialogButtonKind Kind);
 
-    private sealed class PageBenchmarkInteractionService:IBenchmarkInteractionService {
-        private readonly MainPage page;
-
-        public PageBenchmarkInteractionService(MainPage page) {
-            this.page=page;
-        }
-
-        public async Task<BenchmarkUnsavedChangeDecision> ConfirmUnsavedChangeAsync(string operationName) {
-            var result = await this.page.ShowConfirmDialogAsync(
-                "未保存のベンチマーク結果があります。"+operationName+"か？",
-                string.Empty,
-                [
-                    new ConfirmDialogOption("保存して続行","save",ConfirmDialogButtonKind.Primary),
-                    new ConfirmDialogOption("破棄して続行","discard",ConfirmDialogButtonKind.Danger),
-                    new ConfirmDialogOption("キャンセル","cancel",ConfirmDialogButtonKind.Neutral),
-                ]);
-            return result switch {
-                "save" => BenchmarkUnsavedChangeDecision.SaveAndContinue,
-                "discard" => BenchmarkUnsavedChangeDecision.DiscardAndContinue,
-                _ => BenchmarkUnsavedChangeDecision.Cancel,
-            };
-        }
-
-        public Task<bool> ConfirmOverwriteExportAsync(string folder) =>
-            this.page.ShowBooleanConfirmDialogAsync(
-                "上書き確認",
-                "選択したフォルダには既存のベンチマーク出力があります。上書きしますか？",
-                "上書き",
-                "キャンセル");
-
-        public async Task<BenchmarkOpenTarget?> PickOpenTargetAsync() {
-            var result = await this.page.DisplayActionSheetAsync(
-                "開く",
-                "キャンセル",
-                null,
-                "CSVを開く",
-                "フォルダを開く");
-            if(result=="CSVを開く") {
-                var file = await FilePicker.PickAsync(new PickOptions {
-                    PickerTitle="BenchmarkComparison.csv",
-                    FileTypes=new FilePickerFileType(new Dictionary<DevicePlatform,IEnumerable<string>>{
-                        { DevicePlatform.WinUI, [".csv"] },
-                        { DevicePlatform.macOS, ["csv"] },
-                        { DevicePlatform.MacCatalyst, ["public.comma-separated-values-text"] },
-                    }),
-                });
-                return file is null ? null : new BenchmarkOpenTarget(BenchmarkOpenTargetKind.Csv,file.FullPath);
-            }
-
-            if(result=="フォルダを開く") {
-                var folder = await this.PickFolderAsync();
-                return string.IsNullOrWhiteSpace(folder) ? null : new BenchmarkOpenTarget(BenchmarkOpenTargetKind.Folder,folder);
-            }
-
-            return null;
-        }
-
-        public Task<string?> PickSaveFolderAsync() => this.PickFolderAsync();
-
-        private async Task<string?> PickFolderAsync() {
-#if WINDOWS
-            var window = this.page.Window?.Handler?.PlatformView as Microsoft.UI.Xaml.Window;
-            if(window is null) {
-                return null;
-            }
-
-            var picker = new Windows.Storage.Pickers.FolderPicker();
-            picker.FileTypeFilter.Add("*");
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
-            WinRT.Interop.InitializeWithWindow.Initialize(picker,hwnd);
-            var folder = await picker.PickSingleFolderAsync();
-            return folder?.Path;
-#else
-            await this.page.DisplayAlert("未対応","フォルダ選択はWindowsのみ対応です。","OK");
-            return null;
-#endif
-        }
-    }
-
     private View CreateToolbar() {
         var runButton = this.CreateToolbarIconButton(
             "play.png",
@@ -474,19 +377,6 @@ public sealed class MainPage:ContentPage {
             "pause.png",
             "一時停止");
         this.BindToolbarButtonState(pauseButton,BenchmarkToolbarButtonRole.Pause);
-        var saveButton = this.CreateToolbarIconButton(
-            "save.png",
-            "保存");
-        this.BindToolbarButtonState(saveButton,BenchmarkToolbarButtonRole.Save);
-        var saveAsButton = this.CreateToolbarIconButton(
-            "save_as.png",
-            "名前を付けて保存");
-        this.BindToolbarButtonState(saveAsButton,BenchmarkToolbarButtonRole.SaveAs);
-        var openButton = this.CreateToolbarIconButton(
-            "open.png",
-            "開く");
-        this.BindToolbarButtonState(openButton,BenchmarkToolbarButtonRole.Open);
-
         var thresholdPicker = new Picker {
             WidthRequest=112,
             HeightRequest=30,
@@ -545,14 +435,11 @@ public sealed class MainPage:ContentPage {
         grid.Add(runButton,4,0);
         grid.Add(stopButton,5,0);
         grid.Add(pauseButton,6,0);
-        grid.Add(saveButton,7,0);
-        grid.Add(saveAsButton,8,0);
-        grid.Add(openButton,9,0);
-        grid.Add(this.ToolbarLabel("結果"),10,0);
-        grid.Add(runPicker,11,0);
+        grid.Add(this.ToolbarLabel("結果"),7,0);
+        grid.Add(runPicker,8,0);
         var preview = this.CreateStatusIconPreview();
         grid.Add(preview,0,1);
-        Grid.SetColumnSpan(preview,12);
+        Grid.SetColumnSpan(preview,9);
         return grid;
     }
 
@@ -646,9 +533,6 @@ public sealed class MainPage:ContentPage {
                     ||args.PropertyName==nameof(BenchmarkRunnerViewModel.CanResumeBenchmark)
                     ||args.PropertyName==nameof(BenchmarkRunnerViewModel.CanUseRunToolbarButton)
                     ||args.PropertyName==nameof(BenchmarkRunnerViewModel.HasSelectedBenchmarkCells)
-                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.CanSaveBenchmarkResults)
-                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.CanSaveAsBenchmarkResults)
-                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.CanOpenBenchmarkResults)
                     ||args.PropertyName==nameof(BenchmarkRunnerViewModel.HasUnsavedBenchmarkResults)
                     ||args.PropertyName==nameof(BenchmarkRunnerViewModel.ToolbarStateInput)) {
                     MainThread.BeginInvokeOnMainThread(Apply);
@@ -714,21 +598,6 @@ public sealed class MainPage:ContentPage {
                     await this.viewModel.PauseCommand.ExecuteAsync(null);
                 }
                 break;
-            case BenchmarkToolbarButtonRole.Save:
-                if(this.viewModel.SaveCommand.CanExecute(null)) {
-                    await this.viewModel.SaveCommand.ExecuteAsync(null);
-                }
-                break;
-            case BenchmarkToolbarButtonRole.SaveAs:
-                if(this.viewModel.SaveAsCommand.CanExecute(null)) {
-                    await this.viewModel.SaveAsCommand.ExecuteAsync(null);
-                }
-                break;
-            case BenchmarkToolbarButtonRole.Open:
-                if(this.viewModel.OpenCommand.CanExecute(null)) {
-                    await this.viewModel.OpenCommand.ExecuteAsync(null);
-                }
-                break;
         }
     }
 
@@ -752,12 +621,7 @@ public sealed class MainPage:ContentPage {
     }
 
     private static string CreatePausedToolbarDecisionMessage(BenchmarkToolbarButtonRole role) =>
-        role switch {
-            BenchmarkToolbarButtonRole.Save => "一時停止中は保存できません。続けるなら再開、終了するなら停止を選んでください。",
-            BenchmarkToolbarButtonRole.SaveAs => "一時停止中は名前を付けて保存できません。続けるなら再開、終了するなら停止を選んでください。",
-            BenchmarkToolbarButtonRole.Open => "一時停止中は別の結果を開けません。続けるなら再開、終了するなら停止を選んでください。",
-            _ => "一時停止中です。続けるなら再開、終了するなら停止を選んでください。",
-        };
+        "一時停止中です。続けるなら再開、終了するなら停止を選んでください。";
 
     private void RefreshPausedToolbarPulse() {
         if(this.viewModel is null) {
@@ -3272,7 +3136,7 @@ public sealed class MainPage:ContentPage {
         chartHost.GestureRecognizers.Add(chartTap);
 
         var emptyText = new Label {
-            Text="Run benchmarks or load BenchmarkComparison.csv.",
+            Text="Run benchmarks or select a saved DB run.",
             HorizontalOptions=LayoutOptions.Center,
             VerticalOptions=LayoutOptions.Center,
             TextColor=Color.FromArgb("#64748B"),

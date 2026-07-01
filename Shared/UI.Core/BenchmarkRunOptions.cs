@@ -2,6 +2,7 @@ namespace UI;
 
 public sealed record BenchmarkRunOption(
     int RunNumber,
+    long UiRunId,
     string DisplayName,
     string RunRoot,
     BenchmarkExecutionProfile ExecutionProfile,

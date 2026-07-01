@@ -12,6 +12,10 @@ review_status: draft
 
 # Parameter Sweep Binding And Lifecycle Specification
 
+## Current Specification Notice
+
+This reverse document captures historical ParameterSweep binding and persistence behavior. References to CSV persistence are retained only as reverse evidence. Current DB-canonical behavior is defined in `Document/UI/UiStorageSpecification.md`.
+
 ## ViewModel構造
 
 `ParameterSweepViewModel` は `INotifyPropertyChanged` を実装する画面状態コンテナです。結果行は `Rows`、履歴は `RunHistory` の `ObservableCollection` として公開されます。
@@ -124,4 +128,3 @@ CSV列は `RunId`、`MeasuredAt`、`CaseName`、`Collection`、`Generic`、`Back
 
 - 実行中にユーザーが入力欄を変更した場合のロックはUI側で確認できません。ボタンのみ `CanRun` で制御されています。
 - 実行キャンセル機能は実装上確認できません。
-

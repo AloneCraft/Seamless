@@ -11,6 +11,10 @@ review_status: draft
 
 # Parameter Sweep UI Specification
 
+## Current Specification Notice
+
+This reverse document captures the historical ParameterSweep UI implementation. References to `results.csv` or `ParameterSweepRunStore` are no longer the current forward specification. Current ParameterSweep storage behavior is defined in `Document/UI/UiStorageSpecification.md`.
+
 ## 対象
 
 この文書は `Benchmark\Tsavorite.ParameterSweep.UI` の現状UI仕様を実装から復元したものです。このアプリはMAUI単一ページアプリで、タイトルは `Tsavorite Parameter Sweep` です。

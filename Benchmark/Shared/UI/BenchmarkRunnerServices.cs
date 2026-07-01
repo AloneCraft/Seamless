@@ -683,24 +683,6 @@ public sealed class BenchmarkResultService:IBenchmarkResultService {
     }
 }
 
-public interface IBenchmarkCsvService {
-    string WriteComparisonCsv(string runRoot,IReadOnlyList<BenchmarkComparisonRow> rows);
-    IReadOnlyList<BenchmarkComparisonRow> ReadComparisonCsv(string path);
-}
-
-public sealed class BenchmarkCsvService:IBenchmarkCsvService {
-    public string WriteComparisonCsv(string runRoot,IReadOnlyList<BenchmarkComparisonRow> rows) {
-        Directory.CreateDirectory(runRoot);
-        var path = Path.Combine(runRoot,"BenchmarkComparison.csv");
-        File.WriteAllText(path,BenchmarkComparisonFormatter.WriteCsv(rows),new UTF8Encoding(true));
-        return path;
-    }
-
-    public IReadOnlyList<BenchmarkComparisonRow> ReadComparisonCsv(string path) {
-        return BenchmarkComparisonFormatter.ReadCsv(File.ReadAllText(path,Encoding.UTF8));
-    }
-}
-
 public interface IBenchmarkComparisonService {
     IReadOnlyList<BenchmarkComparisonRow> BuildRows(IEnumerable<BenchmarkResultItem> results);
     IReadOnlyList<ChartComparisonPoint> BuildChartPoints(
@@ -831,17 +813,14 @@ public interface IBenchmarkRunService {
 public sealed class BenchmarkRunService:IBenchmarkRunService {
     private readonly IBenchmarkQueueService queueService;
     private readonly IBenchmarkWorkerProcessService workerService;
-    private readonly IBenchmarkCsvService csvService;
     private readonly IBenchmarkComparisonService comparisonService;
 
     public BenchmarkRunService(
         IBenchmarkQueueService queueService,
         IBenchmarkWorkerProcessService workerService,
-        IBenchmarkCsvService csvService,
         IBenchmarkComparisonService comparisonService) {
         this.queueService=queueService;
         this.workerService=workerService;
-        this.csvService=csvService;
         this.comparisonService=comparisonService;
     }
 
@@ -865,7 +844,6 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
         var jobRunner = this.CreateJobRunner(executionProfile);
         var orchestrator = new BenchmarkOrchestrator(
             new BenchmarkStateManager(benchmarkRoot),
-            new BenchmarkResultWriter(),
             jobRunner);
         var request = new BenchmarkRunRequest(
             benchmarks,
@@ -886,7 +864,7 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
                 update => resultReceived(new BenchmarkResultItem(update.Job)),
                 statusChanged,
                 cancellationToken);
-            return new BenchmarkRunReport(orchestratorResult.RunRoot,orchestratorResult.CsvPaths);
+            return new BenchmarkRunReport(orchestratorResult.RunRoot);
         } finally {
             if(jobRunner is IAsyncDisposable asyncDisposable) {
                 await asyncDisposable.DisposeAsync();
@@ -924,12 +902,4 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
         return null;
     }
 
-    private static void WriteSummary(string runRoot,int queued,int completed,string csvPath) {
-        var path = Path.Combine(runRoot,"BenchmarkRunSummary.txt");
-        var builder = new StringBuilder();
-        builder.AppendLine($"QueuedTasks: {queued}");
-        builder.AppendLine($"CompletedOrFailedTasks: {completed}");
-        builder.AppendLine($"CsvReport: {csvPath}");
-        File.WriteAllText(path,builder.ToString(),Encoding.UTF8);
-    }
 }

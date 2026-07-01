@@ -54,7 +54,7 @@ public sealed class ParameterSweepRunnerTests {
     }
 
     [Fact]
-    public void Csv_RoundTripsResultAndComparison() {
+    public void Compare_UsesLoadedResults() {
         var result = new ParameterSweepResult(
             "run",
             DateTimeOffset.UtcNow,
@@ -75,11 +75,8 @@ public sealed class ParameterSweepRunnerTests {
             1.5,
             20);
 
-        var csv = ParameterSweepCsv.Write([result]);
-        var loaded = Assert.Single(ParameterSweepCsv.Read(csv));
-        var compared = Assert.Single(ParameterSweepComparer.Compare([loaded],[result]));
+        var compared = Assert.Single(ParameterSweepComparer.Compare([result],[result]));
 
-        Assert.Equal(result.CaseName,loaded.CaseName);
         Assert.Equal(0,compared.MaxCountDelta);
         Assert.Equal(1,compared.AddElapsedRatio);
         Assert.False(compared.FailureKindChanged);
