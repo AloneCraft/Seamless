@@ -951,7 +951,89 @@ public sealed class BenchmarkOrchestratorTests{
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_ScalableTabsIgnoreThresholdStop(){
+    public async Task Orchestrator_AdaptiveMode_DoublesPastRequestedElementCountsUntilThresholdExceeded(){
+        var root = CreateTempRoot();
+        var runner = new FakeRunner((job,_) => {
+            var mean = job.ElementCount>=262144 ? 2_000_000d : 100d;
+            return new BenchmarkJobRunResult(
+                job.Project,
+                job.MethodName,
+                job.TypeFullName,
+                job.ElementCount,
+                "Completed",
+                mean+" ns",
+                string.Empty,
+                string.Empty,
+                mean,
+                0,
+                0,
+                0,
+                0,
+                job.ArtifactFolder,
+                string.Empty);
+        });
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("System.Array.FLinq","Where")],
+                [0],
+                [65536,131072],
+                BenchmarkRunMode.Adaptive,
+                TimeSpan.FromMilliseconds(1),
+                TimeSpan.FromSeconds(30)),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        var state = LoadOnlyState(root);
+        Assert.Equal([65536,131072,262144],state.Jobs.Select(static job => job.ElementCount).Order().ToArray());
+        Assert.Contains(262144,state.ElementCounts);
+        Assert.DoesNotContain(state.Jobs,static job => job.ElementCount==524288);
+    }
+
+    [Fact]
+    public async Task Orchestrator_AdaptiveMode_FailedJobStopsBeforeDynamicElementCount(){
+        var root = CreateTempRoot();
+        var runner = new FakeRunner((job,_) => job.ElementCount==131072
+            ? new BenchmarkJobRunResult(
+                job.Project,
+                job.MethodName,
+                job.TypeFullName,
+                job.ElementCount,
+                "Failed",
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                null,
+                null,
+                null,
+                null,
+                1,
+                job.ArtifactFolder,
+                "boom")
+            : CompletedResult(job));
+        var orchestrator = new BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("System.Array.FLinq","Where")],
+                [0],
+                [65536,131072],
+                BenchmarkRunMode.Adaptive,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30)),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        var state = LoadOnlyState(root);
+        Assert.Equal([65536,131072],state.Jobs.Select(static job => job.ElementCount).Order().ToArray());
+        Assert.DoesNotContain(state.Jobs,static job => job.ElementCount==262144);
+    }
+
+    [Fact]
+    public async Task Orchestrator_AdaptiveMode_ScalableTabsStopAfterThreshold(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => {
             var mean = 2_000_000d;
@@ -992,7 +1074,7 @@ public sealed class BenchmarkOrchestratorTests{
             CancellationToken.None);
 
         var state = LoadOnlyState(root);
-        Assert.Equal([1024,2048,4096],state.Jobs.Select(static job => job.ElementCount).Distinct().Order().ToArray());
+        Assert.Equal([1024],state.Jobs.Select(static job => job.ElementCount).Distinct().Order().ToArray());
         Assert.All(state.Jobs,static job => Assert.Equal(JobStatus.Completed,job.Status));
     }
 
