@@ -295,10 +295,19 @@ internal static class BenchmarkFailureDisplayLogic{
     }
 }
 
-internal readonly record struct BenchmarkTabProgressCell(string Method,string Project,string TypeFullName,bool IsSelected){
-    public BenchmarkTabProgressCell(string method,string project,bool isSelected)
-        : this(method,project,string.Empty,isSelected){
+internal readonly record struct BenchmarkTabProgressCell(string Method,string Project,string TypeFullName,string ArgumentKey,bool IsSelected){
+    public BenchmarkTabProgressCell(string method,string project,string typeFullName,bool isSelected)
+        : this(method,project,typeFullName,string.Empty,isSelected){
     }
+
+    public BenchmarkTabProgressCell(string method,string project,bool isSelected)
+        : this(method,project,string.Empty,string.Empty,isSelected){
+    }
+}
+
+internal static class BenchmarkArgumentKeyMatchLogic{
+    public static bool IsExactMatch(string left,string right) =>
+        string.Equals(left,right,StringComparison.OrdinalIgnoreCase);
 }
 
 internal static class BenchmarkTabProgressLogic{
@@ -321,6 +330,7 @@ internal static class BenchmarkTabProgressLogic{
                 measurementArray,
                 cell.Method,
                 cell.TypeFullName,
+                cell.ArgumentKey,
                 leftProject,
                 rightProject,
                 maxElementCount,
@@ -333,9 +343,13 @@ internal static class BenchmarkTabProgressLogic{
             string.Equals(result.Method,cell.Method,StringComparison.OrdinalIgnoreCase)
             &&string.Equals(result.Project,cell.Project,StringComparison.OrdinalIgnoreCase)
             &&IsSameType(result.TypeFullName,cell.TypeFullName)
+            &&IsSameArgument(result.ArgumentKey,cell.ArgumentKey)
             &&result.ElementCount>0
             &&(string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
                 ||string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)));
+
+    private static bool IsSameArgument(string left,string right) =>
+        BenchmarkArgumentKeyMatchLogic.IsExactMatch(left,right);
 
     private static bool IsSameType(string left,string right) =>
         string.IsNullOrWhiteSpace(right)
@@ -418,15 +432,50 @@ internal static class BenchmarkRowGroupingLogic{
 
 }
 
+internal readonly record struct BenchmarkComparisonRowMatchCase(string TypeFullName,string ArgumentKey);
+
+internal static class BenchmarkComparisonRowMatchLogic{
+    public static bool IsMatch(
+        string methodName,
+        string benchmarkName,
+        BenchmarkSourceTab sourceTab,
+        IEnumerable<BenchmarkComparisonRowMatchCase> cases,
+        BenchmarkComparisonRow row) =>
+        IsBenchmarkNameMatch(methodName,benchmarkName,row)
+        &&cases.Any(item =>
+            IsSameArgument(item.ArgumentKey,row.ArgumentKey)
+            &&IsTypeMatch(sourceTab,item.TypeFullName,row.TypeFullName));
+
+    private static bool IsTypeMatch(BenchmarkSourceTab sourceTab,string benchmarkTypeFullName,string comparisonTypeFullName) =>
+        ScalableBenchmarkNameFormatter.IsScalableSourceTab(sourceTab)
+            ? !string.IsNullOrWhiteSpace(comparisonTypeFullName)
+                &&string.Equals(ScalableBenchmarkNameFormatter.ShortTypeName(benchmarkTypeFullName),comparisonTypeFullName,StringComparison.OrdinalIgnoreCase)
+            : string.IsNullOrWhiteSpace(comparisonTypeFullName)
+                ||string.Equals(ScalableBenchmarkNameFormatter.ShortTypeName(benchmarkTypeFullName),comparisonTypeFullName,StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsBenchmarkNameMatch(string methodName,string benchmarkName,BenchmarkComparisonRow row) =>
+        string.Equals(row.MethodName,methodName,StringComparison.OrdinalIgnoreCase)
+        ||string.Equals(row.Benchmark,benchmarkName,StringComparison.OrdinalIgnoreCase)
+        ||row.Benchmark.StartsWith(benchmarkName+"/",StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsSameArgument(string left,string right) =>
+        BenchmarkArgumentKeyMatchLogic.IsExactMatch(left,right);
+}
+
 internal sealed record BenchmarkElementMeasurement(
     string Project,
     string Method,
     string TypeFullName,
+    string ArgumentKey,
     int ElementCount,
     string Status,
     double? MeanNanoseconds){
+    public BenchmarkElementMeasurement(string project,string method,string typeFullName,int elementCount,string status,double? meanNanoseconds)
+        : this(project,method,typeFullName,string.Empty,elementCount,status,meanNanoseconds){
+    }
+
     public BenchmarkElementMeasurement(string project,string method,int elementCount,string status,double? meanNanoseconds)
-        : this(project,method,string.Empty,elementCount,status,meanNanoseconds){
+        : this(project,method,string.Empty,string.Empty,elementCount,status,meanNanoseconds){
     }
 }
 
@@ -448,9 +497,22 @@ internal static class BenchmarkRowCompletionLogic{
         string rightProject,
         int maxElementCount,
         double thresholdNanoseconds){
+        return IsFinalCompleted(measurements,method,typeFullName,string.Empty,leftProject,rightProject,maxElementCount,thresholdNanoseconds);
+    }
+
+    public static bool IsFinalCompleted(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        string method,
+        string typeFullName,
+        string argumentKey,
+        string leftProject,
+        string rightProject,
+        int maxElementCount,
+        double thresholdNanoseconds){
         var methodMeasurements = measurements
             .Where(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase))
             .Where(result => IsSameType(result.TypeFullName,typeFullName))
+            .Where(result => IsSameArgument(result.ArgumentKey,argumentKey))
             .ToArray();
         if(methodMeasurements.Length==0){
             return false;
@@ -500,6 +562,9 @@ internal static class BenchmarkRowCompletionLogic{
             ? true
             : !string.IsNullOrWhiteSpace(left)
                 &&string.Equals(left,right,StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsSameArgument(string left,string right) =>
+        BenchmarkArgumentKeyMatchLogic.IsExactMatch(left,right);
 }
 
 internal static class BenchmarkSkippedDisplayLogic{
@@ -518,6 +583,17 @@ internal static class BenchmarkSkippedDisplayLogic{
         string project,
         int selectedElementCount,
         double thresholdNanoseconds){
+        return FindPairStoppedAt(measurements,method,typeFullName,string.Empty,project,selectedElementCount,thresholdNanoseconds);
+    }
+
+    public static int? FindPairStoppedAt(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        string method,
+        string typeFullName,
+        string argumentKey,
+        string project,
+        int selectedElementCount,
+        double thresholdNanoseconds){
         var pairProjects = BenchmarkComparisonPairs.GetPairProjects(project);
         if(pairProjects is null){
             return null;
@@ -526,6 +602,7 @@ internal static class BenchmarkSkippedDisplayLogic{
         return measurements
             .Where(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
                 &&IsSameType(result.TypeFullName,typeFullName)
+                &&IsSameArgument(result.ArgumentKey,argumentKey)
                 &&result.ElementCount<selectedElementCount
                 &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
                 &&result.MeanNanoseconds is not null
@@ -553,9 +630,20 @@ internal static class BenchmarkSkippedDisplayLogic{
         string leftProject,
         string rightProject,
         int selectedElementCount) =>
+        FindLatestCompletedPairElementCountBefore(measurements,method,typeFullName,string.Empty,leftProject,rightProject,selectedElementCount);
+
+    public static int? FindLatestCompletedPairElementCountBefore(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        string method,
+        string typeFullName,
+        string argumentKey,
+        string leftProject,
+        string rightProject,
+        int selectedElementCount) =>
         measurements
             .Where(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
                 &&IsSameType(result.TypeFullName,typeFullName)
+                &&IsSameArgument(result.ArgumentKey,argumentKey)
                 &&result.ElementCount>0
                 &&result.ElementCount<selectedElementCount
                 &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
@@ -574,6 +662,9 @@ internal static class BenchmarkSkippedDisplayLogic{
             ? true
             : !string.IsNullOrWhiteSpace(left)
                 &&string.Equals(left,right,StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsSameArgument(string left,string right) =>
+        BenchmarkArgumentKeyMatchLogic.IsExactMatch(left,right);
 }
 
 internal enum BenchmarkToolbarButtonRole{
@@ -929,6 +1020,21 @@ internal static class CpuSelectionTableLogic{
         var max = indexes.Max();
         return min==max ? min.ToString(System.Globalization.CultureInfo.InvariantCulture) : min+"-"+max;
     }
+}
+
+public static class BenchmarkResultCpuDisplayLogic{
+    public static int? ResolveAssignedLogicalCpu(int? assignedLogicalCpu,IEnumerable<int> availableLogicalProcessors){
+        if(assignedLogicalCpu is not { } value){
+            return null;
+        }
+
+        return availableLogicalProcessors.Contains(value) ? value : null;
+    }
+}
+
+internal static class BenchmarkRunTimestampDisplayLogic{
+    public static DateTimeOffset ResolveRunningTimestamp(DateTimeOffset? startedAt,DateTimeOffset observedAt) =>
+        startedAt??observedAt;
 }
 
 internal readonly record struct UiSortValue(string? Text,double? Number,bool IsMissing){

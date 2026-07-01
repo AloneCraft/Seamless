@@ -168,6 +168,43 @@ public sealed class BenchmarkRowGroupingLogicTests{
     }
 
     [Fact]
+    public void ComparisonRowMatchRequiresArgumentKey(){
+        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalableTsavoriteSet);
+        var arguments = new BenchmarkArgument[] {
+            new("Count","131072"),
+            new("Index","131072"),
+        };
+        var cases = new BenchmarkComparisonRowMatchCase[] {
+            new("Scalable.Tsavorite.Collections.Set.SetInt32",BenchmarkArgumentFormatting.CreateKey(arguments)),
+        };
+        var exact = new BenchmarkComparisonRow(
+            "<int>.Add",
+            sourceTab,
+            ProjectMetrics.FromMeasurement(10,0),
+            ProjectMetrics.Missing) {
+            MethodName="Add",
+            TypeFullName="SetInt32",
+            ArgumentKey=BenchmarkArgumentFormatting.CreateKey(arguments),
+            Arguments=arguments,
+        };
+        var differentArgument = exact with {
+            ArgumentKey="Count=262144,Index=131072",
+            Arguments=[
+                new BenchmarkArgument("Count","262144"),
+                new BenchmarkArgument("Index","131072"),
+            ],
+        };
+        var emptyArgument = exact with {
+            ArgumentKey=string.Empty,
+            Arguments=[],
+        };
+
+        Assert.True(BenchmarkComparisonRowMatchLogic.IsMatch("Add","<int>.Add",sourceTab.Tab,cases,exact));
+        Assert.False(BenchmarkComparisonRowMatchLogic.IsMatch("Add","<int>.Add",sourceTab.Tab,cases,differentArgument));
+        Assert.False(BenchmarkComparisonRowMatchLogic.IsMatch("Add","<int>.Add",sourceTab.Tab,cases,emptyArgument));
+    }
+
+    [Fact]
     public void DefaultComparisonRowGetProjectReturnsMissing(){
         var row = default(BenchmarkComparisonRow);
 
@@ -208,4 +245,5 @@ public sealed class BenchmarkRowGroupingLogicTests{
             string.Empty,
             string.Empty,
             0);
+
 }
