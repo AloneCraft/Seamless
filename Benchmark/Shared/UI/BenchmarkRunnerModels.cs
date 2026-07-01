@@ -755,7 +755,6 @@ public sealed class BenchmarkTableRow:ObservableObject{
     private string rightTimeText = string.Empty;
     private string rightAllocatedText = string.Empty;
     private string benchmarkName = string.Empty;
-    private BenchmarkComparisonRow? comparisonRow;
     private bool isFinalCompleted;
     private static readonly Color DefaultStopNTextColor = Color.FromArgb("#334155");
 
@@ -966,6 +965,8 @@ public sealed class BenchmarkTableRow:ObservableObject{
     public void ApplyStoredResult(BenchmarkStoredResult result){
         if(this.GetProjectCell(result.Project) is { } cell){
             cell.ApplyStoredResult(result);
+            this.SetProjectMetricText(result.Project,FormatTime(cell.Metrics),FormatAllocated(cell.Metrics));
+            this.RefreshDisplayedRatios();
         }
     }
 
@@ -973,6 +974,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
         if(this.GetProjectCell(result.Project) is { } cell){
             cell.ApplyRunResult(result,cpu,completedAt,highlightCompleted);
             this.SetProjectMetricText(result.Project,FormatTime(cell.Metrics),FormatAllocated(cell.Metrics));
+            this.RefreshDisplayedRatios();
         }
     }
 
@@ -990,6 +992,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
         }
 
         this.SetProjectMetricText(project,FormatTime(stoppedMetrics),FormatAllocated(stoppedMetrics));
+        this.RefreshDisplayedRatios();
     }
 
     public void ApplyPairStopped(string leftProject,string rightProject,int stoppedAtElementCount,bool highlight){
@@ -1027,7 +1030,6 @@ public sealed class BenchmarkTableRow:ObservableObject{
     }
 
     public void ApplyComparison(BenchmarkComparisonRow? row,bool preserveRetainedDisplay = false){
-        this.comparisonRow=row;
         if(row is null){
             this.ClearComparison(preserveRetainedDisplay);
             return;
@@ -1036,8 +1038,6 @@ public sealed class BenchmarkTableRow:ObservableObject{
         var value = row.Value;
         // 比較行の値があるときだけ比較ラベルを更新し、セルの保持値は別に残す。
         this.ClearStopNText();
-        this.PairRatioTimeText=FormatRatio(value.PairRatio.TimeRatio);
-        this.PairRatioAllocatedText=FormatRatio(value.PairRatio.AllocatedRatio);
         var left = value.GetProject(this.SourceTab.LeftProject);
         var right = value.GetProject(this.SourceTab.RightProject);
         this.LeftCell.ApplyMetrics(left,preserveRetainedDisplay);
@@ -1046,10 +1046,10 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.LeftAllocatedText=FormatAllocated(this.LeftCell.Metrics);
         this.RightTimeText=FormatTime(this.RightCell.Metrics);
         this.RightAllocatedText=FormatAllocated(this.RightCell.Metrics);
+        this.RefreshDisplayedRatios();
     }
 
     public BenchmarkSortValue GetSortValue(BenchmarkGridSortColumn column){
-        var row = this.comparisonRow;
         return column switch{
             BenchmarkGridSortColumn.BenchmarkName => BenchmarkSortValue.FromText(this.BenchmarkName),
             BenchmarkGridSortColumn.ElementCount => BenchmarkSortValue.FromNumber(this.ElementCountSortValue),
@@ -1061,8 +1061,8 @@ public sealed class BenchmarkTableRow:ObservableObject{
             BenchmarkGridSortColumn.ArgumentFraction => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.FractionArgument)),
             BenchmarkGridSortColumn.ArgumentInitial => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.InitialArgument)),
             BenchmarkGridSortColumn.ArgumentData => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.DataArgument)),
-            BenchmarkGridSortColumn.PairRatioTime => row is { } value ? BenchmarkSortValue.FromRatio(value.PairRatio.TimeRatio) : BenchmarkSortValue.Missing,
-            BenchmarkGridSortColumn.PairRatioAllocated => row is { } value ? BenchmarkSortValue.FromRatio(value.PairRatio.AllocatedRatio) : BenchmarkSortValue.Missing,
+            BenchmarkGridSortColumn.PairRatioTime => BenchmarkSortValue.FromRatio(this.GetDisplayedTimeRatio()),
+            BenchmarkGridSortColumn.PairRatioAllocated => BenchmarkSortValue.FromRatio(this.GetDisplayedAllocatedRatio()),
             BenchmarkGridSortColumn.LeftTime => BenchmarkSortValue.FromMetric(this.LeftCell.Metrics,BenchmarkMetricKind.Time),
             BenchmarkGridSortColumn.LeftAllocated => BenchmarkSortValue.FromMetric(this.LeftCell.Metrics,BenchmarkMetricKind.Allocated),
             BenchmarkGridSortColumn.RightTime => BenchmarkSortValue.FromMetric(this.RightCell.Metrics,BenchmarkMetricKind.Time),
@@ -1081,6 +1081,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
             this.LeftAllocatedText=FormatAllocated(this.LeftCell.Metrics);
             this.RightTimeText=FormatTime(this.RightCell.Metrics);
             this.RightAllocatedText=FormatAllocated(this.RightCell.Metrics);
+            this.RefreshDisplayedRatios();
         }else{
             this.LeftTimeText=string.Empty;
             this.LeftAllocatedText=string.Empty;
@@ -1094,6 +1095,17 @@ public sealed class BenchmarkTableRow:ObservableObject{
             }
         }
     }
+
+    private void RefreshDisplayedRatios(){
+        this.PairRatioTimeText=FormatRatio(this.GetDisplayedTimeRatio());
+        this.PairRatioAllocatedText=FormatRatio(this.GetDisplayedAllocatedRatio());
+    }
+
+    private RatioValue GetDisplayedTimeRatio() =>
+        BenchmarkComparisonFormatter.CalculateTimeRatio(this.LeftCell.Metrics,this.RightCell.Metrics);
+
+    private RatioValue GetDisplayedAllocatedRatio() =>
+        BenchmarkComparisonFormatter.CalculateAllocatedRatio(this.LeftCell.Metrics,this.RightCell.Metrics);
 
     private void SetProjectMetricText(string project,string timeText,string allocatedText){
         if(string.Equals(project,this.SourceTab.LeftProject,StringComparison.OrdinalIgnoreCase)){

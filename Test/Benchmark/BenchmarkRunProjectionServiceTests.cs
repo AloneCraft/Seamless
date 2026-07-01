@@ -36,19 +36,40 @@ public sealed class BenchmarkRunProjectionServiceTests{
     }
 
     [Fact]
-    public void BuildLatestComparisonRows_UsesLatestCompletedResultPerProject(){
+    public void BuildLatestComparisonRows_UsesLatestElementCountGroup(){
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var session = new global::UI.BenchmarkRunSession();
         var service = new global::UI.BenchmarkRunProjectionService();
-        session.UpsertResult(Result(sourceTab.LeftProject,"Aggregate",16,100,DateTimeOffset.UtcNow.AddMinutes(-2)));
-        session.UpsertResult(Result(sourceTab.LeftProject,"Aggregate",64,80,DateTimeOffset.UtcNow.AddMinutes(-1)));
-        session.UpsertResult(Result(sourceTab.RightProject,"Aggregate",64,40,DateTimeOffset.UtcNow));
+        var now = DateTimeOffset.UtcNow;
+        session.UpsertResult(Result(sourceTab.LeftProject,"Aggregate",16,100,now.AddMinutes(-3)));
+        session.UpsertResult(Result(sourceTab.RightProject,"Aggregate",16,50,now.AddMinutes(-3)));
+        session.UpsertResult(Result(sourceTab.LeftProject,"Aggregate",64,80,now.AddMinutes(-1)));
+        session.UpsertResult(Result(sourceTab.RightProject,"Aggregate",64,40,now));
 
         var rows = service.BuildLatestComparisonRows(session,sourceTab,CreateRows);
 
         var row = Assert.Single(rows);
         Assert.Equal(80,row.Left.TimeNanoseconds);
         Assert.Equal(40,row.Right.TimeNanoseconds);
+        Assert.Equal(2,row.PairRatio.TimeRatio.NumericValue);
+    }
+
+    [Fact]
+    public void BuildLatestComparisonRows_DoesNotMixElementCountsAcrossProjects(){
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var session = new global::UI.BenchmarkRunSession();
+        var service = new global::UI.BenchmarkRunProjectionService();
+        var now = DateTimeOffset.UtcNow;
+        session.UpsertResult(Result(sourceTab.LeftProject,"Aggregate",64,80,now.AddMinutes(-2)));
+        session.UpsertResult(Result(sourceTab.RightProject,"Aggregate",64,40,now.AddMinutes(-2)));
+        session.UpsertResult(Result(sourceTab.RightProject,"Aggregate",128,25,now));
+
+        var rows = service.BuildLatestComparisonRows(session,sourceTab,CreateRows);
+
+        var row = Assert.Single(rows);
+        Assert.False(row.Left.HasValue);
+        Assert.Equal(25,row.Right.TimeNanoseconds);
+        Assert.True(row.PairRatio.TimeRatio.IsMissing);
     }
 
     private static global::UI.ReportRow[] CreateRows(
