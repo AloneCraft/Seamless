@@ -9,6 +9,11 @@ public static class GeneratedCodeHelpers {
         LinqCounterScope.Counter.IncrementEnumerableFallback(message);
         return new(message);
     }
+    public static InvalidOperationException UnsupportedLinqExpansion(string methodName,string reason) {
+        var message=$"FLinq could not expand '{methodName}'. {reason}";
+        LinqCounterScope.Counter.IncrementEnumerableFallback(message);
+        return new(message);
+    }
     public static InvalidOperationException NoElements() =>
-        new("Sequence contains no elements.");
+        new("Sequence contains no elements");
 }

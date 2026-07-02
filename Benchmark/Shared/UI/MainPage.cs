@@ -3631,8 +3631,8 @@ internal sealed class BenchmarkChartSelectionOverlayDrawable:IDrawable {
                 new BenchmarkChartBarRect(row.RightBarRect.Left,row.RightBarRect.Right,row.RightBarRect.Width),
                 row.LeftBarRect.Top+row.LeftBarRect.Height/2,
                 BarLabelPadding);
-            this.DrawBarLabel(canvas,row.Point.LeftText,labelPoints.LeftLabelPoint,row.LeftBarRect);
-            this.DrawBarLabel(canvas,row.Point.RightText,labelPoints.RightLabelPoint,row.RightBarRect);
+            this.DrawBarLabel(canvas,row.Point.LeftText,labelPoints.LeftLabelPoint,row.LeftBarRect,true);
+            this.DrawBarLabel(canvas,row.Point.RightText,labelPoints.RightLabelPoint,row.RightBarRect,false);
         }
 
         canvas.StrokeColor=Color.FromArgb("#22C55E").WithAlpha((float)Math.Clamp(this.getSelectionOpacity(),0,1));
@@ -3653,21 +3653,57 @@ internal sealed class BenchmarkChartSelectionOverlayDrawable:IDrawable {
         }
     }
 
-    private void DrawBarLabel(ICanvas canvas,string text,BenchmarkChartLabelPoint point,RectF barRect) {
+    private void DrawBarLabel(ICanvas canvas,string text,BenchmarkChartLabelPoint point,RectF barRect,bool alignLeftOfBoundary) {
         if(string.IsNullOrWhiteSpace(text)) {
             return;
         }
 
-        var rect = new RectF(
-            point.X,
-            barRect.Top,
-            MathF.Max(1,barRect.Right-point.X-BarLabelPadding),
-            barRect.Height);
+        var rect = alignLeftOfBoundary
+            ? new RectF(
+                barRect.Left,
+                barRect.Top,
+                MathF.Max(1,point.X-barRect.Left),
+                barRect.Height)
+            : new RectF(
+                point.X,
+                barRect.Top,
+                MathF.Max(1,barRect.Right-point.X-BarLabelPadding),
+                barRect.Height);
         if(rect.Width<1) {
             rect=new RectF(barRect.Left,barRect.Top,barRect.Width,barRect.Height);
         }
 
-        canvas.DrawString(text,rect,HorizontalAlignment.Left,VerticalAlignment.Center);
+        var alignment = alignLeftOfBoundary ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+        DrawOutlinedString(canvas,text,rect,alignment,VerticalAlignment.Center);
+    }
+
+    private static void DrawOutlinedString(
+        ICanvas canvas,
+        string text,
+        RectF rect,
+        HorizontalAlignment horizontalAlignment,
+        VerticalAlignment verticalAlignment) {
+        var offsets = new (float X,float Y)[] {
+            (-1,-1),
+            (0,-1),
+            (1,-1),
+            (-1,0),
+            (1,0),
+            (-1,1),
+            (0,1),
+            (1,1),
+        };
+        canvas.FontColor=Colors.Black;
+        foreach(var offset in offsets) {
+            canvas.DrawString(
+                text,
+                new RectF(rect.X+offset.X,rect.Y+offset.Y,rect.Width,rect.Height),
+                horizontalAlignment,
+                verticalAlignment);
+        }
+
+        canvas.FontColor=Colors.White;
+        canvas.DrawString(text,rect,horizontalAlignment,verticalAlignment);
     }
 
     public BenchmarkChartSelectionHit? HitTest(SizeF size,float x,float y) {

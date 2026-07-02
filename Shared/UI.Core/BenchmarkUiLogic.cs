@@ -210,7 +210,7 @@ internal static class BenchmarkChartSelectionLayoutLogic{
         float y,
         float padding) =>
         (
-            new BenchmarkChartLabelPoint(leftBarRect.Left+padding,y),
+            new BenchmarkChartLabelPoint(leftBarRect.Right-padding,y),
             new BenchmarkChartLabelPoint(rightBarRect.Left+padding,y));
 }
 

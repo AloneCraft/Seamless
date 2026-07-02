@@ -1093,8 +1093,8 @@ public sealed partial class FLinqIncrementalGenerator {
     private static string RenderInlineFailureInvocationExpression(IMethodSymbol method) {
         var message = EscapeStringLiteral($"Local helper method '{method.Name}' could not be inlined. Forwarding is disabled.");
         return method.ReturnsVoid
-            ? $"((global::System.Action)(()=>throw global::Seamless.Linq.GeneratedCodeHelpers.LinqInterceptorFailure(\"{message}\")))()"
-            : $"((global::System.Func<{method.ReturnType.ToDisplayString(完全修飾形式)}>)(()=>throw global::Seamless.Linq.GeneratedCodeHelpers.LinqInterceptorFailure(\"{message}\")))()";
+            ? $"((global::System.Action)(()=>throw global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"{method.Name}\",\"{message}\")))()"
+            : $"((global::System.Func<{method.ReturnType.ToDisplayString(完全修飾形式)}>)(()=>throw global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"{method.Name}\",\"{message}\")))()";
     }
 
     /// <summary>文字列リテラルに埋め込むために <c>\</c> と <c>"</c> をエスケープする。</summary>

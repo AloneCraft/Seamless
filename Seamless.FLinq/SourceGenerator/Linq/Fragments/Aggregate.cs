@@ -27,36 +27,8 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
         var funcVar = $"__aggFunc{番号}";
         var funcSetup = this.DelegateLocal(func,funcVar);
         if(funcSetup is null) return null;
-        var fold = source.CanTryProvideSpan
-            ? $$"""
-                {{source.ElementType}} {{this.result}};
-                if({{srcVar}}.TryGetSpan(out var __span)){
-                    if(__span.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                    {{this.result}}=default!;
-                    var __first=true;
-                    foreach(var __item in __span){
-                        if(__first){
-                            {{this.result}}=__item;
-                            __first=false;
-                        }else{
-                            {{this.FuncAssignInlineIndented("            ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
-                        }
-                    }
-                }else{
-                    if(!{{srcVar}}.TryGetNext(out var __item)) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                    {{this.result}}=__item;
-                    while({{srcVar}}.TryGetNext(out __item)){
-                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
-                    }
-                }
-                """
-            : $$"""
-                if(!{{srcVar}}.TryGetNext(out var __item)) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                var {{this.result}}=__item;
-                while({{srcVar}}.TryGetNext(out __item)){
-                    {{this.FuncAssignInlineIndented("    ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
-                }
-                """;
+        var fold=AggregateLoopSupport.RenderSeedlessFold(source,srcVar,source.ElementType,this.result,"__item",
+            (indent,itemName)=>this.FuncAssignInlineIndented(indent,func,nameof(func),funcVar,this.result,this.result,itemName));
         return $$"""
             {{destType}} {{destVar}};
             {{funcSetup}}
@@ -79,48 +51,14 @@ public class Aggregate_func(int 番号, Enumerable source, FuncFragment func) : 
     public override string GetEnumeratorFields => $$"""
         private bool {{this.yielded}} = false;
         """;
-    public override string GetTryGetNextBody => source.CanTryProvideSpan
-        ? $$"""
+    public override string GetTryGetNextBody => $$"""
             if(this.{{this.yielded}}) {
                 current = default!;
                 return false;
             }
             this.{{this.yielded}} = true;
-            {{source.ElementType}} {{this.result}};
-            if({{this.e}}.TryGetSpan(out var __span)){
-                if(__span.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                {{this.result}}=default!;
-                var __first=true;
-                foreach(var __item in __span){
-                    if(__first){
-                        {{this.result}}=__item;
-                        __first=false;
-                    }else{
-                        {{this.FuncAssignIndented("            ",func,nameof(func),this.result,this.result,"__item")}}
-                    }
-                }
-            }else{
-                if(!{{this.e}}.TryGetNext(out var {{this.item}})) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                {{this.result}}={{this.item}};
-                while({{this.e}}.TryGetNext(out {{this.item}})){
-                    {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,this.item)}}
-                }
-            }
-            this.{{this.currentValue}}={{this.result}};
-            current=this.{{this.currentValue}};
-            return true;
-            """
-        : $$"""
-            if(this.{{this.yielded}}) {
-                current = default!;
-                return false;
-            }
-            this.{{this.yielded}} = true;
-            if(!{{this.e}}.TryGetNext(out var {{this.item}})) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-            var {{this.result}}={{this.item}};
-            while({{this.e}}.TryGetNext(out {{this.item}})){
-                {{this.FuncAssignIndented("    ",func,nameof(func),this.result,this.result,this.item)}}
-            }
+            {{AggregateLoopSupport.RenderSeedlessFold(source,this.e,source.ElementType,this.result,this.item,
+                (indent,itemName)=>this.FuncAssignIndented(indent,func,nameof(func),this.result,this.result,itemName))}}
             this.{{this.currentValue}}={{this.result}};
             current=this.{{this.currentValue}};
             return true;
@@ -155,23 +93,8 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
         var funcVar = $"__aggFunc{番号}";
         var funcSetup = this.DelegateLocal(func,funcVar);
         if(funcSetup is null) return null;
-        var fold = source.CanTryProvideSpan
-            ? $$"""
-                if({{srcVar}}.TryGetSpan(out var __span)){
-                    foreach(var __item in __span){
-                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
-                    }
-                }else{
-                    while({{srcVar}}.TryGetNext(out var __item)){
-                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
-                    }
-                }
-                """
-            : $$"""
-                while({{srcVar}}.TryGetNext(out var __item)){
-                    {{this.FuncAssignInlineIndented("    ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
-                }
-                """;
+        var fold=AggregateLoopSupport.RenderSeededFold(source,srcVar,this.result,"__item",
+            (indent,itemName)=>this.FuncAssignInlineIndented(indent,func,nameof(func),funcVar,this.result,this.result,itemName));
         return $$"""
             {{destType}} {{destVar}};
             {{funcSetup}}
@@ -195,37 +118,15 @@ public class Aggregate_seed_func(int 番号, Enumerable source,string seed, Func
     public override string GetEnumeratorFields => $$"""
         private bool {{this.yielded}} = false;
         """;
-    public override string GetTryGetNextBody => source.CanTryProvideSpan
-        ? $$"""
+    public override string GetTryGetNextBody => $$"""
             if(this.{{this.yielded}}) {
                 current = default!;
                 return false;
             }
             this.{{this.yielded}} = true;
             var {{this.result}} = {{seed}};
-            if({{this.e}}.TryGetSpan(out var __span)){
-                foreach(var __item in __span){
-                    {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,"__item")}}
-                }
-            }else{
-                while({{this.e}}.TryGetNext(out var {{this.item}})){
-                    {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,this.item)}}
-                }
-            }
-            this.{{this.currentValue}}={{this.result}};
-            current=this.{{this.currentValue}};
-            return true;
-            """
-        : $$"""
-            if(this.{{this.yielded}}) {
-                current = default!;
-                return false;
-            }
-            this.{{this.yielded}} = true;
-            var {{this.result}} = {{seed}};
-            while({{this.e}}.TryGetNext(out var {{this.item}})){
-                {{this.FuncAssignIndented("    ",func,nameof(func),this.result,this.result,this.item)}}
-            }
+            {{AggregateLoopSupport.RenderSeededFold(source,this.e,this.result,this.item,
+                (indent,itemName)=>this.FuncAssignIndented(indent,func,nameof(func),this.result,this.result,itemName))}}
             this.{{this.currentValue}}={{this.result}};
             current=this.{{this.currentValue}};
             return true;
@@ -261,23 +162,8 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
         var funcSetup = this.DelegateLocal(func,funcVar);
         var resultSelectorSetup = this.DelegateLocal(resultSelector,resultSelectorVar);
         if(funcSetup is null || resultSelectorSetup is null) return null;
-        var fold = source.CanTryProvideSpan
-            ? $$"""
-                if({{srcVar}}.TryGetSpan(out var __span)){
-                    foreach(var __item in __span){
-                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
-                    }
-                }else{
-                    while({{srcVar}}.TryGetNext(out var __item)){
-                        {{this.FuncAssignInlineIndented("        ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
-                    }
-                }
-                """
-            : $$"""
-                while({{srcVar}}.TryGetNext(out var __item)){
-                    {{this.FuncAssignInlineIndented("    ",func,nameof(func),funcVar,this.result,this.result,"__item")}}
-                }
-                """;
+        var fold=AggregateLoopSupport.RenderSeededFold(source,srcVar,this.result,"__item",
+            (indent,itemName)=>this.FuncAssignInlineIndented(indent,func,nameof(func),funcVar,this.result,this.result,itemName));
         return $$"""
             {{destType}} {{destVar}};
             {{funcSetup}}
@@ -305,43 +191,136 @@ public class Aggregate_seed_func_resultSelector(int 番号, Enumerable source,st
     public override string GetEnumeratorFields => $$"""
         private bool {{this.yielded}} = false;
         """;
-    public override string GetTryGetNextBody => source.CanTryProvideSpan
-        ? $$"""
+    public override string GetTryGetNextBody => $$"""
             if(this.{{this.yielded}}) {
                 current = default!;
                 return false;
             }
             this.{{this.yielded}} = true;
             var {{this.result}} = {{seed}};
-            if({{this.e}}.TryGetSpan(out var __span)){
-                foreach(var __item in __span){
-                    {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,"__item")}}
-                }
-            }else{
-                while({{this.e}}.TryGetNext(out var {{this.item}})){
-                    {{this.FuncAssignIndented("        ",func,nameof(func),this.result,this.result,this.item)}}
-                }
-            }
-            {{this.FuncAssignIndented("",resultSelector,nameof(resultSelector),$"this.{this.currentValue}",this.result)}}
-            current=this.{{this.currentValue}};
-            return true;
-            """
-        : $$"""
-            if(this.{{this.yielded}}) {
-                current = default!;
-                return false;
-            }
-            this.{{this.yielded}} = true;
-            var {{this.result}} = {{seed}};
-            while({{this.e}}.TryGetNext(out var {{this.item}})){
-                {{this.FuncAssignIndented("    ",func,nameof(func),this.result,this.result,this.item)}}
-            }
+            {{AggregateLoopSupport.RenderSeededFold(source,this.e,this.result,this.item,
+                (indent,itemName)=>this.FuncAssignIndented(indent,func,nameof(func),this.result,this.result,itemName))}}
             {{this.FuncAssignIndented("",resultSelector,nameof(resultSelector),$"this.{this.currentValue}",this.result)}}
             current=this.{{this.currentValue}};
             return true;
             """;
     public override string GetCurrentExpression => this.currentValue;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+}
+
+file static class AggregateLoopSupport {
+    public static string RenderSeedlessFold(
+        Enumerable source,
+        string sourceName,
+        string resultType,
+        string resultName,
+        string itemName,
+        Func<string,string,string> renderAssign) {
+        var spanName=$"__span_{resultName}";
+        var indexName=$"__i_{resultName}";
+        var directSpanExpression=source.GetDirectSpanExpression(sourceName);
+        if(directSpanExpression is not null) {
+            return $$"""
+                {{resultType}} {{resultName}};
+                var {{spanName}}={{directSpanExpression}};
+                if({{spanName}}.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+                {{resultName}}={{spanName}}[0];
+                for(var {{indexName}}=1;{{indexName}}<{{spanName}}.Length;{{indexName}}++){
+                    var {{itemName}}={{spanName}}[{{indexName}}];
+                {{IndentLines(renderAssign("        ",itemName),"    ")}}
+                }
+                """;
+        }
+        if(source.CanProvideSpan) {
+            return $$"""
+                {{resultType}} {{resultName}};
+                {{sourceName}}.TryGetSpan(out var {{spanName}});
+                if({{spanName}}.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+                {{resultName}}={{spanName}}[0];
+                for(var {{indexName}}=1;{{indexName}}<{{spanName}}.Length;{{indexName}}++){
+                    var {{itemName}}={{spanName}}[{{indexName}}];
+                {{IndentLines(renderAssign("        ",itemName),"    ")}}
+                }
+                """;
+        }
+        if(source.CanTryProvideSpan) {
+            return $$"""
+                {{resultType}} {{resultName}};
+                if({{sourceName}}.TryGetSpan(out var {{spanName}})){
+                    if({{spanName}}.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+                    {{resultName}}={{spanName}}[0];
+                    for(var {{indexName}}=1;{{indexName}}<{{spanName}}.Length;{{indexName}}++){
+                        var {{itemName}}={{spanName}}[{{indexName}}];
+                {{IndentLines(renderAssign("            ",itemName),"        ")}}
+                    }
+                }else{
+                    if(!{{sourceName}}.TryGetNext(out var {{itemName}})) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+                    {{resultName}}={{itemName}};
+                    while({{sourceName}}.TryGetNext(out {{itemName}})){
+                {{IndentLines(renderAssign("        ",itemName),"        ")}}
+                    }
+                }
+                """;
+        }
+        return $$"""
+            if(!{{sourceName}}.TryGetNext(out var {{itemName}})) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+            var {{resultName}}={{itemName}};
+            while({{sourceName}}.TryGetNext(out {{itemName}})){
+            {{IndentLines(renderAssign("    ",itemName),"    ")}}
+            }
+            """;
+    }
+
+    public static string RenderSeededFold(
+        Enumerable source,
+        string sourceName,
+        string resultName,
+        string itemName,
+        Func<string,string,string> renderAssign) {
+        var spanName=$"__span_{resultName}";
+        var indexName=$"__i_{resultName}";
+        var directSpanExpression=source.GetDirectSpanExpression(sourceName);
+        if(directSpanExpression is not null) {
+            return $$"""
+                var {{spanName}}={{directSpanExpression}};
+                for(var {{indexName}}=0;{{indexName}}<{{spanName}}.Length;{{indexName}}++){
+                    var {{itemName}}={{spanName}}[{{indexName}}];
+                {{IndentLines(renderAssign("        ",itemName),"    ")}}
+                }
+                """;
+        }
+        if(source.CanProvideSpan) {
+            return $$"""
+                {{sourceName}}.TryGetSpan(out var {{spanName}});
+                for(var {{indexName}}=0;{{indexName}}<{{spanName}}.Length;{{indexName}}++){
+                    var {{itemName}}={{spanName}}[{{indexName}}];
+                {{IndentLines(renderAssign("        ",itemName),"    ")}}
+                }
+                """;
+        }
+        if(source.CanTryProvideSpan) {
+            return $$"""
+                if({{sourceName}}.TryGetSpan(out var {{spanName}})){
+                    for(var {{indexName}}=0;{{indexName}}<{{spanName}}.Length;{{indexName}}++){
+                        var {{itemName}}={{spanName}}[{{indexName}}];
+                {{IndentLines(renderAssign("            ",itemName),"        ")}}
+                    }
+                }else{
+                    while({{sourceName}}.TryGetNext(out var {{itemName}})){
+                {{IndentLines(renderAssign("        ",itemName),"        ")}}
+                    }
+                }
+                """;
+        }
+        return $$"""
+            while({{sourceName}}.TryGetNext(out var {{itemName}})){
+            {{IndentLines(renderAssign("    ",itemName),"    ")}}
+            }
+            """;
+    }
+
+    private static string IndentLines(string text,string indent) =>
+        string.Join("\n",text.Replace("\r\n","\n").Split('\n').Select(line=>line.Length==0?line:indent+line));
 }
 
 file static class AggregateInlineDelegateSupport {
