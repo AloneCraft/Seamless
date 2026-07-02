@@ -115,6 +115,43 @@ public sealed class BenchmarkStatusImageLogic{
     }
 
     [Fact]
+    public void RowCompletionUsesPairKeyWhenRightSideReachesThreshold(){
+        var measurements = new[] {
+            new BenchmarkElementMeasurement("Left","Any","System.Array.FLinq","",4096,"Completed",100),
+            new BenchmarkElementMeasurement("Right","Any","System.Array.ZLinq","",4096,"Completed",2_000_000),
+        };
+
+        Assert.True(BenchmarkRowCompletionLogic.IsFinalCompleted(
+            measurements,
+            new BenchmarkTabProgressCell("Any","Left","System.Array.FLinq","",true,"row-1"),
+            new BenchmarkTabProgressCell("Any","Right","System.Array.ZLinq","",true,"row-1"),
+            4096,
+            1_000_000));
+
+        Assert.False(BenchmarkRowCompletionLogic.IsFinalCompleted(
+            measurements,
+            new BenchmarkTabProgressCell("Any","Left","System.Array.FLinq","",true,"row-1"),
+            new BenchmarkTabProgressCell("Any","Right","System.Array.ZLinq","Count=2",true,"row-1"),
+            8192,
+            1_000_000));
+    }
+
+    [Fact]
+    public void RowCompletionDoesNotCompleteWhenBothSidesStayBelowThreshold(){
+        var measurements = new[] {
+            new BenchmarkElementMeasurement("Left","Any","System.Array.FLinq","",4096,"Completed",100),
+            new BenchmarkElementMeasurement("Right","Any","System.Array.ZLinq","",4096,"Completed",200),
+        };
+
+        Assert.False(BenchmarkRowCompletionLogic.IsFinalCompleted(
+            measurements,
+            new BenchmarkTabProgressCell("Any","Left","System.Array.FLinq","",true,"row-1"),
+            new BenchmarkTabProgressCell("Any","Right","System.Array.ZLinq","",true,"row-1"),
+            8192,
+            1_000_000));
+    }
+
+    [Fact]
     public void CpuStatusUsesImagesWithoutStatusGlyphText(){
         Assert.Equal(BenchmarkStatusImageNames.CpuIdle,BenchmarkCpuStatusImageLogic.GetImageSource("Pending"));
         Assert.Equal(BenchmarkStatusImageNames.CpuRunning,BenchmarkCpuStatusImageLogic.GetImageSource(JobStatus.Running.ToString()));

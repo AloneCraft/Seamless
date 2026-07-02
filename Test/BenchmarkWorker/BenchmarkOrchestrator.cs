@@ -1163,6 +1163,33 @@ public sealed class BenchmarkOrchestrator{
     }
 
     [Fact]
+    public void BenchmarkSkippedDisplayLogic_UsesCellTypesForPairStop(){
+        BenchmarkElementMeasurement[] measurements = [
+            new("Left","Any","System.Array.FLinq","",128,"Completed",900_000),
+            new("Right","Any","System.Array.ZLinq","",128,"Completed",2_000_000),
+        ];
+        var leftCell = new BenchmarkTabProgressCell("Any","Left","System.Array.FLinq","",true,"row-1");
+        var rightCell = new BenchmarkTabProgressCell("Any","Right","System.Array.ZLinq","",true,"row-1");
+
+        var stoppedAt = BenchmarkSkippedDisplayLogic.FindPairStoppedAt(
+            measurements,
+            leftCell,
+            rightCell,
+            256,
+            1_000_000);
+        var completedByRight = BenchmarkPairCompletionLogic.HasSelectedPairThresholdCompletion(
+            measurements,
+            [leftCell,rightCell],
+            leftCell,
+            "Left",
+            "Right",
+            1_000_000);
+
+        Assert.Equal(128,stoppedAt);
+        Assert.True(completedByRight);
+    }
+
+    [Fact]
     public void BenchmarkSkippedDisplayLogic_FindsLatestCompletedPairBeforeSelectedElementCount(){
         var systemTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
         BenchmarkElementMeasurement[] measurements = [

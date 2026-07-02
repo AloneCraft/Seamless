@@ -119,7 +119,56 @@ public sealed record ResultElementCountOption(int Value,string DisplayName);
 
 public sealed record ThresholdOption(string DisplayName,int Milliseconds);
 
+public sealed record BenchmarkDiagnosticRow(
+    string Category,
+    string Method,
+    string WorstN,
+    string RatioText,
+    string LeftText,
+    string RightText,
+    string DetailText);
+
 public sealed record BenchmarkAutoScrollRequest(BenchmarkSourceTab SourceTab,string MethodName,string RowKey,int Sequence);
+
+public sealed class BenchmarkImprovementCandidateRow:ObservableObject{
+    private bool isSelected;
+
+    public BenchmarkImprovementCandidateRow(BenchmarkImprovementCandidate candidate,bool isSelected){
+        this.Candidate=candidate;
+        this.isSelected=isSelected;
+    }
+
+    public event EventHandler? SelectionChanged;
+
+    internal BenchmarkImprovementCandidate Candidate { get; }
+    public string Key => this.Candidate.Key;
+    public string Category => this.Candidate.Category;
+    public string MethodName => this.Candidate.MethodName;
+    public string SourceTabText => this.Candidate.SourceTab.DisplayName;
+    public string WorstElementCountText =>
+        this.Candidate.TimeElementCount==this.Candidate.AllocatedElementCount
+            ? this.Candidate.TimeElementCount.ToString("N0",CultureInfo.InvariantCulture)
+            : this.Candidate.TimeElementCount.ToString("N0",CultureInfo.InvariantCulture)+"/"+this.Candidate.AllocatedElementCount.ToString("N0",CultureInfo.InvariantCulture);
+    public string TimeRatioText => BenchmarkImprovementCandidateBuilder.FormatRatio(this.Candidate.TimeRatio);
+    public string AllocatedRatioText => BenchmarkImprovementCandidateBuilder.FormatRatio(this.Candidate.AllocatedRatio);
+    public string LeftTimeText => BenchmarkImprovementCandidateBuilder.FormatTime(this.Candidate.TimeLeft.TimeNanoseconds);
+    public string RightTimeText => BenchmarkImprovementCandidateBuilder.FormatTime(this.Candidate.TimeRight.TimeNanoseconds);
+    public string LeftAllocatedText => BenchmarkImprovementCandidateBuilder.FormatAllocated(this.Candidate.AllocatedLeft.AllocatedBytes);
+    public string RightAllocatedText => BenchmarkImprovementCandidateBuilder.FormatAllocated(this.Candidate.AllocatedRight.AllocatedBytes);
+    public string TooltipText =>
+        this.SourceTabText+"\n"
+        +this.Candidate.SourceTab.LeftProject+" / "+this.Candidate.SourceTab.RightProject+"\n"
+        +"Time "+this.TimeRatioText+" / Alloc "+this.AllocatedRatioText;
+
+    public bool IsSelected{
+        get => this.isSelected;
+        set{
+            if(this.SetProperty(ref this.isSelected,value)){
+                this.SelectionChanged?.Invoke(this,EventArgs.Empty);
+            }
+        }
+    }
+}
 
 public readonly record struct BenchmarkSortValue(string? Text,double? Number,bool IsMissing){
     public static BenchmarkSortValue FromText(string text) => new(text,null,string.IsNullOrWhiteSpace(text));

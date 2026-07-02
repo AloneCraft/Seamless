@@ -173,6 +173,22 @@ internal static class BenchmarkChartSelectionLayoutLogic{
     public static float CalculateStackBoundary(float plotLeft,float plotRight,float leftPercent) =>
         plotLeft+(plotRight-plotLeft)*Math.Clamp(leftPercent,0,100)/100;
 
+    public static (string LeftText,string RightText) CreateShareTexts(double leftValue,double rightValue){
+        var leftNumber = Math.Max(0,leftValue);
+        var rightNumber = Math.Max(0,rightValue);
+        var total = leftNumber+rightNumber;
+        if(total<=0){
+            return ("0.00","0.00");
+        }
+
+        var leftShare = Math.Round(leftNumber/total,2,MidpointRounding.AwayFromZero);
+        leftShare=Math.Clamp(leftShare,0,1);
+        var rightShare = 1-leftShare;
+        return (
+            leftShare.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture),
+            rightShare.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture));
+    }
+
     public static (BenchmarkChartBarRect LeftBarRect,BenchmarkChartBarRect RightBarRect) CreateBarRects(
         float plotLeft,
         float plotRight,
@@ -257,18 +273,31 @@ internal sealed class BenchmarkSourceTabRunningState{
 internal static class BenchmarkTabProgressSourceLogic{
     public static IReadOnlyList<BenchmarkTabProgressCell> CreateCellsFromSelectedCases(
         IEnumerable<BenchmarkCase> selectedCases,
-        BenchmarkSourceTabDefinition sourceTab) =>
-        selectedCases
+        BenchmarkSourceTabDefinition sourceTab){
+        var cases = selectedCases
             .Where(benchmark => sourceTab.ContainsProject(benchmark.Project))
-            .GroupBy(static benchmark => string.Join("|",benchmark.Project,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey),StringComparer.OrdinalIgnoreCase)
-            .Select(static group => group.First())
-            .Select(static benchmark => new BenchmarkTabProgressCell(
-                benchmark.MethodName,
+            .GroupBy(static benchmark => BenchmarkRowGroupingLogic.CreateCaseKey(
                 benchmark.Project,
                 benchmark.TypeFullName,
-                benchmark.ArgumentKey,
-                true))
+                benchmark.MethodName,
+                benchmark.ArgumentKey),StringComparer.OrdinalIgnoreCase)
+            .Select(static group => group.First())
             .ToArray();
+        return BenchmarkRowGroupingLogic.CreateRows(cases,sourceTab)
+            .SelectMany(row => sourceTab.ProjectOrder
+                .Where(project => row.CasesByProject.ContainsKey(project))
+                .Select(project => {
+                    var benchmark = row.CasesByProject[project];
+                    return new BenchmarkTabProgressCell(
+                        benchmark.MethodName,
+                        benchmark.Project,
+                        benchmark.TypeFullName,
+                        benchmark.ArgumentKey,
+                        true,
+                        row.RowKey);
+                }))
+            .ToArray();
+    }
 }
 
 internal static class BenchmarkFailureDisplayLogic{
@@ -314,19 +343,135 @@ internal static class BenchmarkFailureDisplayLogic{
     }
 }
 
-internal readonly record struct BenchmarkTabProgressCell(string Method,string Project,string TypeFullName,string ArgumentKey,bool IsSelected){
+internal readonly record struct BenchmarkTabProgressCell(string Method,string Project,string TypeFullName,string ArgumentKey,bool IsSelected,string PairKey){
     public BenchmarkTabProgressCell(string method,string project,string typeFullName,bool isSelected)
-        : this(method,project,typeFullName,string.Empty,isSelected){
+        : this(method,project,typeFullName,string.Empty,isSelected,string.Empty){
     }
 
     public BenchmarkTabProgressCell(string method,string project,bool isSelected)
-        : this(method,project,string.Empty,string.Empty,isSelected){
+        : this(method,project,string.Empty,string.Empty,isSelected,string.Empty){
+    }
+
+    public BenchmarkTabProgressCell(string method,string project,string typeFullName,string argumentKey,bool isSelected)
+        : this(method,project,typeFullName,argumentKey,isSelected,string.Empty){
     }
 }
 
 internal static class BenchmarkArgumentKeyMatchLogic{
     public static bool IsExactMatch(string left,string right) =>
         string.Equals(left,right,StringComparison.OrdinalIgnoreCase);
+}
+
+internal static class BenchmarkPairCompletionLogic{
+    public static bool IsCellTerminal(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        IEnumerable<BenchmarkTabProgressCell> selectedCells,
+        BenchmarkTabProgressCell cell,
+        string leftProject,
+        string rightProject,
+        double thresholdNanoseconds){
+        var measurementArray = measurements as BenchmarkElementMeasurement[]??measurements.ToArray();
+        if(HasFailedMeasurementForCell(measurementArray,cell)){
+            return true;
+        }
+
+        if(HasReachedThresholdForCell(measurementArray,cell,thresholdNanoseconds)){
+            return true;
+        }
+
+        return HasSelectedPairThresholdCompletion(
+            measurementArray,
+            selectedCells,
+            cell,
+            leftProject,
+            rightProject,
+            thresholdNanoseconds);
+    }
+
+    public static bool HasSelectedPairThresholdCompletion(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        IEnumerable<BenchmarkTabProgressCell> selectedCells,
+        BenchmarkTabProgressCell cell,
+        string leftProject,
+        string rightProject,
+        double thresholdNanoseconds){
+        if(!IsPairProject(cell.Project,leftProject,rightProject)){
+            return false;
+        }
+
+        var measurementArray = measurements as BenchmarkElementMeasurement[]??measurements.ToArray();
+        return selectedCells
+            .Where(candidate => candidate.IsSelected&&IsSamePair(candidate,cell,leftProject,rightProject))
+            .Any(candidate => HasReachedThresholdForCell(measurementArray,candidate,thresholdNanoseconds));
+    }
+
+    public static bool HasReachedThresholdForCell(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        BenchmarkTabProgressCell cell,
+        double thresholdNanoseconds) =>
+        measurements.Any(result =>
+            IsMeasurementForCell(result,cell)
+            &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+            &&result.MeanNanoseconds is { } mean
+            &&mean>=thresholdNanoseconds);
+
+    public static bool HasCompletedMeasurementForCell(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        BenchmarkTabProgressCell cell,
+        int elementCount) =>
+        measurements.Any(result =>
+            IsMeasurementForCell(result,cell)
+            &&result.ElementCount==elementCount
+            &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+            &&result.MeanNanoseconds is not null);
+
+    public static bool IsMeasurementForCell(BenchmarkElementMeasurement result,BenchmarkTabProgressCell cell) =>
+        string.Equals(result.Project,cell.Project,StringComparison.OrdinalIgnoreCase)
+        &&string.Equals(result.Method,cell.Method,StringComparison.OrdinalIgnoreCase)
+        &&IsSameType(result.TypeFullName,cell.TypeFullName)
+        &&IsSameArgument(result.ArgumentKey,cell.ArgumentKey)
+        &&result.ElementCount>0;
+
+    private static bool HasFailedMeasurementForCell(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        BenchmarkTabProgressCell cell) =>
+        measurements.Any(result =>
+            IsMeasurementForCell(result,cell)
+            &&string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsSamePair(
+        BenchmarkTabProgressCell candidate,
+        BenchmarkTabProgressCell cell,
+        string leftProject,
+        string rightProject) =>
+        IsPairProject(candidate.Project,leftProject,rightProject)
+        &&IsPairProject(cell.Project,leftProject,rightProject)
+        &&string.Equals(candidate.Method,cell.Method,StringComparison.OrdinalIgnoreCase)
+        &&IsSamePairIdentity(candidate,cell);
+
+    private static bool IsSamePairIdentity(BenchmarkTabProgressCell left,BenchmarkTabProgressCell right){
+        if(!string.IsNullOrWhiteSpace(left.PairKey)||!string.IsNullOrWhiteSpace(right.PairKey)){
+            return !string.IsNullOrWhiteSpace(left.PairKey)
+                &&!string.IsNullOrWhiteSpace(right.PairKey)
+                &&string.Equals(left.PairKey,right.PairKey,StringComparison.OrdinalIgnoreCase);
+        }
+
+        return IsSameType(left.TypeFullName,right.TypeFullName)
+            &&IsSameArgument(left.ArgumentKey,right.ArgumentKey);
+    }
+
+    private static bool IsPairProject(string project,string leftProject,string rightProject) =>
+        string.Equals(project,leftProject,StringComparison.OrdinalIgnoreCase)
+        ||string.Equals(project,rightProject,StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsSameArgument(string left,string right) =>
+        BenchmarkArgumentKeyMatchLogic.IsExactMatch(left,right);
+
+    private static bool IsSameType(string left,string right) =>
+        string.IsNullOrWhiteSpace(right)
+            ? true
+            : !string.IsNullOrWhiteSpace(left)
+                &&string.Equals(left,right,StringComparison.OrdinalIgnoreCase);
 }
 
 internal static class BenchmarkTabProgressLogic{
@@ -343,28 +488,30 @@ internal static class BenchmarkTabProgressLogic{
         }
 
         var measurementArray = measurements.ToArray();
-        var completed = selectedCells.Count(cell => HasTerminalMeasurement(measurementArray,cell));
+        var completed = selectedCells.Count(cell => HasTerminalMeasurement(
+            measurementArray,
+            selectedCells,
+            cell,
+            leftProject,
+            rightProject,
+            thresholdNanoseconds));
         return new BenchmarkTabProgress(completed,selectedCells.Length);
     }
 
-    private static bool HasTerminalMeasurement(IEnumerable<BenchmarkElementMeasurement> measurements,BenchmarkTabProgressCell cell) =>
-        measurements.Any(result =>
-            string.Equals(result.Method,cell.Method,StringComparison.OrdinalIgnoreCase)
-            &&string.Equals(result.Project,cell.Project,StringComparison.OrdinalIgnoreCase)
-            &&IsSameType(result.TypeFullName,cell.TypeFullName)
-            &&IsSameArgument(result.ArgumentKey,cell.ArgumentKey)
-            &&result.ElementCount>0
-            &&(string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-                ||string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)));
-
-    private static bool IsSameArgument(string left,string right) =>
-        BenchmarkArgumentKeyMatchLogic.IsExactMatch(left,right);
-
-    private static bool IsSameType(string left,string right) =>
-        string.IsNullOrWhiteSpace(right)
-            ? true
-            : !string.IsNullOrWhiteSpace(left)
-                &&string.Equals(left,right,StringComparison.OrdinalIgnoreCase);
+    private static bool HasTerminalMeasurement(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        IEnumerable<BenchmarkTabProgressCell> selectedCells,
+        BenchmarkTabProgressCell cell,
+        string leftProject,
+        string rightProject,
+        double thresholdNanoseconds) =>
+        BenchmarkPairCompletionLogic.IsCellTerminal(
+            measurements,
+            selectedCells,
+            cell,
+            leftProject,
+            rightProject,
+            thresholdNanoseconds);
 }
 
 internal readonly record struct BenchmarkRowDefinition(
@@ -518,62 +665,53 @@ internal static class BenchmarkRowCompletionLogic{
         string rightProject,
         int maxElementCount,
         double thresholdNanoseconds){
-        var methodMeasurements = measurements
-            .Where(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase))
-            .Where(result => IsSameType(result.TypeFullName,typeFullName))
-            .Where(result => IsSameArgument(result.ArgumentKey,argumentKey))
-            .ToArray();
-        if(methodMeasurements.Length==0){
-            return false;
-        }
-
-        return HasThresholdCompletion(methodMeasurements,leftProject,rightProject,thresholdNanoseconds)
-            ||HasCompletedMaxElementCount(methodMeasurements,leftProject,rightProject,maxElementCount);
+        var pairKey = CreateSyntheticPairKey(method,typeFullName,argumentKey);
+        return IsFinalCompleted(
+            measurements,
+            new BenchmarkTabProgressCell(method,leftProject,typeFullName,argumentKey,true,pairKey),
+            new BenchmarkTabProgressCell(method,rightProject,typeFullName,argumentKey,true,pairKey),
+            maxElementCount,
+            thresholdNanoseconds);
     }
 
-    private static bool HasThresholdCompletion(
+    public static bool IsFinalCompleted(
         IEnumerable<BenchmarkElementMeasurement> measurements,
-        string leftProject,
-        string rightProject,
-        double thresholdNanoseconds) =>
-        measurements.Any(result =>
-            IsPairProject(result.Project,leftProject,rightProject)
-            &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-            &&result.MeanNanoseconds is { } mean
-            &&mean>thresholdNanoseconds);
+        BenchmarkTabProgressCell leftCell,
+        BenchmarkTabProgressCell rightCell,
+        int maxElementCount,
+        double thresholdNanoseconds){
+        var measurementArray = measurements as BenchmarkElementMeasurement[]??measurements.ToArray();
+        var selectedCells = new[] {
+            leftCell with { IsSelected = true },
+            rightCell with { IsSelected = true },
+        };
+        if(selectedCells.Any(cell => BenchmarkPairCompletionLogic.HasSelectedPairThresholdCompletion(
+            measurementArray,
+            selectedCells,
+            cell,
+            leftCell.Project,
+            rightCell.Project,
+            thresholdNanoseconds))){
+            return true;
+        }
+
+        return HasCompletedMaxElementCount(measurementArray,selectedCells,maxElementCount);
+    }
 
     private static bool HasCompletedMaxElementCount(
         IEnumerable<BenchmarkElementMeasurement> measurements,
-        string leftProject,
-        string rightProject,
+        IReadOnlyList<BenchmarkTabProgressCell> selectedCells,
         int maxElementCount){
         if(maxElementCount<=0){
             return false;
         }
 
-        return HasCompletedMeasurement(measurements,leftProject,maxElementCount)
-            &&HasCompletedMeasurement(measurements,rightProject,maxElementCount);
+        return selectedCells.All(cell =>
+            BenchmarkPairCompletionLogic.HasCompletedMeasurementForCell(measurements,cell,maxElementCount));
     }
 
-    private static bool HasCompletedMeasurement(IEnumerable<BenchmarkElementMeasurement> measurements,string project,int elementCount) =>
-        measurements.Any(result =>
-            string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase)
-            &&result.ElementCount==elementCount
-            &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-            &&result.MeanNanoseconds is not null);
-
-    private static bool IsPairProject(string project,string leftProject,string rightProject) =>
-        string.Equals(project,leftProject,StringComparison.OrdinalIgnoreCase)
-        ||string.Equals(project,rightProject,StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsSameType(string left,string right) =>
-        string.IsNullOrWhiteSpace(right)
-            ? true
-            : !string.IsNullOrWhiteSpace(left)
-                &&string.Equals(left,right,StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsSameArgument(string left,string right) =>
-        BenchmarkArgumentKeyMatchLogic.IsExactMatch(left,right);
+    private static string CreateSyntheticPairKey(string method,string typeFullName,string argumentKey) =>
+        string.Join("|",method,typeFullName,argumentKey);
 }
 
 internal static class BenchmarkSkippedDisplayLogic{
@@ -608,18 +746,34 @@ internal static class BenchmarkSkippedDisplayLogic{
             return null;
         }
 
+        var pairKey = CreateSyntheticPairKey(method,typeFullName,argumentKey);
+        return FindPairStoppedAt(
+            measurements,
+            new BenchmarkTabProgressCell(method,pairProjects[0],typeFullName,argumentKey,true,pairKey),
+            new BenchmarkTabProgressCell(method,pairProjects[1],typeFullName,argumentKey,true,pairKey),
+            selectedElementCount,
+            thresholdNanoseconds);
+    }
+
+    public static int? FindPairStoppedAt(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        BenchmarkTabProgressCell leftCell,
+        BenchmarkTabProgressCell rightCell,
+        int selectedElementCount,
+        double thresholdNanoseconds){
+        var cells = new[] {
+            leftCell with { IsSelected = true },
+            rightCell with { IsSelected = true },
+        };
         return measurements
-            .Where(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
-                &&IsSameType(result.TypeFullName,typeFullName)
-                &&IsSameArgument(result.ArgumentKey,argumentKey)
-                &&result.ElementCount<selectedElementCount
+            .Where(result => result.ElementCount<selectedElementCount
                 &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
                 &&result.MeanNanoseconds is not null
-                &&pairProjects.Contains(result.Project,StringComparer.OrdinalIgnoreCase))
+                &&cells.Any(cell => BenchmarkPairCompletionLogic.IsMeasurementForCell(result,cell)))
             .GroupBy(static result => result.ElementCount)
             .OrderBy(static group => group.Key)
-            .Where(group => pairProjects.All(pairProject => group.Any(result => string.Equals(result.Project,pairProject,StringComparison.OrdinalIgnoreCase))))
-            .Where(group => group.Any(result => result.MeanNanoseconds>thresholdNanoseconds))
+            .Where(group => cells.All(cell => BenchmarkPairCompletionLogic.HasCompletedMeasurementForCell(group,cell,group.Key)))
+            .Where(group => cells.Any(cell => BenchmarkPairCompletionLogic.HasReachedThresholdForCell(group,cell,thresholdNanoseconds)))
             .Select(group => (int?)group.Key)
             .FirstOrDefault();
     }
@@ -648,32 +802,39 @@ internal static class BenchmarkSkippedDisplayLogic{
         string argumentKey,
         string leftProject,
         string rightProject,
-        int selectedElementCount) =>
-        measurements
-            .Where(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
-                &&IsSameType(result.TypeFullName,typeFullName)
-                &&IsSameArgument(result.ArgumentKey,argumentKey)
-                &&result.ElementCount>0
+        int selectedElementCount) {
+        var pairKey = CreateSyntheticPairKey(method,typeFullName,argumentKey);
+        return FindLatestCompletedPairElementCountBefore(
+            measurements,
+            new BenchmarkTabProgressCell(method,leftProject,typeFullName,argumentKey,true,pairKey),
+            new BenchmarkTabProgressCell(method,rightProject,typeFullName,argumentKey,true,pairKey),
+            selectedElementCount);
+    }
+
+    public static int? FindLatestCompletedPairElementCountBefore(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        BenchmarkTabProgressCell leftCell,
+        BenchmarkTabProgressCell rightCell,
+        int selectedElementCount){
+        var cells = new[] {
+            leftCell with { IsSelected = true },
+            rightCell with { IsSelected = true },
+        };
+        return measurements
+            .Where(result => result.ElementCount>0
                 &&result.ElementCount<selectedElementCount
                 &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
                 &&result.MeanNanoseconds is not null
-                &&(string.Equals(result.Project,leftProject,StringComparison.OrdinalIgnoreCase)
-                    ||string.Equals(result.Project,rightProject,StringComparison.OrdinalIgnoreCase)))
+                &&cells.Any(cell => BenchmarkPairCompletionLogic.IsMeasurementForCell(result,cell)))
             .GroupBy(static result => result.ElementCount)
             .OrderByDescending(static group => group.Key)
-            .Where(group => group.Any(result => string.Equals(result.Project,leftProject,StringComparison.OrdinalIgnoreCase))
-                &&group.Any(result => string.Equals(result.Project,rightProject,StringComparison.OrdinalIgnoreCase)))
+            .Where(group => cells.All(cell => BenchmarkPairCompletionLogic.HasCompletedMeasurementForCell(group,cell,group.Key)))
             .Select(group => (int?)group.Key)
             .FirstOrDefault();
+    }
 
-    private static bool IsSameType(string left,string right) =>
-        string.IsNullOrWhiteSpace(right)
-            ? true
-            : !string.IsNullOrWhiteSpace(left)
-                &&string.Equals(left,right,StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsSameArgument(string left,string right) =>
-        BenchmarkArgumentKeyMatchLogic.IsExactMatch(left,right);
+    private static string CreateSyntheticPairKey(string method,string typeFullName,string argumentKey) =>
+        string.Join("|",method,typeFullName,argumentKey);
 }
 
 internal enum BenchmarkToolbarButtonRole{
