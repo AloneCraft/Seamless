@@ -68,6 +68,100 @@ public sealed class BenchmarkTabProgressLogic{
     }
 
     [Fact]
+    public void Calculate_DoesNotTreatFiveOfSixCellsAsComplete(){
+        var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
+            [
+                new BenchmarkTabProgressCell("A","Left","Type.A","",true,"row-a"),
+                new BenchmarkTabProgressCell("A","Right","Type.A","",true,"row-a"),
+                new BenchmarkTabProgressCell("B","Left","Type.B","",true,"row-b"),
+                new BenchmarkTabProgressCell("B","Right","Type.B","",true,"row-b"),
+                new BenchmarkTabProgressCell("C","Left","Type.C","",true,"row-c"),
+                new BenchmarkTabProgressCell("C","Right","Type.C","",true,"row-c"),
+            ],
+            [
+                new BenchmarkElementMeasurement("Left","A","Type.A","",4096,"Completed",2_000_000),
+                new BenchmarkElementMeasurement("Right","A","Type.A","",4096,"Completed",2_000_000),
+                new BenchmarkElementMeasurement("Left","B","Type.B","",4096,"Completed",2_000_000),
+                new BenchmarkElementMeasurement("Right","B","Type.B","",4096,"Completed",2_000_000),
+                new BenchmarkElementMeasurement("Left","C","Type.C","",4096,"Failed",null),
+            ],
+            "Left",
+            "Right",
+            4096,
+            1_000_000);
+
+        Assert.Equal(5,progress.Completed);
+        Assert.Equal(6,progress.Total);
+        Assert.Equal("5/6",progress.FractionText);
+        Assert.NotEqual(1,progress.Fraction);
+    }
+
+    [Fact]
+    public void Calculate_KeepsMultiTabPartialRunIncompleteAcrossTabSwitch(){
+        var array = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
+        var range = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemRange);
+        var list = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemList);
+        var selectedCases = new[]{
+            Case(array.LeftProject,"System.Array","Aggregate_func",""),
+            Case(array.RightProject,"System.Array","Aggregate_func",""),
+            Case(array.LeftProject,"System.Array","AggregateBy_keySelector",""),
+            Case(array.RightProject,"System.Array","AggregateBy_keySelector",""),
+            Case(range.LeftProject,"System.Collections.Generic.IEnumerable","Aggregate_seed_func",""),
+            Case(range.RightProject,"System.Collections.Generic.IEnumerable","Aggregate_seed_func",""),
+            Case(range.LeftProject,"System.Collections.Generic.IEnumerable","Aggregate_seed_func_resultSelector",""),
+            Case(range.RightProject,"System.Collections.Generic.IEnumerable","Aggregate_seed_func_resultSelector",""),
+            Case(list.LeftProject,"System.Collections.Generic.List","All_predicate",""),
+            Case(list.RightProject,"System.Collections.Generic.List","All_predicate",""),
+            Case(list.LeftProject,"System.Collections.Generic.List","Any",""),
+            Case(list.RightProject,"System.Collections.Generic.List","Any",""),
+        };
+
+        var listCells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases(selectedCases,list);
+        var listMeasurements = new[]{
+            new BenchmarkElementMeasurement(list.LeftProject,"All_predicate","System.Collections.Generic.List","",4096,"Completed",2_000_000),
+            new BenchmarkElementMeasurement(list.RightProject,"All_predicate","System.Collections.Generic.List","",4096,"Completed",2_000_000),
+        };
+        var listProgress = global::UI.BenchmarkTabProgressLogic.Calculate(
+            listCells,
+            listMeasurements,
+            list.LeftProject,
+            list.RightProject,
+            4096,
+            1_000_000);
+
+        Assert.Equal(2,listProgress.Completed);
+        Assert.Equal(4,listProgress.Total);
+        Assert.NotEqual(1,listProgress.Fraction);
+
+        var arrayCells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases(selectedCases,array);
+        var arrayProgress = global::UI.BenchmarkTabProgressLogic.Calculate(
+            arrayCells,
+            [
+                new BenchmarkElementMeasurement(array.LeftProject,"Aggregate_func","System.Array","",4096,"Completed",2_000_000),
+                new BenchmarkElementMeasurement(array.RightProject,"Aggregate_func","System.Array","",4096,"Completed",2_000_000),
+            ],
+            array.LeftProject,
+            array.RightProject,
+            4096,
+            1_000_000);
+
+        Assert.Equal(2,arrayProgress.Completed);
+        Assert.Equal(4,arrayProgress.Total);
+
+        var restoredListProgress = global::UI.BenchmarkTabProgressLogic.Calculate(
+            listCells,
+            listMeasurements,
+            list.LeftProject,
+            list.RightProject,
+            4096,
+            1_000_000);
+
+        Assert.Equal(listProgress.Completed,restoredListProgress.Completed);
+        Assert.Equal(listProgress.Total,restoredListProgress.Total);
+        Assert.NotEqual(1,restoredListProgress.Fraction);
+    }
+
+    [Fact]
     public void Calculate_TreatsFailedCellsAsTerminal(){
         var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
             [

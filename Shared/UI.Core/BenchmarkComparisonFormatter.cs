@@ -43,9 +43,7 @@ internal static class BenchmarkComparisonFormatter{
                 throw new InvalidDataException($"Unknown benchmark project for {sourceTab.Id}: {row.Project}");
             }
 
-            var typeDiscriminator = ScalableBenchmarkNameFormatter.IsScalableSourceTab(sourceTab.Tab)||duplicatedProjectMethods.Contains(row.Project+"|"+row.Method)
-                ? ScalableBenchmarkNameFormatter.ShortTypeName(row.TypeFullName)
-                : string.Empty;
+            var typeDiscriminator = CreateTypeDiscriminator(sourceTab,row,duplicatedProjectMethods);
             var key = CreateComparisonKey(row.Method,typeDiscriminator,row.ArgumentKey);
             if(!rowsByMethod.TryGetValue(key,out var bucket)){
                 bucket = new BenchmarkComparisonBucket(row.Method,typeDiscriminator,row.TypeFullName,row.ArgumentKey,row.Arguments);
@@ -142,9 +140,43 @@ internal static class BenchmarkComparisonFormatter{
         BenchmarkComparisonBucket bucket,
         BenchmarkSourceTabDefinition sourceTab,
         int elementCount) =>
-        ScalableBenchmarkNameFormatter.IsScalableSourceTab(sourceTab.Tab)
-            ? ScalableBenchmarkNameFormatter.CreateBenchmarkName(bucket.SourceTypeFullName,bucket.Method)
-            : bucket.Method;
+        CreateBenchmarkNameCore(bucket,sourceTab);
+
+    private static string CreateBenchmarkNameCore(
+        BenchmarkComparisonBucket bucket,
+        BenchmarkSourceTabDefinition sourceTab) {
+        if(!ScalableBenchmarkNameFormatter.UsesTypedBenchmarkName(sourceTab.Tab)) {
+            return bucket.Method;
+        }
+        if(!ScalableBenchmarkNameFormatter.IsScalableSourceTab(sourceTab.Tab)
+            &&!string.IsNullOrWhiteSpace(bucket.TypeFullName)) {
+            return "<"+bucket.TypeFullName+">."+bucket.Method;
+        }
+        return ScalableBenchmarkNameFormatter.CreateBenchmarkName(bucket.SourceTypeFullName,bucket.Method);
+    }
+
+    private static string CreateTypeDiscriminator(
+        BenchmarkSourceTabDefinition sourceTab,
+        ReportRow row,
+        System.Collections.Generic.ISet<string> duplicatedProjectMethods) {
+        if(ScalableBenchmarkNameFormatter.UsesTypedBenchmarkName(sourceTab.Tab)) {
+            if(ScalableBenchmarkNameFormatter.IsScalableSourceTab(sourceTab.Tab)) {
+                return ScalableBenchmarkNameFormatter.ShortTypeName(row.TypeFullName);
+            }
+            var method1Type=ScalableBenchmarkNameFormatter.CreateLegacyMethod1ComparisonTypeText(row.TypeFullName);
+            if(!string.IsNullOrWhiteSpace(method1Type)) {
+                return method1Type;
+            }
+            if(duplicatedProjectMethods.Contains(row.Project+"|"+row.Method)) {
+                return ScalableBenchmarkNameFormatter.ShortTypeName(row.TypeFullName);
+            }
+            return string.Empty;
+        }
+        if(duplicatedProjectMethods.Contains(row.Project+"|"+row.Method)) {
+            return ScalableBenchmarkNameFormatter.ShortTypeName(row.TypeFullName);
+        }
+        return string.Empty;
+    }
 
     private static string CreateComparisonKey(string method,string typeFullName,string argumentKey) =>
         method+"|"+typeFullName+"|"+argumentKey;

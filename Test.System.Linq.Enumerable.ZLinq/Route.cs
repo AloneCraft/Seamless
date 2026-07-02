@@ -1,6 +1,8 @@
 namespace Test.System.Linq.Enumerable {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public sealed class ZLinq():global::Seamless.Linq.Shared.Methods1(80_000);
+    public sealed class ZLinqInt32():global::Seamless.Linq.Shared.Methods1<int>(80_000);
+    [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
+    public sealed class ZLinqString():global::Seamless.Linq.Shared.Methods1<string>(80_000);
 }
 
 namespace Seamless.Linq.Shared {

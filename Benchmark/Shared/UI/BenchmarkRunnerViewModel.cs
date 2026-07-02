@@ -13,6 +13,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private const double BenchmarkChartRowHeight = 24;
     private const double BenchmarkChartVerticalPadding = 82;
     private const double BenchmarkChartMinimumHeight = 120;
+    private const string BenchmarkSortSettingsPreferenceKey = "Seamless.Benchmark.SortRules.v1";
     private static readonly TimeSpan RunningVisualMinimumDuration = TimeSpan.FromMilliseconds(250);
 
     private static readonly BenchmarkRunOption NewRunOption = new(
@@ -66,10 +67,13 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private bool isApplyingResultElementCount;
     private bool isApplyingRunOptionSelection;
     private bool isApplyingSourceTabSelection;
+    private bool isApplyingSortRules;
     private bool isLoadingSelectedRunDb;
+    private bool isRefreshingBenchmarkSelectionDisplay;
     private bool hasPendingCloseStateSave;
     private bool hasUnsavedBenchmarkResults;
-    private BenchmarkGridSortColumn currentSortColumn = BenchmarkGridSortColumn.BenchmarkName;
+    private bool hasBenchmarkTypeColumn = true;
+    private BenchmarkGridSortColumn currentSortColumn = BenchmarkGridSortColumn.BenchmarkMethod;
     private bool currentSortDescending;
     private BenchmarkCellSelectionAnchor? benchmarkSelectionAnchor;
     private IReadOnlyList<BenchmarkComparisonRow> comparisonRows = [];
@@ -83,6 +87,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private readonly BenchmarkSourceTabRunningState sourceTabRunningState = new();
     private readonly Queue<PendingRunResult> pendingRunResults = new();
     private IReadOnlyList<BenchmarkCase> catalogCases = [];
+    private IReadOnlyList<BenchmarkSortRuleSnapshot> savedSortRuleSnapshots = [];
     private BenchmarkSourceTab? activeRunSourceTab;
     private IReadOnlyList<BenchmarkCase> currentRunSelectedBenchmarkCases = [];
     private int[] selectedLogicalCpus = [];
@@ -134,6 +139,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ApplySourceTabVisualSelection();
         this.BenchmarkColumnSelectionGroups=this.CreateBenchmarkColumnSelectionGroups();
         this.BenchmarkProjectSelectionGroups=this.CreateBenchmarkProjectSelectionGroups();
+        this.savedSortRuleSnapshots=LoadSavedBenchmarkSortRules();
+        this.RefreshBenchmarkSortColumnOptions();
+        this.ResetBenchmarkSortRulesToDefault(false);
         this.ExecutionProfiles= [
             new ExecutionProfileOption("正確",BenchmarkExecutionProfile.Accurate),
             new ExecutionProfileOption("バランス",BenchmarkExecutionProfile.Intermediate),
@@ -240,6 +248,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     public IEnumerable<CpuTableSection> PerformanceCpuSections => this.GetCpuSections(CpuCoreKind.Performance);
     public IEnumerable<CpuTableSection> EfficiencyCpuSections => this.GetCpuSections(CpuCoreKind.Efficiency);
     public IEnumerable<CpuTableSection> UnknownCpuSections => this.GetCpuSections(CpuCoreKind.Unknown);
+    public ObservableCollection<BenchmarkSortRule> BenchmarkSortRules { get; } = [];
+    public ObservableCollection<BenchmarkSortColumnOption> BenchmarkSortColumnOptions { get; } = [];
     public ObservableCollection<ChartComparisonPoint> ChartPoints { get; } = [];
     public ObservableCollection<ScaleOption> ScaleOptions { get; } = [];
     public ObservableCollection<ResultElementCountOption> ResultElementCountOptions { get; } = [];
@@ -285,6 +295,16 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         get => this.currentSortDescending;
         private set => this.SetProperty(ref this.currentSortDescending,value);
     }
+
+    public bool HasBenchmarkTypeColumn{
+        get => this.hasBenchmarkTypeColumn;
+        private set => this.SetProperty(ref this.hasBenchmarkTypeColumn,value);
+    }
+
+    public string BenchmarkSortSummaryText =>
+        this.BenchmarkSortRules.Count==0
+            ? "既定順"
+            : string.Join(" > ",this.BenchmarkSortRules.Select(static rule => rule.ColumnText+" "+rule.DirectionText));
 
     public string BenchmarkRatioSummaryText {
         get => this.benchmarkRatioSummaryText;
@@ -763,15 +783,116 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     public void SortBenchmarkRows(BenchmarkGridSortColumn column) {
-        if(this.CurrentSortColumn==column) {
-            this.CurrentSortDescending=!this.CurrentSortDescending;
-        }
-        else {
-            this.CurrentSortColumn=column;
-            this.CurrentSortDescending=false;
+        var descending = false;
+        if(this.CurrentSortColumn==column&&this.BenchmarkSortRules.Count==1) {
+            descending=!this.CurrentSortDescending;
         }
 
+        this.SetBenchmarkSortRules([new BenchmarkSortRule(column,descending)],true);
+    }
+
+    public void AddBenchmarkSortRule() {
+        var option = this.BenchmarkSortColumnOptions
+            .FirstOrDefault(option => this.BenchmarkSortRules.All(rule => rule.Column!=option.Column))
+            ??this.BenchmarkSortColumnOptions.FirstOrDefault();
+        if(option is null) {
+            return;
+        }
+
+        var rule = new BenchmarkSortRule(option.Column);
+        this.AttachBenchmarkSortRule(rule);
+        this.BenchmarkSortRules.Add(rule);
+        this.ApplySortRuleChanges(true);
+    }
+
+    public void RemoveBenchmarkSortRule(BenchmarkSortRule rule) {
+        this.BenchmarkSortRules.Remove(rule);
+        if(this.BenchmarkSortRules.Count==0) {
+            this.ResetBenchmarkSortRulesToDefault(true);
+            return;
+        }
+
+        this.ApplySortRuleChanges(true);
+    }
+
+    public void MoveBenchmarkSortRule(BenchmarkSortRule source,BenchmarkSortRule target) {
+        var oldIndex = this.BenchmarkSortRules.IndexOf(source);
+        var newIndex = this.BenchmarkSortRules.IndexOf(target);
+        if(oldIndex<0||newIndex<0||oldIndex==newIndex) {
+            return;
+        }
+
+        this.BenchmarkSortRules.Move(oldIndex,newIndex);
+        this.ApplySortRuleChanges(true);
+    }
+
+    public void MoveBenchmarkSortRuleUp(BenchmarkSortRule rule) {
+        var index = this.BenchmarkSortRules.IndexOf(rule);
+        if(index<=0) {
+            return;
+        }
+
+        this.BenchmarkSortRules.Move(index,index-1);
+        this.ApplySortRuleChanges(true);
+    }
+
+    public void MoveBenchmarkSortRuleDown(BenchmarkSortRule rule) {
+        var index = this.BenchmarkSortRules.IndexOf(rule);
+        if(index<0||index>=this.BenchmarkSortRules.Count-1) {
+            return;
+        }
+
+        this.BenchmarkSortRules.Move(index,index+1);
+        this.ApplySortRuleChanges(true);
+    }
+
+    public void SetBenchmarkSortRuleColumn(BenchmarkSortRule rule,BenchmarkGridSortColumn column) {
+        rule.Column=column;
+        this.ApplySortRuleChanges(true);
+    }
+
+    public void ToggleBenchmarkSortRuleDirection(BenchmarkSortRule rule) {
+        rule.Descending=!rule.Descending;
+        this.ApplySortRuleChanges(true);
+    }
+
+    public void ResetBenchmarkSortRules() =>
+        this.ResetBenchmarkSortRulesToDefault(true);
+
+    private void SetBenchmarkSortRules(IEnumerable<BenchmarkSortRule> rules,bool save) {
+        this.isApplyingSortRules=true;
+        try {
+            this.BenchmarkSortRules.Clear();
+            foreach(var rule in rules) {
+                this.AttachBenchmarkSortRule(rule);
+                this.BenchmarkSortRules.Add(rule);
+            }
+        }
+        finally {
+            this.isApplyingSortRules=false;
+        }
+        this.ApplySortRuleChanges(save);
+    }
+
+    private void AttachBenchmarkSortRule(BenchmarkSortRule rule) {
+        rule.PropertyChanged+=(_,args) => {
+            if(this.isApplyingSortRules) {
+                return;
+            }
+            if(args.PropertyName==nameof(BenchmarkSortRule.Column)
+                ||args.PropertyName==nameof(BenchmarkSortRule.Descending)) {
+                this.ApplySortRuleChanges(true);
+            }
+        };
+    }
+
+    private void ApplySortRuleChanges(bool save) {
+        this.RefreshCurrentSortIndicator();
+        this.OnPropertyChanged(nameof(this.BenchmarkSortSummaryText));
         this.ApplyCurrentSort();
+        if(save) {
+            this.SaveBenchmarkSortRules();
+        }
     }
 
     public void ToggleCpu(CpuSelectionItem cpu) {
@@ -981,6 +1102,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             }
             this.BenchmarkRows.Add(row);
         }
+        this.RefreshBenchmarkSortColumns();
     }
 
     /// <summary>
@@ -996,11 +1118,14 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
 
         this.RebuildBenchmarkRowsFromCatalog();
         this.RefreshBenchmarkSelectionAggregates();
-        this.LoadSelectedRunFromDatabase();
         if(!this.RestoreCurrentRunDisplayForSelectedTab()) {
-            this.RefreshVisibleResults();
-            this.ApplySelectedElementCountToTable();
-            this.RefreshImprovementPrompt();
+            if(this.ShouldLoadSelectedRunFromDatabaseForDisplay()) {
+                this.LoadSelectedRunFromDatabase();
+            }else{
+                this.RefreshVisibleResults();
+                this.ApplySelectedElementCountToTable();
+                this.RefreshImprovementPrompt();
+            }
         }
         this.RefreshSourceTabProgresses();
         this.ApplyCurrentSort();
@@ -1053,6 +1178,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 if(args.PropertyName==nameof(BenchmarkProjectCell.IsSelected)&&!this.isApplyingUiState&&!this.isApplyingBenchmarkSelection) {
                     this.RefreshBenchmarkSelectionAggregates();
                     this.SaveUiState();
+                    this.RefreshBenchmarkSelectionDisplay();
                 }
             };
         }
@@ -1091,6 +1217,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             this.isApplyingBenchmarkSelection=false;
         }
         this.SaveUiState();
+        this.RefreshBenchmarkSelectionDisplay();
     }
 
     private void ApplyBenchmarkCellSelection(BenchmarkCellSelectionTarget target,BenchmarkCellSelectionGesture gesture) {
@@ -1402,10 +1529,56 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             this.uiRunRepository.QueueSaveUiState(runId,snapshot,cellSelections,rowSelections);
         }
         this.HasPendingCloseStateSave=false;
+        if(!this.isApplyingUiState) {
+            this.RefreshBenchmarkSelectionDisplay();
+        }
     }
 
     public void DiscardPendingCloseStateSave() {
         this.HasPendingCloseStateSave=false;
+    }
+
+    private void RefreshBenchmarkSelectionDisplay() {
+        if(this.isRefreshingBenchmarkSelectionDisplay||this.BenchmarkRows.Count==0) {
+            return;
+        }
+
+        this.isRefreshingBenchmarkSelectionDisplay=true;
+        try {
+            this.RefreshVisibleResults();
+            this.RefreshComparisonRowsFromDisplayResults();
+            this.ApplyComparisonRowsToTable();
+            this.ClearUnselectedResultDisplays();
+            this.ApplySelectedDisplayResultsToTable();
+            if(this.SelectedResultElementCount is { } selectedElementCount) {
+                this.ApplySkippedCells(selectedElementCount.Value);
+            }
+            this.RefreshFinalCompletionStates();
+            this.UpdateChart(false);
+            this.RefreshSourceTabProgresses();
+        }
+        finally {
+            this.isRefreshingBenchmarkSelectionDisplay=false;
+        }
+    }
+
+    private void RefreshComparisonRowsFromDisplayResults() {
+        var selectedElementCount = this.SelectedResultElementCount?.Value;
+        if(this.HasCurrentRunResultsForSelectedTab) {
+            this.comparisonRows=selectedElementCount is { } currentElementCount
+                ? this.BuildCurrentRunComparisonRowsForElementCount(currentElementCount)
+                : this.BuildCurrentRunComparisonRows();
+            return;
+        }
+
+        if(this.ResultItems.Count>0) {
+            this.comparisonRows=selectedElementCount is { } displayedElementCount
+                ? this.BuildDisplayedRowsForElementCount(this.SelectedSourceDefinition,displayedElementCount)
+                : this.BuildDisplayedRows(this.SelectedSourceDefinition);
+            return;
+        }
+
+        this.comparisonRows=[];
     }
 
     private void ApplyBenchmarkSelectionsFromProgressState(ProgressState? state) {
@@ -1436,6 +1609,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         finally {
             this.isApplyingUiState=false;
             this.RefreshBenchmarkSelectionAggregates();
+            this.RefreshBenchmarkSelectionDisplay();
         }
     }
 
@@ -2423,7 +2597,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private void RefreshVisibleResults() {
         this.VisibleResultItems.Clear();
         var selectedN = this.SelectedResultElementCount?.Value;
-        foreach(var item in this.runProjectionService.GetVisibleResults(this.ResultItems,selectedN)) {
+        foreach(var item in this.runProjectionService.GetVisibleResults(this.ResultItems.Where(this.IsResultSelectedForDisplay),selectedN)) {
             this.VisibleResultItems.Add(item);
         }
     }
@@ -2581,6 +2755,20 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             benchmark.ApplyComparison(this.FindComparisonRow(benchmark),this.IsBenchmarkRunActive||this.HasCurrentRunResultsForSelectedTab);
         }
         this.RefreshBenchmarkRatioSummary();
+    }
+
+    private void ClearUnselectedResultDisplays() {
+        foreach(var benchmark in this.BenchmarkRows) {
+            benchmark.ClearUnselectedResultDisplays();
+        }
+    }
+
+    private void ApplySelectedDisplayResultsToTable() {
+        var selectedN = this.SelectedResultElementCount?.Value;
+        foreach(var result in this.GetResultSourceForDisplay().Where(result => selectedN is null||result.AxisCount==selectedN)) {
+            var row = this.FindBenchmarkRow(result);
+            row?.ApplyRunResult(result,this.FindAssignedCpu(result),result.StartedAt??DateTimeOffset.Now,false);
+        }
     }
 
     private BenchmarkComparisonRow? FindComparisonRow(BenchmarkTableRow row) {
@@ -2903,6 +3091,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 return;
             }
 
+            if(this.ShouldKeepCurrentRunMemoryDisplay()) {
+                return;
+            }
+
             if(run is null||IsNewRunOption(run)) {
                 this.ClearSelectedRunDisplay();
                 return;
@@ -3035,6 +3227,21 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private static bool IsTransientRunOption(BenchmarkRunOption? option) =>
         IsUnsavedRunOption(option)||IsExternalRunOption(option);
 
+    private bool ShouldKeepCurrentRunMemoryDisplay() =>
+        BenchmarkRunDisplaySourceLogic.ShouldKeepCurrentRunMemoryDisplay(
+            this.currentRunSession.HasAnyResults);
+
+    private bool ShouldLoadSelectedRunFromDatabaseForDisplay() =>
+        BenchmarkRunDisplaySourceLogic.ShouldLoadSelectedRunFromDatabase(
+            this.HasCurrentRunResultsForSelectedTab,
+            this.currentRunSession.HasAnyResults,
+            this.IsBenchmarkRunActive,
+            this.isLoadingSelectedRunDb,
+            IsExternalRunOption(this.SelectedRunOption),
+            IsNewRunOption(this.SelectedRunOption),
+            IsTransientRunOption(this.SelectedRunOption),
+            this.SelectedRunOption is { UiRunId: >0 });
+
     private BenchmarkRunOption CreateUnsavedRunOption(string runRoot,IReadOnlyList<int> elementCounts) =>
         new(
             UnsavedRunNumber,
@@ -3082,10 +3289,16 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 return;
             }
 
-            if(!this.isLoadingSelectedRunDb) {
+            if(this.ShouldLoadSelectedRunFromDatabaseForDisplay()) {
                 this.LoadSelectedRunFromDatabase();
                 return;
             }
+
+            this.comparisonRows=this.ResultItems.Count>0
+                ? selectedN is { } displayedElementCount
+                    ? this.BuildDisplayedRowsForElementCount(this.SelectedSourceDefinition,displayedElementCount)
+                    : this.BuildDisplayedRows(this.SelectedSourceDefinition)
+                : [];
         }
         this.ApplyComparisonRowsToTable();
         if(selectedN is { } skippedElementCount) {
@@ -3160,6 +3373,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 if(left is not { HasCase: true }||right is not { HasCase: true }) {
                     continue;
                 }
+                if(!left.IsSelected&&!right.IsSelected) {
+                    continue;
+                }
 
                 var leftTypeFullName = GetRowTypeFullName(row,pair.LeftProject);
                 var leftArgumentKey = GetRowArgumentKey(row,pair.LeftProject);
@@ -3171,8 +3387,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                     continue;
                 }
 
-                var leftProgressCell = CreateProgressCell(row,pair.LeftProject,true);
-                var rightProgressCell = CreateProgressCell(row,pair.RightProject,true);
+                var leftProgressCell = CreateProgressCell(row,pair.LeftProject,left.IsSelected);
+                var rightProgressCell = CreateProgressCell(row,pair.RightProject,right.IsSelected);
                 var progressCells = new[] { leftProgressCell,rightProgressCell };
                 if(BenchmarkPairCompletionLogic.HasSelectedPairThresholdCompletion(
                     measurements,
@@ -3201,10 +3417,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                         pair.RightProject,
                         stoppedAtElementCount,
                         this.IsBenchmarkRunActive&&this.HasCurrentRunResultsForSelectedTab);
-                    if(!hasLeftResult) {
+                    if(left.IsSelected&&!hasLeftResult) {
                         this.ApplySkippedCell(row,pair.LeftProject,stoppedAtElementCount);
                     }
-                    if(!hasRightResult) {
+                    if(right.IsSelected&&!hasRightResult) {
                         this.ApplySkippedCell(row,pair.RightProject,stoppedAtElementCount);
                     }
                 }
@@ -3386,10 +3602,33 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return null;
     }
 
-    private IReadOnlyList<BenchmarkResultItem> GetResultSourceForDisplay() =>
-        (this.IsBenchmarkRunActive||IsUnsavedRunOption(this.SelectedRunOption))&&this.HasCurrentRunResultsForSelectedTab
+    private IReadOnlyList<BenchmarkResultItem> GetResultSourceForDisplay() {
+        var source = BenchmarkRunDisplaySourceLogic.ShouldUseCurrentRunMemory(this.HasCurrentRunResultsForSelectedTab)
             ? this.GetCurrentRunResultItemsForSelectedTab()
             : this.ResultItems;
+        return source.Where(this.IsResultSelectedForDisplay).ToArray();
+    }
+
+    private bool IsResultSelectedForDisplay(BenchmarkResultItem result) {
+        if(!this.SelectedSourceDefinition.ContainsProject(result.Project)) {
+            return false;
+        }
+
+        var row = this.FindBenchmarkRow(result);
+        if(row is null) {
+            return false;
+        }
+
+        return BenchmarkResultDisplaySelectionLogic.IsResultSelected(
+            result,
+            row.ProjectCells.Select(cell => new BenchmarkResultSelectionCell(
+                cell.Project,
+                row.MethodName,
+                GetRowTypeFullName(row,cell.Project),
+                GetRowArgumentKey(row,cell.Project),
+                cell.HasCase,
+                cell.IsSelected)));
+    }
 
     private ProgressState? LoadSelectedRunState() {
         var run = this.SelectedRunOption;
@@ -3791,11 +4030,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private IReadOnlyList<ChartComparisonPoint> BuildBenchmarkChartPoints(IReadOnlyList<BenchmarkComparisonRow> rows) {
-        return this.BenchmarkRows
+        var gridOrderPoints = this.BenchmarkRows
             .Select(row => this.CreateBenchmarkChartPoint(row,rows))
             .Where(static point => point is not null)
             .Select(static point => point!)
             .ToArray();
+        return BenchmarkChartDisplayOrderLogic.CreateTransposedSourceOrder(gridOrderPoints);
     }
 
     private ChartComparisonPoint? CreateBenchmarkChartPoint(
@@ -3842,13 +4082,16 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         var leftNumber = Math.Max(0,leftValue??0);
         var rightNumber = Math.Max(0,rightValue??0);
         var shareTexts = BenchmarkChartSelectionLayoutLogic.CreateShareTexts(leftNumber,rightNumber);
-        double? ratio = leftNumber>0&&rightNumber>0
-            ? leftNumber/rightNumber
-            : null;
+        double? ratio = BenchmarkChartSelectionLayoutLogic.CreateRatio(leftNumber,rightNumber);
+        var ratioText = ratio is { } value
+            ? value.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)
+            : "-";
         var metricName = this.SelectedMetric.Kind==BenchmarkMetricKind.Time?"Time":"Memory";
         var tooltip = BenchmarkFormatting.ShortName(displayName)+"\n"
             +this.SelectedComparisonPair.LeftProject+" "+metricName+": "+FirstText(FormatMetric(leftValue,this.SelectedMetric.Kind),"-")+"\n"
             +this.SelectedComparisonPair.RightProject+" "+metricName+": "+FirstText(FormatMetric(rightValue,this.SelectedMetric.Kind),"-")
+            +"\nRatio(left/right): "+ratioText
+            +"\nShare: "+this.SelectedComparisonPair.LeftProject+" "+shareTexts.LeftText+" / "+this.SelectedComparisonPair.RightProject+" "+shareTexts.RightText
             +(string.IsNullOrWhiteSpace(BenchmarkArgumentTooltipFormatter.CreateArgumentTooltip(row))
                 ? string.Empty
                 : "\n"+BenchmarkArgumentTooltipFormatter.CreateArgumentTooltip(row));
@@ -3979,11 +4222,14 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             item.Arguments);
 
     private ReportRow[] CreateReportRowsForComparison(BenchmarkSourceTabDefinition sourceTab,IReadOnlyList<BenchmarkResultItem> sourceResults) {
-        var rows = sourceResults
+        var selectedSourceResults = sourceResults
+            .Where(this.IsResultSelectedForDisplay)
+            .ToArray();
+        var rows = selectedSourceResults
             .Select(CreateReportRowForSelectedElementCount)
             .ToList();
         if(ScalableBenchmarkNameFormatter.UsesPreviousRightColumn(sourceTab.Tab)&&!string.IsNullOrWhiteSpace(sourceTab.RightProject)) {
-            foreach(var result in sourceResults) {
+            foreach(var result in selectedSourceResults) {
                 var previous = this.uiRunRepository.FindPreviousResult(
                     GetUiRunAppKind(),
                     sourceTab,
@@ -4160,20 +4406,151 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 : tab.RightHeader
             : project;
 
+    private void RefreshBenchmarkSortColumns() {
+        this.HasBenchmarkTypeColumn=true;
+        this.RefreshBenchmarkSortColumnOptions();
+        var rules = this.CreateValidSortRules(this.BenchmarkSortRules).ToArray();
+        if(rules.Length==0) {
+            rules=this.CreateInitialSortRules().ToArray();
+        }
+        this.SetBenchmarkSortRules(rules,false);
+    }
+
+    private void RefreshBenchmarkSortColumnOptions() {
+        var columns = this.CreateAvailableSortColumns().ToArray();
+        this.BenchmarkSortColumnOptions.Clear();
+        foreach(var column in columns) {
+            this.BenchmarkSortColumnOptions.Add(new BenchmarkSortColumnOption(column,BenchmarkSortRule.GetColumnText(column)));
+        }
+    }
+
+    private IEnumerable<BenchmarkGridSortColumn> CreateAvailableSortColumns() {
+        if(this.HasBenchmarkTypeColumn) {
+            yield return BenchmarkGridSortColumn.BenchmarkType;
+        }
+        yield return BenchmarkGridSortColumn.BenchmarkMethod;
+        yield return BenchmarkGridSortColumn.ElementCount;
+        foreach(var column in BenchmarkArgumentColumns.Get(this.SelectedSourceDefinition)) {
+            yield return column switch{
+                ScalableBenchmarkArgumentColumn.Count => BenchmarkGridSortColumn.ArgumentCount,
+                ScalableBenchmarkArgumentColumn.Index => BenchmarkGridSortColumn.ArgumentIndex,
+                ScalableBenchmarkArgumentColumn.Page => BenchmarkGridSortColumn.ArgumentPage,
+                ScalableBenchmarkArgumentColumn.Segment => BenchmarkGridSortColumn.ArgumentSegment,
+                ScalableBenchmarkArgumentColumn.Memory => BenchmarkGridSortColumn.ArgumentMemory,
+                ScalableBenchmarkArgumentColumn.Fraction => BenchmarkGridSortColumn.ArgumentFraction,
+                ScalableBenchmarkArgumentColumn.Initial => BenchmarkGridSortColumn.ArgumentInitial,
+                ScalableBenchmarkArgumentColumn.Data => BenchmarkGridSortColumn.ArgumentData,
+                _ => BenchmarkGridSortColumn.BenchmarkMethod,
+            };
+        }
+        yield return BenchmarkGridSortColumn.PairRatioTime;
+        yield return BenchmarkGridSortColumn.PairRatioAllocated;
+        yield return BenchmarkGridSortColumn.LeftTime;
+        yield return BenchmarkGridSortColumn.LeftAllocated;
+        yield return BenchmarkGridSortColumn.RightTime;
+        yield return BenchmarkGridSortColumn.RightAllocated;
+    }
+
+    private IReadOnlyList<BenchmarkSortRule> CreateValidSortRules(IEnumerable<BenchmarkSortRule> source) {
+        var allowed = this.CreateAvailableSortColumns().ToHashSet();
+        var used = new HashSet<BenchmarkGridSortColumn>();
+        return source
+            .Where(rule => allowed.Contains(rule.Column)&&used.Add(rule.Column))
+            .Select(rule => new BenchmarkSortRule(rule.Column,rule.Descending))
+            .ToArray();
+    }
+
+    private IReadOnlyList<BenchmarkSortRule> CreateInitialSortRules() {
+        var restored = this.CreateValidSortRules(this.savedSortRuleSnapshots.Select(static item => new BenchmarkSortRule(item.Column,item.Descending)));
+        if(restored.Count>0) {
+            return restored;
+        }
+
+        return this.CreateDefaultSortRules();
+    }
+
+    private IReadOnlyList<BenchmarkSortRule> CreateDefaultSortRules() {
+        if(this.HasBenchmarkTypeColumn) {
+            return [
+                new BenchmarkSortRule(BenchmarkGridSortColumn.BenchmarkType),
+                new BenchmarkSortRule(BenchmarkGridSortColumn.BenchmarkMethod),
+            ];
+        }
+
+        return [new BenchmarkSortRule(BenchmarkGridSortColumn.BenchmarkMethod)];
+    }
+
+    private void ResetBenchmarkSortRulesToDefault(bool save) =>
+        this.SetBenchmarkSortRules(this.CreateDefaultSortRules(),save);
+
+    private IReadOnlyList<BenchmarkSortRule> GetEffectiveSortRules() {
+        var rules = this.CreateValidSortRules(this.BenchmarkSortRules);
+        return rules.Count>0 ? rules : this.CreateDefaultSortRules();
+    }
+
+    private void RefreshCurrentSortIndicator() {
+        var first = this.GetEffectiveSortRules().FirstOrDefault();
+        if(first is null) {
+            this.CurrentSortColumn=BenchmarkGridSortColumn.BenchmarkMethod;
+            this.CurrentSortDescending=false;
+            return;
+        }
+
+        this.CurrentSortColumn=first.Column;
+        this.CurrentSortDescending=first.Descending;
+    }
+
+    private static IReadOnlyList<BenchmarkSortRuleSnapshot> LoadSavedBenchmarkSortRules() {
+        try {
+            var json = Microsoft.Maui.Storage.Preferences.Default.Get(BenchmarkSortSettingsPreferenceKey,string.Empty);
+            return string.IsNullOrWhiteSpace(json)
+                ? []
+                : JsonSerializer.Deserialize<BenchmarkSortRuleSnapshot[]>(json)??[];
+        }
+        catch(Exception ex) {
+            StartupDiagnostics.Write("Benchmark sort settings load failed.",ex);
+            return [];
+        }
+    }
+
+    private void SaveBenchmarkSortRules() {
+        try {
+            var snapshot = this.BenchmarkSortRules
+                .Select(static rule => new BenchmarkSortRuleSnapshot(rule.Column,rule.Descending))
+                .ToArray();
+            this.savedSortRuleSnapshots=snapshot;
+            Microsoft.Maui.Storage.Preferences.Default.Set(BenchmarkSortSettingsPreferenceKey,JsonSerializer.Serialize(snapshot));
+        }
+        catch(Exception ex) {
+            StartupDiagnostics.Write("Benchmark sort settings save failed.",ex);
+        }
+    }
+
     private void ApplyCurrentSort() {
         if(this.BenchmarkRows.Count<2) {
             return;
         }
 
+        var sortRules = this.GetEffectiveSortRules();
         var ordered = this.BenchmarkRows
             .OrderBy(row => row,Comparer<BenchmarkTableRow>.Create((left,right) => {
-                var result = BenchmarkSortValue.Compare(
-                    left.GetSortValue(this.CurrentSortColumn),
-                    right.GetSortValue(this.CurrentSortColumn),
-                    this.CurrentSortDescending);
-                return result!=0
-                    ? result
-                    : string.Compare(left.BenchmarkName,right.BenchmarkName,StringComparison.OrdinalIgnoreCase);
+                foreach(var rule in sortRules) {
+                    var result = BenchmarkSortValue.Compare(
+                        left.GetSortValue(rule.Column),
+                        right.GetSortValue(rule.Column),
+                        rule.Descending);
+                    if(result!=0) {
+                        return result;
+                    }
+                }
+                var typeResult = string.Compare(left.BenchmarkTypeText,right.BenchmarkTypeText,StringComparison.OrdinalIgnoreCase);
+                if(typeResult!=0) {
+                    return typeResult;
+                }
+                var methodResult = string.Compare(left.BenchmarkMethodText,right.BenchmarkMethodText,StringComparison.OrdinalIgnoreCase);
+                return methodResult!=0
+                    ? methodResult
+                    : string.Compare(left.RowKey,right.RowKey,StringComparison.OrdinalIgnoreCase);
             }))
             .ToArray();
         this.BenchmarkRows.Clear();
@@ -4184,10 +4561,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private void ApplyFinalBenchmarkSort() {
-        this.CurrentSortColumn=BenchmarkGridSortColumn.PairRatioTime;
-        this.CurrentSortDescending=true;
-        this.ApplyCurrentSort();
+        this.SetBenchmarkSortRules([new BenchmarkSortRule(BenchmarkGridSortColumn.PairRatioTime,true)],true);
     }
+
+    private readonly record struct BenchmarkSortRuleSnapshot(BenchmarkGridSortColumn Column,bool Descending);
 
     private void RebuildCpuSections() {
         this.CpuSections.Clear();

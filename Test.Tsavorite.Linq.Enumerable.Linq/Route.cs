@@ -1,6 +1,8 @@
 namespace Test.Tsavorite.Linq.Enumerable {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public sealed class Linq():global::Seamless.Linq.Shared.Methods1(80_000);
+    public sealed class LinqInt32():global::Seamless.Linq.Shared.Methods1<int>(80_000);
+    [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
+    public sealed class LinqString():global::Seamless.Linq.Shared.Methods1<string>(80_000);
 }
 
 namespace Seamless.Linq.Shared {

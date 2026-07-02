@@ -4,30 +4,35 @@ namespace Common;
 #pragma warning disable xUnit1013
 #endif
 
-public class TsavoriteBase:Base,IDisposable {
-    private readonly int ElementCount;
-    private readonly Dictionary<SourceCacheKey,SourceHandle<int>> srcCache = [];
-    private readonly Dictionary<SourceCacheKey,SourceHandle<int>> src2Cache = [];
-    private readonly Dictionary<SourceCacheKey,SourceHandle<int>> srcOneCache = [];
+public class TsavoriteBase:TsavoriteBase<int> {
+    public TsavoriteBase(int count = 80_000):base(count) {
+    }
+}
 
-    public TsavoriteBase(int Count = 80_000):base(NormalizeCount(Count)) {
-        this.ElementCount=Count;
+public class TsavoriteBase<T>:Base<T>,IDisposable where T:notnull {
+    private readonly int ElementCount;
+    private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcCache = [];
+    private readonly Dictionary<SourceCacheKey,SourceHandle<T>> src2Cache = [];
+    private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcOneCache = [];
+
+    public TsavoriteBase(int count = 80_000):base(NormalizeCount(count)) {
+        this.ElementCount=count;
     }
 
-    protected new global::Seamless.Tsavorite.Collections.HashSet<int> src(int scale) =>
+    protected new global::Seamless.Tsavorite.Collections.HashSet<T> src(int scale) =>
         this.GetOrCreate(scale,this.srcCache,static length => CreateRange(1,length));
 
-    protected new global::Seamless.Tsavorite.Collections.HashSet<int> srcCount(int elementCount) =>
+    protected new global::Seamless.Tsavorite.Collections.HashSet<T> srcCount(int elementCount) =>
         this.GetOrCreateByLength(elementCount,this.srcCache,static length => CreateRange(1,length));
 
-    protected new global::Seamless.Tsavorite.Collections.HashSet<int> src2(int scale) =>
+    protected new global::Seamless.Tsavorite.Collections.HashSet<T> src2(int scale) =>
         this.GetOrCreate(scale,this.src2Cache,static length => CreateRange(length/2+1,length/2));
 
-    protected new global::Seamless.Tsavorite.Collections.HashSet<int> src2Count(int elementCount) =>
+    protected new global::Seamless.Tsavorite.Collections.HashSet<T> src2Count(int elementCount) =>
         this.GetOrCreateByLength(elementCount,this.src2Cache,static length => CreateRange(length/2+1,length/2));
 
-    protected new global::Seamless.Tsavorite.Collections.HashSet<int> srcOne(int scale) =>
-        this.GetOrCreate(scale,this.srcOneCache,static _ => [0]);
+    protected new global::Seamless.Tsavorite.Collections.HashSet<T> srcOne(int scale) =>
+        this.GetOrCreate(scale,this.srcOneCache,static _ => [FromInt(0)]);
 
     [GlobalCleanup]
     public void Cleanup() {
@@ -46,10 +51,10 @@ public class TsavoriteBase:Base,IDisposable {
 #endif
     }
 
-    private global::Seamless.Tsavorite.Collections.HashSet<int> GetOrCreate(
+    private global::Seamless.Tsavorite.Collections.HashSet<T> GetOrCreate(
         int scale,
-        Dictionary<SourceCacheKey,SourceHandle<int>> cache,
-        Func<int,int[]> factory) {
+        Dictionary<SourceCacheKey,SourceHandle<T>> cache,
+        Func<int,T[]> factory) {
         var length= this.CountForComparison(this.CountForTestTiming(this.ElementCount*scale));
         var key = new SourceCacheKey(SourceKind.Src,length,BenchmarkExecutionMode.ReadRandomSourceSeed());
         if(cache.TryGetValue(key,out var handle)) {
@@ -62,10 +67,10 @@ public class TsavoriteBase:Base,IDisposable {
         return handle.Set;
     }
 
-    private global::Seamless.Tsavorite.Collections.HashSet<int> GetOrCreateByLength(
+    private global::Seamless.Tsavorite.Collections.HashSet<T> GetOrCreateByLength(
         int length,
-        Dictionary<SourceCacheKey,SourceHandle<int>> cache,
-        Func<int,int[]> factory) {
+        Dictionary<SourceCacheKey,SourceHandle<T>> cache,
+        Func<int,T[]> factory) {
         var effectiveLength= this.CountForComparison(this.CountForTestTiming(length));
         var key = new SourceCacheKey(SourceKind.SrcCount,effectiveLength,BenchmarkExecutionMode.ReadRandomSourceSeed());
         if(cache.TryGetValue(key,out var handle)) {
@@ -78,10 +83,10 @@ public class TsavoriteBase:Base,IDisposable {
         return handle.Set;
     }
 
-    private static int[] CreateRange(int start,int length) {
-        var result = new int[length];
+    private static T[] CreateRange(int start,int length) {
+        var result = new T[length];
         for(var index = 0;index<result.Length;index++) {
-            result[index]=start+index;
+            result[index]=FromInt(start+index);
         }
         if(BenchmarkExecutionMode.ReadRandomSourceSeed() is { } seed&&result.Length>1) {
             var random = new Random(seed^start^length);
@@ -93,13 +98,12 @@ public class TsavoriteBase:Base,IDisposable {
         return result;
     }
 
-    private static SourceHandle<T> CreateSet<T>(IEnumerable<T> values)
-        where T : unmanaged, IEquatable<T> {
+    private static SourceHandle<T> CreateSet(IEnumerable<T> values) {
         var count = values.TryGetNonEnumeratedCount(out var knownCount) ? knownCount : 80_000;
         var store = Seamless.Tsavorite.Collections.Store.Create(
             IndexSize: Seamless.Tsavorite.Collections.Store.GetIndexSizeForCapacity(count),
             MemorySize: GetMemorySize(count))
-            .Create<T>();
+            .Create<T>(new Seamless.Serialization.MemoryPackSerializerStrategy());
         var set = store.Create();
         foreach(var value in values) {
             set.Add(value);
@@ -116,19 +120,17 @@ public class TsavoriteBase:Base,IDisposable {
         return result;
     }
 
-    private static void DisposeAll<T>(Dictionary<SourceCacheKey,SourceHandle<T>> cache)
-        where T : unmanaged, IEquatable<T> {
+    private static void DisposeAll<TItem>(Dictionary<SourceCacheKey,SourceHandle<TItem>> cache) {
         foreach(var handle in cache.Values) {
             handle.Dispose();
         }
         cache.Clear();
     }
 
-    public sealed class SourceHandle<T>(
+    public sealed class SourceHandle<TItem>(
         IDisposable store,
-        global::Seamless.Tsavorite.Collections.HashSet<T> set):IDisposable
-        where T : unmanaged, IEquatable<T> {
-        public global::Seamless.Tsavorite.Collections.HashSet<T> Set { get; } = set;
+        global::Seamless.Tsavorite.Collections.HashSet<TItem> set):IDisposable {
+        public global::Seamless.Tsavorite.Collections.HashSet<TItem> Set { get; } = set;
 
         public void Dispose() {
             this.Set.Dispose();

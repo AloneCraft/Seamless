@@ -89,6 +89,58 @@ public sealed class BenchmarkRowGroupingLogic{
     }
 
     [Fact]
+    public void CreateRowsUsesSeamlessPersistedTypeInBenchmarkName(){
+        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
+        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
+            [
+                Case(sourceTab.LeftProject,"Persisted.Linq.Enumerable.FLinq","Persisted.Collections.Test.CollectionLinqChain1.SetInt32","Aggregate_func"),
+                Case(sourceTab.LeftProject,"Persisted.Linq.Enumerable.FLinq","Persisted.Collections.Test.CollectionLinqChain1.SetString","Aggregate_func"),
+                Case(sourceTab.RightProject,"Persisted.Linq.Enumerable.Linq","Persisted.Collections.Test.CollectionLinqChain1.SetInt32","Aggregate_func"),
+                Case(sourceTab.RightProject,"Persisted.Linq.Enumerable.Linq","Persisted.Collections.Test.CollectionLinqChain1.SetString","Aggregate_func"),
+            ],
+            sourceTab);
+
+        Assert.Contains(rows,row => row.BenchmarkName=="<int>.Aggregate_func");
+        Assert.Contains(rows,row => row.BenchmarkName=="<string>.Aggregate_func");
+        Assert.All(rows,row => Assert.Equal("Aggregate_func",row.MethodName));
+    }
+
+    [Fact]
+    public void CreateRowsUsesSeamlessTsavoriteTypeInBenchmarkName(){
+        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessTsavorite);
+        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
+            [
+                Case(sourceTab.LeftProject,"Tsavorite.Linq.Enumerable.FLinq","Tsavorite.Collections.Test.CollectionLinqChain1.HashSetMemoryPackInt32","All_predicate"),
+                Case(sourceTab.LeftProject,"Tsavorite.Linq.Enumerable.FLinq","Tsavorite.Collections.Test.CollectionLinqChain1.HashSetMemoryPackString","All_predicate"),
+                Case(sourceTab.RightProject,"Tsavorite.Linq.Enumerable.Linq","Tsavorite.Collections.Test.CollectionLinqChain1.HashSetMemoryPackInt32","All_predicate"),
+                Case(sourceTab.RightProject,"Tsavorite.Linq.Enumerable.Linq","Tsavorite.Collections.Test.CollectionLinqChain1.HashSetMemoryPackString","All_predicate"),
+            ],
+            sourceTab);
+
+        Assert.Contains(rows,row => row.BenchmarkName=="<int>.All_predicate");
+        Assert.Contains(rows,row => row.BenchmarkName=="<string>.All_predicate");
+        Assert.All(rows,row => Assert.Equal("All_predicate",row.MethodName));
+    }
+
+    [Fact]
+    public void CreateRowsUsesStandardMethod1TypeInBenchmarkName(){
+        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
+        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
+            [
+                Case(sourceTab.LeftProject,"DotNet.Linq.Enumerable.FLinq","DotNet.Linq.Enumerable.FLinqInt32","Any"),
+                Case(sourceTab.LeftProject,"DotNet.Linq.Enumerable.FLinq","DotNet.Linq.Enumerable.FLinqString","Any"),
+                Case(sourceTab.RightProject,"DotNet.Linq.Enumerable.ZLinq","DotNet.Linq.Enumerable.ZLinqInt32","Any"),
+                Case(sourceTab.RightProject,"DotNet.Linq.Enumerable.ZLinq","DotNet.Linq.Enumerable.ZLinqString","Any"),
+            ],
+            sourceTab);
+
+        Assert.Equal(2,rows.Count);
+        Assert.Contains(rows,row => row.BenchmarkName=="<int>.Any");
+        Assert.Contains(rows,row => row.BenchmarkName=="<string>.Any");
+        Assert.All(rows,row => Assert.Equal("Any",row.MethodName));
+    }
+
+    [Fact]
     public void BuildComparisonRowsUsesTypeOnlyForDuplicateProjectMethods(){
         var sourceTab = BenchmarkSourceTabs.Default;
         var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
@@ -168,6 +220,64 @@ public sealed class BenchmarkRowGroupingLogic{
     }
 
     [Fact]
+    public void BuildComparisonRowsUsesSeamlessPersistedType(){
+        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
+        var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
+            [
+                Report(sourceTab.LeftProject,"Aggregate_func","Persisted.Collections.Test.CollectionLinqChain1.SetInt32",20),
+            ],
+            sourceTab);
+
+        var row = Assert.Single(rows);
+
+        Assert.Equal("<int>.Aggregate_func",row.Benchmark);
+        Assert.Equal("Aggregate_func",row.MethodName);
+        Assert.Equal("int",row.TypeFullName);
+    }
+
+    [Fact]
+    public void BuildComparisonRowsPairsStandardMethod1ProjectsByType(){
+        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
+        var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
+            [
+                Report(sourceTab.LeftProject,"Any","DotNet.Linq.Enumerable.FLinqInt32",10),
+                Report(sourceTab.RightProject,"Any","DotNet.Linq.Enumerable.ZLinqInt32",20),
+                Report(sourceTab.LeftProject,"Any","DotNet.Linq.Enumerable.FLinqString",30),
+                Report(sourceTab.RightProject,"Any","DotNet.Linq.Enumerable.ZLinqString",40),
+            ],
+            sourceTab);
+
+        Assert.Equal(2,rows.Count);
+        var intRow=Assert.Single(rows,row => row.TypeFullName=="int");
+        var stringRow=Assert.Single(rows,row => row.TypeFullName=="string");
+
+        Assert.Equal("<int>.Any",intRow.Benchmark);
+        Assert.Equal(10,intRow.GetProject(sourceTab.LeftProject).TimeNanoseconds);
+        Assert.Equal(20,intRow.GetProject(sourceTab.RightProject).TimeNanoseconds);
+        Assert.Equal("<string>.Any",stringRow.Benchmark);
+        Assert.Equal(30,stringRow.GetProject(sourceTab.LeftProject).TimeNanoseconds);
+        Assert.Equal(40,stringRow.GetProject(sourceTab.RightProject).TimeNanoseconds);
+    }
+
+    [Fact]
+    public void BuildComparisonRowsMapsLegacyMethod1TypeToInt(){
+        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
+        var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
+            [
+                Report(sourceTab.LeftProject,"Any","DotNet.Linq.Enumerable.FLinq",10),
+                Report(sourceTab.RightProject,"Any","DotNet.Linq.Enumerable.ZLinq",20),
+            ],
+            sourceTab);
+
+        var row=Assert.Single(rows);
+
+        Assert.Equal("<int>.Any",row.Benchmark);
+        Assert.Equal("int",row.TypeFullName);
+        Assert.Equal(10,row.GetProject(sourceTab.LeftProject).TimeNanoseconds);
+        Assert.Equal(20,row.GetProject(sourceTab.RightProject).TimeNanoseconds);
+    }
+
+    [Fact]
     public void ComparisonRowMatchRequiresArgumentKey(){
         var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalableTsavoriteSet);
         var arguments = new BenchmarkArgument[] {
@@ -205,12 +315,69 @@ public sealed class BenchmarkRowGroupingLogic{
     }
 
     [Fact]
+    public void ComparisonRowMatchRequiresTypeForSeamlessPersistedAndTsavorite(){
+        {
+            var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
+            var cases = new BenchmarkComparisonRowMatchCase[] {
+                new("Persisted.Collections.Test.CollectionLinqChain1.SetInt32",string.Empty),
+            };
+            var exact = new BenchmarkComparisonRow(
+                "<int>.Aggregate_func",
+                sourceTab,
+                ProjectMetrics.FromMeasurement(10,0),
+                ProjectMetrics.Missing) {
+                MethodName="Aggregate_func",
+                TypeFullName="int",
+            };
+            var otherType = exact with {
+                Benchmark="<string>.Aggregate_func",
+                TypeFullName="string",
+            };
+
+            Assert.True(BenchmarkComparisonRowMatchLogic.IsMatch("Aggregate_func","<int>.Aggregate_func",sourceTab.Tab,cases,exact));
+            Assert.False(BenchmarkComparisonRowMatchLogic.IsMatch("Aggregate_func","<int>.Aggregate_func",sourceTab.Tab,cases,otherType));
+        }
+        {
+            var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessTsavorite);
+            var cases = new BenchmarkComparisonRowMatchCase[] {
+                new("Tsavorite.Collections.Test.CollectionLinqChain1.HashSetMemoryPackInt32",string.Empty),
+            };
+            var exact = new BenchmarkComparisonRow(
+                "<int>.All_predicate",
+                sourceTab,
+                ProjectMetrics.FromMeasurement(10,0),
+                ProjectMetrics.Missing) {
+                MethodName="All_predicate",
+                TypeFullName="int",
+            };
+            var otherType = exact with {
+                Benchmark="<string>.All_predicate",
+                TypeFullName="string",
+            };
+
+            Assert.True(BenchmarkComparisonRowMatchLogic.IsMatch("All_predicate","<int>.All_predicate",sourceTab.Tab,cases,exact));
+            Assert.False(BenchmarkComparisonRowMatchLogic.IsMatch("All_predicate","<int>.All_predicate",sourceTab.Tab,cases,otherType));
+        }
+    }
+
+    [Fact]
     public void DefaultComparisonRowGetProjectReturnsMissing(){
         var row = default(BenchmarkComparisonRow);
 
         var metrics = row.GetProject(BenchmarkSourceTabs.Default.LeftProject);
 
         Assert.False(metrics.HasMeasuredValue);
+    }
+
+    [Fact]
+    public void CreateGenericTypeTextReadsTypedBenchmarkClassSuffix(){
+        Assert.Equal("int",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("Persisted.Linq.Enumerable.FLinqInt32"));
+        Assert.Equal("string",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("Persisted.Linq.Enumerable.LinqString"));
+        Assert.Equal("int",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("Tsavorite.Linq.Enumerable.FLinqInt32"));
+        Assert.Equal("string",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("Tsavorite.Linq.Enumerable.LinqString"));
+        Assert.Equal("int",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("DotNet.Linq.Enumerable.FLinqInt32"));
+        Assert.Equal("string",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("DotNet.Linq.Enumerable.ZLinqString"));
+        Assert.Equal(string.Empty,ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("System.Array.FLinq"));
     }
 
     private static BenchmarkCase Case(string project,string assembly,string type,string method) =>
