@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="c7260d12-37ac-443f-b541-40f8091022ae" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/Seamless.Collections.Tsavorite/Database/DatabaseAttributes.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Seamless.Collections.Tsavorite/Database/DatabaseContainer.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Seamless.Collections.Tsavorite/Database/DatabaseContainerOptions.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Seamless.Collections.Tsavorite/Database/DatabaseModel.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Seamless.Collections.Tsavorite/Database/Table.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Seamless.Collections.Tsavorite/Database/TableFunction.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Seamless.Collections.Tsavorite/Database/View.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Seamless.Database/SourceGenerator/GenerateContainer.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkAnalysisTextFormatter.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkSelectionQueueLogic.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkSelectionQueueLogic.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Test/SourceGenerator/FallbackDiagnostics.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/refactoring-designs/20260702-fable5-flinq-enumerable-inventory.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/refactoring-designs/20260702-fable5-overhaul-implementation-notes.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/refactoring-designs/20260702-fable5-seamless-database-flinq-benchmark-overhaul-prompt.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerViewModel.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerViewModel.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/MainPage.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/MainPage.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Tsavorite/TsavoriteHashSetRoot.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Tsavorite/TsavoriteHashSetRoot.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/LinqFragmentBuilder.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/LinqFragmentBuilder.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.Linq/Linq/GeneratedCodeHelpers.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.Linq/Linq/GeneratedCodeHelpers.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.Linq/Linq/LinqCounter.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.Linq/Linq/LinqCounter.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkImprovementCandidate.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkImprovementCandidate.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkUiRunRepository.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkUiRunRepository.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/UI.Storage/UiRunModels.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Storage/UiRunModels.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/UI.Storage/UiRunStore.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Storage/UiRunStore.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Test/Benchmark/BenchmarkUiRunRepository.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkUiRunRepository.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Test/Benchmark/UiRunStore.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/UiRunStore.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Test/Seamless/AdventureWorks2008R2/AdventureWorks2008R2.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Seamless/AdventureWorks2008R2/AdventureWorks2008R2.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Test/Seamless/Database/TPC_H.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Seamless/Database/TPC_H.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Test/Test.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Test.csproj" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 7,
+  "fromUser": false
+}]]></component>
+  <component name="ProjectId" id="3FtaJhRpgB9Co6liiPLaVcVkiJB" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "master",
+    "ignore.virus.scanning.warn.message": "true",
+    "last_opened_file_path": "G:/GitHub/Seamless"
+  },
+  "keyToStringList": {
+    "DatabaseDriversLRU": [
+      "sqlite"
+    ]
+  }
+}]]></component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="c7260d12-37ac-443f-b541-40f8091022ae" name="Changes" comment="" />
+      <created>1782896752452</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1782896752452</updated>
+    </task>
+    <servers />
+  </component>
+</project>

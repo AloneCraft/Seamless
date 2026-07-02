@@ -897,8 +897,15 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.IsRefreshing=true;
         this.StatusText="読み込み中";
         StartupDiagnostics.Write("Benchmark catalog refresh started.");
+        var dbUnavailable = false;
         try {
             await this.RefreshDbRunListAsync(CancellationToken.None,true);
+        }
+        catch(Exception ex) {
+            dbUnavailable=true;
+            StartupDiagnostics.Write("Benchmark run list refresh failed.",ex);
+        }
+        try {
             this.CaptureCurrentBenchmarkSelections();
             var loaded = await this.catalogService.LoadAsync(CancellationToken.None);
             this.catalogCases=loaded;
@@ -930,8 +937,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             }
             this.RefreshSourceTabProgresses();
             this.ApplyCurrentSort();
-            this.StatusText=this.BenchmarkRows.Count+" 件のベンチマーク";
-            StartupDiagnostics.Write($"Benchmark catalog loaded. Rows={this.BenchmarkRows.Count}");
+            this.StatusText=this.BenchmarkRows.Count+" 件のベンチマーク"+(dbUnavailable ? "(実行履歴DB利用不可)" : "");
+            StartupDiagnostics.Write($"Benchmark catalog loaded. Rows={this.BenchmarkRows.Count} DbUnavailable={dbUnavailable}");
         }
         catch(Exception ex) {
             StartupDiagnostics.Write("Benchmark catalog load failed.",ex);
@@ -1119,10 +1126,20 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             _ => project,
         };
 
+    /// <summary>右ペイン分析タブ用に、SQLite 分析 View をテキスト表として読み出す。</summary>
+    public string LoadAnalysisViewText(string viewName,string title) {
+        try {
+            var rows = this.uiRunStore.QueryAnalysisView(viewName,100);
+            return BenchmarkAnalysisTextFormatter.Format(title,rows);
+        } catch(Exception ex) {
+            return title+" の読み込みに失敗しました: "+ex.Message;
+        }
+    }
+
     private async Task RefreshDbRunListAsync(CancellationToken cancellationToken,bool loadSelected) {
         var options = await Task.Run(() => {
             cancellationToken.ThrowIfCancellationRequested();
-            this.uiRunStore.Initialize();
+            this.uiRunStore.EnsureSchema();
             return this.uiRunStore.ListRuns(GetUiRunAppKind())
                 .Where(run => string.Equals(run.ExecutionProfile,this.SelectedExecutionProfile.Profile.ToString(),StringComparison.OrdinalIgnoreCase))
                 .Select(this.CreateRunOption)
@@ -1281,42 +1298,27 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private IReadOnlyList<BenchmarkCase> GetCurrentRunSelectedBenchmarkCases() =>
         Volatile.Read(ref this.currentRunSelectedBenchmarkCases);
 
+    // 選択スナップショットとキュー生成の規則は UI.Core の BenchmarkSelectionQueueLogic に集約する。
+    // 表示中タブだけは生きた行状態(チェックボックス)を優先する。
     private IReadOnlyList<BenchmarkCase> CreateSelectedBenchmarkCasesFromAllTabs() {
         this.CaptureCurrentBenchmarkSelections();
-        return this.SourceTabs
-            .SelectMany(option => this.CreateSelectedBenchmarkCases(option.Definition))
-            .GroupBy(static benchmark => string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey),StringComparer.OrdinalIgnoreCase)
-            .Select(static group => group.First())
-            .ToArray();
-    }
-
-    private IEnumerable<BenchmarkCase> CreateSelectedBenchmarkCases(BenchmarkSourceTabDefinition sourceTab) {
-        if(sourceTab.Tab==this.SelectedSourceDefinition.Tab&&this.BenchmarkRows.Count>0) {
-            return this.BenchmarkRows.SelectMany(static row => row.GetRunCases());
-        }
-
-        return BenchmarkRowGroupingLogic.CreateRows(this.catalogCases,sourceTab)
-            .SelectMany(row => sourceTab.ProjectOrder.Select(project => new {
-                Row=row,
-                Project=project,
-            }))
-            .Where(item =>
-                item.Row.CasesByProject.ContainsKey(item.Project)
-                &&this.benchmarkCellSelections.TryGetValue(
-                    CreateBenchmarkCellKey(sourceTab,item.Row.RowKey,item.Project),
-                    out var selected)
-                &&selected)
-            .Select(item => item.Row.CasesByProject[item.Project]);
+        return BenchmarkSelectionQueueLogic.CreateSelectedCasesFromAllTabs(
+            this.catalogCases,
+            this.SourceTabs.Select(static option => option.Definition),
+            this.benchmarkCellSelections,
+            sourceTab => sourceTab.Tab==this.SelectedSourceDefinition.Tab&&this.BenchmarkRows.Count>0
+                ? this.BenchmarkRows.SelectMany(static row => row.GetRunCases())
+                : null);
     }
 
     private static string CreateRowSelectionKey(BenchmarkSourceTabDefinition sourceTab,string rowKey) =>
         sourceTab.Id+"|"+rowKey;
 
     internal static string CreateBenchmarkCellSelectionKey(BenchmarkSourceTabDefinition sourceTab,string method,string project) =>
-        sourceTab.Id+"|"+method+"|"+project;
+        BenchmarkSelectionQueueLogic.CreateCellSelectionKey(sourceTab,method,project);
 
     private static string CreateBenchmarkCellKey(BenchmarkSourceTabDefinition sourceTab,string method,string project) =>
-        CreateBenchmarkCellSelectionKey(sourceTab,method,project);
+        BenchmarkSelectionQueueLogic.CreateCellSelectionKey(sourceTab,method,project);
 
     public void SaveUiState() {
         this.CaptureCurrentBenchmarkSelections();

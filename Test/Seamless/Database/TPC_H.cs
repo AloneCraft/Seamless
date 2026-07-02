@@ -1,4 +1,5 @@
 using System.Globalization;
+using DatabaseObjectKind = Seamless.Database.DatabaseObjectKind;
 
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedType.Global
@@ -9,53 +10,40 @@ namespace Test.Seamless.Database.TPC_H {
     // source generator の生成コードを検証する。
     internal static partial class DatabaseGenerator;
 
+    // 宣言的データベースコンテナ。Table 実体は DatabaseContainer 基底が Tsavorite ストアとして生成し、
+    // [Table] 属性は SQL Server 互換名の補助にだけ使う。
+    // クエリ本体(Q01..Q22 と *Query メソッド)は通常の C# メソッドとして書き、呼び出し箇所で FLinq が展開する。
     [global::Seamless.FLinq.LinqIntercept(false)]
-    public sealed class Container:IDisposable {
-        private readonly List<IDisposable> disposables = [];
-
-        public Container() {
-            this.regions=this.CreateTable<Records.region>();
-            this.nations=this.CreateTable<Records.nation>();
-            this.suppliers=this.CreateTable<Records.supplier>();
-            this.customers=this.CreateTable<Records.customer>();
-            this.parts=this.CreateTable<Records.part>();
-            this.partsupps=this.CreateTable<Records.partsupp>();
-            this.orders=this.CreateTable<Records.orders>();
-            this.lineitems=this.CreateTable<Records.lineitem>();
+    [global::Seamless.Database.Database("TPCH")]
+    public sealed partial class Container:global::Seamless.Database.DatabaseContainer {
+        public Container():this(null) {
         }
 
-        public global::Seamless.Tsavorite.Collections.HashSet<Records.region> regions { get; }
-        public global::Seamless.Tsavorite.Collections.HashSet<Records.nation> nations { get; }
-        public global::Seamless.Tsavorite.Collections.HashSet<Records.supplier> suppliers { get; }
-        public global::Seamless.Tsavorite.Collections.HashSet<Records.customer> customers { get; }
-        public global::Seamless.Tsavorite.Collections.HashSet<Records.part> parts { get; }
-        public global::Seamless.Tsavorite.Collections.HashSet<Records.partsupp> partsupps { get; }
-        public global::Seamless.Tsavorite.Collections.HashSet<Records.orders> orders { get; }
-        public global::Seamless.Tsavorite.Collections.HashSet<Records.lineitem> lineitems { get; }
-
-        private global::Seamless.Tsavorite.Collections.HashSet<T> CreateTable<T>() {
-            var loadCheckpointDir = Path.Combine(Environment.CurrentDirectory,this.GetType().FullName!);
-            Directory.CreateDirectory(loadCheckpointDir);
-
-            var logPath = Path.Combine(loadCheckpointDir,"log");
-            var objPath = Path.Combine(loadCheckpointDir,"obj");
-            var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath);
-            var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(objPath);
-            var store = Store.Create(IndexSize: 1L<<12,MemorySize: 1L<<24).Create<T>(logDevice,objDevice);
-            var table = store.Create();
-            this.disposables.Add(logDevice);
-            this.disposables.Add(objDevice);
-            this.disposables.Add(store);
-            this.disposables.Add(table);
-            return table;
+        public Container(global::Seamless.Database.DatabaseContainerOptions? options):base(options??DefaultOptions()) {
         }
 
-        public void Dispose() {
-            for(var index = this.disposables.Count-1; index>=0; index--) {
-                this.disposables[index].Dispose();
-            }
-            this.disposables.Clear();
-        }
+        private static global::Seamless.Database.DatabaseContainerOptions DefaultOptions() =>
+            global::Seamless.Database.DatabaseContainerOptions.OnStorage(Path.Combine(Environment.CurrentDirectory,typeof(Container).FullName!)) with {
+                IndexSize=1L<<12,
+                MemorySize=1L<<24,
+            };
+
+        [global::Seamless.Database.Table("region")]
+        public global::Seamless.Database.Table<Records.region> regions => this.Table<Records.region>();
+        [global::Seamless.Database.Table("nation")]
+        public global::Seamless.Database.Table<Records.nation> nations => this.Table<Records.nation>();
+        [global::Seamless.Database.Table("supplier")]
+        public global::Seamless.Database.Table<Records.supplier> suppliers => this.Table<Records.supplier>();
+        [global::Seamless.Database.Table("customer")]
+        public global::Seamless.Database.Table<Records.customer> customers => this.Table<Records.customer>();
+        [global::Seamless.Database.Table("part")]
+        public global::Seamless.Database.Table<Records.part> parts => this.Table<Records.part>();
+        [global::Seamless.Database.Table("partsupp")]
+        public global::Seamless.Database.Table<Records.partsupp> partsupps => this.Table<Records.partsupp>();
+        [global::Seamless.Database.Table("orders")]
+        public global::Seamless.Database.Table<Records.orders> orders => this.Table<Records.orders>();
+        [global::Seamless.Database.Table("lineitem")]
+        public global::Seamless.Database.Table<Records.lineitem> lineitems => this.Table<Records.lineitem>();
 
         public static string Row(int query,params object?[] values) =>
             $"Q{query:D2}|"+string.Join("|",values.Select(FormatValue));
@@ -447,6 +435,33 @@ namespace Test.Seamless.Database.TPC_H {
             group customer by customer.c_phone[..2] into grouped
             orderby grouped.Key
             select Row(22,grouped.Key,grouped.Count(),grouped.Sum(customer => customer.c_acctbal));
+
+        // ── 宣言的 View / TableFunction / スカラー関数 ────────────────────
+        // FLinq は「LINQ を含む通常メソッドの呼び出し箇所」を展開するため、
+        // View/TableFunction の LINQ 本体は *Query メソッドに置き、ラムダからそれを呼ぶ。
+
+        [global::Seamless.FLinq.LinqIntercept(true)]
+        public IEnumerable<string> NationNamesQuery() =>
+            this.nations.OrderBy(nation => nation.n_name).Select(nation => nation.n_name);
+
+        [global::Seamless.Database.View("tpch.vNationNames")]
+        public global::Seamless.Database.View<string> NationNames() {
+            return this.View(()=>this.NationNamesQuery());
+        }
+
+        [global::Seamless.FLinq.LinqIntercept(true)]
+        public IEnumerable<int> OrdersByCustomerQuery(int customerKey) =>
+            this.orders.Where(order => order.o_custkey==customerKey).OrderBy(orderKey => orderKey.o_orderkey).Select(order => order.o_orderkey);
+
+        [global::Seamless.Database.Function("tpch.fnOrdersByCustomer")]
+        public global::Seamless.Database.TableFunction<int> OrdersByCustomer(int customerKey) {
+            return this.TableFunction(()=>this.OrdersByCustomerQuery(customerKey));
+        }
+
+        [global::Seamless.FLinq.LinqIntercept(true)]
+        [global::Seamless.Database.Function("tpch.fnTotalAccountBalance")]
+        public decimal TotalAccountBalance() =>
+            this.customers.Sum(customer => customer.c_acctbal);
     }
 
     public sealed class ContainerFixture:IDisposable {
@@ -790,6 +805,94 @@ namespace Test.Seamless.Database.TPC_H {
         [Fact] public void Q20_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(20,true);
         [Fact] public void Q21_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(21,true);
         [Fact] public void Q22_DirectQuery_MatchesReflection() => this.AssertInterceptedMatchesReflection(22,true);
+
+        // ── 宣言的 View / TableFunction / スカラー関数の検証 ─────────────
+        // ベースラインは LINQ を使わない手続きコードで計算し、FLinq 展開経路と一致することを確かめる。
+
+        [Fact] public void NationNames_View_MatchesBaseline() {
+            var expected = Baseline.NationNames(this.Container);
+            var view = this.Container.NationNames();
+            Assert.Equal("NationNames",view.Name);
+            Assert.Equal("tpch.vNationNames",view.SqlName);
+            Assert.Equal(expected,view.ToArray());
+            Assert.Same(view,this.Container.NationNames());
+        }
+
+        [Fact] public void OrdersByCustomer_TableFunction_MatchesBaseline() {
+            var expected = Baseline.OrdersByCustomer(this.Container,1);
+            var function = this.Container.OrdersByCustomer(1);
+            Assert.Equal("OrdersByCustomer",function.Name);
+            Assert.Equal("tpch.fnOrdersByCustomer",function.SqlName);
+            Assert.Equal(expected,function.ToArray());
+        }
+
+        [Fact] public void TotalAccountBalance_ScalarFunction_MatchesBaseline() {
+            Assert.Equal(Baseline.TotalAccountBalance(this.Container),this.Container.TotalAccountBalance());
+        }
+
+        [Fact] public void DatabaseMetadata_FromGenerator() {
+            Assert.Equal("TPCH",this.Container.DatabaseName);
+            var objects = this.Container.DatabaseObjects;
+            Assert.Contains(objects,declaration => declaration is { Kind: DatabaseObjectKind.Table,MemberName: "lineitems",SqlName: "lineitem" });
+            Assert.Contains(objects,declaration => declaration is { Kind: DatabaseObjectKind.View,MemberName: "NationNames",SqlName: "tpch.vNationNames" });
+            Assert.Contains(objects,declaration => declaration is { Kind: DatabaseObjectKind.TableFunction,MemberName: "OrdersByCustomer",SqlName: "tpch.fnOrdersByCustomer" });
+            Assert.Contains(objects,declaration => declaration is { Kind: DatabaseObjectKind.ScalarFunction,MemberName: "TotalAccountBalance",SqlName: "tpch.fnTotalAccountBalance" });
+            Assert.Equal(8,objects.Count(declaration => declaration.Kind==DatabaseObjectKind.Table));
+        }
+
+        [Fact] public void ImportTables_FromImportSource() {
+            using var container = new Container(global::Seamless.Database.DatabaseContainerOptions.InMemory with { IndexSize=1L<<12,MemorySize=1L<<24 });
+            container.EnsureTablesCreated();
+            container.ImportTables(new RegionImportSource());
+            var regionCount = 0;
+            var foundName = false;
+            foreach(var region in container.regions) {
+                regionCount++;
+                if(region.r_name=="TESTREGION") {
+                    foundName=true;
+                }
+            }
+            Assert.Equal(2,regionCount);
+            Assert.True(foundName);
+        }
+
+        private sealed class RegionImportSource:global::Seamless.Database.IDatabaseImportSource {
+            public IEnumerable<TRecord> ReadTable<TRecord>(string sqlName) {
+                if(typeof(TRecord)==typeof(Records.region)) {
+                    return (IEnumerable<TRecord>)(object)new[] { new Records.region(90,"TESTREGION","import"),new Records.region(91,"TESTREGION2","import") };
+                }
+                return [];
+            }
+        }
+
+        // LINQ を使わない手続き実装のベースライン。FLinq 展開結果との一致検証に使う。
+        private static class Baseline {
+            public static string[] NationNames(Container container) {
+                var names = new List<string>();
+                foreach(var nation in container.nations) {
+                    names.Add(nation.n_name);
+                }
+                names.Sort(Comparer<string>.Default);
+                return [..names];
+            }
+            public static int[] OrdersByCustomer(Container container,int customerKey) {
+                var orderKeys = new List<int>();
+                foreach(var order in container.orders) {
+                    if(order.o_custkey==customerKey) {
+                        orderKeys.Add(order.o_orderkey);
+                    }
+                }
+                orderKeys.Sort();
+                return [..orderKeys];
+            }
+            public static decimal TotalAccountBalance(Container container) {
+                var total = 0m;
+                foreach(var customer in container.customers) {
+                    total+=customer.c_acctbal;
+                }
+                return total;
+            }
+        }
     }
     namespace Keys {
         public partial struct region {

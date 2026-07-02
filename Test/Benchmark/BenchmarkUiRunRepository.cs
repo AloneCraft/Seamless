@@ -14,7 +14,8 @@ public sealed class BenchmarkUiRunRepository{
 
         repository.QueueSaveResult(result,runId,"Aggregate",ViewState());
 
-        Assert.True(WaitUntil(() => store.ListMetrics(runId!.Value).Any(static item => item.MetricName=="MeanNanoseconds")));
+        await repository.FlushAsync();
+        Assert.Contains(store.ListMetrics(runId!.Value),static item => item.MetricName=="MeanNanoseconds");
         var loaded = Assert.Single(repository.LoadResultItems(runId!.Value,DateTimeOffset.UtcNow,sourceTab));
         Assert.Equal(sourceTab.LeftProject,loaded.Project);
         Assert.Equal("Sample.Type",loaded.TypeFullName);
@@ -31,11 +32,12 @@ public sealed class BenchmarkUiRunRepository{
         var runId = await repository.CreateRunAsync(UiRunAppKind.Benchmark,"Benchmark","Fast",sourceTab.Tab);
 
         repository.QueueSaveResult(Result(sourceTab.LeftProject,sourceTab.Tab,"Aggregate",64,100,"Sample.Type","Count=64",[new global::UI.BenchmarkArgument("Count","64")]),runId,"Aggregate",ViewState());
-        Assert.True(WaitUntil(() => store.ListMetrics(runId!.Value).Any(static item => item.MetricName=="MeanNanoseconds"&&Math.Abs(item.NumericValue-100)<0.001)));
+        await repository.FlushAsync();
+        Assert.Contains(store.ListMetrics(runId!.Value),static item => item.MetricName=="MeanNanoseconds"&&Math.Abs(item.NumericValue-100)<0.001);
 
         repository.QueueSaveResult(Result(sourceTab.LeftProject,sourceTab.Tab,"Aggregate",64,250,"Sample.Type","Count=64",[new global::UI.BenchmarkArgument("Count","64")]),runId,"Aggregate",ViewState());
 
-        Assert.True(WaitUntil(() => store.ListMetrics(runId!.Value).Any(static item => item.MetricName=="MeanNanoseconds"&&Math.Abs(item.NumericValue-250)<0.001)));
+        await repository.FlushAsync();
         var metrics = store.ListMetrics(runId!.Value).Where(static item => item.MetricName=="MeanNanoseconds").ToArray();
         Assert.Single(metrics);
         Assert.Equal(250,metrics[0].NumericValue);
@@ -57,7 +59,8 @@ public sealed class BenchmarkUiRunRepository{
 
         repository.QueueSaveResult(result,runId,"Add",ViewState());
 
-        Assert.True(WaitUntil(() => store.ListMetrics(runId!.Value).Any(static item => item.MetricName=="MeanNanoseconds")));
+        await repository.FlushAsync();
+        Assert.Contains(store.ListMetrics(runId!.Value),static item => item.MetricName=="MeanNanoseconds");
         var loaded = Assert.Single(repository.LoadResultItems(runId!.Value,DateTimeOffset.UtcNow,sourceTab));
         Assert.Equal("Scalable.Tsavorite.Collections.Set.SetInt32",loaded.TypeFullName);
         Assert.Equal(argumentKey,loaded.ArgumentKey);
@@ -92,17 +95,6 @@ public sealed class BenchmarkUiRunRepository{
 
     private static global::UI.BenchmarkViewStateSnapshot ViewState() =>
         new("{}",global::UI.BenchmarkSourceTab.SystemArray.ToString(),"64");
-
-    private static bool WaitUntil(Func<bool> condition){
-        var deadline = DateTimeOffset.UtcNow.AddSeconds(5);
-        while(DateTimeOffset.UtcNow<deadline){
-            if(condition()){
-                return true;
-            }
-            Thread.Sleep(25);
-        }
-        return condition();
-    }
 
     private static string CreateDatabasePath(){
         var root = Path.Combine(AppContext.BaseDirectory,"BenchmarkUiRunRepositoryTests",Guid.NewGuid().ToString("N"));

@@ -51,12 +51,14 @@ internal static class BenchmarkImprovementCandidateBuilder{
         var builder = new StringBuilder();
         builder.AppendLine("ベンチマーク改善プロンプト");
         builder.AppendLine();
-        builder.AppendLine("目的: FLinq 側が比較対象より遅い、または割り当てが大きいメソッドをカテゴリ単位で改善してください。");
-        builder.AppendLine("比較は Left / Right の比率です。1.00 より大きいほど FLinq 側の負荷が大きいです。");
+        builder.AppendLine("目的: 以下の選択候補すべてを、段階分けせず一気に実装・テスト・検証まで進めてください。");
+        builder.AppendLine("計画や調査だけで止まらず、コード変更と再測定可能な状態まで完了させてください。");
+        builder.AppendLine("比較は Left / Right の比率です。1.00 より大きいほど Left(FLinq)側の負荷が大きく、改善優先度が高いです。");
         builder.AppendLine();
         builder.AppendLine("検証方針:");
         builder.AppendLine("- 対象メソッドの単体テストを実行し、既存挙動を壊していないことを確認してください。");
         builder.AppendLine("- 改善後に同じベンチマーク条件で再測定し、MeanNanoseconds と AllocatedBytes の差分を確認してください。");
+        builder.AppendLine("- 実行時 fallback カウンタ(LinqCounter.EnumerableFallback)が 0 のままであることも確認してください。");
         builder.AppendLine();
 
         foreach(var group in selected.GroupBy(static item => item.Category).OrderBy(static item => item.Key,StringComparer.OrdinalIgnoreCase)){
