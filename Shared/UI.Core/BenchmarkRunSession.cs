@@ -98,7 +98,6 @@ internal sealed class BenchmarkRunSession{
             .ToArray();
         var state = new ProgressState{
             RunId=Guid.NewGuid().ToString("N",CultureInfo.InvariantCulture),
-            Mode=BenchmarkRunMode.Adaptive,
             ExecutionProfile=executionProfile,
             RunRoot=runRoot,
             RunNumber=BenchmarkStateManager.TryParseRunNumber(runRoot),

@@ -54,6 +54,21 @@ internal sealed class BenchmarkUiRunRepository{
         }
     }
 
+    /// <summary>
+    /// Run 状態を直列保存キューへ投入して即座に戻る。終了処理が SQLite のロック等で
+    /// ブロックされても UI の状態復帰を妨げないための fire-and-forget 版。
+    /// QueueSaveResult と同じキューに載るため書き込み順序は保証される。
+    /// </summary>
+    public void QueueRunStatus(long? runId,UiRunStatus status,string message){
+        if(runId is not { } value){
+            return;
+        }
+
+        this.QueuePersistence(
+            () => this.store.SetRunStatus(value,status,message),
+            "UI DB run status update failed.");
+    }
+
     public void QueueSaveResult(BenchmarkResultItem result,long? runId,string rowKey,BenchmarkViewStateSnapshot viewState){
         if(runId is not { } value){
             return;
@@ -156,6 +171,7 @@ internal sealed class BenchmarkUiRunRepository{
                 string.Empty){
                 ArgumentKey=BenchmarkArgumentFormatting.CreateKey(visibleArguments),
                 Arguments=visibleArguments,
+                AssignedLogicalCpu=job.AssignedLogicalCpu,
             }));
         }
 
@@ -197,6 +213,7 @@ internal sealed class BenchmarkUiRunRepository{
                 result.ArtifactFolder){
                 ArgumentKey=result.ArgumentKey,
                 Arguments=result.Arguments,
+                AssignedLogicalCpu=result.AssignedLogicalCpu,
             })
             .FirstOrDefault();
 

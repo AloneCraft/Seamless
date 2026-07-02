@@ -125,14 +125,14 @@ public sealed class MainPage:ContentPage {
             return true;
         }
 
+        // 結果は実行中も SQLite へ自動保存されるため、終了確認は実行中/一時停止中のときだけ出す。
         var isBenchmarkActive = this.viewModel.IsBenchmarkRunActive;
         var isBenchmarkPaused = this.viewModel.IsBenchmarkPaused;
-        var hasUnsavedResults = this.viewModel.HasUnsavedBenchmarkResults;
-        if(!isBenchmarkActive&&!isBenchmarkPaused&&!hasUnsavedResults) {
+        if(!isBenchmarkActive&&!isBenchmarkPaused) {
             return true;
         }
 
-        var action = await this.ShowCloseConfirmDialogAsync(isBenchmarkActive,isBenchmarkPaused,hasUnsavedResults);
+        var action = await this.ShowCloseConfirmDialogAsync(isBenchmarkActive,isBenchmarkPaused,this.viewModel.HasUnsavedBenchmarkResults);
         if(action==BenchmarkCloseAction.Cancel) {
             return false;
         }

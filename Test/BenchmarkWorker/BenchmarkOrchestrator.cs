@@ -12,7 +12,6 @@ public sealed class BenchmarkOrchestrator{
         var state = new ProgressState{
             RunId="run",
             RunRoot=runRoot,
-            Mode=BenchmarkRunMode.Fixed,
             CreatedAt=DateTimeOffset.UtcNow,
             UpdatedAt=DateTimeOffset.UtcNow,
             ElementCounts=[128],
@@ -38,7 +37,7 @@ public sealed class BenchmarkOrchestrator{
     }
 
     [Fact]
-    public async Task Orchestrator_FixedMode_CreatesBenchmarkByElementMatrix(){
+    public async Task Orchestrator_RunAsync_CreatesBenchmarkByElementMatrix(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => new BenchmarkJobRunResult(
             job.Project,
@@ -63,7 +62,6 @@ public sealed class BenchmarkOrchestrator{
                 [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
                 [0],
                 [128,256],
-                BenchmarkRunMode.Fixed,
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30)),
             _ => { },
@@ -86,7 +84,6 @@ public sealed class BenchmarkOrchestrator{
                 [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
                 [0],
                 [1,2],
-                BenchmarkRunMode.Fixed,
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30)),
             _ => { },
@@ -111,7 +108,6 @@ public sealed class BenchmarkOrchestrator{
                 [Case("System.Array.FLinq","Where")],
                 [0],
                 [1],
-                BenchmarkRunMode.Fixed,
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
                 RunRootOverride: runRoot),
@@ -125,8 +121,9 @@ public sealed class BenchmarkOrchestrator{
     }
 
     [Fact]
-    public async Task Orchestrator_FixedMode_DoesNotCrashWhenParallelJobsPersistProgress(){
+    public async Task Orchestrator_RunAsync_DoesNotCrashWhenParallelJobsPersistProgress(){
         var root = CreateTempRoot();
+        // 各ケースが1軸目で閾値超過して止まるよう、平均値を閾値(1ms)より大きくする。
         var runner = new DelayedFakeRunner(async (job,_) => {
             await Task.Delay(10);
             return new BenchmarkJobRunResult(
@@ -135,10 +132,10 @@ public sealed class BenchmarkOrchestrator{
                 job.TypeFullName,
                 BenchmarkWorkloadAxis.GetAxisCount(job),
                 "Completed",
-                "100 ns",
+                "2 ms",
                 string.Empty,
                 string.Empty,
-                100,
+                2_000_000,
                 0,
                 0,
                 0,
@@ -160,8 +157,7 @@ public sealed class BenchmarkOrchestrator{
                 ],
                 [0,1,2,3],
                 [128],
-                BenchmarkRunMode.Fixed,
-                TimeSpan.FromSeconds(1),
+                TimeSpan.FromMilliseconds(1),
                 TimeSpan.FromSeconds(30)),
             _ => { },
             _ => { },
@@ -184,7 +180,6 @@ public sealed class BenchmarkOrchestrator{
                 [Case("System.Array.FLinq","Where")],
                 [0],
                 [128],
-                BenchmarkRunMode.Fixed,
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
                 ExecutionProfile: BenchmarkExecutionProfile.Fast),
@@ -198,7 +193,7 @@ public sealed class BenchmarkOrchestrator{
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_AssignsMethodRowsToCpusAndRunsRowInElementProjectOrder(){
+    public async Task Orchestrator_AdaptiveMode_AssignsMethodRowsToCpusAndRunsRowInProjectElementOrder(){
         var root = CreateTempRoot();
         var observed = new List<(string Method,string Project,int ElementCount,int Cpu)>();
         var gate = new object();
@@ -223,7 +218,6 @@ public sealed class BenchmarkOrchestrator{
                 ],
                 [10,20],
                 [1,2],
-                BenchmarkRunMode.Adaptive,
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
                 ExecutionProfile: BenchmarkExecutionProfile.Accurate),
@@ -243,11 +237,12 @@ public sealed class BenchmarkOrchestrator{
                 .Select(method => (method,observed.Where(item => item.Method==method).Select(static item => item.Cpu).Distinct().Single()))
                 .ToArray());
         foreach(var method in new[] { "Where","Select","Count" }) {
+            // 行内は「先頭プロジェクトを軸倍々で確定→次プロジェクト」の順で実行される。
             Assert.Equal(
                 [
                     ("System.Array.FLinq",1),
-                    ("System.Array.ZLinq",1),
                     ("System.Array.FLinq",2),
+                    ("System.Array.ZLinq",1),
                     ("System.Array.ZLinq",2),
                 ],
                 observed
@@ -273,7 +268,6 @@ public sealed class BenchmarkOrchestrator{
                 ],
                 [0],
                 [1],
-                BenchmarkRunMode.Adaptive,
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30)),
             _ => { },
@@ -309,7 +303,6 @@ public sealed class BenchmarkOrchestrator{
                 selected,
                 [0],
                 [1],
-                BenchmarkRunMode.Adaptive,
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
                 BenchmarkProvider: () => selected),
@@ -343,7 +336,6 @@ public sealed class BenchmarkOrchestrator{
                 selected,
                 [0],
                 [1],
-                BenchmarkRunMode.Adaptive,
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
                 BenchmarkProvider: () => selected),
@@ -369,7 +361,6 @@ public sealed class BenchmarkOrchestrator{
                 [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
                 [0],
                 [1,2],
-                BenchmarkRunMode.Adaptive,
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
                 ExecutionProfile: BenchmarkExecutionProfile.Fast),
@@ -377,13 +368,14 @@ public sealed class BenchmarkOrchestrator{
             _ => { },
             CancellationToken.None);
 
+        // ウォームアップはプロジェクトごとに最初の実測直前に走り、そのまま同プロジェクトの軸倍々が続く。
         Assert.Equal(
             [
                 (true,"System.Array.FLinq",1),
-                (true,"System.Array.ZLinq",1),
                 (false,"System.Array.FLinq",1),
-                (false,"System.Array.ZLinq",1),
                 (false,"System.Array.FLinq",2),
+                (true,"System.Array.ZLinq",1),
+                (false,"System.Array.ZLinq",1),
                 (false,"System.Array.ZLinq",2),
             ],
             observed);
@@ -408,7 +400,6 @@ public sealed class BenchmarkOrchestrator{
                 [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
                 [0],
                 [1],
-                BenchmarkRunMode.Adaptive,
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
                 ExecutionProfile: BenchmarkExecutionProfile.Accurate),
@@ -420,7 +411,7 @@ public sealed class BenchmarkOrchestrator{
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_WarmupFailurePersistsMeasuredNAsFailedAndStopsRow(){
+    public async Task Orchestrator_AdaptiveMode_WarmupFailurePersistsMeasuredNAsFailedAndStopsProject(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => job.JobId.EndsWith("|warmup",StringComparison.Ordinal)
             ? new BenchmarkJobRunResult(
@@ -447,7 +438,6 @@ public sealed class BenchmarkOrchestrator{
                 [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
                 [0],
                 [1,2],
-                BenchmarkRunMode.Adaptive,
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
                 ExecutionProfile: BenchmarkExecutionProfile.Fast),
@@ -455,17 +445,21 @@ public sealed class BenchmarkOrchestrator{
             _ => { },
             CancellationToken.None);
 
+        // ウォームアップ失敗は当該プロジェクトのみ失敗確定し、次のプロジェクトへは進む(そちらも失敗する)。
         var state = LoadOnlyState(root);
-        var job = Assert.Single(state.Jobs);
-        Assert.Equal("System.Array.FLinq",job.Project);
-        Assert.Equal(1,BenchmarkWorkloadAxis.GetAxisCount(job));
-        Assert.Equal(JobStatus.Failed,job.Status);
-        Assert.Contains("warmup boom",job.FailureReason,StringComparison.Ordinal);
+        Assert.Equal(2,state.Jobs.Count);
+        Assert.Contains(state.Jobs,static job => job.Project=="System.Array.FLinq");
+        Assert.Contains(state.Jobs,static job => job.Project=="System.Array.ZLinq");
+        Assert.All(state.Jobs,static job => {
+            Assert.Equal(1,BenchmarkWorkloadAxis.GetAxisCount(job));
+            Assert.Equal(JobStatus.Failed,job.Status);
+            Assert.Contains("warmup boom",job.FailureReason,StringComparison.Ordinal);
+        });
         Assert.False(File.Exists(Path.Combine(state.RunRoot,"System.Array","N1.csv")));
     }
 
     [Fact]
-    public async Task Orchestrator_FixedMode_UsesChangedCpuSelectionForLaterJobs(){
+    public async Task Orchestrator_RunAsync_UsesChangedCpuSelectionForLaterJobs(){
         var root = CreateTempRoot();
         var cpus = new[] { 0 };
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -490,7 +484,6 @@ public sealed class BenchmarkOrchestrator{
                 [Case("System.Array.FLinq","A"),Case("System.Array.FLinq","B")],
                 [0],
                 [1],
-                BenchmarkRunMode.Fixed,
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
                 () => cpus),
@@ -507,7 +500,7 @@ public sealed class BenchmarkOrchestrator{
     }
 
     [Fact]
-    public async Task Orchestrator_FixedMode_RemovedCpuFinishesCurrentJobOnly(){
+    public async Task Orchestrator_RunAsync_RemovedCpuFinishesCurrentJobOnly(){
         var root = CreateTempRoot();
         var cpus = new[] { 0,1 };
         var cpuOneStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -534,7 +527,6 @@ public sealed class BenchmarkOrchestrator{
                 [Case("System.Array.FLinq","A"),Case("System.Array.FLinq","B"),Case("System.Array.FLinq","C"),Case("System.Array.FLinq","D")],
                 [0,1],
                 [1],
-                BenchmarkRunMode.Fixed,
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
                 () => cpus),
@@ -553,7 +545,7 @@ public sealed class BenchmarkOrchestrator{
     }
 
     [Fact]
-    public async Task Orchestrator_FixedMode_NotifiesDynamicRunnerWhenCpuSelectionChanges(){
+    public async Task Orchestrator_RunAsync_NotifiesDynamicRunnerWhenCpuSelectionChanges(){
         var root = CreateTempRoot();
         var cpus = new[] { 0,1 };
         var cpuOneStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -574,7 +566,6 @@ public sealed class BenchmarkOrchestrator{
                 [Case("System.Array.FLinq","A"),Case("System.Array.FLinq","B"),Case("System.Array.FLinq","C"),Case("System.Array.FLinq","D")],
                 [0,1],
                 [1],
-                BenchmarkRunMode.Fixed,
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
                 () => cpus),
@@ -591,7 +582,7 @@ public sealed class BenchmarkOrchestrator{
     }
 
     [Fact]
-    public async Task Orchestrator_FixedMode_AddedCpuJoinsRemainingJobs(){
+    public async Task Orchestrator_RunAsync_AddedCpuJoinsRemainingJobs(){
         var root = CreateTempRoot();
         var cpus = new[] { 0 };
         var firstStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -618,7 +609,6 @@ public sealed class BenchmarkOrchestrator{
                 [Case("System.Array.FLinq","A"),Case("System.Array.FLinq","B"),Case("System.Array.FLinq","C"),Case("System.Array.FLinq","D")],
                 [0],
                 [1],
-                BenchmarkRunMode.Fixed,
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
                 () => cpus),
@@ -643,7 +633,6 @@ public sealed class BenchmarkOrchestrator{
         var state = new ProgressState{
             RunId="run",
             RunRoot=runRoot,
-            Mode=BenchmarkRunMode.Fixed,
             CreatedAt=DateTimeOffset.UtcNow,
             UpdatedAt=DateTimeOffset.UtcNow,
             ElementCounts=[128],
@@ -669,7 +658,6 @@ public sealed class BenchmarkOrchestrator{
         var state = new ProgressState{
             RunId="run",
             RunRoot=runRoot,
-            Mode=BenchmarkRunMode.Adaptive,
             CreatedAt=DateTimeOffset.UtcNow,
             UpdatedAt=DateTimeOffset.UtcNow,
             ElementCounts=[1],
@@ -712,7 +700,6 @@ public sealed class BenchmarkOrchestrator{
                 [Case("System.Array.FLinq","Where")],
                 [0],
                 [1],
-                BenchmarkRunMode.Adaptive,
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
                 RunRootOverride: runRoot),
@@ -736,7 +723,6 @@ public sealed class BenchmarkOrchestrator{
         var state = new ProgressState{
             RunId="run",
             RunRoot=runRoot,
-            Mode=BenchmarkRunMode.Adaptive,
             CreatedAt=DateTimeOffset.UtcNow,
             UpdatedAt=DateTimeOffset.UtcNow,
             ElementCounts=[1,2],
@@ -764,7 +750,6 @@ public sealed class BenchmarkOrchestrator{
                 [Case("System.Array.FLinq","Where")],
                 [0],
                 [1,2],
-                BenchmarkRunMode.Adaptive,
                 TimeSpan.FromMilliseconds(1024),
                 TimeSpan.FromSeconds(30),
                 RunRootOverride: runRoot),
@@ -785,7 +770,6 @@ public sealed class BenchmarkOrchestrator{
         var state = new ProgressState{
             RunId="run",
             RunRoot=runRoot,
-            Mode=BenchmarkRunMode.Adaptive,
             CreatedAt=DateTimeOffset.UtcNow,
             UpdatedAt=DateTimeOffset.UtcNow,
             ElementCounts=[1,2],
@@ -812,7 +796,6 @@ public sealed class BenchmarkOrchestrator{
                 [Case("System.Array.FLinq","Where")],
                 [0],
                 [1,2],
-                BenchmarkRunMode.Adaptive,
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
                 RestartFromRequestedElementCount: true,
@@ -825,7 +808,7 @@ public sealed class BenchmarkOrchestrator{
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_StopsPairWhenEitherSideExceedsThreshold(){
+    public async Task Orchestrator_AdaptiveMode_StopsEachProjectIndependentlyWhenExceedingThreshold(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => {
             var mean = BenchmarkWorkloadAxis.GetAxisCount(job)>=256&&job.Project=="System.Array.ZLinq" ? 2_000_000_000d : 100d;
@@ -853,17 +836,20 @@ public sealed class BenchmarkOrchestrator{
                 [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
                 [0],
                 [128,256,512],
-                BenchmarkRunMode.Adaptive,
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30)),
             _ => { },
             _ => { },
             CancellationToken.None);
 
+        // 打ち切りはプロジェクト独立: 閾値を超えない FLinq は全軸を走り、超えた ZLinq だけ止まる。
         var state = LoadOnlyState(root);
-        Assert.Equal([128,256],state.Jobs.Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Distinct().Order().ToArray());
-        Assert.DoesNotContain(state.Jobs,static job => job.Project=="System.Array.FLinq"&&BenchmarkWorkloadAxis.GetAxisCount(job)==512);
-        Assert.DoesNotContain(state.Jobs,static job => job.Project=="System.Array.ZLinq"&&BenchmarkWorkloadAxis.GetAxisCount(job)==512);
+        Assert.Equal(
+            [128,256,512],
+            state.Jobs.Where(static job => job.Project=="System.Array.FLinq").Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
+        Assert.Equal(
+            [128,256],
+            state.Jobs.Where(static job => job.Project=="System.Array.ZLinq").Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
     }
 
     [Fact]
@@ -897,7 +883,6 @@ public sealed class BenchmarkOrchestrator{
                 [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
                 [0],
                 [128,256,512],
-                BenchmarkRunMode.Adaptive,
                 TimeSpan.FromMilliseconds(1),
                 TimeSpan.FromSeconds(30)),
             _ => { },
@@ -940,7 +925,6 @@ public sealed class BenchmarkOrchestrator{
                 [Case("System.Array.FLinq","Where")],
                 [0],
                 [1,2,4,8],
-                BenchmarkRunMode.Adaptive,
                 TimeSpan.FromMilliseconds(1),
                 TimeSpan.FromSeconds(30)),
             _ => { },
@@ -981,7 +965,6 @@ public sealed class BenchmarkOrchestrator{
                 [Case("System.Array.FLinq","Where")],
                 [0],
                 [65536,131072],
-                BenchmarkRunMode.Adaptive,
                 TimeSpan.FromMilliseconds(1),
                 TimeSpan.FromSeconds(30)),
             _ => { },
@@ -1022,7 +1005,6 @@ public sealed class BenchmarkOrchestrator{
                 [Case("System.Array.FLinq","Where")],
                 [0],
                 [65536,131072],
-                BenchmarkRunMode.Adaptive,
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30)),
             _ => { },
@@ -1067,7 +1049,6 @@ public sealed class BenchmarkOrchestrator{
                 ],
                 [0],
                 [1024,2048,4096],
-                BenchmarkRunMode.Adaptive,
                 TimeSpan.FromMilliseconds(1),
                 TimeSpan.FromSeconds(30),
                 SourceTab: BenchmarkSourceTab.ScalablePersistedSet),
@@ -1106,7 +1087,6 @@ public sealed class BenchmarkOrchestrator{
                 [Case("System.Array.FLinq","Where")],
                 [0],
                 [1],
-                BenchmarkRunMode.Fixed,
                 TimeSpan.FromMilliseconds(1),
                 TimeSpan.FromSeconds(30)),
             _ => { },

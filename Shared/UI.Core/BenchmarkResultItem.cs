@@ -17,6 +17,8 @@ public sealed record BenchmarkStoredResult(
     string SourcePath){
     public string ArgumentKey { get; init; } = string.Empty;
     public IReadOnlyList<BenchmarkArgument> Arguments { get; init; } = [];
+    /// <summary>計測を実行した論理CPU。DB(Jobs.AssignedLogicalCpu)から復元し、表の論理コア列表示に使う。</summary>
+    public int? AssignedLogicalCpu { get; init; }
 
     public ProjectMetrics ToProjectMetrics() =>
         string.Equals(this.Status,"Completed",StringComparison.OrdinalIgnoreCase)&&this.MeanNanoseconds is not null
@@ -93,6 +95,7 @@ public sealed class BenchmarkResultItem{
 
     public BenchmarkResultItem(BenchmarkStoredResult result)
         : this(result.Project,result.Method,result.TypeFullName,result.ToProjectMetrics(),result.ElementCount,result.LoopCount,result.Status,result.MeasuredAt,result.ArgumentKey,result.Arguments){
+        this.AssignedLogicalCpu=result.AssignedLogicalCpu;
     }
 
     private BenchmarkResultItem(
