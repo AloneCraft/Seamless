@@ -104,11 +104,11 @@ internal sealed class BenchmarkRunSession{
             SourceTab=selectedSourceTab.Tab,
             ElementCounts=elementCounts.ToList(),
             AdaptiveThresholdNanoseconds=adaptiveThreshold.TotalMilliseconds*1_000_000,
-            Jobs=results.Select(result => CreateProgressJobFromResult(
+            Jobs=results.Select(result => CreateProgressJobFromResolvedResult(
                 result,
-                BenchmarkSourceTabs.TryGetByProject(result.Project)??selectedSourceTab,
+                selectedSourceTab,
                 elementCounts,
-                benchmarkResolver(result))).ToList(),
+                benchmarkResolver)).ToList(),
             BenchmarkSelection=new ProgressBenchmarkSelectionState{
                 ProjectCellSelections=new Dictionary<string,bool>(projectCellSelections,StringComparer.OrdinalIgnoreCase),
                 RowSelections=new Dictionary<string,bool>(rowSelections,StringComparer.OrdinalIgnoreCase),
@@ -126,6 +126,17 @@ internal sealed class BenchmarkRunSession{
             })
             .ToList();
         return state;
+    }
+
+    private static BenchmarkJob CreateProgressJobFromResolvedResult(
+        BenchmarkResultItem result,
+        BenchmarkSourceTabDefinition selectedSourceTab,
+        IReadOnlyList<int> preparedElementCounts,
+        Func<BenchmarkResultItem,BenchmarkCase?> benchmarkResolver){
+        var benchmark = benchmarkResolver(result);
+        var sourceTab = BenchmarkSourceTabs.TryGetByProjectAndAssembly(result.Project,benchmark?.AssemblyName??string.Empty)
+            ??selectedSourceTab;
+        return CreateProgressJobFromResult(result,sourceTab,preparedElementCounts,benchmark);
     }
 
     private static BenchmarkJob CreateProgressJobFromResult(

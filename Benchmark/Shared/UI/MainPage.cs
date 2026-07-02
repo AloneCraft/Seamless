@@ -487,7 +487,7 @@ public sealed class MainPage:ContentPage {
         var list = new CollectionView {
             SelectionMode=SelectionMode.None,
             ItemsLayout=new LinearItemsLayout(ItemsLayoutOrientation.Vertical) {
-                ItemSpacing=6,
+                ItemSpacing=3,
             },
             ItemTemplate=new DataTemplate(() => this.CreateBenchmarkSortRuleRow()),
         };
@@ -504,45 +504,37 @@ public sealed class MainPage:ContentPage {
     private View CreateBenchmarkSortRuleRow() {
         var row = new Grid {
             ColumnDefinitions= {
-                new ColumnDefinition { Width = new GridLength(58) },
+                new ColumnDefinition { Width = new GridLength(32) },
                 new ColumnDefinition { Width = new GridLength(220) },
-                new ColumnDefinition { Width = new GridLength(82) },
-                new ColumnDefinition { Width = new GridLength(44) },
-                new ColumnDefinition { Width = new GridLength(44) },
-                new ColumnDefinition { Width = new GridLength(74) },
+                new ColumnDefinition { Width = new GridLength(32) },
+                new ColumnDefinition { Width = new GridLength(32) },
+                new ColumnDefinition { Width = new GridLength(32) },
+                new ColumnDefinition { Width = new GridLength(32) },
             },
-            ColumnSpacing=8,
-            Padding=new Thickness(8,6),
+            ColumnSpacing=5,
+            Padding=new Thickness(6,3),
             BackgroundColor=Colors.White,
+            MinimumHeightRequest=34,
         };
-        var handle = new Label {
-            Text="Drag",
-            FontSize=11,
-            FontAttributes=FontAttributes.Bold,
-            TextColor=Color.FromArgb("#475569"),
-            VerticalTextAlignment=TextAlignment.Center,
-            HorizontalTextAlignment=TextAlignment.Center,
+        var handle = new Image {
+            Source=ImageSource.FromFile("drag_handle.png"),
+            WidthRequest=18,
+            HeightRequest=18,
+            Aspect=Aspect.AspectFit,
+            VerticalOptions=LayoutOptions.Center,
+            HorizontalOptions=LayoutOptions.Center,
         };
+        handle.SetValue(ToolTipProperties.TextProperty,"ドラッグで並び替え");
         var picker = new Picker {
-            HeightRequest=32,
+            HeightRequest=28,
             ItemDisplayBinding=new Binding(nameof(BenchmarkSortColumnOption.DisplayName)),
             Margin=new Thickness(0),
         };
         picker.ItemsSource=this.viewModel?.BenchmarkSortColumnOptions;
-        var direction = new Button {
-            HeightRequest=32,
-            Padding=new Thickness(8,0),
-            FontSize=12,
-            CornerRadius=6,
-            BackgroundColor=Color.FromArgb("#EEF2FF"),
-            BorderColor=Color.FromArgb("#C7D2FE"),
-            BorderWidth=1,
-            TextColor=Color.FromArgb("#3730A3"),
-        };
-        direction.SetBinding(Button.TextProperty,nameof(BenchmarkSortRule.DirectionText));
-        var up = this.CreateSortRuleSmallButton("上");
-        var down = this.CreateSortRuleSmallButton("下");
-        var remove = this.CreateSortRuleSmallButton("削除");
+        var direction = this.CreateSortRuleIconButton("sort_asc.png","昇順/降順を切り替え");
+        var up = this.CreateSortRuleIconButton("arrow_up.png","上へ移動");
+        var down = this.CreateSortRuleIconButton("arrow_down.png","下へ移動");
+        var remove = this.CreateSortRuleIconButton("delete.png","削除");
 
         void RefreshPicker() {
             if(row.BindingContext is not BenchmarkSortRule rule||this.viewModel is null) {
@@ -550,9 +542,12 @@ public sealed class MainPage:ContentPage {
             }
             picker.ItemsSource=this.viewModel.BenchmarkSortColumnOptions;
             picker.SelectedItem=this.viewModel.BenchmarkSortColumnOptions.FirstOrDefault(option => option.Column==rule.Column);
+            direction.Source=ImageSource.FromFile(rule.Descending ? "sort_desc.png" : "sort_asc.png");
+            direction.SetValue(ToolTipProperties.TextProperty,rule.Descending ? "降順" : "昇順");
         }
 
         row.BindingContextChanged+=(_,_) => RefreshPicker();
+        direction.BindingContextChanged+=(_,_) => RefreshPicker();
         picker.SelectedIndexChanged+=(_,_) => {
             if(row.BindingContext is BenchmarkSortRule rule
                 &&picker.SelectedItem is BenchmarkSortColumnOption option) {
@@ -562,6 +557,7 @@ public sealed class MainPage:ContentPage {
         direction.Clicked+=(_,_) => {
             if(row.BindingContext is BenchmarkSortRule rule) {
                 this.viewModel?.ToggleBenchmarkSortRuleDirection(rule);
+                RefreshPicker();
             }
         };
         up.Clicked+=(_,_) => {
@@ -604,18 +600,22 @@ public sealed class MainPage:ContentPage {
         return row;
     }
 
-    private Button CreateSortRuleSmallButton(string text) =>
-        new() {
-            Text=text,
-            HeightRequest=32,
-            Padding=new Thickness(8,0),
-            FontSize=11,
-            CornerRadius=6,
+    private ImageButton CreateSortRuleIconButton(string imageSource,string tooltipText) {
+        var button = new ImageButton {
+            Source=ImageSource.FromFile(imageSource),
+            WidthRequest=28,
+            HeightRequest=28,
+            Padding=new Thickness(5),
+            CornerRadius=5,
             BackgroundColor=Colors.White,
             BorderColor=Color.FromArgb("#CBD5E1"),
             BorderWidth=1,
-            TextColor=Color.FromArgb("#334155"),
+            Aspect=Aspect.AspectFit,
+            Margin=new Thickness(0),
         };
+        button.SetValue(ToolTipProperties.TextProperty,tooltipText);
+        return button;
+    }
 
     private View CreateBenchmarkSortDialogButtons(Action close) {
         var add = this.CreateConfirmDialogButton(new ConfirmDialogOption("追加","add",ConfirmDialogButtonKind.Neutral));

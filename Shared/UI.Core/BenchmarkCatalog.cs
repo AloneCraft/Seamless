@@ -70,7 +70,8 @@ public static class BenchmarkCatalog {
     private static IEnumerable<IReadOnlyList<BenchmarkArgument>> GetBenchmarkArguments(MethodInfo method){
         var parameterNames = method.GetParameters().Select(static parameter => parameter.Name??string.Empty).ToArray();
         foreach(var attribute in method.CustomAttributes.Where(static attribute =>
-            attribute.AttributeType.Name is "BenchArgumentsAttribute" or "ArgumentsAttribute")){
+            attribute.AttributeType.Name=="BenchArgumentsAttribute"
+            ||attribute.AttributeType.Name==nameof(ArgumentsAttribute))){
             var values = attribute.ConstructorArguments
                 .SelectMany(static argument => argument.ArgumentType==typeof(object[])
                     ? argument.Value is IEnumerable<CustomAttributeTypedArgument> values

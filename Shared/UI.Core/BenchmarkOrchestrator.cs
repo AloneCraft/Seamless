@@ -607,7 +607,7 @@ internal sealed class BenchmarkOrchestrator(
     }
 
     private static BenchmarkSourceTab GetBenchmarkSourceTab(BenchmarkCase benchmark,BenchmarkSourceTab fallbackSourceTab) =>
-        BenchmarkSourceTabs.TryGetByProject(benchmark.Project)?.Tab??fallbackSourceTab;
+        BenchmarkSourceTabs.TryGetByProjectAndAssembly(benchmark.Project,benchmark.AssemblyName)?.Tab??fallbackSourceTab;
 
     private static bool SameCase(BenchmarkCase benchmark,BenchmarkJob job) =>
         string.Equals(benchmark.Project,job.Project,StringComparison.OrdinalIgnoreCase)
