@@ -42,8 +42,33 @@ public sealed record BenchmarkSourceTabDefinition(
     public bool ContainsProject(string project) =>
         this.ProjectOrder.Contains(project,StringComparer.OrdinalIgnoreCase);
 
+    public bool ContainsCase(BenchmarkCase benchmark) {
+        if(!this.ContainsProject(benchmark.Project)) {
+            return false;
+        }
+
+        var assemblyName = this.GetAssemblyName(benchmark.Project);
+        if(string.IsNullOrWhiteSpace(assemblyName)||string.IsNullOrWhiteSpace(benchmark.AssemblyName)) {
+            return true;
+        }
+
+        return string.Equals(assemblyName,benchmark.AssemblyName,StringComparison.OrdinalIgnoreCase);
+    }
+
     public bool ShouldWarnForProject(string project) =>
         this.WarningProjectOrder.Contains(project,StringComparer.OrdinalIgnoreCase);
+
+    public string GetAssemblyName(string project) {
+        if(string.Equals(project,this.LeftProject,StringComparison.OrdinalIgnoreCase)){
+            return this.LeftAssemblyName;
+        }
+
+        if(string.Equals(project,this.RightProject,StringComparison.OrdinalIgnoreCase)){
+            return this.RightAssemblyName;
+        }
+
+        return string.Empty;
+    }
 }
 
 public static class BenchmarkSourceTabs{
@@ -183,9 +208,31 @@ public static class BenchmarkSourceTabs{
     public static BenchmarkSourceTabDefinition GetById(string id) =>
         AllDefinitions.First(item => string.Equals(item.Id,id,StringComparison.OrdinalIgnoreCase));
 
+    public static BenchmarkSourceTabDefinition? TryGetById(string id) =>
+        AllDefinitions.FirstOrDefault(item => string.Equals(item.Id,id,StringComparison.OrdinalIgnoreCase));
+
     public static BenchmarkSourceTabDefinition? TryGetByProject(string project) =>
         AllDefinitions.FirstOrDefault(item =>
             item.ContainsProject(project));
+
+    public static BenchmarkSourceTabDefinition? TryGetByProjectAndAssembly(string project,string assemblyName) {
+        var candidates = AllDefinitions
+            .Where(item => item.ContainsProject(project))
+            .ToArray();
+        if(candidates.Length==0) {
+            return null;
+        }
+
+        if(!string.IsNullOrWhiteSpace(assemblyName)) {
+            var assemblyMatch = candidates.FirstOrDefault(item =>
+                string.Equals(item.GetAssemblyName(project),assemblyName,StringComparison.OrdinalIgnoreCase));
+            if(assemblyMatch is not null) {
+                return assemblyMatch;
+            }
+        }
+
+        return candidates[0];
+    }
 
     public static string ToPathPart(BenchmarkSourceTab tab) =>
         Get(tab).Id;

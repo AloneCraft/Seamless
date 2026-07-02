@@ -68,6 +68,38 @@ public sealed class BenchmarkRunSession{
         Assert.True(state.BenchmarkSelection.RowSelections["SystemArray|row"]);
     }
 
+    [Fact]
+    public void ToProgressState_UsesBenchmarkAssemblyToResolveSharedSeamlessLinqSourceTab(){
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SeamlessTsavorite);
+        var session = new global::UI.BenchmarkRunSession();
+        session.UpsertResult(Result(
+            sourceTab.RightProject,
+            "Aggregate_func",
+            64,
+            100,
+            "Tsavorite.Linq.Enumerable.LinqInt32"));
+
+        var state = session.ToProgressState(
+            "run-42",
+            global::UI.BenchmarkExecutionProfile.Fast,
+            sourceTab,
+            TimeSpan.FromMilliseconds(1),
+            new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase),
+            new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase),
+            result => new global::UI.BenchmarkCase(
+                result.Project,
+                sourceTab.RightAssemblyName,
+                result.TypeFullName,
+                result.Method,
+                result.ArgumentKey,
+                result.Arguments));
+
+        var job = Assert.Single(state.Jobs);
+        Assert.Equal(sourceTab.Tab,job.SourceTab);
+        Assert.Equal(sourceTab.RightProject,job.Project);
+        Assert.Equal(sourceTab.RightAssemblyName,job.AssemblyName);
+    }
+
     private static global::UI.BenchmarkResultItem Result(
         string project,
         string method,

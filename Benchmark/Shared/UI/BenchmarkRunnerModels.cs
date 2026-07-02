@@ -1315,22 +1315,28 @@ public sealed class BenchmarkTableRow:ObservableObject{
         new(project,this.CasesByProject.ContainsKey(project));
 
     public void RefreshBenchmarkName(int elementCount) {
-        var typeFullName = this.CasesByProject.Values
-            .Select(static item => item.TypeFullName)
-            .FirstOrDefault(static text => !string.IsNullOrWhiteSpace(text))??string.Empty;
+        var typeFullName = this.FirstTypeFullName();
         this.BenchmarkName=ScalableBenchmarkNameFormatter.CreateBenchmarkName(typeFullName,this.MethodName);
     }
 
     private void RefreshBenchmarkDisplayParts(){
-        var typeFullName = this.CasesByProject.Values
-            .Select(static item => item.TypeFullName)
-            .FirstOrDefault(static text => !string.IsNullOrWhiteSpace(text))??string.Empty;
+        var typeFullName = this.FirstTypeFullName();
         var typeText = ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText(typeFullName);
         if(string.IsNullOrWhiteSpace(typeText)){
             typeText=ExtractTypeText(this.benchmarkName);
         }
         this.BenchmarkTypeText=typeText;
         this.BenchmarkMethodText=this.MethodName;
+    }
+
+    private string FirstTypeFullName(){
+        foreach(var project in this.SourceTab.ProjectOrder){
+            if(this.CasesByProject.TryGetValue(project,out var benchmark)&&!string.IsNullOrWhiteSpace(benchmark.TypeFullName)){
+                return benchmark.TypeFullName;
+            }
+        }
+
+        return string.Empty;
     }
 
     private static string ExtractTypeText(string benchmarkName){

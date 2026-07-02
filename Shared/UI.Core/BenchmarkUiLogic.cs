@@ -414,7 +414,7 @@ internal static class BenchmarkTabProgressSourceLogic{
         IEnumerable<BenchmarkCase> selectedCases,
         BenchmarkSourceTabDefinition sourceTab){
         var cases = selectedCases
-            .Where(benchmark => sourceTab.ContainsProject(benchmark.Project))
+            .Where(sourceTab.ContainsCase)
             .GroupBy(static benchmark => BenchmarkRowGroupingLogic.CreateCaseKey(
                 benchmark.Project,
                 benchmark.TypeFullName,
@@ -673,8 +673,7 @@ internal static class BenchmarkRowGroupingLogic{
             var casesByProject = sourceTab.ProjectOrder
                 .ToDictionary(
                     static project => project,
-                    project => methodGroup
-                        .Where(item => string.Equals(item.Project,project,StringComparison.OrdinalIgnoreCase))
+                    project => FilterProjectCases(methodGroup,sourceTab,project)
                         .OrderBy(static item => item.TypeFullName,StringComparer.OrdinalIgnoreCase)
                         .ThenBy(static item => item.AssemblyName,StringComparer.OrdinalIgnoreCase)
                         .ToArray(),
@@ -698,6 +697,28 @@ internal static class BenchmarkRowGroupingLogic{
         }
 
         return rows;
+    }
+
+    private static IEnumerable<BenchmarkCase> FilterProjectCases(
+        IEnumerable<BenchmarkCase> methodGroup,
+        BenchmarkSourceTabDefinition sourceTab,
+        string project){
+        var projectCases = methodGroup
+            .Where(item => string.Equals(item.Project,project,StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        var assemblyName = sourceTab.GetAssemblyName(project);
+        if(string.IsNullOrWhiteSpace(assemblyName)){
+            return projectCases;
+        }
+
+        var assemblyCases = projectCases
+            .Where(item => string.Equals(item.AssemblyName,assemblyName,StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if(assemblyCases.Length>0){
+            return assemblyCases;
+        }
+
+        return projectCases;
     }
 
     public static string CreateCaseKey(string project,string typeFullName,string methodName,string argumentKey = "") =>

@@ -139,8 +139,14 @@ internal sealed class BenchmarkUiRunRepository{
             if(!cases.TryGetValue(job.CaseId,out var testCase)){
                 continue;
             }
-            if(sourceTab is not null&&!sourceTab.ContainsProject(testCase.Project)){
-                continue;
+            if(sourceTab is not null){
+                if(!string.IsNullOrWhiteSpace(testCase.SourceTabId)){
+                    if(!string.Equals(testCase.SourceTabId,sourceTab.Id,StringComparison.OrdinalIgnoreCase)){
+                        continue;
+                    }
+                }else if(!sourceTab.ContainsProject(testCase.Project)){
+                    continue;
+                }
             }
 
             var caseArguments = arguments.TryGetValue(testCase.CaseId,out var values)
@@ -171,6 +177,7 @@ internal sealed class BenchmarkUiRunRepository{
                 string.Empty){
                 ArgumentKey=BenchmarkArgumentFormatting.CreateKey(visibleArguments),
                 Arguments=visibleArguments,
+                SourceTabId=testCase.SourceTabId,
                 AssignedLogicalCpu=job.AssignedLogicalCpu,
             }));
         }

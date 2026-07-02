@@ -93,10 +93,10 @@ public sealed class BenchmarkRowGroupingLogic{
         var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
         var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
             [
-                Case(sourceTab.LeftProject,"Persisted.Linq.Enumerable.FLinq","Persisted.Collections.Test.CollectionLinqChain1.SetInt32","Aggregate_func"),
-                Case(sourceTab.LeftProject,"Persisted.Linq.Enumerable.FLinq","Persisted.Collections.Test.CollectionLinqChain1.SetString","Aggregate_func"),
-                Case(sourceTab.RightProject,"Persisted.Linq.Enumerable.Linq","Persisted.Collections.Test.CollectionLinqChain1.SetInt32","Aggregate_func"),
-                Case(sourceTab.RightProject,"Persisted.Linq.Enumerable.Linq","Persisted.Collections.Test.CollectionLinqChain1.SetString","Aggregate_func"),
+                Case(sourceTab.LeftProject,"Persisted.Linq.Enumerable.FLinq","Persisted.Linq.Enumerable.FLinqInt32","Aggregate_func"),
+                Case(sourceTab.LeftProject,"Persisted.Linq.Enumerable.FLinq","Persisted.Linq.Enumerable.FLinqString","Aggregate_func"),
+                Case(sourceTab.RightProject,"Persisted.Linq.Enumerable.Linq","Persisted.Linq.Enumerable.LinqInt32","Aggregate_func"),
+                Case(sourceTab.RightProject,"Persisted.Linq.Enumerable.Linq","Persisted.Linq.Enumerable.LinqString","Aggregate_func"),
             ],
             sourceTab);
 
@@ -110,16 +110,58 @@ public sealed class BenchmarkRowGroupingLogic{
         var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessTsavorite);
         var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
             [
-                Case(sourceTab.LeftProject,"Tsavorite.Linq.Enumerable.FLinq","Tsavorite.Collections.Test.CollectionLinqChain1.HashSetMemoryPackInt32","All_predicate"),
-                Case(sourceTab.LeftProject,"Tsavorite.Linq.Enumerable.FLinq","Tsavorite.Collections.Test.CollectionLinqChain1.HashSetMemoryPackString","All_predicate"),
-                Case(sourceTab.RightProject,"Tsavorite.Linq.Enumerable.Linq","Tsavorite.Collections.Test.CollectionLinqChain1.HashSetMemoryPackInt32","All_predicate"),
-                Case(sourceTab.RightProject,"Tsavorite.Linq.Enumerable.Linq","Tsavorite.Collections.Test.CollectionLinqChain1.HashSetMemoryPackString","All_predicate"),
+                Case(sourceTab.LeftProject,"Tsavorite.Linq.Enumerable.FLinq","Tsavorite.Linq.Enumerable.FLinqInt32","All_predicate"),
+                Case(sourceTab.LeftProject,"Tsavorite.Linq.Enumerable.FLinq","Tsavorite.Linq.Enumerable.FLinqString","All_predicate"),
+                Case(sourceTab.RightProject,"Tsavorite.Linq.Enumerable.Linq","Tsavorite.Linq.Enumerable.LinqInt32","All_predicate"),
+                Case(sourceTab.RightProject,"Tsavorite.Linq.Enumerable.Linq","Tsavorite.Linq.Enumerable.LinqString","All_predicate"),
             ],
             sourceTab);
 
         Assert.Contains(rows,row => row.BenchmarkName=="<int>.All_predicate");
         Assert.Contains(rows,row => row.BenchmarkName=="<string>.All_predicate");
         Assert.All(rows,row => Assert.Equal("All_predicate",row.MethodName));
+    }
+
+    [Fact]
+    public void CreateRowsUsesPersistedRightAssemblyWhenSeamlessLinqProjectIsShared(){
+        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
+        var otherTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessTsavorite);
+        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
+            [
+                Case(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Persisted.Linq.Enumerable.FLinqInt32","AggregateBy_keySelector"),
+                Case(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Persisted.Linq.Enumerable.FLinqString","AggregateBy_keySelector"),
+                Case(sourceTab.RightProject,sourceTab.RightAssemblyName,"Persisted.Linq.Enumerable.LinqInt32","AggregateBy_keySelector"),
+                Case(sourceTab.RightProject,sourceTab.RightAssemblyName,"Persisted.Linq.Enumerable.LinqString","AggregateBy_keySelector"),
+                Case(sourceTab.RightProject,otherTab.RightAssemblyName,"Tsavorite.Linq.Enumerable.LinqInt32","AggregateBy_keySelector"),
+                Case(sourceTab.RightProject,otherTab.RightAssemblyName,"Tsavorite.Linq.Enumerable.LinqString","AggregateBy_keySelector"),
+            ],
+            sourceTab);
+
+        Assert.Equal(2,rows.Count);
+        Assert.Contains(rows,row => row.BenchmarkName=="<int>.AggregateBy_keySelector");
+        Assert.Contains(rows,row => row.BenchmarkName=="<string>.AggregateBy_keySelector");
+        Assert.All(rows,row => Assert.Equal(sourceTab.RightAssemblyName,row.CasesByProject[sourceTab.RightProject].AssemblyName));
+    }
+
+    [Fact]
+    public void CreateRowsUsesTsavoriteRightAssemblyWhenSeamlessLinqProjectIsShared(){
+        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessTsavorite);
+        var otherTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
+        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
+            [
+                Case(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Tsavorite.Linq.Enumerable.FLinqInt32","AggregateBy_keySelector"),
+                Case(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Tsavorite.Linq.Enumerable.FLinqString","AggregateBy_keySelector"),
+                Case(sourceTab.RightProject,otherTab.RightAssemblyName,"Persisted.Linq.Enumerable.LinqInt32","AggregateBy_keySelector"),
+                Case(sourceTab.RightProject,otherTab.RightAssemblyName,"Persisted.Linq.Enumerable.LinqString","AggregateBy_keySelector"),
+                Case(sourceTab.RightProject,sourceTab.RightAssemblyName,"Tsavorite.Linq.Enumerable.LinqInt32","AggregateBy_keySelector"),
+                Case(sourceTab.RightProject,sourceTab.RightAssemblyName,"Tsavorite.Linq.Enumerable.LinqString","AggregateBy_keySelector"),
+            ],
+            sourceTab);
+
+        Assert.Equal(2,rows.Count);
+        Assert.Contains(rows,row => row.BenchmarkName=="<int>.AggregateBy_keySelector");
+        Assert.Contains(rows,row => row.BenchmarkName=="<string>.AggregateBy_keySelector");
+        Assert.All(rows,row => Assert.Equal(sourceTab.RightAssemblyName,row.CasesByProject[sourceTab.RightProject].AssemblyName));
     }
 
     [Fact]
@@ -138,6 +180,23 @@ public sealed class BenchmarkRowGroupingLogic{
         Assert.Contains(rows,row => row.BenchmarkName=="<int>.Any");
         Assert.Contains(rows,row => row.BenchmarkName=="<string>.Any");
         Assert.All(rows,row => Assert.Equal("Any",row.MethodName));
+    }
+
+    [Fact]
+    public void CreateRowsKeepsSystemArrayRightProjectAfterAssemblyFiltering(){
+        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
+        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
+            [
+                Case(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"DotNet.Linq.Enumerable.FLinqInt32","Aggregate_func"),
+                Case(sourceTab.RightProject,sourceTab.RightAssemblyName,"DotNet.Linq.Enumerable.ZLinqInt32","Aggregate_func"),
+            ],
+            sourceTab);
+
+        var row = Assert.Single(rows);
+
+        Assert.True(row.CasesByProject.ContainsKey(sourceTab.LeftProject));
+        Assert.True(row.CasesByProject.ContainsKey(sourceTab.RightProject));
+        Assert.Equal(sourceTab.RightAssemblyName,row.CasesByProject[sourceTab.RightProject].AssemblyName);
     }
 
     [Fact]
@@ -224,7 +283,7 @@ public sealed class BenchmarkRowGroupingLogic{
         var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
         var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
             [
-                Report(sourceTab.LeftProject,"Aggregate_func","Persisted.Collections.Test.CollectionLinqChain1.SetInt32",20),
+                Report(sourceTab.LeftProject,"Aggregate_func","Persisted.Linq.Enumerable.FLinqInt32",20),
             ],
             sourceTab);
 
@@ -319,7 +378,7 @@ public sealed class BenchmarkRowGroupingLogic{
         {
             var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
             var cases = new BenchmarkComparisonRowMatchCase[] {
-                new("Persisted.Collections.Test.CollectionLinqChain1.SetInt32",string.Empty),
+                new("Persisted.Linq.Enumerable.FLinqInt32",string.Empty),
             };
             var exact = new BenchmarkComparisonRow(
                 "<int>.Aggregate_func",
@@ -340,7 +399,7 @@ public sealed class BenchmarkRowGroupingLogic{
         {
             var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessTsavorite);
             var cases = new BenchmarkComparisonRowMatchCase[] {
-                new("Tsavorite.Collections.Test.CollectionLinqChain1.HashSetMemoryPackInt32",string.Empty),
+                new("Tsavorite.Linq.Enumerable.FLinqInt32",string.Empty),
             };
             var exact = new BenchmarkComparisonRow(
                 "<int>.All_predicate",

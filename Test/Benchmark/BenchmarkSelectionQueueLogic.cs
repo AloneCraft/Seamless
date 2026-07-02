@@ -27,6 +27,37 @@ public sealed class BenchmarkSelectionQueueLogic{
     }
 
     [Fact]
+    public void CreateSelectedCasesIncludesBothSystemArrayProjects(){
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var catalog = new[]{
+            new global::UI.BenchmarkCase(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"DotNet.Linq.Enumerable.FLinqInt32","Aggregate_func"),
+            new global::UI.BenchmarkCase(sourceTab.RightProject,sourceTab.RightAssemblyName,"DotNet.Linq.Enumerable.ZLinqInt32","Aggregate_func"),
+        };
+        var selections = SelectCells(catalog,sourceTab,leftSelected:true,rightSelected:true);
+
+        var cases = global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCases(catalog,sourceTab,selections).ToArray();
+
+        Assert.Equal(2,cases.Length);
+        Assert.Contains(cases,item => item.Project==sourceTab.LeftProject&&item.AssemblyName==sourceTab.LeftAssemblyName);
+        Assert.Contains(cases,item => item.Project==sourceTab.RightProject&&item.AssemblyName==sourceTab.RightAssemblyName);
+    }
+
+    [Fact]
+    public void CreateSelectedCasesCanSelectOnlySystemArrayRightProject(){
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var catalog = new[]{
+            new global::UI.BenchmarkCase(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"DotNet.Linq.Enumerable.FLinqInt32","Aggregate_func"),
+            new global::UI.BenchmarkCase(sourceTab.RightProject,sourceTab.RightAssemblyName,"DotNet.Linq.Enumerable.ZLinqInt32","Aggregate_func"),
+        };
+        var selections = SelectCells(catalog,sourceTab,leftSelected:false,rightSelected:true);
+
+        var item = Assert.Single(global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCases(catalog,sourceTab,selections));
+
+        Assert.Equal(sourceTab.RightProject,item.Project);
+        Assert.Equal(sourceTab.RightAssemblyName,item.AssemblyName);
+    }
+
+    [Fact]
     public void CreateSelectedCasesFromAllTabs(){
         {
             //スナップショット(1回目)とキュー生成(2回目)が同一辞書から同一結果になる

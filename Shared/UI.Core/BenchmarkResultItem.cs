@@ -17,6 +17,7 @@ public sealed record BenchmarkStoredResult(
     string SourcePath){
     public string ArgumentKey { get; init; } = string.Empty;
     public IReadOnlyList<BenchmarkArgument> Arguments { get; init; } = [];
+    public string SourceTabId { get; init; } = string.Empty;
     /// <summary>計測を実行した論理CPU。DB(Jobs.AssignedLogicalCpu)から復元し、表の論理コア列表示に使う。</summary>
     public int? AssignedLogicalCpu { get; init; }
 
@@ -66,11 +67,12 @@ public sealed class BenchmarkResultItem{
         int elementCount = 0,
         string typeFullName = "",
         string argumentKey = "",
-        IReadOnlyList<BenchmarkArgument>? arguments = null){
+        IReadOnlyList<BenchmarkArgument>? arguments = null,
+        BenchmarkSourceTab? sourceTab = null){
         this.Project=project;
         this.Method=method;
         this.TypeFullName=typeFullName;
-        this.SourceTab=BenchmarkSourceTabs.TryGetByProject(project)?.Tab??BenchmarkSourceTab.SystemArray;
+        this.SourceTab=sourceTab??ResolveSourceTab(project);
         this.ElementCount=BenchmarkWorkloadAxis.ResolveElementCount(this.SourceTab,elementCount);
         this.LoopCount=BenchmarkWorkloadAxis.ResolveLoopCount(this.SourceTab,elementCount);
         this.ArgumentKey=argumentKey;
@@ -94,7 +96,7 @@ public sealed class BenchmarkResultItem{
     }
 
     public BenchmarkResultItem(BenchmarkStoredResult result)
-        : this(result.Project,result.Method,result.TypeFullName,result.ToProjectMetrics(),result.ElementCount,result.LoopCount,result.Status,result.MeasuredAt,result.ArgumentKey,result.Arguments){
+        : this(result.Project,result.Method,result.TypeFullName,result.ToProjectMetrics(),result.ElementCount,result.LoopCount,result.Status,result.MeasuredAt,result.ArgumentKey,result.Arguments,result.SourceTabId){
         this.AssignedLogicalCpu=result.AssignedLogicalCpu;
     }
 
@@ -108,11 +110,12 @@ public sealed class BenchmarkResultItem{
         string status,
         DateTimeOffset measuredAt,
         string argumentKey = "",
-        IReadOnlyList<BenchmarkArgument>? arguments = null){
+        IReadOnlyList<BenchmarkArgument>? arguments = null,
+        string sourceTabId = ""){
         this.Project=project;
         this.Method=method;
         this.TypeFullName=typeFullName;
-        this.SourceTab=BenchmarkSourceTabs.TryGetByProject(project)?.Tab??BenchmarkSourceTab.SystemArray;
+        this.SourceTab=ResolveSourceTab(project,sourceTabId:sourceTabId);
         this.ElementCount=elementCount;
         this.LoopCount=loopCount>0 ? loopCount : BenchmarkWorkloadAxis.DefaultLoopCount;
         this.ArgumentKey=argumentKey;
@@ -139,7 +142,7 @@ public sealed class BenchmarkResultItem{
         this.Project=benchmark.Project;
         this.Method=benchmark.MethodName;
         this.TypeFullName=benchmark.TypeFullName;
-        this.SourceTab=BenchmarkSourceTabs.TryGetByProject(benchmark.Project)?.Tab??BenchmarkSourceTab.SystemArray;
+        this.SourceTab=ResolveSourceTab(benchmark.Project,benchmark.AssemblyName);
         this.ElementCount=0;
         this.LoopCount=BenchmarkWorkloadAxis.DefaultLoopCount;
         this.ArgumentKey=benchmark.ArgumentKey;
@@ -190,4 +193,18 @@ public sealed class BenchmarkResultItem{
     public string FailureReason { get; }
 
     public static BenchmarkResultItem Failed(BenchmarkCase benchmark,Exception exception) => new(benchmark,exception);
+
+    private static BenchmarkSourceTab ResolveSourceTab(string project,string assemblyName = "",string sourceTabId = ""){
+        if(!string.IsNullOrWhiteSpace(sourceTabId)){
+            if(BenchmarkSourceTabs.TryGetById(sourceTabId) is { } sourceTab){
+                return sourceTab.Tab;
+            }
+
+            if(Enum.TryParse<BenchmarkSourceTab>(sourceTabId,true,out var tab)){
+                return tab;
+            }
+        }
+
+        return BenchmarkSourceTabs.TryGetByProjectAndAssembly(project,assemblyName)?.Tab??BenchmarkSourceTab.SystemArray;
+    }
 }

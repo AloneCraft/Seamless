@@ -25,6 +25,85 @@ public sealed class BenchmarkTabProgressLogic{
     }
 
     [Fact]
+    public void CreateCellsFromSelectedCases_SeparatesSharedSeamlessLinqProjectByAssembly(){
+        var persisted = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
+        var tsavorite = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessTsavorite);
+        var persistedCase = Case(
+            persisted.RightProject,
+            persisted.RightAssemblyName,
+            "Persisted.Linq.Enumerable.LinqInt32",
+            "Aggregate_func",
+            "");
+        var tsavoriteCase = Case(
+            tsavorite.RightProject,
+            tsavorite.RightAssemblyName,
+            "Tsavorite.Linq.Enumerable.LinqInt32",
+            "Aggregate_func",
+            "");
+
+        {
+            var persistedCells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases([persistedCase],persisted);
+            var tsavoriteCells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases([persistedCase],tsavorite);
+
+            Assert.Single(persistedCells);
+            Assert.Empty(tsavoriteCells);
+            var persistedProgress = global::UI.BenchmarkTabProgressLogic.Calculate(
+                persistedCells,
+                [
+                    new BenchmarkElementMeasurement(
+                        persisted.RightProject,
+                        "Aggregate_func",
+                        "Persisted.Linq.Enumerable.LinqInt32",
+                        "",
+                        4096,
+                        "Completed",
+                        2_000_000),
+                ],
+                persisted.LeftProject,
+                persisted.RightProject,
+                4096,
+                1_000_000);
+            var tsavoriteProgress = global::UI.BenchmarkTabProgressLogic.Calculate(
+                tsavoriteCells,
+                [
+                    new BenchmarkElementMeasurement(
+                        persisted.RightProject,
+                        "Aggregate_func",
+                        "Persisted.Linq.Enumerable.LinqInt32",
+                        "",
+                        4096,
+                        "Completed",
+                        2_000_000),
+                ],
+                tsavorite.LeftProject,
+                tsavorite.RightProject,
+                4096,
+                1_000_000);
+
+            Assert.Equal(1,persistedProgress.Completed);
+            Assert.Equal(1,persistedProgress.Total);
+            Assert.Equal(0,tsavoriteProgress.Completed);
+            Assert.Equal(0,tsavoriteProgress.Total);
+        }
+        {
+            var persistedCells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases([tsavoriteCase],persisted);
+            var tsavoriteCells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases([tsavoriteCase],tsavorite);
+
+            Assert.Empty(persistedCells);
+            Assert.Single(tsavoriteCells);
+        }
+        {
+            var persistedCells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases([persistedCase,tsavoriteCase],persisted);
+            var tsavoriteCells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases([persistedCase,tsavoriteCase],tsavorite);
+
+            Assert.Single(persistedCells);
+            Assert.Single(tsavoriteCells);
+            Assert.Contains(persistedCells,cell => cell.TypeFullName=="Persisted.Linq.Enumerable.LinqInt32");
+            Assert.Contains(tsavoriteCells,cell => cell.TypeFullName=="Tsavorite.Linq.Enumerable.LinqInt32");
+        }
+    }
+
+    [Fact]
     public void Calculate_UsesSelectedCellsAsDenominator(){
         var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
             [
@@ -278,7 +357,13 @@ public sealed class BenchmarkTabProgressLogic{
     }
 
     private static BenchmarkCase Case(string project,string type,string method,string argumentKey) =>
-        new(project,"Test.Assembly",type,method,argumentKey,[]);
+        new(project,ResolveAssemblyName(project),type,method,argumentKey,[]);
+
+    private static BenchmarkCase Case(string project,string assemblyName,string type,string method,string argumentKey) =>
+        new(project,assemblyName,type,method,argumentKey,[]);
+
+    private static string ResolveAssemblyName(string project) =>
+        BenchmarkSourceTabs.TryGetByProject(project)?.GetAssemblyName(project)??"Test.Assembly";
 }
 
 

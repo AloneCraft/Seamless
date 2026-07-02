@@ -1662,12 +1662,16 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             this.benchmarkCellSelections,
             this.benchmarkRowSelections,
             sourceResults,
-            result => this.FindBenchmarkCase(result.Method,result.Project,result.TypeFullName,result.ArgumentKey));
+            result => this.FindBenchmarkCase(result.Method,result.Project,result.TypeFullName,result.ArgumentKey,result.SourceTab));
     }
 
-    private BenchmarkCase? FindBenchmarkCase(string method,string project,string typeFullName = "",string argumentKey = "") {
+    private BenchmarkCase? FindBenchmarkCase(string method,string project,string typeFullName = "",string argumentKey = "",BenchmarkSourceTab? sourceTab = null) {
         if(this.benchmarkCasesByProjectMethod.TryGetValue(CreateBenchmarkCaseKey(method,project,typeFullName,argumentKey),out var benchmark)) {
             return benchmark;
+        }
+
+        if(sourceTab is { } tab&&tab!=this.SelectedSourceDefinition.Tab) {
+            return null;
         }
 
         return this.BenchmarkRows
@@ -1697,12 +1701,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
 
     private BenchmarkTableRow? FindBenchmarkRow(BenchmarkResultItem result) =>
         this.BenchmarkRows.FirstOrDefault(row => IsResultForRow(row,result))
-        ??(IsScalableSourceTab(result.SourceTab) ? null : this.BenchmarkRows.FirstOrDefault(row => string.Equals(row.MethodName,result.Method,StringComparison.OrdinalIgnoreCase)
+        ??(IsScalableSourceTab(result.SourceTab)||result.SourceTab!=this.SelectedSourceDefinition.Tab ? null : this.BenchmarkRows.FirstOrDefault(row => string.Equals(row.MethodName,result.Method,StringComparison.OrdinalIgnoreCase)
             &&row.GetProjectCell(result.Project) is { HasCase: true }));
 
     private BenchmarkTableRow? FindBenchmarkRow(BenchmarkJob job) =>
         this.BenchmarkRows.FirstOrDefault(row => IsJobForRow(row,job))
-        ??(IsScalableSourceTab(job.SourceTab) ? null : this.BenchmarkRows.FirstOrDefault(row => string.Equals(row.MethodName,job.MethodName,StringComparison.OrdinalIgnoreCase)
+        ??(IsScalableSourceTab(job.SourceTab)||job.SourceTab!=this.SelectedSourceDefinition.Tab ? null : this.BenchmarkRows.FirstOrDefault(row => string.Equals(row.MethodName,job.MethodName,StringComparison.OrdinalIgnoreCase)
             &&row.GetProjectCell(job.Project) is { HasCase: true }));
 
     private static bool IsResultForRow(BenchmarkTableRow row,BenchmarkResultItem result) {
@@ -2434,7 +2438,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private void RefreshResultChecks(BenchmarkSourceTab sourceTabValue) {
         var sourceTab = BenchmarkSourceTabs.Get(sourceTabValue);
         var results = this.GetCurrentRunResultItems(sourceTab.Tab)
-            .Concat(this.ResultItems.Where(item => sourceTab.ContainsProject(item.Project)))
+            .Concat(this.ResultItems.Where(item => item.SourceTab==sourceTab.Tab))
             .Where(static item => item.AxisCount>0)
             .GroupBy(item => this.CreateResultRowKey(item)+"|"+item.AxisCount.ToString(System.Globalization.CultureInfo.InvariantCulture),StringComparer.OrdinalIgnoreCase);
         foreach(var group in results) {
@@ -2462,7 +2466,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         foreach(var item in this.ResultItems.Where(item => IsResultMatch(item,result))) {
             item.ResultCheckText=checkText;
         }
-        foreach(var item in this.GetCurrentRunResultItems(BenchmarkSourceTabs.TryGetByProject(result.Project)?.Tab??this.SelectedSourceDefinition.Tab)
+        foreach(var item in this.GetCurrentRunResultItems(result.SourceTab)
             .Where(item => IsResultMatch(item,result))) {
             item.ResultCheckText=checkText;
         }
@@ -3001,7 +3005,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
 
     private IReadOnlyList<BenchmarkElementMeasurement> CreateProgressMeasurements(BenchmarkSourceTabDefinition sourceTab) {
         return this.GetCurrentRunResultItems(sourceTab.Tab)
-            .Concat(this.ResultItems.Where(item => sourceTab.ContainsProject(item.Project)))
+            .Concat(this.ResultItems.Where(item => item.SourceTab==sourceTab.Tab))
             .Where(static item => item.AxisCount>0)
             .GroupBy(static item => CreateResultIdentityKey(item.Project,item.TypeFullName,item.Method,item.AxisCount,item.ArgumentKey),StringComparer.OrdinalIgnoreCase)
             .Select(static group => group.Last())

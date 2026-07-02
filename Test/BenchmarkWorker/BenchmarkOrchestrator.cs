@@ -74,6 +74,65 @@ public sealed class BenchmarkOrchestrator{
     }
 
     [Fact]
+    public async Task Orchestrator_RunAsync_CreatesJobsForBothSystemArrayProjectsInSameMethodRow(){
+        var root = CreateTempRoot();
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var runner = new FakeRunner((job,_) => CompletedResult(job));
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [
+                    new BenchmarkCase(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"DotNet.Linq.Enumerable.FLinqInt32","Aggregate_func"),
+                    new BenchmarkCase(sourceTab.RightProject,sourceTab.RightAssemblyName,"DotNet.Linq.Enumerable.ZLinqInt32","Aggregate_func"),
+                ],
+                [0],
+                [1],
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30),
+                ExecutionProfile:BenchmarkExecutionProfile.Accurate,
+                SourceTab:sourceTab.Tab),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        var state = LoadOnlyState(root);
+
+        Assert.Equal(2,state.Jobs.Count);
+        Assert.Contains(state.Jobs,job => job.Project==sourceTab.LeftProject&&job.Status is JobStatus.Completed or JobStatus.Failed);
+        Assert.Contains(state.Jobs,job => job.Project==sourceTab.RightProject&&job.Status is JobStatus.Completed or JobStatus.Failed);
+    }
+
+    [Fact]
+    public async Task Orchestrator_RunAsync_UsesAssemblyToResolveSharedSeamlessLinqSourceTab(){
+        var root = CreateTempRoot();
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SeamlessTsavorite);
+        var runner = new FakeRunner((job,_) => CompletedResult(job));
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [
+                    new BenchmarkCase(sourceTab.RightProject,sourceTab.RightAssemblyName,"Tsavorite.Linq.Enumerable.LinqInt32","Aggregate_func"),
+                ],
+                [0],
+                [1],
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30),
+                ExecutionProfile:BenchmarkExecutionProfile.Accurate,
+                SourceTab:sourceTab.Tab),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        var job = Assert.Single(LoadOnlyState(root).Jobs);
+        Assert.Equal(sourceTab.Tab,job.SourceTab);
+        Assert.Equal(sourceTab.RightProject,job.Project);
+        Assert.Equal(sourceTab.RightAssemblyName,job.AssemblyName);
+        Assert.True(job.Status is JobStatus.Completed or JobStatus.Failed);
+    }
+
+    [Fact]
     public async Task Orchestrator_RunAsync_CreatesNumberedRunRootAndNFiles(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => CompletedResult(job));
