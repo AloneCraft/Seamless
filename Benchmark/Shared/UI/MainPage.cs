@@ -139,10 +139,44 @@ public sealed class MainPage:ContentPage {
 
         if(isBenchmarkActive||isBenchmarkPaused) {
             this.viewModel.StatusText="終了前に停止しています...";
-            await this.viewModel.StopAsync();
+            var stopTask = this.viewModel.StopAsync();
+            if(!await this.WaitForBenchmarkStopBeforeCloseAsync(stopTask)) {
+                return false;
+            }
         }
 
         return true;
+    }
+
+    private async Task<bool> WaitForBenchmarkStopBeforeCloseAsync(Task stopTask) {
+        var quickWait = await Task.WhenAny(stopTask,Task.Delay(350));
+        if(ReferenceEquals(quickWait,stopTask)) {
+            await stopTask;
+            return true;
+        }
+
+        var dialogTask = this.ShowConfirmDialogAsync(
+            "停止待ち",
+            "実行中のベンチマークを停止しています。停止しない場合は強制終了できます。",
+            [
+                new ConfirmDialogOption("強制終了","force",ConfirmDialogButtonKind.Danger),
+                new ConfirmDialogOption("キャンセル","cancel",ConfirmDialogButtonKind.Neutral),
+            ]);
+        var completed = await Task.WhenAny(stopTask,dialogTask);
+        if(ReferenceEquals(completed,stopTask)) {
+            if(this.rootLayout is { } root) {
+                this.CompleteActiveDialog(root,"stopped");
+            }
+            await stopTask;
+            return true;
+        }
+
+        var action = await dialogTask;
+        if(string.Equals(action,"force",StringComparison.OrdinalIgnoreCase)) {
+            return true;
+        }
+
+        return false;
     }
 
     private BenchmarkRunnerViewModel CreateViewModel() {
@@ -874,14 +908,14 @@ public sealed class MainPage:ContentPage {
         spinner.SetBinding(ActivityIndicator.IsRunningProperty,new Binding(nameof(SourceTabOption.IsRunning),source: option));
         spinner.SetBinding(IsVisibleProperty,new Binding(nameof(SourceTabOption.IsRunning),source: option));
         spinner.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: option));
-        var indicatorHost = new Grid {
-            WidthRequest=22,
-            HeightRequest=22,
+        progress.Margin=new Thickness(0,0,3,0);
+        spinner.Margin=new Thickness(0,0,6,0);
+        var spinnerHost = new Grid {
+            WidthRequest=18,
+            HeightRequest=18,
             VerticalOptions=LayoutOptions.Center,
             HorizontalOptions=LayoutOptions.Center,
-            Margin=new Thickness(0,0,6,0),
             Children= {
-                progress,
                 spinner,
             },
         };
@@ -889,14 +923,17 @@ public sealed class MainPage:ContentPage {
             ColumnDefinitions= {
                 new ColumnDefinition { Width = GridLength.Star },
                 new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Auto },
             },
             ColumnSpacing=2,
             Children= {
                 label,
-                indicatorHost,
+                progress,
+                spinnerHost,
             },
         };
-        Grid.SetColumn(indicatorHost,1);
+        Grid.SetColumn(progress,1);
+        Grid.SetColumn(spinnerHost,2);
         var layout = new Border {
             StrokeThickness=1,
             StrokeShape=new Microsoft.Maui.Controls.Shapes.RoundRectangle {
@@ -1208,14 +1245,14 @@ public sealed class MainPage:ContentPage {
         };
         header.Add(this.CreateMetricRadioGroup(),0,0);
         header.Add(new Label {
-            Text="比較チャート",
+            Text="FLINQ/ZLinq",
             FontAttributes=FontAttributes.Bold,
             FontSize=13,
             VerticalTextAlignment=TextAlignment.Center,
             TextColor=Color.FromArgb("#0F172A"),
         },1,0);
 
-        var panel = new Grid {
+        var chartPanel = new Grid {
             RowDefinitions= {
                 new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Star },
@@ -1223,9 +1260,99 @@ public sealed class MainPage:ContentPage {
             BackgroundColor=Colors.White,
             VerticalOptions=LayoutOptions.Fill,
         };
-        panel.Add(header,0,0);
-        panel.Add(this.CreateChartView(),0,1);
-        return panel;
+        chartPanel.Add(header,0,0);
+        chartPanel.Add(this.CreateChartView(),0,1);
+
+        var tabs = new SfTabView {
+            TabBarHeight=32,
+            TabBarBackground=Color.FromArgb("#E2E8F0"),
+            IndicatorBackground=Color.FromArgb("#0F766E"),
+            HeaderItemSpacing=2,
+            EnableSwiping=false,
+            ContentTransitionDuration=0,
+            BackgroundColor=Colors.White,
+            VerticalOptions=LayoutOptions.Fill,
+        };
+        tabs.Items=new TabItemCollection {
+            new SfTabItem {
+                Header="比較チャート",
+                FontSize=12,
+                Content=chartPanel,
+            },
+            new SfTabItem {
+                Header="遅延ホットスポット",
+                FontSize=12,
+                Content=this.CreateDiagnosticGrid(nameof(BenchmarkRunnerViewModel.LatencyHotspotRows)),
+            },
+            new SfTabItem {
+                Header="メモリ/割当",
+                FontSize=12,
+                Content=this.CreateDiagnosticGrid(nameof(BenchmarkRunnerViewModel.AllocationDiagnosticRows)),
+            },
+            new SfTabItem {
+                Header="CPU/タイムライン",
+                FontSize=12,
+                Content=this.CreateDiagnosticGrid(nameof(BenchmarkRunnerViewModel.CpuTimelineRows)),
+            },
+            new SfTabItem {
+                Header="生成コード監査",
+                FontSize=12,
+                Content=this.CreateGeneratedCodeAuditView(),
+            },
+        };
+        return tabs;
+    }
+
+    private View CreateDiagnosticGrid(string itemsSourcePath) {
+        var grid = new SfDataGrid {
+            AutoGenerateColumnsMode=AutoGenerateColumnsMode.None,
+            RowHeight=24,
+            HeaderRowHeight=30,
+            SortingMode=DataGridSortingMode.None,
+            SelectionMode=DataGridSelectionMode.None,
+            GridLinesVisibility=GridLinesVisibility.Both,
+            HorizontalScrollBarVisibility=ScrollBarVisibility.Always,
+            VerticalScrollBarVisibility=ScrollBarVisibility.Always,
+            DefaultColumnWidth=92,
+            BackgroundColor=Colors.White,
+            VerticalOptions=LayoutOptions.Fill,
+        };
+        this.ConfigureDataGridLines(grid);
+        this.ConfigureDataGridScrollBars(grid);
+        grid.Columns.Add(this.CreateDiagnosticTextColumn("区分",nameof(BenchmarkDiagnosticRow.Category),70,TextAlignment.Start));
+        grid.Columns.Add(this.CreateDiagnosticTextColumn("メソッド",nameof(BenchmarkDiagnosticRow.Method),160,TextAlignment.Start));
+        grid.Columns.Add(this.CreateDiagnosticTextColumn("最悪N",nameof(BenchmarkDiagnosticRow.WorstN),70,TextAlignment.End));
+        grid.Columns.Add(this.CreateDiagnosticTextColumn("比率/CPU",nameof(BenchmarkDiagnosticRow.RatioText),80,TextAlignment.End));
+        grid.Columns.Add(this.CreateDiagnosticTextColumn("Left/時間",nameof(BenchmarkDiagnosticRow.LeftText),110,TextAlignment.End));
+        grid.Columns.Add(this.CreateDiagnosticTextColumn("Right/メモリ",nameof(BenchmarkDiagnosticRow.RightText),110,TextAlignment.End));
+        grid.Columns.Add(this.CreateDiagnosticTextColumn("根拠",nameof(BenchmarkDiagnosticRow.DetailText),280,TextAlignment.Start));
+        grid.SetBinding(SfDataGrid.ItemsSourceProperty,itemsSourcePath);
+        return grid;
+    }
+
+    private DataGridTextColumn CreateDiagnosticTextColumn(string header,string mappingName,double width,TextAlignment alignment) {
+        return new DataGridTextColumn {
+            HeaderText=header,
+            MappingName=mappingName,
+            Width=width,
+            HeaderTextAlignment=TextAlignment.Center,
+            CellTextAlignment=alignment,
+            AllowSorting=false,
+        };
+    }
+
+    private View CreateGeneratedCodeAuditView() {
+        var text = new Label {
+            FontSize=12,
+            TextColor=Color.FromArgb("#1E293B"),
+            Padding=new Thickness(10),
+            LineBreakMode=LineBreakMode.WordWrap,
+        };
+        text.SetBinding(Label.TextProperty,nameof(BenchmarkRunnerViewModel.GeneratedCodeAuditText));
+        return new ScrollView {
+            BackgroundColor=Colors.White,
+            Content=text,
+        };
     }
 
     private View CreateCollapsibleSection(
@@ -2373,6 +2500,14 @@ public sealed class MainPage:ContentPage {
     }
 
     private View CreateImprovementPromptView() {
+        var summary = new Label {
+            FontSize=12,
+            FontAttributes=FontAttributes.Bold,
+            TextColor=Color.FromArgb("#0F172A"),
+            VerticalTextAlignment=TextAlignment.Center,
+            LineBreakMode=LineBreakMode.TailTruncation,
+        };
+        summary.SetBinding(Label.TextProperty,nameof(BenchmarkRunnerViewModel.ImprovementCandidateSummaryText));
         var label = new Label {
             FontSize=11,
             TextColor=Color.FromArgb("#0F172A"),
@@ -2401,18 +2536,59 @@ public sealed class MainPage:ContentPage {
             },
             Padding=new Thickness(0,0,0,6),
         };
+        header.Add(summary,0,0);
         header.Add(copyButton,1,0);
+        var candidateHeader = new Grid {
+            ColumnDefinitions= {
+                new ColumnDefinition { Width = new GridLength(32) },
+                new ColumnDefinition { Width = new GridLength(96) },
+                new ColumnDefinition { Width = new GridLength(220) },
+                new ColumnDefinition { Width = new GridLength(82) },
+                new ColumnDefinition { Width = new GridLength(70) },
+                new ColumnDefinition { Width = new GridLength(70) },
+                new ColumnDefinition { Width = new GridLength(92) },
+                new ColumnDefinition { Width = new GridLength(92) },
+                new ColumnDefinition { Width = GridLength.Star },
+            },
+            Padding=new Thickness(4,2),
+            BackgroundColor=Color.FromArgb("#E2E8F0"),
+            ColumnSpacing=6,
+        };
+        AddCandidateHeader(candidateHeader,"",0);
+        AddCandidateHeader(candidateHeader,"カテゴリ",1);
+        AddCandidateHeader(candidateHeader,"メソッド",2);
+        AddCandidateHeader(candidateHeader,"N",3);
+        AddCandidateHeader(candidateHeader,"時間比",4);
+        AddCandidateHeader(candidateHeader,"メモリ比",5);
+        AddCandidateHeader(candidateHeader,"Left時間",6);
+        AddCandidateHeader(candidateHeader,"Right時間",7);
+        AddCandidateHeader(candidateHeader,"比較",8);
+        var candidates = new CollectionView {
+            SelectionMode=SelectionMode.None,
+            HeightRequest=160,
+            ItemSizingStrategy=ItemSizingStrategy.MeasureFirstItem,
+            ItemTemplate=new DataTemplate(this.CreateImprovementCandidateRowView),
+            ItemsLayout=new LinearItemsLayout(ItemsLayoutOrientation.Vertical) {
+                ItemSpacing=1,
+            },
+        };
+        candidates.SetBinding(ItemsView.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ImprovementCandidates));
         var content = new Grid {
             RowDefinitions= {
                 new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = new GridLength(164) },
                 new RowDefinition { Height = GridLength.Star },
             },
+            RowSpacing=4,
         };
         content.Add(header,0,0);
+        content.Add(candidateHeader,0,1);
+        content.Add(candidates,0,2);
         content.Add(new ScrollView {
             Orientation=ScrollOrientation.Vertical,
             Content=label,
-        },0,1);
+        },0,3);
         return new Border {
             Stroke=Color.FromArgb("#CBD5E1"),
             StrokeThickness=1,
@@ -2420,6 +2596,68 @@ public sealed class MainPage:ContentPage {
             Padding=new Thickness(8),
             Content=content,
         };
+    }
+
+    private View CreateImprovementCandidateRowView() {
+        var grid = new Grid {
+            ColumnDefinitions= {
+                new ColumnDefinition { Width = new GridLength(32) },
+                new ColumnDefinition { Width = new GridLength(96) },
+                new ColumnDefinition { Width = new GridLength(220) },
+                new ColumnDefinition { Width = new GridLength(82) },
+                new ColumnDefinition { Width = new GridLength(70) },
+                new ColumnDefinition { Width = new GridLength(70) },
+                new ColumnDefinition { Width = new GridLength(92) },
+                new ColumnDefinition { Width = new GridLength(92) },
+                new ColumnDefinition { Width = GridLength.Star },
+            },
+            ColumnSpacing=6,
+            Padding=new Thickness(4,1),
+            BackgroundColor=Colors.White,
+            HeightRequest=24,
+        };
+        var check = new CheckBox {
+            WidthRequest=24,
+            HeightRequest=22,
+            VerticalOptions=LayoutOptions.Center,
+            HorizontalOptions=LayoutOptions.Center,
+        };
+        check.SetBinding(CheckBox.IsCheckedProperty,new Binding(nameof(BenchmarkImprovementCandidateRow.IsSelected),BindingMode.TwoWay));
+        grid.Add(check,0,0);
+        AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.Category),1,TextAlignment.Start);
+        AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.MethodName),2,TextAlignment.Start);
+        AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.WorstElementCountText),3,TextAlignment.End);
+        AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.TimeRatioText),4,TextAlignment.End);
+        AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.AllocatedRatioText),5,TextAlignment.End);
+        AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.LeftTimeText),6,TextAlignment.End);
+        AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.RightTimeText),7,TextAlignment.End);
+        AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.SourceTabText),8,TextAlignment.Start);
+        grid.SetBinding(ToolTipProperties.TextProperty,nameof(BenchmarkImprovementCandidateRow.TooltipText));
+        return grid;
+    }
+
+    private static void AddCandidateHeader(Grid grid,string text,int column) {
+        grid.Add(new Label {
+            Text=text,
+            FontSize=10,
+            FontAttributes=FontAttributes.Bold,
+            TextColor=Color.FromArgb("#334155"),
+            LineBreakMode=LineBreakMode.TailTruncation,
+            VerticalTextAlignment=TextAlignment.Center,
+            HorizontalTextAlignment=column>=3&&column<=7 ? TextAlignment.End : TextAlignment.Start,
+        },column,0);
+    }
+
+    private static void AddCandidateCell(Grid grid,string path,int column,TextAlignment alignment) {
+        var label = new Label {
+            FontSize=10,
+            TextColor=Color.FromArgb("#0F172A"),
+            LineBreakMode=LineBreakMode.TailTruncation,
+            VerticalTextAlignment=TextAlignment.Center,
+            HorizontalTextAlignment=alignment,
+        };
+        label.SetBinding(Label.TextProperty,path);
+        grid.Add(label,column,0);
     }
 
     private VerticalStackLayout CreateCpuSectionList(string itemsSourcePath) {
@@ -3466,7 +3704,8 @@ public sealed class BenchmarkCircularProgressView:GraphicsView {
         propertyChanged:static (bindable,_,_) => ((BenchmarkCircularProgressView)bindable).Invalidate());
 
     private static readonly Color TrackColor = Color.FromArgb("#CBD5E1");
-    private static readonly Color ProgressColor = Color.FromArgb("#0F766E");
+    private static readonly Color ProgressColor = Color.FromArgb("#F97316");
+    private static readonly Color OutlineColor = Color.FromArgb("#64748B");
 
     public BenchmarkCircularProgressView() {
         this.Drawable=new BenchmarkCircularProgressDrawable(this);
@@ -3484,25 +3723,45 @@ public sealed class BenchmarkCircularProgressView:GraphicsView {
                 return;
             }
 
-            var stroke=MathF.Max(2,size*0.14f);
-            var radius=(size-stroke)/2f;
+            var strokeSize=MathF.Max(1.25f,size*0.11f);
+            var radius=MathF.Max(0,size/2f-strokeSize/2f);
             var centerX=dirtyRect.X+dirtyRect.Width/2f;
             var centerY=dirtyRect.Y+dirtyRect.Height/2f;
-            var left=centerX-radius;
-            var top=centerY-radius;
-            var diameter=radius*2f;
-            canvas.StrokeSize=stroke;
-            canvas.StrokeLineCap=LineCap.Round;
-            canvas.StrokeColor=TrackColor;
-            canvas.DrawCircle(centerX,centerY,radius);
+            canvas.FillColor=TrackColor;
+            canvas.FillCircle(centerX,centerY,radius);
 
             var progress=Math.Clamp(owner.Progress,0,1);
+            if(progress>0) {
+                canvas.FillColor=ProgressColor;
+                if(progress>=1) {
+                    canvas.FillCircle(centerX,centerY,radius);
+                }else{
+                    canvas.FillPath(CreateProgressPath(centerX,centerY,radius,progress));
+                }
+            }
+
+            canvas.StrokeColor=OutlineColor;
+            canvas.StrokeSize=strokeSize;
+            canvas.DrawCircle(centerX,centerY,radius);
             if(progress<=0) {
                 return;
             }
+        }
 
-            canvas.StrokeColor=ProgressColor;
-            canvas.DrawArc(left,top,diameter,diameter,-90,(float)(-90+(360*progress)),false,false);
+        private static PathF CreateProgressPath(float centerX,float centerY,float radius,double progress) {
+            var path = new PathF();
+            var startAngle = -90d;
+            var sweep = 360d*progress;
+            var steps = Math.Max(2,(int)Math.Ceiling(sweep/12d));
+            path.MoveTo(centerX,centerY);
+            for(var index=0;index<=steps;index++) {
+                var angle = (float)((startAngle+(sweep*index/steps))*Math.PI/180d);
+                path.LineTo(
+                    centerX+(MathF.Cos(angle)*radius),
+                    centerY+(MathF.Sin(angle)*radius));
+            }
+            path.Close();
+            return path;
         }
     }
 }

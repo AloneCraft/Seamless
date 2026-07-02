@@ -4,6 +4,22 @@ namespace Test.Benchmark;
 
 public sealed class BenchmarkChartSelectionLayoutLogic{
     [Fact]
+    public void CreateShareTexts_FormatsFractionsThatSumToOne(){
+        var texts = global::UI.BenchmarkChartSelectionLayoutLogic.CreateShareTexts(1,9);
+
+        Assert.Equal("0.10",texts.LeftText);
+        Assert.Equal("0.90",texts.RightText);
+    }
+
+    [Fact]
+    public void CreateShareTexts_KeepsRoundedDisplaySumAtOne(){
+        var texts = global::UI.BenchmarkChartSelectionLayoutLogic.CreateShareTexts(995,5);
+
+        Assert.Equal("1.00",texts.LeftText);
+        Assert.Equal("0.00",texts.RightText);
+    }
+
+    [Fact]
     public void CreateBarRects_RightBarEndsAtPlotRightForEvenValues(){
         var rects = global::UI.BenchmarkChartSelectionLayoutLogic.CreateBarRects(
             plotLeft:100,

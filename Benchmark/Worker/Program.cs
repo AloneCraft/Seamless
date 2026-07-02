@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Reflection;
 using System.Text;
@@ -23,6 +24,8 @@ ApplyAffinity(logicalCpu);
 
 var protocolOutput = Console.Out;
 var protocolError = Console.Error;
+var protocolWriteGate = new SemaphoreSlim(1,1);
+var fastTasks = new ConcurrentBag<Task>();
 await protocolOutput.WriteLineAsync("ready");
 await protocolOutput.FlushAsync();
 while(await Console.In.ReadLineAsync() is { } line){
@@ -39,12 +42,52 @@ while(await Console.In.ReadLineAsync() is { } line){
         }
 
         if(string.Equals(task.Command,"shutdown",StringComparison.OrdinalIgnoreCase)){
+            await Task.WhenAll(fastTasks.ToArray());
             return 0;
         }
 
+        if(string.Equals(task.Command,"fast-run",StringComparison.OrdinalIgnoreCase)){
+            var fastTask = task;
+            fastTasks.Add(Task.Run(async () => {
+                WorkerResultMessage result;
+                try{
+                    result=RunFastBenchmark(fastTask,fastTask.AssignedLogicalCpu??logicalCpu,protocolOutput,protocolError);
+                }catch(Exception ex){
+                    result=new WorkerResultMessage(
+                        fastTask.TaskId,
+                        "Failed",
+                        string.Empty,
+                        string.Empty,
+                        string.Empty,
+                        null,
+                        null,
+                        null,
+                        null,
+                        1,
+                        fastTask.ArtifactFolder,
+                        ex.ToString(),
+                        null,
+                        string.Empty);
+                }
+                await protocolWriteGate.WaitAsync();
+                try{
+                    await protocolOutput.WriteLineAsync(JsonSerializer.Serialize(result));
+                    await protocolOutput.FlushAsync();
+                }finally{
+                    protocolWriteGate.Release();
+                }
+            }));
+            continue;
+        }
+
         var result = RunBenchmark(task,logicalCpu,protocolOutput,protocolError);
-        await protocolOutput.WriteLineAsync(JsonSerializer.Serialize(result));
-        await protocolOutput.FlushAsync();
+        await protocolWriteGate.WaitAsync();
+        try{
+            await protocolOutput.WriteLineAsync(JsonSerializer.Serialize(result));
+            await protocolOutput.FlushAsync();
+        }finally{
+            protocolWriteGate.Release();
+        }
     }catch(Exception ex){
         var result = new WorkerResultMessage(
             task?.TaskId??string.Empty,
@@ -61,8 +104,13 @@ while(await Console.In.ReadLineAsync() is { } line){
             ex.ToString(),
             null,
             string.Empty);
-        await protocolOutput.WriteLineAsync(JsonSerializer.Serialize(result));
-        await protocolOutput.FlushAsync();
+        await protocolWriteGate.WaitAsync();
+        try{
+            await protocolOutput.WriteLineAsync(JsonSerializer.Serialize(result));
+            await protocolOutput.FlushAsync();
+        }finally{
+            protocolWriteGate.Release();
+        }
     }
 }
 
@@ -169,6 +217,84 @@ static WorkerResultMessage RunBenchmark(
     }
 }
 
+static WorkerResultMessage RunFastBenchmark(
+    WorkerTaskMessage task,
+    int logicalCpu,
+    TextWriter protocolOutput,
+    TextWriter protocolError){
+    Directory.CreateDirectory(task.ArtifactFolder);
+    var logPath = Path.Combine(task.ArtifactFolder,"fast-worker.log");
+    object? instance = null;
+    try{
+        ApplyThreadAffinity(logicalCpu);
+        var benchmarkType = ResolveBenchmarkType(task.AssemblyName,task.TypeFullName);
+        var method = ResolveBenchmarkMethod(benchmarkType,task.MethodName);
+        instance=method.IsStatic ? null : Activator.CreateInstance(benchmarkType);
+        var randomSeed = CreateRandomSourceSeed(task);
+        var loopCount = Math.Max(1,task.LoopCount);
+        using var elementScope = BeginElementCountScope(benchmarkType.Assembly,task.ElementCount,task.ElementScale);
+        using var randomSourceScope = BeginRandomSourceSeedScope(benchmarkType.Assembly,randomSeed);
+        var argumentValues = BenchmarkArgumentFormatting.ToObjects(task.Arguments);
+        var resultDigest = CaptureBenchmarkResultDigest(benchmarkType,task.MethodName,argumentValues);
+        var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+        var stopwatch = Stopwatch.StartNew();
+        for(var index=0;index<loopCount;index++){
+            method.Invoke(instance,argumentValues);
+        }
+        stopwatch.Stop();
+        var allocatedAfter = GC.GetAllocatedBytesForCurrentThread();
+        var meanNanoseconds = stopwatch.Elapsed.TotalMilliseconds*1_000_000d;
+        var allocatedBytes = Math.Max(0,allocatedAfter-allocatedBefore);
+        File.WriteAllText(
+            logPath,
+            "Fast worker direct benchmark completed. CPU="
+            +(logicalCpu>=0 ? logicalCpu.ToString(CultureInfo.InvariantCulture) : "-")
+            +", Elapsed="+FormatNanoseconds(meanNanoseconds)
+            +", AllocatedBytes="+allocatedBytes.ToString(CultureInfo.InvariantCulture),
+            Encoding.UTF8);
+        return new WorkerResultMessage(
+            task.TaskId,
+            "Completed",
+            FormatNanoseconds(meanNanoseconds),
+            string.Empty,
+            string.Empty,
+            meanNanoseconds,
+            null,
+            null,
+            allocatedBytes,
+            0,
+            task.ArtifactFolder,
+            string.Empty,
+            randomSeed,
+            resultDigest);
+    }catch(Exception ex) when(ex is not OperationCanceledException){
+        var actual = ex is TargetInvocationException { InnerException: { } inner } ? inner : ex;
+        Directory.CreateDirectory(task.ArtifactFolder);
+        File.WriteAllText(logPath,actual.ToString(),Encoding.UTF8);
+        return new WorkerResultMessage(
+            task.TaskId,
+            "Failed",
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            null,
+            null,
+            null,
+            null,
+            1,
+            task.ArtifactFolder,
+            actual.ToString(),
+            null,
+            string.Empty);
+    }finally{
+        if(instance is IDisposable disposable){
+            disposable.Dispose();
+        }
+        Console.SetOut(protocolOutput);
+        Console.SetError(protocolError);
+    }
+}
+
 static Type ResolveBenchmarkType(string assemblyName,string typeFullName){
     var assembly = AppDomain.CurrentDomain
         .GetAssemblies()
@@ -177,6 +303,19 @@ static Type ResolveBenchmarkType(string assemblyName,string typeFullName){
     return assembly.GetType(typeFullName,throwOnError:true,ignoreCase:false)
         ??throw new InvalidOperationException($"Benchmark type was not found: {typeFullName}");
 }
+
+static MethodInfo ResolveBenchmarkMethod(Type benchmarkType,string methodName){
+    var methods = benchmarkType.GetMethods(BindingFlags.Public|BindingFlags.Instance|BindingFlags.Static);
+    var method = methods.FirstOrDefault(method =>
+            string.Equals(method.Name,methodName,StringComparison.Ordinal)
+            &&HasBenchmarkAttribute(method))
+        ??methods.FirstOrDefault(method => string.Equals(method.Name,methodName,StringComparison.Ordinal));
+    return method??throw new MissingMethodException(benchmarkType.FullName,methodName);
+}
+
+static bool HasBenchmarkAttribute(MethodInfo method) =>
+    method.GetCustomAttributes(inherit:true).Any(static attribute =>
+        string.Equals(attribute.GetType().Name,"BenchmarkAttribute",StringComparison.Ordinal));
 
 static IDisposable BeginElementCountScope(Assembly assembly,int elementCount,string elementScale){
     var modeType = assembly.GetType("Common.BenchmarkExecutionMode",throwOnError:false,ignoreCase:false);
@@ -331,6 +470,15 @@ static void ApplyAffinity(int logicalCpu){
     }
 }
 
+static void ApplyThreadAffinity(int logicalCpu){
+    if(logicalCpu<0||logicalCpu>=Environment.ProcessorCount||logicalCpu>=63||!OperatingSystem.IsWindows()){
+        return;
+    }
+
+    var mask = 1UL<<logicalCpu;
+    SetThreadAffinityMask(GetCurrentThread(),new UIntPtr(mask));
+}
+
 [DllImport("kernel32.dll")]
 static extern IntPtr GetCurrentThread();
 
@@ -350,7 +498,8 @@ internal sealed record WorkerTaskMessage(
     int ElementCount,
     int LoopCount,
     string ElementScale,
-    string ArtifactFolder);
+    string ArtifactFolder,
+    int? AssignedLogicalCpu = null);
 
 internal sealed record BenchmarkArgument(string Name,string Value);
 

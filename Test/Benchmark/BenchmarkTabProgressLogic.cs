@@ -20,6 +20,8 @@ public sealed class BenchmarkTabProgressLogic{
         Assert.All(cells,static cell => Assert.True(cell.IsSelected));
         Assert.Contains(cells,static cell => cell.Project=="System.Array.FLinq");
         Assert.Contains(cells,static cell => cell.Project=="System.Array.ZLinq");
+        Assert.Single(cells.Select(static cell => cell.PairKey).Distinct(StringComparer.OrdinalIgnoreCase));
+        Assert.All(cells,static cell => Assert.False(string.IsNullOrWhiteSpace(cell.PairKey)));
     }
 
     [Fact]
@@ -31,7 +33,7 @@ public sealed class BenchmarkTabProgressLogic{
                 new BenchmarkTabProgressCell("Select","Left",true),
             ],
             [
-                new BenchmarkElementMeasurement("Left","Where",4096,"Completed",100),
+                new BenchmarkElementMeasurement("Left","Where",4096,"Completed",1_000_000),
                 new BenchmarkElementMeasurement("Right","Where",4096,"Completed",100),
             ],
             "Left",
@@ -43,6 +45,26 @@ public sealed class BenchmarkTabProgressLogic{
         Assert.Equal(2,progress.Total);
         Assert.Equal("1/2",progress.FractionText);
         Assert.Equal(0.5,progress.Fraction);
+    }
+
+    [Fact]
+    public void Calculate_DoesNotCompleteShortCompletedCellsWithoutPairThreshold(){
+        var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
+            [
+                new BenchmarkTabProgressCell("Where","Left",true),
+                new BenchmarkTabProgressCell("Where","Right",true),
+            ],
+            [
+                new BenchmarkElementMeasurement("Left","Where",4096,"Completed",100),
+                new BenchmarkElementMeasurement("Right","Where",4096,"Completed",200),
+            ],
+            "Left",
+            "Right",
+            8192,
+            1_000_000);
+
+        Assert.Equal(0,progress.Completed);
+        Assert.Equal(2,progress.Total);
     }
 
     [Fact]
@@ -80,6 +102,46 @@ public sealed class BenchmarkTabProgressLogic{
             1_000_000);
 
         Assert.Equal(2,progress.Completed);
+        Assert.Equal(2,progress.Total);
+    }
+
+    [Fact]
+    public void Calculate_TreatsRightThresholdAsPairCompletionWhenPairKeyMatches(){
+        var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
+            [
+                new BenchmarkTabProgressCell("Any","Left","System.Array.FLinq","",true,"row-1"),
+                new BenchmarkTabProgressCell("Any","Right","System.Array.ZLinq","",true,"row-1"),
+            ],
+            [
+                new BenchmarkElementMeasurement("Left","Any","System.Array.FLinq","",4096,"Completed",100),
+                new BenchmarkElementMeasurement("Right","Any","System.Array.ZLinq","",4096,"Completed",2_000_000),
+            ],
+            "Left",
+            "Right",
+            4096,
+            1_000_000);
+
+        Assert.Equal(2,progress.Completed);
+        Assert.Equal(2,progress.Total);
+    }
+
+    [Fact]
+    public void Calculate_DoesNotCompleteOtherRowWithDifferentPairKey(){
+        var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
+            [
+                new BenchmarkTabProgressCell("Any","Left","System.Array.FLinq","",true,"row-1"),
+                new BenchmarkTabProgressCell("Any","Right","System.Array.ZLinq","",true,"row-2"),
+            ],
+            [
+                new BenchmarkElementMeasurement("Left","Any","System.Array.FLinq","",4096,"Completed",100),
+                new BenchmarkElementMeasurement("Right","Any","System.Array.ZLinq","",4096,"Completed",2_000_000),
+            ],
+            "Left",
+            "Right",
+            4096,
+            1_000_000);
+
+        Assert.Equal(1,progress.Completed);
         Assert.Equal(2,progress.Total);
     }
 

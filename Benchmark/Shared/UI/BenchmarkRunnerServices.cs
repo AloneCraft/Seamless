@@ -462,6 +462,81 @@ public sealed class BenchmarkPersistentWorkerProcessService:IBenchmarkJobRunner,
     }
 }
 
+public sealed class BenchmarkFastWorkerProcessService:IBenchmarkJobRunner,IAsyncDisposable {
+    private readonly SemaphoreSlim sessionGate = new(1,1);
+    private BenchmarkFastWorkerSession? session;
+    private string runRoot = string.Empty;
+
+    public async Task<BenchmarkJobRunResult> RunAsync(
+        BenchmarkJob job,
+        string runRoot,
+        int logicalCpu,
+        TimeSpan timeout,
+        CancellationToken cancellationToken) {
+        var current = await this.GetSessionAsync(runRoot,cancellationToken);
+        using var timeoutSource = new CancellationTokenSource(timeout);
+        using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,timeoutSource.Token);
+        try {
+            return await current.RunAsync(job,logicalCpu,linkedSource.Token);
+        } catch(OperationCanceledException) {
+            await this.ResetSessionAsync(current);
+            if(timeoutSource.IsCancellationRequested&&!cancellationToken.IsCancellationRequested) {
+                throw new TimeoutException($"Benchmark job timed out after {timeout}.");
+            }
+
+            throw;
+        } catch {
+            await this.ResetSessionAsync(current);
+            throw;
+        }
+    }
+
+    public async ValueTask DisposeAsync() {
+        await this.sessionGate.WaitAsync();
+        try {
+            if(this.session is not null) {
+                await this.session.DisposeAsync();
+                this.session=null;
+            }
+        } finally {
+            this.sessionGate.Release();
+            this.sessionGate.Dispose();
+        }
+    }
+
+    private async Task<BenchmarkFastWorkerSession> GetSessionAsync(string runRoot,CancellationToken cancellationToken) {
+        await this.sessionGate.WaitAsync(cancellationToken);
+        try {
+            if(this.session is not null&&string.Equals(this.runRoot,runRoot,StringComparison.OrdinalIgnoreCase)) {
+                return this.session;
+            }
+
+            if(this.session is not null) {
+                await this.session.DisposeAsync();
+                this.session=null;
+            }
+
+            this.runRoot=runRoot;
+            this.session=await BenchmarkFastWorkerSession.StartAsync(runRoot,cancellationToken);
+            return this.session;
+        } finally {
+            this.sessionGate.Release();
+        }
+    }
+
+    private async Task ResetSessionAsync(BenchmarkFastWorkerSession current) {
+        await this.sessionGate.WaitAsync();
+        try {
+            if(ReferenceEquals(this.session,current)) {
+                this.session=null;
+                await current.DisposeAsync();
+            }
+        } finally {
+            this.sessionGate.Release();
+        }
+    }
+}
+
 public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
     public Task<BenchmarkJobRunResult> RunAsync(
         BenchmarkJob job,
@@ -737,14 +812,15 @@ public sealed class BenchmarkComparisonService:IBenchmarkComparisonService {
 
         var leftNumber = Math.Max(0,leftValue??0);
         var rightNumber = Math.Max(0,rightValue??0);
-        var total = leftNumber+rightNumber;
+        var shareTexts = BenchmarkChartSelectionLayoutLogic.CreateShareTexts(leftNumber,rightNumber);
         double? ratio = leftNumber>0&&rightNumber>0
             ? leftNumber/rightNumber
             : null;
         var metricName = metric==BenchmarkMetricKind.Time?"Time":"Allocated";
-        var leftText = total>0 ? (leftNumber/total).ToString("P0",CultureInfo.InvariantCulture) : "0%";
-        var rightText = total>0 ? (rightNumber/total).ToString("P0",CultureInfo.InvariantCulture) : "0%";
+        var leftText = shareTexts.LeftText;
+        var rightText = shareTexts.RightText;
         var tooltip = $"{row.Benchmark}\n{pair.LeftProject} {metricName}: {FirstText(leftText,"-")}\n{pair.RightProject} {metricName}: {FirstText(rightText,"-")}\n比率: {(ratio is { } value?value.ToString("0.00",CultureInfo.InvariantCulture):"-")}";
+        tooltip=$"{row.Benchmark}\n{pair.LeftProject} {metricName}: {FirstText(FormatMetric(leftValue,metric),"-")} / Share {leftText}\n{pair.RightProject} {metricName}: {FirstText(FormatMetric(rightValue,metric),"-")} / Share {rightText}\n比率: {(ratio is { } ratioValue?ratioValue.ToString("0.00",CultureInfo.InvariantCulture):"-")}";
         return new ChartComparisonPoint(
             row.Benchmark,
             BenchmarkFormatting.ShortName(row.Benchmark),
@@ -884,7 +960,7 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
         executionProfile switch{
             BenchmarkExecutionProfile.Accurate => this.workerService,
             BenchmarkExecutionProfile.Intermediate => new BenchmarkPersistentWorkerProcessService(),
-            BenchmarkExecutionProfile.Fast => new BenchmarkInProcessJobRunner(),
+            BenchmarkExecutionProfile.Fast => new BenchmarkFastWorkerProcessService(),
             _ => this.workerService,
         };
 
