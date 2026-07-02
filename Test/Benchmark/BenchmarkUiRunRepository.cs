@@ -22,6 +22,8 @@ public sealed class BenchmarkUiRunRepository{
         Assert.Equal("Count=64",loaded.ArgumentKey);
         Assert.Equal(64,loaded.ElementCount);
         Assert.Equal(123.5,loaded.MeanNanoseconds);
+        // 論理コアは DB(Jobs.AssignedLogicalCpu)から復元され、タブ切替後も表の論理コア列に表示できる。
+        Assert.Equal(7,loaded.AssignedLogicalCpu);
     }
 
     [Fact]
@@ -89,7 +91,7 @@ public sealed class BenchmarkUiRunRepository{
             MeanNanoseconds=mean,
             AllocatedBytes=1024,
             StartedAt=DateTimeOffset.UtcNow,
-            AssignedLogicalCpu=0,
+            AssignedLogicalCpu=7,
             ExitCode=0,
         });
 

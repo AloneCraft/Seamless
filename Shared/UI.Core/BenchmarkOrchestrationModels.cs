@@ -46,11 +46,6 @@ public enum JobStatus {
     Failed,
 }
 
-public enum BenchmarkRunMode {
-    Fixed,
-    Adaptive,
-}
-
 public enum BenchmarkExecutionProfile {
     Accurate,
     Intermediate,
@@ -153,7 +148,6 @@ internal sealed class AdaptiveBenchmarkState {
 internal sealed class ProgressState {
     public int SchemaVersion { get; set; } = 1;
     public string RunId { get; set; } = string.Empty;
-    public BenchmarkRunMode Mode { get; set; }
     public BenchmarkExecutionProfile ExecutionProfile { get; set; } = BenchmarkExecutionProfile.Accurate;
     public string RunRoot { get; set; } = string.Empty;
     public int RunNumber { get; set; }
@@ -174,7 +168,6 @@ internal sealed record BenchmarkRunRequest(
     IReadOnlyList<BenchmarkCase> Benchmarks,
     IReadOnlyList<int> LogicalCpus,
     IReadOnlyList<int> ElementCounts,
-    BenchmarkRunMode Mode,
     TimeSpan AdaptiveThreshold,
     TimeSpan JobTimeout,
     Func<IReadOnlyList<int>>? LogicalCpuProvider = null,

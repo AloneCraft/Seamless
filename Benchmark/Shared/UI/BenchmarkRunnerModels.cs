@@ -542,7 +542,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         if(result.ElementCount<=0){
             // ElementCount=0 の callback は比較表/チャートの確定データとして扱わない。
             this.IsRunning=false;
-            this.ApplyCpuDisplay(cpu);
+            this.ApplyCpuDisplay(cpu,preserveWhenNull:true);
             this.LiveState=this.Metrics.HasMeasuredValue||this.isCompletedWithoutMeasurement
                 ? BenchmarkProjectLiveState.Completed
                 : BenchmarkProjectLiveState.Idle;
@@ -577,7 +577,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             this.ApplyFailureDisplay(result.ElementCount,completedAt,result.FailureReason);
         }
         this.IsRunning=false;
-        this.ApplyCpuDisplay(cpu);
+        this.ApplyCpuDisplay(cpu,preserveWhenNull:true);
         this.LiveState=isCompleted
             ? BenchmarkProjectLiveState.Completed
             : BenchmarkProjectLiveState.Idle;
@@ -604,13 +604,10 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.lastSuccessfulElementCount=stoppedAtElementCount;
         this.lastMeasuredAt=measuredAt;
         this.ElementCountText=FormatElementCount(stoppedAtElementCount);
-        this.ExecutionText=metadataMissing||measuredAt is null ? MissingMetadataText : FormatTimestamp(measuredAt.Value);
+        // 日時と論理コアは独立に判定する: 片方のメタデータが欠けていても、判明している方は表示し続ける。
+        this.ExecutionText=measuredAt is null ? MissingMetadataText : FormatTimestamp(measuredAt.Value);
         this.FailureExecutionText=string.Empty;
-        if(cpu is null){
-            this.ClearCpuDisplay();
-        }else{
-            this.ApplyCpuDisplay(cpu);
-        }
+        this.ApplyCpuDisplay(cpu,preserveWhenNull:true);
         this.RefreshExecutionTooltipText();
         this.ApplyMeasurementHighlight(BenchmarkMeasurementHighlightState.None);
         this.LiveState=BenchmarkProjectLiveState.Completed;
@@ -772,9 +769,13 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             : string.Empty;
     }
 
-    private void ApplyCpuDisplay(CpuSelectionItem? cpu){
+    private void ApplyCpuDisplay(CpuSelectionItem? cpu,bool preserveWhenNull = false){
         if(cpu is null){
-            this.ClearCpuDisplay();
+            // 終端状態の適用で CPU を解決できなかった場合は、実行中に表示していた論理コアを保持する
+            // (実装未完了などで測定値が無くても、実行したコアは変わらないため表示し続ける)。
+            if(!preserveWhenNull){
+                this.ClearCpuDisplay();
+            }
             return;
         }
 
