@@ -32,6 +32,14 @@ public sealed record UiRunRecord(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
+/// <summary>スキーマ不一致(旧バージョンDB)を検出したときの扱い。</summary>
+public enum UiRunSchemaMismatchPolicy{
+    /// <summary>例外を投げる。Release/通常運用の既定。無警告にDBを破棄しない。</summary>
+    Throw,
+    /// <summary>既存DBをバックアップリネームして新規作成する。開発用。</summary>
+    BackupAndRecreate,
+}
+
 public sealed record UiCaseRecord(
     long CaseId,
     long RunId,
@@ -39,7 +47,26 @@ public sealed record UiCaseRecord(
     string Name,
     string Project,
     string Method,
-    string TypeFullName);
+    string TypeFullName,
+    string SourceTabId,
+    string ArgumentKey,
+    string Side,
+    string PairDiscriminator);
+
+/// <summary>FLinq fallback 実行時診断の書き込み値。</summary>
+public sealed record UiFallbackDiagnosticWrite(
+    string Project,
+    string Method,
+    string CounterName,
+    double CounterValue);
+
+public sealed record UiFallbackDiagnosticRecord(
+    long RunId,
+    string Project,
+    string Method,
+    string CounterName,
+    double CounterValue,
+    DateTimeOffset RecordedAt);
 
 public sealed record UiJobRecord(
     long JobId,

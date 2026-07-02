@@ -194,7 +194,16 @@ public sealed class MainPage:ContentPage {
                 new BenchmarkWorkerProcessService(),
                 comparisonService),
             comparisonService,
-            new UiRunStore(UiRunDatabasePathResolver.Resolve(this.FindSolutionRoot())),
+            new UiRunStore(
+                UiRunDatabasePathResolver.Resolve(this.FindSolutionRoot()),
+#if DEBUG
+                // 開発中はスキーマ不一致時に旧DBをバックアップリネームして新規作成する。
+                UiRunSchemaMismatchPolicy.BackupAndRecreate
+#else
+                // 通常運用では無警告にDBを破棄しない。
+                UiRunSchemaMismatchPolicy.Throw
+#endif
+            ),
             benchmarkRoot);
     }
 
@@ -1300,7 +1309,65 @@ public sealed class MainPage:ContentPage {
                 Content=this.CreateGeneratedCodeAuditView(),
             },
         };
+        // SQLite 分析 View(Completed Run の履歴集計)を表示する分析タブ群。
+        foreach(var (analysisHeader,viewName) in AnalysisViewTabs) {
+            tabs.Items.Add(new SfTabItem {
+                Header=analysisHeader,
+                FontSize=12,
+                Content=this.CreateAnalysisViewTab(viewName,analysisHeader),
+            });
+        }
         return tabs;
+    }
+
+    private static readonly (string Header,string ViewName)[] AnalysisViewTabs = [
+        ("改善ランキング","BenchmarkImprovementCandidates"),
+        ("時間比","BenchmarkTimeRatioWorst"),
+        ("割当比","BenchmarkAllocationRatioWorst"),
+        ("カテゴリ","BenchmarkCategorySummary"),
+        ("履歴","BenchmarkHistoryTrend"),
+        ("スケール","BenchmarkScaleTrend"),
+        ("失敗/欠測","BenchmarkMissingFailureMatrix"),
+        ("計測品質","BenchmarkMeasurementQuality"),
+        ("fallback診断","BenchmarkFallbackDiagnostics"),
+    ];
+
+    // 分析 View を等幅テキスト表として表示する。更新ボタンで SQLite から再読込する。
+    private View CreateAnalysisViewTab(string viewName,string title) {
+        var text = new Label {
+            FontFamily="Consolas",
+            FontSize=11,
+            TextColor=Color.FromArgb("#0F172A"),
+            Padding=new Thickness(8),
+            LineBreakMode=LineBreakMode.NoWrap,
+        };
+        var refresh = new Button {
+            Text="更新",
+            FontSize=12,
+            HeightRequest=28,
+            Padding=new Thickness(12,0),
+            HorizontalOptions=LayoutOptions.Start,
+            Margin=new Thickness(8,4),
+        };
+        void Reload() {
+            text.Text=this.viewModel?.LoadAnalysisViewText(viewName,title)??string.Empty;
+        }
+        refresh.Clicked+=(_,_) => Reload();
+        var layout = new Grid {
+            RowDefinitions= {
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Star },
+            },
+            BackgroundColor=Colors.White,
+            VerticalOptions=LayoutOptions.Fill,
+        };
+        layout.Add(refresh,0,0);
+        layout.Add(new ScrollView {
+            Orientation=ScrollOrientation.Both,
+            Content=text,
+        },0,1);
+        layout.Loaded+=(_,_) => Reload();
+        return layout;
     }
 
     private View CreateDiagnosticGrid(string itemsSourcePath) {

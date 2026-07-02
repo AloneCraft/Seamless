@@ -27,6 +27,8 @@ public sealed class LinqCounter {
     private long tryGetNonEnumeratedCount;
     private long logicalDelegate;
     private long physicalDelegate;
+    private long enumerableFallback;
+    private readonly global::System.Collections.Concurrent.ConcurrentDictionary<string,long> enumerableFallbackDetails = new(StringComparer.Ordinal);
 
     public long PhysicalMoveNext => Interlocked.Read(ref this.physicalMoveNext);
     public long LogicalOperations => Interlocked.Read(ref this.logicalOperations);
@@ -48,6 +50,10 @@ public sealed class LinqCounter {
     public long TryGetNonEnumeratedCount => Interlocked.Read(ref this.tryGetNonEnumeratedCount);
     public long LogicalDelegate => Interlocked.Read(ref this.logicalDelegate);
     public long PhysicalDelegate => Interlocked.Read(ref this.physicalDelegate);
+    /// <summary>FLinq 展開に失敗して System.Linq へフォールバックした(生成インターセプターが失敗例外を構築した)回数。0 が正常。</summary>
+    public long EnumerableFallback => Interlocked.Read(ref this.enumerableFallback);
+    /// <summary>フォールバック詳細(失敗メッセージ)ごとの回数。</summary>
+    public IReadOnlyDictionary<string,long> EnumerableFallbackDetails => this.enumerableFallbackDetails;
 
     public void IncrementPhysicalMoveNext() => Interlocked.Increment(ref this.physicalMoveNext);
     public void IncrementLogicalOperations() => Interlocked.Increment(ref this.logicalOperations);
@@ -105,6 +111,10 @@ public sealed class LinqCounter {
     public void IncrementTryGetNonEnumeratedCount() => Interlocked.Increment(ref this.tryGetNonEnumeratedCount);
     public void IncrementLogicalDelegate() => Interlocked.Increment(ref this.logicalDelegate);
     public void IncrementPhysicalDelegate() => Interlocked.Increment(ref this.physicalDelegate);
+    public void IncrementEnumerableFallback(string detail) {
+        Interlocked.Increment(ref this.enumerableFallback);
+        this.enumerableFallbackDetails.AddOrUpdate(detail,1,static (_,count) => count+1);
+    }
     public T RecordLogicalDelegate<T>(T value) {
         this.IncrementLogicalDelegate();
         return value;
@@ -136,6 +146,8 @@ public sealed class LinqCounter {
         Interlocked.Exchange(ref this.tryGetNonEnumeratedCount,0);
         Interlocked.Exchange(ref this.logicalDelegate,0);
         Interlocked.Exchange(ref this.physicalDelegate,0);
+        Interlocked.Exchange(ref this.enumerableFallback,0);
+        this.enumerableFallbackDetails.Clear();
     }
 }
 

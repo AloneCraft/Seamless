@@ -980,13 +980,18 @@ public sealed partial class FLinqIncrementalGenerator {
             return (null, false);
         }
         // 明示的インターフェース実装を除いた public GetEnumerator() を探す。
-        var getEnumerator = namedSource.GetMembers("GetEnumerator")
-            .OfType<IMethodSymbol>()
-            .FirstOrDefault(m =>
-                m.Parameters.IsEmpty
-                && m.DeclaredAccessibility==Accessibility.Public
-                && m.MethodKind!=MethodKind.ExplicitInterfaceImplementation
-                && !m.IsStatic);
+        // GetMembers は宣言メンバーしか返さないため、Table<T>:HashSet<T> のような
+        // 派生コレクション型でも見つかるよう基底型チェーンを辿る。
+        IMethodSymbol? getEnumerator = null;
+        for(var current = namedSource;current is not null && getEnumerator is null;current=current.BaseType) {
+            getEnumerator=current.GetMembers("GetEnumerator")
+                .OfType<IMethodSymbol>()
+                .FirstOrDefault(m =>
+                    m.Parameters.IsEmpty
+                    && m.DeclaredAccessibility==Accessibility.Public
+                    && m.MethodKind!=MethodKind.ExplicitInterfaceImplementation
+                    && !m.IsStatic);
+        }
         if(getEnumerator is null) {
             return (null, false);
         }

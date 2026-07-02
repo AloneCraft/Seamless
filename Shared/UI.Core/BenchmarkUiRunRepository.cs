@@ -5,7 +5,8 @@ namespace UI;
 [global::Seamless.FLinq.LinqIntercept(false)]
 internal sealed class BenchmarkUiRunRepository{
     private readonly UiRunStore store;
-    private readonly SemaphoreSlim persistenceGate = new(1,1);
+    private readonly object queueGate = new();
+    private Task queueTail = Task.CompletedTask;
     private readonly Action<string,Exception?> log;
 
     public BenchmarkUiRunRepository(UiRunStore store,Action<string,Exception?>? log = null){
@@ -21,7 +22,7 @@ internal sealed class BenchmarkUiRunRepository{
         BenchmarkSourceTab sourceTab){
         try{
             return await this.RunPersistenceAsync(() => {
-                this.store.Initialize();
+                this.store.EnsureSchema();
                 var run = this.store.CreateRun(new(
                     appKind,
                     displayName,
@@ -205,6 +206,28 @@ internal sealed class BenchmarkUiRunRepository{
         bool isCompletedResult,
         BenchmarkViewStateSnapshot viewState){
         var caseKey = result.SourceTab+"|"+result.Project+"|"+rowKey+"|"+result.ArgumentKey;
+        var definition = BenchmarkSourceTabs.Get(result.SourceTab);
+        string side;
+        if(string.Equals(result.Project,definition.LeftProject,StringComparison.OrdinalIgnoreCase)){
+            side="Left";
+        }else if(string.Equals(result.Project,definition.RightProject,StringComparison.OrdinalIgnoreCase)){
+            side="Right";
+        }else{
+            side="";
+        }
+        var typeFullName = result.TypeFullName??string.Empty;
+        // Scalable 系は同一 method+argumentKey が型違いで重複するため、型短名を discriminator にする。
+        string pairDiscriminator;
+        if(definition.Id.StartsWith("Scalable",StringComparison.OrdinalIgnoreCase)){
+            var lastDot = typeFullName.LastIndexOf('.');
+            if(lastDot>=0&&lastDot<typeFullName.Length-1){
+                pairDiscriminator=typeFullName.Substring(lastDot+1);
+            }else{
+                pairDiscriminator=typeFullName;
+            }
+        }else{
+            pairDiscriminator="";
+        }
         var arguments = result.Arguments
             .GroupBy(static item => item.Name,StringComparer.OrdinalIgnoreCase)
             .ToDictionary(static item => item.Key,static item => item.Last().Value,StringComparer.OrdinalIgnoreCase);
@@ -230,7 +253,7 @@ internal sealed class BenchmarkUiRunRepository{
             rowKey,
             result.Project,
             result.Method,
-            result.TypeFullName,
+            typeFullName,
             arguments,
             caseKey+"|N="+result.ElementCount.ToString(System.Globalization.CultureInfo.InvariantCulture)+"|Loop="+result.LoopCount.ToString(System.Globalization.CultureInfo.InvariantCulture)+"|CPU="+(result.AssignedLogicalCpu?.ToString(System.Globalization.CultureInfo.InvariantCulture)??"-"),
             isCompletedResult ? UiRunStatus.Completed : UiRunStatus.Failed,
@@ -242,7 +265,11 @@ internal sealed class BenchmarkUiRunRepository{
             result.Status,
             result.FailureReason,
             metrics,
-            viewState);
+            viewState,
+            definition.Id,
+            result.ArgumentKey,
+            side,
+            pairDiscriminator);
     }
 
     private void SaveResult(BenchmarkResultPersistenceSnapshot result,long runId){
@@ -253,7 +280,11 @@ internal sealed class BenchmarkUiRunRepository{
             result.Project,
             result.Method,
             result.TypeFullName,
-            result.Arguments);
+            result.Arguments,
+            result.SourceTabId,
+            result.ArgumentKey,
+            result.Side,
+            result.PairDiscriminator);
         var job = this.store.UpsertJob(
             runId,
             testCase.CaseId,
@@ -278,28 +309,41 @@ internal sealed class BenchmarkUiRunRepository{
         this.store.SaveUiViewState(runId,"SelectedResultElementCount",snapshot.SelectedResultElementCount);
     }
 
+    // 保存は単一の直列タスクチェーンで実行し、投入順序を保証する。
+    // FlushAsync でチェーン末尾を待てるため、テストやシャットダウンで確定的に同期できる。
     private void QueuePersistence(Action action,string failureMessage){
-        _=Task.Run(async () => {
-            await this.persistenceGate.WaitAsync();
-            try{
-                action();
-            }
-            catch(Exception ex){
-                this.log(failureMessage,ex);
-            }
-            finally{
-                this.persistenceGate.Release();
-            }
-        });
+        lock(this.queueGate){
+            this.queueTail=this.queueTail.ContinueWith(
+                _ => {
+                    try{
+                        action();
+                    }
+                    catch(Exception ex){
+                        this.log(failureMessage,ex);
+                    }
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.None,
+                TaskScheduler.Default);
+        }
     }
 
-    private async Task<T> RunPersistenceAsync<T>(Func<T> action){
-        await this.persistenceGate.WaitAsync();
-        try{
-            return await Task.Run(action);
+    /// <summary>キュー済みの保存がすべて完了するまで待つ。</summary>
+    public Task FlushAsync(){
+        lock(this.queueGate){
+            return this.queueTail;
         }
-        finally{
-            this.persistenceGate.Release();
+    }
+
+    private Task<T> RunPersistenceAsync<T>(Func<T> action){
+        lock(this.queueGate){
+            var task = this.queueTail.ContinueWith(
+                _ => action(),
+                CancellationToken.None,
+                TaskContinuationOptions.None,
+                TaskScheduler.Default);
+            this.queueTail=task;
+            return task;
         }
     }
 
@@ -336,4 +380,8 @@ internal sealed record BenchmarkResultPersistenceSnapshot(
     string FailureKind,
     string FailureReason,
     IReadOnlyList<UiMetricValueWrite> Metrics,
-    BenchmarkViewStateSnapshot ViewState);
+    BenchmarkViewStateSnapshot ViewState,
+    string SourceTabId,
+    string ArgumentKey,
+    string Side,
+    string PairDiscriminator);

@@ -55,5 +55,9 @@
     <ProjectReference Include="..\Seamless.Collections\Seamless.Collections.csproj" />
   </ItemGroup>
   <Import Project="..\Shared\Test.Shared\Test.Shared.projitems" Label="Shared" />
+  <!-- 生成物検査(FallbackDiagnostics)が stale ファイルを誤検出しないよう、コンパイル前に生成物出力を消す -->
+  <Target Name="CleanCompilerGeneratedFiles" BeforeTargets="CoreCompile" Condition="'$(EmitCompilerGeneratedFiles)'=='true'">
+    <RemoveDir Directories="$(CompilerGeneratedFilesOutputPath)" />
+  </Target>
 </Project>
 

@@ -1,1283 +1,274 @@
-// @Optimize
-using System.Buffers;
-using MemoryPack;
-#pragma warning disable CS8981 // 型名には、小文字の ASCII 文字のみが含まれています。このような名前は、プログラミング言語用に予約されている可能性があります。
-namespace AdventureWorks2008R2
-{
-    //データベースコンテナ: 各スキーマへの参照を保持する
-    public class Container : IMemoryPackable<Container>
-    {
-        public Schemas.dbo dbo { get; }
-        public Schemas.HumanResources HumanResources { get; } = default!;
-        public Schemas.Person Person { get; } = default!;
-        public Schemas.Production Production { get; } = default!;
-        public Schemas.Purchasing Purchasing { get; } = default!;
-        public Schemas.Sales Sales { get; } = default!;
-        public static void RegisterFormatter()
-        {
-            throw new NotImplementedException();
+// AdventureWorks2008R2 の宣言的データベース定義。
+// 本物のバックアップ取り込みは IDatabaseImportSource 経由で後日行うため、
+// 現時点ではリポジトリ内のサンプルデータだけで動作する実働サブセットを宣言する。
+// Table 実体は Tsavorite ストアで、DatabaseContainerOptions によりメモリ/ストレージを切り替える。
+namespace Test.Seamless.AdventureWorks2008R2 {
+    // Keys/Records の partial struct を MemoryPack 対応スキーマレコードへ補完する generator のマーカー。
+    internal static partial class DatabaseGenerator;
+
+    // 宣言的コンテナ。プロパティ/メソッドが宣言の主形式で、属性は SQL Server 互換名の補助。
+    // FLinq は「LINQ を含む通常メソッドの呼び出し箇所」を展開するため、
+    // View/TableFunction の LINQ 本体は *Query メソッドに置き、ラムダからそれを呼ぶ。
+    [global::Seamless.Database.Database("AdventureWorks2008R2")]
+    public sealed partial class AdventureWorks:global::Seamless.Database.DatabaseContainer {
+        public AdventureWorks():this(null) {
         }
-        public static void Serialize<TBufferWriter>(ref MemoryPackWriter<TBufferWriter> writer, scoped ref Container? value)
-            where TBufferWriter : IBufferWriter<byte>
-        {
-            throw new NotImplementedException();
+
+        public AdventureWorks(global::Seamless.Database.DatabaseContainerOptions? options)
+            :base(options??(global::Seamless.Database.DatabaseContainerOptions.InMemory with { IndexSize=1L<<12,MemorySize=1L<<24 })) {
         }
-        public static void Deserialize(ref MemoryPackReader reader, scoped ref Container? value)
-        {
-            throw new NotImplementedException();
+
+        [global::Seamless.Database.Table("Sales.Customer")]
+        public global::Seamless.Database.Table<Records.Customer> Customers => this.Table<Records.Customer>();
+        [global::Seamless.Database.Table("Sales.SalesOrderHeader")]
+        public global::Seamless.Database.Table<Records.SalesOrderHeader> SalesOrderHeaders => this.Table<Records.SalesOrderHeader>();
+        [global::Seamless.Database.Table("Sales.Store")]
+        public global::Seamless.Database.Table<Records.Store> Stores => this.Table<Records.Store>();
+        [global::Seamless.Database.Table("Person.StateProvince")]
+        public global::Seamless.Database.Table<Records.StateProvince> StateProvinces => this.Table<Records.StateProvince>();
+        [global::Seamless.Database.Table("Person.CountryRegion")]
+        public global::Seamless.Database.Table<Records.CountryRegion> CountryRegions => this.Table<Records.CountryRegion>();
+
+        // Sales.vActiveCustomer 相当: Store を持つ顧客だけを射影する。
+        public IEnumerable<Records.ActiveCustomer> ActiveCustomersQuery() =>
+            this.Customers
+                .Where(customer => customer.StoreId.HasValue)
+                .OrderBy(customer => customer.CustomerId)
+                .Select(customer => new Records.ActiveCustomer(customer.CustomerId,customer.StoreId!.Value));
+
+        [global::Seamless.Database.View("Sales.vActiveCustomer")]
+        public global::Seamless.Database.View<Records.ActiveCustomer> ActiveCustomers() {
+            return this.View(()=>this.ActiveCustomersQuery());
+        }
+
+        // Person.vStateProvinceCountryRegion 相当: join ビュー。
+        public IEnumerable<Records.StateProvinceCountryRegion> StateProvinceCountryRegionsQuery() =>
+            this.StateProvinces
+                .Join(this.CountryRegions,state => state.CountryRegionCode,region => region.CountryRegionCode,(state,region) => new Records.StateProvinceCountryRegion(state.StateProvinceId,state.Name,region.CountryRegionCode,region.Name))
+                .OrderBy(row => row.StateProvinceId);
+
+        [global::Seamless.Database.View("Person.vStateProvinceCountryRegion")]
+        public global::Seamless.Database.View<Records.StateProvinceCountryRegion> StateProvinceCountryRegions() {
+            return this.View(()=>this.StateProvinceCountryRegionsQuery());
+        }
+
+        // dbo.ufnOrdersByCustomer 相当: テーブル関数。
+        public IEnumerable<Records.SalesOrderSummary> OrdersByCustomerQuery(int customerId) =>
+            this.SalesOrderHeaders
+                .Where(order => order.CustomerId==customerId)
+                .OrderBy(order => order.SalesOrderId)
+                .Select(order => new Records.SalesOrderSummary(order.SalesOrderId,order.TotalDue));
+
+        [global::Seamless.Database.Function("dbo.ufnOrdersByCustomer")]
+        public global::Seamless.Database.TableFunction<Records.SalesOrderSummary> OrdersByCustomer(int customerId) {
+            return this.TableFunction(()=>this.OrdersByCustomerQuery(customerId));
+        }
+
+        // dbo.ufnCustomerTotalDue 相当: スカラー関数。
+        [global::Seamless.Database.Function("dbo.ufnCustomerTotalDue")]
+        public decimal CustomerTotalDue(int customerId) =>
+            this.SalesOrderHeaders
+                .Where(order => order.CustomerId==customerId)
+                .Sum(order => order.TotalDue);
+    }
+
+    // スキーマレコード。partial struct の宣言から generator が MemoryPack 対応の完全なレコードを生成する。
+    namespace Records {
+        public partial struct Customer {
+            public partial int CustomerId { get; }
+            public partial int? PersonId { get; }
+            public partial int? StoreId { get; }
+            public partial int? TerritoryId { get; }
+            public partial string AccountNumber { get; }
+        }
+        public partial struct SalesOrderHeader {
+            public partial int SalesOrderId { get; }
+            public partial int CustomerId { get; }
+            public partial DateTime OrderDate { get; }
+            public partial byte Status { get; }
+            public partial decimal TotalDue { get; }
+        }
+        public partial struct Store {
+            public partial int BusinessEntityId { get; }
+            public partial string Name { get; }
+        }
+        public partial struct StateProvince {
+            public partial int StateProvinceId { get; }
+            public partial string StateProvinceCode { get; }
+            public partial string CountryRegionCode { get; }
+            public partial string Name { get; }
+        }
+        public partial struct CountryRegion {
+            public partial string CountryRegionCode { get; }
+            public partial string Name { get; }
+        }
+        public partial struct ActiveCustomer {
+            public partial int CustomerId { get; }
+            public partial int StoreId { get; }
+        }
+        public partial struct StateProvinceCountryRegion {
+            public partial int StateProvinceId { get; }
+            public partial string StateProvinceName { get; }
+            public partial string CountryRegionCode { get; }
+            public partial string CountryRegionName { get; }
+        }
+        public partial struct SalesOrderSummary {
+            public partial int SalesOrderId { get; }
+            public partial decimal TotalDue { get; }
         }
     }
-    //スキーマ定義: 各スキーマが所有するテーブル・ビュー・関数への参照
-    namespace Schemas
-    {
-        public struct dbo
-        {
-            //テーブル
-            public Tables.AWBuildVersion AWBuildVersion { get; }
-            public Tables.DatabaseLog DatabaseLog { get; }
-            public Tables.ErrorLog ErrorLog { get; }
-            //テーブル関数
-            public Functions.ufnGetContactInformation ufnGetContactInformation { get; }
+
+    public sealed class AdventureWorksFixture:IDisposable {
+        public AdventureWorks Database { get; } = Load();
+        public void Dispose() => this.Database.Dispose();
+
+        internal static AdventureWorks Load() {
+            var database = new AdventureWorks();
+            Seed(database);
+            return database;
         }
-        public class HumanResources
-        {
-            //テーブル
-            public Tables.Department Department { get; }
-            public Tables.Employee Employee { get; }
-            public Tables.EmployeeDepartmentHistory EmployeeDepartmentHistory { get; }
-            public Tables.EmployeePayHistory EmployeePayHistory { get; }
-            public Tables.JobCandidate JobCandidate { get; }
-            public Tables.Shift Shift { get; }
-            //ビュー
-            public Views.vEmployee vEmployee { get; }
-            public Views.vEmployeeDepartment vEmployeeDepartment { get; }
-            public Views.vEmployeeDepartmentHistory vEmployeeDepartmentHistory { get; }
-            public Views.vJobCandidate vJobCandidate { get; }
-            public Views.vJobCandidateEducation vJobCandidateEducation { get; }
-            public Views.vJobCandidateEmployment vJobCandidateEmployment { get; }
-        }
-        public class Person
-        {
-            //テーブル
-            public Tables.Address Address { get; }
-            public Tables.AddressType AddressType { get; }
-            public Tables.BusinessEntity BusinessEntity { get; }
-            public Tables.BusinessEntityAddress BusinessEntityAddress { get; }
-            public Tables.BusinessEntityContact BusinessEntityContact { get; }
-            public Tables.ContactType ContactType { get; }
-            public Tables.CountryRegion CountryRegion { get; }
-            public Tables.EmailAddress EmailAddress { get; }
-            public Tables.Password Password { get; }
-            public Tables.Person PersonTable { get; }
-            public Tables.PersonPhone PersonPhone { get; }
-            public Tables.PhoneNumberType PhoneNumberType { get; }
-            public Tables.StateProvince StateProvince { get; }
-            //ビュー
-            public Views.vAdditionalContactInfo vAdditionalContactInfo { get; }
-            public Views.vStateProvinceCountryRegion vStateProvinceCountryRegion { get; }
-        }
-        public class Production
-        {
-            //テーブル
-            public Tables.BillOfMaterials BillOfMaterials { get; }
-            public Tables.Culture Culture { get; }
-            public Tables.Document Document { get; }
-            public Tables.Illustration Illustration { get; }
-            public Tables.Location Location { get; }
-            public Tables.Product Product { get; }
-            public Tables.ProductCategory ProductCategory { get; }
-            public Tables.ProductCostHistory ProductCostHistory { get; }
-            public Tables.ProductDescription ProductDescription { get; }
-            public Tables.ProductDocument ProductDocument { get; }
-            public Tables.ProductInventory ProductInventory { get; }
-            public Tables.ProductListPriceHistory ProductListPriceHistory { get; }
-            public Tables.ProductModel ProductModel { get; }
-            public Tables.ProductModelIllustration ProductModelIllustration { get; }
-            public Tables.ProductModelProductDescriptionCulture ProductModelProductDescriptionCulture { get; }
-            public Tables.ProductPhoto ProductPhoto { get; }
-            public Tables.ProductProductPhoto ProductProductPhoto { get; }
-            public Tables.ProductReview ProductReview { get; }
-            public Tables.ProductSubcategory ProductSubcategory { get; }
-            public Tables.ScrapReason ScrapReason { get; }
-            public Tables.TransactionHistory TransactionHistory { get; }
-            public Tables.TransactionHistoryArchive TransactionHistoryArchive { get; }
-            public Tables.UnitMeasure UnitMeasure { get; }
-            public Tables.WorkOrder WorkOrder { get; }
-            public Tables.WorkOrderRouting WorkOrderRouting { get; }
-            //ビュー
-            public Views.vProductAndDescription vProductAndDescription { get; }
-            public Views.vProductModelCatalogDescription vProductModelCatalogDescription { get; }
-            public Views.vProductModelInstructions vProductModelInstructions { get; }
-        }
-        public class Purchasing
-        {
-            //テーブル
-            public Tables.ProductVendor ProductVendor { get; }
-            public Tables.PurchaseOrderDetail PurchaseOrderDetail { get; }
-            public Tables.PurchaseOrderHeader PurchaseOrderHeader { get; }
-            public Tables.ShipMethod ShipMethod { get; }
-            public Tables.Vendor Vendor { get; }
-            //ビュー
-            public Views.vVendorWithAddresses vVendorWithAddresses { get; }
-            public Views.vVendorWithContacts vVendorWithContacts { get; }
-        }
-        public class Sales
-        {
-            //テーブル
-            public Tables.CountryRegionCurrency CountryRegionCurrency { get; }
-            public Tables.CreditCard CreditCard { get; }
-            public Tables.Currency Currency { get; }
-            public Tables.CurrencyRate CurrencyRate { get; }
-            public Tables.Customer Customer { get; }
-            public Tables.PersonCreditCard PersonCreditCard { get; }
-            public Tables.SalesOrderDetail SalesOrderDetail { get; }
-            public Tables.SalesOrderHeader SalesOrderHeader { get; }
-            public Tables.SalesOrderHeaderSalesReason SalesOrderHeaderSalesReason { get; }
-            public Tables.SalesPerson SalesPerson { get; }
-            public Tables.SalesPersonQuotaHistory SalesPersonQuotaHistory { get; }
-            public Tables.SalesReason SalesReason { get; }
-            public Tables.SalesTaxRate SalesTaxRate { get; }
-            public Tables.SalesTerritory SalesTerritory { get; }
-            public Tables.SalesTerritoryHistory SalesTerritoryHistory { get; }
-            public Tables.ShoppingCartItem ShoppingCartItem { get; }
-            public Tables.SpecialOffer SpecialOffer { get; }
-            public Tables.SpecialOfferProduct SpecialOfferProduct { get; }
-            public Tables.Store Store { get; }
-            //ビュー
-            public Views.vIndividualCustomer vIndividualCustomer { get; }
-            public Views.vPersonDemographics vPersonDemographics { get; }
-            public Views.vSalesPerson vSalesPerson { get; }
-            public Views.vSalesPersonSalesByFiscalYears vSalesPersonSalesByFiscalYears { get; }
-            public Views.vStoreWithAddresses vStoreWithAddresses { get; }
-            public Views.vStoreWithContacts vStoreWithContacts { get; }
-            public Views.vStoreWithDemographics vStoreWithDemographics { get; }
+
+        internal static void Seed(AdventureWorks database) {
+            database.CountryRegions.Add(new Records.CountryRegion("JP","Japan"));
+            database.CountryRegions.Add(new Records.CountryRegion("US","United States"));
+            database.StateProvinces.Add(new Records.StateProvince(1,"CA","US","California"));
+            database.StateProvinces.Add(new Records.StateProvince(2,"WA","US","Washington"));
+            database.StateProvinces.Add(new Records.StateProvince(3,"13","JP","Tokyo"));
+            database.Stores.Add(new Records.Store(10,"Bike World"));
+            database.Stores.Add(new Records.Store(11,"Trail Cycles"));
+            database.Customers.Add(new Records.Customer(1,100,10,1,"AW00000001"));
+            database.Customers.Add(new Records.Customer(2,null,11,2,"AW00000002"));
+            database.Customers.Add(new Records.Customer(3,101,null,3,"AW00000003"));
+            database.Customers.Add(new Records.Customer(4,null,null,null,"AW00000004"));
+            database.SalesOrderHeaders.Add(new Records.SalesOrderHeader(1000,1,new DateTime(2008,6,1),5,125.50m));
+            database.SalesOrderHeaders.Add(new Records.SalesOrderHeader(1001,1,new DateTime(2008,6,15),5,300.00m));
+            database.SalesOrderHeaders.Add(new Records.SalesOrderHeader(1002,2,new DateTime(2008,7,1),5,42.75m));
+            database.SalesOrderHeaders.Add(new Records.SalesOrderHeader(1003,3,new DateTime(2008,7,2),1,999.99m));
         }
     }
-    //テーブル定義: 各テーブルのカラムをプロパティとして定義
-    namespace Tables
-    {
-        //dbo.AWBuildVersion
-        public struct AWBuildVersion
-        {
-            public int SystemInformationID { get; }
-            public string DatabaseVersion { get; }
-            public DateTime VersionDate { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //dbo.DatabaseLog
-        public struct DatabaseLog
-        {
-            public int DatabaseLogID { get; }
-            public DateTime PostTime { get; }
-            public string DatabaseUser { get; }
-            public string Event { get; }
-            public string? Schema { get; }
-            public string? Object { get; }
-            public string TSQL { get; }
-            public string XmlEvent { get; }
-        }
-        //dbo.ErrorLog
-        public struct ErrorLog
-        {
-            public int ErrorLogID { get; }
-            public DateTime ErrorTime { get; }
-            public string UserName { get; }
-            public int ErrorNumber { get; }
-            public int? ErrorSeverity { get; }
-            public int? ErrorState { get; }
-            public string? ErrorProcedure { get; }
-            public int? ErrorLine { get; }
-            public string ErrorMessage { get; }
-        }
-        //HumanResources.Department
-        public struct Department
-        {
-            public short DepartmentID { get; }
-            public string Name { get; }
-            public string GroupName { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //HumanResources.Employee
-        public struct Employee
-        {
-            public int BusinessEntityID { get; }
-            public string NationalIDNumber { get; }
-            public string LoginID { get; }
-            public string? OrganizationNode { get; }
-            public short? OrganizationLevel { get; }
-            public string JobTitle { get; }
-            public DateOnly BirthDate { get; }
-            public string MaritalStatus { get; }
-            public string Gender { get; }
-            public DateOnly HireDate { get; }
-            public bool SalariedFlag { get; }
-            public short VacationHours { get; }
-            public short SickLeaveHours { get; }
-            public bool CurrentFlag { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //HumanResources.EmployeeDepartmentHistory
-        public struct EmployeeDepartmentHistory
-        {
-            public int BusinessEntityID { get; }
-            public short DepartmentID { get; }
-            public byte ShiftID { get; }
-            public DateOnly StartDate { get; }
-            public DateOnly? EndDate { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //HumanResources.EmployeePayHistory
-        public struct EmployeePayHistory
-        {
-            public int BusinessEntityID { get; }
-            public DateTime RateChangeDate { get; }
-            public decimal Rate { get; }
-            public byte PayFrequency { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //HumanResources.JobCandidate
-        public struct JobCandidate
-        {
-            public int JobCandidateID { get; }
-            public int? BusinessEntityID { get; }
-            public string? Resume { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //HumanResources.Shift
-        public struct Shift
-        {
-            public byte ShiftID { get; }
-            public string Name { get; }
-            public TimeSpan StartTime { get; }
-            public TimeSpan EndTime { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Person.Address
-        public struct Address
-        {
-            public int AddressID { get; }
-            public string AddressLine1 { get; }
-            public string? AddressLine2 { get; }
-            public string City { get; }
-            public int StateProvinceID { get; }
-            public string PostalCode { get; }
-            public string? SpatialLocation { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Person.AddressType
-        public struct AddressType
-        {
-            public int AddressTypeID { get; }
-            public string Name { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Person.BusinessEntity
-        public struct BusinessEntity
-        {
-            public int BusinessEntityID { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Person.BusinessEntityAddress
-        public struct BusinessEntityAddress
-        {
-            public int BusinessEntityID { get; }
-            public int AddressID { get; }
-            public int AddressTypeID { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Person.BusinessEntityContact
-        public struct BusinessEntityContact
-        {
-            public int BusinessEntityID { get; }
-            public int PersonID { get; }
-            public int ContactTypeID { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Person.ContactType
-        public struct ContactType
-        {
-            public int ContactTypeID { get; }
-            public string Name { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Person.CountryRegion
-        public struct CountryRegion
-        {
-            public string CountryRegionCode { get; }
-            public string Name { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Person.EmailAddress
-        public struct EmailAddress
-        {
-            public int BusinessEntityID { get; }
-            public int EmailAddressID { get; }
-            public string? EmailAddress1 { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Person.Password
-        public struct Password
-        {
-            public int BusinessEntityID { get; }
-            public string PasswordHash { get; }
-            public string PasswordSalt { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Person.Person
-        public struct Person
-        {
-            public int BusinessEntityID { get; }
-            public string PersonType { get; }
-            public bool NameStyle { get; }
-            public string? Title { get; }
-            public string FirstName { get; }
-            public string? MiddleName { get; }
-            public string LastName { get; }
-            public string? Suffix { get; }
-            public int EmailPromotion { get; }
-            public string? AdditionalContactInfo { get; }
-            public string? Demographics { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Person.PersonPhone
-        public struct PersonPhone
-        {
-            public int BusinessEntityID { get; }
-            public string PhoneNumber { get; }
-            public int PhoneNumberTypeID { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Person.PhoneNumberType
-        public struct PhoneNumberType
-        {
-            public int PhoneNumberTypeID { get; }
-            public string Name { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Person.StateProvince
-        public struct StateProvince
-        {
-            public int StateProvinceID { get; }
-            public string StateProvinceCode { get; }
-            public string CountryRegionCode { get; }
-            public bool IsOnlyStateProvinceFlag { get; }
-            public string Name { get; }
-            public int TerritoryID { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.BillOfMaterials
-        public struct BillOfMaterials
-        {
-            public int BillOfMaterialsID { get; }
-            public int? ProductAssemblyID { get; }
-            public int ComponentID { get; }
-            public DateTime StartDate { get; }
-            public DateTime? EndDate { get; }
-            public string UnitMeasureCode { get; }
-            public short BOMLevel { get; }
-            public decimal PerAssemblyQty { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.Culture
-        public struct Culture
-        {
-            public string CultureID { get; }
-            public string Name { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.Document
-        public struct Document
-        {
-            public string DocumentNode { get; }
-            public short? DocumentLevel { get; }
-            public string Title { get; }
-            public int Owner { get; }
-            public bool FolderFlag { get; }
-            public string FileName { get; }
-            public string FileExtension { get; }
-            public string Revision { get; }
-            public int ChangeNumber { get; }
-            public byte Status { get; }
-            public string? DocumentSummary { get; }
-            public byte[]? DocumentData { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.Illustration
-        public struct Illustration
-        {
-            public int IllustrationID { get; }
-            public string? Diagram { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.Location
-        public struct Location
-        {
-            public short LocationID { get; }
-            public string Name { get; }
-            public decimal CostRate { get; }
-            public decimal Availability { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.Product
-        public struct Product
-        {
-            public int ProductID { get; }
-            public string Name { get; }
-            public string ProductNumber { get; }
-            public bool MakeFlag { get; }
-            public bool FinishedGoodsFlag { get; }
-            public string? Color { get; }
-            public short SafetyStockLevel { get; }
-            public short ReorderPoint { get; }
-            public decimal StandardCost { get; }
-            public decimal ListPrice { get; }
-            public string? Size { get; }
-            public string? SizeUnitMeasureCode { get; }
-            public string? WeightUnitMeasureCode { get; }
-            public decimal? Weight { get; }
-            public int DaysToManufacture { get; }
-            public string? ProductLine { get; }
-            public string? Class { get; }
-            public string? Style { get; }
-            public int? ProductSubcategoryID { get; }
-            public int? ProductModelID { get; }
-            public DateTime SellStartDate { get; }
-            public DateTime? SellEndDate { get; }
-            public DateTime? DiscontinuedDate { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.ProductCategory
-        public struct ProductCategory
-        {
-            public int ProductCategoryID { get; }
-            public string Name { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.ProductCostHistory
-        public struct ProductCostHistory
-        {
-            public int ProductID { get; }
-            public DateTime StartDate { get; }
-            public DateTime? EndDate { get; }
-            public decimal StandardCost { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.ProductDescription
-        public struct ProductDescription
-        {
-            public int ProductDescriptionID { get; }
-            public string Description { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.ProductDocument
-        public struct ProductDocument
-        {
-            public int ProductID { get; }
-            public string DocumentNode { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.ProductInventory
-        public struct ProductInventory
-        {
-            public int ProductID { get; }
-            public short LocationID { get; }
-            public string Shelf { get; }
-            public byte Bin { get; }
-            public short Quantity { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.ProductListPriceHistory
-        public struct ProductListPriceHistory
-        {
-            public int ProductID { get; }
-            public DateTime StartDate { get; }
-            public DateTime? EndDate { get; }
-            public decimal ListPrice { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.ProductModel
-        public struct ProductModel
-        {
-            public int ProductModelID { get; }
-            public string Name { get; }
-            public string? CatalogDescription { get; }
-            public string? Instructions { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.ProductModelIllustration
-        public struct ProductModelIllustration
-        {
-            public int ProductModelID { get; }
-            public int IllustrationID { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.ProductModelProductDescriptionCulture
-        public struct ProductModelProductDescriptionCulture
-        {
-            public int ProductModelID { get; }
-            public int ProductDescriptionID { get; }
-            public string CultureID { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.ProductPhoto
-        public struct ProductPhoto
-        {
-            public int ProductPhotoID { get; }
-            public byte[]? ThumbNailPhoto { get; }
-            public string? ThumbnailPhotoFileName { get; }
-            public byte[]? LargePhoto { get; }
-            public string? LargePhotoFileName { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.ProductProductPhoto
-        public struct ProductProductPhoto
-        {
-            public int ProductID { get; }
-            public int ProductPhotoID { get; }
-            public bool Primary { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.ProductReview
-        public struct ProductReview
-        {
-            public int ProductReviewID { get; }
-            public int ProductID { get; }
-            public string ReviewerName { get; }
-            public DateTime ReviewDate { get; }
-            public string EmailAddress { get; }
-            public int Rating { get; }
-            public string? Comments { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.ProductSubcategory
-        public struct ProductSubcategory
-        {
-            public int ProductSubcategoryID { get; }
-            public int ProductCategoryID { get; }
-            public string Name { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.ScrapReason
-        public struct ScrapReason
-        {
-            public short ScrapReasonID { get; }
-            public string Name { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.TransactionHistory
-        public struct TransactionHistory
-        {
-            public int TransactionID { get; }
-            public int ProductID { get; }
-            public int ReferenceOrderID { get; }
-            public int ReferenceOrderLineID { get; }
-            public DateTime TransactionDate { get; }
-            public string TransactionType { get; }
-            public int Quantity { get; }
-            public decimal ActualCost { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.TransactionHistoryArchive
-        public struct TransactionHistoryArchive
-        {
-            public int TransactionID { get; }
-            public int ProductID { get; }
-            public int ReferenceOrderID { get; }
-            public int ReferenceOrderLineID { get; }
-            public DateTime TransactionDate { get; }
-            public string TransactionType { get; }
-            public int Quantity { get; }
-            public decimal ActualCost { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.UnitMeasure
-        public struct UnitMeasure
-        {
-            public string UnitMeasureCode { get; }
-            public string Name { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.WorkOrder
-        public struct WorkOrder
-        {
-            public int WorkOrderID { get; }
-            public int ProductID { get; }
-            public int OrderQty { get; }
-            public int StockedQty { get; }
-            public short ScrappedQty { get; }
-            public DateTime StartDate { get; }
-            public DateTime? EndDate { get; }
-            public DateTime DueDate { get; }
-            public short? ScrapReasonID { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.WorkOrderRouting
-        public struct WorkOrderRouting
-        {
-            public int WorkOrderID { get; }
-            public int ProductID { get; }
-            public short OperationSequence { get; }
-            public short LocationID { get; }
-            public DateTime ScheduledStartDate { get; }
-            public DateTime ScheduledEndDate { get; }
-            public DateTime? ActualStartDate { get; }
-            public DateTime? ActualEndDate { get; }
-            public decimal? ActualResourceHrs { get; }
-            public decimal PlannedCost { get; }
-            public decimal? ActualCost { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Purchasing.ProductVendor
-        public struct ProductVendor
-        {
-            public int ProductID { get; }
-            public int BusinessEntityID { get; }
-            public int AverageLeadTime { get; }
-            public decimal StandardPrice { get; }
-            public decimal? LastReceiptCost { get; }
-            public DateTime? LastReceiptDate { get; }
-            public int MinOrderQty { get; }
-            public int MaxOrderQty { get; }
-            public int? OnOrderQty { get; }
-            public string UnitMeasureCode { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Purchasing.PurchaseOrderDetail
-        public struct PurchaseOrderDetail
-        {
-            public int PurchaseOrderID { get; }
-            public int PurchaseOrderDetailID { get; }
-            public DateTime DueDate { get; }
-            public short OrderQty { get; }
-            public int ProductID { get; }
-            public decimal UnitPrice { get; }
-            public decimal LineTotal { get; }
-            public decimal ReceivedQty { get; }
-            public decimal RejectedQty { get; }
-            public decimal StockedQty { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Purchasing.PurchaseOrderHeader
-        public struct PurchaseOrderHeader
-        {
-            public int PurchaseOrderID { get; }
-            public byte RevisionNumber { get; }
-            public byte Status { get; }
-            public int EmployeeID { get; }
-            public int VendorID { get; }
-            public int ShipMethodID { get; }
-            public DateTime OrderDate { get; }
-            public DateTime? ShipDate { get; }
-            public decimal SubTotal { get; }
-            public decimal TaxAmt { get; }
-            public decimal Freight { get; }
-            public decimal TotalDue { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Purchasing.ShipMethod
-        public struct ShipMethod
-        {
-            public int ShipMethodID { get; }
-            public string Name { get; }
-            public decimal ShipBase { get; }
-            public decimal ShipRate { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Purchasing.Vendor
-        public struct Vendor
-        {
-            public int BusinessEntityID { get; }
-            public string AccountNumber { get; }
-            public string Name { get; }
-            public byte CreditRating { get; }
-            public bool PreferredVendorStatus { get; }
-            public bool ActiveFlag { get; }
-            public string? PurchasingWebServiceURL { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Sales.CountryRegionCurrency
-        public struct CountryRegionCurrency
-        {
-            public string CountryRegionCode { get; }
-            public string CurrencyCode { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Sales.CreditCard
-        public struct CreditCard
-        {
-            public int CreditCardID { get; }
-            public string CardType { get; }
-            public string CardNumber { get; }
-            public byte ExpMonth { get; }
-            public short ExpYear { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Sales.Currency
-        public struct Currency
-        {
-            public string CurrencyCode { get; }
-            public string Name { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Sales.CurrencyRate
-        public struct CurrencyRate
-        {
-            public int CurrencyRateID { get; }
-            public DateTime CurrencyRateDate { get; }
-            public string FromCurrencyCode { get; }
-            public string ToCurrencyCode { get; }
-            public decimal AverageRate { get; }
-            public decimal EndOfDayRate { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Sales.Customer
-        public struct Customer
-        {
-            public int CustomerID { get; }
-            public int? PersonID { get; }
-            public int? StoreID { get; }
-            public int? TerritoryID { get; }
-            public string AccountNumber { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Sales.PersonCreditCard
-        public struct PersonCreditCard
-        {
-            public int BusinessEntityID { get; }
-            public int CreditCardID { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Sales.SalesOrderDetail
-        public struct SalesOrderDetail
-        {
-            public int SalesOrderID { get; }
-            public int SalesOrderDetailID { get; }
-            public string? CarrierTrackingNumber { get; }
-            public short OrderQty { get; }
-            public int ProductID { get; }
-            public int SpecialOfferID { get; }
-            public decimal UnitPrice { get; }
-            public decimal UnitPriceDiscount { get; }
-            public decimal LineTotal { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Sales.SalesOrderHeader
-        public struct SalesOrderHeader
-        {
-            public int SalesOrderID { get; }
-            public byte RevisionNumber { get; }
-            public DateTime OrderDate { get; }
-            public DateTime DueDate { get; }
-            public DateTime? ShipDate { get; }
-            public byte Status { get; }
-            public bool OnlineOrderFlag { get; }
-            public string SalesOrderNumber { get; }
-            public string? PurchaseOrderNumber { get; }
-            public string? AccountNumber { get; }
-            public int CustomerID { get; }
-            public int? SalesPersonID { get; }
-            public int? TerritoryID { get; }
-            public int BillToAddressID { get; }
-            public int ShipToAddressID { get; }
-            public int ShipMethodID { get; }
-            public int? CreditCardID { get; }
-            public string? CreditCardApprovalCode { get; }
-            public int? CurrencyRateID { get; }
-            public decimal SubTotal { get; }
-            public decimal TaxAmt { get; }
-            public decimal Freight { get; }
-            public decimal TotalDue { get; }
-            public string? Comment { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Sales.SalesOrderHeaderSalesReason
-        public struct SalesOrderHeaderSalesReason
-        {
-            public int SalesOrderID { get; }
-            public int SalesReasonID { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Sales.SalesPerson
-        public struct SalesPerson
-        {
-            public int BusinessEntityID { get; }
-            public int? TerritoryID { get; }
-            public decimal? SalesQuota { get; }
-            public decimal Bonus { get; }
-            public decimal CommissionPct { get; }
-            public decimal SalesYTD { get; }
-            public decimal SalesLastYear { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Sales.SalesPersonQuotaHistory
-        public struct SalesPersonQuotaHistory
-        {
-            public int BusinessEntityID { get; }
-            public DateTime QuotaDate { get; }
-            public decimal SalesQuota { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Sales.SalesReason
-        public struct SalesReason
-        {
-            public int SalesReasonID { get; }
-            public string Name { get; }
-            public string ReasonType { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Sales.SalesTaxRate
-        public struct SalesTaxRate
-        {
-            public int SalesTaxRateID { get; }
-            public int StateProvinceID { get; }
-            public byte TaxType { get; }
-            public decimal TaxRate { get; }
-            public string Name { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Sales.SalesTerritory
-        public struct SalesTerritory
-        {
-            public int TerritoryID { get; }
-            public string Name { get; }
-            public string CountryRegionCode { get; }
-            public string Group { get; }
-            public decimal SalesYTD { get; }
-            public decimal SalesLastYear { get; }
-            public decimal CostYTD { get; }
-            public decimal CostLastYear { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Sales.SalesTerritoryHistory
-        public struct SalesTerritoryHistory
-        {
-            public int BusinessEntityID { get; }
-            public int TerritoryID { get; }
-            public DateTime StartDate { get; }
-            public DateTime? EndDate { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Sales.ShoppingCartItem
-        public struct ShoppingCartItem
-        {
-            public int ShoppingCartItemID { get; }
-            public string ShoppingCartID { get; }
-            public int Quantity { get; }
-            public int ProductID { get; }
-            public DateTime DateCreated { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Sales.SpecialOffer
-        public struct SpecialOffer
-        {
-            public int SpecialOfferID { get; }
-            public string Description { get; }
-            public decimal DiscountPct { get; }
-            public string Type { get; }
-            public string Category { get; }
-            public DateTime StartDate { get; }
-            public DateTime EndDate { get; }
-            public int MinQty { get; }
-            public int? MaxQty { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Sales.SpecialOfferProduct
-        public struct SpecialOfferProduct
-        {
-            public int SpecialOfferID { get; }
-            public int ProductID { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Sales.Store
-        public struct Store
-        {
-            public int BusinessEntityID { get; }
-            public string Name { get; }
-            public int? SalesPersonID { get; }
-            public string? Demographics { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-    }
-    //ビュー定義: 各ビューのカラムをプロパティとして定義
-    namespace Views
-    {
-        //HumanResources.vEmployee
-        public struct vEmployee
-        {
-            public int BusinessEntityID { get; }
-            public string? Title { get; }
-            public string FirstName { get; }
-            public string? MiddleName { get; }
-            public string LastName { get; }
-            public string? Suffix { get; }
-            public string JobTitle { get; }
-            public string? PhoneNumber { get; }
-            public string? PhoneNumberType { get; }
-            public string? EmailAddress { get; }
-            public int EmailPromotion { get; }
-            public string AddressLine1 { get; }
-            public string? AddressLine2 { get; }
-            public string City { get; }
-            public string StateProvinceName { get; }
-            public string PostalCode { get; }
-            public string CountryRegionName { get; }
-            public string? AdditionalContactInfo { get; }
-        }
-        //HumanResources.vEmployeeDepartment
-        public struct vEmployeeDepartment
-        {
-            public int BusinessEntityID { get; }
-            public string? Title { get; }
-            public string FirstName { get; }
-            public string? MiddleName { get; }
-            public string LastName { get; }
-            public string? Suffix { get; }
-            public string JobTitle { get; }
-            public string Department { get; }
-            public string GroupName { get; }
-            public DateOnly StartDate { get; }
-        }
-        //HumanResources.vEmployeeDepartmentHistory
-        public struct vEmployeeDepartmentHistory
-        {
-            public int BusinessEntityID { get; }
-            public string? Title { get; }
-            public string FirstName { get; }
-            public string? MiddleName { get; }
-            public string LastName { get; }
-            public string? Suffix { get; }
-            public string Shift { get; }
-            public string Department { get; }
-            public string GroupName { get; }
-            public DateOnly StartDate { get; }
-            public DateOnly? EndDate { get; }
-        }
-        //HumanResources.vJobCandidate
-        public struct vJobCandidate
-        {
-            public int JobCandidateID { get; }
-            public int? BusinessEntityID { get; }
-            public string? Name_Prefix { get; }
-            public string? Name_First { get; }
-            public string? Name_Middle { get; }
-            public string? Name_Last { get; }
-            public string? Name_Suffix { get; }
-            public string? Skills { get; }
-            public string? Addr_Type { get; }
-            public string? Addr_Loc_CountryRegion { get; }
-            public string? Addr_Loc_State { get; }
-            public string? Addr_Loc_City { get; }
-            public string? Addr_PostalCode { get; }
-            public string? EMail { get; }
-            public string? WebSite { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //HumanResources.vJobCandidateEducation
-        public struct vJobCandidateEducation
-        {
-            public int JobCandidateID { get; }
-            public string? Edu_Level { get; }
-            public DateTime? Edu_StartDate { get; }
-            public DateTime? Edu_EndDate { get; }
-            public string? Edu_Degree { get; }
-            public string? Edu_Major { get; }
-            public string? Edu_Minor { get; }
-            public string? Edu_GPA { get; }
-            public string? Edu_GPAScale { get; }
-            public string? Edu_School { get; }
-            public string? Edu_Loc_CountryRegion { get; }
-            public string? Edu_Loc_State { get; }
-            public string? Edu_Loc_City { get; }
-        }
-        //HumanResources.vJobCandidateEmployment
-        public struct vJobCandidateEmployment
-        {
-            public int JobCandidateID { get; }
-            public DateTime? Emp_StartDate { get; }
-            public DateTime? Emp_EndDate { get; }
-            public string? Emp_OrgName { get; }
-            public string? Emp_JobTitle { get; }
-            public string? Emp_Responsibility { get; }
-            public string? Emp_FunctionCategory { get; }
-            public string? Emp_IndustryCategory { get; }
-            public string? Emp_Loc_CountryRegion { get; }
-            public string? Emp_Loc_State { get; }
-            public string? Emp_Loc_City { get; }
-        }
-        //Person.vAdditionalContactInfo
-        public struct vAdditionalContactInfo
-        {
-            public int BusinessEntityID { get; }
-            public string FirstName { get; }
-            public string? MiddleName { get; }
-            public string LastName { get; }
-            public string? TelephoneNumber { get; }
-            public string? TelephoneSpecialInstructions { get; }
-            public string? Street { get; }
-            public string? City { get; }
-            public string? StateProvince { get; }
-            public string? PostalCode { get; }
-            public string? CountryRegion { get; }
-            public string? HomeAddressSpecialInstructions { get; }
-            public string? EMailAddress { get; }
-            public string? EMailSpecialInstructions { get; }
-            public string? EMailTelephoneNumber { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Person.vStateProvinceCountryRegion
-        public struct vStateProvinceCountryRegion
-        {
-            public int StateProvinceID { get; }
-            public string StateProvinceCode { get; }
-            public bool IsOnlyStateProvinceFlag { get; }
-            public string StateProvinceName { get; }
-            public int TerritoryID { get; }
-            public string CountryRegionCode { get; }
-            public string CountryRegionName { get; }
-        }
-        //Production.vProductAndDescription
-        public struct vProductAndDescription
-        {
-            public int ProductID { get; }
-            public string Name { get; }
-            public string ProductModel { get; }
-            public string CultureID { get; }
-            public string Description { get; }
-        }
-        //Production.vProductModelCatalogDescription
-        public struct vProductModelCatalogDescription
-        {
-            public int ProductModelID { get; }
-            public string Name { get; }
-            public string? Summary { get; }
-            public string? Manufacturer { get; }
-            public string? Copyright { get; }
-            public string? ProductURL { get; }
-            public string? WarrantyPeriod { get; }
-            public string? WarrantyDescription { get; }
-            public string? NoOfYears { get; }
-            public string? MaintenanceDescription { get; }
-            public string? Wheel { get; }
-            public string? Saddle { get; }
-            public string? Pedal { get; }
-            public string? BikeFrame { get; }
-            public string? Crankset { get; }
-            public string? PictureAngle { get; }
-            public string? PictureSize { get; }
-            public string? ProductPhotoID { get; }
-            public string? Material { get; }
-            public string? Color { get; }
-            public string? ProductLine { get; }
-            public string? Style { get; }
-            public string? RiderExperience { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Production.vProductModelInstructions
-        public struct vProductModelInstructions
-        {
-            public int ProductModelID { get; }
-            public string Name { get; }
-            public string? Instructions { get; }
-            public int? LocationID { get; }
-            public decimal? SetupHours { get; }
-            public decimal? MachineHours { get; }
-            public decimal? LaborHours { get; }
-            public int? LotSize { get; }
-            public string? Step { get; }
-            public Guid rowguid { get; }
-            public DateTime ModifiedDate { get; }
-        }
-        //Purchasing.vVendorWithAddresses
-        public struct vVendorWithAddresses
-        {
-            public int BusinessEntityID { get; }
-            public string Name { get; }
-            public string AddressType { get; }
-            public string AddressLine1 { get; }
-            public string? AddressLine2 { get; }
-            public string City { get; }
-            public string StateProvinceName { get; }
-            public string PostalCode { get; }
-            public string CountryRegionName { get; }
-        }
-        //Purchasing.vVendorWithContacts
-        public struct vVendorWithContacts
-        {
-            public int BusinessEntityID { get; }
-            public string Name { get; }
-            public string ContactType { get; }
-            public string? Title { get; }
-            public string FirstName { get; }
-            public string? MiddleName { get; }
-            public string LastName { get; }
-            public string? Suffix { get; }
-            public string? PhoneNumber { get; }
-            public string? PhoneNumberType { get; }
-            public string? EmailAddress { get; }
-            public int EmailPromotion { get; }
-        }
-        //Sales.vIndividualCustomer
-        public struct vIndividualCustomer
-        {
-            public int BusinessEntityID { get; }
-            public string? Title { get; }
-            public string FirstName { get; }
-            public string? MiddleName { get; }
-            public string LastName { get; }
-            public string? Suffix { get; }
-            public string? PhoneNumber { get; }
-            public string? PhoneNumberType { get; }
-            public string? EmailAddress { get; }
-            public int EmailPromotion { get; }
-            public string AddressType { get; }
-            public string AddressLine1 { get; }
-            public string? AddressLine2 { get; }
-            public string City { get; }
-            public string StateProvinceName { get; }
-            public string PostalCode { get; }
-            public string CountryRegionName { get; }
-            public string? Demographics { get; }
-        }
-        //Sales.vPersonDemographics
-        public struct vPersonDemographics
-        {
-            public int BusinessEntityID { get; }
-            public decimal? TotalPurchaseYTD { get; }
-            public DateTime? DateFirstPurchase { get; }
-            public DateTime? BirthDate { get; }
-            public string? MaritalStatus { get; }
-            public string? YearlyIncome { get; }
-            public string? Gender { get; }
-            public int? TotalChildren { get; }
-            public int? NumberChildrenAtHome { get; }
-            public string? Education { get; }
-            public string? Occupation { get; }
-            public bool? HomeOwnerFlag { get; }
-            public int? NumberCarsOwned { get; }
-        }
-        //Sales.vSalesPerson
-        public struct vSalesPerson
-        {
-            public int BusinessEntityID { get; }
-            public string? Title { get; }
-            public string FirstName { get; }
-            public string? MiddleName { get; }
-            public string LastName { get; }
-            public string? Suffix { get; }
-            public string JobTitle { get; }
-            public string? PhoneNumber { get; }
-            public string? PhoneNumberType { get; }
-            public string? EmailAddress { get; }
-            public int EmailPromotion { get; }
-            public string City { get; }
-            public string StateProvinceName { get; }
-            public string PostalCode { get; }
-            public string CountryRegionName { get; }
-            public string? TerritoryName { get; }
-            public string? TerritoryGroup { get; }
-            public decimal? SalesQuota { get; }
-            public decimal SalesYTD { get; }
-            public decimal SalesLastYear { get; }
-        }
-        //Sales.vSalesPersonSalesByFiscalYears
-        public struct vSalesPersonSalesByFiscalYears
-        {
-            public int? SalesPersonID { get; }
-            public string? FullName { get; }
-            public string JobTitle { get; }
-            public string SalesTerritory { get; }
-            public decimal? SalesTotal2002 { get; }
-            public decimal? SalesTotal2003 { get; }
-            public decimal? SalesTotal2004 { get; }
-        }
-        //Sales.vStoreWithAddresses
-        public struct vStoreWithAddresses
-        {
-            public int BusinessEntityID { get; }
-            public string Name { get; }
-            public string AddressType { get; }
-            public string AddressLine1 { get; }
-            public string? AddressLine2 { get; }
-            public string City { get; }
-            public string StateProvinceName { get; }
-            public string PostalCode { get; }
-            public string CountryRegionName { get; }
-        }
-        //Sales.vStoreWithContacts
-        public struct vStoreWithContacts
-        {
-            public int BusinessEntityID { get; }
-            public string Name { get; }
-            public string ContactType { get; }
-            public string? Title { get; }
-            public string FirstName { get; }
-            public string? MiddleName { get; }
-            public string LastName { get; }
-            public string? Suffix { get; }
-            public string? PhoneNumber { get; }
-            public string? PhoneNumberType { get; }
-            public string? EmailAddress { get; }
-            public int EmailPromotion { get; }
-        }
-        //Sales.vStoreWithDemographics
-        public struct vStoreWithDemographics
-        {
-            public int BusinessEntityID { get; }
-            public string Name { get; }
-            public decimal? AnnualSales { get; }
-            public decimal? AnnualRevenue { get; }
-            public string? BankName { get; }
-            public string? BusinessType { get; }
-            public int? YearOpened { get; }
-            public string? Specialty { get; }
-            public int? SquareFeet { get; }
-            public string? Brands { get; }
-            public string? Internet { get; }
-            public int? NumberEmployees { get; }
-        }
-    }
-    //テーブル関数定義: テーブル値関数の戻り値カラムをプロパティとして定義
-    namespace Functions
-    {
-        //dbo.ufnGetContactInformation(@PersonID int)
-        public struct ufnGetContactInformation
-        {
-            public int PersonID { get; }
-            public string? FirstName { get; }
-            public string? LastName { get; }
-            public string? JobTitle { get; }
-            public string? BusinessEntityType { get; }
+
+    [Collection("AdventureWorksCollection")]
+    public sealed class AdventureWorksTests(AdventureWorksFixture fixture):IClassFixture<AdventureWorksFixture> {
+        private AdventureWorks Database => fixture.Database;
+
+        [Fact] public void ActiveCustomers_View_MatchesBaseline() {
+            var expected = Baseline.ActiveCustomers(this.Database);
+            var view = this.Database.ActiveCustomers();
+            Assert.Equal("ActiveCustomers",view.Name);
+            Assert.Equal("Sales.vActiveCustomer",view.SqlName);
+            Assert.Equal(expected,view.Select(row => (row.CustomerId,row.StoreId)).ToArray());
+            Assert.Same(view,this.Database.ActiveCustomers());
+        }
+
+        [Fact] public void StateProvinceCountryRegions_View_MatchesBaseline() {
+            var expected = Baseline.StateProvinceCountryRegions(this.Database);
+            var view = this.Database.StateProvinceCountryRegions();
+            Assert.Equal("Person.vStateProvinceCountryRegion",view.SqlName);
+            Assert.Equal(expected,view.Select(row => (row.StateProvinceId,row.StateProvinceName,row.CountryRegionCode,row.CountryRegionName)).ToArray());
+        }
+
+        [Fact] public void OrdersByCustomer_TableFunction_MatchesBaseline() {
+            var expected = Baseline.OrdersByCustomer(this.Database,1);
+            var function = this.Database.OrdersByCustomer(1);
+            Assert.Equal("dbo.ufnOrdersByCustomer",function.SqlName);
+            Assert.Equal(expected,function.Select(row => (row.SalesOrderId,row.TotalDue)).ToArray());
+            {
+                //一致しない顧客IDは空列挙になる
+                Assert.Empty(this.Database.OrdersByCustomer(999).ToArray());
+            }
+        }
+
+        [Fact] public void CustomerTotalDue_ScalarFunction_MatchesBaseline() {
+            Assert.Equal(Baseline.CustomerTotalDue(this.Database,1),this.Database.CustomerTotalDue(1));
+            Assert.Equal(0m,this.Database.CustomerTotalDue(999));
+        }
+
+        [Fact] public void DatabaseMetadata_FromGenerator() {
+            Assert.Equal("AdventureWorks2008R2",this.Database.DatabaseName);
+            var objects = this.Database.DatabaseObjects;
+            Assert.Contains(objects,declaration => declaration is { Kind: global::Seamless.Database.DatabaseObjectKind.Table,MemberName: "Customers",SqlName: "Sales.Customer" });
+            Assert.Contains(objects,declaration => declaration is { Kind: global::Seamless.Database.DatabaseObjectKind.View,MemberName: "ActiveCustomers",SqlName: "Sales.vActiveCustomer" });
+            Assert.Contains(objects,declaration => declaration is { Kind: global::Seamless.Database.DatabaseObjectKind.TableFunction,MemberName: "OrdersByCustomer",SqlName: "dbo.ufnOrdersByCustomer" });
+            Assert.Contains(objects,declaration => declaration is { Kind: global::Seamless.Database.DatabaseObjectKind.ScalarFunction,MemberName: "CustomerTotalDue",SqlName: "dbo.ufnCustomerTotalDue" });
+            Assert.Equal(5,objects.Count(declaration => declaration.Kind==global::Seamless.Database.DatabaseObjectKind.Table));
+        }
+
+        [Fact] public void StorageMode_PersistsUnderStorageDirectory() {
+            var directory = global::Seamless.Collections.TestPath.Directory<AdventureWorksTests>("storage");
+            using(var database = new AdventureWorks(global::Seamless.Database.DatabaseContainerOptions.OnStorage(directory) with { IndexSize=1L<<12,MemorySize=1L<<24 })) {
+                AdventureWorksFixture.Seed(database);
+                var expected = Baseline.ActiveCustomers(database);
+                Assert.Equal(expected,database.ActiveCustomers().Select(row => (row.CustomerId,row.StoreId)).ToArray());
+                Assert.True(Directory.Exists(Path.Combine(directory,"Sales.Customer")));
+            }
+        }
+
+        [Fact] public void ImportTables_FromImportSource() {
+            using var database = new AdventureWorks();
+            database.EnsureTablesCreated();
+            database.ImportTables(new SampleImportSource());
+            var count = 0;
+            foreach(var customer in database.Customers) {
+                count++;
+            }
+            Assert.Equal(2,count);
+        }
+
+        private sealed class SampleImportSource:global::Seamless.Database.IDatabaseImportSource {
+            public IEnumerable<TRecord> ReadTable<TRecord>(string sqlName) {
+                if(sqlName=="Sales.Customer") {
+                    return (IEnumerable<TRecord>)(object)new[] {
+                        new Records.Customer(21,null,10,1,"AW00000021"),
+                        new Records.Customer(22,102,null,2,"AW00000022"),
+                    };
+                }
+                return [];
+            }
+        }
+
+        // LINQ を使わない手続き実装のベースライン。FLinq 展開結果との一致検証に使う。
+        private static class Baseline {
+            public static (int CustomerId,int StoreId)[] ActiveCustomers(AdventureWorks database) {
+                var rows = new List<(int CustomerId,int StoreId)>();
+                foreach(var customer in database.Customers) {
+                    if(customer.StoreId.HasValue) {
+                        rows.Add((customer.CustomerId,customer.StoreId.Value));
+                    }
+                }
+                rows.Sort(static (left,right) => left.CustomerId.CompareTo(right.CustomerId));
+                return [..rows];
+            }
+            public static (int StateProvinceId,string StateProvinceName,string CountryRegionCode,string CountryRegionName)[] StateProvinceCountryRegions(AdventureWorks database) {
+                var rows = new List<(int,string,string,string)>();
+                foreach(var state in database.StateProvinces) {
+                    foreach(var region in database.CountryRegions) {
+                        if(state.CountryRegionCode==region.CountryRegionCode) {
+                            rows.Add((state.StateProvinceId,state.Name,region.CountryRegionCode,region.Name));
+                        }
+                    }
+                }
+                rows.Sort(static (left,right) => left.Item1.CompareTo(right.Item1));
+                return [..rows];
+            }
+            public static (int SalesOrderId,decimal TotalDue)[] OrdersByCustomer(AdventureWorks database,int customerId) {
+                var rows = new List<(int SalesOrderId,decimal TotalDue)>();
+                foreach(var order in database.SalesOrderHeaders) {
+                    if(order.CustomerId==customerId) {
+                        rows.Add((order.SalesOrderId,order.TotalDue));
+                    }
+                }
+                rows.Sort(static (left,right) => left.SalesOrderId.CompareTo(right.SalesOrderId));
+                return [..rows];
+            }
+            public static decimal CustomerTotalDue(AdventureWorks database,int customerId) {
+                var total = 0m;
+                foreach(var order in database.SalesOrderHeaders) {
+                    if(order.CustomerId==customerId) {
+                        total+=order.TotalDue;
+                    }
+                }
+                return total;
+            }
         }
     }
 }

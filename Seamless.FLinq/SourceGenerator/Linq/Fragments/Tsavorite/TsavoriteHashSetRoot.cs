@@ -7,10 +7,10 @@ not raw log traversal or legacy unsafe delegate helpers, so generated LINQ sees 
 collection state instead of raw log records.
 */
 public sealed class TsavoriteHashSetRoot(
-    int 逡ｪ蜿ｷ,
+    int 番号,
     string sourceExpression,
     string elementType,
     string enumeratorTypeName)
-    : Root(逡ｪ蜿ｷ,sourceExpression,elementType,enumeratorTypeName,useEnumerableInterface: false) {
+    : Root(番号,sourceExpression,elementType,enumeratorTypeName,useEnumerableInterface: false) {
     public string SourceExpression { get; } = sourceExpression;
 }

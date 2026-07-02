@@ -18,7 +18,7 @@ public sealed class ParameterSweepViewModel:INotifyPropertyChanged {
 
     public ParameterSweepViewModel() {
         this.store=new(UiRunDatabasePathResolver.Resolve(FindSolutionRoot()));
-        this.store.Initialize();
+        this.store.EnsureSchema();
         this.RefreshRuns();
     }
 
