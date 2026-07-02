@@ -136,6 +136,38 @@ internal static class BenchmarkMeasurementHighlightLogic{
             : BenchmarkMeasurementHighlightState.None;
 }
 
+internal static class BenchmarkRunDisplaySourceLogic{
+    public static bool ShouldUseCurrentRunMemory(bool hasCurrentRunResultsForSelectedTab) =>
+        hasCurrentRunResultsForSelectedTab;
+
+    public static bool ShouldKeepCurrentRunMemoryDisplay(bool hasAnyCurrentRunResults) =>
+        hasAnyCurrentRunResults;
+
+    public static bool ShouldLoadSelectedRunFromDatabase(
+        bool hasCurrentRunResultsForSelectedTab,
+        bool hasAnyCurrentRunResults,
+        bool isBenchmarkRunActive,
+        bool isLoadingSelectedRunDb,
+        bool isExternalRunOption,
+        bool isNewRunOption,
+        bool isTransientRunOption,
+        bool hasSavedRunSelection){
+        if(isLoadingSelectedRunDb||isBenchmarkRunActive){
+            return false;
+        }
+
+        if(hasCurrentRunResultsForSelectedTab||hasAnyCurrentRunResults){
+            return false;
+        }
+
+        if(isExternalRunOption||isNewRunOption||isTransientRunOption){
+            return false;
+        }
+
+        return hasSavedRunSelection;
+    }
+}
+
 internal static class BenchmarkTimestampDisplay{
     public const string Format = "yyyy/MM/dd HH:mm:ss";
 
@@ -169,6 +201,61 @@ internal readonly record struct BenchmarkChartBarRect(float Left,float Right,flo
 
 internal readonly record struct BenchmarkChartLabelPoint(float X,float Y);
 
+internal readonly record struct BenchmarkChartLabelRect(float X,float Y,float Width,float Height);
+
+internal static class BenchmarkChartDisplayOrderLogic{
+    public static IReadOnlyList<T> CreateTransposedSourceOrder<T>(IReadOnlyList<T> gridDisplayOrder){
+        var ordered = new T[gridDisplayOrder.Count];
+        for(var index=0;index<gridDisplayOrder.Count;index++){
+            ordered[index]=gridDisplayOrder[gridDisplayOrder.Count-index-1];
+        }
+
+        return ordered;
+    }
+}
+
+internal readonly record struct BenchmarkResultSelectionCell(
+    string Project,
+    string Method,
+    string TypeFullName,
+    string ArgumentKey,
+    bool HasCase,
+    bool IsSelected);
+
+[global::Seamless.FLinq.LinqIntercept(false)]
+internal static class BenchmarkResultDisplaySelectionLogic{
+    public static bool IsResultSelected(BenchmarkResultItem result,IEnumerable<BenchmarkResultSelectionCell> cells) =>
+        cells.Any(cell => cell.HasCase
+            &&cell.IsSelected
+            &&string.Equals(cell.Project,result.Project,StringComparison.OrdinalIgnoreCase)
+            &&string.Equals(cell.Method,result.Method,StringComparison.OrdinalIgnoreCase)
+            &&IsSameType(result.TypeFullName,cell.TypeFullName)
+            &&IsSameArgument(result.ArgumentKey,cell.ArgumentKey));
+
+    private static bool IsSameType(string left,string right) =>
+        string.IsNullOrWhiteSpace(right)
+            ? true
+            : !string.IsNullOrWhiteSpace(left)
+                &&(string.Equals(left,right,StringComparison.OrdinalIgnoreCase)
+                    ||string.Equals(ShortTypeName(left),right,StringComparison.OrdinalIgnoreCase)
+                    ||string.Equals(left,ShortTypeName(right),StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsSameArgument(string left,string right) =>
+        string.IsNullOrWhiteSpace(right)
+            ||string.Equals(left,right,StringComparison.OrdinalIgnoreCase);
+
+    private static string ShortTypeName(string typeFullName) {
+        if(string.IsNullOrWhiteSpace(typeFullName)) {
+            return string.Empty;
+        }
+
+        var index = typeFullName.LastIndexOf('.');
+        return index<0||index==typeFullName.Length-1
+            ? typeFullName
+            : typeFullName[(index+1)..];
+    }
+}
+
 internal static class BenchmarkChartSelectionLayoutLogic{
     public static float CalculateStackBoundary(float plotLeft,float plotRight,float leftPercent) =>
         plotLeft+(plotRight-plotLeft)*Math.Clamp(leftPercent,0,100)/100;
@@ -187,6 +274,12 @@ internal static class BenchmarkChartSelectionLayoutLogic{
         return (
             leftShare.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture),
             rightShare.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    public static double? CreateRatio(double leftValue,double rightValue){
+        return leftValue>0&&rightValue>0
+            ? leftValue/rightValue
+            : null;
     }
 
     public static (BenchmarkChartBarRect LeftBarRect,BenchmarkChartBarRect RightBarRect) CreateBarRects(
@@ -212,6 +305,52 @@ internal static class BenchmarkChartSelectionLayoutLogic{
         (
             new BenchmarkChartLabelPoint(leftBarRect.Right-padding,y),
             new BenchmarkChartLabelPoint(rightBarRect.Left+padding,y));
+
+    public static (BenchmarkChartLabelRect LeftLabelRect,BenchmarkChartLabelRect RightLabelRect) CreateBoundaryLabelRects(
+        BenchmarkChartBarRect leftBarRect,
+        BenchmarkChartBarRect rightBarRect,
+        float centerY,
+        float labelWidth,
+        float labelHeight,
+        float padding){
+        var plotLeft = MathF.Min(leftBarRect.Left,rightBarRect.Left);
+        var plotRight = MathF.Max(leftBarRect.Right,rightBarRect.Right);
+        var plotWidth = MathF.Max(1,plotRight-plotLeft);
+        var safeLabelWidth = MathF.Max(1,MathF.Min(labelWidth,MathF.Max(1,(plotWidth-padding)/2)));
+        var boundary = leftBarRect.Right;
+        var top = centerY-labelHeight/2;
+        var leftX = ClampLabelX(boundary-padding-safeLabelWidth,plotLeft,plotRight,safeLabelWidth);
+        var rightX = ClampLabelX(boundary+padding,plotLeft,plotRight,safeLabelWidth);
+        if(leftX+safeLabelWidth>rightX&&plotWidth>=safeLabelWidth*2+padding){
+            if(boundary>plotLeft+plotWidth/2){
+                rightX=plotRight-safeLabelWidth;
+                leftX=MathF.Max(plotLeft,rightX-padding-safeLabelWidth);
+            }else{
+                leftX=plotLeft;
+                rightX=MathF.Min(plotRight-safeLabelWidth,leftX+safeLabelWidth+padding);
+            }
+        }
+
+        return (
+            new BenchmarkChartLabelRect(
+                leftX,
+                top,
+                safeLabelWidth,
+                labelHeight),
+            new BenchmarkChartLabelRect(
+                rightX,
+                top,
+                safeLabelWidth,
+                labelHeight));
+    }
+
+    private static float ClampLabelX(float x,float plotLeft,float plotRight,float labelWidth){
+        if(plotRight-plotLeft<=labelWidth){
+            return plotLeft;
+        }
+
+        return Math.Clamp(x,plotLeft,plotRight-labelWidth);
+    }
 }
 
 public readonly record struct BenchmarkTabProgress(int Completed,int Total){
@@ -602,12 +741,24 @@ internal static class BenchmarkComparisonRowMatchLogic{
             IsSameArgument(item.ArgumentKey,row.ArgumentKey)
             &&IsTypeMatch(sourceTab,item.TypeFullName,row.TypeFullName));
 
-    private static bool IsTypeMatch(BenchmarkSourceTab sourceTab,string benchmarkTypeFullName,string comparisonTypeFullName) =>
-        ScalableBenchmarkNameFormatter.IsScalableSourceTab(sourceTab)
-            ? !string.IsNullOrWhiteSpace(comparisonTypeFullName)
-                &&string.Equals(ScalableBenchmarkNameFormatter.ShortTypeName(benchmarkTypeFullName),comparisonTypeFullName,StringComparison.OrdinalIgnoreCase)
-            : string.IsNullOrWhiteSpace(comparisonTypeFullName)
-                ||string.Equals(ScalableBenchmarkNameFormatter.ShortTypeName(benchmarkTypeFullName),comparisonTypeFullName,StringComparison.OrdinalIgnoreCase);
+    private static bool IsTypeMatch(BenchmarkSourceTab sourceTab,string benchmarkTypeFullName,string comparisonTypeFullName) {
+        if(ScalableBenchmarkNameFormatter.UsesTypedBenchmarkName(sourceTab)) {
+            if(string.IsNullOrWhiteSpace(comparisonTypeFullName)) {
+                return false;
+            }
+            var benchmarkType = ScalableBenchmarkNameFormatter.ShortTypeName(benchmarkTypeFullName);
+            if(!ScalableBenchmarkNameFormatter.IsScalableSourceTab(sourceTab)) {
+                var method1Type=ScalableBenchmarkNameFormatter.CreateLegacyMethod1ComparisonTypeText(benchmarkTypeFullName);
+                if(!string.IsNullOrWhiteSpace(method1Type)) {
+                    benchmarkType=method1Type;
+                }
+            }
+            return string.Equals(benchmarkType,comparisonTypeFullName,StringComparison.OrdinalIgnoreCase);
+        }
+
+        return string.IsNullOrWhiteSpace(comparisonTypeFullName)
+            ||string.Equals(ScalableBenchmarkNameFormatter.ShortTypeName(benchmarkTypeFullName),comparisonTypeFullName,StringComparison.OrdinalIgnoreCase);
+    }
 
     private static bool IsBenchmarkNameMatch(string methodName,string benchmarkName,BenchmarkComparisonRow row) =>
         string.Equals(row.MethodName,methodName,StringComparison.OrdinalIgnoreCase)

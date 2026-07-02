@@ -15,7 +15,8 @@ public sealed class MainPage:ContentPage {
     private const double BenchmarkAggregateCheckBoxSize = 32;
     private const double BenchmarkCellCheckBoxWidth = 34;
     private const double BenchmarkCellCheckBoxHeight = 28;
-    private const double BenchmarkNameColumnWidth = 420;
+    private const double BenchmarkTypeColumnWidth = 96;
+    private const double BenchmarkNameColumnWidth = 320;
     private const double BenchmarkArgumentColumnWidth = 72;
     private const double BenchmarkCountArgumentColumnWidth = 78;
     private const double BenchmarkMemoryArgumentColumnWidth = 96;
@@ -62,6 +63,7 @@ public sealed class MainPage:ContentPage {
     private IDispatcherTimer? benchmarkSelectionPulseTimer;
     private bool benchmarkSelectionPulseOn;
     private bool isApplyingSourceTabViewSelection;
+    private BenchmarkSortRule? draggedBenchmarkSortRule;
 
     public double BenchmarkSelectionStrokeOpacity => this.benchmarkSelectionPulseOn ? 1 : 0.25;
 
@@ -412,6 +414,225 @@ public sealed class MainPage:ContentPage {
         }
 
         return button;
+    }
+
+    private void ShowBenchmarkSortDialog() {
+        var root = this.rootLayout;
+        if(root is null||this.viewModel is null) {
+            return;
+        }
+
+        this.CompleteActiveDialog(root,string.Empty);
+        var overlay = this.CreateBenchmarkSortDialogOverlay(() => this.CompleteActiveDialog(root,string.Empty));
+        this.activeDialogOverlay=overlay;
+        this.activeDialogCompletion=null;
+        this.activeDialogFallbackValue=string.Empty;
+        root.Add(overlay,0,0);
+        Grid.SetRowSpan(overlay,2);
+    }
+
+    private View CreateBenchmarkSortDialogOverlay(Action close) {
+        var overlay = new Grid {
+            BackgroundColor=Color.FromRgba(15,23,42,110),
+            Padding=new Thickness(24),
+            HorizontalOptions=LayoutOptions.Fill,
+            VerticalOptions=LayoutOptions.Fill,
+            InputTransparent=false,
+        };
+        overlay.BindingContext=this.viewModel;
+        var card = new Border {
+            BackgroundColor=Colors.White,
+            Stroke=Color.FromArgb("#CBD5E1"),
+            StrokeThickness=1,
+            StrokeShape=new Microsoft.Maui.Controls.Shapes.RoundRectangle {
+                CornerRadius=14,
+            },
+            Padding=new Thickness(20,18),
+            MaximumWidthRequest=820,
+            HorizontalOptions=LayoutOptions.Center,
+            VerticalOptions=LayoutOptions.Center,
+        };
+        var content = new Grid {
+            RowDefinitions= {
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = new GridLength(300) },
+                new RowDefinition { Height = GridLength.Auto },
+            },
+            RowSpacing=12,
+        };
+        content.Add(new Label {
+            Text="ソート設定",
+            FontSize=18,
+            FontAttributes=FontAttributes.Bold,
+            TextColor=Color.FromArgb("#0F172A"),
+            HorizontalTextAlignment=TextAlignment.Center,
+        },0,0);
+        var summary = new Label {
+            FontSize=12,
+            TextColor=Color.FromArgb("#334155"),
+            LineBreakMode=LineBreakMode.TailTruncation,
+            HorizontalTextAlignment=TextAlignment.Center,
+        };
+        summary.SetBinding(Label.TextProperty,nameof(BenchmarkRunnerViewModel.BenchmarkSortSummaryText));
+        content.Add(summary,0,1);
+        content.Add(this.CreateBenchmarkSortRuleList(),0,2);
+        content.Add(this.CreateBenchmarkSortDialogButtons(close),0,3);
+        card.Content=content;
+        overlay.Children.Add(card);
+        return overlay;
+    }
+
+    private View CreateBenchmarkSortRuleList() {
+        var list = new CollectionView {
+            SelectionMode=SelectionMode.None,
+            ItemsLayout=new LinearItemsLayout(ItemsLayoutOrientation.Vertical) {
+                ItemSpacing=6,
+            },
+            ItemTemplate=new DataTemplate(() => this.CreateBenchmarkSortRuleRow()),
+        };
+        list.SetBinding(ItemsView.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.BenchmarkSortRules));
+        return new Border {
+            Stroke=Color.FromArgb("#CBD5E1"),
+            StrokeThickness=1,
+            BackgroundColor=Color.FromArgb("#F8FAFC"),
+            Padding=new Thickness(8),
+            Content=list,
+        };
+    }
+
+    private View CreateBenchmarkSortRuleRow() {
+        var row = new Grid {
+            ColumnDefinitions= {
+                new ColumnDefinition { Width = new GridLength(58) },
+                new ColumnDefinition { Width = new GridLength(220) },
+                new ColumnDefinition { Width = new GridLength(82) },
+                new ColumnDefinition { Width = new GridLength(44) },
+                new ColumnDefinition { Width = new GridLength(44) },
+                new ColumnDefinition { Width = new GridLength(74) },
+            },
+            ColumnSpacing=8,
+            Padding=new Thickness(8,6),
+            BackgroundColor=Colors.White,
+        };
+        var handle = new Label {
+            Text="Drag",
+            FontSize=11,
+            FontAttributes=FontAttributes.Bold,
+            TextColor=Color.FromArgb("#475569"),
+            VerticalTextAlignment=TextAlignment.Center,
+            HorizontalTextAlignment=TextAlignment.Center,
+        };
+        var picker = new Picker {
+            HeightRequest=32,
+            ItemDisplayBinding=new Binding(nameof(BenchmarkSortColumnOption.DisplayName)),
+            Margin=new Thickness(0),
+        };
+        picker.ItemsSource=this.viewModel?.BenchmarkSortColumnOptions;
+        var direction = new Button {
+            HeightRequest=32,
+            Padding=new Thickness(8,0),
+            FontSize=12,
+            CornerRadius=6,
+            BackgroundColor=Color.FromArgb("#EEF2FF"),
+            BorderColor=Color.FromArgb("#C7D2FE"),
+            BorderWidth=1,
+            TextColor=Color.FromArgb("#3730A3"),
+        };
+        direction.SetBinding(Button.TextProperty,nameof(BenchmarkSortRule.DirectionText));
+        var up = this.CreateSortRuleSmallButton("上");
+        var down = this.CreateSortRuleSmallButton("下");
+        var remove = this.CreateSortRuleSmallButton("削除");
+
+        void RefreshPicker() {
+            if(row.BindingContext is not BenchmarkSortRule rule||this.viewModel is null) {
+                return;
+            }
+            picker.ItemsSource=this.viewModel.BenchmarkSortColumnOptions;
+            picker.SelectedItem=this.viewModel.BenchmarkSortColumnOptions.FirstOrDefault(option => option.Column==rule.Column);
+        }
+
+        row.BindingContextChanged+=(_,_) => RefreshPicker();
+        picker.SelectedIndexChanged+=(_,_) => {
+            if(row.BindingContext is BenchmarkSortRule rule
+                &&picker.SelectedItem is BenchmarkSortColumnOption option) {
+                this.viewModel?.SetBenchmarkSortRuleColumn(rule,option.Column);
+            }
+        };
+        direction.Clicked+=(_,_) => {
+            if(row.BindingContext is BenchmarkSortRule rule) {
+                this.viewModel?.ToggleBenchmarkSortRuleDirection(rule);
+            }
+        };
+        up.Clicked+=(_,_) => {
+            if(row.BindingContext is BenchmarkSortRule rule) {
+                this.viewModel?.MoveBenchmarkSortRuleUp(rule);
+            }
+        };
+        down.Clicked+=(_,_) => {
+            if(row.BindingContext is BenchmarkSortRule rule) {
+                this.viewModel?.MoveBenchmarkSortRuleDown(rule);
+            }
+        };
+        remove.Clicked+=(_,_) => {
+            if(row.BindingContext is BenchmarkSortRule rule) {
+                this.viewModel?.RemoveBenchmarkSortRule(rule);
+            }
+        };
+
+        var drag = new DragGestureRecognizer();
+        drag.DragStarting+=(_,_) => {
+            this.draggedBenchmarkSortRule=row.BindingContext as BenchmarkSortRule;
+        };
+        var drop = new DropGestureRecognizer();
+        drop.Drop+=(_,_) => {
+            if(this.draggedBenchmarkSortRule is not null
+                &&row.BindingContext is BenchmarkSortRule target) {
+                this.viewModel?.MoveBenchmarkSortRule(this.draggedBenchmarkSortRule,target);
+            }
+            this.draggedBenchmarkSortRule=null;
+        };
+        row.GestureRecognizers.Add(drag);
+        row.GestureRecognizers.Add(drop);
+
+        row.Add(handle,0,0);
+        row.Add(picker,1,0);
+        row.Add(direction,2,0);
+        row.Add(up,3,0);
+        row.Add(down,4,0);
+        row.Add(remove,5,0);
+        return row;
+    }
+
+    private Button CreateSortRuleSmallButton(string text) =>
+        new() {
+            Text=text,
+            HeightRequest=32,
+            Padding=new Thickness(8,0),
+            FontSize=11,
+            CornerRadius=6,
+            BackgroundColor=Colors.White,
+            BorderColor=Color.FromArgb("#CBD5E1"),
+            BorderWidth=1,
+            TextColor=Color.FromArgb("#334155"),
+        };
+
+    private View CreateBenchmarkSortDialogButtons(Action close) {
+        var add = this.CreateConfirmDialogButton(new ConfirmDialogOption("追加","add",ConfirmDialogButtonKind.Neutral));
+        var reset = this.CreateConfirmDialogButton(new ConfirmDialogOption("既定順","reset",ConfirmDialogButtonKind.Neutral));
+        var closeButton = this.CreateConfirmDialogButton(new ConfirmDialogOption("閉じる","close",ConfirmDialogButtonKind.Primary));
+        add.Clicked+=(_,_) => this.viewModel?.AddBenchmarkSortRule();
+        reset.Clicked+=(_,_) => this.viewModel?.ResetBenchmarkSortRules();
+        closeButton.Clicked+=(_,_) => close();
+        return new HorizontalStackLayout {
+            Spacing=10,
+            HorizontalOptions=LayoutOptions.Center,
+            Children= {
+                add,
+                reset,
+                closeButton,
+            },
+        };
     }
 
     private enum ConfirmDialogButtonKind {
@@ -804,7 +1025,8 @@ public sealed class MainPage:ContentPage {
         };
         if(this.viewModel is not null) {
             this.viewModel.PropertyChanged+=(_,args) => {
-                if(args.PropertyName==nameof(BenchmarkRunnerViewModel.SelectedSourceTab)) {
+                if(args.PropertyName==nameof(BenchmarkRunnerViewModel.SelectedSourceTab)
+                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.HasBenchmarkTypeColumn)) {
                     MainThread.BeginInvokeOnMainThread(() => {
                         this.SyncSourceTabViewSelection();
                         this.RebuildBenchmarkGridColumns();
@@ -1245,7 +1467,6 @@ public sealed class MainPage:ContentPage {
         var header = new Grid {
             ColumnDefinitions= {
                 new ColumnDefinition { Width = GridLength.Auto },
-                new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Star },
             },
             Padding=new Thickness(8,4),
@@ -1253,13 +1474,6 @@ public sealed class MainPage:ContentPage {
             ColumnSpacing=8,
         };
         header.Add(this.CreateMetricRadioGroup(),0,0);
-        header.Add(new Label {
-            Text="FLINQ/ZLinq",
-            FontAttributes=FontAttributes.Bold,
-            FontSize=13,
-            VerticalTextAlignment=TextAlignment.Center,
-            TextColor=Color.FromArgb("#0F172A"),
-        },1,0);
 
         var chartPanel = new Grid {
             RowDefinitions= {
@@ -1574,7 +1788,8 @@ public sealed class MainPage:ContentPage {
         grid.StackedHeaderRows.Add(projectHeaderRow);
 
         grid.Columns.Add(this.CreateCheckColumn());
-        grid.Columns.Add(this.CreateTextColumn("ベンチマーク",nameof(BenchmarkTableRow.BenchmarkName),BenchmarkGridSortColumn.BenchmarkName,BenchmarkNameColumnWidth,TextAlignment.End));
+        grid.Columns.Add(this.CreateTextColumn("型",nameof(BenchmarkTableRow.BenchmarkTypeText),BenchmarkGridSortColumn.BenchmarkType,BenchmarkTypeColumnWidth,TextAlignment.End));
+        grid.Columns.Add(this.CreateTextColumn("ベンチマーク",nameof(BenchmarkTableRow.BenchmarkMethodText),BenchmarkGridSortColumn.BenchmarkMethod,BenchmarkNameColumnWidth,TextAlignment.End));
         var sourceTab = this.viewModel?.SelectedSourceDefinition??BenchmarkSourceTabs.Default;
         var argumentMappings = this.AddArgumentColumns(grid,sourceTab);
         this.AddBenchmarkBaseStackedHeaders(categoryHeaderRow,projectHeaderRow,argumentMappings);
@@ -1641,6 +1856,8 @@ public sealed class MainPage:ContentPage {
     private static string GetBenchmarkColumnText(BenchmarkTableRow row,string mappingName) =>
         mappingName switch {
             nameof(BenchmarkTableRow.BenchmarkName) => row.BenchmarkName,
+            nameof(BenchmarkTableRow.BenchmarkTypeText) => row.BenchmarkTypeText,
+            nameof(BenchmarkTableRow.BenchmarkMethodText) => row.BenchmarkMethodText,
             nameof(BenchmarkTableRow.CountArgument) => row.CountArgument,
             nameof(BenchmarkTableRow.IndexArgument) => row.IndexArgument,
             nameof(BenchmarkTableRow.PageArgument) => row.PageArgument,
@@ -1726,7 +1943,7 @@ public sealed class MainPage:ContentPage {
         });
         categoryHeaderRow.Columns.Add(new DataGridStackedColumn {
             MappingName="BenchmarkNameHeader",
-            ColumnMappingNames=nameof(BenchmarkTableRow.BenchmarkName),
+            ColumnMappingNames=nameof(BenchmarkTableRow.BenchmarkTypeText)+","+nameof(BenchmarkTableRow.BenchmarkMethodText),
             Text=string.Empty,
         });
         projectHeaderRow.Columns.Add(new DataGridStackedColumn {
@@ -1736,7 +1953,7 @@ public sealed class MainPage:ContentPage {
         });
         projectHeaderRow.Columns.Add(new DataGridStackedColumn {
             MappingName="BenchmarkNameProjectSpacer",
-            ColumnMappingNames=nameof(BenchmarkTableRow.BenchmarkName),
+            ColumnMappingNames=nameof(BenchmarkTableRow.BenchmarkTypeText)+","+nameof(BenchmarkTableRow.BenchmarkMethodText),
             Text=string.Empty,
         });
         if(argumentMappings.Count>0) {
@@ -2489,9 +2706,16 @@ public sealed class MainPage:ContentPage {
 
             grid.Add(label,0,0);
             grid.Add(icon,1,0);
-            var tap = new TapGestureRecognizer();
-            tap.Tapped+=(_,_) => this.viewModel?.SortBenchmarkRows(sortColumn);
-            grid.GestureRecognizers.Add(tap);
+            var leftTap = new TapGestureRecognizer {
+                Buttons=ButtonsMask.Primary,
+            };
+            leftTap.Tapped+=(_,_) => this.viewModel?.SortBenchmarkRows(sortColumn);
+            grid.GestureRecognizers.Add(leftTap);
+            var rightTap = new TapGestureRecognizer {
+                Buttons=ButtonsMask.Secondary,
+            };
+            rightTap.Tapped+=(_,_) => this.ShowBenchmarkSortDialog();
+            grid.GestureRecognizers.Add(rightTap);
             return grid;
         });
     }
@@ -3626,13 +3850,15 @@ internal sealed class BenchmarkChartSelectionOverlayDrawable:IDrawable {
         canvas.FontColor=Colors.White;
         canvas.FontSize=10;
         foreach(var row in this.CreateLayout(points,new SizeF(dirtyRect.Width,dirtyRect.Height))) {
-            var labelPoints = BenchmarkChartSelectionLayoutLogic.CreateBarLabelPoints(
+            var labelRects = BenchmarkChartSelectionLayoutLogic.CreateBoundaryLabelRects(
                 new BenchmarkChartBarRect(row.LeftBarRect.Left,row.LeftBarRect.Right,row.LeftBarRect.Width),
                 new BenchmarkChartBarRect(row.RightBarRect.Left,row.RightBarRect.Right,row.RightBarRect.Width),
                 row.LeftBarRect.Top+row.LeftBarRect.Height/2,
+                42,
+                row.LeftBarRect.Height,
                 BarLabelPadding);
-            this.DrawBarLabel(canvas,row.Point.LeftText,labelPoints.LeftLabelPoint,row.LeftBarRect,true);
-            this.DrawBarLabel(canvas,row.Point.RightText,labelPoints.RightLabelPoint,row.RightBarRect,false);
+            this.DrawBarLabel(canvas,row.Point.LeftText,labelRects.LeftLabelRect,HorizontalAlignment.Right);
+            this.DrawBarLabel(canvas,row.Point.RightText,labelRects.RightLabelRect,HorizontalAlignment.Left);
         }
 
         canvas.StrokeColor=Color.FromArgb("#22C55E").WithAlpha((float)Math.Clamp(this.getSelectionOpacity(),0,1));
@@ -3653,28 +3879,17 @@ internal sealed class BenchmarkChartSelectionOverlayDrawable:IDrawable {
         }
     }
 
-    private void DrawBarLabel(ICanvas canvas,string text,BenchmarkChartLabelPoint point,RectF barRect,bool alignLeftOfBoundary) {
+    private void DrawBarLabel(ICanvas canvas,string text,BenchmarkChartLabelRect labelRect,HorizontalAlignment alignment) {
         if(string.IsNullOrWhiteSpace(text)) {
             return;
         }
 
-        var rect = alignLeftOfBoundary
-            ? new RectF(
-                barRect.Left,
-                barRect.Top,
-                MathF.Max(1,point.X-barRect.Left),
-                barRect.Height)
-            : new RectF(
-                point.X,
-                barRect.Top,
-                MathF.Max(1,barRect.Right-point.X-BarLabelPadding),
-                barRect.Height);
-        if(rect.Width<1) {
-            rect=new RectF(barRect.Left,barRect.Top,barRect.Width,barRect.Height);
-        }
-
-        var alignment = alignLeftOfBoundary ? HorizontalAlignment.Right : HorizontalAlignment.Left;
-        DrawOutlinedString(canvas,text,rect,alignment,VerticalAlignment.Center);
+        DrawOutlinedString(
+            canvas,
+            text,
+            new RectF(labelRect.X,labelRect.Y,labelRect.Width,labelRect.Height),
+            alignment,
+            VerticalAlignment.Center);
     }
 
     private static void DrawOutlinedString(
@@ -3734,15 +3949,17 @@ internal sealed class BenchmarkChartSelectionOverlayDrawable:IDrawable {
     }
 
     private IReadOnlyList<BenchmarkChartSelectionLayoutRow> CreateLayout(IReadOnlyList<ChartComparisonPoint> points,SizeF size) {
-        var plotLeft = this.GetAxisCoordinate(this.yAxis,0,MathF.Min(LabelHitWidth,size.Width*0.42f),size.Width);
-        var plotRight = size.Width-OuterPadding;
+        var fallbackPlotLeft = MathF.Min(LabelHitWidth,size.Width*0.42f);
+        var fallbackPlotRight = size.Width-OuterPadding;
+        var plotLeft = this.GetAxisCoordinate(this.yAxis,0,fallbackPlotLeft,size.Width);
+        var plotRight = this.GetAxisCoordinate(this.yAxis,100,fallbackPlotRight,size.Width);
         if(plotRight<plotLeft) {
             (plotLeft,plotRight)=(plotRight,plotLeft);
         }
 
         if(plotRight-plotLeft<40) {
-            plotLeft=MathF.Min(LabelHitWidth,size.Width*0.42f);
-            plotRight=size.Width-OuterPadding;
+            plotLeft=fallbackPlotLeft;
+            plotRight=fallbackPlotRight;
         }
 
         var top = 42f;

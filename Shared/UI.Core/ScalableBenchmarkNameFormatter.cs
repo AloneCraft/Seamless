@@ -89,6 +89,14 @@ internal static class ScalableBenchmarkNameFormatter{
             or BenchmarkSourceTab.ScalablePersistedDictionary
             or BenchmarkSourceTab.ScalableTsavoriteDictionary;
 
+    public static bool UsesTypedBenchmarkName(BenchmarkSourceTab sourceTab) =>
+        IsScalableSourceTab(sourceTab)
+            ||sourceTab is BenchmarkSourceTab.SeamlessPersisted
+                or BenchmarkSourceTab.SeamlessTsavorite
+                or BenchmarkSourceTab.SystemArray
+                or BenchmarkSourceTab.SystemRange
+                or BenchmarkSourceTab.SystemList;
+
     public static bool UsesPreviousRightColumn(BenchmarkSourceTab sourceTab) =>
         sourceTab is BenchmarkSourceTab.ScalablePersistedSet
             or BenchmarkSourceTab.ScalableTsavoriteSet
@@ -101,7 +109,7 @@ internal static class ScalableBenchmarkNameFormatter{
         string typeFullName,
         string methodName,
         int elementCount = 0){
-        if(!IsScalableSourceTab(sourceTab.Tab)){
+        if(!UsesTypedBenchmarkName(sourceTab.Tab)){
             return methodName;
         }
 
@@ -111,6 +119,22 @@ internal static class ScalableBenchmarkNameFormatter{
         }
 
         return "<"+genericText+">."+methodName;
+    }
+
+    public static string CreateBenchmarkTypeText(string typeFullName) =>
+        CreateGenericTypeText(typeFullName);
+
+    public static string CreateLegacyMethod1ComparisonTypeText(string typeFullName) {
+        var value=CreateBenchmarkTypeText(typeFullName);
+        if(!string.IsNullOrWhiteSpace(value)){
+            return value;
+        }
+
+        var typeName=ShortTypeName(typeFullName);
+        if(typeName is "FLinq" or "Linq" or "ZLinq"){
+            return "int";
+        }
+        return string.Empty;
     }
 
     public static string CreateBenchmarkName(
@@ -170,13 +194,28 @@ internal static class ScalableBenchmarkNameFormatter{
     public static string CreateGenericTypeText(string typeFullName){
         var typeName = ShortTypeName(typeFullName);
         if(typeName.StartsWith("Dictionary",StringComparison.Ordinal)){
-            return string.Join(",",SplitTypeTokens(typeName["Dictionary".Length..]).Select(FormatTypeToken));
+            return string.Join(",",SplitTypeTokens(NormalizeTypeSuffix(typeName["Dictionary".Length..])).Select(FormatTypeToken));
         }
         if(typeName.StartsWith("List",StringComparison.Ordinal)){
-            return FormatTypeToken(typeName["List".Length..]);
+            return FormatTypeToken(NormalizeTypeSuffix(typeName["List".Length..]));
         }
         if(typeName.StartsWith("Set",StringComparison.Ordinal)){
-            return FormatTypeToken(typeName["Set".Length..]);
+            return FormatTypeToken(NormalizeTypeSuffix(typeName["Set".Length..]));
+        }
+        if(typeName.StartsWith("HashSet",StringComparison.Ordinal)){
+            return FormatTypeToken(NormalizeTypeSuffix(typeName["HashSet".Length..]));
+        }
+        if(typeName.StartsWith("BlittableHashSet",StringComparison.Ordinal)){
+            return FormatTypeToken(NormalizeTypeSuffix(typeName["BlittableHashSet".Length..]));
+        }
+        if(typeName.StartsWith("FLinq",StringComparison.Ordinal)){
+            return FormatTypeToken(NormalizeTypeSuffix(typeName["FLinq".Length..]));
+        }
+        if(typeName.StartsWith("Linq",StringComparison.Ordinal)){
+            return FormatTypeToken(NormalizeTypeSuffix(typeName["Linq".Length..]));
+        }
+        if(typeName.StartsWith("ZLinq",StringComparison.Ordinal)){
+            return FormatTypeToken(NormalizeTypeSuffix(typeName["ZLinq".Length..]));
         }
 
         return string.Empty;
@@ -246,9 +285,21 @@ internal static class ScalableBenchmarkNameFormatter{
         }
     }
 
+    private static string NormalizeTypeSuffix(string text){
+        var value = text.TrimStart('_');
+        if(value.StartsWith("MemoryPack",StringComparison.Ordinal)){
+            value=value["MemoryPack".Length..].TrimStart('_');
+        }
+        if(value.StartsWith("Blittable",StringComparison.Ordinal)){
+            value=value["Blittable".Length..].TrimStart('_');
+        }
+        return value;
+    }
+
     private static string FormatTypeToken(string token) =>
         token switch{
             "String" => "string",
+            "Int" => "int",
             "Int32" => "int",
             "Decimal" => "decimal",
             "Boolean" => "System.Boolean",

@@ -4,26 +4,31 @@ namespace Common;
 #pragma warning disable xUnit1013
 #endif
 
-public class PersistedBase(int count = 80_000):Base(NormalizeCount(count)),IDisposable {
-    private readonly Dictionary<SourceCacheKey,SourceHandle<int>> srcCache = [];
-    private readonly Dictionary<SourceCacheKey,SourceHandle<int>> src2Cache = [];
-    private readonly Dictionary<SourceCacheKey,SourceHandle<int>> srcOneCache = [];
+public class PersistedBase:PersistedBase<int> {
+    public PersistedBase(int count = 80_000):base(count) {
+    }
+}
+
+public class PersistedBase<T>(int count = 80_000):Base<T>(NormalizeCount(count)),IDisposable where T:notnull {
+    private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcCache = [];
+    private readonly Dictionary<SourceCacheKey,SourceHandle<T>> src2Cache = [];
+    private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcOneCache = [];
     private readonly string rootPath = Path.Combine(AppContext.BaseDirectory,"persisted-benchmark",Guid.NewGuid().ToString("N"));
 
-    protected new Seamless.Persisted.Collections.Set<int> src(int scale) =>
+    protected new Seamless.Persisted.Collections.Set<T> src(int scale) =>
         this.GetOrCreate(scale,this.srcCache,static length => CreateRange(1,length));
 
-    protected new Seamless.Persisted.Collections.Set<int> srcCount(int elementCount) =>
+    protected new Seamless.Persisted.Collections.Set<T> srcCount(int elementCount) =>
         this.GetOrCreateByLength(elementCount,this.srcCache,static length => CreateRange(1,length));
 
-    protected new Seamless.Persisted.Collections.Set<int> src2(int scale) =>
+    protected new Seamless.Persisted.Collections.Set<T> src2(int scale) =>
         this.GetOrCreate(scale,this.src2Cache,static length => CreateRange(length/2+1,length/2));
 
-    protected new Seamless.Persisted.Collections.Set<int> src2Count(int elementCount) =>
+    protected new Seamless.Persisted.Collections.Set<T> src2Count(int elementCount) =>
         this.GetOrCreateByLength(elementCount,this.src2Cache,static length => CreateRange(length/2+1,length/2));
 
-    protected new Seamless.Persisted.Collections.Set<int> srcOne(int scale) =>
-        this.GetOrCreate(scale,this.srcOneCache,static _ => [0]);
+    protected new Seamless.Persisted.Collections.Set<T> srcOne(int scale) =>
+        this.GetOrCreate(scale,this.srcOneCache,static _ => [FromInt(0)]);
 
     [GlobalCleanup]
     public void Cleanup() {
@@ -43,10 +48,10 @@ public class PersistedBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
 #endif
     }
 
-    private Seamless.Persisted.Collections.Set<int> GetOrCreate(
+    private Seamless.Persisted.Collections.Set<T> GetOrCreate(
         int scale,
-        Dictionary<SourceCacheKey,SourceHandle<int>> cache,
-        Func<int,int[]> factory) {
+        Dictionary<SourceCacheKey,SourceHandle<T>> cache,
+        Func<int,T[]> factory) {
         var length= this.CountForComparison(this.CountForTestTiming(this.count*scale));
         var key = new SourceCacheKey(SourceKind.Src,length,BenchmarkExecutionMode.ReadRandomSourceSeed());
         if(cache.TryGetValue(key,out var handle)) {
@@ -58,10 +63,10 @@ public class PersistedBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
         return handle.Set;
     }
 
-    private Seamless.Persisted.Collections.Set<int> GetOrCreateByLength(
+    private Seamless.Persisted.Collections.Set<T> GetOrCreateByLength(
         int length,
-        Dictionary<SourceCacheKey,SourceHandle<int>> cache,
-        Func<int,int[]> factory) {
+        Dictionary<SourceCacheKey,SourceHandle<T>> cache,
+        Func<int,T[]> factory) {
         var effectiveLength= this.CountForComparison(this.CountForTestTiming(length));
         var key = new SourceCacheKey(SourceKind.SrcCount,effectiveLength,BenchmarkExecutionMode.ReadRandomSourceSeed());
         if(cache.TryGetValue(key,out var handle)) {
@@ -87,10 +92,10 @@ public class PersistedBase(int count = 80_000):Base(NormalizeCount(count)),IDisp
         return new SourceHandle<T>(path,set);
     }
 
-    private static int[] CreateRange(int start,int length) {
-        var result = new int[length];
+    private static T[] CreateRange(int start,int length) {
+        var result = new T[length];
         for(var index = 0;index<result.Length;index++) {
-            result[index]=start+index;
+            result[index]=FromInt(start+index);
         }
         if(BenchmarkExecutionMode.ReadRandomSourceSeed() is { } seed&&result.Length>1) {
             var random = new Random(seed^start^length);

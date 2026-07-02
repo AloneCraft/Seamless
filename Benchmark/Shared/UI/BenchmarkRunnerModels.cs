@@ -26,6 +26,8 @@ public enum BenchmarkChartMode{
 }
 
 public enum BenchmarkGridSortColumn{
+    BenchmarkType,
+    BenchmarkMethod,
     BenchmarkName,
     ElementCount,
     ArgumentCount,
@@ -43,6 +45,63 @@ public enum BenchmarkGridSortColumn{
     RightTime,
     RightAllocated,
 }
+
+public sealed class BenchmarkSortRule:ObservableObject{
+    private BenchmarkGridSortColumn column;
+    private bool descending;
+
+    public BenchmarkSortRule(BenchmarkGridSortColumn column,bool descending = false){
+        this.column=column;
+        this.descending=descending;
+    }
+
+    public BenchmarkGridSortColumn Column{
+        get => this.column;
+        set{
+            if(this.SetProperty(ref this.column,value)){
+                this.OnPropertyChanged(nameof(this.ColumnText));
+            }
+        }
+    }
+
+    public bool Descending{
+        get => this.descending;
+        set{
+            if(this.SetProperty(ref this.descending,value)){
+                this.OnPropertyChanged(nameof(this.DirectionText));
+            }
+        }
+    }
+
+    public string ColumnText => GetColumnText(this.Column);
+
+    public string DirectionText => this.Descending ? "降順" : "昇順";
+
+    public static string GetColumnText(BenchmarkGridSortColumn column) =>
+        column switch{
+            BenchmarkGridSortColumn.BenchmarkType => "型",
+            BenchmarkGridSortColumn.BenchmarkMethod => "ベンチマーク",
+            BenchmarkGridSortColumn.BenchmarkName => "ベンチマーク",
+            BenchmarkGridSortColumn.ElementCount => "要素数",
+            BenchmarkGridSortColumn.ArgumentCount => "Count",
+            BenchmarkGridSortColumn.ArgumentIndex => "Index",
+            BenchmarkGridSortColumn.ArgumentPage => "Page",
+            BenchmarkGridSortColumn.ArgumentSegment => "Segment",
+            BenchmarkGridSortColumn.ArgumentMemory => "Memory",
+            BenchmarkGridSortColumn.ArgumentFraction => "Fraction",
+            BenchmarkGridSortColumn.ArgumentInitial => "Initial",
+            BenchmarkGridSortColumn.ArgumentData => "Data",
+            BenchmarkGridSortColumn.PairRatioTime => "時間比",
+            BenchmarkGridSortColumn.PairRatioAllocated => "メモリ比",
+            BenchmarkGridSortColumn.LeftTime => "Left 時間",
+            BenchmarkGridSortColumn.LeftAllocated => "Left メモリ",
+            BenchmarkGridSortColumn.RightTime => "Right 時間",
+            BenchmarkGridSortColumn.RightAllocated => "Right メモリ",
+            _ => column.ToString(),
+        };
+}
+
+public sealed record BenchmarkSortColumnOption(BenchmarkGridSortColumn Column,string DisplayName);
 
 public sealed class SourceTabOption:ObservableObject{
     private BenchmarkTabProgress progress;
@@ -657,6 +716,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.ExecutionTooltipText=string.Empty;
         this.ResultCheckText=string.Empty;
         this.ResultSeedText=string.Empty;
+        this.ClearCpuDisplay();
             this.ApplyMeasurementHighlight(BenchmarkMeasurementHighlightState.None);
             this.RefreshStatusDisplay();
         }
@@ -844,6 +904,8 @@ public sealed class BenchmarkTableRow:ObservableObject{
     private string rightTimeText = string.Empty;
     private string rightAllocatedText = string.Empty;
     private string benchmarkName = string.Empty;
+    private string benchmarkTypeText = string.Empty;
+    private string benchmarkMethodText = string.Empty;
     private bool isFinalCompleted;
     private static readonly Color DefaultStopNTextColor = Color.FromArgb("#334155");
 
@@ -858,6 +920,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.benchmarkName=benchmarkName;
         this.SourceTab=sourceTab;
         this.CasesByProject=casesByProject;
+        this.RefreshBenchmarkDisplayParts();
         this.LeftCell=this.CreateCell(sourceTab.LeftProject);
         this.RightCell=this.CreateCell(sourceTab.RightProject);
         foreach(var cell in this.ProjectCells){
@@ -871,7 +934,19 @@ public sealed class BenchmarkTableRow:ObservableObject{
     public string MethodName { get; }
     public string BenchmarkName{
         get => this.benchmarkName;
-        private set => this.SetProperty(ref this.benchmarkName,value);
+        private set{
+            if(this.SetProperty(ref this.benchmarkName,value)){
+                this.RefreshBenchmarkDisplayParts();
+            }
+        }
+    }
+    public string BenchmarkTypeText{
+        get => this.benchmarkTypeText;
+        private set => this.SetProperty(ref this.benchmarkTypeText,value);
+    }
+    public string BenchmarkMethodText{
+        get => this.benchmarkMethodText;
+        private set => this.SetProperty(ref this.benchmarkMethodText,value);
     }
     public BenchmarkSourceTabDefinition SourceTab { get; }
     public IReadOnlyDictionary<string,BenchmarkCase> CasesByProject { get; }
@@ -1118,6 +1193,19 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.SetFinalCompleted(false);
     }
 
+    public void ClearUnselectedResultDisplays(){
+        foreach(var cell in this.ProjectCells){
+            if(!cell.IsSelected){
+                cell.ClearMetrics();
+            }
+        }
+        this.LeftTimeText=FormatTime(this.LeftCell.Metrics);
+        this.LeftAllocatedText=FormatAllocated(this.LeftCell.Metrics);
+        this.RightTimeText=FormatTime(this.RightCell.Metrics);
+        this.RightAllocatedText=FormatAllocated(this.RightCell.Metrics);
+        this.RefreshDisplayedRatios();
+    }
+
     public void ApplyComparison(BenchmarkComparisonRow? row,bool preserveRetainedDisplay = false){
         if(row is null){
             this.ClearComparison(preserveRetainedDisplay);
@@ -1140,6 +1228,8 @@ public sealed class BenchmarkTableRow:ObservableObject{
 
     public BenchmarkSortValue GetSortValue(BenchmarkGridSortColumn column){
         return column switch{
+            BenchmarkGridSortColumn.BenchmarkType => BenchmarkSortValue.FromText(this.BenchmarkTypeText),
+            BenchmarkGridSortColumn.BenchmarkMethod => BenchmarkSortValue.FromText(this.BenchmarkMethodText),
             BenchmarkGridSortColumn.BenchmarkName => BenchmarkSortValue.FromText(this.BenchmarkName),
             BenchmarkGridSortColumn.ElementCount => BenchmarkSortValue.FromNumber(this.ElementCountSortValue),
             BenchmarkGridSortColumn.ArgumentCount => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.CountArgument)),
@@ -1229,6 +1319,29 @@ public sealed class BenchmarkTableRow:ObservableObject{
             .Select(static item => item.TypeFullName)
             .FirstOrDefault(static text => !string.IsNullOrWhiteSpace(text))??string.Empty;
         this.BenchmarkName=ScalableBenchmarkNameFormatter.CreateBenchmarkName(typeFullName,this.MethodName);
+    }
+
+    private void RefreshBenchmarkDisplayParts(){
+        var typeFullName = this.CasesByProject.Values
+            .Select(static item => item.TypeFullName)
+            .FirstOrDefault(static text => !string.IsNullOrWhiteSpace(text))??string.Empty;
+        var typeText = ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText(typeFullName);
+        if(string.IsNullOrWhiteSpace(typeText)){
+            typeText=ExtractTypeText(this.benchmarkName);
+        }
+        this.BenchmarkTypeText=typeText;
+        this.BenchmarkMethodText=this.MethodName;
+    }
+
+    private static string ExtractTypeText(string benchmarkName){
+        if(string.IsNullOrWhiteSpace(benchmarkName)||benchmarkName[0]!='<'){
+            return string.Empty;
+        }
+
+        var end = benchmarkName.IndexOf('>');
+        return end>1
+            ? benchmarkName[1..end]
+            : string.Empty;
     }
 
     private string GetArgumentValue(ScalableBenchmarkArgumentColumn column) =>

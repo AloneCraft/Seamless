@@ -8,12 +8,19 @@ public sealed class BenchmarkValueComparisonTests {
     private const int ComparisonIterationCount = 3;
     private const string BenchmarkExecutionModeTypeName = "Common.BenchmarkExecutionMode";
     private const string ElementCountEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_COUNT";
-    private const string Methods1TypeName = "Seamless.Linq.Shared.Methods1";
+    private const string Methods1TypeNamePrefix = "Seamless.Linq.Shared.Methods1`1";
 
     [Fact]
+    [global::Seamless.FLinq.LinqIntercept(false)]
     public void Methods1_results_match() {
-        var flinq=BenchmarkTarget.Load("Test.System.Linq.Enumerable.FLinq","Test.System.Linq.Enumerable.FLinq");
-        var zlinq=BenchmarkTarget.Load("Test.System.Linq.Enumerable.ZLinq","Test.System.Linq.Enumerable.ZLinq");
+        this.AssertMethods1ResultsMatch("Int32");
+        this.AssertMethods1ResultsMatch("String");
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(false)]
+    private void AssertMethods1ResultsMatch(string typeSuffix) {
+        var flinq=BenchmarkTarget.Load("Test.System.Linq.Enumerable.FLinq","Test.System.Linq.Enumerable.FLinq"+typeSuffix);
+        var zlinq=BenchmarkTarget.Load("Test.System.Linq.Enumerable.ZLinq","Test.System.Linq.Enumerable.ZLinq"+typeSuffix);
         var targets=new[] { flinq,zlinq };
         var seedBase=Random.Shared.Next();
         var elementCountBase=Random.Shared.Next(384,2049);
@@ -69,7 +76,7 @@ public sealed class BenchmarkValueComparisonTests {
 
     [Fact]
     public void BenchmarkExecutionMode_UseElementCount_IsScoped() {
-        var target=BenchmarkTarget.Load("Test.System.Linq.Enumerable.ZLinq","Test.System.Linq.Enumerable.ZLinq");
+        var target=BenchmarkTarget.Load("Test.System.Linq.Enumerable.ZLinq","Test.System.Linq.Enumerable.ZLinqInt32");
 
         Assert.Equal(128,target.ScaleElementCount(128));
         using(var scope=target.UseElementCount(7,"1")) {
@@ -80,7 +87,7 @@ public sealed class BenchmarkValueComparisonTests {
 
     [Fact]
     public void BenchmarkExecutionMode_ElementCountEnvironment_IsReadPerCall() {
-        var target=BenchmarkTarget.Load("Test.System.Linq.Enumerable.ZLinq","Test.System.Linq.Enumerable.ZLinq");
+        var target=BenchmarkTarget.Load("Test.System.Linq.Enumerable.ZLinq","Test.System.Linq.Enumerable.ZLinqInt32");
         var previous=Environment.GetEnvironmentVariable(ElementCountEnvironmentVariable);
         try {
             Environment.SetEnvironmentVariable(ElementCountEnvironmentVariable,"3");
@@ -95,7 +102,7 @@ public sealed class BenchmarkValueComparisonTests {
     private static List<string> DiscoverMethodNames(Type type) {
         var names=new List<string>();
         foreach(var method in type.GetMethods(BindingFlags.Instance|BindingFlags.Public)) {
-            if(method.DeclaringType?.FullName!=Methods1TypeName) {
+            if(method.DeclaringType?.FullName?.StartsWith(Methods1TypeNamePrefix,StringComparison.Ordinal)!=true) {
                 continue;
             }
             if(method.GetParameters().Length!=0||method.ReturnType!=typeof(void)) {
