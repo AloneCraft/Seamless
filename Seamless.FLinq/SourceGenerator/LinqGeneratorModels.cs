@@ -37,7 +37,7 @@ public sealed partial class FLinqIncrementalGenerator {
     // 匿名型を含む LINQ 呼び出しのみ IEnumerable<T> 汎用ヘルパーへ委譲する部分最適化になる。
     // ValueTuple や struct record を使えば完全最適化が可能になることをユーザーに伝える。
     private static readonly DiagnosticDescriptor 匿名型警告Descriptor = new(
-        id: "Tsavorite001",
+        id: "FLINQ001",
         title: "匿名型が検出されました",
         messageFormat: "'{0}' に匿名型を含む LINQ 式が検出されました。最適化可能な部分だけインターセプトします。ValueTuple または struct record を使用することを検討してください。",
         category: "Tsavorite.Performance",
@@ -48,8 +48,13 @@ public sealed partial class FLinqIncrementalGenerator {
     // LINQ インターセプト対象メソッドで展開に失敗し、生成コードが例外を throw する形になるとき発行する警告。
     // これにより「インターセプトはされたが展開できなかった」ことをコンパイル時に検出できる。
     // 警告が出ない = 全 LINQ 呼び出しがインライン展開されている ことを確認するために使う。
+    // FLinq expansion rule:
+    // - Intercepted System.Linq calls must be expanded by fragments or direct terminal code.
+    // - Silent forwarding/fallback to System.Linq is forbidden for [LinqIntercept(true)] targets.
+    // - When expansion is impossible, emit this warning and generate a runtime exception through
+    //   GeneratedCodeHelpers.UnsupportedLinqExpansion.
     private static readonly DiagnosticDescriptor 展開失敗警告Descriptor = new(
-        id: "Tsavorite002",
+        id: "FLINQ002",
         title: "LINQ インターセプト展開失敗",
         messageFormat: "'{0}' の LINQ 呼び出しをインライン展開できませんでした。実行時に例外が発生します。未対応メソッドまたはデリゲートパターンが含まれている可能性があります。",
         category: "Tsavorite.Performance",
@@ -65,7 +70,7 @@ public sealed partial class FLinqIncrementalGenerator {
         /// 匿名型は生成メソッドの署名に出せないため完全なフラグメント最適化ができず、
         /// 該当 LINQ 呼び出しは IEnumerable&lt;T&gt; 汎用ヘルパーへ委譲する部分最適化になる。
         /// ValueTuple や struct record を使えば完全最適化が可能になるため、
-        /// この値が true のとき Tsavorite001 警告を発行してユーザーに通知する。
+        /// この値が true のとき FLINQ001 警告を発行してユーザーに通知する。
         /// </summary>
         public bool HasAnonymousTypeLinq { get; } = hasAnonymousTypeLinq;
     }

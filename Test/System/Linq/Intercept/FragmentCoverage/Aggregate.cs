@@ -13,6 +13,17 @@ public sealed class Aggregate {
     }
 
     [Fact,Trait("Category","Unit")]
+    public static void func_empty(){
+        var expected=Assert.Throws<InvalidOperationException>(
+            static () => global::System.Linq.Enumerable.Aggregate(global::System.Array.Empty<int>(),static (a,v) => a+v));
+        var actual=Assert.Throws<InvalidOperationException>(()=>func_emptyImpl());
+        Assert.Equal(expected.Message,actual.Message);
+    }
+    private static int func_emptyImpl(){
+        return new int[0].Aggregate(static (a,v) => a+v);
+    }
+
+    [Fact,Trait("Category","Unit")]
     public static void seed_func(){
         GeneratedInterceptorAssert.ContainsMethod<Aggregate>(nameof(seed_funcImpl));
         var expected=new[]{1,2,3,4}.Aggregate(10,static (a,v) => a+v);

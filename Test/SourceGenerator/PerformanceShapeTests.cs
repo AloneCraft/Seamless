@@ -668,6 +668,48 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
+    public void DirectSpanAggregateAvoidsRuntimeTryGetSpanAndSpanForeach() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static (int Plain,int Seed,int Selected) ArrayAggregate(int[] src) =>
+                    (src.Aggregate(static (left,right) => left+right),
+                     src.Aggregate(10,static (sum,value) => sum+value),
+                     src.Aggregate(10,static (sum,value) => sum+value,static sum => sum*2));
+                private static int ListAggregate(List<int> src) =>
+                    src.Aggregate(static (left,right) => left+right);
+                private static int EnumerableAggregate(IEnumerable<int> src) =>
+                    src.Aggregate(static (left,right) => left+right);
+                public void Run(int[] array, List<int> list, IEnumerable<int> enumerable) {
+                    _ = ArrayAggregate(array);
+                    _ = ListAggregate(list);
+                    _ = EnumerableAggregate(enumerable);
+                }
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var directMethods = string.Concat(
+            GeneratedMethod(generated,"ArrayAggregate"),
+            GeneratedMethod(generated,"ListAggregate"));
+        var enumerableMethod = GeneratedMethod(generated,"EnumerableAggregate");
+
+        GeneratedSourceAssert.True(
+            directMethods.Contains(".GetSpan();",StringComparison.Ordinal)
+            && directMethods.Contains("Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements()",StringComparison.Ordinal)
+            && !directMethods.Contains(".TryGetSpan(out var",StringComparison.Ordinal)
+            && !directMethods.Contains("foreach(var",StringComparison.Ordinal)
+            && !directMethods.Contains("__first",StringComparison.Ordinal)
+            && enumerableMethod.Contains(".TryGetSpan(out var",StringComparison.Ordinal)
+            && enumerableMethod.Contains("}else{",StringComparison.Ordinal),
+            "Array/List Aggregate should use direct GetSpan()+for loops while IEnumerable<T> keeps runtime span probing and fallback.",
+            generated,
+            output);
+    }
+
+    [Fact]
     public void DirectSpanCountPreservingPipelineMaterializesByIndexLoop() {
         const string source = """
             using System.Collections.Generic;

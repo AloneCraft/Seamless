@@ -35,19 +35,31 @@ public class Sum(int 番号, Enumerable source, string resultType) : BufferedSca
         return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
             {{resultType}} sum=default!;
             checked{
-                foreach(var item in {{spanName}}) sum+=item;
+                for(var __i=0;__i<{{spanName}}.Length;__i++) sum+={{spanName}}[__i];
             }
             {{destVar}}=sum;
             """);
     }
-    protected override string ComputeMembers => source.CanTryProvideSpan
+    protected override string ComputeMembers => source.CanProvideSpan
+        ? $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source) {
+                {{resultType}} sum = default!;
+                checked{
+                    source.TryGetSpan(out var __span);
+                    for(var __i=0;__i<__span.Length;__i++) sum+=__span[__i];
+                }
+                return sum;
+            }
+            """
+        : source.CanTryProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source) {
                 {{resultType}} sum = default!;
                 checked{
                     if(source.TryGetSpan(out var __span)){
-                        foreach(var item in __span) sum+=item;
+                        for(var __i=0;__i<__span.Length;__i++) sum+=__span[__i];
                     }else{
                         while(source.MoveNext()) sum+=source.Current;
                     }
@@ -84,14 +96,32 @@ public class Sum_selector(int 番号, Enumerable source, FuncFragment selector, 
         ?? (TryRenderDirectLambda(selector) is { } lambda
             ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Sum",lambda)
             : null);
-    protected override string ComputeMembers => source.CanTryProvideSpan
+    protected override string ComputeMembers => source.CanProvideSpan
+        ? $$"""
+            {{AggressiveInliningAttribute}}
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
+                {{resultType}} sum = default!;
+                checked{
+                    source.TryGetSpan(out var __span);
+                    for(var __i=0;__i<__span.Length;__i++){
+                        var {{this.item}}=__span[__i];
+                        {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
+                        {{this.FuncAssignIndented("                ",selector,nameof(selector),this.temp,this.item)}}
+                        sum+={{this.temp}};
+                    }
+                }
+                return sum;
+            }
+            """
+        : source.CanTryProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
                 {{resultType}} sum = default!;
                 checked{
                     if(source.TryGetSpan(out var __span)){
-                        foreach(var {{this.item}} in __span){
+                        for(var __i=0;__i<__span.Length;__i++){
+                            var {{this.item}}=__span[__i];
                             {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
                             {{this.FuncAssignIndented("                ",selector,nameof(selector),this.temp,this.item)}}
                             sum+={{this.temp}};

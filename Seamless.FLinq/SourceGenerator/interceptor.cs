@@ -58,7 +58,7 @@ public sealed partial class FLinqIncrementalGenerator : IIncrementalGenerator {
             productionContext.AddSource("LinqRewriteAttributes.g.cs",SourceText.From(LinqRewriteAttributesSource,Encoding.UTF8));
         });
 
-        // Tsavorite001 警告: グローバルな重複除去が必要なため Collect で一括処理（軽量）
+        // FLINQ001 警告: グローバルな重複除去が必要なため Collect で一括処理（軽量）
         context.RegisterSourceOutput(interceptTargets.Collect(),static (productionContext,interceptTargets)=>{
             if(interceptTargets.IsDefaultOrEmpty) {
                 return;

@@ -1,7 +1,7 @@
 namespace Test.SourceGenerator {
     // FLinq の fallback 0 検証。
     // 1. 実行時診断: LinqCounter.EnumerableFallback が展開済みチェーン実行後に 0 のままであること。
-    // 2. 生成コード検査: 生成インターセプター内に LinqInterceptorFailure(未展開の明示例外)が残っていないこと。
+    // 2. 生成コード検査: 生成インターセプター内に未展開の明示例外が残っていないこと。
     public sealed class FallbackDiagnostics {
         [Fact, Trait("Category","Unit")]
         public void EnumerableFallbackCounter() {
@@ -52,10 +52,13 @@ namespace Test.SourceGenerator {
                     continue;
                 }
                 var index = 0;
-                while((index=text.IndexOf("LinqInterceptorFailure(",index,StringComparison.Ordinal))>=0) {
-                    var lineNumber = CountLines(text,index);
-                    failures.Add($"{file}:{lineNumber}");
-                    index+=1;
+                foreach(var marker in new[]{"LinqInterceptorFailure(","UnsupportedLinqExpansion("}) {
+                    index=0;
+                    while((index=text.IndexOf(marker,index,StringComparison.Ordinal))>=0) {
+                        var lineNumber = CountLines(text,index);
+                        failures.Add($"{file}:{lineNumber}:{marker}");
+                        index+=1;
+                    }
                 }
             }
 

@@ -78,7 +78,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <list type="number">
     ///   <item><description><see cref="型スタック取得"/> でネスト型の階層スタックを取得し、外側から順に <c>internal static class</c> を開く。</description></item>
     ///   <item><description>各ターゲットについて <see cref="ローカル傍受メソッド本体構築"/> を試みる。成功すれば <c>[InterceptsLocation]</c> 付きメソッドを出力する。</description></item>
-    ///   <item><description>本体構築に失敗した場合は Fragment 未対応か展開不能かを判別し、いずれも例外 throw を生成して Tsavorite002 警告を発行する（静かなフォールバックは作らない）。</description></item>
+    ///   <item><description>本体構築に失敗した場合は Fragment 未対応か展開不能かを判別し、いずれも例外 throw を生成して FLINQ002 警告を発行する（静かなフォールバックは作らない）。</description></item>
     ///   <item><description>例外が発生した場合も同様に例外 throw コードを生成し、同一メソッドへの二重出力は <c>emittedMethodNames</c> で抑制する。</description></item>
     ///   <item><description>UnsafeAccessor 宣言はクラス直下に出力し、型スタックを逆順に閉じる。</description></item>
     /// </list>
@@ -248,7 +248,7 @@ public sealed partial class FLinqIncrementalGenerator {
         // Fragment クラスが存在しない Enumerable メソッドは、元実装へ黙って戻さず例外にする。
         // これにより「intercept 対象だったが未対応だった」ことを生成コードと実行時の両方で確認できる。
         var methodList = string.Join(", ",unsupportedMethods);
-        return $"throw global::Seamless.Linq.GeneratedCodeHelpers.LinqInterceptorFailure(\"Local method interception does not support System.Linq.Enumerable methods without Fragment implementations: {methodList}.\");";
+        return $"throw global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"local method interception\",\"System.Linq.Enumerable methods without Fragment implementations: {methodList}.\");";
     }
     private static string RenderUninlineableLocalMethodBody(Linq傍受対象型 target) {
         // Fragment クラス名は存在しても、source 形状や delegate 形状の都合で最終的に再構成できないことがある。
@@ -256,7 +256,7 @@ public sealed partial class FLinqIncrementalGenerator {
         var methodName = target.Method.ToDisplayString(完全修飾形式)
             .Replace("\\","\\\\",StringComparison.Ordinal)
             .Replace("\"","\\\"",StringComparison.Ordinal);
-        return $"throw global::Seamless.Linq.GeneratedCodeHelpers.LinqInterceptorFailure(\"Local method interception could not inline '{methodName}'. Forwarding is disabled for methods that contain System.Linq.Enumerable calls.\");";
+        return $"throw global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"{methodName}\",\"Forwarding is disabled for methods that contain System.Linq.Enumerable calls.\");";
     }
     private static string RenderUnsupportedDirectMethodBody(Linq傍受対象型 target,string? detail = null) {
         var methodName = target.Method.ReducedFrom?.ToDisplayString(完全修飾形式) ?? target.Method.ToDisplayString(完全修飾形式);
@@ -267,6 +267,6 @@ public sealed partial class FLinqIncrementalGenerator {
         message=message
             .Replace("\\","\\\\",StringComparison.Ordinal)
             .Replace("\"","\\\"",StringComparison.Ordinal);
-        return $"throw global::Seamless.Linq.GeneratedCodeHelpers.LinqInterceptorFailure(\"{message}\");";
+        return $"throw global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"{target.Method.Name}\",\"{message}\");";
     }
 }

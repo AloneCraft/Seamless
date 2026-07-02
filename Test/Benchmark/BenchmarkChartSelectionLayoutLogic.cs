@@ -53,14 +53,14 @@ public sealed class BenchmarkChartSelectionLayoutLogic{
     }
 
     [Fact]
-    public void CreateBarLabelPoints_UsesEachBarLeftEdge(){
+    public void CreateBarLabelPoints_UsesStackBoundarySides(){
         var points = global::UI.BenchmarkChartSelectionLayoutLogic.CreateBarLabelPoints(
             new BenchmarkChartBarRect(100,250,150),
             new BenchmarkChartBarRect(250,500,250),
             y:24,
             padding:6);
 
-        Assert.Equal(106,points.LeftLabelPoint.X);
+        Assert.Equal(244,points.LeftLabelPoint.X);
         Assert.Equal(256,points.RightLabelPoint.X);
         Assert.Equal(24,points.LeftLabelPoint.Y);
         Assert.Equal(24,points.RightLabelPoint.Y);
