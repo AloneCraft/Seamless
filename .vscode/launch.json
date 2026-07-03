@@ -2,16 +2,30 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Benchmark",
+            "name": "UI",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build-benchmark",
-            "program": "${workspaceFolder}/Benchmark/bin/Debug/net10.0-windows10.0.19041.0/win-x64/Benchmark.exe",
+            "preLaunchTask": "build-ui",
+            "program": "${workspaceFolder}/Benchmark/UI/bin/Debug/net10.0-windows10.0.19041.0/win-x64/UI.exe",
             "args": [],
             "env": {
                 "DOTNET_MODIFIABLE_ASSEMBLIES": "debug"
             },
-            "cwd": "${workspaceFolder}/Benchmark/bin/Debug/net10.0-windows10.0.19041.0/win-x64",
+            "cwd": "${workspaceFolder}/Benchmark/UI/bin/Debug/net10.0-windows10.0.19041.0/win-x64",
+            "console": "internalConsole",
+            "stopAtEntry": false
+        },
+        {
+            "name": "Scalable.UI",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-scalable-ui",
+            "program": "${workspaceFolder}/Benchmark/Scalable.UI/bin/Debug/net10.0-windows10.0.19041.0/win-x64/Scalable.UI.exe",
+            "args": [],
+            "env": {
+                "DOTNET_MODIFIABLE_ASSEMBLIES": "debug"
+            },
+            "cwd": "${workspaceFolder}/Benchmark/Scalable.UI/bin/Debug/net10.0-windows10.0.19041.0/win-x64",
             "console": "internalConsole",
             "stopAtEntry": false
         }

@@ -33,12 +33,25 @@
             "group": "build"
         },
         {
-            "label": "build-benchmark",
+            "label": "build-ui",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Benchmark/Benchmark.csproj",
+                "${workspaceFolder}/Benchmark/UI/UI.csproj",
+                "/property:GenerateFullPaths=true",
+                "/property:TargetFramework=net10.0-windows10.0.19041.0",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-scalable-ui",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/Benchmark/Scalable.UI/Scalable.UI.csproj",
                 "/property:GenerateFullPaths=true",
                 "/property:TargetFramework=net10.0-windows10.0.19041.0",
                 "/consoleloggerparameters:NoSummary"
