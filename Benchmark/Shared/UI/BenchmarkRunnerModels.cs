@@ -103,19 +103,18 @@ public sealed class BenchmarkSortRule:ObservableObject{
 
 public sealed record BenchmarkSortColumnOption(BenchmarkGridSortColumn Column,string DisplayName);
 
-public sealed class SourceTabOption:ObservableObject{
-    private BenchmarkTabProgress progress;
+/// <summary>選択/非選択タブヘッダーの配色を一元管理する。3つのタブストリップ(ソース/下段/チャート診断)で共有する。</summary>
+public static class BenchmarkTabHeaderStyle{
+    public static FontAttributes GetFontAttributes(bool isSelected) => isSelected ? FontAttributes.Bold : FontAttributes.None;
+    public static Color GetTextColor(bool isSelected) => isSelected ? Color.FromArgb("#0F172A") : Color.FromArgb("#475569");
+    public static Color GetBackgroundColor(bool isSelected) => isSelected ? Colors.White : Color.FromArgb("#F1F5F9");
+    public static Brush GetStroke(bool isSelected) => new SolidColorBrush(isSelected ? Color.FromArgb("#0F766E") : Color.FromArgb("#CBD5E1"));
+}
+
+/// <summary>タブヘッダーの選択状態を持つ共通基底。SourceTabOption と TabHeaderOption が実装する。</summary>
+public abstract class TabHeaderOptionBase:ObservableObject{
     private bool isSelected;
-    private bool isRunning;
 
-    public SourceTabOption(BenchmarkSourceTabDefinition definition){
-        this.Definition=definition;
-    }
-
-    public BenchmarkSourceTabDefinition Definition { get; }
-    public BenchmarkSourceTab Tab => this.Definition.Tab;
-    public string Id => this.Definition.Id;
-    public string DisplayName => this.Definition.DisplayName;
     public bool IsSelected{
         get => this.isSelected;
         private set{
@@ -127,10 +126,39 @@ public sealed class SourceTabOption:ObservableObject{
             }
         }
     }
-    public FontAttributes HeaderFontAttributes => this.IsSelected ? FontAttributes.Bold : FontAttributes.None;
-    public Color HeaderTextColor => this.IsSelected ? Color.FromArgb("#0F172A") : Color.FromArgb("#475569");
-    public Color HeaderBackgroundColor => this.IsSelected ? Colors.White : Color.FromArgb("#F1F5F9");
-    public Brush HeaderStroke => this.IsSelected ? new SolidColorBrush(Color.FromArgb("#0F766E")) : new SolidColorBrush(Color.FromArgb("#CBD5E1"));
+
+    public abstract string HeaderText { get; }
+    public FontAttributes HeaderFontAttributes => BenchmarkTabHeaderStyle.GetFontAttributes(this.IsSelected);
+    public Color HeaderTextColor => BenchmarkTabHeaderStyle.GetTextColor(this.IsSelected);
+    public Color HeaderBackgroundColor => BenchmarkTabHeaderStyle.GetBackgroundColor(this.IsSelected);
+    public Brush HeaderStroke => BenchmarkTabHeaderStyle.GetStroke(this.IsSelected);
+
+    public void SetSelected(bool value){
+        this.IsSelected=value;
+    }
+}
+
+/// <summary>進捗リング等の付帯情報を持たない、静的タイトルのタブヘッダー(下段/チャート診断タブ用)。</summary>
+public sealed class TabHeaderOption:TabHeaderOptionBase{
+    public TabHeaderOption(string headerText){
+        this.HeaderText=headerText;
+    }
+
+    public override string HeaderText { get; }
+}
+
+public sealed class SourceTabOption:TabHeaderOptionBase{
+    private BenchmarkTabProgress progress;
+    private bool isRunning;
+
+    public SourceTabOption(BenchmarkSourceTabDefinition definition){
+        this.Definition=definition;
+    }
+
+    public BenchmarkSourceTabDefinition Definition { get; }
+    public BenchmarkSourceTab Tab => this.Definition.Tab;
+    public string Id => this.Definition.Id;
+    public string DisplayName => this.Definition.DisplayName;
     public BenchmarkTabProgress Progress{
         get => this.progress;
         private set{
@@ -143,7 +171,7 @@ public sealed class SourceTabOption:ObservableObject{
             }
         }
     }
-    public string HeaderText => this.DisplayName;
+    public override string HeaderText => this.DisplayName;
     public bool HasProgress => this.Progress.Total>0;
     public double ProgressFraction => this.Progress.Total<=0 ? 0 : this.Progress.Fraction;
     public string ProgressText => this.Progress.Total<=0 ? "0/0" : this.Progress.FractionText;
@@ -159,10 +187,6 @@ public sealed class SourceTabOption:ObservableObject{
 
     public void SetRunning(bool value){
         this.IsRunning=value;
-    }
-
-    public void SetSelected(bool value){
-        this.IsSelected=value;
     }
 }
 
