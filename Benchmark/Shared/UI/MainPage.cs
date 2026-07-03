@@ -28,7 +28,6 @@ public sealed class MainPage:ContentPage {
     private const double BenchmarkCellCheckSlotWidth = 38;
     private const double BenchmarkHeaderCheckSlotWidth = 38;
     private const double BenchmarkScrollBarSize = 20;
-    private const double BenchmarkSelectionStrokeThickness = 2;
     private const double CpuLogicalColumnWidth = 420;
     private const double CpuLogicalCheckColumnWidth = 38;
     private const double CpuLogicalNumberWidth = 26;
@@ -57,7 +56,7 @@ public sealed class MainPage:ContentPage {
     private string activeDialogFallbackValue = string.Empty;
     private readonly List<Action> collapsibleSectionRefreshers = [];
     private bool isImprovementPromptExpanded;
-    private readonly Dictionary<BenchmarkToolbarButtonRole,ImageButton> toolbarButtons = [];
+    private readonly Dictionary<BenchmarkToolbarButtonRole,VisualElement> toolbarButtons = [];
     private SfDataGrid? benchmarkGrid;
     private BenchmarkSourceTab? lastBenchmarkGridColumnsSourceTab;
     private SfTabView? sourceTabView;
@@ -68,7 +67,7 @@ public sealed class MainPage:ContentPage {
     private bool isApplyingSourceTabViewSelection;
     private BenchmarkSortRule? draggedBenchmarkSortRule;
 
-    public double BenchmarkSelectionStrokeOpacity => this.benchmarkSelectionPulseOn ? 1 : 0.25;
+    public double BenchmarkSelectionFillOpacity => this.benchmarkSelectionPulseOn ? 0.22 : 0.08;
 
 #if WINDOWS
     [System.Runtime.InteropServices.DllImport("user32.dll")]
@@ -659,6 +658,22 @@ public sealed class MainPage:ContentPage {
             "pause.png",
             "一時停止");
         this.BindToolbarButtonState(pauseButton,BenchmarkToolbarButtonRole.Pause);
+#if DEBUG
+        var infiniteButton = new Button {
+            Text="永久実行",
+            HeightRequest=30,
+            MinimumWidthRequest=92,
+            Padding=new Thickness(10,0),
+            FontSize=12,
+            FontAttributes=FontAttributes.Bold,
+            BackgroundColor=Color.FromArgb("#F8FAFC"),
+            BorderColor=Color.FromArgb("#CBD5E1"),
+            BorderWidth=1,
+            TextColor=Color.FromArgb("#334155"),
+            CornerRadius=6,
+        };
+        this.BindToolbarButtonState(infiniteButton,BenchmarkToolbarButtonRole.RunInfinite);
+#endif
         var thresholdPicker = new Picker {
             WidthRequest=112,
             HeightRequest=30,
@@ -717,8 +732,14 @@ public sealed class MainPage:ContentPage {
         grid.Add(runButton,4,0);
         grid.Add(pauseButton,5,0);
         grid.Add(stopButton,6,0);
+#if DEBUG
+        grid.Add(infiniteButton,7,0);
+        grid.Add(this.ToolbarLabel("結果"),8,0);
+        grid.Add(runPicker,9,0);
+#else
         grid.Add(this.ToolbarLabel("結果"),7,0);
         grid.Add(runPicker,8,0);
+#endif
         var preview = this.CreateStatusIconPreview();
         grid.Add(preview,0,1);
         Grid.SetColumnSpan(preview,9);
@@ -797,6 +818,16 @@ public sealed class MainPage:ContentPage {
     private void BindToolbarButtonState(ImageButton button,BenchmarkToolbarButtonRole role) {
         this.toolbarButtons[role]=button;
         button.Clicked+=async (_,_) => await this.HandleToolbarButtonClickAsync(role);
+        this.BindToolbarButtonStateCore(button,role);
+    }
+
+    private void BindToolbarButtonState(Button button,BenchmarkToolbarButtonRole role) {
+        this.toolbarButtons[role]=button;
+        button.Clicked+=async (_,_) => await this.HandleToolbarButtonClickAsync(role);
+        this.BindToolbarButtonStateCore(button,role);
+    }
+
+    private void BindToolbarButtonStateCore(VisualElement button,BenchmarkToolbarButtonRole role) {
         void Apply() {
             if(this.viewModel is null) {
                 return;
@@ -823,16 +854,23 @@ public sealed class MainPage:ContentPage {
         }
     }
 
-    private void ApplyToolbarButtonState(ImageButton button,BenchmarkToolbarButtonState state) {
+    private void ApplyToolbarButtonState(VisualElement button,BenchmarkToolbarButtonState state) {
         button.IsEnabled=state.IsEnabled;
         button.InputTransparent=false;
         button.Opacity=state.ShowDisabledVisual ? 0.45 : 1;
-        button.BorderColor=state.ShouldPulse&&this.pausedToolbarPulseOn
+        var borderColor = state.ShouldPulse&&this.pausedToolbarPulseOn
             ? Color.FromArgb("#EA580C")
             : Color.FromArgb("#CBD5E1");
-        button.BackgroundColor=state.ShouldPulse&&this.pausedToolbarPulseOn
+        var backgroundColor = state.ShouldPulse&&this.pausedToolbarPulseOn
             ? Color.FromArgb("#FFF7ED")
             : Color.FromArgb("#F8FAFC");
+        if(button is ImageButton imageButton) {
+            imageButton.BorderColor=borderColor;
+            imageButton.BackgroundColor=backgroundColor;
+        }else if(button is Button textButton) {
+            textButton.BorderColor=borderColor;
+            textButton.BackgroundColor=backgroundColor;
+        }
         button.Scale=state.ShouldPulse&&this.pausedToolbarPulseOn ? 1.08 : 1;
         this.RefreshPausedToolbarPulse();
     }
@@ -870,6 +908,13 @@ public sealed class MainPage:ContentPage {
                     await this.viewModel.RunCommand.ExecuteAsync(null);
                 }
                 break;
+#if DEBUG
+            case BenchmarkToolbarButtonRole.RunInfinite:
+                if(this.viewModel.RunInfiniteCommand.CanExecute(null)) {
+                    await this.viewModel.RunInfiniteCommand.ExecuteAsync(null);
+                }
+                break;
+#endif
             case BenchmarkToolbarButtonRole.Stop:
                 if(this.viewModel.StopCommand.CanExecute(null)) {
                     await this.viewModel.StopCommand.ExecuteAsync(null);
@@ -951,7 +996,7 @@ public sealed class MainPage:ContentPage {
         this.benchmarkSelectionPulseTimer.Interval=TimeSpan.FromMilliseconds(420);
         this.benchmarkSelectionPulseTimer.Tick+=(_,_) => {
             this.benchmarkSelectionPulseOn=!this.benchmarkSelectionPulseOn;
-            this.OnPropertyChanged(nameof(this.BenchmarkSelectionStrokeOpacity));
+            this.OnPropertyChanged(nameof(this.BenchmarkSelectionFillOpacity));
         };
         this.benchmarkSelectionPulseTimer.Start();
     }
@@ -2242,9 +2287,9 @@ public sealed class MainPage:ContentPage {
                     }
                 };
                 selectionHost.GestureRecognizers.Add(selectionTap);
+                this.AddBenchmarkRowUiSelectionFill(layout);
                 layout.Add(checkHost,0,0);
                 layout.Add(selectionHost,1,0);
-                this.AddBenchmarkRowUiSelectionOutline(layout,true,true,true,false);
                 return layout;
             }),
         };
@@ -2322,8 +2367,8 @@ public sealed class MainPage:ContentPage {
         var timeMapping = cellPath+"Time";
         var allocatedMapping = cellPath+"Allocated";
         grid.Columns.Add(this.CreateProjectCheckColumn(checkMapping,cellPath));
-        grid.Columns.Add(this.CreateProjectTextColumn("時間",timeMapping,cellPath,cellPath+"."+nameof(BenchmarkProjectCell.TimeText),timeSortColumn,BenchmarkProjectMetricColumnWidth,TextAlignment.End,BenchmarkProjectSelectionSegment.Middle));
-        grid.Columns.Add(this.CreateProjectTextColumn("メモリ",allocatedMapping,cellPath,cellPath+"."+nameof(BenchmarkProjectCell.AllocatedText),allocatedSortColumn,BenchmarkProjectMetricColumnWidth,TextAlignment.End,BenchmarkProjectSelectionSegment.Last));
+        grid.Columns.Add(this.CreateProjectTextColumn("時間",timeMapping,cellPath,cellPath+"."+nameof(BenchmarkProjectCell.TimeText),timeSortColumn,BenchmarkProjectMetricColumnWidth,TextAlignment.End));
+        grid.Columns.Add(this.CreateProjectTextColumn("メモリ",allocatedMapping,cellPath,cellPath+"."+nameof(BenchmarkProjectCell.AllocatedText),allocatedSortColumn,BenchmarkProjectMetricColumnWidth,TextAlignment.End));
         return [checkMapping,timeMapping,allocatedMapping];
     }
 
@@ -2600,6 +2645,8 @@ public sealed class MainPage:ContentPage {
                     }
                 };
                 checkHost.GestureRecognizers.Add(checkTap);
+                this.AddBenchmarkRowUiSelectionFill(layout);
+                this.AddBenchmarkProjectUiSelectionFill(layout,this.GetBenchmarkProjectSelectionSide(cellPath));
                 var spinner = new ActivityIndicator {
                     WidthRequest=14,
                     HeightRequest=14,
@@ -2685,7 +2732,6 @@ public sealed class MainPage:ContentPage {
                 content.Add(CPU,3,0);
                 content.Add(detailHost,4,0);
                 layout.Add(content,1,1);
-                this.AddBenchmarkProjectUiSelectionOutline(layout,this.GetBenchmarkProjectSelectionSide(cellPath),BenchmarkProjectSelectionSegment.First);
                 return layout;
             }),
         };
@@ -2723,9 +2769,16 @@ public sealed class MainPage:ContentPage {
                 label.SetBinding(Label.FontAttributesProperty,fontAttributesPath);
                 label.SetBinding(ToolTipProperties.TextProperty,bindingPath);
                 grid.SetBinding(ToolTipProperties.TextProperty,bindingPath);
+                this.AddBenchmarkRowUiSelectionFill(grid);
+                var tap = new TapGestureRecognizer();
+                tap.Tapped+=(_,_) => {
+                    if(grid.BindingContext is BenchmarkTableRow row) {
+                        this.viewModel?.SelectBenchmarkRow(row,CreateBenchmarkSelectionGesture());
+                    }
+                };
+                grid.GestureRecognizers.Add(tap);
                 grid.Add(label,0,0);
                 this.EnableHoverCellExpansion(grid,label,TextAlignment.Center);
-                this.AddBenchmarkRowUiSelectionOutline(grid,false,true,true,false);
                 return grid;
             }),
         };
@@ -2738,8 +2791,7 @@ public sealed class MainPage:ContentPage {
         string bindingPath,
         BenchmarkGridSortColumn sortColumn,
         double width,
-        TextAlignment alignment,
-        BenchmarkProjectSelectionSegment segment) {
+        TextAlignment alignment) {
         return new DataGridTemplateColumn {
             MappingName=mappingName,
             HeaderText=header,
@@ -2786,6 +2838,8 @@ public sealed class MainPage:ContentPage {
                 grid.Add(runningBackground,0,0);
                 Grid.SetColumnSpan(runningBackground,3);
                 Grid.SetRowSpan(runningBackground,3);
+                this.AddBenchmarkRowUiSelectionFill(grid);
+                this.AddBenchmarkProjectUiSelectionFill(grid,this.GetBenchmarkProjectSelectionSide(cellPath));
                 grid.Add(label,0,0);
                 Grid.SetColumnSpan(label,3);
                 Grid.SetRowSpan(label,3);
@@ -2797,7 +2851,6 @@ public sealed class MainPage:ContentPage {
                     }
                 };
                 grid.GestureRecognizers.Add(tap);
-                this.AddBenchmarkProjectUiSelectionOutline(grid,this.GetBenchmarkProjectSelectionSide(cellPath),segment);
                 return grid;
             }),
         };
@@ -2808,71 +2861,27 @@ public sealed class MainPage:ContentPage {
             ? BenchmarkProjectSelectionSide.Right
             : BenchmarkProjectSelectionSide.Left;
 
-    private void AddBenchmarkProjectUiSelectionOutline(Grid grid,BenchmarkProjectSelectionSide side,BenchmarkProjectSelectionSegment segment) {
+    private void AddBenchmarkProjectUiSelectionFill(Grid grid,BenchmarkProjectSelectionSide side) {
         var selectedPath = side==BenchmarkProjectSelectionSide.Right
             ? nameof(BenchmarkTableRow.IsRightUiSelected)
             : nameof(BenchmarkTableRow.IsLeftUiSelected);
-        var partialPath = side==BenchmarkProjectSelectionSide.Right
-            ? nameof(BenchmarkTableRow.IsRightPartialUiSelected)
-            : nameof(BenchmarkTableRow.IsLeftPartialUiSelected);
-        var leftPath = segment==BenchmarkProjectSelectionSegment.First
-            ? partialPath
-            : null;
-        var rightPath = segment==BenchmarkProjectSelectionSegment.Last
-            ? side==BenchmarkProjectSelectionSide.Right
-                ? selectedPath
-                : partialPath
-            : null;
-        this.AddBenchmarkSelectionOutline(grid,selectedPath,selectedPath,leftPath,rightPath);
+        this.AddBenchmarkSelectionFill(grid,selectedPath);
     }
 
-    private void AddBenchmarkRowUiSelectionOutline(Grid grid,bool left,bool top,bool bottom,bool right) {
-        var path = nameof(BenchmarkTableRow.IsUiSelected);
-        this.AddBenchmarkSelectionOutline(
-            grid,
-            top ? path : null,
-            bottom ? path : null,
-            left ? path : null,
-            right ? path : null);
+    private void AddBenchmarkRowUiSelectionFill(Grid grid) {
+        this.AddBenchmarkSelectionFill(grid,nameof(BenchmarkTableRow.IsUiSelected));
     }
 
-    private void AddBenchmarkSelectionOutline(Grid grid,string? topPath,string? bottomPath,string? leftPath,string? rightPath) {
-        var outline = new Grid {
-            InputTransparent=true,
-            RowDefinitions= {
-                new RowDefinition { Height = new GridLength(BenchmarkSelectionStrokeThickness) },
-                new RowDefinition { Height = GridLength.Star },
-                new RowDefinition { Height = new GridLength(BenchmarkSelectionStrokeThickness) },
-            },
-            ColumnDefinitions= {
-                new ColumnDefinition { Width = new GridLength(BenchmarkSelectionStrokeThickness) },
-                new ColumnDefinition { Width = GridLength.Star },
-                new ColumnDefinition { Width = new GridLength(BenchmarkSelectionStrokeThickness) },
-            },
-        };
-        this.AddBenchmarkSelectionLine(outline,topPath,0,0,3,1);
-        this.AddBenchmarkSelectionLine(outline,bottomPath,0,2,3,1);
-        this.AddBenchmarkSelectionLine(outline,leftPath,0,0,1,3);
-        this.AddBenchmarkSelectionLine(outline,rightPath,2,0,1,3);
-        grid.Add(outline,0,0);
-        Grid.SetColumnSpan(outline,Math.Max(1,grid.ColumnDefinitions.Count));
-        Grid.SetRowSpan(outline,Math.Max(1,grid.RowDefinitions.Count));
-    }
-
-    private void AddBenchmarkSelectionLine(Grid outline,string? visiblePath,int column,int row,int columnSpan,int rowSpan) {
-        if(string.IsNullOrWhiteSpace(visiblePath)) {
-            return;
-        }
-
-        var line = new BoxView {
+    private void AddBenchmarkSelectionFill(Grid grid,string visiblePath) {
+        var fill = new BoxView {
             BackgroundColor=Color.FromArgb("#22C55E"),
             InputTransparent=true,
         };
-        line.SetBinding(IsVisibleProperty,visiblePath);
-        line.SetBinding(OpacityProperty,new Binding(nameof(this.BenchmarkSelectionStrokeOpacity),source: this));
-        outline.Add(line,column,row);
-        Grid.SetColumnSpan(line,columnSpan);
-        Grid.SetRowSpan(line,rowSpan);
+        fill.SetBinding(IsVisibleProperty,visiblePath);
+        fill.SetBinding(OpacityProperty,new Binding(nameof(this.BenchmarkSelectionFillOpacity),source: this));
+        grid.Add(fill,0,0);
+        Grid.SetColumnSpan(fill,Math.Max(1,grid.ColumnDefinitions.Count));
+        Grid.SetRowSpan(fill,Math.Max(1,grid.RowDefinitions.Count));
     }
 
     private DataGridTemplateColumn CreateTextColumn(string header,string property,BenchmarkGridSortColumn sortColumn,double width,TextAlignment alignment) {
@@ -2901,8 +2910,11 @@ public sealed class MainPage:ContentPage {
                 label.SetBinding(Label.TextProperty,property);
                 label.SetBinding(ToolTipProperties.TextProperty,property);
                 grid.SetBinding(ToolTipProperties.TextProperty,property);
-                if(property==nameof(BenchmarkTableRow.BenchmarkName)) {
+                this.AddBenchmarkRowUiSelectionFill(grid);
+                if(property==nameof(BenchmarkTableRow.BenchmarkMethodText)) {
                     grid.SetBinding(ToolTipProperties.TextProperty,nameof(BenchmarkTableRow.BenchmarkArgumentTooltipText));
+                }
+                if(UsesBenchmarkRowSelection(property)) {
                     var tap = new TapGestureRecognizer();
                     tap.Tapped+=(_,_) => {
                         if(grid.BindingContext is BenchmarkTableRow row) {
@@ -2913,12 +2925,16 @@ public sealed class MainPage:ContentPage {
                 }
                 grid.Add(label,0,0);
                 this.EnableHoverCellExpansion(grid,label,alignment);
-                if(property==nameof(BenchmarkTableRow.BenchmarkName)) {
-                    this.AddBenchmarkRowUiSelectionOutline(grid,false,true,true,false);
-                }
                 return grid;
             }),
         };
+    }
+
+    private static bool UsesBenchmarkRowSelection(string property) {
+        return property==nameof(BenchmarkTableRow.BenchmarkTypeText)
+            ||property==nameof(BenchmarkTableRow.BenchmarkMethodText)
+            ||property==nameof(BenchmarkTableRow.PairRatioTimeText)
+            ||property==nameof(BenchmarkTableRow.PairRatioAllocatedText);
     }
 
     private void EnableHoverCellExpansion(Grid host,Label label,TextAlignment alignment) {
@@ -3876,6 +3892,11 @@ public sealed class MainPage:ContentPage {
                 FontSize=12,
                 Duration=4,
             },
+            BackgroundColor=Colors.Transparent,
+            PlotAreaBackgroundView=new BoxView {
+                Color=Colors.Transparent,
+                InputTransparent=true,
+            },
             VerticalOptions=LayoutOptions.Fill,
         };
         chart.SetBinding(HeightRequestProperty,nameof(BenchmarkRunnerViewModel.ChartHeight));
@@ -3925,23 +3946,42 @@ public sealed class MainPage:ContentPage {
         chart.Series.Add(leftSeries);
         chart.Series.Add(rightSeries);
 
-        var overlayDrawable = new BenchmarkChartSelectionOverlayDrawable(
+        var chartBackgroundDrawable = new BenchmarkChartSelectionBackgroundDrawable(
             () => this.viewModel?.ChartPoints??[],
-            () => this.BenchmarkSelectionStrokeOpacity,
+            () => this.BenchmarkSelectionFillOpacity,
             chart,
             xAxis,
             yAxis);
-        var chartOverlay = new GraphicsView {
-            Drawable=overlayDrawable,
+        var chartBackground = new GraphicsView {
+            Drawable=chartBackgroundDrawable,
             InputTransparent=true,
             BackgroundColor=Colors.Transparent,
             VerticalOptions=LayoutOptions.Fill,
             HorizontalOptions=LayoutOptions.Fill,
         };
+        var chartOverlay = new GraphicsView {
+            Drawable=new BenchmarkChartSelectionHitDrawable(),
+            InputTransparent=false,
+            BackgroundColor=Colors.Transparent,
+            VerticalOptions=LayoutOptions.Fill,
+            HorizontalOptions=LayoutOptions.Fill,
+        };
+        chartBackground.SetBinding(HeightRequestProperty,nameof(BenchmarkRunnerViewModel.ChartHeight));
         chartOverlay.SetBinding(HeightRequestProperty,nameof(BenchmarkRunnerViewModel.ChartHeight));
+        PropertyChangedEventHandler chartSelectionPulseHandler = (_,args) => {
+            if(args.PropertyName==nameof(this.BenchmarkSelectionFillOpacity)) {
+                chartBackground.Invalidate();
+            }
+        };
+        this.PropertyChanged+=chartSelectionPulseHandler;
+        chartBackground.Unloaded+=(_,_) => this.PropertyChanged-=chartSelectionPulseHandler;
         if(this.viewModel is not null) {
-            NotifyCollectionChangedEventHandler handler = (_,_) => chartOverlay.Invalidate();
+            NotifyCollectionChangedEventHandler handler = (_,_) => {
+                chartBackground.Invalidate();
+                chartOverlay.Invalidate();
+            };
             this.viewModel.ChartPoints.CollectionChanged+=handler;
+            chartBackground.Unloaded+=(_,_) => this.viewModel.ChartPoints.CollectionChanged-=handler;
             chartOverlay.Unloaded+=(_,_) => this.viewModel.ChartPoints.CollectionChanged-=handler;
         }
         var chartLabelTooltipText = new Label {
@@ -3968,6 +4008,7 @@ public sealed class MainPage:ContentPage {
         var chartHost = new Grid {
             VerticalOptions=LayoutOptions.Fill,
             Children= {
+                chartBackground,
                 chart,
                 chartOverlay,
                 chartLabelTooltip,
@@ -3984,7 +4025,7 @@ public sealed class MainPage:ContentPage {
                 return;
             }
 
-            var hit = overlayDrawable.HitTest(
+            var hit = chartBackgroundDrawable.HitTest(
                 new SizeF((float)chartHost.Width,(float)chartHost.Height),
                 (float)point.X,
                 (float)point.Y);
@@ -4011,30 +4052,31 @@ public sealed class MainPage:ContentPage {
 
         var chartPointer = new PointerGestureRecognizer();
         chartPointer.PointerEntered+=(_,args) => {
-            if(args.GetPosition(chartHost) is { } point) {
+            if(args.GetPosition(chartOverlay) is { } point) {
                 UpdateChartLabelTooltip(point);
             }
         };
         chartPointer.PointerMoved+=(_,args) => {
-            if(args.GetPosition(chartHost) is { } point) {
+            if(args.GetPosition(chartOverlay) is { } point) {
                 UpdateChartLabelTooltip(point);
             }
         };
         chartPointer.PointerExited+=(_,_) => HideChartLabelTooltip();
-        chartHost.GestureRecognizers.Add(chartPointer);
+        chartOverlay.GestureRecognizers.Add(chartPointer);
         var chartTap = new TapGestureRecognizer();
         chartTap.Tapped+=(_,args) => {
-            var position = args.GetPosition(chartHost);
+            var position = args.GetPosition(chartOverlay);
             if(position is not { } point) {
                 return;
             }
 
-            if(overlayDrawable.HitTest(new SizeF((float)chartHost.Width,(float)chartHost.Height),(float)point.X,(float)point.Y) is { } hit) {
+            if(chartBackgroundDrawable.HitTest(new SizeF((float)chartHost.Width,(float)chartHost.Height),(float)point.X,(float)point.Y) is { } hit) {
                 this.SelectBenchmarkChartHit(hit);
+                chartBackground.Invalidate();
                 chartOverlay.Invalidate();
             }
         };
-        chartHost.GestureRecognizers.Add(chartTap);
+        chartOverlay.GestureRecognizers.Add(chartTap);
 
         var emptyText = new Label {
             Text="ベンチマークを実行するか、保存済み DB 実行を選択してください。",
@@ -4169,12 +4211,6 @@ internal enum BenchmarkProjectSelectionSide {
     Right,
 }
 
-internal enum BenchmarkProjectSelectionSegment {
-    First,
-    Middle,
-    Last,
-}
-
 internal enum BenchmarkChartSelectionTarget {
     Row,
     LeftBar,
@@ -4183,18 +4219,16 @@ internal enum BenchmarkChartSelectionTarget {
 
 internal readonly record struct BenchmarkChartSelectionHit(string Benchmark,BenchmarkChartSelectionTarget Target);
 
-internal sealed class BenchmarkChartSelectionOverlayDrawable:IDrawable {
-    private const float StrokeWidth = 2;
+internal sealed class BenchmarkChartSelectionBackgroundDrawable:IDrawable {
     private const float OuterPadding = 4;
     private const float LabelHitWidth = 280;
-    private const float BarLabelPadding = 6;
     private readonly Func<IReadOnlyList<ChartComparisonPoint>> getPoints;
     private readonly Func<double> getSelectionOpacity;
     private readonly SfCartesianChart chart;
     private readonly CategoryAxis xAxis;
     private readonly NumericalAxis yAxis;
 
-    public BenchmarkChartSelectionOverlayDrawable(
+    public BenchmarkChartSelectionBackgroundDrawable(
         Func<IReadOnlyList<ChartComparisonPoint>> getPoints,
         Func<double> getSelectionOpacity,
         SfCartesianChart chart,
@@ -4213,78 +4247,21 @@ internal sealed class BenchmarkChartSelectionOverlayDrawable:IDrawable {
             return;
         }
 
-        canvas.FontColor=Colors.White;
-        canvas.FontSize=10;
-        foreach(var row in this.CreateLayout(points,new SizeF(dirtyRect.Width,dirtyRect.Height))) {
-            var labelRects = BenchmarkChartSelectionLayoutLogic.CreateBoundaryLabelRects(
-                new BenchmarkChartBarRect(row.LeftBarRect.Left,row.LeftBarRect.Right,row.LeftBarRect.Width),
-                new BenchmarkChartBarRect(row.RightBarRect.Left,row.RightBarRect.Right,row.RightBarRect.Width),
-                row.LeftBarRect.Top+row.LeftBarRect.Height/2,
-                42,
-                row.LeftBarRect.Height,
-                BarLabelPadding);
-            this.DrawBarLabel(canvas,row.Point.LeftText,labelRects.LeftLabelRect,HorizontalAlignment.Right);
-            this.DrawBarLabel(canvas,row.Point.RightText,labelRects.RightLabelRect,HorizontalAlignment.Left);
-        }
-
-        canvas.StrokeColor=Color.FromArgb("#22C55E").WithAlpha((float)Math.Clamp(this.getSelectionOpacity(),0,1));
-        canvas.StrokeSize=StrokeWidth;
+        canvas.FillColor=Color.FromArgb("#22C55E").WithAlpha((float)Math.Clamp(this.getSelectionOpacity(),0,1));
         foreach(var row in this.CreateLayout(points,new SizeF(dirtyRect.Width,dirtyRect.Height))) {
             if(row.Point.IsRowUiSelected) {
-                canvas.DrawRectangle(row.RowSelectionRect);
+                canvas.FillRectangle(row.RowSelectionRect);
                 continue;
             }
 
             if(row.Point.IsLeftUiSelected) {
-                canvas.DrawRectangle(row.LeftBarRect);
+                canvas.FillRectangle(row.LeftSelectionRect);
             }
 
             if(row.Point.IsRightUiSelected) {
-                canvas.DrawRectangle(row.RightBarRect);
+                canvas.FillRectangle(row.RightSelectionRect);
             }
         }
-    }
-
-    private void DrawBarLabel(ICanvas canvas,string text,BenchmarkChartLabelRect labelRect,HorizontalAlignment alignment) {
-        if(string.IsNullOrWhiteSpace(text)) {
-            return;
-        }
-
-        DrawOutlinedString(
-            canvas,
-            text,
-            new RectF(labelRect.X,labelRect.Y,labelRect.Width,labelRect.Height),
-            alignment,
-            VerticalAlignment.Center);
-    }
-
-    private static void DrawOutlinedString(
-        ICanvas canvas,
-        string text,
-        RectF rect,
-        HorizontalAlignment horizontalAlignment,
-        VerticalAlignment verticalAlignment) {
-        var offsets = new (float X,float Y)[] {
-            (-1,-1),
-            (0,-1),
-            (1,-1),
-            (-1,0),
-            (1,0),
-            (-1,1),
-            (0,1),
-            (1,1),
-        };
-        canvas.FontColor=Colors.Black;
-        foreach(var offset in offsets) {
-            canvas.DrawString(
-                text,
-                new RectF(rect.X+offset.X,rect.Y+offset.Y,rect.Width,rect.Height),
-                horizontalAlignment,
-                verticalAlignment);
-        }
-
-        canvas.FontColor=Colors.White;
-        canvas.DrawString(text,rect,horizontalAlignment,verticalAlignment);
     }
 
     public BenchmarkChartSelectionHit? HitTest(SizeF size,float x,float y) {
@@ -4317,17 +4294,7 @@ internal sealed class BenchmarkChartSelectionOverlayDrawable:IDrawable {
     private IReadOnlyList<BenchmarkChartSelectionLayoutRow> CreateLayout(IReadOnlyList<ChartComparisonPoint> points,SizeF size) {
         var fallbackPlotLeft = MathF.Min(LabelHitWidth,size.Width*0.42f);
         var fallbackPlotRight = size.Width-OuterPadding;
-        var plotLeft = this.GetAxisCoordinate(this.yAxis,0,fallbackPlotLeft,size.Width);
-        var plotRight = this.GetAxisCoordinate(this.yAxis,100,fallbackPlotRight,size.Width);
-        if(plotRight<plotLeft) {
-            (plotLeft,plotRight)=(plotRight,plotLeft);
-        }
-
-        if(plotRight-plotLeft<40) {
-            plotLeft=fallbackPlotLeft;
-            plotRight=fallbackPlotRight;
-        }
-
+        var (plotLeft,plotRight) = this.GetSeriesPlotRange(size,fallbackPlotLeft,fallbackPlotRight);
         var top = 42f;
         var bottomPadding = 16f;
         var rowHeight = MathF.Max(1,(size.Height-top-bottomPadding)/Math.Max(1,points.Count));
@@ -4343,18 +4310,50 @@ internal sealed class BenchmarkChartSelectionOverlayDrawable:IDrawable {
                 plotRight,
                 point.LeftValue,
                 point.RightValue);
+            var splitX = Math.Clamp(barRects.LeftBarRect.Right,plotLeft,plotRight);
             var hitTop = center-rowHeight/2;
             rows[index]=new BenchmarkChartSelectionLayoutRow(
                 point,
                 plotLeft,
                 plotRight,
-                new RectF(OuterPadding,y,MathF.Max(1,plotRight-OuterPadding),barHeight),
+                new RectF(OuterPadding,hitTop,MathF.Max(1,plotRight-OuterPadding),rowHeight),
+                new RectF(plotLeft,hitTop,MathF.Max(1,splitX-plotLeft),rowHeight),
+                new RectF(splitX,hitTop,MathF.Max(1,plotRight-splitX),rowHeight),
                 new RectF(barRects.LeftBarRect.Left,y,barRects.LeftBarRect.Width,barHeight),
                 new RectF(barRects.RightBarRect.Left,y,barRects.RightBarRect.Width,barHeight),
                 new RectF(OuterPadding,hitTop,MathF.Max(1,plotRight-OuterPadding),rowHeight));
         }
 
         return rows;
+    }
+
+    private (float PlotLeft,float PlotRight) GetSeriesPlotRange(SizeF size,float fallbackPlotLeft,float fallbackPlotRight) {
+        var seriesBounds = this.chart.SeriesBounds;
+        var seriesLeft = (float)seriesBounds.Left;
+        var seriesRight = (float)seriesBounds.Right;
+        if(IsValidPlotRange(seriesLeft,seriesRight,size.Width)) {
+            return (seriesLeft,seriesRight);
+        }
+
+        var plotLeft = this.GetAxisCoordinate(this.yAxis,0,fallbackPlotLeft,size.Width);
+        var plotRight = this.GetAxisCoordinate(this.yAxis,100,fallbackPlotRight,size.Width);
+        if(plotRight<plotLeft) {
+            (plotLeft,plotRight)=(plotRight,plotLeft);
+        }
+
+        if(IsValidPlotRange(plotLeft,plotRight,size.Width)) {
+            return (plotLeft,plotRight);
+        }
+
+        return (fallbackPlotLeft,fallbackPlotRight);
+    }
+
+    private static bool IsValidPlotRange(float plotLeft,float plotRight,float width) {
+        return float.IsFinite(plotLeft)
+            &&float.IsFinite(plotRight)
+            &&plotLeft>=0
+            &&plotRight<=width
+            &&plotRight-plotLeft>=40;
     }
 
     private float GetAxisCoordinate(ChartAxis axis,double value,float fallback,float limit) {
@@ -4377,9 +4376,16 @@ internal readonly record struct BenchmarkChartSelectionLayoutRow(
     float PlotLeft,
     float PlotRight,
     RectF RowSelectionRect,
+    RectF LeftSelectionRect,
+    RectF RightSelectionRect,
     RectF LeftBarRect,
     RectF RightBarRect,
     RectF HitRect);
+
+internal sealed class BenchmarkChartSelectionHitDrawable:IDrawable {
+    public void Draw(ICanvas canvas,RectF dirtyRect) {
+    }
+}
 
 public sealed class BenchmarkCircularProgressView:GraphicsView {
     public static readonly BindableProperty ProgressProperty = BindableProperty.Create(

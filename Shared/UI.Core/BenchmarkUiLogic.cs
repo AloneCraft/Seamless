@@ -1004,6 +1004,7 @@ internal static class BenchmarkSkippedDisplayLogic{
 
 internal enum BenchmarkToolbarButtonRole{
     Run,
+    RunInfinite,
     Stop,
     Pause,
 }
@@ -1031,6 +1032,11 @@ internal static class BenchmarkToolbarStateLogic{
                     input.CanUseRunButton,
                     !input.CanUseRunButton,
                     input.CanUseRunButton),
+                BenchmarkToolbarButtonRole.RunInfinite => new BenchmarkToolbarButtonState(
+                    input.CanUseRunButton,
+                    input.CanUseRunButton,
+                    !input.CanUseRunButton,
+                    input.CanUseRunButton),
                 BenchmarkToolbarButtonRole.Stop => new BenchmarkToolbarButtonState(
                     input.CanStopBenchmark,
                     input.CanStopBenchmark,
@@ -1043,6 +1049,7 @@ internal static class BenchmarkToolbarStateLogic{
 
         return role switch{
             BenchmarkToolbarButtonRole.Run => CreateDirectActionState(input.CanUseRunButton),
+            BenchmarkToolbarButtonRole.RunInfinite => CreateDirectActionState(input.CanUseRunButton),
             BenchmarkToolbarButtonRole.Stop => CreateDirectActionState(input.CanStopBenchmark),
             BenchmarkToolbarButtonRole.Pause => CreateDirectActionState(input.CanPauseBenchmark),
             _ => new BenchmarkToolbarButtonState(false,false,true,false),

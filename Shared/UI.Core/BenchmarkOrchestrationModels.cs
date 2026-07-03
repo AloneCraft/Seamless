@@ -180,6 +180,8 @@ internal sealed record BenchmarkRunRequest(
     BenchmarkSourceTab SourceTab = BenchmarkSourceTab.SystemArray,
     Func<IReadOnlyList<BenchmarkCase>>? BenchmarkProvider = null);
 
+public sealed record BenchmarkRunExecutionOptions(bool UseInfiniteTestRunner = false);
+
 public sealed record BenchmarkJobRunResult(
     string Project,
     string Method,

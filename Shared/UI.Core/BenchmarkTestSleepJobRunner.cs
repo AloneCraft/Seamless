@@ -4,7 +4,7 @@ using System.Text;
 
 namespace UI;
 
-public sealed class BenchmarkTestSleepJobRunner(TimeSpan sleepDuration):IBenchmarkJobRunner{
+public sealed class BenchmarkTestSleepJobRunner(TimeSpan sleepDuration,bool runUntilCanceled = false):IBenchmarkJobRunner{
     public async Task<BenchmarkJobRunResult> RunAsync(
         BenchmarkJob job,
         string runRoot,
@@ -16,7 +16,11 @@ public sealed class BenchmarkTestSleepJobRunner(TimeSpan sleepDuration):IBenchma
         var artifactFolder = CreateArtifactFolder(runRoot,benchmark,job.SourceTab,job.ElementCount,loopCount);
         var effectiveSleepDuration = sleepDuration<=TimeSpan.Zero ? TimeSpan.FromMilliseconds(1) : sleepDuration;
         var stopwatch = Stopwatch.StartNew();
-        await Task.Delay(effectiveSleepDuration,cancellationToken);
+        if(runUntilCanceled){
+            await Task.Delay(Timeout.InfiniteTimeSpan,cancellationToken);
+        }else{
+            await Task.Delay(effectiveSleepDuration,cancellationToken);
+        }
         stopwatch.Stop();
         var meanNanoseconds = stopwatch.Elapsed.TotalMilliseconds*1_000_000;
         var log = "Test benchmark job slept for "+BenchmarkFormatting.FormatNanoseconds(meanNanoseconds)+".";
