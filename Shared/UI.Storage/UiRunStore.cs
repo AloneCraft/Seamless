@@ -713,6 +713,31 @@ public sealed class UiRunStore{
         return new(jobId,runId,caseId,jobKey,status,elementCount,loopCount,assignedLogicalCpu,startedAt,finishedAt,failureKind,failureReason);
     }
 
+    /// <summary>
+    /// UI ストア内の全テーブルのレコードを削除します。
+    /// スキーマ（テーブル定義/ビュー）とインデックスは保持されます。
+    /// </summary>
+    public void DeleteAllRecords(){
+        this.EnsureSchema();
+        using var connection = this.OpenConnection();
+        using var transaction = connection.BeginTransaction();
+        ExecuteNonQuery(connection,transaction,"DELETE FROM MetricValues;");
+        ExecuteNonQuery(connection,transaction,"DELETE FROM Measurements;");
+        ExecuteNonQuery(connection,transaction,"DELETE FROM Comparisons;");
+        ExecuteNonQuery(connection,transaction,"DELETE FROM FallbackDiagnostics;");
+        ExecuteNonQuery(connection,transaction,"DELETE FROM UiSelections;");
+        ExecuteNonQuery(connection,transaction,"DELETE FROM UiViewStates;");
+        ExecuteNonQuery(connection,transaction,"DELETE FROM RunStates;");
+        ExecuteNonQuery(connection,transaction,"DELETE FROM Jobs;");
+        ExecuteNonQuery(connection,transaction,"DELETE FROM CaseArguments;");
+        ExecuteNonQuery(connection,transaction,"DELETE FROM Cases;");
+        ExecuteNonQuery(connection,transaction,"DELETE FROM Runs;");
+        ExecuteNonQuery(connection,transaction,"DELETE FROM Apps;");
+        ExecuteNonQuery(connection,transaction,"DELETE FROM SchemaMigrations;");
+        ExecuteNonQuery(connection,transaction,"DELETE FROM sqlite_sequence;");
+        transaction.Commit();
+    }
+
     public void SaveMeasurement(long jobId,IReadOnlyList<UiMetricValueWrite> metrics,DateTimeOffset? measuredAt = null){
         ArgumentNullException.ThrowIfNull(metrics);
         this.EnsureSchema();

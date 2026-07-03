@@ -1,7 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TsavoriteTargetFramework Condition="'$(TsavoriteTargetFramework)' == ''">net10.0</TsavoriteTargetFramework>
-    <TargetFramework>$(TsavoriteTargetFramework)</TargetFramework>
+    <TargetFrameworks>$(TsavoriteTargetFramework)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TsavoriteTargetFramework)'=='net10.0' and $([MSBuild]::IsOSPlatform('Windows'))">net10.0-windows10.0.19041.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <LangVersion>preview</LangVersion>
     <Features>InterceptorsPreview</Features>
@@ -12,6 +13,15 @@
     <RootNamespace>Test</RootNamespace>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <CompilerGeneratedFilesOutputPath>$(MSBuildProjectDirectory)\..\Work\Generated\$(MSBuildProjectName)\$(Configuration)\$(TargetFramework)</CompilerGeneratedFilesOutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)'=='net10.0-windows10.0.19041.0'">
+    <UseMaui>true</UseMaui>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <WindowsPackageType>None</WindowsPackageType>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <EnableBenchmarkUiViewModelTests>true</EnableBenchmarkUiViewModelTests>
+    <EmitCompilerGeneratedFiles>false</EmitCompilerGeneratedFiles>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4">
@@ -24,6 +34,12 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />
     <PackageReference Include="Microsoft.Garnet" Version="2.0.1-beta.5" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'" />
+    <PackageReference Include="Syncfusion.Licensing" Version="33.2.15" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'" />
+    <PackageReference Include="Syncfusion.Maui.Buttons" Version="33.2.15" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'" />
+    <PackageReference Include="Syncfusion.Maui.DataGrid" Version="33.2.15" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'" />
+    <PackageReference Include="Syncfusion.Maui.Toolkit" Version="1.0.10" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -33,13 +49,13 @@
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
-  <ItemGroup>
+  <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'!='true'">
     <Reference Include="ZLinq">
       <HintPath>$(NuGetPackageRoot)zlinq/1.5.6/lib/net10.0/ZLinq.dll</HintPath>
       <Private>true</Private>
     </Reference>
   </ItemGroup>
-  <ItemGroup>
+  <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'!='true'">
     <ProjectReference Include="..\DynamicLinq.Runner\DynamicLinq.Runner.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="..\Benchmark\Worker\Worker.csproj" />
     <ProjectReference Include="..\Shared\UI.Storage\UI.Storage.csproj" />
@@ -50,11 +66,34 @@
     <ProjectReference Include="..\Seamless.Database\Seamless.Database.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
   </ItemGroup>
-  <ItemGroup>
+  <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'!='true'">
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
     <ProjectReference Include="..\Seamless.Collections\Seamless.Collections.csproj" />
   </ItemGroup>
-  <Import Project="..\Shared\Test.Shared\Test.Shared.projitems" Label="Shared" />
+  <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'">
+    <Compile Remove="**\*.cs" />
+    <Compile Include="Benchmark\Pattern.cs" />
+    <ProjectReference Include="..\Benchmark\DotNet.Linq.Enumerable.FLinq\DotNet.Linq.Enumerable.FLinq.csproj" />
+    <ProjectReference Include="..\Benchmark\DotNet.Linq.Enumerable.List.FLinq\DotNet.Linq.Enumerable.List.FLinq.csproj" />
+    <ProjectReference Include="..\Benchmark\DotNet.Linq.Enumerable.List.ZLinq\DotNet.Linq.Enumerable.List.ZLinq.csproj" />
+    <ProjectReference Include="..\Benchmark\DotNet.Linq.Enumerable.Range.FLinq\DotNet.Linq.Enumerable.Range.FLinq.csproj" />
+    <ProjectReference Include="..\Benchmark\DotNet.Linq.Enumerable.Range.ZLinq\DotNet.Linq.Enumerable.Range.ZLinq.csproj" />
+    <ProjectReference Include="..\Benchmark\DotNet.Linq.Enumerable.ZLinq\DotNet.Linq.Enumerable.ZLinq.csproj" />
+    <ProjectReference Include="..\Benchmark\Persisted.Collections\Persisted.Collections.csproj" />
+    <ProjectReference Include="..\Benchmark\Persisted.Linq.Enumerable.FLinq\Persisted.Linq.Enumerable.FLinq.csproj" />
+    <ProjectReference Include="..\Benchmark\Persisted.Linq.Enumerable.Linq\Persisted.Linq.Enumerable.Linq.csproj" />
+    <ProjectReference Include="..\Benchmark\Tsavorite.Collections\Tsavorite.Collections.csproj" />
+    <ProjectReference Include="..\Benchmark\Tsavorite.Linq.Enumerable.FLinq\Tsavorite.Linq.Enumerable.FLinq.csproj" />
+    <ProjectReference Include="..\Benchmark\Tsavorite.Linq.Enumerable.Linq\Tsavorite.Linq.Enumerable.Linq.csproj" />
+    <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" SetTargetFramework="TargetFramework=net10.0" />
+    <ProjectReference Include="..\Shared\UI.Storage\UI.Storage.csproj" />
+  </ItemGroup>
+  <Import Project="..\Shared\Test.Shared\Test.Shared.projitems" Label="Shared" Condition="'$(EnableBenchmarkUiViewModelTests)'!='true'" />
+  <Import Project="..\Benchmark\Shared\UI\UI.projitems" Label="Shared" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'" />
+  <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'">
+    <ApplicationDefinition Remove="..\Benchmark\Shared\UI\Platforms\Windows\App.xaml" />
+    <Compile Remove="..\Benchmark\Shared\UI\Platforms\Windows\App.xaml.cs" />
+  </ItemGroup>
   <!-- 生成物検査(FallbackDiagnostics)が stale ファイルを誤検出しないよう、コンパイル前に生成物出力を消す -->
   <Target Name="CleanCompilerGeneratedFiles" BeforeTargets="CoreCompile" Condition="'$(EmitCompilerGeneratedFiles)'=='true'">
     <RemoveDir Directories="$(CompilerGeneratedFilesOutputPath)" />

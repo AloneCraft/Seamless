@@ -33,7 +33,7 @@
             "group": "build"
         },
         {
-            "label": "build-ui",
+            "label": "build-ui-debug",
             "command": "dotnet",
             "type": "process",
             "args": [
@@ -46,12 +46,70 @@
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "build-scalable-ui",
+            "label": "build-ui-release",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/Benchmark/UI/UI.csproj",
+                "-c",
+                "Release",
+                "/property:GenerateFullPaths=true",
+                "/property:TargetFramework=net10.0-windows10.0.19041.0",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-scalable-ui-debug",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
                 "${workspaceFolder}/Benchmark/Scalable.UI/Scalable.UI.csproj",
+                "/property:GenerateFullPaths=true",
+                "/property:TargetFramework=net10.0-windows10.0.19041.0",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-scalable-ui-release",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/Benchmark/Scalable.UI/Scalable.UI.csproj",
+                "-c",
+                "Release",
+                "/property:GenerateFullPaths=true",
+                "/property:TargetFramework=net10.0-windows10.0.19041.0",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-parameter-sweep-ui-debug",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/Benchmark/Tsavorite.ParameterSweep.UI/Tsavorite.ParameterSweep.UI.csproj",
+                "/property:GenerateFullPaths=true",
+                "/property:TargetFramework=net10.0-windows10.0.19041.0",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-parameter-sweep-ui-release",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/Benchmark/Tsavorite.ParameterSweep.UI/Tsavorite.ParameterSweep.UI.csproj",
+                "-c",
+                "Release",
                 "/property:GenerateFullPaths=true",
                 "/property:TargetFramework=net10.0-windows10.0.19041.0",
                 "/consoleloggerparameters:NoSummary"

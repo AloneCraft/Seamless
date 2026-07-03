@@ -241,6 +241,50 @@ public sealed class BenchmarkTabProgressLogic{
     }
 
     [Fact]
+    public void Calculate_RestoresCompletedInactiveTabFromSavedRunJobs(){
+        var array = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
+        var list = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemList);
+        var selectedCases = new[]{
+            Case(array.LeftProject,"System.Array","Aggregate_func",""),
+            Case(array.RightProject,"System.Array","Aggregate_func",""),
+            Case(list.LeftProject,"System.Collections.Generic.List","All_predicate",""),
+            Case(list.RightProject,"System.Collections.Generic.List","All_predicate",""),
+        };
+        var savedState = new ProgressState {
+            SourceTab=list.Tab,
+            Jobs=[
+                CompletedJob(list.LeftProject,list.LeftAssemblyName,"System.Collections.Generic.List","All_predicate",4096),
+                CompletedJob(list.RightProject,list.RightAssemblyName,"System.Collections.Generic.List","All_predicate",4096),
+            ],
+        };
+        var listCells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases(selectedCases,list);
+        var listMeasurements = savedState.Jobs
+            .Where(job => job.SourceTab==list.Tab)
+            .Select(static job => new BenchmarkResultItem(job))
+            .Select(static item => new BenchmarkElementMeasurement(
+                item.Project,
+                item.Method,
+                item.TypeFullName,
+                item.ArgumentKey,
+                item.AxisCount,
+                item.Status,
+                item.MeanNanoseconds))
+            .ToArray();
+
+        var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
+            listCells,
+            listMeasurements,
+            list.LeftProject,
+            list.RightProject,
+            4096,
+            1_000_000);
+
+        Assert.Equal(2,progress.Completed);
+        Assert.Equal(2,progress.Total);
+        Assert.Equal(1,progress.Fraction);
+    }
+
+    [Fact]
     public void Calculate_TreatsFailedCellsAsTerminal(){
         var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
             [
@@ -361,6 +405,19 @@ public sealed class BenchmarkTabProgressLogic{
 
     private static BenchmarkCase Case(string project,string assemblyName,string type,string method,string argumentKey) =>
         new(project,assemblyName,type,method,argumentKey,[]);
+
+    private static BenchmarkJob CompletedJob(string project,string assemblyName,string typeFullName,string method,int elementCount) =>
+        new(){
+            Project=project,
+            AssemblyName=assemblyName,
+            TypeFullName=typeFullName,
+            MethodName=method,
+            SourceTab=BenchmarkSourceTabs.TryGetByProjectAndAssembly(project,assemblyName)?.Tab??BenchmarkSourceTab.SystemArray,
+            ElementCount=elementCount,
+            LoopCount=1,
+            Status=JobStatus.Completed,
+            MeanNanoseconds=2_000_000,
+        };
 
     private static string ResolveAssemblyName(string project) =>
         BenchmarkSourceTabs.TryGetByProject(project)?.GetAssemblyName(project)??"Test.Assembly";

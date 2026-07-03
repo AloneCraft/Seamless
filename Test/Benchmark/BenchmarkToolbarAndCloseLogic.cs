@@ -58,6 +58,24 @@ public sealed class BenchmarkToolbarAndCloseLogic{
     }
 
     [Fact]
+    public void RunningStopButtonUsesDirectState(){
+        var state = BenchmarkToolbarStateLogic.CreateState(
+            BenchmarkToolbarButtonRole.Stop,
+            new BenchmarkToolbarStateInput(
+                IsRefreshing:false,
+                IsBenchmarkRunActive:true,
+                IsBenchmarkPaused:false,
+                CanUseRunButton:false,
+                CanStopBenchmark:true,
+                CanPauseBenchmark:true));
+
+        Assert.True(state.IsEnabled);
+        Assert.True(state.InvokesPrimaryAction);
+        Assert.False(state.ShowDisabledVisual);
+        Assert.False(state.ShouldPulse);
+    }
+
+    [Fact]
     public void PausedRunButtonPulsesAndExecutes(){
         var state = BenchmarkToolbarStateLogic.CreateState(
             BenchmarkToolbarButtonRole.Run,
@@ -97,6 +115,7 @@ public sealed class BenchmarkToolbarAndCloseLogic{
     public void PausedPauseButtonRequiresDecisionDialog(){
         Assert.True(BenchmarkToolbarPauseGuardLogic.RequiresDecisionDialog(BenchmarkToolbarButtonRole.Pause,true));
         Assert.False(BenchmarkToolbarPauseGuardLogic.RequiresDecisionDialog(BenchmarkToolbarButtonRole.Run,true));
+        Assert.False(BenchmarkToolbarPauseGuardLogic.RequiresDecisionDialog(BenchmarkToolbarButtonRole.Stop,true));
         Assert.False(BenchmarkToolbarPauseGuardLogic.RequiresDecisionDialog(BenchmarkToolbarButtonRole.Pause,false));
     }
 

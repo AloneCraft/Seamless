@@ -50,6 +50,7 @@ public enum BenchmarkExecutionProfile {
     Accurate,
     Intermediate,
     Fast,
+    Test,
 }
 
 internal static class BenchmarkExecutionProfileNames {
@@ -58,12 +59,14 @@ internal static class BenchmarkExecutionProfileNames {
             BenchmarkExecutionProfile.Accurate => "Accurate",
             BenchmarkExecutionProfile.Intermediate => "Intermediate",
             BenchmarkExecutionProfile.Fast => "Fast",
+            BenchmarkExecutionProfile.Test => "Test",
             _ => profile.ToString(),
         };
 
     public static string GetAllocatedBytesSource(BenchmarkExecutionProfile profile) =>
         profile switch{
             BenchmarkExecutionProfile.Fast => "GC.GetAllocatedBytesForCurrentThread",
+            BenchmarkExecutionProfile.Test => "Thread.Sleep test runner",
             BenchmarkExecutionProfile.Accurate or BenchmarkExecutionProfile.Intermediate => "BenchmarkDotNet MemoryDiagnoser",
             _ => "Unknown",
         };

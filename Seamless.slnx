@@ -1,4 +1,4 @@
-﻿<Solution>
+<Solution>
   <Folder Name="/Benchmark/">
     <Project Path="Benchmark/DotNet.Linq.Enumerable.FLinq/DotNet.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Benchmark/DotNet.Linq.Enumerable.List.FLinq/DotNet.Linq.Enumerable.List.FLinq.csproj" />
@@ -17,7 +17,7 @@
     <Project Path="Benchmark/Tsavorite.Collections/Tsavorite.Collections.csproj" />
     <Project Path="Benchmark/Tsavorite.Linq.Enumerable.FLinq/Tsavorite.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Benchmark/Tsavorite.Linq.Enumerable.Linq/Tsavorite.Linq.Enumerable.Linq.csproj" />
-    <Project Path="Benchmark/UI/UI.csproj" />
+    <Project Path="Benchmark/UI/Benchmark.UI.csproj" />
     <Project Path="Benchmark/Worker/Worker.csproj" />
   </Folder>
   <Folder Name="/Benchmark/Shared/">
