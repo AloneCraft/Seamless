@@ -160,12 +160,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.savedSortRuleSnapshots=this.LoadSavedBenchmarkSortRules();
         this.RefreshBenchmarkSortColumnOptions();
         this.ResetBenchmarkSortRulesToDefault(false);
-        this.ExecutionProfiles= [
-            new ExecutionProfileOption("豁｣遒ｺ",BenchmarkExecutionProfile.Accurate),
-            new ExecutionProfileOption("繝舌Λ繝ｳ繧ｹ",BenchmarkExecutionProfile.Intermediate),
-            new ExecutionProfileOption("Fast",BenchmarkExecutionProfile.Fast),
-            new ExecutionProfileOption("Test",BenchmarkExecutionProfile.Test),
-        ];
+        this.ExecutionProfiles= CreateExecutionProfiles();
         this.selectedExecutionProfile=this.ExecutionProfiles.First(static item => item.Profile==BenchmarkExecutionProfile.Fast);
         this.ThresholdOptions=CreateThresholdOptions();
         this.selectedThreshold=this.ThresholdOptions[0];
@@ -196,6 +191,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             () => this.SetAllBenchmarkSelection(false),
             () => this.CanChangeBenchmarkSelection);
         this.RunCommand=new AsyncRelayCommand(this.RunOrResumeAsync,() => this.CanUseRunToolbarButton);
+#if DEBUG
+        this.RunInfiniteCommand=new AsyncRelayCommand(this.RunInfiniteAsync,() => this.CanUseRunToolbarButton);
+#endif
         this.ToggleRunCommand=new RelayCommand(this.ToggleRun,() => !this.IsRefreshing);
         this.StopCommand=new AsyncRelayCommand(this.StopAsync,() => this.IsBenchmarkRunActive||this.IsBenchmarkPaused);
         this.PauseCommand=new AsyncRelayCommand(this.PauseAsync,() => this.IsBenchmarkRunActive);
@@ -237,6 +235,15 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RebuildCpuSections();
         this.RefreshSelectedLogicalCpus();
     }
+
+    private static IReadOnlyList<ExecutionProfileOption> CreateExecutionProfiles() => [
+            new ExecutionProfileOption("豁｣遒ｺ",BenchmarkExecutionProfile.Accurate),
+            new ExecutionProfileOption("繝舌Λ繝ｳ繧ｹ",BenchmarkExecutionProfile.Intermediate),
+            new ExecutionProfileOption("Fast",BenchmarkExecutionProfile.Fast),
+#if DEBUG
+            new ExecutionProfileOption("Test",BenchmarkExecutionProfile.Test),
+#endif
+        ];
 
     private IReadOnlyList<BenchmarkColumnSelectionGroup> CreateBenchmarkColumnSelectionGroups() => [];
 
@@ -293,6 +300,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     public IRelayCommand SelectAllCommand { get; }
     public IRelayCommand ClearSelectionCommand { get; }
     public IAsyncRelayCommand RunCommand { get; }
+#if DEBUG
+    public IAsyncRelayCommand RunInfiniteCommand { get; }
+#endif
     public IRelayCommand ToggleRunCommand { get; }
     public IAsyncRelayCommand StopCommand { get; }
     public IAsyncRelayCommand PauseCommand { get; }
@@ -370,6 +380,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         private set {
             if(this.SetProperty(ref this.isBenchmarkRunning,value)) {
                 this.RunCommand.NotifyCanExecuteChanged();
+#if DEBUG
+                this.RunInfiniteCommand.NotifyCanExecuteChanged();
+#endif
                 this.ToggleRunCommand.NotifyCanExecuteChanged();
                 this.StopCommand.NotifyCanExecuteChanged();
                 this.PauseCommand.NotifyCanExecuteChanged();
@@ -401,6 +414,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         private set {
             if(this.SetProperty(ref this.isRefreshing,value)) {
                 this.RunCommand.NotifyCanExecuteChanged();
+#if DEBUG
+                this.RunInfiniteCommand.NotifyCanExecuteChanged();
+#endif
                 this.ToggleRunCommand.NotifyCanExecuteChanged();
                 this.StopCommand.NotifyCanExecuteChanged();
                 this.PauseCommand.NotifyCanExecuteChanged();
@@ -443,6 +459,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         private set {
             if(this.SetProperty(ref this.hasSelectedBenchmarkCells,value)) {
                 this.RunCommand.NotifyCanExecuteChanged();
+#if DEBUG
+                this.RunInfiniteCommand.NotifyCanExecuteChanged();
+#endif
                 this.ToggleRunCommand.NotifyCanExecuteChanged();
                 this.OnPropertyChanged(nameof(this.CanRunBenchmark));
                 this.OnPropertyChanged(nameof(this.CanUseRunToolbarButton));
@@ -578,6 +597,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.OnPropertyChanged(nameof(this.CanChangeBenchmarkConditions));
         this.OnPropertyChanged(nameof(this.ToolbarStateInput));
         this.RunCommand.NotifyCanExecuteChanged();
+#if DEBUG
+        this.RunInfiniteCommand.NotifyCanExecuteChanged();
+#endif
         this.ToggleRunCommand.NotifyCanExecuteChanged();
         this.StopCommand.NotifyCanExecuteChanged();
         this.RefreshToolbarCommandStates();
@@ -1944,8 +1966,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             or BenchmarkSourceTab.ScalablePersistedDictionary
             or BenchmarkSourceTab.ScalableTsavoriteDictionary;
 
-    private string CreateUnsavedRunRoot() {
-        var profileRoot = this.GetBenchmarkRoot(this.SelectedExecutionProfile.Profile);
+    private string CreateUnsavedRunRoot(BenchmarkExecutionProfile executionProfile) {
+        var profileRoot = this.GetBenchmarkRoot(executionProfile);
         var root = Path.Combine(profileRoot,".unsaved",Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         return root;
@@ -2019,6 +2041,21 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         await this.RunAsync(null);
     }
 
+#if DEBUG
+    private async Task RunInfiniteAsync() {
+        if(this.IsBenchmarkRunning) {
+            return;
+        }
+
+        if(this.IsBenchmarkPaused&&this.activeRunRoot is not null) {
+            await this.RunAsync(this.activeRunRoot,true);
+            return;
+        }
+
+        await this.RunAsync(null,true);
+    }
+#endif
+
     private bool TryPrepareSelectedDatabaseRunResume(out string runRoot) {
         runRoot=string.Empty;
         var option = this.SelectedRunOption;
@@ -2050,7 +2087,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return true;
     }
 
-    private async Task RunAsync(string? runRootOverride) {
+    private async Task RunAsync(string? runRootOverride,bool useInfiniteTestRunner = false) {
         this.RefreshCurrentRunBenchmarkSelectionSnapshot();
         var selected = this.GetCurrentRunSelectedBenchmarkCases().ToArray();
         if(selected.Length==0) {
@@ -2059,6 +2096,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             return;
         }
 
+        var executionProfile = useInfiniteTestRunner ? BenchmarkExecutionProfile.Test : this.SelectedExecutionProfile.Profile;
         var isResumeRun = runRootOverride is not null;
         if(!isResumeRun) {
             this.ClearAllCurrentRunResultsForFreshRun();
@@ -2075,14 +2113,14 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         var runCancellationSource = new CancellationTokenSource();
         this.runCancellation=runCancellationSource;
         this.pendingRunTerminationKind=RunTerminationKind.None;
-        var runRoot = runRootOverride??this.CreateUnsavedRunRoot();
+        var runRoot = runRootOverride??this.CreateUnsavedRunRoot(executionProfile);
         this.currentUnsavedRunRoot=runRoot;
         this.SetActiveRunRoot(runRoot);
         var runGeneration = unchecked(++this.runResultGeneration);
         var runSourceTab = this.SelectedSourceDefinition.Tab;
         var uiRunId = runRootOverride is not null&&this.activeUiRunId is not null
             ? this.activeUiRunId
-            : await this.CreateUiRunAsync(runSourceTab);
+            : await this.CreateUiRunAsync(runSourceTab,executionProfile);
         this.activeUiRunId=uiRunId;
         await this.SetUiRunStatusAsync(uiRunId,UiRunStatus.Running,"Benchmark run started.");
         string? completedRunRoot = null;
@@ -2107,7 +2145,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         StartupDiagnostics.Write(
             "Benchmark run requested. "
             +"SourceTab="+runSourceTab+" "
-            +"ExecutionProfile="+this.SelectedExecutionProfile.Profile+" "
+            +"ExecutionProfile="+executionProfile+" "
+            +"InfiniteTestRunner="+useInfiniteTestRunner+" "
             +"LogicalCpus=["+string.Join(",",this.CpuItems.Where(static cpu => cpu.IsSelected).Select(static cpu => cpu.LogicalProcessorIndex))+"] "
             +"Benchmarks="+selected.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)+" "
             +"ElementCounts=["+string.Join(",",this.GetSelectedElementCounts())+"]");
@@ -2122,13 +2161,14 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 this.GetSelectedLogicalCpus,
                 this.GetSelectedElementCounts(),
                 runSourceTab,
-                this.SelectedExecutionProfile.Profile,
+                executionProfile,
                 this.GetAdaptiveThreshold(),
                 true,
                 runRoot,
                 this.GetCurrentRunSelectedBenchmarkCases,
                 result => this.AcceptRunResult(result,runGeneration,uiRunId),
                 this.AcceptRunStatus,
+                new BenchmarkRunExecutionOptions(useInfiniteTestRunner),
                 this.runCancellation.Token);
             completedRunRoot=report.RunRoot;
             this.currentUnsavedRunRoot=report.RunRoot;
@@ -2208,10 +2248,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
-    private async Task<long?> CreateUiRunAsync(BenchmarkSourceTab runSourceTab) {
-        var executionProfile = this.SelectedExecutionProfile.Profile.ToString();
+    private async Task<long?> CreateUiRunAsync(BenchmarkSourceTab runSourceTab,BenchmarkExecutionProfile executionProfile) {
+        var executionProfileText = executionProfile.ToString();
         var displayName = BenchmarkAppProfile.Title+" "+DateTimeOffset.Now.ToString("yyyy/MM/dd HH:mm:ss",System.Globalization.CultureInfo.InvariantCulture);
-        return await this.uiRunRepository.CreateRunAsync(GetUiRunAppKind(),displayName,executionProfile,runSourceTab);
+        return await this.uiRunRepository.CreateRunAsync(GetUiRunAppKind(),displayName,executionProfileText,runSourceTab);
     }
 
     private async Task SetUiRunStatusAsync(long? runId,UiRunStatus status,string message) {

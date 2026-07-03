@@ -48,4 +48,28 @@ public sealed class BenchmarkTestSleepJobRunner{
         await Assert.ThrowsAsync<TaskCanceledException>(
             () => runner.RunAsync(job,runRoot,0,TimeSpan.FromSeconds(5),cancellation.Token));
     }
+
+    [Fact]
+    public async Task RunAsync_InfiniteModeWaitsUntilCancellation(){
+        var runner = new global::UI.BenchmarkTestSleepJobRunner(TimeSpan.FromMilliseconds(1),true);
+        var job = new global::UI.BenchmarkJob{
+            Project="Test.Project",
+            AssemblyName="Test.Assembly",
+            TypeFullName="Test.Type",
+            MethodName="Sleep",
+            SourceTab=global::UI.BenchmarkSourceTab.SystemArray,
+            ElementCount=1,
+            LoopCount=1,
+            PreparedElementCounts=[1],
+        };
+        var runRoot = Path.Combine(Path.GetTempPath(),"Seamless-TestSleepJobRunner-"+Guid.NewGuid().ToString("N"));
+        using var cancellation = new CancellationTokenSource();
+
+        var runTask = runner.RunAsync(job,runRoot,0,TimeSpan.FromSeconds(5),cancellation.Token);
+        var firstCompleted = await Task.WhenAny(runTask,Task.Delay(50));
+        Assert.NotSame(runTask,firstCompleted);
+
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await runTask);
+    }
 }

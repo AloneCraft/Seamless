@@ -887,6 +887,7 @@ public interface IBenchmarkRunService {
         Func<IReadOnlyList<BenchmarkCase>>? benchmarkProvider,
         Action<BenchmarkResultItem> resultReceived,
         Action<string> statusChanged,
+        BenchmarkRunExecutionOptions? executionOptions,
         CancellationToken cancellationToken);
 }
 
@@ -917,10 +918,11 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
         Func<IReadOnlyList<BenchmarkCase>>? benchmarkProvider,
         Action<BenchmarkResultItem> resultReceived,
         Action<string> statusChanged,
+        BenchmarkRunExecutionOptions? executionOptions,
         CancellationToken cancellationToken) {
         var orchestrationRoot = FindSolutionRoot() ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Seamless");
         var benchmarkRoot = Path.Combine(orchestrationRoot,"Work",BenchmarkAppProfile.WorkRootName,BenchmarkExecutionProfileNames.ToFolderName(executionProfile));
-        var jobRunner = this.CreateJobRunner(executionProfile,adaptiveThreshold);
+        var jobRunner = this.CreateJobRunner(executionProfile,adaptiveThreshold,executionOptions);
         var orchestrator = new BenchmarkOrchestrator(
             new BenchmarkStateManager(benchmarkRoot),
             jobRunner);
@@ -953,12 +955,12 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
 
     }
 
-    private IBenchmarkJobRunner CreateJobRunner(BenchmarkExecutionProfile executionProfile,TimeSpan testSleepDuration) =>
+    private IBenchmarkJobRunner CreateJobRunner(BenchmarkExecutionProfile executionProfile,TimeSpan testSleepDuration,BenchmarkRunExecutionOptions? executionOptions) =>
         executionProfile switch{
             BenchmarkExecutionProfile.Accurate => this.workerService,
             BenchmarkExecutionProfile.Intermediate => new BenchmarkPersistentWorkerProcessService(),
             BenchmarkExecutionProfile.Fast => new BenchmarkFastWorkerProcessService(),
-            BenchmarkExecutionProfile.Test => new BenchmarkTestSleepJobRunner(testSleepDuration),
+            BenchmarkExecutionProfile.Test => new BenchmarkTestSleepJobRunner(testSleepDuration,executionOptions?.UseInfiniteTestRunner==true),
             _ => this.workerService,
         };
 

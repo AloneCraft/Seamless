@@ -87,6 +87,33 @@ public sealed class BenchmarkRunnerViewModel{
         Assert.Equal(targets.Count,viewModel.SelectedSourceTab.Progress.Total);
     }
 
+#if DEBUG
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task RunInfiniteCommand_FollowsRunAndPauseState(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+
+        Assert.False(viewModel.RunInfiniteCommand.CanExecute(null));
+
+        viewModel.SelectAllCommand.Execute(null);
+
+        Assert.True(viewModel.RunInfiniteCommand.CanExecute(null));
+
+        var runTask = viewModel.RunInfiniteCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => viewModel.IsBenchmarkRunActive);
+
+        Assert.False(viewModel.RunInfiniteCommand.CanExecute(null));
+
+        await viewModel.PauseCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => viewModel.IsBenchmarkPaused);
+
+        Assert.True(viewModel.RunInfiniteCommand.CanExecute(null));
+
+        await viewModel.StopCommand.ExecuteAsync(null);
+        await runTask;
+    }
+#endif
+
     private static void SelectProjectGroup(global::UI.BenchmarkRunnerViewModel viewModel,string groupId){
         viewModel.ClearSelectionCommand.Execute(null);
         var group = viewModel.BenchmarkProjectSelectionGroups.First(group => string.Equals(group.Id,groupId,StringComparison.OrdinalIgnoreCase));
@@ -191,7 +218,7 @@ public sealed class BenchmarkRunnerViewModel{
     }
 
     private sealed class FakeRunService(IReadOnlyList<global::UI.BenchmarkCase> allCases):global::UI.IBenchmarkRunService{
-        public Task<global::UI.BenchmarkRunReport> RunAsync(
+        public async Task<global::UI.BenchmarkRunReport> RunAsync(
             IReadOnlyList<global::UI.BenchmarkCase> benchmarks,
             IReadOnlyList<int> logicalCpus,
             Func<IReadOnlyList<int>> logicalCpuProvider,
@@ -204,16 +231,20 @@ public sealed class BenchmarkRunnerViewModel{
             Func<IReadOnlyList<global::UI.BenchmarkCase>>? benchmarkProvider,
             Action<global::UI.BenchmarkResultItem> resultReceived,
             Action<string> statusChanged,
+            global::UI.BenchmarkRunExecutionOptions? executionOptions,
             CancellationToken cancellationToken){
             var emitCases = this.CreateEmitCases(benchmarks,sourceTab);
             var logicalCpu = logicalCpus.FirstOrDefault();
             foreach(var benchmark in emitCases){
                 cancellationToken.ThrowIfCancellationRequested();
                 resultReceived(CreateResult(benchmark,sourceTab,global::UI.JobStatus.Running,logicalCpu,null));
+                if(executionOptions?.UseInfiniteTestRunner==true){
+                    await Task.Delay(Timeout.InfiniteTimeSpan,cancellationToken);
+                }
                 resultReceived(CreateResult(benchmark,sourceTab,global::UI.JobStatus.Completed,logicalCpu,adaptiveThreshold.TotalMilliseconds*1_000_000));
             }
             statusChanged("Completed");
-            return Task.FromResult(new global::UI.BenchmarkRunReport(runRootOverride));
+            return new global::UI.BenchmarkRunReport(runRootOverride);
         }
 
         private IReadOnlyList<global::UI.BenchmarkCase> CreateEmitCases(
