@@ -115,8 +115,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private ProgressState? loadedExternalState;
     private long? activeUiRunId;
     private SourceTabOption? pendingSourceTabOption;
-    // 驕ｸ謚樔ｸｭ縺ｮ菫晏ｭ俶ｸ医∩ Run 縺ｮ ProgressState 繧ｹ繝翫ャ繝励す繝ｧ繝・ヨ縲ゅち繝門・譖ｿ譎ゅ↓ DB 繧貞・隱ｭ霎ｼ縺励↑縺・◆繧√・
-    // 繝｡繝｢繝ｪ繝舌ャ繝輔ぃ縺ｧ縲ヽun 驕ｸ謚槭・螟画峩繝ｻ螳溯｡檎ｵゆｺ・凾縺ｫ遐ｴ譽・☆繧九・
+    // 選択中の保存済み Run の ProgressState スナップショット。
+    // タブ切替時に DB を再読み込みしないため、Run 選択の変更と実行終了時に破棄する。
     private (long UiRunId,ProgressState? State)? selectedRunStateCache;
     private long? loadedImprovementSelectionRunId;
     private bool hasLoadedImprovementCandidateSelections;
@@ -237,8 +237,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private static IReadOnlyList<ExecutionProfileOption> CreateExecutionProfiles() => [
-            new ExecutionProfileOption("豁｣遒ｺ",BenchmarkExecutionProfile.Accurate),
-            new ExecutionProfileOption("繝舌Λ繝ｳ繧ｹ",BenchmarkExecutionProfile.Intermediate),
+            new ExecutionProfileOption("高精度",BenchmarkExecutionProfile.Accurate),
+            new ExecutionProfileOption("バランス",BenchmarkExecutionProfile.Intermediate),
             new ExecutionProfileOption("Fast",BenchmarkExecutionProfile.Fast),
 #if DEBUG
             new ExecutionProfileOption("Test",BenchmarkExecutionProfile.Test),
@@ -474,7 +474,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     public string RunButtonTooltipText =>
         this.IsBenchmarkPaused||this.HasSelectedBenchmarkCells
             ? this.RunButtonText
-            : "繝吶Φ繝√・繝ｼ繧ｯ繧・縺､莉･荳企∈謚槭＠縺ｦ縺上□縺輔＞";
+            : "ベンチマークを1つ以上選択してください";
 
     public BenchmarkSourceTab? ActiveRunSourceTab {
         get => this.activeRunSourceTab;
@@ -556,7 +556,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private async Task WaitForRunStopAsync() {
-        // DB 繝ｭ繝・け遲峨〒 RunAsync 縺ｮ邨ゆｺ・・逅・′謌ｻ繧峨↑縺・ｴ蜷医〒繧・UI 繧貞ｮ溯｡悟庄閭ｽ迥ｶ諷九∈蠕ｩ蟶ｰ縺輔○繧九・
+        // DB ロックなどで RunAsync の終了処理が戻らない場合でも、UI を実行可能状態へ復帰させる。
         var deadline = DateTimeOffset.UtcNow+TimeSpan.FromSeconds(10);
         while(this.IsBenchmarkRunActive) {
             if(DateTimeOffset.UtcNow>=deadline) {
@@ -573,8 +573,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.runCancellation?.Cancel();
         this.runCancellation=null;
         this.pendingRunTerminationKind=RunTerminationKind.None;
+        this.runResultGeneration=unchecked(this.runResultGeneration+1);
         this.IsRunning=false;
         this.ActiveRunSourceTab=null;
+        this.ApplyFinalLiveVisualCleanup(true);
         this.SetActiveRunRoot(null);
         this.OnPropertyChanged(nameof(this.IsBenchmarkRunActive));
         this.OnPropertyChanged(nameof(this.ToolbarStateInput));
@@ -643,7 +645,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             }
 
             if(this.IsRefreshing) {
-                // 隱ｭ霎ｼ荳ｭ縺ｮ蛻・崛縺ｯ辟｡隕悶○縺壻ｿ晉蕗縺励∬ｪｭ霎ｼ螳御ｺ・ｾ後↓譛蠕後・隕∵ｱゅ□縺代ｒ驕ｩ逕ｨ縺吶ｋ縲・
+                // 読み込み中の切替は破棄せず保留し、読み込み完了後に最後の要求だけを適用する。
                 this.pendingSourceTabOption=value;
                 return;
             }
@@ -690,7 +692,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                     this.RefreshBenchmarkProjectHeaderTexts();
                     this.ClearRetainedChartPoints();
                     this.UpdateChart(false);
-                    // 繧ｿ繝門・譖ｿ縺ｧ縺ｯ DB 繧ゅき繧ｿ繝ｭ繧ｰ繧ょ・隱ｭ霎ｼ縺帙★縲√Γ繝｢繝ｪ荳翫・繧ｫ繧ｿ繝ｭ繧ｰ縺ｨ邨先棡繝舌ャ繝輔ぃ縺縺代〒蜀肴ｧ狗ｯ峨☆繧九・
+                    // タブ切替では DB もカタログも再読み込みせず、メモリ上のカタログと結果バッファだけで再構築する。
                     this.RebuildRowsForSelectedTab();
                     this.RefreshSourceTabProgresses();
                 }
@@ -1116,7 +1118,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
 
     private async Task RefreshAsync() {
         this.IsRefreshing=true;
-        this.StatusText="隱ｭ縺ｿ霎ｼ縺ｿ荳ｭ";
+        this.StatusText="読み込み中";
         StartupDiagnostics.Write("Benchmark catalog refresh started.");
         var dbUnavailable = false;
         try {
@@ -1141,12 +1143,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             }
             this.RefreshSourceTabProgresses();
             this.ApplyCurrentSort();
-            this.StatusText=this.BenchmarkRows.Count+" 莉ｶ縺ｮ繝吶Φ繝√・繝ｼ繧ｯ"+(dbUnavailable ? "(螳溯｡悟ｱ･豁ｴDB蛻ｩ逕ｨ荳榊庄)" : "");
+            this.StatusText=this.BenchmarkRows.Count+" 件のベンチマーク"+(dbUnavailable ? "(実行履歴DB利用不可)" : "");
             StartupDiagnostics.Write($"Benchmark catalog loaded. Rows={this.BenchmarkRows.Count} DbUnavailable={dbUnavailable}");
         }
         catch(Exception ex) {
             StartupDiagnostics.Write("Benchmark catalog load failed.",ex);
-            this.StatusText="隱ｭ縺ｿ霎ｼ縺ｿ螟ｱ謨・ "+ex.Message;
+            this.StatusText="読み込み失敗 "+ex.Message;
         }
         finally {
             this.IsRefreshing=false;
@@ -1154,7 +1156,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
-    /// <summary>驕ｸ謚槭そ繝ｫ迥ｶ諷九ｒ菫晄戟縺励◆縺ｾ縺ｾ縲∬ｪｭ霎ｼ貂医∩繧ｫ繧ｿ繝ｭ繧ｰ縺九ｉ陦ｨ遉ｺ荳ｭ繧ｿ繝悶・陦後ｒ蜀肴ｧ狗ｯ峨☆繧九・/summary>
+    /// <summary>選択セル状態を保持したまま、読み込み済みカタログから表示中タブの行を再構築する。</summary>
     private void RebuildBenchmarkRowsFromCatalog() {
         this.BenchmarkRows.Clear();
         this.benchmarkSelectionAnchor=null;
@@ -1174,9 +1176,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     /// <summary>
-    /// 繧ｿ繝門・譖ｿ逕ｨ縺ｮ霆ｽ驥上ヱ繧ｹ縲りｨ域ｸｬ荳ｭ縺ｯ DB 縺ｸ譖ｸ縺崎ｾｼ縺ｿ縺ｯ縺励※繧りｪｭ縺ｿ霎ｼ縺ｾ縺ｪ縺・婿驥昴・縺溘ａ縲・
-    /// 繧ｫ繧ｿ繝ｭ繧ｰ蜀崎ｪｭ霎ｼ繝ｻRun 荳隕ｧ縺ｮ蜀崎ｪｭ霎ｼ繧定｡後ｏ縺壹√Γ繝｢繝ｪ荳翫・繧ｫ繧ｿ繝ｭ繧ｰ縺ｨ邨先棡繝舌ャ繝輔ぃ縺九ｉ陦ｨ遉ｺ繧貞・讒狗ｯ峨☆繧九・
-    /// 菫晏ｭ俶ｸ医∩ Run 縺ｮ迥ｶ諷九・ <see cref="LoadSelectedRunState"/> 縺ｮ繝｡繝｢繝ｪ繧ｭ繝｣繝・す繝･縺九ｉ驕ｩ逕ｨ縺輔ｌ繧九・
+    /// タブ切替用の軽量パス。計測中は DB への書き込みはしても読み込みは避ける方針のため、
+    /// カタログ再読み込みや Run 一覧の再読み込みを行わず、メモリ上のカタログと結果バッファから表示を再構築する。
+    /// 保存済み Run の状態は <see cref="LoadSelectedRunState"/> のメモリキャッシュから適用される。
     /// </summary>
     private void RebuildRowsForSelectedTab() {
         if(this.catalogCases.Count==0) {
@@ -1212,7 +1214,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ApplyCurrentSort();
         var sortMilliseconds=phaseStopwatch.Elapsed;
         totalStopwatch.Stop();
-        this.StatusText=this.BenchmarkRows.Count+" 莉ｶ縺ｮ繝吶Φ繝√・繝ｼ繧ｯ";
+        this.StatusText=this.BenchmarkRows.Count+" 件のベンチマーク";
         StartupDiagnostics.Write(
             $"Source tab rebuild {this.SelectedSourceDefinition.Id} rows={this.BenchmarkRows.Count} total={FormatSwitchMeasureMilliseconds(totalStopwatch.Elapsed)}ms rebuildRows={FormatSwitchMeasureMilliseconds(rebuildRowsMilliseconds)}ms aggregates={FormatSwitchMeasureMilliseconds(aggregateMilliseconds)}ms display={FormatSwitchMeasureMilliseconds(displayMilliseconds)}ms displaySource={displaySource} progress={FormatSwitchMeasureMilliseconds(progressMilliseconds)}ms sort={FormatSwitchMeasureMilliseconds(sortMilliseconds)}ms");
     }
@@ -1604,7 +1606,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.isApplyingRunOptionSelection=true;
         try {
             if(this.SetProperty(ref this.selectedRunOption,option)) {
-                // Run 驕ｸ謚槭′螟峨ｏ縺｣縺溘ｉ繧ｹ繝翫ャ繝励す繝ｧ繝・ヨ縺ｮ繝｡繝｢繝ｪ繝舌ャ繝輔ぃ繧堤ｴ譽・＠縲∵ｬ｡蝗櫁ｪｭ蜃ｺ縺励〒 DB 縺九ｉ蜿悶ｊ逶ｴ縺吶・
+                // Run 選択が変わったらスナップショットのメモリバッファを破棄し、次回読み出しで DB から取り直す。
                 this.selectedRunStateCache=null;
                 this.ApplySelectedRunOption(option,load);
                 if(saveUiState) {
@@ -1679,8 +1681,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private IReadOnlyList<BenchmarkCase> GetCurrentRunSelectedBenchmarkCases() =>
         Volatile.Read(ref this.currentRunSelectedBenchmarkCases);
 
-    // 驕ｸ謚槭せ繝翫ャ繝励す繝ｧ繝・ヨ縺ｨ繧ｭ繝･繝ｼ逕滓・縺ｮ隕丞援縺ｯ UI.Core 縺ｮ BenchmarkSelectionQueueLogic 縺ｫ髮・ｴ・☆繧九・
-    // 陦ｨ遉ｺ荳ｭ繧ｿ繝悶□縺代・逕溘″縺溯｡檎憾諷・繝√ぉ繝・け繝懊ャ繧ｯ繧ｹ)繧貞━蜈医☆繧九・
+    // 選択スナップショットとキュー生成の規則は UI.Core の BenchmarkSelectionQueueLogic に集約する。
+    // 表示中タブだけの生きた状態(チェックボックス)を優先する。
     private IReadOnlyList<BenchmarkCase> CreateSelectedBenchmarkCasesFromAllTabs() {
         this.CaptureCurrentBenchmarkSelections();
         return BenchmarkSelectionQueueLogic.CreateSelectedCasesFromAllTabs(
@@ -1799,6 +1801,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     public void DiscardUnsavedBenchmarkResults() {
+        // 結果は QueueSaveResult で SQLite へ保存済みのため、未保存表示を解除する。
+        // 実行していない状態で終了確認が出ないようにする。
         this.HasUnsavedBenchmarkResults=false;
         this.HasPendingCloseStateSave=false;
         this.currentUnsavedRunRoot=null;
@@ -2091,7 +2095,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshCurrentRunBenchmarkSelectionSnapshot();
         var selected = this.GetCurrentRunSelectedBenchmarkCases().ToArray();
         if(selected.Length==0) {
-            this.StatusText="繝吶Φ繝√・繝ｼ繧ｯ縺碁∈謚槭＆繧後※縺・∪縺帙ｓ";
+            this.StatusText="ベンチマークが選択されていません";
             StartupDiagnostics.Write("Benchmark run aborted: no benchmark selected.");
             return;
         }
@@ -2173,8 +2177,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             completedRunRoot=report.RunRoot;
             this.currentUnsavedRunRoot=report.RunRoot;
             completedNormally=true;
-            // 邨ゆｺ・ｳｻ縺ｮ DB 菫晏ｭ倥・逶ｴ蛻励く繝･繝ｼ縺ｸ謚募・縺吶ｋ縺縺代↓縺励※縲ヾQLite 縺ｮ繝ｭ繝・け遲峨〒 UI 縺ｮ迥ｶ諷句ｾｩ蟶ｰ縺・
-            // 繝悶Ο繝・け縺輔ｌ縺ｪ縺・ｈ縺・↓縺吶ｋ(譖ｸ縺崎ｾｼ縺ｿ鬆・ｺ上・ QueueSaveResult 縺ｨ蜷後§繧ｭ繝･繝ｼ縺ｧ菫晁ｨｼ縺輔ｌ繧・縲・
+            // 終了直後の DB 保存は直列キューへ投げるだけにし、SQLite のロックなどで UI の状態復帰が
+            // ブロックされないようにする(書き込み順序は QueueSaveResult と同じキューで保証される)。
             this.QueueUiRunStatus(uiRunId,UiRunStatus.Completed,"Benchmark run completed.");
             StartupDiagnostics.Write(
                 "Benchmark run completed. "
@@ -2182,13 +2186,13 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
         catch(OperationCanceledException) {
             if(this.pendingRunTerminationKind==RunTerminationKind.Pause) {
-                this.StatusText="荳譎ょ●豁｢";
+                this.StatusText="一時停止しました";
                 this.QueueUiRunStatus(uiRunId,UiRunStatus.Paused,"Benchmark run paused.");
                 StartupDiagnostics.Write("Benchmark run paused.");
                 this.SetActiveRunRoot(completedRunRoot ?? runRoot);
                 keepPausedRunRoot=true;
             }else{
-                this.StatusText="繧ｭ繝｣繝ｳ繧ｻ繝ｫ縺励∪縺励◆";
+                this.StatusText="キャンセルしました";
                 this.QueueUiRunStatus(uiRunId,UiRunStatus.Stopped,"Benchmark run canceled.");
                 StartupDiagnostics.Write("Benchmark run canceled.");
                 this.SetActiveRunRoot(null);
@@ -2196,12 +2200,16 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
         catch(Exception ex) {
             StartupDiagnostics.Write("Benchmark run failed.",ex);
-            this.StatusText="螳溯｡悟､ｱ謨・ "+ex.Message;
+            this.StatusText="実行失敗 "+ex.Message;
             this.QueueUiRunStatus(uiRunId,UiRunStatus.Failed,ex.Message);
             this.SetActiveRunRoot(null);
         }
         finally {
-            this.renderScheduler.FlushNow();
+            if(completedNormally) {
+                this.renderScheduler.FlushNow();
+            }else{
+                this.runEventPipeline.Clear();
+            }
             this.persistenceBatcher.FlushNow();
             if(!completedNormally&&!keepPausedRunRoot) {
                 this.runResultGeneration=unchecked(this.runResultGeneration+1);
@@ -2210,7 +2218,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             this.activeChartMethodName=string.Empty;
             this.ActiveRunSourceTab=null;
             this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
-            // 蠑ｷ蛻ｶ繝ｪ繧ｻ繝・ヨ遲峨〒 this.runCancellation 縺悟ｷｮ縺玲崛繧上▲縺ｦ縺・※繧ゅ√％縺ｮ螳溯｡後・ CTS 縺縺代ｒ遐ｴ譽・☆繧九・
+            // 強制リセットなどで this.runCancellation が差し替わっていても、この実行の CTS だけを破棄する。
             runCancellationSource.Dispose();
             if(ReferenceEquals(this.runCancellation,runCancellationSource)) {
                 this.runCancellation=null;
@@ -2224,7 +2232,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             if(completedNormally&&this.TryGetRemainingRunningVisualDelay(out var finalVisualDelay)) {
                 this.ScheduleFinalLiveVisualCleanup(runGeneration,finalVisualDelay);
             }else{
-                this.ApplyFinalLiveVisualCleanup();
+                this.ApplyFinalLiveVisualCleanup(!completedNormally);
             }
             if(!keepPausedRunRoot) {
                 this.SetActiveRunRoot(null);
@@ -2232,7 +2240,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                     this.activeUiRunId=null;
                 }
             }
-            // 螳溯｡後′邨ゅｏ縺｣縺・Run 縺ｮ繧ｹ繝翫ャ繝励す繝ｧ繝・ヨ縺ｯ菫晏ｭ倥〒譖ｴ譁ｰ縺輔ｌ縺ｦ縺・ｋ縺溘ａ縲√Γ繝｢繝ｪ繝舌ャ繝輔ぃ繧堤ｴ譽・☆繧九・
+            // 実行が終わった Run のスナップショットは保存で更新されているため、メモリバッファを破棄する。
             this.selectedRunStateCache=null;
             this.RefreshUnsavedRunSelection();
             this.ClearRunResultHighlights();
@@ -2242,8 +2250,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             this.RefreshSourceTabProgresses();
             this.RefreshImprovementPrompt();
             this.UpdateChart();
-            // 邨先棡縺ｯ螳溯｡御ｸｭ縺ｫ QueueSaveResult 縺ｧ SQLite 縺ｸ菫晏ｭ俶ｸ医∩縺ｮ縺溘ａ縲梧悴菫晏ｭ倥肴桶縺・ｒ隗｣髯､縺吶ｋ
-            // (螳溯｡後＠縺ｦ縺・↑縺・・縺ｫ邨ゆｺ・｢ｺ隱阪ム繧､繧｢繝ｭ繧ｰ縺悟・繧句撫鬘後・蟇ｾ遲・縲・
+            // 結果は実行中に QueueSaveResult で SQLite へ保存済みのため、「未保存」扱いを解除する。
+            // 実行していないときに終了確認ダイアログが出る問題への対策。
             this.HasUnsavedBenchmarkResults=false;
         }
     }
@@ -2305,6 +2313,13 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private void AcceptRunResult(BenchmarkResultItem result,int runGeneration,long? uiRunId) {
+        if(runGeneration!=this.runResultGeneration) {
+            return;
+        }
+        if(IsRunningResult(result)&&!this.IsBenchmarkRunActive) {
+            return;
+        }
+
         this.pipelineDiagnostics.RecordReceivedEvent(result.Status);
         this.runEventPipeline.Post(new BenchmarkRunEvent(result,runGeneration,uiRunId,DateTimeOffset.UtcNow));
         this.renderScheduler.RequestRender();
@@ -2375,6 +2390,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
 
     private void ApplyRunningSnapshotResult(BenchmarkRunEvent item) {
         if(item.RunGeneration!=this.runResultGeneration) {
+            return;
+        }
+        if(!this.IsBenchmarkRunActive) {
             return;
         }
 
@@ -2472,6 +2490,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         var isCompletedResult = string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase);
         var isFailedResult = string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase);
         var isTerminalResult = isCompletedResult||isFailedResult;
+        if(isRunningResult&&!this.IsBenchmarkRunActive) {
+            return;
+        }
+
         var hasResultElementCount = result.AxisCount>0;
         var terminalVisualDelay = TimeSpan.Zero;
         var shouldDelayTerminalVisual = isTerminalResult&&this.TryGetTerminalVisualDelay(result,out terminalVisualDelay);
@@ -2555,6 +2577,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     private void ApplyImmediateRunningResult(BenchmarkResultItem result) {
+        if(!this.IsBenchmarkRunActive) {
+            return;
+        }
+
         this.MarkRunningVisualStarted(result);
         if(result.AxisCount>0) {
             this.UpsertCurrentRunResultItem(result);
@@ -2647,12 +2673,24 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         });
     }
 
-    private void ApplyFinalLiveVisualCleanup() {
+    private void ApplyFinalLiveVisualCleanup(bool discardPendingRunUpdates = false) {
+        if(discardPendingRunUpdates) {
+            this.runEventPipeline.Clear();
+        }
+
+        this.currentRunSession.ClearRunningResults();
         this.runningVisualStartedAt.Clear();
         this.ClearSourceTabRunningStates();
+        this.ClearBenchmarkLiveStates();
         this.ApplySelectedElementCountToTable();
         this.RestoreLatestCompletedLiveResult();
         this.ClearCpuJobs();
+    }
+
+    private void ClearBenchmarkLiveStates() {
+        foreach(var row in this.BenchmarkRows) {
+            row.ClearLiveState();
+        }
     }
 
     private static string CreateRunningVisualKey(BenchmarkResultItem result) =>
@@ -2662,6 +2700,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         +"|"+result.Method
         +"|"+result.ArgumentKey
         +"|"+result.AxisCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private static bool IsRunningResult(BenchmarkResultItem result) =>
+        string.Equals(result.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase);
 
     private void MarkActiveRunSourceTab(BenchmarkSourceTab sourceTab) {
         this.ActiveRunSourceTab=sourceTab;
@@ -3186,10 +3227,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         var total = this.ImprovementCandidates.Count;
         var time = this.ImprovementCandidates.Count(static row => row.Candidate.HasTimeRegression);
         var allocated = this.ImprovementCandidates.Count(static row => row.Candidate.HasAllocatedRegression);
-        return "蛟呵｣・"+selected.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        return "選択 "+selected.ToString(System.Globalization.CultureInfo.InvariantCulture)
             +"/"+total.ToString(System.Globalization.CultureInfo.InvariantCulture)
-            +" / 譎る俣 "+time.ToString(System.Globalization.CultureInfo.InvariantCulture)
-            +" / 繝｡繝｢繝ｪ "+allocated.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            +" / 時間 "+time.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            +" / メモリ "+allocated.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private void LoadImprovementCandidateSelectionsForCurrentRun() {
@@ -3253,7 +3294,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
 
         await Microsoft.Maui.ApplicationModel.DataTransfer.Clipboard.Default.SetTextAsync(this.ImprovementPromptText);
-            this.StatusText="謾ｹ蝟・・繝ｭ繝ｳ繝励ヨ繧偵さ繝斐・縺励∪縺励◆";
+        this.StatusText="改善プロンプトをコピーしました";
     }
 
     private int chartRefreshBatchDepth;
@@ -3487,11 +3528,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }).ContinueWith(task => {
             this.uiDispatcher.BeginInvoke(() => {
                 if(requestToken!=this.selectedRunLoadRequestToken) {
-                    return; // 繧医ｊ譁ｰ縺励＞ Run/繧ｿ繝夜∈謚槭〒荳頑嶌縺阪＆繧後◆縺溘ａ遐ｴ譽・
+                    return; // より新しい Run/タブ選択で上書きされたため破棄する。
                 }
                 if(task.Result.Error is { } ex||task.Result.Items is not { } results) {
                     StartupDiagnostics.Write("Benchmark run DB load failed.",task.Result.Error);
-                    this.StatusText="DB 隱ｭ縺ｿ霎ｼ縺ｿ螟ｱ謨・ "+(task.Result.Error?.Message??"unknown");
+                    this.StatusText="DB 読み込み失敗 "+(task.Result.Error?.Message??"unknown");
                     return;
                 }
                 this.ApplyLoadedRunResultItems(results);
@@ -3583,7 +3624,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
         catch(Exception ex) {
             StartupDiagnostics.Write("Benchmark run DB load failed.",ex);
-            this.StatusText="DB 隱ｭ縺ｿ霎ｼ縺ｿ螟ｱ謨・ "+ex.Message;
+            this.StatusText="DB 読み込み失敗 "+ex.Message;
         }
         finally {
             this.isLoadingSelectedRunDb=false;
@@ -4085,7 +4126,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             return null;
         }
 
-        // 驕主悉繝・・繧ｿ縺ｮ隱ｭ霎ｼ縺ｯ Run 驕ｸ謚樊凾縺ｮ1蝗槭□縺・DB 縺九ｉ陦後＞縲∽ｻ･蠕・繧ｿ繝門・譖ｿ遲・縺ｯ繝｡繝｢繝ｪ繝舌ャ繝輔ぃ繧定ｿ斐☆縲・
+        // 過去データの読み込みは Run 選択時の1回だけ DB から行い、以後のタブ切替などはメモリバッファを返す。
         if(this.selectedRunStateCache is { } cache&&cache.UiRunId==run.UiRunId) {
             return cache.State;
         }
