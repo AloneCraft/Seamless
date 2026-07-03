@@ -413,7 +413,7 @@ internal static class BenchmarkTabProgressSourceLogic{
     public static IReadOnlyList<BenchmarkTabProgressCell> CreateCellsFromSelectedCases(
         IEnumerable<BenchmarkCase> selectedCases,
         BenchmarkSourceTabDefinition sourceTab){
-        var cases = selectedCases
+        return selectedCases
             .Where(sourceTab.ContainsCase)
             .GroupBy(static benchmark => BenchmarkRowGroupingLogic.CreateCaseKey(
                 benchmark.Project,
@@ -421,20 +421,13 @@ internal static class BenchmarkTabProgressSourceLogic{
                 benchmark.MethodName,
                 benchmark.ArgumentKey),StringComparer.OrdinalIgnoreCase)
             .Select(static group => group.First())
-            .ToArray();
-        return BenchmarkRowGroupingLogic.CreateRows(cases,sourceTab)
-            .SelectMany(row => sourceTab.ProjectOrder
-                .Where(project => row.CasesByProject.ContainsKey(project))
-                .Select(project => {
-                    var benchmark = row.CasesByProject[project];
-                    return new BenchmarkTabProgressCell(
-                        benchmark.MethodName,
-                        benchmark.Project,
-                        benchmark.TypeFullName,
-                        benchmark.ArgumentKey,
-                        true,
-                        row.RowKey);
-                }))
+            .Select(static benchmark => new BenchmarkTabProgressCell(
+                benchmark.MethodName,
+                benchmark.Project,
+                benchmark.TypeFullName,
+                benchmark.ArgumentKey,
+                true,
+                benchmark.MethodName+"|"+benchmark.ArgumentKey))
             .ToArray();
     }
 }

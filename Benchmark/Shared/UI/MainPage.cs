@@ -715,8 +715,8 @@ public sealed class MainPage:ContentPage {
         grid.Add(this.ToolbarLabel("モード"),2,0);
         grid.Add(executionProfilePicker,3,0);
         grid.Add(runButton,4,0);
-        grid.Add(stopButton,5,0);
-        grid.Add(pauseButton,6,0);
+        grid.Add(pauseButton,5,0);
+        grid.Add(stopButton,6,0);
         grid.Add(this.ToolbarLabel("結果"),7,0);
         grid.Add(runPicker,8,0);
         var preview = this.CreateStatusIconPreview();
@@ -1159,35 +1159,48 @@ public sealed class MainPage:ContentPage {
 
     private View CreateSourceTabHeader(SourceTabOption option) {
         var progress = new BenchmarkCircularProgressView {
-            WidthRequest=16,
-            HeightRequest=16,
+            WidthRequest=18,
+            HeightRequest=18,
             VerticalOptions=LayoutOptions.Center,
             HorizontalOptions=LayoutOptions.Center,
-            Margin=new Thickness(0,0,3,0),
         };
         progress.SetBinding(BenchmarkCircularProgressView.ProgressProperty,new Binding(nameof(SourceTabOption.ProgressFraction),source: option));
+        progress.SetBinding(BenchmarkCircularProgressView.OutlineColorProperty,new Binding(nameof(SourceTabOption.ProgressOutlineColor),source: option));
         progress.SetBinding(IsVisibleProperty,new Binding(nameof(SourceTabOption.HasProgress),source: option));
         progress.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: option));
+        var progressHost = new Grid {
+            WidthRequest=20,
+            HeightRequest=20,
+            VerticalOptions=LayoutOptions.Center,
+            HorizontalOptions=LayoutOptions.Center,
+            Margin=new Thickness(0,0,2,0),
+            Children= {
+                progress,
+            },
+        };
+        progressHost.SetBinding(IsVisibleProperty,new Binding(nameof(SourceTabOption.HasProgress),source: option));
+        progressHost.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: option));
         var spinner = new ActivityIndicator {
             WidthRequest=14,
             HeightRequest=14,
             VerticalOptions=LayoutOptions.Center,
             HorizontalOptions=LayoutOptions.Center,
-            Color=Color.FromArgb("#0F766E"),
-            Margin=new Thickness(0,0,6,0),
+            Color=Color.FromArgb("#00FF00"),
         };
         spinner.SetBinding(ActivityIndicator.IsRunningProperty,new Binding(nameof(SourceTabOption.IsRunning),source: option));
         spinner.SetBinding(IsVisibleProperty,new Binding(nameof(SourceTabOption.IsRunning),source: option));
         spinner.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: option));
         var spinnerHost = new Grid {
-            WidthRequest=18,
-            HeightRequest=18,
+            WidthRequest=16,
+            HeightRequest=20,
             VerticalOptions=LayoutOptions.Center,
             HorizontalOptions=LayoutOptions.Center,
+            Margin=new Thickness(0,0,6,0),
             Children= {
                 spinner,
             },
         };
+        spinnerHost.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: option));
 
         return this.CreateTabHeader(
             option,
@@ -1196,7 +1209,7 @@ public sealed class MainPage:ContentPage {
                     this.viewModel.SelectedSourceTab=option;
                 }
             },
-            [progress,spinnerHost]);
+            [progressHost,spinnerHost]);
     }
 
     private static double CalculateProgressWidth(double trackWidth,BenchmarkTabProgress progress) {
@@ -1534,6 +1547,7 @@ public sealed class MainPage:ContentPage {
         AddChartTab("遅延ホットスポット",this.CreateDiagnosticGrid(nameof(BenchmarkRunnerViewModel.LatencyHotspotRows)));
         AddChartTab("メモリ/割当",this.CreateDiagnosticGrid(nameof(BenchmarkRunnerViewModel.AllocationDiagnosticRows)));
         AddChartTab("CPU/タイムライン",this.CreateDiagnosticGrid(nameof(BenchmarkRunnerViewModel.CpuTimelineRows)));
+        AddChartTab("UIパイプライン",this.CreateDiagnosticGrid(nameof(BenchmarkRunnerViewModel.PipelineDiagnosticRows)));
         var generatedCodeAuditTabIndex = chartTabOptions.Count;
         AddChartTab("生成コード監査",this.CreateGeneratedCodeAuditInfographic());
         // SQLite 分析 View(Completed Run の履歴集計)をインフォグラフィックとして表示するタブ群。
@@ -3136,13 +3150,13 @@ public sealed class MainPage:ContentPage {
         var candidateHeader = new Grid {
             ColumnDefinitions= {
                 new ColumnDefinition { Width = new GridLength(32) },
-                new ColumnDefinition { Width = new GridLength(96) },
-                new ColumnDefinition { Width = new GridLength(220) },
-                new ColumnDefinition { Width = new GridLength(82) },
-                new ColumnDefinition { Width = new GridLength(70) },
-                new ColumnDefinition { Width = new GridLength(70) },
-                new ColumnDefinition { Width = new GridLength(92) },
-                new ColumnDefinition { Width = new GridLength(92) },
+                new ColumnDefinition { Width = new GridLength(88) },
+                new ColumnDefinition { Width = new GridLength(190) },
+                new ColumnDefinition { Width = new GridLength(72) },
+                new ColumnDefinition { Width = new GridLength(132) },
+                new ColumnDefinition { Width = new GridLength(132) },
+                new ColumnDefinition { Width = new GridLength(86) },
+                new ColumnDefinition { Width = new GridLength(86) },
                 new ColumnDefinition { Width = GridLength.Star },
             },
             Padding=new Thickness(4,2),
@@ -3203,21 +3217,20 @@ public sealed class MainPage:ContentPage {
         var grid = new Grid {
             RowDefinitions= {
                 new RowDefinition { Height = GridLength.Auto },
-                new RowDefinition { Height = GridLength.Auto },
             },
             ColumnDefinitions= {
                 new ColumnDefinition { Width = new GridLength(32) },
-                new ColumnDefinition { Width = new GridLength(96) },
-                new ColumnDefinition { Width = new GridLength(220) },
-                new ColumnDefinition { Width = new GridLength(82) },
-                new ColumnDefinition { Width = new GridLength(70) },
-                new ColumnDefinition { Width = new GridLength(70) },
-                new ColumnDefinition { Width = new GridLength(92) },
-                new ColumnDefinition { Width = new GridLength(92) },
+                new ColumnDefinition { Width = new GridLength(88) },
+                new ColumnDefinition { Width = new GridLength(190) },
+                new ColumnDefinition { Width = new GridLength(72) },
+                new ColumnDefinition { Width = new GridLength(132) },
+                new ColumnDefinition { Width = new GridLength(132) },
+                new ColumnDefinition { Width = new GridLength(86) },
+                new ColumnDefinition { Width = new GridLength(86) },
                 new ColumnDefinition { Width = GridLength.Star },
             },
             ColumnSpacing=6,
-            Padding=new Thickness(4,1),
+            Padding=new Thickness(4,2),
             BackgroundColor=Colors.White,
         };
         var check = new CheckBox {
@@ -3231,46 +3244,53 @@ public sealed class MainPage:ContentPage {
         AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.Category),1,TextAlignment.Start);
         AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.MethodName),2,TextAlignment.Start);
         AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.WorstElementCountText),3,TextAlignment.End);
-        AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.TimeRatioText),4,TextAlignment.End);
-        AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.AllocatedRatioText),5,TextAlignment.End);
+        grid.Add(CreateCandidateGaugeCell(
+            nameof(BenchmarkImprovementCandidateRow.TimeGaugeText),
+            static row => row.TimeGaugeFraction,
+            Color.FromArgb("#2563EB")),4,0);
+        grid.Add(CreateCandidateGaugeCell(
+            nameof(BenchmarkImprovementCandidateRow.AllocatedGaugeText),
+            static row => row.AllocatedGaugeFraction,
+            Color.FromArgb("#F97316")),5,0);
         AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.LeftTimeText),6,TextAlignment.End);
         AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.RightTimeText),7,TextAlignment.End);
         AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.SourceTabText),8,TextAlignment.Start);
         grid.SetBinding(ToolTipProperties.TextProperty,nameof(BenchmarkImprovementCandidateRow.TooltipText));
-
-        var (timeBarView,updateTimeBar) = CreateRatioBarRowView("時間",Color.FromArgb("#2563EB"));
-        var (allocBarView,updateAllocBar) = CreateRatioBarRowView("メモリ",Color.FromArgb("#F97316"));
-        var barsRow = new HorizontalStackLayout { Spacing=10,Padding=new Thickness(0,1,0,2),Children= { timeBarView,allocBarView } };
-        grid.Add(barsRow,1,1);
-        Grid.SetColumnSpan(barsRow,8);
-        grid.BindingContextChanged+=(_,_) => {
-            if(grid.BindingContext is BenchmarkImprovementCandidateRow row) {
-                updateTimeBar(row.Candidate.TimeRatio);
-                updateAllocBar(row.Candidate.AllocatedRatio);
-            }
-        };
         return grid;
     }
 
     // 時間比/メモリ比を横幅で表す簡易バー。比率 3.0x でバー満タンとして正規化する。
-    private static (View View,Action<RatioValue> Update) CreateRatioBarRowView(string label,Color barColor) {
+    private static View CreateCandidateGaugeCell(string textPath,Func<BenchmarkImprovementCandidateRow,double> getFraction,Color barColor) {
         var fraction = 0.0;
         var track = new Grid { HeightRequest=6,BackgroundColor=Color.FromArgb("#E2E8F0") };
         var fill = new BoxView { Color=barColor,HorizontalOptions=LayoutOptions.Start,WidthRequest=0 };
         track.Children.Add(fill);
-        var text = new Label { FontSize=9,TextColor=Color.FromArgb("#334155"),LineBreakMode=LineBreakMode.TailTruncation };
+        var text = new Label {
+            FontSize=9,
+            TextColor=Color.FromArgb("#334155"),
+            LineBreakMode=LineBreakMode.TailTruncation,
+            HorizontalTextAlignment=TextAlignment.End,
+        };
+        text.SetBinding(Label.TextProperty,textPath);
         track.SizeChanged+=(_,_) => fill.WidthRequest=track.Width*fraction;
-        void Update(RatioValue ratio) {
-            fraction=ratio.Kind switch {
-                RatioValueKind.Numeric when ratio.NumericValue is { } value => Math.Clamp(value/3.0,0,1),
-                RatioValueKind.LeftOnly => 1.0,
-                _ => 0.0,
-            };
-            text.Text=label+" "+ratio.DisplayText;
+        var cell = new Grid {
+            RowDefinitions= {
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = new GridLength(6) },
+            },
+            RowSpacing=1,
+            VerticalOptions=LayoutOptions.Center,
+        };
+        cell.Add(text,0,0);
+        cell.Add(track,0,1);
+        void Refresh() {
+            fraction=cell.BindingContext is BenchmarkImprovementCandidateRow row
+                ? getFraction(row)
+                : 0.0;
             fill.WidthRequest=track.Width>0 ? track.Width*fraction : 0;
         }
-        var stack = new VerticalStackLayout { Spacing=1,WidthRequest=140,Children= { text,track } };
-        return (stack,Update);
+        cell.BindingContextChanged+=(_,_) => Refresh();
+        return cell;
     }
 
     private static void AddCandidateHeader(Grid grid,string text,int column) {
@@ -4376,12 +4396,21 @@ public sealed class BenchmarkCircularProgressView:GraphicsView {
         DefaultProgressColor,
         propertyChanged:static (bindable,_,_) => ((BenchmarkCircularProgressView)bindable).Invalidate());
 
-    private static readonly Color TrackColor = Color.FromArgb("#CBD5E1");
-    private static readonly Color DefaultProgressColor = Color.FromArgb("#F97316");
-    private static readonly Color OutlineColor = Color.FromArgb("#64748B");
+    public static readonly BindableProperty OutlineColorProperty = BindableProperty.Create(
+        nameof(OutlineColor),
+        typeof(Color),
+        typeof(BenchmarkCircularProgressView),
+        DefaultOutlineColor,
+        propertyChanged:static (bindable,_,_) => ((BenchmarkCircularProgressView)bindable).Invalidate());
+
+    private static readonly Color TrackColor=Color.FromArgb("#CBD5E1");
+    private static readonly Color DefaultProgressColor=Color.FromArgb("#F97316");
+    private static readonly Color DefaultOutlineColor=Color.FromArgb("#64748B");
 
     public BenchmarkCircularProgressView() {
         this.Drawable=new BenchmarkCircularProgressDrawable(this);
+        this.Loaded+=(_,_) => this.Invalidate();
+        this.SizeChanged+=(_,_) => this.Invalidate();
     }
 
     public double Progress{
@@ -4392,6 +4421,11 @@ public sealed class BenchmarkCircularProgressView:GraphicsView {
     public Color ProgressColor{
         get => (Color)this.GetValue(ProgressColorProperty);
         set => this.SetValue(ProgressColorProperty,value);
+    }
+
+    public Color OutlineColor{
+        get => (Color)this.GetValue(OutlineColorProperty);
+        set => this.SetValue(OutlineColorProperty,value);
     }
 
     private sealed class BenchmarkCircularProgressDrawable(BenchmarkCircularProgressView owner):IDrawable {
@@ -4418,7 +4452,7 @@ public sealed class BenchmarkCircularProgressView:GraphicsView {
                 }
             }
 
-            canvas.StrokeColor=OutlineColor;
+            canvas.StrokeColor=owner.OutlineColor;
             canvas.StrokeSize=strokeSize;
             canvas.DrawCircle(centerX,centerY,radius);
             if(progress<=0) {

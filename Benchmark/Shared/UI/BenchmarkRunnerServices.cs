@@ -920,7 +920,7 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
         CancellationToken cancellationToken) {
         var orchestrationRoot = FindSolutionRoot() ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Seamless");
         var benchmarkRoot = Path.Combine(orchestrationRoot,"Work",BenchmarkAppProfile.WorkRootName,BenchmarkExecutionProfileNames.ToFolderName(executionProfile));
-        var jobRunner = this.CreateJobRunner(executionProfile);
+        var jobRunner = this.CreateJobRunner(executionProfile,adaptiveThreshold);
         var orchestrator = new BenchmarkOrchestrator(
             new BenchmarkStateManager(benchmarkRoot),
             jobRunner);
@@ -953,11 +953,12 @@ public sealed class BenchmarkRunService:IBenchmarkRunService {
 
     }
 
-    private IBenchmarkJobRunner CreateJobRunner(BenchmarkExecutionProfile executionProfile) =>
+    private IBenchmarkJobRunner CreateJobRunner(BenchmarkExecutionProfile executionProfile,TimeSpan testSleepDuration) =>
         executionProfile switch{
             BenchmarkExecutionProfile.Accurate => this.workerService,
             BenchmarkExecutionProfile.Intermediate => new BenchmarkPersistentWorkerProcessService(),
             BenchmarkExecutionProfile.Fast => new BenchmarkFastWorkerProcessService(),
+            BenchmarkExecutionProfile.Test => new BenchmarkTestSleepJobRunner(testSleepDuration),
             _ => this.workerService,
         };
 

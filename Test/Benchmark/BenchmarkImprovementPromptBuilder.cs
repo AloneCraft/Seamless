@@ -33,6 +33,23 @@ public sealed class BenchmarkImprovementPromptBuilder{
     }
 
     [Fact]
+    public void BuildCandidates_OrdersByWorstLeftRatioAcrossTimeAndAllocated(){
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var state = State(
+            Job(sourceTab.LeftProject,"Aggregate_time",64,250,100),
+            Job(sourceTab.RightProject,"Aggregate_time",64,100,100),
+            Job(sourceTab.LeftProject,"Where_allocated",64,100,600),
+            Job(sourceTab.RightProject,"Where_allocated",64,100,100));
+
+        var candidates = global::UI.BenchmarkImprovementCandidateBuilder.BuildCandidates(state);
+
+        Assert.Equal("Where_allocated",candidates[0].MethodName);
+        Assert.Equal(6,candidates[0].AllocatedRatio.NumericValue);
+        Assert.Equal("Aggregate_time",candidates[1].MethodName);
+        Assert.Equal(2.5,candidates[1].TimeRatio.NumericValue);
+    }
+
+    [Fact]
     public void CreateDefaultSelectedKeys_SelectsTopTenForEachBucketAndMergesDuplicates(){
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var jobs = new List<global::UI.BenchmarkJob>();

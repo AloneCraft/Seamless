@@ -2,22 +2,25 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c7260d12-37ac-443f-b541-40f8091022ae" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/dataSources/68448f76-e8b7-4b9f-8c04-252b239b2c8a/storage_v2/_src_/schema/main.uQUzAA.zip" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/dataSources/dedb3302-b9ed-455e-85d9-61f8544e9590.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/dataSources/dedb3302-b9ed-455e-85d9-61f8544e9590/storage_v2/_src_/schema/main.uQUzAA.zip" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkChartDisplayOrderLogic.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkResultDisplaySelectionLogic.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkRunDisplaySourceLogic.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources.local.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources.local.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources/68448f76-e8b7-4b9f-8c04-252b239b2c8a.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/68448f76-e8b7-4b9f-8c04-252b239b2c8a.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources/data_sources_history.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/data_sources_history.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkTestSleepJobRunner.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Shared/UI.Storage/ClearRunsDbAllRecords.sql" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkExecutionProfileNames.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkTestSleepJobRunner.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.vscode/launch.json" beforeDir="false" afterPath="$PROJECT_DIR$/.vscode/launch.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.vscode/tasks.json" beforeDir="false" afterPath="$PROJECT_DIR$/.vscode/tasks.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerModels.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerModels.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerServices.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerServices.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerViewModel.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerViewModel.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/MainPage.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/MainPage.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkUiLogic.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkUiLogic.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test/Benchmark/BenchmarkChartSelectionLayoutLogic.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkChartSelectionLayoutLogic.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/UI/UI.csproj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.slnx" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.slnx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkOrchestrationModels.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkOrchestrationModels.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/UI.Storage/UiRunStore.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Storage/UiRunStore.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Test/Benchmark/BenchmarkImprovementPromptBuilder.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkImprovementPromptBuilder.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Test/Benchmark/BenchmarkTabProgressLogic.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkTabProgressLogic.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Test/Benchmark/BenchmarkToolbarAndCloseLogic.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkToolbarAndCloseLogic.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Test/Test.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Test.csproj" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

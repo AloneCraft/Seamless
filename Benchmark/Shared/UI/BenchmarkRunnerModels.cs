@@ -148,6 +148,8 @@ public sealed class TabHeaderOption:TabHeaderOptionBase{
 }
 
 public sealed class SourceTabOption:TabHeaderOptionBase{
+    private static readonly Color RunningIndicatorColor=Color.FromArgb("#00FF00");
+    private static readonly Color DefaultProgressOutlineColor=Color.FromArgb("#64748B");
     private BenchmarkTabProgress progress;
     private bool isRunning;
 
@@ -176,9 +178,14 @@ public sealed class SourceTabOption:TabHeaderOptionBase{
     public double ProgressFraction => this.Progress.Total<=0 ? 0 : this.Progress.Fraction;
     public string ProgressText => this.Progress.Total<=0 ? "0/0" : this.Progress.FractionText;
     public string ProgressTooltipText => "確定 "+this.ProgressText;
+    public Color ProgressOutlineColor => this.IsRunning ? RunningIndicatorColor : DefaultProgressOutlineColor;
     public bool IsRunning{
         get => this.isRunning;
-        private set => this.SetProperty(ref this.isRunning,value);
+        private set{
+            if(this.SetProperty(ref this.isRunning,value)){
+                this.OnPropertyChanged(nameof(this.ProgressOutlineColor));
+            }
+        }
     }
 
     public void SetProgress(BenchmarkTabProgress value){
@@ -234,6 +241,13 @@ public sealed class BenchmarkImprovementCandidateRow:ObservableObject{
             : this.Candidate.TimeElementCount.ToString("N0",CultureInfo.InvariantCulture)+"/"+this.Candidate.AllocatedElementCount.ToString("N0",CultureInfo.InvariantCulture);
     public string TimeRatioText => BenchmarkImprovementCandidateBuilder.FormatRatio(this.Candidate.TimeRatio);
     public string AllocatedRatioText => BenchmarkImprovementCandidateBuilder.FormatRatio(this.Candidate.AllocatedRatio);
+    public string TimeGaugeText => CreateGaugeText("時間",this.Candidate.TimeRatio);
+    public string AllocatedGaugeText => CreateGaugeText("メモリ",this.Candidate.AllocatedRatio);
+    public double TimeGaugeFraction => CreateGaugeFraction(this.Candidate.TimeRatio);
+    public double AllocatedGaugeFraction => CreateGaugeFraction(this.Candidate.AllocatedRatio);
+    public double WorstLeftRatioSortValue => Math.Max(
+        BenchmarkImprovementCandidateBuilder.GetRankValue(this.Candidate.TimeRatio),
+        BenchmarkImprovementCandidateBuilder.GetRankValue(this.Candidate.AllocatedRatio));
     public string LeftTimeText => BenchmarkImprovementCandidateBuilder.FormatTime(this.Candidate.TimeLeft.TimeNanoseconds);
     public string RightTimeText => BenchmarkImprovementCandidateBuilder.FormatTime(this.Candidate.TimeRight.TimeNanoseconds);
     public string LeftAllocatedText => BenchmarkImprovementCandidateBuilder.FormatAllocated(this.Candidate.AllocatedLeft.AllocatedBytes);
@@ -242,6 +256,18 @@ public sealed class BenchmarkImprovementCandidateRow:ObservableObject{
         this.SourceTabText+"\n"
         +this.Candidate.SourceTab.LeftProject+" / "+this.Candidate.SourceTab.RightProject+"\n"
         +"Time "+this.TimeRatioText+" / Alloc "+this.AllocatedRatioText;
+
+    private static double CreateGaugeFraction(RatioValue ratio) =>
+        ratio.Kind switch{
+            RatioValueKind.Numeric when ratio.NumericValue is { } value => Math.Clamp(value/3.0,0,1),
+            RatioValueKind.LeftOnly => 1.0,
+            _ => 0.0,
+        };
+
+    private static string CreateGaugeText(string label,RatioValue ratio) =>
+        ratio.Kind==RatioValueKind.Numeric
+            ? label+" "+BenchmarkImprovementCandidateBuilder.FormatRatio(ratio)+"x"
+            : label+" "+BenchmarkImprovementCandidateBuilder.FormatRatio(ratio);
 
     public bool IsSelected{
         get => this.isSelected;
