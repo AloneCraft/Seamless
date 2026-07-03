@@ -24,6 +24,15 @@ internal sealed class BenchmarkRunSession{
         }
     }
 
+    public void ClearRunningResults(){
+        foreach(var key in this.results
+            .Where(static item => string.Equals(item.Value.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase))
+            .Select(static item => item.Key)
+            .ToArray()){
+            this.results.Remove(key);
+        }
+    }
+
     public IReadOnlyList<BenchmarkResultItem> GetResults(BenchmarkSourceTab sourceTab) =>
         this.results
             .Where(item => item.Key.SourceTab==sourceTab)

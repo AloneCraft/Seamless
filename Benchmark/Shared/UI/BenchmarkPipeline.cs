@@ -77,6 +77,15 @@ internal sealed class BenchmarkRunEventPipeline{
         this.channel.Writer.TryWrite(item);
     }
 
+    public void Clear(){
+        lock(this.stateGate){
+            this.runningByKey.Clear();
+            this.dirtyRunningKeys.Clear();
+            this.terminalResults.Clear();
+            this.chartDirty=false;
+        }
+    }
+
     public bool TryCreateUiSnapshot(BenchmarkPipelineMetrics metrics,out BenchmarkUiSnapshot snapshot){
         var now = DateTimeOffset.UtcNow;
         lock(this.stateGate){

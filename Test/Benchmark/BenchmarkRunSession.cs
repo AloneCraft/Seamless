@@ -39,6 +39,32 @@ public sealed class BenchmarkRunSession{
     }
 
     [Fact]
+    public void ClearRunningResults_RemovesRunningAndKeepsTerminalResults(){
+        var session = new global::UI.BenchmarkRunSession();
+
+        session.UpsertResult(Result("System.Array.FLinq","Aggregate",64,100));
+        session.UpsertResult(RunningResult("System.Array.ZLinq","Aggregate",64));
+
+        session.ClearRunningResults();
+
+        var result = Assert.Single(session.GetResults(global::UI.BenchmarkSourceTab.SystemArray));
+        Assert.Equal("System.Array.FLinq",result.Project);
+        Assert.Equal("Completed",result.Status);
+    }
+
+    [Fact]
+    public void ClearRunningResults_RemovesOnlyRunningVersionOfSameResultKey(){
+        var session = new global::UI.BenchmarkRunSession();
+
+        session.UpsertResult(RunningResult("System.Array.FLinq","Aggregate",64));
+
+        session.ClearRunningResults();
+
+        Assert.Empty(session.GetResults(global::UI.BenchmarkSourceTab.SystemArray));
+        Assert.Equal(0,session.Count);
+    }
+
+    [Fact]
     public void ToProgressState_CreatesJobsAndSelectionSnapshot(){
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var session = new global::UI.BenchmarkRunSession();
@@ -117,5 +143,22 @@ public sealed class BenchmarkRunSession{
             argumentKey,
             arguments){
         };
-}
 
+    private static global::UI.BenchmarkResultItem RunningResult(
+        string project,
+        string method,
+        int elementCount,
+        string typeFullName = "Sample.Type",
+        string argumentKey = "") =>
+        new(new global::UI.BenchmarkJob{
+            Project=project,
+            MethodName=method,
+            TypeFullName=typeFullName,
+            SourceTab=global::UI.BenchmarkSourceTab.SystemArray,
+            ElementCount=elementCount,
+            LoopCount=elementCount,
+            ArgumentKey=argumentKey,
+            Status=global::UI.JobStatus.Running,
+            StartedAt=DateTimeOffset.UtcNow,
+        });
+}
