@@ -733,9 +733,11 @@ public sealed partial class FLinqIncrementalGenerator {
             foreach(var param in method.Parameters) {
                 paramParts.Add(ParameterDeclarationForAccessor(param));
             }
-            var accessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.StaticMethod, Name = \"{method.Name}\")]\nprivate static extern {returnTypeName} {accessorName}({string.Join(", ",paramParts)});";
+            // 含有型/戻り値/引数がジェネリック（例: Methods1<T> の非公開 static）ならアクセサをジェネリック extern にする。
+            var (staticAccessorTypeParameters,staticAccessorConstraints) = アクセサ型パラメータ(アクセサ署名型集合(method));
+            var accessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.StaticMethod, Name = \"{method.Name}\")]\nprivate static extern {returnTypeName} {accessorName}{staticAccessorTypeParameters}({string.Join(", ",paramParts)}){staticAccessorConstraints};";
             unsafeAccessorCollector?.Add(accessorCode);
-            expressionText=$"{accessorName}(null{(actualArguments.Count>0 ? ", " + argumentList : string.Empty)})";
+            expressionText=$"{accessorName}{staticAccessorTypeParameters}(null{(actualArguments.Count>0 ? ", " + argumentList : string.Empty)})";
             return true;
         }
         if(!TryRenderOrdinaryReceiverExpression(invocation,semanticModel,containingType,unsafeAccessorCollector,replacementMap,out var receiverText)) {
@@ -751,9 +753,11 @@ public sealed partial class FLinqIncrementalGenerator {
         foreach(var param in method.Parameters) {
             instanceParamParts.Add(ParameterDeclarationForAccessor(param));
         }
-        var instanceAccessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = \"{method.Name}\")]\nprivate static extern {instanceReturnTypeName} {instanceAccessorName}({string.Join(", ",instanceParamParts)});";
+        // 含有型/戻り値/引数がジェネリック（例: Base<T> の protected インスタンス）ならアクセサをジェネリック extern にする。
+        var (instanceAccessorTypeParameters,instanceAccessorConstraints) = アクセサ型パラメータ(アクセサ署名型集合(method));
+        var instanceAccessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = \"{method.Name}\")]\nprivate static extern {instanceReturnTypeName} {instanceAccessorName}{instanceAccessorTypeParameters}({string.Join(", ",instanceParamParts)}){instanceAccessorConstraints};";
         unsafeAccessorCollector?.Add(instanceAccessorCode);
-        expressionText=$"{instanceAccessorName}({receiverText}{(actualArguments.Count>0 ? ", " + argumentList : string.Empty)})";
+        expressionText=$"{instanceAccessorName}{instanceAccessorTypeParameters}({receiverText}{(actualArguments.Count>0 ? ", " + argumentList : string.Empty)})";
         return true;
     }
     /// <summary>

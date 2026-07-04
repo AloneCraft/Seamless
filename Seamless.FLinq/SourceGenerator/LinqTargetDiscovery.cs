@@ -51,8 +51,13 @@ public sealed partial class FLinqIncrementalGenerator {
             // Partial method/ctor/operator などは現在のローカルメソッド再構成対象外。
             || method.ContainingType is null
             // 所属型がないと interceptor 側で this/型名を再現できない。
-            || method.ContainingType.IsGenericType
-            // ジェネリック型メンバーは生成メソッド側へ型パラメータを漏らしやすいので除外。
+            || (method.ContainingType.IsGenericType && !再現可能なジェネリック含有型か(method))
+            // ジェネリック型メンバーは生成メソッド側へ型パラメータを漏らしやすいので原則除外。
+            // ただし「再現可能な単純ジェネリック含有型（例: Methods1<T> where T:notnull）」かつ
+            // 本体 LINQ にラムダを含まない場合だけは、傍受メソッドを含有型の型パラメーターを持つ
+            // ジェネリック静的メソッドとして生成できるので許可する（root→Span 高速路を復活させる）。
+            // ラムダを含むケースはジェネリック型の非公開メンバー参照や @this クロージャを生みやすく、
+            // 現状の生成器（UnsafeAccessor 等が非ジェネリック前提）では閉じられないため段階的に除外している。
             // （メソッド自身の型パラメーターのみ持つジェネリックメソッドは、冒頭で OriginalDefinition
             // に正規化済みなので通過する。呼び出し側で確定した型引数はインターセプター経由で解決される）
             || (!method.IsStatic && (method.IsAbstract || method.IsVirtual || method.IsOverride))
@@ -128,9 +133,17 @@ public sealed partial class FLinqIncrementalGenerator {
             .Select(static parameter=>new InterceptParameterSpec(parameter.Name,parameter.Type.ToDisplayString(完全修飾形式),parameter.RefKind))
             .ToArray();
 
-        var methodTypeParameterNames = method.TypeParameters.IsDefaultOrEmpty
+        // 含有型がジェネリックなら、その型パラメーターを傍受メソッド（別クラスのジェネリック静的メソッド）へ移す。
+        // これでレシーバ型 this Methods1<T> と要素型 T を生成側で名指しできる。
+        // 型パラメーターの順序は「含有型 → メソッド自身」。制約（where）も同順で再現する。
+        var containingTypeParameters = method.ContainingType.IsGenericType
+            ? method.ContainingType.TypeParameters
+            : ImmutableArray<ITypeParameterSymbol>.Empty;
+        var allTypeParameters = containingTypeParameters.AddRange(method.TypeParameters);
+        var methodTypeParameterNames = allTypeParameters.Length==0
             ? null
-            : method.TypeParameters.Select(static t=>t.Name).ToArray();
+            : allTypeParameters.Select(static t=>t.Name).ToArray();
+        var typeParameterConstraintClause = 型パラメーター制約節生成(allTypeParameters);
 
         target = new Linq傍受対象型(
             identifier,
@@ -144,10 +157,74 @@ public sealed partial class FLinqIncrementalGenerator {
             parameterSpecs,
             linqAnalysis,
             methodTypeParameterNames: methodTypeParameterNames,
+            typeParameterConstraintClause: typeParameterConstraintClause,
             isLocalMethodInterception: true,
             optimizeLinq: optimizeLinq,
             counterInstrumentation: counterInstrumentation);
         return true;
+    }
+
+    // 含有型がジェネリックでも、生成側（別クラスのジェネリック静的メソッド）で
+    // 型パラメーターと制約を再現できる単純ケースだけ許可する。
+    private static bool 再現可能なジェネリック含有型か(IMethodSymbol method) {
+        // 入れ子（外側）にジェネリック型があると生成静的メソッド側で閉じられないので未対応。
+        for(var outer = method.ContainingType.ContainingType; outer is not null; outer = outer.ContainingType) {
+            if(outer.IsGenericType) {
+                return false;
+            }
+        }
+        // 制約に非公開型が現れると生成コードから参照できない。
+        foreach(var typeParameter in method.ContainingType.TypeParameters) {
+            foreach(var constraint in typeParameter.ConstraintTypes) {
+                if(ContainsGeneratedTypeAccessibilityRisk(constraint)) {
+                    return false;
+                }
+            }
+        }
+        // ラムダは非公開ジェネリックメンバー参照や @this クロージャを生みやすく、
+        // 現状の生成器では閉じられないため段階的に除外する（ラムダ無し演算子のみ許可）。
+        return !メソッド本体にラムダを含むか(method);
+    }
+
+    private static bool メソッド本体にラムダを含むか(IMethodSymbol method) {
+        foreach(var syntaxReference in method.DeclaringSyntaxReferences) {
+            if(syntaxReference.GetSyntax() is MethodDeclarationSyntax declaration) {
+                var body = (SyntaxNode?)declaration.Body ?? declaration.ExpressionBody;
+                if(body is not null
+                    && body.DescendantNodes().OfType<AnonymousFunctionExpressionSyntax>().Any()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // 型パラメーターの where 制約節を生成する（例: " where T : notnull"）。
+    private static string 型パラメーター制約節生成(ImmutableArray<ITypeParameterSymbol> typeParameters) {
+        var clauses = new List<string>();
+        foreach(var typeParameter in typeParameters) {
+            var parts = new List<string>();
+            if(typeParameter.HasUnmanagedTypeConstraint) {
+                parts.Add("unmanaged");
+            } else if(typeParameter.HasValueTypeConstraint) {
+                parts.Add("struct");
+            } else if(typeParameter.HasReferenceTypeConstraint) {
+                parts.Add(typeParameter.ReferenceTypeConstraintNullableAnnotation==NullableAnnotation.Annotated ? "class?" : "class");
+            }
+            if(typeParameter.HasNotNullConstraint) {
+                parts.Add("notnull");
+            }
+            foreach(var constraintType in typeParameter.ConstraintTypes) {
+                parts.Add(constraintType.ToDisplayString(完全修飾形式));
+            }
+            if(typeParameter.HasConstructorConstraint) {
+                parts.Add("new()");
+            }
+            if(parts.Count>0) {
+                clauses.Add($"where {typeParameter.Name} : {string.Join(", ",parts)}");
+            }
+        }
+        return clauses.Count==0 ? string.Empty : " "+string.Join(" ",clauses);
     }
 
     // [LinqIntercept(true/false)] によるLINQ最適化可否の判定。

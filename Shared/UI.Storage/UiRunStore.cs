@@ -1207,7 +1207,10 @@ public sealed class UiRunStore{
         var connection = new SqliteConnection(builder.ToString());
         connection.Open();
         using var command = connection.CreateCommand();
-        command.CommandText="PRAGMA foreign_keys=ON;";
+        // WAL+busy_timeout で複数インスタンス/並行読み書き時の 'database is locked' を防ぐ。
+        // 既定のロールバックジャーナルは書き込みが全接続排他となり、保存キュー渋滞と
+        // 実行ボタン無反応(キュー末尾待ち)の原因になっていた。
+        command.CommandText="PRAGMA busy_timeout=5000;PRAGMA journal_mode=WAL;PRAGMA foreign_keys=ON;";
         command.ExecuteNonQuery();
         return connection;
     }

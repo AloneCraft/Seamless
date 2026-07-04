@@ -34,9 +34,10 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
     public override bool CanTryProvideSpan => useEnumerableInterface;
     public override string StructMethod => string.Empty;
     // 型引数を埋め込んだ完全な struct 名（呼び出し側では具象型引数を持つ）。
+    // 含有型がジェネリック（OuterTypeParameters 有り）なら外側型パラメータを先頭に付ける。
     public override string EnumeratorTypeName => useEnumerableInterface
-        ? this.Struct
-        : $"{this.Struct}<{enumeratorTypeName}>";
+        ? this.EnumeratorTypeNameWithOuter()
+        : this.EnumeratorTypeNameWithOuter(enumeratorTypeName);
     public override string? DirectEnumerableExpression => useEnumerableInterface
         ? $"((global::System.Collections.Generic.IEnumerable<{elementType}>)({sourceExpression}))"
         : null;
@@ -53,7 +54,7 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
     public override string GetEnumeratorStruct => useEnumerableInterface
         ? this.GetEnumerableInterfaceStruct()
         : $$"""
-        private struct {{this.Struct}}<TEnum> : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}}{{this.StructTypeParametersWithOuter("TEnum")}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
             where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private TEnum {{this.e}};
@@ -93,7 +94,7 @@ public class Root(int 番号, string sourceExpression, string elementType, strin
         """;
 
     private string GetEnumerableInterfaceStruct() => $$"""
-        private struct {{this.Struct}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}}{{this.StructTypeParameters}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private global::System.Collections.Generic.IEnumerable<{{elementType}}> source;
             private global::System.Collections.Generic.IEnumerator<{{elementType}}>? {{this.e}};
@@ -190,8 +191,8 @@ public class ArrayRoot(int 番号, string sourceExpression, string elementType) 
     public override string? NonEnumeratedCountExpression => $"{sourceExpression}.Length";
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
-    // PrimarySource == null なので基底の EnumeratorTypeName は Struct のみ（型パラメータなし）を返す。
-    public override string GetEnumeratorExpression => $"new {this.Struct}({sourceExpression})";
+    // PrimarySource == null なので基底の EnumeratorTypeName は Struct（含有型ジェネリック時は Struct<T>）を返す。
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({sourceExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"{elementType}[] source";
     public override string GetEnumeratorFields => $"private int {this.e} = -1;";
     public override string GetTryGetNextBody => $$"""
@@ -205,7 +206,7 @@ public class ArrayRoot(int 番号, string sourceExpression, string elementType) 
     public override string GetCurrentExpression => $"source[{this.e}]";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}}{{this.StructTypeParameters}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private {{elementType}}[] source;
             private int {{this.e}} = -1;
@@ -274,8 +275,8 @@ public class ListRoot(int 番号, string sourceExpression, string elementType) :
     public override string? NonEnumeratedCountExpression => $"{sourceExpression}.Count";
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
-    // PrimarySource == null なので基底の EnumeratorTypeName は Struct のみ（型パラメータなし）を返す。
-    public override string GetEnumeratorExpression => $"new {this.Struct}({sourceExpression})";
+    // PrimarySource == null なので基底の EnumeratorTypeName は Struct（含有型ジェネリック時は Struct<T>）を返す。
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({sourceExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"global::System.Collections.Generic.List<{elementType}> source";
     public override string GetEnumeratorFields => $"private int {this.e} = -1;";
     public override string GetTryGetNextBody => $$"""
@@ -290,7 +291,7 @@ public class ListRoot(int 番号, string sourceExpression, string elementType) :
     public override string GetCurrentExpression => "Current";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}}{{this.StructTypeParameters}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private global::System.Collections.Generic.List<{{elementType}}> source;
             private int {{this.e}} = -1;
@@ -626,7 +627,7 @@ public sealed class EmptyRoot(int 番号,string elementType) : Enumerable(番号
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Empty<{elementType}>()";
-    public override string GetEnumeratorExpression => $"new {this.Struct}()";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}()";
     public override string GetEnumeratorPrimaryConstructorParameters => string.Empty;
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
@@ -636,7 +637,7 @@ public sealed class EmptyRoot(int 番号,string elementType) : Enumerable(番号
     public override string GetCurrentExpression => "default!";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}}{{this.StructTypeParameters}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             public {{elementType}} Current => default!;
             object? global::System.Collections.IEnumerator.Current => default;
@@ -687,7 +688,7 @@ public sealed class RepeatRoot(int 番号,string valueExpression,string countExp
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Repeat<{elementType}>({valueExpression}, {countExpression})";
-    public override string GetEnumeratorExpression => $"new {this.Struct}({valueExpression}, {countExpression})";
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({valueExpression}, {countExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"{elementType} value, int count";
     public override string GetEnumeratorFields => $"private int {this.e} = -1;";
     public override string GetTryGetNextBody => $$"""
@@ -701,7 +702,7 @@ public sealed class RepeatRoot(int 番号,string valueExpression,string countExp
     public override string GetCurrentExpression => "Current";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}}{{this.StructTypeParameters}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private {{elementType}} value;
             private int count;

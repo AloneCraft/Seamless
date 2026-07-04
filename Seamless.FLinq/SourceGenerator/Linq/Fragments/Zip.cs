@@ -20,10 +20,10 @@ Zip は複数 source を同時に1件ずつ進め、どれかが尽きた時点�
 */
 public class Zip(int 番号, Enumerable source, Enumerable second) : Enumerable(番号) {
     public override string StructMethod => string.Empty;
-    protected override string StructTypeParameters => "<TEnum1, TEnum2>";
+    protected override string StructTypeParameters => StructTypeParametersWithOuter("TEnum1", "TEnum2");
     protected override string StructTypeConstraints =>
         $"where TEnum1 : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>";
-    public override string EnumeratorTypeName => $"{this.Struct}<{source.EnumeratorTypeName}, {second.EnumeratorTypeName}>";
+    public override string EnumeratorTypeName => EnumeratorTypeNameWithOuter(source.EnumeratorTypeName, second.EnumeratorTypeName);
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{second.GetEnumeratorStruct}}
@@ -46,10 +46,10 @@ public class Zip(int 番号, Enumerable source, Enumerable second) : Enumerable(
 
 public class Zip3(int 番号, Enumerable source, Enumerable second, Enumerable third) : Enumerable(番号) {
     public override string StructMethod => string.Empty;
-    protected override string StructTypeParameters => "<TEnum1, TEnum2, TEnum3>";
+    protected override string StructTypeParameters => StructTypeParametersWithOuter("TEnum1", "TEnum2", "TEnum3");
     protected override string StructTypeConstraints =>
         $"where TEnum1 : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>\n    where TEnum3 : struct, global::System.Collections.Generic.IEnumerator<{third.ElementType}>";
-    public override string EnumeratorTypeName => $"{this.Struct}<{source.EnumeratorTypeName}, {second.EnumeratorTypeName}, {third.EnumeratorTypeName}>";
+    public override string EnumeratorTypeName => EnumeratorTypeNameWithOuter(source.EnumeratorTypeName, second.EnumeratorTypeName, third.EnumeratorTypeName);
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{second.GetEnumeratorStruct}}

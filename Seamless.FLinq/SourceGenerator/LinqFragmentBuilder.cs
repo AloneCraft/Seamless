@@ -505,6 +505,8 @@ public sealed partial class FLinqIncrementalGenerator {
             constructorArguments,
             out var nativeScanFragment)) {
             fragment=nativeScanFragment;
+            // StructMethod（InlineArray バッファ等）は今ここで文字列化されるので、外側型パラメータを先に確定させる。
+            fragment.PropagateOuterTypeParameters(外側型パラメータ名(containingType));
             staticMethods=Fragment.JoinStaticMethods(staticMethods,fragment.StructMethod);
             return true;
         }
@@ -514,6 +516,8 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         fragment=generatedFragment;
+        // StructMethod（InlineArray バッファ等）は今ここで文字列化されるので、外側型パラメータを先に確定させる。
+        fragment.PropagateOuterTypeParameters(外側型パラメータ名(containingType));
         staticMethods=静的メソッドコード連結(staticMethods,fragment.StructMethod);
         return true;
     }
