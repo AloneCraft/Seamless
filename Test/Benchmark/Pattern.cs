@@ -191,7 +191,48 @@ public sealed class BenchmarkRunnerViewModel{
         }
     }
 
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task フレッシュ実行では全リスタート指定が渡る(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        viewModel.SelectAllCommand.Execute(null);
+        var targets = GetSelectedCells(viewModel);
+        await viewModel.RunCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
+        {
+            //フレッシュ実行(初回)ではtrueが渡ることを確認する
+            Assert.Equal([true],fixture.RunService.ObservedRestartFromRequestedElementCount);
+        }
+    }
+
 #if DEBUG
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task 一時停止後に再開すると続きから実行されfalseを渡す(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        viewModel.SelectAllCommand.Execute(null);
+        var runTask = viewModel.RunInfiniteCommand.ExecuteAsync(null);
+        //IsBenchmarkRunActiveはDB保存の待ち合わせより前に立つため、実際にFakeRunServiceへ到達するまで待つ
+        await WaitUntilAsync(() => fixture.RunService.ObservedRestartFromRequestedElementCount.Count>0);
+
+        await viewModel.PauseCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => viewModel.IsBenchmarkPaused);
+        await runTask;
+        {
+            //一時停止からの再開(Resume)が実際に実行を開始・完了することを確認する
+            Assert.True(viewModel.RunCommand.CanExecute(null));
+            var targets = GetSelectedCells(viewModel);
+            var running = TrackRunningIcons(targets);
+            await viewModel.RunCommand.ExecuteAsync(null);
+            await WaitUntilAsync(() => targets.All(IsFinalCompleted));
+            Assert.All(targets,cell => Assert.Contains(cell,running));
+        }
+        {
+            //再開呼び出しではrestartFromRequestedElementCountがfalseで渡ることを確認する(全リスタート防止)
+            Assert.Equal([true,false],fixture.RunService.ObservedRestartFromRequestedElementCount);
+        }
+    }
+
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
     public async Task 停止後にもう一度実行できる(){
         var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
@@ -284,21 +325,24 @@ public sealed class BenchmarkRunnerViewModel{
     }
 
     private sealed class ViewModelFixture{
-        private ViewModelFixture(global::UI.BenchmarkRunnerViewModel viewModel){
+        private ViewModelFixture(global::UI.BenchmarkRunnerViewModel viewModel,FakeRunService runService){
             this.ViewModel=viewModel;
+            this.RunService=runService;
         }
 
         public global::UI.BenchmarkRunnerViewModel ViewModel { get; }
+        public FakeRunService RunService { get; }
 
         public static async Task<ViewModelFixture> CreateAsync(global::UI.BenchmarkSourceTab sourceTab){
             var cases = CreateCatalogCases();
             var storePath = Path.Combine(Path.GetTempPath(),"Seamless-Test-Benchmark-UI-"+Guid.NewGuid().ToString("N")+".db");
             var store = new UiRunStore(storePath);
             store.EnsureSchema();
+            var runService = new FakeRunService(cases);
             var viewModel = new global::UI.BenchmarkRunnerViewModel(
                 new FakeCatalogService(cases),
                 new FakeCpuTopologyService(),
-                new FakeRunService(cases),
+                runService,
                 new global::UI.BenchmarkComparisonService(new global::UI.BenchmarkResultService()),
                 store,
                 Path.Combine(Path.GetTempPath(),"Seamless-Test-Benchmark-UI-"+Guid.NewGuid().ToString("N")),
@@ -309,7 +353,7 @@ public sealed class BenchmarkRunnerViewModel{
             viewModel.SelectedExecutionProfile=viewModel.ExecutionProfiles.First(option => option.Profile==global::UI.BenchmarkExecutionProfile.Test);
             viewModel.SelectedThreshold=viewModel.ThresholdOptions.First(option => option.Milliseconds==1);
             viewModel.ClearSelectionCommand.Execute(null);
-            return new(viewModel);
+            return new(viewModel,runService);
         }
 
         private static IReadOnlyList<global::UI.BenchmarkCase> CreateCatalogCases(){
@@ -343,6 +387,8 @@ public sealed class BenchmarkRunnerViewModel{
     }
 
     private sealed class FakeRunService(IReadOnlyList<global::UI.BenchmarkCase> allCases):global::UI.IBenchmarkRunService{
+        public List<bool> ObservedRestartFromRequestedElementCount { get; } = [];
+
         public async Task<global::UI.BenchmarkRunReport> RunAsync(
             IReadOnlyList<global::UI.BenchmarkCase> benchmarks,
             IReadOnlyList<int> logicalCpus,
@@ -358,6 +404,7 @@ public sealed class BenchmarkRunnerViewModel{
             Action<string> statusChanged,
             global::UI.BenchmarkRunExecutionOptions? executionOptions,
             CancellationToken cancellationToken){
+            this.ObservedRestartFromRequestedElementCount.Add(restartFromRequestedElementCount);
             var emitCases = this.CreateEmitCases(benchmarks,sourceTab);
             var logicalCpu = logicalCpus.FirstOrDefault();
             foreach(var benchmark in emitCases){
