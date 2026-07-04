@@ -2286,7 +2286,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 ? this.activeUiRunId
                 : await this.CreateUiRunAsync(runSourceTab,executionProfile).WaitAsync(runCancellationSource.Token);
             this.activeUiRunId=uiRunId;
-            await this.SetUiRunStatusAsync(uiRunId,UiRunStatus.Running,"Benchmark run started.").WaitAsync(runCancellationSource.Token);
+            // Running表示への更新は実行開始をブロックする理由がないため、Completed/Paused等と同じくfire-and-forgetにする。
+            this.QueueUiRunStatus(uiRunId,UiRunStatus.Running,"Benchmark run started.");
             this.ClearSourceTabRunningStates();
             this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
             this.activeChartMethodName=string.Empty;
@@ -2321,7 +2322,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 runSourceTab,
                 executionProfile,
                 this.GetAdaptiveThreshold(),
-                true,
+                !isResumeRun,
                 runRoot,
                 this.GetCurrentRunSelectedBenchmarkCases,
                 result => this.AcceptRunResult(result,runGeneration,uiRunId),
@@ -2428,10 +2429,6 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         var executionProfileText = executionProfile.ToString();
         var displayName = BenchmarkAppProfile.Title+" "+DateTimeOffset.Now.ToString("yyyy/MM/dd HH:mm:ss",System.Globalization.CultureInfo.InvariantCulture);
         return await this.uiRunRepository.CreateRunAsync(GetUiRunAppKind(),displayName,executionProfileText,runSourceTab);
-    }
-
-    private async Task SetUiRunStatusAsync(long? runId,UiRunStatus status,string message) {
-        await this.uiRunRepository.SetRunStatusAsync(runId,status,message);
     }
 
     private void QueueUiRunStatus(long? runId,UiRunStatus status,string message) {

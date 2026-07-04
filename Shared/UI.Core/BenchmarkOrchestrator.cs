@@ -67,53 +67,66 @@ internal sealed class BenchmarkOrchestrator(
         CancellationToken cancellationToken) {
         var running = 0;
         var workers = new Dictionary<int,AdaptiveWorker>();
-        while(true) {
-            cancellationToken.ThrowIfCancellationRequested();
-            foreach(var worker in workers.Where(static item => item.Value.IsCompleted).ToArray()) {
-                if(worker.Value.Task.IsFaulted) {
-                    await worker.Value.Task;
-                }
-
-                lock(queuedKeys) {
-                    completedKeys.Add(worker.Value.RowKey);
-                }
-
-                workers.Remove(worker.Key);
-            }
-
-            this.EnqueueCurrentAdaptiveRows(state,queue,queuedKeys,completedKeys,request);
-            var currentCpus = GetCurrentCpus(request);
-            if(jobRunner is IBenchmarkDynamicCpuSetRunner dynamicCpuSetRunner) {
-                await dynamicCpuSetRunner.ApplyCpuSetAsync(currentCpus);
-            }
-
-            foreach(var cpu in currentCpus) {
-                if(workers.ContainsKey(cpu)) {
-                    continue;
-                }
-
-                if(!this.TryDequeueCurrentAdaptiveRow(state,queue,queuedKeys,request,out var row)) {
-                    continue;
-                }
-
-                workers.Add(cpu,new AdaptiveWorker(row.Key,Task.Run(async () => {
-                    Interlocked.Increment(ref running);
-                    try {
-                        await this.RunAdaptiveMethodRowAsync(state,row,cpu,request,progress,statusChanged,cancellationToken);
-                    } finally {
-                        Interlocked.Decrement(ref running);
+        try {
+            while(true) {
+                cancellationToken.ThrowIfCancellationRequested();
+                foreach(var worker in workers.Where(static item => item.Value.IsCompleted).ToArray()) {
+                    if(worker.Value.Task.IsFaulted) {
+                        await worker.Value.Task;
                     }
-                },cancellationToken)));
+
+                    lock(queuedKeys) {
+                        completedKeys.Add(worker.Value.RowKey);
+                    }
+
+                    workers.Remove(worker.Key);
+                }
+
+                this.EnqueueCurrentAdaptiveRows(state,queue,queuedKeys,completedKeys,request);
+                var currentCpus = GetCurrentCpus(request);
+                if(jobRunner is IBenchmarkDynamicCpuSetRunner dynamicCpuSetRunner) {
+                    await dynamicCpuSetRunner.ApplyCpuSetAsync(currentCpus);
+                }
+
+                foreach(var cpu in currentCpus) {
+                    if(workers.ContainsKey(cpu)) {
+                        continue;
+                    }
+
+                    if(!this.TryDequeueCurrentAdaptiveRow(state,queue,queuedKeys,request,out var row)) {
+                        continue;
+                    }
+
+                    workers.Add(cpu,new AdaptiveWorker(row.Key,Task.Run(async () => {
+                        Interlocked.Increment(ref running);
+                        try {
+                            await this.RunAdaptiveMethodRowAsync(state,row,cpu,request,progress,statusChanged,cancellationToken);
+                        } finally {
+                            Interlocked.Decrement(ref running);
+                        }
+                    },cancellationToken)));
+                }
+
+                if(queue.IsEmpty&&Volatile.Read(ref running)==0&&workers.Count==0) {
+                    break;
+                }
+
+                await Task.Delay(25,cancellationToken);
             }
 
-            if(queue.IsEmpty&&Volatile.Read(ref running)==0&&workers.Count==0) {
-                break;
+            await Task.WhenAll(workers.Values.Select(static worker => worker.Task));
+        } finally {
+            // キャンセルで while を抜けた場合でも、置き去りのワーカーが自身の状態復帰
+            // (Pendingへの巻き戻し・state保存)を終えるまで待つ。待たずに戻ると、呼び出し元の
+            // Pause完了直後にResumeした際、まだRunningのジョブをBenchmarkStateManager.Loadの
+            // クラッシュ復旧ロジックがFailedへ誤確定させてしまう。
+            try {
+                await Task.WhenAll(workers.Values.Select(static worker => worker.Task)).ConfigureAwait(false);
+            } catch {
+                // 個々のworkerの例外はここでは無視する(状態復帰は各worker自身で完了済み)。
+                // 元の例外(キャンセル等)を隠さないため握りつぶす。
             }
-
-            await Task.Delay(25,cancellationToken);
         }
-
-        await Task.WhenAll(workers.Values.Select(static worker => worker.Task));
     }
 
     private async Task RunAdaptiveMethodRowAsync(

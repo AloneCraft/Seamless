@@ -37,6 +37,73 @@ public sealed class BenchmarkOrchestrator{
     }
 
     [Fact]
+    public async Task Orchestrator_RunAsync_CancelWaitsForStragglerWorkerBeforeReturning(){
+        var root = CreateTempRoot();
+        var stateManager = new global::UI.BenchmarkStateManager(root);
+        var cts = new CancellationTokenSource();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseWorker = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var runner = new DelayedFakeRunner(async (job,_) => {
+            started.TrySetResult();
+            //実プロセスの後始末に時間がかかる状況を模す(cancellationToken自体は監視しない)
+            await releaseWorker.Task;
+            cts.Token.ThrowIfCancellationRequested();
+            return CompletedResult(job);
+        });
+        var orchestrator = new global::UI.BenchmarkOrchestrator(stateManager,runner);
+
+        var runTask = orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("System.Array.FLinq","Where")],
+                [0],
+                [1],
+                TimeSpan.FromSeconds(30),
+                TimeSpan.FromSeconds(30)),
+            _ => { },
+            _ => { },
+            cts.Token);
+
+        await started.Task;
+        cts.Cancel();
+        await Task.Delay(50);
+        {
+            //ワーカーがまだ後始末中の間は、外側のRunAsyncは戻ってこない(=待たずに戻る競合状態が無い)ことを確認する
+            Assert.False(runTask.IsCompleted);
+        }
+
+        releaseWorker.TrySetResult();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => runTask);
+
+        var runRoot = Directory.GetDirectories(root).Single();
+        var stateAfterCancel = new global::UI.BenchmarkStateManager(root).Load(runRoot)!;
+        {
+            //外側のRunAsyncが戻った時点でRunningのまま残っているジョブが無いことを確認する
+            Assert.DoesNotContain(stateAfterCancel.Jobs,static job => job.Status==JobStatus.Running);
+        }
+
+        var resumeRunner = new FakeRunner((job,_) => CompletedResult(job));
+        var resumeOrchestrator = new global::UI.BenchmarkOrchestrator(new global::UI.BenchmarkStateManager(root),resumeRunner);
+        await resumeOrchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("System.Array.FLinq","Where")],
+                [0],
+                [1],
+                TimeSpan.FromSeconds(30),
+                TimeSpan.FromSeconds(30),
+                RunRootOverride: runRoot),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        var resumedState = new global::UI.BenchmarkStateManager(root).Load(runRoot)!;
+        {
+            //Resume直後にLoad()のクラッシュ復旧ロジックがFailedへ誤確定させず、正しくCompletedになることを確認する
+            Assert.DoesNotContain(resumedState.Jobs,static job => job.Status==JobStatus.Failed);
+            Assert.Contains(resumedState.Jobs,static job => job.Status==JobStatus.Completed);
+        }
+    }
+
+    [Fact]
     public async Task Orchestrator_RunAsync_CreatesBenchmarkByElementMatrix(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => new BenchmarkJobRunResult(
