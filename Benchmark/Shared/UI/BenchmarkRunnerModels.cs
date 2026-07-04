@@ -1,5 +1,7 @@
 using System.Globalization;
 using System.ComponentModel;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace UI;
@@ -194,6 +196,55 @@ public sealed class SourceTabOption:TabHeaderOptionBase{
 
     public void SetRunning(bool value){
         this.IsRunning=value;
+    }
+}
+
+public sealed class ObservableRangeCollection<T>:ObservableCollection<T>{
+    public void ReplaceRange(IEnumerable<T> items){
+        this.CheckReentrancy();
+        this.Items.Clear();
+        foreach(var item in items){
+            this.Items.Add(item);
+        }
+        this.OnPropertyChanged(new PropertyChangedEventArgs(nameof(this.Count)));
+        this.OnPropertyChanged(new PropertyChangedEventArgs("Item[]"));
+        this.OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+    }
+}
+
+public sealed class BenchmarkSourceTabViewState:ObservableObject{
+    private double chartHeight = 300;
+    private string benchmarkRatioSummaryText = string.Empty;
+
+    public BenchmarkSourceTabViewState(BenchmarkSourceTabDefinition definition){
+        this.Definition=definition;
+    }
+
+    public BenchmarkSourceTabDefinition Definition { get; }
+    public ObservableRangeCollection<BenchmarkTableRow> Rows { get; } = [];
+    public ObservableCollection<ChartComparisonPoint> ChartPoints { get; } = [];
+    public ObservableCollection<BenchmarkDiagnosticRow> LatencyHotspotRows { get; } = [];
+    public ObservableCollection<BenchmarkDiagnosticRow> AllocationDiagnosticRows { get; } = [];
+    public ObservableCollection<BenchmarkDiagnosticRow> CpuTimelineRows { get; } = [];
+    public ObservableCollection<BenchmarkRankedRatioPoint> ImprovementCandidateRankPoints { get; } = [];
+    public ObservableCollection<BenchmarkRankedRatioPoint> TimeRatioWorstPoints { get; } = [];
+    public ObservableCollection<BenchmarkRankedRatioPoint> AllocationRatioWorstPoints { get; } = [];
+    public ObservableCollection<BenchmarkCategoryRatioPoint> CategoryRatioPoints { get; } = [];
+    public ObservableCollection<BenchmarkBadgeItem> MissingFailureBadges { get; } = [];
+    public ObservableCollection<BenchmarkQualityGaugePoint> MeasurementQualityGauges { get; } = [];
+    public ObservableCollection<BenchmarkBadgeItem> FallbackDiagnosticBadges { get; } = [];
+    public ObservableCollection<BenchmarkTrendSeries> HistoryTrendSeries { get; } = [];
+    public ObservableCollection<BenchmarkTrendSeries> ScaleTrendSeries { get; } = [];
+    public IReadOnlyList<BenchmarkComparisonRow> ComparisonRows { get; set; } = [];
+
+    public double ChartHeight{
+        get => this.chartHeight;
+        set => this.SetProperty(ref this.chartHeight,value);
+    }
+
+    public string BenchmarkRatioSummaryText{
+        get => this.benchmarkRatioSummaryText;
+        set => this.SetProperty(ref this.benchmarkRatioSummaryText,value);
     }
 }
 

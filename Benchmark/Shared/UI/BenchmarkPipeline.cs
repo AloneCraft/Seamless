@@ -59,6 +59,7 @@ internal sealed class BenchmarkRunEventPipeline{
     private readonly object stateGate = new();
     private readonly Dictionary<string,BenchmarkRunEvent> runningByKey = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> dirtyRunningKeys = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<BenchmarkRunEvent> terminalPrecedingRunningUpdates = [];
     private readonly Queue<BenchmarkRunEvent> terminalResults = new();
     private long receivedEvents;
     private long consumedEvents;
@@ -81,6 +82,7 @@ internal sealed class BenchmarkRunEventPipeline{
         lock(this.stateGate){
             this.runningByKey.Clear();
             this.dirtyRunningKeys.Clear();
+            this.terminalPrecedingRunningUpdates.Clear();
             this.terminalResults.Clear();
             this.chartDirty=false;
         }
@@ -89,7 +91,9 @@ internal sealed class BenchmarkRunEventPipeline{
     public bool TryCreateUiSnapshot(BenchmarkPipelineMetrics metrics,out BenchmarkUiSnapshot snapshot){
         var now = DateTimeOffset.UtcNow;
         lock(this.stateGate){
-            var running = new List<BenchmarkRunEvent>(this.dirtyRunningKeys.Count);
+            var running = new List<BenchmarkRunEvent>(this.dirtyRunningKeys.Count+this.terminalPrecedingRunningUpdates.Count);
+            running.AddRange(this.terminalPrecedingRunningUpdates);
+            this.terminalPrecedingRunningUpdates.Clear();
             foreach(var key in this.dirtyRunningKeys){
                 if(this.runningByKey.TryGetValue(key,out var item)){
                     running.Add(item);
@@ -165,6 +169,9 @@ internal sealed class BenchmarkRunEventPipeline{
                     this.dirtyRunningKeys.Add(key);
                 }else if(IsTerminal(result)){
                     var key = CreateRunningKey(result);
+                    if(this.runningByKey.TryGetValue(key,out var runningItem)){
+                        this.terminalPrecedingRunningUpdates.Add(runningItem);
+                    }
                     this.runningByKey.Remove(key);
                     this.dirtyRunningKeys.Remove(key);
                     this.terminalResults.Enqueue(item);
