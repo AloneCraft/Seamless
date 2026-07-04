@@ -87,6 +87,65 @@ public sealed class BenchmarkRunnerViewModel{
         Assert.Equal(targets.Count,viewModel.SelectedSourceTab.Progress.Total);
     }
 
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task SourceTabSelectionSync_UsesRowKeyAndSide(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        SelectProjectGroup(viewModel,"Left");
+
+        viewModel.SelectedSourceTab=viewModel.SourceTabs.First(option => option.Definition.Tab==global::UI.BenchmarkSourceTab.SystemRange);
+
+        Assert.All(viewModel.BenchmarkRows,row => {
+            Assert.True(row.LeftCell.IsSelected);
+            Assert.False(row.RightCell.IsSelected);
+        });
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task SourceTab切替でも緑クリック選択をタブ毎に保持する(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        var arrayState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemArray);
+        var rangeState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemRange);
+        {
+            //1タブ目の1行目を緑選択し、2タブ目へ漏れず1タブ目には保持されることを確認する
+            viewModel.SelectBenchmarkRow(arrayState.Rows[0],global::UI.BenchmarkCellSelectionGesture.Replace);
+            Assert.True(arrayState.Rows[0].IsUiSelected);
+
+            viewModel.SelectedSourceTab=viewModel.SourceTabs.First(option => option.Definition.Tab==global::UI.BenchmarkSourceTab.SystemRange);
+
+            Assert.All(rangeState.Rows,static row => Assert.False(row.IsUiSelected));
+            Assert.True(arrayState.Rows[0].IsUiSelected);
+        }
+        {
+            //2タブ目の2行目を緑選択しても1タブ目へ混線せず、1タブ目へ戻ると選択が復元されていることを確認する
+            viewModel.SelectBenchmarkRow(rangeState.Rows[1],global::UI.BenchmarkCellSelectionGesture.Replace);
+
+            Assert.True(rangeState.Rows[1].IsUiSelected);
+            Assert.False(rangeState.Rows[0].IsUiSelected);
+            Assert.True(arrayState.Rows[0].IsUiSelected);
+
+            viewModel.SelectedSourceTab=viewModel.SourceTabs.First(option => option.Definition.Tab==global::UI.BenchmarkSourceTab.SystemArray);
+
+            Assert.True(arrayState.Rows[0].IsUiSelected);
+            Assert.False(arrayState.Rows[1].IsUiSelected);
+        }
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task 選択タブとずれた行への緑クリック選択はその行のタブへ適用される(){
+        //切替保留などで表示タブとVM選択タブが食い違っても、クリックされた行が属するタブのstateへ適用されることを確認する
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        var arrayState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemArray);
+        var rangeState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemRange);
+
+        viewModel.SelectBenchmarkRow(rangeState.Rows[1],global::UI.BenchmarkCellSelectionGesture.Replace);
+
+        Assert.True(rangeState.Rows[1].IsUiSelected);
+        Assert.All(arrayState.Rows,static row => Assert.False(row.IsUiSelected));
+    }
+
 #if DEBUG
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
     public async Task RunInfiniteCommand_FollowsRunAndPauseState(){
