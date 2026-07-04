@@ -74,7 +74,7 @@ public sealed partial class FLinqIncrementalGenerator {
         /// </summary>
         public bool HasAnonymousTypeLinq { get; } = hasAnonymousTypeLinq;
     }
-    private sealed class Linq傍受対象型(string identifier,string containingMethodName,string interceptsLocationAttributeText,IMethodSymbol method,IMethodSymbol templateMethod,InvocationExpressionSyntax invocation,INamedTypeSymbol enclosingType,SemanticModel semanticModel,InterceptParameterSpec[] parameters,ローカルメソッドLinq解析結果? linqAnalysis = null,string? sourceElementTypeName = null,string[]? methodTypeParameterNames = null,bool isLocalMethodInterception = false,bool optimizeLinq = true,bool counterInstrumentation = false):IEquatable<Linq傍受対象型> {
+    private sealed class Linq傍受対象型(string identifier,string containingMethodName,string interceptsLocationAttributeText,IMethodSymbol method,IMethodSymbol templateMethod,InvocationExpressionSyntax invocation,INamedTypeSymbol enclosingType,SemanticModel semanticModel,InterceptParameterSpec[] parameters,ローカルメソッドLinq解析結果? linqAnalysis = null,string? sourceElementTypeName = null,string[]? methodTypeParameterNames = null,string? typeParameterConstraintClause = null,bool isLocalMethodInterception = false,bool optimizeLinq = true,bool counterInstrumentation = false):IEquatable<Linq傍受対象型> {
         public bool Equals(Linq傍受対象型? other) {
             if(other is null) return false;
             if(ReferenceEquals(this,other)) return true;
@@ -95,6 +95,10 @@ public sealed partial class FLinqIncrementalGenerator {
         public ローカルメソッドLinq解析結果 LinqAnalysis { get; } = linqAnalysis??ローカルメソッドLinq解析結果.Empty;
         private string? ExplicitSourceElementTypeName { get; } = sourceElementTypeName;
         private string[] MethodTypeParameters { get; } = methodTypeParameterNames?? [];
+        // 傍受メソッドに付ける where 制約節（例: " where T : notnull"）。含有型がジェネリックのとき使う。
+        public string TypeParameterConstraintClause { get; } = typeParameterConstraintClause?? string.Empty;
+        // 含有型がジェネリックか。展開失敗時に throw スタブではなく「傍受を出さない（元実装のまま）」へ倒すために使う。
+        public bool ContainingTypeIsGeneric => this.Method.ContainingType.IsGenericType;
         public bool IsLocalMethodInterception { get; } = isLocalMethodInterception;
         public bool OptimizeLinq { get; } = optimizeLinq;
         public bool CounterInstrumentation { get; } = counterInstrumentation;

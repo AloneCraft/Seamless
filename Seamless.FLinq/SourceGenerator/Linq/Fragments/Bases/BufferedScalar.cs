@@ -56,7 +56,7 @@ public abstract class BufferedScalar(int 番号,string resultType) : Scalar(番�
     // 軽量 struct を出す。外側の型（補助クラス）から Compute を呼ぶため private→internal へ昇格する。
     public override string InlineSupportingMembers => $$"""
         {{this.StructSources}}
-        private struct {{this.Struct}}<TEnum>
+        private struct {{this.Struct}}{{this.StructTypeParametersWithOuter("TEnum")}}
             {{this.StructTypeConstraints}} {
         {{IndentLines(this.ComputeMembers.Replace("private static","internal static"),"    ")}}
         }
@@ -71,7 +71,7 @@ public abstract class BufferedScalar(int 番号,string resultType) : Scalar(番�
         catch(NotSupportedException) { return null; }
         var srcVar = $"__s{番号}";
         var call = this.ComputeExpression
-            .Replace("Compute(",$"{this.Struct}<{src.EnumeratorTypeName}>.Compute(")
+            .Replace("Compute(",$"{this.EnumeratorTypeNameWithOuter(src.EnumeratorTypeName)}.Compute(")
             .Replace(this.e,srcVar);
         return $$"""
             {{destType}} {{destVar}};
@@ -91,7 +91,7 @@ public abstract class BufferedScalar(int 番号,string resultType) : Scalar(番�
         return $$"""
             {{destType}} {{destVar}};
             using(var {{srcVar}}={{srcExpr}}){
-                {{destVar}}={{this.Struct}}<{{src.EnumeratorTypeName}}>.Compute({{srcVar}}{{extra}});
+                {{destVar}}={{this.EnumeratorTypeNameWithOuter(src.EnumeratorTypeName)}}.Compute({{srcVar}}{{extra}});
             }
             """;
     }

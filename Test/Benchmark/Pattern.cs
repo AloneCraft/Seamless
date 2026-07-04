@@ -146,7 +146,73 @@ public sealed class BenchmarkRunnerViewModel{
         Assert.All(arrayState.Rows,static row => Assert.False(row.IsUiSelected));
     }
 
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task 完了後にもう一度実行できる(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        viewModel.SelectAllCommand.Execute(null);
+        var targets = GetSelectedCells(viewModel);
+        await viewModel.RunCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
+        {
+            //完了後にRunボタンが有効で、2回目の実行が実際に開始(CPU実行中を再通過)して完了することを確認する
+            Assert.True(viewModel.RunCommand.CanExecute(null));
+            var running = TrackRunningIcons(targets);
+            await viewModel.RunCommand.ExecuteAsync(null);
+            await WaitUntilAsync(() => targets.All(IsFinalCompleted));
+            Assert.All(targets,cell => Assert.Contains(cell,running));
+        }
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task 完了後の選択変更にRunボタン活性が追従する(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        viewModel.SelectAllCommand.Execute(null);
+        var targets = GetSelectedCells(viewModel);
+        await viewModel.RunCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
+        {
+            //完了後に選択を全解除するとボタン活性もライブに追従する(凍結スナップショットを見ない)ことを確認する
+            viewModel.ClearSelectionCommand.Execute(null);
+            Assert.False(viewModel.HasSelectedBenchmarkCells);
+            Assert.False(viewModel.RunCommand.CanExecute(null));
+        }
+        {
+            //再選択で活性が復帰し、実行が実際に走ることを確認する
+            viewModel.SelectAllCommand.Execute(null);
+            Assert.True(viewModel.HasSelectedBenchmarkCells);
+            Assert.True(viewModel.RunCommand.CanExecute(null));
+            var reselected = GetSelectedCells(viewModel);
+            var running = TrackRunningIcons(reselected);
+            await viewModel.RunCommand.ExecuteAsync(null);
+            await WaitUntilAsync(() => reselected.All(IsFinalCompleted));
+            Assert.All(reselected,cell => Assert.Contains(cell,running));
+        }
+    }
+
 #if DEBUG
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task 停止後にもう一度実行できる(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        viewModel.SelectAllCommand.Execute(null);
+        var runTask = viewModel.RunInfiniteCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => viewModel.IsBenchmarkRunActive);
+
+        await viewModel.StopCommand.ExecuteAsync(null);
+        await runTask;
+        {
+            //停止後にRunボタンが有効で、再実行が実際に開始・完了することを確認する
+            Assert.True(viewModel.RunCommand.CanExecute(null));
+            var targets = GetSelectedCells(viewModel);
+            var running = TrackRunningIcons(targets);
+            await viewModel.RunCommand.ExecuteAsync(null);
+            await WaitUntilAsync(() => targets.All(IsFinalCompleted));
+            Assert.All(targets,cell => Assert.Contains(cell,running));
+        }
+    }
+
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
     public async Task RunInfiniteCommand_FollowsRunAndPauseState(){
         var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);

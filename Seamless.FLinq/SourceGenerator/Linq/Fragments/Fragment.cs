@@ -79,6 +79,11 @@ public abstract class Fragment(
     private protected string innerEnumerator => $"__ie{番号}";
     // struct closure: 含有クラスの完全修飾型名。null なら @this 不使用。
     public string? ContainingTypeName { get; set; }
+    // 含有型がジェネリック（例: Methods1<T>）のとき、その型パラメータ名（例: ["T"]）。
+    // 生成する補助 struct/enumerator を <T> でパラメータ化するために伝播する。
+    // 傍受メソッド自体がこの型パラメータを持つジェネリック静的メソッドとして生成されるので、
+    // その中で使う struct も同じ型パラメータで単相化する必要がある。
+    public string[] OuterTypeParameters { get; set; } = [];
     public bool CounterInstrumentationEnabled { get; private set; }
 
     // Enumerator struct 内ではメソッドローカルのキャプチャ変数を直接参照できない。
@@ -172,15 +177,32 @@ public abstract class Fragment(
 
     // ContainingTypeName をこの断片と全子断片に再帰的に伝播する。
     // リフレクションで Fragment 型フィールドを走査するため、個別の override は不要。
-    public virtual void PropagateContainingTypeName(string? name) {
-        this.ContainingTypeName = name;
+    // OuterTypeParameters だけを断片ツリー全体へ伝播する。
+    // StructMethod（例: ToArray の InlineArray バッファ struct）はフラグメント構築時に文字列化されるため、
+    // PropagateContainingTypeName（@this 用、構築後に呼ばれる）より前にこちらで外側型パラメータを確定させる必要がある。
+    public virtual void PropagateOuterTypeParameters(string[] outerTypeParameters) {
+        this.OuterTypeParameters = outerTypeParameters;
         foreach(var field in EnumerateInstanceFields(this.GetType())) {
             if(typeof(Fragment).IsAssignableFrom(field.FieldType) && field.GetValue(this) is Fragment child) {
-                child.PropagateContainingTypeName(name);
+                child.PropagateOuterTypeParameters(outerTypeParameters);
             }
             if(typeof(FuncFragment).IsAssignableFrom(field.FieldType)
                 && field.GetValue(this) is InlinedScalarFunc inlinedScalarFunc) {
-                inlinedScalarFunc.ScalarFragment.PropagateContainingTypeName(name);
+                inlinedScalarFunc.ScalarFragment.PropagateOuterTypeParameters(outerTypeParameters);
+            }
+        }
+    }
+
+    public virtual void PropagateContainingTypeName(string? name,string[]? outerTypeParameters = null) {
+        this.ContainingTypeName = name;
+        this.OuterTypeParameters = outerTypeParameters ?? [];
+        foreach(var field in EnumerateInstanceFields(this.GetType())) {
+            if(typeof(Fragment).IsAssignableFrom(field.FieldType) && field.GetValue(this) is Fragment child) {
+                child.PropagateContainingTypeName(name,outerTypeParameters);
+            }
+            if(typeof(FuncFragment).IsAssignableFrom(field.FieldType)
+                && field.GetValue(this) is InlinedScalarFunc inlinedScalarFunc) {
+                inlinedScalarFunc.ScalarFragment.PropagateContainingTypeName(name,outerTypeParameters);
             }
         }
     }
@@ -254,8 +276,28 @@ public abstract class Fragment(
     // Current プロパティが返す式。
     public abstract string GetCurrentExpression { get; }
     // 生成した enumerator struct の型名。PrimarySource が設定されると自動でジェネリック型名を返す。
-    public virtual string EnumeratorTypeName =>
-        this.PrimarySource is { } src ? $"{this.Struct}<{src.EnumeratorTypeName}>" : this.Struct;
+    // 含有型がジェネリック（OuterTypeParameters 有り）なら、その型引数を先頭に付ける（例: Struct1<T> / Struct2<T, TEnum>）。
+    public virtual string EnumeratorTypeName {
+        get {
+            var typeArguments = new List<string>(this.OuterTypeParameters);
+            if(this.PrimarySource is { } src) {
+                typeArguments.Add(src.EnumeratorTypeName);
+            }
+            return typeArguments.Count==0 ? this.Struct : $"{this.Struct}<{string.Join(", ",typeArguments)}>";
+        }
+    }
+    // OuterTypeParameters を先頭に付けた struct 型パラメータ列（例: "<T, TEnum1, TEnum2>"）。
+    // 複数上流源を持つ Fragment（Concat/Zip/Set 系）の StructTypeParameters override から使う。
+    private protected string StructTypeParametersWithOuter(params string[] inner) {
+        var all = this.OuterTypeParameters.Length==0 ? inner : this.OuterTypeParameters.Concat(inner).ToArray();
+        return all.Length==0 ? string.Empty : "<"+string.Join(", ",all)+">";
+    }
+    // OuterTypeParameters を先頭に付けた enumerator 型名（例: "Struct0<T, {src}, {second}>"）。
+    // 複数上流源を持つ Fragment の EnumeratorTypeName override から使う。
+    private protected string EnumeratorTypeNameWithOuter(params string[] innerTypeArguments) {
+        var all = this.OuterTypeParameters.Length==0 ? innerTypeArguments : this.OuterTypeParameters.Concat(innerTypeArguments).ToArray();
+        return all.Length==0 ? this.Struct : $"{this.Struct}<{string.Join(", ",all)}>";
+    }
     // Enumerable を直接返す interceptor 用の new Enumerator(...) 式。
     public virtual string GetEnumeratorExpression => throw new NotSupportedException($"{this.GetType().Name} does not support Enumerator mode expression generation.");
     // primary constructor を使う enumerator struct の引数一覧。空なら通常 struct 宣言。
@@ -521,7 +563,16 @@ public abstract class Fragment(
     protected virtual Enumerable? PrimarySource => null;
 
     // 生成 struct に付ける型パラメータ（"<TEnum>" 等）。PrimarySource が設定されると "<TEnum>" になる。
-    protected virtual string StructTypeParameters => this.PrimarySource is not null ? "<TEnum>" : string.Empty;
+    // 含有型がジェネリック（OuterTypeParameters 有り）なら、その型パラメータを先頭に付ける（例: "<T>" / "<T, TEnum>"）。
+    protected virtual string StructTypeParameters {
+        get {
+            var parameters = new List<string>(this.OuterTypeParameters);
+            if(this.PrimarySource is not null) {
+                parameters.Add("TEnum");
+            }
+            return parameters.Count==0 ? string.Empty : "<"+string.Join(", ",parameters)+">";
+        }
+    }
     // 生成 struct に付ける where 制約。PrimarySource が設定されると struct 制約付きの where 句になる。
     protected virtual string StructTypeConstraints =>
         this.PrimarySource is { } src

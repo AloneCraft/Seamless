@@ -1038,6 +1038,7 @@ public sealed class MainPage:ContentPage {
             VerticalOptions=LayoutOptions.Fill,
             AutomationId="Benchmark.SourceTabView",
         };
+        AutomationProperties.SetIsInAccessibleTree(tabView,true);
         var tabItems = new TabItemCollection();
         var loadedSourceTabContents = new HashSet<int>();
         var sourceTabIndex=0;
@@ -1049,10 +1050,12 @@ public sealed class MainPage:ContentPage {
                 Header=option.HeaderText,
                 HeaderContent=header,
                 FontSize=12,
+                AutomationId="Benchmark.SourceTabItem."+option.Definition.Tab,
                 Content=capturedIndex==0
                     ? this.CreateSourceTabContent(state)
                     : this.CreateSourceTabPlaceholder(option),
             };
+            AutomationProperties.SetIsInAccessibleTree(tabItem,true);
             if(capturedIndex==0) {
                 loadedSourceTabContents.Add(capturedIndex);
             }
@@ -2146,6 +2149,7 @@ public sealed class MainPage:ContentPage {
             grid.AutomationId="Benchmark.Grid";
             this.benchmarkGrid=grid;
         }
+        AutomationProperties.SetIsInAccessibleTree(grid,true);
         grid.QueryRowHeight+=(_,args) => {
             if(args.RowIndex<2) {
                 args.Height=BenchmarkGridHeaderRowHeight;

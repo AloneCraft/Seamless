@@ -1494,8 +1494,24 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshSourceTabProgresses();
     }
 
+    // Run ボタンの活性はライブなチェック状態で判定する。進捗バッジ用の CreateProgressCells は
+    // 実行時に凍結した選択スナップショットを優先するため、実行後に選択を変えると実態と乖離し、
+    // 「ボタンは有効なのに RunAsync が選択0件で無言中断する」原因になる。
     private bool HasAnySelectedBenchmarkCell() =>
-        this.SourceTabs.Any(option => this.CreateProgressCells(option.Definition).Any(static cell => cell.IsSelected));
+        this.SourceTabs.Any(option => this.HasAnyLiveSelectedBenchmarkCell(option.Definition));
+
+    private bool HasAnyLiveSelectedBenchmarkCell(BenchmarkSourceTabDefinition sourceTab) {
+        var state = this.GetSourceTabViewState(sourceTab.Tab);
+        if(state.Rows.Count>0) {
+            return state.Rows.Any(static row => row.ProjectCells.Any(static cell => cell.HasCase&&cell.IsSelected));
+        }
+
+        return BenchmarkRowGroupingLogic.CreateRows(this.catalogCases,sourceTab)
+            .Any(row => sourceTab.ProjectOrder.Any(project =>
+                row.CasesByProject.ContainsKey(project)
+                &&this.benchmarkCellSelections.TryGetValue(CreateBenchmarkCellKey(sourceTab,row.RowKey,project),out var selected)
+                &&selected));
+    }
 
     private static bool? GetSelectionState(IEnumerable<BenchmarkProjectCell> cells) {
         var targets = cells.Where(static cell => cell.HasCase).ToArray();
@@ -2256,39 +2272,43 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.SetActiveRunRoot(runRoot);
         var runGeneration = unchecked(++this.runResultGeneration);
         var runSourceTab = this.SelectedSourceDefinition.Tab;
-        var uiRunId = runRootOverride is not null&&this.activeUiRunId is not null
-            ? this.activeUiRunId
-            : await this.CreateUiRunAsync(runSourceTab,executionProfile);
-        this.activeUiRunId=uiRunId;
-        await this.SetUiRunStatusAsync(uiRunId,UiRunStatus.Running,"Benchmark run started.");
         string? completedRunRoot = null;
         var completedNormally = false;
         var keepPausedRunRoot = false;
+        long? uiRunId = null;
+        // DB 直列保存キューが渋滞していても、押した瞬間に実行状態を可視化し Stop でキャンセルできるようにする。
+        // (IsRunning/StatusText の反映を DB await より後にすると、キュー待ちの間ボタンが「有効なのに無反応」になる)
         this.IsRunning=true;
         this.ActiveRunSourceTab=runSourceTab;
-        this.ClearSourceTabRunningStates();
-        this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
-        this.activeChartMethodName=string.Empty;
-        if(!isResumeRun) {
-            this.PrepareSelectedSourceLiveResultsForRun();
-        }
-        this.UpdateChart();
-        this.CurrentElementCountText="1";
-        this.ResultElementCountOptions.Clear();
-        this.SelectedResultElementCount=null;
-        this.OnPropertyChanged(nameof(this.ChartElementCountSliderMaximum));
-        this.OnPropertyChanged(nameof(this.IsChartElementSliderVisible));
-        this.OnPropertyChanged(nameof(this.SelectedChartElementCountText));
-        this.RefreshSourceTabProgresses();
-        StartupDiagnostics.Write(
-            "Benchmark run requested. "
-            +"SourceTab="+runSourceTab+" "
-            +"ExecutionProfile="+executionProfile+" "
-            +"InfiniteTestRunner="+useInfiniteTestRunner+" "
-            +"LogicalCpus=["+string.Join(",",this.CpuItems.Where(static cpu => cpu.IsSelected).Select(static cpu => cpu.LogicalProcessorIndex))+"] "
-            +"Benchmarks="+selected.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)+" "
-            +"ElementCounts=["+string.Join(",",this.GetSelectedElementCounts())+"]");
+        this.StatusText="実行準備中";
         try {
+            uiRunId=runRootOverride is not null&&this.activeUiRunId is not null
+                ? this.activeUiRunId
+                : await this.CreateUiRunAsync(runSourceTab,executionProfile).WaitAsync(runCancellationSource.Token);
+            this.activeUiRunId=uiRunId;
+            await this.SetUiRunStatusAsync(uiRunId,UiRunStatus.Running,"Benchmark run started.").WaitAsync(runCancellationSource.Token);
+            this.ClearSourceTabRunningStates();
+            this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
+            this.activeChartMethodName=string.Empty;
+            if(!isResumeRun) {
+                this.PrepareSelectedSourceLiveResultsForRun();
+            }
+            this.UpdateChart();
+            this.CurrentElementCountText="1";
+            this.ResultElementCountOptions.Clear();
+            this.SelectedResultElementCount=null;
+            this.OnPropertyChanged(nameof(this.ChartElementCountSliderMaximum));
+            this.OnPropertyChanged(nameof(this.IsChartElementSliderVisible));
+            this.OnPropertyChanged(nameof(this.SelectedChartElementCountText));
+            this.RefreshSourceTabProgresses();
+            StartupDiagnostics.Write(
+                "Benchmark run requested. "
+                +"SourceTab="+runSourceTab+" "
+                +"ExecutionProfile="+executionProfile+" "
+                +"InfiniteTestRunner="+useInfiniteTestRunner+" "
+                +"LogicalCpus=["+string.Join(",",this.CpuItems.Where(static cpu => cpu.IsSelected).Select(static cpu => cpu.LogicalProcessorIndex))+"] "
+                +"Benchmarks="+selected.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)+" "
+                +"ElementCounts=["+string.Join(",",this.GetSelectedElementCounts())+"]");
             var cpus = this.CpuItems
                 .Where(static cpu => cpu.IsSelected)
                 .Select(static cpu => cpu.LogicalProcessorIndex)
@@ -2329,49 +2349,63 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 this.StatusText="キャンセルしました";
                 this.QueueUiRunStatus(uiRunId,UiRunStatus.Stopped,"Benchmark run canceled.");
                 StartupDiagnostics.Write("Benchmark run canceled.");
-                this.SetActiveRunRoot(null);
+                if(ReferenceEquals(this.runCancellation,runCancellationSource)) {
+                    this.SetActiveRunRoot(null);
+                }
             }
         }
         catch(Exception ex) {
             StartupDiagnostics.Write("Benchmark run failed.",ex);
             this.StatusText="実行失敗 "+ex.Message;
             this.QueueUiRunStatus(uiRunId,UiRunStatus.Failed,ex.Message);
-            this.SetActiveRunRoot(null);
+            if(ReferenceEquals(this.runCancellation,runCancellationSource)) {
+                this.SetActiveRunRoot(null);
+            }
         }
         finally {
-            if(completedNormally) {
-                this.renderScheduler.FlushNow();
-            }else{
-                this.runEventPipeline.Clear();
+            // 10秒タイムアウトの ForceResetRunState 後に新しい実行が始まっている場合、
+            // 遅れて目覚めたこの(旧)実行の finally が新しい実行の状態を上書きしないよう、
+            // runCancellation の CTS 参照一致で「自分がまだ現行実行か」を判定してから共有状態を触る。
+            var isCurrentRun = ReferenceEquals(this.runCancellation,runCancellationSource);
+            if(isCurrentRun) {
+                if(completedNormally) {
+                    this.renderScheduler.FlushNow();
+                }else{
+                    this.runEventPipeline.Clear();
+                }
             }
             this.persistenceBatcher.FlushNow();
-            if(!completedNormally&&!keepPausedRunRoot) {
+            if(isCurrentRun&&!completedNormally&&!keepPausedRunRoot) {
                 this.runResultGeneration=unchecked(this.runResultGeneration+1);
             }
-            this.IsRunning=false;
-            this.activeChartMethodName=string.Empty;
-            this.ActiveRunSourceTab=null;
-            this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
+            if(isCurrentRun) {
+                this.IsRunning=false;
+                this.activeChartMethodName=string.Empty;
+                this.ActiveRunSourceTab=null;
+                this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
+            }
             // 強制リセットなどで this.runCancellation が差し替わっていても、この実行の CTS だけを破棄する。
             runCancellationSource.Dispose();
-            if(ReferenceEquals(this.runCancellation,runCancellationSource)) {
+            if(isCurrentRun) {
                 this.runCancellation=null;
+                this.pendingRunTerminationKind=RunTerminationKind.None;
             }
-            this.pendingRunTerminationKind=RunTerminationKind.None;
             this.OnPropertyChanged(nameof(this.IsBenchmarkRunActive));
             this.OnPropertyChanged(nameof(this.ToolbarStateInput));
             this.StopCommand.NotifyCanExecuteChanged();
             this.PauseCommand.NotifyCanExecuteChanged();
             this.RefreshToolbarCommandStates();
-            if(completedNormally&&this.TryGetRemainingRunningVisualDelay(out var finalVisualDelay)) {
-                this.ScheduleFinalLiveVisualCleanup(runGeneration,finalVisualDelay);
-            }else{
-                this.ApplyFinalLiveVisualCleanup(!completedNormally);
-            }
-            if(!keepPausedRunRoot) {
-                this.SetActiveRunRoot(null);
-                if(this.activeUiRunId==uiRunId) {
-                    this.activeUiRunId=null;
+            if(isCurrentRun) {
+                if(completedNormally&&this.TryGetRemainingRunningVisualDelay(out var finalVisualDelay)) {
+                    this.ScheduleFinalLiveVisualCleanup(runGeneration,finalVisualDelay);
+                }else{
+                    this.ApplyFinalLiveVisualCleanup(!completedNormally);
+                }
+                if(!keepPausedRunRoot) {
+                    this.SetActiveRunRoot(null);
+                    if(this.activeUiRunId==uiRunId) {
+                        this.activeUiRunId=null;
+                    }
                 }
             }
             // 実行が終わった Run のスナップショットは保存で更新されているため、メモリバッファを破棄する。

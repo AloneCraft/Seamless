@@ -108,17 +108,23 @@ public sealed partial class FLinqIncrementalGenerator {
                         インターセプターXmlコメント追加(builder,target);
                         builder.AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining|global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]");
                         builder.AppendLine($"    {target.InterceptsLocationAttributeText}");
-                        builder.AppendLine($"    public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}) {{");
+                        builder.AppendLine($"    public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}){target.TypeParameterConstraintClause} {{");
                         インデント付き追記(builder,ローカル本体,"        ");
                         builder.AppendLine("    }");
                         builder.AppendLine();
                         continue;
                     }
 
+                    if(target.ContainingTypeIsGeneric) {
+                        // ジェネリック含有型は段階対応中。展開できないケースは throw スタブを出さず、
+                        // 傍受自体を諦めて元実装（素の System.Linq）をそのまま実行させる（遅いが正しい）。
+                        continue;
+                    }
+
                     インターセプターXmlコメント追加(builder,target);
                     builder.AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining|global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]");
                     builder.AppendLine($"    {target.InterceptsLocationAttributeText}");
-                    builder.AppendLine($"    public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}) {{");
+                    builder.AppendLine($"    public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}){target.TypeParameterConstraintClause} {{");
                     if(未対応Enumerableメソッド一覧取得(target) is { Count: > 0 } unsupportedMethods) {
                         var loc1 = target.Method.Locations.FirstOrDefault() ?? target.Invocation.GetLocation();
                         diagnostics.Add(Diagnostic.Create(展開失敗警告Descriptor,loc1,target.Method.Name));
@@ -132,6 +138,10 @@ public sealed partial class FLinqIncrementalGenerator {
                     builder.AppendLine();
                 }
             } catch(Exception ex) {
+                if(target.ContainingTypeIsGeneric) {
+                    // ジェネリック含有型は段階対応中。展開時例外は throw スタブ化せず傍受を諦める（元実装のまま）。
+                    continue;
+                }
                 if(emittedMethodNames.Contains(target.MethodName)) {
                     continue;
                 }
@@ -142,7 +152,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 インターセプターXmlコメント追加(builder,target);
                 builder.AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining|global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]");
                 builder.AppendLine($"    {target.InterceptsLocationAttributeText}");
-                builder.AppendLine($"    public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}) {{");
+                builder.AppendLine($"    public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}){target.TypeParameterConstraintClause} {{");
                 インデント付き追記(builder,RenderUnsupportedDirectMethodBody(target,ex.Message),"        ");
                 builder.AppendLine("    }");
                 builder.AppendLine();

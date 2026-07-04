@@ -29,7 +29,7 @@ public class ToArray(int 番号, Enumerable source, string resultType) : Buffere
     // {Struct}_Buf 命名は補助クラス退避の正規表現（Struct\d+_接尾辞）にマッチしリネーム衝突を防ぐ。
     public override string StructMethod => $$"""
         [global::System.Runtime.CompilerServices.InlineArray({{InlineCapacity}})]
-        private struct {{this.Struct}}_Buf {
+        private struct {{this.Struct}}_Buf{{this.StructTypeParametersWithOuter()}} {
             private {{source.ElementType}} _element0;
         }
         """;
@@ -115,7 +115,7 @@ public class ToArray(int 番号, Enumerable source, string resultType) : Buffere
             // 要素数が InlineCapacity 以内ならスタック上の InlineArray だけで受け、ArrayPool/List の
             // ヒープ確保もスレッドセーフな Rent/Return も一切回避する。溢れたときだけ ArrayPool へスピルし、
             // 最後に正確なサイズの配列へ1回だけコピーする。MoveNext/Current のみで TEnum 制約に依存しない。
-            {{this.Struct}}_Buf __inline = default;
+            {{this.Struct}}_Buf{{this.StructTypeParametersWithOuter()}} __inline = default;
             global::System.Span<{{source.ElementType}}> __stack = __inline;
             {{source.ElementType}}[]? __heap = null;
             var n = 0;
