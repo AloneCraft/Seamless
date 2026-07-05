@@ -2487,7 +2487,7 @@ public sealed class MainPage:ContentPage {
             checkHost.AutomationId="Benchmark.AllSelectionCheckHost";
             var checkTap = new TapGestureRecognizer();
             checkTap.Tapped+=(_,_) => {
-                this.viewModel?.ToggleAllBenchmarkSelection();
+                this.viewModel?.ToggleAllBenchmarkSelection(sourceTab);
             };
             checkHost.GestureRecognizers.Add(checkTap);
             var body = this.CreateBenchmarkHeaderBody(string.Empty);
@@ -2509,7 +2509,7 @@ public sealed class MainPage:ContentPage {
             checkHost.AutomationId="Benchmark.ColumnGroupCheckHost."+group.Id;
             var checkTap = new TapGestureRecognizer();
             checkTap.Tapped+=(_,_) => {
-                this.viewModel?.ToggleBenchmarkColumnGroup(group);
+                this.viewModel?.ToggleBenchmarkColumnGroup(group,sourceTab);
             };
             checkHost.GestureRecognizers.Add(checkTap);
             var body = this.CreateBenchmarkHeaderBody(nameof(BenchmarkColumnSelectionGroup.HeaderText));
