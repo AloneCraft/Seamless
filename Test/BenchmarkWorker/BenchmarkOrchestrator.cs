@@ -141,7 +141,7 @@ public sealed class BenchmarkOrchestrator{
     }
 
     [Fact]
-    public async Task Orchestrator_RunAsync_CreatesJobsForBothSystemArrayProjectsInSameMethodRow(){
+    public async Task Orchestrator_RunAsync_CreatesJobsForBothSystemArrayProjects(){
         var root = CreateTempRoot();
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var runner = new FakeRunner((job,_) => CompletedResult(job));
@@ -319,7 +319,7 @@ public sealed class BenchmarkOrchestrator{
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_AssignsMethodRowsToCpusAndRunsRowInProjectElementOrder(){
+    public async Task Orchestrator_AdaptiveMode_PinsEachProjectMethodRowToOneCpuWhileSpreadingRowsAcrossFreeCpus(){
         var root = CreateTempRoot();
         var observed = new List<(string Method,string Project,int ElementCount,int Cpu)>();
         var gate = new object();
@@ -351,30 +351,16 @@ public sealed class BenchmarkOrchestrator{
             _ => { },
             CancellationToken.None);
 
+        //各計測は選択された論理CPU(10/20)のいずれかで実行される。
         Assert.All(observed,static item => Assert.True(item.Cpu is 10 or 20));
+        //行(=プロジェクト×メソッド)は空きCPUへ分配され、両方のCPUが使われる。
         Assert.Contains(10,observed.Select(static item => item.Cpu));
         Assert.Contains(20,observed.Select(static item => item.Cpu));
-        Assert.Equal(
-            [
-                ("Where",10),
-                ("Select",20),
-            ],
-            new[] { "Where","Select" }
-                .Select(method => (method,observed.Where(item => item.Method==method).Select(static item => item.Cpu).Distinct().Single()))
-                .ToArray());
-        foreach(var method in new[] { "Where","Select","Count" }) {
-            // 行内は「先頭プロジェクトを軸倍々で確定→次プロジェクト」の順で実行される。
-            Assert.Equal(
-                [
-                    ("System.Array.FLinq",1),
-                    ("System.Array.FLinq",2),
-                    ("System.Array.ZLinq",1),
-                    ("System.Array.ZLinq",2),
-                ],
-                observed
-                    .Where(item => item.Method==method)
-                    .Select(static item => (item.Project,item.ElementCount))
-                    .ToArray());
+        foreach(var group in observed.GroupBy(static item => (item.Method,item.Project))) {
+            //1つの行は開始から完了まで同じ1コアに固定される。
+            Assert.Single(group.Select(static item => item.Cpu).Distinct());
+            //行内の軸(ElementCount)は昇順で連続実行される。
+            Assert.Equal([1,2],group.Select(static item => item.ElementCount).ToArray());
         }
     }
 

@@ -143,8 +143,8 @@ internal sealed class BenchmarkOrchestrator(
         Action<BenchmarkProgressUpdate> progress,
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
-        // 行内はプロジェクト(ケース)が外側: 先頭プロジェクトを軸倍々で自身が閾値超過/失敗するまで確定させ、
-        // 次のプロジェクトへ進む。打ち切りはプロジェクトごとに独立で、左右の最終到達軸のずれは許容する。
+        // 1行=1(プロジェクト×メソッド)ケース。割り当てられた1コア上で、その1ケースを軸(LoopCount/ElementCount)
+        // 昇順に自身が閾値超過/失敗するまで実行する。他ケースは空きコアが独立に担当する。
         foreach(var benchmark in row.Cases) {
             cancellationToken.ThrowIfCancellationRequested();
             var warmedUp = false;
@@ -562,9 +562,7 @@ internal sealed class BenchmarkOrchestrator(
         string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey);
 
     private static string CreateAdaptiveGroupKey(BenchmarkSourceTab sourceTab,BenchmarkCase benchmark) =>
-        IsScalableSourceTab(GetBenchmarkSourceTab(benchmark,sourceTab))
-            ? CreateBenchmarkKey(benchmark)
-            : GetBenchmarkSourceTab(benchmark,sourceTab).ToString()+"|"+benchmark.MethodName;
+        CreateBenchmarkKey(benchmark);
 
     private void EnqueueCurrentAdaptiveRows(
         ProgressState state,
