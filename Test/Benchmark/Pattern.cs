@@ -88,17 +88,46 @@ public sealed class BenchmarkRunnerViewModel{
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task SourceTabSelectionSync_UsesRowKeyAndSide(){
+    public async Task SourceTabの列ヘッダーまとめチェックは他タブへ同期しない(){
         var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
         var viewModel = fixture.ViewModel;
+        var arrayState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemArray);
+        var rangeState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemRange);
+        var arrayTabOption = viewModel.SourceTabs.First(option => option.Definition.Tab==global::UI.BenchmarkSourceTab.SystemArray);
+        var rangeTabOption = viewModel.SourceTabs.First(option => option.Definition.Tab==global::UI.BenchmarkSourceTab.SystemRange);
+
+        //ArrayタブでLeft(FLinq)ヘッダーをまとめチェックしても、Rangeタブの行や進捗ゲージには反映されない
         SelectProjectGroup(viewModel,"Left");
 
-        viewModel.SelectedSourceTab=viewModel.SourceTabs.First(option => option.Definition.Tab==global::UI.BenchmarkSourceTab.SystemRange);
+        Assert.All(arrayState.Rows,row => Assert.True(row.LeftCell.IsSelected));
+        Assert.All(rangeState.Rows,row => Assert.False(row.LeftCell.IsSelected));
+        Assert.True(arrayTabOption.HasProgress);
+        Assert.False(rangeTabOption.HasProgress);
 
-        Assert.All(viewModel.BenchmarkRows,row => {
-            Assert.True(row.LeftCell.IsSelected);
-            Assert.False(row.RightCell.IsSelected);
-        });
+        //Rangeタブへ切替えても、LeftCell.IsSelectedはfalseのまま(同期しない)
+        viewModel.SelectedSourceTab=rangeTabOption;
+
+        Assert.All(rangeState.Rows,row => Assert.False(row.LeftCell.IsSelected));
+        Assert.All(arrayState.Rows,row => Assert.True(row.LeftCell.IsSelected));
+
+        //Rangeタブ側でまとめチェックした場合は、Rangeタブだけに反映される
+        SelectProjectGroup(viewModel,"Left");
+
+        Assert.All(rangeState.Rows,row => Assert.True(row.LeftCell.IsSelected));
+        Assert.All(arrayState.Rows,row => Assert.True(row.LeftCell.IsSelected));
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task Sourceタブの個別セルチェックは他タブへ同期しない(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        var arrayState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemArray);
+        var rangeState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemRange);
+
+        viewModel.ToggleBenchmarkCellCheck(arrayState.Rows[0],"Left");
+
+        Assert.True(arrayState.Rows[0].LeftCell.IsSelected);
+        Assert.All(rangeState.Rows,row => Assert.False(row.LeftCell.IsSelected));
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]

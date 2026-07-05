@@ -714,6 +714,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                     this.RefreshBenchmarkProjectHeaderTexts();
                     // タブ切替では DB もカタログも再読み込みせず、メモリ上のカタログと結果バッファだけで再構築する。
                     this.RefreshBenchmarkSortColumnOptions();
+                    // ヘッダーのまとめチェック(FLinq/ZLinq)は現在のSourceタブだけを反映する共有インスタンスのため、
+                    // 切替直後に再計算しないと直前のタブのチェック状態が見えたままになる。
+                    this.RefreshBenchmarkSelectionAggregates();
                 }
             }
         }
@@ -1035,21 +1038,26 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ApplyCpuSelection(row.Cells.Select(static cell => cell.Cpu),selected);
     }
 
-    public void ToggleAllBenchmarkSelection() {
+    public void ToggleAllBenchmarkSelection(BenchmarkSourceTabDefinition? sourceTab = null) {
         if(!this.CanChangeBenchmarkSelection) {
             return;
         }
 
-        this.SetBenchmarkCells(this.GetAllBenchmarkRows().SelectMany(static row => row.ProjectCells),this.IsAllBenchmarkSelectionChecked is false);
+        var tab = sourceTab??this.SelectedSourceDefinition;
+        var cells = this.GetBenchmarkRows(tab).SelectMany(static row => row.ProjectCells).ToArray();
+        var selected = GetSelectionState(cells) is not true;
+        this.SetBenchmarkCells(cells,selected,tab);
     }
 
-    public void ToggleBenchmarkColumnGroup(BenchmarkColumnSelectionGroup group) {
+    public void ToggleBenchmarkColumnGroup(BenchmarkColumnSelectionGroup group,BenchmarkSourceTabDefinition? sourceTab = null) {
         if(!this.CanChangeBenchmarkSelection) {
             return;
         }
 
-        var selected = group.IsChecked is false;
-        this.SetBenchmarkCells(this.GetBenchmarkCells(group.ColumnKeys),selected);
+        var tab = sourceTab??this.SelectedSourceDefinition;
+        var cells = this.GetBenchmarkCells(group.ColumnKeys,tab).ToArray();
+        var selected = GetSelectionState(cells) is not true;
+        this.SetBenchmarkCells(cells,selected,tab);
     }
 
     public void ToggleBenchmarkRow(BenchmarkTableRow row) {
@@ -1069,7 +1077,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             .Where(static cell => cell.HasCase)
             .ToArray();
         var selected = GetSelectionState(targetCells) is not true;
-        this.SetBenchmarkCells(targetCells,selected);
+        this.SetBenchmarkCells(targetCells,selected,row.SourceTab);
     }
 
     internal void SelectAllBenchmarkUiCells(BenchmarkSourceTabDefinition? sourceTab = null) {
@@ -1132,7 +1140,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         var selected = targets.Length>1
             ? true
             : !cell.IsSelected;
-        this.SetBenchmarkCells(targets,selected);
+        this.SetBenchmarkCells(targets,selected,row.SourceTab);
     }
 
     internal void SelectBenchmarkCellFromChart(BenchmarkSourceTabViewState? state,string benchmark,string project,BenchmarkCellSelectionGesture gesture) {
@@ -1324,12 +1332,13 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.benchmarkRowsByResultKey.TryAdd(CreateBenchmarkRowResultIndexKey(row.SourceTab.Tab,project,typeFullName,method,argumentKey),row);
     }
 
-    private void SetAllBenchmarkSelection(bool selected) {
+    private void SetAllBenchmarkSelection(bool selected,BenchmarkSourceTabDefinition? sourceTab = null) {
         if(!this.CanChangeBenchmarkSelection) {
             return;
         }
 
-        this.SetBenchmarkCells(this.GetAllBenchmarkRows().SelectMany(static row => row.ProjectCells),selected);
+        var tab = sourceTab??this.SelectedSourceDefinition;
+        this.SetBenchmarkCells(this.GetBenchmarkRows(tab).SelectMany(static row => row.ProjectCells),selected,tab);
     }
 
     private void SubscribeBenchmarkRow(BenchmarkTableRow row) {
@@ -1349,8 +1358,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
-    private IEnumerable<BenchmarkProjectCell> GetBenchmarkCells(IReadOnlyList<string> projectKeys) {
-        foreach(var row in this.GetAllBenchmarkRows()) {
+    private IEnumerable<BenchmarkTableRow> GetBenchmarkRows(BenchmarkSourceTabDefinition sourceTab) =>
+        this.GetSourceTabViewState(sourceTab.Tab).Rows;
+
+    private IEnumerable<BenchmarkProjectCell> GetBenchmarkCells(IReadOnlyList<string> projectKeys,BenchmarkSourceTabDefinition sourceTab) {
+        foreach(var row in this.GetBenchmarkRows(sourceTab)) {
             foreach(var project in projectKeys) {
                 if(this.TryGetBenchmarkCellBySelectionKey(row,project,out var cell)) {
                     yield return cell;
@@ -1359,12 +1371,14 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
-    private void SetBenchmarkCells(IEnumerable<BenchmarkProjectCell> cells,bool selected) {
+    // cells は必ず単一の sourceTab に属する行から集めたものを渡すこと。ExpandBenchmarkSelectionCells は
+    // その sourceTab 内だけで RowKey+Left/Right の対応を展開するため、他Sourceタブへ選択が漏れない。
+    private void SetBenchmarkCells(IEnumerable<BenchmarkProjectCell> cells,bool selected,BenchmarkSourceTabDefinition sourceTab) {
         if(!this.CanChangeBenchmarkSelection) {
             return;
         }
 
-        var targets = this.ExpandBenchmarkSelectionCells(cells);
+        var targets = this.ExpandBenchmarkSelectionCells(cells,sourceTab);
         if(targets.Length==0) {
             this.RefreshBenchmarkSelectionAggregates();
             return;
@@ -1384,15 +1398,16 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshBenchmarkSelectionDisplay();
     }
 
-    private BenchmarkProjectCell[] ExpandBenchmarkSelectionCells(IEnumerable<BenchmarkProjectCell> cells) {
+    private BenchmarkProjectCell[] ExpandBenchmarkSelectionCells(IEnumerable<BenchmarkProjectCell> cells,BenchmarkSourceTabDefinition sourceTab) {
         var requested = cells.Where(static cell => cell.HasCase).Distinct().ToArray();
         if(requested.Length==0) {
             return [];
         }
 
+        var rows = this.GetBenchmarkRows(sourceTab).ToArray();
         var requestedSet = requested.ToHashSet();
         var syncKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach(var row in this.GetAllBenchmarkRows()) {
+        foreach(var row in rows) {
             if(requestedSet.Contains(row.LeftCell)) {
                 syncKeys.Add(CreateBenchmarkSelectionSyncKey(row.RowKey,"Left"));
             }
@@ -1405,7 +1420,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
 
         var targets = new List<BenchmarkProjectCell>();
-        foreach(var row in this.GetAllBenchmarkRows()) {
+        foreach(var row in rows) {
             if(row.LeftCell.HasCase&&syncKeys.Contains(CreateBenchmarkSelectionSyncKey(row.RowKey,"Left"))) {
                 targets.Add(row.LeftCell);
             }
@@ -1478,18 +1493,22 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    // BenchmarkColumnSelectionGroups/BenchmarkProjectSelectionGroups と IsAllBenchmarkSelectionChecked は
+    // 全Sourceタブの見た目ヘッダーで共有されるインスタンスのため、常に「現在表示中のSourceタブ」の
+    // チェック状態だけを反映する。他タブの選択状態をここに混ぜると、タブ間でチェック表示が同期して見える。
     private void RefreshBenchmarkSelectionAggregates() {
         foreach(var row in this.GetAllBenchmarkRows()) {
             row.RefreshSelectionState();
         }
+        var currentTab = this.SelectedSourceDefinition;
         foreach(var group in this.BenchmarkColumnSelectionGroups) {
-            group.IsChecked=GetSelectionState(this.GetBenchmarkCells(group.ColumnKeys));
+            group.IsChecked=GetSelectionState(this.GetBenchmarkCells(group.ColumnKeys,currentTab));
         }
         foreach(var group in this.BenchmarkProjectSelectionGroups) {
-            group.IsChecked=GetSelectionState(this.GetBenchmarkCells(group.ColumnKeys));
+            group.IsChecked=GetSelectionState(this.GetBenchmarkCells(group.ColumnKeys,currentTab));
         }
-        var allCells = this.GetAllBenchmarkRows().SelectMany(static row => row.ProjectCells).ToArray();
-        this.IsAllBenchmarkSelectionChecked=GetSelectionState(allCells);
+        var currentTabCells = this.GetBenchmarkRows(currentTab).SelectMany(static row => row.ProjectCells).ToArray();
+        this.IsAllBenchmarkSelectionChecked=GetSelectionState(currentTabCells);
         this.HasSelectedBenchmarkCells=this.HasAnySelectedBenchmarkCell();
         this.RefreshSourceTabProgresses();
     }
