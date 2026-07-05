@@ -45,7 +45,8 @@ public sealed class BenchmarkTestSleepJobRunner(TimeSpan sleepDuration,bool runU
             "test",
             benchmark.ArgumentKey,
             benchmark.Arguments,
-            loopCount);
+            loopCount,
+            job.RunItemIndex);
     }
 
     private static string CreateArtifactFolder(string runRoot,BenchmarkCase benchmark,BenchmarkSourceTab sourceTab,int elementCount,int loopCount){

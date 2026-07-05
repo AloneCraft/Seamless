@@ -10,6 +10,17 @@ internal sealed class BenchmarkRunSession{
 
     public int Count => this.results.Count;
 
+    /// <summary>件数チェック専用。GetResults はソート+配列化を伴うため、存在確認に使わないこと。</summary>
+    public bool HasResults(BenchmarkSourceTab sourceTab){
+        foreach(var key in this.results.Keys){
+            if(key.SourceTab==sourceTab){
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public void UpsertResult(BenchmarkResultItem result){
         this.results[BenchmarkRunResultKey.From(result)]=result;
     }

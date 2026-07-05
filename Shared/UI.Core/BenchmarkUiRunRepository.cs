@@ -328,7 +328,7 @@ internal sealed class BenchmarkUiRunRepository{
     }
 
     private void SaveViewState(long runId,BenchmarkViewStateSnapshot snapshot){
-        this.store.SaveUiViewState(runId,"BenchmarkProgressStateJson",snapshot.ProgressStateJson);
+        this.store.SaveUiViewState(runId,"BenchmarkProgressStateJson",snapshot.ProgressStateJson.Value);
         this.store.SaveUiViewState(runId,"SelectedSourceTab",snapshot.SelectedSourceTab);
         this.store.SaveUiViewState(runId,"SelectedResultElementCount",snapshot.SelectedResultElementCount);
     }
@@ -339,10 +339,15 @@ internal sealed class BenchmarkUiRunRepository{
         lock(this.queueGate){
             this.queueTail=this.queueTail.ContinueWith(
                 _ => {
+                    var stopwatch = System.Diagnostics.Stopwatch.StartNew();
                     try{
                         action();
+                        if(stopwatch.Elapsed.TotalMilliseconds>100){
+                            System.Diagnostics.Trace.WriteLine($"[Db] Done slow ({stopwatch.Elapsed.TotalMilliseconds:0.0}ms): {failureMessage}");
+                        }
                     }
                     catch(Exception ex){
+                        System.Diagnostics.Trace.WriteLine($"[Db] FAILED ({stopwatch.Elapsed.TotalMilliseconds:0.0}ms): {failureMessage}: {ex}");
                         this.log(failureMessage,ex);
                     }
                 },
@@ -382,10 +387,17 @@ internal sealed class BenchmarkUiRunRepository{
         ||string.Equals(left,right,StringComparison.OrdinalIgnoreCase);
 }
 
+// ProgressStateJson は Lazy にして、実際のJSONシリアライズを保存キューのバックグラウンド
+// スレッドまで遅延させる(UIスレッド上のflushで全stateのシリアライズに数百msかかっていた)。
+// ProgressState は構築時に全て新規DTOへ値コピーされるため、遅延評価しても内容は変わらない。
 internal sealed record BenchmarkViewStateSnapshot(
-    string ProgressStateJson,
+    Lazy<string> ProgressStateJson,
     string SelectedSourceTab,
-    string SelectedResultElementCount);
+    string SelectedResultElementCount){
+    public BenchmarkViewStateSnapshot(string progressStateJson,string selectedSourceTab,string selectedResultElementCount)
+        : this(new Lazy<string>(progressStateJson),selectedSourceTab,selectedResultElementCount){
+    }
+}
 
 internal sealed record BenchmarkResultPersistenceSnapshot(
     string CaseKey,

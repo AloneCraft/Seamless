@@ -10,11 +10,11 @@ internal sealed class BenchmarkRunProjectionService{
             .ToArray();
 
     public IReadOnlyList<BenchmarkComparisonRow> BuildComparisonRowsForElementCount(
-        BenchmarkRunSession session,
+        IReadOnlyList<BenchmarkResultItem> sessionResults,
         BenchmarkSourceTabDefinition sourceTab,
         int elementCount,
         Func<BenchmarkSourceTabDefinition,IReadOnlyList<BenchmarkResultItem>,ReportRow[]> createRows){
-        var sourceResults = session.GetResults(sourceTab.Tab)
+        var sourceResults = sessionResults
             .Where(result => result.AxisCount==elementCount
                 &&result.AxisCount>0
                 &&sourceTab.ContainsProject(result.Project)
@@ -27,10 +27,10 @@ internal sealed class BenchmarkRunProjectionService{
     }
 
     public IReadOnlyList<BenchmarkComparisonRow> BuildLatestComparisonRows(
-        BenchmarkRunSession session,
+        IReadOnlyList<BenchmarkResultItem> sessionResults,
         BenchmarkSourceTabDefinition sourceTab,
         Func<BenchmarkSourceTabDefinition,IReadOnlyList<BenchmarkResultItem>,ReportRow[]> createRows){
-        var sourceResults = session.GetResults(sourceTab.Tab)
+        var sourceResults = sessionResults
             .Where(result => result.AxisCount>0
                 &&sourceTab.ContainsProject(result.Project)
                 &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase))

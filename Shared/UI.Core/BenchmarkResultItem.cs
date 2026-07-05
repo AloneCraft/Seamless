@@ -58,6 +58,7 @@ public sealed class BenchmarkResultItem{
         this.AssignedLogicalCpu=job.AssignedLogicalCpu;
         this.StartedAt=job.StartedAt;
         this.FailureReason=job.FailureReason;
+        this.RunItemIndex=job.RunItemIndex;
     }
 
     public BenchmarkResultItem(
@@ -191,6 +192,8 @@ public sealed class BenchmarkResultItem{
     public int? AssignedLogicalCpu { get; }
     public DateTimeOffset? StartedAt { get; }
     public string FailureReason { get; }
+    // 実行内で一意な生成順index。既定値(-1)は「対応する実行中ジョブがない」(履歴/比較表示由来など)を示す。
+    public int RunItemIndex { get; } = -1;
 
     public static BenchmarkResultItem Failed(BenchmarkCase benchmark,Exception exception) => new(benchmark,exception);
 

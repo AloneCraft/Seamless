@@ -48,8 +48,11 @@ public sealed class BenchmarkWorkerClient:IBenchmarkJobRunner {
         CancellationToken cancellationToken) {
         var workerPath = ResolveWorkerPath();
         var process = StartWorker(workerPath,runRoot,logicalCpu);
+        Trace.WriteLine($"[Worker] StartWorker pid={process.Id} cpu={logicalCpu} path={workerPath}");
+        _=DrainStandardErrorAsync(process,logicalCpu);
         try {
             var ready = await process.StandardOutput.ReadLineAsync(cancellationToken);
+            Trace.WriteLine($"[Worker] StartSessionAsync ready-line received: \"{ready}\" pid={process.Id}");
             if(!string.Equals(ready,"ready",StringComparison.Ordinal)) {
                 throw new InvalidOperationException($"Benchmark worker did not become ready. First output: {ready}");
             }
@@ -59,6 +62,15 @@ public sealed class BenchmarkWorkerClient:IBenchmarkJobRunner {
             KillProcess(process);
             process.Dispose();
             throw;
+        }
+    }
+
+    internal static async Task DrainStandardErrorAsync(Process process,int logicalCpu) {
+        try {
+            while(await process.StandardError.ReadLineAsync() is { } line) {
+                Trace.WriteLine($"[Worker][stderr] cpu={logicalCpu} pid={process.Id}: {line}");
+            }
+        } catch {
         }
     }
 
@@ -155,8 +167,11 @@ public sealed class BenchmarkFastWorkerSession:IAsyncDisposable {
     public static async Task<BenchmarkFastWorkerSession> StartAsync(string runRoot,CancellationToken cancellationToken) {
         var workerPath = BenchmarkWorkerClient.ResolveWorkerPath();
         var process = BenchmarkWorkerClient.StartWorker(workerPath,runRoot,-1);
+        Trace.WriteLine($"[Worker] StartWorker(fast) pid={process.Id} path={workerPath}");
+        _=BenchmarkWorkerClient.DrainStandardErrorAsync(process,-1);
         try {
             var ready = await process.StandardOutput.ReadLineAsync(cancellationToken);
+            Trace.WriteLine($"[Worker] StartAsync(fast) ready-line received: \"{ready}\" pid={process.Id}");
             if(!string.Equals(ready,"ready",StringComparison.Ordinal)) {
                 throw new InvalidOperationException($"Benchmark fast worker did not become ready. First output: {ready}");
             }
@@ -232,7 +247,8 @@ public sealed class BenchmarkFastWorkerSession:IAsyncDisposable {
                 result.ResultDigest,
                 benchmark.ArgumentKey,
                 benchmark.Arguments,
-                loopCount);
+                loopCount,
+                job.RunItemIndex);
         } catch {
             this.pending.TryRemove(taskId,out _);
             throw;
@@ -368,11 +384,13 @@ public sealed class BenchmarkWorkerSession:IAsyncDisposable {
             artifactFolder);
 
         try {
+            Trace.WriteLine($"[Worker] RunAsync send pid={this.process.Id} method={benchmark.MethodName} elements={elementCount}");
             await this.process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(message).AsMemory(),cancellationToken);
             await this.process.StandardInput.FlushAsync(cancellationToken);
 
             var line = await this.process.StandardOutput.ReadLineAsync(cancellationToken)
                 ?? throw new InvalidOperationException("Benchmark worker closed without a result.");
+            Trace.WriteLine($"[Worker] RunAsync received pid={this.process.Id} method={benchmark.MethodName} line-length={line.Length}");
             var result = JsonSerializer.Deserialize<WorkerResultMessage>(line)
                 ?? throw new InvalidOperationException("Benchmark worker returned an empty result.");
             return new BenchmarkJobRunResult(

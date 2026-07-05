@@ -26,7 +26,7 @@ public sealed class BenchmarkRunProjectionService{
         session.UpsertResult(Failed(sourceTab.LeftProject,"Aggregate",128));
         session.UpsertResult(Result(sourceTab.RightProject,"Aggregate",128,25));
 
-        var rows = service.BuildComparisonRowsForElementCount(session,sourceTab,64,CreateRows);
+        var rows = service.BuildComparisonRowsForElementCount(session.GetResults(sourceTab.Tab),sourceTab,64,CreateRows);
 
         var row = Assert.Single(rows);
         Assert.Equal("Aggregate",row.MethodName);
@@ -46,7 +46,7 @@ public sealed class BenchmarkRunProjectionService{
         session.UpsertResult(Result(sourceTab.LeftProject,"Aggregate",64,80,now.AddMinutes(-1)));
         session.UpsertResult(Result(sourceTab.RightProject,"Aggregate",64,40,now));
 
-        var rows = service.BuildLatestComparisonRows(session,sourceTab,CreateRows);
+        var rows = service.BuildLatestComparisonRows(session.GetResults(sourceTab.Tab),sourceTab,CreateRows);
 
         var row = Assert.Single(rows);
         Assert.Equal(80,row.Left.TimeNanoseconds);
@@ -64,7 +64,7 @@ public sealed class BenchmarkRunProjectionService{
         session.UpsertResult(Result(sourceTab.RightProject,"Aggregate",64,40,now.AddMinutes(-2)));
         session.UpsertResult(Result(sourceTab.RightProject,"Aggregate",128,25,now));
 
-        var rows = service.BuildLatestComparisonRows(session,sourceTab,CreateRows);
+        var rows = service.BuildLatestComparisonRows(session.GetResults(sourceTab.Tab),sourceTab,CreateRows);
 
         var row = Assert.Single(rows);
         Assert.False(row.Left.HasValue);
