@@ -401,7 +401,8 @@ public sealed class BenchmarkPersistentWorkerProcessService:IBenchmarkJobRunner,
         using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,timeoutSource.Token);
         this.activeJobs.AddOrUpdate(logicalCpu,1,static (_,count) => count+1);
         try {
-            return await session.RunAsync(job.ToBenchmarkCase(),job.SourceTab,job.PreparedElementCounts,job.ElementCount,job.LoopCount,"1",linkedSource.Token);
+            var result = await session.RunAsync(job.ToBenchmarkCase(),job.SourceTab,job.PreparedElementCounts,job.ElementCount,job.LoopCount,"1",linkedSource.Token);
+            return result with { RunItemIndex=job.RunItemIndex };
         } catch(OperationCanceledException) {
             await this.ResetSessionAsync(logicalCpu,session);
             if(timeoutSource.IsCancellationRequested&&!cancellationToken.IsCancellationRequested) {
@@ -603,7 +604,8 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
                 resultDigest,
                 benchmark.ArgumentKey,
                 benchmark.Arguments,
-                loopCount);
+                loopCount,
+                job.RunItemIndex);
         } catch(Exception ex) when(ex is not OperationCanceledException) {
             var actual = ex is TargetInvocationException { InnerException: { } inner } ? inner : ex;
             WriteInProcessLog(logPath,actual.ToString(),Encoding.UTF8);
@@ -627,7 +629,8 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
                 string.Empty,
                 benchmark.ArgumentKey,
                 benchmark.Arguments,
-                loopCount);
+                loopCount,
+                job.RunItemIndex);
         } finally {
             if(instance is IDisposable disposable) {
                 disposable.Dispose();

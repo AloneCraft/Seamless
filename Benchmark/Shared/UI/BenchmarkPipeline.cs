@@ -14,6 +14,53 @@ internal static class BenchmarkPipelineConstants{
     public const int MaxTerminalResultsPerTick = 6;
 }
 
+/// <summary>
+/// UIスレッドで実行された各区間の所要時間を集計し、5秒毎に1行のTraceレポートに出す。
+/// どの区間がUIスレッド時間を支配しているかを、コンソールスパム無しで実測特定するための計器。
+/// </summary>
+internal static class UiThreadBudget{
+    private sealed class Entry{
+        public long Count;
+        public double TotalMs;
+        public double MaxMs;
+    }
+
+    private static readonly ConcurrentDictionary<string,Entry> entries = new(StringComparer.Ordinal);
+
+    public static void Record(string name,double elapsedMs){
+        var entry = entries.GetOrAdd(name,static _ => new Entry());
+        lock(entry){
+            entry.Count++;
+            entry.TotalMs+=elapsedMs;
+            if(elapsedMs>entry.MaxMs){
+                entry.MaxMs=elapsedMs;
+            }
+        }
+    }
+
+    public static void Measure(string name,Action action){
+        var start = Stopwatch.GetTimestamp();
+        try{
+            action();
+        }finally{
+            Record(name,Stopwatch.GetElapsedTime(start).TotalMilliseconds);
+        }
+    }
+
+    public static string DrainReport(){
+        var items = entries.ToArray();
+        entries.Clear();
+        if(items.Length==0){
+            return string.Empty;
+        }
+
+        return string.Join(" | ",items
+            .OrderByDescending(static item => item.Value.TotalMs)
+            .Take(8)
+            .Select(static item => $"{item.Key}={item.Value.TotalMs:0}ms x{item.Value.Count} max={item.Value.MaxMs:0}"));
+    }
+}
+
 internal sealed record BenchmarkRunEvent(
     BenchmarkResultItem Result,
     int RunGeneration,
@@ -156,29 +203,37 @@ internal sealed class BenchmarkRunEventPipeline{
     }
 
     private async Task ConsumeAsync(){
-        await foreach(var item in this.channel.Reader.ReadAllAsync()){
-            Interlocked.Increment(ref this.consumedEvents);
-            var result = item.Result;
-            lock(this.stateGate){
-                if(IsRunning(result)){
-                    var key = CreateRunningKey(result);
-                    if(this.runningByKey.ContainsKey(key)){
-                        Interlocked.Increment(ref this.coalescedRunningEvents);
+        Trace.WriteLine("[Pipeline] ConsumeAsync started");
+        try{
+            await foreach(var item in this.channel.Reader.ReadAllAsync()){
+                Interlocked.Increment(ref this.consumedEvents);
+                var result = item.Result;
+                lock(this.stateGate){
+                    if(IsRunning(result)){
+                        var key = CreateRunningKey(result);
+                        if(this.runningByKey.ContainsKey(key)){
+                            Interlocked.Increment(ref this.coalescedRunningEvents);
+                        }
+                        this.runningByKey[key]=item;
+                        this.dirtyRunningKeys.Add(key);
+                    }else if(IsTerminal(result)){
+                        var key = CreateRunningKey(result);
+                        if(this.runningByKey.TryGetValue(key,out var runningItem)){
+                            this.terminalPrecedingRunningUpdates.Add(runningItem);
+                        }
+                        this.runningByKey.Remove(key);
+                        this.dirtyRunningKeys.Remove(key);
+                        this.terminalResults.Enqueue(item);
+                        this.chartDirty=true;
+                    }else{
                     }
-                    this.runningByKey[key]=item;
-                    this.dirtyRunningKeys.Add(key);
-                }else if(IsTerminal(result)){
-                    var key = CreateRunningKey(result);
-                    if(this.runningByKey.TryGetValue(key,out var runningItem)){
-                        this.terminalPrecedingRunningUpdates.Add(runningItem);
-                    }
-                    this.runningByKey.Remove(key);
-                    this.dirtyRunningKeys.Remove(key);
-                    this.terminalResults.Enqueue(item);
-                    this.chartDirty=true;
-                }else{
                 }
             }
+
+            Trace.WriteLine("[Pipeline] ConsumeAsync channel completed (reader ended without exception)");
+        }catch(Exception ex){
+            Trace.WriteLine($"[Pipeline] ConsumeAsync FAULTED: {ex}");
+            throw;
         }
     }
 
@@ -231,12 +286,24 @@ internal sealed class BenchmarkUiDiagnostics{
         this.heartbeatCancellation=source;
         _=Task.Run(async () => {
             var expectedAt = DateTimeOffset.UtcNow+TimeSpan.FromMilliseconds(BenchmarkPipelineConstants.UiHeartbeatIntervalMs);
+            var lastBudgetReportAt = DateTimeOffset.UtcNow;
             while(!source.IsCancellationRequested){
                 try{
                     await Task.Delay(BenchmarkPipelineConstants.UiHeartbeatIntervalMs,source.Token);
                 }
                 catch(OperationCanceledException){
                     break;
+                }
+
+                var reportNow = DateTimeOffset.UtcNow;
+                if(reportNow-lastBudgetReportAt>=TimeSpan.FromSeconds(5)){
+                    lastBudgetReportAt=reportNow;
+                    var report = UiThreadBudget.DrainReport();
+                    if(!string.IsNullOrEmpty(report)){
+                        Trace.WriteLine("[UI][budget] "+report);
+                        // Trace出力だけではMAUIアプリ実行時にユーザーが確認できないため、startup.logにも残す。
+                        this.log("[UI][budget] "+report,null);
+                    }
                 }
 
                 dispatcher.BeginInvoke(() => {
@@ -247,6 +314,7 @@ internal sealed class BenchmarkUiDiagnostics{
                         Interlocked.Increment(ref this.dispatcherStallCount);
                         this.lastDispatcherGapMilliseconds=gap;
                         this.log("Benchmark UI dispatcher stall: "+gap.ToString("0.0",System.Globalization.CultureInfo.InvariantCulture)+"ms",null);
+                        Trace.WriteLine($"[UI][heartbeat] STALL gap={gap:0.0}ms");
                     }
                 });
             }
@@ -347,6 +415,7 @@ internal sealed class BenchmarkUiRenderScheduler{
                 stopwatch.Elapsed.TotalMilliseconds,
                 snapshot.Metrics,
                 snapshot.RunningUpdates.Count+snapshot.TerminalResults.Count);
+            UiThreadBudget.Record("render-total",stopwatch.Elapsed.TotalMilliseconds);
         }
 
         if(this.pipeline.HasPending){
@@ -408,5 +477,6 @@ internal sealed class BenchmarkPersistenceBatcher{
         this.persist(items);
         stopwatch.Stop();
         this.diagnostics.RecordPersistence(stopwatch.Elapsed.TotalMilliseconds,this.queue.Count);
+        UiThreadBudget.Record("flush-persist",stopwatch.Elapsed.TotalMilliseconds);
     }
 }

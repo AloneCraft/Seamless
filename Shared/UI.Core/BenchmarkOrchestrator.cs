@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Globalization;
 
 namespace UI;
@@ -99,8 +100,13 @@ internal sealed class BenchmarkOrchestrator(
 
                     workers.Add(cpu,new AdaptiveWorker(row.Key,Task.Run(async () => {
                         Interlocked.Increment(ref running);
+                        Trace.WriteLine($"[Orchestrator] worker start cpu={cpu} row={row.Key}");
                         try {
                             await this.RunAdaptiveMethodRowAsync(state,row,cpu,request,progress,statusChanged,cancellationToken);
+                            Trace.WriteLine($"[Orchestrator] worker end cpu={cpu} row={row.Key}");
+                        } catch(Exception ex) {
+                            Trace.WriteLine($"[Orchestrator] worker FAULTED cpu={cpu} row={row.Key}: {ex}");
+                            throw;
                         } finally {
                             Interlocked.Decrement(ref running);
                         }
@@ -287,10 +293,9 @@ internal sealed class BenchmarkOrchestrator(
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
         cancellationToken.ThrowIfCancellationRequested();
-        var warmupJob = CreateJob(benchmark,1,sourceTab,state.ElementCounts);
+        var warmupJob = CreateJob(benchmark,1,sourceTab,state.ElementCounts,-1);
         warmupJob.JobId=warmupJob.JobId+"|warmup";
         statusChanged($"ウォームアップ {benchmark.MethodName} "+CreateAxisStatusText(warmupJob)+$": {benchmark.Project} / CPU {logicalCpu}");
-        ForceGcBeforeJob();
         try {
             var result = await jobRunner.RunAsync(
                 warmupJob,
@@ -323,7 +328,6 @@ internal sealed class BenchmarkOrchestrator(
         TimeSpan timeout,
         Action<BenchmarkProgressUpdate> progress,
         CancellationToken cancellationToken) {
-        ForceGcBeforeJob();
         job.Status=JobStatus.Running;
         job.AssignedLogicalCpu=logicalCpu;
         job.StartedAt=DateTimeOffset.UtcNow;
@@ -333,7 +337,11 @@ internal sealed class BenchmarkOrchestrator(
         progress(new BenchmarkProgressUpdate(state,job));
 
         try {
+            Trace.WriteLine($"[Orchestrator] RunJobAsync start cpu={logicalCpu} method={job.MethodName} elements={job.ElementCount}");
+            var jobStopwatch = Stopwatch.StartNew();
             var result = await jobRunner.RunAsync(job,state.RunRoot,logicalCpu,timeout,cancellationToken);
+            jobStopwatch.Stop();
+            Trace.WriteLine($"[Orchestrator] RunJobAsync end cpu={logicalCpu} method={job.MethodName} status={result.Status} elapsed={jobStopwatch.Elapsed.TotalMilliseconds:0.0}ms");
             var completed = string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
                 &&result.MeanNanoseconds is not null;
             job.Status=completed
@@ -474,7 +482,7 @@ internal sealed class BenchmarkOrchestrator(
                     continue;
                 }
 
-                state.Jobs.Add(CreateJob(benchmark,elementCount,GetBenchmarkSourceTab(benchmark,state.SourceTab),state.ElementCounts));
+                state.Jobs.Add(CreateJob(benchmark,elementCount,GetBenchmarkSourceTab(benchmark,state.SourceTab),state.ElementCounts,state.NextRunItemIndex++));
             }
 
             stateManager.Save(state);
@@ -502,7 +510,7 @@ internal sealed class BenchmarkOrchestrator(
         BenchmarkJob job;
         lock(this.stateGate) {
             job=state.Jobs.FirstOrDefault(item => BenchmarkWorkloadAxis.GetAxisCount(item)==elementCount&&SameCase(benchmark,item))
-                ??CreateJob(benchmark,elementCount,GetBenchmarkSourceTab(benchmark,state.SourceTab),state.ElementCounts);
+                ??CreateJob(benchmark,elementCount,GetBenchmarkSourceTab(benchmark,state.SourceTab),state.ElementCounts,state.NextRunItemIndex++);
             if(!state.Jobs.Contains(job)) {
                 state.Jobs.Add(job);
             }
@@ -530,7 +538,8 @@ internal sealed class BenchmarkOrchestrator(
         BenchmarkCase benchmark,
         int elementCount,
         BenchmarkSourceTab sourceTab,
-        IEnumerable<int> preparedElementCounts) =>
+        IEnumerable<int> preparedElementCounts,
+        int runItemIndex) =>
         new() {
             JobId=CreateJobId(benchmark,sourceTab,elementCount),
             Project=benchmark.Project,
@@ -543,6 +552,7 @@ internal sealed class BenchmarkOrchestrator(
             ElementCount=BenchmarkWorkloadAxis.ResolveElementCount(sourceTab,elementCount),
             LoopCount=BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab,elementCount),
             PreparedElementCounts=preparedElementCounts.Distinct().Order().ToList(),
+            RunItemIndex=runItemIndex,
         };
 
     private static string CreateJobId(BenchmarkCase benchmark,BenchmarkSourceTab sourceTab,int axisCount) =>
@@ -682,10 +692,6 @@ internal sealed class BenchmarkOrchestrator(
     private static bool IsCompletedMeasurement(BenchmarkJobRunResult result) =>
         string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
         &&result.MeanNanoseconds is not null;
-
-    private static void ForceGcBeforeJob() {
-        GC.Collect();
-    }
 
     private static void TryDeleteDirectory(string path) {
         try{

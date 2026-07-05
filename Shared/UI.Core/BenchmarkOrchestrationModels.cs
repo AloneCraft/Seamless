@@ -101,6 +101,8 @@ public sealed class BenchmarkJob {
     public string FailureReason { get; set; } = string.Empty;
     public DateTimeOffset? StartedAt { get; set; }
     public DateTimeOffset? FinishedAt { get; set; }
+    // 実行内で一意な生成順index。実行中は文字列キー照合の代わりにこの値でUI行を更新する。
+    public int RunItemIndex { get; set; } = -1;
 
     public BenchmarkCase ToBenchmarkCase() =>
         new(this.Project,this.AssemblyName,this.TypeFullName,this.MethodName,this.ArgumentKey,this.Arguments);
@@ -158,6 +160,8 @@ internal sealed class ProgressState {
     public List<int> ElementCounts { get; set; } = [];
     public double AdaptiveThresholdNanoseconds { get; set; }
     public List<BenchmarkJob> Jobs { get; set; } = [];
+    // アダプティブ実行中に動的生成されるジョブへ一意な RunItemIndex を割り当てるための単調増加カウンタ。
+    public int NextRunItemIndex { get; set; }
     public List<AdaptiveBenchmarkState> AdaptiveStates { get; set; } = [];
     public ProgressBenchmarkSelectionState BenchmarkSelection { get; set; } = new();
     public DateTimeOffset CreatedAt { get; set; }
@@ -202,7 +206,8 @@ public sealed record BenchmarkJobRunResult(
     string ResultDigest = "",
     string ArgumentKey = "",
     IReadOnlyList<BenchmarkArgument>? ArgumentValues = null,
-    int LoopCount = 0){
+    int LoopCount = 0,
+    int RunItemIndex = -1){
     public IReadOnlyList<BenchmarkArgument> Arguments { get; } = ArgumentValues??[];
 }
 

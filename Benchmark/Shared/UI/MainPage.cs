@@ -537,6 +537,9 @@ public sealed class MainPage:ContentPage {
         var up = this.CreateSortRuleIconButton("arrow_up.png","上へ移動");
         var down = this.CreateSortRuleIconButton("arrow_down.png","下へ移動");
         var remove = this.CreateSortRuleIconButton("delete.png","削除");
+        foreach(var editButton in new[] { picker as VisualElement,direction,up,down,remove }) {
+            editButton.SetBinding(VisualElement.IsEnabledProperty,new Binding(nameof(BenchmarkRunnerViewModel.IsSortRuleEditingEnabled),source: this.viewModel));
+        }
 
         void RefreshPicker() {
             if(row.BindingContext is not BenchmarkSortRule rule||this.viewModel is null) {
@@ -579,12 +582,17 @@ public sealed class MainPage:ContentPage {
         };
 
         var drag = new DragGestureRecognizer();
-        drag.DragStarting+=(_,_) => {
+        drag.DragStarting+=(_,args) => {
+            if(this.viewModel?.IsSortRuleEditingEnabled!=true) {
+                args.Cancel=true;
+                return;
+            }
             this.draggedBenchmarkSortRule=row.BindingContext as BenchmarkSortRule;
         };
         var drop = new DropGestureRecognizer();
         drop.Drop+=(_,_) => {
-            if(this.draggedBenchmarkSortRule is not null
+            if(this.viewModel?.IsSortRuleEditingEnabled==true
+                &&this.draggedBenchmarkSortRule is not null
                 &&row.BindingContext is BenchmarkSortRule target) {
                 this.viewModel?.MoveBenchmarkSortRule(this.draggedBenchmarkSortRule,target);
             }
@@ -623,6 +631,8 @@ public sealed class MainPage:ContentPage {
         var add = this.CreateConfirmDialogButton(new ConfirmDialogOption("追加","add",ConfirmDialogButtonKind.Neutral));
         var reset = this.CreateConfirmDialogButton(new ConfirmDialogOption("既定順","reset",ConfirmDialogButtonKind.Neutral));
         var closeButton = this.CreateConfirmDialogButton(new ConfirmDialogOption("閉じる","close",ConfirmDialogButtonKind.Primary));
+        add.SetBinding(VisualElement.IsEnabledProperty,new Binding(nameof(BenchmarkRunnerViewModel.IsSortRuleEditingEnabled),source: this.viewModel));
+        reset.SetBinding(VisualElement.IsEnabledProperty,new Binding(nameof(BenchmarkRunnerViewModel.IsSortRuleEditingEnabled),source: this.viewModel));
         add.Clicked+=(_,_) => this.viewModel?.AddBenchmarkSortRule();
         reset.Clicked+=(_,_) => this.viewModel?.ResetBenchmarkSortRules();
         closeButton.Clicked+=(_,_) => close();
@@ -3140,6 +3150,12 @@ public sealed class MainPage:ContentPage {
                     Padding=new Thickness(0,2),
                 };
                 label.SetBinding(Label.TextProperty,".");
+                label.BindingContextChanged+=(_,_) => {
+                    var isHighlighted = label.BindingContext is string text
+                        &&text.StartsWith(BenchmarkRunnerViewModel.HighlightedLogEntryPrefix,StringComparison.Ordinal);
+                    label.FontAttributes=isHighlighted ? FontAttributes.Bold : FontAttributes.None;
+                    label.TextColor=isHighlighted ? Color.FromArgb("#DC2626") : Color.FromArgb("#0F172A");
+                };
                 return label;
             }),
             ItemsLayout=new LinearItemsLayout(ItemsLayoutOrientation.Vertical) {
