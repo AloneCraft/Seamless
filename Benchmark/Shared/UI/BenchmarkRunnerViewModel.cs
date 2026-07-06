@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -8,13 +8,37 @@ using Seamless.UI.Storage;
 namespace UI;
 
 public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
+    /// <summary>
+    /// NewRunNumber フィールドです。
+    /// </summary>
     private const int NewRunNumber = 0;
+    /// <summary>
+    /// UnsavedRunNumber フィールドです。
+    /// </summary>
     private const int UnsavedRunNumber = -1;
+    /// <summary>
+    /// ExternalRunNumber フィールドです。
+    /// </summary>
     private const int ExternalRunNumber = -2;
+    /// <summary>
+    /// BenchmarkChartRowHeight フィールドです。
+    /// </summary>
     private const double BenchmarkChartRowHeight = 24;
+    /// <summary>
+    /// BenchmarkChartVerticalPadding フィールドです。
+    /// </summary>
     private const double BenchmarkChartVerticalPadding = 82;
+    /// <summary>
+    /// BenchmarkChartMinimumHeight フィールドです。
+    /// </summary>
     private const double BenchmarkChartMinimumHeight = 120;
+    /// <summary>
+    /// BenchmarkSortSettingsPreferenceKey フィールドです。
+    /// </summary>
     private const string BenchmarkSortSettingsPreferenceKey = "Seamless.Benchmark.SortRules.v1";
+    /// <summary>
+    /// RunningVisualMinimumDuration フィールドです。
+    /// </summary>
     private static readonly TimeSpan RunningVisualMinimumDuration = TimeSpan.FromMilliseconds(250);
 
     private static readonly BenchmarkRunOption NewRunOption = new(
@@ -29,105 +53,395 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         0,
         []);
 
+    /// <summary>
+    /// catalogService フィールドです。
+    /// </summary>
     private readonly IBenchmarkCatalogService catalogService;
+    /// <summary>
+    /// cpuTopologyService フィールドです。
+    /// </summary>
     private readonly ICpuTopologyService cpuTopologyService;
+    /// <summary>
+    /// runService フィールドです。
+    /// </summary>
     private readonly IBenchmarkRunService runService;
+    /// <summary>
+    /// comparisonService フィールドです。
+    /// </summary>
     private readonly IBenchmarkComparisonService comparisonService;
+    /// <summary>
+    /// uiRunStore フィールドです。
+    /// </summary>
     private readonly UiRunStore uiRunStore;
+    /// <summary>
+    /// uiRunRepository フィールドです。
+    /// </summary>
     private readonly BenchmarkUiRunRepository uiRunRepository;
+    /// <summary>
+    /// uiDispatcher フィールドです。
+    /// </summary>
     private readonly IBenchmarkUiDispatcher uiDispatcher;
+    /// <summary>
+    /// uiPreferences フィールドです。
+    /// </summary>
     private readonly IBenchmarkUiPreferences uiPreferences;
+    /// <summary>
+    /// runEventPipeline フィールドです。
+    /// </summary>
     private readonly BenchmarkRunEventPipeline runEventPipeline;
+    /// <summary>
+    /// pipelineDiagnostics フィールドです。
+    /// </summary>
     private readonly BenchmarkUiDiagnostics pipelineDiagnostics;
+    /// <summary>
+    /// renderScheduler フィールドです。
+    /// </summary>
     private readonly BenchmarkUiRenderScheduler renderScheduler;
+    /// <summary>
+    /// persistenceBatcher フィールドです。
+    /// </summary>
     private readonly BenchmarkPersistenceBatcher persistenceBatcher;
+    /// <summary>
+    /// runProjectionService フィールドです。
+    /// </summary>
     private readonly BenchmarkRunProjectionService runProjectionService = new();
+    /// <summary>
+    /// benchmarkRoot フィールドです。
+    /// </summary>
     private readonly string benchmarkRoot;
+    /// <summary>
+    /// runCancellation フィールドです。
+    /// </summary>
     private CancellationTokenSource? runCancellation;
+    /// <summary>
+    /// activeRunRoot フィールドです。
+    /// </summary>
     private string? activeRunRoot;
+    /// <summary>
+    /// pendingRunTerminationKind フィールドです。
+    /// </summary>
     private RunTerminationKind pendingRunTerminationKind;
+    /// <summary>
+    /// statusText フィールドです。
+    /// </summary>
     private string statusText = "Ready";
+    /// <summary>
+    /// isBenchmarkRunning フィールドです。
+    /// </summary>
     private bool isBenchmarkRunning;
+    /// <summary>
+    /// isRefreshing フィールドです。
+    /// </summary>
     private bool isRefreshing;
+    /// <summary>
+    /// isAllBenchmarkSelectionChecked フィールドです。
+    /// </summary>
     private bool? isAllBenchmarkSelectionChecked;
+    /// <summary>
+    /// hasSelectedBenchmarkCells フィールドです。
+    /// </summary>
     private bool hasSelectedBenchmarkCells;
+    /// <summary>
+    /// selectedTab フィールドです。
+    /// </summary>
     private BenchmarkTab selectedTab = BenchmarkTab.Cpu;
+    /// <summary>
+    /// selectedSourceTab フィールドです。
+    /// </summary>
     private SourceTabOption selectedSourceTab;
+    /// <summary>
+    /// sourceTabViewStates フィールドです。
+    /// </summary>
     private IReadOnlyList<BenchmarkSourceTabViewState> sourceTabViewStates = [];
+    /// <summary>
+    /// sourceTabViewStatesByTab フィールドです。
+    /// </summary>
     private readonly Dictionary<BenchmarkSourceTab,BenchmarkSourceTabViewState> sourceTabViewStatesByTab = [];
+    /// <summary>
+    /// selectedExecutionProfile フィールドです。
+    /// </summary>
     private ExecutionProfileOption selectedExecutionProfile;
+    /// <summary>
+    /// selectedScale フィールドです。
+    /// </summary>
     private ScaleOption? selectedScale;
+    /// <summary>
+    /// selectedThreshold フィールドです。
+    /// </summary>
     private ThresholdOption selectedThreshold;
+    /// <summary>
+    /// selectedRunOption フィールドです。
+    /// </summary>
     private BenchmarkRunOption? selectedRunOption;
+    /// <summary>
+    /// adaptiveThresholdSecondsText フィールドです。
+    /// </summary>
     private string adaptiveThresholdSecondsText = "1";
+    /// <summary>
+    /// selectedMetric フィールドです。
+    /// </summary>
     private MetricOption selectedMetric;
+    /// <summary>
+    /// selectedChartMode フィールドです。
+    /// </summary>
     private ChartModeOption selectedChartMode;
+    /// <summary>
+    /// selectedResultElementCount フィールドです。
+    /// </summary>
     private ResultElementCountOption? selectedResultElementCount;
+    /// <summary>
+    /// selectedResultElementCountIndex フィールドです。
+    /// </summary>
     private double selectedResultElementCountIndex;
+    /// <summary>
+    /// currentElementCountText フィールドです。
+    /// </summary>
     private string currentElementCountText = "1";
+    /// <summary>
+    /// improvementPromptText フィールドです。
+    /// </summary>
     private string improvementPromptText = string.Empty;
+    /// <summary>
+    /// improvementCandidateSummaryText フィールドです。
+    /// </summary>
     private string improvementCandidateSummaryText = string.Empty;
+    /// <summary>
+    /// generatedCodeAuditReport フィールドです。
+    /// </summary>
     private BenchmarkGeneratedCodeAuditReport? generatedCodeAuditReport;
+    /// <summary>
+    /// isApplyingCpuSelection フィールドです。
+    /// </summary>
     private bool isApplyingCpuSelection;
+    /// <summary>
+    /// isApplyingUiState フィールドです。
+    /// </summary>
     private bool isApplyingUiState;
+    /// <summary>
+    /// isApplyingBenchmarkSelection フィールドです。
+    /// </summary>
     private bool isApplyingBenchmarkSelection;
+    /// <summary>
+    /// isApplyingResultElementCount フィールドです。
+    /// </summary>
     private bool isApplyingResultElementCount;
+    /// <summary>
+    /// isApplyingRunOptionSelection フィールドです。
+    /// </summary>
     private bool isApplyingRunOptionSelection;
+    /// <summary>
+    /// isApplyingSourceTabSelection フィールドです。
+    /// </summary>
     private bool isApplyingSourceTabSelection;
+    /// <summary>
+    /// isApplyingSortRules フィールドです。
+    /// </summary>
     private bool isApplyingSortRules;
+    /// <summary>
+    /// isLoadingSelectedRunDb フィールドです。
+    /// </summary>
     private bool isLoadingSelectedRunDb;
+    /// <summary>
+    /// selectedRunLoadRequestToken フィールドです。
+    /// </summary>
     private int selectedRunLoadRequestToken;
+    /// <summary>
+    /// isRefreshingBenchmarkSelectionDisplay フィールドです。
+    /// </summary>
     private bool isRefreshingBenchmarkSelectionDisplay;
+    /// <summary>
+    /// hasPendingCloseStateSave フィールドです。
+    /// </summary>
     private bool hasPendingCloseStateSave;
+    /// <summary>
+    /// hasUnsavedBenchmarkResults フィールドです。
+    /// </summary>
     private bool hasUnsavedBenchmarkResults;
+    /// <summary>
+    /// hasBenchmarkTypeColumn フィールドです。
+    /// </summary>
     private bool hasBenchmarkTypeColumn = true;
+    /// <summary>
+    /// currentSortColumn フィールドです。
+    /// </summary>
     private BenchmarkGridSortColumn currentSortColumn = BenchmarkGridSortColumn.BenchmarkMethod;
+    /// <summary>
+    /// currentSortDescending フィールドです。
+    /// </summary>
     private bool currentSortDescending;
+    /// <summary>
+    /// benchmarkSelectionAnchors フィールドです。
+    /// </summary>
     private readonly Dictionary<BenchmarkSourceTab,BenchmarkCellSelectionAnchor?> benchmarkSelectionAnchors = [];
-    private IReadOnlyList<BenchmarkComparisonRow> comparisonRows{
+    /// <summary>
+    /// comparisonRows プロパティです。
+    /// </summary>
+    /// <value>comparisonRows の値を取得/設定します。</value>
+    private IReadOnlyList<BenchmarkComparisonRow> comparisonRows {
         get => this.SelectedSourceTabViewState.ComparisonRows;
         set => this.SelectedSourceTabViewState.ComparisonRows=value;
     }
+    /// <summary>
+    /// currentRunSession フィールドです。
+    /// </summary>
     private readonly BenchmarkRunSession currentRunSession = new();
+    /// <summary>
+    /// benchmarkCellSelections フィールドです。
+    /// </summary>
     private readonly Dictionary<string,bool> benchmarkCellSelections = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// benchmarkRowSelections フィールドです。
+    /// </summary>
     private readonly Dictionary<string,bool> benchmarkRowSelections = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// improvementCandidateSelections フィールドです。
+    /// </summary>
     private readonly Dictionary<string,bool> improvementCandidateSelections = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// benchmarkCasesByProjectMethod フィールドです。
+    /// </summary>
     private readonly Dictionary<string,BenchmarkCase> benchmarkCasesByProjectMethod = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// benchmarkRowsByResultKey フィールドです。
+    /// </summary>
     private readonly Dictionary<string,BenchmarkTableRow> benchmarkRowsByResultKey = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// benchmarkRowsByProjectMethod フィールドです。
+    /// </summary>
     private readonly Dictionary<string,BenchmarkTableRow> benchmarkRowsByProjectMethod = new(StringComparer.OrdinalIgnoreCase);
     // RunItemIndex -> 行のO(1)照合キャッシュ。実行中は文字列キー照合(上記2つ)を都度使わず、この辞書で更新先行を確定する。
+    /// <summary>
+    /// benchmarkRowsByRunItemIndex フィールドです。
+    /// </summary>
     private readonly Dictionary<int,BenchmarkTableRow> benchmarkRowsByRunItemIndex = new();
+    /// <summary>
+    /// generatedCodeAuditCache フィールドです。
+    /// </summary>
     private readonly Dictionary<string,BenchmarkGeneratedCodeAuditReport> generatedCodeAuditCache = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// runningVisualStartedAt フィールドです。
+    /// </summary>
     private readonly Dictionary<string,DateTimeOffset> runningVisualStartedAt = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// sourceTabRunningState フィールドです。
+    /// </summary>
     private readonly BenchmarkSourceTabRunningState sourceTabRunningState = new();
+    /// <summary>
+    /// catalogCases フィールドです。
+    /// </summary>
     private IReadOnlyList<BenchmarkCase> catalogCases = [];
+    /// <summary>
+    /// savedSortRuleSnapshots フィールドです。
+    /// </summary>
     private IReadOnlyList<BenchmarkSortRuleSnapshot> savedSortRuleSnapshots = [];
+    /// <summary>
+    /// activeRunSourceTab フィールドです。
+    /// </summary>
     private BenchmarkSourceTab? activeRunSourceTab;
+    /// <summary>
+    /// currentRunSelectedBenchmarkCases フィールドです。
+    /// </summary>
     private IReadOnlyList<BenchmarkCase> currentRunSelectedBenchmarkCases = [];
+    /// <summary>
+    /// selectedLogicalCpus フィールドです。
+    /// </summary>
     private int[] selectedLogicalCpus = [];
+    /// <summary>
+    /// logText フィールドです。
+    /// </summary>
     private string logText = string.Empty;
+    /// <summary>
+    /// selectedLowerTab フィールドです。
+    /// </summary>
     private BenchmarkLowerTab selectedLowerTab = BenchmarkLowerTab.Cpu;
+    /// <summary>
+    /// overallSourceTabProgress フィールドです。
+    /// </summary>
     private BenchmarkTabProgress overallSourceTabProgress;
+    /// <summary>
+    /// logSubscription フィールドです。
+    /// </summary>
     private IDisposable? logSubscription;
+    /// <summary>
+    /// reportedMetadataWarnings フィールドです。
+    /// </summary>
     private readonly HashSet<string> reportedMetadataWarnings = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// retainedChartPoints フィールドです。
+    /// </summary>
     private readonly Dictionary<string,ChartComparisonPoint> retainedChartPoints = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// runStatusGate フィールドです。
+    /// </summary>
     private readonly object runStatusGate = new();
+    /// <summary>
+    /// activeChartMethodName フィールドです。
+    /// </summary>
     private string activeChartMethodName = string.Empty;
+    /// <summary>
+    /// pendingRunStatusText フィールドです。
+    /// </summary>
     private string pendingRunStatusText = string.Empty;
+    /// <summary>
+    /// runResultGeneration フィールドです。
+    /// </summary>
     private int runResultGeneration;
+    /// <summary>
+    /// 最終クリーンアップ後に発火する古いジョブ単位の遅延適用を無効化するためのトークンです。
+    /// </summary>
+    private int finalLiveVisualCleanupToken;
+    /// <summary>
+    /// 実行終了後、パイプライン排出完了時に一度だけ表示最終化を行うためのフラグです。
+    /// </summary>
+    private bool pendingPostRunDisplayFinalize;
+    /// <summary>
+    /// 表示最終化を最終クリーンアップ実施後まで遅らせるための、フラグ設定時点のクリーンアップトークンです。
+    /// </summary>
+    private int pendingPostRunFinalizeCleanupToken;
+    /// <summary>
+    /// benchmarkAutoScrollSequence フィールドです。
+    /// </summary>
     private int benchmarkAutoScrollSequence;
+    /// <summary>
+    /// isRunStatusUpdateScheduled フィールドです。
+    /// </summary>
     private int isRunStatusUpdateScheduled;
+    /// <summary>
+    /// currentUnsavedRunRoot フィールドです。
+    /// </summary>
     private string? currentUnsavedRunRoot;
+    /// <summary>
+    /// loadedExternalState フィールドです。
+    /// </summary>
     private ProgressState? loadedExternalState;
+    /// <summary>
+    /// activeUiRunId フィールドです。
+    /// </summary>
     private long? activeUiRunId;
+    /// <summary>
+    /// pendingSourceTabOption フィールドです。
+    /// </summary>
     private SourceTabOption? pendingSourceTabOption;
     // 選択中の保存済み Run の ProgressState スナップショット。
     // タブ切替時に DB を再読み込みしないため、Run 選択の変更と実行終了時に破棄する。
     private (long UiRunId,ProgressState? State)? selectedRunStateCache;
+    /// <summary>
+    /// loadedImprovementSelectionRunId フィールドです。
+    /// </summary>
     private long? loadedImprovementSelectionRunId;
+    /// <summary>
+    /// hasLoadedImprovementCandidateSelections フィールドです。
+    /// </summary>
     private bool hasLoadedImprovementCandidateSelections;
+    /// <summary>
+    /// isApplyingImprovementCandidateSelection フィールドです。
+    /// </summary>
     private bool isApplyingImprovementCandidateSelection;
 
+    /// <summary>
+    /// RunTerminationKind プロパティです。
+    /// </summary>
+    /// <value>RunTerminationKind の値を取得/設定します。</value>
     private enum RunTerminationKind {
         None,
         Stop,
@@ -135,6 +449,17 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 
 
+    /// <summary>
+    /// この型のインスタンスを作成し、初期状態を構築するための処理を実行します。
+    /// </summary>
+    /// <param name="catalogService">catalogService を指定して実行条件を制御します。</param>
+    /// <param name="cpuTopologyService">cpuTopologyService を指定して実行条件を制御します。</param>
+    /// <param name="runService">runService を指定して実行条件を制御します。</param>
+    /// <param name="comparisonService">comparisonService を指定して実行条件を制御します。</param>
+    /// <param name="uiRunStore">uiRunStore を指定して実行条件を制御します。</param>
+    /// <param name="benchmarkRoot">benchmarkRoot を指定して実行条件を制御します。</param>
+    /// <param name="uiDispatcher">uiDispatcher を指定して実行条件を制御します。</param>
+    /// <param name="uiPreferences">uiPreferences を指定して実行条件を制御します。</param>
     internal BenchmarkRunnerViewModel(
         IBenchmarkCatalogService catalogService,
         ICpuTopologyService cpuTopologyService,
@@ -170,7 +495,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.savedSortRuleSnapshots=this.LoadSavedBenchmarkSortRules();
         this.RefreshBenchmarkSortColumnOptions();
         this.ResetBenchmarkSortRulesToDefault(false);
-        this.ExecutionProfiles= CreateExecutionProfiles();
+        this.ExecutionProfiles=CreateExecutionProfiles();
         this.selectedExecutionProfile=this.ExecutionProfiles.First(static item => item.Profile==BenchmarkExecutionProfile.Fast);
         this.ThresholdOptions=CreateThresholdOptions();
         this.selectedThreshold=this.ThresholdOptions[0];
@@ -246,6 +571,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshSelectedLogicalCpus();
     }
 
+    /// <summary>
+    /// CreateExecutionProfiles メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private static IReadOnlyList<ExecutionProfileOption> CreateExecutionProfiles() => [
             new ExecutionProfileOption("高精度",BenchmarkExecutionProfile.Accurate),
             new ExecutionProfileOption("バランス",BenchmarkExecutionProfile.Intermediate),
@@ -255,101 +584,309 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
 #endif
         ];
 
+    /// <summary>
+    /// CreateBenchmarkColumnSelectionGroups メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkColumnSelectionGroup> CreateBenchmarkColumnSelectionGroups() => [];
 
+    /// <summary>
+    /// CreateBenchmarkProjectSelectionGroups メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkColumnSelectionGroup> CreateBenchmarkProjectSelectionGroups() => [
         new BenchmarkColumnSelectionGroup("Left",this.SelectedSourceDefinition.LeftHeader,["Left"]),
         new BenchmarkColumnSelectionGroup("Right",this.SelectedSourceDefinition.RightHeader,["Right"]),
     ];
 
+    /// <summary>
+    /// RefreshBenchmarkProjectHeaderTexts メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RefreshBenchmarkProjectHeaderTexts() {
         foreach(var group in this.BenchmarkProjectSelectionGroups) {
             if(group.Id=="Left") {
                 group.SetHeaderText(this.SelectedSourceDefinition.LeftHeader);
-            }else if(group.Id=="Right") {
+            }
+            else if(group.Id=="Right") {
                 group.SetHeaderText(this.SelectedSourceDefinition.RightHeader);
             }
         }
     }
 
+    /// <summary>
+    /// SourceTabViewStates プロパティです。
+    /// </summary>
+    /// <value>SourceTabViewStates の値を取得/設定します。</value>
     public IReadOnlyList<BenchmarkSourceTabViewState> SourceTabViewStates => this.sourceTabViewStates;
+    /// <summary>
+    /// SelectedSourceTabViewState プロパティです。
+    /// </summary>
+    /// <value>SelectedSourceTabViewState の値を取得/設定します。</value>
     public BenchmarkSourceTabViewState SelectedSourceTabViewState => this.GetSourceTabViewState(this.SelectedSourceDefinition.Tab);
+    /// <summary>
+    /// BenchmarkRows プロパティです。
+    /// </summary>
+    /// <value>BenchmarkRows の値を取得/設定します。</value>
     public ObservableCollection<BenchmarkTableRow> BenchmarkRows => this.SelectedSourceTabViewState.Rows;
+    /// <summary>
+    /// ResultItems プロパティです。
+    /// </summary>
+    /// <value>ResultItems の値を取得/設定します。</value>
     public ObservableCollection<BenchmarkResultItem> ResultItems { get; } = [];
+    /// <summary>
+    /// VisibleResultItems プロパティです。
+    /// </summary>
+    /// <value>VisibleResultItems の値を取得/設定します。</value>
     public ObservableCollection<BenchmarkResultItem> VisibleResultItems { get; } = [];
+    /// <summary>
+    /// CpuItems プロパティです。
+    /// </summary>
+    /// <value>CpuItems の値を取得/設定します。</value>
     public ObservableCollection<CpuSelectionItem> CpuItems { get; } = [];
+    /// <summary>
+    /// CpuSections プロパティです。
+    /// </summary>
+    /// <value>CpuSections の値を取得/設定します。</value>
     public ObservableCollection<CpuTableSection> CpuSections { get; } = [];
+    /// <summary>
+    /// ImprovementCandidates プロパティです。
+    /// </summary>
+    /// <value>ImprovementCandidates の値を取得/設定します。</value>
     public ObservableCollection<BenchmarkImprovementCandidateRow> ImprovementCandidates { get; } = [];
+    /// <summary>
+    /// LatencyHotspotRows プロパティです。
+    /// </summary>
+    /// <value>LatencyHotspotRows の値を取得/設定します。</value>
     public ObservableCollection<BenchmarkDiagnosticRow> LatencyHotspotRows => this.SelectedSourceTabViewState.LatencyHotspotRows;
+    /// <summary>
+    /// AllocationDiagnosticRows プロパティです。
+    /// </summary>
+    /// <value>AllocationDiagnosticRows の値を取得/設定します。</value>
     public ObservableCollection<BenchmarkDiagnosticRow> AllocationDiagnosticRows => this.SelectedSourceTabViewState.AllocationDiagnosticRows;
+    /// <summary>
+    /// CpuTimelineRows プロパティです。
+    /// </summary>
+    /// <value>CpuTimelineRows の値を取得/設定します。</value>
     public ObservableCollection<BenchmarkDiagnosticRow> CpuTimelineRows => this.SelectedSourceTabViewState.CpuTimelineRows;
+    /// <summary>
+    /// PipelineDiagnosticRows プロパティです。
+    /// </summary>
+    /// <value>PipelineDiagnosticRows の値を取得/設定します。</value>
     public ObservableCollection<BenchmarkDiagnosticRow> PipelineDiagnosticRows { get; } = [];
+    /// <summary>
+    /// PerformanceCpuSections プロパティです。
+    /// </summary>
+    /// <value>PerformanceCpuSections の値を取得/設定します。</value>
     public IEnumerable<CpuTableSection> PerformanceCpuSections => this.GetCpuSections(CpuCoreKind.Performance);
+    /// <summary>
+    /// EfficiencyCpuSections プロパティです。
+    /// </summary>
+    /// <value>EfficiencyCpuSections の値を取得/設定します。</value>
     public IEnumerable<CpuTableSection> EfficiencyCpuSections => this.GetCpuSections(CpuCoreKind.Efficiency);
+    /// <summary>
+    /// UnknownCpuSections プロパティです。
+    /// </summary>
+    /// <value>UnknownCpuSections の値を取得/設定します。</value>
     public IEnumerable<CpuTableSection> UnknownCpuSections => this.GetCpuSections(CpuCoreKind.Unknown);
+    /// <summary>
+    /// BenchmarkSortRules プロパティです。
+    /// </summary>
+    /// <value>BenchmarkSortRules の値を取得/設定します。</value>
     public ObservableCollection<BenchmarkSortRule> BenchmarkSortRules { get; } = [];
+    /// <summary>
+    /// BenchmarkSortColumnOptions プロパティです。
+    /// </summary>
+    /// <value>BenchmarkSortColumnOptions の値を取得/設定します。</value>
     public ObservableCollection<BenchmarkSortColumnOption> BenchmarkSortColumnOptions { get; } = [];
+    /// <summary>
+    /// ChartPoints プロパティです。
+    /// </summary>
+    /// <value>ChartPoints の値を取得/設定します。</value>
     public ObservableCollection<ChartComparisonPoint> ChartPoints => this.SelectedSourceTabViewState.ChartPoints;
+    /// <summary>
+    /// ScaleOptions プロパティです。
+    /// </summary>
+    /// <value>ScaleOptions の値を取得/設定します。</value>
     public ObservableCollection<ScaleOption> ScaleOptions { get; } = [];
+    /// <summary>
+    /// ResultElementCountOptions プロパティです。
+    /// </summary>
+    /// <value>ResultElementCountOptions の値を取得/設定します。</value>
     public ObservableCollection<ResultElementCountOption> ResultElementCountOptions { get; } = [];
+    /// <summary>
+    /// RunOptions プロパティです。
+    /// </summary>
+    /// <value>RunOptions の値を取得/設定します。</value>
     public ObservableCollection<BenchmarkRunOption> RunOptions { get; } = [];
+    /// <summary>
+    /// LogEntries プロパティです。
+    /// </summary>
+    /// <value>LogEntries の値を取得/設定します。</value>
     public ObservableCollection<string> LogEntries { get; } = [];
+    /// <summary>
+    /// LogText プロパティです。
+    /// </summary>
+    /// <value>LogText の値を取得/設定します。</value>
     public string LogText {
         get => this.logText;
         private set => this.SetProperty(ref this.logText,value);
     }
+    /// <summary>
+    /// BenchmarkColumnSelectionGroups プロパティです。
+    /// </summary>
+    /// <value>BenchmarkColumnSelectionGroups の値を取得/設定します。</value>
     public IReadOnlyList<BenchmarkColumnSelectionGroup> BenchmarkColumnSelectionGroups { get; }
+    /// <summary>
+    /// BenchmarkProjectSelectionGroups プロパティです。
+    /// </summary>
+    /// <value>BenchmarkProjectSelectionGroups の値を取得/設定します。</value>
     public IReadOnlyList<BenchmarkColumnSelectionGroup> BenchmarkProjectSelectionGroups { get; }
+    /// <summary>
+    /// SourceTabs プロパティです。
+    /// </summary>
+    /// <value>SourceTabs の値を取得/設定します。</value>
     public IReadOnlyList<SourceTabOption> SourceTabs { get; }
-    public BenchmarkTabProgress OverallSourceTabProgress{
+    /// <summary>
+    /// OverallSourceTabProgress プロパティです。
+    /// </summary>
+    /// <value>OverallSourceTabProgress の値を取得/設定します。</value>
+    public BenchmarkTabProgress OverallSourceTabProgress {
         get => this.overallSourceTabProgress;
         private set => this.SetProperty(ref this.overallSourceTabProgress,value);
     }
+    /// <summary>
+    /// ExecutionProfiles プロパティです。
+    /// </summary>
+    /// <value>ExecutionProfiles の値を取得/設定します。</value>
     public IReadOnlyList<ExecutionProfileOption> ExecutionProfiles { get; }
+    /// <summary>
+    /// Metrics プロパティです。
+    /// </summary>
+    /// <value>Metrics の値を取得/設定します。</value>
     public IReadOnlyList<MetricOption> Metrics { get; }
+    /// <summary>
+    /// ChartModes プロパティです。
+    /// </summary>
+    /// <value>ChartModes の値を取得/設定します。</value>
     public IReadOnlyList<ChartModeOption> ChartModes { get; }
+    /// <summary>
+    /// ThresholdOptions プロパティです。
+    /// </summary>
+    /// <value>ThresholdOptions の値を取得/設定します。</value>
     public IReadOnlyList<ThresholdOption> ThresholdOptions { get; }
+    /// <summary>
+    /// SelectAllCommand プロパティです。
+    /// </summary>
+    /// <value>SelectAllCommand の値を取得/設定します。</value>
     public IRelayCommand SelectAllCommand { get; }
+    /// <summary>
+    /// ClearSelectionCommand プロパティです。
+    /// </summary>
+    /// <value>ClearSelectionCommand の値を取得/設定します。</value>
     public IRelayCommand ClearSelectionCommand { get; }
+    /// <summary>
+    /// RunCommand プロパティです。
+    /// </summary>
+    /// <value>RunCommand の値を取得/設定します。</value>
     public IAsyncRelayCommand RunCommand { get; }
 #if DEBUG
+    /// <summary>
+    /// RunInfiniteCommand プロパティです。
+    /// </summary>
+    /// <value>RunInfiniteCommand の値を取得/設定します。</value>
     public IAsyncRelayCommand RunInfiniteCommand { get; }
 #endif
+    /// <summary>
+    /// ToggleRunCommand プロパティです。
+    /// </summary>
+    /// <value>ToggleRunCommand の値を取得/設定します。</value>
     public IRelayCommand ToggleRunCommand { get; }
+    /// <summary>
+    /// StopCommand プロパティです。
+    /// </summary>
+    /// <value>StopCommand の値を取得/設定します。</value>
     public IAsyncRelayCommand StopCommand { get; }
+    /// <summary>
+    /// PauseCommand プロパティです。
+    /// </summary>
+    /// <value>PauseCommand の値を取得/設定します。</value>
     public IAsyncRelayCommand PauseCommand { get; }
+    /// <summary>
+    /// CancelCommand プロパティです。
+    /// </summary>
+    /// <value>CancelCommand の値を取得/設定します。</value>
     public IRelayCommand CancelCommand { get; }
+    /// <summary>
+    /// CopyImprovementPromptCommand プロパティです。
+    /// </summary>
+    /// <value>CopyImprovementPromptCommand の値を取得/設定します。</value>
     public IAsyncRelayCommand CopyImprovementPromptCommand { get; }
+    /// <summary>
+    /// ShowCpuCommand プロパティです。
+    /// </summary>
+    /// <value>ShowCpuCommand の値を取得/設定します。</value>
     public IRelayCommand ShowCpuCommand { get; }
+    /// <summary>
+    /// ShowChartCommand プロパティです。
+    /// </summary>
+    /// <value>ShowChartCommand の値を取得/設定します。</value>
     public IRelayCommand ShowChartCommand { get; }
 
+    /// <summary>
+    /// StatusText プロパティです。
+    /// </summary>
+    /// <value>StatusText の値を取得/設定します。</value>
     public string StatusText {
         get => this.statusText;
         set => this.SetProperty(ref this.statusText,value);
     }
 
+    /// <summary>
+    /// CurrentSortColumn プロパティです。
+    /// </summary>
+    /// <value>CurrentSortColumn の値を取得/設定します。</value>
     public BenchmarkGridSortColumn CurrentSortColumn {
         get => this.currentSortColumn;
         private set => this.SetProperty(ref this.currentSortColumn,value);
     }
 
+    /// <summary>
+    /// CurrentSortDescending プロパティです。
+    /// </summary>
+    /// <value>CurrentSortDescending の値を取得/設定します。</value>
     public bool CurrentSortDescending {
         get => this.currentSortDescending;
         private set => this.SetProperty(ref this.currentSortDescending,value);
     }
 
-    public bool HasBenchmarkTypeColumn{
+    /// <summary>
+    /// HasBenchmarkTypeColumn プロパティです。
+    /// </summary>
+    /// <value>HasBenchmarkTypeColumn の値を取得/設定します。</value>
+    public bool HasBenchmarkTypeColumn {
         get => this.hasBenchmarkTypeColumn;
         private set => this.SetProperty(ref this.hasBenchmarkTypeColumn,value);
     }
 
+    /// <summary>
+    /// BenchmarkSortSummaryText プロパティです。
+    /// </summary>
+    /// <value>BenchmarkSortSummaryText の値を取得/設定します。</value>
     public string BenchmarkSortSummaryText =>
         this.BenchmarkSortRules.Count==0
             ? "Default"
             : string.Join(" > ",this.BenchmarkSortRules.Select(static rule => rule.ColumnText+" "+rule.DirectionText));
 
+    /// <summary>
+    /// BenchmarkRatioSummaryText プロパティです。
+    /// </summary>
+    /// <value>BenchmarkRatioSummaryText の値を取得/設定します。</value>
     public string BenchmarkRatioSummaryText {
         get => this.SelectedSourceTabViewState.BenchmarkRatioSummaryText;
+        /// <summary>
+        /// set プロパティを取得/設定します。
+        /// </summary>
+        /// <value>set の値です。</value>
         private set {
             if(this.SelectedSourceTabViewState.BenchmarkRatioSummaryText!=value) {
                 this.SelectedSourceTabViewState.BenchmarkRatioSummaryText=value;
@@ -358,27 +895,46 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// ImprovementPromptText プロパティです。
+    /// </summary>
+    /// <value>ImprovementPromptText の値を取得/設定します。</value>
     public string ImprovementPromptText {
         get => this.improvementPromptText;
         private set {
-            if(this.SetProperty(ref this.improvementPromptText,value)){
+            if(this.SetProperty(ref this.improvementPromptText,value)) {
                 this.OnPropertyChanged(nameof(this.CanCopyImprovementPrompt));
                 this.CopyImprovementPromptCommand.NotifyCanExecuteChanged();
             }
         }
     }
 
+    /// <summary>
+    /// ImprovementCandidateSummaryText プロパティです。
+    /// </summary>
+    /// <value>ImprovementCandidateSummaryText の値を取得/設定します。</value>
     public string ImprovementCandidateSummaryText {
         get => this.improvementCandidateSummaryText;
         private set => this.SetProperty(ref this.improvementCandidateSummaryText,value);
     }
 
+    /// <summary>
+    /// GeneratedCodeAuditReport プロパティです。
+    /// </summary>
+    /// <value>GeneratedCodeAuditReport の値を取得/設定します。</value>
     public BenchmarkGeneratedCodeAuditReport? GeneratedCodeAuditReport {
         get => this.generatedCodeAuditReport;
         private set => this.SetProperty(ref this.generatedCodeAuditReport,value);
     }
 
+    /// <summary>
+    /// isGeneratedCodeAuditTabVisible フィールドです。
+    /// </summary>
     private bool isGeneratedCodeAuditTabVisible;
+    /// <summary>
+    /// IsGeneratedCodeAuditTabVisible プロパティです。
+    /// </summary>
+    /// <value>IsGeneratedCodeAuditTabVisible の値を取得/設定します。</value>
     public bool IsGeneratedCodeAuditTabVisible {
         get => this.isGeneratedCodeAuditTabVisible;
         private set {
@@ -388,10 +944,22 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// SetGeneratedCodeAuditTabVisible メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="visible">visible を指定して実行条件を制御します。</param>
     public void SetGeneratedCodeAuditTabVisible(bool visible) => this.IsGeneratedCodeAuditTabVisible=visible;
 
+    /// <summary>
+    /// CanCopyImprovementPrompt プロパティです。
+    /// </summary>
+    /// <value>CanCopyImprovementPrompt の値を取得/設定します。</value>
     public bool CanCopyImprovementPrompt => !string.IsNullOrWhiteSpace(this.ImprovementPromptText);
 
+    /// <summary>
+    /// IsBenchmarkRunning プロパティです。
+    /// </summary>
+    /// <value>IsBenchmarkRunning の値を取得/設定します。</value>
     public bool IsBenchmarkRunning {
         get => this.isBenchmarkRunning;
         private set {
@@ -422,11 +990,19 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// IsRunning プロパティです。
+    /// </summary>
+    /// <value>IsRunning の値を取得/設定します。</value>
     public bool IsRunning {
         get => this.IsBenchmarkRunning;
         private set => this.IsBenchmarkRunning=value;
     }
 
+    /// <summary>
+    /// IsRefreshing プロパティです。
+    /// </summary>
+    /// <value>IsRefreshing の値を取得/設定します。</value>
     public bool IsRefreshing {
         get => this.isRefreshing;
         private set {
@@ -451,30 +1027,70 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// CanChangeBenchmarkConditions プロパティです。
+    /// </summary>
+    /// <value>CanChangeBenchmarkConditions の値を取得/設定します。</value>
     public bool CanChangeBenchmarkConditions =>
         !this.IsBenchmarkRunning
         &&!this.IsRefreshing
         &&!this.IsBenchmarkPaused;
 
+    /// <summary>
+    /// CanChangeBenchmarkSelection プロパティです。
+    /// </summary>
+    /// <value>CanChangeBenchmarkSelection の値を取得/設定します。</value>
     public bool CanChangeBenchmarkSelection =>
         !this.IsRefreshing;
 
+    /// <summary>
+    /// IsBenchmarkRunActive プロパティです。
+    /// </summary>
+    /// <value>IsBenchmarkRunActive の値を取得/設定します。</value>
     public bool IsBenchmarkRunActive => this.runCancellation is not null&&this.IsBenchmarkRunning;
 
+    /// <summary>
+    /// IsBenchmarkPaused プロパティです。
+    /// </summary>
+    /// <value>IsBenchmarkPaused の値を取得/設定します。</value>
     public bool IsBenchmarkPaused => this.runCancellation is null&&this.activeRunRoot is not null;
 
     // 実行中は行位置を固定するため、ソートルールの編集(追加/削除/移動/方向切替)をUIから禁止する。
+    /// <summary>
+    /// IsSortRuleEditingEnabled プロパティです。
+    /// </summary>
+    /// <value>IsSortRuleEditingEnabled の値を取得/設定します。</value>
     public bool IsSortRuleEditingEnabled => !this.IsBenchmarkRunActive;
 
+    /// <summary>
+    /// RunButtonText プロパティです。
+    /// </summary>
+    /// <value>RunButtonText の値を取得/設定します。</value>
     public string RunButtonText => this.IsBenchmarkPaused ? "Resume" : "Run";
 
+    /// <summary>
+    /// CanResumeBenchmark プロパティです。
+    /// </summary>
+    /// <value>CanResumeBenchmark の値を取得/設定します。</value>
     public bool CanResumeBenchmark => !this.IsRefreshing&&this.IsBenchmarkPaused;
 
+    /// <summary>
+    /// CanRunBenchmark プロパティです。
+    /// </summary>
+    /// <value>CanRunBenchmark の値を取得/設定します。</value>
     public bool CanRunBenchmark =>
         !this.IsRefreshing&&!this.IsBenchmarkRunning&&this.HasSelectedBenchmarkCells;
 
+    /// <summary>
+    /// CanUseRunToolbarButton プロパティです。
+    /// </summary>
+    /// <value>CanUseRunToolbarButton の値を取得/設定します。</value>
     public bool CanUseRunToolbarButton => this.CanRunBenchmark||this.CanResumeBenchmark;
 
+    /// <summary>
+    /// HasSelectedBenchmarkCells プロパティです。
+    /// </summary>
+    /// <value>HasSelectedBenchmarkCells の値を取得/設定します。</value>
     public bool HasSelectedBenchmarkCells {
         get => this.hasSelectedBenchmarkCells;
         private set {
@@ -492,11 +1108,19 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// RunButtonTooltipText プロパティです。
+    /// </summary>
+    /// <value>RunButtonTooltipText の値を取得/設定します。</value>
     public string RunButtonTooltipText =>
         this.IsBenchmarkPaused||this.HasSelectedBenchmarkCells
             ? this.RunButtonText
             : "ベンチマークを1つ以上選択してください";
 
+    /// <summary>
+    /// ActiveRunSourceTab プロパティです。
+    /// </summary>
+    /// <value>ActiveRunSourceTab の値を取得/設定します。</value>
     public BenchmarkSourceTab? ActiveRunSourceTab {
         get => this.activeRunSourceTab;
         private set {
@@ -514,11 +1138,19 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// HasPendingCloseStateSave プロパティです。
+    /// </summary>
+    /// <value>HasPendingCloseStateSave の値を取得/設定します。</value>
     public bool HasPendingCloseStateSave {
         get => this.hasPendingCloseStateSave;
         private set => this.SetProperty(ref this.hasPendingCloseStateSave,value);
     }
 
+    /// <summary>
+    /// HasUnsavedBenchmarkResults プロパティです。
+    /// </summary>
+    /// <value>HasUnsavedBenchmarkResults の値を取得/設定します。</value>
     public bool HasUnsavedBenchmarkResults {
         get => this.hasUnsavedBenchmarkResults;
         private set {
@@ -529,6 +1161,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// ToolbarStateInput プロパティです。
+    /// </summary>
+    /// <value>ToolbarStateInput の値を取得/設定します。</value>
     internal BenchmarkToolbarStateInput ToolbarStateInput => new(
         this.IsRefreshing,
         this.IsBenchmarkRunActive,
@@ -537,14 +1173,27 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.IsBenchmarkRunActive||this.IsBenchmarkPaused,
         !this.IsRefreshing&&this.IsBenchmarkRunActive);
 
+    /// <summary>
+    /// 指 定 さ れ た 対 象 情 報 を 取 得 し 、 呼 び 出 し 元 へ 返 却 し ま す 。
+    /// 処 理 を 実 行 し 、 関 連 す る 状 態 や 表 示 を 更 新 し ま す 。
+    /// </summary>
+    /// <param name="role">対 象 の 引 数 を 受 け 取 り 処 理 を 制 御 す る エ 組 み で す 。</param>
+    /// <returns>処 理 結 果 を 返 却 し ま す 。</returns>
     internal BenchmarkToolbarButtonState GetToolbarButtonState(BenchmarkToolbarButtonRole role) =>
         BenchmarkToolbarStateLogic.CreateState(role,this.ToolbarStateInput);
 
+    /// <summary>
+    /// IsAllBenchmarkSelectionChecked プロパティです。
+    /// </summary>
+    /// <value>IsAllBenchmarkSelectionChecked の値を取得/設定します。</value>
     public bool? IsAllBenchmarkSelectionChecked {
         get => this.isAllBenchmarkSelectionChecked;
         private set => this.SetProperty(ref this.isAllBenchmarkSelectionChecked,value);
     }
 
+    /// <summary>
+    /// CancelAndWaitAsync メソッドを実行し、結果を算出して返却します。
+    /// </summary>
     public async Task CancelAndWaitAsync() {
         if(!this.IsBenchmarkRunActive) {
             return;
@@ -554,6 +1203,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         await this.WaitForRunStopAsync();
     }
 
+    /// <summary>
+    /// PauseAsync メソッドを実行し、結果を算出して返却します。
+    /// </summary>
     public async Task PauseAsync() {
         if(!this.IsBenchmarkRunActive) {
             return;
@@ -564,6 +1216,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         await this.WaitForRunStopAsync();
     }
 
+    /// <summary>
+    /// StopAsync メソッドを実行し、結果を算出して返却します。
+    /// </summary>
     public async Task StopAsync() {
         if(!this.IsBenchmarkRunActive&&!this.IsBenchmarkPaused) {
             return;
@@ -577,6 +1232,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// WaitForRunStopAsync メソッドを実行し、結果を算出して返却します。
+    /// </summary>
     private async Task WaitForRunStopAsync() {
         // DB ロックなどで RunAsync の終了処理が戻らない場合でも、UI を実行可能状態へ復帰させる。
         var deadline = DateTimeOffset.UtcNow+TimeSpan.FromSeconds(10);
@@ -590,6 +1248,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// ForceResetRunState メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="reason">reason を指定して実行条件を制御します。</param>
     private void ForceResetRunState(string reason) {
         StartupDiagnostics.Write(reason);
         this.runCancellation?.Cancel();
@@ -608,6 +1270,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshToolbarCommandStates();
     }
 
+    /// <summary>
+    /// SetActiveRunRoot メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="runRoot">runRoot を指定して実行条件を制御します。</param>
     private void SetActiveRunRoot(string? runRoot) {
         if(this.activeRunRoot==runRoot) {
             return;
@@ -630,6 +1296,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshToolbarCommandStates();
     }
 
+    /// <summary>
+    /// SelectedTab プロパティです。
+    /// </summary>
+    /// <value>SelectedTab の値を取得/設定します。</value>
     public BenchmarkTab SelectedTab {
         get => this.selectedTab;
         set {
@@ -640,9 +1310,21 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// IsCpuVisible プロパティです。
+    /// </summary>
+    /// <value>IsCpuVisible の値を取得/設定します。</value>
     public bool IsCpuVisible => this.SelectedTab==BenchmarkTab.Cpu;
+    /// <summary>
+    /// IsChartVisible プロパティです。
+    /// </summary>
+    /// <value>IsChartVisible の値を取得/設定します。</value>
     public bool IsChartVisible => this.SelectedTab==BenchmarkTab.Chart;
 
+    /// <summary>
+    /// SelectedLowerTab プロパティです。
+    /// </summary>
+    /// <value>SelectedLowerTab の値を取得/設定します。</value>
     public BenchmarkLowerTab SelectedLowerTab {
         get => this.selectedLowerTab;
         set {
@@ -654,12 +1336,32 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// IsCpuLowerTabVisible プロパティです。
+    /// </summary>
+    /// <value>IsCpuLowerTabVisible の値を取得/設定します。</value>
     public bool IsCpuLowerTabVisible => this.SelectedLowerTab==BenchmarkLowerTab.Cpu;
+    /// <summary>
+    /// IsLogLowerTabVisible プロパティです。
+    /// </summary>
+    /// <value>IsLogLowerTabVisible の値を取得/設定します。</value>
     public bool IsLogLowerTabVisible => this.SelectedLowerTab==BenchmarkLowerTab.Log;
+    /// <summary>
+    /// IsImprovementPromptLowerTabVisible プロパティです。
+    /// </summary>
+    /// <value>IsImprovementPromptLowerTabVisible の値を取得/設定します。</value>
     public bool IsImprovementPromptLowerTabVisible => this.SelectedLowerTab==BenchmarkLowerTab.ImprovementPrompt;
 
+    /// <summary>
+    /// SelectedComparisonPair プロパティです。
+    /// </summary>
+    /// <value>SelectedComparisonPair の値を取得/設定します。</value>
     public ComparisonPairOption SelectedComparisonPair => this.SelectedSourceDefinition.Pair;
 
+    /// <summary>
+    /// SelectedSourceTab プロパティです。
+    /// </summary>
+    /// <value>SelectedSourceTab の値を取得/設定します。</value>
     public SourceTabOption SelectedSourceTab {
         get => this.selectedSourceTab;
         set {
@@ -682,24 +1384,48 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// SelectedSourceDefinition プロパティです。
+    /// </summary>
+    /// <value>SelectedSourceDefinition の値を取得/設定します。</value>
     public BenchmarkSourceTabDefinition SelectedSourceDefinition => this.SelectedSourceTab.Definition;
 
+    /// <summary>
+    /// LatestBenchmarkAutoScrollRequest プロパティです。
+    /// </summary>
+    /// <value>LatestBenchmarkAutoScrollRequest の値を取得/設定します。</value>
     public BenchmarkAutoScrollRequest? LatestBenchmarkAutoScrollRequest { get; private set; }
 
+    /// <summary>
+    /// ChartLeftLegendLabel プロパティです。
+    /// </summary>
+    /// <value>ChartLeftLegendLabel の値を取得/設定します。</value>
     public string ChartLeftLegendLabel => GetChartLegendLabel(this.SelectedComparisonPair.LeftProject);
+    /// <summary>
+    /// ChartRightLegendLabel プロパティです。
+    /// </summary>
+    /// <value>ChartRightLegendLabel の値を取得/設定します。</value>
     public string ChartRightLegendLabel => GetChartLegendLabel(this.SelectedComparisonPair.RightProject);
 
+    /// <summary>
+    /// SelectSourceTabAsync メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="option">option を指定して実行条件を制御します。</param>
     private async Task SelectSourceTabAsync(SourceTabOption option) {
         await Task.CompletedTask;
         this.CaptureCurrentBenchmarkSelections();
         this.ApplySourceTabSelection(option);
     }
 
+    /// <summary>
+    /// ApplySourceTabSelection メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="option">option を指定して実行条件を制御します。</param>
     private void ApplySourceTabSelection(SourceTabOption option) {
-        var previousTab=this.selectedSourceTab.Definition.Id;
-        var nextTab=option.Definition.Id;
-        var stopwatch=System.Diagnostics.Stopwatch.StartNew();
-        var changed=false;
+        var previousTab = this.selectedSourceTab.Definition.Id;
+        var nextTab = option.Definition.Id;
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var changed = false;
         this.isApplyingSourceTabSelection=true;
         ++this.selectedRunLoadRequestToken;
         try {
@@ -739,12 +1465,19 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// ApplySourceTabVisualSelection メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ApplySourceTabVisualSelection() {
         foreach(var item in this.SourceTabs) {
             item.SetSelected(ReferenceEquals(item,this.selectedSourceTab));
         }
     }
 
+    /// <summary>
+    /// SelectedExecutionProfile プロパティです。
+    /// </summary>
+    /// <value>SelectedExecutionProfile の値を取得/設定します。</value>
     public ExecutionProfileOption SelectedExecutionProfile {
         get => this.selectedExecutionProfile;
         set {
@@ -758,16 +1491,28 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// SelectedScale プロパティです。
+    /// </summary>
+    /// <value>SelectedScale の値を取得/設定します。</value>
     public ScaleOption? SelectedScale {
         get => this.selectedScale;
         set => this.SetProperty(ref this.selectedScale,value);
     }
 
+    /// <summary>
+    /// SelectedThreshold プロパティです。
+    /// </summary>
+    /// <value>SelectedThreshold の値を取得/設定します。</value>
     public ThresholdOption SelectedThreshold {
         get => this.selectedThreshold;
         set => this.SetProperty(ref this.selectedThreshold,value);
     }
 
+    /// <summary>
+    /// SelectedRunOption プロパティです。
+    /// </summary>
+    /// <value>SelectedRunOption の値を取得/設定します。</value>
     public BenchmarkRunOption? SelectedRunOption {
         get => this.selectedRunOption;
         set {
@@ -787,11 +1532,19 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// AdaptiveThresholdSecondsText プロパティです。
+    /// </summary>
+    /// <value>AdaptiveThresholdSecondsText の値を取得/設定します。</value>
     public string AdaptiveThresholdSecondsText {
         get => this.adaptiveThresholdSecondsText;
         set => this.SetProperty(ref this.adaptiveThresholdSecondsText,value);
     }
 
+    /// <summary>
+    /// SelectedMetric プロパティです。
+    /// </summary>
+    /// <value>SelectedMetric の値を取得/設定します。</value>
     public MetricOption SelectedMetric {
         get => this.selectedMetric;
         set {
@@ -803,6 +1556,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// IsTimeMetricSelected プロパティです。
+    /// </summary>
+    /// <value>IsTimeMetricSelected の値を取得/設定します。</value>
     public bool IsTimeMetricSelected {
         get => this.SelectedMetric.Kind==BenchmarkMetricKind.Time;
         set {
@@ -812,6 +1569,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// IsAllocatedMetricSelected プロパティです。
+    /// </summary>
+    /// <value>IsAllocatedMetricSelected の値を取得/設定します。</value>
     public bool IsAllocatedMetricSelected {
         get => this.SelectedMetric.Kind==BenchmarkMetricKind.Allocated;
         set {
@@ -821,6 +1582,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// SelectedChartMode プロパティです。
+    /// </summary>
+    /// <value>SelectedChartMode の値を取得/設定します。</value>
     public ChartModeOption SelectedChartMode {
         get => this.selectedChartMode;
         set {
@@ -831,6 +1596,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// SelectedResultElementCount プロパティです。
+    /// </summary>
+    /// <value>SelectedResultElementCount の値を取得/設定します。</value>
     public ResultElementCountOption? SelectedResultElementCount {
         get => this.selectedResultElementCount;
         set {
@@ -851,6 +1620,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// SelectedResultElementCountIndex プロパティです。
+    /// </summary>
+    /// <value>SelectedResultElementCountIndex の値を取得/設定します。</value>
     public double SelectedResultElementCountIndex {
         get => this.selectedResultElementCountIndex;
         set {
@@ -862,17 +1635,37 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// ChartElementCountSliderMaximum プロパティです。
+    /// </summary>
+    /// <value>ChartElementCountSliderMaximum の値を取得/設定します。</value>
     public double ChartElementCountSliderMaximum => Math.Max(0,this.ResultElementCountOptions.Count-1);
 
+    /// <summary>
+    /// IsChartElementSliderVisible プロパティです。
+    /// </summary>
+    /// <value>IsChartElementSliderVisible の値を取得/設定します。</value>
     public bool IsChartElementSliderVisible => this.ResultElementCountOptions.Count>1&&this.SelectedChartMode.Mode==BenchmarkChartMode.ElementComparison;
 
+    /// <summary>
+    /// SelectedChartElementCountText プロパティです。
+    /// </summary>
+    /// <value>SelectedChartElementCountText の値を取得/設定します。</value>
     public string SelectedChartElementCountText => this.SelectedResultElementCount?.DisplayName??"-";
 
+    /// <summary>
+    /// CurrentElementCountText プロパティです。
+    /// </summary>
+    /// <value>CurrentElementCountText の値を取得/設定します。</value>
     public string CurrentElementCountText {
         get => this.currentElementCountText;
         private set => this.SetProperty(ref this.currentElementCountText,value);
     }
 
+    /// <summary>
+    /// ChartHeight プロパティです。
+    /// </summary>
+    /// <value>ChartHeight の値を取得/設定します。</value>
     public double ChartHeight {
         get => this.SelectedSourceTabViewState.ChartHeight;
         private set {
@@ -883,18 +1676,34 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// GetSourceTabViewState メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     public BenchmarkSourceTabViewState GetSourceTabViewState(BenchmarkSourceTab sourceTab) =>
         this.sourceTabViewStatesByTab.TryGetValue(sourceTab,out var state)
             ? state
             : this.sourceTabViewStates[0];
 
+    /// <summary>
+    /// GetAllBenchmarkRows メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private IEnumerable<BenchmarkTableRow> GetAllBenchmarkRows() =>
         this.sourceTabViewStates.SelectMany(static state => state.Rows);
 
+    /// <summary>
+    /// InitializeAsync メソッドを実行し、結果を算出して返却します。
+    /// </summary>
     public async Task InitializeAsync() {
         await this.RefreshAsync();
     }
 
+    /// <summary>
+    /// SortBenchmarkRows メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="column">column を指定して実行条件を制御します。</param>
     public void SortBenchmarkRows(BenchmarkGridSortColumn column) {
         var descending = false;
         if(this.CurrentSortColumn==column&&this.BenchmarkSortRules.Count==1) {
@@ -904,6 +1713,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.SetBenchmarkSortRules([new BenchmarkSortRule(column,descending)],true);
     }
 
+    /// <summary>
+    /// AddBenchmarkSortRule メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     public void AddBenchmarkSortRule() {
         var option = this.BenchmarkSortColumnOptions
             .FirstOrDefault(option => this.BenchmarkSortRules.All(rule => rule.Column!=option.Column))
@@ -918,6 +1730,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ApplySortRuleChanges(true);
     }
 
+    /// <summary>
+    /// RemoveBenchmarkSortRule メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="rule">rule を指定して実行条件を制御します。</param>
     public void RemoveBenchmarkSortRule(BenchmarkSortRule rule) {
         this.BenchmarkSortRules.Remove(rule);
         if(this.BenchmarkSortRules.Count==0) {
@@ -928,6 +1744,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ApplySortRuleChanges(true);
     }
 
+    /// <summary>
+    /// MoveBenchmarkSortRule メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="source">source を指定して実行条件を制御します。</param>
+    /// <param name="target">target を指定して実行条件を制御します。</param>
     public void MoveBenchmarkSortRule(BenchmarkSortRule source,BenchmarkSortRule target) {
         var oldIndex = this.BenchmarkSortRules.IndexOf(source);
         var newIndex = this.BenchmarkSortRules.IndexOf(target);
@@ -939,6 +1760,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ApplySortRuleChanges(true);
     }
 
+    /// <summary>
+    /// MoveBenchmarkSortRuleUp メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="rule">rule を指定して実行条件を制御します。</param>
     public void MoveBenchmarkSortRuleUp(BenchmarkSortRule rule) {
         var index = this.BenchmarkSortRules.IndexOf(rule);
         if(index<=0) {
@@ -949,6 +1774,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ApplySortRuleChanges(true);
     }
 
+    /// <summary>
+    /// MoveBenchmarkSortRuleDown メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="rule">rule を指定して実行条件を制御します。</param>
     public void MoveBenchmarkSortRuleDown(BenchmarkSortRule rule) {
         var index = this.BenchmarkSortRules.IndexOf(rule);
         if(index<0||index>=this.BenchmarkSortRules.Count-1) {
@@ -959,19 +1788,36 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ApplySortRuleChanges(true);
     }
 
+    /// <summary>
+    /// SetBenchmarkSortRuleColumn メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="rule">rule を指定して実行条件を制御します。</param>
+    /// <param name="column">column を指定して実行条件を制御します。</param>
     public void SetBenchmarkSortRuleColumn(BenchmarkSortRule rule,BenchmarkGridSortColumn column) {
         rule.Column=column;
         this.ApplySortRuleChanges(true);
     }
 
+    /// <summary>
+    /// ToggleBenchmarkSortRuleDirection メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="rule">rule を指定して実行条件を制御します。</param>
     public void ToggleBenchmarkSortRuleDirection(BenchmarkSortRule rule) {
         rule.Descending=!rule.Descending;
         this.ApplySortRuleChanges(true);
     }
 
+    /// <summary>
+    /// ResetBenchmarkSortRules メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     public void ResetBenchmarkSortRules() =>
         this.ResetBenchmarkSortRulesToDefault(true);
 
+    /// <summary>
+    /// SetBenchmarkSortRules メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="rules">rules を指定して実行条件を制御します。</param>
+    /// <param name="save">save を指定して実行条件を制御します。</param>
     private void SetBenchmarkSortRules(IEnumerable<BenchmarkSortRule> rules,bool save) {
         this.isApplyingSortRules=true;
         try {
@@ -987,6 +1833,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ApplySortRuleChanges(save);
     }
 
+    /// <summary>
+    /// AttachBenchmarkSortRule メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="rule">rule を指定して実行条件を制御します。</param>
     private void AttachBenchmarkSortRule(BenchmarkSortRule rule) {
         rule.PropertyChanged+=(_,args) => {
             if(this.isApplyingSortRules) {
@@ -999,6 +1849,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         };
     }
 
+    /// <summary>
+    /// ApplySortRuleChanges メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="save">save を指定して実行条件を制御します。</param>
     private void ApplySortRuleChanges(bool save) {
         this.RefreshCurrentSortIndicator();
         this.OnPropertyChanged(nameof(this.BenchmarkSortSummaryText));
@@ -1008,6 +1862,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// ToggleCpu メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="cpu">cpu を指定して実行条件を制御します。</param>
     public void ToggleCpu(CpuSelectionItem cpu) {
         if(this.IsRefreshing) {
             return;
@@ -1016,6 +1874,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         cpu.IsSelected=!cpu.IsSelected;
     }
 
+    /// <summary>
+    /// ToggleCpuSection メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="section">section を指定して実行条件を制御します。</param>
     public void ToggleCpuSection(CpuTableSection section) {
         if(this.IsRefreshing) {
             return;
@@ -1025,6 +1887,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ApplyCpuSelection(section.Cells.Select(static cell => cell.Cpu),selected);
     }
 
+    /// <summary>
+    /// ToggleCpuColumn メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="section">section を指定して実行条件を制御します。</param>
+    /// <param name="columnIndex">columnIndex を指定して実行条件を制御します。</param>
     public void ToggleCpuColumn(CpuTableSection section,int columnIndex) {
         if(this.IsRefreshing) {
             return;
@@ -1038,6 +1905,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ApplyCpuSelection(cells.Select(static cell => cell.Cpu),selected);
     }
 
+    /// <summary>
+    /// ToggleCpuRow メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
     public void ToggleCpuRow(CpuTableRow row) {
         if(this.IsRefreshing) {
             return;
@@ -1047,6 +1918,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ApplyCpuSelection(row.Cells.Select(static cell => cell.Cpu),selected);
     }
 
+    /// <summary>
+    /// sourceTab プロパティです。
+    /// </summary>
+    /// <value>sourceTab の値を取得/設定します。</value>
     public void ToggleAllBenchmarkSelection(BenchmarkSourceTabDefinition? sourceTab = null) {
         if(!this.CanChangeBenchmarkSelection) {
             return;
@@ -1058,6 +1933,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.SetBenchmarkCells(cells,selected,tab);
     }
 
+    /// <summary>
+    /// sourceTab プロパティです。
+    /// </summary>
+    /// <value>sourceTab の値を取得/設定します。</value>
     public void ToggleBenchmarkColumnGroup(BenchmarkColumnSelectionGroup group,BenchmarkSourceTabDefinition? sourceTab = null) {
         if(!this.CanChangeBenchmarkSelection) {
             return;
@@ -1069,6 +1948,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.SetBenchmarkCells(cells,selected,tab);
     }
 
+    /// <summary>
+    /// ToggleBenchmarkRow メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
     public void ToggleBenchmarkRow(BenchmarkTableRow row) {
         if(!this.CanChangeBenchmarkSelection) {
             return;
@@ -1089,11 +1972,21 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.SetBenchmarkCells(targetCells,selected,row.SourceTab);
     }
 
+    /// <summary>
+    /// sourceTab プロパティです。
+    /// </summary>
+    /// <value>sourceTab の値を取得/設定します。</value>
     internal void SelectAllBenchmarkUiCells(BenchmarkSourceTabDefinition? sourceTab = null) {
         var state = this.GetSourceTabViewState((sourceTab??this.SelectedSourceDefinition).Tab);
         this.ApplyBenchmarkCellSelection(state,BenchmarkCellSelectionTarget.CornerHeader(),BenchmarkCellSelectionGesture.Replace);
     }
 
+    /// <summary>
+    /// SelectBenchmarkCell メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <param name="gesture">gesture を指定して実行条件を制御します。</param>
     internal void SelectBenchmarkCell(BenchmarkTableRow row,string project,BenchmarkCellSelectionGesture gesture) {
         var state = this.GetSourceTabViewState(row.SourceTab.Tab);
         var rowIndex = state.Rows.IndexOf(row);
@@ -1105,6 +1998,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ApplyBenchmarkCellSelection(state,BenchmarkCellSelectionTarget.Cell(rowIndex,columnIndex),gesture);
     }
 
+    /// <summary>
+    /// SelectBenchmarkRow メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="gesture">gesture を指定して実行条件を制御します。</param>
     internal void SelectBenchmarkRow(BenchmarkTableRow row,BenchmarkCellSelectionGesture gesture) {
         var state = this.GetSourceTabViewState(row.SourceTab.Tab);
         var rowIndex = state.Rows.IndexOf(row);
@@ -1115,6 +2013,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ApplyBenchmarkCellSelection(state,BenchmarkCellSelectionTarget.RowHeader(rowIndex),gesture);
     }
 
+    /// <summary>
+    /// sourceTab プロパティです。
+    /// </summary>
+    /// <value>sourceTab の値を取得/設定します。</value>
     internal void SelectBenchmarkColumnGroup(BenchmarkColumnSelectionGroup group,BenchmarkCellSelectionGesture gesture,BenchmarkSourceTabDefinition? sourceTab = null) {
         var state = this.GetSourceTabViewState((sourceTab??this.SelectedSourceDefinition).Tab);
         var columns = group.ColumnKeys
@@ -1129,6 +2031,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ApplyBenchmarkCellSelection(state,BenchmarkCellSelectionTarget.ColumnHeader(columns[0],columns[^1]),gesture);
     }
 
+    /// <summary>
+    /// ToggleBenchmarkCellCheck メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
     internal void ToggleBenchmarkCellCheck(BenchmarkTableRow row,string project) {
         if(!this.CanChangeBenchmarkSelection) {
             return;
@@ -1152,6 +2059,13 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.SetBenchmarkCells(targets,selected,row.SourceTab);
     }
 
+    /// <summary>
+    /// SelectBenchmarkCellFromChart メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="state">state を指定して実行条件を制御します。</param>
+    /// <param name="benchmark">benchmark を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <param name="gesture">gesture を指定して実行条件を制御します。</param>
     internal void SelectBenchmarkCellFromChart(BenchmarkSourceTabViewState? state,string benchmark,string project,BenchmarkCellSelectionGesture gesture) {
         var targetState = state??this.SelectedSourceTabViewState;
         var rowIndex = GetBenchmarkRowIndex(targetState,benchmark);
@@ -1163,6 +2077,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ApplyBenchmarkCellSelection(targetState,BenchmarkCellSelectionTarget.Cell(rowIndex,columnIndex),gesture);
     }
 
+    /// <summary>
+    /// SelectBenchmarkRowFromChart メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="state">state を指定して実行条件を制御します。</param>
+    /// <param name="benchmark">benchmark を指定して実行条件を制御します。</param>
+    /// <param name="gesture">gesture を指定して実行条件を制御します。</param>
     internal void SelectBenchmarkRowFromChart(BenchmarkSourceTabViewState? state,string benchmark,BenchmarkCellSelectionGesture gesture) {
         var targetState = state??this.SelectedSourceTabViewState;
         var rowIndex = GetBenchmarkRowIndex(targetState,benchmark);
@@ -1173,6 +2093,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ApplyBenchmarkCellSelection(targetState,BenchmarkCellSelectionTarget.RowHeader(rowIndex),gesture);
     }
 
+    /// <summary>
+    /// RefreshAsync メソッドを実行し、結果を算出して返却します。
+    /// </summary>
     private async Task RefreshAsync() {
         this.IsRefreshing=true;
         this.StatusText="読み込み中";
@@ -1213,18 +2136,20 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
-    /// <summary>選択セル状態を保持したまま、読み込み済みカタログから表示中タブの行を再構築する。</summary>
+    /// <summary>
+    /// RebuildBenchmarkRowsFromCatalog メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RebuildBenchmarkRowsFromCatalog() {
         this.benchmarkSelectionAnchors.Clear();
-        var elementCount=this.SelectedResultElementCount?.Value??0;
-        var builtRows=this.sourceTabViewStates
+        var elementCount = this.SelectedResultElementCount?.Value??0;
+        var builtRows = this.sourceTabViewStates
             .AsParallel()
             .AsOrdered()
             .WithDegreeOfParallelism(Math.Max(1,Math.Min(Environment.ProcessorCount,this.sourceTabViewStates.Count)))
-            .Select(state => (State:state,Rows:this.CreateMethodRows(this.catalogCases,state.Definition,elementCount)))
+            .Select(state => (State: state,Rows: this.CreateMethodRows(this.catalogCases,state.Definition,elementCount)))
             .ToArray();
         foreach(var item in builtRows) {
-            var rows=item.Rows;
+            var rows = item.Rows;
             foreach(var row in rows) {
                 this.SubscribeBenchmarkRow(row);
                 row.IsSelected=this.benchmarkRowSelections.GetValueOrDefault(
@@ -1242,9 +2167,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     /// <summary>
-    /// タブ切替用の軽量パス。計測中は DB への書き込みはしても読み込みは避ける方針のため、
-    /// カタログ再読み込みや Run 一覧の再読み込みを行わず、メモリ上のカタログと結果バッファから表示を再構築する。
-    /// 保存済み Run の状態は <see cref="LoadSelectedRunState"/> のメモリキャッシュから適用される。
+    /// RebuildRowsForSelectedTab メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
     private void RebuildRowsForSelectedTab() {
         if(this.catalogCases.Count==0) {
@@ -1252,42 +2175,51 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             return;
         }
 
-        var totalStopwatch=System.Diagnostics.Stopwatch.StartNew();
-        var phaseStopwatch=System.Diagnostics.Stopwatch.StartNew();
+        var totalStopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var phaseStopwatch = System.Diagnostics.Stopwatch.StartNew();
         this.RebuildBenchmarkRowsFromCatalog();
-        var rebuildRowsMilliseconds=phaseStopwatch.Elapsed;
+        var rebuildRowsMilliseconds = phaseStopwatch.Elapsed;
         phaseStopwatch.Restart();
         this.RefreshBenchmarkSelectionAggregates();
-        var aggregateMilliseconds=phaseStopwatch.Elapsed;
+        var aggregateMilliseconds = phaseStopwatch.Elapsed;
         phaseStopwatch.Restart();
-        var displaySource="memory";
+        var displaySource = "memory";
         if(!this.RestoreCurrentRunDisplayForSelectedTab()) {
             if(this.ShouldLoadSelectedRunFromDatabaseForDisplay()) {
                 displaySource="database";
                 this.LoadSelectedRunFromDatabase();
-            }else{
+            }
+            else {
                 displaySource="visible";
                 this.RefreshVisibleResults();
                 this.ApplySelectedElementCountToTable();
                 this.RefreshImprovementPrompt();
             }
         }
-        var displayMilliseconds=phaseStopwatch.Elapsed;
+        var displayMilliseconds = phaseStopwatch.Elapsed;
         phaseStopwatch.Restart();
         this.RefreshSourceTabProgresses();
-        var progressMilliseconds=phaseStopwatch.Elapsed;
+        var progressMilliseconds = phaseStopwatch.Elapsed;
         phaseStopwatch.Restart();
         this.ApplyCurrentSort();
-        var sortMilliseconds=phaseStopwatch.Elapsed;
+        var sortMilliseconds = phaseStopwatch.Elapsed;
         totalStopwatch.Stop();
         this.StatusText=this.BenchmarkRows.Count+" 件のベンチマーク";
         StartupDiagnostics.Write(
             $"Source tab rebuild {this.SelectedSourceDefinition.Id} rows={this.BenchmarkRows.Count} total={FormatSwitchMeasureMilliseconds(totalStopwatch.Elapsed)}ms rebuildRows={FormatSwitchMeasureMilliseconds(rebuildRowsMilliseconds)}ms aggregates={FormatSwitchMeasureMilliseconds(aggregateMilliseconds)}ms display={FormatSwitchMeasureMilliseconds(displayMilliseconds)}ms displaySource={displaySource} progress={FormatSwitchMeasureMilliseconds(progressMilliseconds)}ms sort={FormatSwitchMeasureMilliseconds(sortMilliseconds)}ms");
     }
 
+    /// <summary>
+    /// FormatSwitchMeasureMilliseconds メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="elapsed">elapsed を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static string FormatSwitchMeasureMilliseconds(TimeSpan elapsed) =>
         elapsed.TotalMilliseconds.ToString("0.0",System.Globalization.CultureInfo.InvariantCulture);
 
+    /// <summary>
+    /// ApplyPendingSourceTabSelection メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ApplyPendingSourceTabSelection() {
         if(this.pendingSourceTabOption is { } pending) {
             this.pendingSourceTabOption=null;
@@ -1297,13 +2229,31 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// CreateMethodRows メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="cases">cases を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkTableRow> CreateMethodRows(IReadOnlyList<BenchmarkCase> cases) =>
         this.CreateMethodRows(cases,this.SelectedSourceDefinition);
 
+    /// <summary>
+    /// CreateMethodRows メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="cases">cases を指定して実行条件を制御します。</param>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkTableRow> CreateMethodRows(IReadOnlyList<BenchmarkCase> cases,BenchmarkSourceTabDefinition sourceTab) {
         return this.CreateMethodRows(cases,sourceTab,this.SelectedResultElementCount?.Value??0);
     }
 
+    /// <summary>
+    /// CreateMethodRows メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="cases">cases を指定して実行条件を制御します。</param>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <param name="elementCount">elementCount を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkTableRow> CreateMethodRows(IReadOnlyList<BenchmarkCase> cases,BenchmarkSourceTabDefinition sourceTab,int elementCount) {
         return BenchmarkRowGroupingLogic.CreateRows(cases,sourceTab,elementCount)
             .Select(row => new BenchmarkTableRow(
@@ -1315,6 +2265,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             .ToArray();
     }
 
+    /// <summary>
+    /// RefreshBenchmarkCaseIndex メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="cases">cases を指定して実行条件を制御します。</param>
     private void RefreshBenchmarkCaseIndex(IReadOnlyList<BenchmarkCase> cases) {
         this.benchmarkCasesByProjectMethod.Clear();
         foreach(var benchmark in cases) {
@@ -1322,6 +2276,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// RebuildBenchmarkRowIndex メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RebuildBenchmarkRowIndex() {
         this.benchmarkRowsByResultKey.Clear();
         this.benchmarkRowsByProjectMethod.Clear();
@@ -1339,10 +2296,22 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// AddBenchmarkRowIndex メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <param name="typeFullName">typeFullName を指定して実行条件を制御します。</param>
+    /// <param name="method">method を指定して実行条件を制御します。</param>
+    /// <param name="argumentKey">argumentKey を指定して実行条件を制御します。</param>
     private void AddBenchmarkRowIndex(BenchmarkTableRow row,string project,string typeFullName,string method,string argumentKey) {
         this.benchmarkRowsByResultKey.TryAdd(CreateBenchmarkRowResultIndexKey(row.SourceTab.Tab,project,typeFullName,method,argumentKey),row);
     }
 
+    /// <summary>
+    /// sourceTab プロパティです。
+    /// </summary>
+    /// <value>sourceTab の値を取得/設定します。</value>
     private void SetAllBenchmarkSelection(bool selected,BenchmarkSourceTabDefinition? sourceTab = null) {
         if(!this.CanChangeBenchmarkSelection) {
             return;
@@ -1352,6 +2321,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.SetBenchmarkCells(this.GetBenchmarkRows(tab).SelectMany(static row => row.ProjectCells),selected,tab);
     }
 
+    /// <summary>
+    /// SubscribeBenchmarkRow メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
     private void SubscribeBenchmarkRow(BenchmarkTableRow row) {
         row.PropertyChanged+=(_,args) => {
             if(args.PropertyName==nameof(BenchmarkTableRow.IsSelected)&&!this.isApplyingUiState&&!this.isApplyingBenchmarkSelection) {
@@ -1369,9 +2342,20 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// GetBenchmarkRows メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IEnumerable<BenchmarkTableRow> GetBenchmarkRows(BenchmarkSourceTabDefinition sourceTab) =>
         this.GetSourceTabViewState(sourceTab.Tab).Rows;
 
+    /// <summary>
+    /// GetBenchmarkCells メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="projectKeys">projectKeys を指定して実行条件を制御します。</param>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IEnumerable<BenchmarkProjectCell> GetBenchmarkCells(IReadOnlyList<string> projectKeys,BenchmarkSourceTabDefinition sourceTab) {
         foreach(var row in this.GetBenchmarkRows(sourceTab)) {
             foreach(var project in projectKeys) {
@@ -1384,6 +2368,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
 
     // cells は必ず単一の sourceTab に属する行から集めたものを渡すこと。ExpandBenchmarkSelectionCells は
     // その sourceTab 内だけで RowKey+Left/Right の対応を展開するため、他Sourceタブへ選択が漏れない。
+    /// <summary>
+    /// SetBenchmarkCells メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="cells">cells を指定して実行条件を制御します。</param>
+    /// <param name="selected">selected を指定して実行条件を制御します。</param>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
     private void SetBenchmarkCells(IEnumerable<BenchmarkProjectCell> cells,bool selected,BenchmarkSourceTabDefinition sourceTab) {
         if(!this.CanChangeBenchmarkSelection) {
             return;
@@ -1409,6 +2399,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshBenchmarkSelectionDisplay();
     }
 
+    /// <summary>
+    /// ExpandBenchmarkSelectionCells メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="cells">cells を指定して実行条件を制御します。</param>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private BenchmarkProjectCell[] ExpandBenchmarkSelectionCells(IEnumerable<BenchmarkProjectCell> cells,BenchmarkSourceTabDefinition sourceTab) {
         var requested = cells.Where(static cell => cell.HasCase).Distinct().ToArray();
         if(requested.Length==0) {
@@ -1442,6 +2438,13 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return targets.Distinct().ToArray();
     }
 
+    /// <summary>
+    /// TryGetBenchmarkCellBySelectionKey メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="key">key を指定して実行条件を制御します。</param>
+    /// <param name="cell">cell を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private bool TryGetBenchmarkCellBySelectionKey(BenchmarkTableRow row,string key,out BenchmarkProjectCell cell) {
         if(string.Equals(key,"Left",StringComparison.OrdinalIgnoreCase)) {
             cell=row.LeftCell;
@@ -1468,9 +2471,21 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return false;
     }
 
+    /// <summary>
+    /// CreateBenchmarkSelectionSyncKey メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="rowKey">rowKey を指定して実行条件を制御します。</param>
+    /// <param name="side">side を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static string CreateBenchmarkSelectionSyncKey(string rowKey,string side) =>
         rowKey+"|"+side;
 
+    /// <summary>
+    /// ApplyBenchmarkCellSelection メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="state">state を指定して実行条件を制御します。</param>
+    /// <param name="target">target を指定して実行条件を制御します。</param>
+    /// <param name="gesture">gesture を指定して実行条件を制御します。</param>
     private void ApplyBenchmarkCellSelection(BenchmarkSourceTabViewState state,BenchmarkCellSelectionTarget target,BenchmarkCellSelectionGesture gesture) {
         var projectOrder = state.Definition.ProjectOrder;
         var result = BenchmarkCellSelectionLogic.Apply(
@@ -1493,6 +2508,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshChartUiSelection(state);
     }
 
+    /// <summary>
+    /// GetSelectedBenchmarkUiCoordinates メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="state">state を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static IEnumerable<BenchmarkCellCoordinate> GetSelectedBenchmarkUiCoordinates(BenchmarkSourceTabViewState state) {
         for(var rowIndex = 0; rowIndex<state.Rows.Count; rowIndex++) {
             var row = state.Rows[rowIndex];
@@ -1507,6 +2527,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     // BenchmarkColumnSelectionGroups/BenchmarkProjectSelectionGroups と IsAllBenchmarkSelectionChecked は
     // 全Sourceタブの見た目ヘッダーで共有されるインスタンスのため、常に「現在表示中のSourceタブ」の
     // チェック状態だけを反映する。他タブの選択状態をここに混ぜると、タブ間でチェック表示が同期して見える。
+    /// <summary>
+    /// RefreshBenchmarkSelectionAggregates メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RefreshBenchmarkSelectionAggregates() {
         foreach(var row in this.GetAllBenchmarkRows()) {
             row.RefreshSelectionState();
@@ -1527,9 +2550,18 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     // Run ボタンの活性はライブなチェック状態で判定する。進捗バッジ用の CreateProgressCells は
     // 実行時に凍結した選択スナップショットを優先するため、実行後に選択を変えると実態と乖離し、
     // 「ボタンは有効なのに RunAsync が選択0件で無言中断する」原因になる。
+    /// <summary>
+    /// HasAnySelectedBenchmarkCell メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private bool HasAnySelectedBenchmarkCell() =>
         this.SourceTabs.Any(option => this.HasAnyLiveSelectedBenchmarkCell(option.Definition));
 
+    /// <summary>
+    /// HasAnyLiveSelectedBenchmarkCell メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private bool HasAnyLiveSelectedBenchmarkCell(BenchmarkSourceTabDefinition sourceTab) {
         var state = this.GetSourceTabViewState(sourceTab.Tab);
         if(state.Rows.Count>0) {
@@ -1543,6 +2575,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 &&selected));
     }
 
+    /// <summary>
+    /// GetSelectionState メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="cells">cells を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static bool? GetSelectionState(IEnumerable<BenchmarkProjectCell> cells) {
         var targets = cells.Where(static cell => cell.HasCase).ToArray();
         if(targets.Length==0) {
@@ -1557,8 +2594,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 : null;
     }
 
+    /// <summary>
+    /// rowKey プロパティです。
+    /// </summary>
+    /// <value>rowKey の値を取得/設定します。</value>
     private static int GetBenchmarkRowIndex(BenchmarkSourceTabViewState state,string benchmark,string rowKey = "") {
-        for(var index=0;index<state.Rows.Count;index++) {
+        for(var index = 0; index<state.Rows.Count; index++) {
             var row = state.Rows[index];
             if(!string.IsNullOrWhiteSpace(rowKey)
                 &&string.Equals(row.RowKey,rowKey,StringComparison.OrdinalIgnoreCase)) {
@@ -1579,12 +2620,24 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return -1;
     }
 
+    /// <summary>
+    /// GetProjectColumnIndex メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static int GetProjectColumnIndex(BenchmarkSourceTabDefinition sourceTab,string project) =>
         sourceTab.ProjectOrder
             .Select((item,index) => new { item,index })
             .FirstOrDefault(item => string.Equals(item.item,ResolveProjectKey(sourceTab,project),StringComparison.OrdinalIgnoreCase))
             ?.index??-1;
 
+    /// <summary>
+    /// ResolveProjectKey メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static string ResolveProjectKey(BenchmarkSourceTabDefinition sourceTab,string project) =>
         project switch {
             "Left" => sourceTab.LeftProject,
@@ -1592,87 +2645,137 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             _ => project,
         };
 
+    /// <summary>
+    /// LoadImprovementCandidatesChartData メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     public IReadOnlyList<BenchmarkRankedRatioPoint> LoadImprovementCandidatesChartData() {
         try {
             return BenchmarkAnalysisViewMapper.MapImprovementCandidates(this.uiRunStore.QueryAnalysisView("BenchmarkImprovementCandidates",100));
-        } catch(Exception ex) {
+        }
+        catch(Exception ex) {
             StartupDiagnostics.Write("BenchmarkImprovementCandidates load failed.",ex);
             return [];
         }
     }
 
+    /// <summary>
+    /// LoadTimeRatioWorstChartData メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     public IReadOnlyList<BenchmarkRankedRatioPoint> LoadTimeRatioWorstChartData() {
         try {
             return BenchmarkAnalysisViewMapper.MapTimeRatioWorst(this.uiRunStore.QueryAnalysisView("BenchmarkTimeRatioWorst",100));
-        } catch(Exception ex) {
+        }
+        catch(Exception ex) {
             StartupDiagnostics.Write("BenchmarkTimeRatioWorst load failed.",ex);
             return [];
         }
     }
 
+    /// <summary>
+    /// LoadAllocationRatioWorstChartData メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     public IReadOnlyList<BenchmarkRankedRatioPoint> LoadAllocationRatioWorstChartData() {
         try {
             return BenchmarkAnalysisViewMapper.MapAllocationRatioWorst(this.uiRunStore.QueryAnalysisView("BenchmarkAllocationRatioWorst",100));
-        } catch(Exception ex) {
+        }
+        catch(Exception ex) {
             StartupDiagnostics.Write("BenchmarkAllocationRatioWorst load failed.",ex);
             return [];
         }
     }
 
+    /// <summary>
+    /// LoadCategorySummaryChartData メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     public IReadOnlyList<BenchmarkCategoryRatioPoint> LoadCategorySummaryChartData() {
         try {
             return BenchmarkAnalysisViewMapper.MapCategorySummary(this.uiRunStore.QueryAnalysisView("BenchmarkCategorySummary",100));
-        } catch(Exception ex) {
+        }
+        catch(Exception ex) {
             StartupDiagnostics.Write("BenchmarkCategorySummary load failed.",ex);
             return [];
         }
     }
 
+    /// <summary>
+    /// LoadHistoryTrendChartData メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     public IReadOnlyList<BenchmarkTrendSeries> LoadHistoryTrendChartData() {
         try {
             return BenchmarkAnalysisViewMapper.MapHistoryTrend(this.uiRunStore.QueryAnalysisView("BenchmarkHistoryTrend",100));
-        } catch(Exception ex) {
+        }
+        catch(Exception ex) {
             StartupDiagnostics.Write("BenchmarkHistoryTrend load failed.",ex);
             return [];
         }
     }
 
+    /// <summary>
+    /// LoadScaleTrendChartData メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     public IReadOnlyList<BenchmarkTrendSeries> LoadScaleTrendChartData() {
         try {
             return BenchmarkAnalysisViewMapper.MapScaleTrend(this.uiRunStore.QueryAnalysisView("BenchmarkScaleTrend",100));
-        } catch(Exception ex) {
+        }
+        catch(Exception ex) {
             StartupDiagnostics.Write("BenchmarkScaleTrend load failed.",ex);
             return [];
         }
     }
 
+    /// <summary>
+    /// LoadMissingFailureMatrixBadges メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     public IReadOnlyList<BenchmarkBadgeItem> LoadMissingFailureMatrixBadges() {
         try {
             return BenchmarkAnalysisViewMapper.MapMissingFailureMatrix(this.uiRunStore.QueryAnalysisView("BenchmarkMissingFailureMatrix",100));
-        } catch(Exception ex) {
+        }
+        catch(Exception ex) {
             StartupDiagnostics.Write("BenchmarkMissingFailureMatrix load failed.",ex);
             return [];
         }
     }
 
+    /// <summary>
+    /// LoadMeasurementQualityGauges メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     public IReadOnlyList<BenchmarkQualityGaugePoint> LoadMeasurementQualityGauges() {
         try {
             return BenchmarkAnalysisViewMapper.MapMeasurementQuality(this.uiRunStore.QueryAnalysisView("BenchmarkMeasurementQuality",100));
-        } catch(Exception ex) {
+        }
+        catch(Exception ex) {
             StartupDiagnostics.Write("BenchmarkMeasurementQuality load failed.",ex);
             return [];
         }
     }
 
+    /// <summary>
+    /// LoadFallbackDiagnosticsBadges メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     public IReadOnlyList<BenchmarkBadgeItem> LoadFallbackDiagnosticsBadges() {
         try {
             return BenchmarkAnalysisViewMapper.MapFallbackDiagnostics(this.uiRunStore.QueryAnalysisView("BenchmarkFallbackDiagnostics",100));
-        } catch(Exception ex) {
+        }
+        catch(Exception ex) {
             StartupDiagnostics.Write("BenchmarkFallbackDiagnostics load failed.",ex);
             return [];
         }
     }
 
+    /// <summary>
+    /// RefreshDbRunListAsync メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="cancellationToken">cancellationToken を指定して実行条件を制御します。</param>
+    /// <param name="loadSelected">loadSelected を指定して実行条件を制御します。</param>
     private async Task RefreshDbRunListAsync(CancellationToken cancellationToken,bool loadSelected) {
         var options = await Task.Run(() => {
             cancellationToken.ThrowIfCancellationRequested();
@@ -1694,6 +2797,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             false);
     }
 
+    /// <summary>
+    /// CreateRunOption メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="run">run を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private BenchmarkRunOption CreateRunOption(UiRunRecord run) {
         var jobs = this.uiRunStore.ListJobs(run.RunId);
         var sourceTab = Enum.TryParse<BenchmarkSourceTab>(run.SourceTab,true,out var parsedSourceTab)
@@ -1722,6 +2830,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             elementCounts);
     }
 
+    /// <summary>
+    /// RefreshRunsForSelectedProfileAsync メソッドを実行し、結果を算出して返却します。
+    /// </summary>
     private async Task RefreshRunsForSelectedProfileAsync() {
         try {
             await this.RefreshDbRunListAsync(CancellationToken.None,true);
@@ -1731,6 +2842,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// RestoreRunSelection メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="runNumber">runNumber を指定して実行条件を制御します。</param>
+    /// <param name="elementCount">elementCount を指定して実行条件を制御します。</param>
     private void RestoreRunSelection(int? runNumber,int? elementCount) {
         this.isApplyingUiState=true;
         try {
@@ -1749,6 +2865,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.LoadSelectedRunFromDatabase();
     }
 
+    /// <summary>
+    /// SelectRunOptionAsync メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="option">option を指定して実行条件を制御します。</param>
     private async Task SelectRunOptionAsync(BenchmarkRunOption? option) {
         var previous = this.SelectedRunOption;
         if(!this.CanSelectRunOption(option)) {
@@ -1762,9 +2882,20 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.SetSelectedRunOption(option,true,true);
     }
 
+    /// <summary>
+    /// CanSelectRunOption メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="option">option を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private bool CanSelectRunOption(BenchmarkRunOption? option) =>
         !this.HasDisplayResults||IsNewRunOption(option);
 
+    /// <summary>
+    /// SetSelectedRunOption メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="option">option を指定して実行条件を制御します。</param>
+    /// <param name="load">load を指定して実行条件を制御します。</param>
+    /// <param name="saveUiState">saveUiState を指定して実行条件を制御します。</param>
     private void SetSelectedRunOption(BenchmarkRunOption? option,bool load,bool saveUiState) {
         this.isApplyingRunOptionSelection=true;
         try {
@@ -1782,6 +2913,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// SetTransientRunOption メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="option">option を指定して実行条件を制御します。</param>
     private void SetTransientRunOption(BenchmarkRunOption option) {
         this.RemoveTransientRunOptions();
 
@@ -1790,6 +2925,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.SetSelectedRunOption(option,false,true);
     }
 
+    /// <summary>
+    /// RemoveTransientRunOptions メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RemoveTransientRunOptions() {
         for(var index = this.RunOptions.Count-1; index>=0; index--) {
             if(this.RunOptions[index].RunNumber<0) {
@@ -1798,6 +2936,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// SelectNewRunOptionForFreshRun メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void SelectNewRunOptionForFreshRun() {
         var newRunOption = this.RunOptions.FirstOrDefault(IsNewRunOption);
         if(newRunOption is not null) {
@@ -1805,6 +2946,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// ApplySelectedRunOption メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="option">option を指定して実行条件を制御します。</param>
+    /// <param name="load">load を指定して実行条件を制御します。</param>
     private void ApplySelectedRunOption(BenchmarkRunOption? option,bool load) {
         this.ClearRetainedChartPoints();
         if(IsNewRunOption(option)) {
@@ -1820,12 +2966,16 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         if(load&&!IsTransientRunOption(option)) {
             if(option?.UiRunId>0) {
                 this.LoadSelectedRunFromDatabase(option);
-            }else{
+            }
+            else {
                 this.LoadSelectedRunFromDatabase();
             }
         }
     }
 
+    /// <summary>
+    /// CaptureCurrentBenchmarkSelections メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void CaptureCurrentBenchmarkSelections() {
         foreach(var row in this.GetAllBenchmarkRows()) {
             this.benchmarkRowSelections[CreateRowSelectionKey(row.SourceTab,row.RowKey)]=row.IsSelected;
@@ -1835,17 +2985,28 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// RefreshCurrentRunBenchmarkSelectionSnapshot メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RefreshCurrentRunBenchmarkSelectionSnapshot() {
         Volatile.Write(
             ref this.currentRunSelectedBenchmarkCases,
             this.CreateSelectedBenchmarkCasesFromAllTabs());
     }
 
+    /// <summary>
+    /// GetCurrentRunSelectedBenchmarkCases メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkCase> GetCurrentRunSelectedBenchmarkCases() =>
         Volatile.Read(ref this.currentRunSelectedBenchmarkCases);
 
     // 選択スナップショットとキュー生成の規則は UI.Core の BenchmarkSelectionQueueLogic に集約する。
     // 表示中タブだけの生きた状態(チェックボックス)を優先する。
+    /// <summary>
+    /// CreateSelectedBenchmarkCasesFromAllTabs メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkCase> CreateSelectedBenchmarkCasesFromAllTabs() {
         this.CaptureCurrentBenchmarkSelections();
         return BenchmarkSelectionQueueLogic.CreateSelectedCasesFromAllTabs(
@@ -1857,15 +3018,38 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 : null);
     }
 
+    /// <summary>
+    /// CreateRowSelectionKey メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <param name="rowKey">rowKey を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static string CreateRowSelectionKey(BenchmarkSourceTabDefinition sourceTab,string rowKey) =>
         sourceTab.Id+"|"+rowKey;
 
+    /// <summary>
+    /// CreateBenchmarkCellSelectionKey メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <param name="method">method を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     internal static string CreateBenchmarkCellSelectionKey(BenchmarkSourceTabDefinition sourceTab,string method,string project) =>
         BenchmarkSelectionQueueLogic.CreateCellSelectionKey(sourceTab,method,project);
 
+    /// <summary>
+    /// CreateBenchmarkCellKey メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <param name="method">method を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static string CreateBenchmarkCellKey(BenchmarkSourceTabDefinition sourceTab,string method,string project) =>
         BenchmarkSelectionQueueLogic.CreateCellSelectionKey(sourceTab,method,project);
 
+    /// <summary>
+    /// SaveUiState メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     public void SaveUiState() {
         this.CaptureCurrentBenchmarkSelections();
         if(this.IsBenchmarkRunActive) {
@@ -1884,10 +3068,16 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// DiscardPendingCloseStateSave メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     public void DiscardPendingCloseStateSave() {
         this.HasPendingCloseStateSave=false;
     }
 
+    /// <summary>
+    /// RefreshBenchmarkSelectionDisplay メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RefreshBenchmarkSelectionDisplay() {
         if(this.isRefreshingBenchmarkSelectionDisplay||this.BenchmarkRows.Count==0) {
             return;
@@ -1912,6 +3102,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// RefreshComparisonRowsFromDisplayResults メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RefreshComparisonRowsFromDisplayResults() {
         var selectedElementCount = this.SelectedResultElementCount?.Value;
         if(this.HasCurrentRunResultsForSelectedTab) {
@@ -1928,13 +3121,28 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             return;
         }
 
-        this.comparisonRows=[];
+        this.comparisonRows= [];
     }
 
+    /// <summary>
+    /// comparisonRowsRequestToken フィールドです。
+    /// </summary>
     private int comparisonRowsRequestToken;
+    /// <summary>
+    /// comparisonRowsRefreshInFlight フィールドです。
+    /// </summary>
     private bool comparisonRowsRefreshInFlight;
+    /// <summary>
+    /// comparisonRowsRefreshPending フィールドです。
+    /// </summary>
     private bool comparisonRowsRefreshPending;
 
+    /// <summary>
+    /// ComparisonRowsTabInput メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="State">State を指定して実行条件を制御します。</param>
+    /// <param name="CurrentRunResults">CurrentRunResults を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private readonly record struct ComparisonRowsTabInput(
         BenchmarkSourceTabViewState State,
         IReadOnlyList<BenchmarkResultItem> CurrentRunResults);
@@ -1943,6 +3151,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     // を伴い重い。currentRunSession/ResultItemsに触れる部分だけをUIスレッドで同期的にスナップショット
     // し、残りの純粋計算(フィルタ・整形・DB参照)はバックグラウンドスレッドで行い、
     // state.ComparisonRows(ObservableCollectionではない単純プロパティ)への代入だけをUIスレッドに戻す。
+    /// <summary>
+    /// 現 在 の 状 態 を 再 計 算 し て 内 容 を 最 新 化 し ま す 。
+    /// 処 理 を 実 行 し 、 関 連 す る 状 態 や 表 示 を 更 新 し ま す 。
+    /// </summary>
     private void RefreshAllComparisonRowsFromDisplayResults() {
         if(this.comparisonRowsRefreshInFlight) {
             this.comparisonRowsRefreshPending=true;
@@ -1980,7 +3192,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                             this.RefreshFinalCompletionStates();
                             this.UpdateChart();
                         });
-                    }else if(task.IsFaulted) {
+                    }
+                    else if(task.IsFaulted) {
                         StartupDiagnostics.Write("Background RefreshAllComparisonRowsFromDisplayResults failed.",task.Exception);
                     }
 
@@ -1992,6 +3205,13 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             },TaskScheduler.Default);
     }
 
+    /// <summary>
+    /// ComputeComparisonRowsForTab メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="input">input を指定して実行条件を制御します。</param>
+    /// <param name="resultItemsSnapshot">resultItemsSnapshot を指定して実行条件を制御します。</param>
+    /// <param name="selectedElementCount">selectedElementCount を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkComparisonRow> ComputeComparisonRowsForTab(
         ComparisonRowsTabInput input,
         IReadOnlyList<BenchmarkResultItem> resultItemsSnapshot,
@@ -2011,6 +3231,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return [];
     }
 
+    /// <summary>
+    /// ApplyBenchmarkSelectionsFromProgressState メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="state">state を指定して実行条件を制御します。</param>
     private void ApplyBenchmarkSelectionsFromProgressState(ProgressState? state) {
         if(state is null) {
             return;
@@ -2043,6 +3267,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// DiscardUnsavedBenchmarkResults メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     public void DiscardUnsavedBenchmarkResults() {
         // 結果は QueueSaveResult で SQLite へ保存済みのため、未保存表示を解除する。
         // 実行していない状態で終了確認が出ないようにする。
@@ -2052,11 +3279,20 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshToolbarCommandStates();
     }
 
+    /// <summary>
+    /// GetProgressStateForCurrentUnsavedRun メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private ProgressState? GetProgressStateForCurrentUnsavedRun() =>
         string.IsNullOrWhiteSpace(this.currentUnsavedRunRoot)
             ? null
             : this.CreateProgressStateFromAllTabResults(this.currentUnsavedRunRoot);
 
+    /// <summary>
+    /// GetProgressStateForCurrentDisplay メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="targetRoot">targetRoot を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private ProgressState? GetProgressStateForCurrentDisplay(string targetRoot) {
         if(this.HasUnsavedBenchmarkResults) {
             return this.CreateProgressStateFromAllTabResults(targetRoot);
@@ -2070,6 +3306,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             ??this.CreateProgressStateFromAllTabResults(targetRoot);
     }
 
+    /// <summary>
+    /// CreateProgressStateFromDisplayedResults メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="runRoot">runRoot を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private ProgressState CreateProgressStateFromDisplayedResults(string runRoot) {
         var sourceTab = this.SelectedSourceDefinition;
         var results = this.GetResultSourceForDisplay()
@@ -2077,6 +3318,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return this.CreateProgressStateFromResults(runRoot,results);
     }
 
+    /// <summary>
+    /// CreateProgressStateFromAllTabResults メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="runRoot">runRoot を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private ProgressState CreateProgressStateFromAllTabResults(string runRoot) {
         var results = this.currentRunSession.HasAnyResults
             ? this.currentRunSession.GetAllResults()
@@ -2084,6 +3330,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return this.CreateProgressStateFromResults(runRoot,results);
     }
 
+    /// <summary>
+    /// CreateProgressStateFromResults メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="runRoot">runRoot を指定して実行条件を制御します。</param>
+    /// <param name="sourceResults">sourceResults を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private ProgressState CreateProgressStateFromResults(string runRoot,IEnumerable<BenchmarkResultItem> sourceResults) {
         this.CaptureCurrentBenchmarkSelections();
         return BenchmarkRunSession.CreateProgressState(
@@ -2097,6 +3349,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             result => this.FindBenchmarkCase(result.Method,result.Project,result.TypeFullName,result.ArgumentKey,result.SourceTab));
     }
 
+    /// <summary>
+    /// typeFullName プロパティです。
+    /// </summary>
+    /// <value>typeFullName の値を取得/設定します。</value>
     private BenchmarkCase? FindBenchmarkCase(string method,string project,string typeFullName = "",string argumentKey = "",BenchmarkSourceTab? sourceTab = null) {
         if(this.benchmarkCasesByProjectMethod.TryGetValue(CreateBenchmarkCaseKey(method,project,typeFullName,argumentKey),out var benchmark)) {
             return benchmark;
@@ -2117,9 +3373,18 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             .GetValueOrDefault(project);
     }
 
+    /// <summary>
+    /// argumentKey プロパティです。
+    /// </summary>
+    /// <value>argumentKey の値を取得/設定します。</value>
     private static string CreateBenchmarkCaseKey(string method,string project,string typeFullName,string argumentKey = "") =>
         BenchmarkRowGroupingLogic.CreateCaseKey(project,typeFullName,method,argumentKey);
 
+    /// <summary>
+    /// ShortTypeName メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="typeFullName">typeFullName を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static string ShortTypeName(string typeFullName) {
         if(string.IsNullOrWhiteSpace(typeFullName)) {
             return string.Empty;
@@ -2131,6 +3396,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             : typeFullName[(index+1)..];
     }
 
+    /// <summary>
+    /// FindBenchmarkRow メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private BenchmarkTableRow? FindBenchmarkRow(BenchmarkResultItem result) {
         if(result.RunItemIndex>=0&&this.benchmarkRowsByRunItemIndex.TryGetValue(result.RunItemIndex,out var indexedRow)) {
             return indexedRow;
@@ -2144,6 +3414,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return row;
     }
 
+    /// <summary>
+    /// FindBenchmarkRow メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="job">job を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private BenchmarkTableRow? FindBenchmarkRow(BenchmarkJob job) {
         if(job.RunItemIndex>=0&&this.benchmarkRowsByRunItemIndex.TryGetValue(job.RunItemIndex,out var indexedRow)) {
             return indexedRow;
@@ -2157,14 +3432,26 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return row;
     }
 
+    /// <summary>
+    /// ResolveBenchmarkRowByKey メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <param name="typeFullName">typeFullName を指定して実行条件を制御します。</param>
+    /// <param name="method">method を指定して実行条件を制御します。</param>
+    /// <param name="argumentKey">argumentKey を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private BenchmarkTableRow? ResolveBenchmarkRowByKey(BenchmarkSourceTab sourceTab,string project,string typeFullName,string method,string argumentKey) =>
         this.TryFindBenchmarkRow(sourceTab,project,typeFullName,method,argumentKey,out var row) ? row : null;
 
     /// <summary>
-    /// RunItemIndexキャッシュを外れて文字列キー照合(旧方式)にフォールバックした場合の処理。
-    /// 「そのindexを初めて見た(ブートストラップ)」は毎ジョブ1回は必ず起きる正常系のため黙って登録するだけに留め、
-    /// 「文字列キーでも解決できない」「既知のindexが以前と別の行に化けた(衝突)」という真の異常時だけログ+ログタブ強調表示する。
+    /// RegisterRunItemIndexMismatch メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
+    /// <param name="runItemIndex">runItemIndex を指定して実行条件を制御します。</param>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <param name="method">method を指定して実行条件を制御します。</param>
+    /// <param name="resolvedRow">resolvedRow を指定して実行条件を制御します。</param>
     private void RegisterRunItemIndexMismatch(int runItemIndex,BenchmarkSourceTab sourceTab,string project,string method,BenchmarkTableRow? resolvedRow) {
         if(runItemIndex<0) {
             // 実行中ジョブに紐づかない結果(履歴表示・比較用など)は元々index管理の対象外のため無視する。
@@ -2189,6 +3476,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         // それ以外(初回ブートストラップで文字列キーにより正常解決)はログを出さない。
     }
 
+    /// <summary>
+    /// GuessRunItemIndexUnresolvedCause メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private string GuessRunItemIndexUnresolvedCause() {
         if(this.IsBenchmarkPaused&&this.activeRunRoot is not null) {
             return "pause/resume間で行マップが再構築されずに古いindexを参照した可能性";
@@ -2201,6 +3492,16 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return "アダプティブ実行中の動的ジョブ生成が行マップの再構築より先行した可能性";
     }
 
+    /// <summary>
+    /// TryFindBenchmarkRow メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <param name="typeFullName">typeFullName を指定して実行条件を制御します。</param>
+    /// <param name="method">method を指定して実行条件を制御します。</param>
+    /// <param name="argumentKey">argumentKey を指定して実行条件を制御します。</param>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private bool TryFindBenchmarkRow(BenchmarkSourceTab sourceTab,string project,string typeFullName,string method,string argumentKey,out BenchmarkTableRow row) {
         if(this.benchmarkRowsByResultKey.TryGetValue(CreateBenchmarkRowResultIndexKey(sourceTab,project,typeFullName,method,argumentKey),out row!)) {
             return true;
@@ -2214,12 +3515,34 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return this.benchmarkRowsByProjectMethod.TryGetValue(CreateBenchmarkRowMethodProjectIndexKey(sourceTab,project,method),out row!);
     }
 
+    /// <summary>
+    /// CreateBenchmarkRowResultIndexKey メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <param name="typeFullName">typeFullName を指定して実行条件を制御します。</param>
+    /// <param name="method">method を指定して実行条件を制御します。</param>
+    /// <param name="argumentKey">argumentKey を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static string CreateBenchmarkRowResultIndexKey(BenchmarkSourceTab sourceTab,string project,string typeFullName,string method,string argumentKey) =>
         string.Join("|",sourceTab,project,typeFullName,method,argumentKey);
 
+    /// <summary>
+    /// CreateBenchmarkRowMethodProjectIndexKey メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <param name="method">method を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static string CreateBenchmarkRowMethodProjectIndexKey(BenchmarkSourceTab sourceTab,string project,string method) =>
         string.Join("|",sourceTab,project,method);
 
+    /// <summary>
+    /// IsResultForRow メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static bool IsResultForRow(BenchmarkTableRow row,BenchmarkResultItem result) {
         if(row.CasesByProject.TryGetValue(result.Project,out var benchmark)) {
             return string.Equals(benchmark.MethodName,result.Method,StringComparison.OrdinalIgnoreCase)
@@ -2230,6 +3553,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return false;
     }
 
+    /// <summary>
+    /// IsJobForRow メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="job">job を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static bool IsJobForRow(BenchmarkTableRow row,BenchmarkJob job) {
         if(row.CasesByProject.TryGetValue(job.Project,out var benchmark)) {
             return string.Equals(benchmark.MethodName,job.MethodName,StringComparison.OrdinalIgnoreCase)
@@ -2240,6 +3569,13 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return false;
     }
 
+    /// <summary>
+    /// IsMatchingTypeForRow メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="actualTypeFullName">actualTypeFullName を指定して実行条件を制御します。</param>
+    /// <param name="expectedTypeFullName">expectedTypeFullName を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static bool IsMatchingTypeForRow(BenchmarkTableRow row,string actualTypeFullName,string expectedTypeFullName) {
         if(IsScalableSourceTab(row.SourceTab.Tab)) {
             return !string.IsNullOrWhiteSpace(actualTypeFullName)
@@ -2250,10 +3586,22 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             ||string.Equals(expectedTypeFullName,actualTypeFullName,StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// IsMatchingArgumentForRow メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <param name="expectedArgumentKey">expectedArgumentKey を指定して実行条件を制御します。</param>
+    /// <param name="actualArgumentKey">actualArgumentKey を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static bool IsMatchingArgumentForRow(BenchmarkSourceTab sourceTab,string expectedArgumentKey,string actualArgumentKey) =>
         !IsScalableSourceTab(sourceTab)
         ||string.Equals(expectedArgumentKey,actualArgumentKey,StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// IsScalableSourceTab メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static bool IsScalableSourceTab(BenchmarkSourceTab sourceTab) =>
         sourceTab is BenchmarkSourceTab.ScalableSet
             or BenchmarkSourceTab.ScalableDictionary
@@ -2263,6 +3611,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             or BenchmarkSourceTab.ScalablePersistedDictionary
             or BenchmarkSourceTab.ScalableTsavoriteDictionary;
 
+    /// <summary>
+    /// CreateUnsavedRunRoot メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="executionProfile">executionProfile を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private string CreateUnsavedRunRoot(BenchmarkExecutionProfile executionProfile) {
         var profileRoot = this.GetBenchmarkRoot(executionProfile);
         var root = Path.Combine(profileRoot,".unsaved",Guid.NewGuid().ToString("N"));
@@ -2270,6 +3623,15 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return root;
     }
 
+    /// <summary>
+    /// LoadExternalRows メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="displayName">displayName を指定して実行条件を制御します。</param>
+    /// <param name="runRoot">runRoot を指定して実行条件を制御します。</param>
+    /// <param name="state">state を指定して実行条件を制御します。</param>
+    /// <param name="rowsByElementCount">rowsByElementCount を指定して実行条件を制御します。</param>
+    /// <param name="rowsWithoutElementCount">rowsWithoutElementCount を指定して実行条件を制御します。</param>
+    /// <param name="selectedElementCount">selectedElementCount を指定して実行条件を制御します。</param>
     private void LoadExternalRows(
         string displayName,
         string runRoot,
@@ -2300,7 +3662,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             this.comparisonRows=rowsByElementCount.TryGetValue(selectedElementCount,out var selectedRows)
                 ? selectedRows
                 : [];
-        }else{
+        }
+        else {
             this.SelectedResultElementCount=null;
             this.CurrentElementCountText="-";
             this.comparisonRows=rowsWithoutElementCount;
@@ -2321,6 +3684,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshToolbarCommandStates();
     }
 
+    /// <summary>
+    /// RunOrResumeAsync メソッドを実行し、結果を算出して返却します。
+    /// </summary>
     private async Task RunOrResumeAsync() {
         if(this.IsBenchmarkRunning) {
             return;
@@ -2339,6 +3705,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 
 #if DEBUG
+    /// <summary>
+    /// RunInfiniteAsync メソッドを実行し、結果を算出して返却します。
+    /// </summary>
     private async Task RunInfiniteAsync() {
         if(this.IsBenchmarkRunning) {
             return;
@@ -2353,6 +3722,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 #endif
 
+    /// <summary>
+    /// TryPrepareSelectedDatabaseRunResume メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="runRoot">runRoot を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private bool TryPrepareSelectedDatabaseRunResume(out string runRoot) {
         runRoot=string.Empty;
         var option = this.SelectedRunOption;
@@ -2384,6 +3758,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return true;
     }
 
+    /// <summary>
+    /// useInfiniteTestRunner プロパティです。
+    /// </summary>
+    /// <value>useInfiniteTestRunner の値を取得/設定します。</value>
     private async Task RunAsync(string? runRootOverride,bool useInfiniteTestRunner = false) {
         this.RefreshCurrentRunBenchmarkSelectionSnapshot();
         var selected = this.GetCurrentRunSelectedBenchmarkCases().ToArray();
@@ -2487,9 +3865,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 this.StatusText="一時停止しました";
                 this.QueueUiRunStatus(uiRunId,UiRunStatus.Paused,"Benchmark run paused.");
                 StartupDiagnostics.Write("Benchmark run paused.");
-                this.SetActiveRunRoot(completedRunRoot ?? runRoot);
+                this.SetActiveRunRoot(completedRunRoot??runRoot);
                 keepPausedRunRoot=true;
-            }else{
+            }
+            else {
                 this.StatusText="キャンセルしました";
                 this.QueueUiRunStatus(uiRunId,UiRunStatus.Stopped,"Benchmark run canceled.");
                 StartupDiagnostics.Write("Benchmark run canceled.");
@@ -2514,7 +3893,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             if(isCurrentRun) {
                 if(completedNormally) {
                     this.renderScheduler.FlushNow();
-                }else{
+                }
+                else {
                     this.runEventPipeline.Clear();
                 }
             }
@@ -2541,9 +3921,15 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             this.PauseCommand.NotifyCanExecuteChanged();
             this.RefreshToolbarCommandStates();
             if(isCurrentRun) {
+                // パイプラインに残った終端イベントの反映完了後に一度だけ表示最終化を行う。
+                // クリーンアップより前に立てる(クリーンアップ末尾でも判定するため)。トークンは
+                // クリーンアップ実施前の値を控え、実施後(トークンが進んだ後)のみ最終化を許可する。
+                this.pendingPostRunDisplayFinalize=true;
+                this.pendingPostRunFinalizeCleanupToken=this.finalLiveVisualCleanupToken;
                 if(completedNormally&&this.TryGetRemainingRunningVisualDelay(out var finalVisualDelay)) {
                     this.ScheduleFinalLiveVisualCleanup(runGeneration,finalVisualDelay);
-                }else{
+                }
+                else {
                     this.ApplyFinalLiveVisualCleanup(!completedNormally);
                 }
                 if(!keepPausedRunRoot) {
@@ -2569,16 +3955,32 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// CreateUiRunAsync メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="runSourceTab">runSourceTab を指定して実行条件を制御します。</param>
+    /// <param name="executionProfile">executionProfile を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private async Task<long?> CreateUiRunAsync(BenchmarkSourceTab runSourceTab,BenchmarkExecutionProfile executionProfile) {
         var executionProfileText = executionProfile.ToString();
         var displayName = BenchmarkAppProfile.Title+" "+DateTimeOffset.Now.ToString("yyyy/MM/dd HH:mm:ss",System.Globalization.CultureInfo.InvariantCulture);
         return await this.uiRunRepository.CreateRunAsync(GetUiRunAppKind(),displayName,executionProfileText,runSourceTab);
     }
 
+    /// <summary>
+    /// QueueUiRunStatus メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="runId">runId を指定して実行条件を制御します。</param>
+    /// <param name="status">status を指定して実行条件を制御します。</param>
+    /// <param name="message">message を指定して実行条件を制御します。</param>
     private void QueueUiRunStatus(long? runId,UiRunStatus status,string message) {
         this.uiRunRepository.QueueRunStatus(runId,status,message);
     }
 
+    /// <summary>
+    /// CreateBenchmarkViewStateSnapshot メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private BenchmarkViewStateSnapshot CreateBenchmarkViewStateSnapshot() {
         var state = this.CreateProgressStateFromAllTabResults(this.currentUnsavedRunRoot??string.Empty);
         // JSONシリアライズは保存キューのバックグラウンドスレッドで遅延実行する(UIスレッドで
@@ -2589,10 +3991,20 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             this.SelectedResultElementCount?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)??string.Empty);
     }
 
+    /// <summary>
+    /// QueueBenchmarkResultSave メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
+    /// <param name="runGeneration">runGeneration を指定して実行条件を制御します。</param>
+    /// <param name="runId">runId を指定して実行条件を制御します。</param>
     private void QueueBenchmarkResultSave(BenchmarkResultItem result,int runGeneration,long? runId) {
         this.persistenceBatcher.Enqueue(new BenchmarkPersistenceItem(result,runGeneration,runId));
     }
 
+    /// <summary>
+    /// QueueBenchmarkResultsSave メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="items">items を指定して実行条件を制御します。</param>
     private void QueueBenchmarkResultsSave(IReadOnlyList<BenchmarkPersistenceItem> items) {
         if(items.Count==0) {
             this.SyncDiagnosticRows(this.PipelineDiagnosticRows,this.pipelineDiagnostics.CreateRows());
@@ -2613,6 +4025,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.SyncDiagnosticRows(this.PipelineDiagnosticRows,this.pipelineDiagnostics.CreateRows());
     }
 
+    /// <summary>
+    /// GetUiRunAppKind メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private static UiRunAppKind GetUiRunAppKind() {
 #if SCALABLE_BENCHMARK
         return UiRunAppKind.ScalableBenchmark;
@@ -2621,10 +4037,19 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
 #endif
     }
 
+    /// <summary>
+    /// Cancel メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void Cancel() {
         this.runCancellation?.Cancel();
     }
 
+    /// <summary>
+    /// AcceptRunResult メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
+    /// <param name="runGeneration">runGeneration を指定して実行条件を制御します。</param>
+    /// <param name="uiRunId">uiRunId を指定して実行条件を制御します。</param>
     private void AcceptRunResult(BenchmarkResultItem result,int runGeneration,long? uiRunId) {
         if(runGeneration!=this.runResultGeneration) {
             return;
@@ -2638,6 +4063,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.renderScheduler.RequestRender();
     }
 
+    /// <summary>
+    /// AcceptRunStatus メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="status">status を指定して実行条件を制御します。</param>
     private void AcceptRunStatus(string status) {
         lock(this.runStatusGate) {
             this.pendingRunStatusText=status;
@@ -2645,6 +4074,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RequestRunStatusUpdate();
     }
 
+    /// <summary>
+    /// RequestRunStatusUpdate メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RequestRunStatusUpdate() {
         if(Interlocked.Exchange(ref this.isRunStatusUpdateScheduled,1)==1) {
             return;
@@ -2672,6 +4104,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         });
     }
 
+    /// <summary>
+    /// ApplyRunUiSnapshot メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="snapshot">snapshot を指定して実行条件を制御します。</param>
     private void ApplyRunUiSnapshot(BenchmarkUiSnapshot snapshot) {
         if(!snapshot.HasUpdates) {
             this.SyncDiagnosticRows(this.PipelineDiagnosticRows,this.pipelineDiagnostics.CreateRows());
@@ -2686,7 +4122,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         UiThreadBudget.Measure("terminal-apply",() => {
             foreach(var item in snapshot.TerminalResults) {
                 var dirtyTab = this.ApplyTerminalSnapshotResult(item);
-                if(dirtyTab is {} tab) {
+                if(dirtyTab is { } tab) {
                     // チャート再構築はここでは起動しない。パイプラインのRefreshChart(1000ms集約)で
                     // まとめてflushする。tick(100ms)毎に起動するとUIスレッドの反映コスト
                     // (SyncChartPoints+診断行Clear/Add)だけで飽和し、入力を受け付けなくなる。
@@ -2709,19 +4145,30 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                         }
                     });
                 }
-            }else{
+            }
+            else {
                 this.pendingDirtyChartTabs.Clear();
                 UiThreadBudget.Measure("idle-refresh",() => {
                     this.RefreshResultChecks(this.SelectedSourceDefinition.Tab);
                     this.RefreshVisibleResults();
                     this.ApplySelectedElementCountToTable();
                     this.UpdateChart();
+                    // 実行終了後に持ち越された終端イベントの反映後、完全完了アイコンとバッジを
+                    // 再計算する。これらは実行中(ACTIVE)分岐でしか更新されないため、ここが無いと
+                    // 最終ステップの確定表示が永遠に反映されない。
+                    this.RefreshFinalCompletionStates();
+                    this.RefreshSourceTabProgresses();
                 });
             }
         }
         this.SyncDiagnosticRows(this.PipelineDiagnosticRows,this.pipelineDiagnostics.CreateRows());
+        this.TryApplyPostRunDisplayFinalize();
     }
 
+    /// <summary>
+    /// ApplyRunningSnapshotResult メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="item">item を指定して実行条件を制御します。</param>
     private void ApplyRunningSnapshotResult(BenchmarkRunEvent item) {
         if(item.RunGeneration!=this.runResultGeneration) {
             return;
@@ -2751,6 +4198,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         row?.ApplyRunResult(result,cpu,DateTimeOffset.Now);
     }
 
+    /// <summary>
+    /// ApplyTerminalSnapshotResult メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="item">item を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private BenchmarkSourceTab? ApplyTerminalSnapshotResult(BenchmarkRunEvent item) {
         if(item.RunGeneration!=this.runResultGeneration) {
             return null;
@@ -2768,12 +4220,19 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 result.TypeFullName));
         }
 
-        var shouldDelayTerminalVisual = this.TryGetTerminalVisualDelay(result,out var terminalVisualDelay);
+        // FlushNow は BeginInvoke 予約であり、終端イベントは MaxTerminalResultsPerTick 件ずつの
+        // 分割描画のため、実行終了(finally)後に残りが描画されることがある。その場合はデータ反映のみ
+        // 行い、ライブ表示(CPUセル/タブ実行状態/行)には書かない。最終クリーンアップを最後の書き手にするため。
+        var isLiveVisualActive = this.IsBenchmarkRunActive;
+        var terminalVisualDelay = TimeSpan.Zero;
+        var shouldDelayTerminalVisual = isLiveVisualActive&&this.TryGetTerminalVisualDelay(result,out terminalVisualDelay);
         var cpu = this.FindAssignedCpu(result);
         if(!shouldDelayTerminalVisual) {
             this.runningVisualStartedAt.Remove(CreateRunningVisualKey(result));
-            cpu?.ApplyJob(result);
-            this.ApplySourceTabRunningResult(result);
+            if(isLiveVisualActive) {
+                cpu?.ApplyJob(result);
+                this.ApplySourceTabRunningResult(result);
+            }
         }
         BenchmarkSourceTab? dirtyChartTab = null;
         if(result.AxisCount>0) {
@@ -2783,7 +4242,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 this.UpsertResultItem(result);
                 this.RegisterResultElementCount(result.AxisCount);
             }
-            if(!shouldDelayTerminalVisual) {
+            if(!shouldDelayTerminalVisual&&isLiveVisualActive) {
                 this.FindBenchmarkRow(result)?.ApplyRunResult(result,cpu,DateTimeOffset.Now);
                 dirtyChartTab=result.SourceTab;
             }
@@ -2797,14 +4256,20 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return dirtyChartTab;
     }
 
+    /// <summary>
+    /// ClearCpuJobs メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ClearCpuJobs() {
         foreach(var cpu in this.CpuItems) {
             cpu.ClearJob();
         }
     }
 
+    /// <summary>
+    /// ToggleRun メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ToggleRun() {
-        if(this.IsBenchmarkPaused && this.activeRunRoot is not null) {
+        if(this.IsBenchmarkPaused&&this.activeRunRoot is not null) {
             _=this.RunAsync(this.activeRunRoot);
             return;
         }
@@ -2812,6 +4277,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         _=this.RunAsync(null);
     }
 
+    /// <summary>
+    /// HandleRunResult メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
+    /// <param name="runGeneration">runGeneration を指定して実行条件を制御します。</param>
+    /// <param name="uiRunId">uiRunId を指定して実行条件を制御します。</param>
     private void HandleRunResult(BenchmarkResultItem result,int runGeneration,long? uiRunId) {
         if(runGeneration!=this.runResultGeneration) {
             return;
@@ -2843,18 +4314,18 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         var terminalVisualDelay = TimeSpan.Zero;
         var shouldDelayTerminalVisual = isTerminalResult&&this.TryGetTerminalVisualDelay(result,out terminalVisualDelay);
         var shouldRefreshSourceTabProgresses = false;
-        if(isRunningResult||isTerminalResult&&!shouldDelayTerminalVisual){
+        if(isRunningResult||isTerminalResult&&!shouldDelayTerminalVisual) {
             cpu?.ApplyJob(result);
             this.ApplySourceTabRunningResult(result);
         }
-        if(shouldDelayTerminalVisual){
+        if(shouldDelayTerminalVisual) {
             this.ScheduleTerminalVisualResult(result,runGeneration,terminalVisualDelay);
         }
         if(isRunningResult) {
             this.MarkActiveRunSourceTab(resultSourceTab);
         }
 
-        if(isFailedResult){
+        if(isFailedResult) {
             StartupDiagnostics.Write(BenchmarkFailureDisplayLogic.CreateLogText(
                 result.Project,
                 result.Method,
@@ -2921,6 +4392,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// ApplyImmediateRunningResult メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
     private void ApplyImmediateRunningResult(BenchmarkResultItem result) {
         if(!this.IsBenchmarkRunActive) {
             return;
@@ -2944,6 +4419,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         row?.ApplyRunResult(result,this.FindAssignedCpu(result),DateTimeOffset.Now);
     }
 
+    /// <summary>
+    /// MarkRunningVisualStarted メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
     private void MarkRunningVisualStarted(BenchmarkResultItem result) {
         var key = CreateRunningVisualKey(result);
         if(!this.runningVisualStartedAt.ContainsKey(key)) {
@@ -2951,6 +4430,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// TryGetTerminalVisualDelay メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
+    /// <param name="delay">delay を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private bool TryGetTerminalVisualDelay(BenchmarkResultItem result,out TimeSpan delay) {
         delay=TimeSpan.Zero;
         if(!this.runningVisualStartedAt.TryGetValue(CreateRunningVisualKey(result),out var startedAt)) {
@@ -2966,6 +4451,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return true;
     }
 
+    /// <summary>
+    /// TryGetRemainingRunningVisualDelay メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="delay">delay を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private bool TryGetRemainingRunningVisualDelay(out TimeSpan delay) {
         delay=TimeSpan.Zero;
         if(this.runningVisualStartedAt.Count==0) {
@@ -2983,11 +4473,18 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return delay>TimeSpan.Zero;
     }
 
+    /// <summary>
+    /// ScheduleTerminalVisualResult メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
+    /// <param name="runGeneration">runGeneration を指定して実行条件を制御します。</param>
+    /// <param name="delay">delay を指定して実行条件を制御します。</param>
     private void ScheduleTerminalVisualResult(BenchmarkResultItem result,int runGeneration,TimeSpan delay) {
+        var cleanupToken = this.finalLiveVisualCleanupToken;
         _=Task.Run(async () => {
             await Task.Delay(delay);
             this.uiDispatcher.BeginInvoke(() => {
-                if(runGeneration!=this.runResultGeneration) {
+                if(runGeneration!=this.runResultGeneration||cleanupToken!=this.finalLiveVisualCleanupToken) {
                     return;
                 }
 
@@ -2996,6 +4493,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         });
     }
 
+    /// <summary>
+    /// ApplyTerminalVisualResult メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
     private void ApplyTerminalVisualResult(BenchmarkResultItem result) {
         this.runningVisualStartedAt.Remove(CreateRunningVisualKey(result));
         this.FindAssignedCpu(result)?.ApplyJob(result);
@@ -3004,6 +4505,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.UpdateChartCore(this.GetSourceTabViewState(result.SourceTab),false);
     }
 
+    /// <summary>
+    /// ScheduleFinalLiveVisualCleanup メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="runGeneration">runGeneration を指定して実行条件を制御します。</param>
+    /// <param name="delay">delay を指定して実行条件を制御します。</param>
     private void ScheduleFinalLiveVisualCleanup(int runGeneration,TimeSpan delay) {
         _=Task.Run(async () => {
             await Task.Delay(delay);
@@ -3017,7 +4523,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         });
     }
 
+    /// <summary>
+    /// discardPendingRunUpdates プロパティです。
+    /// </summary>
+    /// <value>discardPendingRunUpdates の値を取得/設定します。</value>
     private void ApplyFinalLiveVisualCleanup(bool discardPendingRunUpdates = false) {
+        this.finalLiveVisualCleanupToken=unchecked(this.finalLiveVisualCleanupToken+1);
         if(discardPendingRunUpdates) {
             this.runEventPipeline.Clear();
         }
@@ -3029,14 +4540,53 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ApplySelectedElementCountToTable();
         this.RestoreLatestCompletedLiveResult();
         this.ClearCpuJobs();
+        // 持ち越し終端イベントが1件も無い場合は ApplyRunUiSnapshot がもう呼ばれないため、ここでも判定する。
+        this.TryApplyPostRunDisplayFinalize();
     }
 
+    /// <summary>
+    /// 実行終了後、パイプラインの持ち越し終端イベントが全て反映された時点で一度だけ
+    /// 表示の最終化(値の再描画+完全完了アイコン+バッジ+チャート)を行います。
+    /// 最終ステップの結果は実行終了後に描画されることがあり、実行中(ACTIVE)分岐の
+    /// RefreshFinalCompletionStates ではそれらを確定表示へ反映できないためです。
+    /// </summary>
+    private void TryApplyPostRunDisplayFinalize() {
+        if(!this.pendingPostRunDisplayFinalize||this.IsBenchmarkRunActive||this.runEventPipeline.HasPending) {
+            return;
+        }
+        if(this.finalLiveVisualCleanupToken==this.pendingPostRunFinalizeCleanupToken) {
+            // 最終クリーンアップ(遅延スケジュール分)がまだ実施されていない。クリーンアップは
+            // 行ライブ状態や表示を作り直すため、先に最終化するとその成果が消される。
+            // クリーンアップ末尾の呼び出しで改めて判定される。
+            return;
+        }
+
+        this.pendingPostRunDisplayFinalize=false;
+        StartupDiagnostics.Write("Post-run display finalize applied.");
+        UiThreadBudget.Measure("post-run-finalize",() => {
+            this.RefreshResultChecks(this.SelectedSourceDefinition.Tab);
+            this.RefreshVisibleResults();
+            this.ApplySelectedElementCountToTable();
+            this.UpdateChart();
+            this.RefreshFinalCompletionStates();
+            this.RefreshSourceTabProgresses();
+        });
+    }
+
+    /// <summary>
+    /// ClearBenchmarkLiveStates メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ClearBenchmarkLiveStates() {
         foreach(var row in this.GetAllBenchmarkRows()) {
             row.ClearLiveState();
         }
     }
 
+    /// <summary>
+    /// CreateRunningVisualKey メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static string CreateRunningVisualKey(BenchmarkResultItem result) =>
         result.SourceTab.ToString()
         +"|"+result.Project
@@ -3045,21 +4595,37 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         +"|"+result.ArgumentKey
         +"|"+result.AxisCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
+    /// <summary>
+    /// IsRunningResult メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static bool IsRunningResult(BenchmarkResultItem result) =>
         string.Equals(result.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// MarkActiveRunSourceTab メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
     private void MarkActiveRunSourceTab(BenchmarkSourceTab sourceTab) {
         this.ActiveRunSourceTab=sourceTab;
     }
 
-    private void ApplySourceTabRunningResult(BenchmarkResultItem result){
-        if(this.sourceTabRunningState.Apply(result)){
+    /// <summary>
+    /// ApplySourceTabRunningResult メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
+    private void ApplySourceTabRunningResult(BenchmarkResultItem result) {
+        if(this.sourceTabRunningState.Apply(result)) {
             this.RefreshSourceTabRunningStates();
         }
     }
 
-    private void ClearSourceTabRunningStates(){
-        if(this.sourceTabRunningState.Clear()){
+    /// <summary>
+    /// ClearSourceTabRunningStates メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    private void ClearSourceTabRunningStates() {
+        if(this.sourceTabRunningState.Clear()) {
             this.RefreshSourceTabRunningStates();
             return;
         }
@@ -3067,12 +4633,21 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshSourceTabRunningStates();
     }
 
-    private void RefreshSourceTabRunningStates(){
-        foreach(var option in this.SourceTabs){
+    /// <summary>
+    /// RefreshSourceTabRunningStates メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    private void RefreshSourceTabRunningStates() {
+        foreach(var option in this.SourceTabs) {
             option.SetRunning(this.sourceTabRunningState.IsRunning(option.Tab));
         }
     }
 
+    /// <summary>
+    /// RequestBenchmarkAutoScroll メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <param name="methodName">methodName を指定して実行条件を制御します。</param>
+    /// <param name="rowKey">rowKey を指定して実行条件を制御します。</param>
     private void RequestBenchmarkAutoScroll(BenchmarkSourceTab sourceTab,string methodName,string rowKey) {
         this.LatestBenchmarkAutoScrollRequest=new BenchmarkAutoScrollRequest(
             sourceTab,
@@ -3082,6 +4657,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.OnPropertyChanged(nameof(this.LatestBenchmarkAutoScrollRequest));
     }
 
+    /// <summary>
+    /// RestoreLatestCompletedLiveResult メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RestoreLatestCompletedLiveResult() {
         if(!this.HasCurrentRunResultsForSelectedTab) {
             return;
@@ -3097,6 +4675,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         row?.ApplyRunResult(result,this.FindAssignedCpu(result),DateTimeOffset.Now,false);
     }
 
+    /// <summary>
+    /// FindAssignedCpu メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private CpuSelectionItem? FindAssignedCpu(BenchmarkResultItem result) {
         var logicalCpu = BenchmarkResultCpuDisplayLogic.ResolveAssignedLogicalCpu(
             result.AssignedLogicalCpu,
@@ -3106,6 +4689,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             : null;
     }
 
+    /// <summary>
+    /// RefreshUnsavedRunSelection メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RefreshUnsavedRunSelection() {
         if(!this.HasUnsavedBenchmarkResults||!this.currentRunSession.HasAnyResults) {
             this.RefreshToolbarCommandStates();
@@ -3122,6 +4708,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshToolbarCommandStates();
     }
 
+    /// <summary>
+    /// UpsertResultItem メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
     private void UpsertResultItem(BenchmarkResultItem result) {
         // 実行が進むほどResultItemsが蓄積するため、RemoveAtを複数回行う実装(旧)は
         // 1件完了するたびにO(n)の走査+シフトが発生し実行後半でUIスレッドが詰まりやすかった。
@@ -3135,10 +4725,18 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ResultItems.Add(result);
     }
 
+    /// <summary>
+    /// UpsertCurrentRunResultItem メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
     private void UpsertCurrentRunResultItem(BenchmarkResultItem result) {
         this.currentRunSession.UpsertResult(result);
     }
 
+    /// <summary>
+    /// RefreshResultChecks メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="sourceTabValue">sourceTabValue を指定して実行条件を制御します。</param>
     private void RefreshResultChecks(BenchmarkSourceTab sourceTabValue) {
         var sourceTab = BenchmarkSourceTabs.Get(sourceTabValue);
         var results = this.GetCurrentRunResultItems(sourceTab.Tab)
@@ -3160,9 +4758,19 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// CreateResultRowKey メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private string CreateResultRowKey(BenchmarkResultItem result) =>
         this.FindBenchmarkRow(result)?.RowKey??result.Method;
 
+    /// <summary>
+    /// ApplyResultCheck メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
+    /// <param name="checkText">checkText を指定して実行条件を制御します。</param>
     private void ApplyResultCheck(BenchmarkResultItem result,string checkText) {
         result.ResultCheckText=checkText;
         var row = this.FindBenchmarkRow(result);
@@ -3176,15 +4784,28 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// GetSelectedElementCounts メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<int> GetSelectedElementCounts() {
         return BenchmarkElementCountLogic
             .BuildAdaptiveCandidates(BenchmarkElementCounts.All,BenchmarkElementCounts.All[^1])
             .ToArray();
     }
 
+    /// <summary>
+    /// GetBenchmarkRoot メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="profile">profile を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private string GetBenchmarkRoot(BenchmarkExecutionProfile profile) =>
         Path.Combine(this.benchmarkRoot,BenchmarkExecutionProfileNames.ToFolderName(profile));
 
+    /// <summary>
+    /// CreateThresholdOptions メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private static IReadOnlyList<ThresholdOption> CreateThresholdOptions() {
         var settings = new ThresholdOptionSettings();
         ConfigureThresholdOptions(settings);
@@ -3197,16 +4818,27 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
 
     static partial void ConfigureThresholdOptions(ThresholdOptionSettings settings);
 
+    /// <summary>
+    /// ThresholdOptionSettings プロパティです。
+    /// </summary>
+    /// <value>ThresholdOptionSettings の値を取得/設定します。</value>
     private sealed class ThresholdOptionSettings {
         public static readonly IReadOnlyList<int> Values = [1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192];
         public int MillisecondsScale { get; set; } = 1;
         public string Unit { get; set; } = "ms";
     }
 
+    /// <summary>
+    /// GetAdaptiveThreshold メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private TimeSpan GetAdaptiveThreshold() {
         return TimeSpan.FromMilliseconds(this.SelectedThreshold.Milliseconds);
     }
 
+    /// <summary>
+    /// UpdateComparisonRowsFromResults メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void UpdateComparisonRowsFromResults() {
         if(this.ResultItems.Count==0) {
             this.comparisonRows= [];
@@ -3225,6 +4857,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// RegisterResultElementCount メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="elementCount">elementCount を指定して実行条件を制御します。</param>
     private void RegisterResultElementCount(int elementCount) {
         if(elementCount<=0||this.ResultElementCountOptions.Any(item => item.Value==elementCount)) {
             return;
@@ -3246,12 +4882,22 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// FormatElementCountText メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="elementCount">elementCount を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static string FormatElementCountText(int elementCount) {
         return elementCount>0
             ? elementCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
             : "-";
     }
 
+    /// <summary>
+    /// FormatResultElementCountDisplayName メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="elementCount">elementCount を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private string FormatResultElementCountDisplayName(int elementCount) =>
         BenchmarkWorkloadAxis.UsesLoopCount(this.SelectedSourceDefinition.Tab)
             ? "Loop "+elementCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
@@ -3259,6 +4905,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 ? "N"
                 : elementCount.ToString(System.Globalization.CultureInfo.InvariantCulture)+"N";
 
+    /// <summary>
+    /// RebuildResultElementCounts メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="elementCounts">elementCounts を指定して実行条件を制御します。</param>
     private void RebuildResultElementCounts(IReadOnlyList<int> elementCounts) {
         this.ResultElementCountOptions.Clear();
         foreach(var elementCount in elementCounts.Where(static item => item>0).Distinct().Order()) {
@@ -3271,6 +4921,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.SyncSelectedResultElementCountIndex();
     }
 
+    /// <summary>
+    /// SelectResultElementCountByIndex メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="index">index を指定して実行条件を制御します。</param>
     private void SelectResultElementCountByIndex(int index) {
         if(this.ResultElementCountOptions.Count==0) {
             if(this.SelectedResultElementCount is not null) {
@@ -3286,6 +4940,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// SyncSelectedResultElementCountIndex メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void SyncSelectedResultElementCountIndex() {
         var index = this.SelectedResultElementCount is null
             ? 0
@@ -3302,6 +4959,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.OnPropertyChanged(nameof(this.IsChartElementSliderVisible));
     }
 
+    /// <summary>
+    /// RefreshVisibleResults メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RefreshVisibleResults() {
         this.VisibleResultItems.Clear();
         var selectedN = this.SelectedResultElementCount?.Value;
@@ -3310,24 +4970,48 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// HasCurrentRunResultsForSelectedTab プロパティです。
+    /// </summary>
+    /// <value>HasCurrentRunResultsForSelectedTab の値を取得/設定します。</value>
     private bool HasCurrentRunResultsForSelectedTab =>
         this.currentRunSession.HasResults(this.SelectedSourceDefinition.Tab);
 
+    /// <summary>
+    /// HasDisplayResults プロパティです。
+    /// </summary>
+    /// <value>HasDisplayResults の値を取得/設定します。</value>
     private bool HasDisplayResults =>
         this.ResultItems.Count>0
         ||this.HasCurrentRunResultsForSelectedTab
         ||this.currentRunSession.HasAnyResults;
 
+    /// <summary>
+    /// RefreshToolbarCommandStates メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RefreshToolbarCommandStates() {
         this.OnPropertyChanged(nameof(this.ToolbarStateInput));
     }
 
+    /// <summary>
+    /// GetCurrentRunResultItemsForSelectedTab メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkResultItem> GetCurrentRunResultItemsForSelectedTab() =>
         this.GetCurrentRunResultItems(this.SelectedSourceDefinition.Tab);
 
+    /// <summary>
+    /// GetCurrentRunResultItems メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkResultItem> GetCurrentRunResultItems(BenchmarkSourceTab sourceTab) =>
         this.currentRunSession.GetResults(sourceTab);
 
+    /// <summary>
+    /// RestoreCurrentRunDisplayForSelectedTab メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private bool RestoreCurrentRunDisplayForSelectedTab() {
         var results = this.GetCurrentRunResultItemsForSelectedTab();
         if(results.Count==0) {
@@ -3369,6 +5053,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return true;
     }
 
+    /// <summary>
+    /// ApplyCurrentRunResultsToTable メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="results">results を指定して実行条件を制御します。</param>
     private void ApplyCurrentRunResultsToTable(IReadOnlyList<BenchmarkResultItem> results) {
         var selectedN = this.SelectedResultElementCount?.Value;
         foreach(var result in results.Where(result => selectedN is null||result.AxisCount==selectedN)) {
@@ -3377,6 +5065,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// ClearSelectedRunDisplay メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ClearSelectedRunDisplay() {
         this.ClearSourceTabRunningStates();
         this.ClearRetainedChartPoints();
@@ -3391,6 +5082,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshToolbarCommandStates();
     }
 
+    /// <summary>
+    /// ClearAllCurrentRunResultsForFreshRun メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ClearAllCurrentRunResultsForFreshRun() {
         this.ClearSourceTabRunningStates();
         this.ClearRetainedChartPoints();
@@ -3409,9 +5103,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshToolbarCommandStates();
     }
 
+    /// <summary>
+    /// ClearAllSourceTabComparisonDisplays メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ClearAllSourceTabComparisonDisplays() {
         foreach(var state in this.sourceTabViewStates) {
-            state.ComparisonRows=[];
+            state.ComparisonRows= [];
             state.BenchmarkRatioSummaryText=string.Empty;
             state.ChartPoints.Clear();
             state.LatencyHotspotRows.Clear();
@@ -3425,10 +5122,13 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.OnPropertyChanged(nameof(this.CpuTimelineRows));
     }
 
+    /// <summary>
+    /// ClearSelectedSourceLiveResults メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ClearSelectedSourceLiveResults() {
         this.ClearRetainedChartPoints();
         this.currentRunSession.ClearSourceTab(this.SelectedSourceDefinition.Tab);
-        this.comparisonRows=[];
+        this.comparisonRows= [];
         this.ResultItems.Clear();
         this.VisibleResultItems.Clear();
         this.CurrentElementCountText="-";
@@ -3439,6 +5139,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshToolbarCommandStates();
     }
 
+    /// <summary>
+    /// PrepareSelectedSourceLiveResultsForRun メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void PrepareSelectedSourceLiveResultsForRun() {
         this.ClearRetainedChartPoints();
         this.currentRunSession.ClearSourceTab(this.SelectedSourceDefinition.Tab);
@@ -3453,12 +5156,22 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshToolbarCommandStates();
     }
 
+    /// <summary>
+    /// elementCount プロパティです。
+    /// </summary>
+    /// <value>elementCount の値を取得/設定します。</value>
     private void LoadComparisonRowsIntoResults(IReadOnlyList<BenchmarkComparisonRow> rows,int elementCount = 0) {
         this.ResultItems.Clear();
         this.VisibleResultItems.Clear();
         this.AddComparisonRowsIntoResults(rows,elementCount,this.LoadSelectedRunState());
     }
 
+    /// <summary>
+    /// AddComparisonRowsIntoResults メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="rows">rows を指定して実行条件を制御します。</param>
+    /// <param name="elementCount">elementCount を指定して実行条件を制御します。</param>
+    /// <param name="selectedRunState">selectedRunState を指定して実行条件を制御します。</param>
     private void AddComparisonRowsIntoResults(IReadOnlyList<BenchmarkComparisonRow> rows,int elementCount,ProgressState? selectedRunState) {
         foreach(var row in rows) {
             this.AddResult(row.MethodName,row.TypeFullName,row.ArgumentKey,row.Arguments,row.SourceTab.LeftProject,row.Left,elementCount,selectedRunState);
@@ -3466,6 +5179,17 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// AddResult メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="method">method を指定して実行条件を制御します。</param>
+    /// <param name="typeFullName">typeFullName を指定して実行条件を制御します。</param>
+    /// <param name="argumentKey">argumentKey を指定して実行条件を制御します。</param>
+    /// <param name="arguments">arguments を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <param name="metrics">metrics を指定して実行条件を制御します。</param>
+    /// <param name="elementCount">elementCount を指定して実行条件を制御します。</param>
+    /// <param name="selectedRunState">selectedRunState を指定して実行条件を制御します。</param>
     private void AddResult(
         string method,
         string typeFullName,
@@ -3491,16 +5215,26 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// ApplyComparisonRowsToTable メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ApplyComparisonRowsToTable() {
         this.ApplyComparisonRowsToTable(this.SelectedSourceTabViewState);
     }
 
+    /// <summary>
+    /// ApplyComparisonRowsToAllTables メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ApplyComparisonRowsToAllTables() {
         foreach(var state in this.sourceTabViewStates) {
             this.ApplyComparisonRowsToTable(state);
         }
     }
 
+    /// <summary>
+    /// ApplyComparisonRowsToTable メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="state">state を指定して実行条件を制御します。</param>
     private void ApplyComparisonRowsToTable(BenchmarkSourceTabViewState state) {
         var hasCurrentRunResults = this.currentRunSession.HasResults(state.Definition.Tab);
         foreach(var benchmark in state.Rows) {
@@ -3509,12 +5243,18 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshBenchmarkRatioSummary(state);
     }
 
+    /// <summary>
+    /// ClearUnselectedResultDisplays メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ClearUnselectedResultDisplays() {
         foreach(var benchmark in this.BenchmarkRows) {
             benchmark.ClearUnselectedResultDisplays();
         }
     }
 
+    /// <summary>
+    /// ApplySelectedDisplayResultsToTable メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ApplySelectedDisplayResultsToTable() {
         var selectedN = this.SelectedResultElementCount?.Value;
         foreach(var result in this.GetResultSourceForDisplay().Where(result => selectedN is null||result.AxisCount==selectedN)) {
@@ -3523,10 +5263,21 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// FindComparisonRow メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private BenchmarkComparisonRow? FindComparisonRow(BenchmarkTableRow row) {
         return this.FindComparisonRow(this.SelectedSourceTabViewState,row);
     }
 
+    /// <summary>
+    /// FindComparisonRow メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="state">state を指定して実行条件を制御します。</param>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private BenchmarkComparisonRow? FindComparisonRow(BenchmarkSourceTabViewState state,BenchmarkTableRow row) {
         foreach(var item in state.ComparisonRows) {
             if(IsComparisonRowMatch(row,item)) {
@@ -3537,10 +5288,17 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return null;
     }
 
+    /// <summary>
+    /// RefreshBenchmarkRatioSummary メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RefreshBenchmarkRatioSummary() {
         this.RefreshBenchmarkRatioSummary(this.SelectedSourceTabViewState);
     }
 
+    /// <summary>
+    /// RefreshBenchmarkRatioSummary メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="state">state を指定して実行条件を制御します。</param>
     private void RefreshBenchmarkRatioSummary(BenchmarkSourceTabViewState state) {
         state.BenchmarkRatioSummaryText=BenchmarkImprovementPromptBuilder.CreateSummary(state.ComparisonRows).DisplayText;
         if(state==this.SelectedSourceTabViewState) {
@@ -3548,6 +5306,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// RefreshImprovementPrompt メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RefreshImprovementPrompt() {
         var state = this.GetProgressStateForImprovementPrompt();
         var candidates = state is null
@@ -3557,6 +5318,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshImprovementPromptText();
     }
 
+    /// <summary>
+    /// ApplyImprovementCandidates メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="candidates">candidates を指定して実行条件を制御します。</param>
     private void ApplyImprovementCandidates(IReadOnlyList<BenchmarkImprovementCandidate> candidates) {
         this.LoadImprovementCandidateSelectionsForCurrentRun();
         var hasStoredSelections = this.hasLoadedImprovementCandidateSelections&&this.improvementCandidateSelections.Count>0;
@@ -3585,6 +5350,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ImprovementCandidateSummaryText=this.CreateImprovementCandidateSummary();
     }
 
+    /// <summary>
+    /// OnImprovementCandidateSelectionChanged メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="sender">sender を指定して実行条件を制御します。</param>
+    /// <param name="args">args を指定して実行条件を制御します。</param>
     private void OnImprovementCandidateSelectionChanged(object? sender,EventArgs args) {
         if(sender is not BenchmarkImprovementCandidateRow row) {
             return;
@@ -3598,6 +5368,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// RefreshImprovementPromptText メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RefreshImprovementPromptText() {
         this.ImprovementPromptText=BenchmarkImprovementPromptBuilder.BuildPrompt(
             this.ImprovementCandidates
@@ -3605,6 +5378,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 .Select(static row => row.Candidate));
     }
 
+    /// <summary>
+    /// CreateImprovementCandidateSummary メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private string CreateImprovementCandidateSummary() {
         var selected = this.ImprovementCandidates.Count(static row => row.IsSelected);
         var total = this.ImprovementCandidates.Count;
@@ -3616,6 +5393,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             +" / メモリ "+allocated.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 
+    /// <summary>
+    /// LoadImprovementCandidateSelectionsForCurrentRun メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void LoadImprovementCandidateSelectionsForCurrentRun() {
         var runId = this.GetCurrentImprovementSelectionRunId();
         if(this.loadedImprovementSelectionRunId==runId) {
@@ -3640,6 +5420,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// SaveImprovementCandidateSelection メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
     private void SaveImprovementCandidateSelection(BenchmarkImprovementCandidateRow row) {
         if(this.GetCurrentImprovementSelectionRunId() is not { } runId) {
             return;
@@ -3650,7 +5434,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 foreach(var item in this.ImprovementCandidates) {
                     this.uiRunStore.SaveUiSelection(runId,"ImprovementCandidate",item.Key,item.IsSelected);
                 }
-            }else{
+            }
+            else {
                 this.uiRunStore.SaveUiSelection(runId,"ImprovementCandidate",row.Key,row.IsSelected);
             }
             this.hasLoadedImprovementCandidateSelections=true;
@@ -3660,6 +5445,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// GetCurrentImprovementSelectionRunId メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private long? GetCurrentImprovementSelectionRunId() {
         if(this.activeUiRunId is { } active) {
             return active;
@@ -3671,6 +5460,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             : null;
     }
 
+    /// <summary>
+    /// CopyImprovementPromptAsync メソッドを実行し、結果を算出して返却します。
+    /// </summary>
     private async Task CopyImprovementPromptAsync() {
         if(string.IsNullOrWhiteSpace(this.ImprovementPromptText)) {
             return;
@@ -3680,18 +5472,44 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.StatusText="改善プロンプトをコピーしました";
     }
 
+    /// <summary>
+    /// chartRefreshBatchDepth フィールドです。
+    /// </summary>
     private int chartRefreshBatchDepth;
+    /// <summary>
+    /// pendingChartUpdate フィールドです。
+    /// </summary>
     private bool pendingChartUpdate;
-    private bool pendingChartUpdatePreserveExisting=true;
+    /// <summary>
+    /// pendingChartUpdatePreserveExisting フィールドです。
+    /// </summary>
+    private bool pendingChartUpdatePreserveExisting = true;
+    /// <summary>
+    /// pendingProgressRefresh フィールドです。
+    /// </summary>
     private bool pendingProgressRefresh;
+    /// <summary>
+    /// lastRunningProgressRefreshAt フィールドです。
+    /// </summary>
     private DateTimeOffset lastRunningProgressRefreshAt = DateTimeOffset.MinValue;
+    /// <summary>
+    /// RunningProgressRefreshInterval フィールドです。
+    /// </summary>
     private static readonly TimeSpan RunningProgressRefreshInterval = TimeSpan.FromMilliseconds(250);
 
+    /// <summary>
+    /// 処 理 を 実 行 し 、 関 連 す る 状 態 や 表 示 を 更 新 し ま す 。
+    /// 必 要 に 応 じ て 副 作 用 と し て 内 部 状 態 や 表 示 へ 反 映 し ま す 。
+    /// </summary>
+    /// <returns>処 理 結 果 を 返 却 し ま す 。</returns>
     private IDisposable BeginChartRefreshBatch() {
         this.chartRefreshBatchDepth++;
         return new ChartRefreshBatchScope(this);
     }
 
+    /// <summary>
+    /// EndChartRefreshBatch メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void EndChartRefreshBatch() {
         this.chartRefreshBatchDepth--;
         if(this.chartRefreshBatchDepth>0) {
@@ -3709,7 +5527,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
-    private sealed class ChartRefreshBatchScope:IDisposable{
+    /// <summary>
+    /// IDisposable プロパティです。
+    /// </summary>
+    /// <value>IDisposable の値を取得/設定します。</value>
+    private sealed class ChartRefreshBatchScope:IDisposable {
         private readonly BenchmarkRunnerViewModel owner;
         private bool disposed;
         public ChartRefreshBatchScope(BenchmarkRunnerViewModel owner) => this.owner=owner;
@@ -3722,6 +5544,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// RefreshSourceTabProgresses メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RefreshSourceTabProgresses() {
         if(this.chartRefreshBatchDepth>0) {
             this.pendingProgressRefresh=true;
@@ -3730,6 +5555,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshSourceTabProgressesCore();
     }
 
+    /// <summary>
+    /// RefreshSourceTabProgressesForRunningResult メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RefreshSourceTabProgressesForRunningResult() {
         if(this.chartRefreshBatchDepth>0) {
             this.pendingProgressRefresh=true;
@@ -3745,10 +5573,27 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshSourceTabProgressesCore();
     }
 
+    /// <summary>
+    /// sourceTabProgressRequestToken フィールドです。
+    /// </summary>
     private int sourceTabProgressRequestToken;
+    /// <summary>
+    /// sourceTabProgressRefreshInFlight フィールドです。
+    /// </summary>
     private bool sourceTabProgressRefreshInFlight;
+    /// <summary>
+    /// sourceTabProgressRefreshPending フィールドです。
+    /// </summary>
     private bool sourceTabProgressRefreshPending;
 
+    /// <summary>
+    /// SourceTabProgressInput メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="Option">Option を指定して実行条件を制御します。</param>
+    /// <param name="Definition">Definition を指定して実行条件を制御します。</param>
+    /// <param name="Cells">Cells を指定して実行条件を制御します。</param>
+    /// <param name="SessionResults">SessionResults を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private readonly record struct SourceTabProgressInput(
         SourceTabOption Option,
         BenchmarkSourceTabDefinition Definition,
@@ -3758,6 +5603,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     // 全5タブ分の進捗計算は実行が進むほど重くなる。UIスレッドに残すのは cells 構築(行数程度)と
     // 生の結果配列の確保(参照コピー)のみで、measurement射影(GroupBy/重複排除)と
     // BenchmarkTabProgressLogic.Calculate(O(cells×measurements)) はバックグラウンドで実行する。
+    /// <summary>
+    /// 現 在 の 状 態 を 再 計 算 し て 内 容 を 最 新 化 し ま す 。
+    /// 処 理 を 実 行 し 、 関 連 す る 状 態 や 表 示 を 更 新 し ま す 。
+    /// </summary>
     private void RefreshSourceTabProgressesCore() {
         if(this.sourceTabProgressRefreshInFlight) {
             this.sourceTabProgressRefreshPending=true;
@@ -3812,7 +5661,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                                 progresses.Sum(static progress => progress.Completed),
                                 progresses.Sum(static progress => progress.Total));
                         });
-                    }else if(task.IsFaulted) {
+                    }
+                    else if(task.IsFaulted) {
                         StartupDiagnostics.Write("Background source tab progress refresh failed.",task.Exception);
                     }
 
@@ -3824,6 +5674,14 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             },TaskScheduler.Default);
     }
 
+    /// <summary>
+    /// BuildProgressMeasurements メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sessionResults">sessionResults を指定して実行条件を制御します。</param>
+    /// <param name="resultItems">resultItems を指定して実行条件を制御します。</param>
+    /// <param name="stateJobs">stateJobs を指定して実行条件を制御します。</param>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static IReadOnlyList<BenchmarkElementMeasurement> BuildProgressMeasurements(
         IReadOnlyList<BenchmarkResultItem> sessionResults,
         IReadOnlyList<BenchmarkResultItem> resultItems,
@@ -3866,6 +5724,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             .ToArray();
     }
 
+    /// <summary>
+    /// CreateProgressCells メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkTabProgressCell> CreateProgressCells(BenchmarkSourceTabDefinition sourceTab) {
         var currentRunCells = this.CreateCurrentRunProgressCells(sourceTab);
         if(currentRunCells.Count>0) {
@@ -3891,6 +5754,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             .ToArray();
     }
 
+    /// <summary>
+    /// CreateCurrentRunProgressCells メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkTabProgressCell> CreateCurrentRunProgressCells(BenchmarkSourceTabDefinition sourceTab) {
         if(!this.IsBenchmarkRunActive&&!this.currentRunSession.HasAnyResults) {
             return [];
@@ -3902,6 +5770,13 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             : BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases(selectedCases,sourceTab);
     }
 
+    /// <summary>
+    /// CreateProgressCell メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <param name="isSelected">isSelected を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static BenchmarkTabProgressCell CreateProgressCell(BenchmarkRowDefinition row,string project,bool isSelected) {
         row.CasesByProject.TryGetValue(project,out var benchmark);
         return new BenchmarkTabProgressCell(
@@ -3913,6 +5788,13 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             row.RowKey);
     }
 
+    /// <summary>
+    /// CreateProgressCell メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <param name="isSelected">isSelected を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static BenchmarkTabProgressCell CreateProgressCell(BenchmarkTableRow row,string project,bool isSelected) {
         row.CasesByProject.TryGetValue(project,out var benchmark);
         return new BenchmarkTabProgressCell(
@@ -3924,6 +5806,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             row.RowKey);
     }
 
+    /// <summary>
+    /// GetProgressStateForImprovementPrompt メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private ProgressState? GetProgressStateForImprovementPrompt() {
         if(this.currentRunSession.HasAnyResults) {
             return this.CreateProgressStateFromAllTabResults(this.currentUnsavedRunRoot??string.Empty);
@@ -3932,6 +5818,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return this.LoadSelectedRunState();
     }
 
+    /// <summary>
+    /// RetainCompletedHighlightsForRunningElement メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="runningElementCount">runningElementCount を指定して実行条件を制御します。</param>
     private void RetainCompletedHighlightsForRunningElement(int runningElementCount) {
         if(runningElementCount<=0) {
             return;
@@ -3942,12 +5832,18 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// ClearRunResultHighlights メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ClearRunResultHighlights() {
         foreach(var row in this.GetAllBenchmarkRows()) {
             row.ClearRunHighlights();
         }
     }
 
+    /// <summary>
+    /// ClearBenchmarkResultDisplays メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ClearBenchmarkResultDisplays() {
         foreach(var row in this.GetAllBenchmarkRows()) {
             row.ClearResultDisplay();
@@ -3955,6 +5851,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.ClearFinalCompletionStates();
     }
 
+    /// <summary>
+    /// LoadSelectedRunFromDatabase メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="run">run を指定して実行条件を制御します。</param>
     private void LoadSelectedRunFromDatabase(BenchmarkRunOption run) {
         this.ClearSelectedRunDisplay();
         var sourceTabs = this.SourceTabs.Select(static option => option.Definition).ToArray();
@@ -3984,6 +5884,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         },TaskScheduler.Default);
     }
 
+    /// <summary>
+    /// ApplyLoadedRunResultItems メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="results">results を指定して実行条件を制御します。</param>
     private void ApplyLoadedRunResultItems(IReadOnlyList<BenchmarkResultItem> results) {
         using(this.BeginChartRefreshBatch()) {
             foreach(var result in results) {
@@ -4009,6 +5913,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// LoadSelectedRunFromDatabase メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void LoadSelectedRunFromDatabase() {
         if(this.isLoadingSelectedRunDb) {
             return;
@@ -4074,6 +5981,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// SelectResultElementCountWithoutReload メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="elementCount">elementCount を指定して実行条件を制御します。</param>
     private void SelectResultElementCountWithoutReload(int elementCount) {
         var option = this.ResultElementCountOptions.FirstOrDefault(item => item.Value==elementCount);
         if(option is null) {
@@ -4093,11 +6004,18 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.isApplyingResultElementCount=true;
         try {
             this.SelectedResultElementCount=option;
-        } finally {
+        }
+        finally {
             this.isApplyingResultElementCount=false;
         }
     }
 
+    /// <summary>
+    /// FindLatestTerminalElementCount メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="state">state を指定して実行条件を制御します。</param>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static int? FindLatestTerminalElementCount(ProgressState? state,BenchmarkSourceTabDefinition sourceTab) {
         return state?.Jobs
             .Where(job => BenchmarkWorkloadAxis.GetAxisCount(job)>0&&IsTerminalJob(job)&&sourceTab.ContainsProject(job.Project))
@@ -4107,6 +6025,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             is { } job ? BenchmarkWorkloadAxis.GetAxisCount(job) : null;
     }
 
+    /// <summary>
+    /// ApplySelectedRunStateJobs メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="state">state を指定して実行条件を制御します。</param>
+    /// <param name="elementCount">elementCount を指定して実行条件を制御します。</param>
     private void ApplySelectedRunStateJobs(ProgressState? state,int elementCount) {
         if(state is null) {
             return;
@@ -4139,30 +6062,68 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshSourceTabProgresses();
     }
 
+    /// <summary>
+    /// IsTerminalJob メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="job">job を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static bool IsTerminalJob(BenchmarkJob job) =>
         job.Status is JobStatus.Completed or JobStatus.Failed;
 
+    /// <summary>
+    /// CreateNewRunOption メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="executionProfile">executionProfile を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static BenchmarkRunOption CreateNewRunOption(BenchmarkExecutionProfile executionProfile) =>
         NewRunOption with {
             ExecutionProfile=executionProfile,
         };
 
+    /// <summary>
+    /// IsNewRunOption メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="option">option を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static bool IsNewRunOption(BenchmarkRunOption? option) =>
         option is not null&&option.RunNumber==NewRunNumber;
 
+    /// <summary>
+    /// IsUnsavedRunOption メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="option">option を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static bool IsUnsavedRunOption(BenchmarkRunOption? option) =>
         option is not null&&option.RunNumber==UnsavedRunNumber;
 
+    /// <summary>
+    /// IsExternalRunOption メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="option">option を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static bool IsExternalRunOption(BenchmarkRunOption? option) =>
         option is not null&&option.RunNumber==ExternalRunNumber;
 
+    /// <summary>
+    /// IsTransientRunOption メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="option">option を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static bool IsTransientRunOption(BenchmarkRunOption? option) =>
         IsUnsavedRunOption(option)||IsExternalRunOption(option);
 
+    /// <summary>
+    /// ShouldKeepCurrentRunMemoryDisplay メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private bool ShouldKeepCurrentRunMemoryDisplay() =>
         BenchmarkRunDisplaySourceLogic.ShouldKeepCurrentRunMemoryDisplay(
             this.currentRunSession.HasAnyResults);
 
+    /// <summary>
+    /// ShouldLoadSelectedRunFromDatabaseForDisplay メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private bool ShouldLoadSelectedRunFromDatabaseForDisplay() =>
         BenchmarkRunDisplaySourceLogic.ShouldLoadSelectedRunFromDatabase(
             this.HasCurrentRunResultsForSelectedTab,
@@ -4172,8 +6133,14 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             IsExternalRunOption(this.SelectedRunOption),
             IsNewRunOption(this.SelectedRunOption),
             IsTransientRunOption(this.SelectedRunOption),
-            this.SelectedRunOption is { UiRunId: >0 });
+            this.SelectedRunOption is { UiRunId:>0 });
 
+    /// <summary>
+    /// CreateUnsavedRunOption メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="runRoot">runRoot を指定して実行条件を制御します。</param>
+    /// <param name="elementCounts">elementCounts を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private BenchmarkRunOption CreateUnsavedRunOption(string runRoot,IReadOnlyList<int> elementCounts) =>
         new(
             UnsavedRunNumber,
@@ -4187,6 +6154,13 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             this.currentRunSession.Count,
             elementCounts);
 
+    /// <summary>
+    /// CreateExternalRunOption メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="displayName">displayName を指定して実行条件を制御します。</param>
+    /// <param name="runRoot">runRoot を指定して実行条件を制御します。</param>
+    /// <param name="elementCounts">elementCounts を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private BenchmarkRunOption CreateExternalRunOption(string displayName,string runRoot,IReadOnlyList<int> elementCounts) =>
         new(
             ExternalRunNumber,
@@ -4200,6 +6174,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             this.ResultItems.Count,
             elementCounts);
 
+    /// <summary>
+    /// ApplySelectedElementCountToTable メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ApplySelectedElementCountToTable() {
         var selectedN = this.SelectedResultElementCount?.Value;
         foreach(var row in this.GetAllBenchmarkRows()) {
@@ -4217,10 +6194,21 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshFinalCompletionStates();
     }
 
+    /// <summary>
+    /// BuildCurrentRunComparisonRowsForElementCount メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="elementCount">elementCount を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkComparisonRow> BuildCurrentRunComparisonRowsForElementCount(int elementCount) {
         return this.BuildCurrentRunComparisonRowsForElementCount(this.SelectedSourceDefinition,elementCount);
     }
 
+    /// <summary>
+    /// BuildCurrentRunComparisonRowsForElementCount メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <param name="elementCount">elementCount を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkComparisonRow> BuildCurrentRunComparisonRowsForElementCount(BenchmarkSourceTabDefinition sourceTab,int elementCount) {
         return this.runProjectionService.BuildComparisonRowsForElementCount(
             this.GetCurrentRunResultItems(sourceTab.Tab),
@@ -4229,10 +6217,19 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             this.CreateReportRowsForComparison);
     }
 
+    /// <summary>
+    /// BuildCurrentRunComparisonRows メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkComparisonRow> BuildCurrentRunComparisonRows() {
         return this.BuildCurrentRunComparisonRows(this.SelectedSourceDefinition);
     }
 
+    /// <summary>
+    /// BuildCurrentRunComparisonRows メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkComparisonRow> BuildCurrentRunComparisonRows(BenchmarkSourceTabDefinition sourceTab) {
         return this.runProjectionService.BuildLatestComparisonRows(
             this.GetCurrentRunResultItems(sourceTab.Tab),
@@ -4240,10 +6237,21 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             this.CreateReportRowsForComparison);
     }
 
+    /// <summary>
+    /// BuildComparisonRowsForElementCount メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="elementCount">elementCount を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkComparisonRow> BuildComparisonRowsForElementCount(int elementCount) {
         return this.BuildComparisonRowsForElementCount(this.SelectedSourceDefinition,elementCount);
     }
 
+    /// <summary>
+    /// BuildComparisonRowsForElementCount メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <param name="elementCount">elementCount を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkComparisonRow> BuildComparisonRowsForElementCount(BenchmarkSourceTabDefinition sourceTab,int elementCount) {
         var currentRunResults = this.GetCurrentRunResultItems(sourceTab.Tab);
         var sourceResults = currentRunResults
@@ -4258,6 +6266,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             : BenchmarkComparisonFormatter.BuildComparisonRows(rows,sourceTab,elementCount);
     }
 
+    /// <summary>
+    /// BuildDisplayedRowsForElementCount メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <param name="elementCount">elementCount を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkComparisonRow> BuildDisplayedRowsForElementCount(BenchmarkSourceTabDefinition sourceTab,int elementCount) {
         return this.runProjectionService.BuildDisplayedRowsForElementCount(
             this.ResultItems,
@@ -4266,6 +6280,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             this.CreateReportRowsForComparison);
     }
 
+    /// <summary>
+    /// BuildDisplayedRows メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkComparisonRow> BuildDisplayedRows(BenchmarkSourceTabDefinition sourceTab) {
         return this.runProjectionService.BuildDisplayedRows(
             this.ResultItems,
@@ -4273,8 +6292,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             this.CreateReportRowsForComparison);
     }
 
+    /// <summary>
+    /// ApplySkippedCells メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="selectedElementCount">selectedElementCount を指定して実行条件を制御します。</param>
     private void ApplySkippedCells(int selectedElementCount) {
-        using var scope=this.BeginResultSourceForDisplayCache();
+        using var scope = this.BeginResultSourceForDisplayCache();
         var stopwatch = Stopwatch.StartNew();
         var measurements = this.CreateDisplayMeasurements();
         var thresholdNanoseconds = this.GetAdaptiveThreshold().TotalMilliseconds*1_000_000;
@@ -4342,10 +6365,25 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         UiThreadBudget.Record("skipped-cells",stopwatch.Elapsed.TotalMilliseconds);
     }
 
+    /// <summary>
+    /// finalCompletionRequestToken フィールドです。
+    /// </summary>
     private int finalCompletionRequestToken;
+    /// <summary>
+    /// finalCompletionRefreshInFlight フィールドです。
+    /// </summary>
     private bool finalCompletionRefreshInFlight;
+    /// <summary>
+    /// finalCompletionRefreshPending フィールドです。
+    /// </summary>
     private bool finalCompletionRefreshPending;
+    /// <summary>
+    /// lastFinalCompletionDispatchAt フィールドです。
+    /// </summary>
     private DateTimeOffset lastFinalCompletionDispatchAt = DateTimeOffset.MinValue;
+    /// <summary>
+    /// FinalCompletionDispatchInterval フィールドです。
+    /// </summary>
     private static readonly TimeSpan FinalCompletionDispatchInterval = TimeSpan.FromMilliseconds(500);
 
     // 完了判定は O(行数×measurements件数) で実行が進むほど重くなる(観測: 1tickで700〜1300ms)。
@@ -4353,6 +6391,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     // 選択フィルタ(IsResultSelectedForDisplay)・measurement射影・判定計算は全てバックグラウンド。
     // 行の RowKey/MethodName/CasesByProject/ProjectCells はコンストラクタ後不変、cell.IsSelected は
     // boolのatomic読みなので、バックグラウンドから読んでも安全(Phase Bの比較行構築と同じ前提)。
+    /// <summary>
+    /// 現 在 の 状 態 を 再 計 算 し て 内 容 を 最 新 化 し ま す 。
+    /// 処 理 を 実 行 し 、 関 連 す る 状 態 や 表 示 を 更 新 し ま す 。
+    /// </summary>
     private void RefreshFinalCompletionStates() {
         if(this.finalCompletionRefreshInFlight) {
             this.finalCompletionRefreshPending=true;
@@ -4379,11 +6421,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.finalCompletionRefreshInFlight=true;
         var stopwatch = Stopwatch.StartNew();
         Task.Run(() => {
-                var measurements = this.CreateDisplayMeasurementsFrom(source,sourceTab);
-                return measurements.Length==0
-                    ? null
-                    : ComputeFinalCompletionStates(measurements,rows,pairs,maxElementCount,thresholdNanoseconds);
-            })
+            var measurements = this.CreateDisplayMeasurementsFrom(source,sourceTab);
+            return measurements.Length==0
+                ? null
+                : ComputeFinalCompletionStates(measurements,rows,pairs,maxElementCount,thresholdNanoseconds);
+        })
             .ContinueWith(task => {
                 UiThreadBudget.Record("bg:completion",stopwatch.Elapsed.TotalMilliseconds);
                 this.uiDispatcher.BeginInvoke(() => {
@@ -4393,13 +6435,15 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                         UiThreadBudget.Measure("completion-apply",() => {
                             if(completed is null) {
                                 this.ClearFinalCompletionStates();
-                            }else{
+                            }
+                            else {
                                 for(var index = 0; index<rows.Length; index++) {
                                     rows[index].SetFinalCompleted(completed[index]);
                                 }
                             }
                         });
-                    }else if(task.IsFaulted) {
+                    }
+                    else if(task.IsFaulted) {
                         StartupDiagnostics.Write("Background RefreshFinalCompletionStates failed.",task.Exception);
                     }
 
@@ -4411,6 +6455,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             },TaskScheduler.Default);
     }
 
+    /// <summary>
+    /// CreateDisplayMeasurementsFrom メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="source">source を指定して実行条件を制御します。</param>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private BenchmarkElementMeasurement[] CreateDisplayMeasurementsFrom(IReadOnlyList<BenchmarkResultItem> source,BenchmarkSourceTabDefinition sourceTab) {
         var measurements = new List<BenchmarkElementMeasurement>(source.Count);
         foreach(var result in source) {
@@ -4431,6 +6481,15 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return measurements.ToArray();
     }
 
+    /// <summary>
+    /// ComputeFinalCompletionStates メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="measurements">measurements を指定して実行条件を制御します。</param>
+    /// <param name="rows">rows を指定して実行条件を制御します。</param>
+    /// <param name="pairs">pairs を指定して実行条件を制御します。</param>
+    /// <param name="maxElementCount">maxElementCount を指定して実行条件を制御します。</param>
+    /// <param name="thresholdNanoseconds">thresholdNanoseconds を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static bool[] ComputeFinalCompletionStates(
         BenchmarkElementMeasurement[] measurements,
         BenchmarkTableRow[] rows,
@@ -4454,6 +6513,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return results;
     }
 
+    /// <summary>
+    /// CreateDisplayMeasurements メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private BenchmarkElementMeasurement[] CreateDisplayMeasurements() =>
         this.GetResultSourceForDisplay()
             .Select(static result => new BenchmarkElementMeasurement(
@@ -4466,12 +6529,19 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 result.MeanNanoseconds))
             .ToArray();
 
+    /// <summary>
+    /// ClearFinalCompletionStates メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ClearFinalCompletionStates() {
         foreach(var row in this.GetAllBenchmarkRows()) {
             row.SetFinalCompleted(false);
         }
     }
 
+    /// <summary>
+    /// GetFinalCompletionMaxElementCount メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private int GetFinalCompletionMaxElementCount() {
         if(this.IsBenchmarkRunActive||this.HasCurrentRunResultsForSelectedTab) {
             return this.GetSelectedElementCounts().LastOrDefault();
@@ -4481,11 +6551,17 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             .Where(static item => item>0)
             .Order()
             .ToArray();
-        return runElementCounts is { Length: > 0 }
+        return runElementCounts is { Length:>0 }
             ? runElementCounts[^1]
             : this.GetSelectedElementCounts().LastOrDefault();
     }
 
+    /// <summary>
+    /// ApplySkippedCell メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <param name="stoppedAtElementCount">stoppedAtElementCount を指定して実行条件を制御します。</param>
     private void ApplySkippedCell(BenchmarkTableRow row,string project,int stoppedAtElementCount) {
         var typeFullName = GetRowTypeFullName(row,project);
         var argumentKey = GetRowArgumentKey(row,project);
@@ -4508,20 +6584,41 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             metadataMissing);
     }
 
+    /// <summary>
+    /// IReadOnlyList< メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="LeftProject">LeftProject を指定して実行条件を制御します。</param>
+    /// <param name="RightProject">RightProject を指定して実行条件を制御します。</param>
     private IReadOnlyList<(string LeftProject,string RightProject)> BenchmarkPairs() => [
         (this.SelectedSourceDefinition.LeftProject,this.SelectedSourceDefinition.RightProject),
     ];
 
+    /// <summary>
+    /// GetRowTypeFullName メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static string GetRowTypeFullName(BenchmarkTableRow row,string project) =>
         row.CasesByProject.TryGetValue(project,out var benchmark)
             ? benchmark.TypeFullName
             : row.CasesByProject.Values.FirstOrDefault()?.TypeFullName??string.Empty;
 
+    /// <summary>
+    /// GetRowArgumentKey メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static string GetRowArgumentKey(BenchmarkTableRow row,string project) =>
         row.CasesByProject.TryGetValue(project,out var benchmark)
             ? benchmark.ArgumentKey
             : row.CasesByProject.Values.FirstOrDefault()?.ArgumentKey??string.Empty;
 
+    /// <summary>
+    /// argumentKey プロパティです。
+    /// </summary>
+    /// <value>argumentKey の値を取得/設定します。</value>
     private bool HasResult(string method,string project,string typeFullName,int elementCount,string argumentKey = "") {
         var results = this.GetResultSourceForDisplay();
         return results.Any(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
@@ -4533,6 +6630,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 &&result.MeanNanoseconds is not null);
     }
 
+    /// <summary>
+    /// argumentKey プロパティです。
+    /// </summary>
+    /// <value>argumentKey の値を取得/設定します。</value>
     private int? FindPairStoppedAt(string method,string typeFullName,string project,int selectedElementCount,string argumentKey = "") {
         var measurements = this.GetResultSourceForDisplay()
             .Select(static result => new BenchmarkElementMeasurement(
@@ -4553,6 +6654,16 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             this.GetAdaptiveThreshold().TotalMilliseconds*1_000_000);
     }
 
+    /// <summary>
+    /// FindLatestCompletedPairElementCountBefore メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="method">method を指定して実行条件を制御します。</param>
+    /// <param name="typeFullName">typeFullName を指定して実行条件を制御します。</param>
+    /// <param name="leftProject">leftProject を指定して実行条件を制御します。</param>
+    /// <param name="rightProject">rightProject を指定して実行条件を制御します。</param>
+    /// <param name="selectedElementCount">selectedElementCount を指定して実行条件を制御します。</param>
+    /// <param name="argumentKey">argumentKey を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private int? FindLatestCompletedPairElementCountBefore(
         string method,
         string typeFullName,
@@ -4579,6 +6690,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             selectedElementCount);
     }
 
+    /// <summary>
+    /// argumentKey プロパティです。
+    /// </summary>
+    /// <value>argumentKey の値を取得/設定します。</value>
     private ProjectMetrics GetResultMetrics(string method,string project,string typeFullName,int elementCount,string argumentKey = "") {
         var selectedRunResult = this.GetResultSourceForDisplay()
             .LastOrDefault(item => string.Equals(item.Method,method,StringComparison.OrdinalIgnoreCase)
@@ -4593,6 +6708,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             : ProjectMetrics.Missing;
     }
 
+    /// <summary>
+    /// argumentKey プロパティです。
+    /// </summary>
+    /// <value>argumentKey の値を取得/設定します。</value>
     private BenchmarkResultItem? GetResultItem(string method,string project,string typeFullName,int elementCount,string argumentKey = "") {
         var results = this.GetResultSourceForDisplay();
         for(var index = results.Count-1; index>=0; index--) {
@@ -4611,17 +6730,33 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     // フィルタし直すコストが大きい)。同期的な1回のUI更新tick内では入力(ResultItems/選択タブ)は
     // 変化しないため、tick単位で結果を使い回すための短命キャッシュ。ApplySkippedCells等、
     // 1tickで何十回も呼ばれる箇所の周りを BeginResultSourceForDisplayCache() で囲んで使う。
+    /// <summary>
+    /// resultSourceForDisplayCache フィールドです。
+    /// </summary>
     private IReadOnlyList<BenchmarkResultItem>? resultSourceForDisplayCache;
 
+    /// <summary>
+    /// BeginResultSourceForDisplayCache メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private IDisposable BeginResultSourceForDisplayCache() {
         this.resultSourceForDisplayCache=null;
         return new ResultSourceForDisplayCacheScope(this);
     }
 
-    private sealed class ResultSourceForDisplayCacheScope(BenchmarkRunnerViewModel owner) : IDisposable {
+    /// <summary>
+    /// ResultSourceForDisplayCacheScope メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="owner">owner を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
+    private sealed class ResultSourceForDisplayCacheScope(BenchmarkRunnerViewModel owner):IDisposable {
         public void Dispose() => owner.resultSourceForDisplayCache=null;
     }
 
+    /// <summary>
+    /// GetResultSourceForDisplay メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkResultItem> GetResultSourceForDisplay() {
         if(this.resultSourceForDisplayCache is { } cached) {
             return cached;
@@ -4635,10 +6770,21 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return results;
     }
 
+    /// <summary>
+    /// IsResultSelectedForDisplay メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private bool IsResultSelectedForDisplay(BenchmarkResultItem result) {
         return this.IsResultSelectedForDisplay(result,this.SelectedSourceDefinition);
     }
 
+    /// <summary>
+    /// IsResultSelectedForDisplay メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private bool IsResultSelectedForDisplay(BenchmarkResultItem result,BenchmarkSourceTabDefinition sourceTab) {
         if(!sourceTab.ContainsProject(result.Project)) {
             return false;
@@ -4660,6 +6806,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 cell.IsSelected)));
     }
 
+    /// <summary>
+    /// LoadSelectedRunState メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private ProgressState? LoadSelectedRunState() {
         var run = this.SelectedRunOption;
         if(run is null||IsNewRunOption(run)||IsTransientRunOption(run)||run.UiRunId<=0) {
@@ -4687,6 +6837,13 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// ReportMissingBenchmarkMetadata メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="method">method を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <param name="elementCount">elementCount を指定して実行条件を制御します。</param>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
     private void ReportMissingBenchmarkMetadata(string method,string project,int elementCount,BenchmarkResultItem? result) {
         var key = method+"|"+project+"|"+elementCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
         if(!this.reportedMetadataWarnings.Add(key)) {
@@ -4705,9 +6862,19 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             +"StartedAt="+(result?.StartedAt?.ToString("O",System.Globalization.CultureInfo.InvariantCulture)??"-"));
     }
 
+    /// <summary>
+    /// IsResultMatch メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="item">item を指定して実行条件を制御します。</param>
+    /// <param name="result">result を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static bool IsResultMatch(BenchmarkResultItem item,BenchmarkResultItem result) =>
         IsResultMatch(item,result.Method,result.Project,result.TypeFullName,result.AxisCount,result.ArgumentKey);
 
+    /// <summary>
+    /// argumentKey プロパティです。
+    /// </summary>
+    /// <value>argumentKey の値を取得/設定します。</value>
     private static bool IsResultMatch(BenchmarkResultItem item,string method,string project,string typeFullName,int elementCount,string argumentKey = "") =>
         string.Equals(item.Method,method,StringComparison.OrdinalIgnoreCase)
         &&string.Equals(item.Project,project,StringComparison.OrdinalIgnoreCase)
@@ -4715,9 +6882,19 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         &&IsSameArgument(item.ArgumentKey,argumentKey)
         &&item.AxisCount==elementCount;
 
+    /// <summary>
+    /// argumentKey プロパティです。
+    /// </summary>
+    /// <value>argumentKey の値を取得/設定します。</value>
     private static string CreateResultIdentityKey(string project,string typeFullName,string method,int elementCount,string argumentKey = "") =>
         string.Join("|",project,typeFullName,method,argumentKey,elementCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
+    /// <summary>
+    /// IsSameType メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="left">left を指定して実行条件を制御します。</param>
+    /// <param name="right">right を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static bool IsSameType(string left,string right) =>
         string.IsNullOrWhiteSpace(right)
             ? true
@@ -4726,9 +6903,19 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                     ||string.Equals(ShortTypeName(left),right,StringComparison.OrdinalIgnoreCase)
                     ||string.Equals(left,ShortTypeName(right),StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// IsSameArgument メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="left">left を指定して実行条件を制御します。</param>
+    /// <param name="right">right を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static bool IsSameArgument(string left,string right) =>
         BenchmarkArgumentKeyMatchLogic.IsExactMatch(left,right);
 
+    /// <summary>
+    /// preserveExistingWhenNoMeasuredPoints プロパティです。
+    /// </summary>
+    /// <value>preserveExistingWhenNoMeasuredPoints の値を取得/設定します。</value>
     private void UpdateChart(bool preserveExistingWhenNoMeasuredPoints = true) {
         if(this.chartRefreshBatchDepth>0) {
             this.pendingChartUpdate=true;
@@ -4738,10 +6925,18 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.UpdateChartCore(preserveExistingWhenNoMeasuredPoints);
     }
 
+    /// <summary>
+    /// preserveExistingWhenNoMeasuredPoints プロパティです。
+    /// </summary>
+    /// <value>preserveExistingWhenNoMeasuredPoints の値を取得/設定します。</value>
     private void UpdateChartCore(bool preserveExistingWhenNoMeasuredPoints = true) {
         this.UpdateChartCore(this.SelectedSourceTabViewState,preserveExistingWhenNoMeasuredPoints);
     }
 
+    /// <summary>
+    /// preserveExistingWhenNoMeasuredPoints プロパティです。
+    /// </summary>
+    /// <value>preserveExistingWhenNoMeasuredPoints の値を取得/設定します。</value>
     private void UpdateAllSourceTabCharts(bool preserveExistingWhenNoMeasuredPoints = true) {
         foreach(var state in this.sourceTabViewStates) {
             this.UpdateChartCore(state,preserveExistingWhenNoMeasuredPoints);
@@ -4753,11 +6948,27 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.OnPropertyChanged(nameof(this.CpuTimelineRows));
     }
 
+    /// <summary>
+    /// chartRefreshRequestToken フィールドです。
+    /// </summary>
     private int chartRefreshRequestToken;
+    /// <summary>
+    /// chartRefreshInFlight フィールドです。
+    /// </summary>
     private bool chartRefreshInFlight;
+    /// <summary>
+    /// pendingChartRefreshTabs フィールドです。
+    /// </summary>
     private readonly HashSet<BenchmarkSourceTab> pendingChartRefreshTabs = [];
+    /// <summary>
+    /// pendingDirtyChartTabs フィールドです。
+    /// </summary>
     private readonly HashSet<BenchmarkSourceTab> pendingDirtyChartTabs = [];
 
+    /// <summary>
+    /// preserveExistingWhenNoMeasuredPoints プロパティです。
+    /// </summary>
+    /// <value>preserveExistingWhenNoMeasuredPoints の値を取得/設定します。</value>
     private void UpdateChartCore(BenchmarkSourceTabViewState state,bool preserveExistingWhenNoMeasuredPoints = true) {
         if(!this.IsBenchmarkRunActive) {
             // 非実行中は ComparisonRows キャッシュを使う軽い同期パス。
@@ -4783,15 +6994,15 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.chartRefreshInFlight=true;
         var stopwatch = Stopwatch.StartNew();
         Task.Run(() => {
-                var rows = selectedN is { } elementCount
-                    ? this.runProjectionService.BuildComparisonRowsForElementCount(sessionResults,definition,elementCount,this.CreateReportRowsForComparison)
-                    : this.runProjectionService.BuildLatestComparisonRows(sessionResults,definition,this.CreateReportRowsForComparison);
-                return (
-                    Rows:rows,
-                    LatencyRows:this.BuildMetricDiagnosticRowsReadable(definition,rows,BenchmarkMetricKind.Time),
-                    AllocationRows:this.BuildMetricDiagnosticRowsReadable(definition,rows,BenchmarkMetricKind.Allocated),
-                    TimelineRows:BuildCpuTimelineRows(allResults));
-            })
+            var rows = selectedN is { } elementCount
+                ? this.runProjectionService.BuildComparisonRowsForElementCount(sessionResults,definition,elementCount,this.CreateReportRowsForComparison)
+                : this.runProjectionService.BuildLatestComparisonRows(sessionResults,definition,this.CreateReportRowsForComparison);
+            return (
+                Rows: rows,
+                LatencyRows: this.BuildMetricDiagnosticRowsReadable(definition,rows,BenchmarkMetricKind.Time),
+                AllocationRows: this.BuildMetricDiagnosticRowsReadable(definition,rows,BenchmarkMetricKind.Allocated),
+                TimelineRows: BuildCpuTimelineRows(allResults));
+        })
             .ContinueWith(task => {
                 UiThreadBudget.Record("bg:chart",stopwatch.Elapsed.TotalMilliseconds);
                 this.uiDispatcher.BeginInvoke(() => {
@@ -4809,7 +7020,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                             this.generatedCodeAuditDirty=true;
                             this.RefreshGeneratedCodeAuditIfNeeded();
                         });
-                    }else if(task.IsFaulted) {
+                    }
+                    else if(task.IsFaulted) {
                         StartupDiagnostics.Write("Background chart refresh failed.",task.Exception);
                     }
 
@@ -4824,6 +7036,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             },TaskScheduler.Default);
     }
 
+    /// <summary>
+    /// ApplyChartFromComparisonRows メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="state">state を指定して実行条件を制御します。</param>
+    /// <param name="rows">rows を指定して実行条件を制御します。</param>
     private void ApplyChartFromComparisonRows(BenchmarkSourceTabViewState state,IReadOnlyList<BenchmarkComparisonRow> rows) {
         var points = this.BuildBenchmarkChartPoints(state,rows);
         this.SyncChartPoints(state.ChartPoints,points);
@@ -4831,10 +7048,19 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshDiagnosticViews(state,rows);
     }
 
+    /// <summary>
+    /// RefreshDiagnosticViews メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="rows">rows を指定して実行条件を制御します。</param>
     private void RefreshDiagnosticViews(IReadOnlyList<BenchmarkComparisonRow> rows) {
         this.RefreshDiagnosticViews(this.SelectedSourceTabViewState,rows);
     }
 
+    /// <summary>
+    /// RefreshDiagnosticViews メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="state">state を指定して実行条件を制御します。</param>
+    /// <param name="rows">rows を指定して実行条件を制御します。</param>
     private void RefreshDiagnosticViews(BenchmarkSourceTabViewState state,IReadOnlyList<BenchmarkComparisonRow> rows) {
         this.SyncDiagnosticRows(state.LatencyHotspotRows,this.BuildMetricDiagnosticRowsReadable(state.Definition,rows,BenchmarkMetricKind.Time));
         this.SyncDiagnosticRows(state.AllocationDiagnosticRows,this.BuildMetricDiagnosticRowsReadable(state.Definition,rows,BenchmarkMetricKind.Allocated));
@@ -4843,6 +7069,13 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.RefreshGeneratedCodeAuditIfNeeded();
     }
 
+    /// <summary>
+    /// BuildMetricDiagnosticRowsReadable メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <param name="rows">rows を指定して実行条件を制御します。</param>
+    /// <param name="metric">metric を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkDiagnosticRow> BuildMetricDiagnosticRowsReadable(BenchmarkSourceTabDefinition sourceTab,IReadOnlyList<BenchmarkComparisonRow> rows,BenchmarkMetricKind metric) {
         return rows
             .Select(row => {
@@ -4852,10 +7085,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 var rightValue = metric==BenchmarkMetricKind.Time ? right.TimeNanoseconds : right.AllocatedBytes;
                 var ratio = leftValue is >0&&rightValue is >0 ? leftValue/rightValue : (double?)null;
                 return new {
-                    Row=row,
-                    LeftValue=leftValue,
-                    RightValue=rightValue,
-                    Ratio=ratio,
+                    Row = row,
+                    LeftValue = leftValue,
+                    RightValue = rightValue,
+                    Ratio = ratio,
                 };
             })
             .Where(item => item.LeftValue is not null&&item.RightValue is not null)
@@ -4873,6 +7106,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             .ToArray();
     }
 
+    /// <summary>
+    /// BuildMetricDiagnosticRows メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="rows">rows を指定して実行条件を制御します。</param>
+    /// <param name="metric">metric を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkDiagnosticRow> BuildMetricDiagnosticRows(IReadOnlyList<BenchmarkComparisonRow> rows,BenchmarkMetricKind metric) {
         var sourceTab = this.SelectedSourceDefinition;
         return rows
@@ -4883,10 +7122,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 var rightValue = metric==BenchmarkMetricKind.Time ? right.TimeNanoseconds : right.AllocatedBytes;
                 var ratio = leftValue is >0&&rightValue is >0 ? leftValue/rightValue : (double?)null;
                 return new {
-                    Row=row,
-                    LeftValue=leftValue,
-                    RightValue=rightValue,
-                    Ratio=ratio,
+                    Row = row,
+                    LeftValue = leftValue,
+                    RightValue = rightValue,
+                    Ratio = ratio,
                 };
             })
             .Where(item => item.LeftValue is not null&&item.RightValue is not null)
@@ -4904,10 +7143,19 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             .ToArray();
     }
 
+    /// <summary>
+    /// BuildCpuTimelineRows メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkDiagnosticRow> BuildCpuTimelineRows() {
         return BuildCpuTimelineRows(this.currentRunSession.GetAllResults());
     }
 
+    /// <summary>
+    /// BuildCpuTimelineRows メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="allResults">allResults を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static IReadOnlyList<BenchmarkDiagnosticRow> BuildCpuTimelineRows(IReadOnlyList<BenchmarkResultItem> allResults) {
         return allResults
             .OrderByDescending(static item => item.StartedAt??DateTimeOffset.MinValue)
@@ -4924,6 +7172,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             .ToArray();
     }
 
+    /// <summary>
+    /// SyncDiagnosticRows メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="target">target を指定して実行条件を制御します。</param>
+    /// <param name="rows">rows を指定して実行条件を制御します。</param>
     private void SyncDiagnosticRows(ObservableCollection<BenchmarkDiagnosticRow> target,IReadOnlyList<BenchmarkDiagnosticRow> rows) {
         // 内容が同一ならClear/Addの通知(Syncfusion再レイアウト)自体を発生させない。
         if(target.Count==rows.Count) {
@@ -4945,9 +7198,18 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// generatedCodeAuditDirty フィールドです。
+    /// </summary>
     private bool generatedCodeAuditDirty = true;
+    /// <summary>
+    /// generatedCodeAuditRequestToken フィールドです。
+    /// </summary>
     private int generatedCodeAuditRequestToken;
 
+    /// <summary>
+    /// RefreshGeneratedCodeAuditIfNeeded メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RefreshGeneratedCodeAuditIfNeeded() {
         if(!this.generatedCodeAuditDirty||!this.IsGeneratedCodeAuditTabVisible) {
             return;
@@ -4982,6 +7244,17 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             },TaskScheduler.Default);
     }
 
+    /// <summary>
+    /// GeneratedCodeAuditInput メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="MethodName">MethodName を指定して実行条件を制御します。</param>
+    /// <param name="LeftProject">LeftProject を指定して実行条件を制御します。</param>
+    /// <param name="RightProject">RightProject を指定して実行条件を制御します。</param>
+    /// <param name="BenchmarkProject">BenchmarkProject を指定して実行条件を制御します。</param>
+    /// <param name="AssemblyName">AssemblyName を指定して実行条件を制御します。</param>
+    /// <param name="TypeFullName">TypeFullName を指定して実行条件を制御します。</param>
+    /// <param name="CacheKey">CacheKey を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private readonly record struct GeneratedCodeAuditInput(
         string MethodName,string LeftProject,string RightProject,
         string BenchmarkProject,string AssemblyName,string TypeFullName,string CacheKey);
@@ -4990,6 +7263,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         string TargetMethod,string ComparisonPair,string AuditTarget,string? GeneratedFileName,
         IReadOnlyList<BenchmarkBadgeItem> Flags,string Verdict);
 
+    /// <summary>
+    /// 処 理 を 実 行 し 、 関 連 す る 状 態 や 表 示 を 更 新 し ま す 。
+    /// 必 要 に 応 じ て 副 作 用 と し て 内 部 状 態 や 表 示 へ 反 映 し ま す 。
+    /// </summary>
+    /// <returns>処 理 結 果 を 返 却 し ま す 。</returns>
     private GeneratedCodeAuditInput? CaptureGeneratedCodeAuditInput() {
         var selected = this.BenchmarkRows.FirstOrDefault(static row => row.IsUiSelected)
             ??this.BenchmarkRows.FirstOrDefault(row => string.Equals(row.RowKey,this.activeChartMethodName,StringComparison.OrdinalIgnoreCase))
@@ -5010,6 +7288,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return new GeneratedCodeAuditInput(selected.MethodName,sourceTab.LeftProject,sourceTab.RightProject,benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,cacheKey);
     }
 
+    /// <summary>
+    /// CreateGeneratedCodeAuditReportCore メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="input">input を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private BenchmarkGeneratedCodeAuditReport CreateGeneratedCodeAuditReportCore(GeneratedCodeAuditInput input) {
         var comparisonPair = input.LeftProject+" vs "+input.RightProject;
         if(string.IsNullOrEmpty(input.AssemblyName)) {
@@ -5047,12 +7330,31 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return new BenchmarkGeneratedCodeAuditReport(input.MethodName,comparisonPair,auditTarget,generatedFileName,flags,verdict);
     }
 
+    /// <summary>
+    /// CreateAuditFlag メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="title">title を指定して実行条件を制御します。</param>
+    /// <param name="label">label を指定して実行条件を制御します。</param>
+    /// <param name="ok">ok を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static BenchmarkBadgeItem CreateAuditFlag(string title,string label,bool ok) =>
         new(title,ok ? "OK "+label : "Warning: "+label,ok ? BenchmarkBadgeSeverity.Ok : BenchmarkBadgeSeverity.Warning);
 
+    /// <summary>
+    /// CreateAuditPresence メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="title">title を指定して実行条件を制御します。</param>
+    /// <param name="exists">exists を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static BenchmarkBadgeItem CreateAuditPresence(string title,bool exists) =>
         new(title,exists ? "present" : "absent",exists ? BenchmarkBadgeSeverity.Info : BenchmarkBadgeSeverity.Ok);
 
+    /// <summary>
+    /// FindGeneratedCodeFile メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="assemblyName">assemblyName を指定して実行条件を制御します。</param>
+    /// <param name="methodName">methodName を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private string? FindGeneratedCodeFile(string assemblyName,string methodName) {
         var solutionRoot = this.FindSolutionRootFromBenchmarkRoot();
         if(solutionRoot is null) {
@@ -5082,6 +7384,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return null;
     }
 
+    /// <summary>
+    /// FindSolutionRootFromBenchmarkRoot メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private string? FindSolutionRootFromBenchmarkRoot() {
         var directory = new DirectoryInfo(this.benchmarkRoot);
         while(directory is not null) {
@@ -5094,6 +7400,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return null;
     }
 
+    /// <summary>
+    /// ExtractGeneratedMethodBlock メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="text">text を指定して実行条件を制御します。</param>
+    /// <param name="methodName">methodName を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static string ExtractGeneratedMethodBlock(string text,string methodName) {
         var index = text.IndexOf("OptimizedLinq_"+methodName,StringComparison.Ordinal);
         if(index<0) {
@@ -5106,12 +7418,21 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return text[start..end];
     }
 
+    /// <summary>
+    /// SyncChartPoints メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="points">points を指定して実行条件を制御します。</param>
     private void SyncChartPoints(IReadOnlyList<ChartComparisonPoint> points) {
         this.SyncChartPoints(this.ChartPoints,points);
     }
 
+    /// <summary>
+    /// SyncChartPoints メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="target">target を指定して実行条件を制御します。</param>
+    /// <param name="points">points を指定して実行条件を制御します。</param>
     private void SyncChartPoints(ObservableCollection<ChartComparisonPoint> target,IReadOnlyList<ChartComparisonPoint> points) {
-        for(var index=0;index<points.Count;index++) {
+        for(var index = 0; index<points.Count; index++) {
             var point = points[index];
             if(index<target.Count) {
                 if(target[index].Benchmark==point.Benchmark
@@ -5128,7 +7449,8 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 }
 
                 target[index]=point;
-            }else {
+            }
+            else {
                 target.Add(point);
             }
         }
@@ -5138,10 +7460,21 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// BuildBenchmarkChartPoints メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="rows">rows を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<ChartComparisonPoint> BuildBenchmarkChartPoints(IReadOnlyList<BenchmarkComparisonRow> rows) {
         return this.BuildBenchmarkChartPoints(this.SelectedSourceTabViewState,rows);
     }
 
+    /// <summary>
+    /// BuildBenchmarkChartPoints メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="state">state を指定して実行条件を制御します。</param>
+    /// <param name="rows">rows を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<ChartComparisonPoint> BuildBenchmarkChartPoints(BenchmarkSourceTabViewState state,IReadOnlyList<BenchmarkComparisonRow> rows) {
         var gridOrderPoints = state.Rows
             .Select(row => this.CreateBenchmarkChartPoint(row,rows,state.Definition))
@@ -5151,11 +7484,24 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return BenchmarkChartDisplayOrderLogic.CreateTransposedSourceOrder(gridOrderPoints);
     }
 
+    /// <summary>
+    /// CreateBenchmarkChartPoint メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="rows">rows を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private ChartComparisonPoint? CreateBenchmarkChartPoint(
         BenchmarkTableRow row,
         IReadOnlyList<BenchmarkComparisonRow> rows) =>
         this.CreateBenchmarkChartPoint(row,rows,this.SelectedSourceDefinition);
 
+    /// <summary>
+    /// CreateBenchmarkChartPoint メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="rows">rows を指定して実行条件を制御します。</param>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private ChartComparisonPoint? CreateBenchmarkChartPoint(
         BenchmarkTableRow row,
         IReadOnlyList<BenchmarkComparisonRow> rows,
@@ -5176,6 +7522,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return null;
     }
 
+    /// <summary>
+    /// FindComparisonRow メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="rows">rows を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static BenchmarkComparisonRow? FindComparisonRow(BenchmarkTableRow row,IReadOnlyList<BenchmarkComparisonRow> rows) {
         foreach(var item in rows) {
             if(IsComparisonRowMatch(row,item)) {
@@ -5186,6 +7538,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return null;
     }
 
+    /// <summary>
+    /// IsComparisonRowMatch メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="item">item を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static bool IsComparisonRowMatch(BenchmarkTableRow row,BenchmarkComparisonRow item) =>
         BenchmarkComparisonRowMatchLogic.IsMatch(
             row.MethodName,
@@ -5194,12 +7552,37 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             row.CasesByProject.Values.Select(static benchmark => new BenchmarkComparisonRowMatchCase(benchmark.TypeFullName,benchmark.ArgumentKey)),
             item);
 
+    /// <summary>
+    /// CreateChartComparisonPoint メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="leftValue">leftValue を指定して実行条件を制御します。</param>
+    /// <param name="rightValue">rightValue を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private ChartComparisonPoint CreateChartComparisonPoint(BenchmarkTableRow row,double? leftValue,double? rightValue) =>
         this.CreateChartComparisonPoint(row.RowKey,row.BenchmarkName,leftValue,rightValue,row,this.SelectedComparisonPair);
 
+    /// <summary>
+    /// CreateChartComparisonPoint メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="leftValue">leftValue を指定して実行条件を制御します。</param>
+    /// <param name="rightValue">rightValue を指定して実行条件を制御します。</param>
+    /// <param name="pair">pair を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private ChartComparisonPoint CreateChartComparisonPoint(BenchmarkTableRow row,double? leftValue,double? rightValue,ComparisonPairOption pair) =>
         this.CreateChartComparisonPoint(row.RowKey,row.BenchmarkName,leftValue,rightValue,row,pair);
 
+    /// <summary>
+    /// CreateChartComparisonPoint メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="benchmark">benchmark を指定して実行条件を制御します。</param>
+    /// <param name="displayName">displayName を指定して実行条件を制御します。</param>
+    /// <param name="leftValue">leftValue を指定して実行条件を制御します。</param>
+    /// <param name="rightValue">rightValue を指定して実行条件を制御します。</param>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="pair">pair を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private ChartComparisonPoint CreateChartComparisonPoint(string benchmark,string displayName,double? leftValue,double? rightValue,BenchmarkTableRow row,ComparisonPairOption pair) {
         var leftNumber = Math.Max(0,leftValue??0);
         var rightNumber = Math.Max(0,rightValue??0);
@@ -5208,7 +7591,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         var ratioText = ratio is { } value
             ? value.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)
             : "-";
-        var metricName = this.SelectedMetric.Kind==BenchmarkMetricKind.Time?"Time":"Memory";
+        var metricName = this.SelectedMetric.Kind==BenchmarkMetricKind.Time ? "Time" : "Memory";
         var tooltip = BenchmarkFormatting.ShortName(displayName)+"\n"
             +pair.LeftProject+" "+metricName+": "+FirstText(FormatMetric(leftValue,this.SelectedMetric.Kind),"-")+"\n"
             +pair.RightProject+" "+metricName+": "+FirstText(FormatMetric(rightValue,this.SelectedMetric.Kind),"-")
@@ -5228,13 +7611,29 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             ratio);
     }
 
+    /// <summary>
+    /// CreateChartArgumentTooltip メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private string CreateChartArgumentTooltip(BenchmarkTableRow row) {
         return BenchmarkArgumentTooltipFormatter.CreateArgumentTooltip(row);
     }
 
+    /// <summary>
+    /// GetChartPointCacheKey メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="method">method を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private string GetChartPointCacheKey(string method) =>
         this.GetChartPointCacheKey(this.SelectedSourceDefinition,method);
 
+    /// <summary>
+    /// GetChartPointCacheKey メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <param name="method">method を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private string GetChartPointCacheKey(BenchmarkSourceTabDefinition sourceTab,string method) =>
         sourceTab.Id+"|"
         +sourceTab.Pair.LeftProject+"|"
@@ -5242,19 +7641,37 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         +this.SelectedMetric.Kind+"|"
         +method;
 
+    /// <summary>
+    /// ClearRetainedChartPoints メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ClearRetainedChartPoints() {
         this.retainedChartPoints.Clear();
     }
 
+    /// <summary>
+    /// ApplyChartRunningState メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="point">point を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private ChartComparisonPoint ApplyChartRunningState(ChartComparisonPoint point) =>
         point.WithRunningState(
             this.IsBenchmarkRunActive&&string.Equals(point.Benchmark,this.activeChartMethodName,StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// ApplyChartUiSelection メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="point">point を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private ChartComparisonPoint ApplyChartUiSelection(BenchmarkTableRow row,ChartComparisonPoint point) =>
         point.WithUiSelection(row.LeftCell.IsUiSelected,row.RightCell.IsUiSelected,row.IsUiSelected);
 
+    /// <summary>
+    /// RefreshChartUiSelection メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="state">state を指定して実行条件を制御します。</param>
     private void RefreshChartUiSelection(BenchmarkSourceTabViewState state) {
-        for(var index=0;index<state.ChartPoints.Count;index++) {
+        for(var index = 0; index<state.ChartPoints.Count; index++) {
             var point = state.ChartPoints[index];
             var rowIndex = GetBenchmarkRowIndex(state,point.Benchmark);
             if(rowIndex<0) {
@@ -5273,12 +7690,22 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// ApplyChartRunningState メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ApplyChartRunningState() {
-        for(var index=0;index<this.ChartPoints.Count;index++) {
+        for(var index = 0; index<this.ChartPoints.Count; index++) {
             this.ChartPoints[index]=this.ApplyChartRunningState(this.ChartPoints[index]);
         }
     }
 
+    /// <summary>
+    /// GetChartMetrics メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="row">row を指定して実行条件を制御します。</param>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <param name="comparisonRow">comparisonRow を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private ProjectMetrics GetChartMetrics(
         BenchmarkTableRow row,
         string project,
@@ -5305,10 +7732,19 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return comparisonRow?.GetProject(project)??ProjectMetrics.Missing;
     }
 
+    /// <summary>
+    /// BuildElementComparisonRows メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkComparisonRow> BuildElementComparisonRows() {
         return this.BuildElementComparisonRows(this.SelectedSourceTabViewState);
     }
 
+    /// <summary>
+    /// BuildElementComparisonRows メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="state">state を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkComparisonRow> BuildElementComparisonRows(BenchmarkSourceTabViewState state) {
         var sourceTab = state.Definition;
         var selectedN = this.SelectedResultElementCount?.Value;
@@ -5321,6 +7757,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             : this.BuildCurrentRunComparisonRows(sourceTab);
     }
 
+    /// <summary>
+    /// CreateReportRowForSelectedElementCount メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="item">item を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static ReportRow CreateReportRowForSelectedElementCount(BenchmarkResultItem item) =>
         new(
             item.Project,
@@ -5350,6 +7791,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             item.ArgumentKey,
             item.Arguments);
 
+    /// <summary>
+    /// CreateReportRowsForComparison メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
+    /// <param name="sourceResults">sourceResults を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private ReportRow[] CreateReportRowsForComparison(BenchmarkSourceTabDefinition sourceTab,IReadOnlyList<BenchmarkResultItem> sourceResults) {
         var selectedSourceResults = sourceResults
             .Where(result => this.IsResultSelectedForDisplay(result,sourceTab))
@@ -5388,6 +7835,16 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             .ToArray();
     }
 
+    /// <summary>
+    /// CreateReportRow メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <param name="method">method を指定して実行条件を制御します。</param>
+    /// <param name="typeFullName">typeFullName を指定して実行条件を制御します。</param>
+    /// <param name="metrics">metrics を指定して実行条件を制御します。</param>
+    /// <param name="argumentKey">argumentKey を指定して実行条件を制御します。</param>
+    /// <param name="arguments">arguments を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static ReportRow CreateReportRow(
         string project,
         string method,
@@ -5423,6 +7880,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             argumentKey,
             arguments);
 
+    /// <summary>
+    /// BuildScaleTrendPoints メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<ChartComparisonPoint> BuildScaleTrendPoints() {
         var selectedRow = this.BenchmarkRows.FirstOrDefault(static item => item.IsSelected);
         var method = selectedRow?.MethodName
@@ -5449,6 +7910,14 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return rows;
     }
 
+    /// <summary>
+    /// CreateScaleTrendPoint メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="elementCount">elementCount を指定して実行条件を制御します。</param>
+    /// <param name="results">results を指定して実行条件を制御します。</param>
+    /// <param name="pair">pair を指定して実行条件を制御します。</param>
+    /// <param name="metric">metric を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static ChartComparisonPoint? CreateScaleTrendPoint(
         int elementCount,
         IReadOnlyList<BenchmarkResultItem> results,
@@ -5480,6 +7949,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             null);
     }
 
+    /// <summary>
+    /// GetMetricValue メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="item">item を指定して実行条件を制御します。</param>
+    /// <param name="metric">metric を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static double? GetMetricValue(BenchmarkResultItem? item,BenchmarkMetricKind metric) {
         if(item is null) {
             return null;
@@ -5490,6 +7965,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             : item.AllocatedBytesValue;
     }
 
+    /// <summary>
+    /// GetMetricValue メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="metrics">metrics を指定して実行条件を制御します。</param>
+    /// <param name="metric">metric を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static double? GetMetricValue(ProjectMetrics metrics,BenchmarkMetricKind metric) {
         if(!metrics.HasMeasuredValue) {
             return null;
@@ -5500,6 +7981,12 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             : metrics.AllocatedBytes;
     }
 
+    /// <summary>
+    /// FormatMetric メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="value">value を指定して実行条件を制御します。</param>
+    /// <param name="metric">metric を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static string FormatMetric(double? value,BenchmarkMetricKind metric) {
         if(value is null) {
             return string.Empty;
@@ -5510,6 +7997,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             : BenchmarkFormatting.FormatBytes((long)Math.Round(value.Value,MidpointRounding.AwayFromZero));
     }
 
+    /// <summary>
+    /// SetMetric メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="kind">kind を指定して実行条件を制御します。</param>
     private void SetMetric(BenchmarkMetricKind kind) {
         var option = this.Metrics.First(item => item.Kind==kind);
         if(!ReferenceEquals(this.selectedMetric,option)) {
@@ -5517,6 +8008,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// AppendLogText メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="text">text を指定して実行条件を制御します。</param>
     private void AppendLogText(string text) {
         this.uiDispatcher.BeginInvoke(() => {
             this.LogText+=text;
@@ -5525,25 +8020,39 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     }
 
     // ログ一覧のDataTemplate側でこの接頭辞を検出し、太字/強調色で目立たせる(CreateLogView参照)。
-    internal const string HighlightedLogEntryPrefix="⚠ ";
+    /// <summary>
+    /// HighlightedLogEntryPrefix フィールドです。
+    /// </summary>
+    internal const string HighlightedLogEntryPrefix = "⚠ ";
 
     /// <summary>
-    /// 見逃されると調査が難しい不整合(RunItemIndex不一致など)をログタブへ自動的に切り替えた上で強調表示する。
+    /// AppendHighlightedLogEntry メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
+    /// <param name="message">message を指定して実行条件を制御します。</param>
     private void AppendHighlightedLogEntry(string message) {
         this.uiDispatcher.BeginInvoke(() => {
             this.SelectedLowerTab=BenchmarkLowerTab.Log;
-            var text=HighlightedLogEntryPrefix+message;
+            var text = HighlightedLogEntryPrefix+message;
             this.LogText+=text+Environment.NewLine;
             this.LogEntries.Add(text);
         });
         StartupDiagnostics.Write(message);
     }
 
+    /// <summary>
+    /// FirstText メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="values">values を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static string FirstText(params string[] values) {
         return values.FirstOrDefault(static value => !string.IsNullOrWhiteSpace(value))??string.Empty;
     }
 
+    /// <summary>
+    /// GetChartLegendLabel メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="project">project を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static string GetChartLegendLabel(string project) =>
         BenchmarkSourceTabs.TryGetByProject(project) is { } tab
             ? string.Equals(project,tab.LeftProject,StringComparison.OrdinalIgnoreCase)
@@ -5551,6 +8060,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
                 : tab.RightHeader
             : project;
 
+    /// <summary>
+    /// RefreshBenchmarkSortColumns メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RefreshBenchmarkSortColumns() {
         this.HasBenchmarkTypeColumn=true;
         this.RefreshBenchmarkSortColumnOptions();
@@ -5561,6 +8073,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.SetBenchmarkSortRules(rules,false);
     }
 
+    /// <summary>
+    /// RefreshBenchmarkSortColumnOptions メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RefreshBenchmarkSortColumnOptions() {
         var columns = this.CreateAvailableSortColumns().ToArray();
         this.BenchmarkSortColumnOptions.Clear();
@@ -5569,6 +8084,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// CreateAvailableSortColumns メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private IEnumerable<BenchmarkGridSortColumn> CreateAvailableSortColumns() {
         if(this.HasBenchmarkTypeColumn) {
             yield return BenchmarkGridSortColumn.BenchmarkType;
@@ -5576,7 +8095,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         yield return BenchmarkGridSortColumn.BenchmarkMethod;
         yield return BenchmarkGridSortColumn.ElementCount;
         foreach(var column in BenchmarkArgumentColumns.Get(this.SelectedSourceDefinition)) {
-            yield return column switch{
+            yield return column switch {
                 ScalableBenchmarkArgumentColumn.Count => BenchmarkGridSortColumn.ArgumentCount,
                 ScalableBenchmarkArgumentColumn.Index => BenchmarkGridSortColumn.ArgumentIndex,
                 ScalableBenchmarkArgumentColumn.Page => BenchmarkGridSortColumn.ArgumentPage,
@@ -5596,6 +8115,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         yield return BenchmarkGridSortColumn.RightAllocated;
     }
 
+    /// <summary>
+    /// CreateValidSortRules メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="source">source を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkSortRule> CreateValidSortRules(IEnumerable<BenchmarkSortRule> source) {
         var allowed = this.CreateAvailableSortColumns().ToHashSet();
         var used = new HashSet<BenchmarkGridSortColumn>();
@@ -5605,6 +8129,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             .ToArray();
     }
 
+    /// <summary>
+    /// CreateInitialSortRules メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkSortRule> CreateInitialSortRules() {
         var restored = this.CreateValidSortRules(this.savedSortRuleSnapshots.Select(static item => new BenchmarkSortRule(item.Column,item.Descending)));
         if(restored.Count>0) {
@@ -5614,6 +8142,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return this.CreateDefaultSortRules();
     }
 
+    /// <summary>
+    /// CreateDefaultSortRules メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkSortRule> CreateDefaultSortRules() {
         if(this.HasBenchmarkTypeColumn) {
             return [
@@ -5625,14 +8157,25 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         return [new BenchmarkSortRule(BenchmarkGridSortColumn.BenchmarkMethod)];
     }
 
+    /// <summary>
+    /// ResetBenchmarkSortRulesToDefault メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="save">save を指定して実行条件を制御します。</param>
     private void ResetBenchmarkSortRulesToDefault(bool save) =>
         this.SetBenchmarkSortRules(this.CreateDefaultSortRules(),save);
 
+    /// <summary>
+    /// GetEffectiveSortRules メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkSortRule> GetEffectiveSortRules() {
         var rules = this.CreateValidSortRules(this.BenchmarkSortRules);
         return rules.Count>0 ? rules : this.CreateDefaultSortRules();
     }
 
+    /// <summary>
+    /// RefreshCurrentSortIndicator メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RefreshCurrentSortIndicator() {
         var first = this.GetEffectiveSortRules().FirstOrDefault();
         if(first is null) {
@@ -5645,12 +8188,16 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.CurrentSortDescending=first.Descending;
     }
 
+    /// <summary>
+    /// LoadSavedBenchmarkSortRules メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkSortRuleSnapshot> LoadSavedBenchmarkSortRules() {
         try {
             var json = this.uiPreferences.Get(BenchmarkSortSettingsPreferenceKey,string.Empty);
             return string.IsNullOrWhiteSpace(json)
                 ? []
-                : JsonSerializer.Deserialize<BenchmarkSortRuleSnapshot[]>(json)??[];
+                : JsonSerializer.Deserialize<BenchmarkSortRuleSnapshot[]>(json)?? [];
         }
         catch(Exception ex) {
             StartupDiagnostics.Write("Benchmark sort settings load failed.",ex);
@@ -5658,6 +8205,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// SaveBenchmarkSortRules メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void SaveBenchmarkSortRules() {
         try {
             var snapshot = this.BenchmarkSortRules
@@ -5671,6 +8221,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// ApplyCurrentSort メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ApplyCurrentSort() {
         if(this.IsBenchmarkRunActive||this.IsBenchmarkPaused) {
             // 実行中/一時停止中は行の並び替えを行わない(index主導更新の前提: 行位置を固定する)。
@@ -5709,12 +8262,25 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.UpdateAllSourceTabCharts();
     }
 
+    /// <summary>
+    /// ApplyFinalBenchmarkSort メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void ApplyFinalBenchmarkSort() {
         this.SetBenchmarkSortRules([new BenchmarkSortRule(BenchmarkGridSortColumn.PairRatioTime,true)],true);
     }
 
+    /// <summary>
+    /// BenchmarkSortRuleSnapshot メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="Column">Column を指定して実行条件を制御します。</param>
+    /// <param name="Descending">Descending を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private readonly record struct BenchmarkSortRuleSnapshot(BenchmarkGridSortColumn Column,bool Descending);
 
+    /// <summary>
+    /// 現 在 の 状 態 を 再 構 築 し 、 表 示 に 反 映 し ま す 。
+    /// 処 理 を 実 行 し 、 関 連 す る 状 態 や 表 示 を 更 新 し ま す 。
+    /// </summary>
     private void RebuildCpuSections() {
         this.CpuSections.Clear();
         this.AddCpuSection("P core",CpuCoreKind.Performance);
@@ -5725,9 +8291,19 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.OnPropertyChanged(nameof(this.UnknownCpuSections));
     }
 
+    /// <summary>
+    /// GetCpuSections メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="kind">kind を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private IEnumerable<CpuTableSection> GetCpuSections(CpuCoreKind kind) =>
         this.CpuSections.Where(section => section.CoreKind==kind);
 
+    /// <summary>
+    /// AddCpuSection メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="title">title を指定して実行条件を制御します。</param>
+    /// <param name="kind">kind を指定して実行条件を制御します。</param>
     private void AddCpuSection(string title,CpuCoreKind kind) {
         var groups = this.CpuItems
             .Where(cpu => cpu.CoreKind==kind)
@@ -5754,6 +8330,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         this.CpuSections.Add(new CpuTableSection(title,kind,columns,rows));
     }
 
+    /// <summary>
+    /// CreateCpuRangeLabel メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <param name="cpus">cpus を指定して実行条件を制御します。</param>
+    /// <returns>処理結果を返却します。</returns>
     private static string CreateCpuRangeLabel(IReadOnlyList<CpuSelectionItem> cpus) {
         var min = cpus.Min(static cpu => cpu.LogicalProcessorIndex);
         var max = cpus.Max(static cpu => cpu.LogicalProcessorIndex);
@@ -5762,6 +8343,11 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
             : min.ToString(System.Globalization.CultureInfo.InvariantCulture)+"-"+max.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 
+    /// <summary>
+    /// ApplyCpuSelection メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="cpus">cpus を指定して実行条件を制御します。</param>
+    /// <param name="selected">selected を指定して実行条件を制御します。</param>
     private void ApplyCpuSelection(IEnumerable<CpuSelectionItem> cpus,bool selected) {
         if(this.IsRefreshing&&!this.isApplyingCpuSelection) {
             return;
@@ -5797,6 +8383,10 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
     }
 
+    /// <summary>
+    /// EnsureAtLeastOneCpuSelected メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    /// <param name="fallback">fallback を指定して実行条件を制御します。</param>
     private void EnsureAtLeastOneCpuSelected(CpuSelectionItem? fallback) {
         if(this.CpuItems.Count==0||this.CpuItems.Any(static cpu => cpu.IsSelected)) {
             return;
@@ -5805,18 +8395,32 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         (fallback??this.CpuItems[0]).IsSelected=true;
     }
 
+    /// <summary>
+    /// GetSelectedLogicalCpus メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<int> GetSelectedLogicalCpus() =>
         Volatile.Read(ref this.selectedLogicalCpus);
 
+    /// <summary>
+    /// RefreshSelectedLogicalCpus メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RefreshSelectedLogicalCpus() =>
         Volatile.Write(ref this.selectedLogicalCpus,this.CreateSelectedLogicalCpus());
 
+    /// <summary>
+    /// CreateSelectedLogicalCpus メソッドを実行し、結果を算出して返却します。
+    /// </summary>
+    /// <returns>処理結果を返却します。</returns>
     private int[] CreateSelectedLogicalCpus() =>
         this.CpuItems
             .Where(static cpu => cpu.IsSelected)
             .Select(static cpu => cpu.LogicalProcessorIndex)
             .ToArray();
 
+    /// <summary>
+    /// RefreshCpuSectionStates メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
     private void RefreshCpuSectionStates() {
         foreach(var section in this.CpuSections) {
             section.RefreshState();

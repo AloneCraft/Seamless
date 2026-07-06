@@ -72,6 +72,108 @@ public sealed class BenchmarkRunProjectionService{
         Assert.True(row.PairRatio.TimeRatio.IsMissing);
     }
 
+    [Fact]
+    public void BuildDisplayedRowsForSelectedElementCount_FallsBackToTabOwnElementCountWhenSharedNDoesNotMatch(){
+        var arrayTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var rangeTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemRange);
+        var service = new global::UI.BenchmarkRunProjectionService();
+        var now = DateTimeOffset.UtcNow;
+        // 複数タブの結果を1つのResultItemsにマージした状態を模す。SystemArrayは大きいN、
+        // SystemRangeは小さいNで完了しており、全タブ共通で選ばれるNはSystemArray側の64になる。
+        var results = new[] {
+            Result(arrayTab.LeftProject,"Aggregate",64,100,now),
+            Result(arrayTab.RightProject,"Aggregate",64,50,now),
+            Result(rangeTab.LeftProject,"Aggregate",8,30,now.AddMinutes(-1)),
+            Result(rangeTab.RightProject,"Aggregate",8,15,now.AddMinutes(-1)),
+        };
+
+        var rows = service.BuildDisplayedRowsForSelectedElementCount(results,rangeTab,64,CreateRows);
+
+        var row = Assert.Single(rows);
+        Assert.Equal(30,row.Left.TimeNanoseconds);
+        Assert.Equal(15,row.Right.TimeNanoseconds);
+    }
+
+    [Fact]
+    public void BuildDisplayedRowsForSelectedElementCount_UsesElementCountFilterWhenTabMatches(){
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var service = new global::UI.BenchmarkRunProjectionService();
+        var results = new[] {
+            Result(sourceTab.LeftProject,"Aggregate",64,100),
+            Result(sourceTab.RightProject,"Aggregate",64,50),
+            Result(sourceTab.LeftProject,"Aggregate",128,80),
+            Result(sourceTab.RightProject,"Aggregate",128,40),
+        };
+
+        var rows = service.BuildDisplayedRowsForSelectedElementCount(results,sourceTab,64,CreateRows);
+
+        var row = Assert.Single(rows);
+        Assert.Equal(100,row.Left.TimeNanoseconds);
+        Assert.Equal(50,row.Right.TimeNanoseconds);
+    }
+
+    [Fact]
+    public void BuildDisplayedRowsForSelectedElementCount_KeepsRowsWithDifferentTerminalElementCounts(){
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var service = new global::UI.BenchmarkRunProjectionService();
+        var now = DateTimeOffset.UtcNow;
+        // 適応的ループ回数を模す: Aggregate は N=64 で確定、Any は N=8 で確定。
+        // 選択N=64 でも Any の行は自身の終端N(8)の値で表示される。
+        var results = new[] {
+            Result(sourceTab.LeftProject,"Aggregate",64,100,now),
+            Result(sourceTab.RightProject,"Aggregate",64,50,now),
+            Result(sourceTab.LeftProject,"Any",8,30,now.AddMinutes(-1)),
+            Result(sourceTab.RightProject,"Any",8,15,now.AddMinutes(-1)),
+        };
+
+        var rows = service.BuildDisplayedRowsForSelectedElementCount(results,sourceTab,64,CreateRows);
+
+        Assert.Equal(2,rows.Count);
+        var aggregate = Assert.Single(rows,static row => row.MethodName=="Aggregate");
+        Assert.Equal(100,aggregate.Left.TimeNanoseconds);
+        Assert.Equal(50,aggregate.Right.TimeNanoseconds);
+        var any = Assert.Single(rows,static row => row.MethodName=="Any");
+        Assert.Equal(30,any.Left.TimeNanoseconds);
+        Assert.Equal(15,any.Right.TimeNanoseconds);
+    }
+
+    [Fact]
+    public void BuildDisplayedRowsForSelectedElementCount_PrefersSelectedElementCountOverLaterMeasurement(){
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var service = new global::UI.BenchmarkRunProjectionService();
+        var now = DateTimeOffset.UtcNow;
+        // 選択Nの計測がある行はフォールバックせず選択Nの値を使う(より新しい別Nの計測があっても)。
+        var results = new[] {
+            Result(sourceTab.LeftProject,"Aggregate",64,100,now.AddMinutes(-1)),
+            Result(sourceTab.RightProject,"Aggregate",64,50,now.AddMinutes(-1)),
+            Result(sourceTab.LeftProject,"Aggregate",128,80,now),
+            Result(sourceTab.RightProject,"Aggregate",128,40,now),
+        };
+
+        var rows = service.BuildDisplayedRowsForSelectedElementCount(results,sourceTab,64,CreateRows);
+
+        var row = Assert.Single(rows);
+        Assert.Equal(100,row.Left.TimeNanoseconds);
+        Assert.Equal(50,row.Right.TimeNanoseconds);
+    }
+
+    [Fact]
+    public void BuildDisplayedRowsForSelectedElementCount_UsesLatestWhenNoElementCountSelected(){
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var service = new global::UI.BenchmarkRunProjectionService();
+        var now = DateTimeOffset.UtcNow;
+        var results = new[] {
+            Result(sourceTab.LeftProject,"Aggregate",64,80,now.AddMinutes(-1)),
+            Result(sourceTab.RightProject,"Aggregate",64,40,now),
+        };
+
+        var rows = service.BuildDisplayedRowsForSelectedElementCount(results,sourceTab,null,CreateRows);
+
+        var row = Assert.Single(rows);
+        Assert.Equal(80,row.Left.TimeNanoseconds);
+        Assert.Equal(40,row.Right.TimeNanoseconds);
+    }
+
     private static global::UI.ReportRow[] CreateRows(
         global::UI.BenchmarkSourceTabDefinition sourceTab,
         IReadOnlyList<global::UI.BenchmarkResultItem> results) =>
