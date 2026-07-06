@@ -103,55 +103,41 @@ internal sealed class BenchmarkRunProjectionService{
     private static IReadOnlyList<BenchmarkResultItem> SelectPreferredElementCountResults(
         IGrouping<string,BenchmarkResultItem> methodGroup,
         BenchmarkSourceTabDefinition sourceTab,
-        int preferredElementCount){
-        var preferred = methodGroup
-            .Where(result => result.AxisCount==preferredElementCount)
-            .GroupBy(static result => result.Project,StringComparer.OrdinalIgnoreCase)
-            .Select(static projectGroup => projectGroup
-                .OrderByDescending(static result => result.StartedAt??DateTimeOffset.MinValue)
-                .First())
-            .ToArray();
-        if(preferred.Length>0){
-            return sourceTab.ProjectOrder
-                .Select(project => preferred.FirstOrDefault(result => string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase)))
-                .Where(static result => result is not null)
-                .Select(static result => result!)
-                .ToArray();
-        }
-
-        return SelectLatestElementCountResults(methodGroup,sourceTab);
-    }
+        int preferredElementCount) =>
+        SelectPerProjectResults(methodGroup,sourceTab,preferredElementCount);
 
     private static IReadOnlyList<BenchmarkResultItem> SelectLatestElementCountResults(
         IGrouping<string,BenchmarkResultItem> methodGroup,
-        BenchmarkSourceTabDefinition sourceTab){
-        var elementGroup = methodGroup
-            .GroupBy(static result => result.AxisCount)
-            .Select(group => new LatestElementCountGroup(
-                group.Key,
-                group.Max(static result => result.StartedAt??DateTimeOffset.MinValue),
-                group
-                    .GroupBy(static result => result.Project,StringComparer.OrdinalIgnoreCase)
-                    .Select(static projectGroup => projectGroup
-                        .OrderByDescending(static result => result.StartedAt??DateTimeOffset.MinValue)
-                        .First())
-                    .ToArray()))
-            .OrderByDescending(static group => group.LatestStartedAt)
-            .ThenByDescending(static group => group.ElementCount)
-            .FirstOrDefault();
-        if(elementGroup.Results is null||elementGroup.Results.Length==0){
-            return [];
-        }
+        BenchmarkSourceTabDefinition sourceTab) =>
+        SelectPerProjectResults(methodGroup,sourceTab,preferredElementCount: null);
 
+    // プロジェクトごとに独立して選ぶ: 優先軸(preferredElementCount)がありその軸の結果があればそれ、
+    // 無ければそのプロジェクト自身の最新完了結果。Fast/Adaptiveでは同じメソッドでもプロジェクトごとに
+    // 打ち切り軸が異なるのが通常運転のため、「両プロジェクトが同じ軸に揃っている」ことを要求しない
+    // (要求すると、揃わなかった側が丸ごと脱落し時間比/メモリ比がMissing扱いになってしまう)。
+    private static IReadOnlyList<BenchmarkResultItem> SelectPerProjectResults(
+        IGrouping<string,BenchmarkResultItem> methodGroup,
+        BenchmarkSourceTabDefinition sourceTab,
+        int? preferredElementCount){
         return sourceTab.ProjectOrder
-            .Select(project => elementGroup.Results.FirstOrDefault(result => string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase)))
+            .Select(project => {
+                var projectResults = methodGroup.Where(result => string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase));
+                if(preferredElementCount is { } preferred){
+                    var atPreferred = projectResults
+                        .Where(result => result.AxisCount==preferred)
+                        .OrderByDescending(static result => result.StartedAt??DateTimeOffset.MinValue)
+                        .FirstOrDefault();
+                    if(atPreferred is not null){
+                        return atPreferred;
+                    }
+                }
+
+                return projectResults
+                    .OrderByDescending(static result => result.StartedAt??DateTimeOffset.MinValue)
+                    .FirstOrDefault();
+            })
             .Where(static result => result is not null)
             .Select(static result => result!)
             .ToArray();
     }
-
-    private readonly record struct LatestElementCountGroup(
-        int ElementCount,
-        DateTimeOffset LatestStartedAt,
-        BenchmarkResultItem[] Results);
 }

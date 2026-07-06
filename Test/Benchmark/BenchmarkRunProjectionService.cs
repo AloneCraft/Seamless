@@ -55,7 +55,7 @@ public sealed class BenchmarkRunProjectionService{
     }
 
     [Fact]
-    public void BuildLatestComparisonRows_DoesNotMixElementCountsAcrossProjects(){
+    public void BuildLatestComparisonRows_UsesEachProjectsOwnLatestElementCountIndependently(){
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var session = new global::UI.BenchmarkRunSession();
         var service = new global::UI.BenchmarkRunProjectionService();
@@ -66,10 +66,13 @@ public sealed class BenchmarkRunProjectionService{
 
         var rows = service.BuildLatestComparisonRows(session.GetResults(sourceTab.Tab),sourceTab,CreateRows);
 
+        // FLinq(Left)はN=64で打ち切り、ZLinq(Right)はN=128まで進んだ(Fast/Adaptiveでは
+        // プロジェクトごとに終端Nが異なるのが通常運転)。軸が揃わなくても両側の値を独立に
+        // 採用し、時間比が欠落(Missing)しないことを確認する。
         var row = Assert.Single(rows);
-        Assert.False(row.Left.HasValue);
+        Assert.Equal(80,row.Left.TimeNanoseconds);
         Assert.Equal(25,row.Right.TimeNanoseconds);
-        Assert.True(row.PairRatio.TimeRatio.IsMissing);
+        Assert.False(row.PairRatio.TimeRatio.IsMissing);
     }
 
     [Fact]
@@ -155,6 +158,28 @@ public sealed class BenchmarkRunProjectionService{
         var row = Assert.Single(rows);
         Assert.Equal(100,row.Left.TimeNanoseconds);
         Assert.Equal(50,row.Right.TimeNanoseconds);
+    }
+
+    [Fact]
+    public void BuildDisplayedRowsForSelectedElementCount_FallsBackPerProjectWhenOnlyOneProjectReachedSelectedElementCount(){
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var service = new global::UI.BenchmarkRunProjectionService();
+        var now = DateTimeOffset.UtcNow;
+        // 選択N=128にはLeftプロジェクトのみ到達。RightプロジェクトはN=64で打ち切り
+        // (Fast/Adaptiveではプロジェクトごとに終端Nが異なるのが通常運転)。Rightは自身の
+        // 最新(N=64)へフォールバックし、行・時間比が丸ごと欠落しないことを確認する。
+        var results = new[] {
+            Result(sourceTab.LeftProject,"Aggregate",64,100,now.AddMinutes(-1)),
+            Result(sourceTab.RightProject,"Aggregate",64,50,now.AddMinutes(-1)),
+            Result(sourceTab.LeftProject,"Aggregate",128,80,now),
+        };
+
+        var rows = service.BuildDisplayedRowsForSelectedElementCount(results,sourceTab,128,CreateRows);
+
+        var row = Assert.Single(rows);
+        Assert.Equal(80,row.Left.TimeNanoseconds);
+        Assert.Equal(50,row.Right.TimeNanoseconds);
+        Assert.False(row.PairRatio.TimeRatio.IsMissing);
     }
 
     [Fact]
