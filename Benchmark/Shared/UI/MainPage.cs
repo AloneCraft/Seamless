@@ -472,6 +472,12 @@ public sealed partial class MainPage:ContentPage {
         runPicker.SetBinding(Picker.ItemsSourceProperty,nameof(RunnerViewModel.RunOptions));
         runPicker.SetBinding(Picker.SelectedItemProperty,nameof(RunnerViewModel.SelectedRunOption));
 
+#if DEBUG
+        var clearRunHistoryButton = this.CreateToolbarIconButton("delete.png","履歴消去");
+        clearRunHistoryButton.SetBinding(IsEnabledProperty,nameof(RunnerViewModel.CanClearRunHistory));
+        clearRunHistoryButton.Clicked+=async (_,_) => await this.ShowClearRunHistoryConfirmDialogAsync();
+#endif
+
         var grid = new Grid {
             Padding=new Thickness(8,4,8,3),
             RowDefinitions= {
@@ -505,13 +511,18 @@ public sealed partial class MainPage:ContentPage {
         grid.Add(infiniteButton,7,0);
         grid.Add(this.ToolbarLabel("結果"),8,0);
         grid.Add(runPicker,9,0);
+        grid.Add(clearRunHistoryButton,10,0);
 #else
         grid.Add(this.ToolbarLabel("結果"),7,0);
         grid.Add(runPicker,8,0);
 #endif
         var preview = this.CreateStatusIconPreview();
         grid.Add(preview,0,1);
+#if DEBUG
+        Grid.SetColumnSpan(preview,11);
+#else
         Grid.SetColumnSpan(preview,9);
+#endif
         return grid;
     }
 
@@ -696,6 +707,27 @@ public sealed partial class MainPage:ContentPage {
                 break;
         }
     }
+
+#if DEBUG
+    private async Task ShowClearRunHistoryConfirmDialogAsync() {
+        if(this.viewModel is null||!this.viewModel.ClearRunHistoryCommand.CanExecute(null)) {
+            return;
+        }
+
+        var result = await this.ShowConfirmDialogAsync(
+            "履歴消去",
+            "DB内の実行履歴をすべて消去します。よろしいですか？",
+            [
+                new ConfirmDialogOption("全履歴を消去","clear",ConfirmDialogButtonKind.Danger),
+                new ConfirmDialogOption("キャンセル","cancel",ConfirmDialogButtonKind.Neutral),
+            ]);
+        if(result!="clear"||this.viewModel is null||!this.viewModel.ClearRunHistoryCommand.CanExecute(null)) {
+            return;
+        }
+
+        await this.viewModel.ClearRunHistoryCommand.ExecuteAsync(null);
+    }
+#endif
 
     private async Task ShowPausedToolbarDecisionDialogAsync(BenchmarkToolbarButtonRole role) {
         var result = await this.ShowConfirmDialogAsync(
