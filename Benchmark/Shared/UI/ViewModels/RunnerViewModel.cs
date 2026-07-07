@@ -8,6 +8,13 @@ using UI;
 
 namespace UI.ViewModels;
 
+internal sealed class BenchmarkDataGridUpdateBatchEventArgs:EventArgs {
+    public static readonly BenchmarkDataGridUpdateBatchEventArgs Begin = new(true);
+    public static readonly BenchmarkDataGridUpdateBatchEventArgs End = new(false);
+    private BenchmarkDataGridUpdateBatchEventArgs(bool isBeginning) => this.IsBeginning=isBeginning;
+    public bool IsBeginning { get; }
+}
+
 public sealed partial class RunnerViewModel:ObservableObject {
     /// <summary>
     /// NewRunNumber フィールドです。
@@ -2198,30 +2205,32 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// RebuildBenchmarkRowsFromCatalog メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
     private void RebuildBenchmarkRowsFromCatalog() {
-        this.benchmarkSelectionAnchors.Clear();
-        var elementCount = this.SelectedResultElementCount?.Value??0;
-        var builtRows = this.sourceTabViewStates
-            .AsParallel()
-            .AsOrdered()
-            .WithDegreeOfParallelism(Math.Max(1,Math.Min(Environment.ProcessorCount,this.sourceTabViewStates.Count)))
-            .Select(state => (State: state,Rows: this.CreateMethodRows(this.catalogCases,state.Definition,elementCount)))
-            .ToArray();
-        foreach(var item in builtRows) {
-            var rows = item.Rows;
-            foreach(var row in rows) {
-                this.SubscribeBenchmarkRow(row);
-                row.IsSelected=this.benchmarkRowSelections.GetValueOrDefault(
-                    CreateRowSelectionKey(row.SourceTab,row.RowKey),
-                    false);
-                foreach(var cell in row.ProjectCells) {
-                    var key = CreateBenchmarkCellKey(row.SourceTab,row.RowKey,cell.Project);
-                    cell.IsSelected=this.benchmarkCellSelections.TryGetValue(key,out var saved)&&saved;
+        using(this.BeginDataGridUpdateBatch()) {
+            this.benchmarkSelectionAnchors.Clear();
+            var elementCount = this.SelectedResultElementCount?.Value??0;
+            var builtRows = this.sourceTabViewStates
+                .AsParallel()
+                .AsOrdered()
+                .WithDegreeOfParallelism(Math.Max(1,Math.Min(Environment.ProcessorCount,this.sourceTabViewStates.Count)))
+                .Select(state => (State: state,Rows: this.CreateMethodRows(this.catalogCases,state.Definition,elementCount)))
+                .ToArray();
+            foreach(var item in builtRows) {
+                var rows = item.Rows;
+                foreach(var row in rows) {
+                    this.SubscribeBenchmarkRow(row);
+                    row.IsSelected=this.benchmarkRowSelections.GetValueOrDefault(
+                        CreateRowSelectionKey(row.SourceTab,row.RowKey),
+                        false);
+                    foreach(var cell in row.ProjectCells) {
+                        var key = CreateBenchmarkCellKey(row.SourceTab,row.RowKey,cell.Project);
+                        cell.IsSelected=this.benchmarkCellSelections.TryGetValue(key,out var saved)&&saved;
+                    }
                 }
+                item.State.Rows.ReplaceRange(rows);
             }
-            item.State.Rows.ReplaceRange(rows);
+            this.RebuildBenchmarkRowIndex();
+            this.RefreshBenchmarkSortColumns();
         }
-        this.RebuildBenchmarkRowIndex();
-        this.RefreshBenchmarkSortColumns();
     }
 
     /// <summary>
@@ -3045,8 +3054,13 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     /// <param name="option">option を指定して実行条件を制御します。</param>
     /// <returns>処理結果を返却します。</returns>
-    private bool CanSelectRunOption(BenchmarkRunOption? option) =>
-        !this.HasDisplayResults||IsNewRunOption(option);
+    private bool CanSelectRunOption(BenchmarkRunOption? option) {
+        if(IsNewRunOption(option)||!this.HasDisplayResults) {
+            return true;
+        }
+
+        return !this.HasUnsavedBenchmarkResults&&IsSavedDatabaseRunOption(option);
+    }
 
     /// <summary>
     /// SetSelectedRunOption メソッドを実行し、副作用として内部状態を更新または描画反映します。
@@ -5319,18 +5333,20 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// ClearSelectedRunDisplay メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
     private void ClearSelectedRunDisplay() {
-        this.ClearSourceTabRunningStates();
-        this.ClearRetainedChartPoints();
-        this.ClearAllSourceTabComparisonDisplays();
-        this.RememberCompletedResultItemsForFallback();
-        this.ResultItems.Clear();
-        this.VisibleResultItems.Clear();
-        this.CurrentElementCountText="-";
-        this.ClearBenchmarkResultDisplays();
-        this.ImprovementPromptText=string.Empty;
-        this.UpdateAllSourceTabCharts(false);
-        this.RefreshSourceTabProgresses();
-        this.RefreshToolbarCommandStates();
+        using(this.BeginDataGridUpdateBatch()) {
+            this.ClearSourceTabRunningStates();
+            this.ClearRetainedChartPoints();
+            this.ClearAllSourceTabComparisonDisplays();
+            this.RememberCompletedResultItemsForFallback();
+            this.ResultItems.Clear();
+            this.VisibleResultItems.Clear();
+            this.CurrentElementCountText="-";
+            this.ClearBenchmarkResultDisplays();
+            this.ImprovementPromptText=string.Empty;
+            this.UpdateAllSourceTabCharts(false);
+            this.RefreshSourceTabProgresses();
+            this.RefreshToolbarCommandStates();
+        }
     }
 
     private void RememberCompletedResultItemsForFallback() {
@@ -5752,6 +5768,10 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     private bool pendingProgressRefresh;
     /// <summary>
+    /// dataGridUpdateBatchDepth フィールドです。
+    /// </summary>
+    private int dataGridUpdateBatchDepth;
+    /// <summary>
     /// lastRunningProgressRefreshAt フィールドです。
     /// </summary>
     private DateTimeOffset lastRunningProgressRefreshAt = DateTimeOffset.MinValue;
@@ -5759,6 +5779,57 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// RunningProgressRefreshInterval フィールドです。
     /// </summary>
     private static readonly TimeSpan RunningProgressRefreshInterval = TimeSpan.FromMilliseconds(250);
+
+    /// <summary>
+    /// DataGridUpdateBatchChanged イベントです。
+    /// </summary>
+    internal event EventHandler<BenchmarkDataGridUpdateBatchEventArgs>? DataGridUpdateBatchChanged;
+
+    /// <summary>
+    /// 処 理 を 実 行 し 、 関 連 す る 状 態 や 表 示 を 更 新 し ま す 。
+    /// 必 要 に 応 じ て 副 作 用 と し て 内 部 状 態 や 表 示 へ 反 映 し ま す 。
+    /// </summary>
+    /// <returns>処 理 結 果 を 返 却 し ま す 。</returns>
+    private IDisposable BeginDataGridUpdateBatch() {
+        var shouldNotify = this.dataGridUpdateBatchDepth==0;
+        this.dataGridUpdateBatchDepth++;
+        if(shouldNotify) {
+            this.DataGridUpdateBatchChanged?.Invoke(this,BenchmarkDataGridUpdateBatchEventArgs.Begin);
+        }
+
+        return new DataGridUpdateBatchScope(this);
+    }
+
+    /// <summary>
+    /// EndDataGridUpdateBatch メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    private void EndDataGridUpdateBatch() {
+        if(this.dataGridUpdateBatchDepth<=0) {
+            return;
+        }
+
+        this.dataGridUpdateBatchDepth--;
+        if(this.dataGridUpdateBatchDepth==0) {
+            this.DataGridUpdateBatchChanged?.Invoke(this,BenchmarkDataGridUpdateBatchEventArgs.End);
+        }
+    }
+
+    /// <summary>
+    /// IDisposable プロパティです。
+    /// </summary>
+    /// <value>IDisposable の値を取得/設定します。</value>
+    private sealed class DataGridUpdateBatchScope:IDisposable {
+        private readonly RunnerViewModel owner;
+        private bool disposed;
+        public DataGridUpdateBatchScope(RunnerViewModel owner) => this.owner=owner;
+        public void Dispose() {
+            if(this.disposed) {
+                return;
+            }
+            this.disposed=true;
+            this.owner.EndDataGridUpdateBatch();
+        }
+    }
 
     /// <summary>
     /// 処 理 を 実 行 し 、 関 連 す る 状 態 や 表 示 を 更 新 し ま す 。
@@ -6161,7 +6232,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     /// <param name="results">results を指定して実行条件を制御します。</param>
     private void ApplyLoadedRunResultItems(IReadOnlyList<BenchmarkResultItem> results) {
-        using(this.BeginChartRefreshBatch()) {
+        using(this.BeginChartRefreshBatch())
+        using(this.BeginDataGridUpdateBatch()) {
             this.ResultItems.Clear();
             this.VisibleResultItems.Clear();
             foreach(var result in results) {
@@ -6199,7 +6271,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
 
         this.isLoadingSelectedRunDb=true;
         try {
-            using(this.BeginChartRefreshBatch()) {
+            using(this.BeginChartRefreshBatch())
+            using(this.BeginDataGridUpdateBatch()) {
                 var run = this.SelectedRunOption;
                 var isSavedDatabaseRun = IsSavedDatabaseRunOption(run);
                 if(!isSavedDatabaseRun&&this.RestoreCurrentRunDisplayForSelectedTab()) {
@@ -8799,37 +8872,39 @@ public sealed partial class RunnerViewModel:ObservableObject {
             // 実行中/一時停止中は行の並び替えを行わない(index主導更新の前提: 行位置を固定する)。
             return;
         }
-        var sortRules = this.GetEffectiveSortRules();
-        foreach(var state in this.sourceTabViewStates) {
-            if(state.Rows.Count<2) {
-                continue;
-            }
+        using(this.BeginDataGridUpdateBatch()) {
+            var sortRules = this.GetEffectiveSortRules();
+            foreach(var state in this.sourceTabViewStates) {
+                if(state.Rows.Count<2) {
+                    continue;
+                }
 
-            var ordered = state.Rows
-                .OrderBy(row => row,Comparer<BenchmarkTableRow>.Create((left,right) => {
-                    foreach(var rule in sortRules) {
-                        var result = BenchmarkSortValue.Compare(
-                            left.GetSortValue(rule.Column),
-                            right.GetSortValue(rule.Column),
-                            rule.Descending);
-                        if(result!=0) {
-                            return result;
+                var ordered = state.Rows
+                    .OrderBy(row => row,Comparer<BenchmarkTableRow>.Create((left,right) => {
+                        foreach(var rule in sortRules) {
+                            var result = BenchmarkSortValue.Compare(
+                                left.GetSortValue(rule.Column),
+                                right.GetSortValue(rule.Column),
+                                rule.Descending);
+                            if(result!=0) {
+                                return result;
+                            }
                         }
-                    }
 
-                    var typeResult = string.Compare(left.BenchmarkTypeText,right.BenchmarkTypeText,StringComparison.OrdinalIgnoreCase);
-                    if(typeResult!=0) {
-                        return typeResult;
-                    }
-                    var methodResult = string.Compare(left.BenchmarkMethodText,right.BenchmarkMethodText,StringComparison.OrdinalIgnoreCase);
-                    return methodResult!=0
-                        ? methodResult
-                        : string.Compare(left.RowKey,right.RowKey,StringComparison.OrdinalIgnoreCase);
-                }))
-                .ToArray();
-            state.Rows.ReplaceRange(ordered);
+                        var typeResult = string.Compare(left.BenchmarkTypeText,right.BenchmarkTypeText,StringComparison.OrdinalIgnoreCase);
+                        if(typeResult!=0) {
+                            return typeResult;
+                        }
+                        var methodResult = string.Compare(left.BenchmarkMethodText,right.BenchmarkMethodText,StringComparison.OrdinalIgnoreCase);
+                        return methodResult!=0
+                            ? methodResult
+                            : string.Compare(left.RowKey,right.RowKey,StringComparison.OrdinalIgnoreCase);
+                    }))
+                    .ToArray();
+                state.Rows.ReplaceRange(ordered);
+            }
+            this.UpdateAllSourceTabCharts();
         }
-        this.UpdateAllSourceTabCharts();
     }
 
     /// <summary>

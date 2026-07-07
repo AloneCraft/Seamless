@@ -59,14 +59,18 @@ public sealed partial class MainPage:ContentPage {
     private readonly List<Action> collapsibleSectionRefreshers = [];
     private bool isImprovementPromptExpanded;
     private readonly Dictionary<BenchmarkToolbarButtonRole,VisualElement> toolbarButtons = [];
+    private readonly List<SfDataGrid> dataGridUpdateBatchTargets = [];
+    private readonly HashSet<SfDataGrid> dataGridUpdateBatchStartedTargets = [];
     private readonly Dictionary<BenchmarkSourceTab,SfDataGrid> benchmarkGridsBySourceTab = [];
     private SfDataGrid? benchmarkGrid;
     private SfTabView? sourceTabView;
+    private int dataGridUpdateBatchDepth;
     private IDispatcherTimer? pausedToolbarPulseTimer;
     private bool pausedToolbarPulseOn;
     private IDispatcherTimer? benchmarkSelectionPulseTimer;
     private bool benchmarkSelectionPulseOn;
     private bool isApplyingSourceTabViewSelection;
+    private bool isDataGridUpdateBatchSubscribed;
     private BenchmarkSortRule? draggedBenchmarkSortRule;
 
     public double BenchmarkSelectionFillOpacity => this.benchmarkSelectionPulseOn ? 0.22 : 0.08;
@@ -83,6 +87,7 @@ public sealed partial class MainPage:ContentPage {
             this.BackgroundColor=Color.FromArgb("#F8FAFC");
             this.viewModel=viewModel;
             this.BindingContext=this.viewModel;
+            this.SubscribeDataGridUpdateBatch();
 
             var toolbar = this.CreateToolbar();
             var content = this.CreateBenchmarkPanelContent();
@@ -100,7 +105,7 @@ public sealed partial class MainPage:ContentPage {
             this.Content=this.rootLayout;
             Grid.SetRow(content,1);
             this.Loaded+=this.OnLoadedAsync;
-            this.Unloaded+=(_,_) => this.StopBenchmarkSelectionPulse();
+            this.Unloaded+=this.OnUnloaded;
             this.StartBenchmarkSelectionPulse();
             StartupDiagnostics.Write("MainPage constructor completed.");
         }
@@ -110,12 +115,19 @@ public sealed partial class MainPage:ContentPage {
         }
     }
 
+    private void OnUnloaded(object? sender,EventArgs args) {
+        this.StopBenchmarkSelectionPulse();
+        this.UnsubscribeDataGridUpdateBatch();
+        this.EndAllDataGridViewUpdateBatches();
+    }
+
     private async void OnLoadedAsync(object? sender,EventArgs args) {
         if(this.viewModel is null) {
             return;
         }
 
         try {
+            this.SubscribeDataGridUpdateBatch();
             StartupDiagnostics.Write("MainPage InitializeAsync started.");
             await this.viewModel.InitializeAsync();
             StartupDiagnostics.Write("MainPage InitializeAsync completed.");
@@ -124,6 +136,114 @@ public sealed partial class MainPage:ContentPage {
             StartupDiagnostics.Write("MainPage InitializeAsync failed.",ex);
             this.viewModel.StatusText="起動時読み込み失敗: "+ex.Message;
         }
+    }
+
+    private void SubscribeDataGridUpdateBatch() {
+        if(this.viewModel is null||this.isDataGridUpdateBatchSubscribed) {
+            return;
+        }
+
+        this.viewModel.DataGridUpdateBatchChanged+=this.OnDataGridUpdateBatchChanged;
+        this.isDataGridUpdateBatchSubscribed=true;
+    }
+
+    private void UnsubscribeDataGridUpdateBatch() {
+        if(this.viewModel is null||!this.isDataGridUpdateBatchSubscribed) {
+            return;
+        }
+
+        this.viewModel.DataGridUpdateBatchChanged-=this.OnDataGridUpdateBatchChanged;
+        this.isDataGridUpdateBatchSubscribed=false;
+    }
+
+    private void RegisterDataGridUpdateBatchTarget(SfDataGrid grid) {
+        if(this.dataGridUpdateBatchTargets.Contains(grid)) {
+            return;
+        }
+
+        this.dataGridUpdateBatchTargets.Add(grid);
+        grid.HandlerChanged+=(_,_) => {
+            if(this.dataGridUpdateBatchDepth>0) {
+                this.BeginDataGridViewUpdate(grid);
+            }
+        };
+        if(this.dataGridUpdateBatchDepth>0) {
+            this.BeginDataGridViewUpdate(grid);
+        }
+    }
+
+    private void OnDataGridUpdateBatchChanged(object? sender,BenchmarkDataGridUpdateBatchEventArgs args) {
+        StartupDiagnostics.BeginInvokeOnMainThread(
+            args.IsBeginning ? "data grid update batch begin" : "data grid update batch end",
+            () => {
+                if(args.IsBeginning) {
+                    this.BeginDataGridViewUpdateBatch();
+                    return;
+                }
+
+                this.EndDataGridViewUpdateBatch();
+            });
+    }
+
+    private void BeginDataGridViewUpdateBatch() {
+        if(this.dataGridUpdateBatchDepth++>0) {
+            return;
+        }
+
+        foreach(var grid in this.dataGridUpdateBatchTargets.ToArray()) {
+            this.BeginDataGridViewUpdate(grid);
+        }
+    }
+
+    private void EndDataGridViewUpdateBatch() {
+        if(this.dataGridUpdateBatchDepth<=0) {
+            return;
+        }
+
+        this.dataGridUpdateBatchDepth--;
+        if(this.dataGridUpdateBatchDepth>0) {
+            return;
+        }
+
+        this.EndStartedDataGridViewUpdates();
+    }
+
+    private void EndAllDataGridViewUpdateBatches() {
+        this.dataGridUpdateBatchDepth=0;
+        this.EndStartedDataGridViewUpdates();
+    }
+
+    private void BeginDataGridViewUpdate(SfDataGrid grid) {
+        if(this.dataGridUpdateBatchStartedTargets.Contains(grid)) {
+            return;
+        }
+
+        try {
+            var view = grid.View;
+            if(view is null) {
+                return;
+            }
+
+            view.BeginInit();
+            this.dataGridUpdateBatchStartedTargets.Add(grid);
+        }
+        catch(Exception ex) {
+            StartupDiagnostics.Write("SfDataGrid View.BeginInit failed.",ex);
+        }
+    }
+
+    private void EndStartedDataGridViewUpdates() {
+        var started = this.dataGridUpdateBatchStartedTargets.ToArray();
+        Array.Reverse(started);
+        foreach(var grid in started) {
+            try {
+                grid.View?.EndInit();
+            }
+            catch(Exception ex) {
+                StartupDiagnostics.Write("SfDataGrid View.EndInit failed.",ex);
+            }
+        }
+        this.dataGridUpdateBatchStartedTargets.Clear();
     }
 
     public async Task<bool> RequestCloseAsync() {
@@ -1730,6 +1850,7 @@ public sealed partial class MainPage:ContentPage {
             BackgroundColor=Colors.White,
             VerticalOptions=LayoutOptions.Fill,
         };
+        this.RegisterDataGridUpdateBatchTarget(grid);
         this.ConfigureDataGridLines(grid);
         this.ConfigureDataGridScrollBars(grid);
         grid.Columns.Add(this.CreateDiagnosticTextColumn("区分",nameof(BenchmarkDiagnosticRow.Category),70,TextAlignment.Start));
@@ -1959,6 +2080,7 @@ public sealed partial class MainPage:ContentPage {
             GridLinesVisibility=GridLinesVisibility.Both,
             DefaultColumnWidth=92,
         };
+        this.RegisterDataGridUpdateBatchTarget(grid);
         if(state is not null) {
             grid.AutomationId="Benchmark.Grid."+state.Definition.Tab;
             this.benchmarkGridsBySourceTab[state.Definition.Tab]=grid;
@@ -3295,6 +3417,7 @@ public sealed partial class MainPage:ContentPage {
             GridLinesVisibility=GridLinesVisibility.Both,
             DefaultColumnWidth=56,
         };
+        this.RegisterDataGridUpdateBatchTarget(grid);
         this.ConfigureDataGridLines(grid);
         var sectionLayout = new VerticalStackLayout {
             Spacing=3,
