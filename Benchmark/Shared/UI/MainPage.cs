@@ -3810,7 +3810,7 @@ public sealed partial class MainPage:ContentPage {
 
         var leftSeries = new StackingColumn100Series {
             XBindingPath=nameof(ChartComparisonPoint.DisplayName),
-            YBindingPath=nameof(ChartComparisonPoint.LeftValue),
+            YBindingPath=nameof(ChartComparisonPoint.LeftNormalValue),
             ShowDataLabels=false,
             EnableTooltip=true,
             Spacing=0,
@@ -3828,9 +3828,30 @@ public sealed partial class MainPage:ContentPage {
         }
         leftSeries.TooltipTemplate=this.CreateTooltipTemplate();
 
+        var leftFallbackSeries = new StackingColumn100Series {
+            XBindingPath=nameof(ChartComparisonPoint.DisplayName),
+            YBindingPath=nameof(ChartComparisonPoint.LeftFallbackValue),
+            ShowDataLabels=false,
+            EnableTooltip=true,
+            Spacing=0,
+            Width=0.58,
+            Fill=new SolidColorBrush(Color.FromArgb("#93C5FD")),
+            IsVisibleOnLegend=false,
+            DataLabelSettings=new CartesianDataLabelSettings {
+                BarAlignment=DataLabelAlignment.Middle,
+                LabelPlacement=DataLabelPlacement.Inner,
+            },
+        };
+        if(state is not null) {
+            leftFallbackSeries.ItemsSource=state.ChartPoints;
+        }else{
+            leftFallbackSeries.SetBinding(ChartSeries.ItemsSourceProperty,nameof(RunnerViewModel.ChartPoints));
+        }
+        leftFallbackSeries.TooltipTemplate=this.CreateTooltipTemplate();
+
         var rightSeries = new StackingColumn100Series {
             XBindingPath=nameof(ChartComparisonPoint.DisplayName),
-            YBindingPath=nameof(ChartComparisonPoint.RightValue),
+            YBindingPath=nameof(ChartComparisonPoint.RightNormalValue),
             ShowDataLabels=false,
             EnableTooltip=true,
             Spacing=0,
@@ -3847,10 +3868,33 @@ public sealed partial class MainPage:ContentPage {
             rightSeries.SetBinding(ChartSeries.ItemsSourceProperty,nameof(RunnerViewModel.ChartPoints));
         }
         rightSeries.TooltipTemplate=this.CreateTooltipTemplate();
+
+        var rightFallbackSeries = new StackingColumn100Series {
+            XBindingPath=nameof(ChartComparisonPoint.DisplayName),
+            YBindingPath=nameof(ChartComparisonPoint.RightFallbackValue),
+            ShowDataLabels=false,
+            EnableTooltip=true,
+            Spacing=0,
+            Width=0.58,
+            Fill=new SolidColorBrush(Color.FromArgb("#FDBA74")),
+            IsVisibleOnLegend=false,
+            DataLabelSettings=new CartesianDataLabelSettings {
+                BarAlignment=DataLabelAlignment.Middle,
+                LabelPlacement=DataLabelPlacement.Inner,
+            },
+        };
+        if(state is not null) {
+            rightFallbackSeries.ItemsSource=state.ChartPoints;
+        }else{
+            rightFallbackSeries.SetBinding(ChartSeries.ItemsSourceProperty,nameof(RunnerViewModel.ChartPoints));
+        }
+        rightFallbackSeries.TooltipTemplate=this.CreateTooltipTemplate();
         this.BindChartSeriesLabels(leftSeries,rightSeries);
 
         chart.Series.Add(leftSeries);
+        chart.Series.Add(leftFallbackSeries);
         chart.Series.Add(rightSeries);
+        chart.Series.Add(rightFallbackSeries);
 
         var chartBackgroundDrawable = new BenchmarkChartSelectionBackgroundDrawable(
             () => state?.ChartPoints??this.viewModel?.ChartPoints??[],
@@ -4002,7 +4046,6 @@ public sealed partial class MainPage:ContentPage {
         chartOverlay.GestureRecognizers.Add(chartTap);
 
         var emptyText = new Label {
-            Text="ベンチマークを実行するか、保存済み DB 実行を選択してください。",
             HorizontalOptions=LayoutOptions.Center,
             VerticalOptions=LayoutOptions.Center,
             TextColor=Color.FromArgb("#64748B"),
@@ -4037,8 +4080,13 @@ public sealed partial class MainPage:ContentPage {
         };
         if(state is not null) {
             emptyText.SetBinding(IsVisibleProperty,new Binding(nameof(BenchmarkSourceTabViewState.ChartPoints)+".Count",source: state,converter: new CountIsZeroConverter()));
+            emptyText.SetBinding(Label.TextProperty,new Binding(nameof(BenchmarkSourceTabViewState.ChartEmptyReasonText),source: state));
+            ToolTipProperties.SetText(emptyText,state.ChartEmptyReasonTooltipText);
+            emptyText.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(BenchmarkSourceTabViewState.ChartEmptyReasonTooltipText),source: state));
         }else{
             emptyText.SetBinding(IsVisibleProperty,new Binding(nameof(RunnerViewModel.ChartPoints)+".Count",converter: new CountIsZeroConverter()));
+            emptyText.SetBinding(Label.TextProperty,nameof(RunnerViewModel.ChartEmptyReasonText));
+            emptyText.SetBinding(ToolTipProperties.TextProperty,nameof(RunnerViewModel.ChartEmptyReasonTooltipText));
         }
         return grid;
     }

@@ -251,6 +251,8 @@ public sealed class ObservableRangeCollection<T>:ObservableCollection<T>{
 public sealed class BenchmarkSourceTabViewState:ObservableObject{
     private double chartHeight = 300;
     private string benchmarkRatioSummaryText = string.Empty;
+    private string chartEmptyReasonText = "ベンチマークを実行するか、保存済み DB 実行を選択してください。";
+    private string chartEmptyReasonTooltipText = "計測結果または保存済み DB 実行が選択されると比較チャートを表示します。";
 
     public BenchmarkSourceTabViewState(BenchmarkSourceTabDefinition definition){
         this.Definition=definition;
@@ -281,6 +283,16 @@ public sealed class BenchmarkSourceTabViewState:ObservableObject{
     public string BenchmarkRatioSummaryText{
         get => this.benchmarkRatioSummaryText;
         set => this.SetProperty(ref this.benchmarkRatioSummaryText,value);
+    }
+
+    public string ChartEmptyReasonText{
+        get => this.chartEmptyReasonText;
+        set => this.SetProperty(ref this.chartEmptyReasonText,value);
+    }
+
+    public string ChartEmptyReasonTooltipText{
+        get => this.chartEmptyReasonTooltipText;
+        set => this.SetProperty(ref this.chartEmptyReasonTooltipText,value);
     }
 }
 
@@ -1993,7 +2005,7 @@ public sealed class ChartComparisonPoint{
         string rightText,
         string tooltipText,
         double? ratio)
-        : this(benchmark,displayName,string.Empty,displayName,false,false,leftValue,rightValue,leftText,rightText,tooltipText,ratio,false,false,false,false){
+        : this(benchmark,displayName,string.Empty,displayName,false,false,leftValue,rightValue,leftText,rightText,tooltipText,ratio,false,false,false,false,false,false){
     }
 
     public ChartComparisonPoint(
@@ -2009,7 +2021,7 @@ public sealed class ChartComparisonPoint{
         string rightText,
         string tooltipText,
         double? ratio)
-        : this(benchmark,displayName,groupDisplayName,rowDisplayName,isGroupFirst,isGroupLast,leftValue,rightValue,leftText,rightText,tooltipText,ratio,false,false,false,false){
+        : this(benchmark,displayName,groupDisplayName,rowDisplayName,isGroupFirst,isGroupLast,leftValue,rightValue,leftText,rightText,tooltipText,ratio,false,false,false,false,false,false){
     }
 
     private ChartComparisonPoint(
@@ -2028,7 +2040,9 @@ public sealed class ChartComparisonPoint{
         bool isRunning,
         bool isLeftUiSelected,
         bool isRightUiSelected,
-        bool isRowUiSelected){
+        bool isRowUiSelected,
+        bool isLeftFallback,
+        bool isRightFallback){
         this.Benchmark=benchmark;
         this.BaseDisplayName=displayName;
         this.GroupDisplayName=groupDisplayName;
@@ -2045,6 +2059,8 @@ public sealed class ChartComparisonPoint{
         this.IsLeftUiSelected=isLeftUiSelected;
         this.IsRightUiSelected=isRightUiSelected;
         this.IsRowUiSelected=isRowUiSelected;
+        this.IsLeftFallback=isLeftFallback;
+        this.IsRightFallback=isRightFallback;
     }
 
     public string Benchmark { get; }
@@ -2058,6 +2074,10 @@ public sealed class ChartComparisonPoint{
     public bool IsGroupLast { get; }
     public double LeftValue { get; }
     public double RightValue { get; }
+    public double LeftNormalValue => this.IsLeftFallback ? 0 : this.LeftValue;
+    public double LeftFallbackValue => this.IsLeftFallback ? this.LeftValue : 0;
+    public double RightNormalValue => this.IsRightFallback ? 0 : this.RightValue;
+    public double RightFallbackValue => this.IsRightFallback ? this.RightValue : 0;
     public string LeftText { get; }
     public string RightText { get; }
     public string TooltipText { get; }
@@ -2066,6 +2086,8 @@ public sealed class ChartComparisonPoint{
     public bool IsLeftUiSelected { get; }
     public bool IsRightUiSelected { get; }
     public bool IsRowUiSelected { get; }
+    public bool IsLeftFallback { get; }
+    public bool IsRightFallback { get; }
 
     public ChartComparisonPoint WithRunningState(bool isRunning) =>
         new(
@@ -2084,7 +2106,9 @@ public sealed class ChartComparisonPoint{
             isRunning,
             this.IsLeftUiSelected,
             this.IsRightUiSelected,
-            this.IsRowUiSelected);
+            this.IsRowUiSelected,
+            this.IsLeftFallback,
+            this.IsRightFallback);
 
     public ChartComparisonPoint WithUiSelection(bool isLeftUiSelected,bool isRightUiSelected,bool isRowUiSelected) =>
         new(
@@ -2103,7 +2127,30 @@ public sealed class ChartComparisonPoint{
             this.IsRunning,
             isLeftUiSelected,
             isRightUiSelected,
-            isRowUiSelected);
+            isRowUiSelected,
+            this.IsLeftFallback,
+            this.IsRightFallback);
+
+    public ChartComparisonPoint WithFallbackState(bool isLeftFallback,bool isRightFallback) =>
+        new(
+            this.Benchmark,
+            this.BaseDisplayName,
+            this.GroupDisplayName,
+            this.RowDisplayName,
+            this.IsGroupFirst,
+            this.IsGroupLast,
+            this.LeftValue,
+            this.RightValue,
+            this.LeftText,
+            this.RightText,
+            this.TooltipText,
+            this.Ratio,
+            this.IsRunning,
+            this.IsLeftUiSelected,
+            this.IsRightUiSelected,
+            this.IsRowUiSelected,
+            isLeftFallback,
+            isRightFallback);
 
     public ChartComparisonPoint WithGroupDisplay(string groupDisplayName,string rowDisplayName,bool isGroupFirst,bool isGroupLast) =>
         new(
@@ -2122,7 +2169,9 @@ public sealed class ChartComparisonPoint{
             this.IsRunning,
             this.IsLeftUiSelected,
             this.IsRightUiSelected,
-            this.IsRowUiSelected);
+            this.IsRowUiSelected,
+            this.IsLeftFallback,
+            this.IsRightFallback);
 }
 
 public sealed record BenchmarkRunReport(string? RunRoot);
