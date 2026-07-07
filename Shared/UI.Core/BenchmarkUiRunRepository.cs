@@ -189,13 +189,16 @@ internal sealed class BenchmarkUiRunRepository{
             metrics.TryGetValue(job.JobId,out var jobMetrics);
             var mean = GetNullableMetric(jobMetrics,"MeanNanoseconds");
             var allocated = GetNullableMetric(jobMetrics,"AllocatedBytes");
+            var status = mean is not null
+                ? "Completed"
+                : job.Status.ToString();
             items.Add(new BenchmarkResultItem(new BenchmarkStoredResult(
                 testCase.Project,
                 testCase.Method,
                 testCase.TypeFullName,
                 (int)(job.ElementCount??0),
                 (int)(job.LoopCount??BenchmarkWorkloadAxis.DefaultLoopCount),
-                job.Status.ToString(),
+                status,
                 mean?.ToString(System.Globalization.CultureInfo.InvariantCulture)??string.Empty,
                 mean,
                 allocated is null ? null : (long)allocated.Value,

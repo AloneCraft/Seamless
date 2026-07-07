@@ -110,10 +110,22 @@ public sealed class RunnerViewModel{
         await WaitUntilAsync(() => targets.All(static cell => cell.StatusImageSource==global::UI.BenchmarkStatusImageNames.Waiting));
 
         viewModel.SelectedRunOption=savedRun;
-        await WaitUntilAsync(() => viewModel.ResultItems.Count>0);
+        await WaitUntilAsync(() => viewModel.ResultItems.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)));
+        await WaitUntilAsync(() => viewModel.ChartPoints.Count>0
+            &&viewModel.SelectedSourceTabViewState.ComparisonRows.Count>0);
+        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
+
+        Assert.True(viewModel.ResultItems.Count>0
+            &&viewModel.ChartPoints.Count>0
+            &&viewModel.SelectedSourceTabViewState.ComparisonRows.Count>0
+            &&targets.All(IsFinalCompleted));
 
         Assert.Equal(savedRun.UiRunId,viewModel.SelectedRunOption?.UiRunId);
         Assert.NotEmpty(viewModel.ResultItems);
+        Assert.NotEmpty(viewModel.ChartPoints);
+        Assert.NotEmpty(viewModel.SelectedSourceTabViewState.ComparisonRows);
+        Assert.Equal(string.Empty,viewModel.ChartEmptyReasonText);
+        Assert.All(targets,cell => Assert.True(cell.Metrics.HasMeasuredValue));
     }
 
 #if DEBUG

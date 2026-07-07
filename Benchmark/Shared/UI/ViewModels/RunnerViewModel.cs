@@ -286,6 +286,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// currentRunSession フィールドです。
     /// </summary>
     private readonly BenchmarkRunSession currentRunSession = new();
+    private IReadOnlyList<BenchmarkResultItem> recentCompletedResultItems = [];
     /// <summary>
     /// benchmarkCellSelections フィールドです。
     /// </summary>
@@ -705,6 +706,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     /// <value>ChartPoints の値を取得/設定します。</value>
     public ObservableCollection<ChartComparisonPoint> ChartPoints => this.SelectedSourceTabViewState.ChartPoints;
+    public string ChartEmptyReasonText => this.SelectedSourceTabViewState.ChartEmptyReasonText;
+    public string ChartEmptyReasonTooltipText => this.SelectedSourceTabViewState.ChartEmptyReasonTooltipText;
     /// <summary>
     /// ScaleOptions プロパティです。
     /// </summary>
@@ -1472,6 +1475,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
                     this.OnPropertyChanged(nameof(this.SelectedSourceTabViewState));
                     this.OnPropertyChanged(nameof(this.BenchmarkRows));
                     this.OnPropertyChanged(nameof(this.ChartPoints));
+                    this.OnPropertyChanged(nameof(this.ChartEmptyReasonText));
+                    this.OnPropertyChanged(nameof(this.ChartEmptyReasonTooltipText));
                     this.OnPropertyChanged(nameof(this.ChartHeight));
                     this.OnPropertyChanged(nameof(this.BenchmarkRatioSummaryText));
                     this.OnPropertyChanged(nameof(this.LatencyHotspotRows));
@@ -3268,7 +3273,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     private void RefreshComparisonRowsFromDisplayResults() {
         var selectedElementCount = this.SelectedResultElementCount?.Value;
-        if(this.HasCurrentRunResultsForSelectedTab) {
+        if(this.ShouldUseCurrentRunMemoryForDisplay(this.SelectedSourceDefinition)) {
             this.comparisonRows=selectedElementCount is { } currentElementCount
                 ? this.BuildCurrentRunComparisonRowsForElementCount(currentElementCount)
                 : this.BuildCurrentRunComparisonRows();
@@ -3377,19 +3382,30 @@ public sealed partial class RunnerViewModel:ObservableObject {
         ComparisonRowsTabInput input,
         IReadOnlyList<BenchmarkResultItem> resultItemsSnapshot,
         int? selectedElementCount) {
-        if(input.CurrentRunResults.Count>0) {
+        if(input.CurrentRunResults.Count>0&&!IsSavedDatabaseRunOption(this.SelectedRunOption)) {
             return selectedElementCount is { } currentElementCount
                 ? this.runProjectionService.BuildComparisonRowsForElementCount(input.CurrentRunResults,input.State.Definition,currentElementCount,this.CreateReportRowsForComparison)
                 : this.runProjectionService.BuildLatestComparisonRows(input.CurrentRunResults,input.State.Definition,this.CreateReportRowsForComparison);
         }
 
         if(resultItemsSnapshot.Count>0) {
-            return selectedElementCount is { } displayedElementCount
-                ? this.runProjectionService.BuildDisplayedRowsForElementCount(resultItemsSnapshot,input.State.Definition,displayedElementCount,this.CreateReportRowsForComparison)
-                : this.runProjectionService.BuildDisplayedRows(resultItemsSnapshot,input.State.Definition,this.CreateReportRowsForComparison);
+            return this.runProjectionService.BuildDisplayedRowsForSelectedElementCount(resultItemsSnapshot,input.State.Definition,selectedElementCount,this.CreateReportRowsForComparison);
         }
 
         return [];
+    }
+
+    private void RefreshAllComparisonRowsFromLoadedResultItems(IReadOnlyList<BenchmarkResultItem> resultItemsSnapshot) {
+        var selectedElementCount = this.SelectedResultElementCount?.Value;
+        foreach(var state in this.sourceTabViewStates) {
+            state.ComparisonRows=this.runProjectionService.BuildDisplayedRowsForSelectedElementCount(
+                resultItemsSnapshot,
+                state.Definition,
+                selectedElementCount,
+                this.CreateReportRowsForComparison);
+        }
+
+        this.comparisonRows=this.SelectedSourceTabViewState.ComparisonRows;
     }
 
     /// <summary>
@@ -5203,6 +5219,10 @@ public sealed partial class RunnerViewModel:ObservableObject {
     private bool HasCurrentRunResultsForSelectedTab =>
         this.currentRunSession.HasResults(this.SelectedSourceDefinition.Tab);
 
+    private bool ShouldUseCurrentRunMemoryForDisplay(BenchmarkSourceTabDefinition sourceTab) =>
+        !IsSavedDatabaseRunOption(this.SelectedRunOption)
+        &&BenchmarkRunDisplaySourceLogic.ShouldUseCurrentRunMemory(this.currentRunSession.HasResults(sourceTab.Tab));
+
     /// <summary>
     /// HasDisplayResults プロパティです。
     /// </summary>
@@ -5302,6 +5322,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
         this.ClearSourceTabRunningStates();
         this.ClearRetainedChartPoints();
         this.ClearAllSourceTabComparisonDisplays();
+        this.RememberCompletedResultItemsForFallback();
         this.ResultItems.Clear();
         this.VisibleResultItems.Clear();
         this.CurrentElementCountText="-";
@@ -5310,6 +5331,15 @@ public sealed partial class RunnerViewModel:ObservableObject {
         this.UpdateAllSourceTabCharts(false);
         this.RefreshSourceTabProgresses();
         this.RefreshToolbarCommandStates();
+    }
+
+    private void RememberCompletedResultItemsForFallback() {
+        var completed = this.ResultItems
+            .Where(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)&&item.MeanNanoseconds is not null)
+            .ToArray();
+        if(completed.Length>0) {
+            this.recentCompletedResultItems=completed;
+        }
     }
 
     /// <summary>
@@ -5341,12 +5371,15 @@ public sealed partial class RunnerViewModel:ObservableObject {
             state.ComparisonRows= [];
             state.BenchmarkRatioSummaryText=string.Empty;
             state.ChartPoints.Clear();
+            this.UpdateChartEmptyReason(state,[],[]);
             state.LatencyHotspotRows.Clear();
             state.AllocationDiagnosticRows.Clear();
             state.CpuTimelineRows.Clear();
         }
         this.OnPropertyChanged(nameof(this.BenchmarkRatioSummaryText));
         this.OnPropertyChanged(nameof(this.ChartPoints));
+        this.OnPropertyChanged(nameof(this.ChartEmptyReasonText));
+        this.OnPropertyChanged(nameof(this.ChartEmptyReasonTooltipText));
         this.OnPropertyChanged(nameof(this.LatencyHotspotRows));
         this.OnPropertyChanged(nameof(this.AllocationDiagnosticRows));
         this.OnPropertyChanged(nameof(this.CpuTimelineRows));
@@ -6088,13 +6121,22 @@ public sealed partial class RunnerViewModel:ObservableObject {
     private void LoadSelectedRunFromDatabase(BenchmarkRunOption run) {
         this.ClearSelectedRunDisplay();
         var sourceTabs = this.SourceTabs.Select(static option => option.Definition).ToArray();
+        var memoryFallbackItems = sourceTabs
+            .SelectMany(sourceTab => this.GetCurrentRunResultItems(sourceTab.Tab))
+            .Concat(this.recentCompletedResultItems)
+            .ToArray();
         var requestToken = ++this.selectedRunLoadRequestToken;
         Task.Run(() => {
             try {
-                IReadOnlyList<BenchmarkResultItem>? items = sourceTabs
+                this.uiRunRepository.FlushAsync().GetAwaiter().GetResult();
+                var items = sourceTabs
                     .SelectMany(sourceTab => this.uiRunRepository.LoadResultItems(run.UiRunId,run.UpdatedAt,sourceTab))
                     .ToArray();
-                return (Items: items,Error: (Exception?)null);
+                if(!items.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)&&item.MeanNanoseconds is not null)
+                    &&memoryFallbackItems.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)&&item.MeanNanoseconds is not null)) {
+                    items=memoryFallbackItems;
+                }
+                return (Items: (IReadOnlyList<BenchmarkResultItem>?)items,Error: (Exception?)null);
             }
             catch(Exception ex) {
                 return (Items: (IReadOnlyList<BenchmarkResultItem>?)null,Error: ex);
@@ -6120,6 +6162,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <param name="results">results を指定して実行条件を制御します。</param>
     private void ApplyLoadedRunResultItems(IReadOnlyList<BenchmarkResultItem> results) {
         using(this.BeginChartRefreshBatch()) {
+            this.ResultItems.Clear();
+            this.VisibleResultItems.Clear();
             foreach(var result in results) {
                 this.ResultItems.Add(result);
             }
@@ -6134,7 +6178,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 this.SelectedResultElementCount=this.ResultElementCountOptions.LastOrDefault();
             }
             this.RefreshVisibleResults();
-            this.RefreshAllComparisonRowsFromDisplayResults();
+            this.RefreshAllComparisonRowsFromLoadedResultItems(this.ResultItems.ToArray());
             this.ApplyComparisonRowsToAllTables();
             this.ApplySelectedElementCountToTable();
             this.RefreshFinalCompletionStates();
@@ -6509,8 +6553,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <param name="elementCount">elementCount を指定して実行条件を制御します。</param>
     /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkComparisonRow> BuildDisplayedRowsForElementCount(BenchmarkSourceTabDefinition sourceTab,int elementCount) {
-        return this.runProjectionService.BuildDisplayedRowsForElementCount(
-            this.ResultItems,
+        return this.runProjectionService.BuildDisplayedRowsForSelectedElementCount(
+            this.ResultItems.ToArray(),
             sourceTab,
             elementCount,
             this.CreateReportRowsForComparison);
@@ -6665,7 +6709,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 return new FinalCompletionTabInput(
                 option,
                 state,
-                BenchmarkRunDisplaySourceLogic.ShouldUseCurrentRunMemory(this.currentRunSession.HasResults(state.Definition.Tab))
+                this.ShouldUseCurrentRunMemoryForDisplay(state.Definition)
                     ? this.GetCurrentRunResultItems(state.Definition.Tab)
                     : resultItemsSnapshot,
                 state.Rows.ToArray(),
@@ -7074,7 +7118,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             return cached;
         }
 
-        var source = BenchmarkRunDisplaySourceLogic.ShouldUseCurrentRunMemory(this.HasCurrentRunResultsForSelectedTab)
+        var source = this.ShouldUseCurrentRunMemoryForDisplay(this.SelectedSourceDefinition)
             ? this.GetCurrentRunResultItemsForSelectedTab()
             : this.ResultItems;
         var results = source.Where(this.IsResultSelectedForDisplay).ToArray();
@@ -7373,6 +7417,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
             this.UpdateChartCore(state,preserveExistingWhenNoMeasuredPoints);
         }
         this.OnPropertyChanged(nameof(this.ChartPoints));
+        this.OnPropertyChanged(nameof(this.ChartEmptyReasonText));
+        this.OnPropertyChanged(nameof(this.ChartEmptyReasonTooltipText));
         this.OnPropertyChanged(nameof(this.ChartHeight));
         this.OnPropertyChanged(nameof(this.LatencyHotspotRows));
         this.OnPropertyChanged(nameof(this.AllocationDiagnosticRows));
@@ -7445,6 +7491,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                             var points = this.BuildBenchmarkChartPoints(state,computed.Rows);
                             this.SyncChartPoints(state.ChartPoints,points);
                             state.ChartHeight=Math.Max(BenchmarkChartMinimumHeight,points.Count*BenchmarkChartRowHeight+BenchmarkChartVerticalPadding);
+                            this.UpdateChartEmptyReason(state,computed.Rows,points);
                             this.SyncDiagnosticRows(state.LatencyHotspotRows,computed.LatencyRows);
                             this.SyncDiagnosticRows(state.AllocationDiagnosticRows,computed.AllocationRows);
                             this.SyncDiagnosticRows(state.CpuTimelineRows,computed.TimelineRows);
@@ -7476,7 +7523,59 @@ public sealed partial class RunnerViewModel:ObservableObject {
         var points = this.BuildBenchmarkChartPoints(state,rows);
         this.SyncChartPoints(state.ChartPoints,points);
         state.ChartHeight=Math.Max(BenchmarkChartMinimumHeight,points.Count*BenchmarkChartRowHeight+BenchmarkChartVerticalPadding);
+        this.UpdateChartEmptyReason(state,rows,points);
         this.RefreshDiagnosticViews(state,rows);
+    }
+
+    private void UpdateChartEmptyReason(BenchmarkSourceTabViewState state,IReadOnlyList<BenchmarkComparisonRow> rows,IReadOnlyList<ChartComparisonPoint> points) {
+        var reason = this.CreateChartEmptyReason(state,rows,points);
+        state.ChartEmptyReasonText=reason.Text;
+        state.ChartEmptyReasonTooltipText=reason.Tooltip;
+        if(ReferenceEquals(state,this.SelectedSourceTabViewState)) {
+            this.OnPropertyChanged(nameof(this.ChartEmptyReasonText));
+            this.OnPropertyChanged(nameof(this.ChartEmptyReasonTooltipText));
+        }
+    }
+
+    private (string Text,string Tooltip) CreateChartEmptyReason(
+        BenchmarkSourceTabViewState state,
+        IReadOnlyList<BenchmarkComparisonRow> rows,
+        IReadOnlyList<ChartComparisonPoint> points) {
+        if(points.Count>0) {
+            return (string.Empty,string.Empty);
+        }
+
+        var sourceTab = state.Definition;
+        var selectedN = this.SelectedResultElementCount?.DisplayName??"-";
+        var selectedRun = this.SelectedRunOption?.DisplayName??"-";
+        var tooltip = "タブ: "+sourceTab.DisplayName+"\n"
+            +"Run: "+selectedRun+"\n"
+            +"選択軸: "+selectedN+"\n"
+            +"表示結果: "+this.ResultItems.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)+"\n"
+            +"比較行: "+rows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        if(!this.HasAnyLiveSelectedBenchmarkCell(sourceTab)) {
+            return ("選択中のベンチマークがありません。",tooltip+"\n原因: このタブで選択済みのベンチマークセルがありません。");
+        }
+
+        if(this.IsBenchmarkRunActive) {
+            return ("計測結果を待っています。",tooltip+"\n原因: 実行中ですが、まだ比較チャートに使える完了結果がありません。");
+        }
+
+        var hasTabResults = this.currentRunSession.HasResults(sourceTab.Tab)||this.ResultItems.Any(result => sourceTab.ContainsProject(result.Project));
+        if(!hasTabResults) {
+            if(this.SelectedRunOption is null||IsNewRunOption(this.SelectedRunOption)) {
+                return ("ベンチマークを実行するか、保存済み DB 実行を選択してください。",tooltip+"\n原因: 現在のタブに表示できる結果がまだありません。");
+            }
+
+            return ("保存済み DB 実行に表示できる完了結果がありません。",tooltip+"\n原因: 選択した保存済み実行から、このタブの完了結果を復元できませんでした。");
+        }
+
+        if(rows.Count==0) {
+            return ("比較できる完了結果がありません。",tooltip+"\n原因: 選択状態、軸、または結果ステータスの条件に合う比較行がありません。");
+        }
+
+        return ("比較ペアの両側に有効な値がありません。",tooltip+"\n原因: 比較行はありますが、左右のどちらかまたは両方に計測値がありません。");
     }
 
     /// <summary>
@@ -7873,6 +7972,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
                     &&target[index].LeftText==point.LeftText
                     &&target[index].RightText==point.RightText
                     &&target[index].TooltipText==point.TooltipText
+                    &&target[index].IsLeftFallback==point.IsLeftFallback
+                    &&target[index].IsRightFallback==point.IsRightFallback
                     &&target[index].IsLeftUiSelected==point.IsLeftUiSelected
                     &&target[index].IsRightUiSelected==point.IsRightUiSelected
                     &&target[index].IsRowUiSelected==point.IsRowUiSelected) {
@@ -8017,17 +8118,21 @@ public sealed partial class RunnerViewModel:ObservableObject {
     private ChartComparisonPoint CreateChartComparisonPoint(string benchmark,string displayName,double? leftValue,double? rightValue,BenchmarkTableRow row,ComparisonPairOption pair) {
         var leftNumber = Math.Max(0,leftValue??0);
         var rightNumber = Math.Max(0,rightValue??0);
+        var isLeftFallback = this.IsChartMetricFallback(row,pair.LeftProject,leftValue);
+        var isRightFallback = this.IsChartMetricFallback(row,pair.RightProject,rightValue);
         var shareTexts = BenchmarkChartSelectionLayoutLogic.CreateShareTexts(leftNumber,rightNumber);
         double? ratio = BenchmarkChartSelectionLayoutLogic.CreateRatio(leftNumber,rightNumber);
         var ratioText = ratio is { } value
             ? value.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)
             : "-";
         var metricName = this.SelectedMetric.Kind==BenchmarkMetricKind.Time ? "Time" : "Memory";
+        var fallbackTooltip = this.CreateChartFallbackTooltip(pair,isLeftFallback,isRightFallback);
         var tooltip = BenchmarkFormatting.ShortName(displayName)+"\n"
             +pair.LeftProject+" "+metricName+": "+FirstText(FormatMetric(leftValue,this.SelectedMetric.Kind),"-")+"\n"
             +pair.RightProject+" "+metricName+": "+FirstText(FormatMetric(rightValue,this.SelectedMetric.Kind),"-")
             +"\nRatio(left/right): "+ratioText
             +"\nShare: "+pair.LeftProject+" "+shareTexts.LeftText+" / "+pair.RightProject+" "+shareTexts.RightText
+            +fallbackTooltip
             +(string.IsNullOrWhiteSpace(BenchmarkArgumentTooltipFormatter.CreateArgumentTooltip(row))
                 ? string.Empty
                 : "\n"+BenchmarkArgumentTooltipFormatter.CreateArgumentTooltip(row));
@@ -8039,7 +8144,40 @@ public sealed partial class RunnerViewModel:ObservableObject {
             shareTexts.LeftText,
             shareTexts.RightText,
             tooltip,
-            ratio);
+            ratio)
+            .WithFallbackState(isLeftFallback,isRightFallback);
+    }
+
+    private bool IsChartMetricFallback(BenchmarkTableRow row,string project,double? metricValue) {
+        if(metricValue is null) {
+            return false;
+        }
+        if(this.SelectedResultElementCount is not { } selectedElementCount) {
+            return false;
+        }
+        if(this.ShouldUseCurrentRunMemoryForDisplay(this.SelectedSourceDefinition)) {
+            return false;
+        }
+
+        var typeFullName = GetRowTypeFullName(row,project);
+        var argumentKey = GetRowArgumentKey(row,project);
+        return !this.HasResult(row.MethodName,project,typeFullName,selectedElementCount.Value,argumentKey);
+    }
+
+    private string CreateChartFallbackTooltip(ComparisonPairOption pair,bool isLeftFallback,bool isRightFallback) {
+        if(!isLeftFallback&&!isRightFallback) {
+            return string.Empty;
+        }
+
+        var selectedN = this.SelectedResultElementCount?.DisplayName??"-";
+        if(isLeftFallback&&isRightFallback) {
+            return "\nFallback: "+pair.LeftProject+" / "+pair.RightProject+" は選択軸 "+selectedN+" ではなく最新完了結果を使用";
+        }
+        if(isLeftFallback) {
+            return "\nFallback: "+pair.LeftProject+" は選択軸 "+selectedN+" ではなく最新完了結果を使用";
+        }
+
+        return "\nFallback: "+pair.RightProject+" は選択軸 "+selectedN+" ではなく最新完了結果を使用";
     }
 
     /// <summary>
