@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 namespace Seamless.UI.Storage;
 
 public sealed class UiRunStore{
-    private const int SchemaVersion = 4;
+    private const int SchemaVersion = 5;
     private readonly string databasePath;
     private readonly UiRunSchemaMismatchPolicy mismatchPolicy;
     private readonly object schemaGate = new();
@@ -40,7 +40,7 @@ public sealed class UiRunStore{
         }
 
         var version = this.ReadStoredSchemaVersion();
-        if(version==SchemaVersion){
+        if(version==SchemaVersion&&this.HasExpectedSchemaShape()){
             return;
         }
 
@@ -62,6 +62,24 @@ public sealed class UiRunStore{
         }
     }
 
+    private bool HasExpectedSchemaShape(){
+        try{
+            using var connection = this.OpenConnectionWithoutCreate();
+            using var command = connection.CreateCommand();
+            command.CommandText="""
+                SELECT
+                    (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行')
+                    +(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ベンチマーク項目')
+                    +(SELECT COUNT(*) FROM sqlite_master WHERE type='view')
+                    +(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT IN('実行','ベンチマーク項目','sqlite_sequence'));
+                """;
+            return (long)(command.ExecuteScalar()??-1L)==2L;
+        }
+        catch(SqliteException){
+            return false;
+        }
+    }
+
     private static void DeleteIfExists(string path){
         if(File.Exists(path)){
             File.Delete(path);
@@ -79,7 +97,10 @@ public sealed class UiRunStore{
                 "タブ名" TEXT NOT NULL,
                 "作成日時" TEXT NOT NULL,
                 "更新日時" TEXT NOT NULL,
-                "進捗状態Json" TEXT NOT NULL DEFAULT '',
+                "実行ルート" TEXT NOT NULL DEFAULT '',
+                "要素数一覧" TEXT NOT NULL DEFAULT '',
+                "Adaptive閾値ns" REAL NOT NULL DEFAULT 0,
+                "論理CPU一覧" TEXT NOT NULL DEFAULT '',
                 "選択タブ" TEXT NOT NULL DEFAULT '',
                 "選択要素数" TEXT NOT NULL DEFAULT ''
             );
@@ -88,6 +109,7 @@ public sealed class UiRunStore{
                 "実行ID" INTEGER NOT NULL,
                 "タブ名" TEXT NOT NULL,
                 "プロジェクト名" TEXT NOT NULL,
+                "Assembly" TEXT NOT NULL DEFAULT '',
                 "Type" TEXT NOT NULL,
                 "型フル名" TEXT NOT NULL,
                 "ベンチマーク名" TEXT NOT NULL,
@@ -117,13 +139,11 @@ public sealed class UiRunStore{
             CREATE UNIQUE INDEX IF NOT EXISTS "UX_ベンチマーク項目_セル" ON "ベンチマーク項目"(
                 "実行ID",
                 "タブ名",
+                "行キー",
+                "側",
                 "プロジェクト名",
-                "Type",
-                "ベンチマーク名",
-                "引数キー",
                 COALESCE("要素数",-1),
-                COALESCE("ループ回数",-1),
-                COALESCE("CPU番号",-1)
+                COALESCE("ループ回数",-1)
             );
             """);
     }
@@ -164,11 +184,50 @@ public sealed class UiRunStore{
         command.ExecuteNonQuery();
     }
 
+    public void SaveRunSettings(long runId,string runRoot,IReadOnlyList<int> elementCounts,double adaptiveThresholdNanoseconds,IReadOnlyList<int> logicalCpus){
+        this.EnsureSchema();
+        using var connection = this.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText="""
+            UPDATE "実行"
+            SET "実行ルート"=$runRoot,
+                "要素数一覧"=$elementCounts,
+                "Adaptive閾値ns"=$adaptiveThreshold,
+                "論理CPU一覧"=$logicalCpus,
+                "更新日時"=$updatedAt
+            WHERE "実行ID"=$runId;
+            """;
+        command.Parameters.AddWithValue("$runId",runId);
+        command.Parameters.AddWithValue("$runRoot",runRoot);
+        command.Parameters.AddWithValue("$elementCounts",string.Join(",",elementCounts));
+        command.Parameters.AddWithValue("$adaptiveThreshold",adaptiveThresholdNanoseconds);
+        command.Parameters.AddWithValue("$logicalCpus",string.Join(",",logicalCpus));
+        command.Parameters.AddWithValue("$updatedAt",ToText(DateTimeOffset.UtcNow));
+        command.ExecuteNonQuery();
+    }
+
+    public UiRunSettingsRecord? GetRunSettings(long runId){
+        this.EnsureSchema();
+        using var connection = this.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText="""
+            SELECT "実行ID","実行ルート","要素数一覧","Adaptive閾値ns","論理CPU一覧"
+            FROM "実行"
+            WHERE "実行ID"=$runId;
+            """;
+        command.Parameters.AddWithValue("$runId",runId);
+        using var reader = command.ExecuteReader();
+        return reader.Read()
+            ? new UiRunSettingsRecord(reader.GetInt64(0),reader.GetString(1),reader.GetString(2),reader.GetDouble(3),reader.GetString(4))
+            : null;
+    }
+
     public UiCaseRecord UpsertCase(
         long runId,
         string caseKey,
         string name,
         string project,
+        string assemblyName,
         string method,
         string typeFullName,
         IReadOnlyDictionary<string,string>? arguments = null,
@@ -184,7 +243,7 @@ public sealed class UiRunStore{
         using var connection = this.OpenConnection();
         using(var select = connection.CreateCommand()){
             select.CommandText="""
-                SELECT "項目ID","行キー","側","ペア識別子"
+                SELECT "項目ID","行キー","側","ペア識別子","Assembly"
                 FROM "ベンチマーク項目"
                 WHERE "実行ID"=$runId
                     AND "タブ名"=$tabName
@@ -218,6 +277,7 @@ public sealed class UiRunStore{
                     caseKey,
                     reader.GetString(1),
                     project,
+                    reader.GetString(4),
                     method,
                     typeFullName,
                     sourceTabId,
@@ -230,11 +290,12 @@ public sealed class UiRunStore{
         using var command = connection.CreateCommand();
         command.CommandText="""
             INSERT INTO "ベンチマーク項目"(
-                "実行ID","タブ名","プロジェクト名","Type","型フル名","ベンチマーク名",
-                "選択済み","計測状態","引数キー","引数表示","行キー","側","ペア識別子")
-            VALUES($runId,$tabName,$project,$type,$typeFullName,$method,1,$status,$argumentKey,$argumentDisplay,$rowKey,$side,$pairDiscriminator)
-            ON CONFLICT("実行ID","タブ名","プロジェクト名","Type","ベンチマーク名","引数キー",COALESCE("要素数",-1),COALESCE("ループ回数",-1),COALESCE("CPU番号",-1))
+                "実行ID","タブ名","プロジェクト名","Assembly","Type","型フル名","ベンチマーク名",
+                "選択済み","計測状態","要素数","ループ回数","引数キー","引数表示","行キー","側","ペア識別子")
+            VALUES($runId,$tabName,$project,$assembly,$type,$typeFullName,$method,1,$status,$elementCount,$loopCount,$argumentKey,$argumentDisplay,$rowKey,$side,$pairDiscriminator)
+            ON CONFLICT("実行ID","タブ名","行キー","側","プロジェクト名",COALESCE("要素数",-1),COALESCE("ループ回数",-1))
             DO UPDATE SET
+                "Assembly"=excluded."Assembly",
                 "型フル名"=excluded."型フル名",
                 "選択済み"=excluded."選択済み",
                 "引数表示"=excluded."引数表示",
@@ -255,17 +316,20 @@ public sealed class UiRunStore{
         command.Parameters.AddWithValue("$runId",runId);
         command.Parameters.AddWithValue("$tabName",tabName);
         command.Parameters.AddWithValue("$project",project);
+        command.Parameters.AddWithValue("$assembly",assemblyName);
         command.Parameters.AddWithValue("$type",type);
         command.Parameters.AddWithValue("$typeFullName",typeFullName);
         command.Parameters.AddWithValue("$method",method);
         command.Parameters.AddWithValue("$status",ToStatusText(UiRunStatus.Queued));
+        command.Parameters.AddWithValue("$elementCount",ToDbValue(elementCount));
+        command.Parameters.AddWithValue("$loopCount",ToDbValue(loopCount));
         command.Parameters.AddWithValue("$argumentKey",argumentKey);
         command.Parameters.AddWithValue("$argumentDisplay",ToArgumentDisplay(arguments));
         command.Parameters.AddWithValue("$rowKey",name);
         command.Parameters.AddWithValue("$side",side);
         command.Parameters.AddWithValue("$pairDiscriminator",pairDiscriminator);
         var caseId = (long)(command.ExecuteScalar()??0L);
-        return new(caseId,runId,caseKey,name,project,method,typeFullName,sourceTabId,argumentKey,side,pairDiscriminator);
+        return new(caseId,runId,caseKey,name,project,assemblyName,method,typeFullName,sourceTabId,argumentKey,side,pairDiscriminator);
     }
 
     public void SaveDetectedBenchmarkItems(long runId,IReadOnlyList<UiBenchmarkItemWrite> items){
@@ -277,17 +341,18 @@ public sealed class UiRunStore{
             command.Transaction=transaction;
             command.CommandText="""
                 INSERT INTO "ベンチマーク項目"(
-                    "実行ID","タブ名","プロジェクト名","Type","型フル名","ベンチマーク名",
+                    "実行ID","タブ名","プロジェクト名","Assembly","Type","型フル名","ベンチマーク名",
                     "選択済み","計測状態","要素数","ループ回数","CPU番号",
                     "引数キー","引数表示","行キー","側","ペア識別子")
                 VALUES(
-                    $runId,$tabName,$project,$type,$typeFullName,$method,
+                    $runId,$tabName,$project,$assembly,$type,$typeFullName,$method,
                     $selected,$status,$elementCount,$loopCount,$cpu,
                     $argumentKey,$argumentDisplay,$rowKey,$side,$pairDiscriminator);
                 """;
             command.Parameters.AddWithValue("$runId",runId);
             command.Parameters.AddWithValue("$tabName",item.TabName);
             command.Parameters.AddWithValue("$project",item.ProjectName);
+            command.Parameters.AddWithValue("$assembly",item.AssemblyName);
             command.Parameters.AddWithValue("$type",item.TypeName);
             command.Parameters.AddWithValue("$typeFullName",item.TypeFullName);
             command.Parameters.AddWithValue("$method",item.BenchmarkName);
@@ -423,7 +488,6 @@ public sealed class UiRunStore{
     public void SaveUiViewState(long runId,string stateKey,string stateValue){
         this.EnsureSchema();
         var column = stateKey switch{
-            "BenchmarkProgressStateJson" => "進捗状態Json",
             "SelectedSourceTab" => "選択タブ",
             "SelectedResultElementCount" => "選択要素数",
             _ => "",
@@ -513,7 +577,7 @@ public sealed class UiRunStore{
         using var connection = this.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText="""
-            SELECT "項目ID","実行ID","行キー","プロジェクト名","ベンチマーク名","型フル名","タブ名","引数キー","側","ペア識別子"
+            SELECT "項目ID","実行ID","行キー","プロジェクト名","Assembly","ベンチマーク名","型フル名","タブ名","引数キー","側","ペア識別子"
             FROM "ベンチマーク項目"
             WHERE "実行ID"=$runId
             ORDER BY "項目ID";
@@ -533,7 +597,8 @@ public sealed class UiRunStore{
                 reader.GetString(6),
                 reader.GetString(7),
                 reader.GetString(8),
-                reader.GetString(9)));
+                reader.GetString(9),
+                reader.GetString(10)));
         }
 
         return values;
@@ -641,7 +706,7 @@ public sealed class UiRunStore{
         using var connection = this.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText="""
-            SELECT "進捗状態Json","選択タブ","選択要素数"
+            SELECT "選択タブ","選択要素数"
             FROM "実行"
             WHERE "実行ID"=$runId;
             """;
@@ -651,9 +716,8 @@ public sealed class UiRunStore{
             return [];
         }
         var values = new List<UiViewStateRecord>();
-        AddViewState(values,runId,"BenchmarkProgressStateJson",reader.GetString(0));
-        AddViewState(values,runId,"SelectedSourceTab",reader.GetString(1));
-        AddViewState(values,runId,"SelectedResultElementCount",reader.GetString(2));
+        AddViewState(values,runId,"SelectedSourceTab",reader.GetString(0));
+        AddViewState(values,runId,"SelectedResultElementCount",reader.GetString(1));
         return values;
     }
 
@@ -727,12 +791,18 @@ public sealed class UiRunStore{
         DateTimeOffset.Parse(value,System.Globalization.CultureInfo.InvariantCulture,System.Globalization.DateTimeStyles.RoundtripKind);
 
     private static string ToAppKindText(UiRunAppKind value) =>
-        value==UiRunAppKind.ScalableBenchmark ? "スケーラブル" : "標準";
+        value switch{
+            UiRunAppKind.ScalableBenchmark => "スケーラブル",
+            UiRunAppKind.ParameterSweep => "ParameterSweep",
+            _ => "標準",
+        };
 
     private static UiRunAppKind FromAppKindText(string value) =>
-        string.Equals(value,"スケーラブル",StringComparison.OrdinalIgnoreCase)
-            ? UiRunAppKind.ScalableBenchmark
-            : UiRunAppKind.Benchmark;
+        value switch{
+            "スケーラブル" => UiRunAppKind.ScalableBenchmark,
+            "ParameterSweep" => UiRunAppKind.ParameterSweep,
+            _ => UiRunAppKind.Benchmark,
+        };
 
     private static string ToStatusText(UiRunStatus value) =>
         value switch{

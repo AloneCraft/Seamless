@@ -31,6 +31,7 @@ public enum BenchmarkGridSortColumn{
     BenchmarkType,
     BenchmarkMethod,
     BenchmarkName,
+    LogicalCpu,
     ElementCount,
     ArgumentCount,
     ArgumentIndex,
@@ -84,6 +85,7 @@ public sealed class BenchmarkSortRule:ObservableObject{
             BenchmarkGridSortColumn.BenchmarkType => "型",
             BenchmarkGridSortColumn.BenchmarkMethod => "ベンチマーク",
             BenchmarkGridSortColumn.BenchmarkName => "ベンチマーク",
+            BenchmarkGridSortColumn.LogicalCpu => "CPU",
             BenchmarkGridSortColumn.ElementCount => "要素数",
             BenchmarkGridSortColumn.ArgumentCount => "Count",
             BenchmarkGridSortColumn.ArgumentIndex => "Index",
@@ -155,6 +157,7 @@ public sealed class SourceTabOption:TabHeaderOptionBase{
     private static readonly Color DefaultProgressOutlineColor=Color.FromArgb("#64748B");
     private BenchmarkTabProgress progress;
     private bool isRunning;
+    private bool isFinalCompleted;
 
     public SourceTabOption(BenchmarkSourceTabDefinition definition){
         this.Definition=definition;
@@ -172,6 +175,7 @@ public sealed class SourceTabOption:TabHeaderOptionBase{
                 this.OnPropertyChanged(nameof(this.HasProgress));
                 this.OnPropertyChanged(nameof(this.IsCompleted));
                 this.OnPropertyChanged(nameof(this.IsCompletionIconVisible));
+                this.OnPropertyChanged(nameof(this.CompletionIconSource));
                 this.OnPropertyChanged(nameof(this.ProgressFraction));
                 this.OnPropertyChanged(nameof(this.ProgressText));
                 this.OnPropertyChanged(nameof(this.ProgressTooltipText));
@@ -182,7 +186,19 @@ public sealed class SourceTabOption:TabHeaderOptionBase{
     public override string HeaderText => this.DisplayName;
     public bool HasProgress => this.Progress.Total>0;
     public bool IsCompleted => this.Progress.Total>0&&this.Progress.Completed>=this.Progress.Total;
+    public bool IsFinalCompleted{
+        get => this.isFinalCompleted;
+        private set{
+            if(this.SetProperty(ref this.isFinalCompleted,value)){
+                this.OnPropertyChanged(nameof(this.CompletionIconSource));
+                this.OnPropertyChanged(nameof(this.ProgressTooltipText));
+            }
+        }
+    }
     public bool IsCompletionIconVisible => this.IsCompleted&&!this.IsRunning;
+    public string CompletionIconSource => this.IsFinalCompleted
+        ? BenchmarkStatusImageNames.FinalCompleted
+        : BenchmarkStatusImageNames.Completed;
     public double ProgressFraction => this.Progress.Total<=0 ? 0 : this.Progress.Fraction;
     public string ProgressText => this.Progress.Total<=0 ? "0/0" : this.Progress.FractionText;
     public string ProgressTooltipText => this.IsRunning
@@ -198,12 +214,20 @@ public sealed class SourceTabOption:TabHeaderOptionBase{
                 this.OnPropertyChanged(nameof(this.ProgressOutlineColor));
                 this.OnPropertyChanged(nameof(this.ProgressTooltipText));
                 this.OnPropertyChanged(nameof(this.IsCompletionIconVisible));
+                this.OnPropertyChanged(nameof(this.CompletionIconSource));
             }
         }
     }
 
     public void SetProgress(BenchmarkTabProgress value){
         this.Progress=value;
+        if(value.Total<=0||value.Completed<value.Total){
+            this.SetFinalCompleted(false);
+        }
+    }
+
+    public void SetFinalCompleted(bool value){
+        this.IsFinalCompleted=value;
     }
 
     public void SetRunning(bool value){
@@ -1019,6 +1043,13 @@ public sealed class BenchmarkTableRow:ObservableObject{
     private string benchmarkName = string.Empty;
     private string benchmarkTypeText = string.Empty;
     private string benchmarkMethodText = string.Empty;
+    private bool hasCpuDisplay;
+    private string logicalProcessorText = string.Empty;
+    private string coreKindLabel = string.Empty;
+    private string coreKindImageSource = string.Empty;
+    private Color badgeBackgroundColor = Color.FromArgb("#E2E8F0");
+    private Color badgeTextColor = Color.FromArgb("#334155");
+    private double? logicalCpuSortValue;
     private bool isFinalCompleted;
     private static readonly Color DefaultStopNTextColor = Color.FromArgb("#334155");
 
@@ -1060,6 +1091,37 @@ public sealed class BenchmarkTableRow:ObservableObject{
     public string BenchmarkMethodText{
         get => this.benchmarkMethodText;
         private set => this.SetProperty(ref this.benchmarkMethodText,value);
+    }
+    public bool HasCpuDisplay{
+        get => this.hasCpuDisplay;
+        private set => this.SetProperty(ref this.hasCpuDisplay,value);
+    }
+    public string LogicalProcessorText{
+        get => this.logicalProcessorText;
+        private set => this.SetProperty(ref this.logicalProcessorText,value);
+    }
+    public string CoreKindLabel{
+        get => this.coreKindLabel;
+        private set => this.SetProperty(ref this.coreKindLabel,value);
+    }
+    public string CoreKindImageSource{
+        get => this.coreKindImageSource;
+        private set => this.SetProperty(ref this.coreKindImageSource,value);
+    }
+    public Color BadgeBackgroundColor{
+        get => this.badgeBackgroundColor;
+        private set => this.SetProperty(ref this.badgeBackgroundColor,value);
+    }
+    public Color BadgeTextColor{
+        get => this.badgeTextColor;
+        private set => this.SetProperty(ref this.badgeTextColor,value);
+    }
+    public string CpuTooltipText => this.HasCpuDisplay
+        ? (string.IsNullOrWhiteSpace(this.CoreKindLabel) ? "CPU" : this.CoreKindLabel)+" / CPU "+this.LogicalProcessorText
+        : string.Empty;
+    public double? LogicalCpuSortValue{
+        get => this.logicalCpuSortValue;
+        private set => this.SetProperty(ref this.logicalCpuSortValue,value);
     }
     public BenchmarkSourceTabDefinition SourceTab { get; }
     public IReadOnlyDictionary<string,BenchmarkCase> CasesByProject { get; }
@@ -1248,6 +1310,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
     }
 
     public void ApplyRunResult(BenchmarkResultItem result,CpuSelectionItem? cpu,DateTimeOffset completedAt,bool highlightCompleted = true){
+        this.ApplyCpuDisplay(cpu,preserveWhenNull:true);
         if(this.GetProjectCell(result.Project) is { } cell){
             cell.ApplyRunResult(result,cpu,completedAt,highlightCompleted);
             this.SetProjectMetricText(result.Project,FormatTime(cell.Metrics),FormatAllocated(cell.Metrics));
@@ -1264,6 +1327,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
     }
 
     public void ApplySkipped(string project,int stoppedAtElementCount,ProjectMetrics stoppedMetrics,CpuSelectionItem? cpu,DateTimeOffset? measuredAt,bool metadataMissing){
+        this.ApplyCpuDisplay(cpu,preserveWhenNull:true);
         if(this.GetProjectCell(project) is { } cell){
             cell.ApplySkipped(stoppedAtElementCount,stoppedMetrics,cpu,measuredAt,metadataMissing);
         }
@@ -1304,6 +1368,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
     public void ClearResultDisplay(){
         this.ClearComparison(false);
         this.SetFinalCompleted(false);
+        this.ClearCpuDisplay();
     }
 
     public void ClearUnselectedResultDisplays(){
@@ -1344,6 +1409,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
             BenchmarkGridSortColumn.BenchmarkType => BenchmarkSortValue.FromText(this.BenchmarkTypeText),
             BenchmarkGridSortColumn.BenchmarkMethod => BenchmarkSortValue.FromText(this.BenchmarkMethodText),
             BenchmarkGridSortColumn.BenchmarkName => BenchmarkSortValue.FromText(this.BenchmarkName),
+            BenchmarkGridSortColumn.LogicalCpu => BenchmarkSortValue.FromNumber(this.LogicalCpuSortValue),
             BenchmarkGridSortColumn.ElementCount => BenchmarkSortValue.FromNumber(this.ElementCountSortValue),
             BenchmarkGridSortColumn.ArgumentCount => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.CountArgument)),
             BenchmarkGridSortColumn.ArgumentIndex => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.IndexArgument)),
@@ -1413,6 +1479,35 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.stopNText=string.Empty;
         this.ApplyStopNStyle(false);
         this.OnPropertyChanged(nameof(this.StopNText));
+    }
+
+    private void ApplyCpuDisplay(CpuSelectionItem? cpu,bool preserveWhenNull = false){
+        if(cpu is null){
+            if(!preserveWhenNull){
+                this.ClearCpuDisplay();
+            }
+            return;
+        }
+
+        this.HasCpuDisplay=true;
+        this.LogicalProcessorText=cpu.LogicalProcessorText;
+        this.CoreKindLabel=cpu.CoreKindLabel;
+        this.CoreKindImageSource=cpu.CoreKindImageSource;
+        this.BadgeBackgroundColor=cpu.BadgeBackgroundColor;
+        this.BadgeTextColor=cpu.BadgeTextColor;
+        this.LogicalCpuSortValue=cpu.LogicalProcessorIndex;
+        this.OnPropertyChanged(nameof(this.CpuTooltipText));
+    }
+
+    private void ClearCpuDisplay(){
+        this.HasCpuDisplay=false;
+        this.LogicalProcessorText=string.Empty;
+        this.CoreKindLabel=string.Empty;
+        this.CoreKindImageSource=string.Empty;
+        this.BadgeBackgroundColor=Color.FromArgb("#E2E8F0");
+        this.BadgeTextColor=Color.FromArgb("#334155");
+        this.LogicalCpuSortValue=null;
+        this.OnPropertyChanged(nameof(this.CpuTooltipText));
     }
 
     private void ApplyStopNStyle(bool highlight){

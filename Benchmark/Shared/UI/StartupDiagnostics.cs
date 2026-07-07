@@ -52,11 +52,15 @@ internal static class StartupDiagnostics{
     public static void BeginInvokeOnMainThread(string context,Action action){
         AddBreadcrumb("UI dispatch queued: "+context);
         try{
+            if(MainThread.IsMainThread){
+                RunUiAction(context,action);
+                return;
+            }
+
             MainThread.BeginInvokeOnMainThread(() => RunUiAction(context,action));
         }catch(Exception ex){
-            Write("UI dispatch scheduling failed: "+context,ex);
-            WriteCrashContext("UI dispatch scheduling failed: "+context);
-            throw;
+            WriteWithoutSubscriberNotification("UI dispatch scheduling failed: "+context,ex);
+            WriteCrashContextWithoutSubscriberNotification("UI dispatch scheduling failed: "+context);
         }
     }
 
@@ -75,14 +79,8 @@ internal static class StartupDiagnostics{
     public static void Write(string message,Exception? exception = null){
         try{
             var text = BuildEntryText(message,exception);
-            lock(Gate){
-                Directory.CreateDirectory(Path.GetDirectoryName(LogPath)!);
-                File.AppendAllText(
-                    LogPath,
-                    text);
-                logBuffer.Append(text);
-                NotifySubscribers(text);
-            }
+            AppendLogText(text);
+            NotifySubscribers(text);
         }catch{
         }
     }
@@ -90,12 +88,22 @@ internal static class StartupDiagnostics{
     public static void WriteCrashContext(string title){
         try{
             var text = BuildCrashContextText(title);
-            lock(Gate){
-                Directory.CreateDirectory(Path.GetDirectoryName(LogPath)!);
-                File.AppendAllText(LogPath,text);
-                logBuffer.Append(text);
-                NotifySubscribers(text);
-            }
+            AppendLogText(text);
+            NotifySubscribers(text);
+        }catch{
+        }
+    }
+
+    private static void WriteWithoutSubscriberNotification(string message,Exception? exception = null){
+        try{
+            AppendLogText(BuildEntryText(message,exception));
+        }catch{
+        }
+    }
+
+    private static void WriteCrashContextWithoutSubscriberNotification(string title){
+        try{
+            AppendLogText(BuildCrashContextText(title));
         }catch{
         }
     }
@@ -138,6 +146,14 @@ internal static class StartupDiagnostics{
             +message
             +Environment.NewLine
             +(exception is null ? string.Empty : exception+Environment.NewLine);
+    }
+
+    private static void AppendLogText(string text){
+        lock(Gate){
+            Directory.CreateDirectory(Path.GetDirectoryName(LogPath)!);
+            File.AppendAllText(LogPath,text);
+            logBuffer.Append(text);
+        }
     }
 
     private static string BuildCrashContextText(string title){

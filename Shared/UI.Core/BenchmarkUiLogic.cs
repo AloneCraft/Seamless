@@ -156,12 +156,12 @@ internal static class BenchmarkRunDisplaySourceLogic{
             return false;
         }
 
-        if(hasCurrentRunResultsForSelectedTab||hasAnyCurrentRunResults){
+        if(isExternalRunOption||isNewRunOption||isTransientRunOption){
             return false;
         }
 
-        if(isExternalRunOption||isNewRunOption||isTransientRunOption){
-            return false;
+        if(hasCurrentRunResultsForSelectedTab||hasAnyCurrentRunResults){
+            return hasSavedRunSelection;
         }
 
         return hasSavedRunSelection;

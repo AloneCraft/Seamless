@@ -319,7 +319,7 @@ public sealed class BenchmarkOrchestrator{
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_PinsEachProjectMethodRowToOneCpuWhileSpreadingRowsAcrossFreeCpus(){
+    public async Task Orchestrator_AdaptiveMode_PinsEachDisplayedPairRowToOneCpuWhileSpreadingRowsAcrossFreeCpus(){
         var root = CreateTempRoot();
         var observed = new List<(string Method,string Project,int ElementCount,int Cpu)>();
         var gate = new object();
@@ -353,14 +353,21 @@ public sealed class BenchmarkOrchestrator{
 
         //各計測は選択された論理CPU(10/20)のいずれかで実行される。
         Assert.All(observed,static item => Assert.True(item.Cpu is 10 or 20));
-        //行(=プロジェクト×メソッド)は空きCPUへ分配され、両方のCPUが使われる。
+        //表示行(=FLinq/ZLinqペア×メソッド)は空きCPUへ分配され、両方のCPUが使われる。
         Assert.Contains(10,observed.Select(static item => item.Cpu));
         Assert.Contains(20,observed.Select(static item => item.Cpu));
-        foreach(var group in observed.GroupBy(static item => (item.Method,item.Project))) {
-            //1つの行は開始から完了まで同じ1コアに固定される。
+        foreach(var group in observed.GroupBy(static item => item.Method)) {
+            //1つの表示行は左右プロジェクトを含めて開始から完了まで同じ1コアに固定される。
             Assert.Single(group.Select(static item => item.Cpu).Distinct());
-            //行内の軸(ElementCount)は昇順で連続実行される。
-            Assert.Equal([1,2],group.Select(static item => item.ElementCount).ToArray());
+            //行内は左プロジェクト全軸、右プロジェクト全軸の順で連続実行される。
+            Assert.Equal(
+                [
+                    ("System.Array.FLinq",1),
+                    ("System.Array.FLinq",2),
+                    ("System.Array.ZLinq",1),
+                    ("System.Array.ZLinq",2),
+                ],
+                group.Select(static item => (item.Project,item.ElementCount)).ToArray());
         }
     }
 

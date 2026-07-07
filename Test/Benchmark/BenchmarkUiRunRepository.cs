@@ -96,7 +96,7 @@ public sealed class BenchmarkUiRunRepository{
         });
 
     private static global::UI.BenchmarkViewStateSnapshot ViewState() =>
-        new("{}",global::UI.BenchmarkSourceTab.SystemArray.ToString(),"64");
+        new(global::UI.BenchmarkSourceTab.SystemArray.ToString(),"64");
 
     private static string CreateDatabasePath(){
         var root = Path.Combine(AppContext.BaseDirectory,"BenchmarkUiRunRepositoryTests",Guid.NewGuid().ToString("N"));

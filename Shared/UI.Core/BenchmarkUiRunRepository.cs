@@ -85,6 +85,17 @@ internal sealed class BenchmarkUiRunRepository{
             "UI DB run status update failed.");
     }
 
+    public void QueueSaveRunSettings(long? runId,string runRoot,IReadOnlyList<int> elementCounts,TimeSpan adaptiveThreshold,IReadOnlyList<int> logicalCpus){
+        if(runId is not { } value){
+            return;
+        }
+
+        var thresholdNanoseconds=adaptiveThreshold.TotalMilliseconds*1_000_000;
+        this.QueuePersistence(
+            () => this.store.SaveRunSettings(value,runRoot,elementCounts,thresholdNanoseconds,logicalCpus),
+            "UI DB benchmark run settings save failed.");
+    }
+
     public void QueueSaveResult(BenchmarkResultItem result,long? runId,string rowKey,BenchmarkViewStateSnapshot viewState){
         if(runId is not { } value){
             return;
@@ -292,6 +303,7 @@ internal sealed class BenchmarkUiRunRepository{
             caseKey,
             rowKey,
             result.Project,
+            definition.GetAssemblyName(result.Project),
             result.Method,
             typeFullName,
             arguments,
@@ -342,6 +354,7 @@ internal sealed class BenchmarkUiRunRepository{
                         items.Add(new(
                             sourceTab.Id,
                             project,
+                            benchmark.AssemblyName,
                             ScalableBenchmarkNameFormatter.CreateGenericTypeText(benchmark.TypeFullName),
                             benchmark.TypeFullName,
                             benchmark.MethodName,
@@ -385,6 +398,7 @@ internal sealed class BenchmarkUiRunRepository{
             result.CaseKey,
             result.RowKey,
             result.Project,
+            result.AssemblyName,
             result.Method,
             result.TypeFullName,
             result.Arguments,
@@ -413,7 +427,6 @@ internal sealed class BenchmarkUiRunRepository{
     }
 
     private void SaveViewState(long runId,BenchmarkViewStateSnapshot snapshot){
-        this.store.SaveUiViewState(runId,"BenchmarkProgressStateJson",snapshot.ProgressStateJson.Value);
         this.store.SaveUiViewState(runId,"SelectedSourceTab",snapshot.SelectedSourceTab);
         this.store.SaveUiViewState(runId,"SelectedResultElementCount",snapshot.SelectedResultElementCount);
     }
@@ -472,22 +485,15 @@ internal sealed class BenchmarkUiRunRepository{
         ||string.Equals(left,right,StringComparison.OrdinalIgnoreCase);
 }
 
-// ProgressStateJson は Lazy にして、実際のJSONシリアライズを保存キューのバックグラウンド
-// スレッドまで遅延させる(UIスレッド上のflushで全stateのシリアライズに数百msかかっていた)。
-// ProgressState は構築時に全て新規DTOへ値コピーされるため、遅延評価しても内容は変わらない。
 internal sealed record BenchmarkViewStateSnapshot(
-    Lazy<string> ProgressStateJson,
     string SelectedSourceTab,
-    string SelectedResultElementCount){
-    public BenchmarkViewStateSnapshot(string progressStateJson,string selectedSourceTab,string selectedResultElementCount)
-        : this(new Lazy<string>(progressStateJson),selectedSourceTab,selectedResultElementCount){
-    }
-}
+    string SelectedResultElementCount);
 
 internal sealed record BenchmarkResultPersistenceSnapshot(
     string CaseKey,
     string RowKey,
     string Project,
+    string AssemblyName,
     string Method,
     string TypeFullName,
     IReadOnlyDictionary<string,string> Arguments,
