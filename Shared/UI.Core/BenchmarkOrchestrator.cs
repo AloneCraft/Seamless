@@ -406,8 +406,8 @@ internal sealed class BenchmarkOrchestrator(
             state.ElementCounts=BenchmarkElementCounts.DefaultInitial.ToList();
         }
 
-        state.AdaptiveStates=request.Benchmarks
-            .Select(benchmark => CreateAdaptiveGroupKey(request.SourceTab,benchmark))
+        state.AdaptiveStates=this.CreateAdaptiveRows(state,request)
+            .Select(static row => row.Key)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(static key => key,StringComparer.OrdinalIgnoreCase)
             .Select(static key => new AdaptiveBenchmarkState { MethodName=key })
@@ -438,8 +438,8 @@ internal sealed class BenchmarkOrchestrator(
             ResetJobsFromElementCount(state,state.ElementCounts[0]);
         }
 
-        var requestedMethods = request.Benchmarks
-            .Select(benchmark => CreateAdaptiveGroupKey(request.SourceTab,benchmark))
+        var requestedMethods = this.CreateAdaptiveRows(state,request)
+            .Select(static row => row.Key)
             .ToHashSet(StringComparer.Ordinal);
         state.AdaptiveStates=state.AdaptiveStates
             .Where(adaptiveState => requestedMethods.Contains(adaptiveState.MethodName))
@@ -561,9 +561,6 @@ internal sealed class BenchmarkOrchestrator(
     private static string CreateBenchmarkKey(BenchmarkCase benchmark) =>
         string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey);
 
-    private static string CreateAdaptiveGroupKey(BenchmarkSourceTab sourceTab,BenchmarkCase benchmark) =>
-        CreateBenchmarkKey(benchmark);
-
     private void EnqueueCurrentAdaptiveRows(
         ProgressState state,
         ConcurrentQueue<AdaptiveMethodRow> queue,
@@ -614,15 +611,19 @@ internal sealed class BenchmarkOrchestrator(
             .ToArray();
         return benchmarks
             .Select((benchmark,index) => new { Benchmark=benchmark, Index=index })
-            .GroupBy(item => CreateAdaptiveGroupKey(request.SourceTab,item.Benchmark),StringComparer.OrdinalIgnoreCase)
+            .GroupBy(item => GetBenchmarkSourceTab(item.Benchmark,request.SourceTab))
             .OrderBy(static group => group.Min(static item => item.Index))
-            .Select(group => {
-                var methodCases = group.OrderBy(static item => item.Index).Select(static item => item.Benchmark).ToArray();
-                return new AdaptiveMethodRow(
-                    group.Key,
-                    GetBenchmarkSourceTab(methodCases[0],request.SourceTab),
-                    methodCases[0].MethodName,
-                    methodCases);
+            .SelectMany(group => {
+                var sourceTab=BenchmarkSourceTabs.Get(group.Key);
+                return BenchmarkRowGroupingLogic.CreateRows(group.OrderBy(static item => item.Index).Select(static item => item.Benchmark).ToArray(),sourceTab)
+                    .Select(row => new AdaptiveMethodRow(
+                        row.RowKey,
+                        sourceTab.Tab,
+                        row.MethodName,
+                        sourceTab.ProjectOrder
+                            .Where(project => row.CasesByProject.ContainsKey(project))
+                            .Select(project => row.CasesByProject[project])
+                            .ToArray()));
             })
             .ToArray();
     }

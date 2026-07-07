@@ -26,5 +26,24 @@ public sealed class StartupDiagnostics{
         var text = global::UI.StartupDiagnostics.GetCrashContextText("test");
         Assert.Contains("UI dispatch start: "+context,text);
     }
+
+    [Fact]
+    public void Write_DoesNotReenterSubscriberWhenUiDispatchSchedulingFails(){
+        var marker = "dispatch-recursion-"+Guid.NewGuid().ToString("N",System.Globalization.CultureInfo.InvariantCulture);
+        var received = 0;
+        using var subscription = global::UI.StartupDiagnostics.Subscribe(text => {
+            if(!text.Contains(marker,StringComparison.Ordinal)){
+                return;
+            }
+
+            received++;
+            global::UI.StartupDiagnostics.BeginInvokeOnMainThread(marker,static () => {
+            });
+        });
+
+        global::UI.StartupDiagnostics.Write(marker);
+
+        Assert.Equal(1,received);
+    }
 }
 #endif

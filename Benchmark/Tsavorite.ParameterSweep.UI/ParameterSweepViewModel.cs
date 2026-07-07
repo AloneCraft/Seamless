@@ -201,6 +201,7 @@ public sealed class ParameterSweepViewModel:INotifyPropertyChanged {
             result.CaseName,
             result.CaseName,
             result.Collection.ToString(),
+            string.Empty,
             result.Sweep.ToString(),
             result.GenericName,
             new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase) {

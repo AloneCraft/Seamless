@@ -46,6 +46,7 @@ public sealed record UiCaseRecord(
     string CaseKey,
     string Name,
     string Project,
+    string AssemblyName,
     string Method,
     string TypeFullName,
     string SourceTabId,
@@ -87,6 +88,7 @@ public sealed record UiMetricValueWrite(string MetricName,double NumericValue,st
 public sealed record UiBenchmarkItemWrite(
     string TabName,
     string ProjectName,
+    string AssemblyName,
     string TypeName,
     string TypeFullName,
     string BenchmarkName,
@@ -99,6 +101,13 @@ public sealed record UiBenchmarkItemWrite(
     string RowKey,
     string Side,
     string PairDiscriminator);
+
+public sealed record UiRunSettingsRecord(
+    long RunId,
+    string RunRoot,
+    string ElementCounts,
+    double AdaptiveThresholdNanoseconds,
+    string LogicalCpus);
 
 public sealed record UiMetricValueRecord(
     long JobId,

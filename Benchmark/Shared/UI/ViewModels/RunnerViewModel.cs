@@ -529,6 +529,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
         this.RunCommand=new AsyncRelayCommand(this.RunOrResumeAsync,() => this.CanUseRunToolbarButton);
 #if DEBUG
         this.RunInfiniteCommand=new AsyncRelayCommand(this.RunInfiniteAsync,() => this.CanUseRunToolbarButton);
+        this.ClearRunHistoryCommand=new AsyncRelayCommand(this.ClearRunHistoryAsync,() => this.CanClearRunHistory);
 #endif
         this.ToggleRunCommand=new RelayCommand(this.ToggleRun,() => !this.IsRefreshing);
         this.StopCommand=new AsyncRelayCommand(this.StopAsync,() => this.IsBenchmarkRunActive||this.IsBenchmarkPaused);
@@ -796,6 +797,11 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     /// <value>RunInfiniteCommand の値を取得/設定します。</value>
     public IAsyncRelayCommand RunInfiniteCommand { get; }
+    /// <summary>
+    /// ClearRunHistoryCommand プロパティです。
+    /// </summary>
+    /// <value>ClearRunHistoryCommand の値を取得/設定します。</value>
+    public IAsyncRelayCommand ClearRunHistoryCommand { get; }
 #endif
     /// <summary>
     /// ToggleRunCommand プロパティです。
@@ -968,6 +974,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 this.RunCommand.NotifyCanExecuteChanged();
 #if DEBUG
                 this.RunInfiniteCommand.NotifyCanExecuteChanged();
+                this.ClearRunHistoryCommand.NotifyCanExecuteChanged();
 #endif
                 this.ToggleRunCommand.NotifyCanExecuteChanged();
                 this.StopCommand.NotifyCanExecuteChanged();
@@ -984,6 +991,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 this.OnPropertyChanged(nameof(this.CanRunBenchmark));
                 this.OnPropertyChanged(nameof(this.CanResumeBenchmark));
                 this.OnPropertyChanged(nameof(this.CanUseRunToolbarButton));
+#if DEBUG
+                this.OnPropertyChanged(nameof(this.CanClearRunHistory));
+#endif
                 this.OnPropertyChanged(nameof(this.RunButtonText));
                 this.OnPropertyChanged(nameof(this.RunButtonTooltipText));
                 this.OnPropertyChanged(nameof(this.ToolbarStateInput));
@@ -1011,6 +1021,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 this.RunCommand.NotifyCanExecuteChanged();
 #if DEBUG
                 this.RunInfiniteCommand.NotifyCanExecuteChanged();
+                this.ClearRunHistoryCommand.NotifyCanExecuteChanged();
 #endif
                 this.ToggleRunCommand.NotifyCanExecuteChanged();
                 this.StopCommand.NotifyCanExecuteChanged();
@@ -1023,6 +1034,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 this.OnPropertyChanged(nameof(this.CanRunBenchmark));
                 this.OnPropertyChanged(nameof(this.CanResumeBenchmark));
                 this.OnPropertyChanged(nameof(this.CanUseRunToolbarButton));
+#if DEBUG
+                this.OnPropertyChanged(nameof(this.CanClearRunHistory));
+#endif
                 this.OnPropertyChanged(nameof(this.ToolbarStateInput));
             }
         }
@@ -1088,6 +1102,17 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <value>CanUseRunToolbarButton の値を取得/設定します。</value>
     public bool CanUseRunToolbarButton => this.CanRunBenchmark||this.CanResumeBenchmark;
 
+#if DEBUG
+    /// <summary>
+    /// CanClearRunHistory プロパティです。
+    /// </summary>
+    /// <value>CanClearRunHistory の値を取得/設定します。</value>
+    public bool CanClearRunHistory =>
+        !this.IsRefreshing
+        &&!this.IsBenchmarkRunActive
+        &&!this.IsBenchmarkPaused;
+#endif
+
     /// <summary>
     /// HasSelectedBenchmarkCells プロパティです。
     /// </summary>
@@ -1134,6 +1159,10 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 this.OnPropertyChanged(nameof(this.CanChangeBenchmarkConditions));
                 this.OnPropertyChanged(nameof(this.CanResumeBenchmark));
                 this.OnPropertyChanged(nameof(this.CanUseRunToolbarButton));
+#if DEBUG
+                this.ClearRunHistoryCommand.NotifyCanExecuteChanged();
+                this.OnPropertyChanged(nameof(this.CanClearRunHistory));
+#endif
                 this.OnPropertyChanged(nameof(this.ToolbarStateInput));
             }
         }
@@ -2800,25 +2829,81 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     /// <param name="cancellationToken">cancellationToken を指定して実行条件を制御します。</param>
     /// <param name="loadSelected">loadSelected を指定して実行条件を制御します。</param>
-    private async Task RefreshDbRunListAsync(CancellationToken cancellationToken,bool loadSelected) {
-        var options = await Task.Run(() => {
+    private async Task RefreshDbRunListAsync(CancellationToken cancellationToken,bool loadSelected,long? preferredUiRunId = null,bool preserveDisplay = false) {
+        var runs = await Task.Run(() => {
             cancellationToken.ThrowIfCancellationRequested();
             this.uiRunStore.EnsureSchema();
             return this.uiRunStore.ListRuns(GetUiRunAppKind())
                 .Where(run => string.Equals(run.ExecutionProfile,this.SelectedExecutionProfile.Profile.ToString(),StringComparison.OrdinalIgnoreCase))
-                .Select(this.CreateRunOption)
                 .ToArray();
         },cancellationToken);
-        var selectedUiRunId = this.SelectedRunOption?.UiRunId;
+        this.TryAutoPauseLatestResumableRun(runs);
+        var options = runs.Select(this.CreateRunOption).ToArray();
+        var selectedUiRunId = preferredUiRunId??this.SelectedRunOption?.UiRunId;
+        var autoPausedRun = runs.FirstOrDefault(run => run.Status is UiRunStatus.Running or UiRunStatus.Queued or UiRunStatus.Paused
+            &&this.HasUnfinishedSelectedMeasurements(run.RunId));
         this.RunOptions.Clear();
         this.RunOptions.Add(CreateNewRunOption(this.SelectedExecutionProfile.Profile));
         foreach(var option in options) {
             this.RunOptions.Add(option);
         }
-        this.SetSelectedRunOption(
-            this.RunOptions.FirstOrDefault(option => option.UiRunId==selectedUiRunId)??this.RunOptions.FirstOrDefault(),
-            loadSelected,
-            false);
+        var optionToSelect = autoPausedRun is not null
+            ? this.RunOptions.FirstOrDefault(option => option.UiRunId==autoPausedRun.RunId)??this.RunOptions.FirstOrDefault()
+            : this.RunOptions.FirstOrDefault(option => option.UiRunId==selectedUiRunId)??this.RunOptions.FirstOrDefault();
+        if(preserveDisplay) {
+            this.SetSelectedRunOptionPreservingDisplay(optionToSelect,false);
+        }
+        else {
+            this.SetSelectedRunOption(
+                optionToSelect,
+                loadSelected,
+                false);
+        }
+    }
+
+    private void TryAutoPauseLatestResumableRun(IReadOnlyList<UiRunRecord> runs){
+        var latest = runs.FirstOrDefault();
+        if(latest is null||latest.Status is not (UiRunStatus.Running or UiRunStatus.Queued or UiRunStatus.Paused)){
+            return;
+        }
+
+        if(!this.HasUnfinishedSelectedMeasurements(latest.RunId)){
+            return;
+        }
+
+        if(latest.Status!=UiRunStatus.Paused){
+            this.uiRunStore.SetRunStatus(latest.RunId,UiRunStatus.Paused,"Recovered unfinished benchmark run from DB.");
+        }
+
+        if(this.uiRunStore.GetRunSettings(latest.RunId) is { } settings&&!string.IsNullOrWhiteSpace(settings.RunRoot)){
+            this.activeUiRunId=latest.RunId;
+            this.SetActiveRunRoot(settings.RunRoot);
+        }
+    }
+
+    private bool HasUnfinishedSelectedMeasurements(long runId){
+        var selectedKeys = this.uiRunStore.ListUiSelections(runId)
+            .Where(static item => string.Equals(item.Scope,"BenchmarkCell",StringComparison.OrdinalIgnoreCase)&&item.IsSelected)
+            .Select(static item => item.SelectionKey)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if(selectedKeys.Count==0){
+            return false;
+        }
+
+        var jobsByCase = this.uiRunStore.ListJobs(runId).ToDictionary(static item => item.CaseId);
+        foreach(var testCase in this.uiRunStore.ListCases(runId)){
+            var key = testCase.SourceTabId+"|"+testCase.Name+"|"+testCase.Project;
+            if(!selectedKeys.Contains(key)){
+                continue;
+            }
+
+            if(!jobsByCase.TryGetValue(testCase.CaseId,out var job)
+                ||job.Status is UiRunStatus.Queued or UiRunStatus.Running or UiRunStatus.Paused){
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -2832,6 +2917,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             ? parsedSourceTab
             : this.SelectedSourceDefinition.Tab;
         var elementCounts = jobs
+            .Where(static job => job.Status is UiRunStatus.Completed or UiRunStatus.Failed)
             .Select(job => (int)(BenchmarkWorkloadAxis.UsesLoopCount(sourceTab) ? job.LoopCount??0 : job.ElementCount??0))
             .Where(static elementCount => elementCount>0)
             .Distinct()
@@ -2872,6 +2958,42 @@ public sealed partial class RunnerViewModel:ObservableObject {
             StartupDiagnostics.Write("Benchmark run list refresh failed.",ex);
         }
     }
+
+#if DEBUG
+    /// <summary>
+    /// ClearRunHistoryAsync メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    private async Task ClearRunHistoryAsync() {
+        if(!this.CanClearRunHistory) {
+            return;
+        }
+
+        this.IsRefreshing=true;
+        try {
+            this.persistenceBatcher.FlushNow();
+            await this.uiRunRepository.FlushAsync();
+            await Task.Run(this.uiRunStore.DeleteAllRecords);
+            this.selectedRunLoadRequestToken++;
+            this.selectedRunStateCache=null;
+            this.currentRunSession.Clear();
+            this.RunOptions.Clear();
+            var newRunOption = CreateNewRunOption(this.SelectedExecutionProfile.Profile);
+            this.RunOptions.Add(newRunOption);
+            this.SetSelectedRunOption(newRunOption,false,false);
+            this.ClearAllCurrentRunResultsForFreshRun();
+            this.StatusText="履歴を消去しました";
+            StartupDiagnostics.Write("Benchmark run history cleared.");
+        }
+        catch(Exception ex) {
+            StartupDiagnostics.Write("Benchmark run history clear failed.",ex);
+            this.StatusText="履歴消去失敗 "+ex.Message;
+        }
+        finally {
+            this.IsRefreshing=false;
+            this.RefreshToolbarCommandStates();
+        }
+    }
+#endif
 
     /// <summary>
     /// RestoreRunSelection メソッドを実行し、副作用として内部状態を更新または描画反映します。
@@ -2985,6 +3107,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
     private void ApplySelectedRunOption(BenchmarkRunOption? option,bool load) {
         this.ClearRetainedChartPoints();
         if(IsNewRunOption(option)) {
+            if(!this.IsBenchmarkRunActive&&this.currentRunSession.HasAnyResults) {
+                this.currentRunSession.Clear();
+            }
             if(this.RestoreCurrentRunDisplayForSelectedTab()) {
                 return;
             }
@@ -3771,18 +3896,11 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
 
         var run = this.uiRunStore.ListRuns(GetUiRunAppKind()).FirstOrDefault(item => item.RunId==option.UiRunId);
-        if(run is null||run.Status is not (UiRunStatus.Paused or UiRunStatus.Running)) {
+        if(run is null||run.Status is not (UiRunStatus.Paused or UiRunStatus.Running or UiRunStatus.Queued)) {
             return false;
         }
 
-        var snapshot = this.uiRunStore.ListUiViewStates(option.UiRunId)
-            .FirstOrDefault(static item => string.Equals(item.StateKey,"BenchmarkProgressStateJson",StringComparison.OrdinalIgnoreCase))
-            ?.StateValue;
-        if(string.IsNullOrWhiteSpace(snapshot)) {
-            return false;
-        }
-
-        var state = JsonSerializer.Deserialize<ProgressState>(snapshot);
+        var state = this.CreateProgressStateFromDatabaseRun(option.UiRunId,run);
         if(state is null||string.IsNullOrWhiteSpace(state.RunRoot)) {
             return false;
         }
@@ -3843,13 +3961,17 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 ? this.activeUiRunId
                 : await this.CreateUiRunAsync(runSourceTab,executionProfile).WaitAsync(runCancellationSource.Token);
             this.activeUiRunId=uiRunId;
+            var initialElementCounts = this.GetSelectedElementCounts();
+            var initialLogicalCpus = this.GetSelectedLogicalCpus();
+            var adaptiveThreshold = this.GetAdaptiveThreshold();
+            this.uiRunRepository.QueueSaveRunSettings(uiRunId,runRoot,initialElementCounts,adaptiveThreshold,initialLogicalCpus);
             if(!isResumeRun){
                 this.uiRunRepository.QueueSaveDetectedBenchmarkItems(
                     uiRunId,
                     this.catalogCases,
                     this.SourceTabs.Select(static option => option.Definition).ToArray(),
                     CreateSelectedCaseKeySet(selected),
-                    this.GetSelectedElementCounts());
+                    initialElementCounts);
             }
             // Running表示への更新は実行開始をブロックする理由がないため、Completed/Paused等と同じくfire-and-forgetにする。
             this.QueueUiRunStatus(uiRunId,UiRunStatus.Running,"Benchmark run started.");
@@ -3875,18 +3997,14 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 +"LogicalCpus=["+string.Join(",",this.CpuItems.Where(static cpu => cpu.IsSelected).Select(static cpu => cpu.LogicalProcessorIndex))+"] "
                 +"Benchmarks="+selected.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)+" "
                 +"ElementCounts=["+string.Join(",",this.GetSelectedElementCounts())+"]");
-            var cpus = this.CpuItems
-                .Where(static cpu => cpu.IsSelected)
-                .Select(static cpu => cpu.LogicalProcessorIndex)
-                .ToArray();
             var report = await this.runService.RunAsync(
                 selected,
-                cpus,
+                initialLogicalCpus,
                 this.GetSelectedLogicalCpus,
-                this.GetSelectedElementCounts(),
+                initialElementCounts,
                 runSourceTab,
                 executionProfile,
-                this.GetAdaptiveThreshold(),
+                adaptiveThreshold,
                 !isResumeRun,
                 runRoot,
                 this.GetCurrentRunSelectedBenchmarkCases,
@@ -3943,6 +4061,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 }
             }
             this.persistenceBatcher.FlushNow();
+            await this.uiRunRepository.FlushAsync();
             if(isCurrentRun&&!completedNormally&&!keepPausedRunRoot) {
                 this.runResultGeneration=unchecked(this.runResultGeneration+1);
             }
@@ -3985,7 +4104,13 @@ public sealed partial class RunnerViewModel:ObservableObject {
             }
             // 実行が終わった Run のスナップショットは保存で更新されているため、メモリバッファを破棄する。
             this.selectedRunStateCache=null;
-            this.RefreshUnsavedRunSelection();
+            if(completedNormally) {
+                this.HasUnsavedBenchmarkResults=false;
+                await this.RefreshCompletedRunSelectionAsync(uiRunId);
+            }
+            else {
+                this.RefreshUnsavedRunSelection();
+            }
             this.ClearRunResultHighlights();
             if(completedNormally) {
                 this.ApplyFinalBenchmarkSort();
@@ -3993,9 +4118,26 @@ public sealed partial class RunnerViewModel:ObservableObject {
             this.RefreshSourceTabProgresses();
             this.RefreshImprovementPrompt();
             this.UpdateChart();
-            // 結果は実行中に QueueSaveResult で SQLite へ保存済みのため、「未保存」扱いを解除する。
-            // 実行していないときに終了確認ダイアログが出る問題への対策。
-            this.HasUnsavedBenchmarkResults=false;
+            if(completedNormally) {
+                // 結果は実行中に QueueSaveResult で SQLite へ保存済みのため、「未保存」扱いを解除する。
+                // 実行していないときに終了確認ダイアログが出る問題への対策。
+                this.HasUnsavedBenchmarkResults=false;
+            }
+        }
+    }
+
+    private void SetSelectedRunOptionPreservingDisplay(BenchmarkRunOption? option,bool saveUiState) {
+        this.isApplyingRunOptionSelection=true;
+        try {
+            if(this.SetProperty(ref this.selectedRunOption,option)) {
+                this.selectedRunStateCache=null;
+                if(saveUiState) {
+                    this.SaveUiState();
+                }
+            }
+        }
+        finally {
+            this.isApplyingRunOptionSelection=false;
         }
     }
 
@@ -4026,11 +4168,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     /// <returns>処理結果を返却します。</returns>
     private BenchmarkViewStateSnapshot CreateBenchmarkViewStateSnapshot() {
-        var state = this.CreateProgressStateFromAllTabResults(this.currentUnsavedRunRoot??string.Empty);
-        // JSONシリアライズは保存キューのバックグラウンドスレッドで遅延実行する(UIスレッドで
-        // 数百msかかっていた)。stateは値コピー済みDTOなので遅延しても内容は変わらない。
         return new(
-            new Lazy<string>(() => JsonSerializer.Serialize(state),LazyThreadSafetyMode.ExecutionAndPublication),
             this.SelectedSourceDefinition.Tab.ToString(),
             this.SelectedResultElementCount?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)??string.Empty);
     }
@@ -4781,6 +4919,21 @@ public sealed partial class RunnerViewModel:ObservableObject {
         this.RefreshToolbarCommandStates();
     }
 
+    private async Task RefreshCompletedRunSelectionAsync(long? uiRunId) {
+        if(uiRunId is not { } completedRunId) {
+            this.RefreshToolbarCommandStates();
+            return;
+        }
+
+        try {
+            await this.RefreshDbRunListAsync(CancellationToken.None,false,completedRunId,true);
+        }
+        catch(Exception ex) {
+            StartupDiagnostics.Write("Benchmark completed run selection refresh failed.",ex);
+            this.RefreshToolbarCommandStates();
+        }
+    }
+
     /// <summary>
     /// UpsertResultItem メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
@@ -5064,6 +5217,10 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     private void RefreshToolbarCommandStates() {
         this.OnPropertyChanged(nameof(this.ToolbarStateInput));
+#if DEBUG
+        this.ClearRunHistoryCommand.NotifyCanExecuteChanged();
+        this.OnPropertyChanged(nameof(this.CanClearRunHistory));
+#endif
     }
 
     /// <summary>
@@ -5980,6 +6137,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
             this.RefreshAllComparisonRowsFromDisplayResults();
             this.ApplyComparisonRowsToAllTables();
             this.ApplySelectedElementCountToTable();
+            this.RefreshFinalCompletionStates();
+            this.RefreshSourceTabProgresses();
             this.RefreshImprovementPrompt();
             this.UpdateAllSourceTabCharts(false);
             this.ApplyCurrentSort();
@@ -5998,11 +6157,12 @@ public sealed partial class RunnerViewModel:ObservableObject {
         try {
             using(this.BeginChartRefreshBatch()) {
                 var run = this.SelectedRunOption;
-                if(this.RestoreCurrentRunDisplayForSelectedTab()) {
+                var isSavedDatabaseRun = IsSavedDatabaseRunOption(run);
+                if(!isSavedDatabaseRun&&this.RestoreCurrentRunDisplayForSelectedTab()) {
                     return;
                 }
 
-                if(this.ShouldKeepCurrentRunMemoryDisplay()) {
+                if(!isSavedDatabaseRun&&this.ShouldKeepCurrentRunMemoryDisplay()) {
                     return;
                 }
 
@@ -6185,6 +6345,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
     private static bool IsTransientRunOption(BenchmarkRunOption? option) =>
         IsUnsavedRunOption(option)||IsExternalRunOption(option);
 
+    private static bool IsSavedDatabaseRunOption(BenchmarkRunOption? option) =>
+        option is not null&&!IsNewRunOption(option)&&!IsTransientRunOption(option)&&option.UiRunId>0;
+
     /// <summary>
     /// ShouldKeepCurrentRunMemoryDisplay メソッドを実行し、結果を算出して返却します。
     /// </summary>
@@ -6206,7 +6369,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             IsExternalRunOption(this.SelectedRunOption),
             IsNewRunOption(this.SelectedRunOption),
             IsTransientRunOption(this.SelectedRunOption),
-            this.SelectedRunOption is { UiRunId:>0 });
+            IsSavedDatabaseRunOption(this.SelectedRunOption));
 
     /// <summary>
     /// CreateUnsavedRunOption メソッドを実行し、結果を算出して返却します。
@@ -6464,6 +6627,20 @@ public sealed partial class RunnerViewModel:ObservableObject {
     // 選択フィルタ(IsResultSelectedForDisplay)・measurement射影・判定計算は全てバックグラウンド。
     // 行の RowKey/MethodName/CasesByProject/ProjectCells はコンストラクタ後不変、cell.IsSelected は
     // boolのatomic読みなので、バックグラウンドから読んでも安全(Phase Bの比較行構築と同じ前提)。
+    private readonly record struct FinalCompletionTabInput(
+        SourceTabOption Option,
+        BenchmarkSourceTabViewState State,
+        IReadOnlyList<BenchmarkResultItem> Source,
+        BenchmarkTableRow[] Rows,
+        IReadOnlyList<(string LeftProject,string RightProject)> Pairs,
+        int MaxElementCount);
+
+    private readonly record struct FinalCompletionTabResult(
+        SourceTabOption Option,
+        BenchmarkTableRow[] Rows,
+        bool[]? Completed,
+        bool IsFinalCompleted);
+
     /// <summary>
     /// 現 在 の 状 態 を 再 計 算 し て 内 容 を 最 新 化 し ま す 。
     /// 処 理 を 実 行 し 、 関 連 す る 状 態 や 表 示 を 更 新 し ま す 。
@@ -6481,37 +6658,59 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
 
         this.lastFinalCompletionDispatchAt=now;
-        var sourceTab = this.SelectedSourceDefinition;
-        var source = BenchmarkRunDisplaySourceLogic.ShouldUseCurrentRunMemory(this.HasCurrentRunResultsForSelectedTab)
-            ? this.GetCurrentRunResultItemsForSelectedTab()
-            : this.ResultItems.ToArray();
-        var rows = this.BenchmarkRows.ToArray();
-        var pairs = this.BenchmarkPairs();
-        var maxElementCount = this.GetFinalCompletionMaxElementCount();
+        var resultItemsSnapshot = this.ResultItems.ToArray();
+        var tabInputs = this.SourceTabs
+            .Select(option => {
+                var state = this.GetSourceTabViewState(option.Definition.Tab);
+                return new FinalCompletionTabInput(
+                option,
+                state,
+                BenchmarkRunDisplaySourceLogic.ShouldUseCurrentRunMemory(this.currentRunSession.HasResults(state.Definition.Tab))
+                    ? this.GetCurrentRunResultItems(state.Definition.Tab)
+                    : resultItemsSnapshot,
+                state.Rows.ToArray(),
+                CreateBenchmarkPairs(state.Definition),
+                this.GetFinalCompletionMaxElementCount(state.Definition));
+            })
+            .ToArray();
         var thresholdNanoseconds = this.GetAdaptiveThreshold().TotalMilliseconds*1_000_000;
         var token = ++this.finalCompletionRequestToken;
         var generation = this.runResultGeneration;
         this.finalCompletionRefreshInFlight=true;
         var stopwatch = Stopwatch.StartNew();
-        Task.Run(() => {
-            var measurements = this.CreateDisplayMeasurementsFrom(source,sourceTab);
-            return measurements.Length==0
-                ? null
-                : ComputeFinalCompletionStates(measurements,rows,pairs,maxElementCount,thresholdNanoseconds);
-        })
+        Task.Run(() => tabInputs
+            .Select(input => {
+                var measurements = this.CreateDisplayMeasurementsFrom(input.Source,input.State.Definition);
+                if(measurements.Length==0){
+                    return new FinalCompletionTabResult(input.Option,input.Rows,null,false);
+                }
+
+                var completed = ComputeFinalCompletionStates(measurements,input.Rows,input.Pairs,input.MaxElementCount,thresholdNanoseconds);
+                return new FinalCompletionTabResult(
+                    input.Option,
+                    input.Rows,
+                    completed,
+                    IsTabFinalCompleted(measurements,input.Rows,input.MaxElementCount));
+            })
+            .ToArray())
             .ContinueWith(task => {
                 UiThreadBudget.Record("bg:completion",stopwatch.Elapsed.TotalMilliseconds);
                 this.uiDispatcher.BeginInvoke(() => {
                     this.finalCompletionRefreshInFlight=false;
                     if(token==this.finalCompletionRequestToken&&generation==this.runResultGeneration&&!task.IsFaulted) {
-                        var completed = task.Result;
+                        var completedTabs = task.Result;
                         UiThreadBudget.Measure("completion-apply",() => {
-                            if(completed is null) {
-                                this.ClearFinalCompletionStates();
-                            }
-                            else {
-                                for(var index = 0; index<rows.Length; index++) {
-                                    rows[index].SetFinalCompleted(completed[index]);
+                            foreach(var completedTab in completedTabs) {
+                                completedTab.Option.SetFinalCompleted(completedTab.IsFinalCompleted);
+                                if(completedTab.Completed is null) {
+                                    foreach(var row in completedTab.Rows) {
+                                        row.SetFinalCompleted(false);
+                                    }
+                                }
+                                else {
+                                    for(var index = 0; index<completedTab.Rows.Length; index++) {
+                                        completedTab.Rows[index].SetFinalCompleted(completedTab.Completed[index]);
+                                    }
                                 }
                             }
                         });
@@ -6594,6 +6793,31 @@ public sealed partial class RunnerViewModel:ObservableObject {
         return results;
     }
 
+    private static bool IsTabFinalCompleted(BenchmarkElementMeasurement[] measurements,BenchmarkTableRow[] rows,int maxElementCount) {
+        if(maxElementCount<=0){
+            return false;
+        }
+
+        var hasTarget=false;
+        foreach(var row in rows) {
+            foreach(var cell in row.ProjectCells) {
+                if(!cell.HasCase||!cell.IsSelected) {
+                    continue;
+                }
+
+                hasTarget=true;
+                if(!BenchmarkPairCompletionLogic.HasCompletedMeasurementForCell(
+                    measurements,
+                    CreateProgressCell(row,cell.Project,true),
+                    maxElementCount)) {
+                    return false;
+                }
+            }
+        }
+
+        return hasTarget;
+    }
+
     /// <summary>
     /// CreateDisplayMeasurements メソッドを実行し、結果を算出して返却します。
     /// </summary>
@@ -6624,7 +6848,11 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     /// <returns>処理結果を返却します。</returns>
     private int GetFinalCompletionMaxElementCount() {
-        if(this.IsBenchmarkRunActive||this.HasCurrentRunResultsForSelectedTab) {
+        return this.GetFinalCompletionMaxElementCount(this.SelectedSourceDefinition);
+    }
+
+    private int GetFinalCompletionMaxElementCount(BenchmarkSourceTabDefinition sourceTab) {
+        if(this.IsBenchmarkRunActive||this.currentRunSession.HasResults(sourceTab.Tab)) {
             return this.GetSelectedElementCounts().LastOrDefault();
         }
 
@@ -6670,8 +6898,11 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     /// <param name="LeftProject">LeftProject を指定して実行条件を制御します。</param>
     /// <param name="RightProject">RightProject を指定して実行条件を制御します。</param>
-    private IReadOnlyList<(string LeftProject,string RightProject)> BenchmarkPairs() => [
-        (this.SelectedSourceDefinition.LeftProject,this.SelectedSourceDefinition.RightProject),
+    private IReadOnlyList<(string LeftProject,string RightProject)> BenchmarkPairs() =>
+        CreateBenchmarkPairs(this.SelectedSourceDefinition);
+
+    private static IReadOnlyList<(string LeftProject,string RightProject)> CreateBenchmarkPairs(BenchmarkSourceTabDefinition sourceTab) => [
+        (sourceTab.LeftProject,sourceTab.RightProject),
     ];
 
     /// <summary>
@@ -6903,12 +7134,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
 
         try {
-            var snapshot = this.uiRunStore.ListUiViewStates(run.UiRunId)
-                .FirstOrDefault(static item => string.Equals(item.StateKey,"BenchmarkProgressStateJson",StringComparison.OrdinalIgnoreCase))
-                ?.StateValue;
-            var state = string.IsNullOrWhiteSpace(snapshot)
-                ? null
-                : JsonSerializer.Deserialize<ProgressState>(snapshot);
+            var runRecord = this.uiRunStore.ListRuns(GetUiRunAppKind()).FirstOrDefault(item => item.RunId==run.UiRunId);
+            var state = runRecord is null ? null : this.CreateProgressStateFromDatabaseRun(run.UiRunId,runRecord);
             this.selectedRunStateCache=(run.UiRunId,state);
             return state;
         }
@@ -6917,6 +7144,129 @@ public sealed partial class RunnerViewModel:ObservableObject {
             return null;
         }
     }
+
+    private ProgressState? CreateProgressStateFromDatabaseRun(long runId,UiRunRecord run){
+        var settings = this.uiRunStore.GetRunSettings(runId);
+        if(settings is null||string.IsNullOrWhiteSpace(settings.RunRoot)){
+            return null;
+        }
+
+        var sourceTab = Enum.TryParse<BenchmarkSourceTab>(run.SourceTab,true,out var parsedSourceTab)
+            ? parsedSourceTab
+            : this.SelectedSourceDefinition.Tab;
+        var executionProfile = Enum.TryParse<BenchmarkExecutionProfile>(run.ExecutionProfile,true,out var parsedProfile)
+            ? parsedProfile
+            : this.SelectedExecutionProfile.Profile;
+        var cases = this.uiRunStore.ListCases(runId).ToDictionary(static item => item.CaseId);
+        var metrics = this.uiRunStore.ListMetrics(runId)
+            .GroupBy(static item => item.JobId)
+            .ToDictionary(
+                static group => group.Key,
+                static group => group.ToDictionary(static item => item.MetricName,static item => item,StringComparer.OrdinalIgnoreCase));
+        var elementCounts = ParseIntList(settings.ElementCounts);
+        var jobs = new List<BenchmarkJob>();
+        var runItemIndex = 0;
+        foreach(var storedJob in this.uiRunStore.ListJobs(runId)){
+            if(!cases.TryGetValue(storedJob.CaseId,out var testCase)){
+                continue;
+            }
+
+            var caseArguments = this.uiRunStore.ListCaseArguments(testCase.CaseId);
+            var arguments = caseArguments
+                .Where(static item => !string.Equals(item.Key,"ElementCount",StringComparison.OrdinalIgnoreCase)
+                    &&!string.Equals(item.Key,"LoopCount",StringComparison.OrdinalIgnoreCase)
+                    &&!string.Equals(item.Key,"SourceTab",StringComparison.OrdinalIgnoreCase))
+                .OrderBy(static item => item.Key,StringComparer.OrdinalIgnoreCase)
+                .Select(static item => new BenchmarkArgument(item.Key,item.Value))
+                .ToList();
+            var jobSourceTab = BenchmarkSourceTabs.TryGetById(testCase.SourceTabId)?.Tab??sourceTab;
+            var axisCount = (int)(BenchmarkWorkloadAxis.UsesLoopCount(jobSourceTab)
+                ? storedJob.LoopCount??BenchmarkWorkloadAxis.DefaultLoopCount
+                : storedJob.ElementCount??0);
+            if(axisCount>0&&!elementCounts.Contains(axisCount)){
+                elementCounts.Add(axisCount);
+            }
+
+            metrics.TryGetValue(storedJob.JobId,out var jobMetrics);
+            var meanNanoseconds = GetMetric(jobMetrics,"MeanNanoseconds");
+            var allocatedBytes = GetMetric(jobMetrics,"AllocatedBytes");
+            jobs.Add(new BenchmarkJob{
+                JobId=storedJob.JobKey,
+                Project=testCase.Project,
+                AssemblyName=testCase.AssemblyName,
+                TypeFullName=testCase.TypeFullName,
+                MethodName=testCase.Method,
+                ArgumentKey=testCase.ArgumentKey,
+                Arguments=arguments,
+                SourceTab=jobSourceTab,
+                ElementCount=(int)(storedJob.ElementCount??BenchmarkWorkloadAxis.ResolveElementCount(jobSourceTab,axisCount)),
+                LoopCount=(int)(storedJob.LoopCount??BenchmarkWorkloadAxis.ResolveLoopCount(jobSourceTab,axisCount)),
+                PreparedElementCounts=elementCounts.Distinct().Order().ToList(),
+                Status=ToJobStatusForResume(storedJob.Status),
+                AssignedLogicalCpu=storedJob.Status is UiRunStatus.Completed or UiRunStatus.Failed ? storedJob.AssignedLogicalCpu : null,
+                Mean=meanNanoseconds?.ToString(System.Globalization.CultureInfo.InvariantCulture)??string.Empty,
+                MeanNanoseconds=meanNanoseconds,
+                AllocatedBytes=allocatedBytes is null ? null : (long)allocatedBytes.Value,
+                StartedAt=storedJob.Status is UiRunStatus.Completed or UiRunStatus.Failed ? storedJob.StartedAt : null,
+                FinishedAt=storedJob.Status is UiRunStatus.Completed or UiRunStatus.Failed ? storedJob.FinishedAt : null,
+                FailureReason=storedJob.FailureReason,
+                RunItemIndex=runItemIndex++,
+            });
+        }
+
+        elementCounts=elementCounts.Distinct().Order().ToList();
+        if(elementCounts.Count==0){
+            elementCounts=BenchmarkElementCounts.DefaultInitial.ToList();
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var state = new ProgressState{
+            RunId=runId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ExecutionProfile=executionProfile,
+            RunRoot=settings.RunRoot,
+            RunNumber=BenchmarkStateManager.TryParseRunNumber(settings.RunRoot),
+            SourceTab=sourceTab,
+            ElementCounts=elementCounts,
+            AdaptiveThresholdNanoseconds=settings.AdaptiveThresholdNanoseconds,
+            Jobs=jobs,
+            NextRunItemIndex=jobs.Count==0 ? 0 : jobs.Max(static job => job.RunItemIndex)+1,
+            AdaptiveStates=jobs
+                .GroupBy(static job => job.MethodName,StringComparer.OrdinalIgnoreCase)
+                .Select(static group => new AdaptiveBenchmarkState { MethodName=group.Key })
+                .ToList(),
+            CreatedAt=run.CreatedAt,
+            UpdatedAt=now,
+        };
+        foreach(var selection in this.uiRunStore.ListUiSelections(runId)){
+            if(!string.Equals(selection.Scope,"BenchmarkCell",StringComparison.OrdinalIgnoreCase)){
+                continue;
+            }
+
+            state.BenchmarkSelection.ProjectCellSelections[selection.SelectionKey]=selection.IsSelected;
+        }
+
+        return state;
+    }
+
+    private static JobStatus ToJobStatusForResume(UiRunStatus status) =>
+        status switch{
+            UiRunStatus.Completed => JobStatus.Completed,
+            UiRunStatus.Failed => JobStatus.Failed,
+            _ => JobStatus.Pending,
+        };
+
+    private static List<int> ParseIntList(string value) =>
+        value.Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries)
+            .Select(static item => int.TryParse(item,System.Globalization.NumberStyles.Integer,System.Globalization.CultureInfo.InvariantCulture,out var parsed) ? parsed : 0)
+            .Where(static item => item>0)
+            .Distinct()
+            .Order()
+            .ToList();
+
+    private static double? GetMetric(IReadOnlyDictionary<string,UiMetricValueRecord>? metrics,string key) =>
+        metrics is not null&&metrics.TryGetValue(key,out var value)
+            ? value.NumericValue
+            : null;
 
     /// <summary>
     /// ReportMissingBenchmarkMetadata メソッドを実行し、副作用として内部状態を更新または描画反映します。
@@ -8174,6 +8524,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             yield return BenchmarkGridSortColumn.BenchmarkType;
         }
         yield return BenchmarkGridSortColumn.BenchmarkMethod;
+        yield return BenchmarkGridSortColumn.LogicalCpu;
         yield return BenchmarkGridSortColumn.ElementCount;
         foreach(var column in BenchmarkArgumentColumns.Get(this.SelectedSourceDefinition)) {
             yield return column switch {

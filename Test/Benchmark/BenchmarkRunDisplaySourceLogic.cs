@@ -18,7 +18,6 @@ public sealed class BenchmarkRunDisplaySourceLogic{
     [Fact]
     public void ShouldLoadSelectedRunFromDatabase(){
         {
-            //現在Runのメモリ結果がある間は、保存キュー未flushでも暗黙DBロードしない
             var shouldLoad = global::UI.BenchmarkRunDisplaySourceLogic.ShouldLoadSelectedRunFromDatabase(
                 false,
                 true,
@@ -29,11 +28,10 @@ public sealed class BenchmarkRunDisplaySourceLogic{
                 false,
                 true);
 
-            Assert.False(shouldLoad);
+            Assert.True(shouldLoad);
         }
 
         {
-            //現在Runがなく、保存済みRunが明示的に選択されている場合だけDBロードする
             var shouldLoad = global::UI.BenchmarkRunDisplaySourceLogic.ShouldLoadSelectedRunFromDatabase(
                 false,
                 false,
@@ -48,7 +46,6 @@ public sealed class BenchmarkRunDisplaySourceLogic{
         }
 
         {
-            //新規/未保存/外部Runの表示ではDBロードしない
             var shouldLoad = global::UI.BenchmarkRunDisplaySourceLogic.ShouldLoadSelectedRunFromDatabase(
                 false,
                 false,
@@ -58,6 +55,34 @@ public sealed class BenchmarkRunDisplaySourceLogic{
                 true,
                 false,
                 false);
+
+            Assert.False(shouldLoad);
+        }
+
+        {
+            var shouldLoad = global::UI.BenchmarkRunDisplaySourceLogic.ShouldLoadSelectedRunFromDatabase(
+                false,
+                true,
+                true,
+                false,
+                false,
+                false,
+                false,
+                true);
+
+            Assert.False(shouldLoad);
+        }
+
+        {
+            var shouldLoad = global::UI.BenchmarkRunDisplaySourceLogic.ShouldLoadSelectedRunFromDatabase(
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+                true,
+                true);
 
             Assert.False(shouldLoad);
         }

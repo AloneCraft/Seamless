@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using Syncfusion.Maui.Buttons;
@@ -19,11 +19,12 @@ public sealed partial class MainPage:ContentPage {
     private const double BenchmarkCellCheckBoxHeight = 28;
     private const double BenchmarkTypeColumnWidth = 96;
     private const double BenchmarkNameColumnWidth = 320;
+    private const double BenchmarkCpuColumnWidth = 58;
     private const double BenchmarkArgumentColumnWidth = 72;
     private const double BenchmarkCountArgumentColumnWidth = 78;
     private const double BenchmarkMemoryArgumentColumnWidth = 96;
     private const double BenchmarkCompactArgumentColumnWidth = 64;
-    private const double BenchmarkProjectStatusColumnWidth = 248;
+    private const double BenchmarkProjectStatusColumnWidth = 176;
     private const double BenchmarkProjectMetricColumnWidth = 78;
     private const double BenchmarkPairStopNColumnWidth = 72;
     private const double BenchmarkCellCheckSlotWidth = 38;
@@ -1023,13 +1024,13 @@ public sealed partial class MainPage:ContentPage {
         progress.SetBinding(IsVisibleProperty,new Binding(nameof(SourceTabOption.HasProgress),source: option));
         progress.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: option));
         var completedIcon = new Image {
-            Source=BenchmarkStatusImageNames.Completed,
             WidthRequest=14,
             HeightRequest=14,
             VerticalOptions=LayoutOptions.Center,
             HorizontalOptions=LayoutOptions.Center,
             InputTransparent=true,
         };
+        completedIcon.SetBinding(Image.SourceProperty,new Binding(nameof(SourceTabOption.CompletionIconSource),source: option,converter: new ImageFileSourceConverter()));
         completedIcon.SetBinding(IsVisibleProperty,new Binding(nameof(SourceTabOption.IsCompletionIconVisible),source: option));
         completedIcon.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: option));
         var progressHost = new Grid {
@@ -1977,8 +1978,10 @@ public sealed partial class MainPage:ContentPage {
         grid.Columns.Add(this.CreateCheckColumn());
         grid.Columns.Add(this.CreateTextColumn("型",nameof(BenchmarkTableRow.BenchmarkTypeText),BenchmarkGridSortColumn.BenchmarkType,BenchmarkTypeColumnWidth,TextAlignment.End));
         grid.Columns.Add(this.CreateTextColumn("ベンチマーク",nameof(BenchmarkTableRow.BenchmarkMethodText),BenchmarkGridSortColumn.BenchmarkMethod,BenchmarkNameColumnWidth,TextAlignment.End));
+        var cpuMapping = nameof(BenchmarkTableRow.LogicalProcessorText);
+        grid.Columns.Add(this.CreateCpuColumn(cpuMapping));
         var argumentMappings = this.AddArgumentColumns(grid,sourceTab);
-        this.AddBenchmarkBaseStackedHeaders(categoryHeaderRow,projectHeaderRow,argumentMappings,sourceTab);
+        this.AddBenchmarkBaseStackedHeaders(categoryHeaderRow,projectHeaderRow,cpuMapping,argumentMappings,sourceTab);
         var leftMappings = this.AddProjectColumns(grid,"Left",nameof(BenchmarkTableRow.LeftCell),BenchmarkGridSortColumn.LeftTime,BenchmarkGridSortColumn.LeftAllocated);
         var stopMapping = this.AddPairStopNColumn(
             grid,
@@ -2122,6 +2125,7 @@ public sealed partial class MainPage:ContentPage {
     private void AddBenchmarkBaseStackedHeaders(
         DataGridStackedHeaderRow categoryHeaderRow,
         DataGridStackedHeaderRow projectHeaderRow,
+        string cpuMapping,
         IReadOnlyList<string> argumentMappings,
         BenchmarkSourceTabDefinition sourceTab) {
         categoryHeaderRow.Columns.Add(new DataGridStackedColumn {
@@ -2131,7 +2135,7 @@ public sealed partial class MainPage:ContentPage {
         });
         categoryHeaderRow.Columns.Add(new DataGridStackedColumn {
             MappingName="BenchmarkNameHeader",
-            ColumnMappingNames=nameof(BenchmarkTableRow.BenchmarkTypeText)+","+nameof(BenchmarkTableRow.BenchmarkMethodText),
+            ColumnMappingNames=nameof(BenchmarkTableRow.BenchmarkTypeText)+","+nameof(BenchmarkTableRow.BenchmarkMethodText)+","+cpuMapping,
             Text=string.Empty,
         });
         projectHeaderRow.Columns.Add(new DataGridStackedColumn {
@@ -2141,7 +2145,7 @@ public sealed partial class MainPage:ContentPage {
         });
         projectHeaderRow.Columns.Add(new DataGridStackedColumn {
             MappingName="BenchmarkNameProjectSpacer",
-            ColumnMappingNames=nameof(BenchmarkTableRow.BenchmarkTypeText)+","+nameof(BenchmarkTableRow.BenchmarkMethodText),
+            ColumnMappingNames=nameof(BenchmarkTableRow.BenchmarkTypeText)+","+nameof(BenchmarkTableRow.BenchmarkMethodText)+","+cpuMapping,
             Text=string.Empty,
         });
         if(argumentMappings.Count>0) {
@@ -2231,6 +2235,60 @@ public sealed partial class MainPage:ContentPage {
             : isControlPressed
                 ? BenchmarkCellSelectionGesture.Toggle
                 : BenchmarkCellSelectionGesture.Replace;
+    }
+
+    private DataGridTemplateColumn CreateCpuColumn(string mappingName) {
+        return new DataGridTemplateColumn {
+            MappingName=mappingName,
+            HeaderText="CPU",
+            Width=BenchmarkCpuColumnWidth,
+            AllowSorting=false,
+            HeaderTemplate=this.CreateHeaderTemplate("CPU",BenchmarkGridSortColumn.LogicalCpu),
+            CellTemplate=new DataTemplate(() => {
+                var grid = new Grid {
+                    ColumnDefinitions= {
+                        new ColumnDefinition { Width = GridLength.Auto },
+                        new ColumnDefinition { Width = GridLength.Star },
+                    },
+                    ColumnSpacing=2,
+                    Padding=new Thickness(2,0),
+                    BackgroundColor=Colors.Transparent,
+                    HorizontalOptions=LayoutOptions.Fill,
+                    VerticalOptions=LayoutOptions.Fill,
+                };
+                this.AddBenchmarkRowUiSelectionFill(grid);
+                var badge = this.CreateCoreBadge();
+                badge.SetBinding(IsVisibleProperty,nameof(BenchmarkTableRow.HasCpuDisplay));
+                badge.SetBinding(BackgroundColorProperty,nameof(BenchmarkTableRow.BadgeBackgroundColor));
+                if(badge.Content is Image badgeImage) {
+                    badgeImage.SetBinding(
+                        Image.SourceProperty,
+                        new Binding(nameof(BenchmarkTableRow.CoreKindImageSource),converter: new ImageFileSourceConverter()));
+                }
+                var number = new Label {
+                    FontSize=10,
+                    TextColor=Color.FromArgb("#0F172A"),
+                    FontAttributes=FontAttributes.Bold,
+                    InputTransparent=true,
+                    LineBreakMode=LineBreakMode.TailTruncation,
+                    HorizontalTextAlignment=TextAlignment.Start,
+                    VerticalTextAlignment=TextAlignment.Center,
+                };
+                number.SetBinding(IsVisibleProperty,nameof(BenchmarkTableRow.HasCpuDisplay));
+                number.SetBinding(Label.TextProperty,nameof(BenchmarkTableRow.LogicalProcessorText));
+                grid.SetBinding(ToolTipProperties.TextProperty,nameof(BenchmarkTableRow.CpuTooltipText));
+                var tap = new TapGestureRecognizer();
+                tap.Tapped+=(_,_) => {
+                    if(grid.BindingContext is BenchmarkTableRow row) {
+                        this.viewModel?.SelectBenchmarkRow(row,CreateBenchmarkSelectionGesture());
+                    }
+                };
+                grid.GestureRecognizers.Add(tap);
+                grid.Add(badge,0,0);
+                grid.Add(number,1,0);
+                return grid;
+            }),
+        };
     }
 
     private void AddBenchmarkProjectSelectionGroup(DataGridStackedHeaderRow headerRow,BenchmarkColumnSelectionGroup group,IReadOnlyList<string> childMappings,BenchmarkSourceTabDefinition sourceTab) {
@@ -2386,7 +2444,7 @@ public sealed partial class MainPage:ContentPage {
     private DataGridTemplateColumn CreateProjectCheckColumn(string mappingName,string cellPath) {
         return new DataGridTemplateColumn {
             MappingName=mappingName,
-            HeaderText="論理コア",
+            HeaderText="日時",
             Width=BenchmarkProjectStatusColumnWidth,
             AllowSorting=false,
             HeaderTemplate=new DataTemplate(() => {
@@ -2394,24 +2452,11 @@ public sealed partial class MainPage:ContentPage {
                     ColumnDefinitions= {
                         new ColumnDefinition { Width = new GridLength(BenchmarkCellCheckSlotWidth) },
                         new ColumnDefinition { Width = new GridLength(18) },
-                        new ColumnDefinition { Width = new GridLength(24) },
-                        new ColumnDefinition { Width = new GridLength(26) },
                         new ColumnDefinition { Width = GridLength.Star },
                     },
                     ColumnSpacing=2,
                     Padding=new Thickness(1,0),
                     BackgroundColor=Color.FromArgb("#F1F5F9"),
-                };
-                var logicalCore = new Label {
-                    Text="論理コア",
-                    FontSize=BenchmarkGridCellFontSize,
-                    FontAttributes=FontAttributes.Bold,
-                    TextColor=Color.FromArgb("#0F172A"),
-                    HorizontalOptions=LayoutOptions.Fill,
-                    HorizontalTextAlignment=TextAlignment.Start,
-                    VerticalTextAlignment=TextAlignment.Center,
-                    LineBreakMode=LineBreakMode.TailTruncation,
-                    Padding=new Thickness(2,0),
                 };
                 var measuredAt = new Label {
                     Text="日時",
@@ -2424,9 +2469,7 @@ public sealed partial class MainPage:ContentPage {
                     LineBreakMode=LineBreakMode.TailTruncation,
                     Padding=new Thickness(2,0),
                 };
-                header.Add(logicalCore,2,0);
-                header.SetColumnSpan(logicalCore,2);
-                header.Add(measuredAt,4,0);
+                header.Add(measuredAt,2,0);
                 return header;
             }),
             CellTemplate=new DataTemplate(() => {
@@ -2449,8 +2492,6 @@ public sealed partial class MainPage:ContentPage {
                     ColumnDefinitions= {
                         new ColumnDefinition { Width = new GridLength(BenchmarkCellCheckSlotWidth) },
                         new ColumnDefinition { Width = new GridLength(18) },
-                        new ColumnDefinition { Width = new GridLength(24) },
-                        new ColumnDefinition { Width = new GridLength(26) },
                         new ColumnDefinition { Width = GridLength.Star },
                     },
                     ColumnSpacing=2,
@@ -2500,24 +2541,6 @@ public sealed partial class MainPage:ContentPage {
                     new Binding(cellPath+"."+nameof(BenchmarkProjectCell.StatusImageSource),converter: new ImageFileSourceConverter()));
                 statusIcon.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsStatusIconVisible));
                 statusIcon.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionTooltipText));
-                var badge = this.CreateCoreBadge();
-                badge.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.HasCpuDisplay));
-                badge.SetBinding(BackgroundColorProperty,cellPath+"."+nameof(BenchmarkProjectCell.BadgeBackgroundColor));
-                if(badge.Content is Image badgeImage) {
-                    badgeImage.SetBinding(
-                        Image.SourceProperty,
-                        new Binding(cellPath+"."+nameof(BenchmarkProjectCell.CoreKindImageSource),converter: new ImageFileSourceConverter()));
-                }
-                var CPU = new Label {
-                    FontSize=10,
-                    TextColor=Color.FromArgb("#0F172A"),
-                    InputTransparent=true,
-                    LineBreakMode=LineBreakMode.TailTruncation,
-                    VerticalTextAlignment=TextAlignment.Center,
-                };
-                CPU.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.HasCpuDisplay));
-                CPU.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.LogicalProcessorText));
-                CPU.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.LogicalProcessorText));
                 var detail = new Label {
                     FontSize=BenchmarkGridDetailFontSize,
                     TextColor=Color.FromArgb("#334155"),
@@ -2559,9 +2582,7 @@ public sealed partial class MainPage:ContentPage {
                 content.Add(checkHost,0,0);
                 content.Add(statusIcon,1,0);
                 content.Add(spinner,1,0);
-                content.Add(badge,2,0);
-                content.Add(CPU,3,0);
-                content.Add(detailHost,4,0);
+                content.Add(detailHost,2,0);
                 layout.Add(content,1,1);
                 return layout;
             }),
@@ -2945,6 +2966,7 @@ public sealed partial class MainPage:ContentPage {
                 if(args.Action is NotifyCollectionChangedAction.Add or NotifyCollectionChangedAction.Reset) {
                     StartupDiagnostics.BeginInvokeOnMainThread("cpu selection header refresh",() => {
                         if(this.viewModel?.LogEntries.Count>0) {
+                            
                             logList.ScrollTo(this.viewModel.LogEntries.Count-1,position: ScrollToPosition.End,animate: false);
                         }
                     });

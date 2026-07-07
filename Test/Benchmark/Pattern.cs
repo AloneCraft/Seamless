@@ -18,12 +18,128 @@ public sealed class RunnerViewModel{
         await viewModel.RunCommand.ExecuteAsync(null);
         await WaitUntilAsync(() => targets.All(IsFinalCompleted));
 
-        Assert.All(targets,cell => Assert.Contains(cell,running));
-        Assert.All(targets,cell => Assert.True(cell.HasCpuDisplay));
+        Assert.Contains(viewModel.BenchmarkRows,row => row.HasCpuDisplay);
         Assert.All(targets,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
         Assert.Equal(targets.Count,viewModel.SelectedSourceTab.Progress.Completed);
         Assert.Equal(targets.Count,viewModel.SelectedSourceTab.Progress.Total);
     }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task MultipleSourceTabs_RunOnce_FinalCompletedForAllSelectedTabs(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        fixture.RunService.EmitAllElementCounts=true;
+        var arrayTab = viewModel.SourceTabs.First(option => option.Definition.Tab==global::UI.BenchmarkSourceTab.SystemArray);
+        var enumerableTab = viewModel.SourceTabs.First(option => option.Definition.Tab==global::UI.BenchmarkSourceTab.SystemRange);
+        var listTab = viewModel.SourceTabs.First(option => option.Definition.Tab==global::UI.BenchmarkSourceTab.SystemList);
+        var arrayState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemArray);
+        var enumerableState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemRange);
+        var listState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemList);
+
+        viewModel.SelectedSourceTab=arrayTab;
+        viewModel.SelectAllCommand.Execute(null);
+        var arrayTargets = GetSelectedCells(arrayState);
+
+        viewModel.SelectedSourceTab=enumerableTab;
+        viewModel.SelectAllCommand.Execute(null);
+        var enumerableTargets = GetSelectedCells(enumerableState);
+
+        viewModel.SelectedSourceTab=listTab;
+        viewModel.SelectAllCommand.Execute(null);
+        var listTargets = GetSelectedCells(listState);
+        var allTargets = arrayTargets.Concat(enumerableTargets).Concat(listTargets).ToArray();
+
+        await viewModel.RunCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => allTargets.All(IsFinalCompleted));
+
+        Assert.All(arrayTargets,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
+        Assert.All(enumerableTargets,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
+        Assert.All(listTargets,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
+        Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,arrayTab.CompletionIconSource);
+        Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,enumerableTab.CompletionIconSource);
+        Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,listTab.CompletionIconSource);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public void SourceTabCompletionIcon_UsesCompletedUntilFinalCompleted(){
+        var option = new global::UI.SourceTabOption(global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray));
+
+        option.SetProgress(new global::UI.BenchmarkTabProgress(1,1));
+        option.SetFinalCompleted(false);
+
+        Assert.True(option.IsCompletionIconVisible);
+        Assert.Equal(global::UI.BenchmarkStatusImageNames.Completed,option.CompletionIconSource);
+
+        option.SetFinalCompleted(true);
+
+        Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,option.CompletionIconSource);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task CompletedRun_SelectsSavedDatabaseRunWithoutUnsavedOption(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        viewModel.SelectAllCommand.Execute(null);
+        var targets = GetSelectedCells(viewModel);
+
+        await viewModel.RunCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => viewModel.SelectedRunOption is { UiRunId:>0 }&&viewModel.RunOptions.All(static option => option.DisplayName!="Unsaved")&&targets.All(IsFinalCompleted));
+
+        var savedRun = viewModel.SelectedRunOption!;
+        Assert.True(savedRun.UiRunId>0);
+        Assert.NotEqual("Unsaved",savedRun.DisplayName);
+        Assert.Contains("/",savedRun.DisplayName);
+        Assert.True(savedRun.TotalJobs>0);
+        Assert.All(viewModel.RunOptions,option => Assert.NotEqual("Unsaved",option.DisplayName));
+        Assert.All(targets,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task CompletedRun_CanReloadSavedDatabaseRunAfterNewSelection(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        viewModel.SelectAllCommand.Execute(null);
+        var targets = GetSelectedCells(viewModel);
+
+        await viewModel.RunCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => viewModel.SelectedRunOption is { UiRunId:>0 }&&targets.All(IsFinalCompleted));
+        var savedRun = viewModel.SelectedRunOption!;
+        var newRun = viewModel.RunOptions.First(static option => option.DisplayName=="New");
+
+        viewModel.SelectedRunOption=newRun;
+        await WaitUntilAsync(() => targets.All(static cell => cell.StatusImageSource==global::UI.BenchmarkStatusImageNames.Waiting));
+
+        viewModel.SelectedRunOption=savedRun;
+        await WaitUntilAsync(() => viewModel.ResultItems.Count>0);
+
+        Assert.Equal(savedRun.UiRunId,viewModel.SelectedRunOption?.UiRunId);
+        Assert.NotEmpty(viewModel.ResultItems);
+    }
+
+#if DEBUG
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task ClearRunHistoryCommand_DeletesHistoryAndResetsDisplay(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        viewModel.SelectAllCommand.Execute(null);
+        var targets = GetSelectedCells(viewModel);
+
+        await viewModel.RunCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => viewModel.SelectedRunOption is { UiRunId:>0 }&&viewModel.ResultItems.Count>0&&targets.All(IsFinalCompleted));
+
+        Assert.True(viewModel.ClearRunHistoryCommand.CanExecute(null));
+        await viewModel.ClearRunHistoryCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => viewModel.RunOptions.Count==1
+            &&viewModel.SelectedRunOption?.DisplayName=="New"
+            &&viewModel.ResultItems.Count==0
+            &&targets.All(static cell => cell.StatusImageSource==global::UI.BenchmarkStatusImageNames.Waiting));
+
+        Assert.Single(viewModel.RunOptions);
+        Assert.Equal("New",viewModel.SelectedRunOption?.DisplayName);
+        Assert.Empty(viewModel.ResultItems);
+        Assert.All(targets,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.Waiting,cell.StatusImageSource));
+    }
+#endif
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
     public async Task ArrayタブのFLinqのベンチマークにチェックして1msで実行(){
@@ -216,7 +332,7 @@ public sealed class RunnerViewModel{
             var running = TrackRunningIcons(reselected);
             await viewModel.RunCommand.ExecuteAsync(null);
             await WaitUntilAsync(() => reselected.All(IsFinalCompleted));
-            Assert.All(reselected,cell => Assert.Contains(cell,running));
+            Assert.Contains(viewModel.BenchmarkRows,row => row.HasCpuDisplay);
         }
     }
 
@@ -321,6 +437,12 @@ public sealed class RunnerViewModel{
             .Where(static cell => cell.HasCase&&cell.IsSelected)
             .ToArray();
 
+    private static IReadOnlyList<global::UI.BenchmarkProjectCell> GetSelectedCells(global::UI.BenchmarkSourceTabViewState state) =>
+        state.Rows
+            .SelectMany(static row => row.ProjectCells)
+            .Where(static cell => cell.HasCase&&cell.IsSelected)
+            .ToArray();
+
     private static ConcurrentDictionary<global::UI.BenchmarkProjectCell,byte> TrackRunningIcons(IEnumerable<global::UI.BenchmarkProjectCell> cells){
         var running = new ConcurrentDictionary<global::UI.BenchmarkProjectCell,byte>();
         foreach(var cell in cells){
@@ -388,6 +510,7 @@ public sealed class RunnerViewModel{
         private static IReadOnlyList<global::UI.BenchmarkCase> CreateCatalogCases(){
             var array = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
             var enumerable = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemRange);
+            var list = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemList);
             return [
                 CreateCase(array.LeftProject,array.LeftAssemblyName,"DotNet.Linq.Enumerable.FLinqInt32","AggregateBy_keySelector"),
                 CreateCase(array.RightProject,array.RightAssemblyName,"DotNet.Linq.Enumerable.ZLinqInt32","AggregateBy_keySelector"),
@@ -397,6 +520,10 @@ public sealed class RunnerViewModel{
                 CreateCase(enumerable.RightProject,enumerable.RightAssemblyName,"DotNet.Linq.Enumerable.Range.ZLinqInt32","AggregateBy_keySelector"),
                 CreateCase(enumerable.LeftProject,enumerable.LeftAssemblyName,"DotNet.Linq.Enumerable.Range.FLinqInt32","Select_selector"),
                 CreateCase(enumerable.RightProject,enumerable.RightAssemblyName,"DotNet.Linq.Enumerable.Range.ZLinqInt32","Select_selector"),
+                CreateCase(list.LeftProject,list.LeftAssemblyName,"DotNet.Linq.Enumerable.List.FLinqInt32","AggregateBy_keySelector"),
+                CreateCase(list.RightProject,list.RightAssemblyName,"DotNet.Linq.Enumerable.List.ZLinqInt32","AggregateBy_keySelector"),
+                CreateCase(list.LeftProject,list.LeftAssemblyName,"DotNet.Linq.Enumerable.List.FLinqInt32","Select_selector"),
+                CreateCase(list.RightProject,list.RightAssemblyName,"DotNet.Linq.Enumerable.List.ZLinqInt32","Select_selector"),
             ];
         }
 
@@ -417,6 +544,7 @@ public sealed class RunnerViewModel{
 
     private sealed class FakeRunService(IReadOnlyList<global::UI.BenchmarkCase> allCases):global::UI.IBenchmarkRunService{
         public List<bool> ObservedRestartFromRequestedElementCount { get; } = [];
+        public bool EmitAllElementCounts { get; set; }
 
         public async Task<global::UI.BenchmarkRunReport> RunAsync(
             IReadOnlyList<global::UI.BenchmarkCase> benchmarks,
@@ -436,13 +564,18 @@ public sealed class RunnerViewModel{
             this.ObservedRestartFromRequestedElementCount.Add(restartFromRequestedElementCount);
             var emitCases = this.CreateEmitCases(benchmarks,sourceTab);
             var logicalCpu = logicalCpus.FirstOrDefault();
-            foreach(var benchmark in emitCases){
-                cancellationToken.ThrowIfCancellationRequested();
-                resultReceived(CreateResult(benchmark,sourceTab,global::UI.JobStatus.Running,logicalCpu,null));
-                if(executionOptions?.UseInfiniteTestRunner==true){
-                    await Task.Delay(Timeout.InfiniteTimeSpan,cancellationToken);
+            var preparedElementCounts = this.EmitAllElementCounts&&elementCounts.Count>0 ? elementCounts.ToArray() : [1];
+            var emittedElementCounts = this.EmitAllElementCounts ? [preparedElementCounts[^1]] : preparedElementCounts;
+            foreach(var elementCount in emittedElementCounts){
+                foreach(var benchmark in emitCases){
+                    var benchmarkSourceTab = ResolveSourceTab(benchmark,sourceTab);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    resultReceived(CreateResult(benchmark,benchmarkSourceTab,global::UI.JobStatus.Running,logicalCpu,null,elementCount,preparedElementCounts));
+                    if(executionOptions?.UseInfiniteTestRunner==true){
+                        await Task.Delay(Timeout.InfiniteTimeSpan,cancellationToken);
+                    }
+                    resultReceived(CreateResult(benchmark,benchmarkSourceTab,global::UI.JobStatus.Completed,logicalCpu,adaptiveThreshold.TotalMilliseconds*1_000_000,elementCount,preparedElementCounts));
                 }
-                resultReceived(CreateResult(benchmark,sourceTab,global::UI.JobStatus.Completed,logicalCpu,adaptiveThreshold.TotalMilliseconds*1_000_000));
             }
             statusChanged("Completed");
             return new global::UI.BenchmarkRunReport(runRootOverride);
@@ -474,12 +607,17 @@ public sealed class RunnerViewModel{
             }
         }
 
+        private static global::UI.BenchmarkSourceTab ResolveSourceTab(global::UI.BenchmarkCase benchmark,global::UI.BenchmarkSourceTab fallback) =>
+            global::UI.BenchmarkSourceTabs.TryGetByProjectAndAssembly(benchmark.Project,benchmark.AssemblyName)?.Tab??fallback;
+
         private static global::UI.BenchmarkResultItem CreateResult(
             global::UI.BenchmarkCase benchmark,
             global::UI.BenchmarkSourceTab sourceTab,
             global::UI.JobStatus status,
             int logicalCpu,
-            double? meanNanoseconds){
+            double? meanNanoseconds,
+            int elementCount = 1,
+            IReadOnlyList<int>? preparedElementCounts = null){
             var job = new global::UI.BenchmarkJob{
                 Project=benchmark.Project,
                 AssemblyName=benchmark.AssemblyName,
@@ -488,9 +626,9 @@ public sealed class RunnerViewModel{
                 ArgumentKey=benchmark.ArgumentKey,
                 Arguments=benchmark.Arguments.ToList(),
                 SourceTab=sourceTab,
-                ElementCount=1,
-                LoopCount=1,
-                PreparedElementCounts=[1],
+                ElementCount=global::UI.BenchmarkWorkloadAxis.ResolveElementCount(sourceTab,elementCount),
+                LoopCount=global::UI.BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab,elementCount),
+                PreparedElementCounts=preparedElementCounts?.ToList()??[elementCount],
                 Status=status,
                 AssignedLogicalCpu=logicalCpu,
                 StartedAt=DateTimeOffset.Now,
