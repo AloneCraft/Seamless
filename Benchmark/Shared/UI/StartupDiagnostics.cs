@@ -1,11 +1,14 @@
 using System.Text;
+using Microsoft.Maui.ApplicationModel;
 
 namespace UI;
 
 internal static class StartupDiagnostics{
+    private const int MaxBreadcrumbCount = 120;
     private static readonly object Gate = new();
     private static readonly List<Action<string>> subscribers = [];
     private static readonly StringBuilder logBuffer = new();
+    private static readonly Queue<string> breadcrumbs = new();
     private static readonly string[] SyncfusionAssemblyNames = [
         "Syncfusion.Licensing",
         "Syncfusion.Maui.Core",
@@ -23,10 +26,50 @@ internal static class StartupDiagnostics{
     public static void InstallGlobalHandlers(){
         AppDomain.CurrentDomain.UnhandledException+=(_,args) => {
             Write("Unhandled exception",args.ExceptionObject as Exception);
+            WriteCrashContext("Unhandled exception");
         };
         TaskScheduler.UnobservedTaskException+=(_,args) => {
             Write("Unobserved task exception",args.Exception);
+            WriteCrashContext("Unobserved task exception");
         };
+    }
+
+    public static void AddBreadcrumb(string message){
+        try{
+            var text=DateTimeOffset.Now.ToString("O",System.Globalization.CultureInfo.InvariantCulture)
+                +" "
+                +message;
+            lock(Gate){
+                breadcrumbs.Enqueue(text);
+                while(breadcrumbs.Count>MaxBreadcrumbCount){
+                    breadcrumbs.Dequeue();
+                }
+            }
+        }catch{
+        }
+    }
+
+    public static void BeginInvokeOnMainThread(string context,Action action){
+        AddBreadcrumb("UI dispatch queued: "+context);
+        try{
+            MainThread.BeginInvokeOnMainThread(() => RunUiAction(context,action));
+        }catch(Exception ex){
+            Write("UI dispatch scheduling failed: "+context,ex);
+            WriteCrashContext("UI dispatch scheduling failed: "+context);
+            throw;
+        }
+    }
+
+    public static void RunUiAction(string context,Action action){
+        AddBreadcrumb("UI dispatch start: "+context);
+        try{
+            action();
+            AddBreadcrumb("UI dispatch end: "+context);
+        }catch(Exception ex){
+            Write("UI dispatch action failed: "+context,ex);
+            WriteCrashContext("UI dispatch action failed: "+context);
+            throw;
+        }
     }
 
     public static void Write(string message,Exception? exception = null){
@@ -43,6 +86,21 @@ internal static class StartupDiagnostics{
         }catch{
         }
     }
+
+    public static void WriteCrashContext(string title){
+        try{
+            var text = BuildCrashContextText(title);
+            lock(Gate){
+                Directory.CreateDirectory(Path.GetDirectoryName(LogPath)!);
+                File.AppendAllText(LogPath,text);
+                logBuffer.Append(text);
+                NotifySubscribers(text);
+            }
+        }catch{
+        }
+    }
+
+    public static string GetCrashContextText(string title) => BuildCrashContextText(title);
 
     public static string GetLogText(){
         lock(Gate){
@@ -80,6 +138,25 @@ internal static class StartupDiagnostics{
             +message
             +Environment.NewLine
             +(exception is null ? string.Empty : exception+Environment.NewLine);
+    }
+
+    private static string BuildCrashContextText(string title){
+        string[] snapshot;
+        lock(Gate){
+            snapshot=breadcrumbs.ToArray();
+        }
+
+        var builder = new StringBuilder();
+        builder.Append(DateTimeOffset.Now.ToString("O",System.Globalization.CultureInfo.InvariantCulture));
+        builder.Append(' ');
+        builder.AppendLine("Crash context begin: "+title);
+        foreach(var item in snapshot){
+            builder.AppendLine(item);
+        }
+        builder.Append(DateTimeOffset.Now.ToString("O",System.Globalization.CultureInfo.InvariantCulture));
+        builder.Append(' ');
+        builder.AppendLine("Crash context end: "+title);
+        return builder.ToString();
     }
 
     private static void NotifySubscribers(string text){

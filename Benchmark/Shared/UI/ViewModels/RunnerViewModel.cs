@@ -1427,6 +1427,12 @@ public sealed partial class RunnerViewModel:ObservableObject {
         var nextTab = option.Definition.Id;
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var changed = false;
+        StartupDiagnostics.AddBreadcrumb(
+            "Source tab switch start "
+            +previousTab+"->"+nextTab
+            +" running="+this.IsBenchmarkRunActive.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            +" active="+(this.ActiveRunSourceTab?.ToString()??"-")
+            +" progress="+this.OverallSourceTabProgress.FractionText);
         this.isApplyingSourceTabSelection=true;
         ++this.selectedRunLoadRequestToken;
         try {
@@ -1456,12 +1462,29 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 }
             }
         }
+        catch(Exception ex) {
+            StartupDiagnostics.Write(
+                "Source tab switch failed "
+                +previousTab+"->"+nextTab
+                +" running="+this.IsBenchmarkRunActive.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                +" active="+(this.ActiveRunSourceTab?.ToString()??"-"),
+                ex);
+            StartupDiagnostics.WriteCrashContext("Source tab switch failed");
+            throw;
+        }
         finally {
             stopwatch.Stop();
             if(changed) {
                 StartupDiagnostics.Write(
                     $"Source tab switch {previousTab}->{nextTab} elapsed={FormatSwitchMeasureMilliseconds(stopwatch.Elapsed)}ms rows={this.BenchmarkRows.Count}");
             }
+            StartupDiagnostics.AddBreadcrumb(
+                "Source tab switch end "
+                +previousTab+"->"+nextTab
+                +" changed="+changed.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                +" elapsed="+FormatSwitchMeasureMilliseconds(stopwatch.Elapsed)
+                +" rows="+this.BenchmarkRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                +" progress="+this.OverallSourceTabProgress.FractionText);
             this.isApplyingSourceTabSelection=false;
         }
     }
@@ -4199,6 +4222,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
 
         var result = item.Result;
+        StartupDiagnostics.AddBreadcrumb(this.CreateResultBreadcrumb("Running snapshot result",result));
         this.MarkRunningVisualStarted(result);
         var cpu = this.FindAssignedCpu(result);
         cpu?.ApplyJob(result);
@@ -4230,6 +4254,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
 
         var result = item.Result;
+        StartupDiagnostics.AddBreadcrumb(this.CreateResultBreadcrumb("Terminal snapshot result",result));
         if(string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)) {
             StartupDiagnostics.Write(BenchmarkFailureDisplayLogic.CreateLogText(
                 result.Project,
@@ -4309,6 +4334,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             return;
         }
 
+        StartupDiagnostics.AddBreadcrumb(this.CreateResultBreadcrumb("Handle run result",result));
         StartupDiagnostics.Write(
             "Run result received. "
             +"Project="+result.Project+" "
@@ -4422,6 +4448,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             return;
         }
 
+        StartupDiagnostics.AddBreadcrumb(this.CreateResultBreadcrumb("Immediate running result",result));
         this.MarkRunningVisualStarted(result);
         if(result.AxisCount>0) {
             this.UpsertCurrentRunResultItem(result);
@@ -4532,6 +4559,10 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <param name="runGeneration">runGeneration を指定して実行条件を制御します。</param>
     /// <param name="delay">delay を指定して実行条件を制御します。</param>
     private void ScheduleFinalLiveVisualCleanup(int runGeneration,TimeSpan delay) {
+        StartupDiagnostics.AddBreadcrumb(
+            "Final live visual cleanup scheduled generation="
+            +runGeneration.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            +" delayMs="+delay.TotalMilliseconds.ToString("0.0",System.Globalization.CultureInfo.InvariantCulture));
         _=Task.Run(async () => {
             await Task.Delay(delay);
             this.uiDispatcher.BeginInvoke(() => {
@@ -4549,6 +4580,11 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     /// <value>discardPendingRunUpdates の値を取得/設定します。</value>
     private void ApplyFinalLiveVisualCleanup(bool discardPendingRunUpdates = false) {
+        StartupDiagnostics.AddBreadcrumb(
+            "Final live visual cleanup apply discard="
+            +discardPendingRunUpdates.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            +" selected="+this.SelectedSourceDefinition.Tab
+            +" active="+(this.ActiveRunSourceTab?.ToString()??"-"));
         this.finalLiveVisualCleanupToken=unchecked(this.finalLiveVisualCleanupToken+1);
         if(discardPendingRunUpdates) {
             this.runEventPipeline.Clear();
@@ -4583,6 +4619,10 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
 
         this.pendingPostRunDisplayFinalize=false;
+        StartupDiagnostics.AddBreadcrumb(
+            "Post-run display finalize apply selected="
+            +this.SelectedSourceDefinition.Tab
+            +" progress="+this.OverallSourceTabProgress.FractionText);
         StartupDiagnostics.Write("Post-run display finalize applied.");
         UiThreadBudget.Measure("post-run-finalize",() => {
             this.RefreshResultChecks(this.SelectedSourceDefinition.Tab);
@@ -4615,6 +4655,18 @@ public sealed partial class RunnerViewModel:ObservableObject {
         +"|"+result.Method
         +"|"+result.ArgumentKey
         +"|"+result.AxisCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private string CreateResultBreadcrumb(string context,BenchmarkResultItem result) =>
+        context
+        +" source="+result.SourceTab
+        +" visible="+this.SelectedSourceDefinition.Tab
+        +" active="+(this.ActiveRunSourceTab?.ToString()??"-")
+        +" project="+result.Project
+        +" method="+result.Method
+        +" status="+result.Status
+        +" n="+result.AxisCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        +" cpu="+(result.AssignedLogicalCpu?.ToString(System.Globalization.CultureInfo.InvariantCulture)??"-")
+        +" running="+this.IsBenchmarkRunActive.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>
     /// IsRunningResult メソッドを実行し、結果を算出して返却します。

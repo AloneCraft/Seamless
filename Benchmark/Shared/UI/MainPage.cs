@@ -616,7 +616,7 @@ public sealed partial class MainPage:ContentPage {
                     ||args.PropertyName==nameof(RunnerViewModel.HasSelectedBenchmarkCells)
                     ||args.PropertyName==nameof(RunnerViewModel.HasUnsavedBenchmarkResults)
                     ||args.PropertyName==nameof(RunnerViewModel.ToolbarStateInput)) {
-                    MainThread.BeginInvokeOnMainThread(Apply);
+                    StartupDiagnostics.BeginInvokeOnMainThread("toolbar state apply "+role,Apply);
                 }
             };
         }
@@ -829,7 +829,7 @@ public sealed partial class MainPage:ContentPage {
             }
             option.PropertyChanged+=(_,args) => {
                 if(args.PropertyName==nameof(SourceTabOption.HeaderText)) {
-                    MainThread.BeginInvokeOnMainThread(() => tabItem.Header=option.HeaderText);
+                    StartupDiagnostics.BeginInvokeOnMainThread("source tab header text "+option.Definition.Id,() => tabItem.Header=option.HeaderText);
                 }
             };
             tabItems.Add(tabItem);
@@ -846,19 +846,27 @@ public sealed partial class MainPage:ContentPage {
 
             var index = tabView.SelectedIndex;
             if(index<0||index>=this.viewModel.SourceTabs.Count||loadedSourceTabContents.Contains(index)) {
+                StartupDiagnostics.AddBreadcrumb("Source tab content skip index="+index.ToString(System.Globalization.CultureInfo.InvariantCulture));
                 return;
             }
 
             var option = this.viewModel.SourceTabs[index];
             var state = this.viewModel.GetSourceTabViewState(option.Definition.Tab);
+            StartupDiagnostics.AddBreadcrumb("Source tab content create "+option.Definition.Id+" index="+index.ToString(System.Globalization.CultureInfo.InvariantCulture));
             tabItems[index].Content=this.CreateSourceTabContent(state);
             loadedSourceTabContents.Add(index);
+            StartupDiagnostics.AddBreadcrumb("Source tab content created "+option.Definition.Id+" rows="+state.Rows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
         tabView.PropertyChanged+=(_,args) => {
             if(args.PropertyName!=nameof(SfTabView.SelectedIndex)||this.viewModel is null) {
                 return;
             }
 
+            StartupDiagnostics.AddBreadcrumb(
+                "Source tab view selected index changed index="
+                +tabView.SelectedIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                +" running="+this.viewModel.IsBenchmarkRunActive.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                +" selected="+this.viewModel.SelectedSourceTab.Id);
             EnsureSelectedSourceTabContent();
             if(this.isApplyingSourceTabViewSelection) {
                 this.SelectBenchmarkGridForActiveSource();
@@ -875,7 +883,7 @@ public sealed partial class MainPage:ContentPage {
             this.viewModel.PropertyChanged+=(_,args) => {
                 if(args.PropertyName==nameof(RunnerViewModel.SelectedSourceTab)
                     ||args.PropertyName==nameof(RunnerViewModel.HasBenchmarkTypeColumn)) {
-                    MainThread.BeginInvokeOnMainThread(() => {
+                    StartupDiagnostics.BeginInvokeOnMainThread("source tab vm property "+args.PropertyName,() => {
                         this.SyncSourceTabViewSelection();
                         EnsureSelectedSourceTabContent();
                         this.SelectBenchmarkGridForActiveSource();
@@ -883,7 +891,7 @@ public sealed partial class MainPage:ContentPage {
                 }else if(args.PropertyName==nameof(RunnerViewModel.LatestBenchmarkAutoScrollRequest)) {
                     var request = this.viewModel.LatestBenchmarkAutoScrollRequest;
                     if(request is not null) {
-                        MainThread.BeginInvokeOnMainThread(() => this.ScrollBenchmarkGridToLatestExecutionAsync(request));
+                        StartupDiagnostics.BeginInvokeOnMainThread("latest benchmark auto scroll "+request.SourceTab,() => this.ScrollBenchmarkGridToLatestExecutionAsync(request));
                     }
                 }
             };
@@ -951,7 +959,7 @@ public sealed partial class MainPage:ContentPage {
         if(this.viewModel is not null) {
             this.viewModel.PropertyChanged+=(_,args) => {
                 if(args.PropertyName==nameof(RunnerViewModel.OverallSourceTabProgress)) {
-                    MainThread.BeginInvokeOnMainThread(Apply);
+                    StartupDiagnostics.BeginInvokeOnMainThread("overall source progress apply",Apply);
                 }
             };
         }
@@ -1111,7 +1119,7 @@ public sealed partial class MainPage:ContentPage {
         this.SyncSourceTabViewSelection();
         this.ScrollBenchmarkGridToMethod(request.MethodName,request.RowKey);
         await Task.Delay(150);
-        MainThread.BeginInvokeOnMainThread(() => this.ScrollBenchmarkGridToMethod(request.MethodName,request.RowKey));
+        StartupDiagnostics.BeginInvokeOnMainThread("benchmark grid delayed auto scroll "+request.SourceTab,() => this.ScrollBenchmarkGridToMethod(request.MethodName,request.RowKey));
     }
 
     private void ScrollBenchmarkGridToMethod(string methodName,string rowKey) {
@@ -1283,7 +1291,7 @@ public sealed partial class MainPage:ContentPage {
         if(this.viewModel is not null) {
             this.viewModel.PropertyChanged+=(_,args) => {
                 if(args.PropertyName==nameof(RunnerViewModel.SelectedLowerTab)) {
-                    MainThread.BeginInvokeOnMainThread(() => lowerTabView.SelectedIndex=(int)this.viewModel.SelectedLowerTab);
+                    StartupDiagnostics.BeginInvokeOnMainThread("lower tab sync",() => lowerTabView.SelectedIndex=(int)this.viewModel.SelectedLowerTab);
                 }
             };
         }
@@ -1752,7 +1760,7 @@ public sealed partial class MainPage:ContentPage {
         if(this.viewModel is not null) {
             this.viewModel.PropertyChanged+=(_,args) => {
                 if(args.PropertyName==nameof(RunnerViewModel.GeneratedCodeAuditReport)) {
-                    MainThread.BeginInvokeOnMainThread(Apply);
+                    StartupDiagnostics.BeginInvokeOnMainThread("chart element count label apply",Apply);
                 }
             };
         }
@@ -1894,7 +1902,7 @@ public sealed partial class MainPage:ContentPage {
                 if(isApplyingMetricTabSelection||args.PropertyName!=nameof(RunnerViewModel.SelectedMetric)) {
                     return;
                 }
-                MainThread.BeginInvokeOnMainThread(() => tabView.SelectedIndex=this.viewModel.IsAllocatedMetricSelected ? 1 : 0);
+                StartupDiagnostics.BeginInvokeOnMainThread("metric tab sync",() => tabView.SelectedIndex=this.viewModel.IsAllocatedMetricSelected ? 1 : 0);
             };
         }
         return tabView;
@@ -2366,7 +2374,7 @@ public sealed partial class MainPage:ContentPage {
         check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(propertyName,BindingMode.OneWay,source: source));
         PropertyChangedEventHandler handler = (_,args) => {
             if(args.PropertyName==propertyName) {
-                MainThread.BeginInvokeOnMainThread(() => {
+                StartupDiagnostics.BeginInvokeOnMainThread("benchmark column header selection apply",() => {
                     check.IsChecked=getValue();
                 });
             }
@@ -2854,7 +2862,7 @@ public sealed partial class MainPage:ContentPage {
                 PropertyChangedEventHandler handler = (_,args) => {
                     if(args.PropertyName==nameof(RunnerViewModel.CurrentSortColumn)
                         ||args.PropertyName==nameof(RunnerViewModel.CurrentSortDescending)) {
-                        MainThread.BeginInvokeOnMainThread(RefreshIcon);
+                        StartupDiagnostics.BeginInvokeOnMainThread("benchmark status icon refresh",RefreshIcon);
                     }
                 };
                 this.viewModel.PropertyChanged+=handler;
@@ -2935,7 +2943,7 @@ public sealed partial class MainPage:ContentPage {
         if(this.viewModel is not null) {
             this.viewModel.LogEntries.CollectionChanged+=(_,args) => {
                 if(args.Action is NotifyCollectionChangedAction.Add or NotifyCollectionChangedAction.Reset) {
-                    MainThread.BeginInvokeOnMainThread(() => {
+                    StartupDiagnostics.BeginInvokeOnMainThread("cpu selection header refresh",() => {
                         if(this.viewModel?.LogEntries.Count>0) {
                             logList.ScrollTo(this.viewModel.LogEntries.Count-1,position: ScrollToPosition.End,animate: false);
                         }
@@ -3558,12 +3566,12 @@ public sealed partial class MainPage:ContentPage {
         async void ApplyNowAndLater() {
             ApplySafely();
             await Task.Delay(100);
-            MainThread.BeginInvokeOnMainThread(ApplySafely);
+            StartupDiagnostics.BeginInvokeOnMainThread("benchmark grid scroll bar apply",ApplySafely);
         }
 
         grid.Loaded+=(_,_) => ApplyNowAndLater();
-        grid.HandlerChanged+=(_,_) => MainThread.BeginInvokeOnMainThread(ApplyNowAndLater);
-        grid.SizeChanged+=(_,_) => MainThread.BeginInvokeOnMainThread(ApplySafely);
+        grid.HandlerChanged+=(_,_) => StartupDiagnostics.BeginInvokeOnMainThread("benchmark grid scroll bar handler changed",ApplyNowAndLater);
+        grid.SizeChanged+=(_,_) => StartupDiagnostics.BeginInvokeOnMainThread("benchmark grid scroll bar size changed",ApplySafely);
     }
 
     private void ApplyDataGridScrollBarSize(object visualContainer) {
@@ -4015,7 +4023,7 @@ public sealed partial class MainPage:ContentPage {
         if(this.viewModel is not null) {
             this.viewModel.PropertyChanged+=(_,args) => {
                 if(args.PropertyName==nameof(RunnerViewModel.SelectedComparisonPair)) {
-                    MainThread.BeginInvokeOnMainThread(Apply);
+                    StartupDiagnostics.BeginInvokeOnMainThread("chart point label apply",Apply);
                 }
             };
         }

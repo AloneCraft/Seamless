@@ -8,7 +8,7 @@ internal interface IBenchmarkUiDispatcher{
 }
 
 internal sealed class MauiBenchmarkUiDispatcher:IBenchmarkUiDispatcher{
-    public void BeginInvoke(Action action) => MainThread.BeginInvokeOnMainThread(action);
+    public void BeginInvoke(Action action) => StartupDiagnostics.BeginInvokeOnMainThread("IBenchmarkUiDispatcher.BeginInvoke",action);
 }
 
 internal interface IBenchmarkUiPreferences{

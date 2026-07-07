@@ -73,6 +73,7 @@
   <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'">
     <Compile Remove="**\*.cs" />
     <Compile Include="Benchmark\Pattern.cs" />
+    <Compile Include="Benchmark\StartupDiagnostics.cs" />
     <ProjectReference Include="..\Benchmark\DotNet.Linq.Enumerable.FLinq\DotNet.Linq.Enumerable.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark\DotNet.Linq.Enumerable.List.FLinq\DotNet.Linq.Enumerable.List.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark\DotNet.Linq.Enumerable.List.ZLinq\DotNet.Linq.Enumerable.List.ZLinq.csproj" />
