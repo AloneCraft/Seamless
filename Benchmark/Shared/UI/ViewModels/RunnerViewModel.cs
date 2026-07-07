@@ -2815,13 +2815,20 @@ public sealed partial class RunnerViewModel:ObservableObject {
             .Order()
             .ToArray();
         var completedJobs = jobs.Count(static job => job.Status==UiRunStatus.Completed);
+        var selectedJobs = this.uiRunStore.ListUiSelections(run.RunId)
+            .Count(static item => string.Equals(item.Scope,"BenchmarkCell",StringComparison.OrdinalIgnoreCase)&&item.IsSelected);
         var executionProfile = Enum.TryParse<BenchmarkExecutionProfile>(run.ExecutionProfile,true,out var parsedProfile)
             ? parsedProfile
             : this.SelectedExecutionProfile.Profile;
+        var label = run.UpdatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm",System.Globalization.CultureInfo.InvariantCulture)
+            +" "
+            +completedJobs.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            +"/"
+            +selectedJobs.ToString(System.Globalization.CultureInfo.InvariantCulture);
         return new BenchmarkRunOption(
             unchecked((int)Math.Min(run.RunId,int.MaxValue)),
             run.RunId,
-            run.DisplayName+" "+completedJobs.ToString(System.Globalization.CultureInfo.InvariantCulture)+"/"+jobs.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            label,
             string.Empty,
             executionProfile,
             run.CreatedAt,
@@ -3001,6 +3008,11 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<BenchmarkCase> GetCurrentRunSelectedBenchmarkCases() =>
         Volatile.Read(ref this.currentRunSelectedBenchmarkCases);
+
+    private static IReadOnlySet<string> CreateSelectedCaseKeySet(IEnumerable<BenchmarkCase> selected) =>
+        selected
+            .Select(static benchmark => string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     // 選択スナップショットとキュー生成の規則は UI.Core の BenchmarkSelectionQueueLogic に集約する。
     // 表示中タブだけの生きた状態(チェックボックス)を優先する。
@@ -3808,6 +3820,14 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 ? this.activeUiRunId
                 : await this.CreateUiRunAsync(runSourceTab,executionProfile).WaitAsync(runCancellationSource.Token);
             this.activeUiRunId=uiRunId;
+            if(!isResumeRun){
+                this.uiRunRepository.QueueSaveDetectedBenchmarkItems(
+                    uiRunId,
+                    this.catalogCases,
+                    this.SourceTabs.Select(static option => option.Definition).ToArray(),
+                    CreateSelectedCaseKeySet(selected),
+                    this.GetSelectedElementCounts());
+            }
             // Running表示への更新は実行開始をブロックする理由がないため、Completed/Paused等と同じくfire-and-forgetにする。
             this.QueueUiRunStatus(uiRunId,UiRunStatus.Running,"Benchmark run started.");
             this.ClearSourceTabRunningStates();

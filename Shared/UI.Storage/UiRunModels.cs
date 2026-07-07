@@ -84,6 +84,22 @@ public sealed record UiJobRecord(
 
 public sealed record UiMetricValueWrite(string MetricName,double NumericValue,string Unit);
 
+public sealed record UiBenchmarkItemWrite(
+    string TabName,
+    string ProjectName,
+    string TypeName,
+    string TypeFullName,
+    string BenchmarkName,
+    bool IsSelected,
+    long? ElementCount,
+    long? LoopCount,
+    int? CpuNumber,
+    string ArgumentKey,
+    string ArgumentDisplay,
+    string RowKey,
+    string Side,
+    string PairDiscriminator);
+
 public sealed record UiMetricValueRecord(
     long JobId,
     string MetricName,

@@ -151,6 +151,7 @@ public sealed class TabHeaderOption:TabHeaderOptionBase{
 
 public sealed class SourceTabOption:TabHeaderOptionBase{
     private static readonly Color RunningIndicatorColor=Color.FromArgb("#00FF00");
+    private static readonly Color CompletedProgressOutlineColor=Color.FromArgb("#22C55E");
     private static readonly Color DefaultProgressOutlineColor=Color.FromArgb("#64748B");
     private BenchmarkTabProgress progress;
     private bool isRunning;
@@ -169,23 +170,34 @@ public sealed class SourceTabOption:TabHeaderOptionBase{
             if(this.SetProperty(ref this.progress,value)){
                 this.OnPropertyChanged(nameof(this.HeaderText));
                 this.OnPropertyChanged(nameof(this.HasProgress));
+                this.OnPropertyChanged(nameof(this.IsCompleted));
+                this.OnPropertyChanged(nameof(this.IsCompletionIconVisible));
                 this.OnPropertyChanged(nameof(this.ProgressFraction));
                 this.OnPropertyChanged(nameof(this.ProgressText));
                 this.OnPropertyChanged(nameof(this.ProgressTooltipText));
+                this.OnPropertyChanged(nameof(this.ProgressOutlineColor));
             }
         }
     }
     public override string HeaderText => this.DisplayName;
     public bool HasProgress => this.Progress.Total>0;
+    public bool IsCompleted => this.Progress.Total>0&&this.Progress.Completed>=this.Progress.Total;
+    public bool IsCompletionIconVisible => this.IsCompleted&&!this.IsRunning;
     public double ProgressFraction => this.Progress.Total<=0 ? 0 : this.Progress.Fraction;
     public string ProgressText => this.Progress.Total<=0 ? "0/0" : this.Progress.FractionText;
-    public string ProgressTooltipText => "確定 "+this.ProgressText;
-    public Color ProgressOutlineColor => this.IsRunning ? RunningIndicatorColor : DefaultProgressOutlineColor;
+    public string ProgressTooltipText => this.IsRunning
+        ? "実行中 "+this.ProgressText
+        : this.IsCompleted ? "完了 "+this.ProgressText : "確定 "+this.ProgressText;
+    public Color ProgressOutlineColor => this.IsRunning
+        ? RunningIndicatorColor
+        : this.IsCompleted ? CompletedProgressOutlineColor : DefaultProgressOutlineColor;
     public bool IsRunning{
         get => this.isRunning;
         private set{
             if(this.SetProperty(ref this.isRunning,value)){
                 this.OnPropertyChanged(nameof(this.ProgressOutlineColor));
+                this.OnPropertyChanged(nameof(this.ProgressTooltipText));
+                this.OnPropertyChanged(nameof(this.IsCompletionIconVisible));
             }
         }
     }
