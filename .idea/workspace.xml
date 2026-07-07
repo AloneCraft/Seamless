@@ -2,8 +2,15 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c7260d12-37ac-443f-b541-40f8091022ae" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources/dedb3302-b9ed-455e-85d9-61f8544e9590.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources/dedb3302-b9ed-455e-85d9-61f8544e9590/storage_v2/_src_/schema/main.uQUzAA.zip" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Scalable.UI/BenchmarkRunnerViewModel.Scalable.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/App.xaml.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/App.xaml.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/AppShell.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/AppShell.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerViewModel.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/MainPage.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/MainPage.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/MauiProgram.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/MauiProgram.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/UI.projitems" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/UI.projitems" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.SourceGenerator/SourceGenerator/LinqEnumerableForwarderGenerator.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.SourceGenerator/SourceGenerator/LinqEnumerableForwarderGenerator.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Test/Benchmark/Pattern.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/Pattern.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

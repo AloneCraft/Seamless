@@ -4,7 +4,7 @@ using Seamless.UI.Storage;
 
 namespace Test.Benchmark.Pattern;
 
-public sealed class BenchmarkRunnerViewModel{
+public sealed class RunnerViewModel{
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
     public async Task Arrayタブの全てのベンチマークにチェックして1msで実行(){
         // UI操作: Arrayタブを前提に「全て選択」し、「Run実行」を押下する。
@@ -309,13 +309,13 @@ public sealed class BenchmarkRunnerViewModel{
     }
 #endif
 
-    private static void SelectProjectGroup(global::UI.BenchmarkRunnerViewModel viewModel,string groupId){
+    private static void SelectProjectGroup(global::UI.ViewModels.RunnerViewModel viewModel,string groupId){
         viewModel.ClearSelectionCommand.Execute(null);
         var group = viewModel.BenchmarkProjectSelectionGroups.First(group => string.Equals(group.Id,groupId,StringComparison.OrdinalIgnoreCase));
         viewModel.ToggleBenchmarkColumnGroup(group);
     }
 
-    private static IReadOnlyList<global::UI.BenchmarkProjectCell> GetSelectedCells(global::UI.BenchmarkRunnerViewModel viewModel) =>
+    private static IReadOnlyList<global::UI.BenchmarkProjectCell> GetSelectedCells(global::UI.ViewModels.RunnerViewModel viewModel) =>
         viewModel.BenchmarkRows
             .SelectMany(static row => row.ProjectCells)
             .Where(static cell => cell.HasCase&&cell.IsSelected)
@@ -354,12 +354,12 @@ public sealed class BenchmarkRunnerViewModel{
     }
 
     private sealed class ViewModelFixture{
-        private ViewModelFixture(global::UI.BenchmarkRunnerViewModel viewModel,FakeRunService runService){
+        private ViewModelFixture(global::UI.ViewModels.RunnerViewModel viewModel,FakeRunService runService){
             this.ViewModel=viewModel;
             this.RunService=runService;
         }
 
-        public global::UI.BenchmarkRunnerViewModel ViewModel { get; }
+        public global::UI.ViewModels.RunnerViewModel ViewModel { get; }
         public FakeRunService RunService { get; }
 
         public static async Task<ViewModelFixture> CreateAsync(global::UI.BenchmarkSourceTab sourceTab){
@@ -368,7 +368,7 @@ public sealed class BenchmarkRunnerViewModel{
             var store = new UiRunStore(storePath);
             store.EnsureSchema();
             var runService = new FakeRunService(cases);
-            var viewModel = new global::UI.BenchmarkRunnerViewModel(
+            var viewModel = new global::UI.ViewModels.RunnerViewModel(
                 new FakeCatalogService(cases),
                 new FakeCpuTopologyService(),
                 runService,

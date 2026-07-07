@@ -7,7 +7,19 @@
   </PropertyGroup>
   <Import Project="$(MSBuildThisFileDirectory)..\..\..\Shared\UI.Core\UI.Core.projitems" />
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)*.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)**\*.cs" Exclude="$(MSBuildThisFileDirectory)*.cs;$(MSBuildThisFileDirectory)Platforms\**\*.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)App.xaml.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)AppShell.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)BenchmarkAppProfile.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)BenchmarkPipeline.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)BenchmarkRunnerModels.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)BenchmarkRunnerServices.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)BenchmarkUiPlatformServices.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)BenchmarkWorkerClient.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)LinqInterceptAssembly.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MainPage.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MauiProgram.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)StartupDiagnostics.cs" />
     <MauiXaml Include="$(MSBuildThisFileDirectory)App.xaml" />
   </ItemGroup>
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">

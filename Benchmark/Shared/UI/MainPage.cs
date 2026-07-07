@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using Syncfusion.Maui.Buttons;
@@ -6,10 +6,11 @@ using Syncfusion.Maui.DataGrid;
 using Syncfusion.Maui.Toolkit.Charts;
 using Syncfusion.Maui.Toolkit.TabView;
 using Seamless.UI.Storage;
+using UI.ViewModels;
 
 namespace UI;
 
-public sealed class MainPage:ContentPage {
+public sealed partial class MainPage:ContentPage {
     private const double CpuCheckBoxWidth = 34;
     private const double CpuCheckBoxHeight = 28;
     private const double BenchmarkSelectionColumnWidth = 52;
@@ -49,7 +50,7 @@ public sealed class MainPage:ContentPage {
     private const double CpuSectionSpacing = 3;
     private const double CpuListSpacing = 10;
     private const double CpuContentRowSpacing = 10;
-    private readonly BenchmarkRunnerViewModel? viewModel;
+    private readonly RunnerViewModel? viewModel;
     private readonly Grid? rootLayout;
     private View? activeDialogOverlay;
     private TaskCompletionSource<string>? activeDialogCompletion;
@@ -74,12 +75,12 @@ public sealed class MainPage:ContentPage {
     private static extern short GetKeyState(int virtualKey);
 #endif
 
-    public MainPage() {
+    public MainPage(RunnerViewModel viewModel) {
         try {
             StartupDiagnostics.Write("MainPage constructor started.");
             this.Title=BenchmarkAppProfile.Title;
             this.BackgroundColor=Color.FromArgb("#F8FAFC");
-            this.viewModel=this.CreateViewModel();
+            this.viewModel=viewModel;
             this.BindingContext=this.viewModel;
 
             var toolbar = this.CreateToolbar();
@@ -183,241 +184,6 @@ public sealed class MainPage:ContentPage {
         return false;
     }
 
-    private BenchmarkRunnerViewModel CreateViewModel() {
-        var resultService = new BenchmarkResultService();
-        var comparisonService = new BenchmarkComparisonService(resultService);
-        var benchmarkRoot = Path.Combine(
-            this.FindSolutionRoot()??Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Work",
-            BenchmarkAppProfile.WorkRootName);
-        return new BenchmarkRunnerViewModel(
-            new BenchmarkCatalogService(),
-            new CpuTopologyService(),
-            new BenchmarkRunService(
-                new BenchmarkQueueService(),
-                new BenchmarkWorkerProcessService(),
-                comparisonService),
-            comparisonService,
-            new UiRunStore(
-                UiRunDatabasePathResolver.Resolve(this.FindSolutionRoot()),
-#if DEBUG
-                // 開発中はスキーマ不一致時に旧DBをバックアップリネームして新規作成する。
-                UiRunSchemaMismatchPolicy.BackupAndRecreate
-#else
-                // 通常運用では無警告にDBを破棄しない。
-                UiRunSchemaMismatchPolicy.Throw
-#endif
-            ),
-            benchmarkRoot);
-    }
-
-    private string? FindSolutionRoot() {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while(directory is not null) {
-            if(File.Exists(Path.Combine(directory.FullName,"Seamless.slnx"))) {
-                return directory.FullName;
-            }
-            directory=directory.Parent;
-        }
-
-        return null;
-    }
-
-    private async Task<BenchmarkCloseAction> ShowCloseConfirmDialogAsync(bool isBenchmarkActive,bool isBenchmarkPaused,bool hasUnsavedResults) {
-        var options = this.CreateCloseConfirmOptions(isBenchmarkActive,isBenchmarkPaused,hasUnsavedResults);
-        var result = await this.ShowConfirmDialogAsync(
-            "終了確認",
-            CreateCloseConfirmMessage(isBenchmarkActive,isBenchmarkPaused,hasUnsavedResults),
-            options);
-        return Enum.TryParse<BenchmarkCloseAction>(result,out var action)
-            ? action
-            : BenchmarkCloseAction.Cancel;
-    }
-
-    private IReadOnlyList<ConfirmDialogOption> CreateCloseConfirmOptions(bool isBenchmarkActive,bool isBenchmarkPaused,bool hasUnsavedResults) {
-        var options = BenchmarkCloseDialogLogic.CreateOptions(isBenchmarkActive,isBenchmarkPaused,hasUnsavedResults);
-        return options
-            .Select(option => new ConfirmDialogOption(option.Text,option.Action.ToString(),option.Kind==BenchmarkToolbarButtonRole.Stop
-                ? ConfirmDialogButtonKind.Danger
-                : ConfirmDialogButtonKind.Neutral))
-            .ToArray();
-    }
-
-    private static string CreateCloseConfirmMessage(bool isBenchmarkActive,bool isBenchmarkPaused,bool hasUnsavedResults) {
-        if(isBenchmarkPaused) {
-            return "一時停止中のベンチマークを停止して終了しますか？";
-        }
-
-        if(isBenchmarkActive) {
-            if(hasUnsavedResults) {
-                return "実行中のベンチマークを中止し、未保存の結果をどう扱うか選んでください。";
-            }
-
-            return "実行中のベンチマークを中止して終了しますか？";
-        }
-
-        return hasUnsavedResults
-            ? "未保存のベンチマーク結果があります。どう扱って終了しますか？"
-            : "終了確認";
-    }
-
-    private Task<bool> ShowBooleanConfirmDialogAsync(string title,string message,string accept,string cancel) =>
-        this.ShowConfirmDialogAsync(
-            title,
-            message,
-            [
-                new ConfirmDialogOption(accept,"accept",ConfirmDialogButtonKind.Primary),
-                new ConfirmDialogOption(cancel,"cancel",ConfirmDialogButtonKind.Neutral),
-            ])
-            .ContinueWith(static task => task.Status==TaskStatus.RanToCompletion&&task.Result=="accept",TaskScheduler.Default);
-
-    private Task<string> ShowConfirmDialogAsync(string title,string message,IReadOnlyList<ConfirmDialogOption> options) {
-        var root = this.rootLayout;
-        var fallbackValue = ResolveDialogFallbackValue(options);
-        if(root is null||options.Count==0) {
-            return Task.FromResult(fallbackValue);
-        }
-
-        this.CompleteActiveDialog(root,this.activeDialogFallbackValue);
-
-        var completion = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var overlay = this.CreateConfirmDialogOverlay(title,message,options,value => {
-            this.CompleteActiveDialog(root,value);
-        });
-        this.activeDialogOverlay=overlay;
-        this.activeDialogCompletion=completion;
-        this.activeDialogFallbackValue=fallbackValue;
-        root.Add(overlay,0,0);
-        Grid.SetRowSpan(overlay,2);
-        return completion.Task;
-    }
-
-    private void CompleteActiveDialog(Grid root,string value) {
-        if(this.activeDialogOverlay is not null) {
-            root.Children.Remove(this.activeDialogOverlay);
-            this.activeDialogOverlay=null;
-        }
-
-        var completion = this.activeDialogCompletion;
-        this.activeDialogCompletion=null;
-        this.activeDialogFallbackValue=string.Empty;
-        completion?.TrySetResult(value);
-    }
-
-    private static string ResolveDialogFallbackValue(IReadOnlyList<ConfirmDialogOption> options) {
-        var cancelOption = options.FirstOrDefault(static option =>
-            string.Equals(option.Value,"Cancel",StringComparison.OrdinalIgnoreCase)
-            ||string.Equals(option.Value,"cancel",StringComparison.OrdinalIgnoreCase)
-            ||string.Equals(option.Text,"キャンセル",StringComparison.OrdinalIgnoreCase));
-        return cancelOption?.Value??options.LastOrDefault()?.Value??string.Empty;
-    }
-
-    private View CreateConfirmDialogOverlay(
-        string title,
-        string message,
-        IReadOnlyList<ConfirmDialogOption> options,
-        Action<string> completed) {
-        var overlay = new Grid {
-            BackgroundColor=Color.FromRgba(15,23,42,110),
-            Padding=new Thickness(24),
-            HorizontalOptions=LayoutOptions.Fill,
-            VerticalOptions=LayoutOptions.Fill,
-            InputTransparent=false,
-        };
-        var card = new Border {
-            BackgroundColor=Colors.White,
-            Stroke=Color.FromArgb("#CBD5E1"),
-            StrokeThickness=1,
-            StrokeShape=new Microsoft.Maui.Controls.Shapes.RoundRectangle {
-                CornerRadius=14,
-            },
-            Shadow=new Shadow {
-                Brush=Brush.Black,
-                Opacity=0.18f,
-                Radius=18,
-                Offset=new Point(0,8),
-            },
-            Padding=new Thickness(24,22),
-            MaximumWidthRequest=860,
-            HorizontalOptions=LayoutOptions.Center,
-            VerticalOptions=LayoutOptions.Center,
-        };
-        var content = new VerticalStackLayout {
-            Spacing=18,
-        };
-        content.Children.Add(new Label {
-            Text=title,
-            FontSize=18,
-            FontAttributes=FontAttributes.Bold,
-            TextColor=Color.FromArgb("#0F172A"),
-            HorizontalTextAlignment=TextAlignment.Center,
-            LineBreakMode=LineBreakMode.WordWrap,
-        });
-        if(!string.IsNullOrWhiteSpace(message)) {
-            content.Children.Add(new Label {
-                Text=message,
-                FontSize=14,
-                TextColor=Color.FromArgb("#334155"),
-                HorizontalTextAlignment=TextAlignment.Center,
-                LineBreakMode=LineBreakMode.WordWrap,
-            });
-        }
-
-        content.Children.Add(this.CreateConfirmDialogButtons(options,completed));
-        card.Content=content;
-        overlay.Children.Add(card);
-        return overlay;
-    }
-
-    private View CreateConfirmDialogButtons(IReadOnlyList<ConfirmDialogOption> options,Action<string> completed) {
-        var layout = new HorizontalStackLayout {
-            Spacing=10,
-            HorizontalOptions=LayoutOptions.Center,
-        };
-
-        for(var index = 0; index<options.Count; index++) {
-            var option = options[index];
-            var button = this.CreateConfirmDialogButton(option);
-            button.Clicked+=(_,_) => completed(option.Value);
-            layout.Children.Add(button);
-        }
-
-        return layout;
-    }
-
-    private Button CreateConfirmDialogButton(ConfirmDialogOption option) {
-        var button = new Button {
-            Text=option.Text,
-            HeightRequest=42,
-            MinimumWidthRequest=128,
-            WidthRequest=168,
-            CornerRadius=8,
-            BorderWidth=1,
-            FontSize=14,
-            FontAttributes=FontAttributes.Bold,
-            Padding=new Thickness(12,0),
-        };
-        switch(option.Kind) {
-            case ConfirmDialogButtonKind.Primary:
-                button.BackgroundColor=Color.FromArgb("#0F766E");
-                button.BorderColor=Color.FromArgb("#0F766E");
-                button.TextColor=Colors.White;
-                break;
-            case ConfirmDialogButtonKind.Danger:
-                button.BackgroundColor=Color.FromArgb("#FEF2F2");
-                button.BorderColor=Color.FromArgb("#FCA5A5");
-                button.TextColor=Color.FromArgb("#991B1B");
-                break;
-            default:
-                button.BackgroundColor=Colors.White;
-                button.BorderColor=Color.FromArgb("#CBD5E1");
-                button.TextColor=Color.FromArgb("#334155");
-                break;
-        }
-
-        return button;
-    }
-
     private void ShowBenchmarkSortDialog() {
         var root = this.rootLayout;
         if(root is null||this.viewModel is null) {
@@ -476,7 +242,7 @@ public sealed class MainPage:ContentPage {
             LineBreakMode=LineBreakMode.TailTruncation,
             HorizontalTextAlignment=TextAlignment.Center,
         };
-        summary.SetBinding(Label.TextProperty,nameof(BenchmarkRunnerViewModel.BenchmarkSortSummaryText));
+        summary.SetBinding(Label.TextProperty,nameof(RunnerViewModel.BenchmarkSortSummaryText));
         content.Add(summary,0,1);
         content.Add(this.CreateBenchmarkSortRuleList(),0,2);
         content.Add(this.CreateBenchmarkSortDialogButtons(close),0,3);
@@ -493,7 +259,7 @@ public sealed class MainPage:ContentPage {
             },
             ItemTemplate=new DataTemplate(() => this.CreateBenchmarkSortRuleRow()),
         };
-        list.SetBinding(ItemsView.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.BenchmarkSortRules));
+        list.SetBinding(ItemsView.ItemsSourceProperty,nameof(RunnerViewModel.BenchmarkSortRules));
         return new Border {
             Stroke=Color.FromArgb("#CBD5E1"),
             StrokeThickness=1,
@@ -538,7 +304,7 @@ public sealed class MainPage:ContentPage {
         var down = this.CreateSortRuleIconButton("arrow_down.png","下へ移動");
         var remove = this.CreateSortRuleIconButton("delete.png","削除");
         foreach(var editButton in new[] { picker as VisualElement,direction,up,down,remove }) {
-            editButton.SetBinding(VisualElement.IsEnabledProperty,new Binding(nameof(BenchmarkRunnerViewModel.IsSortRuleEditingEnabled),source: this.viewModel));
+            editButton.SetBinding(VisualElement.IsEnabledProperty,new Binding(nameof(RunnerViewModel.IsSortRuleEditingEnabled),source: this.viewModel));
         }
 
         void RefreshPicker() {
@@ -631,8 +397,8 @@ public sealed class MainPage:ContentPage {
         var add = this.CreateConfirmDialogButton(new ConfirmDialogOption("追加","add",ConfirmDialogButtonKind.Neutral));
         var reset = this.CreateConfirmDialogButton(new ConfirmDialogOption("既定順","reset",ConfirmDialogButtonKind.Neutral));
         var closeButton = this.CreateConfirmDialogButton(new ConfirmDialogOption("閉じる","close",ConfirmDialogButtonKind.Primary));
-        add.SetBinding(VisualElement.IsEnabledProperty,new Binding(nameof(BenchmarkRunnerViewModel.IsSortRuleEditingEnabled),source: this.viewModel));
-        reset.SetBinding(VisualElement.IsEnabledProperty,new Binding(nameof(BenchmarkRunnerViewModel.IsSortRuleEditingEnabled),source: this.viewModel));
+        add.SetBinding(VisualElement.IsEnabledProperty,new Binding(nameof(RunnerViewModel.IsSortRuleEditingEnabled),source: this.viewModel));
+        reset.SetBinding(VisualElement.IsEnabledProperty,new Binding(nameof(RunnerViewModel.IsSortRuleEditingEnabled),source: this.viewModel));
         add.Clicked+=(_,_) => this.viewModel?.AddBenchmarkSortRule();
         reset.Clicked+=(_,_) => this.viewModel?.ResetBenchmarkSortRules();
         closeButton.Clicked+=(_,_) => close();
@@ -647,18 +413,10 @@ public sealed class MainPage:ContentPage {
         };
     }
 
-    private enum ConfirmDialogButtonKind {
-        Primary,
-        Neutral,
-        Danger,
-    }
-
-    private sealed record ConfirmDialogOption(string Text,string Value,ConfirmDialogButtonKind Kind);
-
     private View CreateToolbar() {
         var runButton = this.CreateToolbarIconButton(
             "play.png",
-            nameof(BenchmarkRunnerViewModel.RunButtonTooltipText));
+            nameof(RunnerViewModel.RunButtonTooltipText));
         this.BindToolbarButtonState(runButton,BenchmarkToolbarButtonRole.Run);
         var stopButton = this.CreateToolbarIconButton(
             "stop.png",
@@ -690,9 +448,9 @@ public sealed class MainPage:ContentPage {
             ItemDisplayBinding=new Binding(nameof(ThresholdOption.DisplayName)),
             Margin=new Thickness(0),
         };
-        thresholdPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ThresholdOptions));
-        thresholdPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedThreshold));
-        thresholdPicker.SetBinding(IsEnabledProperty,nameof(BenchmarkRunnerViewModel.CanChangeBenchmarkConditions));
+        thresholdPicker.SetBinding(Picker.ItemsSourceProperty,nameof(RunnerViewModel.ThresholdOptions));
+        thresholdPicker.SetBinding(Picker.SelectedItemProperty,nameof(RunnerViewModel.SelectedThreshold));
+        thresholdPicker.SetBinding(IsEnabledProperty,nameof(RunnerViewModel.CanChangeBenchmarkConditions));
 
         var executionProfilePicker = new Picker {
             WidthRequest=96,
@@ -700,9 +458,9 @@ public sealed class MainPage:ContentPage {
             ItemDisplayBinding=new Binding(nameof(ExecutionProfileOption.DisplayName)),
             Margin=new Thickness(0),
         };
-        executionProfilePicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ExecutionProfiles));
-        executionProfilePicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedExecutionProfile));
-        executionProfilePicker.SetBinding(IsEnabledProperty,nameof(BenchmarkRunnerViewModel.CanChangeBenchmarkConditions));
+        executionProfilePicker.SetBinding(Picker.ItemsSourceProperty,nameof(RunnerViewModel.ExecutionProfiles));
+        executionProfilePicker.SetBinding(Picker.SelectedItemProperty,nameof(RunnerViewModel.SelectedExecutionProfile));
+        executionProfilePicker.SetBinding(IsEnabledProperty,nameof(RunnerViewModel.CanChangeBenchmarkConditions));
 
         var runPicker = new Picker {
             WidthRequest=220,
@@ -710,8 +468,8 @@ public sealed class MainPage:ContentPage {
             ItemDisplayBinding=new Binding(nameof(BenchmarkRunOption.DisplayName)),
             Margin=new Thickness(0),
         };
-        runPicker.SetBinding(Picker.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.RunOptions));
-        runPicker.SetBinding(Picker.SelectedItemProperty,nameof(BenchmarkRunnerViewModel.SelectedRunOption));
+        runPicker.SetBinding(Picker.ItemsSourceProperty,nameof(RunnerViewModel.RunOptions));
+        runPicker.SetBinding(Picker.SelectedItemProperty,nameof(RunnerViewModel.SelectedRunOption));
 
         var grid = new Grid {
             Padding=new Thickness(8,4,8,3),
@@ -816,8 +574,8 @@ public sealed class MainPage:ContentPage {
             Margin=new Thickness(0),
             Aspect=Aspect.AspectFit,
         };
-        if(tooltipText==nameof(BenchmarkRunnerViewModel.RunButtonTooltipText)) {
-            button.SetBinding(ToolTipProperties.TextProperty,nameof(BenchmarkRunnerViewModel.RunButtonTooltipText));
+        if(tooltipText==nameof(RunnerViewModel.RunButtonTooltipText)) {
+            button.SetBinding(ToolTipProperties.TextProperty,nameof(RunnerViewModel.RunButtonTooltipText));
         }
         else {
             button.SetValue(ToolTipProperties.TextProperty,tooltipText);
@@ -849,15 +607,15 @@ public sealed class MainPage:ContentPage {
         Apply();
         if(this.viewModel is not null) {
             this.viewModel.PropertyChanged+=(_,args) => {
-                if(args.PropertyName==nameof(BenchmarkRunnerViewModel.IsBenchmarkRunActive)
-                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.IsBenchmarkPaused)
-                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.IsRefreshing)
-                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.CanRunBenchmark)
-                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.CanResumeBenchmark)
-                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.CanUseRunToolbarButton)
-                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.HasSelectedBenchmarkCells)
-                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.HasUnsavedBenchmarkResults)
-                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.ToolbarStateInput)) {
+                if(args.PropertyName==nameof(RunnerViewModel.IsBenchmarkRunActive)
+                    ||args.PropertyName==nameof(RunnerViewModel.IsBenchmarkPaused)
+                    ||args.PropertyName==nameof(RunnerViewModel.IsRefreshing)
+                    ||args.PropertyName==nameof(RunnerViewModel.CanRunBenchmark)
+                    ||args.PropertyName==nameof(RunnerViewModel.CanResumeBenchmark)
+                    ||args.PropertyName==nameof(RunnerViewModel.CanUseRunToolbarButton)
+                    ||args.PropertyName==nameof(RunnerViewModel.HasSelectedBenchmarkCells)
+                    ||args.PropertyName==nameof(RunnerViewModel.HasUnsavedBenchmarkResults)
+                    ||args.PropertyName==nameof(RunnerViewModel.ToolbarStateInput)) {
                     MainThread.BeginInvokeOnMainThread(Apply);
                 }
             };
@@ -1115,14 +873,14 @@ public sealed class MainPage:ContentPage {
         };
         if(this.viewModel is not null) {
             this.viewModel.PropertyChanged+=(_,args) => {
-                if(args.PropertyName==nameof(BenchmarkRunnerViewModel.SelectedSourceTab)
-                    ||args.PropertyName==nameof(BenchmarkRunnerViewModel.HasBenchmarkTypeColumn)) {
+                if(args.PropertyName==nameof(RunnerViewModel.SelectedSourceTab)
+                    ||args.PropertyName==nameof(RunnerViewModel.HasBenchmarkTypeColumn)) {
                     MainThread.BeginInvokeOnMainThread(() => {
                         this.SyncSourceTabViewSelection();
                         EnsureSelectedSourceTabContent();
                         this.SelectBenchmarkGridForActiveSource();
                     });
-                }else if(args.PropertyName==nameof(BenchmarkRunnerViewModel.LatestBenchmarkAutoScrollRequest)) {
+                }else if(args.PropertyName==nameof(RunnerViewModel.LatestBenchmarkAutoScrollRequest)) {
                     var request = this.viewModel.LatestBenchmarkAutoScrollRequest;
                     if(request is not null) {
                         MainThread.BeginInvokeOnMainThread(() => this.ScrollBenchmarkGridToLatestExecutionAsync(request));
@@ -1192,7 +950,7 @@ public sealed class MainPage:ContentPage {
         layout.Loaded+=(_,_) => Apply();
         if(this.viewModel is not null) {
             this.viewModel.PropertyChanged+=(_,args) => {
-                if(args.PropertyName==nameof(BenchmarkRunnerViewModel.OverallSourceTabProgress)) {
+                if(args.PropertyName==nameof(RunnerViewModel.OverallSourceTabProgress)) {
                     MainThread.BeginInvokeOnMainThread(Apply);
                 }
             };
@@ -1419,7 +1177,7 @@ public sealed class MainPage:ContentPage {
         if(state is not null) {
             summary.SetBinding(Label.TextProperty,new Binding(nameof(BenchmarkSourceTabViewState.BenchmarkRatioSummaryText),source: state));
         }else{
-            summary.SetBinding(Label.TextProperty,nameof(BenchmarkRunnerViewModel.BenchmarkRatioSummaryText));
+            summary.SetBinding(Label.TextProperty,nameof(RunnerViewModel.BenchmarkRatioSummaryText));
         }
         grid.Add(summary,0,0);
         grid.SetColumnSpan(summary,2);
@@ -1513,7 +1271,7 @@ public sealed class MainPage:ContentPage {
 
         if(this.viewModel is not null) {
             this.viewModel.PropertyChanged+=(_,args) => {
-                if(args.PropertyName==nameof(BenchmarkRunnerViewModel.SelectedLowerTab)) {
+                if(args.PropertyName==nameof(RunnerViewModel.SelectedLowerTab)) {
                     MainThread.BeginInvokeOnMainThread(() => lowerTabView.SelectedIndex=(int)this.viewModel.SelectedLowerTab);
                 }
             };
@@ -1616,10 +1374,10 @@ public sealed class MainPage:ContentPage {
         }
 
         AddChartTab("比較チャート",chartPanel);
-        AddChartTab("遅延ホットスポット",this.CreateDiagnosticGrid(state?.LatencyHotspotRows,nameof(BenchmarkRunnerViewModel.LatencyHotspotRows)));
-        AddChartTab("メモリ/割当",this.CreateDiagnosticGrid(state?.AllocationDiagnosticRows,nameof(BenchmarkRunnerViewModel.AllocationDiagnosticRows)));
-        AddChartTab("CPU/タイムライン",this.CreateDiagnosticGrid(state?.CpuTimelineRows,nameof(BenchmarkRunnerViewModel.CpuTimelineRows)));
-        AddChartTab("UIパイプライン",this.CreateDiagnosticGrid(nameof(BenchmarkRunnerViewModel.PipelineDiagnosticRows)));
+        AddChartTab("遅延ホットスポット",this.CreateDiagnosticGrid(state?.LatencyHotspotRows,nameof(RunnerViewModel.LatencyHotspotRows)));
+        AddChartTab("メモリ/割当",this.CreateDiagnosticGrid(state?.AllocationDiagnosticRows,nameof(RunnerViewModel.AllocationDiagnosticRows)));
+        AddChartTab("CPU/タイムライン",this.CreateDiagnosticGrid(state?.CpuTimelineRows,nameof(RunnerViewModel.CpuTimelineRows)));
+        AddChartTab("UIパイプライン",this.CreateDiagnosticGrid(nameof(RunnerViewModel.PipelineDiagnosticRows)));
         var generatedCodeAuditTabIndex = chartTabOptions.Count;
         AddChartTab("生成コード監査",this.CreateGeneratedCodeAuditInfographic());
         // SQLite 分析 View(Completed Run の履歴集計)をインフォグラフィックとして表示するタブ群。
@@ -1982,7 +1740,7 @@ public sealed class MainPage:ContentPage {
         };
         if(this.viewModel is not null) {
             this.viewModel.PropertyChanged+=(_,args) => {
-                if(args.PropertyName==nameof(BenchmarkRunnerViewModel.GeneratedCodeAuditReport)) {
+                if(args.PropertyName==nameof(RunnerViewModel.GeneratedCodeAuditReport)) {
                     MainThread.BeginInvokeOnMainThread(Apply);
                 }
             };
@@ -2122,7 +1880,7 @@ public sealed class MainPage:ContentPage {
         };
         if(this.viewModel is not null) {
             this.viewModel.PropertyChanged+=(_,args) => {
-                if(isApplyingMetricTabSelection||args.PropertyName!=nameof(BenchmarkRunnerViewModel.SelectedMetric)) {
+                if(isApplyingMetricTabSelection||args.PropertyName!=nameof(RunnerViewModel.SelectedMetric)) {
                     return;
                 }
                 MainThread.BeginInvokeOnMainThread(() => tabView.SelectedIndex=this.viewModel.IsAllocatedMetricSelected ? 1 : 0);
@@ -2169,7 +1927,7 @@ public sealed class MainPage:ContentPage {
         if(state is not null) {
             grid.ItemsSource=state.Rows;
         }else{
-            grid.SetBinding(SfDataGrid.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.BenchmarkRows));
+            grid.SetBinding(SfDataGrid.ItemsSourceProperty,nameof(RunnerViewModel.BenchmarkRows));
         }
         this.ConfigureDataGridLines(grid);
         this.ConfigureDataGridScrollBars(grid);
@@ -2491,7 +2249,7 @@ public sealed class MainPage:ContentPage {
             var check = this.CreateBenchmarkAggregateCheckBox();
             check.AutomationId="Benchmark.AllSelectionCheck";
             if(this.viewModel is not null) {
-                this.BindAggregateCheckBox(check,this.viewModel,nameof(BenchmarkRunnerViewModel.IsAllBenchmarkSelectionChecked),() => this.viewModel.IsAllBenchmarkSelectionChecked);
+                this.BindAggregateCheckBox(check,this.viewModel,nameof(RunnerViewModel.IsAllBenchmarkSelectionChecked),() => this.viewModel.IsAllBenchmarkSelectionChecked);
             }
             var checkHost = this.CreateBenchmarkHeaderCheckHost(check);
             checkHost.AutomationId="Benchmark.AllSelectionCheckHost";
@@ -3083,8 +2841,8 @@ public sealed class MainPage:ContentPage {
             RefreshIcon();
             if(this.viewModel is not null) {
                 PropertyChangedEventHandler handler = (_,args) => {
-                    if(args.PropertyName==nameof(BenchmarkRunnerViewModel.CurrentSortColumn)
-                        ||args.PropertyName==nameof(BenchmarkRunnerViewModel.CurrentSortDescending)) {
+                    if(args.PropertyName==nameof(RunnerViewModel.CurrentSortColumn)
+                        ||args.PropertyName==nameof(RunnerViewModel.CurrentSortDescending)) {
                         MainThread.BeginInvokeOnMainThread(RefreshIcon);
                     }
                 };
@@ -3109,9 +2867,9 @@ public sealed class MainPage:ContentPage {
     }
 
     private View CreateCpuView() {
-        var PCoreList = this.CreateCpuSectionList(nameof(BenchmarkRunnerViewModel.PerformanceCpuSections));
-        var ECoreList = this.CreateCpuSectionList(nameof(BenchmarkRunnerViewModel.EfficiencyCpuSections));
-        var UnknownList = this.CreateCpuSectionList(nameof(BenchmarkRunnerViewModel.UnknownCpuSections));
+        var PCoreList = this.CreateCpuSectionList(nameof(RunnerViewModel.PerformanceCpuSections));
+        var ECoreList = this.CreateCpuSectionList(nameof(RunnerViewModel.EfficiencyCpuSections));
+        var UnknownList = this.CreateCpuSectionList(nameof(RunnerViewModel.UnknownCpuSections));
 
         var layout = new Grid {
             RowDefinitions= {
@@ -3152,7 +2910,7 @@ public sealed class MainPage:ContentPage {
                 label.SetBinding(Label.TextProperty,".");
                 label.BindingContextChanged+=(_,_) => {
                     var isHighlighted = label.BindingContext is string text
-                        &&text.StartsWith(BenchmarkRunnerViewModel.HighlightedLogEntryPrefix,StringComparison.Ordinal);
+                        &&text.StartsWith(RunnerViewModel.HighlightedLogEntryPrefix,StringComparison.Ordinal);
                     label.FontAttributes=isHighlighted ? FontAttributes.Bold : FontAttributes.None;
                     label.TextColor=isHighlighted ? Color.FromArgb("#DC2626") : Color.FromArgb("#0F172A");
                 };
@@ -3162,7 +2920,7 @@ public sealed class MainPage:ContentPage {
                 ItemSpacing=0,
             },
         };
-        logList.SetBinding(ItemsView.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.LogEntries));
+        logList.SetBinding(ItemsView.ItemsSourceProperty,nameof(RunnerViewModel.LogEntries));
         if(this.viewModel is not null) {
             this.viewModel.LogEntries.CollectionChanged+=(_,args) => {
                 if(args.Action is NotifyCollectionChangedAction.Add or NotifyCollectionChangedAction.Reset) {
@@ -3192,7 +2950,7 @@ public sealed class MainPage:ContentPage {
             VerticalTextAlignment=TextAlignment.Center,
             LineBreakMode=LineBreakMode.TailTruncation,
         };
-        summary.SetBinding(Label.TextProperty,nameof(BenchmarkRunnerViewModel.ImprovementCandidateSummaryText));
+        summary.SetBinding(Label.TextProperty,nameof(RunnerViewModel.ImprovementCandidateSummaryText));
         var label = new Label {
             FontSize=11,
             TextColor=Color.FromArgb("#0F172A"),
@@ -3200,7 +2958,7 @@ public sealed class MainPage:ContentPage {
             Margin=new Thickness(0),
             Padding=new Thickness(0),
         };
-        label.SetBinding(Label.TextProperty,nameof(BenchmarkRunnerViewModel.ImprovementPromptText));
+        label.SetBinding(Label.TextProperty,nameof(RunnerViewModel.ImprovementPromptText));
         var copyButton = new Button {
             Text="⧉",
             WidthRequest=30,
@@ -3211,8 +2969,8 @@ public sealed class MainPage:ContentPage {
             TextColor=Color.FromArgb("#0F172A"),
             BackgroundColor=Color.FromArgb("#E2E8F0"),
         };
-        copyButton.SetBinding(Button.CommandProperty,nameof(BenchmarkRunnerViewModel.CopyImprovementPromptCommand));
-        copyButton.SetBinding(IsEnabledProperty,nameof(BenchmarkRunnerViewModel.CanCopyImprovementPrompt));
+        copyButton.SetBinding(Button.CommandProperty,nameof(RunnerViewModel.CopyImprovementPromptCommand));
+        copyButton.SetBinding(IsEnabledProperty,nameof(RunnerViewModel.CanCopyImprovementPrompt));
         ToolTipProperties.SetText(copyButton,"改善プロンプトをコピー");
         var header = new Grid {
             ColumnDefinitions= {
@@ -3257,7 +3015,7 @@ public sealed class MainPage:ContentPage {
                 ItemSpacing=1,
             },
         };
-        candidates.SetBinding(ItemsView.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ImprovementCandidates));
+        candidates.SetBinding(ItemsView.ItemsSourceProperty,nameof(RunnerViewModel.ImprovementCandidates));
         var content = new Grid {
             RowDefinitions= {
                 new RowDefinition { Height = GridLength.Auto },
@@ -3902,7 +3660,7 @@ public sealed class MainPage:ContentPage {
                 ItemSpacing=0,
             },
         };
-        resultList.SetBinding(ItemsView.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.VisibleResultItems));
+        resultList.SetBinding(ItemsView.ItemsSourceProperty,nameof(RunnerViewModel.VisibleResultItems));
         resultList.IsVisible=false;
         return resultList;
     }
@@ -3965,7 +3723,7 @@ public sealed class MainPage:ContentPage {
         if(state is not null) {
             chart.SetBinding(HeightRequestProperty,new Binding(nameof(BenchmarkSourceTabViewState.ChartHeight),source: state));
         }else{
-            chart.SetBinding(HeightRequestProperty,nameof(BenchmarkRunnerViewModel.ChartHeight));
+            chart.SetBinding(HeightRequestProperty,nameof(RunnerViewModel.ChartHeight));
         }
         var xAxis = new CategoryAxis {
             LabelPlacement=LabelPlacement.BetweenTicks
@@ -3993,7 +3751,7 @@ public sealed class MainPage:ContentPage {
         if(state is not null) {
             leftSeries.ItemsSource=state.ChartPoints;
         }else{
-            leftSeries.SetBinding(ChartSeries.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ChartPoints));
+            leftSeries.SetBinding(ChartSeries.ItemsSourceProperty,nameof(RunnerViewModel.ChartPoints));
         }
         leftSeries.TooltipTemplate=this.CreateTooltipTemplate();
 
@@ -4013,7 +3771,7 @@ public sealed class MainPage:ContentPage {
         if(state is not null) {
             rightSeries.ItemsSource=state.ChartPoints;
         }else{
-            rightSeries.SetBinding(ChartSeries.ItemsSourceProperty,nameof(BenchmarkRunnerViewModel.ChartPoints));
+            rightSeries.SetBinding(ChartSeries.ItemsSourceProperty,nameof(RunnerViewModel.ChartPoints));
         }
         rightSeries.TooltipTemplate=this.CreateTooltipTemplate();
         this.BindChartSeriesLabels(leftSeries,rightSeries);
@@ -4045,8 +3803,8 @@ public sealed class MainPage:ContentPage {
             chartBackground.SetBinding(HeightRequestProperty,new Binding(nameof(BenchmarkSourceTabViewState.ChartHeight),source: state));
             chartOverlay.SetBinding(HeightRequestProperty,new Binding(nameof(BenchmarkSourceTabViewState.ChartHeight),source: state));
         }else{
-            chartBackground.SetBinding(HeightRequestProperty,nameof(BenchmarkRunnerViewModel.ChartHeight));
-            chartOverlay.SetBinding(HeightRequestProperty,nameof(BenchmarkRunnerViewModel.ChartHeight));
+            chartBackground.SetBinding(HeightRequestProperty,nameof(RunnerViewModel.ChartHeight));
+            chartOverlay.SetBinding(HeightRequestProperty,nameof(RunnerViewModel.ChartHeight));
         }
         PropertyChangedEventHandler chartSelectionPulseHandler = (_,args) => {
             if(args.PropertyName==nameof(this.BenchmarkSelectionFillOpacity)) {
@@ -4105,7 +3863,7 @@ public sealed class MainPage:ContentPage {
         if(state is not null) {
             chartHost.SetBinding(HeightRequestProperty,new Binding(nameof(BenchmarkSourceTabViewState.ChartHeight),source: state));
         }else{
-            chartHost.SetBinding(HeightRequestProperty,nameof(BenchmarkRunnerViewModel.ChartHeight));
+            chartHost.SetBinding(HeightRequestProperty,nameof(RunnerViewModel.ChartHeight));
         }
         void HideChartLabelTooltip() {
             chartLabelTooltip.IsVisible=false;
@@ -4207,7 +3965,7 @@ public sealed class MainPage:ContentPage {
         if(state is not null) {
             emptyText.SetBinding(IsVisibleProperty,new Binding(nameof(BenchmarkSourceTabViewState.ChartPoints)+".Count",source: state,converter: new CountIsZeroConverter()));
         }else{
-            emptyText.SetBinding(IsVisibleProperty,new Binding(nameof(BenchmarkRunnerViewModel.ChartPoints)+".Count",converter: new CountIsZeroConverter()));
+            emptyText.SetBinding(IsVisibleProperty,new Binding(nameof(RunnerViewModel.ChartPoints)+".Count",converter: new CountIsZeroConverter()));
         }
         return grid;
     }
@@ -4245,7 +4003,7 @@ public sealed class MainPage:ContentPage {
         Apply();
         if(this.viewModel is not null) {
             this.viewModel.PropertyChanged+=(_,args) => {
-                if(args.PropertyName==nameof(BenchmarkRunnerViewModel.SelectedComparisonPair)) {
+                if(args.PropertyName==nameof(RunnerViewModel.SelectedComparisonPair)) {
                     MainThread.BeginInvokeOnMainThread(Apply);
                 }
             };

@@ -4,10 +4,11 @@ using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Seamless.UI.Storage;
+using UI;
 
-namespace UI;
+namespace UI.ViewModels;
 
-public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
+public sealed partial class RunnerViewModel:ObservableObject {
     /// <summary>
     /// NewRunNumber フィールドです。
     /// </summary>
@@ -460,7 +461,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     /// <param name="benchmarkRoot">benchmarkRoot を指定して実行条件を制御します。</param>
     /// <param name="uiDispatcher">uiDispatcher を指定して実行条件を制御します。</param>
     /// <param name="uiPreferences">uiPreferences を指定して実行条件を制御します。</param>
-    internal BenchmarkRunnerViewModel(
+    internal RunnerViewModel(
         IBenchmarkCatalogService catalogService,
         ICpuTopologyService cpuTopologyService,
         IBenchmarkRunService runService,
@@ -5532,9 +5533,9 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     /// </summary>
     /// <value>IDisposable の値を取得/設定します。</value>
     private sealed class ChartRefreshBatchScope:IDisposable {
-        private readonly BenchmarkRunnerViewModel owner;
+        private readonly RunnerViewModel owner;
         private bool disposed;
-        public ChartRefreshBatchScope(BenchmarkRunnerViewModel owner) => this.owner=owner;
+        public ChartRefreshBatchScope(RunnerViewModel owner) => this.owner=owner;
         public void Dispose() {
             if(this.disposed) {
                 return;
@@ -6464,7 +6465,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     private BenchmarkElementMeasurement[] CreateDisplayMeasurementsFrom(IReadOnlyList<BenchmarkResultItem> source,BenchmarkSourceTabDefinition sourceTab) {
         var measurements = new List<BenchmarkElementMeasurement>(source.Count);
         foreach(var result in source) {
-            if(!this.IsResultSelectedForDisplay(result,sourceTab)) {
+            if(!this.IsResultInSourceTab(result,sourceTab)) {
                 continue;
             }
 
@@ -6479,6 +6480,14 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
         }
 
         return measurements.ToArray();
+    }
+
+    private bool IsResultInSourceTab(BenchmarkResultItem result,BenchmarkSourceTabDefinition sourceTab) {
+        if(!sourceTab.ContainsProject(result.Project)) {
+            return false;
+        }
+
+        return this.FindBenchmarkRow(result) is not null;
     }
 
     /// <summary>
@@ -6749,7 +6758,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     /// </summary>
     /// <param name="owner">owner を指定して実行条件を制御します。</param>
     /// <returns>処理結果を返却します。</returns>
-    private sealed class ResultSourceForDisplayCacheScope(BenchmarkRunnerViewModel owner):IDisposable {
+    private sealed class ResultSourceForDisplayCacheScope(RunnerViewModel owner):IDisposable {
         public void Dispose() => owner.resultSourceForDisplayCache=null;
     }
 
@@ -7799,7 +7808,7 @@ public sealed partial class BenchmarkRunnerViewModel:ObservableObject {
     /// <returns>処理結果を返却します。</returns>
     private ReportRow[] CreateReportRowsForComparison(BenchmarkSourceTabDefinition sourceTab,IReadOnlyList<BenchmarkResultItem> sourceResults) {
         var selectedSourceResults = sourceResults
-            .Where(result => this.IsResultSelectedForDisplay(result,sourceTab))
+            .Where(result => this.IsResultInSourceTab(result,sourceTab))
             .ToArray();
         var rows = selectedSourceResults
             .Select(CreateReportRowForSelectedElementCount)

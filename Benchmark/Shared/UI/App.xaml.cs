@@ -5,11 +5,11 @@ public partial class App:Application {
     private bool closeInProgress;
     private readonly Page? startupPage;
 
-    public App() {
+    public App(AppShell appShell) {
         try{
             StartupDiagnostics.Write("App constructor started.");
             this.InitializeComponent();
-            this.startupPage=new AppShell();
+            this.startupPage=appShell;
             StartupDiagnostics.Write("App constructor completed.");
         }catch(Exception ex){
             StartupDiagnostics.Write("App constructor failed.",ex);
