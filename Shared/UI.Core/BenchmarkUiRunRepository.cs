@@ -54,6 +54,22 @@ internal sealed class BenchmarkUiRunRepository{
         }
     }
 
+    public void QueueSaveDetectedBenchmarkItems(
+        long? runId,
+        IReadOnlyList<BenchmarkCase> catalogCases,
+        IReadOnlyList<BenchmarkSourceTabDefinition> sourceTabs,
+        IReadOnlySet<string> selectedCaseKeys,
+        IReadOnlyList<int> elementCounts){
+        if(runId is not { } value){
+            return;
+        }
+
+        var items = CreateDetectedBenchmarkItems(catalogCases,sourceTabs,selectedCaseKeys,elementCounts);
+        this.QueuePersistence(
+            () => this.store.SaveDetectedBenchmarkItems(value,items),
+            "UI DB detected benchmark item save failed.");
+    }
+
     /// <summary>
     /// Run 状態を直列保存キューへ投入して即座に戻る。終了処理が SQLite のロック等で
     /// ブロックされても UI の状態復帰を妨げないための fire-and-forget 版。
@@ -296,6 +312,73 @@ internal sealed class BenchmarkUiRunRepository{
             pairDiscriminator);
     }
 
+    private static IReadOnlyList<UiBenchmarkItemWrite> CreateDetectedBenchmarkItems(
+        IReadOnlyList<BenchmarkCase> catalogCases,
+        IReadOnlyList<BenchmarkSourceTabDefinition> sourceTabs,
+        IReadOnlySet<string> selectedCaseKeys,
+        IReadOnlyList<int> elementCounts){
+        var axes = elementCounts.Count==0 ? [0] : elementCounts;
+        var items = new List<UiBenchmarkItemWrite>();
+        var seen = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach(var sourceTab in sourceTabs){
+            foreach(var axis in axes){
+                var rows = BenchmarkRowGroupingLogic.CreateRows(catalogCases,sourceTab,axis);
+                foreach(var row in rows){
+                    foreach(var project in sourceTab.ProjectOrder){
+                        if(!row.CasesByProject.TryGetValue(project,out var benchmark)){
+                            continue;
+                        }
+
+                        var itemKey = string.Join("|",sourceTab.Id,project,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey,axis);
+                        if(!seen.Add(itemKey)){
+                            continue;
+                        }
+
+                        var side = string.Equals(project,sourceTab.LeftProject,StringComparison.OrdinalIgnoreCase)
+                            ? "Left"
+                            : string.Equals(project,sourceTab.RightProject,StringComparison.OrdinalIgnoreCase) ? "Right" : "";
+                        var elementCount = BenchmarkWorkloadAxis.ResolveElementCount(sourceTab.Tab,axis);
+                        var loopCount = BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab.Tab,axis);
+                        items.Add(new(
+                            sourceTab.Id,
+                            project,
+                            ScalableBenchmarkNameFormatter.CreateGenericTypeText(benchmark.TypeFullName),
+                            benchmark.TypeFullName,
+                            benchmark.MethodName,
+                            selectedCaseKeys.Contains(CreateSelectedCaseKey(benchmark)),
+                            elementCount,
+                            loopCount,
+                            null,
+                            benchmark.ArgumentKey,
+                            CreateArgumentDisplay(benchmark.Arguments),
+                            row.RowKey,
+                            side,
+                            CreatePairDiscriminator(sourceTab,benchmark.TypeFullName)));
+                    }
+                }
+            }
+        }
+
+        return items;
+    }
+
+    private static string CreateSelectedCaseKey(BenchmarkCase benchmark) =>
+        string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey);
+
+    private static string CreateArgumentDisplay(IReadOnlyList<BenchmarkArgument> arguments) =>
+        arguments.Count==0
+            ? string.Empty
+            : string.Join(",",arguments.OrderBy(static item => item.Name,StringComparer.OrdinalIgnoreCase).Select(static item => item.Name+"="+item.Value));
+
+    private static string CreatePairDiscriminator(BenchmarkSourceTabDefinition sourceTab,string typeFullName){
+        if(!sourceTab.Id.StartsWith("Scalable",StringComparison.OrdinalIgnoreCase)){
+            return string.Empty;
+        }
+
+        var lastDot = typeFullName.LastIndexOf('.');
+        return lastDot>=0&&lastDot<typeFullName.Length-1 ? typeFullName[(lastDot+1)..] : typeFullName;
+    }
+
     private void SaveResult(BenchmarkResultPersistenceSnapshot result,long runId){
         var testCase = this.store.UpsertCase(
             runId,
@@ -308,7 +391,9 @@ internal sealed class BenchmarkUiRunRepository{
             result.SourceTabId,
             result.ArgumentKey,
             result.Side,
-            result.PairDiscriminator);
+            result.PairDiscriminator,
+            result.ElementCount,
+            result.LoopCount);
         var job = this.store.UpsertJob(
             runId,
             testCase.CaseId,

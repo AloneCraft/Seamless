@@ -1014,6 +1014,16 @@ public sealed partial class MainPage:ContentPage {
         progress.SetBinding(BenchmarkCircularProgressView.OutlineColorProperty,new Binding(nameof(SourceTabOption.ProgressOutlineColor),source: option));
         progress.SetBinding(IsVisibleProperty,new Binding(nameof(SourceTabOption.HasProgress),source: option));
         progress.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: option));
+        var completedIcon = new Image {
+            Source=BenchmarkStatusImageNames.Completed,
+            WidthRequest=14,
+            HeightRequest=14,
+            VerticalOptions=LayoutOptions.Center,
+            HorizontalOptions=LayoutOptions.Center,
+            InputTransparent=true,
+        };
+        completedIcon.SetBinding(IsVisibleProperty,new Binding(nameof(SourceTabOption.IsCompletionIconVisible),source: option));
+        completedIcon.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: option));
         var progressHost = new Grid {
             WidthRequest=20,
             HeightRequest=20,
@@ -1022,6 +1032,7 @@ public sealed partial class MainPage:ContentPage {
             Margin=new Thickness(0,0,2,0),
             Children= {
                 progress,
+                completedIcon,
             },
         };
         progressHost.SetBinding(IsVisibleProperty,new Binding(nameof(SourceTabOption.HasProgress),source: option));
