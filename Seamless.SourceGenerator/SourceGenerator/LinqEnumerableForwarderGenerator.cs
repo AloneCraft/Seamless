@@ -6,30 +6,43 @@ public sealed class LinqEnumerableForwarderGenerator : IIncrementalGenerator {
         var options = context.AnalyzerConfigOptionsProvider.Select(static (provider, _) => {
             provider.GlobalOptions.TryGetValue("build_property.SeamlessGenerateLinqEnumerable",out var enabled);
             provider.GlobalOptions.TryGetValue("build_property.SeamlessLinqEnumerableNamespace",out var targetNamespace);
+            provider.GlobalOptions.TryGetValue("build_property.SeamlessLinqEnumerableSourceType",out var sourceType);
             return new GeneratorOptions(
                 Enabled: string.Equals(enabled,"true",StringComparison.OrdinalIgnoreCase),
                 Namespaces: string.IsNullOrWhiteSpace(targetNamespace)
                     ? ["Seamless.Linq"]
-                    : targetNamespace.Split(new[] { ';', ',' },StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries));
+                    : targetNamespace.Split(new[] { ';', ',' },StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries),
+                SourceTypeTemplate: string.IsNullOrWhiteSpace(sourceType)
+                    ? "global::Seamless.Collections.ISet<TSource>"
+                    : sourceType);
         });
 
-        context.RegisterSourceOutput(options,static (productionContext, options) => {
+        var generationInput = context.CompilationProvider.Combine(options);
+
+        context.RegisterSourceOutput(generationInput,static (productionContext, input) => {
+            var (compilation,options) = input;
             if(!options.Enabled)
                 return;
 
             foreach(var targetNamespace in options.Namespaces.Distinct(StringComparer.Ordinal)) {
-                productionContext.AddSource($"{targetNamespace}.Enumerable.g.cs",Generate(targetNamespace));
+                productionContext.AddSource($"{targetNamespace}.Enumerable.g.cs",Generate(compilation,targetNamespace,options.SourceTypeTemplate));
             }
         });
     }
 
-    private static string Generate(string targetNamespace) {
-        var methods = typeof(Enumerable)
-            .GetMethods(BindingFlags.Public|BindingFlags.Static)
-            .Where(IsApplicable)
+    private static string Generate(Compilation compilation,string targetNamespace,string sourceTypeTemplate) {
+        var enumerableType = compilation.GetTypeByMetadataName("System.Collections.Generic.IEnumerable`1");
+        var linqEnumerableType = compilation.GetTypeByMetadataName("System.Linq.Enumerable");
+        if(enumerableType is null||linqEnumerableType is null)
+            return string.Empty;
+
+        var methods = linqEnumerableType
+            .GetMembers()
+            .OfType<IMethodSymbol>()
+            .Where(method=>IsApplicable(method,enumerableType))
             .OrderBy(static method => method.Name,StringComparer.Ordinal)
-            .ThenBy(static method => method.GetParameters().Length)
-            .ThenBy(static method => method.ToString(),StringComparer.Ordinal)
+            .ThenBy(static method => method.Parameters.Length)
+            .ThenBy(static method => method.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),StringComparer.Ordinal)
             .ToArray();
 
         var builder = new StringBuilder();
@@ -40,31 +53,33 @@ public sealed class LinqEnumerableForwarderGenerator : IIncrementalGenerator {
         builder.AppendLine();
         builder.AppendLine("public static partial class Enumerable {");
         foreach(var method in methods) {
-            AppendMethod(builder,method);
+            AppendMethod(builder,method,sourceTypeTemplate);
         }
         builder.AppendLine("}");
         return builder.ToString();
     }
 
-    private static bool IsApplicable(MethodInfo method) {
-        var parameters = method.GetParameters();
+    private static bool IsApplicable(IMethodSymbol method,INamedTypeSymbol enumerableType) {
+        if(method.MethodKind!=MethodKind.Ordinary||!method.IsStatic||method.DeclaredAccessibility!=Accessibility.Public)
+            return false;
+
+        var parameters = method.Parameters;
         if(parameters.Length==0)
             return false;
 
-        var sourceType = parameters[0].ParameterType;
-        return sourceType.IsGenericType
-            &&sourceType.GetGenericTypeDefinition()==typeof(IEnumerable<>);
+        var sourceType = parameters[0].Type as INamedTypeSymbol;
+        return sourceType is not null
+            &&sourceType.Arity==1
+            &&SymbolEqualityComparer.Default.Equals(sourceType.OriginalDefinition,enumerableType);
     }
 
-    private static void AppendMethod(StringBuilder builder,MethodInfo method) {
-        var genericArguments = method.IsGenericMethodDefinition
-            ? method.GetGenericArguments()
-            : Type.EmptyTypes;
+    private static void AppendMethod(StringBuilder builder,IMethodSymbol method,string sourceTypeTemplate) {
+        var genericArguments = method.TypeParameters;
         var genericArgumentList = genericArguments.Length==0
             ? string.Empty
             : $"<{string.Join(", ",genericArguments.Select(static argument=>argument.Name))}>";
         var returnType = FormatType(method.ReturnType);
-        var parameters = method.GetParameters();
+        var parameters = method.Parameters;
 
         builder.AppendLine();
         builder.Append("    public static ");
@@ -73,7 +88,7 @@ public sealed class LinqEnumerableForwarderGenerator : IIncrementalGenerator {
         builder.Append(method.Name);
         builder.Append(genericArgumentList);
         builder.Append('(');
-        builder.Append(string.Join(", ",parameters.Select(static (parameter,index) => FormatParameter(parameter,index==0))));
+        builder.Append(string.Join(", ",parameters.Select((parameter,index) => FormatParameter(parameter,index==0,sourceTypeTemplate))));
         builder.Append(')');
 
         foreach(var constraint in genericArguments.Select(FormatConstraint).Where(static constraint=>constraint.Length!=0)) {
@@ -84,7 +99,7 @@ public sealed class LinqEnumerableForwarderGenerator : IIncrementalGenerator {
 
         builder.AppendLine(" {");
         builder.Append("        ");
-        if(method.ReturnType!=typeof(void)) {
+        if(!method.ReturnsVoid) {
             builder.Append("return ");
         }
         builder.Append("global::System.Linq.Enumerable.");
@@ -96,43 +111,49 @@ public sealed class LinqEnumerableForwarderGenerator : IIncrementalGenerator {
         builder.AppendLine("    }");
     }
 
-    private static string FormatParameter(ParameterInfo parameter,bool isSource) {
+    private static string FormatParameter(IParameterSymbol parameter,bool isSource,string sourceTypeTemplate) {
         var prefix = isSource ? "this " : string.Empty;
         var type = isSource
-            ? FormatSetType(parameter.ParameterType)
-            : FormatType(parameter.ParameterType);
+            ? FormatSourceType(sourceTypeTemplate,parameter.Type)
+            : FormatType(parameter.Type);
         return $"{prefix}{type} {parameter.Name}";
     }
 
-    private static string FormatArgument(ParameterInfo parameter) {
-        var prefix = parameter.ParameterType.IsByRef
-            ? parameter.IsOut ? "out " : "ref "
-            : string.Empty;
+    private static string FormatArgument(IParameterSymbol parameter) {
+        var prefix = parameter.RefKind switch {
+            RefKind.Out => "out ",
+            RefKind.Ref => "ref ",
+            RefKind.In => "in ",
+            _ => string.Empty,
+        };
         return prefix+parameter.Name;
     }
 
-    private static string FormatSetType(Type enumerableType) {
-        var elementType = enumerableType.GetGenericArguments()[0];
-        return $"global::Seamless.Collections.ISet<{FormatType(elementType)}>";
+    private static string FormatSourceType(string sourceTypeTemplate,ITypeSymbol enumerableType) {
+        if(enumerableType is INamedTypeSymbol namedType&&namedType.TypeArguments.Length==1)
+            return sourceTypeTemplate.Replace("TSource",FormatType(namedType.TypeArguments[0]),StringComparison.Ordinal);
+        return sourceTypeTemplate;
     }
 
-    private static string FormatConstraint(Type genericParameter) {
+    private static string FormatConstraint(ITypeParameterSymbol genericParameter) {
         var parts = new List<string>();
-        var attributes = genericParameter.GenericParameterAttributes;
-        var special = attributes&GenericParameterAttributes.SpecialConstraintMask;
 
-        if((special&GenericParameterAttributes.ReferenceTypeConstraint)!=0)
-            parts.Add("class");
-        if((special&GenericParameterAttributes.NotNullableValueTypeConstraint)!=0)
+        if(genericParameter.HasUnmanagedTypeConstraint)
+            parts.Add("unmanaged");
+        else if(genericParameter.HasValueTypeConstraint)
             parts.Add("struct");
+        else if(genericParameter.HasReferenceTypeConstraint)
+            parts.Add("class");
+        else if(genericParameter.HasNotNullConstraint)
+            parts.Add("notnull");
 
-        foreach(var constraint in genericParameter.GetGenericParameterConstraints()) {
+        foreach(var constraint in genericParameter.ConstraintTypes) {
             var formatted = FormatType(constraint);
             if(formatted!="global::System.ValueType")
                 parts.Add(formatted);
         }
 
-        if((special&GenericParameterAttributes.DefaultConstructorConstraint)!=0
+        if(genericParameter.HasConstructorConstraint
             &&!parts.Contains("struct",StringComparer.Ordinal))
             parts.Add("new()");
 
@@ -141,53 +162,14 @@ public sealed class LinqEnumerableForwarderGenerator : IIncrementalGenerator {
             : $"where {genericParameter.Name} : {string.Join(", ",parts)}";
     }
 
-    private static string FormatType(Type type) {
-        if(type.IsByRef)
-            return FormatType(type.GetElementType()!);
-        if(type.IsGenericParameter)
-            return type.Name;
-        if(type.IsArray)
-            return $"{FormatType(type.GetElementType()!)}{new string(',',type.GetArrayRank()-1).Insert(0,"[")}]";
-        if(type.IsPointer)
-            return $"{FormatType(type.GetElementType()!)}*";
+    private static string FormatType(ITypeSymbol type)
+        => type.ToDisplayString(TypeDisplayFormat);
 
-        if(TypeAliases.TryGetValue(type,out var alias))
-            return alias;
+    private static readonly SymbolDisplayFormat TypeDisplayFormat = SymbolDisplayFormat.FullyQualifiedFormat
+        .WithMiscellaneousOptions(
+            SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers
+            |SymbolDisplayMiscellaneousOptions.UseSpecialTypes
+            |SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
 
-        var nullableType = Nullable.GetUnderlyingType(type);
-        if(nullableType is not null)
-            return $"{FormatType(nullableType)}?";
-
-        if(!type.IsGenericType)
-            return $"global::{type.FullName!.Replace('+','.')}";
-
-        var genericTypeDefinition = type.GetGenericTypeDefinition();
-        var genericTypeName = genericTypeDefinition.FullName!;
-        var tickIndex = genericTypeName.IndexOf('`');
-        if(tickIndex>=0)
-            genericTypeName=genericTypeName[..tickIndex];
-
-        return $"global::{genericTypeName.Replace('+','.')}<{string.Join(", ",type.GetGenericArguments().Select(FormatType))}>";
-    }
-
-    private static readonly Dictionary<Type,string> TypeAliases = new() {
-        [typeof(void)]="void",
-        [typeof(bool)]="bool",
-        [typeof(byte)]="byte",
-        [typeof(sbyte)]="sbyte",
-        [typeof(short)]="short",
-        [typeof(ushort)]="ushort",
-        [typeof(int)]="int",
-        [typeof(uint)]="uint",
-        [typeof(long)]="long",
-        [typeof(ulong)]="ulong",
-        [typeof(float)]="float",
-        [typeof(double)]="double",
-        [typeof(decimal)]="decimal",
-        [typeof(char)]="char",
-        [typeof(string)]="string",
-        [typeof(object)]="object",
-    };
-
-    private readonly record struct GeneratorOptions(bool Enabled,string[] Namespaces);
+    private readonly record struct GeneratorOptions(bool Enabled,string[] Namespaces,string SourceTypeTemplate);
 }
