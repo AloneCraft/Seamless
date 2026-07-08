@@ -371,32 +371,46 @@ internal readonly record struct BenchmarkSourceTabRunningJob(
     int AxisCount);
 
 internal sealed class BenchmarkSourceTabRunningState{
+    private readonly object syncRoot = new();
     private readonly System.Collections.Generic.HashSet<BenchmarkSourceTabRunningJob> runningJobs = [];
 
     public bool Apply(BenchmarkResultItem result){
         var job = CreateJob(result);
-        if(string.Equals(result.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase)){
-            return this.runningJobs.Add(job);
-        }
+        lock(this.syncRoot){
+            if(string.Equals(result.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase)){
+                return this.runningJobs.Add(job);
+            }
 
-        if(string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-            ||string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)){
-            return this.runningJobs.Remove(job);
+            if(string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+                ||string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)){
+                return this.runningJobs.Remove(job);
+            }
         }
 
         return false;
     }
 
-    public bool IsRunning(BenchmarkSourceTab sourceTab) =>
-        this.runningJobs.Any(job => job.SourceTab==sourceTab);
+    public bool IsRunning(BenchmarkSourceTab sourceTab) {
+        lock(this.syncRoot){
+            foreach(var job in this.runningJobs){
+                if(job.SourceTab==sourceTab){
+                    return true;
+                }
+            }
 
-    public bool Clear(){
-        if(this.runningJobs.Count==0){
             return false;
         }
+    }
 
-        this.runningJobs.Clear();
-        return true;
+    public bool Clear(){
+        lock(this.syncRoot){
+            if(this.runningJobs.Count==0){
+                return false;
+            }
+
+            this.runningJobs.Clear();
+            return true;
+        }
     }
 
     private static BenchmarkSourceTabRunningJob CreateJob(BenchmarkResultItem result) =>

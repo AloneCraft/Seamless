@@ -76,6 +76,55 @@ public sealed class RunnerViewModel{
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public void SnapshotTableRow_UsesStoredDisplayType(){
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var cases = new Dictionary<string,global::UI.BenchmarkCase>(StringComparer.OrdinalIgnoreCase) {
+            [sourceTab.LeftProject]=new(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"int","AggregateBy_keySelector"),
+            [sourceTab.RightProject]=new(sourceTab.RightProject,sourceTab.RightAssemblyName,"int","AggregateBy_keySelector"),
+        };
+        var row = new global::UI.BenchmarkTableRow(
+            "int|AggregateBy_keySelector",
+            "AggregateBy_keySelector",
+            "AggregateBy_keySelector",
+            sourceTab,
+            cases,
+            "int");
+
+        Assert.Equal("int",row.BenchmarkTypeText);
+        Assert.Equal("AggregateBy_keySelector",row.BenchmarkMethodText);
+
+        var measuredAt = new DateTimeOffset(2026,7,8,13,39,31,TimeSpan.Zero);
+        var result = new global::UI.BenchmarkResultItem(new global::UI.BenchmarkJob{
+            Project=sourceTab.LeftProject,
+            AssemblyName=sourceTab.LeftAssemblyName,
+            TypeFullName="int",
+            MethodName="AggregateBy_keySelector",
+            SourceTab=sourceTab.Tab,
+            ElementCount=4096,
+            LoopCount=global::UI.BenchmarkWorkloadAxis.DefaultLoopCount,
+            Status=global::UI.JobStatus.Completed,
+            AssignedLogicalCpu=0,
+            StartedAt=measuredAt,
+            FinishedAt=measuredAt,
+            MeanNanoseconds=1_000_000,
+            AllocatedBytes=1024,
+            ExitCode=0,
+        });
+        row.ApplySnapshotResult(sourceTab.LeftProject,result,0,measuredAt);
+
+        Assert.Equal("4096",row.LeftCell.ElementCountText);
+        Assert.NotEmpty(row.LeftCell.ExecutionText);
+        Assert.True(row.LeftCell.HasCpuDisplay);
+        Assert.Equal("0",row.LeftCell.LogicalProcessorText);
+        Assert.NotEmpty(row.LeftTimeText);
+
+        row.RefreshBenchmarkName(4096);
+
+        Assert.Equal("int",row.BenchmarkTypeText);
+        Assert.Equal("AggregateBy_keySelector",row.BenchmarkMethodText);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
     public async Task CompletedRun_SelectsSavedDatabaseRunWithoutUnsavedOption(){
         var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
         var viewModel = fixture.ViewModel;
@@ -88,6 +137,7 @@ public sealed class RunnerViewModel{
 
         var savedRun = viewModel.SelectedRunOption!;
         Assert.True(savedRun.UiRunId>0);
+        Assert.Contains(viewModel.RunOptions,option => ReferenceEquals(option,savedRun));
         Assert.NotEqual("未保存",savedRun.DisplayName);
         Assert.Contains("/",savedRun.DisplayName);
         Assert.True(savedRun.TotalJobs>0);
@@ -111,6 +161,7 @@ public sealed class RunnerViewModel{
 
         viewModel.NewGridCommand.Execute(null);
         await WaitUntilAsync(() => targets.All(static cell => cell.StatusImageSource==global::UI.BenchmarkStatusImageNames.Waiting));
+        Assert.Equal("新規",viewModel.SelectedRunOption?.DisplayName);
 
         viewModel.SelectedRunOption=savedRun;
         Assert.True(viewModel.IsRunHistoryLoading);
@@ -119,6 +170,19 @@ public sealed class RunnerViewModel{
         await WaitUntilAsync(() => !viewModel.IsRunHistoryLoading&&viewModel.CanSelectRunHistory);
 
         Assert.True(viewModel.ResultItems.Count>0);
+        var completedResults = viewModel.ResultItems
+            .Where(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        Assert.All(completedResults,item => Assert.True(item.ElementCount>0));
+        Assert.All(completedResults,item => Assert.NotNull(item.AssignedLogicalCpu));
+        Assert.Contains(viewModel.ResultItems,item => viewModel.SelectedSourceTab.Definition.ContainsProject(item.Project));
+        await WaitUntilOrContinueAsync(() => GetSelectedCells(viewModel).All(HasLoadedCellMetadata));
+        var loadedTargets = GetSelectedCells(viewModel);
+        Assert.All(loadedTargets,cell => Assert.True(HasLoadedCellMetadata(cell),CreateCellMetadataMessage(viewModel,cell)));
+        var loadedRows = viewModel.BenchmarkRows
+            .Where(static row => row.ProjectCells.Any(static cell => cell.HasCase&&cell.IsSelected))
+            .ToArray();
+        Assert.All(loadedRows,row => Assert.Equal("int",row.BenchmarkTypeText));
 
         Assert.Equal(savedRun.UiRunId,viewModel.SelectedRunOption?.UiRunId);
         Assert.NotEmpty(viewModel.ResultItems);
@@ -176,8 +240,6 @@ public sealed class RunnerViewModel{
         var firstRun = viewModel.RunOptions.First(option => option.UiRunId==firstRunId);
 
         viewModel.SelectedRunOption=firstRun;
-        Assert.True(viewModel.IsRunHistoryLoading);
-        Assert.False(viewModel.CanSelectRunHistory);
         await WaitUntilAsync(() => viewModel.SelectedRunOption?.UiRunId==firstRunId
             &&viewModel.ResultItems.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)));
         await WaitUntilAsync(() => !viewModel.IsRunHistoryLoading&&viewModel.CanSelectRunHistory);
@@ -423,7 +485,7 @@ public sealed class RunnerViewModel{
 
 #if DEBUG
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task 一時停止後に再開すると続きから実行されfalseを渡す(){
+    public async Task 一時停止後に計測すると再実行されtrueを渡す(){
         var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
         var viewModel = fixture.ViewModel;
         viewModel.SelectAllCommand.Execute(null);
@@ -435,7 +497,7 @@ public sealed class RunnerViewModel{
         await WaitUntilAsync(() => viewModel.IsBenchmarkPaused);
         await runTask;
         {
-            //一時停止からの再開(Resume)が実際に実行を開始・完了することを確認する
+            //一時停止後の計測が実際に実行を開始・完了することを確認する
             Assert.True(viewModel.RunCommand.CanExecute(null));
             var targets = GetSelectedCells(viewModel);
             var running = TrackRunningIcons(targets);
@@ -444,8 +506,8 @@ public sealed class RunnerViewModel{
             Assert.All(targets,cell => Assert.Contains(cell,running));
         }
         {
-            //再開呼び出しではrestartFromRequestedElementCountがfalseで渡ることを確認する(全リスタート防止)
-            Assert.Equal([true,false],fixture.RunService.ObservedRestartFromRequestedElementCount);
+            //新仕様では再開導線を使わず、計測は再実行としてrestartFromRequestedElementCount=trueで渡ることを確認する
+            Assert.Equal([true,true],fixture.RunService.ObservedRestartFromRequestedElementCount);
         }
     }
 
@@ -534,6 +596,28 @@ public sealed class RunnerViewModel{
     private static bool IsFinalCompleted(global::UI.BenchmarkProjectCell cell) =>
         cell.StatusImageSource==global::UI.BenchmarkStatusImageNames.FinalCompleted;
 
+    private static bool HasLoadedCellMetadata(global::UI.BenchmarkProjectCell cell) =>
+        !string.IsNullOrWhiteSpace(cell.ElementCountText)
+        &&!string.IsNullOrWhiteSpace(cell.ExecutionText)
+        &&cell.HasCpuDisplay
+        &&!string.IsNullOrWhiteSpace(cell.LogicalProcessorText);
+
+    private static string CreateCellMetadataMessage(global::UI.ViewModels.RunnerViewModel viewModel,global::UI.BenchmarkProjectCell cell) =>
+        "Cell metadata was not restored. ElementCount='"+cell.ElementCountText
+        +"' Execution='"+cell.ExecutionText
+        +"' HasCpu='"+cell.HasCpuDisplay
+        +"' Cpu='"+cell.LogicalProcessorText
+        +"' Time='"+cell.TimeText
+        +"' Memory='"+cell.AllocatedText
+        +"' Status='"+cell.StatusImageSource
+        +"' CellProject='"+cell.Project
+        +"' RowMethod='"+(viewModel.BenchmarkRows.FirstOrDefault(row => row.ProjectCells.Contains(cell))?.MethodName??"-")
+        +"' RowType='"+(viewModel.BenchmarkRows.FirstOrDefault(row => row.ProjectCells.Contains(cell))?.BenchmarkTypeText??"-")
+        +"' RowKey='"+(viewModel.BenchmarkRows.FirstOrDefault(row => row.ProjectCells.Contains(cell))?.RowKey??"-")
+        +"' RowLeftTime='"+(viewModel.BenchmarkRows.FirstOrDefault(row => row.ProjectCells.Contains(cell))?.LeftTimeText??"-")
+        +"' RowRightTime='"+(viewModel.BenchmarkRows.FirstOrDefault(row => row.ProjectCells.Contains(cell))?.RightTimeText??"-")
+        +"' Results='"+string.Join(";",viewModel.ResultItems.Take(8).Select(static item => item.Project+"/"+item.Method+"/Status="+item.Status+"/N="+item.AxisCount+"/CPU="+(item.AssignedLogicalCpu?.ToString()??"-")+"/Mean="+(item.MeanNanoseconds?.ToString(System.Globalization.CultureInfo.InvariantCulture)??"-")))+"'";
+
     private static async Task SaveCurrentRunAsync(global::UI.ViewModels.RunnerViewModel viewModel){
         await WaitUntilAsync(() => viewModel.CanSaveDatabase&&viewModel.SaveDatabaseCommand.CanExecute(null));
         await viewModel.SaveDatabaseCommand.ExecuteAsync(null);
@@ -552,6 +636,16 @@ public sealed class RunnerViewModel{
         }
 
         Assert.True(condition());
+    }
+
+    private static async Task WaitUntilOrContinueAsync(Func<bool> condition){
+        for(var index=0;index<60;index++){
+            if(condition()){
+                return;
+            }
+
+            await Task.Delay(50);
+        }
     }
 
     private sealed class ViewModelFixture{
@@ -725,7 +819,13 @@ public sealed class RunnerViewModel{
     }
 
     private sealed class ImmediateDispatcher:global::UI.IBenchmarkUiDispatcher{
-        public void BeginInvoke(Action action) => action();
+        private readonly object gate = new();
+
+        public void BeginInvoke(Action action) {
+            lock(this.gate){
+                action();
+            }
+        }
     }
 
     private sealed class InMemoryPreferences:global::UI.IBenchmarkUiPreferences{

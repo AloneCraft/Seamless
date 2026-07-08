@@ -491,6 +491,8 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     public ProjectMetrics Metrics => this.metrics;
     public DateTimeOffset? LastMeasuredAt => this.lastMeasuredAt;
     public int? LastSuccessfulElementCount => this.lastSuccessfulElementCount;
+    public int? LastFailedElementCount => this.lastFailedElementCount;
+    public DateTimeOffset? LastFailedAt => this.lastFailedAt;
     public BenchmarkMeasurementHighlightState MeasurementHighlightState => this.measurementHighlightState;
 
     public bool IsSelected{
@@ -792,6 +794,62 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.RefreshStatusDisplay();
     }
 
+    // 保存Runロードでは、DBの1行を画面グリッド1行としてそのまま復元する。
+    // CPU/日時/要素数も現在のCPUリストやカタログに再照合せず、保存値を表示値として反映する。
+    public void ApplySnapshotResult(BenchmarkResultItem result,int? cpuNumber,DateTimeOffset? measuredAt){
+        var isCompleted = string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase);
+        var isFailed = string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase);
+        this.ResultCheckText=result.ResultCheckText;
+        this.ResultSeedText=result.ResultSeedText;
+        this.IsRunning=false;
+        this.LiveState=isCompleted
+            ? BenchmarkProjectLiveState.Completed
+            : BenchmarkProjectLiveState.Idle;
+        if(isCompleted&&result.MeanNanoseconds is not null){
+            this.metrics=ProjectMetrics.FromMeasurement(result.MeanNanoseconds,result.AllocatedBytesValue);
+            this.isFailed=false;
+            this.isCompletedWithoutMeasurement=false;
+            this.lastSuccessfulElementCount=result.ElementCount>0 ? result.ElementCount : null;
+            this.lastMeasuredAt=measuredAt;
+            this.TimeText=FormatTime(this.metrics);
+            this.AllocatedText=FormatAllocated(this.metrics);
+            this.ElementCountText=result.ElementCount>0 ? FormatElementCount(result.ElementCount) : string.Empty;
+            this.ExecutionText=measuredAt is { } completedAt ? FormatTimestamp(completedAt) : string.Empty;
+            this.ClearFailureDisplay();
+        }else if(isCompleted){
+            this.metrics=ProjectMetrics.Missing;
+            this.isFailed=false;
+            this.isCompletedWithoutMeasurement=true;
+            this.lastSuccessfulElementCount=result.ElementCount>0 ? result.ElementCount : null;
+            this.lastMeasuredAt=measuredAt;
+            this.TimeText=string.Empty;
+            this.AllocatedText=string.Empty;
+            this.ElementCountText=result.ElementCount>0 ? FormatElementCount(result.ElementCount) : string.Empty;
+            this.ExecutionText=measuredAt is { } completedAt ? FormatTimestamp(completedAt) : string.Empty;
+            this.ClearFailureDisplay();
+        }else if(isFailed){
+            this.metrics=ProjectMetrics.Missing;
+            this.isFailed=true;
+            this.isCompletedWithoutMeasurement=false;
+            this.lastFailedElementCount=result.ElementCount>0 ? result.ElementCount : null;
+            this.lastFailedAt=measuredAt;
+            this.lastMeasuredAt=measuredAt;
+            this.TimeText=string.Empty;
+            this.AllocatedText=string.Empty;
+            this.ElementCountText=result.ElementCount>0 ? FormatElementCount(result.ElementCount) : string.Empty;
+            this.FailureExecutionText=measuredAt is { } failedAt ? "  "+FormatTimestamp(failedAt) : string.Empty;
+            this.failureReasonText=BenchmarkFailureDisplayLogic.CreateTooltipReason(result.FailureReason);
+            this.ExecutionText=string.Empty;
+        }else{
+            this.ApplyMetrics(ProjectMetrics.Missing);
+        }
+
+        this.ApplyCpuNumberDisplay(cpuNumber);
+        this.ApplyMeasurementHighlight(BenchmarkMeasurementHighlightState.None);
+        this.RefreshExecutionTooltipText();
+        this.RefreshStatusDisplay();
+    }
+
     public void ApplyResultCheck(string checkText,string seedText){
         this.ResultCheckText=checkText;
         this.ResultSeedText=seedText;
@@ -996,6 +1054,20 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.BadgeTextColor=cpu.BadgeTextColor;
     }
 
+    private void ApplyCpuNumberDisplay(int? cpuNumber){
+        if(cpuNumber is not { } value){
+            this.ClearCpuDisplay();
+            return;
+        }
+
+        this.HasCpuDisplay=true;
+        this.LogicalProcessorText=value.ToString(CultureInfo.InvariantCulture);
+        this.CoreKindLabel=string.Empty;
+        this.CoreKindImageSource=string.Empty;
+        this.BadgeBackgroundColor=Color.FromArgb("#E2E8F0");
+        this.BadgeTextColor=Color.FromArgb("#334155");
+    }
+
     private void ClearCpuDisplay(){
         this.HasCpuDisplay=false;
         this.LogicalProcessorText=string.Empty;
@@ -1055,6 +1127,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
     private string benchmarkName = string.Empty;
     private string benchmarkTypeText = string.Empty;
     private string benchmarkMethodText = string.Empty;
+    private readonly string snapshotBenchmarkTypeText;
     private bool hasCpuDisplay;
     private string logicalProcessorText = string.Empty;
     private string coreKindLabel = string.Empty;
@@ -1070,10 +1143,23 @@ public sealed class BenchmarkTableRow:ObservableObject{
         string methodName,
         string benchmarkName,
         BenchmarkSourceTabDefinition sourceTab,
-        IReadOnlyDictionary<string,BenchmarkCase> casesByProject){
+        IReadOnlyDictionary<string,BenchmarkCase> casesByProject)
+        : this(rowKey,methodName,benchmarkName,sourceTab,casesByProject,string.Empty){
+    }
+
+    public BenchmarkTableRow(
+        string rowKey,
+        string methodName,
+        string benchmarkName,
+        BenchmarkSourceTabDefinition sourceTab,
+        IReadOnlyDictionary<string,BenchmarkCase> casesByProject,
+        string snapshotBenchmarkTypeText){
         this.RowKey=rowKey;
         this.MethodName=methodName;
         this.benchmarkName=benchmarkName;
+        // 保存Runの「型」は完全型名ではなく、グリッドの型列に出す表示文字列。
+        // CreateBenchmarkTypeText("int") のような再フォーマットを通すと空になるため、明示値を保持する。
+        this.snapshotBenchmarkTypeText=snapshotBenchmarkTypeText;
         this.SourceTab=sourceTab;
         this.CasesByProject=casesByProject;
         this.RefreshBenchmarkDisplayParts();
@@ -1254,9 +1340,12 @@ public sealed class BenchmarkTableRow:ObservableObject{
     }
 
     public IReadOnlyList<BenchmarkCase> GetRunCases(){
+        // 保存Runスナップショットの型列は表示値であり、worker実行用の完全型名ではない。
+        // 現行カタログへ一意接続できなかったセルは TypeFullName を空にして保持し、計測キューには入れない。
         return this.ProjectCells
             .Where(static cell => cell.HasCase&&cell.IsSelected)
             .Select(cell => this.CasesByProject[cell.Project])
+            .Where(static benchmark => !string.IsNullOrWhiteSpace(benchmark.TypeFullName))
             .ToArray();
     }
 
@@ -1326,6 +1415,24 @@ public sealed class BenchmarkTableRow:ObservableObject{
         if(this.GetProjectCell(result.Project) is { } cell){
             cell.ApplyRunResult(result,cpu,completedAt,highlightCompleted);
             this.SetProjectMetricText(result.Project,FormatTime(cell.Metrics),FormatAllocated(cell.Metrics));
+            this.RefreshDisplayedRatios();
+        }
+    }
+
+    public void ApplySnapshotResult(BenchmarkResultItem result,int? cpuNumber,DateTimeOffset? measuredAt){
+        this.ApplyCpuNumberDisplay(cpuNumber);
+        if(this.GetProjectCell(result.Project) is { } cell){
+            cell.ApplySnapshotResult(result,cpuNumber,measuredAt);
+            this.SetProjectMetricText(result.Project,FormatTime(cell.Metrics),FormatAllocated(cell.Metrics));
+            this.RefreshDisplayedRatios();
+        }
+    }
+
+    public void ApplySnapshotResult(string project,BenchmarkResultItem result,int? cpuNumber,DateTimeOffset? measuredAt){
+        this.ApplyCpuNumberDisplay(cpuNumber);
+        if(this.GetProjectCell(project) is { } cell){
+            cell.ApplySnapshotResult(result,cpuNumber,measuredAt);
+            this.SetProjectMetricText(project,FormatTime(cell.Metrics),FormatAllocated(cell.Metrics));
             this.RefreshDisplayedRatios();
         }
     }
@@ -1511,6 +1618,22 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.OnPropertyChanged(nameof(this.CpuTooltipText));
     }
 
+    private void ApplyCpuNumberDisplay(int? cpuNumber){
+        if(cpuNumber is not { } value){
+            this.ClearCpuDisplay();
+            return;
+        }
+
+        this.HasCpuDisplay=true;
+        this.LogicalProcessorText=value.ToString(CultureInfo.InvariantCulture);
+        this.CoreKindLabel=string.Empty;
+        this.CoreKindImageSource=string.Empty;
+        this.BadgeBackgroundColor=Color.FromArgb("#E2E8F0");
+        this.BadgeTextColor=Color.FromArgb("#334155");
+        this.LogicalCpuSortValue=value;
+        this.OnPropertyChanged(nameof(this.CpuTooltipText));
+    }
+
     private void ClearCpuDisplay(){
         this.HasCpuDisplay=false;
         this.LogicalProcessorText=string.Empty;
@@ -1542,6 +1665,9 @@ public sealed class BenchmarkTableRow:ObservableObject{
     private void RefreshBenchmarkDisplayParts(){
         var typeFullName = this.FirstTypeFullName();
         var typeText = ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText(typeFullName);
+        if(!string.IsNullOrWhiteSpace(this.snapshotBenchmarkTypeText)){
+            typeText=this.snapshotBenchmarkTypeText;
+        }
         if(string.IsNullOrWhiteSpace(typeText)){
             typeText=ExtractTypeText(this.benchmarkName);
         }
