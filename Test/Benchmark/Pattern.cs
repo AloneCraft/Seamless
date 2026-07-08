@@ -232,12 +232,14 @@ public sealed class RunnerViewModel{
         await WaitUntilAsync(() => targets.All(static cell => cell.StatusImageSource==global::UI.BenchmarkStatusImageNames.Waiting));
         Assert.Equal("新規",viewModel.SelectedRunOption?.DisplayName);
 
+        AssertNewGridCatalogDisplay(viewModel);
         viewModel.SelectedRunOption=savedRun;
         Assert.True(viewModel.IsRunHistoryLoading);
         Assert.False(viewModel.CanSelectRunHistory);
         await WaitUntilAsync(() => viewModel.ResultItems.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)));
         await WaitUntilAsync(() => !viewModel.IsRunHistoryLoading&&viewModel.CanSelectRunHistory);
 
+        Assert.NotEmpty(viewModel.BenchmarkRows);
         Assert.True(viewModel.ResultItems.Count>0);
         var completedResults = viewModel.ResultItems
             .Where(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase))
@@ -653,6 +655,24 @@ public sealed class RunnerViewModel{
             .Where(static cell => cell.HasCase&&cell.IsSelected)
             .ToArray();
 
+    private static void AssertNewGridCatalogDisplay(global::UI.ViewModels.RunnerViewModel viewModel){
+        Assert.NotEmpty(viewModel.BenchmarkRows);
+        Assert.Empty(viewModel.ResultItems);
+        Assert.Empty(viewModel.VisibleResultItems);
+        Assert.Empty(viewModel.ResultElementCountOptions);
+        Assert.Empty(GetSelectedCells(viewModel));
+        var cells = viewModel.BenchmarkRows
+            .SelectMany(static row => row.ProjectCells)
+            .Where(static cell => cell.HasCase)
+            .ToArray();
+        Assert.NotEmpty(cells);
+        Assert.All(cells,static cell => {
+            Assert.False(cell.IsSelected);
+            Assert.False(cell.HasCpuDisplay);
+            Assert.True(string.IsNullOrEmpty(cell.StatusImageSource)||cell.StatusImageSource==global::UI.BenchmarkStatusImageNames.Waiting);
+        });
+    }
+
     private static ConcurrentDictionary<global::UI.BenchmarkProjectCell,byte> TrackRunningIcons(IEnumerable<global::UI.BenchmarkProjectCell> cells){
         var running = new ConcurrentDictionary<global::UI.BenchmarkProjectCell,byte>();
         foreach(var cell in cells){
@@ -749,6 +769,10 @@ public sealed class RunnerViewModel{
             : "DotNet.Linq.Enumerable.FLinq.FLinqInt32";
 
     private static async Task SaveCurrentRunAsync(global::UI.ViewModels.RunnerViewModel viewModel){
+        if(viewModel.SelectedRunOption is { UiRunId:>0 }&&!viewModel.IsRefreshing&&viewModel.CanSelectRunHistory){
+            return;
+        }
+
         await WaitUntilAsync(() => viewModel.CanSaveDatabase&&viewModel.SaveDatabaseCommand.CanExecute(null));
         await viewModel.SaveDatabaseCommand.ExecuteAsync(null);
         await WaitUntilAsync(() => viewModel.SelectedRunOption is { UiRunId:>0 }

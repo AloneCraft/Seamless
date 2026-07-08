@@ -64,7 +64,7 @@ public class TakeWhile_predicate(int 番号, Enumerable source, FuncFragment pre
     public override string ElementType => source.ElementType;
 }
 
-public class TakeWhile_indexPredicate(int 番号, Enumerable source, FuncFragment predicate) : TakeWhile_predicate(番号, source, predicate) {
+public class TakeWhile_indexPredicate(int id, Enumerable source, FuncFragment predicate) : TakeWhile_predicate(id, source, predicate) {
     public static new bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length > 0 &&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
@@ -99,5 +99,46 @@ public class TakeWhile_indexPredicate(int 番号, Enumerable source, FuncFragmen
                 return true;
                 """;
         }
+    }
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        var sourceName=$"__takeWhileSource{id}";
+        var spanName=$"__takeWhileSpan{id}";
+        var itemName=$"__takeWhileItem{id}";
+        var indexName=$"__takeWhileIndex{id}";
+        var (spanPreCode,spanCondExpr)=this.FuncInvokeCondition(predicate,nameof(predicate),this.temp,itemName,indexName);
+        var spanPredicate=string.IsNullOrEmpty(spanPreCode)
+            ? $"if(!{WrapConditionExpression(spanCondExpr)})"
+            : $"{spanPreCode}\n            if(!{WrapConditionExpression(spanCondExpr)})";
+        var (loopPreCode,loopCondExpr)=this.FuncInvokeCondition(predicate,nameof(predicate),this.temp,itemName,indexName);
+        var loopPredicate=string.IsNullOrEmpty(loopPreCode)
+            ? $"if(!{WrapConditionExpression(loopCondExpr)})"
+            : $"{loopPreCode}\n            if(!{WrapConditionExpression(loopCondExpr)})";
+
+        return $$"""
+            using var {{sourceName}}={{source.GetEnumeratorExpression}};
+            var {{indexName}}=-1;
+            global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanCalled();
+            if({{sourceName}}.TryGetSpan(out var {{spanName}})) {
+                global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanSucceeded();
+                for(var __i{{id}}=0;__i{{id}}<{{spanName}}.Length;__i{{id}}++) {
+                    var {{itemName}}={{spanName}}[__i{{id}}];
+                    {{indexName}}++;
+                    {{spanPredicate}} {
+                        break;
+                    }
+                    {{consumerName}}.Consume({{itemName}});
+                }
+            }else{
+                global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanFailed();
+                global::Seamless.Linq.LinqCounterScope.Counter.IncrementEnumerationLoopUsed();
+                while({{sourceName}}.TryGetNext(out {{source.ElementType}} {{itemName}})) {
+                    {{indexName}}++;
+                    {{loopPredicate}} {
+                        break;
+                    }
+                    {{consumerName}}.Consume({{itemName}});
+                }
+            }
+            """;
     }
 }

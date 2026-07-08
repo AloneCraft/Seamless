@@ -109,7 +109,10 @@ internal sealed class BenchmarkUiRunRepository{
 
         var snapshot = CreateResultSnapshot(result,rowKey,isCompletedResult,viewState);
         this.QueuePersistence(
-            () => this.SaveResult(snapshot,value),
+            () => {
+                this.SaveResult(snapshot,value);
+                this.SaveResultDiagnostics(result,value);
+            },
             "UI DB benchmark result save failed.");
     }
 
@@ -128,6 +131,17 @@ internal sealed class BenchmarkUiRunRepository{
         this.QueuePersistence(
             () => this.store.SaveBenchmarkSnapshotItems(value,writes),
             "UI DB benchmark snapshot item save failed.");
+    }
+
+    public void QueueSaveFallbackDiagnostics(long? runId,IReadOnlyList<UiFallbackDiagnosticWrite> diagnostics){
+        if(runId is not { } value||diagnostics.Count==0){
+            return;
+        }
+
+        var writes = diagnostics.ToArray();
+        this.QueuePersistence(
+            () => this.store.SaveFallbackDiagnostics(value,writes),
+            "UI DB fallback diagnostic save failed.");
     }
 
     public void QueueSaveViewState(long? runId,BenchmarkViewStateSnapshot snapshot){
@@ -438,6 +452,23 @@ internal sealed class BenchmarkUiRunRepository{
             this.store.SaveMeasurement(job.JobId,result.Metrics,result.FinishedAt);
         }
         this.SaveViewState(runId,result.ViewState);
+    }
+
+    private void SaveResultDiagnostics(BenchmarkResultItem result,long runId){
+        if(result.DiagnosticCounters.Count==0){
+            return;
+        }
+
+        var writes = result.DiagnosticCounters.Select(counter => new UiFallbackDiagnosticWrite(
+            result.Project,
+            result.Method,
+            counter.CounterName,
+            counter.CounterValue){
+            SourceTab=BenchmarkSourceTabs.Get(result.SourceTab).Id,
+            ArgumentKey=result.ArgumentKey,
+            ElementCount=result.ElementCount,
+        }).ToArray();
+        this.store.SaveFallbackDiagnostics(runId,writes,DateTimeOffset.UtcNow);
     }
 
     private void SaveViewState(long runId,BenchmarkViewStateSnapshot snapshot){

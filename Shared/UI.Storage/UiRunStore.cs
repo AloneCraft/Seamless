@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 namespace Seamless.UI.Storage;
 
 public sealed class UiRunStore{
-    private const int SchemaVersion = 7;
+    private const int SchemaVersion = 8;
     private readonly string databasePath;
     private readonly UiRunSchemaMismatchPolicy mismatchPolicy;
     private readonly object schemaGate = new();
@@ -24,9 +24,15 @@ public sealed class UiRunStore{
             }
 
             Directory.CreateDirectory(Path.GetDirectoryName(this.databasePath)??".");
+            if(File.Exists(this.databasePath)
+                &&this.ReadStoredSchemaVersion()==SchemaVersion
+                &&this.HasExpectedSchemaShape()){
+                this.schemaEnsured=true;
+                return;
+            }
             this.ResolveSchemaMismatch();
             using var connection = this.OpenConnection();
-            using var transaction = connection.BeginTransaction();
+            using var transaction = BeginTransactionWithLockRetry(connection);
             CreateTables(connection,transaction);
             ExecuteNonQuery(connection,transaction,$"PRAGMA user_version={SchemaVersion};");
             transaction.Commit();
@@ -66,16 +72,24 @@ public sealed class UiRunStore{
     private bool HasExpectedSchemaShape(){
         try{
             using var connection = this.OpenConnectionWithoutCreate();
+            using(var legacyCommand = connection.CreateCommand()){
+                legacyCommand.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' OR (type='table' AND name IN('Apps','Runs'));";
+                if((long)(legacyCommand.ExecuteScalar()??0L)>0L){
+                    return false;
+                }
+            }
+
             using var command = connection.CreateCommand();
             command.CommandText="""
                 SELECT
                     (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行')
                     +(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ベンチマーク項目')
                     +(SELECT COUNT(*) FROM sqlite_master WHERE type='view')
-                    +(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT IN('実行','ベンチマーク項目','sqlite_sequence'))
+                    +(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='診断カウンター')
+                    +(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT IN('実行','ベンチマーク項目','診断カウンター','sqlite_sequence'))
                     +(SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name IN('左要素数','右要素数'));
                 """;
-            return (long)(command.ExecuteScalar()??-1L)==2L;
+            return (long)(command.ExecuteScalar()??-1L)==3L;
         }
         catch(SqliteException){
             return false;
@@ -136,6 +150,18 @@ public sealed class UiRunStore{
                 "右メモリバイト" INTEGER NULL,
                 FOREIGN KEY("実行ID") REFERENCES "実行"("実行ID") ON DELETE CASCADE
             );
+            CREATE TABLE IF NOT EXISTS "診断カウンター"(
+                "実行ID" INTEGER NOT NULL,
+                "タブ名" TEXT NOT NULL DEFAULT '',
+                "プロジェクト名" TEXT NOT NULL,
+                "ベンチマーク" TEXT NOT NULL,
+                "引数キー" TEXT NOT NULL DEFAULT '',
+                "要素数" INTEGER NULL,
+                "カウンター名" TEXT NOT NULL,
+                "カウンター値" REAL NOT NULL,
+                "記録日時" TEXT NOT NULL,
+                FOREIGN KEY("実行ID") REFERENCES "実行"("実行ID") ON DELETE CASCADE
+            );
             CREATE INDEX IF NOT EXISTS "IX_実行_アプリ種別_更新日時" ON "実行"("アプリ種別","更新日時");
             CREATE INDEX IF NOT EXISTS "IX_ベンチマーク項目_実行ID" ON "ベンチマーク項目"("実行ID");
             CREATE UNIQUE INDEX IF NOT EXISTS "UX_ベンチマーク項目_行" ON "ベンチマーク項目"(
@@ -164,7 +190,7 @@ public sealed class UiRunStore{
         command.Parameters.AddWithValue("$sourceTab",request.SourceTab);
         command.Parameters.AddWithValue("$createdAt",ToText(now));
         command.Parameters.AddWithValue("$updatedAt",ToText(now));
-        var runId = (long)(command.ExecuteScalar()??0L);
+        var runId = (long)(ExecuteScalarWithLockRetry(command)??0L);
         return new(runId,request.AppKind,request.DisplayName,UiRunStatus.Queued,request.ExecutionProfile,request.SourceTab,now,now);
     }
 
@@ -180,7 +206,7 @@ public sealed class UiRunStore{
         command.Parameters.AddWithValue("$runId",runId);
         command.Parameters.AddWithValue("$status",ToStatusText(status));
         command.Parameters.AddWithValue("$updatedAt",ToText(DateTimeOffset.UtcNow));
-        command.ExecuteNonQuery();
+        ExecuteWithLockRetry(() => command.ExecuteNonQuery());
     }
 
     public void SaveRunSettings(long runId,string runRoot,IReadOnlyList<int> elementCounts,double adaptiveThresholdNanoseconds,IReadOnlyList<int> logicalCpus){
@@ -263,19 +289,12 @@ public sealed class UiRunStore{
     public void SaveBenchmarkSnapshotItems(long runId,IReadOnlyList<UiBenchmarkSnapshotItemWrite> items){
         this.EnsureSchema();
         using var connection = this.OpenConnection();
-        using var transaction = connection.BeginTransaction();
-        using(var delete = connection.CreateCommand()){
-            delete.Transaction=transaction;
-            delete.CommandText="DELETE FROM \"ベンチマーク項目\" WHERE \"実行ID\"=$runId;";
-            delete.Parameters.AddWithValue("$runId",runId);
-            delete.ExecuteNonQuery();
-        }
-
+        using var transaction = BeginTransactionWithLockRetry(connection);
         foreach(var item in items){
             using var command = connection.CreateCommand();
             command.Transaction=transaction;
             command.CommandText="""
-                INSERT INTO "ベンチマーク項目"(
+                INSERT OR REPLACE INTO "ベンチマーク項目"(
                     "実行ID","タブ名","型","ベンチマーク","CPU番号",
                     "左チェック","左状態","左失敗理由","左日時","左時間ns","左メモリバイト",
                     "右チェック","右状態","右失敗理由","右日時","右時間ns","右メモリバイト")
@@ -316,7 +335,7 @@ public sealed class UiRunStore{
         this.EnsureSchema();
         using var connection = this.OpenConnection();
         using var command = connection.CreateCommand();
-        command.CommandText="DELETE FROM \"ベンチマーク項目\";DELETE FROM \"実行\";";
+        command.CommandText="DELETE FROM \"診断カウンター\";DELETE FROM \"ベンチマーク項目\";DELETE FROM \"実行\";";
         command.ExecuteNonQuery();
     }
 
@@ -328,9 +347,60 @@ public sealed class UiRunStore{
     }
 
     public void SaveFallbackDiagnostics(long runId,IReadOnlyList<UiFallbackDiagnosticWrite> diagnostics,DateTimeOffset? recordedAt = null){
+        this.EnsureSchema();
+        var timestamp = recordedAt??DateTimeOffset.UtcNow;
+        using var connection = this.OpenConnection();
+        using var transaction = BeginTransactionWithLockRetry(connection);
+        foreach(var diagnostic in diagnostics){
+            using var command = connection.CreateCommand();
+            command.Transaction=transaction;
+            command.CommandText="""
+                INSERT INTO "診断カウンター"(
+                    "実行ID","タブ名","プロジェクト名","ベンチマーク","引数キー","要素数","カウンター名","カウンター値","記録日時")
+                VALUES($runId,$sourceTab,$project,$method,$argumentKey,$elementCount,$counterName,$counterValue,$recordedAt);
+                """;
+            command.Parameters.AddWithValue("$runId",runId);
+            command.Parameters.AddWithValue("$sourceTab",diagnostic.SourceTab);
+            command.Parameters.AddWithValue("$project",diagnostic.Project);
+            command.Parameters.AddWithValue("$method",diagnostic.Method);
+            command.Parameters.AddWithValue("$argumentKey",diagnostic.ArgumentKey);
+            command.Parameters.AddWithValue("$elementCount",ToDbValue(diagnostic.ElementCount));
+            command.Parameters.AddWithValue("$counterName",diagnostic.CounterName);
+            command.Parameters.AddWithValue("$counterValue",diagnostic.CounterValue);
+            command.Parameters.AddWithValue("$recordedAt",ToText(timestamp));
+            command.ExecuteNonQuery();
+        }
+        transaction.Commit();
     }
 
-    public IReadOnlyList<UiFallbackDiagnosticRecord> ListFallbackDiagnostics(long runId) => [];
+    public IReadOnlyList<UiFallbackDiagnosticRecord> ListFallbackDiagnostics(long runId){
+        this.EnsureSchema();
+        using var connection = this.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText="""
+            SELECT "実行ID","タブ名","プロジェクト名","ベンチマーク","引数キー","要素数","カウンター名","カウンター値","記録日時"
+            FROM "診断カウンター"
+            WHERE "実行ID"=$runId
+            ORDER BY "プロジェクト名","ベンチマーク","引数キー","要素数","カウンター名";
+            """;
+        command.Parameters.AddWithValue("$runId",runId);
+        using var reader = command.ExecuteReader();
+        var records = new List<UiFallbackDiagnosticRecord>();
+        while(reader.Read()){
+            records.Add(new(
+                reader.GetInt64(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetString(3),
+                reader.GetString(4),
+                reader.IsDBNull(5) ? null : reader.GetInt64(5),
+                reader.GetString(6),
+                reader.GetDouble(7),
+                DateTimeOffset.Parse(reader.GetString(8),System.Globalization.CultureInfo.InvariantCulture)));
+        }
+
+        return records;
+    }
 
     public void SaveUiSelection(long runId,string scope,string selectionKey,bool isSelected){
         this.EnsureSchema();
@@ -460,9 +530,30 @@ public sealed class UiRunStore{
         return [];
     }
 
-    public static IReadOnlyList<string> AnalysisViewNames { get; } = [];
+    public static IReadOnlyList<string> AnalysisViewNames { get; } = ["BenchmarkFallbackDiagnostics"];
 
-    public IReadOnlyList<IReadOnlyDictionary<string,object?>> QueryAnalysisView(string viewName,int limit = 1000) => [];
+    public IReadOnlyList<IReadOnlyDictionary<string,object?>> QueryAnalysisView(string viewName,int limit = 1000){
+        if(!string.Equals(viewName,"BenchmarkFallbackDiagnostics",StringComparison.OrdinalIgnoreCase)){
+            return [];
+        }
+
+        return this.ListRuns()
+            .SelectMany(run => this.ListFallbackDiagnostics(run.RunId))
+            .OrderByDescending(static item => item.RecordedAt)
+            .Take(limit)
+            .Select(static item => new Dictionary<string,object?>{
+                ["RunId"]=item.RunId,
+                ["SourceTab"]=item.SourceTab,
+                ["Project"]=item.Project,
+                ["Method"]=item.Method,
+                ["ArgumentKey"]=item.ArgumentKey,
+                ["ElementCount"]=item.ElementCount,
+                ["CounterName"]=item.CounterName,
+                ["CounterValue"]=item.CounterValue,
+                ["RecordedAt"]=item.RecordedAt,
+            })
+            .ToArray();
+    }
 
     public IReadOnlyList<UiViewStateRecord> ListUiViewStates(long runId){
         this.EnsureSchema();
@@ -488,11 +579,12 @@ public sealed class UiRunStore{
         var builder = new SqliteConnectionStringBuilder{
             DataSource=this.databasePath,
             Mode=SqliteOpenMode.ReadWriteCreate,
+            DefaultTimeout=30,
         };
         var connection = new SqliteConnection(builder.ToString());
         connection.Open();
         using var command = connection.CreateCommand();
-        command.CommandText="PRAGMA busy_timeout=5000;PRAGMA journal_mode=WAL;PRAGMA foreign_keys=ON;";
+        command.CommandText="PRAGMA busy_timeout=30000;PRAGMA journal_mode=WAL;PRAGMA foreign_keys=ON;";
         command.ExecuteNonQuery();
         return connection;
     }
@@ -501,6 +593,7 @@ public sealed class UiRunStore{
         var builder = new SqliteConnectionStringBuilder{
             DataSource=this.databasePath,
             Mode=SqliteOpenMode.ReadWrite,
+            DefaultTimeout=30,
         };
         var connection = new SqliteConnection(builder.ToString());
         connection.Open();
@@ -512,6 +605,50 @@ public sealed class UiRunStore{
         command.Transaction=transaction;
         command.CommandText=text;
         command.ExecuteNonQuery();
+    }
+
+    private static SqliteTransaction BeginTransactionWithLockRetry(SqliteConnection connection){
+        const int attempts = 5;
+        for(var attempt = 1;attempt<=attempts;attempt++){
+            try{
+                return connection.BeginTransaction();
+            }
+            catch(SqliteException ex) when(IsBusyOrLocked(ex)&&attempt<attempts){
+                Thread.Sleep(TimeSpan.FromMilliseconds(200*attempt));
+            }
+        }
+
+        return connection.BeginTransaction();
+    }
+
+    private static void ExecuteWithLockRetry(Action action){
+        const int attempts = 5;
+        for(var attempt = 1;attempt<=attempts;attempt++){
+            try{
+                action();
+                return;
+            }
+            catch(SqliteException ex) when(IsBusyOrLocked(ex)&&attempt<attempts){
+                Thread.Sleep(TimeSpan.FromMilliseconds(200*attempt));
+            }
+        }
+    }
+
+    private static bool IsBusyOrLocked(SqliteException exception) =>
+        exception.SqliteErrorCode is 5 or 6;
+
+    private static object? ExecuteScalarWithLockRetry(SqliteCommand command){
+        const int attempts = 5;
+        for(var attempt = 1;attempt<=attempts;attempt++){
+            try{
+                return command.ExecuteScalar();
+            }
+            catch(SqliteException ex) when(IsBusyOrLocked(ex)&&attempt<attempts){
+                Thread.Sleep(TimeSpan.FromMilliseconds(200*attempt));
+            }
+        }
+
+        return command.ExecuteScalar();
     }
 
     private static void AddMetric(

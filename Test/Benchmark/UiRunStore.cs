@@ -11,10 +11,10 @@ public sealed class UiRunStoreTests{
         store.EnsureSchema();
 
         using var connection = Open(path);
-        Assert.Equal(7L,Scalar<long>(connection,"PRAGMA user_version;"));
+        Assert.Equal(8L,Scalar<long>(connection,"PRAGMA user_version;"));
         Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行';"));
         Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ベンチマーク項目';"));
-        Assert.Equal(2L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','ベンチマーク項目');"));
+        Assert.Equal(3L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"));
         Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
         Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name IN('項目ID','プロジェクト名','Assembly','Type','型フル名','引数キー','行キー','側','平均ns','誤差ns','標準偏差ns','割当バイト','左要素数','右要素数');"));
     }
@@ -37,7 +37,7 @@ public sealed class UiRunStoreTests{
         store.EnsureSchema();
 
         using var loaded = Open(path);
-        Assert.Equal(7L,Scalar<long>(loaded,"PRAGMA user_version;"));
+        Assert.Equal(8L,Scalar<long>(loaded,"PRAGMA user_version;"));
         Assert.Equal(0L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='Legacy';"));
         Assert.Contains(Directory.GetFiles(Path.GetDirectoryName(path)!),file => file.EndsWith(".bak",StringComparison.OrdinalIgnoreCase));
     }
@@ -48,7 +48,7 @@ public sealed class UiRunStoreTests{
         using(var connection = Open(path)){
             using var command = connection.CreateCommand();
             command.CommandText="""
-                PRAGMA user_version=7;
+                PRAGMA user_version=8;
                 CREATE TABLE Apps(AppId INTEGER PRIMARY KEY AUTOINCREMENT,AppKind TEXT NOT NULL);
                 CREATE TABLE Runs(RunId INTEGER PRIMARY KEY AUTOINCREMENT,AppId INTEGER NOT NULL);
                 CREATE VIEW BenchmarkFlatResults AS SELECT 1 AS Value;
@@ -61,9 +61,10 @@ public sealed class UiRunStoreTests{
         store.EnsureSchema();
 
         using var loaded = Open(path);
-        Assert.Equal(7L,Scalar<long>(loaded,"PRAGMA user_version;"));
+        Assert.Equal(8L,Scalar<long>(loaded,"PRAGMA user_version;"));
         Assert.Equal(1L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行';"));
         Assert.Equal(1L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ベンチマーク項目';"));
+        Assert.Equal(1L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='診断カウンター';"));
         Assert.Equal(0L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('Apps','Runs');"));
         Assert.Equal(0L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
     }
@@ -161,6 +162,72 @@ public sealed class UiRunStoreTests{
     }
 
     [Fact]
+    public void SaveBenchmarkSnapshotItems_UpdatesSingleRowWithoutDeletingOtherRows(){
+        var path = CreateDatabasePath();
+        var store = new global::Seamless.UI.Storage.UiRunStore(path);
+        var run = store.CreateRun(new(
+            UiRunAppKind.Benchmark,
+            "Benchmark",
+            "Fast",
+            "System.Array",
+            DateTimeOffset.UtcNow));
+        store.SaveBenchmarkSnapshotItems(run.RunId,[
+            new("System.Array","int","Any",0,new(true,UiRunStatus.Queued,string.Empty,null,null,null),new(true,UiRunStatus.Queued,string.Empty,null,null,null)),
+            new("System.Array","int","Sum",1,new(true,UiRunStatus.Queued,string.Empty,null,null,null),new(true,UiRunStatus.Queued,string.Empty,null,null,null)),
+        ]);
+
+        store.SaveBenchmarkSnapshotItems(run.RunId,[
+            new("System.Array","int","Any",2,new(true,UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,10,100),new(true,UiRunStatus.Queued,string.Empty,null,null,null)),
+        ]);
+
+        var items = store.ListBenchmarkSnapshotItems(run.RunId);
+
+        Assert.Equal(2,items.Count);
+        var any = Assert.Single(items,static item => item.BenchmarkName=="Any");
+        var sum = Assert.Single(items,static item => item.BenchmarkName=="Sum");
+        Assert.Equal(UiRunStatus.Completed,any.Left.Status);
+        Assert.Equal(10,any.Left.MeanNanoseconds);
+        Assert.Equal(UiRunStatus.Queued,sum.Left.Status);
+        Assert.Equal(1,sum.CpuNumber);
+    }
+
+    [Fact]
+    public void FallbackDiagnostics_RoundTripsCounters(){
+        var path = CreateDatabasePath();
+        var store = new global::Seamless.UI.Storage.UiRunStore(path);
+        var run = store.CreateRun(new(
+            UiRunAppKind.Benchmark,
+            "Benchmark",
+            "Fast",
+            "System.Array",
+            DateTimeOffset.UtcNow));
+        var recordedAt = DateTimeOffset.Parse(
+            "2026-07-08T12:00:00.0000000+09:00",
+            global::System.Globalization.CultureInfo.InvariantCulture);
+
+        store.SaveFallbackDiagnostics(run.RunId,[
+            new("System.Array.FLinq","ToList","DirectSpanUsed",1){
+                SourceTab="System.Array",
+                ArgumentKey="Count=4096",
+                ElementCount=4096,
+            },
+        ],recordedAt);
+
+        var items = store.ListFallbackDiagnostics(run.RunId);
+
+        var item = Assert.Single(items);
+        Assert.Equal(run.RunId,item.RunId);
+        Assert.Equal("System.Array",item.SourceTab);
+        Assert.Equal("System.Array.FLinq",item.Project);
+        Assert.Equal("ToList",item.Method);
+        Assert.Equal("Count=4096",item.ArgumentKey);
+        Assert.Equal(4096,item.ElementCount);
+        Assert.Equal("DirectSpanUsed",item.CounterName);
+        Assert.Equal(1,item.CounterValue);
+        Assert.Equal(recordedAt,item.RecordedAt);
+    }
+
+    [Fact]
     public void UiViewState_UsesRunTableColumns(){
         var path = CreateDatabasePath();
         var store = new global::Seamless.UI.Storage.UiRunStore(path);
@@ -193,11 +260,15 @@ public sealed class UiRunStoreTests{
         store.SaveBenchmarkSnapshotItems(run.RunId,[
             new("System.Array","Sample","Aggregate",7,new(true,UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,123.5,1024),new(false,UiRunStatus.Queued,string.Empty,null,null,null)),
         ]);
+        store.SaveFallbackDiagnostics(run.RunId,[
+            new("System.Array.FLinq","Aggregate","EnumerationLoopUsed",1),
+        ]);
         store.SaveUiViewState(run.RunId,"SelectedSourceTab","SystemArray");
         store.SaveUiViewState(run.RunId,"SelectedResultElementCount","64");
 
         Assert.NotEmpty(store.ListRuns());
         Assert.NotEmpty(store.ListBenchmarkSnapshotItems(run.RunId));
+        Assert.NotEmpty(store.ListFallbackDiagnostics(run.RunId));
         Assert.NotEmpty(store.ListMetrics(run.RunId));
         Assert.NotEmpty(store.ListUiViewStates(run.RunId));
 
@@ -205,6 +276,7 @@ public sealed class UiRunStoreTests{
 
         Assert.Empty(store.ListRuns());
         Assert.Empty(store.ListBenchmarkSnapshotItems(run.RunId));
+        Assert.Empty(store.ListFallbackDiagnostics(run.RunId));
         Assert.Empty(store.ListMetrics(run.RunId));
         Assert.Empty(store.ListUiViewStates(run.RunId));
     }

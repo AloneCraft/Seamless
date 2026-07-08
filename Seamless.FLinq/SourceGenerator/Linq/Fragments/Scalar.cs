@@ -111,6 +111,7 @@ public abstract class Scalar(int 番号):Fragment(番号){
             return $$"""
                 {{destType}} {{destVar}};
                 using(var {{srcVar}}={{srcExpr}}) {
+                    global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
                     var {{spanVar}}={{directSpanExpression}};
                     {{IndentLines(renderBody(spanVar),"    ")}}
                 }
@@ -123,7 +124,9 @@ public abstract class Scalar(int 番号):Fragment(番号){
         return $$"""
             {{destType}} {{destVar}};
             using(var {{srcVar}}={{srcExpr}}) {
+                global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanCalled();
                 {{srcVar}}.TryGetSpan(out var {{spanVar}});
+                global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanSucceeded();
                 {{IndentLines(renderBody(spanVar),"    ")}}
             }
             """;

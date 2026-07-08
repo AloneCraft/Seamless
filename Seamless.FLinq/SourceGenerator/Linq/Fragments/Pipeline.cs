@@ -1910,8 +1910,279 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         }
     }
     public override string GetConsumeExecutionStatement(string consumerName) =>
-        this.RenderPureOrderingDirectConsume(consumerName)
+        this.RenderSingleTakeWhileDirectConsume(consumerName)
+        ?? this.RenderSingleSkipWhileDirectConsume(consumerName)
+        ?? this.RenderSingleConcatDirectConsume(consumerName)
+        ?? this.RenderSingleSelectDirectConsume(consumerName)
+        ?? this.RenderSingleWhereDirectConsume(consumerName)
+        ?? this.RenderPureOrderingDirectConsume(consumerName)
         ?? base.GetConsumeExecutionStatement(consumerName);
+
+    private string? RenderSingleConcatDirectConsume(string consumerName) {
+        if(stages.Count!=1) {
+            return null;
+        }
+
+        var stage=stages[0];
+        if(stage.Kind!=PipelineStageKind.Concat || stage.SecondSource is not { } secondSource) {
+            return null;
+        }
+
+        var sourceName=$"__concatSource{this.result}";
+        var secondName=$"__concatSecond{this.result}";
+        var builder = new StringBuilder();
+        builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
+        builder.AppendLine($"using var {secondName}={secondSource.GetEnumeratorExpression};");
+        this.AppendConcatConsumeSource(builder,source,sourceName,consumerName,$"__concatLeftSpan{this.result}",$"__concatLeftItem{this.result}",source.ElementType);
+        this.AppendConcatConsumeSource(builder,secondSource,secondName,consumerName,$"__concatRightSpan{this.result}",$"__concatRightItem{this.result}",stage.OutputType);
+        return builder.ToString().TrimEnd();
+    }
+
+    private void AppendConcatConsumeSource(StringBuilder builder,Enumerable sourceFragment,string enumeratorName,string consumerName,string spanName,string itemName,string outputType) {
+        var directSpanExpression=sourceFragment.GetDirectSpanExpression(enumeratorName);
+        if(directSpanExpression is not null) {
+            builder.AppendLine("global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();");
+            builder.AppendLine($"var {spanName}={directSpanExpression};");
+            builder.AppendLine($"for(var __i{this.result}=0;__i{this.result}<{spanName}.Length;__i{this.result}++) {{");
+            builder.AppendLine($"    var {itemName}={spanName}[__i{this.result}];");
+            builder.AppendLine($"    {consumerName}.Consume({this.CastConcatItem(sourceFragment.ElementType,outputType,itemName)});");
+            builder.AppendLine("}");
+            return;
+        }
+
+        builder.AppendLine($"while({enumeratorName}.TryGetNext(out var {itemName})) {{");
+        this.AppendCounterCall(builder,"    ","IncrementPhysicalMoveNext");
+        builder.AppendLine($"    {consumerName}.Consume({this.CastConcatItem(sourceFragment.ElementType,outputType,itemName)});");
+        builder.AppendLine("}");
+    }
+
+    private string CastConcatItem(string inputType,string outputType,string itemName) =>
+        inputType==outputType
+            ? itemName
+            : $"({outputType})(object?){itemName}!";
+
+    private string? RenderSingleWhereDirectConsume(string consumerName) {
+        if(stages.Count!=1) {
+            return null;
+        }
+
+        var stage=stages[0];
+        if(stage.Kind!=PipelineStageKind.Where
+            || stage.Func is not { } predicate
+            || predicate.RequiresStatementInlining
+            || !predicate.CanInlineAssign) {
+            return null;
+        }
+
+        var sourceName=$"__whereSource{this.result}";
+        var directSpanExpression=source.GetDirectSpanExpression(sourceName);
+        if(directSpanExpression is null) {
+            return null;
+        }
+
+        var spanName=$"__whereSpan{this.result}";
+        var itemName=$"__whereItem{this.result}";
+        var indexName=$"__whereIndex{this.result}";
+        var arguments=stage.UsesIndex
+            ? new[] { itemName,indexName }
+            : [itemName];
+        var indexDeclaration=stage.UsesIndex
+            ? $"var {indexName}=-1;\n"
+            : string.Empty;
+        var indexIncrement=stage.UsesIndex
+            ? $"{indexName}++;\n        "
+            : string.Empty;
+        var (preCode,conditionExpr)=this.FuncInvokeCondition(predicate,nameof(PipelineStageKind.Where),this.temp,arguments);
+        var predicateCheck=string.IsNullOrEmpty(preCode)
+            ? $"if({WrapConditionExpression(conditionExpr)})"
+            : $"{preCode}\n        if({WrapConditionExpression(conditionExpr)})";
+
+        return $$"""
+            using var {{sourceName}}={{source.GetEnumeratorExpression}};
+            global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
+            var {{spanName}}={{directSpanExpression}};
+            {{indexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++) {
+                var {{itemName}}={{spanName}}[__i{{this.result}}];
+                {{indexIncrement}}{{predicateCheck}} {
+                    {{consumerName}}.Consume({{itemName}});
+                }
+            }
+            """;
+    }
+
+    private string? RenderSingleSelectDirectConsume(string consumerName) {
+        if(stages.Count!=1) {
+            return null;
+        }
+
+        var stage=stages[0];
+        if(stage.Kind!=PipelineStageKind.Select
+            || stage.Func is not { } selector
+            || selector.RequiresStatementInlining
+            || !selector.CanInlineAssign) {
+            return null;
+        }
+
+        var sourceName=$"__selectSource{this.result}";
+        var directSpanExpression=source.GetDirectSpanExpression(sourceName);
+        if(directSpanExpression is null) {
+            return null;
+        }
+
+        var spanName=$"__selectSpan{this.result}";
+        var itemName=$"__selectItem{this.result}";
+        var selectedName=$"__selectSelected{this.result}";
+        var indexName=$"__selectIndex{this.result}";
+        var arguments=stage.UsesIndex
+            ? new[] { itemName,indexName }
+            : [itemName];
+        var indexDeclaration=stage.UsesIndex
+            ? $"var {indexName}=-1;\n"
+            : string.Empty;
+        var indexIncrement=stage.UsesIndex
+            ? $"{indexName}++;\n        "
+            : string.Empty;
+
+        return $$"""
+            using var {{sourceName}}={{source.GetEnumeratorExpression}};
+            global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
+            var {{spanName}}={{directSpanExpression}};
+            {{indexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++) {
+                var {{itemName}}={{spanName}}[__i{{this.result}}];
+                {{indexIncrement}}{{stage.OutputType}} {{selectedName}}=default!;
+            {{IndentLines(this.FuncAssign(selector,nameof(PipelineStageKind.Select),selectedName,arguments),"    ")}}
+                {{consumerName}}.Consume({{selectedName}});
+            }
+            """;
+    }
+
+    private string? RenderSingleTakeWhileDirectConsume(string consumerName) {
+        if(stages.Count!=1) {
+            return null;
+        }
+
+        var stage=stages[0];
+        if(stage.Kind!=PipelineStageKind.TakeWhile
+            || stage.Func is not { } predicate
+            || predicate.RequiresStatementInlining
+            || !predicate.CanInlineAssign) {
+            return null;
+        }
+
+        var sourceName=$"__takeWhileSource{this.result}";
+        var directSpanExpression=source.GetDirectSpanExpression(sourceName);
+        if(directSpanExpression is null) {
+            return null;
+        }
+
+        var spanName=$"__takeWhileSpan{this.result}";
+        var itemName=$"__takeWhileItem{this.result}";
+        var indexName=$"__takeWhileIndex{this.result}";
+        var arguments=stage.UsesIndex
+            ? new[] { itemName,indexName }
+            : [itemName];
+        var indexDeclaration=stage.UsesIndex
+            ? $"var {indexName}=-1;\n"
+            : string.Empty;
+        var indexIncrement=stage.UsesIndex
+            ? $"{indexName}++;\n        "
+            : string.Empty;
+        var (preCode,conditionExpr)=this.FuncInvokeCondition(predicate,nameof(PipelineStageKind.TakeWhile),this.temp,arguments);
+        var predicateCheck=string.IsNullOrEmpty(preCode)
+            ? $"if(!{WrapConditionExpression(conditionExpr)})"
+            : $"{preCode}\n        if(!{WrapConditionExpression(conditionExpr)})";
+
+        return $$"""
+            using var {{sourceName}}={{source.GetEnumeratorExpression}};
+            global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
+            var {{spanName}}={{directSpanExpression}};
+            {{indexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++) {
+                var {{itemName}}={{spanName}}[__i{{this.result}}];
+                {{indexIncrement}}{{predicateCheck}} {
+                    break;
+                }
+                {{consumerName}}.Consume({{itemName}});
+            }
+            """;
+    }
+
+    private string? RenderSingleSkipWhileDirectConsume(string consumerName) {
+        if(stages.Count!=1) {
+            return null;
+        }
+
+        var stage=stages[0];
+        if(stage.Kind!=PipelineStageKind.SkipWhile
+            || stage.Func is not { } predicate
+            || predicate.RequiresStatementInlining
+            || !predicate.CanInlineAssign) {
+            return null;
+        }
+
+        var sourceName=$"__skipWhileSource{this.result}";
+        var directSpanExpression=source.GetDirectSpanExpression(sourceName);
+        if(directSpanExpression is null) {
+            return null;
+        }
+
+        var spanName=$"__skipWhileSpan{this.result}";
+        var itemName=$"__skipWhileItem{this.result}";
+        var indexName=$"__skipWhileIndex{this.result}";
+        var offsetName=$"__skipWhileOffset{this.result}";
+        var arguments=stage.UsesIndex
+            ? new[] { itemName,indexName }
+            : [itemName];
+        var indexDeclaration=stage.UsesIndex
+            ? $"var {indexName}=-1;\n"
+            : string.Empty;
+        var indexIncrement=stage.UsesIndex
+            ? $"{indexName}++;\n        "
+            : string.Empty;
+        var (preCode,conditionExpr)=this.FuncInvokeCondition(predicate,nameof(PipelineStageKind.SkipWhile),this.temp,arguments);
+        var predicateCheck=string.IsNullOrEmpty(preCode)
+            ? $"if(!{WrapConditionExpression(conditionExpr)})"
+            : $"{preCode}\n            if(!{WrapConditionExpression(conditionExpr)})";
+
+        if(stage.UsesIndex) {
+            var skippingName=$"__skipWhileSkipping{this.result}";
+            return $$"""
+                using var {{sourceName}}={{source.GetEnumeratorExpression}};
+                global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
+                var {{spanName}}={{directSpanExpression}};
+                var {{skippingName}}=true;
+                {{indexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++) {
+                    var {{itemName}}={{spanName}}[__i{{this.result}}];
+                    {{indexIncrement}}if({{skippingName}}) {
+                        {{predicateCheck}} {
+                            {{skippingName}}=false;
+                        }
+                    }
+                    if(!{{skippingName}}) {
+                        {{consumerName}}.Consume({{itemName}});
+                    }
+                }
+                """;
+        }
+
+        return $$"""
+            using var {{sourceName}}={{source.GetEnumeratorExpression}};
+            global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
+            var {{spanName}}={{directSpanExpression}};
+            var {{offsetName}}=0;
+            {{indexDeclaration}}for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++) {
+                var {{itemName}}={{spanName}}[{{offsetName}}];
+                {{indexIncrement}}{{predicateCheck}} {
+                    {{consumerName}}.Consume({{itemName}});
+                    {{offsetName}}++;
+                    break;
+                }
+            }
+            for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++) {
+                var {{itemName}}={{spanName}}[{{offsetName}}];
+                {{consumerName}}.Consume({{itemName}});
+            }
+            """;
+    }
 
     private string? RenderPureOrderingDirectConsume(string consumerName) {
         var directOrderStages= this.OrderStages(0).ToArray();

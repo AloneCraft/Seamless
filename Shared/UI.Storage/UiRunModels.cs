@@ -59,12 +59,19 @@ public sealed record UiFallbackDiagnosticWrite(
     string Project,
     string Method,
     string CounterName,
-    double CounterValue);
+    double CounterValue){
+    public string SourceTab { get; init; } = string.Empty;
+    public string ArgumentKey { get; init; } = string.Empty;
+    public long? ElementCount { get; init; }
+}
 
 public sealed record UiFallbackDiagnosticRecord(
     long RunId,
+    string SourceTab,
     string Project,
     string Method,
+    string ArgumentKey,
+    long? ElementCount,
     string CounterName,
     double CounterValue,
     DateTimeOffset RecordedAt);

@@ -48,6 +48,10 @@ public static class BenchmarkExecutionMode {
 
     public static bool IsComparisonMode => ComparisonElementLimit.Value is > 0;
 
+    public static bool IsElementCountScoped =>
+        ElementCountOverride.Value is > 0
+        ||ReadElementCount() is > 0;
+
     public static void EnableTestMode() => AppContext.SetData(TestModeKey,true);
 
     public static void EnableComparisonMode(int maxElementCount) {
@@ -638,7 +642,8 @@ public class Base<T> where T:notnull {
     }
 
     private static IEnumerable<T> CreateSourceEnumerable(int start,int length,SourceKind kind) {
-        var values=CreateRange(start,length,kind);
+        var key = new SourceCacheKey(kind,length,BenchmarkExecutionMode.ReadRandomSourceSeed());
+        var values=GetOrCreate(key,_ => CreateRange(start,length,kind));
         foreach(var value in values) {
             yield return value;
         }
