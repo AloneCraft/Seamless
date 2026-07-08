@@ -214,7 +214,13 @@ public sealed class ParameterSweepViewModel:INotifyPropertyChanged {
                 ["SegmentSize"]=result.SegmentSize.ToString(CultureInfo.InvariantCulture),
                 ["MemorySize"]=result.MemorySize.ToString(CultureInfo.InvariantCulture),
                 ["MutableFraction"]=result.MutableFraction.ToString("R",CultureInfo.InvariantCulture),
-            });
+            },
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            result.MaxSuccessfulCount,
+            1);
         var status = result.FailureKind==ParameterSweepFailureKind.Completed
             ? UiRunStatus.Completed
             : UiRunStatus.Failed;

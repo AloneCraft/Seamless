@@ -59,7 +59,13 @@ dlldata.c
 BenchmarkDotNet.Artifacts/
 Artifacts/
 test_output.txt
-Work/
+Work/*
+!Work/
+!Work/UI/
+!Work/UI/runs.db
+!Work/UI/runs.db-wal
+!Work/UI/run.db
+!Work/UI/run.db-wal
 
 # .NET Core
 project.lock.json

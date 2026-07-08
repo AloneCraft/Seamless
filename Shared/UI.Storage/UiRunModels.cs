@@ -102,6 +102,41 @@ public sealed record UiBenchmarkItemWrite(
     string Side,
     string PairDiscriminator);
 
+public sealed record UiBenchmarkGridSideWrite(
+    bool IsSelected,
+    UiRunStatus Status,
+    string FailureReason,
+    DateTimeOffset? MeasuredAt,
+    double? MeanNanoseconds,
+    long? AllocatedBytes,
+    long? ElementCount);
+
+public sealed record UiBenchmarkSnapshotItemWrite(
+    string TabName,
+    string TypeName,
+    string BenchmarkName,
+    int? CpuNumber,
+    UiBenchmarkGridSideWrite Left,
+    UiBenchmarkGridSideWrite Right);
+
+public sealed record UiBenchmarkGridSideRecord(
+    bool IsSelected,
+    UiRunStatus Status,
+    string FailureReason,
+    DateTimeOffset? MeasuredAt,
+    double? MeanNanoseconds,
+    long? AllocatedBytes,
+    long? ElementCount);
+
+public sealed record UiBenchmarkSnapshotItemRecord(
+    long RunId,
+    string TabName,
+    string TypeName,
+    string BenchmarkName,
+    int? CpuNumber,
+    UiBenchmarkGridSideRecord Left,
+    UiBenchmarkGridSideRecord Right);
+
 public sealed record UiRunSettingsRecord(
     long RunId,
     string RunRoot,

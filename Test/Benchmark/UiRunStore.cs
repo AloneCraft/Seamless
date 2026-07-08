@@ -11,15 +11,16 @@ public sealed class UiRunStoreTests{
         store.EnsureSchema();
 
         using var connection = Open(path);
-        Assert.Equal(5L,Scalar<long>(connection,"PRAGMA user_version;"));
+        Assert.Equal(6L,Scalar<long>(connection,"PRAGMA user_version;"));
         Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行';"));
         Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ベンチマーク項目';"));
         Assert.Equal(2L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','ベンチマーク項目');"));
         Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
+        Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name IN('項目ID','プロジェクト名','Assembly','Type','型フル名','引数キー','行キー','側','平均ns','誤差ns','標準偏差ns','割当バイト');"));
     }
 
     [Fact]
-    public void EnsureSchema_DeletesOldDatabaseFileWithoutBackup(){
+    public void EnsureSchema_BackupsAndDeletesOldDatabaseFile(){
         var path = CreateDatabasePath();
         using(var connection = Open(path)){
             using var command = connection.CreateCommand();
@@ -36,9 +37,9 @@ public sealed class UiRunStoreTests{
         store.EnsureSchema();
 
         using var loaded = Open(path);
-        Assert.Equal(5L,Scalar<long>(loaded,"PRAGMA user_version;"));
+        Assert.Equal(6L,Scalar<long>(loaded,"PRAGMA user_version;"));
         Assert.Equal(0L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='Legacy';"));
-        Assert.DoesNotContain(Directory.GetFiles(Path.GetDirectoryName(path)!),file => file.EndsWith(".bak",StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(Directory.GetFiles(Path.GetDirectoryName(path)!),file => file.EndsWith(".bak",StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -47,7 +48,7 @@ public sealed class UiRunStoreTests{
         using(var connection = Open(path)){
             using var command = connection.CreateCommand();
             command.CommandText="""
-                PRAGMA user_version=5;
+                PRAGMA user_version=6;
                 CREATE TABLE Apps(AppId INTEGER PRIMARY KEY AUTOINCREMENT,AppKind TEXT NOT NULL);
                 CREATE TABLE Runs(RunId INTEGER PRIMARY KEY AUTOINCREMENT,AppId INTEGER NOT NULL);
                 CREATE VIEW BenchmarkFlatResults AS SELECT 1 AS Value;
@@ -60,7 +61,7 @@ public sealed class UiRunStoreTests{
         store.EnsureSchema();
 
         using var loaded = Open(path);
-        Assert.Equal(5L,Scalar<long>(loaded,"PRAGMA user_version;"));
+        Assert.Equal(6L,Scalar<long>(loaded,"PRAGMA user_version;"));
         Assert.Equal(1L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行';"));
         Assert.Equal(1L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ベンチマーク項目';"));
         Assert.Equal(0L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('Apps','Runs');"));
@@ -84,14 +85,15 @@ public sealed class UiRunStoreTests{
         ]);
 
         using var connection = Open(path);
-        Assert.Equal(2L,Scalar<long>(connection,"SELECT COUNT(*) FROM \"ベンチマーク項目\";"));
-        Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM \"ベンチマーク項目\" WHERE \"選択済み\"=1;"));
-        Assert.Equal("未計測",Scalar<string>(connection,"SELECT \"計測状態\" FROM \"ベンチマーク項目\" WHERE \"プロジェクト名\"='System.Array.FLinq';"));
-        Assert.Equal("int,string",Scalar<string>(connection,"SELECT \"Type\" FROM \"ベンチマーク項目\" LIMIT 1;"));
+        Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM \"ベンチマーク項目\";"));
+        Assert.Equal(1L,Scalar<long>(connection,"SELECT \"左チェック\" FROM \"ベンチマーク項目\";"));
+        Assert.Equal(0L,Scalar<long>(connection,"SELECT \"右チェック\" FROM \"ベンチマーク項目\";"));
+        Assert.Equal("待機",Scalar<string>(connection,"SELECT \"左状態\" FROM \"ベンチマーク項目\";"));
+        Assert.Equal("int,string",Scalar<string>(connection,"SELECT \"型\" FROM \"ベンチマーク項目\" LIMIT 1;"));
     }
 
     [Fact]
-    public void UpsertCaseJobAndMeasurement_UpdatesDetectedItem(){
+    public void SaveBenchmarkSnapshotItems_RoundTripsGridSnapshotRows(){
         var path = CreateDatabasePath();
         var store = new global::Seamless.UI.Storage.UiRunStore(path);
         var run = store.CreateRun(new(
@@ -100,70 +102,63 @@ public sealed class UiRunStoreTests{
             "Fast",
             "System.Array",
             DateTimeOffset.UtcNow));
-        store.SaveDetectedBenchmarkItems(run.RunId,[
-            new("System.Array","System.Array.FLinq","System.Array.FLinq.Benchmark","Sample","Sample.Type","Aggregate",true,64,1,null,"Count=64","Count=64","Aggregate","Left",""),
+        var measuredAt = DateTimeOffset.Parse(
+            "2026-07-08T12:34:56.0000000+09:00",
+            global::System.Globalization.CultureInfo.InvariantCulture);
+
+        store.SaveBenchmarkSnapshotItems(run.RunId,[
+            new(
+                "System.Array",
+                "int",
+                "Any",
+                17,
+                new(true,UiRunStatus.Completed,string.Empty,measuredAt,12.5,1024,4096),
+                new(false,UiRunStatus.Failed,"failed",measuredAt.AddSeconds(1),null,null,4096)),
         ]);
 
-        var testCase = store.UpsertCase(
-            run.RunId,
-            "case",
-            "Aggregate",
-            "System.Array.FLinq",
-            "System.Array.FLinq.Benchmark",
-            "Aggregate",
-            "Sample.Type",
-            new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase){["Count"]="64"},
-            "System.Array",
-            "Count=64",
-            "Left");
-        var job = store.UpsertJob(run.RunId,testCase.CaseId,"job",UiRunStatus.Completed,64,1,7,DateTimeOffset.UtcNow,DateTimeOffset.UtcNow,"",string.Empty);
-        store.SaveMeasurement(job.JobId,[new("MeanNanoseconds",123.5,"ns"),new("AllocatedBytes",1024,"bytes")],DateTimeOffset.UtcNow);
+        var items = store.ListBenchmarkSnapshotItems(run.RunId);
 
-        using var connection = Open(path);
-        Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM \"ベンチマーク項目\";"));
-        Assert.Equal("完了",Scalar<string>(connection,"SELECT \"計測状態\" FROM \"ベンチマーク項目\";"));
-        Assert.Equal(123.5,Scalar<double>(connection,"SELECT \"平均ns\" FROM \"ベンチマーク項目\";"));
-        Assert.Equal(7L,Scalar<long>(connection,"SELECT \"CPU番号\" FROM \"ベンチマーク項目\";"));
+        Assert.Single(items);
+        var completed = items[0];
+        Assert.Equal(run.RunId,completed.RunId);
+        Assert.Equal("System.Array",completed.TabName);
+        Assert.Equal("int",completed.TypeName);
+        Assert.Equal("Any",completed.BenchmarkName);
+        Assert.Equal(17,completed.CpuNumber);
+        Assert.True(completed.Left.IsSelected);
+        Assert.Equal(UiRunStatus.Completed,completed.Left.Status);
+        Assert.Equal(4096,completed.Left.ElementCount);
+        Assert.Equal(measuredAt,completed.Left.MeasuredAt);
+        Assert.Equal(12.5,completed.Left.MeanNanoseconds);
+        Assert.Equal(1024,completed.Left.AllocatedBytes);
+        Assert.False(completed.Right.IsSelected);
+        Assert.Equal(UiRunStatus.Failed,completed.Right.Status);
+        Assert.Equal("failed",completed.Right.FailureReason);
+        Assert.Null(completed.Right.MeanNanoseconds);
     }
 
     [Fact]
-    public void UpsertCaseJobAndMeasurement_UpdatesMatchingDetectedCellIgnoringAxis(){
+    public void SaveBenchmarkSnapshotItems_ReplacesSameGridRow(){
         var path = CreateDatabasePath();
         var store = new global::Seamless.UI.Storage.UiRunStore(path);
         var run = store.CreateRun(new(
             UiRunAppKind.Benchmark,
             "Benchmark",
             "Fast",
-            "System.Collections.Generic.IEnumerable",
+            "System.Array",
             DateTimeOffset.UtcNow));
-        store.SaveDetectedBenchmarkItems(run.RunId,[
-            new("System.Collections.Generic.IEnumerable","System.Collections.Generic.IEnumerable.FLinq","System.Collections.Generic.IEnumerable.FLinq.Benchmark","T","System.Collections.Generic.IEnumerable`1[[System.Int32]]","AggregateBy_keySelector",true,64,1,null,"","", "AggregateBy_keySelector","Left",""),
-            new("System.Collections.Generic.IEnumerable","System.Collections.Generic.IEnumerable.FLinq","System.Collections.Generic.IEnumerable.FLinq.Benchmark","T","System.Collections.Generic.IEnumerable`1[[System.Int32]]","AggregateBy_keySelector",true,4096,1,null,"","", "AggregateBy_keySelector","Left",""),
+        store.SaveBenchmarkSnapshotItems(run.RunId,[
+            new("System.Array","int","Any",0,new(true,UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,1,10,64),new(false,UiRunStatus.Queued,string.Empty,null,null,null,null)),
         ]);
-
-        var testCase = store.UpsertCase(
-            run.RunId,
-            "case",
-            "AggregateBy_keySelector",
-            "System.Collections.Generic.IEnumerable.FLinq",
-            "System.Collections.Generic.IEnumerable.FLinq.Benchmark",
-            "AggregateBy_keySelector",
-            "System.Collections.Generic.IEnumerable`1[[System.Int32]]",
-            new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase),
-            "System.Collections.Generic.IEnumerable",
-            "",
-            "Left",
-            "",
-            4096,
-            1);
-        var job = store.UpsertJob(run.RunId,testCase.CaseId,"job",UiRunStatus.Completed,4096,1,0,DateTimeOffset.UtcNow,DateTimeOffset.UtcNow,"",string.Empty);
-        store.SaveMeasurement(job.JobId,[new("MeanNanoseconds",99.0,"ns")],DateTimeOffset.UtcNow);
+        store.SaveBenchmarkSnapshotItems(run.RunId,[
+            new("System.Array","int","Any",1,new(true,UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,2,20,4096),new(true,UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,3,30,4096)),
+        ]);
 
         using var connection = Open(path);
         Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM \"ベンチマーク項目\";"));
-        Assert.Equal("完了",Scalar<string>(connection,"SELECT \"計測状態\" FROM \"ベンチマーク項目\";"));
-        Assert.Equal(4096L,Scalar<long>(connection,"SELECT \"要素数\" FROM \"ベンチマーク項目\";"));
-        Assert.Equal(99.0,Scalar<double>(connection,"SELECT \"平均ns\" FROM \"ベンチマーク項目\";"));
+        Assert.Equal(1L,Scalar<long>(connection,"SELECT \"CPU番号\" FROM \"ベンチマーク項目\";"));
+        Assert.Equal(2.0,Scalar<double>(connection,"SELECT \"左時間ns\" FROM \"ベンチマーク項目\";"));
+        Assert.Equal(3.0,Scalar<double>(connection,"SELECT \"右時間ns\" FROM \"ベンチマーク項目\";"));
     }
 
     [Fact]
@@ -196,41 +191,22 @@ public sealed class UiRunStoreTests{
             "Fast",
             "System.Array",
             DateTimeOffset.UtcNow));
-        store.SaveDetectedBenchmarkItems(run.RunId,[
-            new("System.Array","System.Array.FLinq","System.Array.FLinq.Benchmark","Sample","Sample.Type","Aggregate",true,64,1,null,"Count=64","Count=64","Aggregate","Left",""),
+        store.SaveBenchmarkSnapshotItems(run.RunId,[
+            new("System.Array","Sample","Aggregate",7,new(true,UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,123.5,1024,64),new(false,UiRunStatus.Queued,string.Empty,null,null,null,null)),
         ]);
-        var testCase = store.UpsertCase(
-            run.RunId,
-            "case",
-            "Aggregate",
-            "System.Array.FLinq",
-            "System.Array.FLinq.Benchmark",
-            "Aggregate",
-            "Sample.Type",
-            new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase){["Count"]="64"},
-            "System.Array",
-            "Count=64",
-            "Left");
-        var job = store.UpsertJob(run.RunId,testCase.CaseId,"job",UiRunStatus.Completed,64,1,7,DateTimeOffset.UtcNow,DateTimeOffset.UtcNow,"",string.Empty);
-        store.SaveMeasurement(job.JobId,[new("MeanNanoseconds",123.5,"ns"),new("AllocatedBytes",1024,"bytes")],DateTimeOffset.UtcNow);
         store.SaveUiViewState(run.RunId,"SelectedSourceTab","SystemArray");
         store.SaveUiViewState(run.RunId,"SelectedResultElementCount","64");
-        store.SaveUiSelection(run.RunId,"BenchmarkCell","System.Array|Aggregate|System.Array.FLinq",true);
 
         Assert.NotEmpty(store.ListRuns());
-        Assert.NotEmpty(store.ListCases(run.RunId));
-        Assert.NotEmpty(store.ListJobs(run.RunId));
+        Assert.NotEmpty(store.ListBenchmarkSnapshotItems(run.RunId));
         Assert.NotEmpty(store.ListMetrics(run.RunId));
-        Assert.NotEmpty(store.ListUiSelections(run.RunId));
         Assert.NotEmpty(store.ListUiViewStates(run.RunId));
 
         store.DeleteAllRecords();
 
         Assert.Empty(store.ListRuns());
-        Assert.Empty(store.ListCases(run.RunId));
-        Assert.Empty(store.ListJobs(run.RunId));
+        Assert.Empty(store.ListBenchmarkSnapshotItems(run.RunId));
         Assert.Empty(store.ListMetrics(run.RunId));
-        Assert.Empty(store.ListUiSelections(run.RunId));
         Assert.Empty(store.ListUiViewStates(run.RunId));
     }
 

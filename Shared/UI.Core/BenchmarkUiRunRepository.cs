@@ -113,6 +113,23 @@ internal sealed class BenchmarkUiRunRepository{
             "UI DB benchmark result save failed.");
     }
 
+    public void QueueSaveBenchmarkSnapshotItems(long? runId,IReadOnlyList<BenchmarkGridSnapshotItem> items){
+        if(runId is not { } value){
+            return;
+        }
+
+        var writes = items.Select(static item => new UiBenchmarkSnapshotItemWrite(
+            item.SourceTabId,
+            item.TypeName,
+            item.BenchmarkName,
+            item.CpuNumber,
+            CreateSideWrite(item.Left),
+            CreateSideWrite(item.Right))).ToArray();
+        this.QueuePersistence(
+            () => this.store.SaveBenchmarkSnapshotItems(value,writes),
+            "UI DB benchmark snapshot item save failed.");
+    }
+
     public void QueueSaveViewState(long? runId,BenchmarkViewStateSnapshot snapshot){
         if(runId is not { } value){
             return;
@@ -152,64 +169,15 @@ internal sealed class BenchmarkUiRunRepository{
             .ToArray();
 
     public IReadOnlyList<BenchmarkResultItem> LoadResultItems(long runId,DateTimeOffset runUpdatedAt,BenchmarkSourceTabDefinition? sourceTab = null){
-        var cases = this.store.ListCases(runId).ToDictionary(static item => item.CaseId);
-        var arguments = cases.Values.ToDictionary(static item => item.CaseId,item => this.store.ListCaseArguments(item.CaseId));
-        var metrics = this.store.ListMetrics(runId)
-            .GroupBy(static item => item.JobId)
-            .ToDictionary(
-                static group => group.Key,
-                static group => group
-                    .GroupBy(static item => item.MetricName,StringComparer.OrdinalIgnoreCase)
-                    .ToDictionary(static item => item.Key,static item => item.Last(),StringComparer.OrdinalIgnoreCase));
+        var snapshots = this.LoadBenchmarkSnapshotItems(runId);
         var items = new List<BenchmarkResultItem>();
-        foreach(var job in this.store.ListJobs(runId)){
-            if(!cases.TryGetValue(job.CaseId,out var testCase)){
+        foreach(var snapshot in snapshots){
+            if(sourceTab is not null&&!string.Equals(snapshot.SourceTabId,sourceTab.Id,StringComparison.OrdinalIgnoreCase)){
                 continue;
             }
-            if(sourceTab is not null){
-                if(!string.IsNullOrWhiteSpace(testCase.SourceTabId)){
-                    if(!string.Equals(testCase.SourceTabId,sourceTab.Id,StringComparison.OrdinalIgnoreCase)){
-                        continue;
-                    }
-                }else if(!sourceTab.ContainsProject(testCase.Project)){
-                    continue;
-                }
-            }
 
-            var caseArguments = arguments.TryGetValue(testCase.CaseId,out var values)
-                ? values
-                : new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
-            var visibleArguments = caseArguments
-                .Where(static item => !string.Equals(item.Key,"ElementCount",StringComparison.OrdinalIgnoreCase)
-                    &&!string.Equals(item.Key,"LoopCount",StringComparison.OrdinalIgnoreCase)
-                    &&!string.Equals(item.Key,"SourceTab",StringComparison.OrdinalIgnoreCase))
-                .OrderBy(static item => item.Key,StringComparer.OrdinalIgnoreCase)
-                .Select(static item => new BenchmarkArgument(item.Key,item.Value))
-                .ToArray();
-            metrics.TryGetValue(job.JobId,out var jobMetrics);
-            var mean = GetNullableMetric(jobMetrics,"MeanNanoseconds");
-            var allocated = GetNullableMetric(jobMetrics,"AllocatedBytes");
-            var status = mean is not null
-                ? "Completed"
-                : job.Status.ToString();
-            items.Add(new BenchmarkResultItem(new BenchmarkStoredResult(
-                testCase.Project,
-                testCase.Method,
-                testCase.TypeFullName,
-                (int)(job.ElementCount??0),
-                (int)(job.LoopCount??BenchmarkWorkloadAxis.DefaultLoopCount),
-                status,
-                mean?.ToString(System.Globalization.CultureInfo.InvariantCulture)??string.Empty,
-                mean,
-                allocated is null ? null : (long)allocated.Value,
-                job.FinishedAt??job.StartedAt??runUpdatedAt,
-                null,
-                string.Empty){
-                ArgumentKey=BenchmarkArgumentFormatting.CreateKey(visibleArguments),
-                Arguments=visibleArguments,
-                SourceTabId=testCase.SourceTabId,
-                AssignedLogicalCpu=job.AssignedLogicalCpu,
-            }));
+            items.Add(snapshot.Left.ResultItem);
+            items.Add(snapshot.Right.ResultItem);
         }
 
         return items;
@@ -288,6 +256,10 @@ internal sealed class BenchmarkUiRunRepository{
         arguments["ElementCount"]=result.ElementCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
         arguments["LoopCount"]=result.LoopCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
         arguments["SourceTab"]=result.SourceTab.ToString();
+        var jobKey = caseKey
+            +"|N="+result.ElementCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            +"|Loop="+result.LoopCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            +"|CPU="+(result.AssignedLogicalCpu is { } cpu ? cpu.ToString(System.Globalization.CultureInfo.InvariantCulture) : "");
         var metrics = new List<UiMetricValueWrite>();
         if(result.MeanNanoseconds is { } meanNanoseconds){
             metrics.Add(new("MeanNanoseconds",meanNanoseconds,"ns"));
@@ -310,7 +282,7 @@ internal sealed class BenchmarkUiRunRepository{
             result.Method,
             typeFullName,
             arguments,
-            caseKey,
+            jobKey,
             isCompletedResult ? UiRunStatus.Completed : UiRunStatus.Failed,
             result.ElementCount,
             result.LoopCount,
@@ -344,7 +316,9 @@ internal sealed class BenchmarkUiRunRepository{
                             continue;
                         }
 
-                        var itemKey = string.Join("|",sourceTab.Id,project,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey);
+                        var elementCount = BenchmarkWorkloadAxis.ResolveElementCount(sourceTab.Tab,axis);
+                        var loopCount = BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab.Tab,axis);
+                        var itemKey = string.Join("|",sourceTab.Id,project,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey,elementCount,loopCount);
                         if(!seen.Add(itemKey)){
                             continue;
                         }
@@ -352,8 +326,6 @@ internal sealed class BenchmarkUiRunRepository{
                         var side = string.Equals(project,sourceTab.LeftProject,StringComparison.OrdinalIgnoreCase)
                             ? "Left"
                             : string.Equals(project,sourceTab.RightProject,StringComparison.OrdinalIgnoreCase) ? "Right" : "";
-                        var elementCount = BenchmarkWorkloadAxis.ResolveElementCount(sourceTab.Tab,axis);
-                        var loopCount = BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab.Tab,axis);
                         items.Add(new(
                             sourceTab.Id,
                             project,
@@ -373,6 +345,31 @@ internal sealed class BenchmarkUiRunRepository{
                     }
                 }
             }
+        }
+
+        return items;
+    }
+
+    public IReadOnlyList<BenchmarkGridSnapshotItem> LoadBenchmarkSnapshotItems(long runId){
+        var records = this.store.ListBenchmarkSnapshotItems(runId);
+        var items = new List<BenchmarkGridSnapshotItem>(records.Count);
+        for(var index = 0;index<records.Count;index++){
+            var record = records[index];
+            var sourceTab = BenchmarkSourceTabs.TryGetById(record.TabName);
+            if(sourceTab is null){
+                this.log("UI DB benchmark snapshot source tab is unknown: "+record.TabName,null);
+                continue;
+            }
+
+            items.Add(new(
+                record.RunId,
+                index,
+                record.TabName,
+                record.TypeName,
+                record.BenchmarkName,
+                record.CpuNumber,
+                CreateSnapshotSide(record,sourceTab.LeftProject,sourceTab.LeftAssemblyName,record.Left),
+                CreateSnapshotSide(record,sourceTab.RightProject,sourceTab.RightAssemblyName,record.Right)));
         }
 
         return items;
@@ -434,6 +431,85 @@ internal sealed class BenchmarkUiRunRepository{
         this.store.SaveUiViewState(runId,"SelectedResultElementCount",snapshot.SelectedResultElementCount);
     }
 
+    private static UiBenchmarkGridSideWrite CreateSideWrite(BenchmarkGridSnapshotSide side) =>
+        new(
+            side.IsSelected,
+            side.Status,
+            side.FailureReason,
+            side.MeasuredAt,
+            side.MeanNanoseconds,
+            side.AllocatedBytes,
+            side.ElementCount);
+
+    private static BenchmarkGridSnapshotSide CreateSnapshotSide(
+        UiBenchmarkSnapshotItemRecord item,
+        string project,
+        string assemblyName,
+        UiBenchmarkGridSideRecord side){
+        var resultItem = CreateResultItem(item,project,assemblyName,side);
+        return new(
+            side.IsSelected,
+            side.Status,
+            side.FailureReason,
+            side.MeasuredAt,
+            side.MeanNanoseconds,
+            side.AllocatedBytes,
+            side.ElementCount,
+            resultItem);
+    }
+
+    private static BenchmarkResultItem CreateResultItem(
+        UiBenchmarkSnapshotItemRecord item,
+        string project,
+        string assemblyName,
+        UiBenchmarkGridSideRecord side){
+        var sourceTab = BenchmarkSourceTabs.TryGetById(item.TabName)?.Tab??BenchmarkSourceTab.SystemArray;
+        return new BenchmarkResultItem(new BenchmarkJob{
+            Project=project,
+            AssemblyName=assemblyName,
+            TypeFullName=item.TypeName,
+            MethodName=item.BenchmarkName,
+            SourceTab=sourceTab,
+            ElementCount=(int)(side.ElementCount??0),
+            LoopCount=BenchmarkWorkloadAxis.DefaultLoopCount,
+            Status=ToJobStatus(side.Status),
+            Mean=side.MeanNanoseconds?.ToString(System.Globalization.CultureInfo.InvariantCulture)??string.Empty,
+            MeanNanoseconds=side.MeanNanoseconds,
+            AllocatedBytes=side.AllocatedBytes,
+            StartedAt=side.MeasuredAt,
+            FinishedAt=side.MeasuredAt,
+            AssignedLogicalCpu=item.CpuNumber,
+            FailureReason=side.FailureReason,
+        });
+    }
+
+    private static JobStatus ToJobStatus(UiRunStatus status) =>
+        status switch{
+            UiRunStatus.Completed => JobStatus.Completed,
+            UiRunStatus.Failed => JobStatus.Failed,
+            UiRunStatus.Running => JobStatus.Running,
+            UiRunStatus.Paused => JobStatus.Paused,
+            _ => JobStatus.Pending,
+        };
+
+    private static IReadOnlyList<BenchmarkArgument> ParseArgumentDisplay(string value){
+        if(string.IsNullOrWhiteSpace(value)){
+            return [];
+        }
+
+        return value
+            .Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries)
+            .Select(static item => {
+                var separator = item.IndexOf('=');
+                if(separator<=0||separator>=item.Length-1){
+                    return new BenchmarkArgument(item,string.Empty);
+                }
+
+                return new BenchmarkArgument(item[..separator],item[(separator+1)..]);
+            })
+            .ToArray();
+    }
+
     // 保存は単一の直列タスクチェーンで実行し、投入順序を保証する。
     // FlushAsync でチェーン末尾を待てるため、テストやシャットダウンで確定的に同期できる。
     private void QueuePersistence(Action action,string failureMessage){
@@ -491,6 +567,26 @@ internal sealed class BenchmarkUiRunRepository{
 internal sealed record BenchmarkViewStateSnapshot(
     string SelectedSourceTab,
     string SelectedResultElementCount);
+
+internal sealed record BenchmarkGridSnapshotSide(
+    bool IsSelected,
+    UiRunStatus Status,
+    string FailureReason,
+    DateTimeOffset? MeasuredAt,
+    double? MeanNanoseconds,
+    long? AllocatedBytes,
+    long? ElementCount,
+    BenchmarkResultItem ResultItem);
+
+internal sealed record BenchmarkGridSnapshotItem(
+    long RunId,
+    int Order,
+    string SourceTabId,
+    string TypeName,
+    string BenchmarkName,
+    int? CpuNumber,
+    BenchmarkGridSnapshotSide Left,
+    BenchmarkGridSnapshotSide Right);
 
 internal sealed record BenchmarkResultPersistenceSnapshot(
     string CaseKey,
