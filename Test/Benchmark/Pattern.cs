@@ -262,11 +262,13 @@ public sealed class RunnerViewModel{
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task LoadedSavedDatabaseRun_RunAgain_RestoresCatalogRowsForFreshRun(){
+    public async Task LoadedSavedDatabaseRun_RunAgain_PreservesSavedCheckState(){
         var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
         var viewModel = fixture.ViewModel;
-        viewModel.SelectAllCommand.Execute(null);
+        SelectProjectGroup(viewModel,"Left");
         var targets = GetSelectedCells(viewModel);
+        var savedSelectedCount = targets.Count;
+        Assert.True(savedSelectedCount>0);
 
         await viewModel.RunCommand.ExecuteAsync(null);
         await WaitUntilAsync(() => targets.All(IsFinalCompleted));
@@ -288,7 +290,8 @@ public sealed class RunnerViewModel{
             fixture.RunService.ObservedRestartFromRequestedElementCount.Count==runCount+1,
             $"Status={viewModel.StatusText} CanRun={viewModel.CanRunBenchmark} Selected={GetSelectedCells(viewModel).Count} Option={viewModel.SelectedRunOption?.DisplayName}");
         Assert.Equal("新規",viewModel.SelectedRunOption?.DisplayName);
-        Assert.True(fixture.RunService.ObservedBenchmarkCounts[^1]>0);
+        Assert.Equal(savedSelectedCount,GetSelectedCells(viewModel).Count);
+        Assert.Equal(savedSelectedCount,fixture.RunService.ObservedBenchmarkCounts[^1]);
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
