@@ -76,6 +76,42 @@ public sealed class RunnerViewModel{
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task Initialize_WithRecoveredPausedRunAndNewSelection_AllowsRunHistorySelection(){
+        var fixture = await ViewModelFixture.CreateAsync(
+            global::UI.BenchmarkSourceTab.SystemArray,
+            store => SeedPausedSelectedRun(store));
+        var viewModel = fixture.ViewModel;
+
+        Assert.Equal(0,viewModel.SelectedRunOption?.UiRunId);
+        Assert.Equal(0,viewModel.SelectedRunOption?.RunNumber);
+        Assert.False(viewModel.IsBenchmarkPaused);
+        Assert.True(viewModel.CanSelectRunHistory);
+        Assert.True(viewModel.CanChangeBenchmarkConditions);
+        Assert.True(viewModel.CanCreateNewGrid);
+    }
+
+    private static void SeedPausedSelectedRun(UiRunStore store){
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var run = store.CreateRun(new(
+            UiRunAppKind.Benchmark,
+            "Recovered",
+            global::UI.BenchmarkExecutionProfile.Test.ToString(),
+            sourceTab.Tab.ToString(),
+            DateTimeOffset.UtcNow));
+        store.SetRunStatus(run.RunId,UiRunStatus.Paused,"Recovered test run.");
+        store.SaveRunSettings(run.RunId,"RecoveredRoot",[4096],1_000_000,[]);
+        store.SaveBenchmarkSnapshotItems(run.RunId,[
+            new(
+                sourceTab.Id,
+                "int",
+                "AggregateBy_keySelector",
+                0,
+                new(true,UiRunStatus.Queued,string.Empty,null,null,null),
+                new(true,UiRunStatus.Queued,string.Empty,null,null,null)),
+        ]);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
     public void SnapshotTableRow_UsesStoredDisplayType(){
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var cases = new Dictionary<string,global::UI.BenchmarkCase>(StringComparer.OrdinalIgnoreCase) {
@@ -254,6 +290,7 @@ public sealed class RunnerViewModel{
             .Where(static row => row.ProjectCells.Any(static cell => cell.HasCase&&cell.IsSelected))
             .ToArray();
         Assert.All(loadedRows,row => Assert.Equal("int",row.BenchmarkTypeText));
+        Assert.All(loadedRows,AssertLoadedRowHasPairMetrics);
 
         Assert.Equal(savedRun.UiRunId,viewModel.SelectedRunOption?.UiRunId);
         Assert.NotEmpty(viewModel.ResultItems);
@@ -673,6 +710,13 @@ public sealed class RunnerViewModel{
         });
     }
 
+    private static void AssertLoadedRowHasPairMetrics(global::UI.BenchmarkTableRow row){
+        Assert.False(string.IsNullOrWhiteSpace(row.LeftTimeText),"Left time was not restored for "+row.RowKey);
+        Assert.False(string.IsNullOrWhiteSpace(row.RightTimeText),"Right time was not restored for "+row.RowKey);
+        Assert.True(row.LeftCell.Metrics.HasMeasuredValue,"Left metrics were not restored for "+row.RowKey);
+        Assert.True(row.RightCell.Metrics.HasMeasuredValue,"Right metrics were not restored for "+row.RowKey);
+    }
+
     private static ConcurrentDictionary<global::UI.BenchmarkProjectCell,byte> TrackRunningIcons(IEnumerable<global::UI.BenchmarkProjectCell> cells){
         var running = new ConcurrentDictionary<global::UI.BenchmarkProjectCell,byte>();
         foreach(var cell in cells){
@@ -811,11 +855,12 @@ public sealed class RunnerViewModel{
         public global::UI.ViewModels.RunnerViewModel ViewModel { get; }
         public FakeRunService RunService { get; }
 
-        public static async Task<ViewModelFixture> CreateAsync(global::UI.BenchmarkSourceTab sourceTab){
+        public static async Task<ViewModelFixture> CreateAsync(global::UI.BenchmarkSourceTab sourceTab,Action<UiRunStore>? configureStore = null){
             var cases = CreateCatalogCases();
             var storePath = Path.Combine(Path.GetTempPath(),"Seamless-Test-Benchmark-UI-"+Guid.NewGuid().ToString("N")+".db");
             var store = new UiRunStore(storePath);
             store.EnsureSchema();
+            configureStore?.Invoke(store);
             var runService = new FakeRunService(cases);
             var viewModel = new global::UI.ViewModels.RunnerViewModel(
                 new FakeCatalogService(cases),

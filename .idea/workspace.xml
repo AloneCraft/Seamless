@@ -2,28 +2,16 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c7260d12-37ac-443f-b541-40f8091022ae" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerServices.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerServices.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/InProcessJobRunner.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/InProcessJobRunner.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/ViewModels/RunnerViewModel.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/ViewModels/RunnerViewModel.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Benchmark/Worker/Program.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Worker/Program.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Scalar.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Scalar.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/ToArray.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/ToArray.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/ToList.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/ToList.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/TraversalSupport.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/TraversalSupport.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.Linq/Linq/LinqCounter.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.Linq/Linq/LinqCounter.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/Common/TestInfrastructure/Base.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/Common/TestInfrastructure/Base.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/Seamless.Linq.Enumerable/Methods1.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/Seamless.Linq.Enumerable/Methods1.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkOrchestrationModels.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkOrchestrationModels.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkOrchestrator.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkOrchestrator.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkResultItem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkResultItem.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkRunSession.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkRunSession.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkUiLogic.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkUiLogic.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkUiRunRepository.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkUiRunRepository.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/UI.Storage/UiRunModels.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Storage/UiRunModels.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/UI.Storage/UiRunStore.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Storage/UiRunStore.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test/Benchmark/UiRunStore.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/UiRunStore.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Work/UI/runs.db" beforeDir="false" afterPath="$PROJECT_DIR$/Work/UI/runs.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/Collections/Collections.projitems" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/Collections/Collections.projitems" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/Persisted.Collections/Persisted.Collections.projitems" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/Persisted.Collections/Persisted.Collections.projitems" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/Scalable.Collections/Scalable.Collections.projitems" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/Scalable.Collections/Scalable.Collections.projitems" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/Scalable.Persisted.Collections/Scalable.Persisted.Collections.projitems" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/Scalable.Persisted.Collections/Scalable.Persisted.Collections.projitems" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/Scalable.Tsavorite.Collections/Scalable.Tsavorite.Collections.projitems" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/Scalable.Tsavorite.Collections/Scalable.Tsavorite.Collections.projitems" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/Seamless.Linq.Enumerable/Seamless.Linq.Enumerable.projitems" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/Seamless.Linq.Enumerable/Seamless.Linq.Enumerable.projitems" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/Tsavorite.Collections/Tsavorite.Collections.projitems" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/Tsavorite.Collections/Tsavorite.Collections.projitems" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/UI.Core.projitems" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/UI.Core.projitems" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Test/Benchmark/Pattern.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/Pattern.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
