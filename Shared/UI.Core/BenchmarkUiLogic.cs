@@ -88,9 +88,7 @@ internal static class BenchmarkStatusImageLogic{
             return BenchmarkStatusImageKind.NoMeasurement;
         }
 
-        return input.IsSelected
-            ? BenchmarkStatusImageKind.Waiting
-            : BenchmarkStatusImageKind.None;
+        return BenchmarkStatusImageKind.Waiting;
     }
 }
 

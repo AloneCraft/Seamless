@@ -795,6 +795,10 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     // 保存Runロードでは、DBの1行を画面グリッド1行としてそのまま復元する。
     // CPU/日時/要素数も現在のCPUリストやカタログに再照合せず、保存値を表示値として反映する。
     public void ApplySnapshotResult(BenchmarkResultItem result,int? cpuNumber,DateTimeOffset? measuredAt){
+        this.ApplySnapshotResult(result,null,cpuNumber,measuredAt);
+    }
+
+    public void ApplySnapshotResult(BenchmarkResultItem result,CpuSelectionItem? cpu,int? cpuNumber,DateTimeOffset? measuredAt){
         var isCompleted = string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase);
         var isFailed = string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase);
         this.ResultCheckText=result.ResultCheckText;
@@ -842,7 +846,11 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             this.ApplyMetrics(ProjectMetrics.Missing);
         }
 
-        this.ApplyCpuNumberDisplay(cpuNumber);
+        if(cpu is not null){
+            this.ApplyCpuDisplay(cpu);
+        }else{
+            this.ApplyCpuNumberDisplay(cpuNumber);
+        }
         this.ApplyMeasurementHighlight(BenchmarkMeasurementHighlightState.None);
         this.RefreshExecutionTooltipText();
         this.RefreshStatusDisplay();
@@ -1418,18 +1426,34 @@ public sealed class BenchmarkTableRow:ObservableObject{
     }
 
     public void ApplySnapshotResult(BenchmarkResultItem result,int? cpuNumber,DateTimeOffset? measuredAt){
-        this.ApplyCpuNumberDisplay(cpuNumber);
+        this.ApplySnapshotResult(result,null,cpuNumber,measuredAt);
+    }
+
+    public void ApplySnapshotResult(BenchmarkResultItem result,CpuSelectionItem? cpu,int? cpuNumber,DateTimeOffset? measuredAt){
+        if(cpu is not null){
+            this.ApplyCpuDisplay(cpu,preserveWhenNull:true);
+        }else{
+            this.ApplyCpuNumberDisplay(cpuNumber);
+        }
         if(this.GetProjectCell(result.Project) is { } cell){
-            cell.ApplySnapshotResult(result,cpuNumber,measuredAt);
+            cell.ApplySnapshotResult(result,cpu,cpuNumber,measuredAt);
             this.SetProjectMetricText(result.Project,FormatTime(cell.Metrics),FormatAllocated(cell.Metrics));
             this.RefreshDisplayedRatios();
         }
     }
 
     public void ApplySnapshotResult(string project,BenchmarkResultItem result,int? cpuNumber,DateTimeOffset? measuredAt){
-        this.ApplyCpuNumberDisplay(cpuNumber);
+        this.ApplySnapshotResult(project,result,null,cpuNumber,measuredAt);
+    }
+
+    public void ApplySnapshotResult(string project,BenchmarkResultItem result,CpuSelectionItem? cpu,int? cpuNumber,DateTimeOffset? measuredAt){
+        if(cpu is not null){
+            this.ApplyCpuDisplay(cpu,preserveWhenNull:true);
+        }else{
+            this.ApplyCpuNumberDisplay(cpuNumber);
+        }
         if(this.GetProjectCell(project) is { } cell){
-            cell.ApplySnapshotResult(result,cpuNumber,measuredAt);
+            cell.ApplySnapshotResult(result,cpu,cpuNumber,measuredAt);
             this.SetProjectMetricText(project,FormatTime(cell.Metrics),FormatAllocated(cell.Metrics));
             this.RefreshDisplayedRatios();
         }
