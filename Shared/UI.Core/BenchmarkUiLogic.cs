@@ -568,8 +568,7 @@ internal static class BenchmarkPairCompletionLogic{
         measurements.Any(result =>
             IsMeasurementForCell(result,cell)
             &&result.ElementCount==elementCount
-            &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-            &&result.MeanNanoseconds is not null);
+            &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase));
 
     public static bool IsMeasurementForCell(BenchmarkElementMeasurement result,BenchmarkTabProgressCell cell) =>
         string.Equals(result.Project,cell.Project,StringComparison.OrdinalIgnoreCase)
@@ -617,7 +616,20 @@ internal static class BenchmarkPairCompletionLogic{
         string.IsNullOrWhiteSpace(right)
             ? true
             : !string.IsNullOrWhiteSpace(left)
-                &&string.Equals(left,right,StringComparison.OrdinalIgnoreCase);
+                &&(string.Equals(left,right,StringComparison.OrdinalIgnoreCase)
+                    ||string.Equals(ShortTypeName(left),right,StringComparison.OrdinalIgnoreCase)
+                    ||string.Equals(left,ShortTypeName(right),StringComparison.OrdinalIgnoreCase));
+
+    private static string ShortTypeName(string typeFullName) {
+        if(string.IsNullOrWhiteSpace(typeFullName)) {
+            return string.Empty;
+        }
+
+        var index = typeFullName.LastIndexOf('.');
+        return index<0||index==typeFullName.Length-1
+            ? typeFullName
+            : typeFullName[(index+1)..];
+    }
 }
 
 internal static class BenchmarkTabProgressLogic{

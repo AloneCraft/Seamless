@@ -359,6 +359,7 @@ internal sealed class BenchmarkOrchestrator(
             job.AllocatedBytes=result.AllocatedBytes;
             job.RandomSeed=result.RandomSeed;
             job.ResultDigest=result.ResultDigest;
+            job.DiagnosticCounters=result.DiagnosticCounters.ToList();
             job.ExitCode=result.ExitCode;
             job.ArtifactFolder=result.ArtifactFolder;
             if(job.Status==JobStatus.Failed) {

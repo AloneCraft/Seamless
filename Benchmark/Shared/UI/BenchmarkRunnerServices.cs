@@ -565,16 +565,19 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
             var type = assembly.GetType(benchmark.TypeFullName,throwOnError:true,ignoreCase:false)
                 ??throw new InvalidOperationException($"Benchmark type was not found: {benchmark.TypeFullName}");
             var method = ResolveBenchmarkMethod(type,benchmark.MethodName);
-            instance=method.IsStatic ? null : Activator.CreateInstance(type);
             var randomSeed = CreateRandomSourceSeed(runRoot,job.SourceTab,benchmark.MethodName,job.ArgumentKey,job.ElementCount,loopCount);
             using var elementScope = BeginElementCountScope(assembly,job.ElementCount,"1");
             using var randomSourceScope = BeginRandomSourceSeedScope(assembly,randomSeed);
+            instance=method.IsStatic ? null : Activator.CreateInstance(type);
+            var counter = new global::Seamless.Linq.LinqCounter();
             var arguments = BenchmarkArgumentFormatting.ToObjects(benchmark.Arguments);
             var resultDigest = CaptureBenchmarkResultDigest(type,benchmark.MethodName,arguments);
             var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
             var stopwatch = Stopwatch.StartNew();
-            for(var index = 0;index<loopCount;index++) {
-                method.Invoke(instance,arguments);
+            using(var counterScope = global::Seamless.Linq.LinqCounterScope.Start(counter)) {
+                for(var index = 0;index<loopCount;index++) {
+                    method.Invoke(instance,arguments);
+                }
             }
             stopwatch.Stop();
             var allocatedAfter = GC.GetAllocatedBytesForCurrentThread();
@@ -605,7 +608,8 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
                 benchmark.ArgumentKey,
                 benchmark.Arguments,
                 loopCount,
-                job.RunItemIndex);
+                job.RunItemIndex,
+                CreateDiagnosticCounters(counter));
         } catch(Exception ex) when(ex is not OperationCanceledException) {
             var actual = ex is TargetInvocationException { InnerException: { } inner } ? inner : ex;
             WriteInProcessLog(logPath,actual.ToString(),Encoding.UTF8);
@@ -637,6 +641,27 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
             }
         }
     }
+
+    private static IReadOnlyList<BenchmarkDiagnosticCounter> CreateDiagnosticCounters(global::Seamless.Linq.LinqCounter counter) => [
+        new("PhysicalMoveNext",counter.PhysicalMoveNext),
+        new("LogicalOperations",counter.LogicalOperations),
+        new("LogicalWhere",counter.LogicalWhere),
+        new("LogicalSelect",counter.LogicalSelect),
+        new("HashBuild",counter.HashBuild),
+        new("HashProbe",counter.HashProbe),
+        new("BufferAdd",counter.BufferAdd),
+        new("TryGetNonEnumeratedCount",counter.TryGetNonEnumeratedCount),
+        new("LogicalDelegate",counter.LogicalDelegate),
+        new("PhysicalDelegate",counter.PhysicalDelegate),
+        new("EnumerableFallback",counter.EnumerableFallback),
+        new("DirectSpanUsed",counter.DirectSpanUsed),
+        new("TryGetSpanCalled",counter.TryGetSpanCalled),
+        new("TryGetSpanSucceeded",counter.TryGetSpanSucceeded),
+        new("TryGetSpanFailed",counter.TryGetSpanFailed),
+        new("EnumerationLoopUsed",counter.EnumerationLoopUsed),
+        new("FastCopyUsed",counter.FastCopyUsed),
+        new("HashCapacityHintUsed",counter.HashCapacityHintUsed),
+    ];
 
     private static void WriteInProcessLog(string logPath,string text,Encoding encoding) {
         try {

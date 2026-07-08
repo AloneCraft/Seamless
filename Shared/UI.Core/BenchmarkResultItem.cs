@@ -53,6 +53,7 @@ public sealed class BenchmarkResultItem{
         this.RandomSeed=job.RandomSeed;
         this.ResultDigest=job.ResultDigest;
         this.ResultCheckText=job.ResultCheckText;
+        this.DiagnosticCounters=job.DiagnosticCounters.ToArray();
         this.ArtifactFolder=job.ArtifactFolder;
         this.ExitCode=job.ExitCode;
         this.AssignedLogicalCpu=job.AssignedLogicalCpu;
@@ -89,6 +90,7 @@ public sealed class BenchmarkResultItem{
         this.RandomSeed=null;
         this.ResultDigest=string.Empty;
         this.ResultCheckText=string.Empty;
+        this.DiagnosticCounters=[];
         this.ArtifactFolder=string.Empty;
         this.ExitCode=metrics.HasMeasuredValue?0:null;
         this.AssignedLogicalCpu=null;
@@ -132,6 +134,7 @@ public sealed class BenchmarkResultItem{
         this.RandomSeed=null;
         this.ResultDigest=string.Empty;
         this.ResultCheckText=string.Empty;
+        this.DiagnosticCounters=[];
         this.ArtifactFolder=string.Empty;
         this.ExitCode=metrics.HasMeasuredValue?0:null;
         this.AssignedLogicalCpu=null;
@@ -159,6 +162,7 @@ public sealed class BenchmarkResultItem{
         this.RandomSeed=null;
         this.ResultDigest=string.Empty;
         this.ResultCheckText=string.Empty;
+        this.DiagnosticCounters=[];
         this.ArtifactFolder=string.Empty;
         this.ExitCode=1;
         this.AssignedLogicalCpu=null;
@@ -186,6 +190,7 @@ public sealed class BenchmarkResultItem{
     public int? RandomSeed { get; }
     public string ResultDigest { get; }
     public string ResultCheckText { get; set; }
+    public IReadOnlyList<BenchmarkDiagnosticCounter> DiagnosticCounters { get; }
     public string ResultSeedText => this.RandomSeed?.ToString(CultureInfo.InvariantCulture)??string.Empty;
     public string ArtifactFolder { get; }
     public int? ExitCode { get; }

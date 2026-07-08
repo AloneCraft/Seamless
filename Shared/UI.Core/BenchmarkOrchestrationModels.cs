@@ -96,6 +96,7 @@ public sealed class BenchmarkJob {
     public int? RandomSeed { get; set; }
     public string ResultDigest { get; set; } = string.Empty;
     public string ResultCheckText { get; set; } = string.Empty;
+    public List<BenchmarkDiagnosticCounter> DiagnosticCounters { get; set; } = [];
     public int? ExitCode { get; set; }
     public string ArtifactFolder { get; set; } = string.Empty;
     public string FailureReason { get; set; } = string.Empty;
@@ -186,6 +187,10 @@ internal sealed record BenchmarkRunRequest(
 
 public sealed record BenchmarkRunExecutionOptions(bool UseInfiniteTestRunner = false);
 
+public sealed record BenchmarkDiagnosticCounter(
+    string CounterName,
+    double CounterValue);
+
 public sealed record BenchmarkJobRunResult(
     string Project,
     string Method,
@@ -207,8 +212,10 @@ public sealed record BenchmarkJobRunResult(
     string ArgumentKey = "",
     IReadOnlyList<BenchmarkArgument>? ArgumentValues = null,
     int LoopCount = 0,
-    int RunItemIndex = -1){
+    int RunItemIndex = -1,
+    IReadOnlyList<BenchmarkDiagnosticCounter>? DiagnosticCounterValues = null){
     public IReadOnlyList<BenchmarkArgument> Arguments { get; } = ArgumentValues??[];
+    public IReadOnlyList<BenchmarkDiagnosticCounter> DiagnosticCounters { get; } = DiagnosticCounterValues??[];
 }
 
 public interface IBenchmarkJobRunner {

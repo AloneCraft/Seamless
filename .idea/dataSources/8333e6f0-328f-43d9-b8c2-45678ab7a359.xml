@@ -568,7 +568,7 @@
     <routine id="213" parent="1" name="padr"/>
     <schema id="214" parent="1" name="main">
       <Current>1</Current>
-      <LastIntrospectionLocalTimestamp>2026-07-08.06:40:38</LastIntrospectionLocalTimestamp>
+      <LastIntrospectionLocalTimestamp>2026-07-08.13:05:48</LastIntrospectionLocalTimestamp>
     </schema>
     <argument id="215" parent="14">
       <ArgumentDirection>R</ArgumentDirection>
@@ -1814,213 +1814,273 @@
     </table>
     <table id="629" parent="214" name="ベンチマーク項目"/>
     <table id="630" parent="214" name="実行"/>
-    <column id="631" parent="627" name="type">
+    <table id="631" parent="214" name="診断カウンター"/>
+    <column id="632" parent="627" name="type">
       <Position>1</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="632" parent="627" name="name">
+    <column id="633" parent="627" name="name">
       <Position>2</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="633" parent="627" name="tbl_name">
+    <column id="634" parent="627" name="tbl_name">
       <Position>3</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="634" parent="627" name="rootpage">
+    <column id="635" parent="627" name="rootpage">
       <Position>4</Position>
       <StoredType>INT|0s</StoredType>
     </column>
-    <column id="635" parent="627" name="sql">
+    <column id="636" parent="627" name="sql">
       <Position>5</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="636" parent="628" name="name">
+    <column id="637" parent="628" name="name">
       <Position>1</Position>
     </column>
-    <column id="637" parent="628" name="seq">
+    <column id="638" parent="628" name="seq">
       <Position>2</Position>
     </column>
-    <column id="638" parent="629" name="実行ID">
+    <column id="639" parent="629" name="実行ID">
       <NotNull>1</NotNull>
       <Position>1</Position>
       <StoredType>INTEGER|0s</StoredType>
     </column>
-    <column id="639" parent="629" name="タブ名">
+    <column id="640" parent="629" name="タブ名">
       <NotNull>1</NotNull>
       <Position>2</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="640" parent="629" name="型">
+    <column id="641" parent="629" name="型">
       <NotNull>1</NotNull>
       <Position>3</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="641" parent="629" name="ベンチマーク">
+    <column id="642" parent="629" name="ベンチマーク">
       <NotNull>1</NotNull>
       <Position>4</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="642" parent="629" name="CPU番号">
+    <column id="643" parent="629" name="CPU番号">
       <Position>5</Position>
       <StoredType>INTEGER|0s</StoredType>
     </column>
-    <column id="643" parent="629" name="左チェック">
+    <column id="644" parent="629" name="左チェック">
       <DefaultExpression>0</DefaultExpression>
       <NotNull>1</NotNull>
       <Position>6</Position>
       <StoredType>INTEGER|0s</StoredType>
     </column>
-    <column id="644" parent="629" name="左状態">
+    <column id="645" parent="629" name="左状態">
       <NotNull>1</NotNull>
       <Position>7</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="645" parent="629" name="左失敗理由">
+    <column id="646" parent="629" name="左失敗理由">
       <DefaultExpression>&apos;&apos;</DefaultExpression>
       <NotNull>1</NotNull>
       <Position>8</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="646" parent="629" name="左日時">
+    <column id="647" parent="629" name="左日時">
       <Position>9</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="647" parent="629" name="左時間ns">
+    <column id="648" parent="629" name="左時間ns">
       <Position>10</Position>
       <StoredType>REAL|0s</StoredType>
     </column>
-    <column id="648" parent="629" name="左メモリバイト">
+    <column id="649" parent="629" name="左メモリバイト">
       <Position>11</Position>
       <StoredType>INTEGER|0s</StoredType>
     </column>
-    <column id="649" parent="629" name="右チェック">
+    <column id="650" parent="629" name="右チェック">
       <DefaultExpression>0</DefaultExpression>
       <NotNull>1</NotNull>
       <Position>12</Position>
       <StoredType>INTEGER|0s</StoredType>
     </column>
-    <column id="650" parent="629" name="右状態">
+    <column id="651" parent="629" name="右状態">
       <NotNull>1</NotNull>
       <Position>13</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="651" parent="629" name="右失敗理由">
+    <column id="652" parent="629" name="右失敗理由">
       <DefaultExpression>&apos;&apos;</DefaultExpression>
       <NotNull>1</NotNull>
       <Position>14</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="652" parent="629" name="右日時">
+    <column id="653" parent="629" name="右日時">
       <Position>15</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="653" parent="629" name="右時間ns">
+    <column id="654" parent="629" name="右時間ns">
       <Position>16</Position>
       <StoredType>REAL|0s</StoredType>
     </column>
-    <column id="654" parent="629" name="右メモリバイト">
+    <column id="655" parent="629" name="右メモリバイト">
       <Position>17</Position>
       <StoredType>INTEGER|0s</StoredType>
     </column>
-    <foreign-key id="655" parent="629">
+    <foreign-key id="656" parent="629">
       <ColNames>実行ID</ColNames>
       <OnDelete>cascade</OnDelete>
       <RefColNames>実行ID</RefColNames>
       <RefTableName>実行</RefTableName>
     </foreign-key>
-    <index id="656" parent="629" name="UX_ベンチマーク項目_ベンチマーク">
+    <index id="657" parent="629" name="UX_ベンチマーク項目_ベンチマーク">
       <ColNames>実行ID
 タブ名
 型
 ベンチマーク</ColNames>
       <Unique>1</Unique>
     </index>
-    <index id="657" parent="629" name="IX_ベンチマーク項目_実行ID">
+    <index id="658" parent="629" name="UX_ベンチマーク項目_行">
+      <ColNames>実行ID
+タブ名
+型
+ベンチマーク</ColNames>
+      <Unique>1</Unique>
+    </index>
+    <index id="659" parent="629" name="IX_ベンチマーク項目_実行ID">
       <ColNames>実行ID</ColNames>
     </index>
-    <column id="658" parent="630" name="実行ID">
+    <column id="660" parent="630" name="実行ID">
       <AutoIncrement>1</AutoIncrement>
       <Position>1</Position>
       <StoredType>INTEGER|0s</StoredType>
     </column>
-    <column id="659" parent="630" name="アプリ種別">
+    <column id="661" parent="630" name="アプリ種別">
       <NotNull>1</NotNull>
       <Position>2</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="660" parent="630" name="表示名">
+    <column id="662" parent="630" name="表示名">
       <NotNull>1</NotNull>
       <Position>3</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="661" parent="630" name="状態">
+    <column id="663" parent="630" name="状態">
       <NotNull>1</NotNull>
       <Position>4</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="662" parent="630" name="実行プロファイル">
+    <column id="664" parent="630" name="実行プロファイル">
       <NotNull>1</NotNull>
       <Position>5</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="663" parent="630" name="タブ名">
+    <column id="665" parent="630" name="タブ名">
       <NotNull>1</NotNull>
       <Position>6</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="664" parent="630" name="作成日時">
+    <column id="666" parent="630" name="作成日時">
       <NotNull>1</NotNull>
       <Position>7</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="665" parent="630" name="更新日時">
+    <column id="667" parent="630" name="更新日時">
       <NotNull>1</NotNull>
       <Position>8</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="666" parent="630" name="実行ルート">
+    <column id="668" parent="630" name="実行ルート">
       <DefaultExpression>&apos;&apos;</DefaultExpression>
       <NotNull>1</NotNull>
       <Position>9</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="667" parent="630" name="要素数一覧">
+    <column id="669" parent="630" name="要素数一覧">
       <DefaultExpression>&apos;&apos;</DefaultExpression>
       <NotNull>1</NotNull>
       <Position>10</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="668" parent="630" name="Adaptive閾値ns">
+    <column id="670" parent="630" name="Adaptive閾値ns">
       <DefaultExpression>0</DefaultExpression>
       <NotNull>1</NotNull>
       <Position>11</Position>
       <StoredType>REAL|0s</StoredType>
     </column>
-    <column id="669" parent="630" name="論理CPU一覧">
+    <column id="671" parent="630" name="論理CPU一覧">
       <DefaultExpression>&apos;&apos;</DefaultExpression>
       <NotNull>1</NotNull>
       <Position>12</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="670" parent="630" name="選択タブ">
+    <column id="672" parent="630" name="選択タブ">
       <DefaultExpression>&apos;&apos;</DefaultExpression>
       <NotNull>1</NotNull>
       <Position>13</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <column id="671" parent="630" name="選択要素数">
+    <column id="673" parent="630" name="選択要素数">
       <DefaultExpression>&apos;&apos;</DefaultExpression>
       <NotNull>1</NotNull>
       <Position>14</Position>
       <StoredType>TEXT|0s</StoredType>
     </column>
-    <index id="672" parent="630" name="IX_実行_アプリ種別_更新日時">
+    <index id="674" parent="630" name="IX_実行_アプリ種別_更新日時">
       <ColNames>アプリ種別
 更新日時</ColNames>
     </index>
-    <key id="673" parent="630">
+    <key id="675" parent="630">
       <ColNames>実行ID</ColNames>
       <Primary>1</Primary>
     </key>
+    <column id="676" parent="631" name="実行ID">
+      <NotNull>1</NotNull>
+      <Position>1</Position>
+      <StoredType>INTEGER|0s</StoredType>
+    </column>
+    <column id="677" parent="631" name="タブ名">
+      <DefaultExpression>&apos;&apos;</DefaultExpression>
+      <NotNull>1</NotNull>
+      <Position>2</Position>
+      <StoredType>TEXT|0s</StoredType>
+    </column>
+    <column id="678" parent="631" name="プロジェクト名">
+      <NotNull>1</NotNull>
+      <Position>3</Position>
+      <StoredType>TEXT|0s</StoredType>
+    </column>
+    <column id="679" parent="631" name="ベンチマーク">
+      <NotNull>1</NotNull>
+      <Position>4</Position>
+      <StoredType>TEXT|0s</StoredType>
+    </column>
+    <column id="680" parent="631" name="引数キー">
+      <DefaultExpression>&apos;&apos;</DefaultExpression>
+      <NotNull>1</NotNull>
+      <Position>5</Position>
+      <StoredType>TEXT|0s</StoredType>
+    </column>
+    <column id="681" parent="631" name="要素数">
+      <Position>6</Position>
+      <StoredType>INTEGER|0s</StoredType>
+    </column>
+    <column id="682" parent="631" name="カウンター名">
+      <NotNull>1</NotNull>
+      <Position>7</Position>
+      <StoredType>TEXT|0s</StoredType>
+    </column>
+    <column id="683" parent="631" name="カウンター値">
+      <NotNull>1</NotNull>
+      <Position>8</Position>
+      <StoredType>REAL|0s</StoredType>
+    </column>
+    <column id="684" parent="631" name="記録日時">
+      <NotNull>1</NotNull>
+      <Position>9</Position>
+      <StoredType>TEXT|0s</StoredType>
+    </column>
+    <foreign-key id="685" parent="631">
+      <ColNames>実行ID</ColNames>
+      <OnDelete>cascade</OnDelete>
+      <RefColNames>実行ID</RefColNames>
+      <RefTableName>実行</RefTableName>
+    </foreign-key>
   </database-model>
 </dataSource>

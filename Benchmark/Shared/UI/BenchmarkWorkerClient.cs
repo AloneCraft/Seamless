@@ -248,7 +248,8 @@ public sealed class BenchmarkFastWorkerSession:IAsyncDisposable {
                 benchmark.ArgumentKey,
                 benchmark.Arguments,
                 loopCount,
-                job.RunItemIndex);
+                job.RunItemIndex,
+                result.DiagnosticCounters);
         } catch {
             this.pending.TryRemove(taskId,out _);
             throw;
@@ -413,7 +414,8 @@ public sealed class BenchmarkWorkerSession:IAsyncDisposable {
                 result.ResultDigest,
                 benchmark.ArgumentKey,
                 benchmark.Arguments,
-                loopCount);
+                loopCount,
+                DiagnosticCounterValues: result.DiagnosticCounters);
         } catch(OperationCanceledException) {
             this.Kill();
             throw;
@@ -510,4 +512,5 @@ internal sealed record WorkerResultMessage(
     string ArtifactFolder,
     string Log,
     int? RandomSeed = null,
-    string ResultDigest = "");
+    string ResultDigest = "",
+    IReadOnlyList<BenchmarkDiagnosticCounter>? DiagnosticCounters = null);

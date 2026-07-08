@@ -4,17 +4,32 @@ namespace UI;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
 internal sealed class BenchmarkRunSession{
+    private readonly object gate = new();
     private readonly Dictionary<BenchmarkRunResultKey,BenchmarkResultItem> results = [];
 
-    public bool HasAnyResults => this.results.Count>0;
+    public bool HasAnyResults {
+        get {
+            lock(this.gate) {
+                return this.results.Count>0;
+            }
+        }
+    }
 
-    public int Count => this.results.Count;
+    public int Count {
+        get {
+            lock(this.gate) {
+                return this.results.Count;
+            }
+        }
+    }
 
     /// <summary>件数チェック専用。GetResults はソート+配列化を伴うため、存在確認に使わないこと。</summary>
     public bool HasResults(BenchmarkSourceTab sourceTab){
-        foreach(var key in this.results.Keys){
-            if(key.SourceTab==sourceTab){
-                return true;
+        lock(this.gate) {
+            foreach(var key in this.results.Keys){
+                if(key.SourceTab==sourceTab){
+                    return true;
+                }
             }
         }
 
@@ -22,42 +37,56 @@ internal sealed class BenchmarkRunSession{
     }
 
     public void UpsertResult(BenchmarkResultItem result){
-        this.results[BenchmarkRunResultKey.From(result)]=result;
+        lock(this.gate) {
+            this.results[BenchmarkRunResultKey.From(result)]=result;
+        }
     }
 
     public void Clear(){
-        this.results.Clear();
+        lock(this.gate) {
+            this.results.Clear();
+        }
     }
 
     public void ClearSourceTab(BenchmarkSourceTab sourceTab){
-        foreach(var key in this.results.Keys.Where(key => key.SourceTab==sourceTab).ToArray()){
-            this.results.Remove(key);
+        lock(this.gate) {
+            foreach(var key in this.results.Keys.Where(key => key.SourceTab==sourceTab).ToArray()){
+                this.results.Remove(key);
+            }
         }
     }
 
     public void ClearRunningResults(){
-        foreach(var key in this.results
-            .Where(static item => string.Equals(item.Value.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase))
-            .Select(static item => item.Key)
-            .ToArray()){
-            this.results.Remove(key);
+        lock(this.gate) {
+            foreach(var key in this.results
+                .Where(static item => string.Equals(item.Value.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase))
+                .Select(static item => item.Key)
+                .ToArray()){
+                this.results.Remove(key);
+            }
         }
     }
 
-    public IReadOnlyList<BenchmarkResultItem> GetResults(BenchmarkSourceTab sourceTab) =>
-        this.results
-            .Where(item => item.Key.SourceTab==sourceTab)
-            .Select(static item => item.Value)
-            .OrderBy(static item => item.StartedAt)
-            .ThenBy(static item => item.AxisCount)
-            .ToArray();
+    public IReadOnlyList<BenchmarkResultItem> GetResults(BenchmarkSourceTab sourceTab){
+        lock(this.gate) {
+            return this.results
+                .Where(item => item.Key.SourceTab==sourceTab)
+                .Select(static item => item.Value)
+                .OrderBy(static item => item.StartedAt)
+                .ThenBy(static item => item.AxisCount)
+                .ToArray();
+        }
+    }
 
-    public IReadOnlyList<BenchmarkResultItem> GetAllResults() =>
-        this.results.Values
-            .OrderBy(static item => item.SourceTab)
-            .ThenBy(static item => item.StartedAt)
-            .ThenBy(static item => item.AxisCount)
-            .ToArray();
+    public IReadOnlyList<BenchmarkResultItem> GetAllResults(){
+        lock(this.gate) {
+            return this.results.Values
+                .OrderBy(static item => item.SourceTab)
+                .ThenBy(static item => item.StartedAt)
+                .ThenBy(static item => item.AxisCount)
+                .ToArray();
+        }
+    }
 
     public IReadOnlyList<int> GetElementCounts(BenchmarkSourceTab sourceTab) =>
         this.GetResults(sourceTab)
@@ -67,8 +96,11 @@ internal sealed class BenchmarkRunSession{
             .Order()
             .ToArray();
 
-    public int CountCompleted() =>
-        this.results.Values.Count(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase));
+    public int CountCompleted(){
+        lock(this.gate) {
+            return this.results.Values.Count(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase));
+        }
+    }
 
     public ProgressState ToProgressState(
         string runRoot,

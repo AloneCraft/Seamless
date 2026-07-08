@@ -65,6 +65,7 @@ public class ToList(int 番号, Enumerable source, string resultType) : Buffered
         return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
             {{destVar}}=new({{spanName}}.Length);
             global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({{destVar}},{{spanName}}.Length);
+            global::Seamless.Linq.LinqCounterScope.Counter.IncrementFastCopyUsed();
             {{spanName}}.CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{destVar}}));
             """);
     }
@@ -85,6 +86,7 @@ public class ToList(int 番号, Enumerable source, string resultType) : Buffered
                 {{destVar}}=new({{count}});
                 global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({{destVar}},{{count}});
                 var {{span}}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{destVar}});
+                global::Seamless.Linq.LinqCounterScope.Counter.IncrementFastCopyUsed();
                 for(var {{index}}=0;{{index}}<{{span}}.Length;{{index}}++) {
                     {{span}}[{{index}}]={{start}} + {{index}};
                 }
@@ -98,6 +100,9 @@ public class ToList(int 番号, Enumerable source, string resultType) : Buffered
             source.TryGetSpan(out var __sourceSpan);
             var __result=new global::System.Collections.Generic.List<{{source.ElementType}}>(__sourceSpan.Length);
             global::System.Runtime.InteropServices.CollectionsMarshal.SetCount(__result,__sourceSpan.Length);
+            global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanCalled();
+            global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanSucceeded();
+            global::Seamless.Linq.LinqCounterScope.Counter.IncrementFastCopyUsed();
             __sourceSpan.CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(__result));
             return __result;
         }
@@ -117,14 +122,22 @@ public class ToList(int 番号, Enumerable source, string resultType) : Buffered
                         __destination[__i++]=enumerator.Current;
                     }
                 }
+                else {
+                    global::Seamless.Linq.LinqCounterScope.Counter.IncrementFastCopyUsed();
+                }
                 return __result;
             }
+            global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanCalled();
             if(enumerator.TryGetSpan(out var __sourceSpan)) {
+                global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanSucceeded();
                 __result=new global::System.Collections.Generic.List<{{source.ElementType}}>(__sourceSpan.Length);
                 global::System.Runtime.InteropServices.CollectionsMarshal.SetCount(__result,__sourceSpan.Length);
+                global::Seamless.Linq.LinqCounterScope.Counter.IncrementFastCopyUsed();
                 __sourceSpan.CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(__result));
                 return __result;
             }
+            global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanFailed();
+            global::Seamless.Linq.LinqCounterScope.Counter.IncrementEnumerationLoopUsed();
             __result=new global::System.Collections.Generic.List<{{source.ElementType}}>();
             while(enumerator.MoveNext()) __result.Add(enumerator.Current);
             return __result;

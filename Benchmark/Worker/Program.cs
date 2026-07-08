@@ -229,22 +229,26 @@ static WorkerResultMessage RunFastBenchmark(
         ApplyThreadAffinity(logicalCpu);
         var benchmarkType = ResolveBenchmarkType(task.AssemblyName,task.TypeFullName);
         var method = ResolveBenchmarkMethod(benchmarkType,task.MethodName);
-        instance=method.IsStatic ? null : Activator.CreateInstance(benchmarkType);
         var randomSeed = CreateRandomSourceSeed(task);
         var loopCount = Math.Max(1,task.LoopCount);
         using var elementScope = BeginElementCountScope(benchmarkType.Assembly,task.ElementCount,task.ElementScale);
         using var randomSourceScope = BeginRandomSourceSeedScope(benchmarkType.Assembly,randomSeed);
+        instance=method.IsStatic ? null : Activator.CreateInstance(benchmarkType);
         var argumentValues = BenchmarkArgumentFormatting.ToObjects(task.Arguments);
         var resultDigest = CaptureBenchmarkResultDigest(benchmarkType,task.MethodName,argumentValues);
+        var counter = new global::Seamless.Linq.LinqCounter();
         var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
         var stopwatch = Stopwatch.StartNew();
-        for(var index=0;index<loopCount;index++){
-            method.Invoke(instance,argumentValues);
+        using(var counterScope = global::Seamless.Linq.LinqCounterScope.Start(counter)) {
+            for(var index=0;index<loopCount;index++){
+                method.Invoke(instance,argumentValues);
+            }
         }
         stopwatch.Stop();
         var allocatedAfter = GC.GetAllocatedBytesForCurrentThread();
         var meanNanoseconds = stopwatch.Elapsed.TotalMilliseconds*1_000_000d;
         var allocatedBytes = Math.Max(0,allocatedAfter-allocatedBefore);
+        var diagnosticCounters = CreateDiagnosticCounters(counter);
         File.WriteAllText(
             logPath,
             "Fast worker direct benchmark completed. CPU="
@@ -266,7 +270,8 @@ static WorkerResultMessage RunFastBenchmark(
             task.ArtifactFolder,
             string.Empty,
             randomSeed,
-            resultDigest);
+            resultDigest,
+            diagnosticCounters);
     }catch(Exception ex) when(ex is not OperationCanceledException){
         var actual = ex is TargetInvocationException { InnerException: { } inner } ? inner : ex;
         Directory.CreateDirectory(task.ArtifactFolder);
@@ -393,6 +398,27 @@ static string FormatNanoseconds(double? value){
         ? number.ToString("N3",CultureInfo.InvariantCulture)+" ns"
         : string.Empty;
 }
+
+static IReadOnlyList<BenchmarkDiagnosticCounter> CreateDiagnosticCounters(global::Seamless.Linq.LinqCounter counter) => [
+    new("PhysicalMoveNext",counter.PhysicalMoveNext),
+    new("LogicalOperations",counter.LogicalOperations),
+    new("LogicalWhere",counter.LogicalWhere),
+    new("LogicalSelect",counter.LogicalSelect),
+    new("HashBuild",counter.HashBuild),
+    new("HashProbe",counter.HashProbe),
+    new("BufferAdd",counter.BufferAdd),
+    new("TryGetNonEnumeratedCount",counter.TryGetNonEnumeratedCount),
+    new("LogicalDelegate",counter.LogicalDelegate),
+    new("PhysicalDelegate",counter.PhysicalDelegate),
+    new("EnumerableFallback",counter.EnumerableFallback),
+    new("DirectSpanUsed",counter.DirectSpanUsed),
+    new("TryGetSpanCalled",counter.TryGetSpanCalled),
+    new("TryGetSpanSucceeded",counter.TryGetSpanSucceeded),
+    new("TryGetSpanFailed",counter.TryGetSpanFailed),
+    new("EnumerationLoopUsed",counter.EnumerationLoopUsed),
+    new("FastCopyUsed",counter.FastCopyUsed),
+    new("HashCapacityHintUsed",counter.HashCapacityHintUsed),
+];
 
 static long? GetAllocatedBytes(object? report){
     var gcStats = report?.GetType().GetProperty("GcStats")?.GetValue(report);
@@ -533,6 +559,10 @@ internal enum BenchmarkSourceTab{
     ScalableTsavoriteDictionary,
 }
 
+internal sealed record BenchmarkDiagnosticCounter(
+    string CounterName,
+    double CounterValue);
+
 internal sealed record WorkerResultMessage(
     string TaskId,
     string Status,
@@ -547,7 +577,8 @@ internal sealed record WorkerResultMessage(
     string ArtifactFolder,
     string Log,
     int? RandomSeed,
-    string ResultDigest);
+    string ResultDigest,
+    IReadOnlyList<BenchmarkDiagnosticCounter>? DiagnosticCounters = null);
 internal sealed class EmptyDisposable:IDisposable{
     public static EmptyDisposable Instance { get; } = new();
 

@@ -33,10 +33,10 @@ public sealed class InProcessJobRunner:IBenchmarkJobRunner {
             var type = assembly.GetType(benchmark.TypeFullName,throwOnError:true,ignoreCase:false)
                 ??throw new InvalidOperationException($"Benchmark type was not found: {benchmark.TypeFullName}");
             var method = ResolveBenchmarkMethod(type,benchmark.MethodName);
-            instance=method.IsStatic ? null : Activator.CreateInstance(type);
             var randomSeed = CreateRandomSourceSeed(runRoot,job.SourceTab,benchmark.MethodName,job.ArgumentKey,job.ElementCount,loopCount);
             using var elementScope = BeginElementCountScope(assembly,job.ElementCount,"1");
             using var randomSourceScope = BeginRandomSourceSeedScope(assembly,randomSeed);
+            instance=method.IsStatic ? null : Activator.CreateInstance(type);
             var arguments = BenchmarkArgumentFormatting.ToObjects(benchmark.Arguments);
             var resultDigest = CaptureBenchmarkResultDigest(type,benchmark.MethodName,arguments);
             var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();

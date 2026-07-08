@@ -99,6 +99,9 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
         var builder=new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
         builder.AppendLine($"using var {secondName}={second.GetEnumeratorExpression};");
+        if(this.CanUseSortedDefaultUnionFastPath()) {
+            this.AppendSortedDefaultUnionFastPath(builder,sourceName,secondName,consumerName);
+        }
         if(this.CanUseSortedIntSetFastPath()) {
             this.AppendSortedIntSetFastPath(builder,sourceName,secondName,consumerName);
         }
@@ -140,6 +143,81 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
         && IsInt32Type(second.ElementType)
         && source.CanTryProvideSpan
         && second.CanTryProvideSpan;
+
+    private bool CanUseSortedDefaultUnionFastPath() =>
+        !operation.PreloadSecondFirst
+        && operation.SourceAcceptMethod=="Add"
+        && ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,source.ElementType)
+        && source.ElementType==second.ElementType
+        && source.CanTryProvideSpan
+        && second.CanTryProvideSpan;
+
+    private void AppendSortedDefaultUnionFastPath(StringBuilder builder,string sourceName,string secondName,string consumerName) {
+        var sourceSpan=$"__unionSrcSpan{this.result}";
+        var secondSpan=$"__unionSecSpan{this.result}";
+        var sorted=$"__unionSorted{this.result}";
+        var sourceDirectSpanExpression=source.GetDirectSpanExpression(sourceName);
+        var secondDirectSpanExpression=second.GetDirectSpanExpression(secondName);
+        if(sourceDirectSpanExpression is not null && secondDirectSpanExpression is not null) {
+            builder.AppendLine($"var {sourceSpan}={sourceDirectSpanExpression};");
+            builder.AppendLine($"var {secondSpan}={secondDirectSpanExpression};");
+            this.AppendSortedDefaultUnionFastPathBody(builder,sourceSpan,secondSpan,sorted,consumerName,string.Empty);
+            return;
+        }
+        if(source.CanProvideSpan && second.CanProvideSpan) {
+            builder.AppendLine($"{sourceName}.TryGetSpan(out var {sourceSpan});");
+            builder.AppendLine($"{secondName}.TryGetSpan(out var {secondSpan});");
+            this.AppendSortedDefaultUnionFastPathBody(builder,sourceSpan,secondSpan,sorted,consumerName,string.Empty);
+            return;
+        }
+        builder.AppendLine($"if({sourceName}.TryGetSpan(out var {sourceSpan})&&{secondName}.TryGetSpan(out var {secondSpan})){{");
+        this.AppendSortedDefaultUnionFastPathBody(builder,sourceSpan,secondSpan,sorted,consumerName,"    ");
+        builder.AppendLine("}");
+    }
+
+    private void AppendSortedDefaultUnionFastPathBody(
+        StringBuilder builder,
+        string sourceSpan,
+        string secondSpan,
+        string sorted,
+        string consumerName,
+        string indent) {
+        var elementType=source.ElementType;
+        builder.AppendLine($"{indent}if(typeof(global::System.IComparable<{elementType}>).IsAssignableFrom(typeof({elementType}))||typeof(global::System.IComparable).IsAssignableFrom(typeof({elementType}))){{");
+        builder.AppendLine($"{indent}    var __comparer=global::System.Collections.Generic.Comparer<{elementType}>.Default;");
+        builder.AppendLine($"{indent}    var {sorted}=true;");
+        builder.AppendLine($"{indent}    for(var __i=1;__i<{sourceSpan}.Length;__i++){{");
+        builder.AppendLine($"{indent}        if(__comparer.Compare({sourceSpan}[__i-1],{sourceSpan}[__i])>=0){{");
+        builder.AppendLine($"{indent}            {sorted}=false;");
+        builder.AppendLine($"{indent}            break;");
+        builder.AppendLine($"{indent}        }}");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}    if({sorted}){{");
+        builder.AppendLine($"{indent}    for(var __i=1;__i<{secondSpan}.Length;__i++){{");
+        builder.AppendLine($"{indent}            if(__comparer.Compare({secondSpan}[__i-1],{secondSpan}[__i])>=0){{");
+        builder.AppendLine($"{indent}                {sorted}=false;");
+        builder.AppendLine($"{indent}                break;");
+        builder.AppendLine($"{indent}            }}");
+        builder.AppendLine($"{indent}        }}");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}    if({sorted}){{");
+        builder.AppendLine($"{indent}    for(var __i=0;__i<{sourceSpan}.Length;__i++){{");
+        builder.AppendLine($"{indent}        {consumerName}.Consume({sourceSpan}[__i]);");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}        var __sourceIndex=0;");
+        builder.AppendLine($"{indent}    for(var __i=0;__i<{secondSpan}.Length;__i++){{");
+        builder.AppendLine($"{indent}        var __value={secondSpan}[__i];");
+        builder.AppendLine($"{indent}            while(__sourceIndex<{sourceSpan}.Length&&__comparer.Compare({sourceSpan}[__sourceIndex],__value)<0){{");
+        builder.AppendLine($"{indent}                __sourceIndex++;");
+        builder.AppendLine($"{indent}            }}");
+        builder.AppendLine($"{indent}            if(__sourceIndex>={sourceSpan}.Length||__comparer.Compare({sourceSpan}[__sourceIndex],__value)!=0){{");
+        builder.AppendLine($"{indent}            {consumerName}.Consume(__value);");
+        builder.AppendLine($"{indent}        }}");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}    return;");
+        builder.AppendLine($"{indent}}}");
+        builder.AppendLine($"{indent}}}");
+    }
 
     private void AppendSortedIntSetFastPath(StringBuilder builder,string sourceName,string secondName,string consumerName) {
         var sourceSpan=$"__setSrcSpan{番号}";

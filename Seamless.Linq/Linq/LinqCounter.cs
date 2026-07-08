@@ -28,6 +28,13 @@ public sealed class LinqCounter {
     private long logicalDelegate;
     private long physicalDelegate;
     private long enumerableFallback;
+    private long directSpanUsed;
+    private long tryGetSpanCalled;
+    private long tryGetSpanSucceeded;
+    private long tryGetSpanFailed;
+    private long enumerationLoopUsed;
+    private long fastCopyUsed;
+    private long hashCapacityHintUsed;
     private readonly global::System.Collections.Concurrent.ConcurrentDictionary<string,long> enumerableFallbackDetails = new(StringComparer.Ordinal);
 
     public long PhysicalMoveNext => Interlocked.Read(ref this.physicalMoveNext);
@@ -50,6 +57,13 @@ public sealed class LinqCounter {
     public long TryGetNonEnumeratedCount => Interlocked.Read(ref this.tryGetNonEnumeratedCount);
     public long LogicalDelegate => Interlocked.Read(ref this.logicalDelegate);
     public long PhysicalDelegate => Interlocked.Read(ref this.physicalDelegate);
+    public long DirectSpanUsed => Interlocked.Read(ref this.directSpanUsed);
+    public long TryGetSpanCalled => Interlocked.Read(ref this.tryGetSpanCalled);
+    public long TryGetSpanSucceeded => Interlocked.Read(ref this.tryGetSpanSucceeded);
+    public long TryGetSpanFailed => Interlocked.Read(ref this.tryGetSpanFailed);
+    public long EnumerationLoopUsed => Interlocked.Read(ref this.enumerationLoopUsed);
+    public long FastCopyUsed => Interlocked.Read(ref this.fastCopyUsed);
+    public long HashCapacityHintUsed => Interlocked.Read(ref this.hashCapacityHintUsed);
     /// <summary>FLinq 展開に失敗して System.Linq へフォールバックした(生成インターセプターが失敗例外を構築した)回数。0 が正常。</summary>
     public long EnumerableFallback => Interlocked.Read(ref this.enumerableFallback);
     /// <summary>フォールバック詳細(失敗メッセージ)ごとの回数。</summary>
@@ -111,6 +125,13 @@ public sealed class LinqCounter {
     public void IncrementTryGetNonEnumeratedCount() => Interlocked.Increment(ref this.tryGetNonEnumeratedCount);
     public void IncrementLogicalDelegate() => Interlocked.Increment(ref this.logicalDelegate);
     public void IncrementPhysicalDelegate() => Interlocked.Increment(ref this.physicalDelegate);
+    public void IncrementDirectSpanUsed() => Interlocked.Increment(ref this.directSpanUsed);
+    public void IncrementTryGetSpanCalled() => Interlocked.Increment(ref this.tryGetSpanCalled);
+    public void IncrementTryGetSpanSucceeded() => Interlocked.Increment(ref this.tryGetSpanSucceeded);
+    public void IncrementTryGetSpanFailed() => Interlocked.Increment(ref this.tryGetSpanFailed);
+    public void IncrementEnumerationLoopUsed() => Interlocked.Increment(ref this.enumerationLoopUsed);
+    public void IncrementFastCopyUsed() => Interlocked.Increment(ref this.fastCopyUsed);
+    public void IncrementHashCapacityHintUsed() => Interlocked.Increment(ref this.hashCapacityHintUsed);
     public void IncrementEnumerableFallback(string detail) {
         Interlocked.Increment(ref this.enumerableFallback);
         this.enumerableFallbackDetails.AddOrUpdate(detail,1,static (_,count) => count+1);
@@ -147,6 +168,13 @@ public sealed class LinqCounter {
         Interlocked.Exchange(ref this.logicalDelegate,0);
         Interlocked.Exchange(ref this.physicalDelegate,0);
         Interlocked.Exchange(ref this.enumerableFallback,0);
+        Interlocked.Exchange(ref this.directSpanUsed,0);
+        Interlocked.Exchange(ref this.tryGetSpanCalled,0);
+        Interlocked.Exchange(ref this.tryGetSpanSucceeded,0);
+        Interlocked.Exchange(ref this.tryGetSpanFailed,0);
+        Interlocked.Exchange(ref this.enumerationLoopUsed,0);
+        Interlocked.Exchange(ref this.fastCopyUsed,0);
+        Interlocked.Exchange(ref this.hashCapacityHintUsed,0);
         this.enumerableFallbackDetails.Clear();
     }
 }
