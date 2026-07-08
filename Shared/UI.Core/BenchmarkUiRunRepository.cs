@@ -310,7 +310,7 @@ internal sealed class BenchmarkUiRunRepository{
             result.Method,
             typeFullName,
             arguments,
-            caseKey+"|N="+result.ElementCount.ToString(System.Globalization.CultureInfo.InvariantCulture)+"|Loop="+result.LoopCount.ToString(System.Globalization.CultureInfo.InvariantCulture)+"|CPU="+(result.AssignedLogicalCpu?.ToString(System.Globalization.CultureInfo.InvariantCulture)??"-"),
+            caseKey,
             isCompletedResult ? UiRunStatus.Completed : UiRunStatus.Failed,
             result.ElementCount,
             result.LoopCount,
@@ -344,7 +344,7 @@ internal sealed class BenchmarkUiRunRepository{
                             continue;
                         }
 
-                        var itemKey = string.Join("|",sourceTab.Id,project,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey,axis);
+                        var itemKey = string.Join("|",sourceTab.Id,project,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey);
                         if(!seen.Add(itemKey)){
                             continue;
                         }

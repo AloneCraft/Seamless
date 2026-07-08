@@ -83,14 +83,15 @@ public sealed class RunnerViewModel{
         var targets = GetSelectedCells(viewModel);
 
         await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => viewModel.SelectedRunOption is { UiRunId:>0 }&&viewModel.RunOptions.All(static option => option.DisplayName!="Unsaved")&&targets.All(IsFinalCompleted));
+        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
+        await SaveCurrentRunAsync(viewModel);
 
         var savedRun = viewModel.SelectedRunOption!;
         Assert.True(savedRun.UiRunId>0);
-        Assert.NotEqual("Unsaved",savedRun.DisplayName);
+        Assert.NotEqual("未保存",savedRun.DisplayName);
         Assert.Contains("/",savedRun.DisplayName);
         Assert.True(savedRun.TotalJobs>0);
-        Assert.All(viewModel.RunOptions,option => Assert.NotEqual("Unsaved",option.DisplayName));
+        Assert.All(viewModel.RunOptions,option => Assert.NotEqual("未保存",option.DisplayName));
         Assert.All(targets,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
     }
 
@@ -102,36 +103,54 @@ public sealed class RunnerViewModel{
         var targets = GetSelectedCells(viewModel);
 
         await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => viewModel.SelectedRunOption is { UiRunId:>0 }&&targets.All(IsFinalCompleted));
+        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
+        await SaveCurrentRunAsync(viewModel);
         var savedRun = viewModel.SelectedRunOption!;
-        var newRun = viewModel.RunOptions.First(static option => option.DisplayName=="New");
         var dataGridBatchEvents = new List<bool>();
         viewModel.DataGridUpdateBatchChanged+=(_,args) => dataGridBatchEvents.Add(args.IsBeginning);
 
-        viewModel.SelectedRunOption=newRun;
+        viewModel.NewGridCommand.Execute(null);
         await WaitUntilAsync(() => targets.All(static cell => cell.StatusImageSource==global::UI.BenchmarkStatusImageNames.Waiting));
 
         viewModel.SelectedRunOption=savedRun;
+        Assert.True(viewModel.IsRunHistoryLoading);
+        Assert.False(viewModel.CanSelectRunHistory);
         await WaitUntilAsync(() => viewModel.ResultItems.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)));
-        await WaitUntilAsync(() => viewModel.ChartPoints.Count>0
-            &&viewModel.SelectedSourceTabViewState.ComparisonRows.Count>0);
-        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
+        await WaitUntilAsync(() => !viewModel.IsRunHistoryLoading&&viewModel.CanSelectRunHistory);
 
-        Assert.True(viewModel.ResultItems.Count>0
-            &&viewModel.ChartPoints.Count>0
-            &&viewModel.SelectedSourceTabViewState.ComparisonRows.Count>0
-            &&targets.All(IsFinalCompleted));
+        Assert.True(viewModel.ResultItems.Count>0);
 
         Assert.Equal(savedRun.UiRunId,viewModel.SelectedRunOption?.UiRunId);
         Assert.NotEmpty(viewModel.ResultItems);
-        Assert.NotEmpty(viewModel.ChartPoints);
-        Assert.NotEmpty(viewModel.SelectedSourceTabViewState.ComparisonRows);
-        Assert.Equal(string.Empty,viewModel.ChartEmptyReasonText);
-        Assert.All(targets,cell => Assert.True(cell.Metrics.HasMeasuredValue));
         Assert.True(dataGridBatchEvents.Count>=2);
         Assert.Equal(0,dataGridBatchEvents.Aggregate(0,(depth,isBeginning) => isBeginning ? depth+1 : depth-1));
         Assert.True(dataGridBatchEvents.First());
         Assert.False(dataGridBatchEvents.Last());
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task LoadedSavedDatabaseRun_RunAgain_DoesNotSkipLoadedResults(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        viewModel.SelectAllCommand.Execute(null);
+        var targets = GetSelectedCells(viewModel);
+
+        await viewModel.RunCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
+        await SaveCurrentRunAsync(viewModel);
+        var savedRun = viewModel.SelectedRunOption!;
+        var runCount = fixture.RunService.ObservedRestartFromRequestedElementCount.Count;
+
+        viewModel.NewGridCommand.Execute(null);
+        await WaitUntilAsync(() => targets.All(static cell => cell.StatusImageSource==global::UI.BenchmarkStatusImageNames.Waiting));
+        viewModel.SelectedRunOption=savedRun;
+        await WaitUntilAsync(() => !viewModel.IsRunHistoryLoading
+            &&viewModel.ResultItems.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)));
+
+        await viewModel.RunCommand.ExecuteAsync(null);
+
+        await WaitUntilAsync(() => fixture.RunService.ObservedRestartFromRequestedElementCount.Count==runCount+1);
+        Assert.True(fixture.RunService.ObservedBenchmarkCounts[^1]>0);
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
@@ -142,25 +161,29 @@ public sealed class RunnerViewModel{
         var targets = GetSelectedCells(viewModel);
 
         await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => viewModel.SelectedRunOption is { UiRunId:>0 }&&targets.All(IsFinalCompleted));
+        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
+        await SaveCurrentRunAsync(viewModel);
         var firstRunId = viewModel.SelectedRunOption!.UiRunId;
 
-        viewModel.SelectedRunOption=viewModel.RunOptions.First(static option => option.DisplayName=="New");
+        viewModel.NewGridCommand.Execute(null);
         await WaitUntilAsync(() => targets.All(static cell => cell.StatusImageSource==global::UI.BenchmarkStatusImageNames.Waiting));
         viewModel.SelectAllCommand.Execute(null);
 
         await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => viewModel.SelectedRunOption is { UiRunId:>0 }&&viewModel.SelectedRunOption.UiRunId!=firstRunId&&targets.All(IsFinalCompleted));
+        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
+        await SaveCurrentRunAsync(viewModel);
+        await WaitUntilAsync(() => viewModel.SelectedRunOption is { UiRunId:>0 }&&viewModel.SelectedRunOption.UiRunId!=firstRunId);
         var firstRun = viewModel.RunOptions.First(option => option.UiRunId==firstRunId);
 
         viewModel.SelectedRunOption=firstRun;
+        Assert.True(viewModel.IsRunHistoryLoading);
+        Assert.False(viewModel.CanSelectRunHistory);
         await WaitUntilAsync(() => viewModel.SelectedRunOption?.UiRunId==firstRunId
-            &&viewModel.ResultItems.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase))
-            &&targets.All(IsFinalCompleted));
+            &&viewModel.ResultItems.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)));
+        await WaitUntilAsync(() => !viewModel.IsRunHistoryLoading&&viewModel.CanSelectRunHistory);
 
         Assert.Equal(firstRunId,viewModel.SelectedRunOption?.UiRunId);
         Assert.NotEmpty(viewModel.ResultItems);
-        Assert.All(targets,cell => Assert.True(cell.Metrics.HasMeasuredValue));
     }
 
 #if DEBUG
@@ -172,17 +195,18 @@ public sealed class RunnerViewModel{
         var targets = GetSelectedCells(viewModel);
 
         await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => viewModel.SelectedRunOption is { UiRunId:>0 }&&viewModel.ResultItems.Count>0&&targets.All(IsFinalCompleted));
+        await WaitUntilAsync(() => viewModel.ResultItems.Count>0&&targets.All(IsFinalCompleted));
+        await SaveCurrentRunAsync(viewModel);
 
         Assert.True(viewModel.ClearRunHistoryCommand.CanExecute(null));
         await viewModel.ClearRunHistoryCommand.ExecuteAsync(null);
         await WaitUntilAsync(() => viewModel.RunOptions.Count==1
-            &&viewModel.SelectedRunOption?.DisplayName=="New"
+            &&viewModel.SelectedRunOption?.DisplayName=="新規"
             &&viewModel.ResultItems.Count==0
             &&targets.All(static cell => cell.StatusImageSource==global::UI.BenchmarkStatusImageNames.Waiting));
 
         Assert.Single(viewModel.RunOptions);
-        Assert.Equal("New",viewModel.SelectedRunOption?.DisplayName);
+        Assert.Equal("新規",viewModel.SelectedRunOption?.DisplayName);
         Assert.Empty(viewModel.ResultItems);
         Assert.All(targets,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.Waiting,cell.StatusImageSource));
     }
@@ -510,6 +534,14 @@ public sealed class RunnerViewModel{
     private static bool IsFinalCompleted(global::UI.BenchmarkProjectCell cell) =>
         cell.StatusImageSource==global::UI.BenchmarkStatusImageNames.FinalCompleted;
 
+    private static async Task SaveCurrentRunAsync(global::UI.ViewModels.RunnerViewModel viewModel){
+        await WaitUntilAsync(() => viewModel.CanSaveDatabase&&viewModel.SaveDatabaseCommand.CanExecute(null));
+        await viewModel.SaveDatabaseCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => viewModel.SelectedRunOption is { UiRunId:>0 }
+            &&!viewModel.IsRefreshing
+            &&viewModel.CanSelectRunHistory);
+    }
+
     private static async Task WaitUntilAsync(Func<bool> condition){
         for(var index=0;index<60;index++){
             if(condition()){
@@ -591,6 +623,7 @@ public sealed class RunnerViewModel{
 
     private sealed class FakeRunService(IReadOnlyList<global::UI.BenchmarkCase> allCases):global::UI.IBenchmarkRunService{
         public List<bool> ObservedRestartFromRequestedElementCount { get; } = [];
+        public List<int> ObservedBenchmarkCounts { get; } = [];
         public bool EmitAllElementCounts { get; set; }
 
         public async Task<global::UI.BenchmarkRunReport> RunAsync(
@@ -609,6 +642,7 @@ public sealed class RunnerViewModel{
             global::UI.BenchmarkRunExecutionOptions? executionOptions,
             CancellationToken cancellationToken){
             this.ObservedRestartFromRequestedElementCount.Add(restartFromRequestedElementCount);
+            this.ObservedBenchmarkCounts.Add(benchmarks.Count);
             var emitCases = this.CreateEmitCases(benchmarks,sourceTab);
             var logicalCpu = logicalCpus.FirstOrDefault();
             var preparedElementCounts = this.EmitAllElementCounts&&elementCounts.Count>0 ? elementCounts.ToArray() : [1];

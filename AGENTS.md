@@ -10,8 +10,10 @@ You are a professional assistant. You must conduct all interactions, explanation
 - **Response Language:** Always use Japanese (日本語).
 - **Exceptions:** Technical terms, code snippets, or error logs may remain in their original language, but their explanations must be in Japanese.
 - Never reply in English unless explicitly requested by the user.
+## Database Change Policy
+- When changing local database schema or persisted data such as `Work\UI\runs.db`, apply the database change directly to the target database with an explicit backup.
+- Do not rely on application startup, schema version bumps, automatic deletion, or automatic migration code to perform local DB changes unless the user explicitly requests that approach.
 ## user prompt
 この計画のあらゆる側面について共通理解が得られるまで徹底的に質問してください
 質問は1つずつ順番にしてください
 コードベースを調べることで回答が得られる質問であれば、コードベースを調べてください
-

@@ -255,6 +255,7 @@ public sealed partial class MainPage:ContentPage {
         var isBenchmarkActive = this.viewModel.IsBenchmarkRunActive;
         var isBenchmarkPaused = this.viewModel.IsBenchmarkPaused;
         if(!isBenchmarkActive&&!isBenchmarkPaused) {
+            await this.viewModel.PrepareForCloseAsync();
             return true;
         }
 
@@ -271,6 +272,7 @@ public sealed partial class MainPage:ContentPage {
             }
         }
 
+        await this.viewModel.PrepareForCloseAsync();
         return true;
     }
 
@@ -535,18 +537,18 @@ public sealed partial class MainPage:ContentPage {
     }
 
     private View CreateToolbar() {
-        var runButton = this.CreateToolbarIconButton(
-            "play.png",
-            nameof(RunnerViewModel.RunButtonTooltipText));
+        var runButton = this.CreateToolbarTextButton("計測");
         this.BindToolbarButtonState(runButton,BenchmarkToolbarButtonRole.Run);
+        var overwriteRunButton = this.CreateToolbarTextButton("上書き計測");
+        this.BindToolbarButtonState(overwriteRunButton,BenchmarkToolbarButtonRole.OverwriteRun);
         var stopButton = this.CreateToolbarIconButton(
             "stop.png",
             "停止");
         this.BindToolbarButtonState(stopButton,BenchmarkToolbarButtonRole.Stop);
-        var pauseButton = this.CreateToolbarIconButton(
-            "pause.png",
-            "一時停止");
-        this.BindToolbarButtonState(pauseButton,BenchmarkToolbarButtonRole.Pause);
+        var saveDatabaseButton = this.CreateToolbarTextButton("DB保存");
+        this.BindToolbarButtonState(saveDatabaseButton,BenchmarkToolbarButtonRole.SaveDatabase);
+        var newGridButton = this.CreateToolbarTextButton("新規");
+        this.BindToolbarButtonState(newGridButton,BenchmarkToolbarButtonRole.NewGrid);
 #if DEBUG
         var infiniteButton = new Button {
             Text="永久実行",
@@ -591,6 +593,7 @@ public sealed partial class MainPage:ContentPage {
         };
         runPicker.SetBinding(Picker.ItemsSourceProperty,nameof(RunnerViewModel.RunOptions));
         runPicker.SetBinding(Picker.SelectedItemProperty,nameof(RunnerViewModel.SelectedRunOption));
+        runPicker.SetBinding(IsEnabledProperty,nameof(RunnerViewModel.CanSelectRunHistory));
 
 #if DEBUG
         var clearRunHistoryButton = this.CreateToolbarIconButton("delete.png","履歴消去");
@@ -617,6 +620,7 @@ public sealed partial class MainPage:ContentPage {
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Auto },
             },
             ColumnSpacing=6,
         };
@@ -625,23 +629,25 @@ public sealed partial class MainPage:ContentPage {
         grid.Add(this.ToolbarLabel("モード"),2,0);
         grid.Add(executionProfilePicker,3,0);
         grid.Add(runButton,4,0);
-        grid.Add(pauseButton,5,0);
+        grid.Add(overwriteRunButton,5,0);
         grid.Add(stopButton,6,0);
+        grid.Add(saveDatabaseButton,7,0);
+        grid.Add(newGridButton,8,0);
 #if DEBUG
-        grid.Add(infiniteButton,7,0);
-        grid.Add(this.ToolbarLabel("結果"),8,0);
-        grid.Add(runPicker,9,0);
-        grid.Add(clearRunHistoryButton,10,0);
+        grid.Add(infiniteButton,9,0);
+        grid.Add(this.ToolbarLabel("結果"),10,0);
+        grid.Add(runPicker,11,0);
+        grid.Add(clearRunHistoryButton,12,0);
 #else
-        grid.Add(this.ToolbarLabel("結果"),7,0);
-        grid.Add(runPicker,8,0);
+        grid.Add(this.ToolbarLabel("結果"),9,0);
+        grid.Add(runPicker,10,0);
 #endif
         var preview = this.CreateStatusIconPreview();
         grid.Add(preview,0,1);
 #if DEBUG
-        Grid.SetColumnSpan(preview,11);
+        Grid.SetColumnSpan(preview,13);
 #else
-        Grid.SetColumnSpan(preview,9);
+        Grid.SetColumnSpan(preview,11);
 #endif
         return grid;
     }
@@ -715,6 +721,21 @@ public sealed partial class MainPage:ContentPage {
         return button;
     }
 
+    private Button CreateToolbarTextButton(string text) {
+        return new Button {
+            Text=text,
+            HeightRequest=30,
+            MinimumWidthRequest=72,
+            Padding=new Thickness(10,0),
+            FontSize=12,
+            BackgroundColor=Color.FromArgb("#F8FAFC"),
+            BorderColor=Color.FromArgb("#CBD5E1"),
+            BorderWidth=1,
+            TextColor=Color.FromArgb("#334155"),
+            CornerRadius=6,
+        };
+    }
+
     private void BindToolbarButtonState(ImageButton button,BenchmarkToolbarButtonRole role) {
         this.toolbarButtons[role]=button;
         button.Clicked+=async (_,_) => await this.HandleToolbarButtonClickAsync(role);
@@ -745,6 +766,8 @@ public sealed partial class MainPage:ContentPage {
                     ||args.PropertyName==nameof(RunnerViewModel.CanRunBenchmark)
                     ||args.PropertyName==nameof(RunnerViewModel.CanResumeBenchmark)
                     ||args.PropertyName==nameof(RunnerViewModel.CanUseRunToolbarButton)
+                    ||args.PropertyName==nameof(RunnerViewModel.CanSaveDatabase)
+                    ||args.PropertyName==nameof(RunnerViewModel.CanCreateNewGrid)
                     ||args.PropertyName==nameof(RunnerViewModel.HasSelectedBenchmarkCells)
                     ||args.PropertyName==nameof(RunnerViewModel.HasUnsavedBenchmarkResults)
                     ||args.PropertyName==nameof(RunnerViewModel.ToolbarStateInput)) {
@@ -808,6 +831,11 @@ public sealed partial class MainPage:ContentPage {
                     await this.viewModel.RunCommand.ExecuteAsync(null);
                 }
                 break;
+            case BenchmarkToolbarButtonRole.OverwriteRun:
+                if(this.viewModel.OverwriteRunCommand.CanExecute(null)) {
+                    await this.viewModel.OverwriteRunCommand.ExecuteAsync(null);
+                }
+                break;
 #if DEBUG
             case BenchmarkToolbarButtonRole.RunInfinite:
                 if(this.viewModel.RunInfiniteCommand.CanExecute(null)) {
@@ -823,6 +851,16 @@ public sealed partial class MainPage:ContentPage {
             case BenchmarkToolbarButtonRole.Pause:
                 if(this.viewModel.PauseCommand.CanExecute(null)) {
                     await this.viewModel.PauseCommand.ExecuteAsync(null);
+                }
+                break;
+            case BenchmarkToolbarButtonRole.SaveDatabase:
+                if(this.viewModel.SaveDatabaseCommand.CanExecute(null)) {
+                    await this.viewModel.SaveDatabaseCommand.ExecuteAsync(null);
+                }
+                break;
+            case BenchmarkToolbarButtonRole.NewGrid:
+                if(this.viewModel.NewGridCommand.CanExecute(null)) {
+                    this.viewModel.NewGridCommand.Execute(null);
                 }
                 break;
         }

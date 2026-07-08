@@ -141,9 +141,7 @@ public sealed class UiRunStore{
                 "タブ名",
                 "行キー",
                 "側",
-                "プロジェクト名",
-                COALESCE("要素数",-1),
-                COALESCE("ループ回数",-1)
+                "プロジェクト名"
             );
             """);
     }
@@ -251,10 +249,7 @@ public sealed class UiRunStore{
                     AND ("Type"=$type OR "型フル名"=$typeFullName)
                     AND "ベンチマーク名"=$method
                     AND "引数キー"=$argumentKey
-                    AND ($elementCount IS NULL OR "要素数"=$elementCount OR "要素数" IS NULL)
-                    AND ($loopCount IS NULL OR "ループ回数"=$loopCount OR "ループ回数" IS NULL)
                 ORDER BY
-                    CASE WHEN "要素数"=$elementCount AND "ループ回数"=$loopCount THEN 0 ELSE 1 END,
                     "選択済み" DESC,
                     "項目ID"
                 LIMIT 1;
@@ -293,11 +288,13 @@ public sealed class UiRunStore{
                 "実行ID","タブ名","プロジェクト名","Assembly","Type","型フル名","ベンチマーク名",
                 "選択済み","計測状態","要素数","ループ回数","引数キー","引数表示","行キー","側","ペア識別子")
             VALUES($runId,$tabName,$project,$assembly,$type,$typeFullName,$method,1,$status,$elementCount,$loopCount,$argumentKey,$argumentDisplay,$rowKey,$side,$pairDiscriminator)
-            ON CONFLICT("実行ID","タブ名","行キー","側","プロジェクト名",COALESCE("要素数",-1),COALESCE("ループ回数",-1))
+            ON CONFLICT("実行ID","タブ名","行キー","側","プロジェクト名")
             DO UPDATE SET
                 "Assembly"=excluded."Assembly",
                 "型フル名"=excluded."型フル名",
                 "選択済み"=excluded."選択済み",
+                "要素数"=excluded."要素数",
+                "ループ回数"=excluded."ループ回数",
                 "引数表示"=excluded."引数表示",
                 "行キー"=excluded."行キー",
                 "側"=excluded."側",
@@ -347,7 +344,20 @@ public sealed class UiRunStore{
                 VALUES(
                     $runId,$tabName,$project,$assembly,$type,$typeFullName,$method,
                     $selected,$status,$elementCount,$loopCount,$cpu,
-                    $argumentKey,$argumentDisplay,$rowKey,$side,$pairDiscriminator);
+                    $argumentKey,$argumentDisplay,$rowKey,$side,$pairDiscriminator)
+                ON CONFLICT("実行ID","タブ名","行キー","側","プロジェクト名")
+                DO UPDATE SET
+                    "Assembly"=excluded."Assembly",
+                    "Type"=excluded."Type",
+                    "型フル名"=excluded."型フル名",
+                    "ベンチマーク名"=excluded."ベンチマーク名",
+                    "選択済み"=excluded."選択済み",
+                    "要素数"=excluded."要素数",
+                    "ループ回数"=excluded."ループ回数",
+                    "CPU番号"=excluded."CPU番号",
+                    "引数キー"=excluded."引数キー",
+                    "引数表示"=excluded."引数表示",
+                    "ペア識別子"=excluded."ペア識別子";
                 """;
             command.Parameters.AddWithValue("$runId",runId);
             command.Parameters.AddWithValue("$tabName",item.TabName);
