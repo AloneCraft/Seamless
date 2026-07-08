@@ -4463,14 +4463,57 @@ public sealed partial class RunnerViewModel:ObservableObject {
     }
 
     private void RestoreCatalogRowsForFreshRunFromSavedDatabaseRun() {
+        var displayedSelections = this.CaptureDisplayedBenchmarkCellSelections();
         this.SelectNewRunOptionForFreshRun(false);
         this.ClearAllCurrentRunResultsForFreshRun();
         this.RebuildBenchmarkRowsFromCatalog();
-        this.RefreshBenchmarkSelectionAggregates();
-        if(!this.HasAnyLiveSelectedBenchmarkCell(this.SelectedSourceDefinition)) {
-            this.SetAllBenchmarkSelection(true,this.SelectedSourceDefinition);
-        }
+        this.ApplyDisplayedBenchmarkCellSelections(displayedSelections);
     }
+
+    private IReadOnlyList<DisplayedBenchmarkCellSelection> CaptureDisplayedBenchmarkCellSelections() {
+        var selections = new List<DisplayedBenchmarkCellSelection>();
+        foreach(var row in this.GetAllBenchmarkRows()) {
+            foreach(var cell in row.ProjectCells) {
+                if(cell.HasCase&&cell.IsSelected) {
+                    selections.Add(new(
+                        row.SourceTab.Id,
+                        row.BenchmarkTypeText,
+                        row.MethodName,
+                        cell.Project));
+                }
+            }
+        }
+
+        return selections;
+    }
+
+    private void ApplyDisplayedBenchmarkCellSelections(IReadOnlyList<DisplayedBenchmarkCellSelection> selections) {
+        var selected = selections.ToHashSet();
+        this.isApplyingBenchmarkSelection=true;
+        try {
+            foreach(var row in this.GetAllBenchmarkRows()) {
+                row.IsSelected=false;
+                foreach(var cell in row.ProjectCells) {
+                    cell.IsSelected=cell.HasCase&&selected.Contains(new(
+                        row.SourceTab.Id,
+                        row.BenchmarkTypeText,
+                        row.MethodName,
+                        cell.Project));
+                }
+            }
+        }
+        finally {
+            this.isApplyingBenchmarkSelection=false;
+        }
+        this.RefreshBenchmarkSelectionAggregates();
+        this.CaptureCurrentBenchmarkSelections();
+    }
+
+    private readonly record struct DisplayedBenchmarkCellSelection(
+        string SourceTabId,
+        string BenchmarkTypeText,
+        string MethodName,
+        string Project);
 
     public async Task PrepareForCloseAsync() {
         if(this.isClosing) {
