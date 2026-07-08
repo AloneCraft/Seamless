@@ -1080,9 +1080,12 @@ internal static class BenchmarkSkippedDisplayLogic{
 
 internal enum BenchmarkToolbarButtonRole{
     Run,
+    OverwriteRun,
     RunInfinite,
     Stop,
     Pause,
+    SaveDatabase,
+    NewGrid,
 }
 
 internal readonly record struct BenchmarkToolbarStateInput(
@@ -1090,8 +1093,30 @@ internal readonly record struct BenchmarkToolbarStateInput(
     bool IsBenchmarkRunActive,
     bool IsBenchmarkPaused,
     bool CanUseRunButton,
+    bool CanUseOverwriteRunButton,
     bool CanStopBenchmark,
-    bool CanPauseBenchmark);
+    bool CanPauseBenchmark,
+    bool CanSaveDatabase,
+    bool CanCreateNewGrid){
+    public BenchmarkToolbarStateInput(
+        bool IsRefreshing,
+        bool IsBenchmarkRunActive,
+        bool IsBenchmarkPaused,
+        bool CanUseRunButton,
+        bool CanStopBenchmark,
+        bool CanPauseBenchmark)
+        : this(
+            IsRefreshing,
+            IsBenchmarkRunActive,
+            IsBenchmarkPaused,
+            CanUseRunButton,
+            CanUseRunButton,
+            CanStopBenchmark,
+            CanPauseBenchmark,
+            false,
+            false){
+    }
+}
 
 internal readonly record struct BenchmarkToolbarButtonState(
     bool IsEnabled,
@@ -1108,6 +1133,7 @@ internal static class BenchmarkToolbarStateLogic{
                     input.CanUseRunButton,
                     !input.CanUseRunButton,
                     input.CanUseRunButton),
+                BenchmarkToolbarButtonRole.OverwriteRun => CreateDirectActionState(input.CanUseOverwriteRunButton),
                 BenchmarkToolbarButtonRole.RunInfinite => new BenchmarkToolbarButtonState(
                     input.CanUseRunButton,
                     input.CanUseRunButton,
@@ -1119,15 +1145,20 @@ internal static class BenchmarkToolbarStateLogic{
                     !input.CanStopBenchmark,
                     input.CanStopBenchmark),
                 BenchmarkToolbarButtonRole.Pause => new BenchmarkToolbarButtonState(true,false,true,false),
+                BenchmarkToolbarButtonRole.SaveDatabase => CreateDirectActionState(input.CanSaveDatabase),
+                BenchmarkToolbarButtonRole.NewGrid => CreateDirectActionState(input.CanCreateNewGrid),
                 _ => new BenchmarkToolbarButtonState(false,false,true,false),
             };
         }
 
         return role switch{
             BenchmarkToolbarButtonRole.Run => CreateDirectActionState(input.CanUseRunButton),
+            BenchmarkToolbarButtonRole.OverwriteRun => CreateDirectActionState(input.CanUseOverwriteRunButton),
             BenchmarkToolbarButtonRole.RunInfinite => CreateDirectActionState(input.CanUseRunButton),
             BenchmarkToolbarButtonRole.Stop => CreateDirectActionState(input.CanStopBenchmark),
             BenchmarkToolbarButtonRole.Pause => CreateDirectActionState(input.CanPauseBenchmark),
+            BenchmarkToolbarButtonRole.SaveDatabase => CreateDirectActionState(input.CanSaveDatabase),
+            BenchmarkToolbarButtonRole.NewGrid => CreateDirectActionState(input.CanCreateNewGrid),
             _ => new BenchmarkToolbarButtonState(false,false,true,false),
         };
     }

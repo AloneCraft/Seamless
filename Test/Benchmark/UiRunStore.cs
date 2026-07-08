@@ -2,7 +2,7 @@ using Seamless.UI.Storage;
 
 namespace Test.Benchmark;
 
-public sealed class UiRunStore{
+public sealed class UiRunStoreTests{
     [Fact]
     public void EnsureSchema_CreatesOnlySimpleJapaneseTables(){
         var path = CreateDatabasePath();
@@ -127,7 +127,7 @@ public sealed class UiRunStore{
     }
 
     [Fact]
-    public void UpsertCaseJobAndMeasurement_UpdatesMatchingDetectedElementCount(){
+    public void UpsertCaseJobAndMeasurement_UpdatesMatchingDetectedCellIgnoringAxis(){
         var path = CreateDatabasePath();
         var store = new global::Seamless.UI.Storage.UiRunStore(path);
         var run = store.CreateRun(new(
@@ -160,9 +160,10 @@ public sealed class UiRunStore{
         store.SaveMeasurement(job.JobId,[new("MeanNanoseconds",99.0,"ns")],DateTimeOffset.UtcNow);
 
         using var connection = Open(path);
-        Assert.Equal("未計測",Scalar<string>(connection,"SELECT \"計測状態\" FROM \"ベンチマーク項目\" WHERE \"要素数\"=64;"));
-        Assert.Equal("完了",Scalar<string>(connection,"SELECT \"計測状態\" FROM \"ベンチマーク項目\" WHERE \"要素数\"=4096;"));
-        Assert.Equal(99.0,Scalar<double>(connection,"SELECT \"平均ns\" FROM \"ベンチマーク項目\" WHERE \"要素数\"=4096;"));
+        Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM \"ベンチマーク項目\";"));
+        Assert.Equal("完了",Scalar<string>(connection,"SELECT \"計測状態\" FROM \"ベンチマーク項目\";"));
+        Assert.Equal(4096L,Scalar<long>(connection,"SELECT \"要素数\" FROM \"ベンチマーク項目\";"));
+        Assert.Equal(99.0,Scalar<double>(connection,"SELECT \"平均ns\" FROM \"ベンチマーク項目\";"));
     }
 
     [Fact]
