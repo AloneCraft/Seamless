@@ -188,6 +188,10 @@ internal sealed class BenchmarkRunEventPipeline{
 
     public bool HasPending{
         get{
+            if(Interlocked.Read(ref this.receivedEvents)!=Interlocked.Read(ref this.consumedEvents)){
+                return true;
+            }
+
             lock(this.stateGate){
                 return this.dirtyRunningKeys.Count>0||this.terminalResults.Count>0||this.chartDirty;
             }

@@ -39,11 +39,6 @@ public sealed partial class RunnerViewModel:ObservableObject,
     /// BenchmarkChartMinimumHeight フィールドです。
     /// </summary>
     private const double BenchmarkChartMinimumHeight = 120;
-    /// <summary>
-    /// RunningVisualMinimumDuration フィールドです。
-    /// </summary>
-    private static readonly TimeSpan RunningVisualMinimumDuration = TimeSpan.FromMilliseconds(250);
-
     private static readonly BenchmarkRunOption NewRunOption = new(
         NewRunNumber,
         0,
@@ -316,14 +311,6 @@ public sealed partial class RunnerViewModel:ObservableObject,
     /// </summary>
     private readonly Dictionary<int,TableRow> benchmarkRowsByRunItemIndex = new();
     /// <summary>
-    /// generatedCodeAuditCache フィールドです。
-    /// </summary>
-    private readonly Dictionary<string,GeneratedCodeAuditReport> generatedCodeAuditCache = new(StringComparer.OrdinalIgnoreCase);
-    /// <summary>
-    /// runningVisualStartedAt フィールドです。
-    /// </summary>
-    private readonly Dictionary<string,DateTimeOffset> runningVisualStartedAt = new(StringComparer.OrdinalIgnoreCase);
-    /// <summary>
     /// sourceTabRunningState フィールドです。
     /// </summary>
     private readonly BenchmarkSourceTabRunningState sourceTabRunningState = new();
@@ -358,10 +345,6 @@ public sealed partial class RunnerViewModel:ObservableObject,
     /// </summary>
     private readonly HashSet<string> reportedMetadataWarnings = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>
-    /// retainedChartPoints フィールドです。
-    /// </summary>
-    private readonly Dictionary<string,ChartComparisonPoint> retainedChartPoints = new(StringComparer.OrdinalIgnoreCase);
-    /// <summary>
     /// runStatusGate フィールドです。
     /// </summary>
     private readonly object runStatusGate = new();
@@ -389,6 +372,14 @@ public sealed partial class RunnerViewModel:ObservableObject,
     /// 表示最終化を最終クリーンアップ実施後まで遅らせるための、フラグ設定時点のクリーンアップトークンです。
     /// </summary>
     private int pendingPostRunFinalizeCleanupToken;
+    /// <summary>
+    /// 実行終了時にパイプライン未反映イベントが残っていたため、最終クリーンアップを延期しているかどうかです。
+    /// </summary>
+    private bool pendingFinalLiveVisualCleanup;
+    /// <summary>
+    /// 延期中の最終クリーンアップでパイプライン更新を破棄するかどうかです。
+    /// </summary>
+    private bool pendingFinalLiveVisualCleanupDiscard;
     /// <summary>
     /// benchmarkAutoScrollSequence フィールドです。
     /// </summary>
@@ -2878,7 +2869,6 @@ public sealed partial class RunnerViewModel:ObservableObject,
     /// <param name="option">option を指定して実行条件を制御します。</param>
     /// <param name="load">load を指定して実行条件を制御します。</param>
     private void ApplySelectedRunOption(BenchmarkRunOption? option,bool load) {
-        this.ClearRetainedChartPoints();
         if(IsNewRunOption(option)) {
             if(this.RestoreCurrentRunDisplayForSelectedTab()) {
                 return;
@@ -3574,7 +3564,6 @@ public sealed partial class RunnerViewModel:ObservableObject,
         IReadOnlyDictionary<int,IReadOnlyList<BenchmarkComparisonRow>> rowsByElementCount,
         IReadOnlyList<BenchmarkComparisonRow> rowsWithoutElementCount,
         int selectedElementCount) {
-        this.ClearRetainedChartPoints();
         this.ClearBenchmarkResultDisplays();
         this.currentRunSession.ClearSourceTab(this.SelectedSourceDefinition.Tab);
         this.ResultItems.Clear();
@@ -3828,6 +3817,7 @@ public sealed partial class RunnerViewModel:ObservableObject,
             if(isCurrentRun) {
                 if(completedNormally) {
                     this.renderScheduler.FlushNow();
+                    await this.DrainRunEventPipelineAsync();
                 }
                 else {
                     this.runEventPipeline.Clear();
@@ -3861,11 +3851,14 @@ public sealed partial class RunnerViewModel:ObservableObject,
                 // クリーンアップ実施前の値を控え、実施後(トークンが進んだ後)のみ最終化を許可する。
                 this.pendingPostRunDisplayFinalize=true;
                 this.pendingPostRunFinalizeCleanupToken=this.finalLiveVisualCleanupToken;
-                if(completedNormally&&this.TryGetRemainingRunningVisualDelay(out var finalVisualDelay)) {
-                    this.ScheduleFinalLiveVisualCleanup(runGeneration,finalVisualDelay);
+                var discardPendingRunUpdates = !completedNormally;
+                if(completedNormally&&this.runEventPipeline.HasPending) {
+                    this.pendingFinalLiveVisualCleanup=true;
+                    this.pendingFinalLiveVisualCleanupDiscard=discardPendingRunUpdates;
+                    this.SchedulePendingFinalLiveVisualCleanup(runGeneration);
                 }
                 else {
-                    this.ApplyFinalLiveVisualCleanup(!completedNormally);
+                    this.ApplyFinalLiveVisualCleanup(discardPendingRunUpdates);
                 }
                 if(!keepPausedRunRoot) {
                     this.SetActiveRunRoot(null);
@@ -3880,6 +3873,7 @@ public sealed partial class RunnerViewModel:ObservableObject,
             this.ClearRunResultHighlights();
             if(completedNormally) {
                 this.ApplyFinalBenchmarkSort();
+                this.ApplyFinalCompletionStatesSynchronously();
             }
             this.RefreshSourceTabProgresses();
             this.RefreshImprovementPrompt();
@@ -3943,6 +3937,8 @@ public sealed partial class RunnerViewModel:ObservableObject,
     private void QueueBenchmarkResultsSave(IReadOnlyList<PersistenceItem> items) {
         if(items.Count==0) {
             this.SyncDiagnosticRows(this.PipelineDiagnosticRows,this.pipelineDiagnostics.CreateRows());
+        this.TryApplyPendingFinalLiveVisualCleanup();
+        this.TryApplyPendingFinalLiveVisualCleanup();
             return;
         }
 
@@ -3958,6 +3954,8 @@ public sealed partial class RunnerViewModel:ObservableObject,
             }
         });
         this.SyncDiagnosticRows(this.PipelineDiagnosticRows,this.pipelineDiagnostics.CreateRows());
+        this.TryApplyPendingFinalLiveVisualCleanup();
+        this.TryApplyPendingFinalLiveVisualCleanup();
     }
 
     /// <summary>
@@ -4046,6 +4044,8 @@ public sealed partial class RunnerViewModel:ObservableObject,
     private void ApplyRunUiSnapshot(UiSnapshot snapshot) {
         if(!snapshot.HasUpdates) {
             this.SyncDiagnosticRows(this.PipelineDiagnosticRows,this.pipelineDiagnostics.CreateRows());
+        this.TryApplyPendingFinalLiveVisualCleanup();
+        this.TryApplyPendingFinalLiveVisualCleanup();
             return;
         }
 
@@ -4097,6 +4097,8 @@ public sealed partial class RunnerViewModel:ObservableObject,
             }
         }
         this.SyncDiagnosticRows(this.PipelineDiagnosticRows,this.pipelineDiagnostics.CreateRows());
+        this.TryApplyPendingFinalLiveVisualCleanup();
+        this.TryApplyPendingFinalLiveVisualCleanup();
         this.TryApplyPostRunDisplayFinalize();
     }
 
@@ -4113,7 +4115,6 @@ public sealed partial class RunnerViewModel:ObservableObject,
         }
 
         var result = item.Result;
-        this.MarkRunningVisualStarted(result);
         var cpu = this.FindAssignedCpu(result);
         cpu?.ApplyJob(result);
         this.ApplySourceTabRunningResult(result);
@@ -4159,15 +4160,10 @@ public sealed partial class RunnerViewModel:ObservableObject,
         // 分割描画のため、実行終了(finally)後に残りが描画されることがある。その場合はデータ反映のみ
         // 行い、ライブ表示(CPUセル/タブ実行状態/行)には書かない。最終クリーンアップを最後の書き手にするため。
         var isLiveVisualActive = this.IsBenchmarkRunActive;
-        var terminalVisualDelay = TimeSpan.Zero;
-        var shouldDelayTerminalVisual = isLiveVisualActive&&this.TryGetTerminalVisualDelay(result,out terminalVisualDelay);
         var cpu = this.FindAssignedCpu(result);
-        if(!shouldDelayTerminalVisual) {
-            this.runningVisualStartedAt.Remove(CreateRunningVisualKey(result));
-            if(isLiveVisualActive) {
-                cpu?.ApplyJob(result);
-                this.ApplySourceTabRunningResult(result);
-            }
+        if(isLiveVisualActive) {
+            cpu?.ApplyJob(result);
+            this.ApplySourceTabRunningResult(result);
         }
         BenchmarkSourceTab? dirtyChartTab = null;
         if(result.AxisCount>0) {
@@ -4177,16 +4173,13 @@ public sealed partial class RunnerViewModel:ObservableObject,
                 this.UpsertResultItem(result);
                 this.RegisterResultElementCount(result.AxisCount);
             }
-            if(!shouldDelayTerminalVisual&&isLiveVisualActive) {
+            if(isLiveVisualActive) {
                 this.FindBenchmarkRow(result)?.ApplyRunResult(result,cpu,DateTimeOffset.Now);
                 dirtyChartTab=result.SourceTab;
             }
         }
         this.HasPendingCloseStateSave=true;
         this.HasUnsavedBenchmarkResults=true;
-        if(shouldDelayTerminalVisual) {
-            this.ScheduleTerminalVisualResult(result,item.RunGeneration,terminalVisualDelay);
-        }
         this.QueueBenchmarkResultSave(result,item.RunGeneration,item.UiRunId);
         return dirtyChartTab;
     }
@@ -4246,15 +4239,10 @@ public sealed partial class RunnerViewModel:ObservableObject,
         }
 
         var hasResultElementCount = result.AxisCount>0;
-        var terminalVisualDelay = TimeSpan.Zero;
-        var shouldDelayTerminalVisual = isTerminalResult&&this.TryGetTerminalVisualDelay(result,out terminalVisualDelay);
         var shouldRefreshSourceTabProgresses = false;
-        if(isRunningResult||isTerminalResult&&!shouldDelayTerminalVisual) {
+        if(isRunningResult||isTerminalResult) {
             cpu?.ApplyJob(result);
             this.ApplySourceTabRunningResult(result);
-        }
-        if(shouldDelayTerminalVisual) {
-            this.ScheduleTerminalVisualResult(result,runGeneration,terminalVisualDelay);
         }
         if(isRunningResult) {
             this.MarkActiveRunSourceTab(resultSourceTab);
@@ -4302,7 +4290,7 @@ public sealed partial class RunnerViewModel:ObservableObject,
             this.RefreshVisibleResults();
         }
         var completedAt = DateTimeOffset.Now;
-        if(isResultForVisibleTab&&!shouldDelayTerminalVisual) {
+        if(isResultForVisibleTab) {
             row?.ApplyRunResult(result,cpu,completedAt);
         }
         if(isTerminalResult) {
@@ -4311,9 +4299,7 @@ public sealed partial class RunnerViewModel:ObservableObject,
             shouldRefreshSourceTabProgresses=true;
             if(isResultForVisibleTab) {
                 this.ApplySelectedElementCountToTable();
-                if(!shouldDelayTerminalVisual) {
-                    row?.ApplyRunResult(result,cpu,completedAt);
-                }
+                row?.ApplyRunResult(result,cpu,completedAt);
                 if(string.Equals(this.activeChartMethodName,row?.RowKey??result.Method,StringComparison.OrdinalIgnoreCase)) {
                     this.activeChartMethodName=string.Empty;
                 }
@@ -4336,7 +4322,6 @@ public sealed partial class RunnerViewModel:ObservableObject,
             return;
         }
 
-        this.MarkRunningVisualStarted(result);
         if(result.AxisCount>0) {
             this.UpsertCurrentRunResultItem(result);
             this.RefreshSourceTabProgressesForRunningResult();
@@ -4354,114 +4339,47 @@ public sealed partial class RunnerViewModel:ObservableObject,
         row?.ApplyRunResult(result,this.FindAssignedCpu(result),DateTimeOffset.Now);
     }
 
-    /// <summary>
-    /// MarkRunningVisualStarted メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    /// <param name="result">result を指定して実行条件を制御します。</param>
-    private void MarkRunningVisualStarted(BenchmarkResultItem result) {
-        var key = CreateRunningVisualKey(result);
-        if(!this.runningVisualStartedAt.ContainsKey(key)) {
-            this.runningVisualStartedAt[key]=this.runVisualScheduler.UtcNow;
+    private void TryApplyPendingFinalLiveVisualCleanup() {
+        if(!this.pendingFinalLiveVisualCleanup||this.IsBenchmarkRunActive||this.runEventPipeline.HasPending) {
+            return;
         }
+
+        var discard = this.pendingFinalLiveVisualCleanupDiscard;
+        this.pendingFinalLiveVisualCleanup=false;
+        this.pendingFinalLiveVisualCleanupDiscard=false;
+        this.ApplyFinalLiveVisualCleanup(discard);
     }
 
-    /// <summary>
-    /// TryGetTerminalVisualDelay メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="result">result を指定して実行条件を制御します。</param>
-    /// <param name="delay">delay を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private bool TryGetTerminalVisualDelay(BenchmarkResultItem result,out TimeSpan delay) {
-        delay=TimeSpan.Zero;
-        if(!this.runningVisualStartedAt.TryGetValue(CreateRunningVisualKey(result),out var startedAt)) {
-            return false;
-        }
-
-        var elapsed = this.runVisualScheduler.UtcNow-startedAt;
-        if(elapsed>=RunningVisualMinimumDuration) {
-            return false;
-        }
-
-        delay=RunningVisualMinimumDuration-elapsed;
-        return true;
-    }
-
-    /// <summary>
-    /// TryGetRemainingRunningVisualDelay メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="delay">delay を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private bool TryGetRemainingRunningVisualDelay(out TimeSpan delay) {
-        delay=TimeSpan.Zero;
-        if(this.runningVisualStartedAt.Count==0) {
-            return false;
-        }
-
-        var now = this.runVisualScheduler.UtcNow;
-        foreach(var startedAt in this.runningVisualStartedAt.Values) {
-            var remaining = RunningVisualMinimumDuration-(now-startedAt);
-            if(remaining>delay) {
-                delay=remaining;
+    private async Task DrainRunEventPipelineAsync() {
+        for(var retry=0;retry<200;retry++) {
+            this.renderScheduler.FlushNow();
+            if(!this.runEventPipeline.HasPending) {
+                return;
             }
+
+            await Task.Delay(5);
         }
-
-        return delay>TimeSpan.Zero;
     }
 
-    /// <summary>
-    /// ScheduleTerminalVisualResult メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    /// <param name="result">result を指定して実行条件を制御します。</param>
-    /// <param name="runGeneration">runGeneration を指定して実行条件を制御します。</param>
-    /// <param name="delay">delay を指定して実行条件を制御します。</param>
-    private void ScheduleTerminalVisualResult(BenchmarkResultItem result,int runGeneration,TimeSpan delay) {
-        var cleanupToken = this.finalLiveVisualCleanupToken;
+    private void SchedulePendingFinalLiveVisualCleanup(int runGeneration) {
         _=Task.Run(async () => {
-            await this.runVisualScheduler.DelayAsync(delay);
-            this.uiDispatcher.BeginInvoke(() => {
-                if(runGeneration!=this.runResultGeneration||cleanupToken!=this.finalLiveVisualCleanupToken) {
-                    return;
+            for(var retry=0;retry<200;retry++) {
+                await Task.Delay(10);
+                if(this.runEventPipeline.HasPending) {
+                    continue;
                 }
 
-                this.ApplyTerminalVisualResult(result);
-            });
+                this.uiDispatcher.BeginInvoke(() => {
+                    if(runGeneration!=this.runResultGeneration) {
+                        return;
+                    }
+
+                    this.TryApplyPendingFinalLiveVisualCleanup();
+                });
+                return;
+            }
         });
     }
-
-    /// <summary>
-    /// ApplyTerminalVisualResult メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    /// <param name="result">result を指定して実行条件を制御します。</param>
-    private void ApplyTerminalVisualResult(BenchmarkResultItem result) {
-        this.runningVisualStartedAt.Remove(CreateRunningVisualKey(result));
-        this.FindAssignedCpu(result)?.ApplyJob(result);
-        this.ApplySourceTabRunningResult(result);
-        this.FindBenchmarkRow(result)?.ApplyRunResult(result,this.FindAssignedCpu(result),DateTimeOffset.Now,false);
-        this.UpdateChartCore(this.GetSourceTabViewState(result.SourceTab),false);
-    }
-
-    /// <summary>
-    /// ScheduleFinalLiveVisualCleanup メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    /// <param name="runGeneration">runGeneration を指定して実行条件を制御します。</param>
-    /// <param name="delay">delay を指定して実行条件を制御します。</param>
-    private void ScheduleFinalLiveVisualCleanup(int runGeneration,TimeSpan delay) {
-        _=Task.Run(async () => {
-            await this.runVisualScheduler.DelayAsync(delay);
-            this.uiDispatcher.BeginInvoke(() => {
-                if(runGeneration!=this.runResultGeneration) {
-                    return;
-                }
-
-                this.ApplyFinalLiveVisualCleanup();
-            });
-        });
-    }
-
-    /// <summary>
-    /// discardPendingRunUpdates プロパティです。
-    /// </summary>
-    /// <value>discardPendingRunUpdates の値を取得/設定します。</value>
     private void ApplyFinalLiveVisualCleanup(bool discardPendingRunUpdates = false) {
         this.finalLiveVisualCleanupToken=unchecked(this.finalLiveVisualCleanupToken+1);
         if(discardPendingRunUpdates) {
@@ -4469,30 +4387,19 @@ public sealed partial class RunnerViewModel:ObservableObject,
         }
 
         this.currentRunSession.ClearRunningResults();
-        this.runningVisualStartedAt.Clear();
         this.ClearSourceTabRunningStates();
         this.ClearBenchmarkLiveStates();
         this.ApplySelectedElementCountToTable();
         this.RestoreLatestCompletedLiveResult();
         this.ClearCpuJobs();
-        // 持ち越し終端イベントが1件も無い場合は ApplyRunUiSnapshot がもう呼ばれないため、ここでも判定する。
         this.TryApplyPostRunDisplayFinalize();
     }
 
-    /// <summary>
-    /// 実行終了後、パイプラインの持ち越し終端イベントが全て反映された時点で一度だけ
-    /// 表示の最終化(値の再描画+完全完了アイコン+バッジ+チャート)を行います。
-    /// 最終ステップの結果は実行終了後に描画されることがあり、実行中(ACTIVE)分岐の
-    /// RefreshFinalCompletionStates ではそれらを確定表示へ反映できないためです。
-    /// </summary>
     private void TryApplyPostRunDisplayFinalize() {
         if(!this.pendingPostRunDisplayFinalize||this.IsBenchmarkRunActive||this.runEventPipeline.HasPending) {
             return;
         }
         if(this.finalLiveVisualCleanupToken==this.pendingPostRunFinalizeCleanupToken) {
-            // 最終クリーンアップ(遅延スケジュール分)がまだ実施されていない。クリーンアップは
-            // 行ライブ状態や表示を作り直すため、先に最終化するとその成果が消される。
-            // クリーンアップ末尾の呼び出しで改めて判定される。
             return;
         }
 
@@ -4503,33 +4410,10 @@ public sealed partial class RunnerViewModel:ObservableObject,
             this.RefreshVisibleResults();
             this.ApplySelectedElementCountToTable();
             this.UpdateChart();
-            this.RefreshFinalCompletionStates();
+            this.ApplyFinalCompletionStatesSynchronously();
             this.RefreshSourceTabProgresses();
         });
     }
-
-    /// <summary>
-    /// ClearBenchmarkLiveStates メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    private void ClearBenchmarkLiveStates() {
-        foreach(var row in this.GetAllBenchmarkRows()) {
-            row.ClearLiveState();
-        }
-    }
-
-    /// <summary>
-    /// CreateRunningVisualKey メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="result">result を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private static string CreateRunningVisualKey(BenchmarkResultItem result) =>
-        result.SourceTab.ToString()
-        +"|"+result.Project
-        +"|"+result.TypeFullName
-        +"|"+result.Method
-        +"|"+result.ArgumentKey
-        +"|"+result.AxisCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
-
     /// <summary>
     /// IsRunningResult メソッドを実行し、結果を算出して返却します。
     /// </summary>
@@ -5005,7 +4889,6 @@ public sealed partial class RunnerViewModel:ObservableObject,
     /// </summary>
     private void ClearSelectedRunDisplay() {
         this.ClearSourceTabRunningStates();
-        this.ClearRetainedChartPoints();
         this.ClearAllSourceTabComparisonDisplays();
         this.ResultItems.Clear();
         this.VisibleResultItems.Clear();
@@ -5022,7 +4905,6 @@ public sealed partial class RunnerViewModel:ObservableObject,
     /// </summary>
     private void ClearAllCurrentRunResultsForFreshRun() {
         this.ClearSourceTabRunningStates();
-        this.ClearRetainedChartPoints();
         this.currentRunSession.Clear();
         this.ClearAllSourceTabComparisonDisplays();
         this.ResultItems.Clear();
@@ -5061,7 +4943,6 @@ public sealed partial class RunnerViewModel:ObservableObject,
     /// ClearSelectedSourceLiveResults メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
     private void ClearSelectedSourceLiveResults() {
-        this.ClearRetainedChartPoints();
         this.currentRunSession.ClearSourceTab(this.SelectedSourceDefinition.Tab);
         this.comparisonRows= [];
         this.ResultItems.Clear();
@@ -5078,7 +4959,6 @@ public sealed partial class RunnerViewModel:ObservableObject,
     /// PrepareSelectedSourceLiveResultsForRun メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
     private void PrepareSelectedSourceLiveResultsForRun() {
-        this.ClearRetainedChartPoints();
         this.currentRunSession.ClearSourceTab(this.SelectedSourceDefinition.Tab);
         this.comparisonRows= [];
         this.ResultItems.Clear();
@@ -5889,8 +5769,7 @@ public sealed partial class RunnerViewModel:ObservableObject,
                 }
 
                 this.SelectResultElementCountWithoutReload(selectedN);
-                this.ClearRetainedChartPoints();
-                this.ClearBenchmarkResultDisplays();
+                        this.ClearBenchmarkResultDisplays();
                 this.comparisonRows= [];
                 this.ResultItems.Clear();
                 this.VisibleResultItems.Clear();
@@ -6390,6 +6269,29 @@ public sealed partial class RunnerViewModel:ObservableObject,
             },TaskScheduler.Default);
     }
 
+
+    private void ApplyFinalCompletionStatesSynchronously() {
+        var sourceTab = this.SelectedSourceDefinition;
+        var source = BenchmarkRunDisplaySourceLogic.ShouldUseCurrentRunMemory(this.HasCurrentRunResultsForSelectedTab)
+            ? this.GetCurrentRunResultItemsForSelectedTab()
+            : this.ResultItems.ToArray();
+        var rows = this.BenchmarkRows.ToArray();
+        var measurements = this.CreateDisplayMeasurementsFrom(source,sourceTab);
+        if(measurements.Length==0) {
+            this.ClearFinalCompletionStates();
+            return;
+        }
+
+        var completed = ComputeFinalCompletionStates(
+            measurements,
+            rows,
+            this.BenchmarkPairs(),
+            this.GetFinalCompletionMaxElementCount(),
+            this.GetAdaptiveThreshold().TotalMilliseconds*1_000_000);
+        for(var index = 0; index<rows.Length; index++) {
+            rows[index].SetFinalCompleted(completed[index]);
+        }
+    }
     /// <summary>
     /// CreateDisplayMeasurementsFrom メソッドを実行し、結果を算出して返却します。
     /// </summary>
@@ -6913,8 +6815,7 @@ public sealed partial class RunnerViewModel:ObservableObject,
 
         // 実行中の比較行再構築は結果毎の選択判定・整形・DB参照(FindPreviousResult)を含み重い。
         // currentRunSession に触れるスナップショット取得だけをUIスレッドで済ませ、比較行と
-        // 診断行の計算はバックグラウンドで行う。チャートポイント構築は retainedChartPoints
-        // 辞書と行の可変状態(選択・実行中表示)を読むため、反映側(UIスレッド)に残す。
+        // 診断行の計算はバックグラウンドで行う。チャートポイント構築は行の可変状態\r\n        // (選択・実行中表示)を読むため、反映側(UIスレッド)に残す。
         if(this.chartRefreshInFlight) {
             this.pendingChartRefreshTabs.Add(state.Definition.Tab);
             return;
@@ -7156,11 +7057,6 @@ public sealed partial class RunnerViewModel:ObservableObject,
             this.GeneratedCodeAuditReport=new GeneratedCodeAuditReport("-","-","Select a target method to inspect generated code.",null,[],"-");
             return;
         }
-        if(this.generatedCodeAuditCache.TryGetValue(input.Value.CacheKey,out var cached)) {
-            this.GeneratedCodeAuditReport=cached;
-            return;
-        }
-
         var requestToken = ++this.generatedCodeAuditRequestToken;
         Task.Run(() => this.CreateGeneratedCodeAuditReportCore(input.Value))
             .ContinueWith(task => {
@@ -7171,9 +7067,6 @@ public sealed partial class RunnerViewModel:ObservableObject,
                     var report = task.IsFaulted
                         ? new GeneratedCodeAuditReport(input.Value.MethodName,input.Value.LeftProject+" vs "+input.Value.RightProject,"Load failed",null,[],"Generated code audit failed: "+task.Exception!.GetBaseException().Message)
                         : task.Result;
-                    if(!task.IsFaulted) {
-                        this.generatedCodeAuditCache[input.Value.CacheKey]=report;
-                    }
                     this.GeneratedCodeAuditReport=report;
                 });
             },TaskScheduler.Default);
@@ -7188,11 +7081,10 @@ public sealed partial class RunnerViewModel:ObservableObject,
     /// <param name="BenchmarkProject">BenchmarkProject を指定して実行条件を制御します。</param>
     /// <param name="AssemblyName">AssemblyName を指定して実行条件を制御します。</param>
     /// <param name="TypeFullName">TypeFullName を指定して実行条件を制御します。</param>
-    /// <param name="CacheKey">CacheKey を指定して実行条件を制御します。</param>
     /// <returns>処理結果を返却します。</returns>
     private readonly record struct GeneratedCodeAuditInput(
         string MethodName,string LeftProject,string RightProject,
-        string BenchmarkProject,string AssemblyName,string TypeFullName,string CacheKey);
+        string BenchmarkProject,string AssemblyName,string TypeFullName);
 
     public sealed record GeneratedCodeAuditReport(
         string TargetMethod,string ComparisonPair,string AuditTarget,string? GeneratedFileName,
@@ -7216,11 +7108,10 @@ public sealed partial class RunnerViewModel:ObservableObject,
             ? leftBenchmark
             : selected.CasesByProject.Values.FirstOrDefault();
         if(benchmark is null) {
-            return new GeneratedCodeAuditInput(selected.MethodName,sourceTab.LeftProject,sourceTab.RightProject,"","","","missing|"+selected.MethodName);
+            return new GeneratedCodeAuditInput(selected.MethodName,sourceTab.LeftProject,sourceTab.RightProject,"","","");
         }
 
-        var cacheKey = "readable|"+benchmark.AssemblyName+"|"+selected.MethodName+"|"+benchmark.TypeFullName+"|"+benchmark.ArgumentKey;
-        return new GeneratedCodeAuditInput(selected.MethodName,sourceTab.LeftProject,sourceTab.RightProject,benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,cacheKey);
+        return new GeneratedCodeAuditInput(selected.MethodName,sourceTab.LeftProject,sourceTab.RightProject,benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName);
     }
 
     /// <summary>
@@ -7446,14 +7337,11 @@ public sealed partial class RunnerViewModel:ObservableObject,
         var right = this.GetChartMetrics(row,sourceTab.RightProject,comparisonRow);
         var leftValue = GetMetricValue(left,this.SelectedMetric.Kind);
         var rightValue = GetMetricValue(right,this.SelectedMetric.Kind);
-        var cacheKey = this.GetChartPointCacheKey(sourceTab,row.RowKey);
         if(leftValue is not null&&rightValue is not null) {
             var measuredPoint = this.ApplyChartUiSelection(row,this.CreateChartComparisonPoint(row,leftValue,rightValue,sourceTab.Pair));
-            this.retainedChartPoints[cacheKey]=measuredPoint;
             return this.ApplyChartRunningState(measuredPoint);
         }
 
-        this.retainedChartPoints.Remove(cacheKey);
         return null;
     }
 
@@ -7554,35 +7442,7 @@ public sealed partial class RunnerViewModel:ObservableObject,
     private string CreateChartArgumentTooltip(TableRow row) {
         return ArgumentTooltipFormatter.CreateArgumentTooltip(row);
     }
-
-    /// <summary>
-    /// GetChartPointCacheKey メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="method">method を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private string GetChartPointCacheKey(string method) =>
-        this.GetChartPointCacheKey(this.SelectedSourceDefinition,method);
-
-    /// <summary>
-    /// GetChartPointCacheKey メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
-    /// <param name="method">method を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private string GetChartPointCacheKey(BenchmarkSourceTabDefinition sourceTab,string method) =>
-        sourceTab.Id+"|"
-        +sourceTab.Pair.LeftProject+"|"
-        +sourceTab.Pair.RightProject+"|"
-        +this.SelectedMetric.Kind+"|"
-        +method;
-
-    /// <summary>
-    /// ClearRetainedChartPoints メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    private void ClearRetainedChartPoints() {
-        this.retainedChartPoints.Clear();
-    }
-
+`r`n
     /// <summary>
     /// ApplyChartRunningState メソッドを実行し、結果を算出して返却します。
     /// </summary>

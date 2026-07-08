@@ -334,6 +334,42 @@ public sealed class RunnerViewModel{
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task LoadedSavedDatabaseRun_ShowsOnlySelectedRowsAndRestoresCpuDisplay(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        var selectedRows = viewModel.BenchmarkRows.Take(2).ToArray();
+        Assert.Equal(2,selectedRows.Length);
+        foreach(var row in selectedRows){
+            row.LeftCell.IsSelected=true;
+        }
+
+        var selectedCells = GetSelectedCells(viewModel);
+        Assert.Equal(2,selectedCells.Count);
+
+        await viewModel.RunCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => selectedCells.All(IsFinalCompleted));
+        await SaveCurrentRunAsync(viewModel);
+        var savedRun = viewModel.SelectedRunOption!;
+
+        viewModel.NewGridCommand.Execute(null);
+        await WaitUntilAsync(() => viewModel.BenchmarkRows.Count>0&&GetSelectedCells(viewModel).Count==0);
+        viewModel.SelectedRunOption=savedRun;
+        await WaitUntilAsync(() => !viewModel.IsRunHistoryLoading
+            &&viewModel.ResultItems.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)));
+
+        var loadedRows = viewModel.BenchmarkRows.ToArray();
+        Assert.Equal(2,loadedRows.Length);
+        Assert.DoesNotContain(loadedRows,row => !row.ProjectCells.Any(static cell => cell.HasCase&&cell.IsSelected));
+        Assert.All(loadedRows,row => {
+            AssertLoadedRowHasPairMetrics(row);
+            Assert.True(row.LeftCell.HasCpuDisplay,CreateCellMetadataMessage(viewModel,row.LeftCell));
+            Assert.True(row.RightCell.HasCpuDisplay,CreateCellMetadataMessage(viewModel,row.RightCell));
+            Assert.False(string.IsNullOrWhiteSpace(row.LeftCell.CoreKindImageSource),CreateCellMetadataMessage(viewModel,row.LeftCell));
+            Assert.False(string.IsNullOrWhiteSpace(row.RightCell.CoreKindImageSource),CreateCellMetadataMessage(viewModel,row.RightCell));
+        });
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
     public async Task CompletedRun_CanSelectEarlierSavedDatabaseRunWithoutRestart(){
         var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
         var viewModel = fixture.ViewModel;
