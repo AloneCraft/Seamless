@@ -11,6 +11,7 @@ public sealed class BenchmarkUiRunRepository{
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var runId = await repository.CreateRunAsync(UiRunAppKind.Benchmark,"Benchmark","Fast",sourceTab.Tab);
         var result = Result(sourceTab.LeftProject,sourceTab.Tab,"Aggregate",64,123.5,"Sample.Type","Count=64",[new global::UI.BenchmarkArgument("Count","64")]);
+        repository.QueueSaveRunSettings(runId,string.Empty,[64],TimeSpan.Zero,[]);
 
         repository.QueueSaveBenchmarkSnapshotItems(runId,[
             Snapshot(runId!.Value,sourceTab,"Sample.Type","Aggregate",7,CompletedSide(result),EmptySide(sourceTab.RightProject,sourceTab.Tab,"Sample.Type","Aggregate")),
@@ -22,7 +23,7 @@ public sealed class BenchmarkUiRunRepository{
             .Single(static item => item.MeanNanoseconds is not null);
         Assert.Equal(sourceTab.LeftProject,loaded.Project);
         Assert.Equal("Sample.Type",loaded.TypeFullName);
-        Assert.Equal(64,loaded.ElementCount);
+        Assert.Equal(global::UI.BenchmarkWorkloadAxis.ResolveElementCount(sourceTab.Tab,64),loaded.ElementCount);
         Assert.Equal(123.5,loaded.MeanNanoseconds);
         Assert.Equal(7,loaded.AssignedLogicalCpu);
     }
@@ -33,6 +34,7 @@ public sealed class BenchmarkUiRunRepository{
         var repository = new global::UI.BenchmarkUiRunRepository(store);
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var runId = await repository.CreateRunAsync(UiRunAppKind.Benchmark,"Benchmark","Fast",sourceTab.Tab);
+        repository.QueueSaveRunSettings(runId,string.Empty,[64],TimeSpan.Zero,[]);
 
         repository.QueueSaveBenchmarkSnapshotItems(runId,[
             Snapshot(runId!.Value,sourceTab,"Sample.Type","Aggregate",7,CompletedSide(Result(sourceTab.LeftProject,sourceTab.Tab,"Aggregate",64,100,"Sample.Type","Count=64",[new global::UI.BenchmarkArgument("Count","64")])),EmptySide(sourceTab.RightProject,sourceTab.Tab,"Sample.Type","Aggregate")),
@@ -57,6 +59,7 @@ public sealed class BenchmarkUiRunRepository{
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.ScalableTsavoriteSet);
         var runId = await repository.CreateRunAsync(UiRunAppKind.ScalableBenchmark,"Scalable","Fast",sourceTab.Tab);
         var result = Result(sourceTab.LeftProject,sourceTab.Tab,"Add",262144,500,"SetInt32",string.Empty,[]);
+        repository.QueueSaveRunSettings(runId,string.Empty,[262144],TimeSpan.Zero,[]);
 
         repository.QueueSaveBenchmarkSnapshotItems(runId,[
             Snapshot(runId!.Value,sourceTab,"SetInt32","Add",7,CompletedSide(result),EmptySide(sourceTab.RightProject,sourceTab.Tab,"SetInt32","Add")),
@@ -82,14 +85,14 @@ public sealed class BenchmarkUiRunRepository{
         new(runId,0,sourceTab.Id,typeName,benchmarkName,cpuNumber,left,right);
 
     private static global::UI.BenchmarkGridSnapshotSide CompletedSide(global::UI.BenchmarkResultItem result) =>
-        new(true,UiRunStatus.Completed,string.Empty,result.StartedAt,result.MeanNanoseconds,result.AllocatedBytesValue,result.ElementCount,result);
+        new(true,UiRunStatus.Completed,string.Empty,result.StartedAt,result.MeanNanoseconds,result.AllocatedBytesValue,result);
 
     private static global::UI.BenchmarkGridSnapshotSide EmptySide(
         string project,
         global::UI.BenchmarkSourceTab sourceTab,
         string typeName,
         string benchmarkName) =>
-        new(false,UiRunStatus.Queued,string.Empty,null,null,null,null,Result(project,sourceTab,benchmarkName,0,0,typeName,string.Empty,[]));
+        new(false,UiRunStatus.Queued,string.Empty,null,null,null,Result(project,sourceTab,benchmarkName,0,0,typeName,string.Empty,[]));
 
     private static global::UI.BenchmarkResultItem Result(
         string project,

@@ -539,8 +539,6 @@ public sealed partial class MainPage:ContentPage {
     private View CreateToolbar() {
         var runButton = this.CreateToolbarTextButton("計測");
         this.BindToolbarButtonState(runButton,BenchmarkToolbarButtonRole.Run);
-        var overwriteRunButton = this.CreateToolbarTextButton("上書き計測");
-        this.BindToolbarButtonState(overwriteRunButton,BenchmarkToolbarButtonRole.OverwriteRun);
         var stopButton = this.CreateToolbarIconButton(
             "stop.png",
             "停止");
@@ -620,7 +618,6 @@ public sealed partial class MainPage:ContentPage {
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
-                new ColumnDefinition { Width = GridLength.Auto },
             },
             ColumnSpacing=6,
         };
@@ -629,25 +626,24 @@ public sealed partial class MainPage:ContentPage {
         grid.Add(this.ToolbarLabel("モード"),2,0);
         grid.Add(executionProfilePicker,3,0);
         grid.Add(runButton,4,0);
-        grid.Add(overwriteRunButton,5,0);
-        grid.Add(stopButton,6,0);
-        grid.Add(saveDatabaseButton,7,0);
-        grid.Add(newGridButton,8,0);
+        grid.Add(stopButton,5,0);
+        grid.Add(saveDatabaseButton,6,0);
+        grid.Add(newGridButton,7,0);
 #if DEBUG
-        grid.Add(infiniteButton,9,0);
-        grid.Add(this.ToolbarLabel("結果"),10,0);
-        grid.Add(runPicker,11,0);
-        grid.Add(clearRunHistoryButton,12,0);
-#else
+        grid.Add(infiniteButton,8,0);
         grid.Add(this.ToolbarLabel("結果"),9,0);
         grid.Add(runPicker,10,0);
+        grid.Add(clearRunHistoryButton,11,0);
+#else
+        grid.Add(this.ToolbarLabel("結果"),8,0);
+        grid.Add(runPicker,9,0);
 #endif
         var preview = this.CreateStatusIconPreview();
         grid.Add(preview,0,1);
 #if DEBUG
-        Grid.SetColumnSpan(preview,13);
+        Grid.SetColumnSpan(preview,12);
 #else
-        Grid.SetColumnSpan(preview,11);
+        Grid.SetColumnSpan(preview,10);
 #endif
         return grid;
     }
@@ -829,11 +825,6 @@ public sealed partial class MainPage:ContentPage {
             case BenchmarkToolbarButtonRole.Run:
                 if(this.viewModel.RunCommand.CanExecute(null)) {
                     await this.viewModel.RunCommand.ExecuteAsync(null);
-                }
-                break;
-            case BenchmarkToolbarButtonRole.OverwriteRun:
-                if(this.viewModel.OverwriteRunCommand.CanExecute(null)) {
-                    await this.viewModel.OverwriteRunCommand.ExecuteAsync(null);
                 }
                 break;
 #if DEBUG
@@ -2175,20 +2166,12 @@ public sealed partial class MainPage:ContentPage {
         var argumentMappings = this.AddArgumentColumns(grid,sourceTab);
         this.AddBenchmarkBaseStackedHeaders(categoryHeaderRow,projectHeaderRow,cpuMapping,argumentMappings,sourceTab);
         var leftMappings = this.AddProjectColumns(grid,"Left",nameof(BenchmarkTableRow.LeftCell),BenchmarkGridSortColumn.LeftTime,BenchmarkGridSortColumn.LeftAllocated);
-        var stopMapping = this.AddPairStopNColumn(
-            grid,
-            "StopN",
-            nameof(BenchmarkTableRow.StopNText),
-            nameof(BenchmarkTableRow.StopNTextColor),
-            nameof(BenchmarkTableRow.StopNFontAttributes),
-            BenchmarkGridSortColumn.ElementCount);
         var timeRatioMapping = nameof(BenchmarkTableRow.PairRatioTimeText);
         var allocatedRatioMapping = nameof(BenchmarkTableRow.PairRatioAllocatedText);
         grid.Columns.Add(this.CreateTextColumn("時間比",timeRatioMapping,BenchmarkGridSortColumn.PairRatioTime,BenchmarkPairStopNColumnWidth,TextAlignment.End));
         grid.Columns.Add(this.CreateTextColumn("メモリ比",allocatedRatioMapping,BenchmarkGridSortColumn.PairRatioAllocated,BenchmarkPairStopNColumnWidth,TextAlignment.End));
         var rightMappings = this.AddProjectColumns(grid,"Right",nameof(BenchmarkTableRow.RightCell),BenchmarkGridSortColumn.RightTime,BenchmarkGridSortColumn.RightAllocated);
         this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup("Left","Left"),leftMappings,sourceTab);
-        this.AddBenchmarkStopNHeader(projectHeaderRow,stopMapping);
         this.AddBenchmarkRatioHeader(projectHeaderRow,timeRatioMapping,"時間比");
         this.AddBenchmarkRatioHeader(projectHeaderRow,allocatedRatioMapping,"メモリ比");
         this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup("Right","Right"),rightMappings,sourceTab);
@@ -2393,17 +2376,6 @@ public sealed partial class MainPage:ContentPage {
         return [checkMapping,timeMapping,allocatedMapping];
     }
 
-    private string AddPairStopNColumn(
-        SfDataGrid grid,
-        string mappingName,
-        string bindingPath,
-        string textColorPath,
-        string fontAttributesPath,
-        BenchmarkGridSortColumn sortColumn) {
-        grid.Columns.Add(this.CreatePairStopNColumn(mappingName,bindingPath,textColorPath,fontAttributesPath,sortColumn));
-        return mappingName;
-    }
-
     private string GetProjectFromCellPath(string cellPath) {
         // "Left"/"Right" トークンは VM 側で行が属する SourceTab の定義から実プロジェクト名へ解決される
         return cellPath switch {
@@ -2488,14 +2460,6 @@ public sealed partial class MainPage:ContentPage {
             MappingName="BenchmarkProjectGroup"+group.Id,
             ColumnMappingNames=string.Join(",",childMappings),
             Template=this.CreateBenchmarkColumnGroupHeaderTemplate(group,sourceTab),
-        });
-    }
-
-    private void AddBenchmarkStopNHeader(DataGridStackedHeaderRow headerRow,string mappingName) {
-        headerRow.Columns.Add(new DataGridStackedColumn {
-            MappingName="BenchmarkStopN"+mappingName,
-            ColumnMappingNames=mappingName,
-            Text=string.Empty,
         });
     }
 
@@ -2777,53 +2741,6 @@ public sealed partial class MainPage:ContentPage {
                 content.Add(detailHost,2,0);
                 layout.Add(content,1,1);
                 return layout;
-            }),
-        };
-    }
-
-    private DataGridTemplateColumn CreatePairStopNColumn(
-        string mappingName,
-        string bindingPath,
-        string textColorPath,
-        string fontAttributesPath,
-        BenchmarkGridSortColumn sortColumn) {
-        return new DataGridTemplateColumn {
-            MappingName=mappingName,
-            HeaderText="要素数",
-            Width=BenchmarkPairStopNColumnWidth,
-            AllowSorting=false,
-            HeaderTemplate=this.CreateHeaderTemplate("要素数",sortColumn),
-            CellTemplate=new DataTemplate(() => {
-                var grid = new Grid {
-                    BackgroundColor=Colors.Transparent,
-                    HorizontalOptions=LayoutOptions.Fill,
-                    VerticalOptions=LayoutOptions.Fill,
-                };
-                var label = new Label {
-                    FontSize=9,
-                    InputTransparent=true,
-                    LineBreakMode=LineBreakMode.TailTruncation,
-                    HorizontalTextAlignment=TextAlignment.Center,
-                    VerticalTextAlignment=TextAlignment.Center,
-                    Margin=new Thickness(0),
-                    Padding=new Thickness(2,0),
-                };
-                label.SetBinding(Label.TextProperty,bindingPath);
-                label.SetBinding(Label.TextColorProperty,textColorPath);
-                label.SetBinding(Label.FontAttributesProperty,fontAttributesPath);
-                label.SetBinding(ToolTipProperties.TextProperty,bindingPath);
-                grid.SetBinding(ToolTipProperties.TextProperty,bindingPath);
-                this.AddBenchmarkRowUiSelectionFill(grid);
-                var tap = new TapGestureRecognizer();
-                tap.Tapped+=(_,_) => {
-                    if(grid.BindingContext is BenchmarkTableRow row) {
-                        this.viewModel?.SelectBenchmarkRow(row,CreateBenchmarkSelectionGesture());
-                    }
-                };
-                grid.GestureRecognizers.Add(tap);
-                grid.Add(label,0,0);
-                this.EnableHoverCellExpansion(grid,label,TextAlignment.Center);
-                return grid;
             }),
         };
     }

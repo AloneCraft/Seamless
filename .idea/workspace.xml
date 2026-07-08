@@ -2,15 +2,13 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c7260d12-37ac-443f-b541-40f8091022ae" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/dataSources/8333e6f0-328f-43d9-b8c2-45678ab7a359.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources.local.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources.local.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources/68448f76-e8b7-4b9f-8c04-252b239b2c8a.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/68448f76-e8b7-4b9f-8c04-252b239b2c8a.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources/data_sources_history.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/data_sources_history.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/68448f76-e8b7-4b9f-8c04-252b239b2c8a.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/8333e6f0-328f-43d9-b8c2-45678ab7a359.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/8333e6f0-328f-43d9-b8c2-45678ab7a359.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerModels.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerModels.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/MainPage.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/MainPage.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/ViewModels/RunnerViewModel.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/ViewModels/RunnerViewModel.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkUiLogic.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkUiLogic.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkUiRunRepository.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkUiRunRepository.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Shared/UI.Storage/UiRunModels.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Storage/UiRunModels.cs" afterDir="false" />
@@ -18,6 +16,9 @@
       <change beforePath="$PROJECT_DIR$/Test/Benchmark/BenchmarkUiRunRepository.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkUiRunRepository.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Test/Benchmark/Pattern.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/Pattern.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Test/Benchmark/UiRunStore.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/UiRunStore.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Work/UI/runs.db" beforeDir="false" afterPath="$PROJECT_DIR$/Work/UI/runs.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Work/UI/runs.db-shm" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Work/UI/runs.db-wal" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
