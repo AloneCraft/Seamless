@@ -543,7 +543,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
             () => this.SetAllBenchmarkSelection(false),
             () => this.CanChangeBenchmarkSelection);
         this.RunCommand=new AsyncRelayCommand(this.RunOrResumeAsync,() => this.CanRunBenchmark);
-        this.OverwriteRunCommand=new AsyncRelayCommand(this.OverwriteRunAsync,() => this.CanRunBenchmark);
         this.SaveDatabaseCommand=new AsyncRelayCommand(this.SaveDatabaseAsync,() => this.CanSaveDatabase);
         this.NewGridCommand=new RelayCommand(this.NewGrid,() => this.CanCreateNewGrid);
 #if DEBUG
@@ -813,11 +812,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <value>RunCommand の値を取得/設定します。</value>
     public IAsyncRelayCommand RunCommand { get; }
     /// <summary>
-    /// OverwriteRunCommand プロパティです。
-    /// </summary>
-    /// <value>OverwriteRunCommand の値を取得/設定します。</value>
-    public IAsyncRelayCommand OverwriteRunCommand { get; }
-    /// <summary>
     /// SaveDatabaseCommand プロパティです。
     /// </summary>
     /// <value>SaveDatabaseCommand の値を取得/設定します。</value>
@@ -1008,7 +1002,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
         private set {
             if(this.SetProperty(ref this.isBenchmarkRunning,value)) {
                 this.RunCommand.NotifyCanExecuteChanged();
-                this.OverwriteRunCommand.NotifyCanExecuteChanged();
                 this.SaveDatabaseCommand.NotifyCanExecuteChanged();
                 this.NewGridCommand.NotifyCanExecuteChanged();
 #if DEBUG
@@ -1061,7 +1054,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
         private set {
             if(this.SetProperty(ref this.isRefreshing,value)) {
                 this.RunCommand.NotifyCanExecuteChanged();
-                this.OverwriteRunCommand.NotifyCanExecuteChanged();
                 this.SaveDatabaseCommand.NotifyCanExecuteChanged();
                 this.NewGridCommand.NotifyCanExecuteChanged();
 #if DEBUG
@@ -1164,7 +1156,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     /// <value>CanRunBenchmark の値を取得/設定します。</value>
     public bool CanRunBenchmark =>
-        !this.IsRefreshing&&!this.IsBenchmarkRunning&&this.HasSelectedBenchmarkCells;
+        !this.IsRefreshing
+        &&!this.IsBenchmarkRunning
+        &&(this.HasSelectedBenchmarkCells||IsSavedDatabaseRunOption(this.SelectedRunOption));
 
     /// <summary>
     /// CanUseRunToolbarButton プロパティです。
@@ -1210,7 +1204,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
         private set {
             if(this.SetProperty(ref this.hasSelectedBenchmarkCells,value)) {
                 this.RunCommand.NotifyCanExecuteChanged();
-                this.OverwriteRunCommand.NotifyCanExecuteChanged();
 #if DEBUG
                 this.RunInfiniteCommand.NotifyCanExecuteChanged();
 #endif
@@ -1228,7 +1221,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     /// <value>RunButtonTooltipText の値を取得/設定します。</value>
     public string RunButtonTooltipText =>
-        this.HasSelectedBenchmarkCells
+        this.HasSelectedBenchmarkCells||IsSavedDatabaseRunOption(this.SelectedRunOption)
             ? this.RunButtonText
             : "ベンチマークを1つ以上選択してください";
 
@@ -1293,7 +1286,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
         this.IsRefreshing,
         this.IsBenchmarkRunActive,
         this.IsBenchmarkPaused,
-        this.CanRunBenchmark,
         this.CanRunBenchmark,
         this.IsBenchmarkRunActive,
         false,
@@ -3009,11 +3001,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
         var sourceTab = Enum.TryParse<BenchmarkSourceTab>(run.SourceTab,true,out var parsedSourceTab)
             ? parsedSourceTab
             : this.SelectedSourceDefinition.Tab;
-        var elementCounts = snapshotItems
-            .SelectMany(static item => new[] { item.Left,item.Right })
-            .Where(static side => side.Status is UiRunStatus.Completed or UiRunStatus.Failed)
-            .Select(static side => (int)(side.ElementCount??0))
-            .Where(static elementCount => elementCount>0)
+        var elementCounts = ParseIntList(this.uiRunStore.GetRunSettings(run.RunId)?.ElementCounts??string.Empty)
             .Distinct()
             .Order()
             .ToArray();
@@ -3199,10 +3187,10 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <summary>
     /// SelectNewRunOptionForFreshRun メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
-    private void SelectNewRunOptionForFreshRun() {
+    private void SelectNewRunOptionForFreshRun(bool saveUiState = true) {
         var newRunOption = this.RunOptions.FirstOrDefault(IsNewRunOption);
         if(newRunOption is not null) {
-            this.SetSelectedRunOptionPreservingDisplay(newRunOption,true);
+            this.SetSelectedRunOptionPreservingDisplay(newRunOption,saveUiState);
             this.NotifySelectedRunOptionChangedForPicker();
         }
     }
@@ -3370,7 +3358,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
             measuredAt,
             meanNanoseconds,
             allocatedBytes,
-            elementCount,
             resultItem);
     }
 
@@ -4238,17 +4225,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
         await this.RunAsync(null,false);
     }
 
-    /// <summary>
-    /// OverwriteRunAsync メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    private async Task OverwriteRunAsync() {
-        if(this.IsBenchmarkRunning) {
-            return;
-        }
-
-        await this.RunAsync(null,true);
-    }
-
 #if DEBUG
     /// <summary>
     /// RunInfiniteAsync メソッドを実行し、結果を算出して返却します。
@@ -4303,10 +4279,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
     private async Task RunAsync(string? runRootOverride,bool overwriteExistingResults,bool useInfiniteTestRunner = false) {
         var startsFromSavedDatabaseRun = IsSavedDatabaseRunOption(this.SelectedRunOption);
         if(startsFromSavedDatabaseRun) {
-            this.SelectNewRunOptionForFreshRun();
-            this.ClearSelectedRunDisplay();
+            this.RestoreCatalogRowsForFreshRunFromSavedDatabaseRun();
         }
-        var unresolvedSnapshotFailureCount = this.ApplyUnresolvedSnapshotSelectionFailures();
         this.RefreshCurrentRunBenchmarkSelectionSnapshot();
         var allSelected = this.GetCurrentRunSelectedBenchmarkCases().ToArray();
         var selected = overwriteExistingResults
@@ -4314,9 +4288,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             : this.FilterBenchmarkCasesWithoutSuccessfulResults(allSelected,this.GetSelectedElementCounts()).ToArray();
         if(selected.Length==0) {
             this.StatusText=allSelected.Length==0
-                ? unresolvedSnapshotFailureCount>0
-                    ? "計測できない保存スナップショット行があります"
-                    : "ベンチマークが選択されていません"
+                ? "ベンチマークが選択されていません"
                 : "計測対象はすべて成功済みです";
             StartupDiagnostics.Write("Benchmark run aborted: no benchmark selected or all selected benchmarks already have successful results.");
             return;
@@ -4487,6 +4459,16 @@ public sealed partial class RunnerViewModel:ObservableObject {
             this.RefreshSourceTabProgresses();
             this.RefreshImprovementPrompt();
             this.UpdateChart();
+        }
+    }
+
+    private void RestoreCatalogRowsForFreshRunFromSavedDatabaseRun() {
+        this.SelectNewRunOptionForFreshRun(false);
+        this.ClearAllCurrentRunResultsForFreshRun();
+        this.RebuildBenchmarkRowsFromCatalog();
+        this.RefreshBenchmarkSelectionAggregates();
+        if(!this.HasAnyLiveSelectedBenchmarkCell(this.SelectedSourceDefinition)) {
+            this.SetAllBenchmarkSelection(true,this.SelectedSourceDefinition);
         }
     }
 
@@ -4703,8 +4685,22 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
 
         this.pipelineDiagnostics.RecordReceivedEvent(result.Status);
+        if(IsRunningResult(result)) {
+            this.QueueImmediateRunningResult(result,runGeneration);
+        }
+
         this.runEventPipeline.Post(new BenchmarkRunEvent(result,runGeneration,uiRunId,DateTimeOffset.UtcNow));
         this.renderScheduler.RequestRender();
+    }
+
+    private void QueueImmediateRunningResult(BenchmarkResultItem result,int runGeneration) {
+        this.uiDispatcher.BeginInvoke(() => {
+            if(runGeneration!=this.runResultGeneration) {
+                return;
+            }
+
+            this.ApplyImmediateRunningResult(result);
+        });
     }
 
     /// <summary>
@@ -4838,9 +4834,13 @@ public sealed partial class RunnerViewModel:ObservableObject {
             return;
         }
 
-        var row = this.FindBenchmarkRow(result);
-        this.activeChartMethodName=row?.RowKey??result.Method;
-        row?.ApplyRunResult(result,cpu,DateTimeOffset.Now);
+        this.ApplyVisibleRunningResultToGridCell(
+            result,
+            cpu,
+            DateTimeOffset.Now,
+            requestAutoScroll:false,
+            updateChart:false,
+            retainCompletedHighlights:false);
     }
 
     /// <summary>
@@ -5059,12 +5059,81 @@ public sealed partial class RunnerViewModel:ObservableObject {
             return;
         }
 
+        this.ApplyVisibleRunningResultToGridCell(
+            result,
+            this.FindAssignedCpu(result),
+            DateTimeOffset.Now,
+            requestAutoScroll:true,
+            updateChart:true,
+            retainCompletedHighlights:true);
+    }
+
+    private void ApplyVisibleRunningResultToGridCell(
+        BenchmarkResultItem result,
+        CpuSelectionItem? cpu,
+        DateTimeOffset observedAt,
+        bool requestAutoScroll,
+        bool updateChart,
+        bool retainCompletedHighlights) {
         var row = this.FindBenchmarkRow(result);
-        this.RequestBenchmarkAutoScroll(result.SourceTab,result.Method,row?.RowKey??string.Empty);
-        this.activeChartMethodName=row?.RowKey??result.Method;
-        this.ApplyChartRunningState();
-        this.RetainCompletedHighlightsForRunningElement(result.AxisCount);
-        row?.ApplyRunResult(result,this.FindAssignedCpu(result),DateTimeOffset.Now);
+        if(row is null) {
+            this.WriteRunningGridApplyFailure("row-not-found",result,null);
+            if(requestAutoScroll) {
+                this.RequestBenchmarkAutoScroll(result.SourceTab,result.Method,string.Empty);
+            }
+
+            this.activeChartMethodName=result.Method;
+            if(updateChart) {
+                this.ApplyChartRunningState();
+            }
+
+            return;
+        }
+
+        if(row.GetProjectCell(result.Project) is null) {
+            this.WriteRunningGridApplyFailure("cell-not-found",result,row);
+            if(requestAutoScroll) {
+                this.RequestBenchmarkAutoScroll(result.SourceTab,result.Method,row.RowKey);
+            }
+
+            this.activeChartMethodName=row.RowKey;
+            if(updateChart) {
+                this.ApplyChartRunningState();
+            }
+
+            return;
+        }
+
+        if(requestAutoScroll) {
+            this.RequestBenchmarkAutoScroll(result.SourceTab,result.Method,row.RowKey);
+        }
+
+        this.activeChartMethodName=row.RowKey;
+        if(updateChart) {
+            this.ApplyChartRunningState();
+        }
+
+        if(retainCompletedHighlights) {
+            this.RetainCompletedHighlightsForRunningElement(result.AxisCount);
+        }
+
+        row.ApplyRunResult(result,cpu,observedAt);
+    }
+
+    private void WriteRunningGridApplyFailure(string reason,BenchmarkResultItem result,BenchmarkTableRow? row) {
+        StartupDiagnostics.Write(
+            "Running grid cell apply failed. "
+            +"Reason="+reason+" "
+            +"SourceTab="+result.SourceTab+" "
+            +"Project="+result.Project+" "
+            +"Type="+(string.IsNullOrWhiteSpace(result.TypeFullName) ? "-" : result.TypeFullName)+" "
+            +"Method="+result.Method+" "
+            +"ArgumentKey="+(string.IsNullOrWhiteSpace(result.ArgumentKey) ? "-" : result.ArgumentKey)+" "
+            +"Axis="+result.AxisCount.ToString(System.Globalization.CultureInfo.InvariantCulture)+" "
+            +"RunItemIndex="+result.RunItemIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)+" "
+            +"Row="+(row?.RowKey??"-")+" "
+            +"LeftProject="+(row?.SourceTab.LeftProject??"-")+" "
+            +"RightProject="+(row?.SourceTab.RightProject??"-"));
     }
 
     /// <summary>
@@ -5685,7 +5754,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
     private void RefreshToolbarCommandStates() {
         this.OnPropertyChanged(nameof(this.ToolbarStateInput));
         this.RunCommand.NotifyCanExecuteChanged();
-        this.OverwriteRunCommand.NotifyCanExecuteChanged();
         this.SaveDatabaseCommand.NotifyCanExecuteChanged();
         this.NewGridCommand.NotifyCanExecuteChanged();
         this.StopCommand.NotifyCanExecuteChanged();
@@ -6783,8 +6851,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
 
                 this.RebuildBenchmarkRowIndex();
                 foreach(var item in items.OrderBy(static item => item.Order)) {
-                    this.ResultItems.Add(item.Left.ResultItem);
-                    this.ResultItems.Add(item.Right.ResultItem);
                     if(BenchmarkSourceTabs.TryGetById(item.SourceTabId) is not { } sourceTab) {
                         this.LogSnapshotDiagnostic(item,"SourceTabId を解決できません。");
                         continue;
@@ -6796,6 +6862,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
                         this.LogSnapshotDiagnostic(item,"スナップショット行を解決できません。");
                         continue;
                     }
+                    this.ResultItems.Add(this.CreateLoadedSnapshotResultItem(sourceTab,item,sourceTab.LeftProject,item.Left));
+                    this.ResultItems.Add(this.CreateLoadedSnapshotResultItem(sourceTab,item,sourceTab.RightProject,item.Right));
                     this.ApplyLoadedBenchmarkSnapshotSide(row,sourceTab.LeftProject,item.CpuNumber,item.Left);
                     this.ApplyLoadedBenchmarkSnapshotSide(row,sourceTab.RightProject,item.CpuNumber,item.Right);
                 }
@@ -6838,26 +6906,37 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
         // チャート/進捗/ソートなどの通常UI更新後、スナップショットのセル値を最後に再適用する。
         // 保存Run表示ではこのDB行単位の復元が正であり、比較表示用の行再計算は正規ロード経路ではない。
-        this.ApplyBenchmarkSnapshotItemsToRows(items);
-        this.ApplyLoadedSnapshotResultsToRowsStrict();
+        this.isApplyingBenchmarkSelection=true;
+        try {
+            this.ApplyBenchmarkSnapshotItemsToRows(items);
+        }
+        finally {
+            this.isApplyingBenchmarkSelection=false;
+        }
     }
 
-    private void ApplyLoadedSnapshotResultsToRowsStrict() {
-        foreach(var result in this.ResultItems.Where(IsTerminalResult)) {
-            var sourceTab = BenchmarkSourceTabs.Get(result.SourceTab);
-            var state = this.GetSourceTabViewState(sourceTab.Tab);
-            var rowKey = CreateSnapshotRowKey(result.TypeFullName,result.Method);
-            var row = state.Rows.FirstOrDefault(row => string.Equals(row.RowKey,rowKey,StringComparison.OrdinalIgnoreCase));
-            if(row is null) {
-                continue;
-            }
-
-            if(row.GetProjectCell(result.Project) is null) {
-                continue;
-            }
-
-            row.ApplySnapshotResult(result.Project,result,result.AssignedLogicalCpu,result.StartedAt);
-        }
+    private BenchmarkResultItem CreateLoadedSnapshotResultItem(
+        BenchmarkSourceTabDefinition sourceTab,
+        BenchmarkGridSnapshotItem item,
+        string project,
+        BenchmarkGridSnapshotSide side) {
+        return CreateSnapshotResultItem(
+            sourceTab,
+            project,
+            string.Equals(project,sourceTab.LeftProject,StringComparison.OrdinalIgnoreCase)
+                ? sourceTab.LeftAssemblyName
+                : sourceTab.RightAssemblyName,
+            item.TypeName,
+            item.BenchmarkName,
+            string.Empty,
+            [],
+            side.Status,
+            side.ResultItem.ElementCount>0 ? side.ResultItem.ElementCount : (int?)null,
+            item.CpuNumber,
+            side.MeasuredAt,
+            side.MeanNanoseconds,
+            side.AllocatedBytes,
+            side.FailureReason);
     }
 
     private void ApplyBenchmarkSnapshotItemsToRows(IReadOnlyList<BenchmarkGridSnapshotItem> items) {
@@ -6879,90 +6958,14 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
     }
 
-    private int ApplyUnresolvedSnapshotSelectionFailures() {
-        var failureCount = 0;
-        var axisCount = this.SelectedResultElementCount?.Value??this.GetSelectedElementCounts().LastOrDefault();
-        var now = DateTimeOffset.Now;
-        foreach(var row in this.GetAllBenchmarkRows()) {
-            foreach(var cell in row.ProjectCells) {
-                if(!cell.IsSelected
-                    ||!row.CasesByProject.TryGetValue(cell.Project,out var benchmark)
-                    ||!string.IsNullOrWhiteSpace(benchmark.TypeFullName)
-                    ||string.IsNullOrWhiteSpace(row.BenchmarkTypeText)) {
-                    continue;
-                }
-
-                var failureReason = CreateSnapshotRunCaseFailureReason(
-                    row.SourceTab,
-                    row.BenchmarkTypeText,
-                    row.MethodName,
-                    cell.Project,
-                    0);
-                var result = this.CreateUnresolvedSnapshotSelectionFailure(row,cell.Project,benchmark,axisCount,now,failureReason);
-                this.UpsertResultItem(result);
-                this.UpsertCurrentRunResultItem(result);
-                row.ApplyRunResult(result,null,now);
-                StartupDiagnostics.Write(BenchmarkFailureDisplayLogic.CreateLogText(
-                    result.Project,
-                    result.Method,
-                    result.AxisCount,
-                    result.AssignedLogicalCpu,
-                    result.ArtifactFolder,
-                    result.FailureReason,
-                    row.BenchmarkTypeText));
-                failureCount++;
-            }
-        }
-
-        if(failureCount>0) {
-            this.HasPendingCloseStateSave=true;
-            this.HasUnsavedBenchmarkResults=true;
-            this.RefreshVisibleResults();
-            this.RefreshSourceTabProgresses();
-            this.RefreshToolbarCommandStates();
-        }
-
-        return failureCount;
-    }
-
-    private BenchmarkResultItem CreateUnresolvedSnapshotSelectionFailure(
-        BenchmarkTableRow row,
-        string project,
-        BenchmarkCase benchmark,
-        int axisCount,
-        DateTimeOffset failedAt,
-        string failureReason) {
-        return new BenchmarkResultItem(new BenchmarkJob{
-            Project=project,
-            AssemblyName=benchmark.AssemblyName,
-            TypeFullName=string.Empty,
-            MethodName=row.MethodName,
-            ArgumentKey=benchmark.ArgumentKey,
-            Arguments=benchmark.Arguments.ToList(),
-            SourceTab=row.SourceTab.Tab,
-            ElementCount=BenchmarkWorkloadAxis.ResolveElementCount(row.SourceTab.Tab,axisCount),
-            LoopCount=BenchmarkWorkloadAxis.ResolveLoopCount(row.SourceTab.Tab,axisCount),
-            Status=JobStatus.Failed,
-            Mean=string.Empty,
-            MeanNanoseconds=null,
-            AllocatedBytes=null,
-            StartedAt=failedAt,
-            FinishedAt=failedAt,
-            AssignedLogicalCpu=null,
-            FailureReason=failureReason,
-        });
-    }
-
     private IEnumerable<BenchmarkTableRow> CreateSnapshotRows(BenchmarkSourceTabDefinition sourceTab,IReadOnlyList<BenchmarkGridSnapshotItem> items) {
         return items
             .Where(item => string.Equals(item.SourceTabId,sourceTab.Id,StringComparison.OrdinalIgnoreCase))
             .OrderBy(static item => item.Order)
             .Select(item => {
-                // DBの型列は画面表示用の値であり、worker実行用の完全型名ではない。
-                // 保存Runロード時は表示をDB値のまま復元し、計測開始時だけ現行カタログへ一意接続できたケースを実行対象にする。
                 var cases = new Dictionary<string,BenchmarkCase>(StringComparer.OrdinalIgnoreCase) {
-                    [sourceTab.LeftProject]=this.CreateSnapshotRunCase(sourceTab,item,sourceTab.LeftProject,sourceTab.LeftAssemblyName),
-                    [sourceTab.RightProject]=this.CreateSnapshotRunCase(sourceTab,item,sourceTab.RightProject,sourceTab.RightAssemblyName),
+                    [sourceTab.LeftProject]=new(sourceTab.LeftProject,sourceTab.LeftAssemblyName,item.TypeName,item.BenchmarkName,string.Empty,[]),
+                    [sourceTab.RightProject]=new(sourceTab.RightProject,sourceTab.RightAssemblyName,item.TypeName,item.BenchmarkName,string.Empty,[]),
                 };
                 return new BenchmarkTableRow(
                     CreateSnapshotRowKey(item.TypeName,item.BenchmarkName),
@@ -6973,64 +6976,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
                     item.TypeName);
             });
     }
-
-    private BenchmarkCase CreateSnapshotRunCase(
-        BenchmarkSourceTabDefinition sourceTab,
-        BenchmarkGridSnapshotItem item,
-        string project,
-        string assemblyName) {
-        if(this.TryResolveSnapshotBenchmarkCase(sourceTab,item,project,out var benchmark,out _)) {
-            return benchmark;
-        }
-
-        return new BenchmarkCase(project,assemblyName,string.Empty,item.BenchmarkName,string.Empty,[]);
-    }
-
-    private bool TryResolveSnapshotBenchmarkCase(
-        BenchmarkSourceTabDefinition sourceTab,
-        BenchmarkGridSnapshotItem item,
-        string project,
-        out BenchmarkCase benchmark,
-        out string failureReason) {
-        var matches = this.catalogCases
-            .Where(candidate => string.Equals(candidate.Project,project,StringComparison.OrdinalIgnoreCase)
-                &&sourceTab.ContainsProject(candidate.Project)
-                &&IsSnapshotBenchmarkNameMatch(candidate,item.BenchmarkName)
-                &&string.Equals(
-                    ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText(candidate.TypeFullName),
-                    item.TypeName,
-                    StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-        if(matches.Length==1) {
-            benchmark=matches[0];
-            failureReason=string.Empty;
-            return true;
-        }
-
-        benchmark=new BenchmarkCase(project,sourceTab.LeftProject==project ? sourceTab.LeftAssemblyName : sourceTab.RightAssemblyName,string.Empty,item.BenchmarkName,string.Empty,[]);
-        failureReason=CreateSnapshotRunCaseFailureReason(sourceTab,item.TypeName,item.BenchmarkName,project,matches.Length);
-        return false;
-    }
-
-    private static bool IsSnapshotBenchmarkNameMatch(BenchmarkCase benchmark,string snapshotBenchmarkName) =>
-        string.Equals(benchmark.MethodName,snapshotBenchmarkName,StringComparison.OrdinalIgnoreCase)
-        ||string.Equals(
-            ScalableBenchmarkNameFormatter.CreateBenchmarkName(benchmark.TypeFullName,benchmark.MethodName),
-            snapshotBenchmarkName,
-            StringComparison.OrdinalIgnoreCase);
-
-    private static string CreateSnapshotRunCaseFailureReason(
-        BenchmarkSourceTabDefinition sourceTab,
-        string typeName,
-        string benchmarkName,
-        string project,
-        int matchCount) =>
-        "保存スナップショット行を現行ベンチマークカタログへ一意に接続できません。"
-        +" SourceTab="+sourceTab.Id
-        +" Project="+project
-        +" 型="+typeName
-        +" ベンチマーク="+benchmarkName
-        +" 一致数="+matchCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     private void ApplyLoadedBenchmarkSnapshotSide(
         BenchmarkTableRow row,
@@ -9575,7 +9520,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
         yield return BenchmarkGridSortColumn.BenchmarkMethod;
         yield return BenchmarkGridSortColumn.LogicalCpu;
-        yield return BenchmarkGridSortColumn.ElementCount;
         foreach(var column in BenchmarkArgumentColumns.Get(this.SelectedSourceDefinition)) {
             yield return column switch {
                 ScalableBenchmarkArgumentColumn.Count => BenchmarkGridSortColumn.ArgumentCount,

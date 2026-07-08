@@ -125,6 +125,75 @@ public sealed class RunnerViewModel{
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public void RunningResult_AppliesToRightZLinqCell(){
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var row = CreateArrayBenchmarkRow("Aggregate_seed_func_resultSelector");
+        var result = CreateArrayResult(
+            sourceTab.RightProject,
+            "Aggregate_seed_func_resultSelector",
+            global::UI.JobStatus.Running,
+            runItemIndex:1);
+
+        row.ApplyRunResult(result,null,DateTimeOffset.Now);
+
+        Assert.True(row.RightCell.IsRunningVisual);
+        Assert.False(row.LeftCell.IsRunningVisual);
+        Assert.Equal(global::UI.BenchmarkStatusImageNames.CpuRunning,row.RightCell.StatusImageSource);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public void RunningResult_AppliesToLeftFLinqCell(){
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var row = CreateArrayBenchmarkRow("Aggregate_seed_func_resultSelector");
+        var result = CreateArrayResult(
+            sourceTab.LeftProject,
+            "Aggregate_seed_func_resultSelector",
+            global::UI.JobStatus.Running,
+            runItemIndex:0);
+
+        row.ApplyRunResult(result,null,DateTimeOffset.Now);
+
+        Assert.True(row.LeftCell.IsRunningVisual);
+        Assert.False(row.RightCell.IsRunningVisual);
+        Assert.Equal(global::UI.BenchmarkStatusImageNames.CpuRunning,row.LeftCell.StatusImageSource);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task RunEventPipeline_KeepsZLinqRunningBeforeImmediateTerminal(){
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var pipeline = new global::UI.BenchmarkRunEventPipeline();
+        var running = CreateArrayResult(sourceTab.RightProject,"Aggregate_seed_func_resultSelector",global::UI.JobStatus.Running,runItemIndex:1);
+        var completed = CreateArrayResult(sourceTab.RightProject,"Aggregate_seed_func_resultSelector",global::UI.JobStatus.Completed,runItemIndex:1);
+
+        pipeline.Post(new global::UI.BenchmarkRunEvent(running,1,null,DateTimeOffset.UtcNow));
+        pipeline.Post(new global::UI.BenchmarkRunEvent(completed,1,null,DateTimeOffset.UtcNow));
+        var snapshot = await WaitForPipelineSnapshotAsync(pipeline);
+
+        Assert.Contains(snapshot.RunningUpdates,item =>
+            string.Equals(item.Result.Project,sourceTab.RightProject,StringComparison.OrdinalIgnoreCase)
+            &&string.Equals(item.Result.Status,global::UI.JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(snapshot.TerminalResults,item =>
+            string.Equals(item.Result.Project,sourceTab.RightProject,StringComparison.OrdinalIgnoreCase)
+            &&string.Equals(item.Result.Status,"Completed",StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task RunEventPipeline_SeparatesFLinqAndZLinqRunningKeys(){
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var pipeline = new global::UI.BenchmarkRunEventPipeline();
+        var left = CreateArrayResult(sourceTab.LeftProject,"Aggregate_seed_func_resultSelector",global::UI.JobStatus.Running,runItemIndex:0);
+        var right = CreateArrayResult(sourceTab.RightProject,"Aggregate_seed_func_resultSelector",global::UI.JobStatus.Running,runItemIndex:1);
+
+        pipeline.Post(new global::UI.BenchmarkRunEvent(left,1,null,DateTimeOffset.UtcNow));
+        pipeline.Post(new global::UI.BenchmarkRunEvent(right,1,null,DateTimeOffset.UtcNow));
+        var snapshot = await WaitForPipelineSnapshotAsync(pipeline);
+
+        Assert.Contains(snapshot.RunningUpdates,item => string.Equals(item.Result.Project,sourceTab.LeftProject,StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(snapshot.RunningUpdates,item => string.Equals(item.Result.Project,sourceTab.RightProject,StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(2,snapshot.RunningUpdates.Count);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
     public async Task CompletedRun_SelectsSavedDatabaseRunWithoutUnsavedOption(){
         var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
         var viewModel = fixture.ViewModel;
@@ -193,7 +262,7 @@ public sealed class RunnerViewModel{
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task LoadedSavedDatabaseRun_RunAgain_DoesNotSkipLoadedResults(){
+    public async Task LoadedSavedDatabaseRun_RunAgain_RestoresCatalogRowsForFreshRun(){
         var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
         var viewModel = fixture.ViewModel;
         viewModel.SelectAllCommand.Execute(null);
@@ -211,9 +280,14 @@ public sealed class RunnerViewModel{
         await WaitUntilAsync(() => !viewModel.IsRunHistoryLoading
             &&viewModel.ResultItems.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)));
 
+        Assert.True(viewModel.RunCommand.CanExecute(null),$"Status={viewModel.StatusText} CanRun={viewModel.CanRunBenchmark} Selected={GetSelectedCells(viewModel).Count} Option={viewModel.SelectedRunOption?.DisplayName}");
         await viewModel.RunCommand.ExecuteAsync(null);
 
-        await WaitUntilAsync(() => fixture.RunService.ObservedRestartFromRequestedElementCount.Count==runCount+1);
+        await WaitUntilOrContinueAsync(() => fixture.RunService.ObservedRestartFromRequestedElementCount.Count==runCount+1);
+        Assert.True(
+            fixture.RunService.ObservedRestartFromRequestedElementCount.Count==runCount+1,
+            $"Status={viewModel.StatusText} CanRun={viewModel.CanRunBenchmark} Selected={GetSelectedCells(viewModel).Count} Option={viewModel.SelectedRunOption?.DisplayName}");
+        Assert.Equal("新規",viewModel.SelectedRunOption?.DisplayName);
         Assert.True(fixture.RunService.ObservedBenchmarkCounts[^1]>0);
     }
 
@@ -617,6 +691,59 @@ public sealed class RunnerViewModel{
         +"' RowLeftTime='"+(viewModel.BenchmarkRows.FirstOrDefault(row => row.ProjectCells.Contains(cell))?.LeftTimeText??"-")
         +"' RowRightTime='"+(viewModel.BenchmarkRows.FirstOrDefault(row => row.ProjectCells.Contains(cell))?.RightTimeText??"-")
         +"' Results='"+string.Join(";",viewModel.ResultItems.Take(8).Select(static item => item.Project+"/"+item.Method+"/Status="+item.Status+"/N="+item.AxisCount+"/CPU="+(item.AssignedLogicalCpu?.ToString()??"-")+"/Mean="+(item.MeanNanoseconds?.ToString(System.Globalization.CultureInfo.InvariantCulture)??"-")))+"'";
+
+    private static async Task<global::UI.BenchmarkUiSnapshot> WaitForPipelineSnapshotAsync(global::UI.BenchmarkRunEventPipeline pipeline){
+        var metrics = new global::UI.BenchmarkPipelineMetrics(0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+        for(var index=0;index<50;index++){
+            if(pipeline.TryCreateUiSnapshot(metrics,out var snapshot)){
+                return snapshot;
+            }
+
+            await Task.Delay(20);
+        }
+
+        throw new TimeoutException("Pipeline snapshot was not produced.");
+    }
+
+    private static global::UI.BenchmarkTableRow CreateArrayBenchmarkRow(string methodName){
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var cases = new Dictionary<string,global::UI.BenchmarkCase>(StringComparer.OrdinalIgnoreCase) {
+            [sourceTab.LeftProject]=new(sourceTab.LeftProject,sourceTab.LeftAssemblyName,CreateArrayTypeFullName(sourceTab.LeftProject),methodName),
+            [sourceTab.RightProject]=new(sourceTab.RightProject,sourceTab.RightAssemblyName,CreateArrayTypeFullName(sourceTab.RightProject),methodName),
+        };
+        return new global::UI.BenchmarkTableRow("int|"+methodName,methodName,methodName,sourceTab,cases,"int");
+    }
+
+    private static global::UI.BenchmarkResultItem CreateArrayResult(
+        string project,
+        string methodName,
+        global::UI.JobStatus status,
+        int runItemIndex){
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var now = DateTimeOffset.UtcNow;
+        return new global::UI.BenchmarkResultItem(new global::UI.BenchmarkJob{
+            Project=project,
+            AssemblyName=sourceTab.GetAssemblyName(project),
+            TypeFullName=CreateArrayTypeFullName(project),
+            MethodName=methodName,
+            SourceTab=sourceTab.Tab,
+            ElementCount=4096,
+            LoopCount=global::UI.BenchmarkWorkloadAxis.DefaultLoopCount,
+            Status=status,
+            AssignedLogicalCpu=0,
+            StartedAt=now,
+            FinishedAt=status==global::UI.JobStatus.Completed ? now : null,
+            MeanNanoseconds=status==global::UI.JobStatus.Completed ? 1_000_000 : null,
+            AllocatedBytes=status==global::UI.JobStatus.Completed ? 1024 : null,
+            ExitCode=status==global::UI.JobStatus.Completed ? 0 : null,
+            RunItemIndex=runItemIndex,
+        });
+    }
+
+    private static string CreateArrayTypeFullName(string project) =>
+        project.Contains("ZLinq",StringComparison.OrdinalIgnoreCase)
+            ? "DotNet.Linq.Enumerable.ZLinq.ZLinqInt32"
+            : "DotNet.Linq.Enumerable.FLinq.FLinqInt32";
 
     private static async Task SaveCurrentRunAsync(global::UI.ViewModels.RunnerViewModel viewModel){
         await WaitUntilAsync(() => viewModel.CanSaveDatabase&&viewModel.SaveDatabaseCommand.CanExecute(null));

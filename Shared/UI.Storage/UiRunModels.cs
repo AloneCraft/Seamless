@@ -108,8 +108,7 @@ public sealed record UiBenchmarkGridSideWrite(
     string FailureReason,
     DateTimeOffset? MeasuredAt,
     double? MeanNanoseconds,
-    long? AllocatedBytes,
-    long? ElementCount);
+    long? AllocatedBytes);
 
 public sealed record UiBenchmarkSnapshotItemWrite(
     string TabName,
@@ -125,8 +124,7 @@ public sealed record UiBenchmarkGridSideRecord(
     string FailureReason,
     DateTimeOffset? MeasuredAt,
     double? MeanNanoseconds,
-    long? AllocatedBytes,
-    long? ElementCount);
+    long? AllocatedBytes);
 
 public sealed record UiBenchmarkSnapshotItemRecord(
     long RunId,

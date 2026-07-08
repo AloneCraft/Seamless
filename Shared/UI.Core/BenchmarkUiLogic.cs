@@ -371,7 +371,7 @@ internal readonly record struct BenchmarkSourceTabRunningJob(
     int AxisCount);
 
 internal sealed class BenchmarkSourceTabRunningState{
-    private readonly object syncRoot = new();
+    private readonly Lock syncRoot = new();
     private readonly System.Collections.Generic.HashSet<BenchmarkSourceTabRunningJob> runningJobs = [];
 
     public bool Apply(BenchmarkResultItem result){
@@ -1094,7 +1094,6 @@ internal static class BenchmarkSkippedDisplayLogic{
 
 internal enum BenchmarkToolbarButtonRole{
     Run,
-    OverwriteRun,
     RunInfinite,
     Stop,
     Pause,
@@ -1107,7 +1106,6 @@ internal readonly record struct BenchmarkToolbarStateInput(
     bool IsBenchmarkRunActive,
     bool IsBenchmarkPaused,
     bool CanUseRunButton,
-    bool CanUseOverwriteRunButton,
     bool CanStopBenchmark,
     bool CanPauseBenchmark,
     bool CanSaveDatabase,
@@ -1123,7 +1121,6 @@ internal readonly record struct BenchmarkToolbarStateInput(
             IsRefreshing,
             IsBenchmarkRunActive,
             IsBenchmarkPaused,
-            CanUseRunButton,
             CanUseRunButton,
             CanStopBenchmark,
             CanPauseBenchmark,
@@ -1147,7 +1144,6 @@ internal static class BenchmarkToolbarStateLogic{
                     input.CanUseRunButton,
                     !input.CanUseRunButton,
                     input.CanUseRunButton),
-                BenchmarkToolbarButtonRole.OverwriteRun => CreateDirectActionState(input.CanUseOverwriteRunButton),
                 BenchmarkToolbarButtonRole.RunInfinite => new BenchmarkToolbarButtonState(
                     input.CanUseRunButton,
                     input.CanUseRunButton,
@@ -1167,7 +1163,6 @@ internal static class BenchmarkToolbarStateLogic{
 
         return role switch{
             BenchmarkToolbarButtonRole.Run => CreateDirectActionState(input.CanUseRunButton),
-            BenchmarkToolbarButtonRole.OverwriteRun => CreateDirectActionState(input.CanUseOverwriteRunButton),
             BenchmarkToolbarButtonRole.RunInfinite => CreateDirectActionState(input.CanUseRunButton),
             BenchmarkToolbarButtonRole.Stop => CreateDirectActionState(input.CanStopBenchmark),
             BenchmarkToolbarButtonRole.Pause => CreateDirectActionState(input.CanPauseBenchmark),

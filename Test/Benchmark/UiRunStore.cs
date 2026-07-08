@@ -11,12 +11,12 @@ public sealed class UiRunStoreTests{
         store.EnsureSchema();
 
         using var connection = Open(path);
-        Assert.Equal(6L,Scalar<long>(connection,"PRAGMA user_version;"));
+        Assert.Equal(7L,Scalar<long>(connection,"PRAGMA user_version;"));
         Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行';"));
         Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ベンチマーク項目';"));
         Assert.Equal(2L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','ベンチマーク項目');"));
         Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
-        Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name IN('項目ID','プロジェクト名','Assembly','Type','型フル名','引数キー','行キー','側','平均ns','誤差ns','標準偏差ns','割当バイト');"));
+        Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name IN('項目ID','プロジェクト名','Assembly','Type','型フル名','引数キー','行キー','側','平均ns','誤差ns','標準偏差ns','割当バイト','左要素数','右要素数');"));
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public sealed class UiRunStoreTests{
         store.EnsureSchema();
 
         using var loaded = Open(path);
-        Assert.Equal(6L,Scalar<long>(loaded,"PRAGMA user_version;"));
+        Assert.Equal(7L,Scalar<long>(loaded,"PRAGMA user_version;"));
         Assert.Equal(0L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='Legacy';"));
         Assert.Contains(Directory.GetFiles(Path.GetDirectoryName(path)!),file => file.EndsWith(".bak",StringComparison.OrdinalIgnoreCase));
     }
@@ -48,7 +48,7 @@ public sealed class UiRunStoreTests{
         using(var connection = Open(path)){
             using var command = connection.CreateCommand();
             command.CommandText="""
-                PRAGMA user_version=6;
+                PRAGMA user_version=7;
                 CREATE TABLE Apps(AppId INTEGER PRIMARY KEY AUTOINCREMENT,AppKind TEXT NOT NULL);
                 CREATE TABLE Runs(RunId INTEGER PRIMARY KEY AUTOINCREMENT,AppId INTEGER NOT NULL);
                 CREATE VIEW BenchmarkFlatResults AS SELECT 1 AS Value;
@@ -61,7 +61,7 @@ public sealed class UiRunStoreTests{
         store.EnsureSchema();
 
         using var loaded = Open(path);
-        Assert.Equal(6L,Scalar<long>(loaded,"PRAGMA user_version;"));
+        Assert.Equal(7L,Scalar<long>(loaded,"PRAGMA user_version;"));
         Assert.Equal(1L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行';"));
         Assert.Equal(1L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ベンチマーク項目';"));
         Assert.Equal(0L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('Apps','Runs');"));
@@ -112,8 +112,8 @@ public sealed class UiRunStoreTests{
                 "int",
                 "Any",
                 17,
-                new(true,UiRunStatus.Completed,string.Empty,measuredAt,12.5,1024,4096),
-                new(false,UiRunStatus.Failed,"failed",measuredAt.AddSeconds(1),null,null,4096)),
+                new(true,UiRunStatus.Completed,string.Empty,measuredAt,12.5,1024),
+                new(false,UiRunStatus.Failed,"failed",measuredAt.AddSeconds(1),null,null)),
         ]);
 
         var items = store.ListBenchmarkSnapshotItems(run.RunId);
@@ -127,7 +127,6 @@ public sealed class UiRunStoreTests{
         Assert.Equal(17,completed.CpuNumber);
         Assert.True(completed.Left.IsSelected);
         Assert.Equal(UiRunStatus.Completed,completed.Left.Status);
-        Assert.Equal(4096,completed.Left.ElementCount);
         Assert.Equal(measuredAt,completed.Left.MeasuredAt);
         Assert.Equal(12.5,completed.Left.MeanNanoseconds);
         Assert.Equal(1024,completed.Left.AllocatedBytes);
@@ -148,10 +147,10 @@ public sealed class UiRunStoreTests{
             "System.Array",
             DateTimeOffset.UtcNow));
         store.SaveBenchmarkSnapshotItems(run.RunId,[
-            new("System.Array","int","Any",0,new(true,UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,1,10,64),new(false,UiRunStatus.Queued,string.Empty,null,null,null,null)),
+            new("System.Array","int","Any",0,new(true,UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,1,10),new(false,UiRunStatus.Queued,string.Empty,null,null,null)),
         ]);
         store.SaveBenchmarkSnapshotItems(run.RunId,[
-            new("System.Array","int","Any",1,new(true,UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,2,20,4096),new(true,UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,3,30,4096)),
+            new("System.Array","int","Any",1,new(true,UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,2,20),new(true,UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,3,30)),
         ]);
 
         using var connection = Open(path);
@@ -192,7 +191,7 @@ public sealed class UiRunStoreTests{
             "System.Array",
             DateTimeOffset.UtcNow));
         store.SaveBenchmarkSnapshotItems(run.RunId,[
-            new("System.Array","Sample","Aggregate",7,new(true,UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,123.5,1024,64),new(false,UiRunStatus.Queued,string.Empty,null,null,null,null)),
+            new("System.Array","Sample","Aggregate",7,new(true,UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,123.5,1024),new(false,UiRunStatus.Queued,string.Empty,null,null,null)),
         ]);
         store.SaveUiViewState(run.RunId,"SelectedSourceTab","SystemArray");
         store.SaveUiViewState(run.RunId,"SelectedResultElementCount","64");
