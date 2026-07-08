@@ -3010,7 +3010,12 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 .Where(run => string.Equals(run.ExecutionProfile,this.SelectedExecutionProfile.Profile.ToString(),StringComparison.OrdinalIgnoreCase))
                 .ToArray();
         },cancellationToken);
-        this.TryAutoPauseLatestResumableRun(runs);
+        if(forceNewSelection) {
+            this.ClearRecoveredRunResumeStateForNewSelection();
+        }
+        else {
+            this.TryAutoPauseLatestResumableRun(runs);
+        }
         var options = runs.Select(this.CreateRunOption).ToArray();
         var selectedUiRunId = preferredUiRunId??this.SelectedRunOption?.UiRunId;
         var autoPausedRun = runs.FirstOrDefault(run => run.Status is UiRunStatus.Running or UiRunStatus.Queued or UiRunStatus.Paused
@@ -3036,6 +3041,12 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 false);
         }
         this.NotifySelectedRunOptionChangedForPicker();
+    }
+
+    private void ClearRecoveredRunResumeStateForNewSelection() {
+        this.activeUiRunId=null;
+        this.currentUnsavedRunRoot=null;
+        this.SetActiveRunRoot(null);
     }
 
     private async Task RefreshDbRunOptionsOnlyAsync(CancellationToken cancellationToken,long? preferredUiRunId = null) {
@@ -4903,7 +4914,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
 
         UiThreadBudget.Measure("persist-enqueue",() => {
             var snapshot = this.CreateBenchmarkViewStateSnapshot();
-            var gridResults = this.GetAllGridResultItems();
+            var gridResults = this.CreateGridSnapshotResultsForPersistence(items);
             foreach(var item in items) {
                 if(item.RunGeneration!=this.runResultGeneration) {
                     continue;
@@ -4918,6 +4929,22 @@ public sealed partial class RunnerViewModel:ObservableObject {
             }
         });
         this.SyncDiagnosticRows(this.PipelineDiagnosticRows,this.pipelineDiagnostics.CreateRows());
+    }
+
+    private IReadOnlyList<BenchmarkResultItem> CreateGridSnapshotResultsForPersistence(IReadOnlyList<BenchmarkPersistenceItem> items) {
+        var gridResults = this.GetAllGridResultItems();
+        var pendingResults = items
+            .Where(item => item.RunGeneration==this.runResultGeneration&&IsTerminalResult(item.Result))
+            .Select(static item => item.Result)
+            .ToArray();
+        if(pendingResults.Length==0) {
+            return gridResults;
+        }
+        if(gridResults.Count==0) {
+            return pendingResults;
+        }
+
+        return gridResults.Concat(pendingResults).ToArray();
     }
 
     /// <summary>
@@ -6893,7 +6920,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
 
         var state = this.GetSourceTabViewState(sourceTab.Tab);
         if(state.Rows.Count>0) {
-            return state.Rows
+            var rowSnapshot = state.Rows.ToArray();
+            return rowSnapshot
                 .SelectMany(row => row.ProjectCells.Select(cell => CreateProgressCell(row,cell.Project,cell.HasCase&&cell.IsSelected)))
                 .ToArray();
         }
@@ -7173,6 +7201,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
         try {
             this.ApplyBenchmarkSnapshotItemsToRows(items);
             this.ApplyBenchmarkSnapshotFinalCompletionStates(items);
+            this.LogLoadedSnapshotGridDisplayGaps(items);
         }
         finally {
             this.isApplyingBenchmarkSelection=false;
@@ -7187,6 +7216,45 @@ public sealed partial class RunnerViewModel:ObservableObject {
             StartupDiagnostics.Write(message);
             this.StatusText="DB 読み込み失敗 表示行が空です";
         }
+    }
+
+    private void LogLoadedSnapshotGridDisplayGaps(IReadOnlyList<BenchmarkGridSnapshotItem> items) {
+        foreach(var item in items) {
+            if(BenchmarkSourceTabs.TryGetById(item.SourceTabId) is not { } sourceTab) {
+                continue;
+            }
+
+            var state = this.GetSourceTabViewState(sourceTab.Tab);
+            var rowKey = CreateSnapshotRowKey(item.TypeName,item.BenchmarkName);
+            var row = state.Rows.FirstOrDefault(row => string.Equals(row.RowKey,rowKey,StringComparison.OrdinalIgnoreCase));
+            if(row is null) {
+                continue;
+            }
+
+            this.LogLoadedSnapshotGridDisplayGap(item,row,sourceTab.LeftProject,item.Left,row.LeftCell);
+            this.LogLoadedSnapshotGridDisplayGap(item,row,sourceTab.RightProject,item.Right,row.RightCell);
+        }
+    }
+
+    private void LogLoadedSnapshotGridDisplayGap(
+        BenchmarkGridSnapshotItem item,
+        BenchmarkTableRow row,
+        string project,
+        BenchmarkGridSnapshotSide side,
+        BenchmarkProjectCell cell) {
+        if(side.MeanNanoseconds is null||cell.Metrics.HasMeasuredValue) {
+            return;
+        }
+
+        StartupDiagnostics.Write(
+            "Benchmark saved run snapshot metric was not reflected to grid cell."
+            +" RunId="+item.RunId.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            +" SourceTabId="+item.SourceTabId
+            +" Project="+project
+            +" Type="+item.TypeName
+            +" Benchmark="+item.BenchmarkName
+            +" RowKey="+row.RowKey
+            +" SnapshotMeanNs="+side.MeanNanoseconds.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
     private BenchmarkResultItem CreateLoadedSnapshotResultItem(
