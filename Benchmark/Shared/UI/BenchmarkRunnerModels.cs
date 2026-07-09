@@ -190,12 +190,13 @@ public sealed class SourceTabOption:TabHeaderOptionBase{
         get => this.isFinalCompleted;
         private set{
             if(this.SetProperty(ref this.isFinalCompleted,value)){
+                this.OnPropertyChanged(nameof(this.IsCompletionIconVisible));
                 this.OnPropertyChanged(nameof(this.CompletionIconSource));
                 this.OnPropertyChanged(nameof(this.ProgressTooltipText));
             }
         }
     }
-    public bool IsCompletionIconVisible => this.IsCompleted&&!this.IsRunning;
+    public bool IsCompletionIconVisible => (this.IsCompleted||this.IsFinalCompleted)&&!this.IsRunning;
     public string CompletionIconSource => this.IsFinalCompleted
         ? BenchmarkStatusImageNames.FinalCompleted
         : BenchmarkStatusImageNames.Completed;

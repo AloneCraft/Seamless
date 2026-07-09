@@ -72,6 +72,13 @@ public sealed class RunnerViewModel{
 
         option.SetFinalCompleted(true);
 
+        Assert.True(option.IsCompletionIconVisible);
+        Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,option.CompletionIconSource);
+
+        option.SetProgress(new global::UI.BenchmarkTabProgress(0,1));
+        option.SetFinalCompleted(true);
+
+        Assert.True(option.IsCompletionIconVisible);
         Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,option.CompletionIconSource);
     }
 

@@ -981,13 +981,14 @@ public sealed partial class MainPage:ContentPage {
             TabBarHeight=30,
             TabBarBackground=Color.FromArgb("#F8FAFC"),
             IndicatorBackground=Colors.Transparent,
-            HeaderItemSpacing=2,
+            HeaderItemSpacing=1,
             EnableSwiping=false,
             ContentTransitionDuration=0,
             BackgroundColor=Colors.White,
             VerticalOptions=LayoutOptions.Fill,
             AutomationId="Benchmark.SourceTabView",
         };
+        this.ConfigureCompactTabView(tabView,true);
         AutomationProperties.SetIsInAccessibleTree(tabView,true);
         var tabItems = new TabItemCollection();
         var loadedSourceTabContents = new HashSet<int>();
@@ -1086,9 +1087,9 @@ public sealed partial class MainPage:ContentPage {
                 new RowDefinition { Height = GridLength.Star },
                 new RowDefinition { Height = GridLength.Auto },
             },
-            RowSpacing=1,
+            RowSpacing=0,
             BackgroundColor=Colors.White,
-            Padding=new Thickness(4,1,4,2),
+            Padding=new Thickness(4,0,4,1),
             Children= {
                 overallProgress,
                 tabView,
@@ -1101,15 +1102,32 @@ public sealed partial class MainPage:ContentPage {
     }
 
     private View CreateOverallSourceProgressView() {
-        var text = new Label {
+        var badge = this.CreateProgressSummaryBadge(out var text);
+        if(this.viewModel is not null) {
+            text.SetBinding(Label.TextProperty,nameof(RunnerViewModel.OverallSourceProgressSummaryText));
+        }else{
+            text.Text="確定 0/0";
+        }
+        return badge;
+    }
+
+    private void ConfigureCompactTabView(SfTabView tabView,bool enableScrollButtons) {
+        tabView.TabWidthMode=TabWidthMode.SizeToContent;
+        tabView.TabHeaderAlignment=TabHeaderAlignment.Start;
+        tabView.TabHeaderPadding=new Thickness(0);
+        tabView.IsScrollButtonEnabled=enableScrollButtons;
+    }
+
+    private Border CreateProgressSummaryBadge(out Label text) {
+        text=new Label {
             FontSize=12,
             TextColor=Color.FromArgb("#334155"),
             VerticalTextAlignment=TextAlignment.Center,
             HorizontalTextAlignment=TextAlignment.Center,
             LineBreakMode=LineBreakMode.NoWrap,
-            Margin=new Thickness(8,2),
+            Margin=new Thickness(6,1),
         };
-        var badge = new Border {
+        return new Border {
             Stroke=Color.FromArgb("#CBD5E1"),
             StrokeThickness=1,
             BackgroundColor=Color.FromArgb("#F8FAFC"),
@@ -1119,20 +1137,8 @@ public sealed partial class MainPage:ContentPage {
             Content=text,
             HorizontalOptions=LayoutOptions.Start,
             VerticalOptions=LayoutOptions.Center,
-        };
-        var layout = new Grid {
             HeightRequest=18,
-            HorizontalOptions=LayoutOptions.Start,
-            Children= {
-                badge,
-            },
         };
-        if(this.viewModel is not null) {
-            text.SetBinding(Label.TextProperty,nameof(RunnerViewModel.OverallSourceProgressSummaryText));
-        }else{
-            text.Text="確定 0/0";
-        }
-        return layout;
     }
 
     private View CreateTabHeader(TabHeaderOptionBase option,Action onSelect,IReadOnlyList<View>? trailingViews = null) {
@@ -1141,7 +1147,7 @@ public sealed partial class MainPage:ContentPage {
             HorizontalTextAlignment=TextAlignment.Center,
             VerticalTextAlignment=TextAlignment.Center,
             LineBreakMode=LineBreakMode.TailTruncation,
-            Margin=new Thickness(8,3,4,3),
+            Margin=new Thickness(6,1,3,1),
         };
         label.SetBinding(Label.TextProperty,new Binding(nameof(TabHeaderOptionBase.HeaderText),source: option));
         label.SetBinding(Label.FontAttributesProperty,new Binding(nameof(TabHeaderOptionBase.HeaderFontAttributes),source: option));
@@ -1149,9 +1155,10 @@ public sealed partial class MainPage:ContentPage {
 
         var content = new Grid {
             ColumnDefinitions= {
-                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = GridLength.Auto },
             },
-            ColumnSpacing=2,
+            ColumnSpacing=1,
+            HorizontalOptions=LayoutOptions.Start,
             Children= {
                 label,
             },
@@ -1170,6 +1177,7 @@ public sealed partial class MainPage:ContentPage {
             },
             Content=content,
             Margin=new Thickness(1,0),
+            HorizontalOptions=LayoutOptions.Start,
         };
         layout.SetBinding(BackgroundColorProperty,new Binding(nameof(TabHeaderOptionBase.HeaderBackgroundColor),source: option));
         layout.SetBinding(Border.StrokeProperty,new Binding(nameof(TabHeaderOptionBase.HeaderStroke),source: option));
@@ -1201,11 +1209,11 @@ public sealed partial class MainPage:ContentPage {
         completedIcon.SetBinding(IsVisibleProperty,new Binding(nameof(SourceTabOption.IsCompletionIconVisible),source: option));
         completedIcon.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: option));
         var progressHost = new Grid {
-            WidthRequest=20,
-            HeightRequest=20,
+            WidthRequest=18,
+            HeightRequest=18,
             VerticalOptions=LayoutOptions.Center,
             HorizontalOptions=LayoutOptions.Center,
-            Margin=new Thickness(0,0,2,0),
+            Margin=new Thickness(0,0,1,0),
             Children= {
                 progress,
                 completedIcon,
@@ -1225,10 +1233,10 @@ public sealed partial class MainPage:ContentPage {
         spinner.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: option));
         var spinnerHost = new Grid {
             WidthRequest=16,
-            HeightRequest=20,
+            HeightRequest=18,
             VerticalOptions=LayoutOptions.Center,
             HorizontalOptions=LayoutOptions.Center,
-            Margin=new Thickness(0,0,6,0),
+            Margin=new Thickness(0,0,4,0),
             Children= {
                 spinner,
             },
@@ -1350,20 +1358,13 @@ public sealed partial class MainPage:ContentPage {
                 new ColumnDefinition { Width = new GridLength(5,GridUnitType.Star) },
                 new ColumnDefinition { Width = new GridLength(5,GridUnitType.Star) },
             },
-            RowSpacing=4,
+            RowSpacing=1,
             ColumnSpacing=6,
         };
-        var summary = new Label {
-            FontSize=12,
-            FontAttributes=FontAttributes.Bold,
-            TextColor=Color.FromArgb("#0F172A"),
-            BackgroundColor=Color.FromArgb("#ECFDF5"),
-            Padding=new Thickness(8,3),
-            LineBreakMode=LineBreakMode.TailTruncation,
-        };
+        var summary = this.CreateProgressSummaryBadge(out var summaryText);
         var sourceTabOption = state is null ? this.viewModel?.SelectedSourceTab : this.viewModel?.SourceTabs.FirstOrDefault(option => option.Definition.Tab==state.Definition.Tab);
         if(sourceTabOption is not null) {
-            summary.SetBinding(Label.TextProperty,new Binding(nameof(SourceTabOption.ProgressSummaryText),source: sourceTabOption));
+            summaryText.SetBinding(Label.TextProperty,new Binding(nameof(SourceTabOption.ProgressSummaryText),source: sourceTabOption));
             summary.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: sourceTabOption));
         }
         grid.Add(summary,0,0);
@@ -1394,11 +1395,12 @@ public sealed partial class MainPage:ContentPage {
             TabBarHeight=LowerTabBarHeight,
             TabBarBackground=Color.FromArgb("#E2E8F0"),
             IndicatorBackground=Colors.Transparent,
-            HeaderItemSpacing=4,
+            HeaderItemSpacing=1,
             EnableSwiping=false,
             ContentTransitionDuration=0,
             BackgroundColor=Color.FromArgb("#F8FAFC"),
         };
+        this.ConfigureCompactTabView(lowerTabView,false);
         var lowerItems = new TabItemCollection();
         var lowerTabOptions = new[] {
             new TabHeaderOption("CPU"),
@@ -1539,12 +1541,13 @@ public sealed partial class MainPage:ContentPage {
             TabBarHeight=32,
             TabBarBackground=Color.FromArgb("#E2E8F0"),
             IndicatorBackground=Color.FromArgb("#0F766E"),
-            HeaderItemSpacing=2,
+            HeaderItemSpacing=1,
             EnableSwiping=false,
             ContentTransitionDuration=0,
             BackgroundColor=Colors.White,
             VerticalOptions=LayoutOptions.Fill,
         };
+        this.ConfigureCompactTabView(tabs,false);
         var chartTabOptions = new List<TabHeaderOption>();
         var chartTabItems = new TabItemCollection();
 
@@ -1582,12 +1585,13 @@ public sealed partial class MainPage:ContentPage {
             TabBarHeight=28,
             TabBarBackground=Color.FromArgb("#F1F5F9"),
             IndicatorBackground=Color.FromArgb("#0F766E"),
-            HeaderItemSpacing=2,
+            HeaderItemSpacing=1,
             EnableSwiping=false,
             ContentTransitionDuration=0,
             BackgroundColor=Colors.White,
             VerticalOptions=LayoutOptions.Fill,
         };
+        this.ConfigureCompactTabView(tabs,false);
         var options = new[] { new TabHeaderOption("時間比"),new TabHeaderOption("メモリ比") };
         tabs.Items=new TabItemCollection {
             new SfTabItem {
@@ -2052,13 +2056,13 @@ public sealed partial class MainPage:ContentPage {
             TabBarHeight=28,
             TabBarBackground=Colors.Transparent,
             IndicatorBackground=Colors.Transparent,
-            HeaderItemSpacing=2,
+            HeaderItemSpacing=1,
             EnableSwiping=false,
             ContentTransitionDuration=0,
             BackgroundColor=Colors.Transparent,
-            WidthRequest=180,
             HorizontalOptions=LayoutOptions.Start,
         };
+        this.ConfigureCompactTabView(tabView,false);
         var timeOption = new TabHeaderOption("時間比");
         var allocatedOption = new TabHeaderOption("メモリ比");
         var options = new[] { timeOption,allocatedOption };

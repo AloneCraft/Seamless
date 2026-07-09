@@ -8271,7 +8271,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
         BenchmarkRowCompletionLogic.IsTabFinalCompleted(
             measurements,
             rows.SelectMany(static row => row.ProjectCells
-                .Where(static cell => cell.HasCase&&cell.IsSelected)
+                .Where(static cell => cell.HasCase)
                 .Select(cell => CreateProgressCell(row,cell.Project,true))),
             maxElementCount,
             thresholdNanoseconds);

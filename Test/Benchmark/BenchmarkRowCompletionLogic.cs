@@ -83,4 +83,24 @@ public sealed class BenchmarkRowCompletionLogic{
             8192,
             4_096_000_000));
     }
+
+    [Fact]
+    public void IsTabFinalCompleted_DoesNotCompleteWhenAnyProvidedBenchmarkCellIsMissing(){
+        var measurements = new[] {
+            new BenchmarkElementMeasurement("Left","Any","System.Array.FLinq","",4096,"Completed",100),
+            new BenchmarkElementMeasurement("Right","Any","System.Array.ZLinq","",4096,"Completed",4_200_000_000),
+        };
+        var cells = new[] {
+            new BenchmarkTabProgressCell("Any","Left","System.Array.FLinq","",true,"row-1"),
+            new BenchmarkTabProgressCell("Any","Right","System.Array.ZLinq","",true,"row-1"),
+            new BenchmarkTabProgressCell("Where","Left","System.Array.FLinq","",true,"row-2"),
+            new BenchmarkTabProgressCell("Where","Right","System.Array.ZLinq","",true,"row-2"),
+        };
+
+        Assert.False(global::UI.BenchmarkRowCompletionLogic.IsTabFinalCompleted(
+            measurements,
+            cells,
+            8192,
+            4_096_000_000));
+    }
 }
