@@ -837,6 +837,129 @@ public sealed class RunnerViewModel{
         }));
     }
 
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task BenchmarkRowSelectionHeader_CyclesMixedTrueFalseAndRestoresMixed(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var row = fixture.ViewModel.BenchmarkRows.First(row => row.LeftCell.HasCase&&row.RightCell.HasCase);
+        SetRowSelection(row,leftSelected:true,rightSelected:false);
+
+        Assert.Null(row.IsSelectionChecked);
+
+        fixture.ViewModel.ToggleBenchmarkRow(row);
+
+        Assert.True(row.IsSelectionChecked);
+        Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.True(cell.IsSelected));
+
+        fixture.ViewModel.ToggleBenchmarkRow(row);
+
+        Assert.False(row.IsSelectionChecked);
+        Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.False(cell.IsSelected));
+
+        fixture.ViewModel.ToggleBenchmarkRow(row);
+
+        Assert.Null(row.IsSelectionChecked);
+        Assert.True(row.LeftCell.IsSelected);
+        Assert.False(row.RightCell.IsSelected);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task TabBenchmarkSelectionHeader_CyclesOnlySourceTabAndDoesNotSelectOtherTabs(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        var arrayState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemArray);
+        var rangeState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemRange);
+        var listState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemList);
+        viewModel.ClearSelectionCommand.Execute(null);
+        var arrayRow = arrayState.Rows.First(row => row.LeftCell.HasCase&&row.RightCell.HasCase);
+        SetRowSelection(arrayRow,leftSelected:true,rightSelected:false);
+
+        Assert.Null(arrayState.IsBenchmarkSelectionChecked);
+        Assert.False(rangeState.IsBenchmarkSelectionChecked);
+        Assert.False(listState.IsBenchmarkSelectionChecked);
+        Assert.Null(viewModel.IsAllBenchmarkSelectionChecked);
+
+        viewModel.ToggleAllBenchmarkSelection(arrayState.Definition);
+
+        Assert.True(arrayState.IsBenchmarkSelectionChecked);
+        Assert.False(rangeState.IsBenchmarkSelectionChecked);
+        Assert.False(listState.IsBenchmarkSelectionChecked);
+        Assert.Null(viewModel.IsAllBenchmarkSelectionChecked);
+        Assert.All(arrayState.Rows,row => {
+            Assert.True(row.IsSelectionChecked);
+            Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.True(cell.IsSelected));
+        });
+        Assert.All(rangeState.Rows,row => {
+            Assert.False(row.IsSelectionChecked);
+            Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.False(cell.IsSelected));
+        });
+
+        viewModel.ToggleAllBenchmarkSelection(arrayState.Definition);
+
+        Assert.False(arrayState.IsBenchmarkSelectionChecked);
+        Assert.False(rangeState.IsBenchmarkSelectionChecked);
+        Assert.False(listState.IsBenchmarkSelectionChecked);
+        Assert.False(viewModel.IsAllBenchmarkSelectionChecked);
+
+        viewModel.ToggleAllBenchmarkSelection(arrayState.Definition);
+
+        Assert.Null(arrayState.IsBenchmarkSelectionChecked);
+        Assert.False(rangeState.IsBenchmarkSelectionChecked);
+        Assert.False(listState.IsBenchmarkSelectionChecked);
+        Assert.Null(viewModel.IsAllBenchmarkSelectionChecked);
+        Assert.Null(arrayRow.IsSelectionChecked);
+        Assert.True(arrayRow.LeftCell.IsSelected);
+        Assert.False(arrayRow.RightCell.IsSelected);
+        Assert.All(rangeState.Rows,row => {
+            Assert.False(row.IsSelectionChecked);
+            Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.False(cell.IsSelected));
+        });
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task AllBenchmarkSelectionHeader_CyclesMixedTrueFalseAndRestoresMixedAcrossTabs(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        var arrayState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemArray);
+        var rangeState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemRange);
+        var listState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemList);
+        var states = new[]{arrayState,rangeState,listState};
+        viewModel.ClearSelectionCommand.Execute(null);
+        var arrayRow = arrayState.Rows.First(row => row.LeftCell.HasCase&&row.RightCell.HasCase);
+        var rangeRow = rangeState.Rows.First(row => row.LeftCell.HasCase&&row.RightCell.HasCase);
+        SetRowSelection(arrayRow,leftSelected:true,rightSelected:false);
+        SetRowSelection(rangeRow,leftSelected:false,rightSelected:true);
+
+        viewModel.ToggleAllBenchmarkSelection();
+
+        Assert.True(viewModel.IsAllBenchmarkSelectionChecked);
+        Assert.All(states,state => Assert.All(state.Rows,row => {
+            Assert.True(row.IsSelectionChecked);
+            Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.True(cell.IsSelected));
+        }));
+
+        viewModel.ToggleAllBenchmarkSelection();
+
+        Assert.False(viewModel.IsAllBenchmarkSelectionChecked);
+        Assert.All(states,state => Assert.All(state.Rows,row => {
+            Assert.False(row.IsSelectionChecked);
+            Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.False(cell.IsSelected));
+        }));
+
+        viewModel.ToggleAllBenchmarkSelection();
+
+        Assert.Null(viewModel.IsAllBenchmarkSelectionChecked);
+        Assert.Null(arrayRow.IsSelectionChecked);
+        Assert.Null(rangeRow.IsSelectionChecked);
+        Assert.True(arrayRow.LeftCell.IsSelected);
+        Assert.False(arrayRow.RightCell.IsSelected);
+        Assert.False(rangeRow.LeftCell.IsSelected);
+        Assert.True(rangeRow.RightCell.IsSelected);
+        Assert.All(listState.Rows,row => {
+            Assert.False(row.IsSelectionChecked);
+            Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.False(cell.IsSelected));
+        });
+    }
+
     private static void SelectProjectGroup(global::UI.ViewModels.RunnerViewModel viewModel,string groupId){
         foreach(var row in viewModel.BenchmarkRows){
             foreach(var cell in row.ProjectCells){
@@ -846,6 +969,12 @@ public sealed class RunnerViewModel{
         }
         var group = viewModel.BenchmarkProjectSelectionGroups.First(group => string.Equals(group.Id,groupId,StringComparison.OrdinalIgnoreCase));
         viewModel.ToggleBenchmarkColumnGroup(group);
+    }
+
+    private static void SetRowSelection(global::UI.BenchmarkTableRow row,bool leftSelected,bool rightSelected){
+        row.LeftCell.IsSelected=leftSelected;
+        row.RightCell.IsSelected=rightSelected;
+        row.RefreshSelectionState();
     }
 
     private static IReadOnlyList<global::UI.BenchmarkProjectCell> GetSelectedCells(global::UI.ViewModels.RunnerViewModel viewModel) =>

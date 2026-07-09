@@ -305,6 +305,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// benchmarkRowSelections フィールドです。
     /// </summary>
     private readonly Dictionary<string,bool> benchmarkRowSelections = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string,Dictionary<string,bool>> benchmarkMixedRowSelectionSnapshots = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string,Dictionary<string,bool>> benchmarkMixedAllSelectionSnapshots = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>
     /// improvementCandidateSelections フィールドです。
     /// </summary>
@@ -2150,10 +2152,26 @@ public sealed partial class RunnerViewModel:ObservableObject {
             return;
         }
 
-        var tab = sourceTab??this.SelectedSourceDefinition;
-        var rows = this.GetBenchmarkRows(tab).Where(static row => row.ProjectCells.Any(static cell => cell.HasCase)).ToArray();
-        var selected = GetRowSelectionState(rows) is not true;
-        this.SetBenchmarkRows(rows,selected);
+        var rows = sourceTab is { } tab
+            ? this.GetBenchmarkRows(tab).Where(static row => row.ProjectCells.Any(static cell => cell.HasCase)).ToArray()
+            : this.GetAllBenchmarkRows().Where(static row => row.ProjectCells.Any(static cell => cell.HasCase)).ToArray();
+        var state = GetRowSelectionState(rows);
+        if(state is null) {
+            this.SaveMixedAllSelectionSnapshot(sourceTab,rows);
+            this.SetBenchmarkRows(rows,true);
+            return;
+        }
+
+        if(state is true) {
+            this.SetBenchmarkRows(rows,false);
+            return;
+        }
+
+        if(this.TryRestoreMixedAllSelectionSnapshot(sourceTab,rows)) {
+            return;
+        }
+
+        this.SetBenchmarkRows(rows,true);
     }
 
     /// <summary>
@@ -2203,8 +2221,25 @@ public sealed partial class RunnerViewModel:ObservableObject {
         var targets = targetRows
             .Where(static item => item.ProjectCells.Any(static cell => cell.HasCase))
             .ToArray();
-        var selected = GetRowSelectionState(targets) is not true;
-        this.SetBenchmarkRows(targets,selected);
+        var selectionState = GetRowSelectionState(targets);
+        if(selectionState is null) {
+            foreach(var target in targets.Where(static target => target.IsSelectionChecked is null)) {
+                this.SaveMixedRowSelectionSnapshot(target);
+            }
+            this.SetBenchmarkRows(targets,true);
+            return;
+        }
+
+        if(selectionState is true) {
+            this.SetBenchmarkRows(targets,false);
+            return;
+        }
+
+        if(this.TryRestoreMixedRowSelectionSnapshots(targets)) {
+            return;
+        }
+
+        this.SetBenchmarkRows(targets,true);
     }
 
     /// <summary>
@@ -2380,6 +2415,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     private void RebuildBenchmarkRowsFromCatalog() {
         using(this.BeginDataGridUpdateBatch()) {
             this.benchmarkSelectionAnchors.Clear();
+            this.ClearBenchmarkMixedSelectionSnapshots();
             var elementCount = this.SelectedResultElementCount?.Value??0;
             var builtRows = this.sourceTabViewStates
                 .AsParallel()
@@ -2551,6 +2587,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
             return;
         }
 
+        if(!selected) {
+            this.ClearBenchmarkMixedSelectionSnapshots(sourceTab);
+        }
         var rows = sourceTab is { } tab
             ? this.GetBenchmarkRows(tab).Where(static row => row.ProjectCells.Any(static cell => cell.HasCase))
             : this.GetAllBenchmarkRows().Where(static row => row.ProjectCells.Any(static cell => cell.HasCase));
@@ -2580,6 +2619,90 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
         this.SaveUiState();
         this.RefreshBenchmarkSelectionDisplay();
+    }
+
+    private void SaveMixedRowSelectionSnapshot(BenchmarkTableRow row) {
+        this.benchmarkMixedRowSelectionSnapshots[CreateRowSelectionKey(row.SourceTab,row.RowKey)]=this.CreateBenchmarkCellSelectionSnapshot([row]);
+    }
+
+    private bool TryRestoreMixedRowSelectionSnapshots(IReadOnlyList<BenchmarkTableRow> rows) {
+        var restoreRows = new List<BenchmarkTableRow>(rows.Count);
+        var snapshot = new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase);
+        foreach(var row in rows) {
+            if(!this.benchmarkMixedRowSelectionSnapshots.TryGetValue(CreateRowSelectionKey(row.SourceTab,row.RowKey),out var rowSnapshot)) {
+                continue;
+            }
+
+            restoreRows.Add(row);
+            foreach(var item in rowSnapshot) {
+                snapshot[item.Key]=item.Value;
+            }
+        }
+
+        if(restoreRows.Count==0) {
+            return false;
+        }
+
+        this.ApplyBenchmarkCellSelectionSnapshot(restoreRows,snapshot);
+        return true;
+    }
+
+    private void SaveMixedAllSelectionSnapshot(BenchmarkSourceTabDefinition? sourceTab,IReadOnlyList<BenchmarkTableRow> rows) {
+        this.benchmarkMixedAllSelectionSnapshots[CreateAllBenchmarkSelectionSnapshotKey(sourceTab)]=this.CreateBenchmarkCellSelectionSnapshot(rows);
+    }
+
+    private bool TryRestoreMixedAllSelectionSnapshot(BenchmarkSourceTabDefinition? sourceTab,IReadOnlyList<BenchmarkTableRow> rows) {
+        if(!this.benchmarkMixedAllSelectionSnapshots.TryGetValue(CreateAllBenchmarkSelectionSnapshotKey(sourceTab),out var snapshot)) {
+            return false;
+        }
+
+        this.ApplyBenchmarkCellSelectionSnapshot(rows,snapshot);
+        return true;
+    }
+
+    private Dictionary<string,bool> CreateBenchmarkCellSelectionSnapshot(IEnumerable<BenchmarkTableRow> rows) {
+        var snapshot = new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase);
+        foreach(var row in rows) {
+            foreach(var cell in row.ProjectCells.Where(static cell => cell.HasCase)) {
+                snapshot[CreateBenchmarkCellKey(row.SourceTab,row.RowKey,cell.Project)]=cell.IsSelected;
+            }
+        }
+
+        return snapshot;
+    }
+
+    private void ApplyBenchmarkCellSelectionSnapshot(IReadOnlyList<BenchmarkTableRow> rows,IReadOnlyDictionary<string,bool> snapshot) {
+        this.isApplyingBenchmarkSelection=true;
+        try {
+            foreach(var row in rows) {
+                foreach(var cell in row.ProjectCells.Where(static cell => cell.HasCase)) {
+                    if(snapshot.TryGetValue(CreateBenchmarkCellKey(row.SourceTab,row.RowKey,cell.Project),out var selected)) {
+                        cell.IsSelected=selected;
+                    }
+                }
+                row.RefreshSelectionState();
+            }
+            this.RefreshBenchmarkSelectionAggregates();
+        }
+        finally {
+            this.isApplyingBenchmarkSelection=false;
+        }
+        this.SaveUiState();
+        this.RefreshBenchmarkSelectionDisplay();
+    }
+
+    private void ClearBenchmarkMixedSelectionSnapshots(BenchmarkSourceTabDefinition? sourceTab = null) {
+        if(sourceTab is null) {
+            this.benchmarkMixedRowSelectionSnapshots.Clear();
+            this.benchmarkMixedAllSelectionSnapshots.Clear();
+            return;
+        }
+
+        var prefix = sourceTab.Id+"|";
+        foreach(var key in this.benchmarkMixedRowSelectionSnapshots.Keys.Where(key => key.StartsWith(prefix,StringComparison.OrdinalIgnoreCase)).ToArray()) {
+            this.benchmarkMixedRowSelectionSnapshots.Remove(key);
+        }
+        this.benchmarkMixedAllSelectionSnapshots.Remove(CreateAllBenchmarkSelectionSnapshotKey(sourceTab));
     }
 
     /// <summary>
@@ -2799,6 +2922,12 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
         foreach(var group in this.BenchmarkProjectSelectionGroups) {
             group.IsChecked=GetSelectionState(this.GetBenchmarkCells(group.ColumnKeys,currentTab));
+        }
+        foreach(var state in this.SourceTabViewStates) {
+            var rows = state.Rows
+                .Where(static row => row.ProjectCells.Any(static cell => cell.HasCase))
+                .ToArray();
+            state.IsBenchmarkSelectionChecked=GetRowSelectionState(rows);
         }
         var allRows = this.GetAllBenchmarkRows()
             .Where(static row => row.ProjectCells.Any(static cell => cell.HasCase))
@@ -3852,6 +3981,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <returns>処理結果を返却します。</returns>
     private static string CreateRowSelectionKey(BenchmarkSourceTabDefinition sourceTab,string rowKey) =>
         sourceTab.Id+"|"+rowKey;
+
+    private static string CreateAllBenchmarkSelectionSnapshotKey(BenchmarkSourceTabDefinition? sourceTab) =>
+        sourceTab is { } tab ? tab.Id : "*";
 
     /// <summary>
     /// CreateBenchmarkCellSelectionKey メソッドを実行し、結果を算出して返却します。
@@ -5071,6 +5203,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             }
             this.benchmarkRowSelections.Clear();
             this.benchmarkCellSelections.Clear();
+            this.ClearBenchmarkMixedSelectionSnapshots();
         }
         finally {
             this.isApplyingBenchmarkSelection=false;
@@ -8037,15 +8170,16 @@ public sealed partial class RunnerViewModel:ObservableObject {
         var tabInputs = this.SourceTabs
             .Select(option => {
                 var state = this.GetSourceTabViewState(option.Definition.Tab);
+                var source = this.ShouldUseCurrentRunMemoryForDisplay(state.Definition)
+                    ? this.GetCurrentRunResultItems(state.Definition.Tab).ToArray()
+                    : resultItemsSnapshot;
                 return new FinalCompletionTabInput(
                 option,
                 state,
-                this.ShouldUseCurrentRunMemoryForDisplay(state.Definition)
-                    ? this.GetCurrentRunResultItems(state.Definition.Tab).ToArray()
-                    : resultItemsSnapshot,
+                source,
                 state.Rows.ToArray(),
                 CreateBenchmarkPairs(state.Definition),
-                this.GetFinalCompletionMaxElementCount(state.Definition));
+                this.GetFinalCompletionMaxElementCount(state.Definition,source));
             })
             .ToArray();
         var thresholdNanoseconds = this.GetAdaptiveThreshold().TotalMilliseconds*1_000_000;
@@ -8124,7 +8258,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 }
 
                 var pairs = CreateBenchmarkPairs(state.Definition);
-                var maxElementCount = this.GetFinalCompletionMaxElementCount(state.Definition);
+                var maxElementCount = this.GetFinalCompletionMaxElementCount(state.Definition,source);
                 return new FinalCompletionTabResult(
                     option,
                     rows,
@@ -8312,7 +8446,17 @@ public sealed partial class RunnerViewModel:ObservableObject {
         return this.GetFinalCompletionMaxElementCount(this.SelectedSourceDefinition);
     }
 
-    private int GetFinalCompletionMaxElementCount(BenchmarkSourceTabDefinition sourceTab) {
+    private int GetFinalCompletionMaxElementCount(BenchmarkSourceTabDefinition sourceTab,IReadOnlyList<BenchmarkResultItem>? source=null) {
+        var sourceMax = source?
+            .Where(result => sourceTab.ContainsProject(result.Project))
+            .Select(static result => result.AxisCount)
+            .Where(static item => item>0)
+            .DefaultIfEmpty(0)
+            .Max()??0;
+        if(sourceMax>0) {
+            return sourceMax;
+        }
+
         if(this.IsBenchmarkRunActive||this.currentRunSession.HasResults(sourceTab.Tab)) {
             return this.GetSelectedElementCounts().LastOrDefault();
         }

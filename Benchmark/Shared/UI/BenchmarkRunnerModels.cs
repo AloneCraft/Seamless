@@ -269,6 +269,7 @@ public sealed class ObservableRangeCollection<T>:ObservableCollection<T>{
 public sealed class BenchmarkSourceTabViewState:ObservableObject{
     private double chartHeight = 300;
     private string benchmarkRatioSummaryText = string.Empty;
+    private bool? isBenchmarkSelectionChecked;
     private string chartEmptyReasonText = "ベンチマークを実行するか、保存済み DB 実行を選択してください。";
     private string chartEmptyReasonTooltipText = "計測結果または保存済み DB 実行が選択されると比較チャートを表示します。";
 
@@ -292,6 +293,11 @@ public sealed class BenchmarkSourceTabViewState:ObservableObject{
     public ObservableCollection<BenchmarkTrendSeries> HistoryTrendSeries { get; } = [];
     public ObservableCollection<BenchmarkTrendSeries> ScaleTrendSeries { get; } = [];
     public IReadOnlyList<BenchmarkComparisonRow> ComparisonRows { get; set; } = [];
+
+    public bool? IsBenchmarkSelectionChecked{
+        get => this.isBenchmarkSelectionChecked;
+        set => this.SetProperty(ref this.isBenchmarkSelectionChecked,value);
+    }
 
     public double ChartHeight{
         get => this.chartHeight;

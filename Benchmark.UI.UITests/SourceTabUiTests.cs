@@ -99,4 +99,35 @@ public sealed class SourceTabUiTests{
             session.WaitUntilAutomationIdChecked(cellCheck,arrayBefore);
         }
     }
+
+    [BenchmarkUiAutomationFact]
+    public void TopAllSelectionCheck_TogglesAllSourceTabs(){
+        using var session=new BenchmarkUiSession();
+        var topCheck=BenchmarkUiAutomationIds.TopAllSelectionCheck;
+        var gridHeaderCheck=BenchmarkUiAutomationIds.AllSelectionCheck;
+
+        session.WaitForName("Selected "+ArrayTab);
+        session.WaitForAutomationId(BenchmarkUiAutomationIds.CellCheck("LeftCell"));
+        if(!session.IsAutomationIdChecked(topCheck)){
+            session.ClickAutomationId(topCheck);
+            session.WaitUntilAutomationIdChecked(topCheck,true);
+        }
+        try{
+            session.WaitUntilAutomationIdChecked(gridHeaderCheck,true);
+
+            session.ClickName(EnumerableTab);
+            session.WaitForName("Selected "+EnumerableTab);
+            session.WaitUntilAutomationIdChecked(topCheck,true);
+            session.WaitUntilAutomationIdChecked(gridHeaderCheck,true);
+
+            session.ClickName(ArrayTab);
+            session.WaitForName("Selected "+ArrayTab);
+            session.WaitUntilAutomationIdChecked(topCheck,true);
+            session.WaitUntilAutomationIdChecked(gridHeaderCheck,true);
+        }
+        finally{
+            session.ClickAutomationId(topCheck);
+            session.WaitUntilAutomationIdChecked(topCheck,false);
+        }
+    }
 }

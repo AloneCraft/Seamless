@@ -15,6 +15,7 @@ public sealed partial class MainPage:ContentPage {
     private const double CpuCheckBoxHeight = 28;
     private const double BenchmarkSelectionColumnWidth = 52;
     private const double BenchmarkAggregateCheckBoxSize = 32;
+    private const double BenchmarkTopAllSelectionSlotWidth = BenchmarkAggregateCheckBoxSize+4;
     private const double BenchmarkCellCheckBoxWidth = 34;
     private const double BenchmarkCellCheckBoxHeight = 28;
     private const double BenchmarkTypeColumnWidth = 96;
@@ -603,7 +604,6 @@ public sealed partial class MainPage:ContentPage {
             Padding=new Thickness(8,4,8,3),
             RowDefinitions= {
                 new RowDefinition { Height = GridLength.Auto },
-                new RowDefinition { Height = GridLength.Auto },
             },
             ColumnDefinitions= {
                 new ColumnDefinition { Width = GridLength.Auto },
@@ -638,20 +638,14 @@ public sealed partial class MainPage:ContentPage {
         grid.Add(this.ToolbarLabel("結果"),8,0);
         grid.Add(runPicker,9,0);
 #endif
-        var preview = this.CreateStatusIconPreview();
-        grid.Add(preview,0,1);
-#if DEBUG
-        Grid.SetColumnSpan(preview,12);
-#else
-        Grid.SetColumnSpan(preview,10);
-#endif
         return grid;
     }
 
     private View CreateStatusIconPreview() {
         var layout = new HorizontalStackLayout {
             Spacing=10,
-            Padding=new Thickness(0,2,0,0),
+            Padding=new Thickness(2,0,0,0),
+            HorizontalOptions=LayoutOptions.Start,
             VerticalOptions=LayoutOptions.Center,
         };
         foreach(var item in new[] {
@@ -977,25 +971,25 @@ public sealed partial class MainPage:ContentPage {
     }
 
     private View CreateBenchmarkPanelContent() {
-        var tabView = new SfTabView {
-            TabBarHeight=30,
-            TabBarBackground=Color.FromArgb("#F8FAFC"),
-            IndicatorBackground=Colors.Transparent,
-            HeaderItemSpacing=1,
-            EnableSwiping=false,
+        var SfTabView=new SfTabView {
+            TabBarHeight             =30,
+            TabBarBackground         =Color.FromArgb("#F8FAFC"),
+            IndicatorBackground      =Colors.Transparent,
+            HeaderItemSpacing        =1,
+            EnableSwiping            =false,
             ContentTransitionDuration=0,
-            BackgroundColor=Colors.White,
-            VerticalOptions=LayoutOptions.Fill,
-            AutomationId="Benchmark.SourceTabView",
+            BackgroundColor          =Colors.White,
+            VerticalOptions          =LayoutOptions.Fill,
+            AutomationId             ="Benchmark.SourceTabView",
         };
-        this.ConfigureCompactTabView(tabView,true);
-        AutomationProperties.SetIsInAccessibleTree(tabView,true);
+        this.ConfigureCompactTabView(SfTabView,true);
+        AutomationProperties.SetIsInAccessibleTree(SfTabView,true);
         var tabItems = new TabItemCollection();
         var loadedSourceTabContents = new HashSet<int>();
         var sourceTabIndex=0;
         foreach(var option in this.viewModel?.SourceTabs?? []) {
             var capturedIndex=sourceTabIndex;
-            var header = this.CreateSourceTabHeader(option,tabView,capturedIndex);
+            var header = this.CreateSourceTabHeader(option,SfTabView,capturedIndex);
             var state = this.viewModel?.GetSourceTabViewState(option.Definition.Tab);
             var tabItem = new SfTabItem {
                 Header=option.HeaderText,
@@ -1019,15 +1013,15 @@ public sealed partial class MainPage:ContentPage {
             sourceTabIndex++;
         }
 
-        tabView.Items=tabItems;
-        tabView.SelectedIndex=0;
-        this.sourceTabView=tabView;
+        SfTabView.Items=tabItems;
+        SfTabView.SelectedIndex=0;
+        this.sourceTabView=SfTabView;
         void EnsureSelectedSourceTabContent() {
             if(this.viewModel is null) {
                 return;
             }
 
-            var index = tabView.SelectedIndex;
+            var index = SfTabView.SelectedIndex;
             if(index<0||index>=this.viewModel.SourceTabs.Count||loadedSourceTabContents.Contains(index)) {
                 StartupDiagnostics.AddBreadcrumb("Source tab content skip index="+index.ToString(System.Globalization.CultureInfo.InvariantCulture));
                 return;
@@ -1040,14 +1034,14 @@ public sealed partial class MainPage:ContentPage {
             loadedSourceTabContents.Add(index);
             StartupDiagnostics.AddBreadcrumb("Source tab content created "+option.Definition.Id+" rows="+state.Rows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
-        tabView.PropertyChanged+=(_,args) => {
+        SfTabView.PropertyChanged+=(_,args) => {
             if(args.PropertyName!=nameof(SfTabView.SelectedIndex)||this.viewModel is null) {
                 return;
             }
 
             StartupDiagnostics.AddBreadcrumb(
                 "Source tab view selected index changed index="
-                +tabView.SelectedIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                +SfTabView.SelectedIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 +" running="+this.viewModel.IsBenchmarkRunActive.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 +" selected="+this.viewModel.SelectedSourceTab.Id);
             EnsureSelectedSourceTabContent();
@@ -1056,16 +1050,31 @@ public sealed partial class MainPage:ContentPage {
                 return;
             }
 
-            var index = tabView.SelectedIndex;
+            var index = SfTabView.SelectedIndex;
             if(index>=0&&index<this.viewModel.SourceTabs.Count) {
                 this.viewModel.SelectedSourceTab=this.viewModel.SourceTabs[index];
             }
             this.SelectBenchmarkGridForActiveSource();
         };
         if(this.viewModel is not null) {
+            //void OnViewModelPropertyChanged(object? sender,PropertyChangedEventArgs args) {
+            //    if(args.PropertyName is nameof(RunnerViewModel.SelectedSourceTab) or nameof(RunnerViewModel.HasBenchmarkTypeColumn)) {
+            //        StartupDiagnostics.BeginInvokeOnMainThread("source tab vm property "+args.PropertyName,() => {
+            //                                                       this.SyncSourceTabViewSelection();
+            //                                                       EnsureSelectedSourceTabContent();
+            //                                                       this.SelectBenchmarkGridForActiveSource();
+            //                                                   });
+            //    }else if(args.PropertyName==nameof(RunnerViewModel.LatestBenchmarkAutoScrollRequest)) {
+            //        var request = this.viewModel.LatestBenchmarkAutoScrollRequest;
+            //        if(request is not null) {
+            //            StartupDiagnostics.BeginInvokeOnMainThread("latest benchmark auto scroll "+request.SourceTab,() => this.ScrollBenchmarkGridToLatestExecutionAsync(request));
+            //        }
+            //    }
+            //}
+
+            //this.viewModel.PropertyChanged+=OnViewModelPropertyChanged;
             this.viewModel.PropertyChanged+=(_,args) => {
-                if(args.PropertyName==nameof(RunnerViewModel.SelectedSourceTab)
-                    ||args.PropertyName==nameof(RunnerViewModel.HasBenchmarkTypeColumn)) {
+                if(args.PropertyName is nameof(RunnerViewModel.SelectedSourceTab) or nameof(RunnerViewModel.HasBenchmarkTypeColumn)) {
                     StartupDiagnostics.BeginInvokeOnMainThread("source tab vm property "+args.PropertyName,() => {
                         this.SyncSourceTabViewSelection();
                         EnsureSelectedSourceTabContent();
@@ -1081,6 +1090,17 @@ public sealed partial class MainPage:ContentPage {
         }
         var lowerContent = this.CreateBenchmarkTabContent();
         var overallProgress = this.CreateOverallSourceProgressView();
+        //var tabHost = new Grid {
+        //    ColumnDefinitions= {
+        //        new ColumnDefinition { Width = new GridLength(BenchmarkTopAllSelectionSlotWidth) },
+        //        new ColumnDefinition { Width = GridLength.Star },
+        //    },
+        //    ColumnSpacing=0,
+        //    Children= {
+        //        tabView,
+        //    },
+        //};
+        Grid.SetColumn(SfTabView,1);
         var grid = new Grid {
             RowDefinitions= {
                 new RowDefinition { Height = GridLength.Auto },
@@ -1092,11 +1112,11 @@ public sealed partial class MainPage:ContentPage {
             Padding=new Thickness(4,0,4,1),
             Children= {
                 overallProgress,
-                tabView,
+                SfTabView,
                 lowerContent,
             },
         };
-        Grid.SetRow(tabView,1);
+        Grid.SetRow(SfTabView,1);
         Grid.SetRow(lowerContent,2);
         return grid;
     }
@@ -1108,7 +1128,53 @@ public sealed partial class MainPage:ContentPage {
         }else{
             text.Text="確定 0/0";
         }
-        return badge;
+        var checkHost = this.CreateTopAllBenchmarkSelectionCheckHost();
+        var preview = this.CreateStatusIconPreview();
+        var layout = new Grid {
+            ColumnDefinitions= {
+                new ColumnDefinition { Width = new GridLength(BenchmarkTopAllSelectionSlotWidth) },
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Star },
+            },
+            ColumnSpacing=4,
+            HorizontalOptions=LayoutOptions.Fill,
+            VerticalOptions=LayoutOptions.Center,
+            Children= {
+                checkHost,
+                badge,
+                preview,
+            },
+        };
+        Grid.SetColumn(badge,1);
+        Grid.SetColumn(preview,2);
+        return layout;
+    }
+
+    private View CreateTopAllBenchmarkSelectionCheckHost() {
+        var check = this.CreateBenchmarkAggregateCheckBox();
+        check.AutomationId="Benchmark.TopAllSelectionCheck";
+        check.SetValue(ToolTipProperties.TextProperty,"全タブのチェックを切り替え");
+        if(this.viewModel is not null) {
+            this.BindAggregateCheckBox(check,this.viewModel,nameof(RunnerViewModel.IsAllBenchmarkSelectionChecked),() => this.viewModel.IsAllBenchmarkSelectionChecked);
+        }
+        var host = new Grid {
+            WidthRequest=BenchmarkTopAllSelectionSlotWidth,
+            MinimumWidthRequest=BenchmarkTopAllSelectionSlotWidth,
+            BackgroundColor=Colors.Transparent,
+            HorizontalOptions=LayoutOptions.Start,
+            VerticalOptions=LayoutOptions.Center,
+            AutomationId="Benchmark.TopAllSelectionCheckHost",
+            Children= {
+                check,
+            },
+        };
+        host.SetValue(ToolTipProperties.TextProperty,"全タブのチェックを切り替え");
+        var tap = new TapGestureRecognizer();
+        tap.Tapped+=(_,_) => {
+            this.viewModel?.ToggleAllBenchmarkSelection();
+        };
+        host.GestureRecognizers.Add(tap);
+        return host;
     }
 
     private void ConfigureCompactTabView(SfTabView tabView,bool enableScrollButtons) {
@@ -1361,7 +1427,7 @@ public sealed partial class MainPage:ContentPage {
             ColumnSpacing=6,
         };
         var summary = this.CreateProgressSummaryBadge(out var summaryText);
-        var sourceTabOption = state is null ? this.viewModel?.SelectedSourceTab : this.viewModel?.SourceTabs.FirstOrDefault(option => option.Definition.Tab==state.Definition.Tab);
+        var sourceTabOption = state is not null ? this.viewModel?.SourceTabs.FirstOrDefault(option => option.Definition.Tab==state.Definition.Tab) : this.viewModel?.SelectedSourceTab;
         if(sourceTabOption is not null) {
             summaryText.SetBinding(Label.TextProperty,new Binding(nameof(SourceTabOption.ProgressSummaryText),source: sourceTabOption));
             summary.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: sourceTabOption));
@@ -2480,8 +2546,9 @@ public sealed partial class MainPage:ContentPage {
             };
             var check = this.CreateBenchmarkAggregateCheckBox();
             check.AutomationId="Benchmark.AllSelectionCheck";
-            if(this.viewModel is not null) {
-                this.BindAggregateCheckBox(check,this.viewModel,nameof(RunnerViewModel.IsAllBenchmarkSelectionChecked),() => this.viewModel.IsAllBenchmarkSelectionChecked);
+            var state = this.viewModel?.GetSourceTabViewState(sourceTab.Tab);
+            if(state is not null) {
+                this.BindAggregateCheckBox(check,state,nameof(BenchmarkSourceTabViewState.IsBenchmarkSelectionChecked),() => state.IsBenchmarkSelectionChecked);
             }
             var checkHost = new Grid {
                 BackgroundColor=Colors.Transparent,

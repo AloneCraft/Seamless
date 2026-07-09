@@ -2,6 +2,8 @@ namespace Benchmark.UI.UITests;
 
 internal static class BenchmarkUiAutomationIds{
     public const string SourceTabView = "Benchmark.SourceTabView";
+    public const string TopAllSelectionCheckHost = "Benchmark.TopAllSelectionCheckHost";
+    public const string TopAllSelectionCheck = "Benchmark.TopAllSelectionCheck";
     public const string AllSelectionCheckHost = "Benchmark.AllSelectionCheckHost";
     public const string AllSelectionCheck = "Benchmark.AllSelectionCheck";
 
