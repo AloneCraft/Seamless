@@ -9,19 +9,6 @@ namespace UI;
 public static class MauiProgram {
     private const string SyncfusionLicenseKey = "Ngo9BigBOggjHTQxAR8/V1JHaF1cXmhOYVFzWmFZfVhgdl9HYVZRRmYuP1ZhSXxVdkNhXH9cc3VVR2VZUUV9XEE=";
 
-#if WINDOWS
-    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
-    private static extern bool AllocConsole();
-#endif
-
-    private static void AttachTraceConsole(){
-#if WINDOWS
-        AllocConsole();
-#endif
-        System.Diagnostics.Trace.AutoFlush=true;
-        System.Diagnostics.Trace.Listeners.Add(new System.Diagnostics.ConsoleTraceListener());
-    }
-
     private static async Task HandleWindowClosingAsync(Microsoft.UI.Xaml.Window window,App app){
         try{
             if(await app.RequestCloseAsync()){
@@ -33,7 +20,6 @@ public static class MauiProgram {
     }
 
     public static MauiApp CreateMauiApp() {
-        AttachTraceConsole();
         StartupDiagnostics.InstallGlobalHandlers();
         StartupDiagnostics.Write("CreateMauiApp started.");
         StartupDiagnostics.WriteSyncfusionAssemblies("CreateMauiApp started");

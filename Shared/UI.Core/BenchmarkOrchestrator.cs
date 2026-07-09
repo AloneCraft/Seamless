@@ -100,12 +100,12 @@ internal sealed class BenchmarkOrchestrator(
 
                     workers.Add(cpu,new AdaptiveWorker(row.Key,Task.Run(async () => {
                         Interlocked.Increment(ref running);
-                        Trace.WriteLine($"[Orchestrator] worker start cpu={cpu} row={row.Key}");
+                        System.Diagnostics.Debug.WriteLine($"[Orchestrator] worker start cpu={cpu} row={row.Key}");
                         try {
                             await this.RunAdaptiveMethodRowAsync(state,row,cpu,request,progress,statusChanged,cancellationToken);
-                            Trace.WriteLine($"[Orchestrator] worker end cpu={cpu} row={row.Key}");
+                            System.Diagnostics.Debug.WriteLine($"[Orchestrator] worker end cpu={cpu} row={row.Key}");
                         } catch(Exception ex) {
-                            Trace.WriteLine($"[Orchestrator] worker FAULTED cpu={cpu} row={row.Key}: {ex}");
+                            System.Diagnostics.Debug.WriteLine($"[Orchestrator] worker FAULTED cpu={cpu} row={row.Key}: {ex}");
                             throw;
                         } finally {
                             Interlocked.Decrement(ref running);
@@ -337,11 +337,11 @@ internal sealed class BenchmarkOrchestrator(
         progress(new BenchmarkProgressUpdate(state,job));
 
         try {
-            Trace.WriteLine($"[Orchestrator] RunJobAsync start cpu={logicalCpu} method={job.MethodName} elements={job.ElementCount}");
+            System.Diagnostics.Debug.WriteLine($"[Orchestrator] RunJobAsync start cpu={logicalCpu} method={job.MethodName} elements={job.ElementCount}");
             var jobStopwatch = Stopwatch.StartNew();
             var result = await jobRunner.RunAsync(job,state.RunRoot,logicalCpu,timeout,cancellationToken);
             jobStopwatch.Stop();
-            Trace.WriteLine($"[Orchestrator] RunJobAsync end cpu={logicalCpu} method={job.MethodName} status={result.Status} elapsed={jobStopwatch.Elapsed.TotalMilliseconds:0.0}ms");
+            System.Diagnostics.Debug.WriteLine($"[Orchestrator] RunJobAsync end cpu={logicalCpu} method={job.MethodName} status={result.Status} elapsed={jobStopwatch.Elapsed.TotalMilliseconds:0.0}ms");
             var completed = string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
                 &&result.MeanNanoseconds is not null;
             job.Status=completed

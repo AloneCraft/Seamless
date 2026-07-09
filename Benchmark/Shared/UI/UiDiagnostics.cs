@@ -48,8 +48,8 @@ internal sealed class UiDiagnostics{
                     lastBudgetReportAt=reportNow;
                     var report = UiThreadBudget.DrainReport();
                     if(!string.IsNullOrEmpty(report)){
-                        Trace.WriteLine("[UI][budget] "+report);
-                        // Trace出力だけではMAUIアプリ実行時にユーザーが確認できなぁE��め、startup.logにも残す、E
+                        System.Diagnostics.Debug.WriteLine("[UI][budget] "+report);
+                        // Trace出力だけではMAUIアプリ実行時にユーザーが確認できなぁE��め、startup.logにも残す、E
                         this.log("[UI][budget] "+report,null);
                     }
                 }
@@ -62,7 +62,7 @@ internal sealed class UiDiagnostics{
                         Interlocked.Increment(ref this.dispatcherStallCount);
                         this.lastDispatcherGapMilliseconds=gap;
                         this.log("Benchmark UI dispatcher stall: "+gap.ToString("0.0",System.Globalization.CultureInfo.InvariantCulture)+"ms",null);
-                        Trace.WriteLine($"[UI][heartbeat] STALL gap={gap:0.0}ms");
+                        System.Diagnostics.Debug.WriteLine($"[UI][heartbeat] STALL gap={gap:0.0}ms");
                     }
                 });
             }

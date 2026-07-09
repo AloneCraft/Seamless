@@ -44,13 +44,13 @@ public sealed class WorkerSession:IAsyncDisposable {
             artifactFolder);
 
         try {
-            Trace.WriteLine($"[Worker] RunAsync send pid={this.process.Id} method={benchmark.MethodName} elements={elementCount}");
+            System.Diagnostics.Debug.WriteLine($"[Worker] RunAsync send pid={this.process.Id} method={benchmark.MethodName} elements={elementCount}");
             await this.process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(message).AsMemory(),cancellationToken);
             await this.process.StandardInput.FlushAsync(cancellationToken);
 
             var line = await this.process.StandardOutput.ReadLineAsync(cancellationToken)
                 ?? throw new InvalidOperationException("Benchmark worker closed without a result.");
-            Trace.WriteLine($"[Worker] RunAsync received pid={this.process.Id} method={benchmark.MethodName} line-length={line.Length}");
+            System.Diagnostics.Debug.WriteLine($"[Worker] RunAsync received pid={this.process.Id} method={benchmark.MethodName} line-length={line.Length}");
             var result = JsonSerializer.Deserialize<WorkerResultMessage>(line)
                 ?? throw new InvalidOperationException("Benchmark worker returned an empty result.");
             return new BenchmarkJobRunResult(

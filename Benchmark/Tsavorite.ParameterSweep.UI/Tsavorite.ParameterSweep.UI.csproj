@@ -3,6 +3,7 @@
     <TargetFrameworks>net10.0-windows</TargetFrameworks>
     <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('OSX'))">$(TargetFrameworks);net10.0-maccatalyst</TargetFrameworks>
     <OutputType>Exe</OutputType>
+    <OutputType Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">WinExe</OutputType>
     <RootNamespace>Tsavorite.ParameterSweep.UI</RootNamespace>
     <AssemblyName>Tsavorite.ParameterSweep.UI</AssemblyName>
     <UseMaui>true</UseMaui>

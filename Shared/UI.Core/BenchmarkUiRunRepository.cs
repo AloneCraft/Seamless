@@ -604,11 +604,11 @@ internal sealed class BenchmarkUiRunRepository{
                     try{
                         action();
                         if(stopwatch.Elapsed.TotalMilliseconds>100){
-                            System.Diagnostics.Trace.WriteLine($"[Db] Done slow ({stopwatch.Elapsed.TotalMilliseconds:0.0}ms): {failureMessage}");
+                            System.Diagnostics.Debug.WriteLine($"[Db] Done slow ({stopwatch.Elapsed.TotalMilliseconds:0.0}ms): {failureMessage}");
                         }
                     }
                     catch(Exception ex){
-                        System.Diagnostics.Trace.WriteLine($"[Db] FAILED ({stopwatch.Elapsed.TotalMilliseconds:0.0}ms): {failureMessage}: {ex}");
+                        System.Diagnostics.Debug.WriteLine($"[Db] FAILED ({stopwatch.Elapsed.TotalMilliseconds:0.0}ms): {failureMessage}: {ex}");
                         this.log(failureMessage,ex);
                     }
                 },

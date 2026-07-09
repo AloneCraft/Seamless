@@ -23,11 +23,11 @@ public sealed class FastWorkerSession:IAsyncDisposable {
     public static async Task<FastWorkerSession> StartAsync(string runRoot,CancellationToken cancellationToken) {
         var workerPath = WorkerClient.ResolveWorkerPath();
         var process = WorkerClient.StartWorker(workerPath,runRoot,-1);
-        Trace.WriteLine($"[Worker] StartWorker(fast) pid={process.Id} path={workerPath}");
+        System.Diagnostics.Debug.WriteLine($"[Worker] StartWorker(fast) pid={process.Id} path={workerPath}");
         _=WorkerClient.DrainStandardErrorAsync(process,-1);
         try {
             var ready = await process.StandardOutput.ReadLineAsync(cancellationToken);
-            Trace.WriteLine($"[Worker] StartAsync(fast) ready-line received: \"{ready}\" pid={process.Id}");
+            System.Diagnostics.Debug.WriteLine($"[Worker] StartAsync(fast) ready-line received: \"{ready}\" pid={process.Id}");
             if(!string.Equals(ready,"ready",StringComparison.Ordinal)) {
                 throw new InvalidOperationException($"Benchmark fast worker did not become ready. First output: {ready}");
             }

@@ -78,9 +78,9 @@ public sealed class BenchmarkTestSleepJobRunner(TimeSpan sleepDuration,bool runU
             Directory.CreateDirectory(artifactFolder);
             File.WriteAllText(Path.Combine(artifactFolder,"test.log"),text,Encoding.UTF8);
         }catch(IOException ex){
-            Trace.WriteLine("Test benchmark log write failed. "+ex);
+            System.Diagnostics.Debug.WriteLine("Test benchmark log write failed. "+ex);
         }catch(UnauthorizedAccessException ex){
-            Trace.WriteLine("Test benchmark log write failed. "+ex);
+            System.Diagnostics.Debug.WriteLine("Test benchmark log write failed. "+ex);
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -4848,7 +4848,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             await this.uiRunRepository.FlushAsync();
         }
         catch(Exception ex) {
-            System.Diagnostics.Trace.WriteLine("Benchmark UI close persistence flush failed: "+ex);
+            System.Diagnostics.Debug.WriteLine("Benchmark UI close persistence flush failed: "+ex);
         }
     }
 
@@ -9846,7 +9846,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 this.LogEntries.Add(text);
             }
             catch(Exception ex) when(ex is System.Runtime.InteropServices.COMException or InvalidOperationException) {
-                System.Diagnostics.Trace.WriteLine("Benchmark UI log append ignored during close: "+ex);
+                System.Diagnostics.Debug.WriteLine("Benchmark UI log append ignored during close: "+ex);
             }
         });
     }
@@ -9878,7 +9878,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 this.LogEntries.Add(text);
             }
             catch(Exception ex) when(ex is System.Runtime.InteropServices.COMException or InvalidOperationException) {
-                System.Diagnostics.Trace.WriteLine("Benchmark UI highlighted log append ignored during close: "+ex);
+                System.Diagnostics.Debug.WriteLine("Benchmark UI highlighted log append ignored during close: "+ex);
             }
         });
         StartupDiagnostics.Write(message);

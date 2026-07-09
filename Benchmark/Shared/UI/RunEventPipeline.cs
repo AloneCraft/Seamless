@@ -109,7 +109,7 @@ internal sealed class RunEventPipeline{
     }
 
     private async Task ConsumeAsync(){
-        Trace.WriteLine("[Pipeline] ConsumeAsync started");
+        System.Diagnostics.Debug.WriteLine("[Pipeline] ConsumeAsync started");
         try{
             await foreach(var item in this.channel.Reader.ReadAllAsync()){
                 Interlocked.Increment(ref this.consumedEvents);
@@ -136,9 +136,9 @@ internal sealed class RunEventPipeline{
                 }
             }
 
-            Trace.WriteLine("[Pipeline] ConsumeAsync channel completed (reader ended without exception)");
+            System.Diagnostics.Debug.WriteLine("[Pipeline] ConsumeAsync channel completed (reader ended without exception)");
         }catch(Exception ex){
-            Trace.WriteLine($"[Pipeline] ConsumeAsync FAULTED: {ex}");
+            System.Diagnostics.Debug.WriteLine($"[Pipeline] ConsumeAsync FAULTED: {ex}");
             throw;
         }
     }

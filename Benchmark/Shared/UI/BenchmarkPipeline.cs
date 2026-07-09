@@ -207,7 +207,7 @@ internal sealed class BenchmarkRunEventPipeline{
     }
 
     private async Task ConsumeAsync(){
-        Trace.WriteLine("[Pipeline] ConsumeAsync started");
+        System.Diagnostics.Debug.WriteLine("[Pipeline] ConsumeAsync started");
         try{
             await foreach(var item in this.channel.Reader.ReadAllAsync()){
                 Interlocked.Increment(ref this.consumedEvents);
@@ -234,9 +234,9 @@ internal sealed class BenchmarkRunEventPipeline{
                 }
             }
 
-            Trace.WriteLine("[Pipeline] ConsumeAsync channel completed (reader ended without exception)");
+            System.Diagnostics.Debug.WriteLine("[Pipeline] ConsumeAsync channel completed (reader ended without exception)");
         }catch(Exception ex){
-            Trace.WriteLine($"[Pipeline] ConsumeAsync FAULTED: {ex}");
+            System.Diagnostics.Debug.WriteLine($"[Pipeline] ConsumeAsync FAULTED: {ex}");
             throw;
         }
     }
@@ -304,7 +304,7 @@ internal sealed class BenchmarkUiDiagnostics{
                     lastBudgetReportAt=reportNow;
                     var report = UiThreadBudget.DrainReport();
                     if(!string.IsNullOrEmpty(report)){
-                        Trace.WriteLine("[UI][budget] "+report);
+                        System.Diagnostics.Debug.WriteLine("[UI][budget] "+report);
                         // Trace出力だけではMAUIアプリ実行時にユーザーが確認できないため、startup.logにも残す。
                         this.log("[UI][budget] "+report,null);
                     }
@@ -318,7 +318,7 @@ internal sealed class BenchmarkUiDiagnostics{
                         Interlocked.Increment(ref this.dispatcherStallCount);
                         this.lastDispatcherGapMilliseconds=gap;
                         this.log("Benchmark UI dispatcher stall: "+gap.ToString("0.0",System.Globalization.CultureInfo.InvariantCulture)+"ms",null);
-                        Trace.WriteLine($"[UI][heartbeat] STALL gap={gap:0.0}ms");
+                        System.Diagnostics.Debug.WriteLine($"[UI][heartbeat] STALL gap={gap:0.0}ms");
                     }
                 });
             }

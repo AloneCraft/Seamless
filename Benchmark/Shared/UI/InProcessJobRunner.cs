@@ -111,9 +111,9 @@ public sealed class InProcessJobRunner:IBenchmarkJobRunner {
             Directory.CreateDirectory(Path.GetDirectoryName(logPath)??".");
             File.WriteAllText(logPath,text,encoding);
         } catch(IOException ex) {
-            Trace.WriteLine("In-process benchmark log write failed. "+ex);
+            System.Diagnostics.Debug.WriteLine("In-process benchmark log write failed. "+ex);
         } catch(UnauthorizedAccessException ex) {
-            Trace.WriteLine("In-process benchmark log write failed. "+ex);
+            System.Diagnostics.Debug.WriteLine("In-process benchmark log write failed. "+ex);
         }
     }
 
