@@ -1219,7 +1219,6 @@ public sealed partial class MainPage:ContentPage {
                 completedIcon,
             },
         };
-        progressHost.SetBinding(IsVisibleProperty,new Binding(nameof(SourceTabOption.HasProgress),source: option));
         progressHost.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: option));
         var spinner = new ActivityIndicator {
             WidthRequest=14,
