@@ -16,6 +16,7 @@ public sealed partial class MainPage:ContentPage {
     private const double BenchmarkSelectionColumnWidth = 52;
     private const double BenchmarkAggregateCheckBoxSize = 32;
     private const double BenchmarkTopAllSelectionSlotWidth = BenchmarkAggregateCheckBoxSize+4;
+    private const double BenchmarkProgressSummaryBadgeWidth = 190;
     private const double BenchmarkCellCheckBoxWidth = 34;
     private const double BenchmarkCellCheckBoxHeight = 28;
     private const double BenchmarkTypeColumnWidth = 96;
@@ -1203,6 +1204,8 @@ public sealed partial class MainPage:ContentPage {
             Content=text,
             HorizontalOptions=LayoutOptions.Start,
             VerticalOptions=LayoutOptions.Center,
+            WidthRequest=BenchmarkProgressSummaryBadgeWidth,
+            MinimumWidthRequest=BenchmarkProgressSummaryBadgeWidth,
             HeightRequest=18,
         };
     }
