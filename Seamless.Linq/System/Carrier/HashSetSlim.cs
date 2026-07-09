@@ -22,7 +22,11 @@ public sealed class HashSetSlim<T> : IDisposable
 
     public HashSetSlim(int capacity, IEqualityComparer<T>? comparer)
     {
-        capacity = Math.Max((int)BitOperations.RoundUpToPowerOf2((uint)capacity), MinimumSize);
+        var requestedCapacity = Math.Max(capacity, 0);
+        var bucketCapacity = requestedCapacity==0
+            ? MinimumSize
+            : (int)Math.Ceiling((requestedCapacity + 1) / LoadFactor);
+        capacity = Math.Max((int)BitOperations.RoundUpToPowerOf2((uint)bucketCapacity), MinimumSize);
 
         this.comparer = comparer ?? EqualityComparer<T>.Default;
         this.buckets = ArrayPool<int>.Shared.Rent(capacity);

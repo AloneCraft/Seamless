@@ -40,6 +40,46 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
+    public void ModuloKeyedGroupingConsumeUsesPooledSmallRangePath() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer<T> {
+                public void Consume(T item) {
+                }
+            }
+            public static class ConsumeSupport {
+                public static void Consume<T>(this IEnumerable<T> source, Consumer<T> consumer) {
+                    foreach(var item in source) {
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public class Container {
+                private static void GroupingFast(int[] src, Consumer<KeyValuePair<int,int>> consumer) {
+                    src.AggregateBy(static x => x%1000,0,static (acc,x) => acc+x).Consume(consumer);
+                    src.CountBy(static x => x%1000).Consume(consumer);
+                }
+                public void Run(int[] src, Consumer<KeyValuePair<int,int>> consumer) => GroupingFast(src,consumer);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var method = GeneratedMethod(generated,"GroupingFast");
+
+        GeneratedSourceAssert.True(
+            method.Contains("__aggregateBySeen",StringComparison.Ordinal)
+            && method.Contains("__countBySeen",StringComparison.Ordinal)
+            && method.Contains("global::System.Buffers.ArrayPool<bool>.Shared.Rent(1999)",StringComparison.Ordinal)
+            && method.Contains(".GetSpan();",StringComparison.Ordinal)
+            && !method.Contains("new global::System.Collections.Generic.Dictionary<int, int>",StringComparison.Ordinal),
+            "AggregateBy/CountBy consumed directly with a small modulo key should use pooled small-range arrays over direct span sources.",
+            generated,
+            output);
+    }
+
+    [Fact]
     public void DistinctByModuloUsesSmallBoolArrayConsumePath() {
         const string source = """
             using System.Collections.Generic;
@@ -564,6 +604,35 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             generated.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal)
             && !generated.Contains("global::Seamless.System.Carrier.HashSetSlim<int>",StringComparison.Ordinal),
             "ToHashSet must keep returning System.Collections.Generic.HashSet<T>.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void FirstAndToHashSetUseDirectSpanTerminalPath() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static (int First,HashSet<int> Set) Terminals(int[] src) =>
+                    (src.First(),src.ToHashSet());
+                public void Run(int[] src) => _ = Terminals(src);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var method = GeneratedMethod(generated,"Terminals");
+
+        GeneratedSourceAssert.True(
+            method.Contains(".GetSpan();",StringComparison.Ordinal)
+            && method.Contains("[0]",StringComparison.Ordinal)
+            && method.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal)
+            && method.Contains("new(__hashSetSpan",StringComparison.Ordinal)
+            && !method.Contains(".TryGetSpan(out var",StringComparison.Ordinal)
+            && !method.Contains("global::System.Linq.Enumerable.First",StringComparison.Ordinal)
+            && !method.Contains("global::System.Linq.Enumerable.ToHashSet",StringComparison.Ordinal),
+            "First and ToHashSet over direct array roots should use GetSpan() terminal code while ToHashSet keeps System.HashSet<T>.",
             generated,
             output);
     }

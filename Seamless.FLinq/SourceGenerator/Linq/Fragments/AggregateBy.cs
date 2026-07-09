@@ -86,4 +86,79 @@ public class AggregateBy(int 番号, Enumerable source, FuncFragment keySelector
         """;
     public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => resultElementType;
+
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        const int MaxRangeCount = 65536;
+        if(!IsInt32Type(this.KeyType)
+            || !keySelector.TryGetSmallIntegralRange(MaxRangeCount,out var min,out var max)) {
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+
+        var rangeCount=(long)max-min+1;
+        if(rangeCount is <=0 or >MaxRangeCount) {
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+
+        var valueType=FuncReturnTypeName(func);
+        var sourceName=$"__aggregateBySource{this.result}";
+        var seenName=$"__aggregateBySeen{this.result}";
+        var keysName=$"__aggregateByKeys{this.result}";
+        var valuesName=$"__aggregateByValues{this.result}";
+        var keyCountName=$"__aggregateByKeyCount{this.result}";
+        var keyName=$"__aggregateByKey{this.result}";
+        var indexName=$"__aggregateByIndex{this.result}";
+        var aggregateName=$"__aggregateByValue{this.result}";
+        var builder=new StringBuilder();
+        var localDeclarations=string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(keySelector,func),
+            this.StaticDelegateLocalDeclarations(keySelector,func),
+        }.Where(static text=>!string.IsNullOrEmpty(text)));
+        if(!string.IsNullOrEmpty(localDeclarations)) {
+            builder.AppendLine(localDeclarations);
+        }
+
+        builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
+        builder.AppendLine($"var {seenName}=global::System.Buffers.ArrayPool<bool>.Shared.Rent({rangeCount});");
+        builder.AppendLine($"var {keysName}=global::System.Buffers.ArrayPool<{this.KeyType}>.Shared.Rent({rangeCount});");
+        builder.AppendLine($"var {valuesName}=global::System.Buffers.ArrayPool<{valueType}>.Shared.Rent({rangeCount});");
+        builder.AppendLine("try{");
+        builder.AppendLine($"    global::System.MemoryExtensions.AsSpan({seenName},0,{rangeCount}).Clear();");
+        builder.AppendLine($"    var {keyCountName}=0;");
+        TraversalSupport.AppendTraversalLoop(
+            builder,
+            sourceName,
+            source.ElementType,
+            "value",
+            $$"""
+            {{this.KeyType}} {{keyName}}=default!;
+            {{this.FuncAssignIndented("",keySelector,nameof(keySelector),keyName,"value")}}
+            var {{indexName}}={{keyName}}-({{min}});
+            if(!{{seenName}}[{{indexName}}]){
+                {{seenName}}[{{indexName}}]=true;
+                {{keysName}}[{{keyCountName}}++]={{keyName}};
+                {{valuesName}}[{{indexName}}]={{seed}};
+            }
+            var {{aggregateName}}={{valuesName}}[{{indexName}}];
+            {{this.FuncAssignIndented("",func,nameof(func),aggregateName,aggregateName,"value")}}
+            {{valuesName}}[{{indexName}}]={{aggregateName}};
+            """,
+            source.CanTryProvideSpan,
+            source.CanProvideSpan,
+            source.GetDirectSpanExpression(sourceName));
+        builder.AppendLine($"    for(var __i{this.result}=0;__i{this.result}<{keyCountName};__i{this.result}++){{");
+        builder.AppendLine($"        var {keyName}={keysName}[__i{this.result}];");
+        builder.AppendLine($"        {consumerName}.Consume(new {resultElementType}({keyName},{valuesName}[{keyName}-({min})]));");
+        builder.AppendLine("    }");
+        builder.AppendLine("}finally{");
+        builder.AppendLine($"    global::System.Buffers.ArrayPool<bool>.Shared.Return({seenName},true);");
+        builder.AppendLine($"    global::System.Buffers.ArrayPool<{this.KeyType}>.Shared.Return({keysName},global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{this.KeyType}>());");
+        builder.AppendLine($"    global::System.Buffers.ArrayPool<{valueType}>.Shared.Return({valuesName},global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{valueType}>());");
+        builder.AppendLine("}");
+        return builder.ToString().TrimEnd();
+    }
+
+    private static bool IsInt32Type(string typeName) =>
+        string.Equals(typeName,"int",StringComparison.Ordinal)
+        || string.Equals(typeName,"System.Int32",StringComparison.Ordinal)
+        || string.Equals(typeName,"global::System.Int32",StringComparison.Ordinal);
 }

@@ -27,8 +27,25 @@ public class First(int 番号, Enumerable source, string resultType) : BufferedS
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
             ? RangePredicateOptimizer.RenderFirst(range,番号,destVar,destType)
-        : this.RenderDirectEnumerableCallInline(source,destVar,destType,"First")
+            : this.RenderDirectSpanFirstInline(destVar,destType)
+        ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"First")
         ??this.RenderComputeInline(destVar,destType);
+    private string? RenderDirectSpanFirstInline(string destVar,string destType) {
+        var sourceName=$"__firstSource{番号}";
+        var directSpanExpression=source.GetDirectSpanExpression(sourceName);
+        if(directSpanExpression is null) {
+            return null;
+        }
+        var spanName=$"__firstSpan{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            using(var {{sourceName}}={{source.GetEnumeratorExpression}}) {
+                var {{spanName}}={{directSpanExpression}};
+                if({{spanName}}.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+                {{destVar}}={{spanName}}[0];
+            }
+            """;
+    }
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {

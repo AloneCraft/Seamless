@@ -105,6 +105,7 @@ public class TakeWhile_indexPredicate(int id, Enumerable source, FuncFragment pr
         var spanName=$"__takeWhileSpan{id}";
         var itemName=$"__takeWhileItem{id}";
         var indexName=$"__takeWhileIndex{id}";
+        var directSpanExpression=source.GetDirectSpanExpression(sourceName);
         var localDeclarations=string.Join("\n",new[]{
             this.HoistedLocalDeclarations(predicate),
             this.StaticDelegateLocalDeclarations(predicate),
@@ -120,6 +121,24 @@ public class TakeWhile_indexPredicate(int id, Enumerable source, FuncFragment pr
         var loopPredicate=string.IsNullOrEmpty(loopPreCode)
             ? $"if(!{WrapConditionExpression(loopCondExpr)})"
             : $"{loopPreCode}\n            if(!{WrapConditionExpression(loopCondExpr)})";
+
+        if(directSpanExpression is not null) {
+            return $$"""
+                {{localDeclarationBlock}}
+                using var {{sourceName}}={{source.GetEnumeratorExpression}};
+                var {{indexName}}=-1;
+                global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
+                var {{spanName}}={{directSpanExpression}};
+                for(var __i{{id}}=0;__i{{id}}<{{spanName}}.Length;__i{{id}}++) {
+                    var {{itemName}}={{spanName}}[__i{{id}}];
+                    {{indexName}}++;
+                    {{spanPredicate}} {
+                        break;
+                    }
+                    {{consumerName}}.Consume({{itemName}});
+                }
+                """;
+        }
 
         return $$"""
             {{localDeclarationBlock}}

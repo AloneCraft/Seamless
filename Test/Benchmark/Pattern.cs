@@ -162,6 +162,30 @@ public sealed class RunnerViewModel{
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public void RowSelectionHeader_ReflectsPartialCellSelection(){
+        var row = CreateArrayBenchmarkRow("AggregateBy_keySelector");
+
+        row.LeftCell.IsSelected=true;
+        row.RightCell.IsSelected=true;
+        row.RefreshSelectionState();
+
+        Assert.True(row.IsSelectionChecked);
+        Assert.True(row.IsSelected);
+
+        row.RightCell.IsSelected=false;
+        row.RefreshSelectionState();
+
+        Assert.Null(row.IsSelectionChecked);
+        Assert.True(row.IsSelected);
+
+        row.LeftCell.IsSelected=false;
+        row.RefreshSelectionState();
+
+        Assert.False(row.IsSelectionChecked);
+        Assert.False(row.IsSelected);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
     public void RunningResult_AppliesToRightZLinqCell(){
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var row = CreateArrayBenchmarkRow("Aggregate_seed_func_resultSelector");
@@ -371,6 +395,13 @@ public sealed class RunnerViewModel{
         await WaitUntilAsync(() => selectedCells.All(IsFinalCompleted));
         await SaveCurrentRunAsync(viewModel);
         var savedRun = viewModel.SelectedRunOption!;
+        var storedSelections = fixture.Store.ListUiSelections(savedRun.UiRunId);
+        Assert.Contains(storedSelections,selection => selection.Scope=="BenchmarkCell"
+            &&selection.SelectionKey.EndsWith("|"+viewModel.SelectedSourceDefinition.LeftProject,StringComparison.OrdinalIgnoreCase)
+            &&selection.IsSelected);
+        Assert.Contains(storedSelections,selection => selection.Scope=="BenchmarkCell"
+            &&selection.SelectionKey.EndsWith("|"+viewModel.SelectedSourceDefinition.RightProject,StringComparison.OrdinalIgnoreCase)
+            &&!selection.IsSelected);
 
         viewModel.NewGridCommand.Execute(null);
         await WaitUntilAsync(() => viewModel.BenchmarkRows.Count>0&&GetSelectedCells(viewModel).Count==0);
@@ -388,6 +419,53 @@ public sealed class RunnerViewModel{
             Assert.False(string.IsNullOrWhiteSpace(row.LeftCell.CoreKindImageSource),CreateCellMetadataMessage(viewModel,row.LeftCell));
             Assert.False(string.IsNullOrWhiteSpace(row.RightCell.CoreKindImageSource),CreateCellMetadataMessage(viewModel,row.RightCell));
         });
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task LoadedSavedDatabaseRun_ResultElementCountChange_KeepsPartialSelectionAndSavedRun(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        fixture.RunService.EmitAllElementCounts=true;
+        SelectProjectGroup(viewModel,"Left");
+        Assert.All(viewModel.BenchmarkRows,row => Assert.Null(row.IsSelectionChecked));
+        Assert.Null(viewModel.IsAllBenchmarkSelectionChecked);
+        var targets = GetSelectedCells(viewModel);
+
+        await viewModel.RunCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => viewModel.ResultItems.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)));
+        Assert.All(viewModel.BenchmarkRows,row => {
+            Assert.True(row.LeftCell.IsSelected);
+            Assert.False(row.RightCell.IsSelected);
+            Assert.Null(row.IsSelectionChecked);
+        });
+        await SaveCurrentRunAsync(viewModel);
+        var savedRun = viewModel.SelectedRunOption!;
+
+        viewModel.NewGridCommand.Execute(null);
+        await WaitUntilAsync(() => GetSelectedCells(viewModel).Count==0);
+        viewModel.SelectedRunOption=savedRun;
+        await WaitUntilAsync(() => !viewModel.IsRunHistoryLoading
+            &&viewModel.ResultItems.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase))
+            &&viewModel.ResultElementCountOptions.Count>0);
+
+        Assert.Equal(savedRun.UiRunId,viewModel.SelectedRunOption?.UiRunId);
+        Assert.All(viewModel.BenchmarkRows,row => {
+            Assert.True(row.LeftCell.IsSelected);
+            Assert.False(row.RightCell.IsSelected);
+            Assert.Null(row.IsSelectionChecked);
+            Assert.True(row.IsSelected);
+        });
+        Assert.Null(viewModel.IsAllBenchmarkSelectionChecked);
+
+        viewModel.SelectedResultElementCount=viewModel.ResultElementCountOptions.First();
+
+        Assert.Equal(savedRun.UiRunId,viewModel.SelectedRunOption?.UiRunId);
+        Assert.All(viewModel.BenchmarkRows,row => Assert.Null(row.IsSelectionChecked));
+        Assert.Null(viewModel.IsAllBenchmarkSelectionChecked);
+
+        viewModel.ToggleBenchmarkCellCheck(viewModel.BenchmarkRows[0],"Right");
+
+        Assert.Equal(savedRun.UiRunId,viewModel.SelectedRunOption?.UiRunId);
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
@@ -904,13 +982,15 @@ public sealed class RunnerViewModel{
     }
 
     private sealed class ViewModelFixture{
-        private ViewModelFixture(global::UI.ViewModels.RunnerViewModel viewModel,FakeRunService runService){
+        private ViewModelFixture(global::UI.ViewModels.RunnerViewModel viewModel,FakeRunService runService,UiRunStore store){
             this.ViewModel=viewModel;
             this.RunService=runService;
+            this.Store=store;
         }
 
         public global::UI.ViewModels.RunnerViewModel ViewModel { get; }
         public FakeRunService RunService { get; }
+        public UiRunStore Store { get; }
 
         public static async Task<ViewModelFixture> CreateAsync(global::UI.BenchmarkSourceTab sourceTab,Action<UiRunStore>? configureStore = null){
             var cases = CreateCatalogCases();
@@ -930,10 +1010,11 @@ public sealed class RunnerViewModel{
                 new InMemoryPreferences());
             await viewModel.InitializeAsync();
             viewModel.SelectedSourceTab=viewModel.SourceTabs.First(option => option.Definition.Tab==sourceTab);
-            viewModel.SelectedExecutionProfile=viewModel.ExecutionProfiles.First(option => option.Profile==global::UI.BenchmarkExecutionProfile.Test);
+            viewModel.SelectedExecutionProfile=viewModel.ExecutionProfiles.FirstOrDefault(option => option.Profile==global::UI.BenchmarkExecutionProfile.Test)
+                ??viewModel.ExecutionProfiles.First();
             viewModel.SelectedThreshold=viewModel.ThresholdOptions.First(option => option.Milliseconds==1);
             viewModel.ClearSelectionCommand.Execute(null);
-            return new(viewModel,runService);
+            return new(viewModel,runService,store);
         }
 
         private static IReadOnlyList<global::UI.BenchmarkCase> CreateCatalogCases(){
@@ -996,7 +1077,7 @@ public sealed class RunnerViewModel{
             var emitCases = this.CreateEmitCases(benchmarks,sourceTab);
             var logicalCpu = logicalCpus.FirstOrDefault();
             var preparedElementCounts = this.EmitAllElementCounts&&elementCounts.Count>0 ? elementCounts.ToArray() : [1];
-            var emittedElementCounts = this.EmitAllElementCounts ? [preparedElementCounts[^1]] : preparedElementCounts;
+            var emittedElementCounts = preparedElementCounts;
             foreach(var elementCount in emittedElementCounts){
                 foreach(var benchmark in emitCases){
                     var benchmarkSourceTab = ResolveSourceTab(benchmark,sourceTab);

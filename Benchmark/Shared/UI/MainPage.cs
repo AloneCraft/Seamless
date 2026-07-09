@@ -1574,8 +1574,8 @@ public sealed partial class MainPage:ContentPage {
             });
         }
 
-        AddChartTab("比較チャート",chartPanel);
-        AddChartTab("履歴性能比",this.CreateTrendChartTab(() => this.viewModel?.LoadHistoryTrendChartData()??[],"RunId","FLinq/ZLinq"));
+        AddChartTab("基準性能比",chartPanel);
+        AddChartTab("履歴性能比",this.CreateHistoryRatioTabView());
 
         tabs.Items=chartTabItems;
         chartTabOptions[0].SetSelected(true);
@@ -1587,6 +1587,44 @@ public sealed partial class MainPage:ContentPage {
                 chartTabOptions[i].SetSelected(i==tabs.SelectedIndex);
             }
             this.viewModel?.SetGeneratedCodeAuditTabVisible(false);
+        };
+        return tabs;
+    }
+
+    private View CreateHistoryRatioTabView() {
+        var tabs = new SfTabView {
+            TabBarHeight=28,
+            TabBarBackground=Color.FromArgb("#F1F5F9"),
+            IndicatorBackground=Color.FromArgb("#0F766E"),
+            HeaderItemSpacing=2,
+            EnableSwiping=false,
+            ContentTransitionDuration=0,
+            BackgroundColor=Colors.White,
+            VerticalOptions=LayoutOptions.Fill,
+        };
+        var options = new[] { new TabHeaderOption("時間比"),new TabHeaderOption("メモリ比") };
+        tabs.Items=new TabItemCollection {
+            new SfTabItem {
+                Header="時間比",
+                HeaderContent=this.CreateTabHeader(options[0],() => tabs.SelectedIndex=0),
+                FontSize=12,
+                Content=this.CreateTrendChartTab(() => this.viewModel?.LoadHistoryTimeRatioChartData()??[],"RunId","時間比"),
+            },
+            new SfTabItem {
+                Header="メモリ比",
+                HeaderContent=this.CreateTabHeader(options[1],() => tabs.SelectedIndex=1),
+                FontSize=12,
+                Content=this.CreateTrendChartTab(() => this.viewModel?.LoadHistoryMemoryRatioChartData()??[],"RunId","メモリ比"),
+            },
+        };
+        options[0].SetSelected(true);
+        tabs.PropertyChanged+=(_,args) => {
+            if(args.PropertyName!=nameof(SfTabView.SelectedIndex)) {
+                return;
+            }
+            for(var i = 0; i<options.Length; i++) {
+                options[i].SetSelected(i==tabs.SelectedIndex);
+            }
         };
         return tabs;
     }
@@ -1685,11 +1723,10 @@ public sealed partial class MainPage:ContentPage {
     // 履歴/スケール: メソッドごとの複数系列トレンド折れ線チャート。
     private View CreateTrendChartTab(Func<IReadOnlyList<BenchmarkTrendSeries>> load,string xAxisTitle,string yAxisTitle) {
         var chart = new SfCartesianChart {
-            Legend=new ChartLegend(),
             TooltipBehavior=new ChartTooltipBehavior { FontSize=12,Duration=4 },
             VerticalOptions=LayoutOptions.Fill,
         };
-        chart.XAxes.Add(new NumericalAxis { Title=new ChartAxisTitle { Text=xAxisTitle } });
+        chart.XAxes.Add(new NumericalAxis { Title=new ChartAxisTitle { Text=xAxisTitle },Interval=1 });
         chart.YAxes.Add(new NumericalAxis { Title=new ChartAxisTitle { Text=yAxisTitle } });
         void Reload() {
             chart.Series.Clear();
@@ -2036,12 +2073,12 @@ public sealed partial class MainPage:ContentPage {
             WidthRequest=180,
             HorizontalOptions=LayoutOptions.Start,
         };
-        var timeOption = new TabHeaderOption("処理時間");
-        var allocatedOption = new TabHeaderOption("メモリ");
+        var timeOption = new TabHeaderOption("時間比");
+        var allocatedOption = new TabHeaderOption("メモリ比");
         var options = new[] { timeOption,allocatedOption };
         tabView.Items=new TabItemCollection {
-            new SfTabItem { Header="処理時間",HeaderContent=this.CreateTabHeader(timeOption,() => tabView.SelectedIndex=0),FontSize=12,Content=new Grid() },
-            new SfTabItem { Header="メモリ",HeaderContent=this.CreateTabHeader(allocatedOption,() => tabView.SelectedIndex=1),FontSize=12,Content=new Grid() },
+            new SfTabItem { Header="時間比",HeaderContent=this.CreateTabHeader(timeOption,() => tabView.SelectedIndex=0),FontSize=12,Content=new Grid() },
+            new SfTabItem { Header="メモリ比",HeaderContent=this.CreateTabHeader(allocatedOption,() => tabView.SelectedIndex=1),FontSize=12,Content=new Grid() },
         };
         tabView.SelectedIndex=this.viewModel?.IsAllocatedMetricSelected==true ? 1 : 0;
         options[tabView.SelectedIndex].SetSelected(true);

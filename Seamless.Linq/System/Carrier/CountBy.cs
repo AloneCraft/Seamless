@@ -57,28 +57,34 @@ namespace Seamless.System.Carrier {
             return false;
         }
         private void Initialize() {
-            var dict = keyComparer!=null
-                ? new DictionarySlim<TKey,int>(keyComparer)
-                : new DictionarySlim<TKey,int>();
-
             using(this.source) {
                 if(this.source.TryGetSpan(out var span)) {
+                    var dict = keyComparer!=null
+                        ? new DictionarySlim<TKey,int>(Math.Min(span.Length,1024),keyComparer)
+                        : new DictionarySlim<TKey,int>(Math.Min(span.Length,1024));
                     foreach(var item in span) {
                         var key = keySelector(item);
                         ref var count = ref dict.GetValueRefOrAddDefault(key,out var exists);
                         checked { count+=1; }
                     }
+                    this.dictionary=dict;
                 }
                 else {
+                    var capacityHint = this.source.TryGetNonEnumeratedCount(out var sourceCount)
+                        ? Math.Min(sourceCount,1024)
+                        : 0;
+                    var dict = keyComparer!=null
+                        ? new DictionarySlim<TKey,int>(capacityHint,keyComparer)
+                        : new DictionarySlim<TKey,int>(capacityHint);
                     while(this.source.TryGetNext(out var item)) {
                         var key = keySelector(item);
                         ref var count = ref dict.GetValueRefOrAddDefault(key,out var exists);
                         checked { count+=1; }
                     }
+                    this.dictionary=dict;
                 }
             }
 
-            this.dictionary=dict;
             this.enumerator=this.dictionary.GetEnumerator();
         }
 

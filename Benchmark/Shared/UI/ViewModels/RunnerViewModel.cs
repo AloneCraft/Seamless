@@ -2157,11 +2157,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
 
         var tab = sourceTab??this.SelectedSourceDefinition;
-        var rows = this.GetBenchmarkRows(tab)
-            .Where(row => group.ColumnKeys.Any(project => this.TryGetBenchmarkCellBySelectionKey(row,project,out var cell)&&cell.HasCase))
-            .ToArray();
-        var selected = GetRowSelectionState(rows) is not true;
-        this.SetBenchmarkRows(rows,selected);
+        var cells = this.GetBenchmarkCells(group.ColumnKeys,tab).Where(static cell => cell.HasCase).ToArray();
+        var selected = GetSelectionState(cells) is not true;
+        this.SetBenchmarkCells(cells,selected,tab);
     }
 
     /// <summary>
@@ -2371,12 +2369,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 var rows = item.Rows;
                 foreach(var row in rows) {
                     this.SubscribeBenchmarkRow(row);
-                    row.IsSelected=this.benchmarkRowSelections.GetValueOrDefault(
-                        CreateRowSelectionKey(row.SourceTab,row.RowKey),
-                        false);
-                    foreach(var cell in row.ProjectCells) {
-                        cell.IsSelected=cell.HasCase&&row.IsSelected;
-                    }
+                    this.ApplyStoredBenchmarkSelection(row);
                 }
                 item.State.Rows.ReplaceRange(rows);
             }
@@ -2948,15 +2941,43 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// LoadHistoryTrendChartData メソッドを実行し、結果を算出して返却します。
     /// </summary>
     /// <returns>処理結果を返却します。</returns>
-    public IReadOnlyList<BenchmarkTrendSeries> LoadHistoryTrendChartData() {
+    public IReadOnlyList<BenchmarkTrendSeries> LoadHistoryTrendChartData() =>
+        this.LoadHistoryTimeRatioChartData();
+
+    public IReadOnlyList<BenchmarkTrendSeries> LoadHistoryTimeRatioChartData() {
         try {
-            return BenchmarkAnalysisViewMapper.MapPerformanceRatioHistory(this.uiRunStore.QueryAnalysisView("BenchmarkPerformanceRatioHistory",1000));
+            return this.LoadSelectedSourceTabRatioHistory("履歴時間比");
         }
         catch(Exception ex) {
-            StartupDiagnostics.Write("BenchmarkPerformanceRatioHistory load failed.",ex);
+            StartupDiagnostics.Write("履歴時間比 load failed.",ex);
             return [];
         }
     }
+
+    public IReadOnlyList<BenchmarkTrendSeries> LoadHistoryMemoryRatioChartData() {
+        try {
+            return this.LoadSelectedSourceTabRatioHistory("履歴メモリ比");
+        }
+        catch(Exception ex) {
+            StartupDiagnostics.Write("履歴メモリ比 load failed.",ex);
+            return [];
+        }
+    }
+
+    private IReadOnlyList<BenchmarkTrendSeries> LoadSelectedSourceTabRatioHistory(string viewName) {
+        var selectedSourceTabId = this.SelectedSourceDefinition.Id;
+        var rows = this.uiRunStore.QueryAnalysisView(viewName,1000)
+            .Where(row => IsAnalysisRowForSourceTab(row,selectedSourceTabId))
+            .ToArray();
+        return BenchmarkAnalysisViewMapper.MapPerformanceRatioHistory(rows);
+    }
+
+    private static bool IsAnalysisRowForSourceTab(IReadOnlyDictionary<string,object?> row,string sourceTabId) =>
+        row.TryGetValue("SourceTab",out var value)
+        &&string.Equals(
+            Convert.ToString(value,System.Globalization.CultureInfo.InvariantCulture),
+            sourceTabId,
+            StringComparison.OrdinalIgnoreCase);
 
     private static bool? GetRowSelectionState(IEnumerable<BenchmarkTableRow> rows) {
         var targets = rows.Where(static row => row.ProjectCells.Any(static cell => cell.HasCase)).ToArray();
@@ -2964,10 +2985,12 @@ public sealed partial class RunnerViewModel:ObservableObject {
             return false;
         }
 
-        var selected = targets.Count(static row => row.IsSelected);
-        return selected==0
+        var states = targets.Select(static row => row.IsSelectionChecked).ToArray();
+        var selected = states.Count(static state => state is true);
+        var mixed = states.Any(static state => state is null);
+        return selected==0&&!mixed
             ? false
-            : selected==targets.Length
+            : selected==targets.Length&&!mixed
                 ? true
                 : null;
     }
@@ -3386,8 +3409,87 @@ public sealed partial class RunnerViewModel:ObservableObject {
         foreach(var row in this.GetAllBenchmarkRows()) {
             this.benchmarkRowSelections[CreateRowSelectionKey(row.SourceTab,row.RowKey)]=row.IsSelected;
             foreach(var cell in row.ProjectCells) {
-                this.benchmarkCellSelections[CreateBenchmarkCellKey(row.SourceTab,row.RowKey,cell.Project)]=cell.HasCase&&row.IsSelected;
+                this.benchmarkCellSelections[CreateBenchmarkCellKey(row.SourceTab,row.RowKey,cell.Project)]=cell.HasCase&&cell.IsSelected;
             }
+        }
+    }
+
+    private void ApplyStoredBenchmarkSelection(BenchmarkTableRow row) {
+        var rowKeys = this.GetBenchmarkSelectionRowKeys(row);
+        var rowSelected = rowKeys.Any(key => this.benchmarkRowSelections.GetValueOrDefault(
+            CreateRowSelectionKey(row.SourceTab,key),
+            false));
+        var hasCellSelection = row.ProjectCells.Any(cell => this.TryGetStoredBenchmarkCellSelection(row,rowKeys,cell,out _));
+        foreach(var cell in row.ProjectCells) {
+            if(hasCellSelection) {
+                cell.IsSelected=cell.HasCase
+                    &&this.TryGetStoredBenchmarkCellSelection(row,rowKeys,cell,out var selected)
+                    &&selected;
+            }
+            else {
+                cell.IsSelected=cell.HasCase&&rowSelected;
+            }
+        }
+        row.RefreshSelectionState();
+    }
+
+    private IReadOnlyList<string> GetBenchmarkSelectionRowKeys(BenchmarkTableRow row) {
+        var keys = new List<string> { row.RowKey };
+        var groupedRowKey = BenchmarkRowGroupingLogic.CreateRowKey(row.SourceTab,row.MethodName,row.CasesByProject);
+        if(!keys.Contains(groupedRowKey,StringComparer.OrdinalIgnoreCase)) {
+            keys.Add(groupedRowKey);
+        }
+        var displayKey = CreateSnapshotRowKey(row.BenchmarkTypeText,row.MethodName);
+        if(!keys.Contains(displayKey,StringComparer.OrdinalIgnoreCase)) {
+            keys.Add(displayKey);
+        }
+        return keys;
+    }
+
+    private bool TryGetStoredBenchmarkCellSelection(
+        BenchmarkTableRow row,
+        IReadOnlyList<string> rowKeys,
+        BenchmarkProjectCell cell,
+        out bool selected) {
+        foreach(var rowKey in rowKeys) {
+            if(this.benchmarkCellSelections.TryGetValue(CreateBenchmarkCellKey(row.SourceTab,rowKey,cell.Project),out selected)) {
+                return true;
+            }
+        }
+
+        var prefix = row.SourceTab.Id+"|";
+        var suffix = "|"+cell.Project;
+        var hasFallbackMatch = false;
+        var fallbackSelected = true;
+        foreach(var item in this.benchmarkCellSelections) {
+            if(item.Key.StartsWith(prefix,StringComparison.OrdinalIgnoreCase)
+                &&item.Key.EndsWith(suffix,StringComparison.OrdinalIgnoreCase)
+                &&item.Key.Contains(row.MethodName,StringComparison.OrdinalIgnoreCase)) {
+                hasFallbackMatch=true;
+                fallbackSelected&=item.Value;
+            }
+        }
+
+        selected=hasFallbackMatch&&fallbackSelected;
+        return hasFallbackMatch;
+    }
+
+    private void RefreshSelectedRunStateSelectionCache() {
+        var selectedRunId = this.SelectedRunOption?.UiRunId??0;
+        if(selectedRunId<=0
+            ||this.selectedRunStateCache is not { } cache
+            ||cache.UiRunId!=selectedRunId
+            ||cache.State is null) {
+            return;
+        }
+
+        cache.State.BenchmarkSelection.ProjectCellSelections.Clear();
+        foreach(var item in this.benchmarkCellSelections) {
+            cache.State.BenchmarkSelection.ProjectCellSelections[item.Key]=item.Value;
+        }
+        cache.State.BenchmarkSelection.RowSelections.Clear();
+        foreach(var item in this.benchmarkRowSelections) {
+            cache.State.BenchmarkSelection.RowSelections[item.Key]=item.Value;
         }
     }
 
@@ -3752,17 +3854,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     public void SaveUiState() {
         this.CaptureCurrentBenchmarkSelections();
-        if(!this.IsBenchmarkRunActive
-            &&!this.IsRunHistoryLoading
-            &&!this.isApplyingRunOptionSelection
-            &&!this.isApplyingUiState
-            &&IsSavedDatabaseRunOption(this.SelectedRunOption)) {
-            this.PromoteDisplayedResultsToCurrentRunSession();
-            this.SelectNewRunOptionForFreshRun();
-            if(this.HasSaveableBenchmarkResults) {
-                this.HasUnsavedBenchmarkResults=true;
-            }
-        }
+        this.RefreshSelectedRunStateSelectionCache();
         if(this.IsBenchmarkRunActive) {
             this.RefreshCurrentRunBenchmarkSelectionSnapshot();
         }
@@ -3979,12 +4071,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 this.benchmarkRowSelections[item.Key]=item.Value;
             }
             foreach(var row in this.GetAllBenchmarkRows()) {
-                row.IsSelected=this.benchmarkRowSelections.GetValueOrDefault(
-                    CreateRowSelectionKey(row.SourceTab,row.RowKey),
-                    false);
-                foreach(var cell in row.ProjectCells) {
-                    cell.IsSelected=cell.HasCase&&row.IsSelected;
-                }
+                this.ApplyStoredBenchmarkSelection(row);
             }
         }
         finally {
@@ -4749,11 +4836,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
     private IReadOnlyList<DisplayedBenchmarkCellSelection> CaptureDisplayedBenchmarkCellSelections() {
         var selections = new List<DisplayedBenchmarkCellSelection>();
         foreach(var row in this.GetAllBenchmarkRows()) {
-            if(!row.IsSelected) {
-                continue;
-            }
             foreach(var cell in row.ProjectCells) {
-                if(cell.HasCase) {
+                if(cell.HasCase&&cell.IsSelected) {
                     selections.Add(new(
                         row.SourceTab.Id,
                         row.BenchmarkTypeText,
@@ -4771,12 +4855,14 @@ public sealed partial class RunnerViewModel:ObservableObject {
         this.isApplyingBenchmarkSelection=true;
         try {
             foreach(var row in this.GetAllBenchmarkRows()) {
-                var rowSelected = row.ProjectCells.Any(cell => cell.HasCase&&selected.Contains(new(
+                foreach(var cell in row.ProjectCells) {
+                    cell.IsSelected=cell.HasCase&&selected.Contains(new(
                         row.SourceTab.Id,
                         row.BenchmarkTypeText,
                         row.MethodName,
-                        cell.Project)));
-                ApplyRowSelectionToCells(row,rowSelected);
+                        cell.Project));
+                }
+                row.RefreshSelectionState();
             }
         }
         finally {
@@ -4876,6 +4962,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 this.benchmarkRowSelections.ToArray());
             this.QueueUiRunStatus(runId,UiRunStatus.Completed,"Benchmark grid snapshot saved.");
             await this.uiRunRepository.FlushAsync();
+            this.selectedRunStateCache=null;
             this.HasUnsavedBenchmarkResults=false;
             this.HasPendingCloseStateSave=false;
             this.currentUnsavedRunRoot=null;
@@ -6926,7 +7013,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
         if(state.Rows.Count>0) {
             var rowSnapshot = state.Rows.ToArray();
             return rowSnapshot
-                .SelectMany(row => row.ProjectCells.Select(cell => CreateProgressCell(row,cell.Project,cell.HasCase&&row.IsSelected)))
+                .SelectMany(row => row.ProjectCells.Select(cell => CreateProgressCell(row,cell.Project,cell.HasCase&&cell.IsSelected)))
                 .ToArray();
         }
 
@@ -7064,6 +7151,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                         this.StatusText="DB 読み込み失敗 "+(task.Result.Error?.Message??"unknown");
                         return;
                     }
+                    this.ApplyBenchmarkSelectionsFromProgressState(this.LoadSelectedRunState());
                     this.ApplyLoadedBenchmarkSnapshotItems(results);
                 }
                 finally {
@@ -7166,7 +7254,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 }
 
                 foreach(var row in this.GetAllBenchmarkRows()) {
-                    row.RefreshSelectionState();
+                    this.ApplyStoredBenchmarkSelection(row);
                 }
             }
             finally {
@@ -7206,6 +7294,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
         try {
             this.ApplyBenchmarkSnapshotItemsToRows(displayItems);
             this.ApplyBenchmarkSnapshotFinalCompletionStates(displayItems);
+            foreach(var row in this.GetAllBenchmarkRows()) {
+                this.ApplyStoredBenchmarkSelection(row);
+            }
             this.LogLoadedSnapshotGridDisplayGaps(displayItems);
         }
         finally {
@@ -7667,6 +7758,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             this.ApplySkippedCells(skippedElementCount);
         }
         this.RefreshFinalCompletionStates();
+        this.RefreshBenchmarkSelectionAggregates();
     }
 
     /// <summary>
@@ -8019,9 +8111,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 continue;
             }
 
-            var selectedCells = rows[index].IsSelected
-                ? rows[index].ProjectCells.Where(static cell => cell.HasCase).ToArray()
-                : [];
+            var selectedCells = rows[index].ProjectCells.Where(static cell => cell.HasCase&&cell.IsSelected).ToArray();
             if(selectedCells.Length>0&&selectedCells.All(static cell => cell.Metrics.HasMeasuredValue)) {
                 completed[index]=true;
             }
@@ -8035,9 +8125,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             return;
         }
 
-        var selectedCells = row.IsSelected
-            ? row.ProjectCells.Where(static cell => cell.HasCase).ToArray()
-            : [];
+        var selectedCells = row.ProjectCells.Where(static cell => cell.HasCase&&cell.IsSelected).ToArray();
         if(selectedCells.Length>0&&selectedCells.All(static cell => cell.Metrics.HasMeasuredValue)) {
             row.SetFinalCompleted(true);
             return;
@@ -8094,12 +8182,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             }
 
             foreach(var row in this.GetAllBenchmarkRows()) {
-                row.IsSelected=this.benchmarkRowSelections.GetValueOrDefault(
-                    CreateRowSelectionKey(row.SourceTab,row.RowKey),
-                    false);
-                foreach(var cell in row.ProjectCells) {
-                    cell.IsSelected=cell.HasCase&&row.IsSelected;
-                }
+                this.ApplyStoredBenchmarkSelection(row);
             }
         }
         finally {
@@ -8571,11 +8654,12 @@ public sealed partial class RunnerViewModel:ObservableObject {
             UpdatedAt=now,
         };
         foreach(var selection in this.uiRunStore.ListUiSelections(runId)){
-            if(!string.Equals(selection.Scope,"BenchmarkCell",StringComparison.OrdinalIgnoreCase)){
-                continue;
+            if(string.Equals(selection.Scope,"BenchmarkCell",StringComparison.OrdinalIgnoreCase)){
+                state.BenchmarkSelection.ProjectCellSelections[selection.SelectionKey]=selection.IsSelected;
             }
-
-            state.BenchmarkSelection.ProjectCellSelections[selection.SelectionKey]=selection.IsSelected;
+            else if(string.Equals(selection.Scope,"BenchmarkRow",StringComparison.OrdinalIgnoreCase)){
+                state.BenchmarkSelection.RowSelections[selection.SelectionKey]=selection.IsSelected;
+            }
         }
 
         return state;
@@ -9407,7 +9491,10 @@ public sealed partial class RunnerViewModel:ObservableObject {
             : "-";
         var metricName = this.SelectedMetric.Kind==BenchmarkMetricKind.Time ? "Time" : "Memory";
         var fallbackTooltip = this.CreateChartFallbackTooltip(pair,isLeftFallback,isRightFallback);
-        var tooltip = BenchmarkFormatting.ShortName(displayName)+"\n"
+        var shortName = BenchmarkFormatting.ShortName(displayName);
+        var tooltip = "ベンチマーク: "+displayName
+            +(string.Equals(shortName,displayName,StringComparison.OrdinalIgnoreCase) ? string.Empty : "\n表示名: "+shortName)
+            +"\n"
             +pair.LeftProject+" "+metricName+": "+FirstText(FormatMetric(leftValue,this.SelectedMetric.Kind),"-")+"\n"
             +pair.RightProject+" "+metricName+": "+FirstText(FormatMetric(rightValue,this.SelectedMetric.Kind),"-")
             +"\nRatio(left/right): "+ratioText

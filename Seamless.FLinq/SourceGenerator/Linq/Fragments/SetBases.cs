@@ -105,7 +105,11 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
         if(this.CanUseSortedIntSetFastPath()) {
             this.AppendSortedIntSetFastPath(builder,sourceName,secondName,consumerName);
         }
-        TraversalSupport.AppendHashSetInitialization(builder,setName,source.ElementType,operation.PreloadSecondFirst?secondName:sourceName,this.Comparer);
+        if(!operation.PreloadSecondFirst) {
+            this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
+        } else {
+            TraversalSupport.AppendHashSetInitialization(builder,setName,source.ElementType,secondName,this.Comparer);
+        }
         if(!operation.PreloadSecondFirst){
             TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
                 if({{setName}}.Add(value)){
@@ -134,6 +138,25 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
             return valueName;
         }
         return $"({source.ElementType})(object?){valueName}!";
+    }
+
+    private void AppendBinaryHashSetInitialization(StringBuilder builder,string setName,string sourceName,string secondName) {
+        var sourceCount=$"__sourceCount_{setName}";
+        var secondCount=$"__secondCount_{setName}";
+        var sourceHasCount=$"__sourceHasCount_{setName}";
+        var secondHasCount=$"__secondHasCount_{setName}";
+        builder.AppendLine($"var {sourceCount}=0;");
+        builder.AppendLine($"var {secondCount}=0;");
+        builder.AppendLine($"var {sourceHasCount}={sourceName}.TryGetNonEnumeratedCount(out {sourceCount});");
+        builder.AppendLine($"var {secondHasCount}={secondName}.TryGetNonEnumeratedCount(out {secondCount});");
+        builder.AppendLine($"if({sourceHasCount}||{secondHasCount}) global::Seamless.Linq.LinqCounterScope.Counter.IncrementHashCapacityHintUsed();");
+        builder.AppendLine($"using var {setName}={sourceHasCount}&&{secondHasCount}");
+        builder.AppendLine($"    ? new global::Seamless.System.Carrier.HashSetSlim<{source.ElementType}>({sourceCount}+{secondCount},(global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>?){this.Comparer})");
+        builder.AppendLine($"    : {sourceHasCount}");
+        builder.AppendLine($"        ? new global::Seamless.System.Carrier.HashSetSlim<{source.ElementType}>({sourceCount},(global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>?){this.Comparer})");
+        builder.AppendLine($"        : {secondHasCount}");
+        builder.AppendLine($"            ? new global::Seamless.System.Carrier.HashSetSlim<{source.ElementType}>({secondCount},(global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>?){this.Comparer})");
+        builder.AppendLine($"            : new global::Seamless.System.Carrier.HashSetSlim<{source.ElementType}>((global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>?){this.Comparer});");
     }
 
     private bool CanUseSortedIntSetFastPath() =>
@@ -465,7 +488,11 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
             if(this.CanUseSortedIntSetFastPath()) {
                 this.AppendSortedIntSetFastPath(builder,sourceName,secondName,consumerName);
             }
-            TraversalSupport.AppendHashSetInitialization(builder,setName,FuncReturnTypeName(keySelector),secondName,this.Comparer);
+            if(!operation.PreloadSecondFirst) {
+                this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
+            } else {
+                TraversalSupport.AppendHashSetInitialization(builder,setName,FuncReturnTypeName(keySelector),secondName,this.Comparer);
+            }
             if(!operation.PreloadSecondFirst){
                 TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
                     if({{setName}}.Add(value)){
@@ -490,10 +517,33 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
             """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName));
             return builder.ToString().TrimEnd();
         }
-        TraversalSupport.AppendHashSetInitialization(builder,setName,FuncReturnTypeName(keySelector),secondName,this.Comparer);
+        if(!operation.PreloadSecondFirst) {
+            this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
+        } else {
+            TraversalSupport.AppendHashSetInitialization(builder,setName,FuncReturnTypeName(keySelector),secondName,this.Comparer);
+        }
         this.AppendSetByCollectLoop(builder,secondName,setName);
         this.AppendSetByConsumeLoop(builder,sourceName,consumerName,setName,operation.SourceAcceptMethod);
         return builder.ToString().TrimEnd();
+    }
+    private void AppendBinaryHashSetInitialization(StringBuilder builder,string setName,string sourceName,string secondName) {
+        var keyType=FuncReturnTypeName(keySelector);
+        var sourceCount=$"__sourceCount_{setName}";
+        var secondCount=$"__secondCount_{setName}";
+        var sourceHasCount=$"__sourceHasCount_{setName}";
+        var secondHasCount=$"__secondHasCount_{setName}";
+        builder.AppendLine($"var {sourceCount}=0;");
+        builder.AppendLine($"var {secondCount}=0;");
+        builder.AppendLine($"var {sourceHasCount}={sourceName}.TryGetNonEnumeratedCount(out {sourceCount});");
+        builder.AppendLine($"var {secondHasCount}={secondName}.TryGetNonEnumeratedCount(out {secondCount});");
+        builder.AppendLine($"if({sourceHasCount}||{secondHasCount}) global::Seamless.Linq.LinqCounterScope.Counter.IncrementHashCapacityHintUsed();");
+        builder.AppendLine($"using var {setName}={sourceHasCount}&&{secondHasCount}");
+        builder.AppendLine($"    ? new global::Seamless.System.Carrier.HashSetSlim<{keyType}>({sourceCount}+{secondCount},(global::System.Collections.Generic.IEqualityComparer<{keyType}>?){this.Comparer})");
+        builder.AppendLine($"    : {sourceHasCount}");
+        builder.AppendLine($"        ? new global::Seamless.System.Carrier.HashSetSlim<{keyType}>({sourceCount},(global::System.Collections.Generic.IEqualityComparer<{keyType}>?){this.Comparer})");
+        builder.AppendLine($"        : {secondHasCount}");
+        builder.AppendLine($"            ? new global::Seamless.System.Carrier.HashSetSlim<{keyType}>({secondCount},(global::System.Collections.Generic.IEqualityComparer<{keyType}>?){this.Comparer})");
+        builder.AppendLine($"            : new global::Seamless.System.Carrier.HashSetSlim<{keyType}>((global::System.Collections.Generic.IEqualityComparer<{keyType}>?){this.Comparer});");
     }
     private void AppendSetByCollectLoop(StringBuilder builder,string enumeratorName,string setName){
         TraversalSupport.AppendTraversalLoop(builder,enumeratorName,second.ElementType,"value",$$"""

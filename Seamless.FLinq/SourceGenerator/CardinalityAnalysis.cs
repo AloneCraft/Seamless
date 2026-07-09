@@ -32,8 +32,25 @@ internal static class CardinalityAnalysis {
             var extent=divisor-1;
             return new IntegralRange(-extent,extent);
         }
+        if(expression is InvocationExpressionSyntax invocation
+            && IsModuloInvocation(invocation)
+            && invocation.ArgumentList.Arguments.Count>=2
+            && TryGetPositiveDivisor(invocation.ArgumentList.Arguments[1].Expression,semanticModel,out var invocationDivisor)) {
+            var extent=invocationDivisor-1;
+            return new IntegralRange(-extent,extent);
+        }
 
         return null;
+    }
+
+    private static bool IsModuloInvocation(InvocationExpressionSyntax invocation) {
+        var expression=invocation.Expression;
+        var name=expression switch {
+            IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
+            MemberAccessExpressionSyntax memberAccess => memberAccess.Name.Identifier.ValueText,
+            _ => string.Empty,
+        };
+        return string.Equals(name,"Mod",StringComparison.Ordinal);
     }
 
     private static ExpressionSyntax StripTransparentExpressions(ExpressionSyntax expression,SemanticModel? semanticModel) {

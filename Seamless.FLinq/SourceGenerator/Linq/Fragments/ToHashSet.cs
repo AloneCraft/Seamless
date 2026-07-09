@@ -32,8 +32,27 @@ public class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSet
     protected override string ComputeExpression=>$"Compute({this.e})";
     public override string? RenderInlineComputation(string destVar,string destType)=>
         this.RenderRangeToHashSetInline(destVar,destType)
+        ??this.RenderDirectSpanToHashSetInline(destVar,destType)
         ??this.RenderDirectEnumerableToHashSetHybridInline(source,destVar,destType)
         ??this.RenderComputeInline(destVar,destType);
+    private string? RenderDirectSpanToHashSetInline(string destVar,string destType) {
+        var sourceName=$"__hashSetSource{番号}";
+        var directSpanExpression=source.GetDirectSpanExpression(sourceName);
+        if(directSpanExpression is null) {
+            return null;
+        }
+        var spanName=$"__hashSetSpan{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            using(var {{sourceName}}={{source.GetEnumeratorExpression}}) {
+                var {{spanName}}={{directSpanExpression}};
+                {{destVar}}=new({{spanName}}.Length);
+                for(var __i{{番号}}=0;__i{{番号}}<{{spanName}}.Length;__i{{番号}}++) {
+                    {{destVar}}.Add({{spanName}}[__i{{番号}}]);
+                }
+            }
+            """;
+    }
     private string? RenderRangeToHashSetInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
             return null;
@@ -84,8 +103,29 @@ public class ToHashSet_comparer(int 番号,Enumerable source,string comparer,str
     protected override string ComputeExpression=>$"Compute({this.e},comparer)";
     public override string? RenderInlineComputation(string destVar,string destType)=>
         this.RenderRangeToHashSetInline(destVar,destType)
+        ??this.RenderDirectSpanToHashSetInline(destVar,destType)
         ??this.RenderDirectEnumerableToHashSetHybridInline(source,destVar,destType,comparer)
         ??this.RenderComputeInline(destVar,destType,comparer);
+    private string? RenderDirectSpanToHashSetInline(string destVar,string destType) {
+        var sourceName=$"__hashSetSource{番号}";
+        var directSpanExpression=source.GetDirectSpanExpression(sourceName);
+        if(directSpanExpression is null) {
+            return null;
+        }
+        var spanName=$"__hashSetSpan{番号}";
+        var comparerVar=$"__comparer{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            using(var {{sourceName}}={{source.GetEnumeratorExpression}}) {
+                var {{spanName}}={{directSpanExpression}};
+                var {{comparerVar}}={{comparer}};
+                {{destVar}}=new({{spanName}}.Length,{{comparerVar}});
+                for(var __i{{番号}}=0;__i{{番号}}<{{spanName}}.Length;__i{{番号}}++) {
+                    {{destVar}}.Add({{spanName}}[__i{{番号}}]);
+                }
+            }
+            """;
+    }
     private string? RenderRangeToHashSetInline(string destVar,string destType) {
         if(source is not RangeRoot range || source.ElementType!="int") {
             return null;

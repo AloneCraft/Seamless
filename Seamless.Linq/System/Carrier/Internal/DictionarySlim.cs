@@ -24,6 +24,21 @@ internal sealed class DictionarySlim<TKey, TValue> : IDisposable // allows TKey 
         this.buckets.AsSpan().Clear(); // 0-clear.
     }
 
+    public DictionarySlim(int capacity,IEqualityComparer<TKey>? comparer = null)
+    {
+        this.comparer = comparer ?? EqualityComparer<TKey>.Default;
+        var requestedCapacity = Math.Max(capacity,0);
+        var bucketCapacity = requestedCapacity==0
+            ? MinimumSize
+            : (int)Math.Ceiling((requestedCapacity+1)/LoadFactor);
+        var actualCapacity = Math.Max((int)BitOperations.RoundUpToPowerOf2((uint)bucketCapacity),MinimumSize);
+        this.buckets = ArrayPool<int>.Shared.Rent(actualCapacity);
+        this.entries = ArrayPool<Entry>.Shared.Rent(actualCapacity);
+        this.bucketsLength = actualCapacity;
+        this.resizeThreshold = (int)(this.bucketsLength * LoadFactor);
+        this.buckets.AsSpan().Clear(); // 0-clear.
+    }
+
     public ref TValue? GetValueRefOrAddDefault(TKey key, out bool exists)
     {
         var hashCode = this.InternalGetHashCode(key);

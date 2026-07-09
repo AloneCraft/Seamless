@@ -53,4 +53,30 @@ public class Concat(int 番号, Enumerable source, Enumerable second) : Enumerab
     public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => source.ElementType;
     protected override string GetEnumeratorDisposeBody => "source.Dispose();\nsecond.Dispose();";
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        var sourceName=$"__concatSrc{番号}";
+        var secondName=$"__concatSec{番号}";
+        var builder=new StringBuilder();
+        builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
+        builder.AppendLine($"using var {secondName}={second.GetEnumeratorExpression};");
+        TraversalSupport.AppendTraversalLoop(
+            builder,
+            sourceName,
+            source.ElementType,
+            "value",
+            $"{consumerName}.Consume(value);",
+            source.CanTryProvideSpan,
+            source.CanProvideSpan,
+            source.GetDirectSpanExpression(sourceName));
+        TraversalSupport.AppendTraversalLoop(
+            builder,
+            secondName,
+            second.ElementType,
+            "value",
+            $"{consumerName}.Consume(({source.ElementType})(object?)value!);",
+            second.CanTryProvideSpan,
+            second.CanProvideSpan,
+            second.GetDirectSpanExpression(secondName));
+        return builder.ToString().TrimEnd();
+    }
 }

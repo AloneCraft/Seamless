@@ -11,11 +11,11 @@ public sealed class UiRunStoreTests{
         store.EnsureSchema();
 
         using var connection = Open(path);
-        Assert.Equal(10L,Scalar<long>(connection,"PRAGMA user_version;"));
+        Assert.Equal(12L,Scalar<long>(connection,"PRAGMA user_version;"));
         Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行';"));
         Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ベンチマーク項目';"));
-        Assert.Equal(3L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"));
-        Assert.Equal(2L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
+        Assert.Equal(4L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"));
+        Assert.Equal(4L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
         Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name IN('項目ID','プロジェクト名','Assembly','Type','型フル名','引数キー','行キー','側','平均ns','誤差ns','標準偏差ns','割当バイト','左要素数','右要素数');"));
         Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name='行チェック';"));
         Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name IN('左チェック','右チェック');"));
@@ -39,7 +39,7 @@ public sealed class UiRunStoreTests{
         store.EnsureSchema();
 
         using var loaded = Open(path);
-        Assert.Equal(10L,Scalar<long>(loaded,"PRAGMA user_version;"));
+        Assert.Equal(12L,Scalar<long>(loaded,"PRAGMA user_version;"));
         Assert.Equal(0L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='Legacy';"));
         Assert.Contains(Directory.GetFiles(Path.GetDirectoryName(path)!),file => file.EndsWith(".bak",StringComparison.OrdinalIgnoreCase));
     }
@@ -50,7 +50,7 @@ public sealed class UiRunStoreTests{
         using(var connection = Open(path)){
             using var command = connection.CreateCommand();
             command.CommandText="""
-                PRAGMA user_version=10;
+                PRAGMA user_version=12;
                 CREATE TABLE Apps(AppId INTEGER PRIMARY KEY AUTOINCREMENT,AppKind TEXT NOT NULL);
                 CREATE TABLE Runs(RunId INTEGER PRIMARY KEY AUTOINCREMENT,AppId INTEGER NOT NULL);
                 CREATE VIEW BenchmarkFlatResults AS SELECT 1 AS Value;
@@ -63,12 +63,12 @@ public sealed class UiRunStoreTests{
         store.EnsureSchema();
 
         using var loaded = Open(path);
-        Assert.Equal(10L,Scalar<long>(loaded,"PRAGMA user_version;"));
+        Assert.Equal(12L,Scalar<long>(loaded,"PRAGMA user_version;"));
         Assert.Equal(1L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行';"));
         Assert.Equal(1L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ベンチマーク項目';"));
         Assert.Equal(1L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='診断カウンター';"));
         Assert.Equal(0L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('Apps','Runs');"));
-        Assert.Equal(2L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
+        Assert.Equal(4L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
     }
 
     [Fact]
@@ -160,6 +160,37 @@ public sealed class UiRunStoreTests{
         Assert.Equal(1L,Scalar<long>(connection,"SELECT \"CPU番号\" FROM \"ベンチマーク項目\";"));
         Assert.Equal(2.0,Scalar<double>(connection,"SELECT \"左時間ns\" FROM \"ベンチマーク項目\";"));
         Assert.Equal(3.0,Scalar<double>(connection,"SELECT \"右時間ns\" FROM \"ベンチマーク項目\";"));
+    }
+
+    [Fact]
+    public void QueryAnalysisView_ExposesTimeAndMemoryRatioViews(){
+        var path = CreateDatabasePath();
+        var store = new global::Seamless.UI.Storage.UiRunStore(path);
+        var run = store.CreateRun(new(
+            UiRunAppKind.Benchmark,
+            "Benchmark",
+            "Fast",
+            "System.Array",
+            DateTimeOffset.UtcNow));
+        store.SaveBenchmarkSnapshotItems(run.RunId,[
+            new("System.Array","int","Any",0,true,new(UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,20,200),new(UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,10,50)),
+        ]);
+
+        var time = Assert.Single(store.QueryAnalysisView("履歴時間比"));
+        var baseTime = Assert.Single(store.QueryAnalysisView("基準時間比"));
+        var memory = Assert.Single(store.QueryAnalysisView("履歴メモリ比"));
+        var baseMemory = Assert.Single(store.QueryAnalysisView("基準メモリ比"));
+
+        Assert.Equal("System.Array",time["SourceTab"]);
+        Assert.Equal(2,Convert.ToDouble(time["PerformanceRatio"],global::System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal("System.Array",baseTime["SourceTab"]);
+        Assert.Equal(2,Convert.ToDouble(baseTime["PerformanceRatio"],global::System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal("System.Array",memory["SourceTab"]);
+        Assert.Equal(4,Convert.ToDouble(memory["PerformanceRatio"],global::System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal("System.Array",baseMemory["SourceTab"]);
+        Assert.Equal(4,Convert.ToDouble(baseMemory["PerformanceRatio"],global::System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Empty(store.QueryAnalysisView("BenchmarkPerformanceRatioHistory"));
+        Assert.Empty(store.QueryAnalysisView("BenchmarkMemoryRatioHistory"));
     }
 
     [Fact]

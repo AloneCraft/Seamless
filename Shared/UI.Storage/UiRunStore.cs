@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 namespace Seamless.UI.Storage;
 
 public sealed class UiRunStore{
-    private const int SchemaVersion = 10;
+    private const int SchemaVersion = 12;
     private readonly string databasePath;
     private readonly UiRunSchemaMismatchPolicy mismatchPolicy;
     private readonly object schemaGate = new();
@@ -52,6 +52,10 @@ public sealed class UiRunStore{
 
         SqliteConnection.ClearAllPools();
         this.BackupDatabaseFile();
+        if(this.HasMigratableSchemaShape()){
+            return;
+        }
+        SqliteConnection.ClearAllPools();
         File.Delete(this.databasePath);
         DeleteIfExists(this.databasePath+"-wal");
         DeleteIfExists(this.databasePath+"-shm");
@@ -84,7 +88,7 @@ public sealed class UiRunStore{
                 SELECT
                     (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行')
                     +(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ベンチマーク項目')
-                    +(SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('BenchmarkPerformanceRatioHistory','BenchmarkPerformanceRatioDelta'))
+                    +(SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('基準時間比','基準メモリ比','履歴時間比','履歴メモリ比'))
                     +(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='診断カウンター')
                     +(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT IN('実行','ベンチマーク項目','診断カウンター','sqlite_sequence'))
                     +(SELECT COUNT(*) FROM pragma_table_info('実行') WHERE name IN('要素数一覧','選択要素数'))
@@ -93,7 +97,27 @@ public sealed class UiRunStore{
                     +(SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name='行チェック')
                     +(SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name IN('左チェック','右チェック'));
                 """;
-            return (long)(command.ExecuteScalar()??-1L)==6L;
+            return (long)(command.ExecuteScalar()??-1L)==9L;
+        }
+        catch(SqliteException){
+            return false;
+        }
+    }
+
+    private bool HasMigratableSchemaShape(){
+        try{
+            using var connection = this.OpenConnectionWithoutCreate();
+            using var command = connection.CreateCommand();
+            command.CommandText="""
+                SELECT
+                    (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行')
+                    +(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ベンチマーク項目')
+                    +(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='診断カウンター')
+                    +(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT IN('実行','ベンチマーク項目','診断カウンター','sqlite_sequence'))
+                    +(SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name IN('左時間ns','右時間ns','左メモリバイト','右メモリバイト'))
+                    +(SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name='行チェック');
+                """;
+            return (long)(command.ExecuteScalar()??-1L)==9L;
         }
         catch(SqliteException){
             return false;
@@ -170,7 +194,15 @@ public sealed class UiRunStore{
                 "型",
                 "ベンチマーク"
             );
-            CREATE VIEW IF NOT EXISTS "BenchmarkPerformanceRatioHistory" AS
+            DROP VIEW IF EXISTS "BenchmarkPerformanceRatioDelta";
+            DROP VIEW IF EXISTS "BenchmarkPerformanceRatioHistory";
+            DROP VIEW IF EXISTS "BenchmarkMemoryRatioDelta";
+            DROP VIEW IF EXISTS "BenchmarkMemoryRatioHistory";
+            DROP VIEW IF EXISTS "基準時間比";
+            DROP VIEW IF EXISTS "基準メモリ比";
+            DROP VIEW IF EXISTS "履歴時間比";
+            DROP VIEW IF EXISTS "履歴メモリ比";
+            CREATE VIEW IF NOT EXISTS "履歴時間比" AS
             SELECT
                 r."実行ID" AS "RunId",
                 r."更新日時" AS "UpdatedAt",
@@ -186,7 +218,7 @@ public sealed class UiRunStore{
                 AND b."右状態"='完了'
                 AND b."左時間ns" IS NOT NULL
                 AND b."右時間ns" IS NOT NULL;
-            CREATE VIEW IF NOT EXISTS "BenchmarkPerformanceRatioDelta" AS
+            CREATE VIEW IF NOT EXISTS "基準時間比" AS
             WITH history AS (
                 SELECT
                     h.*,
@@ -194,7 +226,7 @@ public sealed class UiRunStore{
                         PARTITION BY h."SourceTab",h."Type",h."Benchmark"
                         ORDER BY h."RunId"
                     ) AS "PreviousPerformanceRatio"
-                FROM "BenchmarkPerformanceRatioHistory" h
+                FROM "履歴時間比" h
             )
             SELECT
                 "RunId",
@@ -208,6 +240,57 @@ public sealed class UiRunStore{
                 "PreviousPerformanceRatio",
                 "PerformanceRatio" - "PreviousPerformanceRatio" AS "PerformanceRatioDelta"
             FROM history;
+            CREATE VIEW IF NOT EXISTS "履歴メモリ比" AS
+            SELECT
+                r."実行ID" AS "RunId",
+                r."更新日時" AS "UpdatedAt",
+                b."タブ名" AS "SourceTab",
+                b."型" AS "Type",
+                b."ベンチマーク" AS "Benchmark",
+                b."左メモリバイト" AS "FLinqBytes",
+                b."右メモリバイト" AS "ZLinqBytes",
+                CASE
+                    WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0
+                    ELSE CAST(b."左メモリバイト" AS REAL) / NULLIF(b."右メモリバイト",0)
+                END AS "PerformanceRatio"
+            FROM "ベンチマーク項目" b
+            INNER JOIN "実行" r ON r."実行ID"=b."実行ID"
+            WHERE b."左状態"='完了'
+                AND b."右状態"='完了'
+                AND b."左メモリバイト" IS NOT NULL
+                AND b."右メモリバイト" IS NOT NULL;
+            CREATE VIEW IF NOT EXISTS "基準メモリ比" AS
+            WITH history AS (
+                SELECT
+                    h.*,
+                    LAG(h."PerformanceRatio") OVER (
+                        PARTITION BY h."SourceTab",h."Type",h."Benchmark"
+                        ORDER BY h."RunId"
+                    ) AS "PreviousPerformanceRatio"
+                FROM "履歴メモリ比" h
+            )
+            SELECT
+                "RunId",
+                "UpdatedAt",
+                "SourceTab",
+                "Type",
+                "Benchmark",
+                "FLinqBytes",
+                "ZLinqBytes",
+                "PerformanceRatio",
+                "PreviousPerformanceRatio",
+                "PerformanceRatio" - "PreviousPerformanceRatio" AS "PerformanceRatioDelta"
+            FROM history;
+            """);
+        ExecuteNonQuery(connection,transaction,"""
+            CREATE TABLE IF NOT EXISTS "UI選択"(
+                "RunId" INTEGER NOT NULL,
+                "Scope" TEXT NOT NULL,
+                "SelectionKey" TEXT NOT NULL,
+                "IsSelected" INTEGER NOT NULL,
+                "UpdatedAt" TEXT NOT NULL,
+                PRIMARY KEY("RunId","Scope","SelectionKey")
+            );
             """);
     }
 
@@ -443,6 +526,21 @@ public sealed class UiRunStore{
 
     public void SaveUiSelection(long runId,string scope,string selectionKey,bool isSelected){
         this.EnsureSchema();
+        using var connection = this.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText="""
+            INSERT INTO "UI選択"("RunId","Scope","SelectionKey","IsSelected","UpdatedAt")
+            VALUES($runId,$scope,$selectionKey,$isSelected,$updatedAt)
+            ON CONFLICT("RunId","Scope","SelectionKey") DO UPDATE SET
+                "IsSelected"=excluded."IsSelected",
+                "UpdatedAt"=excluded."UpdatedAt";
+            """;
+        command.Parameters.AddWithValue("$runId",runId);
+        command.Parameters.AddWithValue("$scope",scope);
+        command.Parameters.AddWithValue("$selectionKey",selectionKey);
+        command.Parameters.AddWithValue("$isSelected",isSelected ? 1 : 0);
+        command.Parameters.AddWithValue("$updatedAt",ToText(DateTimeOffset.UtcNow));
+        ExecuteWithLockRetry(() => command.ExecuteNonQuery());
     }
 
     public void SaveUiViewState(long runId,string stateKey,string stateValue){
@@ -567,18 +665,40 @@ public sealed class UiRunStore{
 
     public IReadOnlyList<UiSelectionRecord> ListUiSelections(long runId){
         this.EnsureSchema();
-        return [];
+        using var connection = this.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText="""
+            SELECT "Scope","SelectionKey","IsSelected"
+            FROM "UI選択"
+            WHERE "RunId"=$runId
+            ORDER BY "Scope","SelectionKey";
+            """;
+        command.Parameters.AddWithValue("$runId",runId);
+        using var reader = command.ExecuteReader();
+        var values = new List<UiSelectionRecord>();
+        while(reader.Read()){
+            values.Add(new(
+                runId,
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetInt32(2)!=0));
+        }
+        return values;
     }
 
     public static IReadOnlyList<string> AnalysisViewNames { get; } = [
-        "BenchmarkPerformanceRatioHistory",
-        "BenchmarkPerformanceRatioDelta",
+        "履歴時間比",
+        "基準時間比",
+        "履歴メモリ比",
+        "基準メモリ比",
         "BenchmarkFallbackDiagnostics",
     ];
 
     public IReadOnlyList<IReadOnlyDictionary<string,object?>> QueryAnalysisView(string viewName,int limit = 1000){
-        if(string.Equals(viewName,"BenchmarkPerformanceRatioHistory",StringComparison.OrdinalIgnoreCase)
-            ||string.Equals(viewName,"BenchmarkPerformanceRatioDelta",StringComparison.OrdinalIgnoreCase)){
+        if(string.Equals(viewName,"履歴時間比",StringComparison.Ordinal)
+            ||string.Equals(viewName,"基準時間比",StringComparison.Ordinal)
+            ||string.Equals(viewName,"履歴メモリ比",StringComparison.Ordinal)
+            ||string.Equals(viewName,"基準メモリ比",StringComparison.Ordinal)){
             return this.QuerySqlAnalysisView(viewName,limit);
         }
 

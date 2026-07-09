@@ -76,7 +76,32 @@ public class Chunk(int 番号, Enumerable source, string size) : Enumerable(番�
     public override string ElementType => $"{source.ElementType}[]";
     public override string GetConsumeExecutionStatement(string consumerName) =>
         this.RenderRangeChunkConsume(consumerName)
+        ?? this.RenderDirectSpanChunkConsume(consumerName)
         ?? base.GetConsumeExecutionStatement(consumerName);
+    private string? RenderDirectSpanChunkConsume(string consumerName) {
+        var sourceName=$"__chunkSource{番号}";
+        var directSpanExpression=source.GetDirectSpanExpression(sourceName);
+        if(directSpanExpression is null) {
+            return null;
+        }
+
+        var chunkSize=$"__chunkSize{番号}";
+        var spanName=$"__chunkSpan{番号}";
+        var offset=$"__offset{番号}";
+        var length=$"__length{番号}";
+        return $$"""
+            using var {{sourceName}}={{source.GetEnumeratorExpression}};
+            global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
+            var {{spanName}}={{directSpanExpression}};
+            var {{chunkSize}}={{size}};
+            if({{chunkSize}}<=0) throw new global::System.ArgumentOutOfRangeException("size");
+            for(var {{offset}}=0;{{offset}}<{{spanName}}.Length;) {
+                var {{length}}=global::System.Math.Min({{chunkSize}},{{spanName}}.Length-{{offset}});
+                {{consumerName}}.Consume({{spanName}}.Slice({{offset}},{{length}}).ToArray());
+                {{offset}}+={{length}};
+            }
+            """;
+    }
     private string? RenderRangeChunkConsume(string consumerName) {
         if(source is not RangeRoot range || source.ElementType!="int") {
             return null;

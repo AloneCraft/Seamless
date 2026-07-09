@@ -1353,7 +1353,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
         }
 
         return this.ProjectCells
-            .Where(static cell => cell.HasCase)
+            .Where(static cell => cell.HasCase&&cell.IsSelected)
             .Select(cell => this.CasesByProject[cell.Project])
             .Where(static benchmark => !string.IsNullOrWhiteSpace(benchmark.TypeFullName))
             .ToArray();
@@ -1370,7 +1370,9 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.ProjectCells.FirstOrDefault(cell => string.Equals(cell.Project,project,StringComparison.OrdinalIgnoreCase));
 
     public void RefreshSelectionState(){
-        this.IsSelectionChecked=this.IsSelected;
+        var state = GetSelectionState(this.ProjectCells);
+        this.IsSelectionChecked=state;
+        this.IsSelected=state is true or null;
     }
 
     public void RefreshUiSelectionState(){

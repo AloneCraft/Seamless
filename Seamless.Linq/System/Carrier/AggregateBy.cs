@@ -63,29 +63,35 @@ namespace Seamless.System.Carrier {
             return false;
         }
         private void Initialize() {
-            var dict = keyComparer!=null
-                ? new DictionarySlim<TKey,TAccumulate>(keyComparer)
-                : new DictionarySlim<TKey,TAccumulate>();
-
             using(this.source) {
                 if(this.source.TryGetSpan(out var span)) {
+                    var dict = keyComparer!=null
+                        ? new DictionarySlim<TKey,TAccumulate>(Math.Min(span.Length,1024),keyComparer)
+                        : new DictionarySlim<TKey,TAccumulate>(Math.Min(span.Length,1024));
                     foreach(var item in span) {
                         var key = keySelector(item);
                         ref var accumulate = ref dict.GetValueRefOrAddDefault(key,out var exists);
                         accumulate=func(exists ? accumulate! : seed,item);
                     }
+                    this.dictionary=dict;
                 }
                 else {
+                    var capacityHint = this.source.TryGetNonEnumeratedCount(out var count)
+                        ? Math.Min(count,1024)
+                        : 0;
+                    var dict = keyComparer!=null
+                        ? new DictionarySlim<TKey,TAccumulate>(capacityHint,keyComparer)
+                        : new DictionarySlim<TKey,TAccumulate>(capacityHint);
                     while(this.source.TryGetNext(out var item)) {
                         var key = keySelector(item);
                         ref var accumulate = ref dict.GetValueRefOrAddDefault(key,out var exists);
                         accumulate=func(exists ? accumulate! : seed,item);
                     }
+                    this.dictionary=dict;
                 }
             }
 
-            this.dictionary=dict;
-            this.enumerator=dict.GetEnumerator();
+            this.enumerator=this.dictionary.GetEnumerator();
         }
 
         public void Dispose() {
@@ -134,29 +140,35 @@ namespace Seamless.System.Carrier {
             return false;
         }
         private void Initialize() {
-            var dict = keyComparer!=null
-                ? new DictionarySlim<TKey,TAccumulate>(keyComparer)
-                : new DictionarySlim<TKey,TAccumulate>();
-
             using(this.source) {
                 if(this.source.TryGetSpan(out var span)) {
+                    var dict = keyComparer!=null
+                        ? new DictionarySlim<TKey,TAccumulate>(Math.Min(span.Length,1024),keyComparer)
+                        : new DictionarySlim<TKey,TAccumulate>(Math.Min(span.Length,1024));
                     foreach(var item in span) {
                         var key = keySelector(item);
                         ref var accumulate = ref dict.GetValueRefOrAddDefault(key,out var exists);
                         accumulate=func(exists ? accumulate! : seedSelector(key),item);
                     }
+                    this.dictionary=dict;
                 }
                 else {
+                    var capacityHint = this.source.TryGetNonEnumeratedCount(out var count)
+                        ? Math.Min(count,1024)
+                        : 0;
+                    var dict = keyComparer!=null
+                        ? new DictionarySlim<TKey,TAccumulate>(capacityHint,keyComparer)
+                        : new DictionarySlim<TKey,TAccumulate>(capacityHint);
                     while(this.source.TryGetNext(out var item)) {
                         var key = keySelector(item);
                         ref var accumulate = ref dict.GetValueRefOrAddDefault(key,out var exists);
                         accumulate=func(exists ? accumulate! : seedSelector(key),item);
                     }
+                    this.dictionary=dict;
                 }
             }
 
-            this.dictionary=dict;
-            this.enumerator=dict.GetEnumerator();
+            this.enumerator=this.dictionary.GetEnumerator();
         }
 
         public void Dispose() {

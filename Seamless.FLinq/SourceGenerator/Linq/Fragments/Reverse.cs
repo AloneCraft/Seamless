@@ -93,4 +93,23 @@ public class Reverse(int 番号, Enumerable source) : Enumerable(番号) {
             """;
     public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => this.RootSource.ElementType;
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        if(this.IsIdentity) {
+            return this.RootSource.GetConsumeExecutionStatement(consumerName);
+        }
+        var sourceName=$"__reverseSource{番号}";
+        var directSpanExpression=this.RootSource.GetDirectSpanExpression(sourceName);
+        if(directSpanExpression is not null) {
+            var spanName=$"__reverseSpan{番号}";
+            return $$"""
+                using var {{sourceName}}={{this.RootSource.GetEnumeratorExpression}};
+                global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
+                var {{spanName}}={{directSpanExpression}};
+                for(var __i{{番号}}={{spanName}}.Length-1;__i{{番号}}>=0;__i{{番号}}--) {
+                    {{consumerName}}.Consume({{spanName}}[__i{{番号}}]);
+                }
+                """;
+        }
+        return base.GetConsumeExecutionStatement(consumerName);
+    }
 }
