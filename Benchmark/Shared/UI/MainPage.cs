@@ -972,6 +972,7 @@ public sealed partial class MainPage:ContentPage {
 
     private View CreateBenchmarkPanelContent() {
         var SfTabView=new SfTabView {
+            AutomationId             ="SfTabView",
             TabBarHeight             =30,
             TabBarBackground         =Color.FromArgb("#F8FAFC"),
             IndicatorBackground      =Colors.Transparent,
@@ -980,40 +981,39 @@ public sealed partial class MainPage:ContentPage {
             ContentTransitionDuration=0,
             BackgroundColor          =Colors.White,
             VerticalOptions          =LayoutOptions.Fill,
-            AutomationId             ="Benchmark.SourceTabView",
         };
         this.ConfigureCompactTabView(SfTabView,true);
         AutomationProperties.SetIsInAccessibleTree(SfTabView,true);
-        var tabItems = new TabItemCollection();
+        var TabItems = new TabItemCollection();
         var loadedSourceTabContents = new HashSet<int>();
         var sourceTabIndex=0;
         foreach(var option in this.viewModel?.SourceTabs?? []) {
             var capturedIndex=sourceTabIndex;
             var header = this.CreateSourceTabHeader(option,SfTabView,capturedIndex);
             var state = this.viewModel?.GetSourceTabViewState(option.Definition.Tab);
-            var tabItem = new SfTabItem {
-                Header=option.HeaderText,
+            var SfTabItem = new SfTabItem {
+                AutomationId =option.Definition.Tab.ToString(),
+                Header       =option.HeaderText,
                 HeaderContent=header,
-                FontSize=12,
-                AutomationId="Benchmark.SourceTabItem."+option.Definition.Tab,
+                FontSize     =12,
                 Content=capturedIndex==0
                     ? this.CreateSourceTabContent(state)
                     : this.CreateSourceTabPlaceholder(option),
             };
-            AutomationProperties.SetIsInAccessibleTree(tabItem,true);
+            AutomationProperties.SetIsInAccessibleTree(SfTabItem,true);
             if(capturedIndex==0) {
                 loadedSourceTabContents.Add(capturedIndex);
             }
             option.PropertyChanged+=(_,args) => {
                 if(args.PropertyName==nameof(SourceTabOption.HeaderText)) {
-                    StartupDiagnostics.BeginInvokeOnMainThread("source tab header text "+option.Definition.Id,() => tabItem.Header=option.HeaderText);
+                    StartupDiagnostics.BeginInvokeOnMainThread("source tab header text "+option.Definition.Id,() => SfTabItem.Header=option.HeaderText);
                 }
             };
-            tabItems.Add(tabItem);
+            TabItems.Add(SfTabItem);
             sourceTabIndex++;
         }
 
-        SfTabView.Items=tabItems;
+        SfTabView.Items=TabItems;
         SfTabView.SelectedIndex=0;
         this.sourceTabView=SfTabView;
         void EnsureSelectedSourceTabContent() {
@@ -1030,7 +1030,7 @@ public sealed partial class MainPage:ContentPage {
             var option = this.viewModel.SourceTabs[index];
             var state = this.viewModel.GetSourceTabViewState(option.Definition.Tab);
             StartupDiagnostics.AddBreadcrumb("Source tab content create "+option.Definition.Id+" index="+index.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            tabItems[index].Content=this.CreateSourceTabContent(state);
+            TabItems[index].Content=this.CreateSourceTabContent(state);
             loadedSourceTabContents.Add(index);
             StartupDiagnostics.AddBreadcrumb("Source tab content created "+option.Definition.Id+" rows="+state.Rows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
@@ -1432,8 +1432,22 @@ public sealed partial class MainPage:ContentPage {
             summaryText.SetBinding(Label.TextProperty,new Binding(nameof(SourceTabOption.ProgressSummaryText),source: sourceTabOption));
             summary.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: sourceTabOption));
         }
-        grid.Add(summary,0,0);
-        grid.SetColumnSpan(summary,2);
+        var summaryHost = new Grid {
+            ColumnDefinitions= {
+                new ColumnDefinition { Width = new GridLength(BenchmarkTopAllSelectionSlotWidth) },
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Star },
+            },
+            ColumnSpacing=4,
+            HorizontalOptions=LayoutOptions.Fill,
+            VerticalOptions=LayoutOptions.Center,
+            Children= {
+                summary,
+            },
+        };
+        Grid.SetColumn(summary,1);
+        grid.Add(summaryHost,0,0);
+        grid.SetColumnSpan(summaryHost,2);
 
         var benchmarkGrid = this.CreateBenchmarkGrid(state);
         benchmarkGrid.VerticalOptions=LayoutOptions.Fill;
@@ -1943,7 +1957,7 @@ public sealed partial class MainPage:ContentPage {
         this.CreateDiagnosticGrid(null,itemsSourcePath);
 
     private View CreateDiagnosticGrid(IEnumerable<BenchmarkDiagnosticRow>? itemsSource,string itemsSourcePath) {
-        var grid = new SfDataGrid {
+        var SfDataGrid = new SfDataGrid {
             AutoGenerateColumnsMode=AutoGenerateColumnsMode.None,
             RowHeight=24,
             HeaderRowHeight=30,
@@ -1956,22 +1970,22 @@ public sealed partial class MainPage:ContentPage {
             BackgroundColor=Colors.White,
             VerticalOptions=LayoutOptions.Fill,
         };
-        this.RegisterDataGridUpdateBatchTarget(grid);
-        this.ConfigureDataGridLines(grid);
-        this.ConfigureDataGridScrollBars(grid);
-        grid.Columns.Add(this.CreateDiagnosticTextColumn("区分",nameof(BenchmarkDiagnosticRow.Category),70,TextAlignment.Start));
-        grid.Columns.Add(this.CreateDiagnosticTextColumn("メソッド",nameof(BenchmarkDiagnosticRow.Method),160,TextAlignment.Start));
-        grid.Columns.Add(this.CreateDiagnosticTextColumn("最悪N",nameof(BenchmarkDiagnosticRow.WorstN),70,TextAlignment.End));
-        grid.Columns.Add(this.CreateDiagnosticTextColumn("比率/CPU",nameof(BenchmarkDiagnosticRow.RatioText),80,TextAlignment.End));
-        grid.Columns.Add(this.CreateDiagnosticTextColumn("Left/時間",nameof(BenchmarkDiagnosticRow.LeftText),110,TextAlignment.End));
-        grid.Columns.Add(this.CreateDiagnosticTextColumn("Right/メモリ",nameof(BenchmarkDiagnosticRow.RightText),110,TextAlignment.End));
-        grid.Columns.Add(this.CreateDiagnosticTextColumn("根拠",nameof(BenchmarkDiagnosticRow.DetailText),280,TextAlignment.Start));
+        this.RegisterDataGridUpdateBatchTarget(SfDataGrid);
+        this.ConfigureDataGridLines(SfDataGrid);
+        this.ConfigureDataGridScrollBars(SfDataGrid);
+        SfDataGrid.Columns.Add(this.CreateDiagnosticTextColumn("区分",nameof(BenchmarkDiagnosticRow.Category),70,TextAlignment.Start));
+        SfDataGrid.Columns.Add(this.CreateDiagnosticTextColumn("メソッド",nameof(BenchmarkDiagnosticRow.Method),160,TextAlignment.Start));
+        SfDataGrid.Columns.Add(this.CreateDiagnosticTextColumn("最悪N",nameof(BenchmarkDiagnosticRow.WorstN),70,TextAlignment.End));
+        SfDataGrid.Columns.Add(this.CreateDiagnosticTextColumn("比率/CPU",nameof(BenchmarkDiagnosticRow.RatioText),80,TextAlignment.End));
+        SfDataGrid.Columns.Add(this.CreateDiagnosticTextColumn("Left/時間",nameof(BenchmarkDiagnosticRow.LeftText),110,TextAlignment.End));
+        SfDataGrid.Columns.Add(this.CreateDiagnosticTextColumn("Right/メモリ",nameof(BenchmarkDiagnosticRow.RightText),110,TextAlignment.End));
+        SfDataGrid.Columns.Add(this.CreateDiagnosticTextColumn("根拠",nameof(BenchmarkDiagnosticRow.DetailText),280,TextAlignment.Start));
         if(itemsSource is not null) {
-            grid.ItemsSource=itemsSource;
+            SfDataGrid.ItemsSource=itemsSource;
         }else{
-            grid.SetBinding(SfDataGrid.ItemsSourceProperty,itemsSourcePath);
+            SfDataGrid.SetBinding(SfDataGrid.ItemsSourceProperty,itemsSourcePath);
         }
-        return grid;
+        return SfDataGrid;
     }
 
     private DataGridTextColumn CreateDiagnosticTextColumn(string header,string mappingName,double width,TextAlignment alignment) {
@@ -2173,7 +2187,7 @@ public sealed partial class MainPage:ContentPage {
 
     private View CreateBenchmarkGrid(BenchmarkSourceTabViewState? state) {
         StartupDiagnostics.WriteSyncfusionAssemblies("CreateBenchmarkGrid before SfDataGrid");
-        var grid = new SfDataGrid {
+        var SfDataGrid = new SfDataGrid {
             AutoGenerateColumnsMode=AutoGenerateColumnsMode.None,
             RowHeight=BenchmarkGridRowHeight,
             HeaderRowHeight=BenchmarkGridHeaderRowHeight,
@@ -2186,35 +2200,35 @@ public sealed partial class MainPage:ContentPage {
             GridLinesVisibility=GridLinesVisibility.Both,
             DefaultColumnWidth=92,
         };
-        this.RegisterDataGridUpdateBatchTarget(grid);
+        this.RegisterDataGridUpdateBatchTarget(SfDataGrid);
         if(state is not null) {
-            grid.AutomationId="Benchmark.Grid."+state.Definition.Tab;
-            this.benchmarkGridsBySourceTab[state.Definition.Tab]=grid;
+            SfDataGrid.AutomationId="Benchmark.Grid."+state.Definition.Tab;
+            this.benchmarkGridsBySourceTab[state.Definition.Tab]=SfDataGrid;
             if(this.viewModel?.SelectedSourceDefinition.Tab==state.Definition.Tab) {
-                this.benchmarkGrid=grid;
+                this.benchmarkGrid=SfDataGrid;
             }
         }else{
-            grid.AutomationId="Benchmark.Grid";
-            this.benchmarkGrid=grid;
+            SfDataGrid.AutomationId="Benchmark.Grid";
+            this.benchmarkGrid=SfDataGrid;
         }
-        AutomationProperties.SetIsInAccessibleTree(grid,true);
-        grid.QueryRowHeight+=(_,args) => {
+        AutomationProperties.SetIsInAccessibleTree(SfDataGrid,true);
+        SfDataGrid.QueryRowHeight+=(_,args) => {
             if(args.RowIndex<2) {
                 args.Height=BenchmarkGridHeaderRowHeight;
             }
         };
-        grid.CellDoubleTapped+=this.OnBenchmarkGridCellDoubleTapped;
+        SfDataGrid.CellDoubleTapped+=this.OnBenchmarkGridCellDoubleTapped;
         if(state is not null) {
-            grid.ItemsSource=state.Rows;
+            SfDataGrid.ItemsSource=state.Rows;
         }else{
-            grid.SetBinding(SfDataGrid.ItemsSourceProperty,nameof(RunnerViewModel.BenchmarkRows));
+            SfDataGrid.SetBinding(SfDataGrid.ItemsSourceProperty,nameof(RunnerViewModel.BenchmarkRows));
         }
-        this.ConfigureDataGridLines(grid);
-        this.ConfigureDataGridScrollBars(grid);
+        this.ConfigureDataGridLines(SfDataGrid);
+        this.ConfigureDataGridScrollBars(SfDataGrid);
 
         var sourceTab = state?.Definition??this.viewModel?.SelectedSourceDefinition??BenchmarkSourceTabs.Default;
-        this.RebuildBenchmarkGridColumns(grid,sourceTab);
-        return grid;
+        this.RebuildBenchmarkGridColumns(SfDataGrid,sourceTab);
+        return SfDataGrid;
     }
 
     private void SelectBenchmarkGridForActiveSource() {
@@ -3444,7 +3458,8 @@ public sealed partial class MainPage:ContentPage {
         header.Content=headerGrid;
 
         StartupDiagnostics.WriteSyncfusionAssemblies("CreateCpuSectionView before SfDataGrid");
-        var grid = new SfDataGrid {
+        var CPUGrid = new SfDataGrid {
+            AutomationId ="CPUGrid",
             AutoGenerateColumnsMode=AutoGenerateColumnsMode.None,
             RowHeight=CpuGridRowHeight,
             HeaderRowHeight=CpuGridHeaderRowHeight,
@@ -3453,28 +3468,28 @@ public sealed partial class MainPage:ContentPage {
             GridLinesVisibility=GridLinesVisibility.Both,
             DefaultColumnWidth=56,
         };
-        this.RegisterDataGridUpdateBatchTarget(grid);
-        this.ConfigureDataGridLines(grid);
+        this.RegisterDataGridUpdateBatchTarget(CPUGrid);
+        this.ConfigureDataGridLines(CPUGrid);
         var sectionLayout = new VerticalStackLayout {
             Spacing=3,
             Children= {
                 header,
-                grid,
+                CPUGrid,
             },
         };
-        grid.SetBinding(SfDataGrid.ItemsSourceProperty,nameof(CpuTableSection.Rows));
-        grid.BindingContextChanged+=(_,_) => {
-            if(grid.BindingContext is not CpuTableSection section) {
+        CPUGrid.SetBinding(SfDataGrid.ItemsSourceProperty,nameof(CpuTableSection.Rows));
+        CPUGrid.BindingContextChanged+=(_,_) => {
+            if(CPUGrid.BindingContext is not CpuTableSection section) {
                 return;
             }
 
-            this.RebuildCpuDataGridColumns(grid,section);
-            grid.HeightRequest=CpuSectionGridHeaderHeight+(section.Rows.Count*CpuSectionRowHeight)+CpuSectionGridExtraHeight;
+            this.RebuildCpuDataGridColumns(CPUGrid,section);
+            CPUGrid.HeightRequest=CpuSectionGridHeaderHeight+(section.Rows.Count*CpuSectionRowHeight)+CpuSectionGridExtraHeight;
             if(section.CoreKind==CpuCoreKind.Performance) {
                 var maxWidth = this.GetCpuRightEdgeWidth(section);
-                grid.MaximumWidthRequest=maxWidth;
-                grid.WidthRequest=maxWidth;
-                grid.HorizontalOptions=LayoutOptions.Start;
+                CPUGrid.MaximumWidthRequest=maxWidth;
+                CPUGrid.WidthRequest=maxWidth;
+                CPUGrid.HorizontalOptions=LayoutOptions.Start;
                 header.WidthRequest=maxWidth;
                 header.MaximumWidthRequest=maxWidth;
                 header.HorizontalOptions=LayoutOptions.Start;
@@ -3484,9 +3499,9 @@ public sealed partial class MainPage:ContentPage {
             }
             else if(section.CoreKind==CpuCoreKind.Efficiency) {
                 var maxWidth = this.GetCpuVisibleWidth(section,4);
-                grid.MaximumWidthRequest=maxWidth;
-                grid.WidthRequest=maxWidth;
-                grid.HorizontalOptions=LayoutOptions.Start;
+                CPUGrid.MaximumWidthRequest=maxWidth;
+                CPUGrid.WidthRequest=maxWidth;
+                CPUGrid.HorizontalOptions=LayoutOptions.Start;
                 header.WidthRequest=maxWidth;
                 header.MaximumWidthRequest=maxWidth;
                 header.HorizontalOptions=LayoutOptions.Start;
@@ -3495,7 +3510,7 @@ public sealed partial class MainPage:ContentPage {
                 sectionLayout.HorizontalOptions=LayoutOptions.Start;
             }
             else {
-                grid.HorizontalOptions=LayoutOptions.Fill;
+                CPUGrid.HorizontalOptions=LayoutOptions.Fill;
                 header.ClearValue(WidthRequestProperty);
                 header.ClearValue(MaximumWidthRequestProperty);
                 header.HorizontalOptions=LayoutOptions.Fill;
