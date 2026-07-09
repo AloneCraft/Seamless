@@ -105,16 +105,24 @@ public class TakeWhile_indexPredicate(int id, Enumerable source, FuncFragment pr
         var spanName=$"__takeWhileSpan{id}";
         var itemName=$"__takeWhileItem{id}";
         var indexName=$"__takeWhileIndex{id}";
-        var (spanPreCode,spanCondExpr)=this.FuncInvokeCondition(predicate,nameof(predicate),this.temp,itemName,indexName);
+        var localDeclarations=string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(predicate),
+            this.StaticDelegateLocalDeclarations(predicate),
+        }.Where(static text=>!string.IsNullOrEmpty(text)));
+        var localDeclarationBlock=string.IsNullOrEmpty(localDeclarations)
+            ? string.Empty
+            : localDeclarations+"\n";
+        var (spanPreCode,spanCondExpr)=this.FuncInvokeConditionStatic(predicate,nameof(predicate),this.temp,itemName,indexName);
         var spanPredicate=string.IsNullOrEmpty(spanPreCode)
             ? $"if(!{WrapConditionExpression(spanCondExpr)})"
             : $"{spanPreCode}\n            if(!{WrapConditionExpression(spanCondExpr)})";
-        var (loopPreCode,loopCondExpr)=this.FuncInvokeCondition(predicate,nameof(predicate),this.temp,itemName,indexName);
+        var (loopPreCode,loopCondExpr)=this.FuncInvokeConditionStatic(predicate,nameof(predicate),this.temp,itemName,indexName);
         var loopPredicate=string.IsNullOrEmpty(loopPreCode)
             ? $"if(!{WrapConditionExpression(loopCondExpr)})"
             : $"{loopPreCode}\n            if(!{WrapConditionExpression(loopCondExpr)})";
 
         return $$"""
+            {{localDeclarationBlock}}
             using var {{sourceName}}={{source.GetEnumeratorExpression}};
             var {{indexName}}=-1;
             global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanCalled();

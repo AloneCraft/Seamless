@@ -110,7 +110,6 @@ public sealed record UiBenchmarkItemWrite(
     string PairDiscriminator);
 
 public sealed record UiBenchmarkGridSideWrite(
-    bool IsSelected,
     UiRunStatus Status,
     string FailureReason,
     DateTimeOffset? MeasuredAt,
@@ -122,11 +121,11 @@ public sealed record UiBenchmarkSnapshotItemWrite(
     string TypeName,
     string BenchmarkName,
     int? CpuNumber,
+    bool IsSelected,
     UiBenchmarkGridSideWrite Left,
     UiBenchmarkGridSideWrite Right);
 
 public sealed record UiBenchmarkGridSideRecord(
-    bool IsSelected,
     UiRunStatus Status,
     string FailureReason,
     DateTimeOffset? MeasuredAt,
@@ -139,13 +138,13 @@ public sealed record UiBenchmarkSnapshotItemRecord(
     string TypeName,
     string BenchmarkName,
     int? CpuNumber,
+    bool IsSelected,
     UiBenchmarkGridSideRecord Left,
     UiBenchmarkGridSideRecord Right);
 
 public sealed record UiRunSettingsRecord(
     long RunId,
     string RunRoot,
-    string ElementCounts,
     double AdaptiveThresholdNanoseconds,
     string LogicalCpus);
 

@@ -740,9 +740,9 @@ internal static class BenchmarkElementCounts {
         [BaseElementCount];
 #else
     public static IReadOnlyList<int> All { get; } =
-        [1,2,4,8,16,32,64,128];
+        [BaseElementCount];
 
     public static IReadOnlyList<int> DefaultInitial { get; } =
-        [1];
+        [BaseElementCount];
 #endif
 }

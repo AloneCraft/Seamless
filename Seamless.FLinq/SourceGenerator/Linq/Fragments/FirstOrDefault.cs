@@ -129,7 +129,12 @@ public class FirstOrDefault_predicate(int 番号, Enumerable source, FuncFragmen
         }
         var span=$"__span{this.result}";
         var index=$"__i{this.result}";
+        var hoistedDeclarations=this.HoistedLocalDeclarations(predicate);
+        var hoistedDeclarationBlock=string.IsNullOrEmpty(hoistedDeclarations)
+            ? string.Empty
+            : hoistedDeclarations+"\n";
         return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+            {{hoistedDeclarationBlock}}
             {{destVar}}=default!;
             for(var {{index}}=0;{{index}}<{{spanName}}.Length;{{index}}++) {
                 var {{this.item}}={{spanName}}[{{index}}];

@@ -19,27 +19,6 @@ internal sealed class ChartController:IChartController {
     public IReadOnlyList<RankedRatioPoint> LoadImprovementCandidatesChartData() =>
         this.context.LoadImprovementCandidatesChartDataCore();
 
-    public IReadOnlyList<RankedRatioPoint> LoadTimeRatioWorstChartData() =>
-        this.context.LoadTimeRatioWorstChartDataCore();
-
-    public IReadOnlyList<RankedRatioPoint> LoadAllocationRatioWorstChartData() =>
-        this.context.LoadAllocationRatioWorstChartDataCore();
-
-    public IReadOnlyList<CategoryRatioPoint> LoadCategorySummaryChartData() =>
-        this.context.LoadCategorySummaryChartDataCore();
-
     public IReadOnlyList<TrendSeries> LoadHistoryTrendChartData() =>
         this.context.LoadHistoryTrendChartDataCore();
-
-    public IReadOnlyList<TrendSeries> LoadScaleTrendChartData() =>
-        this.context.LoadScaleTrendChartDataCore();
-
-    public IReadOnlyList<BadgeItem> LoadMissingFailureMatrixBadges() =>
-        this.context.LoadMissingFailureMatrixBadgesCore();
-
-    public IReadOnlyList<QualityGaugePoint> LoadMeasurementQualityGauges() =>
-        this.context.LoadMeasurementQualityGaugesCore();
-
-    public IReadOnlyList<BadgeItem> LoadFallbackDiagnosticsBadges() =>
-        this.context.LoadFallbackDiagnosticsBadgesCore();
 }

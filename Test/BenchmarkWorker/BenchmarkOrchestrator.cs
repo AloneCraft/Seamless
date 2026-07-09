@@ -4,6 +4,15 @@ namespace Test.BenchmarkWorker;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
 public sealed class BenchmarkOrchestrator{
+    private const int PreviousCompletedAxisCount = 1024;
+    private const int RunningAxisCount = 2048;
+    private const int FixedBenchmarkAxisCount = BenchmarkElementCounts.BaseElementCount;
+    private const double FastLeftMeanNanoseconds = 876_100;
+    private const double SlowRightMeanNanoseconds = 1_406_300;
+    private const double BaselineMeanNanoseconds = 900_000;
+    private const double CurrentLeftMeanNanoseconds = 1_200_000;
+    private const double CurrentRightMeanNanoseconds = 1_300_000;
+
     [Fact]
     public void StateManager_Load_MarksRunningJobsAsFailed(){
         var root = CreateTempRoot();
@@ -1219,17 +1228,17 @@ public sealed class BenchmarkOrchestrator{
 
     [Fact]
     public void BenchmarkElementCountLogic_BuildAdaptiveCandidates_UsesOneToSelectedMaximum(){
-        var candidates = BenchmarkElementCountLogic.BuildAdaptiveCandidates(BenchmarkElementCounts.All,128);
+        var candidates = BenchmarkElementCountLogic.BuildAdaptiveCandidates(BenchmarkElementCounts.All,BenchmarkElementCounts.BaseElementCount);
 
-        Assert.Equal([1,2,4,8,16,32,64,128],candidates);
+        Assert.Equal([BenchmarkElementCounts.BaseElementCount],candidates);
     }
 
     [Fact]
     public void BenchmarkElementCounts_StartsAdaptiveWorkloadAtBaseElementCount(){
-        Assert.DoesNotContain(BenchmarkElementCounts.BaseElementCount,BenchmarkElementCounts.All);
-        Assert.Equal(1,BenchmarkElementCounts.DefaultInitial[0]);
-        Assert.Equal([1],BenchmarkElementCounts.DefaultInitial);
-        Assert.Equal(4096,BenchmarkElementCounts.BaseElementCount);
+        Assert.Contains(BenchmarkElementCounts.BaseElementCount,BenchmarkElementCounts.All);
+        Assert.Equal(BenchmarkElementCounts.BaseElementCount,BenchmarkElementCounts.DefaultInitial[0]);
+        Assert.Equal([BenchmarkElementCounts.BaseElementCount],BenchmarkElementCounts.DefaultInitial);
+        Assert.Equal(FixedBenchmarkAxisCount,BenchmarkElementCounts.BaseElementCount);
     }
 
     [Fact]
@@ -1292,12 +1301,12 @@ public sealed class BenchmarkOrchestrator{
     public void BenchmarkSkippedDisplayLogic_FindsLatestCompletedPairBeforeSelectedElementCount(){
         var systemTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
         BenchmarkElementMeasurement[] measurements = [
-            new(systemTab.LeftProject,"AggregateBy_keySelector",1024,"Completed",876_100),
-            new(systemTab.RightProject,"AggregateBy_keySelector",1024,"Completed",1_406_300),
-            new(systemTab.LeftProject,"AggregateBy_keySelector",2048,"Completed",900_000),
-            new(systemTab.RightProject,"AggregateBy_keySelector",2048,"Running",800_000),
-            new(systemTab.LeftProject,"AggregateBy_keySelector",4096,"Completed",1_200_000),
-            new(systemTab.RightProject,"AggregateBy_keySelector",4096,"Completed",1_300_000),
+            new(systemTab.LeftProject,"AggregateBy_keySelector",PreviousCompletedAxisCount,"Completed",FastLeftMeanNanoseconds),
+            new(systemTab.RightProject,"AggregateBy_keySelector",PreviousCompletedAxisCount,"Completed",SlowRightMeanNanoseconds),
+            new(systemTab.LeftProject,"AggregateBy_keySelector",RunningAxisCount,"Completed",BaselineMeanNanoseconds),
+            new(systemTab.RightProject,"AggregateBy_keySelector",RunningAxisCount,"Running",BaselineMeanNanoseconds),
+            new(systemTab.LeftProject,"AggregateBy_keySelector",FixedBenchmarkAxisCount,"Completed",CurrentLeftMeanNanoseconds),
+            new(systemTab.RightProject,"AggregateBy_keySelector",FixedBenchmarkAxisCount,"Completed",CurrentRightMeanNanoseconds),
         ];
 
         var stoppedAt = BenchmarkSkippedDisplayLogic.FindLatestCompletedPairElementCountBefore(
@@ -1305,15 +1314,15 @@ public sealed class BenchmarkOrchestrator{
             "AggregateBy_keySelector",
             systemTab.LeftProject,
             systemTab.RightProject,
-            4096);
+            FixedBenchmarkAxisCount);
         var missingPair = BenchmarkSkippedDisplayLogic.FindLatestCompletedPairElementCountBefore(
             measurements,
             "Aggregate_func",
             systemTab.LeftProject,
             systemTab.RightProject,
-            4096);
+            FixedBenchmarkAxisCount);
 
-        Assert.Equal(1024,stoppedAt);
+        Assert.Equal(PreviousCompletedAxisCount,stoppedAt);
         Assert.Null(missingPair);
     }
 

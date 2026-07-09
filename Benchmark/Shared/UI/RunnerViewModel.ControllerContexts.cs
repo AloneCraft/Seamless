@@ -80,29 +80,8 @@ public sealed partial class RunnerViewModel {
     IReadOnlyList<BenchmarkRankedRatioPoint> IChartControllerContext.LoadImprovementCandidatesChartDataCore() =>
         this.LoadImprovementCandidatesChartDataCore();
 
-    IReadOnlyList<BenchmarkRankedRatioPoint> IChartControllerContext.LoadTimeRatioWorstChartDataCore() =>
-        this.LoadTimeRatioWorstChartDataCore();
-
-    IReadOnlyList<BenchmarkRankedRatioPoint> IChartControllerContext.LoadAllocationRatioWorstChartDataCore() =>
-        this.LoadAllocationRatioWorstChartDataCore();
-
-    IReadOnlyList<BenchmarkCategoryRatioPoint> IChartControllerContext.LoadCategorySummaryChartDataCore() =>
-        this.LoadCategorySummaryChartDataCore();
-
     IReadOnlyList<BenchmarkTrendSeries> IChartControllerContext.LoadHistoryTrendChartDataCore() =>
         this.LoadHistoryTrendChartDataCore();
-
-    IReadOnlyList<BenchmarkTrendSeries> IChartControllerContext.LoadScaleTrendChartDataCore() =>
-        this.LoadScaleTrendChartDataCore();
-
-    IReadOnlyList<BenchmarkBadgeItem> IChartControllerContext.LoadMissingFailureMatrixBadgesCore() =>
-        this.LoadMissingFailureMatrixBadgesCore();
-
-    IReadOnlyList<BenchmarkQualityGaugePoint> IChartControllerContext.LoadMeasurementQualityGaugesCore() =>
-        this.LoadMeasurementQualityGaugesCore();
-
-    IReadOnlyList<BenchmarkBadgeItem> IChartControllerContext.LoadFallbackDiagnosticsBadgesCore() =>
-        this.LoadFallbackDiagnosticsBadgesCore();
 
     IReadOnlyList<SourceTabViewState> ISortControllerContext.SourceTabViewStates =>
         this.sourceTabViewStates;

@@ -1348,8 +1348,12 @@ public sealed class BenchmarkTableRow:ObservableObject{
     public IReadOnlyList<BenchmarkCase> GetRunCases(){
         // 保存Runスナップショットの型列は表示値であり、worker実行用の完全型名ではない。
         // 現行カタログへ一意接続できなかったセルは TypeFullName を空にして保持し、計測キューには入れない。
+        if(!this.IsSelected){
+            return [];
+        }
+
         return this.ProjectCells
-            .Where(static cell => cell.HasCase&&cell.IsSelected)
+            .Where(static cell => cell.HasCase)
             .Select(cell => this.CasesByProject[cell.Project])
             .Where(static benchmark => !string.IsNullOrWhiteSpace(benchmark.TypeFullName))
             .ToArray();
@@ -1366,9 +1370,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.ProjectCells.FirstOrDefault(cell => string.Equals(cell.Project,project,StringComparison.OrdinalIgnoreCase));
 
     public void RefreshSelectionState(){
-        var state = GetSelectionState(this.ProjectCells);
-        this.IsSelectionChecked=state;
-        this.IsSelected=state is true or null;
+        this.IsSelectionChecked=this.IsSelected;
     }
 
     public void RefreshUiSelectionState(){

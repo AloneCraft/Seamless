@@ -37,7 +37,7 @@ public sealed partial class MainPage:ContentPage {
     private const double CpuSectionHeaderHeight = 34;
     private const double BenchmarkGridRowHeight = 24;
     private const double BenchmarkGridHeaderRowHeight = 30;
-    private const double BenchmarkGridStackedHeaderRowCount = 2;
+    private const double BenchmarkGridStackedHeaderRowCount = 1;
     private const double BenchmarkGridExtraHeight = 2;
     private const double BenchmarkGridCellFontSize = 10;
     private const double BenchmarkGridDetailFontSize = 9;
@@ -1575,22 +1575,7 @@ public sealed partial class MainPage:ContentPage {
         }
 
         AddChartTab("比較チャート",chartPanel);
-        AddChartTab("遅延ホットスポット",this.CreateDiagnosticGrid(state?.LatencyHotspotRows,nameof(RunnerViewModel.LatencyHotspotRows)));
-        AddChartTab("メモリ/割当",this.CreateDiagnosticGrid(state?.AllocationDiagnosticRows,nameof(RunnerViewModel.AllocationDiagnosticRows)));
-        AddChartTab("CPU/タイムライン",this.CreateDiagnosticGrid(state?.CpuTimelineRows,nameof(RunnerViewModel.CpuTimelineRows)));
-        AddChartTab("UIパイプライン",this.CreateDiagnosticGrid(nameof(RunnerViewModel.PipelineDiagnosticRows)));
-        var generatedCodeAuditTabIndex = chartTabOptions.Count;
-        AddChartTab("生成コード監査",this.CreateGeneratedCodeAuditInfographic());
-        // SQLite 分析 View(Completed Run の履歴集計)をインフォグラフィックとして表示するタブ群。
-        AddChartTab("改善ランキング",this.CreateRankedRatioChartTab(() => this.viewModel?.LoadImprovementCandidatesChartData()??[],"改善スコア"));
-        AddChartTab("時間比",this.CreateRankedRatioChartTab(() => this.viewModel?.LoadTimeRatioWorstChartData()??[],"最悪時間比"));
-        AddChartTab("割当比",this.CreateRankedRatioChartTab(() => this.viewModel?.LoadAllocationRatioWorstChartData()??[],"最悪割当比"));
-        AddChartTab("カテゴリ",this.CreateCategoryRatioChartTab());
-        AddChartTab("履歴",this.CreateTrendChartTab(() => this.viewModel?.LoadHistoryTrendChartData()??[],"サンプル順","時間比"));
-        AddChartTab("スケール",this.CreateTrendChartTab(() => this.viewModel?.LoadScaleTrendChartData()??[],"要素数","平均時間比"));
-        AddChartTab("失敗/欠測",this.CreateBadgeChecklistTab(() => this.viewModel?.LoadMissingFailureMatrixBadges()??[]));
-        AddChartTab("計測品質",this.CreateQualityGaugeTab());
-        AddChartTab("fallback診断",this.CreateBadgeChecklistTab(() => this.viewModel?.LoadFallbackDiagnosticsBadges()??[]));
+        AddChartTab("履歴性能比",this.CreateTrendChartTab(() => this.viewModel?.LoadHistoryTrendChartData()??[],"RunId","FLinq/ZLinq"));
 
         tabs.Items=chartTabItems;
         chartTabOptions[0].SetSelected(true);
@@ -1601,7 +1586,7 @@ public sealed partial class MainPage:ContentPage {
             for(var i = 0; i<chartTabOptions.Count; i++) {
                 chartTabOptions[i].SetSelected(i==tabs.SelectedIndex);
             }
-            this.viewModel?.SetGeneratedCodeAuditTabVisible(tabs.SelectedIndex==generatedCodeAuditTabIndex);
+            this.viewModel?.SetGeneratedCodeAuditTabVisible(false);
         };
         return tabs;
     }
@@ -2153,23 +2138,21 @@ public sealed partial class MainPage:ContentPage {
     private void RebuildBenchmarkGridColumns(SfDataGrid grid,BenchmarkSourceTabDefinition sourceTab) {
         grid.Columns.Clear();
         grid.StackedHeaderRows.Clear();
-        var categoryHeaderRow = new DataGridStackedHeaderRow();
         var projectHeaderRow = new DataGridStackedHeaderRow();
-        grid.StackedHeaderRows.Add(categoryHeaderRow);
         grid.StackedHeaderRows.Add(projectHeaderRow);
 
-        grid.Columns.Add(this.CreateCheckColumn());
+        grid.Columns.Add(this.CreateCheckColumn(sourceTab));
         grid.Columns.Add(this.CreateTextColumn("型",nameof(BenchmarkTableRow.BenchmarkTypeText),BenchmarkGridSortColumn.BenchmarkType,BenchmarkTypeColumnWidth,TextAlignment.End));
         grid.Columns.Add(this.CreateTextColumn("ベンチマーク",nameof(BenchmarkTableRow.BenchmarkMethodText),BenchmarkGridSortColumn.BenchmarkMethod,BenchmarkNameColumnWidth,TextAlignment.End));
         var cpuMapping = nameof(BenchmarkTableRow.LogicalProcessorText);
         grid.Columns.Add(this.CreateCpuColumn(cpuMapping));
         var argumentMappings = this.AddArgumentColumns(grid,sourceTab);
-        this.AddBenchmarkBaseStackedHeaders(categoryHeaderRow,projectHeaderRow,cpuMapping,argumentMappings,sourceTab);
+        this.AddBenchmarkBaseStackedHeaders(projectHeaderRow,cpuMapping,argumentMappings);
         var leftMappings = this.AddProjectColumns(grid,"Left",nameof(BenchmarkTableRow.LeftCell),BenchmarkGridSortColumn.LeftTime,BenchmarkGridSortColumn.LeftAllocated);
         var timeRatioMapping = nameof(BenchmarkTableRow.PairRatioTimeText);
         var allocatedRatioMapping = nameof(BenchmarkTableRow.PairRatioAllocatedText);
-        grid.Columns.Add(this.CreateTextColumn("時間比",timeRatioMapping,BenchmarkGridSortColumn.PairRatioTime,BenchmarkPairStopNColumnWidth,TextAlignment.End));
-        grid.Columns.Add(this.CreateTextColumn("メモリ比",allocatedRatioMapping,BenchmarkGridSortColumn.PairRatioAllocated,BenchmarkPairStopNColumnWidth,TextAlignment.End));
+        grid.Columns.Add(this.CreateTextColumn("時間比",timeRatioMapping,BenchmarkGridSortColumn.PairRatioTime,BenchmarkPairStopNColumnWidth,TextAlignment.End,Color.FromArgb("#F8FAFC")));
+        grid.Columns.Add(this.CreateTextColumn("メモリ比",allocatedRatioMapping,BenchmarkGridSortColumn.PairRatioAllocated,BenchmarkPairStopNColumnWidth,TextAlignment.End,Color.FromArgb("#F8FAFC")));
         var rightMappings = this.AddProjectColumns(grid,"Right",nameof(BenchmarkTableRow.RightCell),BenchmarkGridSortColumn.RightTime,BenchmarkGridSortColumn.RightAllocated);
         this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup("Left","Left"),leftMappings,sourceTab);
         this.AddBenchmarkRatioHeader(projectHeaderRow,timeRatioMapping,"時間比");
@@ -2242,15 +2225,13 @@ public sealed partial class MainPage:ContentPage {
             _ => string.Empty,
         };
 
-    private DataGridTemplateColumn CreateCheckColumn() {
+    private DataGridTemplateColumn CreateCheckColumn(BenchmarkSourceTabDefinition sourceTab) {
         return new DataGridTemplateColumn {
             MappingName=nameof(BenchmarkTableRow.IsSelectionChecked),
             HeaderText="",
             Width=BenchmarkSelectionColumnWidth,
             AllowSorting=false,
-            HeaderTemplate=new DataTemplate(() => new BoxView {
-                BackgroundColor=Colors.Transparent,
-            }),
+            HeaderTemplate=this.CreateAllBenchmarkSelectionColumnHeaderTemplate(sourceTab),
             CellTemplate=new DataTemplate(() => {
                 var layout = new Grid {
                     ColumnDefinitions= {
@@ -2298,38 +2279,21 @@ public sealed partial class MainPage:ContentPage {
     }
 
     private void AddBenchmarkBaseStackedHeaders(
-        DataGridStackedHeaderRow categoryHeaderRow,
         DataGridStackedHeaderRow projectHeaderRow,
         string cpuMapping,
-        IReadOnlyList<string> argumentMappings,
-        BenchmarkSourceTabDefinition sourceTab) {
-        categoryHeaderRow.Columns.Add(new DataGridStackedColumn {
-            MappingName="AllBenchmarkSelection",
-            ColumnMappingNames=nameof(BenchmarkTableRow.IsSelectionChecked),
-            Template=this.CreateAllBenchmarkSelectionHeaderTemplate(sourceTab),
-        });
-        categoryHeaderRow.Columns.Add(new DataGridStackedColumn {
-            MappingName="BenchmarkNameHeader",
-            ColumnMappingNames=nameof(BenchmarkTableRow.BenchmarkTypeText)+","+nameof(BenchmarkTableRow.BenchmarkMethodText)+","+cpuMapping,
-            Text=string.Empty,
-        });
+        IReadOnlyList<string> argumentMappings) {
+        var baseMappings = new List<string> {
+            nameof(BenchmarkTableRow.IsSelectionChecked),
+            nameof(BenchmarkTableRow.BenchmarkTypeText),
+            nameof(BenchmarkTableRow.BenchmarkMethodText),
+            cpuMapping,
+        };
+        baseMappings.AddRange(argumentMappings);
         projectHeaderRow.Columns.Add(new DataGridStackedColumn {
-            MappingName="AllBenchmarkSelectionProjectSpacer",
-            ColumnMappingNames=nameof(BenchmarkTableRow.IsSelectionChecked),
-            Text=string.Empty,
+            MappingName="BenchmarkBaseHeaderSpacer",
+            ColumnMappingNames=string.Join(",",baseMappings),
+            Template=this.CreateBenchmarkNeutralGroupHeaderTemplate("項目"),
         });
-        projectHeaderRow.Columns.Add(new DataGridStackedColumn {
-            MappingName="BenchmarkNameProjectSpacer",
-            ColumnMappingNames=nameof(BenchmarkTableRow.BenchmarkTypeText)+","+nameof(BenchmarkTableRow.BenchmarkMethodText)+","+cpuMapping,
-            Text=string.Empty,
-        });
-        if(argumentMappings.Count>0) {
-            projectHeaderRow.Columns.Add(new DataGridStackedColumn {
-                MappingName="BenchmarkArgumentsProjectSpacer",
-                ColumnMappingNames=string.Join(",",argumentMappings),
-                Text=string.Empty,
-            });
-        }
     }
 
     private IReadOnlyList<string> AddArgumentColumns(SfDataGrid grid,BenchmarkSourceTabDefinition sourceTab) {
@@ -2467,7 +2431,7 @@ public sealed partial class MainPage:ContentPage {
         headerRow.Columns.Add(new DataGridStackedColumn {
             MappingName="BenchmarkRatio"+mappingName,
             ColumnMappingNames=mappingName,
-            Text=string.Empty,
+            Template=this.CreateBenchmarkNeutralGroupHeaderTemplate(text),
         });
     }
 
@@ -2476,52 +2440,62 @@ public sealed partial class MainPage:ContentPage {
             ??new BenchmarkColumnSelectionGroup(id,headerText,[]);
     }
 
-    private DataTemplate CreateAllBenchmarkSelectionHeaderTemplate(BenchmarkSourceTabDefinition sourceTab) {
+    private DataTemplate CreateAllBenchmarkSelectionColumnHeaderTemplate(BenchmarkSourceTabDefinition sourceTab) {
         return new DataTemplate(() => {
-            var layout = this.CreateBenchmarkHeaderCheckLayout(string.Empty);
+            var layout = new Grid {
+                ColumnDefinitions= {
+                    new ColumnDefinition { Width = new GridLength(BenchmarkAggregateCheckBoxSize+4) },
+                    new ColumnDefinition { Width = GridLength.Star },
+                },
+                WidthRequest=BenchmarkSelectionColumnWidth,
+                BackgroundColor=Color.FromArgb("#F1F5F9"),
+                HorizontalOptions=LayoutOptions.Fill,
+                VerticalOptions=LayoutOptions.Fill,
+            };
             var check = this.CreateBenchmarkAggregateCheckBox();
             check.AutomationId="Benchmark.AllSelectionCheck";
             if(this.viewModel is not null) {
                 this.BindAggregateCheckBox(check,this.viewModel,nameof(RunnerViewModel.IsAllBenchmarkSelectionChecked),() => this.viewModel.IsAllBenchmarkSelectionChecked);
             }
-            var checkHost = this.CreateBenchmarkHeaderCheckHost(check);
-            checkHost.AutomationId="Benchmark.AllSelectionCheckHost";
+            var checkHost = new Grid {
+                BackgroundColor=Colors.Transparent,
+                HorizontalOptions=LayoutOptions.Fill,
+                VerticalOptions=LayoutOptions.Fill,
+                AutomationId="Benchmark.AllSelectionCheckHost",
+            };
+            checkHost.Add(check,0,0);
             var checkTap = new TapGestureRecognizer();
             checkTap.Tapped+=(_,_) => {
                 this.viewModel?.ToggleAllBenchmarkSelection(sourceTab);
             };
             checkHost.GestureRecognizers.Add(checkTap);
-            var body = this.CreateBenchmarkHeaderBody(string.Empty);
-            var bodyTap = new TapGestureRecognizer();
-            bodyTap.Tapped+=(_,_) => this.viewModel?.SelectAllBenchmarkUiCells(sourceTab);
-            body.GestureRecognizers.Add(bodyTap);
+            var selectionHost = new Grid {
+                BackgroundColor=Colors.Transparent,
+                HorizontalOptions=LayoutOptions.Fill,
+                VerticalOptions=LayoutOptions.Fill,
+            };
+            var selectionTap = new TapGestureRecognizer();
+            selectionTap.Tapped+=(_,_) => this.viewModel?.SelectAllBenchmarkUiCells(sourceTab);
+            selectionHost.GestureRecognizers.Add(selectionTap);
             layout.Add(checkHost,0,0);
-            layout.Add(body,1,0);
+            layout.Add(selectionHost,1,0);
             return layout;
         });
     }
 
     private DataTemplate CreateBenchmarkColumnGroupHeaderTemplate(BenchmarkColumnSelectionGroup group,BenchmarkSourceTabDefinition sourceTab) {
         return new DataTemplate(() => {
-            var layout = this.CreateBenchmarkHeaderCheckLayout(group.HeaderText);
-            var check = this.CreateBenchmarkAggregateCheckBox();
-            this.BindAggregateCheckBox(check,group,nameof(BenchmarkColumnSelectionGroup.IsChecked),() => group.IsChecked);
-            var checkHost = this.CreateBenchmarkHeaderCheckHost(check);
-            checkHost.AutomationId="Benchmark.ColumnGroupCheckHost."+group.Id;
-            var checkTap = new TapGestureRecognizer();
-            checkTap.Tapped+=(_,_) => {
-                this.viewModel?.ToggleBenchmarkColumnGroup(group,sourceTab);
-            };
-            checkHost.GestureRecognizers.Add(checkTap);
-            var body = this.CreateBenchmarkHeaderBody(nameof(BenchmarkColumnSelectionGroup.HeaderText));
+            var body = this.CreateBenchmarkHeaderBody(nameof(BenchmarkColumnSelectionGroup.HeaderText),Color.FromArgb("#EAF3FF"),Color.FromArgb("#2563EB"));
             body.BindingContext=group;
             var bodyTap = new TapGestureRecognizer();
             bodyTap.Tapped+=(_,_) => this.viewModel?.SelectBenchmarkColumnGroup(group,CreateBenchmarkSelectionGesture(),sourceTab);
             body.GestureRecognizers.Add(bodyTap);
-            layout.Add(checkHost,0,0);
-            layout.Add(body,1,0);
-            return layout;
+            return body;
         });
+    }
+
+    private DataTemplate CreateBenchmarkNeutralGroupHeaderTemplate(string text) {
+        return new DataTemplate(() => this.CreateBenchmarkHeaderBody(text,Color.FromArgb("#F8FAFC"),Color.FromArgb("#94A3B8")));
     }
 
     private Grid CreateBenchmarkHeaderCheckLayout(string text) {
@@ -2549,12 +2523,29 @@ public sealed partial class MainPage:ContentPage {
         return host;
     }
 
-    private Grid CreateBenchmarkHeaderBody(string text) {
+    private Grid CreateBenchmarkHeaderBody(string text) =>
+        this.CreateBenchmarkHeaderBody(text,Color.FromArgb("#F1F5F9"),Color.FromArgb("#CBD5E1"));
+
+    private Grid CreateBenchmarkHeaderBody(string text,Color backgroundColor,Color borderColor) {
         var body = new Grid {
-            BackgroundColor=Colors.Transparent,
+            BackgroundColor=backgroundColor,
             HorizontalOptions=LayoutOptions.Fill,
             VerticalOptions=LayoutOptions.Fill,
         };
+        body.Add(new BoxView {
+            WidthRequest=2,
+            BackgroundColor=borderColor,
+            HorizontalOptions=LayoutOptions.Start,
+            VerticalOptions=LayoutOptions.Fill,
+            InputTransparent=true,
+        },0,0);
+        body.Add(new BoxView {
+            WidthRequest=2,
+            BackgroundColor=borderColor,
+            HorizontalOptions=LayoutOptions.End,
+            VerticalOptions=LayoutOptions.Fill,
+            InputTransparent=true,
+        },0,0);
         if(!string.IsNullOrWhiteSpace(text)) {
             var label = new Label {
                 FontSize=12,
@@ -2562,9 +2553,10 @@ public sealed partial class MainPage:ContentPage {
                 TextColor=Color.FromArgb("#0F172A"),
                 InputTransparent=true,
                 HorizontalOptions=LayoutOptions.Fill,
-                HorizontalTextAlignment=TextAlignment.Start,
+                HorizontalTextAlignment=TextAlignment.Center,
                 VerticalTextAlignment=TextAlignment.Center,
                 LineBreakMode=LineBreakMode.TailTruncation,
+                Margin=new Thickness(4,0),
             };
             if(text==nameof(BenchmarkColumnSelectionGroup.HeaderText)) {
                 label.SetBinding(Label.TextProperty,nameof(BenchmarkColumnSelectionGroup.HeaderText));
@@ -2606,7 +2598,6 @@ public sealed partial class MainPage:ContentPage {
             HeaderTemplate=new DataTemplate(() => {
                 var header = new Grid {
                     ColumnDefinitions= {
-                        new ColumnDefinition { Width = new GridLength(BenchmarkCellCheckSlotWidth) },
                         new ColumnDefinition { Width = new GridLength(18) },
                         new ColumnDefinition { Width = GridLength.Star },
                     },
@@ -2625,7 +2616,7 @@ public sealed partial class MainPage:ContentPage {
                     LineBreakMode=LineBreakMode.TailTruncation,
                     Padding=new Thickness(2,0),
                 };
-                header.Add(measuredAt,2,0);
+                header.Add(measuredAt,1,0);
                 return header;
             }),
             CellTemplate=new DataTemplate(() => {
@@ -2646,7 +2637,6 @@ public sealed partial class MainPage:ContentPage {
                 };
                 var content = new Grid {
                     ColumnDefinitions= {
-                        new ColumnDefinition { Width = new GridLength(BenchmarkCellCheckSlotWidth) },
                         new ColumnDefinition { Width = new GridLength(18) },
                         new ColumnDefinition { Width = GridLength.Star },
                     },
@@ -2654,25 +2644,6 @@ public sealed partial class MainPage:ContentPage {
                     Padding=new Thickness(1,0),
                     VerticalOptions=LayoutOptions.Center,
                 };
-                var check = this.CreateSfCheckBox(BenchmarkCellCheckBoxWidth,BenchmarkCellCheckBoxHeight);
-                check.AutomationId="Benchmark.CellCheck."+cellPath;
-                check.InputTransparent=true;
-                check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(cellPath+"."+nameof(BenchmarkProjectCell.IsSelected),BindingMode.OneWay));
-                check.SetBinding(IsEnabledProperty,cellPath+"."+nameof(BenchmarkProjectCell.HasCase));
-                var checkHost = new Grid {
-                    BackgroundColor=Colors.Transparent,
-                    HorizontalOptions=LayoutOptions.Fill,
-                    VerticalOptions=LayoutOptions.Fill,
-                    AutomationId="Benchmark.CellCheckHost."+cellPath,
-                };
-                checkHost.Add(check,0,0);
-                var checkTap = new TapGestureRecognizer();
-                checkTap.Tapped+=(_,_) => {
-                    if(layout.BindingContext is BenchmarkTableRow row) {
-                        this.viewModel?.ToggleBenchmarkCellCheck(row,this.GetProjectFromCellPath(cellPath));
-                    }
-                };
-                checkHost.GestureRecognizers.Add(checkTap);
                 this.AddBenchmarkRowUiSelectionFill(layout);
                 this.AddBenchmarkProjectUiSelectionFill(layout,this.GetBenchmarkProjectSelectionSide(cellPath));
                 var spinner = new ActivityIndicator {
@@ -2735,10 +2706,9 @@ public sealed partial class MainPage:ContentPage {
                     }
                 };
                 detailHost.GestureRecognizers.Add(detailTap);
-                content.Add(checkHost,0,0);
-                content.Add(statusIcon,1,0);
-                content.Add(spinner,1,0);
-                content.Add(detailHost,2,0);
+                content.Add(statusIcon,0,0);
+                content.Add(spinner,0,0);
+                content.Add(detailHost,1,0);
                 layout.Add(content,1,1);
                 return layout;
             }),
@@ -2845,16 +2815,17 @@ public sealed partial class MainPage:ContentPage {
         Grid.SetRowSpan(fill,Math.Max(1,grid.RowDefinitions.Count));
     }
 
-    private DataGridTemplateColumn CreateTextColumn(string header,string property,BenchmarkGridSortColumn sortColumn,double width,TextAlignment alignment) {
+    private DataGridTemplateColumn CreateTextColumn(string header,string property,BenchmarkGridSortColumn sortColumn,double width,TextAlignment alignment,Color? backgroundColor = null) {
+        var resolvedBackgroundColor = backgroundColor??Color.FromArgb("#F1F5F9");
         return new DataGridTemplateColumn {
             MappingName=property,
             HeaderText=header,
             Width=width,
             AllowSorting=false,
-            HeaderTemplate=this.CreateHeaderTemplate(header,sortColumn),
+            HeaderTemplate=this.CreateHeaderTemplate(header,sortColumn,resolvedBackgroundColor),
             CellTemplate=new DataTemplate(() => {
                 var grid = new Grid {
-                    BackgroundColor=Colors.Transparent,
+                    BackgroundColor=backgroundColor??Colors.Transparent,
                     HorizontalOptions=LayoutOptions.Fill,
                     VerticalOptions=LayoutOptions.Fill,
                 };
@@ -2950,14 +2921,17 @@ public sealed partial class MainPage:ContentPage {
         host.GestureRecognizers.Add(pointer);
     }
 
-    private DataTemplate CreateHeaderTemplate(string text,BenchmarkGridSortColumn sortColumn) {
+    private DataTemplate CreateHeaderTemplate(string text,BenchmarkGridSortColumn sortColumn) =>
+        this.CreateHeaderTemplate(text,sortColumn,Color.FromArgb("#F1F5F9"));
+
+    private DataTemplate CreateHeaderTemplate(string text,BenchmarkGridSortColumn sortColumn,Color backgroundColor) {
         return new DataTemplate(() => {
             var grid = new Grid {
                 ColumnDefinitions= {
                     new ColumnDefinition { Width = GridLength.Star },
                     new ColumnDefinition { Width = new GridLength(12) },
                 },
-                BackgroundColor=Color.FromArgb("#F1F5F9"),
+                BackgroundColor=backgroundColor,
                 Padding=new Thickness(2,0),
             };
             var label = new Label {

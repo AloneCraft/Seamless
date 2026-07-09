@@ -102,8 +102,7 @@ internal sealed class BenchmarkUiRunRepository{
         }
 
         var isCompletedResult = string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase);
-        var isFailedResult = string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase);
-        if(!isCompletedResult&&!isFailedResult){
+        if(!isCompletedResult){
             return;
         }
 
@@ -126,6 +125,7 @@ internal sealed class BenchmarkUiRunRepository{
             item.TypeName,
             item.BenchmarkName,
             item.CpuNumber,
+            item.IsSelected,
             CreateSideWrite(item.Left),
             CreateSideWrite(item.Right))).ToArray();
         this.QueuePersistence(
@@ -366,7 +366,7 @@ internal sealed class BenchmarkUiRunRepository{
 
     public IReadOnlyList<BenchmarkGridSnapshotItem> LoadBenchmarkSnapshotItems(long runId){
         var records = this.store.ListBenchmarkSnapshotItems(runId);
-        var axisCount = ParseRunAxisCount(this.store.GetRunSettings(runId)?.ElementCounts);
+        const int axisCount = BenchmarkElementCounts.BaseElementCount;
         var items = new List<BenchmarkGridSnapshotItem>(records.Count);
         for(var index = 0;index<records.Count;index++){
             var record = records[index];
@@ -383,24 +383,12 @@ internal sealed class BenchmarkUiRunRepository{
                 record.TypeName,
                 record.BenchmarkName,
                 record.CpuNumber,
+                record.IsSelected,
                 CreateSnapshotSide(record,sourceTab.LeftProject,sourceTab.LeftAssemblyName,record.Left,axisCount),
                 CreateSnapshotSide(record,sourceTab.RightProject,sourceTab.RightAssemblyName,record.Right,axisCount)));
         }
 
         return items;
-    }
-
-    private static int ParseRunAxisCount(string? elementCounts){
-        if(string.IsNullOrWhiteSpace(elementCounts)){
-            return 0;
-        }
-
-        return elementCounts
-            .Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries)
-            .Select(static value => int.TryParse(value,System.Globalization.NumberStyles.Integer,System.Globalization.CultureInfo.InvariantCulture,out var parsed) ? parsed : 0)
-            .Where(static value => value>0)
-            .DefaultIfEmpty(0)
-            .Last();
     }
 
     private static string CreateSelectedCaseKey(BenchmarkCase benchmark) =>
@@ -473,12 +461,10 @@ internal sealed class BenchmarkUiRunRepository{
 
     private void SaveViewState(long runId,BenchmarkViewStateSnapshot snapshot){
         this.store.SaveUiViewState(runId,"SelectedSourceTab",snapshot.SelectedSourceTab);
-        this.store.SaveUiViewState(runId,"SelectedResultElementCount",snapshot.SelectedResultElementCount);
     }
 
     private static UiBenchmarkGridSideWrite CreateSideWrite(BenchmarkGridSnapshotSide side) =>
         new(
-            side.IsSelected,
             side.Status,
             side.FailureReason,
             side.MeasuredAt,
@@ -493,7 +479,6 @@ internal sealed class BenchmarkUiRunRepository{
         int axisCount){
         var resultItem = CreateResultItem(item,project,assemblyName,side,axisCount);
         return new(
-            side.IsSelected,
             side.Status,
             side.FailureReason,
             side.MeasuredAt,
@@ -614,7 +599,6 @@ internal sealed record BenchmarkViewStateSnapshot(
     string SelectedResultElementCount);
 
 internal sealed record BenchmarkGridSnapshotSide(
-    bool IsSelected,
     UiRunStatus Status,
     string FailureReason,
     DateTimeOffset? MeasuredAt,
@@ -629,6 +613,7 @@ internal sealed record BenchmarkGridSnapshotItem(
     string TypeName,
     string BenchmarkName,
     int? CpuNumber,
+    bool IsSelected,
     BenchmarkGridSnapshotSide Left,
     BenchmarkGridSnapshotSide Right);
 

@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 namespace Seamless.UI.Storage;
 
 public sealed class UiRunStore{
-    private const int SchemaVersion = 8;
+    private const int SchemaVersion = 10;
     private readonly string databasePath;
     private readonly UiRunSchemaMismatchPolicy mismatchPolicy;
     private readonly object schemaGate = new();
@@ -73,7 +73,7 @@ public sealed class UiRunStore{
         try{
             using var connection = this.OpenConnectionWithoutCreate();
             using(var legacyCommand = connection.CreateCommand()){
-                legacyCommand.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' OR (type='table' AND name IN('Apps','Runs'));";
+                legacyCommand.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('Apps','Runs');";
                 if((long)(legacyCommand.ExecuteScalar()??0L)>0L){
                     return false;
                 }
@@ -84,12 +84,16 @@ public sealed class UiRunStore{
                 SELECT
                     (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行')
                     +(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ベンチマーク項目')
-                    +(SELECT COUNT(*) FROM sqlite_master WHERE type='view')
+                    +(SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('BenchmarkPerformanceRatioHistory','BenchmarkPerformanceRatioDelta'))
                     +(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='診断カウンター')
                     +(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT IN('実行','ベンチマーク項目','診断カウンター','sqlite_sequence'))
-                    +(SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name IN('左要素数','右要素数'));
+                    +(SELECT COUNT(*) FROM pragma_table_info('実行') WHERE name IN('要素数一覧','選択要素数'))
+                    +(SELECT COUNT(*) FROM pragma_table_info('診断カウンター') WHERE name='要素数')
+                    +(SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name IN('左要素数','右要素数'))
+                    +(SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name='行チェック')
+                    +(SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name IN('左チェック','右チェック'));
                 """;
-            return (long)(command.ExecuteScalar()??-1L)==3L;
+            return (long)(command.ExecuteScalar()??-1L)==6L;
         }
         catch(SqliteException){
             return false;
@@ -124,11 +128,9 @@ public sealed class UiRunStore{
                 "作成日時" TEXT NOT NULL,
                 "更新日時" TEXT NOT NULL,
                 "実行ルート" TEXT NOT NULL DEFAULT '',
-                "要素数一覧" TEXT NOT NULL DEFAULT '',
                 "Adaptive閾値ns" REAL NOT NULL DEFAULT 0,
                 "論理CPU一覧" TEXT NOT NULL DEFAULT '',
-                "選択タブ" TEXT NOT NULL DEFAULT '',
-                "選択要素数" TEXT NOT NULL DEFAULT ''
+                "選択タブ" TEXT NOT NULL DEFAULT ''
             );
             CREATE TABLE IF NOT EXISTS "ベンチマーク項目"(
                 "実行ID" INTEGER NOT NULL,
@@ -136,13 +138,12 @@ public sealed class UiRunStore{
                 "型" TEXT NOT NULL,
                 "ベンチマーク" TEXT NOT NULL,
                 "CPU番号" INTEGER NULL,
-                "左チェック" INTEGER NOT NULL DEFAULT 0,
+                "行チェック" INTEGER NOT NULL DEFAULT 0,
                 "左状態" TEXT NOT NULL,
                 "左失敗理由" TEXT NOT NULL DEFAULT '',
                 "左日時" TEXT NULL,
                 "左時間ns" REAL NULL,
                 "左メモリバイト" INTEGER NULL,
-                "右チェック" INTEGER NOT NULL DEFAULT 0,
                 "右状態" TEXT NOT NULL,
                 "右失敗理由" TEXT NOT NULL DEFAULT '',
                 "右日時" TEXT NULL,
@@ -156,7 +157,6 @@ public sealed class UiRunStore{
                 "プロジェクト名" TEXT NOT NULL,
                 "ベンチマーク" TEXT NOT NULL,
                 "引数キー" TEXT NOT NULL DEFAULT '',
-                "要素数" INTEGER NULL,
                 "カウンター名" TEXT NOT NULL,
                 "カウンター値" REAL NOT NULL,
                 "記録日時" TEXT NOT NULL,
@@ -170,6 +170,44 @@ public sealed class UiRunStore{
                 "型",
                 "ベンチマーク"
             );
+            CREATE VIEW IF NOT EXISTS "BenchmarkPerformanceRatioHistory" AS
+            SELECT
+                r."実行ID" AS "RunId",
+                r."更新日時" AS "UpdatedAt",
+                b."タブ名" AS "SourceTab",
+                b."型" AS "Type",
+                b."ベンチマーク" AS "Benchmark",
+                b."左時間ns" AS "FLinqNs",
+                b."右時間ns" AS "ZLinqNs",
+                b."左時間ns" / NULLIF(b."右時間ns",0) AS "PerformanceRatio"
+            FROM "ベンチマーク項目" b
+            INNER JOIN "実行" r ON r."実行ID"=b."実行ID"
+            WHERE b."左状態"='完了'
+                AND b."右状態"='完了'
+                AND b."左時間ns" IS NOT NULL
+                AND b."右時間ns" IS NOT NULL;
+            CREATE VIEW IF NOT EXISTS "BenchmarkPerformanceRatioDelta" AS
+            WITH history AS (
+                SELECT
+                    h.*,
+                    LAG(h."PerformanceRatio") OVER (
+                        PARTITION BY h."SourceTab",h."Type",h."Benchmark"
+                        ORDER BY h."RunId"
+                    ) AS "PreviousPerformanceRatio"
+                FROM "BenchmarkPerformanceRatioHistory" h
+            )
+            SELECT
+                "RunId",
+                "UpdatedAt",
+                "SourceTab",
+                "Type",
+                "Benchmark",
+                "FLinqNs",
+                "ZLinqNs",
+                "PerformanceRatio",
+                "PreviousPerformanceRatio",
+                "PerformanceRatio" - "PreviousPerformanceRatio" AS "PerformanceRatioDelta"
+            FROM history;
             """);
     }
 
@@ -216,7 +254,6 @@ public sealed class UiRunStore{
         command.CommandText="""
             UPDATE "実行"
             SET "実行ルート"=$runRoot,
-                "要素数一覧"=$elementCounts,
                 "Adaptive閾値ns"=$adaptiveThreshold,
                 "論理CPU一覧"=$logicalCpus,
                 "更新日時"=$updatedAt
@@ -224,7 +261,6 @@ public sealed class UiRunStore{
             """;
         command.Parameters.AddWithValue("$runId",runId);
         command.Parameters.AddWithValue("$runRoot",runRoot);
-        command.Parameters.AddWithValue("$elementCounts",string.Join(",",elementCounts));
         command.Parameters.AddWithValue("$adaptiveThreshold",adaptiveThresholdNanoseconds);
         command.Parameters.AddWithValue("$logicalCpus",string.Join(",",logicalCpus));
         command.Parameters.AddWithValue("$updatedAt",ToText(DateTimeOffset.UtcNow));
@@ -236,14 +272,14 @@ public sealed class UiRunStore{
         using var connection = this.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText="""
-            SELECT "実行ID","実行ルート","要素数一覧","Adaptive閾値ns","論理CPU一覧"
+            SELECT "実行ID","実行ルート","Adaptive閾値ns","論理CPU一覧"
             FROM "実行"
             WHERE "実行ID"=$runId;
             """;
         command.Parameters.AddWithValue("$runId",runId);
         using var reader = command.ExecuteReader();
         return reader.Read()
-            ? new UiRunSettingsRecord(reader.GetInt64(0),reader.GetString(1),reader.GetString(2),reader.GetDouble(3),reader.GetString(4))
+            ? new UiRunSettingsRecord(reader.GetInt64(0),reader.GetString(1),reader.GetDouble(2),reader.GetString(3))
             : null;
     }
 
@@ -279,6 +315,7 @@ public sealed class UiRunStore{
                     first.TypeName,
                     first.BenchmarkName,
                     first.CpuNumber,
+                    group.Any(static item => item.IsSelected),
                     CreateDetectedSide(left),
                     CreateDetectedSide(right));
             })
@@ -296,18 +333,21 @@ public sealed class UiRunStore{
             command.CommandText="""
                 INSERT OR REPLACE INTO "ベンチマーク項目"(
                     "実行ID","タブ名","型","ベンチマーク","CPU番号",
-                    "左チェック","左状態","左失敗理由","左日時","左時間ns","左メモリバイト",
-                    "右チェック","右状態","右失敗理由","右日時","右時間ns","右メモリバイト")
+                    "行チェック",
+                    "左状態","左失敗理由","左日時","左時間ns","左メモリバイト",
+                    "右状態","右失敗理由","右日時","右時間ns","右メモリバイト")
                 VALUES(
                     $runId,$tabName,$type,$benchmark,$cpu,
-                    $leftSelected,$leftStatus,$leftFailure,$leftMeasuredAt,$leftMean,$leftAllocated,
-                    $rightSelected,$rightStatus,$rightFailure,$rightMeasuredAt,$rightMean,$rightAllocated);
+                    $rowSelected,
+                    $leftStatus,$leftFailure,$leftMeasuredAt,$leftMean,$leftAllocated,
+                    $rightStatus,$rightFailure,$rightMeasuredAt,$rightMean,$rightAllocated);
                 """;
             command.Parameters.AddWithValue("$runId",runId);
             command.Parameters.AddWithValue("$tabName",item.TabName);
             command.Parameters.AddWithValue("$type",item.TypeName);
             command.Parameters.AddWithValue("$benchmark",item.BenchmarkName);
             command.Parameters.AddWithValue("$cpu",ToDbValue(item.CpuNumber));
+            command.Parameters.AddWithValue("$rowSelected",item.IsSelected ? 1 : 0);
             AddSideParameters(command,"left",item.Left);
             AddSideParameters(command,"right",item.Right);
             command.ExecuteNonQuery();
@@ -356,15 +396,14 @@ public sealed class UiRunStore{
             command.Transaction=transaction;
             command.CommandText="""
                 INSERT INTO "診断カウンター"(
-                    "実行ID","タブ名","プロジェクト名","ベンチマーク","引数キー","要素数","カウンター名","カウンター値","記録日時")
-                VALUES($runId,$sourceTab,$project,$method,$argumentKey,$elementCount,$counterName,$counterValue,$recordedAt);
+                    "実行ID","タブ名","プロジェクト名","ベンチマーク","引数キー","カウンター名","カウンター値","記録日時")
+                VALUES($runId,$sourceTab,$project,$method,$argumentKey,$counterName,$counterValue,$recordedAt);
                 """;
             command.Parameters.AddWithValue("$runId",runId);
             command.Parameters.AddWithValue("$sourceTab",diagnostic.SourceTab);
             command.Parameters.AddWithValue("$project",diagnostic.Project);
             command.Parameters.AddWithValue("$method",diagnostic.Method);
             command.Parameters.AddWithValue("$argumentKey",diagnostic.ArgumentKey);
-            command.Parameters.AddWithValue("$elementCount",ToDbValue(diagnostic.ElementCount));
             command.Parameters.AddWithValue("$counterName",diagnostic.CounterName);
             command.Parameters.AddWithValue("$counterValue",diagnostic.CounterValue);
             command.Parameters.AddWithValue("$recordedAt",ToText(timestamp));
@@ -378,10 +417,10 @@ public sealed class UiRunStore{
         using var connection = this.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText="""
-            SELECT "実行ID","タブ名","プロジェクト名","ベンチマーク","引数キー","要素数","カウンター名","カウンター値","記録日時"
+            SELECT "実行ID","タブ名","プロジェクト名","ベンチマーク","引数キー","カウンター名","カウンター値","記録日時"
             FROM "診断カウンター"
             WHERE "実行ID"=$runId
-            ORDER BY "プロジェクト名","ベンチマーク","引数キー","要素数","カウンター名";
+            ORDER BY "プロジェクト名","ベンチマーク","引数キー","カウンター名";
             """;
         command.Parameters.AddWithValue("$runId",runId);
         using var reader = command.ExecuteReader();
@@ -393,10 +432,10 @@ public sealed class UiRunStore{
                 reader.GetString(2),
                 reader.GetString(3),
                 reader.GetString(4),
-                reader.IsDBNull(5) ? null : reader.GetInt64(5),
-                reader.GetString(6),
-                reader.GetDouble(7),
-                DateTimeOffset.Parse(reader.GetString(8),System.Globalization.CultureInfo.InvariantCulture)));
+                null,
+                reader.GetString(5),
+                reader.GetDouble(6),
+                DateTimeOffset.Parse(reader.GetString(7),System.Globalization.CultureInfo.InvariantCulture)));
         }
 
         return records;
@@ -410,7 +449,6 @@ public sealed class UiRunStore{
         this.EnsureSchema();
         var column = stateKey switch{
             "SelectedSourceTab" => "選択タブ",
-            "SelectedResultElementCount" => "選択要素数",
             _ => "",
         };
         if(string.IsNullOrWhiteSpace(column)){
@@ -500,8 +538,9 @@ public sealed class UiRunStore{
         using var command = connection.CreateCommand();
         command.CommandText="""
             SELECT "実行ID","タブ名","型","ベンチマーク","CPU番号",
-                "左チェック","左状態","左失敗理由","左日時","左時間ns","左メモリバイト",
-                "右チェック","右状態","右失敗理由","右日時","右時間ns","右メモリバイト"
+                "行チェック",
+                "左状態","左失敗理由","左日時","左時間ns","左メモリバイト",
+                "右状態","右失敗理由","右日時","右時間ns","右メモリバイト"
             FROM "ベンチマーク項目"
             WHERE "実行ID"=$runId
             ORDER BY "タブ名","型","ベンチマーク";
@@ -516,7 +555,8 @@ public sealed class UiRunStore{
                 reader.GetString(2),
                 reader.GetString(3),
                 reader.IsDBNull(4) ? null : reader.GetInt32(4),
-                ReadSide(reader,5),
+                reader.GetInt32(5)!=0,
+                ReadSide(reader,6),
                 ReadSide(reader,11)));
         }
 
@@ -530,13 +570,21 @@ public sealed class UiRunStore{
         return [];
     }
 
-    public static IReadOnlyList<string> AnalysisViewNames { get; } = ["BenchmarkFallbackDiagnostics"];
+    public static IReadOnlyList<string> AnalysisViewNames { get; } = [
+        "BenchmarkPerformanceRatioHistory",
+        "BenchmarkPerformanceRatioDelta",
+        "BenchmarkFallbackDiagnostics",
+    ];
 
     public IReadOnlyList<IReadOnlyDictionary<string,object?>> QueryAnalysisView(string viewName,int limit = 1000){
+        if(string.Equals(viewName,"BenchmarkPerformanceRatioHistory",StringComparison.OrdinalIgnoreCase)
+            ||string.Equals(viewName,"BenchmarkPerformanceRatioDelta",StringComparison.OrdinalIgnoreCase)){
+            return this.QuerySqlAnalysisView(viewName,limit);
+        }
+
         if(!string.Equals(viewName,"BenchmarkFallbackDiagnostics",StringComparison.OrdinalIgnoreCase)){
             return [];
         }
-
         return this.ListRuns()
             .SelectMany(run => this.ListFallbackDiagnostics(run.RunId))
             .OrderByDescending(static item => item.RecordedAt)
@@ -547,7 +595,6 @@ public sealed class UiRunStore{
                 ["Project"]=item.Project,
                 ["Method"]=item.Method,
                 ["ArgumentKey"]=item.ArgumentKey,
-                ["ElementCount"]=item.ElementCount,
                 ["CounterName"]=item.CounterName,
                 ["CounterValue"]=item.CounterValue,
                 ["RecordedAt"]=item.RecordedAt,
@@ -560,7 +607,7 @@ public sealed class UiRunStore{
         using var connection = this.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText="""
-            SELECT "選択タブ","選択要素数"
+            SELECT "選択タブ"
             FROM "実行"
             WHERE "実行ID"=$runId;
             """;
@@ -571,8 +618,30 @@ public sealed class UiRunStore{
         }
         var values = new List<UiViewStateRecord>();
         AddViewState(values,runId,"SelectedSourceTab",reader.GetString(0));
-        AddViewState(values,runId,"SelectedResultElementCount",reader.GetString(1));
         return values;
+    }
+
+    private IReadOnlyList<IReadOnlyDictionary<string,object?>> QuerySqlAnalysisView(string viewName,int limit){
+        this.EnsureSchema();
+        using var connection = this.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText=$"""
+            SELECT *
+            FROM "{viewName}"
+            ORDER BY "RunId" DESC
+            LIMIT $limit;
+            """;
+        command.Parameters.AddWithValue("$limit",limit);
+        using var reader = command.ExecuteReader();
+        var rows = new List<IReadOnlyDictionary<string,object?>>();
+        while(reader.Read()){
+            var values = new Dictionary<string,object?>(StringComparer.OrdinalIgnoreCase);
+            for(var i=0;i<reader.FieldCount;i++){
+                values[reader.GetName(i)]=reader.IsDBNull(i) ? null : reader.GetValue(i);
+            }
+            rows.Add(values);
+        }
+        return rows;
     }
 
     private SqliteConnection OpenConnection(){
@@ -684,11 +753,10 @@ public sealed class UiRunStore{
 
     private static UiBenchmarkGridSideWrite CreateDetectedSide(UiBenchmarkItemWrite? item){
         if(item is null){
-            return new(false,UiRunStatus.Queued,string.Empty,null,null,null);
+            return new(UiRunStatus.Queued,string.Empty,null,null,null);
         }
 
         return new(
-            item.IsSelected,
             UiRunStatus.Queued,
             string.Empty,
             null,
@@ -697,7 +765,6 @@ public sealed class UiRunStore{
     }
 
     private static void AddSideParameters(SqliteCommand command,string prefix,UiBenchmarkGridSideWrite side){
-        command.Parameters.AddWithValue("$"+prefix+"Selected",side.IsSelected ? 1 : 0);
         command.Parameters.AddWithValue("$"+prefix+"Status",ToStatusText(side.Status));
         command.Parameters.AddWithValue("$"+prefix+"Failure",side.FailureReason);
         command.Parameters.AddWithValue("$"+prefix+"MeasuredAt",ToDbValue(side.MeasuredAt));
@@ -706,16 +773,15 @@ public sealed class UiRunStore{
     }
 
     private static UiBenchmarkGridSideRecord ReadSide(SqliteDataReader reader,int offset){
-        var measuredAt = reader.IsDBNull(offset+3)
+        var measuredAt = reader.IsDBNull(offset+2)
             ? (DateTimeOffset?)null
-            : FromText(reader.GetString(offset+3));
+            : FromText(reader.GetString(offset+2));
         return new(
-            reader.GetInt32(offset)!=0,
-            FromStatusText(reader.GetString(offset+1)),
-            reader.GetString(offset+2),
+            FromStatusText(reader.GetString(offset)),
+            reader.GetString(offset+1),
             measuredAt,
-            reader.IsDBNull(offset+4) ? null : reader.GetDouble(offset+4),
-            reader.IsDBNull(offset+5) ? null : reader.GetInt64(offset+5));
+            reader.IsDBNull(offset+3) ? null : reader.GetDouble(offset+3),
+            reader.IsDBNull(offset+4) ? null : reader.GetInt64(offset+4));
     }
 
     private static long CreateLegacyRecordId(long runId,string sourceTabId,string typeFullName,string method,string side){

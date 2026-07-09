@@ -82,17 +82,17 @@ public sealed class BenchmarkUiRunRepository{
         int? cpuNumber,
         global::UI.BenchmarkGridSnapshotSide left,
         global::UI.BenchmarkGridSnapshotSide right) =>
-        new(runId,0,sourceTab.Id,typeName,benchmarkName,cpuNumber,left,right);
+        new(runId,0,sourceTab.Id,typeName,benchmarkName,cpuNumber,true,left,right);
 
     private static global::UI.BenchmarkGridSnapshotSide CompletedSide(global::UI.BenchmarkResultItem result) =>
-        new(true,UiRunStatus.Completed,string.Empty,result.StartedAt,result.MeanNanoseconds,result.AllocatedBytesValue,result);
+        new(UiRunStatus.Completed,string.Empty,result.StartedAt,result.MeanNanoseconds,result.AllocatedBytesValue,result);
 
     private static global::UI.BenchmarkGridSnapshotSide EmptySide(
         string project,
         global::UI.BenchmarkSourceTab sourceTab,
         string typeName,
         string benchmarkName) =>
-        new(false,UiRunStatus.Queued,string.Empty,null,null,null,Result(project,sourceTab,benchmarkName,0,0,typeName,string.Empty,[]));
+        new(UiRunStatus.Queued,string.Empty,null,null,null,Result(project,sourceTab,benchmarkName,0,0,typeName,string.Empty,[]));
 
     private static global::UI.BenchmarkResultItem Result(
         string project,

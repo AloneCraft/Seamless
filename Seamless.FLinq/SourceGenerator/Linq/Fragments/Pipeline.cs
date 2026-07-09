@@ -2087,12 +2087,20 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         var indexIncrement=stage.UsesIndex
             ? $"{indexName}++;\n        "
             : string.Empty;
-        var (preCode,conditionExpr)=this.FuncInvokeCondition(predicate,nameof(PipelineStageKind.TakeWhile),this.temp,arguments);
+        var localDeclarations=string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(predicate),
+            this.StaticDelegateLocalDeclarations(predicate),
+        }.Where(static text=>!string.IsNullOrEmpty(text)));
+        var localDeclarationBlock=string.IsNullOrEmpty(localDeclarations)
+            ? string.Empty
+            : localDeclarations+"\n";
+        var (preCode,conditionExpr)=this.FuncInvokeConditionStatic(predicate,nameof(PipelineStageKind.TakeWhile),this.temp,arguments);
         var predicateCheck=string.IsNullOrEmpty(preCode)
             ? $"if(!{WrapConditionExpression(conditionExpr)})"
             : $"{preCode}\n        if(!{WrapConditionExpression(conditionExpr)})";
 
         return $$"""
+            {{localDeclarationBlock}}
             using var {{sourceName}}={{source.GetEnumeratorExpression}};
             global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
             var {{spanName}}={{directSpanExpression}};
@@ -2138,7 +2146,14 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         var indexIncrement=stage.UsesIndex
             ? $"{indexName}++;\n        "
             : string.Empty;
-        var (preCode,conditionExpr)=this.FuncInvokeCondition(predicate,nameof(PipelineStageKind.SkipWhile),this.temp,arguments);
+        var localDeclarations=string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(predicate),
+            this.StaticDelegateLocalDeclarations(predicate),
+        }.Where(static text=>!string.IsNullOrEmpty(text)));
+        var localDeclarationBlock=string.IsNullOrEmpty(localDeclarations)
+            ? string.Empty
+            : localDeclarations+"\n";
+        var (preCode,conditionExpr)=this.FuncInvokeConditionStatic(predicate,nameof(PipelineStageKind.SkipWhile),this.temp,arguments);
         var predicateCheck=string.IsNullOrEmpty(preCode)
             ? $"if(!{WrapConditionExpression(conditionExpr)})"
             : $"{preCode}\n            if(!{WrapConditionExpression(conditionExpr)})";
@@ -2146,6 +2161,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         if(stage.UsesIndex) {
             var skippingName=$"__skipWhileSkipping{this.result}";
             return $$"""
+                {{localDeclarationBlock}}
                 using var {{sourceName}}={{source.GetEnumeratorExpression}};
                 global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
                 var {{spanName}}={{directSpanExpression}};
@@ -2165,6 +2181,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         }
 
         return $$"""
+            {{localDeclarationBlock}}
             using var {{sourceName}}={{source.GetEnumeratorExpression}};
             global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
             var {{spanName}}={{directSpanExpression}};

@@ -67,6 +67,17 @@ internal static class BenchmarkAnalysisViewMapper{
                     .ToArray()))
             .ToArray();
 
+    public static IReadOnlyList<BenchmarkTrendSeries> MapPerformanceRatioHistory(IReadOnlyList<IReadOnlyDictionary<string,object?>> rows,int maxSeries = 12) =>
+        rows.GroupBy(row => GetText(row,"SourceTab")+" / "+GetText(row,"Type")+" / "+GetText(row,"Benchmark"),StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(g => g.Max(row => GetDouble(row,"PerformanceRatio")))
+            .Take(maxSeries)
+            .Select(g => new BenchmarkTrendSeries(
+                g.Key,
+                g.OrderBy(row => GetDouble(row,"RunId"))
+                    .Select(row => new BenchmarkTrendPoint(GetDouble(row,"RunId"),GetDouble(row,"PerformanceRatio")))
+                    .ToArray()))
+            .ToArray();
+
     public static IReadOnlyList<BenchmarkTrendSeries> MapScaleTrend(IReadOnlyList<IReadOnlyDictionary<string,object?>> rows,int maxSeries = 8) =>
         rows.GroupBy(row => GetText(row,"Method"),StringComparer.OrdinalIgnoreCase)
             .OrderByDescending(g => g.Max(row => GetDouble(row,"AvgMeanRatio")))

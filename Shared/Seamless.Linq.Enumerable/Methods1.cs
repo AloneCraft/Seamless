@@ -54,12 +54,6 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     private static int ScopedOrDefaultCount(int defaultCount) =>
         BenchmarkExecutionMode.IsElementCountScoped ? ScopedBenchmarkElementCount : defaultCount;
 
-    private static int StaticQuarterCount(int defaultCount) =>
-        global::System.Math.Max(0,ScopedOrDefaultCount(defaultCount)/4);
-
-    private static int StaticThreeQuarterCount(int defaultCount) =>
-        global::System.Math.Max(0,ScopedOrDefaultCount(defaultCount)*3/4);
-
     private int MidpointIndex(int elementCount) =>
         global::System.Math.Max(0,this.EffectiveSourceCount(elementCount)/2);
 
@@ -655,14 +649,17 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     public void SkipWhile_indexPredicate() => this.SkipWhile_indexPredicate_Impl();
 
     [LinqIntercept(true)]
-    private void SkipWhile_indexPredicate_Impl() => this.srcCount(StreamFilterCount).AsX<T>().SkipWhile(static (x,i) => i<StaticQuarterCount(StreamFilterCount)).Consume(this.consumer);
+    private void SkipWhile_indexPredicate_Impl() {
+        var takeUntil = this.QuarterCount(StreamFilterCount);
+        this.srcCount(StreamFilterCount).AsX<T>().SkipWhile((x,i) => i<takeUntil).Consume(this.consumer);
+    }
     // [SkipWhile_predicate]
     [BenchFact, Benchmark]
     [BenchmarkCategory(Categories.Linq)]
     public void SkipWhile_predicate() => this.SkipWhile_predicate_Impl();
 
     [LinqIntercept(true)]
-    private void SkipWhile_predicate_Impl() => this.srcCount(StreamFilterCount).AsX<T>().SkipWhile(static x => LessThan(x,StaticQuarterCount(StreamFilterCount)+1)).Consume(this.consumer);
+    private void SkipWhile_predicate_Impl() => this.srcCount(StreamFilterCount).AsX<T>().SkipWhile(x => LessThan(x,this.QuarterCount(StreamFilterCount)+1)).Consume(this.consumer);
     // [Sum]
     [BenchFact, Benchmark]
     public void Sum() => this.Sum_Impl();
@@ -695,14 +692,17 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     public void TakeWhile_indexPredicate() => this.TakeWhile_indexPredicate_Impl();
 
     [LinqIntercept(true)]
-    private void TakeWhile_indexPredicate_Impl() => this.srcCount(StreamFilterCount).AsX<T>().TakeWhile(static (x,i) => i<StaticThreeQuarterCount(StreamFilterCount)).Consume(this.consumer);
+    private void TakeWhile_indexPredicate_Impl() {
+        var takeUntil = this.ThreeQuarterCount(StreamFilterCount);
+        this.srcCount(StreamFilterCount).AsX<T>().TakeWhile((x,i) => i<takeUntil).Consume(this.consumer);
+    }
     // [TakeWhile_predicate]
     [BenchFact, Benchmark]
     [BenchmarkCategory(Categories.Linq)]
     public void TakeWhile_predicate() => this.TakeWhile_predicate_Impl();
 
     [LinqIntercept(true)]
-    private void TakeWhile_predicate_Impl() => this.srcCount(StreamFilterCount).AsX<T>().TakeWhile(static x => LessThan(x,StaticThreeQuarterCount(StreamFilterCount)+1)).Consume(this.consumer);
+    private void TakeWhile_predicate_Impl() => this.srcCount(StreamFilterCount).AsX<T>().TakeWhile(x => LessThan(x,this.ThreeQuarterCount(StreamFilterCount)+1)).Consume(this.consumer);
     // [ThenBy_keySelector]
     [BenchFact, Benchmark]
     public void ThenBy_keySelector() => this.ThenBy_keySelector_Impl();

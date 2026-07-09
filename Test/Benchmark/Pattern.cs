@@ -106,8 +106,9 @@ public sealed class RunnerViewModel{
                 "int",
                 "AggregateBy_keySelector",
                 0,
-                new(true,UiRunStatus.Queued,string.Empty,null,null,null),
-                new(true,UiRunStatus.Queued,string.Empty,null,null,null)),
+                true,
+                new(UiRunStatus.Queued,string.Empty,null,null,null),
+                new(UiRunStatus.Queued,string.Empty,null,null,null)),
         ]);
     }
 
@@ -334,17 +335,37 @@ public sealed class RunnerViewModel{
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task RowCheck_RunUsesOnlyCheckedRowPairs(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        var row = viewModel.BenchmarkRows.First(static row => row.LeftCell.HasCase&&row.RightCell.HasCase);
+
+        viewModel.ToggleBenchmarkRow(row);
+
+        Assert.True(viewModel.HasSelectedBenchmarkCells);
+        Assert.True(row.IsSelected);
+        Assert.True(row.LeftCell.IsSelected);
+        Assert.True(row.RightCell.IsSelected);
+        Assert.Equal(2,GetSelectedCells(viewModel).Count);
+
+        await viewModel.RunCommand.ExecuteAsync(null);
+        await WaitUntilOrContinueAsync(() => fixture.RunService.ObservedBenchmarkCounts.Count>0);
+
+        Assert.Equal(2,fixture.RunService.ObservedBenchmarkCounts[^1]);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
     public async Task LoadedSavedDatabaseRun_ShowsOnlySelectedRowsAndRestoresCpuDisplay(){
         var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
         var viewModel = fixture.ViewModel;
         var selectedRows = viewModel.BenchmarkRows.Take(2).ToArray();
         Assert.Equal(2,selectedRows.Length);
         foreach(var row in selectedRows){
-            row.LeftCell.IsSelected=true;
+            viewModel.ToggleBenchmarkRow(row);
         }
 
         var selectedCells = GetSelectedCells(viewModel);
-        Assert.Equal(2,selectedCells.Count);
+        Assert.Equal(4,selectedCells.Count);
 
         await viewModel.RunCommand.ExecuteAsync(null);
         await WaitUntilAsync(() => selectedCells.All(IsFinalCompleted));
@@ -359,7 +380,7 @@ public sealed class RunnerViewModel{
 
         var loadedRows = viewModel.BenchmarkRows.ToArray();
         Assert.Equal(2,loadedRows.Length);
-        Assert.DoesNotContain(loadedRows,row => !row.ProjectCells.Any(static cell => cell.HasCase&&cell.IsSelected));
+        Assert.DoesNotContain(loadedRows,row => !row.IsSelected);
         Assert.All(loadedRows,row => {
             AssertLoadedRowHasPairMetrics(row);
             Assert.True(row.LeftCell.HasCpuDisplay,CreateCellMetadataMessage(viewModel,row.LeftCell));

@@ -7,12 +7,5 @@ internal interface IChartControllerContext {
     void UpdateChartCoreForController(bool preserveExistingWhenNoMeasuredPoints);
     void UpdateAllSourceTabChartsCoreForController(bool preserveExistingWhenNoMeasuredPoints);
     IReadOnlyList<RankedRatioPoint> LoadImprovementCandidatesChartDataCore();
-    IReadOnlyList<RankedRatioPoint> LoadTimeRatioWorstChartDataCore();
-    IReadOnlyList<RankedRatioPoint> LoadAllocationRatioWorstChartDataCore();
-    IReadOnlyList<CategoryRatioPoint> LoadCategorySummaryChartDataCore();
     IReadOnlyList<TrendSeries> LoadHistoryTrendChartDataCore();
-    IReadOnlyList<TrendSeries> LoadScaleTrendChartDataCore();
-    IReadOnlyList<BadgeItem> LoadMissingFailureMatrixBadgesCore();
-    IReadOnlyList<QualityGaugePoint> LoadMeasurementQualityGaugesCore();
-    IReadOnlyList<BadgeItem> LoadFallbackDiagnosticsBadgesCore();
 }

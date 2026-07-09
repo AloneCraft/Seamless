@@ -166,6 +166,13 @@ public abstract class Fragment(
             : string.Join("\n",hoistedLocals.Select(static h=>$"{h.TypeName} {h.Name}={h.ExpressionText};"));
     }
 
+    private protected string StaticDelegateLocalDeclarations(params FuncFragment[] funcs) {
+        var delegates=DistinctDelegateFuncs(funcs).ToArray();
+        return delegates.Length==0
+            ? string.Empty
+            : string.Join("\n",delegates.Select(static f=>$"{f.DelegateTypeName} {f.DelegateFieldName}={f.DelegateConstructorArg};"));
+    }
+
     private static IEnumerable<FuncFragment> DistinctDelegateFuncs(params FuncFragment[] funcs) {
         var fieldNames = new HashSet<string>(StringComparer.Ordinal);
         foreach(var func in funcs) {
