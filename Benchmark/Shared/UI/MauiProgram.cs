@@ -88,8 +88,7 @@ public static class MauiProgram {
         services.AddSingleton<IBenchmarkUiDispatcher,MauiBenchmarkUiDispatcher>();
         services.AddSingleton<IBenchmarkUiPreferences,MauiBenchmarkUiPreferences>();
         services.AddSingleton(static _ => new UiRunStore(
-            UiRunDatabasePathResolver.Resolve(FindSolutionRoot()),
-            CreateSchemaMismatchPolicy()));
+            UiRunDatabasePathResolver.Resolve(FindSolutionRoot())));
         services.AddSingleton(static provider => new RunnerViewModel(
             provider.GetRequiredService<IBenchmarkCatalogService>(),
             provider.GetRequiredService<ICpuTopologyService>(),
@@ -120,11 +119,4 @@ public static class MauiProgram {
         return null;
     }
 
-    private static UiRunSchemaMismatchPolicy CreateSchemaMismatchPolicy() {
-#if DEBUG
-        return UiRunSchemaMismatchPolicy.BackupAndRecreate;
-#else
-        return UiRunSchemaMismatchPolicy.Throw;
-#endif
-    }
 }

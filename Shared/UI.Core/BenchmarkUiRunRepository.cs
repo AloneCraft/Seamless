@@ -7,6 +7,7 @@ internal sealed class BenchmarkUiRunRepository{
     private readonly UiRunStore store;
     private readonly object queueGate = new();
     private Task queueTail = Task.CompletedTask;
+    private readonly System.Collections.Generic.HashSet<long> discardedRunIds = [];
     private readonly Action<string,Exception?> log;
 
     public BenchmarkUiRunRepository(UiRunStore store,Action<string,Exception?>? log = null){
@@ -39,7 +40,7 @@ internal sealed class BenchmarkUiRunRepository{
     }
 
     public async Task SetRunStatusAsync(long? runId,UiRunStatus status,string message){
-        if(runId is not { } value){
+        if(!this.TryGetWritableRunId(runId,out var value)){
             return;
         }
 
@@ -60,13 +61,18 @@ internal sealed class BenchmarkUiRunRepository{
         IReadOnlyList<BenchmarkSourceTabDefinition> sourceTabs,
         IReadOnlySet<string> selectedCaseKeys,
         IReadOnlyList<int> elementCounts){
-        if(runId is not { } value){
+        if(!this.TryGetWritableRunId(runId,out var value)){
             return;
         }
 
         var items = CreateDetectedBenchmarkItems(catalogCases,sourceTabs,selectedCaseKeys,elementCounts);
         this.QueuePersistence(
-            () => this.store.SaveDetectedBenchmarkItems(value,items),
+            () => {
+                if(this.IsRunDiscarded(value)){
+                    return;
+                }
+                this.store.SaveDetectedBenchmarkItems(value,items);
+            },
             "UI DB detected benchmark item save failed.");
     }
 
@@ -76,28 +82,38 @@ internal sealed class BenchmarkUiRunRepository{
     /// QueueSaveResult と同じキューに載るため書き込み順序は保証される。
     /// </summary>
     public void QueueRunStatus(long? runId,UiRunStatus status,string message){
-        if(runId is not { } value){
+        if(!this.TryGetWritableRunId(runId,out var value)){
             return;
         }
 
         this.QueuePersistence(
-            () => this.store.SetRunStatus(value,status,message),
+            () => {
+                if(this.IsRunDiscarded(value)){
+                    return;
+                }
+                this.store.SetRunStatus(value,status,message);
+            },
             "UI DB run status update failed.");
     }
 
     public void QueueSaveRunSettings(long? runId,string runRoot,IReadOnlyList<int> elementCounts,TimeSpan adaptiveThreshold,IReadOnlyList<int> logicalCpus){
-        if(runId is not { } value){
+        if(!this.TryGetWritableRunId(runId,out var value)){
             return;
         }
 
         var thresholdNanoseconds=adaptiveThreshold.TotalMilliseconds*1_000_000;
         this.QueuePersistence(
-            () => this.store.SaveRunSettings(value,runRoot,elementCounts,thresholdNanoseconds,logicalCpus),
+            () => {
+                if(this.IsRunDiscarded(value)){
+                    return;
+                }
+                this.store.SaveRunSettings(value,runRoot,elementCounts,thresholdNanoseconds,logicalCpus);
+            },
             "UI DB benchmark run settings save failed.");
     }
 
     public void QueueSaveResult(BenchmarkResultItem result,long? runId,string rowKey,BenchmarkViewStateSnapshot viewState){
-        if(runId is not { } value){
+        if(!this.TryGetWritableRunId(runId,out var value)){
             return;
         }
 
@@ -109,6 +125,9 @@ internal sealed class BenchmarkUiRunRepository{
         var snapshot = CreateResultSnapshot(result,rowKey,isCompletedResult,viewState);
         this.QueuePersistence(
             () => {
+                if(this.IsRunDiscarded(value)){
+                    return;
+                }
                 this.SaveResult(snapshot,value);
                 this.SaveResultDiagnostics(result,value);
             },
@@ -116,7 +135,7 @@ internal sealed class BenchmarkUiRunRepository{
     }
 
     public void QueueSaveBenchmarkSnapshotItems(long? runId,IReadOnlyList<BenchmarkGridSnapshotItem> items){
-        if(runId is not { } value){
+        if(!this.TryGetWritableRunId(runId,out var value)){
             return;
         }
 
@@ -129,51 +148,72 @@ internal sealed class BenchmarkUiRunRepository{
             CreateSideWrite(item.Left),
             CreateSideWrite(item.Right))).ToArray();
         this.QueuePersistence(
-            () => this.store.SaveBenchmarkSnapshotItems(value,writes),
+            () => {
+                if(this.IsRunDiscarded(value)){
+                    return;
+                }
+                this.store.SaveBenchmarkSnapshotItems(value,writes);
+            },
             "UI DB benchmark snapshot item save failed.");
     }
 
     public void QueueSaveFallbackDiagnostics(long? runId,IReadOnlyList<UiFallbackDiagnosticWrite> diagnostics){
-        if(runId is not { } value||diagnostics.Count==0){
+        if(!this.TryGetWritableRunId(runId,out var value)||diagnostics.Count==0){
             return;
         }
 
         var writes = diagnostics.ToArray();
         this.QueuePersistence(
-            () => this.store.SaveFallbackDiagnostics(value,writes),
+            () => {
+                if(this.IsRunDiscarded(value)){
+                    return;
+                }
+                this.store.SaveFallbackDiagnostics(value,writes);
+            },
             "UI DB fallback diagnostic save failed.");
     }
 
     public void QueueSaveViewState(long? runId,BenchmarkViewStateSnapshot snapshot){
-        if(runId is not { } value){
-            return;
-        }
-
-        this.QueuePersistence(
-            () => this.SaveViewState(value,snapshot),
-            "UI DB benchmark snapshot save failed.");
-    }
-
-    public void QueueSaveUiState(
-        long? runId,
-        BenchmarkViewStateSnapshot snapshot,
-        IReadOnlyList<KeyValuePair<string,bool>> cellSelections,
-        IReadOnlyList<KeyValuePair<string,bool>> rowSelections){
-        if(runId is not { } value){
+        if(!this.TryGetWritableRunId(runId,out var value)){
             return;
         }
 
         this.QueuePersistence(
             () => {
+                if(this.IsRunDiscarded(value)){
+                    return;
+                }
                 this.SaveViewState(value,snapshot);
-                foreach(var item in cellSelections){
-                    this.store.SaveUiSelection(value,"BenchmarkCell",item.Key,item.Value);
+            },
+            "UI DB benchmark snapshot save failed.");
+    }
+
+    public void QueueSaveUiState(long? runId,BenchmarkViewStateSnapshot snapshot){
+        if(!this.TryGetWritableRunId(runId,out var value)){
+            return;
+        }
+
+        this.QueuePersistence(
+            () => {
+                if(this.IsRunDiscarded(value)){
+                    return;
                 }
-                foreach(var item in rowSelections){
-                    this.store.SaveUiSelection(value,"BenchmarkRow",item.Key,item.Value);
-                }
+                this.SaveViewState(value,snapshot);
             },
             "UI DB state save failed.");
+    }
+
+    public void QueueDeleteRun(long? runId){
+        if(runId is not { } value){
+            return;
+        }
+
+        lock(this.queueGate){
+            this.discardedRunIds.Add(value);
+        }
+        this.QueuePersistence(
+            () => this.store.DeleteRun(value),
+            "UI DB run delete failed.");
     }
 
     public IReadOnlyList<BenchmarkResultItem> LoadResultItems(UiRunAppKind appKind,BenchmarkSourceTabDefinition sourceTab) =>
@@ -460,7 +500,21 @@ internal sealed class BenchmarkUiRunRepository{
     }
 
     private void SaveViewState(long runId,BenchmarkViewStateSnapshot snapshot){
-        this.store.SaveUiViewState(runId,"SelectedSourceTab",snapshot.SelectedSourceTab);
+    }
+
+    private bool TryGetWritableRunId(long? runId,out long value){
+        if(runId is not { } resolved){
+            value=0;
+            return false;
+        }
+        value=resolved;
+        return !this.IsRunDiscarded(resolved);
+    }
+
+    private bool IsRunDiscarded(long runId){
+        lock(this.queueGate){
+            return this.discardedRunIds.Contains(runId);
+        }
     }
 
     private static UiBenchmarkGridSideWrite CreateSideWrite(BenchmarkGridSnapshotSide side) =>
@@ -594,9 +648,7 @@ internal sealed class BenchmarkUiRunRepository{
         ||string.Equals(left,right,StringComparison.OrdinalIgnoreCase);
 }
 
-internal sealed record BenchmarkViewStateSnapshot(
-    string SelectedSourceTab,
-    string SelectedResultElementCount);
+internal sealed record BenchmarkViewStateSnapshot;
 
 internal sealed record BenchmarkGridSnapshotSide(
     UiRunStatus Status,

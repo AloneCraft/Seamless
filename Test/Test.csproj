@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TsavoriteTargetFramework Condition="'$(TsavoriteTargetFramework)' == ''">net10.0</TsavoriteTargetFramework>
     <TargetFrameworks>$(TsavoriteTargetFramework)</TargetFrameworks>
-    <TargetFrameworks Condition="'$(TsavoriteTargetFramework)'=='net10.0' and $([MSBuild]::IsOSPlatform('Windows'))">net10.0-windows10.0.19041.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TsavoriteTargetFramework)'=='net10.0' and $([MSBuild]::IsOSPlatform('Windows'))">net10.0-windows;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <LangVersion>preview</LangVersion>
     <Features>InterceptorsPreview</Features>
@@ -14,11 +14,12 @@
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <CompilerGeneratedFilesOutputPath>$(MSBuildProjectDirectory)\..\Work\Generated\$(MSBuildProjectName)\$(Configuration)\$(TargetFramework)</CompilerGeneratedFilesOutputPath>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetFramework)'=='net10.0-windows10.0.19041.0'">
+  <PropertyGroup Condition="'$(TargetFramework)'=='net10.0-windows'">
     <UseMaui>true</UseMaui>
     <ImplicitUsings>enable</ImplicitUsings>
     <WindowsPackageType>None</WindowsPackageType>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <TargetPlatformVersion>10.0.19041.0</TargetPlatformVersion>
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
     <EnableBenchmarkUiViewModelTests>true</EnableBenchmarkUiViewModelTests>
     <EmitCompilerGeneratedFiles>false</EmitCompilerGeneratedFiles>

@@ -3,16 +3,14 @@ using Microsoft.Data.Sqlite;
 namespace Seamless.UI.Storage;
 
 public sealed class UiRunStore{
-    private const int SchemaVersion = 12;
+    private const int SchemaVersion = 13;
     private readonly string databasePath;
-    private readonly UiRunSchemaMismatchPolicy mismatchPolicy;
     private readonly object schemaGate = new();
     private bool schemaEnsured;
 
-    public UiRunStore(string databasePath,UiRunSchemaMismatchPolicy mismatchPolicy = UiRunSchemaMismatchPolicy.Throw){
+    public UiRunStore(string databasePath){
         ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
         this.databasePath=databasePath;
-        this.mismatchPolicy=mismatchPolicy;
     }
 
     public string DatabasePath => this.databasePath;
@@ -50,15 +48,12 @@ public sealed class UiRunStore{
             return;
         }
 
-        SqliteConnection.ClearAllPools();
-        this.BackupDatabaseFile();
         if(this.HasMigratableSchemaShape()){
             return;
         }
-        SqliteConnection.ClearAllPools();
-        File.Delete(this.databasePath);
-        DeleteIfExists(this.databasePath+"-wal");
-        DeleteIfExists(this.databasePath+"-shm");
+
+        throw new InvalidOperationException(
+            "UI run database schema mismatch. Update Work\\UI\\runs.db explicitly with a manual backup before starting the application.");
     }
 
     private long ReadStoredSchemaVersion(){
@@ -97,7 +92,7 @@ public sealed class UiRunStore{
                     +(SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name='行チェック')
                     +(SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name IN('左チェック','右チェック'));
                 """;
-            return (long)(command.ExecuteScalar()??-1L)==9L;
+            return (long)(command.ExecuteScalar()??-1L)==8L;
         }
         catch(SqliteException){
             return false;
@@ -117,27 +112,11 @@ public sealed class UiRunStore{
                     +(SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name IN('左時間ns','右時間ns','左メモリバイト','右メモリバイト'))
                     +(SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name='行チェック');
                 """;
-            return (long)(command.ExecuteScalar()??-1L)==9L;
+            return (long)(command.ExecuteScalar()??-1L)==8L;
         }
         catch(SqliteException){
             return false;
         }
-    }
-
-    private static void DeleteIfExists(string path){
-        if(File.Exists(path)){
-            File.Delete(path);
-        }
-    }
-
-    private void BackupDatabaseFile(){
-        if(!File.Exists(this.databasePath)){
-            return;
-        }
-
-        var timestamp = DateTimeOffset.Now.ToString("yyyyMMddHHmmss",System.Globalization.CultureInfo.InvariantCulture);
-        var backupPath = this.databasePath+"."+timestamp+".bak";
-        File.Copy(this.databasePath,backupPath,overwrite:false);
     }
 
     private static void CreateTables(SqliteConnection connection,SqliteTransaction transaction){
@@ -149,12 +128,10 @@ public sealed class UiRunStore{
                 "状態" TEXT NOT NULL,
                 "実行プロファイル" TEXT NOT NULL,
                 "タブ名" TEXT NOT NULL,
-                "作成日時" TEXT NOT NULL,
                 "更新日時" TEXT NOT NULL,
                 "実行ルート" TEXT NOT NULL DEFAULT '',
                 "Adaptive閾値ns" REAL NOT NULL DEFAULT 0,
-                "論理CPU一覧" TEXT NOT NULL DEFAULT '',
-                "選択タブ" TEXT NOT NULL DEFAULT ''
+                "論理CPU一覧" TEXT NOT NULL DEFAULT ''
             );
             CREATE TABLE IF NOT EXISTS "ベンチマーク項目"(
                 "実行ID" INTEGER NOT NULL,
@@ -282,16 +259,6 @@ public sealed class UiRunStore{
                 "PerformanceRatio" - "PreviousPerformanceRatio" AS "PerformanceRatioDelta"
             FROM history;
             """);
-        ExecuteNonQuery(connection,transaction,"""
-            CREATE TABLE IF NOT EXISTS "UI選択"(
-                "RunId" INTEGER NOT NULL,
-                "Scope" TEXT NOT NULL,
-                "SelectionKey" TEXT NOT NULL,
-                "IsSelected" INTEGER NOT NULL,
-                "UpdatedAt" TEXT NOT NULL,
-                PRIMARY KEY("RunId","Scope","SelectionKey")
-            );
-            """);
     }
 
     public UiRunRecord CreateRun(UiRunCreateRequest request){
@@ -300,8 +267,8 @@ public sealed class UiRunStore{
         using var connection = this.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText="""
-            INSERT INTO "実行"("アプリ種別","表示名","状態","実行プロファイル","タブ名","作成日時","更新日時")
-            VALUES($appKind,$displayName,$status,$executionProfile,$sourceTab,$createdAt,$updatedAt);
+            INSERT INTO "実行"("アプリ種別","表示名","状態","実行プロファイル","タブ名","更新日時")
+            VALUES($appKind,$displayName,$status,$executionProfile,$sourceTab,$updatedAt);
             SELECT last_insert_rowid();
             """;
         command.Parameters.AddWithValue("$appKind",ToAppKindText(request.AppKind));
@@ -309,10 +276,9 @@ public sealed class UiRunStore{
         command.Parameters.AddWithValue("$status",ToStatusText(UiRunStatus.Queued));
         command.Parameters.AddWithValue("$executionProfile",request.ExecutionProfile);
         command.Parameters.AddWithValue("$sourceTab",request.SourceTab);
-        command.Parameters.AddWithValue("$createdAt",ToText(now));
         command.Parameters.AddWithValue("$updatedAt",ToText(now));
         var runId = (long)(ExecuteScalarWithLockRetry(command)??0L);
-        return new(runId,request.AppKind,request.DisplayName,UiRunStatus.Queued,request.ExecutionProfile,request.SourceTab,now,now);
+        return new(runId,request.AppKind,request.DisplayName,UiRunStatus.Queued,request.ExecutionProfile,request.SourceTab,now);
     }
 
     public void SetRunStatus(long runId,UiRunStatus status,string message = ""){
@@ -462,6 +428,25 @@ public sealed class UiRunStore{
         command.ExecuteNonQuery();
     }
 
+    public void DeleteRun(long runId){
+        this.EnsureSchema();
+        using var connection = this.OpenConnection();
+        using var transaction = BeginTransactionWithLockRetry(connection);
+        if(TableExists(connection,transaction,"UI選択")){
+            using var selectionCommand = connection.CreateCommand();
+            selectionCommand.Transaction=transaction;
+            selectionCommand.CommandText="DELETE FROM \"UI選択\" WHERE \"RunId\"=$runId;";
+            selectionCommand.Parameters.AddWithValue("$runId",runId);
+            selectionCommand.ExecuteNonQuery();
+        }
+        using var command = connection.CreateCommand();
+        command.Transaction=transaction;
+        command.CommandText="DELETE FROM \"実行\" WHERE \"実行ID\"=$runId;";
+        command.Parameters.AddWithValue("$runId",runId);
+        command.ExecuteNonQuery();
+        transaction.Commit();
+    }
+
     public void SaveMeasurement(long jobId,IReadOnlyList<UiMetricValueWrite> metrics,DateTimeOffset? measuredAt = null){
         this.EnsureSchema();
     }
@@ -524,54 +509,13 @@ public sealed class UiRunStore{
         return records;
     }
 
-    public void SaveUiSelection(long runId,string scope,string selectionKey,bool isSelected){
-        this.EnsureSchema();
-        using var connection = this.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText="""
-            INSERT INTO "UI選択"("RunId","Scope","SelectionKey","IsSelected","UpdatedAt")
-            VALUES($runId,$scope,$selectionKey,$isSelected,$updatedAt)
-            ON CONFLICT("RunId","Scope","SelectionKey") DO UPDATE SET
-                "IsSelected"=excluded."IsSelected",
-                "UpdatedAt"=excluded."UpdatedAt";
-            """;
-        command.Parameters.AddWithValue("$runId",runId);
-        command.Parameters.AddWithValue("$scope",scope);
-        command.Parameters.AddWithValue("$selectionKey",selectionKey);
-        command.Parameters.AddWithValue("$isSelected",isSelected ? 1 : 0);
-        command.Parameters.AddWithValue("$updatedAt",ToText(DateTimeOffset.UtcNow));
-        ExecuteWithLockRetry(() => command.ExecuteNonQuery());
-    }
-
-    public void SaveUiViewState(long runId,string stateKey,string stateValue){
-        this.EnsureSchema();
-        var column = stateKey switch{
-            "SelectedSourceTab" => "選択タブ",
-            _ => "",
-        };
-        if(string.IsNullOrWhiteSpace(column)){
-            return;
-        }
-        using var connection = this.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText=$"""
-            UPDATE "実行"
-            SET "{column}"=$value,"更新日時"=$updatedAt
-            WHERE "実行ID"=$runId;
-            """;
-        command.Parameters.AddWithValue("$runId",runId);
-        command.Parameters.AddWithValue("$value",stateValue);
-        command.Parameters.AddWithValue("$updatedAt",ToText(DateTimeOffset.UtcNow));
-        command.ExecuteNonQuery();
-    }
-
     public IReadOnlyList<UiRunRecord> ListRuns(UiRunAppKind? appKind = null){
         this.EnsureSchema();
         using var connection = this.OpenConnection();
         using var command = connection.CreateCommand();
         if(appKind is { } value){
             command.CommandText="""
-                SELECT "実行ID","アプリ種別","表示名","状態","実行プロファイル","タブ名","作成日時","更新日時"
+                SELECT "実行ID","アプリ種別","表示名","状態","実行プロファイル","タブ名","更新日時"
                 FROM "実行"
                 WHERE "アプリ種別"=$appKind
                 ORDER BY "更新日時" DESC,"実行ID" DESC;
@@ -579,7 +523,7 @@ public sealed class UiRunStore{
             command.Parameters.AddWithValue("$appKind",ToAppKindText(value));
         }else{
             command.CommandText="""
-                SELECT "実行ID","アプリ種別","表示名","状態","実行プロファイル","タブ名","作成日時","更新日時"
+                SELECT "実行ID","アプリ種別","表示名","状態","実行プロファイル","タブ名","更新日時"
                 FROM "実行"
                 ORDER BY "更新日時" DESC,"実行ID" DESC;
                 """;
@@ -595,8 +539,7 @@ public sealed class UiRunStore{
                 FromStatusText(reader.GetString(3)),
                 reader.GetString(4),
                 reader.GetString(5),
-                FromText(reader.GetString(6)),
-                FromText(reader.GetString(7))));
+                FromText(reader.GetString(6))));
         }
 
         return values;
@@ -663,29 +606,6 @@ public sealed class UiRunStore{
 
     public IReadOnlyList<UiComparisonRecord> ListComparisons(long runId) => [];
 
-    public IReadOnlyList<UiSelectionRecord> ListUiSelections(long runId){
-        this.EnsureSchema();
-        using var connection = this.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText="""
-            SELECT "Scope","SelectionKey","IsSelected"
-            FROM "UI選択"
-            WHERE "RunId"=$runId
-            ORDER BY "Scope","SelectionKey";
-            """;
-        command.Parameters.AddWithValue("$runId",runId);
-        using var reader = command.ExecuteReader();
-        var values = new List<UiSelectionRecord>();
-        while(reader.Read()){
-            values.Add(new(
-                runId,
-                reader.GetString(0),
-                reader.GetString(1),
-                reader.GetInt32(2)!=0));
-        }
-        return values;
-    }
-
     public static IReadOnlyList<string> AnalysisViewNames { get; } = [
         "履歴時間比",
         "基準時間比",
@@ -720,25 +640,6 @@ public sealed class UiRunStore{
                 ["RecordedAt"]=item.RecordedAt,
             })
             .ToArray();
-    }
-
-    public IReadOnlyList<UiViewStateRecord> ListUiViewStates(long runId){
-        this.EnsureSchema();
-        using var connection = this.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText="""
-            SELECT "選択タブ"
-            FROM "実行"
-            WHERE "実行ID"=$runId;
-            """;
-        command.Parameters.AddWithValue("$runId",runId);
-        using var reader = command.ExecuteReader();
-        if(!reader.Read()){
-            return [];
-        }
-        var values = new List<UiViewStateRecord>();
-        AddViewState(values,runId,"SelectedSourceTab",reader.GetString(0));
-        return values;
     }
 
     private IReadOnlyList<IReadOnlyDictionary<string,object?>> QuerySqlAnalysisView(string viewName,int limit){
@@ -794,6 +695,14 @@ public sealed class UiRunStore{
         command.Transaction=transaction;
         command.CommandText=text;
         command.ExecuteNonQuery();
+    }
+
+    private static bool TableExists(SqliteConnection connection,SqliteTransaction transaction,string tableName){
+        using var command = connection.CreateCommand();
+        command.Transaction=transaction;
+        command.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=$name;";
+        command.Parameters.AddWithValue("$name",tableName);
+        return (long)(command.ExecuteScalar()??0L)>0;
     }
 
     private static SqliteTransaction BeginTransactionWithLockRetry(SqliteConnection connection){
@@ -862,13 +771,6 @@ public sealed class UiRunStore{
         if(side.AllocatedBytes is { } allocatedBytes){
             values.Add(new(jobId,"AllocatedBytes",allocatedBytes,"bytes",measuredAt));
         }
-    }
-
-    private static void AddViewState(List<UiViewStateRecord> values,long runId,string key,string value){
-        if(string.IsNullOrWhiteSpace(value)){
-            return;
-        }
-        values.Add(new(runId,key,value));
     }
 
     private static UiBenchmarkGridSideWrite CreateDetectedSide(UiBenchmarkItemWrite? item){

@@ -1,6 +1,5 @@
 namespace Test.Benchmark;
 
-// 実行開始時の選択スナップショットと実行キュー生成が同じ規則で一致することを検証する。
 [global::Seamless.FLinq.LinqIntercept(false)]
 public sealed class BenchmarkSelectionQueueLogic{
     [Fact]
@@ -8,19 +7,18 @@ public sealed class BenchmarkSelectionQueueLogic{
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var catalog = Catalog(sourceTab.LeftProject,sourceTab.RightProject);
         {
-            //選択したセルだけがキューに入る
-            var selections = SelectCells(catalog,sourceTab,leftSelected:true,rightSelected:false);
+            var selections = SelectRows(catalog,sourceTab,true);
             var cases = global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCases(catalog,sourceTab,selections).ToArray();
-            Assert.Equal(2,cases.Length);
-            Assert.All(cases,item => Assert.Equal(sourceTab.LeftProject,item.Project));
+            Assert.Equal(4,cases.Length);
+            Assert.Contains(cases,item => item.Project==sourceTab.LeftProject);
+            Assert.Contains(cases,item => item.Project==sourceTab.RightProject);
         }
         {
-            //未選択(false)と未知キーは含めない
             var selections = new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase){
-                [global::UI.BenchmarkSelectionQueueLogic.CreateCellSelectionKey(sourceTab,"unknown-row",sourceTab.LeftProject)]=true,
+                [global::UI.BenchmarkSelectionQueueLogic.CreateRowSelectionKey(sourceTab,"unknown-row")]=true,
             };
             foreach(var row in global::UI.BenchmarkRowGroupingLogic.CreateRows(catalog,sourceTab)){
-                selections[global::UI.BenchmarkSelectionQueueLogic.CreateCellSelectionKey(sourceTab,row.RowKey,sourceTab.RightProject)]=false;
+                selections[global::UI.BenchmarkSelectionQueueLogic.CreateRowSelectionKey(sourceTab,row.RowKey)]=false;
             }
             Assert.Empty(global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCases(catalog,sourceTab,selections));
         }
@@ -33,7 +31,7 @@ public sealed class BenchmarkSelectionQueueLogic{
             new global::UI.BenchmarkCase(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"DotNet.Linq.Enumerable.FLinqInt32","Aggregate_func"),
             new global::UI.BenchmarkCase(sourceTab.RightProject,sourceTab.RightAssemblyName,"DotNet.Linq.Enumerable.ZLinqInt32","Aggregate_func"),
         };
-        var selections = SelectCells(catalog,sourceTab,leftSelected:true,rightSelected:true);
+        var selections = SelectRows(catalog,sourceTab,true);
 
         var cases = global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCases(catalog,sourceTab,selections).ToArray();
 
@@ -43,27 +41,11 @@ public sealed class BenchmarkSelectionQueueLogic{
     }
 
     [Fact]
-    public void CreateSelectedCasesCanSelectOnlySystemArrayRightProject(){
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var catalog = new[]{
-            new global::UI.BenchmarkCase(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"DotNet.Linq.Enumerable.FLinqInt32","Aggregate_func"),
-            new global::UI.BenchmarkCase(sourceTab.RightProject,sourceTab.RightAssemblyName,"DotNet.Linq.Enumerable.ZLinqInt32","Aggregate_func"),
-        };
-        var selections = SelectCells(catalog,sourceTab,leftSelected:false,rightSelected:true);
-
-        var item = Assert.Single(global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCases(catalog,sourceTab,selections));
-
-        Assert.Equal(sourceTab.RightProject,item.Project);
-        Assert.Equal(sourceTab.RightAssemblyName,item.AssemblyName);
-    }
-
-    [Fact]
     public void CreateSelectedCasesFromAllTabs(){
         {
-            //スナップショット(1回目)とキュー生成(2回目)が同一辞書から同一結果になる
             var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
             var catalog = Catalog(sourceTab.LeftProject,sourceTab.RightProject);
-            var selections = SelectCells(catalog,sourceTab,leftSelected:true,rightSelected:true);
+            var selections = SelectRows(catalog,sourceTab,true);
             var snapshot = global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCasesFromAllTabs(catalog,[sourceTab],selections);
             var queue = global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCasesFromAllTabs(catalog,[sourceTab],selections);
             Assert.Equal(4,snapshot.Count);
@@ -72,7 +54,6 @@ public sealed class BenchmarkSelectionQueueLogic{
                 queue.Select(CaseIdentity).ToArray());
         }
         {
-            //複数タブで同じプロジェクトのケースが重複しても 1 件に畳まれる
             var persisted = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SeamlessPersisted);
             var tsavorite = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SeamlessTsavorite);
             Assert.Equal(persisted.RightProject,tsavorite.RightProject);
@@ -81,17 +62,16 @@ public sealed class BenchmarkSelectionQueueLogic{
             var selections = new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase);
             foreach(var tab in new[]{ persisted,tsavorite }){
                 foreach(var row in global::UI.BenchmarkRowGroupingLogic.CreateRows(catalog,tab)){
-                    selections[global::UI.BenchmarkSelectionQueueLogic.CreateCellSelectionKey(tab,row.RowKey,persisted.RightProject)]=true;
+                    selections[global::UI.BenchmarkSelectionQueueLogic.CreateRowSelectionKey(tab,row.RowKey)]=true;
                 }
             }
             var queue = global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCasesFromAllTabs(catalog,[persisted,tsavorite],selections);
             Assert.Single(queue);
         }
         {
-            //表示中タブの差し替え(生きた行状態)が優先される
             var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
             var catalog = Catalog(sourceTab.LeftProject,sourceTab.RightProject);
-            var selections = SelectCells(catalog,sourceTab,leftSelected:true,rightSelected:true);
+            var selections = SelectRows(catalog,sourceTab,true);
             var overrideCase = new global::UI.BenchmarkCase(sourceTab.LeftProject,"Live.Assembly","Live.Type","Aggregate");
             var queue = global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCasesFromAllTabs(
                 catalog,
@@ -113,19 +93,13 @@ public sealed class BenchmarkSelectionQueueLogic{
         new(rightProject,"Right.Assembly","Right.Type","Sum"),
     ];
 
-    private static Dictionary<string,bool> SelectCells(
+    private static Dictionary<string,bool> SelectRows(
         IReadOnlyList<global::UI.BenchmarkCase> catalog,
         global::UI.BenchmarkSourceTabDefinition sourceTab,
-        bool leftSelected,
-        bool rightSelected){
+        bool selected){
         var selections = new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase);
         foreach(var row in global::UI.BenchmarkRowGroupingLogic.CreateRows(catalog,sourceTab)){
-            if(row.CasesByProject.ContainsKey(sourceTab.LeftProject)){
-                selections[global::UI.BenchmarkSelectionQueueLogic.CreateCellSelectionKey(sourceTab,row.RowKey,sourceTab.LeftProject)]=leftSelected;
-            }
-            if(row.CasesByProject.ContainsKey(sourceTab.RightProject)){
-                selections[global::UI.BenchmarkSelectionQueueLogic.CreateCellSelectionKey(sourceTab,row.RowKey,sourceTab.RightProject)]=rightSelected;
-            }
+            selections[global::UI.BenchmarkSelectionQueueLogic.CreateRowSelectionKey(sourceTab,row.RowKey)]=selected;
         }
         return selections;
     }

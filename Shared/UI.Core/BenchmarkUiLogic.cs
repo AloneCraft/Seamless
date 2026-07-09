@@ -1233,6 +1233,22 @@ internal enum BenchmarkCloseAction{
 }
 
 internal static class BenchmarkCloseDialogLogic{
+    public static bool RequiresDialog(
+        bool isBenchmarkRunActive,
+        bool isBenchmarkPaused,
+        bool hasUnsavedResults) =>
+        isBenchmarkRunActive||isBenchmarkPaused||hasUnsavedResults;
+
+    public static bool ShouldDiscardUnsavedResultsBeforeClose(
+        bool isBenchmarkRunActive,
+        bool isBenchmarkPaused,
+        bool hasUnsavedResults,
+        BenchmarkCloseAction action) =>
+        action==BenchmarkCloseAction.StopAndClose
+        &&!isBenchmarkRunActive
+        &&!isBenchmarkPaused
+        &&hasUnsavedResults;
+
     public static IReadOnlyList<(string Text,BenchmarkCloseAction Action,BenchmarkToolbarButtonRole Kind)> CreateOptions(
         bool isBenchmarkRunActive,
         bool isBenchmarkPaused,
@@ -1271,39 +1287,6 @@ internal enum BenchmarkCellSelectionGesture{
     ExtendToggle,
 }
 
-internal enum BenchmarkCellSelectionTargetKind{
-    Cell,
-    RowHeader,
-    ColumnHeader,
-    CornerHeader,
-}
-
-internal readonly record struct BenchmarkCellCoordinate(int RowIndex,int ColumnIndex);
-
-internal readonly record struct BenchmarkCellSelectionAnchor(BenchmarkCellSelectionTargetKind Kind,BenchmarkCellCoordinate Cell);
-
-internal readonly record struct BenchmarkCellSelectionTarget(
-    BenchmarkCellSelectionTargetKind Kind,
-    int RowIndex,
-    int ColumnIndex,
-    int ColumnEndIndex){
-    public static BenchmarkCellSelectionTarget Cell(int rowIndex,int columnIndex) =>
-        new(BenchmarkCellSelectionTargetKind.Cell,rowIndex,columnIndex,columnIndex);
-
-    public static BenchmarkCellSelectionTarget RowHeader(int rowIndex) =>
-        new(BenchmarkCellSelectionTargetKind.RowHeader,rowIndex,0,0);
-
-    public static BenchmarkCellSelectionTarget ColumnHeader(int columnIndex,int columnEndIndex) =>
-        new(BenchmarkCellSelectionTargetKind.ColumnHeader,0,columnIndex,columnEndIndex);
-
-    public static BenchmarkCellSelectionTarget CornerHeader() =>
-        new(BenchmarkCellSelectionTargetKind.CornerHeader,0,0,0);
-}
-
-internal sealed record BenchmarkCellSelectionResult(
-    IReadOnlySet<BenchmarkCellCoordinate> SelectedCells,
-    BenchmarkCellSelectionAnchor? Anchor);
-
 internal readonly record struct BenchmarkRowUiSelectionCell(bool HasCase,bool IsUiSelected);
 
 internal static class BenchmarkRowUiSelectionLogic{
@@ -1311,118 +1294,6 @@ internal static class BenchmarkRowUiSelectionLogic{
         var targets = cells.Where(static cell => cell.HasCase).ToArray();
         return targets.Length>0&&targets.All(static cell => cell.IsUiSelected);
     }
-}
-
-internal static class BenchmarkCellSelectionLogic{
-    public static BenchmarkCellSelectionResult Apply(
-        int rowCount,
-        int columnCount,
-        IEnumerable<BenchmarkCellCoordinate> currentSelection,
-        BenchmarkCellSelectionAnchor? currentAnchor,
-        BenchmarkCellSelectionTarget target,
-        BenchmarkCellSelectionGesture gesture){
-        var selected = currentSelection.ToHashSet();
-        if(rowCount<=0||columnCount<=0){
-            return new BenchmarkCellSelectionResult(selected,currentAnchor);
-        }
-
-        if(target.Kind==BenchmarkCellSelectionTargetKind.CornerHeader){
-            return new BenchmarkCellSelectionResult(CreateAllCells(rowCount,columnCount).ToHashSet(),currentAnchor);
-        }
-
-        var anchor = currentAnchor ?? CreateAnchor(target,rowCount,columnCount);
-        var targets = CreateTargetCells(rowCount,columnCount,anchor,target,gesture).ToArray();
-        if(targets.Length==0){
-            return new BenchmarkCellSelectionResult(selected,currentAnchor);
-        }
-
-        if(gesture==BenchmarkCellSelectionGesture.Replace||gesture==BenchmarkCellSelectionGesture.Extend){
-            selected=targets.ToHashSet();
-        }else{
-            var shouldRemove = targets.All(selected.Contains);
-            foreach(var cell in targets){
-                if(shouldRemove){
-                    selected.Remove(cell);
-                }else{
-                    selected.Add(cell);
-                }
-            }
-        }
-
-        var nextAnchor = gesture is BenchmarkCellSelectionGesture.Replace or BenchmarkCellSelectionGesture.Toggle
-            ? CreateAnchor(target,rowCount,columnCount)
-            : currentAnchor;
-        return new BenchmarkCellSelectionResult(selected,nextAnchor);
-    }
-
-    private static BenchmarkCellSelectionAnchor CreateAnchor(BenchmarkCellSelectionTarget target,int rowCount,int columnCount){
-        var row = Clamp(target.RowIndex,0,rowCount-1);
-        var column = Clamp(target.ColumnIndex,0,columnCount-1);
-        return target.Kind switch{
-            BenchmarkCellSelectionTargetKind.RowHeader => new BenchmarkCellSelectionAnchor(target.Kind,new BenchmarkCellCoordinate(row,0)),
-            BenchmarkCellSelectionTargetKind.ColumnHeader => new BenchmarkCellSelectionAnchor(target.Kind,new BenchmarkCellCoordinate(0,column)),
-            _ => new BenchmarkCellSelectionAnchor(BenchmarkCellSelectionTargetKind.Cell,new BenchmarkCellCoordinate(row,column)),
-        };
-    }
-
-    private static IEnumerable<BenchmarkCellCoordinate> CreateTargetCells(
-        int rowCount,
-        int columnCount,
-        BenchmarkCellSelectionAnchor anchor,
-        BenchmarkCellSelectionTarget target,
-        BenchmarkCellSelectionGesture gesture){
-        if(gesture is BenchmarkCellSelectionGesture.Replace or BenchmarkCellSelectionGesture.Toggle){
-            return CreateDirectTargetCells(rowCount,columnCount,target);
-        }
-
-        return target.Kind switch{
-            BenchmarkCellSelectionTargetKind.RowHeader => CreateRowHeaderRange(rowCount,columnCount,anchor,target),
-            BenchmarkCellSelectionTargetKind.ColumnHeader => CreateColumnHeaderRange(rowCount,columnCount,anchor,target),
-            _ => CreateRectangle(rowCount,columnCount,anchor.Cell,new BenchmarkCellCoordinate(target.RowIndex,target.ColumnIndex)),
-        };
-    }
-
-    private static IEnumerable<BenchmarkCellCoordinate> CreateDirectTargetCells(int rowCount,int columnCount,BenchmarkCellSelectionTarget target){
-        return target.Kind switch{
-            BenchmarkCellSelectionTargetKind.RowHeader => CreateRectangle(rowCount,columnCount,new BenchmarkCellCoordinate(target.RowIndex,0),new BenchmarkCellCoordinate(target.RowIndex,columnCount-1)),
-            BenchmarkCellSelectionTargetKind.ColumnHeader => CreateRectangle(rowCount,columnCount,new BenchmarkCellCoordinate(0,target.ColumnIndex),new BenchmarkCellCoordinate(rowCount-1,target.ColumnEndIndex)),
-            _ => CreateRectangle(rowCount,columnCount,new BenchmarkCellCoordinate(target.RowIndex,target.ColumnIndex),new BenchmarkCellCoordinate(target.RowIndex,target.ColumnIndex)),
-        };
-    }
-
-    private static IEnumerable<BenchmarkCellCoordinate> CreateRowHeaderRange(int rowCount,int columnCount,BenchmarkCellSelectionAnchor anchor,BenchmarkCellSelectionTarget target){
-        if(anchor.Kind==BenchmarkCellSelectionTargetKind.ColumnHeader){
-            return CreateRectangle(rowCount,columnCount,anchor.Cell,new BenchmarkCellCoordinate(target.RowIndex,0));
-        }
-
-        return CreateRectangle(rowCount,columnCount,new BenchmarkCellCoordinate(anchor.Cell.RowIndex,0),new BenchmarkCellCoordinate(target.RowIndex,columnCount-1));
-    }
-
-    private static IEnumerable<BenchmarkCellCoordinate> CreateColumnHeaderRange(int rowCount,int columnCount,BenchmarkCellSelectionAnchor anchor,BenchmarkCellSelectionTarget target){
-        if(anchor.Kind==BenchmarkCellSelectionTargetKind.RowHeader){
-            return CreateRectangle(rowCount,columnCount,anchor.Cell,new BenchmarkCellCoordinate(0,target.ColumnIndex));
-        }
-
-        return CreateRectangle(rowCount,columnCount,new BenchmarkCellCoordinate(0,anchor.Cell.ColumnIndex),new BenchmarkCellCoordinate(rowCount-1,target.ColumnEndIndex));
-    }
-
-    private static IEnumerable<BenchmarkCellCoordinate> CreateAllCells(int rowCount,int columnCount) =>
-        CreateRectangle(rowCount,columnCount,new BenchmarkCellCoordinate(0,0),new BenchmarkCellCoordinate(rowCount-1,columnCount-1));
-
-    private static IEnumerable<BenchmarkCellCoordinate> CreateRectangle(int rowCount,int columnCount,BenchmarkCellCoordinate first,BenchmarkCellCoordinate second){
-        var minRow = Clamp(Math.Min(first.RowIndex,second.RowIndex),0,rowCount-1);
-        var maxRow = Clamp(Math.Max(first.RowIndex,second.RowIndex),0,rowCount-1);
-        var minColumn = Clamp(Math.Min(first.ColumnIndex,second.ColumnIndex),0,columnCount-1);
-        var maxColumn = Clamp(Math.Max(first.ColumnIndex,second.ColumnIndex),0,columnCount-1);
-        for(var row=minRow;row<=maxRow;row++){
-            for(var column=minColumn;column<=maxColumn;column++){
-                yield return new BenchmarkCellCoordinate(row,column);
-            }
-        }
-    }
-
-    private static int Clamp(int value,int min,int max) =>
-        Math.Min(Math.Max(value,min),max);
 }
 
 internal sealed record CpuTableSectionDefinition(string Title,CpuCoreKind CoreKind,IReadOnlyList<CpuTableRowDefinition> Rows){

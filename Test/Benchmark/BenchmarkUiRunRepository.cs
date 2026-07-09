@@ -74,6 +74,32 @@ public sealed class BenchmarkUiRunRepository{
         Assert.Empty(loaded.ArgumentKey);
     }
 
+    [Fact]
+    public async Task QueueDeleteRun_SkipsLaterWritesForSameRun(){
+        var store = new global::Seamless.UI.Storage.UiRunStore(CreateDatabasePath());
+        var repository = new global::UI.BenchmarkUiRunRepository(store);
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var runId = await repository.CreateRunAsync(UiRunAppKind.Benchmark,"Benchmark","Fast",sourceTab.Tab);
+        var snapshot = Snapshot(
+            runId!.Value,
+            sourceTab,
+            "Sample.Type",
+            "Aggregate",
+            7,
+            CompletedSide(Result(sourceTab.LeftProject,sourceTab.Tab,"Aggregate",64,123.5,"Sample.Type","Count=64",[new global::UI.BenchmarkArgument("Count","64")])),
+            EmptySide(sourceTab.RightProject,sourceTab.Tab,"Sample.Type","Aggregate"));
+
+        repository.QueueDeleteRun(runId);
+        repository.QueueSaveRunSettings(runId,string.Empty,[64],TimeSpan.Zero,[]);
+        repository.QueueSaveBenchmarkSnapshotItems(runId,[snapshot]);
+
+        await repository.FlushAsync();
+
+        Assert.Empty(store.ListRuns(UiRunAppKind.Benchmark));
+        Assert.Empty(store.ListBenchmarkSnapshotItems(runId.Value));
+        Assert.Empty(store.ListMetrics(runId.Value));
+    }
+
     private static global::UI.BenchmarkGridSnapshotItem Snapshot(
         long runId,
         global::UI.BenchmarkSourceTabDefinition sourceTab,

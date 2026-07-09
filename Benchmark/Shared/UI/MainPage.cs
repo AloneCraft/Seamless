@@ -253,17 +253,21 @@ public sealed partial class MainPage:ContentPage {
             return true;
         }
 
-        // 結果は実行中も SQLite へ自動保存されるため、終了確認は実行中/一時停止中のときだけ出す。
         var isBenchmarkActive = this.viewModel.IsBenchmarkRunActive;
         var isBenchmarkPaused = this.viewModel.IsBenchmarkPaused;
-        if(!isBenchmarkActive&&!isBenchmarkPaused) {
+        var hasUnsavedResults = this.viewModel.HasUnsavedBenchmarkResults;
+        if(!BenchmarkCloseDialogLogic.RequiresDialog(isBenchmarkActive,isBenchmarkPaused,hasUnsavedResults)) {
             await this.viewModel.PrepareForCloseAsync();
             return true;
         }
 
-        var action = await this.ShowCloseConfirmDialogAsync(isBenchmarkActive,isBenchmarkPaused,this.viewModel.HasUnsavedBenchmarkResults);
+        var action = await this.ShowCloseConfirmDialogAsync(isBenchmarkActive,isBenchmarkPaused,hasUnsavedResults);
         if(action==BenchmarkCloseAction.Cancel) {
             return false;
+        }
+
+        if(BenchmarkCloseDialogLogic.ShouldDiscardUnsavedResultsBeforeClose(isBenchmarkActive,isBenchmarkPaused,hasUnsavedResults,action)) {
+            this.viewModel.DiscardUnsavedBenchmarkResults();
         }
 
         if(isBenchmarkActive||isBenchmarkPaused) {
@@ -594,13 +598,10 @@ public sealed partial class MainPage:ContentPage {
         runPicker.SetBinding(Picker.ItemsSourceProperty,nameof(RunnerViewModel.RunOptions));
         runPicker.SetBinding(Picker.SelectedItemProperty,nameof(RunnerViewModel.SelectedRunOption));
         runPicker.SetBinding(IsEnabledProperty,nameof(RunnerViewModel.CanSelectRunHistory));
-
-#if DEBUG
+        //DB削除アイコン
         var clearRunHistoryButton = this.CreateToolbarIconButton("delete.png","履歴消去");
         clearRunHistoryButton.SetBinding(IsEnabledProperty,nameof(RunnerViewModel.CanClearRunHistory));
         clearRunHistoryButton.Clicked+=async (_,_) => await this.ShowClearRunHistoryConfirmDialogAsync();
-#endif
-
         var grid = new Grid {
             Padding=new Thickness(8,4,8,3),
             RowDefinitions= {
@@ -638,6 +639,7 @@ public sealed partial class MainPage:ContentPage {
 #else
         grid.Add(this.ToolbarLabel("結果"),8,0);
         grid.Add(runPicker,9,0);
+        grid.Add(clearRunHistoryButton,10,0);
 #endif
         return grid;
     }
@@ -852,7 +854,6 @@ public sealed partial class MainPage:ContentPage {
         }
     }
 
-#if DEBUG
     private async Task ShowClearRunHistoryConfirmDialogAsync() {
         if(this.viewModel is null||!this.viewModel.ClearRunHistoryCommand.CanExecute(null)) {
             return;
@@ -871,7 +872,6 @@ public sealed partial class MainPage:ContentPage {
 
         await this.viewModel.ClearRunHistoryCommand.ExecuteAsync(null);
     }
-#endif
 
     private async Task ShowPausedToolbarDecisionDialogAsync(BenchmarkToolbarButtonRole role) {
         var result = await this.ShowConfirmDialogAsync(
@@ -2643,14 +2643,14 @@ public sealed partial class MainPage:ContentPage {
             VerticalOptions=LayoutOptions.Fill,
         };
         body.Add(new BoxView {
-            WidthRequest=2,
+            WidthRequest=1,
             BackgroundColor=borderColor,
             HorizontalOptions=LayoutOptions.Start,
             VerticalOptions=LayoutOptions.Fill,
             InputTransparent=true,
         },0,0);
         body.Add(new BoxView {
-            WidthRequest=2,
+            WidthRequest=1,
             BackgroundColor=borderColor,
             HorizontalOptions=LayoutOptions.End,
             VerticalOptions=LayoutOptions.Fill,
@@ -2755,7 +2755,6 @@ public sealed partial class MainPage:ContentPage {
                     VerticalOptions=LayoutOptions.Center,
                 };
                 this.AddBenchmarkRowUiSelectionFill(layout);
-                this.AddBenchmarkProjectUiSelectionFill(layout,this.GetBenchmarkProjectSelectionSide(cellPath));
                 var spinner = new ActivityIndicator {
                     WidthRequest=14,
                     HeightRequest=14,
@@ -2809,13 +2808,6 @@ public sealed partial class MainPage:ContentPage {
                 detailHost.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionTooltipText));
                 detailHost.Add(detail,0,0);
                 detailHost.Add(failureDetail,1,0);
-                var detailTap = new TapGestureRecognizer();
-                detailTap.Tapped+=(_,_) => {
-                    if(layout.BindingContext is BenchmarkTableRow row) {
-                        this.viewModel?.SelectBenchmarkCell(row,this.GetProjectFromCellPath(cellPath),CreateBenchmarkSelectionGesture());
-                    }
-                };
-                detailHost.GestureRecognizers.Add(detailTap);
                 content.Add(statusIcon,0,0);
                 content.Add(spinner,0,0);
                 content.Add(detailHost,1,0);
@@ -2880,33 +2872,13 @@ public sealed partial class MainPage:ContentPage {
                 Grid.SetColumnSpan(runningBackground,3);
                 Grid.SetRowSpan(runningBackground,3);
                 this.AddBenchmarkRowUiSelectionFill(grid);
-                this.AddBenchmarkProjectUiSelectionFill(grid,this.GetBenchmarkProjectSelectionSide(cellPath));
                 grid.Add(label,0,0);
                 Grid.SetColumnSpan(label,3);
                 Grid.SetRowSpan(label,3);
                 this.EnableHoverCellExpansion(grid,label,alignment);
-                var tap = new TapGestureRecognizer();
-                tap.Tapped+=(_,_) => {
-                    if(grid.BindingContext is BenchmarkTableRow row) {
-                        this.viewModel?.SelectBenchmarkCell(row,this.GetProjectFromCellPath(cellPath),CreateBenchmarkSelectionGesture());
-                    }
-                };
-                grid.GestureRecognizers.Add(tap);
                 return grid;
             }),
         };
-    }
-
-    private BenchmarkProjectSelectionSide GetBenchmarkProjectSelectionSide(string cellPath) =>
-        cellPath==nameof(BenchmarkTableRow.RightCell)
-            ? BenchmarkProjectSelectionSide.Right
-            : BenchmarkProjectSelectionSide.Left;
-
-    private void AddBenchmarkProjectUiSelectionFill(Grid grid,BenchmarkProjectSelectionSide side) {
-        var selectedPath = side==BenchmarkProjectSelectionSide.Right
-            ? nameof(BenchmarkTableRow.IsRightUiSelected)
-            : nameof(BenchmarkTableRow.IsLeftUiSelected);
-        this.AddBenchmarkSelectionFill(grid,selectedPath);
     }
 
     private void AddBenchmarkRowUiSelectionFill(Grid grid) {
@@ -3044,20 +3016,6 @@ public sealed partial class MainPage:ContentPage {
                 BackgroundColor=backgroundColor,
                 Padding=new Thickness(2,0),
             };
-            grid.Add(new BoxView {
-                WidthRequest=2,
-                BackgroundColor=Color.FromArgb("#CBD5E1"),
-                HorizontalOptions=LayoutOptions.Start,
-                VerticalOptions=LayoutOptions.Fill,
-                InputTransparent=true,
-            },0,0);
-            grid.Add(new BoxView {
-                WidthRequest=2,
-                BackgroundColor=Color.FromArgb("#CBD5E1"),
-                HorizontalOptions=LayoutOptions.End,
-                VerticalOptions=LayoutOptions.Fill,
-                InputTransparent=true,
-            },1,0);
             var label = new Label {
                 Text=text,
                 FontSize=10,
@@ -4338,11 +4296,6 @@ public sealed partial class MainPage:ContentPage {
     }
 }
 
-internal enum BenchmarkProjectSelectionSide {
-    Left,
-    Right,
-}
-
 internal enum BenchmarkChartSelectionTarget {
     Row,
     LeftBar,
@@ -4383,15 +4336,6 @@ internal sealed class BenchmarkChartSelectionBackgroundDrawable:IDrawable {
         foreach(var row in this.CreateLayout(points,new SizeF(dirtyRect.Width,dirtyRect.Height))) {
             if(row.Point.IsRowUiSelected) {
                 canvas.FillRectangle(row.RowSelectionRect);
-                continue;
-            }
-
-            if(row.Point.IsLeftUiSelected) {
-                canvas.FillRectangle(row.LeftSelectionRect);
-            }
-
-            if(row.Point.IsRightUiSelected) {
-                canvas.FillRectangle(row.RightSelectionRect);
             }
         }
     }
@@ -4411,12 +4355,8 @@ internal sealed class BenchmarkChartSelectionBackgroundDrawable:IDrawable {
                 return new BenchmarkChartSelectionHit(row.Point.Benchmark,BenchmarkChartSelectionTarget.Row);
             }
 
-            if(x<=row.LeftBarRect.Right) {
-                return new BenchmarkChartSelectionHit(row.Point.Benchmark,BenchmarkChartSelectionTarget.LeftBar);
-            }
-
             if(x<=row.PlotRight) {
-                return new BenchmarkChartSelectionHit(row.Point.Benchmark,BenchmarkChartSelectionTarget.RightBar);
+                return new BenchmarkChartSelectionHit(row.Point.Benchmark,BenchmarkChartSelectionTarget.Row);
             }
         }
 

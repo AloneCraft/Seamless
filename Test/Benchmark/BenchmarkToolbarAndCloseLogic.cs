@@ -211,6 +211,58 @@ public sealed class BenchmarkToolbarAndCloseLogic{
                 Assert.Equal(BenchmarkToolbarButtonRole.Pause,option.Kind);
             });
     }
+
+    [Fact]
+    public void CloseRequestRequiresDialogForUnsavedIdleResults(){
+        Assert.True(BenchmarkCloseDialogLogic.RequiresDialog(
+            isBenchmarkRunActive:false,
+            isBenchmarkPaused:false,
+            hasUnsavedResults:true));
+    }
+
+    [Fact]
+    public void CloseRequestDoesNotRequireDialogForCleanIdleState(){
+        Assert.False(BenchmarkCloseDialogLogic.RequiresDialog(
+            isBenchmarkRunActive:false,
+            isBenchmarkPaused:false,
+            hasUnsavedResults:false));
+    }
+
+    [Fact]
+    public void CloseRequestRequiresDialogForActiveOrPausedState(){
+        Assert.True(BenchmarkCloseDialogLogic.RequiresDialog(
+            isBenchmarkRunActive:true,
+            isBenchmarkPaused:false,
+            hasUnsavedResults:false));
+        Assert.True(BenchmarkCloseDialogLogic.RequiresDialog(
+            isBenchmarkRunActive:false,
+            isBenchmarkPaused:true,
+            hasUnsavedResults:false));
+    }
+
+    [Fact]
+    public void CloseRequestDiscardsOnlyWhenUnsavedIdleCloseIsAccepted(){
+        Assert.True(BenchmarkCloseDialogLogic.ShouldDiscardUnsavedResultsBeforeClose(
+            isBenchmarkRunActive:false,
+            isBenchmarkPaused:false,
+            hasUnsavedResults:true,
+            BenchmarkCloseAction.StopAndClose));
+        Assert.False(BenchmarkCloseDialogLogic.ShouldDiscardUnsavedResultsBeforeClose(
+            isBenchmarkRunActive:false,
+            isBenchmarkPaused:false,
+            hasUnsavedResults:true,
+            BenchmarkCloseAction.Cancel));
+        Assert.False(BenchmarkCloseDialogLogic.ShouldDiscardUnsavedResultsBeforeClose(
+            isBenchmarkRunActive:true,
+            isBenchmarkPaused:false,
+            hasUnsavedResults:true,
+            BenchmarkCloseAction.StopAndClose));
+        Assert.False(BenchmarkCloseDialogLogic.ShouldDiscardUnsavedResultsBeforeClose(
+            isBenchmarkRunActive:false,
+            isBenchmarkPaused:true,
+            hasUnsavedResults:true,
+            BenchmarkCloseAction.StopAndClose));
+    }
 }
 
 

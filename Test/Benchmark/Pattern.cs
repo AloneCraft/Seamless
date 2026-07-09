@@ -91,6 +91,9 @@ public sealed class RunnerViewModel{
 
         Assert.Equal(0,viewModel.SelectedRunOption?.UiRunId);
         Assert.Equal(0,viewModel.SelectedRunOption?.RunNumber);
+        Assert.Equal("新規",viewModel.SelectedRunOption?.DisplayName);
+        var selectedRunOption = viewModel.SelectedRunOption;
+        Assert.Contains(viewModel.RunOptions.ToArray(),option => ReferenceEquals(option,selectedRunOption));
         Assert.False(viewModel.IsBenchmarkPaused);
         Assert.True(viewModel.CanSelectRunHistory);
         Assert.True(viewModel.CanChangeBenchmarkConditions);
@@ -283,6 +286,101 @@ public sealed class RunnerViewModel{
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task CompletedRun_NewGridDeletesUnsavedTemporaryRun(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        viewModel.SelectAllCommand.Execute(null);
+        var targets = GetSelectedCells(viewModel);
+
+        await viewModel.RunCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
+        await WaitUntilAsync(() => fixture.Store.ListRuns(UiRunAppKind.Benchmark).Count==1);
+        var temporaryRunId = fixture.Store.ListRuns(UiRunAppKind.Benchmark).Single().RunId;
+
+        Assert.True(viewModel.CanSaveDatabase);
+        Assert.DoesNotContain(viewModel.RunOptions,option => option.UiRunId==temporaryRunId);
+
+        viewModel.NewGridCommand.Execute(null);
+
+        await WaitUntilAsync(() => fixture.Store.ListRuns(UiRunAppKind.Benchmark).All(run => run.RunId!=temporaryRunId));
+        Assert.Empty(fixture.Store.ListRuns(UiRunAppKind.Benchmark));
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task CompletedRun_SaveDatabasePromotesTemporaryRunAndKeepsSameRun(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        viewModel.SelectAllCommand.Execute(null);
+        var targets = GetSelectedCells(viewModel);
+
+        await viewModel.RunCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
+        await WaitUntilAsync(() => fixture.Store.ListRuns(UiRunAppKind.Benchmark).Count==1);
+        var temporaryRunId = fixture.Store.ListRuns(UiRunAppKind.Benchmark).Single().RunId;
+
+        await SaveCurrentRunAsync(viewModel);
+
+        var savedRun = viewModel.SelectedRunOption!;
+        await WaitUntilAsync(() => fixture.Store.ListRuns(UiRunAppKind.Benchmark).Any(run => run.RunId==temporaryRunId)
+            &&viewModel.RunOptions.Any(option => option.UiRunId==temporaryRunId));
+        Assert.True(savedRun.UiRunId>0);
+        Assert.Equal(temporaryRunId,savedRun.UiRunId);
+        Assert.Single(fixture.Store.ListRuns(UiRunAppKind.Benchmark));
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task CompletedRun_LoadSavedRunDeletesUnsavedTemporaryRun(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        viewModel.SelectAllCommand.Execute(null);
+        var firstTargets = GetSelectedCells(viewModel);
+        await viewModel.RunCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => firstTargets.All(IsFinalCompleted));
+        await SaveCurrentRunAsync(viewModel);
+        var savedRun = viewModel.SelectedRunOption!;
+
+        viewModel.NewGridCommand.Execute(null);
+        await WaitUntilAsync(() => viewModel.SelectedRunOption?.UiRunId==0);
+        viewModel.SelectAllCommand.Execute(null);
+        var secondTargets = GetSelectedCells(viewModel);
+        await viewModel.RunCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => secondTargets.All(IsFinalCompleted));
+        await WaitUntilAsync(() => fixture.Store.ListRuns(UiRunAppKind.Benchmark).Count==2);
+        var temporaryRunId = fixture.Store.ListRuns(UiRunAppKind.Benchmark)
+            .Single(run => run.RunId!=savedRun.UiRunId)
+            .RunId;
+
+        viewModel.SelectedRunOption=savedRun;
+
+        await WaitUntilAsync(() => fixture.Store.ListRuns(UiRunAppKind.Benchmark).All(run => run.RunId!=temporaryRunId)
+            &&fixture.Store.ListRuns(UiRunAppKind.Benchmark).Any(run => run.RunId==savedRun.UiRunId));
+        await WaitUntilAsync(() => !viewModel.IsRunHistoryLoading&&viewModel.CanSelectRunHistory);
+        Assert.Single(fixture.Store.ListRuns(UiRunAppKind.Benchmark));
+        Assert.Equal(savedRun.UiRunId,fixture.Store.ListRuns(UiRunAppKind.Benchmark).Single().RunId);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task CompletedRun_RerunDeletesPreviousTemporaryRun(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        viewModel.SelectAllCommand.Execute(null);
+        var firstTargets = GetSelectedCells(viewModel);
+
+        await viewModel.RunCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => firstTargets.All(IsFinalCompleted));
+        await WaitUntilAsync(() => fixture.Store.ListRuns(UiRunAppKind.Benchmark).Count==1);
+        var firstTemporaryRunId = fixture.Store.ListRuns(UiRunAppKind.Benchmark).Single().RunId;
+
+        await viewModel.RunCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => fixture.Store.ListRuns(UiRunAppKind.Benchmark).Any(run => run.RunId!=firstTemporaryRunId));
+        await WaitUntilAsync(() => fixture.Store.ListRuns(UiRunAppKind.Benchmark).All(run => run.RunId!=firstTemporaryRunId));
+
+        var remainingRun = fixture.Store.ListRuns(UiRunAppKind.Benchmark).Single();
+        Assert.NotEqual(firstTemporaryRunId,remainingRun.RunId);
+        Assert.True(viewModel.CanSaveDatabase);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
     public async Task CompletedRun_CanReloadSavedDatabaseRunAfterNewSelection(){
         var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
         var viewModel = fixture.ViewModel;
@@ -386,20 +484,24 @@ public sealed class RunnerViewModel{
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task LoadedSavedDatabaseRun_ShowsOnlySelectedRowsAndRestoresCpuDisplay(){
+    public async Task LoadedSavedDatabaseRun_ShowsAllSnapshotRowsAndRestoresCpuDisplay(){
         var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
         var viewModel = fixture.ViewModel;
-        var selectedRows = viewModel.BenchmarkRows.Take(2).ToArray();
-        Assert.Equal(2,selectedRows.Length);
+        var initialRowCount = viewModel.BenchmarkRows.Count;
+        var selectedRows = viewModel.BenchmarkRows.Take(1).ToArray();
+        Assert.Single(selectedRows);
         foreach(var row in selectedRows){
             viewModel.ToggleBenchmarkRow(row);
         }
 
         var selectedCells = GetSelectedCells(viewModel);
-        Assert.Equal(4,selectedCells.Count);
+        Assert.Equal(2,selectedCells.Count);
 
         await viewModel.RunCommand.ExecuteAsync(null);
         await WaitUntilAsync(() => selectedCells.All(IsFinalCompleted));
+        await WaitUntilAsync(() => fixture.Store.ListRuns(UiRunAppKind.Benchmark).Count==1);
+        var temporaryRunId = fixture.Store.ListRuns(UiRunAppKind.Benchmark).Single().RunId;
+        await WaitUntilAsync(() => fixture.Store.ListBenchmarkSnapshotItems(temporaryRunId).Count>selectedRows.Length);
         await SaveCurrentRunAsync(viewModel);
         var savedRun = viewModel.SelectedRunOption!;
 
@@ -410,9 +512,10 @@ public sealed class RunnerViewModel{
             &&viewModel.ResultItems.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)));
 
         var loadedRows = viewModel.BenchmarkRows.ToArray();
-        Assert.Equal(2,loadedRows.Length);
-        Assert.DoesNotContain(loadedRows,row => !row.IsSelected);
-        Assert.All(loadedRows,row => {
+        Assert.Equal(initialRowCount,loadedRows.Length);
+        Assert.Single(loadedRows,static row => row.IsSelected);
+        Assert.Contains(loadedRows,row => !row.IsSelected);
+        Assert.All(loadedRows.Where(static row => row.IsSelected),row => {
             AssertLoadedRowHasPairMetrics(row);
             Assert.True(row.LeftCell.HasCpuDisplay,CreateCellMetadataMessage(viewModel,row.LeftCell));
             Assert.True(row.RightCell.HasCpuDisplay,CreateCellMetadataMessage(viewModel,row.RightCell));
@@ -427,7 +530,7 @@ public sealed class RunnerViewModel{
         var viewModel = fixture.ViewModel;
         fixture.RunService.EmitAllElementCounts=true;
         SelectProjectGroup(viewModel,"Left");
-        Assert.All(viewModel.BenchmarkRows,row => Assert.Null(row.IsSelectionChecked));
+        Assert.All(viewModel.BenchmarkRows,row => Assert.True(row.IsSelectionChecked));
         Assert.Null(viewModel.IsAllBenchmarkSelectionChecked);
         var targets = GetSelectedCells(viewModel);
 
@@ -435,8 +538,8 @@ public sealed class RunnerViewModel{
         await WaitUntilAsync(() => viewModel.ResultItems.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)));
         Assert.All(viewModel.BenchmarkRows,row => {
             Assert.True(row.LeftCell.IsSelected);
-            Assert.False(row.RightCell.IsSelected);
-            Assert.Null(row.IsSelectionChecked);
+            Assert.True(row.RightCell.IsSelected);
+            Assert.True(row.IsSelectionChecked);
         });
         await SaveCurrentRunAsync(viewModel);
         var savedRun = viewModel.SelectedRunOption!;
@@ -451,17 +554,17 @@ public sealed class RunnerViewModel{
         Assert.Equal(savedRun.UiRunId,viewModel.SelectedRunOption?.UiRunId);
         Assert.All(viewModel.BenchmarkRows,row => {
             Assert.True(row.LeftCell.IsSelected);
-            Assert.False(row.RightCell.IsSelected);
-            Assert.Null(row.IsSelectionChecked);
+            Assert.True(row.RightCell.IsSelected);
+            Assert.True(row.IsSelectionChecked);
             Assert.True(row.IsSelected);
         });
-        Assert.Null(viewModel.IsAllBenchmarkSelectionChecked);
+        Assert.False(viewModel.IsAllBenchmarkSelectionChecked);
 
         viewModel.SelectedResultElementCount=viewModel.ResultElementCountOptions.First();
 
         Assert.Equal(savedRun.UiRunId,viewModel.SelectedRunOption?.UiRunId);
-        Assert.All(viewModel.BenchmarkRows,row => Assert.Null(row.IsSelectionChecked));
-        Assert.Null(viewModel.IsAllBenchmarkSelectionChecked);
+        Assert.All(viewModel.BenchmarkRows,row => Assert.True(row.IsSelectionChecked));
+        Assert.False(viewModel.IsAllBenchmarkSelectionChecked);
 
         viewModel.ToggleBenchmarkCellCheck(viewModel.BenchmarkRows[0],"Right");
 
@@ -544,8 +647,8 @@ public sealed class RunnerViewModel{
         Assert.All(fLinqCells,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
         Assert.All(zLinqCells,cell => Assert.Contains(cell,running));
         Assert.All(zLinqCells,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
-        Assert.Equal(fLinqCells.Length,viewModel.SelectedSourceTab.Progress.Completed);
-        Assert.Equal(fLinqCells.Length,viewModel.SelectedSourceTab.Progress.Total);
+        Assert.Equal(allObservedCells.Length,viewModel.SelectedSourceTab.Progress.Completed);
+        Assert.Equal(allObservedCells.Length,viewModel.SelectedSourceTab.Progress.Total);
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
@@ -556,15 +659,16 @@ public sealed class RunnerViewModel{
         var viewModel = fixture.ViewModel;
         SelectProjectGroup(viewModel,"Right");
         var zLinqCells = viewModel.BenchmarkRows.Select(static row => row.RightCell).Where(static cell => cell.HasCase).ToArray();
-        var running = TrackRunningIcons(zLinqCells);
+        var allObservedCells = viewModel.BenchmarkRows.SelectMany(static row => row.ProjectCells).Where(static cell => cell.HasCase).ToArray();
+        var running = TrackRunningIcons(allObservedCells);
 
         await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => zLinqCells.All(IsFinalCompleted));
+        await WaitUntilAsync(() => allObservedCells.All(IsFinalCompleted));
 
-        Assert.All(zLinqCells,cell => Assert.Contains(cell,running));
-        Assert.All(zLinqCells,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
-        Assert.Equal(zLinqCells.Length,viewModel.SelectedSourceTab.Progress.Completed);
-        Assert.Equal(zLinqCells.Length,viewModel.SelectedSourceTab.Progress.Total);
+        Assert.All(allObservedCells,cell => Assert.Contains(cell,running));
+        Assert.All(allObservedCells,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
+        Assert.Equal(allObservedCells.Length,viewModel.SelectedSourceTab.Progress.Completed);
+        Assert.Equal(allObservedCells.Length,viewModel.SelectedSourceTab.Progress.Total);
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
@@ -857,9 +961,8 @@ public sealed class RunnerViewModel{
 
         fixture.ViewModel.ToggleBenchmarkRow(row);
 
-        Assert.Null(row.IsSelectionChecked);
-        Assert.True(row.LeftCell.IsSelected);
-        Assert.False(row.RightCell.IsSelected);
+        Assert.True(row.IsSelectionChecked);
+        Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.True(cell.IsSelected));
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
@@ -902,13 +1005,13 @@ public sealed class RunnerViewModel{
 
         viewModel.ToggleAllBenchmarkSelection(arrayState.Definition);
 
-        Assert.Null(arrayState.IsBenchmarkSelectionChecked);
+        Assert.True(arrayState.IsBenchmarkSelectionChecked);
         Assert.False(rangeState.IsBenchmarkSelectionChecked);
         Assert.False(listState.IsBenchmarkSelectionChecked);
         Assert.Null(viewModel.IsAllBenchmarkSelectionChecked);
-        Assert.Null(arrayRow.IsSelectionChecked);
+        Assert.True(arrayRow.IsSelectionChecked);
         Assert.True(arrayRow.LeftCell.IsSelected);
-        Assert.False(arrayRow.RightCell.IsSelected);
+        Assert.True(arrayRow.RightCell.IsSelected);
         Assert.All(rangeState.Rows,row => {
             Assert.False(row.IsSelectionChecked);
             Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.False(cell.IsSelected));
@@ -947,16 +1050,16 @@ public sealed class RunnerViewModel{
 
         viewModel.ToggleAllBenchmarkSelection();
 
-        Assert.Null(viewModel.IsAllBenchmarkSelectionChecked);
-        Assert.Null(arrayRow.IsSelectionChecked);
-        Assert.Null(rangeRow.IsSelectionChecked);
+        Assert.True(viewModel.IsAllBenchmarkSelectionChecked);
+        Assert.True(arrayRow.IsSelectionChecked);
+        Assert.True(rangeRow.IsSelectionChecked);
         Assert.True(arrayRow.LeftCell.IsSelected);
-        Assert.False(arrayRow.RightCell.IsSelected);
-        Assert.False(rangeRow.LeftCell.IsSelected);
+        Assert.True(arrayRow.RightCell.IsSelected);
+        Assert.True(rangeRow.LeftCell.IsSelected);
         Assert.True(rangeRow.RightCell.IsSelected);
         Assert.All(listState.Rows,row => {
-            Assert.False(row.IsSelectionChecked);
-            Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.False(cell.IsSelected));
+            Assert.True(row.IsSelectionChecked);
+            Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.True(cell.IsSelected));
         });
     }
 
@@ -967,8 +1070,7 @@ public sealed class RunnerViewModel{
             }
             row.RefreshSelectionState();
         }
-        var group = viewModel.BenchmarkProjectSelectionGroups.First(group => string.Equals(group.Id,groupId,StringComparison.OrdinalIgnoreCase));
-        viewModel.ToggleBenchmarkColumnGroup(group);
+        viewModel.ToggleAllBenchmarkSelection(viewModel.SelectedSourceDefinition);
     }
 
     private static void SetRowSelection(global::UI.BenchmarkTableRow row,bool leftSelected,bool rightSelected){

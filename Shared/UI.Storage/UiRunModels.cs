@@ -1,4 +1,4 @@
-namespace Seamless.UI.Storage;
+﻿namespace Seamless.UI.Storage;
 
 public enum UiRunAppKind{
     Benchmark,
@@ -29,16 +29,8 @@ public sealed record UiRunRecord(
     UiRunStatus Status,
     string ExecutionProfile,
     string SourceTab,
-    DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
-/// <summary>スキーマ不一致(旧バージョンDB)を検出したときの扱い。</summary>
-public enum UiRunSchemaMismatchPolicy{
-    /// <summary>例外を投げる。Release/通常運用の既定。無警告にDBを破棄しない。</summary>
-    Throw,
-    /// <summary>既存DBをバックアップリネームして新規作成する。開発用。</summary>
-    BackupAndRecreate,
-}
 
 public sealed record UiCaseRecord(
     long CaseId,
@@ -179,13 +171,3 @@ public sealed record UiRunStateRecord(
     string Message,
     DateTimeOffset ChangedAt);
 
-public sealed record UiSelectionRecord(
-    long RunId,
-    string Scope,
-    string SelectionKey,
-    bool IsSelected);
-
-public sealed record UiViewStateRecord(
-    long RunId,
-    string StateKey,
-    string StateValue);

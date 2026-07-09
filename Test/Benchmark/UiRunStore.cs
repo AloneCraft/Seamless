@@ -11,18 +11,19 @@ public sealed class UiRunStoreTests{
         store.EnsureSchema();
 
         using var connection = Open(path);
-        Assert.Equal(12L,Scalar<long>(connection,"PRAGMA user_version;"));
+        Assert.Equal(13L,Scalar<long>(connection,"PRAGMA user_version;"));
         Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行';"));
         Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ベンチマーク項目';"));
-        Assert.Equal(4L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"));
+        Assert.Equal(3L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"));
         Assert.Equal(4L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
         Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name IN('項目ID','プロジェクト名','Assembly','Type','型フル名','引数キー','行キー','側','平均ns','誤差ns','標準偏差ns','割当バイト','左要素数','右要素数');"));
         Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name='行チェック';"));
         Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name IN('左チェック','右チェック');"));
+        new global::Seamless.UI.Storage.UiRunStore(path).EnsureSchema();
     }
 
     [Fact]
-    public void EnsureSchema_BackupsAndDeletesOldDatabaseFile(){
+    public void EnsureSchema_ThrowsWithoutBackupOrDeleteForOldDatabaseFile(){
         var path = CreateDatabasePath();
         using(var connection = Open(path)){
             using var command = connection.CreateCommand();
@@ -35,17 +36,18 @@ public sealed class UiRunStoreTests{
         }
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
 
-        var store = new global::Seamless.UI.Storage.UiRunStore(path,UiRunSchemaMismatchPolicy.Throw);
-        store.EnsureSchema();
+        var store = new global::Seamless.UI.Storage.UiRunStore(path);
+        var exception = Assert.Throws<InvalidOperationException>(store.EnsureSchema);
 
         using var loaded = Open(path);
-        Assert.Equal(12L,Scalar<long>(loaded,"PRAGMA user_version;"));
-        Assert.Equal(0L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='Legacy';"));
-        Assert.Contains(Directory.GetFiles(Path.GetDirectoryName(path)!),file => file.EndsWith(".bak",StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("schema mismatch",exception.Message,StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(1L,Scalar<long>(loaded,"PRAGMA user_version;"));
+        Assert.Equal(1L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='Legacy';"));
+        Assert.DoesNotContain(Directory.GetFiles(Path.GetDirectoryName(path)!),file => file.EndsWith(".bak",StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
-    public void EnsureSchema_DeletesOldShapeEvenWhenUserVersionMatches(){
+    public void EnsureSchema_ThrowsWithoutBackupOrDeleteForOldShapeEvenWhenUserVersionMatches(){
         var path = CreateDatabasePath();
         using(var connection = Open(path)){
             using var command = connection.CreateCommand();
@@ -59,16 +61,16 @@ public sealed class UiRunStoreTests{
         }
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
 
-        var store = new global::Seamless.UI.Storage.UiRunStore(path,UiRunSchemaMismatchPolicy.Throw);
-        store.EnsureSchema();
+        var store = new global::Seamless.UI.Storage.UiRunStore(path);
+        var exception = Assert.Throws<InvalidOperationException>(store.EnsureSchema);
 
         using var loaded = Open(path);
+        Assert.Contains("schema mismatch",exception.Message,StringComparison.OrdinalIgnoreCase);
         Assert.Equal(12L,Scalar<long>(loaded,"PRAGMA user_version;"));
-        Assert.Equal(1L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行';"));
-        Assert.Equal(1L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ベンチマーク項目';"));
-        Assert.Equal(1L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='診断カウンター';"));
-        Assert.Equal(0L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('Apps','Runs');"));
-        Assert.Equal(4L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
+        Assert.Equal(1L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='Apps';"));
+        Assert.Equal(1L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='Runs';"));
+        Assert.Equal(1L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name='BenchmarkFlatResults';"));
+        Assert.DoesNotContain(Directory.GetFiles(Path.GetDirectoryName(path)!),file => file.EndsWith(".bak",StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -260,25 +262,6 @@ public sealed class UiRunStoreTests{
     }
 
     [Fact]
-    public void UiViewState_UsesRunTableColumns(){
-        var path = CreateDatabasePath();
-        var store = new global::Seamless.UI.Storage.UiRunStore(path);
-        var run = store.CreateRun(new(
-            UiRunAppKind.Benchmark,
-            "Benchmark",
-            "Fast",
-            "System.Array",
-            DateTimeOffset.UtcNow));
-
-        store.SaveUiViewState(run.RunId,"SelectedSourceTab","SystemArray");
-
-        var viewStates = store.ListUiViewStates(run.RunId);
-        Assert.DoesNotContain(viewStates,item => item.StateKey=="BenchmarkProgressStateJson");
-        Assert.Contains(viewStates,item => item.StateKey=="SelectedSourceTab"&&item.StateValue=="SystemArray");
-        Assert.DoesNotContain(viewStates,item => item.StateKey=="SelectedResultElementCount");
-    }
-
-    [Fact]
     public void DeleteAllRecords_RemovesRunsAndRelatedState(){
         var path = CreateDatabasePath();
         var store = new global::Seamless.UI.Storage.UiRunStore(path);
@@ -294,13 +277,11 @@ public sealed class UiRunStoreTests{
         store.SaveFallbackDiagnostics(run.RunId,[
             new("System.Array.FLinq","Aggregate","EnumerationLoopUsed",1),
         ]);
-        store.SaveUiViewState(run.RunId,"SelectedSourceTab","SystemArray");
 
         Assert.NotEmpty(store.ListRuns());
         Assert.NotEmpty(store.ListBenchmarkSnapshotItems(run.RunId));
         Assert.NotEmpty(store.ListFallbackDiagnostics(run.RunId));
         Assert.NotEmpty(store.ListMetrics(run.RunId));
-        Assert.NotEmpty(store.ListUiViewStates(run.RunId));
 
         store.DeleteAllRecords();
 
@@ -308,7 +289,6 @@ public sealed class UiRunStoreTests{
         Assert.Empty(store.ListBenchmarkSnapshotItems(run.RunId));
         Assert.Empty(store.ListFallbackDiagnostics(run.RunId));
         Assert.Empty(store.ListMetrics(run.RunId));
-        Assert.Empty(store.ListUiViewStates(run.RunId));
     }
 
     private static Microsoft.Data.Sqlite.SqliteConnection Open(string path){
