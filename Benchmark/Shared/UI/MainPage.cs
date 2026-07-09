@@ -2511,7 +2511,7 @@ public sealed partial class MainPage:ContentPage {
 
     private DataTemplate CreateBenchmarkColumnGroupHeaderTemplate(BenchmarkColumnSelectionGroup group,BenchmarkSourceTabDefinition sourceTab) {
         return new DataTemplate(() => {
-            var body = this.CreateBenchmarkHeaderBody(nameof(BenchmarkColumnSelectionGroup.HeaderText),Color.FromArgb("#EAF3FF"),Color.FromArgb("#2563EB"));
+            var body = this.CreateBenchmarkHeaderBody(nameof(BenchmarkColumnSelectionGroup.HeaderText),Color.FromArgb("#EAF3FF"),Color.FromArgb("#CBD5E1"));
             body.BindingContext=group;
             var bodyTap = new TapGestureRecognizer();
             bodyTap.Tapped+=(_,_) => this.viewModel?.SelectBenchmarkColumnGroup(group,CreateBenchmarkSelectionGesture(),sourceTab);
@@ -2521,7 +2521,7 @@ public sealed partial class MainPage:ContentPage {
     }
 
     private DataTemplate CreateBenchmarkNeutralGroupHeaderTemplate(string text) {
-        return new DataTemplate(() => this.CreateBenchmarkHeaderBody(text,Color.FromArgb("#F8FAFC"),Color.FromArgb("#94A3B8")));
+        return new DataTemplate(() => this.CreateBenchmarkHeaderBody(text,Color.FromArgb("#F8FAFC"),Color.FromArgb("#CBD5E1")));
     }
 
     private Grid CreateBenchmarkHeaderCheckLayout(string text) {
@@ -2960,6 +2960,20 @@ public sealed partial class MainPage:ContentPage {
                 BackgroundColor=backgroundColor,
                 Padding=new Thickness(2,0),
             };
+            grid.Add(new BoxView {
+                WidthRequest=2,
+                BackgroundColor=Color.FromArgb("#CBD5E1"),
+                HorizontalOptions=LayoutOptions.Start,
+                VerticalOptions=LayoutOptions.Fill,
+                InputTransparent=true,
+            },0,0);
+            grid.Add(new BoxView {
+                WidthRequest=2,
+                BackgroundColor=Color.FromArgb("#CBD5E1"),
+                HorizontalOptions=LayoutOptions.End,
+                VerticalOptions=LayoutOptions.Fill,
+                InputTransparent=true,
+            },1,0);
             var label = new Label {
                 Text=text,
                 FontSize=10,
