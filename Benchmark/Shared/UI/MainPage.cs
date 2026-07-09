@@ -1127,25 +1127,11 @@ public sealed partial class MainPage:ContentPage {
                 badge,
             },
         };
-        void Apply() {
-            if(this.viewModel is null) {
-                text.Text="確定 0/0";
-                return;
-            }
-
-            var progress = this.viewModel.OverallSourceTabProgress;
-            text.Text="確定 "+(progress.Total<=0 ? "0/0" : progress.FractionText);
-            text.TextColor=progress.Total<=0 ? Color.FromArgb("#94A3B8") : Color.FromArgb("#334155");
-        }
-        layout.Loaded+=(_,_) => Apply();
         if(this.viewModel is not null) {
-            this.viewModel.PropertyChanged+=(_,args) => {
-                if(args.PropertyName==nameof(RunnerViewModel.OverallSourceTabProgress)) {
-                    StartupDiagnostics.BeginInvokeOnMainThread("overall source progress apply",Apply);
-                }
-            };
+            text.SetBinding(Label.TextProperty,nameof(RunnerViewModel.OverallSourceProgressSummaryText));
+        }else{
+            text.Text="確定 0/0";
         }
-        Apply();
         return layout;
     }
 
@@ -1375,10 +1361,10 @@ public sealed partial class MainPage:ContentPage {
             Padding=new Thickness(8,3),
             LineBreakMode=LineBreakMode.TailTruncation,
         };
-        if(state is not null) {
-            summary.SetBinding(Label.TextProperty,new Binding(nameof(BenchmarkSourceTabViewState.BenchmarkRatioSummaryText),source: state));
-        }else{
-            summary.SetBinding(Label.TextProperty,nameof(RunnerViewModel.BenchmarkRatioSummaryText));
+        var sourceTabOption = state is null ? this.viewModel?.SelectedSourceTab : this.viewModel?.SourceTabs.FirstOrDefault(option => option.Definition.Tab==state.Definition.Tab);
+        if(sourceTabOption is not null) {
+            summary.SetBinding(Label.TextProperty,new Binding(nameof(SourceTabOption.ProgressSummaryText),source: sourceTabOption));
+            summary.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: sourceTabOption));
         }
         grid.Add(summary,0,0);
         grid.SetColumnSpan(summary,2);

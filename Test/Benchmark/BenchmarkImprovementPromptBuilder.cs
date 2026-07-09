@@ -3,6 +3,42 @@ namespace Test.Benchmark;
 [global::Seamless.FLinq.LinqIntercept(false)]
 public sealed class BenchmarkImprovementPromptBuilder{
     [Fact]
+    public void CreateSummary_CalculatesSeparateGeometricMeansAndCounts(){
+        var rows = new[]{
+            Row("A",global::UI.RatioValue.FromNumeric(2),global::UI.RatioValue.FromNumeric(4)),
+            Row("B",global::UI.RatioValue.FromNumeric(8),global::UI.RatioValue.Missing),
+            Row("C",global::UI.RatioValue.Missing,global::UI.RatioValue.FromNumeric(16)),
+            Row("D",new global::UI.RatioValue(global::UI.RatioValueKind.Numeric,double.PositiveInfinity,"inf",global::UI.RatioJudgement.LeftLose),new global::UI.RatioValue(global::UI.RatioValueKind.Numeric,0,"0",global::UI.RatioJudgement.LeftWin)),
+        };
+
+        var summary = global::UI.BenchmarkImprovementPromptBuilder.CreateSummary(rows);
+
+        Assert.Equal(4,summary.TimeGeometricMean!.Value,6);
+        Assert.Equal(8,summary.AllocatedGeometricMean!.Value,6);
+        Assert.Equal(2,summary.TimeIncludedCount);
+        Assert.Equal(2,summary.TimeExcludedCount);
+        Assert.Equal(2,summary.AllocatedIncludedCount);
+        Assert.Equal(2,summary.AllocatedExcludedCount);
+        Assert.Equal("時間比 4.00 (対象 2 / 除外 2) / メモリ比 8.00 (対象 2 / 除外 2)",summary.DisplayText);
+        Assert.Equal("全体 時間比 4.00 (対象 2 / 除外 2) / メモリ比 8.00 (対象 2 / 除外 2)",summary.OverallDisplayText);
+        Assert.Equal("時間 4.00,メモリ 8.00MB",summary.ShortDisplayText);
+    }
+
+    [Fact]
+    public void CreateSummary_HandlesEmptyRows(){
+        var summary = global::UI.BenchmarkImprovementPromptBuilder.CreateSummary([]);
+
+        Assert.Null(summary.TimeGeometricMean);
+        Assert.Null(summary.AllocatedGeometricMean);
+        Assert.Equal(0,summary.TimeIncludedCount);
+        Assert.Equal(0,summary.TimeExcludedCount);
+        Assert.Equal(0,summary.AllocatedIncludedCount);
+        Assert.Equal(0,summary.AllocatedExcludedCount);
+        Assert.Equal("全体 時間比 - (対象 0 / 除外 0) / メモリ比 - (対象 0 / 除外 0)",summary.OverallDisplayText);
+        Assert.Equal("時間 -,メモリ -MB",summary.ShortDisplayText);
+    }
+
+    [Fact]
     public void BuildCandidates_OrdersTimeRegressionByLargestRatio(){
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var state = State(
@@ -113,4 +149,26 @@ public sealed class BenchmarkImprovementPromptBuilder{
             AllocatedBytes=allocatedBytes,
             ExitCode=0,
         };
+
+    private static global::UI.BenchmarkComparisonRow Row(string benchmark,global::UI.RatioValue timeRatio,global::UI.RatioValue allocatedRatio){
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var definition = new global::UI.ComparisonPairDefinition(
+            sourceTab.Id,
+            sourceTab.DisplayName,
+            sourceTab.DisplayName,
+            sourceTab.LeftProject,
+            sourceTab.RightProject);
+        return new global::UI.BenchmarkComparisonRow(
+            benchmark,
+            sourceTab,
+            global::UI.ProjectMetrics.Missing,
+            global::UI.ProjectMetrics.Missing){
+            PairRatio=new global::UI.PairComparison(
+                definition,
+                global::UI.ProjectMetrics.Missing,
+                global::UI.ProjectMetrics.Missing,
+                timeRatio,
+                allocatedRatio),
+        };
+    }
 }

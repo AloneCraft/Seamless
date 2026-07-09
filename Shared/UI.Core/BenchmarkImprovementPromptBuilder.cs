@@ -52,9 +52,17 @@ internal sealed record BenchmarkRatioSummary(
     int AllocatedExcludedCount){
     public string DisplayText =>
         "時間比 "+FormatRatio(this.TimeGeometricMean)
+        +" (対象 "+this.TimeIncludedCount.ToString(CultureInfo.InvariantCulture)
+        +" / 除外 "+this.TimeExcludedCount.ToString(CultureInfo.InvariantCulture)+")"
         +" / メモリ比 "+FormatRatio(this.AllocatedGeometricMean)
-        +" / 対象 "+Math.Max(this.TimeIncludedCount,this.AllocatedIncludedCount).ToString(CultureInfo.InvariantCulture)
-        +" / 除外 "+Math.Max(this.TimeExcludedCount,this.AllocatedExcludedCount).ToString(CultureInfo.InvariantCulture);
+        +" (対象 "+this.AllocatedIncludedCount.ToString(CultureInfo.InvariantCulture)
+        +" / 除外 "+this.AllocatedExcludedCount.ToString(CultureInfo.InvariantCulture)+")";
+
+    public string OverallDisplayText => "全体 "+this.DisplayText;
+
+    public string ShortDisplayText =>
+        "時間 "+FormatRatio(this.TimeGeometricMean)
+        +",メモリ "+FormatRatio(this.AllocatedGeometricMean)+"MB";
 
     private static string FormatRatio(double? value) =>
         value is { } number&&double.IsFinite(number)

@@ -673,6 +673,29 @@ public class Base<T> where T:notnull {
             return number;
         }
         if(value is string text) {
+            if(text.Length is 9) {
+                var total=0;
+                for(var i = 0;i<9;i++) {
+                    var digit = text[i]-'0';
+                    if((uint)digit > 9) {
+                        return int.Parse(text,System.Globalization.CultureInfo.InvariantCulture);
+                    }
+                    total = (total*10)+digit;
+                }
+                return total;
+            }
+            if(text.Length is 10&&text[0]=='-') {
+                var total=0;
+                for(var i = 1;i<10;i++) {
+                    var digit = text[i]-'0';
+                    if((uint)digit > 9) {
+                        return int.Parse(text,System.Globalization.CultureInfo.InvariantCulture);
+                    }
+                    total = (total*10)+digit;
+                }
+                return -total;
+            }
+
             return int.Parse(text,System.Globalization.CultureInfo.InvariantCulture);
         }
 
@@ -680,10 +703,32 @@ public class Base<T> where T:notnull {
     }
 
     private static string FormatStringValue(int value) {
-        if(value<0) {
-            return "-"+Math.Abs(value).ToString("D9",System.Globalization.CultureInfo.InvariantCulture);
+        if(value==int.MinValue) {
+            return "-2147483648";
         }
-        return value.ToString("D9",System.Globalization.CultureInfo.InvariantCulture);
+        if(value>=0) {
+            if(value>999_999_999) {
+                return value.ToString("D9",System.Globalization.CultureInfo.InvariantCulture);
+            }
+            var buffer = new char[9];
+            for(var index = 8; index >= 0; index--) {
+                buffer[index]=(char)('0'+(value%10));
+                value/=10;
+            }
+            return new string(buffer);
+        }
+        if(value<-999_999_999) {
+            return value.ToString("D9",System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        value = -value;
+        var negativeBuffer = new char[10];
+        negativeBuffer[0]='-';
+        for(var index = 9; index >= 1; index--) {
+            negativeBuffer[index]=(char)('0'+(value%10));
+            value/=10;
+        }
+        return new string(negativeBuffer);
     }
 
     [LinqIntercept(false)]

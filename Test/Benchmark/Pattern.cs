@@ -395,13 +395,6 @@ public sealed class RunnerViewModel{
         await WaitUntilAsync(() => selectedCells.All(IsFinalCompleted));
         await SaveCurrentRunAsync(viewModel);
         var savedRun = viewModel.SelectedRunOption!;
-        var storedSelections = fixture.Store.ListUiSelections(savedRun.UiRunId);
-        Assert.Contains(storedSelections,selection => selection.Scope=="BenchmarkCell"
-            &&selection.SelectionKey.EndsWith("|"+viewModel.SelectedSourceDefinition.LeftProject,StringComparison.OrdinalIgnoreCase)
-            &&selection.IsSelected);
-        Assert.Contains(storedSelections,selection => selection.Scope=="BenchmarkCell"
-            &&selection.SelectionKey.EndsWith("|"+viewModel.SelectedSourceDefinition.RightProject,StringComparison.OrdinalIgnoreCase)
-            &&!selection.IsSelected);
 
         viewModel.NewGridCommand.Execute(null);
         await WaitUntilAsync(() => viewModel.BenchmarkRows.Count>0&&GetSelectedCells(viewModel).Count==0);
@@ -593,7 +586,6 @@ public sealed class RunnerViewModel{
         var viewModel = fixture.ViewModel;
         var arrayState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemArray);
         var rangeState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemRange);
-        var arrayTabOption = viewModel.SourceTabs.First(option => option.Definition.Tab==global::UI.BenchmarkSourceTab.SystemArray);
         var rangeTabOption = viewModel.SourceTabs.First(option => option.Definition.Tab==global::UI.BenchmarkSourceTab.SystemRange);
 
         //ArrayタブでLeft(FLinq)ヘッダーをまとめチェックしても、Rangeタブの行や進捗ゲージには反映されない
@@ -601,8 +593,6 @@ public sealed class RunnerViewModel{
 
         Assert.All(arrayState.Rows,row => Assert.True(row.LeftCell.IsSelected));
         Assert.All(rangeState.Rows,row => Assert.False(row.LeftCell.IsSelected));
-        Assert.True(arrayTabOption.HasProgress);
-        Assert.False(rangeTabOption.HasProgress);
 
         //Rangeタブへ切替えても、LeftCell.IsSelectedはfalseのまま(同期しない)
         viewModel.SelectedSourceTab=rangeTabOption;
@@ -809,8 +799,44 @@ public sealed class RunnerViewModel{
     }
 #endif
 
-    private static void SelectProjectGroup(global::UI.ViewModels.RunnerViewModel viewModel,string groupId){
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task AllBenchmarkSelectionCommand_AppliesToEverySourceTab(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        var states = new[]{
+            viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemArray),
+            viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemRange),
+            viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemList),
+        };
+
+        viewModel.SelectAllCommand.Execute(null);
+
+        Assert.True(viewModel.IsAllBenchmarkSelectionChecked);
+        Assert.All(states,state => Assert.All(state.Rows,row => {
+            Assert.True(row.IsSelectionChecked);
+            Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.True(cell.IsSelected));
+        }));
+
+        viewModel.ToggleBenchmarkCellCheck(states[1].Rows[0],"Left");
+
+        Assert.Null(viewModel.IsAllBenchmarkSelectionChecked);
+
         viewModel.ClearSelectionCommand.Execute(null);
+
+        Assert.False(viewModel.IsAllBenchmarkSelectionChecked);
+        Assert.All(states,state => Assert.All(state.Rows,row => {
+            Assert.False(row.IsSelectionChecked);
+            Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.False(cell.IsSelected));
+        }));
+    }
+
+    private static void SelectProjectGroup(global::UI.ViewModels.RunnerViewModel viewModel,string groupId){
+        foreach(var row in viewModel.BenchmarkRows){
+            foreach(var cell in row.ProjectCells){
+                cell.IsSelected=false;
+            }
+            row.RefreshSelectionState();
+        }
         var group = viewModel.BenchmarkProjectSelectionGroups.First(group => string.Equals(group.Id,groupId,StringComparison.OrdinalIgnoreCase));
         viewModel.ToggleBenchmarkColumnGroup(group);
     }

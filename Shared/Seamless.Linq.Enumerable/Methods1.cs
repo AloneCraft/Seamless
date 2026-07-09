@@ -104,7 +104,20 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
 
     [LinqIntercept(true)]
     private void Aggregate_func_Impl() {
-        var result = this.srcCount(ImmediateFullScanCount).AsX<T>().Aggregate((acc,x) => Add(acc,x));
+        var source = this.srcCount(ImmediateFullScanCount).AsX<T>();
+        if(typeof(T)==typeof(string)) {
+            var aggregate = source.Aggregate((HasValue:false,Sum:0),(acc,x) => (true,acc.Sum+Number(x)));
+            if(!aggregate.HasValue) {
+                throw new InvalidOperationException("Sequence contains no elements.");
+            }
+
+            var aggregateResult = Value(aggregate.Sum);
+            this.Result=aggregateResult;
+            this.consumer.Consume(aggregateResult);
+            return;
+        }
+
+        var result = source.Aggregate((acc,x) => Add(acc,x));
         this.Result=result;
         this.consumer.Consume(result);
     }

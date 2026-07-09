@@ -963,6 +963,28 @@ internal static class BenchmarkRowCompletionLogic{
         return HasCompletedMaxElementCount(measurementArray,selectedCells,maxElementCount);
     }
 
+    public static bool IsTabFinalCompleted(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        IEnumerable<BenchmarkTabProgressCell> selectedCells,
+        int maxElementCount,
+        double thresholdNanoseconds){
+        var measurementArray = measurements as BenchmarkElementMeasurement[]??measurements.ToArray();
+        var cells = selectedCells.Where(static cell => cell.IsSelected).ToArray();
+        if(cells.Length==0){
+            return false;
+        }
+
+        return cells.All(cell =>
+            BenchmarkPairCompletionLogic.HasCompletedMeasurementForCell(measurementArray,cell,maxElementCount)
+            ||BenchmarkPairCompletionLogic.IsCellTerminal(
+                measurementArray,
+                cells,
+                cell,
+                cell.Project,
+                ResolvePairProject(cells,cell),
+                thresholdNanoseconds));
+    }
+
     private static bool HasCompletedMaxElementCount(
         IEnumerable<BenchmarkElementMeasurement> measurements,
         IReadOnlyList<BenchmarkTabProgressCell> selectedCells,
@@ -977,6 +999,17 @@ internal static class BenchmarkRowCompletionLogic{
 
     private static string CreateSyntheticPairKey(string method,string typeFullName,string argumentKey) =>
         string.Join("|",method,typeFullName,argumentKey);
+
+    private static string ResolvePairProject(IEnumerable<BenchmarkTabProgressCell> cells,BenchmarkTabProgressCell cell){
+        foreach(var candidate in cells){
+            if(!string.Equals(candidate.Project,cell.Project,StringComparison.OrdinalIgnoreCase)
+                &&string.Equals(candidate.PairKey,cell.PairKey,StringComparison.OrdinalIgnoreCase)){
+                return candidate.Project;
+            }
+        }
+
+        return cell.Project;
+    }
 }
 
 internal static class BenchmarkSkippedDisplayLogic{

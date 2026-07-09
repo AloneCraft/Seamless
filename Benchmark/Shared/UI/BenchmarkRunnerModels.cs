@@ -156,6 +156,7 @@ public sealed class SourceTabOption:TabHeaderOptionBase{
     private BenchmarkTabProgress progress;
     private bool isRunning;
     private bool isFinalCompleted;
+    private string benchmarkRatioSummaryShortText = BenchmarkImprovementPromptBuilder.CreateSummary([]).ShortDisplayText;
 
     public SourceTabOption(BenchmarkSourceTabDefinition definition){
         this.Definition=definition;
@@ -176,6 +177,7 @@ public sealed class SourceTabOption:TabHeaderOptionBase{
                 this.OnPropertyChanged(nameof(this.CompletionIconSource));
                 this.OnPropertyChanged(nameof(this.ProgressFraction));
                 this.OnPropertyChanged(nameof(this.ProgressText));
+                this.OnPropertyChanged(nameof(this.ProgressSummaryText));
                 this.OnPropertyChanged(nameof(this.ProgressTooltipText));
                 this.OnPropertyChanged(nameof(this.ProgressOutlineColor));
             }
@@ -199,9 +201,17 @@ public sealed class SourceTabOption:TabHeaderOptionBase{
         : BenchmarkStatusImageNames.Completed;
     public double ProgressFraction => this.Progress.Total<=0 ? 0 : this.Progress.Fraction;
     public string ProgressText => this.Progress.Total<=0 ? "0/0" : this.Progress.FractionText;
-    public string ProgressTooltipText => this.IsRunning
-        ? "実行中 "+this.ProgressText
-        : this.IsCompleted ? "完了 "+this.ProgressText : "確定 "+this.ProgressText;
+    public string BenchmarkRatioSummaryShortText{
+        get => this.benchmarkRatioSummaryShortText;
+        private set{
+            if(this.SetProperty(ref this.benchmarkRatioSummaryShortText,value)){
+                this.OnPropertyChanged(nameof(this.ProgressSummaryText));
+                this.OnPropertyChanged(nameof(this.ProgressTooltipText));
+            }
+        }
+    }
+    public string ProgressSummaryText => this.CreateProgressPrefix()+","+this.BenchmarkRatioSummaryShortText;
+    public string ProgressTooltipText => this.ProgressSummaryText;
     public Color ProgressOutlineColor => this.IsRunning
         ? RunningIndicatorColor
         : this.IsCompleted ? CompletedProgressOutlineColor : DefaultProgressOutlineColor;
@@ -210,12 +220,21 @@ public sealed class SourceTabOption:TabHeaderOptionBase{
         private set{
             if(this.SetProperty(ref this.isRunning,value)){
                 this.OnPropertyChanged(nameof(this.ProgressOutlineColor));
+                this.OnPropertyChanged(nameof(this.ProgressSummaryText));
                 this.OnPropertyChanged(nameof(this.ProgressTooltipText));
                 this.OnPropertyChanged(nameof(this.IsCompletionIconVisible));
                 this.OnPropertyChanged(nameof(this.CompletionIconSource));
             }
         }
     }
+
+    public void SetBenchmarkRatioSummaryShortText(string value){
+        this.BenchmarkRatioSummaryShortText=value;
+    }
+
+    private string CreateProgressPrefix() => this.IsRunning
+        ? "実行中 "+this.ProgressText
+        : this.IsCompleted ? "完了 "+this.ProgressText : "確定 "+this.ProgressText;
 
     public void SetProgress(BenchmarkTabProgress value){
         this.Progress=value;

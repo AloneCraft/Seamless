@@ -210,6 +210,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// improvementCandidateSummaryText フィールドです。
     /// </summary>
     private string improvementCandidateSummaryText = string.Empty;
+    private string overallBenchmarkRatioSummaryText = BenchmarkImprovementPromptBuilder.CreateSummary([]).OverallDisplayText;
+    private string overallBenchmarkRatioSummaryShortText = BenchmarkImprovementPromptBuilder.CreateSummary([]).ShortDisplayText;
     /// <summary>
     /// generatedCodeAuditReport フィールドです。
     /// </summary>
@@ -766,7 +768,11 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <value>OverallSourceTabProgress の値を取得/設定します。</value>
     public BenchmarkTabProgress OverallSourceTabProgress {
         get => this.overallSourceTabProgress;
-        private set => this.SetProperty(ref this.overallSourceTabProgress,value);
+        private set{
+            if(this.SetProperty(ref this.overallSourceTabProgress,value)){
+                this.OnPropertyChanged(nameof(this.OverallSourceProgressSummaryText));
+            }
+        }
     }
     /// <summary>
     /// ExecutionProfiles プロパティです。
@@ -1900,6 +1906,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
             ? state
             : this.sourceTabViewStates[0];
 
+    private SourceTabOption GetSourceTabOption(BenchmarkSourceTab sourceTab) =>
+        this.SourceTabs.FirstOrDefault(option => option.Definition.Tab==sourceTab)??this.SourceTabs[0];
+
     /// <summary>
     /// GetAllBenchmarkRows メソッドを実行し、結果を算出して返却します。
     /// </summary>
@@ -2161,6 +2170,19 @@ public sealed partial class RunnerViewModel:ObservableObject {
         var selected = GetSelectionState(cells) is not true;
         this.SetBenchmarkCells(cells,selected,tab);
     }
+
+    public string OverallBenchmarkRatioSummaryText {
+        get => this.overallBenchmarkRatioSummaryText;
+        private set{
+            if(this.SetProperty(ref this.overallBenchmarkRatioSummaryText,value)){
+                this.OnPropertyChanged(nameof(this.OverallSourceProgressSummaryText));
+            }
+        }
+    }
+
+    public string OverallSourceProgressSummaryText =>
+        "確定 "+(this.OverallSourceTabProgress.Total<=0 ? "0/0" : this.OverallSourceTabProgress.FractionText)
+        +","+this.overallBenchmarkRatioSummaryShortText;
 
     /// <summary>
     /// ToggleBenchmarkRow メソッドを実行し、副作用として内部状態を更新または描画反映します。
@@ -2529,8 +2551,10 @@ public sealed partial class RunnerViewModel:ObservableObject {
             return;
         }
 
-        var tab = sourceTab??this.SelectedSourceDefinition;
-        this.SetBenchmarkRows(this.GetBenchmarkRows(tab).Where(static row => row.ProjectCells.Any(static cell => cell.HasCase)),selected);
+        var rows = sourceTab is { } tab
+            ? this.GetBenchmarkRows(tab).Where(static row => row.ProjectCells.Any(static cell => cell.HasCase))
+            : this.GetAllBenchmarkRows().Where(static row => row.ProjectCells.Any(static cell => cell.HasCase));
+        this.SetBenchmarkRows(rows,selected);
     }
 
     private void SetBenchmarkRows(IEnumerable<BenchmarkTableRow> rows,bool selected) {
@@ -2761,9 +2785,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
     }
 
-    // BenchmarkColumnSelectionGroups/BenchmarkProjectSelectionGroups と IsAllBenchmarkSelectionChecked は
-    // 全Sourceタブの見た目ヘッダーで共有されるインスタンスのため、常に「現在表示中のSourceタブ」の
-    // チェック状態だけを反映する。他タブの選択状態をここに混ぜると、タブ間でチェック表示が同期して見える。
+    // 列/プロジェクトヘッダーは現在タブだけを反映する。左上の全体チェックは全Sourceタブを対象にする。
     /// <summary>
     /// RefreshBenchmarkSelectionAggregates メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
@@ -2778,8 +2800,10 @@ public sealed partial class RunnerViewModel:ObservableObject {
         foreach(var group in this.BenchmarkProjectSelectionGroups) {
             group.IsChecked=GetSelectionState(this.GetBenchmarkCells(group.ColumnKeys,currentTab));
         }
-        var currentTabRows = this.GetBenchmarkRows(currentTab).Where(static row => row.ProjectCells.Any(static cell => cell.HasCase)).ToArray();
-        this.IsAllBenchmarkSelectionChecked=GetRowSelectionState(currentTabRows);
+        var allRows = this.GetAllBenchmarkRows()
+            .Where(static row => row.ProjectCells.Any(static cell => cell.HasCase))
+            .ToArray();
+        this.IsAllBenchmarkSelectionChecked=GetRowSelectionState(allRows);
         this.HasSelectedBenchmarkCells=this.HasAnySelectedBenchmarkCell();
         this.RefreshSourceTabProgresses();
     }
@@ -3991,6 +4015,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                         UiThreadBudget.Measure("comparison-apply",() => {
                             for(var index = 0; index<tabInputs.Length; index++) {
                                 tabInputs[index].State.ComparisonRows=computed[index];
+                                this.RefreshBenchmarkRatioSummary(tabInputs[index].State);
                             }
                             // 新しいComparisonRowsを行/スキップセル/完了状態/チャートへ反映する。もう次のtickが
                             // 来ない(停止中Run閲覧時など)場合でもここで確定させないと表示が更新されないまま残る。
@@ -4046,6 +4071,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 state.Definition,
                 selectedElementCount,
                 this.CreateReportRowsForComparison);
+            this.RefreshBenchmarkRatioSummary(state);
         }
 
         this.comparisonRows=this.SelectedSourceTabViewState.ComparisonRows;
@@ -6321,12 +6347,14 @@ public sealed partial class RunnerViewModel:ObservableObject {
         foreach(var state in this.sourceTabViewStates) {
             state.ComparisonRows= [];
             state.BenchmarkRatioSummaryText=string.Empty;
+            this.GetSourceTabOption(state.Definition.Tab).SetBenchmarkRatioSummaryShortText(BenchmarkImprovementPromptBuilder.CreateSummary([]).ShortDisplayText);
             state.ChartPoints.Clear();
             this.UpdateChartEmptyReason(state,[],[]);
             state.LatencyHotspotRows.Clear();
             state.AllocationDiagnosticRows.Clear();
             state.CpuTimelineRows.Clear();
         }
+        this.RefreshOverallBenchmarkRatioSummary();
         this.OnPropertyChanged(nameof(this.BenchmarkRatioSummaryText));
         this.OnPropertyChanged(nameof(this.ChartPoints));
         this.OnPropertyChanged(nameof(this.ChartEmptyReasonText));
@@ -6347,6 +6375,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
         this.CurrentElementCountText="-";
         this.ClearBenchmarkResultDisplays();
         this.BenchmarkRatioSummaryText=string.Empty;
+        this.GetSourceTabOption(this.SelectedSourceDefinition.Tab).SetBenchmarkRatioSummaryShortText(BenchmarkImprovementPromptBuilder.CreateSummary([]).ShortDisplayText);
+        this.RefreshOverallBenchmarkRatioSummary();
         this.RefreshImprovementPrompt();
         this.RefreshSourceTabProgresses();
         this.RefreshToolbarCommandStates();
@@ -6363,6 +6393,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
         this.CurrentElementCountText="-";
         this.ClearBenchmarkResultDisplays();
         this.BenchmarkRatioSummaryText=string.Empty;
+        this.GetSourceTabOption(this.SelectedSourceDefinition.Tab).SetBenchmarkRatioSummaryShortText(BenchmarkImprovementPromptBuilder.CreateSummary([]).ShortDisplayText);
+        this.RefreshOverallBenchmarkRatioSummary();
         this.ImprovementPromptText=string.Empty;
         this.RefreshSourceTabProgresses();
         this.RefreshToolbarCommandStates();
@@ -6519,9 +6551,21 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     /// <param name="state">state を指定して実行条件を制御します。</param>
     private void RefreshBenchmarkRatioSummary(BenchmarkSourceTabViewState state) {
-        state.BenchmarkRatioSummaryText=BenchmarkImprovementPromptBuilder.CreateSummary(state.ComparisonRows).DisplayText;
+        var summary = BenchmarkImprovementPromptBuilder.CreateSummary(state.ComparisonRows);
+        state.BenchmarkRatioSummaryText=summary.DisplayText;
+        this.GetSourceTabOption(state.Definition.Tab).SetBenchmarkRatioSummaryShortText(summary.ShortDisplayText);
+        this.RefreshOverallBenchmarkRatioSummary();
         if(state==this.SelectedSourceTabViewState) {
             this.OnPropertyChanged(nameof(this.BenchmarkRatioSummaryText));
+        }
+    }
+
+    private void RefreshOverallBenchmarkRatioSummary() {
+        var summary = BenchmarkImprovementPromptBuilder.CreateSummary(this.sourceTabViewStates.SelectMany(static state => state.ComparisonRows).ToArray());
+        this.OverallBenchmarkRatioSummaryText=summary.OverallDisplayText;
+        if(this.overallBenchmarkRatioSummaryShortText!=summary.ShortDisplayText){
+            this.overallBenchmarkRatioSummaryShortText=summary.ShortDisplayText;
+            this.OnPropertyChanged(nameof(this.OverallSourceProgressSummaryText));
         }
     }
 
@@ -8021,7 +8065,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                     input.Option,
                     input.Rows,
                     completed,
-                    IsTabFinalCompleted(measurements,input.Rows,input.MaxElementCount));
+                    IsTabFinalCompleted(measurements,input.Rows,input.MaxElementCount,thresholdNanoseconds));
             })
             .ToArray())
             .ContinueWith(task => {
@@ -8087,7 +8131,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                     this.ApplyMeasuredCellFinalCompletionFallback(
                         rows,
                         ComputeFinalCompletionStates(measurements,rows,pairs,maxElementCount,thresholdNanoseconds)),
-                    IsTabFinalCompleted(measurements,rows,maxElementCount));
+                    IsTabFinalCompleted(measurements,rows,maxElementCount,thresholdNanoseconds));
             })
             .ToArray();
         foreach(var completedTab in completedTabs) {
@@ -8223,30 +8267,14 @@ public sealed partial class RunnerViewModel:ObservableObject {
         return results;
     }
 
-    private static bool IsTabFinalCompleted(BenchmarkElementMeasurement[] measurements,BenchmarkTableRow[] rows,int maxElementCount) {
-        if(maxElementCount<=0){
-            return false;
-        }
-
-        var hasTarget=false;
-        foreach(var row in rows) {
-            foreach(var cell in row.ProjectCells) {
-                if(!row.IsSelected||!cell.HasCase) {
-                    continue;
-                }
-
-                hasTarget=true;
-                if(!BenchmarkPairCompletionLogic.HasCompletedMeasurementForCell(
-                    measurements,
-                    CreateProgressCell(row,cell.Project,true),
-                    maxElementCount)) {
-                    return false;
-                }
-            }
-        }
-
-        return hasTarget;
-    }
+    private static bool IsTabFinalCompleted(BenchmarkElementMeasurement[] measurements,BenchmarkTableRow[] rows,int maxElementCount,double thresholdNanoseconds) =>
+        BenchmarkRowCompletionLogic.IsTabFinalCompleted(
+            measurements,
+            rows.SelectMany(static row => row.ProjectCells
+                .Where(static cell => cell.HasCase&&cell.IsSelected)
+                .Select(cell => CreateProgressCell(row,cell.Project,true))),
+            maxElementCount,
+            thresholdNanoseconds);
 
     /// <summary>
     /// CreateDisplayMeasurements メソッドを実行し、結果を算出して返却します。
@@ -8861,6 +8889,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                         var computed = task.Result;
                         UiThreadBudget.Measure("chart-apply",() => {
                             state.ComparisonRows=computed.Rows;
+                            this.RefreshBenchmarkRatioSummary(state);
                             var points = this.BuildBenchmarkChartPoints(state,computed.Rows);
                             this.SyncChartPoints(state.ChartPoints,points);
                             state.ChartHeight=Math.Max(BenchmarkChartMinimumHeight,points.Count*BenchmarkChartRowHeight+BenchmarkChartVerticalPadding);
@@ -8893,6 +8922,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <param name="state">state を指定して実行条件を制御します。</param>
     /// <param name="rows">rows を指定して実行条件を制御します。</param>
     private void ApplyChartFromComparisonRows(BenchmarkSourceTabViewState state,IReadOnlyList<BenchmarkComparisonRow> rows) {
+        state.ComparisonRows=rows;
+        this.RefreshBenchmarkRatioSummary(state);
         var points = this.BuildBenchmarkChartPoints(state,rows);
         this.SyncChartPoints(state.ChartPoints,points);
         state.ChartHeight=Math.Max(BenchmarkChartMinimumHeight,points.Count*BenchmarkChartRowHeight+BenchmarkChartVerticalPadding);
