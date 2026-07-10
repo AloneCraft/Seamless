@@ -21,7 +21,7 @@ public sealed class BenchmarkImprovementPromptBuilder{
         Assert.Equal(2,summary.AllocatedExcludedCount);
         Assert.Equal("時間比 4.00 (対象 2 / 除外 2) / メモリ比 8.00 (対象 2 / 除外 2)",summary.DisplayText);
         Assert.Equal("全体 時間比 4.00 (対象 2 / 除外 2) / メモリ比 8.00 (対象 2 / 除外 2)",summary.OverallDisplayText);
-        Assert.Equal("時間 4.00,メモリ 8.00MB",summary.ShortDisplayText);
+        Assert.Equal("時間比 4.00,メモリ比 8.00",summary.ShortDisplayText);
     }
 
     [Fact]
@@ -35,7 +35,7 @@ public sealed class BenchmarkImprovementPromptBuilder{
         Assert.Equal(0,summary.AllocatedIncludedCount);
         Assert.Equal(0,summary.AllocatedExcludedCount);
         Assert.Equal("全体 時間比 - (対象 0 / 除外 0) / メモリ比 - (対象 0 / 除外 0)",summary.OverallDisplayText);
-        Assert.Equal("時間 -,メモリ -MB",summary.ShortDisplayText);
+        Assert.Equal("時間比 -,メモリ比 -",summary.ShortDisplayText);
     }
 
     [Fact]

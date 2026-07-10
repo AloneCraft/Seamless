@@ -61,8 +61,8 @@ internal sealed record BenchmarkRatioSummary(
     public string OverallDisplayText => "全体 "+this.DisplayText;
 
     public string ShortDisplayText =>
-        "時間 "+FormatRatio(this.TimeGeometricMean)
-        +",メモリ "+FormatRatio(this.AllocatedGeometricMean)+"MB";
+        "時間比 "+FormatRatio(this.TimeGeometricMean)
+        +",メモリ比 "+FormatRatio(this.AllocatedGeometricMean);
 
     private static string FormatRatio(double? value) =>
         value is { } number&&double.IsFinite(number)
