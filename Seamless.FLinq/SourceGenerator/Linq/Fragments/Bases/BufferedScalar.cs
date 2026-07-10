@@ -30,6 +30,10 @@ public abstract class BufferedScalar(int 番号,string resultType) : Scalar(番�
     protected abstract string ComputeExpression { get; }
     protected virtual string ComputeMembers => string.Empty;
     protected virtual string StructSources => string.Empty;
+
+    protected override string? RenderDirectEnumerableCallInline(Enumerable source,string destVar,string destType,string methodName,params string[] arguments) {
+        return this.RenderComputeInline(destVar,destType);
+    }
     protected override string GetCurrentPropertyDeclaration(string currentType) => string.Empty;
     public override string GetCurrentExpression => "Current";
     public override string GetEnumeratorStruct => $$"""

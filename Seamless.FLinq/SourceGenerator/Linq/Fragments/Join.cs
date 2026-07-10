@@ -2,10 +2,14 @@ namespace Seamless.FLinq.Linq.Fragments;
 
 internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment outerKeySelector,FuncFragment innerKeySelector,FuncFragment resultSelector,string comparer):JoinBase(番号,outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer){
     public override string ElementType=> this.UseResultTypeParam ? "TResult" : FuncReturnTypeName(this.resultSelector);
-    protected override string StructTypeParameters=> this.UseResultTypeParam ? "<TOuterEnum,TInnerEnum,TResult>" : "<TOuterEnum,TInnerEnum>";
+    protected override string StructTypeParameters=> this.UseResultTypeParam
+        ? StructTypeParametersWithOuter("TOuterEnum","TInnerEnum","TResult")
+        : StructTypeParametersWithOuter("TOuterEnum","TInnerEnum");
     protected override string StructTypeConstraints=>
         $"where TOuterEnum:struct,global::System.Collections.Generic.IEnumerator<{this.outerSource.ElementType}>\n    where TInnerEnum:struct,global::System.Collections.Generic.IEnumerator<{this.innerSource.ElementType}>";
-    public override string EnumeratorTypeName=> this.UseResultTypeParam ? $"{this.Struct}<{this.outerSource.EnumeratorTypeName},{this.innerSource.EnumeratorTypeName},TResult>" : $"{this.Struct}<{this.outerSource.EnumeratorTypeName},{this.innerSource.EnumeratorTypeName}>";
+    public override string EnumeratorTypeName=> this.UseResultTypeParam
+        ? EnumeratorTypeNameWithOuter(this.outerSource.EnumeratorTypeName,this.innerSource.EnumeratorTypeName,"TResult")
+        : EnumeratorTypeNameWithOuter(this.outerSource.EnumeratorTypeName,this.innerSource.EnumeratorTypeName);
     private string FactorySource=>!this.UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
         private static global::Seamless.System.Carrier.ValueEnumerable<{{this.Struct}}<TOuterEnum,TInnerEnum,TResult>,TResult> {{this.FactoryMethodName}}<TOuterEnum,TInnerEnum,TResult>(TOuterEnum outer,TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(this.innerKey)}}>? comparer{{this.ClosurePrimaryCtorSuffix(this.outerKey,this.innerKey,this.resultSelector)}})
@@ -28,12 +32,12 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
     public override string GetEnumerableExpression=> this.UseResultTypeParam ? $"{this.FactoryMethodName}({this.outerSource.GetEnumeratorExpression},{this.innerSource.GetEnumeratorExpression},{this.comparerExpression}{this.ClosureArgsSuffix(this.outerKey,this.innerKey,this.resultSelector)})" : base.GetEnumerableExpression;
     public override string GetEnumeratorConstructor=>$"this.{this.lookup}=BuildLookup(this.{this.innerEnumerator},this.comparer{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)});";
     public override string GetEnumeratorFields=>$$"""
-        private global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(this.innerKey)}},global::System.Collections.Generic.List<{{this.innerSource.ElementType}}>> {{this.lookup}};
-        private global::System.Collections.Generic.List<{{this.innerSource.ElementType}}>? {{this.group}};
+        private global::Seamless.System.Carrier.Lookup<{{FuncReturnTypeName(this.innerKey)}},{{this.innerSource.ElementType}}> {{this.lookup}};
+        private global::Seamless.System.Carrier.Grouping<{{FuncReturnTypeName(this.innerKey)}},{{this.innerSource.ElementType}}>? {{this.group}};
         private int {{this.groupIndex}};
         private int {{this.state}};
         private {{this.outerSource.ElementType}} {{this.outerValue}};
-        private static bool IsNullKey<T>(T key){
+        private static bool IsNullKey<TKey>(TKey key){
             return key is null;
         }
         {{this.BuildLookupBody(true,"IncrementLogicalJoinInner")}}
@@ -61,13 +65,74 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             goto {{this.Start}};
         }
         {{this.CounterCall("IncrementHashProbe")}}
-        if(!{{this.lookup}}.TryGetValue({{this.key}},out {{this.group}})){
+        {{this.group}}={{this.lookup}}.GetGroup({{this.key}});
+        if({{this.group}} is null){
             goto {{this.Start}};
         }
         {{this.groupIndex}}=0;
         {{this.state}}=1;
         goto {{this.Start}};
         """;
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        if(this.UseResultTypeParam
+            ||this.outerSource.DirectArrayExpression is not { } outerArrayExpression
+            ||this.innerSource.DirectArrayExpression is not { } innerArrayExpression) {
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+
+        var outerArrayName=$"__joinOuterArray{番号}";
+        var innerArrayName=$"__joinInnerArray{番号}";
+        var lookupBuilderName=$"__joinLookupBuilder{番号}";
+        var outerIndexName=$"__joinOuterIndex{番号}";
+        var innerIndexName=$"__joinInnerIndex{番号}";
+        var groupIndexName=$"__joinGroupIndex{番号}";
+        var outerItemName=$"__joinOuterItem{番号}";
+        var innerItemName=$"__joinInnerItem{番号}";
+        var innerKeyName=$"__joinInnerKey{番号}";
+        var outerKeyName=$"__joinOuterKey{番号}";
+        var groupName=$"__joinGroup{番号}";
+        var resultName=$"__joinResult{番号}";
+        var hasKeyName=$"__joinHasKey{番号}";
+        var localDeclarations=string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(this.outerKey,this.innerKey,this.resultSelector),
+            this.StaticDelegateLocalDeclarations(this.outerKey,this.innerKey,this.resultSelector),
+        }.Where(static text=>!string.IsNullOrEmpty(text)));
+        var localDeclarationBlock=string.IsNullOrEmpty(localDeclarations) ? string.Empty : localDeclarations+"\n";
+
+        return $$"""
+            {{localDeclarationBlock}}
+            static bool {{hasKeyName}}<TKey>(TKey key) => key is not null;
+            var {{innerArrayName}}={{innerArrayExpression}};
+            var {{lookupBuilderName}}=new global::Seamless.System.Carrier.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>({{this.comparerExpression}});
+            try {
+            for(var {{innerIndexName}}=0;{{innerIndexName}}<{{innerArrayName}}.Length;{{innerIndexName}}++) {
+                var {{innerItemName}}={{innerArrayName}}[{{innerIndexName}}];
+                {{this.InnerKeyType}} {{innerKeyName}}=default!;
+                {{this.FuncAssignStaticIndented("    ",this.innerKey,nameof(this.innerKey),innerKeyName,innerItemName)}}
+                if({{hasKeyName}}({{innerKeyName}})) {
+                    {{lookupBuilderName}}.Add({{innerKeyName}},{{innerItemName}});
+                }
+            }
+            var {{outerArrayName}}={{outerArrayExpression}};
+            for(var {{outerIndexName}}=0;{{outerIndexName}}<{{outerArrayName}}.Length;{{outerIndexName}}++) {
+                var {{outerItemName}}={{outerArrayName}}[{{outerIndexName}}];
+                {{this.InnerKeyType}} {{outerKeyName}}=default!;
+                {{this.FuncAssignStaticIndented("    ",this.outerKey,nameof(this.outerKey),outerKeyName,outerItemName)}}
+                if(!{{hasKeyName}}({{outerKeyName}})) continue;
+                var {{groupName}}={{lookupBuilderName}}.GetGroup({{outerKeyName}});
+                if({{groupName}} is null) continue;
+                for(var {{groupIndexName}}=0;{{groupIndexName}}<{{groupName}}.Count;{{groupIndexName}}++) {
+                    var {{innerItemName}}={{groupName}}[{{groupIndexName}}];
+                    {{this.ElementType}} {{resultName}}=default!;
+                    {{this.FuncAssignStaticIndented("        ",this.resultSelector,nameof(this.resultSelector),resultName,outerItemName,innerItemName)}}
+                    {{consumerName}}.Consume({{resultName}});
+                }
+            }
+            } finally {
+                {{lookupBuilderName}}.Dispose();
+            }
+            """;
+    }
     public override string GetCurrentExpression=> this.currentValue;
-    protected override string GetEnumeratorDisposeBody=>$"{this.e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody=>$"{this.lookup}.Dispose(); {this.e}.Dispose();";
 }

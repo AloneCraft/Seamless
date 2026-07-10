@@ -87,7 +87,7 @@ public class SkipWhile_predicate(int 番号, Enumerable source, FuncFragment pre
         return $$"""
             {{localDeclarationBlock}}
             using var {{sourceName}}={{source.GetEnumeratorExpression}};
-            global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
+            global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
             var {{spanName}}={{directSpanExpression}};
             var {{offsetName}}=0;
             for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++) {

@@ -235,32 +235,43 @@ public sealed class BenchmarkRunProjectionService{
         string method,
         int elementCount,
         double mean,
-        DateTimeOffset? startedAt = null) =>
-        new(new global::UI.BenchmarkJob{
+        DateTimeOffset? startedAt = null){
+        var sourceTab = global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray;
+        var loopCount = global::UI.BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab,elementCount);
+        return new(new global::UI.BenchmarkJob{
             Project=project,
             MethodName=method,
             TypeFullName="Sample.Type",
-            SourceTab=global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray,
-            ElementCount=global::UI.BenchmarkWorkloadAxis.ResolveElementCount(global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray,elementCount),
-            LoopCount=global::UI.BenchmarkWorkloadAxis.ResolveLoopCount(global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray,elementCount),
+            SourceTab=sourceTab,
+            ElementCount=global::UI.BenchmarkWorkloadAxis.ResolveElementCount(sourceTab,elementCount),
+            LoopCount=loopCount,
             Status=global::UI.JobStatus.Completed,
-            MeanNanoseconds=mean,
-            AllocatedBytes=128,
+            MeanNanoseconds=ToStoredTotal(sourceTab,loopCount,mean),
+            AllocatedBytes=ToStoredTotal(sourceTab,loopCount,128),
             StartedAt=startedAt??DateTimeOffset.UtcNow,
             ExitCode=0,
         });
+    }
 
-    private static global::UI.BenchmarkResultItem Failed(string project,string method,int elementCount) =>
-        new(new global::UI.BenchmarkJob{
+    private static global::UI.BenchmarkResultItem Failed(string project,string method,int elementCount){
+        var sourceTab = global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray;
+        return new(new global::UI.BenchmarkJob{
             Project=project,
             MethodName=method,
             TypeFullName="Sample.Type",
-            SourceTab=global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray,
-            ElementCount=global::UI.BenchmarkWorkloadAxis.ResolveElementCount(global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray,elementCount),
-            LoopCount=global::UI.BenchmarkWorkloadAxis.ResolveLoopCount(global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray,elementCount),
+            SourceTab=sourceTab,
+            ElementCount=global::UI.BenchmarkWorkloadAxis.ResolveElementCount(sourceTab,elementCount),
+            LoopCount=global::UI.BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab,elementCount),
             Status=global::UI.JobStatus.Failed,
             StartedAt=DateTimeOffset.UtcNow,
             ExitCode=1,
         });
+    }
+
+    private static double ToStoredTotal(global::UI.BenchmarkSourceTab sourceTab,int loopCount,double perOperation) =>
+        global::UI.BenchmarkWorkloadAxis.UsesLoopCount(sourceTab)&&loopCount>1 ? perOperation*loopCount : perOperation;
+
+    private static long ToStoredTotal(global::UI.BenchmarkSourceTab sourceTab,int loopCount,long perOperation) =>
+        global::UI.BenchmarkWorkloadAxis.UsesLoopCount(sourceTab)&&loopCount>1 ? perOperation*loopCount : perOperation;
 }
 

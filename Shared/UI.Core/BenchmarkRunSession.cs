@@ -157,10 +157,12 @@ internal sealed class BenchmarkRunSession{
             ElementCounts=elementCounts.ToList(),
             AdaptiveThresholdNanoseconds=adaptiveThreshold.TotalMilliseconds*1_000_000,
             Jobs=results.Select(result => CreateProgressJobFromResolvedResult(
-                result,
-                selectedSourceTab,
-                elementCounts,
-                benchmarkResolver)).ToList(),
+                    result,
+                    selectedSourceTab,
+                    elementCounts,
+                    benchmarkResolver))
+                .Where(static job => !string.IsNullOrWhiteSpace(job.TypeFullName))
+                .ToList(),
             BenchmarkSelection=new ProgressBenchmarkSelectionState{
                 ProjectCellSelections=new Dictionary<string,bool>(projectCellSelections,StringComparer.OrdinalIgnoreCase),
                 RowSelections=new Dictionary<string,bool>(rowSelections,StringComparer.OrdinalIgnoreCase),

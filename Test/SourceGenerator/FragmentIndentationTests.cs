@@ -33,7 +33,7 @@ public sealed class FragmentIndentationTests(ITestOutputHelper output) {
 
             [LinqIntercept(true)]
             private void GroupJoin_inner_Impl() =>
-                this.srcCount(3).AsX<int>().GroupJoin(this.src2Count(3), x => x, x => x, (outer, inner) => outer).Consume(this.consumer);
+                this.srcCount(3).AsX<int>().GroupJoin(this.src2Count(3), x => x, x => x, (outer, inner) => outer, EqualityComparer<int>.Default).Consume(this.consumer);
 
             public void Run() => this.GroupJoin_inner_Impl();
         }
@@ -48,13 +48,13 @@ public sealed class FragmentIndentationTests(ITestOutputHelper output) {
             lines,
             @"^\s*__k\d+=__ov\d+;$",
             @"^\s*var __ov\d+=",
-            @"^\s*if\(__lk\d+\.TryGetValue");
+            @"^\s*if\((?:this\.)?__lk\d+\.GetGroup");
 
         this.AssertAssignmentAligned(
             lines,
             @"^\s*__k\d+=__it\d+;$",
             @"^\s*int __k\d+=default!;$",
-            @"^\s*if\(!__lk\d+\.TryGetValue");
+            @"^\s*__lookupBuilder\.Add");
     }
 
     [Fact]
@@ -86,16 +86,27 @@ public sealed class FragmentIndentationTests(ITestOutputHelper output) {
             output);
 
         var assignmentIndent = LeadingWhitespace(lines[assignmentIndex]);
-        var beforeLine = lines.Take(assignmentIndex).Last(line => Regex.IsMatch(line, beforePattern));
-        var afterLine = lines.Skip(assignmentIndex + 1).First(line => Regex.IsMatch(line, afterPattern));
+        var beforeLine = lines.Take(assignmentIndex).LastOrDefault(line => Regex.IsMatch(line, beforePattern));
+        var afterLine = lines.Skip(assignmentIndex + 1).FirstOrDefault(line => Regex.IsMatch(line, afterPattern));
 
         GeneratedSourceAssert.True(
-            assignmentIndent.Length >= LeadingWhitespace(beforeLine).Length,
+            beforeLine is not null,
+            $"Preceding line was not generated: {beforePattern}",
+            generated,
+            output);
+        GeneratedSourceAssert.True(
+            afterLine is not null,
+            $"Following line was not generated: {afterPattern}",
+            generated,
+            output);
+
+        GeneratedSourceAssert.True(
+            assignmentIndent.Length >= LeadingWhitespace(beforeLine!).Length,
             $"Assignment indentation was shallower than the preceding line: {assignmentPattern}",
             generated,
             output);
         GeneratedSourceAssert.True(
-            assignmentIndent.Length >= LeadingWhitespace(afterLine).Length,
+            assignmentIndent.Length >= LeadingWhitespace(afterLine!).Length,
             $"Assignment indentation was shallower than the following line: {assignmentPattern}",
             generated,
             output);

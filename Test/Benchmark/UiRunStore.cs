@@ -11,10 +11,12 @@ public sealed class UiRunStoreTests{
         store.EnsureSchema();
 
         using var connection = Open(path);
-        Assert.Equal(13L,Scalar<long>(connection,"PRAGMA user_version;"));
+        Assert.Equal(15L,Scalar<long>(connection,"PRAGMA user_version;"));
         Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行';"));
         Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ベンチマーク項目';"));
-        Assert.Equal(3L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"));
+        Assert.Equal(5L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"));
+        Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='BenchmarkSnapshotCaseIdentity';"));
+        Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='BenchmarkSnapshotMeasurement';"));
         Assert.Equal(4L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
         Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name IN('項目ID','プロジェクト名','Assembly','Type','型フル名','引数キー','行キー','側','平均ns','誤差ns','標準偏差ns','割当バイト','左要素数','右要素数');"));
         Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name='行チェック';"));
@@ -117,8 +119,10 @@ public sealed class UiRunStoreTests{
                 "Any",
                 17,
                 true,
-                new(UiRunStatus.Completed,string.Empty,measuredAt,12.5,1024),
-                new(UiRunStatus.Failed,"failed",measuredAt.AddSeconds(1),null,null)),
+                new(UiRunStatus.Completed,string.Empty,measuredAt,12.5,1024,524288,34_787_200),
+                new(UiRunStatus.Failed,"failed",measuredAt.AddSeconds(1),null,null,524288,43_230_000),
+                new("Left.Assembly","Left.Namespace.Type","Any","left-key","[1024]"),
+                new("Right.Assembly","Right.Namespace.Type","Any","right-key","[1024]")),
         ]);
 
         var items = store.ListBenchmarkSnapshotItems(run.RunId);
@@ -135,9 +139,16 @@ public sealed class UiRunStoreTests{
         Assert.Equal(measuredAt,completed.Left.MeasuredAt);
         Assert.Equal(12.5,completed.Left.MeanNanoseconds);
         Assert.Equal(1024,completed.Left.AllocatedBytes);
+        Assert.Equal(524288,completed.Left.LoopCount);
+        Assert.Equal(34_787_200,completed.Left.TotalNanoseconds);
         Assert.Equal(UiRunStatus.Failed,completed.Right.Status);
         Assert.Equal("failed",completed.Right.FailureReason);
         Assert.Null(completed.Right.MeanNanoseconds);
+        Assert.Equal(524288,completed.Right.LoopCount);
+        Assert.Equal(43_230_000,completed.Right.TotalNanoseconds);
+        Assert.Equal("Left.Namespace.Type",completed.LeftCase!.TypeFullName);
+        Assert.Equal("left-key",completed.LeftCase.ArgumentKey);
+        Assert.Equal("Right.Namespace.Type",completed.RightCase!.TypeFullName);
     }
 
     [Fact]

@@ -30,20 +30,7 @@ public class SequenceEqual_comparer(int 番号, Enumerable source, Enumerable se
                 }
                 """;
         }
-        if(source.DirectEnumerableExpression is not { } sourceExpression
-            || second.DirectEnumerableExpression is not { } secondExpression) {
-            return null;
-        }
-        var leftVar=$"__srcL{this.result}";
-        var rightVar=$"__srcR{this.result}";
-        return $$"""
-            {{destType}} {{destVar}};
-            {
-                var {{leftVar}}={{sourceExpression}};
-                var {{rightVar}}={{secondExpression}};
-                {{destVar}}=global::System.Linq.Enumerable.SequenceEqual({{leftVar}}, {{rightVar}}, {{comparer}});
-            }
-            """;
+        return this.RenderComputeInline(destVar,destType,$"{comparer}");
     }
     public override string InlineSupportingMembers => source.GetEnumeratorStruct+"\n"+second.GetEnumeratorStruct;
     protected override string ComputeMembers => source.CanProvideSpan && second.CanProvideSpan

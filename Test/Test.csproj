@@ -65,7 +65,7 @@
     <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" />
     <ProjectReference Include="..\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <ProjectReference Include="..\Seamless.Database\Seamless.Database.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
-    <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+    <Analyzer Include="..\Seamless.FLinq\bin\$(Configuration)\net10.0\Seamless.FLinq.dll" />
   </ItemGroup>
   <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'!='true'">
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
@@ -88,7 +88,7 @@
     <ProjectReference Include="..\Benchmark\Tsavorite.Collections\Tsavorite.Collections.csproj" />
     <ProjectReference Include="..\Benchmark\Tsavorite.Linq.Enumerable.FLinq\Tsavorite.Linq.Enumerable.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark\Tsavorite.Linq.Enumerable.Linq\Tsavorite.Linq.Enumerable.Linq.csproj" />
-    <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" SetTargetFramework="TargetFramework=net10.0" />
+    <Analyzer Include="..\Seamless.FLinq\bin\$(Configuration)\net10.0\Seamless.FLinq.dll" />
     <ProjectReference Include="..\Shared\UI.Storage\UI.Storage.csproj" />
   </ItemGroup>
   <Import Project="..\Shared\Test.Shared\Test.Shared.projitems" Label="Shared" Condition="'$(EnableBenchmarkUiViewModelTests)'!='true'" />
@@ -97,9 +97,5 @@
     <ApplicationDefinition Remove="..\Benchmark\Shared\UI\Platforms\Windows\App.xaml" />
     <Compile Remove="..\Benchmark\Shared\UI\Platforms\Windows\App.xaml.cs" />
   </ItemGroup>
-  <!-- 生成物検査(FallbackDiagnostics)が stale ファイルを誤検出しないよう、コンパイル前に生成物出力を消す -->
-  <Target Name="CleanCompilerGeneratedFiles" BeforeTargets="CoreCompile" Condition="'$(EmitCompilerGeneratedFiles)'=='true'">
-    <RemoveDir Directories="$(CompilerGeneratedFilesOutputPath)" />
-  </Target>
 </Project>
 

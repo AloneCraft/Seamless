@@ -7,11 +7,7 @@ public class OfType(int 番号, Enumerable source, string resultElementType) : E
     internal string ResultElementType => resultElementType;
     internal bool IsIdentity => this.IsIdentityType;
     public override string StructMethod => string.Empty;
-    public override string? DirectEnumerableExpression => this.IsIdentityType
-        ? source.DirectEnumerableExpression
-        : source.DirectEnumerableExpression is { } sourceExpression
-        ? $"global::System.Linq.Enumerable.OfType<{resultElementType}>({sourceExpression})"
-        : null;
+    public override string? DirectEnumerableExpression => this.IsIdentityType ? source.DirectEnumerableExpression : null;
     public override string? NonEnumeratedCountExpression => this.IsIdentityType ? source.NonEnumeratedCountExpression : null;
     public override bool CountPreserving => this.IsIdentityType && source.CountPreserving;
     public override bool CanProvideSpan => this.IsIdentityType && source.CanProvideSpan;

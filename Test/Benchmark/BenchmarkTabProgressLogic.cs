@@ -57,6 +57,7 @@ public sealed class BenchmarkTabProgressLogic{
                         "",
                         4096,
                         "Completed",
+                        2_000_000,
                         2_000_000),
                 ],
                 persisted.LeftProject,
@@ -112,8 +113,8 @@ public sealed class BenchmarkTabProgressLogic{
                 new BenchmarkTabProgressCell("Select","Left",true),
             ],
             [
-                new BenchmarkElementMeasurement("Left","Where",4096,"Completed",1_000_000),
-                new BenchmarkElementMeasurement("Right","Where",4096,"Completed",100),
+                new BenchmarkElementMeasurement("Left","Where","","",4096,"Completed",1_000_000,1_000_000),
+                new BenchmarkElementMeasurement("Right","Where","","",4096,"Completed",100,100),
             ],
             "Left",
             "Right",
@@ -134,8 +135,8 @@ public sealed class BenchmarkTabProgressLogic{
                 new BenchmarkTabProgressCell("Where","Right",true),
             ],
             [
-                new BenchmarkElementMeasurement("Left","Where",4096,"Completed",100),
-                new BenchmarkElementMeasurement("Right","Where",4096,"Completed",200),
+                new BenchmarkElementMeasurement("Left","Where","","",4096,"Completed",100,100),
+                new BenchmarkElementMeasurement("Right","Where","","",4096,"Completed",200,200),
             ],
             "Left",
             "Right",
@@ -158,10 +159,10 @@ public sealed class BenchmarkTabProgressLogic{
                 new BenchmarkTabProgressCell("C","Right","Type.C","",true,"row-c"),
             ],
             [
-                new BenchmarkElementMeasurement("Left","A","Type.A","",4096,"Completed",2_000_000),
-                new BenchmarkElementMeasurement("Right","A","Type.A","",4096,"Completed",2_000_000),
-                new BenchmarkElementMeasurement("Left","B","Type.B","",4096,"Completed",2_000_000),
-                new BenchmarkElementMeasurement("Right","B","Type.B","",4096,"Completed",2_000_000),
+                new BenchmarkElementMeasurement("Left","A","Type.A","",4096,"Completed",2_000_000,2_000_000),
+                new BenchmarkElementMeasurement("Right","A","Type.A","",4096,"Completed",2_000_000,2_000_000),
+                new BenchmarkElementMeasurement("Left","B","Type.B","",4096,"Completed",2_000_000,2_000_000),
+                new BenchmarkElementMeasurement("Right","B","Type.B","",4096,"Completed",2_000_000,2_000_000),
                 new BenchmarkElementMeasurement("Left","C","Type.C","",4096,"Failed",null),
             ],
             "Left",
@@ -197,8 +198,8 @@ public sealed class BenchmarkTabProgressLogic{
 
         var listCells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases(selectedCases,list);
         var listMeasurements = new[]{
-            new BenchmarkElementMeasurement(list.LeftProject,"All_predicate","System.Collections.Generic.List","",4096,"Completed",2_000_000),
-            new BenchmarkElementMeasurement(list.RightProject,"All_predicate","System.Collections.Generic.List","",4096,"Completed",2_000_000),
+            new BenchmarkElementMeasurement(list.LeftProject,"All_predicate","System.Collections.Generic.List","",4096,"Completed",2_000_000,2_000_000),
+            new BenchmarkElementMeasurement(list.RightProject,"All_predicate","System.Collections.Generic.List","",4096,"Completed",2_000_000,2_000_000),
         };
         var listProgress = global::UI.BenchmarkTabProgressLogic.Calculate(
             listCells,
@@ -216,8 +217,8 @@ public sealed class BenchmarkTabProgressLogic{
         var arrayProgress = global::UI.BenchmarkTabProgressLogic.Calculate(
             arrayCells,
             [
-                new BenchmarkElementMeasurement(array.LeftProject,"Aggregate_func","System.Array","",4096,"Completed",2_000_000),
-                new BenchmarkElementMeasurement(array.RightProject,"Aggregate_func","System.Array","",4096,"Completed",2_000_000),
+                new BenchmarkElementMeasurement(array.LeftProject,"Aggregate_func","System.Array","",4096,"Completed",2_000_000,2_000_000),
+                new BenchmarkElementMeasurement(array.RightProject,"Aggregate_func","System.Array","",4096,"Completed",2_000_000,2_000_000),
             ],
             array.LeftProject,
             array.RightProject,
@@ -268,7 +269,8 @@ public sealed class BenchmarkTabProgressLogic{
                 item.ArgumentKey,
                 item.AxisCount,
                 item.Status,
-                item.MeanNanoseconds))
+                item.MeanNanoseconds,
+                item.TotalNanoseconds))
             .ToArray();
 
         var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
@@ -310,8 +312,8 @@ public sealed class BenchmarkTabProgressLogic{
                 new BenchmarkTabProgressCell("Where","Right",true),
             ],
             [
-                new BenchmarkElementMeasurement("Left","Where",4096,"Completed",2_000_000),
-                new BenchmarkElementMeasurement("Right","Where",4096,"Completed",100),
+                new BenchmarkElementMeasurement("Left","Where","","",4096,"Completed",2_000_000,2_000_000),
+                new BenchmarkElementMeasurement("Right","Where","","",4096,"Completed",100,100),
             ],
             "Left",
             "Right",
@@ -330,8 +332,8 @@ public sealed class BenchmarkTabProgressLogic{
                 new BenchmarkTabProgressCell("Any","Right","System.Array.ZLinq","",true,"row-1"),
             ],
             [
-                new BenchmarkElementMeasurement("Left","Any","System.Array.FLinq","",4096,"Completed",100),
-                new BenchmarkElementMeasurement("Right","Any","System.Array.ZLinq","",4096,"Completed",2_000_000),
+                new BenchmarkElementMeasurement("Left","Any","System.Array.FLinq","",4096,"Completed",100,100),
+                new BenchmarkElementMeasurement("Right","Any","System.Array.ZLinq","",4096,"Completed",2_000_000,2_000_000),
             ],
             "Left",
             "Right",
@@ -350,8 +352,8 @@ public sealed class BenchmarkTabProgressLogic{
                 new BenchmarkTabProgressCell("Any","Right","System.Array.ZLinq","",true,"row-2"),
             ],
             [
-                new BenchmarkElementMeasurement("Left","Any","System.Array.FLinq","",4096,"Completed",100),
-                new BenchmarkElementMeasurement("Right","Any","System.Array.ZLinq","",4096,"Completed",2_000_000),
+                new BenchmarkElementMeasurement("Left","Any","System.Array.FLinq","",4096,"Completed",100,100),
+                new BenchmarkElementMeasurement("Right","Any","System.Array.ZLinq","",4096,"Completed",2_000_000,2_000_000),
             ],
             "Left",
             "Right",
@@ -388,8 +390,8 @@ public sealed class BenchmarkTabProgressLogic{
                 new BenchmarkTabProgressCell("Add","Right","Type","Count=2",true),
             ],
             [
-                new BenchmarkElementMeasurement("Left","Add","Type","Count=1",4096,"Completed",2_000_000),
-                new BenchmarkElementMeasurement("Right","Add","Type","Count=1",4096,"Completed",100),
+                new BenchmarkElementMeasurement("Left","Add","Type","Count=1",4096,"Completed",2_000_000,2_000_000),
+                new BenchmarkElementMeasurement("Right","Add","Type","Count=1",4096,"Completed",100,100),
             ],
             "Left",
             "Right",

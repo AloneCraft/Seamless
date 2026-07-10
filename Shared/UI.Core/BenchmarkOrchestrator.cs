@@ -143,8 +143,96 @@ internal sealed class BenchmarkOrchestrator(
         Action<BenchmarkProgressUpdate> progress,
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
-        // 1行=1(プロジェクト×メソッド)ケース。割り当てられた1コア上で、その1ケースを軸(LoopCount/ElementCount)
-        // 昇順に自身が閾値超過/失敗するまで実行する。他ケースは空きコアが独立に担当する。
+        if(BenchmarkWorkloadAxis.UsesLoopCount(row.SourceTab)) {
+            await this.RunLoopCountRowAsync(state,row,logicalCpu,request,progress,statusChanged,cancellationToken);
+            return;
+        }
+
+        await this.RunScalableRowAsync(state,row,logicalCpu,request,progress,statusChanged,cancellationToken);
+    }
+
+    private async Task RunLoopCountRowAsync(
+        ProgressState state,
+        AdaptiveMethodRow row,
+        int logicalCpu,
+        BenchmarkRunRequest request,
+        Action<BenchmarkProgressUpdate> progress,
+        Action<string> statusChanged,
+        CancellationToken cancellationToken) {
+        var warmedUpCases = new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+        foreach(var loopCount in EnumerateAdaptiveLoopCounts(state)) {
+            cancellationToken.ThrowIfCancellationRequested();
+            if(this.HasFailedRowCase(state,row)) {
+                return;
+            }
+
+            var existingJobs = this.GetExistingAdaptiveJobs(state,row.Cases,loopCount);
+            if(IsCompletedTargetBatch(existingJobs,row.Cases,state.AdaptiveThresholdNanoseconds)) {
+                return;
+            }
+
+            foreach(var benchmark in row.Cases) {
+                var caseKey = CreateBenchmarkKey(benchmark);
+                if(existingJobs.Any(job => SameCase(benchmark,job)&&job.Status!=JobStatus.Pending)
+                    ||!warmedUpCases.Add(caseKey)
+                    ||!ShouldRunWarmup(request.ExecutionProfile)) {
+                    continue;
+                }
+
+                var warmupFailure = await this.RunWarmupCaseAsync(
+                    state,
+                    benchmark,
+                    row.SourceTab,
+                    logicalCpu,
+                    request,
+                    statusChanged,
+                    cancellationToken);
+                if(warmupFailure is not null) {
+                    this.MarkWarmupFailure(
+                        state,
+                        warmupFailure.Benchmark,
+                        loopCount,
+                        logicalCpu,
+                        warmupFailure.FailureReason,
+                        progress);
+                    return;
+                }
+            }
+
+            var jobs = this.GetOrCreateAdaptiveJobs(state,row.Cases,loopCount);
+            foreach(var benchmark in row.Cases) {
+                var job = jobs.FirstOrDefault(item => SameCase(benchmark,item));
+                if(job is null||job.Status!=JobStatus.Pending) {
+                    continue;
+                }
+
+                statusChanged($"実行中 {job.MethodName} {CreateAxisStatusText(job)}: {job.Project} / CPU {logicalCpu}");
+                await this.RunJobAsync(state,job,logicalCpu,request.JobTimeout,progress,cancellationToken);
+                if(job.Status!=JobStatus.Completed) {
+                    return;
+                }
+            }
+
+            var completedJobs = this.GetExistingAdaptiveJobs(state,row.Cases,loopCount);
+            if(IsCompletedTargetBatch(completedJobs,row.Cases,state.AdaptiveThresholdNanoseconds)) {
+                return;
+            }
+
+            if(loopCount==int.MaxValue) {
+                this.MarkTargetDurationUnreachable(state,completedJobs,progress);
+                return;
+            }
+        }
+    }
+
+    private async Task RunScalableRowAsync(
+        ProgressState state,
+        AdaptiveMethodRow row,
+        int logicalCpu,
+        BenchmarkRunRequest request,
+        Action<BenchmarkProgressUpdate> progress,
+        Action<string> statusChanged,
+        CancellationToken cancellationToken) {
         foreach(var benchmark in row.Cases) {
             cancellationToken.ThrowIfCancellationRequested();
             var warmedUp = false;
@@ -155,7 +243,6 @@ internal sealed class BenchmarkOrchestrator(
                     continue;
                 }
 
-                EnsureAdaptiveElementCount(state,elementCount);
                 if(this.IsAdaptiveCaseStopped(state,row.SourceTab,benchmarkCase)) {
                     break;
                 }
@@ -199,6 +286,24 @@ internal sealed class BenchmarkOrchestrator(
                     break;
                 }
             }
+        }
+    }
+
+    private static IEnumerable<int> EnumerateAdaptiveLoopCounts(ProgressState state) {
+        var seeds = state.ElementCounts
+            .Where(static count => count>0)
+            .Distinct()
+            .Order()
+            .ToArray();
+        var last = 0;
+        foreach(var count in seeds) {
+            last=count;
+            yield return count;
+        }
+
+        while(last>0&&last<int.MaxValue) {
+            last=last>int.MaxValue/2 ? int.MaxValue : last*2;
+            yield return last;
         }
     }
 
@@ -270,18 +375,6 @@ internal sealed class BenchmarkOrchestrator(
             benchmark.MethodName,
             BenchmarkArgumentFormatting.CreateKey(arguments),
             arguments);
-    }
-
-    private void EnsureAdaptiveElementCount(ProgressState state,int elementCount) {
-        lock(this.stateGate) {
-            if(state.ElementCounts.Contains(elementCount)) {
-                return;
-            }
-
-            state.ElementCounts.Add(elementCount);
-            state.ElementCounts=state.ElementCounts.Distinct().Order().ToList();
-            stateManager.Save(state);
-        }
     }
 
     private async Task<WarmupFailure?> RunWarmupCaseAsync(
@@ -607,6 +700,7 @@ internal sealed class BenchmarkOrchestrator(
         var jobs = this.GetJobsSnapshot(state);
         var benchmarks = (request.BenchmarkProvider?.Invoke()??request.Benchmarks)
             .Concat(jobs.Select(static job => new BenchmarkCase(job.Project,job.AssemblyName,job.TypeFullName,job.MethodName,job.ArgumentKey,job.Arguments)))
+            .Where(static benchmark => !string.IsNullOrWhiteSpace(benchmark.TypeFullName))
             .GroupBy(CreateBenchmarkKey,StringComparer.Ordinal)
             .Select(static group => group.First())
             .ToArray();
@@ -639,6 +733,43 @@ internal sealed class BenchmarkOrchestrator(
         &&string.Equals(benchmark.MethodName,job.MethodName,StringComparison.Ordinal)
         &&string.Equals(benchmark.ArgumentKey,job.ArgumentKey,StringComparison.Ordinal);
 
+    private bool HasFailedRowCase(ProgressState state,AdaptiveMethodRow row) {
+        var jobs = this.GetJobsSnapshot(state);
+        return row.Cases.Any(benchmark => jobs.Any(job => SameCase(benchmark,job)&&job.Status==JobStatus.Failed));
+    }
+
+    private static bool IsCompletedTargetBatch(
+        IReadOnlyList<BenchmarkJob> jobs,
+        IReadOnlyList<BenchmarkCase> cases,
+        double thresholdNanoseconds) =>
+        cases.Count>0
+        &&cases.All(benchmark => jobs.Any(job =>
+            SameCase(benchmark,job)
+            &&job.Status==JobStatus.Completed
+            &&job.MeanNanoseconds is { } mean
+            &&mean>=thresholdNanoseconds));
+
+    private void MarkTargetDurationUnreachable(
+        ProgressState state,
+        IReadOnlyList<BenchmarkJob> jobs,
+        Action<BenchmarkProgressUpdate> progress) {
+        const string reason = "The target measurement duration could not be reached at LoopCount=int.MaxValue.";
+        BenchmarkJob[] failedJobs;
+        lock(this.stateGate) {
+            failedJobs=jobs.Where(static job => job.Status==JobStatus.Completed).ToArray();
+            foreach(var job in failedJobs) {
+                job.Status=JobStatus.Failed;
+                job.ExitCode=1;
+                job.FailureReason=reason;
+            }
+            stateManager.Save(state);
+        }
+
+        foreach(var job in failedJobs) {
+            progress(new BenchmarkProgressUpdate(state,job));
+        }
+    }
+
     private bool IsAdaptiveCaseStopped(ProgressState state,BenchmarkSourceTab sourceTab,BenchmarkCase benchmark) {
         var jobs = this.GetJobsSnapshot(state);
         return IsAdaptiveCaseFailed(jobs,sourceTab,benchmark)
@@ -653,7 +784,7 @@ internal sealed class BenchmarkOrchestrator(
             SameAdaptiveSeries(sourceTab,benchmark,job)
             &&job.Status==JobStatus.Completed
             &&job.MeanNanoseconds is { } mean
-            &&mean>state.AdaptiveThresholdNanoseconds);
+            &&mean>=state.AdaptiveThresholdNanoseconds);
 
     private static bool SameAdaptiveSeries(BenchmarkSourceTab sourceTab,BenchmarkCase benchmark,BenchmarkJob job) {
         if(!IsScalableSourceTab(sourceTab)) {

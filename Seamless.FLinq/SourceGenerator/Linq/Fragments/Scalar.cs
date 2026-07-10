@@ -36,18 +36,7 @@ public abstract class Scalar(int 番号):Fragment(番号){
     // Struct{番号}（単一要素 enumerator）を含まない点が GetEnumeratorStruct と異なる。
     public virtual string InlineSupportingMembers => this.GetEnumeratorStruct;
 
-    protected string? RenderDirectEnumerableCallInline(Enumerable source,string destVar,string destType,string methodName,params string[] arguments) {
-        if(source.DirectEnumerableExpression is not { } sourceExpression) return null;
-        var sourceVar=$"__src{this.result}";
-        var argumentList=arguments.Length==0 ? string.Empty : ", "+string.Join(", ",arguments);
-        return $$"""
-            {{destType}} {{destVar}};
-            {
-                var {{sourceVar}}={{sourceExpression}};
-                {{destVar}}=global::System.Linq.Enumerable.{{methodName}}({{sourceVar}}{{argumentList}});
-            }
-            """;
-    }
+    protected virtual string? RenderDirectEnumerableCallInline(Enumerable source,string destVar,string destType,string methodName,params string[] arguments) => null;
 
     protected string? RenderDirectEnumerableToArrayHybridInline(Enumerable source,string destVar,string destType) {
         if(source.DirectEnumerableExpression is not { } sourceExpression) return null;
@@ -86,7 +75,11 @@ public abstract class Scalar(int 番号):Fragment(番号){
                         {{collectionVar}}.CopyTo({{destVar}},0);
                     }
                 } else {
-                    {{destVar}}=global::System.Linq.Enumerable.ToArray({{sourceVar}});
+                    var __fallbackList{{this.result}}=new global::System.Collections.Generic.List<{{elementType}}>();
+                    foreach(var __fallbackItem{{this.result}} in {{sourceVar}}) {
+                        __fallbackList{{this.result}}.Add(__fallbackItem{{this.result}});
+                    }
+                    {{destVar}}=__fallbackList{{this.result}}.ToArray();
                 }
             }
             """;
@@ -111,7 +104,7 @@ public abstract class Scalar(int 番号):Fragment(番号){
             return $$"""
                 {{destType}} {{destVar}};
                 using(var {{srcVar}}={{srcExpr}}) {
-                    global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
+                    global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
                     var {{spanVar}}={{directSpanExpression}};
                     {{IndentLines(renderBody(spanVar),"    ")}}
                 }
@@ -124,9 +117,9 @@ public abstract class Scalar(int 番号):Fragment(番号){
         return $$"""
             {{destType}} {{destVar}};
             using(var {{srcVar}}={{srcExpr}}) {
-                global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanCalled();
+                global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanCalled();
                 {{srcVar}}.TryGetSpan(out var {{spanVar}});
-                global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanSucceeded();
+                global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanSucceeded();
                 {{IndentLines(renderBody(spanVar),"    ")}}
             }
             """;
@@ -158,7 +151,10 @@ public abstract class Scalar(int 番号):Fragment(番号){
                 } else if({{sourceVar}} is global::System.Collections.Generic.ICollection<{{elementType}}> {{collectionVar}}) {
                     {{destVar}}=new({{collectionVar}});
                 } else {
-                    {{destVar}}=global::System.Linq.Enumerable.ToList({{sourceVar}});
+                    {{destVar}}=new global::System.Collections.Generic.List<{{elementType}}>();
+                    foreach(var __fallbackItem{{this.result}} in {{sourceVar}}) {
+                        {{destVar}}.Add(__fallbackItem{{this.result}});
+                    }
                 }
             }
             """;
@@ -196,7 +192,10 @@ public abstract class Scalar(int 番号):Fragment(番号){
                         {{destVar}}.Add({{itemVar}});
                     }
                 } else {
-                    {{destVar}}=global::System.Linq.Enumerable.ToHashSet({{sourceVar}},{{comparer}});
+                    {{destVar}}=new global::System.Collections.Generic.HashSet<{{elementType}}>({{comparer}});
+                    foreach(var __fallbackItem{{this.result}} in {{sourceVar}}) {
+                        {{destVar}}.Add(__fallbackItem{{this.result}});
+                    }
                 }
             }
             """;

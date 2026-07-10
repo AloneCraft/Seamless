@@ -106,7 +106,16 @@ public sealed record UiBenchmarkGridSideWrite(
     string FailureReason,
     DateTimeOffset? MeasuredAt,
     double? MeanNanoseconds,
-    long? AllocatedBytes);
+    long? AllocatedBytes,
+    int? LoopCount = null,
+    double? TotalNanoseconds = null);
+
+public sealed record UiBenchmarkSnapshotCaseWrite(
+    string AssemblyName,
+    string TypeFullName,
+    string MethodName,
+    string ArgumentKey,
+    string ArgumentsJson);
 
 public sealed record UiBenchmarkSnapshotItemWrite(
     string TabName,
@@ -115,14 +124,18 @@ public sealed record UiBenchmarkSnapshotItemWrite(
     int? CpuNumber,
     bool IsSelected,
     UiBenchmarkGridSideWrite Left,
-    UiBenchmarkGridSideWrite Right);
+    UiBenchmarkGridSideWrite Right,
+    UiBenchmarkSnapshotCaseWrite? LeftCase = null,
+    UiBenchmarkSnapshotCaseWrite? RightCase = null);
 
 public sealed record UiBenchmarkGridSideRecord(
     UiRunStatus Status,
     string FailureReason,
     DateTimeOffset? MeasuredAt,
     double? MeanNanoseconds,
-    long? AllocatedBytes);
+    long? AllocatedBytes,
+    int? LoopCount = null,
+    double? TotalNanoseconds = null);
 
 public sealed record UiBenchmarkSnapshotItemRecord(
     long RunId,
@@ -132,7 +145,9 @@ public sealed record UiBenchmarkSnapshotItemRecord(
     int? CpuNumber,
     bool IsSelected,
     UiBenchmarkGridSideRecord Left,
-    UiBenchmarkGridSideRecord Right);
+    UiBenchmarkGridSideRecord Right,
+    UiBenchmarkSnapshotCaseWrite? LeftCase = null,
+    UiBenchmarkSnapshotCaseWrite? RightCase = null);
 
 public sealed record UiRunSettingsRecord(
     long RunId,

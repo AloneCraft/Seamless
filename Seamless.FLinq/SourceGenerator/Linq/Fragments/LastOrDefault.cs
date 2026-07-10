@@ -64,8 +64,7 @@ public class LastOrDefault_defaultValue(int 番号, Enumerable source, string de
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeLastOrDefaultDefaultValueInline(destVar,destType)
         ??this.RenderDirectSpanLastOrDefaultDefaultValueInline(destVar,destType)
-        ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"LastOrDefault",defaultValue)
-        ??this.RenderComputeInline(destVar,destType);
+        ??this.RenderComputeInline(destVar,destType,defaultValue);
     private string? RenderDirectSpanLastOrDefaultDefaultValueInline(string destVar,string destType) {
         var span=$"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""

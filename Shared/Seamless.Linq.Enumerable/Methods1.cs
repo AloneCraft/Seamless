@@ -48,52 +48,52 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     private const int SelectManyOuterCount = 64;
     private const int SelectManyInnerCount = StandardBenchmarkElementCount/SelectManyOuterCount;
 
-    private static int IterationCount(int defaultCount) =>
+    internal static int IterationCount(int defaultCount) =>
         BenchmarkExecutionMode.IsElementCountScoped ? 1 : defaultCount;
 
-    private int MidpointIndex(int elementCount) =>
+    internal int MidpointIndex(int elementCount) =>
         global::System.Math.Max(0,this.EffectiveSourceCount(elementCount)/2);
 
-    private int MidpointValue(int elementCount) =>
+    internal int MidpointValue(int elementCount) =>
         global::System.Math.Max(1,this.EffectiveSourceCount(elementCount)/2);
 
-    private int QuarterCount(int elementCount) =>
+    internal int QuarterCount(int elementCount) =>
         global::System.Math.Max(0,this.EffectiveSourceCount(elementCount)/4);
 
-    private int ThreeQuarterCount(int elementCount) =>
+    internal int ThreeQuarterCount(int elementCount) =>
         global::System.Math.Max(0,this.EffectiveSourceCount(elementCount)*3/4);
 
-    private static int Number(T value) =>
+    internal static int Number(T value) =>
         ToInt(value);
 
-    private static T Value(int value) =>
+    internal static T Value(int value) =>
         FromInt(value);
 
-    private static T Add(T left,T right) =>
+    internal static T Add(T left,T right) =>
         Value(Number(left)+Number(right));
 
-    private static T Add(T left,int right) =>
+    internal static T Add(T left,int right) =>
         Value(Number(left)+right);
 
-    private static bool EqualNumber(T value,int number) =>
+    internal static bool EqualNumber(T value,int number) =>
         Number(value)==number;
 
-    private static bool GreaterThan(T value,int number) =>
+    internal static bool GreaterThan(T value,int number) =>
         Number(value)>number;
 
-    private static bool GreaterThanOrEqual(T value,int number) =>
+    internal static bool GreaterThanOrEqual(T value,int number) =>
         Number(value)>=number;
 
-    private static bool LessThan(T value,int number) =>
+    internal static bool LessThan(T value,int number) =>
         Number(value)<number;
 
-    private static bool IsEven(T value) =>
+    internal static bool IsEven(T value) =>
         (Number(value)&1)==0;
 
-    private static int Mod(T value,int divisor) =>
+    internal static int Mod(T value,int divisor) =>
         Number(value)%divisor;
 
-    private static long LongNumber(T value) =>
+    internal static long LongNumber(T value) =>
         Number(value);
     // [Aggregate_func]
     [BenchFact, Benchmark]
@@ -498,14 +498,14 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     [BenchmarkCategory(Categories.Linq)]
     public void Order() => this.Order_Impl();
 
-    [LinqIntercept(true)]
+    [LinqIntercept(false)]
     private void Order_Impl() => this.srcCount(SortCount).AsX<T>().Order().Consume(this.consumer);
     // [OrderBy_keySelector]
     [BenchFact, Benchmark]
     [BenchmarkCategory(Categories.Linq)]
     public void OrderBy_keySelector() => this.OrderBy_keySelector_Impl();
 
-    [LinqIntercept(true)]
+    [LinqIntercept(false)]
     private void OrderBy_keySelector_Impl() => this.srcCount(SortCount).AsX<T>().OrderBy(x => x).Consume(this.consumer);
     // [OrderByDescending_keySelector]
     [BenchFact, Benchmark]
@@ -519,7 +519,7 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     [BenchmarkCategory(Categories.Linq)]
     public void OrderDescending() => this.OrderDescending_Impl();
 
-    [LinqIntercept(true)]
+    [LinqIntercept(false)]
     private void OrderDescending_Impl() => this.srcCount(SortCount).AsX<T>().OrderDescending().Consume(this.consumer);
     // [Prepend_element]
     [BenchFact, Benchmark]
@@ -552,7 +552,7 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     [BenchmarkCategory(Categories.Linq)]
     public void Select_indexSelector() => this.Select_indexSelector_Impl();
 
-    [LinqIntercept(false)]
+    [LinqIntercept(true)]
     private void Select_indexSelector_Impl() => this.srcCount(StreamOneToOneCount).AsX<T>().Select(static (x,i) => Number(x)+i).Consume(this.consumer);
     // [Select_selector]
     [BenchFact, Benchmark]
@@ -571,13 +571,13 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     [BenchFact, Benchmark]
     public void SelectMany_indexSelector() => this.SelectMany_indexSelector_Impl();
 
-    [LinqIntercept(false)]
+    [LinqIntercept(true)]
     private void SelectMany_indexSelector_Impl() => this.srcNestedCount(NestedCount).AsX<IEnumerable<int>>().SelectMany((x,i) => x).Consume(this.consumer);
     // [SelectMany_indexSelector_resultSelector]
     [BenchFact, Benchmark]
     public void SelectMany_indexSelector_resultSelector() => this.SelectMany_indexSelector_resultSelector_Impl();
 
-    [LinqIntercept(false)]
+    [LinqIntercept(true)]
     private void SelectMany_indexSelector_resultSelector_Impl() => this.srcNestedCount(NestedCount).AsX<IEnumerable<int>>().SelectMany((x,i) => x,(outer,inner) => inner+1).Consume(this.consumer);
     // [SelectMany_resultSelector]
     [BenchFact, Benchmark]
@@ -774,7 +774,8 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     [LinqIntercept(true)]
     private void TryGetNonEnumeratedCount_Impl() {
         for(var i = 0; i<IterationCount(TryGetNonEnumeratedCount_iterationCount); i++) {
-            ConsumeResult(this.consumer,global::System.Linq.Enumerable.TryGetNonEnumeratedCount(this.srcCount(ImmediateFullScanCount),out var count),count);
+            var result=global::System.Linq.Enumerable.TryGetNonEnumeratedCount(this.srcCount(ImmediateFullScanCount),out var count);
+            ConsumeResult(this.consumer,result,count);
         }
     }
     // [Union_second]
@@ -796,7 +797,7 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     [BenchmarkCategory(Categories.Linq)]
     public void Where_indexPredicate() => this.Where_indexPredicate_Impl();
 
-    [LinqIntercept(false)]
+    [LinqIntercept(true)]
     private void Where_indexPredicate_Impl() => this.srcCount(StreamFilterCount).AsX<T>().Where((x,i) => i%2==0).Consume(this.consumer);
     // [Where_predicate]
     [BenchFact, Benchmark]
@@ -873,7 +874,7 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     [BenchmarkCategory(Categories.ExecutionPlan)]
     public void ExecutionPlan_GroupJoinMaterialize() => this.ExecutionPlan_GroupJoinMaterialize_Impl();
 
-    [LinqIntercept(false)]
+    [LinqIntercept(true)]
     private void ExecutionPlan_GroupJoinMaterialize_Impl() => this.srcCount(JoinCount).AsX<T>()
         .Where(static outer => Mod(outer,5)!=0)
         .GroupJoin(
@@ -886,11 +887,11 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
         .ToList()
         .Consume(this.consumer);
 
-    private int[] outer = [];
-    private int[] inner = [];
+    internal int[]outer = [];
+    internal int[]inner = [];
     private const int Threshold = 120;
 
-    private int sourceCount;
+    internal int sourceCount;
     protected Methods1(int count) : base(count) {
         this.Initialize();
     }
@@ -926,11 +927,11 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
         this.srcCount(SourceShapeCount);
 #else
     [LinqIntercept(false)]
-    private T[] sourceShape() =>
+    internal T[]sourceShape() =>
         this.srcCount(SourceShapeCount);
 #endif
 
-    private static void ConsumeResult(global::Common.Consumer consumer,bool result,int count) {
+    internal static void ConsumeResult(global::Common.Consumer consumer,bool result,int count) {
         consumer.Consume(result);
         if(result) {
             consumer.Consume(count);
@@ -939,7 +940,7 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
         }
     }
 
-    private IEnumerable<int> YieldRange() {
+    internal IEnumerable<int>YieldRange() {
         for(var i = 1; i<=this.sourceCount; i++) {
             yield return i;
         }

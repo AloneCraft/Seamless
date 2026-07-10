@@ -53,9 +53,6 @@ public abstract class ToDictionaryBase(int 番号,Enumerable source,string resul
         var elementSelectorDeclaration = elementSelector is null
             ? string.Empty
             : $"global::System.Func<{sourceType},{valueType}> {elementSelectorVar}={elementLambda};";
-        var fallbackArgs = elementSelector is null
-            ? $"{sourceVar},{keySelectorVar},{comparer}"
-            : $"{sourceVar},{keySelectorVar},{elementSelectorVar},{comparer}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -82,7 +79,10 @@ public abstract class ToDictionaryBase(int 番号,Enumerable source,string resul
                         {{destVar}}.Add({{keySelectorVar}}({{itemVar}}),{{addValue}});
                     }
                 } else {
-                    {{destVar}}=global::System.Linq.Enumerable.ToDictionary({{fallbackArgs}});
+                    {{destVar}}=new global::System.Collections.Generic.Dictionary<{{keyType}},{{valueType}}>({{comparer}});
+                    foreach(var {{itemVar}} in {{sourceVar}}) {
+                        {{destVar}}.Add({{keySelectorVar}}({{itemVar}}),{{addValue}});
+                    }
                 }
             }
             """;
@@ -97,7 +97,6 @@ public class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragment 
     protected override string ComputeExpression=>$"Compute({this.e}{this.ClosureArgsSuffix(keySelector)})";
     public override string? RenderInlineComputation(string destVar,string destType)=>
         this.RenderRangeIdentityToDictionaryInline(destVar,destType)
-        ??this.RenderDirectEnumerableToDictionaryHybridInline(destVar,destType,keySelector,null)
         ??this.RenderComputeInline(destVar,destType);
     private string? RenderRangeIdentityToDictionaryInline(string destVar,string destType) {
         if(source is not RangeRoot range
@@ -163,7 +162,6 @@ public class ToDictionary_keySelector_elementSelector(int 番号,Enumerable sour
     protected override string ComputeExpression=>$"Compute({this.e}{this.ClosureArgsSuffix(keySelector,elementSelector)})";
     public override string? RenderInlineComputation(string destVar,string destType)=>
         this.RenderRangeIdentityToDictionaryInline(destVar,destType)
-        ??this.RenderDirectEnumerableToDictionaryHybridInline(destVar,destType,keySelector,elementSelector)
         ??this.RenderComputeInline(destVar,destType);
     private string? RenderRangeIdentityToDictionaryInline(string destVar,string destType) {
         if(source is not RangeRoot range
@@ -238,7 +236,6 @@ public class ToDictionary_keySelector_comparer(int 番号,Enumerable source,Func
     protected override string ComputeExpression=>$"Compute({this.e}, comparer{this.ClosureArgsSuffix(keySelector)})";
     public override string? RenderInlineComputation(string destVar,string destType)=>
         this.RenderRangeIdentityToDictionaryInline(destVar,destType)
-        ??this.RenderDirectEnumerableToDictionaryHybridInline(destVar,destType,keySelector,null,comparer)
         ??this.RenderComputeInline(destVar,destType,$"{comparer}{this.ClosureArgsSuffix(keySelector)}");
     private string? RenderRangeIdentityToDictionaryInline(string destVar,string destType) {
         if(source is not RangeRoot range
@@ -305,8 +302,7 @@ public class ToDictionary_keySelector_elementSelector_comparer(int 番号,Enumer
     public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector,elementSelector)}";
     protected override string ComputeExpression=>$"Compute({this.e}, comparer{this.ClosureArgsSuffix(keySelector,elementSelector)})";
     public override string? RenderInlineComputation(string destVar,string destType)=>
-        this.RenderDirectEnumerableToDictionaryHybridInline(destVar,destType,keySelector,elementSelector,comparer)
-        ??this.RenderComputeInline(destVar,destType,$"{comparer}{this.ClosureArgsSuffix(keySelector,elementSelector)}");
+        this.RenderComputeInline(destVar,destType,$"{comparer}{this.ClosureArgsSuffix(keySelector,elementSelector)}");
     protected override string ComputeMembers=>$$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector,elementSelector)}}){

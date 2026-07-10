@@ -541,7 +541,7 @@ public sealed partial class FLinqIncrementalGenerator {
             if(semanticModel.GetSymbolInfo(identifier).Symbol is not IFieldSymbol field
                 || !field.IsStatic
                 || !IsSameOrBaseType(containingType,field.ContainingType)
-                || field.DeclaredAccessibility==Accessibility.Public) {
+                || CanAccessFromGeneratedCode(field)) {
                 continue;
             }
 
@@ -569,7 +569,7 @@ public sealed partial class FLinqIncrementalGenerator {
         foreach(var memberAccess in allMemberAccesses) {
             if(semanticModel.GetSymbolInfo(memberAccess).Symbol is not IMethodSymbol method
                 || method.MethodKind!=MethodKind.Ordinary
-                || method.DeclaredAccessibility==Accessibility.Public
+                || CanAccessFromGeneratedCode(method)
                 || semanticModel.GetTypeInfo(memberAccess).ConvertedType is not INamedTypeSymbol delegateType
                 || !IsInlineDelegateType(delegateType)) {
                 continue;
@@ -615,7 +615,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
         foreach(var memberAccess in allMemberAccesses) {
             if(semanticModel.GetSymbolInfo(memberAccess).Symbol is not IFieldSymbol field
-                || field.DeclaredAccessibility==Accessibility.Public) {
+                || CanAccessFromGeneratedCode(field)) {
                 continue;
             }
 
@@ -631,7 +631,7 @@ public sealed partial class FLinqIncrementalGenerator {
         foreach(var memberAccess in allMemberAccesses) {
             if(semanticModel.GetSymbolInfo(memberAccess).Symbol is not IPropertySymbol property
                 || property.IsStatic
-                || property.DeclaredAccessibility==Accessibility.Public
+                || CanAccessFromGeneratedCode(property)
                 || !SymbolEqualityComparer.Default.Equals(property.ContainingType,containingType)
                 || property.GetMethod is null) {
                 continue;

@@ -51,13 +51,27 @@ public sealed class RunnerViewModel{
 
         await viewModel.RunCommand.ExecuteAsync(null);
         await WaitUntilAsync(() => allTargets.All(IsFinalCompleted));
+        await WaitUntilOrContinueAsync(() =>
+            arrayTab.CompletionIconSource==global::UI.BenchmarkStatusImageNames.FinalCompleted
+            &&enumerableTab.CompletionIconSource==global::UI.BenchmarkStatusImageNames.FinalCompleted
+            &&listTab.CompletionIconSource==global::UI.BenchmarkStatusImageNames.FinalCompleted);
 
         Assert.All(arrayTargets,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
         Assert.All(enumerableTargets,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
         Assert.All(listTargets,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
-        Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,arrayTab.CompletionIconSource);
-        Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,enumerableTab.CompletionIconSource);
-        Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,listTab.CompletionIconSource);
+        AssertFinalCompletedTab(arrayTab);
+        AssertFinalCompletedTab(enumerableTab);
+        AssertFinalCompletedTab(listTab);
+    }
+
+    private static void AssertFinalCompletedTab(global::UI.SourceTabOption option){
+        Assert.True(
+            option.CompletionIconSource==global::UI.BenchmarkStatusImageNames.FinalCompleted,
+            option.DisplayName
+            +" icon="+option.CompletionIconSource
+            +" progress="+option.Progress.Completed+"/"+option.Progress.Total
+            +" isCompleted="+option.IsCompleted
+            +" isFinalCompleted="+option.IsFinalCompleted);
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
@@ -68,7 +82,7 @@ public sealed class RunnerViewModel{
         option.SetFinalCompleted(false);
 
         Assert.True(option.IsCompletionIconVisible);
-        Assert.Equal(global::UI.BenchmarkStatusImageNames.Completed,option.CompletionIconSource);
+        Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,option.CompletionIconSource);
 
         option.SetFinalCompleted(true);
 
@@ -169,6 +183,22 @@ public sealed class RunnerViewModel{
 
         Assert.Equal("int",row.BenchmarkTypeText);
         Assert.Equal("AggregateBy_keySelector",row.BenchmarkMethodText);
+        Assert.Equal(TextDecorations.None,row.BenchmarkIdentityTextDecorations);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public void SnapshotTableRow_StrikesThroughTypeAndMethodWhenNoBenchmarkCaseExists(){
+        var sourceTab=global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var row=new global::UI.BenchmarkTableRow(
+            "int|MissingMethod",
+            "MissingMethod",
+            "MissingMethod",
+            sourceTab,
+            new Dictionary<string,global::UI.BenchmarkCase>(StringComparer.OrdinalIgnoreCase),
+            "int");
+
+        Assert.All(row.ProjectCells,static cell => Assert.False(cell.HasCase));
+        Assert.Equal(TextDecorations.Strikethrough,row.BenchmarkIdentityTextDecorations);
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]

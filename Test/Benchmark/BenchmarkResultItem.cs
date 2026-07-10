@@ -47,6 +47,42 @@ public sealed class BenchmarkResultItemTests{
         Assert.Equal(global::UI.BenchmarkSourceTab.SystemArray,result.SourceTab);
     }
 
+    [Fact]
+    public void Constructor_NormalizesLoopCountTotalsPerOperation(){
+        var result = new global::UI.BenchmarkResultItem(new global::UI.BenchmarkJob{
+            Project="DotNet.Linq.Enumerable.FLinq",
+            MethodName="Aggregate_func",
+            TypeFullName="DotNet.Linq.Enumerable.FLinqInt32",
+            SourceTab=global::UI.BenchmarkSourceTab.SystemArray,
+            ElementCount=4096,
+            LoopCount=8,
+            Status=global::UI.JobStatus.Completed,
+            MeanNanoseconds=800,
+            ErrorNanoseconds=80,
+            StdDevNanoseconds=40,
+            AllocatedBytes=1024,
+        });
+
+        Assert.Equal(100,result.MeanNanoseconds);
+        Assert.Equal(800,result.TotalNanoseconds);
+        Assert.Equal(10,result.ErrorNanoseconds);
+        Assert.Equal(5,result.StdDevNanoseconds);
+        Assert.Equal(128,result.AllocatedBytesValue);
+    }
+
+    [Fact]
+    public void Constructor_DoesNotReconstructMissingTotalForLegacySnapshot(){
+        var stored=StoredResult(
+            global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray).LeftProject,
+            "DotNet.Linq.Enumerable.FLinqInt32",
+            global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray).Id);
+
+        var result=new global::UI.BenchmarkResultItem(stored);
+
+        Assert.Equal(100,result.MeanNanoseconds);
+        Assert.Null(result.TotalNanoseconds);
+    }
+
     private static global::UI.BenchmarkStoredResult StoredResult(
         string project,
         string typeFullName,

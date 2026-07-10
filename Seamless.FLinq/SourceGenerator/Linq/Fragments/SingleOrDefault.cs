@@ -64,8 +64,7 @@ public class SingleOrDefault_defaultValue(int 番号, Enumerable source, string 
         : source is RepeatRoot repeat
             ? RangePredicateOptimizer.RenderSingleOrDefault(repeat,番号,destVar,destType,defaultValue)
             : this.RenderDirectSpanSingleOrDefaultDefaultInline(destVar,destType)
-            ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault",defaultValue)
-        ??this.RenderComputeInline(destVar,destType);
+            ??this.RenderComputeInline(destVar,destType,defaultValue);
     private string? RenderDirectSpanSingleOrDefaultDefaultInline(string destVar,string destType) {
         var span=$"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""

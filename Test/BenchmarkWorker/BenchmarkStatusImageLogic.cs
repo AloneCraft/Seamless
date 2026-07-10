@@ -80,8 +80,8 @@ public sealed class BenchmarkStatusImageLogic{
     [Fact]
     public void RowCompletionUsesThresholdOrMaxElementCompletion(){
         var measurements = new[] {
-            new BenchmarkElementMeasurement("Left","Aggregate",4096,"Completed",900_000),
-            new BenchmarkElementMeasurement("Right","Aggregate",4096,"Completed",1_500_000),
+            new BenchmarkElementMeasurement("Left","Aggregate","","",4096,"Completed",900_000,900_000),
+            new BenchmarkElementMeasurement("Right","Aggregate","","",4096,"Completed",1_500_000,1_500_000),
         };
 
         Assert.True(BenchmarkRowCompletionLogic.IsFinalCompleted(
@@ -101,8 +101,8 @@ public sealed class BenchmarkStatusImageLogic{
             2_000_000));
 
         measurements=[
-            new BenchmarkElementMeasurement("Left","Aggregate",8192,"Completed",900_000),
-            new BenchmarkElementMeasurement("Right","Aggregate",8192,"Completed",950_000),
+            new BenchmarkElementMeasurement("Left","Aggregate","","",8192,"Completed",900_000,900_000),
+            new BenchmarkElementMeasurement("Right","Aggregate","","",8192,"Completed",950_000,950_000),
         ];
 
         Assert.True(BenchmarkRowCompletionLogic.IsFinalCompleted(
@@ -117,8 +117,8 @@ public sealed class BenchmarkStatusImageLogic{
     [Fact]
     public void RowCompletionUsesPairKeyWhenRightSideReachesThreshold(){
         var measurements = new[] {
-            new BenchmarkElementMeasurement("Left","Any","System.Array.FLinq","",4096,"Completed",100),
-            new BenchmarkElementMeasurement("Right","Any","System.Array.ZLinq","",4096,"Completed",2_000_000),
+            new BenchmarkElementMeasurement("Left","Any","System.Array.FLinq","",4096,"Completed",100,100),
+            new BenchmarkElementMeasurement("Right","Any","System.Array.ZLinq","",4096,"Completed",2_000_000,2_000_000),
         };
 
         Assert.True(BenchmarkRowCompletionLogic.IsFinalCompleted(
@@ -139,8 +139,8 @@ public sealed class BenchmarkStatusImageLogic{
     [Fact]
     public void RowCompletionDoesNotCompleteWhenBothSidesStayBelowThreshold(){
         var measurements = new[] {
-            new BenchmarkElementMeasurement("Left","Any","System.Array.FLinq","",4096,"Completed",100),
-            new BenchmarkElementMeasurement("Right","Any","System.Array.ZLinq","",4096,"Completed",200),
+            new BenchmarkElementMeasurement("Left","Any","System.Array.FLinq","",4096,"Completed",100,100),
+            new BenchmarkElementMeasurement("Right","Any","System.Array.ZLinq","",4096,"Completed",200,200),
         };
 
         Assert.False(BenchmarkRowCompletionLogic.IsFinalCompleted(

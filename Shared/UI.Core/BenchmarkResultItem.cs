@@ -18,6 +18,7 @@ public sealed record BenchmarkStoredResult(
     public string ArgumentKey { get; init; } = string.Empty;
     public IReadOnlyList<BenchmarkArgument> Arguments { get; init; } = [];
     public string SourceTabId { get; init; } = string.Empty;
+    public double? TotalNanoseconds { get; init; }
     /// <summary>計測を実行した論理CPU。DB(Jobs.AssignedLogicalCpu)から復元し、表の論理コア列表示に使う。</summary>
     public int? AssignedLogicalCpu { get; init; }
 
@@ -30,6 +31,8 @@ public sealed record BenchmarkStoredResult(
 [global::Seamless.FLinq.LinqIntercept(false)]
 public sealed class BenchmarkResultItem{
     public BenchmarkResultItem(BenchmarkJob job){
+        var meanNanoseconds = BenchmarkWorkloadAxis.NormalizePerOperation(job.SourceTab,job.LoopCount,job.MeanNanoseconds);
+        var allocatedBytes = BenchmarkWorkloadAxis.NormalizePerOperation(job.SourceTab,job.LoopCount,job.AllocatedBytes);
         this.Project=job.Project;
         this.Method=job.MethodName;
         this.TypeFullName=job.TypeFullName;
@@ -40,16 +43,17 @@ public sealed class BenchmarkResultItem{
         this.ArgumentKey=job.ArgumentKey;
         this.Arguments=job.Arguments.ToArray();
         this.Status=job.Status.ToString();
-        this.Mean=job.MeanNanoseconds is { } mean
+        this.Mean=meanNanoseconds is { } mean
             ? BenchmarkFormatting.FormatNanoseconds(mean)
             : job.Status==JobStatus.Failed&&string.IsNullOrWhiteSpace(job.Mean) ? "Failed" : job.Mean;
-        this.AllocatedBytes=job.AllocatedBytes is { } allocated
+        this.AllocatedBytes=allocatedBytes is { } allocated
             ? BenchmarkFormatting.FormatBytes(allocated)
             : string.Empty;
-        this.AllocatedBytesValue=job.AllocatedBytes;
-        this.MeanNanoseconds=job.MeanNanoseconds;
-        this.ErrorNanoseconds=job.ErrorNanoseconds;
-        this.StdDevNanoseconds=job.StdDevNanoseconds;
+        this.AllocatedBytesValue=allocatedBytes;
+        this.MeanNanoseconds=meanNanoseconds;
+        this.TotalNanoseconds=job.MeanNanoseconds;
+        this.ErrorNanoseconds=BenchmarkWorkloadAxis.NormalizePerOperation(job.SourceTab,job.LoopCount,job.ErrorNanoseconds);
+        this.StdDevNanoseconds=BenchmarkWorkloadAxis.NormalizePerOperation(job.SourceTab,job.LoopCount,job.StdDevNanoseconds);
         this.RandomSeed=job.RandomSeed;
         this.ResultDigest=job.ResultDigest;
         this.ResultCheckText=job.ResultCheckText;
@@ -85,6 +89,7 @@ public sealed class BenchmarkResultItem{
         this.AllocatedBytes=metrics.HasMeasuredValue&&metrics.AllocatedBytes is { } allocated ? BenchmarkFormatting.FormatBytes(allocated) : string.Empty;
         this.AllocatedBytesValue=metrics.AllocatedBytes;
         this.MeanNanoseconds=metrics.TimeNanoseconds;
+        this.TotalNanoseconds=ResolveTotalNanoseconds(this.SourceTab,this.LoopCount,this.MeanNanoseconds);
         this.ErrorNanoseconds=null;
         this.StdDevNanoseconds=null;
         this.RandomSeed=null;
@@ -101,6 +106,7 @@ public sealed class BenchmarkResultItem{
     public BenchmarkResultItem(BenchmarkStoredResult result)
         : this(result.Project,result.Method,result.TypeFullName,result.ToProjectMetrics(),result.ElementCount,result.LoopCount,result.Status,result.MeasuredAt,result.ArgumentKey,result.Arguments,result.SourceTabId){
         this.AssignedLogicalCpu=result.AssignedLogicalCpu;
+        this.TotalNanoseconds=result.TotalNanoseconds;
     }
 
     private BenchmarkResultItem(
@@ -129,6 +135,7 @@ public sealed class BenchmarkResultItem{
         this.AllocatedBytes=metrics.HasMeasuredValue&&metrics.AllocatedBytes is { } allocated ? BenchmarkFormatting.FormatBytes(allocated) : string.Empty;
         this.AllocatedBytesValue=metrics.AllocatedBytes;
         this.MeanNanoseconds=metrics.TimeNanoseconds;
+        this.TotalNanoseconds=ResolveTotalNanoseconds(this.SourceTab,this.LoopCount,this.MeanNanoseconds);
         this.ErrorNanoseconds=null;
         this.StdDevNanoseconds=null;
         this.RandomSeed=null;
@@ -157,6 +164,7 @@ public sealed class BenchmarkResultItem{
         this.AllocatedBytes=string.Empty;
         this.AllocatedBytesValue=null;
         this.MeanNanoseconds=null;
+        this.TotalNanoseconds=null;
         this.ErrorNanoseconds=null;
         this.StdDevNanoseconds=null;
         this.RandomSeed=null;
@@ -185,6 +193,7 @@ public sealed class BenchmarkResultItem{
     public string AllocatedBytes { get; }
     public long? AllocatedBytesValue { get; }
     public double? MeanNanoseconds { get; }
+    public double? TotalNanoseconds { get; private set; }
     public double? ErrorNanoseconds { get; }
     public double? StdDevNanoseconds { get; }
     public int? RandomSeed { get; }
@@ -201,6 +210,11 @@ public sealed class BenchmarkResultItem{
     public int RunItemIndex { get; } = -1;
 
     public static BenchmarkResultItem Failed(BenchmarkCase benchmark,Exception exception) => new(benchmark,exception);
+
+    private static double? ResolveTotalNanoseconds(BenchmarkSourceTab sourceTab,int loopCount,double? meanNanoseconds) =>
+        meanNanoseconds is { } value&&BenchmarkWorkloadAxis.UsesLoopCount(sourceTab)&&loopCount>1
+            ? value*loopCount
+            : meanNanoseconds;
 
     private static BenchmarkSourceTab ResolveSourceTab(string project,string assemblyName = "",string sourceTabId = ""){
         if(!string.IsNullOrWhiteSpace(sourceTabId)){

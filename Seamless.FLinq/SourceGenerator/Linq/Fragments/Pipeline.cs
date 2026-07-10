@@ -1941,7 +1941,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
     private void AppendConcatConsumeSource(StringBuilder builder,Enumerable sourceFragment,string enumeratorName,string consumerName,string spanName,string itemName,string outputType) {
         var directSpanExpression=sourceFragment.GetDirectSpanExpression(enumeratorName);
         if(directSpanExpression is not null) {
-            builder.AppendLine("global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();");
+            builder.AppendLine("global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();");
             builder.AppendLine($"var {spanName}={directSpanExpression};");
             builder.AppendLine($"for(var __i{this.result}=0;__i{this.result}<{spanName}.Length;__i{this.result}++) {{");
             builder.AppendLine($"    var {itemName}={spanName}[__i{this.result}];");
@@ -1999,7 +1999,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
 
         return $$"""
             using var {{sourceName}}={{source.GetEnumeratorExpression}};
-            global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
+            global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
             var {{spanName}}={{directSpanExpression}};
             {{indexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++) {
                 var {{itemName}}={{spanName}}[__i{{this.result}}];
@@ -2045,7 +2045,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
 
         return $$"""
             using var {{sourceName}}={{source.GetEnumeratorExpression}};
-            global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
+            global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
             var {{spanName}}={{directSpanExpression}};
             {{indexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++) {
                 var {{itemName}}={{spanName}}[__i{{this.result}}];
@@ -2102,7 +2102,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         return $$"""
             {{localDeclarationBlock}}
             using var {{sourceName}}={{source.GetEnumeratorExpression}};
-            global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
+            global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
             var {{spanName}}={{directSpanExpression}};
             {{indexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++) {
                 var {{itemName}}={{spanName}}[__i{{this.result}}];
@@ -2163,7 +2163,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
             return $$"""
                 {{localDeclarationBlock}}
                 using var {{sourceName}}={{source.GetEnumeratorExpression}};
-                global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
+                global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
                 var {{spanName}}={{directSpanExpression}};
                 var {{skippingName}}=true;
                 {{indexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++) {
@@ -2183,7 +2183,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         return $$"""
             {{localDeclarationBlock}}
             using var {{sourceName}}={{source.GetEnumeratorExpression}};
-            global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
+            global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
             var {{spanName}}={{directSpanExpression}};
             var {{offsetName}}=0;
             {{indexDeclaration}}for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++) {

@@ -2283,7 +2283,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
             if(bodySemanticModel.GetSymbolInfo(identifier).Symbol is IFieldSymbol field
                 && !field.IsStatic
-                && field.DeclaredAccessibility!=Accessibility.Public) {
+                && !CanAccessFromGeneratedCode(field)) {
                 replacementMap[identifier.Identifier.ValueText]=RenderFieldAccessorCall(field,receiverText,unsafeAccessorCollector);
             }
         }
@@ -2291,7 +2291,7 @@ public sealed partial class FLinqIncrementalGenerator {
         foreach(var memberAccess in bodyExpression.DescendantNodesAndSelf().OfType<MemberAccessExpressionSyntax>()) {
             if(bodySemanticModel.GetSymbolInfo(memberAccess).Symbol is IFieldSymbol field
                 && !field.IsStatic
-                && field.DeclaredAccessibility!=Accessibility.Public) {
+                && !CanAccessFromGeneratedCode(field)) {
                 var memberText = NormalizeExpressionText(memberAccess.ToString());
                 replacementMap[memberText]=RenderFieldAccessorCall(field,receiverText,unsafeAccessorCollector);
             }

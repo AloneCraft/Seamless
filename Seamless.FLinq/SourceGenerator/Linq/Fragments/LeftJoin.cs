@@ -3,10 +3,14 @@ namespace Seamless.FLinq.Linq.Fragments;
 internal class LeftJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragment outerKeySelector,FuncFragment innerKeySelector,FuncFragment resultSelector,string comparer)
     : JoinBase(番号,outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer) {
     public override string ElementType=> this.UseResultTypeParam ? "TResult" : FuncReturnTypeName(this.resultSelector);
-    protected override string StructTypeParameters=> this.UseResultTypeParam ? "<TOuterEnum,TInnerEnum,TResult>" : "<TOuterEnum,TInnerEnum>";
+    protected override string StructTypeParameters=> this.UseResultTypeParam
+        ? StructTypeParametersWithOuter("TOuterEnum","TInnerEnum","TResult")
+        : StructTypeParametersWithOuter("TOuterEnum","TInnerEnum");
     protected override string StructTypeConstraints=>
         $"where TOuterEnum:struct,global::System.Collections.Generic.IEnumerator<{this.outerSource.ElementType}>\n    where TInnerEnum:struct,global::System.Collections.Generic.IEnumerator<{this.innerSource.ElementType}>";
-    public override string EnumeratorTypeName=> this.UseResultTypeParam ? $"{this.Struct}<{this.outerSource.EnumeratorTypeName},{this.innerSource.EnumeratorTypeName},TResult>" : $"{this.Struct}<{this.outerSource.EnumeratorTypeName},{this.innerSource.EnumeratorTypeName}>";
+    public override string EnumeratorTypeName=> this.UseResultTypeParam
+        ? EnumeratorTypeNameWithOuter(this.outerSource.EnumeratorTypeName,this.innerSource.EnumeratorTypeName,"TResult")
+        : EnumeratorTypeNameWithOuter(this.outerSource.EnumeratorTypeName,this.innerSource.EnumeratorTypeName);
     private string FactorySource=>!this.UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
         private static global::Seamless.System.Carrier.ValueEnumerable<{{this.Struct}}<TOuterEnum,TInnerEnum,TResult>,TResult> {{this.FactoryMethodName}}<TOuterEnum,TInnerEnum,TResult>(TOuterEnum outer,TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(this.innerKey)}}>? comparer{{this.ClosurePrimaryCtorSuffix(this.outerKey,this.innerKey,this.resultSelector)}})
@@ -29,12 +33,12 @@ internal class LeftJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragmen
     public override string GetEnumerableExpression=> this.UseResultTypeParam ? $"{this.FactoryMethodName}({this.outerSource.GetEnumeratorExpression},{this.innerSource.GetEnumeratorExpression},{this.comparerExpression}{this.ClosureArgsSuffix(this.outerKey,this.innerKey,this.resultSelector)})" : base.GetEnumerableExpression;
     public override string GetEnumeratorConstructor=>$"this.{this.lookup}=BuildLookup(this.{this.innerEnumerator},this.comparer{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)});";
     public override string GetEnumeratorFields=>$$"""
-        private global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(this.innerKey)}},global::System.Collections.Generic.List<{{this.innerSource.ElementType}}>> {{this.lookup}};
-        private global::System.Collections.Generic.List<{{this.innerSource.ElementType}}>? {{this.group}};
+        private global::Seamless.System.Carrier.Lookup<{{FuncReturnTypeName(this.innerKey)}},{{this.innerSource.ElementType}}> {{this.lookup}};
+        private global::Seamless.System.Carrier.Grouping<{{FuncReturnTypeName(this.innerKey)}},{{this.innerSource.ElementType}}>? {{this.group}};
         private int {{this.groupIndex}};
         private int {{this.state}};
         private {{this.outerSource.ElementType}} {{this.outerValue}};
-        private static bool IsNullKey<T>(T key){
+        private static bool IsNullKey<TKey>(TKey key){
             return key is null;
         }
         {{this.BuildLookupBody(true,"IncrementLogicalLeftJoinInner")}}
@@ -59,7 +63,7 @@ internal class LeftJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragmen
         {{FuncReturnTypeName(this.outerKey)}} {{this.key}}=default!;
         {{this.FuncAssignIndented("",this.outerKey,nameof(this.outerKey),this.key,this.outerValue)}}
         {{this.CounterCall("IncrementHashProbe")}}
-        if(!IsNullKey({{this.key}})&&{{this.lookup}}.TryGetValue({{this.key}},out {{this.group}})){
+        if(!IsNullKey({{this.key}})&&({{this.group}}={{this.lookup}}.GetGroup({{this.key}})) is not null){
             {{this.groupIndex}}=0;
             {{this.state}}=1;
             goto {{this.Start}};
@@ -68,5 +72,5 @@ internal class LeftJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragmen
         return true;
         """;
     public override string GetCurrentExpression=> this.currentValue;
-    protected override string GetEnumeratorDisposeBody=>$"{this.e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody=>$"{this.lookup}.Dispose(); {this.e}.Dispose();";
 }

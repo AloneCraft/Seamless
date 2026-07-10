@@ -1,5 +1,7 @@
 # UI Storage Specification
 
+Benchmarkスナップショットに保存する左右別LoopCount、最終1バッチの合計実測時間、および復元後の完全完了判定は [Benchmark Measurement Specification](BenchmarkMeasurementSpecification.md) を正とする。
+
 ## 目的
 
 Benchmark通常UI、Scalable UI、ParameterSweep UIのRun履歴、実行状態、結果、比較、UI選択状態を共通SQLite DBへ集約する。現行UIではCSV、`progress.json`、`latest-run.json`、`benchmark-results.json`、`benchmark-ui-state.json`、Save/Save As/Open、外部CSV読込を保存仕様として使わない。

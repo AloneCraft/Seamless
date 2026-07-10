@@ -108,8 +108,12 @@ public sealed class BenchmarkJob {
     public BenchmarkCase ToBenchmarkCase() =>
         new(this.Project,this.AssemblyName,this.TypeFullName,this.MethodName,this.ArgumentKey,this.Arguments);
 
-    public ReportRow ToReportRow() =>
-        new(
+    public ReportRow ToReportRow() {
+        var meanNanoseconds = BenchmarkWorkloadAxis.NormalizePerOperation(this.SourceTab,this.LoopCount,this.MeanNanoseconds);
+        var errorNanoseconds = BenchmarkWorkloadAxis.NormalizePerOperation(this.SourceTab,this.LoopCount,this.ErrorNanoseconds);
+        var stdDevNanoseconds = BenchmarkWorkloadAxis.NormalizePerOperation(this.SourceTab,this.LoopCount,this.StdDevNanoseconds);
+        var allocatedBytes = BenchmarkWorkloadAxis.NormalizePerOperation(this.SourceTab,this.LoopCount,this.AllocatedBytes);
+        return new(
             this.Project,
             this.MethodName,
             this.TypeFullName,
@@ -118,13 +122,13 @@ public sealed class BenchmarkJob {
             this.Mean,
             this.Error,
             this.StdDev,
-            this.AllocatedBytes?.ToString(CultureInfo.InvariantCulture)??string.Empty,
+            allocatedBytes?.ToString(CultureInfo.InvariantCulture)??string.Empty,
             string.Empty,
             string.Empty,
-            this.MeanNanoseconds??0,
-            this.ErrorNanoseconds??0,
-            this.StdDevNanoseconds??0,
-            this.AllocatedBytes??0,
+            meanNanoseconds??0,
+            errorNanoseconds??0,
+            stdDevNanoseconds??0,
+            allocatedBytes??0,
             0,
             0,
             this.AssignedLogicalCpu?.ToString(CultureInfo.InvariantCulture)??string.Empty,
@@ -136,6 +140,7 @@ public sealed class BenchmarkJob {
             this.ExitCode,
             this.ArgumentKey,
             this.Arguments);
+    }
 }
 
 [global::Seamless.FLinq.LinqIntercept(false)]

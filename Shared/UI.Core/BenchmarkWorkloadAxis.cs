@@ -27,4 +27,10 @@ internal static class BenchmarkWorkloadAxis{
 
     public static int GetAxisCount(BenchmarkResultItem result) =>
         UsesLoopCount(result.SourceTab)&&result.LoopCount>0 ? result.LoopCount : result.ElementCount;
+
+    public static double? NormalizePerOperation(BenchmarkSourceTab sourceTab,int loopCount,double? total) =>
+        total is { } value&&UsesLoopCount(sourceTab)&&loopCount>1 ? value/loopCount : total;
+
+    public static long? NormalizePerOperation(BenchmarkSourceTab sourceTab,int loopCount,long? total) =>
+        total is { } value&&UsesLoopCount(sourceTab)&&loopCount>1 ? value/loopCount : total;
 }

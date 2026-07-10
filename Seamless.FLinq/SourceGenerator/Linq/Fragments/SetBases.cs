@@ -149,7 +149,7 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
         builder.AppendLine($"var {secondCount}=0;");
         builder.AppendLine($"var {sourceHasCount}={sourceName}.TryGetNonEnumeratedCount(out {sourceCount});");
         builder.AppendLine($"var {secondHasCount}={secondName}.TryGetNonEnumeratedCount(out {secondCount});");
-        builder.AppendLine($"if({sourceHasCount}||{secondHasCount}) global::Seamless.Linq.LinqCounterScope.Counter.IncrementHashCapacityHintUsed();");
+        builder.AppendLine($"if({sourceHasCount}||{secondHasCount}) global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();");
         builder.AppendLine($"using var {setName}={sourceHasCount}&&{secondHasCount}");
         builder.AppendLine($"    ? new global::Seamless.System.Carrier.HashSetSlim<{source.ElementType}>({sourceCount}+{secondCount},(global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>?){this.Comparer})");
         builder.AppendLine($"    : {sourceHasCount}");
@@ -375,10 +375,10 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
     protected override Enumerable PrimarySource=>source;
     private string Comparer=>ComparerExpressionSupport.RenderEqualityComparer(comparer,FuncReturnTypeName(keySelector));
     public override string StructMethod=> this.FuncSupport(keySelector,nameof(keySelector));
-    protected override string StructTypeParameters=>"<TEnum1,TEnum2>";
+    protected override string StructTypeParameters=>StructTypeParametersWithOuter("TEnum1","TEnum2");
     protected override string StructTypeConstraints=>
         $"where TEnum1:struct,global::System.Collections.Generic.IEnumerator<{source.ElementType}>,global::Seamless.System.Carrier.IValueEnumerator<{source.ElementType}>\n    where TEnum2:struct,global::System.Collections.Generic.IEnumerator<{second.ElementType}>,global::Seamless.System.Carrier.IValueEnumerator<{second.ElementType}>";
-    public override string EnumeratorTypeName=>$"{this.Struct}<{source.EnumeratorTypeName},{second.EnumeratorTypeName}>";
+    public override string EnumeratorTypeName=>EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
     public override string GetEnumeratorStruct=>$$"""
         {{source.GetEnumeratorStruct}}
         {{second.GetEnumeratorStruct}}
@@ -536,7 +536,7 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
         builder.AppendLine($"var {secondCount}=0;");
         builder.AppendLine($"var {sourceHasCount}={sourceName}.TryGetNonEnumeratedCount(out {sourceCount});");
         builder.AppendLine($"var {secondHasCount}={secondName}.TryGetNonEnumeratedCount(out {secondCount});");
-        builder.AppendLine($"if({sourceHasCount}||{secondHasCount}) global::Seamless.Linq.LinqCounterScope.Counter.IncrementHashCapacityHintUsed();");
+        builder.AppendLine($"if({sourceHasCount}||{secondHasCount}) global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();");
         builder.AppendLine($"using var {setName}={sourceHasCount}&&{secondHasCount}");
         builder.AppendLine($"    ? new global::Seamless.System.Carrier.HashSetSlim<{keyType}>({sourceCount}+{secondCount},(global::System.Collections.Generic.IEqualityComparer<{keyType}>?){this.Comparer})");
         builder.AppendLine($"    : {sourceHasCount}");

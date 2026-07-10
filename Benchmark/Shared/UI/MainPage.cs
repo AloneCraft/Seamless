@@ -2937,6 +2937,10 @@ public sealed partial class MainPage:ContentPage {
                 };
                 label.SetBinding(Label.TextProperty,property);
                 label.SetBinding(ToolTipProperties.TextProperty,property);
+                if(property==nameof(BenchmarkTableRow.BenchmarkTypeText)
+                    ||property==nameof(BenchmarkTableRow.BenchmarkMethodText)) {
+                    label.SetBinding(Label.TextDecorationsProperty,nameof(BenchmarkTableRow.BenchmarkIdentityTextDecorations));
+                }
                 grid.SetBinding(ToolTipProperties.TextProperty,property);
                 this.AddBenchmarkRowUiSelectionFill(grid);
                 if(property==nameof(BenchmarkTableRow.BenchmarkMethodText)) {

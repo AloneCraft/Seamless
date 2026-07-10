@@ -12,7 +12,6 @@ public class ElementAt(int 番号, Enumerable source, string index, string resul
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeElementAtInline(destVar,destType)
         ??this.RenderDirectSpanElementAtInline(destVar,destType)
-        ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAt",index)
         ??this.RenderComputeInline(destVar,destType,index);
     private string? RenderDirectSpanElementAtInline(string destVar,string destType) {
         var span=$"__span{this.result}";
@@ -82,7 +81,6 @@ public class ElementAt_index(int 番号, Enumerable source, string index, string
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeElementAtIndexInline(destVar,destType)
         ??this.RenderDirectSpanElementAtIndexInline(destVar,destType)
-        ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"ElementAt",index)
         ??this.RenderComputeInline(destVar,destType,index);
     private string? RenderDirectSpanElementAtIndexInline(string destVar,string destType) {
         var span=$"__span{this.result}";

@@ -185,6 +185,27 @@ public static class LinqCounterScope {
     public static LinqCounter Counter => CurrentCounter.Value ?? GlobalCounter;
     public static LinqCounter? Current => CurrentCounter.Value;
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    public static void IncrementDirectSpanUsed() => CurrentCounter.Value?.IncrementDirectSpanUsed();
+
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    public static void IncrementTryGetSpanCalled() => CurrentCounter.Value?.IncrementTryGetSpanCalled();
+
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    public static void IncrementTryGetSpanSucceeded() => CurrentCounter.Value?.IncrementTryGetSpanSucceeded();
+
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    public static void IncrementTryGetSpanFailed() => CurrentCounter.Value?.IncrementTryGetSpanFailed();
+
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    public static void IncrementEnumerationLoopUsed() => CurrentCounter.Value?.IncrementEnumerationLoopUsed();
+
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    public static void IncrementFastCopyUsed() => CurrentCounter.Value?.IncrementFastCopyUsed();
+
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    public static void IncrementHashCapacityHintUsed() => CurrentCounter.Value?.IncrementHashCapacityHintUsed();
+
     public static Scope Start(LinqCounter? counter = null) {
         var previous = CurrentCounter.Value;
         var active = counter ?? new LinqCounter();

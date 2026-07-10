@@ -39,10 +39,16 @@ public sealed class InProcessJobRunner:IBenchmarkJobRunner {
             instance=method.IsStatic ? null : Activator.CreateInstance(type);
             var arguments = BenchmarkArgumentFormatting.ToObjects(benchmark.Arguments);
             var resultDigest = CaptureBenchmarkResultDigest(type,benchmark.MethodName,arguments);
+            var invokeBenchmark = arguments.Length==0
+                ? method.IsStatic
+                    ? (Action)method.CreateDelegate(typeof(Action))
+                    : (Action)method.CreateDelegate(typeof(Action),instance)
+                : () => method.Invoke(instance,arguments);
+            invokeBenchmark();
             var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
             var stopwatch = Stopwatch.StartNew();
             for(var index = 0;index<loopCount;index++) {
-                method.Invoke(instance,arguments);
+                invokeBenchmark();
             }
             stopwatch.Stop();
             var allocatedAfter = GC.GetAllocatedBytesForCurrentThread();

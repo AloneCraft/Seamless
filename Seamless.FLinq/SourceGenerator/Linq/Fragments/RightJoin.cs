@@ -3,10 +3,14 @@ namespace Seamless.FLinq.Linq.Fragments;
 internal class RightJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragment outerKeySelector,FuncFragment innerKeySelector,FuncFragment resultSelector,string comparer)
     : JoinBase(番号,outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer) {
     public override string ElementType=> this.UseResultTypeParam ? "TResult" : FuncReturnTypeName(this.resultSelector);
-    protected override string StructTypeParameters=> this.UseResultTypeParam ? "<TOuterEnum,TInnerEnum,TResult>" : "<TOuterEnum,TInnerEnum>";
+    protected override string StructTypeParameters=> this.UseResultTypeParam
+        ? StructTypeParametersWithOuter("TOuterEnum","TInnerEnum","TResult")
+        : StructTypeParametersWithOuter("TOuterEnum","TInnerEnum");
     protected override string StructTypeConstraints=>
         $"where TOuterEnum:struct,global::System.Collections.Generic.IEnumerator<{this.outerSource.ElementType}>\n    where TInnerEnum:struct,global::System.Collections.Generic.IEnumerator<{this.innerSource.ElementType}>";
-    public override string EnumeratorTypeName=> this.UseResultTypeParam ? $"{this.Struct}<{this.outerSource.EnumeratorTypeName},{this.innerSource.EnumeratorTypeName},TResult>" : $"{this.Struct}<{this.outerSource.EnumeratorTypeName},{this.innerSource.EnumeratorTypeName}>";
+    public override string EnumeratorTypeName=> this.UseResultTypeParam
+        ? EnumeratorTypeNameWithOuter(this.outerSource.EnumeratorTypeName,this.innerSource.EnumeratorTypeName,"TResult")
+        : EnumeratorTypeNameWithOuter(this.outerSource.EnumeratorTypeName,this.innerSource.EnumeratorTypeName);
     private string FactorySource=>!this.UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
         private static global::Seamless.System.Carrier.ValueEnumerable<{{this.Struct}}<TOuterEnum,TInnerEnum,TResult>,TResult> {{this.FactoryMethodName}}<TOuterEnum,TInnerEnum,TResult>(TOuterEnum outer,TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(this.outerKey)}}>? comparer{{this.ClosurePrimaryCtorSuffix(this.outerKey,this.innerKey,this.resultSelector)}})
@@ -29,16 +33,16 @@ internal class RightJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
     public override string GetEnumerableExpression=> this.UseResultTypeParam ? $"{this.FactoryMethodName}({this.outerSource.GetEnumeratorExpression},{this.innerSource.GetEnumeratorExpression},{this.comparerExpression}{this.ClosureArgsSuffix(this.outerKey,this.innerKey,this.resultSelector)})" : base.GetEnumerableExpression;
     public override string GetEnumeratorConstructor=>$"this.{this.lookup}=BuildOuterLookup(this.{this.e},this.comparer{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)});";
     public override string GetEnumeratorFields=>$$"""
-        private global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(this.outerKey)}},global::System.Collections.Generic.List<{{this.outerSource.ElementType}}>> {{this.lookup}};
-        private global::System.Collections.Generic.List<{{this.outerSource.ElementType}}>? {{this.group}};
+        private global::Seamless.System.Carrier.Lookup<{{FuncReturnTypeName(this.outerKey)}},{{this.outerSource.ElementType}}> {{this.lookup}};
+        private global::Seamless.System.Carrier.Grouping<{{FuncReturnTypeName(this.outerKey)}},{{this.outerSource.ElementType}}>? {{this.group}};
         private int {{this.groupIndex}};
         private int {{this.state}};
         private {{this.innerSource.ElementType}} {{this.outerValue}};
-        private static bool IsNullKey<T>(T key){
+        private static bool IsNullKey<TKey>(TKey key){
             return key is null;
         }
-        private static global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(this.outerKey)}},global::System.Collections.Generic.List<{{this.outerSource.ElementType}}>> BuildOuterLookup(TOuterEnum outer,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(this.outerKey)}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
-            var {{this.lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(this.outerKey)}},global::System.Collections.Generic.List<{{this.outerSource.ElementType}}>>(comparer ?? global::System.Collections.Generic.EqualityComparer<{{FuncReturnTypeName(this.outerKey)}}>.Default);
+        private static global::Seamless.System.Carrier.Lookup<{{FuncReturnTypeName(this.outerKey)}},{{this.outerSource.ElementType}}> BuildOuterLookup(TOuterEnum outer,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(this.outerKey)}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
+            var __lookupBuilder=new global::Seamless.System.Carrier.LookupBuilder<{{FuncReturnTypeName(this.outerKey)}},{{this.outerSource.ElementType}}>(comparer);
             using var {{this.e}}=outer;
             while({{this.e}}.MoveNext()){
                 {{this.CounterCall("IncrementLogicalRightJoinOuter")}}
@@ -49,14 +53,10 @@ internal class RightJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
                     continue;
                 }
                 {{this.CounterCall("IncrementHashBuild")}}
-                if(!{{this.lookup}}.TryGetValue({{this.key}},out var {{this.group}})){
-                    {{this.group}}=new global::System.Collections.Generic.List<{{this.outerSource.ElementType}}>();
-                    {{this.lookup}}.Add({{this.key}},{{this.group}});
-                }
                 {{this.CounterCall("IncrementBufferAdd")}}
-                {{this.group}}.Add({{this.item}});
+                __lookupBuilder.Add({{this.key}},{{this.item}});
             }
-            return {{this.lookup}};
+            return __lookupBuilder.BuildPooledAndClear();
         }
         """;
     public override string GetTryGetNextBody=>$$"""
@@ -79,7 +79,7 @@ internal class RightJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         {{FuncReturnTypeName(this.innerKey)}} {{this.key}}=default!;
         {{this.FuncAssignIndented("",this.innerKey,nameof(this.innerKey),this.key,this.outerValue)}}
         {{this.CounterCall("IncrementHashProbe")}}
-        if(!IsNullKey({{this.key}})&&{{this.lookup}}.TryGetValue({{this.key}},out {{this.group}})){
+        if(!IsNullKey({{this.key}})&&({{this.group}}={{this.lookup}}.GetGroup({{this.key}})) is not null){
             {{this.groupIndex}}=0;
             {{this.state}}=1;
             goto {{this.Start}};
@@ -88,5 +88,5 @@ internal class RightJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         return true;
         """;
     public override string GetCurrentExpression=> this.currentValue;
-    protected override string GetEnumeratorDisposeBody=>$"{this.innerEnumerator}.Dispose();";
+    protected override string GetEnumeratorDisposeBody=>$"{this.lookup}.Dispose(); {this.innerEnumerator}.Dispose();";
 }

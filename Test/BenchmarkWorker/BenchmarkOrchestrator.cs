@@ -124,7 +124,7 @@ public sealed class BenchmarkOrchestrator{
             "100 ns",
             string.Empty,
             string.Empty,
-            100,
+                BenchmarkWorkloadAxis.GetAxisCount(job)>=256 ? 60_000_000_000 : 100,
             0,
             0,
             0,
@@ -337,7 +337,7 @@ public sealed class BenchmarkOrchestrator{
                 observed.Add((job.MethodName,job.Project,BenchmarkWorkloadAxis.GetAxisCount(job),cpu));
             }
 
-            return CompletedResult(job);
+            return CompletedResult(job,BenchmarkWorkloadAxis.GetAxisCount(job)>=2 ? 60_000_000_000 : 100);
         });
         var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
@@ -368,12 +368,12 @@ public sealed class BenchmarkOrchestrator{
         foreach(var group in observed.GroupBy(static item => item.Method)) {
             //1つの表示行は左右プロジェクトを含めて開始から完了まで同じ1コアに固定される。
             Assert.Single(group.Select(static item => item.Cpu).Distinct());
-            //行内は左プロジェクト全軸、右プロジェクト全軸の順で連続実行される。
+            //行内は軸ごとに左右を同一LoopCountで連続実行する。
             Assert.Equal(
                 [
                     ("System.Array.FLinq",1),
-                    ("System.Array.FLinq",2),
                     ("System.Array.ZLinq",1),
+                    ("System.Array.FLinq",2),
                     ("System.Array.ZLinq",2),
                 ],
                 group.Select(static item => (item.Project,item.ElementCount)).ToArray());
@@ -480,7 +480,7 @@ public sealed class BenchmarkOrchestrator{
         var observed = new List<(bool Warmup,string Project,int ElementCount)>();
         var runner = new FakeRunner((job,_) => {
             observed.Add((job.JobId.EndsWith("|warmup",StringComparison.Ordinal),job.Project,BenchmarkWorkloadAxis.GetAxisCount(job)));
-            return CompletedResult(job);
+            return CompletedResult(job,BenchmarkWorkloadAxis.GetAxisCount(job)>=2 ? 60_000_000_000 : 100);
         });
         var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
@@ -496,14 +496,14 @@ public sealed class BenchmarkOrchestrator{
             _ => { },
             CancellationToken.None);
 
-        // ウォームアップはプロジェクトごとに最初の実測直前に走り、そのまま同プロジェクトの軸倍々が続く。
+        // ウォームアップ後、各LoopCountで左右を同一軸に揃えて実測する。
         Assert.Equal(
             [
                 (true,"System.Array.FLinq",1),
-                (false,"System.Array.FLinq",1),
-                (false,"System.Array.FLinq",2),
                 (true,"System.Array.ZLinq",1),
+                (false,"System.Array.FLinq",1),
                 (false,"System.Array.ZLinq",1),
+                (false,"System.Array.FLinq",2),
                 (false,"System.Array.ZLinq",2),
             ],
             observed);
@@ -573,11 +573,10 @@ public sealed class BenchmarkOrchestrator{
             _ => { },
             CancellationToken.None);
 
-        // ウォームアップ失敗は当該プロジェクトのみ失敗確定し、次のプロジェクトへは進む(そちらも失敗する)。
+        // ウォームアップ失敗は当該側を失敗確定し、同じ比較行の反対側へは進まない。
         var state = LoadOnlyState(root);
-        Assert.Equal(2,state.Jobs.Count);
+        Assert.Single(state.Jobs);
         Assert.Contains(state.Jobs,static job => job.Project=="System.Array.FLinq");
-        Assert.Contains(state.Jobs,static job => job.Project=="System.Array.ZLinq");
         Assert.All(state.Jobs,static job => {
             Assert.Equal(1,BenchmarkWorkloadAxis.GetAxisCount(job));
             Assert.Equal(JobStatus.Failed,job.Status);
@@ -932,14 +931,15 @@ public sealed class BenchmarkOrchestrator{
             _ => { },
             CancellationToken.None);
 
-        Assert.Equal([1,2],observedElementCounts);
+        Assert.Equal([1],observedElementCounts);
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_StopsEachProjectIndependentlyWhenExceedingThreshold(){
+    public async Task Orchestrator_AdaptiveMode_RemeasuresReachedSideUntilBothSidesReachThreshold(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => {
-            var mean = BenchmarkWorkloadAxis.GetAxisCount(job)>=256&&job.Project=="System.Array.ZLinq" ? 2_000_000_000d : 100d;
+            var thresholdLoopCount=job.Project=="System.Array.ZLinq" ? 256 : 512;
+            var mean = BenchmarkWorkloadAxis.GetAxisCount(job)>=thresholdLoopCount ? 2_000_000_000d : 100d;
             return new BenchmarkJobRunResult(
                 job.Project,
                 job.MethodName,
@@ -970,13 +970,13 @@ public sealed class BenchmarkOrchestrator{
             _ => { },
             CancellationToken.None);
 
-        // 打ち切りはプロジェクト独立: 閾値を超えない FLinq は全軸を走り、超えた ZLinq だけ止まる。
+        // ZLinqが先に到達しても、FLinqが到達するLoopCountまで左右とも再計測する。
         var state = LoadOnlyState(root);
         Assert.Equal(
             [128,256,512],
             state.Jobs.Where(static job => job.Project=="System.Array.FLinq").Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
         Assert.Equal(
-            [128,256],
+            [128,256,512],
             state.Jobs.Where(static job => job.Project=="System.Array.ZLinq").Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
     }
 
@@ -1100,9 +1100,127 @@ public sealed class BenchmarkOrchestrator{
             CancellationToken.None);
 
         var state = LoadOnlyState(root);
-        Assert.Equal([65536,131072],state.Jobs.Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
+        Assert.Equal([65536,131072,262144],state.Jobs.Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
         Assert.DoesNotContain(262144,state.ElementCounts);
         Assert.DoesNotContain(state.Jobs,static job => BenchmarkWorkloadAxis.GetAxisCount(job)==524288);
+    }
+
+    [Fact]
+    public async Task Orchestrator_AdaptiveMode_RemeasuresBothSidesAtSameLoopCountUntilBothReachThreshold(){
+        var root = CreateTempRoot();
+        var measured = new List<(string Project,int LoopCount)>();
+        var runner = new FakeRunner((job,_) => {
+            var loopCount=BenchmarkWorkloadAxis.GetAxisCount(job);
+            if(!job.JobId.EndsWith("|warmup",StringComparison.Ordinal)) {
+                measured.Add((job.Project,loopCount));
+            }
+            var reachesThreshold=string.Equals(job.Project,"System.Array.FLinq",StringComparison.Ordinal)
+                ? loopCount>=4
+                : loopCount>=8;
+            var totalNanoseconds=reachesThreshold ? 2_000_000d : 100d;
+            return new BenchmarkJobRunResult(
+                job.Project,
+                job.MethodName,
+                job.TypeFullName,
+                loopCount,
+                "Completed",
+                totalNanoseconds+" ns",
+                string.Empty,
+                string.Empty,
+                totalNanoseconds,
+                0,
+                0,
+                0,
+                0,
+                job.ArtifactFolder,
+                string.Empty);
+        });
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("System.Array.FLinq","Any"),Case("System.Array.ZLinq","Any")],
+                [0],
+                [1,2],
+                TimeSpan.FromMilliseconds(1),
+                TimeSpan.FromSeconds(30)),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        Assert.Equal(
+            [
+                ("System.Array.FLinq",1),("System.Array.ZLinq",1),
+                ("System.Array.FLinq",2),("System.Array.ZLinq",2),
+                ("System.Array.FLinq",4),("System.Array.ZLinq",4),
+                ("System.Array.FLinq",8),("System.Array.ZLinq",8),
+            ],
+            measured);
+        var finalJobs=LoadOnlyState(root).Jobs.Where(static job => BenchmarkWorkloadAxis.GetAxisCount(job)==8).ToArray();
+        Assert.Equal(2,finalJobs.Length);
+        Assert.All(finalJobs,static job => Assert.Equal(JobStatus.Completed,job.Status));
+    }
+
+    [Fact]
+    public async Task Orchestrator_AdaptiveMode_KeepsDynamicLoopCountsIsolatedPerRowAcrossCpus(){
+        var root = CreateTempRoot();
+        var runner = new FakeRunner((job,_) => {
+            var loopCount=BenchmarkWorkloadAxis.GetAxisCount(job);
+            var thresholdLoopCount=job.MethodName=="A" ? 2 : 8;
+            return CompletedResult(job,loopCount>=thresholdLoopCount ? 2_000_000 : 100);
+        });
+        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [
+                    Case("System.Array.FLinq","A"),Case("System.Array.ZLinq","A"),
+                    Case("System.Array.FLinq","Any"),Case("System.Array.ZLinq","Any"),
+                ],
+                [0,1],
+                [1],
+                TimeSpan.FromMilliseconds(1),
+                TimeSpan.FromSeconds(30),
+                ExecutionProfile:BenchmarkExecutionProfile.Accurate),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        var state=LoadOnlyState(root);
+        Assert.Equal([1],state.ElementCounts);
+        Assert.Equal(
+            [1,1,2,2],
+            state.Jobs.Where(static job => job.MethodName=="A").Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
+        Assert.Equal(
+            [1,1,2,2,4,4,8,8],
+            state.Jobs.Where(static job => job.MethodName=="Any").Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
+    }
+
+    [Fact]
+    public async Task Orchestrator_AdaptiveMode_FailsBothSidesWhenIntMaxValueCannotReachThreshold(){
+        var root=CreateTempRoot();
+        var orchestrator=new global::UI.BenchmarkOrchestrator(
+            new BenchmarkStateManager(root),
+            new FakeRunner((job,_) => CompletedResult(job,100)));
+
+        await orchestrator.RunAsync(
+            new BenchmarkRunRequest(
+                [Case("System.Array.FLinq","Any"),Case("System.Array.ZLinq","Any")],
+                [0],
+                [int.MaxValue],
+                TimeSpan.FromMilliseconds(1),
+                TimeSpan.FromSeconds(30),
+                ExecutionProfile:BenchmarkExecutionProfile.Accurate),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+
+        var jobs=LoadOnlyState(root).Jobs;
+        Assert.Equal(2,jobs.Count);
+        Assert.All(jobs,static job => {
+            Assert.Equal(JobStatus.Failed,job.Status);
+            Assert.Contains("int.MaxValue",job.FailureReason,StringComparison.Ordinal);
+        });
     }
 
     [Fact]
@@ -1125,7 +1243,7 @@ public sealed class BenchmarkOrchestrator{
                 1,
                 job.ArtifactFolder,
                 "boom")
-            : CompletedResult(job));
+            : CompletedResult(job,100));
         var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
 
         await orchestrator.RunAsync(
@@ -1246,11 +1364,11 @@ public sealed class BenchmarkOrchestrator{
         var systemTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
         var persistedTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
         BenchmarkElementMeasurement[] measurements = [
-            new(systemTab.LeftProject,"Where",128,"Completed",2_000_000),
-            new(systemTab.RightProject,"Where",128,"Completed",900_000),
-            new(systemTab.LeftProject,"Where",256,"Completed",900_000),
-            new(systemTab.RightProject,"Where",256,"Completed",2_000_000),
-            new(persistedTab.LeftProject,"Where",128,"Completed",2_000_000),
+            new(systemTab.LeftProject,"Where","","",128,"Completed",2_000_000,2_000_000),
+            new(systemTab.RightProject,"Where","","",128,"Completed",900_000,900_000),
+            new(systemTab.LeftProject,"Where","","",256,"Completed",900_000,900_000),
+            new(systemTab.RightProject,"Where","","",256,"Completed",2_000_000,2_000_000),
+            new(persistedTab.LeftProject,"Where","","",128,"Completed",2_000_000,2_000_000),
         ];
 
         var stoppedAt = BenchmarkSkippedDisplayLogic.FindPairStoppedAt(
@@ -1273,8 +1391,8 @@ public sealed class BenchmarkOrchestrator{
     [Fact]
     public void BenchmarkSkippedDisplayLogic_UsesCellTypesForPairStop(){
         BenchmarkElementMeasurement[] measurements = [
-            new("Left","Any","System.Array.FLinq","",128,"Completed",900_000),
-            new("Right","Any","System.Array.ZLinq","",128,"Completed",2_000_000),
+            new("Left","Any","System.Array.FLinq","",128,"Completed",900_000,900_000),
+            new("Right","Any","System.Array.ZLinq","",128,"Completed",2_000_000,2_000_000),
         ];
         var leftCell = new BenchmarkTabProgressCell("Any","Left","System.Array.FLinq","",true,"row-1");
         var rightCell = new BenchmarkTabProgressCell("Any","Right","System.Array.ZLinq","",true,"row-1");
@@ -1362,17 +1480,17 @@ public sealed class BenchmarkOrchestrator{
             FinishedAt=DateTimeOffset.UtcNow,
         };
 
-    private static BenchmarkJobRunResult CompletedResult(BenchmarkJob job) =>
+    private static BenchmarkJobRunResult CompletedResult(BenchmarkJob job,double totalNanoseconds = 60_000_000_000) =>
         new(
             job.Project,
             job.MethodName,
             job.TypeFullName,
             BenchmarkWorkloadAxis.GetAxisCount(job),
             "Completed",
-            "100 ns",
+            totalNanoseconds+" ns",
             string.Empty,
             string.Empty,
-            100,
+            totalNanoseconds,
             0,
             0,
             0,

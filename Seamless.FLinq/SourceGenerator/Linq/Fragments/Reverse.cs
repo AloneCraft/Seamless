@@ -103,7 +103,7 @@ public class Reverse(int 番号, Enumerable source) : Enumerable(番号) {
             var spanName=$"__reverseSpan{番号}";
             return $$"""
                 using var {{sourceName}}={{this.RootSource.GetEnumeratorExpression}};
-                global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
+                global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
                 var {{spanName}}={{directSpanExpression}};
                 for(var __i{{番号}}={{spanName}}.Length-1;__i{{番号}}>=0;__i{{番号}}--) {
                     {{consumerName}}.Consume({{spanName}}[__i{{番号}}]);

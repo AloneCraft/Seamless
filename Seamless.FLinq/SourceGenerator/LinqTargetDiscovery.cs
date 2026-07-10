@@ -54,10 +54,8 @@ public sealed partial class FLinqIncrementalGenerator {
             || (method.ContainingType.IsGenericType && !再現可能なジェネリック含有型か(method))
             // ジェネリック型メンバーは生成メソッド側へ型パラメータを漏らしやすいので原則除外。
             // ただし「再現可能な単純ジェネリック含有型（例: Methods1<T> where T:notnull）」かつ
-            // 本体 LINQ にラムダを含まない場合だけは、傍受メソッドを含有型の型パラメーターを持つ
-            // ジェネリック静的メソッドとして生成できるので許可する（root→Span 高速路を復活させる）。
-            // ラムダを含むケースはジェネリック型の非公開メンバー参照や @this クロージャを生みやすく、
-            // 現状の生成器（UnsafeAccessor 等が非ジェネリック前提）では閉じられないため段階的に除外している。
+            // 傍受メソッドと補助 struct へ含有型の型パラメーターを伝播できる単純な形を許可する。
+            // ラムダを含む場合も、生成コードから参照可能なメンバーだけで閉じられるなら展開対象にする。
             // （メソッド自身の型パラメーターのみ持つジェネリックメソッドは、冒頭で OriginalDefinition
             // に正規化済みなので通過する。呼び出し側で確定した型引数はインターセプター経由で解決される）
             || (!method.IsStatic && (method.IsAbstract || method.IsVirtual || method.IsOverride))
@@ -181,22 +179,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 }
             }
         }
-        // ラムダは非公開ジェネリックメンバー参照や @this クロージャを生みやすく、
-        // 現状の生成器では閉じられないため段階的に除外する（ラムダ無し演算子のみ許可）。
-        return !メソッド本体にラムダを含むか(method);
-    }
-
-    private static bool メソッド本体にラムダを含むか(IMethodSymbol method) {
-        foreach(var syntaxReference in method.DeclaringSyntaxReferences) {
-            if(syntaxReference.GetSyntax() is MethodDeclarationSyntax declaration) {
-                var body = (SyntaxNode?)declaration.Body ?? declaration.ExpressionBody;
-                if(body is not null
-                    && body.DescendantNodes().OfType<AnonymousFunctionExpressionSyntax>().Any()) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        return true;
     }
 
     // 型パラメーターの where 制約節を生成する（例: " where T : notnull"）。
@@ -374,7 +357,8 @@ public sealed partial class FLinqIncrementalGenerator {
                 continue;
             }
             if(invokedMethod.ReducedFrom is null
-                && !IsKnownEnumerableRootMethod(definition)) {
+                && !IsKnownEnumerableRootMethod(definition)
+                && definition.Name!="TryGetNonEnumeratedCount") {
                 continue;
             }
 

@@ -11,8 +11,7 @@ public class Contains(int 番号, Enumerable source, string value, string result
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeContainsInline(destVar,destType)
         ??this.RenderDirectSpanContainsInline(destVar,destType)
-        ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"Contains",value)
-        ??this.RenderComputeInline(destVar,destType);
+        ??this.RenderComputeInline(destVar,destType,value);
     private string? RenderDirectSpanContainsInline(string destVar,string destType) {
         var span=$"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
@@ -80,8 +79,7 @@ public class Contains_comparer(int 番号, Enumerable source, string value, stri
     protected override string ComputeExpression => $"Compute({this.e}, value, comparer)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderDirectSpanContainsComparerInline(destVar,destType)
-        ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"Contains",value,comparer)
-        ??this.RenderComputeInline(destVar,destType);
+        ??this.RenderComputeInline(destVar,destType,value,comparer);
     private string? RenderDirectSpanContainsComparerInline(string destVar,string destType) {
         var span=$"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""

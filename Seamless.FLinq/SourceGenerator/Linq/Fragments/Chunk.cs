@@ -91,7 +91,7 @@ public class Chunk(int 番号, Enumerable source, string size) : Enumerable(番�
         var length=$"__length{番号}";
         return $$"""
             using var {{sourceName}}={{source.GetEnumeratorExpression}};
-            global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
+            global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
             var {{spanName}}={{directSpanExpression}};
             var {{chunkSize}}={{size}};
             if({{chunkSize}}<=0) throw new global::System.ArgumentOutOfRangeException("size");

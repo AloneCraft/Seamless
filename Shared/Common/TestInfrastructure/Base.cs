@@ -271,8 +271,8 @@ public class Base<T> where T:notnull {
     private static readonly Dictionary<SourceCacheKey,T[]> SourceCache = [];
     private static readonly Dictionary<SourceCacheKey,List<T>> ListSourceCache = [];
 
-    protected readonly Consumer consumer = new();
-    private protected object? Result;
+    protected internal readonly Consumer consumer = new();
+    internal object? Result;
     private protected readonly int count;
 
     protected Base(int count = -1) =>
@@ -298,7 +298,7 @@ public class Base<T> where T:notnull {
     private protected int CountForComparison(int elementCount) =>
         BenchmarkExecutionMode.LimitForComparison(elementCount);
 
-    protected int EffectiveSourceCount(int elementCount) =>
+    protected internal int EffectiveSourceCount(int elementCount) =>
         this.CountForComparison(this.CountForTestTiming(elementCount));
 
     public string CaptureBenchmarkMethodResult(string methodName,bool invokeImpl) {
@@ -498,7 +498,7 @@ public class Base<T> where T:notnull {
         }
     }
 
-    protected IEnumerable<T> srcMinusPlusCount(int elementCount) {
+    protected internal IEnumerable<T> srcMinusPlusCount(int elementCount) {
         var length= this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount));
         for(var a = 0;a<length;a+=2) {
             yield return FromInt(-a);
@@ -550,16 +550,16 @@ public class Base<T> where T:notnull {
     protected T[] src(int scale) => this.GetOrCreate(scale,SourceKind.Src,CreateSourceArray);
 
     [LinqIntercept(false)]
-    protected T[] srcCount(int elementCount) => this.GetOrCreateByLength(elementCount,SourceKind.SrcCount,CreateSourceArray);
+    protected internal T[] srcCount(int elementCount) => this.GetOrCreateByLength(elementCount,SourceKind.SrcCount,CreateSourceArray);
 
     [LinqIntercept(false)]
     protected T[] src2(int scale) => this.GetOrCreate(scale,SourceKind.Src2,CreateSecondSourceArray);
 
     [LinqIntercept(false)]
-    protected T[] src2Count(int elementCount) => this.GetOrCreateByLength(elementCount,SourceKind.Src2Count,CreateSecondSourceArray);
+    protected internal T[] src2Count(int elementCount) => this.GetOrCreateByLength(elementCount,SourceKind.Src2Count,CreateSecondSourceArray);
 
     [LinqIntercept(false)]
-    protected T[] srcOne(int scale) => GetOrCreate(
+    protected internal T[] srcOne(int scale) => GetOrCreate(
         new SourceCacheKey(SourceKind.SrcOne,1,BenchmarkExecutionMode.ReadRandomSourceSeed()),
         static _ => [FromInt(0)]);
 #endif
@@ -657,7 +657,7 @@ public class Base<T> where T:notnull {
         }
     }
 
-    protected static T FromInt(int value) {
+    protected internal static T FromInt(int value) {
         if(typeof(T)==typeof(int)) {
             return (T)(object)value;
         }
@@ -668,7 +668,7 @@ public class Base<T> where T:notnull {
         throw new NotSupportedException(typeof(T).FullName);
     }
 
-    protected static int ToInt(T value) {
+    protected internal static int ToInt(T value) {
         if(value is int number) {
             return number;
         }
@@ -738,7 +738,7 @@ public class Base<T> where T:notnull {
     }
 
     [LinqIntercept(false)]
-    protected IEnumerable<IEnumerable<int>> srcNestedCount(int elementCount) {
+    protected internal IEnumerable<IEnumerable<int>> srcNestedCount(int elementCount) {
         var side = (int)Math.Sqrt(this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount)));
         return System.Linq.Enumerable.Range(1,side).Select(_ => System.Linq.Enumerable.Range(1,side));
     }

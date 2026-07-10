@@ -127,7 +127,7 @@ public class TakeWhile_indexPredicate(int id, Enumerable source, FuncFragment pr
                 {{localDeclarationBlock}}
                 using var {{sourceName}}={{source.GetEnumeratorExpression}};
                 var {{indexName}}=-1;
-                global::Seamless.Linq.LinqCounterScope.Counter.IncrementDirectSpanUsed();
+                global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
                 var {{spanName}}={{directSpanExpression}};
                 for(var __i{{id}}=0;__i{{id}}<{{spanName}}.Length;__i{{id}}++) {
                     var {{itemName}}={{spanName}}[__i{{id}}];
@@ -144,9 +144,9 @@ public class TakeWhile_indexPredicate(int id, Enumerable source, FuncFragment pr
             {{localDeclarationBlock}}
             using var {{sourceName}}={{source.GetEnumeratorExpression}};
             var {{indexName}}=-1;
-            global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanCalled();
+            global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanCalled();
             if({{sourceName}}.TryGetSpan(out var {{spanName}})) {
-                global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanSucceeded();
+                global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanSucceeded();
                 for(var __i{{id}}=0;__i{{id}}<{{spanName}}.Length;__i{{id}}++) {
                     var {{itemName}}={{spanName}}[__i{{id}}];
                     {{indexName}}++;
@@ -156,8 +156,8 @@ public class TakeWhile_indexPredicate(int id, Enumerable source, FuncFragment pr
                     {{consumerName}}.Consume({{itemName}});
                 }
             }else{
-                global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanFailed();
-                global::Seamless.Linq.LinqCounterScope.Counter.IncrementEnumerationLoopUsed();
+                global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanFailed();
+                global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
                 while({{sourceName}}.TryGetNext(out {{source.ElementType}} {{itemName}})) {
                     {{indexName}}++;
                     {{loopPredicate}} {

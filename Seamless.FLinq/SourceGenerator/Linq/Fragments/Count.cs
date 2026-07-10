@@ -35,24 +35,7 @@ public class Count(int 番号, Enumerable source, string resultType) : BufferedS
         if(source.NonEnumeratedCountExpression is { } countExpression) {
             return $"{destType} {destVar}=({destType})({countExpression});";
         }
-        if(source.DirectEnumerableExpression is not { } sourceExpression) {
-            return this.RenderComputeInline(destVar,destType);
-        }
-        if(resultType is not ("long" or "global::System.Int64")) {
-            return this.RenderDirectEnumerableCallInline(source,destVar,destType,"Count");
-        }
-        var sourceVar=$"__src{this.result}";
-        return $$"""
-            {{destType}} {{destVar}};
-            {
-                var {{sourceVar}}={{sourceExpression}};
-                if(global::System.Linq.Enumerable.TryGetNonEnumeratedCount({{sourceVar}}, out var __count)) {
-                    {{destVar}}=({{resultType}})__count;
-                }else{
-                    {{destVar}}=global::System.Linq.Enumerable.LongCount({{sourceVar}});
-                }
-            }
-            """;
+        return this.RenderComputeInline(destVar,destType);
     }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""

@@ -156,6 +156,7 @@ public sealed class SourceTabOption:TabHeaderOptionBase{
     private BenchmarkTabProgress progress;
     private bool isRunning;
     private bool isFinalCompleted;
+    private bool treatsCompletedProgressAsFinalCompleted;
     private string benchmarkRatioSummaryShortText = BenchmarkImprovementPromptBuilder.CreateSummary([]).ShortDisplayText;
 
     public SourceTabOption(BenchmarkSourceTabDefinition definition){
@@ -196,8 +197,18 @@ public sealed class SourceTabOption:TabHeaderOptionBase{
             }
         }
     }
+    public bool TreatsCompletedProgressAsFinalCompleted{
+        get => this.treatsCompletedProgressAsFinalCompleted;
+        private set{
+            if(this.SetProperty(ref this.treatsCompletedProgressAsFinalCompleted,value)){
+                this.OnPropertyChanged(nameof(this.IsCompletionIconVisible));
+                this.OnPropertyChanged(nameof(this.CompletionIconSource));
+                this.OnPropertyChanged(nameof(this.ProgressTooltipText));
+            }
+        }
+    }
     public bool IsCompletionIconVisible => (this.IsCompleted||this.IsFinalCompleted)&&!this.IsRunning;
-    public string CompletionIconSource => this.IsFinalCompleted
+    public string CompletionIconSource => this.IsFinalCompleted||this.IsCompleted
         ? BenchmarkStatusImageNames.FinalCompleted
         : BenchmarkStatusImageNames.Completed;
     public double ProgressFraction => this.Progress.Total<=0 ? 0 : this.Progress.Fraction;
@@ -240,12 +251,17 @@ public sealed class SourceTabOption:TabHeaderOptionBase{
     public void SetProgress(BenchmarkTabProgress value){
         this.Progress=value;
         if(value.Total<=0||value.Completed<value.Total){
+            this.SetTreatsCompletedProgressAsFinalCompleted(false);
             this.SetFinalCompleted(false);
         }
     }
 
     public void SetFinalCompleted(bool value){
         this.IsFinalCompleted=value;
+    }
+
+    public void SetTreatsCompletedProgressAsFinalCompleted(bool value){
+        this.TreatsCompletedProgressAsFinalCompleted=value;
     }
 
     public void SetRunning(bool value){
@@ -1222,6 +1238,10 @@ public sealed class BenchmarkTableRow:ObservableObject{
         get => this.benchmarkMethodText;
         private set => this.SetProperty(ref this.benchmarkMethodText,value);
     }
+    public TextDecorations BenchmarkIdentityTextDecorations =>
+        this.ProjectCells.Any(static cell => cell.HasCase)
+            ? TextDecorations.None
+            : TextDecorations.Strikethrough;
     public bool HasCpuDisplay{
         get => this.hasCpuDisplay;
         private set => this.SetProperty(ref this.hasCpuDisplay,value);

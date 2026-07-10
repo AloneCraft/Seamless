@@ -187,6 +187,7 @@ ArrayRoot は配列 source 専用。IEnumerator<T> を作らず index で直接�
 */
 public class ArrayRoot(int 番号, string sourceExpression, string elementType) : Enumerable(番号) {
     public override bool CanProvideSpan => true;
+    public override string? DirectArrayExpression => sourceExpression;
     public override string? GetDirectSpanExpression(string enumeratorName) => $"{enumeratorName}.GetSpan()";
     public override string? NonEnumeratedCountExpression => $"{sourceExpression}.Length";
     public override bool CountPreserving => true;
@@ -482,6 +483,7 @@ public sealed class RangeRoot(int 番号,string startExpression,string countExpr
     public override string? NonEnumeratedCountExpression => countExpression;
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
+    public override string EnumeratorTypeName => this.Struct;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Range({startExpression}, {countExpression})";
     public override string GetEnumeratorExpression => $"new {this.Struct}({startExpression}, {countExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => "int start, int count";

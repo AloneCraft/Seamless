@@ -58,14 +58,13 @@ public class ToList(int 番号, Enumerable source, string resultType) : Buffered
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeToListInline(destVar,destType)
         ??this.RenderDirectSpanToListInline(destVar,destType)
-        ??this.RenderDirectEnumerableToListHybridInline(source,destVar,destType)
         ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanToListInline(string destVar,string destType) {
         var span=$"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
             {{destVar}}=new({{spanName}}.Length);
             global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({{destVar}},{{spanName}}.Length);
-            global::Seamless.Linq.LinqCounterScope.Counter.IncrementFastCopyUsed();
+            global::Seamless.Linq.LinqCounterScope.IncrementFastCopyUsed();
             {{spanName}}.CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{destVar}}));
             """);
     }
@@ -86,7 +85,7 @@ public class ToList(int 番号, Enumerable source, string resultType) : Buffered
                 {{destVar}}=new({{count}});
                 global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({{destVar}},{{count}});
                 var {{span}}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{destVar}});
-                global::Seamless.Linq.LinqCounterScope.Counter.IncrementFastCopyUsed();
+                global::Seamless.Linq.LinqCounterScope.IncrementFastCopyUsed();
                 for(var {{index}}=0;{{index}}<{{span}}.Length;{{index}}++) {
                     {{span}}[{{index}}]={{start}} + {{index}};
                 }
@@ -100,9 +99,9 @@ public class ToList(int 番号, Enumerable source, string resultType) : Buffered
             source.TryGetSpan(out var __sourceSpan);
             var __result=new global::System.Collections.Generic.List<{{source.ElementType}}>(__sourceSpan.Length);
             global::System.Runtime.InteropServices.CollectionsMarshal.SetCount(__result,__sourceSpan.Length);
-            global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanCalled();
-            global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanSucceeded();
-            global::Seamless.Linq.LinqCounterScope.Counter.IncrementFastCopyUsed();
+            global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanCalled();
+            global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanSucceeded();
+            global::Seamless.Linq.LinqCounterScope.IncrementFastCopyUsed();
             __sourceSpan.CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(__result));
             return __result;
         }
@@ -123,21 +122,21 @@ public class ToList(int 番号, Enumerable source, string resultType) : Buffered
                     }
                 }
                 else {
-                    global::Seamless.Linq.LinqCounterScope.Counter.IncrementFastCopyUsed();
+                    global::Seamless.Linq.LinqCounterScope.IncrementFastCopyUsed();
                 }
                 return __result;
             }
-            global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanCalled();
+            global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanCalled();
             if(enumerator.TryGetSpan(out var __sourceSpan)) {
-                global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanSucceeded();
+                global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanSucceeded();
                 __result=new global::System.Collections.Generic.List<{{source.ElementType}}>(__sourceSpan.Length);
                 global::System.Runtime.InteropServices.CollectionsMarshal.SetCount(__result,__sourceSpan.Length);
-                global::Seamless.Linq.LinqCounterScope.Counter.IncrementFastCopyUsed();
+                global::Seamless.Linq.LinqCounterScope.IncrementFastCopyUsed();
                 __sourceSpan.CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(__result));
                 return __result;
             }
-            global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanFailed();
-            global::Seamless.Linq.LinqCounterScope.Counter.IncrementEnumerationLoopUsed();
+            global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanFailed();
+            global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
             __result=new global::System.Collections.Generic.List<{{source.ElementType}}>();
             while(enumerator.MoveNext()) __result.Add(enumerator.Current);
             return __result;

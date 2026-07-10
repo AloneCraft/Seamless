@@ -126,6 +126,26 @@ public sealed class BenchmarkRunSession{
         Assert.Equal(sourceTab.RightAssemblyName,job.AssemblyName);
     }
 
+    [Fact]
+    public void ToProgressState_DoesNotCreateJobWhenBenchmarkTypeIsUnresolved(){
+        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var session = new global::UI.BenchmarkRunSession();
+        session.UpsertResult(Result("System.Array.FLinq","Aggregate",64,100,"int"));
+
+        var state = session.ToProgressState(
+            "run-42",
+            global::UI.BenchmarkExecutionProfile.Fast,
+            sourceTab,
+            TimeSpan.FromMilliseconds(1),
+            new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase),
+            new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase),
+            _ => null);
+
+        Assert.Empty(state.Jobs);
+        Assert.Empty(state.AdaptiveStates);
+        Assert.Equal([64],state.ElementCounts);
+    }
+
     private static global::UI.BenchmarkResultItem Result(
         string project,
         string method,

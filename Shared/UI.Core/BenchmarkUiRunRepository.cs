@@ -1,4 +1,5 @@
 using Seamless.UI.Storage;
+using System.Text.Json;
 
 namespace UI;
 
@@ -146,7 +147,9 @@ internal sealed class BenchmarkUiRunRepository{
             item.CpuNumber,
             item.IsSelected,
             CreateSideWrite(item.Left),
-            CreateSideWrite(item.Right))).ToArray();
+            CreateSideWrite(item.Right),
+            CreateCaseWrite(item.Left.Benchmark),
+            CreateCaseWrite(item.Right.Benchmark))).ToArray();
         this.QueuePersistence(
             () => {
                 if(this.IsRunDiscarded(value)){
@@ -273,6 +276,7 @@ internal sealed class BenchmarkUiRunRepository{
                 ArgumentKey=result.ArgumentKey,
                 Arguments=result.Arguments,
                 AssignedLogicalCpu=result.AssignedLogicalCpu,
+                TotalNanoseconds=result.TotalNanoseconds,
             })
             .FirstOrDefault();
 
@@ -424,8 +428,8 @@ internal sealed class BenchmarkUiRunRepository{
                 record.BenchmarkName,
                 record.CpuNumber,
                 record.IsSelected,
-                CreateSnapshotSide(record,sourceTab.LeftProject,sourceTab.LeftAssemblyName,record.Left,axisCount),
-                CreateSnapshotSide(record,sourceTab.RightProject,sourceTab.RightAssemblyName,record.Right,axisCount)));
+                CreateSnapshotSide(record,sourceTab.LeftProject,sourceTab.LeftAssemblyName,record.Left,record.LeftCase,axisCount),
+                CreateSnapshotSide(record,sourceTab.RightProject,sourceTab.RightAssemblyName,record.Right,record.RightCase,axisCount)));
         }
 
         return items;
@@ -523,22 +527,56 @@ internal sealed class BenchmarkUiRunRepository{
             side.FailureReason,
             side.MeasuredAt,
             side.MeanNanoseconds,
-            side.AllocatedBytes);
+            side.AllocatedBytes,
+            side.ResultItem.LoopCount,
+            side.ResultItem.TotalNanoseconds);
+
+    private static UiBenchmarkSnapshotCaseWrite? CreateCaseWrite(BenchmarkCase? benchmark) {
+        if(benchmark is null){
+            return null;
+        }
+
+        return new(
+            benchmark.AssemblyName,
+            benchmark.TypeFullName,
+            benchmark.MethodName,
+            benchmark.ArgumentKey,
+            JsonSerializer.Serialize(benchmark.Arguments));
+    }
 
     private static BenchmarkGridSnapshotSide CreateSnapshotSide(
         UiBenchmarkSnapshotItemRecord item,
         string project,
         string assemblyName,
         UiBenchmarkGridSideRecord side,
+        UiBenchmarkSnapshotCaseWrite? identity,
         int axisCount){
-        var resultItem = CreateResultItem(item,project,assemblyName,side,axisCount);
+        var benchmark=CreateBenchmarkCase(project,assemblyName,identity);
+        var resultItem = CreateResultItem(item,project,assemblyName,side,benchmark,axisCount);
         return new(
             side.Status,
             side.FailureReason,
             side.MeasuredAt,
             side.MeanNanoseconds,
             side.AllocatedBytes,
-            resultItem);
+            resultItem,
+            benchmark);
+    }
+
+    private static BenchmarkCase? CreateBenchmarkCase(string project,string assemblyName,UiBenchmarkSnapshotCaseWrite? identity){
+        if(identity is null
+            ||string.IsNullOrWhiteSpace(identity.AssemblyName)
+            ||string.IsNullOrWhiteSpace(identity.TypeFullName)
+            ||string.IsNullOrWhiteSpace(identity.MethodName)){
+            return null;
+        }
+
+        try{
+            var arguments=JsonSerializer.Deserialize<BenchmarkArgument[]>(identity.ArgumentsJson)??[];
+            return new(project,identity.AssemblyName,identity.TypeFullName,identity.MethodName,identity.ArgumentKey,arguments);
+        }catch(JsonException){
+            return null;
+        }
     }
 
     private static BenchmarkResultItem CreateResultItem(
@@ -546,24 +584,27 @@ internal sealed class BenchmarkUiRunRepository{
         string project,
         string assemblyName,
         UiBenchmarkGridSideRecord side,
+        BenchmarkCase? benchmark,
         int axisCount){
         var sourceTab = BenchmarkSourceTabs.TryGetById(item.TabName)?.Tab??BenchmarkSourceTab.SystemArray;
-        return new BenchmarkResultItem(new BenchmarkJob{
-            Project=project,
-            AssemblyName=assemblyName,
-            TypeFullName=item.TypeName,
-            MethodName=item.BenchmarkName,
-            SourceTab=sourceTab,
-            ElementCount=BenchmarkWorkloadAxis.ResolveElementCount(sourceTab,axisCount),
-            LoopCount=BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab,axisCount),
-            Status=ToJobStatus(side.Status),
-            Mean=side.MeanNanoseconds?.ToString(System.Globalization.CultureInfo.InvariantCulture)??string.Empty,
-            MeanNanoseconds=side.MeanNanoseconds,
-            AllocatedBytes=side.AllocatedBytes,
-            StartedAt=side.MeasuredAt,
-            FinishedAt=side.MeasuredAt,
+        var loopCount = side.LoopCount??BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab,axisCount);
+        return new BenchmarkResultItem(new BenchmarkStoredResult(
+            project,
+            benchmark?.MethodName??item.BenchmarkName,
+            benchmark?.TypeFullName??string.Empty,
+            BenchmarkWorkloadAxis.ResolveElementCount(sourceTab,axisCount),
+            loopCount,
+            ToJobStatus(side.Status).ToString(),
+            side.MeanNanoseconds?.ToString(System.Globalization.CultureInfo.InvariantCulture)??string.Empty,
+            side.MeanNanoseconds,
+            side.AllocatedBytes,
+            side.MeasuredAt??DateTimeOffset.MinValue,
+            null,
+            string.Empty){
+            SourceTabId=item.TabName,
+            Arguments=benchmark?.Arguments??[],
             AssignedLogicalCpu=item.CpuNumber,
-            FailureReason=side.FailureReason,
+            TotalNanoseconds=side.TotalNanoseconds,
         });
     }
 
@@ -656,7 +697,8 @@ internal sealed record BenchmarkGridSnapshotSide(
     DateTimeOffset? MeasuredAt,
     double? MeanNanoseconds,
     long? AllocatedBytes,
-    BenchmarkResultItem ResultItem);
+    BenchmarkResultItem ResultItem,
+    BenchmarkCase? Benchmark = null);
 
 internal sealed record BenchmarkGridSnapshotItem(
     long RunId,

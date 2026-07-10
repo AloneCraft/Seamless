@@ -21,6 +21,20 @@ public class LinqRewriteAttributeTests(ITestOutputHelper output) {
         }
         """;
 
+    private const string GenericContainingTypeRewrite = """
+        using System.Linq;
+        namespace Sample;
+        public static class Route {
+            public static T[] AsX<T>(this T[]source) => source;
+        }
+        public class Container<T> where T:notnull {
+            internal readonly T[]src=[];
+            internal static bool Accept(T value) => value is not null;
+            private int CountItems() => this.src.AsX<T>().Count(static value => Accept(value));
+            public int Run() => this.CountItems();
+        }
+        """;
+
     private const string CounterWithoutOptimization = """
         using System.Linq;
         using Seamless.FLinq;
@@ -89,6 +103,16 @@ public class LinqRewriteAttributeTests(ITestOutputHelper output) {
     [Fact]
     public void NoAttribute_DefaultsToIntercepted() {
         this.AssertIntercepted(DefaultRewrite);
+    }
+
+    [Fact]
+    public void GenericContainingType_WithAccessibleLambda_IsIntercepted() {
+        var generated=GeneratedSource(GenericContainingTypeRewrite);
+        GeneratedSourceAssert.True(
+            generated.Contains("CountItems_",StringComparison.Ordinal),
+            "Expected generic-containing CountItems interceptor was not generated.",
+            generated,
+            output);
     }
 
     [Fact]

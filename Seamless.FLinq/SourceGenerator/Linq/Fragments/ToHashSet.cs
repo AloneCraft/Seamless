@@ -33,7 +33,6 @@ public class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSet
     public override string? RenderInlineComputation(string destVar,string destType)=>
         this.RenderRangeToHashSetInline(destVar,destType)
         ??this.RenderDirectSpanToHashSetInline(destVar,destType)
-        ??this.RenderDirectEnumerableToHashSetHybridInline(source,destVar,destType)
         ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanToHashSetInline(string destVar,string destType) {
         var sourceName=$"__hashSetSource{番号}";
@@ -104,7 +103,6 @@ public class ToHashSet_comparer(int 番号,Enumerable source,string comparer,str
     public override string? RenderInlineComputation(string destVar,string destType)=>
         this.RenderRangeToHashSetInline(destVar,destType)
         ??this.RenderDirectSpanToHashSetInline(destVar,destType)
-        ??this.RenderDirectEnumerableToHashSetHybridInline(source,destVar,destType,comparer)
         ??this.RenderComputeInline(destVar,destType,comparer);
     private string? RenderDirectSpanToHashSetInline(string destVar,string destType) {
         var sourceName=$"__hashSetSource{番号}";

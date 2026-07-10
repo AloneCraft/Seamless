@@ -160,9 +160,15 @@ static WorkerResultMessage RunBenchmark(
         var summaries = BenchmarkSwitcher
             .FromTypes([benchmarkType])
             .Run(["--filter","*."+task.MethodName+"*"],config);
-        var summary = summaries.FirstOrDefault();
-        var report = summary?.Reports.FirstOrDefault(report => IsReportForArguments(report.BenchmarkCase,task.Arguments))
-            ??summary?.Reports.FirstOrDefault();
+        var summary = summaries.SingleOrDefault()
+            ??throw new InvalidOperationException($"BenchmarkDotNet did not return a summary for {task.TypeFullName}.{task.MethodName}.");
+        var reports = summary.Reports
+            .Where(report => IsReportForArguments(report.BenchmarkCase,task.Arguments))
+            .ToArray();
+        if(reports.Length!=1){
+            throw new InvalidOperationException($"BenchmarkDotNet returned {reports.Length} reports for {task.TypeFullName}.{task.MethodName} with arguments '{task.ArgumentKey}'.");
+        }
+        var report = reports[0];
         var stats = report?.ResultStatistics;
         var allocatedBytes = GetAllocatedBytes(report);
         var log = logWriter.ToString();
@@ -236,18 +242,25 @@ static WorkerResultMessage RunFastBenchmark(
         instance=method.IsStatic ? null : Activator.CreateInstance(benchmarkType);
         var argumentValues = BenchmarkArgumentFormatting.ToObjects(task.Arguments);
         var resultDigest = CaptureBenchmarkResultDigest(benchmarkType,task.MethodName,argumentValues);
-        var counter = new global::Seamless.Linq.LinqCounter();
+        var invokeBenchmark = argumentValues.Length==0
+            ? method.IsStatic
+                ? (Action)method.CreateDelegate(typeof(Action))
+                : (Action)method.CreateDelegate(typeof(Action),instance)
+            : () => method.Invoke(instance,argumentValues);
+        invokeBenchmark();
         var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
         var stopwatch = Stopwatch.StartNew();
-        using(var counterScope = global::Seamless.Linq.LinqCounterScope.Start(counter)) {
-            for(var index=0;index<loopCount;index++){
-                method.Invoke(instance,argumentValues);
-            }
+        for(var index=0;index<loopCount;index++){
+            invokeBenchmark();
         }
         stopwatch.Stop();
         var allocatedAfter = GC.GetAllocatedBytesForCurrentThread();
         var meanNanoseconds = stopwatch.Elapsed.TotalMilliseconds*1_000_000d;
         var allocatedBytes = Math.Max(0,allocatedAfter-allocatedBefore);
+        var counter = new global::Seamless.Linq.LinqCounter();
+        using(var counterScope = global::Seamless.Linq.LinqCounterScope.Start(counter)) {
+            invokeBenchmark();
+        }
         var diagnosticCounters = CreateDiagnosticCounters(counter);
         File.WriteAllText(
             logPath,
@@ -305,16 +318,15 @@ static Type ResolveBenchmarkType(string assemblyName,string typeFullName){
         .GetAssemblies()
         .FirstOrDefault(item => string.Equals(item.GetName().Name,assemblyName,StringComparison.OrdinalIgnoreCase))
         ?? Assembly.Load(new AssemblyName(assemblyName));
-    return assembly.GetType(typeFullName,throwOnError:true,ignoreCase:false)
-        ??throw new InvalidOperationException($"Benchmark type was not found: {typeFullName}");
+    return assembly.GetType(typeFullName,throwOnError:false,ignoreCase:false)
+        ??throw new TypeLoadException($"Benchmark type was not found: {assemblyName}:{typeFullName}");
 }
 
 static MethodInfo ResolveBenchmarkMethod(Type benchmarkType,string methodName){
     var methods = benchmarkType.GetMethods(BindingFlags.Public|BindingFlags.Instance|BindingFlags.Static);
-    var method = methods.FirstOrDefault(method =>
-            string.Equals(method.Name,methodName,StringComparison.Ordinal)
-            &&HasBenchmarkAttribute(method))
-        ??methods.FirstOrDefault(method => string.Equals(method.Name,methodName,StringComparison.Ordinal));
+    var method = methods.SingleOrDefault(method =>
+        string.Equals(method.Name,methodName,StringComparison.Ordinal)
+        &&HasBenchmarkAttribute(method));
     return method??throw new MissingMethodException(benchmarkType.FullName,methodName);
 }
 

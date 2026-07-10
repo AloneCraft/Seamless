@@ -84,7 +84,7 @@ namespace Seamless.System.Carrier {
     }
 
     [StructLayout(LayoutKind.Auto)]
-    public struct LookupBuilder<TKey, TElement> {
+    public struct LookupBuilder<TKey, TElement>:IDisposable {
         private const int MinimumSize = 16; // minimum arraypool size
         private const double LoadFactor = 0.72;
         private readonly IEqualityComparer<TKey> comparer;
@@ -175,6 +175,29 @@ namespace Seamless.System.Carrier {
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Grouping<TKey,TElement>? GetGroup(TKey key) {
+            if(buckets is null) return null;
+            var hash=InternalGetHashCode(key);
+            var group=buckets[GetBucketIndex(hash)];
+            while(group is not null) {
+                if(comparer.Equals(group.Key,key)) return group;
+                group=group.NextGroupInSameHashCode;
+            }
+            return null;
+        }
+
+        public void Dispose() {
+            var pooledBuckets=buckets;
+            buckets=null;
+            bucketsLength=0;
+            last=null;
+            groupCount=0;
+            if(pooledBuckets is not null) {
+                ArrayPool<Grouping<TKey,TElement>>.Shared.Return(pooledBuckets,clearArray:true);
+            }
+        }
+
         public Lookup<TKey,TElement> BuildAndClear() {
             if(groupCount==0||buckets is null) {
                 return Lookup<TKey,TElement>.Empty;
@@ -182,7 +205,19 @@ namespace Seamless.System.Carrier {
 
             var groups = buckets.AsSpan(0,bucketsLength).ToArray();
             ArrayPool<Grouping<TKey,TElement>>.Shared.Return(buckets,clearArray: true);
-            return new Lookup<TKey,TElement>(groups,last,groupCount,comparer);
+            return new Lookup<TKey,TElement>(groups,last,groupCount,comparer,groups.Length,false);
+        }
+
+        public Lookup<TKey,TElement> BuildPooledAndClear() {
+            if(groupCount==0||buckets is null) {
+                return Lookup<TKey,TElement>.Empty;
+            }
+
+            var groups=buckets;
+            var length=bucketsLength;
+            buckets=null;
+            bucketsLength=0;
+            return new Lookup<TKey,TElement>(groups,last,groupCount,comparer,length,true);
         }
 
         // GroupBy only needs root group.
@@ -238,26 +273,32 @@ namespace Seamless.System.Carrier {
     // .NET ILookup implements ICollection and it is public
     [DebuggerDisplay("Count = {Count}")]
     [DebuggerTypeProxy(typeof(LookupDebugView<,>))]
-    public sealed class Lookup<TKey, TElement>:ILookup<TKey,TElement>, ICollection<IGrouping<TKey,TElement>>, IReadOnlyCollection<IGrouping<TKey,TElement>> {
+    public sealed class Lookup<TKey, TElement>:ILookup<TKey,TElement>, ICollection<IGrouping<TKey,TElement>>, IReadOnlyCollection<IGrouping<TKey,TElement>>, IDisposable {
         internal static readonly Lookup<TKey,TElement> Empty = new Lookup<TKey,TElement>();
-        private readonly Grouping<TKey,TElement>?[]? groups;
+        private Grouping<TKey,TElement>?[]? groups;
         private readonly Grouping<TKey,TElement>? last;
         private readonly int count;
         private readonly IEqualityComparer<TKey> comparer;
+        private readonly int bucketCount;
+        private readonly bool pooled;
         private Lookup() // for empty
         {
             groups=null;
             last=null;
             count=0;
             comparer=null!;
+            bucketCount=0;
+            pooled=false;
         }
 
-        internal Lookup(Grouping<TKey,TElement>[]? groupings,Grouping<TKey,TElement>? last,int count,IEqualityComparer<TKey> comparer) {
+        internal Lookup(Grouping<TKey,TElement>[]? groupings,Grouping<TKey,TElement>? last,int count,IEqualityComparer<TKey> comparer,int bucketCount,bool pooled) {
             if(groupings==null) {
                 groups=null;
                 this.last=null;
                 this.count=0;
                 this.comparer=comparer;
+                this.bucketCount=0;
+                this.pooled=false;
                 return;
             }
 
@@ -265,6 +306,8 @@ namespace Seamless.System.Carrier {
             this.count=count;
             this.last=last;
             this.comparer=comparer;
+            this.bucketCount=bucketCount;
+            this.pooled=pooled;
         }
 
         public IEnumerable<TElement> this[TKey key] {
@@ -298,7 +341,7 @@ namespace Seamless.System.Carrier {
             return GetGroup(key) is not null;
         }
 
-        internal Grouping<TKey,TElement>? GetGroup(TKey key) {
+        public Grouping<TKey,TElement>? GetGroup(TKey key) {
             if(groups is null) return null;
 
             var hashCode = InternalGetHashCode(key);
@@ -338,7 +381,15 @@ namespace Seamless.System.Carrier {
         private int GetBucketIndex(uint hashCode) {
             var buckets = groups;
             Debug.Assert(buckets is not null);
-            return (int)(hashCode&(buckets.Length-1));
+            return (int)(hashCode&(bucketCount-1));
+        }
+
+        public void Dispose() {
+            if(!pooled) return;
+            var pooledGroups=Interlocked.Exchange(ref groups,null);
+            if(pooledGroups is not null) {
+                ArrayPool<Grouping<TKey,TElement>>.Shared.Return(pooledGroups,clearArray:true);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

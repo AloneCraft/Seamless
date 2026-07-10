@@ -3382,7 +3382,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
             return null;
         }
 
-        var matchingOption = this.RunOptions.ToArray().FirstOrDefault(option => option.UiRunId==selected.UiRunId
+        var matchingOption = this.RunOptions.ToArray().FirstOrDefault(option => option is not null
+            &&option.UiRunId==selected.UiRunId
             &&option.RunNumber==selected.RunNumber);
         if(matchingOption is not null&&!ReferenceEquals(matchingOption,selected)) {
             this.selectedRunOption=matchingOption;
@@ -3538,6 +3539,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
 
         var leftSide = this.CreateBenchmarkGridSnapshotSide(row,row.LeftCell,leftBenchmark,leftResult);
         var rightSide = this.CreateBenchmarkGridSnapshotSide(row,row.RightCell,rightBenchmark,rightResult);
+        this.ValidateFinalLoopCountSnapshot(row,leftSide,rightSide);
 
         return new BenchmarkGridSnapshotItem(
             0,
@@ -3549,6 +3551,33 @@ public sealed partial class RunnerViewModel:ObservableObject {
             row.IsSelected,
             leftSide.Status==UiRunStatus.Completed ? leftSide : this.CreateEmptyBenchmarkGridSnapshotSide(row,row.LeftCell,leftBenchmark),
             rightSide.Status==UiRunStatus.Completed ? rightSide : this.CreateEmptyBenchmarkGridSnapshotSide(row,row.RightCell,rightBenchmark));
+    }
+
+    private void ValidateFinalLoopCountSnapshot(
+        BenchmarkTableRow row,
+        BenchmarkGridSnapshotSide left,
+        BenchmarkGridSnapshotSide right) {
+        if(!row.IsFinalCompleted||!BenchmarkWorkloadAxis.UsesLoopCount(row.SourceTab.Tab)) {
+            return;
+        }
+
+        var thresholdNanoseconds=this.GetAdaptiveThreshold().TotalMilliseconds*1_000_000;
+        if(left.Status!=UiRunStatus.Completed
+            ||right.Status!=UiRunStatus.Completed
+            ||left.ResultItem.LoopCount<=0
+            ||left.ResultItem.LoopCount!=right.ResultItem.LoopCount
+            ||left.ResultItem.TotalNanoseconds is not { } leftTotal
+            ||right.ResultItem.TotalNanoseconds is not { } rightTotal
+            ||leftTotal<thresholdNanoseconds
+            ||rightTotal<thresholdNanoseconds) {
+            throw new InvalidOperationException(
+                "完全完了した比較行は、同一LoopCountかつ左右とも指定測定時間以上である必要があります。"
+                +" SourceTab="+row.SourceTab.Id
+                +" Type="+row.BenchmarkTypeText
+                +" Benchmark="+row.MethodName
+                +" LeftLoopCount="+left.ResultItem.LoopCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                +" RightLoopCount="+right.ResultItem.LoopCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
     }
 
     private static string ResolveSnapshotTypeName(
@@ -3581,7 +3610,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             row.SourceTab,
             cell.Project,
             benchmark?.AssemblyName??row.SourceTab.GetAssemblyName(cell.Project),
-            benchmark?.TypeFullName??row.BenchmarkTypeText,
+            benchmark?.TypeFullName??string.Empty,
             benchmark?.MethodName??row.MethodName,
             benchmark?.ArgumentKey??string.Empty,
             benchmark?.Arguments??[],
@@ -3598,7 +3627,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
             measuredAt,
             meanNanoseconds,
             allocatedBytes,
-            resultItem);
+            resultItem,
+            benchmark);
     }
 
     private BenchmarkGridSnapshotSide CreateEmptyBenchmarkGridSnapshotSide(
@@ -3609,7 +3639,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             row.SourceTab,
             cell.Project,
             benchmark?.AssemblyName??row.SourceTab.GetAssemblyName(cell.Project),
-            benchmark?.TypeFullName??row.BenchmarkTypeText,
+            benchmark?.TypeFullName??string.Empty,
             benchmark?.MethodName??row.MethodName,
             benchmark?.ArgumentKey??string.Empty,
             benchmark?.Arguments??[],
@@ -3620,7 +3650,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             null,
             null,
             string.Empty);
-        return new(UiRunStatus.Queued,string.Empty,null,null,null,resultItem);
+        return new(UiRunStatus.Queued,string.Empty,null,null,null,resultItem,benchmark);
     }
 
     private BenchmarkResultItem? FindSnapshotResult(BenchmarkTableRow row,BenchmarkCase benchmark,IReadOnlyList<BenchmarkResultItem> results) {
@@ -4764,9 +4794,14 @@ public sealed partial class RunnerViewModel:ObservableObject {
             this.ClearRunResultHighlights();
             if(completedNormally) {
                 this.ApplyFinalBenchmarkSort();
+            }
+            if(completedNormally) {
+                this.ApplySourceTabProgressesSynchronously();
                 this.ApplyFinalCompletionStatesSynchronously();
             }
-            this.RefreshSourceTabProgresses();
+            else {
+                this.RefreshSourceTabProgresses();
+            }
             this.RefreshImprovementPrompt();
             this.UpdateChart();
             if(isCurrentRun&&uiRunId is { } finalRunId) {
@@ -5324,7 +5359,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
             if(isLiveVisualActive) {
                 var row = this.FindBenchmarkRow(result);
                 row?.ApplyRunResult(result,cpu,DateTimeOffset.Now);
-                this.ApplyMeasuredRowFinalCompletion(row);
                 dirtyChartTab=result.SourceTab;
             }
         }
@@ -5439,7 +5473,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
         if(isResultForVisibleTab) {
             row?.ApplyRunResult(result,cpu,completedAt);
             if(isTerminalResult) {
-                this.ApplyMeasuredRowFinalCompletion(row);
             }
         }
         if(isTerminalResult) {
@@ -5449,7 +5482,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
             if(isResultForVisibleTab) {
                 this.ApplySelectedElementCountToTable();
                 row?.ApplyRunResult(result,cpu,completedAt);
-                this.ApplyMeasuredRowFinalCompletion(row);
                 if(string.Equals(this.activeChartMethodName,row?.RowKey??result.Method,StringComparison.OrdinalIgnoreCase)) {
                     this.activeChartMethodName=string.Empty;
                 }
@@ -5654,8 +5686,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
             this.RefreshVisibleResults();
             this.ApplySelectedElementCountToTable();
             this.UpdateChart();
+            this.ApplySourceTabProgressesSynchronously();
             this.ApplyFinalCompletionStatesSynchronously();
-            this.RefreshSourceTabProgresses();
         });
     }
 
@@ -6844,7 +6876,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
         SourceTabOption Option,
         BenchmarkSourceTabDefinition Definition,
         IReadOnlyList<BenchmarkTabProgressCell> Cells,
-        IReadOnlyList<BenchmarkResultItem> SessionResults);
+        IReadOnlyList<BenchmarkResultItem> SessionResults,
+        int MeasuredSelectedCells,
+        int SelectedCells);
 
     // 全5タブ分の進捗計算は実行が進むほど重くなる。UIスレッドに残すのは cells 構築(行数程度)と
     // 生の結果配列の確保(参照コピー)のみで、measurement射影(GroupBy/重複排除)と
@@ -6868,11 +6902,16 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
 
         var inputs = this.SourceTabs
-            .Select(option => new SourceTabProgressInput(
-                option,
-                option.Definition,
-                this.CreateProgressCells(option.Definition),
-                this.GetCurrentRunResultItems(option.Definition.Tab)))
+            .Select(option => {
+                var measured = this.CountMeasuredSelectedCells(option.Definition);
+                return new SourceTabProgressInput(
+                    option,
+                    option.Definition,
+                    this.CreateProgressCells(option.Definition),
+                    this.GetCurrentRunResultItems(option.Definition.Tab),
+                    measured.Measured,
+                    measured.Selected);
+            })
             .ToArray();
         var resultItemsSnapshot = this.ResultItems.ToArray();
         var stateJobsSnapshot = this.currentRunSession.HasAnyResults
@@ -6885,13 +6924,15 @@ public sealed partial class RunnerViewModel:ObservableObject {
         this.sourceTabProgressRefreshInFlight=true;
         var stopwatch = Stopwatch.StartNew();
         Task.Run(() => inputs
-                .Select(input => BenchmarkTabProgressLogic.Calculate(
+            .Select(input => CalculateSourceTabProgress(
                     input.Cells,
                     BuildProgressMeasurements(input.SessionResults,resultItemsSnapshot,stateJobsSnapshot,input.Definition.Tab),
                     input.Definition.LeftProject,
                     input.Definition.RightProject,
                     maxElementCount,
-                    thresholdNanoseconds))
+                    thresholdNanoseconds,
+                    input.MeasuredSelectedCells,
+                    input.SelectedCells))
                 .ToArray())
             .ContinueWith(task => {
                 UiThreadBudget.Record("bg:progress",stopwatch.Elapsed.TotalMilliseconds);
@@ -6902,6 +6943,11 @@ public sealed partial class RunnerViewModel:ObservableObject {
                         UiThreadBudget.Measure("progress-apply",() => {
                             for(var index = 0; index<inputs.Length; index++) {
                                 inputs[index].Option.SetProgress(progresses[index]);
+                                if(!this.IsBenchmarkRunActive
+                                    &&progresses[index].Total>0
+                                    &&progresses[index].Completed>=progresses[index].Total) {
+                                    inputs[index].Option.SetFinalCompleted(true);
+                                }
                             }
                             this.OverallSourceTabProgress=new BenchmarkTabProgress(
                                 progresses.Sum(static progress => progress.Completed),
@@ -6966,7 +7012,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 item.ArgumentKey,
                 item.AxisCount,
                 item.Status,
-                item.MeanNanoseconds))
+                item.MeanNanoseconds,
+                item.TotalNanoseconds))
             .ToArray();
     }
 
@@ -7216,7 +7263,11 @@ public sealed partial class RunnerViewModel:ObservableObject {
                         this.LogSnapshotDiagnostic(item,"スナップショット行を解決できません。");
                         continue;
                     }
-                    ApplyRowSelectionToCells(row,item.IsSelected);
+                    var restoreSelection=item.IsSelected&&item.Left.Benchmark is not null&&item.Right.Benchmark is not null;
+                    if(item.IsSelected&&!restoreSelection) {
+                        this.LogSnapshotDiagnostic(item,"Executable case identity is missing; the legacy snapshot row is displayed but excluded from the execution queue.");
+                    }
+                    ApplyRowSelectionToCells(row,restoreSelection);
                     this.ResultItems.Add(this.CreateLoadedSnapshotResultItem(sourceTab,item,sourceTab.LeftProject,item.Left));
                     this.ResultItems.Add(this.CreateLoadedSnapshotResultItem(sourceTab,item,sourceTab.RightProject,item.Right));
                     this.ApplyLoadedBenchmarkSnapshotSide(row,sourceTab.LeftProject,item.CpuNumber,item.Left);
@@ -7357,7 +7408,11 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 continue;
             }
 
-            ApplyRowSelectionToCells(row,item.IsSelected);
+            var restoreSelection=item.IsSelected&&item.Left.Benchmark is not null&&item.Right.Benchmark is not null;
+            if(item.IsSelected&&!restoreSelection) {
+                this.LogSnapshotDiagnostic(item,"Executable case identity is missing; the legacy snapshot row is displayed but excluded from the execution queue.");
+            }
+            ApplyRowSelectionToCells(row,restoreSelection);
             this.ApplyLoadedBenchmarkSnapshotSide(row,sourceTab.LeftProject,item.CpuNumber,item.Left);
             this.ApplyLoadedBenchmarkSnapshotSide(row,sourceTab.RightProject,item.CpuNumber,item.Right);
         }
@@ -7391,19 +7446,48 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 continue;
             }
 
-            row.SetFinalCompleted(item.IsSelected&&item.Left.Status==UiRunStatus.Completed&&item.Right.Status==UiRunStatus.Completed);
+            var measurements=new[] {
+                CreateSnapshotMeasurement(item.Left.ResultItem),
+                CreateSnapshotMeasurement(item.Right.ResultItem),
+            };
+            var leftCell=CreateProgressCell(row,sourceTab.LeftProject,true);
+            var rightCell=CreateProgressCell(row,sourceTab.RightProject,true);
+            var thresholdNanoseconds=this.GetAdaptiveThreshold().TotalMilliseconds*1_000_000;
+            var isFinalCompleted=BenchmarkWorkloadAxis.UsesLoopCount(sourceTab.Tab)
+                ? BenchmarkRowCompletionLogic.IsLoopCountFinalCompleted(measurements,leftCell,rightCell,thresholdNanoseconds)
+                : BenchmarkRowCompletionLogic.IsFinalCompleted(
+                    measurements,
+                    leftCell,
+                    rightCell,
+                    Math.Max(item.Left.ResultItem.AxisCount,item.Right.ResultItem.AxisCount),
+                    thresholdNanoseconds);
+            row.SetFinalCompleted(item.IsSelected&&isFinalCompleted);
         }
     }
+
+    private static BenchmarkElementMeasurement CreateSnapshotMeasurement(BenchmarkResultItem result) =>
+        new(
+            result.Project,
+            result.Method,
+            result.TypeFullName,
+            result.ArgumentKey,
+            result.AxisCount,
+            result.Status,
+            result.MeanNanoseconds,
+            result.TotalNanoseconds);
 
     private IEnumerable<BenchmarkTableRow> CreateSnapshotRows(BenchmarkSourceTabDefinition sourceTab,IReadOnlyList<BenchmarkGridSnapshotItem> items) {
         return items
             .Where(item => string.Equals(item.SourceTabId,sourceTab.Id,StringComparison.OrdinalIgnoreCase))
             .OrderBy(static item => item.Order)
             .Select(item => {
-                var cases = new Dictionary<string,BenchmarkCase>(StringComparer.OrdinalIgnoreCase) {
-                    [sourceTab.LeftProject]=new(sourceTab.LeftProject,sourceTab.LeftAssemblyName,item.TypeName,item.BenchmarkName,string.Empty,[]),
-                    [sourceTab.RightProject]=new(sourceTab.RightProject,sourceTab.RightAssemblyName,item.TypeName,item.BenchmarkName,string.Empty,[]),
-                };
+                var cases = new Dictionary<string,BenchmarkCase>(StringComparer.OrdinalIgnoreCase);
+                if(item.Left.Benchmark is { } leftBenchmark){
+                    cases[sourceTab.LeftProject]=leftBenchmark;
+                }
+                if(item.Right.Benchmark is { } rightBenchmark){
+                    cases[sourceTab.RightProject]=rightBenchmark;
+                }
                 return new BenchmarkTableRow(
                     CreateSnapshotRowKey(item.TypeName,item.BenchmarkName),
                     item.BenchmarkName,
@@ -8030,6 +8114,95 @@ public sealed partial class RunnerViewModel:ObservableObject {
             },TaskScheduler.Default);
     }
 
+    private void ApplySourceTabProgressesSynchronously() {
+        _=unchecked(++this.sourceTabProgressRequestToken);
+        this.sourceTabProgressRefreshPending=false;
+        var resultItemsSnapshot = this.ResultItems.ToArray();
+        var stateJobsSnapshot = this.currentRunSession.HasAnyResults
+            ? null
+            : this.LoadSelectedRunState()?.Jobs.ToArray();
+        var maxElementCount = this.GetSelectedElementCounts().LastOrDefault();
+        var thresholdNanoseconds = this.GetAdaptiveThreshold().TotalMilliseconds*1_000_000;
+        var progresses = this.SourceTabs
+            .Select(option => {
+                var measured = this.CountMeasuredSelectedCells(option.Definition);
+                return new {
+                    Option = option,
+                    Progress = CalculateSourceTabProgress(
+                        this.CreateProgressCells(option.Definition),
+                        BuildProgressMeasurements(
+                            this.GetCurrentRunResultItems(option.Definition.Tab),
+                            resultItemsSnapshot,
+                            stateJobsSnapshot,
+                            option.Definition.Tab),
+                        option.Definition.LeftProject,
+                        option.Definition.RightProject,
+                        maxElementCount,
+                        thresholdNanoseconds,
+                        measured.Measured,
+                        measured.Selected),
+                };
+            })
+            .ToArray();
+
+        foreach(var item in progresses) {
+            item.Option.SetProgress(item.Progress);
+        }
+        this.OverallSourceTabProgress=new BenchmarkTabProgress(
+            progresses.Sum(static item => item.Progress.Completed),
+            progresses.Sum(static item => item.Progress.Total));
+    }
+
+    private (int Measured,int Selected) CountMeasuredSelectedCells(BenchmarkSourceTabDefinition sourceTab) {
+        var measured = 0;
+        var selected = 0;
+        foreach(var row in this.GetSourceTabViewState(sourceTab.Tab).Rows) {
+            foreach(var cell in row.ProjectCells) {
+                if(!cell.HasCase||!cell.IsSelected) {
+                    continue;
+                }
+
+                selected++;
+                if(cell.Metrics.HasMeasuredValue) {
+                    measured++;
+                }
+            }
+        }
+
+        return (measured,selected);
+    }
+
+    private static BenchmarkTabProgress CalculateSourceTabProgress(
+        IEnumerable<BenchmarkTabProgressCell> cells,
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        string leftProject,
+        string rightProject,
+        int maxElementCount,
+        double thresholdNanoseconds,
+        int measuredSelectedCells,
+        int selectedCells) {
+        var progress = BenchmarkTabProgressLogic.Calculate(
+            cells,
+            measurements,
+            leftProject,
+            rightProject,
+            maxElementCount,
+            thresholdNanoseconds);
+        return ApplyMeasuredCellProgressFallback(progress,measuredSelectedCells,selectedCells);
+    }
+
+    private static BenchmarkTabProgress ApplyMeasuredCellProgressFallback(
+        BenchmarkTabProgress progress,
+        int measuredSelectedCells,
+        int selectedCells) {
+        if(selectedCells==0||measuredSelectedCells<=progress.Completed) {
+            return progress;
+        }
+
+        var total = progress.Total>0 ? progress.Total : selectedCells;
+        return new BenchmarkTabProgress(Math.Min(measuredSelectedCells,total),total);
+    }
+
     private void ApplyFinalCompletionStatesSynchronously() {
         this.finalCompletionRefreshPending=false;
         _=unchecked(++this.finalCompletionRequestToken);
@@ -8047,18 +8220,17 @@ public sealed partial class RunnerViewModel:ObservableObject {
                     return new FinalCompletionTabResult(
                         option,
                         rows,
-                        this.ApplyMeasuredCellFinalCompletionFallback(rows,new bool[rows.Length]),
+                        new bool[rows.Length],
                         false);
                 }
 
                 var pairs = CreateBenchmarkPairs(state.Definition);
                 var maxElementCount = this.GetFinalCompletionMaxElementCount(state.Definition,source);
+                var completed = ComputeFinalCompletionStates(measurements,rows,pairs,maxElementCount,thresholdNanoseconds);
                 return new FinalCompletionTabResult(
                     option,
                     rows,
-                    this.ApplyMeasuredCellFinalCompletionFallback(
-                        rows,
-                        ComputeFinalCompletionStates(measurements,rows,pairs,maxElementCount,thresholdNanoseconds)),
+                    completed,
                     IsTabFinalCompleted(measurements,rows,maxElementCount,thresholdNanoseconds));
             })
             .ToArray();
@@ -8075,34 +8247,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 }
             }
         }
-    }
-
-    private bool[] ApplyMeasuredCellFinalCompletionFallback(BenchmarkTableRow[] rows,bool[] completed) {
-        for(var index = 0; index<rows.Length; index++) {
-            if(completed[index]) {
-                continue;
-            }
-
-            var selectedCells = rows[index].ProjectCells.Where(static cell => cell.HasCase&&cell.IsSelected).ToArray();
-            if(selectedCells.Length>0&&selectedCells.All(static cell => cell.Metrics.HasMeasuredValue)) {
-                completed[index]=true;
-            }
-        }
-
-        return completed;
-    }
-
-    private void ApplyMeasuredRowFinalCompletion(BenchmarkTableRow? row) {
-        if(row is null) {
-            return;
-        }
-
-        var selectedCells = row.ProjectCells.Where(static cell => cell.HasCase&&cell.IsSelected).ToArray();
-        if(selectedCells.Length>0&&selectedCells.All(static cell => cell.Metrics.HasMeasuredValue)) {
-            row.SetFinalCompleted(true);
-            return;
-        }
-
     }
 
     /// <summary>
@@ -8125,7 +8269,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 result.ArgumentKey,
                 result.AxisCount,
                 result.Status,
-                result.MeanNanoseconds));
+                result.MeanNanoseconds,
+                result.TotalNanoseconds));
         }
 
         return measurements.ToArray();
@@ -8174,26 +8319,26 @@ public sealed partial class RunnerViewModel:ObservableObject {
         for(var index = 0; index<rows.Length; index++) {
             var row = rows[index];
             var rowMeasurements = measurementsByMethod[row.MethodName].ToArray();
-            results[index]=pairs.Any(pair =>
-                BenchmarkRowCompletionLogic.IsFinalCompleted(
-                    rowMeasurements,
-                    CreateProgressCell(row,pair.LeftProject,true),
-                    CreateProgressCell(row,pair.RightProject,true),
-                    maxElementCount,
-                    thresholdNanoseconds));
+            results[index]=pairs.Any(pair => {
+                var leftCell=CreateProgressCell(row,pair.LeftProject,true);
+                var rightCell=CreateProgressCell(row,pair.RightProject,true);
+                return BenchmarkWorkloadAxis.UsesLoopCount(row.SourceTab.Tab)
+                    ? BenchmarkRowCompletionLogic.IsLoopCountFinalCompleted(rowMeasurements,leftCell,rightCell,thresholdNanoseconds)
+                    : BenchmarkRowCompletionLogic.IsFinalCompleted(rowMeasurements,leftCell,rightCell,maxElementCount,thresholdNanoseconds);
+            });
         }
 
         return results;
     }
 
-    private static bool IsTabFinalCompleted(BenchmarkElementMeasurement[] measurements,BenchmarkTableRow[] rows,int maxElementCount,double thresholdNanoseconds) =>
-        BenchmarkRowCompletionLogic.IsTabFinalCompleted(
-            measurements,
-            rows.SelectMany(static row => row.ProjectCells
-                .Where(static cell => cell.HasCase)
-                .Select(cell => CreateProgressCell(row,cell.Project,true))),
-            maxElementCount,
-            thresholdNanoseconds);
+    private static bool IsTabFinalCompleted(BenchmarkElementMeasurement[] measurements,BenchmarkTableRow[] rows,int maxElementCount,double thresholdNanoseconds) {
+        var cells=rows.SelectMany(static row => row.ProjectCells
+            .Where(static cell => cell.HasCase&&cell.IsSelected)
+            .Select(cell => CreateProgressCell(row,cell.Project,true)));
+        return rows.FirstOrDefault() is { } first&&BenchmarkWorkloadAxis.UsesLoopCount(first.SourceTab.Tab)
+            ? BenchmarkRowCompletionLogic.IsLoopCountTabFinalCompleted(measurements,cells,thresholdNanoseconds)
+            : BenchmarkRowCompletionLogic.IsTabFinalCompleted(measurements,cells,maxElementCount,thresholdNanoseconds);
+    }
 
     /// <summary>
     /// CreateDisplayMeasurements メソッドを実行し、結果を算出して返却します。
@@ -8211,7 +8356,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 result.ArgumentKey,
                 result.AxisCount,
                 result.Status,
-                result.MeanNanoseconds))
+                result.MeanNanoseconds,
+                result.TotalNanoseconds))
             .ToArray();
 
     /// <summary>
@@ -8348,7 +8494,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 result.ArgumentKey,
                 result.AxisCount,
                 result.Status,
-                result.MeanNanoseconds));
+                result.MeanNanoseconds,
+                result.TotalNanoseconds));
         return BenchmarkSkippedDisplayLogic.FindPairStoppedAt(
             measurements,
             method,
@@ -8384,7 +8531,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 result.ArgumentKey,
                 result.AxisCount,
                 result.Status,
-                result.MeanNanoseconds));
+                result.MeanNanoseconds,
+                result.TotalNanoseconds));
         return BenchmarkSkippedDisplayLogic.FindLatestCompletedPairElementCountBefore(
             measurements,
             method,
@@ -8543,6 +8691,11 @@ public sealed partial class RunnerViewModel:ObservableObject {
             if(!cases.TryGetValue(storedJob.CaseId,out var testCase)){
                 continue;
             }
+            var jobSourceTab = BenchmarkSourceTabs.TryGetById(testCase.SourceTabId)?.Tab??sourceTab;
+            var resolvedCase = this.FindBenchmarkCase(testCase.Method,testCase.Project,testCase.TypeFullName,testCase.ArgumentKey,jobSourceTab);
+            if(resolvedCase is null){
+                continue;
+            }
 
             var caseArguments = this.uiRunStore.ListCaseArguments(testCase.CaseId);
             var arguments = caseArguments
@@ -8552,7 +8705,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 .OrderBy(static item => item.Key,StringComparer.OrdinalIgnoreCase)
                 .Select(static item => new BenchmarkArgument(item.Key,item.Value))
                 .ToList();
-            var jobSourceTab = BenchmarkSourceTabs.TryGetById(testCase.SourceTabId)?.Tab??sourceTab;
             var axisCount = (int)(BenchmarkWorkloadAxis.UsesLoopCount(jobSourceTab)
                 ? storedJob.LoopCount??BenchmarkWorkloadAxis.DefaultLoopCount
                 : storedJob.ElementCount??0);
@@ -8565,12 +8717,12 @@ public sealed partial class RunnerViewModel:ObservableObject {
             var allocatedBytes = GetMetric(jobMetrics,"AllocatedBytes");
             jobs.Add(new BenchmarkJob{
                 JobId=storedJob.JobKey,
-                Project=testCase.Project,
-                AssemblyName=testCase.AssemblyName,
-                TypeFullName=testCase.TypeFullName,
-                MethodName=testCase.Method,
-                ArgumentKey=testCase.ArgumentKey,
-                Arguments=arguments,
+                Project=resolvedCase.Project,
+                AssemblyName=resolvedCase.AssemblyName,
+                TypeFullName=resolvedCase.TypeFullName,
+                MethodName=resolvedCase.MethodName,
+                ArgumentKey=resolvedCase.ArgumentKey,
+                Arguments=arguments.Count>0 ? arguments : resolvedCase.Arguments.ToList(),
                 SourceTab=jobSourceTab,
                 ElementCount=(int)(storedJob.ElementCount??BenchmarkWorkloadAxis.ResolveElementCount(jobSourceTab,axisCount)),
                 LoopCount=(int)(storedJob.LoopCount??BenchmarkWorkloadAxis.ResolveLoopCount(jobSourceTab,axisCount)),

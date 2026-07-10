@@ -85,10 +85,10 @@ selector は通常の FuncFragment と同じく、inline/delegate/closure 付き
 public class Zip_resultSelector(int 番号, Enumerable source, Enumerable second, FuncFragment resultSelector) : Enumerable(番号) {
     private string ResultSelectorFuncType => $"global::System.Func<{source.ElementType}, {second.ElementType}, {FuncReturnTypeName(resultSelector)}>";
     public override string StructMethod => this.FuncSupport(resultSelector,nameof(resultSelector));
-    protected override string StructTypeParameters => "<TEnum1, TEnum2>";
+    protected override string StructTypeParameters => StructTypeParametersWithOuter("TEnum1","TEnum2");
     protected override string StructTypeConstraints =>
         $"where TEnum1 : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>";
-    public override string EnumeratorTypeName => $"{this.Struct}<{source.EnumeratorTypeName}, {second.EnumeratorTypeName}>";
+    public override string EnumeratorTypeName => EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{second.GetEnumeratorStruct}}

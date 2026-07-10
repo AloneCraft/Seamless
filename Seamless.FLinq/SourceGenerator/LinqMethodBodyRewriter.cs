@@ -881,11 +881,6 @@ public sealed partial class FLinqIncrementalGenerator {
                 uniqueNumber=snapshot;
                 // 匿名型がソースに含まれる場合 → Fragment化できないが元の System.Linq 式を維持して続行する。
                 // これにより匿名型を返す LINQ の結果に対してチェーンする操作は System.Linq にフォールバックする。
-                if(invocation.Expression is MemberAccessExpressionSyntax { Expression: var recv }
-                    && semanticModel.GetTypeInfo(recv).Type is { } recvType
-                    && ContainsAnonymousType(recvType)) {
-                    continue;
-                }
                 return false;
             }
             if(!methodIsStatic) {
@@ -1173,11 +1168,6 @@ public sealed partial class FLinqIncrementalGenerator {
             if(!呼び出し式からフラグメント生成(semanticModel,invocation,containingType,ref uniqueNumber,out var fragment,out var invocationStaticMethods,unsafeAccessorCollector)) {
                 uniqueNumber=snapshot;
                 linqInvocationCount--;
-                if(invocation.Expression is MemberAccessExpressionSyntax { Expression: var recv }
-                    && semanticModel.GetTypeInfo(recv).Type is { } recvType
-                    && ContainsAnonymousType(recvType)) {
-                    continue;
-                }
                 return false;
             }
             // fragment 生成が成功しても結果型が匿名型を含む場合は struct コードに不正な型名が埋まるためスキップ。

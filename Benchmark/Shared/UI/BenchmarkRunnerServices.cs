@@ -569,20 +569,27 @@ public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
             using var elementScope = BeginElementCountScope(assembly,job.ElementCount,"1");
             using var randomSourceScope = BeginRandomSourceSeedScope(assembly,randomSeed);
             instance=method.IsStatic ? null : Activator.CreateInstance(type);
-            var counter = new global::Seamless.Linq.LinqCounter();
             var arguments = BenchmarkArgumentFormatting.ToObjects(benchmark.Arguments);
             var resultDigest = CaptureBenchmarkResultDigest(type,benchmark.MethodName,arguments);
+            var invokeBenchmark = arguments.Length==0
+                ? method.IsStatic
+                    ? (Action)method.CreateDelegate(typeof(Action))
+                    : (Action)method.CreateDelegate(typeof(Action),instance)
+                : () => method.Invoke(instance,arguments);
+            invokeBenchmark();
             var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
             var stopwatch = Stopwatch.StartNew();
-            using(var counterScope = global::Seamless.Linq.LinqCounterScope.Start(counter)) {
-                for(var index = 0;index<loopCount;index++) {
-                    method.Invoke(instance,arguments);
-                }
+            for(var index = 0;index<loopCount;index++) {
+                invokeBenchmark();
             }
             stopwatch.Stop();
             var allocatedAfter = GC.GetAllocatedBytesForCurrentThread();
             var meanNanoseconds = stopwatch.Elapsed.TotalMilliseconds*1_000_000;
             var allocatedBytes = Math.Max(0,allocatedAfter-allocatedBefore);
+            var counter = new global::Seamless.Linq.LinqCounter();
+            using(var counterScope = global::Seamless.Linq.LinqCounterScope.Start(counter)) {
+                invokeBenchmark();
+            }
             WriteInProcessLog(
                 logPath,
                 $"In-process direct benchmark completed in {BenchmarkFormatting.FormatNanoseconds(meanNanoseconds)}.",

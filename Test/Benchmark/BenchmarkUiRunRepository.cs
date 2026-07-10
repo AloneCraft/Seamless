@@ -24,7 +24,9 @@ public sealed class BenchmarkUiRunRepository{
         Assert.Equal(sourceTab.LeftProject,loaded.Project);
         Assert.Equal("Sample.Type",loaded.TypeFullName);
         Assert.Equal(global::UI.BenchmarkWorkloadAxis.ResolveElementCount(sourceTab.Tab,64),loaded.ElementCount);
+        Assert.Equal(global::UI.BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab.Tab,64),loaded.LoopCount);
         Assert.Equal(123.5,loaded.MeanNanoseconds);
+        Assert.Equal(123.5*global::UI.BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab.Tab,64),loaded.TotalNanoseconds);
         Assert.Equal(7,loaded.AssignedLogicalCpu);
     }
 
@@ -111,14 +113,28 @@ public sealed class BenchmarkUiRunRepository{
         new(runId,0,sourceTab.Id,typeName,benchmarkName,cpuNumber,true,left,right);
 
     private static global::UI.BenchmarkGridSnapshotSide CompletedSide(global::UI.BenchmarkResultItem result) =>
-        new(UiRunStatus.Completed,string.Empty,result.StartedAt,result.MeanNanoseconds,result.AllocatedBytesValue,result);
+        new(
+            UiRunStatus.Completed,
+            string.Empty,
+            result.StartedAt,
+            result.MeanNanoseconds,
+            result.AllocatedBytesValue,
+            result,
+            new global::UI.BenchmarkCase(result.Project,"Assembly",result.TypeFullName,result.Method,result.ArgumentKey,result.Arguments));
 
     private static global::UI.BenchmarkGridSnapshotSide EmptySide(
         string project,
         global::UI.BenchmarkSourceTab sourceTab,
         string typeName,
         string benchmarkName) =>
-        new(UiRunStatus.Queued,string.Empty,null,null,null,Result(project,sourceTab,benchmarkName,0,0,typeName,string.Empty,[]));
+        new(
+            UiRunStatus.Queued,
+            string.Empty,
+            null,
+            null,
+            null,
+            Result(project,sourceTab,benchmarkName,0,0,typeName,string.Empty,[]),
+            new global::UI.BenchmarkCase(project,"Assembly",typeName,benchmarkName));
 
     private static global::UI.BenchmarkResultItem Result(
         string project,
@@ -128,22 +144,31 @@ public sealed class BenchmarkUiRunRepository{
         double mean,
         string typeFullName,
         string argumentKey,
-        IReadOnlyList<global::UI.BenchmarkArgument>? arguments = null) =>
-        new(new global::UI.BenchmarkJob{
+        IReadOnlyList<global::UI.BenchmarkArgument>? arguments = null){
+        var loopCount = global::UI.BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab,elementCount);
+        return new(new global::UI.BenchmarkJob{
             Project=project,
             MethodName=method,
             TypeFullName=typeFullName,
             SourceTab=sourceTab,
-            ElementCount=elementCount,
+            ElementCount=global::UI.BenchmarkWorkloadAxis.ResolveElementCount(sourceTab,elementCount),
+            LoopCount=loopCount,
             ArgumentKey=argumentKey,
             Arguments=arguments?.ToList()??[],
             Status=global::UI.JobStatus.Completed,
-            MeanNanoseconds=mean,
-            AllocatedBytes=1024,
+            MeanNanoseconds=ToStoredTotal(sourceTab,loopCount,mean),
+            AllocatedBytes=ToStoredTotal(sourceTab,loopCount,1024),
             StartedAt=DateTimeOffset.UtcNow,
             AssignedLogicalCpu=7,
             ExitCode=0,
         });
+    }
+
+    private static double ToStoredTotal(global::UI.BenchmarkSourceTab sourceTab,int loopCount,double perOperation) =>
+        global::UI.BenchmarkWorkloadAxis.UsesLoopCount(sourceTab)&&loopCount>1 ? perOperation*loopCount : perOperation;
+
+    private static long ToStoredTotal(global::UI.BenchmarkSourceTab sourceTab,int loopCount,long perOperation) =>
+        global::UI.BenchmarkWorkloadAxis.UsesLoopCount(sourceTab)&&loopCount>1 ? perOperation*loopCount : perOperation;
 
     private static string CreateDatabasePath(){
         var root = Path.Combine(AppContext.BaseDirectory,"BenchmarkUiRunRepositoryTests",Guid.NewGuid().ToString("N"));

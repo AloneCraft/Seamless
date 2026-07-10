@@ -40,7 +40,6 @@ public class ToArray(int 番号, Enumerable source, string resultType) : Buffere
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeToArrayInline(destVar,destType)
         ??this.RenderDirectSpanToArrayInline(destVar,destType)
-        ??this.RenderDirectEnumerableToArrayHybridInline(source,destVar,destType)
         ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanToArrayInline(string destVar,string destType) {
         var span=$"__span{this.result}";
@@ -49,7 +48,7 @@ public class ToArray(int 番号, Enumerable source, string resultType) : Buffere
                 {{destVar}}=global::System.Array.Empty<{{source.ElementType}}>();
             } else {
                 {{destVar}}=global::System.GC.AllocateUninitializedArray<{{source.ElementType}}>({{spanName}}.Length);
-                global::Seamless.Linq.LinqCounterScope.Counter.IncrementFastCopyUsed();
+                global::Seamless.Linq.LinqCounterScope.IncrementFastCopyUsed();
                 {{spanName}}.CopyTo(global::System.MemoryExtensions.AsSpan({{destVar}}));
             }
             """);
@@ -78,14 +77,14 @@ public class ToArray(int 番号, Enumerable source, string resultType) : Buffere
         ? $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
-            global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanCalled();
+            global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanCalled();
             source.TryGetSpan(out var __sourceSpan);
-            global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanSucceeded();
+            global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanSucceeded();
             if(__sourceSpan.Length==0) {
                 return global::System.Array.Empty<{{source.ElementType}}>();
             }
             var __result=global::System.GC.AllocateUninitializedArray<{{source.ElementType}}>(__sourceSpan.Length);
-            global::Seamless.Linq.LinqCounterScope.Counter.IncrementFastCopyUsed();
+            global::Seamless.Linq.LinqCounterScope.IncrementFastCopyUsed();
             __sourceSpan.CopyTo(global::System.MemoryExtensions.AsSpan(__result));
             return __result;
         }
@@ -100,29 +99,29 @@ public class ToArray(int 番号, Enumerable source, string resultType) : Buffere
                 }
                 var __result=global::System.GC.AllocateUninitializedArray<{{source.ElementType}}>(__count);
                 if(enumerator.TryCopyTo(global::System.MemoryExtensions.AsSpan(__result),0)) {
-                    global::Seamless.Linq.LinqCounterScope.Counter.IncrementFastCopyUsed();
+                    global::Seamless.Linq.LinqCounterScope.IncrementFastCopyUsed();
                     return __result;
                 }
-                global::Seamless.Linq.LinqCounterScope.Counter.IncrementEnumerationLoopUsed();
+                global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
                 var __i=0;
                 while(enumerator.MoveNext()) {
                     __result[__i++]=enumerator.Current;
                 }
                 return __result;
             }
-            global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanCalled();
+            global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanCalled();
             if(enumerator.TryGetSpan(out var __sourceSpan)) {
-                global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanSucceeded();
+                global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanSucceeded();
                 if(__sourceSpan.Length==0) {
                     return global::System.Array.Empty<{{source.ElementType}}>();
                 }
                 var __result=global::System.GC.AllocateUninitializedArray<{{source.ElementType}}>(__sourceSpan.Length);
-                global::Seamless.Linq.LinqCounterScope.Counter.IncrementFastCopyUsed();
+                global::Seamless.Linq.LinqCounterScope.IncrementFastCopyUsed();
                 __sourceSpan.CopyTo(global::System.MemoryExtensions.AsSpan(__result));
                 return __result;
             }
-            global::Seamless.Linq.LinqCounterScope.Counter.IncrementTryGetSpanFailed();
-            global::Seamless.Linq.LinqCounterScope.Counter.IncrementEnumerationLoopUsed();
+            global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanFailed();
+            global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
             // 要素数が InlineCapacity 以内ならスタック上の InlineArray だけで受け、ArrayPool/List の
             // ヒープ確保もスレッドセーフな Rent/Return も一切回避する。溢れたときだけ ArrayPool へスピルし、
             // 最後に正確なサイズの配列へ1回だけコピーする。MoveNext/Current のみで TEnum 制約に依存しない。

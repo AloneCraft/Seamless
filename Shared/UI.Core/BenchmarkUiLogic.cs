@@ -556,8 +556,8 @@ internal static class BenchmarkPairCompletionLogic{
         measurements.Any(result =>
             IsMeasurementForCell(result,cell)
             &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-            &&result.MeanNanoseconds is { } mean
-            &&mean>=thresholdNanoseconds);
+            &&result.TotalNanoseconds is { } total
+            &&total>=thresholdNanoseconds);
 
     public static bool HasCompletedMeasurementForCell(
         IEnumerable<BenchmarkElementMeasurement> measurements,
@@ -890,7 +890,8 @@ internal sealed record BenchmarkElementMeasurement(
     string ArgumentKey,
     int ElementCount,
     string Status,
-    double? MeanNanoseconds){
+    double? MeanNanoseconds,
+    double? TotalNanoseconds = null){
     public BenchmarkElementMeasurement(string project,string method,string typeFullName,int elementCount,string status,double? meanNanoseconds)
         : this(project,method,typeFullName,string.Empty,elementCount,status,meanNanoseconds){
     }
@@ -901,6 +902,61 @@ internal sealed record BenchmarkElementMeasurement(
 }
 
 internal static class BenchmarkRowCompletionLogic{
+    public static bool IsLoopCountFinalCompleted(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        BenchmarkTabProgressCell leftCell,
+        BenchmarkTabProgressCell rightCell,
+        double thresholdNanoseconds) {
+        var measurementArray = measurements as BenchmarkElementMeasurement[]??measurements.ToArray();
+        var leftLoopCounts=GetThresholdLoopCounts(measurementArray,leftCell,thresholdNanoseconds);
+        return leftLoopCounts.Count>0
+            &&GetThresholdLoopCounts(measurementArray,rightCell,thresholdNanoseconds).Overlaps(leftLoopCounts);
+    }
+
+    public static bool IsLoopCountTabFinalCompleted(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        IEnumerable<BenchmarkTabProgressCell> selectedCells,
+        double thresholdNanoseconds) {
+        var measurementArray = measurements as BenchmarkElementMeasurement[]??measurements.ToArray();
+        var cells = selectedCells.Where(static cell => cell.IsSelected).ToArray();
+        if(cells.Length==0) {
+            return false;
+        }
+
+        return cells
+            .GroupBy(static cell => string.Join("|",cell.Method,cell.TypeFullName,cell.ArgumentKey),StringComparer.OrdinalIgnoreCase)
+            .All(group => {
+                global::System.Collections.Generic.HashSet<int>? sharedLoopCounts=null;
+                foreach(var cell in group) {
+                    var cellLoopCounts=GetThresholdLoopCounts(measurementArray,cell,thresholdNanoseconds);
+                    if(cellLoopCounts.Count==0) {
+                        return false;
+                    }
+
+                    if(sharedLoopCounts is null) {
+                        sharedLoopCounts=cellLoopCounts;
+                    }else{
+                        sharedLoopCounts.IntersectWith(cellLoopCounts);
+                    }
+                }
+
+                return sharedLoopCounts is { Count:>0 };
+            });
+    }
+
+    private static global::System.Collections.Generic.HashSet<int> GetThresholdLoopCounts(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        BenchmarkTabProgressCell cell,
+        double thresholdNanoseconds) =>
+        measurements
+            .Where(result =>
+                BenchmarkPairCompletionLogic.IsMeasurementForCell(result,cell)
+                &&string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+                &&result.TotalNanoseconds is { } total
+                &&total>=thresholdNanoseconds)
+            .Select(static result => result.ElementCount)
+            .ToHashSet();
+
     public static bool IsFinalCompleted(
         IEnumerable<BenchmarkElementMeasurement> measurements,
         string method,

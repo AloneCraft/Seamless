@@ -40,6 +40,7 @@ public abstract class Enumerable(int 番号):Fragment(番号),ConsumeDirectExecu
     // `if(__src0.TryGetSpan(...)) { ... } else { while(__src0.TryGetNext(...)) ... }`.
     // IEnumerable<T>, Tsavorite, and Persisted roots return null, so they keep the runtime/fallback path.
     public virtual string? GetDirectSpanExpression(string enumeratorName) => null;
+    public virtual string? DirectArrayExpression => null;
     public virtual string? NonEnumeratedCountExpression => null;
     public virtual bool CountPreserving => false;
     // interceptor が IEnumerable<T> を返すときに使う ValueEnumerable 構築式。
