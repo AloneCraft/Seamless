@@ -44,6 +44,13 @@ public sealed partial class MainPage:ContentPage {
     private const double BenchmarkGridCellFontSize = 10;
     private const double BenchmarkGridDetailFontSize = 9;
     private const double BenchmarkHoverCellExpansionPadding = 14;
+    private const double ImprovementCandidateCheckColumnWidth = 32;
+    private const double ImprovementCandidateCategoryColumnWidth = 88;
+    private const double ImprovementCandidateMethodColumnWidth = 190;
+    private const double ImprovementCandidateElementCountColumnWidth = 72;
+    private const double ImprovementCandidateRatioColumnWidth = 132;
+    private const double ImprovementCandidateValueColumnWidth = 86;
+    private const double ImprovementCandidateSourceColumnWidth = 140;
     private const double CpuGridRowHeight = 24;
     private const double CpuGridHeaderRowHeight = 30;
     private const double CpuGridCellFontSize = 10;
@@ -59,7 +66,6 @@ public sealed partial class MainPage:ContentPage {
     private TaskCompletionSource<string>? activeDialogCompletion;
     private string activeDialogFallbackValue = string.Empty;
     private readonly List<Action> collapsibleSectionRefreshers = [];
-    private bool isImprovementPromptExpanded;
     private readonly Dictionary<BenchmarkToolbarButtonRole,VisualElement> toolbarButtons = [];
     private readonly List<SfDataGrid> dataGridUpdateBatchTargets = [];
     private readonly HashSet<SfDataGrid> dataGridUpdateBatchStartedTargets = [];
@@ -2561,6 +2567,7 @@ public sealed partial class MainPage:ContentPage {
                 HorizontalOptions=LayoutOptions.Fill,
                 VerticalOptions=LayoutOptions.Fill,
             };
+            this.AddBenchmarkHeaderVerticalBorders(layout,Color.FromArgb("#CBD5E1"));
             var check = this.CreateBenchmarkAggregateCheckBox();
             check.AutomationId="Benchmark.AllSelectionCheck";
             var state = this.viewModel?.GetSourceTabViewState(sourceTab.Tab);
@@ -2642,20 +2649,7 @@ public sealed partial class MainPage:ContentPage {
             HorizontalOptions=LayoutOptions.Fill,
             VerticalOptions=LayoutOptions.Fill,
         };
-        body.Add(new BoxView {
-            WidthRequest=1,
-            BackgroundColor=borderColor,
-            HorizontalOptions=LayoutOptions.Start,
-            VerticalOptions=LayoutOptions.Fill,
-            InputTransparent=true,
-        },0,0);
-        body.Add(new BoxView {
-            WidthRequest=1,
-            BackgroundColor=borderColor,
-            HorizontalOptions=LayoutOptions.End,
-            VerticalOptions=LayoutOptions.Fill,
-            InputTransparent=true,
-        },0,0);
+        this.AddBenchmarkHeaderVerticalBorders(body,borderColor);
         if(!string.IsNullOrWhiteSpace(text)) {
             var label = new Label {
                 FontSize=12,
@@ -2677,6 +2671,27 @@ public sealed partial class MainPage:ContentPage {
             body.Add(label,0,0);
         }
         return body;
+    }
+
+    private void AddBenchmarkHeaderVerticalBorders(Grid body,Color borderColor) {
+        var left = new BoxView {
+            WidthRequest=1,
+            BackgroundColor=borderColor,
+            HorizontalOptions=LayoutOptions.Start,
+            VerticalOptions=LayoutOptions.Fill,
+            InputTransparent=true,
+        };
+        body.Add(left,0,0);
+        Grid.SetColumnSpan(left,Math.Max(1,body.ColumnDefinitions.Count));
+        var right = new BoxView {
+            WidthRequest=1,
+            BackgroundColor=borderColor,
+            HorizontalOptions=LayoutOptions.End,
+            VerticalOptions=LayoutOptions.Fill,
+            InputTransparent=true,
+        };
+        body.Add(right,0,0);
+        Grid.SetColumnSpan(right,Math.Max(1,body.ColumnDefinitions.Count));
     }
 
     private SfCheckBox CreateBenchmarkAggregateCheckBox() {
@@ -2715,6 +2730,7 @@ public sealed partial class MainPage:ContentPage {
                     Padding=new Thickness(1,0),
                     BackgroundColor=Color.FromArgb("#F1F5F9"),
                 };
+                this.AddBenchmarkHeaderVerticalBorders(header,Color.FromArgb("#CBD5E1"));
                 var measuredAt = new Label {
                     Text="日時",
                     FontSize=10,
@@ -3016,6 +3032,7 @@ public sealed partial class MainPage:ContentPage {
                 BackgroundColor=backgroundColor,
                 Padding=new Thickness(2,0),
             };
+            this.AddBenchmarkHeaderVerticalBorders(grid,Color.FromArgb("#CBD5E1"));
             var label = new Label {
                 Text=text,
                 FontSize=10,
@@ -3149,22 +3166,6 @@ public sealed partial class MainPage:ContentPage {
     }
 
     private View CreateImprovementPromptView() {
-        var summary = new Label {
-            FontSize=12,
-            FontAttributes=FontAttributes.Bold,
-            TextColor=Color.FromArgb("#0F172A"),
-            VerticalTextAlignment=TextAlignment.Center,
-            LineBreakMode=LineBreakMode.TailTruncation,
-        };
-        summary.SetBinding(Label.TextProperty,nameof(RunnerViewModel.ImprovementCandidateSummaryText));
-        var label = new Label {
-            FontSize=11,
-            TextColor=Color.FromArgb("#0F172A"),
-            LineBreakMode=LineBreakMode.WordWrap,
-            Margin=new Thickness(0),
-            Padding=new Thickness(0),
-        };
-        label.SetBinding(Label.TextProperty,nameof(RunnerViewModel.ImprovementPromptText));
         var copyButton = new Button {
             Text="⧉",
             WidthRequest=30,
@@ -3178,72 +3179,61 @@ public sealed partial class MainPage:ContentPage {
         copyButton.SetBinding(Button.CommandProperty,nameof(RunnerViewModel.CopyImprovementPromptCommand));
         copyButton.SetBinding(IsEnabledProperty,nameof(RunnerViewModel.CanCopyImprovementPrompt));
         ToolTipProperties.SetText(copyButton,"改善プロンプトをコピー");
+
+        var title = new Label {
+            Text="改善プロンプト",
+            FontSize=12,
+            FontAttributes=FontAttributes.Bold,
+            TextColor=Color.FromArgb("#0F172A"),
+            VerticalTextAlignment=TextAlignment.Center,
+            LineBreakMode=LineBreakMode.TailTruncation,
+        };
         var header = new Grid {
             ColumnDefinitions= {
-                new ColumnDefinition { Width = GridLength.Star },
                 new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Star },
             },
+            ColumnSpacing=6,
             Padding=new Thickness(0,0,0,6),
         };
-        header.Add(summary,0,0);
-        header.Add(copyButton,1,0);
-        var candidateHeader = new Grid {
-            ColumnDefinitions= {
-                new ColumnDefinition { Width = new GridLength(32) },
-                new ColumnDefinition { Width = new GridLength(88) },
-                new ColumnDefinition { Width = new GridLength(190) },
-                new ColumnDefinition { Width = new GridLength(72) },
-                new ColumnDefinition { Width = new GridLength(132) },
-                new ColumnDefinition { Width = new GridLength(132) },
-                new ColumnDefinition { Width = new GridLength(86) },
-                new ColumnDefinition { Width = new GridLength(86) },
-                new ColumnDefinition { Width = GridLength.Star },
-            },
-            Padding=new Thickness(4,2),
-            BackgroundColor=Color.FromArgb("#E2E8F0"),
-            ColumnSpacing=6,
+        header.Add(copyButton,0,0);
+        header.Add(title,1,0);
+
+        var candidateTabs = this.CreateImprovementCandidateTabView();
+        var promptText = new Editor {
+            FontSize=11,
+            TextColor=Color.FromArgb("#0F172A"),
+            BackgroundColor=Colors.White,
+            AutoSize=EditorAutoSizeOption.Disabled,
+            IsSpellCheckEnabled=false,
+            IsTextPredictionEnabled=false,
+            HorizontalOptions=LayoutOptions.Fill,
+            VerticalOptions=LayoutOptions.Fill,
         };
-        AddCandidateHeader(candidateHeader,"",0);
-        AddCandidateHeader(candidateHeader,"カテゴリ",1);
-        AddCandidateHeader(candidateHeader,"メソッド",2);
-        AddCandidateHeader(candidateHeader,"N",3);
-        AddCandidateHeader(candidateHeader,"時間比",4);
-        AddCandidateHeader(candidateHeader,"メモリ比",5);
-        AddCandidateHeader(candidateHeader,"Left時間",6);
-        AddCandidateHeader(candidateHeader,"Right時間",7);
-        AddCandidateHeader(candidateHeader,"比較",8);
-        var candidates = new CollectionView {
-            SelectionMode=SelectionMode.None,
-            HeightRequest=160,
-            ItemSizingStrategy=ItemSizingStrategy.MeasureFirstItem,
-            ItemTemplate=new DataTemplate(this.CreateImprovementCandidateRowView),
-            ItemsLayout=new LinearItemsLayout(ItemsLayoutOrientation.Vertical) {
-                ItemSpacing=1,
-            },
+        promptText.SetBinding(Editor.TextProperty,new Binding(nameof(RunnerViewModel.ImprovementPromptText),BindingMode.TwoWay));
+        var promptBorder = new Border {
+            Stroke=Color.FromArgb("#CBD5E1"),
+            StrokeThickness=1,
+            BackgroundColor=Colors.White,
+            Padding=new Thickness(6),
+            Content=promptText,
         };
-        candidates.SetBinding(ItemsView.ItemsSourceProperty,nameof(RunnerViewModel.ImprovementCandidates));
         var content = new Grid {
             RowDefinitions= {
                 new RowDefinition { Height = GridLength.Auto },
-                new RowDefinition { Height = GridLength.Auto },
-                new RowDefinition { Height = new GridLength(164) },
                 new RowDefinition { Height = GridLength.Star },
             },
+            ColumnDefinitions= {
+                new ColumnDefinition { Width = new GridLength(3,GridUnitType.Star) },
+                new ColumnDefinition { Width = new GridLength(2,GridUnitType.Star) },
+            },
             RowSpacing=4,
+            ColumnSpacing=8,
         };
         content.Add(header,0,0);
-        content.Add(candidateHeader,0,1);
-        content.Add(candidates,0,2);
-        var promptSection = this.CreateCollapsibleSection(
-            "改善プロンプト (Markdown)",
-            () => this.isImprovementPromptExpanded,
-            value => this.isImprovementPromptExpanded=value,
-            new ScrollView {
-                Orientation=ScrollOrientation.Vertical,
-                Content=label,
-            },
-            null);
-        content.Add(promptSection,0,3);
+        Grid.SetColumnSpan(header,2);
+        content.Add(candidateTabs,0,1);
+        content.Add(promptBorder,1,1);
         return new Border {
             Stroke=Color.FromArgb("#CBD5E1"),
             StrokeThickness=1,
@@ -3253,50 +3243,156 @@ public sealed partial class MainPage:ContentPage {
         };
     }
 
-    private View CreateImprovementCandidateRowView() {
-        var grid = new Grid {
-            RowDefinitions= {
-                new RowDefinition { Height = GridLength.Auto },
-            },
-            ColumnDefinitions= {
-                new ColumnDefinition { Width = new GridLength(32) },
-                new ColumnDefinition { Width = new GridLength(88) },
-                new ColumnDefinition { Width = new GridLength(190) },
-                new ColumnDefinition { Width = new GridLength(72) },
-                new ColumnDefinition { Width = new GridLength(132) },
-                new ColumnDefinition { Width = new GridLength(132) },
-                new ColumnDefinition { Width = new GridLength(86) },
-                new ColumnDefinition { Width = new GridLength(86) },
-                new ColumnDefinition { Width = GridLength.Star },
-            },
-            ColumnSpacing=6,
-            Padding=new Thickness(4,2),
-            BackgroundColor=Colors.White,
+    private View CreateImprovementCandidateTabView() {
+        var tabView = new SfTabView {
+            TabBarHeight=LowerTabBarHeight,
+            TabBarBackground=Color.FromArgb("#E2E8F0"),
+            IndicatorBackground=Colors.Transparent,
+            HeaderItemSpacing=1,
+            EnableSwiping=false,
+            ContentTransitionDuration=0,
+            BackgroundColor=Color.FromArgb("#F8FAFC"),
+            HorizontalOptions=LayoutOptions.Fill,
+            VerticalOptions=LayoutOptions.Fill,
         };
-        var check = new CheckBox {
-            WidthRequest=24,
-            HeightRequest=22,
-            VerticalOptions=LayoutOptions.Center,
-            HorizontalOptions=LayoutOptions.Center,
+        this.ConfigureCompactTabView(tabView,false);
+        var timeOption = new TabHeaderOption("時間");
+        var allocatedOption = new TabHeaderOption("メモリ");
+        var options = new[] { timeOption,allocatedOption };
+        var timeGrid = this.CreateImprovementCandidateGrid(nameof(RunnerViewModel.TimeImprovementCandidates),false);
+        var allocatedGrid = this.CreateImprovementCandidateGrid(nameof(RunnerViewModel.AllocatedImprovementCandidates),true);
+        tabView.Items=new TabItemCollection {
+            new SfTabItem { Header="時間",HeaderContent=this.CreateTabHeader(timeOption,() => tabView.SelectedIndex=0),FontSize=12,Content=timeGrid },
+            new SfTabItem { Header="メモリ",HeaderContent=this.CreateTabHeader(allocatedOption,() => tabView.SelectedIndex=1),FontSize=12,Content=allocatedGrid },
         };
-        check.SetBinding(CheckBox.IsCheckedProperty,new Binding(nameof(BenchmarkImprovementCandidateRow.IsSelected),BindingMode.TwoWay));
-        grid.Add(check,0,0);
-        AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.Category),1,TextAlignment.Start);
-        AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.MethodName),2,TextAlignment.Start);
-        AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.WorstElementCountText),3,TextAlignment.End);
-        grid.Add(CreateCandidateGaugeCell(
-            nameof(BenchmarkImprovementCandidateRow.TimeGaugeText),
-            static row => row.TimeGaugeFraction,
-            Color.FromArgb("#2563EB")),4,0);
-        grid.Add(CreateCandidateGaugeCell(
-            nameof(BenchmarkImprovementCandidateRow.AllocatedGaugeText),
-            static row => row.AllocatedGaugeFraction,
-            Color.FromArgb("#F97316")),5,0);
-        AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.LeftTimeText),6,TextAlignment.End);
-        AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.RightTimeText),7,TextAlignment.End);
-        AddCandidateCell(grid,nameof(BenchmarkImprovementCandidateRow.SourceTabText),8,TextAlignment.Start);
-        grid.SetBinding(ToolTipProperties.TextProperty,nameof(BenchmarkImprovementCandidateRow.TooltipText));
+        tabView.SelectedIndex=0;
+        options[0].SetSelected(true);
+        tabView.PropertyChanged+=(_,args) => {
+            if(args.PropertyName!=nameof(SfTabView.SelectedIndex)) {
+                return;
+            }
+            for(var i = 0; i<options.Length; i++) {
+                options[i].SetSelected(i==tabView.SelectedIndex);
+            }
+        };
+        return tabView;
+    }
+
+    private SfDataGrid CreateImprovementCandidateGrid(string itemsSourcePath,bool allocatedTab) {
+        var grid = new SfDataGrid {
+            AutoGenerateColumnsMode=AutoGenerateColumnsMode.None,
+            RowHeight=BenchmarkGridRowHeight,
+            HeaderRowHeight=BenchmarkGridHeaderRowHeight,
+            AllowTriStateSorting=false,
+            AllowResizingColumns=true,
+            SortingMode=DataGridSortingMode.None,
+            SelectionMode=DataGridSelectionMode.None,
+            HorizontalScrollBarVisibility=ScrollBarVisibility.Always,
+            VerticalScrollBarVisibility=ScrollBarVisibility.Always,
+            GridLinesVisibility=GridLinesVisibility.Both,
+            DefaultColumnWidth=92,
+            HorizontalOptions=LayoutOptions.Fill,
+            VerticalOptions=LayoutOptions.Fill,
+        };
+        this.RegisterDataGridUpdateBatchTarget(grid);
+        grid.SetBinding(SfDataGrid.ItemsSourceProperty,itemsSourcePath);
+        this.ConfigureDataGridLines(grid);
+        this.ConfigureDataGridScrollBars(grid);
+        grid.Columns.Add(this.CreateImprovementCandidateCheckColumn());
+        grid.Columns.Add(this.CreateImprovementCandidateTextColumn("カテゴリ",nameof(BenchmarkImprovementCandidateRow.Category),ImprovementCandidateCategoryColumnWidth,TextAlignment.Start));
+        grid.Columns.Add(this.CreateImprovementCandidateTextColumn("メソッド",nameof(BenchmarkImprovementCandidateRow.MethodName),ImprovementCandidateMethodColumnWidth,TextAlignment.Start));
+        grid.Columns.Add(this.CreateImprovementCandidateTextColumn("N",nameof(BenchmarkImprovementCandidateRow.WorstElementCountText),ImprovementCandidateElementCountColumnWidth,TextAlignment.End));
+        grid.Columns.Add(this.CreateImprovementCandidateGaugeColumn("時間比",nameof(BenchmarkImprovementCandidateRow.TimeGaugeText),static row => row.TimeGaugeFraction,Color.FromArgb("#2563EB")));
+        grid.Columns.Add(this.CreateImprovementCandidateGaugeColumn("メモリ比",nameof(BenchmarkImprovementCandidateRow.AllocatedGaugeText),static row => row.AllocatedGaugeFraction,Color.FromArgb("#F97316")));
+        if(allocatedTab) {
+            grid.Columns.Add(this.CreateImprovementCandidateTextColumn("Leftメモリ",nameof(BenchmarkImprovementCandidateRow.LeftAllocatedText),ImprovementCandidateValueColumnWidth,TextAlignment.End));
+            grid.Columns.Add(this.CreateImprovementCandidateTextColumn("Rightメモリ",nameof(BenchmarkImprovementCandidateRow.RightAllocatedText),ImprovementCandidateValueColumnWidth,TextAlignment.End));
+        }else{
+            grid.Columns.Add(this.CreateImprovementCandidateTextColumn("Left時間",nameof(BenchmarkImprovementCandidateRow.LeftTimeText),ImprovementCandidateValueColumnWidth,TextAlignment.End));
+            grid.Columns.Add(this.CreateImprovementCandidateTextColumn("Right時間",nameof(BenchmarkImprovementCandidateRow.RightTimeText),ImprovementCandidateValueColumnWidth,TextAlignment.End));
+        }
+        grid.Columns.Add(this.CreateImprovementCandidateTextColumn("比較",nameof(BenchmarkImprovementCandidateRow.SourceTabText),ImprovementCandidateSourceColumnWidth,TextAlignment.Start));
         return grid;
+    }
+
+    private DataGridTemplateColumn CreateImprovementCandidateCheckColumn() {
+        return new DataGridTemplateColumn {
+            MappingName=nameof(BenchmarkImprovementCandidateRow.IsSelected),
+            HeaderText=string.Empty,
+            Width=ImprovementCandidateCheckColumnWidth,
+            AllowSorting=false,
+            HeaderTemplate=this.CreateImprovementCandidateHeaderTemplate(string.Empty,TextAlignment.Center),
+            CellTemplate=new DataTemplate(() => {
+                var check = new CheckBox {
+                    WidthRequest=24,
+                    HeightRequest=22,
+                    VerticalOptions=LayoutOptions.Center,
+                    HorizontalOptions=LayoutOptions.Center,
+                };
+                check.SetBinding(CheckBox.IsCheckedProperty,new Binding(nameof(BenchmarkImprovementCandidateRow.IsSelected),BindingMode.TwoWay));
+                return check;
+            }),
+        };
+    }
+
+    private DataGridTemplateColumn CreateImprovementCandidateTextColumn(string header,string path,double width,TextAlignment alignment) {
+        return new DataGridTemplateColumn {
+            MappingName=path,
+            HeaderText=header,
+            Width=width,
+            AllowSorting=false,
+            HeaderTemplate=this.CreateImprovementCandidateHeaderTemplate(header,alignment),
+            CellTemplate=new DataTemplate(() => {
+                var label = new Label {
+                    FontSize=BenchmarkGridCellFontSize,
+                    TextColor=Color.FromArgb("#0F172A"),
+                    LineBreakMode=LineBreakMode.TailTruncation,
+                    VerticalTextAlignment=TextAlignment.Center,
+                    HorizontalTextAlignment=alignment,
+                    Padding=new Thickness(2,0),
+                };
+                label.SetBinding(Label.TextProperty,path);
+                label.SetBinding(ToolTipProperties.TextProperty,path);
+                return label;
+            }),
+        };
+    }
+
+    private DataGridTemplateColumn CreateImprovementCandidateGaugeColumn(
+        string header,
+        string textPath,
+        Func<BenchmarkImprovementCandidateRow,double> getFraction,
+        Color barColor) {
+        return new DataGridTemplateColumn {
+            MappingName=textPath,
+            HeaderText=header,
+            Width=ImprovementCandidateRatioColumnWidth,
+            AllowSorting=false,
+            HeaderTemplate=this.CreateImprovementCandidateHeaderTemplate(header,TextAlignment.End),
+            CellTemplate=new DataTemplate(() => CreateCandidateGaugeCell(textPath,getFraction,barColor)),
+        };
+    }
+
+    private DataTemplate CreateImprovementCandidateHeaderTemplate(string text,TextAlignment alignment) {
+        return new DataTemplate(() => {
+            var grid = new Grid {
+                BackgroundColor=Color.FromArgb("#F1F5F9"),
+                Padding=new Thickness(2,0),
+            };
+            this.AddBenchmarkHeaderVerticalBorders(grid,Color.FromArgb("#CBD5E1"));
+            if(!string.IsNullOrEmpty(text)) {
+                grid.Add(new Label {
+                    Text=text,
+                    FontSize=10,
+                    FontAttributes=FontAttributes.Bold,
+                    TextColor=Color.FromArgb("#0F172A"),
+                    LineBreakMode=LineBreakMode.TailTruncation,
+                    VerticalTextAlignment=TextAlignment.Center,
+                    HorizontalTextAlignment=alignment,
+                },0,0);
+            }
+            return grid;
+        });
     }
 
     // 時間比/メモリ比を横幅で表す簡易バー。比率 3.0x でバー満タンとして正規化する。
@@ -3331,30 +3427,6 @@ public sealed partial class MainPage:ContentPage {
         }
         cell.BindingContextChanged+=(_,_) => Refresh();
         return cell;
-    }
-
-    private static void AddCandidateHeader(Grid grid,string text,int column) {
-        grid.Add(new Label {
-            Text=text,
-            FontSize=10,
-            FontAttributes=FontAttributes.Bold,
-            TextColor=Color.FromArgb("#334155"),
-            LineBreakMode=LineBreakMode.TailTruncation,
-            VerticalTextAlignment=TextAlignment.Center,
-            HorizontalTextAlignment=column>=3&&column<=7 ? TextAlignment.End : TextAlignment.Start,
-        },column,0);
-    }
-
-    private static void AddCandidateCell(Grid grid,string path,int column,TextAlignment alignment) {
-        var label = new Label {
-            FontSize=10,
-            TextColor=Color.FromArgb("#0F172A"),
-            LineBreakMode=LineBreakMode.TailTruncation,
-            VerticalTextAlignment=TextAlignment.Center,
-            HorizontalTextAlignment=alignment,
-        };
-        label.SetBinding(Label.TextProperty,path);
-        grid.Add(label,column,0);
     }
 
     private VerticalStackLayout CreateCpuSectionList(string itemsSourcePath) {

@@ -323,7 +323,10 @@ static bool HasBenchmarkAttribute(MethodInfo method) =>
         string.Equals(attribute.GetType().Name,"BenchmarkAttribute",StringComparison.Ordinal));
 
 static IDisposable BeginElementCountScope(Assembly assembly,int elementCount,string elementScale){
-    var modeType = assembly.GetType("Common.BenchmarkExecutionMode",throwOnError:false,ignoreCase:false);
+    var modeType = assembly.GetType("Common.BenchmarkExecutionMode",throwOnError:false,ignoreCase:false)
+        ??AppDomain.CurrentDomain.GetAssemblies()
+            .Select(static candidate => candidate.GetType("Common.BenchmarkExecutionMode",throwOnError:false,ignoreCase:false))
+            .FirstOrDefault(static candidate => candidate is not null);
     var method = modeType?.GetMethod(
         "UseElementCount",
         BindingFlags.Public|BindingFlags.Static,

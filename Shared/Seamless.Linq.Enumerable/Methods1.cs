@@ -28,31 +28,28 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
 #endif
     private const int Contains_value_iterationCount = 3;
     private const int ImmediateShortCircuitCount = 96_000_000;
-    private const int ImmediateFullScanCount = 96_000_000;
-    private const int ImmediatePredicateScanCount = 96_000_000;
-    private const int StreamOneToOneCount = 36_000_000;
-    private const int StreamFilterCount = 36_000_000;
-    private const int StreamPartitionCount = 36_000_000;
-    private const int StreamShapeCount = 36_000_000;
-    private const int MaterializeLinearCount = 48_000_000;
-    private const int MaterializeHashCount = 24_000_000;
-    private const int MaterializeLookupCount = 32_000_000;
-    private const int SetCount = 19_000_000;
-    private const int GroupingCount = 28_000_000;
-    private const int JoinCount = 320_000;
-    private const int SortCount = 1_700_000;
-    private const int NestedCount = 24_000_000;
-    private const int GeneratedCount = 104_400_000;
-    private const int SourceShapeCount = 60_000_000;
-    private const int SelectManyOuterCount = 12_000;
-    private const int SelectManyInnerCount = 1_280;
-    private const int ScopedBenchmarkElementCount = 4096;
+    private const int StandardBenchmarkElementCount = 4_096;
+    private const int ImmediateFullScanCount = StandardBenchmarkElementCount;
+    private const int ImmediatePredicateScanCount = StandardBenchmarkElementCount;
+    private const int StreamOneToOneCount = StandardBenchmarkElementCount;
+    private const int StreamFilterCount = StandardBenchmarkElementCount;
+    private const int StreamPartitionCount = StandardBenchmarkElementCount;
+    private const int StreamShapeCount = StandardBenchmarkElementCount;
+    private const int MaterializeLinearCount = StandardBenchmarkElementCount;
+    private const int MaterializeHashCount = StandardBenchmarkElementCount;
+    private const int MaterializeLookupCount = StandardBenchmarkElementCount;
+    private const int SetCount = StandardBenchmarkElementCount;
+    private const int GroupingCount = StandardBenchmarkElementCount;
+    private const int JoinCount = StandardBenchmarkElementCount;
+    private const int SortCount = StandardBenchmarkElementCount;
+    private const int NestedCount = StandardBenchmarkElementCount;
+    private const int GeneratedCount = StandardBenchmarkElementCount;
+    private const int SourceShapeCount = StandardBenchmarkElementCount;
+    private const int SelectManyOuterCount = 64;
+    private const int SelectManyInnerCount = StandardBenchmarkElementCount/SelectManyOuterCount;
 
     private static int IterationCount(int defaultCount) =>
         BenchmarkExecutionMode.IsElementCountScoped ? 1 : defaultCount;
-
-    private static int ScopedOrDefaultCount(int defaultCount) =>
-        BenchmarkExecutionMode.IsElementCountScoped ? ScopedBenchmarkElementCount : defaultCount;
 
     private int MidpointIndex(int elementCount) =>
         global::System.Math.Max(0,this.EffectiveSourceCount(elementCount)/2);

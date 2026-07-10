@@ -1,8 +1,8 @@
 namespace DotNet.Linq.Enumerable {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public class ZLinqInt32():global::Seamless.Linq.Shared.Methods1<int>(3_200_000);
+    public class ZLinqInt32():global::Seamless.Linq.Shared.Methods1<int>(4_096);
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public class ZLinqString():global::Seamless.Linq.Shared.Methods1<string>(3_200_000);
+    public class ZLinqString():global::Seamless.Linq.Shared.Methods1<string>(4_096);
 }
 
 namespace Seamless.Linq.Shared {

@@ -1,8 +1,8 @@
 namespace Persisted.Linq.Enumerable {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public class LinqInt32():global::Seamless.Linq.Shared.Methods1<int>(3_200_000);
+    public class LinqInt32():global::Seamless.Linq.Shared.Methods1<int>(4_096);
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public class LinqString():global::Seamless.Linq.Shared.Methods1<string>(3_200_000);
+    public class LinqString():global::Seamless.Linq.Shared.Methods1<string>(4_096);
 }
 
 namespace Seamless.Linq.Shared {

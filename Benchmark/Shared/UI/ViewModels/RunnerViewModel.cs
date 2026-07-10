@@ -666,6 +666,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     /// <value>ImprovementCandidates の値を取得/設定します。</value>
     public ObservableCollection<BenchmarkImprovementCandidateRow> ImprovementCandidates { get; } = [];
+    public ObservableCollection<BenchmarkImprovementCandidateRow> TimeImprovementCandidates { get; } = [];
+    public ObservableCollection<BenchmarkImprovementCandidateRow> AllocatedImprovementCandidates { get; } = [];
     /// <summary>
     /// LatencyHotspotRows プロパティです。
     /// </summary>
@@ -935,7 +937,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <value>ImprovementPromptText の値を取得/設定します。</value>
     public string ImprovementPromptText {
         get => this.improvementPromptText;
-        private set {
+        set {
             if(this.SetProperty(ref this.improvementPromptText,value)) {
                 this.OnPropertyChanged(nameof(this.CanCopyImprovementPrompt));
                 this.CopyImprovementPromptCommand.NotifyCanExecuteChanged();
@@ -6537,7 +6539,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
         finally {
             this.isApplyingImprovementCandidateSelection=false;
         }
-        this.ImprovementCandidateSummaryText=this.CreateImprovementCandidateSummary();
+        this.RefreshImprovementCandidateViews();
+        this.ImprovementCandidateSummaryText=string.Empty;
     }
 
     /// <summary>
@@ -6553,7 +6556,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
         this.improvementCandidateSelections[row.Key]=row.IsSelected;
         if(!this.isApplyingImprovementCandidateSelection) {
             this.RefreshImprovementPromptText();
-            this.ImprovementCandidateSummaryText=this.CreateImprovementCandidateSummary();
+            this.ImprovementCandidateSummaryText=string.Empty;
         }
     }
 
@@ -6565,6 +6568,28 @@ public sealed partial class RunnerViewModel:ObservableObject {
             this.ImprovementCandidates
                 .Where(static row => row.IsSelected)
                 .Select(static row => row.Candidate));
+    }
+
+    private void RefreshImprovementCandidateViews() {
+        this.ReplaceImprovementCandidateRows(
+            this.TimeImprovementCandidates,
+            this.ImprovementCandidates
+                .Where(static row => row.Candidate.HasTimeRegression)
+                .OrderByDescending(static row => BenchmarkImprovementCandidateBuilder.GetRankValue(row.Candidate.TimeRatio)));
+        this.ReplaceImprovementCandidateRows(
+            this.AllocatedImprovementCandidates,
+            this.ImprovementCandidates
+                .Where(static row => row.Candidate.HasAllocatedRegression)
+                .OrderByDescending(static row => BenchmarkImprovementCandidateBuilder.GetRankValue(row.Candidate.AllocatedRatio)));
+    }
+
+    private void ReplaceImprovementCandidateRows(
+        ObservableCollection<BenchmarkImprovementCandidateRow> target,
+        IEnumerable<BenchmarkImprovementCandidateRow> rows) {
+        target.Clear();
+        foreach(var row in rows) {
+            target.Add(row);
+        }
     }
 
     /// <summary>
