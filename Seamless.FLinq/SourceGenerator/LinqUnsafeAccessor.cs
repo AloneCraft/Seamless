@@ -41,7 +41,7 @@ public sealed partial class FLinqIncrementalGenerator {
         // 非ジェネリック型は可）。コンパイルは通るが実行時に落ちるため、生成器としてはここで例外を投げ、
         // ジェネリック含有型の傍受を諦めて元実装（素の System.Linq、遅いが正しい）にフォールバックさせる。
         // 対象の非公開メンバーを internal 以上に上げれば UnsafeAccessor を介さず直接呼べるようになり、
-        // この制限を回避して傍受を有効化できる（Shared/Seamless.Linq.Enumerable/Methods1-generic-span-regression.md 参照）。
+        // この制限を回避して傍受を有効化できる（Database.md 参照）。
         throw new global::System.NotSupportedException(
             "UnsafeAccessor cannot resolve non-public members of a generic type on this runtime; "
             +"skip interception and fall back to the original method.");

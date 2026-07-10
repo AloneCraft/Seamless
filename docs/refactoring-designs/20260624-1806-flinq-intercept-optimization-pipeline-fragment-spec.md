@@ -28,7 +28,7 @@
 | 匿名型 record struct registry | `Seamless.FLinq/SourceGenerator/AnonymousStructRecord.cs` |
 | Pipeline IR / stage fusion | `Seamless.FLinq/SourceGenerator/Linq/Fragments/Pipeline.cs` |
 | lambda inline / capture / hoist | `Seamless.FLinq/SourceGenerator/Linq/Fragments/Func.cs`, `Fragment.cs`, `LambdaFunc.cs` |
-| buffer 特性 | `Seamless.FLinq/SourceGenerator/Linq/Fragments/PipelineBufferingCharacteristics.md` |
+| buffer 特性 | `FLinq.md` |
 | hoist / Anchor テスト | `Test/System/Linq/Intercept/Optimization/InvariantHoisting.cs` |
 | Join / anonymous / hashing テスト | `Test/System/Linq/Intercept/Optimization/JoinHashing.cs` |
 
@@ -1269,3 +1269,4 @@ flowchart TD
 - Anchor を含む stage を跨いで merge/reorder/remove しない。
 - buffering stage は stage 特性どおりの buffer を 1 系統だけ持ち、不要な二重 list を作らない。
 - Fragment-backed boundary では Pipeline を flush し、責務を Fragment 側へ渡す。
+

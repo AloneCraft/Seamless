@@ -1,7 +1,11 @@
-﻿---
+﻿# Collection 仕様書統合
+
+# Source: Document\Code\Internal\TsavoriteCollectionsInternalDesign.md
+
+---
 phase: code-internal-reverse
 reverse_document: true
-canonical_target: Document/Code/Internal/TsavoriteCollectionsInternalDesign.md
+canonical_target: Collection.md
 evidence_sources:
   - Tsavorite.Collections/Tsavorite.Collections.csproj
   - Tsavorite.Collections/Stores/HashStore.cs
@@ -62,3 +66,4 @@ review_status: draft
 
 ### Questions
 - 通常設計化時には、ストアの永続化契約を API 契約として明文化するかを確認する。
+

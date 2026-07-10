@@ -15,7 +15,7 @@ review_status: draft
 
 # Benchmark 内部設計
 
-LoopCount系Benchmarkの測定時間、左右同一LoopCount、完全完了、保存・再開に関する正式仕様は [Benchmark Measurement Specification](../../UI/BenchmarkMeasurementSpecification.md) を参照する。
+LoopCount系Benchmarkの測定時間、左右同一LoopCount、完全完了、保存・再開に関する正式仕様は [Benchmark Measurement Specification](../../UI.md) を参照する。
 
 ## 対象
 `Benchmark/UI` は Syncfusion Toolkit for .NET MAUI desktop app として構成され、BenchmarkDotNet benchmark assembly を UI から選択し、CPU affinity ごとの worker process で実行する（`Benchmark/UI/UI.csproj:1`, `Benchmark/UI/UI.csproj:3`, `Benchmark/UI/UI.csproj:24`, `Benchmark/UI/UI.csproj:33`）。
@@ -55,3 +55,4 @@ LoopCount系Benchmarkの測定時間、左右同一LoopCount、完全完了、�
 
 ### Questions
 - 通常設計書へ反映する際、MAUI runner を製品機能とするか開発支援ツールとするかを確認する。
+
