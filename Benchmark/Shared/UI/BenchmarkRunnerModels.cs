@@ -296,6 +296,11 @@ public sealed class BenchmarkSourceTabViewState:ObservableObject{
     public BenchmarkSourceTabDefinition Definition { get; }
     public ObservableRangeCollection<BenchmarkTableRow> Rows { get; } = [];
     public ObservableCollection<ChartComparisonPoint> ChartPoints { get; } = [];
+    public Dictionary<string,BenchmarkTableRow> UiSelectedRowsByKey { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string,int> ChartPointIndexesByRowKey { get; } = new(StringComparer.OrdinalIgnoreCase);
+    internal HashSet<ChartComparisonPoint> UiSelectedChartBars { get; } = [];
+    internal HashSet<BenchmarkTableRow> DirtyChartRows { get; } = [];
+    internal bool RequiresFullChartRebuild { get; set; } = true;
     public ObservableCollection<BenchmarkDiagnosticRow> LatencyHotspotRows { get; } = [];
     public ObservableCollection<BenchmarkDiagnosticRow> AllocationDiagnosticRows { get; } = [];
     public ObservableCollection<BenchmarkDiagnosticRow> CpuTimelineRows { get; } = [];
@@ -309,6 +314,10 @@ public sealed class BenchmarkSourceTabViewState:ObservableObject{
     public ObservableCollection<BenchmarkTrendSeries> HistoryTrendSeries { get; } = [];
     public ObservableCollection<BenchmarkTrendSeries> ScaleTrendSeries { get; } = [];
     public IReadOnlyList<BenchmarkComparisonRow> ComparisonRows { get; set; } = [];
+
+    internal event EventHandler? ChartSelectionChanged;
+
+    internal void NotifyChartSelectionChanged() => this.ChartSelectionChanged?.Invoke(this,EventArgs.Empty);
 
     public bool? IsBenchmarkSelectionChecked{
         get => this.isBenchmarkSelectionChecked;
@@ -711,7 +720,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         }
 
         if(!value.HasMeasuredValue){
-            this.metrics=ProjectMetrics.Missing;
+            this.SetMetrics(ProjectMetrics.Missing);
             this.isFailed=false;
             this.isCompletedWithoutMeasurement=false;
             this.TimeText=string.Empty;
@@ -730,7 +739,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             return;
         }
 
-        this.metrics=value;
+        this.SetMetrics(value);
         this.isCompletedWithoutMeasurement=false;
         this.TimeText=FormatTime(value);
         this.AllocatedText=FormatAllocated(value);
@@ -863,7 +872,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             ? BenchmarkProjectLiveState.Completed
             : BenchmarkProjectLiveState.Idle;
         if(isCompleted&&result.MeanNanoseconds is not null){
-            this.metrics=ProjectMetrics.FromMeasurement(result.MeanNanoseconds,result.AllocatedBytesValue);
+            this.SetMetrics(ProjectMetrics.FromMeasurement(result.MeanNanoseconds,result.AllocatedBytesValue));
             this.isFailed=false;
             this.isCompletedWithoutMeasurement=false;
             this.lastSuccessfulElementCount=result.ElementCount>0 ? result.ElementCount : null;
@@ -879,7 +888,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             this.ClearFailureDisplay();
             this.OnPropertyChanged(nameof(this.TimeTooltipText));
         }else if(isCompleted){
-            this.metrics=ProjectMetrics.Missing;
+            this.SetMetrics(ProjectMetrics.Missing);
             this.isFailed=false;
             this.isCompletedWithoutMeasurement=true;
             this.lastSuccessfulElementCount=result.ElementCount>0 ? result.ElementCount : null;
@@ -890,7 +899,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             this.ExecutionText=measuredAt is { } completedAt ? FormatTimestamp(completedAt) : string.Empty;
             this.ClearFailureDisplay();
         }else if(isFailed){
-            this.metrics=ProjectMetrics.Missing;
+            this.SetMetrics(ProjectMetrics.Missing);
             this.isFailed=true;
             this.isCompletedWithoutMeasurement=false;
             this.lastFailedElementCount=result.ElementCount>0 ? result.ElementCount : null;
@@ -927,7 +936,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
 
     public void ApplySkipped(int stoppedAtElementCount,ProjectMetrics stoppedMetrics,CpuSelectionItem? cpu,DateTimeOffset? measuredAt,bool metadataMissing){
         // adaptive で止まった行は、低い N の completed metrics をそのまま表示する。
-        this.metrics=stoppedMetrics;
+        this.SetMetrics(stoppedMetrics);
         this.isCompletedWithoutMeasurement=false;
         this.TimeText=FormatTime(stoppedMetrics);
         this.AllocatedText=FormatAllocated(stoppedMetrics);
@@ -968,7 +977,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     }
 
     public void ClearMetrics(){
-        this.metrics=ProjectMetrics.Missing;
+        this.SetMetrics(ProjectMetrics.Missing);
         this.isFailed=false;
         this.isCompletedWithoutMeasurement=false;
         this.lastSuccessfulElementCount=null;
@@ -1005,7 +1014,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         int elementCount,
         DateTimeOffset measuredAt,
         BenchmarkMeasurementHighlightState highlightState){
-        this.metrics=value;
+        this.SetMetrics(value);
         this.isFailed=false;
         this.isCompletedWithoutMeasurement=false;
         this.lastSuccessfulElementCount=elementCount;
@@ -1018,6 +1027,11 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.ApplyMeasurementHighlight(highlightState);
         this.OnPropertyChanged(nameof(this.IsPendingVisual));
         this.OnPropertyChanged(nameof(this.LastSuccessfulElementCount));
+    }
+
+    private void SetMetrics(ProjectMetrics value){
+        this.metrics=value;
+        this.OnPropertyChanged(nameof(this.Metrics));
     }
 
     private void ApplyFailureDisplay(int elementCount,DateTimeOffset failedAt,string failureReason){
@@ -1347,6 +1361,9 @@ public sealed class BenchmarkTableRow:ObservableObject{
     public IReadOnlyDictionary<string,BenchmarkCase> CasesByProject { get; }
     public BenchmarkProjectCell LeftCell { get; }
     public BenchmarkProjectCell RightCell { get; }
+    public ChartComparisonPoint? ChartBar { get; internal set; }
+    internal int ChartPointIndex { get; set; } = -1;
+    internal int GridDisplayIndex { get; set; } = -1;
     public string CountArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Count);
     public string IndexArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Index);
     public string PageArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Page);
@@ -2276,7 +2293,7 @@ public sealed class ChartComparisonPoint{
         string rightText,
         string tooltipText,
         double? ratio)
-        : this(benchmark,displayName,string.Empty,displayName,false,false,leftValue,rightValue,leftText,rightText,tooltipText,ratio,false,false,false,false,false,false){
+        : this(benchmark,displayName,string.Empty,displayName,false,false,leftValue,rightValue,leftText,rightText,tooltipText,ratio,false,false,false,false,false,false,null){
     }
 
     public ChartComparisonPoint(
@@ -2292,7 +2309,7 @@ public sealed class ChartComparisonPoint{
         string rightText,
         string tooltipText,
         double? ratio)
-        : this(benchmark,displayName,groupDisplayName,rowDisplayName,isGroupFirst,isGroupLast,leftValue,rightValue,leftText,rightText,tooltipText,ratio,false,false,false,false,false,false){
+        : this(benchmark,displayName,groupDisplayName,rowDisplayName,isGroupFirst,isGroupLast,leftValue,rightValue,leftText,rightText,tooltipText,ratio,false,false,false,false,false,false,null){
     }
 
     private ChartComparisonPoint(
@@ -2313,7 +2330,8 @@ public sealed class ChartComparisonPoint{
         bool isRightUiSelected,
         bool isRowUiSelected,
         bool isLeftFallback,
-        bool isRightFallback){
+        bool isRightFallback,
+        BenchmarkTableRow? row){
         this.Benchmark=benchmark;
         this.BaseDisplayName=displayName;
         this.GroupDisplayName=groupDisplayName;
@@ -2332,33 +2350,64 @@ public sealed class ChartComparisonPoint{
         this.IsRowUiSelected=isRowUiSelected;
         this.IsLeftFallback=isLeftFallback;
         this.IsRightFallback=isRightFallback;
+        this.Row=row;
     }
 
-    public string Benchmark { get; }
-    public string BaseDisplayName { get; }
+    public string Benchmark { get; private set; }
+    public string BaseDisplayName { get; private set; }
     public string DisplayName => this.IsRunning
         ? "● "+this.BaseDisplayName
         : this.BaseDisplayName;
-    public string GroupDisplayName { get; }
-    public string RowDisplayName { get; }
-    public bool IsGroupFirst { get; }
-    public bool IsGroupLast { get; }
-    public double LeftValue { get; }
-    public double RightValue { get; }
+    public string GroupDisplayName { get; private set; }
+    public string RowDisplayName { get; private set; }
+    public bool IsGroupFirst { get; private set; }
+    public bool IsGroupLast { get; private set; }
+    public double LeftValue { get; private set; }
+    public double RightValue { get; private set; }
     public double LeftNormalValue => this.IsLeftFallback ? 0 : this.LeftValue;
     public double LeftFallbackValue => this.IsLeftFallback ? this.LeftValue : 0;
     public double RightNormalValue => this.IsRightFallback ? 0 : this.RightValue;
     public double RightFallbackValue => this.IsRightFallback ? this.RightValue : 0;
-    public string LeftText { get; }
-    public string RightText { get; }
-    public string TooltipText { get; }
-    public double? Ratio { get; }
-    public bool IsRunning { get; }
-    public bool IsLeftUiSelected { get; }
-    public bool IsRightUiSelected { get; }
-    public bool IsRowUiSelected { get; }
-    public bool IsLeftFallback { get; }
-    public bool IsRightFallback { get; }
+    public string LeftText { get; private set; }
+    public string RightText { get; private set; }
+    public string TooltipText { get; private set; }
+    public double? Ratio { get; private set; }
+    public bool IsRunning { get; private set; }
+    public bool IsLeftUiSelected { get; private set; }
+    public bool IsRightUiSelected { get; private set; }
+    public bool IsRowUiSelected { get; private set; }
+    public bool IsLeftFallback { get; private set; }
+    public bool IsRightFallback { get; private set; }
+    public BenchmarkTableRow? Row { get; private set; }
+
+    internal void AttachRow(BenchmarkTableRow row) => this.Row=row;
+
+    internal void DetachRow(BenchmarkTableRow row){
+        if(ReferenceEquals(this.Row,row)){
+            this.Row=null;
+        }
+    }
+
+    internal void ApplyFrom(ChartComparisonPoint source){
+        this.Benchmark=source.Benchmark;
+        this.BaseDisplayName=source.BaseDisplayName;
+        this.GroupDisplayName=source.GroupDisplayName;
+        this.RowDisplayName=source.RowDisplayName;
+        this.IsGroupFirst=source.IsGroupFirst;
+        this.IsGroupLast=source.IsGroupLast;
+        this.LeftValue=source.LeftValue;
+        this.RightValue=source.RightValue;
+        this.LeftText=source.LeftText;
+        this.RightText=source.RightText;
+        this.TooltipText=source.TooltipText;
+        this.Ratio=source.Ratio;
+        this.IsRunning=source.IsRunning;
+        this.IsLeftUiSelected=source.IsLeftUiSelected;
+        this.IsRightUiSelected=source.IsRightUiSelected;
+        this.IsRowUiSelected=source.IsRowUiSelected;
+        this.IsLeftFallback=source.IsLeftFallback;
+        this.IsRightFallback=source.IsRightFallback;
+    }
 
     public ChartComparisonPoint WithRunningState(bool isRunning) =>
         new(
@@ -2379,7 +2428,8 @@ public sealed class ChartComparisonPoint{
             this.IsRightUiSelected,
             this.IsRowUiSelected,
             this.IsLeftFallback,
-            this.IsRightFallback);
+            this.IsRightFallback,
+            this.Row);
 
     public ChartComparisonPoint WithUiSelection(bool isLeftUiSelected,bool isRightUiSelected,bool isRowUiSelected) =>
         new(
@@ -2400,7 +2450,8 @@ public sealed class ChartComparisonPoint{
             isRightUiSelected,
             isRowUiSelected,
             this.IsLeftFallback,
-            this.IsRightFallback);
+            this.IsRightFallback,
+            this.Row);
 
     public ChartComparisonPoint WithFallbackState(bool isLeftFallback,bool isRightFallback) =>
         new(
@@ -2421,7 +2472,8 @@ public sealed class ChartComparisonPoint{
             this.IsRightUiSelected,
             this.IsRowUiSelected,
             isLeftFallback,
-            isRightFallback);
+            isRightFallback,
+            this.Row);
 
     public ChartComparisonPoint WithGroupDisplay(string groupDisplayName,string rowDisplayName,bool isGroupFirst,bool isGroupLast) =>
         new(
@@ -2442,7 +2494,8 @@ public sealed class ChartComparisonPoint{
             this.IsRightUiSelected,
             this.IsRowUiSelected,
             this.IsLeftFallback,
-            this.IsRightFallback);
+            this.IsRightFallback,
+            this.Row);
 }
 
 public sealed record BenchmarkRunReport(string? RunRoot);

@@ -1366,6 +1366,17 @@ internal static class BenchmarkRowUiSelectionLogic{
     }
 }
 
+internal static class BenchmarkRowCheckToggleLogic{
+    public static bool? ResolveTargetCheckedState(IEnumerable<bool?> states){
+        var values=states.ToArray();
+        if(values.Length==0){
+            return null;
+        }
+
+        return values.All(static value => value is true) ? false : true;
+    }
+}
+
 internal sealed record CpuTableSectionDefinition(string Title,CpuCoreKind CoreKind,IReadOnlyList<CpuTableRowDefinition> Rows){
     public int ColumnCount => this.Rows.Count==0 ? 0 : this.Rows.Max(static row => row.LogicalProcessorIndexes.Count);
 }

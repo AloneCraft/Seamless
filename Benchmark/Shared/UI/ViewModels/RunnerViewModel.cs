@@ -374,6 +374,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// activeChartMethodName フィールドです。
     /// </summary>
     private string activeChartMethodName = string.Empty;
+    private string appliedActiveChartMethodName = string.Empty;
     /// <summary>
     /// pendingRunStatusText フィールドです。
     /// </summary>
@@ -1086,7 +1087,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
     public bool CanChangeBenchmarkConditions =>
         !this.IsRefreshing
         &&!this.IsRunHistoryLoading
-        &&!this.isLoadingSelectedRunDb;
+        &&!this.isLoadingSelectedRunDb
+        &&!this.IsBenchmarkRunActive
+        &&!this.IsBenchmarkPaused;
 
     /// <summary>
     /// CanChangeBenchmarkSelection プロパティです。
@@ -1720,7 +1723,13 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <value>SelectedThreshold の値を取得/設定します。</value>
     public ThresholdOption SelectedThreshold {
         get => this.selectedThreshold;
-        set => this.SetProperty(ref this.selectedThreshold,value);
+        set {
+            if(!this.CanChangeBenchmarkConditions) {
+                return;
+            }
+
+            this.SetProperty(ref this.selectedThreshold,value);
+        }
     }
 
     /// <summary>
@@ -2194,32 +2203,68 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     /// <param name="row">row を指定して実行条件を制御します。</param>
     public void ToggleBenchmarkRow(BenchmarkTableRow row) {
+        this.ToggleBenchmarkRows([row]);
+    }
+
+    internal void ToggleBenchmarkRows(IEnumerable<BenchmarkTableRow> rows) {
         if(!this.CanChangeBenchmarkSelection) {
             return;
         }
 
-        var state = this.GetSourceTabViewState(row.SourceTab.Tab);
-        var selectedRows = state.Rows
-            .Where(static item => item.IsUiSelected)
-            .ToArray();
-        var targetRows = row.IsUiSelected&&selectedRows.Length>0
-            ? selectedRows
-            : [row];
-        var targets = targetRows
+        var targets = rows
             .Where(static item => item.ProjectCells.Any(static cell => cell.HasCase))
+            .Distinct()
             .ToArray();
-        var selectionState = GetRowSelectionState(targets);
-        if(selectionState is null) {
-            this.SetBenchmarkRows(targets,true);
+        var selected = BenchmarkRowCheckToggleLogic.ResolveTargetCheckedState(
+            targets.Select(static row => row.IsSelectionChecked));
+        if(selected is not { } value) {
             return;
         }
 
-        if(selectionState is true) {
-            this.SetBenchmarkRows(targets,false);
-            return;
+        this.SetBenchmarkRows(targets,value);
+    }
+
+    internal void SynchronizeBenchmarkRowUiSelection(
+        BenchmarkSourceTabViewState state,
+        IReadOnlyList<BenchmarkTableRow> addedRows,
+        IReadOnlyList<BenchmarkTableRow> removedRows) {
+        var selectionChanged=false;
+
+        foreach(var removed in removedRows) {
+            if(!state.UiSelectedRowsByKey.TryGetValue(removed.RowKey,out var previous)
+                ||!ReferenceEquals(previous,removed)) {
+                continue;
+            }
+
+            state.UiSelectedRowsByKey.Remove(removed.RowKey);
+            if(previous.ChartBar is { } chartBar) {
+                state.UiSelectedChartBars.Remove(chartBar);
+            }
+            selectionChanged=true;
         }
 
-        this.SetBenchmarkRows(targets,true);
+        foreach(var added in addedRows) {
+            if(state.UiSelectedRowsByKey.TryGetValue(added.RowKey,out var previous)) {
+                if(ReferenceEquals(previous,added)) {
+                    continue;
+                }
+
+                if(previous.ChartBar is { } previousChartBar) {
+                    state.UiSelectedChartBars.Remove(previousChartBar);
+                }
+            }
+
+            state.UiSelectedRowsByKey[added.RowKey]=added;
+            if(added.ChartBar is { } chartBar) {
+                state.UiSelectedChartBars.Add(chartBar);
+            }
+            selectionChanged=true;
+        }
+
+        if(selectionChanged) {
+            UiThreadBudget.Record("chart-selection-series-update-count",0);
+            state.NotifyChartSelectionChanged();
+        }
     }
 
     /// <summary>
@@ -2589,6 +2634,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
                     this.SaveUiState();
                     this.RefreshBenchmarkSelectionDisplay();
                 }
+                if(args.PropertyName==nameof(BenchmarkProjectCell.Metrics)) {
+                    this.GetSourceTabViewState(row.SourceTab.Tab).DirtyChartRows.Add(row);
+                }
             };
         }
     }
@@ -2745,17 +2793,31 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
 
         var targetSet = targets.ToHashSet();
+        var changedRows = new List<BenchmarkTableRow>();
         var shouldToggleOff = gesture is BenchmarkCellSelectionGesture.Toggle or BenchmarkCellSelectionGesture.ExtendToggle
             &&targets.All(static row => row.IsUiSelected);
         if(gesture is BenchmarkCellSelectionGesture.Replace or BenchmarkCellSelectionGesture.Toggle) {
             foreach(var row in state.Rows.Where(row => !targetSet.Contains(row))) {
-                SetRowUiSelection(row,false);
+                if(row.IsLeftUiSelected||row.IsRightUiSelected) {
+                    SetRowUiSelection(row,false);
+                    changedRows.Add(row);
+                }
             }
         }
         foreach(var row in targets) {
-            SetRowUiSelection(row,!shouldToggleOff);
+            if(row.IsUiSelected==shouldToggleOff) {
+                SetRowUiSelection(row,!shouldToggleOff);
+                changedRows.Add(row);
+            }
         }
-        this.RefreshChartUiSelection(state);
+        foreach(var row in changedRows) {
+            if(row.IsUiSelected) {
+                state.UiSelectedRowsByKey[row.RowKey]=row;
+            }else{
+                state.UiSelectedRowsByKey.Remove(row.RowKey);
+            }
+        }
+        this.RefreshChartUiSelection(state,changedRows);
     }
 
     // 列/プロジェクトヘッダーは現在タブだけを反映する。左上の全体チェックは全Sourceタブを対象にする。
@@ -6311,7 +6373,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             state.ComparisonRows= [];
             state.BenchmarkRatioSummaryText=string.Empty;
             this.GetSourceTabOption(state.Definition.Tab).SetBenchmarkRatioSummaryShortText(BenchmarkImprovementPromptBuilder.CreateSummary([]).ShortDisplayText);
-            state.ChartPoints.Clear();
+            this.SyncBenchmarkChartPoints(state,[]);
             this.UpdateChartEmptyReason(state,[],[]);
             state.LatencyHotspotRows.Clear();
             state.AllocationDiagnosticRows.Clear();
@@ -8881,6 +8943,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     /// <value>preserveExistingWhenNoMeasuredPoints の値を取得/設定します。</value>
     private void UpdateChart(bool preserveExistingWhenNoMeasuredPoints = true) {
+        this.SelectedSourceTabViewState.RequiresFullChartRebuild=true;
         if(this.chartRefreshBatchDepth>0) {
             this.pendingChartUpdate=true;
             this.pendingChartUpdatePreserveExisting&=preserveExistingWhenNoMeasuredPoints;
@@ -8903,6 +8966,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <value>preserveExistingWhenNoMeasuredPoints の値を取得/設定します。</value>
     private void UpdateAllSourceTabCharts(bool preserveExistingWhenNoMeasuredPoints = true) {
         foreach(var state in this.sourceTabViewStates) {
+            state.RequiresFullChartRebuild=true;
             this.UpdateChartCore(state,preserveExistingWhenNoMeasuredPoints);
         }
         this.OnPropertyChanged(nameof(this.ChartPoints));
@@ -8978,8 +9042,14 @@ public sealed partial class RunnerViewModel:ObservableObject {
                         UiThreadBudget.Measure("chart-apply",() => {
                             state.ComparisonRows=computed.Rows;
                             this.RefreshBenchmarkRatioSummary(state);
-                            var points = this.BuildBenchmarkChartPoints(state,computed.Rows);
-                            this.SyncChartPoints(state.ChartPoints,points);
+                            IReadOnlyList<ChartComparisonPoint> points;
+                            if(state.RequiresFullChartRebuild) {
+                                points=this.BuildBenchmarkChartPoints(state,computed.Rows);
+                                this.SyncBenchmarkChartPoints(state,points);
+                            }else{
+                                this.FlushDirtyChartRows(state,computed.Rows);
+                                points=state.ChartPoints;
+                            }
                             state.ChartHeight=Math.Max(BenchmarkChartMinimumHeight,points.Count*BenchmarkChartRowHeight+BenchmarkChartVerticalPadding);
                             this.UpdateChartEmptyReason(state,computed.Rows,points);
                             this.SyncDiagnosticRows(state.LatencyHotspotRows,computed.LatencyRows);
@@ -9013,7 +9083,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
         state.ComparisonRows=rows;
         this.RefreshBenchmarkRatioSummary(state);
         var points = this.BuildBenchmarkChartPoints(state,rows);
-        this.SyncChartPoints(state.ChartPoints,points);
+        this.SyncBenchmarkChartPoints(state,points);
         state.ChartHeight=Math.Max(BenchmarkChartMinimumHeight,points.Count*BenchmarkChartRowHeight+BenchmarkChartVerticalPadding);
         this.UpdateChartEmptyReason(state,rows,points);
         this.RefreshDiagnosticViews(state,rows);
@@ -9439,6 +9509,123 @@ public sealed partial class RunnerViewModel:ObservableObject {
         this.SyncChartPoints(this.ChartPoints,points);
     }
 
+    private void SyncBenchmarkChartPoints(
+        BenchmarkSourceTabViewState state,
+        IReadOnlyList<ChartComparisonPoint> points) {
+        UiThreadBudget.Measure("chart-structural-rebuild",() => {
+            foreach(var point in state.ChartPoints) {
+                if(point.Row is not { } row) {
+                    continue;
+                }
+
+                if(ReferenceEquals(row.ChartBar,point)) {
+                    row.ChartBar=null;
+                    row.ChartPointIndex=-1;
+                }
+                point.DetachRow(row);
+            }
+
+            this.SyncChartPoints(state.ChartPoints,points);
+            state.DirtyChartRows.Clear();
+            state.RequiresFullChartRebuild=false;
+            this.RebuildChartPointIndexes(state);
+        });
+        UiThreadBudget.Record("chart-structural-rebuild-count",points.Count);
+    }
+
+    private void FlushDirtyChartRows(
+        BenchmarkSourceTabViewState state,
+        IReadOnlyList<BenchmarkComparisonRow> comparisonRows) {
+        if(state.DirtyChartRows.Count==0) {
+            return;
+        }
+
+        var dirtyRows=state.DirtyChartRows.ToArray();
+        state.DirtyChartRows.Clear();
+        UiThreadBudget.Record("chart-dirty-row-count",dirtyRows.Length);
+        UiThreadBudget.Measure("chart-dirty-flush",() => {
+            foreach(var row in dirtyRows) {
+                if(row.ChartBar is { } chartBar
+                    &&(row.ChartPointIndex<0
+                        ||row.ChartPointIndex>=state.ChartPoints.Count
+                        ||!ReferenceEquals(state.ChartPoints[row.ChartPointIndex],chartBar))) {
+                    var points=this.BuildBenchmarkChartPoints(state,comparisonRows);
+                    this.SyncBenchmarkChartPoints(state,points);
+                    return;
+                }
+
+                this.RefreshDirtyChartRow(state,row,comparisonRows);
+            }
+        });
+    }
+
+    private void RefreshDirtyChartRow(
+        BenchmarkSourceTabViewState state,
+        BenchmarkTableRow row,
+        IReadOnlyList<BenchmarkComparisonRow> comparisonRows) {
+        var candidate=this.CreateBenchmarkChartPoint(row,comparisonRows,state.Definition);
+        if(candidate is null) {
+            this.RemoveChartBar(state,row);
+            return;
+        }
+
+        if(row.ChartBar is { } chartBar) {
+            chartBar.ApplyFrom(candidate);
+            state.ChartPoints[row.ChartPointIndex]=chartBar;
+            UiThreadBudget.Record("chart-dirty-bar-update-count",1);
+            return;
+        }
+
+        var insertIndex=0;
+        while(insertIndex<state.ChartPoints.Count
+            &&state.ChartPoints[insertIndex].Row is { } existingRow
+            &&existingRow.GridDisplayIndex>row.GridDisplayIndex) {
+            insertIndex++;
+        }
+        state.ChartPoints.Insert(insertIndex,candidate);
+        UiThreadBudget.Record("chart-dirty-bar-update-count",1);
+        this.ReindexChartPointsFrom(state,insertIndex);
+        if(state.UiSelectedRowsByKey.ContainsKey(row.RowKey)) {
+            state.UiSelectedChartBars.Add(candidate);
+            state.NotifyChartSelectionChanged();
+        }
+    }
+
+    private void RemoveChartBar(BenchmarkSourceTabViewState state,BenchmarkTableRow row) {
+        if(row.ChartBar is not { } chartBar) {
+            return;
+        }
+
+        var index=row.ChartPointIndex;
+        if(index<0||index>=state.ChartPoints.Count||!ReferenceEquals(state.ChartPoints[index],chartBar)) {
+            state.RequiresFullChartRebuild=true;
+            return;
+        }
+
+        state.UiSelectedChartBars.Remove(chartBar);
+        state.ChartPoints.RemoveAt(index);
+        UiThreadBudget.Record("chart-dirty-bar-update-count",1);
+        state.ChartPointIndexesByRowKey.Remove(row.RowKey);
+        row.ChartBar=null;
+        row.ChartPointIndex=-1;
+        chartBar.DetachRow(row);
+        this.ReindexChartPointsFrom(state,index);
+        state.NotifyChartSelectionChanged();
+    }
+
+    private void ReindexChartPointsFrom(BenchmarkSourceTabViewState state,int startIndex) {
+        for(var index=startIndex;index<state.ChartPoints.Count;index++) {
+            var point=state.ChartPoints[index];
+            state.ChartPointIndexesByRowKey[point.Benchmark]=index;
+            if(point.Row is not { } row) {
+                continue;
+            }
+
+            row.ChartBar=point;
+            row.ChartPointIndex=index;
+        }
+    }
+
     /// <summary>
     /// SyncChartPoints メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
@@ -9458,6 +9645,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             var point = points[index];
             var current = target[index];
             if(current is not null
+                &&ReferenceEquals(current.Row,point.Row)
                 &&current.Benchmark==point.Benchmark
                 &&current.DisplayName==point.DisplayName
                 &&Math.Abs(current.LeftValue-point.LeftValue)<0.000001
@@ -9622,7 +9810,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             +(string.IsNullOrWhiteSpace(BenchmarkArgumentTooltipFormatter.CreateArgumentTooltip(row))
                 ? string.Empty
                 : "\n"+BenchmarkArgumentTooltipFormatter.CreateArgumentTooltip(row));
-        return new ChartComparisonPoint(
+        var point=new ChartComparisonPoint(
             benchmark,
             BenchmarkFormatting.ShortName(displayName),
             leftNumber,
@@ -9632,6 +9820,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
             tooltip,
             ratio)
             .WithFallbackState(isLeftFallback,isRightFallback);
+        point.AttachRow(row);
+        return point;
     }
 
     private bool IsChartMetricFallback(BenchmarkTableRow row,string project,double? metricValue) {
@@ -9697,33 +9887,72 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// RefreshChartUiSelection メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
     /// <param name="state">state を指定して実行条件を制御します。</param>
-    private void RefreshChartUiSelection(BenchmarkSourceTabViewState state) {
-        for(var index = 0; index<state.ChartPoints.Count; index++) {
-            var point = state.ChartPoints[index];
-            var rowIndex = GetBenchmarkRowIndex(state,point.Benchmark);
-            if(rowIndex<0) {
+    private void RefreshChartUiSelection(BenchmarkSourceTabViewState state,IEnumerable<BenchmarkTableRow> changedRows) {
+        var selectionChanged=false;
+        foreach(var row in changedRows) {
+            if(row.ChartBar is not { } chartBar) {
                 continue;
             }
 
-            var row = state.Rows[rowIndex];
-            var next = this.ApplyChartUiSelection(row,point);
-            if(next.IsLeftUiSelected==point.IsLeftUiSelected
-                &&next.IsRightUiSelected==point.IsRightUiSelected
-                &&next.IsRowUiSelected==point.IsRowUiSelected) {
-                continue;
+            if(row.IsUiSelected) {
+                selectionChanged|=state.UiSelectedChartBars.Add(chartBar);
+            }else{
+                selectionChanged|=state.UiSelectedChartBars.Remove(chartBar);
             }
-
-            state.ChartPoints[index]=next;
         }
+
+        if(selectionChanged) {
+            state.NotifyChartSelectionChanged();
+        }
+    }
+
+    private void RebuildChartPointIndexes(BenchmarkSourceTabViewState state) {
+        state.ChartPointIndexesByRowKey.Clear();
+        state.UiSelectedChartBars.Clear();
+        for(var index = 0; index<state.Rows.Count; index++) {
+            var row=state.Rows[index];
+            row.ChartBar=null;
+            row.ChartPointIndex=-1;
+            row.GridDisplayIndex=index;
+        }
+        for(var index = 0; index<state.ChartPoints.Count; index++) {
+            var point=state.ChartPoints[index];
+            state.ChartPointIndexesByRowKey[point.Benchmark]=index;
+            if(point.Row is not { } row) {
+                continue;
+            }
+
+            row.ChartBar=point;
+            row.ChartPointIndex=index;
+            if(state.UiSelectedRowsByKey.ContainsKey(row.RowKey)) {
+                state.UiSelectedChartBars.Add(point);
+            }
+        }
+        state.NotifyChartSelectionChanged();
     }
 
     /// <summary>
     /// ApplyChartRunningState メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
     private void ApplyChartRunningState() {
-        for(var index = 0; index<this.ChartPoints.Count; index++) {
-            this.ChartPoints[index]=this.ApplyChartRunningState(this.ChartPoints[index]);
+        var state=this.SelectedSourceTabViewState;
+        this.ApplyChartRunningState(state,this.appliedActiveChartMethodName,false);
+        this.ApplyChartRunningState(state,this.activeChartMethodName,this.IsBenchmarkRunActive);
+        this.appliedActiveChartMethodName=this.activeChartMethodName;
+    }
+
+    private void ApplyChartRunningState(BenchmarkSourceTabViewState state,string rowKey,bool isRunning) {
+        if(string.IsNullOrWhiteSpace(rowKey)
+            ||!state.ChartPointIndexesByRowKey.TryGetValue(rowKey,out var index)
+            ||index<0
+            ||index>=state.ChartPoints.Count) {
+            return;
         }
+
+        var point=state.ChartPoints[index];
+        var next=point.WithRunningState(isRunning);
+        point.ApplyFrom(next);
+        state.ChartPoints[index]=point;
     }
 
     /// <summary>

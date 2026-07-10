@@ -226,6 +226,91 @@ public sealed class RunnerViewModel{
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task GridRowSelection_UpdatesChartOverlayWithoutChangingChartPoints(){
+        var fixture=await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel=fixture.ViewModel;
+        var definition=global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var state=new global::UI.BenchmarkSourceTabViewState(definition);
+        var row=CreateArrayBenchmarkRow("AggregateBy_keySelector");
+        var chartBar=new global::UI.ChartComparisonPoint(
+            row.RowKey,
+            row.MethodName,
+            40,
+            60,
+            "40 ns",
+            "60 ns",
+            "tooltip",
+            1.5);
+        chartBar.AttachRow(row);
+        row.ChartBar=chartBar;
+        row.ChartPointIndex=0;
+        state.ChartPoints.Add(chartBar);
+        var collectionChangedCount=0;
+        state.ChartPoints.CollectionChanged+=(_,_) => collectionChangedCount++;
+
+        viewModel.SynchronizeBenchmarkRowUiSelection(state,[row],[]);
+
+        Assert.Same(row,state.UiSelectedRowsByKey[row.RowKey]);
+        Assert.Contains(chartBar,state.UiSelectedChartBars);
+        Assert.Equal(0,collectionChangedCount);
+
+        viewModel.SynchronizeBenchmarkRowUiSelection(state,[],[row]);
+
+        Assert.Empty(state.UiSelectedRowsByKey);
+        Assert.Empty(state.UiSelectedChartBars);
+        Assert.Equal(0,collectionChangedCount);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public void ChartBarUpdate_PreservesBidirectionalRowReferenceAndObjectIdentity(){
+        var row=CreateArrayBenchmarkRow("AggregateBy_keySelector");
+        var chartBar=new global::UI.ChartComparisonPoint(row.RowKey,row.MethodName,40,60,"40 ns","60 ns","before",1.5);
+        var update=new global::UI.ChartComparisonPoint(row.RowKey,row.MethodName,25,75,"25 ns","75 ns","after",3);
+        chartBar.AttachRow(row);
+        row.ChartBar=chartBar;
+        row.ChartPointIndex=0;
+
+        chartBar.ApplyFrom(update);
+
+        Assert.Same(chartBar,row.ChartBar);
+        Assert.Same(row,chartBar.Row);
+        Assert.Equal(25,chartBar.LeftValue);
+        Assert.Equal(75,chartBar.RightValue);
+        Assert.Equal("after",chartBar.TooltipText);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task MultipleMetricUpdatesForSameRow_AreCoalescedInDirtySet(){
+        var fixture=await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel=fixture.ViewModel;
+        var state=viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemArray);
+        var row=state.Rows[0];
+        state.DirtyChartRows.Clear();
+
+        row.LeftCell.ApplyMetrics(global::UI.ProjectMetrics.FromMeasurement(1_000_000,1024));
+        row.LeftCell.ApplyMetrics(global::UI.ProjectMetrics.FromMeasurement(1_000_001,1025));
+        row.RightCell.ApplyMetrics(global::UI.ProjectMetrics.FromMeasurement(2_000_000,2048));
+
+        Assert.Single(state.DirtyChartRows);
+        Assert.Contains(row,state.DirtyChartRows);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public void BenchmarkGridSelectionController_AppliesReplaceRangeAndToggleSelection(){
+        var rows=Enumerable.Range(0,6)
+            .Select(index => CreateArrayBenchmarkRow("Method"+index))
+            .ToArray();
+        var range=global::UI.BenchmarkRowSelectionController.ResolveRangeSelection(rows,rows[1],rows[3]);
+        Assert.Equal([rows[1],rows[2],rows[3]],range);
+
+        var added=global::UI.BenchmarkRowSelectionController.ResolveToggleSelection(range,rows[5]);
+        Assert.Equal([rows[1],rows[2],rows[3],rows[5]],added);
+
+        var removed=global::UI.BenchmarkRowSelectionController.ResolveToggleSelection(added,rows[2]);
+        Assert.Equal([rows[1],rows[3],rows[5]],removed);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
     public void RunningResult_AppliesToRightZLinqCell(){
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var row = CreateArrayBenchmarkRow("Aggregate_seed_func_resultSelector");
@@ -937,6 +1022,38 @@ public sealed class RunnerViewModel{
 
         await viewModel.StopCommand.ExecuteAsync(null);
         await runTask;
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task BenchmarkConditions_DisablesThresholdChangesDuringActiveAndPausedRun(){
+        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var viewModel = fixture.ViewModel;
+        var initialThreshold = viewModel.SelectedThreshold;
+        var alternateThreshold = viewModel.ThresholdOptions.First(option => !ReferenceEquals(option,initialThreshold));
+        viewModel.SelectAllCommand.Execute(null);
+
+        Assert.True(viewModel.CanChangeBenchmarkConditions);
+
+        var runTask = viewModel.RunInfiniteCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => viewModel.IsBenchmarkRunActive);
+
+        Assert.False(viewModel.CanChangeBenchmarkConditions);
+        viewModel.SelectedThreshold=alternateThreshold;
+        Assert.Same(initialThreshold,viewModel.SelectedThreshold);
+
+        await viewModel.PauseCommand.ExecuteAsync(null);
+        await WaitUntilAsync(() => viewModel.IsBenchmarkPaused);
+
+        Assert.False(viewModel.CanChangeBenchmarkConditions);
+        viewModel.SelectedThreshold=alternateThreshold;
+        Assert.Same(initialThreshold,viewModel.SelectedThreshold);
+
+        await viewModel.StopCommand.ExecuteAsync(null);
+        await runTask;
+
+        Assert.True(viewModel.CanChangeBenchmarkConditions);
+        viewModel.SelectedThreshold=alternateThreshold;
+        Assert.Same(alternateThreshold,viewModel.SelectedThreshold);
     }
 #endif
 
