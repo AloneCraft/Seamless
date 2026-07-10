@@ -6502,12 +6502,27 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// RefreshImprovementPrompt メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
     private void RefreshImprovementPrompt() {
-        var state = this.GetProgressStateForImprovementPrompt();
-        var candidates = state is null
-            ? []
-            : BenchmarkImprovementCandidateBuilder.BuildCandidates(state);
+        var candidates = this.BuildImprovementCandidatesFromComparisonRows();
+        if(candidates.Count==0) {
+            var state = this.GetProgressStateForImprovementPrompt();
+            candidates=state is null
+                ? []
+                : BenchmarkImprovementCandidateBuilder.BuildCandidates(state);
+        }
         this.ApplyImprovementCandidates(candidates);
         this.RefreshImprovementPromptText();
+    }
+
+    private IReadOnlyList<BenchmarkImprovementCandidate> BuildImprovementCandidatesFromComparisonRows() {
+        var rows = this.sourceTabViewStates
+            .SelectMany(static state => state.ComparisonRows)
+            .ToArray();
+        if(rows.Length==0) {
+            return [];
+        }
+
+        var elementCount = this.SelectedResultElementCount?.Value??0;
+        return BenchmarkImprovementCandidateBuilder.BuildCandidatesFromComparisonRows(rows,elementCount);
     }
 
     /// <summary>
@@ -6617,7 +6632,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
 
         this.loadedImprovementSelectionRunId=runId;
-        this.hasLoadedImprovementCandidateSelections=this.improvementCandidateSelections.Count>0;
+        this.improvementCandidateSelections.Clear();
+        this.hasLoadedImprovementCandidateSelections=false;
     }
 
     /// <summary>

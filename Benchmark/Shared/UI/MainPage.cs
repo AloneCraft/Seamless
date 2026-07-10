@@ -989,7 +989,7 @@ public sealed partial class MainPage:ContentPage {
             BackgroundColor          =Colors.White,
             VerticalOptions          =LayoutOptions.Fill,
         };
-        this.ConfigureCompactTabView(SfTabView,true);
+        this.ConfigureCompactTabView(SfTabView,false);
         AutomationProperties.SetIsInAccessibleTree(SfTabView,true);
         var TabItems = new TabItemCollection();
         var loadedSourceTabContents = new HashSet<int>();
@@ -2567,7 +2567,6 @@ public sealed partial class MainPage:ContentPage {
                 HorizontalOptions=LayoutOptions.Fill,
                 VerticalOptions=LayoutOptions.Fill,
             };
-            this.AddBenchmarkHeaderVerticalBorders(layout,Color.FromArgb("#CBD5E1"));
             var check = this.CreateBenchmarkAggregateCheckBox();
             check.AutomationId="Benchmark.AllSelectionCheck";
             var state = this.viewModel?.GetSourceTabViewState(sourceTab.Tab);
@@ -2730,7 +2729,6 @@ public sealed partial class MainPage:ContentPage {
                     Padding=new Thickness(1,0),
                     BackgroundColor=Color.FromArgb("#F1F5F9"),
                 };
-                this.AddBenchmarkHeaderVerticalBorders(header,Color.FromArgb("#CBD5E1"));
                 var measuredAt = new Label {
                     Text="日時",
                     FontSize=10,
@@ -3032,7 +3030,6 @@ public sealed partial class MainPage:ContentPage {
                 BackgroundColor=backgroundColor,
                 Padding=new Thickness(2,0),
             };
-            this.AddBenchmarkHeaderVerticalBorders(grid,Color.FromArgb("#CBD5E1"));
             var label = new Label {
                 Text=text,
                 FontSize=10,

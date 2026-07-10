@@ -9,6 +9,24 @@ internal static class BenchmarkImprovementCandidateBuilder{
 
     public static IReadOnlyList<BenchmarkImprovementCandidate> BuildCandidates(ProgressState state){
         var entries = CreateEntries(state).ToArray();
+        return BuildCandidates(entries);
+    }
+
+    public static IReadOnlyList<BenchmarkImprovementCandidate> BuildCandidatesFromComparisonRows(
+        IEnumerable<BenchmarkComparisonRow> rows,
+        int elementCount){
+        var entries = rows
+            .Where(static row => row.SourceTab is not null)
+            .Select(row => new BenchmarkImprovementEntry(
+                row.SourceTab,
+                BenchmarkImprovementCategoryClassifier.Classify(row.MethodName),
+                elementCount,
+                row))
+            .ToArray();
+        return BuildCandidates(entries);
+    }
+
+    private static IReadOnlyList<BenchmarkImprovementCandidate> BuildCandidates(IReadOnlyList<BenchmarkImprovementEntry> entries){
         return entries
             .GroupBy(static entry => CreateCandidateKey(entry.SourceTab,entry.Category,entry.Row.MethodName),StringComparer.OrdinalIgnoreCase)
             .Select(static group => CreateCandidate(group.Key,group.ToArray()))
