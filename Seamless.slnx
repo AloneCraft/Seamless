@@ -24,7 +24,12 @@
     <Project Path="Benchmark/Shared/UI/UI.shproj" />
     <File Path="Benchmark/Shared/UI/UI.projitems" />
   </Folder>
-  <Folder Name="/Dcoument/" />
+  <Folder Name="/Specifications/">
+    <File Path="UI.md" />
+    <File Path="FLinq.md" />
+    <File Path="Collection.md" />
+    <File Path="Database.md" />
+  </Folder>
   <Folder Name="/Shared/">
     <Project Path="Shared/Collections/Collections.shproj" />
     <Project Path="Shared/Common/Common.shproj" />
@@ -82,7 +87,6 @@
     <Project Path="Benchmark.UI.UITests/Benchmark.UI.UITests.csproj" />
     <Project Path="Test/Test.csproj" />
   </Folder>
-  <Project Path="Document/Document.csproj" Id="b6f45f7e-1008-41c4-a1d3-7f9efbf33610" />
   <Project Path="Seamless.Abstractions/Seamless.Abstractions.csproj" />
   <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
   <Project Path="Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj" />
@@ -91,4 +95,5 @@
   <Project Path="Seamless.Serialization/Seamless.Serialization.csproj" />
   <Project Path="Seamless/Seamless.csproj" />
 </Solution>
+
 

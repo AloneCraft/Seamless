@@ -145,7 +145,7 @@ public sealed class BenchmarkOrchestrator{
             CancellationToken.None);
 
         var state = LoadOnlyState(root);
-        Assert.Equal(4,state.Jobs.Count);
+        Assert.Equal(3,state.Jobs.Count);
         Assert.All(state.Jobs,static job => Assert.Equal(JobStatus.Completed,job.Status));
     }
 
@@ -368,11 +368,10 @@ public sealed class BenchmarkOrchestrator{
         foreach(var group in observed.GroupBy(static item => item.Method)) {
             //1つの表示行は左右プロジェクトを含めて開始から完了まで同じ1コアに固定される。
             Assert.Single(group.Select(static item => item.Cpu).Distinct());
-            //行内は軸ごとに左右を同一LoopCountで連続実行する。
+            //左列でLoopCountを校正し、右列は確定した同一LoopCountだけを実行する。
             Assert.Equal(
                 [
                     ("System.Array.FLinq",1),
-                    ("System.Array.ZLinq",1),
                     ("System.Array.FLinq",2),
                     ("System.Array.ZLinq",2),
                 ],
@@ -496,19 +495,18 @@ public sealed class BenchmarkOrchestrator{
             _ => { },
             CancellationToken.None);
 
-        // ウォームアップ後、各LoopCountで左右を同一軸に揃えて実測する。
+        // 左列を校正した後、右列は確定LoopCountでだけウォームアップ・実測する。
         Assert.Equal(
             [
                 (true,"System.Array.FLinq",1),
-                (true,"System.Array.ZLinq",1),
                 (false,"System.Array.FLinq",1),
-                (false,"System.Array.ZLinq",1),
                 (false,"System.Array.FLinq",2),
+                (true,"System.Array.ZLinq",1),
                 (false,"System.Array.ZLinq",2),
             ],
             observed);
         var state = LoadOnlyState(root);
-        Assert.Equal(4,state.Jobs.Count);
+        Assert.Equal(3,state.Jobs.Count);
         Assert.DoesNotContain(state.Jobs,static job => job.JobId.EndsWith("|warmup",StringComparison.Ordinal));
         Assert.Empty(Directory.EnumerateFiles(state.RunRoot,"*.csv",SearchOption.AllDirectories));
     }
@@ -935,7 +933,7 @@ public sealed class BenchmarkOrchestrator{
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_RemeasuresReachedSideUntilBothSidesReachThreshold(){
+    public async Task Orchestrator_AdaptiveMode_MeasuresRightOnlyAtLeftFinalLoopCount(){
         var root = CreateTempRoot();
         var runner = new FakeRunner((job,_) => {
             var thresholdLoopCount=job.Project=="System.Array.ZLinq" ? 256 : 512;
@@ -970,13 +968,13 @@ public sealed class BenchmarkOrchestrator{
             _ => { },
             CancellationToken.None);
 
-        // ZLinqが先に到達しても、FLinqが到達するLoopCountまで左右とも再計測する。
+        // 左列が到達するまで右列を実測せず、右列は左列の最終LoopCountだけで測定する。
         var state = LoadOnlyState(root);
         Assert.Equal(
             [128,256,512],
             state.Jobs.Where(static job => job.Project=="System.Array.FLinq").Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
         Assert.Equal(
-            [128,256,512],
+            [512],
             state.Jobs.Where(static job => job.Project=="System.Array.ZLinq").Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
     }
 
@@ -1106,7 +1104,7 @@ public sealed class BenchmarkOrchestrator{
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_RemeasuresBothSidesAtSameLoopCountUntilBothReachThreshold(){
+    public async Task Orchestrator_AdaptiveMode_CompletesWhenRightIsBelowThresholdAtSharedLoopCount(){
         var root = CreateTempRoot();
         var measured = new List<(string Project,int LoopCount)>();
         var runner = new FakeRunner((job,_) => {
@@ -1150,13 +1148,12 @@ public sealed class BenchmarkOrchestrator{
 
         Assert.Equal(
             [
-                ("System.Array.FLinq",1),("System.Array.ZLinq",1),
-                ("System.Array.FLinq",2),("System.Array.ZLinq",2),
+                ("System.Array.FLinq",1),
+                ("System.Array.FLinq",2),
                 ("System.Array.FLinq",4),("System.Array.ZLinq",4),
-                ("System.Array.FLinq",8),("System.Array.ZLinq",8),
             ],
             measured);
-        var finalJobs=LoadOnlyState(root).Jobs.Where(static job => BenchmarkWorkloadAxis.GetAxisCount(job)==8).ToArray();
+        var finalJobs=LoadOnlyState(root).Jobs.Where(static job => BenchmarkWorkloadAxis.GetAxisCount(job)==4).ToArray();
         Assert.Equal(2,finalJobs.Length);
         Assert.All(finalJobs,static job => Assert.Equal(JobStatus.Completed,job.Status));
     }
@@ -1189,15 +1186,15 @@ public sealed class BenchmarkOrchestrator{
         var state=LoadOnlyState(root);
         Assert.Equal([1],state.ElementCounts);
         Assert.Equal(
-            [1,1,2,2],
+            [1,2,2],
             state.Jobs.Where(static job => job.MethodName=="A").Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
         Assert.Equal(
-            [1,1,2,2,4,4,8,8],
+            [1,2,4,8,8],
             state.Jobs.Where(static job => job.MethodName=="Any").Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_FailsBothSidesWhenIntMaxValueCannotReachThreshold(){
+    public async Task Orchestrator_AdaptiveMode_FailsLeftWhenIntMaxValueCannotReachThreshold(){
         var root=CreateTempRoot();
         var orchestrator=new global::UI.BenchmarkOrchestrator(
             new BenchmarkStateManager(root),
@@ -1216,7 +1213,7 @@ public sealed class BenchmarkOrchestrator{
             CancellationToken.None);
 
         var jobs=LoadOnlyState(root).Jobs;
-        Assert.Equal(2,jobs.Count);
+        Assert.Single(jobs);
         Assert.All(jobs,static job => {
             Assert.Equal(JobStatus.Failed,job.Status);
             Assert.Contains("int.MaxValue",job.FailureReason,StringComparison.Ordinal);

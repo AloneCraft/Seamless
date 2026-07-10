@@ -32,6 +32,8 @@ LoopCount系Benchmarkの測定時間、左右同一LoopCount、完全完了、�
 
 ## ランタイムフロー
 
+計測時間・LoopCount校正・Run集計の正式仕様は [BenchmarkMeasurementSpecification](../../UI/BenchmarkMeasurementSpecification.md) を参照する。
+
 1. desktop entry point は worker mode なら `BenchmarkWorkerHost.RunAsync`、通常なら MAUI host を起動する（`Benchmark/Platforms/Desktop/Program.cs:10`, `Benchmark/Platforms/Desktop/Program.cs:22`）。
 2. UI は benchmark assembly を探索し、`BenchmarkAttribute` が付いた method を project/method model に変換する（`Benchmark/MainPage.xaml.cs:845`, `Benchmark/MainPage.xaml.cs:871`, `Benchmark/MainPage.xaml.cs:924`）。
 3. selected CPU ごとに worker process を起動し、task message を送信する（`Benchmark/MainPage.xaml.cs:688`, `Benchmark/MainPage.xaml.cs:752`）。

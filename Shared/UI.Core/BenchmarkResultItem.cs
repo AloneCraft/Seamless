@@ -19,6 +19,7 @@ public sealed record BenchmarkStoredResult(
     public IReadOnlyList<BenchmarkArgument> Arguments { get; init; } = [];
     public string SourceTabId { get; init; } = string.Empty;
     public double? TotalNanoseconds { get; init; }
+    public bool MeasuredInRun { get; init; }
     /// <summary>計測を実行した論理CPU。DB(Jobs.AssignedLogicalCpu)から復元し、表の論理コア列表示に使う。</summary>
     public int? AssignedLogicalCpu { get; init; }
 
@@ -107,6 +108,7 @@ public sealed class BenchmarkResultItem{
         : this(result.Project,result.Method,result.TypeFullName,result.ToProjectMetrics(),result.ElementCount,result.LoopCount,result.Status,result.MeasuredAt,result.ArgumentKey,result.Arguments,result.SourceTabId){
         this.AssignedLogicalCpu=result.AssignedLogicalCpu;
         this.TotalNanoseconds=result.TotalNanoseconds;
+        this.MeasuredInRun=result.MeasuredInRun;
     }
 
     private BenchmarkResultItem(
@@ -206,6 +208,7 @@ public sealed class BenchmarkResultItem{
     public int? AssignedLogicalCpu { get; }
     public DateTimeOffset? StartedAt { get; }
     public string FailureReason { get; }
+    public bool MeasuredInRun { get; set; }
     // 実行内で一意な生成順index。既定値(-1)は「対応する実行中ジョブがない」(履歴/比較表示由来など)を示す。
     public int RunItemIndex { get; } = -1;
 

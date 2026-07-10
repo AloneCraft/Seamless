@@ -3568,10 +3568,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
             ||left.ResultItem.LoopCount!=right.ResultItem.LoopCount
             ||left.ResultItem.TotalNanoseconds is not { } leftTotal
             ||right.ResultItem.TotalNanoseconds is not { } rightTotal
-            ||leftTotal<thresholdNanoseconds
-            ||rightTotal<thresholdNanoseconds) {
+            ||leftTotal<thresholdNanoseconds) {
             throw new InvalidOperationException(
-                "完全完了した比較行は、同一LoopCountかつ左右とも指定測定時間以上である必要があります。"
+                "完全完了した比較行は、同一LoopCountかつ左列が指定測定時間以上である必要があります。"
                 +" SourceTab="+row.SourceTab.Id
                 +" Type="+row.BenchmarkTypeText
                 +" Benchmark="+row.MethodName
@@ -5158,6 +5157,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
 
         this.pipelineDiagnostics.RecordReceivedEvent(result.Status);
+        if(IsTerminalResult(result)) {
+            result.MeasuredInRun=true;
+        }
         if(IsRunningResult(result)) {
             this.QueueImmediateRunningResult(result,runGeneration);
         }
@@ -6512,7 +6514,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     /// <param name="state">state を指定して実行条件を制御します。</param>
     private void RefreshBenchmarkRatioSummary(BenchmarkSourceTabViewState state) {
-        var summary = BenchmarkImprovementPromptBuilder.CreateSummary(state.ComparisonRows);
+        var measuredRows=this.BuildMeasuredRunComparisonRows(state.Definition);
+        var summary = BenchmarkImprovementPromptBuilder.CreateSummary(measuredRows);
         state.BenchmarkRatioSummaryText=summary.DisplayText;
         this.GetSourceTabOption(state.Definition.Tab).SetBenchmarkRatioSummaryShortText(summary.ShortDisplayText);
         this.RefreshOverallBenchmarkRatioSummary();
@@ -6521,8 +6524,20 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
     }
 
+    private IReadOnlyList<BenchmarkComparisonRow> BuildMeasuredRunComparisonRows(BenchmarkSourceTabDefinition sourceTab){
+        var measured=this.GetResultSourceForDisplay()
+            .Where(result => result.MeasuredInRun&&sourceTab.ContainsProject(result.Project))
+            .ToArray();
+        return measured.Length==0
+            ? []
+            : this.runProjectionService.BuildLatestComparisonRows(measured,sourceTab,this.CreateReportRowsForComparison);
+    }
+
     private void RefreshOverallBenchmarkRatioSummary() {
-        var summary = BenchmarkImprovementPromptBuilder.CreateSummary(this.sourceTabViewStates.SelectMany(static state => state.ComparisonRows).ToArray());
+        var rows=this.sourceTabViewStates
+            .SelectMany(state => this.BuildMeasuredRunComparisonRows(state.Definition))
+            .ToArray();
+        var summary = BenchmarkImprovementPromptBuilder.CreateSummary(rows);
         this.OverallBenchmarkRatioSummaryText=summary.OverallDisplayText;
         if(this.overallBenchmarkRatioSummaryShortText!=summary.ShortDisplayText){
             this.overallBenchmarkRatioSummaryShortText=summary.ShortDisplayText;

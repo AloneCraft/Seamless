@@ -529,7 +529,9 @@ internal sealed class BenchmarkUiRunRepository{
             side.MeanNanoseconds,
             side.AllocatedBytes,
             side.ResultItem.LoopCount,
-            side.ResultItem.TotalNanoseconds);
+            side.ResultItem.TotalNanoseconds,
+            side.ResultItem.MeasuredInRun,
+            side.Status==UiRunStatus.Completed ? "Completed" : side.Status.ToString());
 
     private static UiBenchmarkSnapshotCaseWrite? CreateCaseWrite(BenchmarkCase? benchmark) {
         if(benchmark is null){
@@ -605,6 +607,7 @@ internal sealed class BenchmarkUiRunRepository{
             Arguments=benchmark?.Arguments??[],
             AssignedLogicalCpu=item.CpuNumber,
             TotalNanoseconds=side.TotalNanoseconds,
+            MeasuredInRun=side.MeasuredInRun,
         });
     }
 

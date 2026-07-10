@@ -144,12 +144,96 @@ internal sealed class BenchmarkOrchestrator(
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
         if(BenchmarkWorkloadAxis.UsesLoopCount(row.SourceTab)) {
-            await this.RunLoopCountRowAsync(state,row,logicalCpu,request,progress,statusChanged,cancellationToken);
+            await this.RunLeftCalibratedLoopCountRowAsync(state,row,logicalCpu,request,progress,statusChanged,cancellationToken);
             return;
         }
 
         await this.RunScalableRowAsync(state,row,logicalCpu,request,progress,statusChanged,cancellationToken);
     }
+
+    private async Task RunLeftCalibratedLoopCountRowAsync(
+        ProgressState state,
+        AdaptiveMethodRow row,
+        int logicalCpu,
+        BenchmarkRunRequest request,
+        Action<BenchmarkProgressUpdate> progress,
+        Action<string> statusChanged,
+        CancellationToken cancellationToken){
+        if(row.Cases.Count==0){
+            return;
+        }
+
+        var warmedUpCases=new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+        var calibrationCase=row.Cases[0];
+        var synchronizedCases=row.Cases.Skip(1).ToArray();
+        foreach(var loopCount in EnumerateAdaptiveLoopCounts(state)){
+            cancellationToken.ThrowIfCancellationRequested();
+            var calibrationJob=this.GetExistingAdaptiveJobs(state,[calibrationCase],loopCount).FirstOrDefault();
+            if(calibrationJob is { Status:JobStatus.Failed }){
+                return;
+            }
+
+            if(!IsCalibrationCompleted(calibrationJob,state.AdaptiveThresholdNanoseconds)){
+                calibrationJob=this.GetOrCreateAdaptiveJobs(state,[calibrationCase],loopCount).Single();
+                if(calibrationJob.Status==JobStatus.Pending){
+                    var warmupFailure=await this.RunWarmupIfNeededAsync(state,calibrationCase,row.SourceTab,logicalCpu,request,warmedUpCases,statusChanged,cancellationToken);
+                    if(warmupFailure is not null){
+                        this.MarkWarmupFailure(state,calibrationCase,loopCount,logicalCpu,warmupFailure,progress);
+                        return;
+                    }
+
+                    statusChanged($"Measuring {calibrationJob.MethodName} {CreateAxisStatusText(calibrationJob)}: {calibrationJob.Project} / CPU {logicalCpu}");
+                    await this.RunJobAsync(state,calibrationJob,logicalCpu,request.JobTimeout,progress,cancellationToken);
+                }
+
+                if(calibrationJob.Status!=JobStatus.Completed){
+                    return;
+                }
+                if(!IsCalibrationCompleted(calibrationJob,state.AdaptiveThresholdNanoseconds)){
+                    if(loopCount==int.MaxValue){
+                        this.MarkTargetDurationUnreachable(state,[calibrationJob],progress);
+                        return;
+                    }
+                    continue;
+                }
+            }
+
+            foreach(var benchmark in synchronizedCases){
+                var job=this.GetOrCreateAdaptiveJobs(state,[benchmark],loopCount).Single();
+                if(job.Status==JobStatus.Failed){
+                    return;
+                }
+                if(job.Status==JobStatus.Completed){
+                    continue;
+                }
+
+                var warmupFailure=await this.RunWarmupIfNeededAsync(state,benchmark,row.SourceTab,logicalCpu,request,warmedUpCases,statusChanged,cancellationToken);
+                if(warmupFailure is not null){
+                    this.MarkWarmupFailure(state,benchmark,loopCount,logicalCpu,warmupFailure,progress);
+                    return;
+                }
+
+                statusChanged($"Measuring {job.MethodName} {CreateAxisStatusText(job)}: {job.Project} / CPU {logicalCpu}");
+                await this.RunJobAsync(state,job,logicalCpu,request.JobTimeout,progress,cancellationToken);
+                if(job.Status!=JobStatus.Completed){
+                    return;
+                }
+            }
+            return;
+        }
+    }
+
+    private async Task<string?> RunWarmupIfNeededAsync(ProgressState state,BenchmarkCase benchmark,BenchmarkSourceTab sourceTab,int logicalCpu,BenchmarkRunRequest request,global::System.Collections.Generic.HashSet<string>warmedUpCases,Action<string>statusChanged,CancellationToken cancellationToken){
+        if(!ShouldRunWarmup(request.ExecutionProfile)||!warmedUpCases.Add(CreateBenchmarkKey(benchmark))){
+            return null;
+        }
+
+        var failure=await this.RunWarmupCaseAsync(state,benchmark,sourceTab,logicalCpu,request,statusChanged,cancellationToken);
+        return failure?.FailureReason;
+    }
+
+    private static bool IsCalibrationCompleted(BenchmarkJob? job,double thresholdNanoseconds) =>
+        job is { Status:JobStatus.Completed,MeanNanoseconds:{ } total }&&total>=thresholdNanoseconds;
 
     private async Task RunLoopCountRowAsync(
         ProgressState state,
@@ -159,7 +243,7 @@ internal sealed class BenchmarkOrchestrator(
         Action<BenchmarkProgressUpdate> progress,
         Action<string> statusChanged,
         CancellationToken cancellationToken) {
-        var warmedUpCases = new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+        var warmedUpCases=new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
         foreach(var loopCount in EnumerateAdaptiveLoopCounts(state)) {
             cancellationToken.ThrowIfCancellationRequested();
             if(this.HasFailedRowCase(state,row)) {

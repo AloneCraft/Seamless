@@ -108,7 +108,9 @@ public sealed record UiBenchmarkGridSideWrite(
     double? MeanNanoseconds,
     long? AllocatedBytes,
     int? LoopCount = null,
-    double? TotalNanoseconds = null);
+    double? TotalNanoseconds = null,
+    bool MeasuredInRun = false,
+    string MeasurementStage = "");
 
 public sealed record UiBenchmarkSnapshotCaseWrite(
     string AssemblyName,
@@ -135,7 +137,9 @@ public sealed record UiBenchmarkGridSideRecord(
     double? MeanNanoseconds,
     long? AllocatedBytes,
     int? LoopCount = null,
-    double? TotalNanoseconds = null);
+    double? TotalNanoseconds = null,
+    bool MeasuredInRun = false,
+    string MeasurementStage = "");
 
 public sealed record UiBenchmarkSnapshotItemRecord(
     long RunId,

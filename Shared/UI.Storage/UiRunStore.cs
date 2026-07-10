@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 namespace Seamless.UI.Storage;
 
 public sealed class UiRunStore{
-    private const int SchemaVersion = 15;
+    private const int SchemaVersion = 16;
     private readonly string databasePath;
     private readonly object schemaGate = new();
     private bool schemaEnsured;
@@ -282,6 +282,8 @@ public sealed class UiRunStore{
                 "Side" TEXT NOT NULL,
                 "LoopCount" INTEGER NULL,
                 "TotalNanoseconds" REAL NULL,
+                "MeasuredInRun" INTEGER NOT NULL,
+                "MeasurementStage" TEXT NOT NULL,
                 PRIMARY KEY("RunId","TabName","TypeName","BenchmarkName","Side")
             );
             """);
@@ -921,8 +923,8 @@ public sealed class UiRunStore{
         command.Parameters.Clear();
         command.CommandText="""
             INSERT INTO "BenchmarkSnapshotMeasurement"(
-                "RunId","TabName","TypeName","BenchmarkName","Side","LoopCount","TotalNanoseconds")
-            VALUES($runId,$tabName,$typeName,$benchmarkName,$side,$loopCount,$totalNanoseconds);
+                "RunId","TabName","TypeName","BenchmarkName","Side","LoopCount","TotalNanoseconds","MeasuredInRun","MeasurementStage")
+            VALUES($runId,$tabName,$typeName,$benchmarkName,$side,$loopCount,$totalNanoseconds,$measuredInRun,$measurementStage);
             """;
         command.Parameters.AddWithValue("$runId",runId);
         command.Parameters.AddWithValue("$tabName",item.TabName);
@@ -931,13 +933,15 @@ public sealed class UiRunStore{
         command.Parameters.AddWithValue("$side",side);
         command.Parameters.AddWithValue("$loopCount",ToDbValue(measurement.LoopCount));
         command.Parameters.AddWithValue("$totalNanoseconds",ToDbValue(measurement.TotalNanoseconds));
+        command.Parameters.AddWithValue("$measuredInRun",measurement.MeasuredInRun ? 1 : 0);
+        command.Parameters.AddWithValue("$measurementStage",measurement.MeasurementStage);
         command.ExecuteNonQuery();
     }
 
     private static Dictionary<(string TabName,string TypeName,string BenchmarkName,string Side),SnapshotMeasurement> ListSnapshotMeasurements(SqliteConnection connection,long runId) {
         using var command=connection.CreateCommand();
         command.CommandText="""
-            SELECT "TabName","TypeName","BenchmarkName","Side","LoopCount","TotalNanoseconds"
+            SELECT "TabName","TypeName","BenchmarkName","Side","LoopCount","TotalNanoseconds","MeasuredInRun","MeasurementStage"
             FROM "BenchmarkSnapshotMeasurement"
             WHERE "RunId"=$runId;
             """;
@@ -947,7 +951,9 @@ public sealed class UiRunStore{
         while(reader.Read()) {
             values[(reader.GetString(0),reader.GetString(1),reader.GetString(2),reader.GetString(3))]=new(
                 reader.IsDBNull(4) ? null : reader.GetInt32(4),
-                reader.IsDBNull(5) ? null : reader.GetDouble(5));
+                reader.IsDBNull(5) ? null : reader.GetDouble(5),
+                !reader.IsDBNull(6)&&reader.GetInt32(6)!=0,
+                reader.IsDBNull(7) ? string.Empty : reader.GetString(7));
         }
         return values;
     }
@@ -955,7 +961,7 @@ public sealed class UiRunStore{
     private static UiBenchmarkGridSideRecord ApplySnapshotMeasurement(UiBenchmarkGridSideRecord side,SnapshotMeasurement? measurement) =>
         measurement is null
             ? side
-            : side with { LoopCount=measurement.LoopCount, TotalNanoseconds=measurement.TotalNanoseconds };
+            : side with { LoopCount=measurement.LoopCount, TotalNanoseconds=measurement.TotalNanoseconds, MeasuredInRun=measurement.MeasuredInRun, MeasurementStage=measurement.MeasurementStage };
 
     private static bool HasRequiredSchemaTables(SqliteConnection connection){
         using var command=connection.CreateCommand();
@@ -964,7 +970,13 @@ public sealed class UiRunStore{
             FROM sqlite_master
             WHERE type='table' AND name IN('実行','ベンチマーク項目','診断カウンター','BenchmarkSnapshotCaseIdentity','BenchmarkSnapshotMeasurement');
             """;
-        return (long)(command.ExecuteScalar()??0L)==5L;
+        if((long)(command.ExecuteScalar()??0L)!=5L){
+            return false;
+        }
+
+        using var measurementCommand=connection.CreateCommand();
+        measurementCommand.CommandText="SELECT COUNT(*) FROM pragma_table_info('BenchmarkSnapshotMeasurement') WHERE name IN('MeasuredInRun','MeasurementStage');";
+        return (long)(measurementCommand.ExecuteScalar()??0L)==2L;
     }
 
     private static UiBenchmarkGridSideRecord ReadSide(SqliteDataReader reader,int offset){
@@ -979,7 +991,7 @@ public sealed class UiRunStore{
             reader.IsDBNull(offset+4) ? null : reader.GetInt64(offset+4));
     }
 
-    private sealed record SnapshotMeasurement(int? LoopCount,double? TotalNanoseconds);
+    private sealed record SnapshotMeasurement(int? LoopCount,double? TotalNanoseconds,bool MeasuredInRun,string MeasurementStage);
 
     private static long CreateLegacyRecordId(long runId,string sourceTabId,string typeFullName,string method,string side){
         var hash = new HashCode();

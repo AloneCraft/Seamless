@@ -508,6 +508,8 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     private BenchmarkProjectLiveState liveState;
     private DateTimeOffset? lastMeasuredAt;
     private int? lastSuccessfulElementCount;
+    private int? lastLoopCount;
+    private double? lastTotalNanoseconds;
     private int? lastFailedElementCount;
     private DateTimeOffset? lastFailedAt;
     private BenchmarkMeasurementHighlightState measurementHighlightState;
@@ -531,6 +533,9 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     public ProjectMetrics Metrics => this.metrics;
     public DateTimeOffset? LastMeasuredAt => this.lastMeasuredAt;
     public int? LastSuccessfulElementCount => this.lastSuccessfulElementCount;
+    public int? LastLoopCount => this.lastLoopCount;
+    public double? LastTotalNanoseconds => this.lastTotalNanoseconds;
+    public string TimeTooltipText => CreateTimeTooltip(this.TimeText,this.lastTotalNanoseconds,this.lastLoopCount);
     public int? LastFailedElementCount => this.lastFailedElementCount;
     public DateTimeOffset? LastFailedAt => this.lastFailedAt;
     public BenchmarkMeasurementHighlightState MeasurementHighlightState => this.measurementHighlightState;
@@ -778,6 +783,9 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             if(result.ElementCount>0){
                 this.ElementCountText=FormatElementCount(result.ElementCount);
             }
+            this.lastLoopCount=result.LoopCount;
+            this.OnPropertyChanged(nameof(this.LastLoopCount));
+            this.OnPropertyChanged(nameof(this.TimeTooltipText));
             this.ExecutionText=FormatTimestamp(BenchmarkRunTimestampDisplayLogic.ResolveRunningTimestamp(result.StartedAt,completedAt));
             this.RefreshExecutionTooltipText();
             this.ApplyCpuDisplay(cpu);
@@ -810,6 +818,11 @@ public sealed class BenchmarkProjectCell:ObservableObject{
                 result.ElementCount,
                 completedAt,
                 highlightCompleted ? BenchmarkMeasurementHighlightState.Fresh : BenchmarkMeasurementHighlightState.None);
+            this.lastLoopCount=result.LoopCount;
+            this.lastTotalNanoseconds=result.TotalNanoseconds;
+            this.OnPropertyChanged(nameof(this.LastLoopCount));
+            this.OnPropertyChanged(nameof(this.LastTotalNanoseconds));
+            this.OnPropertyChanged(nameof(this.TimeTooltipText));
             this.ClearFailureDisplay();
         }else if(isCompleted){
             // Completed でも測定値がない場合は、待機に戻さず「測定値なし」として終端表示する。
@@ -854,12 +867,17 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             this.isFailed=false;
             this.isCompletedWithoutMeasurement=false;
             this.lastSuccessfulElementCount=result.ElementCount>0 ? result.ElementCount : null;
+            this.lastLoopCount=result.LoopCount;
+            this.lastTotalNanoseconds=result.TotalNanoseconds;
+            this.OnPropertyChanged(nameof(this.LastLoopCount));
+            this.OnPropertyChanged(nameof(this.LastTotalNanoseconds));
             this.lastMeasuredAt=measuredAt;
             this.TimeText=FormatTime(this.metrics);
             this.AllocatedText=FormatAllocated(this.metrics);
             this.ElementCountText=result.ElementCount>0 ? FormatElementCount(result.ElementCount) : string.Empty;
             this.ExecutionText=measuredAt is { } completedAt ? FormatTimestamp(completedAt) : string.Empty;
             this.ClearFailureDisplay();
+            this.OnPropertyChanged(nameof(this.TimeTooltipText));
         }else if(isCompleted){
             this.metrics=ProjectMetrics.Missing;
             this.isFailed=false;
@@ -954,6 +972,11 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.isFailed=false;
         this.isCompletedWithoutMeasurement=false;
         this.lastSuccessfulElementCount=null;
+        this.lastLoopCount=null;
+        this.lastTotalNanoseconds=null;
+        this.OnPropertyChanged(nameof(this.LastLoopCount));
+        this.OnPropertyChanged(nameof(this.LastTotalNanoseconds));
+        this.OnPropertyChanged(nameof(this.TimeTooltipText));
         this.lastMeasuredAt=null;
         this.lastFailedElementCount=null;
         this.lastFailedAt=null;
@@ -1082,6 +1105,21 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         return metrics.HasMeasuredValue&&metrics.TimeNanoseconds is { } value
             ? BenchmarkFormatting.FormatNanoseconds(value)
             : string.Empty;
+    }
+
+    private static string CreateTimeTooltip(string perOperationText,double? totalNanoseconds,int? loopCount){
+        if(string.IsNullOrWhiteSpace(perOperationText)){
+            return string.Empty;
+        }
+
+        var values=new List<string>{"1回あたり: "+perOperationText};
+        if(totalNanoseconds is { } total){
+            values.Add("最終バッチ合計: "+BenchmarkFormatting.FormatNanoseconds(total));
+        }
+        if(loopCount is { } loop&&loop>0){
+            values.Add("LoopCount: "+loop.ToString(CultureInfo.InvariantCulture));
+        }
+        return string.Join(Environment.NewLine,values);
     }
 
     private void ApplyCpuDisplay(CpuSelectionItem? cpu,bool preserveWhenNull = false){
@@ -1238,6 +1276,21 @@ public sealed class BenchmarkTableRow:ObservableObject{
         get => this.benchmarkMethodText;
         private set => this.SetProperty(ref this.benchmarkMethodText,value);
     }
+
+    private static string CreateTimeTooltip(string perOperationText,double? totalNanoseconds,int? loopCount){
+        if(string.IsNullOrWhiteSpace(perOperationText)){
+            return string.Empty;
+        }
+
+        var values=new List<string>{"1回あたり: "+perOperationText};
+        if(totalNanoseconds is { } total){
+            values.Add("最終バッチ合計: "+BenchmarkFormatting.FormatNanoseconds(total));
+        }
+        if(loopCount is { } loop&&loop>0){
+            values.Add("LoopCount: "+loop.ToString(CultureInfo.InvariantCulture));
+        }
+        return string.Join(Environment.NewLine,values);
+    }
     public TextDecorations BenchmarkIdentityTextDecorations =>
         this.ProjectCells.Any(static cell => cell.HasCase)
             ? TextDecorations.None
@@ -1269,6 +1322,23 @@ public sealed class BenchmarkTableRow:ObservableObject{
     public string CpuTooltipText => this.HasCpuDisplay
         ? (string.IsNullOrWhiteSpace(this.CoreKindLabel) ? "CPU" : this.CoreKindLabel)+" / CPU "+this.LogicalProcessorText
         : string.Empty;
+    public string LoopCountText{
+        get{
+            var left=this.LeftCell.LastLoopCount;
+            var right=this.RightCell.LastLoopCount;
+            if(left is { } leftValue&&right is { } rightValue&&leftValue==rightValue){
+                return leftValue.ToString(CultureInfo.InvariantCulture);
+            }
+            if(left is { } leftOnly){
+                return leftOnly.ToString(CultureInfo.InvariantCulture);
+            }
+            if(right is { } rightOnly){
+                return rightOnly.ToString(CultureInfo.InvariantCulture);
+            }
+            return string.Empty;
+        }
+    }
+    public string LoopCountTooltipText => string.IsNullOrWhiteSpace(this.LoopCountText) ? string.Empty : "左右共通の最終LoopCount: "+this.LoopCountText;
     public double? LogicalCpuSortValue{
         get => this.logicalCpuSortValue;
         private set => this.SetProperty(ref this.logicalCpuSortValue,value);
@@ -1441,6 +1511,10 @@ public sealed class BenchmarkTableRow:ObservableObject{
     private void OnCellPropertyChanged(object? sender,PropertyChangedEventArgs args){
         if(args.PropertyName==nameof(BenchmarkProjectCell.ElementCountText)){
             this.OnPropertyChanged(nameof(this.StopNText));
+        }
+        if(args.PropertyName==nameof(BenchmarkProjectCell.LastLoopCount)){
+            this.OnPropertyChanged(nameof(this.LoopCountText));
+            this.OnPropertyChanged(nameof(this.LoopCountTooltipText));
         }
     }
 

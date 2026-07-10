@@ -22,6 +22,7 @@ public sealed partial class MainPage:ContentPage {
     private const double BenchmarkTypeColumnWidth = 96;
     private const double BenchmarkNameColumnWidth = 320;
     private const double BenchmarkCpuColumnWidth = 58;
+    private const double BenchmarkLoopColumnWidth = 88;
     private const double BenchmarkArgumentColumnWidth = 72;
     private const double BenchmarkCountArgumentColumnWidth = 78;
     private const double BenchmarkMemoryArgumentColumnWidth = 96;
@@ -2261,8 +2262,10 @@ public sealed partial class MainPage:ContentPage {
         grid.Columns.Add(this.CreateTextColumn("ベンチマーク",nameof(BenchmarkTableRow.BenchmarkMethodText),BenchmarkGridSortColumn.BenchmarkMethod,BenchmarkNameColumnWidth,TextAlignment.End));
         var cpuMapping = nameof(BenchmarkTableRow.LogicalProcessorText);
         grid.Columns.Add(this.CreateCpuColumn(cpuMapping));
+        var loopMapping=nameof(BenchmarkTableRow.LoopCountText);
+        grid.Columns.Add(this.CreateTextColumn("Loop",loopMapping,BenchmarkGridSortColumn.LogicalCpu,BenchmarkLoopColumnWidth,TextAlignment.End));
         var argumentMappings = this.AddArgumentColumns(grid,sourceTab);
-        this.AddBenchmarkBaseStackedHeaders(projectHeaderRow,cpuMapping,argumentMappings);
+        this.AddBenchmarkBaseStackedHeaders(projectHeaderRow,cpuMapping,loopMapping,argumentMappings);
         var leftMappings = this.AddProjectColumns(grid,"Left",nameof(BenchmarkTableRow.LeftCell),BenchmarkGridSortColumn.LeftTime,BenchmarkGridSortColumn.LeftAllocated);
         var timeRatioMapping = nameof(BenchmarkTableRow.PairRatioTimeText);
         var allocatedRatioMapping = nameof(BenchmarkTableRow.PairRatioAllocatedText);
@@ -2320,6 +2323,7 @@ public sealed partial class MainPage:ContentPage {
             nameof(BenchmarkTableRow.BenchmarkName) => row.BenchmarkName,
             nameof(BenchmarkTableRow.BenchmarkTypeText) => row.BenchmarkTypeText,
             nameof(BenchmarkTableRow.BenchmarkMethodText) => row.BenchmarkMethodText,
+            nameof(BenchmarkTableRow.LoopCountText) => row.LoopCountText,
             nameof(BenchmarkTableRow.CountArgument) => row.CountArgument,
             nameof(BenchmarkTableRow.IndexArgument) => row.IndexArgument,
             nameof(BenchmarkTableRow.PageArgument) => row.PageArgument,
@@ -2396,12 +2400,14 @@ public sealed partial class MainPage:ContentPage {
     private void AddBenchmarkBaseStackedHeaders(
         DataGridStackedHeaderRow projectHeaderRow,
         string cpuMapping,
+        string loopMapping,
         IReadOnlyList<string> argumentMappings) {
         var baseMappings = new List<string> {
             nameof(BenchmarkTableRow.IsSelectionChecked),
             nameof(BenchmarkTableRow.BenchmarkTypeText),
             nameof(BenchmarkTableRow.BenchmarkMethodText),
             cpuMapping,
+            loopMapping,
         };
         baseMappings.AddRange(argumentMappings);
         projectHeaderRow.Columns.Add(new DataGridStackedColumn {
@@ -2880,8 +2886,11 @@ public sealed partial class MainPage:ContentPage {
                 label.SetBinding(Label.TextProperty,bindingPath);
                 label.SetBinding(Label.TextColorProperty,cellPath+"."+nameof(BenchmarkProjectCell.MetricTextColor));
                 label.SetBinding(Label.FontAttributesProperty,cellPath+"."+nameof(BenchmarkProjectCell.MetricFontAttributes));
-                label.SetBinding(ToolTipProperties.TextProperty,bindingPath);
-                grid.SetBinding(ToolTipProperties.TextProperty,bindingPath);
+                var tooltipPath=bindingPath.EndsWith(nameof(BenchmarkProjectCell.TimeText),StringComparison.Ordinal)
+                    ? cellPath+"."+nameof(BenchmarkProjectCell.TimeTooltipText)
+                    : bindingPath;
+                label.SetBinding(ToolTipProperties.TextProperty,tooltipPath);
+                grid.SetBinding(ToolTipProperties.TextProperty,tooltipPath);
                 grid.Add(runningBackground,0,0);
                 Grid.SetColumnSpan(runningBackground,3);
                 Grid.SetRowSpan(runningBackground,3);

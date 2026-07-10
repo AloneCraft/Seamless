@@ -2,77 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c7260d12-37ac-443f-b541-40f8091022ae" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/Document/UI/BenchmarkMeasurementSpecification.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerModels.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerModels.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerServices.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerServices.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/InProcessJobRunner.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/InProcessJobRunner.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/MainPage.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/MainPage.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/ViewModels/RunnerViewModel.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/ViewModels/RunnerViewModel.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Benchmark/Worker/Program.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Worker/Program.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Document/Code/Internal/BenchmarkRunnerInternalDesign.md" beforeDir="false" afterPath="$PROJECT_DIR$/Document/Code/Internal/BenchmarkRunnerInternalDesign.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Document/UI/UiStorageSpecification.md" beforeDir="false" afterPath="$PROJECT_DIR$/Document/UI/UiStorageSpecification.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Bases/BufferedScalar.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Bases/BufferedScalar.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Bases/JoinBase.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Bases/JoinBase.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Bases/MinMaxBase.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Bases/MinMaxBase.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Chunk.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Chunk.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Contains.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Contains.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Count.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Count.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/ElementAt.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/ElementAt.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/ElementAtOrDefault.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/ElementAtOrDefault.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Enumerable.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Enumerable.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/FirstOrDefault.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/FirstOrDefault.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/GroupJoin.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/GroupJoin.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Join.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Join.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/LastOrDefault.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/LastOrDefault.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/LeftJoin.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/LeftJoin.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/OfType.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/OfType.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Pipeline.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Pipeline.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Reverse.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Reverse.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/RightJoin.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/RightJoin.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Root.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Root.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Scalar.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Scalar.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/SequenceEqual.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/SequenceEqual.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/SetBases.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/SetBases.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/SingleOrDefault.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/SingleOrDefault.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/SkipWhile.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/SkipWhile.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/TakeWhile.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/TakeWhile.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/ToArray.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/ToArray.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/ToDictionary.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/ToDictionary.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/ToHashSet.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/ToHashSet.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/ToList.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/ToList.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/TraversalSupport.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/TraversalSupport.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Zip.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Zip.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/LinqFragmentBuilder.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/LinqFragmentBuilder.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/LinqGeneratedCodeRendering.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/LinqGeneratedCodeRendering.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/LinqMethodBodyRewriter.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/LinqMethodBodyRewriter.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/LinqTargetDiscovery.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/LinqTargetDiscovery.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.Linq/Linq/LinqCounter.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.Linq/Linq/LinqCounter.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.Linq/System/Carrier/ToLookup.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.Linq/System/Carrier/ToLookup.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/Common/TestInfrastructure/Base.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/Common/TestInfrastructure/Base.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/Seamless.Linq.Enumerable/Methods1.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/Seamless.Linq.Enumerable/Methods1.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkOrchestrationModels.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkOrchestrationModels.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkOrchestrator.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkOrchestrator.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkResultItem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkResultItem.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkRunSession.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkRunSession.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkUiLogic.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkUiLogic.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkUiRunRepository.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkUiRunRepository.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkWorkloadAxis.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkWorkloadAxis.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/UI.Storage/UiRunModels.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Storage/UiRunModels.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Shared/UI.Storage/UiRunStore.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Storage/UiRunStore.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test/Benchmark/BenchmarkResultItem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkResultItem.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test/Benchmark/BenchmarkRowCompletionLogic.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkRowCompletionLogic.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test/Benchmark/BenchmarkRunProjectionService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkRunProjectionService.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test/Benchmark/BenchmarkRunSession.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkRunSession.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test/Benchmark/BenchmarkTabProgressLogic.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkTabProgressLogic.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test/Benchmark/BenchmarkUiRunRepository.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkUiRunRepository.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test/Benchmark/Pattern.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/Pattern.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test/Benchmark/UiRunStore.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/UiRunStore.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test/BenchmarkWorker/BenchmarkOrchestrator.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/BenchmarkWorker/BenchmarkOrchestrator.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test/BenchmarkWorker/BenchmarkStatusImageLogic.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/BenchmarkWorker/BenchmarkStatusImageLogic.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test/SourceGenerator/FragmentIndentationTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/SourceGenerator/FragmentIndentationTests.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test/SourceGenerator/LinqRewriteAttributeTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/SourceGenerator/LinqRewriteAttributeTests.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test/Test.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Test.csproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Document/Document.csproj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/AlgebraicRewriter.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/AlgebraicRewriter.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.slnx" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.slnx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/UI.md" beforeDir="false" afterPath="$PROJECT_DIR$/UI.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Work/UI/runs.db" beforeDir="false" afterPath="$PROJECT_DIR$/Work/UI/runs.db" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
