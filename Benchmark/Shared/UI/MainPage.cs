@@ -1,4 +1,5 @@
 using Syncfusion.Maui.Buttons;
+using Syncfusion.Maui.Core.Internals;
 using Syncfusion.Maui.DataGrid;
 using Syncfusion.Maui.Toolkit.Charts;
 using Syncfusion.Maui.Toolkit.TabView;
@@ -109,6 +110,7 @@ public sealed partial class MainPage:ContentPage {
     private readonly Dictionary<BenchmarkToolbarButtonRole,VisualElement> toolbarButtons = [];
     private readonly List<SfDataGrid> dataGridUpdateBatchTargets = [];
     private readonly HashSet<SfDataGrid> dataGridUpdateBatchStartedTargets = [];
+    private readonly HashSet<SfDataGrid> selectionSuppressedGrids = [];
     private readonly Dictionary<BenchmarkSourceTab,SfDataGrid> benchmarkGridsBySourceTab = [];
     private SfDataGrid? benchmarkGrid;
     private SfTabView? sourceTabView;
@@ -118,11 +120,6 @@ public sealed partial class MainPage:ContentPage {
     private bool isApplyingSourceTabViewSelection;
     private bool isDataGridUpdateBatchSubscribed;
     private BenchmarkSortRule? draggedBenchmarkSortRule;
-
-#if WINDOWS
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    private static extern short GetKeyState(int virtualKey);
-#endif
 
     public MainPage(RunnerViewModel viewModel) {
         try {
@@ -2222,6 +2219,7 @@ public sealed partial class MainPage:ContentPage {
             SelectionUnit=DataGridSelectionUnit.Row,
             NavigationMode=DataGridNavigationMode.Row,
             AllowKeyboardNavigation=true,
+            AllowSelectionOnPress=true,
             HorizontalScrollBarVisibility=ScrollBarVisibility.Always,
             VerticalScrollBarVisibility=ScrollBarVisibility.Always,
             GridLinesVisibility=GridLinesVisibility.Both,
@@ -2238,21 +2236,19 @@ public sealed partial class MainPage:ContentPage {
             SfDataGrid.AutomationId="Benchmark.Grid";
             this.benchmarkGrid=SfDataGrid;
         }
-        var selectionController=new BenchmarkRowSelectionController(
+        var selectionController=new BenchmarkCheckSelectionController(
             SfDataGrid,
             rows => this.viewModel?.ToggleBenchmarkRows(rows),
             (addedRows,removedRows) => this.SynchronizeBenchmarkGridSelection(state,addedRows,removedRows),
-            () => state?.Rows??[],
-            CreateBenchmarkSelectionGesture);
+            () => state?.Rows??[]);
         SfDataGrid.SelectionController=selectionController;
+        SfDataGrid.SelectionChanging+=(_,args) => {
+            if(this.selectionSuppressedGrids.Contains(SfDataGrid)){
+                args.Cancel=true;
+            }
+        };
         SfDataGrid.SelectionChanged+=(_,args) => {
             selectionController.HandleSelectionChanged(args);
-        };
-        SfDataGrid.CellTapped+=(_,args) => {
-            SfDataGrid.GetVisualContainer()?.Focus();
-            if(args.RowData is BenchmarkTableRow row){
-                selectionController.CompletePointerSelection(row);
-            }
         };
         AutomationProperties.SetIsInAccessibleTree(SfDataGrid,true);
         SfDataGrid.QueryRowHeight+=(_,args) => {
@@ -2270,7 +2266,7 @@ public sealed partial class MainPage:ContentPage {
         }else{
             SfDataGrid.SetBinding(SfDataGrid.ItemsSourceProperty,nameof(RunnerViewModel.BenchmarkRows));
         }
-        this.ConfigureDataGridLines(SfDataGrid);
+        this.ConfigureDataGridLines(SfDataGrid,showRowFocus:true);
         this.ConfigureDataGridScrollBars(SfDataGrid);
 
         var sourceTab = state?.Definition??this.viewModel?.SelectedSourceDefinition??BenchmarkSourceTabs.Default;
@@ -2305,22 +2301,19 @@ public sealed partial class MainPage:ContentPage {
             return;
         }
 
-        if(grid.SelectionController is BenchmarkRowSelectionController selectionController) {
-            selectionController.SelectAll(state.Rows);
-        }
+        grid.SelectAll();
     }
 
     private void SelectBenchmarkGridRow(
         BenchmarkSourceTabViewState state,
-        BenchmarkTableRow row,
-        BenchmarkCellSelectionGesture gesture) {
+        BenchmarkTableRow row) {
         if(!this.benchmarkGridsBySourceTab.TryGetValue(state.Definition.Tab,out var grid)
-            ||grid.SelectionController is not BenchmarkRowSelectionController selectionController) {
+            ||grid.SelectionController is not BenchmarkCheckSelectionController selectionController) {
             return;
         }
 
         grid.GetVisualContainer()?.Focus();
-        selectionController.SelectRow(row,gesture);
+        selectionController.SelectSingle(row);
     }
 
     private void RebuildBenchmarkGridColumns(SfDataGrid grid,BenchmarkSourceTabDefinition sourceTab) {
@@ -2329,7 +2322,7 @@ public sealed partial class MainPage:ContentPage {
         var projectHeaderRow = new DataGridStackedHeaderRow();
         grid.StackedHeaderRows.Add(projectHeaderRow);
 
-        grid.Columns.Add(this.CreateCheckColumn(sourceTab));
+        grid.Columns.Add(this.CreateCheckColumn(grid,sourceTab));
         grid.Columns.Add(this.CreateTextColumn("型",nameof(BenchmarkTableRow.BenchmarkTypeText),BenchmarkGridSortColumn.BenchmarkType,ベンチマーク_型,TextAlignment.End));
         grid.Columns.Add(this.CreateTextColumn("ベンチマーク",nameof(BenchmarkTableRow.BenchmarkMethodText),BenchmarkGridSortColumn.BenchmarkMethod,ベンチマーク_ベンチマーク,TextAlignment.End));
         var cpuMapping = nameof(BenchmarkTableRow.LogicalProcessorText);
@@ -2416,7 +2409,7 @@ public sealed partial class MainPage:ContentPage {
             _ => string.Empty,
         };
 
-    private DataGridTemplateColumn CreateCheckColumn(BenchmarkSourceTabDefinition sourceTab) {
+    private DataGridTemplateColumn CreateCheckColumn(SfDataGrid grid,BenchmarkSourceTabDefinition sourceTab) {
         return new DataGridTemplateColumn {
             MappingName=nameof(BenchmarkTableRow.IsSelectionChecked),
             HeaderText="",
@@ -2449,6 +2442,7 @@ public sealed partial class MainPage:ContentPage {
                     }
                 };
                 checkHost.GestureRecognizers.Add(checkTap);
+                this.SuppressSelectionWhileChecking(checkHost,grid);
                 layout.Add(checkHost,0,0);
                 return layout;
             }),
@@ -2526,22 +2520,6 @@ public sealed partial class MainPage:ContentPage {
             nameof(BenchmarkTableRow.RightCell) => "Right",
             _ => cellPath,
         };
-    }
-
-    private static BenchmarkCellSelectionGesture CreateBenchmarkSelectionGesture() {
-        var isShiftPressed = false;
-        var isControlPressed = false;
-#if WINDOWS
-        isShiftPressed=(GetKeyState(0x10)&0x8000)!=0;
-        isControlPressed=(GetKeyState(0x11)&0x8000)!=0;
-#endif
-        return isShiftPressed
-            ? isControlPressed
-                ? BenchmarkCellSelectionGesture.ExtendToggle
-                : BenchmarkCellSelectionGesture.Extend
-            : isControlPressed
-                ? BenchmarkCellSelectionGesture.Toggle
-                : BenchmarkCellSelectionGesture.Replace;
     }
 
     private DataGridTemplateColumn CreateCpuColumn(string mappingName) {
@@ -2918,6 +2896,14 @@ public sealed partial class MainPage:ContentPage {
                 return grid;
             }),
         };
+    }
+
+    private void SuppressSelectionWhileChecking(View checkHost,SfDataGrid grid){
+        var pointer=new PointerGestureRecognizer();
+        pointer.PointerPressed+=(_,_) => this.selectionSuppressedGrids.Add(grid);
+        pointer.PointerReleased+=(_,_) => this.selectionSuppressedGrids.Remove(grid);
+        pointer.PointerExited+=(_,_) => this.selectionSuppressedGrids.Remove(grid);
+        checkHost.GestureRecognizers.Add(pointer);
     }
 
     private DataGridTemplateColumn CreateTextColumn(string header,string property,BenchmarkGridSortColumn sortColumn,double width,TextAlignment alignment,Color? backgroundColor = null) {
@@ -3491,11 +3477,16 @@ public sealed partial class MainPage:ContentPage {
             HeaderRowHeight=CpuGridHeaderRowHeight,
             AllowTriStateSorting=false,
             SortingMode=DataGridSortingMode.None,
+            SelectionMode=DataGridSelectionMode.Extended,
+            SelectionUnit=DataGridSelectionUnit.Cell,
+            NavigationMode=DataGridNavigationMode.Cell,
+            AllowKeyboardNavigation=true,
+            AllowSelectionOnPress=true,
             GridLinesVisibility=GridLinesVisibility.Both,
             DefaultColumnWidth=56,
         };
         this.RegisterDataGridUpdateBatchTarget(CPUGrid);
-        this.ConfigureDataGridLines(CPUGrid);
+        this.ConfigureDataGridLines(CPUGrid,showCellFocus:true);
         var sectionLayout = new VerticalStackLayout {
             Spacing=3,
             Children= {
@@ -3510,6 +3501,10 @@ public sealed partial class MainPage:ContentPage {
             }
 
             this.RebuildCpuDataGridColumns(CPUGrid,section);
+            var selectionController=new CpuCheckSelectionController(
+                CPUGrid,
+                cpus => this.viewModel?.ToggleCpuChecks(cpus));
+            CPUGrid.SelectionController=selectionController;
             CPUGrid.HeightRequest=CpuSectionGridHeaderHeight+(section.Rows.Count*CpuSectionRowHeight)+CpuSectionGridExtraHeight;
             if(section.CoreKind==CpuCoreKind.Performance) {
                 var maxWidth = this.GetCpuRightEdgeWidth(section);
@@ -3545,6 +3540,19 @@ public sealed partial class MainPage:ContentPage {
                 sectionLayout.HorizontalOptions=LayoutOptions.Fill;
             }
         };
+        CPUGrid.SelectionChanging+=(_,args) => {
+            if(this.selectionSuppressedGrids.Contains(CPUGrid)){
+                args.Cancel=true;
+                return;
+            }
+            if(args.AddedRows is { } addedRows){
+                for(var index=addedRows.Count-1;index>=0;index--){
+                    if(addedRows[index] is SelectedCellInfo cell&&!CpuCheckSelectionController.IsSelectableCpuCell(cell)){
+                        addedRows.RemoveAt(index);
+                    }
+                }
+            }
+        };
 
         return sectionLayout;
     }
@@ -3553,7 +3561,7 @@ public sealed partial class MainPage:ContentPage {
         grid.Columns.Clear();
         grid.Columns.Add(this.CreateCpuCoreColumn(section));
         foreach(var column in section.Columns) {
-            grid.Columns.Add(this.CreateCpuLogicalColumn(column));
+            grid.Columns.Add(this.CreateCpuLogicalColumn(grid,column));
         }
     }
 
@@ -3563,6 +3571,7 @@ public sealed partial class MainPage:ContentPage {
             HeaderText="コア",
             Width=this.GetCpuCoreColumnWidth(section),
             AllowSorting=false,
+            AllowFocus=false,
             HeaderTemplate=this.CreateCpuSimpleHeaderTemplate("コア"),
             CellTemplate=new DataTemplate(() => {
                 var layout = new Grid {
@@ -3632,7 +3641,7 @@ public sealed partial class MainPage:ContentPage {
             +2*CpuLogicalCheckColumnWidth;
     }
 
-    private DataGridTemplateColumn CreateCpuLogicalColumn(CpuTableColumn column) {
+    private DataGridTemplateColumn CreateCpuLogicalColumn(SfDataGrid grid,CpuTableColumn column) {
         var cellPath = nameof(CpuTableRow.GridCells)+"["+column.Index+"]";
         return new DataGridTemplateColumn {
             MappingName="Cpu"+column.Index,
@@ -3655,7 +3664,24 @@ public sealed partial class MainPage:ContentPage {
                 };
                 layout.SetBinding(IsVisibleProperty,new Binding(cellPath,converter: new NullToBoolConverter()));
                 var check = this.CreateCpuCheckBox();
-                check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(cellPath+"."+nameof(CpuTableCell.IsSelected),BindingMode.TwoWay));
+                check.InputTransparent=true;
+                check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(cellPath+"."+nameof(CpuTableCell.IsSelected),BindingMode.OneWay));
+                var checkHost=new Grid {
+                    BackgroundColor=Colors.Transparent,
+                    HorizontalOptions=LayoutOptions.Fill,
+                    VerticalOptions=LayoutOptions.Fill,
+                };
+                checkHost.Add(check,0,0);
+                var checkTap=new TapGestureRecognizer();
+                checkTap.Tapped+=(_,_) => {
+                    if(layout.BindingContext is CpuTableRow row
+                        &&column.Index<row.GridCells.Count
+                        &&row.GridCells[column.Index] is { } cell) {
+                        this.viewModel?.ToggleCpu(cell.Cpu);
+                    }
+                };
+                checkHost.GestureRecognizers.Add(checkTap);
+                this.SuppressSelectionWhileChecking(checkHost,grid);
                 var spinner = new ActivityIndicator {
                     WidthRequest=14,
                     HeightRequest=14,
@@ -3703,7 +3729,7 @@ public sealed partial class MainPage:ContentPage {
                 statusLabel.SetBinding(Label.TextProperty,cellPath+"."+nameof(CpuTableCell.CellStatusText));
                 statusLabel.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(CpuTableCell.DisplayText));
                 layout.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(CpuTableCell.DisplayText));
-                layout.Add(check,0,0);
+                layout.Add(checkHost,0,0);
                 layout.Add(statusIcon,1,0);
                 layout.Add(spinner,1,0);
                 layout.Add(badge,2,0);
@@ -3786,14 +3812,22 @@ public sealed partial class MainPage:ContentPage {
         };
     }
 
-    private void ConfigureDataGridLines(SfDataGrid grid) {
+    private void ConfigureDataGridLines(SfDataGrid grid,bool showRowFocus = false,bool showCellFocus = false) {
         var lineColor = Color.FromArgb("#CBD5E1");
-        grid.DefaultStyle=new DataGridStyle {
+        var style=new DataGridStyle {
             GridLineColor=lineColor,
             HeaderGridLineColor=lineColor,
             GridLineStrokeThickness=1,
             HeaderGridLineStrokeThickness=1,
         };
+        if(showRowFocus) {
+            style.CurrentRowHighlightColor=Color.FromArgb("#7C3AED");
+            style.CurrentCellBorderWidth=2;
+        }else if(showCellFocus) {
+            style.CurrentCellBorderColor=Color.FromArgb("#7C3AED");
+            style.CurrentCellBorderWidth=2;
+        }
+        grid.DefaultStyle=style;
     }
 
     private Color GetBenchmarkGridSelectionColor(BenchmarkSourceTabViewState? state) {
@@ -4305,13 +4339,12 @@ public sealed partial class MainPage:ContentPage {
         }
 
         var targetState=state??this.viewModel.SelectedSourceTabViewState;
-        var gesture = CreateBenchmarkSelectionGesture();
         switch(hit.Target) {
             case BenchmarkChartSelectionTarget.Row:
             case BenchmarkChartSelectionTarget.LeftBar:
             case BenchmarkChartSelectionTarget.RightBar:
                 if(hit.Point.Row is { } row) {
-                    this.SelectBenchmarkGridRow(targetState,row,gesture);
+                    this.SelectBenchmarkGridRow(targetState,row);
                 }
                 break;
         }
@@ -4365,6 +4398,7 @@ public sealed partial class MainPage:ContentPage {
             return label;
         });
     }
+
 }
 
 internal enum BenchmarkChartSelectionTarget {
@@ -4633,6 +4667,7 @@ public sealed class BenchmarkCircularProgressView:GraphicsView {
             return path;
         }
     }
+
 }
 
 public sealed class CountIsZeroConverter:IValueConverter {

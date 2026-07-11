@@ -575,7 +575,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
                         return;
                     }
 
-                    this.EnsureAtLeastOneCpuSelected(cpu);
                     this.RefreshSelectedLogicalCpus();
                     this.RefreshCpuSectionStates();
                 }
@@ -1178,6 +1177,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
         &&!this.isLoadingSelectedRunDb
         &&!this.isApplyingRunOptionSelection
         &&!this.IsBenchmarkRunning
+        &&this.GetSelectedLogicalCpus().Count>0
         &&(this.HasSelectedBenchmarkCells||IsSavedDatabaseRunOption(this.SelectedRunOption));
 
     /// <summary>
@@ -2100,6 +2100,16 @@ public sealed partial class RunnerViewModel:ObservableObject {
         cpu.IsSelected=!cpu.IsSelected;
     }
 
+    internal void ToggleCpuChecks(IReadOnlyList<CpuSelectionItem> cpus) {
+        if(this.IsRefreshing||cpus.Count==0) {
+            return;
+        }
+
+        var targets=cpus.Distinct().ToArray();
+        var selected=targets.Any(static cpu => !cpu.IsSelected);
+        this.ApplyCpuSelection(targets,selected);
+    }
+
     /// <summary>
     /// ToggleCpuSection メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
@@ -2271,10 +2281,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// sourceTab プロパティです。
     /// </summary>
     /// <value>sourceTab の値を取得/設定します。</value>
-    internal void SelectAllBenchmarkUiCells(BenchmarkSourceTabDefinition? sourceTab = null) {
-        var state = this.GetSourceTabViewState((sourceTab??this.SelectedSourceDefinition).Tab);
-        this.ApplyBenchmarkRowUiSelection(state,state.Rows.ToArray(),BenchmarkCellSelectionGesture.Replace);
-    }
+
 
     /// <summary>
     /// SelectBenchmarkCell メソッドを実行し、副作用として内部状態を更新または描画反映します。
@@ -2282,32 +2289,20 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <param name="row">row を指定して実行条件を制御します。</param>
     /// <param name="project">project を指定して実行条件を制御します。</param>
     /// <param name="gesture">gesture を指定して実行条件を制御します。</param>
-    internal void SelectBenchmarkCell(BenchmarkTableRow row,string project,BenchmarkCellSelectionGesture gesture) {
-        this.SelectBenchmarkRow(row,gesture);
-    }
+
 
     /// <summary>
     /// SelectBenchmarkRow メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
     /// <param name="row">row を指定して実行条件を制御します。</param>
     /// <param name="gesture">gesture を指定して実行条件を制御します。</param>
-    internal void SelectBenchmarkRow(BenchmarkTableRow row,BenchmarkCellSelectionGesture gesture) {
-        var state = this.GetSourceTabViewState(row.SourceTab.Tab);
-        var rowIndex = state.Rows.IndexOf(row);
-        if(rowIndex<0) {
-            return;
-        }
 
-        this.ApplyBenchmarkRowUiSelection(state,[row],gesture);
-    }
 
     /// <summary>
     /// sourceTab プロパティです。
     /// </summary>
     /// <value>sourceTab の値を取得/設定します。</value>
-    internal void SelectBenchmarkColumnGroup(BenchmarkColumnSelectionGroup group,BenchmarkCellSelectionGesture gesture,BenchmarkSourceTabDefinition? sourceTab = null) {
-        return;
-    }
+
 
     /// <summary>
     /// ToggleBenchmarkCellCheck メソッドを実行し、副作用として内部状態を更新または描画反映します。
@@ -2347,9 +2342,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <param name="benchmark">benchmark を指定して実行条件を制御します。</param>
     /// <param name="project">project を指定して実行条件を制御します。</param>
     /// <param name="gesture">gesture を指定して実行条件を制御します。</param>
-    internal void SelectBenchmarkCellFromChart(BenchmarkSourceTabViewState? state,string benchmark,string project,BenchmarkCellSelectionGesture gesture) {
-        this.SelectBenchmarkRowFromChart(state,benchmark,gesture);
-    }
+
 
     /// <summary>
     /// SelectBenchmarkRowFromChart メソッドを実行し、副作用として内部状態を更新または描画反映します。
@@ -2357,15 +2350,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <param name="state">state を指定して実行条件を制御します。</param>
     /// <param name="benchmark">benchmark を指定して実行条件を制御します。</param>
     /// <param name="gesture">gesture を指定して実行条件を制御します。</param>
-    internal void SelectBenchmarkRowFromChart(BenchmarkSourceTabViewState? state,string benchmark,BenchmarkCellSelectionGesture gesture) {
-        var targetState = state??this.SelectedSourceTabViewState;
-        var rowIndex = GetBenchmarkRowIndex(targetState,benchmark);
-        if(rowIndex<0) {
-            return;
-        }
 
-        this.ApplyBenchmarkRowUiSelection(targetState,[targetState.Rows[rowIndex]],gesture);
-    }
 
     /// <summary>
     /// RefreshAsync メソッドを実行し、結果を算出して返却します。
@@ -2779,46 +2764,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     private static string CreateBenchmarkSelectionSyncKey(string rowKey,string side) =>
         rowKey+"|"+side;
 
-    private void ApplyBenchmarkRowUiSelection(BenchmarkSourceTabViewState state,IReadOnlyList<BenchmarkTableRow> rows,BenchmarkCellSelectionGesture gesture) {
-        if(rows.Count==0) {
-            return;
-        }
 
-        var targets = rows
-            .Where(static row => row.ProjectCells.Any(static cell => cell.HasCase))
-            .Distinct()
-            .ToArray();
-        if(targets.Length==0) {
-            return;
-        }
-
-        var targetSet = targets.ToHashSet();
-        var changedRows = new List<BenchmarkTableRow>();
-        var shouldToggleOff = gesture is BenchmarkCellSelectionGesture.Toggle or BenchmarkCellSelectionGesture.ExtendToggle
-            &&targets.All(static row => row.IsUiSelected);
-        if(gesture is BenchmarkCellSelectionGesture.Replace or BenchmarkCellSelectionGesture.Toggle) {
-            foreach(var row in state.Rows.Where(row => !targetSet.Contains(row))) {
-                if(row.IsLeftUiSelected||row.IsRightUiSelected) {
-                    SetRowUiSelection(row,false);
-                    changedRows.Add(row);
-                }
-            }
-        }
-        foreach(var row in targets) {
-            if(row.IsUiSelected==shouldToggleOff) {
-                SetRowUiSelection(row,!shouldToggleOff);
-                changedRows.Add(row);
-            }
-        }
-        foreach(var row in changedRows) {
-            if(row.IsUiSelected) {
-                state.UiSelectedRowsByKey[row.RowKey]=row;
-            }else{
-                state.UiSelectedRowsByKey.Remove(row.RowKey);
-            }
-        }
-        this.RefreshChartUiSelection(state,changedRows);
-    }
 
     // 列/プロジェクトヘッダーは現在タブだけを反映する。左上の全体チェックは全Sourceタブを対象にする。
     /// <summary>
@@ -10644,24 +10590,12 @@ public sealed partial class RunnerViewModel:ObservableObject {
 
         this.isApplyingCpuSelection=true;
         try {
-            if(!selected) {
-                var selectedOutsideTargets = this.CpuItems.Any(cpu => cpu.IsSelected&&!targets.Contains(cpu));
-                if(!selectedOutsideTargets&&this.CpuItems.Any(static cpu => cpu.IsSelected)) {
-                    var keep = targets.FirstOrDefault(static cpu => cpu.IsSelected)??targets[0];
-                    foreach(var cpu in targets) {
-                        cpu.IsSelected=ReferenceEquals(cpu,keep);
-                    }
-                    return;
-                }
-            }
-
             foreach(var cpu in targets) {
                 cpu.IsSelected=selected;
             }
         }
         finally {
             this.isApplyingCpuSelection=false;
-            this.EnsureAtLeastOneCpuSelected(null);
             this.RefreshSelectedLogicalCpus();
             this.RefreshCpuSectionStates();
         }
@@ -10671,14 +10605,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// EnsureAtLeastOneCpuSelected メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
     /// <param name="fallback">fallback を指定して実行条件を制御します。</param>
-    private void EnsureAtLeastOneCpuSelected(CpuSelectionItem? fallback) {
-        if(this.CpuItems.Count==0||this.CpuItems.Any(static cpu => cpu.IsSelected)) {
-            return;
-        }
-
-        (fallback??this.CpuItems[0]).IsSelected=true;
-    }
-
     /// <summary>
     /// GetSelectedLogicalCpus メソッドを実行し、結果を算出して返却します。
     /// </summary>
@@ -10689,8 +10615,17 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <summary>
     /// RefreshSelectedLogicalCpus メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
-    private void RefreshSelectedLogicalCpus() =>
+    private void RefreshSelectedLogicalCpus() {
         Volatile.Write(ref this.selectedLogicalCpus,this.CreateSelectedLogicalCpus());
+        this.RunCommand.NotifyCanExecuteChanged();
+#if DEBUG
+        this.RunInfiniteCommand.NotifyCanExecuteChanged();
+#endif
+        this.ToggleRunCommand.NotifyCanExecuteChanged();
+        this.OnPropertyChanged(nameof(this.CanRunBenchmark));
+        this.OnPropertyChanged(nameof(this.CanUseRunToolbarButton));
+        this.OnPropertyChanged(nameof(this.ToolbarStateInput));
+    }
 
     /// <summary>
     /// CreateSelectedLogicalCpus メソッドを実行し、結果を算出して返却します。

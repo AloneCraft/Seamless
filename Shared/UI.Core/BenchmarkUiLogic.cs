@@ -1350,13 +1350,6 @@ internal static class BenchmarkCloseDialogLogic{
     }
 }
 
-internal enum BenchmarkCellSelectionGesture{
-    Replace,
-    Toggle,
-    Extend,
-    ExtendToggle,
-}
-
 internal readonly record struct BenchmarkRowUiSelectionCell(bool HasCase,bool IsUiSelected);
 
 internal static class BenchmarkRowUiSelectionLogic{

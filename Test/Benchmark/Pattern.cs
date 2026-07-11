@@ -296,21 +296,6 @@ public sealed class RunnerViewModel{
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public void BenchmarkGridSelectionController_AppliesReplaceRangeAndToggleSelection(){
-        var rows=Enumerable.Range(0,6)
-            .Select(index => CreateArrayBenchmarkRow("Method"+index))
-            .ToArray();
-        var range=global::UI.BenchmarkRowSelectionController.ResolveRangeSelection(rows,rows[1],rows[3]);
-        Assert.Equal([rows[1],rows[2],rows[3]],range);
-
-        var added=global::UI.BenchmarkRowSelectionController.ResolveToggleSelection(range,rows[5]);
-        Assert.Equal([rows[1],rows[2],rows[3],rows[5]],added);
-
-        var removed=global::UI.BenchmarkRowSelectionController.ResolveToggleSelection(added,rows[2]);
-        Assert.Equal([rows[1],rows[3],rows[5]],removed);
-    }
-
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
     public void RunningResult_AppliesToRightZLinqCell(){
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var row = CreateArrayBenchmarkRow("Aggregate_seed_func_resultSelector");
@@ -854,7 +839,7 @@ public sealed class RunnerViewModel{
         var rangeState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemRange);
         {
             //1タブ目の1行目を緑選択し、2タブ目へ漏れず1タブ目には保持されることを確認する
-            viewModel.SelectBenchmarkRow(arrayState.Rows[0],global::UI.BenchmarkCellSelectionGesture.Replace);
+            viewModel.SynchronizeBenchmarkRowUiSelection(arrayState,[arrayState.Rows[0]],[]);
             Assert.True(arrayState.Rows[0].IsUiSelected);
 
             viewModel.SelectedSourceTab=viewModel.SourceTabs.First(option => option.Definition.Tab==global::UI.BenchmarkSourceTab.SystemRange);
@@ -864,7 +849,7 @@ public sealed class RunnerViewModel{
         }
         {
             //2タブ目の2行目を緑選択しても1タブ目へ混線せず、1タブ目へ戻ると選択が復元されていることを確認する
-            viewModel.SelectBenchmarkRow(rangeState.Rows[1],global::UI.BenchmarkCellSelectionGesture.Replace);
+            viewModel.SynchronizeBenchmarkRowUiSelection(rangeState,[rangeState.Rows[1]],[]);
 
             Assert.True(rangeState.Rows[1].IsUiSelected);
             Assert.False(rangeState.Rows[0].IsUiSelected);
@@ -885,7 +870,7 @@ public sealed class RunnerViewModel{
         var arrayState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemArray);
         var rangeState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemRange);
 
-        viewModel.SelectBenchmarkRow(rangeState.Rows[1],global::UI.BenchmarkCellSelectionGesture.Replace);
+        viewModel.SynchronizeBenchmarkRowUiSelection(rangeState,[rangeState.Rows[1]],[]);
 
         Assert.True(rangeState.Rows[1].IsUiSelected);
         Assert.All(arrayState.Rows,static row => Assert.False(row.IsUiSelected));
