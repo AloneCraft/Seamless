@@ -31,6 +31,26 @@ public sealed record UiRunRecord(
     string SourceTab,
     DateTimeOffset UpdatedAt);
 
+public sealed record UiParameterSweepResult(
+    long RunId,
+    string CaseName,
+    string Collection,
+    string GenericName,
+    string Backend,
+    string Sweep,
+    long IndexSize,
+    long PageSize,
+    long SegmentSize,
+    long MemorySize,
+    double MutableFraction,
+    long MaxSuccessfulCount,
+    long EntryCount,
+    string FailureKind,
+    string FailureReason,
+    double AddElapsedMilliseconds,
+    double? LookupMeanNanoseconds,
+    DateTimeOffset MeasuredAt);
+
 
 public sealed record UiCaseRecord(
     long CaseId,

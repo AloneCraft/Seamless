@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using UI;
 
 namespace Test.Benchmark;
@@ -7,7 +7,7 @@ namespace Test.Benchmark;
 public sealed class BenchmarkCatalogArgument {
     [Fact]
     public void GetBenchmarkArguments_UsesScalableTsavoriteArgumentNames() {
-        var method = LoadMethod("Scalable.Tsavorite.Collections","Scalable.Tsavorite.Collections.Set.SetInt32","Add");
+        var method = LoadMethod("Benchmark.Scalable.Tsavorite.Collections","Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32","Add");
         var arguments = GetArgumentSets(method).First();
 
         Assert.Equal(
@@ -20,7 +20,7 @@ public sealed class BenchmarkCatalogArgument {
 
     [Fact]
     public void GetBenchmarkArguments_UsesScalablePersistedArgumentNames() {
-        var method = LoadMethod("Scalable.Persisted.Collections","Scalable.Persisted.Collections.Set.SetInt32","Add");
+        var method = LoadMethod("Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.Set.SetInt32","Add");
         var arguments = GetArgumentSets(method).First();
 
         Assert.Equal(
@@ -34,10 +34,10 @@ public sealed class BenchmarkCatalogArgument {
     [Fact]
     public void BuildComparisonRows_IncludesScalableTsavoriteArguments() {
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.ScalableTsavoriteSet);
-        var arguments = GetArgumentSets(LoadMethod("Scalable.Tsavorite.Collections","Scalable.Tsavorite.Collections.Set.SetInt32","Add")).First();
+        var arguments = GetArgumentSets(LoadMethod("Benchmark.Scalable.Tsavorite.Collections","Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32","Add")).First();
         var rows = global::UI.BenchmarkComparisonFormatter.BuildComparisonRows(
             [
-                Report(sourceTab.LeftProject,"Add","Scalable.Tsavorite.Collections.Set.SetInt32",arguments),
+                Report(sourceTab.LeftProject,"Add","Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32",arguments),
             ],
             sourceTab);
 
@@ -54,10 +54,10 @@ public sealed class BenchmarkCatalogArgument {
     [Fact]
     public void BuildComparisonRows_IncludesScalablePersistedArgumentsOnly() {
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.ScalablePersistedSet);
-        var arguments = GetArgumentSets(LoadMethod("Scalable.Persisted.Collections","Scalable.Persisted.Collections.Set.SetInt32","Add")).First();
+        var arguments = GetArgumentSets(LoadMethod("Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.Set.SetInt32","Add")).First();
         var rows = global::UI.BenchmarkComparisonFormatter.BuildComparisonRows(
             [
-                Report(sourceTab.LeftProject,"Add","Scalable.Persisted.Collections.Set.SetInt32",arguments),
+                Report(sourceTab.LeftProject,"Add","Benchmark.Scalable.Persisted.Collections.Set.SetInt32",arguments),
             ],
             sourceTab);
 
@@ -76,7 +76,7 @@ public sealed class BenchmarkCatalogArgument {
     [Fact]
     public void GetDisplayArgumentValue_KeepsScalablePersistedSpecificColumns() {
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.ScalablePersistedSet);
-        var arguments = GetArgumentSets(LoadMethod("Scalable.Persisted.Collections","Scalable.Persisted.Collections.Set.SetInt32","Add")).First();
+        var arguments = GetArgumentSets(LoadMethod("Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.Set.SetInt32","Add")).First();
 
         Assert.Equal("65536",global::UI.ScalableBenchmarkNameFormatter.GetDisplayArgumentValue(sourceTab,arguments,global::UI.ScalableBenchmarkArgumentColumn.Count));
         Assert.Equal(string.Empty,global::UI.ScalableBenchmarkNameFormatter.GetDisplayArgumentValue(sourceTab,arguments,global::UI.ScalableBenchmarkArgumentColumn.Index));

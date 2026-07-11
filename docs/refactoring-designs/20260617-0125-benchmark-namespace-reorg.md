@@ -1,4 +1,4 @@
-﻿# Benchmark Namespace Reorganization
+# Benchmark Namespace Reorganization
 
 ## 背景
 
@@ -16,8 +16,8 @@
 - `Shared/Common/Benchmarks/BenchFact.cs` は assembly 属性で `Seamless.Benchmarks.TestPriorityOrderer` を参照している。
 - `Test/Tests.csproj` は `<RootNamespace>Seamless.Benchmarks</RootNamespace>` を持つ。
 - `Shared/Common/Common.projitems` は `<Import_RootNamespace>Seamless.Benchmarks</Import_RootNamespace>` を持つ。
-- `Benchmark/UI/Program.cs` は benchmark 型を assembly reflection で拾っており、個別 namespace への直接参照は見つかっていない。
-- `tests/Test.Tsavorite.Collections/Benchmark/RecordSetcs` に `namespace Test.Tsavorite.Benchmarks;` がある。
+- `Benchmark/Benchmark.UI/Program.cs` は benchmark 型を assembly reflection で拾っており、個別 namespace への直接参照は見つかっていない。
+- `tests/Test.Benchmark.Tsavorite.Collections/Benchmark/RecordSetcs` に `namespace Test.Tsavorite.Benchmarks;` がある。
 - `Shared/Common/Benchmarks/TsavoriteEnumerableCatalog.cs` は Tsavorite と System の結果比較を行う catalog 形式の benchmark/test として存在している。
 
 ## 目的
@@ -58,7 +58,7 @@ Tsavorite 側は既存の `TsavoriteEnumerableCatalog.cs` を基点にする。
 
 `Test.Tsavorite.Benchmarks` は `Test.Benchmarks` へ移動する。
 
-- `tests/Test.Tsavorite.Collections/Benchmark/RecordSetcs` の namespace を `Test.Benchmarks` に変更する。
+- `tests/Test.Benchmark.Tsavorite.Collections/Benchmark/RecordSetcs` の namespace を `Test.Benchmarks` に変更する。
 - 参照があれば同時に更新する。
 
 ## 影響範囲
@@ -66,7 +66,7 @@ Tsavorite 側は既存の `TsavoriteEnumerableCatalog.cs` を基点にする。
 - `Shared/Common/Benchmarks`
 - `Test`
 - `Shared/Common/Common.projitems`
-- `tests/Test.Tsavorite.Collections/Benchmark/RecordSetcs`
+- `tests/Test.Benchmark.Tsavorite.Collections/Benchmark/RecordSetcs`
 - namespace 参照を持つ関連ファイル
 
 benchmark runner は assembly reflection ベースのため、namespace 変更そのものでは型 discovery の方式を変えない。

@@ -1,4 +1,4 @@
-﻿# UI �d�l������
+# UI �d�l������
 
 # Source: Document\UI\UiStorageSpecification.md
 
@@ -122,12 +122,12 @@ UI��?ECPU�\���� `�^`�A`�x���`?E�[�N` �̒���
 ## 検証済み
 
 - `dotnet build Shared\UI.Storage\UI.Storage.csproj -v:minimal`
-- `dotnet build Benchmark\UI\Benchmark.UI.csproj -v:minimal`
+- `dotnet build Benchmark\Benchmark.UI\Benchmark.UI.csproj -v:minimal`
 - `dotnet build Benchmark\Scalable.UI\Scalable.UI.csproj -v:minimal`
-- `dotnet build Benchmark\Tsavorite.ParameterSweep.UI\Tsavorite.ParameterSweep.UI.csproj -v:minimal`
+- `dotnet build Benchmark\Benchmark.Benchmark.Tsavorite.ParameterSweep.UI\Benchmark.Benchmark.Tsavorite.ParameterSweep.UI.csproj -v:minimal`
 - `dotnet test Test\Test.csproj -v:minimal`
 - `dotnet test Test\Test.csproj --filter "FullyQualifiedName~BenchmarkOrchestrator" -v:minimal`
-- `dotnet test Test.Tsavorite.ParameterSweep\Test.Tsavorite.ParameterSweep.csproj -v:minimal`
+- `dotnet test Test.Benchmark.Tsavorite.ParameterSweep\Test.Benchmark.Tsavorite.ParameterSweep.csproj -v:minimal`
 - 3 UI EXE�̒Z���ԋN���X���[�N
 
 ## �ǉ��ς݉�A�`E??�`E
@@ -197,7 +197,7 @@ reverse_document: true
 canonical_target: Document/UI/Benchmark/UiSpecification.md
 evidence_sources:
   - Benchmark/Shared/UI/MainPage.cs
-  - Benchmark/UI/UI.csproj
+  - Benchmark/Benchmark.UI/UI.csproj
   - Benchmark/Scalable.UI/Scalable.UI.csproj
   - Benchmark/Shared/UI.projitems
 confidence: medium
@@ -215,10 +215,10 @@ This reverse document captures the historical Benchmark UI implementation. CSV/J
 ��?E?E??�� `Benchmark\UI` �� `Benchmark\Scalable.UI` ��?E�L����EMAUI �x���`?E�[�N���sUI�̌���d�l��A����E??�畜��E??����̂ł��B�ʏ��?E�A�v����E`Seamless Benchmark`�AScalable��?E `Seamless Scalable Benchmark` �Ƃ��č\?E����܂��B�����Ƃ�E`Benchmark\Shared\UI.projitems` �o�R�œ������LUI�R�[�h���荞�݂܂��AE
 
 証拠:
-- `Benchmark/UI/UI.csproj:3`
-- `Benchmark/UI/UI.csproj:8`
-- `Benchmark/UI/UI.csproj:13`
-- `Benchmark/UI/UI.csproj:63`
+- `Benchmark/Benchmark.UI/UI.csproj:3`
+- `Benchmark/Benchmark.UI/UI.csproj:8`
+- `Benchmark/Benchmark.UI/UI.csproj:13`
+- `Benchmark/Benchmark.UI/UI.csproj:63`
 - `Benchmark/Scalable.UI/Scalable.UI.csproj:3`
 - `Benchmark/Scalable.UI/Scalable.UI.csproj:8`
 - `Benchmark/Scalable.UI/Scalable.UI.csproj:14`
@@ -391,8 +391,8 @@ phase: ui-reverse
 reverse_document: true
 canonical_target: Document/UI/ParameterSweep/UiSpecification.md
 evidence_sources:
-  - Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs
-  - Benchmark/Tsavorite.ParameterSweep.UI/Tsavorite.ParameterSweep.UI.csproj
+  - Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs
+  - Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI.csproj
 confidence: high
 review_status: draft
 ---
@@ -405,22 +405,22 @@ This reverse document captures the historical ParameterSweep UI implementation. 
 
 ## �Ώ�
 
-��?E?E??�� `Benchmark\Tsavorite.ParameterSweep.UI` �̌���UI�d�l�����E??�畜��E??����̂ł��B���̃A�v����MAUI�P��y?E�W�A�v���ŁA�^�C�g���� `Tsavorite Parameter Sweep` �ł��AE
+��?E?E??�� `Benchmark\Benchmark.Benchmark.Tsavorite.ParameterSweep.UI` �̌���UI�d�l�����E??�畜��E??����̂ł��B���̃A�v����MAUI�P��y?E�W�A�v���ŁA�^�C�g���� `Tsavorite Parameter Sweep` �ł��AE
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/Tsavorite.ParameterSweep.UI.csproj:3`
-- `Benchmark/Tsavorite.ParameterSweep.UI/Tsavorite.ParameterSweep.UI.csproj:8`
-- `Benchmark/Tsavorite.ParameterSweep.UI/Tsavorite.ParameterSweep.UI.csproj:13`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:3`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI.csproj:3`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI.csproj:8`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI.csproj:13`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:3`
 
 ## 画面構�E
 
 ��ʂ� `ContentPage` �ŁA�R���X�g���N�^�� `ParameterSweepViewModel` ��E`BindingContext` �ɐݒ肵�A`CreateContent` �ō�����R���`E??�`E??�\�����܂��AE
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:3`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:10`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:13`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:3`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:10`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:13`
 
 ��ʂ�3�s?E `Grid` �ł��AE
 - 1�s��: �`E?E���o?E�AE
@@ -428,11 +428,11 @@ This reverse document captures the historical ParameterSweep UI implementation. 
 - 3�s��: ���X�N���[���\�Ȍ��ʕ\�AE
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:13`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:67`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:69`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:70`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:75`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:13`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:67`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:69`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:70`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:75`
 
 ## �`E?E���o?E�d��E
 
@@ -445,31 +445,31 @@ This reverse document captures the historical ParameterSweep UI implementation. 
 - ����Picker: `RunHistory` ��ItemsSource�A`SelectedBaselineRun` ��SelectedItem�Ƀo�C���h���܂��AE
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:14`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:15`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:18`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:19`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:20`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:22`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:26`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:29`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:31`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:35`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:36`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:56`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:60`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:14`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:15`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:18`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:19`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:20`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:22`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:26`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:29`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:31`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:35`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:36`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:56`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:60`
 
 ## 結果表仕槁E
 
 ���ʕ\�� `CollectionView` �ŁA`Rows` ��ItemsSource�ɂ��܂��B?E�`E??�[�ƙ�E???E������?E??�`�� `Grid` ��g��E??���B�s�I��?E�����ł��AE
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:70`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:73`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:75`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:105`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:129`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:153`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:70`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:73`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:75`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:105`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:129`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:153`
 
 刁E
 - `CaseName`
@@ -492,16 +492,16 @@ This reverse document captures the historical ParameterSweep UI implementation. 
 - `FailureChanged`
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:105`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:118`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:132`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:149`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:105`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:118`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:132`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:149`
 
 ��E??���� `ParameterSweepComparisonViewRow` �̓����܂�?E�Ή�?E���p�e�B�� `Label.Text` ��o�C���h���܂��AE
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:198`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:206`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:198`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:206`
 
 ## Visual Verification
 
@@ -521,8 +521,8 @@ evidence_sources:
   - Benchmark/Shared/UI/MainPage.cs
   - Benchmark/Shared/UI/BenchmarkRunnerViewModel.cs
   - Benchmark/Shared/UI/BenchmarkRunnerModels.cs
-  - Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs
-  - Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs
+  - Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs
+  - Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs
 confidence: medium
 review_status: draft
 ---
@@ -588,13 +588,13 @@ Benchmark UI �͎��s��ԁA�ۑ���ԁAE??���ԁA�`���[
 ParameterSweep UI �͍\����������E??���A���s���ɓ���?E??����Picker�𖳌����������E?E�m�F�ł��܂���B�L�����Z����E??�׃G���[�\����m�F�ł��܂���B�����Ԏ��s�⎸�s������UX�Ƃ��Ă͒ǉ��݌v��?E??�ł��AE
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:14`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:15`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:26`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:29`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:55`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:103`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:125`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:14`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:15`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:26`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:29`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:55`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:103`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:125`
 
 ## 6. ����ʌ��؂̏ؐՂ�����?E
 
@@ -624,10 +624,10 @@ evidence_sources:
   - Shared/UI.Core/BenchmarkRunProjectionService.cs
   - Shared/UI.Core/BenchmarkUiRunRepository.cs
   - Shared/UI.Storage/UiRunStore.cs
-  - Benchmark/UI/UI.csproj
+  - Benchmark/Benchmark.UI/UI.csproj
   - Benchmark/Scalable.UI/Scalable.UI.csproj
-  - Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs
-  - Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs
+  - Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs
+  - Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs
   - Shared/UI.Storage/UiRunStore.cs
 confidence: medium
 review_status: draft
@@ -665,7 +665,7 @@ The current implementation uses `Shared/UI.Storage/UiRunStore.cs` as the low-lev
 ## Code Evidence
 
 Benchmark app:
-- `Benchmark/UI/UI.csproj`: MAUI�A�A�v�����A�Q�ƃv���W�F�N�g�ASyncfusion/CommunityToolkit�ˑ��A?E�LUI�C���|?E�g�AE
+- `Benchmark/Benchmark.UI/UI.csproj`: MAUI�A�A�v�����A�Q�ƃv���W�F�N�g�ASyncfusion/CommunityToolkit�ˑ��A?E�LUI�C���|?E�g�AE
 - `Benchmark/Scalable.UI/Scalable.UI.csproj`: Scalable��?E�A�v�����A`SCALABLE_BENCHMARK`�A�Q�ƃv���W�F�N�g�A?E�LUI�C���|?E�g�AE
 - `Benchmark/Shared/UI.projitems`: ���LUI�� `Shared\UI.Core` �̎�荞�݁AE
 - `Benchmark/Shared/UI/MainPage.cs`: ��ʍ\�z�A�o�C���`E??���O�A�C�x���g�A�_�C�A���O�A�`���[�g�ACPU�\�AE
@@ -675,10 +675,10 @@ Benchmark app:
 - `Shared/UI.Core/BenchmarkStateManager.cs`: `progress.json` ��Run���[�g��?E??E
 
 ParameterSweep app:
-- `Benchmark/Tsavorite.ParameterSweep.UI/Tsavorite.ParameterSweep.UI.csproj`: MAUI�A�A�v�����AParameterSweep�Q?E�AE
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs`: �P��y?E�W��ʁA�c�[���o?E�A���ʕ\�A�o�C���`E??���O�AE
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs`: ���s��ԁA?E�́A����A��?E??�X�`E?E�^�X�AE
-- `Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs`: CSV��?E�Ǎ��ARun����A��?E??E
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI.csproj`: MAUI�A�A�v�����AParameterSweep�Q?E�AE
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs`: �P��y?E�W��ʁA�c�[���o?E�A���ʕ\�A�o�C���`E??���O�AE
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs`: ���s��ԁA?E�́A����A��?E??�X�`E?E�^�X�AE
+- `Benchmark/Benchmark.Tsavorite.ParameterSweep/ParameterSweepPersistence.cs`: CSV��?E�Ǎ��ARun����A��?E??E
 
 ## Visual Evidence
 
@@ -929,7 +929,7 @@ reverse_document: true
 canonical_target: Document/UI/Benchmark/ScalableDifferences.md
 evidence_sources:
   - Benchmark/Scalable.UI/Scalable.UI.csproj
-  - Benchmark/UI/UI.csproj
+  - Benchmark/Benchmark.UI/UI.csproj
   - Benchmark/Scalable.UI/BenchmarkRunnerViewModel.Scalable.cs
   - Benchmark/Shared/UI.projitems
 confidence: high
@@ -945,34 +945,34 @@ review_status: draft
 証拠:
 - `Benchmark/Scalable.UI/Scalable.UI.csproj:14`
 - `Benchmark/Scalable.UI/Scalable.UI.csproj:54`
-- `Benchmark/UI/UI.csproj:13`
-- `Benchmark/UI/UI.csproj:63`
+- `Benchmark/Benchmark.UI/UI.csproj:13`
+- `Benchmark/Benchmark.UI/UI.csproj:63`
 
 ## �v���W�F�N�g��?E
 
 通常牁E
 - �A�v����?E `Seamless Benchmark` �ł��AE
-- `DotNet.Linq.Enumerable.*`�A`Tsavorite.Linq.Enumerable.*`�A`Persisted.*`�A`Tsavorite.Collections` ��Q�Ƃ��܂��AE
+- `DotNet.Linq.Enumerable.*`�A`Tsavorite.Linq.Enumerable.*`�A`Persisted.*`�A`Benchmark.Tsavorite.Collections` ��Q�Ƃ��܂��AE
 
 証拠:
-- `Benchmark/UI/UI.csproj:13`
-- `Benchmark/UI/UI.csproj:35`
-- `Benchmark/UI/UI.csproj:36`
-- `Benchmark/UI/UI.csproj:37`
-- `Benchmark/UI/UI.csproj:38`
-- `Benchmark/UI/UI.csproj:39`
-- `Benchmark/UI/UI.csproj:40`
-- `Benchmark/UI/UI.csproj:41`
-- `Benchmark/UI/UI.csproj:42`
-- `Benchmark/UI/UI.csproj:43`
-- `Benchmark/UI/UI.csproj:44`
-- `Benchmark/UI/UI.csproj:45`
-- `Benchmark/UI/UI.csproj:46`
+- `Benchmark/Benchmark.UI/UI.csproj:13`
+- `Benchmark/Benchmark.UI/UI.csproj:35`
+- `Benchmark/Benchmark.UI/UI.csproj:36`
+- `Benchmark/Benchmark.UI/UI.csproj:37`
+- `Benchmark/Benchmark.UI/UI.csproj:38`
+- `Benchmark/Benchmark.UI/UI.csproj:39`
+- `Benchmark/Benchmark.UI/UI.csproj:40`
+- `Benchmark/Benchmark.UI/UI.csproj:41`
+- `Benchmark/Benchmark.UI/UI.csproj:42`
+- `Benchmark/Benchmark.UI/UI.csproj:43`
+- `Benchmark/Benchmark.UI/UI.csproj:44`
+- `Benchmark/Benchmark.UI/UI.csproj:45`
+- `Benchmark/Benchmark.UI/UI.csproj:46`
 
 Scalable牁E
 - �A�v����?E `Seamless Scalable Benchmark` �ł��AE
 - `SCALABLE_BENCHMARK` ���`���܂��AE
-- `Scalable.Persisted.Collections` �� `Scalable.Tsavorite.Collections` ��Q�Ƃ��܂��AE
+- `Scalable.Benchmark.Persisted.Collections` �� `Scalable.Benchmark.Tsavorite.Collections` ��Q�Ƃ��܂��AE
 
 証拠:
 - `Benchmark/Scalable.UI/Scalable.UI.csproj:14`
@@ -985,7 +985,7 @@ Scalable牁E
 ���v���W�F�N�g?E `Benchmark\Shared\UI.projitems` ��C���|?E�g���܂��B���̋��L��E??�� `Shared\UI.Core.projitems` �����ɃC���|?E�g���A`Benchmark\Shared\UI\*.cs`�A`App.xaml`�A?E���`E??�t�H�[���ʃR�[�h�A�摜���\�[�X���荞�݂܂��AE
 
 証拠:
-- `Benchmark/UI/UI.csproj:63`
+- `Benchmark/Benchmark.UI/UI.csproj:63`
 - `Benchmark/Scalable.UI/Scalable.UI.csproj:54`
 - `Benchmark/Shared/UI.projitems:8`
 
@@ -1003,17 +1003,17 @@ Scalable��?E `BenchmarkRunnerViewModel` �� partial ���\�`E??��
 Scalable�ł�MAUI�ASyncfusion�ACommunityToolkit�ABenchmarkDotNet�AWorker�R�s?E�^�[�Q�`E??��g��E??���B�ʏ�ł�Scalable��?E�ǂ����Windows��Mac Catalyst��Ώۂɂ��܂��AE
 
 証拠:
-- `Benchmark/UI/UI.csproj:3`
-- `Benchmark/UI/UI.csproj:4`
-- `Benchmark/UI/UI.csproj:8`
-- `Benchmark/UI/UI.csproj:24`
-- `Benchmark/UI/UI.csproj:25`
-- `Benchmark/UI/UI.csproj:26`
-- `Benchmark/UI/UI.csproj:27`
-- `Benchmark/UI/UI.csproj:28`
-- `Benchmark/UI/UI.csproj:29`
-- `Benchmark/UI/UI.csproj:30`
-- `Benchmark/UI/UI.csproj:49`
+- `Benchmark/Benchmark.UI/UI.csproj:3`
+- `Benchmark/Benchmark.UI/UI.csproj:4`
+- `Benchmark/Benchmark.UI/UI.csproj:8`
+- `Benchmark/Benchmark.UI/UI.csproj:24`
+- `Benchmark/Benchmark.UI/UI.csproj:25`
+- `Benchmark/Benchmark.UI/UI.csproj:26`
+- `Benchmark/Benchmark.UI/UI.csproj:27`
+- `Benchmark/Benchmark.UI/UI.csproj:28`
+- `Benchmark/Benchmark.UI/UI.csproj:29`
+- `Benchmark/Benchmark.UI/UI.csproj:30`
+- `Benchmark/Benchmark.UI/UI.csproj:49`
 - `Benchmark/Scalable.UI/Scalable.UI.csproj:3`
 - `Benchmark/Scalable.UI/Scalable.UI.csproj:4`
 - `Benchmark/Scalable.UI/Scalable.UI.csproj:8`
@@ -1032,9 +1032,9 @@ phase: ui-reverse
 reverse_document: true
 canonical_target: Document/UI/ParameterSweep/BindingAndLifecycleSpecification.md
 evidence_sources:
-  - Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs
-  - Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs
-  - Benchmark/Tsavorite.ParameterSweep.UI/Tsavorite.ParameterSweep.UI.csproj
+  - Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs
+  - Benchmark/Benchmark.Tsavorite.ParameterSweep/ParameterSweepPersistence.cs
+  - Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI.csproj
 confidence: high
 review_status: draft
 ---
@@ -1050,9 +1050,9 @@ This reverse document captures historical ParameterSweep binding and persistence
 `ParameterSweepViewModel` �� `INotifyPropertyChanged` �����E??���ʏ�ԃR���`E??�ł��B���ʍs?E `Rows`�A����� `RunHistory` �� `ObservableCollection` �Ƃ��Č��J����܂��AE
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:8`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:28`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:29`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:8`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:28`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:29`
 
 ��v?E���p�e�B:
 - `SelectedBaselineRun`: ��?E??�ۂ̉ߋ�Run�B�ύX���� `ApplyBaselineComparison` ����s���܂��AE
@@ -1063,23 +1063,23 @@ This reverse document captures historical ParameterSweep binding and persistence
 - `MaxSweepStepsText`: �ő�T���X�`E??�v?E�́AE
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:31`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:39`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:43`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:51`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:55`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:57`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:68`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:31`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:39`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:43`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:51`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:55`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:57`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:68`
 
 ## ���s���C�t�T�C�N��
 
 初期匁E
-- ViewModel�R���X�g���N�^�̓\�����[�V�������[�g�܂�?ELocalApplicationData�z������E`Work\Tsavorite.ParameterSweep` ����[�g�ɂ��� `ParameterSweepRunStore` ���?E���܂��AE
+- ViewModel�R���X�g���N�^�̓\�����[�V�������[�g�܂�?ELocalApplicationData�z������E`Work\Benchmark.Tsavorite.ParameterSweep` ����[�g�ɂ��� `ParameterSweepRunStore` ���?E���܂��AE
 - �R���X�g���N�^������ `RefreshRuns` ��ĂсA�����ǂݍ��݂܂��AE
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:17`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:23`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:17`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:23`
 
 ��?E
 - `RunFullAsync` �� `RunAsync(smoke:false)` ��Ăт܂��AE
@@ -1093,28 +1093,28 @@ This reverse document captures historical ParameterSweep binding and persistence
 - finally�� `IsRunning=false` �ɖ߂��܂��AE
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:90`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:92`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:103`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:104`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:107`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:110`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:116`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:118`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:120`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:121`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:122`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:125`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:128`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:90`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:92`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:103`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:104`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:107`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:110`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:116`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:118`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:120`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:121`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:122`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:125`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:128`
 
 ## 入力値
 
 `CreateOptions` �� `MaxSuccessfulCountText` �� `MaxSweepStepsText` �𐳂̐����Ƃ��ĉ�߂��܂��B��߂ł��Ȃ�E??��?E�A���ꂼ��E`65536` �� `8` �����l�ɂ��܂��BSmoke�̏ꍇ?E `maxSuccessfulCount` ��ő� `256`�A`maxSweepSteps` ��ő� `2` �ɐ������܂��B`LookupProbeCount` �� `4096` �� `maxSuccessfulCount` �̏�����E??�ł��AE
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:132`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:133`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:151`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:132`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:133`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:151`
 
 ## ��?E??�C�t�T�C�N��
 
@@ -1123,9 +1123,9 @@ This reverse document captures historical ParameterSweep binding and persistence
 - �Ǎ���A�ȑO?E�I��Run������?E�đI����A�Ȃ���ΐ擪��I�т܂��AE
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:94`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:95`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:100`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:94`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:95`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:100`
 
 �x?E�X���C����?E
 - `ApplyBaselineComparison` �̓x?E�X���C�����I��܂�?E���ݍs����Ȃ牽����܂���AE
@@ -1133,25 +1133,25 @@ This reverse document captures historical ParameterSweep binding and persistence
 - �Ǎ����s���͉���\���ύX���܂���AE
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:151`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:151`
 
 ## 永続化
 
 `ParameterSweepRunStore` �̓��[�g�f�B���N�g���z����RunId�P��?E�t�H���_����A`results.csv` ��ۑ����܂��BRun�ꗗ�̓`E??���N�g����?E�����A`results.csv` �̍s�����猋�ʐ���Z?E���܂��B�Ǎ��� `results.csv` ��UTF-8�œǂ݁ACSV�p?E�T�֓n���܂��AE
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:5`
-- `Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:7`
-- `Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:12`
-- `Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:18`
-- `Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:20`
-- `Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:28`
-- `Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:45`
+- `Benchmark/Benchmark.Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:5`
+- `Benchmark/Benchmark.Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:7`
+- `Benchmark/Benchmark.Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:12`
+- `Benchmark/Benchmark.Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:18`
+- `Benchmark/Benchmark.Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:20`
+- `Benchmark/Benchmark.Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:28`
+- `Benchmark/Benchmark.Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:45`
 
 CSV��?E `RunId`�A`MeasuredAt`�A`CaseName`�A`Collection`�A`Generic`�A`Backend`�A`Sweep`�A�T�C�Y�Q�A?E�������A���s���AAdd/Lookup�v���l�ō\?E����܂��AE
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:50`
+- `Benchmark/Benchmark.Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:50`
 
 ## Unknown
 

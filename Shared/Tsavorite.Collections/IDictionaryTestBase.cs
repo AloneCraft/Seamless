@@ -1,6 +1,10 @@
 using System.Diagnostics.CodeAnalysis;
 using Tsavorite.core;
+#if BENCHMARK_PROJECT
+namespace Benchmark.Tsavorite.Collections;
+#else
 namespace Tsavorite.Collections;
+#endif
 /// <summary>
 /// IDictionaryの動作を検証する。
 public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>

@@ -43,7 +43,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <summary>
     /// BenchmarkSortSettingsPreferenceKey フィールドです。
     /// </summary>
-    private const string BenchmarkSortSettingsPreferenceKey = "Seamless.Benchmark.SortRules.v1";
+    private const string BenchmarkSortSettingsPreferenceKey = "Seamless.SortRules.v1";
     private static readonly BenchmarkRunOption NewRunOption = new(
         NewRunNumber,
         0,

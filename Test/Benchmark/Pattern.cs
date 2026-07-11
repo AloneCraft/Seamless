@@ -1340,8 +1340,8 @@ public sealed class RunnerViewModel{
 
     private static string CreateArrayTypeFullName(string project) =>
         project.Contains("ZLinq",StringComparison.OrdinalIgnoreCase)
-            ? "DotNet.Linq.Enumerable.ZLinq.ZLinqInt32"
-            : "DotNet.Linq.Enumerable.FLinq.FLinqInt32";
+            ? "Benchmark.System.Linq.Enumerable.ZLinq.ZLinqInt32"
+            : "Benchmark.System.Linq.Enumerable.FLinq.FLinqInt32";
 
     private static async Task SaveCurrentRunAsync(global::UI.ViewModels.RunnerViewModel viewModel){
         if(viewModel.SelectedRunOption is { UiRunId:>0 }&&!viewModel.IsRefreshing&&viewModel.CanSelectRunHistory){
@@ -1418,18 +1418,18 @@ public sealed class RunnerViewModel{
             var enumerable = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemRange);
             var list = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemList);
             return [
-                CreateCase(array.LeftProject,array.LeftAssemblyName,"DotNet.Linq.Enumerable.FLinqInt32","AggregateBy_keySelector"),
-                CreateCase(array.RightProject,array.RightAssemblyName,"DotNet.Linq.Enumerable.ZLinqInt32","AggregateBy_keySelector"),
-                CreateCase(array.LeftProject,array.LeftAssemblyName,"DotNet.Linq.Enumerable.FLinqInt32","Select_selector"),
-                CreateCase(array.RightProject,array.RightAssemblyName,"DotNet.Linq.Enumerable.ZLinqInt32","Select_selector"),
-                CreateCase(enumerable.LeftProject,enumerable.LeftAssemblyName,"DotNet.Linq.Enumerable.Range.FLinqInt32","AggregateBy_keySelector"),
-                CreateCase(enumerable.RightProject,enumerable.RightAssemblyName,"DotNet.Linq.Enumerable.Range.ZLinqInt32","AggregateBy_keySelector"),
-                CreateCase(enumerable.LeftProject,enumerable.LeftAssemblyName,"DotNet.Linq.Enumerable.Range.FLinqInt32","Select_selector"),
-                CreateCase(enumerable.RightProject,enumerable.RightAssemblyName,"DotNet.Linq.Enumerable.Range.ZLinqInt32","Select_selector"),
-                CreateCase(list.LeftProject,list.LeftAssemblyName,"DotNet.Linq.Enumerable.List.FLinqInt32","AggregateBy_keySelector"),
-                CreateCase(list.RightProject,list.RightAssemblyName,"DotNet.Linq.Enumerable.List.ZLinqInt32","AggregateBy_keySelector"),
-                CreateCase(list.LeftProject,list.LeftAssemblyName,"DotNet.Linq.Enumerable.List.FLinqInt32","Select_selector"),
-                CreateCase(list.RightProject,list.RightAssemblyName,"DotNet.Linq.Enumerable.List.ZLinqInt32","Select_selector"),
+                CreateCase(array.LeftProject,array.LeftAssemblyName,"Benchmark.System.Linq.Enumerable.FLinqInt32","AggregateBy_keySelector"),
+                CreateCase(array.RightProject,array.RightAssemblyName,"Benchmark.System.Linq.Enumerable.ZLinqInt32","AggregateBy_keySelector"),
+                CreateCase(array.LeftProject,array.LeftAssemblyName,"Benchmark.System.Linq.Enumerable.FLinqInt32","Select_selector"),
+                CreateCase(array.RightProject,array.RightAssemblyName,"Benchmark.System.Linq.Enumerable.ZLinqInt32","Select_selector"),
+                CreateCase(enumerable.LeftProject,enumerable.LeftAssemblyName,"Benchmark.System.Linq.Enumerable.Range.FLinqInt32","AggregateBy_keySelector"),
+                CreateCase(enumerable.RightProject,enumerable.RightAssemblyName,"Benchmark.System.Linq.Enumerable.Range.ZLinqInt32","AggregateBy_keySelector"),
+                CreateCase(enumerable.LeftProject,enumerable.LeftAssemblyName,"Benchmark.System.Linq.Enumerable.Range.FLinqInt32","Select_selector"),
+                CreateCase(enumerable.RightProject,enumerable.RightAssemblyName,"Benchmark.System.Linq.Enumerable.Range.ZLinqInt32","Select_selector"),
+                CreateCase(list.LeftProject,list.LeftAssemblyName,"Benchmark.System.Linq.Enumerable.List.FLinqInt32","AggregateBy_keySelector"),
+                CreateCase(list.RightProject,list.RightAssemblyName,"Benchmark.System.Linq.Enumerable.List.ZLinqInt32","AggregateBy_keySelector"),
+                CreateCase(list.LeftProject,list.LeftAssemblyName,"Benchmark.System.Linq.Enumerable.List.FLinqInt32","Select_selector"),
+                CreateCase(list.RightProject,list.RightAssemblyName,"Benchmark.System.Linq.Enumerable.List.ZLinqInt32","Select_selector"),
             ];
         }
 

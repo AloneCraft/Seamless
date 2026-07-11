@@ -1,4 +1,8 @@
+#if BENCHMARK_PROJECT
+namespace Benchmark.Tsavorite.Collections.Stress;
+#else
 namespace Tsavorite.Collections.Stress;
+#endif
 
 internal static class StressReferenceAssert {
     public static void DictionaryEquals(IEnumerable<int> probeKeys,Dictionary<int,int> expected,Func<int,(bool Found,int Value)> actualTryGet) {

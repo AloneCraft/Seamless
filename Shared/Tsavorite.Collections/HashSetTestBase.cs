@@ -1,4 +1,8 @@
+#if BENCHMARK_PROJECT
+namespace Benchmark.Tsavorite.Collections;
+#else
 namespace Tsavorite.Collections;
+#endif
 /// <summary>
 /// HashSetの動作を検証する。
 public abstract class HashSetTestBase<TStrategy, T>

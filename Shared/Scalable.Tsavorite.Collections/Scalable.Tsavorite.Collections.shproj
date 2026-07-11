@@ -10,7 +10,7 @@
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\CodeSharing\Microsoft.CodeSharing.Common.props" />
 
   <PropertyGroup />
-  <Import Project="Scalable.Tsavorite.Collections.projitems" Label="Shared" />
+  <Import Project="Benchmark.Scalable.Tsavorite.Collections.projitems" Label="Shared" />
 
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\CodeSharing\Microsoft.CodeSharing.CSharp.targets" />
 </Project>

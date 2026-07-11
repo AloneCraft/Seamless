@@ -5,15 +5,18 @@ namespace Seamless.UI.Storage;
 public sealed class UiRunStore{
     private const int SchemaVersion = 17;
     private readonly string databasePath;
+    private readonly UiRunAppKind appKind;
     private readonly object schemaGate = new();
     private bool schemaEnsured;
 
-    public UiRunStore(string databasePath){
+    public UiRunStore(string databasePath,UiRunAppKind appKind=UiRunAppKind.Benchmark){
         ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
         this.databasePath=databasePath;
+        this.appKind=appKind;
     }
 
     public string DatabasePath => this.databasePath;
+    public UiRunAppKind AppKind => this.appKind;
 
     public void EnsureSchema(){
         lock(this.schemaGate){
@@ -32,6 +35,7 @@ public sealed class UiRunStore{
             using var connection = this.OpenConnection();
             using var transaction = BeginTransactionWithLockRetry(connection);
             CreateTables(connection,transaction);
+            FinalizeTablesForAppKind(connection,transaction,this.appKind);
             ExecuteNonQuery(connection,transaction,$"PRAGMA user_version={SchemaVersion};");
             transaction.Commit();
             this.schemaEnsured=true;
@@ -49,7 +53,7 @@ public sealed class UiRunStore{
         }
 
         throw new InvalidOperationException(
-            "UI run database schema mismatch. Update Work\\UI\\runs.db explicitly with a manual backup before starting the application.");
+            "UI run database schema mismatch. Update the configured database explicitly with a manual backup before starting the application: "+this.databasePath);
     }
 
     private long ReadStoredSchemaVersion(){
@@ -66,27 +70,25 @@ public sealed class UiRunStore{
 
     private bool HasExpectedSchemaShape(){
         try{
-            using var connection = this.OpenConnectionWithoutCreate();
-            using(var legacyCommand = connection.CreateCommand()){
-                legacyCommand.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('Apps','Runs');";
-                if((long)(legacyCommand.ExecuteScalar()??0L)>0L){
+            using var connection=this.OpenConnectionWithoutCreate();
+            using var command=connection.CreateCommand();
+            if(this.appKind==UiRunAppKind.ParameterSweep){
+                command.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','Benchmark','診断カウンター');";
+                if((long)(command.ExecuteScalar()??0L)!=3L){
                     return false;
                 }
+                command.CommandText="SELECT COUNT(*) FROM pragma_table_info('Benchmark') WHERE name IN('Collection','Generic','Backend','Sweep','MaxSuccessfulCount','EntryCount','追加時間ms','検索時間ns');";
+                return (long)(command.ExecuteScalar()??0L)==8L;
             }
-            using var command = connection.CreateCommand();
-            command.CommandText="""
-                SELECT CASE WHEN
-                    (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%')=4
-                    AND (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','Benchmark','ScalableBenchmark','診断カウンター'))=4
-                    AND (SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('基準時間比','基準メモリ比','履歴時間比','履歴メモリ比','Scalable履歴','Scalable前回比較'))=6
-                    AND (SELECT COUNT(*) FROM pragma_table_info('実行') WHERE name='前回実行ID')=1
-                    AND (SELECT COUNT(*) FROM pragma_table_info('Benchmark') WHERE name IN('左LoopCount','右LoopCount'))=2
-                    AND (SELECT COUNT(*) FROM pragma_table_info('ScalableBenchmark') WHERE name IN('Count','Initial','Data','Index','Page','Segment','Memory','Fraction'))=8
-                    AND (SELECT COUNT(*) FROM pragma_table_info('ScalableBenchmark') WHERE name IN('型完全名','前回状態','前回時間ns','前回メモリバイト'))=0
-                    AND (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('ベンチマーク項目','BenchmarkSnapshotCaseIdentity','BenchmarkSnapshotMeasurement'))=0
-                THEN 1 ELSE 0 END;
-                """;
-            return (long)(command.ExecuteScalar()??0L)==1L;
+
+            command.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','Benchmark','診断カウンター');";
+            if((long)(command.ExecuteScalar()??0L)!=3L){
+                return false;
+            }
+            command.CommandText=this.appKind==UiRunAppKind.ScalableBenchmark
+                ? "SELECT COUNT(*) FROM pragma_table_info('Benchmark') WHERE name IN('Count','Initial','Data','Index','Page','Segment','Memory','Fraction');"
+                : "SELECT COUNT(*) FROM pragma_table_info('Benchmark') WHERE name IN('左LoopCount','右LoopCount');";
+            return (long)(command.ExecuteScalar()??0L)==(this.appKind==UiRunAppKind.ScalableBenchmark ? 8L : 2L);
         }
         catch(SqliteException){
             return false;
@@ -97,7 +99,6 @@ public sealed class UiRunStore{
         ExecuteNonQuery(connection,transaction,"""
             CREATE TABLE IF NOT EXISTS "実行"(
                 "実行ID" INTEGER PRIMARY KEY AUTOINCREMENT,
-                "アプリ種別" TEXT NOT NULL,
                 "表示名" TEXT NOT NULL,
                 "状態" TEXT NOT NULL,
                 "実行プロファイル" TEXT NOT NULL,
@@ -163,7 +164,7 @@ public sealed class UiRunStore{
                 "記録日時" TEXT NOT NULL,
                 FOREIGN KEY("実行ID") REFERENCES "実行"("実行ID") ON DELETE CASCADE
             );
-            CREATE INDEX IF NOT EXISTS "IX_実行_アプリ種別_更新日時" ON "実行"("アプリ種別","更新日時");
+            CREATE INDEX IF NOT EXISTS "IX_実行_更新日時" ON "実行"("更新日時");
             CREATE INDEX IF NOT EXISTS "IX_Benchmark_実行ID" ON "Benchmark"("実行ID");
             CREATE UNIQUE INDEX IF NOT EXISTS "UX_Benchmark_行" ON "Benchmark"(
                 "実行ID",
@@ -299,7 +300,62 @@ public sealed class UiRunStore{
             """);
     }
 
+    private static void FinalizeTablesForAppKind(SqliteConnection connection,SqliteTransaction transaction,UiRunAppKind appKind){
+        if(appKind==UiRunAppKind.Benchmark){
+            ExecuteNonQuery(connection,transaction,"DROP TABLE IF EXISTS \"ScalableBenchmark\";");
+        }else if(appKind==UiRunAppKind.ScalableBenchmark){
+            DropViews(connection,transaction);
+            ExecuteNonQuery(connection,transaction,"DROP TABLE IF EXISTS \"Benchmark\";ALTER TABLE \"ScalableBenchmark\" RENAME TO \"Benchmark\";");
+        }else if(appKind==UiRunAppKind.ParameterSweep){
+            DropViews(connection,transaction);
+            ExecuteNonQuery(connection,transaction,"""
+                DROP TABLE IF EXISTS "Benchmark";
+                DROP TABLE IF EXISTS "ScalableBenchmark";
+                CREATE TABLE "Benchmark"(
+                    "実行ID" INTEGER NOT NULL,
+                    "ケース名" TEXT NOT NULL,
+                    "Collection" TEXT NOT NULL,
+                    "Generic" TEXT NOT NULL,
+                    "Backend" TEXT NOT NULL,
+                    "Sweep" TEXT NOT NULL,
+                    "IndexSize" INTEGER NOT NULL,
+                    "PageSize" INTEGER NOT NULL,
+                    "SegmentSize" INTEGER NOT NULL,
+                    "MemorySize" INTEGER NOT NULL,
+                    "MutableFraction" REAL NOT NULL,
+                    "MaxSuccessfulCount" INTEGER NOT NULL,
+                    "EntryCount" INTEGER NOT NULL,
+                    "失敗種別" TEXT NOT NULL,
+                    "失敗理由" TEXT NOT NULL,
+                    "追加時間ms" REAL NOT NULL,
+                    "検索時間ns" REAL NULL,
+                    "測定日時" TEXT NOT NULL,
+                    PRIMARY KEY("実行ID","ケース名"),
+                    FOREIGN KEY("実行ID") REFERENCES "実行"("実行ID") ON DELETE CASCADE
+                );
+                """);
+        }
+    }
+
+    private static void DropViews(SqliteConnection connection,SqliteTransaction transaction){
+        using var command=connection.CreateCommand();
+        command.Transaction=transaction;
+        command.CommandText="SELECT name FROM sqlite_master WHERE type='view';";
+        using var reader=command.ExecuteReader();
+        var names=new List<string>();
+        while(reader.Read()){
+            names.Add(reader.GetString(0));
+        }
+        reader.Close();
+        foreach(var name in names){
+            ExecuteNonQuery(connection,transaction,"DROP VIEW \""+name.Replace("\"","\"\"")+"\";");
+        }
+    }
+
     public UiRunRecord CreateRun(UiRunCreateRequest request){
+        if(request.AppKind!=this.appKind){
+            throw new InvalidOperationException($"The store is configured for {this.appKind}, not {request.AppKind}.");
+        }
         this.EnsureSchema();
         var now = request.CreatedAt;
         using var connection = this.OpenConnection();
@@ -308,21 +364,19 @@ public sealed class UiRunStore{
             using var previousCommand=connection.CreateCommand();
             previousCommand.CommandText="""
                 SELECT "実行ID" FROM "実行"
-                WHERE "アプリ種別"=$appKind AND "タブ名"=$sourceTab AND "状態"=$completed
+                WHERE "タブ名"=$sourceTab AND "状態"=$completed
                 ORDER BY "更新日時" DESC,"実行ID" DESC LIMIT 1;
                 """;
-            previousCommand.Parameters.AddWithValue("$appKind",ToAppKindText(request.AppKind));
             previousCommand.Parameters.AddWithValue("$sourceTab",request.SourceTab);
             previousCommand.Parameters.AddWithValue("$completed",ToStatusText(UiRunStatus.Completed));
             previousRunId=previousCommand.ExecuteScalar() as long?;
         }
         using var command = connection.CreateCommand();
         command.CommandText="""
-            INSERT INTO "実行"("アプリ種別","表示名","状態","実行プロファイル","タブ名","更新日時","前回実行ID")
-            VALUES($appKind,$displayName,$status,$executionProfile,$sourceTab,$updatedAt,$previousRunId);
+            INSERT INTO "実行"("表示名","状態","実行プロファイル","タブ名","更新日時","前回実行ID")
+            VALUES($displayName,$status,$executionProfile,$sourceTab,$updatedAt,$previousRunId);
             SELECT last_insert_rowid();
             """;
-        command.Parameters.AddWithValue("$appKind",ToAppKindText(request.AppKind));
         command.Parameters.AddWithValue("$displayName",request.DisplayName);
         command.Parameters.AddWithValue("$status",ToStatusText(UiRunStatus.Queued));
         command.Parameters.AddWithValue("$executionProfile",request.ExecutionProfile);
@@ -444,7 +498,7 @@ public sealed class UiRunStore{
             if(appKind==UiRunAppKind.ScalableBenchmark){
                 var arguments=ReadScalableArguments(item.LeftCase??item.RightCase);
                 command.CommandText="""
-                    INSERT OR REPLACE INTO "ScalableBenchmark"(
+                    INSERT OR REPLACE INTO "Benchmark"(
                         "実行ID","タブ名","型","ベンチマーク","Count","Initial","Data","Index","Page","Segment","Memory","Fraction",
                         "CPU番号","行チェック","今回状態","今回失敗理由","今回日時","今回時間ns","今回メモリバイト")
                     VALUES($runId,$tabName,$type,$benchmark,$count,$initial,$data,$index,$page,$segment,$memory,$fraction,
@@ -493,11 +547,70 @@ public sealed class UiRunStore{
         return new(caseId,runId,caseId,jobKey,status,elementCount,loopCount,assignedLogicalCpu,startedAt,finishedAt,failureKind,failureReason);
     }
 
+    public void SaveParameterSweepResult(UiParameterSweepResult result){
+        if(this.appKind!=UiRunAppKind.ParameterSweep){
+            throw new InvalidOperationException("ParameterSweep results require a ParameterSweep store.");
+        }
+        this.EnsureSchema();
+        using var connection=this.OpenConnection();
+        using var command=connection.CreateCommand();
+        command.CommandText="""
+            INSERT OR REPLACE INTO "Benchmark"(
+                "実行ID","ケース名","Collection","Generic","Backend","Sweep","IndexSize","PageSize","SegmentSize","MemorySize","MutableFraction",
+                "MaxSuccessfulCount","EntryCount","失敗種別","失敗理由","追加時間ms","検索時間ns","測定日時")
+            VALUES($runId,$caseName,$collection,$generic,$backend,$sweep,$indexSize,$pageSize,$segmentSize,$memorySize,$fraction,
+                $maxCount,$entryCount,$failureKind,$failureReason,$addElapsed,$lookupMean,$measuredAt);
+            """;
+        command.Parameters.AddWithValue("$runId",result.RunId);
+        command.Parameters.AddWithValue("$caseName",result.CaseName);
+        command.Parameters.AddWithValue("$collection",result.Collection);
+        command.Parameters.AddWithValue("$generic",result.GenericName);
+        command.Parameters.AddWithValue("$backend",result.Backend);
+        command.Parameters.AddWithValue("$sweep",result.Sweep);
+        command.Parameters.AddWithValue("$indexSize",result.IndexSize);
+        command.Parameters.AddWithValue("$pageSize",result.PageSize);
+        command.Parameters.AddWithValue("$segmentSize",result.SegmentSize);
+        command.Parameters.AddWithValue("$memorySize",result.MemorySize);
+        command.Parameters.AddWithValue("$fraction",result.MutableFraction);
+        command.Parameters.AddWithValue("$maxCount",result.MaxSuccessfulCount);
+        command.Parameters.AddWithValue("$entryCount",result.EntryCount);
+        command.Parameters.AddWithValue("$failureKind",result.FailureKind);
+        command.Parameters.AddWithValue("$failureReason",result.FailureReason);
+        command.Parameters.AddWithValue("$addElapsed",result.AddElapsedMilliseconds);
+        command.Parameters.AddWithValue("$lookupMean",ToDbValue(result.LookupMeanNanoseconds));
+        command.Parameters.AddWithValue("$measuredAt",ToText(result.MeasuredAt));
+        command.ExecuteNonQuery();
+    }
+
+    public IReadOnlyList<UiParameterSweepResult> ListParameterSweepResults(long runId){
+        if(this.appKind!=UiRunAppKind.ParameterSweep){
+            throw new InvalidOperationException("ParameterSweep results require a ParameterSweep store.");
+        }
+        this.EnsureSchema();
+        using var connection=this.OpenConnection();
+        using var command=connection.CreateCommand();
+        command.CommandText="""
+            SELECT "実行ID","ケース名","Collection","Generic","Backend","Sweep","IndexSize","PageSize","SegmentSize","MemorySize","MutableFraction",
+                   "MaxSuccessfulCount","EntryCount","失敗種別","失敗理由","追加時間ms","検索時間ns","測定日時"
+            FROM "Benchmark" WHERE "実行ID"=$runId ORDER BY "ケース名";
+            """;
+        command.Parameters.AddWithValue("$runId",runId);
+        using var reader=command.ExecuteReader();
+        var values=new List<UiParameterSweepResult>();
+        while(reader.Read()){
+            values.Add(new(
+                reader.GetInt64(0),reader.GetString(1),reader.GetString(2),reader.GetString(3),reader.GetString(4),reader.GetString(5),
+                reader.GetInt64(6),reader.GetInt64(7),reader.GetInt64(8),reader.GetInt64(9),reader.GetDouble(10),reader.GetInt64(11),reader.GetInt64(12),
+                reader.GetString(13),reader.GetString(14),reader.GetDouble(15),reader.IsDBNull(16)?null:reader.GetDouble(16),FromText(reader.GetString(17))));
+        }
+        return values;
+    }
+
     public void DeleteAllRecords(){
         this.EnsureSchema();
         using var connection = this.OpenConnection();
         using var command = connection.CreateCommand();
-        command.CommandText="DELETE FROM \"診断カウンター\";DELETE FROM \"Benchmark\";DELETE FROM \"ScalableBenchmark\";DELETE FROM \"実行\";";
+        command.CommandText="DELETE FROM \"診断カウンター\";DELETE FROM \"Benchmark\";DELETE FROM \"実行\";";
         command.ExecuteNonQuery();
     }
 
@@ -583,36 +696,29 @@ public sealed class UiRunStore{
     }
 
     public IReadOnlyList<UiRunRecord> ListRuns(UiRunAppKind? appKind = null){
+        if(appKind is { } requestedAppKind&&requestedAppKind!=this.appKind){
+            return [];
+        }
         this.EnsureSchema();
         using var connection = this.OpenConnection();
         using var command = connection.CreateCommand();
-        if(appKind is { } value){
-            command.CommandText="""
-                SELECT "実行ID","アプリ種別","表示名","状態","実行プロファイル","タブ名","更新日時"
-                FROM "実行"
-                WHERE "アプリ種別"=$appKind
-                ORDER BY "更新日時" DESC,"実行ID" DESC;
-                """;
-            command.Parameters.AddWithValue("$appKind",ToAppKindText(value));
-        }else{
-            command.CommandText="""
-                SELECT "実行ID","アプリ種別","表示名","状態","実行プロファイル","タブ名","更新日時"
-                FROM "実行"
-                ORDER BY "更新日時" DESC,"実行ID" DESC;
-                """;
-        }
+        command.CommandText="""
+            SELECT "実行ID","表示名","状態","実行プロファイル","タブ名","更新日時"
+            FROM "実行"
+            ORDER BY "更新日時" DESC,"実行ID" DESC;
+            """;
 
         using var reader = command.ExecuteReader();
         var values = new List<UiRunRecord>();
         while(reader.Read()){
             values.Add(new(
                 reader.GetInt64(0),
-                FromAppKindText(reader.GetString(1)),
-                reader.GetString(2),
-                FromStatusText(reader.GetString(3)),
+                this.appKind,
+                reader.GetString(1),
+                FromStatusText(reader.GetString(2)),
+                reader.GetString(3),
                 reader.GetString(4),
-                reader.GetString(5),
-                FromText(reader.GetString(6))));
+                FromText(reader.GetString(5))));
         }
 
         return values;
@@ -878,11 +984,11 @@ public sealed class UiRunStore{
         command.Parameters.AddWithValue("$"+prefix+"Allocated",ToDbValue(side.AllocatedBytes));
     }
 
-    private static UiRunAppKind? ReadRunAppKind(SqliteConnection connection,long runId){
+    private UiRunAppKind? ReadRunAppKind(SqliteConnection connection,long runId){
         using var command=connection.CreateCommand();
-        command.CommandText="SELECT \"アプリ種別\" FROM \"実行\" WHERE \"実行ID\"=$runId;";
+        command.CommandText="SELECT 1 FROM \"実行\" WHERE \"実行ID\"=$runId;";
         command.Parameters.AddWithValue("$runId",runId);
-        return command.ExecuteScalar() is string value ? FromAppKindText(value) : null;
+        return command.ExecuteScalar() is null ? null : this.appKind;
     }
 
     private static ScalableArguments ReadScalableArguments(UiBenchmarkSnapshotCaseWrite? identity){
@@ -921,9 +1027,9 @@ public sealed class UiRunStore{
                    c."Count",c."Initial",c."Data",c."Index",c."Page",c."Segment",c."Memory",c."Fraction",
                    c."今回状態",c."今回失敗理由",c."今回日時",c."今回時間ns",c."今回メモリバイト",
                    p."今回状態",p."今回失敗理由",p."今回日時",p."今回時間ns",p."今回メモリバイト"
-            FROM "ScalableBenchmark" c
+            FROM "Benchmark" c
             INNER JOIN "実行" r ON r."実行ID"=c."実行ID"
-            LEFT JOIN "ScalableBenchmark" p
+            LEFT JOIN "Benchmark" p
               ON p."実行ID"=r."前回実行ID" AND p."タブ名"=c."タブ名" AND p."型"=c."型" AND p."ベンチマーク"=c."ベンチマーク"
              AND p."Count" IS c."Count" AND p."Initial" IS c."Initial" AND p."Data" IS c."Data" AND p."Index" IS c."Index"
              AND p."Page" IS c."Page" AND p."Segment" IS c."Segment" AND p."Memory" IS c."Memory" AND p."Fraction" IS c."Fraction"

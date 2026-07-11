@@ -113,7 +113,7 @@ GetEnumerator を探していたため、`Table<T>:HashSet<T>` のような派�
 
 - `dotnet build Seamless.slnx` 成功(0 警告 0 エラー)。
 - `dotnet test Test/Test.csproj` 全 1166 件成功(2 分 4 秒)。
-- MAUI `Benchmark/UI/UI.csproj` ビルド成功。
+- MAUI `Benchmark/Benchmark.UI/UI.csproj` ビルド成功。
 
 ## 8. 残作業・既知の制約
 

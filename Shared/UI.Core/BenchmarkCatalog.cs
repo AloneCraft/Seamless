@@ -7,11 +7,11 @@ public sealed record BenchmarkProject(string DisplayName,string AssemblyName,str
 
 public static class BenchmarkCatalog {
     public static IReadOnlyList<BenchmarkProject> ScalableProjects { get; } = [
-        new("Scalable.Persisted.Set","Scalable.Persisted.Collections","Scalable.Persisted.Collections.Set."),
-        new("Scalable.Tsavorite.Set","Scalable.Tsavorite.Collections","Scalable.Tsavorite.Collections.Set."),
-        new("Scalable.Persisted.Dictionary","Scalable.Persisted.Collections","Scalable.Persisted.Collections.Dictionary."),
-        new("Scalable.Tsavorite.Dictionary","Scalable.Tsavorite.Collections","Scalable.Tsavorite.Collections.Dictionary."),
-        new("Scalable.Persisted.List","Scalable.Persisted.Collections","Scalable.Persisted.Collections.List."),
+        new("Scalable.Persisted.Set","Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.Set."),
+        new("Scalable.Tsavorite.Set","Benchmark.Scalable.Tsavorite.Collections","Benchmark.Scalable.Tsavorite.Collections.Set."),
+        new("Scalable.Persisted.Dictionary","Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.Dictionary."),
+        new("Scalable.Tsavorite.Dictionary","Benchmark.Scalable.Tsavorite.Collections","Benchmark.Scalable.Tsavorite.Collections.Dictionary."),
+        new("Scalable.Persisted.List","Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.List."),
     ];
 
     public static IReadOnlyList<BenchmarkProject> StandardProjects { get; } = BenchmarkSourceTabs.StandardAll
@@ -20,8 +20,8 @@ public static class BenchmarkCatalog {
             new BenchmarkProject(tab.RightProject,tab.RightAssemblyName),
         })
         .Concat([
-        new("Persisted Collection","Persisted.Collections"),
-        new("Tsavorite Collection","Tsavorite.Collections"),
+        new("Persisted Collection","Benchmark.Persisted.Collections"),
+        new("Tsavorite Collection","Benchmark.Tsavorite.Collections"),
         ])
         .ToArray();
 

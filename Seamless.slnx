@@ -1,23 +1,23 @@
 <Solution>
   <Folder Name="/Benchmark/">
-    <Project Path="Benchmark/DotNet.Linq.Enumerable.FLinq/DotNet.Linq.Enumerable.FLinq.csproj" />
-    <Project Path="Benchmark/DotNet.Linq.Enumerable.List.FLinq/DotNet.Linq.Enumerable.List.FLinq.csproj" />
-    <Project Path="Benchmark/DotNet.Linq.Enumerable.List.ZLinq/DotNet.Linq.Enumerable.List.ZLinq.csproj" />
-    <Project Path="Benchmark/DotNet.Linq.Enumerable.Range.FLinq/DotNet.Linq.Enumerable.Range.FLinq.csproj" />
-    <Project Path="Benchmark/DotNet.Linq.Enumerable.Range.ZLinq/DotNet.Linq.Enumerable.Range.ZLinq.csproj" />
-    <Project Path="Benchmark/DotNet.Linq.Enumerable.ZLinq/DotNet.Linq.Enumerable.ZLinq.csproj" />
-    <Project Path="Benchmark/Persisted.Collections/Persisted.Collections.csproj" />
-    <Project Path="Benchmark/Persisted.Linq.Enumerable.FLinq/Persisted.Linq.Enumerable.FLinq.csproj" />
-    <Project Path="Benchmark/Persisted.Linq.Enumerable.Linq/Persisted.Linq.Enumerable.Linq.csproj" />
-    <Project Path="Benchmark/Scalable.Persisted.Collections/Scalable.Persisted.Collections.csproj" />
-    <Project Path="Benchmark/Scalable.Tsavorite.Collections/Scalable.Tsavorite.Collections.csproj" />
-    <Project Path="Benchmark/Benchmark.Scalble.UI/Benchmark.Scalble.UI.csproj" />
-    <Project Path="Benchmark/Tsavorite.ParameterSweep/Tsavorite.ParameterSweep.csproj" />
-    <Project Path="Benchmark/Tsavorite.ParameterSweep.UI/Tsavorite.ParameterSweep.UI.csproj" />
-    <Project Path="Benchmark/Tsavorite.Collections/Tsavorite.Collections.csproj" />
-    <Project Path="Benchmark/Tsavorite.Linq.Enumerable.FLinq/Tsavorite.Linq.Enumerable.FLinq.csproj" />
-    <Project Path="Benchmark/Tsavorite.Linq.Enumerable.Linq/Tsavorite.Linq.Enumerable.Linq.csproj" />
-    <Project Path="Benchmark/UI/Benchmark.UI.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.FLinq/Benchmark.System.Linq.Enumerable.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.ZLinq/Benchmark.System.Linq.Enumerable.ZLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.Range.FLinq/Benchmark.System.Linq.Enumerable.Range.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.List.ZLinq/Benchmark.System.Linq.Enumerable.List.ZLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.Range.ZLinq/Benchmark.System.Linq.Enumerable.Range.ZLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.List.FLinq/Benchmark.System.Linq.Enumerable.List.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.Persisted.Collections/Benchmark.Persisted.Collections.csproj" />
+    <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.FLinq/Benchmark.Persisted.Linq.Enumerable.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.Linq/Benchmark.Persisted.Linq.Enumerable.Linq.csproj" />
+    <Project Path="Benchmark/Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj" />
+    <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.FLinq/Benchmark.Tsavorite.Linq.Enumerable.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.Linq/Benchmark.Tsavorite.Linq.Enumerable.Linq.csproj" />
+    <Project Path="Benchmark/Benchmark.Tsavorite.ParameterSweep/Benchmark.Tsavorite.ParameterSweep.csproj" />
+    <Project Path="Benchmark/Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Tsavorite.ParameterSweep.UI.csproj" />
+    <Project Path="Benchmark/Benchmark.Scalable.Persisted.Collections/Benchmark.Scalable.Persisted.Collections.csproj" />
+    <Project Path="Benchmark/Benchmark.Scalable.Tsavorite.Collections/Benchmark.Scalable.Tsavorite.Collections.csproj" />
+    <Project Path="Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj" />
+    <Project Path="Benchmark/Benchmark.UI/Benchmark.UI.csproj" />
     <Project Path="Benchmark/Worker/Worker.csproj" />
   </Folder>
   <Folder Name="/Benchmark/Shared/">
@@ -95,5 +95,3 @@
   <Project Path="Seamless.Serialization/Seamless.Serialization.csproj" />
   <Project Path="Seamless/Seamless.csproj" />
 </Solution>
-
-

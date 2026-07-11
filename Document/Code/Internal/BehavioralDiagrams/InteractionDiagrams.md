@@ -1,10 +1,10 @@
-﻿---
+---
 phase: code-internal-reverse
 reverse_document: true
 canonical_target: Document/Code/Internal/BehavioralDiagrams/InteractionDiagrams.md
 evidence_sources:
   - FLinq/SourceGenerator/interceptor.cs
-  - Tsavorite.Collections/Stores/HashStore.cs
+  - Benchmark.Tsavorite.Collections/Stores/HashStore.cs
   - Benchmark/MainPage.xaml.cs
   - Benchmark/Shared/UI/BenchmarkWorkerClient.cs
 confidence: medium
@@ -53,7 +53,7 @@ sequenceDiagram
     Collection->>Session: Upsert/Read/Delete/scan
 ```
 
-根拠: `Tsavorite.Collections/Stores/HashStore.cs:38`, `Tsavorite.Collections/Stores/HashStore.cs:146`, `Tsavorite.Collections/Collections/Collection.Tsavorite.cs:131`, `Tsavorite.Collections/Collections/Collection.Tsavorite.cs:256`。
+根拠: `Benchmark.Tsavorite.Collections/Stores/HashStore.cs:38`, `Benchmark.Tsavorite.Collections/Stores/HashStore.cs:146`, `Benchmark.Tsavorite.Collections/Collections/Collection.Tsavorite.cs:131`, `Benchmark.Tsavorite.Collections/Collections/Collection.Tsavorite.cs:256`。
 
 ## Benchmark Runner 実行
 

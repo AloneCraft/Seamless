@@ -9,11 +9,11 @@ public sealed class BenchmarkResultItemTests{
 
         var persistedResult = new global::UI.BenchmarkResultItem(StoredResult(
             persisted.RightProject,
-            "Persisted.Linq.Enumerable.LinqInt32",
+            "Benchmark.Persisted.Linq.Enumerable.LinqInt32",
             persisted.Id));
         var tsavoriteResult = new global::UI.BenchmarkResultItem(StoredResult(
             tsavorite.RightProject,
-            "Tsavorite.Linq.Enumerable.LinqInt32",
+            "Benchmark.Tsavorite.Linq.Enumerable.LinqInt32",
             tsavorite.Id));
 
         Assert.Equal(global::UI.BenchmarkSourceTab.SeamlessPersisted,persistedResult.SourceTab);
@@ -28,7 +28,7 @@ public sealed class BenchmarkResultItemTests{
             new global::UI.BenchmarkCase(
                 tsavorite.RightProject,
                 tsavorite.RightAssemblyName,
-                "Tsavorite.Linq.Enumerable.LinqInt32",
+                "Benchmark.Tsavorite.Linq.Enumerable.LinqInt32",
                 "Aggregate_func"),
             new InvalidOperationException("boom"));
 
@@ -41,7 +41,7 @@ public sealed class BenchmarkResultItemTests{
 
         var result = new global::UI.BenchmarkResultItem(StoredResult(
             array.LeftProject,
-            "DotNet.Linq.Enumerable.FLinqInt32",
+            "Benchmark.System.Linq.Enumerable.FLinqInt32",
             string.Empty));
 
         Assert.Equal(global::UI.BenchmarkSourceTab.SystemArray,result.SourceTab);
@@ -50,9 +50,9 @@ public sealed class BenchmarkResultItemTests{
     [Fact]
     public void Constructor_NormalizesLoopCountTotalsPerOperation(){
         var result = new global::UI.BenchmarkResultItem(new global::UI.BenchmarkJob{
-            Project="DotNet.Linq.Enumerable.FLinq",
+            Project="Benchmark.System.Linq.Enumerable.FLinq",
             MethodName="Aggregate_func",
-            TypeFullName="DotNet.Linq.Enumerable.FLinqInt32",
+            TypeFullName="Benchmark.System.Linq.Enumerable.FLinqInt32",
             SourceTab=global::UI.BenchmarkSourceTab.SystemArray,
             ElementCount=4096,
             LoopCount=8,
@@ -74,7 +74,7 @@ public sealed class BenchmarkResultItemTests{
     public void Constructor_DoesNotReconstructMissingTotalForLegacySnapshot(){
         var stored=StoredResult(
             global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray).LeftProject,
-            "DotNet.Linq.Enumerable.FLinqInt32",
+            "Benchmark.System.Linq.Enumerable.FLinqInt32",
             global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray).Id);
 
         var result=new global::UI.BenchmarkResultItem(stored);

@@ -1,25 +1,25 @@
-﻿# Tsavorite LINQ Intercept Fragment 実装計画
+# Tsavorite LINQ Intercept Fragment 実装計画
 
 ## 背景
 
 `Tsavorite.Linq.Enumerable` は `IHashSet<T>` 向けの LINQ API として整備中である。既存の FLinq source generator は主に `System.Linq.Enumerable` を対象にしており、`Tsavorite.Linq.Enumerable` の呼び出しは Fragment pipeline の入口で十分に認識されていない。
 
-今回の目的は、`Tsavorite.Linq.Enumerable` を `System.Linq.Enumerable` と同じ実装思想で intercept 対象にしつつ、`Tsavorite.Collections.HashSet<T>` 具象型では Tsavorite storage scan を使う専用経路を追加することである。
+今回の目的は、`Tsavorite.Linq.Enumerable` を `System.Linq.Enumerable` と同じ実装思想で intercept 対象にしつつ、`Benchmark.Tsavorite.Collections.HashSet<T>` 具象型では Tsavorite storage scan を使う専用経路を追加することである。
 
 ## 現状の観察
 
 - `src/FLinq/SourceGenerator/LinqTargetDiscovery.cs`, `LinqFragmentBuilder.cs`, `LinqMethodBodyRewriter.cs`, `Where.cs` などに `System.Linq.Enumerable` 固定判定がある。
 - 既存 Fragment は `src/FLinq/SourceGenerator/Linq/Fragments` 直下にあり、reflection で `Fragment` 継承型を収集している。クラス名が `Where_predicate` のように method/variant 名として使われる。
 - 既存 Fragment は `System.Linq.Enumerable` 専用というより、`IEnumerable<T>` セマンティクスの共通基盤である。配置は現状維持する。
-- `Tsavorite.Collections.HashSet<T>.Scan<TStrategy>(ref TStrategy)` と `IHashSetScanStrategy<TSelf,T>` は現在 internal である。
+- `Benchmark.Tsavorite.Collections.HashSet<T>.Scan<TStrategy>(ref TStrategy)` と `IHashSetScanStrategy<TSelf,T>` は現在 internal である。
 - `Tsavorite.Linq.Enumerable.Where` / `Select` などは `IEnumerable<T>` を返す。そのため `source.Where(...).Select(...).Count()` は、最初だけ `Tsavorite.Linq.Enumerable`、後続は `System.Linq.Enumerable` に解決されることがある。
 - 現在の `Tsavorite.Linq.Enumerable` の sequence-returning method は、多くが `List<T>` に即時 materialize して返している。これは `System.Linq.Enumerable` の遅延実行と異なる。
-- 既存 System 側テストは `tests/Test.Tsavorite.Collections/Intercept/System/Linq` に `Chain1`, `Chain2`, `FragmentCoverage`, `EnumerableComparisonCatalog` があり、Tsavorite 側より構造化されている。
+- 既存 System 側テストは `tests/Test.Benchmark.Tsavorite.Collections/Intercept/System/Linq` に `Chain1`, `Chain2`, `FragmentCoverage`, `EnumerableComparisonCatalog` があり、Tsavorite 側より構造化されている。
 
 ## 目的
 
 - `Tsavorite.Linq.Enumerable` 呼び出しを FLinq の Fragment pipeline に乗せる。
-- `Tsavorite.Collections.HashSet<T>` 具象型 root では `Scan` ベースの専用 terminal fusion を使う。
+- `Benchmark.Tsavorite.Collections.HashSet<T>` 具象型 root では `Scan` ベースの専用 terminal fusion を使う。
 - `IHashSet<T>` など抽象型 root では既存 `Root` ベースの struct enumerator 経路を正式経路として使う。
 - Tsavorite root から始まるチェーンでは、途中の `System.Linq.Enumerable` stage も Tsavorite pipeline の一部として扱う。
 - 未対応メソッドは静かに元実装へ戻さず、未実装として検出可能にする。
@@ -45,10 +45,10 @@
 の両方を LINQ method family として認識する。ただし pipeline の実行方針は method provider だけではなく root provider で決める。
 
 ```text
-root が Tsavorite.Collections.HashSet<T>
+root が Benchmark.Tsavorite.Collections.HashSet<T>
   -> Tsavorite Scan path
 
-root が Tsavorite.Collections.IHashSet<T>
+root が Benchmark.Tsavorite.Collections.IHashSet<T>
   -> Tsavorite generic Root path
 
 root が通常 IEnumerable<T>
@@ -95,7 +95,7 @@ internal unsafe void Scan<TState>(
     global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method,
     Name = "Scan")]
 private static extern unsafe void __Scan<TState>(
-    global::Tsavorite.Collections.HashSet<int> source,
+    global::Benchmark.Tsavorite.Collections.HashSet<int> source,
     ref TState state,
     delegate* managed<ref TState, int, bool> body);
 ```
@@ -172,11 +172,11 @@ set 系は内部 set 構築を列挙開始時に行い、返り値は `yield ret
 - `src/FLinq/SourceGenerator/Linq/Fragments/Pipeline.cs`
 - `src/FLinq/SourceGenerator/Linq/Fragments/Where.cs`
 - `src/FLinq/SourceGenerator/Linq/Fragments/Tsavorite/*`
-- `src/Tsavorite.Collections/Collections/HashSet.Scan.cs`
-- `src/Tsavorite.Collections/Linq/Enumerable.cs`
-- `tests/Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj`
-- `tests/Test.Tsavorite.Collections/Intercept/System/Linq/*`
-- `tests/Test.Tsavorite.Collections/Intercept/Tsavorite/Linq/*`
+- `src/Benchmark.Tsavorite.Collections/Collections/HashSet.Scan.cs`
+- `src/Benchmark.Tsavorite.Collections/Linq/Enumerable.cs`
+- `tests/Test.Benchmark.Tsavorite.Collections/Test.Benchmark.Tsavorite.Collections.csproj`
+- `tests/Test.Benchmark.Tsavorite.Collections/Intercept/System/Linq/*`
+- `tests/Test.Benchmark.Tsavorite.Collections/Intercept/Tsavorite/Linq/*`
 
 ## 移行手順
 
@@ -201,7 +201,7 @@ set 系は内部 set 構築を列挙開始時に行い、返り値は `yield ret
 - `Where` / `Select` の stage fusion を `Where_Count`, `Select_Count`, `Where_Select_Count`, `Select_Where_Any` のようなチェーンで確認する。
 - `Intersect`, `Union`, `Except`, `Distinct` は通常実装の遅延実行と結果一致を確認し、Scan 最適化は Pending に残す。
 - 実行候補:
-  - `dotnet test tests/Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj --filter "Category=Intercept"`
+  - `dotnet test tests/Test.Benchmark.Tsavorite.Collections/Test.Benchmark.Tsavorite.Collections.csproj --filter "Category=Intercept"`
   - 必要に応じて System LINQ intercept テストも個別実行する。
 
 ## リスクと対策

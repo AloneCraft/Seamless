@@ -1,4 +1,4 @@
-﻿# Collection 仕様書統合
+# Collection 仕様書統合
 
 # Source: Document\Code\Internal\TsavoriteCollectionsInternalDesign.md
 
@@ -7,40 +7,40 @@ phase: code-internal-reverse
 reverse_document: true
 canonical_target: Collection.md
 evidence_sources:
-  - Tsavorite.Collections/Tsavorite.Collections.csproj
-  - Tsavorite.Collections/Stores/HashStore.cs
-  - Tsavorite.Collections/Collections/Collection.Tsavorite.cs
-  - Tsavorite.Collections/Collections/Dictionary.cs
-  - Tsavorite.Collections/Collections/HashSet.cs
-  - Tsavorite.Collections/Collections/Set.cs
-  - Tsavorite.Collections/Linq/Enumerable.cs
-  - Tsavorite.Collections/LinqCounter.cs
+  - Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj
+  - Benchmark.Tsavorite.Collections/Stores/HashStore.cs
+  - Benchmark.Tsavorite.Collections/Collections/Collection.Tsavorite.cs
+  - Benchmark.Tsavorite.Collections/Collections/Dictionary.cs
+  - Benchmark.Tsavorite.Collections/Collections/HashSet.cs
+  - Benchmark.Tsavorite.Collections/Collections/Set.cs
+  - Benchmark.Tsavorite.Collections/Linq/Enumerable.cs
+  - Benchmark.Tsavorite.Collections/LinqCounter.cs
 confidence: medium
 review_status: draft
 ---
 
-# Tsavorite.Collections 内部設計
+# Benchmark.Tsavorite.Collections 内部設計
 
 ## 対象
-`Tsavorite.Collections` は `net10.0` / C# 14 のライブラリで、Garnet/Tsavorite 系ストア、MemoryPack serializer、LINQ 拡張、計測用 counter を含む（`Tsavorite.Collections/Tsavorite.Collections.csproj:4`, `Tsavorite.Collections/Tsavorite.Collections.csproj:5`, `Tsavorite.Collections/Tsavorite.Collections.csproj:14`, `Tsavorite.Collections/Tsavorite.Collections.csproj:15`）。
+`Benchmark.Tsavorite.Collections` は `net10.0` / C# 14 のライブラリで、Garnet/Tsavorite 系ストア、MemoryPack serializer、LINQ 拡張、計測用 counter を含む（`Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj:4`, `Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj:5`, `Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj:14`, `Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj:15`）。
 
 ## 主要クラス
 
 | クラス/領域 | 責務 | 実装証拠 |
 |---|---|---|
-| `HashStore` | index/page/segment/memory/checkpoint を受け取る store factory。Dictionary、HashSet、Set store を生成する。 | `Tsavorite.Collections/Stores/HashStore.cs:38`, `Tsavorite.Collections/Stores/HashStore.cs:146`, `Tsavorite.Collections/Stores/HashStore.cs:185`, `Tsavorite.Collections/Stores/HashStore.cs:240`, `Tsavorite.Collections/Stores/HashStore.cs:280` |
-| `Collection<TKey,TValue,...>` | Tsavorite KV を背後に持つ collection 基底。Add、TryAdd、Remove、TryGetValue、Clear、Count を提供する。 | `Tsavorite.Collections/Collections/Collection.Tsavorite.cs:131`, `Tsavorite.Collections/Collections/Collection.Tsavorite.cs:160`, `Tsavorite.Collections/Collections/Collection.Tsavorite.cs:241`, `Tsavorite.Collections/Collections/Collection.Tsavorite.cs:256`, `Tsavorite.Collections/Collections/Collection.Tsavorite.cs:563` |
-| `Dictionary<TKey,TValue,...>` | `IDictionary` 契約を collection 上に載せる。KeyValuePair 操作、remove with value、enumerator view を提供する。 | `Tsavorite.Collections/Collections/Dictionary.cs:8`, `Tsavorite.Collections/Collections/Dictionary.cs:23`, `Tsavorite.Collections/Collections/Dictionary.Tsavorite.cs:51`, `Tsavorite.Collections/Collections/Dictionary.Tsavorite.cs:65`, `Tsavorite.Collections/Collections/Dictionary.Tsavorite.cs:120` |
-| `HashSet<TKey>` | set API と Tsavorite scan 最適化の対象。集合演算は partial 実装へ分割される。 | `Tsavorite.Collections/Collections/HashSet.cs:8`, `Tsavorite.Collections/Collections/HashSet.cs:12`, `Tsavorite.Collections/Collections/HashSet.cs:28`, `Tsavorite.Collections/Collections/HashSet.Tsavorite.cs:79`, `Tsavorite.Collections/Collections/HashSet.Scan.cs:8` |
-| `Set<TKey,TRecord>` | `IRecord<TKey>` による key/value record set。Set 演算を `TsavoriteSetOperations` に委譲する。 | `Tsavorite.Collections/Collections/Set.cs:30`, `Tsavorite.Collections/Collections/Set.cs:36`, `Tsavorite.Collections/Collections/Set.cs:70`, `Tsavorite.Collections/Collections/Set.cs:203` |
-| `Linq.Enumerable` | `IHashSet<T>` 向け LINQ-like extension を提供する。 | `Tsavorite.Collections/Linq/Enumerable.cs:8`, `Tsavorite.Collections/Linq/Enumerable.cs:18`, `Tsavorite.Collections/Linq/Enumerable.cs:2217`, `Tsavorite.Collections/Linq/Enumerable.cs:2238`, `Tsavorite.Collections/Linq/Enumerable.cs:2258` |
-| `LinqCounter` / `LinqCounterScope` | 物理反復、論理演算、delegate、hash build/probe などを thread-safe に計測する。 | `Tsavorite.Collections/LinqCounter.cs:9`, `Tsavorite.Collections/LinqCounter.cs:31`, `Tsavorite.Collections/LinqCounter.cs:45`, `Tsavorite.Collections/LinqCounter.cs:142`, `Tsavorite.Collections/LinqCounter.cs:155` |
+| `HashStore` | index/page/segment/memory/checkpoint を受け取る store factory。Dictionary、HashSet、Set store を生成する。 | `Benchmark.Tsavorite.Collections/Stores/HashStore.cs:38`, `Benchmark.Tsavorite.Collections/Stores/HashStore.cs:146`, `Benchmark.Tsavorite.Collections/Stores/HashStore.cs:185`, `Benchmark.Tsavorite.Collections/Stores/HashStore.cs:240`, `Benchmark.Tsavorite.Collections/Stores/HashStore.cs:280` |
+| `Collection<TKey,TValue,...>` | Tsavorite KV を背後に持つ collection 基底。Add、TryAdd、Remove、TryGetValue、Clear、Count を提供する。 | `Benchmark.Tsavorite.Collections/Collections/Collection.Tsavorite.cs:131`, `Benchmark.Tsavorite.Collections/Collections/Collection.Tsavorite.cs:160`, `Benchmark.Tsavorite.Collections/Collections/Collection.Tsavorite.cs:241`, `Benchmark.Tsavorite.Collections/Collections/Collection.Tsavorite.cs:256`, `Benchmark.Tsavorite.Collections/Collections/Collection.Tsavorite.cs:563` |
+| `Dictionary<TKey,TValue,...>` | `IDictionary` 契約を collection 上に載せる。KeyValuePair 操作、remove with value、enumerator view を提供する。 | `Benchmark.Tsavorite.Collections/Collections/Dictionary.cs:8`, `Benchmark.Tsavorite.Collections/Collections/Dictionary.cs:23`, `Benchmark.Tsavorite.Collections/Collections/Dictionary.Tsavorite.cs:51`, `Benchmark.Tsavorite.Collections/Collections/Dictionary.Tsavorite.cs:65`, `Benchmark.Tsavorite.Collections/Collections/Dictionary.Tsavorite.cs:120` |
+| `HashSet<TKey>` | set API と Tsavorite scan 最適化の対象。集合演算は partial 実装へ分割される。 | `Benchmark.Tsavorite.Collections/Collections/HashSet.cs:8`, `Benchmark.Tsavorite.Collections/Collections/HashSet.cs:12`, `Benchmark.Tsavorite.Collections/Collections/HashSet.cs:28`, `Benchmark.Tsavorite.Collections/Collections/HashSet.Tsavorite.cs:79`, `Benchmark.Tsavorite.Collections/Collections/HashSet.Scan.cs:8` |
+| `Set<TKey,TRecord>` | `IRecord<TKey>` による key/value record set。Set 演算を `TsavoriteSetOperations` に委譲する。 | `Benchmark.Tsavorite.Collections/Collections/Set.cs:30`, `Benchmark.Tsavorite.Collections/Collections/Set.cs:36`, `Benchmark.Tsavorite.Collections/Collections/Set.cs:70`, `Benchmark.Tsavorite.Collections/Collections/Set.cs:203` |
+| `Linq.Enumerable` | `IHashSet<T>` 向け LINQ-like extension を提供する。 | `Benchmark.Tsavorite.Collections/Linq/Enumerable.cs:8`, `Benchmark.Tsavorite.Collections/Linq/Enumerable.cs:18`, `Benchmark.Tsavorite.Collections/Linq/Enumerable.cs:2217`, `Benchmark.Tsavorite.Collections/Linq/Enumerable.cs:2238`, `Benchmark.Tsavorite.Collections/Linq/Enumerable.cs:2258` |
+| `LinqCounter` / `LinqCounterScope` | 物理反復、論理演算、delegate、hash build/probe などを thread-safe に計測する。 | `Benchmark.Tsavorite.Collections/LinqCounter.cs:9`, `Benchmark.Tsavorite.Collections/LinqCounter.cs:31`, `Benchmark.Tsavorite.Collections/LinqCounter.cs:45`, `Benchmark.Tsavorite.Collections/LinqCounter.cs:142`, `Benchmark.Tsavorite.Collections/LinqCounter.cs:155` |
 
 ## データ構造
 
-- `HashStore` は checkpoint metadata を `.Tsavorite` 配下の JSON として書き、復旧時の推奨 index size を解決する（`Tsavorite.Collections/Stores/HashStore.cs:82`, `Tsavorite.Collections/Stores/HashStore.cs:90`, `Tsavorite.Collections/Stores/HashStore.cs:94`, `Tsavorite.Collections/Stores/HashStore.cs:104`）。
-- serializer 戦略は blittable と MemoryPack に分かれる（`Tsavorite.Collections/Stores/SerializerStrategy.cs:3`, `Tsavorite.Collections/Stores/SerializerStrategy.cs:7`, `Tsavorite.Collections/Stores/SerializerStrategy.cs:11`）。
-- `MemoryOnlyDevice` は read/write を例外化する memory-only storage device として定義される（`Tsavorite.Collections/Devices/MemoryOnlyDevice.cs:5`, `Tsavorite.Collections/Devices/MemoryOnlyDevice.cs:9`, `Tsavorite.Collections/Devices/MemoryOnlyDevice.cs:24`）。
+- `HashStore` は checkpoint metadata を `.Tsavorite` 配下の JSON として書き、復旧時の推奨 index size を解決する（`Benchmark.Tsavorite.Collections/Stores/HashStore.cs:82`, `Benchmark.Tsavorite.Collections/Stores/HashStore.cs:90`, `Benchmark.Tsavorite.Collections/Stores/HashStore.cs:94`, `Benchmark.Tsavorite.Collections/Stores/HashStore.cs:104`）。
+- serializer 戦略は blittable と MemoryPack に分かれる（`Benchmark.Tsavorite.Collections/Stores/SerializerStrategy.cs:3`, `Benchmark.Tsavorite.Collections/Stores/SerializerStrategy.cs:7`, `Benchmark.Tsavorite.Collections/Stores/SerializerStrategy.cs:11`）。
+- `MemoryOnlyDevice` は read/write を例外化する memory-only storage device として定義される（`Benchmark.Tsavorite.Collections/Devices/MemoryOnlyDevice.cs:5`, `Benchmark.Tsavorite.Collections/Devices/MemoryOnlyDevice.cs:9`, `Benchmark.Tsavorite.Collections/Devices/MemoryOnlyDevice.cs:24`）。
 
 ## 処理アルゴリズム
 

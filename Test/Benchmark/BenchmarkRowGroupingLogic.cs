@@ -1,4 +1,4 @@
-﻿using UI;
+using UI;
 
 namespace Test.Benchmark;
 
@@ -61,9 +61,9 @@ public sealed class BenchmarkRowGroupingLogic{
         var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalablePersistedList);
         var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
             [
-                Case(sourceTab.LeftProject,"Scalable.Persisted.Collections","Scalable.Persisted.Collections.List.ListString","Add"),
-                Case(sourceTab.LeftProject,"Scalable.Persisted.Collections","Scalable.Persisted.Collections.List.ListInt32","Add"),
-                Case(sourceTab.LeftProject,"Scalable.Persisted.Collections","Scalable.Persisted.Collections.List.ListBoolean","Add"),
+                Case(sourceTab.LeftProject,"Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.List.ListString","Add"),
+                Case(sourceTab.LeftProject,"Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.List.ListInt32","Add"),
+                Case(sourceTab.LeftProject,"Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.List.ListBoolean","Add"),
             ],
             sourceTab);
 
@@ -78,8 +78,8 @@ public sealed class BenchmarkRowGroupingLogic{
         var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalableTsavoriteDictionary);
         var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
             [
-                Case(sourceTab.LeftProject,"Scalable.Tsavorite.Collections","Scalable.Tsavorite.Collections.Dictionary.DictionaryStringInt32","Add"),
-                Case(sourceTab.LeftProject,"Scalable.Tsavorite.Collections","Scalable.Tsavorite.Collections.Dictionary.DictionaryManagedStructManagedStruct","Add"),
+                Case(sourceTab.LeftProject,"Benchmark.Scalable.Tsavorite.Collections","Benchmark.Scalable.Tsavorite.Collections.Dictionary.DictionaryStringInt32","Add"),
+                Case(sourceTab.LeftProject,"Benchmark.Scalable.Tsavorite.Collections","Benchmark.Scalable.Tsavorite.Collections.Dictionary.DictionaryManagedStructManagedStruct","Add"),
             ],
             sourceTab);
 
@@ -93,10 +93,10 @@ public sealed class BenchmarkRowGroupingLogic{
         var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
         var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
             [
-                Case(sourceTab.LeftProject,"Persisted.Linq.Enumerable.FLinq","Persisted.Linq.Enumerable.FLinqInt32","Aggregate_func"),
-                Case(sourceTab.LeftProject,"Persisted.Linq.Enumerable.FLinq","Persisted.Linq.Enumerable.FLinqString","Aggregate_func"),
-                Case(sourceTab.RightProject,"Persisted.Linq.Enumerable.Linq","Persisted.Linq.Enumerable.LinqInt32","Aggregate_func"),
-                Case(sourceTab.RightProject,"Persisted.Linq.Enumerable.Linq","Persisted.Linq.Enumerable.LinqString","Aggregate_func"),
+                Case(sourceTab.LeftProject,"Benchmark.Persisted.Linq.Enumerable.FLinq","Benchmark.Persisted.Linq.Enumerable.FLinqInt32","Aggregate_func"),
+                Case(sourceTab.LeftProject,"Benchmark.Persisted.Linq.Enumerable.FLinq","Benchmark.Persisted.Linq.Enumerable.FLinqString","Aggregate_func"),
+                Case(sourceTab.RightProject,"Benchmark.Persisted.Linq.Enumerable.Linq","Benchmark.Persisted.Linq.Enumerable.LinqInt32","Aggregate_func"),
+                Case(sourceTab.RightProject,"Benchmark.Persisted.Linq.Enumerable.Linq","Benchmark.Persisted.Linq.Enumerable.LinqString","Aggregate_func"),
             ],
             sourceTab);
 
@@ -110,10 +110,10 @@ public sealed class BenchmarkRowGroupingLogic{
         var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessTsavorite);
         var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
             [
-                Case(sourceTab.LeftProject,"Tsavorite.Linq.Enumerable.FLinq","Tsavorite.Linq.Enumerable.FLinqInt32","All_predicate"),
-                Case(sourceTab.LeftProject,"Tsavorite.Linq.Enumerable.FLinq","Tsavorite.Linq.Enumerable.FLinqString","All_predicate"),
-                Case(sourceTab.RightProject,"Tsavorite.Linq.Enumerable.Linq","Tsavorite.Linq.Enumerable.LinqInt32","All_predicate"),
-                Case(sourceTab.RightProject,"Tsavorite.Linq.Enumerable.Linq","Tsavorite.Linq.Enumerable.LinqString","All_predicate"),
+                Case(sourceTab.LeftProject,"Benchmark.Tsavorite.Linq.Enumerable.FLinq","Benchmark.Tsavorite.Linq.Enumerable.FLinqInt32","All_predicate"),
+                Case(sourceTab.LeftProject,"Benchmark.Tsavorite.Linq.Enumerable.FLinq","Benchmark.Tsavorite.Linq.Enumerable.FLinqString","All_predicate"),
+                Case(sourceTab.RightProject,"Benchmark.Tsavorite.Linq.Enumerable.Linq","Benchmark.Tsavorite.Linq.Enumerable.LinqInt32","All_predicate"),
+                Case(sourceTab.RightProject,"Benchmark.Tsavorite.Linq.Enumerable.Linq","Benchmark.Tsavorite.Linq.Enumerable.LinqString","All_predicate"),
             ],
             sourceTab);
 
@@ -128,12 +128,12 @@ public sealed class BenchmarkRowGroupingLogic{
         var otherTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessTsavorite);
         var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
             [
-                Case(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Persisted.Linq.Enumerable.FLinqInt32","AggregateBy_keySelector"),
-                Case(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Persisted.Linq.Enumerable.FLinqString","AggregateBy_keySelector"),
-                Case(sourceTab.RightProject,sourceTab.RightAssemblyName,"Persisted.Linq.Enumerable.LinqInt32","AggregateBy_keySelector"),
-                Case(sourceTab.RightProject,sourceTab.RightAssemblyName,"Persisted.Linq.Enumerable.LinqString","AggregateBy_keySelector"),
-                Case(sourceTab.RightProject,otherTab.RightAssemblyName,"Tsavorite.Linq.Enumerable.LinqInt32","AggregateBy_keySelector"),
-                Case(sourceTab.RightProject,otherTab.RightAssemblyName,"Tsavorite.Linq.Enumerable.LinqString","AggregateBy_keySelector"),
+                Case(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Benchmark.Persisted.Linq.Enumerable.FLinqInt32","AggregateBy_keySelector"),
+                Case(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Benchmark.Persisted.Linq.Enumerable.FLinqString","AggregateBy_keySelector"),
+                Case(sourceTab.RightProject,sourceTab.RightAssemblyName,"Benchmark.Persisted.Linq.Enumerable.LinqInt32","AggregateBy_keySelector"),
+                Case(sourceTab.RightProject,sourceTab.RightAssemblyName,"Benchmark.Persisted.Linq.Enumerable.LinqString","AggregateBy_keySelector"),
+                Case(sourceTab.RightProject,otherTab.RightAssemblyName,"Benchmark.Tsavorite.Linq.Enumerable.LinqInt32","AggregateBy_keySelector"),
+                Case(sourceTab.RightProject,otherTab.RightAssemblyName,"Benchmark.Tsavorite.Linq.Enumerable.LinqString","AggregateBy_keySelector"),
             ],
             sourceTab);
 
@@ -149,12 +149,12 @@ public sealed class BenchmarkRowGroupingLogic{
         var otherTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
         var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
             [
-                Case(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Tsavorite.Linq.Enumerable.FLinqInt32","AggregateBy_keySelector"),
-                Case(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Tsavorite.Linq.Enumerable.FLinqString","AggregateBy_keySelector"),
-                Case(sourceTab.RightProject,otherTab.RightAssemblyName,"Persisted.Linq.Enumerable.LinqInt32","AggregateBy_keySelector"),
-                Case(sourceTab.RightProject,otherTab.RightAssemblyName,"Persisted.Linq.Enumerable.LinqString","AggregateBy_keySelector"),
-                Case(sourceTab.RightProject,sourceTab.RightAssemblyName,"Tsavorite.Linq.Enumerable.LinqInt32","AggregateBy_keySelector"),
-                Case(sourceTab.RightProject,sourceTab.RightAssemblyName,"Tsavorite.Linq.Enumerable.LinqString","AggregateBy_keySelector"),
+                Case(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Benchmark.Tsavorite.Linq.Enumerable.FLinqInt32","AggregateBy_keySelector"),
+                Case(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Benchmark.Tsavorite.Linq.Enumerable.FLinqString","AggregateBy_keySelector"),
+                Case(sourceTab.RightProject,otherTab.RightAssemblyName,"Benchmark.Persisted.Linq.Enumerable.LinqInt32","AggregateBy_keySelector"),
+                Case(sourceTab.RightProject,otherTab.RightAssemblyName,"Benchmark.Persisted.Linq.Enumerable.LinqString","AggregateBy_keySelector"),
+                Case(sourceTab.RightProject,sourceTab.RightAssemblyName,"Benchmark.Tsavorite.Linq.Enumerable.LinqInt32","AggregateBy_keySelector"),
+                Case(sourceTab.RightProject,sourceTab.RightAssemblyName,"Benchmark.Tsavorite.Linq.Enumerable.LinqString","AggregateBy_keySelector"),
             ],
             sourceTab);
 
@@ -169,10 +169,10 @@ public sealed class BenchmarkRowGroupingLogic{
         var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
         var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
             [
-                Case(sourceTab.LeftProject,"DotNet.Linq.Enumerable.FLinq","DotNet.Linq.Enumerable.FLinqInt32","Any"),
-                Case(sourceTab.LeftProject,"DotNet.Linq.Enumerable.FLinq","DotNet.Linq.Enumerable.FLinqString","Any"),
-                Case(sourceTab.RightProject,"DotNet.Linq.Enumerable.ZLinq","DotNet.Linq.Enumerable.ZLinqInt32","Any"),
-                Case(sourceTab.RightProject,"DotNet.Linq.Enumerable.ZLinq","DotNet.Linq.Enumerable.ZLinqString","Any"),
+                Case(sourceTab.LeftProject,"Benchmark.System.Linq.Enumerable.FLinq","Benchmark.System.Linq.Enumerable.FLinqInt32","Any"),
+                Case(sourceTab.LeftProject,"Benchmark.System.Linq.Enumerable.FLinq","Benchmark.System.Linq.Enumerable.FLinqString","Any"),
+                Case(sourceTab.RightProject,"Benchmark.System.Linq.Enumerable.ZLinq","Benchmark.System.Linq.Enumerable.ZLinqInt32","Any"),
+                Case(sourceTab.RightProject,"Benchmark.System.Linq.Enumerable.ZLinq","Benchmark.System.Linq.Enumerable.ZLinqString","Any"),
             ],
             sourceTab);
 
@@ -187,8 +187,8 @@ public sealed class BenchmarkRowGroupingLogic{
         var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
         var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
             [
-                Case(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"DotNet.Linq.Enumerable.FLinqInt32","Aggregate_func"),
-                Case(sourceTab.RightProject,sourceTab.RightAssemblyName,"DotNet.Linq.Enumerable.ZLinqInt32","Aggregate_func"),
+                Case(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Benchmark.System.Linq.Enumerable.FLinqInt32","Aggregate_func"),
+                Case(sourceTab.RightProject,sourceTab.RightAssemblyName,"Benchmark.System.Linq.Enumerable.ZLinqInt32","Aggregate_func"),
             ],
             sourceTab);
 
@@ -236,7 +236,7 @@ public sealed class BenchmarkRowGroupingLogic{
         var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalablePersistedList);
         var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
             [
-                Report(sourceTab.LeftProject,"Add","Scalable.Persisted.Collections.List.ListInt32",10),
+                Report(sourceTab.LeftProject,"Add","Benchmark.Scalable.Persisted.Collections.List.ListInt32",10),
             ],
             sourceTab);
 
@@ -250,7 +250,7 @@ public sealed class BenchmarkRowGroupingLogic{
         var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalableTsavoriteSet);
         var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
             [
-                Report(sourceTab.LeftProject,"Add","Scalable.Tsavorite.Collections.Set.SetInt32",20),
+                Report(sourceTab.LeftProject,"Add","Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32",20),
             ],
             sourceTab,
             131072);
@@ -266,7 +266,7 @@ public sealed class BenchmarkRowGroupingLogic{
         var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalableTsavoriteDictionary);
         var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
             [
-                Report(sourceTab.LeftProject,"Add","Scalable.Tsavorite.Collections.Dictionary.DictionaryStringInt32",20),
+                Report(sourceTab.LeftProject,"Add","Benchmark.Scalable.Tsavorite.Collections.Dictionary.DictionaryStringInt32",20),
             ],
             sourceTab,
             131072);
@@ -283,7 +283,7 @@ public sealed class BenchmarkRowGroupingLogic{
         var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
         var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
             [
-                Report(sourceTab.LeftProject,"Aggregate_func","Persisted.Linq.Enumerable.FLinqInt32",20),
+                Report(sourceTab.LeftProject,"Aggregate_func","Benchmark.Persisted.Linq.Enumerable.FLinqInt32",20),
             ],
             sourceTab);
 
@@ -299,10 +299,10 @@ public sealed class BenchmarkRowGroupingLogic{
         var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
         var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
             [
-                Report(sourceTab.LeftProject,"Any","DotNet.Linq.Enumerable.FLinqInt32",10),
-                Report(sourceTab.RightProject,"Any","DotNet.Linq.Enumerable.ZLinqInt32",20),
-                Report(sourceTab.LeftProject,"Any","DotNet.Linq.Enumerable.FLinqString",30),
-                Report(sourceTab.RightProject,"Any","DotNet.Linq.Enumerable.ZLinqString",40),
+                Report(sourceTab.LeftProject,"Any","Benchmark.System.Linq.Enumerable.FLinqInt32",10),
+                Report(sourceTab.RightProject,"Any","Benchmark.System.Linq.Enumerable.ZLinqInt32",20),
+                Report(sourceTab.LeftProject,"Any","Benchmark.System.Linq.Enumerable.FLinqString",30),
+                Report(sourceTab.RightProject,"Any","Benchmark.System.Linq.Enumerable.ZLinqString",40),
             ],
             sourceTab);
 
@@ -323,8 +323,8 @@ public sealed class BenchmarkRowGroupingLogic{
         var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
         var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
             [
-                Report(sourceTab.LeftProject,"Any","DotNet.Linq.Enumerable.FLinq",10),
-                Report(sourceTab.RightProject,"Any","DotNet.Linq.Enumerable.ZLinq",20),
+                Report(sourceTab.LeftProject,"Any","Benchmark.System.Linq.Enumerable.FLinq",10),
+                Report(sourceTab.RightProject,"Any","Benchmark.System.Linq.Enumerable.ZLinq",20),
             ],
             sourceTab);
 
@@ -344,7 +344,7 @@ public sealed class BenchmarkRowGroupingLogic{
             new("Index","131072"),
         };
         var cases = new BenchmarkComparisonRowMatchCase[] {
-            new("Scalable.Tsavorite.Collections.Set.SetInt32",BenchmarkArgumentFormatting.CreateKey(arguments)),
+            new("Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32",BenchmarkArgumentFormatting.CreateKey(arguments)),
         };
         var exact = new BenchmarkComparisonRow(
             "<int>.Add",
@@ -378,7 +378,7 @@ public sealed class BenchmarkRowGroupingLogic{
         {
             var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
             var cases = new BenchmarkComparisonRowMatchCase[] {
-                new("Persisted.Linq.Enumerable.FLinqInt32",string.Empty),
+                new("Benchmark.Persisted.Linq.Enumerable.FLinqInt32",string.Empty),
             };
             var exact = new BenchmarkComparisonRow(
                 "<int>.Aggregate_func",
@@ -399,7 +399,7 @@ public sealed class BenchmarkRowGroupingLogic{
         {
             var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessTsavorite);
             var cases = new BenchmarkComparisonRowMatchCase[] {
-                new("Tsavorite.Linq.Enumerable.FLinqInt32",string.Empty),
+                new("Benchmark.Tsavorite.Linq.Enumerable.FLinqInt32",string.Empty),
             };
             var exact = new BenchmarkComparisonRow(
                 "<int>.All_predicate",
@@ -430,12 +430,12 @@ public sealed class BenchmarkRowGroupingLogic{
 
     [Fact]
     public void CreateGenericTypeTextReadsTypedBenchmarkClassSuffix(){
-        Assert.Equal("int",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("Persisted.Linq.Enumerable.FLinqInt32"));
-        Assert.Equal("string",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("Persisted.Linq.Enumerable.LinqString"));
-        Assert.Equal("int",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("Tsavorite.Linq.Enumerable.FLinqInt32"));
-        Assert.Equal("string",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("Tsavorite.Linq.Enumerable.LinqString"));
-        Assert.Equal("int",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("DotNet.Linq.Enumerable.FLinqInt32"));
-        Assert.Equal("string",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("DotNet.Linq.Enumerable.ZLinqString"));
+        Assert.Equal("int",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("Benchmark.Persisted.Linq.Enumerable.FLinqInt32"));
+        Assert.Equal("string",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("Benchmark.Persisted.Linq.Enumerable.LinqString"));
+        Assert.Equal("int",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("Benchmark.Tsavorite.Linq.Enumerable.FLinqInt32"));
+        Assert.Equal("string",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("Benchmark.Tsavorite.Linq.Enumerable.LinqString"));
+        Assert.Equal("int",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("Benchmark.System.Linq.Enumerable.FLinqInt32"));
+        Assert.Equal("string",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("Benchmark.System.Linq.Enumerable.ZLinqString"));
         Assert.Equal(string.Empty,ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("System.Array.FLinq"));
     }
 

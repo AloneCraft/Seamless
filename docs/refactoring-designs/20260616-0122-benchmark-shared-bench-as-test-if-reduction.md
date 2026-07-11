@@ -1,4 +1,4 @@
-﻿# Common の BENCH_AS_TEST 条件分岐削減
+# Common の BENCH_AS_TEST 条件分岐削減
 
 ## 背景
 
@@ -12,7 +12,7 @@
 
 - `Shared/Common/Common.projitems` は `Benchmarks/**/*.cs` を `Benchmark/UI` と `Test` の両方へ取り込む。
 - `Test/Tests.csproj` は `BENCH_AS_TEST` を定義し、xUnit 参照と `Using Include="Xunit"` を持つ。
-- `Benchmark/UI/UI/UI.csproj` は `BENCH_AS_TEST` を定義せず、BenchmarkDotNet 実行を目的にする。
+- `Benchmark/Benchmark.UI/UI/UI.csproj` は `BENCH_AS_TEST` を定義せず、BenchmarkDotNet 実行を目的にする。
 - `BenchFact.cs` は `BENCH_AS_TEST` 時に xUnit の `FactAttribute` / trait / orderer を定義し、非 `BENCH_AS_TEST` 時は `BenchFactAttribute` だけを no-op として定義している。
 - 各ベンチマーククラスには同じ `#if BENCH_AS_TEST [Xunit.TestCaseOrderer(typeof(TestPriorityOrderer))] #endif` が重複している。
 - `Xunit.TestCaseOrdererAttribute` は assembly に適用できるため、クラスごとの指定は assembly 属性へ集約できる。
@@ -78,7 +78,7 @@
 - `Shared/Common/Benchmarks/Base.cs`
 - `Shared/Common/Benchmarks/*.cs`
 - `Test/Tests.csproj` での xUnit 実行
-- `Benchmark/UI/UI/UI.csproj` での BenchmarkDotNet ビルド
+- `Benchmark/Benchmark.UI/UI/UI.csproj` での BenchmarkDotNet ビルド
 
 ## 移行手順
 
@@ -91,7 +91,7 @@
 ## テスト計画
 
 - `dotnet test Test/Tests.csproj --no-restore`
-- `dotnet build Benchmark/UI/UI/UI.csproj --no-restore`
+- `dotnet build Benchmark/Benchmark.UI/UI/UI.csproj --no-restore`
 - 必要に応じて代表ケースを filter して確認する。
   - 単発スカラー: `Aggregate_func`
   - 4 段チェーン: `Where_predicate`

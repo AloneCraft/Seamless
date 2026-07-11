@@ -1,6 +1,10 @@
 using System.Runtime.CompilerServices;
 
+#if BENCHMARK_PROJECT
+namespace Benchmark.Persisted.Collections;
+#else
 namespace Persisted.Collections;
+#endif
 
 public abstract class ListTestBase<TStrategy, T>
     where TStrategy : IListTestStrategy<T> {

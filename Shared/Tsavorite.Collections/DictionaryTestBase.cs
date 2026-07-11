@@ -1,5 +1,9 @@
 using Tsavorite.core;
+#if BENCHMARK_PROJECT
+namespace Benchmark.Tsavorite.Collections;
+#else
 namespace Tsavorite.Collections;
+#endif
 /// <summary>
 /// IDictionaryの動作を検証する。
 public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTestBase<TStrategy,TKey,TValue>

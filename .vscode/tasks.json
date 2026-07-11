@@ -8,6 +8,7 @@
             "args": [
                 "build",
                 "${workspaceFolder}/Seamless.slnx",
+                "-m:1",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -26,6 +27,7 @@
                 "${workspaceFolder}/Seamless.slnx",
                 "-c",
                 "Release",
+                "-m:1",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -38,9 +40,9 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Benchmark/UI/Benchmark.UI.csproj",
+                "${workspaceFolder}/Benchmark/Benchmark.UI/Benchmark.UI.csproj",
+                "-m:1",
                 "/property:GenerateFullPaths=true",
-                "/property:TargetFramework=net10.0-windows",
                 "/consoleloggerparameters:NoSummary"
             ],
             "problemMatcher": "$msCompile"
@@ -51,22 +53,9 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Benchmark/UI/Benchmark.UI.csproj",
+                "${workspaceFolder}/Benchmark/Benchmark.UI/Benchmark.UI.csproj",
                 "-c",
                 "Release",
-                "/property:GenerateFullPaths=true",
-                "/property:TargetFramework=net10.0-windows",
-                "/consoleloggerparameters:NoSummary"
-            ],
-            "problemMatcher": "$msCompile"
-        },
-        {
-            "label": "build-benchmark-scalble-ui-debug",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "build",
-                "${workspaceFolder}/Benchmark/Benchmark.Scalble.UI/Benchmark.Scalble.UI.csproj",
                 "-m:1",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
@@ -74,12 +63,25 @@
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "build-benchmark-scalble-ui-release",
+            "label": "build-benchmark-scalable-ui-debug",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Benchmark/Benchmark.Scalble.UI/Benchmark.Scalble.UI.csproj",
+                "${workspaceFolder}/Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj",
+                "-m:1",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-benchmark-scalable-ui-release",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj",
                 "-m:1",
                 "-c",
                 "Release",
@@ -89,29 +91,29 @@
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "build-parameter-sweep-ui-debug",
+            "label": "build-benchmark-parameter-sweep-ui-debug",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Benchmark/Tsavorite.ParameterSweep.UI/Tsavorite.ParameterSweep.UI.csproj",
+                "${workspaceFolder}/Benchmark/Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Tsavorite.ParameterSweep.UI.csproj",
+                "-m:1",
                 "/property:GenerateFullPaths=true",
-                "/property:TargetFramework=net10.0-windows",
                 "/consoleloggerparameters:NoSummary"
             ],
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "build-parameter-sweep-ui-release",
+            "label": "build-benchmark-parameter-sweep-ui-release",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Benchmark/Tsavorite.ParameterSweep.UI/Tsavorite.ParameterSweep.UI.csproj",
+                "${workspaceFolder}/Benchmark/Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Tsavorite.ParameterSweep.UI.csproj",
                 "-c",
                 "Release",
+                "-m:1",
                 "/property:GenerateFullPaths=true",
-                "/property:TargetFramework=net10.0-windows",
                 "/consoleloggerparameters:NoSummary"
             ],
             "problemMatcher": "$msCompile"
@@ -123,6 +125,8 @@
             "args": [
                 "test",
                 "${workspaceFolder}/Seamless.slnx",
+                "-m:1",
+                "/nodeReuse:false",
                 "-c",
                 "Release",
                 "--no-restore",
@@ -139,6 +143,8 @@
             "args": [
                 "test",
                 "${workspaceFolder}/Seamless.slnx",
+                "-m:1",
+                "/nodeReuse:false",
                 "-c",
                 "Release",
                 "--no-restore",

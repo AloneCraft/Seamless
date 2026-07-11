@@ -1,4 +1,4 @@
-﻿using UI;
+using UI;
 using System.Reflection;
 
 namespace Test.Benchmark;
@@ -31,16 +31,16 @@ public sealed class BenchmarkScalableMetadata {
     public void ScalableCatalog_ContainsOnlyScalableProjects() {
         Assert.All(BenchmarkCatalog.ScalableProjects,project => {
             Assert.StartsWith("Scalable.",project.DisplayName,StringComparison.Ordinal);
-            Assert.StartsWith("Scalable.",project.AssemblyName,StringComparison.Ordinal);
-            Assert.StartsWith("Scalable.",project.TypePrefix,StringComparison.Ordinal);
+            Assert.StartsWith("Benchmark.Scalable.",project.AssemblyName,StringComparison.Ordinal);
+            Assert.StartsWith("Benchmark.Scalable.",project.TypePrefix,StringComparison.Ordinal);
         });
-        Assert.DoesNotContain(BenchmarkCatalog.ScalableProjects,static project => project.AssemblyName=="Persisted.Collections");
-        Assert.DoesNotContain(BenchmarkCatalog.ScalableProjects,static project => project.AssemblyName=="Tsavorite.Collections");
+        Assert.DoesNotContain(BenchmarkCatalog.ScalableProjects,static project => project.AssemblyName=="Benchmark.Persisted.Collections");
+        Assert.DoesNotContain(BenchmarkCatalog.ScalableProjects,static project => project.AssemblyName=="Benchmark.Tsavorite.Collections");
     }
 
     [Fact]
     public void ScalableElementCounts_AreLargeEightStepRange() {
-        var type = Assembly.Load(new AssemblyName("Scalable.Persisted.Collections"))
+        var type = Assembly.Load(new AssemblyName("Benchmark.Scalable.Persisted.Collections"))
             .GetType("Scalable.Collections.ScalableElementCounts",throwOnError: true)!;
         var all = ((IEnumerable<int>)type.GetProperty("All")!.GetValue(null)!).ToArray();
         var defaultInitial = ((IEnumerable<int>)type.GetProperty("DefaultInitial")!.GetValue(null)!).ToArray();
@@ -51,4 +51,3 @@ public sealed class BenchmarkScalableMetadata {
         Assert.Equal(65536,baseElementCount);
     }
 }
-

@@ -1,8 +1,8 @@
-﻿# Tsavorite.Linq.Enumerable 移行設計
+# Tsavorite.Linq.Enumerable 移行設計
 
 ## 背景
 
-`System.Linq.Enumerable` は `IEnumerable<T>` を中心にした LINQ API である。一方、`Tsavorite.Collections` には Tsavorite backed な `IHashSet<T>`、`IDictionary<TKey,TValue>`、memory-mapped `List<T>` があり、storage、session、scan を前提にした LINQ API が必要になる。
+`System.Linq.Enumerable` は `IEnumerable<T>` を中心にした LINQ API である。一方、`Benchmark.Tsavorite.Collections` には Tsavorite backed な `IHashSet<T>`、`IDictionary<TKey,TValue>`、memory-mapped `List<T>` があり、storage、session、scan を前提にした LINQ API が必要になる。
 
 現状の `Tsavorite.Linq.HashSet` は `IHashSet<T>` 向け API に寄っているため、System LINQ と対応する API 名としては `Tsavorite.Linq.Enumerable` へ移行する。
 
@@ -10,7 +10,7 @@
 
 - `Tsavorite.Linq.Enumerable` を正規 API 名にする。
 - 既存の `Tsavorite.Linq.HashSet` は互換レイヤーへ移す。
-- `Tsavorite.Collections.HashSet<T>` と `IHashSet<T>` を generator の intercept 対象にする。
+- `Benchmark.Tsavorite.Collections.HashSet<T>` と `IHashSet<T>` を generator の intercept 対象にする。
 - System LINQ 用テストを共有し、System と Tsavorite の両方へ適用できる構造にする。
 - 大容量中間バッファとして `System.Collections.Generic` を使わない。
 - Tsavorite の storage、session、scan、RMW 前提を壊さず、全件ロックや全件メモリ材料化を避ける。
@@ -44,7 +44,7 @@ storage-level 展開を要求する経路で対応できない fragment は、�
 - `System.Linq.Enumerable` 固定判定を `LinqMethodFamily` のような descriptor に置き換える。
 - family は最低限 `SystemEnumerable` と `TsavoriteEnumerable` を持つ。
 - `TsavoriteEnumerable` は `Tsavorite.Linq.Enumerable` の reduced extension call を対象にする。
-- receiver が `Tsavorite.Collections.IHashSet<T>` または具象 `Tsavorite.Collections.HashSet<T>` の場合を扱う。
+- receiver が `Benchmark.Tsavorite.Collections.IHashSet<T>` または具象 `Benchmark.Tsavorite.Collections.HashSet<T>` の場合を扱う。
 - 初期対応は `Any`、`All`、`Count`、`LongCount`、`Contains`、`First`、`FirstOrDefault`、`Aggregate` から始める。
 - `GroupBy`、`Join`、`OrderBy`、`Distinct`、`Except`、`Intersect`、`Union` は storage-backed 中間構造が整ってから段階対応する。
 
@@ -52,7 +52,7 @@ storage-level 展開を要求する経路で対応できない fragment は、�
 
 LINQ-level 展開は、`IHashSet<T>` の静的型でも `IEnumerable<T>` と同じく `GetEnumerator()` を root にして LINQ chain を生成コードの loop へ畳み込む方式である。互換性は高いが、現在の enumerator が全件材料化する場合は storage-level 展開ではない。
 
-storage-level 展開は、`Tsavorite.Collections.HashSet<T>` または専用 scan interface から直接走査し、`IEnumerable<T>` fallback や `System.Collections.Generic` 中間材料化を使わない方式である。これを最終的な完全展開と呼ぶ。
+storage-level 展開は、`Benchmark.Tsavorite.Collections.HashSet<T>` または専用 scan interface から直接走査し、`IEnumerable<T>` fallback や `System.Collections.Generic` 中間材料化を使わない方式である。これを最終的な完全展開と呼ぶ。
 
 ## 初期対応候補
 
@@ -148,14 +148,14 @@ public interface ITsavoriteScanSource<T>
 
 ## 影響範囲
 
-- `src/Tsavorite.Collections/Linq/*`
-- `src/Tsavorite.Collections/Collections/IHashSet.cs`
-- `src/Tsavorite.Collections/Collections/Collection*.cs`
+- `src/Benchmark.Tsavorite.Collections/Linq/*`
+- `src/Benchmark.Tsavorite.Collections/Collections/IHashSet.cs`
+- `src/Benchmark.Tsavorite.Collections/Collections/Collection*.cs`
 - `src/FLinq/SourceGenerator/*`
 - `src/FLinq/SourceGenerator/Linq/Fragments/*`
-- `tests/Test.Tsavorite.Collections/Intercept/System/Linq/*`
-- `tests/Test.Tsavorite.Collections/Intercept/Tsavorite/Linq/*`
-- `tests/Test.Tsavorite.Collections.Benchmark/*`
+- `tests/Test.Benchmark.Tsavorite.Collections/Intercept/System/Linq/*`
+- `tests/Test.Benchmark.Tsavorite.Collections/Intercept/Tsavorite/Linq/*`
+- `tests/Test.Benchmark.Tsavorite.Collections.Benchmark/*`
 - `Shared/Common/*`
 - `src/Benchmark/*`
 
@@ -173,8 +173,8 @@ public interface ITsavoriteScanSource<T>
 
 ## テスト計画
 
-- `dotnet test tests/Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj`
-- `dotnet test tests/Test.Tsavorite.Collections.Benchmark/Test.Tsavorite.Collections.csproj`
+- `dotnet test tests/Test.Benchmark.Tsavorite.Collections/Test.Benchmark.Tsavorite.Collections.csproj`
+- `dotnet test tests/Test.Benchmark.Tsavorite.Collections.Benchmark/Test.Benchmark.Tsavorite.Collections.csproj`
 - Chain1 と Chain2 の System/Tsavorite 共有テスト。
 - Generated source assertion で `Tsavorite.Linq.Enumerable` が intercept 対象になることを確認する。
 - `Tsavorite.Linq.Enumerable` 実装内の大容量 `System.Collections.Generic` 使用を `rg` で検出する。

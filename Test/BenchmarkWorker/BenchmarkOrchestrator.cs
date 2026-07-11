@@ -1,4 +1,4 @@
-﻿using UI;
+using UI;
 
 namespace Test.BenchmarkWorker;
 
@@ -159,8 +159,8 @@ public sealed class BenchmarkOrchestrator{
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
                 [
-                    new BenchmarkCase(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"DotNet.Linq.Enumerable.FLinqInt32","Aggregate_func"),
-                    new BenchmarkCase(sourceTab.RightProject,sourceTab.RightAssemblyName,"DotNet.Linq.Enumerable.ZLinqInt32","Aggregate_func"),
+                    new BenchmarkCase(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Benchmark.System.Linq.Enumerable.FLinqInt32","Aggregate_func"),
+                    new BenchmarkCase(sourceTab.RightProject,sourceTab.RightAssemblyName,"Benchmark.System.Linq.Enumerable.ZLinqInt32","Aggregate_func"),
                 ],
                 [0],
                 [1],
@@ -189,7 +189,7 @@ public sealed class BenchmarkOrchestrator{
         await orchestrator.RunAsync(
             new BenchmarkRunRequest(
                 [
-                    new BenchmarkCase(sourceTab.RightProject,sourceTab.RightAssemblyName,"Tsavorite.Linq.Enumerable.LinqInt32","Aggregate_func"),
+                    new BenchmarkCase(sourceTab.RightProject,sourceTab.RightAssemblyName,"Benchmark.Tsavorite.Linq.Enumerable.LinqInt32","Aggregate_func"),
                 ],
                 [0],
                 [1],

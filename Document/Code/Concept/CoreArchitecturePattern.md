@@ -1,4 +1,4 @@
-﻿---
+---
 phase: code-conceptual-reverse
 reverse_document: true
 canonical_target: Document/Code/Concept/CoreArchitecturePattern.md
@@ -22,7 +22,7 @@ review_status: draft
 flowchart TD
     Source[User C# Source]
     Generator[Roslyn Generators: FLinq / Seamless.Database]
-    Runtime[Tsavorite.Collections Runtime]
+    Runtime[Benchmark.Tsavorite.Collections Runtime]
     Tests[Tests and Generated Source Assertions]
     Bench[BenchmarkDotNet / Uno Runner]
 
@@ -41,9 +41,9 @@ flowchart TD
 |---|---|---|
 | Compile-time code generation | LINQ と schema record を source generator で生成する。 | `FLinq/SourceGenerator/interceptor.cs:55`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:9` |
 | Fragment pipeline | LINQ 演算子を fragment class 群に分解して rendering する。 | `FLinq/SourceGenerator/Linq/Fragments/Fragment.cs:1`, `FLinq/SourceGenerator/Linq/Fragments/Root.cs:7`, `FLinq/SourceGenerator/Linq/Fragments/Where.cs:2` |
-| Store factory | `HashStore` が設定と serializer/device overload を集約する。 | `Tsavorite.Collections/Stores/HashStore.cs:38`, `Tsavorite.Collections/Stores/HashStore.cs:146`, `Tsavorite.Collections/Stores/HashStore.cs:247` |
-| Session function | collection 操作を Tsavorite session function へ分離する。 | `Tsavorite.Collections/SessionFunctions/Upsert.cs:11`, `Tsavorite.Collections/SessionFunctions/Read.cs:10`, `Tsavorite.Collections/SessionFunctions/Remove_TKey_TValue.cs:8` |
-| Instrumentation scope | `AsyncLocal` counter scope で logical/physical work を計測する。 | `Tsavorite.Collections/LinqCounter.cs:142`, `Tsavorite.Collections/LinqCounter.cs:148` |
+| Store factory | `HashStore` が設定と serializer/device overload を集約する。 | `Benchmark.Tsavorite.Collections/Stores/HashStore.cs:38`, `Benchmark.Tsavorite.Collections/Stores/HashStore.cs:146`, `Benchmark.Tsavorite.Collections/Stores/HashStore.cs:247` |
+| Session function | collection 操作を Tsavorite session function へ分離する。 | `Benchmark.Tsavorite.Collections/SessionFunctions/Upsert.cs:11`, `Benchmark.Tsavorite.Collections/SessionFunctions/Read.cs:10`, `Benchmark.Tsavorite.Collections/SessionFunctions/Remove_TKey_TValue.cs:8` |
+| Instrumentation scope | `AsyncLocal` counter scope で logical/physical work を計測する。 | `Benchmark.Tsavorite.Collections/LinqCounter.cs:142`, `Benchmark.Tsavorite.Collections/LinqCounter.cs:148` |
 | Worker process isolation | benchmark を UI から分離した worker process で実行する。 | `Benchmark/Shared/UI/BenchmarkWorkerClient.cs:17`, `Benchmark/MainPage.xaml.cs:688` |
 
 ## Review Gate: Code Concept

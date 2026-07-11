@@ -1,7 +1,11 @@
 using Collection.Helper.CollectionLinq;
 using Scalable.Collections;
 using System.Collections.Concurrent;
+#if BENCHMARK_PROJECT
+namespace Benchmark.Scalable.Tsavorite.Collections;
+#else
 namespace Scalable.Tsavorite.Collections;
+#endif
 
 public abstract class TsavoriteSetScalable<TStrategy,T>
     :ScalableBenchmarkBase

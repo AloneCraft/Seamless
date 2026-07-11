@@ -1,4 +1,8 @@
+#if BENCHMARK_PROJECT
+namespace Benchmark.Persisted.Collections;
+#else
 namespace Persisted.Collections;
+#endif
 
 public class Set {
     [BenchFact,Benchmark]

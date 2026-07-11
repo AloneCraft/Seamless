@@ -2,7 +2,11 @@ using Collection.Helper.CollectionLinq;
 using Collection.Strategy.CollectionLinq;
 using Seamless.Serialization;
 
+#if BENCHMARK_PROJECT
+namespace Benchmark.Persisted.Collections.Strategy.CollectionLinq;
+#else
 namespace Persisted.Collections.Strategy.CollectionLinq;
+#endif
 
 public sealed class PersistedSetLinqSource<T>(string path,global::Seamless.Persisted.Collections.Set<T> set):IDisposable
     where T : IEquatable<T>

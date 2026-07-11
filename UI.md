@@ -8,19 +8,21 @@ Benchmarkスナップショットに保存する左右別LoopCount、最終1バ�
 
 ## 目的
 
-Benchmark通常UI、Scalable UI、ParameterSweep UIのRun履歴、実行状態、結果、比較、UI選択状態を共通SQLite DBへ集約する。現行UIではCSV、`progress.json`、`latest-run.json`、`benchmark-results.json`、`benchmark-ui-state.json`、Save/Save As/Open、外部CSV読込を保存仕様として使わない。
+Benchmark通常UI、Scalable UI、ParameterSweep UIのRun履歴、実行状態、結果、比較、UI選択状態を用途別SQLite DBへ保存する。現行UIではCSV、`progress.json`、`latest-run.json`、`benchmark-results.json`、`benchmark-ui-state.json`、Save/Save As/Open、外部CSV読込を保存仕様として使わない。
 
 既存の `Work` 配下に残っている旧CSV/JSONファイルは安全のため削除しない。ただし、現行UIは旧ファイルからの移行処理や互換読込を提供しない。
 
 ## DB配置
 
-- 通常: `Work/UI/runs.db`
-- fallback: `%LocalApplicationData%/Seamless/Work/UI/runs.db`
+- 通常: `Work/UI/Benchmark.db`
+- Scalable: `Work/UI/Benchmark.Scalable.db`
+- ParameterSweep: `Work/UI/Benchmark.ParameterSweep.db`
+- fallback: `%LocalApplicationData%/Seamless/Work/UI/<各DB名>`
 - 解決口: `Seamless.UI.Storage.UiRunDatabasePathResolver`
 
 ## 対象アプリ
 
-`Runs` は `Apps` を参照し、次のアプリ種別を保持する。
+各DBは次のアプリ種別へ固定され、実行テーブルに重複するアプリ種別列を保持しない。
 
 - `Benchmark`
 - `ScalableBenchmark`
@@ -64,7 +66,7 @@ Run開始時には、RunRoot、選択ElementCount一覧、Adaptive閾値、選�
 
 Benchmark通常UI/Scalable UIの保存単位は、表示上のペア行を `SourceTab + 行キー + 軸(ElementCount/LoopCount)` として扱う。実装上は `Cases` / `Jobs` の正規化を維持し、`RowKey` と左右の `Side`、`Project`、`TypeFullName`、`ArgumentKey` / `Arguments` で同じ表示行の左右セルを対応付ける。各Jobには `Status`、`MeanNanoseconds`、`AllocatedBytes`、開始/終了日時、失敗理由、論理CPU、RandomSeed、ResultDigest、ResultCheckText を保存し、左だけ完了、右だけ完了、片側失敗も同じ表示行キーへ部分更新する。
 
-Schema version 不一致時は旧Run互換を行わず、`runs.db`、`runs.db-wal`、`runs.db-shm` を削除して現行schemaで再作成する。旧履歴互換は持たない。
+Schema version 不一致時は旧Run互換を行わず、`Benchmark*.db`、`Benchmark*.db-wal`、`Benchmark*.db-shm` を削除して現行schemaで再作成する。旧履歴互換は持たない。
 
 ## 行単位CPU固定
 
@@ -119,14 +121,14 @@ UI上のCPU表示は `型`、`ベンチマーク` の直後にある `CPU` 列�
 - Run開始時にRunRoot、選択ElementCount、Adaptive閾値、選択CPU、選択BenchmarkCell、検出済みBenchmark項目をDBへ保存するようにした。
 - `BenchmarkProgressStateJson` / progress系JSONを再開正本として使う経路を削除し、DBのRun設定、Cases、Jobs、Metrics、UiSelectionsから再開用 `ProgressState` を再構築するようにした。
 - 起動時Run一覧更新で、現在のSourceTab/実行プロファイルに一致する最新の `Running` / `Queued` / `Paused` Runに未完了選択セルが残る場合、自動で `Paused` として選択するようにした。`Stopped`、`Completed`、`Failed` は自動復元対象外。
-- UI DB schema versionを上げ、旧 `runs.db*` 互換を破棄して現行schemaで再作成する方針へ更新した。
+- UI DB schema versionを上げ、旧 `Benchmark*.db` 互換を破棄して現行schemaで再作成する方針へ更新した。
 
 ## 検証済み
 
 - `dotnet build Shared\UI.Storage\UI.Storage.csproj -v:minimal`
-- `dotnet build Benchmark\UI\Benchmark.UI.csproj -v:minimal`
-- `dotnet build Benchmark\Scalable.UI\Scalable.UI.csproj -v:minimal`
-- `dotnet build Benchmark\Tsavorite.ParameterSweep.UI\Tsavorite.ParameterSweep.UI.csproj -v:minimal`
+- `dotnet build Benchmark\Benchmark.UI\Benchmark.UI.csproj -v:minimal`
+- `dotnet build Benchmark\Benchmark.Scalable.UI\Benchmark.Scalable.UI.csproj -v:minimal`
+- `dotnet build Benchmark\Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI\Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI.csproj -v:minimal`
 - `dotnet test Test\Test.csproj -v:minimal`
 - `dotnet test Test\Test.csproj --filter "FullyQualifiedName~BenchmarkOrchestrator" -v:minimal`
 - `dotnet test Test.Tsavorite.ParameterSweep\Test.Tsavorite.ParameterSweep.csproj -v:minimal`
@@ -151,7 +153,7 @@ UI上のCPU表示は `型`、`ベンチマーク` の直後にある `CPU` 列�
 
 - `Artifacts/UiSmoke` のスクリーンショットはローカル検証証跡であり、最終差分には含めない。
 - 既存 `Work` 配下の旧CSV/JSONは削除しない。
-- 旧schemaの `Work/UI/runs.db*` は互換対象外であり、現行schemaへ切り替えるタイミングで削除/再作成する。
+- 旧schemaの `Work/UI/Benchmark*.db` は互換対象外であり、現行schemaへ切り替えるタイミングで削除/再作成する。
 - `csv` 文字列の残存は「CSVが生成されないこと」を検証するテスト、またはReverse配下の歴史的証跡だけ許容する。
 
 # Source: Document\UI\BenchmarkMeasurementSpecification.md
@@ -246,8 +248,8 @@ reverse_document: true
 canonical_target: Document/UI/Benchmark/UiSpecification.md
 evidence_sources:
   - Benchmark/Shared/UI/MainPage.cs
-  - Benchmark/UI/UI.csproj
-  - Benchmark/Scalable.UI/Scalable.UI.csproj
+  - Benchmark/Benchmark.UI/UI.csproj
+  - Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj
   - Benchmark/Shared/UI.projitems
 confidence: medium
 review_status: draft
@@ -261,17 +263,17 @@ This reverse document captures the historical Benchmark UI implementation. CSV/J
 
 ## 対象
 
-この文書は `Benchmark\UI` と `Benchmark\Scalable.UI` が共有する MAUI ベンチマーク実行UIの現状仕様を、実装から復元したものです。通常版はアプリ名 `Seamless Benchmark`、Scalable版は `Seamless Scalable Benchmark` として構成されます。両方とも `Benchmark\Shared\UI.projitems` 経由で同じ共有UIコードを取り込みます。
+この文書は `Benchmark\Benchmark.UI` と `Benchmark\Benchmark.Scalable.UI` が共有する MAUI ベンチマーク実行UIの現状仕様を、実装から復元したものです。通常版はアプリ名 `Seamless Benchmark`、Scalable版は `Seamless Scalable Benchmark` として構成されます。両方とも `Benchmark\Shared\UI.projitems` 経由で同じ共有UIコードを取り込みます。
 
 証拠:
-- `Benchmark/UI/UI.csproj:3`
-- `Benchmark/UI/UI.csproj:8`
-- `Benchmark/UI/UI.csproj:13`
-- `Benchmark/UI/UI.csproj:63`
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:3`
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:8`
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:14`
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:54`
+- `Benchmark/Benchmark.UI/UI.csproj:3`
+- `Benchmark/Benchmark.UI/UI.csproj:8`
+- `Benchmark/Benchmark.UI/UI.csproj:13`
+- `Benchmark/Benchmark.UI/UI.csproj:63`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:3`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:8`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:14`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:54`
 - `Benchmark/Shared/UI.projitems:8`
 
 ## 画面構成
@@ -439,8 +441,8 @@ phase: ui-reverse
 reverse_document: true
 canonical_target: Document/UI/ParameterSweep/UiSpecification.md
 evidence_sources:
-  - Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs
-  - Benchmark/Tsavorite.ParameterSweep.UI/Tsavorite.ParameterSweep.UI.csproj
+  - Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs
+  - Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI.csproj
 confidence: high
 review_status: draft
 ---
@@ -453,22 +455,22 @@ This reverse document captures the historical ParameterSweep UI implementation. 
 
 ## 対象
 
-この文書は `Benchmark\Tsavorite.ParameterSweep.UI` の現状UI仕様を実装から復元したものです。このアプリはMAUI単一ページアプリで、タイトルは `Tsavorite Parameter Sweep` です。
+この文書は `Benchmark\Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI` の現状UI仕様を実装から復元したものです。このアプリはMAUI単一ページアプリで、タイトルは `Tsavorite Parameter Sweep` です。
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/Tsavorite.ParameterSweep.UI.csproj:3`
-- `Benchmark/Tsavorite.ParameterSweep.UI/Tsavorite.ParameterSweep.UI.csproj:8`
-- `Benchmark/Tsavorite.ParameterSweep.UI/Tsavorite.ParameterSweep.UI.csproj:13`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:3`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI.csproj:3`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI.csproj:8`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI.csproj:13`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:3`
 
 ## 画面構成
 
 画面は `ContentPage` で、コンストラクタで `ParameterSweepViewModel` を `BindingContext` に設定し、`CreateContent` で作ったコンテンツを表示します。
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:3`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:10`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:13`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:3`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:10`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:13`
 
 画面は3行の `Grid` です。
 - 1行目: ツールバー。
@@ -476,11 +478,11 @@ This reverse document captures the historical ParameterSweep UI implementation. 
 - 3行目: 横スクロール可能な結果表。
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:13`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:67`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:69`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:70`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:75`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:13`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:67`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:69`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:70`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:75`
 
 ## ツールバー仕様
 
@@ -493,31 +495,31 @@ This reverse document captures the historical ParameterSweep UI implementation. 
 - 履歴Picker: `RunHistory` をItemsSource、`SelectedBaselineRun` をSelectedItemにバインドします。
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:14`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:15`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:18`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:19`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:20`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:22`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:26`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:29`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:31`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:35`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:36`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:56`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:60`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:14`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:15`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:18`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:19`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:20`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:22`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:26`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:29`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:31`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:35`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:36`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:56`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:60`
 
 ## 結果表仕様
 
 結果表は `CollectionView` で、`Rows` をItemsSourceにします。ヘッダーと各行は同じ列幅定義の `Grid` を使います。行選択は無効です。
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:70`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:73`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:75`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:105`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:129`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:153`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:70`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:73`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:75`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:105`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:129`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:153`
 
 列:
 - `CaseName`
@@ -540,16 +542,16 @@ This reverse document captures the historical ParameterSweep UI implementation. 
 - `FailureChanged`
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:105`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:118`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:132`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:149`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:105`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:118`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:132`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:149`
 
 各セルは `ParameterSweepComparisonViewRow` の同名または対応プロパティに `Label.Text` をバインドします。
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:198`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:206`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:198`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:206`
 
 ## Visual Verification
 
@@ -570,8 +572,8 @@ evidence_sources:
   - Benchmark/Shared/UI/MainPage.cs
   - Benchmark/Shared/UI/BenchmarkRunnerViewModel.cs
   - Benchmark/Shared/UI/BenchmarkRunnerModels.cs
-  - Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs
-  - Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs
+  - Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs
+  - Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs
 confidence: medium
 review_status: draft
 ---
@@ -637,13 +639,13 @@ Benchmark UI は実行状態、保存状態、選択状態、チャート表示�
 ParameterSweep UI は構造が小さい一方、実行中に入力欄や履歴Pickerを無効化する実装は確認できません。キャンセルや詳細エラー表示も確認できません。長時間実行や失敗調査のUXとしては追加設計が必要です。
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:14`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:15`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:26`
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs:29`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:55`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:103`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:125`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:14`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:15`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:26`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs:29`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:55`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:103`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:125`
 
 ## 6. 実画面検証の証跡が未整備
 
@@ -675,10 +677,10 @@ evidence_sources:
   - Shared/UI.Core/BenchmarkRunProjectionService.cs
   - Shared/UI.Core/BenchmarkUiRunRepository.cs
   - Shared/UI.Storage/UiRunStore.cs
-  - Benchmark/UI/UI.csproj
-  - Benchmark/Scalable.UI/Scalable.UI.csproj
-  - Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs
-  - Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs
+  - Benchmark/Benchmark.UI/UI.csproj
+  - Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj
+  - Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs
+  - Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs
   - Shared/UI.Storage/UiRunStore.cs
 confidence: medium
 review_status: draft
@@ -716,8 +718,8 @@ The current implementation uses `Shared/UI.Storage/UiRunStore.cs` as the low-lev
 ## Code Evidence
 
 Benchmark app:
-- `Benchmark/UI/UI.csproj`: MAUI、アプリ名、参照プロジェクト、Syncfusion/CommunityToolkit依存、共有UIインポート。
-- `Benchmark/Scalable.UI/Scalable.UI.csproj`: Scalable版のアプリ名、`SCALABLE_BENCHMARK`、参照プロジェクト、共有UIインポート。
+- `Benchmark/Benchmark.UI/UI.csproj`: MAUI、アプリ名、参照プロジェクト、Syncfusion/CommunityToolkit依存、共有UIインポート。
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj`: Scalable版のアプリ名、`SCALABLE_BENCHMARK`、参照プロジェクト、共有UIインポート。
 - `Benchmark/Shared/UI.projitems`: 共有UIと `Shared\UI.Core` の取り込み。
 - `Benchmark/Shared/UI/MainPage.cs`: 画面構築、バインディング、イベント、ダイアログ、チャート、CPU表。
 - `Benchmark/Shared/UI/BenchmarkRunnerViewModel.cs`: 画面状態、コマンド、選択、実行、保存/読込、チャート更新、CPU選択。
@@ -726,10 +728,10 @@ Benchmark app:
 - `Shared/UI.Core/BenchmarkStateManager.cs`: `progress.json` とRunルート管理。
 
 ParameterSweep app:
-- `Benchmark/Tsavorite.ParameterSweep.UI/Tsavorite.ParameterSweep.UI.csproj`: MAUI、アプリ名、ParameterSweep参照。
-- `Benchmark/Tsavorite.ParameterSweep.UI/MainPage.cs`: 単一ページ画面、ツールバー、結果表、バインディング。
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs`: 実行状態、入力、履歴、比較、ステータス。
-- `Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs`: CSV保存/読込、Run履歴、比較。
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI.csproj`: MAUI、アプリ名、ParameterSweep参照。
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/MainPage.cs`: 単一ページ画面、ツールバー、結果表、バインディング。
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs`: 実行状態、入力、履歴、比較、ステータス。
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep/ParameterSweepPersistence.cs`: CSV保存/読込、Run履歴、比較。
 
 ## Visual Evidence
 
@@ -981,9 +983,9 @@ phase: ui-reverse
 reverse_document: true
 canonical_target: Document/UI/Benchmark/ScalableDifferences.md
 evidence_sources:
-  - Benchmark/Scalable.UI/Scalable.UI.csproj
-  - Benchmark/UI/UI.csproj
-  - Benchmark/Scalable.UI/BenchmarkRunnerViewModel.Scalable.cs
+  - Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj
+  - Benchmark/Benchmark.UI/UI.csproj
+  - Benchmark/Benchmark.Scalable.UI/RunnerViewModel.Scalable.cs
   - Benchmark/Shared/UI.projitems
 confidence: high
 review_status: draft
@@ -993,53 +995,53 @@ review_status: draft
 
 ## 概要
 
-`Benchmark\Scalable.UI` は `Benchmark\UI` と同じ共有UIを使い、アプリ識別、参照プロジェクト、コンパイル定数、しきい値単位だけを差分として持ちます。
+`Benchmark\Benchmark.Scalable.UI` は `Benchmark\Benchmark.UI` と同じ共有UIを使い、アプリ識別、参照プロジェクト、コンパイル定数、しきい値単位だけを差分として持ちます。
 
 証拠:
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:14`
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:54`
-- `Benchmark/UI/UI.csproj:13`
-- `Benchmark/UI/UI.csproj:63`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:14`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:54`
+- `Benchmark/Benchmark.UI/UI.csproj:13`
+- `Benchmark/Benchmark.UI/UI.csproj:63`
 
 ## プロジェクト差分
 
 通常版:
 - アプリ名は `Seamless Benchmark` です。
-- `DotNet.Linq.Enumerable.*`、`Tsavorite.Linq.Enumerable.*`、`Persisted.*`、`Tsavorite.Collections` を参照します。
+- `Benchmark.System.Linq.Enumerable.*`、`Tsavorite.Linq.Enumerable.*`、`Persisted.*`、`Benchmark.Tsavorite.Collections` を参照します。
 
 証拠:
-- `Benchmark/UI/UI.csproj:13`
-- `Benchmark/UI/UI.csproj:35`
-- `Benchmark/UI/UI.csproj:36`
-- `Benchmark/UI/UI.csproj:37`
-- `Benchmark/UI/UI.csproj:38`
-- `Benchmark/UI/UI.csproj:39`
-- `Benchmark/UI/UI.csproj:40`
-- `Benchmark/UI/UI.csproj:41`
-- `Benchmark/UI/UI.csproj:42`
-- `Benchmark/UI/UI.csproj:43`
-- `Benchmark/UI/UI.csproj:44`
-- `Benchmark/UI/UI.csproj:45`
-- `Benchmark/UI/UI.csproj:46`
+- `Benchmark/Benchmark.UI/UI.csproj:13`
+- `Benchmark/Benchmark.UI/UI.csproj:35`
+- `Benchmark/Benchmark.UI/UI.csproj:36`
+- `Benchmark/Benchmark.UI/UI.csproj:37`
+- `Benchmark/Benchmark.UI/UI.csproj:38`
+- `Benchmark/Benchmark.UI/UI.csproj:39`
+- `Benchmark/Benchmark.UI/UI.csproj:40`
+- `Benchmark/Benchmark.UI/UI.csproj:41`
+- `Benchmark/Benchmark.UI/UI.csproj:42`
+- `Benchmark/Benchmark.UI/UI.csproj:43`
+- `Benchmark/Benchmark.UI/UI.csproj:44`
+- `Benchmark/Benchmark.UI/UI.csproj:45`
+- `Benchmark/Benchmark.UI/UI.csproj:46`
 
 Scalable版:
 - アプリ名は `Seamless Scalable Benchmark` です。
 - `SCALABLE_BENCHMARK` を定義します。
-- `Scalable.Persisted.Collections` と `Scalable.Tsavorite.Collections` を参照します。
+- `Benchmark.Scalable.Persisted.Collections` と `Benchmark.Scalable.Tsavorite.Collections` を参照します。
 
 証拠:
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:14`
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:35`
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:36`
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:37`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:14`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:35`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:36`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:37`
 
 ## 共有UI
 
 両プロジェクトは `Benchmark\Shared\UI.projitems` をインポートします。この共有項目は `Shared\UI.Core.projitems` をさらにインポートし、`Benchmark\Shared\UI\*.cs`、`App.xaml`、プラットフォーム別コード、画像リソースを取り込みます。
 
 証拠:
-- `Benchmark/UI/UI.csproj:63`
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:54`
+- `Benchmark/Benchmark.UI/UI.csproj:63`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:54`
 - `Benchmark/Shared/UI.projitems:8`
 
 ## しきい値単位
@@ -1047,37 +1049,37 @@ Scalable版:
 Scalable版は `BenchmarkRunnerViewModel` の partial メソッドでしきい値設定を上書きします。`MillisecondsScale` は `1000`、単位は `s` です。通常版はこのScalable専用partialを含まないため、ViewModel本体側の既定値を使います。
 
 証拠:
-- `Benchmark/Scalable.UI/BenchmarkRunnerViewModel.Scalable.cs:3`
-- `Benchmark/Scalable.UI/BenchmarkRunnerViewModel.Scalable.cs:4`
-- `Benchmark/Scalable.UI/BenchmarkRunnerViewModel.Scalable.cs:5`
+- `Benchmark/Benchmark.Scalable.UI/RunnerViewModel.Scalable.cs:3`
+- `Benchmark/Benchmark.Scalable.UI/RunnerViewModel.Scalable.cs:4`
+- `Benchmark/Benchmark.Scalable.UI/RunnerViewModel.Scalable.cs:5`
 
 ## 動作条件差分
 
 Scalable版もMAUI、Syncfusion、CommunityToolkit、BenchmarkDotNet、Workerコピーターゲットを使います。通常版とScalable版はどちらもWindowsとMac Catalystを対象にします。
 
 証拠:
-- `Benchmark/UI/UI.csproj:3`
-- `Benchmark/UI/UI.csproj:4`
-- `Benchmark/UI/UI.csproj:8`
-- `Benchmark/UI/UI.csproj:24`
-- `Benchmark/UI/UI.csproj:25`
-- `Benchmark/UI/UI.csproj:26`
-- `Benchmark/UI/UI.csproj:27`
-- `Benchmark/UI/UI.csproj:28`
-- `Benchmark/UI/UI.csproj:29`
-- `Benchmark/UI/UI.csproj:30`
-- `Benchmark/UI/UI.csproj:49`
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:3`
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:4`
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:8`
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:25`
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:26`
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:27`
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:28`
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:29`
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:30`
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:31`
-- `Benchmark/Scalable.UI/Scalable.UI.csproj:40`
+- `Benchmark/Benchmark.UI/UI.csproj:3`
+- `Benchmark/Benchmark.UI/UI.csproj:4`
+- `Benchmark/Benchmark.UI/UI.csproj:8`
+- `Benchmark/Benchmark.UI/UI.csproj:24`
+- `Benchmark/Benchmark.UI/UI.csproj:25`
+- `Benchmark/Benchmark.UI/UI.csproj:26`
+- `Benchmark/Benchmark.UI/UI.csproj:27`
+- `Benchmark/Benchmark.UI/UI.csproj:28`
+- `Benchmark/Benchmark.UI/UI.csproj:29`
+- `Benchmark/Benchmark.UI/UI.csproj:30`
+- `Benchmark/Benchmark.UI/UI.csproj:49`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:3`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:4`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:8`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:25`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:26`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:27`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:28`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:29`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:30`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:31`
+- `Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj:40`
 
 # Source: Reverse\UI\ParameterSweep\BindingAndLifecycleSpecification.md
 
@@ -1086,9 +1088,9 @@ phase: ui-reverse
 reverse_document: true
 canonical_target: Document/UI/ParameterSweep/BindingAndLifecycleSpecification.md
 evidence_sources:
-  - Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs
-  - Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs
-  - Benchmark/Tsavorite.ParameterSweep.UI/Tsavorite.ParameterSweep.UI.csproj
+  - Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs
+  - Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep/ParameterSweepPersistence.cs
+  - Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI.csproj
 confidence: high
 review_status: draft
 ---
@@ -1104,9 +1106,9 @@ This reverse document captures historical ParameterSweep binding and persistence
 `ParameterSweepViewModel` は `INotifyPropertyChanged` を実装する画面状態コンテナです。結果行は `Rows`、履歴は `RunHistory` の `ObservableCollection` として公開されます。
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:8`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:28`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:29`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:8`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:28`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:29`
 
 主要プロパティ:
 - `SelectedBaselineRun`: 比較対象の過去Run。変更時に `ApplyBaselineComparison` を実行します。
@@ -1117,23 +1119,23 @@ This reverse document captures historical ParameterSweep binding and persistence
 - `MaxSweepStepsText`: 最大探索ステップ入力。
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:31`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:39`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:43`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:51`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:55`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:57`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:68`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:31`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:39`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:43`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:51`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:55`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:57`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:68`
 
 ## 実行ライフサイクル
 
 初期化:
-- ViewModelコンストラクタはソリューションルートまたはLocalApplicationData配下から `Work\Tsavorite.ParameterSweep` をルートにして `ParameterSweepRunStore` を作成します。
+- ViewModelコンストラクタはソリューションルートまたはLocalApplicationData配下から `Work\Benchmark.Benchmark.Tsavorite.ParameterSweep` をルートにして `ParameterSweepRunStore` を作成します。
 - コンストラクタ末尾で `RefreshRuns` を呼び、履歴を読み込みます。
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:17`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:23`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:17`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:23`
 
 実行:
 - `RunFullAsync` は `RunAsync(smoke:false)` を呼びます。
@@ -1147,28 +1149,28 @@ This reverse document captures historical ParameterSweep binding and persistence
 - finallyで `IsRunning=false` に戻します。
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:90`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:92`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:103`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:104`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:107`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:110`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:116`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:118`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:120`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:121`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:122`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:125`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:128`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:90`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:92`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:103`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:104`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:107`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:110`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:116`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:118`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:120`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:121`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:122`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:125`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:128`
 
 ## 入力値
 
 `CreateOptions` は `MaxSuccessfulCountText` と `MaxSweepStepsText` を正の整数として解釈します。解釈できない場合は、それぞれ `65536` と `8` を既定値にします。Smokeの場合は `maxSuccessfulCount` を最大 `256`、`maxSweepSteps` を最大 `2` に制限します。`LookupProbeCount` は `4096` と `maxSuccessfulCount` の小さい方です。
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:132`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:133`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:151`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:132`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:133`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:151`
 
 ## 比較ライフサイクル
 
@@ -1177,9 +1179,9 @@ This reverse document captures historical ParameterSweep binding and persistence
 - 読込後、以前の選択Runがあれば再選択し、なければ先頭を選びます。
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:94`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:95`
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:100`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:94`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:95`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:100`
 
 ベースライン比較:
 - `ApplyBaselineComparison` はベースライン未選択または現在行が空なら何もしません。
@@ -1187,25 +1189,25 @@ This reverse document captures historical ParameterSweep binding and persistence
 - 読込失敗時は何も表示変更しません。
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:151`
+- `Benchmark/Benchmark.Benchmark.Benchmark.Tsavorite.ParameterSweep.UI/ParameterSweepViewModel.cs:151`
 
 ## 永続化
 
 `ParameterSweepRunStore` はルートディレクトリ配下にRunId単位のフォルダを作り、`results.csv` を保存します。Run一覧はディレクトリを列挙し、`results.csv` の行数から結果数を算出します。読込は `results.csv` をUTF-8で読み、CSVパーサへ渡します。
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:5`
-- `Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:7`
-- `Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:12`
-- `Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:18`
-- `Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:20`
-- `Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:28`
-- `Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:45`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:5`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:7`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:12`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:18`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:20`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:28`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:45`
 
 CSV列は `RunId`、`MeasuredAt`、`CaseName`、`Collection`、`Generic`、`Backend`、`Sweep`、サイズ群、成功件数、失敗情報、Add/Lookup計測値で構成されます。
 
 証拠:
-- `Benchmark/Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:50`
+- `Benchmark/Benchmark.Benchmark.Tsavorite.ParameterSweep/ParameterSweepPersistence.cs:50`
 
 ## Unknown
 

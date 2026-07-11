@@ -1,4 +1,4 @@
-﻿# Tsavorite.Linq.Enumerable 正規化
+# Tsavorite.Linq.Enumerable 正規化
 
 ## 背景
 
@@ -7,8 +7,8 @@
 
 ## 現状
 
-- `src/Tsavorite.Collections/Linq/HashSet.cs` は `public static partial class HashSet` として多数の `IHashSet<T>` 拡張メソッドを持つ。
-- `src/Tsavorite.Collections/Linq/Enumerable.cs` は concrete `Tsavorite.Collections.HashSet<T>` 向けの未完成実装だった。
+- `src/Benchmark.Tsavorite.Collections/Linq/HashSet.cs` は `public static partial class HashSet` として多数の `IHashSet<T>` 拡張メソッドを持つ。
+- `src/Benchmark.Tsavorite.Collections/Linq/Enumerable.cs` は concrete `Benchmark.Tsavorite.Collections.HashSet<T>` 向けの未完成実装だった。
 - テストには `global::Tsavorite.Linq.Enumerable` 直接呼び出しがあり、既に `Enumerable` 名を正とする期待が混在している。
 - `tests/Test.Tsavorite/Database/Database0.cs` だけが `global::Tsavorite.Linq.HashSet.SelectMany` を直接参照していた。
 
@@ -24,8 +24,8 @@
 
 ## 提案設計
 
-- 未完成の `src/Tsavorite.Collections/Linq/Enumerable.cs` を削除する。
-- 既存の `src/Tsavorite.Collections/Linq/HashSet.cs` を `src/Tsavorite.Collections/Linq/Enumerable.cs` にリネームする。
+- 未完成の `src/Benchmark.Tsavorite.Collections/Linq/Enumerable.cs` を削除する。
+- 既存の `src/Benchmark.Tsavorite.Collections/Linq/HashSet.cs` を `src/Benchmark.Tsavorite.Collections/Linq/Enumerable.cs` にリネームする。
 - クラス名を `public static partial class Enumerable` に変更する。
 - 直接 `Tsavorite.Linq.HashSet` を呼んでいるコードは `Tsavorite.Linq.Enumerable` に更新する。
 
@@ -39,7 +39,7 @@
 
 - `rg` で `Tsavorite.Linq.HashSet` 直接参照が残っていないことを確認する。
 - `dotnet build` で API 名変更に伴うコンパイルエラーを確認する。
-- 可能なら `dotnet test tests/Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj` を実行し、既存 LINQ/Intercept テストを確認する。
+- 可能なら `dotnet test tests/Test.Benchmark.Tsavorite.Collections/Test.Benchmark.Tsavorite.Collections.csproj` を実行し、既存 LINQ/Intercept テストを確認する。
 
 ## リスクと対策
 

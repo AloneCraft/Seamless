@@ -1,6 +1,6 @@
 //using Seamless.Tsavorite.Collections;
 //using Seamless.Tsavorite.Stores;
-//namespace Tsavorite.Collections;
+//namespace Benchmark.Tsavorite.Collections;
 
 //public class HashSetDebugView{
 //    [BenchFact,Benchmark]

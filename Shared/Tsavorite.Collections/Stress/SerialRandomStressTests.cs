@@ -1,5 +1,9 @@
 using Tsavorite.core;
+#if BENCHMARK_PROJECT
+namespace Benchmark.Tsavorite.Collections.Stress;
+#else
 namespace Tsavorite.Collections.Stress;
+#endif
 
 /// <summary>
 /// Stress テストの動作を検証する。

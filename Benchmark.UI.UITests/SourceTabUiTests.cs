@@ -7,7 +7,7 @@ namespace Benchmark.UI.UITests;
 //  appium --address 127.0.0.1 --port 4723
 //powershell
 //  Set-Location "G:\GitHub\Seamless"
-//  $env:BENCHMARK_UI_APP_PATH="G:\GitHub\Seamless\Benchmark\UI\bin\Debug\net10.0-windows10.0.19041.0\win-x64\UI.exe"
+//  $env:BENCHMARK_UI_APP_PATH="G:\GitHub\Seamless\Benchmark\Benchmark.UI\bin\Debug\net10.0-windows10.0.19041.0\win-x64\UI.exe"
 //  dotnet test ".\Benchmark.UI.UITests\Benchmark.UI.UITests.csproj" -f net10.0-windows10.0.19041.0
 //dotnet test Benchmark.UI.UITests\Benchmark.UI.UITests.csproj -f net10.0-windows10.0.19041.0
 //Invoke-WebRequest http://127.0.0.1:4723/status

@@ -1,4 +1,8 @@
+#if BENCHMARK_PROJECT
+namespace Benchmark.Tsavorite.Collections;
+#else
 namespace Tsavorite.Collections;
+#endif
 
 public class DictionaryStringString : DictionaryTestBase<ManagedStoreDictionaryStrategy<StringDictTypeProvider, StringDictTypeProvider, string, string>, string, string>;
 public class DictionaryStringInt32 : DictionaryTestBase<UnmanagedValueDictionaryStrategy<StringDictTypeProvider, IntDictTypeProvider, string, int>, string, int>;

@@ -1,9 +1,9 @@
-﻿---
+---
 phase: code-internal-reverse
 reverse_document: true
 canonical_target: Document/Code/Internal/BenchmarkRunnerInternalDesign.md
 evidence_sources:
-  - Benchmark/UI/UI.csproj
+  - Benchmark/Benchmark.UI/UI.csproj
   - Benchmark/MainPage.xaml.cs
   - Benchmark/Shared/UI/BenchmarkWorkerClient.cs
   - Benchmark/BenchmarkRunnerModels.cs
@@ -18,7 +18,7 @@ review_status: draft
 LoopCount系Benchmarkの測定時間、左右同一LoopCount、完全完了、保存・再開に関する正式仕様は [Benchmark Measurement Specification](../../UI.md) を参照する。
 
 ## 対象
-`Benchmark/UI` は Syncfusion Toolkit for .NET MAUI desktop app として構成され、BenchmarkDotNet benchmark assembly を UI から選択し、CPU affinity ごとの worker process で実行する（`Benchmark/UI/UI.csproj:1`, `Benchmark/UI/UI.csproj:3`, `Benchmark/UI/UI.csproj:24`, `Benchmark/UI/UI.csproj:33`）。
+`Benchmark/UI` は Syncfusion Toolkit for .NET MAUI desktop app として構成され、BenchmarkDotNet benchmark assembly を UI から選択し、CPU affinity ごとの worker process で実行する（`Benchmark/Benchmark.UI/UI.csproj:1`, `Benchmark/Benchmark.UI/UI.csproj:3`, `Benchmark/Benchmark.UI/UI.csproj:24`, `Benchmark/Benchmark.UI/UI.csproj:33`）。
 
 ## 主要クラス
 

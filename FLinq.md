@@ -1,4 +1,4 @@
-﻿# FLinq 仕様書統合
+# FLinq 仕様書統合
 
 # Source: Document\Code\Internal\FLinqSourceGeneratorInternalDesign.md
 
@@ -46,7 +46,7 @@ review_status: draft
 ## 状態と例外
 
 - `LinqInterceptAttribute` は generator が生成する属性で、`OptimizeLinq`、`Intercept`、`Instrumentation` を保持する（`FLinq/SourceGenerator/interceptor.cs:29`, `FLinq/SourceGenerator/interceptor.cs:38`, `FLinq/SourceGenerator/interceptor.cs:48`）。
-- fragment 生成不能な場合は実行時失敗用ヘルパーへ落とす設計がある（`FLinq/SourceGenerator/LinqGeneratorModels.cs:65`, `Tsavorite.Collections/GeneratedCodeHelpers.cs:3`）。
+- fragment 生成不能な場合は実行時失敗用ヘルパーへ落とす設計がある（`FLinq/SourceGenerator/LinqGeneratorModels.cs:65`, `Benchmark.Tsavorite.Collections/GeneratedCodeHelpers.cs:3`）。
 - Tsavorite `HashSet` scan は `Count`、`Any`、`First` などに限定して直接実行 terminal を構築する（`FLinq/SourceGenerator/Linq/Fragments/Tsavorite/TsavoriteHashSetScanTerminal.cs:29`, `FLinq/SourceGenerator/Linq/Fragments/Tsavorite/TsavoriteHashSetScanTerminal.cs:32`）。
 
 ## Review Gate: Code Internal

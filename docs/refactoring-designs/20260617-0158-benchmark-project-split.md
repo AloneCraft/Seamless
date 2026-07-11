@@ -1,4 +1,4 @@
-﻿# Benchmark Project Split
+# Benchmark Project Split
 
 ## 背景
 
@@ -9,16 +9,16 @@
   - `TsavoriteEnumerableCatalog.cs` は `Tsavorite.Linq.Enumerable` と `System.Linq.Enumerable` の直接呼び出し比較として追加されている。
 - `Test/Tests.csproj`
   - shared benchmark を xUnit test として実行する test project。
-- `Benchmark/UI/UI/UI.csproj`
+- `Benchmark/Benchmark.UI/UI/UI.csproj`
   - shared benchmark を BenchmarkDotNet で実測する runner project。
-- `tests/Test.Tsavorite.Collections.Benchmark/Test.Tsavorite.Collections.csproj`
-  - Tsavorite.Collections 向け benchmark test project。
-- `tests/Test.Tsavorite.Collections/Benchmark/*.cs`
-  - Tsavorite.Collections 向け benchmark test の実体。
+- `tests/Test.Benchmark.Tsavorite.Collections.Benchmark/Test.Benchmark.Tsavorite.Collections.csproj`
+  - Benchmark.Tsavorite.Collections 向け benchmark test project。
+- `tests/Test.Benchmark.Tsavorite.Collections/Benchmark/*.cs`
+  - Benchmark.Tsavorite.Collections 向け benchmark test の実体。
 
 ユーザー要望は、benchmark を次の軸で分離すること。
 
-- `Tsavorite.Collections`
+- `Benchmark.Tsavorite.Collections`
 - `System.Linq.Enumerable`
 - `Tsavorite.Linq.Enumerable`
 - `Intercept.System.Linq.Enumerable`
@@ -29,10 +29,10 @@
 ## 現状の観察
 
 - `Shared/Common/Common.projitems` は `Benchmarks/**/*.cs` を一括 import しているため、現状は benchmark 種別ごとの選択ができない。
-- `Test/Tests.csproj` と `Benchmark/UI/UI/UI.csproj` は同じ shared project を import している。
-- `Benchmark/UI/Program.cs` は assembly reflection で `[Benchmark]` method を持つ型を列挙するため、個別 benchmark type の namespace には依存していない。
-- `tests/Test.Tsavorite.Collections.Benchmark/Test.Tsavorite.Collections.csproj` は project 本体に source file を持たず、SDK default compile により project 配下だけを対象にしている。実体の多くは `tests/Test.Tsavorite.Collections/Benchmark/*.cs` にある。
-- `tests/Test.Tsavorite.Collections/Benchmark/RecordSetcs` だけは前回変更で `namespace Test.Benchmarks;` になっており、他の Tsavorite.Collections benchmark と namespace がずれている。
+- `Test/Tests.csproj` と `Benchmark/Benchmark.UI/UI/UI.csproj` は同じ shared project を import している。
+- `Benchmark/Benchmark.UI/Program.cs` は assembly reflection で `[Benchmark]` method を持つ型を列挙するため、個別 benchmark type の namespace には依存していない。
+- `tests/Test.Benchmark.Tsavorite.Collections.Benchmark/Test.Benchmark.Tsavorite.Collections.csproj` は project 本体に source file を持たず、SDK default compile により project 配下だけを対象にしている。実体の多くは `tests/Test.Benchmark.Tsavorite.Collections/Benchmark/*.cs` にある。
+- `tests/Test.Benchmark.Tsavorite.Collections/Benchmark/RecordSetcs` だけは前回変更で `namespace Test.Benchmarks;` になっており、他の Benchmark.Tsavorite.Collections benchmark と namespace がずれている。
 
 ## 目的
 
@@ -91,15 +91,15 @@ tests/System.Linq.Enumerable/System.Linq.Enumerable.csproj
 tests/Tsavorite.Linq.Enumerable/Tsavorite.Linq.Enumerable.csproj
 tests/Intercept.System.Linq.Enumerable/Intercept.System.Linq.Enumerable.csproj
 tests/Intercept.Tsavorite.Linq.Enumerable/Intercept.Tsavorite.Linq.Enumerable.csproj
-tests/Tsavorite.Collections/Tsavorite.Collections.csproj
+tests/Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj
 ```
 
 移動方針。
 
 - `Test/Tests.csproj` は `tests/Intercept.System.Linq.Enumerable/` に移動・改名する。
-- `tests/Test.Tsavorite.Collections.Benchmark/Test.Tsavorite.Collections.csproj` は `tests/Tsavorite.Collections/` に移動・改名する。
-- `tests/Test.Tsavorite.Collections/Benchmark/*.cs` は `tests/Tsavorite.Collections/` 配下へ移動する。
-- Tsavorite.Collections benchmark namespace は `Tsavorite.Collections` に統一する。
+- `tests/Test.Benchmark.Tsavorite.Collections.Benchmark/Test.Benchmark.Tsavorite.Collections.csproj` は `tests/Benchmark.Tsavorite.Collections/` に移動・改名する。
+- `tests/Test.Benchmark.Tsavorite.Collections/Benchmark/*.cs` は `tests/Benchmark.Tsavorite.Collections/` 配下へ移動する。
+- Benchmark.Tsavorite.Collections benchmark namespace は `Benchmark.Tsavorite.Collections` に統一する。
 
 ### 実測 benchmark project
 
@@ -112,7 +112,7 @@ Benchmark/UI.Intercept.System.Linq.Enumerable/Intercept.System.Linq.Enumerable.c
 Benchmark/UI.Intercept.Tsavorite.Linq.Enumerable/Intercept.Tsavorite.Linq.Enumerable.csproj
 ```
 
-既存 `Benchmark/UI/Program.cs` は共通 runner としてコピーまたは共有する。まずは各 project に `Program.cs` を置くより、既存 `Program.cs` を linked compile する方針を優先する。
+既存 `Benchmark/Benchmark.UI/Program.cs` は共通 runner としてコピーまたは共有する。まずは各 project に `Program.cs` を置くより、既存 `Program.cs` を linked compile する方針を優先する。
 
 ### namespace
 
@@ -122,7 +122,7 @@ Benchmark/UI.Intercept.Tsavorite.Linq.Enumerable/Intercept.Tsavorite.Linq.Enumer
 - `Tsavorite.Linq.Enumerable`
 - `Intercept.System.Linq.Enumerable`
 - `Intercept.Tsavorite.Linq.Enumerable`
-- `Tsavorite.Collections`
+- `Benchmark.Tsavorite.Collections`
 
 `System` セグメントと class 名 `Range` / `AsEnumerable` の衝突を避けるため、BCL 参照は必要に応じて `global::System...` を使う。
 
@@ -131,9 +131,9 @@ Benchmark/UI.Intercept.Tsavorite.Linq.Enumerable/Intercept.Tsavorite.Linq.Enumer
 - `Shared/Common/Benchmarks/**`
 - `Shared/Common/*.projitems`
 - `Test/**`
-- `Benchmark/UI/**`
-- `tests/Test.Tsavorite.Collections.Benchmark/**`
-- `tests/Test.Tsavorite.Collections/Benchmark/**`
+- `Benchmark/Benchmark.UI/**`
+- `tests/Test.Benchmark.Tsavorite.Collections.Benchmark/**`
+- `tests/Test.Benchmark.Tsavorite.Collections/Benchmark/**`
 - 新規 `tests/*`
 - 新規 `Benchmark/UI.*`
 
@@ -151,7 +151,7 @@ Benchmark/UI.Intercept.Tsavorite.Linq.Enumerable/Intercept.Tsavorite.Linq.Enumer
 
 最低限、次を確認する。
 
-- `dotnet build tests/Tsavorite.Collections/Tsavorite.Collections.csproj --no-restore -v:minimal`
+- `dotnet build tests/Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj --no-restore -v:minimal`
 - `dotnet build tests/Intercept.System.Linq.Enumerable/Intercept.System.Linq.Enumerable.csproj --no-restore -v:minimal`
 - `dotnet test tests/Tsavorite.Linq.Enumerable/Tsavorite.Linq.Enumerable.csproj --no-restore -v:minimal`
 - `dotnet test tests/Intercept.System.Linq.Enumerable/Intercept.System.Linq.Enumerable.csproj --no-restore -v:minimal`
@@ -175,7 +175,7 @@ Benchmark/UI.Intercept.Tsavorite.Linq.Enumerable/Intercept.Tsavorite.Linq.Enumer
 
 ## 未解決事項
 
-- なし。`Collection`/`Collections` は `Tsavorite.Collections` にすることで合意済み。
+- なし。`Collection`/`Collections` は `Benchmark.Tsavorite.Collections` にすることで合意済み。
 - test project は `tests/`、実測 benchmark project は `sandbox/` に置くことで合意済み。
 
 ## 合意状態

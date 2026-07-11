@@ -1,4 +1,4 @@
-﻿# fable5 完全版一括実装プロンプト
+# fable5 完全版一括実装プロンプト
 
 この文書は、`G:\GitHub\Seamless` を fable5 に渡して一気に実装・リファクタリングしてもらうための完全版プロンプトである。
 
@@ -62,7 +62,7 @@
 - 調査時点の既存DB件数は Runs 47、Cases 299、Jobs 2209、Measurements 2207、MetricValues 5540、Comparisons 0、UiSelections 2018、UiViewStates 132 でした。
 - MetricValues は AllocatedBytes、ErrorNanoseconds、MeanNanoseconds、StdDevNanoseconds が中心です。
 - BenchmarkPairComparisons は 0 行でした。原因は TypeFullName 完全一致で Left/Right を比較しているためです。
-- 実データは Left/Right で DotNet.Linq.Enumerable.FLinq と DotNet.Linq.Enumerable.ZLinq のように型名が違います。
+- 実データは Left/Right で Benchmark.System.Linq.Enumerable.FLinq と Benchmark.System.Linq.Enumerable.ZLinq のように型名が違います。
 - UI側の BenchmarkComparisonFormatter は通常タブでは method + argumentKey、Scalable/重複時だけ type discriminator を使うため、DB View と不一致です。
 - UiRunStore.Initialize() は現状 DDL と通常読み書きの境界が曖昧です。
 - 既存 CreateAnalysisViews は CREATE VIEW IF NOT EXISTS のため、View定義変更が反映されにくいです。

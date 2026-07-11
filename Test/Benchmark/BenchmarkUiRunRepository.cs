@@ -1,4 +1,4 @@
-﻿using Seamless.UI.Storage;
+using Seamless.UI.Storage;
 
 namespace Test.Benchmark;
 
@@ -56,7 +56,7 @@ public sealed class BenchmarkUiRunRepository{
 
     [Fact]
     public async Task LoadResultItems_DoesNotPersistExecutableTypeIdentity(){
-        var store = new global::Seamless.UI.Storage.UiRunStore(CreateDatabasePath());
+        var store = new global::Seamless.UI.Storage.UiRunStore(CreateDatabasePath(),UiRunAppKind.ScalableBenchmark);
         var repository = new global::UI.BenchmarkUiRunRepository(store);
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.ScalableTsavoriteSet);
         var runId = await repository.CreateRunAsync(UiRunAppKind.ScalableBenchmark,"Scalable","Fast",sourceTab.Tab);
@@ -104,10 +104,10 @@ public sealed class BenchmarkUiRunRepository{
 
     [Fact]
     public async Task FindPreviousResult_UsesRunFixedScalableBaseline(){
-        var store=new global::Seamless.UI.Storage.UiRunStore(CreateDatabasePath());
+        var store=new global::Seamless.UI.Storage.UiRunStore(CreateDatabasePath(),UiRunAppKind.ScalableBenchmark);
         var repository=new global::UI.BenchmarkUiRunRepository(store);
         var sourceTab=global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.ScalableTsavoriteSet);
-        const string typeFullName="Scalable.Tsavorite.Collections.Set.SetInt32";
+        const string typeFullName="Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32";
         var arguments=new[]{
             new global::UI.BenchmarkArgument("Count","262144"),
             new global::UI.BenchmarkArgument("Index","64"),
@@ -203,9 +203,7 @@ public sealed class BenchmarkUiRunRepository{
     private static string CreateDatabasePath(){
         var root = Path.Combine(AppContext.BaseDirectory,"BenchmarkUiRunRepositoryTests",Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
-        return Path.Combine(root,"runs.db");
+        return Path.Combine(root,"Benchmark.db");
     }
 }
-
-
 

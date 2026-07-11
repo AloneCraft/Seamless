@@ -1,6 +1,10 @@
 using Tsavorite.core;
 using System.Diagnostics.CodeAnalysis;
+#if BENCHMARK_PROJECT
+namespace Benchmark.Tsavorite.Collections;
+#else
 namespace Tsavorite.Collections;
+#endif
 
 /// <summary>
 /// Tests recovery when only the hybrid log checkpoint exists and the index checkpoint is absent.

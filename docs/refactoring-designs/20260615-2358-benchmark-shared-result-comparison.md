@@ -1,4 +1,4 @@
-﻿# Common の結果比較横展開
+# Common の結果比較横展開
 
 ## 背景
 
@@ -9,7 +9,7 @@
 ## 現状の観察
 
 - `Aggregate_func` は `dotnet test Test/Tests.csproj --filter "FullyQualifiedName~Aggregate_func" --no-restore` で成功した。
-- `Aggregate_func` は `dotnet run --project Benchmark/UI/UI/UI.csproj -c Release --no-restore -- --filter *Aggregate_func* --join` で LINQ / FLinq / ZLinq の 3 ベンチが実行できた。
+- `Aggregate_func` は `dotnet run --project Benchmark/Benchmark.UI/UI/UI.csproj -c Release --no-restore -- --filter *Aggregate_func* --join` で LINQ / FLinq / ZLinq の 3 ベンチが実行できた。
 - `Base` には `Result` と `AssertResults(Action linq, Action flinq, Action noOptimized, Action zlinq)` がある。
 - `BenchFact.cs` には `[TestPriority]` と `TestPriorityOrderer` があり、`Results_match` を低優先度で後ろに回せる。
 - ベンチには以下の形が混在する。
@@ -31,7 +31,7 @@
 - LINQ チェーン自体の最適化ロジック変更はしない。
 - BenchmarkDotNet の測定条件、iteration count、category 構成は変えない。
 - 既存のベンチ式を別アルゴリズムへ置き換えない。
-- `tests/Test.Tsavorite.Collections` の既存比較カタログとは統合しない。
+- `tests/Test.Benchmark.Tsavorite.Collections` の既存比較カタログとは統合しない。
 
 ## 提案設計
 
@@ -69,7 +69,7 @@
 - `Shared/Common/Benchmarks/BenchFact.cs`
 - `Shared/Common/Benchmarks/*.cs`
 - `Test/Tests.csproj` の xUnit 実行
-- `Benchmark/UI/UI/UI.csproj` の BenchmarkDotNet 実行
+- `Benchmark/Benchmark.UI/UI/UI.csproj` の BenchmarkDotNet 実行
 
 ## 移行手順
 
@@ -79,7 +79,7 @@
 4. `Linq1..4` 系へ横展開する。
 5. 特殊系を個別対応する。
 6. `dotnet test Test/Tests.csproj --no-build` を通す。
-7. `dotnet build Benchmark/UI/UI/UI.csproj --no-restore` を通す。
+7. `dotnet build Benchmark/Benchmark.UI/UI/UI.csproj --no-restore` を通す。
 8. 代表ベンチとして `Aggregate_func` を BenchmarkDotNet で実行する。
 
 ## テスト計画

@@ -6,12 +6,12 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build-benchmark-ui-debug",
-            "program": "${workspaceFolder}/Benchmark/UI/bin/Debug/net10.0-windows/win-x64/UI.exe",
+            "program": "${workspaceFolder}/Benchmark/Benchmark.UI/bin/Debug/net10.0-windows/win-x64/Benchmark.UI.exe",
             "args": [],
             "env": {
                 "DOTNET_MODIFIABLE_ASSEMBLIES": "debug"
             },
-            "cwd": "${workspaceFolder}/Benchmark/UI/bin/Debug/net10.0-windows/win-x64",
+            "cwd": "${workspaceFolder}/Benchmark/Benchmark.UI/bin/Debug/net10.0-windows/win-x64",
             "console": "internalConsole",
             "stopAtEntry": false
         },
@@ -20,68 +20,68 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build-benchmark-ui-release",
-            "program": "${workspaceFolder}/Benchmark/UI/bin/Release/net10.0-windows/win-x64/UI.exe",
+            "program": "${workspaceFolder}/Benchmark/Benchmark.UI/bin/Release/net10.0-windows/win-x64/Benchmark.UI.exe",
             "args": [],
             "env": {
                 "DOTNET_MODIFIABLE_ASSEMBLIES": "debug"
             },
-            "cwd": "${workspaceFolder}/Benchmark/UI/bin/Release/net10.0-windows/win-x64",
+            "cwd": "${workspaceFolder}/Benchmark/Benchmark.UI/bin/Release/net10.0-windows/win-x64",
             "console": "internalConsole",
             "stopAtEntry": false
         },
         {
-            "name": "Benchmark.Scalble.UI Debug",
+            "name": "Benchmark.Scalable.UI Debug",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build-benchmark-scalble-ui-debug",
-            "program": "${workspaceFolder}/Benchmark/Benchmark.Scalble.UI/bin/Debug/net10.0-windows/win-x64/Benchmark.Scalble.UI.exe",
+            "preLaunchTask": "build-benchmark-scalable-ui-debug",
+            "program": "${workspaceFolder}/Benchmark/Benchmark.Scalable.UI/bin/Debug/net10.0-windows/win-x64/Benchmark.Scalable.UI.exe",
             "args": [],
             "env": {
                 "DOTNET_MODIFIABLE_ASSEMBLIES": "debug"
             },
-            "cwd": "${workspaceFolder}/Benchmark/Benchmark.Scalble.UI/bin/Debug/net10.0-windows/win-x64",
+            "cwd": "${workspaceFolder}/Benchmark/Benchmark.Scalable.UI/bin/Debug/net10.0-windows/win-x64",
             "console": "internalConsole",
             "stopAtEntry": false
         },
         {
-            "name": "Benchmark.Scalble.UI Release",
+            "name": "Benchmark.Scalable.UI Release",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build-benchmark-scalble-ui-release",
-            "program": "${workspaceFolder}/Benchmark/Benchmark.Scalble.UI/bin/Release/net10.0-windows/win-x64/Benchmark.Scalble.UI.exe",
+            "preLaunchTask": "build-benchmark-scalable-ui-release",
+            "program": "${workspaceFolder}/Benchmark/Benchmark.Scalable.UI/bin/Release/net10.0-windows/win-x64/Benchmark.Scalable.UI.exe",
             "args": [],
             "env": {
                 "DOTNET_MODIFIABLE_ASSEMBLIES": "debug"
             },
-            "cwd": "${workspaceFolder}/Benchmark/Benchmark.Scalble.UI/bin/Release/net10.0-windows/win-x64",
+            "cwd": "${workspaceFolder}/Benchmark/Benchmark.Scalable.UI/bin/Release/net10.0-windows/win-x64",
             "console": "internalConsole",
             "stopAtEntry": false
         },
         {
-            "name": "Tsavorite.ParameterSweep.UI Debug",
+            "name": "Benchmark.Tsavorite.ParameterSweep.UI Debug",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build-parameter-sweep-ui-debug",
-            "program": "${workspaceFolder}/Benchmark/Tsavorite.ParameterSweep.UI/bin/Debug/net10.0-windows/win-x64/Tsavorite.ParameterSweep.UI.exe",
+            "preLaunchTask": "build-benchmark-parameter-sweep-ui-debug",
+            "program": "${workspaceFolder}/Benchmark/Benchmark.Tsavorite.ParameterSweep.UI/bin/Debug/net10.0-windows/win-x64/Benchmark.Tsavorite.ParameterSweep.UI.exe",
             "args": [],
             "env": {
                 "DOTNET_MODIFIABLE_ASSEMBLIES": "debug"
             },
-            "cwd": "${workspaceFolder}/Benchmark/Tsavorite.ParameterSweep.UI/bin/Debug/net10.0-windows/win-x64",
+            "cwd": "${workspaceFolder}/Benchmark/Benchmark.Tsavorite.ParameterSweep.UI/bin/Debug/net10.0-windows/win-x64",
             "console": "internalConsole",
             "stopAtEntry": false
         },
         {
-            "name": "Tsavorite.ParameterSweep.UI Release",
+            "name": "Benchmark.Tsavorite.ParameterSweep.UI Release",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build-parameter-sweep-ui-release",
-            "program": "${workspaceFolder}/Benchmark/Tsavorite.ParameterSweep.UI/bin/Release/net10.0-windows/win-x64/Tsavorite.ParameterSweep.UI.exe",
+            "preLaunchTask": "build-benchmark-parameter-sweep-ui-release",
+            "program": "${workspaceFolder}/Benchmark/Benchmark.Tsavorite.ParameterSweep.UI/bin/Release/net10.0-windows/win-x64/Benchmark.Tsavorite.ParameterSweep.UI.exe",
             "args": [],
             "env": {
                 "DOTNET_MODIFIABLE_ASSEMBLIES": "debug"
             },
-            "cwd": "${workspaceFolder}/Benchmark/Tsavorite.ParameterSweep.UI/bin/Release/net10.0-windows/win-x64",
+            "cwd": "${workspaceFolder}/Benchmark/Benchmark.Tsavorite.ParameterSweep.UI/bin/Release/net10.0-windows/win-x64",
             "console": "internalConsole",
             "stopAtEntry": false
         }

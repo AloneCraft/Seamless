@@ -1,9 +1,9 @@
-﻿# FLinq Anchor Side Effect Policy
+# FLinq Anchor Side Effect Policy
 
 ## 背景
 FLinq は LINQ chain をコンパイル時に展開し、delegate 呼び出し、iterator allocation、不要な stage を減らす。既存実装では `DistinctBy` 連続削減や `Where` 並べ替えのような評価回数・評価順を変え得る最適化が複数箇所に分散している。
 
-`src/Tsavorite.Collections/Linq/AnchorExtensions.cs` には `value.Anchor()` 拡張メソッドがあり、現在は `SelectMany` の一部 hoist 抑止で文字列検出されているだけである。
+`src/Benchmark.Tsavorite.Collections/Linq/AnchorExtensions.cs` には `value.Anchor()` 拡張メソッドがあり、現在は `SelectMany` の一部 hoist 抑止で文字列検出されているだけである。
 
 ## 現状の観察
 - `Shared/Common/Benchmarks/DistinctBy_keySelector.cs` は `DistinctBy(x => x % 1000)` を 1-4 段重ねる。
@@ -24,7 +24,7 @@ FLinq は LINQ chain をコンパイル時に展開し、delegate 呼び出し�
 
 ## 提案設計
 - `Anchor` API を `value.Anchor()` 拡張メソッドから C# 14 extension property の `value.Anchor` へ置き換える。
-- `Tsavorite.Collections` は `net10.0` / C# 14 前提へ寄せる。
+- `Benchmark.Tsavorite.Collections` は `net10.0` / C# 14 前提へ寄せる。
 - FLinq source generator 側に `Anchor` 検出の共通ヘルパーを追加する。
 - `FuncFragment` に `ContainsAnchor` 相当の情報を持たせ、lambda 生成時に本文へ `Anchor` が含まれるか記録する。
 - 生成コードでは `Anchor` は identity として除去する。
@@ -32,13 +32,13 @@ FLinq は LINQ chain をコンパイル時に展開し、delegate 呼び出し�
 - 通常の loop inline、`Consume` 直結、allocation 削減は `Anchor` があっても可能な範囲で継続する。
 
 ## 影響範囲
-- `src/Tsavorite.Collections/Linq/AnchorExtensions.cs`
+- `src/Benchmark.Tsavorite.Collections/Linq/AnchorExtensions.cs`
 - `src/FLinq/SourceGenerator/Linq/Fragments/Func.cs`
 - `src/FLinq/SourceGenerator/LinqFragmentBuilder.cs`
 - `src/FLinq/SourceGenerator/LinqGeneratedCodeRendering.cs`
 - `src/FLinq/SourceGenerator/Linq/Fragments/Pipeline.cs`
 - `src/FLinq/SourceGenerator/Linq/Fragments/SelectMany.cs`
-- `tests/Test.Tsavorite.Collections` または `Test`
+- `tests/Test.Benchmark.Tsavorite.Collections` または `Test`
 
 ## 移行手順
 - `Anchor()` 呼び出しは `Anchor` プロパティへ置き換える。

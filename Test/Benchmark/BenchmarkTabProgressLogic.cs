@@ -1,4 +1,4 @@
-﻿using UI;
+using UI;
 
 namespace Test.Benchmark;
 
@@ -31,13 +31,13 @@ public sealed class BenchmarkTabProgressLogic{
         var persistedCase = Case(
             persisted.RightProject,
             persisted.RightAssemblyName,
-            "Persisted.Linq.Enumerable.LinqInt32",
+            "Benchmark.Persisted.Linq.Enumerable.LinqInt32",
             "Aggregate_func",
             "");
         var tsavoriteCase = Case(
             tsavorite.RightProject,
             tsavorite.RightAssemblyName,
-            "Tsavorite.Linq.Enumerable.LinqInt32",
+            "Benchmark.Tsavorite.Linq.Enumerable.LinqInt32",
             "Aggregate_func",
             "");
 
@@ -53,7 +53,7 @@ public sealed class BenchmarkTabProgressLogic{
                     new BenchmarkElementMeasurement(
                         persisted.RightProject,
                         "Aggregate_func",
-                        "Persisted.Linq.Enumerable.LinqInt32",
+                        "Benchmark.Persisted.Linq.Enumerable.LinqInt32",
                         "",
                         4096,
                         "Completed",
@@ -70,7 +70,7 @@ public sealed class BenchmarkTabProgressLogic{
                     new BenchmarkElementMeasurement(
                         persisted.RightProject,
                         "Aggregate_func",
-                        "Persisted.Linq.Enumerable.LinqInt32",
+                        "Benchmark.Persisted.Linq.Enumerable.LinqInt32",
                         "",
                         4096,
                         "Completed",
@@ -99,8 +99,8 @@ public sealed class BenchmarkTabProgressLogic{
 
             Assert.Single(persistedCells);
             Assert.Single(tsavoriteCells);
-            Assert.Contains(persistedCells,cell => cell.TypeFullName=="Persisted.Linq.Enumerable.LinqInt32");
-            Assert.Contains(tsavoriteCells,cell => cell.TypeFullName=="Tsavorite.Linq.Enumerable.LinqInt32");
+            Assert.Contains(persistedCells,cell => cell.TypeFullName=="Benchmark.Persisted.Linq.Enumerable.LinqInt32");
+            Assert.Contains(tsavoriteCells,cell => cell.TypeFullName=="Benchmark.Tsavorite.Linq.Enumerable.LinqInt32");
         }
     }
 
@@ -368,10 +368,10 @@ public sealed class BenchmarkTabProgressLogic{
     public void Calculate_DoesNotCompleteDifferentScalableTypeWithSameMethod(){
         var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
             [
-                new BenchmarkTabProgressCell("Add","Scalable.Persisted.List","Scalable.Persisted.Collections.List.ListString",true),
+                new BenchmarkTabProgressCell("Add","Scalable.Persisted.List","Benchmark.Scalable.Persisted.Collections.List.ListString",true),
             ],
             [
-                new BenchmarkElementMeasurement("Scalable.Persisted.List","Add","Scalable.Persisted.Collections.List.ListInt32",4096,"Completed",100),
+                new BenchmarkElementMeasurement("Scalable.Persisted.List","Add","Benchmark.Scalable.Persisted.Collections.List.ListInt32",4096,"Completed",100),
             ],
             "Scalable.Persisted.List",
             "Scalable.Persisted.List.Previous",

@@ -1,4 +1,4 @@
-﻿namespace Test.Benchmark;
+namespace Test.Benchmark;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
 public sealed class BenchmarkRunSession{
@@ -103,7 +103,7 @@ public sealed class BenchmarkRunSession{
             "Aggregate_func",
             64,
             100,
-            "Tsavorite.Linq.Enumerable.LinqInt32"));
+            "Benchmark.Tsavorite.Linq.Enumerable.LinqInt32"));
 
         var state = session.ToProgressState(
             "run-42",

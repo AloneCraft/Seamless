@@ -74,7 +74,13 @@ public static class MauiProgram {
         services.AddSingleton<IBenchmarkUiDispatcher,MauiBenchmarkUiDispatcher>();
         services.AddSingleton<IBenchmarkUiPreferences,MauiBenchmarkUiPreferences>();
         services.AddSingleton(static _ => new UiRunStore(
-            UiRunDatabasePathResolver.Resolve(FindSolutionRoot())));
+#if SCALABLE_BENCHMARK
+            UiRunDatabasePathResolver.Resolve(UiRunAppKind.ScalableBenchmark,FindSolutionRoot()),
+            UiRunAppKind.ScalableBenchmark));
+#else
+            UiRunDatabasePathResolver.Resolve(UiRunAppKind.Benchmark,FindSolutionRoot()),
+            UiRunAppKind.Benchmark));
+#endif
         services.AddSingleton(static provider => new RunnerViewModel(
             provider.GetRequiredService<IBenchmarkCatalogService>(),
             provider.GetRequiredService<ICpuTopologyService>(),

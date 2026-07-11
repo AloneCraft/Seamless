@@ -1,4 +1,8 @@
+#if BENCHMARK_PROJECT
+namespace Benchmark.Scalable.Persisted.Collections.Dictionary;
+#else
 namespace Scalable.Persisted.Collections.Dictionary;
+#endif
 
 public class DictionaryStringString
     :PersistedSerializedDictionaryScalable<ManagedStoreDictionaryStrategy<StringDictTypeProvider,StringDictTypeProvider,string,string>,string,string>;

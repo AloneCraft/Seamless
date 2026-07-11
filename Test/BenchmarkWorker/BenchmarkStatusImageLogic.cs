@@ -1,4 +1,4 @@
-﻿using UI;
+using UI;
 
 namespace Test.BenchmarkWorker;
 
@@ -188,11 +188,11 @@ public sealed class BenchmarkStatusImageLogic{
             0,
             "artifact-folder",
             reason,
-            "Scalable.Persisted.Collections.Dictionary.DictionaryStringInt32");
+            "Benchmark.Scalable.Persisted.Collections.Dictionary.DictionaryStringInt32");
 
         Assert.Contains("Benchmark failed.",log,StringComparison.Ordinal);
         Assert.Contains("Project=Scalable.Tsavorite.Dictionary",log,StringComparison.Ordinal);
-        Assert.Contains("Type=Scalable.Persisted.Collections.Dictionary.DictionaryStringInt32",log,StringComparison.Ordinal);
+        Assert.Contains("Type=Benchmark.Scalable.Persisted.Collections.Dictionary.DictionaryStringInt32",log,StringComparison.Ordinal);
         Assert.Contains("N=65536",log,StringComparison.Ordinal);
         Assert.Contains("CPU=0",log,StringComparison.Ordinal);
         Assert.Contains("Artifact=artifact-folder",log,StringComparison.Ordinal);

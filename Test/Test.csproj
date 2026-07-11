@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TsavoriteTargetFramework Condition="'$(TsavoriteTargetFramework)' == ''">net10.0</TsavoriteTargetFramework>
     <TargetFrameworks>$(TsavoriteTargetFramework)</TargetFrameworks>
@@ -59,6 +59,8 @@
   <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'!='true'">
     <ProjectReference Include="..\DynamicLinq.Runner\DynamicLinq.Runner.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="..\Benchmark\Worker\Worker.csproj" />
+    <ProjectReference Include="..\Benchmark\Benchmark.Scalable.Persisted.Collections\Benchmark.Scalable.Persisted.Collections.csproj" />
+    <ProjectReference Include="..\Benchmark\Benchmark.Scalable.Tsavorite.Collections\Benchmark.Scalable.Tsavorite.Collections.csproj" />
     <ProjectReference Include="..\Shared\UI.Storage\UI.Storage.csproj" />
     <ProjectReference Include="..\Test.System.Linq.Enumerable.FLinq\Test.System.Linq.Enumerable.FLinq.csproj" PrivateAssets="all" Aliases="BenchmarkFLinq" />
     <ProjectReference Include="..\Test.System.Linq.Enumerable.ZLinq\Test.System.Linq.Enumerable.ZLinq.csproj" PrivateAssets="all" Aliases="BenchmarkZLinq" />
@@ -76,18 +78,9 @@
     <Compile Include="Benchmark\Pattern.cs" />
     <Compile Include="Benchmark\StartupDiagnostics.cs" />
     <Compile Include="Benchmark\UiRunStore.cs" />
-    <ProjectReference Include="..\Benchmark\DotNet.Linq.Enumerable.FLinq\DotNet.Linq.Enumerable.FLinq.csproj" />
-    <ProjectReference Include="..\Benchmark\DotNet.Linq.Enumerable.List.FLinq\DotNet.Linq.Enumerable.List.FLinq.csproj" />
-    <ProjectReference Include="..\Benchmark\DotNet.Linq.Enumerable.List.ZLinq\DotNet.Linq.Enumerable.List.ZLinq.csproj" />
-    <ProjectReference Include="..\Benchmark\DotNet.Linq.Enumerable.Range.FLinq\DotNet.Linq.Enumerable.Range.FLinq.csproj" />
-    <ProjectReference Include="..\Benchmark\DotNet.Linq.Enumerable.Range.ZLinq\DotNet.Linq.Enumerable.Range.ZLinq.csproj" />
-    <ProjectReference Include="..\Benchmark\DotNet.Linq.Enumerable.ZLinq\DotNet.Linq.Enumerable.ZLinq.csproj" />
-    <ProjectReference Include="..\Benchmark\Persisted.Collections\Persisted.Collections.csproj" />
-    <ProjectReference Include="..\Benchmark\Persisted.Linq.Enumerable.FLinq\Persisted.Linq.Enumerable.FLinq.csproj" />
-    <ProjectReference Include="..\Benchmark\Persisted.Linq.Enumerable.Linq\Persisted.Linq.Enumerable.Linq.csproj" />
-    <ProjectReference Include="..\Benchmark\Tsavorite.Collections\Tsavorite.Collections.csproj" />
-    <ProjectReference Include="..\Benchmark\Tsavorite.Linq.Enumerable.FLinq\Tsavorite.Linq.Enumerable.FLinq.csproj" />
-    <ProjectReference Include="..\Benchmark\Tsavorite.Linq.Enumerable.Linq\Tsavorite.Linq.Enumerable.Linq.csproj" />
+    <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.FLinq\Benchmark.System.Linq.Enumerable.FLinq.csproj" />
+    <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.List.ZLinq\Benchmark.System.Linq.Enumerable.List.ZLinq.csproj" />
+    <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.Range.ZLinq\Benchmark.System.Linq.Enumerable.Range.ZLinq.csproj" />
     <Analyzer Include="..\Seamless.FLinq\bin\$(Configuration)\net10.0\Seamless.FLinq.dll" />
     <ProjectReference Include="..\Shared\UI.Storage\UI.Storage.csproj" />
   </ItemGroup>

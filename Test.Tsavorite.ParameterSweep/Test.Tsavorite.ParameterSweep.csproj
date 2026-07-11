@@ -23,7 +23,7 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Benchmark\Tsavorite.ParameterSweep\Tsavorite.ParameterSweep.csproj" />
+    <ProjectReference Include="..\Benchmark\Benchmark.Tsavorite.ParameterSweep\Benchmark.Tsavorite.ParameterSweep.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

@@ -1,6 +1,10 @@
 using System.Runtime.Versioning;
 using Tsavorite.core;
+#if BENCHMARK_PROJECT
+namespace Benchmark.Tsavorite.Collections;
+#else
 namespace Tsavorite.Collections;
+#endif
 
 public class StoreCheckpoint {
     //private static string CreateFolder()=>Path.Combine(Environment.CurrentDirectory,"TsavoriteTest_"+Guid.NewGuid().ToString("N"));

@@ -1,4 +1,4 @@
-﻿# Database 仕様書統合
+# Database 仕様書統合
 
 # Source: Document\Code\Internal\TsavoriteDBSourceGeneratorInternalDesign.md
 
@@ -206,7 +206,7 @@ C# 繧､繝ｳ繧ｿ繝ｼ繧ｻ繝励ち縺ｮ蛻ｶ邏・ｸ翫∝ｍ蜿励
 4. **繝倥Ν繝代・ struct 縺ｮ `<T>` 蛹・* 窶・`OuterTypeParameters` 繧呈妙迚・ヤ繝ｪ繝ｼ縺ｸ莨晄眺縺暦ｼ・PropagateContainingTypeName`/`PropagateOuterTypeParameters`・峨・
    Root/Scalar/Set/Concat/Zip/ToArray 蜷・妙迚・・ struct 螳｣險縺ｨ `EnumeratorTypeName` 縺ｫ螟門・蝙九ヱ繝ｩ繝｡繝ｼ繧ｿ繧貞燕鄂ｮ縲・
 
-縺薙・ 1縲・ 縺ｫ繧医ｊ縲・・蛻励・繝ｳ繝・ｼ・Benchmark/DotNet.Linq.Enumerable.FLinq`・峨〒縺ｯ `Methods1<T>` 蜷代￠縺ｫ **38 蛟九・繧ｸ繧ｧ繝阪Μ繝・け蛯榊女繝｡繧ｽ繝・ラ**縺・
+縺薙・ 1縲・ 縺ｫ繧医ｊ縲・・蛻励・繝ｳ繝・ｼ・Benchmark/Benchmark.System.Linq.Enumerable.FLinq`・峨〒縺ｯ `Methods1<T>` 蜷代￠縺ｫ **38 蛟九・繧ｸ繧ｧ繝阪Μ繝・け蛯榊女繝｡繧ｽ繝・ラ**縺・
 逕滓・縺輔ｌ・井ｿｮ豁｣蜑阪・ 0・峨～MemoryExtensions.AsSpan` 繧堤畑縺・◆ root竊担pan 逶ｴ襍ｰ譟ｻ繧ｳ繝ｼ繝峨′蜃ｺ蜉帙＆繧後ｋ・茨ｼ晄ｧ矩縺ｨ縺励※縺ｯ鬮倬溯ｷｯ縺悟ｾｩ豢ｻ縺吶ｋ・峨・
 
 ## 縺溘□縺・.NET 10 縺ｮ UnsafeAccessor 蛻ｶ髯舌〒螳溯｡梧凾縺ｫ關ｽ縺｡繧具ｼ磯㍾隕・ｼ・
@@ -250,5 +250,5 @@ protected/private 繝｡繝ｳ繝舌・**繧貞ｿ・★隗ｦ繧九◆繧√�
 
 ### 繧ｨ繝薙ョ繝ｳ繧ｹ
 
-`Benchmark/DotNet.Linq.Enumerable.FLinq/obj/Release` 縺ｫ谿九ｋ譌ｧ `*Methods1_cs.g.cs` 繧ｹ繝翫ャ繝励す繝ｧ繝・ヨ縺ｯ縺・★繧後ｂ髱槭ず繧ｧ繝阪Μ繝・け迚・
+`Benchmark/Benchmark.System.Linq.Enumerable.FLinq/obj/Release` 縺ｫ谿九ｋ譌ｧ `*Methods1_cs.g.cs` 繧ｹ繝翫ャ繝励す繝ｧ繝・ヨ縺ｯ縺・★繧後ｂ髱槭ず繧ｧ繝阪Μ繝・け迚・
 ・・int[] source` 縺ｮ Span 迚茨ｼ峨〒縲∫樟陦・`Methods1<T>` 蠖｢繧呈拷縺医◆繧ゅ・縺ｯ辟｡縺・ｼ挌enericization 蠕後・蛯榊女繧ｳ繝ｼ繝峨′蜃ｺ縺ｦ縺・↑縺九▲縺溘％縺ｨ縺ｮ陬丈ｻ倥￠縲・

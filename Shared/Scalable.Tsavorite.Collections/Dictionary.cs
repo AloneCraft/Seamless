@@ -1,4 +1,8 @@
+#if BENCHMARK_PROJECT
+namespace Benchmark.Scalable.Tsavorite.Collections.Dictionary;
+#else
 namespace Scalable.Tsavorite.Collections.Dictionary;
+#endif
 
 public class DictionaryStringString
     :TsavoriteDictionaryScalable<ManagedStoreDictionaryStrategy<StringDictTypeProvider,StringDictTypeProvider,string,string>,string,string>;

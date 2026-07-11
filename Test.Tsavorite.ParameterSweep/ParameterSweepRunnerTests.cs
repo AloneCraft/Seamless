@@ -1,6 +1,6 @@
-using Tsavorite.ParameterSweep;
+using Benchmark.Tsavorite.ParameterSweep;
 
-namespace Test.Tsavorite.ParameterSweep;
+namespace Test.Benchmark.Tsavorite.ParameterSweep;
 
 public sealed class ParameterSweepRunnerTests {
     [Fact]

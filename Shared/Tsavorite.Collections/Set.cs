@@ -1,5 +1,9 @@
 using MemoryPack;
+#if BENCHMARK_PROJECT
+namespace Benchmark.Tsavorite.Collections;
+#else
 namespace Tsavorite.Collections;
+#endif
 
 [MemoryPackable]
 public partial record struct ManagedSetRecord(int Key,string Name):global::Seamless.Collections.IRecord<int>;

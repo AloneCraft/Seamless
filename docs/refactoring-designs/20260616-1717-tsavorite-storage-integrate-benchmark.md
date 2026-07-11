@@ -1,7 +1,7 @@
-﻿# Tsavorite Storage Integrate Benchmark 移行
+# Tsavorite Storage Integrate Benchmark 移行
 
 ## 背景
-`tests/Test.Tsavorite.Collections/Integrate` には、storage device を使った正しさ検証と、セグメント増加・compaction 効果・大量 churn のような性能/規模観察が混在している。
+`tests/Test.Benchmark.Tsavorite.Collections/Integrate` には、storage device を使った正しさ検証と、セグメント増加・compaction 効果・大量 churn のような性能/規模観察が混在している。
 
 ## 現状の観察
 - `HashSetIntegrate.cs` はセグメントファイル増加、単調増加、compaction 後の active segment 減少、複数セッション refresh、checkpoint restore を同じ統合テスト基底で扱っている。
@@ -13,7 +13,7 @@
 統合テストは「メモリ上の領域と storage 領域の境界で値が壊れない」ことを最小限に検証する。性能・規模・セグメント挙動の観察は BenchmarkDotNet の `src/Benchmark` へ移す。
 
 ## 非目的
-- Tsavorite.Collections の public API は変更しない。
+- Benchmark.Tsavorite.Collections の public API は変更しない。
 - 既存 benchmark runner の起動方式は変更しない。
 - 大量データの正しさを unit test で保証しようとしない。
 
@@ -31,8 +31,8 @@
   - 結果は件数、セグメント数、または `BeginAddress` 差分を返し、JIT 最適化で消えないようにする。
 
 ## 影響範囲
-- `tests/Test.Tsavorite.Collections/Integrate/HashSetIntegrate.cs`
-- `tests/Test.Tsavorite.Collections/Integrate/DictionaryIntegrate.cs`
+- `tests/Test.Benchmark.Tsavorite.Collections/Integrate/HashSetIntegrate.cs`
+- `tests/Test.Benchmark.Tsavorite.Collections/Integrate/DictionaryIntegrate.cs`
 - `src/Benchmark/TsavoriteStorageMaintenancecs`
 - `src/Benchmark/Seamlesscsproj`
 
@@ -43,7 +43,7 @@
 4. 対象テストと benchmark project build を通す。
 
 ## テスト計画
-- `dotnet test tests/Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj --no-restore --filter FullyQualifiedName~Integrate`
+- `dotnet test tests/Test.Benchmark.Tsavorite.Collections/Test.Benchmark.Tsavorite.Collections.csproj --no-restore --filter FullyQualifiedName~Integrate`
 - `dotnet build src/Benchmark/Seamlesscsproj --no-restore`
 
 ## リスクと対策

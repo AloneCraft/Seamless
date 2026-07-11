@@ -1,6 +1,10 @@
 using Collection.Helper.CollectionLinq;
 using Collection.Strategy.CollectionLinq;
+#if BENCHMARK_PROJECT
+namespace Benchmark.Tsavorite.Collections.Strategy.CollectionLinq;
+#else
 namespace Tsavorite.Collections.Strategy.CollectionLinq;
+#endif
 
 public sealed class TsavoriteDictionaryLinqSource<TKey,TValue>(
     StoreHandle<TKey,TValue> store,

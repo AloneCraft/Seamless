@@ -2,7 +2,11 @@ using Scalable.Collections;
 using Seamless.Serialization;
 using System.Collections.Concurrent;
 
+#if BENCHMARK_PROJECT
+namespace Benchmark.Scalable.Persisted.Collections;
+#else
 namespace Scalable.Persisted.Collections;
+#endif
 
 public abstract class PersistedSetScalable<TProvider,T>
     :ScalableBenchmarkBase
