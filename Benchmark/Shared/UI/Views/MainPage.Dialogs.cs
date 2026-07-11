@@ -193,6 +193,7 @@ public sealed partial class MainPage {
                 break;
         }
 
+        ConfigurePressFeedback(button);
         return button;
     }
 

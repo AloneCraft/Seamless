@@ -498,14 +498,14 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     [BenchmarkCategory(Categories.Linq)]
     public void Order() => this.Order_Impl();
 
-    [LinqIntercept(false)]
+    [LinqIntercept(true)]
     private void Order_Impl() => this.srcCount(SortCount).AsX<T>().Order().Consume(this.consumer);
     // [OrderBy_keySelector]
     [BenchFact, Benchmark]
     [BenchmarkCategory(Categories.Linq)]
     public void OrderBy_keySelector() => this.OrderBy_keySelector_Impl();
 
-    [LinqIntercept(false)]
+    [LinqIntercept(true)]
     private void OrderBy_keySelector_Impl() => this.srcCount(SortCount).AsX<T>().OrderBy(x => x).Consume(this.consumer);
     // [OrderByDescending_keySelector]
     [BenchFact, Benchmark]
@@ -519,7 +519,7 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     [BenchmarkCategory(Categories.Linq)]
     public void OrderDescending() => this.OrderDescending_Impl();
 
-    [LinqIntercept(false)]
+    [LinqIntercept(true)]
     private void OrderDescending_Impl() => this.srcCount(SortCount).AsX<T>().OrderDescending().Consume(this.consumer);
     // [Prepend_element]
     [BenchFact, Benchmark]

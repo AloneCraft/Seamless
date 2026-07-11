@@ -1027,6 +1027,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 this.OnPropertyChanged(nameof(this.CanCreateNewGrid));
                 this.OnPropertyChanged(nameof(this.CanStopBenchmark));
                 this.OnPropertyChanged(nameof(this.CanClearRunHistory));
+                this.OnPropertyChanged(nameof(this.ClearRunHistoryTooltipText));
                 this.OnPropertyChanged(nameof(this.RunButtonText));
                 this.OnPropertyChanged(nameof(this.RunButtonTooltipText));
                 this.OnPropertyChanged(nameof(this.ToolbarStateInput));
@@ -1074,6 +1075,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 this.OnPropertyChanged(nameof(this.CanCreateNewGrid));
                 this.OnPropertyChanged(nameof(this.CanStopBenchmark));
                 this.OnPropertyChanged(nameof(this.CanClearRunHistory));
+                this.OnPropertyChanged(nameof(this.ClearRunHistoryTooltipText));
                 this.OnPropertyChanged(nameof(this.ToolbarStateInput));
             }
         }
@@ -1219,6 +1221,14 @@ public sealed partial class RunnerViewModel:ObservableObject {
         &&!this.IsBenchmarkRunActive
         &&!this.IsBenchmarkPaused;
 
+    public string ClearRunHistoryTooltipText => this.IsBenchmarkRunActive
+        ? "ベンチマーク実行中は履歴を消去できません。"
+        : this.IsBenchmarkPaused
+            ? "ベンチマーク一時停止中は履歴を消去できません。"
+            : this.IsRefreshing
+                ? "処理中は履歴を消去できません。"
+                : "履歴消去";
+
     /// <summary>
     /// HasSelectedBenchmarkCells プロパティです。
     /// </summary>
@@ -1270,6 +1280,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 this.OnPropertyChanged(nameof(this.CanCreateNewGrid));
                 this.ClearRunHistoryCommand.NotifyCanExecuteChanged();
                 this.OnPropertyChanged(nameof(this.CanClearRunHistory));
+                this.OnPropertyChanged(nameof(this.ClearRunHistoryTooltipText));
                 this.OnPropertyChanged(nameof(this.ToolbarStateInput));
             }
         }
@@ -1452,6 +1463,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
         this.OnPropertyChanged(nameof(this.CanSaveDatabase));
         this.OnPropertyChanged(nameof(this.CanCreateNewGrid));
         this.OnPropertyChanged(nameof(this.CanStopBenchmark));
+        this.ClearRunHistoryCommand.NotifyCanExecuteChanged();
+        this.OnPropertyChanged(nameof(this.CanClearRunHistory));
+        this.OnPropertyChanged(nameof(this.ClearRunHistoryTooltipText));
         this.OnPropertyChanged(nameof(this.ToolbarStateInput));
         this.RefreshToolbarCommandStates();
     }

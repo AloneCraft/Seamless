@@ -238,7 +238,9 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
 
         var seenName=$"__seen{番号}";
         var seenIndexName=$"__seenIndex{番号}";
-        builder.AppendLine($"var {seenName}=new bool[{rangeCount}];");
+        builder.AppendLine($"var {seenName}=global::System.Buffers.ArrayPool<bool>.Shared.Rent({rangeCount});");
+        builder.AppendLine("try{");
+        builder.AppendLine($"    global::System.MemoryExtensions.AsSpan({seenName},0,{rangeCount}).Clear();");
         TraversalSupport.AppendTraversalLoop(
             builder,
             sourceName,
@@ -253,6 +255,9 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
                 {{consumerName}}.Consume(value);
             }
             """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName));
+        builder.AppendLine("}finally{");
+        builder.AppendLine($"    global::System.Buffers.ArrayPool<bool>.Shared.Return({seenName},true);");
+        builder.AppendLine("}");
         return true;
     }
 

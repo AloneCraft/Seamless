@@ -46,6 +46,25 @@ public sealed class OrderBy {
     }
 
     [Fact,Trait("Category","Unit")]
+    public static void OrderDescending_consume_preserves_equal_item_order(){
+        GeneratedInterceptorAssert.ContainsMethod<OrderBy>(nameof(OrderDescending_consume_preserves_equal_item_orderImpl));
+        var a1=new string('a',1);
+        var a2=new string('a',1);
+        var b1=new string('b',1);
+        var b2=new string('b',1);
+        var actual=new Consumer<string>();
+        OrderDescending_consume_preserves_equal_item_orderImpl([a1,a2,b1,b2],actual);
+        Assert.Collection(actual.Items,
+            item=>Assert.Same(b1,item),
+            item=>Assert.Same(b2,item),
+            item=>Assert.Same(a1,item),
+            item=>Assert.Same(a2,item));
+    }
+    private static void OrderDescending_consume_preserves_equal_item_orderImpl(string[]source,Consumer<string>consumer){
+        source.OrderDescending().Consume(consumer);
+    }
+
+    [Fact,Trait("Category","Unit")]
     public static void keySelector_enumerable(){
         GeneratedInterceptorAssert.ContainsMethod<OrderBy>(nameof(keySelector_enumerableImpl));
         var expected=new[]{3,1,4,2}.OrderBy(static v => v).ToList();

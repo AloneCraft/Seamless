@@ -80,6 +80,32 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
+    public void IntCountByEnumeratorUsesPooledInsertionOrderedMap() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static List<KeyValuePair<int,int>> Count(int[] src) =>
+                    src.CountBy(static x => x).ToList();
+                public void Run(int[] src) => _ = Count(src);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var method = GeneratedMethod(generated,"Count");
+
+        GeneratedSourceAssert.True(
+            generated.Contains("__hashKeys",StringComparison.Ordinal)
+            && generated.Contains("ArrayPool<int>.Shared.Rent",StringComparison.Ordinal)
+            && generated.Contains("__hashOrder",StringComparison.Ordinal)
+            && !method.Contains("new global::System.Collections.Generic.Dictionary<int, int>",StringComparison.Ordinal),
+            "Int CountBy enumeration should use a pooled insertion-ordered hash map.",
+            generated,
+            output);
+    }
+
+    [Fact]
     public void DistinctByModuloUsesSmallBoolArrayConsumePath() {
         const string source = """
             using System.Collections.Generic;
@@ -106,12 +132,13 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains("new bool[1999]",StringComparison.Ordinal)
+            generated.Contains("ArrayPool<bool>.Shared.Rent(1999)",StringComparison.Ordinal)
+            && generated.Contains("ArrayPool<bool>.Shared.Return",StringComparison.Ordinal)
             && generated.Contains("__seenIndex",StringComparison.Ordinal)
             && generated.Contains(".Consume(value)",StringComparison.Ordinal)
             && !generated.Contains("new global::System.Collections.Generic.HashSet<int>(__span.Length",StringComparison.Ordinal)
             && !generated.Contains("new global::System.Collections.Generic.HashSet<int>(__count",StringComparison.Ordinal),
-            "DistinctBy with a small modulo int key should use a bool[] direct-consume path.",
+            "DistinctBy with a small modulo int key should use a pooled bool[] direct-consume path.",
             generated,
             output);
     }
@@ -246,6 +273,47 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             && !generated.Contains("global::System.Linq.Enumerable.Order(",StringComparison.Ordinal)
             && !generated.Contains("global::System.Linq.Enumerable.OrderBy(",StringComparison.Ordinal),
             "Pure Order/OrderBy Consume should use sorted span direct consume instead of delegating back to System.Linq.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void StringIdentityOrderConsumeUsesSortedSpanDirectPath() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer<T> {
+                public void Consume(T item) {
+                }
+            }
+            public static class ConsumeSupport {
+                public static void Consume<T>(this IEnumerable<T> source, Consumer<T> consumer) {
+                    foreach(var item in source) {
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public class Container {
+                private static void OrderFast(string[] src, Consumer<string> consumer) =>
+                    src.Order().Consume(consumer);
+                private static void OrderByFast(string[] src, Consumer<string> consumer) =>
+                    src.OrderBy(static x => x).Consume(consumer);
+                public void Run(string[] src, Consumer<string> consumer) {
+                    OrderFast(src,consumer);
+                    OrderByFast(src,consumer);
+                }
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("global::System.Collections.Generic.Comparer<string>.Default.Compare",StringComparison.Ordinal)
+            && generated.Contains("__orderedHandled",StringComparison.Ordinal)
+            && !generated.Contains("global::System.Linq.Enumerable.Order(",StringComparison.Ordinal)
+            && !generated.Contains("global::System.Linq.Enumerable.OrderBy(",StringComparison.Ordinal),
+            "String identity Order/OrderBy Consume should avoid sorting when the source is already ordered by the default comparer.",
             generated,
             output);
     }

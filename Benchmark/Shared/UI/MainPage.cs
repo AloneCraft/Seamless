@@ -556,6 +556,7 @@ public sealed partial class MainPage:ContentPage {
             Margin=new Thickness(0),
         };
         button.SetValue(ToolTipProperties.TextProperty,tooltipText);
+        ConfigurePressFeedback(button);
         return button;
     }
 
@@ -604,6 +605,7 @@ public sealed partial class MainPage:ContentPage {
             TextColor=Color.FromArgb("#334155"),
             CornerRadius=6,
         };
+        ConfigurePressFeedback(infiniteButton);
         this.BindToolbarButtonState(infiniteButton,BenchmarkToolbarButtonRole.RunInfinite);
 #endif
         var thresholdPicker = new Picker {
@@ -638,6 +640,12 @@ public sealed partial class MainPage:ContentPage {
         //DB削除アイコン
         var clearRunHistoryButton = this.CreateToolbarIconButton("delete.png","履歴消去");
         clearRunHistoryButton.SetBinding(IsEnabledProperty,nameof(RunnerViewModel.CanClearRunHistory));
+        clearRunHistoryButton.SetBinding(
+            OpacityProperty,
+            new Binding(nameof(RunnerViewModel.CanClearRunHistory),converter:new EnabledOpacityConverter()));
+        clearRunHistoryButton.SetBinding(
+            ToolTipProperties.TextProperty,
+            nameof(RunnerViewModel.ClearRunHistoryTooltipText));
         clearRunHistoryButton.Clicked+=async (_,_) => await this.ShowClearRunHistoryConfirmDialogAsync();
         var grid = new Grid {
             Padding=new Thickness(8,4,8,3),
@@ -748,11 +756,12 @@ public sealed partial class MainPage:ContentPage {
         else {
             button.SetValue(ToolTipProperties.TextProperty,tooltipText);
         }
+        ConfigurePressFeedback(button);
         return button;
     }
 
     private Button CreateToolbarTextButton(string text) {
-        return new Button {
+        var button = new Button {
             Text=text,
             HeightRequest=30,
             MinimumWidthRequest=72,
@@ -763,6 +772,57 @@ public sealed partial class MainPage:ContentPage {
             BorderWidth=1,
             TextColor=Color.FromArgb("#334155"),
             CornerRadius=6,
+        };
+        ConfigurePressFeedback(button);
+        return button;
+    }
+
+    private static void ConfigurePressFeedback(Button button) =>
+        ConfigurePressFeedbackCore(
+            button,
+            handler => button.Pressed+=handler,
+            handler => button.Released+=handler);
+
+    private static void ConfigurePressFeedback(ImageButton button) =>
+        ConfigurePressFeedbackCore(
+            button,
+            handler => button.Pressed+=handler,
+            handler => button.Released+=handler);
+
+    private static void ConfigurePressFeedbackCore(
+        VisualElement button,
+        Action<EventHandler> subscribePressed,
+        Action<EventHandler> subscribeReleased) {
+        var isPressed=false;
+        var releasedScale=1d;
+        var releasedTranslationY=0d;
+
+        void RestoreReleasedVisual() {
+            if(!isPressed) {
+                return;
+            }
+
+            isPressed=false;
+            button.Scale=releasedScale;
+            button.TranslationY=releasedTranslationY;
+        }
+
+        subscribePressed((_,_) => {
+            if(!button.IsEnabled||isPressed) {
+                return;
+            }
+
+            isPressed=true;
+            releasedScale=button.Scale;
+            releasedTranslationY=button.TranslationY;
+            button.Scale=releasedScale*0.95;
+            button.TranslationY=releasedTranslationY+1;
+        });
+        subscribeReleased((_,_) => RestoreReleasedVisual());
+        button.PropertyChanged+=(_,args) => {
+            if(args.PropertyName==nameof(VisualElement.IsEnabled)&&!button.IsEnabled) {
+                RestoreReleasedVisual();
+            }
         };
     }
 
@@ -1728,6 +1788,7 @@ public sealed partial class MainPage:ContentPage {
             HorizontalOptions=LayoutOptions.Start,
             Margin=new Thickness(8,4),
         };
+        ConfigurePressFeedback(refresh);
         refresh.Clicked+=(_,_) => reload();
         return refresh;
     }
@@ -3158,6 +3219,7 @@ public sealed partial class MainPage:ContentPage {
         copyButton.SetBinding(Button.CommandProperty,nameof(RunnerViewModel.CopyImprovementPromptCommand));
         copyButton.SetBinding(IsEnabledProperty,nameof(RunnerViewModel.CanCopyImprovementPrompt));
         ToolTipProperties.SetText(copyButton,"改善プロンプトをコピー");
+        ConfigurePressFeedback(copyButton);
 
         var title = new Label {
             Text="改善プロンプト",
@@ -4683,6 +4745,16 @@ public sealed class CountIsZeroConverter:IValueConverter {
 public sealed class NullToBoolConverter:IValueConverter {
     public object Convert(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture) {
         return value is not null;
+    }
+
+    public object ConvertBack(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture) {
+        throw new NotSupportedException();
+    }
+}
+
+public sealed class EnabledOpacityConverter:IValueConverter {
+    public object Convert(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture) {
+        return value is true ? 1d : 0.35d;
     }
 
     public object ConvertBack(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture) {

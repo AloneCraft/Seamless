@@ -2205,32 +2205,48 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         var directOrderStages= this.OrderStages(0).ToArray();
         if(directOrderStages.Length>0) {
             var primaryOrder=directOrderStages[0];
-            if(this.CanUseSortedIntOrderFastPath(0,primaryOrder,directOrderStages)) {
+            if(this.CanUseSortedDefaultOrderDirectConsumeFastPath(0,primaryOrder,directOrderStages)) {
                 var sourceName=$"__orderedSource{番号}";
                 var fallbackName=$"__orderedFallback{番号}";
                 var spanName=$"__orderedSpan{番号}";
                 var sortedName=$"__orderedSorted{番号}";
                 var handledName=$"__orderedHandled{番号}";
                 var directItemName=$"__orderedItem{番号}";
-                var itemExpression=primaryOrder.Descending
-                    ? $"{spanName}[{spanName}.Length-1-__i]"
-                    : $"{spanName}[__i]";
+                var directConsumeLoop=primaryOrder.Descending
+                    ? $$"""
+                            var __groupEnd{{番号}}={{spanName}}.Length;
+                            var __orderComparer{{番号}}=global::System.Collections.Generic.Comparer<{{primaryOrder.InputType}}>.Default;
+                            while(__groupEnd{{番号}}>0) {
+                                var __groupStart{{番号}}=__groupEnd{{番号}}-1;
+                                while(__groupStart{{番号}}>0&&__orderComparer{{番号}}.Compare({{spanName}}[__groupStart{{番号}}-1],{{spanName}}[__groupEnd{{番号}}-1])==0) {
+                                    __groupStart{{番号}}--;
+                                }
+                                for(var __i=__groupStart{{番号}};__i<__groupEnd{{番号}};__i++) {
+                                    var {{directItemName}}={{spanName}}[__i];
+                                    {{consumerName}}.Consume({{directItemName}});
+                                }
+                                __groupEnd{{番号}}=__groupStart{{番号}};
+                            }
+                        """
+                    : $$"""
+                            for(var __i=0;__i<{{spanName}}.Length;__i++) {
+                                var {{directItemName}}={{spanName}}[__i];
+                                {{consumerName}}.Consume({{directItemName}});
+                            }
+                        """;
                 return $$"""
                     var {{handledName}}=false;
                     using var {{sourceName}}={{source.GetEnumeratorExpression}};
                     if({{sourceName}}.TryGetSpan(out var {{spanName}})) {
                         var {{sortedName}}=true;
                         for(var __i=1;__i<{{spanName}}.Length;__i++) {
-                            if({{spanName}}[__i]<{{spanName}}[__i-1]) {
+                            if({{this.SortedOrderOutOfOrderExpression(primaryOrder,spanName,"__i")}}) {
                                 {{sortedName}}=false;
                                 break;
                             }
                         }
                         if({{sortedName}}) {
-                            for(var __i=0;__i<{{spanName}}.Length;__i++) {
-                                var {{directItemName}}={{itemExpression}};
-                                {{consumerName}}.Consume({{directItemName}});
-                            }
+                    {{directConsumeLoop}}
                             {{handledName}}=true;
                         }
                     }
@@ -2834,8 +2850,8 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         var lastOrderIndex = orderIndex+orderStages.Length-1;
         var builder = new StringBuilder();
         builder.AppendLine($"if(this.{this.OrderValuesName(orderIndex)} is null) {{");
-        if(this.CanUseSortedIntOrderFastPath(orderIndex,primaryOrder,orderStages)) {
-            this.AppendSortedIntOrderFastPath(builder,enumeratorName,successStatement,endStatement,orderIndex,lastOrderIndex,primaryOrder);
+        if(this.CanUseSortedDefaultOrderFastPath(orderIndex,primaryOrder,orderStages)) {
+            this.AppendSortedDefaultOrderFastPath(builder,enumeratorName,successStatement,endStatement,orderIndex,lastOrderIndex,primaryOrder);
         }
         builder.AppendLine($"    var {this.OrderInitialCapacityLocalName(orderIndex)}=16;");
         builder.AppendLine($"    if({enumeratorName}.TryGetNonEnumeratedCount(out var __orderSourceCount{orderIndex}) && __orderSourceCount{orderIndex}>16) {{");
@@ -2974,12 +2990,18 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         return orderIndex;
     }
 
-    private bool CanUseSortedIntOrderFastPath(int orderIndex,PipelineStage primaryOrder,IReadOnlyList<PipelineStage> orderStages) =>
+    private bool CanUseSortedDefaultOrderFastPath(int orderIndex,PipelineStage primaryOrder,IReadOnlyList<PipelineStage> orderStages) =>
+        this.CanUseSortedDefaultOrderFastPathCore(orderIndex,primaryOrder,orderStages)
+        && (!primaryOrder.Descending||IsInt32Type(primaryOrder.InputType));
+
+    private bool CanUseSortedDefaultOrderDirectConsumeFastPath(int orderIndex,PipelineStage primaryOrder,IReadOnlyList<PipelineStage> orderStages) =>
+        this.CanUseSortedDefaultOrderFastPathCore(orderIndex,primaryOrder,orderStages);
+
+    private bool CanUseSortedDefaultOrderFastPathCore(int orderIndex,PipelineStage primaryOrder,IReadOnlyList<PipelineStage> orderStages) =>
         orderIndex==0
         && orderStages.Count==1
         && source.CanTryProvideSpan
-        && IsInt32Type(primaryOrder.InputType)
-        && IsInt32Type(ComparerKeyType(primaryOrder))
+        && string.Equals(primaryOrder.InputType,ComparerKeyType(primaryOrder),StringComparison.Ordinal)
         && primaryOrder.Value is { } comparer
         && ComparerExpressionSupport.IsDefaultOrderComparer(comparer,ComparerKeyType(primaryOrder))
         && (primaryOrder.Func is null || primaryOrder.Func.IsIdentity)
@@ -3004,7 +3026,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         return true;
     }
 
-    private void AppendSortedIntOrderFastPath(
+    private void AppendSortedDefaultOrderFastPath(
         StringBuilder builder,
         string enumeratorName,
         string successStatement,
@@ -3035,7 +3057,7 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         builder.AppendLine($"    if({enumeratorName}.TryGetSpan(out var {spanName})){{");
         builder.AppendLine($"        var {sortedName}=true;");
         builder.AppendLine($"        for(var __i=1;__i<{spanName}.Length;__i++){{");
-        builder.AppendLine($"            if({spanName}[__i]<{spanName}[__i-1]){{");
+        builder.AppendLine($"            if({this.SortedOrderOutOfOrderExpression(primaryOrder,spanName,"__i")}){{");
         builder.AppendLine($"                {sortedName}=false;");
         builder.AppendLine("                break;");
         builder.AppendLine("            }");
@@ -3062,6 +3084,11 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         }
         builder.AppendLine(IndentBlock(string.Format(successStatement,currentName),indent));
     }
+
+    private string SortedOrderOutOfOrderExpression(PipelineStage stage,string spanName,string indexName) =>
+        IsInt32Type(stage.InputType)
+            ? $"{spanName}[{indexName}]<{spanName}[{indexName}-1]"
+            : $"global::System.Collections.Generic.Comparer<{stage.InputType}>.Default.Compare({spanName}[{indexName}],{spanName}[{indexName}-1])<0";
 
     private string BuildGroupByLoop(string enumeratorName,string successStatement,string endStatement,int groupByIndex) {
         var stage = stages[groupByIndex];
