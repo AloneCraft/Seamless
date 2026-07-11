@@ -92,7 +92,7 @@ public static class PipelineBuilder {
                 return false;
             }
             var n0=(m0.ReducedFrom ?? m0).Name;
-            if(n0 is not ("Order" or "OrderDescending" or "OrderBy" or "OrderByDescending" or "Distinct" or "DistinctBy" or "Union" or "Except" or "Intersect" or "UnionBy" or "ExceptBy" or "IntersectBy")) {
+            if(n0 is not ("Where" or "Select" or "Append" or "Prepend" or "DefaultIfEmpty" or "Order" or "OrderDescending" or "OrderBy" or "OrderByDescending" or "Distinct" or "DistinctBy" or "Union" or "Except" or "Intersect" or "UnionBy" or "ExceptBy" or "IntersectBy")) {
                 return false;
             }
         }
@@ -167,7 +167,14 @@ public static class PipelineBuilder {
             staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
             return true;
         }
-        if(!ValidateStageCombination(stages,terminalKind)) {
+        var allowSingleStage=invocations.Count==1
+            && stages.Count==1
+            && stages[0].Kind is PipelineStageKind.Where
+                or PipelineStageKind.Select
+                or PipelineStageKind.Append
+                or PipelineStageKind.Prepend
+                or PipelineStageKind.DefaultIfEmpty;
+        if(!ValidateStageCombination(stages,terminalKind,allowSingleStage)) {
             return false;
         }
 
@@ -1913,10 +1920,78 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         this.RenderSingleTakeWhileDirectConsume(consumerName)
         ?? this.RenderSingleSkipWhileDirectConsume(consumerName)
         ?? this.RenderSingleConcatDirectConsume(consumerName)
+        ?? this.RenderSingleAppendOrPrependDirectConsume(consumerName)
+        ?? this.RenderSingleDefaultIfEmptyDirectConsume(consumerName)
         ?? this.RenderSingleSelectDirectConsume(consumerName)
         ?? this.RenderSingleWhereDirectConsume(consumerName)
         ?? this.RenderPureOrderingDirectConsume(consumerName)
         ?? base.GetConsumeExecutionStatement(consumerName);
+
+    private string? RenderSingleAppendOrPrependDirectConsume(string consumerName) {
+        if(stages.Count!=1) {
+            return null;
+        }
+
+        var stage=stages[0];
+        if(stage.Kind is not (PipelineStageKind.Append or PipelineStageKind.Prepend)
+            || stage.Value is not { } value) {
+            return null;
+        }
+
+        var sourceName=$"__appendSource{this.result}";
+        var directSpanExpression=source.GetDirectSpanExpression(sourceName);
+        if(directSpanExpression is null) {
+            return null;
+        }
+
+        var spanName=$"__appendSpan{this.result}";
+        var itemName=$"__appendItem{this.result}";
+        var appendValue=$"{consumerName}.Consume({value});";
+        var before=stage.Kind==PipelineStageKind.Prepend ? appendValue+"\n" : string.Empty;
+        var after=stage.Kind==PipelineStageKind.Append ? "\n"+appendValue : string.Empty;
+        return $$"""
+            using var {{sourceName}}={{source.GetEnumeratorExpression}};
+            global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
+            var {{spanName}}={{directSpanExpression}};
+            {{before}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++) {
+                var {{itemName}}={{spanName}}[__i{{this.result}}];
+                {{consumerName}}.Consume({{itemName}});
+            }{{after}}
+            """;
+    }
+
+    private string? RenderSingleDefaultIfEmptyDirectConsume(string consumerName) {
+        if(stages.Count!=1) {
+            return null;
+        }
+
+        var stage=stages[0];
+        if(stage.Kind!=PipelineStageKind.DefaultIfEmpty || stage.Value is not { } defaultValue) {
+            return null;
+        }
+
+        var sourceName=$"__defaultSource{this.result}";
+        var directSpanExpression=source.GetDirectSpanExpression(sourceName);
+        if(directSpanExpression is null) {
+            return null;
+        }
+
+        var spanName=$"__defaultSpan{this.result}";
+        var itemName=$"__defaultItem{this.result}";
+        return $$"""
+            using var {{sourceName}}={{source.GetEnumeratorExpression}};
+            global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
+            var {{spanName}}={{directSpanExpression}};
+            if({{spanName}}.Length==0) {
+                {{consumerName}}.Consume({{defaultValue}});
+            }else{
+                for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++) {
+                    var {{itemName}}={{spanName}}[__i{{this.result}}];
+                    {{consumerName}}.Consume({{itemName}});
+                }
+            }
+            """;
+    }
 
     private string? RenderSingleConcatDirectConsume(string consumerName) {
         if(stages.Count!=1) {
@@ -1996,8 +2071,13 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         var predicateCheck=string.IsNullOrEmpty(preCode)
             ? $"if({WrapConditionExpression(conditionExpr)})"
             : $"{preCode}\n        if({WrapConditionExpression(conditionExpr)})";
+        var localDeclarations=string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(predicate),
+            this.StaticDelegateLocalDeclarations(predicate),
+        }.Where(static value=>!string.IsNullOrWhiteSpace(value)));
 
         return $$"""
+            {{localDeclarations}}
             using var {{sourceName}}={{source.GetEnumeratorExpression}};
             global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
             var {{spanName}}={{directSpanExpression}};
@@ -2042,8 +2122,13 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
         var indexIncrement=stage.UsesIndex
             ? $"{indexName}++;\n        "
             : string.Empty;
+        var localDeclarations=string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(selector),
+            this.StaticDelegateLocalDeclarations(selector),
+        }.Where(static value=>!string.IsNullOrWhiteSpace(value)));
 
         return $$"""
+            {{localDeclarations}}
             using var {{sourceName}}={{source.GetEnumeratorExpression}};
             global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
             var {{spanName}}={{directSpanExpression}};

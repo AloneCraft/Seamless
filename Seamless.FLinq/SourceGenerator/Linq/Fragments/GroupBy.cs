@@ -97,6 +97,7 @@ internal static class GroupBySupport{
     public static string IndentBlock(string text,string indent){
         return string.Join("\n",text.Replace("\r\n","\n").Split('\n').Select(line=>line.Length==0 ? line : indent+line));
     }
+
 }
 
 internal class GroupBy_keySelector(int 番号, Enumerable source, FuncFragment keySelector) : Enumerable(番号) {

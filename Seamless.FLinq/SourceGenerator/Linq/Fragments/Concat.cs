@@ -16,15 +16,15 @@ Concat は source.Concat(second) を、左を読み切ってから右へ切り�
   - 左右の要素型が異なる場合でも、最終 ElementType は左に合わせて cast する。
   - Dispose では両方の enumerator を破棄する。
 */
-public class Concat(int 番号, Enumerable source, Enumerable second) : Enumerable(番号) {
+public class Concat(int 番号,Enumerable source,Enumerable second):Enumerable(番号) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     public override string GetEnumerableExpression =>
         $"global::Seamless.System.Carrier.ValueEnumerableExtensions.Concat({source.GetEnumerableExpression}, {second.GetEnumerableExpression})";
-    protected override string StructTypeParameters => StructTypeParametersWithOuter("TEnum1", "TEnum2");
+    protected override string StructTypeParameters => this.StructTypeParametersWithOuter("TEnum1","TEnum2");
     protected override string StructTypeConstraints =>
         $"where TEnum1 : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>";
-    public override string EnumeratorTypeName => EnumeratorTypeNameWithOuter(source.EnumeratorTypeName, second.EnumeratorTypeName);
+    public override string EnumeratorTypeName => this.EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{second.GetEnumeratorStruct}}
@@ -54,9 +54,9 @@ public class Concat(int 番号, Enumerable source, Enumerable second) : Enumerab
     public override string ElementType => source.ElementType;
     protected override string GetEnumeratorDisposeBody => "source.Dispose();\nsecond.Dispose();";
     public override string GetConsumeExecutionStatement(string consumerName) {
-        var sourceName=$"__concatSrc{番号}";
-        var secondName=$"__concatSec{番号}";
-        var builder=new StringBuilder();
+        var sourceName = $"__concatSrc{番号}";
+        var secondName = $"__concatSec{番号}";
+        var builder = new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
         builder.AppendLine($"using var {secondName}={second.GetEnumeratorExpression};");
         TraversalSupport.AppendTraversalLoop(

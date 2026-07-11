@@ -22,7 +22,7 @@ public sealed class BenchmarkUiRunRepository{
         var loaded = repository.LoadResultItems(runId!.Value,DateTimeOffset.UtcNow,sourceTab)
             .Single(static item => item.MeanNanoseconds is not null);
         Assert.Equal(sourceTab.LeftProject,loaded.Project);
-        Assert.Equal("Sample.Type",loaded.TypeFullName);
+        Assert.Empty(loaded.TypeFullName);
         Assert.Equal(global::UI.BenchmarkWorkloadAxis.ResolveElementCount(sourceTab.Tab,64),loaded.ElementCount);
         Assert.Equal(global::UI.BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab.Tab,64),loaded.LoopCount);
         Assert.Equal(123.5,loaded.MeanNanoseconds);
@@ -55,7 +55,7 @@ public sealed class BenchmarkUiRunRepository{
     }
 
     [Fact]
-    public async Task LoadResultItems_UsesStoredGridRowTypeAndBenchmark(){
+    public async Task LoadResultItems_DoesNotPersistExecutableTypeIdentity(){
         var store = new global::Seamless.UI.Storage.UiRunStore(CreateDatabasePath());
         var repository = new global::UI.BenchmarkUiRunRepository(store);
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.ScalableTsavoriteSet);
@@ -71,7 +71,7 @@ public sealed class BenchmarkUiRunRepository{
         Assert.Contains(store.ListMetrics(runId!.Value),static item => item.MetricName=="MeanNanoseconds");
         var loaded = repository.LoadResultItems(runId!.Value,DateTimeOffset.UtcNow,sourceTab)
             .Single(static item => item.MeanNanoseconds is not null);
-        Assert.Equal("SetInt32",loaded.TypeFullName);
+        Assert.Empty(loaded.TypeFullName);
         Assert.Equal("Add",loaded.Method);
         Assert.Empty(loaded.ArgumentKey);
     }
@@ -100,6 +100,36 @@ public sealed class BenchmarkUiRunRepository{
         Assert.Empty(store.ListRuns(UiRunAppKind.Benchmark));
         Assert.Empty(store.ListBenchmarkSnapshotItems(runId.Value));
         Assert.Empty(store.ListMetrics(runId.Value));
+    }
+
+    [Fact]
+    public async Task FindPreviousResult_UsesRunFixedScalableBaseline(){
+        var store=new global::Seamless.UI.Storage.UiRunStore(CreateDatabasePath());
+        var repository=new global::UI.BenchmarkUiRunRepository(store);
+        var sourceTab=global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.ScalableTsavoriteSet);
+        const string typeFullName="Scalable.Tsavorite.Collections.Set.SetInt32";
+        var arguments=new[]{
+            new global::UI.BenchmarkArgument("Count","262144"),
+            new global::UI.BenchmarkArgument("Index","64"),
+            new global::UI.BenchmarkArgument("Page","32"),
+            new global::UI.BenchmarkArgument("Segment","16"),
+            new global::UI.BenchmarkArgument("Memory","1024"),
+            new global::UI.BenchmarkArgument("Fraction","0.5"),
+        };
+        const string argumentKey="Count=262144,Index=64,Page=32,Segment=16,Memory=1024,Fraction=0.5";
+        var firstRunId=await repository.CreateRunAsync(UiRunAppKind.ScalableBenchmark,"first","Fast",sourceTab.Tab);
+        var result=Result(sourceTab.LeftProject,sourceTab.Tab,"Add",262144,500,typeFullName,argumentKey,arguments);
+        repository.QueueSaveBenchmarkSnapshotItems(firstRunId,[Snapshot(firstRunId!.Value,sourceTab,"int","Add",7,CompletedSide(result),EmptySide(sourceTab.RightProject,sourceTab.Tab,"int","Add"))]);
+        await repository.FlushAsync();
+        store.SetRunStatus(firstRunId.Value,UiRunStatus.Completed);
+
+        var currentRunId=await repository.CreateRunAsync(UiRunAppKind.ScalableBenchmark,"current","Fast",sourceTab.Tab);
+        var previous=repository.FindPreviousResult(UiRunAppKind.ScalableBenchmark,sourceTab,"Add",sourceTab.LeftProject,typeFullName,262144,null,argumentKey,currentRunId);
+
+        Assert.NotNull(previous);
+        Assert.Equal(500,previous.MeanNanoseconds);
+        Assert.Equal(argumentKey,previous.ArgumentKey);
+        Assert.Equal(firstRunId,store.GetPreviousRunId(currentRunId!.Value));
     }
 
     private static global::UI.BenchmarkGridSnapshotItem Snapshot(

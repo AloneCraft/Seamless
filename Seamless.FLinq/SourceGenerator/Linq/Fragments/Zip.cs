@@ -18,12 +18,12 @@ Zip は複数 source を同時に1件ずつ進め、どれかが尽きた時点�
   - Zip3 は3入力 tuple を返す。
   - resultSelector 付きは tuple ではなく resultSelector(first.Current, second.Current) を Current に入れる。
 */
-public class Zip(int 番号, Enumerable source, Enumerable second) : Enumerable(番号) {
+public class Zip(int 番号,Enumerable source,Enumerable second):Enumerable(番号) {
     public override string StructMethod => string.Empty;
-    protected override string StructTypeParameters => StructTypeParametersWithOuter("TEnum1", "TEnum2");
+    protected override string StructTypeParameters => this.StructTypeParametersWithOuter("TEnum1","TEnum2");
     protected override string StructTypeConstraints =>
         $"where TEnum1 : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>";
-    public override string EnumeratorTypeName => EnumeratorTypeNameWithOuter(source.EnumeratorTypeName, second.EnumeratorTypeName);
+    public override string EnumeratorTypeName => this.EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{second.GetEnumeratorStruct}}
@@ -44,12 +44,12 @@ public class Zip(int 番号, Enumerable source, Enumerable second) : Enumerable(
     protected override string GetEnumeratorDisposeBody => "source.Dispose();\nsecond.Dispose();";
 }
 
-public class Zip3(int 番号, Enumerable source, Enumerable second, Enumerable third) : Enumerable(番号) {
+public class Zip3(int 番号,Enumerable source,Enumerable second,Enumerable third):Enumerable(番号) {
     public override string StructMethod => string.Empty;
-    protected override string StructTypeParameters => StructTypeParametersWithOuter("TEnum1", "TEnum2", "TEnum3");
+    protected override string StructTypeParameters => this.StructTypeParametersWithOuter("TEnum1","TEnum2","TEnum3");
     protected override string StructTypeConstraints =>
         $"where TEnum1 : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>\n    where TEnum3 : struct, global::System.Collections.Generic.IEnumerator<{third.ElementType}>";
-    public override string EnumeratorTypeName => EnumeratorTypeNameWithOuter(source.EnumeratorTypeName, second.EnumeratorTypeName, third.EnumeratorTypeName);
+    public override string EnumeratorTypeName => this.EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName,third.EnumeratorTypeName);
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{second.GetEnumeratorStruct}}
@@ -82,13 +82,13 @@ Zip_resultSelector は Zip(second, resultSelector) 用。2つの Current を sel
 
 selector は通常の FuncFragment と同じく、inline/delegate/closure 付きの各経路を取る。
 */
-public class Zip_resultSelector(int 番号, Enumerable source, Enumerable second, FuncFragment resultSelector) : Enumerable(番号) {
+public class Zip_resultSelector(int 番号,Enumerable source,Enumerable second,FuncFragment resultSelector):Enumerable(番号) {
     private string ResultSelectorFuncType => $"global::System.Func<{source.ElementType}, {second.ElementType}, {FuncReturnTypeName(resultSelector)}>";
     public override string StructMethod => this.FuncSupport(resultSelector,nameof(resultSelector));
-    protected override string StructTypeParameters => StructTypeParametersWithOuter("TEnum1","TEnum2");
+    protected override string StructTypeParameters => this.StructTypeParametersWithOuter("TEnum1","TEnum2");
     protected override string StructTypeConstraints =>
         $"where TEnum1 : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>";
-    public override string EnumeratorTypeName => EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
+    public override string EnumeratorTypeName => this.EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{second.GetEnumeratorStruct}}

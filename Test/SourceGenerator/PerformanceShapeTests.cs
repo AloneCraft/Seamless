@@ -5,7 +5,7 @@ namespace Test.SourceGenerator;
 [LinqIntercept(false)]
 public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     [Fact]
-    public void ModuloKeyedGroupingUsesKeyCardinalityCapacity() {
+    public void ModuloKeyedGroupingUsesGeneralInputCapacity() {
         const string source = """
             using System.Collections.Generic;
             using System.Linq;
@@ -28,19 +28,19 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains("global::System.Math.Min(__span.Length,1999)",StringComparison.Ordinal)
-            && generated.Contains("global::System.Math.Min(__count,1999)",StringComparison.Ordinal)
+            !generated.Contains("global::System.Math.Min(__span.Length,1999)",StringComparison.Ordinal)
+            && !generated.Contains("global::System.Math.Min(__count,1999)",StringComparison.Ordinal)
             && generated.Contains("var __capacity=__hasSpan",StringComparison.Ordinal)
             && generated.Contains("new global::System.Collections.Generic.List<int>(__capacity)",StringComparison.Ordinal)
-            && !generated.Contains("Dictionary<int, int>(__span.Length)",StringComparison.Ordinal)
-            && !generated.Contains("Dictionary<int, int>(__count)",StringComparison.Ordinal),
-            "Modulo key selectors should use key cardinality, not input length, as hash/list capacity.",
+            && generated.Contains("Dictionary<int, int>(__span.Length)",StringComparison.Ordinal)
+            && generated.Contains("Dictionary<int, int>(__count)",StringComparison.Ordinal),
+            "Modulo key selectors must use the same input-derived capacity as general selectors.",
             generated,
             output);
     }
 
     [Fact]
-    public void ModuloKeyedGroupingConsumeUsesPooledSmallRangePath() {
+    public void ModuloKeyedGroupingConsumeUsesGeneralPaths() {
         const string source = """
             using System.Collections.Generic;
             using System.Linq;
@@ -69,12 +69,49 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var method = GeneratedMethod(generated,"GroupingFast");
 
         GeneratedSourceAssert.True(
-            method.Contains("__aggregateBySeen",StringComparison.Ordinal)
-            && method.Contains("__countBySeen",StringComparison.Ordinal)
-            && method.Contains("global::System.Buffers.ArrayPool<bool>.Shared.Rent(1999)",StringComparison.Ordinal)
-            && method.Contains(".GetSpan();",StringComparison.Ordinal)
-            && !method.Contains("new global::System.Collections.Generic.Dictionary<int, int>",StringComparison.Ordinal),
-            "AggregateBy/CountBy consumed directly with a small modulo key should use pooled small-range arrays over direct span sources.",
+            !method.Contains("__aggregateBySeen",StringComparison.Ordinal)
+            && !method.Contains("__countBySeen",StringComparison.Ordinal)
+            && !method.Contains("global::System.Buffers.ArrayPool<bool>.Shared.Rent(1999)",StringComparison.Ordinal)
+            && generated.Contains("TryGetSpan(out var __span)",StringComparison.Ordinal)
+            && generated.Contains("new global::System.Collections.Generic.Dictionary<int, int>",StringComparison.Ordinal)
+            && generated.Contains("__hashKeys",StringComparison.Ordinal),
+            "Modulo selectors must not select a dedicated small-range consume implementation.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void MethodNamedModDoesNotImplyIntegralRange() {
+        const string source="""
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer<T>{
+                public void Consume(T item){
+                }
+            }
+            public static class ConsumeSupport{
+                public static void Consume<T>(this IEnumerable<T>source,Consumer<T>consumer){
+                    foreach(var item in source){
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public class Container{
+                private static int Mod(int value,int divisor)=>value+100000;
+                private static void Group(int[]source,Consumer<IGrouping<int,int>>consumer)=>
+                    source.GroupBy(static value=>Mod(value,1000)).Consume(consumer);
+                public void Run(int[]source,Consumer<IGrouping<int,int>>consumer)=>Group(source,consumer);
+            }
+            """;
+
+        var generated=GeneratedSource(source);
+        var method=GeneratedMethod(generated,"Group");
+
+        GeneratedSourceAssert.True(
+            !method.Contains("__groupSlots",StringComparison.Ordinal)
+            &&generated.Contains("LookupBuilder<int",StringComparison.Ordinal),
+            "A method name alone must not be treated as a modulo range proof.",
             generated,
             output);
     }
@@ -106,7 +143,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
-    public void DistinctByModuloUsesSmallBoolArrayConsumePath() {
+    public void DistinctByModuloUsesGeneralHashConsumePath() {
         const string source = """
             using System.Collections.Generic;
             using System.Linq;
@@ -132,13 +169,12 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains("ArrayPool<bool>.Shared.Rent(1999)",StringComparison.Ordinal)
-            && generated.Contains("ArrayPool<bool>.Shared.Return",StringComparison.Ordinal)
-            && generated.Contains("__seenIndex",StringComparison.Ordinal)
+            !generated.Contains("ArrayPool<bool>.Shared.Rent(1999)",StringComparison.Ordinal)
+            && !generated.Contains("ArrayPool<bool>.Shared.Return",StringComparison.Ordinal)
+            && !generated.Contains("__seenIndex",StringComparison.Ordinal)
             && generated.Contains(".Consume(value)",StringComparison.Ordinal)
-            && !generated.Contains("new global::System.Collections.Generic.HashSet<int>(__span.Length",StringComparison.Ordinal)
-            && !generated.Contains("new global::System.Collections.Generic.HashSet<int>(__count",StringComparison.Ordinal),
-            "DistinctBy with a small modulo int key should use a pooled bool[] direct-consume path.",
+            && generated.Contains("HashSetSlim<int>",StringComparison.Ordinal),
+            "DistinctBy modulo keys must use the general hash-based consume path.",
             generated,
             output);
     }
@@ -273,6 +309,49 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             && !generated.Contains("global::System.Linq.Enumerable.Order(",StringComparison.Ordinal)
             && !generated.Contains("global::System.Linq.Enumerable.OrderBy(",StringComparison.Ordinal),
             "Pure Order/OrderBy Consume should use sorted span direct consume instead of delegating back to System.Linq.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void SingleStageArrayPipelinesConsumeDirectSpan() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer<T> {
+                public void Consume(T item) {
+                }
+            }
+            public static class ConsumeSupport {
+                public static void Consume<T>(this IEnumerable<T> source,Consumer<T> consumer) {
+                    foreach(var item in source) {
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public class Container {
+                private static void RunFast(int[] src,Consumer<int> consumer) {
+                    src.Where(static value => (value&1)==0).Consume(consumer);
+                    src.Select(static (value,index) => value+index).Consume(consumer);
+                    src.Append(4).Consume(consumer);
+                    src.Prepend(0).Consume(consumer);
+                    src.DefaultIfEmpty(0).Consume(consumer);
+                }
+                public void Run(int[] src,Consumer<int> consumer) => RunFast(src,consumer);
+            }
+            """;
+
+        var generated=GeneratedSource(source);
+        var method=GeneratedMethod(generated,"RunFast");
+
+        GeneratedSourceAssert.True(
+            method.Contains("__whereSpan",StringComparison.Ordinal)
+            && method.Contains("__selectSpan",StringComparison.Ordinal)
+            && method.Contains("__appendSpan",StringComparison.Ordinal)
+            && method.Contains("__defaultSpan",StringComparison.Ordinal)
+            && !method.Contains("while(__ce",StringComparison.Ordinal),
+            "Single-stage array pipelines should consume direct spans without nested generated enumerator loops.",
             generated,
             output);
     }

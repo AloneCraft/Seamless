@@ -2261,6 +2261,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             }
 
             state.UiSelectedRowsByKey.Remove(removed.RowKey);
+            SetRowUiSelection(previous,false);
             if(previous.ChartBar is { } chartBar) {
                 state.UiSelectedChartBars.Remove(chartBar);
             }
@@ -2270,6 +2271,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
         foreach(var added in addedRows) {
             if(state.UiSelectedRowsByKey.TryGetValue(added.RowKey,out var previous)) {
                 if(ReferenceEquals(previous,added)) {
+                    SetRowUiSelection(added,true);
                     continue;
                 }
 
@@ -2279,6 +2281,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             }
 
             state.UiSelectedRowsByKey[added.RowKey]=added;
+            SetRowUiSelection(added,true);
             if(added.ChartBar is { } chartBar) {
                 state.UiSelectedChartBars.Add(chartBar);
             }
@@ -3471,7 +3474,10 @@ public sealed partial class RunnerViewModel:ObservableObject {
         if(!keys.Contains(groupedRowKey,StringComparer.OrdinalIgnoreCase)) {
             keys.Add(groupedRowKey);
         }
-        var displayKey = CreateSnapshotRowKey(row.BenchmarkTypeText,row.MethodName);
+        var displayKey = CreateSnapshotRowKey(
+            row.BenchmarkTypeText,
+            row.MethodName,
+            row.CasesByProject.Values.FirstOrDefault()?.ArgumentKey??string.Empty);
         if(!keys.Contains(displayKey,StringComparer.OrdinalIgnoreCase)) {
             keys.Add(displayKey);
         }
@@ -7261,9 +7267,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
     }
 
-    // 保存済みRunは現在のカタログへ再マッピングせず、DBに保存された全タブ/全行の
-    // グリッドスナップショットとして復元する。型名、チェック状態、CPU、日時、軸、
-    // 左右セルの測定値はDB行の表示データを正とし、比較行や選択軸の再計算で推測補完しない。
+    // 保存値は全タブ/全行のグリッド表示として復元する。再実行可能なケースだけは、
+    // タブ・表示型・メソッド・専用引数列を使って現在のカタログへ一意に接続する。
+    // 測定値、CPU、日時はDB行を正とし、カタログから推測補完しない。
     private void ApplyLoadedBenchmarkSnapshotItems(IReadOnlyList<BenchmarkGridSnapshotItem> items) {
         var displayItems = items.ToArray();
         this.runResultGeneration=unchecked(this.runResultGeneration+1);
@@ -7294,13 +7300,13 @@ public sealed partial class RunnerViewModel:ObservableObject {
                         continue;
                     }
                     var state = this.GetSourceTabViewState(sourceTab.Tab);
-                    var rowKey = CreateSnapshotRowKey(item.TypeName,item.BenchmarkName);
+                    var rowKey = CreateSnapshotRowKey(item.TypeName,item.BenchmarkName,SnapshotArgumentKey(item));
                     var row = state.Rows.FirstOrDefault(row => string.Equals(row.RowKey,rowKey,StringComparison.OrdinalIgnoreCase));
                     if(row is null) {
                         this.LogSnapshotDiagnostic(item,"スナップショット行を解決できません。");
                         continue;
                     }
-                    var restoreSelection=item.IsSelected&&item.Left.Benchmark is not null&&item.Right.Benchmark is not null;
+                    var restoreSelection=CanRestoreSnapshotSelection(item,row,sourceTab);
                     if(item.IsSelected&&!restoreSelection) {
                         this.LogSnapshotDiagnostic(item,"Executable case identity is missing; the legacy snapshot row is displayed but excluded from the execution queue.");
                     }
@@ -7375,7 +7381,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             }
 
             var state = this.GetSourceTabViewState(sourceTab.Tab);
-            var rowKey = CreateSnapshotRowKey(item.TypeName,item.BenchmarkName);
+            var rowKey = CreateSnapshotRowKey(item.TypeName,item.BenchmarkName,SnapshotArgumentKey(item));
             var row = state.Rows.FirstOrDefault(row => string.Equals(row.RowKey,rowKey,StringComparison.OrdinalIgnoreCase));
             if(row is null) {
                 continue;
@@ -7419,9 +7425,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 ? sourceTab.LeftAssemblyName
                 : sourceTab.RightAssemblyName,
             item.TypeName,
-            item.BenchmarkName,
-            string.Empty,
-            [],
+            side.Benchmark?.MethodName??item.BenchmarkName,
+            side.Benchmark?.ArgumentKey??string.Empty,
+            side.Benchmark?.Arguments??[],
             side.Status,
             side.ResultItem.ElementCount>0 ? side.ResultItem.ElementCount : (int?)null,
             ResolveSnapshotSideCpuNumber(item.CpuNumber,side),
@@ -7438,14 +7444,14 @@ public sealed partial class RunnerViewModel:ObservableObject {
             }
 
             var state = this.GetSourceTabViewState(sourceTab.Tab);
-            var rowKey = CreateSnapshotRowKey(item.TypeName,item.BenchmarkName);
+            var rowKey = CreateSnapshotRowKey(item.TypeName,item.BenchmarkName,SnapshotArgumentKey(item));
             var row = state.Rows.FirstOrDefault(row => string.Equals(row.RowKey,rowKey,StringComparison.OrdinalIgnoreCase));
             if(row is null) {
                 this.LogSnapshotDiagnostic(item,"スナップショット行を再反映できません。");
                 continue;
             }
 
-            var restoreSelection=item.IsSelected&&item.Left.Benchmark is not null&&item.Right.Benchmark is not null;
+            var restoreSelection=CanRestoreSnapshotSelection(item,row,sourceTab);
             if(item.IsSelected&&!restoreSelection) {
                 this.LogSnapshotDiagnostic(item,"Executable case identity is missing; the legacy snapshot row is displayed but excluded from the execution queue.");
             }
@@ -7463,6 +7469,14 @@ public sealed partial class RunnerViewModel:ObservableObject {
         row.RefreshSelectionState();
     }
 
+    private static bool CanRestoreSnapshotSelection(
+        BenchmarkGridSnapshotItem item,
+        BenchmarkTableRow row,
+        BenchmarkSourceTabDefinition sourceTab) =>
+        item.IsSelected
+        &&row.CasesByProject.ContainsKey(sourceTab.LeftProject)
+        &&(IsScalableSourceTab(sourceTab.Tab)||row.CasesByProject.ContainsKey(sourceTab.RightProject));
+
     private static void SetRowUiSelection(BenchmarkTableRow row,bool selected) {
         foreach(var cell in row.ProjectCells) {
             cell.IsUiSelected=cell.HasCase&&selected;
@@ -7477,7 +7491,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             }
 
             var state = this.GetSourceTabViewState(sourceTab.Tab);
-            var rowKey = CreateSnapshotRowKey(item.TypeName,item.BenchmarkName);
+            var rowKey = CreateSnapshotRowKey(item.TypeName,item.BenchmarkName,SnapshotArgumentKey(item));
             var row = state.Rows.FirstOrDefault(row => string.Equals(row.RowKey,rowKey,StringComparison.OrdinalIgnoreCase));
             if(row is null) {
                 continue;
@@ -7519,20 +7533,42 @@ public sealed partial class RunnerViewModel:ObservableObject {
             .OrderBy(static item => item.Order)
             .Select(item => {
                 var cases = new Dictionary<string,BenchmarkCase>(StringComparer.OrdinalIgnoreCase);
-                if(item.Left.Benchmark is { } leftBenchmark){
+                if(this.ResolveCurrentSnapshotCase(sourceTab,sourceTab.LeftProject,item,item.Left.Benchmark) is { } leftBenchmark){
                     cases[sourceTab.LeftProject]=leftBenchmark;
                 }
-                if(item.Right.Benchmark is { } rightBenchmark){
+                if(this.ResolveCurrentSnapshotCase(sourceTab,sourceTab.RightProject,item,item.Right.Benchmark) is { } rightBenchmark){
                     cases[sourceTab.RightProject]=rightBenchmark;
                 }
+                var benchmarkName=cases.Values.FirstOrDefault() is { } currentCase
+                    ? ScalableBenchmarkNameFormatter.CreateBenchmarkName(sourceTab,currentCase.TypeFullName,item.BenchmarkName,0)
+                    : item.BenchmarkName;
                 return new BenchmarkTableRow(
-                    CreateSnapshotRowKey(item.TypeName,item.BenchmarkName),
+                    CreateSnapshotRowKey(item.TypeName,item.BenchmarkName,SnapshotArgumentKey(item)),
                     item.BenchmarkName,
-                    item.BenchmarkName,
+                    benchmarkName,
                     sourceTab,
                     cases,
                     item.TypeName);
             });
+    }
+
+    private BenchmarkCase? ResolveCurrentSnapshotCase(
+        BenchmarkSourceTabDefinition sourceTab,
+        string project,
+        BenchmarkGridSnapshotItem item,
+        BenchmarkCase? storedCase){
+        var argumentKey=storedCase?.ArgumentKey??string.Empty;
+        var candidates=this.benchmarkCasesByProjectMethod.Values
+            .Where(candidate=>
+                string.Equals(candidate.Project,project,StringComparison.OrdinalIgnoreCase)
+                &&string.Equals(candidate.AssemblyName,sourceTab.GetAssemblyName(project),StringComparison.OrdinalIgnoreCase)
+                &&string.Equals(candidate.MethodName,item.BenchmarkName,StringComparison.OrdinalIgnoreCase)
+                &&string.Equals(candidate.ArgumentKey,argumentKey,StringComparison.OrdinalIgnoreCase)
+                &&string.Equals(ScalableBenchmarkNameFormatter.CreateGenericTypeText(candidate.TypeFullName),item.TypeName,StringComparison.OrdinalIgnoreCase))
+            .Distinct()
+            .Take(2)
+            .ToArray();
+        return candidates.Length==1 ? candidates[0] : null;
     }
 
     private void ApplyLoadedBenchmarkSnapshotSide(
@@ -7557,8 +7593,11 @@ public sealed partial class RunnerViewModel:ObservableObject {
             ? this.CpuItems.FirstOrDefault(item => item.LogicalProcessorIndex==value)
             : null;
 
-    private static string CreateSnapshotRowKey(string typeName,string benchmarkName) =>
-        typeName+"|"+benchmarkName;
+    private static string SnapshotArgumentKey(BenchmarkGridSnapshotItem item) =>
+        item.Left.Benchmark?.ArgumentKey??item.Right.Benchmark?.ArgumentKey??string.Empty;
+
+    private static string CreateSnapshotRowKey(string typeName,string benchmarkName,string argumentKey) =>
+        typeName+"|"+benchmarkName+"|"+argumentKey;
 
     private void LogSnapshotDiagnostic(BenchmarkGridSnapshotItem item,string reason) {
         StartupDiagnostics.Write(
@@ -10030,7 +10069,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
                     result.TypeFullName,
                     result.AxisCount,
                     result.StartedAt,
-                    result.ArgumentKey);
+                    result.ArgumentKey,
+                    this.activeUiRunId??this.unsavedUiRunId);
                 if(previous is null) {
                     continue;
                 }

@@ -19,10 +19,7 @@ public class CountBy(int 番号, Enumerable source, FuncFragment keySelector) : 
     private bool UsesPooledIntMap => IsInt32Type(FuncReturnTypeName(keySelector));
     private string KeySelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(keySelector)}>";
     protected override Enumerable PrimarySource => source;
-    private string CapacityExpression(string sourceCountExpression) =>
-        keySelector.CardinalityUpperBound is > 0 and var upperBound
-            ? $"global::System.Math.Min({sourceCountExpression},{upperBound})"
-            : sourceCountExpression;
+    private static string CapacityExpression(string sourceCountExpression) => sourceCountExpression;
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumerableExpression =>
         $"global::Seamless.System.Carrier.ValueEnumerableExtensions.CountBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()})";
@@ -41,7 +38,7 @@ public class CountBy(int 番号, Enumerable source, FuncFragment keySelector) : 
     public override string GetTryGetNextBody => this.UsesPooledIntMap ? this.PooledIntMapTryGetNextBody : $$"""
         if(this.{{this.lookup}} is null) {
             if({{this.e}}.TryGetSpan(out var __span)) {
-                this.{{this.lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>({{this.CapacityExpression("__span.Length")}});
+                this.{{this.lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>({{CapacityExpression("__span.Length")}});
                 for(var __i=0;__i<__span.Length;__i++) {
                     var {{this.item}}=__span[__i];
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
@@ -51,7 +48,7 @@ public class CountBy(int 番号, Enumerable source, FuncFragment keySelector) : 
                 }
             }else{
                 if({{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
-                    this.{{this.lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>({{this.CapacityExpression("__count")}});
+                    this.{{this.lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>({{CapacityExpression("__count")}});
                 }else{
                     this.{{this.lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>();
                 }
@@ -81,71 +78,6 @@ public class CountBy(int 番号, Enumerable source, FuncFragment keySelector) : 
         : base.GetEnumeratorDisposeBody;
     public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => $"global::System.Collections.Generic.KeyValuePair<{FuncReturnTypeName(keySelector)}, global::System.Int32>";
-    public override string GetConsumeExecutionStatement(string consumerName) {
-        const int MaxRangeCount = 65536;
-        if(!IsInt32Type(FuncReturnTypeName(keySelector))
-            || !keySelector.TryGetSmallIntegralRange(MaxRangeCount,out var min,out var max)) {
-            return base.GetConsumeExecutionStatement(consumerName);
-        }
-        var keyType=FuncReturnTypeName(keySelector);
-        var rangeCount=(long)max-min+1;
-        if(rangeCount is <=0 or >MaxRangeCount) {
-            return base.GetConsumeExecutionStatement(consumerName);
-        }
-
-        var sourceName=$"__countBySource{this.result}";
-        var seenName=$"__countBySeen{this.result}";
-        var keysName=$"__countByKeys{this.result}";
-        var countsName=$"__countByCounts{this.result}";
-        var keyCountName=$"__countByKeyCount{this.result}";
-        var keyName=$"__countByKey{this.result}";
-        var indexName=$"__countByIndex{this.result}";
-        var builder=new StringBuilder();
-        var localDeclarations=string.Join("\n",new[]{
-            this.HoistedLocalDeclarations(keySelector),
-            this.StaticDelegateLocalDeclarations(keySelector),
-        }.Where(static text=>!string.IsNullOrEmpty(text)));
-        if(!string.IsNullOrEmpty(localDeclarations)) {
-            builder.AppendLine(localDeclarations);
-        }
-        builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
-        builder.AppendLine($"var {seenName}=global::System.Buffers.ArrayPool<bool>.Shared.Rent({rangeCount});");
-        builder.AppendLine($"var {keysName}=global::System.Buffers.ArrayPool<{keyType}>.Shared.Rent({rangeCount});");
-        builder.AppendLine($"var {countsName}=global::System.Buffers.ArrayPool<int>.Shared.Rent({rangeCount});");
-        builder.AppendLine("try{");
-        builder.AppendLine($"    global::System.MemoryExtensions.AsSpan({seenName},0,{rangeCount}).Clear();");
-        builder.AppendLine($"    var {keyCountName}=0;");
-        TraversalSupport.AppendTraversalLoop(
-            builder,
-            sourceName,
-            source.ElementType,
-            "value",
-            $$"""
-            {{keyType}} {{keyName}}=default!;
-            {{this.FuncAssignIndented("",keySelector,nameof(keySelector),keyName,"value")}}
-            var {{indexName}}={{keyName}}-({{min}});
-            if(!{{seenName}}[{{indexName}}]){
-                {{seenName}}[{{indexName}}]=true;
-                {{keysName}}[{{keyCountName}}++]={{keyName}};
-                {{countsName}}[{{indexName}}]=0;
-            }
-            {{countsName}}[{{indexName}}]++;
-            """,
-            source.CanTryProvideSpan,
-            source.CanProvideSpan,
-            source.GetDirectSpanExpression(sourceName));
-        builder.AppendLine($"    for(var __i{this.result}=0;__i{this.result}<{keyCountName};__i{this.result}++){{");
-        builder.AppendLine($"        var {keyName}={keysName}[__i{this.result}];");
-        builder.AppendLine($"        {consumerName}.Consume(new global::System.Collections.Generic.KeyValuePair<{keyType},global::System.Int32>({keyName},{countsName}[{keyName}-({min})]));");
-        builder.AppendLine("    }");
-        builder.AppendLine("}finally{");
-        builder.AppendLine($"    global::System.Buffers.ArrayPool<bool>.Shared.Return({seenName},true);");
-        builder.AppendLine($"    global::System.Buffers.ArrayPool<{keyType}>.Shared.Return({keysName},global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{keyType}>());");
-        builder.AppendLine($"    global::System.Buffers.ArrayPool<int>.Shared.Return({countsName},false);");
-        builder.AppendLine("}");
-        return builder.ToString().TrimEnd();
-    }
-
     private string PooledIntMapFields => $$"""
         private int[]? __hashKeys;
         private int[]? __hashCounts;

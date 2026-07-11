@@ -2,10 +2,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "UI Debug",
+            "name": "Benchmark.UI Debug",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build-ui-debug",
+            "preLaunchTask": "build-benchmark-ui-debug",
             "program": "${workspaceFolder}/Benchmark/UI/bin/Debug/net10.0-windows/win-x64/UI.exe",
             "args": [],
             "env": {
@@ -16,10 +16,10 @@
             "stopAtEntry": false
         },
         {
-            "name": "UI Release",
+            "name": "Benchmark.UI Release",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build-ui-release",
+            "preLaunchTask": "build-benchmark-ui-release",
             "program": "${workspaceFolder}/Benchmark/UI/bin/Release/net10.0-windows/win-x64/UI.exe",
             "args": [],
             "env": {
@@ -30,30 +30,30 @@
             "stopAtEntry": false
         },
         {
-            "name": "Scalable.UI Debug",
+            "name": "Benchmark.Scalble.UI Debug",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build-scalable-ui-debug",
-            "program": "${workspaceFolder}/Benchmark/Scalable.UI/bin/Debug/net10.0-windows/win-x64/Scalable.UI.exe",
+            "preLaunchTask": "build-benchmark-scalble-ui-debug",
+            "program": "${workspaceFolder}/Benchmark/Benchmark.Scalble.UI/bin/Debug/net10.0-windows/win-x64/Benchmark.Scalble.UI.exe",
             "args": [],
             "env": {
                 "DOTNET_MODIFIABLE_ASSEMBLIES": "debug"
             },
-            "cwd": "${workspaceFolder}/Benchmark/Scalable.UI/bin/Debug/net10.0-windows/win-x64",
+            "cwd": "${workspaceFolder}/Benchmark/Benchmark.Scalble.UI/bin/Debug/net10.0-windows/win-x64",
             "console": "internalConsole",
             "stopAtEntry": false
         },
         {
-            "name": "Scalable.UI Release",
+            "name": "Benchmark.Scalble.UI Release",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build-scalable-ui-release",
-            "program": "${workspaceFolder}/Benchmark/Scalable.UI/bin/Release/net10.0-windows/win-x64/Scalable.UI.exe",
+            "preLaunchTask": "build-benchmark-scalble-ui-release",
+            "program": "${workspaceFolder}/Benchmark/Benchmark.Scalble.UI/bin/Release/net10.0-windows/win-x64/Benchmark.Scalble.UI.exe",
             "args": [],
             "env": {
                 "DOTNET_MODIFIABLE_ASSEMBLIES": "debug"
             },
-            "cwd": "${workspaceFolder}/Benchmark/Scalable.UI/bin/Release/net10.0-windows/win-x64",
+            "cwd": "${workspaceFolder}/Benchmark/Benchmark.Scalble.UI/bin/Release/net10.0-windows/win-x64",
             "console": "internalConsole",
             "stopAtEntry": false
         },

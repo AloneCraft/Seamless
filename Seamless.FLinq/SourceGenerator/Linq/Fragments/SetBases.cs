@@ -21,22 +21,22 @@ SetBase は Union/Except/Intersect など、要素そのものを key にする�
   - Except/Intersect は先に右側 set を作り、左側の Remove/Add など operation 固有の判定で返す。
   - direct consume では HashSet 初期化と TraversalSupport ループを出し、Enumerator.Current を経由しない。
 */
-public abstract class SetBase(int 番号,Enumerable source,Enumerable second,string comparer,ISetOperationStrategy operation):Enumerable(番号),ConsumeDirectExecutionFragment{
-    protected override Enumerable PrimarySource=>source;
-    private string Comparer=>ComparerExpressionSupport.RenderEqualityComparer(comparer,source.ElementType);
-    public override string StructMethod=>string.Empty;
-    protected override string StructTypeParameters=>StructTypeParametersWithOuter("TEnum1","TEnum2");
-    protected override string StructTypeConstraints=>
+public abstract class SetBase(int 番号,Enumerable source,Enumerable second,string comparer,ISetOperationStrategy operation):Enumerable(番号), ConsumeDirectExecutionFragment {
+    protected override Enumerable PrimarySource => source;
+    private string Comparer => ComparerExpressionSupport.RenderEqualityComparer(comparer,source.ElementType);
+    public override string StructMethod => string.Empty;
+    protected override string StructTypeParameters => this.StructTypeParametersWithOuter("TEnum1","TEnum2");
+    protected override string StructTypeConstraints =>
         $"where TEnum1:struct,global::System.Collections.Generic.IEnumerator<{source.ElementType}>,global::Seamless.System.Carrier.IValueEnumerator<{source.ElementType}>\n    where TEnum2:struct,global::System.Collections.Generic.IEnumerator<{second.ElementType}>,global::Seamless.System.Carrier.IValueEnumerator<{second.ElementType}>";
-    public override string EnumeratorTypeName=>EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
-    public override string GetEnumeratorStruct=>$$"""
+    public override string EnumeratorTypeName => this.EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
+    public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{second.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{second.GetEnumeratorExpression},{this.Comparer})";
-    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum1 source,TEnum2 second,global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
-    public override string GetEnumeratorFields=>operation.PreloadSecondFirst ? $$"""
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{second.GetEnumeratorExpression},{this.Comparer})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source,TEnum2 second,global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
+    public override string GetEnumeratorFields => operation.PreloadSecondFirst ? $$"""
             private readonly global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}> {{this.lookup}};
             private bool {{this.yielded}};
             private static global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}> CreateLookup(TEnum2 source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
@@ -50,11 +50,11 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
             private readonly global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}> {{this.lookup}};
             private bool {{this.yielded}};
             """;
-    public override string GetEnumeratorConstructor=>operation.PreloadSecondFirst
+    public override string GetEnumeratorConstructor => operation.PreloadSecondFirst
         ? $"this.{this.lookup}=CreateLookup(this.second,this.comparer);"
         : $"this.{this.lookup}=new(this.comparer);";
-    public override string GetEnumerableExpression=>operation.GetEnumerableExpression(source,second,this.Comparer);
-    public override string GetTryGetNextBody=>operation.PreloadSecondFirst ? $$"""
+    public override string GetEnumerableExpression => operation.GetEnumerableExpression(source,second,this.Comparer);
+    public override string GetTryGetNextBody => operation.PreloadSecondFirst ? $$"""
             if(!this.{{this.yielded}}){
                 while(second.TryGetNext(out var {{this.item}})){
                     this.{{this.lookup}}.Add({{this.SecondValueExpression(this.item)}});
@@ -89,14 +89,14 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
             current=default!;
             return false;
             """;
-    public override string GetCurrentExpression=> this.currentValue;
-    public override string ElementType=>source.ElementType;
-    protected override string GetEnumeratorDisposeBody=>$"{this.lookup}.Dispose();\nsource.Dispose();\nsecond.Dispose();";
-    public override string GetConsumeExecutionStatement(string consumerName){
-        var sourceName=$"__src{番号}";
-        var secondName=$"__sec{番号}";
-        var setName=$"__set{番号}";
-        var builder=new StringBuilder();
+    public override string GetCurrentExpression => this.currentValue;
+    public override string ElementType => source.ElementType;
+    protected override string GetEnumeratorDisposeBody => $"{this.lookup}.Dispose();\nsource.Dispose();\nsecond.Dispose();";
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        var sourceName = $"__src{番号}";
+        var secondName = $"__sec{番号}";
+        var setName = $"__set{番号}";
+        var builder = new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
         builder.AppendLine($"using var {secondName}={second.GetEnumeratorExpression};");
         if(this.CanUseSortedDefaultUnionFastPath()) {
@@ -107,10 +107,11 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
         }
         if(!operation.PreloadSecondFirst) {
             this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
-        } else {
+        }
+        else {
             TraversalSupport.AppendHashSetInitialization(builder,setName,source.ElementType,secondName,this.Comparer);
         }
-        if(!operation.PreloadSecondFirst){
+        if(!operation.PreloadSecondFirst) {
             TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
                 if({{setName}}.Add(value)){
                     {{consumerName}}.Consume(value);
@@ -133,18 +134,18 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
             """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName));
         return builder.ToString().TrimEnd();
     }
-    private string SecondValueExpression(string valueName){
-        if(source.ElementType==second.ElementType){
+    private string SecondValueExpression(string valueName) {
+        if(source.ElementType==second.ElementType) {
             return valueName;
         }
         return $"({source.ElementType})(object?){valueName}!";
     }
 
     private void AppendBinaryHashSetInitialization(StringBuilder builder,string setName,string sourceName,string secondName) {
-        var sourceCount=$"__sourceCount_{setName}";
-        var secondCount=$"__secondCount_{setName}";
-        var sourceHasCount=$"__sourceHasCount_{setName}";
-        var secondHasCount=$"__secondHasCount_{setName}";
+        var sourceCount = $"__sourceCount_{setName}";
+        var secondCount = $"__secondCount_{setName}";
+        var sourceHasCount = $"__sourceHasCount_{setName}";
+        var secondHasCount = $"__secondHasCount_{setName}";
         builder.AppendLine($"var {sourceCount}=0;");
         builder.AppendLine($"var {secondCount}=0;");
         builder.AppendLine($"var {sourceHasCount}={sourceName}.TryGetNonEnumeratedCount(out {sourceCount});");
@@ -161,33 +162,33 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
 
     private bool CanUseSortedIntSetFastPath() =>
         operation.PreloadSecondFirst
-        && ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,source.ElementType)
-        && IsInt32Type(source.ElementType)
-        && IsInt32Type(second.ElementType)
-        && source.CanTryProvideSpan
-        && second.CanTryProvideSpan;
+        &&ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,source.ElementType)
+        &&IsInt32Type(source.ElementType)
+        &&IsInt32Type(second.ElementType)
+        &&source.CanTryProvideSpan
+        &&second.CanTryProvideSpan;
 
     private bool CanUseSortedDefaultUnionFastPath() =>
         !operation.PreloadSecondFirst
-        && operation.SourceAcceptMethod=="Add"
-        && ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,source.ElementType)
-        && source.ElementType==second.ElementType
-        && source.CanTryProvideSpan
-        && second.CanTryProvideSpan;
+        &&operation.SourceAcceptMethod=="Add"
+        &&ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,source.ElementType)
+        &&source.ElementType==second.ElementType
+        &&source.CanTryProvideSpan
+        &&second.CanTryProvideSpan;
 
     private void AppendSortedDefaultUnionFastPath(StringBuilder builder,string sourceName,string secondName,string consumerName) {
-        var sourceSpan=$"__unionSrcSpan{this.result}";
-        var secondSpan=$"__unionSecSpan{this.result}";
-        var sorted=$"__unionSorted{this.result}";
-        var sourceDirectSpanExpression=source.GetDirectSpanExpression(sourceName);
-        var secondDirectSpanExpression=second.GetDirectSpanExpression(secondName);
-        if(sourceDirectSpanExpression is not null && secondDirectSpanExpression is not null) {
+        var sourceSpan = $"__unionSrcSpan{this.result}";
+        var secondSpan = $"__unionSecSpan{this.result}";
+        var sorted = $"__unionSorted{this.result}";
+        var sourceDirectSpanExpression = source.GetDirectSpanExpression(sourceName);
+        var secondDirectSpanExpression = second.GetDirectSpanExpression(secondName);
+        if(sourceDirectSpanExpression is not null&&secondDirectSpanExpression is not null) {
             builder.AppendLine($"var {sourceSpan}={sourceDirectSpanExpression};");
             builder.AppendLine($"var {secondSpan}={secondDirectSpanExpression};");
             this.AppendSortedDefaultUnionFastPathBody(builder,sourceSpan,secondSpan,sorted,consumerName,string.Empty);
             return;
         }
-        if(source.CanProvideSpan && second.CanProvideSpan) {
+        if(source.CanProvideSpan&&second.CanProvideSpan) {
             builder.AppendLine($"{sourceName}.TryGetSpan(out var {sourceSpan});");
             builder.AppendLine($"{secondName}.TryGetSpan(out var {secondSpan});");
             this.AppendSortedDefaultUnionFastPathBody(builder,sourceSpan,secondSpan,sorted,consumerName,string.Empty);
@@ -205,7 +206,7 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
         string sorted,
         string consumerName,
         string indent) {
-        var elementType=source.ElementType;
+        var elementType = source.ElementType;
         builder.AppendLine($"{indent}if(typeof(global::System.IComparable<{elementType}>).IsAssignableFrom(typeof({elementType}))||typeof(global::System.IComparable).IsAssignableFrom(typeof({elementType}))){{");
         builder.AppendLine($"{indent}    var __comparer=global::System.Collections.Generic.Comparer<{elementType}>.Default;");
         builder.AppendLine($"{indent}    var {sorted}=true;");
@@ -243,27 +244,27 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
     }
 
     private void AppendSortedIntSetFastPath(StringBuilder builder,string sourceName,string secondName,string consumerName) {
-        var sourceSpan=$"__setSrcSpan{番号}";
-        var secondSpan=$"__setSecSpan{番号}";
-        var sorted=$"__setSorted{番号}";
-        var j=$"__setJ{番号}";
-        var value=$"__setValue{番号}";
-        var sourceDirectSpanExpression=source.GetDirectSpanExpression(sourceName);
-        var secondDirectSpanExpression=second.GetDirectSpanExpression(secondName);
-        if(sourceDirectSpanExpression is not null && secondDirectSpanExpression is not null) {
+        var sourceSpan = $"__setSrcSpan{番号}";
+        var secondSpan = $"__setSecSpan{番号}";
+        var sorted = $"__setSorted{番号}";
+        var j = $"__setJ{番号}";
+        var value = $"__setValue{番号}";
+        var sourceDirectSpanExpression = source.GetDirectSpanExpression(sourceName);
+        var secondDirectSpanExpression = second.GetDirectSpanExpression(secondName);
+        if(sourceDirectSpanExpression is not null&&secondDirectSpanExpression is not null) {
             builder.AppendLine($"var {sourceSpan}={sourceDirectSpanExpression};");
             builder.AppendLine($"var {secondSpan}={secondDirectSpanExpression};");
             this.AppendSortedIntSetFastPathBody(builder,sourceSpan,secondSpan,sorted,j,value,consumerName,string.Empty);
             return;
         }
-        if(source.CanProvideSpan && second.CanProvideSpan) {
+        if(source.CanProvideSpan&&second.CanProvideSpan) {
             builder.AppendLine($"{sourceName}.TryGetSpan(out var {sourceSpan});");
             builder.AppendLine($"{secondName}.TryGetSpan(out var {secondSpan});");
             this.AppendSortedIntSetFastPathBody(builder,sourceSpan,secondSpan,sorted,j,value,consumerName,string.Empty);
             return;
         }
         builder.AppendLine($"if({sourceName}.TryGetSpan(out var {sourceSpan})"
-            + $"&&{secondName}.TryGetSpan(out var {secondSpan})){{");
+            +$"&&{secondName}.TryGetSpan(out var {secondSpan})){{");
         builder.AppendLine($"    var {sorted}=true;");
         builder.AppendLine($"    for(var __i=1;__i<{sourceSpan}.Length;__i++){{");
         builder.AppendLine($"        if({sourceSpan}[__i]<={sourceSpan}[__i-1]){{");
@@ -290,7 +291,8 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
             builder.AppendLine($"            if({j}>={secondSpan}.Length||{secondSpan}[{j}]!={value}){{");
             builder.AppendLine($"                {consumerName}.Consume({value});");
             builder.AppendLine("            }");
-        } else {
+        }
+        else {
             builder.AppendLine($"            if({j}<{secondSpan}.Length&&{secondSpan}[{j}]=={value}){{");
             builder.AppendLine($"                {consumerName}.Consume({value});");
             builder.AppendLine("            }");
@@ -336,7 +338,8 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
             builder.AppendLine($"{indent}        if({j}>={secondSpan}.Length||{secondSpan}[{j}]!={value}){{");
             builder.AppendLine($"{indent}            {consumerName}.Consume({value});");
             builder.AppendLine($"{indent}        }}");
-        } else {
+        }
+        else {
             builder.AppendLine($"{indent}        if({j}<{secondSpan}.Length&&{secondSpan}[{j}]=={value}){{");
             builder.AppendLine($"{indent}            {consumerName}.Consume({value});");
             builder.AppendLine($"{indent}        }}");
@@ -349,8 +352,8 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
     private static bool IsInt32Type(string typeName)
         =>
         string.Equals(typeName,"int",StringComparison.Ordinal)
-        || string.Equals(typeName,"System.Int32",StringComparison.Ordinal)
-        || string.Equals(typeName,"global::System.Int32",StringComparison.Ordinal);
+        ||string.Equals(typeName,"System.Int32",StringComparison.Ordinal)
+        ||string.Equals(typeName,"global::System.Int32",StringComparison.Ordinal);
 }
 
 /*
@@ -371,22 +374,22 @@ SetByBase は UnionBy/ExceptBy/IntersectBy など、keySelector(item) で集合�
   - UnionBy は右側も「同じ key が未出なら右要素を返す」状態を持つ。
   - non-identity では closure/delegate/hoisted local を constructor と direct consume の両方へ伝播する。
 */
-public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,FuncFragment keySelector,string comparer,ISetByOperationStrategy operation):Enumerable(番号),ConsumeDirectExecutionFragment{
-    protected override Enumerable PrimarySource=>source;
-    private string Comparer=>ComparerExpressionSupport.RenderEqualityComparer(comparer,FuncReturnTypeName(keySelector));
-    public override string StructMethod=> this.FuncSupport(keySelector,nameof(keySelector));
-    protected override string StructTypeParameters=>StructTypeParametersWithOuter("TEnum1","TEnum2");
-    protected override string StructTypeConstraints=>
+public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,FuncFragment keySelector,string comparer,ISetByOperationStrategy operation):Enumerable(番号), ConsumeDirectExecutionFragment {
+    protected override Enumerable PrimarySource => source;
+    private string Comparer => ComparerExpressionSupport.RenderEqualityComparer(comparer,FuncReturnTypeName(keySelector));
+    public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
+    protected override string StructTypeParameters => this.StructTypeParametersWithOuter("TEnum1","TEnum2");
+    protected override string StructTypeConstraints =>
         $"where TEnum1:struct,global::System.Collections.Generic.IEnumerator<{source.ElementType}>,global::Seamless.System.Carrier.IValueEnumerator<{source.ElementType}>\n    where TEnum2:struct,global::System.Collections.Generic.IEnumerator<{second.ElementType}>,global::Seamless.System.Carrier.IValueEnumerator<{second.ElementType}>";
-    public override string EnumeratorTypeName=>EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
-    public override string GetEnumeratorStruct=>$$"""
+    public override string EnumeratorTypeName => this.EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
+    public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{second.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{second.GetEnumeratorExpression},{this.Comparer}{this.ClosureArgsSuffix(keySelector)})";
-    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum1 source,TEnum2 second,global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector)}";
-    public override string GetEnumeratorFields=>$$"""
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{second.GetEnumeratorExpression},{this.Comparer}{this.ClosureArgsSuffix(keySelector)})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source,TEnum2 second,global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector)}";
+    public override string GetEnumeratorFields => $$"""
         private readonly global::Seamless.System.Carrier.HashSetSlim<{{FuncReturnTypeName(keySelector)}}> {{this.lookup}};
         private byte {{this.state}};
         private static global::Seamless.System.Carrier.HashSetSlim<{{FuncReturnTypeName(keySelector)}}> CreateLookup(TEnum2 source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer){
@@ -397,9 +400,9 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
             }
         }
         """;
-    public override string GetEnumeratorConstructor=>$"this.{this.lookup}=CreateLookup(this.second,this.comparer);";
-    public override string GetEnumerableExpression=>operation.GetEnumerableExpression(source,second,keySelector,this.Comparer);
-    public override string GetTryGetNextBody=> this.UseIdentityKeySelector ? this.GetTryGetNextIdentityBody : operation.PreloadSecondFirst ? $$"""
+    public override string GetEnumeratorConstructor => $"this.{this.lookup}=CreateLookup(this.second,this.comparer);";
+    public override string GetEnumerableExpression => operation.GetEnumerableExpression(source,second,keySelector,this.Comparer);
+    public override string GetTryGetNextBody => this.UseIdentityKeySelector ? this.GetTryGetNextIdentityBody : operation.PreloadSecondFirst ? $$"""
             if(this.{{this.state}}==0){
                 while(second.TryGetNext(out var {{this.temp}})) this.{{this.lookup}}.Add({{this.SecondKeyExpression(this.temp)}});
                 this.{{this.state}}=1;
@@ -438,7 +441,7 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
             current=default!;
             return false;
             """;
-    private string GetTryGetNextIdentityBody=>operation.PreloadSecondFirst ? $$"""
+    private string GetTryGetNextIdentityBody => operation.PreloadSecondFirst ? $$"""
             if(this.{{this.state}}==0){
                 while(second.TryGetNext(out var {{this.temp}})) this.{{this.lookup}}.Add({{this.temp}});
                 this.{{this.state}}=1;
@@ -470,30 +473,31 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
             current=default!;
             return false;
             """;
-    public override string GetCurrentExpression=> this.currentValue;
-    public override string ElementType=>source.ElementType;
-    protected override string GetEnumeratorDisposeBody=>$"{this.lookup}.Dispose();\nsource.Dispose();\nsecond.Dispose();";
-    public override string GetConsumeExecutionStatement(string consumerName){
-        var sourceName=$"__src{番号}";
-        var secondName=$"__sec{番号}";
-        var setName=$"__set{番号}";
-        var builder=new StringBuilder();
+    public override string GetCurrentExpression => this.currentValue;
+    public override string ElementType => source.ElementType;
+    protected override string GetEnumeratorDisposeBody => $"{this.lookup}.Dispose();\nsource.Dispose();\nsecond.Dispose();";
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        var sourceName = $"__src{番号}";
+        var secondName = $"__sec{番号}";
+        var setName = $"__set{番号}";
+        var builder = new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
         builder.AppendLine($"using var {secondName}={second.GetEnumeratorExpression};");
-        var hoistedDeclarations= this.HoistedLocalDeclarations(keySelector);
+        var hoistedDeclarations = this.HoistedLocalDeclarations(keySelector);
         if(!string.IsNullOrEmpty(hoistedDeclarations)) {
             builder.AppendLine(hoistedDeclarations);
         }
-        if(this.UseIdentityKeySelector){
+        if(this.UseIdentityKeySelector) {
             if(this.CanUseSortedIntSetFastPath()) {
                 this.AppendSortedIntSetFastPath(builder,sourceName,secondName,consumerName);
             }
             if(!operation.PreloadSecondFirst) {
                 this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
-            } else {
+            }
+            else {
                 TraversalSupport.AppendHashSetInitialization(builder,setName,FuncReturnTypeName(keySelector),secondName,this.Comparer);
             }
-            if(!operation.PreloadSecondFirst){
+            if(!operation.PreloadSecondFirst) {
                 TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
                     if({{setName}}.Add(value)){
                         {{consumerName}}.Consume(value);
@@ -519,7 +523,8 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
         }
         if(!operation.PreloadSecondFirst) {
             this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
-        } else {
+        }
+        else {
             TraversalSupport.AppendHashSetInitialization(builder,setName,FuncReturnTypeName(keySelector),secondName,this.Comparer);
         }
         this.AppendSetByCollectLoop(builder,secondName,setName);
@@ -527,11 +532,11 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
         return builder.ToString().TrimEnd();
     }
     private void AppendBinaryHashSetInitialization(StringBuilder builder,string setName,string sourceName,string secondName) {
-        var keyType=FuncReturnTypeName(keySelector);
-        var sourceCount=$"__sourceCount_{setName}";
-        var secondCount=$"__secondCount_{setName}";
-        var sourceHasCount=$"__sourceHasCount_{setName}";
-        var secondHasCount=$"__secondHasCount_{setName}";
+        var keyType = FuncReturnTypeName(keySelector);
+        var sourceCount = $"__sourceCount_{setName}";
+        var secondCount = $"__secondCount_{setName}";
+        var sourceHasCount = $"__sourceHasCount_{setName}";
+        var secondHasCount = $"__secondHasCount_{setName}";
         builder.AppendLine($"var {sourceCount}=0;");
         builder.AppendLine($"var {secondCount}=0;");
         builder.AppendLine($"var {sourceHasCount}={sourceName}.TryGetNonEnumeratedCount(out {sourceCount});");
@@ -545,14 +550,14 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
         builder.AppendLine($"            ? new global::Seamless.System.Carrier.HashSetSlim<{keyType}>({secondCount},(global::System.Collections.Generic.IEqualityComparer<{keyType}>?){this.Comparer})");
         builder.AppendLine($"            : new global::Seamless.System.Carrier.HashSetSlim<{keyType}>((global::System.Collections.Generic.IEqualityComparer<{keyType}>?){this.Comparer});");
     }
-    private void AppendSetByCollectLoop(StringBuilder builder,string enumeratorName,string setName){
+    private void AppendSetByCollectLoop(StringBuilder builder,string enumeratorName,string setName) {
         TraversalSupport.AppendTraversalLoop(builder,enumeratorName,second.ElementType,"value",$$"""
             {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
             {{this.FuncAssignIndented("",keySelector,nameof(keySelector),this.key,"value")}}
             {{setName}}.Add({{this.key}});
             """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(enumeratorName));
     }
-    private void AppendSetByConsumeLoop(StringBuilder builder,string enumeratorName,string consumerName,string setName,string operationMethod){
+    private void AppendSetByConsumeLoop(StringBuilder builder,string enumeratorName,string consumerName,string setName,string operationMethod) {
         TraversalSupport.AppendTraversalLoop(builder,enumeratorName,source.ElementType,"value",$$"""
             {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
             {{this.FuncAssignIndented("",keySelector,nameof(keySelector),this.key,"value")}}
@@ -562,37 +567,37 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
             {{consumerName}}.Consume(value);
             """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(enumeratorName));
     }
-    private string SecondKeyExpression(string valueName){
-        if(FuncReturnTypeName(keySelector)==second.ElementType){
+    private string SecondKeyExpression(string valueName) {
+        if(FuncReturnTypeName(keySelector)==second.ElementType) {
             return valueName;
         }
         return $"({FuncReturnTypeName(keySelector)})(object?){valueName}!";
     }
-    private bool UseIdentityKeySelector=>keySelector.IsIdentity&&FuncReturnTypeName(keySelector)==source.ElementType;
+    private bool UseIdentityKeySelector => keySelector.IsIdentity&&FuncReturnTypeName(keySelector)==source.ElementType;
 
     private bool CanUseSortedIntSetFastPath() =>
         operation.PreloadSecondFirst
-        && ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,FuncReturnTypeName(keySelector))
-        && IsInt32Type(source.ElementType)
-        && IsInt32Type(second.ElementType)
-        && source.CanTryProvideSpan
-        && second.CanTryProvideSpan;
+        &&ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,FuncReturnTypeName(keySelector))
+        &&IsInt32Type(source.ElementType)
+        &&IsInt32Type(second.ElementType)
+        &&source.CanTryProvideSpan
+        &&second.CanTryProvideSpan;
 
     private void AppendSortedIntSetFastPath(StringBuilder builder,string sourceName,string secondName,string consumerName) {
-        var sourceSpan=$"__setSrcSpan{番号}";
-        var secondSpan=$"__setSecSpan{番号}";
-        var sorted=$"__setSorted{番号}";
-        var j=$"__setJ{番号}";
-        var value=$"__setValue{番号}";
-        var sourceDirectSpanExpression=source.GetDirectSpanExpression(sourceName);
-        var secondDirectSpanExpression=second.GetDirectSpanExpression(secondName);
-        if(sourceDirectSpanExpression is not null && secondDirectSpanExpression is not null) {
+        var sourceSpan = $"__setSrcSpan{番号}";
+        var secondSpan = $"__setSecSpan{番号}";
+        var sorted = $"__setSorted{番号}";
+        var j = $"__setJ{番号}";
+        var value = $"__setValue{番号}";
+        var sourceDirectSpanExpression = source.GetDirectSpanExpression(sourceName);
+        var secondDirectSpanExpression = second.GetDirectSpanExpression(secondName);
+        if(sourceDirectSpanExpression is not null&&secondDirectSpanExpression is not null) {
             builder.AppendLine($"var {sourceSpan}={sourceDirectSpanExpression};");
             builder.AppendLine($"var {secondSpan}={secondDirectSpanExpression};");
             this.AppendSortedIntSetFastPathBody(builder,sourceSpan,secondSpan,sorted,j,value,consumerName,string.Empty);
             return;
         }
-        if(source.CanProvideSpan && second.CanProvideSpan) {
+        if(source.CanProvideSpan&&second.CanProvideSpan) {
             builder.AppendLine($"{sourceName}.TryGetSpan(out var {sourceSpan});");
             builder.AppendLine($"{secondName}.TryGetSpan(out var {secondSpan});");
             this.AppendSortedIntSetFastPathBody(builder,sourceSpan,secondSpan,sorted,j,value,consumerName,string.Empty);
@@ -625,7 +630,8 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
             builder.AppendLine($"            if({j}>={secondSpan}.Length||{secondSpan}[{j}]!={value}){{");
             builder.AppendLine($"                {consumerName}.Consume({value});");
             builder.AppendLine("            }");
-        } else {
+        }
+        else {
             builder.AppendLine($"            if({j}<{secondSpan}.Length&&{secondSpan}[{j}]=={value}){{");
             builder.AppendLine($"                {consumerName}.Consume({value});");
             builder.AppendLine("            }");
@@ -671,7 +677,8 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
             builder.AppendLine($"{indent}        if({j}>={secondSpan}.Length||{secondSpan}[{j}]!={value}){{");
             builder.AppendLine($"{indent}            {consumerName}.Consume({value});");
             builder.AppendLine($"{indent}        }}");
-        } else {
+        }
+        else {
             builder.AppendLine($"{indent}        if({j}<{secondSpan}.Length&&{secondSpan}[{j}]=={value}){{");
             builder.AppendLine($"{indent}            {consumerName}.Consume({value});");
             builder.AppendLine($"{indent}        }}");
@@ -683,6 +690,6 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
 
     private static bool IsInt32Type(string typeName) =>
         string.Equals(typeName,"int",StringComparison.Ordinal)
-        || string.Equals(typeName,"System.Int32",StringComparison.Ordinal)
-        || string.Equals(typeName,"global::System.Int32",StringComparison.Ordinal);
+        ||string.Equals(typeName,"System.Int32",StringComparison.Ordinal)
+        ||string.Equals(typeName,"global::System.Int32",StringComparison.Ordinal);
 }

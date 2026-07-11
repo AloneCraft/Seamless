@@ -248,8 +248,27 @@ internal sealed class BenchmarkUiRunRepository{
         string typeFullName,
         int elementCount,
         DateTimeOffset? before,
-        string argumentKey) =>
-        this.LoadResultItems(appKind,sourceTab)
+        string argumentKey,
+        long? currentRunId = null){
+        if(appKind==UiRunAppKind.ScalableBenchmark&&currentRunId is { } runId){
+            if(this.store.GetPreviousRunId(runId) is not { } previousRunId){
+                return null;
+            }
+            var typeName=ScalableBenchmarkNameFormatter.CreateGenericTypeText(typeFullName);
+            return this.LoadBenchmarkSnapshotItems(previousRunId)
+                .Where(item=>
+                    string.Equals(item.SourceTabId,sourceTab.Id,StringComparison.OrdinalIgnoreCase)
+                    &&string.Equals(item.TypeName,typeName,StringComparison.OrdinalIgnoreCase)
+                    &&string.Equals(item.BenchmarkName,method,StringComparison.OrdinalIgnoreCase)
+                    &&BenchmarkArgumentKeyMatchLogic.IsExactMatch(item.Left.Benchmark?.ArgumentKey??string.Empty,argumentKey)
+                    &&item.Left.ResultItem.AxisCount==elementCount
+                    &&string.Equals(item.Left.ResultItem.Status,"Completed",StringComparison.OrdinalIgnoreCase)
+                    &&item.Left.ResultItem.MeanNanoseconds is not null)
+                .Select(item=>ToStoredResult(item.Left.ResultItem))
+                .FirstOrDefault();
+        }
+
+        return this.LoadResultItems(appKind,sourceTab)
             .Where(result => string.Equals(result.Method,method,StringComparison.OrdinalIgnoreCase)
                 &&string.Equals(result.Project,project,StringComparison.OrdinalIgnoreCase)
                 &&IsSameType(result.TypeFullName,typeFullName)
@@ -260,25 +279,28 @@ internal sealed class BenchmarkUiRunRepository{
                 &&result.StartedAt is { } measuredAt
                 &&(before is null||measuredAt<before.Value))
             .OrderByDescending(static result => result.StartedAt)
-            .Select(static result => new BenchmarkStoredResult(
-                result.Project,
-                result.Method,
-                result.TypeFullName,
-                result.ElementCount,
-                result.LoopCount,
-                result.Status,
-                result.Mean,
-                result.MeanNanoseconds,
-                result.AllocatedBytesValue,
-                result.StartedAt??DateTimeOffset.MinValue,
-                null,
-                result.ArtifactFolder){
-                ArgumentKey=result.ArgumentKey,
-                Arguments=result.Arguments,
-                AssignedLogicalCpu=result.AssignedLogicalCpu,
-                TotalNanoseconds=result.TotalNanoseconds,
-            })
+            .Select(ToStoredResult)
             .FirstOrDefault();
+    }
+
+    private static BenchmarkStoredResult ToStoredResult(BenchmarkResultItem result) => new(
+        result.Project,
+        result.Method,
+        result.TypeFullName,
+        result.ElementCount,
+        result.LoopCount,
+        result.Status,
+        result.Mean,
+        result.MeanNanoseconds,
+        result.AllocatedBytesValue,
+        result.StartedAt??DateTimeOffset.MinValue,
+        null,
+        result.ArtifactFolder){
+        ArgumentKey=result.ArgumentKey,
+        Arguments=result.Arguments,
+        AssignedLogicalCpu=result.AssignedLogicalCpu,
+        TotalNanoseconds=result.TotalNanoseconds,
+    };
 
     private static BenchmarkResultPersistenceSnapshot CreateResultSnapshot(
         BenchmarkResultItem result,
@@ -390,7 +412,7 @@ internal sealed class BenchmarkUiRunRepository{
                             benchmark.AssemblyName,
                             ScalableBenchmarkNameFormatter.CreateGenericTypeText(benchmark.TypeFullName),
                             benchmark.TypeFullName,
-                            benchmark.MethodName,
+                            CreatePersistedBenchmarkName(benchmark),
                             selectedCaseKeys.Contains(CreateSelectedCaseKey(benchmark)),
                             elementCount,
                             loopCount,
@@ -437,6 +459,8 @@ internal sealed class BenchmarkUiRunRepository{
 
     private static string CreateSelectedCaseKey(BenchmarkCase benchmark) =>
         string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey);
+
+    private static string CreatePersistedBenchmarkName(BenchmarkCase benchmark) => benchmark.MethodName;
 
     private static string CreateArgumentDisplay(IReadOnlyList<BenchmarkArgument> arguments) =>
         arguments.Count==0
@@ -553,8 +577,8 @@ internal sealed class BenchmarkUiRunRepository{
         UiBenchmarkGridSideRecord side,
         UiBenchmarkSnapshotCaseWrite? identity,
         int axisCount){
-        var benchmark=CreateBenchmarkCase(project,assemblyName,identity);
-        var resultItem = CreateResultItem(item,project,assemblyName,side,benchmark,axisCount);
+        var benchmark=CreateBenchmarkCase(project,assemblyName,item.TypeName,item.BenchmarkName,identity);
+        var resultItem = CreateResultItem(item,project,assemblyName,side,benchmark,benchmark?.CountArgument is >0 and var count ? count : axisCount);
         return new(
             side.Status,
             side.FailureReason,
@@ -565,17 +589,16 @@ internal sealed class BenchmarkUiRunRepository{
             benchmark);
     }
 
-    private static BenchmarkCase? CreateBenchmarkCase(string project,string assemblyName,UiBenchmarkSnapshotCaseWrite? identity){
-        if(identity is null
-            ||string.IsNullOrWhiteSpace(identity.AssemblyName)
-            ||string.IsNullOrWhiteSpace(identity.TypeFullName)
-            ||string.IsNullOrWhiteSpace(identity.MethodName)){
-            return null;
-        }
-
+    private static BenchmarkCase? CreateBenchmarkCase(string project,string assemblyName,string typeName,string benchmarkName,UiBenchmarkSnapshotCaseWrite? identity){
         try{
-            var arguments=JsonSerializer.Deserialize<BenchmarkArgument[]>(identity.ArgumentsJson)??[];
-            return new(project,identity.AssemblyName,identity.TypeFullName,identity.MethodName,identity.ArgumentKey,arguments);
+            var arguments=identity is null ? [] : JsonSerializer.Deserialize<BenchmarkArgument[]>(identity.ArgumentsJson)??[];
+            return new(
+                project,
+                string.IsNullOrWhiteSpace(identity?.AssemblyName) ? assemblyName : identity.AssemblyName,
+                identity?.TypeFullName??string.Empty,
+                string.IsNullOrWhiteSpace(identity?.MethodName) ? benchmarkName : identity.MethodName,
+                identity?.ArgumentKey??string.Empty,
+                arguments);
         }catch(JsonException){
             return null;
         }
@@ -604,9 +627,10 @@ internal sealed class BenchmarkUiRunRepository{
             null,
             string.Empty){
             SourceTabId=item.TabName,
+            ArgumentKey=benchmark?.ArgumentKey??string.Empty,
             Arguments=benchmark?.Arguments??[],
             AssignedLogicalCpu=item.CpuNumber,
-            TotalNanoseconds=side.TotalNanoseconds,
+            TotalNanoseconds=side.TotalNanoseconds??(side.MeanNanoseconds is { } mean ? mean*loopCount : null),
             MeasuredInRun=side.MeasuredInRun,
         });
     }

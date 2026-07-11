@@ -29,10 +29,7 @@ internal abstract class ToLookupBase(int 番号,Enumerable source,string resultT
     protected override string ComputeMembers=>string.Empty;
     protected override string ComputeExpression=>throw new NotSupportedException();
 
-    protected static string CapacityExpression(FuncFragment keySelector,string sourceCountExpression) =>
-        keySelector.CardinalityUpperBound is > 0 and var upperBound
-            ? $"global::System.Math.Min({sourceCountExpression},{upperBound})"
-            : sourceCountExpression;
+    protected static string CapacityExpression(FuncFragment keySelector,string sourceCountExpression) => sourceCountExpression;
 
     protected static string LookupImpl(string elementType,string keyType)=>$$"""
         private sealed class TsavoriteGrouping:global::System.Linq.IGrouping<{{keyType}},{{elementType}}>{

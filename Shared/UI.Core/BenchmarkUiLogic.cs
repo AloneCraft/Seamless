@@ -910,7 +910,8 @@ internal static class BenchmarkRowCompletionLogic{
         var measurementArray = measurements as BenchmarkElementMeasurement[]??measurements.ToArray();
         var leftLoopCounts=GetThresholdLoopCounts(measurementArray,leftCell,thresholdNanoseconds);
         return leftLoopCounts.Count>0
-            &&GetCompletedLoopCounts(measurementArray,rightCell).Overlaps(leftLoopCounts);
+            &&GetLatestCompletedLoopCount(measurementArray,rightCell) is { } rightLoopCount
+            &&leftLoopCounts.Contains(rightLoopCount);
     }
 
     public static bool IsLoopCountTabFinalCompleted(
@@ -926,24 +927,13 @@ internal static class BenchmarkRowCompletionLogic{
         return cells
             .GroupBy(static cell => string.Join("|",cell.Method,cell.TypeFullName,cell.ArgumentKey),StringComparer.OrdinalIgnoreCase)
             .All(group => {
-                global::System.Collections.Generic.HashSet<int>? sharedLoopCounts=null;
                 var orderedCells=group.ToArray();
-                for(var index=0;index<orderedCells.Length;index++) {
-                    var cellLoopCounts=index==0
-                        ? GetThresholdLoopCounts(measurementArray,orderedCells[index],thresholdNanoseconds)
-                        : GetCompletedLoopCounts(measurementArray,orderedCells[index]);
-                    if(cellLoopCounts.Count==0) {
-                        return false;
-                    }
-
-                    if(sharedLoopCounts is null) {
-                        sharedLoopCounts=cellLoopCounts;
-                    }else{
-                        sharedLoopCounts.IntersectWith(cellLoopCounts);
-                    }
+                var thresholdLoopCounts=GetThresholdLoopCounts(measurementArray,orderedCells[0],thresholdNanoseconds);
+                if(thresholdLoopCounts.Count==0){
+                    return false;
                 }
-
-                return sharedLoopCounts is { Count:>0 };
+                var targetLoopCount=thresholdLoopCounts.Max();
+                return orderedCells.Skip(1).All(cell=>GetLatestCompletedLoopCount(measurementArray,cell)==targetLoopCount);
             });
     }
 
@@ -970,6 +960,13 @@ internal static class BenchmarkRowCompletionLogic{
                 &&result.TotalNanoseconds is not null)
             .Select(static result => result.ElementCount)
             .ToHashSet();
+
+    private static int? GetLatestCompletedLoopCount(
+        IEnumerable<BenchmarkElementMeasurement> measurements,
+        BenchmarkTabProgressCell cell){
+        var loopCounts=GetCompletedLoopCounts(measurements,cell);
+        return loopCounts.Count==0 ? null : loopCounts.Max();
+    }
 
     public static bool IsFinalCompleted(
         IEnumerable<BenchmarkElementMeasurement> measurements,

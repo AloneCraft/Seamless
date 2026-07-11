@@ -1205,9 +1205,6 @@ public sealed partial class FLinqIncrementalGenerator {
                         .Distinct(StringComparer.Ordinal)
                         .ToArray(),
                     ContainsAnchor = AnchorAnalysis.ContainsAnchor(lambda,semanticModel),
-                    CardinalityUpperBound = lambda.Body is ExpressionSyntax anonLambdaBody
-                        ? CardinalityAnalysis.TryGetUpperBound(anonLambdaBody,semanticModel)
-                        : null
                 };
                 return true;
             }
@@ -1333,7 +1330,6 @@ public sealed partial class FLinqIncrementalGenerator {
                         ScalarStaticMethods = scalarStaticMethods,
                         OuterParameterNames = lambdaSpec.ParameterNames,
                         ContainsAnchor = AnchorAnalysis.ContainsAnchor(lambda,semanticModel),
-                        CardinalityUpperBound = CardinalityAnalysis.TryGetUpperBound(lambdaBodyExpr,semanticModel),
                     };
                     return true;
                 }
@@ -1356,10 +1352,6 @@ public sealed partial class FLinqIncrementalGenerator {
                 HoistedLocals = hoistedLocals,
                 BodyUnsafeAccessorCodes = bodyAccessorCodes,
                 ContainsAnchor = AnchorAnalysis.ContainsAnchor(lambda,semanticModel),
-                CardinalityUpperBound = lambda.Body is ExpressionSyntax lambdaExpressionBody
-                        && semanticModel is not null
-                    ? CardinalityAnalysis.TryGetUpperBound(lambdaExpressionBody,semanticModel)
-                    : null,
             };
             return true;
         }
@@ -1395,7 +1387,6 @@ public sealed partial class FLinqIncrementalGenerator {
                             .Distinct(StringComparer.Ordinal)
                             .ToArray(),
                         ContainsAnchor = AnchorAnalysis.ContainsAnchor(anonymousMethod,semanticModel),
-                        CardinalityUpperBound = CardinalityAnalysis.TryGetUpperBound(bodyExpression,semanticModel)
                     };
                     return true;
                 }
@@ -1453,9 +1444,6 @@ public sealed partial class FLinqIncrementalGenerator {
                 HoistedLocals = hoistedLocals,
                 BodyUnsafeAccessorCodes = bodyAccessorCodes,
                 ContainsAnchor = AnchorAnalysis.ContainsAnchor(bodyExpression,semanticModel),
-                CardinalityUpperBound = semanticModel is not null
-                    ? CardinalityAnalysis.TryGetUpperBound(bodyExpression,semanticModel)
-                    : null,
             };
             return true;
         }
@@ -1556,9 +1544,6 @@ public sealed partial class FLinqIncrementalGenerator {
             CapturedLocals = capturedLocals,
             BodyUnsafeAccessorCodes = bodyCollector.ToArray(),
             ContainsAnchor = AnchorAnalysis.ContainsAnchor(lambda,semanticModel),
-            CardinalityUpperBound = lambda.Body is ExpressionSyntax lambdaBody
-                ? CardinalityAnalysis.TryGetUpperBound(lambdaBody,semanticModel)
-                : null,
         };
         return true;
     }
@@ -1635,9 +1620,6 @@ public sealed partial class FLinqIncrementalGenerator {
             CapturedLocals=capturedLocals,
             BodyUnsafeAccessorCodes=bodyCollector.ToArray(),
             ContainsAnchor=AnchorAnalysis.ContainsAnchor(lambda,semanticModel),
-            CardinalityUpperBound=lambda.Body is ExpressionSyntax lambdaBody
-                ? CardinalityAnalysis.TryGetUpperBound(lambdaBody,semanticModel)
-                : null,
         };
         return true;
     }

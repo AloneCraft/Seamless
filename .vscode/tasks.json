@@ -33,7 +33,7 @@
             "group": "build"
         },
         {
-            "label": "build-ui-debug",
+            "label": "build-benchmark-ui-debug",
             "command": "dotnet",
             "type": "process",
             "args": [
@@ -46,7 +46,7 @@
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "build-ui-release",
+            "label": "build-benchmark-ui-release",
             "command": "dotnet",
             "type": "process",
             "args": [
@@ -61,29 +61,29 @@
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "build-scalable-ui-debug",
+            "label": "build-benchmark-scalble-ui-debug",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Benchmark/Scalable.UI/Scalable.UI.csproj",
+                "${workspaceFolder}/Benchmark/Benchmark.Scalble.UI/Benchmark.Scalble.UI.csproj",
+                "-m:1",
                 "/property:GenerateFullPaths=true",
-                "/property:TargetFramework=net10.0-windows",
                 "/consoleloggerparameters:NoSummary"
             ],
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "build-scalable-ui-release",
+            "label": "build-benchmark-scalble-ui-release",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Benchmark/Scalable.UI/Scalable.UI.csproj",
+                "${workspaceFolder}/Benchmark/Benchmark.Scalble.UI/Benchmark.Scalble.UI.csproj",
+                "-m:1",
                 "-c",
                 "Release",
                 "/property:GenerateFullPaths=true",
-                "/property:TargetFramework=net10.0-windows",
                 "/consoleloggerparameters:NoSummary"
             ],
             "problemMatcher": "$msCompile"

@@ -198,10 +198,7 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
         if(!string.IsNullOrEmpty(hoistedDeclarations)) {
             builder.AppendLine(hoistedDeclarations);
         }
-        if(this.TryAppendSmallIntegralRangeConsume(builder,sourceName,keyName,consumerName)) {
-            return builder.ToString().TrimEnd();
-        }
-        TraversalSupport.AppendHashSetInitialization(builder,this.lookup,FuncReturnTypeName(keySelector),sourceName,this.Comparer,this.KeyCapacityHint);
+        TraversalSupport.AppendHashSetInitialization(builder,this.lookup,FuncReturnTypeName(keySelector),sourceName,this.Comparer,null);
         TraversalSupport.AppendTraversalLoop(
             builder,
             sourceName,
@@ -217,60 +214,14 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
         return builder.ToString().TrimEnd();
     }
 
-    private string? KeyCapacityHint =>
-        keySelector.CardinalityUpperBound is { } upperBound
-            ? upperBound.ToString()
-            : null;
-
-    private bool TryAppendSmallIntegralRangeConsume(StringBuilder builder,string sourceName,string keyName,string consumerName) {
-        const int MaxRangeCount = 65536;
-        var keyType=FuncReturnTypeName(keySelector);
-        if(!ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,keyType)
-            || !IsInt32Type(keyType)
-            || !keySelector.TryGetSmallIntegralRange(MaxRangeCount,out var min,out var max)) {
-            return false;
-        }
-
-        var rangeCount=(long)max-min+1;
-        if(rangeCount is <=0 or >MaxRangeCount) {
-            return false;
-        }
-
-        var seenName=$"__seen{番号}";
-        var seenIndexName=$"__seenIndex{番号}";
-        builder.AppendLine($"var {seenName}=global::System.Buffers.ArrayPool<bool>.Shared.Rent({rangeCount});");
-        builder.AppendLine("try{");
-        builder.AppendLine($"    global::System.MemoryExtensions.AsSpan({seenName},0,{rangeCount}).Clear();");
-        TraversalSupport.AppendTraversalLoop(
-            builder,
-            sourceName,
-            source.ElementType,
-            "value",
-            $$"""
-            {{keyType}} {{keyName}}=default!;
-            {{this.FuncAssignIndented("",keySelector,nameof(keySelector),keyName,"value")}}
-            var {{seenIndexName}}={{keyName}}-({{min}});
-            if(!{{seenName}}[{{seenIndexName}}]){
-                {{seenName}}[{{seenIndexName}}]=true;
-                {{consumerName}}.Consume(value);
-            }
-            """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName));
-        builder.AppendLine("}finally{");
-        builder.AppendLine($"    global::System.Buffers.ArrayPool<bool>.Shared.Return({seenName},true);");
-        builder.AppendLine("}");
-        return true;
-    }
-
     private string CreateLookupBody(string keyType) =>
-        this.KeyCapacityHint is { } capacityHint
-            ? $"return new global::Seamless.System.Carrier.HashSetSlim<{keyType}>({capacityHint},comparer);"
-            : $$"""
-              if(source.TryGetNonEnumeratedCount(out var {{this.count}})){
-                  return new global::Seamless.System.Carrier.HashSetSlim<{{keyType}}>({{this.count}},comparer);
-              }else{
-                  return new global::Seamless.System.Carrier.HashSetSlim<{{keyType}}>(comparer);
-              }
-              """;
+        $$"""
+        if(source.TryGetNonEnumeratedCount(out var {{this.count}})){
+            return new global::Seamless.System.Carrier.HashSetSlim<{{keyType}}>({{this.count}},comparer);
+        }else{
+            return new global::Seamless.System.Carrier.HashSetSlim<{{keyType}}>(comparer);
+        }
+        """;
 
     private bool CanMergeWith(DistinctByBase previous) {
         if(this.KeySelector.ContainsAnchor
@@ -295,8 +246,4 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
         }
     }
 
-    private static bool IsInt32Type(string typeName) =>
-        string.Equals(typeName,"int",StringComparison.Ordinal)
-        || string.Equals(typeName,"System.Int32",StringComparison.Ordinal)
-        || string.Equals(typeName,"global::System.Int32",StringComparison.Ordinal);
 }

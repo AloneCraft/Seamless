@@ -11,7 +11,7 @@
     <Project Path="Benchmark/Persisted.Linq.Enumerable.Linq/Persisted.Linq.Enumerable.Linq.csproj" />
     <Project Path="Benchmark/Scalable.Persisted.Collections/Scalable.Persisted.Collections.csproj" />
     <Project Path="Benchmark/Scalable.Tsavorite.Collections/Scalable.Tsavorite.Collections.csproj" />
-    <Project Path="Benchmark/Scalable.UI/Scalable.UI.csproj" />
+    <Project Path="Benchmark/Benchmark.Scalble.UI/Benchmark.Scalble.UI.csproj" />
     <Project Path="Benchmark/Tsavorite.ParameterSweep/Tsavorite.ParameterSweep.csproj" />
     <Project Path="Benchmark/Tsavorite.ParameterSweep.UI/Tsavorite.ParameterSweep.UI.csproj" />
     <Project Path="Benchmark/Tsavorite.Collections/Tsavorite.Collections.csproj" />

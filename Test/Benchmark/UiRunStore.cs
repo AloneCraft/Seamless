@@ -4,24 +4,23 @@ namespace Test.Benchmark;
 
 public sealed class UiRunStoreTests{
     [Fact]
-    public void EnsureSchema_CreatesOnlySimpleJapaneseTables(){
+    public void EnsureSchema_CreatesSeparateBenchmarkTables(){
         var path = CreateDatabasePath();
         var store = new global::Seamless.UI.Storage.UiRunStore(path);
 
         store.EnsureSchema();
 
         using var connection = Open(path);
-        Assert.Equal(16L,Scalar<long>(connection,"PRAGMA user_version;"));
+        Assert.Equal(17L,Scalar<long>(connection,"PRAGMA user_version;"));
         Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行';"));
-        Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ベンチマーク項目';"));
-        Assert.Equal(5L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"));
-        Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='BenchmarkSnapshotCaseIdentity';"));
-        Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='BenchmarkSnapshotMeasurement';"));
-        Assert.Equal(2L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('BenchmarkSnapshotMeasurement') WHERE name IN('MeasuredInRun','MeasurementStage');"));
-        Assert.Equal(4L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
-        Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name IN('項目ID','プロジェクト名','Assembly','Type','型フル名','引数キー','行キー','側','平均ns','誤差ns','標準偏差ns','割当バイト','左要素数','右要素数');"));
-        Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name='行チェック';"));
-        Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク項目') WHERE name IN('左チェック','右チェック');"));
+        Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='Benchmark';"));
+        Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ScalableBenchmark';"));
+        Assert.Equal(4L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"));
+        Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('ベンチマーク項目','BenchmarkSnapshotCaseIdentity','BenchmarkSnapshotMeasurement');"));
+        Assert.Equal(6L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
+        Assert.Equal(2L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('Benchmark') WHERE name IN('左LoopCount','右LoopCount');"));
+        Assert.Equal(8L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('ScalableBenchmark') WHERE name IN('Count','Initial','Data','Index','Page','Segment','Memory','Fraction');"));
+        Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('実行') WHERE name='前回実行ID';"));
         new global::Seamless.UI.Storage.UiRunStore(path).EnsureSchema();
     }
 
@@ -93,10 +92,10 @@ public sealed class UiRunStoreTests{
         ]);
 
         using var connection = Open(path);
-        Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM \"ベンチマーク項目\";"));
-        Assert.Equal(1L,Scalar<long>(connection,"SELECT \"行チェック\" FROM \"ベンチマーク項目\";"));
-        Assert.Equal("待機",Scalar<string>(connection,"SELECT \"左状態\" FROM \"ベンチマーク項目\";"));
-        Assert.Equal("int,string",Scalar<string>(connection,"SELECT \"型\" FROM \"ベンチマーク項目\" LIMIT 1;"));
+        Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM \"Benchmark\";"));
+        Assert.Equal(1L,Scalar<long>(connection,"SELECT \"行チェック\" FROM \"Benchmark\";"));
+        Assert.Equal("待機",Scalar<string>(connection,"SELECT \"左状態\" FROM \"Benchmark\";"));
+        Assert.Equal("int,string",Scalar<string>(connection,"SELECT \"型\" FROM \"Benchmark\" LIMIT 1;"));
     }
 
     [Fact]
@@ -141,15 +140,14 @@ public sealed class UiRunStoreTests{
         Assert.Equal(12.5,completed.Left.MeanNanoseconds);
         Assert.Equal(1024,completed.Left.AllocatedBytes);
         Assert.Equal(524288,completed.Left.LoopCount);
-        Assert.Equal(34_787_200,completed.Left.TotalNanoseconds);
+        Assert.Null(completed.Left.TotalNanoseconds);
         Assert.Equal(UiRunStatus.Failed,completed.Right.Status);
         Assert.Equal("failed",completed.Right.FailureReason);
         Assert.Null(completed.Right.MeanNanoseconds);
         Assert.Equal(524288,completed.Right.LoopCount);
-        Assert.Equal(43_230_000,completed.Right.TotalNanoseconds);
-        Assert.Equal("Left.Namespace.Type",completed.LeftCase!.TypeFullName);
-        Assert.Equal("left-key",completed.LeftCase.ArgumentKey);
-        Assert.Equal("Right.Namespace.Type",completed.RightCase!.TypeFullName);
+        Assert.Null(completed.Right.TotalNanoseconds);
+        Assert.Null(completed.LeftCase);
+        Assert.Null(completed.RightCase);
     }
 
     [Fact]
@@ -170,10 +168,32 @@ public sealed class UiRunStoreTests{
         ]);
 
         using var connection = Open(path);
-        Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM \"ベンチマーク項目\";"));
-        Assert.Equal(1L,Scalar<long>(connection,"SELECT \"CPU番号\" FROM \"ベンチマーク項目\";"));
-        Assert.Equal(2.0,Scalar<double>(connection,"SELECT \"左時間ns\" FROM \"ベンチマーク項目\";"));
-        Assert.Equal(3.0,Scalar<double>(connection,"SELECT \"右時間ns\" FROM \"ベンチマーク項目\";"));
+        Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM \"Benchmark\";"));
+        Assert.Equal(1L,Scalar<long>(connection,"SELECT \"CPU番号\" FROM \"Benchmark\";"));
+        Assert.Equal(2.0,Scalar<double>(connection,"SELECT \"左時間ns\" FROM \"Benchmark\";"));
+        Assert.Equal(3.0,Scalar<double>(connection,"SELECT \"右時間ns\" FROM \"Benchmark\";"));
+    }
+
+    [Fact]
+    public void ScalableBenchmark_StoresDedicatedArgumentsAndLoadsPreviousRun(){
+        var path=CreateDatabasePath();
+        var store=new global::Seamless.UI.Storage.UiRunStore(path);
+        var first=store.CreateRun(new(UiRunAppKind.ScalableBenchmark,"first","Fast","Scalable.Tsavorite",DateTimeOffset.UtcNow.AddMinutes(-1)));
+        var identity=new UiBenchmarkSnapshotCaseWrite("assembly","type","Add","Count=100,Index=64,Page=32,Segment=16,Memory=1024,Fraction=0.5","[{\"Name\":\"Count\",\"Value\":\"100\"},{\"Name\":\"Index\",\"Value\":\"64\"},{\"Name\":\"Page\",\"Value\":\"32\"},{\"Name\":\"Segment\",\"Value\":\"16\"},{\"Name\":\"Memory\",\"Value\":\"1024\"},{\"Name\":\"Fraction\",\"Value\":\"0.5\"}]");
+        store.SaveBenchmarkSnapshotItems(first.RunId,[new("Scalable.Tsavorite","int","Add",2,true,new(UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,10,20),new(UiRunStatus.Queued,string.Empty,null,null,null),identity,null)]);
+        store.SetRunStatus(first.RunId,UiRunStatus.Completed);
+
+        var second=store.CreateRun(new(UiRunAppKind.ScalableBenchmark,"second","Fast","Scalable.Tsavorite",DateTimeOffset.UtcNow));
+        store.SaveBenchmarkSnapshotItems(second.RunId,[new("Scalable.Tsavorite","int","Add",3,true,new(UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,8,16),new(UiRunStatus.Queued,string.Empty,null,null,null),identity,null)]);
+
+        var item=Assert.Single(store.ListBenchmarkSnapshotItems(second.RunId));
+        Assert.Equal(8,item.Left.MeanNanoseconds);
+        Assert.Equal(10,item.Right.MeanNanoseconds);
+        Assert.Equal("Count=100,Index=64,Page=32,Segment=16,Memory=1024,Fraction=0.5",item.LeftCase!.ArgumentKey);
+        using var connection=Open(path);
+        Assert.Equal(first.RunId,Scalar<long>(connection,$"SELECT \"前回実行ID\" FROM \"実行\" WHERE \"実行ID\"={second.RunId};"));
+        Assert.Equal(100L,Scalar<long>(connection,"SELECT \"Count\" FROM \"ScalableBenchmark\" WHERE \"実行ID\"="+second.RunId+";"));
+        Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('ScalableBenchmark') WHERE name LIKE '前回%';"));
     }
 
     [Fact]

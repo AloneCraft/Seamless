@@ -40,6 +40,7 @@ public class ToArray(int 番号, Enumerable source, string resultType) : Buffere
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeToArrayInline(destVar,destType)
         ??this.RenderDirectSpanToArrayInline(destVar,destType)
+        ??this.RenderDirectEnumerableToArrayHybridInline(source,destVar,destType)
         ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanToArrayInline(string destVar,string destType) {
         var span=$"__span{this.result}";
