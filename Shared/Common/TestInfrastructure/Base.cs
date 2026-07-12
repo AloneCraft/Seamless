@@ -1,8 +1,32 @@
 namespace Common;
 
+[Flags]
+public enum LinqOptimizations {
+    None=0,
+    Rewrite=1,
+    PipelineFusion=2,
+    PredicatePushdown=4,
+    All=Rewrite|PipelineFusion|PredicatePushdown,
+}
+
+#if PERSISTED || TSAVORITE
+[global::MemoryPack.MemoryPackable]
+#endif
+public sealed partial class ClassInt32:IEquatable<ClassInt32>,IComparable<ClassInt32>,global::System.Numerics.IEqualityOperators<ClassInt32,ClassInt32,bool> {
+    public int Value{get;init;}
+    public bool Equals(ClassInt32? other)=>other is not null&&this.Value==other.Value;
+    public int CompareTo(ClassInt32? other)=>other is null?1:this.Value.CompareTo(other.Value);
+    public override bool Equals(object? obj)=>obj is ClassInt32 value&&this.Equals(value);
+    public override int GetHashCode()=>this.Value;
+    public override string ToString()=>this.Value.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
+    public static bool operator==(ClassInt32? left,ClassInt32? right)=>left?.Equals(right)??right is null;
+    public static bool operator!=(ClassInt32? left,ClassInt32? right)=>!(left==right);
+}
+
 [AttributeUsage(AttributeTargets.Method,AllowMultiple=false)]
 public sealed class LinqInterceptAttribute(bool optimizeLinq):Attribute {
     public bool OptimizeLinq { get; } = optimizeLinq;
+    public LinqOptimizations Optimizations { get; set; } = LinqOptimizations.All;
 }
 
 [AttributeUsage(AttributeTargets.Class)]
@@ -280,7 +304,7 @@ public class Base<T> where T:notnull {
 
     [GlobalSetup]
     public void PrepareBenchmarkSources() {
-#if SYSTEM_RANGE
+#if SYSTEM_IENUMERABLE
         return;
 #else
         var preparedElementCounts = BenchmarkExecutionMode.ReadPreparedElementCounts();
@@ -506,7 +530,7 @@ public class Base<T> where T:notnull {
         }
     }
 
-#if SYSTEM_RANGE
+#if SYSTEM_IENUMERABLE
     [LinqIntercept(false)]
     protected IEnumerable<T> src(int scale) =>
         CreateSourceEnumerable(1,this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(this.count*scale)),SourceKind.Src);
@@ -664,6 +688,9 @@ public class Base<T> where T:notnull {
         if(typeof(T)==typeof(string)) {
             return (T)(object)FormatStringValue(value);
         }
+        if(typeof(T)==typeof(global::Common.ClassInt32)) {
+            return (T)(object)new global::Common.ClassInt32{Value=value};
+        }
 
         throw new NotSupportedException(typeof(T).FullName);
     }
@@ -697,6 +724,9 @@ public class Base<T> where T:notnull {
             }
 
             return int.Parse(text,System.Globalization.CultureInfo.InvariantCulture);
+        }
+        if(value is global::Common.ClassInt32 reference) {
+            return reference.Value;
         }
 
         throw new NotSupportedException(typeof(T).FullName);

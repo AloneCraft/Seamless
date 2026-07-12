@@ -38,7 +38,7 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
     protected string OuterElementType=> this.outerSource.ElementType;
     protected string BuildLookupBody(bool skipNullKeyCheck,string logicalInnerCounterMethod)=>skipNullKeyCheck ? $$"""
         private static global::Seamless.System.Carrier.Lookup<{{this.InnerKeyType}},{{this.InnerElementType}}> BuildLookup(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
-            var __lookupBuilder=new global::Seamless.System.Carrier.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(comparer);
+            var __lookupBuilder=new global::Seamless.System.Carrier.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(0,comparer,true);
             using var {{this.innerEnumerator}}=inner;
             while({{this.innerEnumerator}}.MoveNext()){
                 {{this.CounterCall(logicalInnerCounterMethod)}}
@@ -56,7 +56,7 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
         }
         """ : $$"""
         private static global::Seamless.System.Carrier.Lookup<{{this.InnerKeyType}},{{this.InnerElementType}}> BuildLookup(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
-            var __lookupBuilder=new global::Seamless.System.Carrier.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(comparer);
+            var __lookupBuilder=new global::Seamless.System.Carrier.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(0,comparer,true);
             using var {{this.innerEnumerator}}=inner;
             while({{this.innerEnumerator}}.MoveNext()){
                 {{this.CounterCall(logicalInnerCounterMethod)}}

@@ -76,7 +76,8 @@ partial class ValueEnumerableExtensions {
 
 #if NET8_0_OR_GREATER
 
-    internal static TSource? MinSpan<TSource>(ReadOnlySpan<TSource> span,IComparer<TSource> comparer) {
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static TSource? MinSpan<TSource>(ReadOnlySpan<TSource> span,IComparer<TSource> comparer) {
         #region generate from FileGen.Commands.Min
         if(typeof(TSource)==typeof(byte)) {
             if(comparer!=Comparer<TSource>.Default) return MinSpanComparer(span,comparer);

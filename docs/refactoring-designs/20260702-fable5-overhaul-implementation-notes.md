@@ -96,7 +96,7 @@ GetEnumerator を探していたため、`Table<T>:HashSet<T>` のような派�
 - 実行時: `LinqCounter.EnumerableFallback(+Details)` を追加し、`GeneratedCodeHelpers.LinqInterceptorFailure`
   構築時に加算。
 - 生成コード検査: `Test.SourceGenerator.FallbackDiagnostics.GeneratedInterceptors_ContainNoFallbackFailure` が
-  `Work/Generated/Test` の生成インターセプターに失敗例外が残っていないことを検証(現状 0 件)。
+  `Test/obj/<Configuration>/net10.0/generated` の生成インターセプターに失敗例外が残っていないことを検証(現状 0 件)。
   Test.csproj に生成物出力のコンパイル前クリーン(stale 誤検出防止)を追加。
 
 ## 6. 壊した API / 破棄したもの

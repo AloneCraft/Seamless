@@ -9,7 +9,7 @@ internal static class BenchmarkImprovementPromptBuilder{
     public static BenchmarkRatioSummary CreateSummary(IReadOnlyList<BenchmarkComparisonRow> rows) =>
         new(
             CalculateGeometricMean(rows.Select(static row => row.PairRatio.TimeRatio),out var timeIncluded,out var timeExcluded),
-            CalculateGeometricMean(rows.Select(static row => row.PairRatio.AllocatedRatio),out var allocatedIncluded,out var allocatedExcluded),
+            CalculateAllocationMean(rows.Select(static row => row.PairRatio.AllocatedShare),out var allocatedIncluded,out var allocatedExcluded),
             timeIncluded,
             timeExcluded,
             allocatedIncluded,
@@ -41,11 +41,26 @@ internal static class BenchmarkImprovementPromptBuilder{
             ? null
             : Math.Exp(logSum/included);
     }
+
+    private static double? CalculateAllocationMean(IEnumerable<AllocationShareValue> shares,out int included,out int excluded){
+        included=0;
+        excluded=0;
+        var sum = 0.0;
+        foreach(var share in shares){
+            if(share.LeftShare is { } value&&double.IsFinite(value)){
+                sum+=value;
+                included++;
+            }else{
+                excluded++;
+            }
+        }
+        return included==0 ? null : sum/included;
+    }
 }
 
 internal sealed record BenchmarkRatioSummary(
     double? TimeGeometricMean,
-    double? AllocatedGeometricMean,
+    double? AllocatedLeftMean,
     int TimeIncludedCount,
     int TimeExcludedCount,
     int AllocatedIncludedCount,
@@ -54,7 +69,7 @@ internal sealed record BenchmarkRatioSummary(
         "時間比 "+FormatRatio(this.TimeGeometricMean)
         +" (対象 "+this.TimeIncludedCount.ToString(CultureInfo.InvariantCulture)
         +" / 除外 "+this.TimeExcludedCount.ToString(CultureInfo.InvariantCulture)+")"
-        +" / メモリ比 "+FormatRatio(this.AllocatedGeometricMean)
+        +" / メモリシェア "+FormatShare(this.AllocatedLeftMean)
         +" (対象 "+this.AllocatedIncludedCount.ToString(CultureInfo.InvariantCulture)
         +" / 除外 "+this.AllocatedExcludedCount.ToString(CultureInfo.InvariantCulture)+")";
 
@@ -62,10 +77,15 @@ internal sealed record BenchmarkRatioSummary(
 
     public string ShortDisplayText =>
         "時間比 "+FormatRatio(this.TimeGeometricMean)
-        +",メモリ比 "+FormatRatio(this.AllocatedGeometricMean);
+        +",メモリシェア "+FormatShare(this.AllocatedLeftMean);
 
     private static string FormatRatio(double? value) =>
         value is { } number&&double.IsFinite(number)
             ? number.ToString("0.00",CultureInfo.InvariantCulture)
+            : "-";
+
+    private static string FormatShare(double? leftShare) =>
+        leftShare is { } value&&double.IsFinite(value)
+            ? AllocationShareValue.FromLeftShare(value).DisplayText
             : "-";
 }

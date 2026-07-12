@@ -162,6 +162,8 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
 
     private bool CanUseSortedIntSetFastPath() =>
         operation.PreloadSecondFirst
+        &&source is RangeRoot
+        &&second is RangeRoot
         &&ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,source.ElementType)
         &&IsInt32Type(source.ElementType)
         &&IsInt32Type(second.ElementType)
@@ -171,6 +173,8 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
     private bool CanUseSortedDefaultUnionFastPath() =>
         !operation.PreloadSecondFirst
         &&operation.SourceAcceptMethod=="Add"
+        &&source is RangeRoot
+        &&second is RangeRoot
         &&ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,source.ElementType)
         &&source.ElementType==second.ElementType
         &&source.CanTryProvideSpan
@@ -577,6 +581,8 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
 
     private bool CanUseSortedIntSetFastPath() =>
         operation.PreloadSecondFirst
+        &&source is RangeRoot
+        &&second is RangeRoot
         &&ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,FuncReturnTypeName(keySelector))
         &&IsInt32Type(source.ElementType)
         &&IsInt32Type(second.ElementType)

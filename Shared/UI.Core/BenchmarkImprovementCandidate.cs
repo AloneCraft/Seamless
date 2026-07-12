@@ -31,7 +31,7 @@ internal static class BenchmarkImprovementCandidateBuilder{
             .GroupBy(static entry => CreateCandidateKey(entry.SourceTab,entry.Category,entry.Row.MethodName),StringComparer.OrdinalIgnoreCase)
             .Select(static group => CreateCandidate(group.Key,group.ToArray()))
             .Where(static candidate => candidate.HasRegression)
-            .OrderByDescending(static candidate => Math.Max(GetRankValue(candidate.TimeRatio),GetRankValue(candidate.AllocatedRatio)))
+            .OrderByDescending(static candidate => GetRegressionSeverity(candidate.TimeRatio,candidate.AllocatedShare))
             .ThenBy(static candidate => candidate.SourceTab.Id,StringComparer.OrdinalIgnoreCase)
             .ThenBy(static candidate => candidate.MethodName,StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -48,7 +48,7 @@ internal static class BenchmarkImprovementCandidateBuilder{
 
         foreach(var candidate in candidates
             .Where(static item => item.HasAllocatedRegression)
-            .OrderByDescending(static item => GetRankValue(item.AllocatedRatio))
+            .OrderByDescending(static item => GetRankValue(item.AllocatedShare))
             .Take(takeCount)){
             selected.Add(candidate.Key);
         }
@@ -59,7 +59,7 @@ internal static class BenchmarkImprovementCandidateBuilder{
     public static string BuildPrompt(IEnumerable<BenchmarkImprovementCandidate> candidates){
         var selected = candidates
             .OrderBy(static item => item.Category,StringComparer.OrdinalIgnoreCase)
-            .ThenByDescending(static item => Math.Max(GetRankValue(item.TimeRatio),GetRankValue(item.AllocatedRatio)))
+            .ThenByDescending(static item => GetRegressionSeverity(item.TimeRatio,item.AllocatedShare))
             .ThenBy(static item => item.MethodName,StringComparer.OrdinalIgnoreCase)
             .ToArray();
         if(selected.Length==0){
@@ -103,7 +103,7 @@ internal static class BenchmarkImprovementCandidateBuilder{
             .ThenBy(static item => item.ElementCount)
             .First();
         var allocated = entries
-            .OrderByDescending(static item => GetRankValue(item.Row.PairRatio.AllocatedRatio))
+            .OrderByDescending(static item => GetRankValue(item.Row.PairRatio.AllocatedShare))
             .ThenBy(static item => item.ElementCount)
             .First();
         return new(
@@ -115,7 +115,7 @@ internal static class BenchmarkImprovementCandidateBuilder{
             time.ElementCount,
             allocated.ElementCount,
             time.Row.PairRatio.TimeRatio,
-            allocated.Row.PairRatio.AllocatedRatio,
+            allocated.Row.PairRatio.AllocatedShare,
             time.Row.Left,
             time.Row.Right,
             allocated.Row.Left,
@@ -158,7 +158,7 @@ internal static class BenchmarkImprovementCandidateBuilder{
         builder.AppendLine("- "+candidate.MethodName+" ("+candidate.SourceTab.DisplayName+")");
         builder.AppendLine("  - 比較: "+candidate.SourceTab.LeftProject+" / "+candidate.SourceTab.RightProject);
         builder.AppendLine("  - 時間差: N="+FormatElementCount(candidate.TimeElementCount)+" / 比率 "+FormatRatio(candidate.TimeRatio)+" / Left "+FormatTime(candidate.TimeLeft.TimeNanoseconds)+" / Right "+FormatTime(candidate.TimeRight.TimeNanoseconds));
-        builder.AppendLine("  - メモリ差: N="+FormatElementCount(candidate.AllocatedElementCount)+" / 比率 "+FormatRatio(candidate.AllocatedRatio)+" / Left "+FormatAllocated(candidate.AllocatedLeft.AllocatedBytes)+" / Right "+FormatAllocated(candidate.AllocatedRight.AllocatedBytes));
+        builder.AppendLine("  - メモリ差: N="+FormatElementCount(candidate.AllocatedElementCount)+" / シェア "+FormatShare(candidate.AllocatedShare)+" / Left "+FormatAllocated(candidate.AllocatedLeft.AllocatedBytes)+" / Right "+FormatAllocated(candidate.AllocatedRight.AllocatedBytes));
         if(!string.IsNullOrWhiteSpace(candidate.TypeFullName)){
             builder.AppendLine("  - 型: "+candidate.TypeFullName);
         }
@@ -175,6 +175,23 @@ internal static class BenchmarkImprovementCandidateBuilder{
             _ => double.NegativeInfinity,
         };
 
+    internal static double GetRankValue(AllocationShareValue share) =>
+        share.LeftShare is { } value&&value>0.5
+            ? value
+            : double.NegativeInfinity;
+
+    internal static double GetRegressionSeverity(RatioValue timeRatio,AllocationShareValue allocatedShare){
+        var timeSeverity = timeRatio.Kind switch{
+            RatioValueKind.Numeric when timeRatio.NumericValue is { } value&&value>1 => value-1,
+            RatioValueKind.LeftOnly => double.PositiveInfinity,
+            _ => 0,
+        };
+        var allocatedSeverity = allocatedShare.LeftShare is { } left&&left>0.5
+            ? (left-0.5)*2
+            : 0;
+        return Math.Max(timeSeverity,allocatedSeverity);
+    }
+
     internal static string FormatRatio(RatioValue ratio) =>
         ratio.Kind switch{
             RatioValueKind.Numeric when ratio.NumericValue is { } value => value.ToString("0.00",CultureInfo.InvariantCulture),
@@ -183,6 +200,8 @@ internal static class BenchmarkImprovementCandidateBuilder{
             RatioValueKind.RightOnly => "0",
             _ => "-",
         };
+
+    internal static string FormatShare(AllocationShareValue share) => share.DisplayText;
 
     internal static string FormatTime(double? value) =>
         value is { } number&&double.IsFinite(number)
@@ -259,7 +278,7 @@ public sealed record BenchmarkImprovementCandidate(
     int TimeElementCount,
     int AllocatedElementCount,
     RatioValue TimeRatio,
-    RatioValue AllocatedRatio,
+    AllocationShareValue AllocatedShare,
     ProjectMetrics TimeLeft,
     ProjectMetrics TimeRight,
     ProjectMetrics AllocatedLeft,
@@ -268,6 +287,6 @@ public sealed record BenchmarkImprovementCandidate(
     string ArgumentKey,
     IReadOnlyList<BenchmarkArgument> Arguments){
     public bool HasTimeRegression => BenchmarkImprovementCandidateBuilder.GetRankValue(this.TimeRatio)>1;
-    public bool HasAllocatedRegression => BenchmarkImprovementCandidateBuilder.GetRankValue(this.AllocatedRatio)>1;
+    public bool HasAllocatedRegression => this.AllocatedShare.LeftShare>0.5;
     public bool HasRegression => this.HasTimeRegression||this.HasAllocatedRegression;
 }

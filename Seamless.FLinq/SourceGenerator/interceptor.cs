@@ -23,6 +23,14 @@ public sealed partial class FLinqIncrementalGenerator : IIncrementalGenerator {
         #nullable enable
         namespace Seamless.FLinq {
             [global::System.Flags]
+            internal enum LinqOptimizations {
+                None=0,
+                Rewrite=1,
+                PipelineFusion=2,
+                PredicatePushdown=4,
+                All=Rewrite|PipelineFusion|PredicatePushdown,
+            }
+            [global::System.Flags]
             internal enum LinqInstrumentation {
                 None = 0,
                 Counter = 1,
@@ -41,6 +49,7 @@ public sealed partial class FLinqIncrementalGenerator : IIncrementalGenerator {
                 public bool OptimizeLinq { get; }
                 public bool Intercept { get; }
                 public LinqInstrumentation Instrumentation { get; set; }
+                public LinqOptimizations Optimizations { get; set; } = LinqOptimizations.All;
             }
         }
         """;

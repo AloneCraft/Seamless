@@ -1752,7 +1752,7 @@ public sealed partial class MainPage:ContentPage {
             VerticalOptions=LayoutOptions.Fill,
         };
         this.ConfigureCompactTabView(tabs,false);
-        var options = new[] { new TabHeaderOption("時間比"),new TabHeaderOption("メモリ比") };
+        var options = new[] { new TabHeaderOption("時間比"),new TabHeaderOption("メモリシェア") };
         tabs.Items=new TabItemCollection {
             new SfTabItem {
                 Header="時間比",
@@ -1761,10 +1761,10 @@ public sealed partial class MainPage:ContentPage {
                 Content=this.CreateTrendChartTab(() => this.viewModel?.LoadHistoryTimeRatioChartData()??[],"RunId","時間比"),
             },
             new SfTabItem {
-                Header="メモリ比",
+                Header="メモリシェア",
                 HeaderContent=this.CreateTabHeader(options[1],() => tabs.SelectedIndex=1),
                 FontSize=12,
-                Content=this.CreateTrendChartTab(() => this.viewModel?.LoadHistoryMemoryRatioChartData()??[],"RunId","メモリ比"),
+                Content=this.CreateTrendChartTab(() => this.viewModel?.LoadHistoryMemoryRatioChartData()??[],"RunId","メモリシェア",0,1),
             },
         };
         options[0].SetSelected(true);
@@ -1846,7 +1846,7 @@ public sealed partial class MainPage:ContentPage {
             Fill=new SolidColorBrush(Color.FromArgb("#2563EB")),
         });
         chart.Series.Add(new ColumnSeries {
-            Label="メモリ比",
+            Label="メモリシェア",
             XBindingPath=nameof(BenchmarkCategoryRatioPoint.Category),
             YBindingPath=nameof(BenchmarkCategoryRatioPoint.AvgAllocationRatio),
             ItemsSource=points,
@@ -1872,13 +1872,22 @@ public sealed partial class MainPage:ContentPage {
     private static readonly string[] TrendSeriesPalette = ["#0F766E","#2563EB","#F97316","#DC2626","#7C3AED","#0891B2","#65A30D","#DB2777"];
 
     // 履歴/スケール: メソッドごとの複数系列トレンド折れ線チャート。
-    private View CreateTrendChartTab(Func<IReadOnlyList<BenchmarkTrendSeries>> load,string xAxisTitle,string yAxisTitle) {
+    private View CreateTrendChartTab(
+        Func<IReadOnlyList<BenchmarkTrendSeries>> load,
+        string xAxisTitle,
+        string yAxisTitle,
+        double? yMinimum = null,
+        double? yMaximum = null) {
         var chart = new SfCartesianChart {
             TooltipBehavior=new ChartTooltipBehavior { FontSize=12,Duration=4 },
             VerticalOptions=LayoutOptions.Fill,
         };
         chart.XAxes.Add(new NumericalAxis { Title=new ChartAxisTitle { Text=xAxisTitle },Interval=1 });
-        chart.YAxes.Add(new NumericalAxis { Title=new ChartAxisTitle { Text=yAxisTitle } });
+        chart.YAxes.Add(new NumericalAxis {
+            Title=new ChartAxisTitle { Text=yAxisTitle },
+            Minimum=yMinimum,
+            Maximum=yMaximum,
+        });
         void Reload() {
             chart.Series.Clear();
             var seriesList = load();
@@ -2225,11 +2234,11 @@ public sealed partial class MainPage:ContentPage {
         };
         this.ConfigureCompactTabView(tabView,false);
         var timeOption = new TabHeaderOption("時間比");
-        var allocatedOption = new TabHeaderOption("メモリ比");
+        var allocatedOption = new TabHeaderOption("メモリシェア");
         var options = new[] { timeOption,allocatedOption };
         tabView.Items=new TabItemCollection {
             new SfTabItem { Header="時間比",HeaderContent=this.CreateTabHeader(timeOption,() => tabView.SelectedIndex=0),FontSize=12,Content=new Grid() },
-            new SfTabItem { Header="メモリ比",HeaderContent=this.CreateTabHeader(allocatedOption,() => tabView.SelectedIndex=1),FontSize=12,Content=new Grid() },
+            new SfTabItem { Header="メモリシェア",HeaderContent=this.CreateTabHeader(allocatedOption,() => tabView.SelectedIndex=1),FontSize=12,Content=new Grid() },
         };
         tabView.SelectedIndex=this.viewModel?.IsAllocatedMetricSelected==true ? 1 : 0;
         options[tabView.SelectedIndex].SetSelected(true);
@@ -2385,18 +2394,18 @@ public sealed partial class MainPage:ContentPage {
         var cpuMapping = nameof(BenchmarkTableRow.LogicalProcessorText);
         grid.Columns.Add(this.CreateCpuColumn(cpuMapping));
         var loopMapping=nameof(BenchmarkTableRow.LoopCountText);
-        grid.Columns.Add(this.CreateTextColumn("Loop",loopMapping,BenchmarkGridSortColumn.LogicalCpu,ベンチマーク_ループ,TextAlignment.End));
+        grid.Columns.Add(this.CreateTextColumn("ループ回数",loopMapping,BenchmarkGridSortColumn.LoopCount,ベンチマーク_ループ,TextAlignment.End));
         var argumentMappings = this.AddArgumentColumns(grid,sourceTab);
         this.AddBenchmarkBaseStackedHeaders(projectHeaderRow,cpuMapping,loopMapping,argumentMappings);
         var leftMappings = this.AddProjectColumns(grid,"Left",nameof(BenchmarkTableRow.LeftCell),BenchmarkGridSortColumn.LeftTime,BenchmarkGridSortColumn.LeftAllocated);
         var timeRatioMapping = nameof(BenchmarkTableRow.PairRatioTimeText);
         var allocatedRatioMapping = nameof(BenchmarkTableRow.PairRatioAllocatedText);
         grid.Columns.Add(this.CreateTextColumn("時間比",timeRatioMapping,BenchmarkGridSortColumn.PairRatioTime,時間比,TextAlignment.End,Color.FromArgb("#F8FAFC")));
-        grid.Columns.Add(this.CreateTextColumn("メモリ比",allocatedRatioMapping,BenchmarkGridSortColumn.PairRatioAllocated,メモリ比,TextAlignment.End,Color.FromArgb("#F8FAFC")));
+        grid.Columns.Add(this.CreateTextColumn("メモリシェア",allocatedRatioMapping,BenchmarkGridSortColumn.PairRatioAllocated,メモリ比,TextAlignment.End,Color.FromArgb("#F8FAFC")));
         var rightMappings = this.AddProjectColumns(grid,"Right",nameof(BenchmarkTableRow.RightCell),BenchmarkGridSortColumn.RightTime,BenchmarkGridSortColumn.RightAllocated);
         this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup("Left","Left"),leftMappings,sourceTab);
         this.AddBenchmarkRatioHeader(projectHeaderRow,timeRatioMapping,"時間比");
-        this.AddBenchmarkRatioHeader(projectHeaderRow,allocatedRatioMapping,"メモリ比");
+        this.AddBenchmarkRatioHeader(projectHeaderRow,allocatedRatioMapping,"メモリシェア");
         this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup("Right","Right"),rightMappings,sourceTab);
     }
 
@@ -3330,7 +3339,7 @@ public sealed partial class MainPage:ContentPage {
         grid.Columns.Add(this.CreateImprovementCandidateTextColumn("メソッド",nameof(BenchmarkImprovementCandidateRow.MethodName),ImprovementCandidateMethodColumnWidth,TextAlignment.Start));
         grid.Columns.Add(this.CreateImprovementCandidateTextColumn("N",nameof(BenchmarkImprovementCandidateRow.WorstElementCountText),ImprovementCandidateElementCountColumnWidth,TextAlignment.End));
         grid.Columns.Add(this.CreateImprovementCandidateGaugeColumn("時間比",nameof(BenchmarkImprovementCandidateRow.TimeGaugeText),static row => row.TimeGaugeFraction,Color.FromArgb("#2563EB")));
-        grid.Columns.Add(this.CreateImprovementCandidateGaugeColumn("メモリ比",nameof(BenchmarkImprovementCandidateRow.AllocatedGaugeText),static row => row.AllocatedGaugeFraction,Color.FromArgb("#F97316")));
+        grid.Columns.Add(this.CreateImprovementCandidateGaugeColumn("メモリシェア",nameof(BenchmarkImprovementCandidateRow.AllocatedGaugeText),static row => row.AllocatedGaugeFraction,Color.FromArgb("#F97316")));
         if(allocatedTab) {
             grid.Columns.Add(this.CreateImprovementCandidateTextColumn("Leftメモリ",nameof(BenchmarkImprovementCandidateRow.LeftAllocatedText),ImprovementCandidateValueColumnWidth,TextAlignment.End));
             grid.Columns.Add(this.CreateImprovementCandidateTextColumn("Rightメモリ",nameof(BenchmarkImprovementCandidateRow.RightAllocatedText),ImprovementCandidateValueColumnWidth,TextAlignment.End));

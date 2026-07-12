@@ -5,6 +5,12 @@
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.Range.FLinq/Benchmark.System.Linq.Enumerable.Range.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.List.ZLinq/Benchmark.System.Linq.Enumerable.List.ZLinq.csproj" />
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.Range.ZLinq/Benchmark.System.Linq.Enumerable.Range.ZLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.IEnumerable.FLinq/Benchmark.System.Linq.Enumerable.IEnumerable.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq/Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.Optimization.All/Benchmark.Optimization.All.csproj" />
+    <Project Path="Benchmark/Benchmark.Optimization.NoRewrite/Benchmark.Optimization.NoRewrite.csproj" />
+    <Project Path="Benchmark/Benchmark.Optimization.NoPipelineFusion/Benchmark.Optimization.NoPipelineFusion.csproj" />
+    <Project Path="Benchmark/Benchmark.Optimization.NoPredicatePushdown/Benchmark.Optimization.NoPredicatePushdown.csproj" />
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.List.FLinq/Benchmark.System.Linq.Enumerable.List.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Persisted.Collections/Benchmark.Persisted.Collections.csproj" />
     <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.FLinq/Benchmark.Persisted.Linq.Enumerable.FLinq.csproj" />
@@ -23,6 +29,10 @@
   <Folder Name="/Benchmark/Shared/">
     <Project Path="Benchmark/Shared/UI/UI.shproj" />
     <File Path="Benchmark/Shared/UI/UI.projitems" />
+  </Folder>
+  <Folder Name="/Shared/Range/">
+    <File Path="Shared/Seamless.Linq.Range/Range_start_count.cs" />
+    <File Path="Shared/Seamless.Linq.Range/Seamless.Linq.Range.projitems" />
   </Folder>
   <Folder Name="/Specifications/">
     <File Path="UI.md" />

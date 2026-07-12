@@ -239,9 +239,12 @@ public sealed class UiRunStoreTests{
         Assert.Equal("System.Array",baseTime["SourceTab"]);
         Assert.Equal(2,Convert.ToDouble(baseTime["PerformanceRatio"],global::System.Globalization.CultureInfo.InvariantCulture));
         Assert.Equal("System.Array",memory["SourceTab"]);
-        Assert.Equal(4,Convert.ToDouble(memory["PerformanceRatio"],global::System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(0.8,Convert.ToDouble(memory["LeftShare"],global::System.Globalization.CultureInfo.InvariantCulture),12);
+        Assert.Equal(0.2,Convert.ToDouble(memory["RightShare"],global::System.Globalization.CultureInfo.InvariantCulture),12);
         Assert.Equal("System.Array",baseMemory["SourceTab"]);
-        Assert.Equal(4,Convert.ToDouble(baseMemory["PerformanceRatio"],global::System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(0.8,Convert.ToDouble(baseMemory["LeftShare"],global::System.Globalization.CultureInfo.InvariantCulture),12);
+        Assert.Equal(0.2,Convert.ToDouble(baseMemory["RightShare"],global::System.Globalization.CultureInfo.InvariantCulture),12);
+        Assert.Null(baseMemory["PreviousLeftShare"]);
         Assert.Empty(store.QueryAnalysisView("BenchmarkPerformanceRatioHistory"));
         Assert.Empty(store.QueryAnalysisView("BenchmarkMemoryRatioHistory"));
     }

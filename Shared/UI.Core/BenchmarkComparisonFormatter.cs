@@ -76,24 +76,11 @@ internal static class BenchmarkComparisonFormatter{
         return RatioValue.FromNumeric(leftValue/rightValue);
     }
 
-    public static RatioValue CalculateAllocatedRatio(ProjectMetrics left,ProjectMetrics right){
+    public static AllocationShareValue CalculateAllocatedShare(ProjectMetrics left,ProjectMetrics right){
         if(!left.HasMeasuredValue||!right.HasMeasuredValue||left.AllocatedBytes is not { } leftValue||right.AllocatedBytes is not { } rightValue){
-            return RatioValue.Missing;
+            return AllocationShareValue.Missing;
         }
-
-        if(leftValue==0&&rightValue==0){
-            return new RatioValue(RatioValueKind.BothZero,null,"0",RatioJudgement.Tie);
-        }
-
-        if(leftValue>0&&rightValue==0){
-            return new RatioValue(RatioValueKind.LeftOnly,null,"+",RatioJudgement.LeftLose);
-        }
-
-        if(leftValue==0&&rightValue>0){
-            return new RatioValue(RatioValueKind.RightOnly,null,"-",RatioJudgement.LeftWin);
-        }
-
-        return RatioValue.FromNumeric((double)leftValue/rightValue);
+        return AllocationShareValue.FromBytes(leftValue,rightValue);
     }
 
     public static PairComparison CreatePairComparison(BenchmarkComparisonRow row,ComparisonPairDefinition pair){
@@ -104,7 +91,7 @@ internal static class BenchmarkComparisonFormatter{
             left,
             right,
             CalculateTimeRatio(left,right),
-            CalculateAllocatedRatio(left,right));
+            CalculateAllocatedShare(left,right));
     }
 
     private static BenchmarkComparisonRow CreateRow(
@@ -256,12 +243,52 @@ public readonly record struct RatioValue(RatioValueKind Kind,double? NumericValu
     }
 }
 
+public readonly record struct AllocationShareValue(
+    double? LeftShare,
+    double? RightShare,
+    string DisplayText,
+    RatioJudgement Judgement){
+    public static readonly AllocationShareValue Missing = new(null,null,"-",RatioJudgement.None);
+
+    public bool IsMissing => this.LeftShare is null||this.RightShare is null;
+
+    public static AllocationShareValue FromBytes(long leftBytes,long rightBytes){
+        if(leftBytes<0||rightBytes<0){
+            return Missing;
+        }
+
+        var total = (double)leftBytes+rightBytes;
+        var leftShare = total==0 ? 0.5 : leftBytes/total;
+        return FromLeftShare(leftShare);
+    }
+
+    public static AllocationShareValue FromLeftShare(double leftShare){
+        if(!double.IsFinite(leftShare)||leftShare<0||leftShare>1){
+            return Missing;
+        }
+
+        var rightShare = 1-leftShare;
+        var displayedLeft = Math.Round(leftShare,2,MidpointRounding.AwayFromZero);
+        var displayedRight = 1-displayedLeft;
+        var judgement = leftShare<0.5
+            ? RatioJudgement.LeftWin
+            : leftShare>0.5
+                ? RatioJudgement.LeftLose
+                : RatioJudgement.Tie;
+        return new AllocationShareValue(
+            leftShare,
+            rightShare,
+            displayedLeft.ToString("0.00",CultureInfo.InvariantCulture)+":"+displayedRight.ToString("0.00",CultureInfo.InvariantCulture),
+            judgement);
+    }
+}
+
 public readonly record struct PairComparison(
     ComparisonPairDefinition Definition,
     ProjectMetrics Left,
     ProjectMetrics Right,
     RatioValue TimeRatio,
-    RatioValue AllocatedRatio);
+    AllocationShareValue AllocatedShare);
 
 public readonly record struct BenchmarkComparisonRow(
     string Benchmark,

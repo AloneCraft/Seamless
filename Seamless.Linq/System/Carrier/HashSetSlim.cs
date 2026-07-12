@@ -54,7 +54,7 @@ public sealed class HashSetSlim<T> : IDisposable
         }
 
         // add phase
-        if (this.entryIndex >this.resizeThreshold)
+        if(this.entryIndex>=this.resizeThreshold)
         {
             this.Resize();
             // Need to recalculate bucket after resize

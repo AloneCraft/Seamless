@@ -11,7 +11,7 @@
     <IsTestProject>true</IsTestProject>
     <RootNamespace>Test.Tsavorite.Linq.Enumerable</RootNamespace>
     <AssemblyName>Test.Tsavorite.Linq.Enumerable.FLinq</AssemblyName>
-    <DefineConstants>$(DefineConstants);BENCH_AS_TEST</DefineConstants>
+    <DefineConstants>$(DefineConstants);BENCH_AS_TEST;TSAVORITE</DefineConstants>
     <OutputType>Library</OutputType>
     <Tsavorite>true</Tsavorite>
   </PropertyGroup>
@@ -40,4 +40,3 @@
   </ItemGroup>
   <Import Project="..\Shared\Seamless.Linq.Enumerable\Seamless.Linq.Enumerable.projitems" Label="Shared" />
 </Project>
-

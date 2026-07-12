@@ -1,7 +1,11 @@
 namespace UI;
 
 public enum BenchmarkSourceTab{
+    OptimizationRewrite,
+    OptimizationPipelineFusion,
+    OptimizationPredicatePushdown,
     SystemArray,
+    SystemIEnumerable,
     SystemRange,
     SystemList,
     SeamlessPersisted,
@@ -26,7 +30,9 @@ public sealed record BenchmarkSourceTabDefinition(
     string LeftAssemblyName,
     string RightProject,
     string RightHeader,
-    string RightAssemblyName){
+    string RightAssemblyName,
+    string LeftTypePrefix="",
+    string RightTypePrefix=""){
     public IReadOnlyList<string> ProjectOrder { get; } =
         new[] { LeftProject,RightProject }.Where(static project => !string.IsNullOrWhiteSpace(project)).ToArray();
 
@@ -52,7 +58,11 @@ public sealed record BenchmarkSourceTabDefinition(
             return true;
         }
 
-        return string.Equals(assemblyName,benchmark.AssemblyName,StringComparison.OrdinalIgnoreCase);
+        if(!string.Equals(assemblyName,benchmark.AssemblyName,StringComparison.OrdinalIgnoreCase)) {
+            return false;
+        }
+        var prefix=string.Equals(benchmark.Project,this.LeftProject,StringComparison.OrdinalIgnoreCase)?LeftTypePrefix:RightTypePrefix;
+        return string.IsNullOrWhiteSpace(prefix)||benchmark.TypeFullName.StartsWith(prefix,StringComparison.Ordinal);
     }
 
     public bool ShouldWarnForProject(string project) =>
@@ -72,7 +82,11 @@ public sealed record BenchmarkSourceTabDefinition(
 }
 
 public static class BenchmarkSourceTabs{
+    public const string OptimizationRewriteId="Optimization.Rewrite";
+    public const string OptimizationPipelineFusionId="Optimization.PipelineFusion";
+    public const string OptimizationPredicatePushdownId="Optimization.PredicatePushdown";
     public const string SystemArrayId = "System.Array";
+    public const string SystemIEnumerableId = "System.Collections.Generic.IEnumerable<>";
     public const string SystemRangeId = "System.Range";
     public const string SystemListId = "System.List";
     public const string SeamlessPersistedId = "Seamless.Persisted";
@@ -139,6 +153,9 @@ public static class BenchmarkSourceTabs{
     ];
 
     public static IReadOnlyList<BenchmarkSourceTabDefinition> StandardAll { get; } = [
+        new(BenchmarkSourceTab.OptimizationRewrite,OptimizationRewriteId,"Optimization.Rewrite","Optimization.Rewrite.All","全最適化","Benchmark.Optimization.All","Optimization.Rewrite.Disabled","Rewrite無効","Benchmark.Optimization.NoRewrite","Benchmark.Optimization.Rewrite.","Benchmark.Optimization.Rewrite."),
+        new(BenchmarkSourceTab.OptimizationPipelineFusion,OptimizationPipelineFusionId,"Optimization.PipelineFusion","Optimization.PipelineFusion.All","全最適化","Benchmark.Optimization.All","Optimization.PipelineFusion.Disabled","PipelineFusion無効","Benchmark.Optimization.NoPipelineFusion","Benchmark.Optimization.PipelineFusion.","Benchmark.Optimization.PipelineFusion."),
+        new(BenchmarkSourceTab.OptimizationPredicatePushdown,OptimizationPredicatePushdownId,"Optimization.PredicatePushdown","Optimization.PredicatePushdown.All","全最適化","Benchmark.Optimization.All","Optimization.PredicatePushdown.Disabled","PredicatePushdown無効","Benchmark.Optimization.NoPredicatePushdown","Benchmark.Optimization.PredicatePushdown.","Benchmark.Optimization.PredicatePushdown."),
         new(
             BenchmarkSourceTab.SystemArray,
             SystemArrayId,
@@ -150,9 +167,19 @@ public static class BenchmarkSourceTabs{
             "ZLinq",
             "Benchmark.System.Linq.Enumerable.ZLinq"),
         new(
+            BenchmarkSourceTab.SystemIEnumerable,
+            SystemIEnumerableId,
+            "System.Collections.Generic.IEnumerable<>",
+            "System.IEnumerable.FLinq",
+            "FLinq",
+            "Benchmark.System.Linq.Enumerable.IEnumerable.FLinq",
+            "System.IEnumerable.ZLinq",
+            "ZLinq",
+            "Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq"),
+        new(
             BenchmarkSourceTab.SystemRange,
             SystemRangeId,
-            "System.Collections.Generic.IEnumerable",
+            "System.Range",
             "System.Range.FLinq",
             "FLinq",
             "Benchmark.System.Linq.Enumerable.Range.FLinq",

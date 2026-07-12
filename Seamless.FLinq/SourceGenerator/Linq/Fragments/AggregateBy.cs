@@ -20,7 +20,8 @@ AggregateBy は key ごとに accumulator を持つ grouping 集約を生成す�
 public class AggregateBy(int 番号, Enumerable source, FuncFragment keySelector, string seed, FuncFragment func, string resultElementType) : Enumerable(番号) {
     protected override Enumerable PrimarySource => source;
     private string KeyType => FuncReturnTypeName(keySelector);
-    private static string CapacityExpression(string sourceCountExpression) => sourceCountExpression;
+    private static string CapacityExpression(string sourceCountExpression) =>
+        $"global::System.Math.Min({sourceCountExpression},1024)";
 
     public override string StructMethod => $$"""
         {{this.FuncSupport(keySelector,nameof(keySelector))}}
@@ -37,18 +38,18 @@ public class AggregateBy(int 番号, Enumerable source, FuncFragment keySelector
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector,func)}";
     public override string GetEnumeratorFields => $$"""
-        private global::System.Collections.Generic.Dictionary<{{this.KeyType}}, {{FuncReturnTypeName(func)}}>? {{this.lookup}};
-        private global::System.Collections.Generic.Dictionary<{{this.KeyType}}, {{FuncReturnTypeName(func)}}>.Enumerator {{this.innerEnumerator}};
+        private global::Seamless.System.Carrier.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>? {{this.lookup}};
+        private global::Seamless.System.Carrier.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>.Enumerator {{this.innerEnumerator}};
         """;
     public override string GetTryGetNextBody => $$"""
         if(this.{{this.lookup}} is null) {
             if({{this.e}}.TryGetSpan(out var __span)) {
-                this.{{this.lookup}}=new global::System.Collections.Generic.Dictionary<{{this.KeyType}}, {{FuncReturnTypeName(func)}}>({{CapacityExpression("__span.Length")}});
+                this.{{this.lookup}}=new global::Seamless.System.Carrier.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>({{CapacityExpression("__span.Length")}});
                 for(var __i=0;__i<__span.Length;__i++) {
                     var {{this.item}}=__span[__i];
                     {{this.KeyType}} {{this.key}}=default!;
                     {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
-                    ref var __agg=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{this.lookup}},{{this.key}},out var __exists);
+                    ref var __agg=ref this.{{this.lookup}}.GetValueRefOrAddDefault({{this.key}},out var __exists);
                     if(!__exists) {
                         __agg={{seed}};
                     }
@@ -56,15 +57,15 @@ public class AggregateBy(int 番号, Enumerable source, FuncFragment keySelector
                 }
             }else{
                 if({{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
-                    this.{{this.lookup}}=new global::System.Collections.Generic.Dictionary<{{this.KeyType}}, {{FuncReturnTypeName(func)}}>({{CapacityExpression("__count")}});
+                    this.{{this.lookup}}=new global::Seamless.System.Carrier.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>({{CapacityExpression("__count")}});
                 }else{
-                    this.{{this.lookup}}=new global::System.Collections.Generic.Dictionary<{{this.KeyType}}, {{FuncReturnTypeName(func)}}>();
+                    this.{{this.lookup}}=new global::Seamless.System.Carrier.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>();
                 }
                 while({{this.e}}.MoveNext()) {
                     var {{this.item}}={{this.e}}.Current;
                     {{this.KeyType}} {{this.key}}=default!;
                     {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
-                    ref var __agg=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{this.lookup}},{{this.key}},out var __exists);
+                    ref var __agg=ref this.{{this.lookup}}.GetValueRefOrAddDefault({{this.key}},out var __exists);
                     if(!__exists) {
                         __agg={{seed}};
                     }
@@ -73,8 +74,7 @@ public class AggregateBy(int 番号, Enumerable source, FuncFragment keySelector
             }
             this.{{this.innerEnumerator}}=this.{{this.lookup}}.GetEnumerator();
         }
-        if(this.{{this.innerEnumerator}}.MoveNext()) {
-            var __kv=this.{{this.innerEnumerator}}.Current;
+        if(this.{{this.innerEnumerator}}.TryGetNext(out var __kv)) {
             current=this.{{this.currentValue}}=new {{resultElementType}}(__kv.Key,__kv.Value);
             return true;
         }
@@ -83,5 +83,6 @@ public class AggregateBy(int 番号, Enumerable source, FuncFragment keySelector
         """;
     public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => resultElementType;
+    protected override string GetEnumeratorDisposeBody => $"this.{this.lookup}?.Dispose(); {this.e}.Dispose();";
 
 }

@@ -731,7 +731,7 @@ internal sealed class BenchmarkOrchestrator(
             SourceTab=sourceTab,
             ElementCount=BenchmarkWorkloadAxis.ResolveElementCount(sourceTab,elementCount),
             LoopCount=BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab,elementCount),
-            PreparedElementCounts=preparedElementCounts.Distinct().Order().ToList(),
+            PreparedElementCounts=BenchmarkWorkloadAxis.ResolvePreparedElementCounts(sourceTab,preparedElementCounts).ToList(),
             RunItemIndex=runItemIndex,
             BindingRowIndex=benchmark.BindingRowIndex,
         };
@@ -840,7 +840,7 @@ internal sealed class BenchmarkOrchestrator(
         ProgressState state,
         IReadOnlyList<BenchmarkJob> jobs,
         Action<BenchmarkProgressUpdate> progress) {
-        const string reason = "The target measurement duration could not be reached at LoopCount=int.MaxValue.";
+        const string reason = "ループ回数がint.MaxValueに達しても目標測定時間へ到達できませんでした。";
         BenchmarkJob[] failedJobs;
         lock(this.stateGate) {
             failedJobs=jobs.Where(static job => job.Status==JobStatus.Completed).ToArray();
@@ -895,7 +895,7 @@ internal sealed class BenchmarkOrchestrator(
 
     private static string CreateAxisStatusText(BenchmarkJob job) =>
         BenchmarkWorkloadAxis.UsesLoopCount(job.SourceTab)
-            ? "Loop="+job.LoopCount.ToString(CultureInfo.InvariantCulture)+" / N="+job.ElementCount.ToString(CultureInfo.InvariantCulture)
+            ? "ループ回数="+job.LoopCount.ToString(CultureInfo.InvariantCulture)+" / N="+job.ElementCount.ToString(CultureInfo.InvariantCulture)
             : "N="+job.ElementCount.ToString(CultureInfo.InvariantCulture);
 
     private static IReadOnlyList<int> NormalizeCpus(IReadOnlyList<int> cpus) =>
@@ -958,9 +958,9 @@ internal static class BenchmarkElementCounts {
         [BaseElementCount];
 #else
     public static IReadOnlyList<int> All { get; } =
-        [BaseElementCount];
+        [BenchmarkWorkloadAxis.DefaultLoopCount];
 
     public static IReadOnlyList<int> DefaultInitial { get; } =
-        [BaseElementCount];
+        [BenchmarkWorkloadAxis.DefaultLoopCount];
 #endif
 }

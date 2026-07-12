@@ -177,7 +177,7 @@ public sealed class CpuPresetCatalog{
         var comparison = Assert.Single(BenchmarkComparisonFormatter.BuildComparisonRows(rows));
 
         Assert.Equal("1.25",comparison.PairRatio.TimeRatio.DisplayText);
-        Assert.Equal("+",comparison.PairRatio.AllocatedRatio.DisplayText);
+        Assert.Equal("1.00:0.00",comparison.PairRatio.AllocatedShare.DisplayText);
         Assert.Equal(BenchmarkSourceTab.SystemArray,comparison.SourceTab.Tab);
     }
 

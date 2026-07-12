@@ -13,6 +13,7 @@
     <RootNamespace>Benchmark.Persisted.Linq.Enumerable.FLinq</RootNamespace>
     <AssemblyName>Benchmark.Persisted.Linq.Enumerable.FLinq</AssemblyName>
     <Persisted>true</Persisted>
+    <DefineConstants>$(DefineConstants);PERSISTED</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="artifacts\**" />
@@ -37,4 +38,3 @@
   </ItemGroup>
   <Import Project="..\..\Shared\Seamless.Linq.Enumerable\Seamless.Linq.Enumerable.projitems" Label="Shared" />
 </Project>
-

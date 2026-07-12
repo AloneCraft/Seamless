@@ -79,7 +79,7 @@ public abstract class Fragment(
     private protected string innerEnumerator => $"__ie{番号}";
     // struct closure: 含有クラスの完全修飾型名。null なら @this 不使用。
     public string? ContainingTypeName { get; set; }
-    // 含有型がジェネリック（例: Methods1<T>）のとき、その型パラメータ名（例: ["T"]）。
+    // 含有型がジェネリック（例: Base<T>）のとき、その型パラメータ名（例: ["T"]）。
     // 生成する補助 struct/enumerator を <T> でパラメータ化するために伝播する。
     // 傍受メソッド自体がこの型パラメータを持つジェネリック静的メソッドとして生成されるので、
     // その中で使う struct も同じ型パラメータで単相化する必要がある。

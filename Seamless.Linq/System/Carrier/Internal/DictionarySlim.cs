@@ -3,7 +3,8 @@ namespace Seamless.System.Carrier.Internal;
 
 // Lightweight dictionary implementation optimized for performance
 // with minimal API surface focused on the specific use case
-internal sealed class DictionarySlim<TKey, TValue> : IDisposable // allows TKey null
+[EditorBrowsable(EditorBrowsableState.Never)]
+public sealed class DictionarySlim<TKey,TValue>:IDisposable // allows TKey null
 {
     private const int MinimumSize = 16; // minimum arraypool size(power of 2)
     private const double LoadFactor = 0.72;
@@ -59,7 +60,7 @@ internal sealed class DictionarySlim<TKey, TValue> : IDisposable // allows TKey 
 
         // add phase
         exists = false;
-        if (this.entryIndex >this.resizeThreshold)
+        if(this.entryIndex>=this.resizeThreshold)
         {
             this.Resize();
             // Need to recalculate bucket after resize

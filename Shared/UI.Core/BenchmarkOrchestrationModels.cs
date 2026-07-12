@@ -9,8 +9,9 @@ public sealed class BenchmarkCase {
         string project,
         string assemblyName,
         string typeFullName,
-        string methodName)
-        : this(project,assemblyName,typeFullName,methodName,string.Empty,[]) {
+        string methodName,
+        string benchmarkPath="")
+        : this(project,assemblyName,typeFullName,methodName,string.Empty,[],benchmarkPath) {
     }
 
     public BenchmarkCase(
@@ -19,13 +20,15 @@ public sealed class BenchmarkCase {
         string typeFullName,
         string methodName,
         string argumentKey,
-        IReadOnlyList<BenchmarkArgument> arguments) {
+        IReadOnlyList<BenchmarkArgument> arguments,
+        string benchmarkPath="") {
         this.Project=project;
         this.AssemblyName=assemblyName;
         this.TypeFullName=typeFullName;
         this.MethodName=methodName;
         this.ArgumentKey=argumentKey;
         this.Arguments=arguments;
+        this.BenchmarkPath=benchmarkPath;
     }
 
     public string Project { get; }
@@ -34,6 +37,7 @@ public sealed class BenchmarkCase {
     public string MethodName { get; }
     public string ArgumentKey { get; }
     public IReadOnlyList<BenchmarkArgument> Arguments { get; }
+    public string BenchmarkPath { get; }
     public int BindingRowIndex { get; init; } = -1;
     public string DisplayName => $"{this.Project} / {this.MethodName}";
     public int CountArgument => BenchmarkArgumentFormatting.GetInt(this.Arguments,"Count");

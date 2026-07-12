@@ -6,7 +6,7 @@ namespace Test.BenchmarkWorker;
 public sealed class BenchmarkOrchestrator{
     private const int PreviousCompletedAxisCount = 1024;
     private const int RunningAxisCount = 2048;
-    private const int FixedBenchmarkAxisCount = BenchmarkElementCounts.BaseElementCount;
+    private const int FixedBenchmarkAxisCount = BenchmarkWorkloadAxis.DefaultLoopCount;
     private const double FastLeftMeanNanoseconds = 876_100;
     private const double SlowRightMeanNanoseconds = 1_406_300;
     private const double BaselineMeanNanoseconds = 900_000;
@@ -1342,18 +1342,21 @@ public sealed class BenchmarkOrchestrator{
     }
 
     [Fact]
-    public void BenchmarkElementCountLogic_BuildAdaptiveCandidates_UsesOneToSelectedMaximum(){
+    public void BenchmarkElementCountLogic_BuildAdaptiveCandidates_StartsStandardLoopCountAtOne(){
         var candidates = BenchmarkElementCountLogic.BuildAdaptiveCandidates(BenchmarkElementCounts.All,BenchmarkElementCounts.BaseElementCount);
 
-        Assert.Equal([BenchmarkElementCounts.BaseElementCount],candidates);
+        Assert.Equal([BenchmarkWorkloadAxis.DefaultLoopCount],candidates);
     }
 
     [Fact]
-    public void BenchmarkElementCounts_StartsAdaptiveWorkloadAtBaseElementCount(){
-        Assert.Contains(BenchmarkElementCounts.BaseElementCount,BenchmarkElementCounts.All);
-        Assert.Equal(BenchmarkElementCounts.BaseElementCount,BenchmarkElementCounts.DefaultInitial[0]);
-        Assert.Equal([BenchmarkElementCounts.BaseElementCount],BenchmarkElementCounts.DefaultInitial);
-        Assert.Equal(FixedBenchmarkAxisCount,BenchmarkElementCounts.BaseElementCount);
+    public void BenchmarkElementCounts_SeparatesStandardElementCountAndLoopCount(){
+        Assert.Equal([BenchmarkWorkloadAxis.DefaultLoopCount],BenchmarkElementCounts.All);
+        Assert.Equal([BenchmarkWorkloadAxis.DefaultLoopCount],BenchmarkElementCounts.DefaultInitial);
+        Assert.Equal(BenchmarkWorkloadAxis.StandardElementCount,BenchmarkElementCounts.BaseElementCount);
+        Assert.Equal(BenchmarkWorkloadAxis.DefaultLoopCount,FixedBenchmarkAxisCount);
+        Assert.Equal(BenchmarkWorkloadAxis.StandardElementCount,BenchmarkWorkloadAxis.ResolveElementCount(BenchmarkSourceTab.SystemArray,1));
+        Assert.Equal(4,BenchmarkWorkloadAxis.ResolveLoopCount(BenchmarkSourceTab.SystemArray,4));
+        Assert.Equal([BenchmarkWorkloadAxis.StandardElementCount],BenchmarkWorkloadAxis.ResolvePreparedElementCounts(BenchmarkSourceTab.SystemArray,[1,2,4]));
     }
 
     [Fact]
@@ -1553,6 +1556,5 @@ public sealed class BenchmarkOrchestrator{
         }
     }
 }
-
 
 

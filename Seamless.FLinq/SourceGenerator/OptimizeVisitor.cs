@@ -295,7 +295,9 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         var e=new AnonymousToRecordRewriter().Visit(expression) as ExpressionSyntax??expression;
         e=new QueryToExtensionMethodRewriter().Visit(e) as ExpressionSyntax??e;
         e=new ExtensionToStaticRewriter().Visit(e) as ExpressionSyntax??e;
-        e=new OptimizeVisitor().Visit(e) as ExpressionSyntax??e;
+        if((LinqOptimizationContext.Current&LinqOptimizations.PredicatePushdown)!=0) {
+            e=new OptimizeVisitor().Visit(e) as ExpressionSyntax??e;
+        }
         return new RecordToAnonymousRewriter().Visit(e) as ExpressionSyntax??e;
     }
     public static TSyntax RewriteQueriesToExtensionMethods<TSyntax>(TSyntax syntax) where TSyntax:SyntaxNode {

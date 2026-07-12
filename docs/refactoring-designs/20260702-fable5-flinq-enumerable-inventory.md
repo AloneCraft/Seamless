@@ -19,7 +19,7 @@ FLinq は「静かなフォールバック経路を作らない」方針で実�
 1. **コンパイル時**: intercept 対象だが展開できなかった呼び出しは、生成インターセプターが
    `GeneratedCodeHelpers.LinqInterceptorFailure(...)` を throw するコードになり、`Tsavorite002` 警告が出る。
 2. **生成コード検査**: `Test.SourceGenerator.FallbackDiagnostics.GeneratedInterceptors_ContainNoFallbackFailure` が
-   `Work\Generated\Test` 配下の生成インターセプターを走査し、`LinqInterceptorFailure` の残存を fail にする。
+   `Test\obj\<Configuration>\net10.0\generated` 配下の生成インターセプターを走査し、`LinqInterceptorFailure` の残存を fail にする。
 3. **実行時診断**: `LinqCounter.EnumerableFallback` / `EnumerableFallbackDetails` を追加した。
    `LinqInterceptorFailure` の構築時に加算されるため、実行後にカウンタが 0 なら fallback 未発生。
    ベンチマーク実行では `UiRunStore.SaveFallbackDiagnostics` → `BenchmarkFallbackDiagnostics` View で SQLite に保存・集計できる。

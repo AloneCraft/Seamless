@@ -86,16 +86,15 @@ public sealed partial class FLinqIncrementalGenerator {
     private static string インターセプター型ソース構築(ImmutableArray<Linq傍受対象型> targets,List<Diagnostic> diagnostics) {
         var builder = new StringBuilder();
         var typeStack = 型スタック取得(targets[0].EnclosingType);
-        foreach (var t in typeStack)
-        {
-            builder.AppendLine($"internal static partial class {SanitizeIdentifier(t.Name)} {{");
-        }
+        var interceptorTypeName=string.Join("_",typeStack.Select(static type=>SanitizeIdentifier(type.Name)));
+        builder.AppendLine($"internal static partial class {interceptorTypeName} {{");
 
         var emittedMethodNames = new HashSet<string>(StringComparer.Ordinal);
         var emittedUnsafeAccessors = new HashSet<string>(StringComparer.Ordinal);
         foreach(var target in targets) {
             try {
                 if(target.IsLocalMethodInterception) {
+                    using var optimizationScope=LinqOptimizationContext.Enter(target.Optimizations);
                     var ローカル静的メソッド群 = string.Empty;
                     var ローカル本体 = string.Empty;
                     var builtLocalMethodBody = target.OptimizeLinq
@@ -159,9 +158,7 @@ public sealed partial class FLinqIncrementalGenerator {
             }
         }
 
-        for(var i = typeStack.Count-1; i>=0; i--) {
-            builder.AppendLine("}");
-        }
+        builder.AppendLine("}");
         return builder.ToString();
     }
 

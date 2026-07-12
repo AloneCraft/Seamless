@@ -20,6 +20,22 @@ public sealed class BenchmarkChartSelectionLayoutLogic{
     }
 
     [Fact]
+    public void CreateShareTexts_UsesEvenSharesWhenBothValuesAreZero(){
+        var texts = global::UI.BenchmarkChartSelectionLayoutLogic.CreateShareTexts(0,0);
+
+        Assert.Equal("0.50",texts.LeftText);
+        Assert.Equal("0.50",texts.RightText);
+    }
+
+    [Fact]
+    public void CreateBarRects_UsesHalfWidthWhenBothValuesAreZero(){
+        var rects = global::UI.BenchmarkChartSelectionLayoutLogic.CreateBarRects(100,500,0,0);
+
+        Assert.Equal(300,rects.LeftBarRect.Right);
+        Assert.Equal(300,rects.RightBarRect.Left);
+    }
+
+    [Fact]
     public void CreateRatio_UsesMeasurementRatioNotShare(){
         var ratio = global::UI.BenchmarkChartSelectionLayoutLogic.CreateRatio(1.38,1.24);
         var shareTexts = global::UI.BenchmarkChartSelectionLayoutLogic.CreateShareTexts(1.38,1.24);

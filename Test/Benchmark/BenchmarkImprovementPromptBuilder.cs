@@ -5,23 +5,23 @@ public sealed class BenchmarkImprovementPromptBuilder{
     [Fact]
     public void CreateSummary_CalculatesSeparateGeometricMeansAndCounts(){
         var rows = new[]{
-            Row("A",global::UI.RatioValue.FromNumeric(2),global::UI.RatioValue.FromNumeric(4)),
-            Row("B",global::UI.RatioValue.FromNumeric(8),global::UI.RatioValue.Missing),
-            Row("C",global::UI.RatioValue.Missing,global::UI.RatioValue.FromNumeric(16)),
-            Row("D",new global::UI.RatioValue(global::UI.RatioValueKind.Numeric,double.PositiveInfinity,"inf",global::UI.RatioJudgement.LeftLose),new global::UI.RatioValue(global::UI.RatioValueKind.Numeric,0,"0",global::UI.RatioJudgement.LeftWin)),
+            Row("A",global::UI.RatioValue.FromNumeric(2),global::UI.AllocationShareValue.FromLeftShare(0.8)),
+            Row("B",global::UI.RatioValue.FromNumeric(8),global::UI.AllocationShareValue.Missing),
+            Row("C",global::UI.RatioValue.Missing,global::UI.AllocationShareValue.FromLeftShare(0.6)),
+            Row("D",new global::UI.RatioValue(global::UI.RatioValueKind.Numeric,double.PositiveInfinity,"inf",global::UI.RatioJudgement.LeftLose),global::UI.AllocationShareValue.Missing),
         };
 
         var summary = global::UI.BenchmarkImprovementPromptBuilder.CreateSummary(rows);
 
         Assert.Equal(4,summary.TimeGeometricMean!.Value,6);
-        Assert.Equal(8,summary.AllocatedGeometricMean!.Value,6);
+        Assert.Equal(0.7,summary.AllocatedLeftMean!.Value,6);
         Assert.Equal(2,summary.TimeIncludedCount);
         Assert.Equal(2,summary.TimeExcludedCount);
         Assert.Equal(2,summary.AllocatedIncludedCount);
         Assert.Equal(2,summary.AllocatedExcludedCount);
-        Assert.Equal("時間比 4.00 (対象 2 / 除外 2) / メモリ比 8.00 (対象 2 / 除外 2)",summary.DisplayText);
-        Assert.Equal("全体 時間比 4.00 (対象 2 / 除外 2) / メモリ比 8.00 (対象 2 / 除外 2)",summary.OverallDisplayText);
-        Assert.Equal("時間比 4.00,メモリ比 8.00",summary.ShortDisplayText);
+        Assert.Equal("時間比 4.00 (対象 2 / 除外 2) / メモリシェア 0.70:0.30 (対象 2 / 除外 2)",summary.DisplayText);
+        Assert.Equal("全体 時間比 4.00 (対象 2 / 除外 2) / メモリシェア 0.70:0.30 (対象 2 / 除外 2)",summary.OverallDisplayText);
+        Assert.Equal("時間比 4.00,メモリシェア 0.70:0.30",summary.ShortDisplayText);
     }
 
     [Fact]
@@ -29,13 +29,13 @@ public sealed class BenchmarkImprovementPromptBuilder{
         var summary = global::UI.BenchmarkImprovementPromptBuilder.CreateSummary([]);
 
         Assert.Null(summary.TimeGeometricMean);
-        Assert.Null(summary.AllocatedGeometricMean);
+        Assert.Null(summary.AllocatedLeftMean);
         Assert.Equal(0,summary.TimeIncludedCount);
         Assert.Equal(0,summary.TimeExcludedCount);
         Assert.Equal(0,summary.AllocatedIncludedCount);
         Assert.Equal(0,summary.AllocatedExcludedCount);
-        Assert.Equal("全体 時間比 - (対象 0 / 除外 0) / メモリ比 - (対象 0 / 除外 0)",summary.OverallDisplayText);
-        Assert.Equal("時間比 -,メモリ比 -",summary.ShortDisplayText);
+        Assert.Equal("全体 時間比 - (対象 0 / 除外 0) / メモリシェア - (対象 0 / 除外 0)",summary.OverallDisplayText);
+        Assert.Equal("時間比 -,メモリシェア -",summary.ShortDisplayText);
     }
 
     [Fact]
@@ -65,7 +65,7 @@ public sealed class BenchmarkImprovementPromptBuilder{
 
         Assert.False(candidate.HasTimeRegression);
         Assert.True(candidate.HasAllocatedRegression);
-        Assert.Equal(5,candidate.AllocatedRatio.NumericValue);
+        Assert.Equal(5.0/6.0,candidate.AllocatedShare.LeftShare!.Value,6);
     }
 
     [Fact]
@@ -79,10 +79,10 @@ public sealed class BenchmarkImprovementPromptBuilder{
 
         var candidates = global::UI.BenchmarkImprovementCandidateBuilder.BuildCandidates(state);
 
-        Assert.Equal("Where_allocated",candidates[0].MethodName);
-        Assert.Equal(6,candidates[0].AllocatedRatio.NumericValue);
-        Assert.Equal("Aggregate_time",candidates[1].MethodName);
-        Assert.Equal(2.5,candidates[1].TimeRatio.NumericValue);
+        Assert.Equal("Aggregate_time",candidates[0].MethodName);
+        Assert.Equal(2.5,candidates[0].TimeRatio.NumericValue);
+        Assert.Equal("Where_allocated",candidates[1].MethodName);
+        Assert.Equal(6.0/7.0,candidates[1].AllocatedShare.LeftShare!.Value,6);
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public sealed class BenchmarkImprovementPromptBuilder{
             ExitCode=0,
         };
 
-    private static global::UI.BenchmarkComparisonRow Row(string benchmark,global::UI.RatioValue timeRatio,global::UI.RatioValue allocatedRatio){
+    private static global::UI.BenchmarkComparisonRow Row(string benchmark,global::UI.RatioValue timeRatio,global::UI.AllocationShareValue allocatedShare){
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var definition = new global::UI.ComparisonPairDefinition(
             sourceTab.Id,
@@ -168,7 +168,7 @@ public sealed class BenchmarkImprovementPromptBuilder{
                 global::UI.ProjectMetrics.Missing,
                 global::UI.ProjectMetrics.Missing,
                 timeRatio,
-                allocatedRatio),
+                allocatedShare),
         };
     }
 }

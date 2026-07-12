@@ -29,30 +29,8 @@ internal abstract class ToLookupBase(int 番号,Enumerable source,string resultT
     protected override string ComputeMembers=>string.Empty;
     protected override string ComputeExpression=>throw new NotSupportedException();
 
-    protected static string CapacityExpression(FuncFragment keySelector,string sourceCountExpression) => sourceCountExpression;
-
-    protected static string LookupImpl(string elementType,string keyType)=>$$"""
-        private sealed class TsavoriteGrouping:global::System.Linq.IGrouping<{{keyType}},{{elementType}}>{
-            private readonly {{keyType}} key;
-            private readonly global::System.Collections.Generic.List<{{elementType}}> elements;
-            public TsavoriteGrouping({{keyType}} key,global::System.Collections.Generic.List<{{elementType}}> elements){this.key=key;this.elements=elements;}
-            public {{keyType}} Key=>this.key;
-            public global::System.Collections.Generic.IEnumerator<{{elementType}}> GetEnumerator()=>this.elements.GetEnumerator();
-            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator()=>GetEnumerator();
-        }
-        private sealed class TsavoriteLookup:global::System.Linq.ILookup<{{keyType}},{{elementType}}>{
-            private readonly global::System.Collections.Generic.Dictionary<{{keyType}},global::System.Collections.Generic.List<{{elementType}}>> map;
-            private readonly global::System.Collections.Generic.List<{{keyType}}> order;
-            public TsavoriteLookup(global::System.Collections.Generic.Dictionary<{{keyType}},global::System.Collections.Generic.List<{{elementType}}>> map,global::System.Collections.Generic.List<{{keyType}}> order){this.map=map;this.order=order;}
-            public int Count=>this.map.Count;
-            public global::System.Collections.Generic.IEnumerable<{{elementType}}> this[{{keyType}} key]=>this.map.TryGetValue(key,out var g)?g:global::System.Linq.Enumerable.Empty<{{elementType}}>();
-            public bool Contains({{keyType}} key)=>this.map.ContainsKey(key);
-            public global::System.Collections.Generic.IEnumerator<global::System.Linq.IGrouping<{{keyType}},{{elementType}}>> GetEnumerator(){
-                foreach(var k in this.order) yield return new TsavoriteGrouping(k,this.map[k]);
-            }
-            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator()=>GetEnumerator();
-        }
-        """;
+    protected static string CapacityExpression(FuncFragment keySelector,string sourceCountExpression) =>
+        $"global::System.Math.Min({sourceCountExpression},1024)";
 }
 
 internal class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment keySelector,string resultType):ToLookupBase(番号,source,resultType){
@@ -68,44 +46,33 @@ internal class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment ke
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => $$"""
-            {{LookupImpl(source.ElementType,FuncReturnTypeName(keySelector))}}
             private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}) {
                 var __hasSpan=source.TryGetSpan(out var __span);
                 var __capacity=__hasSpan
                     ? {{CapacityExpression(keySelector,"__span.Length")}}
                     : source.TryGetNonEnumeratedCount(out var __count) ? {{CapacityExpression(keySelector,"__count")}} : 0;
-                var map = __capacity>0
-                    ? new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{source.ElementType}}>>(__capacity)
-                    : new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{source.ElementType}}>>();
-                var order = __capacity>0
-                    ? new global::System.Collections.Generic.List<{{FuncReturnTypeName(keySelector)}}>(__capacity)
-                    : new global::System.Collections.Generic.List<{{FuncReturnTypeName(keySelector)}}>();
+                var builder=new global::Seamless.System.Carrier.LookupBuilder<{{FuncReturnTypeName(keySelector)}},{{source.ElementType}}>(__capacity,null);
+                try {
                 if(__hasSpan) {
                     for(var __i=0;__i<__span.Length;__i++) {
                         var {{this.item}} = __span[__i];
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
                         {{this.FuncAssignIndented("            ",keySelector, nameof(keySelector),this.key,this.item)}}
-                        ref var {{this.group}}=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{this.key}},out var __exists);
-                        if(!__exists) {
-                            {{this.group}} = new global::System.Collections.Generic.List<{{source.ElementType}}>();
-                            order.Add({{this.key}});
-                        }
-                        {{this.group}}.Add({{this.item}});
+                        builder.Add({{this.key}},{{this.item}});
                     }
                 } else {
                     while(source.MoveNext()) {
                         var {{this.item}} = source.Current;
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
                         {{this.FuncAssignIndented("            ",keySelector, nameof(keySelector),this.key,this.item)}}
-                        ref var {{this.group}}=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{this.key}},out var __exists);
-                        if(!__exists) {
-                            {{this.group}} = new global::System.Collections.Generic.List<{{source.ElementType}}>();
-                            order.Add({{this.key}});
-                        }
-                        {{this.group}}.Add({{this.item}});
+                        builder.Add({{this.key}},{{this.item}});
                     }
                 }
-                return new TsavoriteLookup(map, order);
+                return builder.BuildAndClear();
+                } catch {
+                    builder.Dispose();
+                    throw;
+                }
             }
             """;
 }
@@ -125,18 +92,13 @@ internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => $$"""
-            {{LookupImpl(FuncReturnTypeName(elementSelector),FuncReturnTypeName(keySelector))}}
             private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector, elementSelector)}}) {
                 var __hasSpan=source.TryGetSpan(out var __span);
                 var __capacity=__hasSpan
                     ? {{CapacityExpression(keySelector,"__span.Length")}}
                     : source.TryGetNonEnumeratedCount(out var __count) ? {{CapacityExpression(keySelector,"__count")}} : 0;
-                var map = __capacity>0
-                    ? new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{FuncReturnTypeName(elementSelector)}}>>(__capacity)
-                    : new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{FuncReturnTypeName(elementSelector)}}>>();
-                var order = __capacity>0
-                    ? new global::System.Collections.Generic.List<{{FuncReturnTypeName(keySelector)}}>(__capacity)
-                    : new global::System.Collections.Generic.List<{{FuncReturnTypeName(keySelector)}}>();
+                var builder=new global::Seamless.System.Carrier.LookupBuilder<{{FuncReturnTypeName(keySelector)}},{{FuncReturnTypeName(elementSelector)}}>(__capacity,null);
+                try {
                 if(__hasSpan) {
                     for(var __i=0;__i<__span.Length;__i++) {
                         var {{this.item}} = __span[__i];
@@ -144,12 +106,7 @@ internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source
                         {{this.FuncAssignIndented("            ",keySelector, nameof(keySelector),this.key,this.item)}}
                         {{FuncReturnTypeName(elementSelector)}} {{this.temp}} = default!;
                         {{this.FuncAssignIndented("            ",elementSelector, nameof(elementSelector),this.temp,this.item)}}
-                        ref var {{this.group}}=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{this.key}},out var __exists);
-                        if(!__exists) {
-                            {{this.group}} = new global::System.Collections.Generic.List<{{FuncReturnTypeName(elementSelector)}}>();
-                            order.Add({{this.key}});
-                        }
-                        {{this.group}}.Add({{this.temp}});
+                        builder.Add({{this.key}},{{this.temp}});
                     }
                 } else {
                     while(source.MoveNext()) {
@@ -158,15 +115,14 @@ internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source
                         {{this.FuncAssignIndented("            ",keySelector, nameof(keySelector),this.key,this.item)}}
                         {{FuncReturnTypeName(elementSelector)}} {{this.temp}} = default!;
                         {{this.FuncAssignIndented("            ",elementSelector, nameof(elementSelector),this.temp,this.item)}}
-                        ref var {{this.group}}=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{this.key}},out var __exists);
-                        if(!__exists) {
-                            {{this.group}} = new global::System.Collections.Generic.List<{{FuncReturnTypeName(elementSelector)}}>();
-                            order.Add({{this.key}});
-                        }
-                        {{this.group}}.Add({{this.temp}});
+                        builder.Add({{this.key}},{{this.temp}});
                     }
                 }
-                return new TsavoriteLookup(map, order);
+                return builder.BuildAndClear();
+                } catch {
+                    builder.Dispose();
+                    throw;
+                }
             }
             """;
 }
@@ -187,44 +143,33 @@ internal class ToLookup_keySelector_comparer(int 番号,Enumerable source,FuncFr
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderComputeInline(destVar,destType,$"{comparer}{this.ClosureArgsSuffix(keySelector)}");
     protected override string ComputeMembers => $$"""
-            {{LookupImpl(source.ElementType,FuncReturnTypeName(keySelector))}}
             private static {{resultType}} Compute(TEnum source, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector)}}) {
                 var __hasSpan=source.TryGetSpan(out var __span);
                 var __capacity=__hasSpan
                     ? {{CapacityExpression(keySelector,"__span.Length")}}
                     : source.TryGetNonEnumeratedCount(out var __count) ? {{CapacityExpression(keySelector,"__count")}} : 0;
-                var map = __capacity>0
-                    ? new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{source.ElementType}}>>(__capacity,comparer)
-                    : new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{source.ElementType}}>>(comparer);
-                var order = __capacity>0
-                    ? new global::System.Collections.Generic.List<{{FuncReturnTypeName(keySelector)}}>(__capacity)
-                    : new global::System.Collections.Generic.List<{{FuncReturnTypeName(keySelector)}}>();
+                var builder=new global::Seamless.System.Carrier.LookupBuilder<{{FuncReturnTypeName(keySelector)}},{{source.ElementType}}>(__capacity,comparer);
+                try {
                 if(__hasSpan) {
                     for(var __i=0;__i<__span.Length;__i++) {
                         var {{this.item}} = __span[__i];
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
                         {{this.FuncAssignIndented("            ",keySelector, nameof(keySelector),this.key,this.item)}}
-                        ref var {{this.group}}=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{this.key}},out var __exists);
-                        if(!__exists) {
-                            {{this.group}} = new global::System.Collections.Generic.List<{{source.ElementType}}>();
-                            order.Add({{this.key}});
-                        }
-                        {{this.group}}.Add({{this.item}});
+                        builder.Add({{this.key}},{{this.item}});
                     }
                 } else {
                     while(source.MoveNext()) {
                         var {{this.item}} = source.Current;
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
                         {{this.FuncAssignIndented("            ",keySelector, nameof(keySelector),this.key,this.item)}}
-                        ref var {{this.group}}=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{this.key}},out var __exists);
-                        if(!__exists) {
-                            {{this.group}} = new global::System.Collections.Generic.List<{{source.ElementType}}>();
-                            order.Add({{this.key}});
-                        }
-                        {{this.group}}.Add({{this.item}});
+                        builder.Add({{this.key}},{{this.item}});
                     }
                 }
-                return new TsavoriteLookup(map, order);
+                return builder.BuildAndClear();
+                } catch {
+                    builder.Dispose();
+                    throw;
+                }
             }
             """;
 }
@@ -245,18 +190,13 @@ internal class ToLookup_keySelector_elementSelector_comparer(int 番号,Enumerab
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderComputeInline(destVar,destType,$"{comparer}{this.ClosureArgsSuffix(keySelector, elementSelector)}");
     protected override string ComputeMembers => $$"""
-            {{LookupImpl(FuncReturnTypeName(elementSelector),FuncReturnTypeName(keySelector))}}
             private static {{resultType}} Compute(TEnum source, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector, elementSelector)}}) {
                 var __hasSpan=source.TryGetSpan(out var __span);
                 var __capacity=__hasSpan
                     ? {{CapacityExpression(keySelector,"__span.Length")}}
                     : source.TryGetNonEnumeratedCount(out var __count) ? {{CapacityExpression(keySelector,"__count")}} : 0;
-                var map = __capacity>0
-                    ? new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{FuncReturnTypeName(elementSelector)}}>>(__capacity,comparer)
-                    : new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, global::System.Collections.Generic.List<{{FuncReturnTypeName(elementSelector)}}>>(comparer);
-                var order = __capacity>0
-                    ? new global::System.Collections.Generic.List<{{FuncReturnTypeName(keySelector)}}>(__capacity)
-                    : new global::System.Collections.Generic.List<{{FuncReturnTypeName(keySelector)}}>();
+                var builder=new global::Seamless.System.Carrier.LookupBuilder<{{FuncReturnTypeName(keySelector)}},{{FuncReturnTypeName(elementSelector)}}>(__capacity,comparer);
+                try {
                 if(__hasSpan) {
                     for(var __i=0;__i<__span.Length;__i++) {
                         var {{this.item}} = __span[__i];
@@ -264,12 +204,7 @@ internal class ToLookup_keySelector_elementSelector_comparer(int 番号,Enumerab
                         {{this.FuncAssignIndented("            ",keySelector, nameof(keySelector),this.key,this.item)}}
                         {{FuncReturnTypeName(elementSelector)}} {{this.temp}} = default!;
                         {{this.FuncAssignIndented("            ",elementSelector, nameof(elementSelector),this.temp,this.item)}}
-                        ref var __group=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{this.key}},out var __exists);
-                        if(!__exists) {
-                            __group = new global::System.Collections.Generic.List<{{FuncReturnTypeName(elementSelector)}}>();
-                            order.Add({{this.key}});
-                        }
-                        __group.Add({{this.temp}});
+                        builder.Add({{this.key}},{{this.temp}});
                     }
                 } else {
                     while(source.MoveNext()) {
@@ -278,15 +213,14 @@ internal class ToLookup_keySelector_elementSelector_comparer(int 番号,Enumerab
                         {{this.FuncAssignIndented("            ",keySelector, nameof(keySelector),this.key,this.item)}}
                         {{FuncReturnTypeName(elementSelector)}} {{this.temp}} = default!;
                         {{this.FuncAssignIndented("            ",elementSelector, nameof(elementSelector),this.temp,this.item)}}
-                        ref var __group=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(map,{{this.key}},out var __exists);
-                        if(!__exists) {
-                            __group = new global::System.Collections.Generic.List<{{FuncReturnTypeName(elementSelector)}}>();
-                            order.Add({{this.key}});
-                        }
-                        __group.Add({{this.temp}});
+                        builder.Add({{this.key}},{{this.temp}});
                     }
                 }
-                return new TsavoriteLookup(map, order);
+                return builder.BuildAndClear();
+                } catch {
+                    builder.Dispose();
+                    throw;
+                }
             }
             """;
 }

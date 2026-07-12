@@ -78,6 +78,24 @@ internal static class BenchmarkAnalysisViewMapper{
                     .ToArray()))
             .ToArray();
 
+    public static IReadOnlyList<BenchmarkTrendSeries> MapMemoryShareHistory(IReadOnlyList<IReadOnlyDictionary<string,object?>> rows,int maxSeries = int.MaxValue) =>
+        rows.GroupBy(row => GetText(row,"SourceTab")+" / "+GetText(row,"Type")+" / "+GetText(row,"Benchmark"),StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(g => g.Max(row => GetDouble(row,"LeftShare")))
+            .Take(maxSeries)
+            .SelectMany(g => new[]{
+                new BenchmarkTrendSeries(
+                    g.Key+" / Left",
+                    g.OrderBy(row => GetDouble(row,"RunId"))
+                        .Select(row => new BenchmarkTrendPoint(GetDouble(row,"RunId"),GetDouble(row,"LeftShare")))
+                        .ToArray()),
+                new BenchmarkTrendSeries(
+                    g.Key+" / Right",
+                    g.OrderBy(row => GetDouble(row,"RunId"))
+                        .Select(row => new BenchmarkTrendPoint(GetDouble(row,"RunId"),GetDouble(row,"RightShare")))
+                        .ToArray()),
+            })
+            .ToArray();
+
     public static IReadOnlyList<BenchmarkTrendSeries> MapScaleTrend(IReadOnlyList<IReadOnlyDictionary<string,object?>> rows,int maxSeries = 8) =>
         rows.GroupBy(row => GetText(row,"Method"),StringComparer.OrdinalIgnoreCase)
             .OrderByDescending(g => g.Max(row => GetDouble(row,"AvgMeanRatio")))

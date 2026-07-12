@@ -2962,7 +2962,11 @@ public sealed partial class RunnerViewModel:ObservableObject {
 
     public IReadOnlyList<BenchmarkTrendSeries> LoadHistoryMemoryRatioChartData() {
         try {
-            return this.LoadSelectedSourceTabRatioHistory("履歴メモリ比");
+            var selectedSourceTabId = this.SelectedSourceDefinition.Id;
+            var rows = this.uiRunStore.QueryAnalysisView("履歴メモリ比",1000)
+                .Where(row => IsAnalysisRowForSourceTab(row,selectedSourceTabId))
+                .ToArray();
+            return BenchmarkAnalysisViewMapper.MapMemoryShareHistory(rows);
         }
         catch(Exception ex) {
             StartupDiagnostics.Write("履歴メモリ比 load failed.",ex);
@@ -3545,7 +3549,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
 
         var leftSide = this.CreateBenchmarkGridSnapshotSide(row,row.LeftCell,leftBenchmark,leftResult);
         var rightSide = this.CreateBenchmarkGridSnapshotSide(row,row.RightCell,rightBenchmark,rightResult);
-        this.ValidateFinalLoopCountSnapshot(row,leftSide,rightSide);
 
         return new BenchmarkGridSnapshotItem(
             0,
@@ -3557,32 +3560,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
             row.IsSelected,
             leftSide.Status==UiRunStatus.Completed ? leftSide : this.CreateEmptyBenchmarkGridSnapshotSide(row,row.LeftCell,leftBenchmark),
             rightSide.Status==UiRunStatus.Completed ? rightSide : this.CreateEmptyBenchmarkGridSnapshotSide(row,row.RightCell,rightBenchmark));
-    }
-
-    private void ValidateFinalLoopCountSnapshot(
-        BenchmarkTableRow row,
-        BenchmarkGridSnapshotSide left,
-        BenchmarkGridSnapshotSide right) {
-        if(!row.IsFinalCompleted||!BenchmarkWorkloadAxis.UsesLoopCount(row.SourceTab.Tab)) {
-            return;
-        }
-
-        var thresholdNanoseconds=this.GetAdaptiveThreshold().TotalMilliseconds*1_000_000;
-        if(left.Status!=UiRunStatus.Completed
-            ||right.Status!=UiRunStatus.Completed
-            ||left.ResultItem.LoopCount<=0
-            ||left.ResultItem.LoopCount!=right.ResultItem.LoopCount
-            ||left.ResultItem.TotalNanoseconds is not { } leftTotal
-            ||right.ResultItem.TotalNanoseconds is not { } rightTotal
-            ||leftTotal<thresholdNanoseconds) {
-            throw new InvalidOperationException(
-                "完全完了した比較行は、同一LoopCountかつ左列が指定測定時間以上である必要があります。"
-                +" SourceTab="+row.SourceTab.Id
-                +" Type="+row.BenchmarkTypeText
-                +" Benchmark="+row.MethodName
-                +" LeftLoopCount="+left.ResultItem.LoopCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                +" RightLoopCount="+right.ResultItem.LoopCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        }
     }
 
     private static string ResolveSnapshotTypeName(
@@ -4581,6 +4558,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             this.DiscardUnsavedBenchmarkResults();
             this.SelectNewRunOptionForFreshRun();
             this.loadedExternalState=null;
+            this.ClearFinalCompletionStates();
         }
         this.SelectedTab=BenchmarkTab.Cpu;
         this.SelectedLowerTab=BenchmarkLowerTab.Cpu;
@@ -5997,7 +5975,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <returns>処理結果を返却します。</returns>
     private string FormatResultElementCountDisplayName(int elementCount) =>
         BenchmarkWorkloadAxis.UsesLoopCount(this.SelectedSourceDefinition.Tab)
-            ? "Loop "+elementCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            ? "ループ回数 "+elementCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
             : elementCount==BenchmarkElementCounts.BaseElementCount
                 ? "N"
                 : elementCount.ToString(System.Globalization.CultureInfo.InvariantCulture)+"N";
@@ -6154,7 +6132,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             return currentResults;
         }
 
-        return currentResults.Concat(this.ResultItems).ToArray();
+        return this.ResultItems.Concat(currentResults).ToArray();
     }
 
     private void PromoteDisplayedResultsToCurrentRunSession() {
@@ -6611,7 +6589,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             this.AllocatedImprovementCandidates,
             this.ImprovementCandidates
                 .Where(static row => row.Candidate.HasAllocatedRegression)
-                .OrderByDescending(static row => BenchmarkImprovementCandidateBuilder.GetRankValue(row.Candidate.AllocatedRatio)));
+                .OrderByDescending(static row => BenchmarkImprovementCandidateBuilder.GetRankValue(row.Candidate.AllocatedShare)));
     }
 
     private void ReplaceImprovementCandidateRows(
@@ -8701,7 +8679,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 SourceTab=jobSourceTab,
                 ElementCount=(int)(storedJob.ElementCount??BenchmarkWorkloadAxis.ResolveElementCount(jobSourceTab,axisCount)),
                 LoopCount=(int)(storedJob.LoopCount??BenchmarkWorkloadAxis.ResolveLoopCount(jobSourceTab,axisCount)),
-                PreparedElementCounts=elementCounts.Distinct().Order().ToList(),
+                PreparedElementCounts=BenchmarkWorkloadAxis.ResolvePreparedElementCounts(jobSourceTab,elementCounts).ToList(),
                 Status=ToJobStatusForResume(storedJob.Status),
                 AssignedLogicalCpu=storedJob.Status is UiRunStatus.Completed or UiRunStatus.Failed ? storedJob.AssignedLogicalCpu : null,
                 Mean=meanNanoseconds?.ToString(System.Globalization.CultureInfo.InvariantCulture)??string.Empty,
@@ -9074,22 +9052,30 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 var leftValue = metric==BenchmarkMetricKind.Time ? left.TimeNanoseconds : left.AllocatedBytes;
                 var rightValue = metric==BenchmarkMetricKind.Time ? right.TimeNanoseconds : right.AllocatedBytes;
                 var ratio = leftValue is >0&&rightValue is >0 ? leftValue/rightValue : (double?)null;
+                var allocatedShare = metric==BenchmarkMetricKind.Allocated&&leftValue is { } leftBytes&&rightValue is { } rightBytes
+                    ? AllocationShareValue.FromBytes((long)leftBytes,(long)rightBytes)
+                    : AllocationShareValue.Missing;
                 return new {
                     Row = row,
                     LeftValue = leftValue,
                     RightValue = rightValue,
                     Ratio = ratio,
+                    AllocatedShare = allocatedShare,
                 };
             })
             .Where(item => item.LeftValue is not null&&item.RightValue is not null)
-            .OrderByDescending(item => item.Ratio??(item.LeftValue>0&&item.RightValue==0 ? double.PositiveInfinity : 0))
+            .OrderByDescending(item => metric==BenchmarkMetricKind.Allocated
+                ? item.AllocatedShare.LeftShare??double.NegativeInfinity
+                : item.Ratio??(item.LeftValue>0&&item.RightValue==0 ? double.PositiveInfinity : 0))
             .ThenByDescending(item => item.LeftValue??0)
             .Take(40)
             .Select(item => new BenchmarkDiagnosticRow(
                 metric==BenchmarkMetricKind.Time ? "Latency" : "Allocation",
                 BenchmarkFormatting.ShortName(item.Row.Benchmark),
                 this.SelectedResultElementCount?.DisplayName??"-",
-                item.Ratio is { } ratio ? ratio.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)+"x" : "-",
+                metric==BenchmarkMetricKind.Allocated
+                    ? item.AllocatedShare.DisplayText
+                    : item.Ratio is { } ratio ? ratio.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)+"x" : "-",
                 FormatMetric(item.LeftValue,metric),
                 FormatMetric(item.RightValue,metric),
                 sourceTab.LeftProject+" / "+sourceTab.RightProject+" / "+item.Row.MethodName))
@@ -9111,22 +9097,30 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 var leftValue = metric==BenchmarkMetricKind.Time ? left.TimeNanoseconds : left.AllocatedBytes;
                 var rightValue = metric==BenchmarkMetricKind.Time ? right.TimeNanoseconds : right.AllocatedBytes;
                 var ratio = leftValue is >0&&rightValue is >0 ? leftValue/rightValue : (double?)null;
+                var allocatedShare = metric==BenchmarkMetricKind.Allocated&&leftValue is { } leftBytes&&rightValue is { } rightBytes
+                    ? AllocationShareValue.FromBytes((long)leftBytes,(long)rightBytes)
+                    : AllocationShareValue.Missing;
                 return new {
                     Row = row,
                     LeftValue = leftValue,
                     RightValue = rightValue,
                     Ratio = ratio,
+                    AllocatedShare = allocatedShare,
                 };
             })
             .Where(item => item.LeftValue is not null&&item.RightValue is not null)
-            .OrderByDescending(item => item.Ratio??(item.LeftValue>0&&item.RightValue==0 ? double.PositiveInfinity : 0))
+            .OrderByDescending(item => metric==BenchmarkMetricKind.Allocated
+                ? item.AllocatedShare.LeftShare??double.NegativeInfinity
+                : item.Ratio??(item.LeftValue>0&&item.RightValue==0 ? double.PositiveInfinity : 0))
             .ThenByDescending(item => item.LeftValue??0)
             .Take(40)
             .Select(item => new BenchmarkDiagnosticRow(
                 metric==BenchmarkMetricKind.Time ? "Latency" : "Allocation",
                 BenchmarkFormatting.ShortName(item.Row.Benchmark),
                 this.SelectedResultElementCount?.DisplayName??"-",
-                item.Ratio is { } ratio ? ratio.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)+"x" : "-",
+                metric==BenchmarkMetricKind.Allocated
+                    ? item.AllocatedShare.DisplayText
+                    : item.Ratio is { } ratio ? ratio.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)+"x" : "-",
                 FormatMetric(item.LeftValue,metric),
                 FormatMetric(item.RightValue,metric),
                 sourceTab.LeftProject+" / "+sourceTab.RightProject+" / "+item.Row.MethodName))
@@ -9689,8 +9683,14 @@ public sealed partial class RunnerViewModel:ObservableObject {
         var rightNumber = Math.Max(0,rightValue??0);
         var isLeftFallback = this.IsChartMetricFallback(row,pair.LeftProject,leftValue);
         var isRightFallback = this.IsChartMetricFallback(row,pair.RightProject,rightValue);
-        var shareTexts = BenchmarkChartSelectionLayoutLogic.CreateShareTexts(leftNumber,rightNumber);
-        double? ratio = BenchmarkChartSelectionLayoutLogic.CreateRatio(leftNumber,rightNumber);
+        var isMemory = this.SelectedMetric.Kind==BenchmarkMetricKind.Allocated;
+        var allocatedShare = isMemory
+            ? AllocationShareValue.FromBytes((long)leftNumber,(long)rightNumber)
+            : AllocationShareValue.Missing;
+        var shareTexts = isMemory
+            ? (LeftText: allocatedShare.LeftShare!.Value.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture),RightText: allocatedShare.RightShare!.Value.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture))
+            : BenchmarkChartSelectionLayoutLogic.CreateShareTexts(leftNumber,rightNumber);
+        double? ratio = isMemory ? null : BenchmarkChartSelectionLayoutLogic.CreateRatio(leftNumber,rightNumber);
         var ratioText = ratio is { } value
             ? value.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)
             : "-";
@@ -9702,7 +9702,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             +"\n"
             +pair.LeftProject+" "+metricName+": "+FirstText(FormatMetric(leftValue,this.SelectedMetric.Kind),"-")+"\n"
             +pair.RightProject+" "+metricName+": "+FirstText(FormatMetric(rightValue,this.SelectedMetric.Kind),"-")
-            +"\nRatio(left/right): "+ratioText
+            +(isMemory ? "" : "\nRatio(left/right): "+ratioText)
             +"\nShare: "+pair.LeftProject+" "+shareTexts.LeftText+" / "+pair.RightProject+" "+shareTexts.RightText
             +fallbackTooltip
             +(string.IsNullOrWhiteSpace(BenchmarkArgumentTooltipFormatter.CreateArgumentTooltip(row))
@@ -9711,8 +9711,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
         var point=new ChartComparisonPoint(
             benchmark,
             BenchmarkFormatting.ShortName(displayName),
-            leftNumber,
-            rightNumber,
+            isMemory ? allocatedShare.LeftShare!.Value : leftNumber,
+            isMemory ? allocatedShare.RightShare!.Value : rightNumber,
             shareTexts.LeftText,
             shareTexts.RightText,
             tooltip,

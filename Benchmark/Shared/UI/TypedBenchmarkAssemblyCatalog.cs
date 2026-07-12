@@ -27,6 +27,12 @@ internal static class TypedBenchmarkAssemblyCatalog {
     [
         typeof(global::Benchmark.System.Linq.Enumerable.FLinqInt32),
         typeof(global::Benchmark.System.Linq.Enumerable.ZLinqInt32),
+        typeof(global::Benchmark.System.Linq.Enumerable.IEnumerable.FLinqInt32),
+        typeof(global::Benchmark.System.Linq.Enumerable.IEnumerable.ZLinqInt32),
+        typeof(global::Benchmark.Optimization.All.Anchor),
+        typeof(global::Benchmark.Optimization.NoRewrite.Anchor),
+        typeof(global::Benchmark.Optimization.NoPipelineFusion.Anchor),
+        typeof(global::Benchmark.Optimization.NoPredicatePushdown.Anchor),
         typeof(global::Benchmark.System.Linq.Enumerable.Range.FLinqInt32),
         typeof(global::Benchmark.System.Linq.Enumerable.Range.ZLinqInt32),
         typeof(global::Benchmark.System.Linq.Enumerable.List.FLinqInt32),

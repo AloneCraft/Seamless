@@ -56,4 +56,19 @@ public class Take(int 番号, Enumerable source, string takeCount) : Enumerable(
         """;
     public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => this.Source.ElementType;
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        var sourceName=$"__takeSource{番号}";
+        var spanExpression=this.RootSource.GetDirectSpanExpression(sourceName);
+        if(spanExpression is null) {
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+        return $$"""
+            using var {{sourceName}}={{this.RootSource.GetEnumeratorExpression}};
+            var __takeSpan{{番号}}={{spanExpression}};
+            var __takeCount{{番号}}=global::System.Math.Clamp({{this.EffectiveTakeCount}},0,__takeSpan{{番号}}.Length);
+            for(var __takeIndex{{番号}}=0;__takeIndex{{番号}}<__takeCount{{番号}};__takeIndex{{番号}}++){
+                {{consumerName}}.Consume(__takeSpan{{番号}}[__takeIndex{{番号}}]);
+            }
+            """;
+    }
 }

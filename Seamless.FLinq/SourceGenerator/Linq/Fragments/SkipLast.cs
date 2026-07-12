@@ -88,4 +88,20 @@ public class SkipLast(int 番号, Enumerable source, string skipCount) : Enumera
             """;
     public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => this.RootSource.ElementType;
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        var sourceName=$"__skipLastSource{番号}";
+        var spanExpression=this.RootSource.GetDirectSpanExpression(sourceName);
+        if(spanExpression is null) {
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+        return $$"""
+            using var {{sourceName}}={{this.RootSource.GetEnumeratorExpression}};
+            var __skipLastSpan{{番号}}={{spanExpression}};
+            var __skipLastCount{{番号}}=global::System.Math.Clamp({{this.EffectiveSkipCount}},0,__skipLastSpan{{番号}}.Length);
+            var __skipLastLength{{番号}}=__skipLastSpan{{番号}}.Length-__skipLastCount{{番号}};
+            for(var __skipLastIndex{{番号}}=0;__skipLastIndex{{番号}}<__skipLastLength{{番号}};__skipLastIndex{{番号}}++){
+                {{consumerName}}.Consume(__skipLastSpan{{番号}}[__skipLastIndex{{番号}}]);
+            }
+            """;
+    }
 }

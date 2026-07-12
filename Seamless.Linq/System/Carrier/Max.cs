@@ -79,7 +79,8 @@ partial class ValueEnumerableExtensions {
 
 #if NET8_0_OR_GREATER
 
-    internal static TSource? MaxSpan<TSource>(ReadOnlySpan<TSource> span,IComparer<TSource> comparer) {
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static TSource? MaxSpan<TSource>(ReadOnlySpan<TSource> span,IComparer<TSource> comparer) {
         #region generate from FileGen.Commands.Max
         if(typeof(TSource)==typeof(byte)) {
             if(comparer!=Comparer<TSource>.Default) return MaxSpanComparer(span,comparer);

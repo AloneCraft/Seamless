@@ -1,5 +1,35 @@
 namespace Seamless.FLinq;
 
+[Flags]
+internal enum LinqOptimizations {
+    None=0,
+    Rewrite=1,
+    PipelineFusion=2,
+    PredicatePushdown=4,
+    All=Rewrite|PipelineFusion|PredicatePushdown,
+}
+
+internal static class LinqOptimizationContext {
+    [ThreadStatic]private static LinqOptimizations current;
+    [ThreadStatic]private static bool initialized;
+
+    public static LinqOptimizations Current => initialized ? current : LinqOptimizations.All;
+
+    public static Scope Enter(LinqOptimizations value) {
+        var previous=Current;
+        current=value;
+        initialized=true;
+        return new(previous);
+    }
+
+    internal readonly struct Scope(LinqOptimizations previous):IDisposable {
+        public void Dispose() {
+            current=previous;
+            initialized=true;
+        }
+    }
+}
+
 public sealed partial class FLinqIncrementalGenerator {
 
     private sealed class フラグメント候補 {
@@ -101,6 +131,7 @@ public sealed partial class FLinqIncrementalGenerator {
         public bool ContainingTypeIsGeneric => this.Method.ContainingType.IsGenericType;
         public bool IsLocalMethodInterception { get; } = isLocalMethodInterception;
         public bool OptimizeLinq { get; } = optimizeLinq;
+        public LinqOptimizations Optimizations => LinqOptimizations判定(this.Method,this.SemanticModel.Compilation);
         public bool CounterInstrumentation { get; } = counterInstrumentation;
         private string SourceElementTypeName {
             get {

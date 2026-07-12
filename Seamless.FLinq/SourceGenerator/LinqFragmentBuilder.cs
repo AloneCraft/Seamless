@@ -53,7 +53,7 @@ public sealed partial class FLinqIncrementalGenerator {
             }
         }
 
-        if(PipelineBuilder.TryBuild(
+        if((LinqOptimizationContext.Current&LinqOptimizations.PipelineFusion)!=0&&PipelineBuilder.TryBuild(
             semanticModel,
             invocation,
             ref uniqueNumber,

@@ -37,12 +37,10 @@ namespace Test.SourceGenerator {
         [Fact, Trait("Category","Unit")]
         public void GeneratedInterceptors_ContainNoFallbackFailure() {
             var generatedRoot = FindGeneratedRoot();
-            if(generatedRoot is null) {
-                //生成物出力が無い環境(初回ビルド前)では検査対象なし
-                return;
-            }
+            Assert.True(Directory.Exists(generatedRoot),$"生成コード出力先が見つかりません: {generatedRoot}");
 
             var failures = new List<string>();
+            var inspectedFileCount = 0;
             foreach(var file in Directory.EnumerateFiles(generatedRoot,"*.cs",SearchOption.AllDirectories)) {
                 if(!file.Contains("FLinq",StringComparison.OrdinalIgnoreCase)) {
                     continue;
@@ -51,6 +49,7 @@ namespace Test.SourceGenerator {
                 if(!text.Contains("InterceptsLocation",StringComparison.Ordinal)) {
                     continue;
                 }
+                inspectedFileCount++;
                 var index = 0;
                 foreach(var marker in new[]{"LinqInterceptorFailure(","UnsupportedLinqExpansion("}) {
                     index=0;
@@ -62,20 +61,17 @@ namespace Test.SourceGenerator {
                 }
             }
 
+            Assert.True(inspectedFileCount>0,$"FLinqの生成インターセプターが見つかりません: {generatedRoot}");
             Assert.True(failures.Count==0,
                 "生成インターセプターに未展開フォールバックが残っています:\n"+string.Join("\n",failures));
         }
 
-        private static string? FindGeneratedRoot() {
+        private static string FindGeneratedRoot() {
             var directory = new DirectoryInfo(AppContext.BaseDirectory);
-            while(directory is not null) {
-                var candidate = Path.Combine(directory.FullName,"Work","Generated","Test");
-                if(Directory.Exists(candidate)) {
-                    return candidate;
-                }
-                directory=directory.Parent;
-            }
-            return null;
+            var targetFramework = directory.Name;
+            var configuration = directory.Parent?.Name??string.Empty;
+            var projectDirectory = directory.Parent?.Parent?.Parent;
+            return Path.Combine(projectDirectory?.FullName??string.Empty,"obj",configuration,targetFramework,"generated");
         }
 
         private static int CountLines(string text,int position) {

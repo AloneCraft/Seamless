@@ -1,8 +1,8 @@
 namespace Benchmark.Persisted.Linq.Enumerable {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public class LinqInt32():global::Seamless.Linq.Shared.Methods1<int>(4_096);
+    public class LinqInt32():global::Seamless.Linq.Shared.Persisted<int>(4_096);
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public class LinqString():global::Seamless.Linq.Shared.Methods1<string>(4_096);
+    public class LinqClassInt32():global::Seamless.Linq.Shared.Persisted<global::Common.ClassInt32>(4_096);
 }
 
 namespace Seamless.Linq.Shared {
@@ -10,6 +10,6 @@ namespace Seamless.Linq.Shared {
         public static Seamless.Persisted.Collections.Set<T> AsX<T>(
             this Seamless.Persisted.Collections.Set<T> source) => source;
 
-        public static IEnumerable<T> AsX<T>(this IEnumerable<T> source) => source;
+        public static global::System.Collections.Generic.IEnumerable<T> AsX<T>(this global::System.Collections.Generic.IEnumerable<T> source) => source;
     }
 }

@@ -59,4 +59,19 @@ public class Skip(int 番号, Enumerable source, string skipCount) : Enumerable(
         """;
     public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => this.Source.ElementType;
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        var sourceName=$"__skipSource{番号}";
+        var spanExpression=this.RootSource.GetDirectSpanExpression(sourceName);
+        if(spanExpression is null) {
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+        return $$"""
+            using var {{sourceName}}={{this.RootSource.GetEnumeratorExpression}};
+            var __skipSpan{{番号}}={{spanExpression}};
+            var __skipCount{{番号}}=global::System.Math.Clamp({{this.EffectiveSkipCount}},0,__skipSpan{{番号}}.Length);
+            for(var __skipIndex{{番号}}=__skipCount{{番号}};__skipIndex{{番号}}<__skipSpan{{番号}}.Length;__skipIndex{{番号}}++){
+                {{consumerName}}.Consume(__skipSpan{{番号}}[__skipIndex{{番号}}]);
+            }
+            """;
+    }
 }

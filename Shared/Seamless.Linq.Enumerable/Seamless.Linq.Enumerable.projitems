@@ -7,7 +7,7 @@
     <SharedGUID>{7C5E9A2D-84C8-4B64-8B83-2F2E3DF74372}</SharedGUID>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)Methods1.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Base.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Linq.Enumerable\**\*.cs" />
     <None Include="$(MSBuildThisFileDirectory)Linq.Enumerable.Benchmark\Program.cs" />
   </ItemGroup>

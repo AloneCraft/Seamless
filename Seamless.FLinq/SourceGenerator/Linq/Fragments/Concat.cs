@@ -54,6 +54,22 @@ public class Concat(int 番号,Enumerable source,Enumerable second):Enumerable(�
     public override string ElementType => source.ElementType;
     protected override string GetEnumeratorDisposeBody => "source.Dispose();\nsecond.Dispose();";
     public override string GetConsumeExecutionStatement(string consumerName) {
+        if(source is RangeRoot leftRange&&second is RangeRoot rightRange){
+            return $$"""
+                {
+                    var __leftStart{{番号}}={{leftRange.StartExpression}};
+                    var __leftCount{{番号}}={{leftRange.CountExpression}};
+                    for(var __i{{番号}}=0;__i{{番号}}<__leftCount{{番号}};__i{{番号}}++){
+                        {{consumerName}}.Consume(__leftStart{{番号}}+__i{{番号}});
+                    }
+                    var __rightStart{{番号}}={{rightRange.StartExpression}};
+                    var __rightCount{{番号}}={{rightRange.CountExpression}};
+                    for(var __i{{番号}}=0;__i{{番号}}<__rightCount{{番号}};__i{{番号}}++){
+                        {{consumerName}}.Consume(__rightStart{{番号}}+__i{{番号}});
+                    }
+                }
+                """;
+        }
         var sourceName = $"__concatSrc{番号}";
         var secondName = $"__concatSec{番号}";
         var builder = new StringBuilder();

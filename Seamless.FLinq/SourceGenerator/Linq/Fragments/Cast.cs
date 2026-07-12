@@ -32,4 +32,8 @@ public class Cast(int 番号, Enumerable source, string resultElementType) : Enu
         """;
     public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => resultElementType;
+    public override string GetConsumeExecutionStatement(string consumerName)=>
+        this.IsIdentityType
+            ? source.GetConsumeExecutionStatement(consumerName)
+            : base.GetConsumeExecutionStatement(consumerName);
 }

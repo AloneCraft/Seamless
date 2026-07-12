@@ -1,11 +1,11 @@
 namespace Seamless.Linq.Shared;
 
 #if TSAVORITE
-public abstract class Methods1<T> : TsavoriteBase<T> where T:notnull {
+public abstract class Base<T> : global::Common.TsavoriteBase<T> where T:notnull {
 #elif PERSISTED
-public abstract class Methods1<T> : PersistedBase<T> where T:notnull {
+public abstract class Base<T> : global::Common.PersistedBase<T> where T:notnull {
 #else
-public abstract class Methods1<T>:Base<T> where T:notnull {
+public abstract class Base<T>:global::Common.Base<T> where T:notnull {
 #endif
 #if BENCH_AS_TEST
     private const int Any_iterationCount=100;
@@ -198,7 +198,7 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     public void Concat_second() => this.Concat_second_Impl();
 
     [LinqIntercept(true)]
-    private void Concat_second_Impl() => this.srcCount(StreamShapeCount).AsX<T>().Concat(this.src2Count(StreamShapeCount)).Consume(this.consumer);
+    private void Concat_second_Impl() => this.srcCount(StreamShapeCount).AsX<T>().Concat(this.src2Count(StreamShapeCount).AsX<T>()).Consume(this.consumer);
     // [Contains_value]
     [BenchFact, Benchmark]
     public void Contains_value() => this.Contains_value_Impl();
@@ -257,7 +257,7 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     private void ElementAt_index_Impl() {
         var index = this.MidpointIndex(ImmediateShortCircuitCount);
         for(var i = 0; i<IterationCount(ElementAt_index_iterationCount); i++) {
-#if SYSTEM_RANGE
+#if SYSTEM_IENUMERABLE
             this.ElementAt_index_Core(index);
 #else
             this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<T>().ElementAt(index));
@@ -265,7 +265,7 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
         }
     }
 
-#if SYSTEM_RANGE
+#if SYSTEM_IENUMERABLE
     [LinqIntercept(false)]
     private void ElementAt_index_Core(int index) => this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<T>().ElementAt(index));
 #endif
@@ -294,14 +294,14 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     public void Except_second() => this.Except_second_Impl();
 
     [LinqIntercept(true)]
-    private void Except_second_Impl() => this.srcCount(SetCount).AsX<T>().Except(this.src2Count(SetCount)).Consume(this.consumer);
+    private void Except_second_Impl() => this.srcCount(SetCount).AsX<T>().Except(this.src2Count(SetCount).AsX<T>()).Consume(this.consumer);
     // [ExceptBy_keySelector]
     [BenchFact, Benchmark]
     [BenchmarkCategory(Categories.Linq)]
     public void ExceptBy_keySelector() => this.ExceptBy_keySelector_Impl();
 
     [LinqIntercept(true)]
-    private void ExceptBy_keySelector_Impl() => this.srcCount(SetCount).AsX<T>().ExceptBy(this.src2Count(SetCount),x => x).Consume(this.consumer);
+    private void ExceptBy_keySelector_Impl() => this.srcCount(SetCount).AsX<T>().ExceptBy(this.src2Count(SetCount).AsX<T>(),x => x).Consume(this.consumer);
     // [First]
     [BenchFact, Benchmark]
     public void First() => this.First_Impl();
@@ -360,7 +360,7 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     public void GroupJoin_inner() => this.GroupJoin_inner_Impl();
 
     [LinqIntercept(true)]
-    private void GroupJoin_inner_Impl() => this.srcCount(JoinCount).AsX<T>().GroupJoin(this.src2Count(JoinCount),x => x,x => x,(outer,inner) => outer).Consume(this.consumer);
+    private void GroupJoin_inner_Impl() => this.srcCount(JoinCount).AsX<T>().GroupJoin(this.src2Count(JoinCount).AsX<T>(),x => x,x => x,(outer,inner) => outer).Consume(this.consumer);
     // [Index]
     [BenchFact, Benchmark]
     public void Index() => this.Index_Impl();
@@ -373,14 +373,14 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     public void Intersect_second() => this.Intersect_second_Impl();
 
     [LinqIntercept(true)]
-    private void Intersect_second_Impl() => this.srcCount(SetCount).AsX<T>().Intersect(this.src2Count(SetCount)).Consume(this.consumer);
+    private void Intersect_second_Impl() => this.srcCount(SetCount).AsX<T>().Intersect(this.src2Count(SetCount).AsX<T>()).Consume(this.consumer);
     // [IntersectBy_keySelector]
     [BenchFact, Benchmark]
     [BenchmarkCategory(Categories.Linq)]
     public void IntersectBy_keySelector() => this.IntersectBy_keySelector_Impl();
 
     [LinqIntercept(true)]
-    private void IntersectBy_keySelector_Impl() => this.srcCount(SetCount).AsX<T>().IntersectBy(this.src2Count(SetCount),x => x).Consume(this.consumer);
+    private void IntersectBy_keySelector_Impl() => this.srcCount(SetCount).AsX<T>().IntersectBy(this.src2Count(SetCount).AsX<T>(),x => x).Consume(this.consumer);
     // [InvariantHoisting]
     [BenchFact, Benchmark]
     public void InvariantHoisting() => this.InvariantHoisting_Impl();
@@ -392,25 +392,25 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     public void Join_inner() => this.Join_inner_Impl();
 
     [LinqIntercept(true)]
-    private void Join_inner_Impl() => this.srcCount(JoinCount).AsX<T>().Join(this.src2Count(JoinCount),x => x,x => x,(a,b) => a).Consume(this.consumer);
+    private void Join_inner_Impl() => this.srcCount(JoinCount).AsX<T>().Join(this.src2Count(JoinCount).AsX<T>(),x => x,x => x,(a,b) => a).Consume(this.consumer);
     // [Join_innerKey_Hoisting]
     [BenchFact, Benchmark]
     public void Join_innerKey_Hoisting() => this.Join_innerKey_Hoisting_Impl();
 
     [LinqIntercept(true)]
-    private void Join_innerKey_Hoisting_Impl() => this.srcCount(JoinCount).AsX<T>().Join(this.src2Count(JoinCount),static o => Mod(o,1000),static i => (Number(i)+HoistInvariant.Value())%1000,static (o,i) => Number(o)+Number(i)).Consume(this.consumer);
+    private void Join_innerKey_Hoisting_Impl() => this.srcCount(JoinCount).AsX<T>().Join(this.src2Count(JoinCount).AsX<T>(),static o => Mod(o,1000),static i => (Number(i)+HoistInvariant.Value())%1000,static (o,i) => Number(o)+Number(i)).Consume(this.consumer);
     // [Join_outerKey_Hoisting]
     [BenchFact, Benchmark]
     public void Join_outerKey_Hoisting() => this.Join_outerKey_Hoisting_Impl();
 
     [LinqIntercept(true)]
-    private void Join_outerKey_Hoisting_Impl() => this.srcCount(JoinCount).AsX<T>().Join(this.src2Count(JoinCount),static o => (Number(o)+HoistInvariant.Value())%1000,static i => Mod(i,1000),static (o,i) => Number(o)+Number(i)).Consume(this.consumer);
+    private void Join_outerKey_Hoisting_Impl() => this.srcCount(JoinCount).AsX<T>().Join(this.src2Count(JoinCount).AsX<T>(),static o => (Number(o)+HoistInvariant.Value())%1000,static i => Mod(i,1000),static (o,i) => Number(o)+Number(i)).Consume(this.consumer);
     // [Join_resultSelector_Hoisting]
     [BenchFact, Benchmark]
     public void Join_resultSelector_Hoisting() => this.Join_resultSelector_Hoisting_Impl();
 
     [LinqIntercept(true)]
-    private void Join_resultSelector_Hoisting_Impl() => this.srcCount(JoinCount).AsX<T>().Join(this.src2Count(JoinCount),static o => Mod(o,1000),static i => Mod(i,1000),static (o,i) => Number(o)+Number(i)+HoistInvariant.Value()).Consume(this.consumer);
+    private void Join_resultSelector_Hoisting_Impl() => this.srcCount(JoinCount).AsX<T>().Join(this.src2Count(JoinCount).AsX<T>(),static o => Mod(o,1000),static i => Mod(i,1000),static (o,i) => Number(o)+Number(i)+HoistInvariant.Value()).Consume(this.consumer);
     // [Last]
     [BenchFact, Benchmark]
     public void Last() => this.Last_Impl();
@@ -528,12 +528,6 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
 
     [LinqIntercept(true)]
     private void Prepend_element_Impl() => this.srcCount(StreamShapeCount).AsX<T>().Prepend(Value(0)).Consume(this.consumer);
-    // [Range]
-    [BenchFact, Benchmark]
-    public void Range() => this.Range_Impl();
-
-    [LinqIntercept(true)]
-    private void Range_Impl() => global::System.Linq.Enumerable.Range(1,this.EffectiveSourceCount(GeneratedCount)).Select(static x => Value(x)).Consume(this.consumer);
     // [Repeat]
     [BenchFact, Benchmark]
     public void Repeat() => this.Repeat_Impl();
@@ -561,48 +555,36 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
 
     [LinqIntercept(true)]
     private void Select_selector_Impl() => this.srcCount(StreamOneToOneCount).AsX<T>().Select(static x => Add(x,x)).Consume(this.consumer);
-    // [SelectMany_Hoisting_PredicatePushdown]
-    [BenchFact, Benchmark]
-    public void SelectMany_Hoisting_PredicatePushdown() => this.SelectMany_Hoisting_PredicatePushdown_Impl();
-
-    [LinqIntercept(true)]
-    private void SelectMany_Hoisting_PredicatePushdown_Impl() => this.outer.AsX<int>().SelectMany(_ => this.inner).Where(static x => x>Threshold&&HoistInvariant.Value()==0).Consume(this.consumer);
     // [SelectMany_indexSelector]
     [BenchFact, Benchmark]
     public void SelectMany_indexSelector() => this.SelectMany_indexSelector_Impl();
 
     [LinqIntercept(true)]
-    private void SelectMany_indexSelector_Impl() => this.srcNestedCount(NestedCount).AsX<IEnumerable<int>>().SelectMany((x,i) => x).Consume(this.consumer);
+    private void SelectMany_indexSelector_Impl() => this.srcNestedCount(NestedCount).AsX<global::System.Collections.Generic.IEnumerable<int>>().SelectMany((x,i) => x).Consume(this.consumer);
     // [SelectMany_indexSelector_resultSelector]
     [BenchFact, Benchmark]
     public void SelectMany_indexSelector_resultSelector() => this.SelectMany_indexSelector_resultSelector_Impl();
 
     [LinqIntercept(true)]
-    private void SelectMany_indexSelector_resultSelector_Impl() => this.srcNestedCount(NestedCount).AsX<IEnumerable<int>>().SelectMany((x,i) => x,(outer,inner) => inner+1).Consume(this.consumer);
+    private void SelectMany_indexSelector_resultSelector_Impl() => this.srcNestedCount(NestedCount).AsX<global::System.Collections.Generic.IEnumerable<int>>().SelectMany((x,i) => x,(outer,inner) => inner+1).Consume(this.consumer);
     // [SelectMany_resultSelector]
     [BenchFact, Benchmark]
     public void SelectMany_resultSelector() => this.SelectMany_resultSelector_Impl();
 
     [LinqIntercept(true)]
-    private void SelectMany_resultSelector_Impl() => this.srcNestedCount(NestedCount).AsX<IEnumerable<int>>().SelectMany(x => x,(outer,inner) => inner+1).Consume(this.consumer);
+    private void SelectMany_resultSelector_Impl() => this.srcNestedCount(NestedCount).AsX<global::System.Collections.Generic.IEnumerable<int>>().SelectMany(x => x,(outer,inner) => inner+1).Consume(this.consumer);
     // [SelectMany_selector]
     [BenchFact, Benchmark]
     public void SelectMany_selector() => this.SelectMany_selector_Impl();
 
     [LinqIntercept(true)]
-    private void SelectMany_selector_Impl() => this.srcNestedCount(NestedCount).AsX<IEnumerable<int>>().SelectMany(x => x).Consume(this.consumer);
-    // [SelectManyPredicatePushdown]
-    [BenchFact, Benchmark]
-    public void SelectManyPredicatePushdown() => this.SelectManyPredicatePushdown_Impl();
-
-    [LinqIntercept(true)]
-    private void SelectManyPredicatePushdown_Impl() => this.outer.AsX<int>().SelectMany(_ => this.inner).Where(static x => x>Threshold).Consume(this.consumer);
+    private void SelectMany_selector_Impl() => this.srcNestedCount(NestedCount).AsX<global::System.Collections.Generic.IEnumerable<int>>().SelectMany(x => x).Consume(this.consumer);
     // [SequenceEqual_second]
     [BenchFact, Benchmark]
     public void SequenceEqual_second() => this.SequenceEqual_second_Impl();
 
     [LinqIntercept(true)]
-    private void SequenceEqual_second_Impl() => this.consumer.Consume(this.srcCount(StreamShapeCount).AsX<T>().SequenceEqual(this.srcCount(StreamShapeCount)));
+    private void SequenceEqual_second_Impl() => this.consumer.Consume(this.srcCount(StreamShapeCount).AsX<T>().SequenceEqual(this.srcCount(StreamShapeCount).AsX<T>()));
     // [Single]
     [BenchFact, Benchmark]
     public void Single() => this.Single_Impl();
@@ -713,18 +695,6 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
 
     [LinqIntercept(true)]
     private void TakeWhile_predicate_Impl() => this.srcCount(StreamFilterCount).AsX<T>().TakeWhile(x => LessThan(x,this.ThreeQuarterCount(StreamFilterCount)+1)).Consume(this.consumer);
-    // [ThenBy_keySelector]
-    [BenchFact, Benchmark]
-    public void ThenBy_keySelector() => this.ThenBy_keySelector_Impl();
-
-    [LinqIntercept(true)]
-    private void ThenBy_keySelector_Impl() => this.srcCount(SortCount).AsX<T>().OrderBy(static x => Mod(x,1000)).ThenBy(static x => x).Consume(this.consumer);
-    // [ThenByDescending_keySelector]
-    [BenchFact, Benchmark]
-    public void ThenByDescending_keySelector() => this.ThenByDescending_keySelector_Impl();
-
-    [LinqIntercept(true)]
-    private void ThenByDescending_keySelector_Impl() => this.srcCount(SortCount).AsX<T>().OrderBy(static x => Mod(x,1000)).ThenByDescending(static x => x).Consume(this.consumer);
     // [ToArray]
     [BenchFact, Benchmark]
     public void ToArray() => this.ToArray_Impl();
@@ -784,14 +754,14 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     public void Union_second() => this.Union_second_Impl();
 
     [LinqIntercept(true)]
-    private void Union_second_Impl() => this.srcCount(SetCount).AsX<T>().Union(this.src2Count(SetCount)).Consume(this.consumer);
+    private void Union_second_Impl() => this.srcCount(SetCount).AsX<T>().Union(this.src2Count(SetCount).AsX<T>()).Consume(this.consumer);
     // [UnionBy_keySelector]
     [BenchFact, Benchmark]
     [BenchmarkCategory(Categories.Linq)]
     public void UnionBy_keySelector() => this.UnionBy_keySelector_Impl();
 
     [LinqIntercept(true)]
-    private void UnionBy_keySelector_Impl() => this.srcCount(SetCount).AsX<T>().UnionBy(this.src2Count(SetCount),x => x).Consume(this.consumer);
+    private void UnionBy_keySelector_Impl() => this.srcCount(SetCount).AsX<T>().UnionBy(this.src2Count(SetCount).AsX<T>(),x => x).Consume(this.consumer);
     // [Where_indexPredicate]
     [BenchFact, Benchmark]
     [BenchmarkCategory(Categories.Linq)]
@@ -819,80 +789,20 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
     public void Zip_second() => this.Zip_second_Impl();
 
     [LinqIntercept(true)]
-    private void Zip_second_Impl() => this.srcCount(StreamShapeCount).AsX<T>().Zip(this.src2Count(StreamShapeCount),static (a,b) => Add(a,b)).Consume(this.consumer);
+    private void Zip_second_Impl() => this.srcCount(StreamShapeCount).AsX<T>().Zip(this.src2Count(StreamShapeCount).AsX<T>(),static (a,b) => Add(a,b)).Consume(this.consumer);
     // [Zip_tuple]
     [BenchFact, Benchmark]
     public void Zip_tuple() => this.Zip_tuple_Impl();
 
     [LinqIntercept(true)]
-    private void Zip_tuple_Impl() => this.srcCount(StreamShapeCount).AsX<T>().Zip(this.src2Count(StreamShapeCount)).Consume(this.consumer);
-    // [ExecutionPlan_FilterProjectCount]
-    [BenchFact, Benchmark]
-    [BenchmarkCategory(Categories.ExecutionPlan)]
-    public void ExecutionPlan_FilterProjectCount() => this.ExecutionPlan_FilterProjectCount_Impl();
-
-    [LinqIntercept(true)]
-    private void ExecutionPlan_FilterProjectCount_Impl() => this.srcCount(StreamFilterCount).AsX<T>()
-        .Where(static x => IsEven(x))
-        .Select(static x => (Number(x)*3)%2048)
-        .CountBy(static x => x)
-        .OrderByDescending(static x => x.Value)
-        .Take(64)
-        .Consume(this.consumer);
-    // [ExecutionPlan_FilterGroupAggregate]
-    [BenchFact, Benchmark]
-    [BenchmarkCategory(Categories.ExecutionPlan)]
-    public void ExecutionPlan_FilterGroupAggregate() => this.ExecutionPlan_FilterGroupAggregate_Impl();
-
-    [LinqIntercept(true)]
-    private void ExecutionPlan_FilterGroupAggregate_Impl() => this.srcCount(GroupingCount).AsX<T>()
-        .Where(static x => Mod(x,3)!=0)
-        .Select(static x => Number(x)+HoistInvariant.Value())
-        .CountBy(static x => x%1024)
-        .OrderByDescending(static x => x.Value)
-        .Take(128)
-        .Consume(this.consumer);
-    // [ExecutionPlan_FilterJoinAggregate]
-    [BenchFact, Benchmark]
-    [BenchmarkCategory(Categories.ExecutionPlan)]
-    public void ExecutionPlan_FilterJoinAggregate() => this.ExecutionPlan_FilterJoinAggregate_Impl();
-
-    [LinqIntercept(true)]
-    private void ExecutionPlan_FilterJoinAggregate_Impl() => this.srcCount(JoinCount).AsX<T>()
-        .Where(static outer => IsEven(outer))
-        .Join(
-            this.src2Count(JoinCount),
-            static outer => Mod(outer,4096),
-            static inner => Mod(inner,3)==0 ? Mod(inner,4096) : -1,
-            static (outer,inner) => Number(outer)+Number(inner))
-        .CountBy(static value => value%512)
-        .OrderByDescending(static value => value.Value)
-        .Take(128)
-        .Consume(this.consumer);
-    // [ExecutionPlan_GroupJoinMaterialize]
-    [BenchFact, Benchmark]
-    [BenchmarkCategory(Categories.ExecutionPlan)]
-    public void ExecutionPlan_GroupJoinMaterialize() => this.ExecutionPlan_GroupJoinMaterialize_Impl();
-
-    [LinqIntercept(true)]
-    private void ExecutionPlan_GroupJoinMaterialize_Impl() => this.srcCount(JoinCount).AsX<T>()
-        .Where(static outer => Mod(outer,5)!=0)
-        .GroupJoin(
-            this.src2Count(JoinCount).Where(static inner => IsEven(inner)),
-            static outer => Mod(outer,2048),
-            static inner => Mod(inner,2048),
-            static (outer,inner) => Number(outer)+inner.Count())
-        .OrderByDescending(static value => value)
-        .Take(128)
-        .ToList()
-        .Consume(this.consumer);
+    private void Zip_tuple_Impl() => this.srcCount(StreamShapeCount).AsX<T>().Zip(this.src2Count(StreamShapeCount).AsX<T>()).Consume(this.consumer);
 
     internal int[]outer = [];
     internal int[]inner = [];
     private const int Threshold = 120;
 
     internal int sourceCount;
-    protected Methods1(int count) : base(count) {
+    protected Base(int count) : base(count) {
         this.Initialize();
     }
 
@@ -904,18 +814,26 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
             selectManyOuterCount=global::System.Math.Max(1,(int)global::System.Math.Sqrt(totalCount));
             selectManyInnerCount=global::System.Math.Max(1,totalCount/selectManyOuterCount);
         }
-        this.outer=global::System.Linq.Enumerable.Range(0,selectManyOuterCount).ToArray();
-        this.inner=global::System.Linq.Enumerable.Range(0,selectManyInnerCount).ToArray();
+        this.outer=CreateSequentialArray(selectManyOuterCount);
+        this.inner=CreateSequentialArray(selectManyInnerCount);
         this.sourceCount=this.CountForComparison(this.CountForTestTiming(SourceShapeCount));
     }
 
-#if SYSTEM_RANGE
+    private static int[]CreateSequentialArray(int count) {
+        var values=new int[count];
+        for(var index=0;index<count;index++) {
+            values[index]=index;
+        }
+        return values;
+    }
+
+#if SYSTEM_IENUMERABLE
     [LinqIntercept(false)]
-    private IEnumerable<T> sourceShape() =>
+    private global::System.Collections.Generic.IEnumerable<T> sourceShape() =>
         this.srcCount(SourceShapeCount);
 #elif SYSTEM_LIST
     [LinqIntercept(false)]
-    private List<T> sourceShape() =>
+    private global::System.Collections.Generic.List<T> sourceShape() =>
         this.srcCount(SourceShapeCount);
 #elif PERSISTED
     [LinqIntercept(false)]
@@ -940,14 +858,15 @@ public abstract class Methods1<T>:Base<T> where T:notnull {
         }
     }
 
-    internal IEnumerable<int>YieldRange() {
+    internal global::System.Collections.Generic.IEnumerable<int>YieldRange() {
         for(var i = 1; i<=this.sourceCount; i++) {
             yield return i;
         }
     }
 }
 
-
-
-
-
+public abstract class Array<T>(int count):Base<T>(count) where T:notnull;
+public abstract class IEnumerable<T>(int count):Base<T>(count) where T:notnull;
+public abstract class List<T>(int count):Base<T>(count) where T:notnull;
+public abstract class Persisted<T>(int count):Base<T>(count) where T:notnull;
+public abstract class Tsavorite<T>(int count):Base<T>(count) where T:notnull;

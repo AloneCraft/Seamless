@@ -134,6 +134,21 @@ public sealed class BenchmarkRowCompletionLogic{
     }
 
     [Fact]
+    public void IsLoopCountFinalCompleted_ToHashSetReachesOneMillisecondAtFourCalls(){
+        const int loopCount=4;
+        var measurements = new[] {
+            new BenchmarkElementMeasurement("Left","ToHashSet","System.Array.FLinq","",loopCount,"Completed",332_000,1_328_000),
+            new BenchmarkElementMeasurement("Right","ToHashSet","System.Array.ZLinq","",loopCount,"Completed",114_000,456_000),
+        };
+
+        Assert.True(global::UI.BenchmarkRowCompletionLogic.IsLoopCountFinalCompleted(
+            measurements,
+            new BenchmarkTabProgressCell("ToHashSet","Left","System.Array.FLinq","",true,"row-1"),
+            new BenchmarkTabProgressCell("ToHashSet","Right","System.Array.ZLinq","",true,"row-1"),
+            1_000_000));
+    }
+
+    [Fact]
     public void IsLoopCountFinalCompleted_DoesNotTreatFailureAsComplete(){
         var measurements = new[] {
             new BenchmarkElementMeasurement("Left","Any","System.Array.FLinq","",8,"Completed",25,1_100_000),

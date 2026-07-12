@@ -1,8 +1,8 @@
 namespace Benchmark.Tsavorite.Linq.Enumerable {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public class FLinqInt32():global::Seamless.Linq.Shared.Methods1<int>(4_096);
+    public class FLinqInt32():global::Seamless.Linq.Shared.Tsavorite<int>(4_096);
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public class FLinqString():global::Seamless.Linq.Shared.Methods1<string>(4_096);
+    public class FLinqClassInt32():global::Seamless.Linq.Shared.Tsavorite<global::Common.ClassInt32>(4_096);
 }
 
 namespace Seamless.Linq.Shared {
@@ -10,6 +10,6 @@ namespace Seamless.Linq.Shared {
         public static global::Seamless.Tsavorite.Collections.HashSet<T> AsX<T>(
             this global::Seamless.Tsavorite.Collections.HashSet<T> source) => source;
 
-        public static IEnumerable<T> AsX<T>(this IEnumerable<T> source) => source;
+        public static global::System.Collections.Generic.IEnumerable<T> AsX<T>(this global::System.Collections.Generic.IEnumerable<T> source) => source;
     }
 }

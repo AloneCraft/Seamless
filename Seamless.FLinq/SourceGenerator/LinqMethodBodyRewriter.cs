@@ -6,7 +6,7 @@ namespace Seamless.FLinq;
 
 public sealed partial class FLinqIncrementalGenerator {
 
-    // 傍受メソッドへ移した含有型（例: Methods1<T>）の型パラメータ名。
+    // 傍受メソッドへ移した含有型（例: Base<T>）の型パラメータ名。
     // 生成する補助 struct を <T> でパラメータ化するために Fragment ツリーへ伝播する。
     // 非ジェネリック含有型では空配列。
     private static string[] 外側型パラメータ名(INamedTypeSymbol containingType) =>
@@ -1256,6 +1256,9 @@ public sealed partial class FLinqIncrementalGenerator {
         rewrittenContainingType=containingType;
         var changed=false;
         for(var iteration=0;iteration<8;iteration++) {
+            if((LinqOptimizationContext.Current&LinqOptimizations.Rewrite)==0) {
+                break;
+            }
             var rewritten = AlgebraicRewriter.Rewrite(rewrittenNode,rewrittenSemanticModel);
             if(!TryRebindRewritten(rewrittenNode,rewritten,rewrittenSemanticModel,rewrittenContainingType,"TsavoriteAlgebraicRewrite",
                 out var nextNode,out var nextModel,out var nextType)) {

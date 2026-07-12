@@ -50,7 +50,7 @@ public sealed class SortRule:ObservableObject{
             GridSortColumn.ArgumentInitial => "Initial",
             GridSortColumn.ArgumentData => "Data",
             GridSortColumn.PairRatioTime => "時間比",
-            GridSortColumn.PairRatioAllocated => "メモリ比",
+            GridSortColumn.PairRatioAllocated => "メモリシェア",
             GridSortColumn.LeftTime => "Left 時間",
             GridSortColumn.LeftAllocated => "Left メモリ",
             GridSortColumn.RightTime => "Right 時間",

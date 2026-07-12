@@ -17,6 +17,12 @@ public abstract class MinMaxBase(int number, Enumerable source, string resultTyp
         if(source is RangeRoot range && source.ElementType=="int") {
             return RangePredicateOptimizer.RenderMinMax(range,number,destVar,destType,direction=="greater");
         }
+        if(source.DirectArrayExpression is { } arrayExpression) {
+            var methodName=direction=="greater"?"MaxSpan":"MinSpan";
+            return $$"""
+                {{destType}} {{destVar}}=global::Seamless.System.Carrier.ValueEnumerableExtensions.{{methodName}}<{{source.ElementType}}>({{arrayExpression}},global::System.Collections.Generic.Comparer<{{source.ElementType}}>.Default);
+                """;
+        }
         return this.RenderComputeInline(destVar,destType);
     }
 }

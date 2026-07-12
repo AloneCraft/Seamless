@@ -16,8 +16,8 @@ public static class BenchmarkCatalog {
 
     public static IReadOnlyList<BenchmarkProject> StandardProjects { get; } = BenchmarkSourceTabs.StandardAll
         .SelectMany(static tab => new[] {
-            new BenchmarkProject(tab.LeftProject,tab.LeftAssemblyName),
-            new BenchmarkProject(tab.RightProject,tab.RightAssemblyName),
+            new BenchmarkProject(tab.LeftProject,tab.LeftAssemblyName,tab.LeftTypePrefix),
+            new BenchmarkProject(tab.RightProject,tab.RightAssemblyName,tab.RightTypePrefix),
         })
         .Concat([
         new("Persisted Collection","Benchmark.Persisted.Collections"),
@@ -32,7 +32,7 @@ public static class BenchmarkCatalog {
 #endif
 
     public static IReadOnlyList<BenchmarkCase> Load() {
-        return LoadCore(static project => Assembly.Load(new AssemblyName(project.AssemblyName)));
+        return LoadCore(static project => Assembly.Load(new AssemblyName(project.AssemblyName)),skipUnavailableAssemblies:true);
     }
 
     internal static IReadOnlyList<BenchmarkCase> Load(IReadOnlyDictionary<string,Assembly> registeredAssemblies) {
@@ -40,7 +40,7 @@ public static class BenchmarkCatalog {
         ValidateAssemblyRegistrations(Projects,registeredAssemblies.Keys);
         return LoadCore(project => registeredAssemblies.TryGetValue(project.AssemblyName,out var assembly)
             ? assembly
-            : throw new InvalidOperationException("Benchmark assembly is not registered: "+project.AssemblyName));
+            : throw new InvalidOperationException("Benchmark assembly is not registered: "+project.AssemblyName),skipUnavailableAssemblies:false);
     }
 
     internal static void ValidateAssemblyRegistrations(
@@ -66,15 +66,21 @@ public static class BenchmarkCatalog {
             +(unexpected.Length==0 ? "(none)" : string.Join(", ",unexpected)));
     }
 
-    private static IReadOnlyList<BenchmarkCase> LoadCore(Func<BenchmarkProject,Assembly> resolveAssembly) {
+    private static IReadOnlyList<BenchmarkCase> LoadCore(Func<BenchmarkProject,Assembly> resolveAssembly,bool skipUnavailableAssemblies) {
         var cases = new List<BenchmarkCase>();
         foreach(var project in Projects.Where(static project => !string.IsNullOrWhiteSpace(project.AssemblyName))) {
-            var assembly = resolveAssembly(project);
+            Assembly assembly;
+            try {
+                assembly=resolveAssembly(project);
+            } catch(Exception ex) when(skipUnavailableAssemblies&&ex is FileNotFoundException or FileLoadException or BadImageFormatException) {
+                System.Diagnostics.Trace.WriteLine("Benchmark catalog skipped unavailable assembly '"+project.AssemblyName+"': "+ex.Message);
+                continue;
+            }
             foreach(var type in assembly.GetTypes().Where(type => IsConcreteBenchmarkType(type,project.TypePrefix)).OrderBy(static type => type.FullName,StringComparer.Ordinal)) {
                 foreach(var method in type.GetMethods(BindingFlags.Public|BindingFlags.Instance|BindingFlags.Static).Where(HasBenchmarkAttribute).OrderBy(static method => method.Name,StringComparer.Ordinal)) {
                     var arguments = GetBenchmarkArguments(method).ToArray();
                     if(arguments.Length==0){
-                        cases.Add(new BenchmarkCase(project.DisplayName,project.AssemblyName,type.FullName!,method.Name));
+                        cases.Add(new BenchmarkCase(project.DisplayName,project.AssemblyName,type.FullName!,method.Name,CreateBenchmarkPath(type)));
                         continue;
                     }
 
@@ -85,7 +91,8 @@ public static class BenchmarkCatalog {
                             type.FullName!,
                             method.Name,
                             BenchmarkArgumentFormatting.CreateKey(argumentSet),
-                            argumentSet));
+                            argumentSet,
+                            CreateBenchmarkPath(type)));
                     }
                 }
             }
@@ -101,6 +108,60 @@ public static class BenchmarkCatalog {
 
     private static bool HasBenchmarkAttribute(MethodInfo method) =>
         method.GetCustomAttribute<BenchmarkAttribute>() is not null;
+
+    private static string CreateBenchmarkPath(Type type) {
+        var nestedNames=new Stack<string>();
+        var root=type;
+        while(root.DeclaringType is not null) {
+            nestedNames.Push(NormalizeChainTypeName(root.Name));
+            root=root.DeclaringType;
+        }
+        var logicalRoot=FindLogicalBaseType(root);
+        var result=FormatLogicalType(logicalRoot??root);
+        return nestedNames.Count==0?result:result+"."+string.Join(".",nestedNames);
+    }
+
+    private static Type? FindLogicalBaseType(Type type) {
+        for(var current=type.BaseType;current is not null;current=current.BaseType) {
+            if(current.Namespace=="Seamless.Linq.Shared"
+                &&(current.Name.StartsWith("Array`",StringComparison.Ordinal)
+                    ||current.Name.StartsWith("IEnumerable`",StringComparison.Ordinal)
+                    ||current.Name.StartsWith("List`",StringComparison.Ordinal)
+                    ||current.Name.StartsWith("Persisted`",StringComparison.Ordinal)
+                    ||current.Name.StartsWith("Tsavorite`",StringComparison.Ordinal)
+                    ||current.Name=="Range_start_count")) {
+                return current;
+            }
+            if(current.Namespace=="Seamless.Linq.Optimization"
+                &&(current.Name.StartsWith("Array",StringComparison.Ordinal)
+                    ||current.Name.StartsWith("Enumerable",StringComparison.Ordinal)
+                    ||current.Name.StartsWith("List",StringComparison.Ordinal)
+                    ||current.Name.StartsWith("Range",StringComparison.Ordinal))) {
+                return current;
+            }
+        }
+        return null;
+    }
+
+    private static string FormatLogicalType(Type type) {
+        var name=NormalizeOptimizationTypeName(NormalizeChainTypeName(type.Name.Split('`')[0]));
+        if(!type.IsGenericType) {
+            return name;
+        }
+        return name+"<"+string.Join(",",type.GetGenericArguments().Select(FormatElementType))+">";
+    }
+
+    private static string FormatElementType(Type type)=>type==typeof(int)?"int":type.Name;
+    private static string NormalizeChainTypeName(string name)=>name.EndsWith("_chain",StringComparison.Ordinal)?name[..^6]:name;
+    private static string NormalizeOptimizationTypeName(string name) {
+        foreach(var suffix in new[]{"Rewrite","Pipeline","Pushdown"}) {
+            if(name.EndsWith(suffix,StringComparison.Ordinal)) {
+                name=name[..^suffix.Length];
+                break;
+            }
+        }
+        return name switch{"Enumerable"=>"IEnumerable","Range"=>"Range_start_count",_=>name};
+    }
 
     private static IEnumerable<IReadOnlyList<BenchmarkArgument>> GetBenchmarkArguments(MethodInfo method){
         var parameterNames = method.GetParameters().Select(static parameter => parameter.Name??string.Empty).ToArray();

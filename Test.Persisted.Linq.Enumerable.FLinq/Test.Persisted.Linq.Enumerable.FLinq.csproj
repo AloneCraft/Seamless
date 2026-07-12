@@ -11,7 +11,7 @@
     <IsTestProject>true</IsTestProject>
     <RootNamespace>Test.Persisted.Linq.Enumerable</RootNamespace>
     <AssemblyName>Test.Persisted.Linq.Enumerable.FLinq</AssemblyName>
-    <DefineConstants>$(DefineConstants);BENCH_AS_TEST</DefineConstants>
+    <DefineConstants>$(DefineConstants);BENCH_AS_TEST;PERSISTED</DefineConstants>
     <OutputType>Library</OutputType>
     <Persisted>true</Persisted>
   </PropertyGroup>
@@ -40,4 +40,3 @@
   </ItemGroup>
   <Import Project="..\Shared\Seamless.Linq.Enumerable\Seamless.Linq.Enumerable.projitems" Label="Shared" />
 </Project>
-

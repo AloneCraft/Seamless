@@ -53,7 +53,7 @@ public sealed partial class FLinqIncrementalGenerator {
             // 所属型がないと interceptor 側で this/型名を再現できない。
             || (method.ContainingType.IsGenericType && !再現可能なジェネリック含有型か(method))
             // ジェネリック型メンバーは生成メソッド側へ型パラメータを漏らしやすいので原則除外。
-            // ただし「再現可能な単純ジェネリック含有型（例: Methods1<T> where T:notnull）」かつ
+            // ただし「再現可能な単純ジェネリック含有型（例: Base<T> where T:notnull）」かつ
             // 傍受メソッドと補助 struct へ含有型の型パラメーターを伝播できる単純な形を許可する。
             // ラムダを含む場合も、生成コードから参照可能なメンバーだけで閉じられるなら展開対象にする。
             // （メソッド自身の型パラメーターのみ持つジェネリックメソッドは、冒頭で OriginalDefinition
@@ -132,7 +132,7 @@ public sealed partial class FLinqIncrementalGenerator {
             .ToArray();
 
         // 含有型がジェネリックなら、その型パラメーターを傍受メソッド（別クラスのジェネリック静的メソッド）へ移す。
-        // これでレシーバ型 this Methods1<T> と要素型 T を生成側で名指しできる。
+        // これでレシーバ型 this Base<T> と要素型 T を生成側で名指しできる。
         // 型パラメーターの順序は「含有型 → メソッド自身」。制約（where）も同順で再現する。
         var containingTypeParameters = method.ContainingType.IsGenericType
             ? method.ContainingType.TypeParameters
@@ -257,6 +257,36 @@ public sealed partial class FLinqIncrementalGenerator {
 
         return TryGetLinqInstrumentation(compilation.Assembly.GetAttributes(),out var assemblyInstrumentation)
             && assemblyInstrumentation;
+    }
+
+    private static LinqOptimizations LinqOptimizations判定(IMethodSymbol method,Compilation compilation) {
+        if(TryGetLinqOptimizations(method.GetAttributes(),out var methodOptimizations)) {
+            return methodOptimizations;
+        }
+        for(var type=method.ContainingType;type is not null;type=type.ContainingType) {
+            if(TryGetLinqOptimizations(type.GetAttributes(),out var typeOptimizations)) {
+                return typeOptimizations;
+            }
+        }
+        return TryGetLinqOptimizations(compilation.Assembly.GetAttributes(),out var assemblyOptimizations)
+            ?assemblyOptimizations
+            :LinqOptimizations.All;
+    }
+
+    private static bool TryGetLinqOptimizations(ImmutableArray<AttributeData> attributes,out LinqOptimizations optimizations) {
+        foreach(var attribute in attributes) {
+            if(attribute.AttributeClass?.Name!="LinqInterceptAttribute") {
+                continue;
+            }
+            foreach(var named in attribute.NamedArguments) {
+                if(named.Key=="Optimizations"&&named.Value.Value is int value) {
+                    optimizations=(LinqOptimizations)value;
+                    return true;
+                }
+            }
+        }
+        optimizations=LinqOptimizations.All;
+        return false;
     }
 
     private static bool TryGetLinqInstrumentation(ImmutableArray<AttributeData> attributes,out bool counterInstrumentation) {

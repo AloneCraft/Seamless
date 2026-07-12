@@ -12,7 +12,6 @@
     <AssemblyName>Test</AssemblyName>
     <RootNamespace>Test</RootNamespace>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-    <CompilerGeneratedFilesOutputPath>$(MSBuildProjectDirectory)\..\Work\Generated\$(MSBuildProjectName)\$(Configuration)\$(TargetFramework)</CompilerGeneratedFilesOutputPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(TargetFramework)'=='net10.0-windows'">
     <UseMaui>true</UseMaui>
@@ -64,6 +63,10 @@
     <ProjectReference Include="..\Shared\UI.Storage\UI.Storage.csproj" />
     <ProjectReference Include="..\Test.System.Linq.Enumerable.FLinq\Test.System.Linq.Enumerable.FLinq.csproj" PrivateAssets="all" Aliases="BenchmarkFLinq" />
     <ProjectReference Include="..\Test.System.Linq.Enumerable.ZLinq\Test.System.Linq.Enumerable.ZLinq.csproj" PrivateAssets="all" Aliases="BenchmarkZLinq" />
+    <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.FLinq\Benchmark.System.Linq.Enumerable.FLinq.csproj" />
+    <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.ZLinq\Benchmark.System.Linq.Enumerable.ZLinq.csproj" />
+    <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.Range.FLinq\Benchmark.System.Linq.Enumerable.Range.FLinq.csproj" />
+    <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.Range.ZLinq\Benchmark.System.Linq.Enumerable.Range.ZLinq.csproj" />
     <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" />
     <ProjectReference Include="..\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <ProjectReference Include="..\Seamless.Database\Seamless.Database.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
@@ -76,10 +79,17 @@
   <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'">
     <Compile Remove="**\*.cs" />
     <Compile Include="Benchmark\Pattern.cs" />
+    <Compile Include="Benchmark\AllocationShareValue.cs" />
+    <Compile Include="Benchmark\BenchmarkChartSelectionLayoutLogic.cs" />
+    <Compile Include="Benchmark\BenchmarkImprovementPromptBuilder.cs" />
     <Compile Include="BenchmarkWorker\BenchmarkGridKeyLogic.cs" />
     <Compile Include="BenchmarkWorker\BenchmarkRowCheckToggleLogic.cs" />
     <Compile Include="Benchmark\StartupDiagnostics.cs" />
     <Compile Include="Benchmark\UiRunStore.cs" />
+    <Compile Include="Benchmark\BenchmarkWorkloadAxis.cs" />
+    <Compile Include="Benchmark\BenchmarkRowCompletionLogic.cs" />
+    <Compile Include="BenchmarkWorker\BenchmarkFormatting.cs" />
+    <Compile Include="System\Linq\BenchmarkValueComparison\BenchmarkValueComparisonTests.cs" />
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.FLinq\Benchmark.System.Linq.Enumerable.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.List.ZLinq\Benchmark.System.Linq.Enumerable.List.ZLinq.csproj" />
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.Range.ZLinq\Benchmark.System.Linq.Enumerable.Range.ZLinq.csproj" />
@@ -92,5 +102,8 @@
     <ApplicationDefinition Remove="..\Benchmark\Shared\UI\Platforms\Windows\App.xaml" />
     <Compile Remove="..\Benchmark\Shared\UI\Platforms\Windows\App.xaml.cs" />
   </ItemGroup>
+  <Target Name="CleanCompilerGeneratedFiles" BeforeTargets="CoreCompile" Condition="'$(EmitCompilerGeneratedFiles)'=='true'">
+    <RemoveDir Directories="$(CompilerGeneratedFilesOutputPath)" />
+  </Target>
 </Project>
 

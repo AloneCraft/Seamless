@@ -94,6 +94,7 @@ internal static class ScalableBenchmarkNameFormatter{
             ||sourceTab is BenchmarkSourceTab.SeamlessPersisted
                 or BenchmarkSourceTab.SeamlessTsavorite
                 or BenchmarkSourceTab.SystemArray
+                or BenchmarkSourceTab.SystemIEnumerable
                 or BenchmarkSourceTab.SystemRange
                 or BenchmarkSourceTab.SystemList;
 

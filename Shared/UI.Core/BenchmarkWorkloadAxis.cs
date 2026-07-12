@@ -22,6 +22,11 @@ internal static class BenchmarkWorkloadAxis{
     public static int ResolveLoopCount(BenchmarkSourceTab sourceTab,int axisCount) =>
         axisCount<=0 ? 0 : UsesLoopCount(sourceTab) ? axisCount : DefaultLoopCount;
 
+    public static IReadOnlyList<int> ResolvePreparedElementCounts(BenchmarkSourceTab sourceTab,IEnumerable<int> axisCounts) =>
+        UsesLoopCount(sourceTab)
+            ? [StandardElementCount]
+            : axisCounts.Where(static count=>count>0).Distinct().Order().ToArray();
+
     public static int GetAxisCount(BenchmarkJob job) =>
         UsesLoopCount(job.SourceTab)&&job.LoopCount>0 ? job.LoopCount : job.ElementCount;
 

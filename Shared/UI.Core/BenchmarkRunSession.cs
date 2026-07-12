@@ -215,7 +215,7 @@ internal sealed class BenchmarkRunSession{
             SourceTab=sourceTab.Tab,
             ElementCount=result.ElementCount,
             LoopCount=result.LoopCount,
-            PreparedElementCounts=preparedElementCounts.ToList(),
+            PreparedElementCounts=BenchmarkWorkloadAxis.ResolvePreparedElementCounts(sourceTab.Tab,preparedElementCounts).ToList(),
             Status=status,
             AssignedLogicalCpu=result.AssignedLogicalCpu,
             Mean=result.Mean,

@@ -18,6 +18,40 @@ public sealed class UiRunStore{
     public string DatabasePath => this.databasePath;
     public UiRunAppKind AppKind => this.appKind;
 
+    public void RefreshMemoryShareViews(){
+        using var connection=this.OpenConnection();
+        using var transaction=BeginTransactionWithLockRetry(connection);
+        if(this.appKind is UiRunAppKind.Benchmark){
+            ExecuteNonQuery(connection,transaction,"""
+                DROP VIEW IF EXISTS "基準メモリ比";
+                DROP VIEW IF EXISTS "履歴メモリ比";
+                CREATE VIEW "履歴メモリ比" AS
+                SELECT r."実行ID" AS "RunId",r."更新日時" AS "UpdatedAt",b."タブ名" AS "SourceTab",b."型" AS "Type",b."ベンチマーク" AS "Benchmark",
+                    b."左メモリバイト" AS "FLinqBytes",b."右メモリバイト" AS "ZLinqBytes",
+                    CASE WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0.5 ELSE CAST(b."左メモリバイト" AS REAL)/(b."左メモリバイト"+b."右メモリバイト") END AS "LeftShare",
+                    CASE WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0.5 ELSE CAST(b."右メモリバイト" AS REAL)/(b."左メモリバイト"+b."右メモリバイト") END AS "RightShare"
+                FROM "Benchmark" b INNER JOIN "実行" r ON r."実行ID"=b."実行ID"
+                WHERE b."左状態"='完了' AND b."右状態"='完了' AND b."左メモリバイト" IS NOT NULL AND b."右メモリバイト" IS NOT NULL;
+                CREATE VIEW "基準メモリ比" AS
+                WITH history AS (SELECT h.*,
+                    LAG(h."LeftShare") OVER (PARTITION BY h."SourceTab",h."Type",h."Benchmark" ORDER BY h."RunId") AS "PreviousLeftShare",
+                    LAG(h."RightShare") OVER (PARTITION BY h."SourceTab",h."Type",h."Benchmark" ORDER BY h."RunId") AS "PreviousRightShare" FROM "履歴メモリ比" h)
+                SELECT *,"LeftShare"-"PreviousLeftShare" AS "LeftShareDelta","RightShare"-"PreviousRightShare" AS "RightShareDelta" FROM history;
+                """);
+        }else if(this.appKind==UiRunAppKind.ScalableBenchmark){
+            ExecuteNonQuery(connection,transaction,"""
+                DROP VIEW IF EXISTS "Scalable前回比較";
+                DROP VIEW IF EXISTS "Scalable履歴";
+                CREATE VIEW "Scalable履歴" AS SELECT r."実行ID" AS "RunId",r."前回実行ID" AS "PreviousRunId",r."更新日時" AS "UpdatedAt",b."タブ名" AS "SourceTab",b."型" AS "Type",b."ベンチマーク" AS "Benchmark",b."Count",b."Initial",b."Data",b."Index",b."Page",b."Segment",b."Memory",b."Fraction",b."今回時間ns" AS "CurrentNs",b."今回メモリバイト" AS "CurrentBytes" FROM "Benchmark" b INNER JOIN "実行" r ON r."実行ID"=b."実行ID" WHERE b."今回状態"='完了';
+                CREATE VIEW "Scalable前回比較" AS SELECT c.*,p."CurrentNs" AS "PreviousNs",c."CurrentNs"/NULLIF(p."CurrentNs",0) AS "TimeRatio",p."CurrentBytes" AS "PreviousBytes",
+                    CASE WHEN c."CurrentBytes"=0 AND p."CurrentBytes"=0 THEN 0.5 ELSE CAST(c."CurrentBytes" AS REAL)/(c."CurrentBytes"+p."CurrentBytes") END AS "CurrentMemoryShare",
+                    CASE WHEN c."CurrentBytes"=0 AND p."CurrentBytes"=0 THEN 0.5 ELSE CAST(p."CurrentBytes" AS REAL)/(c."CurrentBytes"+p."CurrentBytes") END AS "PreviousMemoryShare"
+                FROM "Scalable履歴" c LEFT JOIN "Scalable履歴" p ON p."RunId"=c."PreviousRunId" AND p."SourceTab"=c."SourceTab" AND p."Type"=c."Type" AND p."Benchmark"=c."Benchmark" AND p."Count"=c."Count" AND p."Initial"=c."Initial" AND p."Data"=c."Data" AND p."Index"=c."Index" AND p."Page"=c."Page" AND p."Segment"=c."Segment" AND p."Memory"=c."Memory" AND p."Fraction"=c."Fraction";
+                """);
+        }
+        transaction.Commit();
+    }
+
     public void EnsureSchema(){
         lock(this.schemaGate){
             if(this.schemaEnsured){
@@ -38,6 +72,7 @@ public sealed class UiRunStore{
             FinalizeTablesForAppKind(connection,transaction,this.appKind);
             ExecuteNonQuery(connection,transaction,$"PRAGMA user_version={SchemaVersion};");
             transaction.Commit();
+            this.RefreshMemoryShareViews();
             this.schemaEnsured=true;
         }
     }
@@ -234,9 +269,13 @@ public sealed class UiRunStore{
                 b."左メモリバイト" AS "FLinqBytes",
                 b."右メモリバイト" AS "ZLinqBytes",
                 CASE
-                    WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0
-                    ELSE CAST(b."左メモリバイト" AS REAL) / NULLIF(b."右メモリバイト",0)
-                END AS "PerformanceRatio"
+                    WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0.5
+                    ELSE CAST(b."左メモリバイト" AS REAL) / (b."左メモリバイト"+b."右メモリバイト")
+                END AS "LeftShare",
+                CASE
+                    WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0.5
+                    ELSE CAST(b."右メモリバイト" AS REAL) / (b."左メモリバイト"+b."右メモリバイト")
+                END AS "RightShare"
             FROM "Benchmark" b
             INNER JOIN "実行" r ON r."実行ID"=b."実行ID"
             WHERE b."左状態"='完了'
@@ -247,10 +286,14 @@ public sealed class UiRunStore{
             WITH history AS (
                 SELECT
                     h.*,
-                    LAG(h."PerformanceRatio") OVER (
+                    LAG(h."LeftShare") OVER (
                         PARTITION BY h."SourceTab",h."Type",h."Benchmark"
                         ORDER BY h."RunId"
-                    ) AS "PreviousPerformanceRatio"
+                    ) AS "PreviousLeftShare",
+                    LAG(h."RightShare") OVER (
+                        PARTITION BY h."SourceTab",h."Type",h."Benchmark"
+                        ORDER BY h."RunId"
+                    ) AS "PreviousRightShare"
                 FROM "履歴メモリ比" h
             )
             SELECT
@@ -261,9 +304,12 @@ public sealed class UiRunStore{
                 "Benchmark",
                 "FLinqBytes",
                 "ZLinqBytes",
-                "PerformanceRatio",
-                "PreviousPerformanceRatio",
-                "PerformanceRatio" - "PreviousPerformanceRatio" AS "PerformanceRatioDelta"
+                "LeftShare",
+                "RightShare",
+                "PreviousLeftShare",
+                "PreviousRightShare",
+                "LeftShare" - "PreviousLeftShare" AS "LeftShareDelta",
+                "RightShare" - "PreviousRightShare" AS "RightShareDelta"
             FROM history;
             DROP VIEW IF EXISTS "Scalable履歴";
             DROP VIEW IF EXISTS "Scalable前回比較";
@@ -288,8 +334,10 @@ public sealed class UiRunStore{
                 c."CurrentNs",p."CurrentNs" AS "PreviousNs",
                 c."CurrentNs"/NULLIF(p."CurrentNs",0) AS "TimeRatio",
                 c."CurrentBytes",p."CurrentBytes" AS "PreviousBytes",
-                CASE WHEN c."CurrentBytes"=0 AND p."CurrentBytes"=0 THEN 0
-                     ELSE CAST(c."CurrentBytes" AS REAL)/NULLIF(p."CurrentBytes",0) END AS "MemoryRatio"
+                 CASE WHEN c."CurrentBytes"=0 AND p."CurrentBytes"=0 THEN 0.5
+                      ELSE CAST(c."CurrentBytes" AS REAL)/(c."CurrentBytes"+p."CurrentBytes") END AS "CurrentMemoryShare",
+                 CASE WHEN c."CurrentBytes"=0 AND p."CurrentBytes"=0 THEN 0.5
+                      ELSE CAST(p."CurrentBytes" AS REAL)/(c."CurrentBytes"+p."CurrentBytes") END AS "PreviousMemoryShare"
             FROM "Scalable履歴" c
             LEFT JOIN "Scalable履歴" p
               ON p."RunId"=c."PreviousRunId"
@@ -301,7 +349,7 @@ public sealed class UiRunStore{
     }
 
     private static void FinalizeTablesForAppKind(SqliteConnection connection,SqliteTransaction transaction,UiRunAppKind appKind){
-        if(appKind==UiRunAppKind.Benchmark){
+        if(appKind is UiRunAppKind.Benchmark){
             ExecuteNonQuery(connection,transaction,"DROP TABLE IF EXISTS \"ScalableBenchmark\";");
         }else if(appKind==UiRunAppKind.ScalableBenchmark){
             DropViews(connection,transaction);

@@ -1,12 +1,10 @@
 namespace Benchmark.System.Linq.Enumerable.Range {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public class ZLinqInt32():global::Seamless.Linq.Shared.Methods1<int>(4_096);
-    [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public class ZLinqString():global::Seamless.Linq.Shared.Methods1<string>(4_096);
+    public class ZLinqInt32():global::Seamless.Linq.Shared.Range_start_count(4_096);
 }
 
 namespace Seamless.Linq.Shared {
-    internal static class Route {
-        public static ValueEnumerable<ZLinq.Linq.FromEnumerable<T>, T> AsX<T>(this IEnumerable<T> source) => source.AsValueEnumerable();
+    internal static class RangeX {
+        public static ValueEnumerable<ZLinq.Linq.FromRange,int>Create(int start,int count)=>ValueEnumerable.Range(start,count);
     }
 }

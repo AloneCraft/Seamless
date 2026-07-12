@@ -733,7 +733,7 @@ public sealed partial class FLinqIncrementalGenerator {
             foreach(var param in method.Parameters) {
                 paramParts.Add(ParameterDeclarationForAccessor(param));
             }
-            // 含有型/戻り値/引数がジェネリック（例: Methods1<T> の非公開 static）ならアクセサをジェネリック extern にする。
+            // 含有型/戻り値/引数がジェネリック（例: Base<T> の非公開 static）ならアクセサをジェネリック extern にする。
             var (staticAccessorTypeParameters,staticAccessorConstraints) = アクセサ型パラメータ(アクセサ署名型集合(method));
             var accessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.StaticMethod, Name = \"{method.Name}\")]\nprivate static extern {returnTypeName} {accessorName}{staticAccessorTypeParameters}({string.Join(", ",paramParts)}){staticAccessorConstraints};";
             unsafeAccessorCollector?.Add(accessorCode);

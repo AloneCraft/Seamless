@@ -18,7 +18,7 @@ public static class BenchmarkFormatting{
         }
 
         if(value>=1_000){
-            return (value/1_000).ToString("0.##",CultureInfo.InvariantCulture)+" us";
+            return (value/1_000).ToString("0.##",CultureInfo.InvariantCulture)+" μs";
         }
 
         return value.ToString("0.##",CultureInfo.InvariantCulture)+" ns";

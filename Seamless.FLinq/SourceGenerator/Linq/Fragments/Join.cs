@@ -103,7 +103,7 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             {{localDeclarationBlock}}
             static bool {{hasKeyName}}<TKey>(TKey key) => key is not null;
             var {{innerArrayName}}={{innerArrayExpression}};
-            var {{lookupBuilderName}}=new global::Seamless.System.Carrier.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>({{this.comparerExpression}});
+            var {{lookupBuilderName}}=new global::Seamless.System.Carrier.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>({{innerArrayName}}.Length,{{this.comparerExpression}},true);
             try {
             for(var {{innerIndexName}}=0;{{innerIndexName}}<{{innerArrayName}}.Length;{{innerIndexName}}++) {
                 var {{innerItemName}}={{innerArrayName}}[{{innerIndexName}}];

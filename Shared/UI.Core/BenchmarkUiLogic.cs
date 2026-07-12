@@ -263,7 +263,7 @@ internal static class BenchmarkChartSelectionLayoutLogic{
         var rightNumber = Math.Max(0,rightValue);
         var total = leftNumber+rightNumber;
         if(total<=0){
-            return ("0.00","0.00");
+            return ("0.50","0.50");
         }
 
         var leftShare = Math.Round(leftNumber/total,2,MidpointRounding.AwayFromZero);
@@ -288,7 +288,7 @@ internal static class BenchmarkChartSelectionLayoutLogic{
         var total = leftValue+rightValue;
         var leftPercent = total>0
             ? (float)Math.Clamp(leftValue/total*100,0,100)
-            : 0;
+            : 50;
         var leftEnd = Math.Clamp(CalculateStackBoundary(plotLeft,plotRight,leftPercent),plotLeft,plotRight);
         return (
             new BenchmarkChartBarRect(plotLeft,leftEnd,MathF.Max(1,leftEnd-plotLeft)),
@@ -709,7 +709,7 @@ internal static class BenchmarkRowGroupingLogic{
                 continue;
             }
 
-            var key=benchmark.MethodName+"|"+benchmark.ArgumentKey;
+            var key=benchmark.BenchmarkPath+"|"+benchmark.MethodName+"|"+benchmark.ArgumentKey;
             if(!methodGroups.TryGetValue(key,out var methodGroup)){
                 methodGroup=new BenchmarkMethodCaseGroup(benchmark,projectOrder.Count);
                 methodGroups.Add(key,methodGroup);
@@ -758,14 +758,18 @@ internal static class BenchmarkRowGroupingLogic{
         IReadOnlyDictionary<string,BenchmarkCase> casesByProject,
         int elementCount){
         var typeFullName=string.Empty;
+        var benchmarkPath=string.Empty;
         foreach(var project in sourceTab.ProjectOrder){
             if(casesByProject.TryGetValue(project,out var benchmark)
                 &&!string.IsNullOrWhiteSpace(benchmark.TypeFullName)){
                 typeFullName=benchmark.TypeFullName;
+                benchmarkPath=benchmark.BenchmarkPath;
                 break;
             }
         }
-        return ScalableBenchmarkNameFormatter.CreateBenchmarkName(sourceTab,typeFullName,methodName,elementCount);
+        return string.IsNullOrWhiteSpace(benchmarkPath)
+            ?ScalableBenchmarkNameFormatter.CreateBenchmarkName(sourceTab,typeFullName,methodName,elementCount)
+            :benchmarkPath+"."+methodName;
     }
 
     public static string CreateRowKey(

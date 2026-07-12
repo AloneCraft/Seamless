@@ -32,6 +32,7 @@ public enum BenchmarkGridSortColumn{
     BenchmarkMethod,
     BenchmarkName,
     LogicalCpu,
+    LoopCount,
     ArgumentCount,
     ArgumentIndex,
     ArgumentPage,
@@ -85,6 +86,7 @@ public sealed class BenchmarkSortRule:ObservableObject{
             BenchmarkGridSortColumn.BenchmarkMethod => "ベンチマーク",
             BenchmarkGridSortColumn.BenchmarkName => "ベンチマーク",
             BenchmarkGridSortColumn.LogicalCpu => "CPU",
+            BenchmarkGridSortColumn.LoopCount => "ループ回数",
             BenchmarkGridSortColumn.ArgumentCount => "Count",
             BenchmarkGridSortColumn.ArgumentIndex => "Index",
             BenchmarkGridSortColumn.ArgumentPage => "Page",
@@ -94,7 +96,7 @@ public sealed class BenchmarkSortRule:ObservableObject{
             BenchmarkGridSortColumn.ArgumentInitial => "Initial",
             BenchmarkGridSortColumn.ArgumentData => "Data",
             BenchmarkGridSortColumn.PairRatioTime => "時間比",
-            BenchmarkGridSortColumn.PairRatioAllocated => "メモリ比",
+            BenchmarkGridSortColumn.PairRatioAllocated => "メモリシェア",
             BenchmarkGridSortColumn.LeftTime => "Left 時間",
             BenchmarkGridSortColumn.LeftAllocated => "Left メモリ",
             BenchmarkGridSortColumn.RightTime => "Right 時間",
@@ -387,14 +389,14 @@ public sealed class BenchmarkImprovementCandidateRow:ObservableObject{
             ? this.Candidate.TimeElementCount.ToString("N0",CultureInfo.InvariantCulture)
             : this.Candidate.TimeElementCount.ToString("N0",CultureInfo.InvariantCulture)+"/"+this.Candidate.AllocatedElementCount.ToString("N0",CultureInfo.InvariantCulture);
     public string TimeRatioText => BenchmarkImprovementCandidateBuilder.FormatRatio(this.Candidate.TimeRatio);
-    public string AllocatedRatioText => BenchmarkImprovementCandidateBuilder.FormatRatio(this.Candidate.AllocatedRatio);
+    public string AllocatedRatioText => BenchmarkImprovementCandidateBuilder.FormatShare(this.Candidate.AllocatedShare);
     public string TimeGaugeText => CreateGaugeText("時間",this.Candidate.TimeRatio);
-    public string AllocatedGaugeText => CreateGaugeText("メモリ",this.Candidate.AllocatedRatio);
+    public string AllocatedGaugeText => "メモリ "+this.Candidate.AllocatedShare.DisplayText;
     public double TimeGaugeFraction => CreateGaugeFraction(this.Candidate.TimeRatio);
-    public double AllocatedGaugeFraction => CreateGaugeFraction(this.Candidate.AllocatedRatio);
-    public double WorstLeftRatioSortValue => Math.Max(
-        BenchmarkImprovementCandidateBuilder.GetRankValue(this.Candidate.TimeRatio),
-        BenchmarkImprovementCandidateBuilder.GetRankValue(this.Candidate.AllocatedRatio));
+    public double AllocatedGaugeFraction => this.Candidate.AllocatedShare.LeftShare??0;
+    public double WorstLeftRatioSortValue => BenchmarkImprovementCandidateBuilder.GetRegressionSeverity(
+        this.Candidate.TimeRatio,
+        this.Candidate.AllocatedShare);
     public string LeftTimeText => BenchmarkImprovementCandidateBuilder.FormatTime(this.Candidate.TimeLeft.TimeNanoseconds);
     public string RightTimeText => BenchmarkImprovementCandidateBuilder.FormatTime(this.Candidate.TimeRight.TimeNanoseconds);
     public string LeftAllocatedText => BenchmarkImprovementCandidateBuilder.FormatAllocated(this.Candidate.AllocatedLeft.AllocatedBytes);
@@ -448,6 +450,9 @@ public readonly record struct BenchmarkSortValue(string? Text,double? Number,boo
             _ => Missing,
         };
     }
+
+    public static BenchmarkSortValue FromShare(AllocationShareValue share) =>
+        FromNumber(share.LeftShare);
 
     public static BenchmarkSortValue FromNumber(double? value){
         return value is { } number&&double.IsFinite(number)
@@ -1130,7 +1135,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
             values.Add("最終バッチ合計: "+BenchmarkFormatting.FormatNanoseconds(total));
         }
         if(loopCount is { } loop&&loop>0){
-            values.Add("LoopCount: "+loop.ToString(CultureInfo.InvariantCulture));
+            values.Add("ループ回数: "+loop.ToString(CultureInfo.InvariantCulture));
         }
         return string.Join(Environment.NewLine,values);
     }
@@ -1300,7 +1305,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
             values.Add("最終バッチ合計: "+BenchmarkFormatting.FormatNanoseconds(total));
         }
         if(loopCount is { } loop&&loop>0){
-            values.Add("LoopCount: "+loop.ToString(CultureInfo.InvariantCulture));
+            values.Add("ループ回数: "+loop.ToString(CultureInfo.InvariantCulture));
         }
         return string.Join(Environment.NewLine,values);
     }
@@ -1351,7 +1356,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
             return string.Empty;
         }
     }
-    public string LoopCountTooltipText => string.IsNullOrWhiteSpace(this.LoopCountText) ? string.Empty : "左右共通の最終LoopCount: "+this.LoopCountText;
+    public string LoopCountTooltipText => string.IsNullOrWhiteSpace(this.LoopCountText) ? string.Empty : "左右共通の最終ループ回数: "+this.LoopCountText;
     public double? LogicalCpuSortValue{
         get => this.logicalCpuSortValue;
         private set => this.SetProperty(ref this.logicalCpuSortValue,value);
@@ -1692,6 +1697,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
             BenchmarkGridSortColumn.BenchmarkMethod => BenchmarkSortValue.FromText(this.BenchmarkMethodText),
             BenchmarkGridSortColumn.BenchmarkName => BenchmarkSortValue.FromText(this.BenchmarkName),
             BenchmarkGridSortColumn.LogicalCpu => BenchmarkSortValue.FromNumber(this.LogicalCpuSortValue),
+            BenchmarkGridSortColumn.LoopCount => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.LoopCountText)),
             BenchmarkGridSortColumn.ArgumentCount => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.CountArgument)),
             BenchmarkGridSortColumn.ArgumentIndex => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.IndexArgument)),
             BenchmarkGridSortColumn.ArgumentPage => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.PageArgument)),
@@ -1701,7 +1707,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
             BenchmarkGridSortColumn.ArgumentInitial => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.InitialArgument)),
             BenchmarkGridSortColumn.ArgumentData => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.DataArgument)),
             BenchmarkGridSortColumn.PairRatioTime => BenchmarkSortValue.FromRatio(this.GetDisplayedTimeRatio()),
-            BenchmarkGridSortColumn.PairRatioAllocated => BenchmarkSortValue.FromRatio(this.GetDisplayedAllocatedRatio()),
+            BenchmarkGridSortColumn.PairRatioAllocated => BenchmarkSortValue.FromShare(this.GetDisplayedAllocatedShare()),
             BenchmarkGridSortColumn.LeftTime => BenchmarkSortValue.FromMetric(this.LeftCell.Metrics,BenchmarkMetricKind.Time),
             BenchmarkGridSortColumn.LeftAllocated => BenchmarkSortValue.FromMetric(this.LeftCell.Metrics,BenchmarkMetricKind.Allocated),
             BenchmarkGridSortColumn.RightTime => BenchmarkSortValue.FromMetric(this.RightCell.Metrics,BenchmarkMetricKind.Time),
@@ -1736,15 +1742,17 @@ public sealed class BenchmarkTableRow:ObservableObject{
     }
 
     private void RefreshDisplayedRatios(){
-        this.PairRatioTimeText=FormatRatio(this.GetDisplayedTimeRatio());
-        this.PairRatioAllocatedText=FormatRatio(this.GetDisplayedAllocatedRatio());
+        var timeRatio=this.GetDisplayedTimeRatio();
+        var warning=BenchmarkAcceptancePolicy.IsRegression(this.SourceTab.Tab,timeRatio)?" ⚠":"";
+        this.PairRatioTimeText=FormatRatio(timeRatio)+warning;
+        this.PairRatioAllocatedText=this.GetDisplayedAllocatedShare().DisplayText;
     }
 
     private RatioValue GetDisplayedTimeRatio() =>
         BenchmarkComparisonFormatter.CalculateTimeRatio(this.LeftCell.Metrics,this.RightCell.Metrics);
 
-    private RatioValue GetDisplayedAllocatedRatio() =>
-        BenchmarkComparisonFormatter.CalculateAllocatedRatio(this.LeftCell.Metrics,this.RightCell.Metrics);
+    private AllocationShareValue GetDisplayedAllocatedShare() =>
+        BenchmarkComparisonFormatter.CalculateAllocatedShare(this.LeftCell.Metrics,this.RightCell.Metrics);
 
     private void SetProjectMetricText(string project,string timeText,string allocatedText){
         if(string.Equals(project,this.SourceTab.LeftProject,StringComparison.OrdinalIgnoreCase)){

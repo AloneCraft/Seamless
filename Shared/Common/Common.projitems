@@ -15,5 +15,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\Categories.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\ConsumerExtensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\OptimizationSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\PersistedBase.cs" Condition="'$(Persisted)'=='true'" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\TsavoriteBase.cs" Condition="'$(Tsavorite)'=='true'" />
   </ItemGroup>
 </Project>

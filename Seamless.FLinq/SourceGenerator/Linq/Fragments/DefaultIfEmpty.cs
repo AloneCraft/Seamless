@@ -113,6 +113,24 @@ public abstract class DefaultIfEmptyBase(int 番号, Enumerable source) : Enumer
         }
         return false;
         """;
+    public override string GetConsumeExecutionStatement(string consumerName){
+        if(this.RootSource is not RangeRoot range){
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+        return $$"""
+            {
+                var __start{{番号}}={{range.StartExpression}};
+                var __count{{番号}}={{range.CountExpression}};
+                if(__count{{番号}}==0){
+                    {{consumerName}}.Consume({{this.EffectiveDefaultValue}});
+                }else{
+                    for(var __i{{番号}}=0;__i{{番号}}<__count{{番号}};__i{{番号}}++){
+                        {{consumerName}}.Consume(__start{{番号}}+__i{{番号}});
+                    }
+                }
+            }
+            """;
+    }
     public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => this.RootSource.ElementType;
 }

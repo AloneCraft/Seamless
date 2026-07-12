@@ -11,6 +11,7 @@
     <RootNamespace>Benchmark.Tsavorite.Linq.Enumerable.Linq</RootNamespace>
     <AssemblyName>Benchmark.Tsavorite.Linq.Enumerable.Linq</AssemblyName>
     <Tsavorite>true</Tsavorite>
+    <DefineConstants>$(DefineConstants);TSAVORITE</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="artifacts\**" />
@@ -32,4 +33,3 @@
   </ItemGroup>
   <Import Project="..\..\Shared\Seamless.Linq.Enumerable\Seamless.Linq.Enumerable.projitems" Label="Shared" />
 </Project>
-
