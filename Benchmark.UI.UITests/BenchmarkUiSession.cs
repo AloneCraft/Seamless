@@ -62,6 +62,20 @@ internal sealed class BenchmarkUiSession:IDisposable{
         actions.Perform();
     }
 
+    public void ClickCpuCell(IWebElement check,string? modifier = null){
+        var actions=new Actions(this.driver);
+        if(modifier is not null){
+            actions.KeyDown(modifier);
+        }
+        actions.MoveToElement(check,18,0).Click();
+        if(modifier is not null){
+            actions.KeyUp(modifier);
+        }
+        actions.Perform();
+    }
+
+    public void SendKeys(string keys) => new Actions(this.driver).SendKeys(keys).Perform();
+
     public void SendKeysAutomationId(string automationId,string keys){
         this.WaitForAutomationId(automationId).SendKeys(keys);
     }

@@ -7,6 +7,10 @@ internal static class BenchmarkUiAutomationIds{
     public const string AllSelectionCheckHost = "Benchmark.AllSelectionCheckHost";
     public const string AllSelectionCheck = "Benchmark.AllSelectionCheck";
     public const string RowCheck = "Benchmark.RowCheck";
+    public const string CpuCellCheck = "CPU.CellCheck";
+
+    public static string CpuGrid(string coreKind) =>
+        "CPU.Grid."+coreKind;
 
     public static string SourceTab(string sourceTab) =>
         "Benchmark.SourceTab."+sourceTab;

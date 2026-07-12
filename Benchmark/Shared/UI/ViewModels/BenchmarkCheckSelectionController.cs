@@ -8,7 +8,7 @@ namespace UI;
 /// SfDataGrid の標準行選択へ、チェック操作と選択差分通知だけを追加します。
 /// </summary>
 internal sealed class BenchmarkCheckSelectionController:DataGridRowSelectionController{
-    private readonly Action<IReadOnlyList<BenchmarkTableRow>> toggleRows;
+    private readonly GridCheckSelectionBehavior<BenchmarkTableRow> checkSelection;
     private readonly Action<IReadOnlyList<BenchmarkTableRow>,IReadOnlyList<BenchmarkTableRow>> synchronizeSelection;
 
     public BenchmarkCheckSelectionController(
@@ -16,7 +16,9 @@ internal sealed class BenchmarkCheckSelectionController:DataGridRowSelectionCont
         Action<IReadOnlyList<BenchmarkTableRow>> toggleRows,
         Action<IReadOnlyList<BenchmarkTableRow>,IReadOnlyList<BenchmarkTableRow>> synchronizeSelection)
         :base(dataGrid){
-        this.toggleRows=toggleRows;
+        this.checkSelection=new GridCheckSelectionBehavior<BenchmarkTableRow>(
+            () => GetSelectedRows(dataGrid.SelectedRows).ToArray(),
+            toggleRows);
         this.synchronizeSelection=synchronizeSelection;
     }
 
@@ -48,16 +50,11 @@ internal sealed class BenchmarkCheckSelectionController:DataGridRowSelectionCont
         if(this.DataGrid is not { } dataGrid){
             return;
         }
-        dataGrid.Dispatcher.Dispatch(() => dataGrid.GetVisualContainer()?.Focus());
+        GridKeyboardFocusBehavior.QueueFocus(dataGrid);
     }
 
     protected override void ProcessKeyDown(KeyEventArgs args,bool isCtrlKeyPressed,bool isShiftKeyPressed){
-        if(BenchmarkGridKeyLogic.ShouldToggleChecks(args.Key,isCtrlKeyPressed,isShiftKeyPressed)){
-            var rows=GetSelectedRows(this.DataGrid?.SelectedRows).ToArray();
-            if(rows.Length!=0){
-                this.toggleRows(rows);
-            }
-            args.Handled=true;
+        if(this.checkSelection.ProcessKeyDown(args,isCtrlKeyPressed,isShiftKeyPressed)){
             return;
         }
         base.ProcessKeyDown(args,isCtrlKeyPressed,isShiftKeyPressed);
@@ -69,10 +66,4 @@ internal sealed class BenchmarkCheckSelectionController:DataGridRowSelectionCont
         DataRowBase { RowData: BenchmarkTableRow benchmarkRow } => benchmarkRow,
         _ => null,
     };
-
-}
-
-internal static class BenchmarkGridKeyLogic{
-    public static bool ShouldToggleChecks(KeyboardKey key,bool isCtrlKeyPressed,bool isShiftKeyPressed) =>
-        key==KeyboardKey.Space&&!isCtrlKeyPressed&&!isShiftKeyPressed;
 }

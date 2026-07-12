@@ -1356,7 +1356,7 @@ internal static class BenchmarkRowUiSelectionLogic{
     }
 }
 
-internal static class BenchmarkRowCheckToggleLogic{
+internal static class GridCheckToggleLogic{
     public static bool? ResolveTargetCheckedState(IEnumerable<bool?> states){
         var values=states.ToArray();
         if(values.Length==0){

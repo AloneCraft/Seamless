@@ -6,6 +6,35 @@ namespace Test.Benchmark.Pattern;
 
 public sealed class RunnerViewModel{
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public void BenchmarkAssemblyRegistrations_ExactSet_IsAccepted(){
+        var projects = new global::UI.BenchmarkProject[] {
+            new("Left","Benchmark.Left"),
+            new("Left duplicate","benchmark.left"),
+            new("Right","Benchmark.Right"),
+        };
+
+        global::UI.BenchmarkCatalog.ValidateAssemblyRegistrations(
+            projects,
+            ["BENCHMARK.LEFT","Benchmark.Right"]);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public void BenchmarkAssemblyRegistrations_Mismatch_ReportsMissingAndUnexpected(){
+        var projects = new global::UI.BenchmarkProject[] {
+            new("Left","Benchmark.Left"),
+            new("Right","Benchmark.Right"),
+        };
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            global::UI.BenchmarkCatalog.ValidateAssemblyRegistrations(
+                projects,
+                ["Benchmark.Left","Benchmark.Unexpected"]));
+
+        Assert.Contains("Benchmark.Right",exception.Message,StringComparison.Ordinal);
+        Assert.Contains("Benchmark.Unexpected",exception.Message,StringComparison.Ordinal);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
     public async Task Arrayタブの全てのベンチマークにチェックして1msで実行(){
         // UI操作: Arrayタブを前提に「全て選択」し、「Run実行」を押下する。
         // 観測: 選択セルでCPU実行中アイコンが出ること、FinalCompletedへ遷移すること、進捗 Completed/Total が一致することを確認する。
@@ -272,6 +301,25 @@ public sealed class RunnerViewModel{
 
         Assert.Equal(7,result.BindingRowIndex);
         Assert.Equal(7,benchmark.BindingRowIndex);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public async Task CpuSpaceTargets_AllOnTurnsOffAndMixedTurnsOn(){
+        var fixture=await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
+        var targets=new[]{
+            new global::UI.CpuSelectionItem(0,global::UI.CpuCoreKind.Performance,0,0,true),
+            new global::UI.CpuSelectionItem(1,global::UI.CpuCoreKind.Performance,0,1,true),
+        };
+
+        foreach(var cpu in targets){
+            cpu.IsSelected=true;
+        }
+        fixture.ViewModel.ToggleCpuChecks(targets);
+        Assert.All(targets,static cpu => Assert.False(cpu.IsSelected));
+
+        targets[0].IsSelected=true;
+        fixture.ViewModel.ToggleCpuChecks(targets);
+        Assert.All(targets,static cpu => Assert.True(cpu.IsSelected));
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]

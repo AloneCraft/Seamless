@@ -7,29 +7,29 @@ namespace UI;
 /// SfDataGrid の標準セル選択へ、修飾なし Space のチェック操作だけを追加します。
 /// </summary>
 internal sealed class CpuCheckSelectionController:DataGridCellSelectionController{
-    private readonly Action<IReadOnlyList<CpuSelectionItem>> toggleChecks;
+    private readonly GridCheckSelectionBehavior<CpuSelectionItem> checkSelection;
 
     public CpuCheckSelectionController(SfDataGrid dataGrid,Action<IReadOnlyList<CpuSelectionItem>> toggleChecks)
         :base(dataGrid){
-        this.toggleChecks=toggleChecks;
+        this.checkSelection=new GridCheckSelectionBehavior<CpuSelectionItem>(
+            () => GetSelectedCpus(dataGrid),
+            toggleChecks);
     }
 
     protected override void ProcessKeyDown(KeyEventArgs args,bool isCtrlKeyPressed,bool isShiftKeyPressed){
-        if(args.Key==KeyboardKey.Space&&!isCtrlKeyPressed&&!isShiftKeyPressed){
-            var cpus=this.DataGrid?.GetSelectedCells()
-                .Select(GetCpu)
-                .Where(static cpu => cpu is not null)
-                .Select(static cpu => cpu!)
-                .DistinctBy(static cpu => cpu.LogicalProcessorIndex)
-                .ToArray()??[];
-            if(cpus.Length!=0){
-                this.toggleChecks(cpus);
-            }
-            args.Handled=true;
+        if(this.checkSelection.ProcessKeyDown(args,isCtrlKeyPressed,isShiftKeyPressed)){
             return;
         }
         base.ProcessKeyDown(args,isCtrlKeyPressed,isShiftKeyPressed);
     }
+
+    private static IReadOnlyList<CpuSelectionItem> GetSelectedCpus(SfDataGrid dataGrid) =>
+        dataGrid.GetSelectedCells()
+            .Select(GetCpu)
+            .Where(static cpu => cpu is not null)
+            .Select(static cpu => cpu!)
+            .DistinctBy(static cpu => cpu.LogicalProcessorIndex)
+            .ToArray();
 
     internal static bool IsSelectableCpuCell(SelectedCellInfo cell) => GetCpu(cell) is not null;
 

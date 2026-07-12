@@ -32,9 +32,44 @@ public static class BenchmarkCatalog {
 #endif
 
     public static IReadOnlyList<BenchmarkCase> Load() {
+        return LoadCore(static project => Assembly.Load(new AssemblyName(project.AssemblyName)));
+    }
+
+    internal static IReadOnlyList<BenchmarkCase> Load(IReadOnlyDictionary<string,Assembly> registeredAssemblies) {
+        ArgumentNullException.ThrowIfNull(registeredAssemblies);
+        ValidateAssemblyRegistrations(Projects,registeredAssemblies.Keys);
+        return LoadCore(project => registeredAssemblies.TryGetValue(project.AssemblyName,out var assembly)
+            ? assembly
+            : throw new InvalidOperationException("Benchmark assembly is not registered: "+project.AssemblyName));
+    }
+
+    internal static void ValidateAssemblyRegistrations(
+        IReadOnlyList<BenchmarkProject> projects,
+        IEnumerable<string> registeredAssemblyNames) {
+        var expected = projects
+            .Select(static project => project.AssemblyName)
+            .Where(static name => !string.IsNullOrWhiteSpace(name))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var registered = registeredAssemblyNames
+            .Where(static name => !string.IsNullOrWhiteSpace(name))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var missing = expected.Except(registered,StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToArray();
+        var unexpected = registered.Except(expected,StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToArray();
+        if(missing.Length==0&&unexpected.Length==0) {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            "Benchmark assembly registration mismatch. Missing: "
+            +(missing.Length==0 ? "(none)" : string.Join(", ",missing))
+            +"; Unexpected: "
+            +(unexpected.Length==0 ? "(none)" : string.Join(", ",unexpected)));
+    }
+
+    private static IReadOnlyList<BenchmarkCase> LoadCore(Func<BenchmarkProject,Assembly> resolveAssembly) {
         var cases = new List<BenchmarkCase>();
         foreach(var project in Projects.Where(static project => !string.IsNullOrWhiteSpace(project.AssemblyName))) {
-            var assembly = Assembly.Load(new AssemblyName(project.AssemblyName));
+            var assembly = resolveAssembly(project);
             foreach(var type in assembly.GetTypes().Where(type => IsConcreteBenchmarkType(type,project.TypePrefix)).OrderBy(static type => type.FullName,StringComparer.Ordinal)) {
                 foreach(var method in type.GetMethods(BindingFlags.Public|BindingFlags.Instance|BindingFlags.Static).Where(HasBenchmarkAttribute).OrderBy(static method => method.Name,StringComparer.Ordinal)) {
                     var arguments = GetBenchmarkArguments(method).ToArray();

@@ -2115,8 +2115,11 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
 
         var targets=cpus.Distinct().ToArray();
-        var selected=targets.Any(static cpu => !cpu.IsSelected);
-        this.ApplyCpuSelection(targets,selected);
+        var selected=GridCheckToggleLogic.ResolveTargetCheckedState(
+            targets.Select(static cpu => (bool?)cpu.IsSelected));
+        if(selected is { } value){
+            this.ApplyCpuSelection(targets,value);
+        }
     }
 
     /// <summary>
@@ -2234,7 +2237,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             .Where(static item => item.ProjectCells.Any(static cell => cell.HasCase))
             .Distinct()
             .ToArray();
-        var selected = BenchmarkRowCheckToggleLogic.ResolveTargetCheckedState(
+        var selected = GridCheckToggleLogic.ResolveTargetCheckedState(
             targets.Select(static row => row.IsSelectionChecked));
         if(selected is not { } value) {
             return;

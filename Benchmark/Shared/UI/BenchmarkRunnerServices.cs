@@ -15,7 +15,11 @@ public sealed class BenchmarkCatalogService:IBenchmarkCatalogService {
     public Task<IReadOnlyList<BenchmarkCase>> LoadAsync(CancellationToken cancellationToken) {
         return Task.Run(() => {
             cancellationToken.ThrowIfCancellationRequested();
+#if BENCHMARK_UI_TYPED_CATALOG
+            return BenchmarkCatalog.Load(TypedBenchmarkAssemblyCatalog.Assemblies);
+#else
             return BenchmarkCatalog.Load();
+#endif
         },cancellationToken);
     }
 }

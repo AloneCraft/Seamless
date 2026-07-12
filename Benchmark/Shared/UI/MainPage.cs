@@ -2302,9 +2302,7 @@ public sealed partial class MainPage:ContentPage {
             rows => this.viewModel?.ToggleBenchmarkRows(rows),
             (addedRows,removedRows) => this.SynchronizeBenchmarkGridSelection(state,addedRows,removedRows));
         SfDataGrid.SelectionController=selectionController;
-        var keyboardFocusPointer=new PointerGestureRecognizer();
-        keyboardFocusPointer.PointerReleased+=(_,_) => selectionController.QueueKeyboardFocus();
-        SfDataGrid.GestureRecognizers.Add(keyboardFocusPointer);
+        GridKeyboardFocusBehavior.Attach(SfDataGrid);
         SfDataGrid.SelectionChanging+=(_,args) => {
             if(this.selectionSuppressedGrids.Contains(SfDataGrid)){
                 args.Cancel=true;
@@ -2961,7 +2959,8 @@ public sealed partial class MainPage:ContentPage {
     private void SuppressSelectionWhileChecking(View checkHost,SfDataGrid grid){
         var pointer=new PointerGestureRecognizer();
         pointer.PointerPressed+=(_,_) => this.selectionSuppressedGrids.Add(grid);
-        pointer.PointerReleased+=(_,_) => this.selectionSuppressedGrids.Remove(grid);
+        pointer.PointerReleased+=(_,_) => checkHost.Dispatcher.Dispatch(
+            () => this.selectionSuppressedGrids.Remove(grid));
         pointer.PointerExited+=(_,_) => this.selectionSuppressedGrids.Remove(grid);
         checkHost.GestureRecognizers.Add(pointer);
     }
@@ -3182,18 +3181,6 @@ public sealed partial class MainPage:ContentPage {
             },
         };
         logList.SetBinding(ItemsView.ItemsSourceProperty,nameof(RunnerViewModel.LogEntries));
-        if(this.viewModel is not null) {
-            this.viewModel.LogEntries.CollectionChanged+=(_,args) => {
-                if(args.Action is NotifyCollectionChangedAction.Add or NotifyCollectionChangedAction.Reset) {
-                    StartupDiagnostics.BeginInvokeOnMainThread("cpu selection header refresh",() => {
-                        if(this.viewModel?.LogEntries.Count>0) {
-                            
-                            logList.ScrollTo(this.viewModel.LogEntries.Count-1,position: ScrollToPosition.End,animate: false);
-                        }
-                    });
-                }
-            };
-        }
 
         return new Border {
             Stroke=Color.FromArgb("#CBD5E1"),
@@ -3532,7 +3519,6 @@ public sealed partial class MainPage:ContentPage {
 
         StartupDiagnostics.WriteSyncfusionAssemblies("CreateCpuSectionView before SfDataGrid");
         var CPUGrid = new SfDataGrid {
-            AutomationId ="CPUGrid",
             AutoGenerateColumnsMode=AutoGenerateColumnsMode.None,
             RowHeight=CpuGridRowHeight,
             HeaderRowHeight=CpuGridHeaderRowHeight,
@@ -3556,16 +3542,18 @@ public sealed partial class MainPage:ContentPage {
             },
         };
         CPUGrid.SetBinding(SfDataGrid.ItemsSourceProperty,nameof(CpuTableSection.Rows));
-        CPUGrid.BindingContextChanged+=(_,_) => {
+        void ConfigureCpuGridBindingContext(){
             if(CPUGrid.BindingContext is not CpuTableSection section) {
                 return;
             }
 
+            CPUGrid.AutomationId="CPU.Grid."+section.CoreKind;
             this.RebuildCpuDataGridColumns(CPUGrid,section);
             var selectionController=new CpuCheckSelectionController(
                 CPUGrid,
                 cpus => this.viewModel?.ToggleCpuChecks(cpus));
             CPUGrid.SelectionController=selectionController;
+            GridKeyboardFocusBehavior.Attach(CPUGrid);
             CPUGrid.HeightRequest=CpuSectionGridHeaderHeight+(section.Rows.Count*CpuSectionRowHeight)+CpuSectionGridExtraHeight;
             if(section.CoreKind==CpuCoreKind.Performance) {
                 var maxWidth = this.GetCpuRightEdgeWidth(section);
@@ -3600,7 +3588,9 @@ public sealed partial class MainPage:ContentPage {
                 sectionLayout.ClearValue(MaximumWidthRequestProperty);
                 sectionLayout.HorizontalOptions=LayoutOptions.Fill;
             }
-        };
+        }
+        CPUGrid.BindingContextChanged+=(_,_) => ConfigureCpuGridBindingContext();
+        ConfigureCpuGridBindingContext();
         CPUGrid.SelectionChanging+=(_,args) => {
             if(this.selectionSuppressedGrids.Contains(CPUGrid)){
                 args.Cancel=true;
@@ -3725,6 +3715,7 @@ public sealed partial class MainPage:ContentPage {
                 };
                 layout.SetBinding(IsVisibleProperty,new Binding(cellPath,converter: new NullToBoolConverter()));
                 var check = this.CreateCpuCheckBox();
+                check.AutomationId="CPU.CellCheck";
                 check.InputTransparent=true;
                 check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(cellPath+"."+nameof(CpuTableCell.IsSelected),BindingMode.OneWay));
                 var checkHost=new Grid {

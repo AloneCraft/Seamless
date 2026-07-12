@@ -11,7 +11,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>preview</LangVersion>
-    <DefineConstants>$(DefineConstants);SCALABLE_BENCHMARK</DefineConstants>
+    <DefineConstants>$(DefineConstants);SCALABLE_BENCHMARK;BENCHMARK_UI_TYPED_CATALOG</DefineConstants>
     <ApplicationTitle>Benchmark Scalble UI</ApplicationTitle>
     <ApplicationId>com.seamless.benchmark.scalable</ApplicationId>
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
@@ -56,4 +56,3 @@
 
   <Import Project="..\Shared\UI\UI.projitems" Label="Shared" />
 </Project>
-

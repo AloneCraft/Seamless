@@ -20,6 +20,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)MainPage.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MauiProgram.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)StartupDiagnostics.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TypedBenchmarkAssemblyCatalog.cs" />
     <MauiXaml Include="$(MSBuildThisFileDirectory)App.xaml" />
   </ItemGroup>
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
