@@ -76,6 +76,8 @@
   <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'">
     <Compile Remove="**\*.cs" />
     <Compile Include="Benchmark\Pattern.cs" />
+    <Compile Include="BenchmarkWorker\BenchmarkGridKeyLogic.cs" />
+    <Compile Include="BenchmarkWorker\BenchmarkRowCheckToggleLogic.cs" />
     <Compile Include="Benchmark\StartupDiagnostics.cs" />
     <Compile Include="Benchmark\UiRunStore.cs" />
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.FLinq\Benchmark.System.Linq.Enumerable.FLinq.csproj" />

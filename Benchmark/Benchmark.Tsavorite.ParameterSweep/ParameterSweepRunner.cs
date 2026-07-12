@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Collections.Concurrent;
 using Seamless.Collections;
 using Seamless.Persisted.Collections;
 using Seamless.Serialization;
@@ -22,12 +23,29 @@ public sealed class ParameterSweepRunner {
         var results = new List<ParameterSweepResult>(cases.Count);
         foreach(var item in cases) {
             cancellationToken.ThrowIfCancellationRequested();
-            var result = await Task.Run(() => this.RunCase(runId,item,actualOptions,cancellationToken),cancellationToken);
+            var result = await this.RunCaseAsync(runId,item,actualOptions,cancellationToken);
             results.Add(result);
             progress?.Report(result);
         }
         return results;
     }
+
+    public Task<ParameterSweepResult> RunCaseAsync(
+        ParameterSweepCase item,
+        ParameterSweepRunOptions? options = null,
+        CancellationToken cancellationToken = default) {
+        ArgumentNullException.ThrowIfNull(item);
+        var actualOptions = options??new();
+        ParameterSweepPlan.ValidateOptions(actualOptions);
+        var runId = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmssfff",System.Globalization.CultureInfo.InvariantCulture);
+        return this.RunCaseAsync(runId,item,actualOptions,cancellationToken);
+    }
+
+    private Task<ParameterSweepResult> RunCaseAsync(
+        string runId,
+        ParameterSweepCase item,
+        ParameterSweepRunOptions options,
+        CancellationToken cancellationToken) => Task.Run(() => this.RunCase(runId,item,options,cancellationToken),CancellationToken.None);
 
     private ParameterSweepResult RunCase(
         string runId,
@@ -58,33 +76,53 @@ public sealed class ParameterSweepRunner {
         IParameterSweepWorkload workload,
         ParameterSweepRunOptions options,
         CancellationToken cancellationToken) {
-        var stopwatch = Stopwatch.StartNew();
-        long count = 0;
-        ParameterSweepFailureKind failureKind = ParameterSweepFailureKind.Completed;
-        var failureMessage = string.Empty;
-        try {
-            while(count<options.MaxSuccessfulCount) {
-                cancellationToken.ThrowIfCancellationRequested();
-                if(stopwatch.Elapsed>=options.PerCaseTimeout) {
-                    failureKind=ParameterSweepFailureKind.Timeout;
-                    failureMessage="Per-case timeout reached.";
-                    break;
-                }
-                workload.Add((int)count);
-                count++;
-            }
+        var cpuNumbers = options.LogicalCpus.Count==0 ? [null] : options.LogicalCpus.Select(static cpu => (int?)cpu).ToArray();
+        var workers = cpuNumbers.Select((cpu,index) => new ParameterSweepWorkerExecution(index,cpu,workload.CreateWorker())).ToArray();
+        foreach(var worker in workers) {
+            worker.WorkerCount=workers.Length;
         }
-        catch(OutOfMemoryException ex) {
-            failureKind=ClassifyOutOfMemory(ex);
-            failureMessage=ex.Message;
+        using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var addStarted = new ManualResetEventSlim(false);
+        var addCompleted = new CountdownEvent(workers.Length);
+        var lookupStarted = new ManualResetEventSlim(false);
+        var lookupCompleted = new CountdownEvent(workers.Length);
+        var ready = new CountdownEvent(workers.Length);
+        var failures = new ConcurrentQueue<ParameterSweepWorkerFailure>();
+        var startedAt = Stopwatch.StartNew();
+        var threads = workers.Select(worker => this.CreateWorkerThread(
+            worker,
+            options,
+            startedAt,
+            linkedCancellation,
+            ready,
+            addStarted,
+            addCompleted,
+            lookupStarted,
+            lookupCompleted,
+            failures)).ToArray();
+        foreach(var thread in threads) {
+            thread.Start();
         }
-        catch(Exception ex) when(ex is ArgumentException or InvalidOperationException or IOException) {
-            failureKind=ParameterSweepFailureKind.Exception;
-            failureMessage=ex.GetType().Name+": "+ex.Message;
+        ready.Wait(CancellationToken.None);
+        var addStopwatch = Stopwatch.StartNew();
+        addStarted.Set();
+        addCompleted.Wait(CancellationToken.None);
+        addStopwatch.Stop();
+        var lookupStopwatch = Stopwatch.StartNew();
+        lookupStarted.Set();
+        lookupCompleted.Wait(CancellationToken.None);
+        lookupStopwatch.Stop();
+        foreach(var thread in threads) {
+            thread.Join();
         }
-        stopwatch.Stop();
-        double? lookupMean = count>0
-            ? this.MeasureLookup(workload,count,options,cancellationToken)
+        var workerMetrics = workers.Select(worker => worker.CreateMetric()).ToArray();
+        var firstFailure = failures.TryPeek(out var failure) ? failure : null;
+        var count = workerMetrics.Sum(static metric => metric.AddOperationCount);
+        var failureKind = firstFailure?.Kind??ParameterSweepFailureKind.Completed;
+        var failureMessage = firstFailure?.Message??string.Empty;
+        var lookupCount = workerMetrics.Sum(static metric => metric.LookupOperationCount);
+        double? lookupMean = lookupCount>0&&failureKind==ParameterSweepFailureKind.Completed
+            ? lookupStopwatch.Elapsed.TotalMilliseconds*1_000_000/lookupCount
             : null;
         return CreateResult(
             runId,
@@ -94,33 +132,133 @@ public sealed class ParameterSweepRunner {
             workload.EntryCount,
             failureKind,
             failureMessage,
-            stopwatch.Elapsed.TotalMilliseconds,
-            lookupMean);
+            addStopwatch.Elapsed.TotalMilliseconds,
+            lookupMean) with {
+                WorkerMetrics=workerMetrics,
+                CpuSetKey=string.Join(",",cpuNumbers.Where(static cpu => cpu is not null).Select(static cpu => cpu!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture))),
+                ConcurrencyLevel=workers.Length,
+            };
     }
 
-    private double MeasureLookup(
-        IParameterSweepWorkload workload,
-        long maxSuccessfulCount,
+    private Thread CreateWorkerThread(
+        ParameterSweepWorkerExecution worker,
         ParameterSweepRunOptions options,
-        CancellationToken cancellationToken) {
-        var probes = (int)Math.Min(maxSuccessfulCount,options.LookupProbeCount);
-        if(probes<=0) {
-            return 0;
+        Stopwatch caseStopwatch,
+        CancellationTokenSource cancellation,
+        CountdownEvent ready,
+        ManualResetEventSlim addStarted,
+        CountdownEvent addCompleted,
+        ManualResetEventSlim lookupStarted,
+        CountdownEvent lookupCompleted,
+        ConcurrentQueue<ParameterSweepWorkerFailure> failures) => new(() => {
+            try {
+                ParameterSweepCpuAffinity.TryApplyCurrentThread(worker.LogicalCpu);
+                ready.Signal();
+                addStarted.Wait();
+                this.RunAddPhase(worker,options,caseStopwatch,cancellation,failures);
+                addCompleted.Signal();
+                lookupStarted.Wait();
+                this.RunLookupPhase(worker,options,caseStopwatch,cancellation,failures);
+            }
+            catch(Exception ex) {
+                this.RecordFailure(worker,ClassifyFailure(ex),ex.Message,cancellation,failures);
+                if(ready.CurrentCount>0) {
+                    ready.Signal();
+                }
+                if(addCompleted.CurrentCount>0) {
+                    addCompleted.Signal();
+                }
+            }
+            finally {
+                lookupCompleted.Signal();
+                worker.Dispose();
+            }
+        }) {
+            IsBackground=true,
+            Name="TsavoriteParameterSweep"+(worker.LogicalCpu?.ToString(System.Globalization.CultureInfo.InvariantCulture)??"Worker"),
+        };
+
+    private void RunAddPhase(
+        ParameterSweepWorkerExecution worker,
+        ParameterSweepRunOptions options,
+        Stopwatch caseStopwatch,
+        CancellationTokenSource cancellation,
+        ConcurrentQueue<ParameterSweepWorkerFailure> failures) {
+        if(cancellation.IsCancellationRequested) {
+            return;
         }
-        var found = 0;
         var stopwatch = Stopwatch.StartNew();
-        for(var index = 0;index<probes;index++) {
-            cancellationToken.ThrowIfCancellationRequested();
-            var valueIndex = (int)((long)index*maxSuccessfulCount/probes);
-            if(workload.Lookup(valueIndex)) {
-                found++;
+        try {
+            var range = CreateRange(options.MaxSuccessfulCount,worker.Index,worker.WorkerCount);
+            for(var index=range.Start;index<range.End;index++) {
+                this.ThrowIfStopped(caseStopwatch,options,cancellation.Token);
+                worker.Workload.Add((int)index);
+                worker.AddOperationCount++;
             }
         }
-        stopwatch.Stop();
-        if(found!=probes) {
-            throw new InvalidOperationException("Lookup did not find every inserted probe.");
+        catch(Exception ex) {
+            this.RecordFailure(worker,ClassifyFailure(ex),ex.Message,cancellation,failures);
         }
-        return stopwatch.Elapsed.TotalMilliseconds*1_000_000/probes;
+        finally {
+            stopwatch.Stop();
+            worker.AddElapsedMilliseconds=stopwatch.Elapsed.TotalMilliseconds;
+        }
+    }
+
+    private void RunLookupPhase(
+        ParameterSweepWorkerExecution worker,
+        ParameterSweepRunOptions options,
+        Stopwatch caseStopwatch,
+        CancellationTokenSource cancellation,
+        ConcurrentQueue<ParameterSweepWorkerFailure> failures) {
+        if(cancellation.IsCancellationRequested) {
+            return;
+        }
+        var probes = Math.Min(options.MaxSuccessfulCount,options.LookupProbeCount);
+        var stopwatch = Stopwatch.StartNew();
+        try {
+            var range = CreateRange(probes,worker.Index,worker.WorkerCount);
+            for(var probe=range.Start;probe<range.End;probe++) {
+                this.ThrowIfStopped(caseStopwatch,options,cancellation.Token);
+                var valueIndex = (int)(probe*options.MaxSuccessfulCount/probes);
+                if(!worker.Workload.Lookup(valueIndex)) {
+                    throw new InvalidOperationException("Lookup did not find every inserted probe.");
+                }
+                worker.LookupOperationCount++;
+            }
+        }
+        catch(Exception ex) {
+            this.RecordFailure(worker,ClassifyFailure(ex),ex.Message,cancellation,failures);
+        }
+        finally {
+            stopwatch.Stop();
+            worker.LookupElapsedMilliseconds=stopwatch.Elapsed.TotalMilliseconds;
+        }
+    }
+
+    private void ThrowIfStopped(Stopwatch stopwatch,ParameterSweepRunOptions options,CancellationToken cancellationToken) {
+        cancellationToken.ThrowIfCancellationRequested();
+        if(stopwatch.Elapsed>=options.PerCaseTimeout) {
+            throw new TimeoutException("Per-case timeout reached.");
+        }
+    }
+
+    private void RecordFailure(
+        ParameterSweepWorkerExecution worker,
+        ParameterSweepFailureKind failureKind,
+        string message,
+        CancellationTokenSource cancellation,
+        ConcurrentQueue<ParameterSweepWorkerFailure> failures) {
+        worker.FailureKind=failureKind;
+        worker.FailureMessage=message;
+        failures.Enqueue(new(failureKind,message));
+        cancellation.Cancel();
+    }
+
+    private static ParameterSweepRange CreateRange(long total,int workerIndex,int workerCount) {
+        var start=total*workerIndex/workerCount;
+        var end=total*(workerIndex+1)/workerCount;
+        return new(start,end);
     }
 
     private static ParameterSweepResult CreateFailure(
@@ -177,6 +315,41 @@ public sealed class ParameterSweepRunner {
             ? ParameterSweepFailureKind.LogFull
             : ParameterSweepFailureKind.OutOfMemory;
     }
+
+    private static ParameterSweepFailureKind ClassifyFailure(Exception ex) => ex switch {
+        TimeoutException => ParameterSweepFailureKind.Timeout,
+        OutOfMemoryException outOfMemory => ClassifyOutOfMemory(outOfMemory),
+        ArgumentException or NotSupportedException => ParameterSweepFailureKind.InvalidConfiguration,
+        _ => ParameterSweepFailureKind.Exception,
+    };
+
+    private readonly record struct ParameterSweepRange(long Start,long End);
+
+    private sealed record ParameterSweepWorkerFailure(ParameterSweepFailureKind Kind,string Message);
+
+    private sealed class ParameterSweepWorkerExecution(int index,int? logicalCpu,IParameterSweepWorker workload):IDisposable {
+        public int Index { get; } = index;
+        public int? LogicalCpu { get; } = logicalCpu;
+        public IParameterSweepWorker Workload { get; } = workload;
+        public int WorkerCount { get; set; }
+        public long AddOperationCount { get; set; }
+        public double AddElapsedMilliseconds { get; set; }
+        public long LookupOperationCount { get; set; }
+        public double LookupElapsedMilliseconds { get; set; }
+        public ParameterSweepFailureKind FailureKind { get; set; } = ParameterSweepFailureKind.Completed;
+        public string FailureMessage { get; set; } = string.Empty;
+
+        public ParameterSweepWorkerMetric CreateMetric() => new(
+            this.LogicalCpu,
+            this.AddOperationCount,
+            this.AddElapsedMilliseconds,
+            this.LookupOperationCount,
+            this.LookupElapsedMilliseconds,
+            this.FailureKind,
+            this.FailureMessage);
+
+        public void Dispose() => this.Workload.Dispose();
+    }
 }
 
 internal static class ParameterSweepSettingsValidator {
@@ -211,6 +384,10 @@ internal static class ParameterSweepSettingsValidator {
 
 internal interface IParameterSweepWorkload:IDisposable {
     long EntryCount { get; }
+    IParameterSweepWorker CreateWorker();
+}
+
+internal interface IParameterSweepWorker:IDisposable {
     void Add(int index);
     bool Lookup(int index);
 }
@@ -319,17 +496,16 @@ internal abstract class WorkloadBase:IDisposable {
 internal sealed class HashSetWorkload<TKey>:WorkloadBase,IParameterSweepWorkload
     where TKey : IEquatable<TKey> {
     private readonly Func<int,TKey> keyFactory;
-    private readonly Seamless.Tsavorite.Collections.HashSet<TKey> set;
+    private readonly Seamless.Tsavorite.Stores.HashSetStore<TKey> store;
 
     public HashSetWorkload(ParameterSweepCase item,ParameterSweepRunOptions options,Func<int,TKey> keyFactory) : base(item,options) {
         this.keyFactory=keyFactory;
         var storeFactory = this.CreateStore(item,options,out var devices);
         try {
-            var store = item.Backend==ParameterSweepBackend.Storage
+            this.store = item.Backend==ParameterSweepBackend.Storage
                 ? storeFactory.Create<TKey>(devices!.Value.LogDevice,devices.Value.ObjectLogDevice)
                 : storeFactory.Create<TKey>();
-            this.Store=store;
-            this.set=store.Create();
+            this.Store=this.store;
         }
         catch {
             devices?.Dispose();
@@ -337,30 +513,28 @@ internal sealed class HashSetWorkload<TKey>:WorkloadBase,IParameterSweepWorkload
         }
     }
 
-    public override long EntryCount => this.set.EntryCount;
+    public override long EntryCount => this.store.Store.EntryCount;
 
-    public void Add(int index) => this.set.Add(this.keyFactory(index));
+    public IParameterSweepWorker CreateWorker() => new HashSetWorker<TKey>(this.store.Create(),this.keyFactory);
 
-    public bool Lookup(int index) => this.set.Contains(this.keyFactory(index));
-
-    protected override void DisposeCore() => this.set.Dispose();
+    protected override void DisposeCore() {
+    }
 }
 
 internal sealed class SetWorkload<TKey,TRecord>:WorkloadBase,IParameterSweepWorkload
     where TKey : IEquatable<TKey>
     where TRecord : IRecord<TKey> {
     private readonly Func<int,TRecord> recordFactory;
-    private readonly Seamless.Tsavorite.Collections.Set<TKey,TRecord> set;
+    private readonly Seamless.Tsavorite.Stores.SetStore<TKey,TRecord> store;
 
     public SetWorkload(ParameterSweepCase item,ParameterSweepRunOptions options,Func<int,TRecord> recordFactory) : base(item,options) {
         this.recordFactory=recordFactory;
         var storeFactory = this.CreateStore(item,options,out var devices);
         try {
-            var store = item.Backend==ParameterSweepBackend.Storage
+            this.store = item.Backend==ParameterSweepBackend.Storage
                 ? storeFactory.CreateSet<TKey,TRecord>(devices!.Value.LogDevice,devices.Value.ObjectLogDevice)
                 : storeFactory.CreateSet<TKey,TRecord>();
-            this.Store=store;
-            this.set=store.Create();
+            this.Store=this.store;
         }
         catch {
             devices?.Dispose();
@@ -368,13 +542,12 @@ internal sealed class SetWorkload<TKey,TRecord>:WorkloadBase,IParameterSweepWork
         }
     }
 
-    public override long EntryCount => this.set.EntryCount;
+    public override long EntryCount => this.store.Store.EntryCount;
 
-    public void Add(int index) => this.set.Add(this.recordFactory(index));
+    public IParameterSweepWorker CreateWorker() => new SetWorker<TKey,TRecord>(this.store.Create(),this.recordFactory);
 
-    public bool Lookup(int index) => this.set.ContainsKey(this.recordFactory(index).Key);
-
-    protected override void DisposeCore() => this.set.Dispose();
+    protected override void DisposeCore() {
+    }
 }
 
 internal sealed class DictionaryWorkload<TKey,TValue>:WorkloadBase,IParameterSweepWorkload
@@ -382,7 +555,7 @@ internal sealed class DictionaryWorkload<TKey,TValue>:WorkloadBase,IParameterSwe
     where TValue : IEquatable<TValue> {
     private readonly Func<int,TKey> keyFactory;
     private readonly Func<int,TValue> valueFactory;
-    private readonly Seamless.Tsavorite.Collections.IDictionary<TKey,TValue> dictionary;
+    private readonly Seamless.Tsavorite.Stores.DictionaryStore<TKey,TValue> store;
 
     public DictionaryWorkload(
         ParameterSweepCase item,
@@ -393,11 +566,10 @@ internal sealed class DictionaryWorkload<TKey,TValue>:WorkloadBase,IParameterSwe
         this.valueFactory=valueFactory;
         var storeFactory = this.CreateStore(item,options,out var devices);
         try {
-            var store = item.Backend==ParameterSweepBackend.Storage
+            this.store = item.Backend==ParameterSweepBackend.Storage
                 ? storeFactory.Create<TKey,TValue>(devices!.Value.LogDevice,devices.Value.ObjectLogDevice)
                 : storeFactory.Create<TKey,TValue>();
-            this.Store=store;
-            this.dictionary=store.Create();
+            this.Store=this.store;
         }
         catch {
             devices?.Dispose();
@@ -405,11 +577,121 @@ internal sealed class DictionaryWorkload<TKey,TValue>:WorkloadBase,IParameterSwe
         }
     }
 
-    public override long EntryCount => this.dictionary.EntryCount;
+    public override long EntryCount => this.store.Store.EntryCount;
 
-    public void Add(int index) => this.dictionary.Add(this.keyFactory(index),this.valueFactory(index));
+    public IParameterSweepWorker CreateWorker() => new DictionaryWorker<TKey,TValue>(this.store.Create(),this.keyFactory,this.valueFactory);
 
-    public bool Lookup(int index) => this.dictionary.TryGetValue(this.keyFactory(index),out _);
+    protected override void DisposeCore() {
+    }
+}
 
-    protected override void DisposeCore() => this.dictionary.Dispose();
+internal sealed class HashSetWorker<TKey>(Seamless.Tsavorite.Collections.HashSet<TKey> set,Func<int,TKey> keyFactory):IParameterSweepWorker
+    where TKey:IEquatable<TKey> {
+    public void Add(int index) => set.Add(keyFactory(index));
+
+    public bool Lookup(int index) => set.Contains(keyFactory(index));
+
+    public void Dispose() => set.Dispose();
+}
+
+internal sealed class SetWorker<TKey,TRecord>(Seamless.Tsavorite.Collections.Set<TKey,TRecord> set,Func<int,TRecord> recordFactory):IParameterSweepWorker
+    where TKey:IEquatable<TKey>
+    where TRecord:IRecord<TKey> {
+    public void Add(int index) => set.Add(recordFactory(index));
+
+    public bool Lookup(int index) => set.ContainsKey(recordFactory(index).Key);
+
+    public void Dispose() => set.Dispose();
+}
+
+internal sealed class DictionaryWorker<TKey,TValue>(Seamless.Tsavorite.Collections.IDictionary<TKey,TValue> dictionary,Func<int,TKey> keyFactory,Func<int,TValue> valueFactory):IParameterSweepWorker
+    where TKey:IEquatable<TKey>
+    where TValue:IEquatable<TValue> {
+    public void Add(int index) => dictionary.Add(keyFactory(index),valueFactory(index));
+
+    public bool Lookup(int index) => dictionary.TryGetValue(keyFactory(index),out _);
+
+    public void Dispose() => dictionary.Dispose();
+}
+
+internal static class ParameterSweepCpuAffinity {
+    public static void TryApplyCurrentThread(int? logicalCpu) {
+        if(logicalCpu is not { } cpu||cpu<0) {
+            return;
+        }
+        if(OperatingSystem.IsWindows()) {
+            TryApplyWindows(cpu);
+        }else if(OperatingSystem.IsLinux()) {
+            TryApplyLinux(cpu);
+        }
+    }
+
+    private static void TryApplyWindows(int logicalCpu) {
+        try {
+            var remaining=logicalCpu;
+            var groupCount=GetActiveProcessorGroupCount();
+            for(ushort group=0;group<groupCount;group++) {
+                var count=(int)GetActiveProcessorCount(group);
+                if(remaining>=count) {
+                    remaining-=count;
+                    continue;
+                }
+                var affinity=new GroupAffinity {
+                    Mask=new UIntPtr(1UL<<remaining),
+                    Group=group,
+                };
+                _=SetThreadGroupAffinity(GetCurrentThread(),ref affinity,IntPtr.Zero);
+                return;
+            }
+        }
+        catch(DllNotFoundException) {
+        }
+        catch(EntryPointNotFoundException) {
+        }
+    }
+
+    private static void TryApplyLinux(int logicalCpu) {
+        var size=Math.Max(8,(logicalCpu/8)+1);
+        var cpuSet=System.Runtime.InteropServices.Marshal.AllocHGlobal(size);
+        try {
+            for(var index=0;index<size;index++) {
+                System.Runtime.InteropServices.Marshal.WriteByte(cpuSet,index,0);
+            }
+            var byteIndex=logicalCpu/8;
+            var current=System.Runtime.InteropServices.Marshal.ReadByte(cpuSet,byteIndex);
+            System.Runtime.InteropServices.Marshal.WriteByte(cpuSet,byteIndex,(byte)(current|(1<<(logicalCpu%8))));
+            _=sched_setaffinity(0,(nuint)size,cpuSet);
+        }
+        catch(DllNotFoundException) {
+        }
+        catch(EntryPointNotFoundException) {
+        }
+        finally {
+            System.Runtime.InteropServices.Marshal.FreeHGlobal(cpuSet);
+        }
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern IntPtr GetCurrentThread();
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll",SetLastError=true)]
+    private static extern bool SetThreadGroupAffinity(IntPtr threadHandle,ref GroupAffinity groupAffinity,IntPtr previousGroupAffinity);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern ushort GetActiveProcessorGroupCount();
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern uint GetActiveProcessorCount(ushort groupNumber);
+
+    [System.Runtime.InteropServices.DllImport("libc",SetLastError=true)]
+    private static extern int sched_setaffinity(int pid,nuint cpusetsize,IntPtr mask);
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct GroupAffinity {
+        public UIntPtr Mask;
+        public ushort Group;
+        public ushort Reserved0;
+        public ushort Reserved1;
+        public ushort Reserved2;
+    }
 }

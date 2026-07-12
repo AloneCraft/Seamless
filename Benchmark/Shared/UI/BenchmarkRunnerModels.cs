@@ -296,7 +296,6 @@ public sealed class BenchmarkSourceTabViewState:ObservableObject{
     public BenchmarkSourceTabDefinition Definition { get; }
     public ObservableRangeCollection<BenchmarkTableRow> Rows { get; } = [];
     public ObservableCollection<ChartComparisonPoint> ChartPoints { get; } = [];
-    public Dictionary<string,BenchmarkTableRow> UiSelectedRowsByKey { get; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string,int> ChartPointIndexesByRowKey { get; } = new(StringComparer.OrdinalIgnoreCase);
     internal HashSet<ChartComparisonPoint> UiSelectedChartBars { get; } = [];
     internal HashSet<BenchmarkTableRow> DirtyChartRows { get; } = [];
@@ -1362,6 +1361,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
     public BenchmarkProjectCell LeftCell { get; }
     public BenchmarkProjectCell RightCell { get; }
     public ChartComparisonPoint? ChartBar { get; internal set; }
+    internal BenchmarkGridSnapshotItem? LoadedSnapshot { get; set; }
     internal int ChartPointIndex { get; set; } = -1;
     internal int GridDisplayIndex { get; set; } = -1;
     public string CountArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Count);

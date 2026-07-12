@@ -458,7 +458,9 @@ internal sealed class BenchmarkOrchestrator(
             benchmark.TypeFullName,
             benchmark.MethodName,
             BenchmarkArgumentFormatting.CreateKey(arguments),
-            arguments);
+            arguments){
+            BindingRowIndex=benchmark.BindingRowIndex,
+        };
     }
 
     private async Task<WarmupFailure?> RunWarmupCaseAsync(
@@ -731,6 +733,7 @@ internal sealed class BenchmarkOrchestrator(
             LoopCount=BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab,elementCount),
             PreparedElementCounts=preparedElementCounts.Distinct().Order().ToList(),
             RunItemIndex=runItemIndex,
+            BindingRowIndex=benchmark.BindingRowIndex,
         };
 
     private static string CreateJobId(BenchmarkCase benchmark,BenchmarkSourceTab sourceTab,int axisCount) =>
@@ -783,7 +786,7 @@ internal sealed class BenchmarkOrchestrator(
     private IReadOnlyList<AdaptiveMethodRow> CreateAdaptiveRows(ProgressState state,BenchmarkRunRequest request) {
         var jobs = this.GetJobsSnapshot(state);
         var benchmarks = (request.BenchmarkProvider?.Invoke()??request.Benchmarks)
-            .Concat(jobs.Select(static job => new BenchmarkCase(job.Project,job.AssemblyName,job.TypeFullName,job.MethodName,job.ArgumentKey,job.Arguments)))
+            .Concat(jobs.Select(static job => job.ToBenchmarkCase()))
             .Where(static benchmark => !string.IsNullOrWhiteSpace(benchmark.TypeFullName))
             .GroupBy(CreateBenchmarkKey,StringComparer.Ordinal)
             .Select(static group => group.First())

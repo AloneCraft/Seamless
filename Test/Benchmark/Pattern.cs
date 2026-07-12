@@ -250,15 +250,28 @@ public sealed class RunnerViewModel{
 
         viewModel.SynchronizeBenchmarkRowUiSelection(state,[row],[]);
 
-        Assert.Same(row,state.UiSelectedRowsByKey[row.RowKey]);
+        Assert.True(row.IsUiSelected);
         Assert.Contains(chartBar,state.UiSelectedChartBars);
         Assert.Equal(0,collectionChangedCount);
 
         viewModel.SynchronizeBenchmarkRowUiSelection(state,[],[row]);
 
-        Assert.Empty(state.UiSelectedRowsByKey);
+        Assert.False(row.IsUiSelected);
         Assert.Empty(state.UiSelectedChartBars);
         Assert.Equal(0,collectionChangedCount);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public void BindingRowIndex_IsPreservedFromJobToResultAndCase(){
+        var job=new global::UI.BenchmarkJob{
+            BindingRowIndex=7,
+        };
+
+        var result=new global::UI.BenchmarkResultItem(job);
+        var benchmark=job.ToBenchmarkCase();
+
+        Assert.Equal(7,result.BindingRowIndex);
+        Assert.Equal(7,benchmark.BindingRowIndex);
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
@@ -1546,6 +1559,7 @@ public sealed class RunnerViewModel{
                 ExitCode=status==global::UI.JobStatus.Completed ? 0 : null,
                 ResultDigest=status==global::UI.JobStatus.Completed ? "test" : string.Empty,
                 ResultCheckText=status==global::UI.JobStatus.Completed ? "OK" : string.Empty,
+                BindingRowIndex=benchmark.BindingRowIndex,
             };
             return new global::UI.BenchmarkResultItem(job);
         }

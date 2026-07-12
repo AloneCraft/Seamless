@@ -2,6 +2,7 @@ using OpenQA.Selenium;
 using OpenQA.Selenium.Appium;
 using OpenQA.Selenium.Appium.Windows;
 using OpenQA.Selenium.Support.UI;
+using OpenQA.Selenium.Interactions;
 
 namespace Benchmark.UI.UITests;
 
@@ -36,9 +37,40 @@ internal sealed class BenchmarkUiSession:IDisposable{
         this.WaitForAutomationId(automationId).Click();
     }
 
-    public bool IsAutomationIdChecked(string automationId){
-        return IsChecked(this.WaitForAutomationId(automationId));
+    public IReadOnlyList<IWebElement> WaitForDisplayedAutomationIds(string automationId,int minimumCount,int seconds = 30){
+        var wait=new WebDriverWait(this.driver,TimeSpan.FromSeconds(seconds));
+        return wait.Until(driver => {
+            try{
+                var values=driver.FindElements(MobileBy.AccessibilityId(automationId)).Where(static element => element.Displayed).ToArray();
+                return values.Length>=minimumCount ? values : null;
+            }
+            catch(WebDriverException){
+                return null;
+            }
+        });
     }
+
+    public void ClickNormalCell(IWebElement rowCheck,string? modifier = null){
+        var actions=new Actions(this.driver);
+        if(modifier is not null){
+            actions.KeyDown(modifier);
+        }
+        actions.MoveToElement(rowCheck,80,0).Click();
+        if(modifier is not null){
+            actions.KeyUp(modifier);
+        }
+        actions.Perform();
+    }
+
+    public void SendKeysAutomationId(string automationId,string keys){
+        this.WaitForAutomationId(automationId).SendKeys(keys);
+    }
+
+    public bool IsAutomationIdChecked(string automationId){
+        return IsElementChecked(this.WaitForAutomationId(automationId));
+    }
+
+    public bool IsChecked(IWebElement element) => IsElementChecked(element);
 
     //MAUI の Grid/SfDataGrid/SfTabView は WinUI automation peer を持たず AutomationId が UIA に出ない。
     //SfTabItem は Name=HeaderText(選択中は"Selected "前置)、SfCheckBox は AutomationId で公開されるため、
@@ -57,7 +89,7 @@ internal sealed class BenchmarkUiSession:IDisposable{
             try{
                 foreach(var element in driver.FindElements(MobileBy.AccessibilityId(automationId))){
                     if(element.Displayed){
-                        return IsChecked(element)==expected;
+                        return IsElementChecked(element)==expected;
                     }
                 }
                 return false;
@@ -85,7 +117,7 @@ internal sealed class BenchmarkUiSession:IDisposable{
         });
     }
 
-    private static bool IsChecked(IWebElement element){
+    private static bool IsElementChecked(IWebElement element){
         //SfCheckBox は UIA TogglePattern を公開せず、peer が Name へ "Ticked.../Not Ticked.../Indeterminate..." を返す。
         //Name の先頭で状態を判定する(Indeterminate は未確定として false 扱い)。
         var name=element.Text??string.Empty;

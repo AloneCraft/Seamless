@@ -313,11 +313,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// benchmarkRowsByProjectMethod フィールドです。
     /// </summary>
     private readonly Dictionary<string,BenchmarkTableRow> benchmarkRowsByProjectMethod = new(StringComparer.OrdinalIgnoreCase);
-    // RunItemIndex -> 行のO(1)照合キャッシュ。実行中は文字列キー照合(上記2つ)を都度使わず、この辞書で更新先行を確定する。
-    /// <summary>
-    /// benchmarkRowsByRunItemIndex フィールドです。
-    /// </summary>
-    private readonly Dictionary<int,BenchmarkTableRow> benchmarkRowsByRunItemIndex = new();
     /// <summary>
     /// sourceTabRunningState フィールドです。
     /// </summary>
@@ -2255,32 +2250,14 @@ public sealed partial class RunnerViewModel:ObservableObject {
         var selectionChanged=false;
 
         foreach(var removed in removedRows) {
-            if(!state.UiSelectedRowsByKey.TryGetValue(removed.RowKey,out var previous)
-                ||!ReferenceEquals(previous,removed)) {
-                continue;
-            }
-
-            state.UiSelectedRowsByKey.Remove(removed.RowKey);
-            SetRowUiSelection(previous,false);
-            if(previous.ChartBar is { } chartBar) {
+            SetRowUiSelection(removed,false);
+            if(removed.ChartBar is { } chartBar) {
                 state.UiSelectedChartBars.Remove(chartBar);
             }
             selectionChanged=true;
         }
 
         foreach(var added in addedRows) {
-            if(state.UiSelectedRowsByKey.TryGetValue(added.RowKey,out var previous)) {
-                if(ReferenceEquals(previous,added)) {
-                    SetRowUiSelection(added,true);
-                    continue;
-                }
-
-                if(previous.ChartBar is { } previousChartBar) {
-                    state.UiSelectedChartBars.Remove(previousChartBar);
-                }
-            }
-
-            state.UiSelectedRowsByKey[added.RowKey]=added;
             SetRowUiSelection(added,true);
             if(added.ChartBar is { } chartBar) {
                 state.UiSelectedChartBars.Add(chartBar);
@@ -2553,8 +2530,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
     private void RebuildBenchmarkRowIndex() {
         this.benchmarkRowsByResultKey.Clear();
         this.benchmarkRowsByProjectMethod.Clear();
-        // 行インスタンスが再生成されるため、RunItemIndexキャッシュも合わせて破棄する(古いインスタンスへの参照を残さない)。
-        this.benchmarkRowsByRunItemIndex.Clear();
         foreach(var row in this.GetAllBenchmarkRows()) {
             foreach(var item in row.CasesByProject) {
                 var benchmark = item.Value;
@@ -3839,8 +3814,17 @@ public sealed partial class RunnerViewModel:ObservableObject {
         var state = this.GetSourceTabViewState(sourceTab.Tab);
         if(state.Rows.Count>0) {
             return state.Rows
-                .Where(static row => row.IsSelected)
-                .SelectMany(static row => row.GetRunCases());
+                .SelectMany((row,index) => row.IsSelected
+                    ? row.GetRunCases().Select(benchmark => new BenchmarkCase(
+                        benchmark.Project,
+                        benchmark.AssemblyName,
+                        benchmark.TypeFullName,
+                        benchmark.MethodName,
+                        benchmark.ArgumentKey,
+                        benchmark.Arguments){
+                        BindingRowIndex=index,
+                    })
+                    : []);
         }
 
         return BenchmarkRowGroupingLogic.CreateRows(this.catalogCases,sourceTab)
@@ -4237,18 +4221,19 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <param name="result">result を指定して実行条件を制御します。</param>
     /// <returns>処理結果を返却します。</returns>
     private BenchmarkTableRow? FindBenchmarkRow(BenchmarkResultItem result) {
-        if(result.RunItemIndex>=0&&this.benchmarkRowsByRunItemIndex.TryGetValue(result.RunItemIndex,out var indexedRow)) {
-            return indexedRow;
+        var state = this.GetSourceTabViewState(result.SourceTab);
+        if(result.BindingRowIndex>=0
+            &&result.BindingRowIndex<state.Rows.Count
+            &&IsResultForRow(state.Rows[result.BindingRowIndex],result)) {
+            return state.Rows[result.BindingRowIndex];
         }
 
-        var row = this.ResolveBenchmarkRowByKey(result.SourceTab,result.Project,result.TypeFullName,result.Method,result.ArgumentKey)
+        return this.ResolveBenchmarkRowByKey(result.SourceTab,result.Project,result.TypeFullName,result.Method,result.ArgumentKey)
             ??this.BenchmarkRows.FirstOrDefault(candidate => IsResultForRow(candidate,result))
             ??(IsScalableSourceTab(result.SourceTab)||result.SourceTab!=this.SelectedSourceDefinition.Tab ? null : this.BenchmarkRows.FirstOrDefault(candidate => string.Equals(candidate.MethodName,result.Method,StringComparison.OrdinalIgnoreCase)
                 &&candidate.GetProjectCell(result.Project) is { HasCase: true }))
             ??(IsScalableSourceTab(this.SelectedSourceDefinition.Tab)||!this.SelectedSourceDefinition.ContainsProject(result.Project) ? null : this.BenchmarkRows.FirstOrDefault(candidate => string.Equals(candidate.MethodName,result.Method,StringComparison.OrdinalIgnoreCase)
                 &&candidate.GetProjectCell(result.Project) is { HasCase: true }));
-        this.RegisterRunItemIndexMismatch(result.RunItemIndex,result.SourceTab,result.Project,result.Method,row);
-        return row;
     }
 
     /// <summary>
@@ -4257,18 +4242,19 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <param name="job">job を指定して実行条件を制御します。</param>
     /// <returns>処理結果を返却します。</returns>
     private BenchmarkTableRow? FindBenchmarkRow(BenchmarkJob job) {
-        if(job.RunItemIndex>=0&&this.benchmarkRowsByRunItemIndex.TryGetValue(job.RunItemIndex,out var indexedRow)) {
-            return indexedRow;
+        var state = this.GetSourceTabViewState(job.SourceTab);
+        if(job.BindingRowIndex>=0
+            &&job.BindingRowIndex<state.Rows.Count
+            &&IsJobForRow(state.Rows[job.BindingRowIndex],job)) {
+            return state.Rows[job.BindingRowIndex];
         }
 
-        var row = this.ResolveBenchmarkRowByKey(job.SourceTab,job.Project,job.TypeFullName,job.MethodName,job.ArgumentKey)
+        return this.ResolveBenchmarkRowByKey(job.SourceTab,job.Project,job.TypeFullName,job.MethodName,job.ArgumentKey)
             ??this.BenchmarkRows.FirstOrDefault(candidate => IsJobForRow(candidate,job))
             ??(IsScalableSourceTab(job.SourceTab)||job.SourceTab!=this.SelectedSourceDefinition.Tab ? null : this.BenchmarkRows.FirstOrDefault(candidate => string.Equals(candidate.MethodName,job.MethodName,StringComparison.OrdinalIgnoreCase)
                 &&candidate.GetProjectCell(job.Project) is { HasCase: true }))
             ??(IsScalableSourceTab(this.SelectedSourceDefinition.Tab)||!this.SelectedSourceDefinition.ContainsProject(job.Project) ? null : this.BenchmarkRows.FirstOrDefault(candidate => string.Equals(candidate.MethodName,job.MethodName,StringComparison.OrdinalIgnoreCase)
                 &&candidate.GetProjectCell(job.Project) is { HasCase: true }));
-        this.RegisterRunItemIndexMismatch(job.RunItemIndex,job.SourceTab,job.Project,job.MethodName,row);
-        return row;
     }
 
     /// <summary>
@@ -4282,54 +4268,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <returns>処理結果を返却します。</returns>
     private BenchmarkTableRow? ResolveBenchmarkRowByKey(BenchmarkSourceTab sourceTab,string project,string typeFullName,string method,string argumentKey) =>
         this.TryFindBenchmarkRow(sourceTab,project,typeFullName,method,argumentKey,out var row) ? row : null;
-
-    /// <summary>
-    /// RegisterRunItemIndexMismatch メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    /// <param name="runItemIndex">runItemIndex を指定して実行条件を制御します。</param>
-    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
-    /// <param name="project">project を指定して実行条件を制御します。</param>
-    /// <param name="method">method を指定して実行条件を制御します。</param>
-    /// <param name="resolvedRow">resolvedRow を指定して実行条件を制御します。</param>
-    private void RegisterRunItemIndexMismatch(int runItemIndex,BenchmarkSourceTab sourceTab,string project,string method,BenchmarkTableRow? resolvedRow) {
-        if(runItemIndex<0) {
-            // 実行中ジョブに紐づかない結果(履歴表示・比較用など)は元々index管理の対象外のため無視する。
-            return;
-        }
-
-        var hadPreviousMapping = this.benchmarkRowsByRunItemIndex.TryGetValue(runItemIndex,out var previousRow);
-        if(resolvedRow is not null) {
-            this.benchmarkRowsByRunItemIndex[runItemIndex]=resolvedRow;
-        }
-
-        if(resolvedRow is null) {
-            var message = $"[RunItemIndex不一致] index={runItemIndex} tab={sourceTab} project={project} method={method} 解決=失敗 原因(推定)={this.GuessRunItemIndexUnresolvedCause()}";
-            this.AppendHighlightedLogEntry(message);
-            return;
-        }
-
-        if(hadPreviousMapping&&!ReferenceEquals(previousRow,resolvedRow)) {
-            var message = $"[RunItemIndex衝突] index={runItemIndex} tab={sourceTab} project={project} method={method} 原因(推定)=タブ間でのRunItemIndex再利用、またはLeft/Right行内の割当衝突の可能性";
-            this.AppendHighlightedLogEntry(message);
-        }
-        // それ以外(初回ブートストラップで文字列キーにより正常解決)はログを出さない。
-    }
-
-    /// <summary>
-    /// GuessRunItemIndexUnresolvedCause メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <returns>処理結果を返却します。</returns>
-    private string GuessRunItemIndexUnresolvedCause() {
-        if(this.IsBenchmarkPaused&&this.activeRunRoot is not null) {
-            return "pause/resume間で行マップが再構築されずに古いindexを参照した可能性";
-        }
-
-        if(!this.IsBenchmarkRunActive&&!this.IsBenchmarkPaused) {
-            return "アプリ再起動後の再開でインメモリindexマップが失われた可能性(永続化未対応)";
-        }
-
-        return "アダプティブ実行中の動的ジョブ生成が行マップの再構築より先行した可能性";
-    }
 
     /// <summary>
     /// TryFindBenchmarkRow メソッドを実行し、結果を算出して返却します。
@@ -7285,36 +7223,28 @@ public sealed partial class RunnerViewModel:ObservableObject {
             this.isApplyingBenchmarkSelection=true;
             try {
                 foreach(var state in this.sourceTabViewStates) {
-                    var rows = this.CreateSnapshotRows(state.Definition,displayItems)
+                    var stateItems=displayItems
+                        .Where(item => string.Equals(item.SourceTabId,state.Definition.Id,StringComparison.OrdinalIgnoreCase))
+                        .OrderBy(static item => item.Order)
                         .ToArray();
+                    var rows=this.CreateSnapshotRows(state.Definition,stateItems).ToArray();
                     state.Rows.ReplaceRange(rows);
-                    foreach(var row in rows) {
+                    for(var index=0;index<rows.Length;index++) {
+                        var row=rows[index];
+                        var item=stateItems[index];
                         this.SubscribeBenchmarkRow(row);
+                        this.ResultItems.Add(this.CreateLoadedSnapshotResultItem(state.Definition,item,state.Definition.LeftProject,item.Left));
+                        this.ResultItems.Add(this.CreateLoadedSnapshotResultItem(state.Definition,item,state.Definition.RightProject,item.Right));
+                        this.ApplyLoadedBenchmarkSnapshotSide(row,state.Definition.LeftProject,item.CpuNumber,item.Left);
+                        this.ApplyLoadedBenchmarkSnapshotSide(row,state.Definition.RightProject,item.CpuNumber,item.Right);
                     }
                 }
 
                 this.RebuildBenchmarkRowIndex();
-                foreach(var item in displayItems.OrderBy(static item => item.Order)) {
-                    if(BenchmarkSourceTabs.TryGetById(item.SourceTabId) is not { } sourceTab) {
+                foreach(var item in displayItems) {
+                    if(BenchmarkSourceTabs.TryGetById(item.SourceTabId) is null) {
                         this.LogSnapshotDiagnostic(item,"SourceTabId を解決できません。");
-                        continue;
                     }
-                    var state = this.GetSourceTabViewState(sourceTab.Tab);
-                    var rowKey = CreateSnapshotRowKey(item.TypeName,item.BenchmarkName,SnapshotArgumentKey(item));
-                    var row = state.Rows.FirstOrDefault(row => string.Equals(row.RowKey,rowKey,StringComparison.OrdinalIgnoreCase));
-                    if(row is null) {
-                        this.LogSnapshotDiagnostic(item,"スナップショット行を解決できません。");
-                        continue;
-                    }
-                    var restoreSelection=CanRestoreSnapshotSelection(item,row,sourceTab);
-                    if(item.IsSelected&&!restoreSelection) {
-                        this.LogSnapshotDiagnostic(item,"Executable case identity is missing; the legacy snapshot row is displayed but excluded from the execution queue.");
-                    }
-                    ApplyRowSelectionToCells(row,restoreSelection);
-                    this.ResultItems.Add(this.CreateLoadedSnapshotResultItem(sourceTab,item,sourceTab.LeftProject,item.Left));
-                    this.ResultItems.Add(this.CreateLoadedSnapshotResultItem(sourceTab,item,sourceTab.RightProject,item.Right));
-                    this.ApplyLoadedBenchmarkSnapshotSide(row,sourceTab.LeftProject,item.CpuNumber,item.Left);
-                    this.ApplyLoadedBenchmarkSnapshotSide(row,sourceTab.RightProject,item.CpuNumber,item.Right);
                 }
 
             }
@@ -7353,9 +7283,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
         // 保存Run表示ではこのDB行単位の復元が正であり、比較表示用の行再計算は正規ロード経路ではない。
         this.isApplyingBenchmarkSelection=true;
         try {
-            this.ApplyBenchmarkSnapshotItemsToRows(displayItems);
-            this.ApplyBenchmarkSnapshotFinalCompletionStates(displayItems);
-            this.LogLoadedSnapshotGridDisplayGaps(displayItems);
+            this.ApplyBenchmarkSnapshotItemsToRows();
+            this.ApplyBenchmarkSnapshotFinalCompletionStates();
+            this.LogLoadedSnapshotGridDisplayGaps();
         }
         finally {
             this.isApplyingBenchmarkSelection=false;
@@ -7374,19 +7304,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
     }
 
-    private void LogLoadedSnapshotGridDisplayGaps(IReadOnlyList<BenchmarkGridSnapshotItem> items) {
-        foreach(var item in items) {
-            if(BenchmarkSourceTabs.TryGetById(item.SourceTabId) is not { } sourceTab) {
-                continue;
-            }
-
-            var state = this.GetSourceTabViewState(sourceTab.Tab);
-            var rowKey = CreateSnapshotRowKey(item.TypeName,item.BenchmarkName,SnapshotArgumentKey(item));
-            var row = state.Rows.FirstOrDefault(row => string.Equals(row.RowKey,rowKey,StringComparison.OrdinalIgnoreCase));
-            if(row is null) {
-                continue;
-            }
-
+    private void LogLoadedSnapshotGridDisplayGaps() {
+        foreach(var (item,row,sourceTab) in this.EnumerateSnapshotBindings()) {
             this.LogLoadedSnapshotGridDisplayGap(item,row,sourceTab.LeftProject,item.Left,row.LeftCell);
             this.LogLoadedSnapshotGridDisplayGap(item,row,sourceTab.RightProject,item.Right,row.RightCell);
         }
@@ -7437,25 +7356,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
             side.FailureReason);
     }
 
-    private void ApplyBenchmarkSnapshotItemsToRows(IReadOnlyList<BenchmarkGridSnapshotItem> items) {
-        foreach(var item in items.OrderBy(static item => item.Order)) {
-            if(BenchmarkSourceTabs.TryGetById(item.SourceTabId) is not { } sourceTab) {
-                continue;
-            }
-
-            var state = this.GetSourceTabViewState(sourceTab.Tab);
-            var rowKey = CreateSnapshotRowKey(item.TypeName,item.BenchmarkName,SnapshotArgumentKey(item));
-            var row = state.Rows.FirstOrDefault(row => string.Equals(row.RowKey,rowKey,StringComparison.OrdinalIgnoreCase));
-            if(row is null) {
-                this.LogSnapshotDiagnostic(item,"スナップショット行を再反映できません。");
-                continue;
-            }
-
-            var restoreSelection=CanRestoreSnapshotSelection(item,row,sourceTab);
-            if(item.IsSelected&&!restoreSelection) {
-                this.LogSnapshotDiagnostic(item,"Executable case identity is missing; the legacy snapshot row is displayed but excluded from the execution queue.");
-            }
-            ApplyRowSelectionToCells(row,restoreSelection);
+    private void ApplyBenchmarkSnapshotItemsToRows() {
+        foreach(var (item,row,sourceTab) in this.EnumerateSnapshotBindings()) {
             this.ApplyLoadedBenchmarkSnapshotSide(row,sourceTab.LeftProject,item.CpuNumber,item.Left);
             this.ApplyLoadedBenchmarkSnapshotSide(row,sourceTab.RightProject,item.CpuNumber,item.Right);
         }
@@ -7469,14 +7371,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
         row.RefreshSelectionState();
     }
 
-    private static bool CanRestoreSnapshotSelection(
-        BenchmarkGridSnapshotItem item,
-        BenchmarkTableRow row,
-        BenchmarkSourceTabDefinition sourceTab) =>
-        item.IsSelected
-        &&row.CasesByProject.ContainsKey(sourceTab.LeftProject)
-        &&(IsScalableSourceTab(sourceTab.Tab)||row.CasesByProject.ContainsKey(sourceTab.RightProject));
-
     private static void SetRowUiSelection(BenchmarkTableRow row,bool selected) {
         foreach(var cell in row.ProjectCells) {
             cell.IsUiSelected=cell.HasCase&&selected;
@@ -7484,19 +7378,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
         row.RefreshUiSelectionState();
     }
 
-    private void ApplyBenchmarkSnapshotFinalCompletionStates(IReadOnlyList<BenchmarkGridSnapshotItem> items) {
-        foreach(var item in items.OrderBy(static item => item.Order)) {
-            if(BenchmarkSourceTabs.TryGetById(item.SourceTabId) is not { } sourceTab) {
-                continue;
-            }
-
-            var state = this.GetSourceTabViewState(sourceTab.Tab);
-            var rowKey = CreateSnapshotRowKey(item.TypeName,item.BenchmarkName,SnapshotArgumentKey(item));
-            var row = state.Rows.FirstOrDefault(row => string.Equals(row.RowKey,rowKey,StringComparison.OrdinalIgnoreCase));
-            if(row is null) {
-                continue;
-            }
-
+    private void ApplyBenchmarkSnapshotFinalCompletionStates() {
+        foreach(var (item,row,sourceTab) in this.EnumerateSnapshotBindings()) {
             var measurements=new[] {
                 CreateSnapshotMeasurement(item.Left.ResultItem),
                 CreateSnapshotMeasurement(item.Right.ResultItem),
@@ -7513,6 +7396,17 @@ public sealed partial class RunnerViewModel:ObservableObject {
                     Math.Max(item.Left.ResultItem.AxisCount,item.Right.ResultItem.AxisCount),
                     thresholdNanoseconds);
             row.SetFinalCompleted(item.IsSelected&&isFinalCompleted);
+        }
+    }
+
+    private IEnumerable<(BenchmarkGridSnapshotItem Item,BenchmarkTableRow Row,BenchmarkSourceTabDefinition SourceTab)> EnumerateSnapshotBindings() {
+        foreach(var sourceTab in BenchmarkSourceTabs.All) {
+            var state=this.GetSourceTabViewState(sourceTab.Tab);
+            foreach(var row in state.Rows) {
+                if(row.LoadedSnapshot is { } item) {
+                    yield return (item,row,sourceTab);
+                }
+            }
         }
     }
 
@@ -7548,7 +7442,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
                     benchmarkName,
                     sourceTab,
                     cases,
-                    item.TypeName);
+                    item.TypeName){
+                    LoadedSnapshot=item,
+                };
             });
     }
 
@@ -9584,7 +9480,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
         state.ChartPoints.Insert(insertIndex,candidate);
         UiThreadBudget.Record("chart-dirty-bar-update-count",1);
         this.ReindexChartPointsFrom(state,insertIndex);
-        if(state.UiSelectedRowsByKey.ContainsKey(row.RowKey)) {
+        if(row.IsUiSelected) {
             state.UiSelectedChartBars.Add(candidate);
             state.NotifyChartSelectionChanged();
         }
@@ -9923,7 +9819,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
 
             row.ChartBar=point;
             row.ChartPointIndex=index;
-            if(state.UiSelectedRowsByKey.ContainsKey(row.RowKey)) {
+            if(row.IsUiSelected) {
                 state.UiSelectedChartBars.Add(point);
             }
         }

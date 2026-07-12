@@ -34,6 +34,7 @@ public sealed class BenchmarkCase {
     public string MethodName { get; }
     public string ArgumentKey { get; }
     public IReadOnlyList<BenchmarkArgument> Arguments { get; }
+    public int BindingRowIndex { get; init; } = -1;
     public string DisplayName => $"{this.Project} / {this.MethodName}";
     public int CountArgument => BenchmarkArgumentFormatting.GetInt(this.Arguments,"Count");
 }
@@ -104,9 +105,12 @@ public sealed class BenchmarkJob {
     public DateTimeOffset? FinishedAt { get; set; }
     // 実行内で一意な生成順index。実行中は文字列キー照合の代わりにこの値でUI行を更新する。
     public int RunItemIndex { get; set; } = -1;
+    public int BindingRowIndex { get; set; } = -1;
 
     public BenchmarkCase ToBenchmarkCase() =>
-        new(this.Project,this.AssemblyName,this.TypeFullName,this.MethodName,this.ArgumentKey,this.Arguments);
+        new(this.Project,this.AssemblyName,this.TypeFullName,this.MethodName,this.ArgumentKey,this.Arguments){
+            BindingRowIndex=this.BindingRowIndex,
+        };
 
     public ReportRow ToReportRow() {
         var meanNanoseconds = BenchmarkWorkloadAxis.NormalizePerOperation(this.SourceTab,this.LoopCount,this.MeanNanoseconds);

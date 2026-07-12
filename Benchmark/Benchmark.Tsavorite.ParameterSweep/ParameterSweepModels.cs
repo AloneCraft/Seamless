@@ -64,7 +64,27 @@ public sealed record ParameterSweepResult(
     ParameterSweepFailureKind FailureKind,
     string FailureMessage,
     double AddElapsedMilliseconds,
-    double? LookupMeanNanoseconds);
+    double? LookupMeanNanoseconds) {
+    public IReadOnlyList<ParameterSweepWorkerMetric> WorkerMetrics { get; init; } = [];
+    public string CpuSetKey { get; init; } = string.Empty;
+    public int ConcurrencyLevel { get; init; } = 1;
+}
+
+public sealed record ParameterSweepWorkerMetric(
+    int? LogicalCpu,
+    long AddOperationCount,
+    double AddElapsedMilliseconds,
+    long LookupOperationCount,
+    double LookupElapsedMilliseconds,
+    ParameterSweepFailureKind FailureKind,
+    string FailureMessage) {
+    public double AddOperationsPerSecond => this.AddElapsedMilliseconds>0
+        ? this.AddOperationCount*1000/this.AddElapsedMilliseconds
+        : 0;
+    public double LookupOperationsPerSecond => this.LookupElapsedMilliseconds>0
+        ? this.LookupOperationCount*1000/this.LookupElapsedMilliseconds
+        : 0;
+}
 
 public sealed record ParameterSweepComparisonRow(
     ParameterSweepResult Current,

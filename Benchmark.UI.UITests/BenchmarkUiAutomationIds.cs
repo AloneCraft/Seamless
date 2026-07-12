@@ -6,6 +6,7 @@ internal static class BenchmarkUiAutomationIds{
     public const string TopAllSelectionCheck = "Benchmark.TopAllSelectionCheck";
     public const string AllSelectionCheckHost = "Benchmark.AllSelectionCheckHost";
     public const string AllSelectionCheck = "Benchmark.AllSelectionCheck";
+    public const string RowCheck = "Benchmark.RowCheck";
 
     public static string SourceTab(string sourceTab) =>
         "Benchmark.SourceTab."+sourceTab;

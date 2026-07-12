@@ -16,6 +16,7 @@ public sealed class ParameterSweepRunOptions {
     public TimeSpan PerCaseTimeout { get; init; } = TimeSpan.FromSeconds(10);
     public long StorageDeviceCapacity { get; init; } = 1L<<30;
     public string? WorkDirectory { get; init; }
+    public IReadOnlyList<int> LogicalCpus { get; init; } = [];
 }
 
 public static class ParameterSweepPlan {
@@ -126,6 +127,9 @@ public static class ParameterSweepPlan {
         }
         if(options.StorageDeviceCapacity<MinimumSegmentSize*2) {
             throw new ArgumentOutOfRangeException(nameof(options.StorageDeviceCapacity));
+        }
+        if(options.LogicalCpus.Any(static cpu => cpu<0)) {
+            throw new ArgumentOutOfRangeException(nameof(options.LogicalCpus));
         }
     }
 }

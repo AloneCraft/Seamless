@@ -29,6 +29,33 @@ public sealed class ParameterSweepRunnerTests {
     }
 
     [Fact]
+    public async Task RunAsync_HashSetInt32ConcurrentWorkers_UsesSharedStoreAndRecordsWorkers() {
+        var options = new ParameterSweepRunOptions {
+            MaxSweepSteps=1,
+            MaxSuccessfulCount=128,
+            LookupProbeCount=32,
+            PerCaseTimeout=TimeSpan.FromSeconds(3),
+            LogicalCpus=[0,1],
+        };
+        var item = ParameterSweepPlan.CreateDefaultCases(options)
+            .Single(static value => value.Backend==ParameterSweepBackend.Memory
+                &&value.Collection==ParameterSweepCollectionKind.HashSet
+                &&value.GenericName=="Int32"
+                &&value.Sweep==ParameterSweepAxis.MemorySize);
+
+        var result = await new ParameterSweepRunner().RunCaseAsync(item,options);
+
+        Assert.Equal(ParameterSweepFailureKind.Completed,result.FailureKind);
+        Assert.Equal(128,result.MaxSuccessfulCount);
+        Assert.Equal(128,result.EntryCount);
+        Assert.Equal(2,result.ConcurrencyLevel);
+        Assert.Equal(2,result.WorkerMetrics.Count);
+        Assert.Equal(128,result.WorkerMetrics.Sum(static metric => metric.AddOperationCount));
+        Assert.Equal(32,result.WorkerMetrics.Sum(static metric => metric.LookupOperationCount));
+        Assert.All(result.WorkerMetrics,static metric => Assert.Equal(ParameterSweepFailureKind.Completed,metric.FailureKind));
+    }
+
+    [Fact]
     public async Task RunAsync_StorageFailure_IsCapturedAsResult() {
         var options = new ParameterSweepRunOptions {
             MaxSweepSteps=1,

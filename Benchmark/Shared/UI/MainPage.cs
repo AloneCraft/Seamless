@@ -2300,9 +2300,11 @@ public sealed partial class MainPage:ContentPage {
         var selectionController=new BenchmarkCheckSelectionController(
             SfDataGrid,
             rows => this.viewModel?.ToggleBenchmarkRows(rows),
-            (addedRows,removedRows) => this.SynchronizeBenchmarkGridSelection(state,addedRows,removedRows),
-            () => state?.Rows??[]);
+            (addedRows,removedRows) => this.SynchronizeBenchmarkGridSelection(state,addedRows,removedRows));
         SfDataGrid.SelectionController=selectionController;
+        var keyboardFocusPointer=new PointerGestureRecognizer();
+        keyboardFocusPointer.PointerReleased+=(_,_) => selectionController.QueueKeyboardFocus();
+        SfDataGrid.GestureRecognizers.Add(keyboardFocusPointer);
         SfDataGrid.SelectionChanging+=(_,args) => {
             if(this.selectionSuppressedGrids.Contains(SfDataGrid)){
                 args.Cancel=true;
@@ -2320,10 +2322,6 @@ public sealed partial class MainPage:ContentPage {
         SfDataGrid.CellDoubleTapped+=this.OnBenchmarkGridCellDoubleTapped;
         if(state is not null) {
             SfDataGrid.ItemsSource=state.Rows;
-            NotifyCollectionChangedEventHandler selectionRowsChanged=(_,_) => selectionController.QueueRebindSelection();
-            state.Rows.CollectionChanged+=selectionRowsChanged;
-            SfDataGrid.Unloaded+=(_,_) => state.Rows.CollectionChanged-=selectionRowsChanged;
-            selectionController.RestoreSelection(state.UiSelectedRowsByKey.Keys);
         }else{
             SfDataGrid.SetBinding(SfDataGrid.ItemsSourceProperty,nameof(RunnerViewModel.BenchmarkRows));
         }
@@ -2488,6 +2486,7 @@ public sealed partial class MainPage:ContentPage {
                     VerticalOptions=LayoutOptions.Fill,
                 };
                 var check = this.CreateSfCheckBox(BenchmarkAggregateCheckBoxSize,BenchmarkAggregateCheckBoxSize,true);
+                check.AutomationId="Benchmark.RowCheck";
                 check.InputTransparent=true;
                 check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(nameof(BenchmarkTableRow.IsSelectionChecked),BindingMode.OneWay));
                 var checkHost = new Grid {
