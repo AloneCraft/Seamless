@@ -1,6 +1,9 @@
 namespace Seamless.Collections;
 
-public interface ISet<T> : IReadOnlySet<T> {
+public interface IUnorderedEnumerable<out T>:IEnumerable<T>{
+}
+
+public interface ISet<T>:IReadOnlySet<T>,IUnorderedEnumerable<T>{
     long GetLongCount() => this.Count;
 
     bool IReadOnlySet<T>.IsSubsetOf(IEnumerable<T> other) {

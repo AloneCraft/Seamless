@@ -92,6 +92,24 @@ public sealed partial class FLinqIncrementalGenerator {
         var emittedMethodNames = new HashSet<string>(StringComparer.Ordinal);
         var emittedUnsafeAccessors = new HashSet<string>(StringComparer.Ordinal);
         foreach(var target in targets) {
+            if(target.OptimizeLinq){
+                var seenUnorderedInvocations=new HashSet<int>();
+                foreach(var syntaxReference in target.Method.DeclaringSyntaxReferences){
+                    var syntax=syntaxReference.GetSyntax();
+                    var unorderedSemanticModel=target.SemanticModel.Compilation.GetSemanticModel(syntax.SyntaxTree);
+                    foreach(var unorderedInvocation in syntax.DescendantNodes().OfType<InvocationExpressionSyntax>()){
+                        if(!seenUnorderedInvocations.Add(unorderedInvocation.SpanStart)
+                            ||!TryGetUnorderedInvocation(unorderedSemanticModel,unorderedInvocation,out var unorderedMethodName,out var unorderedSourceType,out var explicitOptIn)){
+                            continue;
+                        }
+                        diagnostics.Add(Diagnostic.Create(
+                            explicitOptIn?UnorderedOperationOptInDescriptor:UnorderedOperationWarningDescriptor,
+                            unorderedInvocation.GetLocation(),
+                            unorderedMethodName,
+                            unorderedSourceType));
+                    }
+                }
+            }
             try {
                 if(target.IsLocalMethodInterception) {
                     using var optimizationScope=LinqOptimizationContext.Enter(target.Optimizations);

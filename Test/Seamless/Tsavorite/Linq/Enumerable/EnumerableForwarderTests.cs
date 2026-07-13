@@ -22,7 +22,12 @@ public class EnumerableForwarderTests {
         foreach(var value in new[] { 1,2,3,4 })
             source.Add(value);
 
-        var orderedSource = source.Order().ToArray();
+        var orderedSource = SeamlessEnumerable.AsEnumerable(source).Order().ToArray();
+        var filtered = SeamlessEnumerable.Where(source,static value=>value%2==0);
+
+        Assert.IsAssignableFrom<global::Seamless.Collections.IUnorderedEnumerable<int>>(filtered);
+        Assert.Throws<NotSupportedException>(()=>SeamlessEnumerable.First(source));
+        Assert.Equal(1,SeamlessEnumerable.ToArray(source).Order().First());
 
         Assert.Equal(orderedSource.Where(static value => value%2==0).ToArray(),
             SeamlessEnumerable.Where(source,static value => value%2==0).Order().ToArray());
@@ -75,8 +80,36 @@ public class EnumerableForwarderTests {
         return string.Join("|",
             method.Name,
             method.IsGenericMethodDefinition ? method.GetGenericArguments().Length.ToString() : "0",
-            FormatType(method.ReturnType),
+            replaceFirstParameter ? FormatExpectedReturnType(method) : FormatType(method.ReturnType),
             string.Join(",",parameters));
+    }
+
+    private static string FormatExpectedReturnType(MethodInfo method) {
+        if(method.Name!="AsEnumerable"
+            &&!IsRestricted(method)
+            &&method.ReturnType.IsGenericType
+            &&method.ReturnType.GetGenericTypeDefinition()==typeof(IEnumerable<>)) {
+            return $"Seamless.Collections.IUnorderedEnumerable<{FormatType(method.ReturnType.GetGenericArguments()[0])}>";
+        }
+        return FormatType(method.ReturnType);
+    }
+
+    private static bool IsRestricted(MethodInfo method) {
+        var name=method.Name;
+        if(name.StartsWith("Order",StringComparison.Ordinal)
+            ||name.StartsWith("ThenBy",StringComparison.Ordinal)
+            ||name.StartsWith("First",StringComparison.Ordinal)
+            ||name.StartsWith("Last",StringComparison.Ordinal)
+            ||name.StartsWith("ElementAt",StringComparison.Ordinal)
+            ||name.StartsWith("Skip",StringComparison.Ordinal)
+            ||name.StartsWith("Take",StringComparison.Ordinal))
+            return true;
+        if(name is "Reverse" or "Shuffle" or "Index" or "Zip" or "SequenceEqual" or "Chunk" or "Append" or "Prepend" or "Concat")
+            return true;
+        return (name is "Where" or "Select" or "SelectMany")
+            &&method.GetParameters().Skip(1).Any(static parameter=>parameter.ParameterType.GetMethod("Invoke") is { } invoke
+                &&invoke.GetParameters() is { Length:>=2 } invokeParameters
+                &&invokeParameters[1].ParameterType==typeof(int));
     }
 
     private static string FormatSetType(Type enumerableType) {

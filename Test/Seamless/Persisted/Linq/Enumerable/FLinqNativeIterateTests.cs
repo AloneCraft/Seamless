@@ -35,7 +35,7 @@ public class FLinqNativeIterateTests {
     }
 
     [Fact, Trait("Category","Unit")]
-    public void PersistedSetRoot_UsesNativeIterateTerminalForAllAndFirstOrDefault() {
+    public void PersistedSetRoot_UsesNativeIterateTerminalForAllAndExplicitFirstOrDefault() {
         var path = CreatePath();
         try {
             using var set = global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
@@ -45,10 +45,11 @@ public class FLinqNativeIterateTests {
 
             source=set;
             Assert.True(AllLessThanFiveImpl());
-            Assert.Equal(3,FirstOrDefaultGreaterThanTwoImpl());
+            Assert.Throws<NotSupportedException>(()=>{ _=DirectFirstOrDefaultGreaterThanTwoImpl(); });
+            Assert.Equal(3,ExplicitFirstOrDefaultGreaterThanTwoImpl());
 
             AssertNativeIterateGenerated(nameof(AllLessThanFiveImpl));
-            AssertNativeIterateGenerated(nameof(FirstOrDefaultGreaterThanTwoImpl));
+            AssertNativeIterateGenerated(nameof(ExplicitFirstOrDefaultGreaterThanTwoImpl));
         }
         finally {
             source=null;
@@ -65,8 +66,12 @@ public class FLinqNativeIterateTests {
         Source().All(static value => value<5);
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
-    private static int FirstOrDefaultGreaterThanTwoImpl() =>
+    private static int DirectFirstOrDefaultGreaterThanTwoImpl() =>
         Source().Where(static value => value>2).FirstOrDefault();
+
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static int ExplicitFirstOrDefaultGreaterThanTwoImpl() =>
+        Source().AsEnumerable().Where(static value=>value>2).FirstOrDefault();
 
     private static global::Seamless.Persisted.Collections.Set<int> Source() =>
         source ?? throw new InvalidOperationException("Source was not initialized.");

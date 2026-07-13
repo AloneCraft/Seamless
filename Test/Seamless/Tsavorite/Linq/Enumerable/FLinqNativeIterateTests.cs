@@ -60,7 +60,7 @@ public class FLinqNativeIterateTests {
     }
 
     [Fact, Trait("Category","Unit")]
-    public void TsavoriteHashSetRoot_UsesNativeIterateTerminalForAllAndFirstOrDefault() {
+    public void TsavoriteHashSetRoot_UsesNativeIterateTerminalForAllAndExplicitFirstOrDefault() {
         using var store = Store.Create().CreateHashSet<int>();
         using var set = store.Create();
         foreach(var value in new[] { 1,2,3,4 })
@@ -69,10 +69,35 @@ public class FLinqNativeIterateTests {
         source=set;
         try {
             Assert.True(AllLessThanFiveImpl());
-            Assert.Equal(3,FirstOrDefaultGreaterThanTwoImpl());
+            Assert.Throws<NotSupportedException>(()=>{ _=DirectFirstOrDefaultGreaterThanTwoImpl(); });
+            Assert.Equal(3,ExplicitFirstOrDefaultGreaterThanTwoImpl());
 
             AssertNativeIterateGenerated(nameof(AllLessThanFiveImpl));
-            AssertNativeIterateGenerated(nameof(FirstOrDefaultGreaterThanTwoImpl));
+            AssertNativeIterateGenerated(nameof(ExplicitFirstOrDefaultGreaterThanTwoImpl));
+        }
+        finally {
+            source=null;
+        }
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public void TsavoriteHashSetRoot_UsesNativeIterateForMaterializeAndHashTerminals() {
+        using var store=Store.Create().CreateHashSet<int>();
+        using var set=store.Create();
+        foreach(var value in new[] { 1,2,3,4 })
+            set.Add(value);
+
+        source=set;
+        try {
+            Assert.Equal([20,40],ToArrayImpl().Order());
+            Assert.Equal([1,3],ToListImpl().Order());
+            Assert.Equal(10,SumImpl());
+            Assert.Equal(4,ToDictionaryImpl().Count);
+
+            AssertNativeMaterializeGenerated(nameof(ToArrayImpl),"Array=global::System.GC.AllocateUninitializedArray");
+            AssertNativeMaterializeGenerated(nameof(ToListImpl),"List=new global::System.Collections.Generic.List");
+            AssertNativeMaterializeGenerated(nameof(SumImpl),"state.Sum+=");
+            AssertNativeMaterializeGenerated(nameof(ToDictionaryImpl),"Dictionary=new");
         }
         finally {
             source=null;
@@ -92,8 +117,27 @@ public class FLinqNativeIterateTests {
         Source().All(static value => value<5);
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
-    private static int FirstOrDefaultGreaterThanTwoImpl() =>
+    private static int DirectFirstOrDefaultGreaterThanTwoImpl() =>
         Source().Where(static value => value>2).FirstOrDefault();
+
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static int ExplicitFirstOrDefaultGreaterThanTwoImpl() =>
+        Source().AsEnumerable().Where(static value=>value>2).FirstOrDefault();
+
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static int[] ToArrayImpl()=>
+        Source().Where(static value=>value%2==0).Select(static value=>value*10).ToArray();
+
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static List<int> ToListImpl()=>
+        Source().Where(static value=>value%2!=0).ToList();
+
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static int SumImpl()=>Source().Sum();
+
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static Dictionary<int,int> ToDictionaryImpl()=>
+        Source().ToDictionary(static value=>value,static value=>value*2);
 
     private static global::Seamless.Tsavorite.Collections.HashSet<int> Source() =>
         source ?? throw new InvalidOperationException("Source was not initialized.");
@@ -107,5 +151,15 @@ public class FLinqNativeIterateTests {
         Assert.DoesNotContain("HashSetScanUnsafe",generated);
         Assert.DoesNotContain("ScanUnsafeDelegate",generated);
         Assert.DoesNotContain("Seamless.Linq.Enumerable",generated);
+    }
+
+    private static void AssertNativeMaterializeGenerated(string methodName,string shape) {
+        var generated=GeneratedInterceptorAssert.SourceFor<FLinqNativeIterateTests>(methodName);
+        Assert.Contains("IHashSetIterateStrategy",generated);
+        Assert.Contains(".Iterate(ref __TsavoriteHashSetIterateState",generated);
+        Assert.Contains(shape,generated);
+        Assert.DoesNotContain("ScanCursor",generated);
+        Assert.DoesNotContain("Seamless.Linq.Enumerable",generated);
+        Assert.DoesNotContain("__chunk",generated,StringComparison.OrdinalIgnoreCase);
     }
 }

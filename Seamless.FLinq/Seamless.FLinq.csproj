@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" />
+    <Compile Include="..\Seamless.SourceGenerator\SourceGenerator\UnorderedLinqOperatorPolicy.cs" Link="SourceGenerator\UnorderedLinqOperatorPolicy.cs" />
   </ItemGroup>
 
   <!-- Roslyn アナライザーとして参照プロジェクトを同時に読み込む -->

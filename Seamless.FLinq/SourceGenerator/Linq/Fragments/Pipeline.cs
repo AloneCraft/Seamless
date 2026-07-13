@@ -203,11 +203,8 @@ public static class PipelineBuilder {
             if(terminalResultType is null) {
                 return false;
             }
-            if(TsavoriteHashSetIterateTerminal.TryCreate(snapshot,pipeline,terminal,out var tsavoriteIterateTerminal)) {
-                fragment=tsavoriteIterateTerminal;
-                snapshot++;
-            } else if(PersistedSetIterateTerminal.TryCreate(snapshot,pipeline,terminal,out var persistedIterateTerminal)) {
-                fragment=persistedIterateTerminal;
+            if(ProviderIterateTerminal.TryCreate(snapshot,pipeline,terminal,terminalFunc1,terminalFunc2,terminalComparer,out var providerIterateTerminal)){
+                fragment=providerIterateTerminal;
                 snapshot++;
             } else {
                 fragment=new PipelineTerminal(snapshot++,pipeline,terminal,terminalFunc1,terminalFunc2,terminalComparer);
@@ -3146,7 +3143,6 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
     private bool CanUseSortedDefaultOrderFastPathCore(int orderIndex,PipelineStage primaryOrder,IReadOnlyList<PipelineStage> orderStages) =>
         orderIndex==0
         && orderStages.Count==1
-        &&source is RangeRoot
         && source.CanTryProvideSpan
         && string.Equals(primaryOrder.InputType,ComparerKeyType(primaryOrder),StringComparison.Ordinal)
         && primaryOrder.Value is { } comparer

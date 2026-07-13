@@ -5,6 +5,8 @@ public sealed class PersistedSetRoot(
     string sourceExpression,
     string elementType,
     string enumeratorTypeName)
-    : Root(番号,sourceExpression,elementType,enumeratorTypeName,useEnumerableInterface: false) {
-    public string SourceExpression { get; } = sourceExpression;
+    :ProviderNativeRootBase(番号,sourceExpression,elementType,enumeratorTypeName,useEnumerableInterface:false){
+    public override string ProviderName=>"PersistedSet";
+    public override string SourceVariablePrefix=>"__persistedIterateSource";
+    public override string StrategyInterfaceTypeName=>"global::Seamless.Persisted.Collections.ISetIterateStrategy";
 }

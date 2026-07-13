@@ -50,6 +50,7 @@
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'!='true'">
+    <Compile Remove="BenchmarkWorker\BenchmarkGridKeyLogic.cs" />
     <Reference Include="ZLinq">
       <HintPath>$(NuGetPackageRoot)zlinq/1.5.6/lib/net10.0/ZLinq.dll</HintPath>
       <Private>true</Private>

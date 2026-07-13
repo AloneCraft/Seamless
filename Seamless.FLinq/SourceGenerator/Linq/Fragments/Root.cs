@@ -29,7 +29,8 @@ Root 系 Fragment は LINQ チェーンの最初の source を struct enumerator
 // enumeratorTypeName には具象 GetEnumerator() 戻り値型名を渡す。
 // IEnumerable<T>/配列の場合は IEnumerator<T>、List<T> 等の具象型の場合は List<T>.Enumerator 等の値型エニュメレータ名になる。
 // 構造体 Struct1<TEnum> は TEnum でパラメータ化され、呼び出し側で具体型引数により単相化される。
-public class Root(int 番号, string sourceExpression, string elementType, string enumeratorTypeName, bool useEnumerableInterface) : Enumerable(番号) {
+public class Root(int 番号,string sourceExpression,string elementType,string enumeratorTypeName,bool useEnumerableInterface):EnumeratorRootBase(番号,sourceExpression){
+    public override SourceCapability Capabilities=>SourceCapability.ChunkStreaming;
     public override bool CanProvideSpan => false;
     public override bool CanTryProvideSpan => useEnumerableInterface;
     public override string StructMethod => string.Empty;
@@ -185,72 +186,12 @@ ArrayRoot は配列 source 専用。IEnumerator<T> を作らず index で直接�
   TryGetSpan/TryCopyTo/TryGetNonEnumeratedCount を常に true にできるので、後続の ToArray/Count などが
   分岐なしに連続メモリ fast path を選べる。
 */
-public class ArrayRoot(int 番号, string sourceExpression, string elementType) : Enumerable(番号) {
-    public override bool CanProvideSpan => true;
+public sealed class ArrayRoot(int 番号,string sourceExpression,string elementType):DirectSpanRootBase(番号,sourceExpression,elementType){
     public override string? DirectArrayExpression => sourceExpression;
-    public override string? GetDirectSpanExpression(string enumeratorName) => $"{enumeratorName}.GetSpan()";
-    public override string? NonEnumeratedCountExpression => $"{sourceExpression}.Length";
-    public override bool CountPreserving => true;
-    public override string StructMethod => string.Empty;
-    // PrimarySource == null なので基底の EnumeratorTypeName は Struct（含有型ジェネリック時は Struct<T>）を返す。
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({sourceExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"{elementType}[] source";
-    public override string GetEnumeratorFields => $"private int {this.e} = -1;";
-    public override string GetTryGetNextBody => $$"""
-        if(++{{this.e}} < source.Length) {
-            current = source[{{this.e}}];
-            return true;
-        }
-        current = default!;
-        return false;
-        """;
-    public override string GetCurrentExpression => $"source[{this.e}]";
-    public override string ElementType => elementType;
-    public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}}{{this.StructTypeParameters}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
-        {
-            private {{elementType}}[] source;
-            private int {{this.e}} = -1;
-            public {{this.Struct}}({{elementType}}[] source) { this.source = source; }
-            public {{elementType}} Current { get; private set; } = default!;
-            object? global::System.Collections.IEnumerator.Current => Current;
-            {{AggressiveInliningAttribute}}
-            void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
-            {{AggressiveInliningAttribute}}
-            public bool MoveNext() => TryGetNext(out _);
-            {{AggressiveInliningAttribute}}
-            public bool TryGetNonEnumeratedCount(out int count) {
-                count = source.Length - ({{this.e}} + 1);
-                return true;
-            }
-            {{AggressiveInliningAttribute}}
-            public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) {
-                span = global::System.MemoryExtensions.AsSpan(source, {{this.e}} + 1);
-                return true;
-            }
-            {{AggressiveInliningAttribute}}
-            public global::System.ReadOnlySpan<{{elementType}}> GetSpan()
-                => global::System.MemoryExtensions.AsSpan(source, {{this.e}} + 1);
-            {{AggressiveInliningAttribute}}
-            public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) {
-                var remaining = global::System.MemoryExtensions.AsSpan(source, {{this.e}} + 1);
-                var start = offset.GetOffset(remaining.Length);
-                remaining.Slice(start).CopyTo(destination);
-                return true;
-            }
-            {{AggressiveInliningAttribute}}
-            public bool TryGetNext(out {{elementType}} current) {
-                if(++{{this.e}} < source.Length) {
-                    current = this.Current = source[{{this.e}}];
-                    return true;
-                }
-                current = default!;
-                return false;
-            }
-            {{AggressiveInliningAttribute}}
-            public void Dispose() { }
-        }
-        """;
+    protected override string SourceTypeName=>$"{elementType}[]";
+    protected override string CountExpression(string sourceName)=>$"{sourceName}.Length";
+    protected override string RemainingCountExpression(string sourceName,string indexName)=>$"{sourceName}.Length-({indexName}+1)";
+    protected override string SpanExpression(string sourceName,string startExpression)=>$"global::System.MemoryExtensions.AsSpan({sourceName},{startExpression})";
 }
 
 // List<T> ソース専用。List.Enumerator を包む素通し Root + バージョンチェックを避け、
@@ -270,73 +211,11 @@ CollectionsMarshal.AsSpan(list) を index で読む。
 設計意図:
   配列同様に TryGetSpan/TryCopyTo を提供し、Select/Where 後の materialize でもコピー系 fast path を維持する。
 */
-public class ListRoot(int 番号, string sourceExpression, string elementType) : Enumerable(番号) {
-    public override bool CanProvideSpan => true;
-    public override string? GetDirectSpanExpression(string enumeratorName) => $"{enumeratorName}.GetSpan()";
-    public override string? NonEnumeratedCountExpression => $"{sourceExpression}.Count";
-    public override bool CountPreserving => true;
-    public override string StructMethod => string.Empty;
-    // PrimarySource == null なので基底の EnumeratorTypeName は Struct（含有型ジェネリック時は Struct<T>）を返す。
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({sourceExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"global::System.Collections.Generic.List<{elementType}> source";
-    public override string GetEnumeratorFields => $"private int {this.e} = -1;";
-    public override string GetTryGetNextBody => $$"""
-        var {{this.temp}} = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source);
-        if(++{{this.e}} < {{this.temp}}.Length) {
-            current = {{this.temp}}[{{this.e}}];
-            return true;
-        }
-        current = default!;
-        return false;
-        """;
-    public override string GetCurrentExpression => "Current";
-    public override string ElementType => elementType;
-    public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}}{{this.StructTypeParameters}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
-        {
-            private global::System.Collections.Generic.List<{{elementType}}> source;
-            private int {{this.e}} = -1;
-            public {{this.Struct}}(global::System.Collections.Generic.List<{{elementType}}> source) { this.source = source; }
-            public {{elementType}} Current { get; private set; } = default!;
-            object? global::System.Collections.IEnumerator.Current => Current;
-            {{AggressiveInliningAttribute}}
-            void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
-            {{AggressiveInliningAttribute}}
-            public bool MoveNext() => TryGetNext(out _);
-            {{AggressiveInliningAttribute}}
-            public bool TryGetNonEnumeratedCount(out int count) {
-                count = source.Count - ({{this.e}} + 1);
-                return true;
-            }
-            {{AggressiveInliningAttribute}}
-            public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) {
-                span = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source).Slice({{this.e}} + 1);
-                return true;
-            }
-            {{AggressiveInliningAttribute}}
-            public global::System.ReadOnlySpan<{{elementType}}> GetSpan()
-                => global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source).Slice({{this.e}} + 1);
-            {{AggressiveInliningAttribute}}
-            public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) {
-                var remaining = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source).Slice({{this.e}} + 1);
-                var start = offset.GetOffset(remaining.Length);
-                remaining.Slice(start).CopyTo(destination);
-                return true;
-            }
-            {{AggressiveInliningAttribute}}
-            public bool TryGetNext(out {{elementType}} current) {
-                var {{this.temp}} = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(source);
-                if(++{{this.e}} < {{this.temp}}.Length) {
-                    current = this.Current = {{this.temp}}[{{this.e}}];
-                    return true;
-                }
-                current = default!;
-                return false;
-            }
-            {{AggressiveInliningAttribute}}
-            public void Dispose() { }
-        }
-        """;
+public sealed class ListRoot(int 番号,string sourceExpression,string elementType):DirectSpanRootBase(番号,sourceExpression,elementType){
+    protected override string SourceTypeName=>$"global::System.Collections.Generic.List<{elementType}>";
+    protected override string CountExpression(string sourceName)=>$"{sourceName}.Count";
+    protected override string RemainingCountExpression(string sourceName,string indexName)=>$"{sourceName}.Count-({indexName}+1)";
+    protected override string SpanExpression(string sourceName,string startExpression)=>$"global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({sourceName}).Slice({startExpression})";
 }
 
 // IEnumerator<T> を実装しない duck-typing struct エニュメレータ（例: ImmutableArray<T>.Enumerator）向け。
@@ -344,70 +223,12 @@ public class ListRoot(int 番号, string sourceExpression, string elementType) :
 // TEnum の struct 制約が不要なため CS0315 が発生しない。
 // Dispose() は no-op。duck-typing で IDisposable も実装するなら IEnumerator<T> も実装するはずで、
 // その場合は通常の Root パスで処理されるため、ここには到達しない。
-public class PersistedListRoot(int 番号,string sourceExpression,string elementType) : Enumerable(番号) {
-    public override bool CanProvideSpan => true;
-    public override string? GetDirectSpanExpression(string enumeratorName) => $"{enumeratorName}.GetSpan()";
-    public override string? NonEnumeratedCountExpression => $"checked((int){sourceExpression}.Count)";
-    public override bool CountPreserving => true;
-    public override string StructMethod => string.Empty;
-    public override string GetEnumeratorExpression => $"new {this.Struct}({sourceExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters => $"global::Seamless.Persisted.Collections.PersistedList<{elementType}> source";
-    public override string GetEnumeratorFields => $"private long {this.e} = -1;";
-    public override string GetTryGetNextBody => $$"""
-        if(++{{this.e}} < source.Count) {
-            current = source[{{this.e}}];
-            return true;
-        }
-        current = default!;
-        return false;
-        """;
-    public override string GetCurrentExpression => "Current";
-    public override string ElementType => elementType;
-    public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
-        {
-            private global::Seamless.Persisted.Collections.PersistedList<{{elementType}}> source;
-            private long {{this.e}} = -1;
-            public {{this.Struct}}(global::Seamless.Persisted.Collections.PersistedList<{{elementType}}> source) { this.source = source; }
-            public {{elementType}} Current { get; private set; } = default!;
-            object? global::System.Collections.IEnumerator.Current => Current;
-            {{AggressiveInliningAttribute}}
-            void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
-            {{AggressiveInliningAttribute}}
-            public bool MoveNext() => TryGetNext(out _);
-            {{AggressiveInliningAttribute}}
-            public bool TryGetNonEnumeratedCount(out int count) {
-                count = checked((int)(source.Count - ({{this.e}} + 1)));
-                return true;
-            }
-            {{AggressiveInliningAttribute}}
-            public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) {
-                span = this.GetSpan();
-                return true;
-            }
-            {{AggressiveInliningAttribute}}
-            public global::System.ReadOnlySpan<{{elementType}}> GetSpan()
-                => source.AsSpan({{this.e}} + 1,checked((int)(source.Count - ({{this.e}} + 1))));
-            {{AggressiveInliningAttribute}}
-            public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) {
-                var remaining = this.GetSpan();
-                var start = offset.GetOffset(remaining.Length);
-                remaining.Slice(start).CopyTo(destination);
-                return true;
-            }
-            {{AggressiveInliningAttribute}}
-            public bool TryGetNext(out {{elementType}} current) {
-                if(++{{this.e}} < source.Count) {
-                    current = this.Current = source[{{this.e}}];
-                    return true;
-                }
-                current = default!;
-                return false;
-            }
-            {{AggressiveInliningAttribute}}
-            public void Dispose() { }
-        }
-        """;
+public sealed class PersistedListRoot(int 番号,string sourceExpression,string elementType):DirectSpanRootBase(番号,sourceExpression,elementType){
+    protected override string SourceTypeName=>$"global::Seamless.Persisted.Collections.PersistedList<{elementType}>";
+    protected override string IndexTypeName=>"long";
+    protected override string CountExpression(string sourceName)=>$"{sourceName}.Count";
+    protected override string RemainingCountExpression(string sourceName,string indexName)=>$"checked((int)({sourceName}.Count-({indexName}+1)))";
+    protected override string SpanExpression(string sourceName,string startExpression)=>$"{sourceName}.AsSpan({startExpression},checked((int)({sourceName}.Count-({startExpression}))))";
 }
 
 public class DuckTypingRoot(int 番号, string sourceExpression, string elementType, string concreteEnumeratorType) : Enumerable(番号) {

@@ -1,5 +1,10 @@
 namespace Seamless.Tsavorite.Collections;
 
+public interface ISetIterateStrategy<TSelf,TRecord>
+    where TSelf:struct,ISetIterateStrategy<TSelf,TRecord>{
+    static abstract bool Invoke(ref TSelf self,TRecord item);
+}
+
 public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,AutoSerializer<TRecord>>,ISet<TKey,TRecord>, IMemoryCollection<TRecord>
     where TRecord : IRecord<TKey> {
     private readonly IDisposable? ownedStore;
@@ -178,11 +183,48 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
         this.VerifyThreadAffinity();
         return new Enumerator<ValueIterator,TRecord>(this.ReadSession,new(),this.Store.Log.TailAddress,this);
     }
+    public void Iterate<TStrategy>(ref TStrategy strategy)
+        where TStrategy:struct,ISetIterateStrategy<TStrategy,TRecord>{
+        this.VerifyThreadAffinity();
+        var iterator=new IterateLookupAdapter<TStrategy>(strategy);
+        var cursor=0L;
+        this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor:false);
+        this.ReadSession.BasicContext.CompletePending(wait:true);
+        strategy=iterator.Strategy;
+    }
     IEnumerator<TRecord> IEnumerable<TRecord>.GetEnumerator() => this.GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
     IEnumerator<TRecord> IMemoryCollection<TRecord>.GetEnumerator() {
         this.VerifyThreadAffinity();
         return new Enumerator<MemoryValueIterator,TRecord>(this.ReadSession,new(),this.Store.Log.TailAddress,this);
+    }
+
+    private sealed class IterateLookupAdapter<TStrategy>(TStrategy strategy):IScanIteratorFunctions
+        where TStrategy:struct,ISetIterateStrategy<TStrategy,TRecord>{
+        public TStrategy Strategy=strategy;
+
+        public bool Reader<TSourceLogRecord>(
+            in TSourceLogRecord logRecord,
+            RecordMetadata recordMetadata,
+            long numberOfRecords,
+            out CursorRecordResult cursorRecordResult)
+            where TSourceLogRecord:ISourceLogRecord{
+            if(logRecord.Info.Tombstone){
+                cursorRecordResult=CursorRecordResult.Skip;
+                return true;
+            }
+            var item=AutoSerializer<TRecord>.Deserialize(logRecord.ValueSpan);
+            if(TStrategy.Invoke(ref this.Strategy,item)){
+                cursorRecordResult=CursorRecordResult.Accept;
+                return true;
+            }
+            cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
+            return true;
+        }
+
+        public bool OnStart(long beginAddress,long endAddress)=>true;
+        public void OnStop(bool completed,long numberOfRecords){}
+        public void OnException(Exception exception,long numberOfRecords){}
     }
 }
 

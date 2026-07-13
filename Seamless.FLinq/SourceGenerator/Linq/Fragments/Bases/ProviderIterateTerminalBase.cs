@@ -1,15 +1,19 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
 public enum ProviderIterateTerminalKind {
+    ToList,
+    ToArray,
     Count,
     Any,
     First,
+    ToDictionary,
+    Sum,
     All,
     FirstOrDefault,
     Contains,
 }
 
-public abstract class ProviderIterateTerminalBase:Scalar,DirectExecutionFragment {
+public abstract class ProviderNativeExecutionBase:Scalar,DirectExecutionFragment {
     private readonly int number;
     private readonly PipelineEnumerable pipeline;
     private readonly ProviderIterateTerminalKind terminalKind;
@@ -23,8 +27,11 @@ public abstract class ProviderIterateTerminalBase:Scalar,DirectExecutionFragment
     private readonly FuncFragment? terminalPredicate;
     private readonly string? containsValue;
     private readonly string? containsComparer;
+    private readonly FuncFragment? terminalFunc1;
+    private readonly FuncFragment? terminalFunc2;
+    private readonly string? terminalComparer;
 
-    protected ProviderIterateTerminalBase(
+    protected ProviderNativeExecutionBase(
         int number,
         PipelineEnumerable pipeline,
         ProviderIterateTerminalKind terminalKind,
@@ -37,7 +44,10 @@ public abstract class ProviderIterateTerminalBase:Scalar,DirectExecutionFragment
         string? containsValue = null,
         string? containsComparer = null,
         string operationName = "Iterate",
-        string executionMethodName = "Iterate")
+        string executionMethodName = "Iterate",
+        FuncFragment? terminalFunc1 = null,
+        FuncFragment? terminalFunc2 = null,
+        string? terminalComparer = null)
         : base(number) {
         this.number=number;
         this.pipeline=pipeline;
@@ -52,13 +62,18 @@ public abstract class ProviderIterateTerminalBase:Scalar,DirectExecutionFragment
         this.terminalPredicate=terminalPredicate;
         this.containsValue=containsValue;
         this.containsComparer=containsComparer;
+        this.terminalFunc1=terminalFunc1;
+        this.terminalFunc2=terminalFunc2;
+        this.terminalComparer=terminalComparer;
     }
 
     private string StateTypeName => $"{this.Struct}_{this.providerName}{this.operationName}State";
     protected override Enumerable PrimarySource => this.pipeline;
 
     protected static bool CanCreateFor(PipelineEnumerable pipeline,PipelineTerminalKind terminalKind) =>
-        terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.Any or PipelineTerminalKind.First
+        terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray
+            or PipelineTerminalKind.Count or PipelineTerminalKind.Any or PipelineTerminalKind.First
+            or PipelineTerminalKind.ToDictionary or PipelineTerminalKind.Sum
         && pipeline.Stages.All(static stage => PipelineStageCapabilityTable.SupportsProviderNativeIterate(stage.Kind))
         && !pipeline.Stages.Any(static stage => stage.Func is { RequiresStatementInlining: true });
 
@@ -81,6 +96,10 @@ public abstract class ProviderIterateTerminalBase:Scalar,DirectExecutionFragment
             PipelineTerminalKind.Count => ProviderIterateTerminalKind.Count,
             PipelineTerminalKind.Any => ProviderIterateTerminalKind.Any,
             PipelineTerminalKind.First => ProviderIterateTerminalKind.First,
+            PipelineTerminalKind.ToList => ProviderIterateTerminalKind.ToList,
+            PipelineTerminalKind.ToArray => ProviderIterateTerminalKind.ToArray,
+            PipelineTerminalKind.ToDictionary => ProviderIterateTerminalKind.ToDictionary,
+            PipelineTerminalKind.Sum => ProviderIterateTerminalKind.Sum,
             _ => throw new NotSupportedException($"{terminalKind} does not support provider native scan."),
         };
 
@@ -105,6 +124,13 @@ public abstract class ProviderIterateTerminalBase:Scalar,DirectExecutionFragment
         var builder = new StringBuilder();
         builder.AppendLine($"var {sourceName}={this.sourceExpression};");
         builder.AppendLine($"var {stateName}=new {this.StateTypeName}({this.ClosureArgumentList()});");
+        if(this.terminalKind==ProviderIterateTerminalKind.ToList) {
+            builder.AppendLine($"{stateName}.List=new global::System.Collections.Generic.List<{this.pipeline.ElementType}>({sourceName}.Count);");
+        } else if(this.terminalKind==ProviderIterateTerminalKind.ToArray) {
+            builder.AppendLine($"{stateName}.Array=global::System.GC.AllocateUninitializedArray<{this.pipeline.ElementType}>({sourceName}.Count);");
+        } else if(this.terminalKind==ProviderIterateTerminalKind.ToDictionary) {
+            builder.AppendLine($"{stateName}.Dictionary=new({sourceName}.Count,(global::System.Collections.Generic.IEqualityComparer<{this.DictionaryKeyType}>?){this.terminalComparer??"null"});");
+        }
         if(this.containsValue is not null) {
             builder.AppendLine($"{stateName}.ContainsValue={this.containsValue};");
             if(this.containsComparer is not null) {
@@ -112,7 +138,16 @@ public abstract class ProviderIterateTerminalBase:Scalar,DirectExecutionFragment
             }
         }
         builder.AppendLine($"{sourceName}.{this.executionMethodName}(ref {stateName});");
-        if(this.terminalKind==ProviderIterateTerminalKind.Count) {
+        if(this.terminalKind==ProviderIterateTerminalKind.ToList) {
+            builder.AppendLine($"{actualTypeName} {actualVariableName}=({actualTypeName}){stateName}.List!;");
+        } else if(this.terminalKind==ProviderIterateTerminalKind.ToArray) {
+            builder.AppendLine($"if({stateName}.Count!={stateName}.Array!.Length) global::System.Array.Resize(ref {stateName}.Array,{stateName}.Count);");
+            builder.AppendLine($"{actualTypeName} {actualVariableName}=({actualTypeName}){stateName}.Array!;");
+        } else if(this.terminalKind==ProviderIterateTerminalKind.ToDictionary) {
+            builder.AppendLine($"{actualTypeName} {actualVariableName}=({actualTypeName}){stateName}.Dictionary!;");
+        } else if(this.terminalKind==ProviderIterateTerminalKind.Sum) {
+            builder.AppendLine($"{actualTypeName} {actualVariableName}=({actualTypeName}){stateName}.Sum;");
+        } else if(this.terminalKind==ProviderIterateTerminalKind.Count) {
             builder.AppendLine($"{actualTypeName} {actualVariableName}=({actualTypeName}){stateName}.Count;");
         } else if(this.terminalKind is ProviderIterateTerminalKind.Any or ProviderIterateTerminalKind.Contains) {
             builder.AppendLine($"{actualTypeName} {actualVariableName}=({actualTypeName}){stateName}.Found;");
@@ -151,6 +186,15 @@ public abstract class ProviderIterateTerminalBase:Scalar,DirectExecutionFragment
         builder.AppendLine("    public int Count;");
         builder.AppendLine("    public bool Found;");
         builder.AppendLine($"    public {this.pipeline.ElementType} Value;");
+        if(this.terminalKind==ProviderIterateTerminalKind.ToList) {
+            builder.AppendLine($"    public global::System.Collections.Generic.List<{this.pipeline.ElementType}>? List;");
+        } else if(this.terminalKind==ProviderIterateTerminalKind.ToArray) {
+            builder.AppendLine($"    public {this.pipeline.ElementType}[]? Array;");
+        } else if(this.terminalKind==ProviderIterateTerminalKind.ToDictionary) {
+            builder.AppendLine($"    public global::System.Collections.Generic.Dictionary<{this.DictionaryKeyType},{this.DictionaryValueType}>? Dictionary;");
+        } else if(this.terminalKind==ProviderIterateTerminalKind.Sum) {
+            builder.AppendLine($"    public {this.pipeline.ElementType} Sum;");
+        }
         if(this.containsValue is not null) {
             builder.AppendLine($"    public {this.pipeline.ElementType} ContainsValue;");
             builder.AppendLine($"    public global::System.Collections.Generic.IEqualityComparer<{this.pipeline.ElementType}>? ContainsComparer;");
@@ -227,7 +271,27 @@ public abstract class ProviderIterateTerminalBase:Scalar,DirectExecutionFragment
                 currentName=nextName;
             }
         }
-        if(this.terminalKind==ProviderIterateTerminalKind.All) {
+        if(this.terminalKind==ProviderIterateTerminalKind.ToList) {
+            builder.AppendLine($"    state.List!.Add(({this.pipeline.ElementType}){currentName});");
+            builder.AppendLine("    return true;");
+        } else if(this.terminalKind==ProviderIterateTerminalKind.ToArray) {
+            builder.AppendLine($"    state.Array![state.Count++]=({this.pipeline.ElementType}){currentName};");
+            builder.AppendLine("    return true;");
+        } else if(this.terminalKind==ProviderIterateTerminalKind.ToDictionary) {
+            builder.AppendLine($"    {this.DictionaryKeyType} dictionaryKey=default!;");
+            GeneratedCodeWriter.AppendIndented(builder,this.FuncAssignStatic(this.terminalFunc1!,"ToDictionary","dictionaryKey",[currentName]),"    ");
+            if(this.terminalFunc2 is not null) {
+                builder.AppendLine($"    {this.DictionaryValueType} dictionaryValue=default!;");
+                GeneratedCodeWriter.AppendIndented(builder,this.FuncAssignStatic(this.terminalFunc2,"ToDictionary","dictionaryValue",[currentName]),"    ");
+                builder.AppendLine("    state.Dictionary![dictionaryKey]=dictionaryValue;");
+            } else {
+                builder.AppendLine($"    state.Dictionary![dictionaryKey]=({this.DictionaryValueType})(object?){currentName}!;");
+            }
+            builder.AppendLine("    return true;");
+        } else if(this.terminalKind==ProviderIterateTerminalKind.Sum) {
+            builder.AppendLine($"    state.Sum+=({this.pipeline.ElementType}){currentName};");
+            builder.AppendLine("    return true;");
+        } else if(this.terminalKind==ProviderIterateTerminalKind.All) {
             var tempName="all";
             builder.AppendLine($"    bool {tempName}=default!;");
             var args = new[] { currentName };
@@ -263,7 +327,12 @@ public abstract class ProviderIterateTerminalBase:Scalar,DirectExecutionFragment
         this.pipeline.Stages.Select(static stage=>stage.Func)
             .Where(static func=>func is not null)
             .Select(static func=>func!)
-            .Concat(this.terminalPredicate is null ? [] : [this.terminalPredicate]);
+            .Concat(this.terminalPredicate is null ? [] : [this.terminalPredicate])
+            .Concat(this.terminalFunc1 is null ? [] : [this.terminalFunc1])
+            .Concat(this.terminalFunc2 is null ? [] : [this.terminalFunc2]);
+
+    private string DictionaryKeyType=>this.terminalFunc1?.ReturnTypeName??"object";
+    private string DictionaryValueType=>this.terminalFunc2?.ReturnTypeName??this.pipeline.ElementType;
 
     private IEnumerable<(string Name,string TypeName)> CapturedLocals() {
         var names = new HashSet<string>(StringComparer.Ordinal);

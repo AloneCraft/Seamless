@@ -34,6 +34,12 @@ public sealed partial class FLinqIncrementalGenerator {
         var definition = method.ReducedFrom ?? method;
         var methodName = definition.Name;
 
+        if(TryGetUnorderedInvocation(semanticModel,invocation,out var unorderedMethod,out var unorderedSourceType,out var explicitOptIn)
+            &&!explicitOptIn){
+            fragment=new UnorderedOperation(uniqueNumber++,unorderedMethod,unorderedSourceType);
+            return true;
+        }
+
         if(TryBuildKnownEnumerableRootFromSystemInvocation(
             semanticModel,
             invocation,
@@ -539,9 +545,13 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         var terminalKind = methodName switch {
+            "ToList" => ProviderIterateTerminalKind.ToList,
+            "ToArray" => ProviderIterateTerminalKind.ToArray,
             "Any" => ProviderIterateTerminalKind.Any,
             "Count" => ProviderIterateTerminalKind.Count,
             "First" => ProviderIterateTerminalKind.First,
+            "ToDictionary" => ProviderIterateTerminalKind.ToDictionary,
+            "Sum" => ProviderIterateTerminalKind.Sum,
             "All" => ProviderIterateTerminalKind.All,
             "FirstOrDefault" => ProviderIterateTerminalKind.FirstOrDefault,
             "Contains" => ProviderIterateTerminalKind.Contains,
@@ -562,18 +572,36 @@ public sealed partial class FLinqIncrementalGenerator {
 
         var terminalPredicate = methodName=="All" ? predicate : null;
         if(predicate is not null && methodName!="All") {
-            stages.Add(new PipelineStage(PipelineStageKind.Where,predicate,null,currentElementType,currentElementType));
+            if(methodName=="Sum"&&variantName=="selector") {
+                stages.Add(new PipelineStage(PipelineStageKind.Select,predicate,null,currentElementType,predicate.ReturnTypeName));
+                currentElementType=predicate.ReturnTypeName;
+            } else if(methodName is not "ToDictionary") {
+                stages.Add(new PipelineStage(PipelineStageKind.Where,predicate,null,currentElementType,currentElementType));
+            }
         }
 
         var containsValue = TryGetBackendNativeContainsValue(methodName,constructorArguments);
         var containsComparer = TryGetBackendNativeContainsComparer(methodName,variantName,constructorArguments);
         var pipeline = new PipelineEnumerable(number,root,stages,currentElementType);
-        if(TsavoriteHashSetIterateTerminal.TryCreate(number,pipeline,terminalKind.Value,terminalPredicate,containsValue,containsComparer,out var tsavoriteTerminal)) {
-            fragment=tsavoriteTerminal;
-            return true;
+        if(methodName is "ToList" or "ToArray" or "ToDictionary" or "Sum") {
+            var funcs=constructorArguments.OfType<FuncFragment>().ToArray();
+            var terminalFunc1=methodName=="ToDictionary" ? funcs.ElementAtOrDefault(0) : null;
+            var terminalFunc2=methodName=="ToDictionary" ? funcs.ElementAtOrDefault(1) : null;
+            var terminalComparer=TryGetNamedConstructorArgument("comparer",constructorArguments,methodName,variantName);
+            var pipelineKind=methodName switch {
+                "ToList"=>PipelineTerminalKind.ToList,
+                "ToArray"=>PipelineTerminalKind.ToArray,
+                "ToDictionary"=>PipelineTerminalKind.ToDictionary,
+                _=>PipelineTerminalKind.Sum,
+            };
+            if(ProviderIterateTerminal.TryCreate(number,pipeline,pipelineKind,terminalFunc1,terminalFunc2,terminalComparer,out var materializeTerminal)) {
+                fragment=materializeTerminal;
+                return true;
+            }
+            return false;
         }
-        if(PersistedSetIterateTerminal.TryCreate(number,pipeline,terminalKind.Value,terminalPredicate,containsValue,containsComparer,out var persistedTerminal)) {
-            fragment=persistedTerminal;
+        if(ProviderIterateTerminal.TryCreate(number,pipeline,terminalKind.Value,terminalPredicate,containsValue,containsComparer,out var providerTerminal)){
+            fragment=providerTerminal;
             return true;
         }
 
@@ -582,12 +610,29 @@ public sealed partial class FLinqIncrementalGenerator {
 
     private static bool IsSupportedBackendNativeIterateVariant(string methodName,string variantName) =>
         methodName switch {
+            "ToList" or "ToArray" => variantName=="",
+            "ToDictionary" => variantName is "keySelector" or "keySelector_elementSelector" or "keySelector_comparer" or "keySelector_elementSelector_comparer",
+            "Sum" => variantName is "" or "selector",
             "Any" or "Count" or "First" => variantName is "" or "predicate",
             "All" => variantName=="predicate",
             "FirstOrDefault" => variantName is "" or "predicate",
             "Contains" => variantName is "" or "comparer",
             _ => false,
         };
+
+    private static string? TryGetNamedConstructorArgument(
+        string parameterName,
+        IReadOnlyList<object?> constructorArguments,
+        string methodName,
+        string variantName) {
+        if(parameterName!="comparer"
+            ||methodName!="ToDictionary"
+            ||!variantName.EndsWith("_comparer",StringComparison.Ordinal)
+            ||constructorArguments.Count<2) {
+            return null;
+        }
+        return constructorArguments[^2] as string;
+    }
 
     private static string? TryGetBackendNativeContainsValue(string methodName,IReadOnlyList<object?> constructorArguments) =>
         methodName=="Contains" && constructorArguments.Count>2
@@ -712,21 +757,15 @@ public sealed partial class FLinqIncrementalGenerator {
 
         var _srcExpr=RenderExpressionForGeneratedMethod(expression,semanticModel,containingType,unsafeAccessorCollector);
         var _num=uniqueNumber++;
-        fragment = expressionType is IArrayTypeSymbol
-            ? new ArrayRoot(_num, _srcExpr, elementTypeName)
-            : IsListType(expressionType)
-                ? new ListRoot(_num, _srcExpr, elementTypeName)
-                : IsTsavoriteConcreteSetType(expressionType,out _)
-                    ? new TsavoriteSetRoot(_num, _srcExpr, elementTypeName, enumeratorTypeName)
-                : IsTsavoriteConcreteHashSetType(expressionType,out _)
-                    ? new TsavoriteHashSetRoot(_num, _srcExpr, elementTypeName, enumeratorTypeName)
-                : IsPersistedConcreteListType(expressionType,out _)
-                    ? new PersistedListRoot(_num, _srcExpr, elementTypeName)
-                : IsPersistedConcreteSetType(expressionType,out _)
-                    ? new PersistedSetRoot(_num, _srcExpr, elementTypeName, enumeratorTypeName)
-                : isDuckTyping && concreteEnumeratorTypeName is not null
-                    ? new DuckTypingRoot(_num, _srcExpr, elementTypeName, concreteEnumeratorTypeName)
-                    : CreateRootEnumerableFragment(_srcExpr, elementTypeName, enumeratorTypeName, effectiveUseEnumerableInterface, _num);
+        fragment=CreateSourceRoot(
+            expressionType,
+            _num,
+            _srcExpr,
+            elementTypeName,
+            enumeratorTypeName,
+            concreteEnumeratorTypeName,
+            isDuckTyping,
+            effectiveUseEnumerableInterface);
         return true;
     }
 
@@ -2146,22 +2185,49 @@ public sealed partial class FLinqIncrementalGenerator {
         var effectiveUseEnumerableInterface = useEnumerableInterface || concreteEnumeratorTypeName is null;
         var sourceExpression=RenderExpressionForRootInlining(expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap);
         var number=uniqueNumber++;
-        fragment = expressionType is IArrayTypeSymbol
-            ? new ArrayRoot(number, sourceExpression, elementTypeName)
-            : IsListType(expressionType)
-                ? new ListRoot(number, sourceExpression, elementTypeName)
-                : IsTsavoriteConcreteSetType(expressionType,out _)
-                    ? new TsavoriteSetRoot(number, sourceExpression, elementTypeName, enumeratorTypeName)
-                : IsTsavoriteConcreteHashSetType(expressionType,out _)
-                    ? new TsavoriteHashSetRoot(number, sourceExpression, elementTypeName, enumeratorTypeName)
-                : IsPersistedConcreteListType(expressionType,out _)
-                    ? new PersistedListRoot(number, sourceExpression, elementTypeName)
-                : IsPersistedConcreteSetType(expressionType,out _)
-                    ? new PersistedSetRoot(number, sourceExpression, elementTypeName, enumeratorTypeName)
-                : isDuckTyping && concreteEnumeratorTypeName is not null
-                    ? new DuckTypingRoot(number, sourceExpression, elementTypeName, concreteEnumeratorTypeName)
-                    : CreateRootEnumerableFragment(sourceExpression, elementTypeName, enumeratorTypeName, effectiveUseEnumerableInterface, number);
+        fragment=CreateSourceRoot(
+            expressionType,
+            number,
+            sourceExpression,
+            elementTypeName,
+            enumeratorTypeName,
+            concreteEnumeratorTypeName,
+            isDuckTyping,
+            effectiveUseEnumerableInterface);
         return true;
+    }
+
+    private static Enumerable CreateSourceRoot(
+        ITypeSymbol? expressionType,
+        int number,
+        string sourceExpression,
+        string elementTypeName,
+        string enumeratorTypeName,
+        string? concreteEnumeratorTypeName,
+        bool isDuckTyping,
+        bool useEnumerableInterface){
+        if(expressionType is IArrayTypeSymbol){
+            return new ArrayRoot(number,sourceExpression,elementTypeName);
+        }
+        if(IsListType(expressionType)){
+            return new ListRoot(number,sourceExpression,elementTypeName);
+        }
+        if(IsTsavoriteConcreteSetType(expressionType,out _)){
+            return new TsavoriteSetRoot(number,sourceExpression,elementTypeName,enumeratorTypeName);
+        }
+        if(IsTsavoriteConcreteHashSetType(expressionType,out _)){
+            return new TsavoriteHashSetRoot(number,sourceExpression,elementTypeName,enumeratorTypeName);
+        }
+        if(IsPersistedConcreteListType(expressionType,out _)){
+            return new PersistedListRoot(number,sourceExpression,elementTypeName);
+        }
+        if(IsPersistedConcreteSetType(expressionType,out _)){
+            return new PersistedSetRoot(number,sourceExpression,elementTypeName,enumeratorTypeName);
+        }
+        if(isDuckTyping&&concreteEnumeratorTypeName is not null){
+            return new DuckTypingRoot(number,sourceExpression,elementTypeName,concreteEnumeratorTypeName);
+        }
+        return CreateRootEnumerableFragment(sourceExpression,elementTypeName,enumeratorTypeName,useEnumerableInterface,number);
     }
 
     private static bool TryBuildKnownEnumerableRootFromCollectionExpression(

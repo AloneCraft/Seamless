@@ -31,6 +31,20 @@ internal static class LinqOptimizationContext {
 }
 
 public sealed partial class FLinqIncrementalGenerator {
+    private static readonly DiagnosticDescriptor UnorderedOperationWarningDescriptor=new(
+        id:"FLINQ003",
+        title:"unordered Setで順序依存LINQが使用されています",
+        messageFormat:"'{0}'はunordered source '{1}'に直接適用できません。IEnumerable<T>へのinline castまたはAsEnumerable()で明示的にopt-inしてください。",
+        category:"Seamless.Usage",
+        defaultSeverity:DiagnosticSeverity.Warning,
+        isEnabledByDefault:true);
+    private static readonly DiagnosticDescriptor UnorderedOperationOptInDescriptor=new(
+        id:"FLINQ004",
+        title:"unordered Setの標準sequence意味論へopt-inしています",
+        messageFormat:"'{0}'はunordered source '{1}'の現在の列挙順で実行されます。順序は永続的ではありません。",
+        category:"Seamless.Usage",
+        defaultSeverity:DiagnosticSeverity.Info,
+        isEnabledByDefault:true);
 
     private sealed class フラグメント候補 {
         public required Type FragmentType { get; init; }

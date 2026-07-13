@@ -52,6 +52,7 @@ public sealed class LinqEnumerableForwarderGenerator : IIncrementalGenerator {
         builder.AppendLine($"namespace {targetNamespace};");
         builder.AppendLine();
         builder.AppendLine("public static partial class Enumerable {");
+        AppendUnorderedWrapper(builder);
         foreach(var method in methods) {
             AppendMethod(builder,method,sourceTypeTemplate);
         }
@@ -78,10 +79,20 @@ public sealed class LinqEnumerableForwarderGenerator : IIncrementalGenerator {
         var genericArgumentList = genericArguments.Length==0
             ? string.Empty
             : $"<{string.Join(", ",genericArguments.Select(static argument=>argument.Name))}>";
-        var returnType = FormatType(method.ReturnType);
+        var restricted=UnorderedLinqOperatorPolicy.IsRestricted(method);
+        var explicitOptIn=UnorderedLinqOperatorPolicy.IsExplicitOptIn(method);
+        var unorderedElementType=!restricted&&!explicitOptIn
+            ? TryGetEnumerableElementType(method.ReturnType)
+            : null;
+        var returnType=unorderedElementType is null
+            ? FormatType(method.ReturnType)
+            : $"global::Seamless.Collections.IUnorderedEnumerable<{FormatType(unorderedElementType)}>";
         var parameters = method.Parameters;
 
         builder.AppendLine();
+        if(restricted) {
+            builder.AppendLine("    [global::System.ObsoleteAttribute(\"This operation requires sequence order and is not supported directly on an unordered Set. Cast to IEnumerable<T> or call AsEnumerable() to opt in.\",false)]");
+        }
         builder.Append("    public static ");
         builder.Append(returnType);
         builder.Append(' ');
@@ -98,17 +109,51 @@ public sealed class LinqEnumerableForwarderGenerator : IIncrementalGenerator {
         }
 
         builder.AppendLine(" {");
+        if(restricted) {
+            var sourceParameterName=parameters[0].Name;
+            builder.Append("        throw global::Seamless.Linq.GeneratedCodeHelpers.UnorderedSourceOperation(\"");
+            builder.Append(method.Name);
+            builder.Append("\",");
+            builder.Append(sourceParameterName);
+            builder.Append(".GetType().FullName??");
+            builder.Append(sourceParameterName);
+            builder.AppendLine(".GetType().Name);");
+            builder.AppendLine("    }");
+            return;
+        }
         builder.Append("        ");
         if(!method.ReturnsVoid) {
             builder.Append("return ");
+        }
+        if(unorderedElementType is not null) {
+            builder.Append("PreserveUnordered(");
         }
         builder.Append("global::System.Linq.Enumerable.");
         builder.Append(method.Name);
         builder.Append(genericArgumentList);
         builder.Append('(');
         builder.Append(string.Join(", ",parameters.Select(FormatArgument)));
-        builder.AppendLine(");");
+        builder.Append(unorderedElementType is null?");":"));");
+        builder.AppendLine();
         builder.AppendLine("    }");
+    }
+
+    private static void AppendUnorderedWrapper(StringBuilder builder){
+        builder.AppendLine("    private static global::Seamless.Collections.IUnorderedEnumerable<T> PreserveUnordered<T>(global::System.Collections.Generic.IEnumerable<T> source)=>");
+        builder.AppendLine("        source as global::Seamless.Collections.IUnorderedEnumerable<T>??new UnorderedEnumerableWrapper<T>(source);");
+        builder.AppendLine();
+        builder.AppendLine("    private sealed class UnorderedEnumerableWrapper<T>(global::System.Collections.Generic.IEnumerable<T> source):global::Seamless.Collections.IUnorderedEnumerable<T>{");
+        builder.AppendLine("        public global::System.Collections.Generic.IEnumerator<T> GetEnumerator()=>source.GetEnumerator();");
+        builder.AppendLine("        global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator()=>this.GetEnumerator();");
+        builder.AppendLine("    }");
+    }
+
+    private static ITypeSymbol? TryGetEnumerableElementType(ITypeSymbol type){
+        if(type is INamedTypeSymbol named
+            &&named.OriginalDefinition.SpecialType==SpecialType.System_Collections_Generic_IEnumerable_T){
+            return named.TypeArguments[0];
+        }
+        return null;
     }
 
     private static string FormatParameter(IParameterSymbol parameter,bool isSource,string sourceTypeTemplate) {
