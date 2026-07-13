@@ -140,6 +140,15 @@ internal sealed class BenchmarkUiRunRepository{
             return;
         }
 
+        var emptyTypeItem=items.FirstOrDefault(static item => string.IsNullOrWhiteSpace(item.TypeName));
+        if(emptyTypeItem is not null){
+            throw new InvalidDataException(
+                "Benchmark snapshot type is empty. "
+                +"RunId="+value+" "
+                +"SourceTab="+emptyTypeItem.SourceTabId+" "
+                +"Benchmark="+emptyTypeItem.BenchmarkName+".");
+        }
+
         var writes = items.Select(static item => new UiBenchmarkSnapshotItemWrite(
             item.SourceTabId,
             item.TypeName,

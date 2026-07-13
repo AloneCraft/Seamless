@@ -3,16 +3,19 @@ using UI;
 namespace Test.Benchmark;
 
 public sealed class BenchmarkResultDisplaySelectionLogic{
+    private static readonly BenchmarkSourceTabDefinition SourceTab=BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
+    private const string TypeFullName="Benchmark.System.Linq.Enumerable.FLinq.Sample";
+
     [Fact]
     public void IsResultSelected(){
-        var result = Result("Left","Aggregate","Namespace.Sample","Count=1");
+        var result = Result(SourceTab.LeftProject,"Aggregate",TypeFullName,"Count=1");
         {
             //選択中の一致セルだけ表示対象にする
             Assert.True(global::UI.BenchmarkResultDisplaySelectionLogic.IsResultSelected(
                 result,
                 [
-                    new BenchmarkResultSelectionCell("Left","Aggregate","Sample","Count=1",true,true),
-                    new BenchmarkResultSelectionCell("Right","Aggregate","Namespace.Sample","Count=1",true,false),
+                    new BenchmarkResultSelectionCell(SourceTab.LeftProject,"Aggregate","Sample","Count=1",true,true),
+                    new BenchmarkResultSelectionCell(SourceTab.RightProject,"Aggregate",TypeFullName,"Count=1",true,false),
                 ]));
         }
         {
@@ -20,7 +23,7 @@ public sealed class BenchmarkResultDisplaySelectionLogic{
             Assert.False(global::UI.BenchmarkResultDisplaySelectionLogic.IsResultSelected(
                 result,
                 [
-                    new BenchmarkResultSelectionCell("Left","Aggregate","Sample","Count=1",true,false),
+                    new BenchmarkResultSelectionCell(SourceTab.LeftProject,"Aggregate","Sample","Count=1",true,false),
                 ]));
         }
         {
@@ -28,19 +31,19 @@ public sealed class BenchmarkResultDisplaySelectionLogic{
             Assert.False(global::UI.BenchmarkResultDisplaySelectionLogic.IsResultSelected(
                 result,
                 [
-                    new BenchmarkResultSelectionCell("Left","Aggregate","Sample","Count=2",true,true),
+                    new BenchmarkResultSelectionCell(SourceTab.LeftProject,"Aggregate","Sample","Count=2",true,true),
                 ]));
         }
     }
 
     [Fact]
     public void IsResultSelected_FollowsCurrentCellSelection(){
-        var result = Result("Left","Aggregate","Namespace.Sample","Count=1");
+        var result = Result(SourceTab.LeftProject,"Aggregate",TypeFullName,"Count=1");
         BenchmarkResultSelectionCell[] selected = [
-            new("Left","Aggregate","Sample","Count=1",true,true),
+            new(SourceTab.LeftProject,"Aggregate","Sample","Count=1",true,true),
         ];
         BenchmarkResultSelectionCell[] unselected = [
-            new("Left","Aggregate","Sample","Count=1",true,false),
+            new(SourceTab.LeftProject,"Aggregate","Sample","Count=1",true,false),
         ];
 
         Assert.True(global::UI.BenchmarkResultDisplaySelectionLogic.IsResultSelected(result,selected));
@@ -51,6 +54,7 @@ public sealed class BenchmarkResultDisplaySelectionLogic{
     private static BenchmarkResultItem Result(string project,string method,string typeFullName,string argumentKey) =>
         new(new BenchmarkJob{
             Project=project,
+            AssemblyName=SourceTab.GetAssemblyName(project),
             MethodName=method,
             TypeFullName=typeFullName,
             ArgumentKey=argumentKey,

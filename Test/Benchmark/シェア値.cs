@@ -40,4 +40,32 @@ public sealed class シェア値{
     public void 時間から作成_従来の五パーセント許容を維持する(double left,double right,global::UI.シェア判定 expected){
         Assert.Equal(expected,global::UI.シェア値.時間から作成(left,right).判定);
     }
+
+    [Theory]
+    [InlineData(80,20,0.80,0.20,true)]
+    [InlineData(61,39,0.61,0.39,true)]
+    [InlineData(69,31,0.69,0.31,true)]
+    [InlineData(100,0,1.00,0.00,true)]
+    [InlineData(0,0,0.00,0.00,false)]
+    public void BenchmarkShareGaugeState_丸め前の左右割合と色表示状態を返す(
+        long left,
+        long right,
+        double expectedLeft,
+        double expectedRight,
+        bool expectedColored){
+        var gauge=global::UI.BenchmarkShareGaugeState.FromShare(global::UI.シェア値.メモリから作成(left,right));
+
+        Assert.Equal(expectedLeft,gauge.LeftFraction,12);
+        Assert.Equal(expectedRight,gauge.RightFraction,12);
+        Assert.Equal(expectedColored,gauge.HasColoredBar);
+    }
+
+    [Fact]
+    public void BenchmarkShareGaugeState_欠測は色を表示しない(){
+        var gauge=global::UI.BenchmarkShareGaugeState.FromShare(global::UI.シェア値.欠測);
+
+        Assert.False(gauge.HasColoredBar);
+        Assert.Equal(0,gauge.LeftFraction);
+        Assert.Equal(0,gauge.RightFraction);
+    }
 }

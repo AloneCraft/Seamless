@@ -83,7 +83,7 @@ public sealed class BenchmarkImprovementPromptBuilder{
     }
 
     [Fact]
-    public void CreateDefaultSelectedKeys_SelectsTopTenForEachBucketAndMergesDuplicates(){
+    public void BuildPrompt_IncludesAllRegressionCandidatesWithoutTopTenLimit(){
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var jobs = new List<global::UI.BenchmarkJob>();
         for(var index=0;index<12;index++){
@@ -91,34 +91,35 @@ public sealed class BenchmarkImprovementPromptBuilder{
             jobs.Add(Job(sourceTab.LeftProject,method,64,200+index,200+index));
             jobs.Add(Job(sourceTab.RightProject,method,64,100,100));
         }
-        var candidates = global::UI.BenchmarkImprovementCandidateBuilder.BuildCandidates(State(jobs.ToArray()));
+        var prompt=global::UI.BenchmarkImprovementPromptBuilder.BuildPrompt(State(jobs.ToArray()));
 
-        var selected = global::UI.BenchmarkImprovementCandidateBuilder.CreateDefaultSelectedKeys(candidates,10);
-
-        Assert.Equal(10,selected.Count);
-        Assert.Contains(candidates.First(static item => item.MethodName=="Aggregate_11").Key,selected);
-        Assert.DoesNotContain(candidates.First(static item => item.MethodName=="Aggregate_0").Key,selected);
+        for(var index=0;index<12;index++){
+            Assert.Contains("Aggregate_"+index.ToString(global::System.Globalization.CultureInfo.InvariantCulture),prompt);
+        }
     }
 
     [Fact]
-    public void BuildPrompt_UsesSelectedCandidatesAndCategorySections(){
+    public void BuildPrompt_UsesAllCandidatesAndCategorySections(){
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var state = State(
             Job(sourceTab.LeftProject,"Aggregate_sum",64,300,100),
             Job(sourceTab.RightProject,"Aggregate_sum",64,100,100),
             Job(sourceTab.LeftProject,"Any_predicate",64,200,100),
             Job(sourceTab.RightProject,"Any_predicate",64,100,100));
-        var candidates = global::UI.BenchmarkImprovementCandidateBuilder.BuildCandidates(state);
-        var selected = candidates.Where(static item => item.MethodName=="Aggregate_sum");
-
-        var prompt = global::UI.BenchmarkImprovementPromptBuilder.BuildPrompt(selected);
+        var prompt = global::UI.BenchmarkImprovementPromptBuilder.BuildPrompt(state);
 
         Assert.Contains("## Aggregate",prompt);
         Assert.Contains("Aggregate_sum",prompt);
         Assert.Contains("検索ヒント",prompt);
         Assert.Contains("単体テスト",prompt);
         Assert.Contains("ベンチマーク",prompt);
-        Assert.DoesNotContain("Any_predicate",prompt);
+        Assert.Contains("Any_predicate",prompt);
+        Assert.Contains("一般化できない特殊化",prompt);
+        Assert.Contains("Benchmark実行の検出",prompt);
+        Assert.Contains("列挙順、遅延実行、例外、破棄、デリゲートの副作用",prompt);
+        Assert.Contains("MeanNanosecondsとAllocatedBytesを同時に比較",prompt);
+        Assert.Contains("異なるデータ分布",prompt);
+        Assert.Contains("反復測定",prompt);
     }
 
     private static global::UI.ProgressState State(params global::UI.BenchmarkJob[] jobs) =>

@@ -6,6 +6,30 @@ namespace Test.Benchmark;
 [global::Seamless.FLinq.LinqIntercept(false)]
 public sealed class BenchmarkCatalogArgument {
     [Fact]
+    public void CreateBenchmarkTypeText_UsesNearestGenericParentArguments(){
+        var rangeAssembly=Assembly.Load(new AssemblyName("Benchmark.System.Linq.Enumerable.Range.FLinq"));
+        var chainType=rangeAssembly.GetType("Seamless.Linq.Shared.Range_start_count+OrderBy_keySelector_chain",throwOnError:true)!;
+        var rangeType=rangeAssembly.GetType("Benchmark.System.Linq.Enumerable.Range.FLinqInt32",throwOnError:true)!;
+
+        Assert.Equal("int",global::UI.BenchmarkCatalog.CreateBenchmarkTypeText(chainType));
+        Assert.Equal("int",global::UI.BenchmarkCatalog.CreateBenchmarkTypeText(rangeType));
+        Assert.Equal("int,string",global::UI.BenchmarkCatalog.CreateBenchmarkTypeText(typeof(MultipleArgumentBenchmark)));
+    }
+
+    [Fact]
+    public void Load_StoresParentTypeArgumentsForRangeThenByCases(){
+        var sourceTab=global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemRange);
+
+        var cases=global::UI.BenchmarkCatalog.Load()
+            .Where(item => string.Equals(item.Project,sourceTab.LeftProject,StringComparison.OrdinalIgnoreCase)
+                &&item.MethodName is "ThenBy_keySelector" or "ThenByDescending_keySelector")
+            .ToArray();
+
+        Assert.Equal(2,cases.Length);
+        Assert.All(cases,static item => Assert.Equal("int",item.BenchmarkTypeText));
+    }
+
+    [Fact]
     public void GetBenchmarkArguments_UsesScalableTsavoriteArgumentNames() {
         var method = LoadMethod("Benchmark.Scalable.Tsavorite.Collections","Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32","Add");
         var arguments = GetArgumentSets(method).First();
@@ -128,5 +152,7 @@ public sealed class BenchmarkCatalogArgument {
             0,
             global::UI.BenchmarkArgumentFormatting.CreateKey(arguments),
             arguments);
-}
 
+    private class MultipleArgumentParent<TLeft,TRight>;
+    private sealed class MultipleArgumentBenchmark:MultipleArgumentParent<int,string>;
+}

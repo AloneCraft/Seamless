@@ -77,10 +77,19 @@ public static class BenchmarkCatalog {
                 continue;
             }
             foreach(var type in assembly.GetTypes().Where(type => IsConcreteBenchmarkType(type,project.TypePrefix)).OrderBy(static type => type.FullName,StringComparer.Ordinal)) {
+                var benchmarkPath=CreateBenchmarkPath(type);
+                var benchmarkTypeText=CreateBenchmarkTypeText(type);
+                if(string.IsNullOrWhiteSpace(benchmarkTypeText)){
+                    System.Diagnostics.Trace.WriteLine(
+                        "Benchmark catalog type display is empty. Project="+project.DisplayName
+                        +" Assembly="+project.AssemblyName
+                        +" Type="+type.FullName
+                        +" BenchmarkPath="+benchmarkPath);
+                }
                 foreach(var method in type.GetMethods(BindingFlags.Public|BindingFlags.Instance|BindingFlags.Static).Where(HasBenchmarkAttribute).OrderBy(static method => method.Name,StringComparer.Ordinal)) {
                     var arguments = GetBenchmarkArguments(method).ToArray();
                     if(arguments.Length==0){
-                        cases.Add(new BenchmarkCase(project.DisplayName,project.AssemblyName,type.FullName!,method.Name,CreateBenchmarkPath(type)));
+                        cases.Add(new BenchmarkCase(project.DisplayName,project.AssemblyName,type.FullName!,method.Name,benchmarkPath,benchmarkTypeText));
                         continue;
                     }
 
@@ -92,7 +101,8 @@ public static class BenchmarkCatalog {
                             method.Name,
                             BenchmarkArgumentFormatting.CreateKey(argumentSet),
                             argumentSet,
-                            CreateBenchmarkPath(type)));
+                            benchmarkPath,
+                            benchmarkTypeText));
                     }
                 }
             }
@@ -108,6 +118,15 @@ public static class BenchmarkCatalog {
 
     private static bool HasBenchmarkAttribute(MethodInfo method) =>
         method.GetCustomAttribute<BenchmarkAttribute>() is not null;
+
+    internal static string CreateBenchmarkTypeText(Type type){
+        for(var current=type.BaseType;current is not null;current=current.BaseType){
+            if(current.IsGenericType){
+                return string.Join(",",current.GetGenericArguments().Select(ScalableBenchmarkNameFormatter.FormatRuntimeType));
+            }
+        }
+        return ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText(type.FullName??string.Empty);
+    }
 
     private static string CreateBenchmarkPath(Type type) {
         var nestedNames=new Stack<string>();

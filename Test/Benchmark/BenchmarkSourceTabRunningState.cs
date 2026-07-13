@@ -72,11 +72,15 @@ public sealed class BenchmarkSourceTabRunningState{
         string method,
         int elementCount,
         int logicalCpu,
-        JobStatus status) =>
-        new(new BenchmarkJob{
+        JobStatus status){
+        var definition=BenchmarkSourceTabs.Get(sourceTab);
+        var resolvedProject=definition.LeftProject;
+        var typePrefix=definition.LeftTypePrefix;
+        return new(new BenchmarkJob{
             SourceTab=sourceTab,
-            Project=project,
-            TypeFullName="Sample.Type",
+            Project=resolvedProject,
+            AssemblyName=definition.LeftAssemblyName,
+            TypeFullName=string.IsNullOrWhiteSpace(typePrefix)?"Sample.Type":typePrefix+".Sample",
             MethodName=method,
             ArgumentKey="Count=4096",
             ElementCount=elementCount,
@@ -86,4 +90,5 @@ public sealed class BenchmarkSourceTabRunningState{
             StartedAt=DateTimeOffset.UtcNow,
             MeanNanoseconds=status==JobStatus.Completed ? 100 : null,
         });
+    }
 }

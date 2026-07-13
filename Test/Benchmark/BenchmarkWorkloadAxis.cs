@@ -18,8 +18,8 @@ public sealed class BenchmarkWorkloadAxisTests {
             var result=await orchestrator.RunAsync(
                 new global::UI.BenchmarkRunRequest(
                     [
-                        new global::UI.BenchmarkCase(tab.LeftProject,"Left.Assembly","Left.Type","ToHashSet"),
-                        new global::UI.BenchmarkCase(tab.RightProject,"Right.Assembly","Right.Type","ToHashSet"),
+                        new global::UI.BenchmarkCase(tab.LeftProject,tab.LeftAssemblyName,tab.LeftTypePrefix+".Sample","ToHashSet"),
+                        new global::UI.BenchmarkCase(tab.RightProject,tab.RightAssemblyName,tab.RightTypePrefix+".Sample","ToHashSet"),
                     ],
                     [0],
                     [1],

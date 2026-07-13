@@ -22,11 +22,6 @@ public enum BenchmarkMetricKind{
     Allocated,
 }
 
-public enum BenchmarkChartMode{
-    ElementComparison,
-    ScaleTrend,
-}
-
 public enum BenchmarkGridSortColumn{
     BenchmarkType,
     BenchmarkMethod,
@@ -289,11 +284,8 @@ public sealed class ObservableRangeCollection<T>:ObservableCollection<T>{
 }
 
 public sealed class BenchmarkSourceTabViewState:ObservableObject{
-    private double chartHeight = 300;
     private string ベンチマークシェア概要文字列 = string.Empty;
     private bool? isBenchmarkSelectionChecked;
-    private string chartEmptyReasonText = "ベンチマークを実行するか、保存済み DB 実行を選択してください。";
-    private string chartEmptyReasonTooltipText = "計測結果または保存済み DB 実行が選択されると比較チャートを表示します。";
 
     public BenchmarkSourceTabViewState(BenchmarkSourceTabDefinition definition){
         this.Definition=definition;
@@ -301,15 +293,9 @@ public sealed class BenchmarkSourceTabViewState:ObservableObject{
 
     public BenchmarkSourceTabDefinition Definition { get; }
     public ObservableRangeCollection<BenchmarkTableRow> Rows { get; } = [];
-    public ObservableCollection<ChartComparisonPoint> ChartPoints { get; } = [];
-    public Dictionary<string,int> ChartPointIndexesByRowKey { get; } = new(StringComparer.OrdinalIgnoreCase);
-    internal HashSet<ChartComparisonPoint> UiSelectedChartBars { get; } = [];
-    internal HashSet<BenchmarkTableRow> DirtyChartRows { get; } = [];
-    internal bool RequiresFullChartRebuild { get; set; } = true;
     public ObservableCollection<BenchmarkDiagnosticRow> LatencyHotspotRows { get; } = [];
     public ObservableCollection<BenchmarkDiagnosticRow> AllocationDiagnosticRows { get; } = [];
     public ObservableCollection<BenchmarkDiagnosticRow> CpuTimelineRows { get; } = [];
-    public ObservableCollection<BenchmarkRankedRatioPoint> ImprovementCandidateRankPoints { get; } = [];
     public ObservableCollection<BenchmarkRankedRatioPoint> 時間シェアワースト点 { get; } = [];
     public ObservableCollection<BenchmarkRankedRatioPoint> メモリシェアワースト点 { get; } = [];
     public ObservableCollection<BenchmarkCategoryRatioPoint> カテゴリシェア点 { get; } = [];
@@ -320,18 +306,9 @@ public sealed class BenchmarkSourceTabViewState:ObservableObject{
     public ObservableCollection<BenchmarkTrendSeries> ScaleTrendSeries { get; } = [];
     public IReadOnlyList<BenchmarkComparisonRow> ComparisonRows { get; set; } = [];
 
-    internal event EventHandler? ChartSelectionChanged;
-
-    internal void NotifyChartSelectionChanged() => this.ChartSelectionChanged?.Invoke(this,EventArgs.Empty);
-
     public bool? IsBenchmarkSelectionChecked{
         get => this.isBenchmarkSelectionChecked;
         set => this.SetProperty(ref this.isBenchmarkSelectionChecked,value);
-    }
-
-    public double ChartHeight{
-        get => this.chartHeight;
-        set => this.SetProperty(ref this.chartHeight,value);
     }
 
     public string ベンチマークシェア概要表示{
@@ -339,24 +316,11 @@ public sealed class BenchmarkSourceTabViewState:ObservableObject{
         set => this.SetProperty(ref this.ベンチマークシェア概要文字列,value);
     }
 
-    public string ChartEmptyReasonText{
-        get => this.chartEmptyReasonText;
-        set => this.SetProperty(ref this.chartEmptyReasonText,value);
-    }
-
-    public string ChartEmptyReasonTooltipText{
-        get => this.chartEmptyReasonTooltipText;
-        set => this.SetProperty(ref this.chartEmptyReasonTooltipText,value);
-    }
 }
 
 public sealed record ExecutionProfileOption(string DisplayName,BenchmarkExecutionProfile Profile);
 
 public sealed record ScaleOption(string DisplayName,string RunValue);
-
-public sealed record MetricOption(string DisplayName,BenchmarkMetricKind Kind);
-
-public sealed record ChartModeOption(string DisplayName,BenchmarkChartMode Mode);
 
 public sealed record ResultElementCountOption(int Value,string DisplayName);
 
@@ -372,53 +336,6 @@ public sealed record BenchmarkDiagnosticRow(
     string DetailText);
 
 public sealed record BenchmarkAutoScrollRequest(BenchmarkSourceTab SourceTab,string MethodName,string RowKey,int Sequence);
-
-public sealed class BenchmarkImprovementCandidateRow:ObservableObject{
-    private bool isSelected;
-
-    public BenchmarkImprovementCandidateRow(BenchmarkImprovementCandidate candidate,bool isSelected){
-        this.Candidate=candidate;
-        this.isSelected=isSelected;
-    }
-
-    public event EventHandler? SelectionChanged;
-
-    internal BenchmarkImprovementCandidate Candidate { get; }
-    public string Key => this.Candidate.Key;
-    public string Category => this.Candidate.Category;
-    public string MethodName => this.Candidate.MethodName;
-    public string SourceTabText => this.Candidate.SourceTab.DisplayName;
-    public string WorstElementCountText =>
-        this.Candidate.TimeElementCount==this.Candidate.AllocatedElementCount
-            ? this.Candidate.TimeElementCount.ToString("N0",CultureInfo.InvariantCulture)
-            : this.Candidate.TimeElementCount.ToString("N0",CultureInfo.InvariantCulture)+"/"+this.Candidate.AllocatedElementCount.ToString("N0",CultureInfo.InvariantCulture);
-    public string 時間シェア文字列 => BenchmarkImprovementCandidateBuilder.シェアを整形(this.Candidate.時間シェア);
-    public string メモリシェア文字列 => BenchmarkImprovementCandidateBuilder.シェアを整形(this.Candidate.メモリシェア);
-    public string 時間ゲージ文字列 => "時間 "+this.Candidate.時間シェア.表示文字列;
-    public string メモリゲージ文字列 => "メモリ "+this.Candidate.メモリシェア.表示文字列;
-    public double 時間ゲージ割合 => this.Candidate.時間シェア.左シェア??0;
-    public double メモリゲージ割合 => this.Candidate.メモリシェア.左シェア??0;
-    public double 最悪左シェアソート値 => BenchmarkImprovementCandidateBuilder.回帰重要度を取得(
-        this.Candidate.時間シェア,
-        this.Candidate.メモリシェア);
-    public string LeftTimeText => BenchmarkImprovementCandidateBuilder.FormatTime(this.Candidate.TimeLeft.TimeNanoseconds);
-    public string RightTimeText => BenchmarkImprovementCandidateBuilder.FormatTime(this.Candidate.TimeRight.TimeNanoseconds);
-    public string LeftAllocatedText => BenchmarkImprovementCandidateBuilder.FormatAllocated(this.Candidate.AllocatedLeft.AllocatedBytes);
-    public string RightAllocatedText => BenchmarkImprovementCandidateBuilder.FormatAllocated(this.Candidate.AllocatedRight.AllocatedBytes);
-    public string TooltipText =>
-        this.SourceTabText+"\n"
-        +this.Candidate.SourceTab.LeftProject+" / "+this.Candidate.SourceTab.RightProject+"\n"
-        +"時間シェア "+this.時間シェア文字列+" / メモリシェア "+this.メモリシェア文字列;
-
-    public bool IsSelected{
-        get => this.isSelected;
-        set{
-            if(this.SetProperty(ref this.isSelected,value)){
-                this.SelectionChanged?.Invoke(this,EventArgs.Empty);
-            }
-        }
-    }
-}
 
 public readonly record struct BenchmarkSortValue(string? Text,double? Number,bool IsMissing){
     public static BenchmarkSortValue FromText(string text) => new(text,null,string.IsNullOrWhiteSpace(text));
@@ -1385,9 +1302,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
     public IReadOnlyDictionary<string,BenchmarkCase> CasesByProject { get; }
     public BenchmarkProjectCell LeftCell { get; }
     public BenchmarkProjectCell RightCell { get; }
-    public ChartComparisonPoint? ChartBar { get; internal set; }
     internal BenchmarkGridSnapshotItem? LoadedSnapshot { get; set; }
-    internal int ChartPointIndex { get; set; } = -1;
     internal int GridDisplayIndex { get; set; } = -1;
     public string CountArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Count);
     public string IndexArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Index);
@@ -1438,6 +1353,12 @@ public sealed class BenchmarkTableRow:ObservableObject{
         get => this.メモリシェア文字列;
         private set => this.SetProperty(ref this.メモリシェア文字列,value);
     }
+
+    public BenchmarkShareGaugeState 時間シェアゲージ =>
+        BenchmarkShareGaugeState.FromShare(this.表示時間シェアを取得());
+
+    public BenchmarkShareGaugeState メモリシェアゲージ =>
+        BenchmarkShareGaugeState.FromShare(this.表示メモリシェアを取得());
 
     public string StopNText => string.IsNullOrWhiteSpace(this.stopNText)
         ? this.ElementCountText
@@ -1765,12 +1686,15 @@ public sealed class BenchmarkTableRow:ObservableObject{
 
     private void 表示シェアを更新(){
         var timeShare=this.表示時間シェアを取得();
+        var memoryShare=this.表示メモリシェアを取得();
         var warning=string.Empty;
         if(BenchmarkAcceptancePolicy.回帰か(this.SourceTab.Tab,timeShare)){
             warning=" ⚠";
         }
         this.時間シェア表示=timeShare.表示文字列+warning;
-        this.メモリシェア表示=this.表示メモリシェアを取得().表示文字列;
+        this.メモリシェア表示=memoryShare.表示文字列;
+        this.OnPropertyChanged(nameof(this.時間シェアゲージ));
+        this.OnPropertyChanged(nameof(this.メモリシェアゲージ));
     }
 
     private シェア値 表示時間シェアを取得() =>
@@ -1859,9 +1783,12 @@ public sealed class BenchmarkTableRow:ObservableObject{
 
     private void RefreshBenchmarkDisplayParts(){
         var typeFullName = this.FirstTypeFullName();
-        var typeText = ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText(typeFullName);
-        if(!string.IsNullOrWhiteSpace(this.snapshotBenchmarkTypeText)){
+        var typeText=this.FirstBenchmarkTypeText();
+        if(string.IsNullOrWhiteSpace(typeText)&&!string.IsNullOrWhiteSpace(this.snapshotBenchmarkTypeText)){
             typeText=this.snapshotBenchmarkTypeText;
+        }
+        if(string.IsNullOrWhiteSpace(typeText)){
+            typeText=ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText(typeFullName);
         }
         if(string.IsNullOrWhiteSpace(typeText)){
             typeText=ExtractTypeText(this.benchmarkName);
@@ -1877,6 +1804,15 @@ public sealed class BenchmarkTableRow:ObservableObject{
             }
         }
 
+        return string.Empty;
+    }
+
+    private string FirstBenchmarkTypeText(){
+        foreach(var project in this.SourceTab.ProjectOrder){
+            if(this.CasesByProject.TryGetValue(project,out var benchmark)&&!string.IsNullOrWhiteSpace(benchmark.BenchmarkTypeText)){
+                return benchmark.BenchmarkTypeText;
+            }
+        }
         return string.Empty;
     }
 
@@ -2306,220 +2242,4 @@ public enum CpuSelectionState{
     Mixed,
     Checked,
 }
-
-public sealed class ChartComparisonPoint{
-    public ChartComparisonPoint(
-        string benchmark,
-        string displayName,
-        double leftValue,
-        double rightValue,
-        string leftText,
-        string rightText,
-        string tooltipText,
-        double? 左シェア)
-        : this(benchmark,displayName,string.Empty,displayName,false,false,leftValue,rightValue,leftText,rightText,tooltipText,左シェア,false,false,false,false,false,false,null){
-    }
-
-    public ChartComparisonPoint(
-        string benchmark,
-        string displayName,
-        string groupDisplayName,
-        string rowDisplayName,
-        bool isGroupFirst,
-        bool isGroupLast,
-        double leftValue,
-        double rightValue,
-        string leftText,
-        string rightText,
-        string tooltipText,
-        double? 左シェア)
-        : this(benchmark,displayName,groupDisplayName,rowDisplayName,isGroupFirst,isGroupLast,leftValue,rightValue,leftText,rightText,tooltipText,左シェア,false,false,false,false,false,false,null){
-    }
-
-    private ChartComparisonPoint(
-        string benchmark,
-        string displayName,
-        string groupDisplayName,
-        string rowDisplayName,
-        bool isGroupFirst,
-        bool isGroupLast,
-        double leftValue,
-        double rightValue,
-        string leftText,
-        string rightText,
-        string tooltipText,
-        double? 左シェア,
-        bool isRunning,
-        bool isLeftUiSelected,
-        bool isRightUiSelected,
-        bool isRowUiSelected,
-        bool isLeftFallback,
-        bool isRightFallback,
-        BenchmarkTableRow? row){
-        this.Benchmark=benchmark;
-        this.BaseDisplayName=displayName;
-        this.GroupDisplayName=groupDisplayName;
-        this.RowDisplayName=rowDisplayName;
-        this.IsGroupFirst=isGroupFirst;
-        this.IsGroupLast=isGroupLast;
-        this.LeftValue=leftValue;
-        this.RightValue=rightValue;
-        this.LeftText=leftText;
-        this.RightText=rightText;
-        this.TooltipText=tooltipText;
-        this.左シェア=左シェア;
-        this.IsRunning=isRunning;
-        this.IsLeftUiSelected=isLeftUiSelected;
-        this.IsRightUiSelected=isRightUiSelected;
-        this.IsRowUiSelected=isRowUiSelected;
-        this.IsLeftFallback=isLeftFallback;
-        this.IsRightFallback=isRightFallback;
-        this.Row=row;
-    }
-
-    public string Benchmark { get; private set; }
-    public string BaseDisplayName { get; private set; }
-    public string DisplayName => this.IsRunning
-        ? "● "+this.BaseDisplayName
-        : this.BaseDisplayName;
-    public string GroupDisplayName { get; private set; }
-    public string RowDisplayName { get; private set; }
-    public bool IsGroupFirst { get; private set; }
-    public bool IsGroupLast { get; private set; }
-    public double LeftValue { get; private set; }
-    public double RightValue { get; private set; }
-    public double LeftNormalValue => this.IsLeftFallback ? 0 : this.LeftValue;
-    public double LeftFallbackValue => this.IsLeftFallback ? this.LeftValue : 0;
-    public double RightNormalValue => this.IsRightFallback ? 0 : this.RightValue;
-    public double RightFallbackValue => this.IsRightFallback ? this.RightValue : 0;
-    public string LeftText { get; private set; }
-    public string RightText { get; private set; }
-    public string TooltipText { get; private set; }
-    public double? 左シェア { get; private set; }
-    public bool IsRunning { get; private set; }
-    public bool IsLeftUiSelected { get; private set; }
-    public bool IsRightUiSelected { get; private set; }
-    public bool IsRowUiSelected { get; private set; }
-    public bool IsLeftFallback { get; private set; }
-    public bool IsRightFallback { get; private set; }
-    public BenchmarkTableRow? Row { get; private set; }
-
-    internal void AttachRow(BenchmarkTableRow row) => this.Row=row;
-
-    internal void DetachRow(BenchmarkTableRow row){
-        if(ReferenceEquals(this.Row,row)){
-            this.Row=null;
-        }
-    }
-
-    internal void ApplyFrom(ChartComparisonPoint source){
-        this.Benchmark=source.Benchmark;
-        this.BaseDisplayName=source.BaseDisplayName;
-        this.GroupDisplayName=source.GroupDisplayName;
-        this.RowDisplayName=source.RowDisplayName;
-        this.IsGroupFirst=source.IsGroupFirst;
-        this.IsGroupLast=source.IsGroupLast;
-        this.LeftValue=source.LeftValue;
-        this.RightValue=source.RightValue;
-        this.LeftText=source.LeftText;
-        this.RightText=source.RightText;
-        this.TooltipText=source.TooltipText;
-        this.左シェア=source.左シェア;
-        this.IsRunning=source.IsRunning;
-        this.IsLeftUiSelected=source.IsLeftUiSelected;
-        this.IsRightUiSelected=source.IsRightUiSelected;
-        this.IsRowUiSelected=source.IsRowUiSelected;
-        this.IsLeftFallback=source.IsLeftFallback;
-        this.IsRightFallback=source.IsRightFallback;
-    }
-
-    public ChartComparisonPoint WithRunningState(bool isRunning) =>
-        new(
-            this.Benchmark,
-            this.BaseDisplayName,
-            this.GroupDisplayName,
-            this.RowDisplayName,
-            this.IsGroupFirst,
-            this.IsGroupLast,
-            this.LeftValue,
-            this.RightValue,
-            this.LeftText,
-            this.RightText,
-            this.TooltipText,
-            this.左シェア,
-            isRunning,
-            this.IsLeftUiSelected,
-            this.IsRightUiSelected,
-            this.IsRowUiSelected,
-            this.IsLeftFallback,
-            this.IsRightFallback,
-            this.Row);
-
-    public ChartComparisonPoint WithUiSelection(bool isLeftUiSelected,bool isRightUiSelected,bool isRowUiSelected) =>
-        new(
-            this.Benchmark,
-            this.BaseDisplayName,
-            this.GroupDisplayName,
-            this.RowDisplayName,
-            this.IsGroupFirst,
-            this.IsGroupLast,
-            this.LeftValue,
-            this.RightValue,
-            this.LeftText,
-            this.RightText,
-            this.TooltipText,
-            this.左シェア,
-            this.IsRunning,
-            isLeftUiSelected,
-            isRightUiSelected,
-            isRowUiSelected,
-            this.IsLeftFallback,
-            this.IsRightFallback,
-            this.Row);
-
-    public ChartComparisonPoint WithFallbackState(bool isLeftFallback,bool isRightFallback) =>
-        new(
-            this.Benchmark,
-            this.BaseDisplayName,
-            this.GroupDisplayName,
-            this.RowDisplayName,
-            this.IsGroupFirst,
-            this.IsGroupLast,
-            this.LeftValue,
-            this.RightValue,
-            this.LeftText,
-            this.RightText,
-            this.TooltipText,
-            this.左シェア,
-            this.IsRunning,
-            this.IsLeftUiSelected,
-            this.IsRightUiSelected,
-            this.IsRowUiSelected,
-            isLeftFallback,
-            isRightFallback,
-            this.Row);
-
-    public ChartComparisonPoint WithGroupDisplay(string groupDisplayName,string rowDisplayName,bool isGroupFirst,bool isGroupLast) =>
-        new(
-            this.Benchmark,
-            rowDisplayName,
-            groupDisplayName,
-            rowDisplayName,
-            isGroupFirst,
-            isGroupLast,
-            this.LeftValue,
-            this.RightValue,
-            this.LeftText,
-            this.RightText,
-            this.TooltipText,
-            this.左シェア,
-            this.IsRunning,
-            this.IsLeftUiSelected,
-            this.IsRightUiSelected,
-            this.IsRowUiSelected,
-            this.IsLeftFallback,
-            this.IsRightFallback,
-            this.Row);
-}
-
 public sealed record BenchmarkRunReport(string? RunRoot);

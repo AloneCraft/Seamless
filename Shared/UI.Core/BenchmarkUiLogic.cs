@@ -195,23 +195,6 @@ internal static class BenchmarkElementCountLogic{
     }
 }
 
-internal readonly record struct BenchmarkChartBarRect(float Left,float Right,float Width);
-
-internal readonly record struct BenchmarkChartLabelPoint(float X,float Y);
-
-internal readonly record struct BenchmarkChartLabelRect(float X,float Y,float Width,float Height);
-
-internal static class BenchmarkChartDisplayOrderLogic{
-    public static IReadOnlyList<T> CreateTransposedSourceOrder<T>(IReadOnlyList<T> gridDisplayOrder){
-        var ordered = new T[gridDisplayOrder.Count];
-        for(var index=0;index<gridDisplayOrder.Count;index++){
-            ordered[index]=gridDisplayOrder[gridDisplayOrder.Count-index-1];
-        }
-
-        return ordered;
-    }
-}
-
 internal readonly record struct BenchmarkResultSelectionCell(
     string Project,
     string Method,
@@ -253,104 +236,6 @@ internal static class BenchmarkResultDisplaySelectionLogic{
             : typeFullName[(index+1)..];
     }
 }
-
-internal static class BenchmarkChartSelectionLayoutLogic{
-    public static float CalculateStackBoundary(float plotLeft,float plotRight,float leftPercent) =>
-        plotLeft+(plotRight-plotLeft)*Math.Clamp(leftPercent,0,100)/100;
-
-    public static (string LeftText,string RightText) CreateShareTexts(double leftValue,double rightValue){
-        var leftNumber = Math.Max(0,leftValue);
-        var rightNumber = Math.Max(0,rightValue);
-        var total = leftNumber+rightNumber;
-        if(total<=0){
-            return ("0.50","0.50");
-        }
-
-        var leftShare = Math.Round(leftNumber/total,2,MidpointRounding.AwayFromZero);
-        leftShare=Math.Clamp(leftShare,0,1);
-        var rightShare = 1-leftShare;
-        return (
-            leftShare.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture),
-            rightShare.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture));
-    }
-
-    public static double? CreateRatio(double leftValue,double rightValue){
-        return leftValue>0&&rightValue>0
-            ? leftValue/rightValue
-            : null;
-    }
-
-    public static (BenchmarkChartBarRect LeftBarRect,BenchmarkChartBarRect RightBarRect) CreateBarRects(
-        float plotLeft,
-        float plotRight,
-        double leftValue,
-        double rightValue){
-        var total = leftValue+rightValue;
-        var leftPercent = total>0
-            ? (float)Math.Clamp(leftValue/total*100,0,100)
-            : 50;
-        var leftEnd = Math.Clamp(CalculateStackBoundary(plotLeft,plotRight,leftPercent),plotLeft,plotRight);
-        return (
-            new BenchmarkChartBarRect(plotLeft,leftEnd,MathF.Max(1,leftEnd-plotLeft)),
-            new BenchmarkChartBarRect(leftEnd,plotRight,MathF.Max(1,plotRight-leftEnd)));
-    }
-
-    public static (BenchmarkChartLabelPoint LeftLabelPoint,BenchmarkChartLabelPoint RightLabelPoint) CreateBarLabelPoints(
-        BenchmarkChartBarRect leftBarRect,
-        BenchmarkChartBarRect rightBarRect,
-        float y,
-        float padding) =>
-        (
-            new BenchmarkChartLabelPoint(leftBarRect.Right-padding,y),
-            new BenchmarkChartLabelPoint(rightBarRect.Left+padding,y));
-
-    public static (BenchmarkChartLabelRect LeftLabelRect,BenchmarkChartLabelRect RightLabelRect) CreateBoundaryLabelRects(
-        BenchmarkChartBarRect leftBarRect,
-        BenchmarkChartBarRect rightBarRect,
-        float centerY,
-        float labelWidth,
-        float labelHeight,
-        float padding){
-        var plotLeft = MathF.Min(leftBarRect.Left,rightBarRect.Left);
-        var plotRight = MathF.Max(leftBarRect.Right,rightBarRect.Right);
-        var plotWidth = MathF.Max(1,plotRight-plotLeft);
-        var safeLabelWidth = MathF.Max(1,MathF.Min(labelWidth,MathF.Max(1,(plotWidth-padding)/2)));
-        var boundary = leftBarRect.Right;
-        var top = centerY-labelHeight/2;
-        var leftX = ClampLabelX(boundary-padding-safeLabelWidth,plotLeft,plotRight,safeLabelWidth);
-        var rightX = ClampLabelX(boundary+padding,plotLeft,plotRight,safeLabelWidth);
-        if(leftX+safeLabelWidth>rightX&&plotWidth>=safeLabelWidth*2+padding){
-            if(boundary>plotLeft+plotWidth/2){
-                rightX=plotRight-safeLabelWidth;
-                leftX=MathF.Max(plotLeft,rightX-padding-safeLabelWidth);
-            }else{
-                leftX=plotLeft;
-                rightX=MathF.Min(plotRight-safeLabelWidth,leftX+safeLabelWidth+padding);
-            }
-        }
-
-        return (
-            new BenchmarkChartLabelRect(
-                leftX,
-                top,
-                safeLabelWidth,
-                labelHeight),
-            new BenchmarkChartLabelRect(
-                rightX,
-                top,
-                safeLabelWidth,
-                labelHeight));
-    }
-
-    private static float ClampLabelX(float x,float plotLeft,float plotRight,float labelWidth){
-        if(plotRight-plotLeft<=labelWidth){
-            return plotLeft;
-        }
-
-        return Math.Clamp(x,plotLeft,plotRight-labelWidth);
-    }
-}
-
 public readonly record struct BenchmarkTabProgress(int Completed,int Total){
     public double Fraction => this.Total<=0 ? 0 : (double)this.Completed/this.Total;
     public string FractionText => this.Total<=0

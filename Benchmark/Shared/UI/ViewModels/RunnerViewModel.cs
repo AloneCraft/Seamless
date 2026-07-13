@@ -183,21 +183,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     private string adaptiveThresholdSecondsText = "1";
     /// <summary>
-    /// selectedMetric フィールドです。
-    /// </summary>
-    private MetricOption selectedMetric;
-    /// <summary>
-    /// selectedChartMode フィールドです。
-    /// </summary>
-    private ChartModeOption selectedChartMode;
-    /// <summary>
     /// selectedResultElementCount フィールドです。
     /// </summary>
     private ResultElementCountOption? selectedResultElementCount;
-    /// <summary>
-    /// selectedResultElementCountIndex フィールドです。
-    /// </summary>
-    private double selectedResultElementCountIndex;
     /// <summary>
     /// currentElementCountText フィールドです。
     /// </summary>
@@ -206,10 +194,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// improvementPromptText フィールドです。
     /// </summary>
     private string improvementPromptText = string.Empty;
-    /// <summary>
-    /// improvementCandidateSummaryText フィールドです。
-    /// </summary>
-    private string improvementCandidateSummaryText = string.Empty;
     private string 全体ベンチマークシェア概要文字列 = BenchmarkImprovementPromptBuilder.概要を作成([]).OverallDisplayText;
     private string 全体ベンチマークシェア概要短縮文字列 = BenchmarkImprovementPromptBuilder.概要を作成([]).ShortDisplayText;
     /// <summary>
@@ -298,10 +282,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     private readonly Dictionary<string,bool> benchmarkRowSelections = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>
-    /// improvementCandidateSelections フィールドです。
-    /// </summary>
-    private readonly Dictionary<string,bool> improvementCandidateSelections = new(StringComparer.OrdinalIgnoreCase);
-    /// <summary>
     /// benchmarkCasesByProjectMethod フィールドです。
     /// </summary>
     private readonly Dictionary<string,BenchmarkCase> benchmarkCasesByProjectMethod = new(StringComparer.OrdinalIgnoreCase);
@@ -369,7 +349,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// activeChartMethodName フィールドです。
     /// </summary>
     private string activeChartMethodName = string.Empty;
-    private string appliedActiveChartMethodName = string.Empty;
     /// <summary>
     /// pendingRunStatusText フィールドです。
     /// </summary>
@@ -429,19 +408,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
     // 選択中の保存済み Run の ProgressState スナップショット。
     // タブ切替時に DB を再読み込みしないため、Run 選択の変更と実行終了時に破棄する。
     private (long UiRunId,ProgressState? State)? selectedRunStateCache;
-    /// <summary>
-    /// loadedImprovementSelectionRunId フィールドです。
-    /// </summary>
-    private long? loadedImprovementSelectionRunId;
-    /// <summary>
-    /// hasLoadedImprovementCandidateSelections フィールドです。
-    /// </summary>
-    private bool hasLoadedImprovementCandidateSelections;
-    /// <summary>
-    /// isApplyingImprovementCandidateSelection フィールドです。
-    /// </summary>
-    private bool isApplyingImprovementCandidateSelection;
-
     /// <summary>
     /// RunTerminationKind プロパティです。
     /// </summary>
@@ -506,15 +472,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
         this.selectedRunOption=initialRunOption;
         this.ThresholdOptions=CreateThresholdOptions();
         this.selectedThreshold=this.ThresholdOptions[0];
-        this.Metrics= [
-            new MetricOption("Time",BenchmarkMetricKind.Time),
-            new MetricOption("Allocated",BenchmarkMetricKind.Allocated),
-        ];
-        this.selectedMetric=this.Metrics[0];
-        this.ChartModes= [
-            new ChartModeOption("N comparison",BenchmarkChartMode.ElementComparison),
-        ];
-        this.selectedChartMode=this.ChartModes[0];
         this.ScaleOptions= [
             new ScaleOption("1/8","0.125"),
             new ScaleOption("1/4","0.25"),
@@ -657,13 +614,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <value>CpuSections の値を取得/設定します。</value>
     public ObservableCollection<CpuTableSection> CpuSections { get; } = [];
     /// <summary>
-    /// ImprovementCandidates プロパティです。
-    /// </summary>
-    /// <value>ImprovementCandidates の値を取得/設定します。</value>
-    public ObservableCollection<BenchmarkImprovementCandidateRow> ImprovementCandidates { get; } = [];
-    public ObservableCollection<BenchmarkImprovementCandidateRow> TimeImprovementCandidates { get; } = [];
-    public ObservableCollection<BenchmarkImprovementCandidateRow> AllocatedImprovementCandidates { get; } = [];
-    /// <summary>
     /// LatencyHotspotRows プロパティです。
     /// </summary>
     /// <value>LatencyHotspotRows の値を取得/設定します。</value>
@@ -708,13 +658,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     /// <value>BenchmarkSortColumnOptions の値を取得/設定します。</value>
     public ObservableCollection<BenchmarkSortColumnOption> BenchmarkSortColumnOptions { get; } = [];
-    /// <summary>
-    /// ChartPoints プロパティです。
-    /// </summary>
-    /// <value>ChartPoints の値を取得/設定します。</value>
-    public ObservableCollection<ChartComparisonPoint> ChartPoints => this.SelectedSourceTabViewState.ChartPoints;
-    public string ChartEmptyReasonText => this.SelectedSourceTabViewState.ChartEmptyReasonText;
-    public string ChartEmptyReasonTooltipText => this.SelectedSourceTabViewState.ChartEmptyReasonTooltipText;
     /// <summary>
     /// ScaleOptions プロパティです。
     /// </summary>
@@ -775,16 +718,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     /// <value>ExecutionProfiles の値を取得/設定します。</value>
     public IReadOnlyList<ExecutionProfileOption> ExecutionProfiles { get; }
-    /// <summary>
-    /// Metrics プロパティです。
-    /// </summary>
-    /// <value>Metrics の値を取得/設定します。</value>
-    public IReadOnlyList<MetricOption> Metrics { get; }
-    /// <summary>
-    /// ChartModes プロパティです。
-    /// </summary>
-    /// <value>ChartModes の値を取得/設定します。</value>
-    public IReadOnlyList<ChartModeOption> ChartModes { get; }
     /// <summary>
     /// ThresholdOptions プロパティです。
     /// </summary>
@@ -938,15 +871,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 this.CopyImprovementPromptCommand.NotifyCanExecuteChanged();
             }
         }
-    }
-
-    /// <summary>
-    /// ImprovementCandidateSummaryText プロパティです。
-    /// </summary>
-    /// <value>ImprovementCandidateSummaryText の値を取得/設定します。</value>
-    public string ImprovementCandidateSummaryText {
-        get => this.improvementCandidateSummaryText;
-        private set => this.SetProperty(ref this.improvementCandidateSummaryText,value);
     }
 
     /// <summary>
@@ -1596,16 +1520,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <value>LatestBenchmarkAutoScrollRequest の値を取得/設定します。</value>
     public BenchmarkAutoScrollRequest? LatestBenchmarkAutoScrollRequest { get; private set; }
 
-    /// <summary>
-    /// ChartLeftLegendLabel プロパティです。
-    /// </summary>
-    /// <value>ChartLeftLegendLabel の値を取得/設定します。</value>
-    public string ChartLeftLegendLabel => GetChartLegendLabel(this.SelectedComparisonPair.LeftProject);
-    /// <summary>
-    /// ChartRightLegendLabel プロパティです。
-    /// </summary>
-    /// <value>ChartRightLegendLabel の値を取得/設定します。</value>
-    public string ChartRightLegendLabel => GetChartLegendLabel(this.SelectedComparisonPair.RightProject);
 
     /// <summary>
     /// SelectSourceTabAsync メソッドを実行し、結果を算出して返却します。
@@ -1641,18 +1555,12 @@ public sealed partial class RunnerViewModel:ObservableObject {
                     this.ApplySourceTabVisualSelection();
                     this.OnPropertyChanged(nameof(this.SelectedSourceTabViewState));
                     this.OnPropertyChanged(nameof(this.BenchmarkRows));
-                    this.OnPropertyChanged(nameof(this.ChartPoints));
-                    this.OnPropertyChanged(nameof(this.ChartEmptyReasonText));
-                    this.OnPropertyChanged(nameof(this.ChartEmptyReasonTooltipText));
-                    this.OnPropertyChanged(nameof(this.ChartHeight));
                     this.OnPropertyChanged(nameof(this.ベンチマークシェア概要表示));
                     this.OnPropertyChanged(nameof(this.LatencyHotspotRows));
                     this.OnPropertyChanged(nameof(this.AllocationDiagnosticRows));
                     this.OnPropertyChanged(nameof(this.CpuTimelineRows));
                     this.OnPropertyChanged(nameof(this.SelectedComparisonPair));
                     this.OnPropertyChanged(nameof(this.SelectedSourceDefinition));
-                    this.OnPropertyChanged(nameof(this.ChartLeftLegendLabel));
-                    this.OnPropertyChanged(nameof(this.ChartRightLegendLabel));
                     this.OnPropertyChanged(nameof(this.CanChangeBenchmarkSelection));
                     this.RefreshBenchmarkProjectHeaderTexts();
                     // タブ切替では DB もカタログも再読み込みせず、メモリ上のカタログと結果バッファだけで再構築する。
@@ -1772,62 +1680,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
         get => this.adaptiveThresholdSecondsText;
         set => this.SetProperty(ref this.adaptiveThresholdSecondsText,value);
     }
-
-    /// <summary>
-    /// SelectedMetric プロパティです。
-    /// </summary>
-    /// <value>SelectedMetric の値を取得/設定します。</value>
-    public MetricOption SelectedMetric {
-        get => this.selectedMetric;
-        set {
-            if(this.SetProperty(ref this.selectedMetric,value)) {
-                this.UpdateAllSourceTabCharts();
-                this.OnPropertyChanged(nameof(this.IsTimeMetricSelected));
-                this.OnPropertyChanged(nameof(this.IsAllocatedMetricSelected));
-            }
-        }
-    }
-
-    /// <summary>
-    /// IsTimeMetricSelected プロパティです。
-    /// </summary>
-    /// <value>IsTimeMetricSelected の値を取得/設定します。</value>
-    public bool IsTimeMetricSelected {
-        get => this.SelectedMetric.Kind==BenchmarkMetricKind.Time;
-        set {
-            if(value) {
-                this.SetMetric(BenchmarkMetricKind.Time);
-            }
-        }
-    }
-
-    /// <summary>
-    /// IsAllocatedMetricSelected プロパティです。
-    /// </summary>
-    /// <value>IsAllocatedMetricSelected の値を取得/設定します。</value>
-    public bool IsAllocatedMetricSelected {
-        get => this.SelectedMetric.Kind==BenchmarkMetricKind.Allocated;
-        set {
-            if(value) {
-                this.SetMetric(BenchmarkMetricKind.Allocated);
-            }
-        }
-    }
-
-    /// <summary>
-    /// SelectedChartMode プロパティです。
-    /// </summary>
-    /// <value>SelectedChartMode の値を取得/設定します。</value>
-    public ChartModeOption SelectedChartMode {
-        get => this.selectedChartMode;
-        set {
-            if(this.SetProperty(ref this.selectedChartMode,value)) {
-                this.OnPropertyChanged(nameof(this.IsChartElementSliderVisible));
-                this.UpdateAllSourceTabCharts();
-            }
-        }
-    }
-
     /// <summary>
     /// SelectedResultElementCount プロパティです。
     /// </summary>
@@ -1839,7 +1691,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 if(value is not null) {
                     this.CurrentElementCountText=FormatElementCountText(value.Value);
                 }
-                this.SyncSelectedResultElementCountIndex();
                 if(!this.isApplyingResultElementCount) {
                     this.RefreshVisibleResults();
                     this.ApplySelectedElementCountToTable();
@@ -1851,40 +1702,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
             }
         }
     }
-
-    /// <summary>
-    /// SelectedResultElementCountIndex プロパティです。
-    /// </summary>
-    /// <value>SelectedResultElementCountIndex の値を取得/設定します。</value>
-    public double SelectedResultElementCountIndex {
-        get => this.selectedResultElementCountIndex;
-        set {
-            var rounded = Math.Round(value,MidpointRounding.AwayFromZero);
-            var clamped = Math.Clamp(rounded,0,this.ChartElementCountSliderMaximum);
-            if(this.SetProperty(ref this.selectedResultElementCountIndex,clamped)) {
-                this.SelectResultElementCountByIndex((int)clamped);
-            }
-        }
-    }
-
-    /// <summary>
-    /// ChartElementCountSliderMaximum プロパティです。
-    /// </summary>
-    /// <value>ChartElementCountSliderMaximum の値を取得/設定します。</value>
-    public double ChartElementCountSliderMaximum => Math.Max(0,this.ResultElementCountOptions.Count-1);
-
-    /// <summary>
-    /// IsChartElementSliderVisible プロパティです。
-    /// </summary>
-    /// <value>IsChartElementSliderVisible の値を取得/設定します。</value>
-    public bool IsChartElementSliderVisible => this.ResultElementCountOptions.Count>1&&this.SelectedChartMode.Mode==BenchmarkChartMode.ElementComparison;
-
-    /// <summary>
-    /// SelectedChartElementCountText プロパティです。
-    /// </summary>
-    /// <value>SelectedChartElementCountText の値を取得/設定します。</value>
-    public string SelectedChartElementCountText => this.SelectedResultElementCount?.DisplayName??"-";
-
     /// <summary>
     /// CurrentElementCountText プロパティです。
     /// </summary>
@@ -1892,20 +1709,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
     public string CurrentElementCountText {
         get => this.currentElementCountText;
         private set => this.SetProperty(ref this.currentElementCountText,value);
-    }
-
-    /// <summary>
-    /// ChartHeight プロパティです。
-    /// </summary>
-    /// <value>ChartHeight の値を取得/設定します。</value>
-    public double ChartHeight {
-        get => this.SelectedSourceTabViewState.ChartHeight;
-        private set {
-            if(Math.Abs(this.SelectedSourceTabViewState.ChartHeight-value)>0.001) {
-                this.SelectedSourceTabViewState.ChartHeight=value;
-                this.OnPropertyChanged();
-            }
-        }
     }
 
     /// <summary>
@@ -2250,27 +2053,12 @@ public sealed partial class RunnerViewModel:ObservableObject {
         BenchmarkSourceTabViewState state,
         IReadOnlyList<BenchmarkTableRow> addedRows,
         IReadOnlyList<BenchmarkTableRow> removedRows) {
-        var selectionChanged=false;
-
         foreach(var removed in removedRows) {
             SetRowUiSelection(removed,false);
-            if(removed.ChartBar is { } chartBar) {
-                state.UiSelectedChartBars.Remove(chartBar);
-            }
-            selectionChanged=true;
         }
 
         foreach(var added in addedRows) {
             SetRowUiSelection(added,true);
-            if(added.ChartBar is { } chartBar) {
-                state.UiSelectedChartBars.Add(chartBar);
-            }
-            selectionChanged=true;
-        }
-
-        if(selectionChanged) {
-            UiThreadBudget.Record("chart-selection-series-update-count",0);
-            state.NotifyChartSelectionChanged();
         }
     }
 
@@ -2614,9 +2402,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
                     this.SaveUiState();
                     this.RefreshBenchmarkSelectionDisplay();
                 }
-                if(args.PropertyName==nameof(BenchmarkProjectCell.Metrics)) {
-                    this.GetSourceTabViewState(row.SourceTab.Tab).DirtyChartRows.Add(row);
-                }
             };
         }
     }
@@ -2888,20 +2673,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
         };
 
     /// <summary>
-    /// LoadImprovementCandidatesChartData メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <returns>処理結果を返却します。</returns>
-    public IReadOnlyList<BenchmarkRankedRatioPoint> LoadImprovementCandidatesChartData() {
-        try {
-            return BenchmarkAnalysisViewMapper.MapImprovementCandidates(this.uiRunStore.QueryAnalysisView("BenchmarkImprovementCandidates",100));
-        }
-        catch(Exception ex) {
-            StartupDiagnostics.Write("BenchmarkImprovementCandidates load failed.",ex);
-            return [];
-        }
-    }
-
-    /// <summary>
     /// LoadCategorySummaryChartData メソッドを実行し、結果を算出して返却します。
     /// </summary>
     /// <returns>処理結果を返却します。</returns>
@@ -2915,48 +2686,58 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
     }
 
-    /// <summary>
-    /// LoadHistoryTrendChartData メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <returns>処理結果を返却します。</returns>
-    public IReadOnlyList<BenchmarkTrendSeries> LoadHistoryTrendChartData() =>
-        this.時間シェア履歴を読込();
+    public event EventHandler? ShareHistoryChanged;
 
-    public IReadOnlyList<BenchmarkTrendSeries> 時間シェア履歴を読込() {
+    public IReadOnlyList<BenchmarkTrendSeries> LoadShareHistory(BenchmarkTableRow row,UiShareMetric metric) {
+        ArgumentNullException.ThrowIfNull(row);
         try {
-            var rows=this.選択タブのシェア履歴を読込("履歴時間シェア");
-            return BenchmarkAnalysisViewMapper.時間シェア履歴を変換(rows);
+            var benchmarkCase=row.CasesByProject.Values.FirstOrDefault();
+            UiBenchmarkSnapshotCaseWrite? caseWrite=null;
+            if(this.uiRunStore.AppKind==UiRunAppKind.ScalableBenchmark) {
+                if(benchmarkCase is null) {
+                    throw new InvalidDataException(
+                        "Scalable share history requires an exact benchmark case. Tab="+row.SourceTab.Id
+                        +" Type="+row.BenchmarkTypeText
+                        +" Benchmark="+row.MethodName);
+                }
+                caseWrite=new(
+                    benchmarkCase.AssemblyName,
+                    benchmarkCase.TypeFullName,
+                    benchmarkCase.MethodName,
+                    benchmarkCase.ArgumentKey,
+                    JsonSerializer.Serialize(benchmarkCase.Arguments));
+            }
+
+            var points=this.uiRunStore.ListShareHistory(
+                new(
+                    this.uiRunStore.AppKind,
+                    row.SourceTab.Id,
+                    row.BenchmarkTypeText,
+                    row.MethodName,
+                    caseWrite),
+                metric,
+                1000);
+            var scalable=this.uiRunStore.AppKind==UiRunAppKind.ScalableBenchmark;
+            var leftLabel=scalable?"Current":"Left";
+            var rightLabel=scalable?"Previous":"Right";
+            return [
+                new(leftLabel,points.Select(static point => new BenchmarkTrendPoint(point.RunId,point.LeftShare)).ToArray()),
+                new(rightLabel,points.Select(static point => new BenchmarkTrendPoint(point.RunId,point.RightShare)).ToArray()),
+            ];
         }
         catch(Exception ex) {
-            StartupDiagnostics.Write("履歴時間シェア load failed.",ex);
-            return [];
+            StartupDiagnostics.Write(
+                "Focused share history load failed. Tab="+row.SourceTab.Id
+                +" Type="+row.BenchmarkTypeText
+                +" Benchmark="+row.MethodName
+                +" Metric="+metric,
+                ex);
+            throw;
         }
     }
 
-    public IReadOnlyList<BenchmarkTrendSeries> メモリシェア履歴を読込() {
-        try {
-            var rows=this.選択タブのシェア履歴を読込("履歴メモリシェア");
-            return BenchmarkAnalysisViewMapper.メモリシェア履歴を変換(rows);
-        }
-        catch(Exception ex) {
-            StartupDiagnostics.Write("履歴メモリシェア load failed.",ex);
-            return [];
-        }
-    }
-
-    private IReadOnlyList<IReadOnlyDictionary<string,object?>> 選択タブのシェア履歴を読込(string viewName) {
-        var selectedSourceTabId = this.SelectedSourceDefinition.Id;
-        return this.uiRunStore.QueryAnalysisView(viewName,1000)
-            .Where(row => 分析行がタブ対象か(row,selectedSourceTabId))
-            .ToArray();
-    }
-
-    private static bool 分析行がタブ対象か(IReadOnlyDictionary<string,object?> row,string sourceTabId) =>
-        row.TryGetValue("タブ名",out var value)
-        &&string.Equals(
-            Convert.ToString(value,System.Globalization.CultureInfo.InvariantCulture),
-            sourceTabId,
-            StringComparison.OrdinalIgnoreCase);
+    private void NotifyShareHistoryChanged() =>
+        this.ShareHistoryChanged?.Invoke(this,EventArgs.Empty);
 
     private static bool? GetRowSelectionState(IEnumerable<BenchmarkTableRow> rows) {
         var targets = rows.Where(static row => row.ProjectCells.Any(static cell => cell.HasCase)).ToArray();
@@ -3219,6 +3000,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             this.RunOptions.Add(newRunOption);
             this.SetSelectedRunOption(newRunOption,false,false);
             this.ClearAllCurrentRunResultsForFreshRun();
+            this.NotifyShareHistoryChanged();
             this.StatusText="履歴を消去しました";
             StartupDiagnostics.Write("Benchmark run history cleared.");
         }
@@ -3510,10 +3292,12 @@ public sealed partial class RunnerViewModel:ObservableObject {
         var cpuNumber = leftCpu??rightCpu;
         var typeName = ResolveSnapshotTypeName(row,leftBenchmark,rightBenchmark);
         if(string.IsNullOrWhiteSpace(typeName)) {
-            StartupDiagnostics.Write(
+            throw new InvalidDataException(
                 "Benchmark snapshot type display is empty."
                 +" SourceTab="+row.SourceTab.Id
-                +" Benchmark="+row.MethodName);
+                +" Benchmark="+row.MethodName
+                +" LeftType="+(leftBenchmark?.TypeFullName??"<none>")
+                +" RightType="+(rightBenchmark?.TypeFullName??"<none>"));
         }
 
         var leftSide = this.CreateBenchmarkGridSnapshotSide(row,row.LeftCell,leftBenchmark,leftResult);
@@ -3539,12 +3323,21 @@ public sealed partial class RunnerViewModel:ObservableObject {
             return row.BenchmarkTypeText;
         }
 
-        var typeName = ScalableBenchmarkNameFormatter.CreateGenericTypeText(leftBenchmark?.TypeFullName??string.Empty);
+        var typeName=ResolveBenchmarkTypeText(leftBenchmark);
         if(!string.IsNullOrWhiteSpace(typeName)) {
             return typeName;
         }
 
-        return ScalableBenchmarkNameFormatter.CreateGenericTypeText(rightBenchmark?.TypeFullName??string.Empty);
+        return ResolveBenchmarkTypeText(rightBenchmark);
+    }
+
+    private static string ResolveBenchmarkTypeText(BenchmarkCase? benchmark){
+        if(benchmark is null){
+            return string.Empty;
+        }
+        return string.IsNullOrWhiteSpace(benchmark.BenchmarkTypeText)
+            ?ScalableBenchmarkNameFormatter.CreateGenericTypeText(benchmark.TypeFullName)
+            :benchmark.BenchmarkTypeText;
     }
 
     private BenchmarkGridSnapshotSide CreateBenchmarkGridSnapshotSide(
@@ -3770,7 +3563,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
                         benchmark.TypeFullName,
                         benchmark.MethodName,
                         benchmark.ArgumentKey,
-                        benchmark.Arguments){
+                        benchmark.Arguments,
+                        benchmark.BenchmarkPath,
+                        benchmark.BenchmarkTypeText){
                         BindingRowIndex=index,
                     })
                     : []);
@@ -4092,10 +3887,54 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <param name="runRoot">runRoot を指定して実行条件を制御します。</param>
     /// <returns>処理結果を返却します。</returns>
     private ProgressState CreateProgressStateFromAllTabResults(string runRoot) {
-        var results = this.currentRunSession.HasAnyResults
+        var results = (this.currentRunSession.HasAnyResults
             ? this.currentRunSession.GetAllResults()
-            : this.GetResultSourceForDisplay();
-        return this.CreateProgressStateFromResults(runRoot,results);
+            : this.GetResultSourceForDisplay()).ToArray();
+        if(results.Length==0) {
+            return this.CreateProgressStateFromResults(runRoot,results);
+        }
+
+        this.CaptureCurrentBenchmarkSelections();
+        var timestamp=DateTimeOffset.UtcNow;
+        var states=results
+            .GroupBy(static result => result.SourceTab)
+            .Select(group => BenchmarkRunSession.CreateProgressState(
+                runRoot,
+                this.SelectedExecutionProfile.Profile,
+                BenchmarkSourceTabs.Get(group.Key),
+                this.GetAdaptiveThreshold(),
+                new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase),
+                this.benchmarkRowSelections,
+                group,
+                result => this.FindBenchmarkCase(result.Method,result.Project,result.TypeFullName,result.ArgumentKey,result.SourceTab),
+                timestamp))
+            .ToArray();
+        var aggregate=BenchmarkRunSession.CreateProgressState(
+            runRoot,
+            this.SelectedExecutionProfile.Profile,
+            this.SelectedSourceDefinition,
+            this.GetAdaptiveThreshold(),
+            new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase),
+            this.benchmarkRowSelections,
+            [],
+            _ => null,
+            timestamp);
+        aggregate.Jobs=states.SelectMany(static state => state.Jobs).ToList();
+        aggregate.ElementCounts=aggregate.Jobs
+            .Select(BenchmarkWorkloadAxis.GetAxisCount)
+            .Where(static count => count>0)
+            .Distinct()
+            .Order()
+            .ToList();
+        aggregate.AdaptiveStates=states
+            .SelectMany(static state => state.AdaptiveStates)
+            .GroupBy(static state => state.MethodName,StringComparer.OrdinalIgnoreCase)
+            .Select(static group => group.First())
+            .ToList();
+        aggregate.NextRunItemIndex=aggregate.Jobs.Count==0
+            ? 0
+            : aggregate.Jobs.Max(static job => job.RunItemIndex)+1;
+        return aggregate;
     }
 
     /// <summary>
@@ -4572,9 +4411,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
             if(this.SelectedResultElementCount is null) {
                 this.CurrentElementCountText="1";
             }
-            this.OnPropertyChanged(nameof(this.ChartElementCountSliderMaximum));
-            this.OnPropertyChanged(nameof(this.IsChartElementSliderVisible));
-            this.OnPropertyChanged(nameof(this.SelectedChartElementCountText));
             this.RefreshSourceTabProgresses();
             this.CaptureCurrentBenchmarkSelections();
             var viewState = this.CreateBenchmarkViewStateSnapshot();
@@ -4724,6 +4560,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 this.uiRunRepository.QueueSaveUiState(finalRunId,this.CreateBenchmarkViewStateSnapshot());
                 if(completedNormally) {
                     await this.uiRunRepository.FlushAsync();
+                    this.NotifyShareHistoryChanged();
                     if(startsFromSavedDatabaseRun) {
                         this.SelectNewRunOptionForFreshRun(false);
                     }
@@ -4870,6 +4707,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             this.uiRunRepository.QueueSaveUiState(runId,viewState);
             this.QueueUiRunStatus(runId,UiRunStatus.Completed,"Benchmark grid snapshot saved.");
             await this.uiRunRepository.FlushAsync();
+            this.NotifyShareHistoryChanged();
             this.unsavedUiRunId=null;
             this.activeUiRunId=null;
             this.selectedRunStateCache=null;
@@ -5367,7 +5205,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
         if(isResultForVisibleTab&&isRunningResult) {
             this.RequestBenchmarkAutoScroll(resultSourceTab,result.Method,row?.RowKey??string.Empty);
             this.activeChartMethodName=row?.RowKey??result.Method;
-            this.ApplyChartRunningState();
             this.RetainCompletedHighlightsForRunningElement(result.AxisCount);
             row?.ApplyRunResult(result,cpu,DateTimeOffset.Now);
             return;
@@ -5456,9 +5293,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
             }
 
             this.activeChartMethodName=result.Method;
-            if(updateChart) {
-                this.ApplyChartRunningState();
-            }
 
             return;
         }
@@ -5470,9 +5304,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
             }
 
             this.activeChartMethodName=row.RowKey;
-            if(updateChart) {
-                this.ApplyChartRunningState();
-            }
 
             return;
         }
@@ -5482,9 +5313,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
 
         this.activeChartMethodName=row.RowKey;
-        if(updateChart) {
-            this.ApplyChartRunningState();
-        }
 
         if(retainCompletedHighlights) {
             this.RetainCompletedHighlightsForRunningElement(result.AxisCount);
@@ -5919,8 +5747,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
         foreach(var item in ordered) {
             this.ResultElementCountOptions.Add(item);
         }
-        this.OnPropertyChanged(nameof(this.ChartElementCountSliderMaximum));
-        this.OnPropertyChanged(nameof(this.IsChartElementSliderVisible));
         if(!this.IsRunning&&this.SelectedResultElementCount is null) {
             this.SelectedResultElementCount=this.ResultElementCountOptions.FirstOrDefault();
         }
@@ -5959,50 +5785,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
             this.ResultElementCountOptions.Add(new ResultElementCountOption(elementCount,this.FormatResultElementCountDisplayName(elementCount)));
         }
 
-        this.OnPropertyChanged(nameof(this.ChartElementCountSliderMaximum));
-        this.OnPropertyChanged(nameof(this.IsChartElementSliderVisible));
         this.SelectedResultElementCount=this.ResultElementCountOptions.LastOrDefault();
-        this.SyncSelectedResultElementCountIndex();
     }
-
-    /// <summary>
-    /// SelectResultElementCountByIndex メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    /// <param name="index">index を指定して実行条件を制御します。</param>
-    private void SelectResultElementCountByIndex(int index) {
-        if(this.ResultElementCountOptions.Count==0) {
-            if(this.SelectedResultElementCount is not null) {
-                this.SelectedResultElementCount=null;
-            }
-            return;
-        }
-
-        var clamped = Math.Clamp(index,0,this.ResultElementCountOptions.Count-1);
-        var option = this.ResultElementCountOptions[clamped];
-        if(this.SelectedResultElementCount!=option) {
-            this.SelectedResultElementCount=option;
-        }
-    }
-
-    /// <summary>
-    /// SyncSelectedResultElementCountIndex メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    private void SyncSelectedResultElementCountIndex() {
-        var index = this.SelectedResultElementCount is null
-            ? 0
-            : this.ResultElementCountOptions.IndexOf(this.SelectedResultElementCount);
-        if(index<0) {
-            index=0;
-        }
-
-        if(Math.Abs(this.selectedResultElementCountIndex-index)>0.001) {
-            this.selectedResultElementCountIndex=index;
-            this.OnPropertyChanged(nameof(this.SelectedResultElementCountIndex));
-        }
-        this.OnPropertyChanged(nameof(this.SelectedChartElementCountText));
-        this.OnPropertyChanged(nameof(this.IsChartElementSliderVisible));
-    }
-
     /// <summary>
     /// RefreshVisibleResults メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
@@ -6227,17 +6011,12 @@ public sealed partial class RunnerViewModel:ObservableObject {
             state.ComparisonRows= [];
             state.ベンチマークシェア概要表示=string.Empty;
             this.GetSourceTabOption(state.Definition.Tab).ベンチマークシェア概要短縮表示を設定(BenchmarkImprovementPromptBuilder.概要を作成([]).ShortDisplayText);
-            this.SyncBenchmarkChartPoints(state,[]);
-            this.UpdateChartEmptyReason(state,[],[]);
             state.LatencyHotspotRows.Clear();
             state.AllocationDiagnosticRows.Clear();
             state.CpuTimelineRows.Clear();
         }
         this.全体ベンチマークシェア概要を更新();
         this.OnPropertyChanged(nameof(this.ベンチマークシェア概要表示));
-        this.OnPropertyChanged(nameof(this.ChartPoints));
-        this.OnPropertyChanged(nameof(this.ChartEmptyReasonText));
-        this.OnPropertyChanged(nameof(this.ChartEmptyReasonTooltipText));
         this.OnPropertyChanged(nameof(this.LatencyHotspotRows));
         this.OnPropertyChanged(nameof(this.AllocationDiagnosticRows));
         this.OnPropertyChanged(nameof(this.CpuTimelineRows));
@@ -6472,8 +6251,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 ? []
                 : BenchmarkImprovementCandidateBuilder.BuildCandidates(state);
         }
-        this.ApplyImprovementCandidates(candidates);
-        this.RefreshImprovementPromptText();
+        this.ImprovementPromptText=BenchmarkImprovementPromptBuilder.BuildPrompt(candidates);
     }
 
     private IReadOnlyList<BenchmarkImprovementCandidate> BuildImprovementCandidatesFromComparisonRows() {
@@ -6486,132 +6264,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
 
         var elementCount = this.SelectedResultElementCount?.Value??0;
         return BenchmarkImprovementCandidateBuilder.BuildCandidatesFromComparisonRows(rows,elementCount);
-    }
-
-    /// <summary>
-    /// ApplyImprovementCandidates メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    /// <param name="candidates">candidates を指定して実行条件を制御します。</param>
-    private void ApplyImprovementCandidates(IReadOnlyList<BenchmarkImprovementCandidate> candidates) {
-        this.LoadImprovementCandidateSelectionsForCurrentRun();
-        var hasStoredSelections = this.hasLoadedImprovementCandidateSelections&&this.improvementCandidateSelections.Count>0;
-        var defaultSelected = hasStoredSelections
-            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            : BenchmarkImprovementCandidateBuilder.CreateDefaultSelectedKeys(candidates);
-        foreach(var row in this.ImprovementCandidates) {
-            row.SelectionChanged-=this.OnImprovementCandidateSelectionChanged;
-        }
-        this.ImprovementCandidates.Clear();
-        this.isApplyingImprovementCandidateSelection=true;
-        try {
-            foreach(var candidate in candidates) {
-                var selected = hasStoredSelections
-                    ? this.improvementCandidateSelections.TryGetValue(candidate.Key,out var value)&&value
-                    : defaultSelected.Contains(candidate.Key);
-                this.improvementCandidateSelections[candidate.Key]=selected;
-                var row = new BenchmarkImprovementCandidateRow(candidate,selected);
-                row.SelectionChanged+=this.OnImprovementCandidateSelectionChanged;
-                this.ImprovementCandidates.Add(row);
-            }
-        }
-        finally {
-            this.isApplyingImprovementCandidateSelection=false;
-        }
-        this.RefreshImprovementCandidateViews();
-        this.ImprovementCandidateSummaryText=string.Empty;
-    }
-
-    /// <summary>
-    /// OnImprovementCandidateSelectionChanged メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    /// <param name="sender">sender を指定して実行条件を制御します。</param>
-    /// <param name="args">args を指定して実行条件を制御します。</param>
-    private void OnImprovementCandidateSelectionChanged(object? sender,EventArgs args) {
-        if(sender is not BenchmarkImprovementCandidateRow row) {
-            return;
-        }
-
-        this.improvementCandidateSelections[row.Key]=row.IsSelected;
-        if(!this.isApplyingImprovementCandidateSelection) {
-            this.RefreshImprovementPromptText();
-            this.ImprovementCandidateSummaryText=string.Empty;
-        }
-    }
-
-    /// <summary>
-    /// RefreshImprovementPromptText メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    private void RefreshImprovementPromptText() {
-        this.ImprovementPromptText=BenchmarkImprovementPromptBuilder.BuildPrompt(
-            this.ImprovementCandidates
-                .Where(static row => row.IsSelected)
-                .Select(static row => row.Candidate));
-    }
-
-    private void RefreshImprovementCandidateViews() {
-        this.ReplaceImprovementCandidateRows(
-            this.TimeImprovementCandidates,
-            this.ImprovementCandidates
-                .Where(static row => row.Candidate.時間回帰か)
-                .OrderByDescending(static row => BenchmarkImprovementCandidateBuilder.順位値を取得(row.Candidate.時間シェア)));
-        this.ReplaceImprovementCandidateRows(
-            this.AllocatedImprovementCandidates,
-            this.ImprovementCandidates
-                .Where(static row => row.Candidate.メモリ回帰か)
-                .OrderByDescending(static row => BenchmarkImprovementCandidateBuilder.順位値を取得(row.Candidate.メモリシェア)));
-    }
-
-    private void ReplaceImprovementCandidateRows(
-        ObservableCollection<BenchmarkImprovementCandidateRow> target,
-        IEnumerable<BenchmarkImprovementCandidateRow> rows) {
-        target.Clear();
-        foreach(var row in rows) {
-            target.Add(row);
-        }
-    }
-
-    /// <summary>
-    /// CreateImprovementCandidateSummary メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <returns>処理結果を返却します。</returns>
-    private string CreateImprovementCandidateSummary() {
-        var selected = this.ImprovementCandidates.Count(static row => row.IsSelected);
-        var total = this.ImprovementCandidates.Count;
-        var time = this.ImprovementCandidates.Count(static row => row.Candidate.時間回帰か);
-        var allocated = this.ImprovementCandidates.Count(static row => row.Candidate.メモリ回帰か);
-        return "選択 "+selected.ToString(System.Globalization.CultureInfo.InvariantCulture)
-            +"/"+total.ToString(System.Globalization.CultureInfo.InvariantCulture)
-            +" / 時間 "+time.ToString(System.Globalization.CultureInfo.InvariantCulture)
-            +" / メモリ "+allocated.ToString(System.Globalization.CultureInfo.InvariantCulture);
-    }
-
-    /// <summary>
-    /// LoadImprovementCandidateSelectionsForCurrentRun メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    private void LoadImprovementCandidateSelectionsForCurrentRun() {
-        var runId = this.GetCurrentImprovementSelectionRunId();
-        if(this.loadedImprovementSelectionRunId==runId) {
-            return;
-        }
-
-        this.loadedImprovementSelectionRunId=runId;
-        this.improvementCandidateSelections.Clear();
-        this.hasLoadedImprovementCandidateSelections=false;
-    }
-
-    /// <summary>
-    /// GetCurrentImprovementSelectionRunId メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <returns>処理結果を返却します。</returns>
-    private long? GetCurrentImprovementSelectionRunId() {
-        if(this.activeUiRunId is { } active) {
-            return active;
-        }
-
-        var selectedRun = this.SelectedRunOption;
-        return selectedRun is not null&&!IsNewRunOption(selectedRun)&&!IsTransientRunOption(selectedRun)&&selectedRun.UiRunId>0
-            ? selectedRun.UiRunId
-            : null;
     }
 
     /// <summary>
@@ -7103,6 +6755,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                     }
                     this.ApplyBenchmarkSelectionsFromProgressState(this.LoadSelectedRunState());
                     this.ApplyLoadedBenchmarkSnapshotItems(results);
+                    this.NotifyShareHistoryChanged();
                 }
                 finally {
                     this.CompleteRunHistoryLoad(requestToken);
@@ -7183,6 +6836,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
                         var row=rows[index];
                         var item=stateItems[index];
                         this.SubscribeBenchmarkRow(row);
+                        ApplyRowSelectionToCells(row,item.IsSelected);
+                        this.benchmarkRowSelections[CreateRowSelectionKey(state.Definition,row.RowKey)]=item.IsSelected;
                         this.ResultItems.Add(this.CreateLoadedSnapshotResultItem(state.Definition,item,state.Definition.LeftProject,item.Left));
                         this.ResultItems.Add(this.CreateLoadedSnapshotResultItem(state.Definition,item,state.Definition.RightProject,item.Right));
                         this.ApplyLoadedBenchmarkSnapshotSide(row,state.Definition.LeftProject,item.CpuNumber,item.Left);
@@ -7410,7 +7065,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 &&string.Equals(candidate.AssemblyName,sourceTab.GetAssemblyName(project),StringComparison.OrdinalIgnoreCase)
                 &&string.Equals(candidate.MethodName,item.BenchmarkName,StringComparison.OrdinalIgnoreCase)
                 &&string.Equals(candidate.ArgumentKey,argumentKey,StringComparison.OrdinalIgnoreCase)
-                &&string.Equals(ScalableBenchmarkNameFormatter.CreateGenericTypeText(candidate.TypeFullName),item.TypeName,StringComparison.OrdinalIgnoreCase))
+                &&string.Equals(ResolveBenchmarkTypeText(candidate),item.TypeName,StringComparison.OrdinalIgnoreCase))
             .Distinct()
             .Take(2)
             .ToArray();
@@ -7511,6 +7166,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 this.ApplyCurrentSort();
                 this.RefreshImprovementPrompt();
                 this.UpdateChart(false);
+                this.NotifyShareHistoryChanged();
             }
         }
         catch(Exception ex) {
@@ -7539,8 +7195,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
             foreach(var item in ordered) {
                 this.ResultElementCountOptions.Add(item);
             }
-            this.OnPropertyChanged(nameof(this.ChartElementCountSliderMaximum));
-            this.OnPropertyChanged(nameof(this.IsChartElementSliderVisible));
         }
 
         this.isApplyingResultElementCount=true;
@@ -8671,6 +8325,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 Project=resolvedCase.Project,
                 AssemblyName=resolvedCase.AssemblyName,
                 TypeFullName=resolvedCase.TypeFullName,
+                BenchmarkTypeText=resolvedCase.BenchmarkTypeText,
                 MethodName=resolvedCase.MethodName,
                 ArgumentKey=resolvedCase.ArgumentKey,
                 Arguments=arguments.Count>0 ? arguments : resolvedCase.Arguments.ToList(),
@@ -8817,7 +8472,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     /// <value>preserveExistingWhenNoMeasuredPoints の値を取得/設定します。</value>
     private void UpdateChart(bool preserveExistingWhenNoMeasuredPoints = true) {
-        this.SelectedSourceTabViewState.RequiresFullChartRebuild=true;
         if(this.chartRefreshBatchDepth>0) {
             this.pendingChartUpdate=true;
             this.pendingChartUpdatePreserveExisting&=preserveExistingWhenNoMeasuredPoints;
@@ -8840,13 +8494,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <value>preserveExistingWhenNoMeasuredPoints の値を取得/設定します。</value>
     private void UpdateAllSourceTabCharts(bool preserveExistingWhenNoMeasuredPoints = true) {
         foreach(var state in this.sourceTabViewStates) {
-            state.RequiresFullChartRebuild=true;
             this.UpdateChartCore(state,preserveExistingWhenNoMeasuredPoints);
         }
-        this.OnPropertyChanged(nameof(this.ChartPoints));
-        this.OnPropertyChanged(nameof(this.ChartEmptyReasonText));
-        this.OnPropertyChanged(nameof(this.ChartEmptyReasonTooltipText));
-        this.OnPropertyChanged(nameof(this.ChartHeight));
         this.OnPropertyChanged(nameof(this.LatencyHotspotRows));
         this.OnPropertyChanged(nameof(this.AllocationDiagnosticRows));
         this.OnPropertyChanged(nameof(this.CpuTimelineRows));
@@ -8864,11 +8513,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// pendingChartRefreshTabs フィールドです。
     /// </summary>
     private readonly HashSet<BenchmarkSourceTab> pendingChartRefreshTabs = [];
-    /// <summary>
-    /// pendingDirtyChartTabs フィールドです。
-    /// </summary>
     private readonly HashSet<BenchmarkSourceTab> pendingDirtyChartTabs = [];
-
     /// <summary>
     /// preserveExistingWhenNoMeasuredPoints プロパティです。
     /// </summary>
@@ -8916,16 +8561,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
                         UiThreadBudget.Measure("chart-apply",() => {
                             state.ComparisonRows=computed.Rows;
                             this.ベンチマークシェア概要を更新(state);
-                            IReadOnlyList<ChartComparisonPoint> points;
-                            if(state.RequiresFullChartRebuild) {
-                                points=this.BuildBenchmarkChartPoints(state,computed.Rows);
-                                this.SyncBenchmarkChartPoints(state,points);
-                            }else{
-                                this.FlushDirtyChartRows(state,computed.Rows);
-                                points=state.ChartPoints;
-                            }
-                            state.ChartHeight=Math.Max(BenchmarkChartMinimumHeight,points.Count*BenchmarkChartRowHeight+BenchmarkChartVerticalPadding);
-                            this.UpdateChartEmptyReason(state,computed.Rows,points);
                             this.SyncDiagnosticRows(state.LatencyHotspotRows,computed.LatencyRows);
                             this.SyncDiagnosticRows(state.AllocationDiagnosticRows,computed.AllocationRows);
                             this.SyncDiagnosticRows(state.CpuTimelineRows,computed.TimelineRows);
@@ -8956,62 +8591,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     private void ApplyChartFromComparisonRows(BenchmarkSourceTabViewState state,IReadOnlyList<BenchmarkComparisonRow> rows) {
         state.ComparisonRows=rows;
         this.ベンチマークシェア概要を更新(state);
-        var points = this.BuildBenchmarkChartPoints(state,rows);
-        this.SyncBenchmarkChartPoints(state,points);
-        state.ChartHeight=Math.Max(BenchmarkChartMinimumHeight,points.Count*BenchmarkChartRowHeight+BenchmarkChartVerticalPadding);
-        this.UpdateChartEmptyReason(state,rows,points);
         this.RefreshDiagnosticViews(state,rows);
-    }
-
-    private void UpdateChartEmptyReason(BenchmarkSourceTabViewState state,IReadOnlyList<BenchmarkComparisonRow> rows,IReadOnlyList<ChartComparisonPoint> points) {
-        var reason = this.CreateChartEmptyReason(state,rows,points);
-        state.ChartEmptyReasonText=reason.Text;
-        state.ChartEmptyReasonTooltipText=reason.Tooltip;
-        if(ReferenceEquals(state,this.SelectedSourceTabViewState)) {
-            this.OnPropertyChanged(nameof(this.ChartEmptyReasonText));
-            this.OnPropertyChanged(nameof(this.ChartEmptyReasonTooltipText));
-        }
-    }
-
-    private (string Text,string Tooltip) CreateChartEmptyReason(
-        BenchmarkSourceTabViewState state,
-        IReadOnlyList<BenchmarkComparisonRow> rows,
-        IReadOnlyList<ChartComparisonPoint> points) {
-        if(points.Count>0) {
-            return (string.Empty,string.Empty);
-        }
-
-        var sourceTab = state.Definition;
-        var selectedN = this.SelectedResultElementCount?.DisplayName??"-";
-        var selectedRun = this.SelectedRunOption?.DisplayName??"-";
-        var tooltip = "タブ: "+sourceTab.DisplayName+"\n"
-            +"Run: "+selectedRun+"\n"
-            +"選択軸: "+selectedN+"\n"
-            +"表示結果: "+this.ResultItems.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)+"\n"
-            +"比較行: "+rows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
-
-        if(!this.HasAnyLiveSelectedBenchmarkCell(sourceTab)) {
-            return ("選択中のベンチマークがありません。",tooltip+"\n原因: このタブで選択済みのベンチマークセルがありません。");
-        }
-
-        if(this.IsBenchmarkRunActive) {
-            return ("計測結果を待っています。",tooltip+"\n原因: 実行中ですが、まだ比較チャートに使える完了結果がありません。");
-        }
-
-        var hasTabResults = this.currentRunSession.HasResults(sourceTab.Tab)||this.ResultItems.Any(result => sourceTab.ContainsProject(result.Project));
-        if(!hasTabResults) {
-            if(this.SelectedRunOption is null||IsNewRunOption(this.SelectedRunOption)) {
-                return ("ベンチマークを実行するか、保存済み DB 実行を選択してください。",tooltip+"\n原因: 現在のタブに表示できる結果がまだありません。");
-            }
-
-            return ("保存済み DB 実行に表示できる完了結果がありません。",tooltip+"\n原因: 選択した保存済み実行から、このタブの完了結果を復元できませんでした。");
-        }
-
-        if(rows.Count==0) {
-            return ("比較できる完了結果がありません。",tooltip+"\n原因: 選択状態、軸、または結果ステータスの条件に合う比較行がありません。");
-        }
-
-        return ("比較ペアの両側に有効な値がありません。",tooltip+"\n原因: 比較行はありますが、左右のどちらかまたは両方に計測値がありません。");
     }
 
     /// <summary>
@@ -9385,252 +8965,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
         return text[start..end];
     }
 
-    /// <summary>
-    /// SyncChartPoints メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    /// <param name="points">points を指定して実行条件を制御します。</param>
-    private void SyncChartPoints(IReadOnlyList<ChartComparisonPoint> points) {
-        this.SyncChartPoints(this.ChartPoints,points);
-    }
-
-    private void SyncBenchmarkChartPoints(
-        BenchmarkSourceTabViewState state,
-        IReadOnlyList<ChartComparisonPoint> points) {
-        UiThreadBudget.Measure("chart-structural-rebuild",() => {
-            foreach(var point in state.ChartPoints) {
-                if(point.Row is not { } row) {
-                    continue;
-                }
-
-                if(ReferenceEquals(row.ChartBar,point)) {
-                    row.ChartBar=null;
-                    row.ChartPointIndex=-1;
-                }
-                point.DetachRow(row);
-            }
-
-            this.SyncChartPoints(state.ChartPoints,points);
-            state.DirtyChartRows.Clear();
-            state.RequiresFullChartRebuild=false;
-            this.RebuildChartPointIndexes(state);
-        });
-        UiThreadBudget.Record("chart-structural-rebuild-count",points.Count);
-    }
-
-    private void FlushDirtyChartRows(
-        BenchmarkSourceTabViewState state,
-        IReadOnlyList<BenchmarkComparisonRow> comparisonRows) {
-        if(state.DirtyChartRows.Count==0) {
-            return;
-        }
-
-        var dirtyRows=state.DirtyChartRows.ToArray();
-        state.DirtyChartRows.Clear();
-        UiThreadBudget.Record("chart-dirty-row-count",dirtyRows.Length);
-        UiThreadBudget.Measure("chart-dirty-flush",() => {
-            foreach(var row in dirtyRows) {
-                if(row.ChartBar is { } chartBar
-                    &&(row.ChartPointIndex<0
-                        ||row.ChartPointIndex>=state.ChartPoints.Count
-                        ||!ReferenceEquals(state.ChartPoints[row.ChartPointIndex],chartBar))) {
-                    var points=this.BuildBenchmarkChartPoints(state,comparisonRows);
-                    this.SyncBenchmarkChartPoints(state,points);
-                    return;
-                }
-
-                this.RefreshDirtyChartRow(state,row,comparisonRows);
-            }
-        });
-    }
-
-    private void RefreshDirtyChartRow(
-        BenchmarkSourceTabViewState state,
-        BenchmarkTableRow row,
-        IReadOnlyList<BenchmarkComparisonRow> comparisonRows) {
-        var candidate=this.CreateBenchmarkChartPoint(row,comparisonRows,state.Definition);
-        if(candidate is null) {
-            this.RemoveChartBar(state,row);
-            return;
-        }
-
-        if(row.ChartBar is { } chartBar) {
-            chartBar.ApplyFrom(candidate);
-            state.ChartPoints[row.ChartPointIndex]=chartBar;
-            UiThreadBudget.Record("chart-dirty-bar-update-count",1);
-            return;
-        }
-
-        var insertIndex=0;
-        while(insertIndex<state.ChartPoints.Count
-            &&state.ChartPoints[insertIndex].Row is { } existingRow
-            &&existingRow.GridDisplayIndex>row.GridDisplayIndex) {
-            insertIndex++;
-        }
-        state.ChartPoints.Insert(insertIndex,candidate);
-        UiThreadBudget.Record("chart-dirty-bar-update-count",1);
-        this.ReindexChartPointsFrom(state,insertIndex);
-        if(row.IsUiSelected) {
-            state.UiSelectedChartBars.Add(candidate);
-            state.NotifyChartSelectionChanged();
-        }
-    }
-
-    private void RemoveChartBar(BenchmarkSourceTabViewState state,BenchmarkTableRow row) {
-        if(row.ChartBar is not { } chartBar) {
-            return;
-        }
-
-        var index=row.ChartPointIndex;
-        if(index<0||index>=state.ChartPoints.Count||!ReferenceEquals(state.ChartPoints[index],chartBar)) {
-            state.RequiresFullChartRebuild=true;
-            return;
-        }
-
-        state.UiSelectedChartBars.Remove(chartBar);
-        state.ChartPoints.RemoveAt(index);
-        UiThreadBudget.Record("chart-dirty-bar-update-count",1);
-        state.ChartPointIndexesByRowKey.Remove(row.RowKey);
-        row.ChartBar=null;
-        row.ChartPointIndex=-1;
-        chartBar.DetachRow(row);
-        this.ReindexChartPointsFrom(state,index);
-        state.NotifyChartSelectionChanged();
-    }
-
-    private void ReindexChartPointsFrom(BenchmarkSourceTabViewState state,int startIndex) {
-        for(var index=startIndex;index<state.ChartPoints.Count;index++) {
-            var point=state.ChartPoints[index];
-            state.ChartPointIndexesByRowKey[point.Benchmark]=index;
-            if(point.Row is not { } row) {
-                continue;
-            }
-
-            row.ChartBar=point;
-            row.ChartPointIndex=index;
-        }
-    }
-
-    /// <summary>
-    /// SyncChartPoints メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    /// <param name="target">target を指定して実行条件を制御します。</param>
-    /// <param name="points">points を指定して実行条件を制御します。</param>
-    private void SyncChartPoints(ObservableCollection<ChartComparisonPoint> target,IReadOnlyList<ChartComparisonPoint> points) {
-        if(target.Count!=points.Count) {
-            target.Clear();
-            foreach(var point in points) {
-                target.Add(point);
-            }
-
-            return;
-        }
-
-        for(var index = 0; index<points.Count; index++) {
-            var point = points[index];
-            var current = target[index];
-            if(current is not null
-                &&ReferenceEquals(current.Row,point.Row)
-                &&current.Benchmark==point.Benchmark
-                &&current.DisplayName==point.DisplayName
-                &&Math.Abs(current.LeftValue-point.LeftValue)<0.000001
-                &&Math.Abs(current.RightValue-point.RightValue)<0.000001
-                &&current.LeftText==point.LeftText
-                &&current.RightText==point.RightText
-                &&current.TooltipText==point.TooltipText
-                &&current.IsLeftFallback==point.IsLeftFallback
-                &&current.IsRightFallback==point.IsRightFallback
-                &&current.IsLeftUiSelected==point.IsLeftUiSelected
-                &&current.IsRightUiSelected==point.IsRightUiSelected
-                &&current.IsRowUiSelected==point.IsRowUiSelected) {
-                continue;
-            }
-
-            target[index]=point;
-        }
-    }
-
-    /// <summary>
-    /// BuildBenchmarkChartPoints メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="rows">rows を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private IReadOnlyList<ChartComparisonPoint> BuildBenchmarkChartPoints(IReadOnlyList<BenchmarkComparisonRow> rows) {
-        return this.BuildBenchmarkChartPoints(this.SelectedSourceTabViewState,rows);
-    }
-
-    /// <summary>
-    /// BuildBenchmarkChartPoints メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="state">state を指定して実行条件を制御します。</param>
-    /// <param name="rows">rows を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private IReadOnlyList<ChartComparisonPoint> BuildBenchmarkChartPoints(BenchmarkSourceTabViewState state,IReadOnlyList<BenchmarkComparisonRow> rows) {
-        var rowSnapshot = state.Rows.ToArray();
-        var gridOrderPoints = rowSnapshot
-            .Select(row => this.CreateBenchmarkChartPoint(row,rows,state.Definition))
-            .Where(static point => point is not null)
-            .Select(static point => point!)
-            .ToArray();
-        return BenchmarkChartDisplayOrderLogic.CreateTransposedSourceOrder(gridOrderPoints);
-    }
-
-    /// <summary>
-    /// CreateBenchmarkChartPoint メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="row">row を指定して実行条件を制御します。</param>
-    /// <param name="rows">rows を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private ChartComparisonPoint? CreateBenchmarkChartPoint(
-        BenchmarkTableRow row,
-        IReadOnlyList<BenchmarkComparisonRow> rows) =>
-        this.CreateBenchmarkChartPoint(row,rows,this.SelectedSourceDefinition);
-
-    /// <summary>
-    /// CreateBenchmarkChartPoint メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="row">row を指定して実行条件を制御します。</param>
-    /// <param name="rows">rows を指定して実行条件を制御します。</param>
-    /// <param name="sourceTab">sourceTab を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private ChartComparisonPoint? CreateBenchmarkChartPoint(
-        BenchmarkTableRow row,
-        IReadOnlyList<BenchmarkComparisonRow> rows,
-        BenchmarkSourceTabDefinition sourceTab) {
-        var comparisonRow = FindComparisonRow(row,rows);
-        var left = this.GetChartMetrics(row,sourceTab.LeftProject,comparisonRow);
-        var right = this.GetChartMetrics(row,sourceTab.RightProject,comparisonRow);
-        var leftValue = GetMetricValue(left,this.SelectedMetric.Kind);
-        var rightValue = GetMetricValue(right,this.SelectedMetric.Kind);
-        if(leftValue is not null&&rightValue is not null) {
-            var measuredPoint = this.ApplyChartUiSelection(row,this.CreateChartComparisonPoint(row,leftValue,rightValue,sourceTab.Pair));
-            return this.ApplyChartRunningState(measuredPoint);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// FindComparisonRow メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="row">row を指定して実行条件を制御します。</param>
-    /// <param name="rows">rows を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private static BenchmarkComparisonRow? FindComparisonRow(BenchmarkTableRow row,IReadOnlyList<BenchmarkComparisonRow> rows) {
-        foreach(var item in rows) {
-            if(IsComparisonRowMatch(row,item)) {
-                return item;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// IsComparisonRowMatch メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="row">row を指定して実行条件を制御します。</param>
-    /// <param name="item">item を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
     private static bool IsComparisonRowMatch(BenchmarkTableRow row,BenchmarkComparisonRow item) =>
         BenchmarkComparisonRowMatchLogic.IsMatch(
             row.MethodName,
@@ -9638,236 +8972,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
             row.SourceTab.Tab,
             row.CasesByProject.Values.Select(static benchmark => new BenchmarkComparisonRowMatchCase(benchmark.TypeFullName,benchmark.ArgumentKey)),
             item);
-
-    /// <summary>
-    /// CreateChartComparisonPoint メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="row">row を指定して実行条件を制御します。</param>
-    /// <param name="leftValue">leftValue を指定して実行条件を制御します。</param>
-    /// <param name="rightValue">rightValue を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private ChartComparisonPoint CreateChartComparisonPoint(BenchmarkTableRow row,double? leftValue,double? rightValue) =>
-        this.CreateChartComparisonPoint(row.RowKey,row.BenchmarkName,leftValue,rightValue,row,this.SelectedComparisonPair);
-
-    /// <summary>
-    /// CreateChartComparisonPoint メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="row">row を指定して実行条件を制御します。</param>
-    /// <param name="leftValue">leftValue を指定して実行条件を制御します。</param>
-    /// <param name="rightValue">rightValue を指定して実行条件を制御します。</param>
-    /// <param name="pair">pair を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private ChartComparisonPoint CreateChartComparisonPoint(BenchmarkTableRow row,double? leftValue,double? rightValue,ComparisonPairOption pair) =>
-        this.CreateChartComparisonPoint(row.RowKey,row.BenchmarkName,leftValue,rightValue,row,pair);
-
-    /// <summary>
-    /// CreateChartComparisonPoint メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="benchmark">benchmark を指定して実行条件を制御します。</param>
-    /// <param name="displayName">displayName を指定して実行条件を制御します。</param>
-    /// <param name="leftValue">leftValue を指定して実行条件を制御します。</param>
-    /// <param name="rightValue">rightValue を指定して実行条件を制御します。</param>
-    /// <param name="row">row を指定して実行条件を制御します。</param>
-    /// <param name="pair">pair を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private ChartComparisonPoint CreateChartComparisonPoint(string benchmark,string displayName,double? leftValue,double? rightValue,BenchmarkTableRow row,ComparisonPairOption pair) {
-        var leftNumber = Math.Max(0,leftValue??0);
-        var rightNumber = Math.Max(0,rightValue??0);
-        var isLeftFallback = this.IsChartMetricFallback(row,pair.LeftProject,leftValue);
-        var isRightFallback = this.IsChartMetricFallback(row,pair.RightProject,rightValue);
-        var share=指標シェアを作成(leftValue,rightValue,this.SelectedMetric.Kind);
-        var leftShareText=share.左シェア?.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)??"-";
-        var rightShareText=share.右シェア?.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)??"-";
-        var metricName = this.SelectedMetric.Kind==BenchmarkMetricKind.Time ? "Time" : "Memory";
-        var fallbackTooltip = this.CreateChartFallbackTooltip(pair,isLeftFallback,isRightFallback);
-        var shortName = BenchmarkFormatting.ShortName(displayName);
-        var tooltip = "ベンチマーク: "+displayName
-            +(string.Equals(shortName,displayName,StringComparison.OrdinalIgnoreCase) ? string.Empty : "\n表示名: "+shortName)
-            +"\n"
-            +pair.LeftProject+" "+metricName+": "+FirstText(FormatMetric(leftValue,this.SelectedMetric.Kind),"-")+"\n"
-            +pair.RightProject+" "+metricName+": "+FirstText(FormatMetric(rightValue,this.SelectedMetric.Kind),"-")
-            +"\nShare: "+pair.LeftProject+" "+leftShareText+" / "+pair.RightProject+" "+rightShareText
-            +fallbackTooltip
-            +(string.IsNullOrWhiteSpace(BenchmarkArgumentTooltipFormatter.CreateArgumentTooltip(row))
-                ? string.Empty
-                : "\n"+BenchmarkArgumentTooltipFormatter.CreateArgumentTooltip(row));
-        var point=new ChartComparisonPoint(
-            benchmark,
-            BenchmarkFormatting.ShortName(displayName),
-            share.左シェア??0,
-            share.右シェア??0,
-            leftShareText,
-            rightShareText,
-            tooltip,
-            share.左シェア)
-            .WithFallbackState(isLeftFallback,isRightFallback);
-        point.AttachRow(row);
-        return point;
-    }
-
-    private bool IsChartMetricFallback(BenchmarkTableRow row,string project,double? metricValue) {
-        if(metricValue is null) {
-            return false;
-        }
-        if(this.SelectedResultElementCount is not { } selectedElementCount) {
-            return false;
-        }
-        if(this.ShouldUseCurrentRunMemoryForDisplay(this.SelectedSourceDefinition)) {
-            return false;
-        }
-
-        var typeFullName = GetRowTypeFullName(row,project);
-        var argumentKey = GetRowArgumentKey(row,project);
-        return !this.HasResult(row.MethodName,project,typeFullName,selectedElementCount.Value,argumentKey);
-    }
-
-    private string CreateChartFallbackTooltip(ComparisonPairOption pair,bool isLeftFallback,bool isRightFallback) {
-        if(!isLeftFallback&&!isRightFallback) {
-            return string.Empty;
-        }
-
-        var selectedN = this.SelectedResultElementCount?.DisplayName??"-";
-        if(isLeftFallback&&isRightFallback) {
-            return "\nFallback: "+pair.LeftProject+" / "+pair.RightProject+" は選択軸 "+selectedN+" ではなく最新完了結果を使用";
-        }
-        if(isLeftFallback) {
-            return "\nFallback: "+pair.LeftProject+" は選択軸 "+selectedN+" ではなく最新完了結果を使用";
-        }
-
-        return "\nFallback: "+pair.RightProject+" は選択軸 "+selectedN+" ではなく最新完了結果を使用";
-    }
-
-    /// <summary>
-    /// CreateChartArgumentTooltip メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="row">row を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private string CreateChartArgumentTooltip(BenchmarkTableRow row) {
-        return BenchmarkArgumentTooltipFormatter.CreateArgumentTooltip(row);
-    }
-
-    /// <summary>
-    /// ApplyChartRunningState メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="point">point を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private ChartComparisonPoint ApplyChartRunningState(ChartComparisonPoint point) =>
-        point.WithRunningState(
-            this.IsBenchmarkRunActive&&string.Equals(point.Benchmark,this.activeChartMethodName,StringComparison.OrdinalIgnoreCase));
-
-    /// <summary>
-    /// ApplyChartUiSelection メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="row">row を指定して実行条件を制御します。</param>
-    /// <param name="point">point を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private ChartComparisonPoint ApplyChartUiSelection(BenchmarkTableRow row,ChartComparisonPoint point) =>
-        point.WithUiSelection(row.LeftCell.IsUiSelected,row.RightCell.IsUiSelected,row.IsUiSelected);
-
-    /// <summary>
-    /// RefreshChartUiSelection メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    /// <param name="state">state を指定して実行条件を制御します。</param>
-    private void RefreshChartUiSelection(BenchmarkSourceTabViewState state,IEnumerable<BenchmarkTableRow> changedRows) {
-        var selectionChanged=false;
-        foreach(var row in changedRows) {
-            if(row.ChartBar is not { } chartBar) {
-                continue;
-            }
-
-            if(row.IsUiSelected) {
-                selectionChanged|=state.UiSelectedChartBars.Add(chartBar);
-            }else{
-                selectionChanged|=state.UiSelectedChartBars.Remove(chartBar);
-            }
-        }
-
-        if(selectionChanged) {
-            state.NotifyChartSelectionChanged();
-        }
-    }
-
-    private void RebuildChartPointIndexes(BenchmarkSourceTabViewState state) {
-        state.ChartPointIndexesByRowKey.Clear();
-        state.UiSelectedChartBars.Clear();
-        for(var index = 0; index<state.Rows.Count; index++) {
-            var row=state.Rows[index];
-            row.ChartBar=null;
-            row.ChartPointIndex=-1;
-            row.GridDisplayIndex=index;
-        }
-        for(var index = 0; index<state.ChartPoints.Count; index++) {
-            var point=state.ChartPoints[index];
-            state.ChartPointIndexesByRowKey[point.Benchmark]=index;
-            if(point.Row is not { } row) {
-                continue;
-            }
-
-            row.ChartBar=point;
-            row.ChartPointIndex=index;
-            if(row.IsUiSelected) {
-                state.UiSelectedChartBars.Add(point);
-            }
-        }
-        state.NotifyChartSelectionChanged();
-    }
-
-    /// <summary>
-    /// ApplyChartRunningState メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    private void ApplyChartRunningState() {
-        var state=this.SelectedSourceTabViewState;
-        this.ApplyChartRunningState(state,this.appliedActiveChartMethodName,false);
-        this.ApplyChartRunningState(state,this.activeChartMethodName,this.IsBenchmarkRunActive);
-        this.appliedActiveChartMethodName=this.activeChartMethodName;
-    }
-
-    private void ApplyChartRunningState(BenchmarkSourceTabViewState state,string rowKey,bool isRunning) {
-        if(string.IsNullOrWhiteSpace(rowKey)
-            ||!state.ChartPointIndexesByRowKey.TryGetValue(rowKey,out var index)
-            ||index<0
-            ||index>=state.ChartPoints.Count) {
-            return;
-        }
-
-        var point=state.ChartPoints[index];
-        var next=point.WithRunningState(isRunning);
-        point.ApplyFrom(next);
-        state.ChartPoints[index]=point;
-    }
-
-    /// <summary>
-    /// GetChartMetrics メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="row">row を指定して実行条件を制御します。</param>
-    /// <param name="project">project を指定して実行条件を制御します。</param>
-    /// <param name="comparisonRow">comparisonRow を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private ProjectMetrics GetChartMetrics(
-        BenchmarkTableRow row,
-        string project,
-        BenchmarkComparisonRow? comparisonRow) {
-        if(this.SelectedResultElementCount is not null) {
-            var comparisonMetrics = comparisonRow?.GetProject(project)??ProjectMetrics.Missing;
-            if(comparisonMetrics.HasMeasuredValue) {
-                return comparisonMetrics;
-            }
-
-            var retainedMetrics = row.GetProjectCell(project)?.Metrics;
-            if(retainedMetrics is { HasMeasuredValue: true }) {
-                return retainedMetrics.Value;
-            }
-
-            return ProjectMetrics.Missing;
-        }
-
-        var cellMetrics = row.GetProjectCell(project)?.Metrics;
-        if(cellMetrics is { HasMeasuredValue: true }) {
-            return cellMetrics.Value;
-        }
-
-        return comparisonRow?.GetProject(project)??ProjectMetrics.Missing;
-    }
 
     /// <summary>
     /// BuildElementComparisonRows メソッドを実行し、結果を算出して返却します。
@@ -10017,76 +9121,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
             metrics.HasMeasuredValue ? 0 : null,
             argumentKey,
             arguments);
-
-    /// <summary>
-    /// BuildScaleTrendPoints メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <returns>処理結果を返却します。</returns>
-    private IReadOnlyList<ChartComparisonPoint> BuildScaleTrendPoints() {
-        var selectedRow = this.BenchmarkRows.FirstOrDefault(static item => item.IsSelected);
-        var method = selectedRow?.MethodName
-            ??this.ResultItems.FirstOrDefault()?.Method
-            ??string.Empty;
-        if(string.IsNullOrWhiteSpace(method)) {
-            return [];
-        }
-
-        var typeFullName = selectedRow is null ? string.Empty : GetRowTypeFullName(selectedRow,this.SelectedSourceDefinition.LeftProject);
-        var sourceTab = this.SelectedSourceDefinition;
-        var currentRunResults = this.GetCurrentRunResultItems(sourceTab.Tab);
-        var rows = this.uiRunRepository.LoadResultItems(GetUiRunAppKind(),sourceTab)
-            .Concat(currentRunResults.Where(item => sourceTab.ContainsProject(item.Project)))
-            .Where(item => item.AxisCount>0
-                &&string.Equals(item.Method,method,StringComparison.OrdinalIgnoreCase)
-                &&IsSameType(item.TypeFullName,typeFullName))
-            .GroupBy(static item => item.AxisCount)
-            .OrderBy(static group => group.Key)
-            .Select(group => CreateScaleTrendPoint(group.Key,group.ToArray(),this.SelectedComparisonPair,this.SelectedMetric.Kind))
-            .Where(static item => item is not null)
-            .Select(static item => item!)
-            .ToArray();
-        return rows;
-    }
-
-    /// <summary>
-    /// CreateScaleTrendPoint メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="elementCount">elementCount を指定して実行条件を制御します。</param>
-    /// <param name="results">results を指定して実行条件を制御します。</param>
-    /// <param name="pair">pair を指定して実行条件を制御します。</param>
-    /// <param name="metric">metric を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private static ChartComparisonPoint? CreateScaleTrendPoint(
-        int elementCount,
-        IReadOnlyList<BenchmarkResultItem> results,
-        ComparisonPairOption pair,
-        BenchmarkMetricKind metric) {
-        var left = results.FirstOrDefault(item => string.Equals(item.Project,pair.LeftProject,StringComparison.OrdinalIgnoreCase));
-        var right = results.FirstOrDefault(item => string.Equals(item.Project,pair.RightProject,StringComparison.OrdinalIgnoreCase));
-        if(left is null||right is null
-            ||!string.Equals(left.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-            ||!string.Equals(right.Status,"Completed",StringComparison.OrdinalIgnoreCase)) {
-            return null;
-        }
-
-        var leftValue = GetMetricValue(left,metric);
-        var rightValue = GetMetricValue(right,metric);
-        if(leftValue is null||rightValue is null) {
-            return null;
-        }
-        var leftText = FormatMetric(leftValue,metric);
-        var rightText = FormatMetric(rightValue,metric);
-        return new ChartComparisonPoint(
-            elementCount.ToString("N0",System.Globalization.CultureInfo.InvariantCulture),
-            elementCount.ToString("N0",System.Globalization.CultureInfo.InvariantCulture),
-            Math.Max(0,leftValue??0),
-            Math.Max(0,rightValue??0),
-            leftText,
-            rightText,
-            $"{pair.LeftProject}: {FirstText(leftText,"-")}\n{pair.RightProject}: {FirstText(rightText,"-")}",
-            null);
-    }
-
     /// <summary>
     /// GetMetricValue メソッドを実行し、結果を算出して返却します。
     /// </summary>
@@ -10133,17 +9167,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
         return metric==BenchmarkMetricKind.Time
             ? BenchmarkFormatting.FormatNanoseconds(value)
             : BenchmarkFormatting.FormatBytes((long)Math.Round(value.Value,MidpointRounding.AwayFromZero));
-    }
-
-    /// <summary>
-    /// SetMetric メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    /// <param name="kind">kind を指定して実行条件を制御します。</param>
-    private void SetMetric(BenchmarkMetricKind kind) {
-        var option = this.Metrics.First(item => item.Kind==kind);
-        if(!ReferenceEquals(this.selectedMetric,option)) {
-            this.SelectedMetric=option;
-        }
     }
 
     /// <summary>
@@ -10211,18 +9234,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
     private static string FirstText(params string[] values) {
         return values.FirstOrDefault(static value => !string.IsNullOrWhiteSpace(value))??string.Empty;
     }
-
-    /// <summary>
-    /// GetChartLegendLabel メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="project">project を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private static string GetChartLegendLabel(string project) =>
-        BenchmarkSourceTabs.TryGetByProject(project) is { } tab
-            ? string.Equals(project,tab.LeftProject,StringComparison.OrdinalIgnoreCase)
-                ? tab.LeftHeader
-                : tab.RightHeader
-            : project;
 
     /// <summary>
     /// RefreshBenchmarkSortColumns メソッドを実行し、副作用として内部状態を更新または描画反映します。

@@ -8,8 +8,4 @@ using System.Text;
 namespace UI;
 public interface IComparisonService {
     IReadOnlyList<BenchmarkComparisonRow> BuildRows(IEnumerable<BenchmarkResultItem> results);
-    IReadOnlyList<ChartComparisonPoint> BuildChartPoints(
-        IReadOnlyList<BenchmarkComparisonRow> rows,
-        ComparisonPairOption pair,
-        MetricKind metric);
 }

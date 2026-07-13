@@ -458,7 +458,9 @@ internal sealed class BenchmarkOrchestrator(
             benchmark.TypeFullName,
             benchmark.MethodName,
             BenchmarkArgumentFormatting.CreateKey(arguments),
-            arguments){
+            arguments,
+            benchmark.BenchmarkPath,
+            benchmark.BenchmarkTypeText){
             BindingRowIndex=benchmark.BindingRowIndex,
         };
     }
@@ -725,6 +727,7 @@ internal sealed class BenchmarkOrchestrator(
             Project=benchmark.Project,
             AssemblyName=benchmark.AssemblyName,
             TypeFullName=benchmark.TypeFullName,
+            BenchmarkTypeText=benchmark.BenchmarkTypeText,
             MethodName=benchmark.MethodName,
             ArgumentKey=benchmark.ArgumentKey,
             Arguments=benchmark.Arguments.ToList(),

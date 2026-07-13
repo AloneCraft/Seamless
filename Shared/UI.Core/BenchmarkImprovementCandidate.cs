@@ -5,8 +5,6 @@ namespace UI;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
 internal static class BenchmarkImprovementCandidateBuilder{
-    public const int DefaultAutoSelectCount = 10;
-
     public static IReadOnlyList<BenchmarkImprovementCandidate> BuildCandidates(ProgressState state){
         var entries = CreateEntries(state).ToArray();
         return BuildCandidates(entries);
@@ -37,25 +35,6 @@ internal static class BenchmarkImprovementCandidateBuilder{
             .ToArray();
     }
 
-    public static IReadOnlySet<string> CreateDefaultSelectedKeys(IReadOnlyList<BenchmarkImprovementCandidate> candidates,int takeCount = DefaultAutoSelectCount){
-        var selected = new global::System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach(var candidate in candidates
-            .Where(static item => item.時間回帰か)
-            .OrderByDescending(static item => 順位値を取得(item.時間シェア))
-            .Take(takeCount)){
-            selected.Add(candidate.Key);
-        }
-
-        foreach(var candidate in candidates
-            .Where(static item => item.メモリ回帰か)
-            .OrderByDescending(static item => 順位値を取得(item.メモリシェア))
-            .Take(takeCount)){
-            selected.Add(candidate.Key);
-        }
-
-        return selected;
-    }
-
     public static string BuildPrompt(IEnumerable<BenchmarkImprovementCandidate> candidates){
         var selected = candidates
             .OrderBy(static item => item.Category,StringComparer.OrdinalIgnoreCase)
@@ -63,15 +42,23 @@ internal static class BenchmarkImprovementCandidateBuilder{
             .ThenBy(static item => item.MethodName,StringComparer.OrdinalIgnoreCase)
             .ToArray();
         if(selected.Length==0){
-            return "ベンチマーク改善プロンプト\n\n改善対象として選択された候補がありません。\n";
+            return "ベンチマーク改善プロンプト\n\n改善対象となる悪化候補がありません。\n";
         }
 
         var builder = new StringBuilder();
         builder.AppendLine("ベンチマーク改善プロンプト");
         builder.AppendLine();
-        builder.AppendLine("目的: 以下の選択候補すべてを、段階分けせず一気に実装・テスト・検証まで進めてください。");
+        builder.AppendLine("目的: 以下の悪化候補すべてを、段階分けせず一気に実装・テスト・検証まで進めてください。");
         builder.AppendLine("計画や調査だけで止まらず、コード変更と再測定可能な状態まで完了させてください。");
         builder.AppendLine("比較は Left:Right のシェアです。Leftシェアが0.50より大きいほどLeft(FLinq)側の負荷が大きく、改善優先度が高いです。");
+        builder.AppendLine();
+        builder.AppendLine("改善制約:");
+        builder.AppendLine("- ベンチマークだけを速くする一般化できない特殊化を入れないでください。特定のメソッド名、型、引数値、N、データ内容、実行パス、Benchmark実行の検出を条件に処理を変えることは禁止です。");
+        builder.AppendLine("- すべての有効な入力に適用できるアルゴリズム、データアクセス、割り当て削減、特殊化規則として実装し、ベンチマーク外の複数サイズと異なるデータ分布でも効果と正しさを確認してください。");
+        builder.AppendLine("- 結果、列挙順、遅延実行、例外、破棄、デリゲートの副作用、公開API互換性を維持してください。必要な処理の省略、結果キャッシュの使い回し、検証やfallback計測の無効化で数値を改善してはいけません。");
+        builder.AppendLine("- 時間改善のためにメモリを無制限に増やしたり、メモリ改善のために時間を大幅に悪化させたりしないでください。MeanNanosecondsとAllocatedBytesを同時に比較してください。");
+        builder.AppendLine("- 空、1件、小規模、大規模、境界値、例外を送出するデリゲート、副作用を持つデリゲートを含む回帰テストを追加し、最適化経路と通常経路の結果一致を確認してください。");
+        builder.AppendLine("- 測定ノイズや一度だけの結果で成功と判断せず、同一条件の反復測定で改善が再現することを確認してください。");
         builder.AppendLine();
         builder.AppendLine("検証方針:");
         builder.AppendLine("- 対象メソッドの単体テストを実行し、既存挙動を壊していないことを確認してください。");

@@ -316,6 +316,15 @@ public readonly record struct シェア値(
     }
 }
 
+public readonly record struct BenchmarkShareGaugeState(double LeftFraction,double RightFraction,bool HasColoredBar){
+    public static BenchmarkShareGaugeState FromShare(シェア値 share){
+        if(share.欠測か||share.左シェア is not { } left||share.右シェア is not { } right||left+right<=0){
+            return new(0,0,false);
+        }
+        return new(Math.Clamp(left,0,1),Math.Clamp(right,0,1),true);
+    }
+}
+
 public readonly record struct シェア比較(
     ComparisonPairDefinition Definition,
     ProjectMetrics Left,

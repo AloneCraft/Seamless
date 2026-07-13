@@ -17,8 +17,7 @@ internal static class BenchmarkImprovementPromptBuilder{
 
     public static string BuildPrompt(ProgressState state){
         var candidates = BenchmarkImprovementCandidateBuilder.BuildCandidates(state);
-        var selectedKeys = BenchmarkImprovementCandidateBuilder.CreateDefaultSelectedKeys(candidates);
-        return BenchmarkImprovementCandidateBuilder.BuildPrompt(candidates.Where(candidate => selectedKeys.Contains(candidate.Key)));
+        return BenchmarkImprovementCandidateBuilder.BuildPrompt(candidates);
     }
 
     public static string BuildPrompt(IEnumerable<BenchmarkImprovementCandidate> candidates) =>

@@ -804,10 +804,6 @@ public sealed class BenchmarkResultService:IBenchmarkResultService {
 
 public interface IBenchmarkComparisonService {
     IReadOnlyList<BenchmarkComparisonRow> BuildRows(IEnumerable<BenchmarkResultItem> results);
-    IReadOnlyList<ChartComparisonPoint> BuildChartPoints(
-        IReadOnlyList<BenchmarkComparisonRow> rows,
-        ComparisonPairOption pair,
-        BenchmarkMetricKind metric);
 }
 
 public sealed class BenchmarkComparisonService:IBenchmarkComparisonService {
@@ -820,80 +816,6 @@ public sealed class BenchmarkComparisonService:IBenchmarkComparisonService {
     public IReadOnlyList<BenchmarkComparisonRow> BuildRows(IEnumerable<BenchmarkResultItem> results) {
         var reportRows = results.Select(this.resultService.ToReportRow).ToArray();
         return BenchmarkComparisonFormatter.BuildComparisonRows(reportRows);
-    }
-
-    public IReadOnlyList<ChartComparisonPoint> BuildChartPoints(
-        IReadOnlyList<BenchmarkComparisonRow> rows,
-        ComparisonPairOption pair,
-        BenchmarkMetricKind metric) {
-        return rows
-            .Select(row => CreateChartPoint(row,pair,metric))
-            .Where(static point => point is not null)
-            .Select(static point => point!)
-            .OrderByDescending(static point => point.左シェア??double.NegativeInfinity)
-            .ThenByDescending(static point => Math.Abs(point.LeftValue-point.RightValue))
-            .ThenBy(static point => point.Benchmark,StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-    }
-
-    private static ChartComparisonPoint? CreateChartPoint(BenchmarkComparisonRow row,ComparisonPairOption pair,BenchmarkMetricKind metric) {
-        var left = row.GetProject(pair.LeftProject);
-        var right = row.GetProject(pair.RightProject);
-        if(!left.HasMeasuredValue||!right.HasMeasuredValue) {
-            return null;
-        }
-
-        var leftValue = GetMetricValue(left,metric);
-        var rightValue = GetMetricValue(right,metric);
-        if(leftValue is null||rightValue is null) {
-            return null;
-        }
-
-        var leftNumber = Math.Max(0,leftValue??0);
-        var rightNumber = Math.Max(0,rightValue??0);
-        シェア値 share;
-        if(metric==BenchmarkMetricKind.Time) {
-            share=シェア値.時間から作成(leftNumber,rightNumber);
-        } else {
-            share=シェア値.メモリから作成((long)leftNumber,(long)rightNumber);
-        }
-        var metricName = metric==BenchmarkMetricKind.Time?"Time":"Allocated";
-        var leftText=share.左シェア?.ToString("0.00",CultureInfo.InvariantCulture)??"-";
-        var rightText=share.右シェア?.ToString("0.00",CultureInfo.InvariantCulture)??"-";
-        var tooltip=$"{row.Benchmark}\n{pair.LeftProject} {metricName}: {FirstText(FormatMetric(leftValue,metric),"-")} / Share {leftText}\n{pair.RightProject} {metricName}: {FirstText(FormatMetric(rightValue,metric),"-")} / Share {rightText}";
-        return new ChartComparisonPoint(
-            row.Benchmark,
-            BenchmarkFormatting.ShortName(row.Benchmark),
-            share.左シェア??0,
-            share.右シェア??0,
-            leftText,
-            rightText,
-            tooltip,
-            share.左シェア);
-    }
-
-    private static double? GetMetricValue(ProjectMetrics metrics,BenchmarkMetricKind metric) {
-        if(!metrics.HasMeasuredValue) {
-            return null;
-        }
-
-        return metric==BenchmarkMetricKind.Time
-            ? metrics.TimeNanoseconds
-            : metrics.AllocatedBytes;
-    }
-
-    private static string FormatMetric(double? value,BenchmarkMetricKind metric) {
-        if(value is null) {
-            return string.Empty;
-        }
-
-        return metric==BenchmarkMetricKind.Time
-            ? BenchmarkFormatting.FormatNanoseconds(value)
-            : BenchmarkFormatting.FormatBytes((long)Math.Round(value.Value,MidpointRounding.AwayFromZero));
-    }
-
-    private static string FirstText(params string[] values) {
-        return values.FirstOrDefault(static value => !string.IsNullOrWhiteSpace(value))??string.Empty;
     }
 }
 

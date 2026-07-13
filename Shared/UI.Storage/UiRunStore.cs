@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 namespace Seamless.UI.Storage;
 
 public sealed class UiRunStore{
-    private const int SchemaVersion = 18;
+    private const int SchemaVersion = 19;
     private readonly string databasePath;
     private readonly UiRunAppKind appKind;
     private readonly object schemaGate = new();
@@ -52,11 +52,6 @@ public sealed class UiRunStore{
                 FROM "Benchmark" b INNER JOIN "実行" r ON r."実行ID"=b."実行ID"
                 WHERE b."左状態"='完了' AND b."右状態"='完了' AND b."左時間ns" IS NOT NULL AND b."右時間ns" IS NOT NULL
                     AND b."左時間ns">=0 AND b."右時間ns">=0;
-                CREATE VIEW "基準時間シェア" AS
-                WITH history AS (SELECT h.*,
-                    LAG(h."左シェア") OVER (PARTITION BY h."タブ名",h."型",h."ベンチマーク" ORDER BY h."実行ID") AS "前回左シェア",
-                    LAG(h."右シェア") OVER (PARTITION BY h."タブ名",h."型",h."ベンチマーク" ORDER BY h."実行ID") AS "前回右シェア" FROM "履歴時間シェア" h)
-                SELECT *,"左シェア"-"前回左シェア" AS "左シェア差分","右シェア"-"前回右シェア" AS "右シェア差分" FROM history;
                 CREATE VIEW "履歴メモリシェア" AS
                 SELECT r."実行ID",r."更新日時",b."タブ名",b."型",b."ベンチマーク",b."左メモリバイト",b."右メモリバイト",
                     CASE WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0.0 ELSE CAST(b."左メモリバイト" AS REAL)/(b."左メモリバイト"+b."右メモリバイト") END AS "左シェア",
@@ -64,11 +59,6 @@ public sealed class UiRunStore{
                 FROM "Benchmark" b INNER JOIN "実行" r ON r."実行ID"=b."実行ID"
                 WHERE b."左状態"='完了' AND b."右状態"='完了' AND b."左メモリバイト" IS NOT NULL AND b."右メモリバイト" IS NOT NULL
                     AND b."左メモリバイト">=0 AND b."右メモリバイト">=0;
-                CREATE VIEW "基準メモリシェア" AS
-                WITH history AS (SELECT h.*,
-                    LAG(h."左シェア") OVER (PARTITION BY h."タブ名",h."型",h."ベンチマーク" ORDER BY h."実行ID") AS "前回左シェア",
-                    LAG(h."右シェア") OVER (PARTITION BY h."タブ名",h."型",h."ベンチマーク" ORDER BY h."実行ID") AS "前回右シェア" FROM "履歴メモリシェア" h)
-                SELECT *,"左シェア"-"前回左シェア" AS "左シェア差分","右シェア"-"前回右シェア" AS "右シェア差分" FROM history;
                 """);
         }else if(appKind==UiRunAppKind.ScalableBenchmark){
             ExecuteNonQuery(connection,transaction,"""
@@ -170,12 +160,12 @@ public sealed class UiRunStore{
                 if((long)(command.ExecuteScalar()??0L)!=2L){
                     return false;
                 }
-                command.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('履歴時間シェア','基準時間シェア','履歴メモリシェア','基準メモリシェア');";
-                if((long)(command.ExecuteScalar()??0L)!=4L){
+                command.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('履歴時間シェア','履歴メモリシェア');";
+                if((long)(command.ExecuteScalar()??0L)!=2L){
                     return false;
                 }
-                command.CommandText="SELECT COUNT(*) FROM pragma_table_info('基準時間シェア') WHERE name IN('実行ID','更新日時','タブ名','型','ベンチマーク','左時間ns','右時間ns','左シェア','右シェア','前回左シェア','前回右シェア','左シェア差分','右シェア差分');";
-                if((long)(command.ExecuteScalar()??0L)!=13L){
+                command.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('基準時間シェア','基準メモリシェア');";
+                if((long)(command.ExecuteScalar()??0L)!=0L){
                     return false;
                 }
             }
@@ -767,9 +757,7 @@ public sealed class UiRunStore{
 
     public static IReadOnlyList<string> AnalysisViewNames { get; } = [
         "履歴時間シェア",
-        "基準時間シェア",
         "履歴メモリシェア",
-        "基準メモリシェア",
         "Scalable履歴",
         "Scalable前回シェア",
         "BenchmarkFallbackDiagnostics",
@@ -777,9 +765,7 @@ public sealed class UiRunStore{
 
     public IReadOnlyList<IReadOnlyDictionary<string,object?>> QueryAnalysisView(string viewName,int limit = 1000){
         if(string.Equals(viewName,"履歴時間シェア",StringComparison.Ordinal)
-            ||string.Equals(viewName,"基準時間シェア",StringComparison.Ordinal)
             ||string.Equals(viewName,"履歴メモリシェア",StringComparison.Ordinal)
-            ||string.Equals(viewName,"基準メモリシェア",StringComparison.Ordinal)
             ||string.Equals(viewName,"Scalable履歴",StringComparison.Ordinal)
             ||string.Equals(viewName,"Scalable前回シェア",StringComparison.Ordinal)){
             return this.QuerySqlAnalysisView(viewName,limit);
@@ -826,6 +812,72 @@ public sealed class UiRunStore{
             rows.Add(values);
         }
         return rows;
+    }
+
+    public IReadOnlyList<UiShareHistoryPoint> ListShareHistory(UiShareHistoryQuery query,UiShareMetric metric,int limit = 1000){
+        ArgumentNullException.ThrowIfNull(query);
+        if(query.AppKind!=this.appKind){
+            throw new InvalidDataException(
+                "Share history app kind mismatch. Store="+this.appKind+" Query="+query.AppKind);
+        }
+        if(this.appKind==UiRunAppKind.ParameterSweep){
+            throw new InvalidDataException("ParameterSweep does not provide benchmark share history.");
+        }
+        if(string.IsNullOrWhiteSpace(query.TabName)
+            ||string.IsNullOrWhiteSpace(query.TypeName)
+            ||string.IsNullOrWhiteSpace(query.BenchmarkName)){
+            throw new InvalidDataException(
+                "Share history identity is incomplete. Tab="+query.TabName
+                +" Type="+query.TypeName
+                +" Benchmark="+query.BenchmarkName);
+        }
+
+        this.EnsureSchema();
+        using var connection=this.OpenConnection();
+        using var command=connection.CreateCommand();
+        if(this.appKind==UiRunAppKind.ScalableBenchmark){
+            if(query.BenchmarkCase is null){
+                throw new InvalidDataException(
+                    "Scalable share history identity requires benchmark arguments. Tab="+query.TabName
+                    +" Type="+query.TypeName
+                    +" Benchmark="+query.BenchmarkName);
+            }
+            var leftColumn=metric==UiShareMetric.Time?"今回時間シェア":"今回メモリシェア";
+            var rightColumn=metric==UiShareMetric.Time?"前回時間シェア":"前回メモリシェア";
+            command.CommandText=$"""
+                SELECT "実行ID","{leftColumn}","{rightColumn}"
+                FROM "Scalable前回シェア"
+                WHERE "タブ名"=$tab AND "型"=$type AND "ベンチマーク"=$benchmark
+                  AND "Count" IS $count AND "Initial" IS $initial AND "Data" IS $data
+                  AND "Index" IS $index AND "Page" IS $page AND "Segment" IS $segment
+                  AND "Memory" IS $memory AND "Fraction" IS $fraction
+                  AND "{leftColumn}" IS NOT NULL AND "{rightColumn}" IS NOT NULL
+                ORDER BY "実行ID" DESC
+                LIMIT $limit;
+                """;
+            var arguments=ReadScalableArguments(query.BenchmarkCase,true);
+            AddScalableArgumentParameters(command,arguments);
+        }else{
+            var viewName=metric==UiShareMetric.Time?"履歴時間シェア":"履歴メモリシェア";
+            command.CommandText=$"""
+                SELECT "実行ID","左シェア","右シェア"
+                FROM "{viewName}"
+                WHERE "タブ名"=$tab AND "型"=$type AND "ベンチマーク"=$benchmark
+                ORDER BY "実行ID" DESC
+                LIMIT $limit;
+                """;
+        }
+        command.Parameters.AddWithValue("$tab",query.TabName);
+        command.Parameters.AddWithValue("$type",query.TypeName);
+        command.Parameters.AddWithValue("$benchmark",query.BenchmarkName);
+        command.Parameters.AddWithValue("$limit",Math.Max(1,limit));
+        using var reader=command.ExecuteReader();
+        var points=new List<UiShareHistoryPoint>();
+        while(reader.Read()){
+            points.Add(new(reader.GetInt64(0),reader.GetDouble(1),reader.GetDouble(2)));
+        }
+        points.Reverse();
+        return points;
     }
 
     private SqliteConnection OpenConnection(){
@@ -964,18 +1016,26 @@ public sealed class UiRunStore{
         return command.ExecuteScalar() is null ? null : this.appKind;
     }
 
-    private static ScalableArguments ReadScalableArguments(UiBenchmarkSnapshotCaseWrite? identity){
+    private static ScalableArguments ReadScalableArguments(UiBenchmarkSnapshotCaseWrite? identity,bool strict = false){
         var values=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
         if(identity is not null&&!string.IsNullOrWhiteSpace(identity.ArgumentsJson)){
             try{
                 using var document=System.Text.Json.JsonDocument.Parse(identity.ArgumentsJson);
+                if(document.RootElement.ValueKind!=System.Text.Json.JsonValueKind.Array){
+                    throw new System.Text.Json.JsonException("Benchmark arguments must be a JSON array.");
+                }
                 foreach(var item in document.RootElement.EnumerateArray()){
                     if(item.TryGetProperty("Name",out var name)&&item.TryGetProperty("Value",out var value)){
                         values[name.GetString()??string.Empty]=value.GetString()??value.ToString();
                     }
                 }
-            }catch(System.Text.Json.JsonException){
+            }catch(System.Text.Json.JsonException ex){
+                if(strict){
+                    throw new InvalidDataException("Scalable share history benchmark arguments are invalid JSON.",ex);
+                }
             }
+        }else if(strict){
+            throw new InvalidDataException("Scalable share history benchmark arguments are missing.");
         }
         long? Long(string name)=>values.TryGetValue(name,out var text)&&long.TryParse(text,System.Globalization.NumberStyles.Integer,System.Globalization.CultureInfo.InvariantCulture,out var value) ? value : null;
         double? Double(string name)=>values.TryGetValue(name,out var text)&&double.TryParse(text,System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var value) ? value : null;

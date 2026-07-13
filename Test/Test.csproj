@@ -81,7 +81,6 @@
     <Compile Remove="**\*.cs" />
     <Compile Include="Benchmark\Pattern.cs" />
     <Compile Include="Benchmark\シェア値.cs" />
-    <Compile Include="Benchmark\BenchmarkChartSelectionLayoutLogic.cs" />
     <Compile Include="Benchmark\BenchmarkImprovementPromptBuilder.cs" />
     <Compile Include="BenchmarkWorker\BenchmarkGridKeyLogic.cs" />
     <Compile Include="BenchmarkWorker\BenchmarkRowCheckToggleLogic.cs" />

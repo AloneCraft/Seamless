@@ -233,6 +233,18 @@ internal static class ScalableBenchmarkNameFormatter{
             : typeFullName[(index+1)..];
     }
 
+    public static string FormatRuntimeType(Type type){
+        ArgumentNullException.ThrowIfNull(type);
+        if(type.IsArray){
+            return FormatRuntimeType(type.GetElementType()!)+"[]";
+        }
+        if(type.IsGenericType){
+            var name=type.Name.Split('`')[0];
+            return name+"<"+string.Join(",",type.GetGenericArguments().Select(FormatRuntimeType))+">";
+        }
+        return FormatTypeToken(type.Name);
+    }
+
     private static ScalableBenchmarkParameters CreateParameters(BenchmarkSourceTabDefinition sourceTab,int elementCount) {
         var memorySize = elementCount>0
             ? GetScalableMemorySize(elementCount)

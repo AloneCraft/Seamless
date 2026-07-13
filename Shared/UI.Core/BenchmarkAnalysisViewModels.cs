@@ -55,42 +55,6 @@ internal static class BenchmarkAnalysisViewMapper{
                 (int)GetDouble(row,"SampleCount")))
             .OrderByDescending(static p => p.AvgMeanRatio)
             .ToArray();
-
-    public static IReadOnlyList<BenchmarkTrendSeries> MapHistoryTrend(IReadOnlyList<IReadOnlyDictionary<string,object?>> rows,int maxSeries = 8) =>
-        rows.GroupBy(row => GetText(row,"Method"),StringComparer.OrdinalIgnoreCase)
-            .OrderByDescending(g => g.Count())
-            .Take(maxSeries)
-            .Select(g => new BenchmarkTrendSeries(
-                g.Key,
-                g.OrderBy(row => GetTicks(row,"LeftFinishedAt"))
-                    .Select((row,index) => new BenchmarkTrendPoint(index,GetDouble(row,"MeanRatio")))
-                    .ToArray()))
-            .ToArray();
-
-    public static IReadOnlyList<BenchmarkTrendSeries> 時間シェア履歴を変換(IReadOnlyList<IReadOnlyDictionary<string,object?>> rows,int maxSeries = int.MaxValue) =>
-        シェア履歴を変換(rows,maxSeries);
-
-    public static IReadOnlyList<BenchmarkTrendSeries> メモリシェア履歴を変換(IReadOnlyList<IReadOnlyDictionary<string,object?>> rows,int maxSeries = int.MaxValue) =>
-        シェア履歴を変換(rows,maxSeries);
-
-    private static IReadOnlyList<BenchmarkTrendSeries> シェア履歴を変換(IReadOnlyList<IReadOnlyDictionary<string,object?>> rows,int maxSeries) =>
-        rows.GroupBy(row => GetText(row,"タブ名")+" / "+GetText(row,"型")+" / "+GetText(row,"ベンチマーク"),StringComparer.OrdinalIgnoreCase)
-            .OrderByDescending(g => g.Max(row => GetDouble(row,"左シェア")))
-            .Take(maxSeries)
-            .SelectMany(g => new[]{
-                new BenchmarkTrendSeries(
-                    g.Key+" / Left",
-                    g.OrderBy(row => GetDouble(row,"実行ID"))
-                        .Select(row => new BenchmarkTrendPoint(GetDouble(row,"実行ID"),GetDouble(row,"左シェア")))
-                        .ToArray()),
-                new BenchmarkTrendSeries(
-                    g.Key+" / Right",
-                    g.OrderBy(row => GetDouble(row,"実行ID"))
-                        .Select(row => new BenchmarkTrendPoint(GetDouble(row,"実行ID"),GetDouble(row,"右シェア")))
-                        .ToArray()),
-            })
-            .ToArray();
-
     public static IReadOnlyList<BenchmarkTrendSeries> MapScaleTrend(IReadOnlyList<IReadOnlyDictionary<string,object?>> rows,int maxSeries = 8) =>
         rows.GroupBy(row => GetText(row,"Method"),StringComparer.OrdinalIgnoreCase)
             .OrderByDescending(g => g.Max(row => GetDouble(row,"AvgMeanRatio")))

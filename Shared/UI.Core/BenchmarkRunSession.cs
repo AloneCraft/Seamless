@@ -228,6 +228,7 @@ internal sealed class BenchmarkRunSession{
             Project=result.Project,
             AssemblyName=benchmark?.AssemblyName??string.Empty,
             TypeFullName=benchmark?.TypeFullName??string.Empty,
+            BenchmarkTypeText=benchmark?.BenchmarkTypeText??string.Empty,
             MethodName=result.Method,
             ArgumentKey=argumentKey,
             Arguments=arguments,

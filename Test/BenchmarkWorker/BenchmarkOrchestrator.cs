@@ -1418,6 +1418,7 @@ public sealed class BenchmarkOrchestrator{
     [Fact]
     public void BenchmarkSkippedDisplayLogic_FindsLatestCompletedPairBeforeSelectedElementCount(){
         var systemTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
+        const int selectedAxisCount=RunningAxisCount+1;
         BenchmarkElementMeasurement[] measurements = [
             new(systemTab.LeftProject,"AggregateBy_keySelector",PreviousCompletedAxisCount,"Completed",FastLeftMeanNanoseconds),
             new(systemTab.RightProject,"AggregateBy_keySelector",PreviousCompletedAxisCount,"Completed",SlowRightMeanNanoseconds),
@@ -1432,13 +1433,13 @@ public sealed class BenchmarkOrchestrator{
             "AggregateBy_keySelector",
             systemTab.LeftProject,
             systemTab.RightProject,
-            FixedBenchmarkAxisCount);
+            selectedAxisCount);
         var missingPair = BenchmarkSkippedDisplayLogic.FindLatestCompletedPairElementCountBefore(
             measurements,
             "Aggregate_func",
             systemTab.LeftProject,
             systemTab.RightProject,
-            FixedBenchmarkAxisCount);
+            selectedAxisCount);
 
         Assert.Equal(PreviousCompletedAxisCount,stoppedAt);
         Assert.Null(missingPair);
@@ -1470,7 +1471,7 @@ public sealed class BenchmarkOrchestrator{
         new(){
             JobId=project+"|"+method+"|"+elementCount,
             Project=project,
-            AssemblyName="Assembly",
+            AssemblyName=GetAssemblyName(project),
             TypeFullName="Type",
             MethodName=method,
             SourceTab=global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray,
@@ -1562,4 +1563,3 @@ public sealed class BenchmarkOrchestrator{
         }
     }
 }
-

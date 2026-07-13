@@ -4,6 +4,8 @@ using Syncfusion.Maui.DataGrid;
 using Syncfusion.Maui.Toolkit.Charts;
 using Syncfusion.Maui.Toolkit.TabView;
 
+using Seamless.UI.Storage;
+
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -69,20 +71,6 @@ public sealed partial class MainPage:ContentPage {
     private const double BenchmarkGridDetailFontSize = 9;
     // ベンチマークホバーセルの拡張余白
     private const double BenchmarkHoverCellExpansionPadding = 14;
-    // 改善候補確認列の幅
-    private const double ImprovementCandidateCheckColumnWidth = 32;
-    // 改善候補カテゴリ列の幅
-    private const double ImprovementCandidateCategoryColumnWidth = 88;
-    // 改善候補メソッド列の幅
-    private const double ImprovementCandidateMethodColumnWidth = 190;
-    // 改善候補要素数列の幅
-    private const double ImprovementCandidateElementCountColumnWidth = 72;
-    // 改善候補比率列の幅
-    private const double ImprovementCandidateRatioColumnWidth = 132;
-    // 改善候補値列の幅
-    private const double ImprovementCandidateValueColumnWidth = 86;
-    // 改善候補ソース列の幅
-    private const double ImprovementCandidateSourceColumnWidth = 140;
     // CPUグリッド行の高さ
     private const double CpuGridRowHeight = 24;
     // CPUグリッドヘッダー行の高さ
@@ -1533,7 +1521,7 @@ public sealed partial class MainPage:ContentPage {
         var benchmarkGrid = this.CreateBenchmarkGrid(state);
         benchmarkGrid.VerticalOptions=LayoutOptions.Fill;
         grid.Add(benchmarkGrid,0,1);
-        grid.Add(this.CreateBenchmarkChartPanel(state),1,1);
+        grid.Add(this.CreateHistoryRatioTabView(state,benchmarkGrid),1,1);
         return grid;
     }
 
@@ -1671,76 +1659,7 @@ public sealed partial class MainPage:ContentPage {
         +(section.Rows.Count*CpuSectionRowHeight)
         +CpuSectionGridExtraHeight;
 
-    private View CreateBenchmarkChartPanel() =>
-        this.CreateBenchmarkChartPanel(this.viewModel?.SelectedSourceTabViewState);
-
-    private View CreateBenchmarkChartPanel(BenchmarkSourceTabViewState? state) {
-        var header = new Grid {
-            ColumnDefinitions= {
-                new ColumnDefinition { Width = GridLength.Auto },
-                new ColumnDefinition { Width = GridLength.Star },
-            },
-            Padding=new Thickness(8,4),
-            BackgroundColor=Color.FromArgb("#F1F5F9"),
-            ColumnSpacing=8,
-        };
-        header.Add(this.CreateMetricTabView(),0,0);
-
-        var chartPanel = new Grid {
-            RowDefinitions= {
-                new RowDefinition { Height = GridLength.Auto },
-                new RowDefinition { Height = GridLength.Star },
-            },
-            BackgroundColor=Colors.White,
-            VerticalOptions=LayoutOptions.Fill,
-        };
-        chartPanel.Add(header,0,0);
-        chartPanel.Add(this.CreateChartView(state),0,1);
-
-        var tabs = new SfTabView {
-            TabBarHeight=32,
-            TabBarBackground=Color.FromArgb("#E2E8F0"),
-            IndicatorBackground=Color.FromArgb("#0F766E"),
-            HeaderItemSpacing=1,
-            EnableSwiping=false,
-            ContentTransitionDuration=0,
-            BackgroundColor=Colors.White,
-            VerticalOptions=LayoutOptions.Fill,
-        };
-        this.ConfigureCompactTabView(tabs,false);
-        var chartTabOptions = new List<TabHeaderOption>();
-        var chartTabItems = new TabItemCollection();
-
-        void AddChartTab(string title,View content) {
-            var option = new TabHeaderOption(title);
-            chartTabOptions.Add(option);
-            var index = chartTabOptions.Count-1;
-            chartTabItems.Add(new SfTabItem {
-                Header=title,
-                HeaderContent=this.CreateTabHeader(option,() => tabs.SelectedIndex=index),
-                FontSize=12,
-                Content=content,
-            });
-        }
-
-        AddChartTab("基準性能比",chartPanel);
-        AddChartTab("履歴性能比",this.CreateHistoryRatioTabView());
-
-        tabs.Items=chartTabItems;
-        chartTabOptions[0].SetSelected(true);
-        tabs.PropertyChanged+=(_,args) => {
-            if(args.PropertyName!=nameof(SfTabView.SelectedIndex)) {
-                return;
-            }
-            for(var i = 0; i<chartTabOptions.Count; i++) {
-                chartTabOptions[i].SetSelected(i==tabs.SelectedIndex);
-            }
-            this.viewModel?.SetGeneratedCodeAuditTabVisible(false);
-        };
-        return tabs;
-    }
-
-    private View CreateHistoryRatioTabView() {
+    private View CreateHistoryRatioTabView(BenchmarkSourceTabViewState? state,SfDataGrid benchmarkGrid) {
         var tabs = new SfTabView {
             TabBarHeight=28,
             TabBarBackground=Color.FromArgb("#F1F5F9"),
@@ -1753,21 +1672,131 @@ public sealed partial class MainPage:ContentPage {
         };
         this.ConfigureCompactTabView(tabs,false);
         var options = new[] { new TabHeaderOption("時間シェア"),new TabHeaderOption("メモリシェア") };
+        var timeHost = new Grid { BackgroundColor=Colors.White };
+        var memoryHost = new Grid { BackgroundColor=Colors.White };
         tabs.Items=new TabItemCollection {
             new SfTabItem {
                 Header="時間シェア",
                 HeaderContent=this.CreateTabHeader(options[0],() => tabs.SelectedIndex=0),
                 FontSize=12,
-                Content=this.CreateTrendChartTab(() => this.viewModel?.時間シェア履歴を読込()??[],"実行ID","時間シェア",0,1),
+                Content=timeHost,
             },
             new SfTabItem {
                 Header="メモリシェア",
                 HeaderContent=this.CreateTabHeader(options[1],() => tabs.SelectedIndex=1),
                 FontSize=12,
-                Content=this.CreateTrendChartTab(() => this.viewModel?.メモリシェア履歴を読込()??[],"実行ID","メモリシェア",0,1),
+                Content=memoryHost,
             },
         };
         options[0].SetSelected(true);
+        BenchmarkTableRow? focusedRow=null;
+        SfCartesianChart? timeChart=null;
+        SfCartesianChart? memoryChart=null;
+        var timeDirty=true;
+        var memoryDirty=true;
+
+        SfCartesianChart CreateChart(string yAxisTitle) {
+            var chart=new SfCartesianChart {
+                TooltipBehavior=new ChartTooltipBehavior { FontSize=12,Duration=4 },
+                Legend=new ChartLegend(),
+                VerticalOptions=LayoutOptions.Fill,
+            };
+            chart.XAxes.Add(new NumericalAxis { Title=new ChartAxisTitle { Text="実行ID" },Interval=1 });
+            chart.YAxes.Add(new NumericalAxis {
+                Title=new ChartAxisTitle { Text=yAxisTitle },
+                Minimum=0,
+                Maximum=1,
+            });
+            return chart;
+        }
+
+        void Reload(UiShareMetric metric) {
+            var chart=metric==UiShareMetric.Time?timeChart:memoryChart;
+            if(chart is null) {
+                return;
+            }
+            chart.Series.Clear();
+            if(focusedRow is null||this.viewModel is null) {
+                return;
+            }
+            var seriesList=this.viewModel.LoadShareHistory(focusedRow,metric);
+            for(var index=0;index<seriesList.Count;index++) {
+                var series=seriesList[index];
+                chart.Series.Add(new LineSeries {
+                    Label=series.SeriesLabel,
+                    XBindingPath=nameof(BenchmarkTrendPoint.X),
+                    YBindingPath=nameof(BenchmarkTrendPoint.Y),
+                    ItemsSource=series.Points,
+                    Fill=new SolidColorBrush(Color.FromArgb(index==0?"#2563EB":"#F97316")),
+                    StrokeWidth=2,
+                });
+            }
+            if(metric==UiShareMetric.Time) {
+                timeDirty=false;
+            }else{
+                memoryDirty=false;
+            }
+        }
+
+        void EnsureVisibleChart() {
+            if(focusedRow is null) {
+                return;
+            }
+            if(tabs.SelectedIndex==1) {
+                if(memoryChart is null) {
+                    memoryChart=CreateChart("メモリシェア");
+                    memoryHost.Add(memoryChart,0,0);
+                }
+                if(memoryDirty) {
+                    Reload(UiShareMetric.Memory);
+                }
+                return;
+            }
+            if(timeChart is null) {
+                timeChart=CreateChart("時間シェア");
+                timeHost.Add(timeChart,0,0);
+            }
+            if(timeDirty) {
+                Reload(UiShareMetric.Time);
+            }
+        }
+
+        void SetFocusedRow(BenchmarkTableRow? row) {
+            if(ReferenceEquals(focusedRow,row)) {
+                return;
+            }
+            focusedRow=row;
+            timeDirty=true;
+            memoryDirty=true;
+            EnsureVisibleChart();
+        }
+
+        benchmarkGrid.SelectionChanged+=(_,args) => {
+            var row=benchmarkGrid.CurrentRow as BenchmarkTableRow
+                ??BenchmarkCheckSelectionController.GetSelectedRows(args.AddedRows).LastOrDefault();
+            if(row is not null) {
+                SetFocusedRow(row);
+            }
+        };
+        if(this.viewModel is not null) {
+            this.viewModel.ShareHistoryChanged+=(_,_) => {
+                timeDirty=true;
+                memoryDirty=true;
+                StartupDiagnostics.BeginInvokeOnMainThread("share history refresh",() => {
+                    var currentRow=benchmarkGrid.CurrentRow as BenchmarkTableRow;
+                    var resolvedRow=currentRow is not null&&state?.Rows.Contains(currentRow)==true
+                        ? currentRow
+                        : state?.Rows.FirstOrDefault(row => focusedRow is not null
+                            &&string.Equals(row.RowKey,focusedRow.RowKey,StringComparison.OrdinalIgnoreCase))
+                            ??state?.Rows.FirstOrDefault(static row =>
+                                row.LeftCell.Metrics.HasMeasuredValue&&row.RightCell.Metrics.HasMeasuredValue);
+                    if(!ReferenceEquals(focusedRow,resolvedRow)) {
+                        SetFocusedRow(resolvedRow);
+                    }
+                    EnsureVisibleChart();
+                });
+            };
+        }
         tabs.PropertyChanged+=(_,args) => {
             if(args.PropertyName!=nameof(SfTabView.SelectedIndex)) {
                 return;
@@ -1775,6 +1804,16 @@ public sealed partial class MainPage:ContentPage {
             for(var i = 0; i<options.Length; i++) {
                 options[i].SetSelected(i==tabs.SelectedIndex);
             }
+            EnsureVisibleChart();
+        };
+        tabs.Loaded+=(_,_) => {
+            var initialRow=state?.Rows.FirstOrDefault(static row =>
+                row.LeftCell.Metrics.HasMeasuredValue&&row.RightCell.Metrics.HasMeasuredValue);
+            if(initialRow is not null&&benchmarkGrid.SelectionController is BenchmarkCheckSelectionController selectionController) {
+                selectionController.SelectSingle(initialRow);
+            }
+            SetFocusedRow(initialRow??benchmarkGrid.CurrentRow as BenchmarkTableRow);
+            EnsureVisibleChart();
         };
         return tabs;
     }
@@ -2219,64 +2258,10 @@ public sealed partial class MainPage:ContentPage {
         Apply();
         return layout;
     }
-
-    private View CreateMetricTabView() {
-        var tabView = new SfTabView {
-            HeightRequest=28,
-            TabBarHeight=28,
-            TabBarBackground=Colors.Transparent,
-            IndicatorBackground=Colors.Transparent,
-            HeaderItemSpacing=1,
-            EnableSwiping=false,
-            ContentTransitionDuration=0,
-            BackgroundColor=Colors.Transparent,
-            HorizontalOptions=LayoutOptions.Start,
-        };
-        this.ConfigureCompactTabView(tabView,false);
-        var timeOption = new TabHeaderOption("時間シェア");
-        var allocatedOption = new TabHeaderOption("メモリシェア");
-        var options = new[] { timeOption,allocatedOption };
-        tabView.Items=new TabItemCollection {
-            new SfTabItem { Header="時間シェア",HeaderContent=this.CreateTabHeader(timeOption,() => tabView.SelectedIndex=0),FontSize=12,Content=new Grid() },
-            new SfTabItem { Header="メモリシェア",HeaderContent=this.CreateTabHeader(allocatedOption,() => tabView.SelectedIndex=1),FontSize=12,Content=new Grid() },
-        };
-        tabView.SelectedIndex=this.viewModel?.IsAllocatedMetricSelected==true ? 1 : 0;
-        options[tabView.SelectedIndex].SetSelected(true);
-
-        var isApplyingMetricTabSelection = false;
-        tabView.PropertyChanged+=(_,args) => {
-            if(args.PropertyName!=nameof(SfTabView.SelectedIndex)||this.viewModel is null) {
-                return;
-            }
-            for(var i = 0; i<options.Length; i++) {
-                options[i].SetSelected(i==tabView.SelectedIndex);
-            }
-            isApplyingMetricTabSelection=true;
-            try {
-                if(tabView.SelectedIndex==1) {
-                    this.viewModel.IsAllocatedMetricSelected=true;
-                } else {
-                    this.viewModel.IsTimeMetricSelected=true;
-                }
-            } finally {
-                isApplyingMetricTabSelection=false;
-            }
-        };
-        if(this.viewModel is not null) {
-            this.viewModel.PropertyChanged+=(_,args) => {
-                if(isApplyingMetricTabSelection||args.PropertyName!=nameof(RunnerViewModel.SelectedMetric)) {
-                    return;
-                }
-                StartupDiagnostics.BeginInvokeOnMainThread("metric tab sync",() => tabView.SelectedIndex=this.viewModel.IsAllocatedMetricSelected ? 1 : 0);
-            };
-        }
-        return tabView;
-    }
-
     private View CreateBenchmarkGrid() =>
         this.CreateBenchmarkGrid(this.viewModel?.SelectedSourceTabViewState);
 
-    private View CreateBenchmarkGrid(BenchmarkSourceTabViewState? state) {
+    private SfDataGrid CreateBenchmarkGrid(BenchmarkSourceTabViewState? state) {
         StartupDiagnostics.WriteSyncfusionAssemblies("CreateBenchmarkGrid before SfDataGrid");
         var SfDataGrid = new SfDataGrid {
             AutoGenerateColumnsMode=AutoGenerateColumnsMode.None,
@@ -2412,8 +2397,8 @@ public sealed partial class MainPage:ContentPage {
         var leftMappings = this.AddProjectColumns(grid,nameof(BenchmarkTableRow.LeftCell),BenchmarkGridSortColumn.左日時,BenchmarkGridSortColumn.LeftTime,BenchmarkGridSortColumn.LeftAllocated);
         var timeShareMapping = nameof(BenchmarkTableRow.時間シェア表示);
         var memoryShareMapping = nameof(BenchmarkTableRow.メモリシェア表示);
-        grid.Columns.Add(this.CreateTextColumn(shareHeader,timeShareMapping,BenchmarkGridSortColumn.時間シェア,時間シェア,TextAlignment.End,Color.FromArgb("#F8FAFC")));
-        grid.Columns.Add(this.CreateTextColumn(shareHeader,memoryShareMapping,BenchmarkGridSortColumn.メモリシェア,メモリシェア,TextAlignment.End,Color.FromArgb("#F8FAFC")));
+        grid.Columns.Add(this.CreateShareGaugeColumn(shareHeader,timeShareMapping,nameof(BenchmarkTableRow.時間シェアゲージ),BenchmarkGridSortColumn.時間シェア,時間シェア));
+        grid.Columns.Add(this.CreateShareGaugeColumn(shareHeader,memoryShareMapping,nameof(BenchmarkTableRow.メモリシェアゲージ),BenchmarkGridSortColumn.メモリシェア,メモリシェア));
         var rightMappings = this.AddProjectColumns(grid,nameof(BenchmarkTableRow.RightCell),BenchmarkGridSortColumn.右日時,BenchmarkGridSortColumn.RightTime,BenchmarkGridSortColumn.RightAllocated);
         this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup("Left",leftHeader),leftMappings,sourceTab);
         this.AddBenchmarkRatioHeader(projectHeaderRow,timeShareMapping,"時間シェア");
@@ -2546,6 +2531,100 @@ public sealed partial class MainPage:ContentPage {
             ColumnMappingNames=string.Join(",",baseMappings),
             Template=this.CreateBenchmarkNeutralGroupHeaderTemplate("項目"),
         });
+    }
+
+    private DataGridTemplateColumn CreateShareGaugeColumn(
+        string header,
+        string textPath,
+        string gaugePath,
+        BenchmarkGridSortColumn sortColumn,
+        double width) =>
+        new() {
+            MappingName=textPath,
+            HeaderText=header,
+            Width=width,
+            AllowSorting=false,
+            HeaderTemplate=this.CreateHeaderTemplate(header,sortColumn),
+            CellTemplate=new DataTemplate(() => CreateShareGaugeCell(textPath,gaugePath)),
+        };
+
+    private static View CreateShareGaugeCell(string textPath,string gaugePath) {
+        var leftFill = new BoxView { Color=Color.FromArgb("#2563EB") };
+        var rightFill = new BoxView { Color=Color.FromArgb("#F97316") };
+        var track = new Grid {
+            HeightRequest=6,
+            BackgroundColor=Colors.Transparent,
+            ColumnDefinitions= {
+                new ColumnDefinition { Width=0 },
+                new ColumnDefinition { Width=0 },
+            },
+            Children= { leftFill,rightFill },
+        };
+        Grid.SetColumn(rightFill,1);
+        var text = new Label {
+            FontSize=BenchmarkGridCellFontSize,
+            TextColor=Color.FromArgb("#0F172A"),
+            LineBreakMode=LineBreakMode.TailTruncation,
+            HorizontalTextAlignment=TextAlignment.End,
+            VerticalTextAlignment=TextAlignment.Center,
+            Padding=new Thickness(2,0),
+        };
+        text.SetBinding(Label.TextProperty,textPath);
+        text.SetBinding(ToolTipProperties.TextProperty,textPath);
+        var cell = new Grid {
+            RowDefinitions= {
+                new RowDefinition { Height=GridLength.Star },
+                new RowDefinition { Height=new GridLength(6) },
+            },
+            RowSpacing=1,
+            Padding=new Thickness(1,0),
+            BackgroundColor=Color.FromArgb("#F8FAFC"),
+            Children= { text,track },
+        };
+        Grid.SetRow(track,1);
+
+        BenchmarkTableRow? subscribedRow = null;
+        var isSubscribed=false;
+        void Refresh() {
+            var gauge=cell.BindingContext is BenchmarkTableRow row
+                ? gaugePath==nameof(BenchmarkTableRow.時間シェアゲージ)
+                    ? row.時間シェアゲージ
+                    : row.メモリシェアゲージ
+                : default;
+            var trackWidth=Math.Max(0,track.Width);
+            track.ColumnDefinitions[0].Width=new GridLength(gauge.HasColoredBar ? trackWidth*gauge.LeftFraction : 0);
+            track.ColumnDefinitions[1].Width=new GridLength(gauge.HasColoredBar ? trackWidth*gauge.RightFraction : 0);
+        }
+        void OnRowPropertyChanged(object? sender,PropertyChangedEventArgs args) {
+            if(args.PropertyName==gaugePath||string.IsNullOrEmpty(args.PropertyName)) {
+                Refresh();
+            }
+        }
+        void Subscribe() {
+            if(subscribedRow is not null&&!isSubscribed) {
+                subscribedRow.PropertyChanged+=OnRowPropertyChanged;
+                isSubscribed=true;
+            }
+        }
+        void Unsubscribe() {
+            if(subscribedRow is not null&&isSubscribed) {
+                subscribedRow.PropertyChanged-=OnRowPropertyChanged;
+                isSubscribed=false;
+            }
+        }
+        cell.BindingContextChanged+=(_,_) => {
+            Unsubscribe();
+            subscribedRow=cell.BindingContext as BenchmarkTableRow;
+            Subscribe();
+            Refresh();
+        };
+        cell.Loaded+=(_,_) => {
+            Subscribe();
+            Refresh();
+        };
+        cell.Unloaded+=(_,_) => Unsubscribe();
+        track.SizeChanged+=(_,_) => Refresh();
+        return cell;
     }
 
     private IReadOnlyList<string> AddArgumentColumns(SfDataGrid grid,BenchmarkSourceTabDefinition sourceTab) {
@@ -3224,7 +3303,6 @@ public sealed partial class MainPage:ContentPage {
         header.Add(copyButton,0,0);
         header.Add(title,1,0);
 
-        var candidateTabs = this.CreateImprovementCandidateTabView();
         var promptText = new Editor {
             FontSize=11,
             TextColor=Color.FromArgb("#0F172A"),
@@ -3248,17 +3326,10 @@ public sealed partial class MainPage:ContentPage {
                 new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Star },
             },
-            ColumnDefinitions= {
-                new ColumnDefinition { Width = new GridLength(3,GridUnitType.Star) },
-                new ColumnDefinition { Width = new GridLength(2,GridUnitType.Star) },
-            },
             RowSpacing=4,
-            ColumnSpacing=8,
         };
         content.Add(header,0,0);
-        Grid.SetColumnSpan(header,2);
-        content.Add(candidateTabs,0,1);
-        content.Add(promptBorder,1,1);
+        content.Add(promptBorder,0,1);
         return new Border {
             Stroke=Color.FromArgb("#CBD5E1"),
             StrokeThickness=1,
@@ -3266,192 +3337,6 @@ public sealed partial class MainPage:ContentPage {
             Padding=new Thickness(8),
             Content=content,
         };
-    }
-
-    private View CreateImprovementCandidateTabView() {
-        var tabView = new SfTabView {
-            TabBarHeight=LowerTabBarHeight,
-            TabBarBackground=Color.FromArgb("#E2E8F0"),
-            IndicatorBackground=Colors.Transparent,
-            HeaderItemSpacing=1,
-            EnableSwiping=false,
-            ContentTransitionDuration=0,
-            BackgroundColor=Color.FromArgb("#F8FAFC"),
-            HorizontalOptions=LayoutOptions.Fill,
-            VerticalOptions=LayoutOptions.Fill,
-        };
-        this.ConfigureCompactTabView(tabView,false);
-        var timeOption = new TabHeaderOption("時間");
-        var allocatedOption = new TabHeaderOption("メモリ");
-        var options = new[] { timeOption,allocatedOption };
-        var timeGrid = this.CreateImprovementCandidateGrid(nameof(RunnerViewModel.TimeImprovementCandidates),false);
-        var allocatedGrid = this.CreateImprovementCandidateGrid(nameof(RunnerViewModel.AllocatedImprovementCandidates),true);
-        tabView.Items=new TabItemCollection {
-            new SfTabItem { Header="時間",HeaderContent=this.CreateTabHeader(timeOption,() => tabView.SelectedIndex=0),FontSize=12,Content=timeGrid },
-            new SfTabItem { Header="メモリ",HeaderContent=this.CreateTabHeader(allocatedOption,() => tabView.SelectedIndex=1),FontSize=12,Content=allocatedGrid },
-        };
-        tabView.SelectedIndex=0;
-        options[0].SetSelected(true);
-        tabView.PropertyChanged+=(_,args) => {
-            if(args.PropertyName!=nameof(SfTabView.SelectedIndex)) {
-                return;
-            }
-            for(var i = 0; i<options.Length; i++) {
-                options[i].SetSelected(i==tabView.SelectedIndex);
-            }
-        };
-        return tabView;
-    }
-
-    private SfDataGrid CreateImprovementCandidateGrid(string itemsSourcePath,bool allocatedTab) {
-        var grid = new SfDataGrid {
-            AutoGenerateColumnsMode=AutoGenerateColumnsMode.None,
-            RowHeight=BenchmarkGridRowHeight,
-            HeaderRowHeight=BenchmarkGridHeaderRowHeight,
-            AllowTriStateSorting=false,
-            AllowResizingColumns=true,
-            SortingMode=DataGridSortingMode.None,
-            SelectionMode=DataGridSelectionMode.None,
-            HorizontalScrollBarVisibility=ScrollBarVisibility.Always,
-            VerticalScrollBarVisibility=ScrollBarVisibility.Always,
-            GridLinesVisibility=GridLinesVisibility.Both,
-            DefaultColumnWidth=92,
-            HorizontalOptions=LayoutOptions.Fill,
-            VerticalOptions=LayoutOptions.Fill,
-        };
-        this.RegisterDataGridUpdateBatchTarget(grid);
-        grid.SetBinding(SfDataGrid.ItemsSourceProperty,itemsSourcePath);
-        this.ConfigureDataGridLines(grid);
-        this.ConfigureDataGridScrollBars(grid);
-        grid.Columns.Add(this.CreateImprovementCandidateCheckColumn());
-        grid.Columns.Add(this.CreateImprovementCandidateTextColumn("カテゴリ",nameof(BenchmarkImprovementCandidateRow.Category),ImprovementCandidateCategoryColumnWidth,TextAlignment.Start));
-        grid.Columns.Add(this.CreateImprovementCandidateTextColumn("メソッド",nameof(BenchmarkImprovementCandidateRow.MethodName),ImprovementCandidateMethodColumnWidth,TextAlignment.Start));
-        grid.Columns.Add(this.CreateImprovementCandidateTextColumn("N",nameof(BenchmarkImprovementCandidateRow.WorstElementCountText),ImprovementCandidateElementCountColumnWidth,TextAlignment.End));
-        grid.Columns.Add(this.CreateImprovementCandidateGaugeColumn("時間シェア",nameof(BenchmarkImprovementCandidateRow.時間ゲージ文字列),static row => row.時間ゲージ割合,Color.FromArgb("#2563EB")));
-        grid.Columns.Add(this.CreateImprovementCandidateGaugeColumn("メモリシェア",nameof(BenchmarkImprovementCandidateRow.メモリゲージ文字列),static row => row.メモリゲージ割合,Color.FromArgb("#F97316")));
-        if(allocatedTab) {
-            grid.Columns.Add(this.CreateImprovementCandidateTextColumn("Leftメモリ",nameof(BenchmarkImprovementCandidateRow.LeftAllocatedText),ImprovementCandidateValueColumnWidth,TextAlignment.End));
-            grid.Columns.Add(this.CreateImprovementCandidateTextColumn("Rightメモリ",nameof(BenchmarkImprovementCandidateRow.RightAllocatedText),ImprovementCandidateValueColumnWidth,TextAlignment.End));
-        }else{
-            grid.Columns.Add(this.CreateImprovementCandidateTextColumn("Left時間",nameof(BenchmarkImprovementCandidateRow.LeftTimeText),ImprovementCandidateValueColumnWidth,TextAlignment.End));
-            grid.Columns.Add(this.CreateImprovementCandidateTextColumn("Right時間",nameof(BenchmarkImprovementCandidateRow.RightTimeText),ImprovementCandidateValueColumnWidth,TextAlignment.End));
-        }
-        grid.Columns.Add(this.CreateImprovementCandidateTextColumn("比較",nameof(BenchmarkImprovementCandidateRow.SourceTabText),ImprovementCandidateSourceColumnWidth,TextAlignment.Start));
-        return grid;
-    }
-
-    private DataGridTemplateColumn CreateImprovementCandidateCheckColumn() {
-        return new DataGridTemplateColumn {
-            MappingName=nameof(BenchmarkImprovementCandidateRow.IsSelected),
-            HeaderText=string.Empty,
-            Width=ImprovementCandidateCheckColumnWidth,
-            AllowSorting=false,
-            HeaderTemplate=this.CreateImprovementCandidateHeaderTemplate(string.Empty,TextAlignment.Center),
-            CellTemplate=new DataTemplate(() => {
-                var check = new CheckBox {
-                    WidthRequest=24,
-                    HeightRequest=22,
-                    VerticalOptions=LayoutOptions.Center,
-                    HorizontalOptions=LayoutOptions.Center,
-                };
-                check.SetBinding(CheckBox.IsCheckedProperty,new Binding(nameof(BenchmarkImprovementCandidateRow.IsSelected),BindingMode.TwoWay));
-                return check;
-            }),
-        };
-    }
-
-    private DataGridTemplateColumn CreateImprovementCandidateTextColumn(string header,string path,double width,TextAlignment alignment) {
-        return new DataGridTemplateColumn {
-            MappingName=path,
-            HeaderText=header,
-            Width=width,
-            AllowSorting=false,
-            HeaderTemplate=this.CreateImprovementCandidateHeaderTemplate(header,alignment),
-            CellTemplate=new DataTemplate(() => {
-                var label = new Label {
-                    FontSize=BenchmarkGridCellFontSize,
-                    TextColor=Color.FromArgb("#0F172A"),
-                    LineBreakMode=LineBreakMode.TailTruncation,
-                    VerticalTextAlignment=TextAlignment.Center,
-                    HorizontalTextAlignment=alignment,
-                    Padding=new Thickness(2,0),
-                };
-                label.SetBinding(Label.TextProperty,path);
-                label.SetBinding(ToolTipProperties.TextProperty,path);
-                return label;
-            }),
-        };
-    }
-
-    private DataGridTemplateColumn CreateImprovementCandidateGaugeColumn(
-        string header,
-        string textPath,
-        Func<BenchmarkImprovementCandidateRow,double> getFraction,
-        Color barColor) {
-        return new DataGridTemplateColumn {
-            MappingName=textPath,
-            HeaderText=header,
-            Width=ImprovementCandidateRatioColumnWidth,
-            AllowSorting=false,
-            HeaderTemplate=this.CreateImprovementCandidateHeaderTemplate(header,TextAlignment.End),
-            CellTemplate=new DataTemplate(() => CreateCandidateGaugeCell(textPath,getFraction,barColor)),
-        };
-    }
-
-    private DataTemplate CreateImprovementCandidateHeaderTemplate(string text,TextAlignment alignment) {
-        return new DataTemplate(() => {
-            var grid = new Grid {
-                BackgroundColor=Color.FromArgb("#F1F5F9"),
-                Padding=new Thickness(2,0),
-            };
-            this.AddBenchmarkHeaderVerticalBorders(grid,Color.FromArgb("#CBD5E1"));
-            if(!string.IsNullOrEmpty(text)) {
-                grid.Add(new Label {
-                    Text=text,
-                    FontSize=10,
-                    FontAttributes=FontAttributes.Bold,
-                    TextColor=Color.FromArgb("#0F172A"),
-                    LineBreakMode=LineBreakMode.TailTruncation,
-                    VerticalTextAlignment=TextAlignment.Center,
-                    HorizontalTextAlignment=alignment,
-                },0,0);
-            }
-            return grid;
-        });
-    }
-
-    // Leftシェアを0～1の横幅で表す簡易バー。
-    private static View CreateCandidateGaugeCell(string textPath,Func<BenchmarkImprovementCandidateRow,double> getFraction,Color barColor) {
-        var fraction = 0.0;
-        var track = new Grid { HeightRequest=6,BackgroundColor=Color.FromArgb("#E2E8F0") };
-        var fill = new BoxView { Color=barColor,HorizontalOptions=LayoutOptions.Start,WidthRequest=0 };
-        track.Children.Add(fill);
-        var text = new Label {
-            FontSize=9,
-            TextColor=Color.FromArgb("#334155"),
-            LineBreakMode=LineBreakMode.TailTruncation,
-            HorizontalTextAlignment=TextAlignment.End,
-        };
-        text.SetBinding(Label.TextProperty,textPath);
-        track.SizeChanged+=(_,_) => fill.WidthRequest=track.Width*fraction;
-        var cell = new Grid {
-            RowDefinitions= {
-                new RowDefinition { Height = GridLength.Auto },
-                new RowDefinition { Height = new GridLength(6) },
-            },
-            RowSpacing=1,
-            VerticalOptions=LayoutOptions.Center,
-        };
-        cell.Add(text,0,0);
-        cell.Add(track,0,1);
-        void Refresh() {
-            fraction=cell.BindingContext is BenchmarkImprovementCandidateRow row
-                ? getFraction(row)
-                : 0.0;
-            fill.WidthRequest=track.Width>0 ? track.Width*fraction : 0;
-        }
-        cell.BindingContextChanged+=(_,_) => Refresh();
-        return cell;
     }
 
     private VerticalStackLayout CreateCpuSectionList(string itemsSourcePath) {
@@ -4069,559 +3954,7 @@ public sealed partial class MainPage:ContentPage {
         label.SetBinding(Label.TextProperty,propertyName);
         return label;
     }
-
-    private View CreateChartView() =>
-        this.CreateChartView(this.viewModel?.SelectedSourceTabViewState);
-
-    private View CreateChartView(BenchmarkSourceTabViewState? state) {
-        var chart = new SfCartesianChart {
-            IsTransposed=true,
-            Legend=new ChartLegend(),
-            TooltipBehavior=new ChartTooltipBehavior {
-                FontSize=12,
-                Duration=4,
-            },
-            BackgroundColor=Colors.Transparent,
-            PlotAreaBackgroundView=new BoxView {
-                Color=Colors.Transparent,
-                InputTransparent=true,
-            },
-            VerticalOptions=LayoutOptions.Fill,
-        };
-        if(state is not null) {
-            chart.SetBinding(HeightRequestProperty,new Binding(nameof(BenchmarkSourceTabViewState.ChartHeight),source: state));
-        }else{
-            chart.SetBinding(HeightRequestProperty,nameof(RunnerViewModel.ChartHeight));
-        }
-        var xAxis = new CategoryAxis {
-            LabelPlacement=LabelPlacement.BetweenTicks
-        };
-        var yAxis = new NumericalAxis {
-            Minimum=0,
-            Maximum=100,
-        };
-        chart.XAxes.Add(xAxis);
-        chart.YAxes.Add(yAxis);
-
-        var leftSeries = new StackingColumn100Series {
-            XBindingPath=nameof(ChartComparisonPoint.DisplayName),
-            YBindingPath=nameof(ChartComparisonPoint.LeftNormalValue),
-            ListenPropertyChange=false,
-            ShowDataLabels=false,
-            EnableTooltip=true,
-            Spacing=0,
-            Width=0.58,
-            Fill=new SolidColorBrush(Color.FromArgb("#2563EB")),
-            DataLabelSettings=new CartesianDataLabelSettings {
-                BarAlignment=DataLabelAlignment.Middle,
-                LabelPlacement=DataLabelPlacement.Inner,
-            },
-        };
-        if(state is not null) {
-            leftSeries.ItemsSource=state.ChartPoints;
-        }else{
-            leftSeries.SetBinding(ChartSeries.ItemsSourceProperty,nameof(RunnerViewModel.ChartPoints));
-        }
-        leftSeries.TooltipTemplate=this.CreateTooltipTemplate();
-
-        var leftFallbackSeries = new StackingColumn100Series {
-            XBindingPath=nameof(ChartComparisonPoint.DisplayName),
-            YBindingPath=nameof(ChartComparisonPoint.LeftFallbackValue),
-            ListenPropertyChange=false,
-            ShowDataLabels=false,
-            EnableTooltip=true,
-            Spacing=0,
-            Width=0.58,
-            Fill=new SolidColorBrush(Color.FromArgb("#93C5FD")),
-            IsVisibleOnLegend=false,
-            DataLabelSettings=new CartesianDataLabelSettings {
-                BarAlignment=DataLabelAlignment.Middle,
-                LabelPlacement=DataLabelPlacement.Inner,
-            },
-        };
-        if(state is not null) {
-            leftFallbackSeries.ItemsSource=state.ChartPoints;
-        }else{
-            leftFallbackSeries.SetBinding(ChartSeries.ItemsSourceProperty,nameof(RunnerViewModel.ChartPoints));
-        }
-        leftFallbackSeries.TooltipTemplate=this.CreateTooltipTemplate();
-
-        var rightSeries = new StackingColumn100Series {
-            XBindingPath=nameof(ChartComparisonPoint.DisplayName),
-            YBindingPath=nameof(ChartComparisonPoint.RightNormalValue),
-            ListenPropertyChange=false,
-            ShowDataLabels=false,
-            EnableTooltip=true,
-            Spacing=0,
-            Width=0.58,
-            Fill=new SolidColorBrush(Color.FromArgb("#F97316")),
-            DataLabelSettings=new CartesianDataLabelSettings {
-                BarAlignment=DataLabelAlignment.Middle,
-                LabelPlacement=DataLabelPlacement.Inner,
-            },
-        };
-        if(state is not null) {
-            rightSeries.ItemsSource=state.ChartPoints;
-        }else{
-            rightSeries.SetBinding(ChartSeries.ItemsSourceProperty,nameof(RunnerViewModel.ChartPoints));
-        }
-        rightSeries.TooltipTemplate=this.CreateTooltipTemplate();
-
-        var rightFallbackSeries = new StackingColumn100Series {
-            XBindingPath=nameof(ChartComparisonPoint.DisplayName),
-            YBindingPath=nameof(ChartComparisonPoint.RightFallbackValue),
-            ListenPropertyChange=false,
-            ShowDataLabels=false,
-            EnableTooltip=true,
-            Spacing=0,
-            Width=0.58,
-            Fill=new SolidColorBrush(Color.FromArgb("#FDBA74")),
-            IsVisibleOnLegend=false,
-            DataLabelSettings=new CartesianDataLabelSettings {
-                BarAlignment=DataLabelAlignment.Middle,
-                LabelPlacement=DataLabelPlacement.Inner,
-            },
-        };
-        if(state is not null) {
-            rightFallbackSeries.ItemsSource=state.ChartPoints;
-        }else{
-            rightFallbackSeries.SetBinding(ChartSeries.ItemsSourceProperty,nameof(RunnerViewModel.ChartPoints));
-        }
-        rightFallbackSeries.TooltipTemplate=this.CreateTooltipTemplate();
-        this.BindChartSeriesLabels(leftSeries,rightSeries);
-
-        chart.Series.Add(leftSeries);
-        chart.Series.Add(leftFallbackSeries);
-        chart.Series.Add(rightSeries);
-        chart.Series.Add(rightFallbackSeries);
-
-        var chartBackgroundDrawable = new BenchmarkChartSelectionBackgroundDrawable(
-            () => state?.ChartPoints??this.viewModel?.ChartPoints??[],
-            () => state?.UiSelectedChartBars??this.viewModel?.SelectedSourceTabViewState.UiSelectedChartBars??[],
-            () => this.GetBenchmarkGridSelectionColor(state),
-            chart,
-            xAxis,
-            yAxis);
-        var chartBackground = new GraphicsView {
-            Drawable=chartBackgroundDrawable,
-            InputTransparent=true,
-            IsVisible=true,
-            BackgroundColor=Colors.Transparent,
-            VerticalOptions=LayoutOptions.Fill,
-            HorizontalOptions=LayoutOptions.Fill,
-        };
-        var chartOverlay = new GraphicsView {
-            Drawable=new BenchmarkChartSelectionHitDrawable(),
-            InputTransparent=false,
-            BackgroundColor=Colors.Transparent,
-            VerticalOptions=LayoutOptions.Fill,
-            HorizontalOptions=LayoutOptions.Fill,
-        };
-        if(state is not null) {
-            chartBackground.SetBinding(HeightRequestProperty,new Binding(nameof(BenchmarkSourceTabViewState.ChartHeight),source: state));
-            chartOverlay.SetBinding(HeightRequestProperty,new Binding(nameof(BenchmarkSourceTabViewState.ChartHeight),source: state));
-        }else{
-            chartBackground.SetBinding(HeightRequestProperty,nameof(RunnerViewModel.ChartHeight));
-            chartOverlay.SetBinding(HeightRequestProperty,nameof(RunnerViewModel.ChartHeight));
-        }
-        if(state is not null) {
-            NotifyCollectionChangedEventHandler handler = (_,_) => {
-                chartBackground.Invalidate();
-                chartOverlay.Invalidate();
-            };
-            EventHandler selectionHandler=(_,_) => chartBackground.Invalidate();
-            state.ChartPoints.CollectionChanged+=handler;
-            state.ChartSelectionChanged+=selectionHandler;
-            chartOverlay.Unloaded+=(_,_) => state.ChartPoints.CollectionChanged-=handler;
-            chartOverlay.Unloaded+=(_,_) => state.ChartSelectionChanged-=selectionHandler;
-        }else if(this.viewModel is not null) {
-            NotifyCollectionChangedEventHandler handler = (_,_) => {
-                chartBackground.Invalidate();
-                chartOverlay.Invalidate();
-            };
-            this.viewModel.ChartPoints.CollectionChanged+=handler;
-            chartOverlay.Unloaded+=(_,_) => this.viewModel.ChartPoints.CollectionChanged-=handler;
-        }
-        var chartLabelTooltipText = new Label {
-            FontSize=12,
-            Padding=new Thickness(8,6),
-            TextColor=Colors.White,
-            BackgroundColor=Color.FromArgb("#0F172A"),
-            LineBreakMode=LineBreakMode.WordWrap,
-        };
-        var chartLabelTooltip = new Border {
-            Stroke=Color.FromArgb("#334155"),
-            StrokeThickness=1,
-            BackgroundColor=Color.FromArgb("#0F172A"),
-            StrokeShape=new Microsoft.Maui.Controls.Shapes.RoundRectangle {
-                CornerRadius=4,
-            },
-            Content=chartLabelTooltipText,
-            IsVisible=false,
-            InputTransparent=true,
-            HorizontalOptions=LayoutOptions.Start,
-            VerticalOptions=LayoutOptions.Start,
-            ZIndex=2000,
-        };
-        var chartHost = new Grid {
-            VerticalOptions=LayoutOptions.Fill,
-            Children= {
-                chartBackground,
-                chart,
-                chartOverlay,
-                chartLabelTooltip,
-            },
-        };
-        if(state is not null) {
-            chartHost.SetBinding(HeightRequestProperty,new Binding(nameof(BenchmarkSourceTabViewState.ChartHeight),source: state));
-        }else{
-            chartHost.SetBinding(HeightRequestProperty,nameof(RunnerViewModel.ChartHeight));
-        }
-        void HideChartLabelTooltip() {
-            chartLabelTooltip.IsVisible=false;
-        }
-
-        void UpdateChartLabelTooltip(Point point) {
-            if(chartHost.Width<=0||chartHost.Height<=0) {
-                HideChartLabelTooltip();
-                return;
-            }
-
-            var hit = chartBackgroundDrawable.HitTest(
-                new SizeF((float)chartHost.Width,(float)chartHost.Height),
-                (float)point.X,
-                (float)point.Y);
-            if(hit is not BenchmarkChartSelectionHit { Target: BenchmarkChartSelectionTarget.Row } labelHit) {
-                HideChartLabelTooltip();
-                return;
-            }
-
-            var tooltip=labelHit.Point.TooltipText;
-            if(string.IsNullOrWhiteSpace(tooltip)) {
-                HideChartLabelTooltip();
-                return;
-            }
-
-            chartLabelTooltipText.Text=tooltip;
-            chartLabelTooltip.MaximumWidthRequest=Math.Max(240,Math.Min(720,chartHost.Width-24));
-            var x = Math.Min(point.X+12,Math.Max(8,chartHost.Width-360));
-            var y = Math.Max(8,point.Y-18);
-            chartLabelTooltip.Margin=new Thickness(x,y,0,0);
-            chartLabelTooltip.IsVisible=true;
-        }
-
-        var chartPointer = new PointerGestureRecognizer();
-        chartPointer.PointerEntered+=(_,args) => {
-            if(args.GetPosition(chartOverlay) is { } point) {
-                UpdateChartLabelTooltip(point);
-            }
-        };
-        chartPointer.PointerMoved+=(_,args) => {
-            if(args.GetPosition(chartOverlay) is { } point) {
-                UpdateChartLabelTooltip(point);
-            }
-        };
-        chartPointer.PointerExited+=(_,_) => HideChartLabelTooltip();
-        chartOverlay.GestureRecognizers.Add(chartPointer);
-        var chartTap = new TapGestureRecognizer();
-        chartTap.Tapped+=(_,args) => {
-            var position = args.GetPosition(chartOverlay);
-            if(position is not { } point) {
-                return;
-            }
-
-            if(chartBackgroundDrawable.HitTest(new SizeF((float)chartHost.Width,(float)chartHost.Height),(float)point.X,(float)point.Y) is { } hit) {
-                this.SelectBenchmarkChartHit(state,hit);
-                chartOverlay.Invalidate();
-            }
-        };
-        chartOverlay.GestureRecognizers.Add(chartTap);
-
-        var emptyText = new Label {
-            HorizontalOptions=LayoutOptions.Center,
-            VerticalOptions=LayoutOptions.Center,
-            TextColor=Color.FromArgb("#64748B"),
-        };
-
-        var chartContent = new Grid {
-            RowDefinitions= {
-                new RowDefinition { Height = GridLength.Star },
-            },
-            VerticalOptions=LayoutOptions.Fill,
-            Children= {
-                new ScrollView{
-                    Orientation=ScrollOrientation.Vertical,
-                    VerticalOptions=LayoutOptions.Fill,
-                    Content=chartHost,
-                },
-            },
-        };
-        // 枠はチャート全体の点滅ではなく、常時表示の外枠としてだけ使う。
-        var chartBorder = new Border {
-            Stroke=Color.FromArgb("#CBD5E1"),
-            StrokeThickness=1,
-            BackgroundColor=Colors.White,
-            Content=chartContent,
-        };
-
-        var grid = new Grid {
-            Children= {
-                chartBorder,
-                emptyText,
-            },
-        };
-        if(state is not null) {
-            emptyText.SetBinding(IsVisibleProperty,new Binding(nameof(BenchmarkSourceTabViewState.ChartPoints)+".Count",source: state,converter: new CountIsZeroConverter()));
-            emptyText.SetBinding(Label.TextProperty,new Binding(nameof(BenchmarkSourceTabViewState.ChartEmptyReasonText),source: state));
-            ToolTipProperties.SetText(emptyText,state.ChartEmptyReasonTooltipText);
-            emptyText.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(BenchmarkSourceTabViewState.ChartEmptyReasonTooltipText),source: state));
-        }else{
-            emptyText.SetBinding(IsVisibleProperty,new Binding(nameof(RunnerViewModel.ChartPoints)+".Count",converter: new CountIsZeroConverter()));
-            emptyText.SetBinding(Label.TextProperty,nameof(RunnerViewModel.ChartEmptyReasonText));
-            emptyText.SetBinding(ToolTipProperties.TextProperty,nameof(RunnerViewModel.ChartEmptyReasonTooltipText));
-        }
-        return grid;
-    }
-
-    private void SelectBenchmarkChartHit(BenchmarkSourceTabViewState? state,BenchmarkChartSelectionHit hit) {
-        if(this.viewModel is null) {
-            return;
-        }
-
-        var targetState=state??this.viewModel.SelectedSourceTabViewState;
-        switch(hit.Target) {
-            case BenchmarkChartSelectionTarget.Row:
-            case BenchmarkChartSelectionTarget.LeftBar:
-            case BenchmarkChartSelectionTarget.RightBar:
-                if(hit.Point.Row is { } row) {
-                    this.SelectBenchmarkGridRow(targetState,row);
-                }
-                break;
-        }
-    }
-
-    private void BindChartSeriesLabels(StackingColumn100Series leftSeries,StackingColumn100Series rightSeries) {
-        void Apply() {
-            if(this.viewModel is null) {
-                return;
-            }
-
-            leftSeries.Label=this.viewModel.ChartLeftLegendLabel;
-            rightSeries.Label=this.viewModel.ChartRightLegendLabel;
-        }
-
-        Apply();
-        if(this.viewModel is not null) {
-            this.viewModel.PropertyChanged+=(_,args) => {
-                if(args.PropertyName==nameof(RunnerViewModel.SelectedComparisonPair)) {
-                    StartupDiagnostics.BeginInvokeOnMainThread("chart point label apply",Apply);
-                }
-            };
-        }
-    }
-
-
-    private DataTemplate CreateDataLabelTemplate(string textPropertyName) {
-        return new DataTemplate(() => {
-            var label = new Label {
-                FontSize=10,
-                TextColor=Colors.White,
-                LineBreakMode=LineBreakMode.TailTruncation,
-                HorizontalTextAlignment=TextAlignment.Center,
-                VerticalTextAlignment=TextAlignment.Center,
-            };
-            label.SetBinding(Label.TextProperty,"Item."+textPropertyName);
-            return label;
-        });
-    }
-
-    private DataTemplate CreateTooltipTemplate() {
-        return new DataTemplate(() => {
-            var label = new Label {
-                FontSize=12,
-                Padding=new Thickness(8,6),
-                TextColor=Colors.White,
-                BackgroundColor=Color.FromArgb("#0F172A"),
-                LineBreakMode=LineBreakMode.WordWrap,
-            };
-            label.SetBinding(Label.TextProperty,"Item."+nameof(ChartComparisonPoint.TooltipText));
-            return label;
-        });
-    }
-
 }
-
-internal enum BenchmarkChartSelectionTarget {
-    Row,
-    LeftBar,
-    RightBar,
-}
-
-internal readonly record struct BenchmarkChartSelectionHit(ChartComparisonPoint Point,BenchmarkChartSelectionTarget Target);
-
-internal sealed class BenchmarkChartSelectionBackgroundDrawable:IDrawable {
-    private const float OuterPadding = 4;
-    private const float LabelHitWidth = 280;
-    private readonly Func<IReadOnlyList<ChartComparisonPoint>> getPoints;
-    private readonly Func<IReadOnlyCollection<ChartComparisonPoint>> getSelectedPoints;
-    private readonly Func<Color> getSelectionColor;
-    private readonly SfCartesianChart chart;
-    private readonly CategoryAxis xAxis;
-    private readonly NumericalAxis yAxis;
-
-    public BenchmarkChartSelectionBackgroundDrawable(
-        Func<IReadOnlyList<ChartComparisonPoint>> getPoints,
-        Func<IReadOnlyCollection<ChartComparisonPoint>> getSelectedPoints,
-        Func<Color> getSelectionColor,
-        SfCartesianChart chart,
-        CategoryAxis xAxis,
-        NumericalAxis yAxis) {
-        this.getPoints=getPoints;
-        this.getSelectedPoints=getSelectedPoints;
-        this.getSelectionColor=getSelectionColor;
-        this.chart=chart;
-        this.xAxis=xAxis;
-        this.yAxis=yAxis;
-    }
-
-    public void Draw(ICanvas canvas,RectF dirtyRect) {
-        var points = this.getPoints();
-        if(points.Count==0) {
-            return;
-        }
-
-        var selectedPoints=this.getSelectedPoints();
-        if(selectedPoints.Count==0) {
-            return;
-        }
-
-        canvas.FillColor=this.getSelectionColor();
-        foreach(var row in this.CreateLayout(points,new SizeF(dirtyRect.Width,dirtyRect.Height))) {
-            if(selectedPoints.Contains(row.Point)) {
-                canvas.FillRectangle(row.RowSelectionRect);
-            }
-        }
-    }
-
-    public BenchmarkChartSelectionHit? HitTest(SizeF size,float x,float y) {
-        var points = this.getPoints();
-        if(points.Count==0) {
-            return null;
-        }
-
-        foreach(var row in this.CreateLayout(points,size)) {
-            if(!row.HitRect.Contains(x,y)) {
-                continue;
-            }
-
-            if(x<row.PlotLeft) {
-                return new BenchmarkChartSelectionHit(row.Point,BenchmarkChartSelectionTarget.Row);
-            }
-
-            if(x<=row.PlotRight) {
-                return new BenchmarkChartSelectionHit(row.Point,BenchmarkChartSelectionTarget.Row);
-            }
-        }
-
-        return null;
-    }
-
-    private IReadOnlyList<BenchmarkChartSelectionLayoutRow> CreateLayout(IReadOnlyList<ChartComparisonPoint> points,SizeF size) {
-        var fallbackPlotLeft = MathF.Min(LabelHitWidth,size.Width*0.42f);
-        var fallbackPlotRight = size.Width-OuterPadding;
-        var (plotLeft,plotRight) = this.GetSeriesPlotRange(size,fallbackPlotLeft,fallbackPlotRight);
-        var top = 42f;
-        var bottomPadding = 16f;
-        var rowHeight = MathF.Max(1,(size.Height-top-bottomPadding)/Math.Max(1,points.Count));
-        var barHeight = MathF.Min(16,MathF.Max(6,rowHeight*0.58f));
-        var rows = new BenchmarkChartSelectionLayoutRow[points.Count];
-        for(var index=0;index<points.Count;index++) {
-            var point = points[index];
-            var fallbackCenter = top+rowHeight*(index+0.5f);
-            var center = this.GetAxisCoordinate(this.xAxis,index,fallbackCenter,size.Height);
-            var y = center-barHeight/2;
-            var barRects = BenchmarkChartSelectionLayoutLogic.CreateBarRects(
-                plotLeft,
-                plotRight,
-                point.LeftValue,
-                point.RightValue);
-            var splitX = Math.Clamp(barRects.LeftBarRect.Right,plotLeft,plotRight);
-            var hitTop = center-rowHeight/2;
-            rows[index]=new BenchmarkChartSelectionLayoutRow(
-                point,
-                plotLeft,
-                plotRight,
-                new RectF(OuterPadding,hitTop,MathF.Max(1,plotRight-OuterPadding),rowHeight),
-                new RectF(plotLeft,hitTop,MathF.Max(1,splitX-plotLeft),rowHeight),
-                new RectF(splitX,hitTop,MathF.Max(1,plotRight-splitX),rowHeight),
-                new RectF(barRects.LeftBarRect.Left,y,barRects.LeftBarRect.Width,barHeight),
-                new RectF(barRects.RightBarRect.Left,y,barRects.RightBarRect.Width,barHeight),
-                new RectF(OuterPadding,hitTop,MathF.Max(1,plotRight-OuterPadding),rowHeight));
-        }
-
-        return rows;
-    }
-
-    private (float PlotLeft,float PlotRight) GetSeriesPlotRange(SizeF size,float fallbackPlotLeft,float fallbackPlotRight) {
-        var seriesBounds = this.chart.SeriesBounds;
-        var seriesLeft = (float)seriesBounds.Left;
-        var seriesRight = (float)seriesBounds.Right;
-        if(IsValidPlotRange(seriesLeft,seriesRight,size.Width)) {
-            return (seriesLeft,seriesRight);
-        }
-
-        var plotLeft = this.GetAxisCoordinate(this.yAxis,0,fallbackPlotLeft,size.Width);
-        var plotRight = this.GetAxisCoordinate(this.yAxis,100,fallbackPlotRight,size.Width);
-        if(plotRight<plotLeft) {
-            (plotLeft,plotRight)=(plotRight,plotLeft);
-        }
-
-        if(IsValidPlotRange(plotLeft,plotRight,size.Width)) {
-            return (plotLeft,plotRight);
-        }
-
-        return (fallbackPlotLeft,fallbackPlotRight);
-    }
-
-    private static bool IsValidPlotRange(float plotLeft,float plotRight,float width) {
-        return float.IsFinite(plotLeft)
-            &&float.IsFinite(plotRight)
-            &&plotLeft>=0
-            &&plotRight<=width
-            &&plotRight-plotLeft>=40;
-    }
-
-    private float GetAxisCoordinate(ChartAxis axis,double value,float fallback,float limit) {
-        var coordinate = this.chart.ValueToPoint(axis,value);
-        if(double.IsFinite(coordinate)&&coordinate>0&&coordinate<limit) {
-            return (float)coordinate;
-        }
-
-        coordinate=axis.ValueToPoint(value);
-        if(double.IsFinite(coordinate)&&coordinate>0&&coordinate<limit) {
-            return (float)coordinate;
-        }
-
-        return fallback;
-    }
-}
-
-internal readonly record struct BenchmarkChartSelectionLayoutRow(
-    ChartComparisonPoint Point,
-    float PlotLeft,
-    float PlotRight,
-    RectF RowSelectionRect,
-    RectF LeftSelectionRect,
-    RectF RightSelectionRect,
-    RectF LeftBarRect,
-    RectF RightBarRect,
-    RectF HitRect);
-
-internal sealed class BenchmarkChartSelectionHitDrawable:IDrawable {
-    public void Draw(ICanvas canvas,RectF dirtyRect) {
-    }
-}
-
 public sealed class BenchmarkCircularProgressView:GraphicsView {
     public static readonly BindableProperty ProgressProperty = BindableProperty.Create(
         nameof(Progress),

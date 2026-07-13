@@ -10,8 +10,9 @@ public sealed class BenchmarkCase {
         string assemblyName,
         string typeFullName,
         string methodName,
-        string benchmarkPath="")
-        : this(project,assemblyName,typeFullName,methodName,string.Empty,[],benchmarkPath) {
+        string benchmarkPath="",
+        string benchmarkTypeText="")
+        : this(project,assemblyName,typeFullName,methodName,string.Empty,[],benchmarkPath,benchmarkTypeText) {
     }
 
     public BenchmarkCase(
@@ -21,7 +22,8 @@ public sealed class BenchmarkCase {
         string methodName,
         string argumentKey,
         IReadOnlyList<BenchmarkArgument> arguments,
-        string benchmarkPath="") {
+        string benchmarkPath="",
+        string benchmarkTypeText="") {
         this.Project=project;
         this.AssemblyName=assemblyName;
         this.TypeFullName=typeFullName;
@@ -29,6 +31,7 @@ public sealed class BenchmarkCase {
         this.ArgumentKey=argumentKey;
         this.Arguments=arguments;
         this.BenchmarkPath=benchmarkPath;
+        this.BenchmarkTypeText=benchmarkTypeText;
     }
 
     public string Project { get; }
@@ -38,6 +41,7 @@ public sealed class BenchmarkCase {
     public string ArgumentKey { get; }
     public IReadOnlyList<BenchmarkArgument> Arguments { get; }
     public string BenchmarkPath { get; }
+    public string BenchmarkTypeText { get; }
     public int BindingRowIndex { get; init; } = -1;
     public string DisplayName => $"{this.Project} / {this.MethodName}";
     public int CountArgument => BenchmarkArgumentFormatting.GetInt(this.Arguments,"Count");
@@ -82,6 +86,7 @@ public sealed class BenchmarkJob {
     public string Project { get; set; } = string.Empty;
     public string AssemblyName { get; set; } = string.Empty;
     public string TypeFullName { get; set; } = string.Empty;
+    public string BenchmarkTypeText { get; set; } = string.Empty;
     public string MethodName { get; set; } = string.Empty;
     public string ArgumentKey { get; set; } = string.Empty;
     public List<BenchmarkArgument> Arguments { get; set; } = [];
@@ -112,7 +117,7 @@ public sealed class BenchmarkJob {
     public int BindingRowIndex { get; set; } = -1;
 
     public BenchmarkCase ToBenchmarkCase() =>
-        new(this.Project,this.AssemblyName,this.TypeFullName,this.MethodName,this.ArgumentKey,this.Arguments){
+        new(this.Project,this.AssemblyName,this.TypeFullName,this.MethodName,this.ArgumentKey,this.Arguments,string.Empty,this.BenchmarkTypeText){
             BindingRowIndex=this.BindingRowIndex,
         };
 

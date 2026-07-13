@@ -15,6 +15,20 @@ public enum UiRunStatus{
     Failed,
 }
 
+public enum UiShareMetric{
+    Time,
+    Memory,
+}
+
+public sealed record UiShareHistoryQuery(
+    UiRunAppKind AppKind,
+    string TabName,
+    string TypeName,
+    string BenchmarkName,
+    UiBenchmarkSnapshotCaseWrite? BenchmarkCase = null);
+
+public sealed record UiShareHistoryPoint(long RunId,double LeftShare,double RightShare);
+
 public sealed record UiRunCreateRequest(
     UiRunAppKind AppKind,
     string DisplayName,

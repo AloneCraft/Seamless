@@ -1,0 +1,27 @@
+Array選択前後を同一プロセスで比較しました。
+区分	Array選択による増加	1行あたり	構成比
+MAUIバインディング・コントロール内部	28.91 MB	150.6 KB	47.2%
+.NET配列・Dictionary・delegate等	23.76 MB	123.7 KB	38.8%
+WinUI/WinRT/COMラッパー	4.42 MB	23.0 KB	7.2%
+Syncfusion Chart直接オブジェクト	3.62 MB	18.8 KB	5.9%
+Syncfusion DataGrid直接オブジェクト	0.50 MB	2.6 KB	0.8%
+アプリの行モデル等	0.07 MB	0.4 KB	0.1%
+合計	61.29 MB	319.2 KB	100%
+
+これはGCルートから到達可能な生存Managedオブジェクトの浅いサイズです。Arrayの192行モデル自体は起動時に既に生成されており、Array選択時の増加は0件でした。
+原因は次の計算です。
+192ベンチマーク
+× Left/Rightの2系列
+× 時間履歴/メモリ履歴の2グラフ
+= 768個のLineSeries
+Arrayを選択しただけで、まだ履歴タブを開いていなくても2個の履歴Chartと768個のLineSeriesが生成されています。[MainPage.cs (line 1725)](G:/GitHub/Seamless/Benchmark/Shared/UI/MainPage.cs:1725)
+さらに、各履歴系列を無制限に生成する設定になっています。[BenchmarkAnalysisViewModels.cs (line 70)](G:/GitHub/Seamless/Shared/UI.Core/BenchmarkAnalysisViewModels.cs:70)
+768個のLineSeries本体は約565KBにすぎません。しかし、各系列から大量の以下のオブジェクトが派生します。
+BindablePropertyContext：62,671個
+SetterSpecificity関連：12万個以上
+PropertyChangedEventHandler等のdelegate：約4万個
+WinRT/COMラッパー：約3.2万個
+SeriesView、DataLabelLayout等：約772個ずつ
+そのため、Chart本体よりMAUIのバインディング管理と.NET内部コンテナの方が大きくなっています。
+なお、スクリーンショット上の総メモリ増加は約142～161MB、つまり約740～840KB/行です。このうち生存Managedオブジェクトは約319KB/行で、残り約420～520KB/行はWinUI/Win2Dのネイティブ資源、GC予約領域、描画サーフェス、JITコードなどです。
+結論として、800KBの「行」ではなく、実態は「1行につき履歴用LineSeriesを4本、合計768本生成したコスト」です。Gridの直接負担は全体の約0.8%しかありません。最優先の対策は、履歴タブを開くまでChartと系列を生成しない遅延生成です。

@@ -14,11 +14,12 @@ public sealed class BenchmarkUiRunRepository{
         repository.QueueSaveRunSettings(runId,string.Empty,[64],TimeSpan.Zero,[]);
 
         repository.QueueSaveBenchmarkSnapshotItems(runId,[
-            Snapshot(runId!.Value,sourceTab,"Sample.Type","Aggregate",7,CompletedSide(result),EmptySide(sourceTab.RightProject,sourceTab.Tab,"Sample.Type","Aggregate")),
+            Snapshot(runId!.Value,sourceTab,"int","Aggregate",7,CompletedSide(result),EmptySide(sourceTab.RightProject,sourceTab.Tab,"Sample.Type","Aggregate")),
         ]);
 
         await repository.FlushAsync();
         Assert.Contains(store.ListMetrics(runId!.Value),static item => item.MetricName=="MeanNanoseconds");
+        Assert.Equal("int",Assert.Single(repository.LoadBenchmarkSnapshotItems(runId.Value)).TypeName);
         var loaded = repository.LoadResultItems(runId!.Value,DateTimeOffset.UtcNow,sourceTab)
             .Single(static item => item.MeanNanoseconds is not null);
         Assert.Equal(sourceTab.LeftProject,loaded.Project);
@@ -28,6 +29,28 @@ public sealed class BenchmarkUiRunRepository{
         Assert.Equal(123.5,loaded.MeanNanoseconds);
         Assert.Equal(123.5*global::UI.BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab.Tab,64),loaded.TotalNanoseconds);
         Assert.Equal(7,loaded.AssignedLogicalCpu);
+    }
+
+    [Fact]
+    public async Task QueueSaveBenchmarkSnapshotItems_RejectsEmptyTypeName(){
+        var store=new global::Seamless.UI.Storage.UiRunStore(CreateDatabasePath());
+        var repository=new global::UI.BenchmarkUiRunRepository(store);
+        var sourceTab=global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemRange);
+        var runId=await repository.CreateRunAsync(UiRunAppKind.Benchmark,"Benchmark","Fast",sourceTab.Tab);
+        var snapshot=Snapshot(
+            runId!.Value,
+            sourceTab,
+            string.Empty,
+            "ThenBy_keySelector",
+            7,
+            EmptySide(sourceTab.LeftProject,sourceTab.Tab,"Sample.Type","ThenBy_keySelector"),
+            EmptySide(sourceTab.RightProject,sourceTab.Tab,"Sample.Type","ThenBy_keySelector"));
+
+        var exception=Assert.Throws<InvalidDataException>(() => repository.QueueSaveBenchmarkSnapshotItems(runId,[snapshot]));
+
+        Assert.Contains("System.Range",exception.Message,StringComparison.Ordinal);
+        Assert.Contains("ThenBy_keySelector",exception.Message,StringComparison.Ordinal);
+        Assert.Empty(store.ListBenchmarkSnapshotItems(runId.Value));
     }
 
     [Fact]
@@ -206,4 +229,3 @@ public sealed class BenchmarkUiRunRepository{
         return Path.Combine(root,"Benchmark.db");
     }
 }
-
