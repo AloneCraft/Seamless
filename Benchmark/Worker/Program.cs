@@ -534,7 +534,7 @@ internal sealed record WorkerTaskMessage(
     string MethodName,
     string ArgumentKey,
     BenchmarkArgument[] Arguments,
-    BenchmarkSourceTab SourceTab,
+    int SourceTab,
     int[] PreparedElementCounts,
     int ElementCount,
     int LoopCount,
@@ -557,21 +557,6 @@ internal static class BenchmarkArgumentFormatting{
         }
         return value;
     }
-}
-
-internal enum BenchmarkSourceTab{
-    SystemArray,
-    SystemRange,
-    SystemList,
-    SeamlessPersisted,
-    SeamlessTsavorite,
-    ScalableSet,
-    ScalableDictionary,
-    ScalablePersistedList,
-    ScalablePersistedSet,
-    ScalableTsavoriteSet,
-    ScalablePersistedDictionary,
-    ScalableTsavoriteDictionary,
 }
 
 internal sealed record BenchmarkDiagnosticCounter(

@@ -30,10 +30,6 @@
     <Project Path="Benchmark/Shared/UI/UI.shproj" />
     <File Path="Benchmark/Shared/UI/UI.projitems" />
   </Folder>
-  <Folder Name="/Shared/Range/">
-    <File Path="Shared/Seamless.Linq.Range/Range_start_count.cs" />
-    <File Path="Shared/Seamless.Linq.Range/Seamless.Linq.Range.projitems" />
-  </Folder>
   <Folder Name="/Specifications/">
     <File Path="UI.md" />
     <File Path="FLinq.md" />
@@ -49,7 +45,8 @@
     <Project Path="Shared/Scalable.Persisted.Collections/Scalable.Persisted.Collections.shproj" />
     <Project Path="Shared/Scalable.Tsavorite.Collections/Scalable.Tsavorite.Collections.shproj" />
     <Project Path="Shared/Seamless.Linq.Enumerable/Seamless.Linq.Enumerable.shproj" />
-    <Project Path="Shared/Test.Shared/Test.Shared.shproj" />
+    <Project Path="Shared/Seamless.Linq.Optimization/Seamless.Linq.Optimization.shproj" />
+    <Project Path="Shared/Seamless.Linq.Range/Seamless.Linq.Range.shproj" />
     <Project Path="Shared/Tsavorite.Collections/Tsavorite.Collections.shproj" />
     <Project Path="Shared/UI.Core/UI.Core.shproj" />
     <Project Path="Shared/UI.Storage/UI.Storage.csproj" />
@@ -62,7 +59,8 @@
     <File Path="Shared/Scalable.Tsavorite.Collections/Scalable.Tsavorite.Collections.projitems" />
     <File Path="Shared/Seamless.Linq.Enumerable/Seamless.Linq.Enumerable.projitems" />
     <File Path="Shared/Seamless.Linq.Enumerable/Linq.Enumerable.Benchmark/Program.cs" />
-    <File Path="Shared/Test.Shared/Test.Shared.projitems" />
+    <File Path="Shared/Seamless.Linq.Optimization/OptimizationBenchmarks.projitems" />
+    <File Path="Shared/Seamless.Linq.Range/Seamless.Linq.Range.projitems" />
     <File Path="Shared/Tsavorite.Collections/Tsavorite.Collections.projitems" />
     <File Path="Shared/UI.Core/UI.Core.projitems" />
   </Folder>

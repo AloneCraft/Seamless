@@ -103,7 +103,7 @@ public static class BenchmarkSourceTabs{
         new(
             BenchmarkSourceTab.ScalablePersistedSet,
             ScalablePersistedSetId,
-            "Persisted.Set<T> InitialCapacity_InitialDataCapacity",
+            "Persisted.Set",
             "Scalable.Persisted.Set",
             "Persisted",
             "Benchmark.Scalable.Persisted.Collections",
@@ -113,7 +113,7 @@ public static class BenchmarkSourceTabs{
         new(
             BenchmarkSourceTab.ScalableTsavoriteSet,
             ScalableTsavoriteSetId,
-            "Tsavorite.Set<T> IndexSize_PageSize_SegmentSize_MemorySize_MutableFraction",
+            "Tsavorite.Set",
             "Scalable.Tsavorite.Set",
             "Tsavorite",
             "Benchmark.Scalable.Tsavorite.Collections",
@@ -123,7 +123,7 @@ public static class BenchmarkSourceTabs{
         new(
             BenchmarkSourceTab.ScalablePersistedDictionary,
             ScalablePersistedDictionaryId,
-            "Persisted.Dictionary<TKey,TValue> InitialCapacity_InitialDataCapacity",
+            "Persisted.Dictionary",
             "Scalable.Persisted.Dictionary",
             "Persisted",
             "Benchmark.Scalable.Persisted.Collections",
@@ -133,7 +133,7 @@ public static class BenchmarkSourceTabs{
         new(
             BenchmarkSourceTab.ScalableTsavoriteDictionary,
             ScalableTsavoriteDictionaryId,
-            "Tsavorite.Dictionary<TKey,TValue> IndexSize_PageSize_SegmentSize_MemorySize_MutableFraction",
+            "Tsavorite.Dictionary",
             "Scalable.Tsavorite.Dictionary",
             "Tsavorite",
             "Benchmark.Scalable.Tsavorite.Collections",
@@ -143,7 +143,7 @@ public static class BenchmarkSourceTabs{
         new(
             BenchmarkSourceTab.ScalablePersistedList,
             ScalablePersistedListId,
-            "Persisted.List<T> InitialCapacity_InitialDataCapacity",
+            "Persisted.List",
             "Scalable.Persisted.List",
             "Persisted",
             "Benchmark.Scalable.Persisted.Collections",
@@ -153,13 +153,13 @@ public static class BenchmarkSourceTabs{
     ];
 
     public static IReadOnlyList<BenchmarkSourceTabDefinition> StandardAll { get; } = [
-        new(BenchmarkSourceTab.OptimizationRewrite,OptimizationRewriteId,"Optimization.Rewrite","Optimization.Rewrite.All","全最適化","Benchmark.Optimization.All","Optimization.Rewrite.Disabled","Rewrite無効","Benchmark.Optimization.NoRewrite","Benchmark.Optimization.Rewrite.","Benchmark.Optimization.Rewrite."),
-        new(BenchmarkSourceTab.OptimizationPipelineFusion,OptimizationPipelineFusionId,"Optimization.PipelineFusion","Optimization.PipelineFusion.All","全最適化","Benchmark.Optimization.All","Optimization.PipelineFusion.Disabled","PipelineFusion無効","Benchmark.Optimization.NoPipelineFusion","Benchmark.Optimization.PipelineFusion.","Benchmark.Optimization.PipelineFusion."),
-        new(BenchmarkSourceTab.OptimizationPredicatePushdown,OptimizationPredicatePushdownId,"Optimization.PredicatePushdown","Optimization.PredicatePushdown.All","全最適化","Benchmark.Optimization.All","Optimization.PredicatePushdown.Disabled","PredicatePushdown無効","Benchmark.Optimization.NoPredicatePushdown","Benchmark.Optimization.PredicatePushdown.","Benchmark.Optimization.PredicatePushdown."),
+        new(BenchmarkSourceTab.OptimizationRewrite,OptimizationRewriteId,"Rewrite","Optimization.Rewrite.All","全最適化","Benchmark.Optimization.All","Optimization.Rewrite.Disabled","Rewrite無効","Benchmark.Optimization.NoRewrite","Benchmark.Optimization.Rewrite.","Benchmark.Optimization.Rewrite."),
+        new(BenchmarkSourceTab.OptimizationPipelineFusion,OptimizationPipelineFusionId,"PipelineFusion","Optimization.PipelineFusion.All","全最適化","Benchmark.Optimization.All","Optimization.PipelineFusion.Disabled","PipelineFusion無効","Benchmark.Optimization.NoPipelineFusion","Benchmark.Optimization.PipelineFusion.","Benchmark.Optimization.PipelineFusion."),
+        new(BenchmarkSourceTab.OptimizationPredicatePushdown,OptimizationPredicatePushdownId,"PredicatePushdown","Optimization.PredicatePushdown.All","全最適化","Benchmark.Optimization.All","Optimization.PredicatePushdown.Disabled","PredicatePushdown無効","Benchmark.Optimization.NoPredicatePushdown","Benchmark.Optimization.PredicatePushdown.","Benchmark.Optimization.PredicatePushdown."),
         new(
             BenchmarkSourceTab.SystemArray,
             SystemArrayId,
-            "System.Array",
+            "Array",
             "System.Array.FLinq",
             "FLinq",
             "Benchmark.System.Linq.Enumerable.FLinq",
@@ -169,7 +169,7 @@ public static class BenchmarkSourceTabs{
         new(
             BenchmarkSourceTab.SystemIEnumerable,
             SystemIEnumerableId,
-            "System.Collections.Generic.IEnumerable<>",
+            "IEnumerable",
             "System.IEnumerable.FLinq",
             "FLinq",
             "Benchmark.System.Linq.Enumerable.IEnumerable.FLinq",
@@ -179,7 +179,7 @@ public static class BenchmarkSourceTabs{
         new(
             BenchmarkSourceTab.SystemRange,
             SystemRangeId,
-            "System.Range",
+            "Range",
             "System.Range.FLinq",
             "FLinq",
             "Benchmark.System.Linq.Enumerable.Range.FLinq",
@@ -189,7 +189,7 @@ public static class BenchmarkSourceTabs{
         new(
             BenchmarkSourceTab.SystemList,
             SystemListId,
-            "System.Collections.Generic.List",
+            "List",
             "System.List.FLinq",
             "FLinq",
             "Benchmark.System.Linq.Enumerable.List.FLinq",
@@ -199,7 +199,7 @@ public static class BenchmarkSourceTabs{
         new(
             BenchmarkSourceTab.SeamlessPersisted,
             SeamlessPersistedId,
-            "Seamless.Persisted",
+            "Persisted",
             "Seamless.Persisted.FLinq",
             "FLinq",
             "Benchmark.Persisted.Linq.Enumerable.FLinq",
@@ -209,7 +209,7 @@ public static class BenchmarkSourceTabs{
         new(
             BenchmarkSourceTab.SeamlessTsavorite,
             SeamlessTsavoriteId,
-            "Seamless.Tsavorite",
+            "Tsavorite",
             "Seamless.Tsavorite.FLinq",
             "FLinq",
             "Benchmark.Tsavorite.Linq.Enumerable.FLinq",
@@ -261,6 +261,15 @@ public static class BenchmarkSourceTabs{
         return candidates[0];
     }
 
-    public static string ToPathPart(BenchmarkSourceTab tab) =>
-        Get(tab).Id;
+    public static string ToPathPart(BenchmarkSourceTab tab){
+        var id=Get(tab).Id;
+        var invalid=Path.GetInvalidFileNameChars();
+        var builder=new System.Text.StringBuilder(id.Length);
+        foreach(var ch in id){
+            builder.Append(invalid.Contains(ch)||ch is '<' or '>' or ':' or '"' or '/' or '\\' or '|' or '?' or '*'
+                ? '_'
+                : ch);
+        }
+        return builder.Length==0 ? "_" : builder.ToString().TrimEnd(' ','.');
+    }
 }

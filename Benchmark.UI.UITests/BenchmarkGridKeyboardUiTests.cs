@@ -3,7 +3,8 @@ using OpenQA.Selenium;
 namespace Benchmark.UI.UITests;
 
 public sealed class BenchmarkGridKeyboardUiTests{
-    private const string ArrayTab="System.Array";
+    private const string ArrayTab="Array";
+    private const string ArrayTabAutomationKey="SystemArray";
 
     [BenchmarkUiAutomationFact]
     public void ArrowAndSpace_MoveSelectionAndToggleCurrentRow(){
@@ -13,8 +14,8 @@ public sealed class BenchmarkGridKeyboardUiTests{
         var before=checks.Take(2).Select(session.IsChecked).ToArray();
         try{
             session.ClickNormalCell(checks[0]);
-            session.SendKeysAutomationId(BenchmarkUiAutomationIds.Grid(ArrayTab),Keys.ArrowDown);
-            session.SendKeysAutomationId(BenchmarkUiAutomationIds.Grid(ArrayTab),Keys.Space);
+            session.SendKeysAutomationId(BenchmarkUiAutomationIds.Grid(ArrayTabAutomationKey),Keys.ArrowDown);
+            session.SendKeysAutomationId(BenchmarkUiAutomationIds.Grid(ArrayTabAutomationKey),Keys.Space);
 
             Assert.Equal(before[0],session.IsChecked(checks[0]));
             Assert.NotEqual(before[1],session.IsChecked(checks[1]));
@@ -34,7 +35,7 @@ public sealed class BenchmarkGridKeyboardUiTests{
             session.ClickNormalCell(checks[0]);
             session.ClickNormalCell(checks[1],Keys.Shift);
             session.ClickNormalCell(checks[2],Keys.Control);
-            session.SendKeysAutomationId(BenchmarkUiAutomationIds.Grid(ArrayTab),Keys.Space);
+            session.SendKeysAutomationId(BenchmarkUiAutomationIds.Grid(ArrayTabAutomationKey),Keys.Space);
 
             var expected=before.All(static value => value) ? false : true;
             Assert.All(checks.Take(3),check => Assert.Equal(expected,session.IsChecked(check)));
@@ -48,7 +49,7 @@ public sealed class BenchmarkGridKeyboardUiTests{
         for(var index=0;index<states.Count;index++){
             if(session.IsChecked(checks[index])!=states[index]){
                 session.ClickNormalCell(checks[index]);
-                session.SendKeysAutomationId(BenchmarkUiAutomationIds.Grid(ArrayTab),Keys.Space);
+                session.SendKeysAutomationId(BenchmarkUiAutomationIds.Grid(ArrayTabAutomationKey),Keys.Space);
             }
         }
     }

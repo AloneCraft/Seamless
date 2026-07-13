@@ -4,6 +4,7 @@
   <PropertyGroup Label="Globals">
     <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
     <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>{EB8A2D76-3298-40DB-9E26-FBBF01714341}</SharedGUID>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Range_start_count.cs" />

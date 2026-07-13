@@ -97,7 +97,8 @@
     <Analyzer Include="..\Seamless.FLinq\bin\$(Configuration)\net10.0\Seamless.FLinq.dll" />
     <ProjectReference Include="..\Shared\UI.Storage\UI.Storage.csproj" />
   </ItemGroup>
-  <Import Project="..\Shared\Test.Shared\Test.Shared.projitems" Label="Shared" Condition="'$(EnableBenchmarkUiViewModelTests)'!='true'" />
+  <Import Project="..\Shared\UI.Core\UI.Core.projitems" Label="Shared" Condition="'$(EnableBenchmarkUiViewModelTests)'!='true'" />
+  <Import Project="..\Shared\DynamicLinq\DynamicLinq.projitems" Label="Shared" Condition="'$(EnableBenchmarkUiViewModelTests)'!='true'" />
   <Import Project="..\Benchmark\Shared\UI\UI.projitems" Label="Shared" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'" />
   <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'">
     <ApplicationDefinition Remove="..\Benchmark\Shared\UI\Platforms\Windows\App.xaml" />

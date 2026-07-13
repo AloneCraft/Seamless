@@ -10,8 +10,6 @@ public sealed class SharedProjectLayout{
             "Shared/UI.Core/UI.Core.projitems",
             "Shared/Collections/Collections.shproj",
             "Shared/Collections/Collections.projitems",
-            "Shared/Test.Shared/Test.Shared.shproj",
-            "Shared/Test.Shared/Test.Shared.projitems",
             "Benchmark/Shared/UI/UI.shproj",
             "Benchmark/Shared/UI/UI.projitems",
         };

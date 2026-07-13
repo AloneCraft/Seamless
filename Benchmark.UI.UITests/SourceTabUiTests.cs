@@ -16,8 +16,8 @@ public sealed class SourceTabUiTests{
     //タブは SfTabItem の Name(HeaderText、選択中は"Selected "前置)で操作・検証する。
     //グリッド行はセルチェック(SfCheckBox)の AutomationId で操作し、非表示タブ側の複製は Displayed で除外する。
     //注意: このテストは実プロファイルの選択状態を変更するため、終了時に必ず元へ戻す。
-    private const string ArrayTab = "System.Array";
-    private const string EnumerableTab = "System.Collections.Generic.IEnumerable";
+    private const string ArrayTab="Array";
+    private const string EnumerableTab="IEnumerable";
 
     [BenchmarkUiAutomationFact]
     public void SourceTab_ClickSecondTab_ShowsSecondSourceGrid(){

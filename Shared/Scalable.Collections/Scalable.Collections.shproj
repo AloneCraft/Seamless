@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{9C8F1B35-4E24-4A75-8F6A-20C18B6B72A1}</ProjectGuid>
+    <ProjectGuid>{DE1C5B56-2E3D-4A38-8A7C-A0766A65B8D2}</ProjectGuid>
     <MinimumVisualStudioVersion>14.0</MinimumVisualStudioVersion>
   </PropertyGroup>
 

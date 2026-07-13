@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Label="Globals">
-    <ProjectGuid>bb37bca2-07eb-40b3-91d9-5ff05f12f54e</ProjectGuid>
+    <ProjectGuid>{F6816E63-63B4-4639-B553-1596AC007D52}</ProjectGuid>
     <MinimumVisualStudioVersion>14.0</MinimumVisualStudioVersion>
   </PropertyGroup>
 
@@ -10,7 +10,7 @@
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\CodeSharing\Microsoft.CodeSharing.Common.props" />
 
   <PropertyGroup />
-  <Import Project="Benchmark.Tsavorite.Collections.projitems" Label="Shared" />
+  <Import Project="Tsavorite.Collections.projitems" Label="Shared" />
 
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\CodeSharing\Microsoft.CodeSharing.CSharp.targets" />
 </Project>

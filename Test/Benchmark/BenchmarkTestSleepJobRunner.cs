@@ -29,6 +29,33 @@ public sealed class BenchmarkTestSleepJobRunner{
     }
 
     [Fact]
+    public async Task RunAsync_IEnumerableSourceTabCreatesArtifactDirectory(){
+        var runner=new global::UI.BenchmarkTestSleepJobRunner(TimeSpan.FromMilliseconds(1));
+        var job=new global::UI.BenchmarkJob{
+            Project="System.IEnumerable.FLinq",
+            AssemblyName="Benchmark.System.Linq.Enumerable.IEnumerable.FLinq",
+            TypeFullName="Benchmark.System.Linq.Enumerable.IEnumerable.FLinqInt32",
+            MethodName="Any",
+            SourceTab=global::UI.BenchmarkSourceTab.SystemIEnumerable,
+            ElementCount=4_096,
+            LoopCount=1,
+            PreparedElementCounts=[4_096],
+        };
+        var runRoot=Path.Combine(Path.GetTempPath(),"Seamless-IEnumerableSourceTab-"+Guid.NewGuid().ToString("N"));
+        try{
+            var result=await runner.RunAsync(job,runRoot,0,TimeSpan.FromSeconds(5),CancellationToken.None);
+
+            Assert.Equal("Completed",result.Status);
+            Assert.True(Directory.Exists(result.ArtifactFolder));
+            Assert.Contains("System.Collections.Generic.IEnumerable__",result.ArtifactFolder,StringComparison.Ordinal);
+        }finally{
+            if(Directory.Exists(runRoot)){
+                Directory.Delete(runRoot,true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task RunAsync_ObservesCancellation(){
         var runner = new global::UI.BenchmarkTestSleepJobRunner(TimeSpan.FromSeconds(5));
         var job = new global::UI.BenchmarkJob{
