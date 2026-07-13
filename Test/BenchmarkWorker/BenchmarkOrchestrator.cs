@@ -1445,7 +1445,7 @@ public sealed class BenchmarkOrchestrator{
     }
 
     private static BenchmarkCase Case(string project,string method) =>
-        new(project,"Assembly","Type",method);
+        new(project,GetAssemblyName(project),"Type",method);
 
     private static BenchmarkCase CountCase(string project,string method,int count) {
         var arguments = new BenchmarkArgument[] {
@@ -1453,11 +1453,17 @@ public sealed class BenchmarkOrchestrator{
         };
         return new BenchmarkCase(
             project,
-            "Assembly",
+            GetAssemblyName(project),
             "Type",
             method,
             BenchmarkArgumentFormatting.CreateKey(arguments),
             arguments);
+    }
+
+    private static string GetAssemblyName(string project) {
+        var sourceTab=BenchmarkSourceTabs.TryGetByProject(project)
+            ??throw new InvalidDataException($"Test SourceTab could not be resolved uniquely. Project={project}");
+        return sourceTab.GetAssemblyName(project);
     }
 
     private static BenchmarkJob CompletedJob(string project,string method,int elementCount) =>
@@ -1556,5 +1562,4 @@ public sealed class BenchmarkOrchestrator{
         }
     }
 }
-
 

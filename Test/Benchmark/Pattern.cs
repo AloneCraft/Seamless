@@ -231,6 +231,31 @@ public sealed class RunnerViewModel{
     }
 
     [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public void TableRow_DisplaysTargetNoneForMissingSide(){
+        var sourceTab=global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+        var leftCase=new global::UI.BenchmarkCase(
+            sourceTab.LeftProject,
+            sourceTab.LeftAssemblyName,
+            "Benchmark.System.Linq.Enumerable.FLinqInt32",
+            "Aggregate_func");
+        var row=new global::UI.BenchmarkTableRow(
+            "int|Aggregate_func",
+            "Aggregate_func",
+            "Aggregate_func",
+            sourceTab,
+            new Dictionary<string,global::UI.BenchmarkCase>(StringComparer.OrdinalIgnoreCase){
+                [sourceTab.LeftProject]=leftCase,
+            });
+
+        Assert.True(row.LeftCell.HasCase);
+        Assert.Empty(row.LeftCell.ExecutionText);
+        Assert.False(row.RightCell.HasCase);
+        Assert.Equal("対象なし",row.RightCell.ExecutionText);
+        Assert.Equal("対象なし",row.RightCell.StatusText);
+        Assert.False(row.RightCell.IsStatusIconVisible);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
     public void RowSelectionHeader_ReflectsPartialCellSelection(){
         var row = CreateArrayBenchmarkRow("AggregateBy_keySelector");
 
@@ -1364,6 +1389,33 @@ public sealed class RunnerViewModel{
         throw new TimeoutException("Pipeline snapshot was not produced.");
     }
 
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public void BenchmarkSortValue_シェアは丸め前の左値で比較し欠測は常に末尾になる(){
+        var roundedHigh=global::UI.BenchmarkSortValue.シェアから作成(global::UI.シェア値.メモリから作成(995,5));
+        var roundedLow=global::UI.BenchmarkSortValue.シェアから作成(global::UI.シェア値.メモリから作成(994,6));
+
+        Assert.Equal(0.995,roundedHigh.Number!.Value,12);
+        Assert.True(global::UI.BenchmarkSortValue.Compare(roundedLow,roundedHigh,false)<0);
+        Assert.True(global::UI.BenchmarkSortValue.Compare(global::UI.BenchmarkSortValue.Missing,roundedHigh,false)>0);
+        Assert.True(global::UI.BenchmarkSortValue.Compare(global::UI.BenchmarkSortValue.Missing,roundedHigh,true)>0);
+    }
+
+    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
+    public void BenchmarkTableRow_日時とループ回数を新契約で表示しソートする(){
+        var row=CreateArrayBenchmarkRow("Any");
+        var sourceTab=row.SourceTab;
+        var oldTime=DateTimeOffset.UtcNow.AddMinutes(-2);
+        var newTime=DateTimeOffset.UtcNow;
+        row.ApplySnapshotResult(sourceTab.LeftProject,CreateArrayResult(sourceTab.LeftProject,"Any",global::UI.JobStatus.Completed,0,2),0,oldTime);
+        row.ApplySnapshotResult(sourceTab.RightProject,CreateArrayResult(sourceTab.RightProject,"Any",global::UI.JobStatus.Completed,1,4),0,newTime);
+
+        Assert.Equal("2:4",row.LoopCountText);
+        Assert.Null(row.共通ループ回数);
+        Assert.True(row.GetSortValue(global::UI.BenchmarkGridSortColumn.ループ回数).IsMissing);
+        Assert.Equal(oldTime.ToUnixTimeMilliseconds(),row.GetSortValue(global::UI.BenchmarkGridSortColumn.左日時).Number);
+        Assert.Equal(newTime.ToUnixTimeMilliseconds(),row.GetSortValue(global::UI.BenchmarkGridSortColumn.右日時).Number);
+    }
+
     private static global::UI.BenchmarkTableRow CreateArrayBenchmarkRow(string methodName){
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var cases = new Dictionary<string,global::UI.BenchmarkCase>(StringComparer.OrdinalIgnoreCase) {
@@ -1377,7 +1429,8 @@ public sealed class RunnerViewModel{
         string project,
         string methodName,
         global::UI.JobStatus status,
-        int runItemIndex){
+        int runItemIndex,
+        int loopCount=global::UI.BenchmarkWorkloadAxis.DefaultLoopCount){
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var now = DateTimeOffset.UtcNow;
         return new global::UI.BenchmarkResultItem(new global::UI.BenchmarkJob{
@@ -1387,7 +1440,7 @@ public sealed class RunnerViewModel{
             MethodName=methodName,
             SourceTab=sourceTab.Tab,
             ElementCount=4096,
-            LoopCount=global::UI.BenchmarkWorkloadAxis.DefaultLoopCount,
+            LoopCount=loopCount,
             Status=status,
             AssignedLogicalCpu=0,
             StartedAt=now,

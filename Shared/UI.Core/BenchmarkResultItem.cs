@@ -37,7 +37,7 @@ public sealed class BenchmarkResultItem{
         this.Project=job.Project;
         this.Method=job.MethodName;
         this.TypeFullName=job.TypeFullName;
-        this.SourceTab=job.SourceTab;
+        this.SourceTab=ValidateSourceTab(job.SourceTab,job.Project,job.AssemblyName,job.TypeFullName);
         this.ElementCount=job.ElementCount;
         this.LoopCount=job.LoopCount;
         this.Name=job.Project+" / "+job.MethodName+" / "+this.AxisCount.ToString(CultureInfo.InvariantCulture);
@@ -80,7 +80,9 @@ public sealed class BenchmarkResultItem{
         this.Project=project;
         this.Method=method;
         this.TypeFullName=typeFullName;
-        this.SourceTab=sourceTab??ResolveSourceTab(project);
+        this.SourceTab=sourceTab is { } explicitSourceTab
+            ? ValidateSourceTab(explicitSourceTab,project,string.Empty,typeFullName)
+            : ResolveSourceTab(project);
         this.ElementCount=BenchmarkWorkloadAxis.ResolveElementCount(this.SourceTab,elementCount);
         this.LoopCount=BenchmarkWorkloadAxis.ResolveLoopCount(this.SourceTab,elementCount);
         this.ArgumentKey=argumentKey;
@@ -156,7 +158,7 @@ public sealed class BenchmarkResultItem{
         this.Project=benchmark.Project;
         this.Method=benchmark.MethodName;
         this.TypeFullName=benchmark.TypeFullName;
-        this.SourceTab=ResolveSourceTab(benchmark.Project,benchmark.AssemblyName);
+        this.SourceTab=ResolveSourceTab(benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName);
         this.ElementCount=0;
         this.LoopCount=BenchmarkWorkloadAxis.DefaultLoopCount;
         this.ArgumentKey=benchmark.ArgumentKey;
@@ -221,17 +223,38 @@ public sealed class BenchmarkResultItem{
             ? value*loopCount
             : meanNanoseconds;
 
-    private static BenchmarkSourceTab ResolveSourceTab(string project,string assemblyName = "",string sourceTabId = ""){
+    private static BenchmarkSourceTab ResolveSourceTab(string project,string assemblyName = "",string typeFullName = "",string sourceTabId = ""){
         if(!string.IsNullOrWhiteSpace(sourceTabId)){
-            if(BenchmarkSourceTabs.TryGetById(sourceTabId) is { } sourceTab){
-                return sourceTab.Tab;
-            }
-
-            if(Enum.TryParse<BenchmarkSourceTab>(sourceTabId,true,out var tab)){
-                return tab;
-            }
+            var sourceTab=BenchmarkSourceTabs.GetById(sourceTabId);
+            return ValidateSourceTab(sourceTab.Tab,project,assemblyName,typeFullName);
         }
 
-        return BenchmarkSourceTabs.TryGetByProjectAndAssembly(project,assemblyName)?.Tab??BenchmarkSourceTab.SystemArray;
+        if(!string.IsNullOrWhiteSpace(assemblyName)){
+            var sourceTab=BenchmarkSourceTabs.GetByProjectAndAssembly(project,assemblyName);
+            return ValidateSourceTab(sourceTab.Tab,project,assemblyName,typeFullName);
+        }
+
+        return BenchmarkSourceTabs.TryGetByProject(project)?.Tab
+            ??throw new InvalidDataException("Benchmark SourceTab could not be resolved uniquely without an assembly. Project="+project);
+    }
+
+    private static BenchmarkSourceTab ValidateSourceTab(
+        BenchmarkSourceTab sourceTab,
+        string project,
+        string assemblyName,
+        string typeFullName){
+        var definition=BenchmarkSourceTabs.Get(sourceTab);
+        var resolvedAssemblyName=string.IsNullOrWhiteSpace(assemblyName)
+            ? definition.GetAssemblyName(project)
+            : assemblyName;
+        var benchmark=new BenchmarkCase(project,resolvedAssemblyName,typeFullName,string.Empty);
+        if(!definition.ContainsCase(benchmark)){
+            throw new InvalidDataException(
+                "Benchmark case does not belong to the specified SourceTab. SourceTab="+definition.Id
+                +" Project="+project
+                +" Assembly="+(string.IsNullOrWhiteSpace(assemblyName)?"<empty>":assemblyName)
+                +" Type="+(string.IsNullOrWhiteSpace(typeFullName)?"<empty>":typeFullName));
+        }
+        return definition.Tab;
     }
 }

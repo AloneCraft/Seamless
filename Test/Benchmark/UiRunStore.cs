@@ -11,13 +11,13 @@ public sealed class UiRunStoreTests{
         store.EnsureSchema();
 
         using var connection = Open(path);
-        Assert.Equal(17L,Scalar<long>(connection,"PRAGMA user_version;"));
+        Assert.Equal(18L,Scalar<long>(connection,"PRAGMA user_version;"));
         Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行';"));
         Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='Benchmark';"));
         Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ScalableBenchmark';"));
         Assert.Equal(3L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"));
         Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('ベンチマーク項目','BenchmarkSnapshotCaseIdentity','BenchmarkSnapshotMeasurement');"));
-        Assert.Equal(6L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
+        Assert.Equal(4L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
         Assert.Equal(2L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('Benchmark') WHERE name IN('左LoopCount','右LoopCount');"));
         Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('Benchmark') WHERE name IN('Count','Initial','Data','Index','Page','Segment','Memory','Fraction');"));
         Assert.Equal(1L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('実行') WHERE name='前回実行ID';"));
@@ -54,7 +54,7 @@ public sealed class UiRunStoreTests{
         using(var connection = Open(path)){
             using var command = connection.CreateCommand();
             command.CommandText="""
-                PRAGMA user_version=12;
+                PRAGMA user_version=18;
                 CREATE TABLE Apps(AppId INTEGER PRIMARY KEY AUTOINCREMENT,AppKind TEXT NOT NULL);
                 CREATE TABLE Runs(RunId INTEGER PRIMARY KEY AUTOINCREMENT,AppId INTEGER NOT NULL);
                 CREATE VIEW BenchmarkFlatResults AS SELECT 1 AS Value;
@@ -68,7 +68,7 @@ public sealed class UiRunStoreTests{
 
         using var loaded = Open(path);
         Assert.Contains("schema mismatch",exception.Message,StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(12L,Scalar<long>(loaded,"PRAGMA user_version;"));
+        Assert.Equal(18L,Scalar<long>(loaded,"PRAGMA user_version;"));
         Assert.Equal(1L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='Apps';"));
         Assert.Equal(1L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='Runs';"));
         Assert.Equal(1L,Scalar<long>(loaded,"SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name='BenchmarkFlatResults';"));
@@ -194,6 +194,11 @@ public sealed class UiRunStoreTests{
         Assert.Equal(first.RunId,Scalar<long>(connection,$"SELECT \"前回実行ID\" FROM \"実行\" WHERE \"実行ID\"={second.RunId};"));
         Assert.Equal(100L,Scalar<long>(connection,"SELECT \"Count\" FROM \"Benchmark\" WHERE \"実行ID\"="+second.RunId+";"));
         Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM pragma_table_info('Benchmark') WHERE name LIKE '前回%';"));
+        var share=Assert.Single(store.QueryAnalysisView("Scalable前回シェア"),row => Convert.ToInt64(row["実行ID"])==second.RunId);
+        Assert.Equal(8.0/18.0,Convert.ToDouble(share["今回時間シェア"]),12);
+        Assert.Equal(10.0/18.0,Convert.ToDouble(share["前回時間シェア"]),12);
+        Assert.Equal(16.0/36.0,Convert.ToDouble(share["今回メモリシェア"]),12);
+        Assert.Equal(20.0/36.0,Convert.ToDouble(share["前回メモリシェア"]),12);
     }
 
     [Fact]
@@ -216,7 +221,7 @@ public sealed class UiRunStoreTests{
     }
 
     [Fact]
-    public void QueryAnalysisView_ExposesTimeAndMemoryRatioViews(){
+    public void QueryAnalysisView_時間とメモリの日本語シェアビューを公開する(){
         var path = CreateDatabasePath();
         var store = new global::Seamless.UI.Storage.UiRunStore(path);
         var run = store.CreateRun(new(
@@ -229,24 +234,43 @@ public sealed class UiRunStoreTests{
             new("System.Array","int","Any",0,true,new(UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,20,200),new(UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,10,50)),
         ]);
 
-        var time = Assert.Single(store.QueryAnalysisView("履歴時間比"));
-        var baseTime = Assert.Single(store.QueryAnalysisView("基準時間比"));
-        var memory = Assert.Single(store.QueryAnalysisView("履歴メモリ比"));
-        var baseMemory = Assert.Single(store.QueryAnalysisView("基準メモリ比"));
+        var time = Assert.Single(store.QueryAnalysisView("履歴時間シェア"));
+        var baseTime = Assert.Single(store.QueryAnalysisView("基準時間シェア"));
+        var memory = Assert.Single(store.QueryAnalysisView("履歴メモリシェア"));
+        var baseMemory = Assert.Single(store.QueryAnalysisView("基準メモリシェア"));
 
-        Assert.Equal("System.Array",time["SourceTab"]);
-        Assert.Equal(2,Convert.ToDouble(time["PerformanceRatio"],global::System.Globalization.CultureInfo.InvariantCulture));
-        Assert.Equal("System.Array",baseTime["SourceTab"]);
-        Assert.Equal(2,Convert.ToDouble(baseTime["PerformanceRatio"],global::System.Globalization.CultureInfo.InvariantCulture));
-        Assert.Equal("System.Array",memory["SourceTab"]);
-        Assert.Equal(0.8,Convert.ToDouble(memory["LeftShare"],global::System.Globalization.CultureInfo.InvariantCulture),12);
-        Assert.Equal(0.2,Convert.ToDouble(memory["RightShare"],global::System.Globalization.CultureInfo.InvariantCulture),12);
-        Assert.Equal("System.Array",baseMemory["SourceTab"]);
-        Assert.Equal(0.8,Convert.ToDouble(baseMemory["LeftShare"],global::System.Globalization.CultureInfo.InvariantCulture),12);
-        Assert.Equal(0.2,Convert.ToDouble(baseMemory["RightShare"],global::System.Globalization.CultureInfo.InvariantCulture),12);
-        Assert.Null(baseMemory["PreviousLeftShare"]);
+        Assert.Equal("System.Array",time["タブ名"]);
+        Assert.Equal(2.0/3.0,Convert.ToDouble(time["左シェア"],global::System.Globalization.CultureInfo.InvariantCulture),12);
+        Assert.Equal(1.0/3.0,Convert.ToDouble(time["右シェア"],global::System.Globalization.CultureInfo.InvariantCulture),12);
+        Assert.Equal("System.Array",baseTime["タブ名"]);
+        Assert.Equal("System.Array",memory["タブ名"]);
+        Assert.Equal(0.8,Convert.ToDouble(memory["左シェア"],global::System.Globalization.CultureInfo.InvariantCulture),12);
+        Assert.Equal(0.2,Convert.ToDouble(memory["右シェア"],global::System.Globalization.CultureInfo.InvariantCulture),12);
+        Assert.Equal("System.Array",baseMemory["タブ名"]);
+        Assert.Null(baseMemory["前回左シェア"]);
         Assert.Empty(store.QueryAnalysisView("BenchmarkPerformanceRatioHistory"));
         Assert.Empty(store.QueryAnalysisView("BenchmarkMemoryRatioHistory"));
+        using var connection=Open(path);
+        Assert.Equal(0L,Scalar<long>(connection,"SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('履歴時間比','基準時間比','履歴メモリ比','基準メモリ比');"));
+    }
+
+    [Fact]
+    public void QueryAnalysisView_両側ゼロと二実行間差分を保持する(){
+        var path=CreateDatabasePath();
+        var store=new global::Seamless.UI.Storage.UiRunStore(path);
+        var first=store.CreateRun(new(UiRunAppKind.Benchmark,"first","Fast","System.Array",DateTimeOffset.UtcNow.AddMinutes(-1)));
+        store.SaveBenchmarkSnapshotItems(first.RunId,[new("System.Array","int","Any",0,true,new(UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,10,0),new(UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,30,0))]);
+        store.SetRunStatus(first.RunId,UiRunStatus.Completed);
+        var second=store.CreateRun(new(UiRunAppKind.Benchmark,"second","Fast","System.Array",DateTimeOffset.UtcNow));
+        store.SaveBenchmarkSnapshotItems(second.RunId,[new("System.Array","int","Any",0,true,new(UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,30,0),new(UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,10,0))]);
+
+        var time=Assert.Single(store.QueryAnalysisView("基準時間シェア"),row => Convert.ToInt64(row["実行ID"])==second.RunId);
+        Assert.Equal(0.75,Convert.ToDouble(time["左シェア"]),12);
+        Assert.Equal(0.5,Convert.ToDouble(time["左シェア差分"]),12);
+        var memory=Assert.Single(store.QueryAnalysisView("基準メモリシェア"),row => Convert.ToInt64(row["実行ID"])==second.RunId);
+        Assert.Equal(0.0,Convert.ToDouble(memory["左シェア"]),12);
+        Assert.Equal(0.0,Convert.ToDouble(memory["右シェア"]),12);
+        Assert.Equal(0.0,Convert.ToDouble(memory["左シェア差分"]),12);
     }
 
     [Fact]

@@ -17,7 +17,7 @@ public sealed class BenchmarkScalableMetadata {
             BenchmarkSourceTabs.ScalableAll.Select(static tab => tab.Id).ToArray());
 
         var set = BenchmarkSourceTabs.ScalableAll[0];
-        Assert.Equal("Persisted",set.LeftHeader);
+        Assert.Equal("Current",set.LeftHeader);
         Assert.Equal("Previous",set.RightHeader);
         Assert.Equal("Scalable.Persisted.Set.Previous",set.RightProject);
 

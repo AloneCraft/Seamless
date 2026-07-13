@@ -32,7 +32,7 @@ public enum BenchmarkGridSortColumn{
     BenchmarkMethod,
     BenchmarkName,
     LogicalCpu,
-    LoopCount,
+    ループ回数,
     ArgumentCount,
     ArgumentIndex,
     ArgumentPage,
@@ -41,10 +41,12 @@ public enum BenchmarkGridSortColumn{
     ArgumentFraction,
     ArgumentInitial,
     ArgumentData,
-    PairRatioTime,
-    PairRatioAllocated,
+    左日時,
     LeftTime,
     LeftAllocated,
+    時間シェア,
+    メモリシェア,
+    右日時,
     RightTime,
     RightAllocated,
 }
@@ -86,7 +88,7 @@ public sealed class BenchmarkSortRule:ObservableObject{
             BenchmarkGridSortColumn.BenchmarkMethod => "ベンチマーク",
             BenchmarkGridSortColumn.BenchmarkName => "ベンチマーク",
             BenchmarkGridSortColumn.LogicalCpu => "CPU",
-            BenchmarkGridSortColumn.LoopCount => "ループ回数",
+            BenchmarkGridSortColumn.ループ回数 => "ループ回数",
             BenchmarkGridSortColumn.ArgumentCount => "Count",
             BenchmarkGridSortColumn.ArgumentIndex => "Index",
             BenchmarkGridSortColumn.ArgumentPage => "Page",
@@ -95,10 +97,12 @@ public sealed class BenchmarkSortRule:ObservableObject{
             BenchmarkGridSortColumn.ArgumentFraction => "Fraction",
             BenchmarkGridSortColumn.ArgumentInitial => "Initial",
             BenchmarkGridSortColumn.ArgumentData => "Data",
-            BenchmarkGridSortColumn.PairRatioTime => "時間比",
-            BenchmarkGridSortColumn.PairRatioAllocated => "メモリシェア",
+            BenchmarkGridSortColumn.左日時 => "Left 日時",
             BenchmarkGridSortColumn.LeftTime => "Left 時間",
             BenchmarkGridSortColumn.LeftAllocated => "Left メモリ",
+            BenchmarkGridSortColumn.時間シェア => "時間シェア",
+            BenchmarkGridSortColumn.メモリシェア => "メモリシェア",
+            BenchmarkGridSortColumn.右日時 => "Right 日時",
             BenchmarkGridSortColumn.RightTime => "Right 時間",
             BenchmarkGridSortColumn.RightAllocated => "Right メモリ",
             _ => column.ToString(),
@@ -159,7 +163,7 @@ public sealed class SourceTabOption:TabHeaderOptionBase{
     private bool isRunning;
     private bool isFinalCompleted;
     private bool treatsCompletedProgressAsFinalCompleted;
-    private string benchmarkRatioSummaryShortText = BenchmarkImprovementPromptBuilder.CreateSummary([]).ShortDisplayText;
+    private string ベンチマークシェア概要短縮文字列 = BenchmarkImprovementPromptBuilder.概要を作成([]).ShortDisplayText;
 
     public SourceTabOption(BenchmarkSourceTabDefinition definition){
         this.Definition=definition;
@@ -215,16 +219,16 @@ public sealed class SourceTabOption:TabHeaderOptionBase{
         : BenchmarkStatusImageNames.Completed;
     public double ProgressFraction => this.Progress.Total<=0 ? 0 : this.Progress.Fraction;
     public string ProgressText => this.Progress.Total<=0 ? "0/0" : this.Progress.FractionText;
-    public string BenchmarkRatioSummaryShortText{
-        get => this.benchmarkRatioSummaryShortText;
+    public string ベンチマークシェア概要短縮表示{
+        get => this.ベンチマークシェア概要短縮文字列;
         private set{
-            if(this.SetProperty(ref this.benchmarkRatioSummaryShortText,value)){
+            if(this.SetProperty(ref this.ベンチマークシェア概要短縮文字列,value)){
                 this.OnPropertyChanged(nameof(this.ProgressSummaryText));
                 this.OnPropertyChanged(nameof(this.ProgressTooltipText));
             }
         }
     }
-    public string ProgressSummaryText => this.CreateProgressPrefix()+","+this.BenchmarkRatioSummaryShortText;
+    public string ProgressSummaryText => this.CreateProgressPrefix()+","+this.ベンチマークシェア概要短縮表示;
     public string ProgressTooltipText => this.ProgressSummaryText;
     public Color ProgressOutlineColor => this.IsRunning
         ? RunningIndicatorColor
@@ -242,8 +246,8 @@ public sealed class SourceTabOption:TabHeaderOptionBase{
         }
     }
 
-    public void SetBenchmarkRatioSummaryShortText(string value){
-        this.BenchmarkRatioSummaryShortText=value;
+    public void ベンチマークシェア概要短縮表示を設定(string value){
+        this.ベンチマークシェア概要短縮表示=value;
     }
 
     private string CreateProgressPrefix() => this.IsRunning
@@ -286,7 +290,7 @@ public sealed class ObservableRangeCollection<T>:ObservableCollection<T>{
 
 public sealed class BenchmarkSourceTabViewState:ObservableObject{
     private double chartHeight = 300;
-    private string benchmarkRatioSummaryText = string.Empty;
+    private string ベンチマークシェア概要文字列 = string.Empty;
     private bool? isBenchmarkSelectionChecked;
     private string chartEmptyReasonText = "ベンチマークを実行するか、保存済み DB 実行を選択してください。";
     private string chartEmptyReasonTooltipText = "計測結果または保存済み DB 実行が選択されると比較チャートを表示します。";
@@ -306,9 +310,9 @@ public sealed class BenchmarkSourceTabViewState:ObservableObject{
     public ObservableCollection<BenchmarkDiagnosticRow> AllocationDiagnosticRows { get; } = [];
     public ObservableCollection<BenchmarkDiagnosticRow> CpuTimelineRows { get; } = [];
     public ObservableCollection<BenchmarkRankedRatioPoint> ImprovementCandidateRankPoints { get; } = [];
-    public ObservableCollection<BenchmarkRankedRatioPoint> TimeRatioWorstPoints { get; } = [];
-    public ObservableCollection<BenchmarkRankedRatioPoint> AllocationRatioWorstPoints { get; } = [];
-    public ObservableCollection<BenchmarkCategoryRatioPoint> CategoryRatioPoints { get; } = [];
+    public ObservableCollection<BenchmarkRankedRatioPoint> 時間シェアワースト点 { get; } = [];
+    public ObservableCollection<BenchmarkRankedRatioPoint> メモリシェアワースト点 { get; } = [];
+    public ObservableCollection<BenchmarkCategoryRatioPoint> カテゴリシェア点 { get; } = [];
     public ObservableCollection<BenchmarkBadgeItem> MissingFailureBadges { get; } = [];
     public ObservableCollection<BenchmarkQualityGaugePoint> MeasurementQualityGauges { get; } = [];
     public ObservableCollection<BenchmarkBadgeItem> FallbackDiagnosticBadges { get; } = [];
@@ -330,9 +334,9 @@ public sealed class BenchmarkSourceTabViewState:ObservableObject{
         set => this.SetProperty(ref this.chartHeight,value);
     }
 
-    public string BenchmarkRatioSummaryText{
-        get => this.benchmarkRatioSummaryText;
-        set => this.SetProperty(ref this.benchmarkRatioSummaryText,value);
+    public string ベンチマークシェア概要表示{
+        get => this.ベンチマークシェア概要文字列;
+        set => this.SetProperty(ref this.ベンチマークシェア概要文字列,value);
     }
 
     public string ChartEmptyReasonText{
@@ -388,15 +392,15 @@ public sealed class BenchmarkImprovementCandidateRow:ObservableObject{
         this.Candidate.TimeElementCount==this.Candidate.AllocatedElementCount
             ? this.Candidate.TimeElementCount.ToString("N0",CultureInfo.InvariantCulture)
             : this.Candidate.TimeElementCount.ToString("N0",CultureInfo.InvariantCulture)+"/"+this.Candidate.AllocatedElementCount.ToString("N0",CultureInfo.InvariantCulture);
-    public string TimeRatioText => BenchmarkImprovementCandidateBuilder.FormatRatio(this.Candidate.TimeRatio);
-    public string AllocatedRatioText => BenchmarkImprovementCandidateBuilder.FormatShare(this.Candidate.AllocatedShare);
-    public string TimeGaugeText => CreateGaugeText("時間",this.Candidate.TimeRatio);
-    public string AllocatedGaugeText => "メモリ "+this.Candidate.AllocatedShare.DisplayText;
-    public double TimeGaugeFraction => CreateGaugeFraction(this.Candidate.TimeRatio);
-    public double AllocatedGaugeFraction => this.Candidate.AllocatedShare.LeftShare??0;
-    public double WorstLeftRatioSortValue => BenchmarkImprovementCandidateBuilder.GetRegressionSeverity(
-        this.Candidate.TimeRatio,
-        this.Candidate.AllocatedShare);
+    public string 時間シェア文字列 => BenchmarkImprovementCandidateBuilder.シェアを整形(this.Candidate.時間シェア);
+    public string メモリシェア文字列 => BenchmarkImprovementCandidateBuilder.シェアを整形(this.Candidate.メモリシェア);
+    public string 時間ゲージ文字列 => "時間 "+this.Candidate.時間シェア.表示文字列;
+    public string メモリゲージ文字列 => "メモリ "+this.Candidate.メモリシェア.表示文字列;
+    public double 時間ゲージ割合 => this.Candidate.時間シェア.左シェア??0;
+    public double メモリゲージ割合 => this.Candidate.メモリシェア.左シェア??0;
+    public double 最悪左シェアソート値 => BenchmarkImprovementCandidateBuilder.回帰重要度を取得(
+        this.Candidate.時間シェア,
+        this.Candidate.メモリシェア);
     public string LeftTimeText => BenchmarkImprovementCandidateBuilder.FormatTime(this.Candidate.TimeLeft.TimeNanoseconds);
     public string RightTimeText => BenchmarkImprovementCandidateBuilder.FormatTime(this.Candidate.TimeRight.TimeNanoseconds);
     public string LeftAllocatedText => BenchmarkImprovementCandidateBuilder.FormatAllocated(this.Candidate.AllocatedLeft.AllocatedBytes);
@@ -404,19 +408,7 @@ public sealed class BenchmarkImprovementCandidateRow:ObservableObject{
     public string TooltipText =>
         this.SourceTabText+"\n"
         +this.Candidate.SourceTab.LeftProject+" / "+this.Candidate.SourceTab.RightProject+"\n"
-        +"Time "+this.TimeRatioText+" / Alloc "+this.AllocatedRatioText;
-
-    private static double CreateGaugeFraction(RatioValue ratio) =>
-        ratio.Kind switch{
-            RatioValueKind.Numeric when ratio.NumericValue is { } value => Math.Clamp(value/3.0,0,1),
-            RatioValueKind.LeftOnly => 1.0,
-            _ => 0.0,
-        };
-
-    private static string CreateGaugeText(string label,RatioValue ratio) =>
-        ratio.Kind==RatioValueKind.Numeric
-            ? label+" "+BenchmarkImprovementCandidateBuilder.FormatRatio(ratio)+"x"
-            : label+" "+BenchmarkImprovementCandidateBuilder.FormatRatio(ratio);
+        +"時間シェア "+this.時間シェア文字列+" / メモリシェア "+this.メモリシェア文字列;
 
     public bool IsSelected{
         get => this.isSelected;
@@ -441,18 +433,11 @@ public readonly record struct BenchmarkSortValue(string? Text,double? Number,boo
             : FromNumber(metrics.AllocatedBytes);
     }
 
-    public static BenchmarkSortValue FromRatio(RatioValue ratio){
-        return ratio.Kind switch{
-            RatioValueKind.Numeric when ratio.NumericValue is { } value => FromNumber(value),
-            RatioValueKind.BothZero => FromNumber(0),
-            RatioValueKind.LeftOnly => FromFiniteOrInfinity(double.PositiveInfinity),
-            RatioValueKind.RightOnly => FromNumber(0),
-            _ => Missing,
-        };
-    }
+    public static BenchmarkSortValue シェアから作成(シェア値 share) =>
+        FromNumber(share.左シェア);
 
-    public static BenchmarkSortValue FromShare(AllocationShareValue share) =>
-        FromNumber(share.LeftShare);
+    public static BenchmarkSortValue 日時から作成(DateTimeOffset? value) =>
+        FromNumber(value?.ToUnixTimeMilliseconds());
 
     public static BenchmarkSortValue FromNumber(double? value){
         return value is { } number&&double.IsFinite(number)
@@ -537,6 +522,7 @@ public sealed class BenchmarkProjectCell:ObservableObject{
         this.isSelected=hasCase;
         this.statusImageSource=hasCase ? BenchmarkStatusImageNames.Waiting : string.Empty;
         this.statusText=hasCase?"待機":"対象なし";
+        this.executionText=hasCase?string.Empty:"対象なし";
     }
 
     public event EventHandler? UiSelectionChanged;
@@ -545,6 +531,17 @@ public sealed class BenchmarkProjectCell:ObservableObject{
     public bool HasCase { get; }
     public ProjectMetrics Metrics => this.metrics;
     public DateTimeOffset? LastMeasuredAt => this.lastMeasuredAt;
+    public DateTimeOffset? 最新表示日時{
+        get{
+            if(this.lastMeasuredAt is null){
+                return this.lastFailedAt;
+            }
+            if(this.lastFailedAt is null||this.lastMeasuredAt>=this.lastFailedAt){
+                return this.lastMeasuredAt;
+            }
+            return this.lastFailedAt;
+        }
+    }
     public int? LastSuccessfulElementCount => this.lastSuccessfulElementCount;
     public int? LastLoopCount => this.lastLoopCount;
     public double? LastTotalNanoseconds => this.lastTotalNanoseconds;
@@ -1219,8 +1216,8 @@ public sealed class BenchmarkTableRow:ObservableObject{
     private bool isSelected;
     private bool isUiSelected;
     private bool? isSelectionChecked;
-    private string pairRatioTimeText = string.Empty;
-    private string pairRatioAllocatedText = string.Empty;
+    private string 時間シェア文字列 = string.Empty;
+    private string メモリシェア文字列 = string.Empty;
     private string stopNText = string.Empty;
     private Color stopNTextColor = DefaultStopNTextColor;
     private FontAttributes stopNFontAttributes;
@@ -1347,16 +1344,39 @@ public sealed class BenchmarkTableRow:ObservableObject{
             if(left is { } leftValue&&right is { } rightValue&&leftValue==rightValue){
                 return leftValue.ToString(CultureInfo.InvariantCulture);
             }
-            if(left is { } leftOnly){
-                return leftOnly.ToString(CultureInfo.InvariantCulture);
+            if(left is { } leftOnly&&right is { } rightOnly){
+                return leftOnly.ToString(CultureInfo.InvariantCulture)+":"+rightOnly.ToString(CultureInfo.InvariantCulture);
             }
-            if(right is { } rightOnly){
-                return rightOnly.ToString(CultureInfo.InvariantCulture);
+            if(left is { } leftOnlyValue){
+                return leftOnlyValue.ToString(CultureInfo.InvariantCulture)+":-";
+            }
+            if(right is { } rightOnlyValue){
+                return "-:"+rightOnlyValue.ToString(CultureInfo.InvariantCulture);
             }
             return string.Empty;
         }
     }
-    public string LoopCountTooltipText => string.IsNullOrWhiteSpace(this.LoopCountText) ? string.Empty : "左右共通の最終ループ回数: "+this.LoopCountText;
+    public int? 共通ループ回数{
+        get{
+            var left=this.LeftCell.LastLoopCount;
+            var right=this.RightCell.LastLoopCount;
+            if(left is { } leftValue&&right is { } rightValue&&leftValue==rightValue){
+                return leftValue;
+            }
+            return null;
+        }
+    }
+    public string LoopCountTooltipText{
+        get{
+            if(string.IsNullOrWhiteSpace(this.LoopCountText)){
+                return string.Empty;
+            }
+            if(this.共通ループ回数 is not null){
+                return "左右共通の最終ループ回数: "+this.LoopCountText;
+            }
+            return "Left:Right の最終ループ回数。左右不一致のためソート比較不能: "+this.LoopCountText;
+        }
+    }
     public double? LogicalCpuSortValue{
         get => this.logicalCpuSortValue;
         private set => this.SetProperty(ref this.logicalCpuSortValue,value);
@@ -1409,14 +1429,14 @@ public sealed class BenchmarkTableRow:ObservableObject{
         }
     }
 
-    public string PairRatioTimeText{
-        get => this.pairRatioTimeText;
-        private set => this.SetProperty(ref this.pairRatioTimeText,value);
+    public string 時間シェア表示{
+        get => this.時間シェア文字列;
+        private set => this.SetProperty(ref this.時間シェア文字列,value);
     }
 
-    public string PairRatioAllocatedText{
-        get => this.pairRatioAllocatedText;
-        private set => this.SetProperty(ref this.pairRatioAllocatedText,value);
+    public string メモリシェア表示{
+        get => this.メモリシェア文字列;
+        private set => this.SetProperty(ref this.メモリシェア文字列,value);
     }
 
     public string StopNText => string.IsNullOrWhiteSpace(this.stopNText)
@@ -1558,7 +1578,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
         if(this.GetProjectCell(result.Project) is { } cell){
             cell.ApplyStoredResult(result);
             this.SetProjectMetricText(result.Project,FormatTime(cell.Metrics),FormatAllocated(cell.Metrics));
-            this.RefreshDisplayedRatios();
+            this.表示シェアを更新();
         }
     }
 
@@ -1567,7 +1587,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
         if(this.GetProjectCell(result.Project) is { } cell){
             cell.ApplyRunResult(result,cpu,completedAt,highlightCompleted);
             this.SetProjectMetricText(result.Project,FormatTime(cell.Metrics),FormatAllocated(cell.Metrics));
-            this.RefreshDisplayedRatios();
+            this.表示シェアを更新();
         }
     }
 
@@ -1584,7 +1604,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
         if(this.GetProjectCell(result.Project) is { } cell){
             cell.ApplySnapshotResult(result,cpu,cpuNumber,measuredAt);
             this.SetProjectMetricText(result.Project,FormatTime(cell.Metrics),FormatAllocated(cell.Metrics));
-            this.RefreshDisplayedRatios();
+            this.表示シェアを更新();
         }
     }
 
@@ -1601,7 +1621,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
         if(this.GetProjectCell(project) is { } cell){
             cell.ApplySnapshotResult(result,cpu,cpuNumber,measuredAt);
             this.SetProjectMetricText(project,FormatTime(cell.Metrics),FormatAllocated(cell.Metrics));
-            this.RefreshDisplayedRatios();
+            this.表示シェアを更新();
         }
     }
 
@@ -1620,7 +1640,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
         }
 
         this.SetProjectMetricText(project,FormatTime(stoppedMetrics),FormatAllocated(stoppedMetrics));
-        this.RefreshDisplayedRatios();
+        this.表示シェアを更新();
     }
 
     public void ApplyPairStopped(string leftProject,string rightProject,int stoppedAtElementCount,bool highlight){
@@ -1668,7 +1688,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.LeftAllocatedText=FormatAllocated(this.LeftCell.Metrics);
         this.RightTimeText=FormatTime(this.RightCell.Metrics);
         this.RightAllocatedText=FormatAllocated(this.RightCell.Metrics);
-        this.RefreshDisplayedRatios();
+        this.表示シェアを更新();
     }
 
     public void ApplyComparison(BenchmarkComparisonRow? row,bool preserveRetainedDisplay = false){
@@ -1688,7 +1708,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
         this.LeftAllocatedText=FormatAllocated(this.LeftCell.Metrics);
         this.RightTimeText=FormatTime(this.RightCell.Metrics);
         this.RightAllocatedText=FormatAllocated(this.RightCell.Metrics);
-        this.RefreshDisplayedRatios();
+        this.表示シェアを更新();
     }
 
     public BenchmarkSortValue GetSortValue(BenchmarkGridSortColumn column){
@@ -1697,7 +1717,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
             BenchmarkGridSortColumn.BenchmarkMethod => BenchmarkSortValue.FromText(this.BenchmarkMethodText),
             BenchmarkGridSortColumn.BenchmarkName => BenchmarkSortValue.FromText(this.BenchmarkName),
             BenchmarkGridSortColumn.LogicalCpu => BenchmarkSortValue.FromNumber(this.LogicalCpuSortValue),
-            BenchmarkGridSortColumn.LoopCount => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.LoopCountText)),
+            BenchmarkGridSortColumn.ループ回数 => BenchmarkSortValue.FromNumber(this.共通ループ回数),
             BenchmarkGridSortColumn.ArgumentCount => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.CountArgument)),
             BenchmarkGridSortColumn.ArgumentIndex => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.IndexArgument)),
             BenchmarkGridSortColumn.ArgumentPage => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.PageArgument)),
@@ -1706,10 +1726,12 @@ public sealed class BenchmarkTableRow:ObservableObject{
             BenchmarkGridSortColumn.ArgumentFraction => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.FractionArgument)),
             BenchmarkGridSortColumn.ArgumentInitial => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.InitialArgument)),
             BenchmarkGridSortColumn.ArgumentData => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.DataArgument)),
-            BenchmarkGridSortColumn.PairRatioTime => BenchmarkSortValue.FromRatio(this.GetDisplayedTimeRatio()),
-            BenchmarkGridSortColumn.PairRatioAllocated => BenchmarkSortValue.FromShare(this.GetDisplayedAllocatedShare()),
+            BenchmarkGridSortColumn.左日時 => BenchmarkSortValue.日時から作成(this.LeftCell.最新表示日時),
             BenchmarkGridSortColumn.LeftTime => BenchmarkSortValue.FromMetric(this.LeftCell.Metrics,BenchmarkMetricKind.Time),
             BenchmarkGridSortColumn.LeftAllocated => BenchmarkSortValue.FromMetric(this.LeftCell.Metrics,BenchmarkMetricKind.Allocated),
+            BenchmarkGridSortColumn.時間シェア => BenchmarkSortValue.シェアから作成(this.表示時間シェアを取得()),
+            BenchmarkGridSortColumn.メモリシェア => BenchmarkSortValue.シェアから作成(this.表示メモリシェアを取得()),
+            BenchmarkGridSortColumn.右日時 => BenchmarkSortValue.日時から作成(this.RightCell.最新表示日時),
             BenchmarkGridSortColumn.RightTime => BenchmarkSortValue.FromMetric(this.RightCell.Metrics,BenchmarkMetricKind.Time),
             BenchmarkGridSortColumn.RightAllocated => BenchmarkSortValue.FromMetric(this.RightCell.Metrics,BenchmarkMetricKind.Allocated),
             _ => BenchmarkSortValue.Missing,
@@ -1717,8 +1739,8 @@ public sealed class BenchmarkTableRow:ObservableObject{
     }
 
     private void ClearComparison(bool preserveRetainedDisplay){
-        this.PairRatioTimeText=string.Empty;
-        this.PairRatioAllocatedText=string.Empty;
+        this.時間シェア表示=string.Empty;
+        this.メモリシェア表示=string.Empty;
         this.stopNText=string.Empty;
         if(preserveRetainedDisplay){
             // 実行中/完了後は、比較行が消えてもセルの確定値を維持する。
@@ -1726,7 +1748,7 @@ public sealed class BenchmarkTableRow:ObservableObject{
             this.LeftAllocatedText=FormatAllocated(this.LeftCell.Metrics);
             this.RightTimeText=FormatTime(this.RightCell.Metrics);
             this.RightAllocatedText=FormatAllocated(this.RightCell.Metrics);
-            this.RefreshDisplayedRatios();
+            this.表示シェアを更新();
         }else{
             this.LeftTimeText=string.Empty;
             this.LeftAllocatedText=string.Empty;
@@ -1741,18 +1763,21 @@ public sealed class BenchmarkTableRow:ObservableObject{
         }
     }
 
-    private void RefreshDisplayedRatios(){
-        var timeRatio=this.GetDisplayedTimeRatio();
-        var warning=BenchmarkAcceptancePolicy.IsRegression(this.SourceTab.Tab,timeRatio)?" ⚠":"";
-        this.PairRatioTimeText=FormatRatio(timeRatio)+warning;
-        this.PairRatioAllocatedText=this.GetDisplayedAllocatedShare().DisplayText;
+    private void 表示シェアを更新(){
+        var timeShare=this.表示時間シェアを取得();
+        var warning=string.Empty;
+        if(BenchmarkAcceptancePolicy.回帰か(this.SourceTab.Tab,timeShare)){
+            warning=" ⚠";
+        }
+        this.時間シェア表示=timeShare.表示文字列+warning;
+        this.メモリシェア表示=this.表示メモリシェアを取得().表示文字列;
     }
 
-    private RatioValue GetDisplayedTimeRatio() =>
-        BenchmarkComparisonFormatter.CalculateTimeRatio(this.LeftCell.Metrics,this.RightCell.Metrics);
+    private シェア値 表示時間シェアを取得() =>
+        BenchmarkComparisonFormatter.時間シェアを計算(this.LeftCell.Metrics,this.RightCell.Metrics);
 
-    private AllocationShareValue GetDisplayedAllocatedShare() =>
-        BenchmarkComparisonFormatter.CalculateAllocatedShare(this.LeftCell.Metrics,this.RightCell.Metrics);
+    private シェア値 表示メモリシェアを取得() =>
+        BenchmarkComparisonFormatter.メモリシェアを計算(this.LeftCell.Metrics,this.RightCell.Metrics);
 
     private void SetProjectMetricText(string project,string timeText,string allocatedText){
         if(string.Equals(project,this.SourceTab.LeftProject,StringComparison.OrdinalIgnoreCase)){
@@ -1890,15 +1915,6 @@ public sealed class BenchmarkTableRow:ObservableObject{
             : string.Empty;
     }
 
-    private static string FormatRatio(RatioValue ratio){
-        return ratio.Kind switch{
-            RatioValueKind.Numeric when ratio.NumericValue is { } value => value.ToString("0.00",CultureInfo.InvariantCulture),
-            RatioValueKind.BothZero => "0",
-            RatioValueKind.LeftOnly => "inf",
-            RatioValueKind.RightOnly => "0",
-            _ => string.Empty,
-        };
-    }
 }
 
 internal static class BenchmarkArgumentTooltipFormatter {
@@ -2300,8 +2316,8 @@ public sealed class ChartComparisonPoint{
         string leftText,
         string rightText,
         string tooltipText,
-        double? ratio)
-        : this(benchmark,displayName,string.Empty,displayName,false,false,leftValue,rightValue,leftText,rightText,tooltipText,ratio,false,false,false,false,false,false,null){
+        double? 左シェア)
+        : this(benchmark,displayName,string.Empty,displayName,false,false,leftValue,rightValue,leftText,rightText,tooltipText,左シェア,false,false,false,false,false,false,null){
     }
 
     public ChartComparisonPoint(
@@ -2316,8 +2332,8 @@ public sealed class ChartComparisonPoint{
         string leftText,
         string rightText,
         string tooltipText,
-        double? ratio)
-        : this(benchmark,displayName,groupDisplayName,rowDisplayName,isGroupFirst,isGroupLast,leftValue,rightValue,leftText,rightText,tooltipText,ratio,false,false,false,false,false,false,null){
+        double? 左シェア)
+        : this(benchmark,displayName,groupDisplayName,rowDisplayName,isGroupFirst,isGroupLast,leftValue,rightValue,leftText,rightText,tooltipText,左シェア,false,false,false,false,false,false,null){
     }
 
     private ChartComparisonPoint(
@@ -2332,7 +2348,7 @@ public sealed class ChartComparisonPoint{
         string leftText,
         string rightText,
         string tooltipText,
-        double? ratio,
+        double? 左シェア,
         bool isRunning,
         bool isLeftUiSelected,
         bool isRightUiSelected,
@@ -2351,7 +2367,7 @@ public sealed class ChartComparisonPoint{
         this.LeftText=leftText;
         this.RightText=rightText;
         this.TooltipText=tooltipText;
-        this.Ratio=ratio;
+        this.左シェア=左シェア;
         this.IsRunning=isRunning;
         this.IsLeftUiSelected=isLeftUiSelected;
         this.IsRightUiSelected=isRightUiSelected;
@@ -2379,7 +2395,7 @@ public sealed class ChartComparisonPoint{
     public string LeftText { get; private set; }
     public string RightText { get; private set; }
     public string TooltipText { get; private set; }
-    public double? Ratio { get; private set; }
+    public double? 左シェア { get; private set; }
     public bool IsRunning { get; private set; }
     public bool IsLeftUiSelected { get; private set; }
     public bool IsRightUiSelected { get; private set; }
@@ -2408,7 +2424,7 @@ public sealed class ChartComparisonPoint{
         this.LeftText=source.LeftText;
         this.RightText=source.RightText;
         this.TooltipText=source.TooltipText;
-        this.Ratio=source.Ratio;
+        this.左シェア=source.左シェア;
         this.IsRunning=source.IsRunning;
         this.IsLeftUiSelected=source.IsLeftUiSelected;
         this.IsRightUiSelected=source.IsRightUiSelected;
@@ -2430,7 +2446,7 @@ public sealed class ChartComparisonPoint{
             this.LeftText,
             this.RightText,
             this.TooltipText,
-            this.Ratio,
+            this.左シェア,
             isRunning,
             this.IsLeftUiSelected,
             this.IsRightUiSelected,
@@ -2452,7 +2468,7 @@ public sealed class ChartComparisonPoint{
             this.LeftText,
             this.RightText,
             this.TooltipText,
-            this.Ratio,
+            this.左シェア,
             this.IsRunning,
             isLeftUiSelected,
             isRightUiSelected,
@@ -2474,7 +2490,7 @@ public sealed class ChartComparisonPoint{
             this.LeftText,
             this.RightText,
             this.TooltipText,
-            this.Ratio,
+            this.左シェア,
             this.IsRunning,
             this.IsLeftUiSelected,
             this.IsRightUiSelected,
@@ -2496,7 +2512,7 @@ public sealed class ChartComparisonPoint{
             this.LeftText,
             this.RightText,
             this.TooltipText,
-            this.Ratio,
+            this.左シェア,
             this.IsRunning,
             this.IsLeftUiSelected,
             this.IsRightUiSelected,

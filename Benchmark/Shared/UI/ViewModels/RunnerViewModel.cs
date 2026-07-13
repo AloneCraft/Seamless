@@ -43,7 +43,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <summary>
     /// BenchmarkSortSettingsPreferenceKey フィールドです。
     /// </summary>
-    private const string BenchmarkSortSettingsPreferenceKey = "Seamless.SortRules.v1";
+    private const string BenchmarkSortSettingsPreferenceKey = "Seamless.SortRules.v2";
     private static readonly BenchmarkRunOption NewRunOption = new(
         NewRunNumber,
         0,
@@ -210,8 +210,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// improvementCandidateSummaryText フィールドです。
     /// </summary>
     private string improvementCandidateSummaryText = string.Empty;
-    private string overallBenchmarkRatioSummaryText = BenchmarkImprovementPromptBuilder.CreateSummary([]).OverallDisplayText;
-    private string overallBenchmarkRatioSummaryShortText = BenchmarkImprovementPromptBuilder.CreateSummary([]).ShortDisplayText;
+    private string 全体ベンチマークシェア概要文字列 = BenchmarkImprovementPromptBuilder.概要を作成([]).OverallDisplayText;
+    private string 全体ベンチマークシェア概要短縮文字列 = BenchmarkImprovementPromptBuilder.概要を作成([]).ShortDisplayText;
     /// <summary>
     /// generatedCodeAuditReport フィールドです。
     /// </summary>
@@ -909,18 +909,18 @@ public sealed partial class RunnerViewModel:ObservableObject {
             : string.Join(" > ",this.BenchmarkSortRules.Select(static rule => rule.ColumnText+" "+rule.DirectionText));
 
     /// <summary>
-    /// BenchmarkRatioSummaryText プロパティです。
+    /// ベンチマークシェア概要表示 プロパティです。
     /// </summary>
-    /// <value>BenchmarkRatioSummaryText の値を取得/設定します。</value>
-    public string BenchmarkRatioSummaryText {
-        get => this.SelectedSourceTabViewState.BenchmarkRatioSummaryText;
+    /// <value>ベンチマークシェア概要表示 の値を取得/設定します。</value>
+    public string ベンチマークシェア概要表示 {
+        get => this.SelectedSourceTabViewState.ベンチマークシェア概要表示;
         /// <summary>
         /// set プロパティを取得/設定します。
         /// </summary>
         /// <value>set の値です。</value>
         private set {
-            if(this.SelectedSourceTabViewState.BenchmarkRatioSummaryText!=value) {
-                this.SelectedSourceTabViewState.BenchmarkRatioSummaryText=value;
+            if(this.SelectedSourceTabViewState.ベンチマークシェア概要表示!=value) {
+                this.SelectedSourceTabViewState.ベンチマークシェア概要表示=value;
                 this.OnPropertyChanged();
             }
         }
@@ -1645,7 +1645,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                     this.OnPropertyChanged(nameof(this.ChartEmptyReasonText));
                     this.OnPropertyChanged(nameof(this.ChartEmptyReasonTooltipText));
                     this.OnPropertyChanged(nameof(this.ChartHeight));
-                    this.OnPropertyChanged(nameof(this.BenchmarkRatioSummaryText));
+                    this.OnPropertyChanged(nameof(this.ベンチマークシェア概要表示));
                     this.OnPropertyChanged(nameof(this.LatencyHotspotRows));
                     this.OnPropertyChanged(nameof(this.AllocationDiagnosticRows));
                     this.OnPropertyChanged(nameof(this.CpuTimelineRows));
@@ -2207,10 +2207,10 @@ public sealed partial class RunnerViewModel:ObservableObject {
         this.SetBenchmarkCells(cells,selected,tab);
     }
 
-    public string OverallBenchmarkRatioSummaryText {
-        get => this.overallBenchmarkRatioSummaryText;
+    public string 全体ベンチマークシェア概要表示 {
+        get => this.全体ベンチマークシェア概要文字列;
         private set{
-            if(this.SetProperty(ref this.overallBenchmarkRatioSummaryText,value)){
+            if(this.SetProperty(ref this.全体ベンチマークシェア概要文字列,value)){
                 this.OnPropertyChanged(nameof(this.OverallSourceProgressSummaryText));
             }
         }
@@ -2218,7 +2218,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
 
     public string OverallSourceProgressSummaryText =>
         "確定 "+(this.OverallSourceTabProgress.Total<=0 ? "0/0" : this.OverallSourceTabProgress.FractionText)
-        +","+this.overallBenchmarkRatioSummaryShortText;
+        +","+this.全体ベンチマークシェア概要短縮文字列;
 
     /// <summary>
     /// ToggleBenchmarkRow メソッドを実行し、副作用として内部状態を更新または描画反映します。
@@ -2902,34 +2902,6 @@ public sealed partial class RunnerViewModel:ObservableObject {
     }
 
     /// <summary>
-    /// LoadTimeRatioWorstChartData メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <returns>処理結果を返却します。</returns>
-    public IReadOnlyList<BenchmarkRankedRatioPoint> LoadTimeRatioWorstChartData() {
-        try {
-            return BenchmarkAnalysisViewMapper.MapTimeRatioWorst(this.uiRunStore.QueryAnalysisView("BenchmarkTimeRatioWorst",100));
-        }
-        catch(Exception ex) {
-            StartupDiagnostics.Write("BenchmarkTimeRatioWorst load failed.",ex);
-            return [];
-        }
-    }
-
-    /// <summary>
-    /// LoadAllocationRatioWorstChartData メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <returns>処理結果を返却します。</returns>
-    public IReadOnlyList<BenchmarkRankedRatioPoint> LoadAllocationRatioWorstChartData() {
-        try {
-            return BenchmarkAnalysisViewMapper.MapAllocationRatioWorst(this.uiRunStore.QueryAnalysisView("BenchmarkAllocationRatioWorst",100));
-        }
-        catch(Exception ex) {
-            StartupDiagnostics.Write("BenchmarkAllocationRatioWorst load failed.",ex);
-            return [];
-        }
-    }
-
-    /// <summary>
     /// LoadCategorySummaryChartData メソッドを実行し、結果を算出して返却します。
     /// </summary>
     /// <returns>処理結果を返却します。</returns>
@@ -2948,42 +2920,39 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// </summary>
     /// <returns>処理結果を返却します。</returns>
     public IReadOnlyList<BenchmarkTrendSeries> LoadHistoryTrendChartData() =>
-        this.LoadHistoryTimeRatioChartData();
+        this.時間シェア履歴を読込();
 
-    public IReadOnlyList<BenchmarkTrendSeries> LoadHistoryTimeRatioChartData() {
+    public IReadOnlyList<BenchmarkTrendSeries> 時間シェア履歴を読込() {
         try {
-            return this.LoadSelectedSourceTabRatioHistory("履歴時間比");
+            var rows=this.選択タブのシェア履歴を読込("履歴時間シェア");
+            return BenchmarkAnalysisViewMapper.時間シェア履歴を変換(rows);
         }
         catch(Exception ex) {
-            StartupDiagnostics.Write("履歴時間比 load failed.",ex);
+            StartupDiagnostics.Write("履歴時間シェア load failed.",ex);
             return [];
         }
     }
 
-    public IReadOnlyList<BenchmarkTrendSeries> LoadHistoryMemoryRatioChartData() {
+    public IReadOnlyList<BenchmarkTrendSeries> メモリシェア履歴を読込() {
         try {
-            var selectedSourceTabId = this.SelectedSourceDefinition.Id;
-            var rows = this.uiRunStore.QueryAnalysisView("履歴メモリ比",1000)
-                .Where(row => IsAnalysisRowForSourceTab(row,selectedSourceTabId))
-                .ToArray();
-            return BenchmarkAnalysisViewMapper.MapMemoryShareHistory(rows);
+            var rows=this.選択タブのシェア履歴を読込("履歴メモリシェア");
+            return BenchmarkAnalysisViewMapper.メモリシェア履歴を変換(rows);
         }
         catch(Exception ex) {
-            StartupDiagnostics.Write("履歴メモリ比 load failed.",ex);
+            StartupDiagnostics.Write("履歴メモリシェア load failed.",ex);
             return [];
         }
     }
 
-    private IReadOnlyList<BenchmarkTrendSeries> LoadSelectedSourceTabRatioHistory(string viewName) {
+    private IReadOnlyList<IReadOnlyDictionary<string,object?>> 選択タブのシェア履歴を読込(string viewName) {
         var selectedSourceTabId = this.SelectedSourceDefinition.Id;
-        var rows = this.uiRunStore.QueryAnalysisView(viewName,1000)
-            .Where(row => IsAnalysisRowForSourceTab(row,selectedSourceTabId))
+        return this.uiRunStore.QueryAnalysisView(viewName,1000)
+            .Where(row => 分析行がタブ対象か(row,selectedSourceTabId))
             .ToArray();
-        return BenchmarkAnalysisViewMapper.MapPerformanceRatioHistory(rows);
     }
 
-    private static bool IsAnalysisRowForSourceTab(IReadOnlyDictionary<string,object?> row,string sourceTabId) =>
-        row.TryGetValue("SourceTab",out var value)
+    private static bool 分析行がタブ対象か(IReadOnlyDictionary<string,object?> row,string sourceTabId) =>
+        row.TryGetValue("タブ名",out var value)
         &&string.Equals(
             Convert.ToString(value,System.Globalization.CultureInfo.InvariantCulture),
             sourceTabId,
@@ -3968,7 +3937,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                         UiThreadBudget.Measure("comparison-apply",() => {
                             for(var index = 0; index<tabInputs.Length; index++) {
                                 tabInputs[index].State.ComparisonRows=computed[index];
-                                this.RefreshBenchmarkRatioSummary(tabInputs[index].State);
+                                this.ベンチマークシェア概要を更新(tabInputs[index].State);
                             }
                             // 新しいComparisonRowsを行/スキップセル/完了状態/チャートへ反映する。もう次のtickが
                             // 来ない(停止中Run閲覧時など)場合でもここで確定させないと表示が更新されないまま残る。
@@ -4024,7 +3993,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 state.Definition,
                 selectedElementCount,
                 this.CreateReportRowsForComparison);
-            this.RefreshBenchmarkRatioSummary(state);
+            this.ベンチマークシェア概要を更新(state);
         }
 
         this.comparisonRows=this.SelectedSourceTabViewState.ComparisonRows;
@@ -6256,16 +6225,16 @@ public sealed partial class RunnerViewModel:ObservableObject {
     private void ClearAllSourceTabComparisonDisplays() {
         foreach(var state in this.sourceTabViewStates) {
             state.ComparisonRows= [];
-            state.BenchmarkRatioSummaryText=string.Empty;
-            this.GetSourceTabOption(state.Definition.Tab).SetBenchmarkRatioSummaryShortText(BenchmarkImprovementPromptBuilder.CreateSummary([]).ShortDisplayText);
+            state.ベンチマークシェア概要表示=string.Empty;
+            this.GetSourceTabOption(state.Definition.Tab).ベンチマークシェア概要短縮表示を設定(BenchmarkImprovementPromptBuilder.概要を作成([]).ShortDisplayText);
             this.SyncBenchmarkChartPoints(state,[]);
             this.UpdateChartEmptyReason(state,[],[]);
             state.LatencyHotspotRows.Clear();
             state.AllocationDiagnosticRows.Clear();
             state.CpuTimelineRows.Clear();
         }
-        this.RefreshOverallBenchmarkRatioSummary();
-        this.OnPropertyChanged(nameof(this.BenchmarkRatioSummaryText));
+        this.全体ベンチマークシェア概要を更新();
+        this.OnPropertyChanged(nameof(this.ベンチマークシェア概要表示));
         this.OnPropertyChanged(nameof(this.ChartPoints));
         this.OnPropertyChanged(nameof(this.ChartEmptyReasonText));
         this.OnPropertyChanged(nameof(this.ChartEmptyReasonTooltipText));
@@ -6284,9 +6253,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
         this.VisibleResultItems.Clear();
         this.CurrentElementCountText="-";
         this.ClearBenchmarkResultDisplays();
-        this.BenchmarkRatioSummaryText=string.Empty;
-        this.GetSourceTabOption(this.SelectedSourceDefinition.Tab).SetBenchmarkRatioSummaryShortText(BenchmarkImprovementPromptBuilder.CreateSummary([]).ShortDisplayText);
-        this.RefreshOverallBenchmarkRatioSummary();
+        this.ベンチマークシェア概要表示=string.Empty;
+        this.GetSourceTabOption(this.SelectedSourceDefinition.Tab).ベンチマークシェア概要短縮表示を設定(BenchmarkImprovementPromptBuilder.概要を作成([]).ShortDisplayText);
+        this.全体ベンチマークシェア概要を更新();
         this.RefreshImprovementPrompt();
         this.RefreshSourceTabProgresses();
         this.RefreshToolbarCommandStates();
@@ -6302,9 +6271,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
         this.VisibleResultItems.Clear();
         this.CurrentElementCountText="-";
         this.ClearBenchmarkResultDisplays();
-        this.BenchmarkRatioSummaryText=string.Empty;
-        this.GetSourceTabOption(this.SelectedSourceDefinition.Tab).SetBenchmarkRatioSummaryShortText(BenchmarkImprovementPromptBuilder.CreateSummary([]).ShortDisplayText);
-        this.RefreshOverallBenchmarkRatioSummary();
+        this.ベンチマークシェア概要表示=string.Empty;
+        this.GetSourceTabOption(this.SelectedSourceDefinition.Tab).ベンチマークシェア概要短縮表示を設定(BenchmarkImprovementPromptBuilder.概要を作成([]).ShortDisplayText);
+        this.全体ベンチマークシェア概要を更新();
         this.ImprovementPromptText=string.Empty;
         this.RefreshSourceTabProgresses();
         this.RefreshToolbarCommandStates();
@@ -6394,7 +6363,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
         foreach(var benchmark in state.Rows) {
             benchmark.ApplyComparison(this.FindComparisonRow(state,benchmark),this.IsBenchmarkRunActive||hasCurrentRunResults);
         }
-        this.RefreshBenchmarkRatioSummary(state);
+        this.ベンチマークシェア概要を更新(state);
     }
 
     /// <summary>
@@ -6450,24 +6419,24 @@ public sealed partial class RunnerViewModel:ObservableObject {
     }
 
     /// <summary>
-    /// RefreshBenchmarkRatioSummary メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// ベンチマークシェア概要を更新 メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
-    private void RefreshBenchmarkRatioSummary() {
-        this.RefreshBenchmarkRatioSummary(this.SelectedSourceTabViewState);
+    private void ベンチマークシェア概要を更新() {
+        this.ベンチマークシェア概要を更新(this.SelectedSourceTabViewState);
     }
 
     /// <summary>
-    /// RefreshBenchmarkRatioSummary メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// ベンチマークシェア概要を更新 メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
     /// <param name="state">state を指定して実行条件を制御します。</param>
-    private void RefreshBenchmarkRatioSummary(BenchmarkSourceTabViewState state) {
+    private void ベンチマークシェア概要を更新(BenchmarkSourceTabViewState state) {
         var measuredRows=this.BuildMeasuredRunComparisonRows(state.Definition);
-        var summary = BenchmarkImprovementPromptBuilder.CreateSummary(measuredRows);
-        state.BenchmarkRatioSummaryText=summary.DisplayText;
-        this.GetSourceTabOption(state.Definition.Tab).SetBenchmarkRatioSummaryShortText(summary.ShortDisplayText);
-        this.RefreshOverallBenchmarkRatioSummary();
+        var summary = BenchmarkImprovementPromptBuilder.概要を作成(measuredRows);
+        state.ベンチマークシェア概要表示=summary.DisplayText;
+        this.GetSourceTabOption(state.Definition.Tab).ベンチマークシェア概要短縮表示を設定(summary.ShortDisplayText);
+        this.全体ベンチマークシェア概要を更新();
         if(state==this.SelectedSourceTabViewState) {
-            this.OnPropertyChanged(nameof(this.BenchmarkRatioSummaryText));
+            this.OnPropertyChanged(nameof(this.ベンチマークシェア概要表示));
         }
     }
 
@@ -6480,14 +6449,14 @@ public sealed partial class RunnerViewModel:ObservableObject {
             : this.runProjectionService.BuildLatestComparisonRows(measured,sourceTab,this.CreateReportRowsForComparison);
     }
 
-    private void RefreshOverallBenchmarkRatioSummary() {
+    private void 全体ベンチマークシェア概要を更新() {
         var rows=this.sourceTabViewStates
             .SelectMany(state => this.BuildMeasuredRunComparisonRows(state.Definition))
             .ToArray();
-        var summary = BenchmarkImprovementPromptBuilder.CreateSummary(rows);
-        this.OverallBenchmarkRatioSummaryText=summary.OverallDisplayText;
-        if(this.overallBenchmarkRatioSummaryShortText!=summary.ShortDisplayText){
-            this.overallBenchmarkRatioSummaryShortText=summary.ShortDisplayText;
+        var summary = BenchmarkImprovementPromptBuilder.概要を作成(rows);
+        this.全体ベンチマークシェア概要表示=summary.OverallDisplayText;
+        if(this.全体ベンチマークシェア概要短縮文字列!=summary.ShortDisplayText){
+            this.全体ベンチマークシェア概要短縮文字列=summary.ShortDisplayText;
             this.OnPropertyChanged(nameof(this.OverallSourceProgressSummaryText));
         }
     }
@@ -6583,13 +6552,13 @@ public sealed partial class RunnerViewModel:ObservableObject {
         this.ReplaceImprovementCandidateRows(
             this.TimeImprovementCandidates,
             this.ImprovementCandidates
-                .Where(static row => row.Candidate.HasTimeRegression)
-                .OrderByDescending(static row => BenchmarkImprovementCandidateBuilder.GetRankValue(row.Candidate.TimeRatio)));
+                .Where(static row => row.Candidate.時間回帰か)
+                .OrderByDescending(static row => BenchmarkImprovementCandidateBuilder.順位値を取得(row.Candidate.時間シェア)));
         this.ReplaceImprovementCandidateRows(
             this.AllocatedImprovementCandidates,
             this.ImprovementCandidates
-                .Where(static row => row.Candidate.HasAllocatedRegression)
-                .OrderByDescending(static row => BenchmarkImprovementCandidateBuilder.GetRankValue(row.Candidate.AllocatedShare)));
+                .Where(static row => row.Candidate.メモリ回帰か)
+                .OrderByDescending(static row => BenchmarkImprovementCandidateBuilder.順位値を取得(row.Candidate.メモリシェア)));
     }
 
     private void ReplaceImprovementCandidateRows(
@@ -6608,8 +6577,8 @@ public sealed partial class RunnerViewModel:ObservableObject {
     private string CreateImprovementCandidateSummary() {
         var selected = this.ImprovementCandidates.Count(static row => row.IsSelected);
         var total = this.ImprovementCandidates.Count;
-        var time = this.ImprovementCandidates.Count(static row => row.Candidate.HasTimeRegression);
-        var allocated = this.ImprovementCandidates.Count(static row => row.Candidate.HasAllocatedRegression);
+        var time = this.ImprovementCandidates.Count(static row => row.Candidate.時間回帰か);
+        var allocated = this.ImprovementCandidates.Count(static row => row.Candidate.メモリ回帰か);
         return "選択 "+selected.ToString(System.Globalization.CultureInfo.InvariantCulture)
             +"/"+total.ToString(System.Globalization.CultureInfo.InvariantCulture)
             +" / 時間 "+time.ToString(System.Globalization.CultureInfo.InvariantCulture)
@@ -8615,6 +8584,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
         catch(Exception ex) {
             StartupDiagnostics.Write("Benchmark DB progress snapshot load failed.",ex);
+            if(ex is InvalidDataException) {
+                throw;
+            }
             return null;
         }
     }
@@ -8625,9 +8597,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
             return null;
         }
 
-        var sourceTab = Enum.TryParse<BenchmarkSourceTab>(run.SourceTab,true,out var parsedSourceTab)
-            ? parsedSourceTab
-            : this.SelectedSourceDefinition.Tab;
+        if(!Enum.TryParse<BenchmarkSourceTab>(run.SourceTab,true,out var sourceTab)) {
+            throw new InvalidDataException("Benchmark DB run SourceTab is unknown. RunId="+runId+" SourceTab="+run.SourceTab);
+        }
         var executionProfile = Enum.TryParse<BenchmarkExecutionProfile>(run.ExecutionProfile,true,out var parsedProfile)
             ? parsedProfile
             : this.SelectedExecutionProfile.Profile;
@@ -8644,10 +8616,36 @@ public sealed partial class RunnerViewModel:ObservableObject {
             if(!cases.TryGetValue(storedJob.CaseId,out var testCase)){
                 continue;
             }
-            var jobSourceTab = BenchmarkSourceTabs.TryGetById(testCase.SourceTabId)?.Tab??sourceTab;
+            var jobSourceTab=BenchmarkSourceTabs.GetById(testCase.SourceTabId).Tab;
+            if(jobSourceTab!=sourceTab) {
+                throw new InvalidDataException(
+                    "Benchmark DB case SourceTab does not match its run. RunId="+runId
+                    +" RunSourceTab="+BenchmarkSourceTabs.Get(sourceTab).Id
+                    +" CaseSourceTab="+testCase.SourceTabId
+                    +" Project="+testCase.Project
+                    +" Assembly="+testCase.AssemblyName);
+            }
             var resolvedCase = this.FindBenchmarkCase(testCase.Method,testCase.Project,testCase.TypeFullName,testCase.ArgumentKey,jobSourceTab);
             if(resolvedCase is null){
-                continue;
+                throw new InvalidDataException(
+                    "Benchmark DB case could not be resolved from the current catalog. RunId="+runId
+                    +" SourceTab="+testCase.SourceTabId
+                    +" Project="+testCase.Project
+                    +" Assembly="+testCase.AssemblyName
+                    +" Type="+testCase.TypeFullName
+                    +" Method="+testCase.Method);
+            }
+            var sourceTabDefinition=BenchmarkSourceTabs.Get(jobSourceTab);
+            if(!string.Equals(resolvedCase.AssemblyName,testCase.AssemblyName,StringComparison.OrdinalIgnoreCase)
+                ||!sourceTabDefinition.ContainsCase(resolvedCase)){
+                throw new InvalidDataException(
+                    "Benchmark DB case identity does not match the current catalog. RunId="+runId
+                    +" SourceTab="+testCase.SourceTabId
+                    +" Project="+testCase.Project
+                    +" StoredAssembly="+testCase.AssemblyName
+                    +" ResolvedAssembly="+resolvedCase.AssemblyName
+                    +" Type="+testCase.TypeFullName
+                    +" Method="+testCase.Method);
             }
 
             var caseArguments = this.uiRunStore.ListCaseArguments(testCase.CaseId);
@@ -8917,7 +8915,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
                         var computed = task.Result;
                         UiThreadBudget.Measure("chart-apply",() => {
                             state.ComparisonRows=computed.Rows;
-                            this.RefreshBenchmarkRatioSummary(state);
+                            this.ベンチマークシェア概要を更新(state);
                             IReadOnlyList<ChartComparisonPoint> points;
                             if(state.RequiresFullChartRebuild) {
                                 points=this.BuildBenchmarkChartPoints(state,computed.Rows);
@@ -8957,7 +8955,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// <param name="rows">rows を指定して実行条件を制御します。</param>
     private void ApplyChartFromComparisonRows(BenchmarkSourceTabViewState state,IReadOnlyList<BenchmarkComparisonRow> rows) {
         state.ComparisonRows=rows;
-        this.RefreshBenchmarkRatioSummary(state);
+        this.ベンチマークシェア概要を更新(state);
         var points = this.BuildBenchmarkChartPoints(state,rows);
         this.SyncBenchmarkChartPoints(state,points);
         state.ChartHeight=Math.Max(BenchmarkChartMinimumHeight,points.Count*BenchmarkChartRowHeight+BenchmarkChartVerticalPadding);
@@ -9051,31 +9049,23 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 var right = row.GetProject(sourceTab.RightProject);
                 var leftValue = metric==BenchmarkMetricKind.Time ? left.TimeNanoseconds : left.AllocatedBytes;
                 var rightValue = metric==BenchmarkMetricKind.Time ? right.TimeNanoseconds : right.AllocatedBytes;
-                var ratio = leftValue is >0&&rightValue is >0 ? leftValue/rightValue : (double?)null;
-                var allocatedShare = metric==BenchmarkMetricKind.Allocated&&leftValue is { } leftBytes&&rightValue is { } rightBytes
-                    ? AllocationShareValue.FromBytes((long)leftBytes,(long)rightBytes)
-                    : AllocationShareValue.Missing;
+                var share=指標シェアを作成(leftValue,rightValue,metric);
                 return new {
                     Row = row,
                     LeftValue = leftValue,
                     RightValue = rightValue,
-                    Ratio = ratio,
-                    AllocatedShare = allocatedShare,
+                    Share = share,
                 };
             })
             .Where(item => item.LeftValue is not null&&item.RightValue is not null)
-            .OrderByDescending(item => metric==BenchmarkMetricKind.Allocated
-                ? item.AllocatedShare.LeftShare??double.NegativeInfinity
-                : item.Ratio??(item.LeftValue>0&&item.RightValue==0 ? double.PositiveInfinity : 0))
+            .OrderByDescending(item => item.Share.左シェア??double.NegativeInfinity)
             .ThenByDescending(item => item.LeftValue??0)
             .Take(40)
             .Select(item => new BenchmarkDiagnosticRow(
                 metric==BenchmarkMetricKind.Time ? "Latency" : "Allocation",
                 BenchmarkFormatting.ShortName(item.Row.Benchmark),
                 this.SelectedResultElementCount?.DisplayName??"-",
-                metric==BenchmarkMetricKind.Allocated
-                    ? item.AllocatedShare.DisplayText
-                    : item.Ratio is { } ratio ? ratio.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)+"x" : "-",
+                item.Share.表示文字列,
                 FormatMetric(item.LeftValue,metric),
                 FormatMetric(item.RightValue,metric),
                 sourceTab.LeftProject+" / "+sourceTab.RightProject+" / "+item.Row.MethodName))
@@ -9096,35 +9086,37 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 var right = row.GetProject(sourceTab.RightProject);
                 var leftValue = metric==BenchmarkMetricKind.Time ? left.TimeNanoseconds : left.AllocatedBytes;
                 var rightValue = metric==BenchmarkMetricKind.Time ? right.TimeNanoseconds : right.AllocatedBytes;
-                var ratio = leftValue is >0&&rightValue is >0 ? leftValue/rightValue : (double?)null;
-                var allocatedShare = metric==BenchmarkMetricKind.Allocated&&leftValue is { } leftBytes&&rightValue is { } rightBytes
-                    ? AllocationShareValue.FromBytes((long)leftBytes,(long)rightBytes)
-                    : AllocationShareValue.Missing;
+                var share=指標シェアを作成(leftValue,rightValue,metric);
                 return new {
                     Row = row,
                     LeftValue = leftValue,
                     RightValue = rightValue,
-                    Ratio = ratio,
-                    AllocatedShare = allocatedShare,
+                    Share = share,
                 };
             })
             .Where(item => item.LeftValue is not null&&item.RightValue is not null)
-            .OrderByDescending(item => metric==BenchmarkMetricKind.Allocated
-                ? item.AllocatedShare.LeftShare??double.NegativeInfinity
-                : item.Ratio??(item.LeftValue>0&&item.RightValue==0 ? double.PositiveInfinity : 0))
+            .OrderByDescending(item => item.Share.左シェア??double.NegativeInfinity)
             .ThenByDescending(item => item.LeftValue??0)
             .Take(40)
             .Select(item => new BenchmarkDiagnosticRow(
                 metric==BenchmarkMetricKind.Time ? "Latency" : "Allocation",
                 BenchmarkFormatting.ShortName(item.Row.Benchmark),
                 this.SelectedResultElementCount?.DisplayName??"-",
-                metric==BenchmarkMetricKind.Allocated
-                    ? item.AllocatedShare.DisplayText
-                    : item.Ratio is { } ratio ? ratio.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)+"x" : "-",
+                item.Share.表示文字列,
                 FormatMetric(item.LeftValue,metric),
                 FormatMetric(item.RightValue,metric),
                 sourceTab.LeftProject+" / "+sourceTab.RightProject+" / "+item.Row.MethodName))
             .ToArray();
+    }
+
+    private static シェア値 指標シェアを作成(double? leftValue,double? rightValue,BenchmarkMetricKind metric) {
+        if(leftValue is null||rightValue is null) {
+            return シェア値.欠測;
+        }
+        if(metric==BenchmarkMetricKind.Time) {
+            return シェア値.時間から作成(leftValue.Value,rightValue.Value);
+        }
+        return シェア値.メモリから作成((long)leftValue.Value,(long)rightValue.Value);
     }
 
     /// <summary>
@@ -9683,17 +9675,9 @@ public sealed partial class RunnerViewModel:ObservableObject {
         var rightNumber = Math.Max(0,rightValue??0);
         var isLeftFallback = this.IsChartMetricFallback(row,pair.LeftProject,leftValue);
         var isRightFallback = this.IsChartMetricFallback(row,pair.RightProject,rightValue);
-        var isMemory = this.SelectedMetric.Kind==BenchmarkMetricKind.Allocated;
-        var allocatedShare = isMemory
-            ? AllocationShareValue.FromBytes((long)leftNumber,(long)rightNumber)
-            : AllocationShareValue.Missing;
-        var shareTexts = isMemory
-            ? (LeftText: allocatedShare.LeftShare!.Value.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture),RightText: allocatedShare.RightShare!.Value.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture))
-            : BenchmarkChartSelectionLayoutLogic.CreateShareTexts(leftNumber,rightNumber);
-        double? ratio = isMemory ? null : BenchmarkChartSelectionLayoutLogic.CreateRatio(leftNumber,rightNumber);
-        var ratioText = ratio is { } value
-            ? value.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)
-            : "-";
+        var share=指標シェアを作成(leftValue,rightValue,this.SelectedMetric.Kind);
+        var leftShareText=share.左シェア?.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)??"-";
+        var rightShareText=share.右シェア?.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)??"-";
         var metricName = this.SelectedMetric.Kind==BenchmarkMetricKind.Time ? "Time" : "Memory";
         var fallbackTooltip = this.CreateChartFallbackTooltip(pair,isLeftFallback,isRightFallback);
         var shortName = BenchmarkFormatting.ShortName(displayName);
@@ -9702,8 +9686,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
             +"\n"
             +pair.LeftProject+" "+metricName+": "+FirstText(FormatMetric(leftValue,this.SelectedMetric.Kind),"-")+"\n"
             +pair.RightProject+" "+metricName+": "+FirstText(FormatMetric(rightValue,this.SelectedMetric.Kind),"-")
-            +(isMemory ? "" : "\nRatio(left/right): "+ratioText)
-            +"\nShare: "+pair.LeftProject+" "+shareTexts.LeftText+" / "+pair.RightProject+" "+shareTexts.RightText
+            +"\nShare: "+pair.LeftProject+" "+leftShareText+" / "+pair.RightProject+" "+rightShareText
             +fallbackTooltip
             +(string.IsNullOrWhiteSpace(BenchmarkArgumentTooltipFormatter.CreateArgumentTooltip(row))
                 ? string.Empty
@@ -9711,12 +9694,12 @@ public sealed partial class RunnerViewModel:ObservableObject {
         var point=new ChartComparisonPoint(
             benchmark,
             BenchmarkFormatting.ShortName(displayName),
-            isMemory ? allocatedShare.LeftShare!.Value : leftNumber,
-            isMemory ? allocatedShare.RightShare!.Value : rightNumber,
-            shareTexts.LeftText,
-            shareTexts.RightText,
+            share.左シェア??0,
+            share.右シェア??0,
+            leftShareText,
+            rightShareText,
             tooltip,
-            ratio)
+            share.左シェア)
             .WithFallbackState(isLeftFallback,isRightFallback);
         point.AttachRow(row);
         return point;
@@ -10275,6 +10258,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
         }
         yield return BenchmarkGridSortColumn.BenchmarkMethod;
         yield return BenchmarkGridSortColumn.LogicalCpu;
+        yield return BenchmarkGridSortColumn.ループ回数;
         foreach(var column in BenchmarkArgumentColumns.Get(this.SelectedSourceDefinition)) {
             yield return column switch {
                 ScalableBenchmarkArgumentColumn.Count => BenchmarkGridSortColumn.ArgumentCount,
@@ -10288,10 +10272,12 @@ public sealed partial class RunnerViewModel:ObservableObject {
                 _ => BenchmarkGridSortColumn.BenchmarkMethod,
             };
         }
-        yield return BenchmarkGridSortColumn.PairRatioTime;
-        yield return BenchmarkGridSortColumn.PairRatioAllocated;
+        yield return BenchmarkGridSortColumn.左日時;
         yield return BenchmarkGridSortColumn.LeftTime;
         yield return BenchmarkGridSortColumn.LeftAllocated;
+        yield return BenchmarkGridSortColumn.時間シェア;
+        yield return BenchmarkGridSortColumn.メモリシェア;
+        yield return BenchmarkGridSortColumn.右日時;
         yield return BenchmarkGridSortColumn.RightTime;
         yield return BenchmarkGridSortColumn.RightAllocated;
     }
@@ -10449,7 +10435,7 @@ public sealed partial class RunnerViewModel:ObservableObject {
     /// ApplyFinalBenchmarkSort メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
     private void ApplyFinalBenchmarkSort() {
-        this.SetBenchmarkSortRules([new BenchmarkSortRule(BenchmarkGridSortColumn.PairRatioTime,true)],true);
+        this.SetBenchmarkSortRules([new BenchmarkSortRule(BenchmarkGridSortColumn.時間シェア,true)],true);
     }
 
     /// <summary>

@@ -81,13 +81,13 @@ public sealed class BenchmarkRunSession{
             new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase){
                 ["SystemArray|row"]=true,
             },
-            result => new global::UI.BenchmarkCase(result.Project,"Array.Assembly",result.TypeFullName,result.Method,result.ArgumentKey,result.Arguments));
+            result => new global::UI.BenchmarkCase(result.Project,sourceTab.LeftAssemblyName,result.TypeFullName,result.Method,result.ArgumentKey,result.Arguments));
 
         var job = Assert.Single(state.Jobs);
         Assert.Equal(global::UI.BenchmarkExecutionProfile.Fast,state.ExecutionProfile);
         Assert.Equal(global::UI.BenchmarkSourceTab.SystemArray,state.SourceTab);
         Assert.Equal([64],state.ElementCounts);
-        Assert.Equal("Array.Assembly",job.AssemblyName);
+        Assert.Equal(sourceTab.LeftAssemblyName,job.AssemblyName);
         Assert.Equal("Array.Type",job.TypeFullName);
         Assert.Equal("Count=64",job.ArgumentKey);
         Assert.True(state.BenchmarkSelection.ProjectCellSelections["SystemArray|row|left"]);
@@ -103,7 +103,8 @@ public sealed class BenchmarkRunSession{
             "Aggregate_func",
             64,
             100,
-            "Benchmark.Tsavorite.Linq.Enumerable.LinqInt32"));
+            "Benchmark.Tsavorite.Linq.Enumerable.LinqInt32",
+            sourceTab:sourceTab.Tab));
 
         var state = session.ToProgressState(
             "run-42",
@@ -127,23 +128,19 @@ public sealed class BenchmarkRunSession{
     }
 
     [Fact]
-    public void ToProgressState_DoesNotCreateJobWhenBenchmarkTypeIsUnresolved(){
+    public void ToProgressState_ThrowsWhenBenchmarkTypeIsUnresolved(){
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var session = new global::UI.BenchmarkRunSession();
         session.UpsertResult(Result("System.Array.FLinq","Aggregate",64,100,"int"));
 
-        var state = session.ToProgressState(
+        Assert.Throws<InvalidDataException>(() => session.ToProgressState(
             "run-42",
             global::UI.BenchmarkExecutionProfile.Fast,
             sourceTab,
             TimeSpan.FromMilliseconds(1),
             new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase),
             new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase),
-            _ => null);
-
-        Assert.Empty(state.Jobs);
-        Assert.Empty(state.AdaptiveStates);
-        Assert.Equal([64],state.ElementCounts);
+            _ => null));
     }
 
     private static global::UI.BenchmarkResultItem Result(
@@ -153,7 +150,8 @@ public sealed class BenchmarkRunSession{
         double mean,
         string typeFullName = "Sample.Type",
         string argumentKey = "",
-        IReadOnlyList<global::UI.BenchmarkArgument>? arguments = null) =>
+        IReadOnlyList<global::UI.BenchmarkArgument>? arguments = null,
+        global::UI.BenchmarkSourceTab? sourceTab = null) =>
         new(
             project,
             method,
@@ -161,7 +159,8 @@ public sealed class BenchmarkRunSession{
             elementCount,
             typeFullName,
             argumentKey,
-            arguments){
+            arguments,
+            sourceTab){
         };
 
     private static global::UI.BenchmarkResultItem RunningResult(

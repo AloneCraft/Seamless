@@ -436,11 +436,11 @@ internal sealed class BenchmarkUiRunRepository{
         var items = new List<BenchmarkGridSnapshotItem>(records.Count);
         for(var index = 0;index<records.Count;index++){
             var record = records[index];
-            var sourceTab = BenchmarkSourceTabs.TryGetById(record.TabName);
-            if(sourceTab is null){
-                this.log("UI DB benchmark snapshot source tab is unknown: "+record.TabName,null);
-                continue;
-            }
+            var sourceTab=BenchmarkSourceTabs.GetById(record.TabName);
+            var left=CreateSnapshotSide(record,sourceTab.LeftProject,sourceTab.LeftAssemblyName,record.Left,record.LeftCase,axisCount);
+            var right=CreateSnapshotSide(record,sourceTab.RightProject,sourceTab.RightAssemblyName,record.Right,record.RightCase,axisCount);
+            ValidateSnapshotSide(sourceTab,left);
+            ValidateSnapshotSide(sourceTab,right);
 
             items.Add(new(
                 record.RunId,
@@ -450,8 +450,8 @@ internal sealed class BenchmarkUiRunRepository{
                 record.BenchmarkName,
                 record.CpuNumber,
                 record.IsSelected,
-                CreateSnapshotSide(record,sourceTab.LeftProject,sourceTab.LeftAssemblyName,record.Left,record.LeftCase,axisCount),
-                CreateSnapshotSide(record,sourceTab.RightProject,sourceTab.RightAssemblyName,record.Right,record.RightCase,axisCount)));
+                left,
+                right));
         }
 
         return items;
@@ -589,6 +589,19 @@ internal sealed class BenchmarkUiRunRepository{
             benchmark);
     }
 
+    private static void ValidateSnapshotSide(BenchmarkSourceTabDefinition sourceTab,BenchmarkGridSnapshotSide side){
+        if(side.Benchmark is not { } benchmark||sourceTab.ContainsCase(benchmark)){
+            return;
+        }
+
+        throw new InvalidDataException(
+            "Stored benchmark snapshot case does not belong to its SourceTab. SourceTab="+sourceTab.Id
+            +" Project="+benchmark.Project
+            +" Assembly="+benchmark.AssemblyName
+            +" Type="+benchmark.TypeFullName
+            +" Method="+benchmark.MethodName);
+    }
+
     private static BenchmarkCase? CreateBenchmarkCase(string project,string assemblyName,string typeName,string benchmarkName,UiBenchmarkSnapshotCaseWrite? identity){
         try{
             var arguments=identity is null ? [] : JsonSerializer.Deserialize<BenchmarkArgument[]>(identity.ArgumentsJson)??[];
@@ -611,7 +624,7 @@ internal sealed class BenchmarkUiRunRepository{
         UiBenchmarkGridSideRecord side,
         BenchmarkCase? benchmark,
         int axisCount){
-        var sourceTab = BenchmarkSourceTabs.TryGetById(item.TabName)?.Tab??BenchmarkSourceTab.SystemArray;
+        var sourceTab=BenchmarkSourceTabs.GetById(item.TabName).Tab;
         var loopCount = side.LoopCount??BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab,axisCount);
         return new BenchmarkResultItem(new BenchmarkStoredResult(
             project,

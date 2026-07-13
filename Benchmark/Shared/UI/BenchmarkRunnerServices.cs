@@ -830,7 +830,7 @@ public sealed class BenchmarkComparisonService:IBenchmarkComparisonService {
             .Select(row => CreateChartPoint(row,pair,metric))
             .Where(static point => point is not null)
             .Select(static point => point!)
-            .OrderByDescending(static point => point.Ratio??(point.LeftValue>0&&point.RightValue==0?double.PositiveInfinity:0))
+            .OrderByDescending(static point => point.左シェア??double.NegativeInfinity)
             .ThenByDescending(static point => Math.Abs(point.LeftValue-point.RightValue))
             .ThenBy(static point => point.Benchmark,StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -851,24 +851,25 @@ public sealed class BenchmarkComparisonService:IBenchmarkComparisonService {
 
         var leftNumber = Math.Max(0,leftValue??0);
         var rightNumber = Math.Max(0,rightValue??0);
-        var shareTexts = BenchmarkChartSelectionLayoutLogic.CreateShareTexts(leftNumber,rightNumber);
-        double? ratio = BenchmarkChartSelectionLayoutLogic.CreateRatio(leftNumber,rightNumber);
-        var ratioText = ratio is { } ratioValue
-            ? ratioValue.ToString("0.00",CultureInfo.InvariantCulture)
-            : "-";
+        シェア値 share;
+        if(metric==BenchmarkMetricKind.Time) {
+            share=シェア値.時間から作成(leftNumber,rightNumber);
+        } else {
+            share=シェア値.メモリから作成((long)leftNumber,(long)rightNumber);
+        }
         var metricName = metric==BenchmarkMetricKind.Time?"Time":"Allocated";
-        var leftText = shareTexts.LeftText;
-        var rightText = shareTexts.RightText;
-        var tooltip=$"{row.Benchmark}\n{pair.LeftProject} {metricName}: {FirstText(FormatMetric(leftValue,metric),"-")} / Share {leftText}\n{pair.RightProject} {metricName}: {FirstText(FormatMetric(rightValue,metric),"-")} / Share {rightText}\nRatio(left/right): {ratioText}";
+        var leftText=share.左シェア?.ToString("0.00",CultureInfo.InvariantCulture)??"-";
+        var rightText=share.右シェア?.ToString("0.00",CultureInfo.InvariantCulture)??"-";
+        var tooltip=$"{row.Benchmark}\n{pair.LeftProject} {metricName}: {FirstText(FormatMetric(leftValue,metric),"-")} / Share {leftText}\n{pair.RightProject} {metricName}: {FirstText(FormatMetric(rightValue,metric),"-")} / Share {rightText}";
         return new ChartComparisonPoint(
             row.Benchmark,
             BenchmarkFormatting.ShortName(row.Benchmark),
-            leftNumber,
-            rightNumber,
+            share.左シェア??0,
+            share.右シェア??0,
             leftText,
             rightText,
             tooltip,
-            ratio);
+            share.左シェア);
     }
 
     private static double? GetMetricValue(ProjectMetrics metrics,BenchmarkMetricKind metric) {

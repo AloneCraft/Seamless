@@ -114,7 +114,7 @@ internal sealed class BenchmarkRunProjectionService{
     // プロジェクトごとに独立して選ぶ: 優先軸(preferredElementCount)がありその軸の結果があればそれ、
     // 無ければそのプロジェクト自身の最新完了結果。Fast/Adaptiveでは同じメソッドでもプロジェクトごとに
     // 打ち切り軸が異なるのが通常運転のため、「両プロジェクトが同じ軸に揃っている」ことを要求しない
-    // (要求すると、揃わなかった側が丸ごと脱落し時間比/メモリ比がMissing扱いになってしまう)。
+    // (要求すると、揃わなかった側が丸ごと脱落し時間/メモリシェアが欠測扱いになってしまう)。
     private static IReadOnlyList<BenchmarkResultItem> SelectPerProjectResults(
         IGrouping<string,BenchmarkResultItem> methodGroup,
         BenchmarkSourceTabDefinition sourceTab,

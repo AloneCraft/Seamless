@@ -32,7 +32,7 @@ public sealed class BenchmarkRunProjectionService{
         Assert.Equal("Aggregate",row.MethodName);
         Assert.Equal(100,row.Left.TimeNanoseconds);
         Assert.Equal(50,row.Right.TimeNanoseconds);
-        Assert.Equal(2,row.PairRatio.TimeRatio.NumericValue);
+        Assert.Equal(2.0/3.0,row.左右シェア.時間シェア.左シェア!.Value,6);
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class BenchmarkRunProjectionService{
         var row = Assert.Single(rows);
         Assert.Equal(80,row.Left.TimeNanoseconds);
         Assert.Equal(40,row.Right.TimeNanoseconds);
-        Assert.Equal(2,row.PairRatio.TimeRatio.NumericValue);
+        Assert.Equal(2.0/3.0,row.左右シェア.時間シェア.左シェア!.Value,6);
     }
 
     [Fact]
@@ -68,11 +68,11 @@ public sealed class BenchmarkRunProjectionService{
 
         // FLinq(Left)はN=64で打ち切り、ZLinq(Right)はN=128まで進んだ(Fast/Adaptiveでは
         // プロジェクトごとに終端Nが異なるのが通常運転)。軸が揃わなくても両側の値を独立に
-        // 採用し、時間比が欠落(Missing)しないことを確認する。
+        // 採用し、時間シェアが欠落しないことを確認する。
         var row = Assert.Single(rows);
         Assert.Equal(80,row.Left.TimeNanoseconds);
         Assert.Equal(25,row.Right.TimeNanoseconds);
-        Assert.False(row.PairRatio.TimeRatio.IsMissing);
+        Assert.False(row.左右シェア.時間シェア.欠測か);
     }
 
     [Fact]
@@ -167,7 +167,7 @@ public sealed class BenchmarkRunProjectionService{
         var now = DateTimeOffset.UtcNow;
         // 選択N=128にはLeftプロジェクトのみ到達。RightプロジェクトはN=64で打ち切り
         // (Fast/Adaptiveではプロジェクトごとに終端Nが異なるのが通常運転)。Rightは自身の
-        // 最新(N=64)へフォールバックし、行・時間比が丸ごと欠落しないことを確認する。
+        // 最新(N=64)へフォールバックし、行・時間シェアが丸ごと欠落しないことを確認する。
         var results = new[] {
             Result(sourceTab.LeftProject,"Aggregate",64,100,now.AddMinutes(-1)),
             Result(sourceTab.RightProject,"Aggregate",64,50,now.AddMinutes(-1)),
@@ -179,7 +179,7 @@ public sealed class BenchmarkRunProjectionService{
         var row = Assert.Single(rows);
         Assert.Equal(80,row.Left.TimeNanoseconds);
         Assert.Equal(50,row.Right.TimeNanoseconds);
-        Assert.False(row.PairRatio.TimeRatio.IsMissing);
+        Assert.False(row.左右シェア.時間シェア.欠測か);
     }
 
     [Fact]

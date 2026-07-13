@@ -80,7 +80,7 @@
   <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'">
     <Compile Remove="**\*.cs" />
     <Compile Include="Benchmark\Pattern.cs" />
-    <Compile Include="Benchmark\AllocationShareValue.cs" />
+    <Compile Include="Benchmark\シェア値.cs" />
     <Compile Include="Benchmark\BenchmarkChartSelectionLayoutLogic.cs" />
     <Compile Include="Benchmark\BenchmarkImprovementPromptBuilder.cs" />
     <Compile Include="BenchmarkWorker\BenchmarkGridKeyLogic.cs" />

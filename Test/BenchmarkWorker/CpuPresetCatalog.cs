@@ -168,7 +168,7 @@ public sealed class CpuPresetCatalog{
     }
 
     [Fact]
-    public void ComparisonFormatter_BuildsActiveSourcePair_WithLeftDividedByRight(){
+    public void ComparisonFormatter_BuildsActiveSourcePair_WithLeftRightShares(){
         var rows = new[]{
             CreateReportRow("System.Array.FLinq","Select","Completed",5,10),
             CreateReportRow("System.Array.ZLinq","Select","Completed",4,0),
@@ -176,8 +176,8 @@ public sealed class CpuPresetCatalog{
 
         var comparison = Assert.Single(BenchmarkComparisonFormatter.BuildComparisonRows(rows));
 
-        Assert.Equal("1.25",comparison.PairRatio.TimeRatio.DisplayText);
-        Assert.Equal("1.00:0.00",comparison.PairRatio.AllocatedShare.DisplayText);
+        Assert.Equal("0.56:0.44",comparison.左右シェア.時間シェア.表示文字列);
+        Assert.Equal("1.00:0.00",comparison.左右シェア.メモリシェア.表示文字列);
         Assert.Equal(BenchmarkSourceTab.SystemArray,comparison.SourceTab.Tab);
     }
 
@@ -192,7 +192,7 @@ public sealed class CpuPresetCatalog{
 
         Assert.Equal(5,read.Left.TimeNanoseconds);
         Assert.Equal(0,read.Right.AllocatedBytes);
-        Assert.Equal("1.25",read.PairRatio.TimeRatio.DisplayText);
+        Assert.Equal("0.56:0.44",read.左右シェア.時間シェア.表示文字列);
     }
 
     [Fact]
@@ -205,7 +205,7 @@ public sealed class CpuPresetCatalog{
         var comparison = Assert.Single(rows);
         Assert.False(comparison.Left.HasMeasuredValue);
         Assert.True(comparison.Right.HasMeasuredValue);
-        Assert.Equal("-",comparison.PairRatio.TimeRatio.DisplayText);
+        Assert.Equal("-",comparison.左右シェア.時間シェア.表示文字列);
     }
 
     [Fact]
@@ -219,7 +219,7 @@ public sealed class CpuPresetCatalog{
 
         Assert.False(comparison.Left.HasMeasuredValue);
         Assert.True(comparison.Right.HasMeasuredValue);
-        Assert.Equal("-",comparison.PairRatio.TimeRatio.DisplayText);
+        Assert.Equal("-",comparison.左右シェア.時間シェア.表示文字列);
     }
 
     [Fact]
@@ -276,15 +276,15 @@ public sealed class CpuPresetCatalog{
 
     [Fact]
     public void ComparisonFormatter_Judgement_UsesFivePercentTieWindow(){
-        var win = RatioValue.FromNumeric(0.94);
-        var tieLow = RatioValue.FromNumeric(0.95);
-        var tieHigh = RatioValue.FromNumeric(1.05);
-        var lose = RatioValue.FromNumeric(1.06);
+        var win=シェア値.時間から作成(0.94,1);
+        var tieLow=シェア値.時間から作成(0.95,1);
+        var tieHigh=シェア値.時間から作成(1.05,1);
+        var lose=シェア値.時間から作成(1.06,1);
 
-        Assert.Equal(RatioJudgement.LeftWin,win.Judgement);
-        Assert.Equal(RatioJudgement.Tie,tieLow.Judgement);
-        Assert.Equal(RatioJudgement.Tie,tieHigh.Judgement);
-        Assert.Equal(RatioJudgement.LeftLose,lose.Judgement);
+        Assert.Equal(シェア判定.左優位,win.判定);
+        Assert.Equal(シェア判定.同等,tieLow.判定);
+        Assert.Equal(シェア判定.同等,tieHigh.判定);
+        Assert.Equal(シェア判定.右優位,lose.判定);
     }
 
     private static IReadOnlyList<CpuCoreInfo> CreateHybridCpuSet(){

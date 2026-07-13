@@ -697,13 +697,12 @@ internal static class BenchmarkRowGroupingLogic{
             return rows;
         }
 
-        var assemblyNames=new string[projectOrder.Count];
-        for(var index=0;index<projectOrder.Count;index++){
-            assemblyNames[index]=sourceTab.GetAssemblyName(projectOrder[index]);
-        }
-
         var methodGroups=new Dictionary<string,BenchmarkMethodCaseGroup>(StringComparer.OrdinalIgnoreCase);
         foreach(var benchmark in cases){
+            if(!sourceTab.ContainsCase(benchmark)){
+                continue;
+            }
+
             var projectIndex=FindProjectIndex(projectOrder,benchmark.Project);
             if(projectIndex<0){
                 continue;
@@ -714,7 +713,7 @@ internal static class BenchmarkRowGroupingLogic{
                 methodGroup=new BenchmarkMethodCaseGroup(benchmark,projectOrder.Count);
                 methodGroups.Add(key,methodGroup);
             }
-            methodGroup.Add(projectIndex,assemblyNames[projectIndex],benchmark);
+            methodGroup.Add(projectIndex,benchmark);
         }
 
         foreach(var methodGroup in methodGroups.Values.OrderBy(static group => group.Key,StringComparer.OrdinalIgnoreCase)){
@@ -811,8 +810,8 @@ internal static class BenchmarkRowGroupingLogic{
         public string Key { get; }
         public BenchmarkCase FirstCase { get; }
 
-        public void Add(int projectIndex,string assemblyName,BenchmarkCase benchmark){
-            this.projectGroups[projectIndex].Add(assemblyName,benchmark);
+        public void Add(int projectIndex,BenchmarkCase benchmark){
+            this.projectGroups[projectIndex].Add(benchmark);
         }
 
         public BenchmarkCase[] GetSortedCases(int projectIndex) =>
@@ -820,27 +819,19 @@ internal static class BenchmarkRowGroupingLogic{
     }
 
     private sealed class BenchmarkProjectCaseGroup{
-        private readonly List<BenchmarkCase> allCases = [];
-        private readonly List<BenchmarkCase> assemblyCases = [];
+        private readonly List<BenchmarkCase> cases = [];
 
-        public void Add(string assemblyName,BenchmarkCase benchmark){
-            this.allCases.Add(benchmark);
-            if(!string.IsNullOrWhiteSpace(assemblyName)
-                &&string.Equals(benchmark.AssemblyName,assemblyName,StringComparison.OrdinalIgnoreCase)){
-                this.assemblyCases.Add(benchmark);
-            }
+        public void Add(BenchmarkCase benchmark){
+            this.cases.Add(benchmark);
         }
 
         public BenchmarkCase[] GetSortedCases(){
-            var source=this.assemblyCases.Count>0
-                ? this.assemblyCases
-                : this.allCases;
-            if(source.Count==0){
+            if(this.cases.Count==0){
                 return [];
             }
 
-            source.Sort(CaseDisplayOrderComparer);
-            return source.ToArray();
+            this.cases.Sort(CaseDisplayOrderComparer);
+            return this.cases.ToArray();
         }
     }
 }

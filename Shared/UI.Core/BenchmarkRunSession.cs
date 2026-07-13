@@ -187,9 +187,28 @@ internal sealed class BenchmarkRunSession{
         BenchmarkSourceTabDefinition selectedSourceTab,
         IReadOnlyList<int> preparedElementCounts,
         Func<BenchmarkResultItem,BenchmarkCase?> benchmarkResolver){
-        var benchmark = benchmarkResolver(result);
-        var sourceTab = BenchmarkSourceTabs.TryGetByProjectAndAssembly(result.Project,benchmark?.AssemblyName??string.Empty)
-            ??selectedSourceTab;
+        var benchmark = benchmarkResolver(result)
+            ??throw new InvalidDataException(
+                "Benchmark result could not be matched to a catalog case. Project="+result.Project
+                +" Method="+result.Method
+                +" Type="+result.TypeFullName
+                +" ArgumentKey="+result.ArgumentKey);
+        var sourceTab=BenchmarkSourceTabs.GetByProjectAndAssembly(result.Project,benchmark.AssemblyName);
+        if(!sourceTab.ContainsCase(benchmark)){
+            throw new InvalidDataException(
+                "Benchmark case does not belong to the resolved SourceTab. SourceTab="+sourceTab.Id
+                +" Project="+benchmark.Project
+                +" Assembly="+benchmark.AssemblyName
+                +" Type="+benchmark.TypeFullName);
+        }
+        if(sourceTab.Tab!=selectedSourceTab.Tab||result.SourceTab!=sourceTab.Tab){
+            throw new InvalidDataException(
+                "Benchmark result SourceTab is inconsistent. Project="+result.Project
+                +" Assembly="+benchmark.AssemblyName
+                +" SelectedSourceTab="+selectedSourceTab.Id
+                +" ResultSourceTab="+BenchmarkSourceTabs.Get(result.SourceTab).Id
+                +" ResolvedSourceTab="+sourceTab.Id);
+        }
         return CreateProgressJobFromResult(result,sourceTab,preparedElementCounts,benchmark);
     }
 

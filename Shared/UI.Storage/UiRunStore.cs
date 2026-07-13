@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 namespace Seamless.UI.Storage;
 
 public sealed class UiRunStore{
-    private const int SchemaVersion = 17;
+    private const int SchemaVersion = 18;
     private readonly string databasePath;
     private readonly UiRunAppKind appKind;
     private readonly object schemaGate = new();
@@ -18,38 +18,70 @@ public sealed class UiRunStore{
     public string DatabasePath => this.databasePath;
     public UiRunAppKind AppKind => this.appKind;
 
-    public void RefreshMemoryShareViews(){
+    public void 分析ビューを更新(){
         using var connection=this.OpenConnection();
         using var transaction=BeginTransactionWithLockRetry(connection);
-        if(this.appKind is UiRunAppKind.Benchmark){
+        分析ビューを作成(connection,transaction,this.appKind);
+        transaction.Commit();
+    }
+
+    private static void 分析ビューを作成(SqliteConnection connection,SqliteTransaction transaction,UiRunAppKind appKind){
+        ExecuteNonQuery(connection,transaction,"""
+            DROP VIEW IF EXISTS "BenchmarkPerformanceRatioDelta";
+            DROP VIEW IF EXISTS "BenchmarkPerformanceRatioHistory";
+            DROP VIEW IF EXISTS "BenchmarkMemoryRatioDelta";
+            DROP VIEW IF EXISTS "BenchmarkMemoryRatioHistory";
+            DROP VIEW IF EXISTS "基準時間比";
+            DROP VIEW IF EXISTS "基準メモリ比";
+            DROP VIEW IF EXISTS "履歴時間比";
+            DROP VIEW IF EXISTS "履歴メモリ比";
+            DROP VIEW IF EXISTS "履歴時間シェア";
+            DROP VIEW IF EXISTS "基準時間シェア";
+            DROP VIEW IF EXISTS "履歴メモリシェア";
+            DROP VIEW IF EXISTS "基準メモリシェア";
+            DROP VIEW IF EXISTS "Scalable履歴";
+            DROP VIEW IF EXISTS "Scalable前回比較";
+            DROP VIEW IF EXISTS "Scalable前回シェア";
+            """);
+        if(appKind is UiRunAppKind.Benchmark){
             ExecuteNonQuery(connection,transaction,"""
-                DROP VIEW IF EXISTS "基準メモリ比";
-                DROP VIEW IF EXISTS "履歴メモリ比";
-                CREATE VIEW "履歴メモリ比" AS
-                SELECT r."実行ID" AS "RunId",r."更新日時" AS "UpdatedAt",b."タブ名" AS "SourceTab",b."型" AS "Type",b."ベンチマーク" AS "Benchmark",
-                    b."左メモリバイト" AS "FLinqBytes",b."右メモリバイト" AS "ZLinqBytes",
-                    CASE WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0.5 ELSE CAST(b."左メモリバイト" AS REAL)/(b."左メモリバイト"+b."右メモリバイト") END AS "LeftShare",
-                    CASE WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0.5 ELSE CAST(b."右メモリバイト" AS REAL)/(b."左メモリバイト"+b."右メモリバイト") END AS "RightShare"
+                CREATE VIEW "履歴時間シェア" AS
+                SELECT r."実行ID",r."更新日時",b."タブ名",b."型",b."ベンチマーク",b."左時間ns",b."右時間ns",
+                    CASE WHEN b."左時間ns"=0 AND b."右時間ns"=0 THEN 0.0 ELSE CAST(b."左時間ns" AS REAL)/(b."左時間ns"+b."右時間ns") END AS "左シェア",
+                    CASE WHEN b."左時間ns"=0 AND b."右時間ns"=0 THEN 0.0 ELSE CAST(b."右時間ns" AS REAL)/(b."左時間ns"+b."右時間ns") END AS "右シェア"
                 FROM "Benchmark" b INNER JOIN "実行" r ON r."実行ID"=b."実行ID"
-                WHERE b."左状態"='完了' AND b."右状態"='完了' AND b."左メモリバイト" IS NOT NULL AND b."右メモリバイト" IS NOT NULL;
-                CREATE VIEW "基準メモリ比" AS
+                WHERE b."左状態"='完了' AND b."右状態"='完了' AND b."左時間ns" IS NOT NULL AND b."右時間ns" IS NOT NULL
+                    AND b."左時間ns">=0 AND b."右時間ns">=0;
+                CREATE VIEW "基準時間シェア" AS
                 WITH history AS (SELECT h.*,
-                    LAG(h."LeftShare") OVER (PARTITION BY h."SourceTab",h."Type",h."Benchmark" ORDER BY h."RunId") AS "PreviousLeftShare",
-                    LAG(h."RightShare") OVER (PARTITION BY h."SourceTab",h."Type",h."Benchmark" ORDER BY h."RunId") AS "PreviousRightShare" FROM "履歴メモリ比" h)
-                SELECT *,"LeftShare"-"PreviousLeftShare" AS "LeftShareDelta","RightShare"-"PreviousRightShare" AS "RightShareDelta" FROM history;
+                    LAG(h."左シェア") OVER (PARTITION BY h."タブ名",h."型",h."ベンチマーク" ORDER BY h."実行ID") AS "前回左シェア",
+                    LAG(h."右シェア") OVER (PARTITION BY h."タブ名",h."型",h."ベンチマーク" ORDER BY h."実行ID") AS "前回右シェア" FROM "履歴時間シェア" h)
+                SELECT *,"左シェア"-"前回左シェア" AS "左シェア差分","右シェア"-"前回右シェア" AS "右シェア差分" FROM history;
+                CREATE VIEW "履歴メモリシェア" AS
+                SELECT r."実行ID",r."更新日時",b."タブ名",b."型",b."ベンチマーク",b."左メモリバイト",b."右メモリバイト",
+                    CASE WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0.0 ELSE CAST(b."左メモリバイト" AS REAL)/(b."左メモリバイト"+b."右メモリバイト") END AS "左シェア",
+                    CASE WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0.0 ELSE CAST(b."右メモリバイト" AS REAL)/(b."左メモリバイト"+b."右メモリバイト") END AS "右シェア"
+                FROM "Benchmark" b INNER JOIN "実行" r ON r."実行ID"=b."実行ID"
+                WHERE b."左状態"='完了' AND b."右状態"='完了' AND b."左メモリバイト" IS NOT NULL AND b."右メモリバイト" IS NOT NULL
+                    AND b."左メモリバイト">=0 AND b."右メモリバイト">=0;
+                CREATE VIEW "基準メモリシェア" AS
+                WITH history AS (SELECT h.*,
+                    LAG(h."左シェア") OVER (PARTITION BY h."タブ名",h."型",h."ベンチマーク" ORDER BY h."実行ID") AS "前回左シェア",
+                    LAG(h."右シェア") OVER (PARTITION BY h."タブ名",h."型",h."ベンチマーク" ORDER BY h."実行ID") AS "前回右シェア" FROM "履歴メモリシェア" h)
+                SELECT *,"左シェア"-"前回左シェア" AS "左シェア差分","右シェア"-"前回右シェア" AS "右シェア差分" FROM history;
                 """);
-        }else if(this.appKind==UiRunAppKind.ScalableBenchmark){
+        }else if(appKind==UiRunAppKind.ScalableBenchmark){
             ExecuteNonQuery(connection,transaction,"""
-                DROP VIEW IF EXISTS "Scalable前回比較";
-                DROP VIEW IF EXISTS "Scalable履歴";
-                CREATE VIEW "Scalable履歴" AS SELECT r."実行ID" AS "RunId",r."前回実行ID" AS "PreviousRunId",r."更新日時" AS "UpdatedAt",b."タブ名" AS "SourceTab",b."型" AS "Type",b."ベンチマーク" AS "Benchmark",b."Count",b."Initial",b."Data",b."Index",b."Page",b."Segment",b."Memory",b."Fraction",b."今回時間ns" AS "CurrentNs",b."今回メモリバイト" AS "CurrentBytes" FROM "Benchmark" b INNER JOIN "実行" r ON r."実行ID"=b."実行ID" WHERE b."今回状態"='完了';
-                CREATE VIEW "Scalable前回比較" AS SELECT c.*,p."CurrentNs" AS "PreviousNs",c."CurrentNs"/NULLIF(p."CurrentNs",0) AS "TimeRatio",p."CurrentBytes" AS "PreviousBytes",
-                    CASE WHEN c."CurrentBytes"=0 AND p."CurrentBytes"=0 THEN 0.5 ELSE CAST(c."CurrentBytes" AS REAL)/(c."CurrentBytes"+p."CurrentBytes") END AS "CurrentMemoryShare",
-                    CASE WHEN c."CurrentBytes"=0 AND p."CurrentBytes"=0 THEN 0.5 ELSE CAST(p."CurrentBytes" AS REAL)/(c."CurrentBytes"+p."CurrentBytes") END AS "PreviousMemoryShare"
-                FROM "Scalable履歴" c LEFT JOIN "Scalable履歴" p ON p."RunId"=c."PreviousRunId" AND p."SourceTab"=c."SourceTab" AND p."Type"=c."Type" AND p."Benchmark"=c."Benchmark" AND p."Count"=c."Count" AND p."Initial"=c."Initial" AND p."Data"=c."Data" AND p."Index"=c."Index" AND p."Page"=c."Page" AND p."Segment"=c."Segment" AND p."Memory"=c."Memory" AND p."Fraction"=c."Fraction";
+                CREATE VIEW "Scalable履歴" AS SELECT r."実行ID",r."前回実行ID",r."更新日時",b."タブ名",b."型",b."ベンチマーク",b."Count",b."Initial",b."Data",b."Index",b."Page",b."Segment",b."Memory",b."Fraction",b."今回時間ns",b."今回メモリバイト" FROM "Benchmark" b INNER JOIN "実行" r ON r."実行ID"=b."実行ID" WHERE b."今回状態"='完了';
+                CREATE VIEW "Scalable前回シェア" AS SELECT c.*,p."今回時間ns" AS "前回時間ns",
+                    CASE WHEN c."今回時間ns" IS NULL OR p."今回時間ns" IS NULL OR c."今回時間ns"<0 OR p."今回時間ns"<0 THEN NULL WHEN c."今回時間ns"=0 AND p."今回時間ns"=0 THEN 0.0 ELSE CAST(c."今回時間ns" AS REAL)/(c."今回時間ns"+p."今回時間ns") END AS "今回時間シェア",
+                    CASE WHEN c."今回時間ns" IS NULL OR p."今回時間ns" IS NULL OR c."今回時間ns"<0 OR p."今回時間ns"<0 THEN NULL WHEN c."今回時間ns"=0 AND p."今回時間ns"=0 THEN 0.0 ELSE CAST(p."今回時間ns" AS REAL)/(c."今回時間ns"+p."今回時間ns") END AS "前回時間シェア",
+                    p."今回メモリバイト" AS "前回メモリバイト",
+                    CASE WHEN c."今回メモリバイト" IS NULL OR p."今回メモリバイト" IS NULL OR c."今回メモリバイト"<0 OR p."今回メモリバイト"<0 THEN NULL WHEN c."今回メモリバイト"=0 AND p."今回メモリバイト"=0 THEN 0.0 ELSE CAST(c."今回メモリバイト" AS REAL)/(c."今回メモリバイト"+p."今回メモリバイト") END AS "今回メモリシェア",
+                    CASE WHEN c."今回メモリバイト" IS NULL OR p."今回メモリバイト" IS NULL OR c."今回メモリバイト"<0 OR p."今回メモリバイト"<0 THEN NULL WHEN c."今回メモリバイト"=0 AND p."今回メモリバイト"=0 THEN 0.0 ELSE CAST(p."今回メモリバイト" AS REAL)/(c."今回メモリバイト"+p."今回メモリバイト") END AS "前回メモリシェア"
+                FROM "Scalable履歴" c LEFT JOIN "Scalable履歴" p ON p."実行ID"=c."前回実行ID" AND p."タブ名"=c."タブ名" AND p."型"=c."型" AND p."ベンチマーク"=c."ベンチマーク" AND p."Count" IS c."Count" AND p."Initial" IS c."Initial" AND p."Data" IS c."Data" AND p."Index" IS c."Index" AND p."Page" IS c."Page" AND p."Segment" IS c."Segment" AND p."Memory" IS c."Memory" AND p."Fraction" IS c."Fraction";
                 """);
         }
-        transaction.Commit();
     }
 
     public void EnsureSchema(){
@@ -70,9 +102,9 @@ public sealed class UiRunStore{
             using var transaction = BeginTransactionWithLockRetry(connection);
             CreateTables(connection,transaction);
             FinalizeTablesForAppKind(connection,transaction,this.appKind);
+            分析ビューを作成(connection,transaction,this.appKind);
             ExecuteNonQuery(connection,transaction,$"PRAGMA user_version={SchemaVersion};");
             transaction.Commit();
-            this.RefreshMemoryShareViews();
             this.schemaEnsured=true;
         }
     }
@@ -120,10 +152,35 @@ public sealed class UiRunStore{
             if((long)(command.ExecuteScalar()??0L)!=3L){
                 return false;
             }
-            command.CommandText=this.appKind==UiRunAppKind.ScalableBenchmark
-                ? "SELECT COUNT(*) FROM pragma_table_info('Benchmark') WHERE name IN('Count','Initial','Data','Index','Page','Segment','Memory','Fraction');"
-                : "SELECT COUNT(*) FROM pragma_table_info('Benchmark') WHERE name IN('左LoopCount','右LoopCount');";
-            return (long)(command.ExecuteScalar()??0L)==(this.appKind==UiRunAppKind.ScalableBenchmark ? 8L : 2L);
+            if(this.appKind==UiRunAppKind.ScalableBenchmark){
+                command.CommandText="SELECT COUNT(*) FROM pragma_table_info('Benchmark') WHERE name IN('Count','Initial','Data','Index','Page','Segment','Memory','Fraction');";
+                if((long)(command.ExecuteScalar()??0L)!=8L){
+                    return false;
+                }
+                command.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('Scalable履歴','Scalable前回シェア');";
+                if((long)(command.ExecuteScalar()??0L)!=2L){
+                    return false;
+                }
+                command.CommandText="SELECT COUNT(*) FROM pragma_table_info('Scalable前回シェア') WHERE name IN('実行ID','前回実行ID','更新日時','タブ名','型','ベンチマーク','今回時間シェア','前回時間シェア','今回メモリシェア','前回メモリシェア');";
+                if((long)(command.ExecuteScalar()??0L)!=10L){
+                    return false;
+                }
+            }else{
+                command.CommandText="SELECT COUNT(*) FROM pragma_table_info('Benchmark') WHERE name IN('左LoopCount','右LoopCount');";
+                if((long)(command.ExecuteScalar()??0L)!=2L){
+                    return false;
+                }
+                command.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('履歴時間シェア','基準時間シェア','履歴メモリシェア','基準メモリシェア');";
+                if((long)(command.ExecuteScalar()??0L)!=4L){
+                    return false;
+                }
+                command.CommandText="SELECT COUNT(*) FROM pragma_table_info('基準時間シェア') WHERE name IN('実行ID','更新日時','タブ名','型','ベンチマーク','左時間ns','右時間ns','左シェア','右シェア','前回左シェア','前回右シェア','左シェア差分','右シェア差分');";
+                if((long)(command.ExecuteScalar()??0L)!=13L){
+                    return false;
+                }
+            }
+            command.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('履歴時間比','基準時間比','履歴メモリ比','基準メモリ比','Scalable前回比較');";
+            return (long)(command.ExecuteScalar()??0L)==0L;
         }
         catch(SqliteException){
             return false;
@@ -213,138 +270,6 @@ public sealed class UiRunStore{
                 COALESCE("Count",-1),COALESCE("Initial",-1),COALESCE("Data",-1),COALESCE("Index",-1),
                 COALESCE("Page",-1),COALESCE("Segment",-1),COALESCE("Memory",-1),COALESCE("Fraction",-1)
             );
-            DROP VIEW IF EXISTS "BenchmarkPerformanceRatioDelta";
-            DROP VIEW IF EXISTS "BenchmarkPerformanceRatioHistory";
-            DROP VIEW IF EXISTS "BenchmarkMemoryRatioDelta";
-            DROP VIEW IF EXISTS "BenchmarkMemoryRatioHistory";
-            DROP VIEW IF EXISTS "基準時間比";
-            DROP VIEW IF EXISTS "基準メモリ比";
-            DROP VIEW IF EXISTS "履歴時間比";
-            DROP VIEW IF EXISTS "履歴メモリ比";
-            CREATE VIEW IF NOT EXISTS "履歴時間比" AS
-            SELECT
-                r."実行ID" AS "RunId",
-                r."更新日時" AS "UpdatedAt",
-                b."タブ名" AS "SourceTab",
-                b."型" AS "Type",
-                b."ベンチマーク" AS "Benchmark",
-                b."左時間ns" AS "FLinqNs",
-                b."右時間ns" AS "ZLinqNs",
-                b."左時間ns" / NULLIF(b."右時間ns",0) AS "PerformanceRatio"
-            FROM "Benchmark" b
-            INNER JOIN "実行" r ON r."実行ID"=b."実行ID"
-            WHERE b."左状態"='完了'
-                AND b."右状態"='完了'
-                AND b."左時間ns" IS NOT NULL
-                AND b."右時間ns" IS NOT NULL;
-            CREATE VIEW IF NOT EXISTS "基準時間比" AS
-            WITH history AS (
-                SELECT
-                    h.*,
-                    LAG(h."PerformanceRatio") OVER (
-                        PARTITION BY h."SourceTab",h."Type",h."Benchmark"
-                        ORDER BY h."RunId"
-                    ) AS "PreviousPerformanceRatio"
-                FROM "履歴時間比" h
-            )
-            SELECT
-                "RunId",
-                "UpdatedAt",
-                "SourceTab",
-                "Type",
-                "Benchmark",
-                "FLinqNs",
-                "ZLinqNs",
-                "PerformanceRatio",
-                "PreviousPerformanceRatio",
-                "PerformanceRatio" - "PreviousPerformanceRatio" AS "PerformanceRatioDelta"
-            FROM history;
-            CREATE VIEW IF NOT EXISTS "履歴メモリ比" AS
-            SELECT
-                r."実行ID" AS "RunId",
-                r."更新日時" AS "UpdatedAt",
-                b."タブ名" AS "SourceTab",
-                b."型" AS "Type",
-                b."ベンチマーク" AS "Benchmark",
-                b."左メモリバイト" AS "FLinqBytes",
-                b."右メモリバイト" AS "ZLinqBytes",
-                CASE
-                    WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0.5
-                    ELSE CAST(b."左メモリバイト" AS REAL) / (b."左メモリバイト"+b."右メモリバイト")
-                END AS "LeftShare",
-                CASE
-                    WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0.5
-                    ELSE CAST(b."右メモリバイト" AS REAL) / (b."左メモリバイト"+b."右メモリバイト")
-                END AS "RightShare"
-            FROM "Benchmark" b
-            INNER JOIN "実行" r ON r."実行ID"=b."実行ID"
-            WHERE b."左状態"='完了'
-                AND b."右状態"='完了'
-                AND b."左メモリバイト" IS NOT NULL
-                AND b."右メモリバイト" IS NOT NULL;
-            CREATE VIEW IF NOT EXISTS "基準メモリ比" AS
-            WITH history AS (
-                SELECT
-                    h.*,
-                    LAG(h."LeftShare") OVER (
-                        PARTITION BY h."SourceTab",h."Type",h."Benchmark"
-                        ORDER BY h."RunId"
-                    ) AS "PreviousLeftShare",
-                    LAG(h."RightShare") OVER (
-                        PARTITION BY h."SourceTab",h."Type",h."Benchmark"
-                        ORDER BY h."RunId"
-                    ) AS "PreviousRightShare"
-                FROM "履歴メモリ比" h
-            )
-            SELECT
-                "RunId",
-                "UpdatedAt",
-                "SourceTab",
-                "Type",
-                "Benchmark",
-                "FLinqBytes",
-                "ZLinqBytes",
-                "LeftShare",
-                "RightShare",
-                "PreviousLeftShare",
-                "PreviousRightShare",
-                "LeftShare" - "PreviousLeftShare" AS "LeftShareDelta",
-                "RightShare" - "PreviousRightShare" AS "RightShareDelta"
-            FROM history;
-            DROP VIEW IF EXISTS "Scalable履歴";
-            DROP VIEW IF EXISTS "Scalable前回比較";
-            CREATE VIEW "Scalable履歴" AS
-            SELECT
-                r."実行ID" AS "RunId",
-                r."前回実行ID" AS "PreviousRunId",
-                r."更新日時" AS "UpdatedAt",
-                b."タブ名" AS "SourceTab",
-                b."型" AS "Type",
-                b."ベンチマーク" AS "Benchmark",
-                b."Count",b."Initial",b."Data",b."Index",b."Page",b."Segment",b."Memory",b."Fraction",
-                b."今回時間ns" AS "CurrentNs",
-                b."今回メモリバイト" AS "CurrentBytes"
-            FROM "ScalableBenchmark" b
-            INNER JOIN "実行" r ON r."実行ID"=b."実行ID"
-            WHERE b."今回状態"='完了';
-            CREATE VIEW "Scalable前回比較" AS
-            SELECT
-                c."RunId",c."PreviousRunId",c."UpdatedAt",c."SourceTab",c."Type",c."Benchmark",
-                c."Count",c."Initial",c."Data",c."Index",c."Page",c."Segment",c."Memory",c."Fraction",
-                c."CurrentNs",p."CurrentNs" AS "PreviousNs",
-                c."CurrentNs"/NULLIF(p."CurrentNs",0) AS "TimeRatio",
-                c."CurrentBytes",p."CurrentBytes" AS "PreviousBytes",
-                 CASE WHEN c."CurrentBytes"=0 AND p."CurrentBytes"=0 THEN 0.5
-                      ELSE CAST(c."CurrentBytes" AS REAL)/(c."CurrentBytes"+p."CurrentBytes") END AS "CurrentMemoryShare",
-                 CASE WHEN c."CurrentBytes"=0 AND p."CurrentBytes"=0 THEN 0.5
-                      ELSE CAST(p."CurrentBytes" AS REAL)/(c."CurrentBytes"+p."CurrentBytes") END AS "PreviousMemoryShare"
-            FROM "Scalable履歴" c
-            LEFT JOIN "Scalable履歴" p
-              ON p."RunId"=c."PreviousRunId"
-             AND p."SourceTab"=c."SourceTab" AND p."Type"=c."Type" AND p."Benchmark"=c."Benchmark"
-             AND p."Count"=c."Count" AND p."Initial"=c."Initial" AND p."Data"=c."Data"
-             AND p."Index"=c."Index" AND p."Page"=c."Page" AND p."Segment"=c."Segment"
-             AND p."Memory"=c."Memory" AND p."Fraction"=c."Fraction";
             """);
     }
 
@@ -841,22 +766,22 @@ public sealed class UiRunStore{
     public IReadOnlyList<UiComparisonRecord> ListComparisons(long runId) => [];
 
     public static IReadOnlyList<string> AnalysisViewNames { get; } = [
-        "履歴時間比",
-        "基準時間比",
-        "履歴メモリ比",
-        "基準メモリ比",
+        "履歴時間シェア",
+        "基準時間シェア",
+        "履歴メモリシェア",
+        "基準メモリシェア",
         "Scalable履歴",
-        "Scalable前回比較",
+        "Scalable前回シェア",
         "BenchmarkFallbackDiagnostics",
     ];
 
     public IReadOnlyList<IReadOnlyDictionary<string,object?>> QueryAnalysisView(string viewName,int limit = 1000){
-        if(string.Equals(viewName,"履歴時間比",StringComparison.Ordinal)
-            ||string.Equals(viewName,"基準時間比",StringComparison.Ordinal)
-            ||string.Equals(viewName,"履歴メモリ比",StringComparison.Ordinal)
-            ||string.Equals(viewName,"基準メモリ比",StringComparison.Ordinal)
+        if(string.Equals(viewName,"履歴時間シェア",StringComparison.Ordinal)
+            ||string.Equals(viewName,"基準時間シェア",StringComparison.Ordinal)
+            ||string.Equals(viewName,"履歴メモリシェア",StringComparison.Ordinal)
+            ||string.Equals(viewName,"基準メモリシェア",StringComparison.Ordinal)
             ||string.Equals(viewName,"Scalable履歴",StringComparison.Ordinal)
-            ||string.Equals(viewName,"Scalable前回比較",StringComparison.Ordinal)){
+            ||string.Equals(viewName,"Scalable前回シェア",StringComparison.Ordinal)){
             return this.QuerySqlAnalysisView(viewName,limit);
         }
 
@@ -887,7 +812,7 @@ public sealed class UiRunStore{
         command.CommandText=$"""
             SELECT *
             FROM "{viewName}"
-            ORDER BY "RunId" DESC
+            ORDER BY "実行ID" DESC
             LIMIT $limit;
             """;
         command.Parameters.AddWithValue("$limit",limit);

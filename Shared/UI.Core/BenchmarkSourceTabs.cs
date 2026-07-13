@@ -54,10 +54,6 @@ public sealed record BenchmarkSourceTabDefinition(
         }
 
         var assemblyName = this.GetAssemblyName(benchmark.Project);
-        if(string.IsNullOrWhiteSpace(assemblyName)||string.IsNullOrWhiteSpace(benchmark.AssemblyName)) {
-            return true;
-        }
-
         if(!string.Equals(assemblyName,benchmark.AssemblyName,StringComparison.OrdinalIgnoreCase)) {
             return false;
         }
@@ -105,7 +101,7 @@ public static class BenchmarkSourceTabs{
             ScalablePersistedSetId,
             "Persisted.Set",
             "Scalable.Persisted.Set",
-            "Persisted",
+            "Current",
             "Benchmark.Scalable.Persisted.Collections",
             "Scalable.Persisted.Set.Previous",
             "Previous",
@@ -115,7 +111,7 @@ public static class BenchmarkSourceTabs{
             ScalableTsavoriteSetId,
             "Tsavorite.Set",
             "Scalable.Tsavorite.Set",
-            "Tsavorite",
+            "Current",
             "Benchmark.Scalable.Tsavorite.Collections",
             "Scalable.Tsavorite.Set.Previous",
             "Previous",
@@ -125,7 +121,7 @@ public static class BenchmarkSourceTabs{
             ScalablePersistedDictionaryId,
             "Persisted.Dictionary",
             "Scalable.Persisted.Dictionary",
-            "Persisted",
+            "Current",
             "Benchmark.Scalable.Persisted.Collections",
             "Scalable.Persisted.Dictionary.Previous",
             "Previous",
@@ -135,7 +131,7 @@ public static class BenchmarkSourceTabs{
             ScalableTsavoriteDictionaryId,
             "Tsavorite.Dictionary",
             "Scalable.Tsavorite.Dictionary",
-            "Tsavorite",
+            "Current",
             "Benchmark.Scalable.Tsavorite.Collections",
             "Scalable.Tsavorite.Dictionary.Previous",
             "Previous",
@@ -145,10 +141,10 @@ public static class BenchmarkSourceTabs{
             ScalablePersistedListId,
             "Persisted.List",
             "Scalable.Persisted.List",
-            "Persisted",
+            "Current",
             "Benchmark.Scalable.Persisted.Collections",
             "Scalable.Persisted.List.Previous",
-            "前回",
+            "Previous",
             string.Empty),
     ];
 
@@ -233,32 +229,42 @@ public static class BenchmarkSourceTabs{
         AllDefinitions.First(item => item.Tab==tab);
 
     public static BenchmarkSourceTabDefinition GetById(string id) =>
-        AllDefinitions.First(item => string.Equals(item.Id,id,StringComparison.OrdinalIgnoreCase));
+        TryGetById(id)
+        ??throw new InvalidDataException("Benchmark SourceTab ID is unknown: "+(string.IsNullOrWhiteSpace(id)?"<empty>":id));
 
     public static BenchmarkSourceTabDefinition? TryGetById(string id) =>
         AllDefinitions.FirstOrDefault(item => string.Equals(item.Id,id,StringComparison.OrdinalIgnoreCase));
 
-    public static BenchmarkSourceTabDefinition? TryGetByProject(string project) =>
-        AllDefinitions.FirstOrDefault(item =>
-            item.ContainsProject(project));
+    public static BenchmarkSourceTabDefinition? TryGetByProject(string project) {
+        var candidates=AllDefinitions
+            .Where(item => item.ContainsProject(project))
+            .Take(2)
+            .ToArray();
+        return candidates.Length==1?candidates[0]:null;
+    }
 
     public static BenchmarkSourceTabDefinition? TryGetByProjectAndAssembly(string project,string assemblyName) {
-        var candidates = AllDefinitions
-            .Where(item => item.ContainsProject(project))
+        var candidates=AllDefinitions
+            .Where(item => item.ContainsProject(project)
+                &&string.Equals(item.GetAssemblyName(project),assemblyName,StringComparison.OrdinalIgnoreCase))
+            .Take(2)
             .ToArray();
-        if(candidates.Length==0) {
-            return null;
+        return candidates.Length==1?candidates[0]:null;
+    }
+
+    public static BenchmarkSourceTabDefinition GetByProjectAndAssembly(string project,string assemblyName) {
+        if(TryGetByProjectAndAssembly(project,assemblyName) is { } sourceTab) {
+            return sourceTab;
         }
 
-        if(!string.IsNullOrWhiteSpace(assemblyName)) {
-            var assemblyMatch = candidates.FirstOrDefault(item =>
-                string.Equals(item.GetAssemblyName(project),assemblyName,StringComparison.OrdinalIgnoreCase));
-            if(assemblyMatch is not null) {
-                return assemblyMatch;
-            }
-        }
-
-        return candidates[0];
+        var candidates=AllDefinitions
+            .Where(item => item.ContainsProject(project))
+            .Select(item => item.Id+" ("+item.GetAssemblyName(project)+")")
+            .ToArray();
+        throw new InvalidDataException(
+            "Benchmark SourceTab could not be resolved exactly. Project="+project
+            +" Assembly="+(string.IsNullOrWhiteSpace(assemblyName)?"<empty>":assemblyName)
+            +" Candidates="+(candidates.Length==0?"<none>":string.Join(", ",candidates)));
     }
 
     public static string ToPathPart(BenchmarkSourceTab tab){

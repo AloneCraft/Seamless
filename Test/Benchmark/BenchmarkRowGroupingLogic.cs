@@ -5,7 +5,7 @@ namespace Test.Benchmark;
 public sealed class BenchmarkRowGroupingLogic{
     [Fact]
     public void CreateRowsKeepsSingleComparisonRowWhenEachProjectHasOneMethod(){
-        var sourceTab = BenchmarkSourceTabs.Default;
+        var sourceTab=ComparisonSourceTab();
         var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
             [
                 Case(sourceTab.LeftProject,"Left.Assembly","Left.Route","Where"),
@@ -21,7 +21,7 @@ public sealed class BenchmarkRowGroupingLogic{
 
     [Fact]
     public void CreateRowsSplitsSameProjectMethodByType(){
-        var sourceTab = BenchmarkSourceTabs.Default;
+        var sourceTab=ComparisonSourceTab();
         var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
             [
                 Case(sourceTab.LeftProject,"Left.Assembly","Left.TypeA","Where"),
@@ -39,7 +39,7 @@ public sealed class BenchmarkRowGroupingLogic{
 
     [Fact]
     public void CreateRowsSplitsSameProjectMethodByArgumentKey(){
-        var sourceTab = BenchmarkSourceTabs.Default;
+        var sourceTab=ComparisonSourceTab();
         var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
             [
                 Case(sourceTab.LeftProject,"Left.Assembly","Left.TypeA","Add","Count=1",[new BenchmarkArgument("Count","1")]),
@@ -162,6 +162,38 @@ public sealed class BenchmarkRowGroupingLogic{
         Assert.Contains(rows,row => row.BenchmarkName=="<int>.AggregateBy_keySelector");
         Assert.Contains(rows,row => row.BenchmarkName=="<string>.AggregateBy_keySelector");
         Assert.All(rows,row => Assert.Equal(sourceTab.RightAssemblyName,row.CasesByProject[sourceTab.RightProject].AssemblyName));
+    }
+
+    [Fact]
+    public void CreateRowsDoesNotFallbackToAnotherAssemblyForSharedProject(){
+        var persisted=BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
+        var tsavorite=BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessTsavorite);
+        var rows=global::UI.BenchmarkRowGroupingLogic.CreateRows(
+            [
+                Case(persisted.LeftProject,persisted.LeftAssemblyName,"Benchmark.Persisted.Linq.Enumerable.FLinqClassInt32","AggregateBy_keySelector","Persisted<ClassInt32>"),
+                Case(persisted.RightProject,persisted.RightAssemblyName,"Benchmark.Persisted.Linq.Enumerable.LinqClassInt32","AggregateBy_keySelector","Persisted<ClassInt32>"),
+                Case(tsavorite.RightProject,tsavorite.RightAssemblyName,"Benchmark.Tsavorite.Linq.Enumerable.LinqClassInt32","AggregateBy_keySelector","Tsavorite<ClassInt32>"),
+            ],
+            persisted);
+
+        var row=Assert.Single(rows);
+        Assert.True(row.CasesByProject.ContainsKey(persisted.LeftProject));
+        Assert.True(row.CasesByProject.ContainsKey(persisted.RightProject));
+        Assert.All(row.CasesByProject.Values,benchmark => Assert.True(persisted.ContainsCase(benchmark)));
+    }
+
+    [Fact]
+    public void CreateRowsKeepsOneSidedCaseFromExactAssembly(){
+        var persisted=BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
+        var rows=global::UI.BenchmarkRowGroupingLogic.CreateRows(
+            [
+                Case(persisted.LeftProject,persisted.LeftAssemblyName,"Benchmark.Persisted.Linq.Enumerable.FLinqClassInt32","AggregateBy_keySelector","Persisted<ClassInt32>"),
+            ],
+            persisted);
+
+        var row=Assert.Single(rows);
+        Assert.True(row.CasesByProject.ContainsKey(persisted.LeftProject));
+        Assert.False(row.CasesByProject.ContainsKey(persisted.RightProject));
     }
 
     [Fact]
@@ -439,8 +471,20 @@ public sealed class BenchmarkRowGroupingLogic{
         Assert.Equal(string.Empty,ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("System.Array.FLinq"));
     }
 
-    private static BenchmarkCase Case(string project,string assembly,string type,string method) =>
-        new(project,assembly,type,method);
+    private static BenchmarkSourceTabDefinition ComparisonSourceTab() =>
+        new(
+            BenchmarkSourceTab.OptimizationRewrite,
+            "Test.Comparison",
+            "Test",
+            "Left",
+            "Left",
+            "Left.Assembly",
+            "Right",
+            "Right",
+            "Right.Assembly");
+
+    private static BenchmarkCase Case(string project,string assembly,string type,string method,string benchmarkPath = "") =>
+        new(project,assembly,type,method,benchmarkPath);
 
     private static BenchmarkCase Case(string project,string assembly,string type,string method,string argumentKey,IReadOnlyList<BenchmarkArgument> arguments) =>
         new(project,assembly,type,method,argumentKey,arguments);
@@ -473,7 +517,6 @@ public sealed class BenchmarkRowGroupingLogic{
             0);
 
 }
-
 
 
 

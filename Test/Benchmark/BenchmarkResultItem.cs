@@ -36,7 +36,7 @@ public sealed class BenchmarkResultItemTests{
     }
 
     [Fact]
-    public void Constructor_FallsBackToProjectWhenStoredSourceTabIdIsMissing(){
+    public void Constructor_ResolvesUniqueProjectWhenStoredSourceTabIdIsMissing(){
         var array = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
 
         var result = new global::UI.BenchmarkResultItem(StoredResult(
@@ -48,9 +48,31 @@ public sealed class BenchmarkResultItemTests{
     }
 
     [Fact]
+    public void Constructor_RejectsAmbiguousProjectWhenStoredSourceTabIdIsMissing(){
+        var persisted=global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SeamlessPersisted);
+
+        Assert.Throws<InvalidDataException>(() => new global::UI.BenchmarkResultItem(StoredResult(
+            persisted.RightProject,
+            "Benchmark.Persisted.Linq.Enumerable.LinqInt32",
+            string.Empty)));
+    }
+
+    [Fact]
+    public void Constructor_RejectsUnknownStoredSourceTabId(){
+        var array=global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
+
+        Assert.Throws<InvalidDataException>(() => new global::UI.BenchmarkResultItem(StoredResult(
+            array.LeftProject,
+            "Benchmark.System.Linq.Enumerable.FLinqInt32",
+            "Unknown.Tab")));
+    }
+
+    [Fact]
     public void Constructor_NormalizesLoopCountTotalsPerOperation(){
+        var sourceTab=global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
         var result = new global::UI.BenchmarkResultItem(new global::UI.BenchmarkJob{
-            Project="Benchmark.System.Linq.Enumerable.FLinq",
+            Project=sourceTab.LeftProject,
+            AssemblyName=sourceTab.LeftAssemblyName,
             MethodName="Aggregate_func",
             TypeFullName="Benchmark.System.Linq.Enumerable.FLinqInt32",
             SourceTab=global::UI.BenchmarkSourceTab.SystemArray,

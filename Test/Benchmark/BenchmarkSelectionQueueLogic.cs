@@ -5,7 +5,7 @@ public sealed class BenchmarkSelectionQueueLogic{
     [Fact]
     public void CreateSelectedCases(){
         var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var catalog = Catalog(sourceTab.LeftProject,sourceTab.RightProject);
+        var catalog=Catalog(sourceTab);
         {
             var selections = SelectRows(catalog,sourceTab,true);
             var cases = global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCases(catalog,sourceTab,selections).ToArray();
@@ -44,7 +44,7 @@ public sealed class BenchmarkSelectionQueueLogic{
     public void CreateSelectedCasesFromAllTabs(){
         {
             var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-            var catalog = Catalog(sourceTab.LeftProject,sourceTab.RightProject);
+            var catalog=Catalog(sourceTab);
             var selections = SelectRows(catalog,sourceTab,true);
             var snapshot = global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCasesFromAllTabs(catalog,[sourceTab],selections);
             var queue = global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCasesFromAllTabs(catalog,[sourceTab],selections);
@@ -57,8 +57,10 @@ public sealed class BenchmarkSelectionQueueLogic{
             var persisted = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SeamlessPersisted);
             var tsavorite = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SeamlessTsavorite);
             Assert.Equal(persisted.RightProject,tsavorite.RightProject);
-            var shared = new global::UI.BenchmarkCase(persisted.RightProject,"Shared.Assembly","Shared.Type","Sum");
-            var catalog = new[]{ shared };
+            var catalog=new[]{
+                new global::UI.BenchmarkCase(persisted.RightProject,persisted.RightAssemblyName,"Benchmark.Persisted.Linq.Enumerable.LinqInt32","Sum"),
+                new global::UI.BenchmarkCase(tsavorite.RightProject,tsavorite.RightAssemblyName,"Benchmark.Tsavorite.Linq.Enumerable.LinqInt32","Sum"),
+            };
             var selections = new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase);
             foreach(var tab in new[]{ persisted,tsavorite }){
                 foreach(var row in global::UI.BenchmarkRowGroupingLogic.CreateRows(catalog,tab)){
@@ -66,11 +68,13 @@ public sealed class BenchmarkSelectionQueueLogic{
                 }
             }
             var queue = global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCasesFromAllTabs(catalog,[persisted,tsavorite],selections);
-            Assert.Single(queue);
+            Assert.Equal(2,queue.Count);
+            Assert.Contains(queue,item => item.AssemblyName==persisted.RightAssemblyName);
+            Assert.Contains(queue,item => item.AssemblyName==tsavorite.RightAssemblyName);
         }
         {
             var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-            var catalog = Catalog(sourceTab.LeftProject,sourceTab.RightProject);
+            var catalog=Catalog(sourceTab);
             var selections = SelectRows(catalog,sourceTab,true);
             var overrideCase = new global::UI.BenchmarkCase(sourceTab.LeftProject,"Live.Assembly","Live.Type","Aggregate");
             var queue = global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCasesFromAllTabs(
@@ -86,11 +90,11 @@ public sealed class BenchmarkSelectionQueueLogic{
     private static string CaseIdentity(global::UI.BenchmarkCase benchmark) =>
         string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey);
 
-    private static global::UI.BenchmarkCase[] Catalog(string leftProject,string rightProject) => [
-        new(leftProject,"Left.Assembly","Left.Type","Aggregate"),
-        new(leftProject,"Left.Assembly","Left.Type","Sum"),
-        new(rightProject,"Right.Assembly","Right.Type","Aggregate"),
-        new(rightProject,"Right.Assembly","Right.Type","Sum"),
+    private static global::UI.BenchmarkCase[] Catalog(global::UI.BenchmarkSourceTabDefinition sourceTab) => [
+        new(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Left.Type","Aggregate"),
+        new(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Left.Type","Sum"),
+        new(sourceTab.RightProject,sourceTab.RightAssemblyName,"Right.Type","Aggregate"),
+        new(sourceTab.RightProject,sourceTab.RightAssemblyName,"Right.Type","Sum"),
     ];
 
     private static Dictionary<string,bool> SelectRows(

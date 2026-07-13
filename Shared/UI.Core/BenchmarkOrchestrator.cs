@@ -662,7 +662,7 @@ internal sealed class BenchmarkOrchestrator(
                     continue;
                 }
 
-                state.Jobs.Add(CreateJob(benchmark,elementCount,GetBenchmarkSourceTab(benchmark,state.SourceTab),state.ElementCounts,state.NextRunItemIndex++));
+                state.Jobs.Add(CreateJob(benchmark,elementCount,GetBenchmarkSourceTab(benchmark),state.ElementCounts,state.NextRunItemIndex++));
             }
 
             stateManager.Save(state);
@@ -690,7 +690,7 @@ internal sealed class BenchmarkOrchestrator(
         BenchmarkJob job;
         lock(this.stateGate) {
             job=state.Jobs.FirstOrDefault(item => BenchmarkWorkloadAxis.GetAxisCount(item)==elementCount&&SameCase(benchmark,item))
-                ??CreateJob(benchmark,elementCount,GetBenchmarkSourceTab(benchmark,state.SourceTab),state.ElementCounts,state.NextRunItemIndex++);
+                ??CreateJob(benchmark,elementCount,GetBenchmarkSourceTab(benchmark),state.ElementCounts,state.NextRunItemIndex++);
             if(!state.Jobs.Contains(job)) {
                 state.Jobs.Add(job);
             }
@@ -793,7 +793,7 @@ internal sealed class BenchmarkOrchestrator(
             .ToArray();
         return benchmarks
             .Select((benchmark,index) => new { Benchmark=benchmark, Index=index })
-            .GroupBy(item => GetBenchmarkSourceTab(item.Benchmark,request.SourceTab))
+            .GroupBy(item => GetBenchmarkSourceTab(item.Benchmark))
             .OrderBy(static group => group.Min(static item => item.Index))
             .SelectMany(group => {
                 var sourceTab=BenchmarkSourceTabs.Get(group.Key);
@@ -810,8 +810,17 @@ internal sealed class BenchmarkOrchestrator(
             .ToArray();
     }
 
-    private static BenchmarkSourceTab GetBenchmarkSourceTab(BenchmarkCase benchmark,BenchmarkSourceTab fallbackSourceTab) =>
-        BenchmarkSourceTabs.TryGetByProjectAndAssembly(benchmark.Project,benchmark.AssemblyName)?.Tab??fallbackSourceTab;
+    private static BenchmarkSourceTab GetBenchmarkSourceTab(BenchmarkCase benchmark) {
+        var sourceTab=BenchmarkSourceTabs.GetByProjectAndAssembly(benchmark.Project,benchmark.AssemblyName);
+        if(!sourceTab.ContainsCase(benchmark)){
+            throw new InvalidDataException(
+                "Benchmark case does not belong to the resolved SourceTab. SourceTab="+sourceTab.Id
+                +" Project="+benchmark.Project
+                +" Assembly="+benchmark.AssemblyName
+                +" Type="+benchmark.TypeFullName);
+        }
+        return sourceTab.Tab;
+    }
 
     private static bool SameCase(BenchmarkCase benchmark,BenchmarkJob job) =>
         string.Equals(benchmark.Project,job.Project,StringComparison.OrdinalIgnoreCase)

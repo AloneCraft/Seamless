@@ -30,8 +30,8 @@ internal static class BenchmarkImprovementCandidateBuilder{
         return entries
             .GroupBy(static entry => CreateCandidateKey(entry.SourceTab,entry.Category,entry.Row.MethodName),StringComparer.OrdinalIgnoreCase)
             .Select(static group => CreateCandidate(group.Key,group.ToArray()))
-            .Where(static candidate => candidate.HasRegression)
-            .OrderByDescending(static candidate => GetRegressionSeverity(candidate.TimeRatio,candidate.AllocatedShare))
+            .Where(static candidate => candidate.回帰あり)
+            .OrderByDescending(static candidate => 回帰重要度を取得(candidate.時間シェア,candidate.メモリシェア))
             .ThenBy(static candidate => candidate.SourceTab.Id,StringComparer.OrdinalIgnoreCase)
             .ThenBy(static candidate => candidate.MethodName,StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -40,15 +40,15 @@ internal static class BenchmarkImprovementCandidateBuilder{
     public static IReadOnlySet<string> CreateDefaultSelectedKeys(IReadOnlyList<BenchmarkImprovementCandidate> candidates,int takeCount = DefaultAutoSelectCount){
         var selected = new global::System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach(var candidate in candidates
-            .Where(static item => item.HasTimeRegression)
-            .OrderByDescending(static item => GetRankValue(item.TimeRatio))
+            .Where(static item => item.時間回帰か)
+            .OrderByDescending(static item => 順位値を取得(item.時間シェア))
             .Take(takeCount)){
             selected.Add(candidate.Key);
         }
 
         foreach(var candidate in candidates
-            .Where(static item => item.HasAllocatedRegression)
-            .OrderByDescending(static item => GetRankValue(item.AllocatedShare))
+            .Where(static item => item.メモリ回帰か)
+            .OrderByDescending(static item => 順位値を取得(item.メモリシェア))
             .Take(takeCount)){
             selected.Add(candidate.Key);
         }
@@ -59,7 +59,7 @@ internal static class BenchmarkImprovementCandidateBuilder{
     public static string BuildPrompt(IEnumerable<BenchmarkImprovementCandidate> candidates){
         var selected = candidates
             .OrderBy(static item => item.Category,StringComparer.OrdinalIgnoreCase)
-            .ThenByDescending(static item => GetRegressionSeverity(item.TimeRatio,item.AllocatedShare))
+            .ThenByDescending(static item => 回帰重要度を取得(item.時間シェア,item.メモリシェア))
             .ThenBy(static item => item.MethodName,StringComparer.OrdinalIgnoreCase)
             .ToArray();
         if(selected.Length==0){
@@ -71,7 +71,7 @@ internal static class BenchmarkImprovementCandidateBuilder{
         builder.AppendLine();
         builder.AppendLine("目的: 以下の選択候補すべてを、段階分けせず一気に実装・テスト・検証まで進めてください。");
         builder.AppendLine("計画や調査だけで止まらず、コード変更と再測定可能な状態まで完了させてください。");
-        builder.AppendLine("比較は Left / Right の比率です。1.00 より大きいほど Left(FLinq)側の負荷が大きく、改善優先度が高いです。");
+        builder.AppendLine("比較は Left:Right のシェアです。Leftシェアが0.50より大きいほどLeft(FLinq)側の負荷が大きく、改善優先度が高いです。");
         builder.AppendLine();
         builder.AppendLine("検証方針:");
         builder.AppendLine("- 対象メソッドの単体テストを実行し、既存挙動を壊していないことを確認してください。");
@@ -99,11 +99,11 @@ internal static class BenchmarkImprovementCandidateBuilder{
 
     private static BenchmarkImprovementCandidate CreateCandidate(string key,IReadOnlyList<BenchmarkImprovementEntry> entries){
         var time = entries
-            .OrderByDescending(static item => GetRankValue(item.Row.PairRatio.TimeRatio))
+            .OrderByDescending(static item => 順位値を取得(item.Row.左右シェア.時間シェア))
             .ThenBy(static item => item.ElementCount)
             .First();
         var allocated = entries
-            .OrderByDescending(static item => GetRankValue(item.Row.PairRatio.AllocatedShare))
+            .OrderByDescending(static item => 順位値を取得(item.Row.左右シェア.メモリシェア))
             .ThenBy(static item => item.ElementCount)
             .First();
         return new(
@@ -114,8 +114,8 @@ internal static class BenchmarkImprovementCandidateBuilder{
             time.Row.Benchmark,
             time.ElementCount,
             allocated.ElementCount,
-            time.Row.PairRatio.TimeRatio,
-            allocated.Row.PairRatio.AllocatedShare,
+            time.Row.左右シェア.時間シェア,
+            allocated.Row.左右シェア.メモリシェア,
             time.Row.Left,
             time.Row.Right,
             allocated.Row.Left,
@@ -157,8 +157,8 @@ internal static class BenchmarkImprovementCandidateBuilder{
     private static void AppendCandidate(StringBuilder builder,BenchmarkImprovementCandidate candidate){
         builder.AppendLine("- "+candidate.MethodName+" ("+candidate.SourceTab.DisplayName+")");
         builder.AppendLine("  - 比較: "+candidate.SourceTab.LeftProject+" / "+candidate.SourceTab.RightProject);
-        builder.AppendLine("  - 時間差: N="+FormatElementCount(candidate.TimeElementCount)+" / 比率 "+FormatRatio(candidate.TimeRatio)+" / Left "+FormatTime(candidate.TimeLeft.TimeNanoseconds)+" / Right "+FormatTime(candidate.TimeRight.TimeNanoseconds));
-        builder.AppendLine("  - メモリ差: N="+FormatElementCount(candidate.AllocatedElementCount)+" / シェア "+FormatShare(candidate.AllocatedShare)+" / Left "+FormatAllocated(candidate.AllocatedLeft.AllocatedBytes)+" / Right "+FormatAllocated(candidate.AllocatedRight.AllocatedBytes));
+        builder.AppendLine("  - 時間差: N="+FormatElementCount(candidate.TimeElementCount)+" / シェア Left:Right "+シェアを整形(candidate.時間シェア)+" / Left "+FormatTime(candidate.TimeLeft.TimeNanoseconds)+" / Right "+FormatTime(candidate.TimeRight.TimeNanoseconds));
+        builder.AppendLine("  - メモリ差: N="+FormatElementCount(candidate.AllocatedElementCount)+" / シェア Left:Right "+シェアを整形(candidate.メモリシェア)+" / Left "+FormatAllocated(candidate.AllocatedLeft.AllocatedBytes)+" / Right "+FormatAllocated(candidate.AllocatedRight.AllocatedBytes));
         if(!string.IsNullOrWhiteSpace(candidate.TypeFullName)){
             builder.AppendLine("  - 型: "+candidate.TypeFullName);
         }
@@ -168,40 +168,26 @@ internal static class BenchmarkImprovementCandidateBuilder{
         builder.AppendLine("  - 検索ヒント: rg \""+candidate.MethodName+"|"+candidate.SourceTab.LeftProject+"|"+candidate.SourceTab.LeftAssemblyName+"\"");
     }
 
-    internal static double GetRankValue(RatioValue ratio) =>
-        ratio.Kind switch{
-            RatioValueKind.Numeric when ratio.NumericValue is { } value&&value>1 => value,
-            RatioValueKind.LeftOnly => double.PositiveInfinity,
-            _ => double.NegativeInfinity,
-        };
+    internal static double 順位値を取得(シェア値 share){
+        if(share.左シェア is { } value&&value>0.5){
+            return value;
+        }
+        return double.NegativeInfinity;
+    }
 
-    internal static double GetRankValue(AllocationShareValue share) =>
-        share.LeftShare is { } value&&value>0.5
-            ? value
-            : double.NegativeInfinity;
-
-    internal static double GetRegressionSeverity(RatioValue timeRatio,AllocationShareValue allocatedShare){
-        var timeSeverity = timeRatio.Kind switch{
-            RatioValueKind.Numeric when timeRatio.NumericValue is { } value&&value>1 => value-1,
-            RatioValueKind.LeftOnly => double.PositiveInfinity,
-            _ => 0,
-        };
-        var allocatedSeverity = allocatedShare.LeftShare is { } left&&left>0.5
-            ? (left-0.5)*2
-            : 0;
+    internal static double 回帰重要度を取得(シェア値 timeShare,シェア値 allocatedShare){
+        var timeSeverity=0.0;
+        if(timeShare.左シェア is { } timeLeft&&timeLeft>0.5){
+            timeSeverity=(timeLeft-0.5)*2;
+        }
+        var allocatedSeverity=0.0;
+        if(allocatedShare.左シェア is { } allocatedLeft&&allocatedLeft>0.5){
+            allocatedSeverity=(allocatedLeft-0.5)*2;
+        }
         return Math.Max(timeSeverity,allocatedSeverity);
     }
 
-    internal static string FormatRatio(RatioValue ratio) =>
-        ratio.Kind switch{
-            RatioValueKind.Numeric when ratio.NumericValue is { } value => value.ToString("0.00",CultureInfo.InvariantCulture),
-            RatioValueKind.LeftOnly => "inf",
-            RatioValueKind.BothZero => "0",
-            RatioValueKind.RightOnly => "0",
-            _ => "-",
-        };
-
-    internal static string FormatShare(AllocationShareValue share) => share.DisplayText;
+    internal static string シェアを整形(シェア値 share) => share.表示文字列;
 
     internal static string FormatTime(double? value) =>
         value is { } number&&double.IsFinite(number)
@@ -277,8 +263,8 @@ public sealed record BenchmarkImprovementCandidate(
     string DisplayName,
     int TimeElementCount,
     int AllocatedElementCount,
-    RatioValue TimeRatio,
-    AllocationShareValue AllocatedShare,
+    シェア値 時間シェア,
+    シェア値 メモリシェア,
     ProjectMetrics TimeLeft,
     ProjectMetrics TimeRight,
     ProjectMetrics AllocatedLeft,
@@ -286,7 +272,7 @@ public sealed record BenchmarkImprovementCandidate(
     string TypeFullName,
     string ArgumentKey,
     IReadOnlyList<BenchmarkArgument> Arguments){
-    public bool HasTimeRegression => BenchmarkImprovementCandidateBuilder.GetRankValue(this.TimeRatio)>1;
-    public bool HasAllocatedRegression => this.AllocatedShare.LeftShare>0.5;
-    public bool HasRegression => this.HasTimeRegression||this.HasAllocatedRegression;
+    public bool 時間回帰か => BenchmarkImprovementCandidateBuilder.順位値を取得(this.時間シェア)>0.5;
+    public bool メモリ回帰か => this.メモリシェア.左シェア>0.5;
+    public bool 回帰あり => this.時間回帰か||this.メモリ回帰か;
 }

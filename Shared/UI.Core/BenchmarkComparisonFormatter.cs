@@ -24,7 +24,7 @@ internal static class BenchmarkComparisonFormatter{
         var tab = rows
             .Select(row => BenchmarkSourceTabs.TryGetByProject(row.Project))
             .FirstOrDefault(static item => item is not null)
-            ??BenchmarkSourceTabs.Default;
+            ??throw new InvalidDataException("Benchmark SourceTab could not be resolved uniquely from report projects: "+string.Join(", ",rows.Select(static row => row.Project).Distinct(StringComparer.OrdinalIgnoreCase)));
         return BuildComparisonRows(rows,tab);
     }
 
@@ -68,30 +68,30 @@ internal static class BenchmarkComparisonFormatter{
             .ToArray();
     }
 
-    public static RatioValue CalculateTimeRatio(ProjectMetrics left,ProjectMetrics right){
-        if(!left.HasMeasuredValue||!right.HasMeasuredValue||left.TimeNanoseconds is not { } leftValue||right.TimeNanoseconds is not { } rightValue||leftValue<=0||rightValue<=0){
-            return RatioValue.Missing;
+    public static シェア値 時間シェアを計算(ProjectMetrics left,ProjectMetrics right){
+        if(!left.HasMeasuredValue||!right.HasMeasuredValue||left.TimeNanoseconds is not { } leftValue||right.TimeNanoseconds is not { } rightValue){
+            return シェア値.欠測;
         }
 
-        return RatioValue.FromNumeric(leftValue/rightValue);
+        return シェア値.時間から作成(leftValue,rightValue);
     }
 
-    public static AllocationShareValue CalculateAllocatedShare(ProjectMetrics left,ProjectMetrics right){
+    public static シェア値 メモリシェアを計算(ProjectMetrics left,ProjectMetrics right){
         if(!left.HasMeasuredValue||!right.HasMeasuredValue||left.AllocatedBytes is not { } leftValue||right.AllocatedBytes is not { } rightValue){
-            return AllocationShareValue.Missing;
+            return シェア値.欠測;
         }
-        return AllocationShareValue.FromBytes(leftValue,rightValue);
+        return シェア値.メモリから作成(leftValue,rightValue);
     }
 
-    public static PairComparison CreatePairComparison(BenchmarkComparisonRow row,ComparisonPairDefinition pair){
+    public static シェア比較 シェア比較を作成(BenchmarkComparisonRow row,ComparisonPairDefinition pair){
         var left = row.GetProject(pair.LeftProject);
         var right = row.GetProject(pair.RightProject);
-        return new PairComparison(
+        return new シェア比較(
             pair,
             left,
             right,
-            CalculateTimeRatio(left,right),
-            CalculateAllocatedShare(left,right));
+            時間シェアを計算(left,right),
+            メモリシェアを計算(left,right));
     }
 
     private static BenchmarkComparisonRow CreateRow(
@@ -114,7 +114,7 @@ internal static class BenchmarkComparisonFormatter{
             TypeFullName = typeFullName,
             ArgumentKey = argumentKey,
             Arguments = arguments??[],
-            PairRatio = CreatePairComparison(row,new ComparisonPairDefinition(
+            左右シェア = シェア比較を作成(row,new ComparisonPairDefinition(
                 sourceTab.Id,
                 sourceTab.DisplayName,
                 sourceTab.LeftProject+"/"+sourceTab.RightProject,
@@ -225,70 +225,103 @@ public readonly record struct ProjectMetrics(double? TimeNanoseconds,long? Alloc
             : new ProjectMetrics(timeNanoseconds,allocatedBytes,true);
 }
 
-public readonly record struct RatioValue(RatioValueKind Kind,double? NumericValue,string DisplayText,RatioJudgement Judgement){
-    public static readonly RatioValue Missing = new(RatioValueKind.Missing,null,"-",RatioJudgement.None);
+public readonly record struct シェア値(
+    double? 左シェア,
+    double? 右シェア,
+    string 表示文字列,
+    シェア判定 判定){
+    public static readonly シェア値 欠測 = new(null,null,"-",シェア判定.なし);
 
-    public bool IsNumeric => this.Kind==RatioValueKind.Numeric&&this.NumericValue is not null;
-    public bool IsSaturatedHigh => this.Kind==RatioValueKind.LeftOnly||this.NumericValue>=2.0;
-    public bool IsSaturatedLow => this.Kind==RatioValueKind.RightOnly||this.NumericValue<=0.5;
-    public bool IsMissing => this.Kind==RatioValueKind.Missing;
+    public bool 欠測か => this.左シェア is null||this.右シェア is null;
 
-    public static RatioValue FromNumeric(double value){
-        var judgement = value<0.95
-            ? RatioJudgement.LeftWin
-            : value>1.05
-                ? RatioJudgement.LeftLose
-                : RatioJudgement.Tie;
-        return new RatioValue(RatioValueKind.Numeric,value,value.ToString("0.00",CultureInfo.InvariantCulture),judgement);
+    public static シェア値 時間から作成(double 左値,double 右値) =>
+        作成(左値,右値,true);
+
+    public static シェア値 メモリから作成(long 左値,long 右値) =>
+        作成(左値,右値,false);
+
+    public static シェア値 左シェアから作成(double 左シェア){
+        if(!double.IsFinite(左シェア)||左シェア<0||左シェア>1){
+            return 欠測;
+        }
+
+        return シェアから作成(左シェア,1-左シェア,厳密判定(左シェア));
+    }
+
+    private static シェア値 作成(double 左値,double 右値,bool 時間判定){
+        if(!double.IsFinite(左値)||!double.IsFinite(右値)||左値<0||右値<0){
+            return 欠測;
+        }
+
+        var 合計=左値+右値;
+        if(!double.IsFinite(合計)){
+            return 欠測;
+        }
+        if(合計==0){
+            return new シェア値(0,0,"0.00:0.00",シェア判定.同等);
+        }
+
+        var 左シェア=左値/合計;
+        var 右シェア=右値/合計;
+        シェア判定 判定;
+        if(時間判定){
+            判定=時間判定を取得(左値,右値);
+        }else{
+            判定=厳密判定(左シェア);
+        }
+        return シェアから作成(左シェア,右シェア,判定);
+    }
+
+    private static シェア値 シェアから作成(double 左シェア,double 右シェア,シェア判定 判定){
+        var 表示左=Math.Round(左シェア,2,MidpointRounding.AwayFromZero);
+        double 表示右;
+        if(左シェア+右シェア==0){
+            表示右=0;
+        }else{
+            表示右=1-表示左;
+        }
+        return new シェア値(
+            左シェア,
+            右シェア,
+            表示左.ToString("0.00",CultureInfo.InvariantCulture)+":"+表示右.ToString("0.00",CultureInfo.InvariantCulture),
+            判定);
+    }
+
+    private static シェア判定 時間判定を取得(double 左値,double 右値){
+        if(左値==0&&右値==0){
+            return シェア判定.同等;
+        }
+        if(右値==0){
+            return シェア判定.右優位;
+        }
+
+        var 比=左値/右値;
+        if(比<0.95){
+            return シェア判定.左優位;
+        }
+        if(比>1.05){
+            return シェア判定.右優位;
+        }
+        return シェア判定.同等;
+    }
+
+    private static シェア判定 厳密判定(double 左シェア){
+        if(左シェア<0.5){
+            return シェア判定.左優位;
+        }
+        if(左シェア>0.5){
+            return シェア判定.右優位;
+        }
+        return シェア判定.同等;
     }
 }
 
-public readonly record struct AllocationShareValue(
-    double? LeftShare,
-    double? RightShare,
-    string DisplayText,
-    RatioJudgement Judgement){
-    public static readonly AllocationShareValue Missing = new(null,null,"-",RatioJudgement.None);
-
-    public bool IsMissing => this.LeftShare is null||this.RightShare is null;
-
-    public static AllocationShareValue FromBytes(long leftBytes,long rightBytes){
-        if(leftBytes<0||rightBytes<0){
-            return Missing;
-        }
-
-        var total = (double)leftBytes+rightBytes;
-        var leftShare = total==0 ? 0.5 : leftBytes/total;
-        return FromLeftShare(leftShare);
-    }
-
-    public static AllocationShareValue FromLeftShare(double leftShare){
-        if(!double.IsFinite(leftShare)||leftShare<0||leftShare>1){
-            return Missing;
-        }
-
-        var rightShare = 1-leftShare;
-        var displayedLeft = Math.Round(leftShare,2,MidpointRounding.AwayFromZero);
-        var displayedRight = 1-displayedLeft;
-        var judgement = leftShare<0.5
-            ? RatioJudgement.LeftWin
-            : leftShare>0.5
-                ? RatioJudgement.LeftLose
-                : RatioJudgement.Tie;
-        return new AllocationShareValue(
-            leftShare,
-            rightShare,
-            displayedLeft.ToString("0.00",CultureInfo.InvariantCulture)+":"+displayedRight.ToString("0.00",CultureInfo.InvariantCulture),
-            judgement);
-    }
-}
-
-public readonly record struct PairComparison(
+public readonly record struct シェア比較(
     ComparisonPairDefinition Definition,
     ProjectMetrics Left,
     ProjectMetrics Right,
-    RatioValue TimeRatio,
-    AllocationShareValue AllocatedShare);
+    シェア値 時間シェア,
+    シェア値 メモリシェア);
 
 public readonly record struct BenchmarkComparisonRow(
     string Benchmark,
@@ -299,7 +332,7 @@ public readonly record struct BenchmarkComparisonRow(
     public string TypeFullName { get; init; } = string.Empty;
     public string ArgumentKey { get; init; } = string.Empty;
     public IReadOnlyList<BenchmarkArgument> Arguments { get; init; } = [];
-    public PairComparison PairRatio { get; init; }
+    public シェア比較 左右シェア { get; init; }
 
     public ProjectMetrics GetProject(string project){
         if(this.SourceTab is null){
@@ -317,9 +350,9 @@ public readonly record struct BenchmarkComparisonRow(
         return ProjectMetrics.Missing;
     }
 
-    public PairComparison GetPair(string key) =>
+    public シェア比較 GetPair(string key) =>
         string.Equals(key,this.SourceTab.Id,StringComparison.OrdinalIgnoreCase)
-            ? this.PairRatio
+            ? this.左右シェア
             : default;
 }
 
@@ -335,17 +368,9 @@ internal static class BenchmarkComparisonPairs{
         BenchmarkSourceTabs.TryGetByProject(project)?.ProjectOrder;
 }
 
-public enum RatioValueKind{
-    Numeric,
-    BothZero,
-    LeftOnly,
-    RightOnly,
-    Missing,
-}
-
-public enum RatioJudgement{
-    None,
-    LeftWin,
-    LeftLose,
-    Tie,
+public enum シェア判定{
+    なし,
+    左優位,
+    右優位,
+    同等,
 }

@@ -35,4 +35,37 @@ public sealed class BenchmarkSourceTabsTests{
             Assert.False(string.IsNullOrWhiteSpace(global::UI.BenchmarkSourceTabs.ToPathPart(tab.Tab)));
         }
     }
+
+    [Fact]
+    public void SharedProjectRequiresExactAssembly(){
+        var persisted=global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SeamlessPersisted);
+        var tsavorite=global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SeamlessTsavorite);
+
+        Assert.Null(global::UI.BenchmarkSourceTabs.TryGetByProject(persisted.RightProject));
+        Assert.Equal(persisted,global::UI.BenchmarkSourceTabs.TryGetByProjectAndAssembly(persisted.RightProject,persisted.RightAssemblyName));
+        Assert.Equal(tsavorite,global::UI.BenchmarkSourceTabs.TryGetByProjectAndAssembly(tsavorite.RightProject,tsavorite.RightAssemblyName));
+        Assert.Null(global::UI.BenchmarkSourceTabs.TryGetByProjectAndAssembly(persisted.RightProject,"Wrong.Assembly"));
+        Assert.Throws<InvalidDataException>(() => global::UI.BenchmarkSourceTabs.GetByProjectAndAssembly(persisted.RightProject,"Wrong.Assembly"));
+    }
+
+    [Fact]
+    public void ContainsCaseRequiresProjectAssemblyAndTypePrefix(){
+        var sourceTab=global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.OptimizationRewrite);
+
+        Assert.True(sourceTab.ContainsCase(new(
+            sourceTab.LeftProject,
+            sourceTab.LeftAssemblyName,
+            sourceTab.LeftTypePrefix+"ClassInt32",
+            "Aggregate")));
+        Assert.False(sourceTab.ContainsCase(new(
+            sourceTab.LeftProject,
+            "Wrong.Assembly",
+            sourceTab.LeftTypePrefix+"ClassInt32",
+            "Aggregate")));
+        Assert.False(sourceTab.ContainsCase(new(
+            sourceTab.LeftProject,
+            sourceTab.LeftAssemblyName,
+            "Wrong.Type",
+            "Aggregate")));
+    }
 }
