@@ -1732,6 +1732,10 @@ public sealed partial class MainPage:ContentPage {
                             &&string.Equals(行.行キー,フォーカス行.行キー,StringComparison.OrdinalIgnoreCase))
                             ??状態?.行一覧.FirstOrDefault(static 行 =>
                                 行.左セル.測定値.測定値ありか&&行.右セル.測定値.測定値ありか);
+                    if(解決済み行 is null) {
+                        時間チャート?.Series.Clear();
+                        return;
+                    }
                     if(!ReferenceEquals(フォーカス行,解決済み行)) {
                         フォーカス行を設定(解決済み行);
                     }

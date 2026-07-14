@@ -72,6 +72,9 @@ public class Concat(int 番号,Enumerable source,Enumerable second):Enumerable(�
         }
         var sourceName = $"__concatSrc{番号}";
         var secondName = $"__concatSec{番号}";
+        var secondConsumeStatement = source.ElementType==second.ElementType
+            ? $"{consumerName}.Consume(value);"
+            : $"{consumerName}.Consume(({source.ElementType})(object?)value!);";
         var builder = new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
         builder.AppendLine($"using var {secondName}={second.GetEnumeratorExpression};");
@@ -89,7 +92,7 @@ public class Concat(int 番号,Enumerable source,Enumerable second):Enumerable(�
             secondName,
             second.ElementType,
             "value",
-            $"{consumerName}.Consume(({source.ElementType})(object?)value!);",
+            secondConsumeStatement,
             second.CanTryProvideSpan,
             second.CanProvideSpan,
             second.GetDirectSpanExpression(secondName));

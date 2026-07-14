@@ -23,4 +23,15 @@ public sealed class SkipWhile {
         IEnumerable<int> src = [1,2,3,4];
         return src.SkipWhile(static v => v<3).ToList();
     }
+
+    [Fact, Trait("Category","Unit")]
+    public static void predicate_index() {
+        GeneratedInterceptorAssert.ContainsMethod<SkipWhile>(nameof(predicate_indexImpl));
+        var expected = new[] { 1,2,3,4 }.SkipWhile(static (v,i) => v>i).ToList();
+        var actual = predicate_indexImpl();
+        Assert.Equal(expected,actual);
+    }
+    private static List<int> predicate_indexImpl() {
+        return new[] { 1,2,3,4 }.SkipWhile(static (v,i) => v>i).ToList();
+    }
 }

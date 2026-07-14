@@ -244,4 +244,137 @@ public sealed class SkipWhile(ITestOutputHelper output):LinqChain1TestBase(outpu
         AssertSequenceEqual(expected,actual.Items);
     }
 
+    [Fact, Trait("Category","Unit")]
+    public void predicate_index_Empty() {
+        var expected = EmptySource().SkipWhile((v,i) => v>i).ToList();
+        this.MeasureOptimized(nameof(predicate_index_EmptyOptimized),() => predicate_index_EmptyOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_index_EmptyNoOptimized),() => predicate_index_EmptyNoOptimized(expected));
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
+    private static void predicate_index_EmptyOptimized(dynamic expected) {
+        var actual = new Consumer<int>();
+        EmptySource().SkipWhile((v,i) => v>i).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
+    private static void predicate_index_EmptyNoOptimized(dynamic expected) {
+        var actual = new Consumer<int>();
+        EmptySource().SkipWhile((v,i) => v>i).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public void predicate_index_SingleSkipAll() {
+        var expected = SingleSource().SkipWhile((v,i) => v>=0).ToList();
+        this.MeasureOptimized(nameof(predicate_index_SingleSkipAllOptimized),() => predicate_index_SingleSkipAllOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_index_SingleSkipAllNoOptimized),() => predicate_index_SingleSkipAllNoOptimized(expected));
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
+    private static void predicate_index_SingleSkipAllOptimized(dynamic expected) {
+        var actual = new Consumer<int>();
+        SingleSource().SkipWhile((v,i) => v>=0).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
+    private static void predicate_index_SingleSkipAllNoOptimized(dynamic expected) {
+        var actual = new Consumer<int>();
+        SingleSource().SkipWhile((v,i) => v>=0).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public void predicate_index_SingleSkipNone() {
+        var expected = SingleSource().SkipWhile((v,i) => v<0).ToList();
+        this.MeasureOptimized(nameof(predicate_index_SingleSkipNoneOptimized),() => predicate_index_SingleSkipNoneOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_index_SingleSkipNoneNoOptimized),() => predicate_index_SingleSkipNoneNoOptimized(expected));
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
+    private static void predicate_index_SingleSkipNoneOptimized(dynamic expected) {
+        var actual = new Consumer<int>();
+        SingleSource().SkipWhile((v,i) => v<0).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
+    private static void predicate_index_SingleSkipNoneNoOptimized(dynamic expected) {
+        var actual = new Consumer<int>();
+        SingleSource().SkipWhile((v,i) => v<0).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public void predicate_index_LargeN() {
+        var expected = LargeSource().SkipWhile((v,i) => i<25).ToList();
+        this.MeasureOptimized(nameof(predicate_index_LargeNOptimized),() => predicate_index_LargeNOptimized(expected));
+        this.MeasureOptimized(nameof(predicate_index_LargeNNoOptimized),() => predicate_index_LargeNNoOptimized(expected));
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
+    private static void predicate_index_LargeNOptimized(dynamic expected) {
+        var actual = new Consumer<int>();
+        LargeSource().SkipWhile((v,i) => i<25).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
+    private static void predicate_index_LargeNNoOptimized(dynamic expected) {
+        var actual = new Consumer<int>();
+        LargeSource().SkipWhile((v,i) => i<25).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public void predicate_index_Exception() {
+        Assert.Throws<InvalidOperationException>(() => predicate_index_ExceptionOptimized());
+        Assert.Throws<InvalidOperationException>(() => predicate_index_ExceptionNoOptimized());
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
+    private static void predicate_index_ExceptionOptimized() {
+        var actual = new Consumer<int>();
+        Source().SkipWhile((v,i) => i==2 ? throw new InvalidOperationException("boom") : v<3).Consume(actual);
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
+    private static void predicate_index_ExceptionNoOptimized() {
+        var actual = new Consumer<int>();
+        Source().SkipWhile((v,i) => i==2 ? throw new InvalidOperationException("boom") : v<3).Consume(actual);
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public void predicate_index_SideEffect() {
+        var expectedCounter = 0;
+        var expected = Source().SkipWhile((v,i) => { expectedCounter++; return v<i; }).ToList();
+        var actualCounterOptimized = predicate_index_SideEffectOptimized(expected);
+        Assert.Equal(expectedCounter,actualCounterOptimized);
+        var actualCounterNoOptimized = predicate_index_SideEffectNoOptimized(expected);
+        Assert.Equal(expectedCounter,actualCounterNoOptimized);
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
+    private static int predicate_index_SideEffectOptimized(dynamic expected) {
+        var counter = 0;
+        var actual = new Consumer<int>();
+        Source().SkipWhile((v,i) => { counter++; return v<i; }).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+        return counter;
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
+    private static int predicate_index_SideEffectNoOptimized(dynamic expected) {
+        var counter = 0;
+        var actual = new Consumer<int>();
+        Source().SkipWhile((v,i) => { counter++; return v<i; }).Consume(actual);
+        AssertSequenceEqual(expected,actual.Items);
+        return counter;
+    }
+
+    private static int[] SingleSource() => [5];
+    private static int[] LargeSource() => [.. Enumerable.Range(0,50)];
+
 }

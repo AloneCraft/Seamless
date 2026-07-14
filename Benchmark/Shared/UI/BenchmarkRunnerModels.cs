@@ -1617,6 +1617,9 @@ public sealed class ベンチマーク表行:ObservableObject {
     }
 
     public void 未選択結果表示をクリア() {
+        if(!this.選択中か) {
+            this.結果表示をクリア();
+        }
         foreach(var セル in this.プロジェクトセル一覧) {
             if(!this.選択中か||!セル.ケースありか) {
                 セル.測定値をクリア();
@@ -1791,6 +1794,13 @@ public sealed class ベンチマーク表行:ObservableObject {
         new(this,プロジェクト,this.プロジェクト別ケース.ContainsKey(プロジェクト));
 
     public void ベンチマーク名を更新(int 要素数) {
+        var ベンチマークパス = this.プロジェクト別ケース.Values
+            .Select(static ベンチマーク => ベンチマーク.ベンチマークパス)
+            .FirstOrDefault(static パス => !string.IsNullOrWhiteSpace(パス));
+        if(!string.IsNullOrWhiteSpace(ベンチマークパス)) {
+            this.ベンチマーク名=ベンチマークパス+"."+this.メソッド名;
+            return;
+        }
         var 型完全名 = this.先頭型完全名を取得();
         this.ベンチマーク名=スケーラブルベンチマーク名フォーマッター.ベンチマーク名を作成(型完全名,this.メソッド名);
     }

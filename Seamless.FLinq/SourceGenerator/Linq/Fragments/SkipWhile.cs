@@ -140,4 +140,47 @@ public class SkipWhile_indexPredicate(int 番号,Enumerable source,FuncFragment 
                 """;
         }
     }
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        var sourceName = $"__skipWhileSource{番号}";
+        var directSpanExpression = source.GetDirectSpanExpression(sourceName);
+        if(directSpanExpression is null) {
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+        var spanName = $"__skipWhileSpan{番号}";
+        var offsetName = $"__skipWhileOffset{番号}";
+        var indexName = $"__skipWhileIndex{番号}";
+        var itemName = $"__skipWhileItem{番号}";
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(predicate),
+            this.StaticDelegateLocalDeclarations(predicate),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var localDeclarationBlock = string.IsNullOrEmpty(localDeclarations)
+            ? string.Empty
+            : localDeclarations+"\n";
+        var (preCode,condExpr)=this.FuncInvokeConditionStatic(predicate,nameof(predicate),this.temp,itemName,indexName);
+        var predicateCheck = string.IsNullOrEmpty(preCode)
+            ? $"if({WrapConditionExpression(condExpr)})"
+            : $"{preCode}\n            if({WrapConditionExpression(condExpr)})";
+
+        return $$"""
+            {{localDeclarationBlock}}
+            using var {{sourceName}}={{source.GetEnumeratorExpression}};
+            global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
+            var {{spanName}}={{directSpanExpression}};
+            var {{offsetName}}=0;
+            var {{indexName}}=-1;
+            for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++) {
+                var {{itemName}}={{spanName}}[{{offsetName}}];
+                {{indexName}}++;
+                {{predicateCheck}} {
+                    continue;
+                }
+                break;
+            }
+            for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++) {
+                var {{itemName}}={{spanName}}[{{offsetName}}];
+                {{consumerName}}.Consume({{itemName}});
+            }
+            """;
+    }
 }

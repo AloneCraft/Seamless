@@ -691,6 +691,23 @@ public sealed class 実行ビューモデル {
     }
 
     [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 行チェック_実行結果を未選択行へコピーしない() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        var 選択行 = ビューモデル.ベンチマーク行一覧.First(static 行 => 行.左セル.ケースありか&&行.右セル.ケースありか);
+        var 未選択行一覧 = ビューモデル.ベンチマーク行一覧.Where(行 => !ReferenceEquals(行,選択行)).ToArray();
+        ビューモデル.ベンチマーク行を切り替え(選択行);
+
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => 選択行.左セル.状態画像ソース==global::UI.ベンチマーク状態画像名.最終完了
+            &&選択行.右セル.状態画像ソース==global::UI.ベンチマーク状態画像名.最終完了);
+
+        Assert.True(選択行.左セル.測定値.測定値ありか);
+        Assert.True(選択行.右セル.測定値.測定値ありか);
+        Assert.All(未選択行一覧,行 => Assert.All(行.プロジェクトセル一覧.Where(static セル => セル.ケースありか),セル => Assert.False(セル.測定値.測定値ありか)));
+    }
+
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
     public async Task 読込済み保存DB実行_全スナップショット行を表示しCPU表示を復元する() {
         await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
         var ビューモデル = フィクスチャ.ビューモデル;

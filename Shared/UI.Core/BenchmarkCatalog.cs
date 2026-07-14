@@ -111,15 +111,15 @@ public static class ベンチマークカタログ{
         メソッド.GetCustomAttribute<BenchmarkAttribute>() is not null;
 
     private static string ベンチマークパスを作成(Type 型) {
-        var 入れ子名一覧 = new Stack<string>();
-        var 基底 = 型;
-        while(基底.DeclaringType is not null) {
-            入れ子名一覧.Push(チェーン型名を正規化(基底.Name));
-            基底=基底.DeclaringType;
+        return 型.BaseType is { } 基底型 ? 直接基底型を整形(基底型) : string.Empty;
+    }
+
+    private static string 直接基底型を整形(Type 型) {
+        var 名前 = チェーン型名を正規化(型.Name.Split('`')[0]);
+        if(!型.IsGenericType) {
+            return 名前;
         }
-        var 論理基底 = 論理基底型を検索(基底);
-        var 結果 = 論理型を整形(論理基底??基底);
-        return 入れ子名一覧.Count==0 ? 結果 : 結果+"."+string.Join(".",入れ子名一覧);
+        return 名前+"<"+string.Join(",",型.GetGenericArguments().Select(要素型を整形))+">";
     }
 
     private static Type? 論理基底型を検索(Type 型) {

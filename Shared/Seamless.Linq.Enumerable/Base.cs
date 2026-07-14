@@ -184,7 +184,7 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     // [Append_element]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]
-    public void Append_element() => ExecuteOrderDependent(this.Append_element_Impl);
+    public void Append_element() => ExecuteOrderDependent(() => this.Append_element_Impl());
 
     [LinqIntercept(true)]
     private void Append_element_Impl() => this.srcCount(StreamShapeCount).AsX<T>().Append(Value(0)).Consume(this.consumer);
@@ -209,14 +209,14 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     private void Cast_Impl() => this.srcCount(StreamOneToOneCount).AsX<T>().Cast<T>().Consume(this.consumer);
     // [Chunk_size]
     [BenchFact, OrderDependentBenchmark]
-    public void Chunk_size() => ExecuteOrderDependent(this.Chunk_size_Impl);
+    public void Chunk_size() => ExecuteOrderDependent(() => this.Chunk_size_Impl());
 
     [LinqIntercept(true)]
     private void Chunk_size_Impl() => this.srcCount(StreamPartitionCount).AsX<T>().Chunk(1000).Consume(this.consumer);
     // [Concat_second]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]
-    public void Concat_second() => ExecuteOrderDependent(this.Concat_second_Impl);
+    public void Concat_second() => ExecuteOrderDependent(() => this.Concat_second_Impl());
 
     [LinqIntercept(true)]
     private void Concat_second_Impl() => this.srcCount(StreamShapeCount).AsX<T>().Concat(this.src2Count(StreamShapeCount).AsX<T>()).Consume(this.consumer);
@@ -272,7 +272,7 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     private void DistinctBy_keySelector_Impl() => this.srcCount(SetCount).AsX<T>().DistinctBy(static x => Mod(x,1000)).Consume(this.consumer);
     // [ElementAt_index]
     [BenchFact, OrderDependentBenchmark]
-    public void ElementAt_index() => ExecuteOrderDependent(this.ElementAt_index_Impl);
+    public void ElementAt_index() => ExecuteOrderDependent(() => this.ElementAt_index_Impl());
 
     [LinqIntercept(true)]
     private void ElementAt_index_Impl() {
@@ -292,7 +292,7 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
 #endif
     // [ElementAtOrDefault_index]
     [BenchFact, OrderDependentBenchmark]
-    public void ElementAtOrDefault_index() => ExecuteOrderDependent(this.ElementAtOrDefault_index_Impl);
+    public void ElementAtOrDefault_index() => ExecuteOrderDependent(() => this.ElementAtOrDefault_index_Impl());
 
     [LinqIntercept(true)]
     private void ElementAtOrDefault_index_Impl() {
@@ -325,7 +325,7 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     private void ExceptBy_keySelector_Impl() => this.srcCount(SetCount).AsX<T>().ExceptBy(this.src2Count(SetCount).AsX<T>(),x => x).Consume(this.consumer);
     // [First]
     [BenchFact, OrderDependentBenchmark]
-    public void First() => ExecuteOrderDependent(this.First_Impl);
+    public void First() => ExecuteOrderDependent(() => this.First_Impl());
 
     [LinqIntercept(true)]
     private void First_Impl() {
@@ -335,7 +335,7 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     }
     // [FirstOrDefault]
     [BenchFact, OrderDependentBenchmark]
-    public void FirstOrDefault() => ExecuteOrderDependent(this.FirstOrDefault_Impl);
+    public void FirstOrDefault() => ExecuteOrderDependent(() => this.FirstOrDefault_Impl());
 
     [LinqIntercept(true)]
     private void FirstOrDefault_Impl() {
@@ -345,7 +345,7 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     }
     // [FirstOrDefault_predicate]
     [BenchFact, OrderDependentBenchmark]
-    public void FirstOrDefault_predicate() => ExecuteOrderDependent(this.FirstOrDefault_predicate_Impl);
+    public void FirstOrDefault_predicate() => ExecuteOrderDependent(() => this.FirstOrDefault_predicate_Impl());
 
     [LinqIntercept(true)]
     private void FirstOrDefault_predicate_Impl() {
@@ -384,7 +384,7 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     private void GroupJoin_inner_Impl() => this.srcCount(JoinCount).AsX<T>().GroupJoin(this.src2Count(JoinCount).AsX<T>(),x => x,x => x,(outer,inner) => outer).Consume(this.consumer);
     // [Index]
     [BenchFact, OrderDependentBenchmark]
-    public void Index() => ExecuteOrderDependent(this.Index_Impl);
+    public void Index() => ExecuteOrderDependent(() => this.Index_Impl());
 
     [LinqIntercept(true)]
     private void Index_Impl() => this.srcCount(StreamOneToOneCount).AsX<T>().Index().Consume(this.consumer);
@@ -434,19 +434,19 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     private void Join_resultSelector_Hoisting_Impl() => this.srcCount(JoinCount).AsX<T>().Join(this.src2Count(JoinCount).AsX<T>(),static o => Mod(o,1000),static i => Mod(i,1000),static (o,i) => Number(o)+Number(i)+HoistInvariant.Value()).Consume(this.consumer);
     // [Last]
     [BenchFact, OrderDependentBenchmark]
-    public void Last() => ExecuteOrderDependent(this.Last_Impl);
+    public void Last() => ExecuteOrderDependent(() => this.Last_Impl());
 
     [LinqIntercept(true)]
     private void Last_Impl() => this.consumer.Consume(this.srcCount(ImmediateFullScanCount).AsX<T>().Last());
     // [LastOrDefault]
     [BenchFact, OrderDependentBenchmark]
-    public void LastOrDefault() => ExecuteOrderDependent(this.LastOrDefault_Impl);
+    public void LastOrDefault() => ExecuteOrderDependent(() => this.LastOrDefault_Impl());
 
     [LinqIntercept(true)]
     private void LastOrDefault_Impl() => this.consumer.Consume(this.srcCount(ImmediateFullScanCount).AsX<T>().LastOrDefault());
     // [LastOrDefault_predicate]
     [BenchFact, OrderDependentBenchmark]
-    public void LastOrDefault_predicate() => ExecuteOrderDependent(this.LastOrDefault_predicate_Impl);
+    public void LastOrDefault_predicate() => ExecuteOrderDependent(() => this.LastOrDefault_predicate_Impl());
 
     [LinqIntercept(true)]
     private void LastOrDefault_predicate_Impl() {
@@ -517,35 +517,35 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     // [Order]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]
-    public void Order() => ExecuteOrderDependent(this.Order_Impl);
+    public void Order() => ExecuteOrderDependent(() => this.Order_Impl());
 
     [LinqIntercept(true)]
     private void Order_Impl() => this.srcCount(SortCount).AsX<T>().Order().Consume(this.consumer);
     // [OrderBy_keySelector]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]
-    public void OrderBy_keySelector() => ExecuteOrderDependent(this.OrderBy_keySelector_Impl);
+    public void OrderBy_keySelector() => ExecuteOrderDependent(() => this.OrderBy_keySelector_Impl());
 
     [LinqIntercept(true)]
     private void OrderBy_keySelector_Impl() => this.srcCount(SortCount).AsX<T>().OrderBy(x => x).Consume(this.consumer);
     // [OrderByDescending_keySelector]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]
-    public void OrderByDescending_keySelector() => ExecuteOrderDependent(this.OrderByDescending_keySelector_Impl);
+    public void OrderByDescending_keySelector() => ExecuteOrderDependent(() => this.OrderByDescending_keySelector_Impl());
 
     [LinqIntercept(true)]
     private void OrderByDescending_keySelector_Impl() => this.srcCount(SortCount).AsX<T>().OrderByDescending(x => x).Consume(this.consumer);
     // [OrderDescending]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]
-    public void OrderDescending() => ExecuteOrderDependent(this.OrderDescending_Impl);
+    public void OrderDescending() => ExecuteOrderDependent(() => this.OrderDescending_Impl());
 
     [LinqIntercept(true)]
     private void OrderDescending_Impl() => this.srcCount(SortCount).AsX<T>().OrderDescending().Consume(this.consumer);
     // [Prepend_element]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]
-    public void Prepend_element() => ExecuteOrderDependent(this.Prepend_element_Impl);
+    public void Prepend_element() => ExecuteOrderDependent(() => this.Prepend_element_Impl());
 
     [LinqIntercept(true)]
     private void Prepend_element_Impl() => this.srcCount(StreamShapeCount).AsX<T>().Prepend(Value(0)).Consume(this.consumer);
@@ -558,14 +558,14 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     // [Reverse]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]
-    public void Reverse() => ExecuteOrderDependent(this.Reverse_Impl);
+    public void Reverse() => ExecuteOrderDependent(() => this.Reverse_Impl());
 
     [LinqIntercept(true)]
     private void Reverse_Impl() => this.srcCount(StreamShapeCount).AsX<T>().Reverse().Consume(this.consumer);
     // [Select_indexSelector]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]
-    public void Select_indexSelector() => ExecuteOrderDependent(this.Select_indexSelector_Impl);
+    public void Select_indexSelector() => ExecuteOrderDependent(() => this.Select_indexSelector_Impl());
 
     [LinqIntercept(true)]
     private void Select_indexSelector_Impl() => this.srcCount(StreamOneToOneCount).AsX<T>().Select(static (x,i) => Number(x)+i).Consume(this.consumer);
@@ -602,7 +602,7 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     private void SelectMany_selector_Impl() => this.srcNestedCount(NestedCount).AsX<global::System.Collections.Generic.IEnumerable<int>>().SelectMany(x => x).Consume(this.consumer);
     // [SequenceEqual_second]
     [BenchFact, OrderDependentBenchmark]
-    public void SequenceEqual_second() => ExecuteOrderDependent(this.SequenceEqual_second_Impl);
+    public void SequenceEqual_second() => ExecuteOrderDependent(() => this.SequenceEqual_second_Impl());
 
     [LinqIntercept(true)]
     private void SequenceEqual_second_Impl() => this.consumer.Consume(this.srcCount(StreamShapeCount).AsX<T>().SequenceEqual(this.srcCount(StreamShapeCount).AsX<T>()));
@@ -645,21 +645,21 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     // [Skip_count]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]
-    public void Skip_count() => ExecuteOrderDependent(this.Skip_count_Impl);
+    public void Skip_count() => ExecuteOrderDependent(() => this.Skip_count_Impl());
 
     [LinqIntercept(true)]
     private void Skip_count_Impl() => this.srcCount(StreamPartitionCount).AsX<T>().Skip(this.QuarterCount(StreamPartitionCount)).Consume(this.consumer);
     // [SkipLast_count]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]
-    public void SkipLast_count() => ExecuteOrderDependent(this.SkipLast_count_Impl);
+    public void SkipLast_count() => ExecuteOrderDependent(() => this.SkipLast_count_Impl());
 
     [LinqIntercept(true)]
     private void SkipLast_count_Impl() => this.srcCount(StreamPartitionCount).AsX<T>().SkipLast(this.QuarterCount(StreamPartitionCount)).Consume(this.consumer);
     // [SkipWhile_indexPredicate]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]
-    public void SkipWhile_indexPredicate() => ExecuteOrderDependent(this.SkipWhile_indexPredicate_Impl);
+    public void SkipWhile_indexPredicate() => ExecuteOrderDependent(() => this.SkipWhile_indexPredicate_Impl());
 
     [LinqIntercept(true)]
     private void SkipWhile_indexPredicate_Impl() {
@@ -669,7 +669,7 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     // [SkipWhile_predicate]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]
-    public void SkipWhile_predicate() => ExecuteOrderDependent(this.SkipWhile_predicate_Impl);
+    public void SkipWhile_predicate() => ExecuteOrderDependent(() => this.SkipWhile_predicate_Impl());
 
     [LinqIntercept(true)]
     private void SkipWhile_predicate_Impl() => this.srcCount(StreamFilterCount).AsX<T>().SkipWhile(x => LessThan(x,this.QuarterCount(StreamFilterCount)+1)).Consume(this.consumer);
@@ -688,21 +688,21 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     // [Take_count]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]
-    public void Take_count() => ExecuteOrderDependent(this.Take_count_Impl);
+    public void Take_count() => ExecuteOrderDependent(() => this.Take_count_Impl());
 
     [LinqIntercept(true)]
     private void Take_count_Impl() => this.srcCount(StreamPartitionCount).AsX<T>().Take(this.ThreeQuarterCount(StreamPartitionCount)).Consume(this.consumer);
     // [TakeLast_count]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]
-    public void TakeLast_count() => ExecuteOrderDependent(this.TakeLast_count_Impl);
+    public void TakeLast_count() => ExecuteOrderDependent(() => this.TakeLast_count_Impl());
 
     [LinqIntercept(true)]
     private void TakeLast_count_Impl() => this.srcCount(StreamPartitionCount).AsX<T>().TakeLast(this.QuarterCount(StreamPartitionCount)).Consume(this.consumer);
     // [TakeWhile_indexPredicate]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]
-    public void TakeWhile_indexPredicate() => ExecuteOrderDependent(this.TakeWhile_indexPredicate_Impl);
+    public void TakeWhile_indexPredicate() => ExecuteOrderDependent(() => this.TakeWhile_indexPredicate_Impl());
 
     [LinqIntercept(true)]
     private void TakeWhile_indexPredicate_Impl() {
@@ -712,7 +712,7 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     // [TakeWhile_predicate]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]
-    public void TakeWhile_predicate() => ExecuteOrderDependent(this.TakeWhile_predicate_Impl);
+    public void TakeWhile_predicate() => ExecuteOrderDependent(() => this.TakeWhile_predicate_Impl());
 
     [LinqIntercept(true)]
     private void TakeWhile_predicate_Impl() => this.srcCount(StreamFilterCount).AsX<T>().TakeWhile(x => LessThan(x,this.ThreeQuarterCount(StreamFilterCount)+1)).Consume(this.consumer);
@@ -786,7 +786,7 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     // [Where_indexPredicate]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]
-    public void Where_indexPredicate() => ExecuteOrderDependent(this.Where_indexPredicate_Impl);
+    public void Where_indexPredicate() => ExecuteOrderDependent(() => this.Where_indexPredicate_Impl());
 
     [LinqIntercept(true)]
     private void Where_indexPredicate_Impl() => this.srcCount(StreamFilterCount).AsX<T>().Where((x,i) => i%2==0).Consume(this.consumer);
@@ -807,13 +807,13 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     // [Zip_second]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]
-    public void Zip_second() => ExecuteOrderDependent(this.Zip_second_Impl);
+    public void Zip_second() => ExecuteOrderDependent(() => this.Zip_second_Impl());
 
     [LinqIntercept(true)]
     private void Zip_second_Impl() => this.srcCount(StreamShapeCount).AsX<T>().Zip(this.src2Count(StreamShapeCount).AsX<T>(),static (a,b) => Add(a,b)).Consume(this.consumer);
     // [Zip_tuple]
     [BenchFact, OrderDependentBenchmark]
-    public void Zip_tuple() => ExecuteOrderDependent(this.Zip_tuple_Impl);
+    public void Zip_tuple() => ExecuteOrderDependent(() => this.Zip_tuple_Impl());
 
     [LinqIntercept(true)]
     private void Zip_tuple_Impl() => this.srcCount(StreamShapeCount).AsX<T>().Zip(this.src2Count(StreamShapeCount).AsX<T>()).Consume(this.consumer);
