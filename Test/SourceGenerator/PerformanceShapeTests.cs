@@ -1,4 +1,5 @@
 using Microsoft.CodeAnalysis;
+
 using Seamless.FLinq;
 namespace Test.SourceGenerator;
 
@@ -29,11 +30,11 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             !generated.Contains("global::System.Math.Min(__span.Length,1999)",StringComparison.Ordinal)
-            && !generated.Contains("global::System.Math.Min(__count,1999)",StringComparison.Ordinal)
-            && generated.Contains("var __capacity=__hasSpan",StringComparison.Ordinal)
-            && generated.Contains("new global::System.Collections.Generic.List<int>(__capacity)",StringComparison.Ordinal)
-            && generated.Contains("Dictionary<int, int>(__span.Length)",StringComparison.Ordinal)
-            && generated.Contains("Dictionary<int, int>(__count)",StringComparison.Ordinal),
+            &&!generated.Contains("global::System.Math.Min(__count,1999)",StringComparison.Ordinal)
+            &&generated.Contains("var __capacity=__hasSpan",StringComparison.Ordinal)
+            &&generated.Contains("new global::Seamless.System.Carrier.LookupBuilder<int,int>(__capacity,null)",StringComparison.Ordinal)
+            &&generated.Contains("DictionarySlim<int,int>(global::System.Math.Min(__span.Length,1024))",StringComparison.Ordinal)
+            &&generated.Contains("DictionarySlim<int,int>(global::System.Math.Min(__count,1024))",StringComparison.Ordinal),
             "Modulo key selectors must use the same input-derived capacity as general selectors.",
             generated,
             output);
@@ -70,11 +71,11 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             !method.Contains("__aggregateBySeen",StringComparison.Ordinal)
-            && !method.Contains("__countBySeen",StringComparison.Ordinal)
-            && !method.Contains("global::System.Buffers.ArrayPool<bool>.Shared.Rent(1999)",StringComparison.Ordinal)
-            && generated.Contains("TryGetSpan(out var __span)",StringComparison.Ordinal)
-            && generated.Contains("new global::System.Collections.Generic.Dictionary<int, int>",StringComparison.Ordinal)
-            && generated.Contains("__hashKeys",StringComparison.Ordinal),
+            &&!method.Contains("__countBySeen",StringComparison.Ordinal)
+            &&!method.Contains("global::System.Buffers.ArrayPool<bool>.Shared.Rent(1999)",StringComparison.Ordinal)
+            &&generated.Contains("TryGetSpan(out var __span)",StringComparison.Ordinal)
+            &&generated.Contains("new global::Seamless.System.Carrier.Internal.DictionarySlim<int,int>",StringComparison.Ordinal)
+            &&generated.Contains("__hashKeys",StringComparison.Ordinal),
             "Modulo selectors must not select a dedicated small-range consume implementation.",
             generated,
             output);
@@ -82,7 +83,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
     [Fact]
     public void MethodNamedModDoesNotImplyIntegralRange() {
-        const string source="""
+        const string source = """
             using System.Collections.Generic;
             using System.Linq;
             namespace Sample;
@@ -105,8 +106,8 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             }
             """;
 
-        var generated=GeneratedSource(source);
-        var method=GeneratedMethod(generated,"Group");
+        var generated = GeneratedSource(source);
+        var method = GeneratedMethod(generated,"Group");
 
         GeneratedSourceAssert.True(
             !method.Contains("__groupSlots",StringComparison.Ordinal)
@@ -134,9 +135,9 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("__hashKeys",StringComparison.Ordinal)
-            && generated.Contains("ArrayPool<int>.Shared.Rent",StringComparison.Ordinal)
-            && generated.Contains("__hashOrder",StringComparison.Ordinal)
-            && !method.Contains("new global::System.Collections.Generic.Dictionary<int, int>",StringComparison.Ordinal),
+            &&generated.Contains("ArrayPool<int>.Shared.Rent",StringComparison.Ordinal)
+            &&generated.Contains("__hashOrder",StringComparison.Ordinal)
+            &&!method.Contains("new global::System.Collections.Generic.Dictionary<int, int>",StringComparison.Ordinal),
             "Int CountBy enumeration should use a pooled insertion-ordered hash map.",
             generated,
             output);
@@ -170,10 +171,10 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             !generated.Contains("ArrayPool<bool>.Shared.Rent(1999)",StringComparison.Ordinal)
-            && !generated.Contains("ArrayPool<bool>.Shared.Return",StringComparison.Ordinal)
-            && !generated.Contains("__seenIndex",StringComparison.Ordinal)
-            && generated.Contains(".Consume(value)",StringComparison.Ordinal)
-            && generated.Contains("HashSetSlim<int>",StringComparison.Ordinal),
+            &&!generated.Contains("ArrayPool<bool>.Shared.Return",StringComparison.Ordinal)
+            &&!generated.Contains("__seenIndex",StringComparison.Ordinal)
+            &&generated.Contains(".Consume(value)",StringComparison.Ordinal)
+            &&generated.Contains("HashSetSlim<int>",StringComparison.Ordinal),
             "DistinctBy modulo keys must use the general hash-based consume path.",
             generated,
             output);
@@ -196,8 +197,8 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("TryGetSpan(out span)&&span.Length!=0",StringComparison.Ordinal)
-            && generated.Contains("__span.Slice(__spanStart,destination.Length).CopyTo(destination);",StringComparison.Ordinal)
-            && generated.Contains("destination[0]=0;",StringComparison.Ordinal),
+            &&generated.Contains("__span.Slice(__spanStart,destination.Length).CopyTo(destination);",StringComparison.Ordinal)
+            &&generated.Contains("destination[0]=0;",StringComparison.Ordinal),
             "DefaultIfEmpty should expose/copy the source span when non-empty and only synthesize default for empty sources.",
             generated,
             output);
@@ -239,9 +240,11 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("__distinctSpan",StringComparison.Ordinal)
-            && generated.Contains("__setSrcSpan",StringComparison.Ordinal)
-            && generated.Contains("__orderSpan",StringComparison.Ordinal),
-            "Explicit default comparers should be treated as default comparer fast-path candidates.",
+            &&!generated.Contains("__setSrcSpan",StringComparison.Ordinal)
+            &&generated.Contains("__sp___sec0",StringComparison.Ordinal)
+            &&generated.Contains("__sp___src0",StringComparison.Ordinal)
+            &&generated.Contains("__orderSpan",StringComparison.Ordinal),
+            "Explicit default comparers should use supported fast paths without the removed speculative sorted-set probe.",
             generated,
             output);
     }
@@ -263,9 +266,9 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("__orderSpan",StringComparison.Ordinal)
-            && generated.Contains("while(__orderNextIndex",StringComparison.Ordinal)
-            && generated.Contains("if(!(__it",StringComparison.Ordinal)
-            && generated.Contains(">1)) continue;",StringComparison.Ordinal),
+            &&generated.Contains("while(__orderNextIndex",StringComparison.Ordinal)
+            &&generated.Contains("if(!(__it",StringComparison.Ordinal)
+            &&generated.Contains(">1)) continue;",StringComparison.Ordinal),
             "Sorted Order fast path should keep elementwise continuation inside a loop.",
             generated,
             output);
@@ -304,10 +307,10 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("__orderedSource",StringComparison.Ordinal)
-            && generated.Contains("__orderedHandled",StringComparison.Ordinal)
-            && generated.Contains("__orderedSpan",StringComparison.Ordinal)
-            && !generated.Contains("global::System.Linq.Enumerable.Order(",StringComparison.Ordinal)
-            && !generated.Contains("global::System.Linq.Enumerable.OrderBy(",StringComparison.Ordinal),
+            &&generated.Contains("__orderedHandled",StringComparison.Ordinal)
+            &&generated.Contains("__orderedSpan",StringComparison.Ordinal)
+            &&!generated.Contains("global::System.Linq.Enumerable.Order(",StringComparison.Ordinal)
+            &&!generated.Contains("global::System.Linq.Enumerable.OrderBy(",StringComparison.Ordinal),
             "Pure Order/OrderBy Consume should use sorted span direct consume instead of delegating back to System.Linq.",
             generated,
             output);
@@ -342,15 +345,15 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             }
             """;
 
-        var generated=GeneratedSource(source);
-        var method=GeneratedMethod(generated,"RunFast");
+        var generated = GeneratedSource(source);
+        var method = GeneratedMethod(generated,"RunFast");
 
         GeneratedSourceAssert.True(
             method.Contains("__whereSpan",StringComparison.Ordinal)
-            && method.Contains("__selectSpan",StringComparison.Ordinal)
-            && method.Contains("__appendSpan",StringComparison.Ordinal)
-            && method.Contains("__defaultSpan",StringComparison.Ordinal)
-            && !method.Contains("while(__ce",StringComparison.Ordinal),
+            &&method.Contains("__selectSpan",StringComparison.Ordinal)
+            &&method.Contains("__appendSpan",StringComparison.Ordinal)
+            &&method.Contains("__defaultSpan",StringComparison.Ordinal)
+            &&!method.Contains("while(__ce",StringComparison.Ordinal),
             "Single-stage array pipelines should consume direct spans without nested generated enumerator loops.",
             generated,
             output);
@@ -389,9 +392,9 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("global::System.Collections.Generic.Comparer<string>.Default.Compare",StringComparison.Ordinal)
-            && generated.Contains("__orderedHandled",StringComparison.Ordinal)
-            && !generated.Contains("global::System.Linq.Enumerable.Order(",StringComparison.Ordinal)
-            && !generated.Contains("global::System.Linq.Enumerable.OrderBy(",StringComparison.Ordinal),
+            &&generated.Contains("__orderedHandled",StringComparison.Ordinal)
+            &&!generated.Contains("global::System.Linq.Enumerable.Order(",StringComparison.Ordinal)
+            &&!generated.Contains("global::System.Linq.Enumerable.OrderBy(",StringComparison.Ordinal),
             "String identity Order/OrderBy Consume should avoid sorting when the source is already ordered by the default comparer.",
             generated,
             output);
@@ -414,10 +417,10 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             compact.Contains(".Length)!=0",StringComparison.Ordinal)
-            && compact.Contains("=(long)(src.Length);",StringComparison.Ordinal)
-            && compact.Contains(".Compute(__s",StringComparison.Ordinal)
-            && !generated.Contains("global::Seamless.System.Carrier.IValueEnumerator<bool>",StringComparison.Ordinal)
-            && !generated.Contains("global::Seamless.System.Carrier.IValueEnumerator<long>",StringComparison.Ordinal),
+            &&compact.Contains("=(long)(src.Length);",StringComparison.Ordinal)
+            &&compact.Contains(".Compute(__s",StringComparison.Ordinal)
+            &&!generated.Contains("global::Seamless.System.Carrier.IValueEnumerator<bool>",StringComparison.Ordinal)
+            &&!generated.Contains("global::Seamless.System.Carrier.IValueEnumerator<long>",StringComparison.Ordinal),
             "Scalar terminals should use source facts or static Compute inline without scalar enumerator structs.",
             generated,
             output);
@@ -452,9 +455,9 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains(".Compute(__s",StringComparison.Ordinal)
-            && generated.Contains("var count = 0;",StringComparison.Ordinal)
-            && !generated.Contains("long count = 0;",StringComparison.Ordinal)
-            && !generated.Contains("global::Seamless.System.Carrier.IValueEnumerator<long>",StringComparison.Ordinal),
+            &&generated.Contains("var count = 0;",StringComparison.Ordinal)
+            &&!generated.Contains("long count = 0;",StringComparison.Ordinal)
+            &&!generated.Contains("global::Seamless.System.Carrier.IValueEnumerator<long>",StringComparison.Ordinal),
             "Predicate scalar terminals consumed as arguments should use static Compute inline without scalar enumerator structs.",
             generated,
             output);
@@ -477,10 +480,10 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("__orderValues",StringComparison.Ordinal)
-            && generated.Contains("__orderIndexes",StringComparison.Ordinal)
-            && generated.Contains("global::System.Array.Sort(__orderIndexes",StringComparison.Ordinal)
-            && generated.Contains("global::System.Buffers.ArrayPool<int>.Shared.Rent",StringComparison.Ordinal)
-            && !generated.Contains("global::System.Collections.Generic.List<__sortitem",StringComparison.Ordinal),
+            &&generated.Contains("__orderIndexes",StringComparison.Ordinal)
+            &&generated.Contains("global::System.Array.Sort(__orderIndexes",StringComparison.Ordinal)
+            &&generated.Contains("global::System.Buffers.ArrayPool<int>.Shared.Rent",StringComparison.Ordinal)
+            &&!generated.Contains("global::System.Collections.Generic.List<__sortitem",StringComparison.Ordinal),
             "BinarySet followed by Order/ThenBy should materialize accepted values directly into the pooled order buffer.",
             generated,
             output);
@@ -514,8 +517,8 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("global::Seamless.System.Carrier.HashSetSlim<int>",StringComparison.Ordinal)
-            && generated.Contains("using var __lk",StringComparison.Ordinal)
-            && !generated.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal),
+            &&generated.Contains("using var __lk",StringComparison.Ordinal)
+            &&!generated.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal),
             "Distinct fallback should use pooled HashSetSlim for internal duplicate tracking.",
             generated,
             output);
@@ -552,8 +555,8 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("global::Seamless.System.Carrier.HashSetSlim<int>",StringComparison.Ordinal)
-            && generated.Contains(".Remove(value)",StringComparison.Ordinal)
-            && !generated.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal),
+            &&generated.Contains(".Remove(value)",StringComparison.Ordinal)
+            &&!generated.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal),
             "Union/Except/Intersect internal sets should use HashSetSlim.",
             generated,
             output);
@@ -591,10 +594,10 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("=__src0.GetSpan();",StringComparison.Ordinal)
-            && generated.Contains("=__sec0.GetSpan();",StringComparison.Ordinal)
-            && generated.Contains(".GetSpan();",StringComparison.Ordinal)
-            && !normalized.Contains("if(__src0.TryGetSpan(out var __setSrcSpan",StringComparison.Ordinal)
-            && !normalized.Contains("}else{\n    while(__src0.TryGetNext",StringComparison.Ordinal),
+            &&generated.Contains("=__sec0.GetSpan();",StringComparison.Ordinal)
+            &&generated.Contains(".GetSpan();",StringComparison.Ordinal)
+            &&!normalized.Contains("if(__src0.TryGetSpan(out var __setSrcSpan",StringComparison.Ordinal)
+            &&!normalized.Contains("}else{\n    while(__src0.TryGetNext",StringComparison.Ordinal),
             "Array roots should use direct GetSpan() traversal and avoid runtime TryGetSpan fallback branches.",
             generated,
             output);
@@ -628,8 +631,8 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("CollectionsMarshal.AsSpan(source).Slice",StringComparison.Ordinal)
-            && generated.Contains("=__src0.GetSpan();",StringComparison.Ordinal)
-            && generated.Contains("=__sec0.GetSpan();",StringComparison.Ordinal),
+            &&generated.Contains("=__src0.GetSpan();",StringComparison.Ordinal)
+            &&generated.Contains("=__sec0.GetSpan();",StringComparison.Ordinal),
             "List roots should expose a direct GetSpan() backed by CollectionsMarshal.AsSpan.",
             generated,
             output);
@@ -663,8 +666,8 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("if(__src0.TryGetSpan(out var __distinctSpan",StringComparison.Ordinal)
-            && generated.Contains("}else{",StringComparison.Ordinal)
-            && generated.Contains("while(__src0.TryGetNext",StringComparison.Ordinal),
+            &&generated.Contains("}else{",StringComparison.Ordinal)
+            &&generated.Contains("while(__src0.TryGetNext",StringComparison.Ordinal),
             "IEnumerable<T> roots only have runtime span probing, so the fallback branch must remain.",
             generated,
             output);
@@ -701,7 +704,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("global::Seamless.System.Carrier.HashSetSlim<string>",StringComparison.Ordinal)
-            && !generated.Contains("global::System.Collections.Generic.HashSet<string>",StringComparison.Ordinal),
+            &&!generated.Contains("global::System.Collections.Generic.HashSet<string>",StringComparison.Ordinal),
             "UnionBy/ExceptBy/IntersectBy internal key sets should use HashSetSlim.",
             generated,
             output);
@@ -724,9 +727,9 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("global::Seamless.System.Carrier.HashSetSlim<int>",StringComparison.Ordinal)
-            && generated.Contains(".Contains(",StringComparison.Ordinal)
-            && generated.Contains(".Dispose();",StringComparison.Ordinal)
-            && !generated.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal),
+            &&generated.Contains(".Contains(",StringComparison.Ordinal)
+            &&generated.Contains(".Dispose();",StringComparison.Ordinal)
+            &&!generated.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal),
             "Binary set followed by Order/ThenBy should use HashSetSlim fields and Contains in the fused pipeline.",
             generated,
             output);
@@ -749,7 +752,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal)
-            && !generated.Contains("global::Seamless.System.Carrier.HashSetSlim<int>",StringComparison.Ordinal),
+            &&!generated.Contains("global::Seamless.System.Carrier.HashSetSlim<int>",StringComparison.Ordinal),
             "ToHashSet must keep returning System.Collections.Generic.HashSet<T>.",
             generated,
             output);
@@ -773,12 +776,12 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             method.Contains(".GetSpan();",StringComparison.Ordinal)
-            && method.Contains("[0]",StringComparison.Ordinal)
-            && method.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal)
-            && method.Contains("new(__hashSetSpan",StringComparison.Ordinal)
-            && !method.Contains(".TryGetSpan(out var",StringComparison.Ordinal)
-            && !method.Contains("global::System.Linq.Enumerable.First",StringComparison.Ordinal)
-            && !method.Contains("global::System.Linq.Enumerable.ToHashSet",StringComparison.Ordinal),
+            &&method.Contains("[0]",StringComparison.Ordinal)
+            &&method.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal)
+            &&method.Contains("new(__hashSetSpan",StringComparison.Ordinal)
+            &&!method.Contains(".TryGetSpan(out var",StringComparison.Ordinal)
+            &&!method.Contains("global::System.Linq.Enumerable.First",StringComparison.Ordinal)
+            &&!method.Contains("global::System.Linq.Enumerable.ToHashSet",StringComparison.Ordinal),
             "First and ToHashSet over direct array roots should use GetSpan() terminal code while ToHashSet keeps System.HashSet<T>.",
             generated,
             output);
@@ -813,12 +816,12 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             methods.Contains(".GetSpan();",StringComparison.Ordinal)
-            && generated.Contains("CollectionsMarshal.AsSpan(source).Slice",StringComparison.Ordinal)
-            && !methods.Contains("global::System.Linq.Enumerable.ToArray",StringComparison.Ordinal)
-            && !methods.Contains("global::System.Linq.Enumerable.ToList",StringComparison.Ordinal)
-            && !methods.Contains("TryGetSpan(out var __sourceSpan",StringComparison.Ordinal)
-            && !methods.Contains("TryGetNonEnumeratedCount(out var __count",StringComparison.Ordinal)
-            && !methods.Contains("TryCopyTo(global::System.MemoryExtensions.AsSpan(__result)",StringComparison.Ordinal),
+            &&generated.Contains("CollectionsMarshal.AsSpan(source).Slice",StringComparison.Ordinal)
+            &&!methods.Contains("global::System.Linq.Enumerable.ToArray",StringComparison.Ordinal)
+            &&!methods.Contains("global::System.Linq.Enumerable.ToList",StringComparison.Ordinal)
+            &&!methods.Contains("TryGetSpan(out var __sourceSpan",StringComparison.Ordinal)
+            &&!methods.Contains("TryGetNonEnumeratedCount(out var __count",StringComparison.Ordinal)
+            &&!methods.Contains("TryCopyTo(global::System.MemoryExtensions.AsSpan(__result)",StringComparison.Ordinal),
             "Array/List ToArray/ToList should use direct GetSpan materialization without runtime count/copy/span probing.",
             generated,
             output);
@@ -844,8 +847,8 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("TryGetNonEnumeratedCount(out var __count",StringComparison.Ordinal)
-            && generated.Contains("TryCopyTo(global::System.MemoryExtensions.AsSpan(__result)",StringComparison.Ordinal)
-            && generated.Contains("TryGetSpan(out var __sourceSpan",StringComparison.Ordinal),
+            &&generated.Contains("TryCopyTo(global::System.MemoryExtensions.AsSpan(__result)",StringComparison.Ordinal)
+            &&generated.Contains("TryGetSpan(out var __sourceSpan",StringComparison.Ordinal),
             "IEnumerable<T> materialization should keep runtime count/copy/span fallback paths.",
             generated,
             output);
@@ -876,8 +879,8 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             methods.Contains(".GetSpan();",StringComparison.Ordinal)
-            && generated.Contains("CollectionsMarshal.AsSpan(source).Slice",StringComparison.Ordinal)
-            && !methods.Contains(".TryGetSpan(out var __span)",StringComparison.Ordinal),
+            &&generated.Contains("CollectionsMarshal.AsSpan(source).Slice",StringComparison.Ordinal)
+            &&!methods.Contains(".TryGetSpan(out var __span)",StringComparison.Ordinal),
             "Array/List scalar terminals should read direct GetSpan and avoid runtime TryGetSpan branches.",
             generated,
             output);
@@ -914,12 +917,12 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             directMethods.Contains(".GetSpan();",StringComparison.Ordinal)
-            && directMethods.Contains("Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements()",StringComparison.Ordinal)
-            && !directMethods.Contains(".TryGetSpan(out var",StringComparison.Ordinal)
-            && !directMethods.Contains("foreach(var",StringComparison.Ordinal)
-            && !directMethods.Contains("__first",StringComparison.Ordinal)
-            && enumerableMethod.Contains(".TryGetSpan(out var",StringComparison.Ordinal)
-            && enumerableMethod.Contains("}else{",StringComparison.Ordinal),
+            &&directMethods.Contains("Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements()",StringComparison.Ordinal)
+            &&!directMethods.Contains(".TryGetSpan(out var",StringComparison.Ordinal)
+            &&!directMethods.Contains("foreach(var",StringComparison.Ordinal)
+            &&!directMethods.Contains("__first",StringComparison.Ordinal)
+            &&enumerableMethod.Contains(".TryGetSpan(out var",StringComparison.Ordinal)
+            &&enumerableMethod.Contains("}else{",StringComparison.Ordinal),
             "Array/List Aggregate should use direct GetSpan()+for loops while IEnumerable<T> keeps runtime span probing and fallback.",
             generated,
             output);
@@ -950,10 +953,10 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             methods.Contains("__pipelineSpan",StringComparison.Ordinal)
-            && methods.Contains("__pipelineDestination",StringComparison.Ordinal)
-            && methods.Contains("=__pipelineSrc",StringComparison.Ordinal)
-            && !methods.Contains("TryCopyTo(global::System.MemoryExtensions.AsSpan(__linq",StringComparison.Ordinal)
-            && !methods.Contains("TryCopyTo(__pipelineDestination",StringComparison.Ordinal),
+            &&methods.Contains("__pipelineDestination",StringComparison.Ordinal)
+            &&methods.Contains("=__pipelineSrc",StringComparison.Ordinal)
+            &&!methods.Contains("TryCopyTo(global::System.MemoryExtensions.AsSpan(__linq",StringComparison.Ordinal)
+            &&!methods.Contains("TryCopyTo(__pipelineDestination",StringComparison.Ordinal),
             "Count-preserving Select over a direct span source should materialize with a span index loop, not TryCopyTo.",
             generated,
             output);
@@ -987,31 +990,31 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("global::Seamless.Persisted.Collections.PersistedList<int>",StringComparison.Ordinal)
-            && generated.Contains(".GetSpan();",StringComparison.Ordinal)
-            && generated.Contains("source.AsSpan",StringComparison.Ordinal)
-            && !methods.Contains("global::System.Linq.Enumerable.Count",StringComparison.Ordinal)
-            && !methods.Contains("global::System.Linq.Enumerable.ToArray",StringComparison.Ordinal),
+            &&generated.Contains(".GetSpan();",StringComparison.Ordinal)
+            &&generated.Contains("source.AsSpan",StringComparison.Ordinal)
+            &&!methods.Contains("global::System.Linq.Enumerable.Count",StringComparison.Ordinal)
+            &&!methods.Contains("global::System.Linq.Enumerable.ToArray",StringComparison.Ordinal),
             "AsX should be treated as a transparent test/benchmark route and the original PersistedList<T> receiver should become the optimized root.",
             generated,
             output);
     }
 
     private static string GeneratedMethod(string generated,string methodName) {
-        var summaryMarker=$"<c>{methodName}()</c>";
-        var summaryIndex=generated.IndexOf(summaryMarker,StringComparison.Ordinal);
+        var summaryMarker = $"<c>{methodName}()</c>";
+        var summaryIndex = generated.IndexOf(summaryMarker,StringComparison.Ordinal);
         if(summaryIndex<0) {
             return string.Empty;
         }
-        var start=generated.IndexOf("public static",summaryIndex,StringComparison.Ordinal);
+        var start = generated.IndexOf("public static",summaryIndex,StringComparison.Ordinal);
         if(start<0) {
             return string.Empty;
         }
-        var openBrace=generated.IndexOf('{',start);
+        var openBrace = generated.IndexOf('{',start);
         if(openBrace<0) {
             return string.Empty;
         }
-        var depth=0;
-        for(var index=openBrace;index<generated.Length;index++) {
+        var depth = 0;
+        for(var index = openBrace;index<generated.Length;index++) {
             if(generated[index]=='{') {
                 depth++;
             } else if(generated[index]=='}') {
@@ -1027,7 +1030,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     private static string GeneratedSource(string source) {
         var comp = GeneratorTestHelpers.CreateCompilation([("Container.cs",source)]);
         GeneratorDriver driver = GeneratorTestHelpers.CreateDriver();
-        driver = driver.RunGeneratorsAndUpdateCompilation(comp,out var outputCompilation,out var generatorDiagnostics);
+        driver=driver.RunGeneratorsAndUpdateCompilation(comp,out var outputCompilation,out var generatorDiagnostics);
         var generated = string.Concat(driver.GetRunResult().Results.SelectMany(static r => r.GeneratedSources).Select(static s => s.SourceText.ToString()));
         var diagnostics = generatorDiagnostics
             .Concat(outputCompilation.GetDiagnostics())

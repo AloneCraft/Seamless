@@ -1,7 +1,8 @@
 using System.IO.MemoryMappedFiles;
 namespace Seamless.Persisted.Collections;
-public class SerializedList<T>(string path,long initialCapacity=16,long initialDataCapacity=4096,StorageTuning? tuning=null):SerializedList<T,MemoryPackSerializer<T>>(path,initialCapacity,initialDataCapacity,tuning);
-public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : ISerializer<T> {
+
+public class SerializedList<T>(string path,long initialCapacity = 16,long initialDataCapacity = 4096,StorageTuning? tuning = null):SerializedList<T,MemoryPackSerializer<T>>(path,initialCapacity,initialDataCapacity,tuning);
+public class SerializedList<T, TSerializer>:PersistedList<T> where TSerializer : ISerializer<T> {
     private const long UnusedIndex = -1;
     private FileStream indexStream = null!;
     private MemoryMappedFile indexMappedFile = null!;
@@ -38,8 +39,7 @@ public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : 
             this.CreateMappings();
             this.InitializeIndexRange(0,this.Capacity);
             this.persistedCount=0;
-        }
-        else {
+        } else {
             if(this.indexStream.Length==0||this.dataStream.Length==0)
                 throw new InvalidDataException("List companion files are incomplete.");
             this.CreateMappings();
@@ -88,7 +88,7 @@ public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : 
 
         var writeIndex = 1L;
         var previousOffset = this.ReadIndexUnchecked(0);
-        for(var readIndex = 1L; readIndex<this.Count; readIndex++) {
+        for(var readIndex = 1L;readIndex<this.Count;readIndex++) {
             var currentOffset = this.ReadIndexUnchecked(readIndex);
             if(this.CompareData(previousOffset,currentOffset)==0)
                 continue;
@@ -241,8 +241,7 @@ public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : 
                         stack.Push((i,right));
                     }
                     right=j;
-                }
-                else {
+                } else {
                     if(left<j) {
                         stack.Push((left,j));
                     }
@@ -269,7 +268,7 @@ public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : 
         var rightPosition = this.GetRecordPosition(rightOffset)+sizeof(int);
         var minimumLength = Math.Min(leftLength,rightLength);
 
-        for(var i = 0; i<minimumLength; i++) {
+        for(var i = 0;i<minimumLength;i++) {
             var leftByte = this.dataAccessor.ReadByte(leftPosition+i);
             var rightByte = this.dataAccessor.ReadByte(rightPosition+i);
             if(leftByte!=rightByte)
@@ -361,7 +360,7 @@ public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : 
     private long LoadCount() {
         var count = 0L;
         var foundUnused = false;
-        for(var index = 0L; index<this.Capacity; index++) {
+        for(var index = 0L;index<this.Capacity;index++) {
             var recordOffset = this.ReadIndexUnchecked(index);
             if(recordOffset==UnusedIndex) {
                 foundUnused=true;
@@ -378,7 +377,7 @@ public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : 
 
     private long LoadDataLength() {
         var dataLength = 0L;
-        for(var index = 0L; index<this.Count; index++) {
+        for(var index = 0L;index<this.Count;index++) {
             var recordOffset = this.ReadIndexUnchecked(index);
             var recordLength = this.ReadRecordLength(recordOffset,this.DataCapacity);
             var recordEnd = checked(recordOffset+sizeof(int)+(long)recordLength);
@@ -389,7 +388,7 @@ public class SerializedList<T, TSerializer>:PersistedList<T>where TSerializer : 
     }
 
     private void InitializeIndexRange(long startIndex,long endIndexExclusive) {
-        for(var index = startIndex; index<endIndexExclusive; index++) {
+        for(var index = startIndex;index<endIndexExclusive;index++) {
             this.WriteIndexUnchecked(index,UnusedIndex);
         }
     }
@@ -416,8 +415,7 @@ public sealed class BlittableList<T>:PersistedList<T>
             this.Count=0;
             this.Capacity=this.AlignCapacity(initialCapacity,elementSize);
             this.stream.SetLength(this.GetFileLength(this.Capacity,elementSize));
-        }
-        else {
+        } else {
             if(this.stream.Length<HeaderLength||(this.stream.Length-HeaderLength)%elementSize!=0)
                 throw new InvalidDataException("The fixed list file length is invalid.");
             this.Capacity=(this.stream.Length-HeaderLength)/elementSize;

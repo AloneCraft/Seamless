@@ -1,267 +1,267 @@
-﻿using UI;
+using UI;
 
 namespace Test.Benchmark;
 
-public sealed class BenchmarkToolbarAndCloseLogic{
+public sealed class ベンチマークツールバーと終了ロジック {
     [Fact]
-    public void IdleRunButtonUsesDirectState(){
-        var state = BenchmarkToolbarStateLogic.CreateState(
-            BenchmarkToolbarButtonRole.Run,
-            new BenchmarkToolbarStateInput(
-                IsRefreshing:false,
-                IsBenchmarkRunActive:false,
-                IsBenchmarkPaused:false,
-                CanUseRunButton:true,
-                CanStopBenchmark:false,
-                CanPauseBenchmark:false));
+    public void 仕様確認01() {
+        var 状態 = ベンチマークツールバー状態ロジック.状態を作成(
+            ベンチマークツールバーボタン役割.実行,
+            new ベンチマークツールバー状態入力(
+                更新中か: false,
+                ベンチマーク実行中か: false,
+                ベンチマーク一時停止中か: false,
+                実行ボタンを使用可能か: true,
+                ベンチマークを停止可能か: false,
+                ベンチマークを一時停止可能か: false));
 
-        Assert.True(state.IsEnabled);
-        Assert.True(state.InvokesPrimaryAction);
-        Assert.False(state.ShowDisabledVisual);
-        Assert.False(state.ShouldPulse);
+        Assert.True(状態.有効か);
+        Assert.True(状態.主要操作を呼ぶか);
+        Assert.False(状態.無効表示をするか);
+        Assert.False(状態.点滅するか);
     }
 
     [Fact]
-    public void IdleRunButtonStaysDisabledWithoutSelection(){
-        var state = BenchmarkToolbarStateLogic.CreateState(
-            BenchmarkToolbarButtonRole.Run,
-            new BenchmarkToolbarStateInput(
-                IsRefreshing:false,
-                IsBenchmarkRunActive:false,
-                IsBenchmarkPaused:false,
-                CanUseRunButton:false,
-                CanStopBenchmark:false,
-                CanPauseBenchmark:false));
+    public void 仕様確認02() {
+        var 状態 = ベンチマークツールバー状態ロジック.状態を作成(
+            ベンチマークツールバーボタン役割.実行,
+            new ベンチマークツールバー状態入力(
+                更新中か: false,
+                ベンチマーク実行中か: false,
+                ベンチマーク一時停止中か: false,
+                実行ボタンを使用可能か: false,
+                ベンチマークを停止可能か: false,
+                ベンチマークを一時停止可能か: false));
 
-        Assert.False(state.IsEnabled);
-        Assert.False(state.InvokesPrimaryAction);
-        Assert.True(state.ShowDisabledVisual);
-        Assert.False(state.ShouldPulse);
+        Assert.False(状態.有効か);
+        Assert.False(状態.主要操作を呼ぶか);
+        Assert.True(状態.無効表示をするか);
+        Assert.False(状態.点滅するか);
     }
 
     [Fact]
-    public void IdleRunInfiniteButtonUsesRunState(){
-        var state = BenchmarkToolbarStateLogic.CreateState(
-            BenchmarkToolbarButtonRole.RunInfinite,
-            new BenchmarkToolbarStateInput(
-                IsRefreshing:false,
-                IsBenchmarkRunActive:false,
-                IsBenchmarkPaused:false,
-                CanUseRunButton:true,
-                CanStopBenchmark:false,
-                CanPauseBenchmark:false));
+    public void 仕様確認03() {
+        var 状態 = ベンチマークツールバー状態ロジック.状態を作成(
+            ベンチマークツールバーボタン役割.無限実行,
+            new ベンチマークツールバー状態入力(
+                更新中か: false,
+                ベンチマーク実行中か: false,
+                ベンチマーク一時停止中か: false,
+                実行ボタンを使用可能か: true,
+                ベンチマークを停止可能か: false,
+                ベンチマークを一時停止可能か: false));
 
-        Assert.True(state.IsEnabled);
-        Assert.True(state.InvokesPrimaryAction);
-        Assert.False(state.ShowDisabledVisual);
-        Assert.False(state.ShouldPulse);
+        Assert.True(状態.有効か);
+        Assert.True(状態.主要操作を呼ぶか);
+        Assert.False(状態.無効表示をするか);
+        Assert.False(状態.点滅するか);
     }
 
     [Fact]
-    public void RunningPauseButtonUsesDirectState(){
-        var state = BenchmarkToolbarStateLogic.CreateState(
-            BenchmarkToolbarButtonRole.Pause,
-            new BenchmarkToolbarStateInput(
-                IsRefreshing:false,
-                IsBenchmarkRunActive:true,
-                IsBenchmarkPaused:false,
-                CanUseRunButton:false,
-                CanStopBenchmark:true,
-                CanPauseBenchmark:true));
+    public void 仕様確認04() {
+        var 状態 = ベンチマークツールバー状態ロジック.状態を作成(
+            ベンチマークツールバーボタン役割.一時停止,
+            new ベンチマークツールバー状態入力(
+                更新中か: false,
+                ベンチマーク実行中か: true,
+                ベンチマーク一時停止中か: false,
+                実行ボタンを使用可能か: false,
+                ベンチマークを停止可能か: true,
+                ベンチマークを一時停止可能か: true));
 
-        Assert.True(state.IsEnabled);
-        Assert.True(state.InvokesPrimaryAction);
-        Assert.False(state.ShowDisabledVisual);
-        Assert.False(state.ShouldPulse);
+        Assert.True(状態.有効か);
+        Assert.True(状態.主要操作を呼ぶか);
+        Assert.False(状態.無効表示をするか);
+        Assert.False(状態.点滅するか);
     }
 
     [Fact]
-    public void RunningStopButtonUsesDirectState(){
-        var state = BenchmarkToolbarStateLogic.CreateState(
-            BenchmarkToolbarButtonRole.Stop,
-            new BenchmarkToolbarStateInput(
-                IsRefreshing:false,
-                IsBenchmarkRunActive:true,
-                IsBenchmarkPaused:false,
-                CanUseRunButton:false,
-                CanStopBenchmark:true,
-                CanPauseBenchmark:true));
+    public void 仕様確認05() {
+        var 状態 = ベンチマークツールバー状態ロジック.状態を作成(
+            ベンチマークツールバーボタン役割.停止,
+            new ベンチマークツールバー状態入力(
+                更新中か: false,
+                ベンチマーク実行中か: true,
+                ベンチマーク一時停止中か: false,
+                実行ボタンを使用可能か: false,
+                ベンチマークを停止可能か: true,
+                ベンチマークを一時停止可能か: true));
 
-        Assert.True(state.IsEnabled);
-        Assert.True(state.InvokesPrimaryAction);
-        Assert.False(state.ShowDisabledVisual);
-        Assert.False(state.ShouldPulse);
+        Assert.True(状態.有効か);
+        Assert.True(状態.主要操作を呼ぶか);
+        Assert.False(状態.無効表示をするか);
+        Assert.False(状態.点滅するか);
     }
 
     [Fact]
-    public void RunningRunInfiniteButtonUsesRunDisabledState(){
-        var state = BenchmarkToolbarStateLogic.CreateState(
-            BenchmarkToolbarButtonRole.RunInfinite,
-            new BenchmarkToolbarStateInput(
-                IsRefreshing:false,
-                IsBenchmarkRunActive:true,
-                IsBenchmarkPaused:false,
-                CanUseRunButton:false,
-                CanStopBenchmark:true,
-                CanPauseBenchmark:true));
+    public void 仕様確認06() {
+        var 状態 = ベンチマークツールバー状態ロジック.状態を作成(
+            ベンチマークツールバーボタン役割.無限実行,
+            new ベンチマークツールバー状態入力(
+                更新中か: false,
+                ベンチマーク実行中か: true,
+                ベンチマーク一時停止中か: false,
+                実行ボタンを使用可能か: false,
+                ベンチマークを停止可能か: true,
+                ベンチマークを一時停止可能か: true));
 
-        Assert.False(state.IsEnabled);
-        Assert.False(state.InvokesPrimaryAction);
-        Assert.True(state.ShowDisabledVisual);
-        Assert.False(state.ShouldPulse);
+        Assert.False(状態.有効か);
+        Assert.False(状態.主要操作を呼ぶか);
+        Assert.True(状態.無効表示をするか);
+        Assert.False(状態.点滅するか);
     }
 
     [Fact]
-    public void PausedRunButtonPulsesAndExecutes(){
-        var state = BenchmarkToolbarStateLogic.CreateState(
-            BenchmarkToolbarButtonRole.Run,
-            new BenchmarkToolbarStateInput(
-                IsRefreshing:false,
-                IsBenchmarkRunActive:false,
-                IsBenchmarkPaused:true,
-                CanUseRunButton:true,
-                CanStopBenchmark:true,
-                CanPauseBenchmark:false));
+    public void 仕様確認07() {
+        var 状態 = ベンチマークツールバー状態ロジック.状態を作成(
+            ベンチマークツールバーボタン役割.実行,
+            new ベンチマークツールバー状態入力(
+                更新中か: false,
+                ベンチマーク実行中か: false,
+                ベンチマーク一時停止中か: true,
+                実行ボタンを使用可能か: true,
+                ベンチマークを停止可能か: true,
+                ベンチマークを一時停止可能か: false));
 
-        Assert.True(state.IsEnabled);
-        Assert.True(state.InvokesPrimaryAction);
-        Assert.False(state.ShowDisabledVisual);
-        Assert.True(state.ShouldPulse);
+        Assert.True(状態.有効か);
+        Assert.True(状態.主要操作を呼ぶか);
+        Assert.False(状態.無効表示をするか);
+        Assert.True(状態.点滅するか);
     }
 
     [Fact]
-    public void PausedRunInfiniteButtonPulsesAndExecutes(){
-        var state = BenchmarkToolbarStateLogic.CreateState(
-            BenchmarkToolbarButtonRole.RunInfinite,
-            new BenchmarkToolbarStateInput(
-                IsRefreshing:false,
-                IsBenchmarkRunActive:false,
-                IsBenchmarkPaused:true,
-                CanUseRunButton:true,
-                CanStopBenchmark:true,
-                CanPauseBenchmark:false));
+    public void 仕様確認08() {
+        var 状態 = ベンチマークツールバー状態ロジック.状態を作成(
+            ベンチマークツールバーボタン役割.無限実行,
+            new ベンチマークツールバー状態入力(
+                更新中か: false,
+                ベンチマーク実行中か: false,
+                ベンチマーク一時停止中か: true,
+                実行ボタンを使用可能か: true,
+                ベンチマークを停止可能か: true,
+                ベンチマークを一時停止可能か: false));
 
-        Assert.True(state.IsEnabled);
-        Assert.True(state.InvokesPrimaryAction);
-        Assert.False(state.ShowDisabledVisual);
-        Assert.True(state.ShouldPulse);
+        Assert.True(状態.有効か);
+        Assert.True(状態.主要操作を呼ぶか);
+        Assert.False(状態.無効表示をするか);
+        Assert.True(状態.点滅するか);
     }
 
     [Fact]
-    public void PausedPauseButtonLooksDisabledButStaysClickableForGuardDialog(){
-        var state = BenchmarkToolbarStateLogic.CreateState(
-            BenchmarkToolbarButtonRole.Pause,
-            new BenchmarkToolbarStateInput(
-                IsRefreshing:false,
-                IsBenchmarkRunActive:false,
-                IsBenchmarkPaused:true,
-                CanUseRunButton:true,
-                CanStopBenchmark:true,
-                CanPauseBenchmark:false));
+    public void 仕様確認09() {
+        var 状態 = ベンチマークツールバー状態ロジック.状態を作成(
+            ベンチマークツールバーボタン役割.一時停止,
+            new ベンチマークツールバー状態入力(
+                更新中か: false,
+                ベンチマーク実行中か: false,
+                ベンチマーク一時停止中か: true,
+                実行ボタンを使用可能か: true,
+                ベンチマークを停止可能か: true,
+                ベンチマークを一時停止可能か: false));
 
-        Assert.True(state.IsEnabled);
-        Assert.False(state.InvokesPrimaryAction);
-        Assert.True(state.ShowDisabledVisual);
-        Assert.False(state.ShouldPulse);
+        Assert.True(状態.有効か);
+        Assert.False(状態.主要操作を呼ぶか);
+        Assert.True(状態.無効表示をするか);
+        Assert.False(状態.点滅するか);
     }
 
     [Fact]
-    public void PausedPauseButtonRequiresDecisionDialog(){
-        Assert.True(BenchmarkToolbarPauseGuardLogic.RequiresDecisionDialog(BenchmarkToolbarButtonRole.Pause,true));
-        Assert.False(BenchmarkToolbarPauseGuardLogic.RequiresDecisionDialog(BenchmarkToolbarButtonRole.Run,true));
-        Assert.False(BenchmarkToolbarPauseGuardLogic.RequiresDecisionDialog(BenchmarkToolbarButtonRole.RunInfinite,true));
-        Assert.False(BenchmarkToolbarPauseGuardLogic.RequiresDecisionDialog(BenchmarkToolbarButtonRole.Stop,true));
-        Assert.False(BenchmarkToolbarPauseGuardLogic.RequiresDecisionDialog(BenchmarkToolbarButtonRole.Pause,false));
+    public void 仕様確認10() {
+        Assert.True(ベンチマークツールバー一時停止ガードロジック.判断ダイアログが必要か(ベンチマークツールバーボタン役割.一時停止,true));
+        Assert.False(ベンチマークツールバー一時停止ガードロジック.判断ダイアログが必要か(ベンチマークツールバーボタン役割.実行,true));
+        Assert.False(ベンチマークツールバー一時停止ガードロジック.判断ダイアログが必要か(ベンチマークツールバーボタン役割.無限実行,true));
+        Assert.False(ベンチマークツールバー一時停止ガードロジック.判断ダイアログが必要か(ベンチマークツールバーボタン役割.停止,true));
+        Assert.False(ベンチマークツールバー一時停止ガードロジック.判断ダイアログが必要か(ベンチマークツールバーボタン役割.一時停止,false));
     }
 
     [Fact]
-    public void CloseDialogWhilePausedOffersOnlyStopAndCancel(){
-        var options = BenchmarkCloseDialogLogic.CreateOptions(
-            isBenchmarkRunActive:false,
-            isBenchmarkPaused:true,
-            hasUnsavedResults:true);
+    public void 仕様確認11() {
+        var 選択肢一覧 = ベンチマーク終了ダイアログロジック.選択肢を作成(
+            ベンチマーク実行中か: false,
+            ベンチマーク一時停止中か: true,
+            未保存結果ありか: true);
 
         Assert.Collection(
-            options,
-            option => {
-                Assert.Equal(BenchmarkCloseAction.StopAndClose,option.Action);
-                Assert.Equal(BenchmarkToolbarButtonRole.Stop,option.Kind);
+            選択肢一覧,
+            選択肢 => {
+                Assert.Equal(ベンチマーク終了操作.停止して閉じる,選択肢.操作);
+                Assert.Equal(ベンチマークツールバーボタン役割.停止,選択肢.役割);
             },
-            option => {
-                Assert.Equal(BenchmarkCloseAction.Cancel,option.Action);
-                Assert.Equal(BenchmarkToolbarButtonRole.Pause,option.Kind);
+            選択肢 => {
+                Assert.Equal(ベンチマーク終了操作.キャンセル,選択肢.操作);
+                Assert.Equal(ベンチマークツールバーボタン役割.一時停止,選択肢.役割);
             });
     }
 
     [Fact]
-    public void CloseDialogWithUnsavedIdleResultsOffersDiscardAndCancel(){
-        var options = BenchmarkCloseDialogLogic.CreateOptions(
-            isBenchmarkRunActive:false,
-            isBenchmarkPaused:false,
-            hasUnsavedResults:true);
+    public void 仕様確認12() {
+        var 選択肢一覧 = ベンチマーク終了ダイアログロジック.選択肢を作成(
+            ベンチマーク実行中か: false,
+            ベンチマーク一時停止中か: false,
+            未保存結果ありか: true);
 
         Assert.Collection(
-            options,
-            option => {
-                Assert.Equal(BenchmarkCloseAction.StopAndClose,option.Action);
-                Assert.Equal(BenchmarkToolbarButtonRole.Stop,option.Kind);
+            選択肢一覧,
+            選択肢 => {
+                Assert.Equal(ベンチマーク終了操作.停止して閉じる,選択肢.操作);
+                Assert.Equal(ベンチマークツールバーボタン役割.停止,選択肢.役割);
             },
-            option => {
-                Assert.Equal(BenchmarkCloseAction.Cancel,option.Action);
-                Assert.Equal(BenchmarkToolbarButtonRole.Pause,option.Kind);
+            選択肢 => {
+                Assert.Equal(ベンチマーク終了操作.キャンセル,選択肢.操作);
+                Assert.Equal(ベンチマークツールバーボタン役割.一時停止,選択肢.役割);
             });
     }
 
     [Fact]
-    public void CloseRequestRequiresDialogForUnsavedIdleResults(){
-        Assert.True(BenchmarkCloseDialogLogic.RequiresDialog(
-            isBenchmarkRunActive:false,
-            isBenchmarkPaused:false,
-            hasUnsavedResults:true));
+    public void 仕様確認13() {
+        Assert.True(ベンチマーク終了ダイアログロジック.ダイアログが必要か(
+            ベンチマーク実行中か: false,
+            ベンチマーク一時停止中か: false,
+            未保存結果ありか: true));
     }
 
     [Fact]
-    public void CloseRequestDoesNotRequireDialogForCleanIdleState(){
-        Assert.False(BenchmarkCloseDialogLogic.RequiresDialog(
-            isBenchmarkRunActive:false,
-            isBenchmarkPaused:false,
-            hasUnsavedResults:false));
+    public void 仕様確認14() {
+        Assert.False(ベンチマーク終了ダイアログロジック.ダイアログが必要か(
+            ベンチマーク実行中か: false,
+            ベンチマーク一時停止中か: false,
+            未保存結果ありか: false));
     }
 
     [Fact]
-    public void CloseRequestRequiresDialogForActiveOrPausedState(){
-        Assert.True(BenchmarkCloseDialogLogic.RequiresDialog(
-            isBenchmarkRunActive:true,
-            isBenchmarkPaused:false,
-            hasUnsavedResults:false));
-        Assert.True(BenchmarkCloseDialogLogic.RequiresDialog(
-            isBenchmarkRunActive:false,
-            isBenchmarkPaused:true,
-            hasUnsavedResults:false));
+    public void 仕様確認15() {
+        Assert.True(ベンチマーク終了ダイアログロジック.ダイアログが必要か(
+            ベンチマーク実行中か: true,
+            ベンチマーク一時停止中か: false,
+            未保存結果ありか: false));
+        Assert.True(ベンチマーク終了ダイアログロジック.ダイアログが必要か(
+            ベンチマーク実行中か: false,
+            ベンチマーク一時停止中か: true,
+            未保存結果ありか: false));
     }
 
     [Fact]
-    public void CloseRequestDiscardsOnlyWhenUnsavedIdleCloseIsAccepted(){
-        Assert.True(BenchmarkCloseDialogLogic.ShouldDiscardUnsavedResultsBeforeClose(
-            isBenchmarkRunActive:false,
-            isBenchmarkPaused:false,
-            hasUnsavedResults:true,
-            BenchmarkCloseAction.StopAndClose));
-        Assert.False(BenchmarkCloseDialogLogic.ShouldDiscardUnsavedResultsBeforeClose(
-            isBenchmarkRunActive:false,
-            isBenchmarkPaused:false,
-            hasUnsavedResults:true,
-            BenchmarkCloseAction.Cancel));
-        Assert.False(BenchmarkCloseDialogLogic.ShouldDiscardUnsavedResultsBeforeClose(
-            isBenchmarkRunActive:true,
-            isBenchmarkPaused:false,
-            hasUnsavedResults:true,
-            BenchmarkCloseAction.StopAndClose));
-        Assert.False(BenchmarkCloseDialogLogic.ShouldDiscardUnsavedResultsBeforeClose(
-            isBenchmarkRunActive:false,
-            isBenchmarkPaused:true,
-            hasUnsavedResults:true,
-            BenchmarkCloseAction.StopAndClose));
+    public void 仕様確認16() {
+        Assert.True(ベンチマーク終了ダイアログロジック.閉じる前に未保存結果を破棄するか(
+            ベンチマーク実行中か: false,
+            ベンチマーク一時停止中か: false,
+            未保存結果ありか: true,
+            ベンチマーク終了操作.停止して閉じる));
+        Assert.False(ベンチマーク終了ダイアログロジック.閉じる前に未保存結果を破棄するか(
+            ベンチマーク実行中か: false,
+            ベンチマーク一時停止中か: false,
+            未保存結果ありか: true,
+            ベンチマーク終了操作.キャンセル));
+        Assert.False(ベンチマーク終了ダイアログロジック.閉じる前に未保存結果を破棄するか(
+            ベンチマーク実行中か: true,
+            ベンチマーク一時停止中か: false,
+            未保存結果ありか: true,
+            ベンチマーク終了操作.停止して閉じる));
+        Assert.False(ベンチマーク終了ダイアログロジック.閉じる前に未保存結果を破棄するか(
+            ベンチマーク実行中か: false,
+            ベンチマーク一時停止中か: true,
+            未保存結果ありか: true,
+            ベンチマーク終了操作.停止して閉じる));
     }
 }
 

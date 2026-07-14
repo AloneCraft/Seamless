@@ -27,8 +27,7 @@ namespace Seamless.System.Carrier {
                         }
                     }
                     return longCount;
-                }
-                else {
+                } else {
                     var longCount = 0L;
                     while(enumerator.TryGetNext(out var current)) {
                         if(predicate(current)) {
@@ -52,7 +51,7 @@ namespace Seamless.System.Carrier {
             var longCount = 0;
 
             var span = (ReadOnlySpan<TSource>)array;
-            for(int i = 0; (uint)i<(uint)span.Length; i++) {
+            for(int i = 0;(uint)i<(uint)span.Length;i++) {
                 if(predicate(span[i])) {
                     longCount++;
                 }
@@ -63,7 +62,7 @@ namespace Seamless.System.Carrier {
             [MethodImpl(MethodImplOptions.NoInlining)]
             static Int64 LongCount(TSource[] array,Func<TSource,Boolean> predicate) {
                 var longCount = 0;
-                for(int i = 0; (uint)i<(uint)array.Length; i++) {
+                for(int i = 0;(uint)i<(uint)array.Length;i++) {
                     if(predicate(array[i])) {
                         longCount++;
                     }

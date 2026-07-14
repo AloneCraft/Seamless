@@ -100,8 +100,7 @@ namespace Seamless.System.Carrier {
                 // Source exhausted
                 this.state=3;
                 return false;
-            }
-            else {
+            } else {
 
                 var buffer = this.ringBuffer=new(this.takeCount); // Use a reasonable default capacity;
 

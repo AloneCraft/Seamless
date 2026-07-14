@@ -1,13 +1,13 @@
 namespace UI;
 
-internal readonly record struct ScalableBenchmarkParameters(
-    long IndexSize,
-    long PageSize,
-    long SegmentSize,
-    long MemorySize,
-    double MutableFraction);
+internal readonly record struct スケーラブルベンチマークパラメーター(
+    long Indexサイズ,
+    long Pageサイズ,
+    long Segmentサイズ,
+    long Memoryサイズ,
+    double 可変Fraction);
 
-internal enum ScalableBenchmarkArgumentColumn{
+internal enum スケーラブルベンチマーク引数列 {
     Count,
     Index,
     Page,
@@ -18,49 +18,46 @@ internal enum ScalableBenchmarkArgumentColumn{
     Data,
 }
 
-internal static class BenchmarkArgumentColumns{
-    private static readonly ScalableBenchmarkArgumentColumn[] PersistedColumns = [
-        ScalableBenchmarkArgumentColumn.Count,
-        ScalableBenchmarkArgumentColumn.Initial,
-        ScalableBenchmarkArgumentColumn.Data,
+internal static class ベンチマーク引数列一覧 {
+    private static readonly スケーラブルベンチマーク引数列[] 永続化列一覧 = [
+        スケーラブルベンチマーク引数列.Count,
+        スケーラブルベンチマーク引数列.Initial,
+        スケーラブルベンチマーク引数列.Data,
     ];
-    private static readonly ScalableBenchmarkArgumentColumn[] TsavoriteColumns = [
-        ScalableBenchmarkArgumentColumn.Count,
-        ScalableBenchmarkArgumentColumn.Index,
-        ScalableBenchmarkArgumentColumn.Page,
-        ScalableBenchmarkArgumentColumn.Segment,
-        ScalableBenchmarkArgumentColumn.Memory,
-        ScalableBenchmarkArgumentColumn.Fraction,
+    private static readonly スケーラブルベンチマーク引数列[] Tsavorite列一覧 = [
+        スケーラブルベンチマーク引数列.Count,
+        スケーラブルベンチマーク引数列.Index,
+        スケーラブルベンチマーク引数列.Page,
+        スケーラブルベンチマーク引数列.Segment,
+        スケーラブルベンチマーク引数列.Memory,
+        スケーラブルベンチマーク引数列.Fraction,
     ];
-    private static readonly ScalableBenchmarkArgumentColumn[] EmptyColumns = [];
+    private static readonly スケーラブルベンチマーク引数列[] 空列一覧 = [];
 
-    public static IReadOnlyList<ScalableBenchmarkArgumentColumn> Get(BenchmarkSourceTabDefinition sourceTab) =>
-        Get(sourceTab.Tab);
+    public static IReadOnlyList<スケーラブルベンチマーク引数列> 取得(ベンチマークソースタブ定義 ソースタブ) =>
+        取得(ソースタブ.タブ);
 
-    public static IReadOnlyList<ScalableBenchmarkArgumentColumn> Get(BenchmarkSourceTab sourceTab) =>
-        sourceTab switch{
-            BenchmarkSourceTab.ScalablePersistedList
-                or BenchmarkSourceTab.ScalablePersistedSet
-                or BenchmarkSourceTab.ScalablePersistedDictionary => PersistedColumns,
-            BenchmarkSourceTab.ScalableTsavoriteSet
-                or BenchmarkSourceTab.ScalableTsavoriteDictionary
-                or BenchmarkSourceTab.ScalableSet
-                or BenchmarkSourceTab.ScalableDictionary => TsavoriteColumns,
-            _ => EmptyColumns,
+    public static IReadOnlyList<スケーラブルベンチマーク引数列> 取得(ベンチマークソースタブ ソースタブ) =>
+        ソースタブ switch {
+            ベンチマークソースタブ.スケーラブル永続化リスト
+                or ベンチマークソースタブ.スケーラブル永続化セット
+                or ベンチマークソースタブ.スケーラブル永続化辞書=>永続化列一覧,
+            ベンチマークソースタブ.スケーラブルTsavoriteセット
+                or ベンチマークソースタブ.スケーラブルTsavorite辞書
+                or ベンチマークソースタブ.スケーラブルセット
+                or ベンチマークソースタブ.スケーラブル辞書=>Tsavorite列一覧,
+            _ => 空列一覧,
         };
-
-    public static IReadOnlyList<string> GetNames(BenchmarkSourceTabDefinition sourceTab) =>
-        Get(sourceTab).Select(static column => column.ToString()).ToArray();
 }
 
-internal static class ScalableBenchmarkNameFormatter{
-    private const long DefaultIndexSize = 64;
-    private const long DefaultPageSize = 4096;
-    private const long DefaultSegmentSize = 8192;
-    private const long DefaultMemorySize = 16384;
-    private const double DefaultMutableFraction = 0.5;
+internal static class スケーラブルベンチマーク名フォーマッター {
+    private const long 既定Indexサイズ = 64;
+    private const long 既定Pageサイズ = 4096;
+    private const long 既定Segmentサイズ = 8192;
+    private const long 既定Memoryサイズ = 16384;
+    private const double 既定可変Fraction = 0.5;
 
-    private static readonly string[] KnownTypeTokens = [
+    private static readonly string[] 既知型トークン一覧 = [
         "UnmanagedStruct",
         "ManagedStruct",
         "ManagedClass",
@@ -80,237 +77,240 @@ internal static class ScalableBenchmarkNameFormatter{
         "Char",
     ];
 
-    public static bool IsScalableSourceTab(BenchmarkSourceTab sourceTab) =>
-        sourceTab is BenchmarkSourceTab.ScalableSet
-            or BenchmarkSourceTab.ScalableDictionary
-            or BenchmarkSourceTab.ScalablePersistedList
-            or BenchmarkSourceTab.ScalablePersistedSet
-            or BenchmarkSourceTab.ScalableTsavoriteSet
-            or BenchmarkSourceTab.ScalablePersistedDictionary
-            or BenchmarkSourceTab.ScalableTsavoriteDictionary;
+    public static bool スケーラブルソースタブか(ベンチマークソースタブ ソースタブ) =>
+        ソースタブ is ベンチマークソースタブ.スケーラブルセット
+            or ベンチマークソースタブ.スケーラブル辞書
+            or ベンチマークソースタブ.スケーラブル永続化リスト
+            or ベンチマークソースタブ.スケーラブル永続化セット
+            or ベンチマークソースタブ.スケーラブルTsavoriteセット
+            or ベンチマークソースタブ.スケーラブル永続化辞書
+            or ベンチマークソースタブ.スケーラブルTsavorite辞書;
 
-    public static bool UsesTypedBenchmarkName(BenchmarkSourceTab sourceTab) =>
-        IsScalableSourceTab(sourceTab)
-            ||sourceTab is BenchmarkSourceTab.SeamlessPersisted
-                or BenchmarkSourceTab.SeamlessTsavorite
-                or BenchmarkSourceTab.SystemArray
-                or BenchmarkSourceTab.SystemIEnumerable
-                or BenchmarkSourceTab.SystemRange
-                or BenchmarkSourceTab.SystemList;
+    public static bool 型付きベンチマーク名を使うか(ベンチマークソースタブ ソースタブ) =>
+        スケーラブルソースタブか(ソースタブ)
+            ||ソースタブ is ベンチマークソースタブ.Seamless永続化
+                or ベンチマークソースタブ.SeamlessTsavorite
+                or ベンチマークソースタブ.System配列
+                or ベンチマークソースタブ.SystemIEnumerable
+                or ベンチマークソースタブ.System範囲
+                or ベンチマークソースタブ.Systemリスト;
 
-    public static bool UsesPreviousRightColumn(BenchmarkSourceTab sourceTab) =>
-        sourceTab is BenchmarkSourceTab.ScalablePersistedSet
-            or BenchmarkSourceTab.ScalableTsavoriteSet
-            or BenchmarkSourceTab.ScalablePersistedDictionary
-            or BenchmarkSourceTab.ScalableTsavoriteDictionary
-            or BenchmarkSourceTab.ScalablePersistedList;
+    public static bool 前回右列を使うか(ベンチマークソースタブ ソースタブ) =>
+        ソースタブ is ベンチマークソースタブ.スケーラブル永続化セット
+            or ベンチマークソースタブ.スケーラブルTsavoriteセット
+            or ベンチマークソースタブ.スケーラブル永続化辞書
+            or ベンチマークソースタブ.スケーラブルTsavorite辞書
+            or ベンチマークソースタブ.スケーラブル永続化リスト;
 
-    public static string CreateBenchmarkName(
-        BenchmarkSourceTabDefinition sourceTab,
-        string typeFullName,
-        string methodName,
-        int elementCount = 0){
-        if(!UsesTypedBenchmarkName(sourceTab.Tab)){
-            return methodName;
+    public static string ベンチマーク名を作成(
+        ベンチマークソースタブ定義 ソースタブ,
+        string 型完全名,
+        string メソッド名,
+        int 要素数 = 0) {
+        if(!型付きベンチマーク名を使うか(ソースタブ.タブ)) {
+            return メソッド名;
         }
 
-        var genericText = CreateGenericTypeText(typeFullName);
-        if(string.IsNullOrWhiteSpace(genericText)){
-            return methodName;
+        var ジェネリック表示 = ジェネリック型表示を作成(型完全名);
+        if(string.IsNullOrWhiteSpace(ジェネリック表示)) {
+            return メソッド名;
         }
 
-        return "<"+genericText+">."+methodName;
+        return "<"+ジェネリック表示+">."+メソッド名;
     }
 
-    public static string CreateBenchmarkTypeText(string typeFullName) =>
-        CreateGenericTypeText(typeFullName);
+    public static string ベンチマーク型表示を作成(string 型完全名) =>
+        ジェネリック型表示を作成(型完全名);
 
-    public static string CreateLegacyMethod1ComparisonTypeText(string typeFullName) {
-        var value=CreateBenchmarkTypeText(typeFullName);
-        if(!string.IsNullOrWhiteSpace(value)){
-            return value;
+    public static string 従来メソッド1比較型表示を作成(string 型完全名) {
+        var 表示 = ベンチマーク型表示を作成(型完全名);
+        if(!string.IsNullOrWhiteSpace(表示)) {
+            return 表示;
         }
 
-        var typeName=ShortTypeName(typeFullName);
-        if(typeName is "FLinq" or "Linq" or "ZLinq"){
+        var 型名 = 型短名(型完全名);
+        if(型名 is "FLinq" or "Linq" or "ZLinq") {
             return "int";
         }
         return string.Empty;
     }
 
-    public static string CreateBenchmarkName(
-        string genericText,
-        string methodName,
-        ScalableBenchmarkParameters parameters) =>
-        "<"+genericText+">."+methodName;
+    public static string ベンチマーク名を作成(
+        string ジェネリック表示,
+        string メソッド名,
+        スケーラブルベンチマークパラメーター パラメーター) =>
+        "<"+ジェネリック表示+">."+メソッド名;
 
-    public static string CreateBenchmarkName(string typeFullName,string methodName){
-        var genericText=CreateGenericTypeText(typeFullName);
-        return string.IsNullOrWhiteSpace(genericText)
-            ? methodName
-            : "<"+genericText+">."+methodName;
+    public static string ベンチマーク名を作成(string 型完全名,string メソッド名) {
+        var ジェネリック表示 = ジェネリック型表示を作成(型完全名);
+        return string.IsNullOrWhiteSpace(ジェネリック表示)
+            ? メソッド名
+            : "<"+ジェネリック表示+">."+メソッド名;
     }
 
-    public static string GetArgumentValue(IReadOnlyList<BenchmarkArgument> arguments,ScalableBenchmarkArgumentColumn column) =>
-        BenchmarkArgumentFormatting.GetValue(arguments,column.ToString());
+    public static string 引数値を取得(IReadOnlyList<ベンチマーク引数> 引数一覧,スケーラブルベンチマーク引数列 列) =>
+        ベンチマーク引数フォーマッター.値を取得(引数一覧,列.ToString());
 
-    public static string GetDisplayArgumentValue(
-        BenchmarkSourceTabDefinition sourceTab,
-        IReadOnlyList<BenchmarkArgument> arguments,
-        ScalableBenchmarkArgumentColumn column){
-        var value=GetArgumentValue(arguments,column);
-        if(!string.IsNullOrWhiteSpace(value)||!IsScalableSourceTab(sourceTab.Tab)){
-            return value;
+    public static string 表示引数値を取得(
+        ベンチマークソースタブ定義 ソースタブ,
+        IReadOnlyList<ベンチマーク引数> 引数一覧,
+        スケーラブルベンチマーク引数列 列) {
+        var 値 = 引数値を取得(引数一覧,列);
+        if(!string.IsNullOrWhiteSpace(値)||!スケーラブルソースタブか(ソースタブ.タブ)) {
+            return 値;
         }
 
-        if(!UsesTsavoriteStorageArguments(sourceTab.Tab)){
-            return value;
+        if(!Tsavoriteストレージ引数を使うか(ソースタブ.タブ)) {
+            return 値;
         }
 
-        var count=BenchmarkArgumentFormatting.GetInt(arguments,ScalableBenchmarkArgumentColumn.Count.ToString());
-        var parameters=CreateParameters(sourceTab,count);
-        return column switch{
-            ScalableBenchmarkArgumentColumn.Index => parameters.IndexSize.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ScalableBenchmarkArgumentColumn.Page => parameters.PageSize.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ScalableBenchmarkArgumentColumn.Segment => parameters.SegmentSize.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ScalableBenchmarkArgumentColumn.Memory => parameters.MemorySize.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ScalableBenchmarkArgumentColumn.Fraction => parameters.MutableFraction.ToString("0.###",System.Globalization.CultureInfo.InvariantCulture),
-            _ => value,
+        var Count = ベンチマーク引数フォーマッター.整数を取得(引数一覧,スケーラブルベンチマーク引数列.Count.ToString());
+        var パラメーター = パラメーターを作成(ソースタブ,Count);
+        return 列 switch {
+            スケーラブルベンチマーク引数列.Index => パラメーター.Indexサイズ.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            スケーラブルベンチマーク引数列.Page => パラメーター.Pageサイズ.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            スケーラブルベンチマーク引数列.Segment => パラメーター.Segmentサイズ.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            スケーラブルベンチマーク引数列.Memory => パラメーター.Memoryサイズ.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            スケーラブルベンチマーク引数列.Fraction => パラメーター.可変Fraction.ToString("0.###",System.Globalization.CultureInfo.InvariantCulture),
+            _ => 値,
         };
     }
 
-    private static bool UsesTsavoriteStorageArguments(BenchmarkSourceTab sourceTab) =>
-        sourceTab is BenchmarkSourceTab.ScalableTsavoriteSet
-            or BenchmarkSourceTab.ScalableTsavoriteDictionary
-            or BenchmarkSourceTab.ScalableSet
-            or BenchmarkSourceTab.ScalableDictionary;
+    private static bool Tsavoriteストレージ引数を使うか(ベンチマークソースタブ ソースタブ) =>
+        ソースタブ is ベンチマークソースタブ.スケーラブルTsavoriteセット
+            or ベンチマークソースタブ.スケーラブルTsavorite辞書
+            or ベンチマークソースタブ.スケーラブルセット
+            or ベンチマークソースタブ.スケーラブル辞書;
 
-    public static string CreateParameterSuffix(ScalableBenchmarkParameters parameters) =>
-        FormatFixed(parameters.IndexSize,6)
-        +"_"+FormatFixed(parameters.PageSize,7)
-        +"_"+FormatFixed(parameters.SegmentSize,7)
-        +"_"+FormatFixed(parameters.MemorySize,7)
-        +"_"+FormatFraction(parameters.MutableFraction);
+    public static string パラメーター接尾辞を作成(スケーラブルベンチマークパラメーター パラメーター) =>
+        固定幅で整形(パラメーター.Indexサイズ,6)
+        +"_"+固定幅で整形(パラメーター.Pageサイズ,7)
+        +"_"+固定幅で整形(パラメーター.Segmentサイズ,7)
+        +"_"+固定幅で整形(パラメーター.Memoryサイズ,7)
+        +"_"+Fractionを整形(パラメーター.可変Fraction);
 
-    public static string CreateGenericTypeText(string typeFullName){
-        var typeName = ShortTypeName(typeFullName);
-        if(typeName.StartsWith("Dictionary",StringComparison.Ordinal)){
-            return string.Join(",",SplitTypeTokens(NormalizeTypeSuffix(typeName["Dictionary".Length..])).Select(FormatTypeToken));
+    public static string ジェネリック型表示を作成(string 型完全名) {
+        var 型名 = 型短名(型完全名);
+        if(型名.StartsWith("Array",StringComparison.Ordinal)) {
+            return 型トークンを整形(型接尾辞を正規化(型名["Array".Length..]));
         }
-        if(typeName.StartsWith("List",StringComparison.Ordinal)){
-            return FormatTypeToken(NormalizeTypeSuffix(typeName["List".Length..]));
+        if(型名.StartsWith("IEnumerable",StringComparison.Ordinal)) {
+            return 型トークンを整形(型接尾辞を正規化(型名["IEnumerable".Length..]));
         }
-        if(typeName.StartsWith("Set",StringComparison.Ordinal)){
-            return FormatTypeToken(NormalizeTypeSuffix(typeName["Set".Length..]));
+        if(型名=="Range_start_count") {
+            return "int";
         }
-        if(typeName.StartsWith("HashSet",StringComparison.Ordinal)){
-            return FormatTypeToken(NormalizeTypeSuffix(typeName["HashSet".Length..]));
+        if(型名.StartsWith("Persisted",StringComparison.Ordinal)) {
+            return 型トークンを整形(型接尾辞を正規化(型名["Persisted".Length..]));
         }
-        if(typeName.StartsWith("BlittableHashSet",StringComparison.Ordinal)){
-            return FormatTypeToken(NormalizeTypeSuffix(typeName["BlittableHashSet".Length..]));
+        if(型名.StartsWith("Tsavorite",StringComparison.Ordinal)) {
+            return 型トークンを整形(型接尾辞を正規化(型名["Tsavorite".Length..]));
         }
-        if(typeName.StartsWith("FLinq",StringComparison.Ordinal)){
-            return FormatTypeToken(NormalizeTypeSuffix(typeName["FLinq".Length..]));
+        if(型名.StartsWith("Dictionary",StringComparison.Ordinal)) {
+            return string.Join(",",型トークンを分割(型接尾辞を正規化(型名["Dictionary".Length..])).Select(型トークンを整形));
         }
-        if(typeName.StartsWith("Linq",StringComparison.Ordinal)){
-            return FormatTypeToken(NormalizeTypeSuffix(typeName["Linq".Length..]));
+        if(型名.StartsWith("List",StringComparison.Ordinal)) {
+            return 型トークンを整形(型接尾辞を正規化(型名["List".Length..]));
         }
-        if(typeName.StartsWith("ZLinq",StringComparison.Ordinal)){
-            return FormatTypeToken(NormalizeTypeSuffix(typeName["ZLinq".Length..]));
+        if(型名.StartsWith("Set",StringComparison.Ordinal)) {
+            return 型トークンを整形(型接尾辞を正規化(型名["Set".Length..]));
+        }
+        if(型名.StartsWith("HashSet",StringComparison.Ordinal)) {
+            return 型トークンを整形(型接尾辞を正規化(型名["HashSet".Length..]));
+        }
+        if(型名.StartsWith("BlittableHashSet",StringComparison.Ordinal)) {
+            return 型トークンを整形(型接尾辞を正規化(型名["BlittableHashSet".Length..]));
+        }
+        if(型名.StartsWith("FLinq",StringComparison.Ordinal)) {
+            return 型トークンを整形(型接尾辞を正規化(型名["FLinq".Length..]));
+        }
+        if(型名.StartsWith("Linq",StringComparison.Ordinal)) {
+            return 型トークンを整形(型接尾辞を正規化(型名["Linq".Length..]));
+        }
+        if(型名.StartsWith("ZLinq",StringComparison.Ordinal)) {
+            return 型トークンを整形(型接尾辞を正規化(型名["ZLinq".Length..]));
         }
 
         return string.Empty;
     }
 
-    public static string ShortTypeName(string typeFullName){
-        if(string.IsNullOrWhiteSpace(typeFullName)){
+    public static string 型短名(string 型完全名) {
+        if(string.IsNullOrWhiteSpace(型完全名)) {
             return string.Empty;
         }
 
-        var index = typeFullName.LastIndexOf('.');
-        return index<0||index==typeFullName.Length-1
-            ? typeFullName
-            : typeFullName[(index+1)..];
+        var インデックス = 型完全名.LastIndexOf('.');
+        return インデックス<0||インデックス==型完全名.Length-1
+            ? 型完全名
+            : 型完全名[(インデックス+1)..];
     }
 
-    public static string FormatRuntimeType(Type type){
-        ArgumentNullException.ThrowIfNull(type);
-        if(type.IsArray){
-            return FormatRuntimeType(type.GetElementType()!)+"[]";
-        }
-        if(type.IsGenericType){
-            var name=type.Name.Split('`')[0];
-            return name+"<"+string.Join(",",type.GetGenericArguments().Select(FormatRuntimeType))+">";
-        }
-        return FormatTypeToken(type.Name);
-    }
-
-    private static ScalableBenchmarkParameters CreateParameters(BenchmarkSourceTabDefinition sourceTab,int elementCount) {
-        var memorySize = elementCount>0
-            ? GetScalableMemorySize(elementCount)
-            : DefaultMemorySize;
-        return sourceTab.Tab switch{
-            BenchmarkSourceTab.ScalableTsavoriteSet
-                or BenchmarkSourceTab.ScalableTsavoriteDictionary
-                or BenchmarkSourceTab.ScalableSet
-                or BenchmarkSourceTab.ScalableDictionary => new(
+    private static スケーラブルベンチマークパラメーター パラメーターを作成(ベンチマークソースタブ定義 ソースタブ,int 要素数) {
+        var Memoryサイズ = 要素数>0
+            ? スケーラブルMemoryサイズを取得(要素数)
+            : 既定Memoryサイズ;
+        return ソースタブ.タブ switch {
+            ベンチマークソースタブ.スケーラブルTsavoriteセット
+                or ベンチマークソースタブ.スケーラブルTsavorite辞書
+                or ベンチマークソースタブ.スケーラブルセット
+                or ベンチマークソースタブ.スケーラブル辞書=>new(
                     131072,
                     4096,
                     4096,
-                    memorySize,
+                    Memoryサイズ,
                     1.0),
             _ => new(
-                DefaultIndexSize,
-                DefaultPageSize,
-                DefaultSegmentSize,
-                memorySize,
-                DefaultMutableFraction),
+                既定Indexサイズ,
+                既定Pageサイズ,
+                既定Segmentサイズ,
+                Memoryサイズ,
+                既定可変Fraction),
         };
     }
 
-    private static long GetScalableMemorySize(int count) {
-        var required = Math.Max(8192L,count*128L);
-        var result = 1L;
-        while(result<required) {
-            result<<=1;
+    private static long スケーラブルMemoryサイズを取得(int Count) {
+        var 必要サイズ = Math.Max(8192L,Count*128L);
+        var 結果 = 1L;
+        while(結果<必要サイズ) {
+            結果<<=1;
         }
-        return result;
+        return 結果;
     }
 
-    private static string FormatFixed(long value,int width) =>
-        value.ToString("D"+width.ToString(System.Globalization.CultureInfo.InvariantCulture),System.Globalization.CultureInfo.InvariantCulture);
+    private static string 固定幅で整形(long 値,int 幅) =>
+        値.ToString("D"+幅.ToString(System.Globalization.CultureInfo.InvariantCulture),System.Globalization.CultureInfo.InvariantCulture);
 
-    private static string FormatFraction(double value) =>
-        ((int)Math.Round(value*10,MidpointRounding.AwayFromZero)).ToString("D2",System.Globalization.CultureInfo.InvariantCulture);
+    private static string Fractionを整形(double 値) =>
+        ((int)Math.Round(値*10,MidpointRounding.AwayFromZero)).ToString("D2",System.Globalization.CultureInfo.InvariantCulture);
 
-    private static IEnumerable<string> SplitTypeTokens(string text){
-        for(var index=0;index<text.Length;){
-            var token = KnownTypeTokens.FirstOrDefault(candidate => text[index..].StartsWith(candidate,StringComparison.Ordinal));
-            if(token is not null){
-                yield return token;
-                index+=token.Length;
+    private static IEnumerable<string> 型トークンを分割(string 文字列) {
+        for(var インデックス = 0;インデックス<文字列.Length;) {
+            var トークン = 既知型トークン一覧.FirstOrDefault(候補 => 文字列[インデックス..].StartsWith(候補,StringComparison.Ordinal));
+            if(トークン is not null) {
+                yield return トークン;
+                インデックス+=トークン.Length;
                 continue;
             }
 
-            var next=index+1;
-            yield return text[index..next];
-            index=next;
+            var 次インデックス = インデックス+1;
+            yield return 文字列[インデックス..次インデックス];
+            インデックス=次インデックス;
         }
     }
 
-    private static string NormalizeTypeSuffix(string text){
-        var value = text.TrimStart('_');
-        if(value.StartsWith("MemoryPack",StringComparison.Ordinal)){
-            value=value["MemoryPack".Length..].TrimStart('_');
+    private static string 型接尾辞を正規化(string 文字列) {
+        var 値 = 文字列.TrimStart('_');
+        if(値.StartsWith("MemoryPack",StringComparison.Ordinal)) {
+            値=値["MemoryPack".Length..].TrimStart('_');
         }
-        if(value.StartsWith("Blittable",StringComparison.Ordinal)){
-            value=value["Blittable".Length..].TrimStart('_');
+        if(値.StartsWith("Blittable",StringComparison.Ordinal)) {
+            値=値["Blittable".Length..].TrimStart('_');
         }
-        return value;
+        return 値;
     }
 
-    private static string FormatTypeToken(string token) =>
-        token switch{
+    private static string 型トークンを整形(string トークン) =>
+        トークン switch {
             "String" => "string",
             "Int" => "int",
             "Int32" => "int",
@@ -329,6 +329,6 @@ internal static class ScalableBenchmarkNameFormatter{
             "ManagedClass" => "ManagedClass",
             "ManagedStruct" => "ManagedStruct",
             "UnmanagedStruct" => "UnmanagedStruct",
-            _ => token,
+            _ => トークン,
         };
 }

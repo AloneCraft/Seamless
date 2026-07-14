@@ -14,7 +14,7 @@ Any は source.Any() を「件数 fast path か MoveNext 1回」で判定する 
   - Any(predicate) は predicate が true になった時点で true を返す Compute を生成する。
   - Any(indexPredicate) は index を増やしながら predicate(item, index) を評価する。
 */
-public class Any(int 番号,Enumerable source):Scalar(番号){
+public class Any(int 番号,Enumerable source):Scalar(番号) {
     internal static bool TryBuildWithPredicate(
         SemanticModel semanticModel,
         InvocationExpressionSyntax invocation,
@@ -26,45 +26,45 @@ public class Any(int 番号,Enumerable source):Scalar(番号){
         BuildEnumerableFragmentDelegate buildEnumerable,
         BuildFuncFragmentDelegate buildFunc,
         CreateFragmentDelegate createFragment) {
-        fragment = null!;
-        staticMethods = string.Empty;
+        fragment=null!;
+        staticMethods=string.Empty;
         if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method)
             return false;
         ExpressionSyntax sourceExpression;
         var argumentStartIndex = 0;
         if(method.ReducedFrom is not null
-            && invocation.Expression is MemberAccessExpressionSyntax { Expression: var receiverExpression }) {
-            sourceExpression = receiverExpression;
+            &&invocation.Expression is MemberAccessExpressionSyntax { Expression: var receiverExpression }) {
+            sourceExpression=receiverExpression;
         } else {
-            var definition = method.ReducedFrom ?? method;
-            if(definition.ContainingType.ToDisplayString() != "System.Linq.Enumerable"
-                || definition.Parameters.Length == 0
-                || invocation.ArgumentList.Arguments.Count == 0) {
+            var definition = method.ReducedFrom??method;
+            if(definition.ContainingType.ToDisplayString()!="System.Linq.Enumerable"
+                ||definition.Parameters.Length==0
+                ||invocation.ArgumentList.Arguments.Count==0) {
                 return false;
             }
-            sourceExpression = invocation.ArgumentList.Arguments[0].Expression;
-            argumentStartIndex = 1;
+            sourceExpression=invocation.ArgumentList.Arguments[0].Expression;
+            argumentStartIndex=1;
         }
-        if(!buildEnumerable(semanticModel, sourceExpression, containingType, ref uniqueNumber, out var sourceFragment, out var sourceStaticMethods, unsafeAccessorCollector))
+        if(!buildEnumerable(semanticModel,sourceExpression,containingType,ref uniqueNumber,out var sourceFragment,out var sourceStaticMethods,unsafeAccessorCollector))
             return false;
-        if(invocation.ArgumentList.Arguments.Count - argumentStartIndex == 1) {
-            if(!buildFunc(invocation.ArgumentList.Arguments[argumentStartIndex].Expression, method.Parameters[argumentStartIndex].Type, ref uniqueNumber, out var predicate, semanticModel, containingType))
+        if(invocation.ArgumentList.Arguments.Count-argumentStartIndex==1) {
+            if(!buildFunc(invocation.ArgumentList.Arguments[argumentStartIndex].Expression,method.Parameters[argumentStartIndex].Type,ref uniqueNumber,out var predicate,semanticModel,containingType))
                 return false;
-            var anyVariantName = predicate.ParameterTypeNames.Length > 1 ? "indexPredicate" : "predicate";
-            var anyPredicateFragment = createFragment("Any", anyVariantName, uniqueNumber++, [sourceFragment, predicate]);
+            var anyVariantName = predicate.ParameterTypeNames.Length>1 ? "indexPredicate" : "predicate";
+            var anyPredicateFragment = createFragment("Any",anyVariantName,uniqueNumber++,[sourceFragment,predicate]);
             if(anyPredicateFragment is null)
                 return false;
-            fragment = anyPredicateFragment;
-            staticMethods = JoinStaticMethods(sourceStaticMethods, fragment.StructMethod);
+            fragment=anyPredicateFragment;
+            staticMethods=JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
             return true;
-        } else if(invocation.ArgumentList.Arguments.Count != argumentStartIndex) {
+        } else if(invocation.ArgumentList.Arguments.Count!=argumentStartIndex) {
             return false;
         }
-        var anyFragment = createFragment("Any", string.Empty, uniqueNumber++, [sourceFragment]);
+        var anyFragment = createFragment("Any",string.Empty,uniqueNumber++,[sourceFragment]);
         if(anyFragment is null)
             return false;
-        fragment = anyFragment;
-        staticMethods = JoinStaticMethods(sourceStaticMethods, fragment.StructMethod);
+        fragment=anyFragment;
+        staticMethods=JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
         return true;
     }
     protected override Enumerable PrimarySource => source;
@@ -81,7 +81,7 @@ public class Any(int 番号,Enumerable source):Scalar(番号){
         : this.RenderDirectEnumerableCallInline(source,destVar,destType,"Any")
             ??this.RenderEnumeratorInline(destVar,destType);
     private string RenderEnumeratorInline(string destVar,string destType) {
-        var enumeratorName=$"__s{番号}";
+        var enumeratorName = $"__s{番号}";
         return $$"""
             {{destType}} {{destVar}};
             using(var {{enumeratorName}}={{source.GetEnumeratorExpression}}) {
@@ -130,7 +130,7 @@ Any_predicate は source.Any(predicate) を、最初に true になった要素�
 
 source が span を確実に返せる場合は foreach(span) を生成し、それ以外は MoveNext loop にする。
 */
-public class Any_predicate(int 番号, Enumerable source, FuncFragment predicate) : BufferedScalar(番号, "bool") {
+public class Any_predicate(int 番号,Enumerable source,FuncFragment predicate):BufferedScalar(番号,"bool") {
     private string PredicateFuncType => $"global::System.Func<{source.ElementType}, bool>";
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
@@ -146,11 +146,11 @@ public class Any_predicate(int 番号, Enumerable source, FuncFragment predicate
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
             ? RangePredicateOptimizer.RenderAny(range,predicate,番号,destVar,destType)
-                ?? (TryRenderDirectLambda(predicate) is { } rangeLambda
-                    ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Any",rangeLambda) ??this.RenderComputeInline(destVar,destType)
+                ??(TryRenderDirectLambda(predicate) is { } rangeLambda
+                    ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Any",rangeLambda)??this.RenderComputeInline(destVar,destType)
                     : this.RenderComputeInline(destVar,destType))
         : TryRenderDirectLambda(predicate) is { } lambda
-            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Any",lambda) ??this.RenderComputeInline(destVar,destType)
+            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Any",lambda)??this.RenderComputeInline(destVar,destType)
             : this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
@@ -180,7 +180,7 @@ public class Any_predicate(int 番号, Enumerable source, FuncFragment predicate
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-public class Any_indexPredicate(int 番号, Enumerable source, FuncFragment predicate) : BufferedScalar(番号, "bool") {
+public class Any_indexPredicate(int 番号,Enumerable source,FuncFragment predicate):BufferedScalar(番号,"bool") {
     private string PredicateFuncType => $"global::System.Func<{source.ElementType}, int, bool>";
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));

@@ -10,7 +10,7 @@ public class Enumerator {
         TestPath.Directory<Enumerator>();
 
     // Enumerator.MoveNext: コレクション 空 false
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void MoveNext_EmptyCollection() {
         using var store = Store.Create().Create<int,string>();
         using var dict = store.Create();
@@ -18,7 +18,7 @@ public class Enumerator {
         Assert.False(e.MoveNext());
     }
     // Enumerator.MoveNextの動作を検証する。
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void MoveNext_WithinChunk_TwoItems() {
         using var store = Store.Create().Create<int,string>();
         using var dict = store.Create();
@@ -29,7 +29,7 @@ public class Enumerator {
         Assert.Equal(2,count);
     }
     // Enumerator.MoveNextの動作を検証する。
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void MoveNext_MultiChunk_ThreeItems() {
         using var store = Store.Create().Create<int,string>();
         using var dict = store.Create();
@@ -40,7 +40,7 @@ public class Enumerator {
         foreach(var _ in dict) count++;
         Assert.Equal(3,count);
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void MoveNext_HashSet_DoesNotReturnRemovedOrDuplicateKeys() {
         using var store = Store.Create().Create<int>();
         using var set = store.Create();
@@ -51,7 +51,7 @@ public class Enumerator {
         for(var i = 0;i<32;i+=4)
             Assert.True(set.Add(i));
 
-        var expected = Enumerable.Range(0,32).Where(static i => (i&1)!=0 || (i&3)==0).ToHashSet();
+        var expected = Enumerable.Range(0,32).Where(static i => (i&1)!=0||(i&3)==0).ToHashSet();
         var actual = new global::System.Collections.Generic.HashSet<int>();
         foreach(var value in set)
             Assert.True(actual.Add(value),$"Duplicate key {value} was returned.");
@@ -61,7 +61,7 @@ public class Enumerator {
         Assert.All(expected,value => Assert.Contains(value,actual));
         Assert.True(!actual.Contains(2));
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void MoveNext_Dictionary_KeysAndValuesDoNotReturnRemovedOrDuplicateEntries() {
         using var store = Store.Create().Create<int,int>();
         using var dict = store.Create();
@@ -72,7 +72,7 @@ public class Enumerator {
         for(var i = 0;i<32;i+=4)
             dict.Add(i,i*100);
 
-        var expectedKeys = Enumerable.Range(0,32).Where(static i => (i&1)!=0 || (i&3)==0).ToHashSet();
+        var expectedKeys = Enumerable.Range(0,32).Where(static i => (i&1)!=0||(i&3)==0).ToHashSet();
         var actualKeys = new global::System.Collections.Generic.HashSet<int>();
         foreach(var key in dict.Keys)
             Assert.True(actualKeys.Add(key),$"Duplicate key {key} was returned.");
@@ -101,7 +101,7 @@ public class Enumerator {
         Assert.Equal("hello",kvp.Value);
     }
     // この分岐の動作を検証する。
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Current_IEnumerator_Object() {
         using var store = Store.Create().Create<int,string>();
         using var dict = store.Create();
@@ -112,7 +112,7 @@ public class Enumerator {
         Assert.NotNull(nonGeneric.Current);
     }
     // Enumerator.Resetの動作を検証する。
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Reset_ReenumeratesFromStart() {
         using var store = Store.Create().Create<int,string>();
         using var dict = store.Create();
@@ -126,7 +126,7 @@ public class Enumerator {
         Assert.Equal(2,count);
     }
     // Enumerator.Disposeの動作を検証する。
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Dispose_IsSafe() {
         using var store = Store.Create().Create<int,string>();
         using var dict = store.Create();
@@ -136,7 +136,7 @@ public class Enumerator {
         e.Dispose();
     }
     // HashSet における KeyEnumerable struct GetEnumerator() パス
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void MoveNext_HashSet_MultiChunk_ThreeItems() {
         var folder = CreateDiskFolder();
         try {
@@ -147,13 +147,13 @@ public class Enumerator {
 
             const int Count = 625;
             var added = 0;
-            for(var i = 0; i<Count; i++) {
+            for(var i = 0;i<Count;i++) {
                 if(set.Add(i))
                     added++;
             }
             Assert.Equal(Count,added);
 
-            for(var i = 0; i<Count; i++)
+            for(var i = 0;i<Count;i++)
                 Assert.True(set.Contains(i));
 
             var enumerated = new global::System.Collections.Generic.HashSet<int>();
@@ -168,22 +168,19 @@ public class Enumerator {
             Assert.Equal(Count,enumerated.Count);
 
             store.Store.Log.ShiftReadOnlyAddress(store.Store.Log.TailAddress,wait: true);
-        }
-        finally {
+        } finally {
             try {
                 Directory.Delete(folder,true);
-            }
-            catch {
+            } catch {
             }
             try {
                 Directory.Delete(folder+"_obj",true);
-            }
-            catch {
+            } catch {
             }
         }
     }
 
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void HashSet_AfterFlushAndEvict_Unmanaged_PublicEnumerationAndCopyToEnumerateAll() {
         var folder = CreateDiskFolder();
         try {
@@ -216,22 +213,19 @@ public class Enumerator {
             Assert.All(expected,value => Assert.Contains(value,toArraySet));
 
             store.Store.Log.FlushAndEvict(wait: true);
-        }
-        finally {
+        } finally {
             try {
                 Directory.Delete(folder,true);
-            }
-            catch {
+            } catch {
             }
             try {
                 Directory.Delete(folder+"_obj",true);
-            }
-            catch {
+            } catch {
             }
         }
     }
 
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void HashSet_AfterFlushAndEvict_DoesNotReturnRemovedOrDuplicateKeys() {
         var folder = CreateDiskFolder();
         try {
@@ -247,7 +241,7 @@ public class Enumerator {
                 Assert.True(set.Add(i));
             store.Store.Log.FlushAndEvict(wait: true);
 
-            var expected = Enumerable.Range(0,128).Where(static i => (i&1)!=0 || (i&3)==0).ToHashSet();
+            var expected = Enumerable.Range(0,128).Where(static i => (i&1)!=0||(i&3)==0).ToHashSet();
             var actual = new global::System.Collections.Generic.HashSet<int>();
             foreach(var value in set)
                 Assert.True(actual.Add(value),$"Duplicate key {value} was returned.");
@@ -256,22 +250,19 @@ public class Enumerator {
             Assert.Equal(expected.Count,actual.Count);
             Assert.All(expected,value => Assert.Contains(value,actual));
             Assert.True(!actual.Contains(2));
-        }
-        finally {
+        } finally {
             try {
                 Directory.Delete(folder,true);
-            }
-            catch {
+            } catch {
             }
             try {
                 Directory.Delete(folder+"_obj",true);
-            }
-            catch {
+            } catch {
             }
         }
     }
 
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void HashSet_AfterFlushAndEvict_Managed_PublicEnumerationAndCopyToEnumerateAll() {
         var folder = CreateDiskFolder();
         try {
@@ -282,7 +273,7 @@ public class Enumerator {
             var expected = Enumerable.Range(0,2048).Select(i => "s"+i).ToArray();
             foreach(var value in expected)
                 set.Add(value);
-            store.Store.Log.FlushAndEvict(wait:true);
+            store.Store.Log.FlushAndEvict(wait: true);
 
             var enumerated = new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
             foreach(var value in set)
@@ -300,26 +291,23 @@ public class Enumerator {
             var toArraySet = toArray.ToHashSet(StringComparer.Ordinal);
             Assert.Equal(expected.Length,toArraySet.Count);
             Assert.All(expected,value => Assert.Contains(value,toArraySet));
-            store.Store.Log.FlushAndEvict(wait:true);
-        }
-        finally {
+            store.Store.Log.FlushAndEvict(wait: true);
+        } finally {
             try {
                 Directory.Delete(folder,true);
-            }
-            catch {
+            } catch {
             }
             try {
                 Directory.Delete(folder+"_obj",true);
-            }
-            catch {
+            } catch {
             }
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void HashSetN() {
         var folder = CreateDiskFolder();
         try {
-            for(var Count = 2; Count<=64; Count++) {
+            for(var Count = 2;Count<=64;Count++) {
                 using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
                 using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
                 using var store = Store.Create(MutableFraction: 0).Create<string>(logDevice,objDevice);
@@ -348,17 +336,14 @@ public class Enumerator {
                 Assert.All(expected,value => Assert.Contains(value,toArraySet));
                 store.Store.Log.FlushAndEvict(wait: true);
             }
-        }
-        finally {
+        } finally {
             try {
                 Directory.Delete(folder,true);
-            }
-            catch {
+            } catch {
             }
             try {
                 Directory.Delete(folder+"_obj",true);
-            }
-            catch {
+            } catch {
             }
         }
     }

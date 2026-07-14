@@ -1,6 +1,3 @@
-﻿using Microsoft.Maui;
-using UI;
-
 namespace UI.Platforms.Windows;
 
 public partial class App:MauiWinUIApplication {

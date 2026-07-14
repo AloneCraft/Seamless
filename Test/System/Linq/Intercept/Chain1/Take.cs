@@ -3,41 +3,41 @@ namespace Test.System.Linq.Intercept.Chain1;
 public sealed class Take(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void count() {
-        var expected=Source().Take(3).ToList();
-        this.MeasureOptimized(nameof(countOptimized),()=>countOptimized(expected));
-        this.MeasureOptimized(nameof(countNoOptimized),()=>countNoOptimized(expected));
+        var expected = Source().Take(3).ToList();
+        this.MeasureOptimized(nameof(countOptimized),() => countOptimized(expected));
+        this.MeasureOptimized(nameof(countNoOptimized),() => countNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void countOptimized(dynamic expected) {
-        var actual=new Consumer<int>();
+        var actual = new Consumer<int>();
         Source().Take(3).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void countNoOptimized(dynamic expected) {
-        var actual=new Consumer<int>();
+        var actual = new Consumer<int>();
         Source().Take(3).Consume(actual);
         AssertSequenceEqual(expected,actual.Items);
     }
 
     [Fact, Trait("Category","Unit")]
     public void range() {
-        var expected=Source().Take(new global::System.Range(1,3)).ToList();
-        this.MeasureOptimized(nameof(rangeOptimized),()=>rangeOptimized(expected));
-        this.MeasureOptimized(nameof(rangeNoOptimized),()=>rangeNoOptimized(expected));
+        var expected = Source().Take(new global::System.Range(1,3)).ToList();
+        this.MeasureOptimized(nameof(rangeOptimized),() => rangeOptimized(expected));
+        this.MeasureOptimized(nameof(rangeNoOptimized),() => rangeNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void rangeOptimized(dynamic expected) {
-        var actual=Source().Take(new global::System.Range(1,3)).ToList();
+        var actual = Source().Take(new global::System.Range(1,3)).ToList();
         AssertSequenceEqual(expected,actual);
     }
 
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void rangeNoOptimized(dynamic expected) {
-        var actual=Source().Take(new global::System.Range(1,3)).ToList();
+        var actual = Source().Take(new global::System.Range(1,3)).ToList();
         AssertSequenceEqual(expected,actual);
     }
 

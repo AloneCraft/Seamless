@@ -7,7 +7,7 @@ namespace Tsavorite.Collections;
 
 
 public class TestEqualityEmpty {
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void opEqual() {
         var a = EqualityEmpty.Default;
         var b = default(EqualityEmpty);
@@ -15,7 +15,7 @@ public class TestEqualityEmpty {
         Assert.True(a.Equals((object?)b));
         Assert.True(a==b);
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void opInequal() {
         var a = EqualityEmpty.Default;
         var b = default(EqualityEmpty);

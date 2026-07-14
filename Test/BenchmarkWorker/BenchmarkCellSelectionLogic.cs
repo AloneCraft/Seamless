@@ -1,22 +1,23 @@
 namespace Test.BenchmarkWorker;
 
-public sealed class BenchmarkCellSelectionLogic{
-    [Fact,Trait("Category","Unit")]public void WholeRowUiSelectionRequiresAllCaseCells(){
-        Assert.True(global::UI.BenchmarkRowUiSelectionLogic.IsWholeRowSelected([
-            new global::UI.BenchmarkRowUiSelectionCell(true,true),
-            new global::UI.BenchmarkRowUiSelectionCell(true,true),
-            new global::UI.BenchmarkRowUiSelectionCell(false,false),
+public sealed class ベンチマークセル選択ロジック {
+    [Fact, Trait("Category","Unit")]
+    public void 仕様確認01() {
+        Assert.True(global::UI.ベンチマーク行UI選択ロジック.行全体を選択中か([
+            new global::UI.ベンチマーク行UI選択セル(true,true),
+            new global::UI.ベンチマーク行UI選択セル(true,true),
+            new global::UI.ベンチマーク行UI選択セル(false,false),
         ]));
 
-        Assert.False(global::UI.BenchmarkRowUiSelectionLogic.IsWholeRowSelected([
-            new global::UI.BenchmarkRowUiSelectionCell(true,true),
-            new global::UI.BenchmarkRowUiSelectionCell(true,false),
-            new global::UI.BenchmarkRowUiSelectionCell(false,false),
+        Assert.False(global::UI.ベンチマーク行UI選択ロジック.行全体を選択中か([
+            new global::UI.ベンチマーク行UI選択セル(true,true),
+            new global::UI.ベンチマーク行UI選択セル(true,false),
+            new global::UI.ベンチマーク行UI選択セル(false,false),
         ]));
 
-        Assert.False(global::UI.BenchmarkRowUiSelectionLogic.IsWholeRowSelected([
-            new global::UI.BenchmarkRowUiSelectionCell(false,false),
-            new global::UI.BenchmarkRowUiSelectionCell(false,true),
+        Assert.False(global::UI.ベンチマーク行UI選択ロジック.行全体を選択中か([
+            new global::UI.ベンチマーク行UI選択セル(false,false),
+            new global::UI.ベンチマーク行UI選択セル(false,true),
         ]));
     }
 }

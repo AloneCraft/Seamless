@@ -22,9 +22,9 @@ Enumerable は遅延評価されるシーケンス Fragment の基底。
   - 通常 source は while(TryGetNext) に落ちる。
   - Distinct/Set 系のように事前 HashSet 構築が必要な Fragment は direct consume を override する。
 */
-public abstract class Enumerable(int 番号):Fragment(番号),ConsumeDirectExecutionFragment{
+public abstract class Enumerable(int 番号):Fragment(番号), ConsumeDirectExecutionFragment {
     // この enumerable 断片が流す要素型。
-    public abstract string ElementType{ get; }
+    public abstract string ElementType { get; }
     // 生成コード内で IEnumerable<T> として再評価できる元ソース式。
     // Array/List など既に専用高速 root を持つものは null のままにし、
     // 型情報を失った IEnumerable<T> root だけ terminal 側の軽量 fast path に使う。
@@ -56,10 +56,10 @@ public abstract class Enumerable(int 番号):Fragment(番号),ConsumeDirectExecu
     // TraversalSupport.AppendTraversalLoop が span 可能ソース（ArrayRoot/ListRoot）では TryGetSpan→for(span)、
     // それ以外は while(TryGetNext) を生成するため span fast path は維持される。
     // span 直走査やキー集合の事前構築など演算子固有の最適化が必要な断片は本メソッドを override する（例: Distinct/Set 系）。
-    public virtual string GetConsumeExecutionStatement(string consumerName){
-        var builder=new StringBuilder();
-        var enumeratorName=$"__ce{番号}";
-        var valueName=$"__cv{番号}";
+    public virtual string GetConsumeExecutionStatement(string consumerName) {
+        var builder = new StringBuilder();
+        var enumeratorName = $"__ce{番号}";
+        var valueName = $"__cv{番号}";
         builder.AppendLine($"using var {enumeratorName}={this.GetEnumeratorExpression};");
         TraversalSupport.AppendTraversalLoop(
             builder,

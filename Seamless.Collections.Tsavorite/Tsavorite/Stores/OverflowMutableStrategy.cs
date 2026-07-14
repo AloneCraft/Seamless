@@ -59,8 +59,7 @@ internal readonly struct StorageOverflowMutableStrategy {
             long fractionLimit;
             if(this.limitFraction>=1.0) {
                 fractionLimit=this.storageCapacity;
-            }
-            else {
+            } else {
                 fractionLimit=(long)(this.storageCapacity*this.limitFraction);
             }
             var reserveLimit = this.storageCapacity-this.reserveBytes;

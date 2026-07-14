@@ -1,314 +1,315 @@
-﻿using UI;
+using UI;
 
 namespace Test.BenchmarkWorker;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
-public sealed class CpuPresetCatalog{
+public sealed class CPUプリセットカタログ {
     [Fact]
-    public void CpuCoreInfo_DisplayText_UsesLogicalCpuAndGroup(){
-        var performancePrimary = new CpuCoreInfo(0,CpuCoreKind.Performance,0,0,1,true);
-        var performanceSibling = new CpuCoreInfo(1,CpuCoreKind.Performance,0,0,2,true);
-        var efficiency = new CpuCoreInfo(16,CpuCoreKind.Efficiency,8,0,0,true);
-        var unknown = new CpuCoreInfo(30,CpuCoreKind.Unknown,15,15,0,false);
+    public void 仕様確認01() {
+        var 高性能主スレッド = new CPUコア情報(0,CPUコア種別.高性能,0,0,1,true);
+        var 高性能兄弟スレッド = new CPUコア情報(1,CPUコア種別.高性能,0,0,2,true);
+        var 高効率 = new CPUコア情報(16,CPUコア種別.高効率,8,0,0,true);
+        var 不明 = new CPUコア情報(30,CPUコア種別.不明,15,15,0,false);
 
-        Assert.Equal("0(P0)",performancePrimary.DisplayText);
-        Assert.Equal("1(P0)",performanceSibling.DisplayText);
-        Assert.Equal("16(E0)",efficiency.DisplayText);
-        Assert.Equal("30(Core 15)",unknown.DisplayText);
+        Assert.Equal("0(Pコア0)",高性能主スレッド.表示文字列);
+        Assert.Equal("1(Pコア0)",高性能兄弟スレッド.表示文字列);
+        Assert.Equal("16(Eコア0)",高効率.表示文字列);
+        Assert.Equal("30(不明なコア15)",不明.表示文字列);
     }
 
     [Fact]
-    public void Build_CreatesExpectedPresets_ForHybridTopology(){
-        var cpuCores = CreateHybridCpuSet();
+    public void 仕様確認02() {
+        var CPUコア一覧 = ハイブリッドCPU集合を作成();
 
-        var presets = global::UI.CpuPresetCatalog.Build(cpuCores)
-            .ToDictionary(static preset => preset.Key,static preset => preset.LogicalProcessorIndexes.ToArray(),StringComparer.Ordinal);
+        var プリセット一覧 = global::UI.CPUプリセットカタログ.構築(CPUコア一覧)
+            .ToDictionary(static プリセット => プリセット.キー,static プリセット => プリセット.論理プロセッサインデックス一覧.ToArray(),StringComparer.Ordinal);
 
-        Assert.Equal(Enumerable.Range(0,28).ToArray(),presets["ALL"]);
-        Assert.Empty(presets["CLEAR"]);
-        Assert.Equal([0,2,4,6,8,10,12,14],presets["P1T"]);
-        Assert.Equal(Enumerable.Range(0,16).ToArray(),presets["P2T"]);
-        Assert.Equal([16,20,24],presets["E1T"]);
-        Assert.Equal([16,17,20,21,24,25],presets["E2T"]);
-        Assert.Equal([16,17,18,20,21,22,24,25,26],presets["E3T"]);
-        Assert.Equal(Enumerable.Range(16,12).ToArray(),presets["E4T"]);
+        Assert.Equal(Enumerable.Range(0,28).ToArray(),プリセット一覧["ALL"]);
+        Assert.Empty(プリセット一覧["CLEAR"]);
+        Assert.Equal(["すべて","クリア"],global::UI.CPUプリセットカタログ.構築(CPUコア一覧).Take(2).Select(static プリセット=>プリセット.ラベル).ToArray());
+        Assert.Equal([0,2,4,6,8,10,12,14],プリセット一覧["P1T"]);
+        Assert.Equal(Enumerable.Range(0,16).ToArray(),プリセット一覧["P2T"]);
+        Assert.Equal([16,20,24],プリセット一覧["E1T"]);
+        Assert.Equal([16,17,20,21,24,25],プリセット一覧["E2T"]);
+        Assert.Equal([16,17,18,20,21,22,24,25,26],プリセット一覧["E3T"]);
+        Assert.Equal(Enumerable.Range(16,12).ToArray(),プリセット一覧["E4T"]);
     }
 
     [Fact]
-    public void Build_HidesUnavailableEfficiencyThreadPresets(){
-        CpuCoreInfo[] cpuCores = [
-            new CpuCoreInfo(0,CpuCoreKind.Efficiency,0,0,0,true),
-            new CpuCoreInfo(1,CpuCoreKind.Efficiency,0,0,0,true),
-            new CpuCoreInfo(2,CpuCoreKind.Efficiency,1,1,0,true),
-            new CpuCoreInfo(3,CpuCoreKind.Efficiency,1,1,0,true),
+    public void 仕様確認03() {
+        CPUコア情報[] CPUコア一覧 = [
+            new(0,CPUコア種別.高効率,0,0,0,true),
+            new(1,CPUコア種別.高効率,0,0,0,true),
+            new(2,CPUコア種別.高効率,1,1,0,true),
+            new(3,CPUコア種別.高効率,1,1,0,true),
         ];
 
-        var presetKeys = global::UI.CpuPresetCatalog.Build(cpuCores)
-            .Select(static preset => preset.Key)
+        var プリセットキー一覧 = global::UI.CPUプリセットカタログ.構築(CPUコア一覧)
+            .Select(static プリセット => プリセット.キー)
             .ToArray();
 
-        Assert.Equal(["ALL","CLEAR","E1T","E2T"],presetKeys);
+        Assert.Equal(["ALL","CLEAR","E1T","E2T"],プリセットキー一覧);
     }
 
     [Fact]
-    public void Build_OnlyExposesAvailableKinds(){
-        CpuCoreInfo[] performanceOnly = [
-            new CpuCoreInfo(0,CpuCoreKind.Performance,0,0,0,true),
-            new CpuCoreInfo(1,CpuCoreKind.Performance,0,0,0,true),
-            new CpuCoreInfo(2,CpuCoreKind.Performance,1,1,0,true),
-            new CpuCoreInfo(3,CpuCoreKind.Performance,1,1,0,true),
+    public void 仕様確認04() {
+        CPUコア情報[] 高性能のみ = [
+            new(0,CPUコア種別.高性能,0,0,0,true),
+            new(1,CPUコア種別.高性能,0,0,0,true),
+            new(2,CPUコア種別.高性能,1,1,0,true),
+            new(3,CPUコア種別.高性能,1,1,0,true),
         ];
-        CpuCoreInfo[] unknownOnly = [
-            new CpuCoreInfo(0,CpuCoreKind.Unknown,0,0,0,false),
-            new CpuCoreInfo(1,CpuCoreKind.Unknown,1,1,0,false),
+        CPUコア情報[] 不明のみ = [
+            new(0,CPUコア種別.不明,0,0,0,false),
+            new(1,CPUコア種別.不明,1,1,0,false),
         ];
 
-        Assert.Equal(["ALL","CLEAR","P1T","P2T"],global::UI.CpuPresetCatalog.Build(performanceOnly).Select(static preset => preset.Key).ToArray());
-        Assert.Equal(["ALL","CLEAR"],global::UI.CpuPresetCatalog.Build(unknownOnly).Select(static preset => preset.Key).ToArray());
+        Assert.Equal(["ALL","CLEAR","P1T","P2T"],global::UI.CPUプリセットカタログ.構築(高性能のみ).Select(static プリセット => プリセット.キー).ToArray());
+        Assert.Equal(["ALL","CLEAR"],global::UI.CPUプリセットカタログ.構築(不明のみ).Select(static プリセット => プリセット.キー).ToArray());
     }
 
     [Fact]
-    public void CpuSelectionTable_BuildsCompactSections_ForHybridAndUnknownTopology(){
-        var cpuCores = CreateHybridCpuSet()
+    public void 仕様確認05() {
+        var CPUコア一覧 = ハイブリッドCPU集合を作成()
             .Concat([
-                new CpuCoreInfo(28,CpuCoreKind.Unknown,11,0,0,true),
-                new CpuCoreInfo(29,CpuCoreKind.Unknown,11,0,0,true),
+                new CPUコア情報(28,CPUコア種別.不明,11,0,0,true),
+                new CPUコア情報(29,CPUコア種別.不明,11,0,0,true),
             ])
             .ToArray();
 
-        var sections = CpuSelectionTableLogic.BuildSections(cpuCores);
+        var 区画一覧 = CPU選択表ロジック.区画一覧を作成(CPUコア一覧);
 
-        Assert.Equal(["P core","E core","Unknown core"],sections.Select(static section => section.Title).ToArray());
-        Assert.Equal(8,sections[0].Rows.Count);
-        Assert.Equal(2,sections[0].ColumnCount);
-        Assert.Equal("0-1",sections[0].Rows[0].Label);
-        Assert.Equal([0,1],sections[0].Rows[0].LogicalProcessorIndexes);
-        Assert.Equal(3,sections[1].Rows.Count);
-        Assert.Equal(4,sections[1].ColumnCount);
-        Assert.Equal("16-19",sections[1].Rows[0].Label);
-        Assert.Equal("28-29",sections[2].Rows[0].Label);
+        Assert.Equal(["Pコア","Eコア","不明なコア"],区画一覧.Select(static 区画 => 区画.タイトル).ToArray());
+        Assert.Equal(8,区画一覧[0].行一覧.Count);
+        Assert.Equal(2,区画一覧[0].列数);
+        Assert.Equal("0-1",区画一覧[0].行一覧[0].ラベル);
+        Assert.Equal([0,1],区画一覧[0].行一覧[0].論理プロセッサインデックス一覧);
+        Assert.Equal(3,区画一覧[1].行一覧.Count);
+        Assert.Equal(4,区画一覧[1].列数);
+        Assert.Equal("16-19",区画一覧[1].行一覧[0].ラベル);
+        Assert.Equal("28-29",区画一覧[2].行一覧[0].ラベル);
     }
 
     [Fact]
-    public void CpuSelectionTable_BulkSelection_KeepsAtLeastOneCpuSelected(){
-        var cpuCores = CreateHybridCpuSet().ToArray();
-        cpuCores[0].IsSelected=true;
-        cpuCores[5].IsSelected=true;
+    public void 仕様確認06() {
+        var CPUコア一覧 = ハイブリッドCPU集合を作成().ToArray();
+        CPUコア一覧[0].選択中か=true;
+        CPUコア一覧[5].選択中か=true;
 
-        CpuSelectionTableLogic.ApplyBulkSelection(cpuCores,[0,5],false);
+        CPU選択表ロジック.一括選択を適用(CPUコア一覧,[0,5],false);
 
-        Assert.Single(cpuCores,static cpu => cpu.IsSelected);
-        Assert.True(cpuCores[0].IsSelected);
+        Assert.Single(CPUコア一覧,static CPU => CPU.選択中か);
+        Assert.True(CPUコア一覧[0].選択中か);
 
-        CpuSelectionTableLogic.ApplyBulkSelection(cpuCores,[16,17,18,19],true);
+        CPU選択表ロジック.一括選択を適用(CPUコア一覧,[16,17,18,19],true);
 
-        Assert.True(cpuCores[0].IsSelected);
-        Assert.True(cpuCores[16].IsSelected);
-        Assert.True(cpuCores[17].IsSelected);
-        Assert.True(cpuCores[18].IsSelected);
-        Assert.True(cpuCores[19].IsSelected);
+        Assert.True(CPUコア一覧[0].選択中か);
+        Assert.True(CPUコア一覧[16].選択中か);
+        Assert.True(CPUコア一覧[17].選択中か);
+        Assert.True(CPUコア一覧[18].選択中か);
+        Assert.True(CPUコア一覧[19].選択中か);
     }
 
     [Fact]
-    public void UiSortValue_AlwaysPlacesMissingValuesLast(){
-        var values = new[]{
-            ("missing",UiSortValue.Missing),
-            ("two",UiSortValue.FromNumber(2)),
-            ("one",UiSortValue.FromNumber(1)),
+    public void 仕様確認07() {
+        var 値一覧 = new[]{
+            ("missing",UIソート値.欠測),
+            ("two",UIソート値.数値から作成(2)),
+            ("one",UIソート値.数値から作成(1)),
         };
 
-        var ascending = values
-            .OrderBy(static item => item.Item2,Comparer<UiSortValue>.Create((left,right) => UiSortValue.Compare(left,right,false)))
-            .Select(static item => item.Item1)
+        var 昇順 = 値一覧
+            .OrderBy(static 項目 => 項目.Item2,Comparer<UIソート値>.Create((左,右) => UIソート値.比較(左,右,false)))
+            .Select(static 項目 => 項目.Item1)
             .ToArray();
-        var descending = values
-            .OrderBy(static item => item.Item2,Comparer<UiSortValue>.Create((left,right) => UiSortValue.Compare(left,right,true)))
-            .Select(static item => item.Item1)
+        var 降順 = 値一覧
+            .OrderBy(static 項目 => 項目.Item2,Comparer<UIソート値>.Create((左,右) => UIソート値.比較(左,右,true)))
+            .Select(static 項目 => 項目.Item1)
             .ToArray();
 
-        Assert.Equal(["one","two","missing"],ascending);
-        Assert.Equal(["two","one","missing"],descending);
+        Assert.Equal(["one","two","missing"],昇順);
+        Assert.Equal(["two","one","missing"],降順);
     }
 
     [Fact]
-    public void BenchmarkProjectLiveStateLogic_UsesLiveStateOnlyForRunningAndCompletedVisuals(){
-        Assert.True(BenchmarkProjectLiveStateLogic.IsPending(BenchmarkProjectLiveState.Idle,false));
-        Assert.False(BenchmarkProjectLiveStateLogic.IsPending(BenchmarkProjectLiveState.Idle,true));
-        Assert.True(BenchmarkProjectLiveStateLogic.IsRunning(BenchmarkProjectLiveState.Running));
-        Assert.False(BenchmarkProjectLiveStateLogic.IsRunning(BenchmarkProjectLiveState.Completed));
-        Assert.True(BenchmarkProjectLiveStateLogic.IsCompleted(BenchmarkProjectLiveState.Completed));
-        Assert.False(BenchmarkProjectLiveStateLogic.IsCompleted(BenchmarkProjectLiveState.Idle));
+    public void 仕様確認08() {
+        Assert.True(ベンチマークプロジェクト実行状態ロジック.待機中か(ベンチマークプロジェクト実行状態.待機中,false));
+        Assert.False(ベンチマークプロジェクト実行状態ロジック.待機中か(ベンチマークプロジェクト実行状態.待機中,true));
+        Assert.True(ベンチマークプロジェクト実行状態ロジック.実行中か(ベンチマークプロジェクト実行状態.実行中));
+        Assert.False(ベンチマークプロジェクト実行状態ロジック.実行中か(ベンチマークプロジェクト実行状態.完了));
+        Assert.True(ベンチマークプロジェクト実行状態ロジック.完了か(ベンチマークプロジェクト実行状態.完了));
+        Assert.False(ベンチマークプロジェクト実行状態ロジック.完了か(ベンチマークプロジェクト実行状態.待機中));
     }
 
     [Fact]
-    public void BenchmarkMeasurementHighlightLogic_RetainsFreshWhenSameElementIsRunning(){
-        var next = BenchmarkMeasurementHighlightLogic.AdvanceForRunningElement(
-            BenchmarkMeasurementHighlightState.Fresh,
+    public void 仕様確認09() {
+        var 次 = ベンチマーク測定強調ロジック.実行要素数へ進める(
+            ベンチマーク測定強調状態.新規,
             4,
             4);
 
-        Assert.Equal(BenchmarkMeasurementHighlightState.Fresh,next);
+        Assert.Equal(ベンチマーク測定強調状態.新規,次);
     }
 
     [Fact]
-    public void BenchmarkMeasurementHighlightLogic_DemotesFreshWhenNextElementStarts(){
-        var next = BenchmarkMeasurementHighlightLogic.AdvanceForRunningElement(
-            BenchmarkMeasurementHighlightState.Fresh,
+    public void 仕様確認10() {
+        var 次 = ベンチマーク測定強調ロジック.実行要素数へ進める(
+            ベンチマーク測定強調状態.新規,
             4,
             8);
 
-        Assert.Equal(BenchmarkMeasurementHighlightState.RetainedDuringRun,next);
+        Assert.Equal(ベンチマーク測定強調状態.実行中保持,次);
     }
 
     [Fact]
-    public void BenchmarkMeasurementHighlightLogic_ClearsHighlightAfterRun(){
-        var next = BenchmarkMeasurementHighlightLogic.ClearAfterRun(BenchmarkMeasurementHighlightState.RetainedDuringRun);
+    public void 仕様確認11() {
+        var 次 = ベンチマーク測定強調ロジック.実行後にクリア();
 
-        Assert.Equal(BenchmarkMeasurementHighlightState.None,next);
+        Assert.Equal(ベンチマーク測定強調状態.なし,次);
     }
 
     [Fact]
-    public void ComparisonFormatter_BuildsActiveSourcePair_WithLeftRightShares(){
-        var rows = new[]{
-            CreateReportRow("System.Array.FLinq","Select","Completed",5,10),
-            CreateReportRow("System.Array.ZLinq","Select","Completed",4,0),
+    public void 仕様確認12() {
+        var 行一覧 = new[]{
+            報告行を作成("System.Array.FLinq","Select","Completed",5,10),
+            報告行を作成("System.Array.ZLinq","Select","Completed",4,0),
         };
 
-        var comparison = Assert.Single(BenchmarkComparisonFormatter.BuildComparisonRows(rows));
+        var 比較 = Assert.Single(ベンチマーク比較フォーマッター.比較行を構築(行一覧));
 
-        Assert.Equal("0.56:0.44",comparison.左右シェア.時間シェア.表示文字列);
-        Assert.Equal("1.00:0.00",comparison.左右シェア.メモリシェア.表示文字列);
-        Assert.Equal(BenchmarkSourceTab.SystemArray,comparison.SourceTab.Tab);
+        Assert.Equal("0.56:0.44",比較.左右シェア.時間シェア.表示文字列);
+        Assert.Equal("1.00:0.00",比較.左右シェア.メモリシェア.表示文字列);
+        Assert.Equal(ベンチマークソースタブ.System配列,比較.ソースタブ.タブ);
     }
 
     [Fact]
-    public void ComparisonFormatter_BuildsWideNumericRows(){
-        var rows = BenchmarkComparisonFormatter.BuildComparisonRows([
-            CreateReportRow("System.Array.FLinq","Select","Completed",5,10),
-            CreateReportRow("System.Array.ZLinq","Select","Completed",4,0),
+    public void 仕様確認13() {
+        var 行一覧 = ベンチマーク比較フォーマッター.比較行を構築([
+            報告行を作成("System.Array.FLinq","Select","Completed",5,10),
+            報告行を作成("System.Array.ZLinq","Select","Completed",4,0),
         ]);
 
-        var read = Assert.Single(rows);
+        var 読込項目 = Assert.Single(行一覧);
 
-        Assert.Equal(5,read.Left.TimeNanoseconds);
-        Assert.Equal(0,read.Right.AllocatedBytes);
-        Assert.Equal("0.56:0.44",read.左右シェア.時間シェア.表示文字列);
+        Assert.Equal(5,読込項目.左.時間ナノ秒);
+        Assert.Equal(0,読込項目.右.割り当てバイト数);
+        Assert.Equal("0.56:0.44",読込項目.左右シェア.時間シェア.表示文字列);
     }
 
     [Fact]
-    public void ComparisonFormatter_UsesMissingMetrics_ForMissingValues(){
-        var rows = BenchmarkComparisonFormatter.BuildComparisonRows([
-            CreateReportRow("System.Array.FLinq","Select","Failed",5,10),
-            CreateReportRow("System.Array.ZLinq","Select","Completed",4,0),
+    public void 仕様確認14() {
+        var 行一覧 = ベンチマーク比較フォーマッター.比較行を構築([
+            報告行を作成("System.Array.FLinq","Select","Failed",5,10),
+            報告行を作成("System.Array.ZLinq","Select","Completed",4,0),
         ]);
 
-        var comparison = Assert.Single(rows);
-        Assert.False(comparison.Left.HasMeasuredValue);
-        Assert.True(comparison.Right.HasMeasuredValue);
-        Assert.Equal("-",comparison.左右シェア.時間シェア.表示文字列);
+        var 比較 = Assert.Single(行一覧);
+        Assert.False(比較.左.測定値ありか);
+        Assert.True(比較.右.測定値ありか);
+        Assert.Equal("-",比較.左右シェア.時間シェア.表示文字列);
     }
 
     [Fact]
-    public void ComparisonFormatter_TreatsCompletedRowsWithoutTimeAsMissing(){
-        var rows = BenchmarkComparisonFormatter.BuildComparisonRows([
-            CreateReportRow("System.Array.FLinq","Select","Completed",0,10),
-            CreateReportRow("System.Array.ZLinq","Select","Completed",4,0),
+    public void 仕様確認15() {
+        var 行一覧 = ベンチマーク比較フォーマッター.比較行を構築([
+            報告行を作成("System.Array.FLinq","Select","Completed",0,10),
+            報告行を作成("System.Array.ZLinq","Select","Completed",4,0),
         ]);
 
-        var comparison = Assert.Single(rows);
+        var 比較 = Assert.Single(行一覧);
 
-        Assert.False(comparison.Left.HasMeasuredValue);
-        Assert.True(comparison.Right.HasMeasuredValue);
-        Assert.Equal("-",comparison.左右シェア.時間シェア.表示文字列);
+        Assert.False(比較.左.測定値ありか);
+        Assert.True(比較.右.測定値ありか);
+        Assert.Equal("-",比較.左右シェア.時間シェア.表示文字列);
     }
 
     [Fact]
-    public void ComparisonFormatter_IgnoresAllocatedWithoutTime(){
-        var read = Assert.Single(BenchmarkComparisonFormatter.BuildComparisonRows([
-            CreateReportRow("System.Array.FLinq","Select","Completed",0,10),
-            CreateReportRow("System.Array.ZLinq","Select","Completed",4,0),
+    public void 仕様確認16() {
+        var 読込項目 = Assert.Single(ベンチマーク比較フォーマッター.比較行を構築([
+            報告行を作成("System.Array.FLinq","Select","Completed",0,10),
+            報告行を作成("System.Array.ZLinq","Select","Completed",4,0),
         ]));
 
-        Assert.False(read.Left.HasMeasuredValue);
-        Assert.True(read.Right.HasMeasuredValue);
-        Assert.Equal(0,read.Right.AllocatedBytes);
+        Assert.False(読込項目.左.測定値ありか);
+        Assert.True(読込項目.右.測定値ありか);
+        Assert.Equal(0,読込項目.右.割り当てバイト数);
     }
 
     [Fact]
-    public void ComparisonFormatter_KeepsZeroAllocationOnlyWhenTimeExists(){
-        var read = Assert.Single(BenchmarkComparisonFormatter.BuildComparisonRows([
-            CreateReportRow("System.Array.FLinq","Select","Completed",4400,0),
-            CreateReportRow("System.Array.ZLinq","Select","Completed",6800,0),
+    public void 仕様確認17() {
+        var 読込項目 = Assert.Single(ベンチマーク比較フォーマッター.比較行を構築([
+            報告行を作成("System.Array.FLinq","Select","Completed",4400,0),
+            報告行を作成("System.Array.ZLinq","Select","Completed",6800,0),
         ]));
 
-        Assert.Equal(0,read.Left.AllocatedBytes);
-        Assert.Equal(0,read.Right.AllocatedBytes);
+        Assert.Equal(0,読込項目.左.割り当てバイト数);
+        Assert.Equal(0,読込項目.右.割り当てバイト数);
     }
 
     [Fact]
-    public void BenchmarkWorkerRuntime_CreateConfig_AllowsDebugBenchmarking(){
-        var config = BenchmarkWorkerRuntime.CreateConfig("artifacts");
+    public void 仕様確認18() {
+        var 設定 = ベンチマークワーカーランタイム.設定を作成("artifacts");
 
-        Assert.True(BenchmarkWorkerRuntime.AllowsDebugBenchmarking(config));
-        Assert.False(BenchmarkWorkerRuntime.HasUsableStatistics(null));
+        Assert.True(ベンチマークワーカーランタイム.デバッグベンチマークを許可するか(設定));
+        Assert.False(ベンチマークワーカーランタイム.使用可能な統計か(null));
     }
 
     [Fact]
-    public void ComparisonFormatter_RejectsOldProjectNames(){
-        Assert.Throws<InvalidDataException>(() => BenchmarkComparisonFormatter.BuildComparisonRows([
-            CreateReportRow("System LINQ","Select","Completed",1,0),
+    public void 仕様確認19() {
+        Assert.Throws<InvalidDataException>(() => ベンチマーク比較フォーマッター.比較行を構築([
+            報告行を作成("System LINQ","Select","Completed",1,0),
         ]));
-        Assert.Throws<InvalidDataException>(() => BenchmarkComparisonFormatter.BuildComparisonRows([
-            CreateReportRow("System FLinq","Select","Completed",1,0),
+        Assert.Throws<InvalidDataException>(() => ベンチマーク比較フォーマッター.比較行を構築([
+            報告行を作成("System FLinq","Select","Completed",1,0),
         ]));
     }
 
     [Fact]
-    public void ComparisonFormatter_RejectsProjectsOutsideSelectedSourceTab(){
-        var systemTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
-        var tsavoriteTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessTsavorite);
+    public void 仕様確認20() {
+        var システムタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.System配列);
+        var Tsavoriteタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.SeamlessTsavorite);
 
-        Assert.Throws<InvalidDataException>(() => BenchmarkComparisonFormatter.BuildComparisonRows([
-            CreateReportRow(systemTab.LeftProject,"Select","Completed",1,0),
-            CreateReportRow(tsavoriteTab.LeftProject,"Select","Completed",1,0),
-        ],systemTab));
+        Assert.Throws<InvalidDataException>(() => ベンチマーク比較フォーマッター.比較行を構築([
+            報告行を作成(システムタブ.左プロジェクト,"Select","Completed",1,0),
+            報告行を作成(Tsavoriteタブ.左プロジェクト,"Select","Completed",1,0),
+        ],システムタブ));
     }
 
     [Fact]
-    public void ComparisonFormatter_Judgement_UsesFivePercentTieWindow(){
-        var win=シェア値.時間から作成(0.94,1);
-        var tieLow=シェア値.時間から作成(0.95,1);
-        var tieHigh=シェア値.時間から作成(1.05,1);
-        var lose=シェア値.時間から作成(1.06,1);
+    public void 仕様確認21() {
+        var 勝利 = シェア値.時間から作成(0.94,1);
+        var 同等下限 = シェア値.時間から作成(0.95,1);
+        var 同等上限 = シェア値.時間から作成(1.05,1);
+        var 敗北 = シェア値.時間から作成(1.06,1);
 
-        Assert.Equal(シェア判定.左優位,win.判定);
-        Assert.Equal(シェア判定.同等,tieLow.判定);
-        Assert.Equal(シェア判定.同等,tieHigh.判定);
-        Assert.Equal(シェア判定.右優位,lose.判定);
+        Assert.Equal(シェア判定.左優位,勝利.判定);
+        Assert.Equal(シェア判定.同等,同等下限.判定);
+        Assert.Equal(シェア判定.同等,同等上限.判定);
+        Assert.Equal(シェア判定.右優位,敗北.判定);
     }
 
-    private static IReadOnlyList<CpuCoreInfo> CreateHybridCpuSet(){
-        var items = new List<CpuCoreInfo>();
-        for(var coreIndex=0;coreIndex<8;coreIndex++){
-            var logicalBase = coreIndex*2;
-            items.Add(new CpuCoreInfo(logicalBase,CpuCoreKind.Performance,coreIndex,coreIndex,0,true));
-            items.Add(new CpuCoreInfo(logicalBase+1,CpuCoreKind.Performance,coreIndex,coreIndex,0,true));
+    private static IReadOnlyList<CPUコア情報> ハイブリッドCPU集合を作成() {
+        var 項目一覧 = new List<CPUコア情報>();
+        for(var コアインデックス = 0;コアインデックス<8;コアインデックス++) {
+            var 論理先頭 = コアインデックス*2;
+            項目一覧.Add(new CPUコア情報(論理先頭,CPUコア種別.高性能,コアインデックス,コアインデックス,0,true));
+            項目一覧.Add(new CPUコア情報(論理先頭+1,CPUコア種別.高性能,コアインデックス,コアインデックス,0,true));
         }
 
-        for(var coreIndex=0;coreIndex<3;coreIndex++){
-            var physicalCoreIndex = 8+coreIndex;
-            var logicalBase = 16+(coreIndex*4);
-            items.Add(new CpuCoreInfo(logicalBase,CpuCoreKind.Efficiency,physicalCoreIndex,coreIndex,0,true));
-            items.Add(new CpuCoreInfo(logicalBase+1,CpuCoreKind.Efficiency,physicalCoreIndex,coreIndex,0,true));
-            items.Add(new CpuCoreInfo(logicalBase+2,CpuCoreKind.Efficiency,physicalCoreIndex,coreIndex,0,true));
-            items.Add(new CpuCoreInfo(logicalBase+3,CpuCoreKind.Efficiency,physicalCoreIndex,coreIndex,0,true));
+        for(var コアインデックス = 0;コアインデックス<3;コアインデックス++) {
+            var 物理コアインデックス = 8+コアインデックス;
+            var 論理先頭 = 16+(コアインデックス*4);
+            項目一覧.Add(new CPUコア情報(論理先頭,CPUコア種別.高効率,物理コアインデックス,コアインデックス,0,true));
+            項目一覧.Add(new CPUコア情報(論理先頭+1,CPUコア種別.高効率,物理コアインデックス,コアインデックス,0,true));
+            項目一覧.Add(new CPUコア情報(論理先頭+2,CPUコア種別.高効率,物理コアインデックス,コアインデックス,0,true));
+            項目一覧.Add(new CPUコア情報(論理先頭+3,CPUコア種別.高効率,物理コアインデックス,コアインデックス,0,true));
         }
 
-        return items;
+        return 項目一覧;
     }
 
-    private static ReportRow CreateReportRow(string project,string method,string status,double meanNanoseconds,long allocatedBytes){
-        return new ReportRow(project,method,string.Empty,string.Empty,status,meanNanoseconds+" ns",string.Empty,string.Empty,allocatedBytes+" B",string.Empty,string.Empty,meanNanoseconds,0,0,allocatedBytes,0,0,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,null);
+    private static 報告行 報告行を作成(string プロジェクト,string メソッド,string 状態文字列,double 平均ナノ秒,long 割り当てバイト数) {
+        return new 報告行(プロジェクト,メソッド,string.Empty,string.Empty,状態文字列,平均ナノ秒+" ns",string.Empty,string.Empty,割り当てバイト数+" B",string.Empty,string.Empty,平均ナノ秒,0,0,割り当てバイト数,0,0,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,null);
     }
 }
 

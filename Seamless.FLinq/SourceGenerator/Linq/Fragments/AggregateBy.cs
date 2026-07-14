@@ -17,7 +17,7 @@ AggregateBy は key ごとに accumulator を持つ grouping 集約を生成す�
   - keySelector/func はそれぞれ FuncFragment として closure/delegate/inline に対応する。
   - resultElementType は返す KeyValuePair 相当の要素型を決める。
 */
-public class AggregateBy(int 番号, Enumerable source, FuncFragment keySelector, string seed, FuncFragment func, string resultElementType) : Enumerable(番号) {
+public class AggregateBy(int 番号,Enumerable source,FuncFragment keySelector,string seed,FuncFragment func,string resultElementType):Enumerable(番号) {
     protected override Enumerable PrimarySource => source;
     private string KeyType => FuncReturnTypeName(keySelector);
     private static string CapacityExpression(string sourceCountExpression) =>
@@ -28,7 +28,7 @@ public class AggregateBy(int 番号, Enumerable source, FuncFragment keySelector
         {{this.FuncSupport(func,nameof(func))}}
         """;
     public override string GetEnumerableExpression =>
-        $"global::Seamless.System.Carrier.ValueEnumerableExtensions.AggregateBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()}, {seed}, {func.DelegateConstructorArg ?? func.RenderAsLambda()})";
+        $"global::Seamless.System.Carrier.ValueEnumerableExtensions.AggregateBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()}, {seed}, {func.DelegateConstructorArg??func.RenderAsLambda()})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}

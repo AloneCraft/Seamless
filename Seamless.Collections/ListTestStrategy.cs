@@ -1,5 +1,4 @@
 using Seamless.Persisted.Collections;
-using Seamless.Serialization;
 namespace Seamless.Collections;
 
 public sealed class ListHandle<T>(string path,PersistedList<T> list):IDisposable {

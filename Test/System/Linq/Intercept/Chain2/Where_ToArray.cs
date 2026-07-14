@@ -4,9 +4,9 @@ namespace Test.System.Linq.Intercept.Chain2;
 public sealed class Where_ToArray(ITestOutputHelper output):LinqChain2TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void Static() {
-        var expected=Source().Where(static v => v>2).ToArray();
-        this.AssertOptimized(nameof(StaticOptimized),expected,()=>StaticOptimized());
-        this.AssertOptimized(nameof(StaticNoOptimized),expected,()=>StaticNoOptimized());
+        var expected = Source().Where(static v => v>2).ToArray();
+        this.AssertOptimized(nameof(StaticOptimized),expected,() => StaticOptimized());
+        this.AssertOptimized(nameof(StaticNoOptimized),expected,() => StaticNoOptimized());
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]

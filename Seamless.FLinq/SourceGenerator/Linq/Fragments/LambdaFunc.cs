@@ -1,10 +1,10 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public class LambdaFunc : FuncFragment {
+public class LambdaFunc:FuncFragment {
     public override bool IsIdentity =>
         this.ParameterNames.Length==1
-        && !this.RequiresStatementInlining
-        && string.Equals(this.InlineBody.Trim(),this.ParameterNames[0],StringComparison.Ordinal);
+        &&!this.RequiresStatementInlining
+        &&string.Equals(this.InlineBody.Trim(),this.ParameterNames[0],StringComparison.Ordinal);
 
     // ラムダ本体を代入文として埋め込む。
     public override string RenderInlineAssign(string destination,int number,params string[] arguments) {

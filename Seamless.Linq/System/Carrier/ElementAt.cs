@@ -7,8 +7,7 @@ namespace Seamless.System.Carrier {
                 return TryGetElementAt<TEnumerator,TSource>(ref enumerator,index,out var value)
                     ? value
                     : Throws.ArgumentOutOfRange<TSource>(nameof(index));
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }
@@ -20,8 +19,7 @@ namespace Seamless.System.Carrier {
                 return TryGetElementAt<TEnumerator,TSource>(ref enumerator,index,out var value)
                     ? value
                     : Throws.ArgumentOutOfRange<TSource>(nameof(index));
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }
@@ -35,8 +33,7 @@ namespace Seamless.System.Carrier {
                 return TryGetElementAt<TEnumerator,TSource>(ref enumerator,index,out var value)
                 ? value
                 : default!;
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }
@@ -48,8 +45,7 @@ namespace Seamless.System.Carrier {
                 return TryGetElementAt<TEnumerator,TSource>(ref enumerator,index,out var value)
                 ? value
                 : default!;
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }

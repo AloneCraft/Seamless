@@ -1,7 +1,7 @@
 namespace Test.System.Linq.Intercept.Optimization;
 
-public sealed class WherePredicateFusion:OptimizationTestBase{
-    [Fact,Trait("Category","Unit")]
+public sealed class WherePredicateFusion:OptimizationTestBase {
+    [Fact, Trait("Category","Unit")]
     public static void Count() {
         Assert.Equal(Numbers().Where(static x => x>4).Count(),Count_MatchOptimized());
         Assert.Equal(Numbers().Where(static x => x>4).Count(),Count_MatchNoOptimized());
@@ -21,7 +21,7 @@ public sealed class WherePredicateFusion:OptimizationTestBase{
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static int Count_NoMatchNoOptimized() => Numbers().Where(static x => x>100).Count();
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void LongCount() {
         Assert.Equal(Numbers().Where(static x => x>4).LongCount(),LongCountOptimized());
         Assert.Equal(Numbers().Where(static x => x>4).LongCount(),LongCountNoOptimized());
@@ -33,7 +33,7 @@ public sealed class WherePredicateFusion:OptimizationTestBase{
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static long LongCountNoOptimized() => Numbers().Where(static x => x>4).LongCount();
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void Any() {
         Assert.Equal(Numbers().Where(static x => x>4).Any(),Any_MatchOptimized());
         Assert.Equal(Numbers().Where(static x => x>4).Any(),Any_MatchNoOptimized());
@@ -53,7 +53,7 @@ public sealed class WherePredicateFusion:OptimizationTestBase{
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool Any_NoMatchNoOptimized() => Numbers().Where(static x => x>100).Any();
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void First() {
         Assert.Equal(Numbers().Where(static x => x>4).First(),First_MatchOptimized());
         Assert.Equal(Numbers().Where(static x => x>4).First(),First_MatchNoOptimized());
@@ -74,7 +74,7 @@ public sealed class WherePredicateFusion:OptimizationTestBase{
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static int First_NoMatchNoOptimized() => Numbers().Where(static x => x>100).First();
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void FirstOrDefault() {
         Assert.Equal(Numbers().Where(static x => x>4).FirstOrDefault(),FirstOrDefault_MatchOptimized());
         Assert.Equal(Numbers().Where(static x => x>4).FirstOrDefault(),FirstOrDefault_MatchNoOptimized());
@@ -94,7 +94,7 @@ public sealed class WherePredicateFusion:OptimizationTestBase{
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static int FirstOrDefault_NoMatchNoOptimized() => Numbers().Where(static x => x>100).FirstOrDefault();
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void Last() {
         Assert.Equal(Numbers().Where(static x => x>4).Last(),LastOptimized());
         Assert.Equal(Numbers().Where(static x => x>4).Last(),LastNoOptimized());
@@ -106,7 +106,7 @@ public sealed class WherePredicateFusion:OptimizationTestBase{
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static int LastNoOptimized() => Numbers().Where(static x => x>4).Last();
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void LastOrDefault() {
         Assert.Equal(Numbers().Where(static x => x>4).LastOrDefault(),LastOrDefault_MatchOptimized());
         Assert.Equal(Numbers().Where(static x => x>4).LastOrDefault(),LastOrDefault_MatchNoOptimized());
@@ -126,7 +126,7 @@ public sealed class WherePredicateFusion:OptimizationTestBase{
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static int LastOrDefault_NoMatchNoOptimized() => Numbers().Where(static x => x>100).LastOrDefault();
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void Single() {
         Assert.Equal(Numbers().Where(static x => x==8).Single(),Single_MatchOptimized());
         Assert.Equal(Numbers().Where(static x => x==8).Single(),Single_MatchNoOptimized());
@@ -147,7 +147,7 @@ public sealed class WherePredicateFusion:OptimizationTestBase{
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static int Single_MultipleNoOptimized() => Numbers().Where(static x => x>4).Single();
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void SingleOrDefault() {
         Assert.Equal(Numbers().Where(static x => x==8).SingleOrDefault(),SingleOrDefault_MatchOptimized());
         Assert.Equal(Numbers().Where(static x => x==8).SingleOrDefault(),SingleOrDefault_MatchNoOptimized());

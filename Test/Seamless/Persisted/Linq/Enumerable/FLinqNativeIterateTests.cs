@@ -1,4 +1,5 @@
 using Seamless.FLinq;
+
 using Test.System.Linq.Intercept;
 
 namespace Test.Seamless.Persisted.Linq.Enumerable;
@@ -27,8 +28,7 @@ public class FLinqNativeIterateTests {
             Assert.DoesNotContain("MemoryExtensions.AsSpan",generated);
             Assert.DoesNotContain("CollectionsMarshal.AsSpan",generated);
             Assert.DoesNotContain(".GetSpan();",generated);
-        }
-        finally {
+        } finally {
             source=null;
             TryDeleteDirectory(path);
         }
@@ -45,13 +45,12 @@ public class FLinqNativeIterateTests {
 
             source=set;
             Assert.True(AllLessThanFiveImpl());
-            Assert.Throws<NotSupportedException>(()=>{ _=DirectFirstOrDefaultGreaterThanTwoImpl(); });
+            Assert.Throws<NotSupportedException>(() => { _=DirectFirstOrDefaultGreaterThanTwoImpl(); });
             Assert.Equal(3,ExplicitFirstOrDefaultGreaterThanTwoImpl());
 
             AssertNativeIterateGenerated(nameof(AllLessThanFiveImpl));
             AssertNativeIterateGenerated(nameof(ExplicitFirstOrDefaultGreaterThanTwoImpl));
-        }
-        finally {
+        } finally {
             source=null;
             TryDeleteDirectory(path);
         }
@@ -71,10 +70,10 @@ public class FLinqNativeIterateTests {
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
     private static int ExplicitFirstOrDefaultGreaterThanTwoImpl() =>
-        Source().AsEnumerable().Where(static value=>value>2).FirstOrDefault();
+        Source().AsEnumerable().Where(static value => value>2).FirstOrDefault();
 
     private static global::Seamless.Persisted.Collections.Set<int> Source() =>
-        source ?? throw new InvalidOperationException("Source was not initialized.");
+        source??throw new InvalidOperationException("Source was not initialized.");
 
     private static void AssertNativeIterateGenerated(string methodName) {
         var generated = GeneratedInterceptorAssert.SourceFor<FLinqNativeIterateTests>(methodName);
@@ -96,10 +95,8 @@ public class FLinqNativeIterateTests {
             return;
         try {
             Directory.Delete(directoryPath,recursive: true);
-        }
-        catch(IOException) {
-        }
-        catch(UnauthorizedAccessException) {
+        } catch(IOException) {
+        } catch(UnauthorizedAccessException) {
         }
     }
 }

@@ -1,8 +1,8 @@
 namespace Test.Seamless.SessionFunctions;
 
-public abstract class CommonWith<TKey,TSet>
+public abstract class CommonWith<TKey, TSet>
     where TKey : IEquatable<TKey>
-    where TSet : IHashSet<TKey>,IDisposable {
+    where TSet : IHashSet<TKey>, IDisposable {
     protected abstract TKey CreateKey(int seed);
     protected abstract (TSet Set,IDisposable Store) CreateSet();
     protected abstract void With(TSet set,TSet other);
@@ -17,7 +17,7 @@ public abstract class CommonWith<TKey,TSet>
         using var _setB = setB;
         var hashSetA = new global::System.Collections.Generic.HashSet<TKey>();
         var hashSetB = new global::System.Collections.Generic.HashSet<TKey>();
-        for(var b = 0; b<iterations; b++) {
+        for(var b = 0;b<iterations;b++) {
             this.ResetWithRange(hashSetA,setA,0);
             this.ResetWithRange(hashSetB,setB,b);
             this.With(setA,setB);
@@ -32,7 +32,7 @@ public abstract class CommonWith<TKey,TSet>
         using var _storeA = storeA;
         using var _setA = setA;
         var hashSetA = new global::System.Collections.Generic.HashSet<TKey>();
-        for(var b = 0; b<iterations; b++) {
+        for(var b = 0;b<iterations;b++) {
             this.ResetWithRange(hashSetA,setA,b);
             this.With(setA,setA);
             this.ExpectedWith(hashSetA,hashSetA);
@@ -43,7 +43,7 @@ public abstract class CommonWith<TKey,TSet>
     private void ResetWithRange(global::System.Collections.Generic.HashSet<TKey> hashSet,TSet set,int offset) {
         hashSet.Clear();
         set.Clear();
-        for(var a = 0; a<8; a++) {
+        for(var a = 0;a<8;a++) {
             var key = this.CreateKey(a+offset);
             hashSet.Add(key);
             set.Add(key);

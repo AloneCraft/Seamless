@@ -19,8 +19,7 @@ public class SerialRandomStressTests {
         return dir;
     }
     private static void TryCleanup(string dir) {
-        try { if(Directory.Exists(dir)) Directory.Delete(dir,recursive: true); }
-        catch { /* best-effort */ }
+        try { if(Directory.Exists(dir)) Directory.Delete(dir,recursive: true); } catch { /* best-effort */ }
     }
 
     // 笏笏笏笏笏笏笏笏笏笏笏笏 Dictionary<int,int> 笏笏笏笏笏笏笏笏笏笏笏笏
@@ -37,11 +36,11 @@ public class SerialRandomStressTests {
             var removeMask = StressScript.RemoveMask(Seed^0x5a5a,count,RemoveRate);
             var expected = keys.ToDictionary(key => key,key => key*2);
             var expectedAfterRemove = new Dictionary<int,int>(expected);
-            for(var i = 0; i<keys.Length; i++) {
+            for(var i = 0;i<keys.Length;i++) {
                 if(removeMask[i])
                     expectedAfterRemove.Remove(keys[i]);
             }
-            for(var r = 0; r<repeat; r++) {
+            for(var r = 0;r<repeat;r++) {
                 Guid token;
                 // Measured section: deterministic add/save/load/remove flow.
                 {
@@ -68,7 +67,7 @@ public class SerialRandomStressTests {
                         var found = dict.TryGetValue(key,out var value);
                         return (found,value);
                     });
-                    for(var i = 0; i<keys.Length; i++) {
+                    for(var i = 0;i<keys.Length;i++) {
                         if(removeMask[i])
                             Assert.True(dict.Remove(keys[i]));
                     }
@@ -78,8 +77,7 @@ public class SerialRandomStressTests {
                     });
                 }
             }
-        }
-        finally {
+        } finally {
             TryCleanup(temp);
         }
     }
@@ -99,14 +97,14 @@ public class SerialRandomStressTests {
             var keys = rawKeys.Select(k => "k"+k).ToArray();
             var values = rawKeys.Select(k => "v"+k).ToArray();
             var expected = new Dictionary<string,string>(count,StringComparer.Ordinal);
-            for(var i = 0; i<keys.Length; i++)
+            for(var i = 0;i<keys.Length;i++)
                 expected[keys[i]]=values[i];
             var expectedAfterRemove = new Dictionary<string,string>(expected,StringComparer.Ordinal);
-            for(var i = 0; i<keys.Length; i++) {
+            for(var i = 0;i<keys.Length;i++) {
                 if(removeMask[i])
                     expectedAfterRemove.Remove(keys[i]);
             }
-            for(var r = 0; r<repeat; r++) {
+            for(var r = 0;r<repeat;r++) {
                 Guid token;
                 {
                     using var logDevice = Devices.CreateLogDevice(logPath);
@@ -114,7 +112,7 @@ public class SerialRandomStressTests {
                     using var store = Store.Create(CheckpointDir: checkpointDir)
                         .Create<string,string>(logDevice,objDevice,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
                     using var dict = store.Create();
-                    for(var i = 0; i<keys.Length; i++)
+                    for(var i = 0;i<keys.Length;i++)
                         dict.Add(keys[i],values[i]);
                     store.Store.Log.FlushAndEvict(wait: true);
                     token=store.Save();
@@ -132,7 +130,7 @@ public class SerialRandomStressTests {
                         var found = dict.TryGetValue(key,out var value);
                         return (found,value??string.Empty);
                     });
-                    for(var i = 0; i<keys.Length; i++) {
+                    for(var i = 0;i<keys.Length;i++) {
                         if(removeMask[i])
                             Assert.True(dict.Remove(keys[i]));
                     }
@@ -142,8 +140,7 @@ public class SerialRandomStressTests {
                     });
                 }
             }
-        }
-        finally {
+        } finally {
             TryCleanup(temp);
         }
     }
@@ -162,11 +159,11 @@ public class SerialRandomStressTests {
             var removeMask = StressScript.RemoveMask(Seed^0x5a5a,count,RemoveRate);
             var expected = new global::System.Collections.Generic.HashSet<int>(keys);
             var expectedAfterRemove = new global::System.Collections.Generic.HashSet<int>(expected);
-            for(var i = 0; i<keys.Length; i++) {
+            for(var i = 0;i<keys.Length;i++) {
                 if(removeMask[i])
                     expectedAfterRemove.Remove(keys[i]);
             }
-            for(var r = 0; r<repeat; r++) {
+            for(var r = 0;r<repeat;r++) {
                 Guid token;
                 {
                     using var logDevice = Devices.CreateLogDevice(logPath);
@@ -189,15 +186,14 @@ public class SerialRandomStressTests {
                     foreach(var t in keys)
                         Assert.True(set.Contains(t),$"Missing key {t}");
                     StressReferenceAssert.SetEquals(keys,expected,set.Contains);
-                    for(var i = 0; i<keys.Length; i++) {
+                    for(var i = 0;i<keys.Length;i++) {
                         if(removeMask[i])
                             Assert.True(set.Remove(keys[i]));
                     }
                     StressReferenceAssert.SetEquals(keys,expectedAfterRemove,set.Contains);
                 }
             }
-        }
-        finally {
+        } finally {
             TryCleanup(temp);
         }
     }
@@ -217,11 +213,11 @@ public class SerialRandomStressTests {
             var keys = rawKeys.Select(k => "s"+k).ToArray();
             var expected = new global::System.Collections.Generic.HashSet<string>(keys,StringComparer.Ordinal);
             var expectedAfterRemove = new global::System.Collections.Generic.HashSet<string>(expected,StringComparer.Ordinal);
-            for(var i = 0; i<keys.Length; i++) {
+            for(var i = 0;i<keys.Length;i++) {
                 if(removeMask[i])
                     expectedAfterRemove.Remove(keys[i]);
             }
-            for(var r = 0; r<repeat; r++) {
+            for(var r = 0;r<repeat;r++) {
                 Guid token;
                 {
                     using var logDevice = Devices.CreateLogDevice(logPath);
@@ -229,7 +225,7 @@ public class SerialRandomStressTests {
                     using var store = Store.Create(CheckpointDir: checkpointDir)
                         .Create<string>(logDevice,objDevice,new MemoryPackSerializerStrategy());
                     using var set = store.Create();
-                    for(var i = 0; i<keys.Length; i++)
+                    for(var i = 0;i<keys.Length;i++)
                         Assert.True(set.Add(keys[i]));
                     store.Store.Log.FlushAndEvict(wait: true);
                     token=store.Save();
@@ -241,18 +237,17 @@ public class SerialRandomStressTests {
                         .Create<string>(logDevice,objDevice,new MemoryPackSerializerStrategy());
                     store.Load(token);
                     using var set = store.Create();
-                    for(var i = 0; i<keys.Length; i++)
+                    for(var i = 0;i<keys.Length;i++)
                         Assert.True(set.Contains(keys[i]),$"Missing key {keys[i]}");
                     StressReferenceAssert.SetEquals(keys,expected,key => set.Contains(key));
-                    for(var i = 0; i<keys.Length; i++) {
+                    for(var i = 0;i<keys.Length;i++) {
                         if(removeMask[i])
                             Assert.True(set.Remove(keys[i]));
                     }
                     StressReferenceAssert.SetEquals(keys,expectedAfterRemove,key => set.Contains(key));
                 }
             }
-        }
-        finally {
+        } finally {
             TryCleanup(temp);
         }
     }

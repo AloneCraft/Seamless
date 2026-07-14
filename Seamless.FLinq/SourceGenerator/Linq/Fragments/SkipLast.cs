@@ -1,8 +1,8 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public class SkipLast(int 番号, Enumerable source, string skipCount) : Enumerable(番号) {
+public class SkipLast(int 番号,Enumerable source,string skipCount):Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length==1 && method.Parameters[0].Type.SpecialType==SpecialType.System_Int32;
+        method.Parameters.Length==1&&method.Parameters[0].Type.SpecialType==SpecialType.System_Int32;
     private Enumerable Source => source;
     private string SkipCountExpression => skipCount;
     private Enumerable RootSource => this.Source is SkipLast skipLast ? skipLast.RootSource : this.Source;
@@ -89,8 +89,8 @@ public class SkipLast(int 番号, Enumerable source, string skipCount) : Enumera
     public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => this.RootSource.ElementType;
     public override string GetConsumeExecutionStatement(string consumerName) {
-        var sourceName=$"__skipLastSource{番号}";
-        var spanExpression=this.RootSource.GetDirectSpanExpression(sourceName);
+        var sourceName = $"__skipLastSource{番号}";
+        var spanExpression = this.RootSource.GetDirectSpanExpression(sourceName);
         if(spanExpression is null) {
             return base.GetConsumeExecutionStatement(consumerName);
         }

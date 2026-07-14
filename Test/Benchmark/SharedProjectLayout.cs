@@ -1,11 +1,11 @@
 namespace Test.Benchmark;
 
-public sealed class SharedProjectLayout{
+public sealed class 共有プロジェクト配置 {
     [Fact]
-    public void SharedProjects_AreUnderTargetFoldersAndSolutionReferencesMovedPaths(){
-        var root = FindRepositoryRoot();
-        var slnx = File.ReadAllText(Path.Combine(root,"Seamless.slnx"));
-        var paths = new[] {
+    public void 仕様確認01() {
+        var ルート = リポジトリルートを検索();
+        var ソリューションファイル = File.ReadAllText(Path.Combine(ルート,"Seamless.slnx"));
+        var パス一覧 = new[] {
             "Shared/UI.Core/UI.Core.shproj",
             "Shared/UI.Core/UI.Core.projitems",
             "Shared/Collections/Collections.shproj",
@@ -14,23 +14,23 @@ public sealed class SharedProjectLayout{
             "Benchmark/Shared/UI/UI.projitems",
         };
 
-        foreach(var path in paths){
-            Assert.True(File.Exists(Path.Combine(root,path.Replace('/',Path.DirectorySeparatorChar))),path);
-            Assert.Contains(path,slnx,StringComparison.Ordinal);
+        foreach(var パス in パス一覧) {
+            Assert.True(File.Exists(Path.Combine(ルート,パス.Replace('/',Path.DirectorySeparatorChar))),パス);
+            Assert.Contains(パス,ソリューションファイル,StringComparison.Ordinal);
         }
 
-        Assert.Empty(Directory.GetFiles(Path.Combine(root,"Shared"),"*.shproj"));
-        Assert.Empty(Directory.GetFiles(Path.Combine(root,"Shared"),"*.projitems"));
-        Assert.Empty(Directory.GetFiles(Path.Combine(root,"Benchmark","Shared"),"*.shproj"));
-        Assert.Empty(Directory.GetFiles(Path.Combine(root,"Benchmark","Shared"),"*.projitems"));
+        Assert.Empty(Directory.GetFiles(Path.Combine(ルート,"Shared"),"*.shproj"));
+        Assert.Empty(Directory.GetFiles(Path.Combine(ルート,"Shared"),"*.projitems"));
+        Assert.Empty(Directory.GetFiles(Path.Combine(ルート,"Benchmark","Shared"),"*.shproj"));
+        Assert.Empty(Directory.GetFiles(Path.Combine(ルート,"Benchmark","Shared"),"*.projitems"));
     }
 
-    private static string FindRepositoryRoot(){
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while(directory is not null&&!File.Exists(Path.Combine(directory.FullName,"Seamless.slnx"))){
-            directory=directory.Parent;
+    private static string リポジトリルートを検索() {
+        var ディレクトリ = new DirectoryInfo(AppContext.BaseDirectory);
+        while(ディレクトリ is not null&&!File.Exists(Path.Combine(ディレクトリ.FullName,"Seamless.slnx"))) {
+            ディレクトリ=ディレクトリ.Parent;
         }
 
-        return directory?.FullName??throw new InvalidOperationException("Repository root was not found.");
+        return ディレクトリ?.FullName??throw new InvalidOperationException("リポジトリルートが見つかりませんでした。");
     }
 }

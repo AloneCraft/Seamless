@@ -1,6 +1,6 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public class Cast(int 番号, Enumerable source, string resultElementType) : Enumerable(番号) {
+public class Cast(int 番号,Enumerable source,string resultElementType):Enumerable(番号) {
     protected override Enumerable PrimarySource => source;
     private bool IsIdentityType => string.Equals(resultElementType,source.ElementType,StringComparison.Ordinal);
     public override string StructMethod => string.Empty;
@@ -10,8 +10,8 @@ public class Cast(int 番号, Enumerable source, string resultElementType) : Enu
         """;
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
-    public override bool CanProvideSpan => this.IsIdentityType && source.CanProvideSpan;
-    public override bool CanTryProvideSpan => this.IsIdentityType && source.CanTryProvideSpan;
+    public override bool CanProvideSpan => this.IsIdentityType&&source.CanProvideSpan;
+    public override bool CanTryProvideSpan => this.IsIdentityType&&source.CanTryProvideSpan;
     public override string? NonEnumeratedCountExpression => source.NonEnumeratedCountExpression;
     public override bool CountPreserving => source.CountPreserving;
     public override string GetEnumeratorFields => string.Empty;
@@ -32,7 +32,7 @@ public class Cast(int 番号, Enumerable source, string resultElementType) : Enu
         """;
     public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => resultElementType;
-    public override string GetConsumeExecutionStatement(string consumerName)=>
+    public override string GetConsumeExecutionStatement(string consumerName) =>
         this.IsIdentityType
             ? source.GetConsumeExecutionStatement(consumerName)
             : base.GetConsumeExecutionStatement(consumerName);

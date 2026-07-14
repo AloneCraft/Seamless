@@ -26,7 +26,7 @@ BufferedScalar は「Compute で先に結果を作り、TryGetNext はその結�
   - ComputeMembers は span fast path、predicate 呼び出し、補助 Lookup 型などを追加する。
   - RenderComputeInline は Compute 呼び出しだけを呼び出し元へ直接埋め込む。
 */
-public abstract class BufferedScalar(int 番号,string resultType) : Scalar(番号) {
+public abstract class BufferedScalar(int 番号,string resultType):Scalar(番号) {
     protected abstract string ComputeExpression { get; }
     protected virtual string ComputeMembers => string.Empty;
     protected virtual string StructSources => string.Empty;
@@ -68,11 +68,10 @@ public abstract class BufferedScalar(int 番号,string resultType) : Scalar(番�
 
     // ComputeExpression（= Compute(this.e{closure})）を「ソース列挙子をその場で作り Compute へ渡す」
     // インライン文へ変換する共通ヘルパー。Compute(...) 形を持つ単一ソース集約のみが opt-in する。
-    protected string? RenderComputeInline(string destVar,string destType){
+    protected string? RenderComputeInline(string destVar,string destType) {
         if(this.PrimarySource is not { } src) return null;
         string srcExpr;
-        try { srcExpr = src.GetEnumeratorExpression; }
-        catch(NotSupportedException) { return null; }
+        try { srcExpr=src.GetEnumeratorExpression; } catch(NotSupportedException) { return null; }
         var srcVar = $"__s{番号}";
         var call = this.ComputeExpression
             .Replace("Compute(",$"{this.EnumeratorTypeNameWithOuter(src.EnumeratorTypeName)}.Compute(")
@@ -85,13 +84,12 @@ public abstract class BufferedScalar(int 番号,string resultType) : Scalar(番�
             """;
     }
 
-    protected string? RenderComputeInline(string destVar,string destType,params string[] extraArguments){
+    protected string? RenderComputeInline(string destVar,string destType,params string[] extraArguments) {
         if(this.PrimarySource is not { } src) return null;
         string srcExpr;
-        try { srcExpr = src.GetEnumeratorExpression; }
-        catch(NotSupportedException) { return null; }
+        try { srcExpr=src.GetEnumeratorExpression; } catch(NotSupportedException) { return null; }
         var srcVar = $"__s{番号}";
-        var extra = extraArguments.Length==0 ? string.Empty : ", " + string.Join(", ", extraArguments);
+        var extra = extraArguments.Length==0 ? string.Empty : ", "+string.Join(", ",extraArguments);
         return $$"""
             {{destType}} {{destVar}};
             using(var {{srcVar}}={{srcExpr}}){

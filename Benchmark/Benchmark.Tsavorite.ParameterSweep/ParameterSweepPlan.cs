@@ -2,134 +2,134 @@ using Seamless.Tsavorite;
 
 namespace Benchmark.Tsavorite.ParameterSweep;
 
-public sealed class ParameterSweepRunOptions {
-    public ParameterSweepSettings Baseline { get; init; } = new(
-        IndexSize: 131072,
-        PageSize: Const.PageSize,
-        SegmentSize: Const.SegmentSize,
-        MemorySize: 64L*1024*1024,
-        MutableFraction: 1.0);
+public sealed class パラメータスイープ実行オプション {
+    public パラメータスイープ設定 基準設定 { get; init; } = new(
+        Indexサイズ: 131072,
+        Pageサイズ: Const.PageSize,
+        Segmentサイズ: Const.SegmentSize,
+        Memoryサイズ: 64L*1024*1024,
+        可変Fraction: 1.0);
 
-    public int MaxSweepSteps { get; init; } = 8;
-    public int MaxSuccessfulCount { get; init; } = 65536;
-    public int LookupProbeCount { get; init; } = 4096;
-    public TimeSpan PerCaseTimeout { get; init; } = TimeSpan.FromSeconds(10);
-    public long StorageDeviceCapacity { get; init; } = 1L<<30;
-    public string? WorkDirectory { get; init; }
-    public IReadOnlyList<int> LogicalCpus { get; init; } = [];
+    public int 最大スイープ手順数 { get; init; } = 8;
+    public int 最大成功Count { get; init; } = 65536;
+    public int 検索試行Count { get; init; } = 4096;
+    public TimeSpan ケース別タイムアウト { get; init; } = TimeSpan.FromSeconds(10);
+    public long ストレージデバイス容量 { get; init; } = 1L<<30;
+    public string? 作業ディレクトリ { get; init; }
+    public IReadOnlyList<int> 論理CPU一覧 { get; init; } = [];
 }
 
-public static class ParameterSweepPlan {
-    private const long MinimumIndexSize = 64;
-    private const long MinimumPageSize = 1L<<12;
-    private const long MinimumSegmentSize = 1L<<12;
-    private const long MinimumMemorySize = 1L<<13;
+public static class パラメータスイープ計画 {
+    private const long 最小Indexサイズ = 64;
+    private const long 最小Pageサイズ = 1L<<12;
+    private const long 最小Segmentサイズ = 1L<<12;
+    private const long 最小Memoryサイズ = 1L<<13;
 
-    public static IReadOnlyList<ParameterSweepCase> CreateDefaultCases(ParameterSweepRunOptions? options = null) {
-        var actualOptions = options??new();
-        ValidateOptions(actualOptions);
-        var cases = new List<ParameterSweepCase>();
-        foreach(var backend in new[] { ParameterSweepBackend.Memory, ParameterSweepBackend.Storage }) {
-            AddCollectionCases(cases,backend,ParameterSweepCollectionKind.HashSet,"Int32",actualOptions);
-            AddCollectionCases(cases,backend,ParameterSweepCollectionKind.HashSet,"String",actualOptions);
-            AddCollectionCases(cases,backend,ParameterSweepCollectionKind.HashSet,"UnmanagedStruct",actualOptions);
-            AddCollectionCases(cases,backend,ParameterSweepCollectionKind.HashSet,"ManagedStruct",actualOptions);
-            AddCollectionCases(cases,backend,ParameterSweepCollectionKind.HashSet,"ManagedClass",actualOptions);
-            AddCollectionCases(cases,backend,ParameterSweepCollectionKind.Set,"UnmanagedSetRecord",actualOptions);
-            AddCollectionCases(cases,backend,ParameterSweepCollectionKind.Set,"ManagedSetRecord",actualOptions);
-            AddCollectionCases(cases,backend,ParameterSweepCollectionKind.Dictionary,"String/String",actualOptions);
-            AddCollectionCases(cases,backend,ParameterSweepCollectionKind.Dictionary,"String/Int32",actualOptions);
-            AddCollectionCases(cases,backend,ParameterSweepCollectionKind.Dictionary,"Int32/String",actualOptions);
-            AddCollectionCases(cases,backend,ParameterSweepCollectionKind.Dictionary,"Int32/Int32",actualOptions);
-            AddCollectionCases(cases,backend,ParameterSweepCollectionKind.Dictionary,"UnmanagedStruct/UnmanagedStruct",actualOptions);
-            AddCollectionCases(cases,backend,ParameterSweepCollectionKind.Dictionary,"ManagedStruct/ManagedStruct",actualOptions);
-            AddCollectionCases(cases,backend,ParameterSweepCollectionKind.Dictionary,"ManagedClass/ManagedClass",actualOptions);
+    public static IReadOnlyList<パラメータスイープケース> 既定ケース一覧を作成(パラメータスイープ実行オプション? オプション = null) {
+        var 実オプション = オプション??new();
+        オプションを検証(実オプション);
+        var ケース一覧 = new List<パラメータスイープケース>();
+        foreach(var バックエンド in new[] { パラメータスイープバックエンド.メモリ,パラメータスイープバックエンド.ストレージ }) {
+            コレクションケースを追加(ケース一覧,バックエンド,パラメータスイープコレクション種別.ハッシュセット,"Int32",実オプション);
+            コレクションケースを追加(ケース一覧,バックエンド,パラメータスイープコレクション種別.ハッシュセット,"String",実オプション);
+            コレクションケースを追加(ケース一覧,バックエンド,パラメータスイープコレクション種別.ハッシュセット,"UnmanagedStruct",実オプション);
+            コレクションケースを追加(ケース一覧,バックエンド,パラメータスイープコレクション種別.ハッシュセット,"ManagedStruct",実オプション);
+            コレクションケースを追加(ケース一覧,バックエンド,パラメータスイープコレクション種別.ハッシュセット,"ManagedClass",実オプション);
+            コレクションケースを追加(ケース一覧,バックエンド,パラメータスイープコレクション種別.セット,"非管理セットレコード",実オプション);
+            コレクションケースを追加(ケース一覧,バックエンド,パラメータスイープコレクション種別.セット,"管理セットレコード",実オプション);
+            コレクションケースを追加(ケース一覧,バックエンド,パラメータスイープコレクション種別.辞書,"String/String",実オプション);
+            コレクションケースを追加(ケース一覧,バックエンド,パラメータスイープコレクション種別.辞書,"String/Int32",実オプション);
+            コレクションケースを追加(ケース一覧,バックエンド,パラメータスイープコレクション種別.辞書,"Int32/String",実オプション);
+            コレクションケースを追加(ケース一覧,バックエンド,パラメータスイープコレクション種別.辞書,"Int32/Int32",実オプション);
+            コレクションケースを追加(ケース一覧,バックエンド,パラメータスイープコレクション種別.辞書,"UnmanagedStruct/UnmanagedStruct",実オプション);
+            コレクションケースを追加(ケース一覧,バックエンド,パラメータスイープコレクション種別.辞書,"ManagedStruct/ManagedStruct",実オプション);
+            コレクションケースを追加(ケース一覧,バックエンド,パラメータスイープコレクション種別.辞書,"ManagedClass/ManagedClass",実オプション);
         }
-        return cases;
+        return ケース一覧;
     }
 
-    public static IReadOnlyList<ParameterSweepCase> CreateSmokeCases(ParameterSweepRunOptions? options = null) {
-        var actualOptions = options??new ParameterSweepRunOptions {
-            MaxSweepSteps=2,
-            MaxSuccessfulCount=128,
-            LookupProbeCount=32,
-            PerCaseTimeout=TimeSpan.FromSeconds(2),
-            StorageDeviceCapacity=16L*1024*1024,
+    public static IReadOnlyList<パラメータスイープケース> スモークケース一覧を作成(パラメータスイープ実行オプション? オプション = null) {
+        var 実オプション = オプション??new パラメータスイープ実行オプション {
+            最大スイープ手順数=2,
+            最大成功Count=128,
+            検索試行Count=32,
+            ケース別タイムアウト=TimeSpan.FromSeconds(2),
+            ストレージデバイス容量=16L*1024*1024,
         };
         return [
-            ..CreateAxisCases(ParameterSweepBackend.Memory,ParameterSweepCollectionKind.HashSet,"Int32",ParameterSweepAxis.IndexSize,actualOptions),
-            ..CreateAxisCases(ParameterSweepBackend.Memory,ParameterSweepCollectionKind.Set,"UnmanagedSetRecord",ParameterSweepAxis.MemorySize,actualOptions),
-            ..CreateAxisCases(ParameterSweepBackend.Storage,ParameterSweepCollectionKind.Dictionary,"Int32/Int32",ParameterSweepAxis.SegmentSize,actualOptions),
+            ..軸ケース一覧を作成(パラメータスイープバックエンド.メモリ,パラメータスイープコレクション種別.ハッシュセット,"Int32",パラメータスイープ軸.Indexサイズ,実オプション),
+            ..軸ケース一覧を作成(パラメータスイープバックエンド.メモリ,パラメータスイープコレクション種別.セット,"非管理セットレコード",パラメータスイープ軸.Memoryサイズ,実オプション),
+            ..軸ケース一覧を作成(パラメータスイープバックエンド.ストレージ,パラメータスイープコレクション種別.辞書,"Int32/Int32",パラメータスイープ軸.Segmentサイズ,実オプション),
         ];
     }
 
-    private static void AddCollectionCases(
-        List<ParameterSweepCase> cases,
-        ParameterSweepBackend backend,
-        ParameterSweepCollectionKind collection,
-        string genericName,
-        ParameterSweepRunOptions options) {
-        foreach(var axis in Enum.GetValues<ParameterSweepAxis>()) {
-            cases.AddRange(CreateAxisCases(backend,collection,genericName,axis,options));
+    private static void コレクションケースを追加(
+        List<パラメータスイープケース> ケース一覧,
+        パラメータスイープバックエンド バックエンド,
+        パラメータスイープコレクション種別 コレクション,
+        string ジェネリック名,
+        パラメータスイープ実行オプション オプション) {
+        foreach(var スイープ軸 in Enum.GetValues<パラメータスイープ軸>()) {
+            ケース一覧.AddRange(軸ケース一覧を作成(バックエンド,コレクション,ジェネリック名,スイープ軸,オプション));
         }
     }
 
-    private static IReadOnlyList<ParameterSweepCase> CreateAxisCases(
-        ParameterSweepBackend backend,
-        ParameterSweepCollectionKind collection,
-        string genericName,
-        ParameterSweepAxis axis,
-        ParameterSweepRunOptions options) {
-        var cases = new List<ParameterSweepCase>(options.MaxSweepSteps);
-        for(var step = 0;step<options.MaxSweepSteps;step++) {
-            var settings = CreateSettings(axis,step,options.Baseline);
-            var caseName = ParameterSweepFormatting.CreateCaseName(collection,genericName,backend,axis,settings);
-            cases.Add(new(caseName,collection,genericName,backend,axis,settings));
+    private static IReadOnlyList<パラメータスイープケース> 軸ケース一覧を作成(
+        パラメータスイープバックエンド バックエンド,
+        パラメータスイープコレクション種別 コレクション,
+        string ジェネリック名,
+        パラメータスイープ軸 スイープ軸,
+        パラメータスイープ実行オプション オプション) {
+        var ケース一覧 = new List<パラメータスイープケース>(オプション.最大スイープ手順数);
+        for(var 手順 = 0;手順<オプション.最大スイープ手順数;手順++) {
+            var 設定 = 設定を作成(スイープ軸,手順,オプション.基準設定);
+            var ケース名 = パラメータスイープフォーマッター.ケース名を作成(コレクション,ジェネリック名,バックエンド,スイープ軸,設定);
+            ケース一覧.Add(new(ケース名,コレクション,ジェネリック名,バックエンド,スイープ軸,設定));
         }
-        return cases;
+        return ケース一覧;
     }
 
-    private static ParameterSweepSettings CreateSettings(ParameterSweepAxis axis,int step,ParameterSweepSettings baseline) {
-        var value = axis switch {
-            ParameterSweepAxis.IndexSize => MinimumIndexSize<<step,
-            ParameterSweepAxis.MemorySize => MinimumMemorySize<<step,
-            ParameterSweepAxis.PageSize => MinimumPageSize<<step,
-            ParameterSweepAxis.SegmentSize => MinimumSegmentSize<<step,
-            _ => throw new ArgumentOutOfRangeException(nameof(axis)),
+    private static パラメータスイープ設定 設定を作成(パラメータスイープ軸 スイープ軸,int 手順,パラメータスイープ設定 基準設定) {
+        var 値 = スイープ軸 switch {
+            パラメータスイープ軸.Indexサイズ => 最小Indexサイズ<<手順,
+            パラメータスイープ軸.Memoryサイズ => 最小Memoryサイズ<<手順,
+            パラメータスイープ軸.Pageサイズ => 最小Pageサイズ<<手順,
+            パラメータスイープ軸.Segmentサイズ => 最小Segmentサイズ<<手順,
+            _ => throw new ArgumentOutOfRangeException(nameof(スイープ軸)),
         };
-        var settings = axis switch {
-            ParameterSweepAxis.IndexSize => baseline with { IndexSize=value },
-            ParameterSweepAxis.MemorySize => baseline with { MemorySize=value },
-            ParameterSweepAxis.PageSize => baseline with {
-                PageSize=value,
-                SegmentSize=Math.Max(baseline.SegmentSize,value),
-                MemorySize=Math.Max(baseline.MemorySize,2*value),
+        var 設定 = スイープ軸 switch {
+            パラメータスイープ軸.Indexサイズ => 基準設定 with { Indexサイズ=値 },
+            パラメータスイープ軸.Memoryサイズ => 基準設定 with { Memoryサイズ=値 },
+            パラメータスイープ軸.Pageサイズ => 基準設定 with {
+                Pageサイズ=値,
+                Segmentサイズ=Math.Max(基準設定.Segmentサイズ,値),
+                Memoryサイズ=Math.Max(基準設定.Memoryサイズ,2*値),
             },
-            ParameterSweepAxis.SegmentSize => baseline with { SegmentSize=value },
-            _ => throw new ArgumentOutOfRangeException(nameof(axis)),
+            パラメータスイープ軸.Segmentサイズ => 基準設定 with { Segmentサイズ=値 },
+            _ => throw new ArgumentOutOfRangeException(nameof(スイープ軸)),
         };
-        return settings;
+        return 設定;
     }
 
-    public static void ValidateOptions(ParameterSweepRunOptions options) {
-        ArgumentNullException.ThrowIfNull(options);
-        if(options.MaxSweepSteps<=0) {
-            throw new ArgumentOutOfRangeException(nameof(options.MaxSweepSteps));
+    public static void オプションを検証(パラメータスイープ実行オプション オプション) {
+        ArgumentNullException.ThrowIfNull(オプション);
+        if(オプション.最大スイープ手順数<=0) {
+            throw new ArgumentOutOfRangeException(nameof(オプション.最大スイープ手順数));
         }
-        if(options.MaxSuccessfulCount<=0) {
-            throw new ArgumentOutOfRangeException(nameof(options.MaxSuccessfulCount));
+        if(オプション.最大成功Count<=0) {
+            throw new ArgumentOutOfRangeException(nameof(オプション.最大成功Count));
         }
-        if(options.LookupProbeCount<=0) {
-            throw new ArgumentOutOfRangeException(nameof(options.LookupProbeCount));
+        if(オプション.検索試行Count<=0) {
+            throw new ArgumentOutOfRangeException(nameof(オプション.検索試行Count));
         }
-        if(options.PerCaseTimeout<=TimeSpan.Zero) {
-            throw new ArgumentOutOfRangeException(nameof(options.PerCaseTimeout));
+        if(オプション.ケース別タイムアウト<=TimeSpan.Zero) {
+            throw new ArgumentOutOfRangeException(nameof(オプション.ケース別タイムアウト));
         }
-        if(options.StorageDeviceCapacity<MinimumSegmentSize*2) {
-            throw new ArgumentOutOfRangeException(nameof(options.StorageDeviceCapacity));
+        if(オプション.ストレージデバイス容量<最小Segmentサイズ*2) {
+            throw new ArgumentOutOfRangeException(nameof(オプション.ストレージデバイス容量));
         }
-        if(options.LogicalCpus.Any(static cpu => cpu<0)) {
-            throw new ArgumentOutOfRangeException(nameof(options.LogicalCpus));
+        if(オプション.論理CPU一覧.Any(static CPU => CPU<0)) {
+            throw new ArgumentOutOfRangeException(nameof(オプション.論理CPU一覧));
         }
     }
 }

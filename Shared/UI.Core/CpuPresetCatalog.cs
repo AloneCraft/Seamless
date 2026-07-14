@@ -1,63 +1,63 @@
 namespace UI;
 
-internal sealed record CpuPresetDefinition(string Key,string Label,IReadOnlyList<int> LogicalProcessorIndexes);
+internal sealed record CPUプリセット定義(string キー,string ラベル,IReadOnlyList<int>論理プロセッサインデックス一覧);
 
 [global::Seamless.FLinq.LinqIntercept(false)]
-internal static class CpuPresetCatalog{
-    public static IReadOnlyList<CpuPresetDefinition> Build(IReadOnlyList<CpuCoreInfo> cpuCores){
-        if(cpuCores.Count==0){
+internal static class CPUプリセットカタログ{
+    public static IReadOnlyList<CPUプリセット定義>構築(IReadOnlyList<CPUコア情報>CPUコア一覧){
+        if(CPUコア一覧.Count==0){
             return [];
         }
 
-        var ordered = cpuCores
-            .OrderBy(static cpu => cpu.LogicalProcessorIndex)
+        var 並び順=CPUコア一覧
+            .OrderBy(static CPU=>CPU.論理プロセッサインデックス)
             .ToArray();
-        var presets = new List<CpuPresetDefinition>{
-            CreatePreset("ALL","ALL",ordered.Select(static cpu => cpu.LogicalProcessorIndex)),
-            CreatePreset("CLEAR","CLEAR",[]),
+        var プリセット一覧=new List<CPUプリセット定義>{
+            プリセットを作成("ALL","すべて",並び順.Select(static CPU=>CPU.論理プロセッサインデックス)),
+            プリセットを作成("CLEAR","クリア",[]),
         };
 
-        AddThreadPresets(presets,ordered,CpuCoreKind.Performance,"P");
-        AddThreadPresets(presets,ordered,CpuCoreKind.Efficiency,"E");
+        スレッドプリセットを追加(プリセット一覧,並び順,CPUコア種別.高性能,"P");
+        スレッドプリセットを追加(プリセット一覧,並び順,CPUコア種別.高効率,"E");
 
-        return presets;
+        return プリセット一覧;
     }
 
-    private static void AddThreadPresets(
-        List<CpuPresetDefinition> presets,
-        IEnumerable<CpuCoreInfo> cpuCores,
-        CpuCoreKind coreKind,
-        string keyPrefix){
-        var coreGroups = cpuCores
-            .Where(cpu => cpu.CoreKind==coreKind)
-            .GroupBy(static cpu => cpu.PhysicalCoreIndex)
-            .OrderBy(static group => group.Key)
-            .Select(static group => group
-                .OrderBy(static cpu => cpu.LogicalProcessorIndex)
+    private static void スレッドプリセットを追加(
+        List<CPUプリセット定義>プリセット一覧,
+        IEnumerable<CPUコア情報>CPUコア一覧,
+        CPUコア種別 コア種別,
+        string キー接頭辞){
+        var コアグループ一覧=CPUコア一覧
+            .Where(CPU=>CPU.コア種別==コア種別)
+            .GroupBy(static CPU=>CPU.物理コアインデックス)
+            .OrderBy(static グループ=>グループ.Key)
+            .Select(static グループ=>グループ
+                .OrderBy(static CPU=>CPU.論理プロセッサインデックス)
                 .ToArray())
-            .Where(static group => group.Length>0)
+            .Where(static グループ=>グループ.Length>0)
             .ToArray();
-        if(coreGroups.Length==0){
+        if(コアグループ一覧.Length==0){
             return;
         }
 
-        var maxThreadCount = coreGroups.Max(static group => group.Length);
-        for(var threadCount=1;threadCount<=maxThreadCount;threadCount++){
-            var key = $"{keyPrefix}{threadCount}T";
-            presets.Add(CreatePreset(
-                key,
-                key,
-                coreGroups.SelectMany(group => group
-                    .Take(threadCount)
-                    .Select(static cpu => cpu.LogicalProcessorIndex))));
+        var 最大スレッド数=コアグループ一覧.Max(static グループ=>グループ.Length);
+        for(var スレッド数=1;スレッド数<=最大スレッド数;スレッド数++){
+            var キー=$"{キー接頭辞}{スレッド数}T";
+            プリセット一覧.Add(プリセットを作成(
+                キー,
+                キー,
+                コアグループ一覧.SelectMany(グループ=>グループ
+                    .Take(スレッド数)
+                    .Select(static CPU=>CPU.論理プロセッサインデックス))));
         }
     }
 
-    private static CpuPresetDefinition CreatePreset(string key,string label,IEnumerable<int> logicalProcessorIndexes){
-        return new CpuPresetDefinition(
-            key,
-            label,
-            logicalProcessorIndexes
+    private static CPUプリセット定義 プリセットを作成(string キー,string ラベル,IEnumerable<int>論理プロセッサインデックス一覧){
+        return new CPUプリセット定義(
+            キー,
+            ラベル,
+            論理プロセッサインデックス一覧
                 .Distinct()
                 .Order()
                 .ToArray());

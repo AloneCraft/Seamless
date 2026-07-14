@@ -19,14 +19,14 @@ SkipWhile_predicate は predicate が true の間だけ読み捨て、その後�
   - index overload は読み捨て中も返却後も source から読むたびに index を増やす。
   - predicate が一度 false になると以後は predicate を見ずに要素を返す。
 */
-public class SkipWhile_predicate(int 番号, Enumerable source, FuncFragment predicate) : Enumerable(番号) {
+public class SkipWhile_predicate(int 番号,Enumerable source,FuncFragment predicate):Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        !(method.Parameters.Length > 0 &&
+        !(method.Parameters.Length>0&&
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
     public override string GetEnumerableExpression =>
-        $"global::Seamless.System.Carrier.ValueEnumerableExtensions.SkipWhile({source.GetEnumerableExpression}, {predicate.DelegateConstructorArg ?? predicate.RenderAsLambda()})";
+        $"global::Seamless.System.Carrier.ValueEnumerableExtensions.SkipWhile({source.GetEnumerableExpression}, {predicate.DelegateConstructorArg??predicate.RenderAsLambda()})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
@@ -38,7 +38,7 @@ public class SkipWhile_predicate(int 番号, Enumerable source, FuncFragment pre
     public override string GetEnumeratorFields => "private bool skipping = true;";
     public override string GetTryGetNextBody {
         get {
-            var (preCode, condExpr) =this.FuncInvokeCondition(predicate, nameof(predicate),this.temp,this.item);
+            var (preCode,condExpr)=this.FuncInvokeCondition(predicate,nameof(predicate),this.temp,this.item);
             var predicateCheck = string.IsNullOrEmpty(preCode)
                 ? $"if(this.skipping && {WrapConditionExpression(condExpr)})"
                 : $"{preCode}\n            if(this.skipping && {WrapConditionExpression(condExpr)})";
@@ -64,23 +64,23 @@ public class SkipWhile_predicate(int 番号, Enumerable source, FuncFragment pre
         if(predicate.ParameterTypeNames.Length!=1) {
             return base.GetConsumeExecutionStatement(consumerName);
         }
-        var sourceName=$"__skipWhileSource{番号}";
-        var directSpanExpression=source.GetDirectSpanExpression(sourceName);
+        var sourceName = $"__skipWhileSource{番号}";
+        var directSpanExpression = source.GetDirectSpanExpression(sourceName);
         if(directSpanExpression is null) {
             return base.GetConsumeExecutionStatement(consumerName);
         }
-        var spanName=$"__skipWhileSpan{番号}";
-        var offsetName=$"__skipWhileOffset{番号}";
-        var itemName=$"__skipWhileItem{番号}";
-        var localDeclarations=string.Join("\n",new[]{
+        var spanName = $"__skipWhileSpan{番号}";
+        var offsetName = $"__skipWhileOffset{番号}";
+        var itemName = $"__skipWhileItem{番号}";
+        var localDeclarations = string.Join("\n",new[]{
             this.HoistedLocalDeclarations(predicate),
             this.StaticDelegateLocalDeclarations(predicate),
-        }.Where(static text=>!string.IsNullOrEmpty(text)));
-        var localDeclarationBlock=string.IsNullOrEmpty(localDeclarations)
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var localDeclarationBlock = string.IsNullOrEmpty(localDeclarations)
             ? string.Empty
             : localDeclarations+"\n";
         var (preCode,condExpr)=this.FuncInvokeConditionStatic(predicate,nameof(predicate),this.temp,itemName);
-        var predicateCheck=string.IsNullOrEmpty(preCode)
+        var predicateCheck = string.IsNullOrEmpty(preCode)
             ? $"if({WrapConditionExpression(condExpr)})"
             : $"{preCode}\n            if({WrapConditionExpression(condExpr)})";
 
@@ -105,9 +105,9 @@ public class SkipWhile_predicate(int 番号, Enumerable source, FuncFragment pre
     }
 }
 
-public class SkipWhile_indexPredicate(int 番号, Enumerable source, FuncFragment predicate) : SkipWhile_predicate(番号, source, predicate) {
+public class SkipWhile_indexPredicate(int 番号,Enumerable source,FuncFragment predicate):SkipWhile_predicate(番号,source,predicate) {
     public static new bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length > 0 &&
+        method.Parameters.Length>0&&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     public override string GetEnumeratorExpression =>
         $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
@@ -119,7 +119,7 @@ public class SkipWhile_indexPredicate(int 番号, Enumerable source, FuncFragmen
         """;
     public override string GetTryGetNextBody {
         get {
-            var (preCode, condExpr) =this.FuncInvokeCondition(predicate, nameof(predicate),this.temp,this.item,this.a);
+            var (preCode,condExpr)=this.FuncInvokeCondition(predicate,nameof(predicate),this.temp,this.item,this.a);
             var predicateCheck = string.IsNullOrEmpty(preCode)
                 ? $"if(this.skipping && {WrapConditionExpression(condExpr)})"
                 : $"{preCode}\n            if(this.skipping && {WrapConditionExpression(condExpr)})";

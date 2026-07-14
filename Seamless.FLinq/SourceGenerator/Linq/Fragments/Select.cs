@@ -22,9 +22,9 @@ constructor 引数:
   - 匿名型戻り値など型名を書けない場合は TResult factory を生成し、ValueEnumerable<Struct<TEnum,TResult>,TResult> で閉じる。
   - Select_indexSelector は index フィールドを増やして selector(item, index) を呼ぶ。
 */
-public class Select_selector(int 番号,Enumerable source,FuncFragment selector):Enumerable(番号){
+public class Select_selector(int 番号,Enumerable source,FuncFragment selector):Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        !(method.Parameters.Length > 0 &&
+        !(method.Parameters.Length>0&&
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     protected override Enumerable PrimarySource => source;
     private bool UseResultTypeParam => selector.RequiresResultTypeParameter;
@@ -120,8 +120,8 @@ Select_WithInlinedScalar は selector 本体が LINQ scalar を返すとき、�
 設計意図:
   selector 内 LINQ を delegate 呼び出しに閉じ込めず、生成済み Fragment の TryGetNext で計算する。
 */
-public class Select_WithInlinedScalar(int 番号, Enumerable source, Fragment scalarFrag, string outerParamName, string elementType)
-    : Enumerable(番号) {
+public class Select_WithInlinedScalar(int 番号,Enumerable source,Fragment scalarFrag,string outerParamName,string elementType)
+    :Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) => false;
     public override string ElementType => elementType;
     protected override Enumerable PrimarySource => source;
@@ -165,40 +165,40 @@ public class Select_WithInlinedScalar(int 番号, Enumerable source, Fragment sc
         BuildInvocationFragmentDelegate buildInvocation,
         TryGetLambdaBodyDelegate tryGetLambdaBody,
         GetLambdaParametersDelegate getLambdaParameters) {
-        fragment = null!;
-        staticMethods = string.Empty;
+        fragment=null!;
+        staticMethods=string.Empty;
         if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method) return false;
-        var definition = method.ReducedFrom ?? method;
-        if(definition.Name != "Select"
-            || definition.ContainingType.ToDisplayString() != "System.Linq.Enumerable")
+        var definition = method.ReducedFrom??method;
+        if(definition.Name!="Select"
+            ||definition.ContainingType.ToDisplayString()!="System.Linq.Enumerable")
             return false;
-        if(invocation.ArgumentList.Arguments.Count != 1
-            || invocation.Expression is not MemberAccessExpressionSyntax { Expression: var sourceExpression })
+        if(invocation.ArgumentList.Arguments.Count!=1
+            ||invocation.Expression is not MemberAccessExpressionSyntax { Expression: var sourceExpression })
             return false;
         var selectorArg = invocation.ArgumentList.Arguments[0].Expression;
         if(selectorArg is not LambdaExpressionSyntax lambda) return false;
-        if(!tryGetLambdaBody(lambda, out var lambdaBody)) return false;
+        if(!tryGetLambdaBody(lambda,out var lambdaBody)) return false;
         var outerParams = getLambdaParameters(lambda);
-        if(outerParams.Count != 1) return false;
+        if(outerParams.Count!=1) return false;
         var outerParamName = outerParams[0];
         if(lambdaBody is not InvocationExpressionSyntax innerInvocation) return false;
         if(semanticModel.GetSymbolInfo(innerInvocation).Symbol is not IMethodSymbol innerMethod) return false;
-        if((innerMethod.ReducedFrom ?? innerMethod).ContainingType.ToDisplayString() != "System.Linq.Enumerable") return false;
+        if((innerMethod.ReducedFrom??innerMethod).ContainingType.ToDisplayString()!="System.Linq.Enumerable") return false;
         var snapshot = uniqueNumber;
         var selectNumber = snapshot++;
-        if(!buildEnumerable(semanticModel, sourceExpression, containingType, ref snapshot, out var outerSource, out var outerSourceStaticMethods, unsafeAccessorCollector))
+        if(!buildEnumerable(semanticModel,sourceExpression,containingType,ref snapshot,out var outerSource,out var outerSourceStaticMethods,unsafeAccessorCollector))
             return false;
-        if(!buildInvocation(semanticModel, innerInvocation, containingType, ref snapshot, out var innerFrag, out var innerStaticMethods, unsafeAccessorCollector))
+        if(!buildInvocation(semanticModel,innerInvocation,containingType,ref snapshot,out var innerFrag,out var innerStaticMethods,unsafeAccessorCollector))
             return false;
         if(innerFrag is not Scalar)
             return false;
         if(semanticModel.GetTypeInfo(innerInvocation).Type is not ITypeSymbol innerType)
             return false;
         var elementType = innerType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        var selectFrag = new Select_WithInlinedScalar(selectNumber, outerSource, innerFrag, outerParamName, elementType);
-        fragment = selectFrag;
-        uniqueNumber = snapshot;
-        staticMethods = JoinStaticMethods(outerSourceStaticMethods, innerStaticMethods);
+        var selectFrag = new Select_WithInlinedScalar(selectNumber,outerSource,innerFrag,outerParamName,elementType);
+        fragment=selectFrag;
+        uniqueNumber=snapshot;
+        staticMethods=JoinStaticMethods(outerSourceStaticMethods,innerStaticMethods);
         return true;
     }
 }
@@ -216,9 +216,9 @@ Select_indexSelector は source.Select((item, index) => 値) 用。
 通常版との差分:
   index を Enumerator フィールドとして保持し、各要素の selector 呼び出しに追加引数として渡す。
 */
-public class Select_indexSelector(int 番号, Enumerable source, FuncFragment selector) : Enumerable(番号) {
+public class Select_indexSelector(int 番号,Enumerable source,FuncFragment selector):Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length > 0 &&
+        method.Parameters.Length>0&&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     protected override Enumerable PrimarySource => source;
     private bool UseResultTypeParam => selector.RequiresResultTypeParameter;
@@ -247,7 +247,7 @@ public class Select_indexSelector(int 番号, Enumerable source, FuncFragment se
     public override string GetEnumerableExpression =>
         this.UseResultTypeParam
             ? $"{this.FactoryMethodName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(selector)})"
-            : $"global::Seamless.System.Carrier.ValueEnumerableExtensions.Select({source.GetEnumerableExpression}, {selector.DelegateConstructorArg ?? selector.RenderAsLambda()})";
+            : $"global::Seamless.System.Carrier.ValueEnumerableExtensions.Select({source.GetEnumerableExpression}, {selector.DelegateConstructorArg??selector.RenderAsLambda()})";
     public override string? NonEnumeratedCountExpression => source.NonEnumeratedCountExpression;
     public override bool CountPreserving => source.CountPreserving;
     public override string GetEnumeratorPrimaryConstructorParameters =>

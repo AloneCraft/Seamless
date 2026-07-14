@@ -1,21 +1,19 @@
-using UI;
-
 namespace Test.Benchmark;
 
-public sealed class BenchmarkExecutionProfileNames{
+public sealed class ベンチマーク実行プロファイル名 {
     [Fact]
-    public void ToFolderName(){
-        Assert.Equal("Accurate",global::UI.BenchmarkExecutionProfileNames.ToFolderName(global::UI.BenchmarkExecutionProfile.Accurate));
-        Assert.Equal("Intermediate",global::UI.BenchmarkExecutionProfileNames.ToFolderName(global::UI.BenchmarkExecutionProfile.Intermediate));
-        Assert.Equal("Fast",global::UI.BenchmarkExecutionProfileNames.ToFolderName(global::UI.BenchmarkExecutionProfile.Fast));
-        Assert.Equal("Test",global::UI.BenchmarkExecutionProfileNames.ToFolderName(global::UI.BenchmarkExecutionProfile.Test));
+    public void フォルダー名に変換() {
+        Assert.Equal("Accurate",global::UI.ベンチマーク実行プロファイル名.フォルダー名に変換(global::UI.ベンチマーク実行プロファイル.正確));
+        Assert.Equal("Intermediate",global::UI.ベンチマーク実行プロファイル名.フォルダー名に変換(global::UI.ベンチマーク実行プロファイル.中間));
+        Assert.Equal("Fast",global::UI.ベンチマーク実行プロファイル名.フォルダー名に変換(global::UI.ベンチマーク実行プロファイル.高速));
+        Assert.Equal("Test",global::UI.ベンチマーク実行プロファイル名.フォルダー名に変換(global::UI.ベンチマーク実行プロファイル.テスト));
     }
 
     [Fact]
-    public void GetAllocatedBytesSource(){
-        Assert.Equal("BenchmarkDotNet MemoryDiagnoser",global::UI.BenchmarkExecutionProfileNames.GetAllocatedBytesSource(global::UI.BenchmarkExecutionProfile.Accurate));
-        Assert.Equal("BenchmarkDotNet MemoryDiagnoser",global::UI.BenchmarkExecutionProfileNames.GetAllocatedBytesSource(global::UI.BenchmarkExecutionProfile.Intermediate));
-        Assert.Equal("GC.GetAllocatedBytesForCurrentThread",global::UI.BenchmarkExecutionProfileNames.GetAllocatedBytesSource(global::UI.BenchmarkExecutionProfile.Fast));
-        Assert.Equal("Thread.Sleep test runner",global::UI.BenchmarkExecutionProfileNames.GetAllocatedBytesSource(global::UI.BenchmarkExecutionProfile.Test));
+    public void 割り当てバイト数取得元を取得() {
+        Assert.Equal("BenchmarkDotNet MemoryDiagnoser",global::UI.ベンチマーク実行プロファイル名.割り当てバイト数取得元を取得(global::UI.ベンチマーク実行プロファイル.正確));
+        Assert.Equal("BenchmarkDotNet MemoryDiagnoser",global::UI.ベンチマーク実行プロファイル名.割り当てバイト数取得元を取得(global::UI.ベンチマーク実行プロファイル.中間));
+        Assert.Equal("GC.GetAllocatedBytesForCurrentThread",global::UI.ベンチマーク実行プロファイル名.割り当てバイト数取得元を取得(global::UI.ベンチマーク実行プロファイル.高速));
+        Assert.Equal("Thread.Sleep テスト実行器",global::UI.ベンチマーク実行プロファイル名.割り当てバイト数取得元を取得(global::UI.ベンチマーク実行プロファイル.テスト));
     }
 }

@@ -99,11 +99,9 @@ public static class Assert {
         where TException : Exception {
         try {
             action();
-        }
-        catch(TException exception) {
+        } catch(TException exception) {
             return exception;
-        }
-        catch(Exception exception) {
+        } catch(Exception exception) {
             throw new InvalidOperationException($"Expected exception {typeof(TException).FullName}, actual {exception.GetType().FullName}.",exception);
         }
 
@@ -114,11 +112,9 @@ public static class Assert {
         where TException : Exception {
         try {
             await action().ConfigureAwait(false);
-        }
-        catch(TException exception) {
+        } catch(TException exception) {
             return exception;
-        }
-        catch(Exception exception) {
+        } catch(Exception exception) {
             throw new InvalidOperationException($"Expected exception {typeof(TException).FullName}, actual {exception.GetType().FullName}.",exception);
         }
 
@@ -129,14 +125,11 @@ public static class Assert {
         where TException : Exception {
         try {
             await action().ConfigureAwait(false);
-        }
-        catch(TException exception) {
+        } catch(TException exception) {
             return exception;
-        }
-        catch(Exception exception) when(exception is TException) {
+        } catch(Exception exception) when(exception is TException) {
             return (TException)exception;
-        }
-        catch(Exception exception) {
+        } catch(Exception exception) {
             throw new InvalidOperationException($"Expected exception assignable to {typeof(TException).FullName}, actual {exception.GetType().FullName}.",exception);
         }
 

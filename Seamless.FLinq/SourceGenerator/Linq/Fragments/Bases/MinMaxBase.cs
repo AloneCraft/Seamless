@@ -1,7 +1,7 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
 /// <summary>Shared scalar implementation for Min and Max without a selector.</summary>
-public abstract class MinMaxBase(int number, Enumerable source, string resultType, string direction) : BufferedScalar(number, resultType) {
+public abstract class MinMaxBase(int number,Enumerable source,string resultType,string direction):BufferedScalar(number,resultType) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -14,11 +14,11 @@ public abstract class MinMaxBase(int number, Enumerable source, string resultTyp
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 
     public override string? RenderInlineComputation(string destVar,string destType) {
-        if(source is RangeRoot range && source.ElementType=="int") {
+        if(source is RangeRoot range&&source.ElementType=="int") {
             return RangePredicateOptimizer.RenderMinMax(range,number,destVar,destType,direction=="greater");
         }
         if(source.DirectArrayExpression is { } arrayExpression) {
-            var methodName=direction=="greater"?"MaxSpan":"MinSpan";
+            var methodName = direction=="greater" ? "MaxSpan" : "MinSpan";
             return $$"""
                 {{destType}} {{destVar}}=global::Seamless.System.Carrier.ValueEnumerableExtensions.{{methodName}}<{{source.ElementType}}>({{arrayExpression}},global::System.Collections.Generic.Comparer<{{source.ElementType}}>.Default);
                 """;

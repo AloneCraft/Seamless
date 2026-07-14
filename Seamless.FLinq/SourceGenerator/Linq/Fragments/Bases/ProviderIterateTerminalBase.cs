@@ -13,7 +13,7 @@ public enum ProviderIterateTerminalKind {
     Contains,
 }
 
-public abstract class ProviderNativeExecutionBase:Scalar,DirectExecutionFragment {
+public abstract class ProviderNativeExecutionBase:Scalar, DirectExecutionFragment {
     private readonly int number;
     private readonly PipelineEnumerable pipeline;
     private readonly ProviderIterateTerminalKind terminalKind;
@@ -74,8 +74,8 @@ public abstract class ProviderNativeExecutionBase:Scalar,DirectExecutionFragment
         terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray
             or PipelineTerminalKind.Count or PipelineTerminalKind.Any or PipelineTerminalKind.First
             or PipelineTerminalKind.ToDictionary or PipelineTerminalKind.Sum
-        && pipeline.Stages.All(static stage => PipelineStageCapabilityTable.SupportsProviderNativeIterate(stage.Kind))
-        && !pipeline.Stages.Any(static stage => stage.Func is { RequiresStatementInlining: true });
+        &&pipeline.Stages.All(static stage => PipelineStageCapabilityTable.SupportsProviderNativeIterate(stage.Kind))
+        &&!pipeline.Stages.Any(static stage => stage.Func is { RequiresStatementInlining: true });
 
     protected static bool CanCreateFor(
         PipelineEnumerable pipeline,
@@ -87,9 +87,9 @@ public abstract class ProviderNativeExecutionBase:Scalar,DirectExecutionFragment
             ProviderIterateTerminalKind.Contains => containsValue is not null,
             _ => true,
         }
-        && pipeline.Stages.All(static stage => PipelineStageCapabilityTable.SupportsProviderNativeIterate(stage.Kind))
-        && !pipeline.Stages.Any(static stage => stage.Func is { RequiresStatementInlining: true })
-        && terminalPredicate is not { RequiresStatementInlining: true };
+        &&pipeline.Stages.All(static stage => PipelineStageCapabilityTable.SupportsProviderNativeIterate(stage.Kind))
+        &&!pipeline.Stages.Any(static stage => stage.Func is { RequiresStatementInlining: true })
+        &&terminalPredicate is not { RequiresStatementInlining: true };
 
     protected static ProviderIterateTerminalKind ToProviderIterateTerminalKind(PipelineTerminalKind terminalKind) =>
         terminalKind switch {
@@ -119,8 +119,8 @@ public abstract class ProviderNativeExecutionBase:Scalar,DirectExecutionFragment
     public override string GetCurrentExpression => string.Empty;
 
     public string GetDirectExecutionStatement(string actualVariableName,string actualTypeName) {
-        var sourceName=$"{this.sourceVariablePrefix}{this.number}";
-        var stateName=$"__{this.providerName}{this.operationName}State{this.number}";
+        var sourceName = $"{this.sourceVariablePrefix}{this.number}";
+        var stateName = $"__{this.providerName}{this.operationName}State{this.number}";
         var builder = new StringBuilder();
         builder.AppendLine($"var {sourceName}={this.sourceExpression};");
         builder.AppendLine($"var {stateName}=new {this.StateTypeName}({this.ClosureArgumentList()});");
@@ -178,7 +178,7 @@ public abstract class ProviderNativeExecutionBase:Scalar,DirectExecutionFragment
         foreach(var func in this.DelegateFuncs()) {
             builder.AppendLine($"    public {func.DelegateTypeName} {func.DelegateFieldName};");
         }
-        foreach(var (stage,index) in this.pipeline.Stages.Select(static (stage,index)=>(stage,index))) {
+        foreach(var (stage,index) in this.pipeline.Stages.Select(static (stage,index) => (stage,index))) {
             if(stage.UsesIndex) {
                 builder.AppendLine($"    public int {this.IndexFieldName(index)};");
             }
@@ -201,11 +201,11 @@ public abstract class ProviderNativeExecutionBase:Scalar,DirectExecutionFragment
         }
         var parameters = this.ClosureParameters().ToArray();
         if(parameters.Length>0) {
-            builder.AppendLine($"    public {this.StateTypeName}({string.Join(", ",parameters.Select(static p=>$"{p.TypeName} {p.Name}"))}) {{");
+            builder.AppendLine($"    public {this.StateTypeName}({string.Join(", ",parameters.Select(static p => $"{p.TypeName} {p.Name}"))}) {{");
             foreach(var parameter in parameters) {
                 builder.AppendLine($"        this.{parameter.Name}={parameter.Name};");
             }
-            foreach(var (stage,index) in this.pipeline.Stages.Select(static (stage,index)=>(stage,index))) {
+            foreach(var (stage,index) in this.pipeline.Stages.Select(static (stage,index) => (stage,index))) {
                 if(stage.UsesIndex) {
                     builder.AppendLine($"        this.{this.IndexFieldName(index)}=-1;");
                 }
@@ -214,9 +214,9 @@ public abstract class ProviderNativeExecutionBase:Scalar,DirectExecutionFragment
             builder.AppendLine("        this.Found=false;");
             builder.AppendLine("        this.Value=default!;");
             builder.AppendLine("    }");
-        } else if(this.pipeline.Stages.Any(static stage=>stage.UsesIndex)) {
+        } else if(this.pipeline.Stages.Any(static stage => stage.UsesIndex)) {
             builder.AppendLine($"    public {this.StateTypeName}() {{");
-            foreach(var (stage,index) in this.pipeline.Stages.Select(static (stage,index)=>(stage,index))) {
+            foreach(var (stage,index) in this.pipeline.Stages.Select(static (stage,index) => (stage,index))) {
                 if(stage.UsesIndex) {
                     builder.AppendLine($"        this.{this.IndexFieldName(index)}=-1;");
                 }
@@ -244,7 +244,7 @@ public abstract class ProviderNativeExecutionBase:Scalar,DirectExecutionFragment
         builder.AppendLine("    var current0=item;");
         var currentName = "current0";
         var currentIndex = 0;
-        foreach(var (stage,index) in this.pipeline.Stages.Select(static (stage,index)=>(stage,index))) {
+        foreach(var (stage,index) in this.pipeline.Stages.Select(static (stage,index) => (stage,index))) {
             if(stage.Kind==PipelineStageKind.AsEnumerable) {
                 continue;
             }
@@ -252,7 +252,7 @@ public abstract class ProviderNativeExecutionBase:Scalar,DirectExecutionFragment
                 builder.AppendLine($"    checked {{ state.{this.IndexFieldName(index)}++; }}");
             }
             if(stage.Kind==PipelineStageKind.Where) {
-                var tempName=$"where{index}";
+                var tempName = $"where{index}";
                 builder.AppendLine($"    bool {tempName}=default!;");
                 var args = stage.UsesIndex
                     ? new[] { currentName,$"state.{this.IndexFieldName(index)}" }
@@ -262,7 +262,7 @@ public abstract class ProviderNativeExecutionBase:Scalar,DirectExecutionFragment
                 continue;
             }
             if(stage.Kind==PipelineStageKind.Select) {
-                var nextName=$"current{++currentIndex}";
+                var nextName = $"current{++currentIndex}";
                 builder.AppendLine($"    {stage.OutputType} {nextName}=default!;");
                 var args = stage.UsesIndex
                     ? new[] { currentName,$"state.{this.IndexFieldName(index)}" }
@@ -292,7 +292,7 @@ public abstract class ProviderNativeExecutionBase:Scalar,DirectExecutionFragment
             builder.AppendLine($"    state.Sum+=({this.pipeline.ElementType}){currentName};");
             builder.AppendLine("    return true;");
         } else if(this.terminalKind==ProviderIterateTerminalKind.All) {
-            var tempName="all";
+            var tempName = "all";
             builder.AppendLine($"    bool {tempName}=default!;");
             var args = new[] { currentName };
             GeneratedCodeWriter.AppendIndented(builder,this.FuncAssignStatic(this.terminalPredicate!,"All",tempName,args),"    ");
@@ -302,7 +302,7 @@ public abstract class ProviderNativeExecutionBase:Scalar,DirectExecutionFragment
             builder.AppendLine("    }");
             builder.AppendLine("    return true;");
         } else if(this.terminalKind==ProviderIterateTerminalKind.Contains) {
-            builder.AppendLine("    var comparer=state.ContainsComparer ?? global::System.Collections.Generic.EqualityComparer<" + this.pipeline.ElementType + ">.Default;");
+            builder.AppendLine("    var comparer=state.ContainsComparer ?? global::System.Collections.Generic.EqualityComparer<"+this.pipeline.ElementType+">.Default;");
             builder.AppendLine($"    if(comparer.Equals(({this.pipeline.ElementType}){currentName},state.ContainsValue)) {{");
             builder.AppendLine("        state.Found=true;");
             builder.AppendLine("        return false;");
@@ -324,15 +324,15 @@ public abstract class ProviderNativeExecutionBase:Scalar,DirectExecutionFragment
     }
 
     private IEnumerable<FuncFragment> Funcs() =>
-        this.pipeline.Stages.Select(static stage=>stage.Func)
-            .Where(static func=>func is not null)
-            .Select(static func=>func!)
+        this.pipeline.Stages.Select(static stage => stage.Func)
+            .Where(static func => func is not null)
+            .Select(static func => func!)
             .Concat(this.terminalPredicate is null ? [] : [this.terminalPredicate])
             .Concat(this.terminalFunc1 is null ? [] : [this.terminalFunc1])
             .Concat(this.terminalFunc2 is null ? [] : [this.terminalFunc2]);
 
-    private string DictionaryKeyType=>this.terminalFunc1?.ReturnTypeName??"object";
-    private string DictionaryValueType=>this.terminalFunc2?.ReturnTypeName??this.pipeline.ElementType;
+    private string DictionaryKeyType => this.terminalFunc1?.ReturnTypeName??"object";
+    private string DictionaryValueType => this.terminalFunc2?.ReturnTypeName??this.pipeline.ElementType;
 
     private IEnumerable<(string Name,string TypeName)> CapturedLocals() {
         var names = new HashSet<string>(StringComparer.Ordinal);
@@ -359,7 +359,7 @@ public abstract class ProviderNativeExecutionBase:Scalar,DirectExecutionFragment
     private IEnumerable<FuncFragment> DelegateFuncs() {
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach(var func in this.Funcs()) {
-            if(func.CanInvokeAsDelegate && func.DelegateFieldName is { } name && names.Add(name)) {
+            if(func.CanInvokeAsDelegate&&func.DelegateFieldName is { } name&&names.Add(name)) {
                 yield return func;
             }
         }
@@ -367,13 +367,13 @@ public abstract class ProviderNativeExecutionBase:Scalar,DirectExecutionFragment
 
     private IEnumerable<(string Name,string TypeName)> ClosureParameters() =>
         this.CapturedLocals()
-            .Concat(this.HoistedLocals().Select(static hoistedLocal=>(hoistedLocal.Name,hoistedLocal.TypeName)))
-            .Concat(this.DelegateFuncs().Select(static func=>(func.DelegateFieldName!,func.DelegateTypeName!)));
+            .Concat(this.HoistedLocals().Select(static hoistedLocal => (hoistedLocal.Name,hoistedLocal.TypeName)))
+            .Concat(this.DelegateFuncs().Select(static func => (func.DelegateFieldName!,func.DelegateTypeName!)));
 
     private string ClosureArgumentList() {
-        var args = this.CapturedLocals().Select(static capture=>capture.Name)
-            .Concat(this.HoistedLocals().Select(static hoistedLocal=>hoistedLocal.ExpressionText))
-            .Concat(this.DelegateFuncs().Select(static func=>func.DelegateConstructorArg!))
+        var args = this.CapturedLocals().Select(static capture => capture.Name)
+            .Concat(this.HoistedLocals().Select(static hoistedLocal => hoistedLocal.ExpressionText))
+            .Concat(this.DelegateFuncs().Select(static func => func.DelegateConstructorArg!))
             .ToArray();
         return string.Join(", ",args);
     }

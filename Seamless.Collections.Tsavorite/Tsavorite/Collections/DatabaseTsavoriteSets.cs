@@ -20,7 +20,7 @@ public sealed class DelegateSet<TRecord>:IReadOnlyCollection<TRecord>, IDisposab
         this.contains=contains;
         this.getEnumerator=getEnumerator;
         this.getCount=getCount;
-        this.dispose=dispose ?? (static () => { });
+        this.dispose=dispose??(static () => { });
     }
 
     public int Count => this.getCount();

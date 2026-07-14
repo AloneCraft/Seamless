@@ -107,7 +107,7 @@ public class LinqRewriteAttributeTests(ITestOutputHelper output) {
 
     [Fact]
     public void GenericContainingType_WithAccessibleLambda_IsIntercepted() {
-        var generated=GeneratedSource(GenericContainingTypeRewrite);
+        var generated = GeneratedSource(GenericContainingTypeRewrite);
         GeneratedSourceAssert.True(
             generated.Contains("CountItems_",StringComparison.Ordinal),
             "Expected generic-containing CountItems interceptor was not generated.",
@@ -119,12 +119,12 @@ public class LinqRewriteAttributeTests(ITestOutputHelper output) {
     public void CounterInstrumentation_WithNoLinqOptimization_IsIntercepted() {
         var generated = GeneratedSource(CounterWithoutOptimization);
         GeneratedSourceAssert.True(
-            generated.Contains("MeasuredLinq_SumPositive", StringComparison.Ordinal),
+            generated.Contains("MeasuredLinq_SumPositive",StringComparison.Ordinal),
             "Measured interceptor was not generated.",
             generated,
             output);
         GeneratedSourceAssert.True(
-            !generated.Contains("OptimizedLinq_SumPositive", StringComparison.Ordinal),
+            !generated.Contains("OptimizedLinq_SumPositive",StringComparison.Ordinal),
             "Optimized interceptor should not be generated.",
             generated,
             output);
@@ -153,7 +153,7 @@ public class LinqRewriteAttributeTests(ITestOutputHelper output) {
     private void AssertIntercepted(string source) {
         var generated = GeneratedSource(source);
         GeneratedSourceAssert.True(
-            generated.Contains("SumPositive_", StringComparison.Ordinal),
+            generated.Contains("SumPositive_",StringComparison.Ordinal),
             "Expected SumPositive interceptor was not generated.",
             generated,
             output);
@@ -162,14 +162,14 @@ public class LinqRewriteAttributeTests(ITestOutputHelper output) {
     private void AssertNotIntercepted(string source) {
         var generated = GeneratedSource(source);
         GeneratedSourceAssert.True(
-            !generated.Contains("SumPositive_", StringComparison.Ordinal),
+            !generated.Contains("SumPositive_",StringComparison.Ordinal),
             "SumPositive interceptor should not be generated.",
             generated,
             output);
     }
 
     private static string GeneratedSource(string source) {
-        var comp = GeneratorTestHelpers.CreateCompilation([("Container.cs", source)]);
+        var comp = GeneratorTestHelpers.CreateCompilation([("Container.cs",source)]);
         var driver = GeneratorTestHelpers.CreateDriver().RunGenerators(comp);
         var result = driver.GetRunResult();
 

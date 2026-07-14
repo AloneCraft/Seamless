@@ -34,13 +34,13 @@ public sealed partial class FLinqIncrementalGenerator {
     internal static object? SuspendAnonRegistry() {
         var saved = _anonRegistry;
         if(_anonRegistryPinCount==0) {
-            _anonRegistry = null;
+            _anonRegistry=null;
         }
         return saved;
     }
 
     internal static void RestoreAnonRegistry(object? saved) {
-        _anonRegistry = (AnonymousStructRecordRegistry?)saved;
+        _anonRegistry=(AnonymousStructRecordRegistry?)saved;
     }
 
     private sealed class AnonymousStructRecordRegistry(string fileToken) {
@@ -67,7 +67,7 @@ public sealed partial class FLinqIncrementalGenerator {
         /// 入れ子の匿名型も再帰的に置換する。
         /// </summary>
         public string ResolveClosedName(ITypeSymbol type) {
-            if(type.IsAnonymousType && type is INamedTypeSymbol anon) {
+            if(type.IsAnonymousType&&type is INamedTypeSymbol anon) {
                 var members = AnonymousMembers(anon);
                 var shape = this.RegisterShape(members.Select(static m => m.Name).ToArray());
                 if(shape.Arity==0) {
@@ -83,7 +83,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 }
                 return type.ToDisplayString(完全修飾形式);
             }
-            if(type is INamedTypeSymbol named && named.TypeArguments.Any(ContainsAnonymousType)) {
+            if(type is INamedTypeSymbol named&&named.TypeArguments.Any(ContainsAnonymousType)) {
                 var open = OpenGenericTypeName(named);
                 var args = string.Join(", ",named.TypeArguments.Select(this.ResolveClosedName));
                 return $"{open}<{args}>";
@@ -149,7 +149,7 @@ public sealed partial class FLinqIncrementalGenerator {
         /// 入れ子の匿名型も再帰的に再構成する。
         /// </summary>
         public string ReconstructAnonymousCreation(ITypeSymbol originalAnonType,string structRecordExpr) {
-            if(!originalAnonType.IsAnonymousType || originalAnonType is not INamedTypeSymbol anon) {
+            if(!originalAnonType.IsAnonymousType||originalAnonType is not INamedTypeSymbol anon) {
                 return structRecordExpr;
             }
             var members = AnonymousMembers(anon);
@@ -194,9 +194,9 @@ public sealed partial class FLinqIncrementalGenerator {
             var id = baseId;
             var counter = 1;
             while(!this._usedIds.Add(id)) {
-                id = $"{baseId}_{counter++}";
+                id=$"{baseId}_{counter++}";
             }
-            var shape = new Shape { TypeId = id,MemberNames = memberNames };
+            var shape = new Shape { TypeId=id,MemberNames=memberNames };
             this._shapes.Add(key,shape);
             return shape;
         }
@@ -211,7 +211,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
     private static ExpressionSyntax StripParentheses(ExpressionSyntax expression) {
         while(expression is ParenthesizedExpressionSyntax parenthesized) {
-            expression = parenthesized.Expression;
+            expression=parenthesized.Expression;
         }
         return expression;
     }
@@ -219,15 +219,15 @@ public sealed partial class FLinqIncrementalGenerator {
     // C# キーワードと衝突するメンバー名は @ でエスケープする。
     private static string EscapeIdentifier(string name) {
         return SyntaxFacts.GetKeywordKind(name)!=SyntaxKind.None
-            || SyntaxFacts.GetContextualKeywordKind(name)!=SyntaxKind.None
+            ||SyntaxFacts.GetContextualKeywordKind(name)!=SyntaxKind.None
             ? "@"+name
             : name;
     }
 
     // SourcePath からファイル単位で一意な識別子トークンを作る。
     private static string AnonRecordFileToken(string sourcePath) {
-        var name = System.IO.Path.GetFileNameWithoutExtension(sourcePath ?? string.Empty);
-        var hash = unchecked((uint)StringComparer.Ordinal.GetHashCode(sourcePath ?? string.Empty));
+        var name = System.IO.Path.GetFileNameWithoutExtension(sourcePath??string.Empty);
+        var hash = unchecked((uint)StringComparer.Ordinal.GetHashCode(sourcePath??string.Empty));
         return $"{SanitizeIdentifier(name)}_{hash:x8}";
     }
 }

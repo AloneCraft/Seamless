@@ -1,9 +1,9 @@
 namespace Seamless.SourceGenerator;
 
 [Generator(LanguageNames.CSharp)]
-public sealed class LinqEnumerableForwarderGenerator : IIncrementalGenerator {
+public sealed class LinqEnumerableForwarderGenerator:IIncrementalGenerator {
     public void Initialize(IncrementalGeneratorInitializationContext context) {
-        var options = context.AnalyzerConfigOptionsProvider.Select(static (provider, _) => {
+        var options = context.AnalyzerConfigOptionsProvider.Select(static (provider,_) => {
             provider.GlobalOptions.TryGetValue("build_property.SeamlessGenerateLinqEnumerable",out var enabled);
             provider.GlobalOptions.TryGetValue("build_property.SeamlessLinqEnumerableNamespace",out var targetNamespace);
             provider.GlobalOptions.TryGetValue("build_property.SeamlessLinqEnumerableSourceType",out var sourceType);
@@ -11,7 +11,7 @@ public sealed class LinqEnumerableForwarderGenerator : IIncrementalGenerator {
                 Enabled: string.Equals(enabled,"true",StringComparison.OrdinalIgnoreCase),
                 Namespaces: string.IsNullOrWhiteSpace(targetNamespace)
                     ? ["Seamless.Linq"]
-                    : targetNamespace.Split(new[] { ';', ',' },StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries),
+                    : targetNamespace.Split(new[] { ';',',' },StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries),
                 SourceTypeTemplate: string.IsNullOrWhiteSpace(sourceType)
                     ? "global::Seamless.Collections.ISet<TSource>"
                     : sourceType);
@@ -19,8 +19,8 @@ public sealed class LinqEnumerableForwarderGenerator : IIncrementalGenerator {
 
         var generationInput = context.CompilationProvider.Combine(options);
 
-        context.RegisterSourceOutput(generationInput,static (productionContext, input) => {
-            var (compilation,options) = input;
+        context.RegisterSourceOutput(generationInput,static (productionContext,input) => {
+            var (compilation,options)=input;
             if(!options.Enabled)
                 return;
 
@@ -39,7 +39,7 @@ public sealed class LinqEnumerableForwarderGenerator : IIncrementalGenerator {
         var methods = linqEnumerableType
             .GetMembers()
             .OfType<IMethodSymbol>()
-            .Where(method=>IsApplicable(method,enumerableType))
+            .Where(method => IsApplicable(method,enumerableType))
             .OrderBy(static method => method.Name,StringComparer.Ordinal)
             .ThenBy(static method => method.Parameters.Length)
             .ThenBy(static method => method.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),StringComparer.Ordinal)
@@ -78,13 +78,13 @@ public sealed class LinqEnumerableForwarderGenerator : IIncrementalGenerator {
         var genericArguments = method.TypeParameters;
         var genericArgumentList = genericArguments.Length==0
             ? string.Empty
-            : $"<{string.Join(", ",genericArguments.Select(static argument=>argument.Name))}>";
-        var restricted=UnorderedLinqOperatorPolicy.IsRestricted(method);
-        var explicitOptIn=UnorderedLinqOperatorPolicy.IsExplicitOptIn(method);
-        var unorderedElementType=!restricted&&!explicitOptIn
+            : $"<{string.Join(", ",genericArguments.Select(static argument => argument.Name))}>";
+        var restricted = UnorderedLinqOperatorPolicy.IsRestricted(method);
+        var explicitOptIn = UnorderedLinqOperatorPolicy.IsExplicitOptIn(method);
+        var unorderedElementType = !restricted&&!explicitOptIn
             ? TryGetEnumerableElementType(method.ReturnType)
             : null;
-        var returnType=unorderedElementType is null
+        var returnType = unorderedElementType is null
             ? FormatType(method.ReturnType)
             : $"global::Seamless.Collections.IUnorderedEnumerable<{FormatType(unorderedElementType)}>";
         var parameters = method.Parameters;
@@ -102,7 +102,7 @@ public sealed class LinqEnumerableForwarderGenerator : IIncrementalGenerator {
         builder.Append(string.Join(", ",parameters.Select((parameter,index) => FormatParameter(parameter,index==0,sourceTypeTemplate))));
         builder.Append(')');
 
-        foreach(var constraint in genericArguments.Select(FormatConstraint).Where(static constraint=>constraint.Length!=0)) {
+        foreach(var constraint in genericArguments.Select(FormatConstraint).Where(static constraint => constraint.Length!=0)) {
             builder.AppendLine();
             builder.Append("        ");
             builder.Append(constraint);
@@ -110,7 +110,7 @@ public sealed class LinqEnumerableForwarderGenerator : IIncrementalGenerator {
 
         builder.AppendLine(" {");
         if(restricted) {
-            var sourceParameterName=parameters[0].Name;
+            var sourceParameterName = parameters[0].Name;
             builder.Append("        throw global::Seamless.Linq.GeneratedCodeHelpers.UnorderedSourceOperation(\"");
             builder.Append(method.Name);
             builder.Append("\",");
@@ -133,12 +133,12 @@ public sealed class LinqEnumerableForwarderGenerator : IIncrementalGenerator {
         builder.Append(genericArgumentList);
         builder.Append('(');
         builder.Append(string.Join(", ",parameters.Select(FormatArgument)));
-        builder.Append(unorderedElementType is null?");":"));");
+        builder.Append(unorderedElementType is null ? ");" : "));");
         builder.AppendLine();
         builder.AppendLine("    }");
     }
 
-    private static void AppendUnorderedWrapper(StringBuilder builder){
+    private static void AppendUnorderedWrapper(StringBuilder builder) {
         builder.AppendLine("    private static global::Seamless.Collections.IUnorderedEnumerable<T> PreserveUnordered<T>(global::System.Collections.Generic.IEnumerable<T> source)=>");
         builder.AppendLine("        source as global::Seamless.Collections.IUnorderedEnumerable<T>??new UnorderedEnumerableWrapper<T>(source);");
         builder.AppendLine();
@@ -148,9 +148,9 @@ public sealed class LinqEnumerableForwarderGenerator : IIncrementalGenerator {
         builder.AppendLine("    }");
     }
 
-    private static ITypeSymbol? TryGetEnumerableElementType(ITypeSymbol type){
+    private static ITypeSymbol? TryGetEnumerableElementType(ITypeSymbol type) {
         if(type is INamedTypeSymbol named
-            &&named.OriginalDefinition.SpecialType==SpecialType.System_Collections_Generic_IEnumerable_T){
+            &&named.OriginalDefinition.SpecialType==SpecialType.System_Collections_Generic_IEnumerable_T) {
             return named.TypeArguments[0];
         }
         return null;

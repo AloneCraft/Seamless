@@ -7,8 +7,7 @@ namespace Seamless.System.Carrier {
                 return TryGetFirst<TEnumerator,TSource>(ref enumerator,out var value)
                     ? value
                     : Throws.NoElements<TSource>();
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }
@@ -21,8 +20,7 @@ namespace Seamless.System.Carrier {
                 return TryGetFirst<TEnumerator,TSource>(ref enumerator,predicate,out var value)
                 ? value
                 : Throws.NoMatch<TSource>();
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }
@@ -34,8 +32,7 @@ namespace Seamless.System.Carrier {
                 return TryGetFirst<TEnumerator,TSource>(ref enumerator,out var value)
                 ? value
                 : default;
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }
@@ -47,8 +44,7 @@ namespace Seamless.System.Carrier {
                 return TryGetFirst<TEnumerator,TSource>(ref enumerator,out var value)
                 ? value
                 : defaultValue;
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }
@@ -61,8 +57,7 @@ namespace Seamless.System.Carrier {
                 return TryGetFirst<TEnumerator,TSource>(ref enumerator,predicate,out var value)
                 ? value
                 : default;
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }
@@ -75,8 +70,7 @@ namespace Seamless.System.Carrier {
                 return TryGetFirst<TEnumerator,TSource>(ref enumerator,predicate,out var value)
                 ? value
                 : defaultValue;
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }

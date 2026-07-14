@@ -53,8 +53,7 @@ namespace Seamless.System.Carrier {
                     return true;
                 }
                 return false;
-            }
-            else {
+            } else {
                 return this.source.TryCopyTo(destination,offset);
             }
         }

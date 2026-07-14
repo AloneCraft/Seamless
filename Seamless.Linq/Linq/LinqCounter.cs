@@ -182,7 +182,7 @@ public sealed class LinqCounter {
 public static class LinqCounterScope {
     private static readonly AsyncLocal<LinqCounter?> CurrentCounter = new();
     public static LinqCounter GlobalCounter { get; } = new();
-    public static LinqCounter Counter => CurrentCounter.Value ?? GlobalCounter;
+    public static LinqCounter Counter => CurrentCounter.Value??GlobalCounter;
     public static LinqCounter? Current => CurrentCounter.Value;
 
     [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
@@ -208,12 +208,12 @@ public static class LinqCounterScope {
 
     public static Scope Start(LinqCounter? counter = null) {
         var previous = CurrentCounter.Value;
-        var active = counter ?? new LinqCounter();
-        CurrentCounter.Value = active;
-        return new Scope(previous, active);
+        var active = counter??new LinqCounter();
+        CurrentCounter.Value=active;
+        return new Scope(previous,active);
     }
 
-    public readonly struct Scope : IDisposable {
+    public readonly struct Scope:IDisposable {
         private readonly LinqCounter? previous;
         public Scope(LinqCounter? previous,LinqCounter counter) {
             this.previous=previous;

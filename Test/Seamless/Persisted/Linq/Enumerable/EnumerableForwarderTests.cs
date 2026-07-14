@@ -1,6 +1,7 @@
+using Seamless.FLinq;
+
 using System.Reflection;
 
-using Seamless.FLinq;
 using SeamlessEnumerable = Seamless.Linq.Enumerable;
 
 namespace Test.Seamless.Persisted.Linq.Enumerable;
@@ -25,10 +26,12 @@ public class EnumerableForwarderTests {
             source.Compact();
 
             var orderedSource = SeamlessEnumerable.AsEnumerable(source).Order().ToArray();
-            var filtered=SeamlessEnumerable.Where(source,static value=>value%2==0);
+            var filtered = SeamlessEnumerable.Where(source,static value => value%2==0);
 
             Assert.IsAssignableFrom<global::Seamless.Collections.IUnorderedEnumerable<int>>(filtered);
-            Assert.Throws<NotSupportedException>(()=>SeamlessEnumerable.First(source));
+#pragma warning disable CS0618 // 順序なし集合への禁止APIが例外を投げる契約を検証する。
+            Assert.Throws<NotSupportedException>(() => SeamlessEnumerable.First(source));
+#pragma warning restore CS0618
             Assert.Equal(1,SeamlessEnumerable.ToArray(source).Order().First());
 
             Assert.Equal(orderedSource.Where(static value => value%2==0).ToArray(),
@@ -43,8 +46,7 @@ public class EnumerableForwarderTests {
                 SeamlessEnumerable.Sum(source));
             Assert.Equal(orderedSource.Union([3,4,5]).Order().ToArray(),
                 SeamlessEnumerable.Union(source,[3,4,5]).Order().ToArray());
-        }
-        finally {
+        } finally {
             TryDeleteDirectory(path);
         }
     }
@@ -60,10 +62,8 @@ public class EnumerableForwarderTests {
             return;
         try {
             Directory.Delete(directoryPath,recursive: true);
-        }
-        catch(IOException) {
-        }
-        catch(UnauthorizedAccessException) {
+        } catch(IOException) {
+        } catch(UnauthorizedAccessException) {
         }
     }
 
@@ -119,7 +119,7 @@ public class EnumerableForwarderTests {
     }
 
     private static bool IsRestricted(MethodInfo method) {
-        var name=method.Name;
+        var name = method.Name;
         if(name.StartsWith("Order",StringComparison.Ordinal)
             ||name.StartsWith("ThenBy",StringComparison.Ordinal)
             ||name.StartsWith("First",StringComparison.Ordinal)
@@ -131,7 +131,7 @@ public class EnumerableForwarderTests {
         if(name is "Reverse" or "Shuffle" or "Index" or "Zip" or "SequenceEqual" or "Chunk" or "Append" or "Prepend" or "Concat")
             return true;
         return (name is "Where" or "Select" or "SelectMany")
-            &&method.GetParameters().Skip(1).Any(static parameter=>parameter.ParameterType.GetMethod("Invoke") is { } invoke
+            &&method.GetParameters().Skip(1).Any(static parameter => parameter.ParameterType.GetMethod("Invoke") is { } invoke
                 &&invoke.GetParameters() is { Length:>=2 } invokeParameters
                 &&invokeParameters[1].ParameterType==typeof(int));
     }

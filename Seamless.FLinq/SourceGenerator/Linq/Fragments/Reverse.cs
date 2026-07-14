@@ -20,10 +20,10 @@ Reverse は source.Reverse() を、初回に逆順で読める状態を作って
   - span が無い場合は List に全件 buffer する。
   - 連続 Reverse は偶数回なら RootSource そのものへ畳み込む。
 */
-public class Reverse(int 番号, Enumerable source) : Enumerable(番号) {
+public class Reverse(int 番号,Enumerable source):Enumerable(番号) {
     private Enumerable Source => source;
     private Enumerable RootSource => this.Source is Reverse reverse ? reverse.RootSource : this.Source;
-    private bool IsIdentity => this.Source is Reverse reverse && !reverse.IsIdentity;
+    private bool IsIdentity => this.Source is Reverse reverse&&!reverse.IsIdentity;
     protected override Enumerable PrimarySource => this.RootSource;
     public override string StructMethod => string.Empty;
     public override string GetEnumerableExpression =>
@@ -97,10 +97,10 @@ public class Reverse(int 番号, Enumerable source) : Enumerable(番号) {
         if(this.IsIdentity) {
             return this.RootSource.GetConsumeExecutionStatement(consumerName);
         }
-        var sourceName=$"__reverseSource{番号}";
-        var directSpanExpression=this.RootSource.GetDirectSpanExpression(sourceName);
+        var sourceName = $"__reverseSource{番号}";
+        var directSpanExpression = this.RootSource.GetDirectSpanExpression(sourceName);
         if(directSpanExpression is not null) {
-            var spanName=$"__reverseSpan{番号}";
+            var spanName = $"__reverseSpan{番号}";
             return $$"""
                 using var {{sourceName}}={{this.RootSource.GetEnumeratorExpression}};
                 global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();

@@ -1,110 +1,110 @@
 namespace Test.Benchmark;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
-public sealed class BenchmarkSelectionQueueLogic{
+public sealed class ベンチマーク選択キューロジック {
     [Fact]
-    public void CreateSelectedCases(){
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var catalog=Catalog(sourceTab);
+    public void 選択ケースを作成() {
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        var カタログ = カタログを作成(ソースタブ);
         {
-            var selections = SelectRows(catalog,sourceTab,true);
-            var cases = global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCases(catalog,sourceTab,selections).ToArray();
-            Assert.Equal(4,cases.Length);
-            Assert.Contains(cases,item => item.Project==sourceTab.LeftProject);
-            Assert.Contains(cases,item => item.Project==sourceTab.RightProject);
+            var 選択一覧 = 行を選択(カタログ,ソースタブ,true);
+            var ケース一覧 = global::UI.ベンチマーク選択キューロジック.選択ケースを作成(カタログ,ソースタブ,選択一覧).ToArray();
+            Assert.Equal(4,ケース一覧.Length);
+            Assert.Contains(ケース一覧,項目 => 項目.プロジェクト==ソースタブ.左プロジェクト);
+            Assert.Contains(ケース一覧,項目 => 項目.プロジェクト==ソースタブ.右プロジェクト);
         }
         {
-            var selections = new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase){
-                [global::UI.BenchmarkSelectionQueueLogic.CreateRowSelectionKey(sourceTab,"unknown-row")]=true,
+            var 選択一覧 = new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase) {
+                [global::UI.ベンチマーク選択キューロジック.行選択キーを作成(ソースタブ,"不明-行")]=true,
             };
-            foreach(var row in global::UI.BenchmarkRowGroupingLogic.CreateRows(catalog,sourceTab)){
-                selections[global::UI.BenchmarkSelectionQueueLogic.CreateRowSelectionKey(sourceTab,row.RowKey)]=false;
+            foreach(var 行 in global::UI.ベンチマーク行グループ化ロジック.行を作成(カタログ,ソースタブ)) {
+                選択一覧[global::UI.ベンチマーク選択キューロジック.行選択キーを作成(ソースタブ,行.行キー)]=false;
             }
-            Assert.Empty(global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCases(catalog,sourceTab,selections));
+            Assert.Empty(global::UI.ベンチマーク選択キューロジック.選択ケースを作成(カタログ,ソースタブ,選択一覧));
         }
     }
 
     [Fact]
-    public void CreateSelectedCasesIncludesBothSystemArrayProjects(){
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var catalog = new[]{
-            new global::UI.BenchmarkCase(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Benchmark.System.Linq.Enumerable.FLinqInt32","Aggregate_func"),
-            new global::UI.BenchmarkCase(sourceTab.RightProject,sourceTab.RightAssemblyName,"Benchmark.System.Linq.Enumerable.ZLinqInt32","Aggregate_func"),
+    public void 仕様確認01() {
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        var カタログ = new[]{
+            new global::UI.ベンチマークケース(ソースタブ.左プロジェクト,ソースタブ.左アセンブリ名,"Benchmark.System.Linq.Enumerable.FLinqInt32","Aggregate_func"),
+            new global::UI.ベンチマークケース(ソースタブ.右プロジェクト,ソースタブ.右アセンブリ名,"Benchmark.System.Linq.Enumerable.ZLinqInt32","Aggregate_func"),
         };
-        var selections = SelectRows(catalog,sourceTab,true);
+        var 選択一覧 = 行を選択(カタログ,ソースタブ,true);
 
-        var cases = global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCases(catalog,sourceTab,selections).ToArray();
+        var ケース一覧 = global::UI.ベンチマーク選択キューロジック.選択ケースを作成(カタログ,ソースタブ,選択一覧).ToArray();
 
-        Assert.Equal(2,cases.Length);
-        Assert.Contains(cases,item => item.Project==sourceTab.LeftProject&&item.AssemblyName==sourceTab.LeftAssemblyName);
-        Assert.Contains(cases,item => item.Project==sourceTab.RightProject&&item.AssemblyName==sourceTab.RightAssemblyName);
+        Assert.Equal(2,ケース一覧.Length);
+        Assert.Contains(ケース一覧,項目 => 項目.プロジェクト==ソースタブ.左プロジェクト&&項目.アセンブリ名==ソースタブ.左アセンブリ名);
+        Assert.Contains(ケース一覧,項目 => 項目.プロジェクト==ソースタブ.右プロジェクト&&項目.アセンブリ名==ソースタブ.右アセンブリ名);
     }
 
     [Fact]
-    public void CreateSelectedCasesFromAllTabs(){
+    public void 全タブから選択ケースを作成() {
         {
-            var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-            var catalog=Catalog(sourceTab);
-            var selections = SelectRows(catalog,sourceTab,true);
-            var snapshot = global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCasesFromAllTabs(catalog,[sourceTab],selections);
-            var queue = global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCasesFromAllTabs(catalog,[sourceTab],selections);
-            Assert.Equal(4,snapshot.Count);
+            var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+            var カタログ = カタログを作成(ソースタブ);
+            var 選択一覧 = 行を選択(カタログ,ソースタブ,true);
+            var スナップショット = global::UI.ベンチマーク選択キューロジック.全タブから選択ケースを作成(カタログ,[ソースタブ],選択一覧);
+            var キュー = global::UI.ベンチマーク選択キューロジック.全タブから選択ケースを作成(カタログ,[ソースタブ],選択一覧);
+            Assert.Equal(4,スナップショット.Count);
             Assert.Equal(
-                snapshot.Select(CaseIdentity).ToArray(),
-                queue.Select(CaseIdentity).ToArray());
+                スナップショット.Select(ケース識別子を作成).ToArray(),
+                キュー.Select(ケース識別子を作成).ToArray());
         }
         {
-            var persisted = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SeamlessPersisted);
-            var tsavorite = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SeamlessTsavorite);
-            Assert.Equal(persisted.RightProject,tsavorite.RightProject);
-            var catalog=new[]{
-                new global::UI.BenchmarkCase(persisted.RightProject,persisted.RightAssemblyName,"Benchmark.Persisted.Linq.Enumerable.LinqInt32","Sum"),
-                new global::UI.BenchmarkCase(tsavorite.RightProject,tsavorite.RightAssemblyName,"Benchmark.Tsavorite.Linq.Enumerable.LinqInt32","Sum"),
+            var 永続化 = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.Seamless永続化);
+            var Tsavorite = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.SeamlessTsavorite);
+            Assert.Equal(永続化.右プロジェクト,Tsavorite.右プロジェクト);
+            var カタログ = new[]{
+                new global::UI.ベンチマークケース(永続化.右プロジェクト,永続化.右アセンブリ名,"Benchmark.Persisted.Linq.Enumerable.LinqInt32","Sum"),
+                new global::UI.ベンチマークケース(Tsavorite.右プロジェクト,Tsavorite.右アセンブリ名,"Benchmark.Tsavorite.Linq.Enumerable.LinqInt32","Sum"),
             };
-            var selections = new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase);
-            foreach(var tab in new[]{ persisted,tsavorite }){
-                foreach(var row in global::UI.BenchmarkRowGroupingLogic.CreateRows(catalog,tab)){
-                    selections[global::UI.BenchmarkSelectionQueueLogic.CreateRowSelectionKey(tab,row.RowKey)]=true;
+            var 選択一覧 = new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase);
+            foreach(var タブ in new[] { 永続化,Tsavorite }) {
+                foreach(var 行 in global::UI.ベンチマーク行グループ化ロジック.行を作成(カタログ,タブ)) {
+                    選択一覧[global::UI.ベンチマーク選択キューロジック.行選択キーを作成(タブ,行.行キー)]=true;
                 }
             }
-            var queue = global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCasesFromAllTabs(catalog,[persisted,tsavorite],selections);
-            Assert.Equal(2,queue.Count);
-            Assert.Contains(queue,item => item.AssemblyName==persisted.RightAssemblyName);
-            Assert.Contains(queue,item => item.AssemblyName==tsavorite.RightAssemblyName);
+            var キュー = global::UI.ベンチマーク選択キューロジック.全タブから選択ケースを作成(カタログ,[永続化,Tsavorite],選択一覧);
+            Assert.Equal(2,キュー.Count);
+            Assert.Contains(キュー,項目 => 項目.アセンブリ名==永続化.右アセンブリ名);
+            Assert.Contains(キュー,項目 => 項目.アセンブリ名==Tsavorite.右アセンブリ名);
         }
         {
-            var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-            var catalog=Catalog(sourceTab);
-            var selections = SelectRows(catalog,sourceTab,true);
-            var overrideCase = new global::UI.BenchmarkCase(sourceTab.LeftProject,"Live.Assembly","Live.Type","Aggregate");
-            var queue = global::UI.BenchmarkSelectionQueueLogic.CreateSelectedCasesFromAllTabs(
-                catalog,
-                [sourceTab],
-                selections,
-                _ => new[]{ overrideCase });
-            var item = Assert.Single(queue);
-            Assert.Equal("Live.Type",item.TypeFullName);
+            var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+            var カタログ = カタログを作成(ソースタブ);
+            var 選択一覧 = 行を選択(カタログ,ソースタブ,true);
+            var 上書きケース = new global::UI.ベンチマークケース(ソースタブ.左プロジェクト,"Live.Assembly","Live.Type","Aggregate");
+            var キュー = global::UI.ベンチマーク選択キューロジック.全タブから選択ケースを作成(
+                カタログ,
+                [ソースタブ],
+                選択一覧,
+                _ => new[] { 上書きケース });
+            var 項目 = Assert.Single(キュー);
+            Assert.Equal("Live.Type",項目.型完全名);
         }
     }
 
-    private static string CaseIdentity(global::UI.BenchmarkCase benchmark) =>
-        string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey);
+    private static string ケース識別子を作成(global::UI.ベンチマークケース ベンチマーク) =>
+        string.Join("|",ベンチマーク.プロジェクト,ベンチマーク.アセンブリ名,ベンチマーク.型完全名,ベンチマーク.メソッド名,ベンチマーク.引数キー);
 
-    private static global::UI.BenchmarkCase[] Catalog(global::UI.BenchmarkSourceTabDefinition sourceTab) => [
-        new(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Left.Type","Aggregate"),
-        new(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Left.Type","Sum"),
-        new(sourceTab.RightProject,sourceTab.RightAssemblyName,"Right.Type","Aggregate"),
-        new(sourceTab.RightProject,sourceTab.RightAssemblyName,"Right.Type","Sum"),
+    private static global::UI.ベンチマークケース[] カタログを作成(global::UI.ベンチマークソースタブ定義 ソースタブ) => [
+        new(ソースタブ.左プロジェクト,ソースタブ.左アセンブリ名,"Left.Type","Aggregate"),
+        new(ソースタブ.左プロジェクト,ソースタブ.左アセンブリ名,"Left.Type","Sum"),
+        new(ソースタブ.右プロジェクト,ソースタブ.右アセンブリ名,"Right.Type","Aggregate"),
+        new(ソースタブ.右プロジェクト,ソースタブ.右アセンブリ名,"Right.Type","Sum"),
     ];
 
-    private static Dictionary<string,bool> SelectRows(
-        IReadOnlyList<global::UI.BenchmarkCase> catalog,
-        global::UI.BenchmarkSourceTabDefinition sourceTab,
-        bool selected){
-        var selections = new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase);
-        foreach(var row in global::UI.BenchmarkRowGroupingLogic.CreateRows(catalog,sourceTab)){
-            selections[global::UI.BenchmarkSelectionQueueLogic.CreateRowSelectionKey(sourceTab,row.RowKey)]=selected;
+    private static Dictionary<string,bool> 行を選択(
+        IReadOnlyList<global::UI.ベンチマークケース> カタログ,
+        global::UI.ベンチマークソースタブ定義 ソースタブ,
+        bool 選択済みか) {
+        var 選択一覧 = new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase);
+        foreach(var 行 in global::UI.ベンチマーク行グループ化ロジック.行を作成(カタログ,ソースタブ)) {
+            選択一覧[global::UI.ベンチマーク選択キューロジック.行選択キーを作成(ソースタブ,行.行キー)]=選択済みか;
         }
-        return selections;
+        return 選択一覧;
     }
 }

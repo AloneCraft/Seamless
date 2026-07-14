@@ -1,13 +1,11 @@
 namespace Seamless.System.Carrier.Internal;
 
-internal static class SingleSpan
-{
+internal static class SingleSpan {
     internal static Span<T> Create<T>(
 #if !NETSTANDARD2_0
         ref T reference
 #endif
-    )
-    {
+    ) {
 #if NETSTANDARD2_0
         var array = SingleArray<T>.Array;
         if (array == null)

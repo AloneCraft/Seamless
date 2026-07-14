@@ -21,22 +21,22 @@ internal static class AnchorAnalysis {
             return true;
         }
         return symbol switch {
-            IPropertySymbol property => IsAnchorProperty(property) || property.Name==AnchorPropertyName,
-            IMethodSymbol method => IsAnchorMethod(method) || method.Name==AnchorPropertyName,
+            IPropertySymbol property => IsAnchorProperty(property)||property.Name==AnchorPropertyName,
+            IMethodSymbol method => IsAnchorMethod(method)||method.Name==AnchorPropertyName,
             _ => true
         };
     }
 
     public static bool LooksLikeAnchorText(string expression) =>
         expression.Contains(".Anchor",StringComparison.Ordinal)
-        || expression.Contains("Seamless.Linq.AnchorExtensions.Anchor",StringComparison.Ordinal)
-        || expression.Contains("global::Seamless.Linq.AnchorExtensions.Anchor",StringComparison.Ordinal);
+        ||expression.Contains("Seamless.Linq.AnchorExtensions.Anchor",StringComparison.Ordinal)
+        ||expression.Contains("global::Seamless.Linq.AnchorExtensions.Anchor",StringComparison.Ordinal);
 
     private static bool IsAnchorProperty(IPropertySymbol property) =>
         property.Name==AnchorPropertyName
-        && property.ContainingType?.ToDisplayString()==AnchorExtensionsTypeName;
+        &&property.ContainingType?.ToDisplayString()==AnchorExtensionsTypeName;
 
     private static bool IsAnchorMethod(IMethodSymbol method) =>
         method.Name==AnchorPropertyName
-        && method.ContainingType?.ToDisplayString()==AnchorExtensionsTypeName;
+        &&method.ContainingType?.ToDisplayString()==AnchorExtensionsTypeName;
 }

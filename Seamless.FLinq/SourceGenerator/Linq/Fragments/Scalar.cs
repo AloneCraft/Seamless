@@ -21,7 +21,7 @@ Scalar は Count/First/ToArray など「シーケンスから単一結果を返�
   終端結果だけが必要な場面で Struct{番号}+TryGetNext の死にコードを避け、materialize 系では
   TryGetNonEnumeratedCount/TryGetSpan/TryCopyTo を使って容量確保とコピーを最短化する。
 */
-public abstract class Scalar(int 番号):Fragment(番号){
+public abstract class Scalar(int 番号):Fragment(番号) {
     // スカラー断片は内部に子 enumerator を持たないことも多いので既定は何もしない。
     protected virtual string GetEnumeratorDisposeBody => string.Empty;
     // bool/int/T など単一結果を返す enumerator struct を共通生成する。
@@ -41,12 +41,12 @@ public abstract class Scalar(int 番号):Fragment(番号){
     protected string? RenderDirectEnumerableToArrayHybridInline(Enumerable source,string destVar,string destType) {
         if(source.DirectEnumerableExpression is not { } sourceExpression) return null;
         var elementType = source.ElementType;
-        var sourceVar=$"__src{this.result}";
-        var arrayVar=$"__array{this.result}";
-        var listVar=$"__list{this.result}";
-        var collectionVar=$"__collection{this.result}";
-        var spanVar=$"__span{this.result}";
-        var countVar=$"__count{this.result}";
+        var sourceVar = $"__src{this.result}";
+        var arrayVar = $"__array{this.result}";
+        var listVar = $"__list{this.result}";
+        var collectionVar = $"__collection{this.result}";
+        var spanVar = $"__span{this.result}";
+        var countVar = $"__count{this.result}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -93,8 +93,8 @@ public abstract class Scalar(int 番号):Fragment(番号){
             return null;
         }
 
-        var srcVar=$"__src{this.result}";
-        var directSpanExpression=source.GetDirectSpanExpression(srcVar);
+        var srcVar = $"__src{this.result}";
+        var directSpanExpression = source.GetDirectSpanExpression(srcVar);
         // Direct span roots materialize and scalar terminals without runtime probes.
         // Example: `int[] src; src.ToArray()` can emit `var __span=__src.GetSpan();`
         // and skip TryGetNonEnumeratedCount/TryCopyTo/TryGetSpan. IEnumerable<T>,
@@ -128,12 +128,12 @@ public abstract class Scalar(int 番号):Fragment(番号){
     protected string? RenderDirectEnumerableToListHybridInline(Enumerable source,string destVar,string destType) {
         if(source.DirectEnumerableExpression is not { } sourceExpression) return null;
         var elementType = source.ElementType;
-        var sourceVar=$"__src{this.result}";
-        var arrayVar=$"__array{this.result}";
-        var listVar=$"__list{this.result}";
-        var collectionVar=$"__collection{this.result}";
-        var sourceSpanVar=$"__sourceSpan{this.result}";
-        var resultSpanVar=$"__resultSpan{this.result}";
+        var sourceVar = $"__src{this.result}";
+        var arrayVar = $"__array{this.result}";
+        var listVar = $"__list{this.result}";
+        var collectionVar = $"__collection{this.result}";
+        var sourceSpanVar = $"__sourceSpan{this.result}";
+        var resultSpanVar = $"__resultSpan{this.result}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -160,16 +160,16 @@ public abstract class Scalar(int 番号):Fragment(番号){
             """;
     }
 
-    protected string? RenderDirectEnumerableToHashSetHybridInline(Enumerable source,string destVar,string destType,string? comparerExpression=null) {
+    protected string? RenderDirectEnumerableToHashSetHybridInline(Enumerable source,string destVar,string destType,string? comparerExpression = null) {
         if(source.DirectEnumerableExpression is not { } sourceExpression) return null;
         var elementType = source.ElementType;
-        var comparer = comparerExpression ?? "null";
-        var sourceVar=$"__src{this.result}";
-        var arrayVar=$"__array{this.result}";
-        var listVar=$"__list{this.result}";
-        var collectionVar=$"__collection{this.result}";
-        var spanVar=$"__span{this.result}";
-        var itemVar=$"__item{this.result}";
+        var comparer = comparerExpression??"null";
+        var sourceVar = $"__src{this.result}";
+        var arrayVar = $"__array{this.result}";
+        var listVar = $"__list{this.result}";
+        var collectionVar = $"__collection{this.result}";
+        var spanVar = $"__span{this.result}";
+        var itemVar = $"__item{this.result}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -202,7 +202,7 @@ public abstract class Scalar(int 番号):Fragment(番号){
     }
 
     protected static string? TryRenderDirectLambda(FuncFragment func) {
-        if(func.CapturedLocals.Length!=0 || func.RequiresStatementInlining) {
+        if(func.CapturedLocals.Length!=0||func.RequiresStatementInlining) {
             return null;
         }
         try {

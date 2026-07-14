@@ -34,19 +34,17 @@ public class LightEpochLimitTests {
         var stores = new List<DictionaryStore<int,int>>();
         try {
             InvalidOperationException? overflow = null;
-            for(var i = 0; i<1025; i++) {
+            for(var i = 0;i<1025;i++) {
                 try {
                     stores.Add(Store.Create().Create<int,int>());
-                }
-                catch(InvalidOperationException ex) when(ex.Message.Contains("Exceeded maximum number of active LightEpoch instances",StringComparison.Ordinal)) {
+                } catch(InvalidOperationException ex) when(ex.Message.Contains("Exceeded maximum number of active LightEpoch instances",StringComparison.Ordinal)) {
                     overflow=ex;
                     break;
                 }
             }
             Assert.NotNull(overflow);          // 上限が機能している
             Assert.Equal(1024,stores.Count);   // ちょうど 1024 成功
-        }
-        finally {
+        } finally {
             foreach(var s in stores) s.Dispose();
         }
     }
@@ -60,12 +58,11 @@ public class LightEpochLimitTests {
         ReclaimEpochPool();
         var stores = new List<DictionaryStore<int,int>>();
         try {
-            for(var i = 0; i<Count; i++) {
+            for(var i = 0;i<Count;i++) {
                 stores.Add(Store.Create().Create<int,int>());
             }
             Assert.Equal(Count,stores.Count);
-        }
-        finally {
+        } finally {
             foreach(var s in stores) s.Dispose();
         }
     }
@@ -79,7 +76,7 @@ public class LightEpochLimitTests {
         ReclaimEpochPool();
         var stores = new List<DictionaryStore<int,int>>();
         try {
-            for(var i = 0; i<16; i++) {
+            for(var i = 0;i<16;i++) {
                 stores.Add(Store.Create().Create<int,int>());
             }
             foreach(var s in stores) {
@@ -87,12 +84,11 @@ public class LightEpochLimitTests {
             }
             stores.Clear();
 
-            for(var i = 0; i<16; i++) {
+            for(var i = 0;i<16;i++) {
                 stores.Add(Store.Create().Create<int,int>());
             }
             Assert.Equal(16,stores.Count);
-        }
-        finally {
+        } finally {
             foreach(var s in stores) s.Dispose();
         }
     }
@@ -106,7 +102,7 @@ public class LightEpochLimitTests {
         ReclaimEpochPool();
         var slots = new Stack<DictionaryStore<int,int>>();
         try {
-            for(var i = 0; i<1024; i++) {
+            for(var i = 0;i<1024;i++) {
                 slots.Push(Store.Create().Create<int,int>());
             }
 
@@ -121,8 +117,7 @@ public class LightEpochLimitTests {
             Assert.Throws<InvalidOperationException>(() => {
                 using var overflow = Store.Create().Create<int,int>();
             });
-        }
-        finally {
+        } finally {
             while(slots.Count>0) {
                 slots.Pop().Dispose();
             }
@@ -146,8 +141,7 @@ public class LightEpochLimitTests {
                 barrier.SignalAndWait();
                 using var dict = store.Create();
                 dict.Add(i,i);
-            }
-            catch(Exception ex) {
+            } catch(Exception ex) {
                 errors.Add(ex);
             }
         })).ToArray();
@@ -170,12 +164,11 @@ public class LightEpochLimitTests {
         using var store = Store.Create().Create<int,int>();
         var dicts = new List<IDisposable>();
         try {
-            for(var i = 0; i<25; i++) {
+            for(var i = 0;i<25;i++) {
                 dicts.Add(store.Create());
             }
             Assert.Equal(25,dicts.Count);
-        }
-        finally {
+        } finally {
             foreach(var d in dicts) d.Dispose();
         }
     }
@@ -190,12 +183,11 @@ public class LightEpochLimitTests {
         using var store = Store.Create().Create<int,int>();
         var dicts = new List<IDisposable>();
         try {
-            for(var i = 0; i<26; i++) {
+            for(var i = 0;i<26;i++) {
                 dicts.Add(store.Create());
             }
             Assert.Equal(26,dicts.Count);
-        }
-        finally {
+        } finally {
             foreach(var d in dicts) d.Dispose();
         }
     }
@@ -207,15 +199,14 @@ public class LightEpochLimitTests {
     public void SessionCount_DisposeAndRecreate_Succeeds() {
         using var store = Store.Create().Create<int,int>();
         // LightEpoch の取得と解放を検証する。
-        for(var round = 0; round<2; round++) {
+        for(var round = 0;round<2;round++) {
             var dicts = new List<IDisposable>();
             try {
-                for(var i = 0; i<25; i++) {
+                for(var i = 0;i<25;i++) {
                     dicts.Add(store.Create());
                 }
                 Assert.Equal(25,dicts.Count);
-            }
-            finally {
+            } finally {
                 foreach(var d in dicts) d.Dispose();
             }
         }

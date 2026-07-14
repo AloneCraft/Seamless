@@ -15,7 +15,7 @@ AnonymousExitToList は匿名型要素の ToList を direct execution だけで�
 設計意図:
   匿名型の名前は生成メソッドの戻り値型や補助 struct に書けないため、var と型推論に寄せる。
 */
-internal sealed class AnonymousExitToList(int 番号,Enumerable source):Scalar(番号),DirectExecutionFragment{
+internal sealed class AnonymousExitToList(int 番号,Enumerable source):Scalar(番号), DirectExecutionFragment {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorStruct => source.GetEnumeratorStruct;
@@ -48,7 +48,7 @@ ToList は source.ToList() を、capacity hint と Span copy を使う Compute �
   - RangeRoot<int> は SetCount 後の Span に start+i を直接代入する。
   - DirectEnumerableExpression が array/list/ICollection なら hybrid inline で余分な enumerator を避ける。
 */
-public class ToList(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
+public class ToList(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -60,8 +60,8 @@ public class ToList(int 番号, Enumerable source, string resultType) : Buffered
         ??this.RenderDirectSpanToListInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanToListInline(string destVar,string destType) {
-        var span=$"__span{this.result}";
-        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span = $"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
             {{destVar}}=new({{spanName}}.Length);
             global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({{destVar}},{{spanName}}.Length);
             global::Seamless.Linq.LinqCounterScope.IncrementFastCopyUsed();
@@ -69,14 +69,14 @@ public class ToList(int 番号, Enumerable source, string resultType) : Buffered
             """);
     }
     private string? RenderRangeToListInline(string destVar,string destType) {
-        if(source is not RangeRoot range || source.ElementType!="int") {
+        if(source is not RangeRoot range||source.ElementType!="int") {
             return null;
         }
 
-        var start=$"__start{番号}";
-        var count=$"__count{番号}";
-        var span=$"__span{番号}";
-        var index=$"__i{番号}";
+        var start = $"__start{番号}";
+        var count = $"__count{番号}";
+        var span = $"__span{番号}";
+        var index = $"__i{番号}";
         return $$"""
             {{destType}} {{destVar}};
             {

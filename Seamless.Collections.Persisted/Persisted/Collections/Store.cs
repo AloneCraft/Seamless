@@ -17,7 +17,7 @@ public static class Store {
         StorageTuning? StorageTuning = null) =>
         new(Path,InitialCapacity,InitialDataCapacity,StorageTuning);
 
-    public static Dictionary<TKey,TValue> CreateDictionary<TKey,TValue>(
+    public static Dictionary<TKey,TValue> CreateDictionary<TKey, TValue>(
         string Path,
         long InitialCapacity = 16,
         long InitialDataCapacity = 4096,
@@ -36,9 +36,9 @@ public static class Store {
         long InitialDataCapacity = 4096,
         StorageTuning? StorageTuning = null,
         string? TemporaryRoot = null) {
-        var path=CreateTemporaryPath(TemporaryRoot);
-        var list=CreateList<T>(path,InitialCapacity,InitialDataCapacity,StorageTuning);
-        list.SetDisposeAction(()=>DeleteTemporaryDirectory(path));
+        var path = CreateTemporaryPath(TemporaryRoot);
+        var list = CreateList<T>(path,InitialCapacity,InitialDataCapacity,StorageTuning);
+        list.SetDisposeAction(() => DeleteTemporaryDirectory(path));
         return list;
     }
 
@@ -47,21 +47,21 @@ public static class Store {
         long InitialDataCapacity = 4096,
         StorageTuning? StorageTuning = null,
         string? TemporaryRoot = null) {
-        var path=CreateTemporaryPath(TemporaryRoot);
-        var set=CreateSet<T>(path,InitialCapacity,InitialDataCapacity,StorageTuning);
-        set.SetDisposeAction(()=>DeleteTemporaryDirectory(path));
+        var path = CreateTemporaryPath(TemporaryRoot);
+        var set = CreateSet<T>(path,InitialCapacity,InitialDataCapacity,StorageTuning);
+        set.SetDisposeAction(() => DeleteTemporaryDirectory(path));
         return set;
     }
 
-    public static Dictionary<TKey,TValue> CreateTempDictionary<TKey,TValue>(
+    public static Dictionary<TKey,TValue> CreateTempDictionary<TKey, TValue>(
         long InitialCapacity = 16,
         long InitialDataCapacity = 4096,
         StorageTuning? StorageTuning = null,
         string? TemporaryRoot = null)
         where TKey : notnull {
-        var path=CreateTemporaryPath(TemporaryRoot);
-        var dictionary=CreateDictionary<TKey,TValue>(path,InitialCapacity,InitialDataCapacity,StorageTuning);
-        dictionary.SetDisposeAction(()=>DeleteTemporaryDirectory(path));
+        var path = CreateTemporaryPath(TemporaryRoot);
+        var dictionary = CreateDictionary<TKey,TValue>(path,InitialCapacity,InitialDataCapacity,StorageTuning);
+        dictionary.SetDisposeAction(() => DeleteTemporaryDirectory(path));
         return dictionary;
     }
 
@@ -69,9 +69,9 @@ public static class Store {
         long InitialDataCapacity = 4096,
         StorageTuning? StorageTuning = null,
         string? TemporaryRoot = null) {
-        var path=CreateTemporaryPath(TemporaryRoot);
-        var list=CreateAppendOnlyList<T>(path,InitialDataCapacity,StorageTuning);
-        list.SetDisposeAction(()=>DeleteTemporaryDirectory(path));
+        var path = CreateTemporaryPath(TemporaryRoot);
+        var list = CreateAppendOnlyList<T>(path,InitialDataCapacity,StorageTuning);
+        list.SetDisposeAction(() => DeleteTemporaryDirectory(path));
         return list;
     }
 
@@ -83,25 +83,23 @@ public static class Store {
             tuning)!;
 
     private static string CreateTemporaryPath(string? temporaryRoot) {
-        var root=string.IsNullOrWhiteSpace(temporaryRoot)
+        var root = string.IsNullOrWhiteSpace(temporaryRoot)
             ? Path.Combine(Path.GetTempPath(),"Seamless","Persisted")
             : temporaryRoot!;
-        var directory=Path.Combine(root,Guid.NewGuid().ToString("N"));
+        var directory = Path.Combine(root,Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
         return Path.Combine(directory,"items.dat");
     }
 
     private static void DeleteTemporaryDirectory(string path) {
-        var directory=Path.GetDirectoryName(path);
+        var directory = Path.GetDirectoryName(path);
         if(string.IsNullOrWhiteSpace(directory)) {
             return;
         }
         try {
             Directory.Delete(directory,recursive: true);
-        }
-        catch(IOException) {
-        }
-        catch(UnauthorizedAccessException) {
+        } catch(IOException) {
+        } catch(UnauthorizedAccessException) {
         }
     }
 }

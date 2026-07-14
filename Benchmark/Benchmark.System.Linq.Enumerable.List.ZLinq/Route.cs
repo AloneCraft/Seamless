@@ -7,8 +7,8 @@ namespace Benchmark.System.Linq.Enumerable.List {
 
 namespace Seamless.Linq.Shared {
     internal static class Route {
-        public static ValueEnumerable<ZLinq.Linq.FromList<T>, T> AsX<T>(this global::System.Collections.Generic.List<T> source) => source.AsValueEnumerable();
+        public static ValueEnumerable<ZLinq.Linq.FromList<T>,T> AsX<T>(this global::System.Collections.Generic.List<T> source) => source.AsValueEnumerable();
 
-        public static ValueEnumerable<ZLinq.Linq.FromEnumerable<T>, T> AsX<T>(this global::System.Collections.Generic.IEnumerable<T> source) => source.AsValueEnumerable();
+        public static ValueEnumerable<ZLinq.Linq.FromEnumerable<T>,T> AsX<T>(this global::System.Collections.Generic.IEnumerable<T> source) => source.AsValueEnumerable();
     }
 }

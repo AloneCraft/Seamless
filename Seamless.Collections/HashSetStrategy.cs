@@ -1,11 +1,11 @@
-using Seamless.Tsavorite.Collections;
 using Seamless.Serialization;
+using Seamless.Tsavorite.Collections;
 namespace Seamless.Collections;
 
 public sealed class HashSetHandle<T>(IDisposable store,global::Seamless.Tsavorite.Collections.HashSet<T> set):IDisposable
     where T : IEquatable<T> {
     public global::Seamless.Tsavorite.Collections.HashSet<T> Set => set;
-    public void Dispose(){
+    public void Dispose() {
         set.Dispose();
         store.Dispose();
     }
@@ -53,7 +53,7 @@ public readonly struct MemoryPackHashSetStrategy<TProvider, T>:IHashSetTestStrat
         double mutableFraction = 1.0,
         long indexSize = global::Seamless.Tsavorite.Const.IndexSize,
         long pageSize = global::Seamless.Tsavorite.Const.PageSize,
-        long segmentSize = global::Seamless.Tsavorite.Const.SegmentSize){
+        long segmentSize = global::Seamless.Tsavorite.Const.SegmentSize) {
         var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize,PageSize: pageSize,SegmentSize: segmentSize).Create<T>(new MemoryPackSerializerStrategy());
         return new HashSetHandle<T>(store,store.Create());
     }
@@ -67,7 +67,7 @@ public readonly struct BlittableHashSetStrategy<TProvider, T>:IHashSetTestStrate
         double mutableFraction = 1.0,
         long indexSize = global::Seamless.Tsavorite.Const.IndexSize,
         long pageSize = global::Seamless.Tsavorite.Const.PageSize,
-        long segmentSize = global::Seamless.Tsavorite.Const.SegmentSize){
+        long segmentSize = global::Seamless.Tsavorite.Const.SegmentSize) {
         var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize,PageSize: pageSize,SegmentSize: segmentSize).Create<T>();
         return new HashSetHandle<T>(store,store.Create());
     }

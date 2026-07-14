@@ -1,5 +1,6 @@
-using System.Text.RegularExpressions;
 using Seamless.FLinq;
+
+using System.Text.RegularExpressions;
 
 namespace Test.System.Linq.Intercept;
 
@@ -12,8 +13,8 @@ internal static class GeneratedInterceptorAssert {
         // `class {Name}` 宣言の両方で一意に特定する。素の型名だと `System.Index`
         // 等に誤マッチするため `class {Name}` 宣言で判定する。
         var markerName = typeof(TMarker).Name;
-        var markerNamespace = typeof(TMarker).Namespace ?? string.Empty;
-        var matches = new List<(string Text, DateTime LastWriteTimeUtc)>();
+        var markerNamespace = typeof(TMarker).Namespace??string.Empty;
+        var matches = new List<(string Text,DateTime LastWriteTimeUtc)>();
         var existingRoots = GeneratedSourceRoots<TMarker>().Where(Directory.Exists).ToArray();
         Assert.NotEmpty(existingRoots);
         foreach(var generatedRoot in existingRoots) {
@@ -37,8 +38,8 @@ internal static class GeneratedInterceptorAssert {
         }
 
         return matches
-            .OrderByDescending(static match=>match.LastWriteTimeUtc)
-            .Select(static match=>match.Text)
+            .OrderByDescending(static match => match.LastWriteTimeUtc)
+            .Select(static match => match.Text)
             .First();
     }
 
@@ -49,17 +50,17 @@ internal static class GeneratedInterceptorAssert {
 
     private static string[] GeneratedSourceRoots<TMarker>() {
         var assemblyDirectory = Path.GetDirectoryName(typeof(TMarker).Assembly.Location)
-            ?? throw new InvalidOperationException("Could not resolve test assembly directory.");
+            ??throw new InvalidOperationException("Could not resolve test assembly directory.");
         var targetFrameworkDirectory = new DirectoryInfo(assemblyDirectory);
         var configurationDirectory = targetFrameworkDirectory.Parent
-            ?? throw new InvalidOperationException("Could not resolve configuration directory.");
+            ??throw new InvalidOperationException("Could not resolve configuration directory.");
         var projectDirectory = configurationDirectory.Parent?.Parent
-            ?? throw new InvalidOperationException("Could not resolve project directory.");
+            ??throw new InvalidOperationException("Could not resolve project directory.");
 
         var generatorAssemblyName = typeof(FLinqIncrementalGenerator).Assembly.GetName().Name
-            ?? throw new InvalidOperationException("Could not resolve generator assembly name.");
+            ??throw new InvalidOperationException("Could not resolve generator assembly name.");
         var generatorTypeName = typeof(FLinqIncrementalGenerator).FullName
-            ?? throw new InvalidOperationException("Could not resolve generator type name.");
+            ??throw new InvalidOperationException("Could not resolve generator type name.");
 
         return [
             Path.Combine(

@@ -7,24 +7,24 @@ using global::System.Diagnostics.CodeAnalysis;
 /// </summary>
 public readonly struct Read<TValue, TStrategy>():
     ISessionFunctions<EqualityEmpty,TValue,EqualityEmpty>,
-    ICreate<Read<TValue,TStrategy>>    where TStrategy : ISerializer<TValue> {
+    ICreate<Read<TValue,TStrategy>> where TStrategy : ISerializer<TValue> {
     public static Read<TValue,TStrategy> Create() => new();
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]
     private static void ThrowReadOnlyEntryPoint() {
         // Read 経路はこの処理では使用しない。
-    throw new NotSupportedException();
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]
     private static T ThrowReadOnlyEntryPoint<T>() {
         // Read 経路はこの処理では使用しない。
-    throw new NotSupportedException();
+        throw new NotSupportedException();
     }
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input,ref TValue output,ref ReadInfo readInfo)
         where TSourceLogRecord : ISourceLogRecord {
         // Read 経路はこの処理では使用しない。
-    output=TStrategy.Deserialize(srcLogRecord.ValueSpan);
+        output=TStrategy.Deserialize(srcLogRecord.ValueSpan);
         return true;
     }
     [ExcludeFromCodeCoverage]
@@ -55,21 +55,21 @@ public readonly struct Read<TValue, TStrategy>():
     }
     [ExcludeFromCodeCoverage]
     public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref EqualityEmpty input,ReadOnlySpan<byte> valueSpan,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
-    #if NET10_0_OR_GREATER
+#if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
-    #else
+#else
         where TKey : IKey
-    #endif
+#endif
         where TEpochAccessor : IEpochAccessor {
         ThrowReadOnlyEntryPoint();
     }
     [ExcludeFromCodeCoverage]
     public void PostUpsertOperation<TKey, TEpochAccessor>(TKey key,ref EqualityEmpty input,IHeapObject valueObject,ref UpsertInfo upsertInfo,TEpochAccessor epochAccessor)
-    #if NET10_0_OR_GREATER
+#if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
-    #else
+#else
         where TKey : IKey
-    #endif
+#endif
         where TEpochAccessor : IEpochAccessor {
         ThrowReadOnlyEntryPoint();
     }
@@ -88,11 +88,11 @@ public readonly struct Read<TValue, TStrategy>():
     }
     [ExcludeFromCodeCoverage]
     public bool NeedInitialUpdate<TKey>(TKey key,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo)
-        #if NET10_0_OR_GREATER
-        where TKey : IKey, allows ref struct{
-        #else
+#if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct {
+#else
         where TKey : IKey{
-        #endif
+#endif
         return ThrowReadOnlyEntryPoint<bool>();
     }
     [ExcludeFromCodeCoverage]
@@ -124,11 +124,11 @@ public readonly struct Read<TValue, TStrategy>():
     }
     [ExcludeFromCodeCoverage]
     public void PostRMWOperation<TKey, TEpochAccessor>(TKey key,ref EqualityEmpty input,ref RMWInfo rmwInfo,TEpochAccessor epochAccessor)
-    #if NET10_0_OR_GREATER
+#if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
-    #else
+#else
         where TKey : IKey
-    #endif
+#endif
         where TEpochAccessor : IEpochAccessor {
         ThrowReadOnlyEntryPoint();
     }
@@ -150,11 +150,11 @@ public readonly struct Read<TValue, TStrategy>():
     }
     [ExcludeFromCodeCoverage]
     public void PostDeleteOperation<TKey, TEpochAccessor>(TKey key,ref DeleteInfo deleteInfo,TEpochAccessor epochAccessor)
-    #if NET10_0_OR_GREATER
+#if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
-    #else
+#else
         where TKey : IKey
-    #endif
+#endif
         where TEpochAccessor : IEpochAccessor {
         ThrowReadOnlyEntryPoint();
     }
@@ -169,38 +169,38 @@ public readonly struct Read<TValue, TStrategy>():
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetRMWInitialFieldInfo<TKey>(TKey key,ref EqualityEmpty input)
-        #if NET10_0_OR_GREATER
-        where TKey : IKey, allows ref struct{
-        #else
+#if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct {
+#else
         where TKey : IKey{
-        #endif
+#endif
         return ThrowReadOnlyEntryPoint<RecordFieldInfo>();
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,ReadOnlySpan<byte> value,ref EqualityEmpty input)
-        #if NET10_0_OR_GREATER
-        where TKey : IKey, allows ref struct{
-        #else
+#if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct {
+#else
         where TKey : IKey{
-        #endif
+#endif
         return ThrowReadOnlyEntryPoint<RecordFieldInfo>();
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,IHeapObject value,ref EqualityEmpty input)
-        #if NET10_0_OR_GREATER
-        where TKey : IKey, allows ref struct{
-        #else
+#if NET10_0_OR_GREATER
+        where TKey : IKey, allows ref struct {
+#else
         where TKey : IKey{
-        #endif
+#endif
         return ThrowReadOnlyEntryPoint<RecordFieldInfo>();
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey, TSourceLogRecord>(TKey key,in TSourceLogRecord inputLogRecord,ref EqualityEmpty input)
-        #if NET10_0_OR_GREATER
+#if NET10_0_OR_GREATER
         where TKey : IKey, allows ref struct
-        #else
+#else
         where TKey : IKey
-        #endif
+#endif
         where TSourceLogRecord : ISourceLogRecord {
         return ThrowReadOnlyEntryPoint<RecordFieldInfo>();
     }

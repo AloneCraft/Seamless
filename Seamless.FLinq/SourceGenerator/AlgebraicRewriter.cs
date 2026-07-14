@@ -23,14 +23,14 @@ namespace Seamless.FLinq;
 internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     private readonly SemanticModel model;
     private readonly INamedTypeSymbol? enumerableType;
-    private static readonly HashSet<string> FusableTerminals=new(StringComparer.Ordinal) {
+    private static readonly HashSet<string> FusableTerminals = new(StringComparer.Ordinal) {
         "Count","LongCount","Any","First","FirstOrDefault","Last","LastOrDefault","Single","SingleOrDefault",
     };
     private AlgebraicRewriter(SemanticModel model) {
         this.model=model;
         this.enumerableType=model.Compilation.GetTypeByMetadataName("System.Linq.Enumerable");
     }
-    public static TSyntax Rewrite<TSyntax>(TSyntax node,SemanticModel model) where TSyntax:SyntaxNode {
+    public static TSyntax Rewrite<TSyntax>(TSyntax node,SemanticModel model) where TSyntax : SyntaxNode {
         return new AlgebraicRewriter(model).Visit(node) as TSyntax??node;
     }
     public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node) {
@@ -73,7 +73,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
             return false;
         }
         if(oArgs.Count!=1||!TryGetSingleParamLambda(oArgs[0],out _)) return false;   // keySelector のみ・index 無し
-        result=CreateCall(orderSource,descending?"MaxBy":"MinBy",oArgs[0].Expression);
+        result=CreateCall(orderSource,descending ? "MaxBy" : "MinBy",oArgs[0].Expression);
         return true;
     }
     // src.Select(x=>x) / src.AsEnumerable() を除去して src（再帰訪問済み）へ。
@@ -85,7 +85,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         if(!this.TryGetEnumerableExtensionCall(node,out var name,out var receiver,out var args)) return false;
         if(!this.IsReceiverOfEnumerableCall(node)) return false;
         if(name=="AsEnumerable"&&args.Count==0) {
-            var receiverType=this.model.GetTypeInfo(receiver).Type??this.model.GetTypeInfo(receiver).ConvertedType;
+            var receiverType = this.model.GetTypeInfo(receiver).Type??this.model.GetTypeInfo(receiver).ConvertedType;
             if(global::Seamless.SourceGenerator.UnorderedLinqOperatorPolicy.IsUnorderedSourceType(receiverType)) {
                 return false;
             }
@@ -107,12 +107,12 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     // Count()/LongCount() と整数リテラル 0/1 の比較を Any()/!Any() へ。Count(pred) は Any(pred)。
     private bool TryRewriteCountComparison(BinaryExpressionSyntax node,out SyntaxNode result) {
         result=null!;
-        var op=node.Kind();
-        if(op is not(SyntaxKind.GreaterThanExpression or SyntaxKind.GreaterThanOrEqualExpression
+        var op = node.Kind();
+        if(op is not (SyntaxKind.GreaterThanExpression or SyntaxKind.GreaterThanOrEqualExpression
             or SyntaxKind.LessThanExpression or SyntaxKind.LessThanOrEqualExpression
             or SyntaxKind.EqualsExpression or SyntaxKind.NotEqualsExpression)) return false;
-        var left=Strip(node.Left);
-        var right=Strip(node.Right);
+        var left = Strip(node.Left);
+        var right = Strip(node.Right);
         InvocationExpressionSyntax countInv;
         int literal;
         bool countOnLeft;
@@ -123,12 +123,12 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         } else {
             return false;
         }
-        var normalizedOp=countOnLeft?op:Reverse(op);
+        var normalizedOp = countOnLeft ? op : Reverse(op);
         if(!TryMapToAny(normalizedOp,literal,out var negate)) return false;
         this.TryGetEnumerableExtensionCall(countInv,out _,out var countSource,out var countArgs);
-        ExpressionSyntax any=countArgs.Count==1
-            ?CreateCall(countSource,"Any",countArgs[0].Expression)
-            :CreateCall(countSource,"Any");
+        ExpressionSyntax any = countArgs.Count==1
+            ? CreateCall(countSource,"Any",countArgs[0].Expression)
+            : CreateCall(countSource,"Any");
         if(negate) {
             any=SyntaxFactory.PrefixUnaryExpression(SyntaxKind.LogicalNotExpression,Parenthesize(any));
         }
@@ -140,8 +140,8 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         result=null!;
         if(!this.TryGetWhereRunMember(node,out _,out var receiver)) return false;
         if(Strip(receiver) is not InvocationExpressionSyntax innerInv||!this.IsWhereCall(innerInv)) return false; // run 長 >=2
-        var preds=new List<ExpressionSyntax>();
-        ExpressionSyntax current=node;
+        var preds = new List<ExpressionSyntax>();
+        ExpressionSyntax current = node;
         ExpressionSyntax baseSource;
         while(true) {
             if(Strip(current) is InvocationExpressionSyntax inv&&this.TryGetWhereRunMember(inv,out var pred,out var recv)) {
@@ -156,15 +156,15 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         foreach(var p in preds) {
             if(p is not LambdaExpressionSyntax l||!this.IsReorderSafe(l)) return false;
         }
-        var ordered=preds
-            .Select(static (p,i)=>(p,i))
-            .OrderBy(static x=>PassRateRank((LambdaExpressionSyntax)x.p))
-            .ThenBy(static x=>Cost((LambdaExpressionSyntax)x.p))
-            .ThenBy(static x=>x.i)
-            .Select(static x=>x.p)
+        var ordered = preds
+            .Select(static (p,i) => (p,i))
+            .OrderBy(static x => PassRateRank((LambdaExpressionSyntax)x.p))
+            .ThenBy(static x => Cost((LambdaExpressionSyntax)x.p))
+            .ThenBy(static x => x.i)
+            .Select(static x => x.p)
             .ToList();
         if(ordered.SequenceEqual(preds)) return false;   // 既に整列済み（無変化ならループ停止）
-        ExpressionSyntax rebuilt=baseSource;
+        ExpressionSyntax rebuilt = baseSource;
         foreach(var p in ordered) {
             rebuilt=CreateCall(rebuilt,"Where",p);
         }
@@ -178,7 +178,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     private bool IsReorderSafe(LambdaExpressionSyntax lambda) {
         if(lambda.Body is not ExpressionSyntax body) return false;
         return !AnchorAnalysis.ContainsAnchor(body,this.model)
-               && !this.HasNullSensitiveMemberAccess(body);
+               &&!this.HasNullSensitiveMemberAccess(body);
     }
     private bool HasNullSensitiveMemberAccess(ExpressionSyntax expression) {
         foreach(var memberAccess in expression.DescendantNodesAndSelf().OfType<MemberAccessExpressionSyntax>()) {
@@ -193,13 +193,13 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         if(this.model.GetTypeInfo(expr).Type is not { } t||!t.IsValueType) return false;
         return !(t is INamedTypeSymbol n&&n.OriginalDefinition.SpecialType==SpecialType.System_Nullable_T);
     }
-    private static int Cost(LambdaExpressionSyntax lambda)=>lambda.Body is ExpressionSyntax b?b.DescendantNodesAndSelf().Count():int.MaxValue;
+    private static int Cost(LambdaExpressionSyntax lambda) => lambda.Body is ExpressionSyntax b ? b.DescendantNodesAndSelf().Count() : int.MaxValue;
     // 等値 == を含めば選択性高(0)、範囲比較を含めば中(1)、それ以外(否定/その他)は高め(2)。
     private static int PassRateRank(LambdaExpressionSyntax lambda) {
         if(lambda.Body is not ExpressionSyntax body) return 2;
-        var kinds=body.DescendantNodesAndSelf().OfType<BinaryExpressionSyntax>().Select(static b=>b.Kind()).ToList();
+        var kinds = body.DescendantNodesAndSelf().OfType<BinaryExpressionSyntax>().Select(static b => b.Kind()).ToList();
         if(kinds.Contains(SyntaxKind.EqualsExpression)) return 0;
-        if(kinds.Any(static k=>k is SyntaxKind.LessThanExpression or SyntaxKind.GreaterThanExpression
+        if(kinds.Any(static k => k is SyntaxKind.LessThanExpression or SyntaxKind.GreaterThanExpression
             or SyntaxKind.LessThanOrEqualExpression or SyntaxKind.GreaterThanOrEqualExpression)) return 1;
         return 2;
     }
@@ -226,12 +226,12 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         receiver=recv;
         return true;
     }
-    private bool IsWhereCall(InvocationExpressionSyntax inv)=> this.TryGetWhereRunMember(inv,out _,out _);
+    private bool IsWhereCall(InvocationExpressionSyntax inv) => this.TryGetWhereRunMember(inv,out _,out _);
     private bool TryGetCountInvocation(ExpressionSyntax e,out InvocationExpressionSyntax inv) {
         inv=null!;
         if(e is not InvocationExpressionSyntax i) return false;
         if(!this.TryGetEnumerableExtensionCall(i,out var name,out _,out var args)) return false;
-        if(name is not("Count" or "LongCount")||args.Count>1) return false;
+        if(name is not ("Count" or "LongCount")||args.Count>1) return false;
         inv=i;
         return true;
     }
@@ -261,18 +261,18 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     }
     private static bool TryGetIntLiteral(ExpressionSyntax e,out int value) {
         value=0;
-        if(Strip(e) is LiteralExpressionSyntax { Token.Value:int v }&&(v==0||v==1)) {
+        if(Strip(e) is LiteralExpressionSyntax { Token.Value: int v }&&(v==0||v==1)) {
             value=v;
             return true;
         }
         return false;
     }
-    private static SyntaxKind Reverse(SyntaxKind op)=>op switch {
-        SyntaxKind.GreaterThanExpression=>SyntaxKind.LessThanExpression,
-        SyntaxKind.LessThanExpression=>SyntaxKind.GreaterThanExpression,
-        SyntaxKind.GreaterThanOrEqualExpression=>SyntaxKind.LessThanOrEqualExpression,
-        SyntaxKind.LessThanOrEqualExpression=>SyntaxKind.GreaterThanOrEqualExpression,
-        _=>op,
+    private static SyntaxKind Reverse(SyntaxKind op) => op switch {
+        SyntaxKind.GreaterThanExpression => SyntaxKind.LessThanExpression,
+        SyntaxKind.LessThanExpression => SyntaxKind.GreaterThanExpression,
+        SyntaxKind.GreaterThanOrEqualExpression => SyntaxKind.LessThanOrEqualExpression,
+        SyntaxKind.LessThanOrEqualExpression => SyntaxKind.GreaterThanOrEqualExpression,
+        _ => op,
     };
     // count（左辺）op literal を Any/!Any へ。負論理なら negate=true。
     private static bool TryMapToAny(SyntaxKind op,int literal,out bool negate) {
@@ -293,8 +293,8 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         }
     }
     private static InvocationExpressionSyntax CreateCall(ExpressionSyntax receiver,string method,params ExpressionSyntax[] args) {
-        var ma=SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,Parenthesize(receiver),SyntaxFactory.IdentifierName(method));
-        return SyntaxFactory.InvocationExpression(ma,SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(args.Select(static a=>SyntaxFactory.Argument(a)))));
+        var ma = SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,Parenthesize(receiver),SyntaxFactory.IdentifierName(method));
+        return SyntaxFactory.InvocationExpression(ma,SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(args.Select(static a => SyntaxFactory.Argument(a)))));
     }
     private static ExpressionSyntax Strip(ExpressionSyntax e) {
         while(e is ParenthesizedExpressionSyntax p) {
@@ -303,10 +303,10 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         return e;
     }
     private static ExpressionSyntax Parenthesize(ExpressionSyntax e) {
-        var s=Strip(e);
+        var s = Strip(e);
         return s is IdentifierNameSyntax or GenericNameSyntax or QualifiedNameSyntax or AliasQualifiedNameSyntax
             or MemberAccessExpressionSyntax or InvocationExpressionSyntax or ElementAccessExpressionSyntax
             or LiteralExpressionSyntax
-            ?s:SyntaxFactory.ParenthesizedExpression(s);
+            ? s : SyntaxFactory.ParenthesizedExpression(s);
     }
 }

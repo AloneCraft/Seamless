@@ -420,8 +420,7 @@ namespace Seamless.System.Carrier {
                     current=this.value;
                     return true;
                 }
-            }
-            else {
+            } else {
                 if(this.value>this.end||(this.rightBound==RightBound.Inclusive&&this.value>=this.end)) {
                     current=this.value;
                     return true;
@@ -480,8 +479,7 @@ namespace Seamless.System.Carrier {
                     current=this.value;
                     return true;
                 }
-            }
-            else {
+            } else {
                 if(this.value>this.end||(this.rightBound==RightBound.Inclusive&&this.value>=this.end)) {
                     current=this.value;
                     return true;
@@ -537,8 +535,7 @@ namespace Seamless.System.Carrier {
                     current=this.value;
                     return true;
                 }
-            }
-            else {
+            } else {
                 if(this.value>this.end||(this.rightBound==RightBound.Inclusive&&this.value>=this.end)) {
                     current=this.value;
                     return true;

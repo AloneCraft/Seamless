@@ -1,12 +1,9 @@
-using Microsoft.Maui;
-using Microsoft.Maui.Hosting;
-
 namespace Benchmark.Tsavorite.ParameterSweep.UI;
 
 public static class MauiProgram {
     public static MauiApp CreateMauiApp() {
-        var builder = MauiApp.CreateBuilder();
-        builder.UseMauiApp<App>();
-        return builder.Build();
+        var ビルダー = MauiApp.CreateBuilder();
+        ビルダー.UseMauiApp<App>();
+        return ビルダー.Build();
     }
 }

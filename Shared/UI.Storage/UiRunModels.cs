@@ -1,226 +1,155 @@
-﻿namespace Seamless.UI.Storage;
+namespace Seamless.UI.Storage;
 
-public enum UiRunAppKind{
-    Benchmark,
-    ScalableBenchmark,
-    ParameterSweep,
+public enum UI実行アプリ種別{
+    ベンチマーク,
+    スケーラブルベンチマーク,
+    パラメータスイープ,
 }
 
-public enum UiRunStatus{
-    Queued,
-    Running,
-    Paused,
-    Stopped,
-    Completed,
-    Failed,
+public enum UI実行状態{
+    待機中,
+    実行中,
+    一時停止中,
+    停止済み,
+    完了,
+    失敗,
 }
 
-public enum UiShareMetric{
-    Time,
-    Memory,
+public enum UIシェア指標{
+    時間,
+    メモリ,
 }
 
-public sealed record UiShareHistoryQuery(
-    UiRunAppKind AppKind,
-    string TabName,
-    string TypeName,
-    string BenchmarkName,
-    UiBenchmarkSnapshotCaseWrite? BenchmarkCase = null);
+public sealed record UIシェア履歴条件(
+    UI実行アプリ種別 アプリ種別,
+    string タブ名,
+    string 型名,
+    string ベンチマーク名,
+    UIベンチマークスナップショットケース書込? ベンチマークケース = null);
 
-public sealed record UiShareHistoryPoint(long RunId,double LeftShare,double RightShare);
+public sealed record UIシェア履歴点(long 実行ID,double 左シェア,double 右シェア);
 
-public sealed record UiRunCreateRequest(
-    UiRunAppKind AppKind,
-    string DisplayName,
-    string ExecutionProfile,
-    string SourceTab,
-    DateTimeOffset CreatedAt);
+public sealed record UI実行作成要求(
+    UI実行アプリ種別 アプリ種別,
+    string 表示名,
+    string 実行プロファイル,
+    string タブ名,
+    DateTimeOffset 作成日時);
 
-public sealed record UiRunRecord(
-    long RunId,
-    UiRunAppKind AppKind,
-    string DisplayName,
-    UiRunStatus Status,
-    string ExecutionProfile,
-    string SourceTab,
-    DateTimeOffset UpdatedAt);
+public sealed record UI実行記録(
+    long 実行ID,
+    UI実行アプリ種別 アプリ種別,
+    string 表示名,
+    UI実行状態 状態,
+    string 実行プロファイル,
+    string タブ名,
+    DateTimeOffset 更新日時,
+    string 状態メッセージ);
 
-public sealed record UiParameterSweepResult(
-    long RunId,
-    string CaseName,
-    string Collection,
-    string GenericName,
-    string Backend,
-    string Sweep,
-    long IndexSize,
-    long PageSize,
-    long SegmentSize,
-    long MemorySize,
-    double MutableFraction,
-    long MaxSuccessfulCount,
-    long EntryCount,
-    string FailureKind,
-    string FailureReason,
-    double AddElapsedMilliseconds,
-    double? LookupMeanNanoseconds,
-    DateTimeOffset MeasuredAt);
+public sealed record UIパラメータスイープ結果(
+    long 実行ID,
+    string ケース名,
+    string コレクション,
+    string ジェネリック名,
+    string バックエンド,
+    string スイープ,
+    long Indexサイズ,
+    long Pageサイズ,
+    long Segmentサイズ,
+    long Memoryサイズ,
+    double 可変Fraction,
+    long 最大成功Count,
+    long エントリCount,
+    string 失敗種別,
+    string 失敗理由,
+    double 追加経過ミリ秒,
+    double? 検索平均ナノ秒,
+    DateTimeOffset 計測日時);
 
-
-public sealed record UiCaseRecord(
-    long CaseId,
-    long RunId,
-    string CaseKey,
-    string Name,
-    string Project,
-    string AssemblyName,
-    string Method,
-    string TypeFullName,
-    string SourceTabId,
-    string ArgumentKey,
-    string Side,
-    string PairDiscriminator);
-
-/// <summary>FLinq fallback 実行時診断の書き込み値。</summary>
-public sealed record UiFallbackDiagnosticWrite(
-    string Project,
-    string Method,
-    string CounterName,
-    double CounterValue){
-    public string SourceTab { get; init; } = string.Empty;
-    public string ArgumentKey { get; init; } = string.Empty;
-    public long? ElementCount { get; init; }
+/// <summary>FLinqフォールバック実行時診断の書き込み値。</summary>
+public sealed record UIフォールバック診断書込(
+    string プロジェクト,
+    string メソッド,
+    string カウンター名,
+    double カウンター値){
+    public string タブ名{get;init;}=string.Empty;
+    public string 引数キー{get;init;}=string.Empty;
+    public long? 要素数{get;init;}
 }
 
-public sealed record UiFallbackDiagnosticRecord(
-    long RunId,
-    string SourceTab,
-    string Project,
-    string Method,
-    string ArgumentKey,
-    long? ElementCount,
-    string CounterName,
-    double CounterValue,
-    DateTimeOffset RecordedAt);
+public sealed record UIフォールバック診断記録(
+    long 実行ID,
+    string タブ名,
+    string プロジェクト,
+    string メソッド,
+    string 引数キー,
+    long? 要素数,
+    string カウンター名,
+    double カウンター値,
+    DateTimeOffset 記録日時);
 
-public sealed record UiJobRecord(
-    long JobId,
-    long RunId,
-    long CaseId,
-    string JobKey,
-    UiRunStatus Status,
-    long? ElementCount,
-    long? LoopCount,
-    int? AssignedLogicalCpu,
-    DateTimeOffset? StartedAt,
-    DateTimeOffset? FinishedAt,
-    string FailureKind,
-    string FailureReason);
+public sealed record UIベンチマークグリッド側書込(
+    UI実行状態 状態,
+    string 失敗理由,
+    DateTimeOffset? 計測日時,
+    double? 平均ナノ秒,
+    long? 割当バイト,
+    int? ループ回数 = null,
+    double? 合計ナノ秒 = null,
+    bool 実行内計測か = false,
+    string 計測段階 = "");
 
-public sealed record UiMetricValueWrite(string MetricName,double NumericValue,string Unit);
+public sealed record UIベンチマークスナップショットケース書込(
+    string アセンブリ名,
+    string 型完全名,
+    string メソッド名,
+    string 引数キー,
+    string 引数JSON);
 
-public sealed record UiBenchmarkItemWrite(
-    string TabName,
-    string ProjectName,
-    string AssemblyName,
-    string TypeName,
-    string TypeFullName,
-    string BenchmarkName,
-    bool IsSelected,
-    long? ElementCount,
-    long? LoopCount,
-    int? CpuNumber,
-    string ArgumentKey,
-    string ArgumentDisplay,
-    string RowKey,
-    string Side,
-    string PairDiscriminator);
+public sealed record UIベンチマークスナップショット項目書込(
+    string タブ名,
+    string 型名,
+    string ベンチマーク名,
+    int? CPU番号,
+    bool 選択中か,
+    UIベンチマークグリッド側書込 左,
+    UIベンチマークグリッド側書込 右,
+    UIベンチマークスナップショットケース書込? 左ケース = null,
+    UIベンチマークスナップショットケース書込? 右ケース = null);
 
-public sealed record UiBenchmarkGridSideWrite(
-    UiRunStatus Status,
-    string FailureReason,
-    DateTimeOffset? MeasuredAt,
-    double? MeanNanoseconds,
-    long? AllocatedBytes,
-    int? LoopCount = null,
-    double? TotalNanoseconds = null,
-    bool MeasuredInRun = false,
-    string MeasurementStage = "");
+public sealed record UIベンチマークグリッド側記録(
+    UI実行状態 状態,
+    string 失敗理由,
+    DateTimeOffset? 計測日時,
+    double? 平均ナノ秒,
+    long? 割当バイト,
+    int? ループ回数 = null,
+    double? 合計ナノ秒 = null,
+    bool 実行内計測か = false,
+    string 計測段階 = "");
 
-public sealed record UiBenchmarkSnapshotCaseWrite(
-    string AssemblyName,
-    string TypeFullName,
-    string MethodName,
-    string ArgumentKey,
-    string ArgumentsJson);
+public sealed record UIベンチマークスナップショット項目記録(
+    long 実行ID,
+    string タブ名,
+    string 型名,
+    string ベンチマーク名,
+    int? CPU番号,
+    bool 選択中か,
+    UIベンチマークグリッド側記録 左,
+    UIベンチマークグリッド側記録 右,
+    UIベンチマークスナップショットケース書込? 左ケース = null,
+    UIベンチマークスナップショットケース書込? 右ケース = null);
 
-public sealed record UiBenchmarkSnapshotItemWrite(
-    string TabName,
-    string TypeName,
-    string BenchmarkName,
-    int? CpuNumber,
-    bool IsSelected,
-    UiBenchmarkGridSideWrite Left,
-    UiBenchmarkGridSideWrite Right,
-    UiBenchmarkSnapshotCaseWrite? LeftCase = null,
-    UiBenchmarkSnapshotCaseWrite? RightCase = null);
+public sealed record UI実行設定記録(
+    long 実行ID,
+    string 実行ルート,
+    string 要素数一覧,
+    double 適応閾値ナノ秒,
+    string 論理CPU一覧);
 
-public sealed record UiBenchmarkGridSideRecord(
-    UiRunStatus Status,
-    string FailureReason,
-    DateTimeOffset? MeasuredAt,
-    double? MeanNanoseconds,
-    long? AllocatedBytes,
-    int? LoopCount = null,
-    double? TotalNanoseconds = null,
-    bool MeasuredInRun = false,
-    string MeasurementStage = "");
-
-public sealed record UiBenchmarkSnapshotItemRecord(
-    long RunId,
-    string TabName,
-    string TypeName,
-    string BenchmarkName,
-    int? CpuNumber,
-    bool IsSelected,
-    UiBenchmarkGridSideRecord Left,
-    UiBenchmarkGridSideRecord Right,
-    UiBenchmarkSnapshotCaseWrite? LeftCase = null,
-    UiBenchmarkSnapshotCaseWrite? RightCase = null);
-
-public sealed record UiRunSettingsRecord(
-    long RunId,
-    string RunRoot,
-    double AdaptiveThresholdNanoseconds,
-    string LogicalCpus);
-
-public sealed record UiMetricValueRecord(
-    long JobId,
-    string MetricName,
-    double NumericValue,
-    string Unit,
-    DateTimeOffset MeasuredAt);
-
-public sealed record UiComparisonWrite(
-    long CaseId,
-    long? BaselineRunId,
-    string MetricName,
-    double? Ratio,
-    double? Delta,
-    string Judgement);
-
-public sealed record UiComparisonRecord(
-    long RunId,
-    long CaseId,
-    long? BaselineRunId,
-    string MetricName,
-    double? Ratio,
-    double? Delta,
-    string Judgement);
-
-public sealed record UiRunStateRecord(
-    long RunStateId,
-    long RunId,
-    UiRunStatus Status,
-    string Message,
-    DateTimeOffset ChangedAt);
-
+public sealed record UI指標値記録(
+    long ジョブID,
+    string 指標名,
+    double 数値,
+    string 単位,
+    DateTimeOffset 計測日時);

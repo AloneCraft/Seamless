@@ -82,8 +82,7 @@ public partial class HashSet<TKey>:Collection<TKey,EqualityEmpty,AutoSerializer<
             }
             foreach(var item in keysToRemove)
                 this.Remove(item);
-        }
-        finally {
+        } finally {
             DeleteTemporaryWorkListPath(workListPath);
         }
     }
@@ -134,8 +133,7 @@ public partial class HashSet<TKey>:Collection<TKey,EqualityEmpty,AutoSerializer<
         if(disposing) {
             this.IntersectWith_ClientSession.Dispose();
             this.SymmetricExceptWith_ClientSession.Dispose();
-        }
-        else {
+        } else {
         }
         this.disposed=true;
         base.Dispose(disposing);

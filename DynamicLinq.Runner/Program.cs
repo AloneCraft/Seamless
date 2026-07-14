@@ -1,8 +1,9 @@
-using System.Diagnostics;
-using System.Globalization;
+using DynamicLinq;
 
 using Seamless.Linq;
-using DynamicLinq;
+
+using System.Diagnostics;
+using System.Globalization;
 
 var options = RunnerOptions.Parse(args);
 var cases = DynamicCase.Create(options).ToArray();
@@ -16,7 +17,7 @@ foreach(var testCase in cases) {
     var row = DynamicCaseRunner.Run(testCase,options.Iterations);
     rows.Add(row);
     Console.WriteLine(row.ToCsv());
-    if(row.Status!="OK" && row.Status!="SKIP_VERIFY") {
+    if(row.Status!="OK"&&row.Status!="SKIP_VERIFY") {
         exitCode=1;
     }
 }
@@ -42,7 +43,7 @@ internal sealed record RunnerOptions(
         var types = new[] { "int" };
         var methods = Array.Empty<string>();
 
-        for(var index = 0; index<args.Length; index++) {
+        for(var index = 0;index<args.Length;index++) {
             switch(args[index]) {
                 case "--random-only":
                     randomOnly=true;
@@ -98,13 +99,13 @@ internal sealed record RunnerOptions(
     }
 
     private static int ParsePositiveInt(string value,int fallback) =>
-        int.TryParse(value,NumberStyles.Integer,CultureInfo.InvariantCulture,out var parsed) && parsed>0
+        int.TryParse(value,NumberStyles.Integer,CultureInfo.InvariantCulture,out var parsed)&&parsed>0
             ? parsed
             : fallback;
 
     private static string[] SplitCsv(string value) {
         var values = value
-            .Split(',',StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries)
             .Where(static item => item.Length>0)
             .ToArray();
         return values.Length==0 ? ["int"] : values;
@@ -117,7 +118,7 @@ internal sealed record DynamicCase(string MethodName,string TypeName,int Length,
             ? options.Methods
             : EnumerableComparisonCatalog.BenchmarkMethodNames.ToArray();
 
-        if(options.RandomOnly || options.Methods.Length==0) {
+        if(options.RandomOnly||options.Methods.Length==0) {
             var random = new Random(options.Seed);
             methodNames=methodNames
                 .OrderBy(_ => random.Next())
@@ -125,7 +126,7 @@ internal sealed record DynamicCase(string MethodName,string TypeName,int Length,
                 .ToArray();
         }
 
-        for(var index = 0; index<methodNames.Length; index++) {
+        for(var index = 0;index<methodNames.Length;index++) {
             var methodName = methodNames[index];
             yield return new DynamicCase(
                 methodName,
@@ -137,7 +138,7 @@ internal sealed record DynamicCase(string MethodName,string TypeName,int Length,
 
     private static bool IsOrdered(string methodName) =>
         methodName.StartsWith("Order",StringComparison.Ordinal)
-        || methodName.StartsWith("ThenBy",StringComparison.Ordinal);
+        ||methodName.StartsWith("ThenBy",StringComparison.Ordinal);
 }
 
 internal static class DynamicCaseRunner {
@@ -163,7 +164,7 @@ internal static class DynamicCaseRunner {
     private static Measurement Measure(int iterations,Func<string> action) {
         var value = string.Empty;
         var stopwatch = Stopwatch.StartNew();
-        for(var index = 0; index<iterations; index++) {
+        for(var index = 0;index<iterations;index++) {
             value=action();
         }
 
@@ -177,7 +178,7 @@ internal static class DynamicCaseRunner {
         string noOptimized,
         CounterSnapshot optimizedCounter,
         CounterSnapshot noOptimizedCounter) {
-        if(system!=optimized || system!=noOptimized) {
+        if(system!=optimized||system!=noOptimized) {
             return "FAIL_RESULT";
         }
 

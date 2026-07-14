@@ -291,42 +291,35 @@ partial class ValueEnumerableExtensions {
         if(typeof(TSource)==typeof(int)) {
             var sum = SimdSumSignedNumberChecked(UnsafeSpanBitCast<TSource,int>(span));
             return Unsafe.As<int,TSource>(ref sum);
-        }
-        else if(typeof(TSource)==typeof(long)) {
+        } else if(typeof(TSource)==typeof(long)) {
             var sum = SimdSumSignedNumberChecked(UnsafeSpanBitCast<TSource,long>(span));
             return Unsafe.As<long,TSource>(ref sum);
-        }
-        else if(typeof(TSource)==typeof(sbyte)) {
+        } else if(typeof(TSource)==typeof(sbyte)) {
             var sum = SimdSumSignedNumberChecked(UnsafeSpanBitCast<TSource,sbyte>(span));
             return Unsafe.As<sbyte,TSource>(ref sum);
-        }
-        else if(typeof(TSource)==typeof(short)) {
+        } else if(typeof(TSource)==typeof(short)) {
             var sum = SimdSumSignedNumberChecked(UnsafeSpanBitCast<TSource,short>(span));
             return Unsafe.As<short,TSource>(ref sum);
         }
-        // Unsigned
-        else if(typeof(TSource)==typeof(byte)) {
+          // Unsigned
+          else if(typeof(TSource)==typeof(byte)) {
             var sum = SimdSumUnsignedNumberChecked(UnsafeSpanBitCast<TSource,byte>(span));
             return Unsafe.As<byte,TSource>(ref sum);
-        }
-        else if(typeof(TSource)==typeof(ushort)) {
+        } else if(typeof(TSource)==typeof(ushort)) {
             var sum = SimdSumUnsignedNumberChecked(UnsafeSpanBitCast<TSource,ushort>(span));
             return Unsafe.As<ushort,TSource>(ref sum);
-        }
-        else if(typeof(TSource)==typeof(uint)) {
+        } else if(typeof(TSource)==typeof(uint)) {
             var sum = SimdSumUnsignedNumberChecked(UnsafeSpanBitCast<TSource,uint>(span));
             return Unsafe.As<uint,TSource>(ref sum);
-        }
-        else if(typeof(TSource)==typeof(ulong)) {
+        } else if(typeof(TSource)==typeof(ulong)) {
             var sum = SimdSumUnsignedNumberChecked(UnsafeSpanBitCast<TSource,ulong>(span));
             return Unsafe.As<ulong,TSource>(ref sum);
         }
-        // double
-        else if(typeof(TSource)==typeof(double)) {
+          // double
+          else if(typeof(TSource)==typeof(double)) {
             // double uses unchecked operation
             return SimdSumNumberUnchecked(span);
-        }
-        else {
+        } else {
             var sum = TSource.Zero;
             foreach(var item in span) {
                 checked { sum+=TSource.CreateChecked(item); }
@@ -372,7 +365,7 @@ partial class ValueEnumerableExtensions {
 
             // Perform the final addition using checked.
             // Do not use Vector.Sum as it does not check for overflow.
-            for(int i = 0; i<Vector<T>.Count; i++) {
+            for(int i = 0;i<Vector<T>.Count;i++) {
                 checked { result+=vectorSum[i]; }
             }
         }
@@ -411,7 +404,7 @@ partial class ValueEnumerableExtensions {
 
             // Perform the final addition using checked.
             // Do not use Vector.Sum as it does not check for overflow.
-            for(int i = 0; i<Vector<T>.Count; i++) {
+            for(int i = 0;i<Vector<T>.Count;i++) {
                 checked { result+=vectorSum[i]; }
             }
         }

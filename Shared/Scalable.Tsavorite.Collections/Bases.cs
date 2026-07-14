@@ -1,5 +1,5 @@
-using Collection.Helper.CollectionLinq;
 using Scalable.Collections;
+
 using System.Collections.Concurrent;
 #if BENCHMARK_PROJECT
 namespace Benchmark.Scalable.Tsavorite.Collections;
@@ -7,13 +7,13 @@ namespace Benchmark.Scalable.Tsavorite.Collections;
 namespace Scalable.Tsavorite.Collections;
 #endif
 
-public abstract class TsavoriteSetScalable<TStrategy,T>
+public abstract class TsavoriteSetScalable<TStrategy, T>
     :ScalableBenchmarkBase
     where TStrategy : IHashSetTestStrategy<T>
     where T : IEquatable<T> {
     private static readonly ConcurrentDictionary<string,Lazy<HashSetHandle<T>>> SharedContainsSets = new(StringComparer.Ordinal);
 
-    [Benchmark,BenchTheory]
+    [Benchmark, BenchTheory]
     [BenchArguments(65536,131072,4096,4096,8388608,1.0)]
     [BenchArguments(131072,131072,4096,4096,16777216,1.0)]
     [BenchArguments(262144,131072,4096,4096,33554432,1.0)]
@@ -33,7 +33,7 @@ public abstract class TsavoriteSetScalable<TStrategy,T>
         return handle.Set.Count;
     }
 
-    [Benchmark,BenchTheory]
+    [Benchmark, BenchTheory]
     [BenchArguments(65536,131072,4096,4096,8388608,1.0)]
     [BenchArguments(131072,131072,4096,4096,16777216,1.0)]
     [BenchArguments(262144,131072,4096,4096,33554432,1.0)]
@@ -79,14 +79,14 @@ public abstract class TsavoriteSetScalable<TStrategy,T>
     }
 }
 
-public abstract class TsavoriteDictionaryScalable<TStrategy,TKey,TValue>
+public abstract class TsavoriteDictionaryScalable<TStrategy, TKey, TValue>
     :ScalableBenchmarkBase
     where TStrategy : IDictTestStrategy<TKey,TValue>
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue> {
     private static readonly ConcurrentDictionary<string,Lazy<SharedDictionary>> SharedTryGetValueDictionaries = new(StringComparer.Ordinal);
 
-    [Benchmark,BenchTheory]
+    [Benchmark, BenchTheory]
     [BenchArguments(65536,131072,4096,4096,8388608,1.0)]
     [BenchArguments(131072,131072,4096,4096,16777216,1.0)]
     [BenchArguments(262144,131072,4096,4096,33554432,1.0)]
@@ -104,7 +104,7 @@ public abstract class TsavoriteDictionaryScalable<TStrategy,TKey,TValue>
         return dictionary.Count;
     }
 
-    [Benchmark,BenchTheory]
+    [Benchmark, BenchTheory]
     [BenchArguments(65536,131072,4096,4096,8388608,1.0)]
     [BenchArguments(131072,131072,4096,4096,16777216,1.0)]
     [BenchArguments(262144,131072,4096,4096,33554432,1.0)]

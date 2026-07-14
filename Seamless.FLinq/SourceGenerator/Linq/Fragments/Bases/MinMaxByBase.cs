@@ -23,26 +23,26 @@ MinMaxByBase は source.MinBy(keySelector) / MaxBy(keySelector) を、最良 key
   - span source は最初に span path を使い、だめなら ComputeEnumerator に戻る。
   - direction により > 0 / < 0 を切り替える。
 */
-internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment keySelector,string resultType,string direction):BufferedScalar(番号,resultType){
-    protected override Enumerable PrimarySource=>source;
-    public override string StructMethod=> this.FuncSupport(keySelector,nameof(keySelector));
-    protected override string StructSources=>source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector)})";
-    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector)}";
-    protected override string ComputeExpression=>$"Compute({this.e}{this.ClosureArgsSuffix(keySelector)})";
+internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment keySelector,string resultType,string direction):BufferedScalar(番号,resultType) {
+    protected override Enumerable PrimarySource => source;
+    public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
+    protected override string StructSources => source.GetEnumeratorStruct;
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector)})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector)}";
+    protected override string ComputeExpression => $"Compute({this.e}{this.ClosureArgsSuffix(keySelector)})";
     public override string? RenderInlineComputation(string destVar,string destType) {
-        var methodName=direction=="greater" ? "MaxBy" : "MinBy";
+        var methodName = direction=="greater" ? "MaxBy" : "MinBy";
         return this.RenderComputeInline(destVar,destType)
-            ?? (TryRenderDirectLambda(keySelector) is { } lambda
+            ??(TryRenderDirectLambda(keySelector) is { } lambda
                 ? this.RenderDirectEnumerableCallInline(source,destVar,destType,methodName,lambda)
                 : null);
     }
-    protected override string ComputeMembers=>source.CanTryProvideSpan
+    protected override string ComputeMembers => source.CanTryProvideSpan
         ? this.BuildTrySpanCompute()
         : this.BuildEnumeratorCompute();
-    protected override string GetEnumeratorDisposeBody=>$"{this.e}.Dispose();";
-    private string CompareOp=>direction=="greater"?">":"<";
-    private string BuildSpanCompute()=>$$"""
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    private string CompareOp => direction=="greater" ? ">" : "<";
+    private string BuildSpanCompute() => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
             var comparer=global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
@@ -63,7 +63,7 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
             return bestElement;
         }
         """;
-    private string BuildTrySpanCompute()=>$$"""
+    private string BuildTrySpanCompute() => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
             if(source.TryGetSpan(out var __span)){
@@ -104,7 +104,7 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
             return bestElement;
         }
         """;
-    private string BuildEnumeratorCompute()=>$$"""
+    private string BuildEnumeratorCompute() => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
             var comparer=global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;

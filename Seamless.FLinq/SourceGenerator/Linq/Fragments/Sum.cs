@@ -19,7 +19,7 @@ Sum は source.Sum() / Sum(selector) を checked 加算の Compute に変換す�
   - selector 付きは各 item を FuncAssign で一時値へ写してから加算する。
   - DirectEnumerableExpression + lambda 再表示可能なら System.Linq.Sum へ委譲できる。
 */
-public class Sum(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
+public class Sum(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -31,8 +31,8 @@ public class Sum(int 番号, Enumerable source, string resultType) : BufferedSca
         ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"Sum")
         ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanSumInline(string destVar,string destType) {
-        var span=$"__span{this.result}";
-        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span = $"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
             {{resultType}} sum=default!;
             checked{
                 for(var __i=0;__i<{{spanName}}.Length;__i++) sum+={{spanName}}[__i];
@@ -80,7 +80,7 @@ public class Sum(int 番号, Enumerable source, string resultType) : BufferedSca
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-public class Sum_selector(int 番号, Enumerable source, FuncFragment selector, string resultType) : BufferedScalar(番号, resultType) {
+public class Sum_selector(int 番号,Enumerable source,FuncFragment selector,string resultType):BufferedScalar(番号,resultType) {
     private string SelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(selector)}>";
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(selector,nameof(selector));
@@ -93,7 +93,7 @@ public class Sum_selector(int 番号, Enumerable source, FuncFragment selector, 
         $"Compute({this.e}{this.ClosureArgsSuffix(selector)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderComputeInline(destVar,destType)
-        ?? (TryRenderDirectLambda(selector) is { } lambda
+        ??(TryRenderDirectLambda(selector) is { } lambda
             ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Sum",lambda)
             : null);
     protected override string ComputeMembers => source.CanProvideSpan

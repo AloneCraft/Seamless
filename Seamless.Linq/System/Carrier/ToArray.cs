@@ -25,8 +25,7 @@ partial class ValueEnumerableExtensions {
             }
 
             return array;
-        }
-        else {
+        } else {
 #if NETSTANDARD2_0
             Span<TSource> initialBufferSpan = default;
 #elif NET8_0_OR_GREATER
@@ -77,13 +76,12 @@ partial class ValueEnumerableExtensions {
 
             var array = GC.AllocateUninitializedArray<TResult>(sourceSpan.Length);
 
-            for(int i = 0; (uint)i<(uint)sourceSpan.Length; i++) {
+            for(int i = 0;(uint)i<(uint)sourceSpan.Length;i++) {
                 array[i]=selector(sourceSpan[i]);
             }
 
             return array;
-        }
-        else {
+        } else {
 #if NETSTANDARD2_0
             Span<TResult> initialBufferSpan = default;
 #elif NET8_0_OR_GREATER
@@ -129,7 +127,7 @@ partial class ValueEnumerableExtensions {
         }
 
         var array = GC.AllocateUninitializedArray<TResult>(count);
-        for(int i = 0; (uint)i<(uint)array.Length; i++) {
+        for(int i = 0;(uint)i<(uint)array.Length;i++) {
             array[i]=selector(value);
             value++;
         }
@@ -147,7 +145,7 @@ partial class ValueEnumerableExtensions {
 
         var array = GC.AllocateUninitializedArray<TResult>(sourceArray.Length);
 
-        for(int i = 0; (uint)i<(uint)sourceArray.Length; i++) {
+        for(int i = 0;(uint)i<(uint)sourceArray.Length;i++) {
             array[i]=selector(sourceArray[i]);
         }
 
@@ -189,8 +187,7 @@ partial class ValueEnumerableExtensions {
                 }
             }
             arrayBuilder.Advance(i);
-        }
-        else {
+        } else {
             while(enumerator.TryGetNext(out var item)) {
                 if(predicate(item)) {
                     if(i==span.Length) {
@@ -291,8 +288,7 @@ partial class ValueEnumerableExtensions {
                 }
             }
             arrayBuilder.Advance(i);
-        }
-        else {
+        } else {
             while(enumerator.TryGetNext(out var item)) {
                 if(predicate(item)) {
                     if(i==span.Length) {
@@ -478,8 +474,7 @@ partial class ValueEnumerableExtensions {
                 }
             }
             arrayBuilder.Advance(i);
-        }
-        else {
+        } else {
             while(enumerator.TryGetNext(out var value)) {
                 if(value is TResult item) {
                     if(i==span.Length) {

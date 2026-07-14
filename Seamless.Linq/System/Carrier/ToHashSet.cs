@@ -18,8 +18,7 @@ namespace Seamless.System.Carrier {
                     hashSet.Add(item);
                 }
                 return hashSet;
-            }
-            else {
+            } else {
 #if NETSTANDARD2_0
                 var hashSet = new global::System.Collections.Generic.HashSet<TSource>(comparer);
 #else
@@ -43,8 +42,7 @@ namespace Seamless.System.Carrier {
                     hashSet.Add(item);
                 }
                 return hashSet;
-            }
-            else {
+            } else {
                 var hashSet = enumerator.TryGetNonEnumeratedCount(out var count)
                     ? new HashSetSlim<TSource>(count,comparer)
                     : new HashSetSlim<TSource>(comparer);

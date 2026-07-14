@@ -74,8 +74,7 @@ namespace Seamless.System.Carrier {
             if(this.currentGrouping==null||this.currentGrouping==this.rootGrouping) {
                 current=default!;
                 return false;
-            }
-            else {
+            } else {
                 current=this.currentGrouping;
                 return true;
             }
@@ -91,8 +90,7 @@ namespace Seamless.System.Carrier {
                 foreach(var item in span) {
                     lookupBuilder.Add(keySelector(item),item);
                 }
-            }
-            else {
+            } else {
                 using(this.source) {
                     while(this.source.TryGetNext(out var item)) {
                         lookupBuilder.Add(keySelector(item),item);
@@ -142,8 +140,7 @@ namespace Seamless.System.Carrier {
             if(this.currentGrouping==null||this.currentGrouping==this.rootGrouping) {
                 current=default!;
                 return false;
-            }
-            else {
+            } else {
                 current=this.currentGrouping;
                 return true;
             }
@@ -159,8 +156,7 @@ namespace Seamless.System.Carrier {
                 foreach(var item in span) {
                     lookupBuilder.Add(keySelector(item),elementSelector(item));
                 }
-            }
-            else {
+            } else {
                 using(this.source) {
                     while(this.source.TryGetNext(out var item)) {
                         lookupBuilder.Add(keySelector(item),elementSelector(item));
@@ -210,8 +206,7 @@ namespace Seamless.System.Carrier {
             if(this.currentGrouping==null||this.currentGrouping==this.rootGrouping) {
                 current=default!;
                 return false;
-            }
-            else {
+            } else {
                 current=resultSelector(this.currentGrouping.Key,this.currentGrouping);
                 return true;
             }
@@ -227,8 +222,7 @@ namespace Seamless.System.Carrier {
                 foreach(var item in span) {
                     lookupBuilder.Add(keySelector(item),item);
                 }
-            }
-            else {
+            } else {
                 using(this.source) {
                     while(this.source.TryGetNext(out var item)) {
                         lookupBuilder.Add(keySelector(item),item);
@@ -278,8 +272,7 @@ namespace Seamless.System.Carrier {
             if(this.currentGrouping==null||this.currentGrouping==this.rootGrouping) {
                 current=default!;
                 return false;
-            }
-            else {
+            } else {
                 current=resultSelector(this.currentGrouping.Key,this.currentGrouping);
                 return true;
             }
@@ -295,8 +288,7 @@ namespace Seamless.System.Carrier {
                 foreach(var item in span) {
                     lookupBuilder.Add(keySelector(item),elementSelector(item));
                 }
-            }
-            else {
+            } else {
                 using(this.source) {
                     while(this.source.TryGetNext(out var item)) {
                         lookupBuilder.Add(keySelector(item),elementSelector(item));

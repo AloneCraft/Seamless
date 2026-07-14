@@ -1,6 +1,6 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public class AsEnumerable(int 番号, Enumerable source) : Enumerable(番号) {
+public class AsEnumerable(int 番号,Enumerable source):Enumerable(番号) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorStruct => $$"""

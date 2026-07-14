@@ -4,15 +4,15 @@ using System.Text;
 
 namespace Scalable.Collections;
 
-public abstract class ScalableBenchmarkBase{
+public abstract class ScalableBenchmarkBase {
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<ScalableSourceArrayKey,Lazy<object>> SharedSourceArrays = new();
 
-    protected static T[] GetSharedValues<TOwner,T>(int count,Func<int,T> factory){
-        if(count<0){
+    protected static T[] GetSharedValues<TOwner, T>(int count,Func<int,T> factory) {
+        if(count<0) {
             throw new ArgumentOutOfRangeException(nameof(count));
         }
 
-        var key=new ScalableSourceArrayKey(typeof(TOwner),typeof(T),nameof(GetSharedValues),count);
+        var key = new ScalableSourceArrayKey(typeof(TOwner),typeof(T),nameof(GetSharedValues),count);
         return (T[])SharedSourceArrays.GetOrAdd(
             key,
             static (sourceKey,state) => new Lazy<object>(
@@ -21,15 +21,15 @@ public abstract class ScalableBenchmarkBase{
             new ScalableValueArrayFactory<T>(factory)).Value;
     }
 
-    protected static KeyValuePair<TKey,TValue>[] GetSharedPairs<TOwner,TKey,TValue>(
+    protected static KeyValuePair<TKey,TValue>[] GetSharedPairs<TOwner, TKey, TValue>(
         int count,
         Func<int,TKey> keyFactory,
-        Func<int,TValue> valueFactory){
-        if(count<0){
+        Func<int,TValue> valueFactory) {
+        if(count<0) {
             throw new ArgumentOutOfRangeException(nameof(count));
         }
 
-        var key=new ScalableSourceArrayKey(typeof(TOwner),typeof(KeyValuePair<TKey,TValue>),nameof(GetSharedPairs),count);
+        var key = new ScalableSourceArrayKey(typeof(TOwner),typeof(KeyValuePair<TKey,TValue>),nameof(GetSharedPairs),count);
         return (KeyValuePair<TKey,TValue>[])SharedSourceArrays.GetOrAdd(
             key,
             static (sourceKey,state) => new Lazy<object>(
@@ -38,22 +38,22 @@ public abstract class ScalableBenchmarkBase{
             (KeyFactory: keyFactory,ValueFactory: valueFactory)).Value;
     }
 
-    public string CaptureBenchmarkMethodResult(string methodName,bool invokeImpl){
+    public string CaptureBenchmarkMethodResult(string methodName,bool invokeImpl) {
         return this.CaptureBenchmarkMethodResult(methodName,invokeImpl,[]);
     }
 
-    public string CaptureBenchmarkMethodResult(string methodName,bool invokeImpl,object?[] arguments){
-        if(string.IsNullOrWhiteSpace(methodName)){
+    public string CaptureBenchmarkMethodResult(string methodName,bool invokeImpl,object?[] arguments) {
+        if(string.IsNullOrWhiteSpace(methodName)) {
             throw new ArgumentException("Method name is required.",nameof(methodName));
         }
 
-        var method=invokeImpl
-            ? FindInstanceMethodInHierarchy(this.GetType(),methodName+"_Impl",nonPublic:true)
+        var method = invokeImpl
+            ? FindInstanceMethodInHierarchy(this.GetType(),methodName+"_Impl",nonPublic: true)
             : FindBenchmarkMethod(this.GetType(),methodName);
         object? returnValue;
-        try{
+        try {
             returnValue=method.Invoke(this,arguments);
-        }catch(TargetInvocationException ex) when(ex.InnerException is not null){
+        } catch(TargetInvocationException ex) when(ex.InnerException is not null) {
             System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
             throw new InvalidOperationException("Unreachable.");
         }
@@ -61,60 +61,60 @@ public abstract class ScalableBenchmarkBase{
         return CreateSingleDigest(Normalize(returnValue));
     }
 
-    private static string CreateSingleDigest(string normalized){
-        var bytes=Encoding.UTF8.GetBytes(normalized);
-        var lengthBytes=new byte[4];
+    private static string CreateSingleDigest(string normalized) {
+        var bytes = Encoding.UTF8.GetBytes(normalized);
+        var lengthBytes = new byte[4];
         System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(lengthBytes,bytes.Length);
-        using var hash=IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         hash.AppendData(lengthBytes);
         hash.AppendData(bytes);
-        var hashBytes=hash.GetHashAndReset();
-        var hashText=Convert.ToHexString(hashBytes);
+        var hashBytes = hash.GetHashAndReset();
+        var hashText = Convert.ToHexString(hashBytes);
         return "count=1;sha256="+hashText+";first=["+normalized+"];last=["+normalized+"]";
     }
 
-    private static string Normalize(object? value){
-        if(value is null){
+    private static string Normalize(object? value) {
+        if(value is null) {
             return "<null>";
         }
-        if(value is string text){
+        if(value is string text) {
             return text;
         }
-        if(TryGetKey(value,out var key)&&value is System.Collections.IEnumerable keyedEnumerable){
+        if(TryGetKey(value,out var key)&&value is System.Collections.IEnumerable keyedEnumerable) {
             return "{"+Normalize(key)+":"+NormalizeEnumerable(keyedEnumerable)+"}";
         }
-        if(value is System.Collections.IDictionary dictionary){
+        if(value is System.Collections.IDictionary dictionary) {
             return NormalizeDictionary(dictionary);
         }
-        if(value is System.Collections.IEnumerable enumerable){
+        if(value is System.Collections.IEnumerable enumerable) {
             return NormalizeEnumerable(enumerable);
         }
-        if(value is IFormattable formattable){
+        if(value is IFormattable formattable) {
             return formattable.ToString(null,System.Globalization.CultureInfo.InvariantCulture);
         }
         return value.ToString()??string.Empty;
     }
 
-    private static string NormalizeEnumerable(System.Collections.IEnumerable enumerable){
-        var values=new List<string>();
-        foreach(var item in enumerable){
+    private static string NormalizeEnumerable(System.Collections.IEnumerable enumerable) {
+        var values = new List<string>();
+        foreach(var item in enumerable) {
             values.Add(Normalize(item));
         }
         return "["+string.Join(",",values)+"]";
     }
 
-    private static string NormalizeDictionary(System.Collections.IDictionary dictionary){
-        var values=new List<string>();
-        foreach(System.Collections.DictionaryEntry entry in dictionary){
+    private static string NormalizeDictionary(System.Collections.IDictionary dictionary) {
+        var values = new List<string>();
+        foreach(System.Collections.DictionaryEntry entry in dictionary) {
             values.Add(Normalize(entry.Key)+"="+Normalize(entry.Value));
         }
         values.Sort(StringComparer.Ordinal);
         return "["+string.Join(",",values)+"]";
     }
 
-    private static bool TryGetKey(object instance,out object? key){
-        var property=instance.GetType().GetProperty("Key");
-        if(property is null){
+    private static bool TryGetKey(object instance,out object? key) {
+        var property = instance.GetType().GetProperty("Key");
+        if(property is null) {
             key=null;
             return false;
         }
@@ -123,21 +123,21 @@ public abstract class ScalableBenchmarkBase{
         return true;
     }
 
-    private static MethodInfo FindBenchmarkMethod(Type type,string methodName){
-        var method=FindInstanceMethodInHierarchy(type,methodName,nonPublic:false);
-        if(!HasAttribute(method,"BenchmarkAttribute")){
+    private static MethodInfo FindBenchmarkMethod(Type type,string methodName) {
+        var method = FindInstanceMethodInHierarchy(type,methodName,nonPublic: false);
+        if(!HasAttribute(method,"BenchmarkAttribute")) {
             throw new MissingMethodException(type.FullName,methodName+" [Benchmark]");
         }
         return method;
     }
 
-    private static MethodInfo FindInstanceMethodInHierarchy(Type type,string methodName,bool nonPublic){
-        var flags=BindingFlags.Instance
+    private static MethodInfo FindInstanceMethodInHierarchy(Type type,string methodName,bool nonPublic) {
+        var flags = BindingFlags.Instance
             |BindingFlags.DeclaredOnly
-            |(nonPublic?BindingFlags.NonPublic:BindingFlags.Public);
-        for(var current=type;current is not null;current=current.BaseType!){
-            var method=current.GetMethod(methodName,flags);
-            if(method is null){
+            |(nonPublic ? BindingFlags.NonPublic : BindingFlags.Public);
+        for(var current = type;current is not null;current=current.BaseType!) {
+            var method = current.GetMethod(methodName,flags);
+            if(method is null) {
                 continue;
             }
             return method;
@@ -146,29 +146,29 @@ public abstract class ScalableBenchmarkBase{
         throw new MissingMethodException(type.FullName,methodName);
     }
 
-    private static bool HasAttribute(MemberInfo member,string attributeName){
-        foreach(var attribute in member.CustomAttributes){
-            if(attribute.AttributeType.Name==attributeName){
+    private static bool HasAttribute(MemberInfo member,string attributeName) {
+        foreach(var attribute in member.CustomAttributes) {
+            if(attribute.AttributeType.Name==attributeName) {
                 return true;
             }
         }
         return false;
     }
 
-    private static T[] CreateArray<T>(int count,Func<int,T> factory){
-        var values=GC.AllocateUninitializedArray<T>(count);
-        for(var index=0;index<count;index++){
+    private static T[] CreateArray<T>(int count,Func<int,T> factory) {
+        var values = GC.AllocateUninitializedArray<T>(count);
+        for(var index = 0;index<count;index++) {
             values[index]=factory(index);
         }
         return values;
     }
 
-    private static KeyValuePair<TKey,TValue>[] CreatePairs<TKey,TValue>(
+    private static KeyValuePair<TKey,TValue>[] CreatePairs<TKey, TValue>(
         int count,
         Func<int,TKey> keyFactory,
-        Func<int,TValue> valueFactory){
-        var values=GC.AllocateUninitializedArray<KeyValuePair<TKey,TValue>>(count);
-        for(var index=0;index<count;index++){
+        Func<int,TValue> valueFactory) {
+        var values = GC.AllocateUninitializedArray<KeyValuePair<TKey,TValue>>(count);
+        for(var index = 0;index<count;index++) {
             values[index]=new KeyValuePair<TKey,TValue>(keyFactory(index),valueFactory(index));
         }
         return values;

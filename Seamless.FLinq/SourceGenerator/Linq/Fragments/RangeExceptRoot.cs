@@ -1,13 +1,13 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<RangeRoot> exclusions) : Enumerable(番号) {
+public sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<RangeRoot> exclusions):Enumerable(番号) {
     internal RangeRoot SourceRange => source;
     internal IReadOnlyList<RangeRoot> Exclusions => exclusions;
     public override string StructMethod => string.Empty;
     public override string ElementType => "int";
     public override string GetEnumeratorExpression {
         get {
-            var args = new List<string> { source.StartExpression, source.CountExpression };
+            var args = new List<string> { source.StartExpression,source.CountExpression };
             foreach(var exclusion in exclusions) {
                 args.Add(exclusion.StartExpression);
                 args.Add(exclusion.CountExpression);
@@ -17,8 +17,8 @@ public sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<Ra
     }
     public override string GetEnumeratorPrimaryConstructorParameters {
         get {
-            var parameters = new List<string> { "int start", "int count" };
-            for(var index = 0; index<exclusions.Count; index++) {
+            var parameters = new List<string> { "int start","int count" };
+            for(var index = 0;index<exclusions.Count;index++) {
                 parameters.Add($"int excludedStart{index}");
                 parameters.Add($"int excludedCount{index}");
             }
@@ -31,7 +31,7 @@ public sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<Ra
             var builder = new StringBuilder();
             builder.AppendLine($"while(++{this.e} < count) {{");
             builder.AppendLine($"    var __value=start + {this.e};");
-            for(var index = 0; index<exclusions.Count; index++) {
+            for(var index = 0;index<exclusions.Count;index++) {
                 builder.AppendLine($"    var __excludedEnd{index}=(long)excludedStart{index} + excludedCount{index};");
                 builder.AppendLine($"    if((long)__value >= excludedStart{index} && (long)__value < __excludedEnd{index}) continue;");
             }
@@ -83,23 +83,23 @@ public sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<Ra
         }
         """;
     public override string GetConsumeExecutionStatement(string consumerName) {
-        var start=$"__start{番号}";
-        var count=$"__count{番号}";
-        var index=$"__i{番号}";
-        var value=$"__value{番号}";
+        var start = $"__start{番号}";
+        var count = $"__count{番号}";
+        var index = $"__i{番号}";
+        var value = $"__value{番号}";
         var builder = new StringBuilder();
         builder.AppendLine("{");
         builder.AppendLine($"    var {start}={source.StartExpression};");
         builder.AppendLine($"    var {count}={source.CountExpression};");
-        for(var exclusionIndex = 0; exclusionIndex<exclusions.Count; exclusionIndex++) {
-            var exclusion=exclusions[exclusionIndex];
+        for(var exclusionIndex = 0;exclusionIndex<exclusions.Count;exclusionIndex++) {
+            var exclusion = exclusions[exclusionIndex];
             builder.AppendLine($"    var __excludedStart{番号}_{exclusionIndex}={exclusion.StartExpression};");
             builder.AppendLine($"    var __excludedCount{番号}_{exclusionIndex}={exclusion.CountExpression};");
             builder.AppendLine($"    var __excludedEnd{番号}_{exclusionIndex}=(long)__excludedStart{番号}_{exclusionIndex} + __excludedCount{番号}_{exclusionIndex};");
         }
         builder.AppendLine($"    for(var {index}=0;{index}<{count};{index}++) {{");
         builder.AppendLine($"        var {value}={start} + {index};");
-        for(var exclusionIndex = 0; exclusionIndex<exclusions.Count; exclusionIndex++) {
+        for(var exclusionIndex = 0;exclusionIndex<exclusions.Count;exclusionIndex++) {
             builder.AppendLine($"        if((long){value} >= __excludedStart{番号}_{exclusionIndex} && (long){value} < __excludedEnd{番号}_{exclusionIndex}) continue;");
         }
         builder.AppendLine($"        {consumerName}.Consume({value});");
@@ -111,7 +111,7 @@ public sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<Ra
     private string ExclusionFields {
         get {
             var builder = new StringBuilder();
-            for(var index = 0; index<exclusions.Count; index++) {
+            for(var index = 0;index<exclusions.Count;index++) {
                 builder.AppendLine($"private int excludedStart{index};");
                 builder.AppendLine($"private int excludedCount{index};");
             }
@@ -122,7 +122,7 @@ public sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<Ra
     private string ExclusionAssignments {
         get {
             var builder = new StringBuilder();
-            for(var index = 0; index<exclusions.Count; index++) {
+            for(var index = 0;index<exclusions.Count;index++) {
                 builder.AppendLine($"this.excludedStart{index} = excludedStart{index};");
                 builder.AppendLine($"this.excludedCount{index} = excludedCount{index};");
             }
@@ -135,7 +135,7 @@ public sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<Ra
         next.AddRange(exclusions);
         if(!next.Any(existing =>
             string.Equals(NormalizeExpression(existing.StartExpression),NormalizeExpression(exclusion.StartExpression),StringComparison.Ordinal)
-            && string.Equals(NormalizeExpression(existing.CountExpression),NormalizeExpression(exclusion.CountExpression),StringComparison.Ordinal))) {
+            &&string.Equals(NormalizeExpression(existing.CountExpression),NormalizeExpression(exclusion.CountExpression),StringComparison.Ordinal))) {
             next.Add(exclusion);
         }
         return new RangeExceptRoot(number,source,next);

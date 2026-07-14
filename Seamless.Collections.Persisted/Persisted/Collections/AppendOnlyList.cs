@@ -83,8 +83,7 @@ public class AppendOnlyList<T, TSerializer>:IEnumerable<T>, IDisposable
         try {
             this.stream.Flush();
             this.stream.Dispose();
-        }
-        finally {
+        } finally {
             this.disposeAction?.Invoke();
         }
     }

@@ -5,7 +5,7 @@ internal sealed class GeneratedCodeWriter {
     private int indentLevel;
 
     public void AppendLine(string line = "") {
-        if(line.Length>0 && this.indentLevel>0) {
+        if(line.Length>0&&this.indentLevel>0) {
             this.builder.Append(new string(' ',this.indentLevel*4));
         }
         this.builder.AppendLine(line);

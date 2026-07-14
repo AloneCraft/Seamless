@@ -1,33 +1,33 @@
 namespace Seamless.UI.Storage;
 
-public static class UiRunDatabasePathResolver{
-    public const string BenchmarkDatabaseFileName = "Benchmark.db";
-    public const string ScalableDatabaseFileName = "Benchmark.Scalable.db";
-    public const string ParameterSweepDatabaseFileName = "Benchmark.ParameterSweep.db";
+public static class UI実行DBパスリゾルバー{
+    public const string ベンチマークDBファイル名="Benchmark.db";
+    public const string スケーラブルDBファイル名="Benchmark.Scalable.db";
+    public const string パラメータスイープDBファイル名="Benchmark.ParameterSweep.db";
 
-    public static string Resolve(UiRunAppKind appKind,string? solutionRoot = null){
-        var root = !string.IsNullOrWhiteSpace(solutionRoot)
-            ? solutionRoot
-            : FindSolutionRoot()??Path.Combine(
+    public static string 解決(UI実行アプリ種別 アプリ種別,string? ソリューションルート = null){
+        var ルート=!string.IsNullOrWhiteSpace(ソリューションルート)
+            ? ソリューションルート
+            : ソリューションルートを検索()??Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "Seamless");
-        var fileName=appKind switch{
-            UiRunAppKind.Benchmark=>BenchmarkDatabaseFileName,
-            UiRunAppKind.ScalableBenchmark=>ScalableDatabaseFileName,
-            UiRunAppKind.ParameterSweep=>ParameterSweepDatabaseFileName,
-            _=>throw new ArgumentOutOfRangeException(nameof(appKind),appKind,null),
+        var ファイル名=アプリ種別 switch{
+            UI実行アプリ種別.ベンチマーク=>ベンチマークDBファイル名,
+            UI実行アプリ種別.スケーラブルベンチマーク=>スケーラブルDBファイル名,
+            UI実行アプリ種別.パラメータスイープ=>パラメータスイープDBファイル名,
+            _=>throw new ArgumentOutOfRangeException(nameof(アプリ種別),アプリ種別,null),
         };
-        return Path.Combine(root,"Work","UI",fileName);
+        return Path.Combine(ルート,"Work","UI",ファイル名);
     }
 
-    private static string? FindSolutionRoot(){
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while(directory is not null){
-            if(File.Exists(Path.Combine(directory.FullName,"Seamless.slnx"))){
-                return directory.FullName;
+    private static string? ソリューションルートを検索(){
+        var ディレクトリ=new DirectoryInfo(AppContext.BaseDirectory);
+        while(ディレクトリ is not null){
+            if(File.Exists(Path.Combine(ディレクトリ.FullName,"Seamless.slnx"))){
+                return ディレクトリ.FullName;
             }
 
-            directory=directory.Parent;
+            ディレクトリ=ディレクトリ.Parent;
         }
 
         return null;

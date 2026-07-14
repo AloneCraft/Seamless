@@ -7,127 +7,123 @@ namespace Benchmark.UI.UITests;
 //  appium --address 127.0.0.1 --port 4723
 //powershell
 //  Set-Location "G:\GitHub\Seamless"
-//  $env:BENCHMARK_UI_APP_PATH="G:\GitHub\Seamless\Benchmark\Benchmark.UI\bin\Debug\net10.0-windows10.0.19041.0\win-x64\UI.exe"
-//  dotnet test ".\Benchmark.UI.UITests\Benchmark.UI.UITests.csproj" -f net10.0-windows10.0.19041.0
-//dotnet test Benchmark.UI.UITests\Benchmark.UI.UITests.csproj -f net10.0-windows10.0.19041.0
+//  $env:BENCHMARK_UI_APP_PATH="G:\GitHub\Seamless\Benchmark\Benchmark.UI\bin\Release\net10.0-windows\win-x64\Benchmark.UI.exe"
+//  dotnet test ".\Benchmark.UI.UITests\Benchmark.UI.UITests.csproj" -c Release -f net10.0-windows
 //Invoke-WebRequest http://127.0.0.1:4723/status
 
-public sealed class SourceTabUiTests{
+public sealed class ソースタブUIテスト {
     //タブは SfTabItem の Name(HeaderText、選択中は"Selected "前置)で操作・検証する。
-    //グリッド行はセルチェック(SfCheckBox)の AutomationId で操作し、非表示タブ側の複製は Displayed で除外する。
+    //グリッド行は行チェック(SfCheckBox)の AutomationId で操作し、非表示タブ側の複製は Displayed で除外する。
     //注意: このテストは実プロファイルの選択状態を変更するため、終了時に必ず元へ戻す。
-    private const string ArrayTab="Array";
-    private const string EnumerableTab="IEnumerable";
+    private const string 配列タブ = "Array";
+    private const string 列挙可能タブ = "IEnumerable";
 
-    [BenchmarkUiAutomationFact]
-    public void SourceTab_ClickSecondTab_ShowsSecondSourceGrid(){
-        using var session=new BenchmarkUiSession();
+    [ベンチマークUI自動化ファクト属性]
+    public void ソースタブで2番目をクリックすると2番目のグリッドを表示する() {
+        using var セッション = new ベンチマークUIセッション();
 
-        session.WaitForName("Selected "+ArrayTab);
-        session.WaitForAutomationId(BenchmarkUiAutomationIds.CellCheck("LeftCell"));
+        セッション.名前を待機("Selected "+配列タブ);
+        セッション.自動化IDを待機(ベンチマークUI自動化ID.行チェック);
 
-        session.ClickName(EnumerableTab);
+        セッション.名前をクリック(列挙可能タブ);
 
-        session.WaitForName("Selected "+EnumerableTab);
-        session.WaitForAutomationId(BenchmarkUiAutomationIds.CellCheck("LeftCell"));
+        セッション.名前を待機("Selected "+列挙可能タブ);
+        セッション.自動化IDを待機(ベンチマークUI自動化ID.行チェック);
     }
 
-    [BenchmarkUiAutomationFact]
-    public void タブを切り替えてもチェック状態が保持される(){
-        using var session=new BenchmarkUiSession();
-        var allCheck=BenchmarkUiAutomationIds.AllSelectionCheck;
+    [ベンチマークUI自動化ファクト属性]
+    public void タブを切り替えてもチェック状態が保持される() {
+        using var セッション = new ベンチマークUIセッション();
+        var 全選択チェック = ベンチマークUI自動化ID.全選択チェック;
 
-        session.WaitForName("Selected "+ArrayTab);
-        session.WaitForAutomationId(BenchmarkUiAutomationIds.CellCheck("LeftCell"));
-        if(!session.IsAutomationIdChecked(allCheck)){
+        セッション.名前を待機("Selected "+配列タブ);
+        セッション.自動化IDを待機(ベンチマークUI自動化ID.行チェック);
+        if(!セッション.自動化IDがチェック済みか(全選択チェック)) {
             //未選択または部分選択から全選択の確定状態にそろえる
-            session.ClickAutomationId(allCheck);
-            session.WaitUntilAutomationIdChecked(allCheck,true);
+            セッション.自動化IDをクリック(全選択チェック);
+            セッション.自動化IDチェック状態を待機(全選択チェック,true);
         }
-        try{
-            session.ClickName(EnumerableTab);
-            session.WaitForName("Selected "+EnumerableTab);
-            session.WaitUntilAutomationIdChecked(allCheck,true);
+        try {
+            セッション.名前をクリック(列挙可能タブ);
+            セッション.名前を待機("Selected "+列挙可能タブ);
+            セッション.自動化IDチェック状態を待機(全選択チェック,true);
 
-            session.ClickName(ArrayTab);
-            session.WaitForName("Selected "+ArrayTab);
-            session.WaitUntilAutomationIdChecked(allCheck,true);
-        }
-        finally{
+            セッション.名前をクリック(配列タブ);
+            セッション.名前を待機("Selected "+配列タブ);
+            セッション.自動化IDチェック状態を待機(全選択チェック,true);
+        } finally {
             //全選択のまま残さないよう解除して終える
-            session.ClickAutomationId(allCheck);
-            session.WaitUntilAutomationIdChecked(allCheck,false);
+            セッション.自動化IDをクリック(全選択チェック);
+            セッション.自動化IDチェック状態を待機(全選択チェック,false);
         }
     }
 
-    [BenchmarkUiAutomationFact]
-    public void タブ往復後も各タブのグリッド行をクリックできる(){
-        using var session=new BenchmarkUiSession();
-        var cellCheck=BenchmarkUiAutomationIds.CellCheck("LeftCell");
+    [ベンチマークUI自動化ファクト属性]
+    public void タブ往復後も各タブのグリッド行をクリックできる() {
+        using var セッション = new ベンチマークUIセッション();
+        var 行チェック = ベンチマークUI自動化ID.行チェック;
 
-        session.WaitForName("Selected "+ArrayTab);
-        var arrayBefore=session.IsAutomationIdChecked(cellCheck);
-        try{
+        セッション.名前を待機("Selected "+配列タブ);
+        var 配列変更前 = セッション.自動化IDがチェック済みか(行チェック);
+        try {
             {
-                //1タブ目の先頭行セルチェックをクリックできることを確認する
-                session.ClickAutomationId(cellCheck);
-                session.WaitUntilAutomationIdChecked(cellCheck,!arrayBefore);
+                //1タブ目の先頭行チェックをクリックできることを確認する
+                セッション.自動化IDをクリック(行チェック);
+                セッション.自動化IDチェック状態を待機(行チェック,!配列変更前);
             }
             {
-                //2タブ目でも先頭行セルチェックをクリックできることを確認する
-                session.ClickName(EnumerableTab);
-                session.WaitForName("Selected "+EnumerableTab);
-                var rangeBefore=session.IsAutomationIdChecked(cellCheck);
-                session.ClickAutomationId(cellCheck);
-                session.WaitUntilAutomationIdChecked(cellCheck,!rangeBefore);
+                //2タブ目でも先頭行チェックをクリックできることを確認する
+                セッション.名前をクリック(列挙可能タブ);
+                セッション.名前を待機("Selected "+列挙可能タブ);
+                var 列挙可能変更前 = セッション.自動化IDがチェック済みか(行チェック);
+                セッション.自動化IDをクリック(行チェック);
+                セッション.自動化IDチェック状態を待機(行チェック,!列挙可能変更前);
                 //元へ戻す
-                session.ClickAutomationId(cellCheck);
-                session.WaitUntilAutomationIdChecked(cellCheck,rangeBefore);
+                セッション.自動化IDをクリック(行チェック);
+                セッション.自動化IDチェック状態を待機(行チェック,列挙可能変更前);
             }
             {
                 //1タブ目へ戻ってもクリック状態が保持され、再クリックできることを確認する
-                session.ClickName(ArrayTab);
-                session.WaitForName("Selected "+ArrayTab);
-                session.WaitUntilAutomationIdChecked(cellCheck,!arrayBefore);
+                セッション.名前をクリック(配列タブ);
+                セッション.名前を待機("Selected "+配列タブ);
+                セッション.自動化IDチェック状態を待機(行チェック,!配列変更前);
             }
-        }
-        finally{
-            //1タブ目の先頭行セルチェックを元へ戻す
-            session.ClickName(ArrayTab);
-            session.WaitForName("Selected "+ArrayTab);
-            session.ClickAutomationId(cellCheck);
-            session.WaitUntilAutomationIdChecked(cellCheck,arrayBefore);
+        } finally {
+            //1タブ目の先頭行チェックを元へ戻す
+            セッション.名前をクリック(配列タブ);
+            セッション.名前を待機("Selected "+配列タブ);
+            セッション.自動化IDをクリック(行チェック);
+            セッション.自動化IDチェック状態を待機(行チェック,配列変更前);
         }
     }
 
-    [BenchmarkUiAutomationFact]
-    public void TopAllSelectionCheck_TogglesAllSourceTabs(){
-        using var session=new BenchmarkUiSession();
-        var topCheck=BenchmarkUiAutomationIds.TopAllSelectionCheck;
-        var gridHeaderCheck=BenchmarkUiAutomationIds.AllSelectionCheck;
+    [ベンチマークUI自動化ファクト属性]
+    public void 全タブ選択チェックで全ソースタブを切り替える() {
+        using var セッション = new ベンチマークUIセッション();
+        var 全タブチェック = ベンチマークUI自動化ID.全タブ選択チェック;
+        var グリッド見出しチェック = ベンチマークUI自動化ID.全選択チェック;
 
-        session.WaitForName("Selected "+ArrayTab);
-        session.WaitForAutomationId(BenchmarkUiAutomationIds.CellCheck("LeftCell"));
-        if(!session.IsAutomationIdChecked(topCheck)){
-            session.ClickAutomationId(topCheck);
-            session.WaitUntilAutomationIdChecked(topCheck,true);
+        セッション.名前を待機("Selected "+配列タブ);
+        セッション.自動化IDを待機(ベンチマークUI自動化ID.行チェック);
+        if(!セッション.自動化IDがチェック済みか(全タブチェック)) {
+            セッション.自動化IDをクリック(全タブチェック);
+            セッション.自動化IDチェック状態を待機(全タブチェック,true);
         }
-        try{
-            session.WaitUntilAutomationIdChecked(gridHeaderCheck,true);
+        try {
+            セッション.自動化IDチェック状態を待機(グリッド見出しチェック,true);
 
-            session.ClickName(EnumerableTab);
-            session.WaitForName("Selected "+EnumerableTab);
-            session.WaitUntilAutomationIdChecked(topCheck,true);
-            session.WaitUntilAutomationIdChecked(gridHeaderCheck,true);
+            セッション.名前をクリック(列挙可能タブ);
+            セッション.名前を待機("Selected "+列挙可能タブ);
+            セッション.自動化IDチェック状態を待機(全タブチェック,true);
+            セッション.自動化IDチェック状態を待機(グリッド見出しチェック,true);
 
-            session.ClickName(ArrayTab);
-            session.WaitForName("Selected "+ArrayTab);
-            session.WaitUntilAutomationIdChecked(topCheck,true);
-            session.WaitUntilAutomationIdChecked(gridHeaderCheck,true);
-        }
-        finally{
-            session.ClickAutomationId(topCheck);
-            session.WaitUntilAutomationIdChecked(topCheck,false);
+            セッション.名前をクリック(配列タブ);
+            セッション.名前を待機("Selected "+配列タブ);
+            セッション.自動化IDチェック状態を待機(全タブチェック,true);
+            セッション.自動化IDチェック状態を待機(グリッド見出しチェック,true);
+        } finally {
+            セッション.自動化IDをクリック(全タブチェック);
+            セッション.自動化IDチェック状態を待機(全タブチェック,false);
         }
     }
 }

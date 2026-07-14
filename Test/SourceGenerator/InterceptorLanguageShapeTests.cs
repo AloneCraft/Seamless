@@ -1,10 +1,10 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
+
 using System.Text;
 namespace Test.SourceGenerator;
 
-public class InterceptorLanguageShapeTests(ITestOutputHelper output)
-{
+public class InterceptorLanguageShapeTests(ITestOutputHelper output) {
     private string lastGeneratedSource = string.Empty;
 
     private static void SumA() { }
@@ -36,8 +36,7 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
     private static void OfTypeToArrayFast() { }
 
     [Fact]
-    public void PartialClass_TwoFiles_DoesNotDuplicateGeneratedHelperType()
-    {
+    public void PartialClass_TwoFiles_DoesNotDuplicateGeneratedHelperType() {
         const string fileA = """
             using System.Linq;
             namespace Sample;
@@ -57,16 +56,15 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
             }
             """;
 
-        var result = this.RunGeneratorAndCompile(("A.cs", fileA), ("B.cs", fileB));
+        var result = this.RunGeneratorAndCompile(("A.cs",fileA),("B.cs",fileB));
 
-        this.AssertIntercepted(result.GeneratedSource, nameof(SumA));
-        this.AssertIntercepted(result.GeneratedSource, nameof(SumB));
+        this.AssertIntercepted(result.GeneratedSource,nameof(SumA));
+        this.AssertIntercepted(result.GeneratedSource,nameof(SumB));
         this.AssertNoErrors(result.Diagnostics);
     }
 
     [Fact]
-    public void InstanceMethod_WithBaseCall_GeneratedCodeCompiles()
-    {
+    public void InstanceMethod_WithBaseCall_GeneratedCodeCompiles() {
         const string source = """
             using System.Linq;
             namespace Sample;
@@ -80,15 +78,14 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
             }
             """;
 
-        var result = this.RunGeneratorAndCompile(("Container.cs", source));
+        var result = this.RunGeneratorAndCompile(("Container.cs",source));
 
-        this.AssertIntercepted(result.GeneratedSource, nameof(SumWithBaseCall));
+        this.AssertIntercepted(result.GeneratedSource,nameof(SumWithBaseCall));
         this.AssertNoErrors(result.Diagnostics);
     }
 
     [Fact]
-    public void PrivateOverloads_UnsafeAccessorNamesAreUnique()
-    {
+    public void PrivateOverloads_UnsafeAccessorNamesAreUnique() {
         const string source = """
             using System.Linq;
             namespace Sample;
@@ -102,15 +99,14 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
             }
             """;
 
-        var result = this.RunGeneratorAndCompile(("Container.cs", source));
+        var result = this.RunGeneratorAndCompile(("Container.cs",source));
 
-        this.AssertIntercepted(result.GeneratedSource, nameof(SumWithPrivateOverloads));
+        this.AssertIntercepted(result.GeneratedSource,nameof(SumWithPrivateOverloads));
         this.AssertNoErrors(result.Diagnostics);
     }
 
     [Fact]
-    public void SealedOverride_IsEitherInterceptedOrExplicitlyNotIntercepted()
-    {
+    public void SealedOverride_IsEitherInterceptedOrExplicitlyNotIntercepted() {
         const string source = """
             using System.Linq;
             namespace Sample;
@@ -124,10 +120,10 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
             }
             """;
 
-        var result = this.RunGeneratorAndCompile(("Container.cs", source));
+        var result = this.RunGeneratorAndCompile(("Container.cs",source));
 
         GeneratedSourceAssert.True(
-            IsIntercepted(result.GeneratedSource, nameof(SumSealedOverride)) || !result.GeneratedSource.Contains(nameof(SumSealedOverride), StringComparison.Ordinal),
+            IsIntercepted(result.GeneratedSource,nameof(SumSealedOverride))||!result.GeneratedSource.Contains(nameof(SumSealedOverride),StringComparison.Ordinal),
             "sealed override should either be intercepted or omitted from generated source.",
             result.GeneratedSource,
             output);
@@ -135,8 +131,7 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void StaticClass_StaticHelper_SpecIsFixed()
-    {
+    public void StaticClass_StaticHelper_SpecIsFixed() {
         const string source = """
             using System.Linq;
             namespace Sample;
@@ -147,10 +142,10 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
             }
             """;
 
-        var result = this.RunGeneratorAndCompile(("Helpers.cs", source));
+        var result = this.RunGeneratorAndCompile(("Helpers.cs",source));
 
         GeneratedSourceAssert.True(
-            !result.GeneratedSource.Contains("LinqInterceptorFailure", StringComparison.Ordinal),
+            !result.GeneratedSource.Contains("LinqInterceptorFailure",StringComparison.Ordinal),
             "Generated source should not contain LinqInterceptorFailure.",
             result.GeneratedSource,
             output);
@@ -158,8 +153,7 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void ScalarMaterializeConsume_ExpandsWithoutForwardingFailure()
-    {
+    public void ScalarMaterializeConsume_ExpandsWithoutForwardingFailure() {
         const string source = """
             using System.Collections.Generic;
             using System.Linq;
@@ -183,13 +177,13 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
             }
             """;
 
-        var result = this.RunGeneratorAndCompile(("Container.cs", source));
+        var result = this.RunGeneratorAndCompile(("Container.cs",source));
 
-        this.AssertIntercepted(result.GeneratedSource, nameof(ToArrayConsume));
+        this.AssertIntercepted(result.GeneratedSource,nameof(ToArrayConsume));
         GeneratedSourceAssert.True(
-            !result.GeneratedSource.Contains("LinqInterceptorFailure", StringComparison.Ordinal)
-            && result.GeneratedSource.Contains("foreach(var __item in __linq", StringComparison.Ordinal)
-            && result.GeneratedSource.Contains(".Consume(__item);", StringComparison.Ordinal),
+            !result.GeneratedSource.Contains("LinqInterceptorFailure",StringComparison.Ordinal)
+            &&result.GeneratedSource.Contains("foreach(var __item in __linq",StringComparison.Ordinal)
+            &&result.GeneratedSource.Contains(".Consume(__item);",StringComparison.Ordinal),
             "Scalar materialize terminal followed by Consume should expand to direct item consumption.",
             result.GeneratedSource,
             output);
@@ -197,8 +191,7 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void QueryGroupByConsume_ExpandsWithoutForwardingFailure()
-    {
+    public void QueryGroupByConsume_ExpandsWithoutForwardingFailure() {
         const string source = """
             using System.Collections.Generic;
             using System.Linq;
@@ -225,13 +218,13 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
             }
             """;
 
-        var result = this.RunGeneratorAndCompile(("Container.cs", source));
+        var result = this.RunGeneratorAndCompile(("Container.cs",source));
 
-        this.AssertIntercepted(result.GeneratedSource, nameof(QueryGroupByConsume));
+        this.AssertIntercepted(result.GeneratedSource,nameof(QueryGroupByConsume));
         GeneratedSourceAssert.True(
-            !result.GeneratedSource.Contains("LinqInterceptorFailure", StringComparison.Ordinal)
-            && result.GeneratedSource.Contains("Tsavorite query lowered", StringComparison.Ordinal)
-            && result.GeneratedSource.Contains(".Consume(__cv", StringComparison.Ordinal),
+            !result.GeneratedSource.Contains("LinqInterceptorFailure",StringComparison.Ordinal)
+            &&result.GeneratedSource.Contains("Tsavorite query lowered",StringComparison.Ordinal)
+            &&result.GeneratedSource.Contains(".Consume(__cv",StringComparison.Ordinal),
             "Query-lowered GroupBy followed by Consume should expand to direct item consumption.",
             result.GeneratedSource,
             output);
@@ -239,8 +232,7 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void MaterializeTerminals_GenerateFastPaths()
-    {
+    public void MaterializeTerminals_GenerateFastPaths() {
         const string source = """
             using System.Collections.Generic;
             using System.Linq;
@@ -271,17 +263,17 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
             }
             """;
 
-        var result = this.RunGeneratorAndCompile(("Container.cs", source));
+        var result = this.RunGeneratorAndCompile(("Container.cs",source));
 
-        this.AssertIntercepted(result.GeneratedSource, nameof(ToArrayFast));
-        this.AssertIntercepted(result.GeneratedSource, nameof(ToListFast));
-        this.AssertIntercepted(result.GeneratedSource, nameof(ToHashSetFast));
-        this.AssertIntercepted(result.GeneratedSource, nameof(ToDictionaryFast));
-        this.AssertIntercepted(result.GeneratedSource, nameof(ToLookupFast));
-        this.AssertIntercepted(result.GeneratedSource, nameof(SelectToArrayFast));
-        this.AssertIntercepted(result.GeneratedSource, nameof(WhereToArrayFast));
-        this.AssertIntercepted(result.GeneratedSource, nameof(WhereSelectToListFast));
-        this.AssertIntercepted(result.GeneratedSource, nameof(OfTypeToArrayFast));
+        this.AssertIntercepted(result.GeneratedSource,nameof(ToArrayFast));
+        this.AssertIntercepted(result.GeneratedSource,nameof(ToListFast));
+        this.AssertIntercepted(result.GeneratedSource,nameof(ToHashSetFast));
+        this.AssertIntercepted(result.GeneratedSource,nameof(ToDictionaryFast));
+        this.AssertIntercepted(result.GeneratedSource,nameof(ToLookupFast));
+        this.AssertIntercepted(result.GeneratedSource,nameof(SelectToArrayFast));
+        this.AssertIntercepted(result.GeneratedSource,nameof(WhereToArrayFast));
+        this.AssertIntercepted(result.GeneratedSource,nameof(WhereSelectToListFast));
+        this.AssertIntercepted(result.GeneratedSource,nameof(OfTypeToArrayFast));
         var expectedFragments = new[]
         {
             "TryGetNonEnumeratedCount",
@@ -294,20 +286,19 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
             "destination[__i++]",
         };
         var missingFragments = expectedFragments
-            .Where(fragment => !result.GeneratedSource.Contains(fragment, StringComparison.Ordinal))
+            .Where(fragment => !result.GeneratedSource.Contains(fragment,StringComparison.Ordinal))
             .ToArray();
         GeneratedSourceAssert.True(
-            !result.GeneratedSource.Contains("LinqInterceptorFailure", StringComparison.Ordinal)
-            && missingFragments.Length == 0,
-            $"Materialize terminals should generate direct, count/span/copy, and Select copy fast paths. Missing: {string.Join(", ", missingFragments)}",
+            !result.GeneratedSource.Contains("LinqInterceptorFailure",StringComparison.Ordinal)
+            &&missingFragments.Length==0,
+            $"Materialize terminals should generate direct, count/span/copy, and Select copy fast paths. Missing: {string.Join(", ",missingFragments)}",
             result.GeneratedSource,
             output);
         this.AssertNoErrors(result.Diagnostics);
     }
 
     [Fact]
-    public void DerivedClass_ProtectedBaseProperty_GeneratedCodeCompiles()
-    {
+    public void DerivedClass_ProtectedBaseProperty_GeneratedCodeCompiles() {
         const string source = """
             using System.Linq;
             namespace Sample;
@@ -321,15 +312,14 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
             }
             """;
 
-        var result = this.RunGeneratorAndCompile(("Container.cs", source));
+        var result = this.RunGeneratorAndCompile(("Container.cs",source));
 
-        this.AssertIntercepted(result.GeneratedSource, nameof(SumWithBaseProperty));
+        this.AssertIntercepted(result.GeneratedSource,nameof(SumWithBaseProperty));
         this.AssertNoErrors(result.Diagnostics);
     }
 
     [Fact]
-    public void NewShadowedPrivateMember_UsesCorrectDeclaringType()
-    {
+    public void NewShadowedPrivateMember_UsesCorrectDeclaringType() {
         const string source = """
             using System.Linq;
             namespace Sample;
@@ -345,15 +335,14 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
             }
             """;
 
-        var result = this.RunGeneratorAndCompile(("Container.cs", source));
+        var result = this.RunGeneratorAndCompile(("Container.cs",source));
 
-        this.AssertIntercepted(result.GeneratedSource, nameof(SumWithShadowedField));
+        this.AssertIntercepted(result.GeneratedSource,nameof(SumWithShadowedField));
         this.AssertNoErrors(result.Diagnostics);
     }
 
     [Fact]
-    public void NamedArguments_WithExpandedParams_FallsBackOrCompilesPredictably()
-    {
+    public void NamedArguments_WithExpandedParams_FallsBackOrCompilesPredictably() {
         const string source = """
             using System.Linq;
             namespace Sample;
@@ -366,12 +355,12 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
             }
             """;
 
-        var result = this.RunGeneratorAndCompile(("Container.cs", source));
+        var result = this.RunGeneratorAndCompile(("Container.cs",source));
 
-        this.AssertIntercepted(result.GeneratedSource, nameof(SumWithNamedExpandedParams));
+        this.AssertIntercepted(result.GeneratedSource,nameof(SumWithNamedExpandedParams));
         GeneratedSourceAssert.True(
-            result.GeneratedSource.Contains("UnsafeAccessorKind.StaticMethod", StringComparison.Ordinal)
-            && result.GeneratedSource.Contains("__StaticMethod_Container_AddAll", StringComparison.Ordinal),
+            result.GeneratedSource.Contains("UnsafeAccessorKind.StaticMethod",StringComparison.Ordinal)
+            &&result.GeneratedSource.Contains("__StaticMethod_Container_AddAll",StringComparison.Ordinal),
             "Generated source should call private static AddAll through UnsafeAccessor.",
             result.GeneratedSource,
             output);
@@ -379,8 +368,7 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void PrivateInstanceHelper_InSelector_UsesUnsafeAccessor()
-    {
+    public void PrivateInstanceHelper_InSelector_UsesUnsafeAccessor() {
         const string source = """
             using System.Linq;
             namespace Sample;
@@ -393,12 +381,12 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
             }
             """;
 
-        var result = this.RunGeneratorAndCompile(("Container.cs", source));
+        var result = this.RunGeneratorAndCompile(("Container.cs",source));
 
-        this.AssertIntercepted(result.GeneratedSource, nameof(SumWithPrivateInstanceHelper));
+        this.AssertIntercepted(result.GeneratedSource,nameof(SumWithPrivateInstanceHelper));
         GeneratedSourceAssert.True(
-            result.GeneratedSource.Contains("UnsafeAccessorKind.Method", StringComparison.Ordinal)
-            && result.GeneratedSource.Contains("__Method_Container_Map", StringComparison.Ordinal),
+            result.GeneratedSource.Contains("UnsafeAccessorKind.Method",StringComparison.Ordinal)
+            &&result.GeneratedSource.Contains("__Method_Container_Map",StringComparison.Ordinal),
             "Generated source should call private instance Map through UnsafeAccessor.",
             result.GeneratedSource,
             output);
@@ -406,8 +394,7 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void PrivateStaticMethodGroup_InSelector_UsesUnsafeAccessor()
-    {
+    public void PrivateStaticMethodGroup_InSelector_UsesUnsafeAccessor() {
         const string source = """
             using System.Linq;
             namespace Sample;
@@ -420,12 +407,12 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
             }
             """;
 
-        var result = this.RunGeneratorAndCompile(("Container.cs", source));
+        var result = this.RunGeneratorAndCompile(("Container.cs",source));
 
-        this.AssertIntercepted(result.GeneratedSource, nameof(SumWithPrivateStaticMethodGroup));
+        this.AssertIntercepted(result.GeneratedSource,nameof(SumWithPrivateStaticMethodGroup));
         GeneratedSourceAssert.True(
-            result.GeneratedSource.Contains("UnsafeAccessorKind.StaticMethod", StringComparison.Ordinal)
-            && result.GeneratedSource.Contains("__StaticMethod_Container_MapStatic", StringComparison.Ordinal),
+            result.GeneratedSource.Contains("UnsafeAccessorKind.StaticMethod",StringComparison.Ordinal)
+            &&result.GeneratedSource.Contains("__StaticMethod_Container_MapStatic",StringComparison.Ordinal),
             "Generated source should bind private static method group through UnsafeAccessor.",
             result.GeneratedSource,
             output);
@@ -433,8 +420,7 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void PrivateInstanceMethodGroup_InSelector_UsesUnsafeAccessor()
-    {
+    public void PrivateInstanceMethodGroup_InSelector_UsesUnsafeAccessor() {
         const string source = """
             using System.Linq;
             namespace Sample;
@@ -447,12 +433,12 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
             }
             """;
 
-        var result = this.RunGeneratorAndCompile(("Container.cs", source));
+        var result = this.RunGeneratorAndCompile(("Container.cs",source));
 
-        this.AssertIntercepted(result.GeneratedSource, nameof(SumWithPrivateInstanceMethodGroup));
+        this.AssertIntercepted(result.GeneratedSource,nameof(SumWithPrivateInstanceMethodGroup));
         GeneratedSourceAssert.True(
-            result.GeneratedSource.Contains("UnsafeAccessorKind.Method", StringComparison.Ordinal)
-            && result.GeneratedSource.Contains("__DelegateAccess_Container_MapInstance", StringComparison.Ordinal),
+            result.GeneratedSource.Contains("UnsafeAccessorKind.Method",StringComparison.Ordinal)
+            &&result.GeneratedSource.Contains("__DelegateAccess_Container_MapInstance",StringComparison.Ordinal),
             "Generated source should bind private instance method group through UnsafeAccessor.",
             result.GeneratedSource,
             output);
@@ -460,8 +446,7 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void BlockLambda_PrivateHelper_UsesUnsafeAccessor()
-    {
+    public void BlockLambda_PrivateHelper_UsesUnsafeAccessor() {
         const string source = """
             using System.Linq;
             namespace Sample;
@@ -480,12 +465,12 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
             }
             """;
 
-        var result = this.RunGeneratorAndCompile(("Container.cs", source));
+        var result = this.RunGeneratorAndCompile(("Container.cs",source));
 
-        this.AssertIntercepted(result.GeneratedSource, nameof(SumWithBlockPrivateHelper));
+        this.AssertIntercepted(result.GeneratedSource,nameof(SumWithBlockPrivateHelper));
         GeneratedSourceAssert.True(
-            result.GeneratedSource.Contains("UnsafeAccessorKind.StaticMethod", StringComparison.Ordinal)
-            && result.GeneratedSource.Contains("__StaticMethod_Container_MapBlock", StringComparison.Ordinal),
+            result.GeneratedSource.Contains("UnsafeAccessorKind.StaticMethod",StringComparison.Ordinal)
+            &&result.GeneratedSource.Contains("__StaticMethod_Container_MapBlock",StringComparison.Ordinal),
             "Generated source should call private helper in block lambda through UnsafeAccessor.",
             result.GeneratedSource,
             output);
@@ -493,8 +478,7 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void StructInstanceMethod_IsExplicitlyNotIntercepted()
-    {
+    public void StructInstanceMethod_IsExplicitlyNotIntercepted() {
         const string source = """
             using System.Linq;
             namespace Sample;
@@ -505,10 +489,10 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
             }
             """;
 
-        var result = this.RunGeneratorAndCompile(("Container.cs", source));
+        var result = this.RunGeneratorAndCompile(("Container.cs",source));
 
         GeneratedSourceAssert.True(
-            !IsIntercepted(result.GeneratedSource, nameof(SumStructInstance)),
+            !IsIntercepted(result.GeneratedSource,nameof(SumStructInstance)),
             "Struct instance method should not be intercepted.",
             result.GeneratedSource,
             output);
@@ -516,8 +500,7 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void OtherSourceGeneratorMethod_IsExplicitlyNotIntercepted()
-    {
+    public void OtherSourceGeneratorMethod_IsExplicitlyNotIntercepted() {
         var comp = GeneratorTestHelpers.CreateCompilation([]);
         GeneratorDriver driver = Microsoft.CodeAnalysis.CSharp.CSharpGeneratorDriver.Create(
             generators: [
@@ -525,61 +508,56 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
                 new global::Seamless.FLinq.FLinqIncrementalGenerator().AsSourceGenerator()
             ],
             parseOptions: GeneratorTestHelpers.ParseOptions);
-        driver = driver.RunGenerators(comp);
+        driver=driver.RunGenerators(comp);
         var runResult = driver.GetRunResult();
         var generated = string.Concat(runResult.Results.SelectMany(r => r.GeneratedSources).Select(s => s.SourceText.ToString()));
 
         GeneratedSourceAssert.True(
-            !IsIntercepted(generated, nameof(SumGeneratedHelper)),
+            !IsIntercepted(generated,nameof(SumGeneratedHelper)),
             "Other source generator method should not be intercepted.",
             generated,
             output);
     }
 
-    private GeneratorCompilationResult RunGeneratorAndCompile(params (string fileName, string source)[] sources)
-    {
+    private GeneratorCompilationResult RunGeneratorAndCompile(params (string fileName,string source)[] sources) {
         var comp = GeneratorTestHelpers.CreateCompilation(sources);
         GeneratorDriver driver = GeneratorTestHelpers.CreateDriver();
-        driver = driver.RunGeneratorsAndUpdateCompilation(comp, out var outputCompilation, out var generatorDiagnostics);
+        driver=driver.RunGeneratorsAndUpdateCompilation(comp,out var outputCompilation,out var generatorDiagnostics);
         var runResult = driver.GetRunResult();
         var generated = string.Concat(runResult.Results.SelectMany(r => r.GeneratedSources).Select(s => s.SourceText.ToString()));
-        this.lastGeneratedSource = generated;
+        this.lastGeneratedSource=generated;
         var diagnostics = generatorDiagnostics
             .Concat(outputCompilation.GetDiagnostics())
-            .Where(static d => d.Severity == DiagnosticSeverity.Error)
-            .Where(static d => d.Id != "CS9137")
+            .Where(static d => d.Severity==DiagnosticSeverity.Error)
+            .Where(static d => d.Id!="CS9137")
             .ToArray();
-        return new GeneratorCompilationResult(generated, diagnostics);
+        return new GeneratorCompilationResult(generated,diagnostics);
     }
 
-    private static bool IsIntercepted(string generatedSource, string methodName) =>
-        generatedSource.Contains($"OptimizedLinq_{methodName}_", StringComparison.Ordinal)
-        || generatedSource.Contains($"MeasuredLinq_{methodName}_", StringComparison.Ordinal);
+    private static bool IsIntercepted(string generatedSource,string methodName) =>
+        generatedSource.Contains($"OptimizedLinq_{methodName}_",StringComparison.Ordinal)
+        ||generatedSource.Contains($"MeasuredLinq_{methodName}_",StringComparison.Ordinal);
 
-    private void AssertIntercepted(string generatedSource, string methodName) =>
+    private void AssertIntercepted(string generatedSource,string methodName) =>
         GeneratedSourceAssert.True(
-            IsIntercepted(generatedSource, methodName),
+            IsIntercepted(generatedSource,methodName),
             $"{methodName} interceptor was not generated.",
             generatedSource,
             output);
 
-    private void AssertNoErrors(IReadOnlyCollection<Diagnostic> diagnostics)
-    {
-        GeneratedSourceAssert.NoErrors(diagnostics,this.lastGeneratedSource, output);
+    private void AssertNoErrors(IReadOnlyCollection<Diagnostic> diagnostics) {
+        GeneratedSourceAssert.NoErrors(diagnostics,this.lastGeneratedSource,output);
     }
 
-    private sealed record GeneratorCompilationResult(string GeneratedSource, IReadOnlyCollection<Diagnostic> Diagnostics);
+    private sealed record GeneratorCompilationResult(string GeneratedSource,IReadOnlyCollection<Diagnostic> Diagnostics);
 
 #pragma warning disable RS1042
-    private sealed class GeneratedHelperGenerator : ISourceGenerator
-    {
-        public void Initialize(GeneratorInitializationContext context)
-        {
+    private sealed class GeneratedHelperGenerator:ISourceGenerator {
+        public void Initialize(GeneratorInitializationContext context) {
         }
 
-        public void Execute(GeneratorExecutionContext context)
-        {
-            context.AddSource("GeneratedHelper.g.cs", SourceText.From("""
+        public void Execute(GeneratorExecutionContext context) {
+            context.AddSource("GeneratedHelper.g.cs",SourceText.From("""
                 using System.Linq;
                 namespace Sample;
                 public partial class Container {
@@ -587,7 +565,7 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output)
                     public int Run(int[] src) => SumGeneratedHelper(src);
                     public static string TargetName => nameof(SumGeneratedHelper);
                 }
-                """, Encoding.UTF8));
+                """,Encoding.UTF8));
         }
     }
 #pragma warning restore RS1042

@@ -6,12 +6,11 @@ namespace Benchmark.Tsavorite.Collections.Strategy.CollectionLinq;
 namespace Tsavorite.Collections.Strategy.CollectionLinq;
 #endif
 
-public sealed class TsavoriteDictionaryLinqSource<TKey,TValue>(
+public sealed class TsavoriteDictionaryLinqSource<TKey, TValue>(
     StoreHandle<TKey,TValue> store,
     global::Seamless.Tsavorite.Collections.IDictionary<TKey,TValue> dictionary):IDisposable
     where TKey : IEquatable<TKey>
-    where TValue : IEquatable<TValue>
-{
+    where TValue : IEquatable<TValue> {
     public global::Seamless.Tsavorite.Collections.IDictionary<TKey,TValue> Dictionary { get; } = dictionary;
 
     public void Dispose() {
@@ -20,10 +19,9 @@ public sealed class TsavoriteDictionaryLinqSource<TKey,TValue>(
     }
 }
 
-public readonly struct TsavoriteHashSetCollectionLinqStrategy<TSetStrategy,TElement>:ICollectionLinqStrategy<HashSetHandle<TElement>,TElement,TElement,TElement>
+public readonly struct TsavoriteHashSetCollectionLinqStrategy<TSetStrategy, TElement>:ICollectionLinqStrategy<HashSetHandle<TElement>,TElement,TElement,TElement>
     where TSetStrategy : IHashSetTestStrategy<TElement>
-    where TElement : IEquatable<TElement>
-{
+    where TElement : IEquatable<TElement> {
     public static HashSetHandle<TElement> Create(int count) =>
         CreateRange(1,count);
 
@@ -57,12 +55,11 @@ public readonly struct TsavoriteHashSetCollectionLinqStrategy<TSetStrategy,TElem
     }
 }
 
-public readonly struct TsavoriteDictionaryCollectionLinqStrategy<TDictionaryStrategy,TKey,TValue>
+public readonly struct TsavoriteDictionaryCollectionLinqStrategy<TDictionaryStrategy, TKey, TValue>
     :IDictionaryLinqStrategy<TsavoriteDictionaryLinqSource<TKey,TValue>,KeyValuePair<TKey,TValue>,TKey,TValue>
     where TDictionaryStrategy : IDictTestStrategy<TKey,TValue>
     where TKey : IEquatable<TKey>
-    where TValue : IEquatable<TValue>
-{
+    where TValue : IEquatable<TValue> {
     public static TsavoriteDictionaryLinqSource<TKey,TValue> Create(int count) =>
         CreateRange(1,count);
 

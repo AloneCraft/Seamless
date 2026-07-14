@@ -1,83 +1,83 @@
 namespace Test.System.Linq.Intercept.FragmentCoverage;
 
 public sealed class Aggregate {
-    [Fact,Trait("Category","Unit")]
-    public static void func(){
+    [Fact, Trait("Category","Unit")]
+    public static void func() {
         GeneratedInterceptorAssert.ContainsMethod<Aggregate>(nameof(funcImpl));
-        var expected=new[]{1,2,3,4}.Aggregate(static (a,v) => a+v);
-        var actual=funcImpl();
+        var expected = new[] { 1,2,3,4 }.Aggregate(static (a,v) => a+v);
+        var actual = funcImpl();
         Assert.Equal(expected,actual);
     }
-    private static int funcImpl(){
-        return new[]{1,2,3,4}.Aggregate(static (a,v) => a+v);
+    private static int funcImpl() {
+        return new[] { 1,2,3,4 }.Aggregate(static (a,v) => a+v);
     }
 
-    [Fact,Trait("Category","Unit")]
-    public static void func_empty(){
-        var expected=Assert.Throws<InvalidOperationException>(
+    [Fact, Trait("Category","Unit")]
+    public static void func_empty() {
+        var expected = Assert.Throws<InvalidOperationException>(
             static () => global::System.Linq.Enumerable.Aggregate(global::System.Array.Empty<int>(),static (a,v) => a+v));
-        var actual=Assert.Throws<InvalidOperationException>(()=>func_emptyImpl());
+        var actual = Assert.Throws<InvalidOperationException>(() => func_emptyImpl());
         Assert.Equal(expected.Message,actual.Message);
     }
-    private static int func_emptyImpl(){
+    private static int func_emptyImpl() {
         return new int[0].Aggregate(static (a,v) => a+v);
     }
 
-    [Fact,Trait("Category","Unit")]
-    public static void seed_func(){
+    [Fact, Trait("Category","Unit")]
+    public static void seed_func() {
         GeneratedInterceptorAssert.ContainsMethod<Aggregate>(nameof(seed_funcImpl));
-        var expected=new[]{1,2,3,4}.Aggregate(10,static (a,v) => a+v);
-        var actual=seed_funcImpl();
+        var expected = new[] { 1,2,3,4 }.Aggregate(10,static (a,v) => a+v);
+        var actual = seed_funcImpl();
         Assert.Equal(expected,actual);
     }
-    private static int seed_funcImpl(){
-        return new[]{1,2,3,4}.Aggregate(10,static (a,v) => a+v);
+    private static int seed_funcImpl() {
+        return new[] { 1,2,3,4 }.Aggregate(10,static (a,v) => a+v);
     }
 
-    [Fact,Trait("Category","Unit")]
-    public static void seed_func_resultSelector(){
+    [Fact, Trait("Category","Unit")]
+    public static void seed_func_resultSelector() {
         GeneratedInterceptorAssert.ContainsMethod<Aggregate>(nameof(seed_func_resultSelectorImpl));
-        var expected=new[]{1,2,3,4}.Aggregate(10,static (a,v) => a+v,static a => a*2);
-        var actual=seed_func_resultSelectorImpl();
+        var expected = new[] { 1,2,3,4 }.Aggregate(10,static (a,v) => a+v,static a => a*2);
+        var actual = seed_func_resultSelectorImpl();
         Assert.Equal(expected,actual);
     }
-    private static int seed_func_resultSelectorImpl(){
-        return new[]{1,2,3,4}.Aggregate(10,static (a,v) => a+v,static a => a*2);
+    private static int seed_func_resultSelectorImpl() {
+        return new[] { 1,2,3,4 }.Aggregate(10,static (a,v) => a+v,static a => a*2);
     }
 
-    [Fact,Trait("Category","Unit")]
-    public static void func_enumerable(){
+    [Fact, Trait("Category","Unit")]
+    public static void func_enumerable() {
         GeneratedInterceptorAssert.ContainsMethod<Aggregate>(nameof(func_enumerableImpl));
-        var expected=new[]{1,2,3,4}.Aggregate(static (a,v) => a+v);
-        var actual=func_enumerableImpl();
+        var expected = new[] { 1,2,3,4 }.Aggregate(static (a,v) => a+v);
+        var actual = func_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static int func_enumerableImpl(){
-        IEnumerable<int>src=[1,2,3,4];
+    private static int func_enumerableImpl() {
+        IEnumerable<int> src = [1,2,3,4];
         return src.Aggregate(static (a,v) => a+v);
     }
 
-    [Fact,Trait("Category","Unit")]
-    public static void seed_func_enumerable(){
+    [Fact, Trait("Category","Unit")]
+    public static void seed_func_enumerable() {
         GeneratedInterceptorAssert.ContainsMethod<Aggregate>(nameof(seed_func_enumerableImpl));
-        var expected=new[]{1,2,3,4}.Aggregate(10,static (a,v) => a+v);
-        var actual=seed_func_enumerableImpl();
+        var expected = new[] { 1,2,3,4 }.Aggregate(10,static (a,v) => a+v);
+        var actual = seed_func_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static int seed_func_enumerableImpl(){
-        IEnumerable<int>src=[1,2,3,4];
+    private static int seed_func_enumerableImpl() {
+        IEnumerable<int> src = [1,2,3,4];
         return src.Aggregate(10,static (a,v) => a+v);
     }
 
-    [Fact,Trait("Category","Unit")]
-    public static void seed_func_resultSelector_enumerable(){
+    [Fact, Trait("Category","Unit")]
+    public static void seed_func_resultSelector_enumerable() {
         GeneratedInterceptorAssert.ContainsMethod<Aggregate>(nameof(seed_func_resultSelector_enumerableImpl));
-        var expected=new[]{1,2,3,4}.Aggregate(10,static (a,v) => a+v,static a => a*2);
-        var actual=seed_func_resultSelector_enumerableImpl();
+        var expected = new[] { 1,2,3,4 }.Aggregate(10,static (a,v) => a+v,static a => a*2);
+        var actual = seed_func_resultSelector_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static int seed_func_resultSelector_enumerableImpl(){
-        IEnumerable<int>src=[1,2,3,4];
+    private static int seed_func_resultSelector_enumerableImpl() {
+        IEnumerable<int> src = [1,2,3,4];
         return src.Aggregate(10,static (a,v) => a+v,static a => a*2);
     }
 }

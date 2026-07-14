@@ -1,8 +1,8 @@
 namespace Test.Seamless.SessionFunctions;
 
-public abstract class SymmetricExceptWith<TKey,TSet>:CommonWith<TKey,TSet>
+public abstract class SymmetricExceptWith<TKey, TSet>:CommonWith<TKey,TSet>
     where TKey : IEquatable<TKey>
-    where TSet : IHashSet<TKey>,IDisposable {
+    where TSet : IHashSet<TKey>, IDisposable {
     [Fact, Trait("Category","Unit")]
     public void SymmetricExceptWithAB() => this.RunWithAB();
 

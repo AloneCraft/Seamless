@@ -7,13 +7,13 @@ public sealed partial class FLinqIncrementalGenerator {
         body=string.Empty;
 
         if(!target.CounterInstrumentation
-            || target.Method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not MethodDeclarationSyntax methodSyntax) {
+            ||target.Method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not MethodDeclarationSyntax methodSyntax) {
             return false;
         }
 
         var unsafeAccessors = new List<string>();
         if(methodSyntax.ExpressionBody is { Expression: var expressionBody }) {
-            var expressionText=RenderCounterOnlyExpression(expressionBody,target.SemanticModel,target.EnclosingType,unsafeAccessors);
+            var expressionText = RenderCounterOnlyExpression(expressionBody,target.SemanticModel,target.EnclosingType,unsafeAccessors);
             body=target.Method.ReturnsVoid
                 ? $"{expressionText};"
                 : $"return {expressionText};";
@@ -22,7 +22,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 ReturnStatementSyntax { Expression: { } returnExpression }
             ]
         }) {
-            var expressionText=RenderCounterOnlyExpression(returnExpression,target.SemanticModel,target.EnclosingType,unsafeAccessors);
+            var expressionText = RenderCounterOnlyExpression(returnExpression,target.SemanticModel,target.EnclosingType,unsafeAccessors);
             body=target.Method.ReturnsVoid
                 ? $"{expressionText};"
                 : $"return {expressionText};";
@@ -38,7 +38,7 @@ public sealed partial class FLinqIncrementalGenerator {
             "\n",
             unsafeAccessors
                 .Distinct(StringComparer.Ordinal)
-                .Where(code=>emittedUnsafeAccessors?.Add(code) ?? true));
+                .Where(code => emittedUnsafeAccessors?.Add(code)??true));
         return true;
     }
 
@@ -82,8 +82,8 @@ public sealed partial class FLinqIncrementalGenerator {
         var typeName = declaration.Type is IdentifierNameSyntax { IsVar: true }
             ? "var"
             : semanticModel.GetTypeInfo(declaration.Type).Type?.ToDisplayString(完全修飾形式)
-                ?? declaration.Type.ToString();
-        var variables = declaration.Variables.Select(variable=> {
+                ??declaration.Type.ToString();
+        var variables = declaration.Variables.Select(variable => {
             if(variable.Initializer?.Value is not { } initializer) {
                 return variable.ToString();
             }
@@ -100,13 +100,13 @@ public sealed partial class FLinqIncrementalGenerator {
         INamedTypeSymbol containingType,
         List<string> unsafeAccessors) {
         if(expression is MemberAccessExpressionSyntax anchorAccess
-            && AnchorAnalysis.IsAnchorAccess(anchorAccess,semanticModel)) {
+            &&AnchorAnalysis.IsAnchorAccess(anchorAccess,semanticModel)) {
             return RenderCounterOnlyExpression(anchorAccess.Expression,semanticModel,containingType,unsafeAccessors);
         }
 
         if(expression is InvocationExpressionSyntax invocation
-            && semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol invokedMethod
-            && TryRenderCounterOnlyEnumerableInvocation(invokedMethod,invocation,semanticModel,containingType,unsafeAccessors,out var enumerableExpression)) {
+            &&semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol invokedMethod
+            &&TryRenderCounterOnlyEnumerableInvocation(invokedMethod,invocation,semanticModel,containingType,unsafeAccessors,out var enumerableExpression)) {
             return enumerableExpression;
         }
 
@@ -115,7 +115,7 @@ public sealed partial class FLinqIncrementalGenerator {
         } memberInvocation) {
             var receiver = RenderCounterOnlyExpression(memberAccess.Expression,semanticModel,containingType,unsafeAccessors);
             var arguments = memberInvocation.ArgumentList.Arguments
-                .Select(argument=>RenderCounterOnlyArgument(argument,semanticModel,containingType,unsafeAccessors));
+                .Select(argument => RenderCounterOnlyArgument(argument,semanticModel,containingType,unsafeAccessors));
             return $"{receiver}.{memberAccess.Name}({string.Join(", ",arguments)})";
         }
 
@@ -140,7 +140,7 @@ public sealed partial class FLinqIncrementalGenerator {
         out string expressionText) {
         expressionText=string.Empty;
 
-        var definition = invokedMethod.ReducedFrom ?? invokedMethod;
+        var definition = invokedMethod.ReducedFrom??invokedMethod;
         if(definition.ContainingType.ToDisplayString()!="System.Linq.Enumerable") {
             return false;
         }
@@ -168,12 +168,12 @@ public sealed partial class FLinqIncrementalGenerator {
         INamedTypeSymbol containingType,
         List<string> unsafeAccessors,
         out List<string> arguments) {
-        arguments=[];
+        arguments= [];
         var slots = new string?[definition.Parameters.Length];
         var nextParameterIndex = 0;
 
         if(invokedMethod.ReducedFrom is not null) {
-            if(invocation.Expression is not MemberAccessExpressionSyntax memberAccess || definition.Parameters.Length==0) {
+            if(invocation.Expression is not MemberAccessExpressionSyntax memberAccess||definition.Parameters.Length==0) {
                 return false;
             }
 
@@ -184,40 +184,40 @@ public sealed partial class FLinqIncrementalGenerator {
         foreach(var argument in invocation.ArgumentList.Arguments) {
             var targetParameterIndex = -1;
             if(argument.NameColon is { Name.Identifier.ValueText: var argumentName }) {
-                for(var i=nextParameterIndex;i<definition.Parameters.Length;i++) {
+                for(var i = nextParameterIndex;i<definition.Parameters.Length;i++) {
                     if(definition.Parameters[i].Name==argumentName) {
                         targetParameterIndex=i;
                         break;
                     }
                 }
             } else {
-                while(nextParameterIndex<slots.Length && slots[nextParameterIndex] is not null) {
+                while(nextParameterIndex<slots.Length&&slots[nextParameterIndex] is not null) {
                     nextParameterIndex++;
                 }
                 targetParameterIndex=nextParameterIndex++;
             }
 
             if(targetParameterIndex<0
-                || targetParameterIndex>=slots.Length
-                || slots[targetParameterIndex] is not null) {
+                ||targetParameterIndex>=slots.Length
+                ||slots[targetParameterIndex] is not null) {
                 return false;
             }
 
             var renderedArgument = RenderCounterOnlyExpression(argument.Expression,semanticModel,containingType,unsafeAccessors);
             var parameter = GetCounterOnlyEnumerableParameter(invokedMethod,definition,targetParameterIndex);
             slots[targetParameterIndex]=parameter.Type.TypeKind==TypeKind.Delegate
-                && TryWrapCounterOnlyDelegate(parameter.Type,renderedArgument,out var wrappedDelegate)
+                &&TryWrapCounterOnlyDelegate(parameter.Type,renderedArgument,out var wrappedDelegate)
                     ? $"{RefKind接頭辞取得(argument.RefKindKeyword.Kind())}{wrappedDelegate}"
                     : $"{RefKind接頭辞取得(argument.RefKindKeyword.Kind())}{renderedArgument}";
         }
 
-        for(var i=0;i<slots.Length;i++) {
+        for(var i = 0;i<slots.Length;i++) {
             if(slots[i] is not null) {
                 continue;
             }
 
             var parameter = GetCounterOnlyEnumerableParameter(invokedMethod,definition,i);
-            if(parameter.IsParams && parameter.Type is IArrayTypeSymbol paramsArray) {
+            if(parameter.IsParams&&parameter.Type is IArrayTypeSymbol paramsArray) {
                 slots[i]=$"global::System.Array.Empty<{paramsArray.ElementType.ToDisplayString(完全修飾形式)}>()";
             } else if(parameter.HasExplicitDefaultValue) {
                 slots[i]=RenderConstantValue(parameter.ExplicitDefaultValue);
@@ -226,19 +226,19 @@ public sealed partial class FLinqIncrementalGenerator {
             }
         }
 
-        arguments=slots.Select(static slot=>slot!).ToList();
+        arguments=slots.Select(static slot => slot!).ToList();
         return true;
     }
 
     private static IParameterSymbol GetCounterOnlyEnumerableParameter(IMethodSymbol invokedMethod,IMethodSymbol definition,int slotIndex) {
         if(invokedMethod.ReducedFrom is not null
-            && slotIndex>0
-            && slotIndex-1<invokedMethod.Parameters.Length) {
+            &&slotIndex>0
+            &&slotIndex-1<invokedMethod.Parameters.Length) {
             return invokedMethod.Parameters[slotIndex-1];
         }
 
         if(invokedMethod.ReducedFrom is null
-            && slotIndex<invokedMethod.Parameters.Length) {
+            &&slotIndex<invokedMethod.Parameters.Length) {
             return invokedMethod.Parameters[slotIndex];
         }
 
@@ -248,18 +248,18 @@ public sealed partial class FLinqIncrementalGenerator {
     private static bool TryWrapCounterOnlyDelegate(ITypeSymbol delegateType,string delegateExpression,out string wrappedExpression) {
         wrappedExpression=string.Empty;
         if(delegateType is not INamedTypeSymbol namedDelegate
-            || namedDelegate.DelegateInvokeMethod is not { } invokeMethod
-            || invokeMethod.ReturnsVoid
-            || invokeMethod.Parameters.Any(static parameter=>parameter.RefKind!=RefKind.None)) {
+            ||namedDelegate.DelegateInvokeMethod is not { } invokeMethod
+            ||invokeMethod.ReturnsVoid
+            ||invokeMethod.Parameters.Any(static parameter => parameter.RefKind!=RefKind.None)) {
             return false;
         }
 
         var delegateTypeName = namedDelegate.ToDisplayString(完全修飾形式);
         var argumentNames = invokeMethod.Parameters
-            .Select(static (_,index)=>$"__delegateArg{index}")
+            .Select(static (_,index) => $"__delegateArg{index}")
             .ToArray();
         wrappedExpression=
-            $"(({delegateTypeName})(({string.Join(", ",argumentNames)}) => " +
+            $"(({delegateTypeName})(({string.Join(", ",argumentNames)}) => "+
             $"global::Seamless.Linq.LinqCounterScope.Counter.RecordPhysicalDelegate((({delegateTypeName})({delegateExpression})).Invoke({string.Join(", ",argumentNames)}))))";
         return true;
     }

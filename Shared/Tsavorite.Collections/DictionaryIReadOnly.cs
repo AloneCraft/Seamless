@@ -5,7 +5,7 @@ namespace Tsavorite.Collections;
 #endif
 
 public class DictionaryIReadOnly {
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Keys_IReadOnlyDictionary() {
         using var store = Store.Create().Create<int,string>();
         using var dict = store.Create();
@@ -17,7 +17,7 @@ public class DictionaryIReadOnly {
         Assert.Contains(1,keys);
         Assert.Contains(2,keys);
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Values_IReadOnlyDictionary() {
         using var store = Store.Create().Create<int,string>();
         using var dict = store.Create();

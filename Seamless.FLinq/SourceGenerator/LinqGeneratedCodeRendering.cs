@@ -8,7 +8,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// Fragment 構築中に積み上がる <c>staticMethods</c> を逐次マージするために使う。
     /// </summary>
     private static string 静的メソッドコード連結(string left,string right) {
-        return string.Join("\n",new[] { left,right }.Where(static text=>!string.IsNullOrWhiteSpace(text)));
+        return string.Join("\n",new[] { left,right }.Where(static text => !string.IsNullOrWhiteSpace(text)));
     }
     private static string OpenGenericTypeName(INamedTypeSymbol namedType) {
         var definitionName = namedType.OriginalDefinition.ToDisplayString(完全修飾形式);
@@ -26,7 +26,7 @@ public sealed partial class FLinqIncrementalGenerator {
         INamedTypeSymbol containingType,
         List<string>? unsafeAccessorCollector = null,
         IReadOnlyDictionary<string,string>? replacementMap = null) {
-        var variables = declaration.Variables.Select(variable=>{
+        var variables = declaration.Variables.Select(variable => {
             if(variable.Initializer?.Value is null) {
                 return variable.ToString();
             }
@@ -36,7 +36,7 @@ public sealed partial class FLinqIncrementalGenerator {
         if(declaration.Type is IdentifierNameSyntax { IsVar: true }) {
             typeName="var";
         } else {
-            var typeSymbol=semanticModel.GetTypeInfo(declaration.Type).Type;
+            var typeSymbol = semanticModel.GetTypeInfo(declaration.Type).Type;
             typeName=typeSymbol is not null
                 ? typeSymbol.ToDisplayString(完全修飾形式)
                 : NormalizeExpressionText(declaration.Type.ToString());
@@ -55,7 +55,7 @@ public sealed partial class FLinqIncrementalGenerator {
         // replacementMap のキーは NormalizeExpressionText 済みなので text も正規化して照合する。
         var text = NormalizeExpressionText(statement.ToString());
         if(replacementMap is not null) {
-            foreach(var pair in replacementMap.OrderByDescending(static pair=>pair.Key.Length)) {
+            foreach(var pair in replacementMap.OrderByDescending(static pair => pair.Key.Length)) {
                 text=text.Replace(pair.Key,pair.Value,StringComparison.Ordinal);
             }
         }
@@ -72,7 +72,7 @@ public sealed partial class FLinqIncrementalGenerator {
         var text = NormalizeGeneratedExpressionText(statement.ToString());
         var processedExpressions = new HashSet<string>(StringComparer.Ordinal);
         foreach(var expression in OutermostStatementExpressions(statement)
-            .OrderByDescending(static expression=>NormalizeGeneratedExpressionText(expression.ToString()).Length)) {
+            .OrderByDescending(static expression => NormalizeGeneratedExpressionText(expression.ToString()).Length)) {
             if(!ReferenceEquals(expression.SyntaxTree,semanticModel.SyntaxTree)) {
                 continue;
             }
@@ -92,7 +92,7 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         if(replacementMap is not null) {
-            foreach(var pair in replacementMap.OrderByDescending(static pair=>pair.Key.Length)) {
+            foreach(var pair in replacementMap.OrderByDescending(static pair => pair.Key.Length)) {
                 text=text.Replace(pair.Key,pair.Value,StringComparison.Ordinal);
             }
         }
@@ -105,8 +105,8 @@ public sealed partial class FLinqIncrementalGenerator {
     private static IEnumerable<ExpressionSyntax> OutermostStatementExpressions(StatementSyntax statement) {
         foreach(var expression in statement.DescendantNodes().OfType<ExpressionSyntax>()) {
             if(expression is LambdaExpressionSyntax or AnonymousMethodExpressionSyntax
-                || IsInsideNestedFunction(expression,statement)
-                || HasExpressionAncestorBefore(expression,statement)) {
+                ||IsInsideNestedFunction(expression,statement)
+                ||HasExpressionAncestorBefore(expression,statement)) {
                 continue;
             }
 
@@ -115,7 +115,7 @@ public sealed partial class FLinqIncrementalGenerator {
     }
 
     private static bool HasExpressionAncestorBefore(SyntaxNode node,SyntaxNode root) {
-        for(var current = node.Parent; current is not null && !ReferenceEquals(current,root); current=current.Parent) {
+        for(var current = node.Parent;current is not null&&!ReferenceEquals(current,root);current=current.Parent) {
             if(current is ExpressionSyntax) {
                 return true;
             }
@@ -125,7 +125,7 @@ public sealed partial class FLinqIncrementalGenerator {
     }
 
     private static bool IsInsideNestedFunction(SyntaxNode node,SyntaxNode root) {
-        for(var current = node.Parent; current is not null && !ReferenceEquals(current,root); current=current.Parent) {
+        for(var current = node.Parent;current is not null&&!ReferenceEquals(current,root);current=current.Parent) {
             if(current is LambdaExpressionSyntax or AnonymousMethodExpressionSyntax or LocalFunctionStatementSyntax) {
                 return true;
             }
@@ -134,7 +134,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
     /// <summary>Fragment 識別番号をメソッドごとに 0 からリセットする。</summary>
-    private static int フラグメント番号初期値取得()=>0;
+    private static int フラグメント番号初期値取得() => 0;
 
     /// <summary>
     /// <c>Struct0</c>, <c>Struct1</c> のような補助型をメソッド単位の補助クラス
@@ -152,12 +152,12 @@ public sealed partial class FLinqIncrementalGenerator {
         }
         var prefix = $"{SanitizeIdentifier(methodName)}_補助0_";
         const string pattern = @"\bStruct(?<番号>\d+)(?<接尾辞>_[A-Za-z_][A-Za-z0-9_]*)?\b";
-        staticMethods = System.Text.RegularExpressions.Regex.Replace(
+        staticMethods=System.Text.RegularExpressions.Regex.Replace(
             staticMethods,
             pattern,
             $"{prefix}Struct${{番号}}${{接尾辞}}",
             System.Text.RegularExpressions.RegexOptions.CultureInvariant);
-        body = System.Text.RegularExpressions.Regex.Replace(
+        body=System.Text.RegularExpressions.Regex.Replace(
             body,
             pattern,
             $"{prefix}Struct${{番号}}${{接尾辞}}",
@@ -174,7 +174,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return System.Text.RegularExpressions.Regex.Replace(
             source,
             @"(?m)^(?<indent>\s*)private static (?<declaration>.+\b(?:Compute|Build)\s*\()",
-            match=>{
+            match => {
                 var index = match.Index;
                 var previousLineEnd = index>1 ? source.LastIndexOf('\n',index-2) : -1;
                 var previousLine = source.Substring(previousLineEnd+1,index-(previousLineEnd+1)).Trim();
@@ -188,12 +188,12 @@ public sealed partial class FLinqIncrementalGenerator {
     // source generator の生成コードを検証する。
     // 生成コードの変数名がユーザーコードと衝突しないようにするための前処理。
     // ラムダ/匿名メソッドの内部はラムダスコープであるため再帰を止め収集しない。
-    private static HashSet<string> CollectMethodBodyIdentifiers(MethodDeclarationSyntax methodSyntax, IMethodSymbol method) {
+    private static HashSet<string> CollectMethodBodyIdentifiers(MethodDeclarationSyntax methodSyntax,IMethodSymbol method) {
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach(var p in method.Parameters)
             names.Add(p.Name);
         if(methodSyntax.Body is not null)
-            CollectMethodScopeIdentifiers(methodSyntax.Body, names);
+            CollectMethodScopeIdentifiers(methodSyntax.Body,names);
         return names;
     }
     /// <summary>
@@ -201,7 +201,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// ラムダ／匿名メソッドに入ったら再帰を止める（別スコープなので生成変数の衝突に使わない）。
     /// source generator の生成コードを検証する。
     /// </summary>
-    private static void CollectMethodScopeIdentifiers(SyntaxNode node, HashSet<string> names) {
+    private static void CollectMethodScopeIdentifiers(SyntaxNode node,HashSet<string> names) {
         // ラムダ/匿名メソッドは別スコープなので子孫まで降りない
         if(node is LambdaExpressionSyntax or AnonymousMethodExpressionSyntax) return;
         switch(node) {
@@ -209,26 +209,26 @@ public sealed partial class FLinqIncrementalGenerator {
                 names.Add(v.Identifier.ValueText); break;
             case ForEachStatementSyntax fe:
                 names.Add(fe.Identifier.ValueText); break;
-            case CatchDeclarationSyntax cd when cd.Identifier.ValueText is { Length: > 0 } cid:
+            case CatchDeclarationSyntax cd when cd.Identifier.ValueText is { Length:>0 } cid:
                 names.Add(cid); break;
             case SingleVariableDesignationSyntax svd:
                 names.Add(svd.Identifier.ValueText); break;
         }
         foreach(var child in node.ChildNodes())
-            CollectMethodScopeIdentifiers(child, names);
+            CollectMethodScopeIdentifiers(child,names);
     }
     /// <summary>
     /// <paramref name="usedNames"/> に衝突しない一意な識別子を返し、使用済みセットに追加する。
     /// <br/>衝突した場合は <c>baseName_</c>、<c>baseName__</c>... と <c>_</c> を増やして試す。
     /// 選んだ名前を <paramref name="usedNames"/> に追加するため、同一パス内での二重取得を防ぐ。
     /// </summary>
-    private static string GetUniqueIdentifier(string baseName, HashSet<string> usedNames) {
+    private static string GetUniqueIdentifier(string baseName,HashSet<string> usedNames) {
         if(usedNames.Add(baseName)) return baseName;
         var suffix = "_";
         while(true) {
             var candidate = $"{baseName}{suffix}";
             if(usedNames.Add(candidate)) return candidate;
-            suffix += "_";
+            suffix+="_";
         }
     }
 
@@ -248,7 +248,7 @@ public sealed partial class FLinqIncrementalGenerator {
             builder.Append(char.IsLetterOrDigit(c) ? c : '_');
         }
 
-        if(builder.Length==0 || !SyntaxFacts.IsIdentifierStartCharacter(builder[0])) {
+        if(builder.Length==0||!SyntaxFacts.IsIdentifierStartCharacter(builder[0])) {
             builder.Insert(0,'_');
         }
 
@@ -328,25 +328,25 @@ public sealed partial class FLinqIncrementalGenerator {
             return string.Empty;
         }
 
-        return $"<{string.Join(", ",method.TypeArguments.Select(static type=>type.ToDisplayString(完全修飾形式)))}>";
+        return $"<{string.Join(", ",method.TypeArguments.Select(static type => type.ToDisplayString(完全修飾形式)))}>";
     }
 
     /// <summary>
     /// コンパイル時定数値を C# リテラルテキストに変換する。
     /// 浮動小数は <c>"R"</c> 書式でラウンドトリップ保証、文字列は逐語的文字列リテラル (<c>@"…"</c>) に変換する。
     /// </summary>
-    private static string RenderConstantValue(object? value)=>value switch {
-        null=>"null",
-        string text=>"@\"" + text.Replace("\"","\"\"",StringComparison.Ordinal) + "\"",
-        char ch=>"'" + ch.ToString().Replace("\\","\\\\",StringComparison.Ordinal).Replace("'","\\'",StringComparison.Ordinal) + "'",
-        bool boolean=>boolean ? "true" : "false",
-        float single=>single.ToString("R",System.Globalization.CultureInfo.InvariantCulture) + "f",
-        double number=>number.ToString("R",System.Globalization.CultureInfo.InvariantCulture) + "d",
-        decimal number=>number.ToString(System.Globalization.CultureInfo.InvariantCulture) + "m",
-        long number=>number.ToString(System.Globalization.CultureInfo.InvariantCulture) + "L",
-        ulong number=>number.ToString(System.Globalization.CultureInfo.InvariantCulture) + "UL",
-        uint number=>number.ToString(System.Globalization.CultureInfo.InvariantCulture) + "U",
-        _=>Convert.ToString(value,System.Globalization.CultureInfo.InvariantCulture) ?? "default!",
+    private static string RenderConstantValue(object? value) => value switch {
+        null => "null",
+        string text => "@\""+text.Replace("\"","\"\"",StringComparison.Ordinal)+"\"",
+        char ch => "'"+ch.ToString().Replace("\\","\\\\",StringComparison.Ordinal).Replace("'","\\'",StringComparison.Ordinal)+"'",
+        bool boolean => boolean ? "true" : "false",
+        float single => single.ToString("R",System.Globalization.CultureInfo.InvariantCulture)+"f",
+        double number => number.ToString("R",System.Globalization.CultureInfo.InvariantCulture)+"d",
+        decimal number => number.ToString(System.Globalization.CultureInfo.InvariantCulture)+"m",
+        long number => number.ToString(System.Globalization.CultureInfo.InvariantCulture)+"L",
+        ulong number => number.ToString(System.Globalization.CultureInfo.InvariantCulture)+"UL",
+        uint number => number.ToString(System.Globalization.CultureInfo.InvariantCulture)+"U",
+        _ => Convert.ToString(value,System.Globalization.CultureInfo.InvariantCulture)??"default!",
     };
 
     /// <summary>
@@ -354,17 +354,17 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 基底クラスで宣言された static const フィールドの参照をインライン展開するために使用する。
     /// </summary>
     private static bool IsSameOrBaseType(INamedTypeSymbol type,INamedTypeSymbol target) {
-        for(var t=type;t is not null;t=t.BaseType) {
+        for(var t = type;t is not null;t=t.BaseType) {
             if(SymbolEqualityComparer.Default.Equals(t,target)) return true;
         }
         return false;
     }
 
-    private static string RefKind接頭辞取得(SyntaxKind syntaxKind)=>syntaxKind switch {
-        SyntaxKind.RefKeyword=>"ref ",
-        SyntaxKind.OutKeyword=>"out ",
-        SyntaxKind.InKeyword=>"in ",
-        _=>string.Empty,
+    private static string RefKind接頭辞取得(SyntaxKind syntaxKind) => syntaxKind switch {
+        SyntaxKind.RefKeyword => "ref ",
+        SyntaxKind.OutKeyword => "out ",
+        SyntaxKind.InKeyword => "in ",
+        _ => string.Empty,
     };
 
     /// <summary>
@@ -433,18 +433,18 @@ public sealed partial class FLinqIncrementalGenerator {
 
             // nameof() は生成 namespace ではスコープ外になる識別子を参照しうるため、文字列リテラルへ評価する。
             if(invocation.Expression is IdentifierNameSyntax { Identifier.Text: "nameof" }
-                && invocation.ArgumentList.Arguments.Count==1) {
+                &&invocation.ArgumentList.Arguments.Count==1) {
                 var nameofArg = invocation.ArgumentList.Arguments[0].Expression;
                 var nameofSymbol = semanticModel.GetSymbolInfo(nameofArg).Symbol;
                 var nameString = nameofSymbol?.Name
-                    ?? (nameofArg is MemberAccessExpressionSyntax maMember ? maMember.Name.Identifier.Text : nameofArg.ToString());
+                    ??(nameofArg is MemberAccessExpressionSyntax maMember ? maMember.Name.Identifier.Text : nameofArg.ToString());
                 var nameofText = NormalizeGeneratedExpressionText(invocation.ToString());
                 text=text.Replace(nameofText,$"\"{nameString}\"",StringComparison.Ordinal);
                 continue;
             }
 
             if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method
-                || (method.ReducedFrom is null && method.MethodKind!=MethodKind.Ordinary)) {
+                ||(method.ReducedFrom is null&&method.MethodKind!=MethodKind.Ordinary)) {
                 continue;
             }
 
@@ -460,16 +460,16 @@ public sealed partial class FLinqIncrementalGenerator {
 
             if(method.ReducedFrom is null) {
                 if(TryRenderOrdinaryMethodInvocationExpression(method,invocation,semanticModel,containingType,unsafeAccessorCollector,replacementMap,out var ordinaryInvocationText)) {
-                text=ReplaceExpressionFragment(text,invocationText,ordinaryInvocationText);
-                foreach(var desc in invocation.DescendantNodes().OfType<InvocationExpressionSyntax>()) processedInvocations.Add(desc);
-                continue;
-            }
+                    text=ReplaceExpressionFragment(text,invocationText,ordinaryInvocationText);
+                    foreach(var desc in invocation.DescendantNodes().OfType<InvocationExpressionSyntax>()) processedInvocations.Add(desc);
+                    continue;
+                }
 
                 text=ReplaceExpressionFragment(text,invocationText,RenderInlineFailureInvocationExpression(method));
                 foreach(var desc in invocation.DescendantNodes().OfType<InvocationExpressionSyntax>()) processedInvocations.Add(desc);
             } else if(method.ReducedFrom is not null
-                && (method.ReducedFrom ?? method).ContainingType.ToDisplayString() != "System.Linq.Enumerable"
-                && invocation.Expression is MemberAccessExpressionSyntax extensionMemberAccess) {
+                &&(method.ReducedFrom??method).ContainingType.ToDisplayString()!="System.Linq.Enumerable"
+                &&invocation.Expression is MemberAccessExpressionSyntax extensionMemberAccess) {
                 if(TryRenderExtensionMethodInvocationExpression(method,invocation,extensionMemberAccess,semanticModel,containingType,unsafeAccessorCollector,replacementMap,out var inlineExtensionText)) {
                     text=ReplaceExpressionFragment(text,invocationText,inlineExtensionText);
                 } else {
@@ -480,14 +480,14 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         foreach(var identifier in allIdentifiers) {
-            if(IsMemberAccessName(identifier) || IsInsideNameof(identifier)) {
+            if(IsMemberAccessName(identifier)||IsInsideNameof(identifier)) {
                 continue;
             }
 
             var identifierText = NormalizeExpressionText(identifier.ToString());
             if(semanticModel.GetSymbolInfo(identifier).Symbol is IFieldSymbol instanceField
-                && !instanceField.IsStatic
-                && IsSameOrBaseType(containingType,instanceField.ContainingType)) {
+                &&!instanceField.IsStatic
+                &&IsSameOrBaseType(containingType,instanceField.ContainingType)) {
                 var instanceMemberAccess = SyntaxFactory.MemberAccessExpression(
                     SyntaxKind.SimpleMemberAccessExpression,
                     SyntaxFactory.ThisExpression(),
@@ -500,9 +500,9 @@ public sealed partial class FLinqIncrementalGenerator {
             }
 
             if(semanticModel.GetSymbolInfo(identifier).Symbol is IPropertySymbol instanceProperty
-                && !instanceProperty.IsStatic
-                && instanceProperty.GetMethod is not null
-                && IsSameOrBaseType(containingType,instanceProperty.ContainingType)) {
+                &&!instanceProperty.IsStatic
+                &&instanceProperty.GetMethod is not null
+                &&IsSameOrBaseType(containingType,instanceProperty.ContainingType)) {
                 var propertyExpression = CanAccessFromGeneratedCode(instanceProperty)
                     ? $"@this.{instanceProperty.Name}"
                     : RenderPropertyForwardExpression(instanceProperty,"@this",unsafeAccessorCollector);
@@ -511,14 +511,14 @@ public sealed partial class FLinqIncrementalGenerator {
             }
 
             if(identifier.Parent is ArgumentSyntax argument
-                && argument.Expression==identifier
-                && semanticModel.GetSymbolInfo(identifier).Symbol is IMethodSymbol methodGroup
-                && methodGroup.MethodKind==MethodKind.Ordinary
-                && SymbolEqualityComparer.Default.Equals(methodGroup.ContainingType,containingType)) {
-                var methodGroupText=NormalizeExpressionText(identifier.ToString());
+                &&argument.Expression==identifier
+                &&semanticModel.GetSymbolInfo(identifier).Symbol is IMethodSymbol methodGroup
+                &&methodGroup.MethodKind==MethodKind.Ordinary
+                &&SymbolEqualityComparer.Default.Equals(methodGroup.ContainingType,containingType)) {
+                var methodGroupText = NormalizeExpressionText(identifier.ToString());
                 string replacement;
                 if(semanticModel.GetTypeInfo(identifier).ConvertedType is INamedTypeSymbol delegateType
-                    && IsInlineDelegateType(delegateType)) {
+                    &&IsInlineDelegateType(delegateType)) {
                     replacement=RenderDelegateCreateExpression(
                         methodGroup,
                         delegateType,
@@ -539,9 +539,9 @@ public sealed partial class FLinqIncrementalGenerator {
             }
 
             if(semanticModel.GetSymbolInfo(identifier).Symbol is not IFieldSymbol field
-                || !field.IsStatic
-                || !IsSameOrBaseType(containingType,field.ContainingType)
-                || CanAccessFromGeneratedCode(field)) {
+                ||!field.IsStatic
+                ||!IsSameOrBaseType(containingType,field.ContainingType)
+                ||CanAccessFromGeneratedCode(field)) {
                 continue;
             }
 
@@ -568,10 +568,10 @@ public sealed partial class FLinqIncrementalGenerator {
 
         foreach(var memberAccess in allMemberAccesses) {
             if(semanticModel.GetSymbolInfo(memberAccess).Symbol is not IMethodSymbol method
-                || method.MethodKind!=MethodKind.Ordinary
-                || CanAccessFromGeneratedCode(method)
-                || semanticModel.GetTypeInfo(memberAccess).ConvertedType is not INamedTypeSymbol delegateType
-                || !IsInlineDelegateType(delegateType)) {
+                ||method.MethodKind!=MethodKind.Ordinary
+                ||CanAccessFromGeneratedCode(method)
+                ||semanticModel.GetTypeInfo(memberAccess).ConvertedType is not INamedTypeSymbol delegateType
+                ||!IsInlineDelegateType(delegateType)) {
                 continue;
             }
 
@@ -594,7 +594,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
             var originalTypeText = NormalizeExpressionText(objectCreation.Type.ToString());
             var qualifiedTypeText = typeSymbol.ToDisplayString(完全修飾形式);
-            if(originalTypeText==qualifiedTypeText || originalTypeText.StartsWith("global::",StringComparison.Ordinal)) {
+            if(originalTypeText==qualifiedTypeText||originalTypeText.StartsWith("global::",StringComparison.Ordinal)) {
                 continue;
             }
 
@@ -615,7 +615,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
         foreach(var memberAccess in allMemberAccesses) {
             if(semanticModel.GetSymbolInfo(memberAccess).Symbol is not IFieldSymbol field
-                || CanAccessFromGeneratedCode(field)) {
+                ||CanAccessFromGeneratedCode(field)) {
                 continue;
             }
 
@@ -630,10 +630,10 @@ public sealed partial class FLinqIncrementalGenerator {
         // private インスタンスプロパティへのアクセスを UnsafeAccessor (Method "get_X") 経由に変換する。
         foreach(var memberAccess in allMemberAccesses) {
             if(semanticModel.GetSymbolInfo(memberAccess).Symbol is not IPropertySymbol property
-                || property.IsStatic
-                || CanAccessFromGeneratedCode(property)
-                || !SymbolEqualityComparer.Default.Equals(property.ContainingType,containingType)
-                || property.GetMethod is null) {
+                ||property.IsStatic
+                ||CanAccessFromGeneratedCode(property)
+                ||!SymbolEqualityComparer.Default.Equals(property.ContainingType,containingType)
+                ||property.GetMethod is null) {
                 continue;
             }
             var memberText = NormalizeExpressionText(memberAccess.ToString())
@@ -649,10 +649,10 @@ public sealed partial class FLinqIncrementalGenerator {
         }
         foreach(var param in allParameters) {
             if(param.Type is null) continue;
-            var typeSymbol=semanticModel.GetTypeInfo(param.Type).Type;
+            var typeSymbol = semanticModel.GetTypeInfo(param.Type).Type;
             if(typeSymbol is null) continue;
-            var qualifiedName=typeSymbol.ToDisplayString(完全修飾形式);
-            var originalName=NormalizeExpressionText(param.Type.ToString());
+            var qualifiedName = typeSymbol.ToDisplayString(完全修飾形式);
+            var originalName = NormalizeExpressionText(param.Type.ToString());
             if(originalName==qualifiedName||originalName.StartsWith("global::",StringComparison.Ordinal)) continue;
             text=ReplaceTypeNameForGeneratedMethod(text,originalName,qualifiedName);
         }
@@ -661,7 +661,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <summary>呼び出し式が明示的な型引数リストを持つかどうか（例: <c>Cast&lt;int&gt;(…)</c>）。</summary>
     private static bool InvocationHasExplicitTypeArguments(InvocationExpressionSyntax invocation) =>
         invocation.Expression is GenericNameSyntax
-        || invocation.Expression is MemberAccessExpressionSyntax { Name: GenericNameSyntax };
+        ||invocation.Expression is MemberAccessExpressionSyntax { Name: GenericNameSyntax };
 
     /// <summary>
     /// キーを長い順に置換する。値が他のキーの一部分（フィールドアクセサ名に元の識別子が
@@ -673,7 +673,7 @@ public sealed partial class FLinqIncrementalGenerator {
             return text;
         }
 
-        foreach(var pair in replacementMap.OrderByDescending(static pair=>pair.Key.Length)) {
+        foreach(var pair in replacementMap.OrderByDescending(static pair => pair.Key.Length)) {
             var normalizedKey = NormalizeGeneratedExpressionText(pair.Key);
             // \b は両端が単語文字であることを要求するため、`...Aggregate(x=>x)` のように
             // キーが括弧などの非単語文字で終わる（メソッド呼び出し式は常にこの形）場合、
@@ -691,8 +691,8 @@ public sealed partial class FLinqIncrementalGenerator {
 
     private static bool IsExpressionReplaced(ExpressionSyntax expression,IReadOnlyDictionary<string,string>? replacementMap) =>
         replacementMap is not null
-        && (replacementMap.ContainsKey(NormalizeExpressionText(expression.ToString()))
-            || replacementMap.ContainsKey(NormalizeGeneratedExpressionText(expression.ToString())));
+        &&(replacementMap.ContainsKey(NormalizeExpressionText(expression.ToString()))
+            ||replacementMap.ContainsKey(NormalizeGeneratedExpressionText(expression.ToString())));
 
     /// <summary>
     /// 通常メソッド呼び出し（非拡張）を生成コード用にレンダリングする。
@@ -711,7 +711,7 @@ public sealed partial class FLinqIncrementalGenerator {
         out string expressionText) {
         expressionText=string.Empty;
         if(method.IsGenericMethod
-            && method.DeclaredAccessibility is not (Accessibility.Public or Accessibility.Internal or Accessibility.ProtectedOrInternal)) {
+            &&method.DeclaredAccessibility is not (Accessibility.Public or Accessibility.Internal or Accessibility.ProtectedOrInternal)) {
             return false;
         }
         if(!TryCreateOrdinaryActualArgumentList(method,invocation,semanticModel,containingType,unsafeAccessorCollector,replacementMap,out var actualArguments)) {
@@ -734,10 +734,10 @@ public sealed partial class FLinqIncrementalGenerator {
                 paramParts.Add(ParameterDeclarationForAccessor(param));
             }
             // 含有型/戻り値/引数がジェネリック（例: Base<T> の非公開 static）ならアクセサをジェネリック extern にする。
-            var (staticAccessorTypeParameters,staticAccessorConstraints) = アクセサ型パラメータ(アクセサ署名型集合(method));
+            var (staticAccessorTypeParameters,staticAccessorConstraints)=アクセサ型パラメータ(アクセサ署名型集合(method));
             var accessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.StaticMethod, Name = \"{method.Name}\")]\nprivate static extern {returnTypeName} {accessorName}{staticAccessorTypeParameters}({string.Join(", ",paramParts)}){staticAccessorConstraints};";
             unsafeAccessorCollector?.Add(accessorCode);
-            expressionText=$"{accessorName}{staticAccessorTypeParameters}(null{(actualArguments.Count>0 ? ", " + argumentList : string.Empty)})";
+            expressionText=$"{accessorName}{staticAccessorTypeParameters}(null{(actualArguments.Count>0 ? ", "+argumentList : string.Empty)})";
             return true;
         }
         if(!TryRenderOrdinaryReceiverExpression(invocation,semanticModel,containingType,unsafeAccessorCollector,replacementMap,out var receiverText)) {
@@ -754,10 +754,10 @@ public sealed partial class FLinqIncrementalGenerator {
             instanceParamParts.Add(ParameterDeclarationForAccessor(param));
         }
         // 含有型/戻り値/引数がジェネリック（例: Base<T> の protected インスタンス）ならアクセサをジェネリック extern にする。
-        var (instanceAccessorTypeParameters,instanceAccessorConstraints) = アクセサ型パラメータ(アクセサ署名型集合(method));
+        var (instanceAccessorTypeParameters,instanceAccessorConstraints)=アクセサ型パラメータ(アクセサ署名型集合(method));
         var instanceAccessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = \"{method.Name}\")]\nprivate static extern {instanceReturnTypeName} {instanceAccessorName}{instanceAccessorTypeParameters}({string.Join(", ",instanceParamParts)}){instanceAccessorConstraints};";
         unsafeAccessorCollector?.Add(instanceAccessorCode);
-        expressionText=$"{instanceAccessorName}{instanceAccessorTypeParameters}({receiverText}{(actualArguments.Count>0 ? ", " + argumentList : string.Empty)})";
+        expressionText=$"{instanceAccessorName}{instanceAccessorTypeParameters}({receiverText}{(actualArguments.Count>0 ? ", "+argumentList : string.Empty)})";
         return true;
     }
     /// <summary>
@@ -774,32 +774,32 @@ public sealed partial class FLinqIncrementalGenerator {
         List<string>? unsafeAccessorCollector,
         IReadOnlyDictionary<string,string>? replacementMap,
         out List<string> actualArguments) {
-        actualArguments=[];
+        actualArguments= [];
         var parameters = method.Parameters;
         var slots = new string?[parameters.Length];
-        var paramsIndex = parameters.Length>0 && parameters[^1].IsParams ? parameters.Length-1 : -1;
+        var paramsIndex = parameters.Length>0&&parameters[^1].IsParams ? parameters.Length-1 : -1;
 
         // params 展開呼び出し（例: Row(1, a, b, c)）は、固定引数を超える位置引数、または
         // 末尾の単一引数が配列型へ直接変換されない場合に該当する。その場合は末尾をまとめて配列生成式にする。
         if(paramsIndex>=0) {
-            var positionalArgs = invocation.ArgumentList.Arguments.Where(static a=>a.NameColon is null).ToList();
+            var positionalArgs = invocation.ArgumentList.Arguments.Where(static a => a.NameColon is null).ToList();
             var isExpandedParamsCall = positionalArgs.Count>parameters.Length
-                || (positionalArgs.Count==parameters.Length
-                    && !SymbolEqualityComparer.Default.Equals(
+                ||(positionalArgs.Count==parameters.Length
+                    &&!SymbolEqualityComparer.Default.Equals(
                         semanticModel.GetTypeInfo(positionalArgs[^1].Expression).ConvertedType,
                         parameters[paramsIndex].Type));
             if(isExpandedParamsCall) {
-                if(positionalArgs.Count<paramsIndex || invocation.ArgumentList.Arguments.Any(a=>a.NameColon is not null)) {
+                if(positionalArgs.Count<paramsIndex||invocation.ArgumentList.Arguments.Any(a => a.NameColon is not null)) {
                     return false;
                 }
                 var elementTypeName = ((IArrayTypeSymbol)parameters[paramsIndex].Type).ElementType.ToDisplayString(完全修飾形式);
                 var elements = positionalArgs.Skip(paramsIndex)
-                    .Select(a=>RenderArgumentForGeneratedMethod(a,semanticModel,containingType,unsafeAccessorCollector,replacementMap));
-                for(var i=0;i<paramsIndex;i++) {
+                    .Select(a => RenderArgumentForGeneratedMethod(a,semanticModel,containingType,unsafeAccessorCollector,replacementMap));
+                for(var i = 0;i<paramsIndex;i++) {
                     slots[i]=RenderArgumentForGeneratedMethod(positionalArgs[i],semanticModel,containingType,unsafeAccessorCollector,replacementMap);
                 }
                 slots[paramsIndex]=$"new {elementTypeName}[] {{ {string.Join(", ",elements)} }}";
-                actualArguments=slots.Select(static slot=>slot!).ToList();
+                actualArguments=slots.Select(static slot => slot!).ToList();
                 return true;
             }
         }
@@ -808,31 +808,31 @@ public sealed partial class FLinqIncrementalGenerator {
         foreach(var argument in invocation.ArgumentList.Arguments) {
             var targetParameterIndex = -1;
             if(argument.NameColon is { Name.Identifier.ValueText: var argumentName }) {
-                for(var i=0;i<method.Parameters.Length;i++) {
+                for(var i = 0;i<method.Parameters.Length;i++) {
                     if(method.Parameters[i].Name==argumentName) {
                         targetParameterIndex=i;
                         break;
                     }
                 }
             } else {
-                while(nextParameterIndex<slots.Length && slots[nextParameterIndex] is not null) {
+                while(nextParameterIndex<slots.Length&&slots[nextParameterIndex] is not null) {
                     nextParameterIndex++;
                 }
                 targetParameterIndex=nextParameterIndex++;
             }
             if(targetParameterIndex<0
-                || targetParameterIndex>=slots.Length
-                || slots[targetParameterIndex] is not null) {
+                ||targetParameterIndex>=slots.Length
+                ||slots[targetParameterIndex] is not null) {
                 return false;
             }
             slots[targetParameterIndex]=RenderArgumentForGeneratedMethod(argument,semanticModel,containingType,unsafeAccessorCollector,replacementMap);
         }
-        for(var i=0;i<slots.Length;i++) {
+        for(var i = 0;i<slots.Length;i++) {
             if(slots[i] is not null) {
                 continue;
             }
             var parameter = method.Parameters[i];
-            if(parameter.IsParams && parameter.Type is IArrayTypeSymbol paramsArray) {
+            if(parameter.IsParams&&parameter.Type is IArrayTypeSymbol paramsArray) {
                 slots[i]=$"global::System.Array.Empty<{paramsArray.ElementType.ToDisplayString(完全修飾形式)}>()";
             } else if(parameter.HasExplicitDefaultValue) {
                 slots[i]=RenderConstantValue(parameter.ExplicitDefaultValue);
@@ -840,7 +840,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 return false;
             }
         }
-        actualArguments=slots.Select(static slot=>slot!).ToList();
+        actualArguments=slots.Select(static slot => slot!).ToList();
         return true;
     }
     /// <summary>
@@ -868,10 +868,10 @@ public sealed partial class FLinqIncrementalGenerator {
     }
     private static string ParameterDeclarationForAccessor(IParameterSymbol parameter) {
         var prefix = parameter.RefKind switch {
-            RefKind.Ref=>"ref ",
-            RefKind.Out=>"out ",
-            RefKind.In=>"in ",
-            _=>string.Empty,
+            RefKind.Ref => "ref ",
+            RefKind.Out => "out ",
+            RefKind.In => "in ",
+            _ => string.Empty,
         };
         return $"{prefix}{parameter.Type.ToDisplayString(完全修飾形式)} {parameter.Name}";
     }
@@ -881,7 +881,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 単語境界を考慮した正規表現で部分一致置換を防ぐ。
     /// </summary>
     private static string ReplaceTypeNameForGeneratedMethod(string text,string originalName,string qualifiedName) {
-        if(originalName==qualifiedName || originalName.StartsWith("global::",StringComparison.Ordinal)) {
+        if(originalName==qualifiedName||originalName.StartsWith("global::",StringComparison.Ordinal)) {
             return text;
         }
         return System.Text.RegularExpressions.Regex.Replace(
@@ -903,7 +903,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
     private static bool IsMemberAccessName(IdentifierNameSyntax identifier) =>
         identifier.Parent is MemberAccessExpressionSyntax memberAccess
-        && ReferenceEquals(memberAccess.Name,identifier);
+        &&ReferenceEquals(memberAccess.Name,identifier);
 
     private static bool IsInsideNameof(SyntaxNode node) {
         for(var current = node.Parent;current is not null;current=current.Parent) {
@@ -949,10 +949,10 @@ public sealed partial class FLinqIncrementalGenerator {
         out string expressionText) {
         expressionText=string.Empty;
         if(method.ReducedFrom is not { } definition
-            || !definition.IsExtensionMethod
-            || definition.Parameters.Length==0
-            || definition.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not MethodDeclarationSyntax methodSyntax
-            || invocation.ArgumentList.Arguments.Any(static argument=>!argument.RefKindKeyword.IsKind(SyntaxKind.None))) {
+            ||!definition.IsExtensionMethod
+            ||definition.Parameters.Length==0
+            ||definition.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not MethodDeclarationSyntax methodSyntax
+            ||invocation.ArgumentList.Arguments.Any(static argument => !argument.RefKindKeyword.IsKind(SyntaxKind.None))) {
             return false;
         }
         if(!TryCreateExtensionActualArgumentList(
@@ -1002,41 +1002,41 @@ public sealed partial class FLinqIncrementalGenerator {
         foreach(var argument in invocation.ArgumentList.Arguments) {
             var targetParameterIndex = -1;
             if(argument.NameColon is { Name.Identifier.ValueText: var argumentName }) {
-                for(var i=1;i<definition.Parameters.Length;i++) {
+                for(var i = 1;i<definition.Parameters.Length;i++) {
                     if(definition.Parameters[i].Name==argumentName) {
                         targetParameterIndex=i;
                         break;
                     }
                 }
             } else {
-                while(nextParameterIndex<actualArgumentSlots.Length && actualArgumentSlots[nextParameterIndex] is not null) {
+                while(nextParameterIndex<actualArgumentSlots.Length&&actualArgumentSlots[nextParameterIndex] is not null) {
                     nextParameterIndex++;
                 }
                 targetParameterIndex=nextParameterIndex++;
             }
             if(targetParameterIndex<=0
-                || targetParameterIndex>=actualArgumentSlots.Length
-                || actualArgumentSlots[targetParameterIndex] is not null) {
-                actualArguments=[];
+                ||targetParameterIndex>=actualArgumentSlots.Length
+                ||actualArgumentSlots[targetParameterIndex] is not null) {
+                actualArguments= [];
                 return false;
             }
             actualArgumentSlots[targetParameterIndex]=RenderArgumentForGeneratedMethod(argument,semanticModel,containingType,unsafeAccessorCollector,replacementMap);
         }
-        for(var i=1;i<actualArgumentSlots.Length;i++) {
+        for(var i = 1;i<actualArgumentSlots.Length;i++) {
             if(actualArgumentSlots[i] is not null) {
                 continue;
             }
             var parameter = definition.Parameters[i];
-            if(parameter.IsParams && parameter.Type is IArrayTypeSymbol paramsArray) {
+            if(parameter.IsParams&&parameter.Type is IArrayTypeSymbol paramsArray) {
                 actualArgumentSlots[i]=$"global::System.Array.Empty<{paramsArray.ElementType.ToDisplayString(完全修飾形式)}>()";
             } else if(parameter.HasExplicitDefaultValue) {
                 actualArgumentSlots[i]=RenderConstantValue(parameter.ExplicitDefaultValue);
             } else {
-                actualArguments=[];
+                actualArguments= [];
                 return false;
             }
         }
-        actualArguments=actualArgumentSlots.Select(static argument=>argument!).ToList();
+        actualArguments=actualArgumentSlots.Select(static argument => argument!).ToList();
         return true;
     }
     /// <summary>
@@ -1069,21 +1069,21 @@ public sealed partial class FLinqIncrementalGenerator {
     /// </summary>
     private static string ReplaceInlineParameterReferences(string expressionText,ImmutableArray<IParameterSymbol> parameters,IReadOnlyList<string> actualArguments) {
         var replacements = new Dictionary<string,string>(StringComparer.Ordinal);
-        for(var i=0;i<parameters.Length;i++) {
+        for(var i = 0;i<parameters.Length;i++) {
             replacements[parameters[i].Name]=actualArguments[i];
         }
         var expression = SyntaxFactory.ParseExpression(expressionText);
         return NormalizeExpressionText(new InlineParameterReferenceRewriter(replacements).Visit(expression)!.ToString());
     }
-    private sealed class InlineParameterReferenceRewriter(IReadOnlyDictionary<string,string> replacements): CSharpSyntaxRewriter {
+    private sealed class InlineParameterReferenceRewriter(IReadOnlyDictionary<string,string> replacements):CSharpSyntaxRewriter {
         private readonly IReadOnlyDictionary<string,string> replacements = replacements;
 
         public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node) {
             if(!this.replacements.TryGetValue(node.Identifier.ValueText,out var replacement)
-                || node.Parent is MemberAccessExpressionSyntax { Name: var memberName } && ReferenceEquals(memberName,node)
-                || node.Parent is MemberBindingExpressionSyntax { Name: var bindingName } && ReferenceEquals(bindingName,node)
-                || node.Parent is NameColonSyntax
-                || node.Parent is NameEqualsSyntax) {
+                ||node.Parent is MemberAccessExpressionSyntax { Name: var memberName }&&ReferenceEquals(memberName,node)
+                ||node.Parent is MemberBindingExpressionSyntax { Name: var bindingName }&&ReferenceEquals(bindingName,node)
+                ||node.Parent is NameColonSyntax
+                ||node.Parent is NameEqualsSyntax) {
                 return node;
             }
             return SyntaxFactory.ParenthesizedExpression(SyntaxFactory.ParseExpression(replacement)).WithTriviaFrom(node);

@@ -6,10 +6,10 @@ public sealed partial class FLinqIncrementalGenerator {
     private const string SystemMemoryExtensionsTypeName = "System.MemoryExtensions";
 
     private static bool IsSupportedLinqEnumerableMethod(IMethodSymbol method) {
-        var definition = method.ReducedFrom ?? method;
+        var definition = method.ReducedFrom??method;
         var containingType = definition.ContainingType.ToDisplayString();
         return containingType==SystemLinqEnumerableTypeName
-            || containingType==SeamlessLinqEnumerableTypeName;
+            ||containingType==SeamlessLinqEnumerableTypeName;
     }
 
     private static bool IsSupportedLinqInvocation(InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
@@ -17,11 +17,11 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
 
-        var definition = method.ReducedFrom ?? method;
+        var definition = method.ReducedFrom??method;
         var containingType = definition.ContainingType.ToDisplayString();
         return containingType==SystemLinqEnumerableTypeName
-            || containingType==SeamlessLinqEnumerableTypeName
-            || (definition.Name=="Contains" && containingType==SystemMemoryExtensionsTypeName);
+            ||containingType==SeamlessLinqEnumerableTypeName
+            ||(definition.Name=="Contains"&&containingType==SystemMemoryExtensionsTypeName);
     }
 
     private static bool IsTsavoriteConcreteHashSetType(ITypeSymbol? type,out ITypeSymbol elementType) {
@@ -80,8 +80,8 @@ public sealed partial class FLinqIncrementalGenerator {
         for(var current = type as INamedTypeSymbol;current is not null;current=current.BaseType) {
             var definition = current.OriginalDefinition;
             if(definition.MetadataName==metadataName
-                && definition.ContainingNamespace.ToDisplayString()==namespaceName
-                && current.TypeArguments.Length==typeArgumentCount) {
+                &&definition.ContainingNamespace.ToDisplayString()==namespaceName
+                &&current.TypeArguments.Length==typeArgumentCount) {
                 matched=current;
                 return true;
             }

@@ -5,17 +5,17 @@ namespace Common;
 #endif
 
 public class TsavoriteBase:TsavoriteBase<int> {
-    public TsavoriteBase(int count = 80_000):base(count) {
+    public TsavoriteBase(int count = 80_000) : base(count) {
     }
 }
 
-public class TsavoriteBase<T>:Base<T>,IDisposable where T:notnull {
+public class TsavoriteBase<T>:Base<T>, IDisposable where T : notnull {
     private readonly int ElementCount;
     private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcCache = [];
     private readonly Dictionary<SourceCacheKey,SourceHandle<T>> src2Cache = [];
     private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcOneCache = [];
 
-    public TsavoriteBase(int count = 80_000):base(NormalizeCount(count)) {
+    public TsavoriteBase(int count = 80_000) : base(NormalizeCount(count)) {
         this.ElementCount=count;
     }
 
@@ -55,7 +55,7 @@ public class TsavoriteBase<T>:Base<T>,IDisposable where T:notnull {
         int scale,
         Dictionary<SourceCacheKey,SourceHandle<T>> cache,
         Func<int,T[]> factory) {
-        var length= this.CountForComparison(this.CountForTestTiming(this.ElementCount*scale));
+        var length = this.CountForComparison(this.CountForTestTiming(this.ElementCount*scale));
         var key = new SourceCacheKey(SourceKind.Src,length,BenchmarkExecutionMode.ReadRandomSourceSeed());
         if(cache.TryGetValue(key,out var handle)) {
             return handle.Set;
@@ -71,7 +71,7 @@ public class TsavoriteBase<T>:Base<T>,IDisposable where T:notnull {
         int length,
         Dictionary<SourceCacheKey,SourceHandle<T>> cache,
         Func<int,T[]> factory) {
-        var effectiveLength= this.CountForComparison(this.CountForTestTiming(length));
+        var effectiveLength = this.CountForComparison(this.CountForTestTiming(length));
         var key = new SourceCacheKey(SourceKind.SrcCount,effectiveLength,BenchmarkExecutionMode.ReadRandomSourceSeed());
         if(cache.TryGetValue(key,out var handle)) {
             return handle.Set;
@@ -90,7 +90,7 @@ public class TsavoriteBase<T>:Base<T>,IDisposable where T:notnull {
         }
         if(BenchmarkExecutionMode.ReadRandomSourceSeed() is { } seed&&result.Length>1) {
             var random = new Random(seed^start^length);
-            for(var index=result.Length-1;index>0;index--) {
+            for(var index = result.Length-1;index>0;index--) {
                 var next = random.Next(index+1);
                 (result[index],result[next])=(result[next],result[index]);
             }

@@ -1,97 +1,97 @@
-using System.Diagnostics;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
 namespace UI;
 
-public sealed class BenchmarkWorkerClient:IBenchmarkJobRunner {
-    public Task<BenchmarkJobRunResult> RunAsync(
-        BenchmarkJob job,
-        string runRoot,
-        int logicalCpu,
-        TimeSpan timeout,
-        CancellationToken cancellationToken) =>
-        this.RunAsync(job.ToBenchmarkCase(),runRoot,job.SourceTab,job.PreparedElementCounts,job.ElementCount,job.LoopCount,"1",logicalCpu,timeout,cancellationToken);
+public sealed class ベンチマークワーカークライアント:Iベンチマークジョブ実行器 {
+    public Task<ベンチマークジョブ実行結果> 実行Async(
+        ベンチマークジョブ ジョブ,
+        string 実行ルート,
+        int 論理CPU,
+        TimeSpan タイムアウト,
+        CancellationToken キャンセルトークン) =>
+        this.実行Async(ジョブ.ベンチマークケースに変換(),実行ルート,ジョブ.ソースタブ,ジョブ.準備済み要素数一覧,ジョブ.要素数,ジョブ.ループ回数,"1",論理CPU,タイムアウト,キャンセルトークン);
 
-    public async Task<BenchmarkJobRunResult> RunAsync(
-        BenchmarkCase benchmark,
-        string runRoot,
-        BenchmarkSourceTab sourceTab,
-        IReadOnlyList<int> preparedElementCounts,
-        int elementCount,
-        int loopCount,
-        string elementScale,
-        int logicalCpu,
-        TimeSpan timeout,
-        CancellationToken cancellationToken) {
-        using var timeoutSource = new CancellationTokenSource(timeout);
-        using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,timeoutSource.Token);
-        var effectiveToken = linkedSource.Token;
+    public async Task<ベンチマークジョブ実行結果> 実行Async(
+        ベンチマークケース ベンチマーク,
+        string 実行ルート,
+        ベンチマークソースタブ ソースタブ,
+        IReadOnlyList<int> 準備済み要素数一覧,
+        int 要素数,
+        int ループ回数,
+        string 要素倍率,
+        int 論理CPU,
+        TimeSpan タイムアウト,
+        CancellationToken キャンセルトークン) {
+        using var タイムアウトソース = new CancellationTokenSource(タイムアウト);
+        using var 連結ソース = CancellationTokenSource.CreateLinkedTokenSource(キャンセルトークン,タイムアウトソース.Token);
+        var 有効トークン = 連結ソース.Token;
         try {
-            await using var session = await this.StartSessionAsync(runRoot,logicalCpu,effectiveToken);
-            var result = await session.RunAsync(benchmark,sourceTab,preparedElementCounts,elementCount,loopCount,elementScale,effectiveToken);
-            await session.ShutdownAsync(effectiveToken);
-            return result;
+            await using var セッション = await this.セッション開始Async(実行ルート,論理CPU,有効トークン);
+            var 結果 = await セッション.実行Async(ベンチマーク,ソースタブ,準備済み要素数一覧,要素数,ループ回数,要素倍率,有効トークン);
+            await セッション.終了Async(有効トークン);
+            return 結果;
         } catch(OperationCanceledException) {
-            if(timeoutSource.IsCancellationRequested&&!cancellationToken.IsCancellationRequested) {
-                throw new TimeoutException($"Benchmark job timed out after {timeout}.");
+            if(タイムアウトソース.IsCancellationRequested&&!キャンセルトークン.IsCancellationRequested) {
+                throw new TimeoutException($"ベンチマークジョブが {タイムアウト} 後にタイムアウトしました。");
             }
             throw;
         }
     }
 
-    public async Task<BenchmarkWorkerSession> StartSessionAsync(
-        string runRoot,
-        int logicalCpu,
-        CancellationToken cancellationToken) {
-        var workerPath = ResolveWorkerPath();
-        var process = StartWorker(workerPath,runRoot,logicalCpu);
-        System.Diagnostics.Debug.WriteLine($"[Worker] StartWorker pid={process.Id} cpu={logicalCpu} path={workerPath}");
-        _=DrainStandardErrorAsync(process,logicalCpu);
+    public async Task<ベンチマークワーカーセッション> セッション開始Async(
+        string 実行ルート,
+        int 論理CPU,
+        CancellationToken キャンセルトークン) {
+        var ワーカーパス = ワーカーパスを解決();
+        var プロセス = ワーカーを開始(ワーカーパス,実行ルート,論理CPU);
+        System.Diagnostics.Debug.WriteLine($"[ワーカー] ワーカー開始 PID={プロセス.Id} CPU={論理CPU} パス={ワーカーパス}");
+        _=標準エラーを破棄Async(プロセス,論理CPU);
         try {
-            var ready = await process.StandardOutput.ReadLineAsync(cancellationToken);
-            System.Diagnostics.Debug.WriteLine($"[Worker] StartSessionAsync ready-line received: \"{ready}\" pid={process.Id}");
-            if(!string.Equals(ready,"ready",StringComparison.Ordinal)) {
-                throw new InvalidOperationException($"Benchmark worker did not become ready. First output: {ready}");
+            var 準備応答 = await プロセス.StandardOutput.ReadLineAsync(キャンセルトークン);
+            System.Diagnostics.Debug.WriteLine($"[ワーカー] セッション開始Async 準備応答受信: \"{準備応答}\" PID={プロセス.Id}");
+            if(!string.Equals(準備応答,"ready",StringComparison.Ordinal)) {
+                throw new InvalidOperationException($"ベンチマークワーカーが準備完了になりませんでした。最初の出力: {準備応答}");
             }
 
-            return new BenchmarkWorkerSession(process,runRoot);
+            return new ベンチマークワーカーセッション(プロセス,実行ルート);
         } catch {
-            KillProcess(process);
-            process.Dispose();
+            プロセスを終了(プロセス);
+            プロセス.Dispose();
             throw;
         }
     }
 
-    internal static async Task DrainStandardErrorAsync(Process process,int logicalCpu) {
+    internal static async Task 標準エラーを破棄Async(Process プロセス,int 論理CPU) {
         try {
-            while(await process.StandardError.ReadLineAsync() is { } line) {
-                System.Diagnostics.Debug.WriteLine($"[Worker][stderr] cpu={logicalCpu} pid={process.Id}: {line}");
+            while(await プロセス.StandardError.ReadLineAsync() is { } 行) {
+                System.Diagnostics.Debug.WriteLine($"[ワーカー][標準エラー] CPU={論理CPU} PID={プロセス.Id}: {行}");
             }
         } catch {
         }
     }
 
-    internal static string CreateArtifactFolder(string runRoot,BenchmarkCase benchmark,BenchmarkSourceTab sourceTab,int elementCount,int loopCount) {
-        var artifactFolder = Path.Combine(
-            runRoot,
-            BenchmarkSourceTabs.ToPathPart(sourceTab),
-            "N"+elementCount.ToString(CultureInfo.InvariantCulture),
-            "Loop"+Math.Max(1,loopCount).ToString(CultureInfo.InvariantCulture),
-            SanitizePathPart(benchmark.Project),
-            SanitizePathPart(benchmark.TypeFullName),
-            SanitizePathPart(benchmark.MethodName),
-            string.IsNullOrWhiteSpace(benchmark.ArgumentKey) ? "default" : SanitizePathPart(benchmark.ArgumentKey));
-        Directory.CreateDirectory(artifactFolder);
-        return artifactFolder;
+    internal static string 成果物フォルダーを作成(string 実行ルート,ベンチマークケース ベンチマーク,ベンチマークソースタブ ソースタブ,int 要素数,int ループ回数) {
+        var 成果物フォルダー = Path.Combine(
+            実行ルート,
+            ベンチマークソースタブ一覧.パス部分に変換(ソースタブ),
+            "N"+要素数.ToString(CultureInfo.InvariantCulture),
+            "Loop"+Math.Max(1,ループ回数).ToString(CultureInfo.InvariantCulture),
+            パス部分を無害化(ベンチマーク.プロジェクト),
+            パス部分を無害化(ベンチマーク.型完全名),
+            パス部分を無害化(ベンチマーク.メソッド名),
+            string.IsNullOrWhiteSpace(ベンチマーク.引数キー) ? "default" : パス部分を無害化(ベンチマーク.引数キー));
+        Directory.CreateDirectory(成果物フォルダー);
+        return 成果物フォルダー;
     }
 
-    internal static Process StartWorker(string workerPath,string runRoot,int logicalCpu) {
-        var isDll = string.Equals(Path.GetExtension(workerPath),".dll",StringComparison.OrdinalIgnoreCase);
-        var startInfo = new ProcessStartInfo {
-            FileName=isDll?"dotnet":workerPath,
+    internal static Process ワーカーを開始(string ワーカーパス,string 実行ルート,int 論理CPU) {
+        var DLLか = string.Equals(Path.GetExtension(ワーカーパス),".dll",StringComparison.OrdinalIgnoreCase);
+        var 開始情報 = new ProcessStartInfo {
+            FileName=DLLか ? "dotnet" : ワーカーパス,
             UseShellExecute=false,
             RedirectStandardInput=true,
             RedirectStandardOutput=true,
@@ -101,47 +101,47 @@ public sealed class BenchmarkWorkerClient:IBenchmarkJobRunner {
             CreateNoWindow=true,
         };
 
-        if(isDll) {
-            startInfo.ArgumentList.Add(workerPath);
+        if(DLLか) {
+            開始情報.ArgumentList.Add(ワーカーパス);
         }
 
-        startInfo.ArgumentList.Add("--logical-cpu");
-        startInfo.ArgumentList.Add(logicalCpu.ToString(CultureInfo.InvariantCulture));
-        startInfo.ArgumentList.Add("--run-root");
-        startInfo.ArgumentList.Add(runRoot);
+        開始情報.ArgumentList.Add("--logical-cpu");
+        開始情報.ArgumentList.Add(論理CPU.ToString(CultureInfo.InvariantCulture));
+        開始情報.ArgumentList.Add("--run-root");
+        開始情報.ArgumentList.Add(実行ルート);
 
-        return Process.Start(startInfo)
-            ?? throw new InvalidOperationException("Could not start Worker.");
+        return Process.Start(開始情報)
+            ??throw new InvalidOperationException("ワーカーを開始できませんでした。");
     }
 
-    internal static string ResolveWorkerPath() {
-        var baseDirectory = AppContext.BaseDirectory;
-        var exePath = Path.Combine(baseDirectory,"Worker.exe");
-        if(File.Exists(exePath)) {
-            return exePath;
+    internal static string ワーカーパスを解決() {
+        var 基底ディレクトリ = AppContext.BaseDirectory;
+        var EXEパス = Path.Combine(基底ディレクトリ,"Worker.exe");
+        if(File.Exists(EXEパス)) {
+            return EXEパス;
         }
 
-        var dllPath = Path.Combine(baseDirectory,"Worker.dll");
-        if(File.Exists(dllPath)) {
-            return dllPath;
+        var DLLパス = Path.Combine(基底ディレクトリ,"Worker.dll");
+        if(File.Exists(DLLパス)) {
+            return DLLパス;
         }
 
-        throw new FileNotFoundException("Worker was not found in the application output directory.",exePath);
+        throw new FileNotFoundException("アプリケーション出力ディレクトリにワーカー実行ファイルが見つかりません。",EXEパス);
     }
 
-    internal static string SanitizePathPart(string text) {
-        var builder = new StringBuilder(text.Length);
-        foreach(var ch in text) {
-            builder.Append(Path.GetInvalidFileNameChars().Contains(ch)?'_':ch);
+    internal static string パス部分を無害化(string 文字列) {
+        var 生成器 = new StringBuilder(文字列.Length);
+        foreach(var 文字 in 文字列) {
+            生成器.Append(Path.GetInvalidFileNameChars().Contains(文字) ? '_' : 文字);
         }
 
-        return builder.ToString();
+        return 生成器.ToString();
     }
 
-    internal static void KillProcess(Process process) {
+    internal static void プロセスを終了(Process プロセス) {
         try {
-            if(!process.HasExited) {
-                process.Kill(entireProcessTree:true);
+            if(!プロセス.HasExited) {
+                プロセス.Kill(entireProcessTree: true);
             }
         } catch(InvalidOperationException) {
         } catch(System.ComponentModel.Win32Exception) {
@@ -149,368 +149,349 @@ public sealed class BenchmarkWorkerClient:IBenchmarkJobRunner {
     }
 }
 
-public sealed class BenchmarkFastWorkerSession:IAsyncDisposable {
-    private readonly Process process;
-    private readonly string runRoot;
-    private readonly SemaphoreSlim writeGate = new(1,1);
-    private readonly ConcurrentDictionary<string,TaskCompletionSource<WorkerResultMessage>> pending = new(StringComparer.OrdinalIgnoreCase);
-    private readonly CancellationTokenSource closedSource = new();
-    private readonly Task readLoop;
-    private bool isClosed;
+public sealed class ベンチマーク高速ワーカーセッション:IAsyncDisposable {
+    private readonly Process プロセス;
+    private readonly string 実行ルート;
+    private readonly SemaphoreSlim 書込ゲート = new(1,1);
+    private readonly ConcurrentDictionary<string,TaskCompletionSource<ワーカー結果メッセージ>> 保留一覧 = new(StringComparer.OrdinalIgnoreCase);
+    private readonly CancellationTokenSource 終了ソース = new();
+    private readonly Task 読取ループ;
+    private bool 終了済みか;
 
-    internal BenchmarkFastWorkerSession(Process process,string runRoot) {
-        this.process=process;
-        this.runRoot=runRoot;
-        this.readLoop=Task.Run(this.ReadLoopAsync);
+    internal ベンチマーク高速ワーカーセッション(Process プロセス,string 実行ルート) {
+        this.プロセス=プロセス;
+        this.実行ルート=実行ルート;
+        this.読取ループ=Task.Run(this.読取ループAsync);
     }
 
-    public static async Task<BenchmarkFastWorkerSession> StartAsync(string runRoot,CancellationToken cancellationToken) {
-        var workerPath = BenchmarkWorkerClient.ResolveWorkerPath();
-        var process = BenchmarkWorkerClient.StartWorker(workerPath,runRoot,-1);
-        System.Diagnostics.Debug.WriteLine($"[Worker] StartWorker(fast) pid={process.Id} path={workerPath}");
-        _=BenchmarkWorkerClient.DrainStandardErrorAsync(process,-1);
+    public static async Task<ベンチマーク高速ワーカーセッション> 開始Async(string 実行ルート,CancellationToken キャンセルトークン) {
+        var ワーカーパス = ベンチマークワーカークライアント.ワーカーパスを解決();
+        var プロセス = ベンチマークワーカークライアント.ワーカーを開始(ワーカーパス,実行ルート,-1);
+        System.Diagnostics.Debug.WriteLine($"[ワーカー] 高速ワーカー開始 PID={プロセス.Id} パス={ワーカーパス}");
+        _=ベンチマークワーカークライアント.標準エラーを破棄Async(プロセス,-1);
         try {
-            var ready = await process.StandardOutput.ReadLineAsync(cancellationToken);
-            System.Diagnostics.Debug.WriteLine($"[Worker] StartAsync(fast) ready-line received: \"{ready}\" pid={process.Id}");
-            if(!string.Equals(ready,"ready",StringComparison.Ordinal)) {
-                throw new InvalidOperationException($"Benchmark fast worker did not become ready. First output: {ready}");
+            var 準備応答 = await プロセス.StandardOutput.ReadLineAsync(キャンセルトークン);
+            System.Diagnostics.Debug.WriteLine($"[ワーカー] 高速セッション開始Async 準備応答受信: \"{準備応答}\" PID={プロセス.Id}");
+            if(!string.Equals(準備応答,"ready",StringComparison.Ordinal)) {
+                throw new InvalidOperationException($"ベンチマーク高速ワーカーが準備完了になりませんでした。最初の出力: {準備応答}");
             }
 
-            return new BenchmarkFastWorkerSession(process,runRoot);
+            return new ベンチマーク高速ワーカーセッション(プロセス,実行ルート);
         } catch {
-            BenchmarkWorkerClient.KillProcess(process);
-            process.Dispose();
+            ベンチマークワーカークライアント.プロセスを終了(プロセス);
+            プロセス.Dispose();
             throw;
         }
     }
 
-    public async Task<BenchmarkJobRunResult> RunAsync(BenchmarkJob job,int logicalCpu,CancellationToken cancellationToken) {
-        if(this.isClosed) {
-            throw new ObjectDisposedException(nameof(BenchmarkFastWorkerSession));
+    public async Task<ベンチマークジョブ実行結果> 実行Async(ベンチマークジョブ ジョブ,int 論理CPU,CancellationToken キャンセルトークン) {
+        if(this.終了済みか) {
+            throw new ObjectDisposedException(nameof(ベンチマーク高速ワーカーセッション));
         }
 
-        var benchmark = job.ToBenchmarkCase();
-        var loopCount = Math.Max(1,job.LoopCount);
-        var artifactFolder = BenchmarkWorkerClient.CreateArtifactFolder(this.runRoot,benchmark,job.SourceTab,job.ElementCount,loopCount);
-        var taskId = Guid.NewGuid().ToString("N",CultureInfo.InvariantCulture);
-        var completion = new TaskCompletionSource<WorkerResultMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
-        if(!this.pending.TryAdd(taskId,completion)) {
-            throw new InvalidOperationException("Duplicate fast worker task id.");
+        var ベンチマーク = ジョブ.ベンチマークケースに変換();
+        var ループ回数 = Math.Max(1,ジョブ.ループ回数);
+        var 成果物フォルダー = ベンチマークワーカークライアント.成果物フォルダーを作成(this.実行ルート,ベンチマーク,ジョブ.ソースタブ,ジョブ.要素数,ループ回数);
+        var タスクID = Guid.NewGuid().ToString("N",CultureInfo.InvariantCulture);
+        var 完了ソース = new TaskCompletionSource<ワーカー結果メッセージ>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if(!this.保留一覧.TryAdd(タスクID,完了ソース)) {
+            throw new InvalidOperationException("高速ワーカーのタスクIDが重複しました。");
         }
 
-        var message = new WorkerTaskMessage(
+        var メッセージ = new ワーカータスクメッセージ(
             "fast-run",
-            taskId,
-            benchmark.AssemblyName,
-            benchmark.TypeFullName,
-            benchmark.MethodName,
-            benchmark.ArgumentKey,
-            benchmark.Arguments.ToArray(),
-            job.SourceTab,
-            job.PreparedElementCounts.ToArray(),
-            job.ElementCount,
-            loopCount,
+            タスクID,
+            ベンチマーク.アセンブリ名,
+            ベンチマーク.型完全名,
+            ベンチマーク.メソッド名,
+            ベンチマーク.引数キー,
+            ベンチマーク.引数一覧.ToArray(),
+            ジョブ.ソースタブ,
+            ジョブ.準備済み要素数一覧.ToArray(),
+            ジョブ.要素数,
+            ループ回数,
             "1",
-            artifactFolder,
-            logicalCpu);
-        using var registration = cancellationToken.Register(() => {
-            this.Kill();
-            completion.TrySetCanceled(cancellationToken);
+            成果物フォルダー,
+            論理CPU);
+        using var 登録 = キャンセルトークン.Register(() => {
+            this.終了();
+            完了ソース.TrySetCanceled(キャンセルトークン);
         });
         try {
-            await this.writeGate.WaitAsync(cancellationToken);
+            await this.書込ゲート.WaitAsync(キャンセルトークン);
             try {
-                await this.process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(message).AsMemory(),cancellationToken);
-                await this.process.StandardInput.FlushAsync(cancellationToken);
+                await this.プロセス.StandardInput.WriteLineAsync(JsonSerializer.Serialize(メッセージ).AsMemory(),キャンセルトークン);
+                await this.プロセス.StandardInput.FlushAsync(キャンセルトークン);
             } finally {
-                this.writeGate.Release();
+                this.書込ゲート.Release();
             }
 
-            var result = await completion.Task.WaitAsync(cancellationToken);
-            return new BenchmarkJobRunResult(
-                benchmark.Project,
-                benchmark.MethodName,
-                benchmark.TypeFullName,
-                job.ElementCount,
-                result.Status,
-                result.Mean,
-                result.Error,
-                result.StdDev,
-                result.MeanNanoseconds,
-                result.ErrorNanoseconds,
-                result.StdDevNanoseconds,
-                result.AllocatedBytes,
-                result.ExitCode,
-                result.ArtifactFolder,
-                result.Log,
-                result.RandomSeed,
-                result.ResultDigest,
-                benchmark.ArgumentKey,
-                benchmark.Arguments,
-                loopCount,
-                job.RunItemIndex,
-                result.DiagnosticCounters);
+            var 結果 = await 完了ソース.Task.WaitAsync(キャンセルトークン);
+            return new ベンチマークジョブ実行結果(
+                ベンチマーク.プロジェクト,
+                ベンチマーク.メソッド名,
+                ベンチマーク.型完全名,
+                ジョブ.要素数,
+                結果.状態,
+                結果.平均,
+                結果.誤差,
+                結果.標準偏差,
+                結果.平均ナノ秒,
+                結果.誤差ナノ秒,
+                結果.標準偏差ナノ秒,
+                結果.割り当てバイト数,
+                結果.終了コード,
+                結果.成果物フォルダー,
+                結果.ログ,
+                結果.ランダムシード,
+                結果.結果ダイジェスト,
+                ベンチマーク.引数キー,
+                ベンチマーク.引数一覧,
+                ループ回数,
+                ジョブ.実行項目インデックス,
+                結果.診断カウンター);
         } catch {
-            this.pending.TryRemove(taskId,out _);
+            this.保留一覧.TryRemove(タスクID,out _);
             throw;
         }
     }
 
-    public async Task ShutdownAsync(CancellationToken cancellationToken) {
-        if(this.isClosed) {
+    public async Task 終了Async(CancellationToken キャンセルトークン) {
+        if(this.終了済みか) {
             return;
         }
 
-        this.isClosed=true;
+        this.終了済みか=true;
         try {
-            if(!this.process.HasExited) {
-                await this.writeGate.WaitAsync(cancellationToken);
+            if(!this.プロセス.HasExited) {
+                await this.書込ゲート.WaitAsync(キャンセルトークン);
                 try {
-                    await this.process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new WorkerTaskMessage("shutdown",string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,[],BenchmarkSourceTab.SystemArray,[],0,0,string.Empty,string.Empty)).AsMemory(),cancellationToken);
-                    await this.process.StandardInput.FlushAsync(cancellationToken);
+                    await this.プロセス.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new ワーカータスクメッセージ("shutdown",string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,[],ベンチマークソースタブ.System配列,[],0,0,string.Empty,string.Empty)).AsMemory(),キャンセルトークン);
+                    await this.プロセス.StandardInput.FlushAsync(キャンセルトークン);
                 } finally {
-                    this.writeGate.Release();
+                    this.書込ゲート.Release();
                 }
-                await this.process.WaitForExitAsync(cancellationToken);
+                await this.プロセス.WaitForExitAsync(キャンセルトークン);
             }
         } catch {
-            this.Kill();
+            this.終了();
             throw;
         } finally {
-            this.closedSource.Cancel();
-            await this.CompleteReadLoopAsync();
-            this.process.Dispose();
+            this.終了ソース.Cancel();
+            await this.読取ループ完了Async();
+            this.プロセス.Dispose();
         }
     }
 
     public async ValueTask DisposeAsync() {
-        if(this.isClosed) {
-            this.process.Dispose();
+        if(this.終了済みか) {
+            this.プロセス.Dispose();
             return;
         }
 
-        using var shutdownSource = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var 終了ソース = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         try {
-            await this.ShutdownAsync(shutdownSource.Token);
+            await this.終了Async(終了ソース.Token);
         } catch {
-            this.Kill();
-            this.process.Dispose();
+            this.終了();
+            this.プロセス.Dispose();
         } finally {
-            this.closedSource.Dispose();
-            this.writeGate.Dispose();
+            this.終了ソース.Dispose();
+            this.書込ゲート.Dispose();
         }
     }
 
-    private async Task ReadLoopAsync() {
+    private async Task 読取ループAsync() {
         try {
-            while(!this.closedSource.IsCancellationRequested&&await this.process.StandardOutput.ReadLineAsync(this.closedSource.Token) is { } line) {
-                if(string.IsNullOrWhiteSpace(line)) {
+            while(!this.終了ソース.IsCancellationRequested&&await this.プロセス.StandardOutput.ReadLineAsync(this.終了ソース.Token) is { } 行) {
+                if(string.IsNullOrWhiteSpace(行)) {
                     continue;
                 }
 
-                var result = JsonSerializer.Deserialize<WorkerResultMessage>(line);
-                if(result is null||string.IsNullOrWhiteSpace(result.TaskId)) {
+                var 結果 = JsonSerializer.Deserialize<ワーカー結果メッセージ>(行);
+                if(結果 is null||string.IsNullOrWhiteSpace(結果.タスクID)) {
                     continue;
                 }
 
-                if(this.pending.TryRemove(result.TaskId,out var completion)) {
-                    completion.TrySetResult(result);
+                if(this.保留一覧.TryRemove(結果.タスクID,out var 完了ソース)) {
+                    完了ソース.TrySetResult(結果);
                 }
             }
         } catch(OperationCanceledException) {
-        } catch(Exception ex) {
-            foreach(var pair in this.pending.ToArray()) {
-                if(this.pending.TryRemove(pair.Key,out var completion)) {
-                    completion.TrySetException(ex);
+        } catch(Exception 例外) {
+            foreach(var 組 in this.保留一覧.ToArray()) {
+                if(this.保留一覧.TryRemove(組.Key,out var 完了ソース)) {
+                    完了ソース.TrySetException(例外);
                 }
             }
         }
     }
 
-    private async Task CompleteReadLoopAsync() {
+    private async Task 読取ループ完了Async() {
         try {
-            await this.readLoop.WaitAsync(TimeSpan.FromSeconds(2));
+            await this.読取ループ.WaitAsync(TimeSpan.FromSeconds(2));
         } catch {
         }
     }
 
-    private void Kill() {
-        this.isClosed=true;
-        this.closedSource.Cancel();
-        BenchmarkWorkerClient.KillProcess(this.process);
-        foreach(var pair in this.pending.ToArray()) {
-            if(this.pending.TryRemove(pair.Key,out var completion)) {
-                completion.TrySetCanceled();
+    private void 終了() {
+        this.終了済みか=true;
+        this.終了ソース.Cancel();
+        ベンチマークワーカークライアント.プロセスを終了(this.プロセス);
+        foreach(var 組 in this.保留一覧.ToArray()) {
+            if(this.保留一覧.TryRemove(組.Key,out var 完了ソース)) {
+                完了ソース.TrySetCanceled();
             }
         }
     }
 }
 
-public sealed class BenchmarkWorkerSession:IAsyncDisposable {
-    private readonly Process process;
-    private readonly string runRoot;
-    private bool isClosed;
+public sealed class ベンチマークワーカーセッション:IAsyncDisposable {
+    private readonly Process プロセス;
+    private readonly string 実行ルート;
+    private bool 終了済みか;
 
-    internal BenchmarkWorkerSession(Process process,string runRoot) {
-        this.process=process;
-        this.runRoot=runRoot;
+    internal ベンチマークワーカーセッション(Process プロセス,string 実行ルート) {
+        this.プロセス=プロセス;
+        this.実行ルート=実行ルート;
     }
 
-    public async Task<BenchmarkJobRunResult> RunAsync(
-        BenchmarkCase benchmark,
-        BenchmarkSourceTab sourceTab,
-        IReadOnlyList<int> preparedElementCounts,
-        int elementCount,
-        int loopCount,
-        string elementScale,
-        CancellationToken cancellationToken) {
-        if(this.isClosed) {
-            throw new ObjectDisposedException(nameof(BenchmarkWorkerSession));
+    public async Task<ベンチマークジョブ実行結果> 実行Async(
+        ベンチマークケース ベンチマーク,
+        ベンチマークソースタブ ソースタブ,
+        IReadOnlyList<int> 準備済み要素数一覧,
+        int 要素数,
+        int ループ回数,
+        string 要素倍率,
+        CancellationToken キャンセルトークン) {
+        if(this.終了済みか) {
+            throw new ObjectDisposedException(nameof(ベンチマークワーカーセッション));
         }
 
-        var artifactFolder = BenchmarkWorkerClient.CreateArtifactFolder(this.runRoot,benchmark,sourceTab,elementCount,loopCount);
-        var message = new WorkerTaskMessage(
+        var 成果物フォルダー = ベンチマークワーカークライアント.成果物フォルダーを作成(this.実行ルート,ベンチマーク,ソースタブ,要素数,ループ回数);
+        var メッセージ = new ワーカータスクメッセージ(
             "run",
             Guid.NewGuid().ToString("N",CultureInfo.InvariantCulture),
-            benchmark.AssemblyName,
-            benchmark.TypeFullName,
-            benchmark.MethodName,
-            benchmark.ArgumentKey,
-            benchmark.Arguments.ToArray(),
-            sourceTab,
-            preparedElementCounts.ToArray(),
-            elementCount,
-            loopCount,
-            elementScale,
-            artifactFolder);
+            ベンチマーク.アセンブリ名,
+            ベンチマーク.型完全名,
+            ベンチマーク.メソッド名,
+            ベンチマーク.引数キー,
+            ベンチマーク.引数一覧.ToArray(),
+            ソースタブ,
+            準備済み要素数一覧.ToArray(),
+            要素数,
+            ループ回数,
+            要素倍率,
+            成果物フォルダー);
 
         try {
-            System.Diagnostics.Debug.WriteLine($"[Worker] RunAsync send pid={this.process.Id} method={benchmark.MethodName} elements={elementCount}");
-            await this.process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(message).AsMemory(),cancellationToken);
-            await this.process.StandardInput.FlushAsync(cancellationToken);
+            System.Diagnostics.Debug.WriteLine($"[ワーカー] 実行Async送信 PID={this.プロセス.Id} メソッド={ベンチマーク.メソッド名} 要素数={要素数}");
+            await this.プロセス.StandardInput.WriteLineAsync(JsonSerializer.Serialize(メッセージ).AsMemory(),キャンセルトークン);
+            await this.プロセス.StandardInput.FlushAsync(キャンセルトークン);
 
-            var line = await this.process.StandardOutput.ReadLineAsync(cancellationToken)
-                ?? throw new InvalidOperationException("Benchmark worker closed without a result.");
-            System.Diagnostics.Debug.WriteLine($"[Worker] RunAsync received pid={this.process.Id} method={benchmark.MethodName} line-length={line.Length}");
-            var result = JsonSerializer.Deserialize<WorkerResultMessage>(line)
-                ?? throw new InvalidOperationException("Benchmark worker returned an empty result.");
-            return new BenchmarkJobRunResult(
-                benchmark.Project,
-                benchmark.MethodName,
-                benchmark.TypeFullName,
-                elementCount,
-                result.Status,
-                result.Mean,
-                result.Error,
-                result.StdDev,
-                result.MeanNanoseconds,
-                result.ErrorNanoseconds,
-                result.StdDevNanoseconds,
-                result.AllocatedBytes,
-                result.ExitCode,
-                result.ArtifactFolder,
-                result.Log,
-                result.RandomSeed,
-                result.ResultDigest,
-                benchmark.ArgumentKey,
-                benchmark.Arguments,
-                loopCount,
-                DiagnosticCounterValues: result.DiagnosticCounters);
+            var 行 = await this.プロセス.StandardOutput.ReadLineAsync(キャンセルトークン)
+                ??throw new InvalidOperationException("ベンチマークワーカーが結果を返さず終了しました。");
+            System.Diagnostics.Debug.WriteLine($"[ワーカー] 実行Async受信 PID={this.プロセス.Id} メソッド={ベンチマーク.メソッド名} 行長={行.Length}");
+            var 結果 = JsonSerializer.Deserialize<ワーカー結果メッセージ>(行)
+                ??throw new InvalidOperationException("ベンチマークワーカーから空の結果が返されました。");
+            return new ベンチマークジョブ実行結果(
+                ベンチマーク.プロジェクト,
+                ベンチマーク.メソッド名,
+                ベンチマーク.型完全名,
+                要素数,
+                結果.状態,
+                結果.平均,
+                結果.誤差,
+                結果.標準偏差,
+                結果.平均ナノ秒,
+                結果.誤差ナノ秒,
+                結果.標準偏差ナノ秒,
+                結果.割り当てバイト数,
+                結果.終了コード,
+                結果.成果物フォルダー,
+                結果.ログ,
+                結果.ランダムシード,
+                結果.結果ダイジェスト,
+                ベンチマーク.引数キー,
+                ベンチマーク.引数一覧,
+                ループ回数,
+                診断カウンター値一覧: 結果.診断カウンター);
         } catch(OperationCanceledException) {
-            this.Kill();
+            this.終了();
             throw;
         }
     }
 
-    public async Task ShutdownAsync(CancellationToken cancellationToken) {
-        if(this.isClosed) {
+    public async Task 終了Async(CancellationToken キャンセルトークン) {
+        if(this.終了済みか) {
             return;
         }
 
-        this.isClosed=true;
+        this.終了済みか=true;
         try {
-            if(!this.process.HasExited) {
-                await this.process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new WorkerTaskMessage("shutdown",string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,[],BenchmarkSourceTab.SystemArray,[],0,0,string.Empty,string.Empty)).AsMemory(),cancellationToken);
-                await this.process.StandardInput.FlushAsync(cancellationToken);
-                await this.process.WaitForExitAsync(cancellationToken);
+            if(!this.プロセス.HasExited) {
+                await this.プロセス.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new ワーカータスクメッセージ("shutdown",string.Empty,string.Empty,string.Empty,string.Empty,string.Empty,[],ベンチマークソースタブ.System配列,[],0,0,string.Empty,string.Empty)).AsMemory(),キャンセルトークン);
+                await this.プロセス.StandardInput.FlushAsync(キャンセルトークン);
+                await this.プロセス.WaitForExitAsync(キャンセルトークン);
             }
         } catch {
-            this.Kill();
+            this.終了();
             throw;
         } finally {
-            this.process.Dispose();
+            this.プロセス.Dispose();
         }
     }
 
     public async ValueTask DisposeAsync() {
-        if(this.isClosed) {
-            this.process.Dispose();
+        if(this.終了済みか) {
+            this.プロセス.Dispose();
             return;
         }
 
-        using var shutdownSource = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var 終了ソース = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         try {
-            await this.ShutdownAsync(shutdownSource.Token);
+            await this.終了Async(終了ソース.Token);
         } catch {
-            this.Kill();
-            this.process.Dispose();
+            this.終了();
+            this.プロセス.Dispose();
         }
     }
 
-    private void Kill() {
-        this.isClosed=true;
-        BenchmarkWorkerClient.KillProcess(this.process);
+    private void 終了() {
+        this.終了済みか=true;
+        ベンチマークワーカークライアント.プロセスを終了(this.プロセス);
     }
 }
 
-public sealed record BenchmarkRunResult(
-    string Project,
-    string Method,
-    string TypeFullName,
-    string Status,
-    string Mean,
-    string Error,
-    string StdDev,
-    double? MeanNanoseconds,
-    double? ErrorNanoseconds,
-    double? StdDevNanoseconds,
-    long? AllocatedBytes,
-    int ExitCode,
-    string ArtifactFolder,
-    string Log,
-    int LoopCount = 1,
-    int? RandomSeed = null,
-    string ResultDigest = "");
+internal sealed record ワーカータスクメッセージ(
+    string コマンド,
+    string タスクID,
+    string アセンブリ名,
+    string 型完全名,
+    string メソッド名,
+    string 引数キー,
+    ベンチマーク引数[] 引数,
+    ベンチマークソースタブ ソースタブ,
+    int[] 準備済み要素数,
+    int 要素数,
+    int ループ回数,
+    string 要素倍率,
+    string 成果物フォルダー,
+    int? 割り当て論理CPU = null);
 
-internal sealed record WorkerTaskMessage(
-    string Command,
-    string TaskId,
-    string AssemblyName,
-    string TypeFullName,
-    string MethodName,
-    string ArgumentKey,
-    BenchmarkArgument[] Arguments,
-    BenchmarkSourceTab SourceTab,
-    int[] PreparedElementCounts,
-    int ElementCount,
-    int LoopCount,
-    string ElementScale,
-    string ArtifactFolder,
-    int? AssignedLogicalCpu = null);
-
-internal sealed record WorkerResultMessage(
-    string TaskId,
-    string Status,
-    string Mean,
-    string Error,
-    string StdDev,
-    double? MeanNanoseconds,
-    double? ErrorNanoseconds,
-    double? StdDevNanoseconds,
-    long? AllocatedBytes,
-    int ExitCode,
-    string ArtifactFolder,
-    string Log,
-    int? RandomSeed = null,
-    string ResultDigest = "",
-    IReadOnlyList<BenchmarkDiagnosticCounter>? DiagnosticCounters = null);
+internal sealed record ワーカー結果メッセージ(
+    string タスクID,
+    string 状態,
+    string 平均,
+    string 誤差,
+    string 標準偏差,
+    double? 平均ナノ秒,
+    double? 誤差ナノ秒,
+    double? 標準偏差ナノ秒,
+    long? 割り当てバイト数,
+    int 終了コード,
+    string 成果物フォルダー,
+    string ログ,
+    int? ランダムシード = null,
+    string 結果ダイジェスト = "",
+    IReadOnlyList<ベンチマーク診断カウンター>? 診断カウンター = null);

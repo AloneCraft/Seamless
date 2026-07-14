@@ -30,8 +30,7 @@ partial class ValueEnumerableExtensions {
             }
 
             return new(array,i);
-        }
-        else {
+        } else {
 #if NETSTANDARD2_0
             Span<TSource> initialBufferSpan = default;
 #elif NET8_0_OR_GREATER
@@ -97,7 +96,7 @@ public struct PooledArray<TSource>:IDisposable {
 
     public ArraySegment<TSource> ArraySegment {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => new ArraySegment<TSource>(this.array,0,this.size);
+        get => new(this.array,0,this.size);
     }
 
     public IEnumerable<TSource> AsEnumerable() {

@@ -1,12 +1,11 @@
 namespace Seamless.System.Carrier.Internal;
 
-internal static class Throws
-{
+internal static class Throws {
     [DoesNotReturn]
     public static T Argument<T>(string paramName) => throw new ArgumentException(paramName);
 
     [DoesNotReturn]
-    public static void Argument(string paramName, string message) => throw new ArgumentException(message, paramName);
+    public static void Argument(string paramName,string message) => throw new ArgumentException(message,paramName);
 
     [DoesNotReturn]
     public static void ArgumentOutOfRange(string paramName) => throw new ArgumentOutOfRangeException(paramName);
@@ -39,16 +38,15 @@ internal static class Throws
     public static void VectorSmallOverlap<T>() where T : struct => throw new ArgumentException($"Span length must be at least {Vector<T>.Count} for OverlapOrThrow mode");
 
     [DoesNotReturn]
-    public static void IsFromEnd(string paramName) => throw new ArgumentOutOfRangeException(paramName, "IsFromEnd is not allowed.");
+    public static void IsFromEnd(string paramName) => throw new ArgumentOutOfRangeException(paramName,"IsFromEnd is not allowed.");
 
     [DoesNotReturn]
     public static void Null(string paramName) => throw new ArgumentNullException(paramName);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static T IfNull<T>(T? argument, [CallerArgumentExpression(nameof(argument))] string? paramName = null)
-        where T : class
-    {
-        ArgumentNullException.ThrowIfNull(argument, paramName);
+    public static T IfNull<T>(T? argument,[CallerArgumentExpression(nameof(argument))] string? paramName = null)
+        where T : class {
+        ArgumentNullException.ThrowIfNull(argument,paramName);
         return argument;
     }
 }

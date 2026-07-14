@@ -32,7 +32,7 @@ public class CollectionStore {
         using var store = Store.Create(MemorySize: TestMemorySize,MutableFraction: 0.1).Create<int,string>(LogDevice,ObjDevice);
         using var dict = store.Create();
         // CollectionStoreの境界条件を検証する。
-        for(var a = 0; a<1000; a++) {
+        for(var a = 0;a<1000;a++) {
             dict.Add(a,$"v{a}");
         }
         {
@@ -64,7 +64,7 @@ public class CollectionStore {
         using var store = Store.Create(MemorySize: TestMemorySize,MutableFraction: 0.1).Create<int,string>(LogDevice,ObjDevice);
         using var dict = store.Create();
         // CollectionStoreの境界条件を検証する。
-        for(var a = 0; a<1000; a++) {
+        for(var a = 0;a<1000;a++) {
             dict.Add(a,$"v{a}");
         }
         // CollectionStoreの境界条件を検証する。
@@ -117,7 +117,7 @@ public class CollectionStore {
         static void CreateOrphan() {
             _=Store.Create().Create<int,string>();
         }
-        for(var i = 0; i<16; i++) {
+        for(var i = 0;i<16;i++) {
             CreateOrphan();
         }
         GC.Collect(GC.MaxGeneration,GCCollectionMode.Forced,blocking: true);

@@ -110,7 +110,7 @@ public abstract class PersistedList<T>:IReadOnlyList<T>, IDisposable {
 
     // out 引数を持つため FLinq の傍受対象外。System.Linq.Enumerable は IReadOnlyCollection<T> を
     // 高速 count として認識しないため、インスタンスメソッドで拡張メソッドを上書きして O(1) で返す。
-    public bool TryGetNonEnumeratedCount(out int count){
+    public bool TryGetNonEnumeratedCount(out int count) {
         count=checked((int)this.Count);
         return true;
     }
@@ -140,7 +140,7 @@ public abstract class PersistedList<T>:IReadOnlyList<T>, IDisposable {
             return ReadOnlySpan<T>.Empty;
 
         var items = new T[length];
-        for(var index = 0; index<length; index++) {
+        for(var index = 0;index<length;index++) {
             items[index]=this.GetItem(start+index);
         }
         return items;
@@ -209,8 +209,7 @@ public abstract class PersistedList<T>:IReadOnlyList<T>, IDisposable {
         this.IsDisposed=true;
         try {
             this.DisposeCore();
-        }
-        finally {
+        } finally {
             this.disposeAction?.Invoke();
         }
     }
@@ -341,8 +340,7 @@ internal static class MemoryMappedListTuning {
             _=posix_fadvise(fileDescriptor,0,0,advice);
             if(tuning.OptimizationMode==FileAccess.Read)
                 _=posix_fadvise(fileDescriptor,0,0,PosixFadvWillNeed);
-        }
-        catch {
+        } catch {
         }
     }
 
@@ -359,10 +357,8 @@ internal static class MemoryMappedListTuning {
             _=madvise((nint)pointer,checked((nuint)accessor.Capacity),advice);
             if(tuning.OptimizationMode==FileAccess.Read)
                 _=madvise((nint)pointer,checked((nuint)accessor.Capacity),MadvWillNeed);
-        }
-        catch {
-        }
-        finally {
+        } catch {
+        } finally {
             if(pointer is not null)
                 accessor.SafeMemoryMappedViewHandle.ReleasePointer();
         }
@@ -391,10 +387,8 @@ internal static class MemoryMappedListTuning {
                 new Win32MemoryRangeEntry((nuint)pointer,checked((nuint)accessor.Capacity))
             };
             _=PrefetchVirtualMemory(GetCurrentProcess(),(nuint)ranges.Length,ranges,0);
-        }
-        catch {
-        }
-        finally {
+        } catch {
+        } finally {
             if(pointer is not null)
                 accessor.SafeMemoryMappedViewHandle.ReleasePointer();
         }

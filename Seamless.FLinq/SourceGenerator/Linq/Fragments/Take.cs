@@ -20,9 +20,9 @@ Take は source.Take(count) を、返した件数を数える enumerator へ変�
   - count < 0 は constructor で 0 に丸める。
   - 連続 Take は RootSource へ畳み込み、count は Math.Min(previous, current) にする。
 */
-public class Take(int 番号, Enumerable source, string takeCount) : Enumerable(番号) {
+public class Take(int 番号,Enumerable source,string takeCount):Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_Int32;
+        method.Parameters.Length==1&&method.Parameters[0].Type.SpecialType==SpecialType.System_Int32;
     private Enumerable Source => source;
     private string TakeCountExpression => takeCount;
     private Enumerable RootSource => this.Source is Take take ? take.RootSource : this.Source;
@@ -57,8 +57,8 @@ public class Take(int 番号, Enumerable source, string takeCount) : Enumerable(
     public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => this.Source.ElementType;
     public override string GetConsumeExecutionStatement(string consumerName) {
-        var sourceName=$"__takeSource{番号}";
-        var spanExpression=this.RootSource.GetDirectSpanExpression(sourceName);
+        var sourceName = $"__takeSource{番号}";
+        var spanExpression = this.RootSource.GetDirectSpanExpression(sourceName);
         if(spanExpression is null) {
             return base.GetConsumeExecutionStatement(consumerName);
         }

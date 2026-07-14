@@ -1,9 +1,9 @@
 namespace Test.System.Linq.Intercept.Optimization;
 
-public sealed class OrderByFirstToMinMax:OptimizationTestBase{
+public sealed class OrderByFirstToMinMax:OptimizationTestBase {
     private static Item[] EmptyItems() => [];
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void OrderBy_First() {
         Assert.Equal(Numbers().OrderBy(static x => x).First(),OrderBy_First_IntOptimized());
         Assert.Equal(Numbers().OrderBy(static x => x).First(),OrderBy_First_IntNoOptimized());
@@ -32,7 +32,7 @@ public sealed class OrderByFirstToMinMax:OptimizationTestBase{
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static int OrderBy_First_EmptyNoOptimized() => EmptyNumbers().OrderBy(static x => x).First();
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void OrderByDescending_First() {
         Assert.Equal(Numbers().OrderByDescending(static x => x).First(),OrderByDescending_First_IntOptimized());
         Assert.Equal(Numbers().OrderByDescending(static x => x).First(),OrderByDescending_First_IntNoOptimized());
@@ -52,7 +52,7 @@ public sealed class OrderByFirstToMinMax:OptimizationTestBase{
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static Point OrderByDescending_First_PointNoOptimized() => Points().OrderByDescending(static p => p.X).First();
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void OrderBy_FirstOrDefault() {
         Assert.Equal(Outers().OrderBy(static i => i.Key).FirstOrDefault(),OrderBy_FirstOrDefault_ItemOptimized());
         Assert.Equal(Outers().OrderBy(static i => i.Key).FirstOrDefault(),OrderBy_FirstOrDefault_ItemNoOptimized());
@@ -80,7 +80,7 @@ public sealed class OrderByFirstToMinMax:OptimizationTestBase{
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static int OrderBy_FirstOrDefault_EmptyIntNoOptimized() => EmptyNumbers().OrderBy(static x => x).FirstOrDefault();
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void OrderByDescending_FirstOrDefault() {
         Assert.Equal(Outers().OrderByDescending(static i => i.Key).FirstOrDefault(),OrderByDescending_FirstOrDefault_ItemOptimized());
         Assert.Equal(Outers().OrderByDescending(static i => i.Key).FirstOrDefault(),OrderByDescending_FirstOrDefault_ItemNoOptimized());
@@ -100,7 +100,7 @@ public sealed class OrderByFirstToMinMax:OptimizationTestBase{
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static Item? OrderByDescending_FirstOrDefault_EmptyItemNoOptimized() => EmptyItems().OrderByDescending(static i => i.Key).FirstOrDefault();
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void ReferenceFirst() {
         Assert.Equal(Words().OrderBy(static w => w.Length).First(),ReferenceFirstOptimized());
         Assert.Equal(Words().OrderBy(static w => w.Length).First(),ReferenceFirstNoOptimized());

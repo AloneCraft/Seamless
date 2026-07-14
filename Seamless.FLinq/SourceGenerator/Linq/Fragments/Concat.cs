@@ -54,7 +54,7 @@ public class Concat(int 番号,Enumerable source,Enumerable second):Enumerable(�
     public override string ElementType => source.ElementType;
     protected override string GetEnumeratorDisposeBody => "source.Dispose();\nsecond.Dispose();";
     public override string GetConsumeExecutionStatement(string consumerName) {
-        if(source is RangeRoot leftRange&&second is RangeRoot rightRange){
+        if(source is RangeRoot leftRange&&second is RangeRoot rightRange) {
             return $$"""
                 {
                     var __leftStart{{番号}}={{leftRange.StartExpression}};

@@ -1,60 +1,61 @@
-using System.Diagnostics;
-using System.Collections.Concurrent;
-using System.Globalization;
-using System.Reflection;
-using System.Text;
-using System.Text.Json;
-using System.Runtime.InteropServices;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Filters;
 using BenchmarkDotNet.Running;
 
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Globalization;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.Json;
+
 Console.OutputEncoding=Encoding.UTF8;
 Console.InputEncoding=Encoding.UTF8;
-const string ElementScaleEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_SCALE";
-const string ElementCountEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_COUNT";
-const string LoopCountEnvironmentVariable = "SEAMLESS_BENCHMARK_LOOP_COUNT";
-const string PreparedElementCountsEnvironmentVariable = "SEAMLESS_BENCHMARK_PREPARED_ELEMENT_COUNTS";
-const string RandomSourceSeedEnvironmentVariable = "SEAMLESS_BENCHMARK_RANDOM_SOURCE_SEED";
+const string 要素倍率環境変数名 = "SEAMLESS_BENCHMARK_ELEMENT_SCALE";
+const string 要素数環境変数名 = "SEAMLESS_BENCHMARK_ELEMENT_COUNT";
+const string ループ回数環境変数名 = "SEAMLESS_BENCHMARK_LOOP_COUNT";
+const string 準備済み要素数環境変数名 = "SEAMLESS_BENCHMARK_PREPARED_ELEMENT_COUNTS";
+const string ランダムソースシード環境変数名 = "SEAMLESS_BENCHMARK_RANDOM_SOURCE_SEED";
 
-var logicalCpu = ReadRequiredIntArg(args,"--logical-cpu");
-var runRoot = ReadRequiredStringArg(args,"--run-root");
-Directory.CreateDirectory(runRoot);
-ApplyAffinity(logicalCpu);
+var 論理CPU = 必須整数引数を読む(args,"--logical-cpu");
+var 実行ルート = 必須文字列引数を読む(args,"--run-root");
+Directory.CreateDirectory(実行ルート);
+アフィニティを適用(論理CPU);
 
-var protocolOutput = Console.Out;
-var protocolError = Console.Error;
-var protocolWriteGate = new SemaphoreSlim(1,1);
-var fastTasks = new ConcurrentBag<Task>();
-await protocolOutput.WriteLineAsync("ready");
-await protocolOutput.FlushAsync();
-while(await Console.In.ReadLineAsync() is { } line){
-    line=TrimUtf8Bom(line);
-    if(string.IsNullOrWhiteSpace(line)){
+var プロトコル出力 = Console.Out;
+var プロトコルエラー = Console.Error;
+var プロトコル書込ゲート = new SemaphoreSlim(1,1);
+var 高速タスク一覧 = new ConcurrentBag<Task>();
+await プロトコル出力.WriteLineAsync("ready");
+await プロトコル出力.FlushAsync();
+while(await Console.In.ReadLineAsync() is { } 行) {
+    行=UTF8BOMを除去(行);
+    if(string.IsNullOrWhiteSpace(行)) {
         continue;
     }
 
-    WorkerTaskMessage? task = null;
-    try{
-        task=JsonSerializer.Deserialize<WorkerTaskMessage>(line);
-        if(task is null){
+    ワーカータスクメッセージ? タスク = null;
+    try {
+        タスク=JsonSerializer.Deserialize<ワーカータスクメッセージ>(行);
+        if(タスク is null) {
             continue;
         }
 
-        if(string.Equals(task.Command,"shutdown",StringComparison.OrdinalIgnoreCase)){
-            await Task.WhenAll(fastTasks.ToArray());
+        if(string.Equals(タスク.コマンド,"shutdown",StringComparison.OrdinalIgnoreCase)) {
+            await Task.WhenAll(高速タスク一覧.ToArray());
             return 0;
         }
 
-        if(string.Equals(task.Command,"fast-run",StringComparison.OrdinalIgnoreCase)){
-            var fastTask = task;
-            fastTasks.Add(Task.Run(async () => {
-                WorkerResultMessage result;
-                try{
-                    result=RunFastBenchmark(fastTask,fastTask.AssignedLogicalCpu??logicalCpu,protocolOutput,protocolError);
-                }catch(Exception ex){
-                    result=new WorkerResultMessage(
-                        fastTask.TaskId,
+        if(string.Equals(タスク.コマンド,"fast-run",StringComparison.OrdinalIgnoreCase)) {
+            var 高速タスク = タスク;
+            高速タスク一覧.Add(Task.Run(async () => {
+                ワーカー結果メッセージ 結果;
+                try {
+                    結果=高速ベンチマークを実行(高速タスク,高速タスク.割り当て論理CPU??論理CPU,プロトコル出力,プロトコルエラー);
+                } catch(Exception 例外) {
+                    結果=new ワーカー結果メッセージ(
+                        高速タスク.タスクID,
                         "Failed",
                         string.Empty,
                         string.Empty,
@@ -64,33 +65,33 @@ while(await Console.In.ReadLineAsync() is { } line){
                         null,
                         null,
                         1,
-                        fastTask.ArtifactFolder,
-                        ex.ToString(),
+                        高速タスク.成果物フォルダー,
+                        例外.ToString(),
                         null,
                         string.Empty);
                 }
-                await protocolWriteGate.WaitAsync();
-                try{
-                    await protocolOutput.WriteLineAsync(JsonSerializer.Serialize(result));
-                    await protocolOutput.FlushAsync();
-                }finally{
-                    protocolWriteGate.Release();
+                await プロトコル書込ゲート.WaitAsync();
+                try {
+                    await プロトコル出力.WriteLineAsync(JsonSerializer.Serialize(結果));
+                    await プロトコル出力.FlushAsync();
+                } finally {
+                    プロトコル書込ゲート.Release();
                 }
             }));
             continue;
         }
 
-        var result = RunBenchmark(task,logicalCpu,protocolOutput,protocolError);
-        await protocolWriteGate.WaitAsync();
-        try{
-            await protocolOutput.WriteLineAsync(JsonSerializer.Serialize(result));
-            await protocolOutput.FlushAsync();
-        }finally{
-            protocolWriteGate.Release();
+        var 結果 = ベンチマークを実行(タスク,論理CPU,プロトコル出力,プロトコルエラー);
+        await プロトコル書込ゲート.WaitAsync();
+        try {
+            await プロトコル出力.WriteLineAsync(JsonSerializer.Serialize(結果));
+            await プロトコル出力.FlushAsync();
+        } finally {
+            プロトコル書込ゲート.Release();
         }
-    }catch(Exception ex){
-        var result = new WorkerResultMessage(
-            task?.TaskId??string.Empty,
+    } catch(Exception 例外) {
+        var 結果 = new ワーカー結果メッセージ(
+            タスク?.タスクID??string.Empty,
             "Failed",
             string.Empty,
             string.Empty,
@@ -100,82 +101,80 @@ while(await Console.In.ReadLineAsync() is { } line){
             null,
             null,
             1,
-            task?.ArtifactFolder??string.Empty,
-            ex.ToString(),
+            タスク?.成果物フォルダー??string.Empty,
+            例外.ToString(),
             null,
             string.Empty);
-        await protocolWriteGate.WaitAsync();
-        try{
-            await protocolOutput.WriteLineAsync(JsonSerializer.Serialize(result));
-            await protocolOutput.FlushAsync();
-        }finally{
-            protocolWriteGate.Release();
+        await プロトコル書込ゲート.WaitAsync();
+        try {
+            await プロトコル出力.WriteLineAsync(JsonSerializer.Serialize(結果));
+            await プロトコル出力.FlushAsync();
+        } finally {
+            プロトコル書込ゲート.Release();
         }
     }
 }
 
 return 0;
 
-static WorkerResultMessage RunBenchmark(
-    WorkerTaskMessage task,
-    int logicalCpu,
-    TextWriter protocolOutput,
-    TextWriter protocolError){
-    Directory.CreateDirectory(task.ArtifactFolder);
-    var logPath = Path.Combine(task.ArtifactFolder,"worker.log");
+static ワーカー結果メッセージ ベンチマークを実行(
+    ワーカータスクメッセージ タスク,
+    int 論理CPU,
+    TextWriter プロトコル出力,
+    TextWriter プロトコルエラー) {
+    Directory.CreateDirectory(タスク.成果物フォルダー);
+    var ログパス = Path.Combine(タスク.成果物フォルダー,"worker.log");
 
-    using var logWriter = new StringWriter(CultureInfo.InvariantCulture);
-    var originalOut = Console.Out;
-    var originalError = Console.Error;
-    var previousScale = Environment.GetEnvironmentVariable(ElementScaleEnvironmentVariable);
-    var previousElementCount = Environment.GetEnvironmentVariable(ElementCountEnvironmentVariable);
-    var previousLoopCount = Environment.GetEnvironmentVariable(LoopCountEnvironmentVariable);
-    var previousPreparedElementCounts = Environment.GetEnvironmentVariable(PreparedElementCountsEnvironmentVariable);
-    var previousRandomSourceSeed = Environment.GetEnvironmentVariable(RandomSourceSeedEnvironmentVariable);
-    Console.SetOut(logWriter);
-    Console.SetError(logWriter);
-    try{
-        ApplyAffinity(logicalCpu);
-        var randomSeed = CreateRandomSourceSeed(task);
-        var loopCount = Math.Max(1,task.LoopCount);
-        Environment.SetEnvironmentVariable(ElementScaleEnvironmentVariable,string.IsNullOrWhiteSpace(task.ElementScale)?"1":task.ElementScale);
+    using var ログ書込 = new StringWriter(CultureInfo.InvariantCulture);
+    var 前回要素倍率 = Environment.GetEnvironmentVariable(要素倍率環境変数名);
+    var 前回要素数 = Environment.GetEnvironmentVariable(要素数環境変数名);
+    var 前回ループ回数 = Environment.GetEnvironmentVariable(ループ回数環境変数名);
+    var 前回準備済み要素数 = Environment.GetEnvironmentVariable(準備済み要素数環境変数名);
+    var 前回ランダムソースシード = Environment.GetEnvironmentVariable(ランダムソースシード環境変数名);
+    Console.SetOut(ログ書込);
+    Console.SetError(ログ書込);
+    try {
+        アフィニティを適用(論理CPU);
+        var ランダムシード = ランダムソースシードを作成(タスク);
+        var ループ回数 = Math.Max(1,タスク.ループ回数);
+        Environment.SetEnvironmentVariable(要素倍率環境変数名,string.IsNullOrWhiteSpace(タスク.要素倍率) ? "1" : タスク.要素倍率);
         Environment.SetEnvironmentVariable(
-            ElementCountEnvironmentVariable,
-            task.ElementCount>0?task.ElementCount.ToString(CultureInfo.InvariantCulture):null);
-        Environment.SetEnvironmentVariable(LoopCountEnvironmentVariable,loopCount.ToString(CultureInfo.InvariantCulture));
+            要素数環境変数名,
+            タスク.要素数>0 ? タスク.要素数.ToString(CultureInfo.InvariantCulture) : null);
+        Environment.SetEnvironmentVariable(ループ回数環境変数名,ループ回数.ToString(CultureInfo.InvariantCulture));
         Environment.SetEnvironmentVariable(
-            PreparedElementCountsEnvironmentVariable,
-            task.PreparedElementCounts.Length>0
-                ? string.Join(",",task.PreparedElementCounts.Distinct().Order().Select(static count => count.ToString(CultureInfo.InvariantCulture)))
+            準備済み要素数環境変数名,
+            タスク.準備済み要素数.Length>0
+                ? string.Join(",",タスク.準備済み要素数.Distinct().Order().Select(static 要素数 => 要素数.ToString(CultureInfo.InvariantCulture)))
                 : null);
-        Environment.SetEnvironmentVariable(RandomSourceSeedEnvironmentVariable,randomSeed.ToString(CultureInfo.InvariantCulture));
-        var benchmarkType = ResolveBenchmarkType(task.AssemblyName,task.TypeFullName);
-        using var elementScope = BeginElementCountScope(benchmarkType.Assembly,task.ElementCount,task.ElementScale);
-        using var randomSourceScope = BeginRandomSourceSeedScope(benchmarkType.Assembly,randomSeed);
-        var argumentValues = BenchmarkArgumentFormatting.ToObjects(task.Arguments);
-        var resultDigest = CaptureBenchmarkResultDigest(benchmarkType,task.MethodName,argumentValues);
-        var config = ManualConfig
-            .Create(BenchmarkWorkerRuntime.CreateConfig(task.ArtifactFolder,loopCount))
-            .AddFilter(new WorkerTaskFilter(task));
-        var summaries = BenchmarkSwitcher
-            .FromTypes([benchmarkType])
-            .Run(["--filter","*."+task.MethodName+"*"],config);
-        var summary = summaries.SingleOrDefault()
-            ??throw new InvalidOperationException($"BenchmarkDotNet did not return a summary for {task.TypeFullName}.{task.MethodName}.");
-        var reports = summary.Reports
-            .Where(report => IsReportForArguments(report.BenchmarkCase,task.Arguments))
+        Environment.SetEnvironmentVariable(ランダムソースシード環境変数名,ランダムシード.ToString(CultureInfo.InvariantCulture));
+        var ベンチマーク型 = ベンチマーク型を解決(タスク.アセンブリ名,タスク.型完全名);
+        using var 要素数スコープ = 要素数スコープを開始(ベンチマーク型.Assembly,タスク.要素数,タスク.要素倍率);
+        using var ランダムソーススコープ = ランダムソースシードスコープを開始(ベンチマーク型.Assembly,ランダムシード);
+        var 引数値一覧 = ベンチマーク引数フォーマッター.オブジェクト一覧に変換(タスク.引数);
+        var 結果ダイジェスト = ベンチマーク結果ダイジェストを取得(ベンチマーク型,タスク.メソッド名,引数値一覧);
+        var 設定 = ManualConfig
+            .Create(ベンチマークワーカーランタイム.設定を作成(タスク.成果物フォルダー,ループ回数))
+            .AddFilter(new ワーカータスクフィルター(タスク));
+        var 概要一覧 = BenchmarkSwitcher
+            .FromTypes([ベンチマーク型])
+            .Run(["--filter","*."+タスク.メソッド名+"*"],設定);
+        var 概要 = 概要一覧.SingleOrDefault()
+            ??throw new InvalidOperationException($"BenchmarkDotNetから概要が返されませんでした: {タスク.型完全名}.{タスク.メソッド名}");
+        var 報告一覧 = 概要.Reports
+            .Where(報告 => 引数に一致する報告か(報告.BenchmarkCase,タスク.引数))
             .ToArray();
-        if(reports.Length!=1){
-            throw new InvalidOperationException($"BenchmarkDotNet returned {reports.Length} reports for {task.TypeFullName}.{task.MethodName} with arguments '{task.ArgumentKey}'.");
+        if(報告一覧.Length!=1) {
+            throw new InvalidOperationException($"BenchmarkDotNetから{タスク.型完全名}.{タスク.メソッド名}の引数「{タスク.引数キー}」に対して{報告一覧.Length}件のレポートが返されました。");
         }
-        var report = reports[0];
-        var stats = report?.ResultStatistics;
-        var allocatedBytes = GetAllocatedBytes(report);
-        var log = logWriter.ToString();
-        File.WriteAllText(logPath,log,Encoding.UTF8);
-        if(!BenchmarkWorkerRuntime.HasUsableStatistics(stats?.Mean)){
-            return new WorkerResultMessage(
-                task.TaskId,
+        var 報告 = 報告一覧[0];
+        var 統計 = 報告?.ResultStatistics;
+        var 割当バイト数 = 割当バイト数を取得(報告);
+        var ログ = ログ書込.ToString();
+        File.WriteAllText(ログパス,ログ,Encoding.UTF8);
+        if(!ベンチマークワーカーランタイム.使用可能な統計か(統計?.Mean)) {
+            return new ワーカー結果メッセージ(
+                タスク.タスクID,
                 "Failed",
                 string.Empty,
                 string.Empty,
@@ -185,112 +184,112 @@ static WorkerResultMessage RunBenchmark(
                 null,
                 null,
                 1,
-                task.ArtifactFolder,
-                string.IsNullOrWhiteSpace(log)
-                    ? "BenchmarkDotNet did not produce result statistics."
-                    : log,
-                randomSeed,
-                resultDigest);
+                タスク.成果物フォルダー,
+                string.IsNullOrWhiteSpace(ログ)
+                    ? "BenchmarkDotNetが結果統計を生成しませんでした。"
+                    : ログ,
+                ランダムシード,
+                結果ダイジェスト);
         }
 
-        var totalMean = stats?.Mean*loopCount;
-        var totalError = stats?.StandardError*loopCount;
-        var totalStdDev = stats?.StandardDeviation*loopCount;
-        long? totalAllocatedBytes = allocatedBytes is { } bytes ? bytes*loopCount : null;
-        return new WorkerResultMessage(
-            task.TaskId,
+        var 合計平均 = 統計?.Mean*ループ回数;
+        var 合計誤差 = 統計?.StandardError*ループ回数;
+        var 合計標準偏差 = 統計?.StandardDeviation*ループ回数;
+        long? 合計割当バイト数 = 割当バイト数 is { } バイト数 ? バイト数*ループ回数 : null;
+        return new ワーカー結果メッセージ(
+            タスク.タスクID,
             "Completed",
-            FormatNanoseconds(totalMean),
-            FormatNanoseconds(totalError),
-            FormatNanoseconds(totalStdDev),
-            totalMean,
-            totalError,
-            totalStdDev,
-            totalAllocatedBytes,
+            ナノ秒を整形(合計平均),
+            ナノ秒を整形(合計誤差),
+            ナノ秒を整形(合計標準偏差),
+            合計平均,
+            合計誤差,
+            合計標準偏差,
+            合計割当バイト数,
             0,
-            task.ArtifactFolder,
-            log,
-            randomSeed,
-            resultDigest);
-    }finally{
-        Environment.SetEnvironmentVariable(ElementScaleEnvironmentVariable,previousScale);
-        Environment.SetEnvironmentVariable(ElementCountEnvironmentVariable,previousElementCount);
-        Environment.SetEnvironmentVariable(LoopCountEnvironmentVariable,previousLoopCount);
-        Environment.SetEnvironmentVariable(PreparedElementCountsEnvironmentVariable,previousPreparedElementCounts);
-        Environment.SetEnvironmentVariable(RandomSourceSeedEnvironmentVariable,previousRandomSourceSeed);
-        Console.SetOut(protocolOutput);
-        Console.SetError(protocolError);
+            タスク.成果物フォルダー,
+            ログ,
+            ランダムシード,
+            結果ダイジェスト);
+    } finally {
+        Environment.SetEnvironmentVariable(要素倍率環境変数名,前回要素倍率);
+        Environment.SetEnvironmentVariable(要素数環境変数名,前回要素数);
+        Environment.SetEnvironmentVariable(ループ回数環境変数名,前回ループ回数);
+        Environment.SetEnvironmentVariable(準備済み要素数環境変数名,前回準備済み要素数);
+        Environment.SetEnvironmentVariable(ランダムソースシード環境変数名,前回ランダムソースシード);
+        Console.SetOut(プロトコル出力);
+        Console.SetError(プロトコルエラー);
     }
 }
 
-static WorkerResultMessage RunFastBenchmark(
-    WorkerTaskMessage task,
-    int logicalCpu,
-    TextWriter protocolOutput,
-    TextWriter protocolError){
-    Directory.CreateDirectory(task.ArtifactFolder);
-    var logPath = Path.Combine(task.ArtifactFolder,"fast-worker.log");
-    object? instance = null;
-    try{
-        ApplyThreadAffinity(logicalCpu);
-        var benchmarkType = ResolveBenchmarkType(task.AssemblyName,task.TypeFullName);
-        var method = ResolveBenchmarkMethod(benchmarkType,task.MethodName);
-        var randomSeed = CreateRandomSourceSeed(task);
-        var loopCount = Math.Max(1,task.LoopCount);
-        using var elementScope = BeginElementCountScope(benchmarkType.Assembly,task.ElementCount,task.ElementScale);
-        using var randomSourceScope = BeginRandomSourceSeedScope(benchmarkType.Assembly,randomSeed);
-        instance=method.IsStatic ? null : Activator.CreateInstance(benchmarkType);
-        var argumentValues = BenchmarkArgumentFormatting.ToObjects(task.Arguments);
-        var resultDigest = CaptureBenchmarkResultDigest(benchmarkType,task.MethodName,argumentValues);
-        var invokeBenchmark = argumentValues.Length==0
-            ? method.IsStatic
-                ? (Action)method.CreateDelegate(typeof(Action))
-                : (Action)method.CreateDelegate(typeof(Action),instance)
-            : () => method.Invoke(instance,argumentValues);
-        invokeBenchmark();
-        var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
-        var stopwatch = Stopwatch.StartNew();
-        for(var index=0;index<loopCount;index++){
-            invokeBenchmark();
+static ワーカー結果メッセージ 高速ベンチマークを実行(
+    ワーカータスクメッセージ タスク,
+    int 論理CPU,
+    TextWriter プロトコル出力,
+    TextWriter プロトコルエラー) {
+    Directory.CreateDirectory(タスク.成果物フォルダー);
+    var ログパス = Path.Combine(タスク.成果物フォルダー,"fast-worker.log");
+    object? インスタンス = null;
+    try {
+        スレッドアフィニティを適用(論理CPU);
+        var ベンチマーク型 = ベンチマーク型を解決(タスク.アセンブリ名,タスク.型完全名);
+        var メソッド = ベンチマークメソッドを解決(ベンチマーク型,タスク.メソッド名);
+        var ランダムシード = ランダムソースシードを作成(タスク);
+        var ループ回数 = Math.Max(1,タスク.ループ回数);
+        using var 要素数スコープ = 要素数スコープを開始(ベンチマーク型.Assembly,タスク.要素数,タスク.要素倍率);
+        using var ランダムソーススコープ = ランダムソースシードスコープを開始(ベンチマーク型.Assembly,ランダムシード);
+        インスタンス=メソッド.IsStatic ? null : Activator.CreateInstance(ベンチマーク型);
+        var 引数値一覧 = ベンチマーク引数フォーマッター.オブジェクト一覧に変換(タスク.引数);
+        var 結果ダイジェスト = ベンチマーク結果ダイジェストを取得(ベンチマーク型,タスク.メソッド名,引数値一覧);
+        var ベンチマーク呼出 = 引数値一覧.Length==0
+            ? メソッド.IsStatic
+                ? (Action)メソッド.CreateDelegate(typeof(Action))
+                : (Action)メソッド.CreateDelegate(typeof(Action),インスタンス)
+            : () => メソッド.Invoke(インスタンス,引数値一覧);
+        ベンチマーク呼出();
+        var 割当前バイト数 = GC.GetAllocatedBytesForCurrentThread();
+        var ストップウォッチ = Stopwatch.StartNew();
+        for(var 反復番号 = 0;反復番号<ループ回数;反復番号++) {
+            ベンチマーク呼出();
         }
-        stopwatch.Stop();
-        var allocatedAfter = GC.GetAllocatedBytesForCurrentThread();
-        var meanNanoseconds = stopwatch.Elapsed.TotalMilliseconds*1_000_000d;
-        var allocatedBytes = Math.Max(0,allocatedAfter-allocatedBefore);
-        var counter = new global::Seamless.Linq.LinqCounter();
-        using(var counterScope = global::Seamless.Linq.LinqCounterScope.Start(counter)) {
-            invokeBenchmark();
+        ストップウォッチ.Stop();
+        var 割当後バイト数 = GC.GetAllocatedBytesForCurrentThread();
+        var 平均ナノ秒 = ストップウォッチ.Elapsed.TotalMilliseconds*1_000_000d;
+        var 割当バイト数 = Math.Max(0,割当後バイト数-割当前バイト数);
+        var カウンター = new global::Seamless.Linq.LinqCounter();
+        using(var カウンタースコープ = global::Seamless.Linq.LinqCounterScope.Start(カウンター)) {
+            ベンチマーク呼出();
         }
-        var diagnosticCounters = CreateDiagnosticCounters(counter);
+        var 診断カウンター = 診断カウンターを作成(カウンター);
         File.WriteAllText(
-            logPath,
-            "Fast worker direct benchmark completed. CPU="
-            +(logicalCpu>=0 ? logicalCpu.ToString(CultureInfo.InvariantCulture) : "-")
-            +", Elapsed="+FormatNanoseconds(meanNanoseconds)
-            +", AllocatedBytes="+allocatedBytes.ToString(CultureInfo.InvariantCulture),
+            ログパス,
+            "高速ワーカーの直接ベンチマークが完了しました。CPU="
+            +(論理CPU>=0 ? 論理CPU.ToString(CultureInfo.InvariantCulture) : "-")
+            +"、経過時間="+ナノ秒を整形(平均ナノ秒)
+            +"、割り当てバイト数="+割当バイト数.ToString(CultureInfo.InvariantCulture),
             Encoding.UTF8);
-        return new WorkerResultMessage(
-            task.TaskId,
+        return new ワーカー結果メッセージ(
+            タスク.タスクID,
             "Completed",
-            FormatNanoseconds(meanNanoseconds),
+            ナノ秒を整形(平均ナノ秒),
             string.Empty,
             string.Empty,
-            meanNanoseconds,
+            平均ナノ秒,
             null,
             null,
-            allocatedBytes,
+            割当バイト数,
             0,
-            task.ArtifactFolder,
+            タスク.成果物フォルダー,
             string.Empty,
-            randomSeed,
-            resultDigest,
-            diagnosticCounters);
-    }catch(Exception ex) when(ex is not OperationCanceledException){
-        var actual = ex is TargetInvocationException { InnerException: { } inner } ? inner : ex;
-        Directory.CreateDirectory(task.ArtifactFolder);
-        File.WriteAllText(logPath,actual.ToString(),Encoding.UTF8);
-        return new WorkerResultMessage(
-            task.TaskId,
+            ランダムシード,
+            結果ダイジェスト,
+            診断カウンター);
+    } catch(Exception 例外) when(例外 is not OperationCanceledException) {
+        var 実例外 = 例外 is TargetInvocationException { InnerException: { } 内部例外 } ? 内部例外 : 例外;
+        Directory.CreateDirectory(タスク.成果物フォルダー);
+        File.WriteAllText(ログパス,実例外.ToString(),Encoding.UTF8);
+        return new ワーカー結果メッセージ(
+            タスク.タスクID,
             "Failed",
             string.Empty,
             string.Empty,
@@ -300,304 +299,304 @@ static WorkerResultMessage RunFastBenchmark(
             null,
             null,
             1,
-            task.ArtifactFolder,
-            actual.ToString(),
+            タスク.成果物フォルダー,
+            実例外.ToString(),
             null,
             string.Empty);
-    }finally{
-        if(instance is IDisposable disposable){
-            disposable.Dispose();
+    } finally {
+        if(インスタンス is IDisposable 破棄可能) {
+            破棄可能.Dispose();
         }
-        Console.SetOut(protocolOutput);
-        Console.SetError(protocolError);
+        Console.SetOut(プロトコル出力);
+        Console.SetError(プロトコルエラー);
     }
 }
 
-static Type ResolveBenchmarkType(string assemblyName,string typeFullName){
-    var assembly = AppDomain.CurrentDomain
+static Type ベンチマーク型を解決(string アセンブリ名,string 型完全名) {
+    var アセンブリ = AppDomain.CurrentDomain
         .GetAssemblies()
-        .FirstOrDefault(item => string.Equals(item.GetName().Name,assemblyName,StringComparison.OrdinalIgnoreCase))
-        ?? Assembly.Load(new AssemblyName(assemblyName));
-    return assembly.GetType(typeFullName,throwOnError:false,ignoreCase:false)
-        ??throw new TypeLoadException($"Benchmark type was not found: {assemblyName}:{typeFullName}");
+        .FirstOrDefault(項目 => string.Equals(項目.GetName().Name,アセンブリ名,StringComparison.OrdinalIgnoreCase))
+        ??Assembly.Load(new AssemblyName(アセンブリ名));
+    return アセンブリ.GetType(型完全名,throwOnError: false,ignoreCase: false)
+        ??throw new TypeLoadException($"ベンチマーク型が見つかりませんでした: {アセンブリ名}:{型完全名}");
 }
 
-static MethodInfo ResolveBenchmarkMethod(Type benchmarkType,string methodName){
-    var methods = benchmarkType.GetMethods(BindingFlags.Public|BindingFlags.Instance|BindingFlags.Static);
-    var method = methods.SingleOrDefault(method =>
-        string.Equals(method.Name,methodName,StringComparison.Ordinal)
-        &&HasBenchmarkAttribute(method));
-    return method??throw new MissingMethodException(benchmarkType.FullName,methodName);
+static MethodInfo ベンチマークメソッドを解決(Type ベンチマーク型,string メソッド名) {
+    var メソッド一覧 = ベンチマーク型.GetMethods(BindingFlags.Public|BindingFlags.Instance|BindingFlags.Static);
+    var メソッド = メソッド一覧.SingleOrDefault(候補 =>
+        string.Equals(候補.Name,メソッド名,StringComparison.Ordinal)
+        &&ベンチマーク属性を持つか(候補));
+    return メソッド??throw new MissingMethodException(ベンチマーク型.FullName,メソッド名);
 }
 
-static bool HasBenchmarkAttribute(MethodInfo method) =>
-    method.GetCustomAttributes(inherit:true).Any(static attribute =>
-        string.Equals(attribute.GetType().Name,"BenchmarkAttribute",StringComparison.Ordinal));
+static bool ベンチマーク属性を持つか(MethodInfo メソッド) =>
+    メソッド.GetCustomAttributes(inherit: true).Any(static 属性 =>
+        string.Equals(属性.GetType().Name,"BenchmarkAttribute",StringComparison.Ordinal));
 
-static IDisposable BeginElementCountScope(Assembly assembly,int elementCount,string elementScale){
-    var modeType = assembly.GetType("Common.BenchmarkExecutionMode",throwOnError:false,ignoreCase:false)
+static IDisposable 要素数スコープを開始(Assembly アセンブリ,int 要素数,string 要素倍率) {
+    var 実行モード型 = アセンブリ.GetType("Common.BenchmarkExecutionMode",throwOnError: false,ignoreCase: false)
         ??AppDomain.CurrentDomain.GetAssemblies()
-            .Select(static candidate => candidate.GetType("Common.BenchmarkExecutionMode",throwOnError:false,ignoreCase:false))
-            .FirstOrDefault(static candidate => candidate is not null);
-    var method = modeType?.GetMethod(
+            .Select(static 候補 => 候補.GetType("Common.BenchmarkExecutionMode",throwOnError: false,ignoreCase: false))
+            .FirstOrDefault(static 候補 => 候補 is not null);
+    var メソッド = 実行モード型?.GetMethod(
         "UseElementCount",
         BindingFlags.Public|BindingFlags.Static,
-        binder:null,
-        types:[typeof(int),typeof(string)],
-        modifiers:null);
-    return method?.Invoke(null,[elementCount,string.IsNullOrWhiteSpace(elementScale)?"1":elementScale]) as IDisposable
-        ?? EmptyDisposable.Instance;
+        binder: null,
+        types: [typeof(int),typeof(string)],
+        modifiers: null);
+    return メソッド?.Invoke(null,[要素数,string.IsNullOrWhiteSpace(要素倍率) ? "1" : 要素倍率]) as IDisposable
+        ??空ディスポーザブル.インスタンス;
 }
 
-static IDisposable BeginRandomSourceSeedScope(Assembly assembly,int seed){
-    var modeType = assembly.GetType("Common.BenchmarkExecutionMode",throwOnError:false,ignoreCase:false);
-    var method = modeType?.GetMethod(
+static IDisposable ランダムソースシードスコープを開始(Assembly アセンブリ,int シード) {
+    var 実行モード型 = アセンブリ.GetType("Common.BenchmarkExecutionMode",throwOnError: false,ignoreCase: false);
+    var メソッド = 実行モード型?.GetMethod(
         "UseRandomSourceSeed",
         BindingFlags.Public|BindingFlags.Static,
-        binder:null,
-        types:[typeof(int)],
-        modifiers:null);
-    return method?.Invoke(null,[seed]) as IDisposable
-        ?? EmptyDisposable.Instance;
+        binder: null,
+        types: [typeof(int)],
+        modifiers: null);
+    return メソッド?.Invoke(null,[シード]) as IDisposable
+        ??空ディスポーザブル.インスタンス;
 }
 
-static string CaptureBenchmarkResultDigest(Type benchmarkType,string methodName,object?[] arguments){
-    var instance = Activator.CreateInstance(benchmarkType);
-    var method = benchmarkType.GetMethod(
+static string ベンチマーク結果ダイジェストを取得(Type ベンチマーク型,string メソッド名,object?[] 引数一覧) {
+    var インスタンス = Activator.CreateInstance(ベンチマーク型);
+    var メソッド = ベンチマーク型.GetMethod(
         "CaptureBenchmarkMethodResult",
         BindingFlags.Public|BindingFlags.Instance,
-        binder:null,
-        types:[typeof(string),typeof(bool),typeof(object[])],
-        modifiers:null)
-        ??throw new MissingMethodException(benchmarkType.FullName,"CaptureBenchmarkMethodResult");
-    return method.Invoke(instance,[methodName,false,arguments]) as string
-        ??throw new InvalidOperationException("Benchmark result digest was empty.");
+        binder: null,
+        types: [typeof(string),typeof(bool),typeof(object[])],
+        modifiers: null)
+        ??throw new MissingMethodException(ベンチマーク型.FullName,"CaptureBenchmarkMethodResult");
+    return メソッド.Invoke(インスタンス,[メソッド名,false,引数一覧]) as string
+        ??throw new InvalidOperationException("ベンチマーク結果ダイジェストが空でした。");
 }
 
-static int CreateRandomSourceSeed(WorkerTaskMessage task){
-    var runRoot = TryGetRunRoot(task.ArtifactFolder);
-    return StableHash(runRoot+"|"+task.SourceTab+"|"+task.MethodName+"|"+task.ArgumentKey+"|"+task.ElementCount.ToString(CultureInfo.InvariantCulture)+"|"+task.LoopCount.ToString(CultureInfo.InvariantCulture));
+static int ランダムソースシードを作成(ワーカータスクメッセージ タスク) {
+    var 実行ルート = 実行ルートを推定(タスク.成果物フォルダー);
+    return 安定ハッシュ(実行ルート+"|"+タスク.ソースタブ+"|"+タスク.メソッド名+"|"+タスク.引数キー+"|"+タスク.要素数.ToString(CultureInfo.InvariantCulture)+"|"+タスク.ループ回数.ToString(CultureInfo.InvariantCulture));
 }
 
-static bool IsReportForArguments(BenchmarkDotNet.Running.BenchmarkCase benchmarkCase,BenchmarkArgument[] arguments){
-    if(arguments.Length==0){
+static bool 引数に一致する報告か(BenchmarkDotNet.Running.BenchmarkCase ベンチマークケース,ベンチマーク引数[] 引数一覧) {
+    if(引数一覧.Length==0) {
         return true;
     }
-    var display = benchmarkCase.DisplayInfo;
-    return arguments.All(argument =>
-        display.Contains(argument.Name,StringComparison.OrdinalIgnoreCase)
-        &&display.Contains(argument.Value,StringComparison.OrdinalIgnoreCase));
+    var 表示 = ベンチマークケース.DisplayInfo;
+    return 引数一覧.All(引数 =>
+        表示.Contains(引数.名前,StringComparison.OrdinalIgnoreCase)
+        &&表示.Contains(引数.値,StringComparison.OrdinalIgnoreCase));
 }
 
-static string TryGetRunRoot(string artifactFolder){
-    var directory = new DirectoryInfo(artifactFolder);
-    for(var i=0;i<4&&directory is not null;i++){
-        directory=directory.Parent;
+static string 実行ルートを推定(string 成果物フォルダー) {
+    var ディレクトリ = new DirectoryInfo(成果物フォルダー);
+    for(var 階層 = 0;階層<4&&ディレクトリ is not null;階層++) {
+        ディレクトリ=ディレクトリ.Parent;
     }
-    return directory?.FullName??artifactFolder;
+    return ディレクトリ?.FullName??成果物フォルダー;
 }
 
-static int StableHash(string text){
-    unchecked{
-        var hash = (int)2166136261;
-        foreach(var ch in text){
-            hash^=ch;
-            hash*=16777619;
+static int 安定ハッシュ(string 文字列) {
+    unchecked {
+        var ハッシュ = (int)2166136261;
+        foreach(var 文字 in 文字列) {
+            ハッシュ^=文字;
+            ハッシュ*=16777619;
         }
-        return hash==0 ? 1 : hash;
+        return ハッシュ==0 ? 1 : ハッシュ;
     }
 }
 
-static string FormatNanoseconds(double? value){
-    return value is { } number&&double.IsFinite(number)
-        ? number.ToString("N3",CultureInfo.InvariantCulture)+" ns"
+static string ナノ秒を整形(double? 値) {
+    return 値 is { } 数値&&double.IsFinite(数値)
+        ? 数値.ToString("N3",CultureInfo.InvariantCulture)+" ns"
         : string.Empty;
 }
 
-static IReadOnlyList<BenchmarkDiagnosticCounter> CreateDiagnosticCounters(global::Seamless.Linq.LinqCounter counter) => [
-    new("PhysicalMoveNext",counter.PhysicalMoveNext),
-    new("LogicalOperations",counter.LogicalOperations),
-    new("LogicalWhere",counter.LogicalWhere),
-    new("LogicalSelect",counter.LogicalSelect),
-    new("HashBuild",counter.HashBuild),
-    new("HashProbe",counter.HashProbe),
-    new("BufferAdd",counter.BufferAdd),
-    new("TryGetNonEnumeratedCount",counter.TryGetNonEnumeratedCount),
-    new("LogicalDelegate",counter.LogicalDelegate),
-    new("PhysicalDelegate",counter.PhysicalDelegate),
-    new("EnumerableFallback",counter.EnumerableFallback),
-    new("DirectSpanUsed",counter.DirectSpanUsed),
-    new("TryGetSpanCalled",counter.TryGetSpanCalled),
-    new("TryGetSpanSucceeded",counter.TryGetSpanSucceeded),
-    new("TryGetSpanFailed",counter.TryGetSpanFailed),
-    new("EnumerationLoopUsed",counter.EnumerationLoopUsed),
-    new("FastCopyUsed",counter.FastCopyUsed),
-    new("HashCapacityHintUsed",counter.HashCapacityHintUsed),
+static IReadOnlyList<ベンチマーク診断カウンター> 診断カウンターを作成(global::Seamless.Linq.LinqCounter カウンター) => [
+    new("PhysicalMoveNext",カウンター.PhysicalMoveNext),
+    new("LogicalOperations",カウンター.LogicalOperations),
+    new("LogicalWhere",カウンター.LogicalWhere),
+    new("LogicalSelect",カウンター.LogicalSelect),
+    new("HashBuild",カウンター.HashBuild),
+    new("HashProbe",カウンター.HashProbe),
+    new("BufferAdd",カウンター.BufferAdd),
+    new("TryGetNonEnumeratedCount",カウンター.TryGetNonEnumeratedCount),
+    new("LogicalDelegate",カウンター.LogicalDelegate),
+    new("PhysicalDelegate",カウンター.PhysicalDelegate),
+    new("EnumerableFallback",カウンター.EnumerableFallback),
+    new("DirectSpanUsed",カウンター.DirectSpanUsed),
+    new("TryGetSpanCalled",カウンター.TryGetSpanCalled),
+    new("TryGetSpanSucceeded",カウンター.TryGetSpanSucceeded),
+    new("TryGetSpanFailed",カウンター.TryGetSpanFailed),
+    new("EnumerationLoopUsed",カウンター.EnumerationLoopUsed),
+    new("FastCopyUsed",カウンター.FastCopyUsed),
+    new("HashCapacityHintUsed",カウンター.HashCapacityHintUsed),
 ];
 
-static long? GetAllocatedBytes(object? report){
-    var gcStats = report?.GetType().GetProperty("GcStats")?.GetValue(report);
-    if(gcStats is null){
+static long? 割当バイト数を取得(object? 報告) {
+    var GC統計 = 報告?.GetType().GetProperty("GcStats")?.GetValue(報告);
+    if(GC統計 is null) {
         return null;
     }
 
-    var totalMethod = gcStats.GetType().GetMethod("GetTotalAllocatedBytes",new[] { typeof(bool) });
-    var totalIncludingQuantum = ToNonNegativeLong(totalMethod?.Invoke(gcStats,new object[] { false }));
-    var totalExcludingQuantum = ToNonNegativeLong(totalMethod?.Invoke(gcStats,new object[] { true }));
-    var allocatedBytes = ToNonNegativeLong(gcStats.GetType().GetProperty("AllocatedBytes")?.GetValue(gcStats));
-    foreach(var value in new[] { totalIncludingQuantum,allocatedBytes,totalExcludingQuantum }){
-        if(value is >0){
-            return value;
+    var 合計取得メソッド = GC統計.GetType().GetMethod("GetTotalAllocatedBytes",new[] { typeof(bool) });
+    var クォンタム込合計 = 非負整数に変換(合計取得メソッド?.Invoke(GC統計,new object[] { false }));
+    var クォンタム除外合計 = 非負整数に変換(合計取得メソッド?.Invoke(GC統計,new object[] { true }));
+    var 割当バイト数 = 非負整数に変換(GC統計.GetType().GetProperty("AllocatedBytes")?.GetValue(GC統計));
+    foreach(var 値 in new[] { クォンタム込合計,割当バイト数,クォンタム除外合計 }) {
+        if(値 is >0) {
+            return 値;
         }
     }
 
-    return totalIncludingQuantum>=0
-        ? totalIncludingQuantum
-        : allocatedBytes>=0
-            ? allocatedBytes
-            : totalExcludingQuantum>=0
-                ? totalExcludingQuantum
+    return クォンタム込合計>=0
+        ? クォンタム込合計
+        : 割当バイト数>=0
+            ? 割当バイト数
+            : クォンタム除外合計>=0
+                ? クォンタム除外合計
                 : null;
 }
 
-static long? ToNonNegativeLong(object? value) =>
-    value is long number&&number>=0
-        ? number
+static long? 非負整数に変換(object? 値) =>
+    値 is long 数値&&数値>=0
+        ? 数値
         : null;
 
-static string TrimUtf8Bom(string text){
-    return text.Length>0&&text[0]=='\uFEFF'
-        ? text[1..]
-        : text;
+static string UTF8BOMを除去(string 文字列) {
+    return 文字列.Length>0&&文字列[0]=='\uFEFF'
+        ? 文字列[1..]
+        : 文字列;
 }
 
-static int ReadRequiredIntArg(string[] args,string name){
-    var value = ReadRequiredStringArg(args,name);
-    return int.Parse(value,CultureInfo.InvariantCulture);
+static int 必須整数引数を読む(string[] 引数一覧,string 名前) {
+    var 値 = 必須文字列引数を読む(引数一覧,名前);
+    return int.Parse(値,CultureInfo.InvariantCulture);
 }
 
-static string ReadRequiredStringArg(string[] args,string name){
-    for(var i=0;i<args.Length-1;i++){
-        if(string.Equals(args[i],name,StringComparison.OrdinalIgnoreCase)){
-            return args[i+1];
+static string 必須文字列引数を読む(string[] 引数一覧,string 名前) {
+    for(var 引数番号 = 0;引数番号<引数一覧.Length-1;引数番号++) {
+        if(string.Equals(引数一覧[引数番号],名前,StringComparison.OrdinalIgnoreCase)) {
+            return 引数一覧[引数番号+1];
         }
     }
 
-    throw new ArgumentException($"Missing required argument: {name}");
+    throw new ArgumentException($"必須引数がありません: {名前}");
 }
 
-static void ApplyAffinity(int logicalCpu){
-    if(logicalCpu<0||logicalCpu>=Environment.ProcessorCount||logicalCpu>=63){
+static void アフィニティを適用(int 論理CPU) {
+    if(論理CPU<0||論理CPU>=Environment.ProcessorCount||論理CPU>=63) {
         return;
     }
 
-    var mask = 1L<<logicalCpu;
-    if(OperatingSystem.IsWindows()){
-        try{
-            Process.GetCurrentProcess().ProcessorAffinity=new IntPtr(mask);
-        }catch(PlatformNotSupportedException){
-        }catch(InvalidOperationException){
-        }catch(System.ComponentModel.Win32Exception){
+    var マスク = 1L<<論理CPU;
+    if(OperatingSystem.IsWindows()) {
+        try {
+            Process.GetCurrentProcess().ProcessorAffinity=new IntPtr(マスク);
+        } catch(PlatformNotSupportedException) {
+        } catch(InvalidOperationException) {
+        } catch(System.ComponentModel.Win32Exception) {
         }
 
-        SetThreadAffinityMask(GetCurrentThread(),new UIntPtr((ulong)mask));
-    }else if(OperatingSystem.IsLinux()){
-        try{
-            Process.GetCurrentProcess().ProcessorAffinity=new IntPtr(mask);
-        }catch(PlatformNotSupportedException){
-        }catch(InvalidOperationException){
-        }catch(System.ComponentModel.Win32Exception){
+        SetThreadAffinityMask(GetCurrentThread(),new UIntPtr((ulong)マスク));
+    } else if(OperatingSystem.IsLinux()) {
+        try {
+            Process.GetCurrentProcess().ProcessorAffinity=new IntPtr(マスク);
+        } catch(PlatformNotSupportedException) {
+        } catch(InvalidOperationException) {
+        } catch(System.ComponentModel.Win32Exception) {
         }
     }
 }
 
-static void ApplyThreadAffinity(int logicalCpu){
-    if(logicalCpu<0||logicalCpu>=Environment.ProcessorCount||logicalCpu>=63||!OperatingSystem.IsWindows()){
+static void スレッドアフィニティを適用(int 論理CPU) {
+    if(論理CPU<0||論理CPU>=Environment.ProcessorCount||論理CPU>=63||!OperatingSystem.IsWindows()) {
         return;
     }
 
-    var mask = 1UL<<logicalCpu;
-    SetThreadAffinityMask(GetCurrentThread(),new UIntPtr(mask));
+    var マスク = 1UL<<論理CPU;
+    SetThreadAffinityMask(GetCurrentThread(),new UIntPtr(マスク));
 }
 
 [DllImport("kernel32.dll")]
 static extern IntPtr GetCurrentThread();
 
-[DllImport("kernel32.dll",SetLastError=true)]
-static extern UIntPtr SetThreadAffinityMask(IntPtr threadHandle,UIntPtr threadAffinityMask);
+[DllImport("kernel32.dll",SetLastError = true)]
+static extern UIntPtr SetThreadAffinityMask(IntPtr スレッドハンドル,UIntPtr スレッドアフィニティマスク);
 
-internal sealed record WorkerTaskMessage(
-    string Command,
-    string TaskId,
-    string AssemblyName,
-    string TypeFullName,
-    string MethodName,
-    string ArgumentKey,
-    BenchmarkArgument[] Arguments,
-    int SourceTab,
-    int[] PreparedElementCounts,
-    int ElementCount,
-    int LoopCount,
-    string ElementScale,
-    string ArtifactFolder,
-    int? AssignedLogicalCpu = null);
+internal sealed record ワーカータスクメッセージ(
+    string コマンド,
+    string タスクID,
+    string アセンブリ名,
+    string 型完全名,
+    string メソッド名,
+    string 引数キー,
+    ベンチマーク引数[] 引数,
+    int ソースタブ,
+    int[] 準備済み要素数,
+    int 要素数,
+    int ループ回数,
+    string 要素倍率,
+    string 成果物フォルダー,
+    int? 割り当て論理CPU = null);
 
-internal sealed record BenchmarkArgument(string Name,string Value);
+internal sealed record ベンチマーク引数(string 名前,string 値);
 
-internal static class BenchmarkArgumentFormatting{
-    public static object?[] ToObjects(IReadOnlyList<BenchmarkArgument> arguments) =>
-        arguments.Select(static argument => ParseValue(argument.Value)).ToArray();
+internal static class ベンチマーク引数フォーマッター {
+    public static object?[] オブジェクト一覧に変換(IReadOnlyList<ベンチマーク引数> 引数一覧) =>
+        引数一覧.Select(static 引数 => 値を解析(引数.値)).ToArray();
 
-    private static object ParseValue(string value) {
-        if(long.TryParse(value,NumberStyles.Integer,CultureInfo.InvariantCulture,out var longValue)){
-            return longValue;
+    private static object 値を解析(string 値) {
+        if(long.TryParse(値,NumberStyles.Integer,CultureInfo.InvariantCulture,out var 整数値)) {
+            return 整数値;
         }
-        if(double.TryParse(value,NumberStyles.Float,CultureInfo.InvariantCulture,out var doubleValue)){
-            return doubleValue;
+        if(double.TryParse(値,NumberStyles.Float,CultureInfo.InvariantCulture,out var 浮動小数値)) {
+            return 浮動小数値;
         }
-        return value;
+        return 値;
     }
 }
 
-internal sealed record BenchmarkDiagnosticCounter(
-    string CounterName,
-    double CounterValue);
+internal sealed record ベンチマーク診断カウンター(
+    string カウンター名,
+    double カウンター値);
 
-internal sealed record WorkerResultMessage(
-    string TaskId,
-    string Status,
-    string Mean,
-    string Error,
-    string StdDev,
-    double? MeanNanoseconds,
-    double? ErrorNanoseconds,
-    double? StdDevNanoseconds,
-    long? AllocatedBytes,
-    int ExitCode,
-    string ArtifactFolder,
-    string Log,
-    int? RandomSeed,
-    string ResultDigest,
-    IReadOnlyList<BenchmarkDiagnosticCounter>? DiagnosticCounters = null);
-internal sealed class EmptyDisposable:IDisposable{
-    public static EmptyDisposable Instance { get; } = new();
+internal sealed record ワーカー結果メッセージ(
+    string タスクID,
+    string 状態,
+    string 平均,
+    string 誤差,
+    string 標準偏差,
+    double? 平均ナノ秒,
+    double? 誤差ナノ秒,
+    double? 標準偏差ナノ秒,
+    long? 割り当てバイト数,
+    int 終了コード,
+    string 成果物フォルダー,
+    string ログ,
+    int? ランダムシード,
+    string 結果ダイジェスト,
+    IReadOnlyList<ベンチマーク診断カウンター>? 診断カウンター = null);
+internal sealed class 空ディスポーザブル:IDisposable {
+    public static 空ディスポーザブル インスタンス { get; } = new();
 
-    public void Dispose(){
+    public void Dispose() {
     }
 }
 
-internal sealed class WorkerTaskFilter(WorkerTaskMessage task) : IFilter{
-    public bool Predicate(BenchmarkDotNet.Running.BenchmarkCase benchmarkCase) =>
-        benchmarkCase.Descriptor.WorkloadMethod.Name==task.MethodName
-        &&IsReportForArguments(benchmarkCase,task.Arguments);
+internal sealed class ワーカータスクフィルター(ワーカータスクメッセージ タスク):IFilter {
+    public bool Predicate(BenchmarkDotNet.Running.BenchmarkCase ベンチマークケース) =>
+        ベンチマークケース.Descriptor.WorkloadMethod.Name==タスク.メソッド名
+        &&引数に一致する報告か(ベンチマークケース,タスク.引数);
 
-    private static bool IsReportForArguments(BenchmarkDotNet.Running.BenchmarkCase benchmarkCase,BenchmarkArgument[] arguments){
-        if(arguments.Length==0){
+    private static bool 引数に一致する報告か(BenchmarkDotNet.Running.BenchmarkCase ベンチマークケース,ベンチマーク引数[] 引数一覧) {
+        if(引数一覧.Length==0) {
             return true;
         }
-        var display = benchmarkCase.DisplayInfo;
-        return arguments.All(argument =>
-            display.Contains(argument.Name,StringComparison.OrdinalIgnoreCase)
-            &&display.Contains(argument.Value,StringComparison.OrdinalIgnoreCase));
+        var 表示 = ベンチマークケース.DisplayInfo;
+        return 引数一覧.All(引数 =>
+            表示.Contains(引数.名前,StringComparison.OrdinalIgnoreCase)
+            &&表示.Contains(引数.値,StringComparison.OrdinalIgnoreCase));
     }
 }

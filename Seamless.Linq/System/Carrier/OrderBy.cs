@@ -122,8 +122,7 @@ namespace Seamless.System.Carrier {
                 if(elementCount==0) {
                     this.buffer=RentedArrayBox<TSource>.Empty;
                     return false;
-                }
-                else if(unchecked((uint)elementAt)>=elementCount) {
+                } else if(unchecked((uint)elementAt)>=elementCount) {
                     // same as InitBuffer()
                     this.buffer=new RentedArrayBox<TSource>(elementArray,elementCount); // keep rental array(don't return in this method)
                     this.Sort(this.buffer.Span);
@@ -139,19 +138,16 @@ namespace Seamless.System.Carrier {
                     int elementIndex;
                     if(elementAt==0) {
                         elementIndex=OrderByHelper.Min(indexMap,comparer,count: size); // First
-                    }
-                    else if(elementAt==size-1) {
+                    } else if(elementAt==size-1) {
                         elementIndex=OrderByHelper.Max(indexMap,comparer,count: size); // Last
-                    }
-                    else {
+                    } else {
                         elementIndex=OrderByHelper.QuickSelect(indexMap,comparer,right: size-1,idx: elementAt); // ElementAt
                     }
 
                     destination[0]=span[elementIndex];
 
                     ArrayPool<int>.Shared.Return(indexMap,clearArray: false);
-                }
-                finally {
+                } finally {
                     ArrayPool<TSource>.Shared.Return(elementArray,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<TSource>());
                 }
 
@@ -204,12 +200,10 @@ namespace Seamless.System.Carrier {
             if(this.IsAllowDirectSort()) {
                 if(descending) {
                     span.Sort(DescendingDefaultComparer<TSource>.Default);
-                }
-                else {
+                } else {
                     span.Sort();
                 }
-            }
-            else {
+            } else {
                 // faster(using SIMD) index map creation
                 var (indexMap,size)=ValueEnumerable.Range(0,span.Length).ToArrayPool();
 
@@ -288,7 +282,7 @@ namespace Seamless.System.Carrier {
                 var indexSlice = this.indexMap.Span.Slice(this.minIndexInclusive,(int)Math.Min((uint)this.maxIndexInclusive-this.minIndexInclusive+1,(uint)this.indexMap.Span.Length-this.minIndexInclusive));
 
                 if(EnumeratorHelper.TryGetSlice<int>(indexSlice,offset,destination.Length,out var slice)) {
-                    for(var i = 0; (uint)i<(uint)slice.Length; i++) {
+                    for(var i = 0;(uint)i<(uint)slice.Length;i++) {
                         destination[i]=this.buffer.UnsafeGetAt(slice[i]);
                     }
                     return true;
@@ -351,8 +345,7 @@ namespace Seamless.System.Carrier {
             var minIndex = this.minIndexInclusive+count;
             if((uint)minIndex>(uint)this.maxIndexInclusive) {
                 return new OrderBySkipTake<TEnumerator,TSource,TKey>(this.source,this.comparable,0,-1); // Empty
-            }
-            else {
+            } else {
                 return new OrderBySkipTake<TEnumerator,TSource,TKey>(this.source,this.comparable,minIndex,this.maxIndexInclusive);
             }
         }
@@ -399,7 +392,7 @@ namespace Seamless.System.Carrier {
 
         public OrderByComparer(ReadOnlySpan<TSource> source,Func<TSource,TKey> keySelector,IComparer<TKey> comparer,IOrderByComparer? childComparer,bool descending) {
             var tempArray = ArrayPool<TKey>.Shared.Rent(source.Length);
-            for(var i = 0; (uint)i<(uint)source.Length; i++) {
+            for(var i = 0;(uint)i<(uint)source.Length;i++) {
                 tempArray[i]=keySelector(source[i]);
             }
             this.keys=tempArray; // Compare range is [0, source.Length).
@@ -509,8 +502,7 @@ namespace Seamless.System.Carrier {
 
                 if(i<=idx) {
                     left=i+1;
-                }
-                else {
+                } else {
                     right=j-1;
                 }
 
@@ -520,8 +512,7 @@ namespace Seamless.System.Carrier {
                     }
 
                     left=i;
-                }
-                else {
+                } else {
                     if(i<right) {
                         left=i;
                     }
@@ -565,8 +556,7 @@ namespace Seamless.System.Carrier {
 
                 if(minIdx>=i) {
                     left=i+1;
-                }
-                else if(maxIdx<=j) {
+                } else if(maxIdx<=j) {
                     right=j-1;
                 }
 
@@ -576,8 +566,7 @@ namespace Seamless.System.Carrier {
                     }
 
                     left=i;
-                }
-                else {
+                } else {
                     if(i<right) {
                         PartialQuickSort(map,comparer,i,right,minIdx,maxIdx);
                     }
@@ -590,7 +579,7 @@ namespace Seamless.System.Carrier {
 
         internal static int Min(int[] map,IComparer<int> comparer,int count) {
             int index = 0;
-            for(int i = 1; i<count; i++) {
+            for(int i = 1;i<count;i++) {
                 if(comparer.Compare(map[i],map[index])<0) {
                     index=i;
                 }
@@ -600,7 +589,7 @@ namespace Seamless.System.Carrier {
 
         internal static int Max(int[] map,IComparer<int> comparer,int count) {
             int index = 0;
-            for(int i = 1; i<count; i++) {
+            for(int i = 1;i<count;i++) {
                 if(comparer.Compare(map[i],map[index])>=0) {
                     index=i;
                 }

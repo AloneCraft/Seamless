@@ -1,25 +1,23 @@
-﻿using UI;
-
 namespace Test.Benchmark;
 
-public sealed class BenchmarkRunTimestampDisplayLogic{
+public sealed class ベンチマーク実行日時表示ロジック {
     [Fact]
-    public void ResolveRunningTimestampUsesStartedAtWhenAvailable(){
-        var startedAt = new DateTimeOffset(2026,7,1,17,6,18,TimeSpan.Zero);
-        var observedAt = new DateTimeOffset(2026,7,1,17,6,30,TimeSpan.Zero);
+    public void 仕様確認01() {
+        var 開始日時 = new DateTimeOffset(2026,7,1,17,6,18,TimeSpan.Zero);
+        var 観測日時 = new DateTimeOffset(2026,7,1,17,6,30,TimeSpan.Zero);
 
-        var timestamp = global::UI.BenchmarkRunTimestampDisplayLogic.ResolveRunningTimestamp(startedAt,observedAt);
+        var 日時 = global::UI.ベンチマーク実行日時表示ロジック.実行中日時を解決(開始日時,観測日時);
 
-        Assert.Equal(startedAt,timestamp);
+        Assert.Equal(開始日時,日時);
     }
 
     [Fact]
-    public void ResolveRunningTimestampFallsBackToObservedAt(){
-        var observedAt = new DateTimeOffset(2026,7,1,17,6,30,TimeSpan.Zero);
+    public void 仕様確認02() {
+        var 観測日時 = new DateTimeOffset(2026,7,1,17,6,30,TimeSpan.Zero);
 
-        var timestamp = global::UI.BenchmarkRunTimestampDisplayLogic.ResolveRunningTimestamp(null,observedAt);
+        var 日時 = global::UI.ベンチマーク実行日時表示ロジック.実行中日時を解決(null,観測日時);
 
-        Assert.Equal(observedAt,timestamp);
+        Assert.Equal(観測日時,日時);
     }
 }
 

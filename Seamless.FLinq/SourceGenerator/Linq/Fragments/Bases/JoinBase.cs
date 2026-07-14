@@ -24,19 +24,19 @@ JoinBase は Join/GroupJoin/LeftJoin/RightJoin 系の lookup 構築を共有す�
   - LeftJoin/RightJoin は一致しない側の default/null 相当も状態機械で返す。
   - resultSelector が匿名型を返す場合は TResult factory か delegate 保持に寄せる。
 */
-internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,FuncFragment outerKeySelector,FuncFragment innerKeySelector,FuncFragment resultSelector,string comparer):Enumerable(番号){
-    protected readonly Enumerable outerSource=outer;
-    protected readonly Enumerable innerSource=inner;
-    protected readonly FuncFragment outerKey=outerKeySelector;
-    protected readonly FuncFragment innerKey=innerKeySelector;
-    protected readonly FuncFragment resultSelector=resultSelector;
-    protected readonly string comparerExpression=comparer;
-    protected override Enumerable PrimarySource=> this.outerSource;
-    protected bool UseResultTypeParam=> this.resultSelector.RequiresResultTypeParameter;
-    protected string InnerKeyType=>FuncReturnTypeName(this.innerKey);
-    protected string InnerElementType=> this.innerSource.ElementType;
-    protected string OuterElementType=> this.outerSource.ElementType;
-    protected string BuildLookupBody(bool skipNullKeyCheck,string logicalInnerCounterMethod)=>skipNullKeyCheck ? $$"""
+internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,FuncFragment outerKeySelector,FuncFragment innerKeySelector,FuncFragment resultSelector,string comparer):Enumerable(番号) {
+    protected readonly Enumerable outerSource = outer;
+    protected readonly Enumerable innerSource = inner;
+    protected readonly FuncFragment outerKey = outerKeySelector;
+    protected readonly FuncFragment innerKey = innerKeySelector;
+    protected readonly FuncFragment resultSelector = resultSelector;
+    protected readonly string comparerExpression = comparer;
+    protected override Enumerable PrimarySource => this.outerSource;
+    protected bool UseResultTypeParam => this.resultSelector.RequiresResultTypeParameter;
+    protected string InnerKeyType => FuncReturnTypeName(this.innerKey);
+    protected string InnerElementType => this.innerSource.ElementType;
+    protected string OuterElementType => this.outerSource.ElementType;
+    protected string BuildLookupBody(bool skipNullKeyCheck,string logicalInnerCounterMethod) => skipNullKeyCheck ? $$"""
         private static global::Seamless.System.Carrier.Lookup<{{this.InnerKeyType}},{{this.InnerElementType}}> BuildLookup(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
             var __lookupBuilder=new global::Seamless.System.Carrier.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(0,comparer,true);
             using var {{this.innerEnumerator}}=inner;
@@ -70,7 +70,7 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
             return __lookupBuilder.BuildPooledAndClear();
         }
         """;
-    protected static string BuildFactorySource(string structName,string factoryMethodName,string outerTypeName,string innerTypeName,string resultTypeName,string comparerTypeName,string outerCtorSuffix,string innerCtorSuffix,string resultCtorSuffix,string outerFactoryArgsSuffix,string innerFactoryArgsSuffix,string resultFactoryArgsSuffix,bool useResultTypeParam)=>!useResultTypeParam ? string.Empty : $$"""
+    protected static string BuildFactorySource(string structName,string factoryMethodName,string outerTypeName,string innerTypeName,string resultTypeName,string comparerTypeName,string outerCtorSuffix,string innerCtorSuffix,string resultCtorSuffix,string outerFactoryArgsSuffix,string innerFactoryArgsSuffix,string resultFactoryArgsSuffix,bool useResultTypeParam) => !useResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
         private static global::Seamless.System.Carrier.ValueEnumerable<{{structName}}<TOuterEnum,TInnerEnum,TResult>,TResult> {{factoryMethodName}}<TOuterEnum,TInnerEnum,TResult>(TOuterEnum outer,TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{comparerTypeName}}>? comparer{{outerCtorSuffix}}{{innerCtorSuffix}}{{resultCtorSuffix}})
             where TOuterEnum : struct, global::System.Collections.Generic.IEnumerator<{{outerTypeName}}>

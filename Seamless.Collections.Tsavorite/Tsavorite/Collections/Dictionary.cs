@@ -18,7 +18,7 @@ public partial class Dictionary<
         TKeySerializer,
         TValueSerializer
     >,
-    IDictionary<TKey,TValue>    where TKeySerializer : ISerializer<TKey>
+    IDictionary<TKey,TValue> where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
     public bool IsReadOnly => false;
     public void Add(KeyValuePair<TKey,TValue> item) => this.Add(item.Key,item.Value);
@@ -47,8 +47,8 @@ public partial class Dictionary<
     }
     public List<KeyValuePair<TKey,TValue>> ToList() {
         using var Enumerator = this.GetEnumerator();
-        var capacity=checked((int)Math.Min(this.EntryCount,int.MaxValue));
-        var List=new List<KeyValuePair<TKey,TValue>>(capacity);
+        var capacity = checked((int)Math.Min(this.EntryCount,int.MaxValue));
+        var List = new List<KeyValuePair<TKey,TValue>>(capacity);
         while(Enumerator.MoveNext()) {
             List.Add(Enumerator.Current);
         }
@@ -165,14 +165,14 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
         this.VerifyThreadAffinity();
         return new Enumerator<MemoryKeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadSession,new(),this.Store.Log.TailAddress,this);
     }
-    private ReadOnlyCollectionView<TIterator,T> CreateCollectionView<TIterator,T>()
-        where TIterator : IterateLookupIteratorFunctions_List<T>,ICreate<TIterator> =>
+    private ReadOnlyCollectionView<TIterator,T> CreateCollectionView<TIterator, T>()
+        where TIterator : IterateLookupIteratorFunctions_List<T>, ICreate<TIterator> =>
         new(this);
 
-    private sealed class ReadOnlyCollectionView<TIterator,T>(
+    private sealed class ReadOnlyCollectionView<TIterator, T>(
         Dictionary<TKey,TValue,TKeySerializer,TValueSerializer> dictionary
     ):ICollection<T>
-        where TIterator : IterateLookupIteratorFunctions_List<T>,ICreate<TIterator> {
+        where TIterator : IterateLookupIteratorFunctions_List<T>, ICreate<TIterator> {
         public int Count => checked((int)dictionary.GetLongCount());
         public bool IsReadOnly => true;
         public void Add(T item) => throw new NotSupportedException();

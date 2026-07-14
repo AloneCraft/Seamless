@@ -3,39 +3,39 @@ namespace Test.System.Linq.Intercept.Chain1;
 public sealed class ElementAtOrDefault(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void index() {
-        var expected=Source().ElementAtOrDefault(2);
-        this.MeasureOptimized(nameof(indexOptimized),()=>indexOptimized(expected));
-        this.MeasureOptimized(nameof(indexNoOptimized),()=>indexNoOptimized(expected));
+        var expected = Source().ElementAtOrDefault(2);
+        this.MeasureOptimized(nameof(indexOptimized),() => indexOptimized(expected));
+        this.MeasureOptimized(nameof(indexNoOptimized),() => indexNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void indexOptimized(dynamic expected) {
-        var actual=Source().ElementAtOrDefault(2);
+        var actual = Source().ElementAtOrDefault(2);
         Assert.Equal(expected,actual);
     }
 
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void indexNoOptimized(dynamic expected) {
-        var actual=Source().ElementAtOrDefault(2);
+        var actual = Source().ElementAtOrDefault(2);
         Assert.Equal(expected,actual);
     }
 
     [Fact, Trait("Category","Unit")]
     public void indexFromEnd() {
-        var expected=Source().ElementAtOrDefault(^1);
-        this.MeasureOptimized(nameof(indexFromEndOptimized),()=>indexFromEndOptimized(expected));
-        this.MeasureOptimized(nameof(indexFromEndNoOptimized),()=>indexFromEndNoOptimized(expected));
+        var expected = Source().ElementAtOrDefault(^1);
+        this.MeasureOptimized(nameof(indexFromEndOptimized),() => indexFromEndOptimized(expected));
+        this.MeasureOptimized(nameof(indexFromEndNoOptimized),() => indexFromEndNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void indexFromEndOptimized(dynamic expected) {
-        var actual=Source().ElementAtOrDefault(^1);
+        var actual = Source().ElementAtOrDefault(^1);
         Assert.Equal(expected,actual);
     }
 
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void indexFromEndNoOptimized(dynamic expected) {
-        var actual=Source().ElementAtOrDefault(^1);
+        var actual = Source().ElementAtOrDefault(^1);
         Assert.Equal(expected,actual);
     }
 

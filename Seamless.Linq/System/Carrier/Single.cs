@@ -7,8 +7,7 @@ namespace Seamless.System.Carrier {
                 return TryGetSingle<TEnumerator,TSource>(ref enumerator,out var value)
                     ? value
                     : Throws.NoElements<TSource>();
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }
@@ -21,8 +20,7 @@ namespace Seamless.System.Carrier {
                 return TryGetSingle<TEnumerator,TSource>(ref enumerator,predicate,out var value)
                 ? value
                 : Throws.NoMatch<TSource>();
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }
@@ -34,8 +32,7 @@ namespace Seamless.System.Carrier {
                 return TryGetSingle<TEnumerator,TSource>(ref enumerator,out var value)
                     ? value
                     : default;
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }
@@ -47,8 +44,7 @@ namespace Seamless.System.Carrier {
                 return TryGetSingle<TEnumerator,TSource>(ref enumerator,out var value)
                     ? value
                     : defaultValue;
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }
@@ -61,8 +57,7 @@ namespace Seamless.System.Carrier {
                 return TryGetSingle<TEnumerator,TSource>(ref enumerator,predicate,out var value)
                 ? value
                 : default;
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }
@@ -75,8 +70,7 @@ namespace Seamless.System.Carrier {
                 return TryGetSingle<TEnumerator,TSource>(ref enumerator,predicate,out var value)
                 ? value
                 : defaultValue;
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }
@@ -88,12 +82,10 @@ namespace Seamless.System.Carrier {
                 if(span.Length==1) {
                     value=span[0];
                     return true;
-                }
-                else if(span.Length!=0) {
+                } else if(span.Length!=0) {
                     Throws.MoreThanOneElement();
                 }
-            }
-            else {
+            } else {
                 if(source.TryGetNext(out value)) {
                     if(source.TryGetNext(out _)) {
                         Throws.MoreThanOneElement();
@@ -122,8 +114,7 @@ namespace Seamless.System.Carrier {
                 if(found) {
                     return true;
                 }
-            }
-            else {
+            } else {
                 while(source.TryGetNext(out var item)) {
                     if(predicate(item)) {
                         if(found) {

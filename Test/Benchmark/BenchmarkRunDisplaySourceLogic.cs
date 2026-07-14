@@ -1,24 +1,22 @@
-using UI;
-
 namespace Test.Benchmark;
 
-public sealed class BenchmarkRunDisplaySourceLogic{
+public sealed class ベンチマーク実行表示元ロジック {
     [Fact]
-    public void ShouldUseCurrentRunMemory(){
-        Assert.True(global::UI.BenchmarkRunDisplaySourceLogic.ShouldUseCurrentRunMemory(true));
-        Assert.False(global::UI.BenchmarkRunDisplaySourceLogic.ShouldUseCurrentRunMemory(false));
+    public void 今回実行メモリを使うか() {
+        Assert.True(global::UI.ベンチマーク実行表示元ロジック.今回実行メモリを使うか(true));
+        Assert.False(global::UI.ベンチマーク実行表示元ロジック.今回実行メモリを使うか(false));
     }
 
     [Fact]
-    public void ShouldKeepCurrentRunMemoryDisplay(){
-        Assert.True(global::UI.BenchmarkRunDisplaySourceLogic.ShouldKeepCurrentRunMemoryDisplay(true));
-        Assert.False(global::UI.BenchmarkRunDisplaySourceLogic.ShouldKeepCurrentRunMemoryDisplay(false));
+    public void 今回実行メモリ表示を維持するか() {
+        Assert.True(global::UI.ベンチマーク実行表示元ロジック.今回実行メモリ表示を維持するか(true));
+        Assert.False(global::UI.ベンチマーク実行表示元ロジック.今回実行メモリ表示を維持するか(false));
     }
 
     [Fact]
-    public void ShouldLoadSelectedRunFromDatabase(){
+    public void 選択実行をDBから読み込むか() {
         {
-            var shouldLoad = global::UI.BenchmarkRunDisplaySourceLogic.ShouldLoadSelectedRunFromDatabase(
+            var 読み込むか = global::UI.ベンチマーク実行表示元ロジック.選択実行をDBから読み込むか(
                 false,
                 true,
                 false,
@@ -28,11 +26,11 @@ public sealed class BenchmarkRunDisplaySourceLogic{
                 false,
                 true);
 
-            Assert.True(shouldLoad);
+            Assert.True(読み込むか);
         }
 
         {
-            var shouldLoad = global::UI.BenchmarkRunDisplaySourceLogic.ShouldLoadSelectedRunFromDatabase(
+            var 読み込むか = global::UI.ベンチマーク実行表示元ロジック.選択実行をDBから読み込むか(
                 false,
                 false,
                 false,
@@ -42,11 +40,11 @@ public sealed class BenchmarkRunDisplaySourceLogic{
                 false,
                 true);
 
-            Assert.True(shouldLoad);
+            Assert.True(読み込むか);
         }
 
         {
-            var shouldLoad = global::UI.BenchmarkRunDisplaySourceLogic.ShouldLoadSelectedRunFromDatabase(
+            var 読み込むか = global::UI.ベンチマーク実行表示元ロジック.選択実行をDBから読み込むか(
                 false,
                 false,
                 false,
@@ -56,11 +54,11 @@ public sealed class BenchmarkRunDisplaySourceLogic{
                 false,
                 false);
 
-            Assert.False(shouldLoad);
+            Assert.False(読み込むか);
         }
 
         {
-            var shouldLoad = global::UI.BenchmarkRunDisplaySourceLogic.ShouldLoadSelectedRunFromDatabase(
+            var 読み込むか = global::UI.ベンチマーク実行表示元ロジック.選択実行をDBから読み込むか(
                 false,
                 true,
                 true,
@@ -70,11 +68,11 @@ public sealed class BenchmarkRunDisplaySourceLogic{
                 false,
                 true);
 
-            Assert.False(shouldLoad);
+            Assert.False(読み込むか);
         }
 
         {
-            var shouldLoad = global::UI.BenchmarkRunDisplaySourceLogic.ShouldLoadSelectedRunFromDatabase(
+            var 読み込むか = global::UI.ベンチマーク実行表示元ロジック.選択実行をDBから読み込むか(
                 false,
                 true,
                 false,
@@ -84,7 +82,7 @@ public sealed class BenchmarkRunDisplaySourceLogic{
                 true,
                 true);
 
-            Assert.False(shouldLoad);
+            Assert.False(読み込むか);
         }
     }
 }

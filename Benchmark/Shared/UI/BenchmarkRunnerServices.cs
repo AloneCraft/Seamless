@@ -1,325 +1,323 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
-using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace UI;
 
-public interface IBenchmarkCatalogService {
-    Task<IReadOnlyList<BenchmarkCase>> LoadAsync(CancellationToken cancellationToken);
+public interface Iベンチマークカタログサービス {
+    Task<IReadOnlyList<ベンチマークケース>> 読込Async(CancellationToken キャンセルトークン);
 }
 
-public sealed class BenchmarkCatalogService:IBenchmarkCatalogService {
-    public Task<IReadOnlyList<BenchmarkCase>> LoadAsync(CancellationToken cancellationToken) {
+public sealed class ベンチマークカタログサービス:Iベンチマークカタログサービス {
+    public Task<IReadOnlyList<ベンチマークケース>> 読込Async(CancellationToken キャンセルトークン) {
         return Task.Run(() => {
-            cancellationToken.ThrowIfCancellationRequested();
+            キャンセルトークン.ThrowIfCancellationRequested();
 #if BENCHMARK_UI_TYPED_CATALOG
-            return BenchmarkCatalog.Load(TypedBenchmarkAssemblyCatalog.Assemblies);
+            return ベンチマークカタログ.読み込む(型付きベンチマークアセンブリカタログ.アセンブリ一覧);
 #else
-            return BenchmarkCatalog.Load();
+            return ベンチマークカタログ.読み込む();
 #endif
-        },cancellationToken);
+        },キャンセルトークン);
     }
 }
 
-public interface ICpuTopologyService {
-    IReadOnlyList<CpuSelectionItem> Load();
+public interface ICPUトポロジーサービス {
+    IReadOnlyList<CPU選択項目> 読み込む();
 }
 
-public sealed class CpuTopologyService:ICpuTopologyService {
-    public IReadOnlyList<CpuSelectionItem> Load() {
-        return BenchmarkCpuTopologyProvider.Load()
-            .OrderBy(static cpu => cpu.LogicalProcessorIndex)
-            .Select((cpu,index) => new CpuSelectionItem(
-                cpu.LogicalProcessorIndex,
-                cpu.CoreKind,
-                cpu.PhysicalCoreIndex,
-                cpu.KindCoreIndex,
-                index==0))
+public sealed class CPUトポロジーサービス:ICPUトポロジーサービス {
+    public IReadOnlyList<CPU選択項目> 読み込む() {
+        return ベンチマークCPUトポロジープロバイダー.読み込む()
+            .OrderBy(static CPU => CPU.論理プロセッサインデックス)
+            .Select((CPU,番号) => new CPU選択項目(
+                CPU.論理プロセッサインデックス,
+                CPU.コア種別,
+                CPU.物理コアインデックス,
+                CPU.種別内コアインデックス,
+                番号==0))
             .ToArray();
     }
 }
 
-internal static class BenchmarkCpuTopologyProvider {
-    public static IReadOnlyList<CpuCoreInfo> Load() {
+internal static class ベンチマークCPUトポロジープロバイダー {
+    public static IReadOnlyList<CPUコア情報> 読み込む() {
         try {
             if(OperatingSystem.IsWindows()) {
-                var windows = LoadWindows();
-                if(windows.Count>0) {
-                    return windows;
+                var Windows一覧 = Windowsを読み込む();
+                if(Windows一覧.Count>0) {
+                    return Windows一覧;
                 }
             } else if(OperatingSystem.IsLinux()) {
-                var linux = LoadLinux();
-                if(linux.Count>0) {
-                    return linux;
+                var Linux一覧 = Linuxを読み込む();
+                if(Linux一覧.Count>0) {
+                    return Linux一覧;
                 }
             } else if(OperatingSystem.IsMacOS()||OperatingSystem.IsMacCatalyst()) {
-                return LoadMacOs();
+                return MacOSを読み込む();
             }
         } catch {
         }
 
-        return LoadFallback(OperatingSystem.IsWindows()||OperatingSystem.IsLinux());
+        return フォールバックを読み込む(OperatingSystem.IsWindows()||OperatingSystem.IsLinux());
     }
 
-    private static IReadOnlyList<CpuCoreInfo> LoadFallback(bool supportsAffinity) {
+    private static IReadOnlyList<CPUコア情報> フォールバックを読み込む(bool アフィニティ対応か) {
         return Enumerable.Range(0,Environment.ProcessorCount)
-            .Select(index => CreateCpu(index,CpuCoreKind.Unknown,index,index,supportsAffinity))
+            .Select(番号 => CPUを作成(番号,CPUコア種別.不明,番号,番号,アフィニティ対応か))
             .ToArray();
     }
 
-    private static IReadOnlyList<CpuCoreInfo> LoadWindows() {
-        var length = 0;
-        _ = GetLogicalProcessorInformationEx(RelationProcessorCore,IntPtr.Zero,ref length);
-        if(length<=0) {
+    private static IReadOnlyList<CPUコア情報> Windowsを読み込む() {
+        var 長さ = 0;
+        _=GetLogicalProcessorInformationEx(プロセッサーコア関係,IntPtr.Zero,ref 長さ);
+        if(長さ<=0) {
             return [];
         }
 
-        var buffer = Marshal.AllocHGlobal(length);
+        var バッファ = Marshal.AllocHGlobal(長さ);
         try {
-            if(!GetLogicalProcessorInformationEx(RelationProcessorCore,buffer,ref length)) {
+            if(!GetLogicalProcessorInformationEx(プロセッサーコア関係,バッファ,ref 長さ)) {
                 return [];
             }
 
-            var cores = new List<WindowsCore>();
-            var offset = 0;
-            while(offset<length) {
-                var entry = IntPtr.Add(buffer,offset);
-                var size = Marshal.ReadInt32(entry,4);
-                if(size<=0) {
+            var コア一覧 = new List<Windowsコア>();
+            var オフセット = 0;
+            while(オフセット<長さ) {
+                var 項目 = IntPtr.Add(バッファ,オフセット);
+                var サイズ = Marshal.ReadInt32(項目,4);
+                if(サイズ<=0) {
                     break;
                 }
 
-                var efficiencyClass = Marshal.ReadByte(entry,9);
-                var groupCount = Marshal.ReadInt16(entry,30);
-                var logicalProcessors = new List<int>();
-                var groupAffinityOffset = 32;
-                var groupAffinitySize = IntPtr.Size+8;
-                for(var groupIndex=0;groupIndex<groupCount;groupIndex++) {
-                    var affinity = IntPtr.Add(entry,groupAffinityOffset+(groupIndex*groupAffinitySize));
-                    var mask = ReadUIntPtr(affinity);
-                    var group = Marshal.ReadInt16(affinity,IntPtr.Size);
-                    if(group<0) {
+                var 効率クラス = Marshal.ReadByte(項目,9);
+                var グループ数 = Marshal.ReadInt16(項目,30);
+                var 論理プロセッサー一覧 = new List<int>();
+                var グループアフィニティオフセット = 32;
+                var グループアフィニティサイズ = IntPtr.Size+8;
+                for(var グループ番号 = 0;グループ番号<グループ数;グループ番号++) {
+                    var アフィニティ = IntPtr.Add(項目,グループアフィニティオフセット+(グループ番号*グループアフィニティサイズ));
+                    var マスク = UIntPtrを読む(アフィニティ);
+                    var グループ = Marshal.ReadInt16(アフィニティ,IntPtr.Size);
+                    if(グループ<0) {
                         continue;
                     }
 
-                    AddMaskBits(logicalProcessors,group*64,mask);
+                    マスクビットを追加(論理プロセッサー一覧,グループ*64,マスク);
                 }
 
-                if(logicalProcessors.Count>0) {
-                    cores.Add(new WindowsCore(efficiencyClass,logicalProcessors.Order().ToArray()));
+                if(論理プロセッサー一覧.Count>0) {
+                    コア一覧.Add(new Windowsコア(効率クラス,論理プロセッサー一覧.Order().ToArray()));
                 }
 
-                offset+=size;
+                オフセット+=サイズ;
             }
 
-            return CreateFromCoreGroups(cores.Select(static core => new CoreGroup(
-                core.LogicalProcessors,
-                core.EfficiencyClass))).ToArray();
+            return コアグループから作成(コア一覧.Select(static コア => new コアグループ(
+                コア.論理プロセッサー一覧,
+                コア.効率クラス))).ToArray();
         } finally {
-            Marshal.FreeHGlobal(buffer);
+            Marshal.FreeHGlobal(バッファ);
         }
     }
 
-    private static IReadOnlyList<CpuCoreInfo> LoadLinux() {
-        const string cpuRoot = "/sys/devices/system/cpu";
-        var online = ReadLinuxOnlineCpuList(Path.Combine(cpuRoot,"online"));
-        if(online.Count==0) {
-            online=Enumerable.Range(0,Environment.ProcessorCount).ToArray();
+    private static IReadOnlyList<CPUコア情報> Linuxを読み込む() {
+        const string CPUルート = "/sys/devices/system/cpu";
+        var オンライン一覧 = LinuxオンラインCPU一覧を読む(Path.Combine(CPUルート,"online"));
+        if(オンライン一覧.Count==0) {
+            オンライン一覧=Enumerable.Range(0,Environment.ProcessorCount).ToArray();
         }
 
-        var groups = online
-            .Select(cpu => new {
-                Cpu=cpu,
-                CoreKey=ReadLinuxCoreKey(cpuRoot,cpu),
-                Capacity=ReadLinuxInt(Path.Combine(cpuRoot,$"cpu{cpu}","cpu_capacity")),
+        var グループ一覧 = オンライン一覧
+            .Select(CPU => new {
+                CPU,
+                コアキー = Linuxコアキーを読む(CPUルート,CPU),
+                容量 = Linux整数を読む(Path.Combine(CPUルート,$"cpu{CPU}","cpu_capacity")),
             })
-            .GroupBy(static item => item.CoreKey)
-            .Select(static group => new CoreGroup(
-                group.Select(static item => item.Cpu).Order().ToArray(),
-                group.Max(static item => item.Capacity)))
+            .GroupBy(static 項目 => 項目.コアキー)
+            .Select(static グループ => new コアグループ(
+                グループ.Select(static 項目 => 項目.CPU).Order().ToArray(),
+                グループ.Max(static 項目 => 項目.容量)))
             .ToArray();
 
-        return CreateFromCoreGroups(groups).ToArray();
+        return コアグループから作成(グループ一覧).ToArray();
     }
 
-    private static IReadOnlyList<CpuCoreInfo> LoadMacOs() {
-        var logicalCount = ReadSysctlInt("hw.logicalcpu")??Environment.ProcessorCount;
-        var performanceCount = ReadSysctlInt("hw.perflevel0.logicalcpu");
-        var efficiencyCount = ReadSysctlInt("hw.perflevel1.logicalcpu");
-        var items = new List<CpuCoreInfo>(logicalCount);
-        var index = 0;
+    private static IReadOnlyList<CPUコア情報> MacOSを読み込む() {
+        var 論理数 = Sysctl整数を読む("hw.logicalcpu")??Environment.ProcessorCount;
+        var 高性能数 = Sysctl整数を読む("hw.perflevel0.logicalcpu");
+        var 高効率数 = Sysctl整数を読む("hw.perflevel1.logicalcpu");
+        var 項目一覧 = new List<CPUコア情報>(論理数);
+        var 番号 = 0;
 
-        if(performanceCount is >0) {
-            for(var i=0;i<performanceCount&&index<logicalCount;i++,index++) {
-                items.Add(CreateCpu(index,CpuCoreKind.Performance,index,i,false));
+        if(高性能数 is >0) {
+            for(var 種別内番号 = 0;種別内番号<高性能数&&番号<論理数;種別内番号++, 番号++) {
+                項目一覧.Add(CPUを作成(番号,CPUコア種別.高性能,番号,種別内番号,false));
             }
         }
 
-        if(efficiencyCount is >0) {
-            for(var i=0;i<efficiencyCount&&index<logicalCount;i++,index++) {
-                items.Add(CreateCpu(index,CpuCoreKind.Efficiency,index,i,false));
+        if(高効率数 is >0) {
+            for(var 種別内番号 = 0;種別内番号<高効率数&&番号<論理数;種別内番号++, 番号++) {
+                項目一覧.Add(CPUを作成(番号,CPUコア種別.高効率,番号,種別内番号,false));
             }
         }
 
-        while(index<logicalCount) {
-            items.Add(CreateCpu(index,CpuCoreKind.Unknown,index,index,false));
-            index++;
+        while(番号<論理数) {
+            項目一覧.Add(CPUを作成(番号,CPUコア種別.不明,番号,番号,false));
+            番号++;
         }
 
-        return items;
+        return 項目一覧;
     }
 
-    private static IEnumerable<CpuCoreInfo> CreateFromCoreGroups(IEnumerable<CoreGroup> rawGroups) {
-        var groups = rawGroups
-            .Where(static group => group.LogicalProcessors.Count>0)
-            .OrderBy(static group => group.LogicalProcessors.Min())
+    private static IEnumerable<CPUコア情報> コアグループから作成(IEnumerable<コアグループ> 元グループ一覧) {
+        var グループ一覧 = 元グループ一覧
+            .Where(static グループ => グループ.論理プロセッサー一覧.Count>0)
+            .OrderBy(static グループ => グループ.論理プロセッサー一覧.Min())
             .ToArray();
-        if(groups.Length==0) {
+        if(グループ一覧.Length==0) {
             yield break;
         }
 
-        var knownScores = groups
-            .Select(static group => group.KindScore)
-            .Where(static score => score.HasValue)
-            .Select(static score => score!.Value)
+        var 既知スコア一覧 = グループ一覧
+            .Select(static グループ => グループ.種別スコア)
+            .Where(static スコア => スコア.HasValue)
+            .Select(static スコア => スコア!.Value)
             .Distinct()
             .Order()
             .ToArray();
-        var hasHybridScores = knownScores.Length>1;
-        var maxScore = hasHybridScores?knownScores[^1]:(int?)null;
-        var minScore = hasHybridScores?knownScores[0]:(int?)null;
-        if(hasHybridScores) {
-            groups=MergeSingletonEfficiencyGroups(groups,minScore);
+        var ハイブリッドスコアありか = 既知スコア一覧.Length>1;
+        var 最大スコア = ハイブリッドスコアありか ? 既知スコア一覧[^1] : (int?)null;
+        var 最小スコア = ハイブリッドスコアありか ? 既知スコア一覧[0] : (int?)null;
+        if(ハイブリッドスコアありか) {
+            グループ一覧=単独高効率グループを統合(グループ一覧,最小スコア);
         }
 
-        var nextKindIndex = new Dictionary<CpuCoreKind,int>();
-        for(var physicalIndex=0;physicalIndex<groups.Length;physicalIndex++) {
-            var group = groups[physicalIndex];
-            var kind = CpuCoreKind.Unknown;
-            if(hasHybridScores&&group.KindScore==maxScore) {
-                kind=CpuCoreKind.Performance;
-            } else if(hasHybridScores&&group.KindScore==minScore) {
-                kind=CpuCoreKind.Efficiency;
+        var 次の種別内番号 = new Dictionary<CPUコア種別,int>();
+        for(var 物理番号 = 0;物理番号<グループ一覧.Length;物理番号++) {
+            var グループ = グループ一覧[物理番号];
+            var 種別 = CPUコア種別.不明;
+            if(ハイブリッドスコアありか&&グループ.種別スコア==最大スコア) {
+                種別=CPUコア種別.高性能;
+            } else if(ハイブリッドスコアありか&&グループ.種別スコア==最小スコア) {
+                種別=CPUコア種別.高効率;
             }
 
-            var kindIndex = nextKindIndex.TryGetValue(kind,out var current) ? current : 0;
-            nextKindIndex[kind]=kindIndex+1;
-            foreach(var logicalProcessor in group.LogicalProcessors.Order()) {
-                yield return CreateCpu(logicalProcessor,kind,physicalIndex,kindIndex,CanUseAffinity(logicalProcessor));
+            var 種別内番号 = 次の種別内番号.TryGetValue(種別,out var 現在番号) ? 現在番号 : 0;
+            次の種別内番号[種別]=種別内番号+1;
+            foreach(var 論理プロセッサー in グループ.論理プロセッサー一覧.Order()) {
+                yield return CPUを作成(論理プロセッサー,種別,物理番号,種別内番号,アフィニティを使用できるか(論理プロセッサー));
             }
         }
     }
 
-    private static CoreGroup[] MergeSingletonEfficiencyGroups(CoreGroup[] groups,int? efficiencyScore) {
-        if(efficiencyScore is null) {
-            return groups;
+    private static コアグループ[] 単独高効率グループを統合(コアグループ[] グループ一覧,int? 高効率スコア) {
+        if(高効率スコア is null) {
+            return グループ一覧;
         }
 
-        var merged = new List<CoreGroup>(groups.Length);
-        for(var index=0;index<groups.Length;) {
-            var group = groups[index];
-            if(group.KindScore!=efficiencyScore||group.LogicalProcessors.Count!=1) {
-                merged.Add(group);
-                index++;
+        var 統合一覧 = new List<コアグループ>(グループ一覧.Length);
+        for(var 番号 = 0;番号<グループ一覧.Length;) {
+            var グループ = グループ一覧[番号];
+            if(グループ.種別スコア!=高効率スコア||グループ.論理プロセッサー一覧.Count!=1) {
+                統合一覧.Add(グループ);
+                番号++;
                 continue;
             }
 
-            var run = new List<CoreGroup>();
-            while(index<groups.Length
-                &&groups[index].KindScore==efficiencyScore
-                &&groups[index].LogicalProcessors.Count==1) {
-                run.Add(groups[index]);
-                index++;
+            var 連続一覧 = new List<コアグループ>();
+            while(番号<グループ一覧.Length
+                &&グループ一覧[番号].種別スコア==高効率スコア
+                &&グループ一覧[番号].論理プロセッサー一覧.Count==1) {
+                連続一覧.Add(グループ一覧[番号]);
+                番号++;
             }
 
-            for(var runIndex=0;runIndex<run.Count;runIndex+=4) {
-                merged.Add(new CoreGroup(
-                    run
-                        .Skip(runIndex)
+            for(var 連続番号 = 0;連続番号<連続一覧.Count;連続番号+=4) {
+                統合一覧.Add(new コアグループ(
+                    連続一覧
+                        .Skip(連続番号)
                         .Take(4)
-                        .SelectMany(static item => item.LogicalProcessors)
+                        .SelectMany(static 項目 => 項目.論理プロセッサー一覧)
                         .Order()
                         .ToArray(),
-                    efficiencyScore));
+                    高効率スコア));
             }
         }
 
-        return merged.ToArray();
+        return 統合一覧.ToArray();
     }
 
-    private static CpuCoreInfo CreateCpu(int logicalProcessorIndex,CpuCoreKind kind,int physicalCoreIndex,int kindCoreIndex,bool supportsAffinity) {
-        var canUseAffinity = supportsAffinity&&CanUseAffinity(logicalProcessorIndex);
-        var mask = canUseAffinity ? 1L<<logicalProcessorIndex : 0L;
-        return new CpuCoreInfo(logicalProcessorIndex,kind,physicalCoreIndex,kindCoreIndex,mask,canUseAffinity);
+    private static CPUコア情報 CPUを作成(int 論理プロセッサー番号,CPUコア種別 種別,int 物理コア番号,int 種別内コア番号,bool アフィニティ対応か) {
+        var アフィニティ利用可能か = アフィニティ対応か&&アフィニティを使用できるか(論理プロセッサー番号);
+        var マスク = アフィニティ利用可能か ? 1L<<論理プロセッサー番号 : 0L;
+        return new CPUコア情報(論理プロセッサー番号,種別,物理コア番号,種別内コア番号,マスク,アフィニティ利用可能か);
     }
 
-    private static bool CanUseAffinity(int logicalProcessorIndex) {
-        return logicalProcessorIndex>=0&&logicalProcessorIndex<(IntPtr.Size*8)-1;
+    private static bool アフィニティを使用できるか(int 論理プロセッサー番号) {
+        return 論理プロセッサー番号>=0&&論理プロセッサー番号<(IntPtr.Size*8)-1;
     }
 
-    private static UIntPtr ReadUIntPtr(IntPtr address) {
+    private static UIntPtr UIntPtrを読む(IntPtr アドレス) {
         return IntPtr.Size==8
-            ? new UIntPtr(unchecked((ulong)Marshal.ReadInt64(address)))
-            : new UIntPtr(unchecked((uint)Marshal.ReadInt32(address)));
+            ? new UIntPtr(unchecked((ulong)Marshal.ReadInt64(アドレス)))
+            : new UIntPtr(unchecked((uint)Marshal.ReadInt32(アドレス)));
     }
 
-    private static void AddMaskBits(List<int> logicalProcessors,int baseIndex,UIntPtr mask) {
-        var value = mask.ToUInt64();
-        for(var bit=0;bit<64;bit++) {
-            if((value&(1UL<<bit))!=0) {
-                logicalProcessors.Add(baseIndex+bit);
+    private static void マスクビットを追加(List<int> 論理プロセッサー一覧,int 基準番号,UIntPtr マスク) {
+        var 値 = マスク.ToUInt64();
+        for(var ビット = 0;ビット<64;ビット++) {
+            if((値&(1UL<<ビット))!=0) {
+                論理プロセッサー一覧.Add(基準番号+ビット);
             }
         }
     }
 
-    private static IReadOnlyList<int> ReadLinuxOnlineCpuList(string path) {
-        if(!File.Exists(path)) {
+    private static IReadOnlyList<int> LinuxオンラインCPU一覧を読む(string パス) {
+        if(!File.Exists(パス)) {
             return [];
         }
 
-        var text = File.ReadAllText(path).Trim();
-        var result = new List<int>();
-        foreach(var part in text.Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries)) {
-            var range = part.Split('-',StringSplitOptions.TrimEntries);
-            if(range.Length==2
-                &&int.TryParse(range[0],NumberStyles.Integer,CultureInfo.InvariantCulture,out var start)
-                &&int.TryParse(range[1],NumberStyles.Integer,CultureInfo.InvariantCulture,out var end)) {
-                for(var cpu=start;cpu<=end;cpu++) {
-                    result.Add(cpu);
+        var 文字列 = File.ReadAllText(パス).Trim();
+        var 結果一覧 = new List<int>();
+        foreach(var 部分 in 文字列.Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries)) {
+            var 範囲 = 部分.Split('-',StringSplitOptions.TrimEntries);
+            if(範囲.Length==2
+                &&int.TryParse(範囲[0],NumberStyles.Integer,CultureInfo.InvariantCulture,out var 開始)
+                &&int.TryParse(範囲[1],NumberStyles.Integer,CultureInfo.InvariantCulture,out var 終了)) {
+                for(var CPU = 開始;CPU<=終了;CPU++) {
+                    結果一覧.Add(CPU);
                 }
-            } else if(int.TryParse(part,NumberStyles.Integer,CultureInfo.InvariantCulture,out var single)) {
-                result.Add(single);
+            } else if(int.TryParse(部分,NumberStyles.Integer,CultureInfo.InvariantCulture,out var 単一)) {
+                結果一覧.Add(単一);
             }
         }
 
-        return result.Order().Distinct().ToArray();
+        return 結果一覧.Order().Distinct().ToArray();
     }
 
-    private static string ReadLinuxCoreKey(string cpuRoot,int cpu) {
-        var topology = Path.Combine(cpuRoot,$"cpu{cpu}","topology");
-        var packageId = ReadLinuxString(Path.Combine(topology,"physical_package_id"))??"0";
-        var coreId = ReadLinuxString(Path.Combine(topology,"core_id"))??cpu.ToString(CultureInfo.InvariantCulture);
-        return packageId+":"+coreId;
+    private static string Linuxコアキーを読む(string CPUルート,int CPU) {
+        var トポロジー = Path.Combine(CPUルート,$"cpu{CPU}","topology");
+        var パッケージID = Linux文字列を読む(Path.Combine(トポロジー,"physical_package_id"))??"0";
+        var コアID = Linux文字列を読む(Path.Combine(トポロジー,"core_id"))??CPU.ToString(CultureInfo.InvariantCulture);
+        return パッケージID+":"+コアID;
     }
 
-    private static string? ReadLinuxString(string path) {
-        return File.Exists(path) ? File.ReadAllText(path).Trim() : null;
+    private static string? Linux文字列を読む(string パス) {
+        return File.Exists(パス) ? File.ReadAllText(パス).Trim() : null;
     }
 
-    private static int? ReadLinuxInt(string path) {
-        var text = ReadLinuxString(path);
-        return int.TryParse(text,NumberStyles.Integer,CultureInfo.InvariantCulture,out var value)
-            ? value
+    private static int? Linux整数を読む(string パス) {
+        var 文字列 = Linux文字列を読む(パス);
+        return int.TryParse(文字列,NumberStyles.Integer,CultureInfo.InvariantCulture,out var 値)
+            ? 値
             : null;
     }
 
-    private static int? ReadSysctlInt(string key) {
+    private static int? Sysctl整数を読む(string キー) {
         try {
-            using var process = new Process {
-                StartInfo = new ProcessStartInfo {
+            using var プロセス = new Process {
+                StartInfo=new ProcessStartInfo {
                     FileName="sysctl",
                     UseShellExecute=false,
                     RedirectStandardOutput=true,
@@ -327,467 +325,217 @@ internal static class BenchmarkCpuTopologyProvider {
                     CreateNoWindow=true,
                 },
             };
-            process.StartInfo.ArgumentList.Add("-n");
-            process.StartInfo.ArgumentList.Add(key);
-            process.Start();
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit(2000);
-            return process.ExitCode==0&&int.TryParse(output.Trim(),NumberStyles.Integer,CultureInfo.InvariantCulture,out var value)
-                ? value
+            プロセス.StartInfo.ArgumentList.Add("-n");
+            プロセス.StartInfo.ArgumentList.Add(キー);
+            プロセス.Start();
+            var 出力 = プロセス.StandardOutput.ReadToEnd();
+            プロセス.WaitForExit(2000);
+            return プロセス.ExitCode==0&&int.TryParse(出力.Trim(),NumberStyles.Integer,CultureInfo.InvariantCulture,out var 値)
+                ? 値
                 : null;
         } catch {
             return null;
         }
     }
 
-    [DllImport("kernel32.dll",SetLastError=true)]
-    private static extern bool GetLogicalProcessorInformationEx(int relationshipType,IntPtr buffer,ref int returnedLength);
+    [DllImport("kernel32.dll",SetLastError = true)]
+    private static extern bool GetLogicalProcessorInformationEx(int 関係種別,IntPtr バッファ,ref int 返却長);
 
-    private const int RelationProcessorCore = 0;
+    private const int プロセッサーコア関係 = 0;
 
-    private sealed record WindowsCore(byte EfficiencyClass,IReadOnlyList<int> LogicalProcessors);
-    private sealed record CoreGroup(IReadOnlyList<int> LogicalProcessors,int? KindScore);
+    private sealed record Windowsコア(byte 効率クラス,IReadOnlyList<int> 論理プロセッサー一覧);
+    private sealed record コアグループ(IReadOnlyList<int> 論理プロセッサー一覧,int? 種別スコア);
 }
 
-public interface IBenchmarkQueueService {
-    ConcurrentQueue<BenchmarkCase> CreateQueue(IEnumerable<BenchmarkCase> benchmarks);
+public interface Iベンチマークワーカープロセスサービス:Iベンチマークジョブ実行器 {
 }
 
-public sealed class BenchmarkQueueService:IBenchmarkQueueService {
-    public ConcurrentQueue<BenchmarkCase> CreateQueue(IEnumerable<BenchmarkCase> benchmarks) {
-        return new ConcurrentQueue<BenchmarkCase>(benchmarks);
-    }
+public sealed class ベンチマークワーカープロセスサービス:Iベンチマークワーカープロセスサービス {
+    private readonly ベンチマークワーカークライアント クライアント = new();
+
+    public Task<ベンチマークジョブ実行結果> 実行Async(ベンチマークジョブ ジョブ,string 実行ルート,int 論理CPU,TimeSpan タイムアウト,CancellationToken キャンセルトークン) =>
+        this.クライアント.実行Async(ジョブ,実行ルート,論理CPU,タイムアウト,キャンセルトークン);
+
 }
 
-public interface IBenchmarkWorkerProcessService:IBenchmarkJobRunner {
-    Task<BenchmarkRunResult> RunAsync(BenchmarkCase benchmark,string runRoot,BenchmarkSourceTab sourceTab,IReadOnlyList<int> preparedElementCounts,string scale,int logicalCpu,CancellationToken cancellationToken);
-}
+public sealed class ベンチマーク永続ワーカープロセスサービス:Iベンチマークジョブ実行器, Iベンチマーク動的CPUセット実行器, IAsyncDisposable {
+    private readonly ベンチマークワーカークライアント クライアント = new();
+    private readonly ConcurrentDictionary<int,ベンチマークワーカーセッション> セッション一覧 = new();
+    private readonly ConcurrentDictionary<int,int> 実行中ジョブ数一覧 = new();
 
-public sealed class BenchmarkWorkerProcessService:IBenchmarkWorkerProcessService {
-    private readonly BenchmarkWorkerClient client = new();
-
-    public Task<BenchmarkJobRunResult> RunAsync(BenchmarkJob job,string runRoot,int logicalCpu,TimeSpan timeout,CancellationToken cancellationToken) =>
-        this.client.RunAsync(job,runRoot,logicalCpu,timeout,cancellationToken);
-
-    public async Task<BenchmarkRunResult> RunAsync(BenchmarkCase benchmark,string runRoot,BenchmarkSourceTab sourceTab,IReadOnlyList<int> preparedElementCounts,string scale,int logicalCpu,CancellationToken cancellationToken) {
-        var result = await this.client.RunAsync(benchmark,runRoot,sourceTab,preparedElementCounts,0,1,scale,logicalCpu,TimeSpan.FromMinutes(60),cancellationToken);
-        return new BenchmarkRunResult(
-            result.Project,
-            result.Method,
-            result.TypeFullName,
-            result.Status,
-            result.Mean,
-            result.Error,
-            result.StdDev,
-            result.MeanNanoseconds,
-            result.ErrorNanoseconds,
-            result.StdDevNanoseconds,
-            result.AllocatedBytes,
-            result.ExitCode,
-            result.ArtifactFolder,
-            result.Log);
-    }
-}
-
-public sealed class BenchmarkPersistentWorkerProcessService:IBenchmarkJobRunner,IBenchmarkDynamicCpuSetRunner,IAsyncDisposable {
-    private readonly BenchmarkWorkerClient client = new();
-    private readonly ConcurrentDictionary<int,BenchmarkWorkerSession> sessions = new();
-    private readonly ConcurrentDictionary<int,int> activeJobs = new();
-
-    public async Task<BenchmarkJobRunResult> RunAsync(
-        BenchmarkJob job,
-        string runRoot,
-        int logicalCpu,
-        TimeSpan timeout,
-        CancellationToken cancellationToken) {
-        var session = await this.GetSessionAsync(runRoot,logicalCpu,cancellationToken);
-        using var timeoutSource = new CancellationTokenSource(timeout);
-        using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,timeoutSource.Token);
-        this.activeJobs.AddOrUpdate(logicalCpu,1,static (_,count) => count+1);
+    public async Task<ベンチマークジョブ実行結果> 実行Async(
+        ベンチマークジョブ ジョブ,
+        string 実行ルート,
+        int 論理CPU,
+        TimeSpan タイムアウト,
+        CancellationToken キャンセルトークン) {
+        var セッション = await this.セッションを取得Async(実行ルート,論理CPU,キャンセルトークン);
+        using var タイムアウトソース = new CancellationTokenSource(タイムアウト);
+        using var 連結ソース = CancellationTokenSource.CreateLinkedTokenSource(キャンセルトークン,タイムアウトソース.Token);
+        this.実行中ジョブ数一覧.AddOrUpdate(論理CPU,1,static (_,件数) => 件数+1);
         try {
-            var result = await session.RunAsync(job.ToBenchmarkCase(),job.SourceTab,job.PreparedElementCounts,job.ElementCount,job.LoopCount,"1",linkedSource.Token);
-            return result with { RunItemIndex=job.RunItemIndex };
+            var 結果 = await セッション.実行Async(ジョブ.ベンチマークケースに変換(),ジョブ.ソースタブ,ジョブ.準備済み要素数一覧,ジョブ.要素数,ジョブ.ループ回数,"1",連結ソース.Token);
+            return 結果 with { 実行項目インデックス=ジョブ.実行項目インデックス };
         } catch(OperationCanceledException) {
-            await this.ResetSessionAsync(logicalCpu,session);
-            if(timeoutSource.IsCancellationRequested&&!cancellationToken.IsCancellationRequested) {
-                throw new TimeoutException($"Benchmark job timed out after {timeout}.");
+            await this.セッションを再設定Async(論理CPU,セッション);
+            if(タイムアウトソース.IsCancellationRequested&&!キャンセルトークン.IsCancellationRequested) {
+                throw new TimeoutException($"ベンチマークジョブが {タイムアウト} 後にタイムアウトしました。");
             }
 
             throw;
         } catch {
-            await this.ResetSessionAsync(logicalCpu,session);
+            await this.セッションを再設定Async(論理CPU,セッション);
             throw;
         } finally {
-            this.activeJobs.AddOrUpdate(logicalCpu,0,static (_,count) => Math.Max(0,count-1));
+            this.実行中ジョブ数一覧.AddOrUpdate(論理CPU,0,static (_,件数) => Math.Max(0,件数-1));
         }
     }
 
-    public async Task ApplyCpuSetAsync(IReadOnlyList<int> logicalCpus) {
-        var active = logicalCpus.ToHashSet();
-        foreach(var pair in this.sessions.ToArray()) {
-            if(active.Contains(pair.Key)||this.activeJobs.GetValueOrDefault(pair.Key)>0) {
+    public async Task CPUセットを適用Async(IReadOnlyList<int> 論理CPU一覧) {
+        var 有効CPU一覧 = 論理CPU一覧.ToHashSet();
+        foreach(var 組 in this.セッション一覧.ToArray()) {
+            if(有効CPU一覧.Contains(組.Key)||this.実行中ジョブ数一覧.GetValueOrDefault(組.Key)>0) {
                 continue;
             }
 
-            await this.ResetSessionAsync(pair.Key,pair.Value);
+            await this.セッションを再設定Async(組.Key,組.Value);
         }
     }
 
     public async ValueTask DisposeAsync() {
-        var values = this.sessions.Values.ToArray();
-        this.sessions.Clear();
-        foreach(var session in values) {
-            await session.DisposeAsync();
+        var セッション一覧 = this.セッション一覧.Values.ToArray();
+        this.セッション一覧.Clear();
+        foreach(var セッション in セッション一覧) {
+            await セッション.DisposeAsync();
         }
     }
 
-    private async Task<BenchmarkWorkerSession> GetSessionAsync(
-        string runRoot,
-        int logicalCpu,
-        CancellationToken cancellationToken) {
-        if(this.sessions.TryGetValue(logicalCpu,out var existing)) {
-            return existing;
+    private async Task<ベンチマークワーカーセッション> セッションを取得Async(
+        string 実行ルート,
+        int 論理CPU,
+        CancellationToken キャンセルトークン) {
+        if(this.セッション一覧.TryGetValue(論理CPU,out var 既存セッション)) {
+            return 既存セッション;
         }
 
-        var created = await this.client.StartSessionAsync(runRoot,logicalCpu,cancellationToken);
-        if(this.sessions.TryAdd(logicalCpu,created)) {
-            return created;
+        var 作成セッション = await this.クライアント.セッション開始Async(実行ルート,論理CPU,キャンセルトークン);
+        if(this.セッション一覧.TryAdd(論理CPU,作成セッション)) {
+            return 作成セッション;
         }
 
-        await created.DisposeAsync();
-        return this.sessions[logicalCpu];
+        await 作成セッション.DisposeAsync();
+        return this.セッション一覧[論理CPU];
     }
 
-    private async Task ResetSessionAsync(int logicalCpu,BenchmarkWorkerSession session) {
-        if(this.sessions.TryGetValue(logicalCpu,out var current)
-            &&ReferenceEquals(current,session)
-            &&this.sessions.TryRemove(logicalCpu,out _)) {
-            await session.DisposeAsync();
+    private async Task セッションを再設定Async(int 論理CPU,ベンチマークワーカーセッション セッション) {
+        if(this.セッション一覧.TryGetValue(論理CPU,out var 現在セッション)
+            &&ReferenceEquals(現在セッション,セッション)
+            &&this.セッション一覧.TryRemove(論理CPU,out _)) {
+            await セッション.DisposeAsync();
         }
     }
 }
 
-public sealed class BenchmarkFastWorkerProcessService:IBenchmarkJobRunner,IAsyncDisposable {
-    private readonly SemaphoreSlim sessionGate = new(1,1);
-    private BenchmarkFastWorkerSession? session;
-    private string runRoot = string.Empty;
+public sealed class ベンチマーク高速ワーカープロセスサービス:Iベンチマークジョブ実行器, IAsyncDisposable {
+    private readonly SemaphoreSlim セッションゲート = new(1,1);
+    private ベンチマーク高速ワーカーセッション? セッション;
+    private string 実行ルート = string.Empty;
 
-    public async Task<BenchmarkJobRunResult> RunAsync(
-        BenchmarkJob job,
-        string runRoot,
-        int logicalCpu,
-        TimeSpan timeout,
-        CancellationToken cancellationToken) {
-        var current = await this.GetSessionAsync(runRoot,cancellationToken);
-        using var timeoutSource = new CancellationTokenSource(timeout);
-        using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,timeoutSource.Token);
+    public async Task<ベンチマークジョブ実行結果> 実行Async(
+        ベンチマークジョブ ジョブ,
+        string 実行ルート,
+        int 論理CPU,
+        TimeSpan タイムアウト,
+        CancellationToken キャンセルトークン) {
+        var 現在セッション = await this.セッションを取得Async(実行ルート,キャンセルトークン);
+        using var タイムアウトソース = new CancellationTokenSource(タイムアウト);
+        using var 連結ソース = CancellationTokenSource.CreateLinkedTokenSource(キャンセルトークン,タイムアウトソース.Token);
         try {
-            return await current.RunAsync(job,logicalCpu,linkedSource.Token);
+            return await 現在セッション.実行Async(ジョブ,論理CPU,連結ソース.Token);
         } catch(OperationCanceledException) {
-            await this.ResetSessionAsync(current);
-            if(timeoutSource.IsCancellationRequested&&!cancellationToken.IsCancellationRequested) {
-                throw new TimeoutException($"Benchmark job timed out after {timeout}.");
+            await this.セッションを再設定Async(現在セッション);
+            if(タイムアウトソース.IsCancellationRequested&&!キャンセルトークン.IsCancellationRequested) {
+                throw new TimeoutException($"ベンチマークジョブが {タイムアウト} 後にタイムアウトしました。");
             }
 
             throw;
         } catch {
-            await this.ResetSessionAsync(current);
+            await this.セッションを再設定Async(現在セッション);
             throw;
         }
     }
 
     public async ValueTask DisposeAsync() {
-        await this.sessionGate.WaitAsync();
+        await this.セッションゲート.WaitAsync();
         try {
-            if(this.session is not null) {
-                await this.session.DisposeAsync();
-                this.session=null;
+            if(this.セッション is not null) {
+                await this.セッション.DisposeAsync();
+                this.セッション=null;
             }
         } finally {
-            this.sessionGate.Release();
-            this.sessionGate.Dispose();
+            this.セッションゲート.Release();
+            this.セッションゲート.Dispose();
         }
     }
 
-    private async Task<BenchmarkFastWorkerSession> GetSessionAsync(string runRoot,CancellationToken cancellationToken) {
-        await this.sessionGate.WaitAsync(cancellationToken);
+    private async Task<ベンチマーク高速ワーカーセッション> セッションを取得Async(string 実行ルート,CancellationToken キャンセルトークン) {
+        await this.セッションゲート.WaitAsync(キャンセルトークン);
         try {
-            if(this.session is not null&&string.Equals(this.runRoot,runRoot,StringComparison.OrdinalIgnoreCase)) {
-                return this.session;
+            if(this.セッション is not null&&string.Equals(this.実行ルート,実行ルート,StringComparison.OrdinalIgnoreCase)) {
+                return this.セッション;
             }
 
-            if(this.session is not null) {
-                await this.session.DisposeAsync();
-                this.session=null;
+            if(this.セッション is not null) {
+                await this.セッション.DisposeAsync();
+                this.セッション=null;
             }
 
-            this.runRoot=runRoot;
-            this.session=await BenchmarkFastWorkerSession.StartAsync(runRoot,cancellationToken);
-            return this.session;
+            this.実行ルート=実行ルート;
+            this.セッション=await ベンチマーク高速ワーカーセッション.開始Async(実行ルート,キャンセルトークン);
+            return this.セッション;
         } finally {
-            this.sessionGate.Release();
+            this.セッションゲート.Release();
         }
     }
 
-    private async Task ResetSessionAsync(BenchmarkFastWorkerSession current) {
-        await this.sessionGate.WaitAsync();
+    private async Task セッションを再設定Async(ベンチマーク高速ワーカーセッション 現在セッション) {
+        await this.セッションゲート.WaitAsync();
         try {
-            if(ReferenceEquals(this.session,current)) {
-                this.session=null;
-                await current.DisposeAsync();
+            if(ReferenceEquals(this.セッション,現在セッション)) {
+                this.セッション=null;
+                await 現在セッション.DisposeAsync();
             }
         } finally {
-            this.sessionGate.Release();
+            this.セッションゲート.Release();
         }
     }
 }
 
-public sealed class BenchmarkInProcessJobRunner:IBenchmarkJobRunner {
-    public Task<BenchmarkJobRunResult> RunAsync(
-        BenchmarkJob job,
-        string runRoot,
-        int logicalCpu,
-        TimeSpan timeout,
-        CancellationToken cancellationToken) {
-        if(cancellationToken.IsCancellationRequested) {
-            return Task.FromCanceled<BenchmarkJobRunResult>(cancellationToken);
-        }
-
-        return Task.Run(() => Run(job,runRoot));
-    }
-
-    private static BenchmarkJobRunResult Run(
-        BenchmarkJob job,
-        string runRoot) {
-        var benchmark = job.ToBenchmarkCase();
-        var loopCount = Math.Max(1,job.LoopCount);
-        var artifactFolder = BenchmarkWorkerClient.CreateArtifactFolder(runRoot,benchmark,job.SourceTab,job.ElementCount,loopCount);
-        var logPath = Path.Combine(artifactFolder,"inprocess.log");
-        object? instance = null;
-        try {
-            var assembly = ResolveBenchmarkAssembly(benchmark.AssemblyName);
-            var type = assembly.GetType(benchmark.TypeFullName,throwOnError:true,ignoreCase:false)
-                ??throw new InvalidOperationException($"Benchmark type was not found: {benchmark.TypeFullName}");
-            var method = ResolveBenchmarkMethod(type,benchmark.MethodName);
-            var randomSeed = CreateRandomSourceSeed(runRoot,job.SourceTab,benchmark.MethodName,job.ArgumentKey,job.ElementCount,loopCount);
-            using var elementScope = BeginElementCountScope(assembly,job.ElementCount,"1");
-            using var randomSourceScope = BeginRandomSourceSeedScope(assembly,randomSeed);
-            instance=method.IsStatic ? null : Activator.CreateInstance(type);
-            var arguments = BenchmarkArgumentFormatting.ToObjects(benchmark.Arguments);
-            var resultDigest = CaptureBenchmarkResultDigest(type,benchmark.MethodName,arguments);
-            var invokeBenchmark = arguments.Length==0
-                ? method.IsStatic
-                    ? (Action)method.CreateDelegate(typeof(Action))
-                    : (Action)method.CreateDelegate(typeof(Action),instance)
-                : () => method.Invoke(instance,arguments);
-            invokeBenchmark();
-            var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
-            var stopwatch = Stopwatch.StartNew();
-            for(var index = 0;index<loopCount;index++) {
-                invokeBenchmark();
-            }
-            stopwatch.Stop();
-            var allocatedAfter = GC.GetAllocatedBytesForCurrentThread();
-            var meanNanoseconds = stopwatch.Elapsed.TotalMilliseconds*1_000_000;
-            var allocatedBytes = Math.Max(0,allocatedAfter-allocatedBefore);
-            var counter = new global::Seamless.Linq.LinqCounter();
-            using(var counterScope = global::Seamless.Linq.LinqCounterScope.Start(counter)) {
-                invokeBenchmark();
-            }
-            WriteInProcessLog(
-                logPath,
-                $"In-process direct benchmark completed in {BenchmarkFormatting.FormatNanoseconds(meanNanoseconds)}.",
-                Encoding.UTF8);
-            return new BenchmarkJobRunResult(
-                benchmark.Project,
-                benchmark.MethodName,
-                benchmark.TypeFullName,
-                job.ElementCount,
-                "Completed",
-                BenchmarkFormatting.FormatNanoseconds(meanNanoseconds),
-                string.Empty,
-                string.Empty,
-                meanNanoseconds,
-                null,
-                null,
-                allocatedBytes,
-                0,
-                artifactFolder,
-                string.Empty,
-                randomSeed,
-                resultDigest,
-                benchmark.ArgumentKey,
-                benchmark.Arguments,
-                loopCount,
-                job.RunItemIndex,
-                CreateDiagnosticCounters(counter));
-        } catch(Exception ex) when(ex is not OperationCanceledException) {
-            var actual = ex is TargetInvocationException { InnerException: { } inner } ? inner : ex;
-            WriteInProcessLog(logPath,actual.ToString(),Encoding.UTF8);
-            return new BenchmarkJobRunResult(
-                benchmark.Project,
-                benchmark.MethodName,
-                benchmark.TypeFullName,
-                job.ElementCount,
-                "Failed",
-                string.Empty,
-                string.Empty,
-                string.Empty,
-                null,
-                null,
-                null,
-                null,
-                1,
-                artifactFolder,
-                actual.ToString(),
-                null,
-                string.Empty,
-                benchmark.ArgumentKey,
-                benchmark.Arguments,
-                loopCount,
-                job.RunItemIndex);
-        } finally {
-            if(instance is IDisposable disposable) {
-                disposable.Dispose();
-            }
-        }
-    }
-
-    private static IReadOnlyList<BenchmarkDiagnosticCounter> CreateDiagnosticCounters(global::Seamless.Linq.LinqCounter counter) => [
-        new("PhysicalMoveNext",counter.PhysicalMoveNext),
-        new("LogicalOperations",counter.LogicalOperations),
-        new("LogicalWhere",counter.LogicalWhere),
-        new("LogicalSelect",counter.LogicalSelect),
-        new("HashBuild",counter.HashBuild),
-        new("HashProbe",counter.HashProbe),
-        new("BufferAdd",counter.BufferAdd),
-        new("TryGetNonEnumeratedCount",counter.TryGetNonEnumeratedCount),
-        new("LogicalDelegate",counter.LogicalDelegate),
-        new("PhysicalDelegate",counter.PhysicalDelegate),
-        new("EnumerableFallback",counter.EnumerableFallback),
-        new("DirectSpanUsed",counter.DirectSpanUsed),
-        new("TryGetSpanCalled",counter.TryGetSpanCalled),
-        new("TryGetSpanSucceeded",counter.TryGetSpanSucceeded),
-        new("TryGetSpanFailed",counter.TryGetSpanFailed),
-        new("EnumerationLoopUsed",counter.EnumerationLoopUsed),
-        new("FastCopyUsed",counter.FastCopyUsed),
-        new("HashCapacityHintUsed",counter.HashCapacityHintUsed),
-    ];
-
-    private static void WriteInProcessLog(string logPath,string text,Encoding encoding) {
-        try {
-            Directory.CreateDirectory(Path.GetDirectoryName(logPath)??".");
-            File.WriteAllText(logPath,text,encoding);
-        } catch(IOException ex) {
-            System.Diagnostics.Debug.WriteLine("In-process benchmark log write failed. "+ex);
-        } catch(UnauthorizedAccessException ex) {
-            System.Diagnostics.Debug.WriteLine("In-process benchmark log write failed. "+ex);
-        }
-    }
-
-    private static Assembly ResolveBenchmarkAssembly(string assemblyName) =>
-        AppDomain.CurrentDomain
-            .GetAssemblies()
-            .FirstOrDefault(item => string.Equals(item.GetName().Name,assemblyName,StringComparison.OrdinalIgnoreCase))
-        ??Assembly.Load(new AssemblyName(assemblyName));
-
-    private static MethodInfo ResolveBenchmarkMethod(Type type,string methodName) {
-        var method = type.GetMethod(methodName,BindingFlags.Public|BindingFlags.Instance|BindingFlags.Static)
-            ??throw new MissingMethodException(type.FullName,methodName);
-        if(!HasBenchmarkAttribute(method)) {
-            throw new MissingMethodException(type.FullName,methodName+" [Benchmark]");
-        }
-
-        return method;
-    }
-
-    private static bool HasBenchmarkAttribute(MethodInfo method) =>
-        method.CustomAttributes.Any(static attribute => attribute.AttributeType.Name=="BenchmarkAttribute");
-
-    private static IDisposable BeginElementCountScope(Assembly assembly,int elementCount,string elementScale) {
-        var modeType = assembly.GetType("Common.BenchmarkExecutionMode",throwOnError:false,ignoreCase:false);
-        var method = modeType?.GetMethod(
-            "UseElementCount",
-            BindingFlags.Public|BindingFlags.Static,
-            binder:null,
-            types:[typeof(int),typeof(string)],
-            modifiers:null);
-        return method?.Invoke(null,[elementCount,elementScale]) as IDisposable
-            ?? EmptyDisposable.Instance;
-    }
-
-    private static IDisposable BeginRandomSourceSeedScope(Assembly assembly,int seed) {
-        var modeType = assembly.GetType("Common.BenchmarkExecutionMode",throwOnError:false,ignoreCase:false);
-        var method = modeType?.GetMethod(
-            "UseRandomSourceSeed",
-            BindingFlags.Public|BindingFlags.Static,
-            binder:null,
-            types:[typeof(int)],
-            modifiers:null);
-        return method?.Invoke(null,[seed]) as IDisposable
-            ?? EmptyDisposable.Instance;
-    }
-
-    private static string CaptureBenchmarkResultDigest(Type benchmarkType,string methodName,object?[] arguments) {
-        var instance = Activator.CreateInstance(benchmarkType);
-        var method = benchmarkType.GetMethod(
-            "CaptureBenchmarkMethodResult",
-            BindingFlags.Public|BindingFlags.Instance,
-            binder:null,
-            types:[typeof(string),typeof(bool),typeof(object[])],
-            modifiers:null)
-            ??throw new MissingMethodException(benchmarkType.FullName,"CaptureBenchmarkMethodResult");
-        return method.Invoke(instance,[methodName,false,arguments]) as string
-            ??throw new InvalidOperationException("Benchmark result digest was empty.");
-    }
-
-    private static int CreateRandomSourceSeed(string runRoot,BenchmarkSourceTab sourceTab,string methodName,string argumentKey,int elementCount,int loopCount) =>
-        StableHash(runRoot+"|"+sourceTab+"|"+methodName+"|"+argumentKey+"|"+elementCount.ToString(CultureInfo.InvariantCulture)+"|"+loopCount.ToString(CultureInfo.InvariantCulture));
-
-    private static int StableHash(string text) {
-        unchecked {
-            var hash = (int)2166136261;
-            foreach(var ch in text) {
-                hash^=ch;
-                hash*=16777619;
-            }
-            return hash==0 ? 1 : hash;
-        }
-    }
-
-    private sealed class EmptyDisposable:IDisposable {
-        public static EmptyDisposable Instance { get; } = new();
-
-        public void Dispose() {
-        }
-    }
+public interface Iベンチマーク結果サービス {
+    報告行 報告行に変換(ベンチマーク結果項目 項目);
 }
 
-public interface IBenchmarkResultService {
-    ReportRow ToReportRow(BenchmarkResultItem item);
-}
-
-public sealed class BenchmarkResultService:IBenchmarkResultService {
-    public ReportRow ToReportRow(BenchmarkResultItem item) {
-        var method = item.ElementCount>0
-            ? item.Method+" [N="+item.ElementCount.ToString(CultureInfo.InvariantCulture)+"]"
-            : item.Method;
-        return new ReportRow(
-            item.Project,
-            method,
-            item.TypeFullName,
-            method,
-            item.Status,
-            item.Mean,
+public sealed class ベンチマーク結果サービス:Iベンチマーク結果サービス {
+    public 報告行 報告行に変換(ベンチマーク結果項目 項目) {
+        var メソッド = 項目.要素数>0
+            ? 項目.メソッド+" [N="+項目.要素数.ToString(CultureInfo.InvariantCulture)+"]"
+            : 項目.メソッド;
+        return new 報告行(
+            項目.プロジェクト,
+            メソッド,
+            項目.型完全名,
+            メソッド,
+            項目.状態,
+            項目.平均,
             string.Empty,
             string.Empty,
-            item.AllocatedBytesValue?.ToString(CultureInfo.InvariantCulture)??string.Empty,
+            項目.割り当てバイト数値?.ToString(CultureInfo.InvariantCulture)??string.Empty,
             string.Empty,
             string.Empty,
-            item.MeanNanoseconds??0,
-            item.ErrorNanoseconds??0,
-            item.StdDevNanoseconds??0,
-            item.AllocatedBytesValue??0,
+            項目.平均ナノ秒??0,
+            項目.誤差ナノ秒??0,
+            項目.標準偏差ナノ秒??0,
+            項目.割り当てバイト数値??0,
             0,
             0,
             string.Empty,
@@ -795,151 +543,122 @@ public sealed class BenchmarkResultService:IBenchmarkResultService {
             string.Empty,
             string.Empty,
             string.Empty,
-            item.ArtifactFolder,
-            item.ExitCode,
-            item.ArgumentKey,
-            item.Arguments);
+            項目.成果物フォルダー,
+            項目.終了コード,
+            項目.引数キー,
+            項目.引数一覧);
     }
 }
 
-public interface IBenchmarkComparisonService {
-    IReadOnlyList<BenchmarkComparisonRow> BuildRows(IEnumerable<BenchmarkResultItem> results);
+public interface Iベンチマーク比較サービス {
+    IReadOnlyList<ベンチマーク比較行> 比較行を構築(IEnumerable<ベンチマーク結果項目> 結果一覧);
 }
 
-public sealed class BenchmarkComparisonService:IBenchmarkComparisonService {
-    private readonly IBenchmarkResultService resultService;
+public sealed class ベンチマーク比較サービス:Iベンチマーク比較サービス {
+    private readonly Iベンチマーク結果サービス 結果サービス;
 
-    public BenchmarkComparisonService(IBenchmarkResultService resultService) {
-        this.resultService=resultService;
+    public ベンチマーク比較サービス(Iベンチマーク結果サービス 結果サービス) {
+        this.結果サービス=結果サービス;
     }
 
-    public IReadOnlyList<BenchmarkComparisonRow> BuildRows(IEnumerable<BenchmarkResultItem> results) {
-        var reportRows = results.Select(this.resultService.ToReportRow).ToArray();
-        return BenchmarkComparisonFormatter.BuildComparisonRows(reportRows);
+    public IReadOnlyList<ベンチマーク比較行> 比較行を構築(IEnumerable<ベンチマーク結果項目> 結果一覧) {
+        var 報告行一覧 = 結果一覧.Select(this.結果サービス.報告行に変換).ToArray();
+        return ベンチマーク比較フォーマッター.比較行を構築(報告行一覧);
     }
+
 }
 
-public interface ILogService {
-    void Append(string text);
+public interface Iベンチマーク実行サービス {
+    Task<ベンチマーク実行報告> 実行Async(
+        IReadOnlyList<ベンチマークケース> ベンチマーク一覧,
+        IReadOnlyList<int> 論理CPU一覧,
+        Func<IReadOnlyList<int>> 論理CPU取得器,
+        IReadOnlyList<int> 要素数一覧,
+        ベンチマークソースタブ ソースタブ,
+        ベンチマーク実行プロファイル 実行プロファイル,
+        TimeSpan 適応しきい値,
+        bool 要求要素数から再開するか,
+        string? 実行ルート上書き,
+        Func<IReadOnlyList<ベンチマークケース>>? ベンチマーク取得器,
+        Action<ベンチマーク結果項目> 結果受信時,
+        Action<string> 状態変更時,
+        ベンチマーク実行オプション? 実行オプション,
+        CancellationToken キャンセルトークン);
 }
 
-public sealed class MemoryLogService:ILogService {
-    private readonly Action<string> append;
+public sealed class ベンチマーク実行サービス:Iベンチマーク実行サービス {
+    private readonly Iベンチマークワーカープロセスサービス ワーカーサービス;
 
-    public MemoryLogService(Action<string> append) {
-        this.append=append;
+    public ベンチマーク実行サービス(Iベンチマークワーカープロセスサービス ワーカーサービス) {
+        this.ワーカーサービス=ワーカーサービス;
     }
 
-    public void Append(string text) {
-        this.append(text);
-    }
-}
-
-public interface IBenchmarkRunService {
-    Task<BenchmarkRunReport> RunAsync(
-        IReadOnlyList<BenchmarkCase> benchmarks,
-        IReadOnlyList<int> logicalCpus,
-        Func<IReadOnlyList<int>> logicalCpuProvider,
-        IReadOnlyList<int> elementCounts,
-        BenchmarkSourceTab sourceTab,
-        BenchmarkExecutionProfile executionProfile,
-        TimeSpan adaptiveThreshold,
-        bool restartFromRequestedElementCount,
-        string? runRootOverride,
-        Func<IReadOnlyList<BenchmarkCase>>? benchmarkProvider,
-        Action<BenchmarkResultItem> resultReceived,
-        Action<string> statusChanged,
-        BenchmarkRunExecutionOptions? executionOptions,
-        CancellationToken cancellationToken);
-}
-
-public sealed class BenchmarkRunService:IBenchmarkRunService {
-    private readonly IBenchmarkQueueService queueService;
-    private readonly IBenchmarkWorkerProcessService workerService;
-    private readonly IBenchmarkComparisonService comparisonService;
-
-    public BenchmarkRunService(
-        IBenchmarkQueueService queueService,
-        IBenchmarkWorkerProcessService workerService,
-        IBenchmarkComparisonService comparisonService) {
-        this.queueService=queueService;
-        this.workerService=workerService;
-        this.comparisonService=comparisonService;
-    }
-
-    public async Task<BenchmarkRunReport> RunAsync(
-        IReadOnlyList<BenchmarkCase> benchmarks,
-        IReadOnlyList<int> logicalCpus,
-        Func<IReadOnlyList<int>> logicalCpuProvider,
-        IReadOnlyList<int> elementCounts,
-        BenchmarkSourceTab sourceTab,
-        BenchmarkExecutionProfile executionProfile,
-        TimeSpan adaptiveThreshold,
-        bool restartFromRequestedElementCount,
-        string? runRootOverride,
-        Func<IReadOnlyList<BenchmarkCase>>? benchmarkProvider,
-        Action<BenchmarkResultItem> resultReceived,
-        Action<string> statusChanged,
-        BenchmarkRunExecutionOptions? executionOptions,
-        CancellationToken cancellationToken) {
-        var orchestrationRoot = FindSolutionRoot() ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Seamless");
-        var benchmarkRoot = Path.Combine(orchestrationRoot,"Work",BenchmarkAppProfile.WorkRootName,BenchmarkExecutionProfileNames.ToFolderName(executionProfile));
-        var jobRunner = this.CreateJobRunner(executionProfile,adaptiveThreshold,executionOptions);
-        var orchestrator = new BenchmarkOrchestrator(
-            new BenchmarkStateManager(benchmarkRoot),
-            jobRunner);
-        var request = new BenchmarkRunRequest(
-            benchmarks,
-            logicalCpus,
-            elementCounts,
-            adaptiveThreshold,
+    public async Task<ベンチマーク実行報告> 実行Async(
+        IReadOnlyList<ベンチマークケース> ベンチマーク一覧,
+        IReadOnlyList<int> 論理CPU一覧,
+        Func<IReadOnlyList<int>> 論理CPU取得器,
+        IReadOnlyList<int> 要素数一覧,
+        ベンチマークソースタブ ソースタブ,
+        ベンチマーク実行プロファイル 実行プロファイル,
+        TimeSpan 適応しきい値,
+        bool 要求要素数から再開するか,
+        string? 実行ルート上書き,
+        Func<IReadOnlyList<ベンチマークケース>>? ベンチマーク取得器,
+        Action<ベンチマーク結果項目> 結果受信時,
+        Action<string> 状態変更時,
+        ベンチマーク実行オプション? 実行オプション,
+        CancellationToken キャンセルトークン) {
+        var オーケストレーションルート = ソリューションルートを検索()??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Seamless");
+        var ベンチマークルート = Path.Combine(オーケストレーションルート,"Work",ベンチマークアプリプロファイル.作業ルート名,ベンチマーク実行プロファイル名.フォルダー名に変換(実行プロファイル));
+        var ジョブ実行器 = this.ジョブ実行器を作成(実行プロファイル,適応しきい値,実行オプション);
+        var オーケストレーター = new ベンチマークオーケストレーター(
+            new ベンチマーク状態マネージャー(ベンチマークルート),
+            ジョブ実行器);
+        var 要求 = new ベンチマーク実行要求(
+            ベンチマーク一覧,
+            論理CPU一覧,
+            要素数一覧,
+            適応しきい値,
             TimeSpan.FromMinutes(60),
-            logicalCpuProvider,
-            RestartFromRequestedElementCount: restartFromRequestedElementCount,
-            ExecutionProfile: executionProfile,
-            RunRootOverride: runRootOverride,
-            SourceTab: sourceTab,
-            BenchmarkProvider: benchmarkProvider);
+            論理CPU取得器,
+            要求要素数から再開するか: 要求要素数から再開するか,
+            実行プロファイル: 実行プロファイル,
+            実行ルート上書き: 実行ルート上書き,
+            ソースタブ: ソースタブ,
+            ベンチマーク取得器: ベンチマーク取得器);
         try {
-            var orchestratorResult = await orchestrator.RunAsync(
-                request,
-                update => resultReceived(new BenchmarkResultItem(update.Job)),
-                statusChanged,
-                cancellationToken);
-            return new BenchmarkRunReport(orchestratorResult.RunRoot);
+            var オーケストレーター結果 = await オーケストレーター.実行Async(
+                要求,
+                更新 => 結果受信時(new ベンチマーク結果項目(更新.ジョブ)),
+                状態変更時,
+                キャンセルトークン);
+            return new ベンチマーク実行報告(オーケストレーター結果.実行ルート);
         } finally {
-            if(jobRunner is IAsyncDisposable asyncDisposable) {
-                await asyncDisposable.DisposeAsync();
-            } else if(jobRunner is IDisposable disposable) {
-                disposable.Dispose();
+            if(ジョブ実行器 is IAsyncDisposable 非同期破棄対象) {
+                await 非同期破棄対象.DisposeAsync();
+            } else if(ジョブ実行器 is IDisposable 破棄対象) {
+                破棄対象.Dispose();
             }
         }
 
     }
 
-    private IBenchmarkJobRunner CreateJobRunner(BenchmarkExecutionProfile executionProfile,TimeSpan testSleepDuration,BenchmarkRunExecutionOptions? executionOptions) =>
-        executionProfile switch{
-            BenchmarkExecutionProfile.Accurate => this.workerService,
-            BenchmarkExecutionProfile.Intermediate => new BenchmarkPersistentWorkerProcessService(),
-            BenchmarkExecutionProfile.Fast => new BenchmarkFastWorkerProcessService(),
-            BenchmarkExecutionProfile.Test => new BenchmarkTestSleepJobRunner(testSleepDuration,executionOptions?.UseInfiniteTestRunner==true),
-            _ => this.workerService,
+    private Iベンチマークジョブ実行器 ジョブ実行器を作成(ベンチマーク実行プロファイル 実行プロファイル,TimeSpan テスト待機時間,ベンチマーク実行オプション? 実行オプション) =>
+        実行プロファイル switch {
+            ベンチマーク実行プロファイル.正確 => this.ワーカーサービス,
+            ベンチマーク実行プロファイル.中間 => new ベンチマーク永続ワーカープロセスサービス(),
+            ベンチマーク実行プロファイル.高速 => new ベンチマーク高速ワーカープロセスサービス(),
+            ベンチマーク実行プロファイル.テスト => new ベンチマークテスト待機ジョブ実行器(テスト待機時間,実行オプション?.無限テスト実行器を使うか==true),
+            _ => this.ワーカーサービス,
         };
 
-    private static string CreateRunRoot() {
-        var root = FindSolutionRoot() ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Seamless");
-        var path = Path.Combine(root,"Work","Benchmark",DateTime.Now.ToString("yyyyMMdd-HHmmss",CultureInfo.InvariantCulture));
-        Directory.CreateDirectory(path);
-        return path;
-    }
-
-    private static string? FindSolutionRoot() {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while(directory is not null) {
-            if(File.Exists(Path.Combine(directory.FullName,"Seamless.slnx"))) {
-                return directory.FullName;
+    private static string? ソリューションルートを検索() {
+        var ディレクトリ = new DirectoryInfo(AppContext.BaseDirectory);
+        while(ディレクトリ is not null) {
+            if(File.Exists(Path.Combine(ディレクトリ.FullName,"Seamless.slnx"))) {
+                return ディレクトリ.FullName;
             }
-            directory=directory.Parent;
+            ディレクトリ=ディレクトリ.Parent;
         }
 
         return null;

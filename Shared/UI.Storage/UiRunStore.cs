@@ -2,240 +2,63 @@ using Microsoft.Data.Sqlite;
 
 namespace Seamless.UI.Storage;
 
-public sealed class UiRunStore{
-    private const int SchemaVersion = 19;
-    private readonly string databasePath;
-    private readonly UiRunAppKind appKind;
-    private readonly object schemaGate = new();
-    private bool schemaEnsured;
+public sealed class UI実行ストア{
+    private const int スキーマ版=20;
+    private readonly string DBパス;
+    private readonly UI実行アプリ種別 アプリ種別;
+    private readonly object スキーマロック=new();
+    private bool スキーマ確認済みか;
 
-    public UiRunStore(string databasePath,UiRunAppKind appKind=UiRunAppKind.Benchmark){
-        ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
-        this.databasePath=databasePath;
-        this.appKind=appKind;
+    public UI実行ストア(string DBパス,UI実行アプリ種別 アプリ種別 = UI実行アプリ種別.ベンチマーク){
+        ArgumentException.ThrowIfNullOrWhiteSpace(DBパス);
+        this.DBパス=DBパス;
+        this.アプリ種別=アプリ種別;
     }
 
-    public string DatabasePath => this.databasePath;
-    public UiRunAppKind AppKind => this.appKind;
+    public string データベースパス=>this.DBパス;
 
-    public void 分析ビューを更新(){
-        using var connection=this.OpenConnection();
-        using var transaction=BeginTransactionWithLockRetry(connection);
-        分析ビューを作成(connection,transaction,this.appKind);
-        transaction.Commit();
-    }
-
-    private static void 分析ビューを作成(SqliteConnection connection,SqliteTransaction transaction,UiRunAppKind appKind){
-        ExecuteNonQuery(connection,transaction,"""
-            DROP VIEW IF EXISTS "BenchmarkPerformanceRatioDelta";
-            DROP VIEW IF EXISTS "BenchmarkPerformanceRatioHistory";
-            DROP VIEW IF EXISTS "BenchmarkMemoryRatioDelta";
-            DROP VIEW IF EXISTS "BenchmarkMemoryRatioHistory";
-            DROP VIEW IF EXISTS "基準時間比";
-            DROP VIEW IF EXISTS "基準メモリ比";
-            DROP VIEW IF EXISTS "履歴時間比";
-            DROP VIEW IF EXISTS "履歴メモリ比";
-            DROP VIEW IF EXISTS "履歴時間シェア";
-            DROP VIEW IF EXISTS "基準時間シェア";
-            DROP VIEW IF EXISTS "履歴メモリシェア";
-            DROP VIEW IF EXISTS "基準メモリシェア";
-            DROP VIEW IF EXISTS "Scalable履歴";
-            DROP VIEW IF EXISTS "Scalable前回比較";
-            DROP VIEW IF EXISTS "Scalable前回シェア";
-            """);
-        if(appKind is UiRunAppKind.Benchmark){
-            ExecuteNonQuery(connection,transaction,"""
-                CREATE VIEW "履歴時間シェア" AS
-                SELECT r."実行ID",r."更新日時",b."タブ名",b."型",b."ベンチマーク",b."左時間ns",b."右時間ns",
-                    CASE WHEN b."左時間ns"=0 AND b."右時間ns"=0 THEN 0.0 ELSE CAST(b."左時間ns" AS REAL)/(b."左時間ns"+b."右時間ns") END AS "左シェア",
-                    CASE WHEN b."左時間ns"=0 AND b."右時間ns"=0 THEN 0.0 ELSE CAST(b."右時間ns" AS REAL)/(b."左時間ns"+b."右時間ns") END AS "右シェア"
-                FROM "Benchmark" b INNER JOIN "実行" r ON r."実行ID"=b."実行ID"
-                WHERE b."左状態"='完了' AND b."右状態"='完了' AND b."左時間ns" IS NOT NULL AND b."右時間ns" IS NOT NULL
-                    AND b."左時間ns">=0 AND b."右時間ns">=0;
-                CREATE VIEW "履歴メモリシェア" AS
-                SELECT r."実行ID",r."更新日時",b."タブ名",b."型",b."ベンチマーク",b."左メモリバイト",b."右メモリバイト",
-                    CASE WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0.0 ELSE CAST(b."左メモリバイト" AS REAL)/(b."左メモリバイト"+b."右メモリバイト") END AS "左シェア",
-                    CASE WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0.0 ELSE CAST(b."右メモリバイト" AS REAL)/(b."左メモリバイト"+b."右メモリバイト") END AS "右シェア"
-                FROM "Benchmark" b INNER JOIN "実行" r ON r."実行ID"=b."実行ID"
-                WHERE b."左状態"='完了' AND b."右状態"='完了' AND b."左メモリバイト" IS NOT NULL AND b."右メモリバイト" IS NOT NULL
-                    AND b."左メモリバイト">=0 AND b."右メモリバイト">=0;
-                """);
-        }else if(appKind==UiRunAppKind.ScalableBenchmark){
-            ExecuteNonQuery(connection,transaction,"""
-                CREATE VIEW "Scalable履歴" AS SELECT r."実行ID",r."前回実行ID",r."更新日時",b."タブ名",b."型",b."ベンチマーク",b."Count",b."Initial",b."Data",b."Index",b."Page",b."Segment",b."Memory",b."Fraction",b."今回時間ns",b."今回メモリバイト" FROM "Benchmark" b INNER JOIN "実行" r ON r."実行ID"=b."実行ID" WHERE b."今回状態"='完了';
-                CREATE VIEW "Scalable前回シェア" AS SELECT c.*,p."今回時間ns" AS "前回時間ns",
-                    CASE WHEN c."今回時間ns" IS NULL OR p."今回時間ns" IS NULL OR c."今回時間ns"<0 OR p."今回時間ns"<0 THEN NULL WHEN c."今回時間ns"=0 AND p."今回時間ns"=0 THEN 0.0 ELSE CAST(c."今回時間ns" AS REAL)/(c."今回時間ns"+p."今回時間ns") END AS "今回時間シェア",
-                    CASE WHEN c."今回時間ns" IS NULL OR p."今回時間ns" IS NULL OR c."今回時間ns"<0 OR p."今回時間ns"<0 THEN NULL WHEN c."今回時間ns"=0 AND p."今回時間ns"=0 THEN 0.0 ELSE CAST(p."今回時間ns" AS REAL)/(c."今回時間ns"+p."今回時間ns") END AS "前回時間シェア",
-                    p."今回メモリバイト" AS "前回メモリバイト",
-                    CASE WHEN c."今回メモリバイト" IS NULL OR p."今回メモリバイト" IS NULL OR c."今回メモリバイト"<0 OR p."今回メモリバイト"<0 THEN NULL WHEN c."今回メモリバイト"=0 AND p."今回メモリバイト"=0 THEN 0.0 ELSE CAST(c."今回メモリバイト" AS REAL)/(c."今回メモリバイト"+p."今回メモリバイト") END AS "今回メモリシェア",
-                    CASE WHEN c."今回メモリバイト" IS NULL OR p."今回メモリバイト" IS NULL OR c."今回メモリバイト"<0 OR p."今回メモリバイト"<0 THEN NULL WHEN c."今回メモリバイト"=0 AND p."今回メモリバイト"=0 THEN 0.0 ELSE CAST(p."今回メモリバイト" AS REAL)/(c."今回メモリバイト"+p."今回メモリバイト") END AS "前回メモリシェア"
-                FROM "Scalable履歴" c LEFT JOIN "Scalable履歴" p ON p."実行ID"=c."前回実行ID" AND p."タブ名"=c."タブ名" AND p."型"=c."型" AND p."ベンチマーク"=c."ベンチマーク" AND p."Count" IS c."Count" AND p."Initial" IS c."Initial" AND p."Data" IS c."Data" AND p."Index" IS c."Index" AND p."Page" IS c."Page" AND p."Segment" IS c."Segment" AND p."Memory" IS c."Memory" AND p."Fraction" IS c."Fraction";
-                """);
-        }
-    }
-
-    public void EnsureSchema(){
-        lock(this.schemaGate){
-            if(this.schemaEnsured){
+    public void スキーマを確認(){
+        lock(this.スキーマロック){
+            if(this.スキーマ確認済みか){
                 return;
             }
-
-            Directory.CreateDirectory(Path.GetDirectoryName(this.databasePath)??".");
-            if(File.Exists(this.databasePath)
-                &&this.ReadStoredSchemaVersion()==SchemaVersion
-                &&this.HasExpectedSchemaShape()){
-                this.schemaEnsured=true;
+            Directory.CreateDirectory(Path.GetDirectoryName(this.DBパス)??".");
+            if(File.Exists(this.DBパス)){
+                if(this.保存済みスキーマ版を読む()!=スキーマ版||!this.想定スキーマ形状か()){
+                    throw new InvalidOperationException("UI実行DBのスキーマが一致しません。明示的なバックアップ後にDBを再作成してください: "+this.DBパス);
+                }
+                this.スキーマ確認済みか=true;
                 return;
             }
-            this.ResolveSchemaMismatch();
-            using var connection = this.OpenConnection();
-            using var transaction = BeginTransactionWithLockRetry(connection);
-            CreateTables(connection,transaction);
-            FinalizeTablesForAppKind(connection,transaction,this.appKind);
-            分析ビューを作成(connection,transaction,this.appKind);
-            ExecuteNonQuery(connection,transaction,$"PRAGMA user_version={SchemaVersion};");
-            transaction.Commit();
-            this.schemaEnsured=true;
+            using var 接続=this.接続を開く();
+            using var トランザクション=ロック再試行付きでトランザクションを開始(接続);
+            共通テーブルを作成(接続,トランザクション);
+            アプリテーブルを作成(接続,トランザクション,this.アプリ種別);
+            分析ビューを作成(接続,トランザクション,this.アプリ種別);
+            非クエリを実行(接続,トランザクション,$"PRAGMA user_version={スキーマ版};");
+            トランザクション.Commit();
+            this.スキーマ確認済みか=true;
         }
     }
 
-    private void ResolveSchemaMismatch(){
-        if(!File.Exists(this.databasePath)){
-            return;
-        }
-
-        var version = this.ReadStoredSchemaVersion();
-        if(version==SchemaVersion&&this.HasExpectedSchemaShape()){
-            return;
-        }
-
-        throw new InvalidOperationException(
-            "UI run database schema mismatch. Update the configured database explicitly with a manual backup before starting the application: "+this.databasePath);
-    }
-
-    private long ReadStoredSchemaVersion(){
-        try{
-            using var connection = this.OpenConnectionWithoutCreate();
-            using var command = connection.CreateCommand();
-            command.CommandText="PRAGMA user_version;";
-            return (long)(command.ExecuteScalar()??0L);
-        }
-        catch(SqliteException){
-            return 0;
-        }
-    }
-
-    private bool HasExpectedSchemaShape(){
-        try{
-            using var connection=this.OpenConnectionWithoutCreate();
-            using var command=connection.CreateCommand();
-            if(this.appKind==UiRunAppKind.ParameterSweep){
-                command.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','Benchmark','診断カウンター');";
-                if((long)(command.ExecuteScalar()??0L)!=3L){
-                    return false;
-                }
-                command.CommandText="SELECT COUNT(*) FROM pragma_table_info('Benchmark') WHERE name IN('Collection','Generic','Backend','Sweep','MaxSuccessfulCount','EntryCount','追加時間ms','検索時間ns');";
-                return (long)(command.ExecuteScalar()??0L)==8L;
-            }
-
-            command.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','Benchmark','診断カウンター');";
-            if((long)(command.ExecuteScalar()??0L)!=3L){
-                return false;
-            }
-            if(this.appKind==UiRunAppKind.ScalableBenchmark){
-                command.CommandText="SELECT COUNT(*) FROM pragma_table_info('Benchmark') WHERE name IN('Count','Initial','Data','Index','Page','Segment','Memory','Fraction');";
-                if((long)(command.ExecuteScalar()??0L)!=8L){
-                    return false;
-                }
-                command.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('Scalable履歴','Scalable前回シェア');";
-                if((long)(command.ExecuteScalar()??0L)!=2L){
-                    return false;
-                }
-                command.CommandText="SELECT COUNT(*) FROM pragma_table_info('Scalable前回シェア') WHERE name IN('実行ID','前回実行ID','更新日時','タブ名','型','ベンチマーク','今回時間シェア','前回時間シェア','今回メモリシェア','前回メモリシェア');";
-                if((long)(command.ExecuteScalar()??0L)!=10L){
-                    return false;
-                }
-            }else{
-                command.CommandText="SELECT COUNT(*) FROM pragma_table_info('Benchmark') WHERE name IN('左LoopCount','右LoopCount');";
-                if((long)(command.ExecuteScalar()??0L)!=2L){
-                    return false;
-                }
-                command.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('履歴時間シェア','履歴メモリシェア');";
-                if((long)(command.ExecuteScalar()??0L)!=2L){
-                    return false;
-                }
-                command.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('基準時間シェア','基準メモリシェア');";
-                if((long)(command.ExecuteScalar()??0L)!=0L){
-                    return false;
-                }
-            }
-            command.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('履歴時間比','基準時間比','履歴メモリ比','基準メモリ比','Scalable前回比較');";
-            return (long)(command.ExecuteScalar()??0L)==0L;
-        }
-        catch(SqliteException){
-            return false;
-        }
-    }
-
-    private static void CreateTables(SqliteConnection connection,SqliteTransaction transaction){
-        ExecuteNonQuery(connection,transaction,"""
-            CREATE TABLE IF NOT EXISTS "実行"(
+    private static void 共通テーブルを作成(SqliteConnection 接続,SqliteTransaction トランザクション){
+        非クエリを実行(接続,トランザクション,"""
+            CREATE TABLE "実行"(
                 "実行ID" INTEGER PRIMARY KEY AUTOINCREMENT,
                 "表示名" TEXT NOT NULL,
                 "状態" TEXT NOT NULL,
+                "状態メッセージ" TEXT NOT NULL DEFAULT '',
                 "実行プロファイル" TEXT NOT NULL,
                 "タブ名" TEXT NOT NULL,
                 "更新日時" TEXT NOT NULL,
                 "実行ルート" TEXT NOT NULL DEFAULT '',
-                "Adaptive閾値ns" REAL NOT NULL DEFAULT 0,
+                "要素数一覧" TEXT NOT NULL DEFAULT '',
+                "適応閾値ns" REAL NOT NULL DEFAULT 0,
                 "論理CPU一覧" TEXT NOT NULL DEFAULT '',
                 "前回実行ID" INTEGER NULL,
                 FOREIGN KEY("前回実行ID") REFERENCES "実行"("実行ID") ON DELETE SET NULL
             );
-            CREATE TABLE IF NOT EXISTS "Benchmark"(
-                "実行ID" INTEGER NOT NULL,
-                "タブ名" TEXT NOT NULL,
-                "型" TEXT NOT NULL,
-                "ベンチマーク" TEXT NOT NULL,
-                "CPU番号" INTEGER NULL,
-                "行チェック" INTEGER NOT NULL DEFAULT 0,
-                "左状態" TEXT NOT NULL,
-                "左失敗理由" TEXT NOT NULL DEFAULT '',
-                "左日時" TEXT NULL,
-                "左時間ns" REAL NULL,
-                "左メモリバイト" INTEGER NULL,
-                "左LoopCount" INTEGER NULL,
-                "右状態" TEXT NOT NULL,
-                "右失敗理由" TEXT NOT NULL DEFAULT '',
-                "右日時" TEXT NULL,
-                "右時間ns" REAL NULL,
-                "右メモリバイト" INTEGER NULL,
-                "右LoopCount" INTEGER NULL,
-                FOREIGN KEY("実行ID") REFERENCES "実行"("実行ID") ON DELETE CASCADE
-            );
-            CREATE TABLE IF NOT EXISTS "ScalableBenchmark"(
-                "実行ID" INTEGER NOT NULL,
-                "タブ名" TEXT NOT NULL,
-                "型" TEXT NOT NULL,
-                "ベンチマーク" TEXT NOT NULL,
-                "Count" INTEGER NULL,
-                "Initial" INTEGER NULL,
-                "Data" INTEGER NULL,
-                "Index" INTEGER NULL,
-                "Page" INTEGER NULL,
-                "Segment" INTEGER NULL,
-                "Memory" INTEGER NULL,
-                "Fraction" REAL NULL,
-                "CPU番号" INTEGER NULL,
-                "行チェック" INTEGER NOT NULL DEFAULT 0,
-                "今回状態" TEXT NOT NULL,
-                "今回失敗理由" TEXT NOT NULL DEFAULT '',
-                "今回日時" TEXT NULL,
-                "今回時間ns" REAL NULL,
-                "今回メモリバイト" INTEGER NULL,
-                FOREIGN KEY("実行ID") REFERENCES "実行"("実行ID") ON DELETE CASCADE
-            );
-            CREATE TABLE IF NOT EXISTS "診断カウンター"(
+            CREATE TABLE "診断カウンター"(
                 "実行ID" INTEGER NOT NULL,
                 "タブ名" TEXT NOT NULL DEFAULT '',
                 "プロジェクト名" TEXT NOT NULL,
@@ -246,1004 +69,428 @@ public sealed class UiRunStore{
                 "記録日時" TEXT NOT NULL,
                 FOREIGN KEY("実行ID") REFERENCES "実行"("実行ID") ON DELETE CASCADE
             );
-            CREATE INDEX IF NOT EXISTS "IX_実行_更新日時" ON "実行"("更新日時");
-            CREATE INDEX IF NOT EXISTS "IX_Benchmark_実行ID" ON "Benchmark"("実行ID");
-            CREATE UNIQUE INDEX IF NOT EXISTS "UX_Benchmark_行" ON "Benchmark"(
-                "実行ID",
-                "タブ名",
-                "型",
-                "ベンチマーク"
-            );
-            CREATE INDEX IF NOT EXISTS "IX_ScalableBenchmark_実行ID" ON "ScalableBenchmark"("実行ID");
-            CREATE UNIQUE INDEX IF NOT EXISTS "UX_ScalableBenchmark_行" ON "ScalableBenchmark"(
-                "実行ID","タブ名","型","ベンチマーク",
-                COALESCE("Count",-1),COALESCE("Initial",-1),COALESCE("Data",-1),COALESCE("Index",-1),
-                COALESCE("Page",-1),COALESCE("Segment",-1),COALESCE("Memory",-1),COALESCE("Fraction",-1)
-            );
+            CREATE INDEX "索引_実行_更新日時" ON "実行"("更新日時");
             """);
     }
 
-    private static void FinalizeTablesForAppKind(SqliteConnection connection,SqliteTransaction transaction,UiRunAppKind appKind){
-        if(appKind is UiRunAppKind.Benchmark){
-            ExecuteNonQuery(connection,transaction,"DROP TABLE IF EXISTS \"ScalableBenchmark\";");
-        }else if(appKind==UiRunAppKind.ScalableBenchmark){
-            DropViews(connection,transaction);
-            ExecuteNonQuery(connection,transaction,"DROP TABLE IF EXISTS \"Benchmark\";ALTER TABLE \"ScalableBenchmark\" RENAME TO \"Benchmark\";");
-        }else if(appKind==UiRunAppKind.ParameterSweep){
-            DropViews(connection,transaction);
-            ExecuteNonQuery(connection,transaction,"""
-                DROP TABLE IF EXISTS "Benchmark";
-                DROP TABLE IF EXISTS "ScalableBenchmark";
-                CREATE TABLE "Benchmark"(
+    private static void アプリテーブルを作成(SqliteConnection 接続,SqliteTransaction トランザクション,UI実行アプリ種別 アプリ種別){
+        if(アプリ種別==UI実行アプリ種別.ベンチマーク){
+            非クエリを実行(接続,トランザクション,"""
+                CREATE TABLE "ベンチマーク"(
                     "実行ID" INTEGER NOT NULL,
-                    "ケース名" TEXT NOT NULL,
-                    "Collection" TEXT NOT NULL,
-                    "Generic" TEXT NOT NULL,
-                    "Backend" TEXT NOT NULL,
-                    "Sweep" TEXT NOT NULL,
-                    "IndexSize" INTEGER NOT NULL,
-                    "PageSize" INTEGER NOT NULL,
-                    "SegmentSize" INTEGER NOT NULL,
-                    "MemorySize" INTEGER NOT NULL,
-                    "MutableFraction" REAL NOT NULL,
-                    "MaxSuccessfulCount" INTEGER NOT NULL,
-                    "EntryCount" INTEGER NOT NULL,
-                    "失敗種別" TEXT NOT NULL,
-                    "失敗理由" TEXT NOT NULL,
-                    "追加時間ms" REAL NOT NULL,
-                    "検索時間ns" REAL NULL,
-                    "測定日時" TEXT NOT NULL,
-                    PRIMARY KEY("実行ID","ケース名"),
+                    "タブ名" TEXT NOT NULL,
+                    "型" TEXT NOT NULL,
+                    "ベンチマーク" TEXT NOT NULL,
+                    "アセンブリ名" TEXT NOT NULL DEFAULT '',
+                    "型完全名" TEXT NOT NULL DEFAULT '',
+                    "メソッド名" TEXT NOT NULL DEFAULT '',
+                    "引数キー" TEXT NOT NULL DEFAULT '',
+                    "引数JSON" TEXT NOT NULL DEFAULT '',
+                    "CPU番号" INTEGER NULL,
+                    "行チェック" INTEGER NOT NULL DEFAULT 0,
+                    "左状態" TEXT NOT NULL,
+                    "左失敗理由" TEXT NOT NULL DEFAULT '',
+                    "左日時" TEXT NULL,
+                    "左時間ns" REAL NULL,
+                    "左メモリバイト" INTEGER NULL,
+                    "左ループ回数" INTEGER NULL,
+                    "右状態" TEXT NOT NULL,
+                    "右失敗理由" TEXT NOT NULL DEFAULT '',
+                    "右日時" TEXT NULL,
+                    "右時間ns" REAL NULL,
+                    "右メモリバイト" INTEGER NULL,
+                    "右ループ回数" INTEGER NULL,
                     FOREIGN KEY("実行ID") REFERENCES "実行"("実行ID") ON DELETE CASCADE
                 );
+                CREATE INDEX "索引_ベンチマーク_実行ID" ON "ベンチマーク"("実行ID");
+                CREATE UNIQUE INDEX "一意索引_ベンチマーク_行" ON "ベンチマーク"(
+                    "実行ID","タブ名","型","ベンチマーク","アセンブリ名","型完全名","メソッド名","引数キー","引数JSON"
+                );
+                """);
+            return;
+        }
+        if(アプリ種別==UI実行アプリ種別.スケーラブルベンチマーク){
+            非クエリを実行(接続,トランザクション,"""
+                CREATE TABLE "ベンチマーク"(
+                    "実行ID" INTEGER NOT NULL,
+                    "タブ名" TEXT NOT NULL,
+                    "型" TEXT NOT NULL,
+                    "ベンチマーク" TEXT NOT NULL,
+                    "Count" INTEGER NULL,"Initial" INTEGER NULL,"Data" INTEGER NULL,"Index" INTEGER NULL,
+                    "Page" INTEGER NULL,"Segment" INTEGER NULL,"Memory" INTEGER NULL,"Fraction" REAL NULL,
+                    "CPU番号" INTEGER NULL,
+                    "行チェック" INTEGER NOT NULL DEFAULT 0,
+                    "今回状態" TEXT NOT NULL,
+                    "今回失敗理由" TEXT NOT NULL DEFAULT '',
+                    "今回日時" TEXT NULL,
+                    "今回時間ns" REAL NULL,
+                    "今回メモリバイト" INTEGER NULL,
+                    FOREIGN KEY("実行ID") REFERENCES "実行"("実行ID") ON DELETE CASCADE
+                );
+                CREATE INDEX "索引_ベンチマーク_実行ID" ON "ベンチマーク"("実行ID");
+                CREATE UNIQUE INDEX "一意索引_ベンチマーク_行" ON "ベンチマーク"(
+                    "実行ID","タブ名","型","ベンチマーク",
+                    COALESCE("Count",-1),COALESCE("Initial",-1),COALESCE("Data",-1),COALESCE("Index",-1),
+                    COALESCE("Page",-1),COALESCE("Segment",-1),COALESCE("Memory",-1),COALESCE("Fraction",-1)
+                );
+                """);
+            return;
+        }
+        非クエリを実行(接続,トランザクション,"""
+            CREATE TABLE "ベンチマーク"(
+                "実行ID" INTEGER NOT NULL,
+                "ケース名" TEXT NOT NULL,
+                "コレクション" TEXT NOT NULL,
+                "ジェネリック" TEXT NOT NULL,
+                "バックエンド" TEXT NOT NULL,
+                "スイープ" TEXT NOT NULL,
+                "Indexサイズ" INTEGER NOT NULL,"Pageサイズ" INTEGER NOT NULL,
+                "Segmentサイズ" INTEGER NOT NULL,"Memoryサイズ" INTEGER NOT NULL,
+                "可変Fraction" REAL NOT NULL,"最大成功Count" INTEGER NOT NULL,"エントリCount" INTEGER NOT NULL,
+                "失敗種別" TEXT NOT NULL,"失敗理由" TEXT NOT NULL,
+                "追加時間ms" REAL NOT NULL,"検索時間ns" REAL NULL,"測定日時" TEXT NOT NULL,
+                PRIMARY KEY("実行ID","ケース名"),
+                FOREIGN KEY("実行ID") REFERENCES "実行"("実行ID") ON DELETE CASCADE
+            );
+            CREATE INDEX "索引_ベンチマーク_実行ID" ON "ベンチマーク"("実行ID");
+            """);
+    }
+
+    private static void 分析ビューを作成(SqliteConnection 接続,SqliteTransaction トランザクション,UI実行アプリ種別 アプリ種別){
+        if(アプリ種別==UI実行アプリ種別.ベンチマーク){
+            非クエリを実行(接続,トランザクション,"""
+                CREATE VIEW "履歴時間シェア" AS
+                SELECT r."実行ID",r."更新日時",b."タブ名",b."型",b."ベンチマーク",b."アセンブリ名",b."型完全名",b."メソッド名",b."引数キー",b."引数JSON",
+                    b."左時間ns",b."右時間ns",
+                    CASE WHEN b."左時間ns"=0 AND b."右時間ns"=0 THEN 0.0 ELSE CAST(b."左時間ns" AS REAL)/(b."左時間ns"+b."右時間ns") END AS "左シェア",
+                    CASE WHEN b."左時間ns"=0 AND b."右時間ns"=0 THEN 0.0 ELSE CAST(b."右時間ns" AS REAL)/(b."左時間ns"+b."右時間ns") END AS "右シェア"
+                FROM "ベンチマーク" b INNER JOIN "実行" r ON r."実行ID"=b."実行ID"
+                WHERE b."左状態"='Completed' AND b."右状態"='Completed'
+                  AND b."左時間ns" IS NOT NULL AND b."右時間ns" IS NOT NULL AND b."左時間ns">=0 AND b."右時間ns">=0;
+                CREATE VIEW "履歴メモリシェア" AS
+                SELECT r."実行ID",r."更新日時",b."タブ名",b."型",b."ベンチマーク",b."アセンブリ名",b."型完全名",b."メソッド名",b."引数キー",b."引数JSON",
+                    b."左メモリバイト",b."右メモリバイト",
+                    CASE WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0.0 ELSE CAST(b."左メモリバイト" AS REAL)/(b."左メモリバイト"+b."右メモリバイト") END AS "左シェア",
+                    CASE WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0.0 ELSE CAST(b."右メモリバイト" AS REAL)/(b."左メモリバイト"+b."右メモリバイト") END AS "右シェア"
+                FROM "ベンチマーク" b INNER JOIN "実行" r ON r."実行ID"=b."実行ID"
+                WHERE b."左状態"='Completed' AND b."右状態"='Completed'
+                  AND b."左メモリバイト" IS NOT NULL AND b."右メモリバイト" IS NOT NULL AND b."左メモリバイト">=0 AND b."右メモリバイト">=0;
+                """);
+            return;
+        }
+        if(アプリ種別==UI実行アプリ種別.スケーラブルベンチマーク){
+            非クエリを実行(接続,トランザクション,"""
+                CREATE VIEW "スケーラブル履歴" AS
+                SELECT r."実行ID",r."前回実行ID",r."更新日時",b."タブ名",b."型",b."ベンチマーク",
+                    b."Count",b."Initial",b."Data",b."Index",b."Page",b."Segment",b."Memory",b."Fraction",b."今回時間ns",b."今回メモリバイト"
+                FROM "ベンチマーク" b INNER JOIN "実行" r ON r."実行ID"=b."実行ID" WHERE b."今回状態"='Completed';
+                CREATE VIEW "スケーラブル前回シェア" AS
+                SELECT c.*,p."今回時間ns" AS "前回時間ns",
+                    CASE WHEN c."今回時間ns" IS NULL OR p."今回時間ns" IS NULL OR c."今回時間ns"<0 OR p."今回時間ns"<0 THEN NULL WHEN c."今回時間ns"=0 AND p."今回時間ns"=0 THEN 0.0 ELSE CAST(c."今回時間ns" AS REAL)/(c."今回時間ns"+p."今回時間ns") END AS "今回時間シェア",
+                    CASE WHEN c."今回時間ns" IS NULL OR p."今回時間ns" IS NULL OR c."今回時間ns"<0 OR p."今回時間ns"<0 THEN NULL WHEN c."今回時間ns"=0 AND p."今回時間ns"=0 THEN 0.0 ELSE CAST(p."今回時間ns" AS REAL)/(c."今回時間ns"+p."今回時間ns") END AS "前回時間シェア",
+                    p."今回メモリバイト" AS "前回メモリバイト",
+                    CASE WHEN c."今回メモリバイト" IS NULL OR p."今回メモリバイト" IS NULL OR c."今回メモリバイト"<0 OR p."今回メモリバイト"<0 THEN NULL WHEN c."今回メモリバイト"=0 AND p."今回メモリバイト"=0 THEN 0.0 ELSE CAST(c."今回メモリバイト" AS REAL)/(c."今回メモリバイト"+p."今回メモリバイト") END AS "今回メモリシェア",
+                    CASE WHEN c."今回メモリバイト" IS NULL OR p."今回メモリバイト" IS NULL OR c."今回メモリバイト"<0 OR p."今回メモリバイト"<0 THEN NULL WHEN c."今回メモリバイト"=0 AND p."今回メモリバイト"=0 THEN 0.0 ELSE CAST(p."今回メモリバイト" AS REAL)/(c."今回メモリバイト"+p."今回メモリバイト") END AS "前回メモリシェア"
+                FROM "スケーラブル履歴" c LEFT JOIN "スケーラブル履歴" p
+                  ON p."実行ID"=c."前回実行ID" AND p."タブ名"=c."タブ名" AND p."型"=c."型" AND p."ベンチマーク"=c."ベンチマーク"
+                 AND p."Count" IS c."Count" AND p."Initial" IS c."Initial" AND p."Data" IS c."Data" AND p."Index" IS c."Index"
+                 AND p."Page" IS c."Page" AND p."Segment" IS c."Segment" AND p."Memory" IS c."Memory" AND p."Fraction" IS c."Fraction";
                 """);
         }
     }
 
-    private static void DropViews(SqliteConnection connection,SqliteTransaction transaction){
-        using var command=connection.CreateCommand();
-        command.Transaction=transaction;
-        command.CommandText="SELECT name FROM sqlite_master WHERE type='view';";
-        using var reader=command.ExecuteReader();
-        var names=new List<string>();
-        while(reader.Read()){
-            names.Add(reader.GetString(0));
+    public UI実行記録 実行を作成(UI実行作成要求 要求){
+        if(要求.アプリ種別!=this.アプリ種別){
+            throw new InvalidOperationException("ストアと要求のアプリ種別が一致しません。");
         }
-        reader.Close();
-        foreach(var name in names){
-            ExecuteNonQuery(connection,transaction,"DROP VIEW \""+name.Replace("\"","\"\"")+"\";");
+        this.スキーマを確認();
+        using var 接続=this.接続を開く();
+        long? 前回実行ID=null;
+        if(this.アプリ種別==UI実行アプリ種別.スケーラブルベンチマーク){
+            using var 前回コマンド=接続.CreateCommand();
+            前回コマンド.CommandText="SELECT \"実行ID\" FROM \"実行\" WHERE \"タブ名\"=$tab AND \"状態\"='Completed' ORDER BY \"更新日時\" DESC,\"実行ID\" DESC LIMIT 1;";
+            前回コマンド.Parameters.AddWithValue("$tab",要求.タブ名);
+            前回実行ID=前回コマンド.ExecuteScalar() as long?;
         }
-    }
-
-    public UiRunRecord CreateRun(UiRunCreateRequest request){
-        if(request.AppKind!=this.appKind){
-            throw new InvalidOperationException($"The store is configured for {this.appKind}, not {request.AppKind}.");
-        }
-        this.EnsureSchema();
-        var now = request.CreatedAt;
-        using var connection = this.OpenConnection();
-        long? previousRunId=null;
-        if(request.AppKind==UiRunAppKind.ScalableBenchmark){
-            using var previousCommand=connection.CreateCommand();
-            previousCommand.CommandText="""
-                SELECT "実行ID" FROM "実行"
-                WHERE "タブ名"=$sourceTab AND "状態"=$completed
-                ORDER BY "更新日時" DESC,"実行ID" DESC LIMIT 1;
-                """;
-            previousCommand.Parameters.AddWithValue("$sourceTab",request.SourceTab);
-            previousCommand.Parameters.AddWithValue("$completed",ToStatusText(UiRunStatus.Completed));
-            previousRunId=previousCommand.ExecuteScalar() as long?;
-        }
-        using var command = connection.CreateCommand();
-        command.CommandText="""
-            INSERT INTO "実行"("表示名","状態","実行プロファイル","タブ名","更新日時","前回実行ID")
-            VALUES($displayName,$status,$executionProfile,$sourceTab,$updatedAt,$previousRunId);
-            SELECT last_insert_rowid();
+        using var コマンド=接続.CreateCommand();
+        コマンド.CommandText="""
+            INSERT INTO "実行"("表示名","状態","状態メッセージ","実行プロファイル","タブ名","更新日時","前回実行ID")
+            VALUES($name,'Queued','',$profile,$tab,$at,$previous);SELECT last_insert_rowid();
             """;
-        command.Parameters.AddWithValue("$displayName",request.DisplayName);
-        command.Parameters.AddWithValue("$status",ToStatusText(UiRunStatus.Queued));
-        command.Parameters.AddWithValue("$executionProfile",request.ExecutionProfile);
-        command.Parameters.AddWithValue("$sourceTab",request.SourceTab);
-        command.Parameters.AddWithValue("$updatedAt",ToText(now));
-        command.Parameters.AddWithValue("$previousRunId",ToDbValue(previousRunId));
-        var runId = (long)(ExecuteScalarWithLockRetry(command)??0L);
-        return new(runId,request.AppKind,request.DisplayName,UiRunStatus.Queued,request.ExecutionProfile,request.SourceTab,now);
+        コマンド.Parameters.AddWithValue("$name",要求.表示名);
+        コマンド.Parameters.AddWithValue("$profile",要求.実行プロファイル);
+        コマンド.Parameters.AddWithValue("$tab",要求.タブ名);
+        コマンド.Parameters.AddWithValue("$at",日時を文字列へ(要求.作成日時));
+        コマンド.Parameters.AddWithValue("$previous",DB値へ(前回実行ID));
+        var 実行ID=(long)(ロック再試行付きでスカラーを実行(コマンド)??0L);
+        return new(実行ID,要求.アプリ種別,要求.表示名,UI実行状態.待機中,要求.実行プロファイル,要求.タブ名,要求.作成日時,string.Empty);
     }
 
-    public void SetRunStatus(long runId,UiRunStatus status,string message = ""){
-        this.EnsureSchema();
-        using var connection = this.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText="""
-            UPDATE "実行"
-            SET "状態"=$status,"更新日時"=$updatedAt
-            WHERE "実行ID"=$runId;
-            """;
-        command.Parameters.AddWithValue("$runId",runId);
-        command.Parameters.AddWithValue("$status",ToStatusText(status));
-        command.Parameters.AddWithValue("$updatedAt",ToText(DateTimeOffset.UtcNow));
-        ExecuteWithLockRetry(() => command.ExecuteNonQuery());
+    public void 実行状態を設定(long 実行ID,UI実行状態 状態,string メッセージ = ""){
+        this.スキーマを確認();
+        using var 接続=this.接続を開く();
+        using var コマンド=接続.CreateCommand();
+        コマンド.CommandText="UPDATE \"実行\" SET \"状態\"=$status,\"状態メッセージ\"=$message,\"更新日時\"=$at WHERE \"実行ID\"=$id;";
+        コマンド.Parameters.AddWithValue("$id",実行ID);
+        コマンド.Parameters.AddWithValue("$status",状態を文字列へ(状態));
+        コマンド.Parameters.AddWithValue("$message",メッセージ);
+        コマンド.Parameters.AddWithValue("$at",日時を文字列へ(DateTimeOffset.UtcNow));
+        ロック再試行付きで実行(()=>コマンド.ExecuteNonQuery());
     }
 
-    public void SaveRunSettings(long runId,string runRoot,IReadOnlyList<int> elementCounts,double adaptiveThresholdNanoseconds,IReadOnlyList<int> logicalCpus){
-        this.EnsureSchema();
-        using var connection = this.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText="""
-            UPDATE "実行"
-            SET "実行ルート"=$runRoot,
-                "Adaptive閾値ns"=$adaptiveThreshold,
-                "論理CPU一覧"=$logicalCpus,
-                "更新日時"=$updatedAt
-            WHERE "実行ID"=$runId;
-            """;
-        command.Parameters.AddWithValue("$runId",runId);
-        command.Parameters.AddWithValue("$runRoot",runRoot);
-        command.Parameters.AddWithValue("$adaptiveThreshold",adaptiveThresholdNanoseconds);
-        command.Parameters.AddWithValue("$logicalCpus",string.Join(",",logicalCpus));
-        command.Parameters.AddWithValue("$updatedAt",ToText(DateTimeOffset.UtcNow));
-        command.ExecuteNonQuery();
+    public void 実行設定を保存(long 実行ID,string 実行ルート,IReadOnlyList<int> 要素数一覧,double 適応閾値ナノ秒,IReadOnlyList<int> 論理CPU一覧){
+        this.スキーマを確認();
+        using var 接続=this.接続を開く();
+        using var コマンド=接続.CreateCommand();
+        コマンド.CommandText="UPDATE \"実行\" SET \"実行ルート\"=$root,\"要素数一覧\"=$counts,\"適応閾値ns\"=$threshold,\"論理CPU一覧\"=$cpus,\"更新日時\"=$at WHERE \"実行ID\"=$id;";
+        コマンド.Parameters.AddWithValue("$id",実行ID);
+        コマンド.Parameters.AddWithValue("$root",実行ルート);
+        コマンド.Parameters.AddWithValue("$counts",string.Join(",",要素数一覧));
+        コマンド.Parameters.AddWithValue("$threshold",適応閾値ナノ秒);
+        コマンド.Parameters.AddWithValue("$cpus",string.Join(",",論理CPU一覧));
+        コマンド.Parameters.AddWithValue("$at",日時を文字列へ(DateTimeOffset.UtcNow));
+        コマンド.ExecuteNonQuery();
     }
 
-    public UiRunSettingsRecord? GetRunSettings(long runId){
-        this.EnsureSchema();
-        using var connection = this.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText="""
-            SELECT "実行ID","実行ルート","Adaptive閾値ns","論理CPU一覧"
-            FROM "実行"
-            WHERE "実行ID"=$runId;
-            """;
-        command.Parameters.AddWithValue("$runId",runId);
-        using var reader = command.ExecuteReader();
-        return reader.Read()
-            ? new UiRunSettingsRecord(reader.GetInt64(0),reader.GetString(1),reader.GetDouble(2),reader.GetString(3))
-            : null;
+    public UI実行設定記録? 実行設定を取得(long 実行ID){
+        this.スキーマを確認();
+        using var 接続=this.接続を開く();
+        using var コマンド=接続.CreateCommand();
+        コマンド.CommandText="SELECT \"実行ID\",\"実行ルート\",\"要素数一覧\",\"適応閾値ns\",\"論理CPU一覧\" FROM \"実行\" WHERE \"実行ID\"=$id;";
+        コマンド.Parameters.AddWithValue("$id",実行ID);
+        using var 読取器=コマンド.ExecuteReader();
+        return 読取器.Read() ? new(読取器.GetInt64(0),読取器.GetString(1),読取器.GetString(2),読取器.GetDouble(3),読取器.GetString(4)) : null;
     }
 
-    public long? GetPreviousRunId(long runId){
-        this.EnsureSchema();
-        using var connection=this.OpenConnection();
-        using var command=connection.CreateCommand();
-        command.CommandText="SELECT \"前回実行ID\" FROM \"実行\" WHERE \"実行ID\"=$runId;";
-        command.Parameters.AddWithValue("$runId",runId);
-        return command.ExecuteScalar() is long value ? value : null;
+    public long? 前回実行IDを取得(long 実行ID){
+        this.スキーマを確認();
+        using var 接続=this.接続を開く();
+        using var コマンド=接続.CreateCommand();
+        コマンド.CommandText="SELECT \"前回実行ID\" FROM \"実行\" WHERE \"実行ID\"=$id;";
+        コマンド.Parameters.AddWithValue("$id",実行ID);
+        return コマンド.ExecuteScalar() is long 値 ? 値 : null;
     }
 
-    public UiCaseRecord UpsertCase(
-        long runId,
-        string caseKey,
-        string name,
-        string project,
-        string assemblyName,
-        string method,
-        string typeFullName,
-        IReadOnlyDictionary<string,string>? arguments = null,
-        string sourceTabId = "",
-        string argumentKey = "",
-        string side = "",
-        string pairDiscriminator = "",
-        long? elementCount = null,
-        long? loopCount = null){
-        this.EnsureSchema();
-        var caseId = CreateLegacyRecordId(runId,sourceTabId,typeFullName,method,side);
-        return new(caseId,runId,caseKey,name,project,assemblyName,method,typeFullName,sourceTabId,argumentKey,side,pairDiscriminator);
-    }
-
-    public void SaveDetectedBenchmarkItems(long runId,IReadOnlyList<UiBenchmarkItemWrite> items){
-        var rows = items
-            .GroupBy(static item => string.Join("|",item.TabName,item.TypeName,item.BenchmarkName),StringComparer.OrdinalIgnoreCase)
-            .Select(static group => {
-                var left = group.FirstOrDefault(static item => string.Equals(item.Side,"Left",StringComparison.OrdinalIgnoreCase));
-                var right = group.FirstOrDefault(static item => string.Equals(item.Side,"Right",StringComparison.OrdinalIgnoreCase));
-                var first = left??right??group.First();
-                return new UiBenchmarkSnapshotItemWrite(
-                    first.TabName,
-                    first.TypeName,
-                    first.BenchmarkName,
-                    first.CpuNumber,
-                    group.Any(static item => item.IsSelected),
-                    CreateDetectedSide(left),
-                    CreateDetectedSide(right));
-            })
-            .ToArray();
-        this.SaveBenchmarkSnapshotItems(runId,rows);
-    }
-
-    public void SaveBenchmarkSnapshotItems(long runId,IReadOnlyList<UiBenchmarkSnapshotItemWrite> items){
-        this.EnsureSchema();
-        using var connection = this.OpenConnection();
-        var appKind=ReadRunAppKind(connection,runId)??throw new InvalidOperationException($"Run {runId} was not found.");
-        using var transaction = BeginTransactionWithLockRetry(connection);
-        foreach(var item in items){
-            using var command = connection.CreateCommand();
-            command.Transaction=transaction;
-            if(appKind==UiRunAppKind.ScalableBenchmark){
-                var arguments=ReadScalableArguments(item.LeftCase??item.RightCase);
-                command.CommandText="""
-                    INSERT OR REPLACE INTO "Benchmark"(
-                        "実行ID","タブ名","型","ベンチマーク","Count","Initial","Data","Index","Page","Segment","Memory","Fraction",
-                        "CPU番号","行チェック","今回状態","今回失敗理由","今回日時","今回時間ns","今回メモリバイト")
-                    VALUES($runId,$tabName,$type,$benchmark,$count,$initial,$data,$index,$page,$segment,$memory,$fraction,
-                        $cpu,$rowSelected,$leftStatus,$leftFailure,$leftMeasuredAt,$leftMean,$leftAllocated);
+    public void ベンチマークスナップショット項目を保存(long 実行ID,IReadOnlyList<UIベンチマークスナップショット項目書込> 項目一覧){
+        this.スキーマを確認();
+        using var 接続=this.接続を開く();
+        using var トランザクション=ロック再試行付きでトランザクションを開始(接続);
+        foreach(var 項目 in 項目一覧){
+            using var コマンド=接続.CreateCommand();
+            コマンド.Transaction=トランザクション;
+            if(this.アプリ種別==UI実行アプリ種別.スケーラブルベンチマーク){
+                var 引数=スケーラブル引数を読む(項目.左ケース??項目.右ケース);
+                コマンド.CommandText="""
+                    INSERT OR REPLACE INTO "ベンチマーク"("実行ID","タブ名","型","ベンチマーク","Count","Initial","Data","Index","Page","Segment","Memory","Fraction","CPU番号","行チェック","今回状態","今回失敗理由","今回日時","今回時間ns","今回メモリバイト")
+                    VALUES($id,$tab,$type,$benchmark,$count,$initial,$data,$index,$page,$segment,$memory,$fraction,$cpu,$selected,$leftStatus,$leftFailure,$leftAt,$leftMean,$leftBytes);
                     """;
-                AddScalableArgumentParameters(command,arguments);
+                スケーラブル引数パラメータを追加(コマンド,引数);
             }else{
-                command.CommandText="""
-                    INSERT OR REPLACE INTO "Benchmark"(
-                        "実行ID","タブ名","型","ベンチマーク","CPU番号","行チェック",
-                        "左状態","左失敗理由","左日時","左時間ns","左メモリバイト","左LoopCount",
-                        "右状態","右失敗理由","右日時","右時間ns","右メモリバイト","右LoopCount")
-                    VALUES($runId,$tabName,$type,$benchmark,$cpu,$rowSelected,
-                        $leftStatus,$leftFailure,$leftMeasuredAt,$leftMean,$leftAllocated,$leftLoopCount,
-                        $rightStatus,$rightFailure,$rightMeasuredAt,$rightMean,$rightAllocated,$rightLoopCount);
+                var 識別=項目.左ケース??項目.右ケース??new(string.Empty,string.Empty,項目.ベンチマーク名,string.Empty,string.Empty);
+                コマンド.CommandText="""
+                    INSERT OR REPLACE INTO "ベンチマーク"("実行ID","タブ名","型","ベンチマーク","アセンブリ名","型完全名","メソッド名","引数キー","引数JSON","CPU番号","行チェック",
+                        "左状態","左失敗理由","左日時","左時間ns","左メモリバイト","左ループ回数","右状態","右失敗理由","右日時","右時間ns","右メモリバイト","右ループ回数")
+                    VALUES($id,$tab,$type,$benchmark,$assembly,$fullType,$method,$argumentKey,$argumentsJson,$cpu,$selected,
+                        $leftStatus,$leftFailure,$leftAt,$leftMean,$leftBytes,$leftLoops,$rightStatus,$rightFailure,$rightAt,$rightMean,$rightBytes,$rightLoops);
                     """;
-                AddSideParameters(command,"right",item.Right);
-                command.Parameters.AddWithValue("$rightLoopCount",ToDbValue(item.Right.LoopCount));
+                コマンド.Parameters.AddWithValue("$assembly",識別.アセンブリ名);
+                コマンド.Parameters.AddWithValue("$fullType",識別.型完全名);
+                コマンド.Parameters.AddWithValue("$method",識別.メソッド名);
+                コマンド.Parameters.AddWithValue("$argumentKey",識別.引数キー);
+                コマンド.Parameters.AddWithValue("$argumentsJson",識別.引数JSON);
+                側パラメータを追加(コマンド,"right",項目.右);
+                コマンド.Parameters.AddWithValue("$rightLoops",DB値へ(項目.右.ループ回数));
             }
-            command.Parameters.AddWithValue("$runId",runId);
-            command.Parameters.AddWithValue("$tabName",item.TabName);
-            command.Parameters.AddWithValue("$type",item.TypeName);
-            command.Parameters.AddWithValue("$benchmark",item.BenchmarkName);
-            command.Parameters.AddWithValue("$cpu",ToDbValue(item.CpuNumber));
-            command.Parameters.AddWithValue("$rowSelected",item.IsSelected ? 1 : 0);
-            AddSideParameters(command,"left",item.Left);
-            command.Parameters.AddWithValue("$leftLoopCount",ToDbValue(item.Left.LoopCount));
-            command.ExecuteNonQuery();
+            コマンド.Parameters.AddWithValue("$id",実行ID);
+            コマンド.Parameters.AddWithValue("$tab",項目.タブ名);
+            コマンド.Parameters.AddWithValue("$type",項目.型名);
+            コマンド.Parameters.AddWithValue("$benchmark",項目.ベンチマーク名);
+            コマンド.Parameters.AddWithValue("$cpu",DB値へ(項目.CPU番号));
+            コマンド.Parameters.AddWithValue("$selected",項目.選択中か ? 1 : 0);
+            側パラメータを追加(コマンド,"left",項目.左);
+            コマンド.Parameters.AddWithValue("$leftLoops",DB値へ(項目.左.ループ回数));
+            コマンド.ExecuteNonQuery();
         }
-        transaction.Commit();
+        トランザクション.Commit();
     }
 
-    public UiJobRecord UpsertJob(
-        long runId,
-        long caseId,
-        string jobKey,
-        UiRunStatus status,
-        long? elementCount,
-        long? loopCount,
-        int? assignedLogicalCpu,
-        DateTimeOffset? startedAt,
-        DateTimeOffset? finishedAt,
-        string failureKind,
-        string failureReason){
-        this.EnsureSchema();
-        return new(caseId,runId,caseId,jobKey,status,elementCount,loopCount,assignedLogicalCpu,startedAt,finishedAt,failureKind,failureReason);
-    }
-
-    public void SaveParameterSweepResult(UiParameterSweepResult result){
-        if(this.appKind!=UiRunAppKind.ParameterSweep){
-            throw new InvalidOperationException("ParameterSweep results require a ParameterSweep store.");
+    public IReadOnlyList<UIベンチマークスナップショット項目記録> ベンチマークスナップショット項目一覧を取得(long 実行ID){
+        this.スキーマを確認();
+        if(this.アプリ種別==UI実行アプリ種別.スケーラブルベンチマーク){
+            return this.スケーラブル項目一覧を取得(実行ID);
         }
-        this.EnsureSchema();
-        using var connection=this.OpenConnection();
-        using var command=connection.CreateCommand();
-        command.CommandText="""
-            INSERT OR REPLACE INTO "Benchmark"(
-                "実行ID","ケース名","Collection","Generic","Backend","Sweep","IndexSize","PageSize","SegmentSize","MemorySize","MutableFraction",
-                "MaxSuccessfulCount","EntryCount","失敗種別","失敗理由","追加時間ms","検索時間ns","測定日時")
-            VALUES($runId,$caseName,$collection,$generic,$backend,$sweep,$indexSize,$pageSize,$segmentSize,$memorySize,$fraction,
-                $maxCount,$entryCount,$failureKind,$failureReason,$addElapsed,$lookupMean,$measuredAt);
+        using var 接続=this.接続を開く();
+        using var コマンド=接続.CreateCommand();
+        コマンド.CommandText="""
+            SELECT "実行ID","タブ名","型","ベンチマーク","CPU番号","行チェック","アセンブリ名","型完全名","メソッド名","引数キー","引数JSON",
+                "左状態","左失敗理由","左日時","左時間ns","左メモリバイト","左ループ回数","右状態","右失敗理由","右日時","右時間ns","右メモリバイト","右ループ回数"
+            FROM "ベンチマーク" WHERE "実行ID"=$id ORDER BY "タブ名","型","ベンチマーク","引数キー";
             """;
-        command.Parameters.AddWithValue("$runId",result.RunId);
-        command.Parameters.AddWithValue("$caseName",result.CaseName);
-        command.Parameters.AddWithValue("$collection",result.Collection);
-        command.Parameters.AddWithValue("$generic",result.GenericName);
-        command.Parameters.AddWithValue("$backend",result.Backend);
-        command.Parameters.AddWithValue("$sweep",result.Sweep);
-        command.Parameters.AddWithValue("$indexSize",result.IndexSize);
-        command.Parameters.AddWithValue("$pageSize",result.PageSize);
-        command.Parameters.AddWithValue("$segmentSize",result.SegmentSize);
-        command.Parameters.AddWithValue("$memorySize",result.MemorySize);
-        command.Parameters.AddWithValue("$fraction",result.MutableFraction);
-        command.Parameters.AddWithValue("$maxCount",result.MaxSuccessfulCount);
-        command.Parameters.AddWithValue("$entryCount",result.EntryCount);
-        command.Parameters.AddWithValue("$failureKind",result.FailureKind);
-        command.Parameters.AddWithValue("$failureReason",result.FailureReason);
-        command.Parameters.AddWithValue("$addElapsed",result.AddElapsedMilliseconds);
-        command.Parameters.AddWithValue("$lookupMean",ToDbValue(result.LookupMeanNanoseconds));
-        command.Parameters.AddWithValue("$measuredAt",ToText(result.MeasuredAt));
-        command.ExecuteNonQuery();
+        コマンド.Parameters.AddWithValue("$id",実行ID);
+        using var 読取器=コマンド.ExecuteReader();
+        var 項目一覧=new List<UIベンチマークスナップショット項目記録>();
+        while(読取器.Read()){
+            var 識別=new UIベンチマークスナップショットケース書込(読取器.GetString(6),読取器.GetString(7),読取器.GetString(8),読取器.GetString(9),読取器.GetString(10));
+            項目一覧.Add(new(読取器.GetInt64(0),読取器.GetString(1),読取器.GetString(2),読取器.GetString(3),読取器.IsDBNull(4) ? null : 読取器.GetInt32(4),読取器.GetInt32(5)!=0,
+                側を読む(読取器,11,読取器.IsDBNull(16) ? null : 読取器.GetInt32(16)),側を読む(読取器,17,読取器.IsDBNull(22) ? null : 読取器.GetInt32(22)),識別,識別));
+        }
+        return 項目一覧;
     }
 
-    public IReadOnlyList<UiParameterSweepResult> ListParameterSweepResults(long runId){
-        if(this.appKind!=UiRunAppKind.ParameterSweep){
-            throw new InvalidOperationException("ParameterSweep results require a ParameterSweep store.");
+    public void パラメータスイープ結果を保存(UIパラメータスイープ結果 結果){
+        if(this.アプリ種別!=UI実行アプリ種別.パラメータスイープ){
+            throw new InvalidOperationException("パラメータスイープ用ストアが必要です。");
         }
-        this.EnsureSchema();
-        using var connection=this.OpenConnection();
-        using var command=connection.CreateCommand();
-        command.CommandText="""
-            SELECT "実行ID","ケース名","Collection","Generic","Backend","Sweep","IndexSize","PageSize","SegmentSize","MemorySize","MutableFraction",
-                   "MaxSuccessfulCount","EntryCount","失敗種別","失敗理由","追加時間ms","検索時間ns","測定日時"
-            FROM "Benchmark" WHERE "実行ID"=$runId ORDER BY "ケース名";
+        this.スキーマを確認();
+        using var 接続=this.接続を開く();
+        using var コマンド=接続.CreateCommand();
+        コマンド.CommandText="""
+            INSERT OR REPLACE INTO "ベンチマーク"("実行ID","ケース名","コレクション","ジェネリック","バックエンド","スイープ","Indexサイズ","Pageサイズ","Segmentサイズ","Memoryサイズ","可変Fraction","最大成功Count","エントリCount","失敗種別","失敗理由","追加時間ms","検索時間ns","測定日時")
+            VALUES($id,$case,$collection,$generic,$backend,$sweep,$index,$page,$segment,$memory,$fraction,$max,$entries,$failure,$reason,$add,$lookup,$at);
             """;
-        command.Parameters.AddWithValue("$runId",runId);
-        using var reader=command.ExecuteReader();
-        var values=new List<UiParameterSweepResult>();
-        while(reader.Read()){
-            values.Add(new(
-                reader.GetInt64(0),reader.GetString(1),reader.GetString(2),reader.GetString(3),reader.GetString(4),reader.GetString(5),
-                reader.GetInt64(6),reader.GetInt64(7),reader.GetInt64(8),reader.GetInt64(9),reader.GetDouble(10),reader.GetInt64(11),reader.GetInt64(12),
-                reader.GetString(13),reader.GetString(14),reader.GetDouble(15),reader.IsDBNull(16)?null:reader.GetDouble(16),FromText(reader.GetString(17))));
-        }
-        return values;
+        コマンド.Parameters.AddWithValue("$id",結果.実行ID);コマンド.Parameters.AddWithValue("$case",結果.ケース名);
+        コマンド.Parameters.AddWithValue("$collection",結果.コレクション);コマンド.Parameters.AddWithValue("$generic",結果.ジェネリック名);
+        コマンド.Parameters.AddWithValue("$backend",結果.バックエンド);コマンド.Parameters.AddWithValue("$sweep",結果.スイープ);
+        コマンド.Parameters.AddWithValue("$index",結果.Indexサイズ);コマンド.Parameters.AddWithValue("$page",結果.Pageサイズ);
+        コマンド.Parameters.AddWithValue("$segment",結果.Segmentサイズ);コマンド.Parameters.AddWithValue("$memory",結果.Memoryサイズ);
+        コマンド.Parameters.AddWithValue("$fraction",結果.可変Fraction);コマンド.Parameters.AddWithValue("$max",結果.最大成功Count);
+        コマンド.Parameters.AddWithValue("$entries",結果.エントリCount);コマンド.Parameters.AddWithValue("$failure",結果.失敗種別);
+        コマンド.Parameters.AddWithValue("$reason",結果.失敗理由);コマンド.Parameters.AddWithValue("$add",結果.追加経過ミリ秒);
+        コマンド.Parameters.AddWithValue("$lookup",DB値へ(結果.検索平均ナノ秒));コマンド.Parameters.AddWithValue("$at",日時を文字列へ(結果.計測日時));
+        コマンド.ExecuteNonQuery();
     }
 
-    public void DeleteAllRecords(){
-        this.EnsureSchema();
-        using var connection = this.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText="DELETE FROM \"診断カウンター\";DELETE FROM \"Benchmark\";DELETE FROM \"実行\";";
-        command.ExecuteNonQuery();
+    public IReadOnlyList<UIパラメータスイープ結果> パラメータスイープ結果一覧を取得(long 実行ID){
+        if(this.アプリ種別!=UI実行アプリ種別.パラメータスイープ){
+            throw new InvalidOperationException("パラメータスイープ用ストアが必要です。");
+        }
+        this.スキーマを確認();
+        using var 接続=this.接続を開く();
+        using var コマンド=接続.CreateCommand();
+        コマンド.CommandText="SELECT \"実行ID\",\"ケース名\",\"コレクション\",\"ジェネリック\",\"バックエンド\",\"スイープ\",\"Indexサイズ\",\"Pageサイズ\",\"Segmentサイズ\",\"Memoryサイズ\",\"可変Fraction\",\"最大成功Count\",\"エントリCount\",\"失敗種別\",\"失敗理由\",\"追加時間ms\",\"検索時間ns\",\"測定日時\" FROM \"ベンチマーク\" WHERE \"実行ID\"=$id ORDER BY \"ケース名\";";
+        コマンド.Parameters.AddWithValue("$id",実行ID);
+        using var 読取器=コマンド.ExecuteReader();
+        var 結果一覧=new List<UIパラメータスイープ結果>();
+        while(読取器.Read()){
+            結果一覧.Add(new(読取器.GetInt64(0),読取器.GetString(1),読取器.GetString(2),読取器.GetString(3),読取器.GetString(4),読取器.GetString(5),読取器.GetInt64(6),読取器.GetInt64(7),読取器.GetInt64(8),読取器.GetInt64(9),読取器.GetDouble(10),読取器.GetInt64(11),読取器.GetInt64(12),読取器.GetString(13),読取器.GetString(14),読取器.GetDouble(15),読取器.IsDBNull(16) ? null : 読取器.GetDouble(16),文字列を日時へ(読取器.GetString(17))));
+        }
+        return 結果一覧;
     }
 
-    public void DeleteRun(long runId){
-        this.EnsureSchema();
-        using var connection = this.OpenConnection();
-        using var transaction = BeginTransactionWithLockRetry(connection);
-        if(TableExists(connection,transaction,"UI選択")){
-            using var selectionCommand = connection.CreateCommand();
-            selectionCommand.Transaction=transaction;
-            selectionCommand.CommandText="DELETE FROM \"UI選択\" WHERE \"RunId\"=$runId;";
-            selectionCommand.Parameters.AddWithValue("$runId",runId);
-            selectionCommand.ExecuteNonQuery();
+    public IReadOnlyList<UI実行記録> 実行一覧を取得(UI実行アプリ種別? アプリ種別 = null){
+        if(アプリ種別 is { } 要求アプリ種別&&要求アプリ種別!=this.アプリ種別){return [];}
+        this.スキーマを確認();
+        using var 接続=this.接続を開く();
+        using var コマンド=接続.CreateCommand();
+        コマンド.CommandText="SELECT \"実行ID\",\"表示名\",\"状態\",\"実行プロファイル\",\"タブ名\",\"更新日時\",\"状態メッセージ\" FROM \"実行\" ORDER BY \"更新日時\" DESC,\"実行ID\" DESC;";
+        using var 読取器=コマンド.ExecuteReader();
+        var 実行一覧=new List<UI実行記録>();
+        while(読取器.Read()){
+            実行一覧.Add(new(読取器.GetInt64(0),this.アプリ種別,読取器.GetString(1),文字列を状態へ(読取器.GetString(2)),読取器.GetString(3),読取器.GetString(4),文字列を日時へ(読取器.GetString(5)),読取器.GetString(6)));
         }
-        using var command = connection.CreateCommand();
-        command.Transaction=transaction;
-        command.CommandText="DELETE FROM \"実行\" WHERE \"実行ID\"=$runId;";
-        command.Parameters.AddWithValue("$runId",runId);
-        command.ExecuteNonQuery();
-        transaction.Commit();
+        return 実行一覧;
     }
 
-    public void SaveMeasurement(long jobId,IReadOnlyList<UiMetricValueWrite> metrics,DateTimeOffset? measuredAt = null){
-        this.EnsureSchema();
+    public void フォールバック診断を保存(long 実行ID,IReadOnlyList<UIフォールバック診断書込> 診断一覧,DateTimeOffset? 記録日時 = null){
+        this.スキーマを確認();
+        var 時刻=記録日時??DateTimeOffset.UtcNow;
+        using var 接続=this.接続を開く();
+        using var トランザクション=ロック再試行付きでトランザクションを開始(接続);
+        foreach(var 診断 in 診断一覧){
+            using var コマンド=接続.CreateCommand();コマンド.Transaction=トランザクション;
+            コマンド.CommandText="INSERT INTO \"診断カウンター\"(\"実行ID\",\"タブ名\",\"プロジェクト名\",\"ベンチマーク\",\"引数キー\",\"カウンター名\",\"カウンター値\",\"記録日時\") VALUES($id,$tab,$project,$method,$key,$name,$value,$at);";
+            コマンド.Parameters.AddWithValue("$id",実行ID);コマンド.Parameters.AddWithValue("$tab",診断.タブ名);
+            コマンド.Parameters.AddWithValue("$project",診断.プロジェクト);コマンド.Parameters.AddWithValue("$method",診断.メソッド);
+            コマンド.Parameters.AddWithValue("$key",診断.引数キー);コマンド.Parameters.AddWithValue("$name",診断.カウンター名);
+            コマンド.Parameters.AddWithValue("$value",診断.カウンター値);コマンド.Parameters.AddWithValue("$at",日時を文字列へ(時刻));コマンド.ExecuteNonQuery();
+        }
+        トランザクション.Commit();
     }
 
-    public void SaveComparisons(long runId,IReadOnlyList<UiComparisonWrite> comparisons){
+    public IReadOnlyList<UIフォールバック診断記録> フォールバック診断一覧を取得(long 実行ID){
+        this.スキーマを確認();using var 接続=this.接続を開く();using var コマンド=接続.CreateCommand();
+        コマンド.CommandText="SELECT \"実行ID\",\"タブ名\",\"プロジェクト名\",\"ベンチマーク\",\"引数キー\",\"カウンター名\",\"カウンター値\",\"記録日時\" FROM \"診断カウンター\" WHERE \"実行ID\"=$id ORDER BY \"プロジェクト名\",\"ベンチマーク\",\"引数キー\",\"カウンター名\";";
+        コマンド.Parameters.AddWithValue("$id",実行ID);using var 読取器=コマンド.ExecuteReader();var 一覧=new List<UIフォールバック診断記録>();
+        while(読取器.Read()){一覧.Add(new(読取器.GetInt64(0),読取器.GetString(1),読取器.GetString(2),読取器.GetString(3),読取器.GetString(4),null,読取器.GetString(5),読取器.GetDouble(6),文字列を日時へ(読取器.GetString(7))));}
+        return 一覧;
     }
 
-    public void SaveFallbackDiagnostics(long runId,IReadOnlyList<UiFallbackDiagnosticWrite> diagnostics,DateTimeOffset? recordedAt = null){
-        this.EnsureSchema();
-        var timestamp = recordedAt??DateTimeOffset.UtcNow;
-        using var connection = this.OpenConnection();
-        using var transaction = BeginTransactionWithLockRetry(connection);
-        foreach(var diagnostic in diagnostics){
-            using var command = connection.CreateCommand();
-            command.Transaction=transaction;
-            command.CommandText="""
-                INSERT INTO "診断カウンター"(
-                    "実行ID","タブ名","プロジェクト名","ベンチマーク","引数キー","カウンター名","カウンター値","記録日時")
-                VALUES($runId,$sourceTab,$project,$method,$argumentKey,$counterName,$counterValue,$recordedAt);
-                """;
-            command.Parameters.AddWithValue("$runId",runId);
-            command.Parameters.AddWithValue("$sourceTab",diagnostic.SourceTab);
-            command.Parameters.AddWithValue("$project",diagnostic.Project);
-            command.Parameters.AddWithValue("$method",diagnostic.Method);
-            command.Parameters.AddWithValue("$argumentKey",diagnostic.ArgumentKey);
-            command.Parameters.AddWithValue("$counterName",diagnostic.CounterName);
-            command.Parameters.AddWithValue("$counterValue",diagnostic.CounterValue);
-            command.Parameters.AddWithValue("$recordedAt",ToText(timestamp));
-            command.ExecuteNonQuery();
-        }
-        transaction.Commit();
+    public IReadOnlyList<UI指標値記録> 指標一覧を取得(long 実行ID){
+        var 一覧=new List<UI指標値記録>();var ジョブID=1L;
+        foreach(var 項目 in this.ベンチマークスナップショット項目一覧を取得(実行ID)){側指標を追加(一覧,ジョブID++,項目.左);側指標を追加(一覧,ジョブID++,項目.右);}
+        return 一覧;
     }
 
-    public IReadOnlyList<UiFallbackDiagnosticRecord> ListFallbackDiagnostics(long runId){
-        this.EnsureSchema();
-        using var connection = this.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText="""
-            SELECT "実行ID","タブ名","プロジェクト名","ベンチマーク","引数キー","カウンター名","カウンター値","記録日時"
-            FROM "診断カウンター"
-            WHERE "実行ID"=$runId
-            ORDER BY "プロジェクト名","ベンチマーク","引数キー","カウンター名";
-            """;
-        command.Parameters.AddWithValue("$runId",runId);
-        using var reader = command.ExecuteReader();
-        var records = new List<UiFallbackDiagnosticRecord>();
-        while(reader.Read()){
-            records.Add(new(
-                reader.GetInt64(0),
-                reader.GetString(1),
-                reader.GetString(2),
-                reader.GetString(3),
-                reader.GetString(4),
-                null,
-                reader.GetString(5),
-                reader.GetDouble(6),
-                DateTimeOffset.Parse(reader.GetString(7),System.Globalization.CultureInfo.InvariantCulture)));
-        }
-
-        return records;
+    public void 実行を削除(long 実行ID){
+        this.スキーマを確認();using var 接続=this.接続を開く();using var コマンド=接続.CreateCommand();コマンド.CommandText="DELETE FROM \"実行\" WHERE \"実行ID\"=$id;";コマンド.Parameters.AddWithValue("$id",実行ID);コマンド.ExecuteNonQuery();
     }
 
-    public IReadOnlyList<UiRunRecord> ListRuns(UiRunAppKind? appKind = null){
-        if(appKind is { } requestedAppKind&&requestedAppKind!=this.appKind){
-            return [];
-        }
-        this.EnsureSchema();
-        using var connection = this.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText="""
-            SELECT "実行ID","表示名","状態","実行プロファイル","タブ名","更新日時"
-            FROM "実行"
-            ORDER BY "更新日時" DESC,"実行ID" DESC;
-            """;
-
-        using var reader = command.ExecuteReader();
-        var values = new List<UiRunRecord>();
-        while(reader.Read()){
-            values.Add(new(
-                reader.GetInt64(0),
-                this.appKind,
-                reader.GetString(1),
-                FromStatusText(reader.GetString(2)),
-                reader.GetString(3),
-                reader.GetString(4),
-                FromText(reader.GetString(5))));
-        }
-
-        return values;
+    public void 全記録を削除(){
+        this.スキーマを確認();using var 接続=this.接続を開く();using var コマンド=接続.CreateCommand();コマンド.CommandText="DELETE FROM \"診断カウンター\";DELETE FROM \"ベンチマーク\";DELETE FROM \"実行\";";コマンド.ExecuteNonQuery();
     }
 
-    public IReadOnlyList<UiMetricValueRecord> ListMetrics(long runId){
-        var values = new List<UiMetricValueRecord>();
-        var jobId = 1L;
-        foreach(var item in this.ListBenchmarkSnapshotItems(runId)){
-            AddSideMetrics(values,jobId++,item.Left);
-            AddSideMetrics(values,jobId++,item.Right);
+    public IReadOnlyList<IReadOnlyDictionary<string,object?>> 分析ビューを照会(string ビュー名,int 上限 = 1000){
+        if(ビュー名 is "履歴時間シェア" or "履歴メモリシェア" or "スケーラブル履歴" or "スケーラブル前回シェア"){
+            this.スキーマを確認();using var 接続=this.接続を開く();using var コマンド=接続.CreateCommand();コマンド.CommandText=$"SELECT * FROM \"{ビュー名}\" ORDER BY \"実行ID\" DESC LIMIT $limit;";コマンド.Parameters.AddWithValue("$limit",上限);using var 読取器=コマンド.ExecuteReader();var 行一覧=new List<IReadOnlyDictionary<string,object?>>();
+            while(読取器.Read()){var 値一覧=new Dictionary<string,object?>(StringComparer.OrdinalIgnoreCase);for(var 位置=0;位置<読取器.FieldCount;位置++){値一覧[読取器.GetName(位置)]=読取器.IsDBNull(位置) ? null : 読取器.GetValue(位置);}行一覧.Add(値一覧);}return 行一覧;
         }
-
-        return values;
+        if(ビュー名!="ベンチマークフォールバック診断"){return [];}
+        return this.実行一覧を取得().SelectMany(実行=>this.フォールバック診断一覧を取得(実行.実行ID)).OrderByDescending(static 項目=>項目.記録日時).Take(上限).Select(static 項目=>(IReadOnlyDictionary<string,object?>)new Dictionary<string,object?>{{"実行ID",項目.実行ID},{"タブ名",項目.タブ名},{"プロジェクト",項目.プロジェクト},{"メソッド",項目.メソッド},{"引数キー",項目.引数キー},{"カウンター名",項目.カウンター名},{"カウンター値",項目.カウンター値},{"記録日時",項目.記録日時}}).ToArray();
     }
 
-    public IReadOnlyList<UiRunStateRecord> ListRunStates(long runId) => [];
-
-    public IReadOnlyList<UiCaseRecord> ListCases(long runId){
-        this.EnsureSchema();
-        return [];
-    }
-
-    public IReadOnlyDictionary<string,string> ListCaseArguments(long caseId){
-        this.EnsureSchema();
-        return new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
-    }
-
-    public IReadOnlyList<UiJobRecord> ListJobs(long runId){
-        this.EnsureSchema();
-        return [];
-    }
-
-    public IReadOnlyList<UiBenchmarkSnapshotItemRecord> ListBenchmarkSnapshotItems(long runId){
-        this.EnsureSchema();
-        using var connection = this.OpenConnection();
-        var appKind=ReadRunAppKind(connection,runId);
-        if(appKind is null){
-            return [];
-        }
-        if(appKind==UiRunAppKind.ScalableBenchmark){
-            return ListScalableBenchmarkSnapshotItems(connection,runId);
-        }
-        using var command = connection.CreateCommand();
-        command.CommandText="""
-            SELECT "実行ID","タブ名","型","ベンチマーク","CPU番号",
-                "行チェック",
-                "左状態","左失敗理由","左日時","左時間ns","左メモリバイト","左LoopCount",
-                "右状態","右失敗理由","右日時","右時間ns","右メモリバイト","右LoopCount"
-            FROM "Benchmark"
-            WHERE "実行ID"=$runId
-            ORDER BY "タブ名","型","ベンチマーク";
-            """;
-        command.Parameters.AddWithValue("$runId",runId);
-        using var reader = command.ExecuteReader();
-        var values = new List<UiBenchmarkSnapshotItemRecord>();
-        while(reader.Read()){
-            values.Add(new(
-                reader.GetInt64(0),
-                reader.GetString(1),
-                reader.GetString(2),
-                reader.GetString(3),
-                reader.IsDBNull(4) ? null : reader.GetInt32(4),
-                reader.GetInt32(5)!=0,
-                ReadSide(reader,6,reader.IsDBNull(11) ? null : reader.GetInt32(11)),
-                ReadSide(reader,12,reader.IsDBNull(17) ? null : reader.GetInt32(17))));
-        }
-
-        return values;
-    }
-
-    public IReadOnlyList<UiComparisonRecord> ListComparisons(long runId) => [];
-
-    public static IReadOnlyList<string> AnalysisViewNames { get; } = [
-        "履歴時間シェア",
-        "履歴メモリシェア",
-        "Scalable履歴",
-        "Scalable前回シェア",
-        "BenchmarkFallbackDiagnostics",
-    ];
-
-    public IReadOnlyList<IReadOnlyDictionary<string,object?>> QueryAnalysisView(string viewName,int limit = 1000){
-        if(string.Equals(viewName,"履歴時間シェア",StringComparison.Ordinal)
-            ||string.Equals(viewName,"履歴メモリシェア",StringComparison.Ordinal)
-            ||string.Equals(viewName,"Scalable履歴",StringComparison.Ordinal)
-            ||string.Equals(viewName,"Scalable前回シェア",StringComparison.Ordinal)){
-            return this.QuerySqlAnalysisView(viewName,limit);
-        }
-
-        if(!string.Equals(viewName,"BenchmarkFallbackDiagnostics",StringComparison.OrdinalIgnoreCase)){
-            return [];
-        }
-        return this.ListRuns()
-            .SelectMany(run => this.ListFallbackDiagnostics(run.RunId))
-            .OrderByDescending(static item => item.RecordedAt)
-            .Take(limit)
-            .Select(static item => new Dictionary<string,object?>{
-                ["RunId"]=item.RunId,
-                ["SourceTab"]=item.SourceTab,
-                ["Project"]=item.Project,
-                ["Method"]=item.Method,
-                ["ArgumentKey"]=item.ArgumentKey,
-                ["CounterName"]=item.CounterName,
-                ["CounterValue"]=item.CounterValue,
-                ["RecordedAt"]=item.RecordedAt,
-            })
-            .ToArray();
-    }
-
-    private IReadOnlyList<IReadOnlyDictionary<string,object?>> QuerySqlAnalysisView(string viewName,int limit){
-        this.EnsureSchema();
-        using var connection = this.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText=$"""
-            SELECT *
-            FROM "{viewName}"
-            ORDER BY "実行ID" DESC
-            LIMIT $limit;
-            """;
-        command.Parameters.AddWithValue("$limit",limit);
-        using var reader = command.ExecuteReader();
-        var rows = new List<IReadOnlyDictionary<string,object?>>();
-        while(reader.Read()){
-            var values = new Dictionary<string,object?>(StringComparer.OrdinalIgnoreCase);
-            for(var i=0;i<reader.FieldCount;i++){
-                values[reader.GetName(i)]=reader.IsDBNull(i) ? null : reader.GetValue(i);
-            }
-            rows.Add(values);
-        }
-        return rows;
-    }
-
-    public IReadOnlyList<UiShareHistoryPoint> ListShareHistory(UiShareHistoryQuery query,UiShareMetric metric,int limit = 1000){
-        ArgumentNullException.ThrowIfNull(query);
-        if(query.AppKind!=this.appKind){
-            throw new InvalidDataException(
-                "Share history app kind mismatch. Store="+this.appKind+" Query="+query.AppKind);
-        }
-        if(this.appKind==UiRunAppKind.ParameterSweep){
-            throw new InvalidDataException("ParameterSweep does not provide benchmark share history.");
-        }
-        if(string.IsNullOrWhiteSpace(query.TabName)
-            ||string.IsNullOrWhiteSpace(query.TypeName)
-            ||string.IsNullOrWhiteSpace(query.BenchmarkName)){
-            throw new InvalidDataException(
-                "Share history identity is incomplete. Tab="+query.TabName
-                +" Type="+query.TypeName
-                +" Benchmark="+query.BenchmarkName);
-        }
-
-        this.EnsureSchema();
-        using var connection=this.OpenConnection();
-        using var command=connection.CreateCommand();
-        if(this.appKind==UiRunAppKind.ScalableBenchmark){
-            if(query.BenchmarkCase is null){
-                throw new InvalidDataException(
-                    "Scalable share history identity requires benchmark arguments. Tab="+query.TabName
-                    +" Type="+query.TypeName
-                    +" Benchmark="+query.BenchmarkName);
-            }
-            var leftColumn=metric==UiShareMetric.Time?"今回時間シェア":"今回メモリシェア";
-            var rightColumn=metric==UiShareMetric.Time?"前回時間シェア":"前回メモリシェア";
-            command.CommandText=$"""
-                SELECT "実行ID","{leftColumn}","{rightColumn}"
-                FROM "Scalable前回シェア"
-                WHERE "タブ名"=$tab AND "型"=$type AND "ベンチマーク"=$benchmark
-                  AND "Count" IS $count AND "Initial" IS $initial AND "Data" IS $data
-                  AND "Index" IS $index AND "Page" IS $page AND "Segment" IS $segment
-                  AND "Memory" IS $memory AND "Fraction" IS $fraction
-                  AND "{leftColumn}" IS NOT NULL AND "{rightColumn}" IS NOT NULL
-                ORDER BY "実行ID" DESC
-                LIMIT $limit;
-                """;
-            var arguments=ReadScalableArguments(query.BenchmarkCase,true);
-            AddScalableArgumentParameters(command,arguments);
+    public IReadOnlyList<UIシェア履歴点> シェア履歴を取得(UIシェア履歴条件 条件,UIシェア指標 指標,int 上限 = 1000){
+        ArgumentNullException.ThrowIfNull(条件);
+        if(条件.アプリ種別!=this.アプリ種別){throw new InvalidDataException("シェア履歴のアプリ種別が一致しません。");}
+        if(this.アプリ種別==UI実行アプリ種別.パラメータスイープ){throw new InvalidDataException("パラメータスイープにはシェア履歴がありません。");}
+        if(string.IsNullOrWhiteSpace(条件.タブ名)||string.IsNullOrWhiteSpace(条件.型名)||string.IsNullOrWhiteSpace(条件.ベンチマーク名)){throw new InvalidDataException("シェア履歴の識別情報が不足しています。");}
+        this.スキーマを確認();using var 接続=this.接続を開く();using var コマンド=接続.CreateCommand();
+        if(this.アプリ種別==UI実行アプリ種別.スケーラブルベンチマーク){
+            if(条件.ベンチマークケース is null){throw new InvalidDataException("スケーラブルシェア履歴にはベンチマーク引数が必要です。");}
+            var 左列=指標==UIシェア指標.時間 ? "今回時間シェア" : "今回メモリシェア";var 右列=指標==UIシェア指標.時間 ? "前回時間シェア" : "前回メモリシェア";
+            コマンド.CommandText=$"SELECT \"実行ID\",\"{左列}\",\"{右列}\" FROM \"スケーラブル前回シェア\" WHERE \"タブ名\"=$tab AND \"型\"=$type AND \"ベンチマーク\"=$benchmark AND \"Count\" IS $count AND \"Initial\" IS $initial AND \"Data\" IS $data AND \"Index\" IS $index AND \"Page\" IS $page AND \"Segment\" IS $segment AND \"Memory\" IS $memory AND \"Fraction\" IS $fraction AND \"{左列}\" IS NOT NULL AND \"{右列}\" IS NOT NULL ORDER BY \"実行ID\" DESC LIMIT $limit;";
+            スケーラブル引数パラメータを追加(コマンド,スケーラブル引数を読む(条件.ベンチマークケース,true));
         }else{
-            var viewName=metric==UiShareMetric.Time?"履歴時間シェア":"履歴メモリシェア";
-            command.CommandText=$"""
-                SELECT "実行ID","左シェア","右シェア"
-                FROM "{viewName}"
-                WHERE "タブ名"=$tab AND "型"=$type AND "ベンチマーク"=$benchmark
-                ORDER BY "実行ID" DESC
-                LIMIT $limit;
-                """;
+            if(条件.ベンチマークケース is null){throw new InvalidDataException("シェア履歴にはベンチマーク引数が必要です。");}
+            var ビュー名=指標==UIシェア指標.時間 ? "履歴時間シェア" : "履歴メモリシェア";
+            コマンド.CommandText=$"SELECT \"実行ID\",\"左シェア\",\"右シェア\" FROM \"{ビュー名}\" WHERE \"タブ名\"=$tab AND \"型\"=$type AND \"ベンチマーク\"=$benchmark AND \"アセンブリ名\"=$assembly AND \"型完全名\"=$fullType AND \"メソッド名\"=$method AND \"引数キー\"=$key AND \"引数JSON\"=$json ORDER BY \"実行ID\" DESC LIMIT $limit;";
+            コマンド.Parameters.AddWithValue("$assembly",条件.ベンチマークケース.アセンブリ名);コマンド.Parameters.AddWithValue("$fullType",条件.ベンチマークケース.型完全名);コマンド.Parameters.AddWithValue("$method",条件.ベンチマークケース.メソッド名);コマンド.Parameters.AddWithValue("$key",条件.ベンチマークケース.引数キー);コマンド.Parameters.AddWithValue("$json",条件.ベンチマークケース.引数JSON);
         }
-        command.Parameters.AddWithValue("$tab",query.TabName);
-        command.Parameters.AddWithValue("$type",query.TypeName);
-        command.Parameters.AddWithValue("$benchmark",query.BenchmarkName);
-        command.Parameters.AddWithValue("$limit",Math.Max(1,limit));
-        using var reader=command.ExecuteReader();
-        var points=new List<UiShareHistoryPoint>();
-        while(reader.Read()){
-            points.Add(new(reader.GetInt64(0),reader.GetDouble(1),reader.GetDouble(2)));
-        }
-        points.Reverse();
-        return points;
+        コマンド.Parameters.AddWithValue("$tab",条件.タブ名);コマンド.Parameters.AddWithValue("$type",条件.型名);コマンド.Parameters.AddWithValue("$benchmark",条件.ベンチマーク名);コマンド.Parameters.AddWithValue("$limit",Math.Max(1,上限));using var 読取器=コマンド.ExecuteReader();var 点一覧=new List<UIシェア履歴点>();while(読取器.Read()){点一覧.Add(new(読取器.GetInt64(0),読取器.GetDouble(1),読取器.GetDouble(2)));}点一覧.Reverse();return 点一覧;
     }
 
-    private SqliteConnection OpenConnection(){
-        var builder = new SqliteConnectionStringBuilder{
-            DataSource=this.databasePath,
-            Mode=SqliteOpenMode.ReadWriteCreate,
-            DefaultTimeout=30,
-        };
-        var connection = new SqliteConnection(builder.ToString());
-        connection.Open();
-        using var command = connection.CreateCommand();
-        command.CommandText="PRAGMA busy_timeout=30000;PRAGMA journal_mode=WAL;PRAGMA foreign_keys=ON;";
-        command.ExecuteNonQuery();
-        return connection;
-    }
-
-    private SqliteConnection OpenConnectionWithoutCreate(){
-        var builder = new SqliteConnectionStringBuilder{
-            DataSource=this.databasePath,
-            Mode=SqliteOpenMode.ReadWrite,
-            DefaultTimeout=30,
-        };
-        var connection = new SqliteConnection(builder.ToString());
-        connection.Open();
-        return connection;
-    }
-
-    private static void ExecuteNonQuery(SqliteConnection connection,SqliteTransaction transaction,string text){
-        using var command = connection.CreateCommand();
-        command.Transaction=transaction;
-        command.CommandText=text;
-        command.ExecuteNonQuery();
-    }
-
-    private static bool TableExists(SqliteConnection connection,SqliteTransaction transaction,string tableName){
-        using var command = connection.CreateCommand();
-        command.Transaction=transaction;
-        command.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=$name;";
-        command.Parameters.AddWithValue("$name",tableName);
-        return (long)(command.ExecuteScalar()??0L)>0;
-    }
-
-    private static SqliteTransaction BeginTransactionWithLockRetry(SqliteConnection connection){
-        const int attempts = 5;
-        for(var attempt = 1;attempt<=attempts;attempt++){
-            try{
-                return connection.BeginTransaction();
-            }
-            catch(SqliteException ex) when(IsBusyOrLocked(ex)&&attempt<attempts){
-                Thread.Sleep(TimeSpan.FromMilliseconds(200*attempt));
-            }
-        }
-
-        return connection.BeginTransaction();
-    }
-
-    private static void ExecuteWithLockRetry(Action action){
-        const int attempts = 5;
-        for(var attempt = 1;attempt<=attempts;attempt++){
-            try{
-                action();
-                return;
-            }
-            catch(SqliteException ex) when(IsBusyOrLocked(ex)&&attempt<attempts){
-                Thread.Sleep(TimeSpan.FromMilliseconds(200*attempt));
-            }
-        }
-    }
-
-    private static bool IsBusyOrLocked(SqliteException exception) =>
-        exception.SqliteErrorCode is 5 or 6;
-
-    private static object? ExecuteScalarWithLockRetry(SqliteCommand command){
-        const int attempts = 5;
-        for(var attempt = 1;attempt<=attempts;attempt++){
-            try{
-                return command.ExecuteScalar();
-            }
-            catch(SqliteException ex) when(IsBusyOrLocked(ex)&&attempt<attempts){
-                Thread.Sleep(TimeSpan.FromMilliseconds(200*attempt));
-            }
-        }
-
-        return command.ExecuteScalar();
-    }
-
-    private static void AddMetric(
-        List<UiMetricValueRecord> values,
-        long jobId,
-        string name,
-        SqliteDataReader reader,
-        int ordinal,
-        string unit,
-        DateTimeOffset measuredAt){
-        if(reader.IsDBNull(ordinal)){
-            return;
-        }
-        values.Add(new(jobId,name,reader.GetDouble(ordinal),unit,measuredAt));
-    }
-
-    private static void AddSideMetrics(List<UiMetricValueRecord> values,long jobId,UiBenchmarkGridSideRecord side){
-        var measuredAt = side.MeasuredAt??DateTimeOffset.MinValue;
-        if(side.MeanNanoseconds is { } meanNanoseconds){
-            values.Add(new(jobId,"MeanNanoseconds",meanNanoseconds,"ns",measuredAt));
-        }
-        if(side.AllocatedBytes is { } allocatedBytes){
-            values.Add(new(jobId,"AllocatedBytes",allocatedBytes,"bytes",measuredAt));
-        }
-    }
-
-    private static UiBenchmarkGridSideWrite CreateDetectedSide(UiBenchmarkItemWrite? item){
-        if(item is null){
-            return new(UiRunStatus.Queued,string.Empty,null,null,null);
-        }
-
-        return new(
-            UiRunStatus.Queued,
-            string.Empty,
-            null,
-            null,
-            null);
-    }
-
-    private static void AddSideParameters(SqliteCommand command,string prefix,UiBenchmarkGridSideWrite side){
-        command.Parameters.AddWithValue("$"+prefix+"Status",ToStatusText(side.Status));
-        command.Parameters.AddWithValue("$"+prefix+"Failure",side.FailureReason);
-        command.Parameters.AddWithValue("$"+prefix+"MeasuredAt",ToDbValue(side.MeasuredAt));
-        command.Parameters.AddWithValue("$"+prefix+"Mean",ToDbValue(side.MeanNanoseconds));
-        command.Parameters.AddWithValue("$"+prefix+"Allocated",ToDbValue(side.AllocatedBytes));
-    }
-
-    private UiRunAppKind? ReadRunAppKind(SqliteConnection connection,long runId){
-        using var command=connection.CreateCommand();
-        command.CommandText="SELECT 1 FROM \"実行\" WHERE \"実行ID\"=$runId;";
-        command.Parameters.AddWithValue("$runId",runId);
-        return command.ExecuteScalar() is null ? null : this.appKind;
-    }
-
-    private static ScalableArguments ReadScalableArguments(UiBenchmarkSnapshotCaseWrite? identity,bool strict = false){
-        var values=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
-        if(identity is not null&&!string.IsNullOrWhiteSpace(identity.ArgumentsJson)){
-            try{
-                using var document=System.Text.Json.JsonDocument.Parse(identity.ArgumentsJson);
-                if(document.RootElement.ValueKind!=System.Text.Json.JsonValueKind.Array){
-                    throw new System.Text.Json.JsonException("Benchmark arguments must be a JSON array.");
-                }
-                foreach(var item in document.RootElement.EnumerateArray()){
-                    if(item.TryGetProperty("Name",out var name)&&item.TryGetProperty("Value",out var value)){
-                        values[name.GetString()??string.Empty]=value.GetString()??value.ToString();
-                    }
-                }
-            }catch(System.Text.Json.JsonException ex){
-                if(strict){
-                    throw new InvalidDataException("Scalable share history benchmark arguments are invalid JSON.",ex);
-                }
-            }
-        }else if(strict){
-            throw new InvalidDataException("Scalable share history benchmark arguments are missing.");
-        }
-        long? Long(string name)=>values.TryGetValue(name,out var text)&&long.TryParse(text,System.Globalization.NumberStyles.Integer,System.Globalization.CultureInfo.InvariantCulture,out var value) ? value : null;
-        double? Double(string name)=>values.TryGetValue(name,out var text)&&double.TryParse(text,System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var value) ? value : null;
-        return new(Long("Count"),Long("Initial"),Long("Data"),Long("Index"),Long("Page"),Long("Segment"),Long("Memory"),Double("Fraction"));
-    }
-
-    private static void AddScalableArgumentParameters(SqliteCommand command,ScalableArguments arguments){
-        command.Parameters.AddWithValue("$count",ToDbValue(arguments.Count));
-        command.Parameters.AddWithValue("$initial",ToDbValue(arguments.Initial));
-        command.Parameters.AddWithValue("$data",ToDbValue(arguments.Data));
-        command.Parameters.AddWithValue("$index",ToDbValue(arguments.Index));
-        command.Parameters.AddWithValue("$page",ToDbValue(arguments.Page));
-        command.Parameters.AddWithValue("$segment",ToDbValue(arguments.Segment));
-        command.Parameters.AddWithValue("$memory",ToDbValue(arguments.Memory));
-        command.Parameters.AddWithValue("$fraction",ToDbValue(arguments.Fraction));
-    }
-
-    private static IReadOnlyList<UiBenchmarkSnapshotItemRecord> ListScalableBenchmarkSnapshotItems(SqliteConnection connection,long runId){
-        using var command=connection.CreateCommand();
-        command.CommandText="""
-            SELECT c."実行ID",c."タブ名",c."型",c."ベンチマーク",c."CPU番号",c."行チェック",
-                   c."Count",c."Initial",c."Data",c."Index",c."Page",c."Segment",c."Memory",c."Fraction",
-                   c."今回状態",c."今回失敗理由",c."今回日時",c."今回時間ns",c."今回メモリバイト",
-                   p."今回状態",p."今回失敗理由",p."今回日時",p."今回時間ns",p."今回メモリバイト"
-            FROM "Benchmark" c
-            INNER JOIN "実行" r ON r."実行ID"=c."実行ID"
-            LEFT JOIN "Benchmark" p
-              ON p."実行ID"=r."前回実行ID" AND p."タブ名"=c."タブ名" AND p."型"=c."型" AND p."ベンチマーク"=c."ベンチマーク"
-             AND p."Count" IS c."Count" AND p."Initial" IS c."Initial" AND p."Data" IS c."Data" AND p."Index" IS c."Index"
-             AND p."Page" IS c."Page" AND p."Segment" IS c."Segment" AND p."Memory" IS c."Memory" AND p."Fraction" IS c."Fraction"
-            WHERE c."実行ID"=$runId
-            ORDER BY c."タブ名",c."型",c."ベンチマーク",c."Count";
+    private IReadOnlyList<UIベンチマークスナップショット項目記録> スケーラブル項目一覧を取得(long 実行ID){
+        using var 接続=this.接続を開く();using var コマンド=接続.CreateCommand();
+        コマンド.CommandText="""
+            SELECT c."実行ID",c."タブ名",c."型",c."ベンチマーク",c."CPU番号",c."行チェック",c."Count",c."Initial",c."Data",c."Index",c."Page",c."Segment",c."Memory",c."Fraction",c."今回状態",c."今回失敗理由",c."今回日時",c."今回時間ns",c."今回メモリバイト",p."今回状態",p."今回失敗理由",p."今回日時",p."今回時間ns",p."今回メモリバイト"
+            FROM "ベンチマーク" c INNER JOIN "実行" r ON r."実行ID"=c."実行ID" LEFT JOIN "ベンチマーク" p ON p."実行ID"=r."前回実行ID" AND p."タブ名"=c."タブ名" AND p."型"=c."型" AND p."ベンチマーク"=c."ベンチマーク" AND p."Count" IS c."Count" AND p."Initial" IS c."Initial" AND p."Data" IS c."Data" AND p."Index" IS c."Index" AND p."Page" IS c."Page" AND p."Segment" IS c."Segment" AND p."Memory" IS c."Memory" AND p."Fraction" IS c."Fraction" WHERE c."実行ID"=$id ORDER BY c."タブ名",c."型",c."ベンチマーク",c."Count";
             """;
-        command.Parameters.AddWithValue("$runId",runId);
-        using var reader=command.ExecuteReader();
-        var values=new List<UiBenchmarkSnapshotItemRecord>();
-        while(reader.Read()){
-            var arguments=new ScalableArguments(
-                reader.IsDBNull(6)?null:reader.GetInt64(6),reader.IsDBNull(7)?null:reader.GetInt64(7),
-                reader.IsDBNull(8)?null:reader.GetInt64(8),reader.IsDBNull(9)?null:reader.GetInt64(9),
-                reader.IsDBNull(10)?null:reader.GetInt64(10),reader.IsDBNull(11)?null:reader.GetInt64(11),
-                reader.IsDBNull(12)?null:reader.GetInt64(12),reader.IsDBNull(13)?null:reader.GetDouble(13));
-            var identity=CreateScalableIdentity(reader.GetString(3),arguments);
-            var current=ReadSide(reader,14,null);
-            var previous=reader.IsDBNull(19)
-                ? new UiBenchmarkGridSideRecord(UiRunStatus.Queued,string.Empty,null,null,null)
-                : ReadSide(reader,19,null);
-            values.Add(new(reader.GetInt64(0),reader.GetString(1),reader.GetString(2),reader.GetString(3),reader.IsDBNull(4)?null:reader.GetInt32(4),reader.GetInt32(5)!=0,current,previous,identity,identity));
-        }
-        return values;
+        コマンド.Parameters.AddWithValue("$id",実行ID);using var 読取器=コマンド.ExecuteReader();var 一覧=new List<UIベンチマークスナップショット項目記録>();while(読取器.Read()){var 引数=new スケーラブル引数(空値許容長整数を読む(読取器,6),空値許容長整数を読む(読取器,7),空値許容長整数を読む(読取器,8),空値許容長整数を読む(読取器,9),空値許容長整数を読む(読取器,10),空値許容長整数を読む(読取器,11),空値許容長整数を読む(読取器,12),読取器.IsDBNull(13) ? null : 読取器.GetDouble(13));var 識別=スケーラブル識別情報を作成(読取器.GetString(3),引数);var 今回=側を読む(読取器,14,null);var 前回=読取器.IsDBNull(19) ? new UIベンチマークグリッド側記録(UI実行状態.待機中,string.Empty,null,null,null) : 側を読む(読取器,19,null);一覧.Add(new(読取器.GetInt64(0),読取器.GetString(1),読取器.GetString(2),読取器.GetString(3),読取器.IsDBNull(4) ? null : 読取器.GetInt32(4),読取器.GetInt32(5)!=0,今回,前回,識別,識別));}return 一覧;
     }
 
-    private static UiBenchmarkSnapshotCaseWrite CreateScalableIdentity(string methodName,ScalableArguments arguments){
-        var pairs=new List<Dictionary<string,string>>();
-        void Add(string name,object? value){ if(value is not null) pairs.Add(new(){{"Name",name},{"Value",Convert.ToString(value,System.Globalization.CultureInfo.InvariantCulture)??string.Empty}}); }
-        Add("Count",arguments.Count);Add("Initial",arguments.Initial);Add("Data",arguments.Data);Add("Index",arguments.Index);
-        Add("Page",arguments.Page);Add("Segment",arguments.Segment);Add("Memory",arguments.Memory);Add("Fraction",arguments.Fraction);
-        var argumentKey=string.Join(",",pairs.Select(static pair=>pair["Name"]+"="+pair["Value"]));
-        return new(string.Empty,string.Empty,methodName,argumentKey,System.Text.Json.JsonSerializer.Serialize(pairs));
-    }
-
-    private sealed record ScalableArguments(long? Count,long? Initial,long? Data,long? Index,long? Page,long? Segment,long? Memory,double? Fraction);
-
-    private static UiBenchmarkGridSideRecord ReadSide(SqliteDataReader reader,int offset,int? loopCount){
-        var measuredAt = reader.IsDBNull(offset+2)
-            ? (DateTimeOffset?)null
-            : FromText(reader.GetString(offset+2));
-        return new(
-            FromStatusText(reader.GetString(offset)),
-            reader.GetString(offset+1),
-            measuredAt,
-            reader.IsDBNull(offset+3) ? null : reader.GetDouble(offset+3),
-            reader.IsDBNull(offset+4) ? null : reader.GetInt64(offset+4),
-            loopCount);
-    }
-
-    private static long CreateLegacyRecordId(long runId,string sourceTabId,string typeFullName,string method,string side){
-        var hash = new HashCode();
-        hash.Add(runId);
-        hash.Add(sourceTabId,StringComparer.OrdinalIgnoreCase);
-        hash.Add(typeFullName,StringComparer.OrdinalIgnoreCase);
-        hash.Add(method,StringComparer.OrdinalIgnoreCase);
-        hash.Add(side,StringComparer.OrdinalIgnoreCase);
-        return Math.Abs((long)hash.ToHashCode());
-    }
-
-    private static double? GetMetric(IReadOnlyList<UiMetricValueWrite> metrics,string name) =>
-        metrics.LastOrDefault(item => string.Equals(item.MetricName,name,StringComparison.OrdinalIgnoreCase)) is { } value
-            ? value.NumericValue
-            : null;
-
-    private static double? GetNullableMetric(IReadOnlyList<UiMetricValueRecord>? metrics,string name) =>
-        metrics?.LastOrDefault(item => string.Equals(item.MetricName,name,StringComparison.OrdinalIgnoreCase)) is { } value
-            ? value.NumericValue
-            : null;
-
-    private static object ToDbValue(int? value) => value is { } actual ? actual : DBNull.Value;
-
-    private static object ToDbValue(long? value) => value is { } actual ? actual : DBNull.Value;
-
-    private static object ToDbValue(double? value) => value is { } actual ? actual : DBNull.Value;
-
-    private static object ToDbValue(DateTimeOffset? value) => value is { } actual ? ToText(actual) : DBNull.Value;
-
-    private static string ToText(DateTimeOffset value) => value.ToString("O",System.Globalization.CultureInfo.InvariantCulture);
-
-    private static DateTimeOffset FromText(string value) =>
-        DateTimeOffset.Parse(value,System.Globalization.CultureInfo.InvariantCulture,System.Globalization.DateTimeStyles.RoundtripKind);
-
-    private static string ToAppKindText(UiRunAppKind value) =>
-        value switch{
-            UiRunAppKind.ScalableBenchmark => "スケーラブル",
-            UiRunAppKind.ParameterSweep => "ParameterSweep",
-            _ => "標準",
-        };
-
-    private static UiRunAppKind FromAppKindText(string value) =>
-        value switch{
-            "スケーラブル" => UiRunAppKind.ScalableBenchmark,
-            "ParameterSweep" => UiRunAppKind.ParameterSweep,
-            _ => UiRunAppKind.Benchmark,
-        };
-
-    private static string ToStatusText(UiRunStatus value) =>
-        value switch{
-            UiRunStatus.Queued => "待機",
-            UiRunStatus.Running => "実行中",
-            UiRunStatus.Paused => "一時停止",
-            UiRunStatus.Stopped => "停止",
-            UiRunStatus.Completed => "完了",
-            UiRunStatus.Failed => "失敗",
-            _ => "未計測",
-        };
-
-    private static UiRunStatus FromStatusText(string value) =>
-        value switch{
-            "待機" => UiRunStatus.Queued,
-            "実行中" => UiRunStatus.Running,
-            "一時停止" => UiRunStatus.Paused,
-            "停止" => UiRunStatus.Stopped,
-            "完了" => UiRunStatus.Completed,
-            "失敗" => UiRunStatus.Failed,
-            _ => UiRunStatus.Queued,
-        };
-
-    private static string ToArgumentDisplay(IReadOnlyDictionary<string,string>? arguments){
-        if(arguments is null||arguments.Count==0){
-            return string.Empty;
-        }
-        return string.Join(",",
-            arguments
-                .Where(static item => !string.Equals(item.Key,"ElementCount",StringComparison.OrdinalIgnoreCase)
-                    &&!string.Equals(item.Key,"LoopCount",StringComparison.OrdinalIgnoreCase)
-                    &&!string.Equals(item.Key,"SourceTab",StringComparison.OrdinalIgnoreCase))
-                .OrderBy(static item => item.Key,StringComparer.OrdinalIgnoreCase)
-                .Select(static item => item.Key+"="+item.Value));
-    }
-
-    private static string ToGenericTypeName(string typeFullName){
-        if(string.IsNullOrWhiteSpace(typeFullName)){
-            return string.Empty;
-        }
-
-        var tick = typeFullName.IndexOf('`');
-        if(tick<0){
-            var dot = typeFullName.LastIndexOf('.');
-            return dot>=0&&dot<typeFullName.Length-1 ? typeFullName[(dot+1)..] : typeFullName;
-        }
-
-        var start = typeFullName.IndexOf("[[",StringComparison.Ordinal);
-        if(start<0){
-            return string.Empty;
-        }
-
-        var names = new List<string>();
-        var index = start;
-        while(index>=0&&index<typeFullName.Length){
-            var nextStart = typeFullName.IndexOf("[[",index,StringComparison.Ordinal);
-            if(nextStart<0){
-                break;
-            }
-            var nextEnd = typeFullName.IndexOf(',',nextStart+2);
-            if(nextEnd<0){
-                break;
-            }
-            var name = typeFullName.Substring(nextStart+2,nextEnd-nextStart-2);
-            var dot = name.LastIndexOf('.');
-            names.Add(dot>=0&&dot<name.Length-1 ? name[(dot+1)..] : name);
-            index=typeFullName.IndexOf("]]",nextEnd,StringComparison.Ordinal);
-            if(index<0){
-                break;
-            }
-            index+=2;
-        }
-
-        return names.Count==0 ? string.Empty : string.Join(",",names.Select(ToKnownAlias));
-    }
-
-    private static string ToKnownAlias(string name) =>
-        name switch{
-            "Int32" => "int",
-            "Int64" => "long",
-            "String" => "string",
-            "Boolean" => "bool",
-            "Double" => "double",
-            "Single" => "float",
-            "Decimal" => "decimal",
-            "Object" => "object",
-            _ => name,
-        };
+    private long 保存済みスキーマ版を読む(){try{using var 接続=this.作成せず接続を開く();using var コマンド=接続.CreateCommand();コマンド.CommandText="PRAGMA user_version;";return (long)(コマンド.ExecuteScalar()??0L);}catch(SqliteException){return 0;}}
+    private bool 想定スキーマ形状か(){try{using var 接続=this.作成せず接続を開く();using var コマンド=接続.CreateCommand();コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','ベンチマーク','診断カウンター');";if((long)(コマンド.ExecuteScalar()??0L)!=3L){return false;}コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('実行') WHERE name IN('状態メッセージ','要素数一覧','適応閾値ns');";if((long)(コマンド.ExecuteScalar()??0L)!=3L){return false;}if(this.アプリ種別==UI実行アプリ種別.パラメータスイープ){コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('コレクション','ジェネリック','バックエンド','スイープ','Indexサイズ','Pageサイズ','Segmentサイズ','Memoryサイズ','可変Fraction','最大成功Count','エントリCount');";return (long)(コマンド.ExecuteScalar()??0L)==11L;}if(this.アプリ種別==UI実行アプリ種別.スケーラブルベンチマーク){コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('スケーラブル履歴','スケーラブル前回シェア');";return (long)(コマンド.ExecuteScalar()??0L)==2L;}コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('アセンブリ名','型完全名','メソッド名','引数キー','引数JSON','左ループ回数','右ループ回数');";if((long)(コマンド.ExecuteScalar()??0L)!=7L){return false;}コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('履歴時間シェア','履歴メモリシェア');";return (long)(コマンド.ExecuteScalar()??0L)==2L;}catch(SqliteException){return false;}}
+    private SqliteConnection 接続を開く()=>接続を開く(SqliteOpenMode.ReadWriteCreate);
+    private SqliteConnection 作成せず接続を開く()=>接続を開く(SqliteOpenMode.ReadWrite);
+    private SqliteConnection 接続を開く(SqliteOpenMode モード){var 構築器=new SqliteConnectionStringBuilder{DataSource=this.DBパス,Mode=モード,DefaultTimeout=30};var 接続=new SqliteConnection(構築器.ToString());接続.Open();using var コマンド=接続.CreateCommand();コマンド.CommandText="PRAGMA busy_timeout=30000;PRAGMA journal_mode=WAL;PRAGMA foreign_keys=ON;";コマンド.ExecuteNonQuery();return 接続;}
+    private static void 非クエリを実行(SqliteConnection 接続,SqliteTransaction トランザクション,string 文){using var コマンド=接続.CreateCommand();コマンド.Transaction=トランザクション;コマンド.CommandText=文;コマンド.ExecuteNonQuery();}
+    private static SqliteTransaction ロック再試行付きでトランザクションを開始(SqliteConnection 接続){const int 試行回数=5;for(var 試行=1;試行<=試行回数;試行++){try{return 接続.BeginTransaction();}catch(SqliteException 例外)when(使用中またはロック中か(例外)&&試行<試行回数){Thread.Sleep(TimeSpan.FromMilliseconds(200*試行));}}return 接続.BeginTransaction();}
+    private static void ロック再試行付きで実行(Action 処理){const int 試行回数=5;for(var 試行=1;試行<=試行回数;試行++){try{処理();return;}catch(SqliteException 例外)when(使用中またはロック中か(例外)&&試行<試行回数){Thread.Sleep(TimeSpan.FromMilliseconds(200*試行));}}}
+    private static object? ロック再試行付きでスカラーを実行(SqliteCommand コマンド){const int 試行回数=5;for(var 試行=1;試行<=試行回数;試行++){try{return コマンド.ExecuteScalar();}catch(SqliteException 例外)when(使用中またはロック中か(例外)&&試行<試行回数){Thread.Sleep(TimeSpan.FromMilliseconds(200*試行));}}return コマンド.ExecuteScalar();}
+    private static bool 使用中またはロック中か(SqliteException 例外)=>例外.SqliteErrorCode is 5 or 6;
+    private static void 側パラメータを追加(SqliteCommand コマンド,string 接頭辞,UIベンチマークグリッド側書込 側){コマンド.Parameters.AddWithValue("$"+接頭辞+"Status",状態を文字列へ(側.状態));コマンド.Parameters.AddWithValue("$"+接頭辞+"Failure",側.失敗理由);コマンド.Parameters.AddWithValue("$"+接頭辞+"At",DB値へ(側.計測日時));コマンド.Parameters.AddWithValue("$"+接頭辞+"Mean",DB値へ(側.平均ナノ秒));コマンド.Parameters.AddWithValue("$"+接頭辞+"Bytes",DB値へ(側.割当バイト));}
+    private static UIベンチマークグリッド側記録 側を読む(SqliteDataReader 読取器,int 位置,int? ループ回数)=>new(文字列を状態へ(読取器.GetString(位置)),読取器.GetString(位置+1),読取器.IsDBNull(位置+2) ? null : 文字列を日時へ(読取器.GetString(位置+2)),読取器.IsDBNull(位置+3) ? null : 読取器.GetDouble(位置+3),読取器.IsDBNull(位置+4) ? null : 読取器.GetInt64(位置+4),ループ回数);
+    private static void 側指標を追加(List<UI指標値記録> 一覧,long ジョブID,UIベンチマークグリッド側記録 側){var 日時=側.計測日時??DateTimeOffset.MinValue;if(側.平均ナノ秒 is { } 時間){一覧.Add(new(ジョブID,"平均ナノ秒",時間,"ns",日時));}if(側.割当バイト is { } メモリ){一覧.Add(new(ジョブID,"割当バイト",メモリ,"bytes",日時));}}
+    private static スケーラブル引数 スケーラブル引数を読む(UIベンチマークスナップショットケース書込? 識別,bool 厳密か = false){var 値一覧=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);if(識別 is not null&&!string.IsNullOrWhiteSpace(識別.引数JSON)){try{using var 文書=System.Text.Json.JsonDocument.Parse(識別.引数JSON);if(文書.RootElement.ValueKind!=System.Text.Json.JsonValueKind.Array){throw new System.Text.Json.JsonException();}foreach(var 項目 in 文書.RootElement.EnumerateArray()){if(項目.TryGetProperty("名前",out var 名前)&&項目.TryGetProperty("値",out var 値)){値一覧[名前.GetString()??string.Empty]=値.GetString()??値.ToString();}}}catch(System.Text.Json.JsonException 例外){if(厳密か){throw new InvalidDataException("スケーラブル引数JSONが不正です。",例外);}}}else if(厳密か){throw new InvalidDataException("スケーラブル引数がありません。");}long? 長整数を読む(string 名前)=>値一覧.TryGetValue(名前,out var 文字列)&&long.TryParse(文字列,System.Globalization.NumberStyles.Integer,System.Globalization.CultureInfo.InvariantCulture,out var 値) ? 値 : null;double? 実数を読む(string 名前)=>値一覧.TryGetValue(名前,out var 文字列)&&double.TryParse(文字列,System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var 値) ? 値 : null;return new(長整数を読む("Count"),長整数を読む("Initial"),長整数を読む("Data"),長整数を読む("Index"),長整数を読む("Page"),長整数を読む("Segment"),長整数を読む("Memory"),実数を読む("Fraction"));}
+    private static void スケーラブル引数パラメータを追加(SqliteCommand コマンド,スケーラブル引数 引数){コマンド.Parameters.AddWithValue("$count",DB値へ(引数.Count));コマンド.Parameters.AddWithValue("$initial",DB値へ(引数.Initial));コマンド.Parameters.AddWithValue("$data",DB値へ(引数.Data));コマンド.Parameters.AddWithValue("$index",DB値へ(引数.Index));コマンド.Parameters.AddWithValue("$page",DB値へ(引数.Page));コマンド.Parameters.AddWithValue("$segment",DB値へ(引数.Segment));コマンド.Parameters.AddWithValue("$memory",DB値へ(引数.Memory));コマンド.Parameters.AddWithValue("$fraction",DB値へ(引数.Fraction));}
+    private static UIベンチマークスナップショットケース書込 スケーラブル識別情報を作成(string メソッド名,スケーラブル引数 引数){var 組一覧=new List<Dictionary<string,string>>();void 追加(string 名前,object? 値){if(値 is not null){組一覧.Add(new(){{"名前",名前},{"値",Convert.ToString(値,System.Globalization.CultureInfo.InvariantCulture)??string.Empty}});}}追加("Count",引数.Count);追加("Initial",引数.Initial);追加("Data",引数.Data);追加("Index",引数.Index);追加("Page",引数.Page);追加("Segment",引数.Segment);追加("Memory",引数.Memory);追加("Fraction",引数.Fraction);var キー=string.Join(",",組一覧.Select(static 組=>組["名前"]+"="+組["値"]));return new(string.Empty,string.Empty,メソッド名,キー,System.Text.Json.JsonSerializer.Serialize(組一覧));}
+    private sealed record スケーラブル引数(long? Count,long? Initial,long? Data,long? Index,long? Page,long? Segment,long? Memory,double? Fraction);
+    private static long? 空値許容長整数を読む(SqliteDataReader 読取器,int 位置)=>読取器.IsDBNull(位置) ? null : 読取器.GetInt64(位置);
+    private static object DB値へ(int? 値)=>値 is { } 実値 ? 実値 : DBNull.Value;
+    private static object DB値へ(long? 値)=>値 is { } 実値 ? 実値 : DBNull.Value;
+    private static object DB値へ(double? 値)=>値 is { } 実値&&double.IsFinite(実値) ? 実値 : DBNull.Value;
+    private static object DB値へ(DateTimeOffset? 値)=>値 is { } 実値 ? 日時を文字列へ(実値) : DBNull.Value;
+    private static string 日時を文字列へ(DateTimeOffset 値)=>値.ToString("O",System.Globalization.CultureInfo.InvariantCulture);
+    private static DateTimeOffset 文字列を日時へ(string 値)=>DateTimeOffset.Parse(値,System.Globalization.CultureInfo.InvariantCulture,System.Globalization.DateTimeStyles.RoundtripKind);
+    private static string 状態を文字列へ(UI実行状態 値)=>値 switch{UI実行状態.待機中=>"Queued",UI実行状態.実行中=>"Running",UI実行状態.一時停止中=>"Paused",UI実行状態.停止済み=>"Stopped",UI実行状態.完了=>"Completed",UI実行状態.失敗=>"Failed",_=>throw new ArgumentOutOfRangeException(nameof(値),値,null)};
+    private static UI実行状態 文字列を状態へ(string 値)=>値 switch{"Queued"=>UI実行状態.待機中,"Running"=>UI実行状態.実行中,"Paused"=>UI実行状態.一時停止中,"Stopped"=>UI実行状態.停止済み,"Completed"=>UI実行状態.完了,"Failed"=>UI実行状態.失敗,_=>throw new InvalidDataException("不明なUI実行状態です: "+値)};
 }

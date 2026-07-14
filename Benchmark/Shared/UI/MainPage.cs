@@ -1,368 +1,356 @@
 using Syncfusion.Maui.Buttons;
-using Syncfusion.Maui.Core.Internals;
 using Syncfusion.Maui.DataGrid;
 using Syncfusion.Maui.Toolkit.Charts;
 using Syncfusion.Maui.Toolkit.TabView;
 
-using Seamless.UI.Storage;
-
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
 using System.ComponentModel;
 
+using Seamless.UI.Storage;
 using UI.ViewModels;
 
 namespace UI;
 
 public sealed partial class MainPage:ContentPage {
     // ベンチマーク選択列の幅
-    private const double BenchmarkSelectionColumnWidth = 52;
+    private const double ベンチマーク選択列幅 = 52;
     // ベンチマーク集計チェックボックスのサイズ
-    private const double BenchmarkAggregateCheckBoxSize = 32;
+    private const double ベンチマーク集約チェックボックス寸法 = 32;
     // ベンチマーク上部の全選択領域の幅
-    private const double BenchmarkTopAllSelectionSlotWidth = BenchmarkAggregateCheckBoxSize+4;
+    private const double ベンチマーク上部全選択領域幅 = ベンチマーク集約チェックボックス寸法+4;
     // ベンチマーク進捗概要バッジの幅
-    private const double BenchmarkProgressSummaryBadgeWidth = 280;
+    private const double ベンチマーク進行概要バッジ幅 = 280;
     private const double ベンチマーク_型 = 80;
     private const double ベンチマーク_ベンチマーク = 240;
-    private const double ベンチマークCpu = 58;
+    private const double ベンチマークCPU = 58;
     private const double ベンチマーク_ループ = 64;
     // ベンチマーク引数列の幅
-    private const double BenchmarkArgumentColumnWidth = 72;
+    private const double ベンチマーク引数列幅 = 72;
     // ベンチマーク回数引数列の幅
-    private const double BenchmarkCountArgumentColumnWidth = 78;
+    private const double ベンチマークCount引数列幅 = 78;
     // ベンチマークメモリ引数列の幅
-    private const double BenchmarkMemoryArgumentColumnWidth = 96;
+    private const double ベンチマークメモリ引数列幅 = 96;
     // ベンチマーク簡易引数列の幅
-    private const double BenchmarkCompactArgumentColumnWidth= 64;
-    private const double ベンチマーク_日時                          = 176;
-    private const double 時間                                 = 78;
-    private const double メモリ                               = 78;
+    private const double ベンチマークコンパクト引数列幅 = 64;
+    private const double ベンチマーク_日時 = 176;
+    private const double 時間 = 78;
+    private const double メモリ = 78;
     // ベンチマークのペア停止回数列の幅
-    private const double 時間シェア=72;
-    private const double メモリシェア=72;
+    private const double 時間シェア = 72;
+    private const double メモリシェア = 72;
     // ベンチマークスクロールバーのサイズ
-    private const double BenchmarkScrollBarSize = 32;
+    private const double ベンチマークスクロールバー寸法 = 32;
     // CPUチェックボックスの幅
-    private const double CpuCheckBoxWidth = 34;
+    private const double CPUチェックボックス幅 = 34;
     // CPUチェックボックスの高さ
-    private const double CpuCheckBoxHeight = 28;
+    private const double CPUチェックボックス高さ = 28;
     // CPU論理コア列の幅
-    private const double CpuLogicalColumnWidth = 340;
+    private const double CPU論理列幅 = 340;
     // CPU論理コア確認列の幅
-    private const double CpuLogicalCheckColumnWidth = 38;
+    private const double CPU論理チェック列幅 = 38;
     // CPU論理コア番号の幅
-    private const double CpuLogicalNumberWidth = 26;
+    private const double CPU論理番号幅 = 26;
     // 下部タブバーの高さ
-    private const double LowerTabBarHeight = 34;
+    private const double 下部タブバー高さ = 34;
     // CPUセクションヘッダーの高さ
-    private const double CpuSectionHeaderHeight = 34;
+    private const double CPU区分見出し高さ = 34;
     // ベンチマークグリッド行の高さ
-    private const double BenchmarkGridRowHeight = 24;
+    private const double ベンチマークグリッド行高さ = 24;
     // ベンチマークグリッドヘッダー行の高さ
-    private const double BenchmarkGridHeaderRowHeight = 30;
-    // ベンチマークグリッドの積層ヘッダー行数
-    private const double BenchmarkGridStackedHeaderRowCount = 1;
-    // ベンチマークグリッド追加の高さ
-    private const double BenchmarkGridExtraHeight = 2;
+    private const double ベンチマークグリッド見出し行高さ = 30;
     // ベンチマークグリッドセルのフォントサイズ
-    private const double BenchmarkGridCellFontSize = 10;
+    private const double ベンチマークグリッドセル文字寸法 = 10;
     // ベンチマークグリッド詳細のフォントサイズ
-    private const double BenchmarkGridDetailFontSize = 9;
+    private const double ベンチマークグリッド詳細文字寸法 = 9;
     // ベンチマークホバーセルの拡張余白
-    private const double BenchmarkHoverCellExpansionPadding = 14;
+    private const double ベンチマークホバーセル拡張余白 = 14;
     // CPUグリッド行の高さ
-    private const double CpuGridRowHeight = 24;
+    private const double CPUグリッド行高さ = 24;
     // CPUグリッドヘッダー行の高さ
-    private const double CpuGridHeaderRowHeight = 30;
+    private const double CPUグリッド見出し行高さ = 30;
     // CPUグリッドセルのフォントサイズ
-    private const double CpuGridCellFontSize = 10;
+    private const double CPUグリッドセル文字寸法 = 10;
     // CPUセクショングリッドヘッダーの高さ
-    private const double CpuSectionGridHeaderHeight = CpuGridHeaderRowHeight;
+    private const double CPU区分グリッド見出し高さ = CPUグリッド見出し行高さ;
     // CPUセクション行の高さ
-    private const double CpuSectionRowHeight = CpuGridRowHeight;
+    private const double CPU区分行高さ = CPUグリッド行高さ;
     // CPUセクショングリッド追加の高さ
-    private const double CpuSectionGridExtraHeight = 2;
+    private const double CPU区分グリッド追加高さ = 2;
     // CPUセクション間の間隔
-    private const double CpuSectionSpacing = 3;
+    private const double CPU区分間隔 = 3;
     // CPUリストの間隔
-    private const double CpuListSpacing = 10;
+    private const double CPU一覧間隔 = 10;
     // CPUコンテンツ行の間隔
-    private const double CpuContentRowSpacing = 10;
-    private readonly RunnerViewModel? viewModel;
-    private readonly Grid? rootLayout;
-    private View? activeDialogOverlay;
-    private TaskCompletionSource<string>? activeDialogCompletion;
-    private string activeDialogFallbackValue = string.Empty;
-    private readonly List<Action> collapsibleSectionRefreshers = [];
-    private readonly Dictionary<BenchmarkToolbarButtonRole,VisualElement> toolbarButtons = [];
-    private readonly List<SfDataGrid> dataGridUpdateBatchTargets = [];
-    private readonly HashSet<SfDataGrid> dataGridUpdateBatchStartedTargets = [];
-    private readonly HashSet<SfDataGrid> selectionSuppressedGrids = [];
-    private readonly Dictionary<BenchmarkSourceTab,SfDataGrid> benchmarkGridsBySourceTab = [];
-    private SfDataGrid? benchmarkGrid;
-    private SfTabView? sourceTabView;
-    private int dataGridUpdateBatchDepth;
-    private IDispatcherTimer? pausedToolbarPulseTimer;
-    private bool pausedToolbarPulseOn;
-    private bool isApplyingSourceTabViewSelection;
-    private bool isDataGridUpdateBatchSubscribed;
-    private BenchmarkSortRule? draggedBenchmarkSortRule;
+    private const double CPU内容行間隔 = 10;
+    private readonly 実行ビューモデル? ビューモデル;
+    private readonly Grid? ルートレイアウト;
+    private View? 有効ダイアログオーバーレイ;
+    private TaskCompletionSource<string>? 有効ダイアログ完了ソース;
+    private string 有効ダイアログフォールバック値 = string.Empty;
+    private readonly Dictionary<ベンチマークツールバーボタン役割,VisualElement> ツールバーボタン一覧 = [];
+    private readonly List<SfDataGrid> データグリッド更新バッチ対象一覧 = [];
+    private readonly HashSet<SfDataGrid> データグリッド更新バッチ開始済み対象一覧 = [];
+    private readonly HashSet<SfDataGrid> 選択抑止グリッド一覧 = [];
+    private readonly Dictionary<ベンチマークソースタブ,SfDataGrid> ソースタブ別ベンチマークグリッド = [];
+    private SfDataGrid? ベンチマークグリッド;
+    private SfTabView? ソースタブビュー;
+    private int データグリッド更新バッチ深度;
+    private IDispatcherTimer? 一時停止中ツールバー点滅タイマー;
+    private bool 一時停止中ツールバー点灯中か;
+    private bool ソースタブビュー選択適用中か;
+    private bool データグリッド更新バッチ購読済みか;
+    private ベンチマークソート規則? ドラッグ中ベンチマークソート規則;
 
-    public MainPage(RunnerViewModel viewModel) {
+    public MainPage(実行ビューモデル ビューモデル) {
         try {
-            StartupDiagnostics.Write("MainPage constructor started.");
-            this.Title=BenchmarkAppProfile.Title;
+            起動診断.書き込む("MainPageコンストラクターを開始しました。");
+            this.Title=ベンチマークアプリプロファイル.タイトル;
             this.BackgroundColor=Color.FromArgb("#F8FAFC");
-            this.viewModel=viewModel;
-            this.BindingContext=this.viewModel;
-            this.SubscribeDataGridUpdateBatch();
+            this.ビューモデル=ビューモデル;
+            this.BindingContext=this.ビューモデル;
+            this.データグリッド更新バッチを購読();
 
-            var toolbar = this.CreateToolbar();
-            var content = this.CreateBenchmarkPanelContent();
+            var ツールバー = this.ツールバーを作成();
+            var 内容 = this.ベンチマークパネル内容を作成();
 
-            this.rootLayout=new Grid {
+            this.ルートレイアウト=new Grid {
                 RowDefinitions= {
                     new RowDefinition { Height = GridLength.Auto },
                     new RowDefinition { Height = GridLength.Star },
                 },
                 Children= {
-                    toolbar,
-                    content,
+                    ツールバー,
+                    内容,
                 },
             };
-            this.Content=this.rootLayout;
-            Grid.SetRow(content,1);
-            this.Loaded+=this.OnLoadedAsync;
-            this.Unloaded+=this.OnUnloaded;
-            StartupDiagnostics.Write("MainPage constructor completed.");
-        }
-        catch(Exception ex) {
-            StartupDiagnostics.Write("MainPage constructor failed.",ex);
-            this.Content=StartupDiagnostics.CreateErrorPage("Benchmark page failed",ex).Content;
+            this.Content=this.ルートレイアウト;
+            Grid.SetRow(内容,1);
+            this.Loaded+=this.読み込み時Async;
+            this.Unloaded+=this.アンロード時;
+            起動診断.書き込む("MainPageコンストラクターが完了しました。");
+        } catch(Exception 例外) {
+            起動診断.書き込む("MainPageコンストラクターに失敗しました。",例外);
+            this.Content=起動診断.エラーページを作成("ベンチマーク画面の作成に失敗しました",例外).Content;
         }
     }
 
-    private void OnUnloaded(object? sender,EventArgs args) {
-        this.UnsubscribeDataGridUpdateBatch();
-        this.EndAllDataGridViewUpdateBatches();
+    private void アンロード時(object? 送信元,EventArgs イベント引数) {
+        this.データグリッド更新バッチ購読を解除();
+        this.全データグリッドビュー更新バッチを終了();
     }
 
-    private async void OnLoadedAsync(object? sender,EventArgs args) {
-        if(this.viewModel is null) {
+    private async void 読み込み時Async(object? 送信元,EventArgs イベント引数) {
+        if(this.ビューモデル is null) {
             return;
         }
 
         try {
-            this.SubscribeDataGridUpdateBatch();
-            StartupDiagnostics.Write("MainPage InitializeAsync started.");
-            await this.viewModel.InitializeAsync();
-            StartupDiagnostics.Write("MainPage InitializeAsync completed.");
-        }
-        catch(Exception ex) {
-            StartupDiagnostics.Write("MainPage InitializeAsync failed.",ex);
-            this.viewModel.StatusText="起動時読み込み失敗: "+ex.Message;
+            this.データグリッド更新バッチを購読();
+            起動診断.書き込む("MainPage初期化Asyncを開始しました。");
+            await this.ビューモデル.初期化Async();
+            起動診断.書き込む("MainPage初期化Asyncが完了しました。");
+        } catch(Exception 例外) {
+            起動診断.書き込む("MainPage初期化Asyncに失敗しました。",例外);
+            this.ビューモデル.状態文字列="起動時読み込み失敗: "+例外.Message;
         }
     }
 
-    private void SubscribeDataGridUpdateBatch() {
-        if(this.viewModel is null||this.isDataGridUpdateBatchSubscribed) {
+    private void データグリッド更新バッチを購読() {
+        if(this.ビューモデル is null||this.データグリッド更新バッチ購読済みか) {
             return;
         }
 
-        this.viewModel.DataGridUpdateBatchChanged+=this.OnDataGridUpdateBatchChanged;
-        this.isDataGridUpdateBatchSubscribed=true;
+        this.ビューモデル.データグリッド更新バッチ変更時+=this.データグリッド更新バッチ変更時;
+        this.データグリッド更新バッチ購読済みか=true;
     }
 
-    private void UnsubscribeDataGridUpdateBatch() {
-        if(this.viewModel is null||!this.isDataGridUpdateBatchSubscribed) {
+    private void データグリッド更新バッチ購読を解除() {
+        if(this.ビューモデル is null||!this.データグリッド更新バッチ購読済みか) {
             return;
         }
 
-        this.viewModel.DataGridUpdateBatchChanged-=this.OnDataGridUpdateBatchChanged;
-        this.isDataGridUpdateBatchSubscribed=false;
+        this.ビューモデル.データグリッド更新バッチ変更時-=this.データグリッド更新バッチ変更時;
+        this.データグリッド更新バッチ購読済みか=false;
     }
 
-    private void RegisterDataGridUpdateBatchTarget(SfDataGrid grid) {
-        if(this.dataGridUpdateBatchTargets.Contains(grid)) {
+    private void データグリッド更新バッチ対象を登録(SfDataGrid グリッド) {
+        if(this.データグリッド更新バッチ対象一覧.Contains(グリッド)) {
             return;
         }
 
-        this.dataGridUpdateBatchTargets.Add(grid);
-        grid.HandlerChanged+=(_,_) => {
-            if(this.dataGridUpdateBatchDepth>0) {
-                this.BeginDataGridViewUpdate(grid);
+        this.データグリッド更新バッチ対象一覧.Add(グリッド);
+        グリッド.HandlerChanged+=(_,_) => {
+            if(this.データグリッド更新バッチ深度>0) {
+                this.データグリッドビュー更新を開始(グリッド);
             }
         };
-        if(this.dataGridUpdateBatchDepth>0) {
-            this.BeginDataGridViewUpdate(grid);
+        if(this.データグリッド更新バッチ深度>0) {
+            this.データグリッドビュー更新を開始(グリッド);
         }
     }
 
-    private void OnDataGridUpdateBatchChanged(object? sender,BenchmarkDataGridUpdateBatchEventArgs args) {
-        StartupDiagnostics.BeginInvokeOnMainThread(
-            args.IsBeginning ? "data grid update batch begin" : "data grid update batch end",
+    private void データグリッド更新バッチ変更時(object? 送信元,ベンチマークデータグリッド更新バッチイベント引数 イベント引数) {
+        起動診断.メインスレッドで呼び出し開始(
+            イベント引数.開始時か ? "データグリッド更新バッチ開始" : "データグリッド更新バッチ終了",
             () => {
-                if(args.IsBeginning) {
-                    this.BeginDataGridViewUpdateBatch();
+                if(イベント引数.開始時か) {
+                    this.データグリッドビュー更新バッチを開始();
                     return;
                 }
 
-                this.EndDataGridViewUpdateBatch();
+                this.データグリッドビュー更新バッチを終了();
             });
     }
 
-    private void BeginDataGridViewUpdateBatch() {
-        if(this.dataGridUpdateBatchDepth++>0) {
+    private void データグリッドビュー更新バッチを開始() {
+        if(this.データグリッド更新バッチ深度++>0) {
             return;
         }
 
-        foreach(var grid in this.dataGridUpdateBatchTargets.ToArray()) {
-            this.BeginDataGridViewUpdate(grid);
+        foreach(var グリッド in this.データグリッド更新バッチ対象一覧.ToArray()) {
+            this.データグリッドビュー更新を開始(グリッド);
         }
     }
 
-    private void EndDataGridViewUpdateBatch() {
-        if(this.dataGridUpdateBatchDepth<=0) {
+    private void データグリッドビュー更新バッチを終了() {
+        if(this.データグリッド更新バッチ深度<=0) {
             return;
         }
 
-        this.dataGridUpdateBatchDepth--;
-        if(this.dataGridUpdateBatchDepth>0) {
+        this.データグリッド更新バッチ深度--;
+        if(this.データグリッド更新バッチ深度>0) {
             return;
         }
 
-        this.EndStartedDataGridViewUpdates();
+        this.開始済みデータグリッドビュー更新を終了();
     }
 
-    private void EndAllDataGridViewUpdateBatches() {
-        this.dataGridUpdateBatchDepth=0;
-        this.EndStartedDataGridViewUpdates();
+    private void 全データグリッドビュー更新バッチを終了() {
+        this.データグリッド更新バッチ深度=0;
+        this.開始済みデータグリッドビュー更新を終了();
     }
 
-    private void BeginDataGridViewUpdate(SfDataGrid grid) {
-        if(this.dataGridUpdateBatchStartedTargets.Contains(grid)) {
+    private void データグリッドビュー更新を開始(SfDataGrid グリッド) {
+        if(this.データグリッド更新バッチ開始済み対象一覧.Contains(グリッド)) {
             return;
         }
 
         try {
-            var view = grid.View;
-            if(view is null) {
+            var ビュー = グリッド.View;
+            if(ビュー is null) {
                 return;
             }
 
-            view.BeginInit();
-            this.dataGridUpdateBatchStartedTargets.Add(grid);
-        }
-        catch(Exception ex) {
-            StartupDiagnostics.Write("SfDataGrid View.BeginInit failed.",ex);
+            ビュー.BeginInit();
+            this.データグリッド更新バッチ開始済み対象一覧.Add(グリッド);
+        } catch(Exception 例外) {
+            起動診断.書き込む("SfDataGrid View.BeginInitに失敗しました。",例外);
         }
     }
 
-    private void EndStartedDataGridViewUpdates() {
-        var started = this.dataGridUpdateBatchStartedTargets.ToArray();
-        Array.Reverse(started);
-        foreach(var grid in started) {
+    private void 開始済みデータグリッドビュー更新を終了() {
+        var 開始済みグリッド一覧 = this.データグリッド更新バッチ開始済み対象一覧.ToArray();
+        Array.Reverse(開始済みグリッド一覧);
+        foreach(var グリッド in 開始済みグリッド一覧) {
             try {
-                grid.View?.EndInit();
-            }
-            catch(Exception ex) {
-                StartupDiagnostics.Write("SfDataGrid View.EndInit failed.",ex);
+                グリッド.View?.EndInit();
+            } catch(Exception 例外) {
+                起動診断.書き込む("SfDataGrid View.EndInitに失敗しました。",例外);
             }
         }
-        this.dataGridUpdateBatchStartedTargets.Clear();
+        this.データグリッド更新バッチ開始済み対象一覧.Clear();
     }
 
-    public async Task<bool> RequestCloseAsync() {
-        if(this.viewModel is null) {
+    public async Task<bool> 終了を要求Async() {
+        if(this.ビューモデル is null) {
             return true;
         }
 
-        var isBenchmarkActive = this.viewModel.IsBenchmarkRunActive;
-        var isBenchmarkPaused = this.viewModel.IsBenchmarkPaused;
-        var hasUnsavedResults = this.viewModel.HasUnsavedBenchmarkResults;
-        if(!BenchmarkCloseDialogLogic.RequiresDialog(isBenchmarkActive,isBenchmarkPaused,hasUnsavedResults)) {
-            await this.viewModel.PrepareForCloseAsync();
+        var ベンチマーク有効か = this.ビューモデル.ベンチマーク実行有効か;
+        var ベンチマーク一時停止中か = this.ビューモデル.ベンチマーク一時停止中か;
+        var 未保存結果ありか = this.ビューモデル.未保存ベンチマーク結果ありか;
+        if(!ベンチマーク終了ダイアログロジック.ダイアログが必要か(ベンチマーク有効か,ベンチマーク一時停止中か,未保存結果ありか)) {
+            await this.ビューモデル.終了準備Async();
             return true;
         }
 
-        var action = await this.ShowCloseConfirmDialogAsync(isBenchmarkActive,isBenchmarkPaused,hasUnsavedResults);
-        if(action==BenchmarkCloseAction.Cancel) {
+        var 操作 = await this.終了確認ダイアログを表示Async(ベンチマーク有効か,ベンチマーク一時停止中か,未保存結果ありか);
+        if(操作==ベンチマーク終了操作.キャンセル) {
             return false;
         }
 
-        if(BenchmarkCloseDialogLogic.ShouldDiscardUnsavedResultsBeforeClose(isBenchmarkActive,isBenchmarkPaused,hasUnsavedResults,action)) {
-            this.viewModel.DiscardUnsavedBenchmarkResults();
+        if(ベンチマーク終了ダイアログロジック.閉じる前に未保存結果を破棄するか(ベンチマーク有効か,ベンチマーク一時停止中か,未保存結果ありか,操作)) {
+            this.ビューモデル.未保存ベンチマーク結果を破棄();
         }
 
-        if(isBenchmarkActive||isBenchmarkPaused) {
-            this.viewModel.StatusText="終了前に停止しています...";
-            var stopTask = this.viewModel.StopAsync();
-            if(!await this.WaitForBenchmarkStopBeforeCloseAsync(stopTask)) {
+        if(ベンチマーク有効か||ベンチマーク一時停止中か) {
+            this.ビューモデル.状態文字列="終了前に停止しています...";
+            var 停止タスク = this.ビューモデル.停止Async();
+            if(!await this.終了前のベンチマーク停止を待機Async(停止タスク)) {
                 return false;
             }
         }
 
-        await this.viewModel.PrepareForCloseAsync();
+        await this.ビューモデル.終了準備Async();
         return true;
     }
 
-    private async Task<bool> WaitForBenchmarkStopBeforeCloseAsync(Task stopTask) {
-        var quickWait = await Task.WhenAny(stopTask,Task.Delay(350));
-        if(ReferenceEquals(quickWait,stopTask)) {
-            await stopTask;
+    private async Task<bool> 終了前のベンチマーク停止を待機Async(Task 停止タスク) {
+        var 短時間待機 = await Task.WhenAny(停止タスク,Task.Delay(350));
+        if(ReferenceEquals(短時間待機,停止タスク)) {
+            await 停止タスク;
             return true;
         }
 
-        var dialogTask = this.ShowConfirmDialogAsync(
+        var ダイアログタスク = this.確認ダイアログを表示Async(
             "停止待ち",
             "実行中のベンチマークを停止しています。停止しない場合は強制終了できます。",
             [
-                new ConfirmDialogOption("強制終了","force",ConfirmDialogButtonKind.Danger),
-                new ConfirmDialogOption("キャンセル","cancel",ConfirmDialogButtonKind.Neutral),
+                new 確認ダイアログ選択肢("強制終了","強制終了",確認ダイアログボタン種別.危険),
+                new 確認ダイアログ選択肢("キャンセル","キャンセル",確認ダイアログボタン種別.中立),
             ]);
-        var completed = await Task.WhenAny(stopTask,dialogTask);
-        if(ReferenceEquals(completed,stopTask)) {
-            if(this.rootLayout is { } root) {
-                this.CompleteActiveDialog(root,"stopped");
+        var 完了したか = await Task.WhenAny(停止タスク,ダイアログタスク);
+        if(ReferenceEquals(完了したか,停止タスク)) {
+            if(this.ルートレイアウト is { } ルート) {
+                this.有効ダイアログを完了(ルート,"停止済み");
             }
-            await stopTask;
+            await 停止タスク;
             return true;
         }
 
-        var action = await dialogTask;
-        if(string.Equals(action,"force",StringComparison.OrdinalIgnoreCase)) {
+        var 操作 = await ダイアログタスク;
+        if(string.Equals(操作,"強制終了",StringComparison.Ordinal)) {
             return true;
         }
 
         return false;
     }
 
-    private void ShowBenchmarkSortDialog() {
-        var root = this.rootLayout;
-        if(root is null||this.viewModel is null) {
+    private void ベンチマークソートダイアログを表示() {
+        var ルート = this.ルートレイアウト;
+        if(ルート is null||this.ビューモデル is null) {
             return;
         }
 
-        this.CompleteActiveDialog(root,string.Empty);
-        var overlay = this.CreateBenchmarkSortDialogOverlay(() => this.CompleteActiveDialog(root,string.Empty));
-        this.activeDialogOverlay=overlay;
-        this.activeDialogCompletion=null;
-        this.activeDialogFallbackValue=string.Empty;
-        root.Add(overlay,0,0);
-        Grid.SetRowSpan(overlay,2);
+        this.有効ダイアログを完了(ルート,string.Empty);
+        var オーバーレイ = this.ベンチマークソートダイアログオーバーレイを作成(() => this.有効ダイアログを完了(ルート,string.Empty));
+        this.有効ダイアログオーバーレイ=オーバーレイ;
+        this.有効ダイアログ完了ソース=null;
+        this.有効ダイアログフォールバック値=string.Empty;
+        ルート.Add(オーバーレイ,0,0);
+        Grid.SetRowSpan(オーバーレイ,2);
     }
 
-    private View CreateBenchmarkSortDialogOverlay(Action close) {
-        var overlay = new Grid {
+    private View ベンチマークソートダイアログオーバーレイを作成(Action 閉じる) {
+        var オーバーレイ = new Grid {
             BackgroundColor=Color.FromRgba(15,23,42,110),
             Padding=new Thickness(24),
             HorizontalOptions=LayoutOptions.Fill,
             VerticalOptions=LayoutOptions.Fill,
             InputTransparent=false,
         };
-        overlay.BindingContext=this.viewModel;
-        var card = new Border {
+        オーバーレイ.BindingContext=this.ビューモデル;
+        var カード = new Border {
             BackgroundColor=Colors.White,
             Stroke=Color.FromArgb("#CBD5E1"),
             StrokeThickness=1,
@@ -374,7 +362,7 @@ public sealed partial class MainPage:ContentPage {
             HorizontalOptions=LayoutOptions.Center,
             VerticalOptions=LayoutOptions.Center,
         };
-        var content = new Grid {
+        var 内容 = new Grid {
             RowDefinitions= {
                 new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Auto },
@@ -383,48 +371,48 @@ public sealed partial class MainPage:ContentPage {
             },
             RowSpacing=12,
         };
-        content.Add(new Label {
+        内容.Add(new Label {
             Text="ソート設定",
             FontSize=18,
             FontAttributes=FontAttributes.Bold,
             TextColor=Color.FromArgb("#0F172A"),
             HorizontalTextAlignment=TextAlignment.Center,
         },0,0);
-        var summary = new Label {
+        var 概要 = new Label {
             FontSize=12,
             TextColor=Color.FromArgb("#334155"),
             LineBreakMode=LineBreakMode.TailTruncation,
             HorizontalTextAlignment=TextAlignment.Center,
         };
-        summary.SetBinding(Label.TextProperty,nameof(RunnerViewModel.BenchmarkSortSummaryText));
-        content.Add(summary,0,1);
-        content.Add(this.CreateBenchmarkSortRuleList(),0,2);
-        content.Add(this.CreateBenchmarkSortDialogButtons(close),0,3);
-        card.Content=content;
-        overlay.Children.Add(card);
-        return overlay;
+        概要.SetBinding(Label.TextProperty,nameof(実行ビューモデル.ベンチマークソート概要文字列));
+        内容.Add(概要,0,1);
+        内容.Add(this.ベンチマークソート規則一覧を作成(),0,2);
+        内容.Add(this.ベンチマークソートダイアログボタンを作成(閉じる),0,3);
+        カード.Content=内容;
+        オーバーレイ.Children.Add(カード);
+        return オーバーレイ;
     }
 
-    private View CreateBenchmarkSortRuleList() {
-        var list = new CollectionView {
+    private View ベンチマークソート規則一覧を作成() {
+        var 一覧 = new CollectionView {
             SelectionMode=SelectionMode.None,
             ItemsLayout=new LinearItemsLayout(ItemsLayoutOrientation.Vertical) {
                 ItemSpacing=3,
             },
-            ItemTemplate=new DataTemplate(() => this.CreateBenchmarkSortRuleRow()),
+            ItemTemplate=new DataTemplate(() => this.ベンチマークソート規則行を作成()),
         };
-        list.SetBinding(ItemsView.ItemsSourceProperty,nameof(RunnerViewModel.BenchmarkSortRules));
+        一覧.SetBinding(ItemsView.ItemsSourceProperty,nameof(実行ビューモデル.ベンチマークソート規則一覧));
         return new Border {
             Stroke=Color.FromArgb("#CBD5E1"),
             StrokeThickness=1,
             BackgroundColor=Color.FromArgb("#F8FAFC"),
             Padding=new Thickness(8),
-            Content=list,
+            Content=一覧,
         };
     }
 
-    private View CreateBenchmarkSortRuleRow() {
-        var row = new Grid {
+    private View ベンチマークソート規則行を作成() {
+        var 行 = new Grid {
             ColumnDefinitions= {
                 new ColumnDefinition { Width = new GridLength(32) },
                 new ColumnDefinition { Width = new GridLength(220) },
@@ -438,7 +426,7 @@ public sealed partial class MainPage:ContentPage {
             BackgroundColor=Colors.White,
             MinimumHeightRequest=34,
         };
-        var handle = new Image {
+        var ハンドル = new Image {
             Source=ImageSource.FromFile("drag_handle.png"),
             WidthRequest=18,
             HeightRequest=18,
@@ -446,93 +434,93 @@ public sealed partial class MainPage:ContentPage {
             VerticalOptions=LayoutOptions.Center,
             HorizontalOptions=LayoutOptions.Center,
         };
-        handle.SetValue(ToolTipProperties.TextProperty,"ドラッグで並び替え");
-        var picker = new Picker {
+        ハンドル.SetValue(ToolTipProperties.TextProperty,"ドラッグで並び替え");
+        var ピッカー = new Picker {
             HeightRequest=28,
-            ItemDisplayBinding=new Binding(nameof(BenchmarkSortColumnOption.DisplayName)),
+            ItemDisplayBinding=new Binding(nameof(ベンチマークソート列選択肢.表示名)),
             Margin=new Thickness(0),
         };
-        picker.ItemsSource=this.viewModel?.BenchmarkSortColumnOptions;
-        var direction = this.CreateSortRuleIconButton("sort_asc.png","昇順/降順を切り替え");
-        var up = this.CreateSortRuleIconButton("arrow_up.png","上へ移動");
-        var down = this.CreateSortRuleIconButton("arrow_down.png","下へ移動");
-        var remove = this.CreateSortRuleIconButton("delete.png","削除");
-        foreach(var editButton in new[] { picker as VisualElement,direction,up,down,remove }) {
-            editButton.SetBinding(VisualElement.IsEnabledProperty,new Binding(nameof(RunnerViewModel.IsSortRuleEditingEnabled),source: this.viewModel));
+        ピッカー.ItemsSource=this.ビューモデル?.ベンチマークソート列選択肢一覧;
+        var 方向 = this.ソート規則アイコンボタンを作成("sort_asc.png","昇順/降順を切り替え");
+        var 上 = this.ソート規則アイコンボタンを作成("arrow_up.png","上へ移動");
+        var 下 = this.ソート規則アイコンボタンを作成("arrow_down.png","下へ移動");
+        var 削除 = this.ソート規則アイコンボタンを作成("delete.png","削除");
+        foreach(var 編集ボタン in new[] { ピッカー as VisualElement,方向,上,下,削除 }) {
+            編集ボタン.SetBinding(VisualElement.IsEnabledProperty,new Binding(nameof(実行ビューモデル.ソート規則編集可能か),source: this.ビューモデル));
         }
 
-        void RefreshPicker() {
-            if(row.BindingContext is not BenchmarkSortRule rule||this.viewModel is null) {
+        void ピッカーを更新() {
+            if(行.BindingContext is not ベンチマークソート規則 規則||this.ビューモデル is null) {
                 return;
             }
-            picker.ItemsSource=this.viewModel.BenchmarkSortColumnOptions;
-            picker.SelectedItem=this.viewModel.BenchmarkSortColumnOptions.FirstOrDefault(option => option.Column==rule.Column);
-            direction.Source=ImageSource.FromFile(rule.Descending ? "sort_desc.png" : "sort_asc.png");
-            direction.SetValue(ToolTipProperties.TextProperty,rule.Descending ? "降順" : "昇順");
+            ピッカー.ItemsSource=this.ビューモデル.ベンチマークソート列選択肢一覧;
+            ピッカー.SelectedItem=this.ビューモデル.ベンチマークソート列選択肢一覧.FirstOrDefault(選択肢 => 選択肢.列==規則.列);
+            方向.Source=ImageSource.FromFile(規則.降順か ? "sort_desc.png" : "sort_asc.png");
+            方向.SetValue(ToolTipProperties.TextProperty,規則.降順か ? "降順" : "昇順");
         }
 
-        row.BindingContextChanged+=(_,_) => RefreshPicker();
-        direction.BindingContextChanged+=(_,_) => RefreshPicker();
-        picker.SelectedIndexChanged+=(_,_) => {
-            if(row.BindingContext is BenchmarkSortRule rule
-                &&picker.SelectedItem is BenchmarkSortColumnOption option) {
-                this.viewModel?.SetBenchmarkSortRuleColumn(rule,option.Column);
+        行.BindingContextChanged+=(_,_) => ピッカーを更新();
+        方向.BindingContextChanged+=(_,_) => ピッカーを更新();
+        ピッカー.SelectedIndexChanged+=(_,_) => {
+            if(行.BindingContext is ベンチマークソート規則 規則
+                &&ピッカー.SelectedItem is ベンチマークソート列選択肢 選択肢) {
+                this.ビューモデル?.ベンチマークソート規則列を設定(規則,選択肢.列);
             }
         };
-        direction.Clicked+=(_,_) => {
-            if(row.BindingContext is BenchmarkSortRule rule) {
-                this.viewModel?.ToggleBenchmarkSortRuleDirection(rule);
-                RefreshPicker();
+        方向.Clicked+=(_,_) => {
+            if(行.BindingContext is ベンチマークソート規則 規則) {
+                this.ビューモデル?.ベンチマークソート規則方向を切り替え(規則);
+                ピッカーを更新();
             }
         };
-        up.Clicked+=(_,_) => {
-            if(row.BindingContext is BenchmarkSortRule rule) {
-                this.viewModel?.MoveBenchmarkSortRuleUp(rule);
+        上.Clicked+=(_,_) => {
+            if(行.BindingContext is ベンチマークソート規則 規則) {
+                this.ビューモデル?.ベンチマークソート規則を上へ移動(規則);
             }
         };
-        down.Clicked+=(_,_) => {
-            if(row.BindingContext is BenchmarkSortRule rule) {
-                this.viewModel?.MoveBenchmarkSortRuleDown(rule);
+        下.Clicked+=(_,_) => {
+            if(行.BindingContext is ベンチマークソート規則 規則) {
+                this.ビューモデル?.ベンチマークソート規則を下へ移動(規則);
             }
         };
-        remove.Clicked+=(_,_) => {
-            if(row.BindingContext is BenchmarkSortRule rule) {
-                this.viewModel?.RemoveBenchmarkSortRule(rule);
+        削除.Clicked+=(_,_) => {
+            if(行.BindingContext is ベンチマークソート規則 規則) {
+                this.ビューモデル?.ベンチマークソート規則を削除(規則);
             }
         };
 
-        var drag = new DragGestureRecognizer();
-        drag.DragStarting+=(_,args) => {
-            if(this.viewModel?.IsSortRuleEditingEnabled!=true) {
-                args.Cancel=true;
+        var ドラッグ = new DragGestureRecognizer();
+        ドラッグ.DragStarting+=(_,イベント引数) => {
+            if(this.ビューモデル?.ソート規則編集可能か!=true) {
+                イベント引数.Cancel=true;
                 return;
             }
-            this.draggedBenchmarkSortRule=row.BindingContext as BenchmarkSortRule;
+            this.ドラッグ中ベンチマークソート規則=行.BindingContext as ベンチマークソート規則;
         };
-        var drop = new DropGestureRecognizer();
-        drop.Drop+=(_,_) => {
-            if(this.viewModel?.IsSortRuleEditingEnabled==true
-                &&this.draggedBenchmarkSortRule is not null
-                &&row.BindingContext is BenchmarkSortRule target) {
-                this.viewModel?.MoveBenchmarkSortRule(this.draggedBenchmarkSortRule,target);
+        var ドロップ = new DropGestureRecognizer();
+        ドロップ.Drop+=(_,_) => {
+            if(this.ビューモデル?.ソート規則編集可能か==true
+                &&this.ドラッグ中ベンチマークソート規則 is not null
+                &&行.BindingContext is ベンチマークソート規則 対象) {
+                this.ビューモデル?.ベンチマークソート規則を移動(this.ドラッグ中ベンチマークソート規則,対象);
             }
-            this.draggedBenchmarkSortRule=null;
+            this.ドラッグ中ベンチマークソート規則=null;
         };
-        row.GestureRecognizers.Add(drag);
-        row.GestureRecognizers.Add(drop);
+        行.GestureRecognizers.Add(ドラッグ);
+        行.GestureRecognizers.Add(ドロップ);
 
-        row.Add(handle,0,0);
-        row.Add(picker,1,0);
-        row.Add(direction,2,0);
-        row.Add(up,3,0);
-        row.Add(down,4,0);
-        row.Add(remove,5,0);
-        return row;
+        行.Add(ハンドル,0,0);
+        行.Add(ピッカー,1,0);
+        行.Add(方向,2,0);
+        行.Add(上,3,0);
+        行.Add(下,4,0);
+        行.Add(削除,5,0);
+        return 行;
     }
 
-    private ImageButton CreateSortRuleIconButton(string imageSource,string tooltipText) {
-        var button = new ImageButton {
-            Source=ImageSource.FromFile(imageSource),
+    private ImageButton ソート規則アイコンボタンを作成(string 画像ソース,string ツールチップ文言) {
+        var ボタン = new ImageButton {
+            Source=ImageSource.FromFile(画像ソース),
             WidthRequest=28,
             HeightRequest=28,
             Padding=new Thickness(5),
@@ -543,44 +531,44 @@ public sealed partial class MainPage:ContentPage {
             Aspect=Aspect.AspectFit,
             Margin=new Thickness(0),
         };
-        button.SetValue(ToolTipProperties.TextProperty,tooltipText);
-        ConfigurePressFeedback(button);
-        return button;
+        ボタン.SetValue(ToolTipProperties.TextProperty,ツールチップ文言);
+        押下フィードバックを設定(ボタン);
+        return ボタン;
     }
 
-    private View CreateBenchmarkSortDialogButtons(Action close) {
-        var add = this.CreateConfirmDialogButton(new ConfirmDialogOption("追加","add",ConfirmDialogButtonKind.Neutral));
-        var reset = this.CreateConfirmDialogButton(new ConfirmDialogOption("既定順","reset",ConfirmDialogButtonKind.Neutral));
-        var closeButton = this.CreateConfirmDialogButton(new ConfirmDialogOption("閉じる","close",ConfirmDialogButtonKind.Primary));
-        add.SetBinding(VisualElement.IsEnabledProperty,new Binding(nameof(RunnerViewModel.IsSortRuleEditingEnabled),source: this.viewModel));
-        reset.SetBinding(VisualElement.IsEnabledProperty,new Binding(nameof(RunnerViewModel.IsSortRuleEditingEnabled),source: this.viewModel));
-        add.Clicked+=(_,_) => this.viewModel?.AddBenchmarkSortRule();
-        reset.Clicked+=(_,_) => this.viewModel?.ResetBenchmarkSortRules();
-        closeButton.Clicked+=(_,_) => close();
+    private View ベンチマークソートダイアログボタンを作成(Action 閉じる) {
+        var 追加 = this.確認ダイアログボタンを作成(new 確認ダイアログ選択肢("追加","追加",確認ダイアログボタン種別.中立));
+        var リセット = this.確認ダイアログボタンを作成(new 確認ダイアログ選択肢("既定順","リセット",確認ダイアログボタン種別.中立));
+        var 閉じるボタン = this.確認ダイアログボタンを作成(new 確認ダイアログ選択肢("閉じる","閉じる",確認ダイアログボタン種別.主要));
+        追加.SetBinding(VisualElement.IsEnabledProperty,new Binding(nameof(実行ビューモデル.ソート規則編集可能か),source: this.ビューモデル));
+        リセット.SetBinding(VisualElement.IsEnabledProperty,new Binding(nameof(実行ビューモデル.ソート規則編集可能か),source: this.ビューモデル));
+        追加.Clicked+=(_,_) => this.ビューモデル?.ベンチマークソート規則を追加();
+        リセット.Clicked+=(_,_) => this.ビューモデル?.ベンチマークソート規則をリセット();
+        閉じるボタン.Clicked+=(_,_) => 閉じる();
         return new HorizontalStackLayout {
             Spacing=10,
             HorizontalOptions=LayoutOptions.Center,
             Children= {
-                add,
-                reset,
-                closeButton,
+                追加,
+                リセット,
+                閉じるボタン,
             },
         };
     }
 
-    private View CreateToolbar() {
-        var runButton = this.CreateToolbarTextButton("計測");
-        this.BindToolbarButtonState(runButton,BenchmarkToolbarButtonRole.Run);
-        var stopButton = this.CreateToolbarIconButton(
+    private View ツールバーを作成() {
+        var 実行ボタン = this.ツールバーテキストボタンを作成("計測");
+        this.ツールバーボタン状態をバインド(実行ボタン,ベンチマークツールバーボタン役割.実行);
+        var 停止ボタン = this.ツールバーアイコンボタンを作成(
             "stop.png",
             "停止");
-        this.BindToolbarButtonState(stopButton,BenchmarkToolbarButtonRole.Stop);
-        var saveDatabaseButton = this.CreateToolbarTextButton("DB保存");
-        this.BindToolbarButtonState(saveDatabaseButton,BenchmarkToolbarButtonRole.SaveDatabase);
-        var newGridButton = this.CreateToolbarTextButton("新規");
-        this.BindToolbarButtonState(newGridButton,BenchmarkToolbarButtonRole.NewGrid);
+        this.ツールバーボタン状態をバインド(停止ボタン,ベンチマークツールバーボタン役割.停止);
+        var DB保存ボタン = this.ツールバーテキストボタンを作成("DB保存");
+        this.ツールバーボタン状態をバインド(DB保存ボタン,ベンチマークツールバーボタン役割.DB保存);
+        var 新規グリッドボタン = this.ツールバーテキストボタンを作成("新規");
+        this.ツールバーボタン状態をバインド(新規グリッドボタン,ベンチマークツールバーボタン役割.新規グリッド);
 #if DEBUG
-        var infiniteButton = new Button {
+        var 無限実行ボタン = new Button {
             Text="永久実行",
             HeightRequest=30,
             MinimumWidthRequest=92,
@@ -593,49 +581,49 @@ public sealed partial class MainPage:ContentPage {
             TextColor=Color.FromArgb("#334155"),
             CornerRadius=6,
         };
-        ConfigurePressFeedback(infiniteButton);
-        this.BindToolbarButtonState(infiniteButton,BenchmarkToolbarButtonRole.RunInfinite);
+        押下フィードバックを設定(無限実行ボタン);
+        this.ツールバーボタン状態をバインド(無限実行ボタン,ベンチマークツールバーボタン役割.無限実行);
 #endif
-        var thresholdPicker = new Picker {
+        var しきい値ピッカー = new Picker {
             WidthRequest=112,
             HeightRequest=30,
-            ItemDisplayBinding=new Binding(nameof(ThresholdOption.DisplayName)),
+            ItemDisplayBinding=new Binding(nameof(閾値選択肢.表示名)),
             Margin=new Thickness(0),
         };
-        thresholdPicker.SetBinding(Picker.ItemsSourceProperty,nameof(RunnerViewModel.ThresholdOptions));
-        thresholdPicker.SetBinding(Picker.SelectedItemProperty,nameof(RunnerViewModel.SelectedThreshold));
-        thresholdPicker.SetBinding(IsEnabledProperty,nameof(RunnerViewModel.CanChangeBenchmarkConditions));
+        しきい値ピッカー.SetBinding(Picker.ItemsSourceProperty,nameof(実行ビューモデル.閾値選択肢一覧));
+        しきい値ピッカー.SetBinding(Picker.SelectedItemProperty,nameof(実行ビューモデル.選択閾値));
+        しきい値ピッカー.SetBinding(IsEnabledProperty,nameof(実行ビューモデル.ベンチマーク条件を変更可能か));
 
-        var executionProfilePicker = new Picker {
+        var 実行プロファイルピッカー = new Picker {
             WidthRequest=96,
             HeightRequest=30,
-            ItemDisplayBinding=new Binding(nameof(ExecutionProfileOption.DisplayName)),
+            ItemDisplayBinding=new Binding(nameof(実行プロファイル選択肢.表示名)),
             Margin=new Thickness(0),
         };
-        executionProfilePicker.SetBinding(Picker.ItemsSourceProperty,nameof(RunnerViewModel.ExecutionProfiles));
-        executionProfilePicker.SetBinding(Picker.SelectedItemProperty,nameof(RunnerViewModel.SelectedExecutionProfile));
-        executionProfilePicker.SetBinding(IsEnabledProperty,nameof(RunnerViewModel.CanChangeBenchmarkConditions));
+        実行プロファイルピッカー.SetBinding(Picker.ItemsSourceProperty,nameof(実行ビューモデル.実行プロファイル一覧));
+        実行プロファイルピッカー.SetBinding(Picker.SelectedItemProperty,nameof(実行ビューモデル.選択実行プロファイル));
+        実行プロファイルピッカー.SetBinding(IsEnabledProperty,nameof(実行ビューモデル.ベンチマーク条件を変更可能か));
 
-        var runPicker = new Picker {
+        var 実行履歴ピッカー = new Picker {
             WidthRequest=220,
             HeightRequest=30,
-            ItemDisplayBinding=new Binding(nameof(BenchmarkRunOption.DisplayName)),
+            ItemDisplayBinding=new Binding(nameof(ベンチマーク実行選択肢.表示名)),
             Margin=new Thickness(0),
         };
-        runPicker.SetBinding(Picker.ItemsSourceProperty,nameof(RunnerViewModel.RunOptions));
-        runPicker.SetBinding(Picker.SelectedItemProperty,nameof(RunnerViewModel.SelectedRunOption));
-        runPicker.SetBinding(IsEnabledProperty,nameof(RunnerViewModel.CanSelectRunHistory));
+        実行履歴ピッカー.SetBinding(Picker.ItemsSourceProperty,nameof(実行ビューモデル.実行選択肢一覧));
+        実行履歴ピッカー.SetBinding(Picker.SelectedItemProperty,nameof(実行ビューモデル.選択実行選択肢));
+        実行履歴ピッカー.SetBinding(IsEnabledProperty,nameof(実行ビューモデル.実行履歴を選択可能か));
         //DB削除アイコン
-        var clearRunHistoryButton = this.CreateToolbarIconButton("delete.png","履歴消去");
-        clearRunHistoryButton.SetBinding(IsEnabledProperty,nameof(RunnerViewModel.CanClearRunHistory));
-        clearRunHistoryButton.SetBinding(
+        var 実行履歴消去ボタン = this.ツールバーアイコンボタンを作成("delete.png","履歴消去");
+        実行履歴消去ボタン.SetBinding(IsEnabledProperty,nameof(実行ビューモデル.実行履歴をクリア可能か));
+        実行履歴消去ボタン.SetBinding(
             OpacityProperty,
-            new Binding(nameof(RunnerViewModel.CanClearRunHistory),converter:new EnabledOpacityConverter()));
-        clearRunHistoryButton.SetBinding(
+            new Binding(nameof(実行ビューモデル.実行履歴をクリア可能か),converter: new 有効時不透明度コンバーター()));
+        実行履歴消去ボタン.SetBinding(
             ToolTipProperties.TextProperty,
-            nameof(RunnerViewModel.ClearRunHistoryTooltipText));
-        clearRunHistoryButton.Clicked+=async (_,_) => await this.ShowClearRunHistoryConfirmDialogAsync();
-        var grid = new Grid {
+            nameof(実行ビューモデル.実行履歴クリアツールチップ文字列));
+        実行履歴消去ボタン.Clicked+=async (_,_) => await this.実行履歴消去確認ダイアログを表示Async();
+        var グリッド = new Grid {
             Padding=new Thickness(8,4,8,3),
             RowDefinitions= {
                 new RowDefinition { Height = GridLength.Auto },
@@ -656,51 +644,51 @@ public sealed partial class MainPage:ContentPage {
             },
             ColumnSpacing=6,
         };
-        grid.Add(this.ToolbarLabel("測定時間"),0,0);
-        grid.Add(thresholdPicker,1,0);
-        grid.Add(this.ToolbarLabel("モード"),2,0);
-        grid.Add(executionProfilePicker,3,0);
-        grid.Add(runButton,4,0);
-        grid.Add(stopButton,5,0);
-        grid.Add(saveDatabaseButton,6,0);
-        grid.Add(newGridButton,7,0);
+        グリッド.Add(this.ツールバーラベルを作成("測定時間"),0,0);
+        グリッド.Add(しきい値ピッカー,1,0);
+        グリッド.Add(this.ツールバーラベルを作成("モード"),2,0);
+        グリッド.Add(実行プロファイルピッカー,3,0);
+        グリッド.Add(実行ボタン,4,0);
+        グリッド.Add(停止ボタン,5,0);
+        グリッド.Add(DB保存ボタン,6,0);
+        グリッド.Add(新規グリッドボタン,7,0);
 #if DEBUG
-        grid.Add(infiniteButton,8,0);
-        grid.Add(this.ToolbarLabel("結果"),9,0);
-        grid.Add(runPicker,10,0);
-        grid.Add(clearRunHistoryButton,11,0);
+        グリッド.Add(無限実行ボタン,8,0);
+        グリッド.Add(this.ツールバーラベルを作成("結果"),9,0);
+        グリッド.Add(実行履歴ピッカー,10,0);
+        グリッド.Add(実行履歴消去ボタン,11,0);
 #else
-        grid.Add(this.ToolbarLabel("結果"),8,0);
-        grid.Add(runPicker,9,0);
-        grid.Add(clearRunHistoryButton,10,0);
+        グリッド.Add(this.ツールバーラベルを作成("結果"),8,0);
+        グリッド.Add(実行履歴ピッカー,9,0);
+        グリッド.Add(実行履歴消去ボタン,10,0);
 #endif
-        return grid;
+        return グリッド;
     }
 
-    private View CreateStatusIconPreview() {
-        var layout = new HorizontalStackLayout {
+    private View 状態アイコンプレビューを作成() {
+        var レイアウト = new HorizontalStackLayout {
             Spacing=10,
             Padding=new Thickness(2,0,0,0),
             HorizontalOptions=LayoutOptions.Start,
             VerticalOptions=LayoutOptions.Center,
         };
-        foreach(var item in new[] {
-            ("待機",BenchmarkStatusImageNames.Waiting),
-            ("N完了",BenchmarkStatusImageNames.Completed),
-            ("完全完了",BenchmarkStatusImageNames.FinalCompleted),
-            ("失敗",BenchmarkStatusImageNames.Failed),
-            ("測定値なし",BenchmarkStatusImageNames.NoMeasurement),
-            ("CPU P",BenchmarkCpuCoreImageNames.Performance),
-            ("CPU E",BenchmarkCpuCoreImageNames.Efficiency),
+        foreach(var (文言,画像ソース) in new[] {
+            ("待機",ベンチマーク状態画像名.待機中),
+            ("指定回数完了",ベンチマーク状態画像名.完了),
+            ("完全完了",ベンチマーク状態画像名.最終完了),
+            ("失敗",ベンチマーク状態画像名.失敗),
+            ("測定値なし",ベンチマーク状態画像名.測定なし),
+            ("CPU 高性能",ベンチマークCPUコア画像名.高性能),
+            ("CPU 高効率",ベンチマークCPUコア画像名.高効率),
         }) {
-            layout.Add(this.CreateStatusIconPreviewItem(item.Item1,item.Item2));
+            レイアウト.Add(this.状態アイコンプレビュー項目を作成(文言,画像ソース));
         }
 
-        return layout;
+        return レイアウト;
     }
 
-    private View CreateStatusIconPreviewItem(string text,string imageSource) {
-        var grid = new Grid {
+    private View 状態アイコンプレビュー項目を作成(string テキスト,string 画像ソース) {
+        var グリッド = new Grid {
             ColumnDefinitions= {
                 new ColumnDefinition { Width = new GridLength(18) },
                 new ColumnDefinition { Width = GridLength.Auto },
@@ -708,26 +696,26 @@ public sealed partial class MainPage:ContentPage {
             ColumnSpacing=3,
             VerticalOptions=LayoutOptions.Center,
         };
-        grid.Add(new Image {
-            Source=ImageSource.FromFile(imageSource),
+        グリッド.Add(new Image {
+            Source=ImageSource.FromFile(画像ソース),
             WidthRequest=16,
             HeightRequest=16,
             Aspect=Aspect.AspectFit,
             VerticalOptions=LayoutOptions.Center,
             HorizontalOptions=LayoutOptions.Center,
         },0,0);
-        grid.Add(new Label {
-            Text=text,
+        グリッド.Add(new Label {
+            Text=テキスト,
             FontSize=9,
             TextColor=Color.FromArgb("#334155"),
             VerticalTextAlignment=TextAlignment.Center,
         },1,0);
-        return grid;
+        return グリッド;
     }
 
-    private ImageButton CreateToolbarIconButton(string imageSource,string tooltipText) {
-        var button = new ImageButton {
-            Source=ImageSource.FromFile(imageSource),
+    private ImageButton ツールバーアイコンボタンを作成(string 画像ソース,string ツールチップ文言) {
+        var ボタン = new ImageButton {
+            Source=ImageSource.FromFile(画像ソース),
             WidthRequest=30,
             HeightRequest=30,
             BackgroundColor=Color.FromArgb("#F8FAFC"),
@@ -738,19 +726,18 @@ public sealed partial class MainPage:ContentPage {
             Margin=new Thickness(0),
             Aspect=Aspect.AspectFit,
         };
-        if(tooltipText==nameof(RunnerViewModel.RunButtonTooltipText)) {
-            button.SetBinding(ToolTipProperties.TextProperty,nameof(RunnerViewModel.RunButtonTooltipText));
+        if(ツールチップ文言==nameof(実行ビューモデル.実行ボタンツールチップ文字列)) {
+            ボタン.SetBinding(ToolTipProperties.TextProperty,nameof(実行ビューモデル.実行ボタンツールチップ文字列));
+        } else {
+            ボタン.SetValue(ToolTipProperties.TextProperty,ツールチップ文言);
         }
-        else {
-            button.SetValue(ToolTipProperties.TextProperty,tooltipText);
-        }
-        ConfigurePressFeedback(button);
-        return button;
+        押下フィードバックを設定(ボタン);
+        return ボタン;
     }
 
-    private Button CreateToolbarTextButton(string text) {
-        var button = new Button {
-            Text=text,
+    private Button ツールバーテキストボタンを作成(string テキスト) {
+        var ボタン = new Button {
+            Text=テキスト,
             HeightRequest=30,
             MinimumWidthRequest=72,
             Padding=new Thickness(10,0),
@@ -761,275 +748,275 @@ public sealed partial class MainPage:ContentPage {
             TextColor=Color.FromArgb("#334155"),
             CornerRadius=6,
         };
-        ConfigurePressFeedback(button);
-        return button;
+        押下フィードバックを設定(ボタン);
+        return ボタン;
     }
 
-    private static void ConfigurePressFeedback(Button button) =>
-        ConfigurePressFeedbackCore(
-            button,
-            handler => button.Pressed+=handler,
-            handler => button.Released+=handler);
+    private static void 押下フィードバックを設定(Button ボタン) =>
+        押下フィードバック本体を設定(
+            ボタン,
+            ハンドラー => ボタン.Pressed+=ハンドラー,
+            ハンドラー => ボタン.Released+=ハンドラー);
 
-    private static void ConfigurePressFeedback(ImageButton button) =>
-        ConfigurePressFeedbackCore(
-            button,
-            handler => button.Pressed+=handler,
-            handler => button.Released+=handler);
+    private static void 押下フィードバックを設定(ImageButton ボタン) =>
+        押下フィードバック本体を設定(
+            ボタン,
+            ハンドラー => ボタン.Pressed+=ハンドラー,
+            ハンドラー => ボタン.Released+=ハンドラー);
 
-    private static void ConfigurePressFeedbackCore(
-        VisualElement button,
-        Action<EventHandler> subscribePressed,
-        Action<EventHandler> subscribeReleased) {
-        var isPressed=false;
-        var releasedScale=1d;
-        var releasedTranslationY=0d;
+    private static void 押下フィードバック本体を設定(
+        VisualElement ボタン,
+        Action<EventHandler> 押下時を購読,
+        Action<EventHandler> 解放時を購読) {
+        var 押下中か = false;
+        var 解放時拡大率 = 1d;
+        var 解放時垂直移動量 = 0d;
 
-        void RestoreReleasedVisual() {
-            if(!isPressed) {
+        void 解放後表示を復元() {
+            if(!押下中か) {
                 return;
             }
 
-            isPressed=false;
-            button.Scale=releasedScale;
-            button.TranslationY=releasedTranslationY;
+            押下中か=false;
+            ボタン.Scale=解放時拡大率;
+            ボタン.TranslationY=解放時垂直移動量;
         }
 
-        subscribePressed((_,_) => {
-            if(!button.IsEnabled||isPressed) {
+        押下時を購読((_,_) => {
+            if(!ボタン.IsEnabled||押下中か) {
                 return;
             }
 
-            isPressed=true;
-            releasedScale=button.Scale;
-            releasedTranslationY=button.TranslationY;
-            button.Scale=releasedScale*0.95;
-            button.TranslationY=releasedTranslationY+1;
+            押下中か=true;
+            解放時拡大率=ボタン.Scale;
+            解放時垂直移動量=ボタン.TranslationY;
+            ボタン.Scale=解放時拡大率*0.95;
+            ボタン.TranslationY=解放時垂直移動量+1;
         });
-        subscribeReleased((_,_) => RestoreReleasedVisual());
-        button.PropertyChanged+=(_,args) => {
-            if(args.PropertyName==nameof(VisualElement.IsEnabled)&&!button.IsEnabled) {
-                RestoreReleasedVisual();
+        解放時を購読((_,_) => 解放後表示を復元());
+        ボタン.PropertyChanged+=(_,イベント引数) => {
+            if(イベント引数.PropertyName==nameof(VisualElement.IsEnabled)&&!ボタン.IsEnabled) {
+                解放後表示を復元();
             }
         };
     }
 
-    private void BindToolbarButtonState(ImageButton button,BenchmarkToolbarButtonRole role) {
-        this.toolbarButtons[role]=button;
-        button.Clicked+=async (_,_) => await this.HandleToolbarButtonClickAsync(role);
-        this.BindToolbarButtonStateCore(button,role);
+    private void ツールバーボタン状態をバインド(ImageButton ボタン,ベンチマークツールバーボタン役割 役割) {
+        this.ツールバーボタン一覧[役割]=ボタン;
+        ボタン.Clicked+=async (_,_) => await this.ツールバーボタンクリック時Async(役割);
+        this.ツールバーボタン状態バインド本体(ボタン,役割);
     }
 
-    private void BindToolbarButtonState(Button button,BenchmarkToolbarButtonRole role) {
-        this.toolbarButtons[role]=button;
-        button.Clicked+=async (_,_) => await this.HandleToolbarButtonClickAsync(role);
-        this.BindToolbarButtonStateCore(button,role);
+    private void ツールバーボタン状態をバインド(Button ボタン,ベンチマークツールバーボタン役割 役割) {
+        this.ツールバーボタン一覧[役割]=ボタン;
+        ボタン.Clicked+=async (_,_) => await this.ツールバーボタンクリック時Async(役割);
+        this.ツールバーボタン状態バインド本体(ボタン,役割);
     }
 
-    private void BindToolbarButtonStateCore(VisualElement button,BenchmarkToolbarButtonRole role) {
-        void Apply() {
-            if(this.viewModel is null) {
+    private void ツールバーボタン状態バインド本体(VisualElement ボタン,ベンチマークツールバーボタン役割 役割) {
+        void 適用() {
+            if(this.ビューモデル is null) {
                 return;
             }
 
-            this.ApplyToolbarButtonState(button,this.viewModel.GetToolbarButtonState(role));
+            this.ツールバーボタン状態を適用(ボタン,this.ビューモデル.ツールバーボタン状態を取得(役割));
         }
 
-        Apply();
-        if(this.viewModel is not null) {
-            this.viewModel.PropertyChanged+=(_,args) => {
-                if(args.PropertyName==nameof(RunnerViewModel.IsBenchmarkRunActive)
-                    ||args.PropertyName==nameof(RunnerViewModel.IsBenchmarkPaused)
-                    ||args.PropertyName==nameof(RunnerViewModel.IsRefreshing)
-                    ||args.PropertyName==nameof(RunnerViewModel.CanRunBenchmark)
-                    ||args.PropertyName==nameof(RunnerViewModel.CanResumeBenchmark)
-                    ||args.PropertyName==nameof(RunnerViewModel.CanUseRunToolbarButton)
-                    ||args.PropertyName==nameof(RunnerViewModel.CanSaveDatabase)
-                    ||args.PropertyName==nameof(RunnerViewModel.CanCreateNewGrid)
-                    ||args.PropertyName==nameof(RunnerViewModel.HasSelectedBenchmarkCells)
-                    ||args.PropertyName==nameof(RunnerViewModel.HasUnsavedBenchmarkResults)
-                    ||args.PropertyName==nameof(RunnerViewModel.ToolbarStateInput)) {
-                    StartupDiagnostics.BeginInvokeOnMainThread("toolbar state apply "+role,Apply);
+        適用();
+        if(this.ビューモデル is not null) {
+            this.ビューモデル.PropertyChanged+=(_,イベント引数) => {
+                if(イベント引数.PropertyName==nameof(実行ビューモデル.ベンチマーク実行有効か)
+                    ||イベント引数.PropertyName==nameof(実行ビューモデル.ベンチマーク一時停止中か)
+                    ||イベント引数.PropertyName==nameof(実行ビューモデル.更新中か)
+                    ||イベント引数.PropertyName==nameof(実行ビューモデル.ベンチマークを実行可能か)
+                    ||イベント引数.PropertyName==nameof(実行ビューモデル.ベンチマークを再開可能か)
+                    ||イベント引数.PropertyName==nameof(実行ビューモデル.実行ツールバーボタン使用可能か)
+                    ||イベント引数.PropertyName==nameof(実行ビューモデル.DB保存可能か)
+                    ||イベント引数.PropertyName==nameof(実行ビューモデル.新規グリッド作成可能か)
+                    ||イベント引数.PropertyName==nameof(実行ビューモデル.選択ベンチマークセルありか)
+                    ||イベント引数.PropertyName==nameof(実行ビューモデル.未保存ベンチマーク結果ありか)
+                    ||イベント引数.PropertyName==nameof(実行ビューモデル.ツールバー状態入力)) {
+                    起動診断.メインスレッドで呼び出し開始("ツールバー状態適用 "+役割,適用);
                 }
             };
         }
     }
 
-    private void ApplyToolbarButtonState(VisualElement button,BenchmarkToolbarButtonState state) {
-        button.IsEnabled=state.IsEnabled;
-        button.InputTransparent=false;
-        button.Opacity=state.ShowDisabledVisual ? 0.45 : 1;
-        var borderColor = state.ShouldPulse&&this.pausedToolbarPulseOn
+    private void ツールバーボタン状態を適用(VisualElement ボタン,ベンチマークツールバーボタン状態 状態) {
+        ボタン.IsEnabled=状態.有効か;
+        ボタン.InputTransparent=false;
+        ボタン.Opacity=状態.無効表示をするか ? 0.45 : 1;
+        var 境界色 = 状態.点滅するか&&this.一時停止中ツールバー点灯中か
             ? Color.FromArgb("#EA580C")
             : Color.FromArgb("#CBD5E1");
-        var backgroundColor = state.ShouldPulse&&this.pausedToolbarPulseOn
+        var 背景色 = 状態.点滅するか&&this.一時停止中ツールバー点灯中か
             ? Color.FromArgb("#FFF7ED")
             : Color.FromArgb("#F8FAFC");
-        if(button is ImageButton imageButton) {
-            imageButton.BorderColor=borderColor;
-            imageButton.BackgroundColor=backgroundColor;
-        }else if(button is Button textButton) {
-            textButton.BorderColor=borderColor;
-            textButton.BackgroundColor=backgroundColor;
+        if(ボタン is ImageButton 画像ボタン) {
+            画像ボタン.BorderColor=境界色;
+            画像ボタン.BackgroundColor=背景色;
+        } else if(ボタン is Button テキストボタン) {
+            テキストボタン.BorderColor=境界色;
+            テキストボタン.BackgroundColor=背景色;
         }
-        button.Scale=state.ShouldPulse&&this.pausedToolbarPulseOn ? 1.08 : 1;
-        this.RefreshPausedToolbarPulse();
+        ボタン.Scale=状態.点滅するか&&this.一時停止中ツールバー点灯中か ? 1.08 : 1;
+        this.一時停止中ツールバー点滅を更新();
     }
 
-    private async Task HandleToolbarButtonClickAsync(BenchmarkToolbarButtonRole role) {
-        if(this.viewModel is null) {
+    private async Task ツールバーボタンクリック時Async(ベンチマークツールバーボタン役割 役割) {
+        if(this.ビューモデル is null) {
             return;
         }
 
-        var state = this.viewModel.GetToolbarButtonState(role);
-        if(!state.IsEnabled) {
+        var 状態 = this.ビューモデル.ツールバーボタン状態を取得(役割);
+        if(!状態.有効か) {
             return;
         }
 
-        if(BenchmarkToolbarPauseGuardLogic.RequiresDecisionDialog(role,this.viewModel.IsBenchmarkPaused)) {
-            await this.ShowPausedToolbarDecisionDialogAsync(role);
+        if(ベンチマークツールバー一時停止ガードロジック.判断ダイアログが必要か(役割,this.ビューモデル.ベンチマーク一時停止中か)) {
+            await this.一時停止中ツールバー判断ダイアログを表示Async(役割);
             return;
         }
 
-        if(!state.InvokesPrimaryAction) {
+        if(!状態.主要操作を呼ぶか) {
             return;
         }
 
-        await this.ExecuteToolbarButtonCommandAsync(role);
+        await this.ツールバーボタンコマンドを実行Async(役割);
     }
 
-    private async Task ExecuteToolbarButtonCommandAsync(BenchmarkToolbarButtonRole role) {
-        if(this.viewModel is null) {
+    private async Task ツールバーボタンコマンドを実行Async(ベンチマークツールバーボタン役割 役割) {
+        if(this.ビューモデル is null) {
             return;
         }
 
-        switch(role) {
-            case BenchmarkToolbarButtonRole.Run:
-                if(this.viewModel.RunCommand.CanExecute(null)) {
-                    await this.viewModel.RunCommand.ExecuteAsync(null);
+        switch(役割) {
+            case ベンチマークツールバーボタン役割.実行:
+                if(this.ビューモデル.実行コマンド.CanExecute(null)) {
+                    await this.ビューモデル.実行コマンド.ExecuteAsync(null);
                 }
                 break;
 #if DEBUG
-            case BenchmarkToolbarButtonRole.RunInfinite:
-                if(this.viewModel.RunInfiniteCommand.CanExecute(null)) {
-                    await this.viewModel.RunInfiniteCommand.ExecuteAsync(null);
+            case ベンチマークツールバーボタン役割.無限実行:
+                if(this.ビューモデル.無限実行コマンド.CanExecute(null)) {
+                    await this.ビューモデル.無限実行コマンド.ExecuteAsync(null);
                 }
                 break;
 #endif
-            case BenchmarkToolbarButtonRole.Stop:
-                if(this.viewModel.StopCommand.CanExecute(null)) {
-                    await this.viewModel.StopCommand.ExecuteAsync(null);
+            case ベンチマークツールバーボタン役割.停止:
+                if(this.ビューモデル.停止コマンド.CanExecute(null)) {
+                    await this.ビューモデル.停止コマンド.ExecuteAsync(null);
                 }
                 break;
-            case BenchmarkToolbarButtonRole.Pause:
-                if(this.viewModel.PauseCommand.CanExecute(null)) {
-                    await this.viewModel.PauseCommand.ExecuteAsync(null);
+            case ベンチマークツールバーボタン役割.一時停止:
+                if(this.ビューモデル.一時停止コマンド.CanExecute(null)) {
+                    await this.ビューモデル.一時停止コマンド.ExecuteAsync(null);
                 }
                 break;
-            case BenchmarkToolbarButtonRole.SaveDatabase:
-                if(this.viewModel.SaveDatabaseCommand.CanExecute(null)) {
-                    await this.viewModel.SaveDatabaseCommand.ExecuteAsync(null);
+            case ベンチマークツールバーボタン役割.DB保存:
+                if(this.ビューモデル.DB保存コマンド.CanExecute(null)) {
+                    await this.ビューモデル.DB保存コマンド.ExecuteAsync(null);
                 }
                 break;
-            case BenchmarkToolbarButtonRole.NewGrid:
-                if(this.viewModel.NewGridCommand.CanExecute(null)) {
-                    this.viewModel.NewGridCommand.Execute(null);
+            case ベンチマークツールバーボタン役割.新規グリッド:
+                if(this.ビューモデル.新規グリッドコマンド.CanExecute(null)) {
+                    this.ビューモデル.新規グリッドコマンド.Execute(null);
                 }
                 break;
         }
     }
 
-    private async Task ShowClearRunHistoryConfirmDialogAsync() {
-        if(this.viewModel is null||!this.viewModel.ClearRunHistoryCommand.CanExecute(null)) {
+    private async Task 実行履歴消去確認ダイアログを表示Async() {
+        if(this.ビューモデル is null||!this.ビューモデル.実行履歴クリアコマンド.CanExecute(null)) {
             return;
         }
 
-        var result = await this.ShowConfirmDialogAsync(
+        var 結果 = await this.確認ダイアログを表示Async(
             "履歴消去",
             "DB内の実行履歴をすべて消去します。よろしいですか？",
             [
-                new ConfirmDialogOption("全履歴を消去","clear",ConfirmDialogButtonKind.Danger),
-                new ConfirmDialogOption("キャンセル","cancel",ConfirmDialogButtonKind.Neutral),
+                new 確認ダイアログ選択肢("全履歴を消去","消去",確認ダイアログボタン種別.危険),
+                new 確認ダイアログ選択肢("キャンセル","キャンセル",確認ダイアログボタン種別.中立),
             ]);
-        if(result!="clear"||this.viewModel is null||!this.viewModel.ClearRunHistoryCommand.CanExecute(null)) {
+        if(結果!="消去"||this.ビューモデル is null||!this.ビューモデル.実行履歴クリアコマンド.CanExecute(null)) {
             return;
         }
 
-        await this.viewModel.ClearRunHistoryCommand.ExecuteAsync(null);
+        await this.ビューモデル.実行履歴クリアコマンド.ExecuteAsync(null);
     }
 
-    private async Task ShowPausedToolbarDecisionDialogAsync(BenchmarkToolbarButtonRole role) {
-        var result = await this.ShowConfirmDialogAsync(
+    private async Task 一時停止中ツールバー判断ダイアログを表示Async(ベンチマークツールバーボタン役割 役割) {
+        var 結果 = await this.確認ダイアログを表示Async(
             "一時停止中",
-            CreatePausedToolbarDecisionMessage(role),
+            一時停止中ツールバー判断メッセージを作成(役割),
             [
-                new ConfirmDialogOption("再開","resume",ConfirmDialogButtonKind.Primary),
-                new ConfirmDialogOption("停止","stop",ConfirmDialogButtonKind.Danger),
-                new ConfirmDialogOption("キャンセル","cancel",ConfirmDialogButtonKind.Neutral),
+                new 確認ダイアログ選択肢("再開","再開",確認ダイアログボタン種別.主要),
+                new 確認ダイアログ選択肢("停止","停止",確認ダイアログボタン種別.危険),
+                new 確認ダイアログ選択肢("キャンセル","キャンセル",確認ダイアログボタン種別.中立),
             ]);
-        switch(result) {
-            case "resume":
-                await this.ExecuteToolbarButtonCommandAsync(BenchmarkToolbarButtonRole.Run);
+        switch(結果) {
+            case "再開":
+                await this.ツールバーボタンコマンドを実行Async(ベンチマークツールバーボタン役割.実行);
                 break;
-            case "stop":
-                await this.ExecuteToolbarButtonCommandAsync(BenchmarkToolbarButtonRole.Stop);
+            case "停止":
+                await this.ツールバーボタンコマンドを実行Async(ベンチマークツールバーボタン役割.停止);
                 break;
         }
     }
 
-    private static string CreatePausedToolbarDecisionMessage(BenchmarkToolbarButtonRole role) =>
+    private static string 一時停止中ツールバー判断メッセージを作成(ベンチマークツールバーボタン役割 役割) =>
         "一時停止中です。続けるなら再開、終了するなら停止を選んでください。";
 
-    private void RefreshPausedToolbarPulse() {
-        if(this.viewModel is null) {
-            this.StopPausedToolbarPulse();
+    private void 一時停止中ツールバー点滅を更新() {
+        if(this.ビューモデル is null) {
+            this.一時停止中ツールバー点滅を停止();
             return;
         }
 
-        var shouldPulse = this.toolbarButtons.Keys
-            .Any(role => this.viewModel.GetToolbarButtonState(role).ShouldPulse);
-        if(!shouldPulse) {
-            this.StopPausedToolbarPulse();
+        var 点滅するか = this.ツールバーボタン一覧.Keys
+            .Any(役割 => this.ビューモデル.ツールバーボタン状態を取得(役割).点滅するか);
+        if(!点滅するか) {
+            this.一時停止中ツールバー点滅を停止();
             return;
         }
 
-        if(this.pausedToolbarPulseTimer is not null) {
+        if(this.一時停止中ツールバー点滅タイマー is not null) {
             return;
         }
 
-        this.pausedToolbarPulseTimer=this.Dispatcher.CreateTimer();
-        this.pausedToolbarPulseTimer.Interval=TimeSpan.FromMilliseconds(420);
-        this.pausedToolbarPulseTimer.Tick+=(_,_) => {
-            this.pausedToolbarPulseOn=!this.pausedToolbarPulseOn;
-            this.ApplyToolbarButtonVisualStates();
+        this.一時停止中ツールバー点滅タイマー=this.Dispatcher.CreateTimer();
+        this.一時停止中ツールバー点滅タイマー.Interval=TimeSpan.FromMilliseconds(420);
+        this.一時停止中ツールバー点滅タイマー.Tick+=(_,_) => {
+            this.一時停止中ツールバー点灯中か=!this.一時停止中ツールバー点灯中か;
+            this.ツールバーボタン表示状態を適用();
         };
-        this.pausedToolbarPulseTimer.Start();
+        this.一時停止中ツールバー点滅タイマー.Start();
     }
 
-    private void StopPausedToolbarPulse() {
-        this.pausedToolbarPulseTimer?.Stop();
-        this.pausedToolbarPulseTimer=null;
-        if(!this.pausedToolbarPulseOn) {
+    private void 一時停止中ツールバー点滅を停止() {
+        this.一時停止中ツールバー点滅タイマー?.Stop();
+        this.一時停止中ツールバー点滅タイマー=null;
+        if(!this.一時停止中ツールバー点灯中か) {
             return;
         }
 
-        this.pausedToolbarPulseOn=false;
-        this.ApplyToolbarButtonVisualStates();
+        this.一時停止中ツールバー点灯中か=false;
+        this.ツールバーボタン表示状態を適用();
     }
 
-    private void ApplyToolbarButtonVisualStates() {
-        if(this.viewModel is null) {
+    private void ツールバーボタン表示状態を適用() {
+        if(this.ビューモデル is null) {
             return;
         }
 
-        foreach(var pair in this.toolbarButtons) {
-            this.ApplyToolbarButtonState(pair.Value,this.viewModel.GetToolbarButtonState(pair.Key));
+        foreach(var 組 in this.ツールバーボタン一覧) {
+            this.ツールバーボタン状態を適用(組.Value,this.ビューモデル.ツールバーボタン状態を取得(組.Key));
         }
     }
 
-    private Label ToolbarLabel(string text) {
+    private Label ツールバーラベルを作成(string テキスト) {
         return new Label {
-            Text=text,
+            Text=テキスト,
             FontSize=12,
             VerticalTextAlignment=TextAlignment.Center,
             TextColor=Color.FromArgb("#334155"),
@@ -1037,138 +1024,112 @@ public sealed partial class MainPage:ContentPage {
         };
     }
 
-    private View CreateBenchmarkPanelContent() {
-        var SfTabView=new SfTabView {
-            AutomationId             ="SfTabView",
-            TabBarHeight             =30,
-            TabBarBackground         =Color.FromArgb("#F8FAFC"),
-            IndicatorBackground      =Colors.Transparent,
-            HeaderItemSpacing        =1,
-            EnableSwiping            =false,
+    private View ベンチマークパネル内容を作成() {
+        var タブビュー = new SfTabView {
+            AutomationId="ベンチマーク.ソースタブ表示",
+            TabBarHeight=30,
+            TabBarBackground=Color.FromArgb("#F8FAFC"),
+            IndicatorBackground=Colors.Transparent,
+            HeaderItemSpacing=1,
+            EnableSwiping=false,
             ContentTransitionDuration=0,
-            BackgroundColor          =Colors.White,
-            VerticalOptions          =LayoutOptions.Fill,
+            BackgroundColor=Colors.White,
+            VerticalOptions=LayoutOptions.Fill,
         };
-        this.ConfigureCompactTabView(SfTabView,false);
-        AutomationProperties.SetIsInAccessibleTree(SfTabView,true);
-        var TabItems = new TabItemCollection();
-        var loadedSourceTabContents = new HashSet<int>();
-        var sourceTabIndex=0;
-        foreach(var option in this.viewModel?.SourceTabs?? []) {
-            var capturedIndex=sourceTabIndex;
-            var header = this.CreateSourceTabHeader(option,SfTabView,capturedIndex);
-            var state = this.viewModel?.GetSourceTabViewState(option.Definition.Tab);
-            var SfTabItem = new SfTabItem {
-                AutomationId =option.Definition.Tab.ToString(),
-                Header       =option.HeaderText,
-                HeaderContent=header,
-                FontSize     =12,
-                Content=capturedIndex==0
-                    ? this.CreateSourceTabContent(state)
-                    : this.CreateSourceTabPlaceholder(option),
+        this.コンパクトタブビューを構成(タブビュー,false);
+        AutomationProperties.SetIsInAccessibleTree(タブビュー,true);
+        var タブ項目一覧 = new TabItemCollection();
+        var 読み込み済みソースタブ内容 = new HashSet<int>();
+        var ソースタブインデックス = 0;
+        foreach(var 選択肢 in this.ビューモデル?.ソースタブ一覧?? []) {
+            var 取得済みインデックス = ソースタブインデックス;
+            var 見出し = this.ソースタブ見出しを作成(選択肢,タブビュー,取得済みインデックス);
+            var 状態 = this.ビューモデル?.ソースタブ表示状態を取得(選択肢.定義.タブ);
+            var タブ項目 = new SfTabItem {
+                AutomationId="ベンチマーク.ソースタブ内容."+選択肢.定義.タブ,
+                Header=選択肢.見出し文字列,
+                HeaderContent=見出し,
+                FontSize=12,
+                Content=取得済みインデックス==0
+                    ? this.ソースタブ内容を作成(状態)
+                    : this.ソースタブプレースホルダーを作成(選択肢),
             };
-            AutomationProperties.SetIsInAccessibleTree(SfTabItem,true);
-            if(capturedIndex==0) {
-                loadedSourceTabContents.Add(capturedIndex);
+            AutomationProperties.SetIsInAccessibleTree(タブ項目,true);
+            if(取得済みインデックス==0) {
+                読み込み済みソースタブ内容.Add(取得済みインデックス);
             }
-            option.PropertyChanged+=(_,args) => {
-                if(args.PropertyName==nameof(SourceTabOption.HeaderText)) {
-                    StartupDiagnostics.BeginInvokeOnMainThread("source tab header text "+option.Definition.Id,() => SfTabItem.Header=option.HeaderText);
+            選択肢.PropertyChanged+=(_,イベント引数) => {
+                if(イベント引数.PropertyName==nameof(ソースタブ選択肢.見出し文字列)) {
+                    起動診断.メインスレッドで呼び出し開始("ソースタブ見出し文 "+選択肢.定義.ID,() => タブ項目.Header=選択肢.見出し文字列);
                 }
             };
-            TabItems.Add(SfTabItem);
-            sourceTabIndex++;
+            タブ項目一覧.Add(タブ項目);
+            ソースタブインデックス++;
         }
 
-        SfTabView.Items=TabItems;
-        SfTabView.SelectedIndex=0;
-        this.sourceTabView=SfTabView;
-        void EnsureSelectedSourceTabContent() {
-            if(this.viewModel is null) {
+        タブビュー.Items=タブ項目一覧;
+        タブビュー.SelectedIndex=0;
+        this.ソースタブビュー=タブビュー;
+        void 選択中ソースタブ内容を保証() {
+            if(this.ビューモデル is null) {
                 return;
             }
 
-            var index = SfTabView.SelectedIndex;
-            if(index<0||index>=this.viewModel.SourceTabs.Count||loadedSourceTabContents.Contains(index)) {
-                StartupDiagnostics.AddBreadcrumb("Source tab content skip index="+index.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            var インデックス = タブビュー.SelectedIndex;
+            if(インデックス<0||インデックス>=this.ビューモデル.ソースタブ一覧.Count||読み込み済みソースタブ内容.Contains(インデックス)) {
+                起動診断.パンくずを追加("ソースタブ内容を省略 インデックス="+インデックス.ToString(System.Globalization.CultureInfo.InvariantCulture));
                 return;
             }
 
-            var option = this.viewModel.SourceTabs[index];
-            var state = this.viewModel.GetSourceTabViewState(option.Definition.Tab);
-            StartupDiagnostics.AddBreadcrumb("Source tab content create "+option.Definition.Id+" index="+index.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            TabItems[index].Content=this.CreateSourceTabContent(state);
-            loadedSourceTabContents.Add(index);
-            StartupDiagnostics.AddBreadcrumb("Source tab content created "+option.Definition.Id+" rows="+state.Rows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            var 選択肢 = this.ビューモデル.ソースタブ一覧[インデックス];
+            var 状態 = this.ビューモデル.ソースタブ表示状態を取得(選択肢.定義.タブ);
+            起動診断.パンくずを追加("ソースタブ内容を作成 "+選択肢.定義.ID+" インデックス="+インデックス.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            タブ項目一覧[インデックス].Content=this.ソースタブ内容を作成(状態);
+            読み込み済みソースタブ内容.Add(インデックス);
+            起動診断.パンくずを追加("ソースタブ内容を作成済み "+選択肢.定義.ID+" 行数="+状態.行一覧.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
-        SfTabView.PropertyChanged+=(_,args) => {
-            if(args.PropertyName!=nameof(SfTabView.SelectedIndex)||this.viewModel is null) {
+        タブビュー.PropertyChanged+=(_,イベント引数) => {
+            if(イベント引数.PropertyName!=nameof(SfTabView.SelectedIndex)||this.ビューモデル is null) {
                 return;
             }
 
-            StartupDiagnostics.AddBreadcrumb(
-                "Source tab view selected index changed index="
-                +SfTabView.SelectedIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                +" running="+this.viewModel.IsBenchmarkRunActive.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                +" selected="+this.viewModel.SelectedSourceTab.Id);
-            EnsureSelectedSourceTabContent();
-            if(this.isApplyingSourceTabViewSelection) {
-                this.SelectBenchmarkGridForActiveSource();
+            起動診断.パンくずを追加(
+                "ソースタブビュー選択インデックス変更 インデックス="
+                +タブビュー.SelectedIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                +" 実行中="+this.ビューモデル.ベンチマーク実行有効か.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                +" 選択="+this.ビューモデル.選択ソースタブ.ID);
+            選択中ソースタブ内容を保証();
+            if(this.ソースタブビュー選択適用中か) {
+                this.有効ソース用ベンチマークグリッドを選択();
                 return;
             }
 
-            var index = SfTabView.SelectedIndex;
-            if(index>=0&&index<this.viewModel.SourceTabs.Count) {
-                this.viewModel.SelectedSourceTab=this.viewModel.SourceTabs[index];
+            var インデックス = タブビュー.SelectedIndex;
+            if(インデックス>=0&&インデックス<this.ビューモデル.ソースタブ一覧.Count) {
+                this.ビューモデル.選択ソースタブ=this.ビューモデル.ソースタブ一覧[インデックス];
             }
-            this.SelectBenchmarkGridForActiveSource();
+            this.有効ソース用ベンチマークグリッドを選択();
         };
-        if(this.viewModel is not null) {
-            //void OnViewModelPropertyChanged(object? sender,PropertyChangedEventArgs args) {
-            //    if(args.PropertyName is nameof(RunnerViewModel.SelectedSourceTab) or nameof(RunnerViewModel.HasBenchmarkTypeColumn)) {
-            //        StartupDiagnostics.BeginInvokeOnMainThread("source tab vm property "+args.PropertyName,() => {
-            //                                                       this.SyncSourceTabViewSelection();
-            //                                                       EnsureSelectedSourceTabContent();
-            //                                                       this.SelectBenchmarkGridForActiveSource();
-            //                                                   });
-            //    }else if(args.PropertyName==nameof(RunnerViewModel.LatestBenchmarkAutoScrollRequest)) {
-            //        var request = this.viewModel.LatestBenchmarkAutoScrollRequest;
-            //        if(request is not null) {
-            //            StartupDiagnostics.BeginInvokeOnMainThread("latest benchmark auto scroll "+request.SourceTab,() => this.ScrollBenchmarkGridToLatestExecutionAsync(request));
-            //        }
-            //    }
-            //}
-
-            //this.viewModel.PropertyChanged+=OnViewModelPropertyChanged;
-            this.viewModel.PropertyChanged+=(_,args) => {
-                if(args.PropertyName is nameof(RunnerViewModel.SelectedSourceTab) or nameof(RunnerViewModel.HasBenchmarkTypeColumn)) {
-                    StartupDiagnostics.BeginInvokeOnMainThread("source tab vm property "+args.PropertyName,() => {
-                        this.SyncSourceTabViewSelection();
-                        EnsureSelectedSourceTabContent();
-                        this.SelectBenchmarkGridForActiveSource();
+        if(this.ビューモデル is not null) {
+            this.ビューモデル.PropertyChanged+=(_,イベント引数) => {
+                if(イベント引数.PropertyName is nameof(実行ビューモデル.選択ソースタブ) or nameof(実行ビューモデル.ベンチマーク型列ありか)) {
+                    起動診断.メインスレッドで呼び出し開始("ソースタブのビューモデルプロパティ "+イベント引数.PropertyName,() => {
+                        this.ソースタブビュー選択を同期();
+                        選択中ソースタブ内容を保証();
+                        this.有効ソース用ベンチマークグリッドを選択();
                     });
-                }else if(args.PropertyName==nameof(RunnerViewModel.LatestBenchmarkAutoScrollRequest)) {
-                    var request = this.viewModel.LatestBenchmarkAutoScrollRequest;
-                    if(request is not null) {
-                        StartupDiagnostics.BeginInvokeOnMainThread("latest benchmark auto scroll "+request.SourceTab,() => this.ScrollBenchmarkGridToLatestExecutionAsync(request));
+                } else if(イベント引数.PropertyName==nameof(実行ビューモデル.最新ベンチマーク自動スクロール要求)) {
+                    var 要求 = this.ビューモデル.最新ベンチマーク自動スクロール要求;
+                    if(要求 is not null) {
+                        起動診断.メインスレッドで呼び出し開始("最新ベンチマーク自動スクロール "+要求.ソースタブ,() => this.ベンチマークグリッドを最新実行へスクロールAsync(要求));
                     }
                 }
             };
         }
-        var lowerContent = this.CreateBenchmarkTabContent();
-        var overallProgress = this.CreateOverallSourceProgressView();
-        //var tabHost = new Grid {
-        //    ColumnDefinitions= {
-        //        new ColumnDefinition { Width = new GridLength(BenchmarkTopAllSelectionSlotWidth) },
-        //        new ColumnDefinition { Width = GridLength.Star },
-        //    },
-        //    ColumnSpacing=0,
-        //    Children= {
-        //        tabView,
-        //    },
-        //};
-        Grid.SetColumn(SfTabView,1);
-        var grid = new Grid {
+        var 下部内容 = this.ベンチマークタブ内容を作成();
+        var 全体進行 = this.全ソース進行ビューを作成();
+        Grid.SetColumn(タブビュー,1);
+        var グリッド = new Grid {
             RowDefinitions= {
                 new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Star },
@@ -1178,28 +1139,28 @@ public sealed partial class MainPage:ContentPage {
             BackgroundColor=Colors.White,
             Padding=new Thickness(4,0,4,1),
             Children= {
-                overallProgress,
-                SfTabView,
-                lowerContent,
+                全体進行,
+                タブビュー,
+                下部内容,
             },
         };
-        Grid.SetRow(SfTabView,1);
-        Grid.SetRow(lowerContent,2);
-        return grid;
+        Grid.SetRow(タブビュー,1);
+        Grid.SetRow(下部内容,2);
+        return グリッド;
     }
 
-    private View CreateOverallSourceProgressView() {
-        var badge = this.CreateProgressSummaryBadge(out var text);
-        if(this.viewModel is not null) {
-            text.SetBinding(Label.TextProperty,nameof(RunnerViewModel.OverallSourceProgressSummaryText));
-        }else{
-            text.Text="確定 0/0";
+    private View 全ソース進行ビューを作成() {
+        var バッジ = this.進行概要バッジを作成(out var テキスト);
+        if(this.ビューモデル is not null) {
+            テキスト.SetBinding(Label.TextProperty,nameof(実行ビューモデル.全体ソース進行概要文字列));
+        } else {
+            テキスト.Text="確定 0/0";
         }
-        var checkHost = this.CreateTopAllBenchmarkSelectionCheckHost();
-        var preview = this.CreateStatusIconPreview();
-        var layout = new Grid {
+        var チェックホスト = this.上部全ベンチマーク選択チェックホストを作成();
+        var プレビュー = this.状態アイコンプレビューを作成();
+        var レイアウト = new Grid {
             ColumnDefinitions= {
-                new ColumnDefinition { Width = new GridLength(BenchmarkTopAllSelectionSlotWidth) },
+                new ColumnDefinition { Width = new GridLength(ベンチマーク上部全選択領域幅) },
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Star },
             },
@@ -1207,52 +1168,52 @@ public sealed partial class MainPage:ContentPage {
             HorizontalOptions=LayoutOptions.Fill,
             VerticalOptions=LayoutOptions.Center,
             Children= {
-                checkHost,
-                badge,
-                preview,
+                チェックホスト,
+                バッジ,
+                プレビュー,
             },
         };
-        Grid.SetColumn(badge,1);
-        Grid.SetColumn(preview,2);
-        return layout;
+        Grid.SetColumn(バッジ,1);
+        Grid.SetColumn(プレビュー,2);
+        return レイアウト;
     }
 
-    private View CreateTopAllBenchmarkSelectionCheckHost() {
-        var check = this.CreateBenchmarkAggregateCheckBox();
-        check.AutomationId="Benchmark.TopAllSelectionCheck";
-        check.SetValue(ToolTipProperties.TextProperty,"全タブのチェックを切り替え");
-        if(this.viewModel is not null) {
-            this.BindAggregateCheckBox(check,this.viewModel,nameof(RunnerViewModel.IsAllBenchmarkSelectionChecked),() => this.viewModel.IsAllBenchmarkSelectionChecked);
+    private View 上部全ベンチマーク選択チェックホストを作成() {
+        var チェック = this.ベンチマーク集約チェックボックスを作成();
+        チェック.AutomationId="ベンチマーク.全タブ選択チェック";
+        チェック.SetValue(ToolTipProperties.TextProperty,"全タブのチェックを切り替え");
+        if(this.ビューモデル is not null) {
+            this.集約チェックボックスをバインド(チェック,this.ビューモデル,nameof(実行ビューモデル.全ベンチマーク選択状態),() => this.ビューモデル.全ベンチマーク選択状態);
         }
-        var host = new Grid {
-            WidthRequest=BenchmarkTopAllSelectionSlotWidth,
-            MinimumWidthRequest=BenchmarkTopAllSelectionSlotWidth,
+        var ホスト = new Grid {
+            WidthRequest=ベンチマーク上部全選択領域幅,
+            MinimumWidthRequest=ベンチマーク上部全選択領域幅,
             BackgroundColor=Colors.Transparent,
             HorizontalOptions=LayoutOptions.Start,
             VerticalOptions=LayoutOptions.Center,
-            AutomationId="Benchmark.TopAllSelectionCheckHost",
+            AutomationId="ベンチマーク.全タブ選択チェックホスト",
             Children= {
-                check,
+                チェック,
             },
         };
-        host.SetValue(ToolTipProperties.TextProperty,"全タブのチェックを切り替え");
-        var tap = new TapGestureRecognizer();
-        tap.Tapped+=(_,_) => {
-            this.viewModel?.ToggleAllBenchmarkSelection();
+        ホスト.SetValue(ToolTipProperties.TextProperty,"全タブのチェックを切り替え");
+        var タップ = new TapGestureRecognizer();
+        タップ.Tapped+=(_,_) => {
+            this.ビューモデル?.全ベンチマーク選択を切り替える();
         };
-        host.GestureRecognizers.Add(tap);
-        return host;
+        ホスト.GestureRecognizers.Add(タップ);
+        return ホスト;
     }
 
-    private void ConfigureCompactTabView(SfTabView tabView,bool enableScrollButtons) {
-        tabView.TabWidthMode=TabWidthMode.SizeToContent;
-        tabView.TabHeaderAlignment=TabHeaderAlignment.Start;
-        tabView.TabHeaderPadding=new Thickness(0);
-        tabView.IsScrollButtonEnabled=enableScrollButtons;
+    private void コンパクトタブビューを構成(SfTabView タブビュー,bool スクロールボタンを有効にするか) {
+        タブビュー.TabWidthMode=TabWidthMode.SizeToContent;
+        タブビュー.TabHeaderAlignment=TabHeaderAlignment.Start;
+        タブビュー.TabHeaderPadding=new Thickness(0);
+        タブビュー.IsScrollButtonEnabled=スクロールボタンを有効にするか;
     }
 
-    private Border CreateProgressSummaryBadge(out Label text) {
-        text=new Label {
+    private Border 進行概要バッジを作成(out Label テキスト) {
+        テキスト=new Label {
             FontSize=12,
             TextColor=Color.FromArgb("#334155"),
             VerticalTextAlignment=TextAlignment.Center,
@@ -1267,223 +1228,213 @@ public sealed partial class MainPage:ContentPage {
             StrokeShape=new Microsoft.Maui.Controls.Shapes.RoundRectangle {
                 CornerRadius=new CornerRadius(6),
             },
-            Content=text,
+            Content=テキスト,
             HorizontalOptions=LayoutOptions.Start,
             VerticalOptions=LayoutOptions.Center,
-            WidthRequest=BenchmarkProgressSummaryBadgeWidth,
-            MinimumWidthRequest=BenchmarkProgressSummaryBadgeWidth,
+            WidthRequest=ベンチマーク進行概要バッジ幅,
+            MinimumWidthRequest=ベンチマーク進行概要バッジ幅,
             HeightRequest=18,
         };
     }
 
-    private View CreateTabHeader(TabHeaderOptionBase option,Action onSelect,IReadOnlyList<View>? trailingViews = null) {
-        var label = new Label {
+    private View タブ見出しを作成(タブ見出し選択肢基底 選択肢,Action 選択時,IReadOnlyList<View>? 後続ビュー一覧 = null) {
+        var ラベル = new Label {
             FontSize=12,
             HorizontalTextAlignment=TextAlignment.Center,
             VerticalTextAlignment=TextAlignment.Center,
             LineBreakMode=LineBreakMode.TailTruncation,
             Margin=new Thickness(6,1,3,1),
         };
-        label.SetBinding(Label.TextProperty,new Binding(nameof(TabHeaderOptionBase.HeaderText),source: option));
-        label.SetBinding(Label.FontAttributesProperty,new Binding(nameof(TabHeaderOptionBase.HeaderFontAttributes),source: option));
-        label.SetBinding(Label.TextColorProperty,new Binding(nameof(TabHeaderOptionBase.HeaderTextColor),source: option));
+        ラベル.SetBinding(Label.TextProperty,new Binding(nameof(タブ見出し選択肢基底.見出し文字列),source: 選択肢));
+        ラベル.SetBinding(Label.FontAttributesProperty,new Binding(nameof(タブ見出し選択肢基底.見出しフォント属性),source: 選択肢));
+        ラベル.SetBinding(Label.TextColorProperty,new Binding(nameof(タブ見出し選択肢基底.見出し文字色),source: 選択肢));
 
-        var content = new Grid {
+        var 内容 = new Grid {
             ColumnDefinitions= {
                 new ColumnDefinition { Width = GridLength.Auto },
             },
             ColumnSpacing=1,
             HorizontalOptions=LayoutOptions.Start,
             Children= {
-                label,
+                ラベル,
             },
         };
-        if(trailingViews is { Count: >0 }) {
-            foreach(var trailing in trailingViews) {
-                content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                content.Add(trailing,content.ColumnDefinitions.Count-1,0);
+        if(後続ビュー一覧 is { Count:>0 }) {
+            foreach(var 後続 in 後続ビュー一覧) {
+                内容.ColumnDefinitions.Add(new ColumnDefinition { Width=GridLength.Auto });
+                内容.Add(後続,内容.ColumnDefinitions.Count-1,0);
             }
         }
 
-        var layout = new Border {
+        var レイアウト = new Border {
             StrokeThickness=1,
             StrokeShape=new Microsoft.Maui.Controls.Shapes.RoundRectangle {
                 CornerRadius=new CornerRadius(6),
             },
-            Content=content,
+            Content=内容,
             Margin=new Thickness(1,0),
             HorizontalOptions=LayoutOptions.Start,
         };
-        layout.SetBinding(BackgroundColorProperty,new Binding(nameof(TabHeaderOptionBase.HeaderBackgroundColor),source: option));
-        layout.SetBinding(Border.StrokeProperty,new Binding(nameof(TabHeaderOptionBase.HeaderStroke),source: option));
-        var tap = new TapGestureRecognizer();
-        tap.Tapped+=(_,_) => onSelect();
-        layout.GestureRecognizers.Add(tap);
-        return layout;
+        レイアウト.SetBinding(BackgroundColorProperty,new Binding(nameof(タブ見出し選択肢基底.見出し背景色),source: 選択肢));
+        レイアウト.SetBinding(Border.StrokeProperty,new Binding(nameof(タブ見出し選択肢基底.見出し枠線),source: 選択肢));
+        var タップ = new TapGestureRecognizer();
+        タップ.Tapped+=(_,_) => 選択時();
+        レイアウト.GestureRecognizers.Add(タップ);
+        return レイアウト;
     }
 
-    private View CreateSourceTabHeader(SourceTabOption option,SfTabView tabView,int tabIndex) {
-        var progress = new BenchmarkCircularProgressView {
+    private View ソースタブ見出しを作成(ソースタブ選択肢 選択肢,SfTabView タブビュー,int タブインデックス) {
+        var 進行 = new ベンチマーク円形進行ビュー {
             WidthRequest=18,
             HeightRequest=18,
             VerticalOptions=LayoutOptions.Center,
             HorizontalOptions=LayoutOptions.Center,
         };
-        progress.SetBinding(BenchmarkCircularProgressView.ProgressProperty,new Binding(nameof(SourceTabOption.ProgressFraction),source: option));
-        progress.SetBinding(BenchmarkCircularProgressView.OutlineColorProperty,new Binding(nameof(SourceTabOption.ProgressOutlineColor),source: option));
-        progress.SetBinding(IsVisibleProperty,new Binding(nameof(SourceTabOption.HasProgress),source: option));
-        progress.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: option));
-        var completedIcon = new Image {
+        進行.SetBinding(ベンチマーク円形進行ビュー.進行プロパティ,new Binding(nameof(ソースタブ選択肢.進行割合),source: 選択肢));
+        進行.SetBinding(ベンチマーク円形進行ビュー.輪郭色プロパティ,new Binding(nameof(ソースタブ選択肢.進行外枠色),source: 選択肢));
+        進行.SetBinding(IsVisibleProperty,new Binding(nameof(ソースタブ選択肢.進行ありか),source: 選択肢));
+        進行.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(ソースタブ選択肢.進行ツールチップ文字列),source: 選択肢));
+        var 完了アイコン = new Image {
             WidthRequest=14,
             HeightRequest=14,
             VerticalOptions=LayoutOptions.Center,
             HorizontalOptions=LayoutOptions.Center,
             InputTransparent=true,
         };
-        completedIcon.SetBinding(Image.SourceProperty,new Binding(nameof(SourceTabOption.CompletionIconSource),source: option,converter: new ImageFileSourceConverter()));
-        completedIcon.SetBinding(IsVisibleProperty,new Binding(nameof(SourceTabOption.IsCompletionIconVisible),source: option));
-        completedIcon.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: option));
-        var progressHost = new Grid {
+        完了アイコン.SetBinding(Image.SourceProperty,new Binding(nameof(ソースタブ選択肢.完了アイコンソース),source: 選択肢,converter: new 画像ファイルソースコンバーター()));
+        完了アイコン.SetBinding(IsVisibleProperty,new Binding(nameof(ソースタブ選択肢.完了アイコン表示中か),source: 選択肢));
+        完了アイコン.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(ソースタブ選択肢.進行ツールチップ文字列),source: 選択肢));
+        var 進行ホスト = new Grid {
             WidthRequest=18,
             HeightRequest=18,
             VerticalOptions=LayoutOptions.Center,
             HorizontalOptions=LayoutOptions.Center,
             Margin=new Thickness(0,0,1,0),
             Children= {
-                progress,
-                completedIcon,
+                進行,
+                完了アイコン,
             },
         };
-        progressHost.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: option));
-        var spinner = new ActivityIndicator {
+        進行ホスト.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(ソースタブ選択肢.進行ツールチップ文字列),source: 選択肢));
+        var スピナー = new ActivityIndicator {
             WidthRequest=14,
             HeightRequest=14,
             VerticalOptions=LayoutOptions.Center,
             HorizontalOptions=LayoutOptions.Center,
             Color=Color.FromArgb("#00FF00"),
         };
-        spinner.SetBinding(ActivityIndicator.IsRunningProperty,new Binding(nameof(SourceTabOption.IsRunning),source: option));
-        spinner.SetBinding(IsVisibleProperty,new Binding(nameof(SourceTabOption.IsRunning),source: option));
-        spinner.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: option));
-        var spinnerHost = new Grid {
+        スピナー.SetBinding(ActivityIndicator.IsRunningProperty,new Binding(nameof(ソースタブ選択肢.実行中か),source: 選択肢));
+        スピナー.SetBinding(IsVisibleProperty,new Binding(nameof(ソースタブ選択肢.実行中か),source: 選択肢));
+        スピナー.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(ソースタブ選択肢.進行ツールチップ文字列),source: 選択肢));
+        var スピナーホスト = new Grid {
             WidthRequest=16,
             HeightRequest=18,
             VerticalOptions=LayoutOptions.Center,
             HorizontalOptions=LayoutOptions.Center,
             Margin=new Thickness(0,0,4,0),
             Children= {
-                spinner,
+                スピナー,
             },
         };
-        spinnerHost.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: option));
+        スピナーホスト.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(ソースタブ選択肢.進行ツールチップ文字列),source: 選択肢));
 
-        var header = this.CreateTabHeader(
-            option,
+        var 見出し = this.タブ見出しを作成(
+            選択肢,
             () => {
-                if(tabView.SelectedIndex!=tabIndex) {
-                    tabView.SelectedIndex=tabIndex;
+                if(タブビュー.SelectedIndex!=タブインデックス) {
+                    タブビュー.SelectedIndex=タブインデックス;
                 }
-                if(this.viewModel is not null&&this.viewModel.SelectedSourceTab!=option) {
-                    this.viewModel.SelectedSourceTab=option;
+                if(this.ビューモデル is not null&&this.ビューモデル.選択ソースタブ!=選択肢) {
+                    this.ビューモデル.選択ソースタブ=選択肢;
                 }
             },
-            [progressHost,spinnerHost]);
-        header.AutomationId="Benchmark.SourceTab."+option.Definition.Tab;
-        return header;
+            [進行ホスト,スピナーホスト]);
+        見出し.AutomationId="ベンチマーク.ソースタブ."+選択肢.定義.タブ;
+        return 見出し;
     }
 
-    private static double CalculateProgressWidth(double trackWidth,BenchmarkTabProgress progress) {
-        if(trackWidth<=0||progress.Total<=0) {
-            return 0;
-        }
-
-        return Math.Round(trackWidth*progress.Fraction,MidpointRounding.AwayFromZero);
-    }
-
-    private void SyncSourceTabViewSelection() {
-        if(this.viewModel is null||this.sourceTabView is null) {
+    private void ソースタブビュー選択を同期() {
+        if(this.ビューモデル is null||this.ソースタブビュー is null) {
             return;
         }
 
-        var index = -1;
-        for(var i=0;i<this.viewModel.SourceTabs.Count;i++) {
-            if(this.viewModel.SourceTabs[i]==this.viewModel.SelectedSourceTab) {
-                index=i;
+        var 選択インデックス = -1;
+        for(var 候補インデックス = 0;候補インデックス<this.ビューモデル.ソースタブ一覧.Count;候補インデックス++) {
+            if(this.ビューモデル.ソースタブ一覧[候補インデックス]==this.ビューモデル.選択ソースタブ) {
+                選択インデックス=候補インデックス;
                 break;
             }
         }
-        if(index<0||this.sourceTabView.SelectedIndex==index) {
+        if(選択インデックス<0||this.ソースタブビュー.SelectedIndex==選択インデックス) {
             return;
         }
 
-        this.isApplyingSourceTabViewSelection=true;
+        this.ソースタブビュー選択適用中か=true;
         try {
-            this.sourceTabView.SelectedIndex=index;
-        }
-        finally {
-            this.isApplyingSourceTabViewSelection=false;
+            this.ソースタブビュー.SelectedIndex=選択インデックス;
+        } finally {
+            this.ソースタブビュー選択適用中か=false;
         }
     }
 
-    private async void ScrollBenchmarkGridToLatestExecutionAsync(BenchmarkAutoScrollRequest request) {
-        this.SyncSourceTabViewSelection();
-        this.ScrollBenchmarkGridToMethod(request.MethodName,request.RowKey);
+    private async void ベンチマークグリッドを最新実行へスクロールAsync(ベンチマーク自動スクロール要求 要求) {
+        this.ソースタブビュー選択を同期();
+        this.ベンチマークグリッドをメソッドへスクロール(要求.メソッド名,要求.行キー);
         await Task.Delay(150);
-        StartupDiagnostics.BeginInvokeOnMainThread("benchmark grid delayed auto scroll "+request.SourceTab,() => this.ScrollBenchmarkGridToMethod(request.MethodName,request.RowKey));
+        起動診断.メインスレッドで呼び出し開始("ベンチマークグリッド遅延自動スクロール "+要求.ソースタブ,() => this.ベンチマークグリッドをメソッドへスクロール(要求.メソッド名,要求.行キー));
     }
 
-    private void ScrollBenchmarkGridToMethod(string methodName,string rowKey) {
-        if(this.viewModel is null||this.benchmarkGrid is null) {
+    private void ベンチマークグリッドをメソッドへスクロール(string メソッド名,string 行キー) {
+        if(this.ビューモデル is null||this.ベンチマークグリッド is null) {
             return;
         }
 
-        var rowIndex = -1;
-        for(var index=0;index<this.viewModel.BenchmarkRows.Count;index++) {
-            var row = this.viewModel.BenchmarkRows[index];
-            if(!string.IsNullOrWhiteSpace(rowKey)
-                &&string.Equals(row.RowKey,rowKey,StringComparison.OrdinalIgnoreCase)) {
-                rowIndex=index;
+        var 行インデックス = -1;
+        for(var インデックス = 0;インデックス<this.ビューモデル.ベンチマーク行一覧.Count;インデックス++) {
+            var 行 = this.ビューモデル.ベンチマーク行一覧[インデックス];
+            if(!string.IsNullOrWhiteSpace(行キー)
+                &&string.Equals(行.行キー,行キー,StringComparison.OrdinalIgnoreCase)) {
+                行インデックス=インデックス;
                 break;
             }
 
-            if(string.IsNullOrWhiteSpace(rowKey)
-                &&string.Equals(row.MethodName,methodName,StringComparison.OrdinalIgnoreCase)) {
-                rowIndex=index;
+            if(string.IsNullOrWhiteSpace(行キー)
+                &&string.Equals(行.メソッド名,メソッド名,StringComparison.OrdinalIgnoreCase)) {
+                行インデックス=インデックス;
                 break;
             }
         }
 
-        if(rowIndex<0) {
+        if(行インデックス<0) {
             return;
         }
 
-        this.TryScrollBenchmarkGridToRow(rowIndex);
+        this.ベンチマークグリッド行へのスクロールを試行(行インデックス);
     }
 
-    private void TryScrollBenchmarkGridToRow(int rowIndex) {
-        if(this.benchmarkGrid is null) {
+    private void ベンチマークグリッド行へのスクロールを試行(int 行インデックス) {
+        if(this.ベンチマークグリッド is null) {
             return;
         }
 
         try {
-            var headerOffset = this.benchmarkGrid.StackedHeaderRows.Count+1;
-            this.TryInvokeMember(this.benchmarkGrid,"ScrollToRowIndex",rowIndex+headerOffset);
-            this.TryInvokeMember(this.benchmarkGrid,"ScrollToRowIndex",rowIndex+1);
-            this.TryInvokeMember(this.benchmarkGrid,"ScrollToRowIndex",rowIndex);
-            var visualContainer = this.benchmarkGrid.GetVisualContainer();
-            if(visualContainer is not null) {
-                this.TryInvokeMember(visualContainer,"ScrollToRowIndex",rowIndex+headerOffset);
-                this.TryInvokeMember(visualContainer,"ScrollToRowIndex",rowIndex+1);
-                this.TryInvokeMember(visualContainer,"ScrollToRowIndex",rowIndex);
+            var 見出しオフセット = this.ベンチマークグリッド.StackedHeaderRows.Count+1;
+            this.メンバー呼び出しを試行(this.ベンチマークグリッド,"ScrollToRowIndex",行インデックス+見出しオフセット);
+            this.メンバー呼び出しを試行(this.ベンチマークグリッド,"ScrollToRowIndex",行インデックス+1);
+            this.メンバー呼び出しを試行(this.ベンチマークグリッド,"ScrollToRowIndex",行インデックス);
+            var 表示コンテナー = this.ベンチマークグリッド.GetVisualContainer();
+            if(表示コンテナー is not null) {
+                this.メンバー呼び出しを試行(表示コンテナー,"ScrollToRowIndex",行インデックス+見出しオフセット);
+                this.メンバー呼び出しを試行(表示コンテナー,"ScrollToRowIndex",行インデックス+1);
+                this.メンバー呼び出しを試行(表示コンテナー,"ScrollToRowIndex",行インデックス);
             }
-        }
-        catch(Exception ex) {
-            StartupDiagnostics.Write("Failed to scroll benchmark grid to latest execution.",ex);
+        } catch(Exception 例外) {
+            起動診断.書き込む("ベンチマークグリッドの最新実行へのスクロールに失敗しました。",例外);
         }
     }
 
-    private View CreateSourceTabContent(BenchmarkSourceTabViewState? state) {
-        var grid = new Grid {
+    private View ソースタブ内容を作成(ベンチマークソースタブ表示状態? 状態) {
+        var グリッド = new Grid {
             RowDefinitions= {
                 new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Star },
@@ -1495,15 +1446,15 @@ public sealed partial class MainPage:ContentPage {
             RowSpacing=1,
             ColumnSpacing=6,
         };
-        var summary = this.CreateProgressSummaryBadge(out var summaryText);
-        var sourceTabOption = state is not null ? this.viewModel?.SourceTabs.FirstOrDefault(option => option.Definition.Tab==state.Definition.Tab) : this.viewModel?.SelectedSourceTab;
-        if(sourceTabOption is not null) {
-            summaryText.SetBinding(Label.TextProperty,new Binding(nameof(SourceTabOption.ProgressSummaryText),source: sourceTabOption));
-            summary.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(SourceTabOption.ProgressTooltipText),source: sourceTabOption));
+        var 概要 = this.進行概要バッジを作成(out var 概要文);
+        var ソースタブ選択肢 = 状態 is not null ? this.ビューモデル?.ソースタブ一覧.FirstOrDefault(選択肢 => 選択肢.定義.タブ==状態.定義.タブ) : this.ビューモデル?.選択ソースタブ;
+        if(ソースタブ選択肢 is not null) {
+            概要文.SetBinding(Label.TextProperty,new Binding(nameof(ソースタブ選択肢.進行概要文字列),source: ソースタブ選択肢));
+            概要.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(ソースタブ選択肢.進行ツールチップ文字列),source: ソースタブ選択肢));
         }
-        var summaryHost = new Grid {
+        var 概要ホスト = new Grid {
             ColumnDefinitions= {
-                new ColumnDefinition { Width = new GridLength(BenchmarkTopAllSelectionSlotWidth) },
+                new ColumnDefinition { Width = new GridLength(ベンチマーク上部全選択領域幅) },
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Star },
             },
@@ -1511,36 +1462,36 @@ public sealed partial class MainPage:ContentPage {
             HorizontalOptions=LayoutOptions.Fill,
             VerticalOptions=LayoutOptions.Center,
             Children= {
-                summary,
+                概要,
             },
         };
-        Grid.SetColumn(summary,1);
-        grid.Add(summaryHost,0,0);
-        grid.SetColumnSpan(summaryHost,2);
+        Grid.SetColumn(概要,1);
+        グリッド.Add(概要ホスト,0,0);
+        グリッド.SetColumnSpan(概要ホスト,2);
 
-        var benchmarkGrid = this.CreateBenchmarkGrid(state);
-        benchmarkGrid.VerticalOptions=LayoutOptions.Fill;
-        grid.Add(benchmarkGrid,0,1);
-        grid.Add(this.CreateHistoryRatioTabView(state,benchmarkGrid),1,1);
-        return grid;
+        var ベンチマークグリッド = this.ベンチマークグリッドを作成(状態);
+        ベンチマークグリッド.VerticalOptions=LayoutOptions.Fill;
+        グリッド.Add(ベンチマークグリッド,0,1);
+        グリッド.Add(this.履歴シェアタブビューを作成(状態,ベンチマークグリッド),1,1);
+        return グリッド;
     }
 
-    private View CreateSourceTabPlaceholder(SourceTabOption option) =>
+    private View ソースタブプレースホルダーを作成(ソースタブ選択肢 選択肢) =>
         new Grid {
-            AutomationId="Benchmark.SourceDisplay.Placeholder."+option.Definition.Tab,
+            AutomationId="ベンチマーク.ソースタブプレースホルダー."+選択肢.定義.タブ,
             BackgroundColor=Colors.White,
             HorizontalOptions=LayoutOptions.Fill,
             VerticalOptions=LayoutOptions.Fill,
         };
 
-    private View CreateBenchmarkTabContent() {
-        var grid = new Grid {
+    private View ベンチマークタブ内容を作成() {
+        var グリッド = new Grid {
             RowDefinitions= {
                 new RowDefinition { Height = GridLength.Auto },
             },
         };
-        var lowerTabView = new SfTabView {
-            TabBarHeight=LowerTabBarHeight,
+        var 下部タブビュー = new SfTabView {
+            TabBarHeight=下部タブバー高さ,
             TabBarBackground=Color.FromArgb("#E2E8F0"),
             IndicatorBackground=Colors.Transparent,
             HeaderItemSpacing=1,
@@ -1548,119 +1499,110 @@ public sealed partial class MainPage:ContentPage {
             ContentTransitionDuration=0,
             BackgroundColor=Color.FromArgb("#F8FAFC"),
         };
-        this.ConfigureCompactTabView(lowerTabView,false);
-        var lowerItems = new TabItemCollection();
-        var lowerTabOptions = new[] {
-            new TabHeaderOption("CPU"),
-            new TabHeaderOption("ログ"),
-            new TabHeaderOption("改善プロンプト"),
+        this.コンパクトタブビューを構成(下部タブビュー,false);
+        var 下部項目一覧 = new TabItemCollection();
+        var 下部タブ選択肢一覧 = new[] {
+            new タブ見出し選択肢("CPU"),
+            new タブ見出し選択肢("ログ"),
+            new タブ見出し選択肢("改善プロンプト"),
         };
-        var lowerContents = new View[] { this.CreateCpuView(),this.CreateLogView(),this.CreateImprovementPromptView() };
-        for(var index = 0; index<lowerTabOptions.Length; index++) {
-            var capturedIndex = index;
-            lowerItems.Add(new SfTabItem {
-                Header=lowerTabOptions[index].HeaderText,
-                HeaderContent=this.CreateTabHeader(lowerTabOptions[index],() => lowerTabView.SelectedIndex=capturedIndex),
+        var 下部内容一覧 = new View[] { this.CPUビューを作成(),this.ログビューを作成(),this.改善プロンプトビューを作成() };
+        for(var インデックス = 0;インデックス<下部タブ選択肢一覧.Length;インデックス++) {
+            var 取得済みインデックス = インデックス;
+            下部項目一覧.Add(new SfTabItem {
+                Header=下部タブ選択肢一覧[インデックス].見出し文字列,
+                HeaderContent=this.タブ見出しを作成(下部タブ選択肢一覧[インデックス],() => 下部タブビュー.SelectedIndex=取得済みインデックス),
                 FontSize=12,
-                Content=lowerContents[index],
+                Content=下部内容一覧[インデックス],
             });
         }
-        lowerTabOptions[0].SetSelected(true);
-        lowerTabView.Items=lowerItems;
-        void ApplyLowerTabHeight() {
-            var height = LowerTabBarHeight+this.CalculateCpuTabContentHeight();
-            if(Math.Abs(lowerTabView.HeightRequest-height)>0.1) {
-                lowerTabView.HeightRequest=height;
+        下部タブ選択肢一覧[0].選択状態を設定(true);
+        下部タブビュー.Items=下部項目一覧;
+        void 下部タブ高さを適用() {
+            var 高さ = 下部タブバー高さ+this.CPUタブ内容高さを計算();
+            if(Math.Abs(下部タブビュー.HeightRequest-高さ)>0.1) {
+                下部タブビュー.HeightRequest=高さ;
             }
         }
 
-        ApplyLowerTabHeight();
-        lowerTabView.Loaded+=(_,_) => ApplyLowerTabHeight();
-        lowerTabView.SizeChanged+=(_,_) => ApplyLowerTabHeight();
-        lowerTabView.SelectedIndex=(int)(this.viewModel?.SelectedLowerTab??BenchmarkLowerTab.Cpu);
-        lowerTabView.PropertyChanged+=(_,args) => {
-            if(args.PropertyName!=nameof(SfTabView.SelectedIndex)) {
+        下部タブ高さを適用();
+        下部タブビュー.Loaded+=(_,_) => 下部タブ高さを適用();
+        下部タブビュー.SizeChanged+=(_,_) => 下部タブ高さを適用();
+        下部タブビュー.SelectedIndex=(int)(this.ビューモデル?.選択下段タブ??ベンチマーク下段タブ.CPU);
+        下部タブビュー.PropertyChanged+=(_,イベント引数) => {
+            if(イベント引数.PropertyName!=nameof(SfTabView.SelectedIndex)) {
                 return;
             }
-            for(var i = 0; i<lowerTabOptions.Length; i++) {
-                lowerTabOptions[i].SetSelected(i==lowerTabView.SelectedIndex);
+            for(var インデックス = 0;インデックス<下部タブ選択肢一覧.Length;インデックス++) {
+                下部タブ選択肢一覧[インデックス].選択状態を設定(インデックス==下部タブビュー.SelectedIndex);
             }
-            if(this.viewModel is null) {
+            if(this.ビューモデル is null) {
                 return;
             }
 
-            this.viewModel.SelectedLowerTab=lowerTabView.SelectedIndex switch {
-                1 => BenchmarkLowerTab.Log,
-                2 => BenchmarkLowerTab.ImprovementPrompt,
-                _ => BenchmarkLowerTab.Cpu,
+            this.ビューモデル.選択下段タブ=下部タブビュー.SelectedIndex switch {
+                1 => ベンチマーク下段タブ.ログ,
+                2 => ベンチマーク下段タブ.改善プロンプト,
+                _ => ベンチマーク下段タブ.CPU,
             };
         };
-        var lowerTabFrame = new Border {
+        var 下部タブ枠 = new Border {
             Stroke=Color.FromArgb("#CBD5E1"),
             StrokeThickness=1,
             StrokeShape=new Microsoft.Maui.Controls.Shapes.RoundRectangle {
                 CornerRadius=6,
             },
             BackgroundColor=Color.FromArgb("#F8FAFC"),
-            Content=lowerTabView,
+            Content=下部タブビュー,
         };
-        grid.Add(lowerTabFrame,0,0);
+        グリッド.Add(下部タブ枠,0,0);
 
-        if(this.viewModel is not null) {
-            this.viewModel.PropertyChanged+=(_,args) => {
-                if(args.PropertyName==nameof(RunnerViewModel.SelectedLowerTab)) {
-                    StartupDiagnostics.BeginInvokeOnMainThread("lower tab sync",() => lowerTabView.SelectedIndex=(int)this.viewModel.SelectedLowerTab);
+        if(this.ビューモデル is not null) {
+            this.ビューモデル.PropertyChanged+=(_,イベント引数) => {
+                if(イベント引数.PropertyName==nameof(実行ビューモデル.選択下段タブ)) {
+                    起動診断.メインスレッドで呼び出し開始("下部タブ同期",() => 下部タブビュー.SelectedIndex=(int)this.ビューモデル.選択下段タブ);
                 }
             };
         }
-        return grid;
+        return グリッド;
     }
 
-    private double CalculateBenchmarkGridContentHeight() {
-        var rowCount = this.viewModel?.BenchmarkRows.Count??0;
-        return (BenchmarkGridStackedHeaderRowCount*BenchmarkGridHeaderRowHeight)
-            +BenchmarkGridHeaderRowHeight
-            +(rowCount*BenchmarkGridRowHeight)
-            +BenchmarkScrollBarSize
-            +BenchmarkGridExtraHeight;
-    }
-
-    private double CalculateCpuTabContentHeight() {
-        if(this.viewModel is null) {
+    private double CPUタブ内容高さを計算() {
+        if(this.ビューモデル is null) {
             return 0;
         }
 
-        var performanceHeight = this.CalculateCpuSectionListHeight(this.viewModel.PerformanceCpuSections);
-        var efficiencyHeight = this.CalculateCpuSectionListHeight(this.viewModel.EfficiencyCpuSections);
-        var unknownHeight = this.CalculateCpuSectionListHeight(this.viewModel.UnknownCpuSections);
-        var topRowHeight = Math.Max(performanceHeight,efficiencyHeight);
-        if(unknownHeight<=0) {
-            return topRowHeight;
+        var 高性能高さ = this.CPU区分一覧高さを計算(this.ビューモデル.高性能CPU区分一覧);
+        var 高効率高さ = this.CPU区分一覧高さを計算(this.ビューモデル.高効率CPU区分一覧);
+        var 不明高さ = this.CPU区分一覧高さを計算(this.ビューモデル.不明CPU区分一覧);
+        var 上部行高さ = Math.Max(高性能高さ,高効率高さ);
+        if(不明高さ<=0) {
+            return 上部行高さ;
         }
 
-        return topRowHeight<=0
-            ? unknownHeight
-            : topRowHeight+CpuContentRowSpacing+unknownHeight;
+        return 上部行高さ<=0
+            ? 不明高さ
+            : 上部行高さ+CPU内容行間隔+不明高さ;
     }
 
-    private double CalculateCpuSectionListHeight(IEnumerable<CpuTableSection> sections) {
-        var heights = sections.Select(this.CalculateCpuSectionHeight).ToArray();
-        if(heights.Length==0) {
+    private double CPU区分一覧高さを計算(IEnumerable<CPU表区分> 区分一覧) {
+        var 高さ一覧 = 区分一覧.Select(this.CPU区分高さを計算).ToArray();
+        if(高さ一覧.Length==0) {
             return 0;
         }
 
-        return heights.Sum()+((heights.Length-1)*CpuListSpacing);
+        return 高さ一覧.Sum()+((高さ一覧.Length-1)*CPU一覧間隔);
     }
 
-    private double CalculateCpuSectionHeight(CpuTableSection section) =>
-        CpuSectionHeaderHeight
-        +CpuSectionSpacing
-        +CpuSectionGridHeaderHeight
-        +(section.Rows.Count*CpuSectionRowHeight)
-        +CpuSectionGridExtraHeight;
+    private double CPU区分高さを計算(CPU表区分 区分) =>
+        CPU区分見出し高さ
+        +CPU区分間隔
+        +CPU区分グリッド見出し高さ
+        +(区分.行一覧.Count*CPU区分行高さ)
+        +CPU区分グリッド追加高さ;
 
-    private View CreateHistoryRatioTabView(BenchmarkSourceTabViewState? state,SfDataGrid benchmarkGrid) {
-        var tabs = new SfTabView {
+    private View 履歴シェアタブビューを作成(ベンチマークソースタブ表示状態? 状態,SfDataGrid ベンチマークグリッド) {
+        var タブ一覧 = new SfTabView {
             TabBarHeight=28,
             TabBarBackground=Color.FromArgb("#F1F5F9"),
             IndicatorBackground=Color.FromArgb("#0F766E"),
@@ -1670,603 +1612,162 @@ public sealed partial class MainPage:ContentPage {
             BackgroundColor=Colors.White,
             VerticalOptions=LayoutOptions.Fill,
         };
-        this.ConfigureCompactTabView(tabs,false);
-        var options = new[] { new TabHeaderOption("時間シェア"),new TabHeaderOption("メモリシェア") };
-        var timeHost = new Grid { BackgroundColor=Colors.White };
-        var memoryHost = new Grid { BackgroundColor=Colors.White };
-        tabs.Items=new TabItemCollection {
+        this.コンパクトタブビューを構成(タブ一覧,false);
+        var 選択肢一覧 = new[] { new タブ見出し選択肢("時間シェア"),new タブ見出し選択肢("メモリシェア") };
+        var 時間ホスト = new Grid { BackgroundColor=Colors.White };
+        var メモリホスト = new Grid { BackgroundColor=Colors.White };
+        タブ一覧.Items=new TabItemCollection {
             new SfTabItem {
                 Header="時間シェア",
-                HeaderContent=this.CreateTabHeader(options[0],() => tabs.SelectedIndex=0),
+                HeaderContent=this.タブ見出しを作成(選択肢一覧[0],() => タブ一覧.SelectedIndex=0),
                 FontSize=12,
-                Content=timeHost,
+                Content=時間ホスト,
             },
             new SfTabItem {
                 Header="メモリシェア",
-                HeaderContent=this.CreateTabHeader(options[1],() => tabs.SelectedIndex=1),
+                HeaderContent=this.タブ見出しを作成(選択肢一覧[1],() => タブ一覧.SelectedIndex=1),
                 FontSize=12,
-                Content=memoryHost,
+                Content=メモリホスト,
             },
         };
-        options[0].SetSelected(true);
-        BenchmarkTableRow? focusedRow=null;
-        SfCartesianChart? timeChart=null;
-        SfCartesianChart? memoryChart=null;
-        var timeDirty=true;
-        var memoryDirty=true;
+        選択肢一覧[0].選択状態を設定(true);
+        ベンチマーク表行? フォーカス行 = null;
+        SfCartesianChart? 時間チャート = null;
+        SfCartesianChart? メモリチャート = null;
+        var 時間更新必要か = true;
+        var メモリ更新必要か = true;
 
-        SfCartesianChart CreateChart(string yAxisTitle) {
-            var chart=new SfCartesianChart {
+        SfCartesianChart チャートを作成(string 縦軸タイトル) {
+            var チャート = new SfCartesianChart {
                 TooltipBehavior=new ChartTooltipBehavior { FontSize=12,Duration=4 },
                 Legend=new ChartLegend(),
                 VerticalOptions=LayoutOptions.Fill,
             };
-            chart.XAxes.Add(new NumericalAxis { Title=new ChartAxisTitle { Text="実行ID" },Interval=1 });
-            chart.YAxes.Add(new NumericalAxis {
-                Title=new ChartAxisTitle { Text=yAxisTitle },
+            チャート.XAxes.Add(new NumericalAxis { Title=new ChartAxisTitle { Text="実行ID" },Interval=1 });
+            チャート.YAxes.Add(new NumericalAxis {
+                Title=new ChartAxisTitle { Text=縦軸タイトル },
                 Minimum=0,
                 Maximum=1,
             });
-            return chart;
+            return チャート;
         }
 
-        void Reload(UiShareMetric metric) {
-            var chart=metric==UiShareMetric.Time?timeChart:memoryChart;
-            if(chart is null) {
+        void 再読み込み(UIシェア指標 指標) {
+            var チャート = 指標==UIシェア指標.時間 ? 時間チャート : メモリチャート;
+            if(チャート is null) {
                 return;
             }
-            chart.Series.Clear();
-            if(focusedRow is null||this.viewModel is null) {
+            チャート.Series.Clear();
+            if(フォーカス行 is null||this.ビューモデル is null) {
                 return;
             }
-            var seriesList=this.viewModel.LoadShareHistory(focusedRow,metric);
-            for(var index=0;index<seriesList.Count;index++) {
-                var series=seriesList[index];
-                chart.Series.Add(new LineSeries {
-                    Label=series.SeriesLabel,
-                    XBindingPath=nameof(BenchmarkTrendPoint.X),
-                    YBindingPath=nameof(BenchmarkTrendPoint.Y),
-                    ItemsSource=series.Points,
-                    Fill=new SolidColorBrush(Color.FromArgb(index==0?"#2563EB":"#F97316")),
+            var 系列一覧 = this.ビューモデル.シェア履歴を読み込む(フォーカス行,指標);
+            for(var インデックス = 0;インデックス<系列一覧.Count;インデックス++) {
+                var 系列 = 系列一覧[インデックス];
+                チャート.Series.Add(new LineSeries {
+                    Label=系列.系列名,
+                    XBindingPath=nameof(ベンチマーク傾向点.横軸値),
+                    YBindingPath=nameof(ベンチマーク傾向点.縦軸値),
+                    ItemsSource=系列.点一覧,
+                    Fill=new SolidColorBrush(Color.FromArgb(インデックス==0 ? "#2563EB" : "#F97316")),
                     StrokeWidth=2,
                 });
             }
-            if(metric==UiShareMetric.Time) {
-                timeDirty=false;
-            }else{
-                memoryDirty=false;
+            if(指標==UIシェア指標.時間) {
+                時間更新必要か=false;
+            } else {
+                メモリ更新必要か=false;
             }
         }
 
-        void EnsureVisibleChart() {
-            if(focusedRow is null) {
+        void 表示チャートを保証() {
+            if(フォーカス行 is null) {
                 return;
             }
-            if(tabs.SelectedIndex==1) {
-                if(memoryChart is null) {
-                    memoryChart=CreateChart("メモリシェア");
-                    memoryHost.Add(memoryChart,0,0);
+            if(タブ一覧.SelectedIndex==1) {
+                if(メモリチャート is null) {
+                    メモリチャート=チャートを作成("メモリシェア");
+                    メモリホスト.Add(メモリチャート,0,0);
                 }
-                if(memoryDirty) {
-                    Reload(UiShareMetric.Memory);
+                if(メモリ更新必要か) {
+                    再読み込み(UIシェア指標.メモリ);
                 }
                 return;
             }
-            if(timeChart is null) {
-                timeChart=CreateChart("時間シェア");
-                timeHost.Add(timeChart,0,0);
+            if(時間チャート is null) {
+                時間チャート=チャートを作成("時間シェア");
+                時間ホスト.Add(時間チャート,0,0);
             }
-            if(timeDirty) {
-                Reload(UiShareMetric.Time);
+            if(時間更新必要か) {
+                再読み込み(UIシェア指標.時間);
             }
         }
 
-        void SetFocusedRow(BenchmarkTableRow? row) {
-            if(ReferenceEquals(focusedRow,row)) {
+        void フォーカス行を設定(ベンチマーク表行? 行) {
+            if(ReferenceEquals(フォーカス行,行)) {
                 return;
             }
-            focusedRow=row;
-            timeDirty=true;
-            memoryDirty=true;
-            EnsureVisibleChart();
+            フォーカス行=行;
+            時間更新必要か=true;
+            メモリ更新必要か=true;
+            表示チャートを保証();
         }
 
-        benchmarkGrid.SelectionChanged+=(_,args) => {
-            var row=benchmarkGrid.CurrentRow as BenchmarkTableRow
-                ??BenchmarkCheckSelectionController.GetSelectedRows(args.AddedRows).LastOrDefault();
-            if(row is not null) {
-                SetFocusedRow(row);
+        ベンチマークグリッド.SelectionChanged+=(_,イベント引数) => {
+            var 行 = ベンチマークグリッド.CurrentRow as ベンチマーク表行
+                ??ベンチマークチェック選択コントローラー.選択行を取得(イベント引数.AddedRows).LastOrDefault();
+            if(行 is not null) {
+                フォーカス行を設定(行);
             }
         };
-        if(this.viewModel is not null) {
-            this.viewModel.ShareHistoryChanged+=(_,_) => {
-                timeDirty=true;
-                memoryDirty=true;
-                StartupDiagnostics.BeginInvokeOnMainThread("share history refresh",() => {
-                    var currentRow=benchmarkGrid.CurrentRow as BenchmarkTableRow;
-                    var resolvedRow=currentRow is not null&&state?.Rows.Contains(currentRow)==true
-                        ? currentRow
-                        : state?.Rows.FirstOrDefault(row => focusedRow is not null
-                            &&string.Equals(row.RowKey,focusedRow.RowKey,StringComparison.OrdinalIgnoreCase))
-                            ??state?.Rows.FirstOrDefault(static row =>
-                                row.LeftCell.Metrics.HasMeasuredValue&&row.RightCell.Metrics.HasMeasuredValue);
-                    if(!ReferenceEquals(focusedRow,resolvedRow)) {
-                        SetFocusedRow(resolvedRow);
+        if(this.ビューモデル is not null) {
+            this.ビューモデル.シェア履歴変更+=(_,_) => {
+                時間更新必要か=true;
+                メモリ更新必要か=true;
+                起動診断.メインスレッドで呼び出し開始("シェア履歴更新",() => {
+                    var 現在行 = ベンチマークグリッド.CurrentRow as ベンチマーク表行;
+                    var 解決済み行 = 現在行 is not null&&状態?.行一覧.Contains(現在行)==true
+                        ? 現在行
+                        : 状態?.行一覧.FirstOrDefault(行 => フォーカス行 is not null
+                            &&string.Equals(行.行キー,フォーカス行.行キー,StringComparison.OrdinalIgnoreCase))
+                            ??状態?.行一覧.FirstOrDefault(static 行 =>
+                                行.左セル.測定値.測定値ありか&&行.右セル.測定値.測定値ありか);
+                    if(!ReferenceEquals(フォーカス行,解決済み行)) {
+                        フォーカス行を設定(解決済み行);
                     }
-                    EnsureVisibleChart();
+                    表示チャートを保証();
                 });
             };
         }
-        tabs.PropertyChanged+=(_,args) => {
-            if(args.PropertyName!=nameof(SfTabView.SelectedIndex)) {
+        タブ一覧.PropertyChanged+=(_,イベント引数) => {
+            if(イベント引数.PropertyName!=nameof(SfTabView.SelectedIndex)) {
                 return;
             }
-            for(var i = 0; i<options.Length; i++) {
-                options[i].SetSelected(i==tabs.SelectedIndex);
+            for(var インデックス = 0;インデックス<選択肢一覧.Length;インデックス++) {
+                選択肢一覧[インデックス].選択状態を設定(インデックス==タブ一覧.SelectedIndex);
             }
-            EnsureVisibleChart();
+            表示チャートを保証();
         };
-        tabs.Loaded+=(_,_) => {
-            var initialRow=state?.Rows.FirstOrDefault(static row =>
-                row.LeftCell.Metrics.HasMeasuredValue&&row.RightCell.Metrics.HasMeasuredValue);
-            if(initialRow is not null&&benchmarkGrid.SelectionController is BenchmarkCheckSelectionController selectionController) {
-                selectionController.SelectSingle(initialRow);
+        タブ一覧.Loaded+=(_,_) => {
+            var 初期行 = 状態?.行一覧.FirstOrDefault(static 行 =>
+                行.左セル.測定値.測定値ありか&&行.右セル.測定値.測定値ありか);
+            if(初期行 is not null&&ベンチマークグリッド.SelectionController is ベンチマークチェック選択コントローラー 選択コントローラー) {
+                選択コントローラー.単一選択(初期行);
             }
-            SetFocusedRow(initialRow??benchmarkGrid.CurrentRow as BenchmarkTableRow);
-            EnsureVisibleChart();
+            フォーカス行を設定(初期行??ベンチマークグリッド.CurrentRow as ベンチマーク表行);
+            表示チャートを保証();
         };
-        return tabs;
+        return タブ一覧;
     }
+    private View ベンチマークグリッドを作成() =>
+        this.ベンチマークグリッドを作成(this.ビューモデル?.選択ソースタブ表示状態);
 
-    private static View CreateAnalysisTabRefreshButton(Action reload) {
-        var refresh = new Button {
-            Text="更新",
-            FontSize=12,
-            HeightRequest=28,
-            Padding=new Thickness(12,0),
-            HorizontalOptions=LayoutOptions.Start,
-            Margin=new Thickness(8,4),
-        };
-        ConfigurePressFeedback(refresh);
-        refresh.Clicked+=(_,_) => reload();
-        return refresh;
-    }
-
-    // 改善ランキング/時間シェア/メモリシェアを横棒チャートで表示する。
-    private View CreateRankedRatioChartTab(Func<IReadOnlyList<BenchmarkRankedRatioPoint>> load,string valueAxisTitle) {
-        var chart = new SfCartesianChart {
-            IsTransposed=true,
-            TooltipBehavior=new ChartTooltipBehavior { FontSize=12,Duration=4 },
-            VerticalOptions=LayoutOptions.Fill,
-        };
-        chart.XAxes.Add(new CategoryAxis { LabelPlacement=LabelPlacement.BetweenTicks });
-        chart.YAxes.Add(new NumericalAxis { Title=new ChartAxisTitle { Text=valueAxisTitle } });
-        var points = new ObservableCollection<BenchmarkRankedRatioPoint>();
-        var series = new ColumnSeries {
-            XBindingPath=nameof(BenchmarkRankedRatioPoint.Label),
-            YBindingPath=nameof(BenchmarkRankedRatioPoint.Value),
-            ItemsSource=points,
-            Fill=new SolidColorBrush(Color.FromArgb("#0F766E")),
-        };
-        chart.Series.Add(series);
-        void Reload() {
-            points.Clear();
-            foreach(var point in load()) {
-                points.Add(point);
-            }
-        }
-        var layout = new Grid {
-            RowDefinitions= { new RowDefinition { Height = GridLength.Auto },new RowDefinition { Height = GridLength.Star } },
-            BackgroundColor=Colors.White,
-            VerticalOptions=LayoutOptions.Fill,
-        };
-        layout.Add(CreateAnalysisTabRefreshButton(Reload),0,0);
-        layout.Add(chart,0,1);
-        layout.Loaded+=(_,_) => Reload();
-        return layout;
-    }
-
-    // カテゴリ: カテゴリ別の時間シェア/メモリシェアを並べた棒チャート。
-    private View CreateCategoryRatioChartTab() {
-        var chart = new SfCartesianChart {
-            IsTransposed=true,
-            Legend=new ChartLegend(),
-            TooltipBehavior=new ChartTooltipBehavior { FontSize=12,Duration=4 },
-            VerticalOptions=LayoutOptions.Fill,
-        };
-        chart.XAxes.Add(new CategoryAxis { LabelPlacement=LabelPlacement.BetweenTicks });
-        chart.YAxes.Add(new NumericalAxis { Title=new ChartAxisTitle { Text="比率" } });
-        var points = new ObservableCollection<BenchmarkCategoryRatioPoint>();
-        chart.Series.Add(new ColumnSeries {
-            Label="時間シェア",
-            XBindingPath=nameof(BenchmarkCategoryRatioPoint.Category),
-            YBindingPath=nameof(BenchmarkCategoryRatioPoint.AvgMeanRatio),
-            ItemsSource=points,
-            Fill=new SolidColorBrush(Color.FromArgb("#2563EB")),
-        });
-        chart.Series.Add(new ColumnSeries {
-            Label="メモリシェア",
-            XBindingPath=nameof(BenchmarkCategoryRatioPoint.Category),
-            YBindingPath=nameof(BenchmarkCategoryRatioPoint.AvgAllocationRatio),
-            ItemsSource=points,
-            Fill=new SolidColorBrush(Color.FromArgb("#F97316")),
-        });
-        void Reload() {
-            points.Clear();
-            foreach(var point in this.viewModel?.LoadCategorySummaryChartData()??[]) {
-                points.Add(point);
-            }
-        }
-        var layout = new Grid {
-            RowDefinitions= { new RowDefinition { Height = GridLength.Auto },new RowDefinition { Height = GridLength.Star } },
-            BackgroundColor=Colors.White,
-            VerticalOptions=LayoutOptions.Fill,
-        };
-        layout.Add(CreateAnalysisTabRefreshButton(Reload),0,0);
-        layout.Add(chart,0,1);
-        layout.Loaded+=(_,_) => Reload();
-        return layout;
-    }
-
-    private static readonly string[] TrendSeriesPalette = ["#0F766E","#2563EB","#F97316","#DC2626","#7C3AED","#0891B2","#65A30D","#DB2777"];
-
-    // 履歴/スケール: メソッドごとの複数系列トレンド折れ線チャート。
-    private View CreateTrendChartTab(
-        Func<IReadOnlyList<BenchmarkTrendSeries>> load,
-        string xAxisTitle,
-        string yAxisTitle,
-        double? yMinimum = null,
-        double? yMaximum = null) {
-        var chart = new SfCartesianChart {
-            TooltipBehavior=new ChartTooltipBehavior { FontSize=12,Duration=4 },
-            VerticalOptions=LayoutOptions.Fill,
-        };
-        chart.XAxes.Add(new NumericalAxis { Title=new ChartAxisTitle { Text=xAxisTitle },Interval=1 });
-        chart.YAxes.Add(new NumericalAxis {
-            Title=new ChartAxisTitle { Text=yAxisTitle },
-            Minimum=yMinimum,
-            Maximum=yMaximum,
-        });
-        void Reload() {
-            chart.Series.Clear();
-            var seriesList = load();
-            for(var index = 0; index<seriesList.Count; index++) {
-                var series = seriesList[index];
-                chart.Series.Add(new LineSeries {
-                    Label=series.SeriesLabel,
-                    XBindingPath=nameof(BenchmarkTrendPoint.X),
-                    YBindingPath=nameof(BenchmarkTrendPoint.Y),
-                    ItemsSource=series.Points,
-                    Fill=new SolidColorBrush(Color.FromArgb(TrendSeriesPalette[index%TrendSeriesPalette.Length])),
-                    StrokeWidth=2,
-                });
-            }
-        }
-        var layout = new Grid {
-            RowDefinitions= { new RowDefinition { Height = GridLength.Auto },new RowDefinition { Height = GridLength.Star } },
-            BackgroundColor=Colors.White,
-            VerticalOptions=LayoutOptions.Fill,
-        };
-        layout.Add(CreateAnalysisTabRefreshButton(Reload),0,0);
-        layout.Add(chart,0,1);
-        layout.Loaded+=(_,_) => Reload();
-        return layout;
-    }
-
-    // 失敗/欠測・fallback診断: 状態バッジの一覧。
-    private View CreateBadgeChecklistTab(Func<IReadOnlyList<BenchmarkBadgeItem>> load) {
-        var list = new VerticalStackLayout { Spacing=4,Padding=new Thickness(8) };
-        void Reload() {
-            list.Children.Clear();
-            foreach(var item in load()) {
-                list.Children.Add(CreateBadgeRow(item));
-            }
-        }
-        var layout = new Grid {
-            RowDefinitions= { new RowDefinition { Height = GridLength.Auto },new RowDefinition { Height = GridLength.Star } },
-            BackgroundColor=Colors.White,
-            VerticalOptions=LayoutOptions.Fill,
-        };
-        layout.Add(CreateAnalysisTabRefreshButton(Reload),0,0);
-        layout.Add(new ScrollView { Content=list },0,1);
-        layout.Loaded+=(_,_) => Reload();
-        return layout;
-    }
-
-    private static View CreateBadgeRow(BenchmarkBadgeItem item) {
-        var (background,foreground) = item.Severity switch {
-            BenchmarkBadgeSeverity.Critical => (Color.FromArgb("#FEE2E2"),Color.FromArgb("#DC2626")),
-            BenchmarkBadgeSeverity.Warning => (Color.FromArgb("#FFEDD5"),Color.FromArgb("#F97316")),
-            BenchmarkBadgeSeverity.Ok => (Color.FromArgb("#ECFDF5"),Color.FromArgb("#0F766E")),
-            _ => (Color.FromArgb("#F1F5F9"),Color.FromArgb("#475569")),
-        };
-        var dot = new BoxView {
-            WidthRequest=10,
-            HeightRequest=10,
-            CornerRadius=5,
-            Color=foreground,
-            VerticalOptions=LayoutOptions.Center,
-        };
-        var title = new Label {
-            Text=item.Title,
-            FontSize=12,
-            FontAttributes=FontAttributes.Bold,
-            TextColor=Color.FromArgb("#0F172A"),
-            LineBreakMode=LineBreakMode.TailTruncation,
-        };
-        var detail = new Label {
-            Text=item.Detail,
-            FontSize=11,
-            TextColor=Color.FromArgb("#475569"),
-            LineBreakMode=LineBreakMode.WordWrap,
-        };
-        var textStack = new VerticalStackLayout { Spacing=1,Children= { title,detail } };
-        var row = new Grid {
-            ColumnDefinitions= { new ColumnDefinition { Width = GridLength.Auto },new ColumnDefinition { Width = GridLength.Star } },
-            ColumnSpacing=8,
-            Padding=new Thickness(6,4),
-        };
-        row.Add(dot,0,0);
-        row.Add(textStack,1,0);
-        return new Border {
-            Stroke=Color.FromArgb("#CBD5E1"),
-            StrokeThickness=1,
-            BackgroundColor=background,
-            Content=row,
-            Margin=new Thickness(0,0,0,2),
-        };
-    }
-
-    // 計測品質: StdDev 比率をゲージ表示する行の一覧。
-    private View CreateQualityGaugeTab() {
-        var list = new VerticalStackLayout { Spacing=4,Padding=new Thickness(8) };
-        void Reload() {
-            list.Children.Clear();
-            foreach(var point in this.viewModel?.LoadMeasurementQualityGauges()??[]) {
-                list.Children.Add(CreateQualityGaugeRow(point));
-            }
-        }
-        var layout = new Grid {
-            RowDefinitions= { new RowDefinition { Height = GridLength.Auto },new RowDefinition { Height = GridLength.Star } },
-            BackgroundColor=Colors.White,
-            VerticalOptions=LayoutOptions.Fill,
-        };
-        layout.Add(CreateAnalysisTabRefreshButton(Reload),0,0);
-        layout.Add(new ScrollView { Content=list },0,1);
-        layout.Loaded+=(_,_) => Reload();
-        return layout;
-    }
-
-    private static View CreateQualityGaugeRow(BenchmarkQualityGaugePoint point) {
-        var color = point.StdDevRatio>0.1
-            ? Color.FromArgb("#DC2626")
-            : point.StdDevRatio>0.05 ? Color.FromArgb("#F97316") : Color.FromArgb("#0F766E");
-        var gauge = new BenchmarkCircularProgressView {
-            WidthRequest=24,
-            HeightRequest=24,
-            Progress=point.StdDevRatio,
-            ProgressColor=color,
-            VerticalOptions=LayoutOptions.Center,
-        };
-        var label = new Label {
-            Text=point.Label+" ("+point.DetailText+")",
-            FontSize=12,
-            TextColor=Color.FromArgb("#0F172A"),
-            LineBreakMode=LineBreakMode.TailTruncation,
-            VerticalOptions=LayoutOptions.Center,
-        };
-        var ratioText = new Label {
-            Text=point.StdDevRatio.ToString("P1",System.Globalization.CultureInfo.InvariantCulture),
-            FontSize=11,
-            TextColor=color,
-            VerticalOptions=LayoutOptions.Center,
-            HorizontalTextAlignment=TextAlignment.End,
-        };
-        var row = new Grid {
-            ColumnDefinitions= {
-                new ColumnDefinition { Width = GridLength.Auto },
-                new ColumnDefinition { Width = GridLength.Star },
-                new ColumnDefinition { Width = GridLength.Auto },
-            },
-            ColumnSpacing=8,
-            Padding=new Thickness(6,4),
-        };
-        row.Add(gauge,0,0);
-        row.Add(label,1,0);
-        row.Add(ratioText,2,0);
-        return new Border {
-            Stroke=Color.FromArgb("#CBD5E1"),
-            StrokeThickness=1,
-            BackgroundColor=Colors.White,
-            Content=row,
-            Margin=new Thickness(0,0,0,2),
-        };
-    }
-
-    private View CreateDiagnosticGrid(string itemsSourcePath) =>
-        this.CreateDiagnosticGrid(null,itemsSourcePath);
-
-    private View CreateDiagnosticGrid(IEnumerable<BenchmarkDiagnosticRow>? itemsSource,string itemsSourcePath) {
-        var SfDataGrid = new SfDataGrid {
+    private SfDataGrid ベンチマークグリッドを作成(ベンチマークソースタブ表示状態? 状態) {
+        起動診断.Syncfusionアセンブリを書き込む("ベンチマークグリッド作成前のSfDataGrid");
+        var データグリッド = new SfDataGrid {
             AutoGenerateColumnsMode=AutoGenerateColumnsMode.None,
-            RowHeight=24,
-            HeaderRowHeight=30,
-            SortingMode=DataGridSortingMode.None,
-            SelectionMode=DataGridSelectionMode.None,
-            GridLinesVisibility=GridLinesVisibility.Both,
-            HorizontalScrollBarVisibility=ScrollBarVisibility.Always,
-            VerticalScrollBarVisibility=ScrollBarVisibility.Always,
-            DefaultColumnWidth=92,
-            BackgroundColor=Colors.White,
-            VerticalOptions=LayoutOptions.Fill,
-        };
-        this.RegisterDataGridUpdateBatchTarget(SfDataGrid);
-        this.ConfigureDataGridLines(SfDataGrid);
-        this.ConfigureDataGridScrollBars(SfDataGrid);
-        SfDataGrid.Columns.Add(this.CreateDiagnosticTextColumn("区分",nameof(BenchmarkDiagnosticRow.Category),70,TextAlignment.Start));
-        SfDataGrid.Columns.Add(this.CreateDiagnosticTextColumn("メソッド",nameof(BenchmarkDiagnosticRow.Method),160,TextAlignment.Start));
-        SfDataGrid.Columns.Add(this.CreateDiagnosticTextColumn("最悪N",nameof(BenchmarkDiagnosticRow.WorstN),70,TextAlignment.End));
-        SfDataGrid.Columns.Add(this.CreateDiagnosticTextColumn("比率/CPU",nameof(BenchmarkDiagnosticRow.RatioText),80,TextAlignment.End));
-        SfDataGrid.Columns.Add(this.CreateDiagnosticTextColumn("Left/時間",nameof(BenchmarkDiagnosticRow.LeftText),110,TextAlignment.End));
-        SfDataGrid.Columns.Add(this.CreateDiagnosticTextColumn("Right/メモリ",nameof(BenchmarkDiagnosticRow.RightText),110,TextAlignment.End));
-        SfDataGrid.Columns.Add(this.CreateDiagnosticTextColumn("根拠",nameof(BenchmarkDiagnosticRow.DetailText),280,TextAlignment.Start));
-        if(itemsSource is not null) {
-            SfDataGrid.ItemsSource=itemsSource;
-        }else{
-            SfDataGrid.SetBinding(SfDataGrid.ItemsSourceProperty,itemsSourcePath);
-        }
-        return SfDataGrid;
-    }
-
-    private DataGridTextColumn CreateDiagnosticTextColumn(string header,string mappingName,double width,TextAlignment alignment) {
-        return new DataGridTextColumn {
-            HeaderText=header,
-            MappingName=mappingName,
-            Width=width,
-            HeaderTextAlignment=TextAlignment.Center,
-            CellTextAlignment=alignment,
-            AllowSorting=false,
-        };
-    }
-
-    private View CreateGeneratedCodeAuditInfographic() {
-        var targetLabel = new Label { FontSize=12,FontAttributes=FontAttributes.Bold,TextColor=Color.FromArgb("#0F172A") };
-        var pairLabel = new Label { FontSize=11,TextColor=Color.FromArgb("#475569") };
-        var auditTargetLabel = new Label { FontSize=11,TextColor=Color.FromArgb("#475569") };
-        var fileLabel = new Label { FontSize=11,TextColor=Color.FromArgb("#0F766E") };
-        var flagsList = new VerticalStackLayout { Spacing=4,Padding=new Thickness(0,8) };
-        var verdictLabel = new Label { FontSize=11,TextColor=Color.FromArgb("#334155"),LineBreakMode=LineBreakMode.WordWrap };
-
-        void Apply() {
-            var report = this.viewModel?.GeneratedCodeAuditReport;
-            targetLabel.Text="対象メソッド: "+(report?.TargetMethod??"-");
-            pairLabel.Text="比較ペア: "+(report?.ComparisonPair??"-");
-            auditTargetLabel.Text="監査対象: "+(report?.AuditTarget??"-");
-            fileLabel.Text=report?.GeneratedFileName is { } fileName ? "生成ファイル: "+fileName : string.Empty;
-            fileLabel.IsVisible=report?.GeneratedFileName is not null;
-            flagsList.Children.Clear();
-            foreach(var flag in report?.Flags??[]) {
-                flagsList.Children.Add(CreateBadgeRow(flag));
-            }
-            var hasVerdict=report?.Verdict is { Length: >0 } verdict&&verdict!="-";
-            verdictLabel.Text=hasVerdict ? "判定: "+report!.Verdict : string.Empty;
-            verdictLabel.IsVisible=hasVerdict;
-        }
-
-        var header = new VerticalStackLayout {
-            Spacing=2,
-            Padding=new Thickness(10,10,10,0),
-            Children= { targetLabel,pairLabel,auditTargetLabel,fileLabel },
-        };
-        var content = new VerticalStackLayout {
-            Children= { header,flagsList,verdictLabel },
-        };
-        if(this.viewModel is not null) {
-            this.viewModel.PropertyChanged+=(_,args) => {
-                if(args.PropertyName==nameof(RunnerViewModel.GeneratedCodeAuditReport)) {
-                    StartupDiagnostics.BeginInvokeOnMainThread("chart element count label apply",Apply);
-                }
-            };
-        }
-        Apply();
-        return new ScrollView {
-            BackgroundColor=Colors.White,
-            Content=content,
-        };
-    }
-
-    private View CreateCollapsibleSection(
-        string title,
-        Func<bool> getExpanded,
-        Action<bool> setExpanded,
-        View content,
-        View? trailingContent) {
-        var icon = new Label {
-            WidthRequest=18,
-            FontSize=12,
-            FontAttributes=FontAttributes.Bold,
-            TextColor=Color.FromArgb("#0F172A"),
-            HorizontalTextAlignment=TextAlignment.Center,
-            VerticalTextAlignment=TextAlignment.Center,
-        };
-        var titleLabel = new Label {
-            Text=title,
-            FontSize=12,
-            FontAttributes=FontAttributes.Bold,
-            TextColor=Color.FromArgb("#0F172A"),
-            VerticalTextAlignment=TextAlignment.Center,
-            LineBreakMode=LineBreakMode.TailTruncation,
-        };
-        var toggleArea = new Grid {
-            ColumnDefinitions= {
-                new ColumnDefinition { Width = GridLength.Auto },
-                new ColumnDefinition { Width = GridLength.Star },
-            },
-            ColumnSpacing=2,
-            BackgroundColor=Colors.Transparent,
-        };
-        toggleArea.Add(icon,0,0);
-        toggleArea.Add(titleLabel,1,0);
-        var header = new Grid {
-            ColumnDefinitions= {
-                new ColumnDefinition { Width = GridLength.Star },
-                new ColumnDefinition { Width = GridLength.Auto },
-            },
-            ColumnSpacing=8,
-            Padding=new Thickness(6,3),
-            BackgroundColor=Color.FromArgb("#F1F5F9"),
-        };
-        header.Add(toggleArea,0,0);
-        if(trailingContent is not null) {
-            header.Add(trailingContent,1,0);
-        }
-
-        var border = new Border {
-            Stroke=Color.FromArgb("#CBD5E1"),
-            StrokeThickness=1,
-            BackgroundColor=Color.FromArgb("#F8FAFC"),
-            Content=header,
-        };
-        var layout = new Grid {
-            RowDefinitions= {
-                new RowDefinition { Height = GridLength.Auto },
-                new RowDefinition { Height = GridLength.Auto },
-            },
-            RowSpacing=3,
-            Children= {
-                border,
-                content,
-            },
-        };
-        Grid.SetRow(content,1);
-
-        void Apply() {
-            var expanded = getExpanded();
-            icon.Text=expanded ? "v" : ">";
-            content.IsVisible=expanded;
-        }
-
-        var tap = new TapGestureRecognizer();
-        tap.Tapped+=(_,_) => {
-            setExpanded(!getExpanded());
-            foreach(var refresh in this.collapsibleSectionRefreshers) {
-                refresh();
-            }
-        };
-        toggleArea.GestureRecognizers.Add(tap);
-        this.collapsibleSectionRefreshers.Add(Apply);
-        Apply();
-        return layout;
-    }
-    private View CreateBenchmarkGrid() =>
-        this.CreateBenchmarkGrid(this.viewModel?.SelectedSourceTabViewState);
-
-    private SfDataGrid CreateBenchmarkGrid(BenchmarkSourceTabViewState? state) {
-        StartupDiagnostics.WriteSyncfusionAssemblies("CreateBenchmarkGrid before SfDataGrid");
-        var SfDataGrid = new SfDataGrid {
-            AutoGenerateColumnsMode=AutoGenerateColumnsMode.None,
-            RowHeight=BenchmarkGridRowHeight,
-            HeaderRowHeight=BenchmarkGridHeaderRowHeight,
+            RowHeight=ベンチマークグリッド行高さ,
+            HeaderRowHeight=ベンチマークグリッド見出し行高さ,
             AllowTriStateSorting=false,
             AllowResizingColumns=true,
             SortingMode=DataGridSortingMode.None,
@@ -2280,298 +1781,286 @@ public sealed partial class MainPage:ContentPage {
             GridLinesVisibility=GridLinesVisibility.Both,
             DefaultColumnWidth=92,
         };
-        this.RegisterDataGridUpdateBatchTarget(SfDataGrid);
-        if(state is not null) {
-            SfDataGrid.AutomationId="Benchmark.Grid."+state.Definition.Tab;
-            this.benchmarkGridsBySourceTab[state.Definition.Tab]=SfDataGrid;
-            if(this.viewModel?.SelectedSourceDefinition.Tab==state.Definition.Tab) {
-                this.benchmarkGrid=SfDataGrid;
+        this.データグリッド更新バッチ対象を登録(データグリッド);
+        if(状態 is not null) {
+            データグリッド.AutomationId="ベンチマーク.グリッド."+状態.定義.タブ;
+            this.ソースタブ別ベンチマークグリッド[状態.定義.タブ]=データグリッド;
+            if(this.ビューモデル?.選択ソース定義.タブ==状態.定義.タブ) {
+                this.ベンチマークグリッド=データグリッド;
             }
-        }else{
-            SfDataGrid.AutomationId="Benchmark.Grid";
-            this.benchmarkGrid=SfDataGrid;
-        }
-        var selectionController=new BenchmarkCheckSelectionController(
-            SfDataGrid,
-            rows => this.viewModel?.ToggleBenchmarkRows(rows),
-            (addedRows,removedRows) => this.SynchronizeBenchmarkGridSelection(state,addedRows,removedRows));
-        SfDataGrid.SelectionController=selectionController;
-        GridKeyboardFocusBehavior.Attach(SfDataGrid);
-        SfDataGrid.SelectionChanging+=(_,args) => {
-            if(this.selectionSuppressedGrids.Contains(SfDataGrid)){
-                args.Cancel=true;
-            }
-        };
-        SfDataGrid.SelectionChanged+=(_,args) => {
-            selectionController.HandleSelectionChanged(args);
-        };
-        AutomationProperties.SetIsInAccessibleTree(SfDataGrid,true);
-        SfDataGrid.QueryRowHeight+=(_,args) => {
-            if(args.RowIndex<2) {
-                args.Height=BenchmarkGridHeaderRowHeight;
-            }
-        };
-        SfDataGrid.CellDoubleTapped+=this.OnBenchmarkGridCellDoubleTapped;
-        if(state is not null) {
-            SfDataGrid.ItemsSource=state.Rows;
-        }else{
-            SfDataGrid.SetBinding(SfDataGrid.ItemsSourceProperty,nameof(RunnerViewModel.BenchmarkRows));
-        }
-        this.ConfigureDataGridLines(SfDataGrid,showRowFocus:true);
-        this.ConfigureDataGridScrollBars(SfDataGrid);
-
-        var sourceTab = state?.Definition??this.viewModel?.SelectedSourceDefinition
-            ??throw new InvalidDataException("ベンチマークグリッドのSourceTabを解決できません。");
-        this.RebuildBenchmarkGridColumns(SfDataGrid,sourceTab);
-        return SfDataGrid;
-    }
-
-    private void SelectBenchmarkGridForActiveSource() {
-        if(this.viewModel is null) {
-            return;
-        }
-
-        if(this.benchmarkGridsBySourceTab.TryGetValue(this.viewModel.SelectedSourceDefinition.Tab,out var grid)) {
-            this.benchmarkGrid=grid;
-        }
-    }
-
-    private void SynchronizeBenchmarkGridSelection(
-        BenchmarkSourceTabViewState? state,
-        IReadOnlyList<BenchmarkTableRow> addedRows,
-        IReadOnlyList<BenchmarkTableRow> removedRows) {
-        if(this.viewModel is null||state is null) {
-            return;
-        }
-
-        this.viewModel.SynchronizeBenchmarkRowUiSelection(state,addedRows,removedRows);
-    }
-
-    private void SelectAllBenchmarkGridRows(BenchmarkSourceTabDefinition sourceTab) {
-        if(!this.benchmarkGridsBySourceTab.TryGetValue(sourceTab.Tab,out var grid)
-            ||this.viewModel?.GetSourceTabViewState(sourceTab.Tab) is not { } state) {
-            return;
-        }
-
-        grid.SelectAll();
-    }
-
-    private void SelectBenchmarkGridRow(
-        BenchmarkSourceTabViewState state,
-        BenchmarkTableRow row) {
-        if(!this.benchmarkGridsBySourceTab.TryGetValue(state.Definition.Tab,out var grid)
-            ||grid.SelectionController is not BenchmarkCheckSelectionController selectionController) {
-            return;
-        }
-
-        grid.GetVisualContainer()?.Focus();
-        selectionController.SelectSingle(row);
-    }
-
-    private void RebuildBenchmarkGridColumns(SfDataGrid grid,BenchmarkSourceTabDefinition sourceTab) {
-        grid.Columns.Clear();
-        grid.StackedHeaderRows.Clear();
-        var projectHeaderRow = new DataGridStackedHeaderRow();
-        grid.StackedHeaderRows.Add(projectHeaderRow);
-
-        grid.Columns.Add(this.CreateCheckColumn(grid,sourceTab));
-        grid.Columns.Add(this.CreateTextColumn("型",nameof(BenchmarkTableRow.BenchmarkTypeText),BenchmarkGridSortColumn.BenchmarkType,ベンチマーク_型,TextAlignment.End));
-        grid.Columns.Add(this.CreateTextColumn("ベンチマーク",nameof(BenchmarkTableRow.BenchmarkMethodText),BenchmarkGridSortColumn.BenchmarkMethod,ベンチマーク_ベンチマーク,TextAlignment.End));
-        var cpuMapping = nameof(BenchmarkTableRow.LogicalProcessorText);
-        grid.Columns.Add(this.CreateCpuColumn(cpuMapping));
-        var loopMapping=nameof(BenchmarkTableRow.LoopCountText);
-        grid.Columns.Add(this.CreateTextColumn("ループ回数",loopMapping,BenchmarkGridSortColumn.ループ回数,ベンチマーク_ループ,TextAlignment.End));
-        var argumentMappings = this.AddArgumentColumns(grid,sourceTab);
-        this.AddBenchmarkBaseStackedHeaders(projectHeaderRow,cpuMapping,loopMapping,argumentMappings);
-        var scalable=sourceTab.Id.StartsWith("Scalable",StringComparison.OrdinalIgnoreCase);
-        string leftHeader;
-        string rightHeader;
-        if(scalable) {
-            leftHeader="Current";
-            rightHeader="Previous";
         } else {
-            leftHeader="Left";
-            rightHeader="Right";
+            データグリッド.AutomationId="ベンチマーク.グリッド";
+            this.ベンチマークグリッド=データグリッド;
         }
-        var shareHeader=leftHeader+":"+rightHeader;
-        var leftMappings = this.AddProjectColumns(grid,nameof(BenchmarkTableRow.LeftCell),BenchmarkGridSortColumn.左日時,BenchmarkGridSortColumn.LeftTime,BenchmarkGridSortColumn.LeftAllocated);
-        var timeShareMapping = nameof(BenchmarkTableRow.時間シェア表示);
-        var memoryShareMapping = nameof(BenchmarkTableRow.メモリシェア表示);
-        grid.Columns.Add(this.CreateShareGaugeColumn(shareHeader,timeShareMapping,nameof(BenchmarkTableRow.時間シェアゲージ),BenchmarkGridSortColumn.時間シェア,時間シェア));
-        grid.Columns.Add(this.CreateShareGaugeColumn(shareHeader,memoryShareMapping,nameof(BenchmarkTableRow.メモリシェアゲージ),BenchmarkGridSortColumn.メモリシェア,メモリシェア));
-        var rightMappings = this.AddProjectColumns(grid,nameof(BenchmarkTableRow.RightCell),BenchmarkGridSortColumn.右日時,BenchmarkGridSortColumn.RightTime,BenchmarkGridSortColumn.RightAllocated);
-        this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup("Left",leftHeader),leftMappings,sourceTab);
-        this.AddBenchmarkRatioHeader(projectHeaderRow,timeShareMapping,"時間シェア");
-        this.AddBenchmarkRatioHeader(projectHeaderRow,memoryShareMapping,"メモリシェア");
-        this.AddBenchmarkProjectSelectionGroup(projectHeaderRow,this.GetBenchmarkProjectSelectionGroup("Right",rightHeader),rightMappings,sourceTab);
+        var 選択コントローラー = new ベンチマークチェック選択コントローラー(
+            データグリッド,
+            行一覧 => this.ビューモデル?.ベンチマーク行一覧を切り替え(行一覧),
+            (追加行一覧,削除行一覧) => this.ベンチマークグリッド選択を同期(状態,追加行一覧,削除行一覧));
+        データグリッド.SelectionController=選択コントローラー;
+        グリッドキーボードフォーカス動作.取り付ける(データグリッド);
+        データグリッド.SelectionChanging+=(_,イベント引数) => {
+            if(this.選択抑止グリッド一覧.Contains(データグリッド)) {
+                イベント引数.Cancel=true;
+            }
+        };
+        データグリッド.SelectionChanged+=(_,イベント引数) => {
+            選択コントローラー.選択変更を処理(イベント引数);
+        };
+        AutomationProperties.SetIsInAccessibleTree(データグリッド,true);
+        データグリッド.QueryRowHeight+=(_,イベント引数) => {
+            if(イベント引数.RowIndex<2) {
+                イベント引数.Height=ベンチマークグリッド見出し行高さ;
+            }
+        };
+        データグリッド.CellDoubleTapped+=this.ベンチマークグリッドセルダブルタップ時;
+        if(状態 is not null) {
+            データグリッド.ItemsSource=状態.行一覧;
+        } else {
+            データグリッド.SetBinding(SfDataGrid.ItemsSourceProperty,nameof(実行ビューモデル.ベンチマーク行一覧));
+        }
+        this.データグリッド線を構成(データグリッド,行フォーカスを表示するか: true);
+        this.データグリッドスクロールバーを構成(データグリッド);
+
+        var ソースタブ = 状態?.定義??this.ビューモデル?.選択ソース定義
+            ??throw new InvalidDataException("ベンチマークグリッドのソースタブを解決できません。");
+        this.ベンチマークグリッド列を再構築(データグリッド,ソースタブ);
+        return データグリッド;
     }
 
-    private void OnBenchmarkGridCellDoubleTapped(object? sender,DataGridCellDoubleTappedEventArgs args) {
-        if(sender is not SfDataGrid grid||args.Column is null||args.RowData is not null) {
+    private void 有効ソース用ベンチマークグリッドを選択() {
+        if(this.ビューモデル is null) {
             return;
         }
 
-        var calculatedWidth = this.CalculateBenchmarkColumnAutoWidth(args.Column)+8;
-        var minimumWidth = args.Column.MinimumWidth;
-        var maximumWidth = args.Column.MaximumWidth;
-        var width = Math.Max(calculatedWidth,double.IsNaN(minimumWidth) ? 0 : minimumWidth);
-        if(!double.IsNaN(maximumWidth)&&maximumWidth>0) {
-            width=Math.Min(width,maximumWidth);
+        if(this.ソースタブ別ベンチマークグリッド.TryGetValue(this.ビューモデル.選択ソース定義.タブ,out var グリッド)) {
+            this.ベンチマークグリッド=グリッド;
         }
-
-        args.Column.Width=width;
     }
 
-    private double CalculateBenchmarkColumnAutoWidth(DataGridColumn column) {
-        var headerWidth = MeasureBenchmarkColumnText(column.HeaderText);
-        var rows = this.viewModel?.BenchmarkRows?? [];
-        var contentWidth = rows
-            .Select(row => MeasureBenchmarkColumnText(GetBenchmarkColumnText(row,column.MappingName)))
+    private void ベンチマークグリッド選択を同期(
+        ベンチマークソースタブ表示状態? 状態,
+        IReadOnlyList<ベンチマーク表行> 追加行一覧,
+        IReadOnlyList<ベンチマーク表行> 削除行一覧) {
+        if(this.ビューモデル is null||状態 is null) {
+            return;
+        }
+
+        this.ビューモデル.ベンチマーク行UI選択を同期(状態,追加行一覧,削除行一覧);
+    }
+
+    private void 全ベンチマークグリッド行を選択(ベンチマークソースタブ定義 ソースタブ) {
+        if(!this.ソースタブ別ベンチマークグリッド.TryGetValue(ソースタブ.タブ,out var グリッド)
+            ||this.ビューモデル?.ソースタブ表示状態を取得(ソースタブ.タブ) is not { } 状態) {
+            return;
+        }
+
+        グリッド.SelectAll();
+    }
+
+    private void ベンチマークグリッド列を再構築(SfDataGrid グリッド,ベンチマークソースタブ定義 ソースタブ) {
+        グリッド.Columns.Clear();
+        グリッド.StackedHeaderRows.Clear();
+        var プロジェクト見出し行 = new DataGridStackedHeaderRow();
+        グリッド.StackedHeaderRows.Add(プロジェクト見出し行);
+
+        グリッド.Columns.Add(this.チェック列を作成(グリッド,ソースタブ));
+        グリッド.Columns.Add(this.テキスト列を作成("型",nameof(ベンチマーク表行.ベンチマーク型文字列),ベンチマークグリッドソート列.ベンチマーク型,ベンチマーク_型,TextAlignment.End));
+        グリッド.Columns.Add(this.テキスト列を作成("ベンチマーク",nameof(ベンチマーク表行.ベンチマークメソッド文字列),ベンチマークグリッドソート列.ベンチマークメソッド,ベンチマーク_ベンチマーク,TextAlignment.End));
+        var CPUマッピング = nameof(ベンチマーク表行.論理プロセッサ文字列);
+        グリッド.Columns.Add(this.CPU列を作成(CPUマッピング));
+        var ループマッピング = nameof(ベンチマーク表行.ループ回数文字列);
+        グリッド.Columns.Add(this.テキスト列を作成("ループ回数",ループマッピング,ベンチマークグリッドソート列.ループ回数,ベンチマーク_ループ,TextAlignment.End));
+        var 引数マッピング一覧 = this.引数列を追加(グリッド,ソースタブ);
+        this.ベンチマーク基本積層見出しを追加(プロジェクト見出し行,CPUマッピング,ループマッピング,引数マッピング一覧);
+        var スケーラブルか = ソースタブ.ID.StartsWith("Scalable",StringComparison.OrdinalIgnoreCase);
+        string 左見出し;
+        string 右見出し;
+        if(スケーラブルか) {
+            左見出し="今回";
+            右見出し="前回";
+        } else {
+            左見出し="左";
+            右見出し="右";
+        }
+        var シェア見出し = 左見出し+":"+右見出し;
+        var 左マッピング一覧 = this.プロジェクト列を追加(グリッド,nameof(ベンチマーク表行.左セル),ベンチマークグリッドソート列.左日時,ベンチマークグリッドソート列.左時間,ベンチマークグリッドソート列.左割り当て);
+        var 時間シェアマッピング = nameof(ベンチマーク表行.時間シェア表示);
+        var メモリシェアマッピング = nameof(ベンチマーク表行.メモリシェア表示);
+        グリッド.Columns.Add(this.シェアゲージ列を作成(シェア見出し,時間シェアマッピング,nameof(ベンチマーク表行.時間シェアゲージ),ベンチマークグリッドソート列.時間シェア,時間シェア));
+        グリッド.Columns.Add(this.シェアゲージ列を作成(シェア見出し,メモリシェアマッピング,nameof(ベンチマーク表行.メモリシェアゲージ),ベンチマークグリッドソート列.メモリシェア,メモリシェア));
+        var 右マッピング一覧 = this.プロジェクト列を追加(グリッド,nameof(ベンチマーク表行.右セル),ベンチマークグリッドソート列.右日時,ベンチマークグリッドソート列.右時間,ベンチマークグリッドソート列.右割り当て);
+        this.ベンチマークプロジェクト選択グループを追加(プロジェクト見出し行,this.ベンチマークプロジェクト選択グループを取得("左",左見出し),左マッピング一覧,ソースタブ);
+        this.ベンチマークシェアヘッダーを追加(プロジェクト見出し行,時間シェアマッピング,"時間シェア");
+        this.ベンチマークシェアヘッダーを追加(プロジェクト見出し行,メモリシェアマッピング,"メモリシェア");
+        this.ベンチマークプロジェクト選択グループを追加(プロジェクト見出し行,this.ベンチマークプロジェクト選択グループを取得("右",右見出し),右マッピング一覧,ソースタブ);
+    }
+
+    private void ベンチマークグリッドセルダブルタップ時(object? 送信元,DataGridCellDoubleTappedEventArgs イベント引数) {
+        if(送信元 is not SfDataGrid グリッド||イベント引数.Column is null||イベント引数.RowData is not null) {
+            return;
+        }
+
+        var 計算済み幅 = this.ベンチマーク列自動幅を計算(イベント引数.Column)+8;
+        var 最小幅 = イベント引数.Column.MinimumWidth;
+        var 最大幅 = イベント引数.Column.MaximumWidth;
+        var 幅 = Math.Max(計算済み幅,double.IsNaN(最小幅) ? 0 : 最小幅);
+        if(!double.IsNaN(最大幅)&&最大幅>0) {
+            幅=Math.Min(幅,最大幅);
+        }
+
+        イベント引数.Column.Width=幅;
+    }
+
+    private double ベンチマーク列自動幅を計算(DataGridColumn 列) {
+        var 見出し幅 = ベンチマーク列テキストを測定(列.HeaderText);
+        var 行一覧 = this.ビューモデル?.ベンチマーク行一覧?? [];
+        var 内容幅 = 行一覧
+            .Select(行 => ベンチマーク列テキストを測定(ベンチマーク列テキストを取得(行,列.MappingName)))
             .DefaultIfEmpty(0)
             .Max();
-        return Math.Clamp(Math.Max(headerWidth,contentWidth)+14,48,900);
+        return Math.Clamp(Math.Max(見出し幅,内容幅)+14,48,900);
     }
 
-    private static double MeasureBenchmarkColumnText(string? text) {
-        if(string.IsNullOrWhiteSpace(text)) {
+    private static double ベンチマーク列テキストを測定(string? テキスト) {
+        if(string.IsNullOrWhiteSpace(テキスト)) {
             return 0;
         }
 
-        var label = new Label {
-            Text=text,
+        var ラベル = new Label {
+            Text=テキスト,
             FontSize=10,
             LineBreakMode=LineBreakMode.NoWrap,
             Padding=new Thickness(2,0),
         };
-        return label.Measure(double.PositiveInfinity,BenchmarkGridRowHeight).Width;
+        return ラベル.Measure(double.PositiveInfinity,ベンチマークグリッド行高さ).Width;
     }
 
-    private static string GetBenchmarkColumnText(BenchmarkTableRow row,string mappingName) =>
-        mappingName switch {
-            nameof(BenchmarkTableRow.BenchmarkName) => row.BenchmarkName,
-            nameof(BenchmarkTableRow.BenchmarkTypeText) => row.BenchmarkTypeText,
-            nameof(BenchmarkTableRow.BenchmarkMethodText) => row.BenchmarkMethodText,
-            nameof(BenchmarkTableRow.LoopCountText) => row.LoopCountText,
-            nameof(BenchmarkTableRow.CountArgument) => row.CountArgument,
-            nameof(BenchmarkTableRow.IndexArgument) => row.IndexArgument,
-            nameof(BenchmarkTableRow.PageArgument) => row.PageArgument,
-            nameof(BenchmarkTableRow.SegmentArgument) => row.SegmentArgument,
-            nameof(BenchmarkTableRow.MemoryArgument) => row.MemoryArgument,
-            nameof(BenchmarkTableRow.FractionArgument) => row.FractionArgument,
-            nameof(BenchmarkTableRow.InitialArgument) => row.InitialArgument,
-            nameof(BenchmarkTableRow.DataArgument) => row.DataArgument,
-            nameof(BenchmarkTableRow.StopNText) or "StopN" => row.StopNText,
-            nameof(BenchmarkTableRow.時間シェア表示) => row.時間シェア表示,
-            nameof(BenchmarkTableRow.メモリシェア表示) => row.メモリシェア表示,
-            nameof(BenchmarkTableRow.LeftTimeText) or "LeftCellTime" => row.LeftTimeText,
-            nameof(BenchmarkTableRow.LeftAllocatedText) or "LeftCellAllocated" => row.LeftAllocatedText,
-            nameof(BenchmarkTableRow.RightTimeText) or "RightCellTime" => row.RightTimeText,
-            nameof(BenchmarkTableRow.RightAllocatedText) or "RightCellAllocated" => row.RightAllocatedText,
-            "LeftCellCheck" => row.LeftCell.ExecutionText,
-            "RightCellCheck" => row.RightCell.ExecutionText,
+    private static string ベンチマーク列テキストを取得(ベンチマーク表行 行,string マッピング名) =>
+        マッピング名 switch {
+            nameof(ベンチマーク表行.ベンチマーク名) => 行.ベンチマーク名,
+            nameof(ベンチマーク表行.ベンチマーク型文字列) => 行.ベンチマーク型文字列,
+            nameof(ベンチマーク表行.ベンチマークメソッド文字列) => 行.ベンチマークメソッド文字列,
+            nameof(ベンチマーク表行.ループ回数文字列) => 行.ループ回数文字列,
+            nameof(ベンチマーク表行.Count引数) => 行.Count引数,
+            nameof(ベンチマーク表行.Index引数) => 行.Index引数,
+            nameof(ベンチマーク表行.Page引数) => 行.Page引数,
+            nameof(ベンチマーク表行.Segment引数) => 行.Segment引数,
+            nameof(ベンチマーク表行.Memory引数) => 行.Memory引数,
+            nameof(ベンチマーク表行.割合引数) => 行.割合引数,
+            nameof(ベンチマーク表行.Initial引数) => 行.Initial引数,
+            nameof(ベンチマーク表行.Data引数) => 行.Data引数,
+            nameof(ベンチマーク表行.停止要素数文字列) => 行.停止要素数文字列,
+            nameof(ベンチマーク表行.時間シェア表示) => 行.時間シェア表示,
+            nameof(ベンチマーク表行.メモリシェア表示) => 行.メモリシェア表示,
+            nameof(ベンチマーク表行.左時間文字列) => 行.左時間文字列,
+            nameof(ベンチマーク表行.左割り当て文字列) => 行.左割り当て文字列,
+            nameof(ベンチマーク表行.右時間文字列) => 行.右時間文字列,
+            nameof(ベンチマーク表行.右割り当て文字列) => 行.右割り当て文字列,
+            "左セル確認" => 行.左セル.実行文字列,
+            "右セル確認" => 行.右セル.実行文字列,
             _ => string.Empty,
         };
 
-    private DataGridTemplateColumn CreateCheckColumn(SfDataGrid grid,BenchmarkSourceTabDefinition sourceTab) {
+    private DataGridTemplateColumn チェック列を作成(SfDataGrid グリッド,ベンチマークソースタブ定義 ソースタブ) {
         return new DataGridTemplateColumn {
-            MappingName=nameof(BenchmarkTableRow.IsSelectionChecked),
+            MappingName=nameof(ベンチマーク表行.選択チェック状態),
             HeaderText="",
-            Width=BenchmarkSelectionColumnWidth,
+            Width=ベンチマーク選択列幅,
             AllowSorting=false,
-            HeaderTemplate=this.CreateAllBenchmarkSelectionColumnHeaderTemplate(sourceTab),
+            HeaderTemplate=this.全ベンチマーク選択列見出しテンプレートを作成(ソースタブ),
             CellTemplate=new DataTemplate(() => {
-                var layout = new Grid {
+                var レイアウト = new Grid {
                     ColumnDefinitions= {
-                        new ColumnDefinition { Width = new GridLength(BenchmarkAggregateCheckBoxSize+4) },
+                        new ColumnDefinition { Width = new GridLength(ベンチマーク集約チェックボックス寸法+4) },
                         new ColumnDefinition { Width = GridLength.Star },
                     },
-                    WidthRequest=BenchmarkSelectionColumnWidth,
+                    WidthRequest=ベンチマーク選択列幅,
                     HorizontalOptions=LayoutOptions.Fill,
                     VerticalOptions=LayoutOptions.Fill,
                 };
-                var check = this.CreateSfCheckBox(BenchmarkAggregateCheckBoxSize,BenchmarkAggregateCheckBoxSize,true);
-                check.AutomationId="Benchmark.RowCheck";
-                check.InputTransparent=true;
-                check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(nameof(BenchmarkTableRow.IsSelectionChecked),BindingMode.OneWay));
-                var checkHost = new Grid {
+                var チェック = this.Syncfusionチェックボックスを作成(ベンチマーク集約チェックボックス寸法,ベンチマーク集約チェックボックス寸法);
+                チェック.AutomationId="ベンチマーク.行チェック";
+                チェック.InputTransparent=true;
+                チェック.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(nameof(ベンチマーク表行.選択チェック状態),BindingMode.OneWay));
+                var チェックホスト = new Grid {
                     HorizontalOptions=LayoutOptions.Fill,
                     VerticalOptions=LayoutOptions.Fill,
-                    AutomationId="Benchmark.RowCheckHost",
+                    AutomationId="ベンチマーク.行チェックホスト",
                 };
-                checkHost.Add(check,0,0);
-                var checkTap = new TapGestureRecognizer();
-                checkTap.Tapped+=(_,_) => {
-                    if(layout.BindingContext is BenchmarkTableRow row) {
-                        this.viewModel?.ToggleBenchmarkRow(row);
+                チェックホスト.Add(チェック,0,0);
+                var チェックタップ = new TapGestureRecognizer();
+                チェックタップ.Tapped+=(_,_) => {
+                    if(レイアウト.BindingContext is ベンチマーク表行 行) {
+                        this.ビューモデル?.ベンチマーク行を切り替え(行);
                     }
                 };
-                checkHost.GestureRecognizers.Add(checkTap);
-                this.SuppressSelectionWhileChecking(checkHost,grid);
-                layout.Add(checkHost,0,0);
-                return layout;
+                チェックホスト.GestureRecognizers.Add(チェックタップ);
+                this.チェック中の選択を抑止(チェックホスト,グリッド);
+                レイアウト.Add(チェックホスト,0,0);
+                return レイアウト;
             }),
         };
     }
 
-    private void AddBenchmarkBaseStackedHeaders(
-        DataGridStackedHeaderRow projectHeaderRow,
-        string cpuMapping,
-        string loopMapping,
-        IReadOnlyList<string> argumentMappings) {
-        var baseMappings = new List<string> {
-            nameof(BenchmarkTableRow.IsSelectionChecked),
-            nameof(BenchmarkTableRow.BenchmarkTypeText),
-            nameof(BenchmarkTableRow.BenchmarkMethodText),
-            cpuMapping,
-            loopMapping,
+    private void ベンチマーク基本積層見出しを追加(
+        DataGridStackedHeaderRow プロジェクト見出し行,
+        string CPUマッピング,
+        string ループマッピング,
+        IReadOnlyList<string> 引数マッピング一覧) {
+        var 基本マッピング一覧 = new List<string> {
+            nameof(ベンチマーク表行.選択チェック状態),
+            nameof(ベンチマーク表行.ベンチマーク型文字列),
+            nameof(ベンチマーク表行.ベンチマークメソッド文字列),
+            CPUマッピング,
+            ループマッピング,
         };
-        baseMappings.AddRange(argumentMappings);
-        projectHeaderRow.Columns.Add(new DataGridStackedColumn {
-            MappingName="BenchmarkBaseHeaderSpacer",
-            ColumnMappingNames=string.Join(",",baseMappings),
-            Template=this.CreateBenchmarkNeutralGroupHeaderTemplate("項目"),
+        基本マッピング一覧.AddRange(引数マッピング一覧);
+        プロジェクト見出し行.Columns.Add(new DataGridStackedColumn {
+            MappingName="ベンチマーク基本見出し余白",
+            ColumnMappingNames=string.Join(",",基本マッピング一覧),
+            Template=this.ベンチマーク中立グループ見出しテンプレートを作成("項目"),
         });
     }
 
-    private DataGridTemplateColumn CreateShareGaugeColumn(
-        string header,
-        string textPath,
-        string gaugePath,
-        BenchmarkGridSortColumn sortColumn,
-        double width) =>
+    private DataGridTemplateColumn シェアゲージ列を作成(
+        string 見出し,
+        string テキストパス,
+        string ゲージパス,
+        ベンチマークグリッドソート列 ソート列,
+        double 幅) =>
         new() {
-            MappingName=textPath,
-            HeaderText=header,
-            Width=width,
+            MappingName=テキストパス,
+            HeaderText=見出し,
+            Width=幅,
             AllowSorting=false,
-            HeaderTemplate=this.CreateHeaderTemplate(header,sortColumn),
-            CellTemplate=new DataTemplate(() => CreateShareGaugeCell(textPath,gaugePath)),
+            HeaderTemplate=this.見出しテンプレートを作成(見出し,ソート列),
+            CellTemplate=new DataTemplate(() => シェアゲージセルを作成(テキストパス,ゲージパス)),
         };
 
-    private static View CreateShareGaugeCell(string textPath,string gaugePath) {
-        var leftFill = new BoxView { Color=Color.FromArgb("#2563EB") };
-        var rightFill = new BoxView { Color=Color.FromArgb("#F97316") };
-        var track = new Grid {
+    private static View シェアゲージセルを作成(string テキストパス,string ゲージパス) {
+        var 左塗り = new BoxView { Color=Color.FromArgb("#2563EB") };
+        var 右塗り = new BoxView { Color=Color.FromArgb("#F97316") };
+        var トラック = new Grid {
             HeightRequest=6,
             BackgroundColor=Colors.Transparent,
             ColumnDefinitions= {
                 new ColumnDefinition { Width=0 },
                 new ColumnDefinition { Width=0 },
             },
-            Children= { leftFill,rightFill },
+            Children={ 左塗り,右塗り },
         };
-        Grid.SetColumn(rightFill,1);
-        var text = new Label {
-            FontSize=BenchmarkGridCellFontSize,
+        Grid.SetColumn(右塗り,1);
+        var テキスト = new Label {
+            FontSize=ベンチマークグリッドセル文字寸法,
             TextColor=Color.FromArgb("#0F172A"),
             LineBreakMode=LineBreakMode.TailTruncation,
             HorizontalTextAlignment=TextAlignment.End,
             VerticalTextAlignment=TextAlignment.Center,
             Padding=new Thickness(2,0),
         };
-        text.SetBinding(Label.TextProperty,textPath);
-        text.SetBinding(ToolTipProperties.TextProperty,textPath);
-        var cell = new Grid {
+        テキスト.SetBinding(Label.TextProperty,テキストパス);
+        テキスト.SetBinding(ToolTipProperties.TextProperty,テキストパス);
+        var セル = new Grid {
             RowDefinitions= {
                 new RowDefinition { Height=GridLength.Star },
                 new RowDefinition { Height=new GridLength(6) },
@@ -2579,116 +2068,107 @@ public sealed partial class MainPage:ContentPage {
             RowSpacing=1,
             Padding=new Thickness(1,0),
             BackgroundColor=Color.FromArgb("#F8FAFC"),
-            Children= { text,track },
+            Children={ テキスト,トラック },
         };
-        Grid.SetRow(track,1);
+        Grid.SetRow(トラック,1);
 
-        BenchmarkTableRow? subscribedRow = null;
-        var isSubscribed=false;
-        void Refresh() {
-            var gauge=cell.BindingContext is BenchmarkTableRow row
-                ? gaugePath==nameof(BenchmarkTableRow.時間シェアゲージ)
-                    ? row.時間シェアゲージ
-                    : row.メモリシェアゲージ
+        ベンチマーク表行? 購読中行 = null;
+        var 購読済みか = false;
+        void 更新() {
+            var ゲージ = セル.BindingContext is ベンチマーク表行 行
+                ? ゲージパス==nameof(ベンチマーク表行.時間シェアゲージ)
+                    ? 行.時間シェアゲージ
+                    : 行.メモリシェアゲージ
                 : default;
-            var trackWidth=Math.Max(0,track.Width);
-            track.ColumnDefinitions[0].Width=new GridLength(gauge.HasColoredBar ? trackWidth*gauge.LeftFraction : 0);
-            track.ColumnDefinitions[1].Width=new GridLength(gauge.HasColoredBar ? trackWidth*gauge.RightFraction : 0);
+            var トラック幅 = Math.Max(0,トラック.Width);
+                トラック.ColumnDefinitions[0].Width=new GridLength(ゲージ.色付きバーがあるか ? トラック幅*ゲージ.左割合 : 0);
+                トラック.ColumnDefinitions[1].Width=new GridLength(ゲージ.色付きバーがあるか ? トラック幅*ゲージ.右割合 : 0);
         }
-        void OnRowPropertyChanged(object? sender,PropertyChangedEventArgs args) {
-            if(args.PropertyName==gaugePath||string.IsNullOrEmpty(args.PropertyName)) {
-                Refresh();
+        void 行プロパティ変更時(object? 送信元,PropertyChangedEventArgs イベント引数) {
+            if(イベント引数.PropertyName==ゲージパス||string.IsNullOrEmpty(イベント引数.PropertyName)) {
+                更新();
             }
         }
-        void Subscribe() {
-            if(subscribedRow is not null&&!isSubscribed) {
-                subscribedRow.PropertyChanged+=OnRowPropertyChanged;
-                isSubscribed=true;
+        void 購読() {
+            if(購読中行 is not null&&!購読済みか) {
+                購読中行.PropertyChanged+=行プロパティ変更時;
+                購読済みか=true;
             }
         }
-        void Unsubscribe() {
-            if(subscribedRow is not null&&isSubscribed) {
-                subscribedRow.PropertyChanged-=OnRowPropertyChanged;
-                isSubscribed=false;
+        void 購読解除() {
+            if(購読中行 is not null&&購読済みか) {
+                購読中行.PropertyChanged-=行プロパティ変更時;
+                購読済みか=false;
             }
         }
-        cell.BindingContextChanged+=(_,_) => {
-            Unsubscribe();
-            subscribedRow=cell.BindingContext as BenchmarkTableRow;
-            Subscribe();
-            Refresh();
+        セル.BindingContextChanged+=(_,_) => {
+            購読解除();
+            購読中行=セル.BindingContext as ベンチマーク表行;
+            購読();
+            更新();
         };
-        cell.Loaded+=(_,_) => {
-            Subscribe();
-            Refresh();
+        セル.Loaded+=(_,_) => {
+            購読();
+            更新();
         };
-        cell.Unloaded+=(_,_) => Unsubscribe();
-        track.SizeChanged+=(_,_) => Refresh();
-        return cell;
+        セル.Unloaded+=(_,_) => 購読解除();
+        トラック.SizeChanged+=(_,_) => 更新();
+        return セル;
     }
 
-    private IReadOnlyList<string> AddArgumentColumns(SfDataGrid grid,BenchmarkSourceTabDefinition sourceTab) {
-        var mappings = new List<string>();
-        foreach(var argumentColumn in BenchmarkArgumentColumns.Get(sourceTab)){
-            var column = GetArgumentColumnUi(argumentColumn);
-            grid.Columns.Add(this.CreateTextColumn(column.Header,column.Property,column.SortColumn,column.Width,TextAlignment.End));
-            mappings.Add(column.Property);
+    private IReadOnlyList<string> 引数列を追加(SfDataGrid グリッド,ベンチマークソースタブ定義 ソースタブ) {
+        var マッピング一覧 = new List<string>();
+        foreach(var 引数列 in ベンチマーク引数列一覧.取得(ソースタブ)) {
+            var 列 = 引数列UIを取得(引数列);
+            グリッド.Columns.Add(this.テキスト列を作成(列.見出し,列.プロパティ,列.ソート列,列.幅,TextAlignment.End));
+            マッピング一覧.Add(列.プロパティ);
         }
-        return mappings;
+        return マッピング一覧;
     }
 
-    private static BenchmarkArgumentColumnUi GetArgumentColumnUi(ScalableBenchmarkArgumentColumn column) =>
-        column switch{
-            ScalableBenchmarkArgumentColumn.Count => new("Count",nameof(BenchmarkTableRow.CountArgument),BenchmarkGridSortColumn.ArgumentCount,BenchmarkCountArgumentColumnWidth),
-            ScalableBenchmarkArgumentColumn.Index => new("Index",nameof(BenchmarkTableRow.IndexArgument),BenchmarkGridSortColumn.ArgumentIndex,BenchmarkArgumentColumnWidth),
-            ScalableBenchmarkArgumentColumn.Page => new("Page",nameof(BenchmarkTableRow.PageArgument),BenchmarkGridSortColumn.ArgumentPage,BenchmarkCompactArgumentColumnWidth),
-            ScalableBenchmarkArgumentColumn.Segment => new("Segment",nameof(BenchmarkTableRow.SegmentArgument),BenchmarkGridSortColumn.ArgumentSegment,BenchmarkArgumentColumnWidth),
-            ScalableBenchmarkArgumentColumn.Memory => new("Memory",nameof(BenchmarkTableRow.MemoryArgument),BenchmarkGridSortColumn.ArgumentMemory,BenchmarkMemoryArgumentColumnWidth),
-            ScalableBenchmarkArgumentColumn.Fraction => new("Fraction",nameof(BenchmarkTableRow.FractionArgument),BenchmarkGridSortColumn.ArgumentFraction,BenchmarkCompactArgumentColumnWidth),
-            ScalableBenchmarkArgumentColumn.Initial => new("Initial",nameof(BenchmarkTableRow.InitialArgument),BenchmarkGridSortColumn.ArgumentInitial,BenchmarkCompactArgumentColumnWidth),
-            ScalableBenchmarkArgumentColumn.Data => new("Data",nameof(BenchmarkTableRow.DataArgument),BenchmarkGridSortColumn.ArgumentData,BenchmarkCompactArgumentColumnWidth),
-            _ => throw new ArgumentOutOfRangeException(nameof(column)),
+    private static ベンチマーク引数列UI 引数列UIを取得(スケーラブルベンチマーク引数列 列) =>
+        列 switch {
+            スケーラブルベンチマーク引数列.Count => new("Count",nameof(ベンチマーク表行.Count引数),ベンチマークグリッドソート列.引数Count,ベンチマークCount引数列幅),
+            スケーラブルベンチマーク引数列.Index => new("Index",nameof(ベンチマーク表行.Index引数),ベンチマークグリッドソート列.引数インデックス,ベンチマーク引数列幅),
+            スケーラブルベンチマーク引数列.Page => new("Page",nameof(ベンチマーク表行.Page引数),ベンチマークグリッドソート列.引数ページ,ベンチマークコンパクト引数列幅),
+            スケーラブルベンチマーク引数列.Segment => new("Segment",nameof(ベンチマーク表行.Segment引数),ベンチマークグリッドソート列.引数セグメント,ベンチマーク引数列幅),
+            スケーラブルベンチマーク引数列.Memory => new("Memory",nameof(ベンチマーク表行.Memory引数),ベンチマークグリッドソート列.引数メモリ,ベンチマークメモリ引数列幅),
+            スケーラブルベンチマーク引数列.Fraction => new("Fraction",nameof(ベンチマーク表行.割合引数),ベンチマークグリッドソート列.引数割合,ベンチマークコンパクト引数列幅),
+            スケーラブルベンチマーク引数列.Initial => new("Initial",nameof(ベンチマーク表行.Initial引数),ベンチマークグリッドソート列.引数初期値,ベンチマークコンパクト引数列幅),
+            スケーラブルベンチマーク引数列.Data => new("Data",nameof(ベンチマーク表行.Data引数),ベンチマークグリッドソート列.引数データ,ベンチマークコンパクト引数列幅),
+            _ => throw new ArgumentOutOfRangeException(nameof(列)),
         };
 
-    private readonly record struct BenchmarkArgumentColumnUi(
-        string Header,
-        string Property,
-        BenchmarkGridSortColumn SortColumn,
-        double Width);
+    private readonly record struct ベンチマーク引数列UI(
+        string 見出し,
+        string プロパティ,
+        ベンチマークグリッドソート列 ソート列,
+        double 幅);
 
-    private IReadOnlyList<string> AddProjectColumns(
-        SfDataGrid grid,
-        string cellPath,
-        BenchmarkGridSortColumn dateSortColumn,
-        BenchmarkGridSortColumn timeSortColumn,
-        BenchmarkGridSortColumn allocatedSortColumn) {
-        var checkMapping = cellPath+"Check";
-        var timeMapping = cellPath+"Time";
-        var allocatedMapping = cellPath+"Allocated";
-        grid.Columns.Add(this.CreateProjectCheckColumn(checkMapping,cellPath,dateSortColumn));
-        grid.Columns.Add(this.CreateProjectTextColumn("時間",timeMapping,cellPath,cellPath+"."+nameof(BenchmarkProjectCell.TimeText),timeSortColumn,時間,TextAlignment.End));
-        grid.Columns.Add(this.CreateProjectTextColumn("メモリ",allocatedMapping,cellPath,cellPath+"."+nameof(BenchmarkProjectCell.AllocatedText),allocatedSortColumn,メモリ,TextAlignment.End));
-        return [checkMapping,timeMapping,allocatedMapping];
+    private IReadOnlyList<string> プロジェクト列を追加(
+        SfDataGrid グリッド,
+        string セルパス,
+        ベンチマークグリッドソート列 日時ソート列,
+        ベンチマークグリッドソート列 時間ソート列,
+        ベンチマークグリッドソート列 割り当てソート列) {
+        var 日時マッピング = セルパス+"日時";
+        var 時間マッピング = セルパス+"時間";
+        var 割り当てマッピング = セルパス+"割り当て";
+        グリッド.Columns.Add(this.プロジェクト日時列を作成(日時マッピング,セルパス,日時ソート列));
+        グリッド.Columns.Add(this.プロジェクトテキスト列を作成("時間",時間マッピング,セルパス,セルパス+"."+nameof(ベンチマークプロジェクトセル.時間文字列),時間ソート列,時間,TextAlignment.End));
+        グリッド.Columns.Add(this.プロジェクトテキスト列を作成("メモリ",割り当てマッピング,セルパス,セルパス+"."+nameof(ベンチマークプロジェクトセル.割り当て文字列),割り当てソート列,メモリ,TextAlignment.End));
+        return [日時マッピング,時間マッピング,割り当てマッピング];
     }
 
-    private string GetProjectFromCellPath(string cellPath) {
-        // "Left"/"Right" トークンは VM 側で行が属する SourceTab の定義から実プロジェクト名へ解決される
-        return cellPath switch {
-            nameof(BenchmarkTableRow.LeftCell) => "Left",
-            nameof(BenchmarkTableRow.RightCell) => "Right",
-            _ => cellPath,
-        };
-    }
-
-    private DataGridTemplateColumn CreateCpuColumn(string mappingName) {
+    private DataGridTemplateColumn CPU列を作成(string マッピング名) {
         return new DataGridTemplateColumn {
-            MappingName=mappingName,
+            MappingName=マッピング名,
             HeaderText="CPU",
-            Width=ベンチマークCpu,
+            Width=ベンチマークCPU,
             AllowSorting=false,
-            HeaderTemplate=this.CreateHeaderTemplate("CPU",BenchmarkGridSortColumn.LogicalCpu),
+            HeaderTemplate=this.見出しテンプレートを作成("CPU",ベンチマークグリッドソート列.論理CPU),
             CellTemplate=new DataTemplate(() => {
-                var grid = new Grid {
+                var グリッド = new Grid {
                     ColumnDefinitions= {
                         new ColumnDefinition { Width = GridLength.Auto },
                         new ColumnDefinition { Width = GridLength.Star },
@@ -2699,15 +2179,15 @@ public sealed partial class MainPage:ContentPage {
                     HorizontalOptions=LayoutOptions.Fill,
                     VerticalOptions=LayoutOptions.Fill,
                 };
-                var badge = this.CreateCoreBadge();
-                badge.SetBinding(IsVisibleProperty,nameof(BenchmarkTableRow.HasCpuDisplay));
-                badge.SetBinding(BackgroundColorProperty,nameof(BenchmarkTableRow.BadgeBackgroundColor));
-                if(badge.Content is Image badgeImage) {
-                    badgeImage.SetBinding(
+                var バッジ = this.コアバッジを作成();
+                バッジ.SetBinding(IsVisibleProperty,nameof(ベンチマーク表行.CPU表示ありか));
+                バッジ.SetBinding(BackgroundColorProperty,nameof(ベンチマーク表行.バッジ背景色));
+                if(バッジ.Content is Image バッジ画像) {
+                    バッジ画像.SetBinding(
                         Image.SourceProperty,
-                        new Binding(nameof(BenchmarkTableRow.CoreKindImageSource),converter: new ImageFileSourceConverter()));
+                        new Binding(nameof(ベンチマーク表行.コア種別画像ソース),converter: new 画像ファイルソースコンバーター()));
                 }
-                var number = new Label {
+                var 番号 = new Label {
                     FontSize=10,
                     TextColor=Color.FromArgb("#0F172A"),
                     FontAttributes=FontAttributes.Bold,
@@ -2716,101 +2196,101 @@ public sealed partial class MainPage:ContentPage {
                     HorizontalTextAlignment=TextAlignment.Start,
                     VerticalTextAlignment=TextAlignment.Center,
                 };
-                number.SetBinding(IsVisibleProperty,nameof(BenchmarkTableRow.HasCpuDisplay));
-                number.SetBinding(Label.TextProperty,nameof(BenchmarkTableRow.LogicalProcessorText));
-                grid.SetBinding(ToolTipProperties.TextProperty,nameof(BenchmarkTableRow.CpuTooltipText));
-                grid.Add(badge,0,0);
-                grid.Add(number,1,0);
-                return grid;
+                番号.SetBinding(IsVisibleProperty,nameof(ベンチマーク表行.CPU表示ありか));
+                番号.SetBinding(Label.TextProperty,nameof(ベンチマーク表行.論理プロセッサ文字列));
+                グリッド.SetBinding(ToolTipProperties.TextProperty,nameof(ベンチマーク表行.CPUツールチップ文字列));
+                グリッド.Add(バッジ,0,0);
+                グリッド.Add(番号,1,0);
+                return グリッド;
             }),
         };
     }
 
-    private void AddBenchmarkProjectSelectionGroup(DataGridStackedHeaderRow headerRow,BenchmarkColumnSelectionGroup group,IReadOnlyList<string> childMappings,BenchmarkSourceTabDefinition sourceTab) {
-        headerRow.Columns.Add(new DataGridStackedColumn {
-            MappingName="BenchmarkProjectGroup"+group.Id,
-            ColumnMappingNames=string.Join(",",childMappings),
-            Template=this.CreateBenchmarkColumnGroupHeaderTemplate(group,sourceTab),
+    private void ベンチマークプロジェクト選択グループを追加(DataGridStackedHeaderRow 見出し行,ベンチマーク列選択グループ グループ,IReadOnlyList<string> 子マッピング一覧,ベンチマークソースタブ定義 ソースタブ) {
+        見出し行.Columns.Add(new DataGridStackedColumn {
+            MappingName="ベンチマークプロジェクトグループ"+グループ.ID,
+            ColumnMappingNames=string.Join(",",子マッピング一覧),
+            Template=this.ベンチマーク列グループ見出しテンプレートを作成(グループ,ソースタブ),
         });
     }
 
-    private void AddBenchmarkRatioHeader(DataGridStackedHeaderRow headerRow,string mappingName,string text) {
-        headerRow.Columns.Add(new DataGridStackedColumn {
-            MappingName="BenchmarkRatio"+mappingName,
-            ColumnMappingNames=mappingName,
-            Template=this.CreateBenchmarkNeutralGroupHeaderTemplate(text),
+    private void ベンチマークシェアヘッダーを追加(DataGridStackedHeaderRow 見出し行,string マッピング名,string テキスト) {
+        見出し行.Columns.Add(new DataGridStackedColumn {
+            MappingName="ベンチマークシェア"+マッピング名,
+            ColumnMappingNames=マッピング名,
+            Template=this.ベンチマーク中立グループ見出しテンプレートを作成(テキスト),
         });
     }
 
-    private BenchmarkColumnSelectionGroup GetBenchmarkProjectSelectionGroup(string id,string headerText) {
-        return this.viewModel?.BenchmarkProjectSelectionGroups.FirstOrDefault(group => group.Id==id)
-            ??new BenchmarkColumnSelectionGroup(id,headerText,[]);
+    private ベンチマーク列選択グループ ベンチマークプロジェクト選択グループを取得(string ID,string 見出し文) {
+        return this.ビューモデル?.ベンチマークプロジェクト選択グループ一覧.FirstOrDefault(グループ => グループ.ID==ID)
+            ??new ベンチマーク列選択グループ(ID,見出し文,[]);
     }
 
-    private DataTemplate CreateAllBenchmarkSelectionColumnHeaderTemplate(BenchmarkSourceTabDefinition sourceTab) {
+    private DataTemplate 全ベンチマーク選択列見出しテンプレートを作成(ベンチマークソースタブ定義 ソースタブ) {
         return new DataTemplate(() => {
-            var layout = new Grid {
+            var レイアウト = new Grid {
                 ColumnDefinitions= {
-                    new ColumnDefinition { Width = new GridLength(BenchmarkAggregateCheckBoxSize+4) },
+                    new ColumnDefinition { Width = new GridLength(ベンチマーク集約チェックボックス寸法+4) },
                     new ColumnDefinition { Width = GridLength.Star },
                 },
-                WidthRequest=BenchmarkSelectionColumnWidth,
+                WidthRequest=ベンチマーク選択列幅,
                 BackgroundColor=Color.FromArgb("#F1F5F9"),
                 HorizontalOptions=LayoutOptions.Fill,
                 VerticalOptions=LayoutOptions.Fill,
             };
-            var check = this.CreateBenchmarkAggregateCheckBox();
-            check.AutomationId="Benchmark.AllSelectionCheck";
-            var state = this.viewModel?.GetSourceTabViewState(sourceTab.Tab);
-            if(state is not null) {
-                this.BindAggregateCheckBox(check,state,nameof(BenchmarkSourceTabViewState.IsBenchmarkSelectionChecked),() => state.IsBenchmarkSelectionChecked);
+            var チェック = this.ベンチマーク集約チェックボックスを作成();
+            チェック.AutomationId="ベンチマーク.全選択チェック";
+            var 状態 = this.ビューモデル?.ソースタブ表示状態を取得(ソースタブ.タブ);
+            if(状態 is not null) {
+                this.集約チェックボックスをバインド(チェック,状態,nameof(ベンチマークソースタブ表示状態.ベンチマーク選択状態),() => 状態.ベンチマーク選択状態);
             }
-            var checkHost = new Grid {
+            var チェックホスト = new Grid {
                 BackgroundColor=Colors.Transparent,
                 HorizontalOptions=LayoutOptions.Fill,
                 VerticalOptions=LayoutOptions.Fill,
-                AutomationId="Benchmark.AllSelectionCheckHost",
+                AutomationId="ベンチマーク.全選択チェックホスト",
             };
-            checkHost.Add(check,0,0);
-            var checkTap = new TapGestureRecognizer();
-            checkTap.Tapped+=(_,_) => {
-                this.viewModel?.ToggleAllBenchmarkSelection(sourceTab);
+            チェックホスト.Add(チェック,0,0);
+            var チェックタップ = new TapGestureRecognizer();
+            チェックタップ.Tapped+=(_,_) => {
+                this.ビューモデル?.全ベンチマーク選択を切り替える(ソースタブ);
             };
-            checkHost.GestureRecognizers.Add(checkTap);
-            var selectionHost = new Grid {
+            チェックホスト.GestureRecognizers.Add(チェックタップ);
+            var 選択ホスト = new Grid {
                 BackgroundColor=Colors.Transparent,
                 HorizontalOptions=LayoutOptions.Fill,
                 VerticalOptions=LayoutOptions.Fill,
             };
-            var selectionTap = new TapGestureRecognizer();
-            selectionTap.Tapped+=(_,_) => this.SelectAllBenchmarkGridRows(sourceTab);
-            selectionHost.GestureRecognizers.Add(selectionTap);
-            layout.Add(checkHost,0,0);
-            layout.Add(selectionHost,1,0);
-            return layout;
+            var 選択タップ = new TapGestureRecognizer();
+            選択タップ.Tapped+=(_,_) => this.全ベンチマークグリッド行を選択(ソースタブ);
+            選択ホスト.GestureRecognizers.Add(選択タップ);
+            レイアウト.Add(チェックホスト,0,0);
+            レイアウト.Add(選択ホスト,1,0);
+            return レイアウト;
         });
     }
 
-    private DataTemplate CreateBenchmarkColumnGroupHeaderTemplate(BenchmarkColumnSelectionGroup group,BenchmarkSourceTabDefinition sourceTab) {
+    private DataTemplate ベンチマーク列グループ見出しテンプレートを作成(ベンチマーク列選択グループ グループ,ベンチマークソースタブ定義 ソースタブ) {
         return new DataTemplate(() => {
-            var body = this.CreateBenchmarkHeaderBody(nameof(BenchmarkColumnSelectionGroup.HeaderText),Color.FromArgb("#EAF3FF"),Color.FromArgb("#CBD5E1"));
-            body.BindingContext=group;
-            return body;
+            var 本体 = this.ベンチマーク見出し本体を作成(nameof(ベンチマーク列選択グループ.見出し文字列),Color.FromArgb("#EAF3FF"),Color.FromArgb("#CBD5E1"));
+            本体.BindingContext=グループ;
+            return 本体;
         });
     }
 
-    private DataTemplate CreateBenchmarkNeutralGroupHeaderTemplate(string text) {
-        return new DataTemplate(() => this.CreateBenchmarkHeaderBody(text,Color.FromArgb("#F8FAFC"),Color.FromArgb("#CBD5E1")));
+    private DataTemplate ベンチマーク中立グループ見出しテンプレートを作成(string テキスト) {
+        return new DataTemplate(() => this.ベンチマーク見出し本体を作成(テキスト,Color.FromArgb("#F8FAFC"),Color.FromArgb("#CBD5E1")));
     }
-    private Grid CreateBenchmarkHeaderBody(string text,Color backgroundColor,Color borderColor) {
-        var body = new Grid {
-            BackgroundColor=backgroundColor,
+    private Grid ベンチマーク見出し本体を作成(string テキスト,Color 背景色,Color 境界色) {
+        var 本体 = new Grid {
+            BackgroundColor=背景色,
             HorizontalOptions=LayoutOptions.Fill,
             VerticalOptions=LayoutOptions.Fill,
         };
-        this.AddBenchmarkHeaderVerticalBorders(body,borderColor);
-        if(!string.IsNullOrWhiteSpace(text)) {
-            var label = new Label {
+        this.ベンチマーク見出し縦境界を追加(本体,境界色);
+        if(!string.IsNullOrWhiteSpace(テキスト)) {
+            var ラベル = new Label {
                 FontSize=12,
                 FontAttributes=FontAttributes.Bold,
                 TextColor=Color.FromArgb("#0F172A"),
@@ -2821,67 +2301,66 @@ public sealed partial class MainPage:ContentPage {
                 LineBreakMode=LineBreakMode.TailTruncation,
                 Margin=new Thickness(4,0),
             };
-            if(text==nameof(BenchmarkColumnSelectionGroup.HeaderText)) {
-                label.SetBinding(Label.TextProperty,nameof(BenchmarkColumnSelectionGroup.HeaderText));
+            if(テキスト==nameof(ベンチマーク列選択グループ.見出し文字列)) {
+                ラベル.SetBinding(Label.TextProperty,nameof(ベンチマーク列選択グループ.見出し文字列));
+            } else {
+                ラベル.Text=テキスト;
             }
-            else {
-                label.Text=text;
-            }
-            body.Add(label,0,0);
+            本体.Add(ラベル,0,0);
         }
-        return body;
+        return 本体;
     }
 
-    private void AddBenchmarkHeaderVerticalBorders(Grid body,Color borderColor) {
-        var left = new BoxView {
+    private void ベンチマーク見出し縦境界を追加(Grid 本体,Color 境界色) {
+        var 左 = new BoxView {
             WidthRequest=1,
-            BackgroundColor=borderColor,
+            BackgroundColor=境界色,
             HorizontalOptions=LayoutOptions.Start,
             VerticalOptions=LayoutOptions.Fill,
             InputTransparent=true,
         };
-        body.Add(left,0,0);
-        Grid.SetColumnSpan(left,Math.Max(1,body.ColumnDefinitions.Count));
-        var right = new BoxView {
+        本体.Add(左,0,0);
+        Grid.SetColumnSpan(左,Math.Max(1,本体.ColumnDefinitions.Count));
+        var 右 = new BoxView {
             WidthRequest=1,
-            BackgroundColor=borderColor,
+            BackgroundColor=境界色,
             HorizontalOptions=LayoutOptions.End,
             VerticalOptions=LayoutOptions.Fill,
             InputTransparent=true,
         };
-        body.Add(right,0,0);
-        Grid.SetColumnSpan(right,Math.Max(1,body.ColumnDefinitions.Count));
+        本体.Add(右,0,0);
+        Grid.SetColumnSpan(右,Math.Max(1,本体.ColumnDefinitions.Count));
     }
 
-    private SfCheckBox CreateBenchmarkAggregateCheckBox() {
-        var check = this.CreateSfCheckBox(BenchmarkAggregateCheckBoxSize,BenchmarkAggregateCheckBoxSize,true);
-        check.InputTransparent=true;
-        return check;
+    private SfCheckBox ベンチマーク集約チェックボックスを作成() {
+        var チェック = this.Syncfusionチェックボックスを作成(ベンチマーク集約チェックボックス寸法,ベンチマーク集約チェックボックス寸法,true);
+        チェック.InputTransparent=true;
+        return チェック;
     }
 
-    private void BindAggregateCheckBox(SfCheckBox check,INotifyPropertyChanged source,string propertyName,Func<bool?> getValue) {
-        check.IsChecked=getValue();
-        check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(propertyName,BindingMode.OneWay,source: source));
-        PropertyChangedEventHandler handler = (_,args) => {
-            if(args.PropertyName==propertyName) {
-                StartupDiagnostics.BeginInvokeOnMainThread("benchmark column header selection apply",() => {
-                    check.IsChecked=getValue();
+    private void 集約チェックボックスをバインド(SfCheckBox チェック,INotifyPropertyChanged ソース,string プロパティ名,Func<bool?> 値を取得) {
+        チェック.IsChecked=値を取得();
+        チェック.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(プロパティ名,BindingMode.OneWay,source: ソース));
+        PropertyChangedEventHandler ハンドラー = (_,イベント引数) => {
+            if(イベント引数.PropertyName==プロパティ名) {
+                起動診断.メインスレッドで呼び出し開始("ベンチマーク列見出し選択適用",() => {
+                    チェック.IsChecked=値を取得();
                 });
             }
         };
-        source.PropertyChanged+=handler;
-        check.Unloaded+=(_,_) => source.PropertyChanged-=handler;
+        ソース.PropertyChanged+=ハンドラー;
+        チェック.Unloaded+=(_,_) => ソース.PropertyChanged-=ハンドラー;
     }
 
-    private DataGridTemplateColumn CreateProjectCheckColumn(string mappingName,string cellPath,BenchmarkGridSortColumn dateSortColumn) {
+    private DataGridTemplateColumn プロジェクト日時列を作成(string マッピング名,string セルパス,ベンチマークグリッドソート列 日時ソート列) {
         return new DataGridTemplateColumn {
-            MappingName=mappingName,
+            MappingName=マッピング名,
             HeaderText="日時",
             Width=ベンチマーク_日時,
             AllowSorting=false,
-            HeaderTemplate=this.CreateHeaderTemplate("日時",dateSortColumn),
+            HeaderTemplate=this.見出しテンプレートを作成("日時",日時ソート列),
             CellTemplate=new DataTemplate(() => {
-                var layout = new Grid {
+                var レイアウト = new Grid {
                     RowDefinitions= {
                         new RowDefinition { Height = new GridLength(2) },
                         new RowDefinition { Height = GridLength.Star },
@@ -2896,7 +2375,7 @@ public sealed partial class MainPage:ContentPage {
                     VerticalOptions=LayoutOptions.Fill,
                     HorizontalOptions=LayoutOptions.Fill,
                 };
-                var content = new Grid {
+                var 内容 = new Grid {
                     ColumnDefinitions= {
                         new ColumnDefinition { Width = new GridLength(18) },
                         new ColumnDefinition { Width = GridLength.Star },
@@ -2905,16 +2384,16 @@ public sealed partial class MainPage:ContentPage {
                     Padding=new Thickness(1,0),
                     VerticalOptions=LayoutOptions.Center,
                 };
-                var spinner = new ActivityIndicator {
+                var スピナー = new ActivityIndicator {
                     WidthRequest=14,
                     HeightRequest=14,
                     Color=Color.FromArgb("#2563EB"),
                     VerticalOptions=LayoutOptions.Center,
                     HorizontalOptions=LayoutOptions.Center,
                 };
-                spinner.SetBinding(ActivityIndicator.IsRunningProperty,new Binding(cellPath+"."+nameof(BenchmarkProjectCell.IsRunningVisual)));
-                spinner.SetBinding(IsVisibleProperty,new Binding(cellPath+"."+nameof(BenchmarkProjectCell.IsRunningVisual)));
-                var statusIcon = new Image {
+                スピナー.SetBinding(ActivityIndicator.IsRunningProperty,new Binding(セルパス+"."+nameof(ベンチマークプロジェクトセル.実行中表示か)));
+                スピナー.SetBinding(IsVisibleProperty,new Binding(セルパス+"."+nameof(ベンチマークプロジェクトセル.実行中表示か)));
+                var 状態アイコン = new Image {
                     WidthRequest=14,
                     HeightRequest=14,
                     InputTransparent=true,
@@ -2922,31 +2401,31 @@ public sealed partial class MainPage:ContentPage {
                     VerticalOptions=LayoutOptions.Center,
                     Aspect=Aspect.AspectFit,
                 };
-                statusIcon.SetBinding(
+                状態アイコン.SetBinding(
                     Image.SourceProperty,
-                    new Binding(cellPath+"."+nameof(BenchmarkProjectCell.StatusImageSource),converter: new ImageFileSourceConverter()));
-                statusIcon.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsStatusIconVisible));
-                statusIcon.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionTooltipText));
-                var detail = new Label {
-                    FontSize=BenchmarkGridDetailFontSize,
+                    new Binding(セルパス+"."+nameof(ベンチマークプロジェクトセル.状態画像ソース),converter: new 画像ファイルソースコンバーター()));
+                状態アイコン.SetBinding(IsVisibleProperty,セルパス+"."+nameof(ベンチマークプロジェクトセル.状態アイコン表示中か));
+                状態アイコン.SetBinding(ToolTipProperties.TextProperty,セルパス+"."+nameof(ベンチマークプロジェクトセル.実行ツールチップ文字列));
+                var 詳細 = new Label {
+                    FontSize=ベンチマークグリッド詳細文字寸法,
                     TextColor=Color.FromArgb("#334155"),
                     InputTransparent=true,
                     LineBreakMode=LineBreakMode.TailTruncation,
                     VerticalTextAlignment=TextAlignment.Center,
                 };
-                detail.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionText));
-                detail.SetBinding(Label.TextColorProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionTextColor));
-                detail.SetBinding(Label.FontAttributesProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionFontAttributes));
-                var failureDetail = new Label {
-                    FontSize=BenchmarkGridDetailFontSize,
+                詳細.SetBinding(Label.TextProperty,セルパス+"."+nameof(ベンチマークプロジェクトセル.実行文字列));
+                詳細.SetBinding(Label.TextColorProperty,セルパス+"."+nameof(ベンチマークプロジェクトセル.実行文字色));
+                詳細.SetBinding(Label.FontAttributesProperty,セルパス+"."+nameof(ベンチマークプロジェクトセル.実行フォント属性));
+                var 失敗詳細 = new Label {
+                    FontSize=ベンチマークグリッド詳細文字寸法,
                     TextColor=Color.FromArgb("#DC2626"),
                     InputTransparent=true,
                     LineBreakMode=LineBreakMode.TailTruncation,
                     VerticalTextAlignment=TextAlignment.Center,
                 };
-                failureDetail.SetBinding(Label.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.FailureExecutionText));
-                failureDetail.SetBinding(Label.TextColorProperty,cellPath+"."+nameof(BenchmarkProjectCell.FailureExecutionTextColor));
-                var detailHost = new Grid {
+                失敗詳細.SetBinding(Label.TextProperty,セルパス+"."+nameof(ベンチマークプロジェクトセル.失敗実行文字列));
+                失敗詳細.SetBinding(Label.TextColorProperty,セルパス+"."+nameof(ベンチマークプロジェクトセル.失敗実行文字色));
+                var 詳細ホスト = new Grid {
                     ColumnDefinitions= {
                         new ColumnDefinition { Width = GridLength.Auto },
                         new ColumnDefinition { Width = GridLength.Auto },
@@ -2955,34 +2434,34 @@ public sealed partial class MainPage:ContentPage {
                     HorizontalOptions=LayoutOptions.Fill,
                     VerticalOptions=LayoutOptions.Fill,
                 };
-                detailHost.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(BenchmarkProjectCell.ExecutionTooltipText));
-                detailHost.Add(detail,0,0);
-                detailHost.Add(failureDetail,1,0);
-                content.Add(statusIcon,0,0);
-                content.Add(spinner,0,0);
-                content.Add(detailHost,1,0);
-                layout.Add(content,1,1);
-                return layout;
+                詳細ホスト.SetBinding(ToolTipProperties.TextProperty,セルパス+"."+nameof(ベンチマークプロジェクトセル.実行ツールチップ文字列));
+                詳細ホスト.Add(詳細,0,0);
+                詳細ホスト.Add(失敗詳細,1,0);
+                内容.Add(状態アイコン,0,0);
+                内容.Add(スピナー,0,0);
+                内容.Add(詳細ホスト,1,0);
+                レイアウト.Add(内容,1,1);
+                return レイアウト;
             }),
         };
     }
 
-    private DataGridTemplateColumn CreateProjectTextColumn(
-        string header,
-        string mappingName,
-        string cellPath,
-        string bindingPath,
-        BenchmarkGridSortColumn sortColumn,
-        double width,
-        TextAlignment alignment) {
+    private DataGridTemplateColumn プロジェクトテキスト列を作成(
+        string 見出し,
+        string マッピング名,
+        string セルパス,
+        string バインドパス,
+        ベンチマークグリッドソート列 ソート列,
+        double 幅,
+        TextAlignment 配置) {
         return new DataGridTemplateColumn {
-            MappingName=mappingName,
-            HeaderText=header,
-            Width=width,
+            MappingName=マッピング名,
+            HeaderText=見出し,
+            Width=幅,
             AllowSorting=false,
-            HeaderTemplate=this.CreateHeaderTemplate(header,sortColumn),
+            HeaderTemplate=this.見出しテンプレートを作成(見出し,ソート列),
             CellTemplate=new DataTemplate(() => {
-                var grid = new Grid {
+                var グリッド = new Grid {
                     RowDefinitions= {
                         new RowDefinition { Height = new GridLength(2) },
                         new RowDefinition { Height = GridLength.Star },
@@ -2997,159 +2476,159 @@ public sealed partial class MainPage:ContentPage {
                     VerticalOptions=LayoutOptions.Fill,
                     HorizontalOptions=LayoutOptions.Fill,
                 };
-                var runningBackground = new BoxView {
+                var 実行中背景 = new BoxView {
                     BackgroundColor=Color.FromArgb("#DBEAFE"),
                     Opacity=0.85,
                     InputTransparent=true,
                 };
-                runningBackground.SetBinding(IsVisibleProperty,cellPath+"."+nameof(BenchmarkProjectCell.IsRunningVisual));
-                var label = new Label {
+                実行中背景.SetBinding(IsVisibleProperty,セルパス+"."+nameof(ベンチマークプロジェクトセル.実行中表示か));
+                var ラベル = new Label {
                     FontSize=10,
                     TextColor=Color.FromArgb("#1E293B"),
                     InputTransparent=true,
                     LineBreakMode=LineBreakMode.TailTruncation,
-                    HorizontalTextAlignment=alignment,
+                    HorizontalTextAlignment=配置,
                     VerticalTextAlignment=TextAlignment.Center,
                     Margin=new Thickness(0),
                     Padding=new Thickness(2,0),
                 };
-                label.SetBinding(Label.TextProperty,bindingPath);
-                label.SetBinding(Label.TextColorProperty,cellPath+"."+nameof(BenchmarkProjectCell.MetricTextColor));
-                label.SetBinding(Label.FontAttributesProperty,cellPath+"."+nameof(BenchmarkProjectCell.MetricFontAttributes));
-                var tooltipPath=bindingPath.EndsWith(nameof(BenchmarkProjectCell.TimeText),StringComparison.Ordinal)
-                    ? cellPath+"."+nameof(BenchmarkProjectCell.TimeTooltipText)
-                    : bindingPath;
-                label.SetBinding(ToolTipProperties.TextProperty,tooltipPath);
-                grid.SetBinding(ToolTipProperties.TextProperty,tooltipPath);
-                grid.Add(runningBackground,0,0);
-                Grid.SetColumnSpan(runningBackground,3);
-                Grid.SetRowSpan(runningBackground,3);
-                grid.Add(label,0,0);
-                Grid.SetColumnSpan(label,3);
-                Grid.SetRowSpan(label,3);
-                this.EnableHoverCellExpansion(grid,label,alignment);
-                return grid;
+                ラベル.SetBinding(Label.TextProperty,バインドパス);
+                ラベル.SetBinding(Label.TextColorProperty,セルパス+"."+nameof(ベンチマークプロジェクトセル.指標文字色));
+                ラベル.SetBinding(Label.FontAttributesProperty,セルパス+"."+nameof(ベンチマークプロジェクトセル.指標フォント属性));
+                var ツールチップパス = バインドパス.EndsWith(nameof(ベンチマークプロジェクトセル.時間文字列),StringComparison.Ordinal)
+                    ? セルパス+"."+nameof(ベンチマークプロジェクトセル.時間ツールチップ文字列)
+                    : バインドパス;
+                ラベル.SetBinding(ToolTipProperties.TextProperty,ツールチップパス);
+                グリッド.SetBinding(ToolTipProperties.TextProperty,ツールチップパス);
+                グリッド.Add(実行中背景,0,0);
+                Grid.SetColumnSpan(実行中背景,3);
+                Grid.SetRowSpan(実行中背景,3);
+                グリッド.Add(ラベル,0,0);
+                Grid.SetColumnSpan(ラベル,3);
+                Grid.SetRowSpan(ラベル,3);
+                this.ホバーセル拡張を有効化(グリッド,ラベル,配置);
+                return グリッド;
             }),
         };
     }
 
-    private void SuppressSelectionWhileChecking(View checkHost,SfDataGrid grid){
-        var pointer=new PointerGestureRecognizer();
-        pointer.PointerPressed+=(_,_) => this.selectionSuppressedGrids.Add(grid);
-        pointer.PointerReleased+=(_,_) => checkHost.Dispatcher.Dispatch(
-            () => this.selectionSuppressedGrids.Remove(grid));
-        pointer.PointerExited+=(_,_) => this.selectionSuppressedGrids.Remove(grid);
-        checkHost.GestureRecognizers.Add(pointer);
+    private void チェック中の選択を抑止(View チェックホスト,SfDataGrid グリッド) {
+        var ポインター = new PointerGestureRecognizer();
+        ポインター.PointerPressed+=(_,_) => this.選択抑止グリッド一覧.Add(グリッド);
+        ポインター.PointerReleased+=(_,_) => チェックホスト.Dispatcher.Dispatch(
+            () => this.選択抑止グリッド一覧.Remove(グリッド));
+        ポインター.PointerExited+=(_,_) => this.選択抑止グリッド一覧.Remove(グリッド);
+        チェックホスト.GestureRecognizers.Add(ポインター);
     }
 
-    private DataGridTemplateColumn CreateTextColumn(string header,string property,BenchmarkGridSortColumn sortColumn,double width,TextAlignment alignment,Color? backgroundColor = null) {
-        var resolvedBackgroundColor = backgroundColor??Color.FromArgb("#F1F5F9");
+    private DataGridTemplateColumn テキスト列を作成(string 見出し,string プロパティ,ベンチマークグリッドソート列 ソート列,double 幅,TextAlignment 配置,Color? 背景色 = null) {
+        var 解決済み背景色 = 背景色??Color.FromArgb("#F1F5F9");
         return new DataGridTemplateColumn {
-            MappingName=property,
-            HeaderText=header,
-            Width=width,
+            MappingName=プロパティ,
+            HeaderText=見出し,
+            Width=幅,
             AllowSorting=false,
-            HeaderTemplate=this.CreateHeaderTemplate(header,sortColumn,resolvedBackgroundColor),
+            HeaderTemplate=this.見出しテンプレートを作成(見出し,ソート列,解決済み背景色),
             CellTemplate=new DataTemplate(() => {
-                var grid = new Grid {
+                var グリッド = new Grid {
                     BackgroundColor=Colors.Transparent,
                     HorizontalOptions=LayoutOptions.Fill,
                     VerticalOptions=LayoutOptions.Fill,
                 };
-                var label = new Label {
+                var ラベル = new Label {
                     FontSize=10,
                     TextColor=Color.FromArgb("#1E293B"),
                     InputTransparent=true,
                     LineBreakMode=LineBreakMode.TailTruncation,
-                    HorizontalTextAlignment=alignment,
+                    HorizontalTextAlignment=配置,
                     VerticalTextAlignment=TextAlignment.Center,
                     Margin=new Thickness(0),
                     Padding=new Thickness(2,0),
                 };
-                label.SetBinding(Label.TextProperty,property);
-                label.SetBinding(ToolTipProperties.TextProperty,property);
-                if(property==nameof(BenchmarkTableRow.BenchmarkTypeText)
-                    ||property==nameof(BenchmarkTableRow.BenchmarkMethodText)) {
-                    label.SetBinding(Label.TextDecorationsProperty,nameof(BenchmarkTableRow.BenchmarkIdentityTextDecorations));
+                ラベル.SetBinding(Label.TextProperty,プロパティ);
+                ラベル.SetBinding(ToolTipProperties.TextProperty,プロパティ);
+                if(プロパティ==nameof(ベンチマーク表行.ベンチマーク型文字列)
+                    ||プロパティ==nameof(ベンチマーク表行.ベンチマークメソッド文字列)) {
+                    ラベル.SetBinding(Label.TextDecorationsProperty,nameof(ベンチマーク表行.ベンチマーク識別文字装飾));
                 }
-                grid.SetBinding(ToolTipProperties.TextProperty,property);
-                if(property==nameof(BenchmarkTableRow.BenchmarkMethodText)) {
-                    grid.SetBinding(ToolTipProperties.TextProperty,nameof(BenchmarkTableRow.BenchmarkArgumentTooltipText));
+                グリッド.SetBinding(ToolTipProperties.TextProperty,プロパティ);
+                if(プロパティ==nameof(ベンチマーク表行.ベンチマークメソッド文字列)) {
+                    グリッド.SetBinding(ToolTipProperties.TextProperty,nameof(ベンチマーク表行.ベンチマーク引数ツールチップ文字列));
                 }
-                grid.Add(label,0,0);
-                this.EnableHoverCellExpansion(grid,label,alignment);
-                return grid;
+                グリッド.Add(ラベル,0,0);
+                this.ホバーセル拡張を有効化(グリッド,ラベル,配置);
+                return グリッド;
             }),
         };
     }
 
-    private void EnableHoverCellExpansion(Grid host,Label label,TextAlignment alignment) {
-        var pointer = new PointerGestureRecognizer();
-        var originalWidthRequest = label.WidthRequest;
-        var originalMinimumWidthRequest = label.MinimumWidthRequest;
-        var originalBackground = label.BackgroundColor;
-        var originalLineBreakMode = label.LineBreakMode;
-        var originalHorizontalOptions = label.HorizontalOptions;
-        var originalHostZIndex = host.ZIndex;
-        var originalLabelZIndex = label.ZIndex;
-        var isExpanded = false;
+    private void ホバーセル拡張を有効化(Grid ホスト,Label ラベル,TextAlignment 配置) {
+        var ポインター = new PointerGestureRecognizer();
+        var 元幅要求 = ラベル.WidthRequest;
+        var 元最小幅要求 = ラベル.MinimumWidthRequest;
+        var 元背景 = ラベル.BackgroundColor;
+        var 元改行モード = ラベル.LineBreakMode;
+        var 元水平配置 = ラベル.HorizontalOptions;
+        var 元ホスト重なり順 = ホスト.ZIndex;
+        var 元ラベル重なり順 = ラベル.ZIndex;
+        var 展開済みか = false;
 
-        pointer.PointerEntered+=(_,_) => {
-            if(isExpanded||string.IsNullOrWhiteSpace(label.Text)||host.Width<=0) {
+        ポインター.PointerEntered+=(_,_) => {
+            if(展開済みか||string.IsNullOrWhiteSpace(ラベル.Text)||ホスト.Width<=0) {
                 return;
             }
 
-            var desiredWidth = label.Measure(double.PositiveInfinity,BenchmarkGridRowHeight).Width
-                +BenchmarkHoverCellExpansionPadding;
-            if(desiredWidth<=host.Width+1) {
+            var 希望幅 = ラベル.Measure(double.PositiveInfinity,ベンチマークグリッド行高さ).Width
+                +ベンチマークホバーセル拡張余白;
+            if(希望幅<=ホスト.Width+1) {
                 return;
             }
 
-            isExpanded=true;
-            host.ZIndex=1000;
-            label.ZIndex=1000;
-            label.LineBreakMode=LineBreakMode.NoWrap;
-            label.WidthRequest=desiredWidth;
-            label.MinimumWidthRequest=desiredWidth;
-            label.BackgroundColor=Colors.White;
-            label.HorizontalOptions=alignment switch {
+            展開済みか=true;
+            ホスト.ZIndex=1000;
+            ラベル.ZIndex=1000;
+            ラベル.LineBreakMode=LineBreakMode.NoWrap;
+            ラベル.WidthRequest=希望幅;
+            ラベル.MinimumWidthRequest=希望幅;
+            ラベル.BackgroundColor=Colors.White;
+            ラベル.HorizontalOptions=配置 switch {
                 TextAlignment.End => LayoutOptions.End,
                 TextAlignment.Center => LayoutOptions.Center,
                 _ => LayoutOptions.Start,
             };
         };
-        pointer.PointerExited+=(_,_) => {
-            if(!isExpanded) {
+        ポインター.PointerExited+=(_,_) => {
+            if(!展開済みか) {
                 return;
             }
 
-            isExpanded=false;
-            label.WidthRequest=originalWidthRequest;
-            label.MinimumWidthRequest=originalMinimumWidthRequest;
-            label.BackgroundColor=originalBackground;
-            label.LineBreakMode=originalLineBreakMode;
-            label.HorizontalOptions=originalHorizontalOptions;
-            host.ZIndex=originalHostZIndex;
-            label.ZIndex=originalLabelZIndex;
+            展開済みか=false;
+            ラベル.WidthRequest=元幅要求;
+            ラベル.MinimumWidthRequest=元最小幅要求;
+            ラベル.BackgroundColor=元背景;
+            ラベル.LineBreakMode=元改行モード;
+            ラベル.HorizontalOptions=元水平配置;
+            ホスト.ZIndex=元ホスト重なり順;
+            ラベル.ZIndex=元ラベル重なり順;
         };
-        host.GestureRecognizers.Add(pointer);
+        ホスト.GestureRecognizers.Add(ポインター);
     }
 
-    private DataTemplate CreateHeaderTemplate(string text,BenchmarkGridSortColumn sortColumn) =>
-        this.CreateHeaderTemplate(text,sortColumn,Color.FromArgb("#F1F5F9"));
+    private DataTemplate 見出しテンプレートを作成(string テキスト,ベンチマークグリッドソート列 ソート列) =>
+        this.見出しテンプレートを作成(テキスト,ソート列,Color.FromArgb("#F1F5F9"));
 
-    private DataTemplate CreateHeaderTemplate(string text,BenchmarkGridSortColumn sortColumn,Color backgroundColor) {
+    private DataTemplate 見出しテンプレートを作成(string テキスト,ベンチマークグリッドソート列 ソート列,Color 背景色) {
         return new DataTemplate(() => {
-            var grid = new Grid {
+            var グリッド = new Grid {
                 ColumnDefinitions= {
                     new ColumnDefinition { Width = GridLength.Star },
                     new ColumnDefinition { Width = new GridLength(12) },
                 },
-                BackgroundColor=backgroundColor,
+                BackgroundColor=背景色,
                 Padding=new Thickness(2,0),
             };
-            var label = new Label {
-                Text=text,
+            var ラベル = new Label {
+                Text=テキスト,
                 FontSize=10,
                 FontAttributes=FontAttributes.Bold,
                 TextColor=Color.FromArgb("#0F172A"),
@@ -3158,57 +2637,57 @@ public sealed partial class MainPage:ContentPage {
                 VerticalTextAlignment=TextAlignment.Center,
                 LineBreakMode=LineBreakMode.TailTruncation,
             };
-            var icon = new Image {
+            var アイコン = new Image {
                 WidthRequest=10,
                 HeightRequest=10,
                 Aspect=Aspect.AspectFit,
                 VerticalOptions=LayoutOptions.Center,
                 HorizontalOptions=LayoutOptions.Center,
             };
-            void RefreshIcon() {
-                if(this.viewModel is null||this.viewModel.CurrentSortColumn!=sortColumn) {
-                    icon.IsVisible=false;
+            void アイコンを更新() {
+                if(this.ビューモデル is null||this.ビューモデル.現在ソート列!=ソート列) {
+                    アイコン.IsVisible=false;
                     return;
                 }
 
-                icon.IsVisible=true;
-                icon.Source=ImageSource.FromFile(this.viewModel.CurrentSortDescending ? "sort_desc.png" : "sort_asc.png");
+                アイコン.IsVisible=true;
+                アイコン.Source=ImageSource.FromFile(this.ビューモデル.現在ソート降順か ? "sort_desc.png" : "sort_asc.png");
             }
 
-            RefreshIcon();
-            if(this.viewModel is not null) {
-                PropertyChangedEventHandler handler = (_,args) => {
-                    if(args.PropertyName==nameof(RunnerViewModel.CurrentSortColumn)
-                        ||args.PropertyName==nameof(RunnerViewModel.CurrentSortDescending)) {
-                        StartupDiagnostics.BeginInvokeOnMainThread("benchmark status icon refresh",RefreshIcon);
+            アイコンを更新();
+            if(this.ビューモデル is not null) {
+                PropertyChangedEventHandler ハンドラー = (_,イベント引数) => {
+                    if(イベント引数.PropertyName==nameof(実行ビューモデル.現在ソート列)
+                        ||イベント引数.PropertyName==nameof(実行ビューモデル.現在ソート降順か)) {
+                        起動診断.メインスレッドで呼び出し開始("ベンチマーク状態アイコン更新",アイコンを更新);
                     }
                 };
-                this.viewModel.PropertyChanged+=handler;
-                grid.Unloaded+=(_,_) => this.viewModel.PropertyChanged-=handler;
+                this.ビューモデル.PropertyChanged+=ハンドラー;
+                グリッド.Unloaded+=(_,_) => this.ビューモデル.PropertyChanged-=ハンドラー;
             }
 
-            grid.Add(label,0,0);
-            grid.Add(icon,1,0);
-            var leftTap = new TapGestureRecognizer {
+            グリッド.Add(ラベル,0,0);
+            グリッド.Add(アイコン,1,0);
+            var 左タップ = new TapGestureRecognizer {
                 Buttons=ButtonsMask.Primary,
             };
-            leftTap.Tapped+=(_,_) => this.viewModel?.SortBenchmarkRows(sortColumn);
-            grid.GestureRecognizers.Add(leftTap);
-            var rightTap = new TapGestureRecognizer {
+            左タップ.Tapped+=(_,_) => this.ビューモデル?.ベンチマーク行をソート(ソート列);
+            グリッド.GestureRecognizers.Add(左タップ);
+            var 右タップ = new TapGestureRecognizer {
                 Buttons=ButtonsMask.Secondary,
             };
-            rightTap.Tapped+=(_,_) => this.ShowBenchmarkSortDialog();
-            grid.GestureRecognizers.Add(rightTap);
-            return grid;
+            右タップ.Tapped+=(_,_) => this.ベンチマークソートダイアログを表示();
+            グリッド.GestureRecognizers.Add(右タップ);
+            return グリッド;
         });
     }
 
-    private View CreateCpuView() {
-        var PCoreList = this.CreateCpuSectionList(nameof(RunnerViewModel.PerformanceCpuSections));
-        var ECoreList = this.CreateCpuSectionList(nameof(RunnerViewModel.EfficiencyCpuSections));
-        var UnknownList = this.CreateCpuSectionList(nameof(RunnerViewModel.UnknownCpuSections));
+    private View CPUビューを作成() {
+        var 高性能コア一覧 = this.CPU区分一覧を作成(nameof(実行ビューモデル.高性能CPU区分一覧));
+        var 高効率コア一覧 = this.CPU区分一覧を作成(nameof(実行ビューモデル.高効率CPU区分一覧));
+        var 不明コア一覧 = this.CPU区分一覧を作成(nameof(実行ビューモデル.不明CPU区分一覧));
 
-        var layout = new Grid {
+        var レイアウト = new Grid {
             RowDefinitions= {
                 new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Auto },
@@ -3220,56 +2699,56 @@ public sealed partial class MainPage:ContentPage {
             RowSpacing=10,
             ColumnSpacing=10,
             Children= {
-                PCoreList,
-                ECoreList,
-                UnknownList,
+                高性能コア一覧,
+                高効率コア一覧,
+                不明コア一覧,
             },
         };
-        Grid.SetColumn(ECoreList,1);
-        Grid.SetRow(UnknownList,1);
-        Grid.SetColumnSpan(UnknownList,2);
-        return layout;
+        Grid.SetColumn(高効率コア一覧,1);
+        Grid.SetRow(不明コア一覧,1);
+        Grid.SetColumnSpan(不明コア一覧,2);
+        return レイアウト;
     }
 
-    private View CreateLogView() {
-        var logList = new CollectionView {
+    private View ログビューを作成() {
+        var ログ一覧 = new CollectionView {
             SelectionMode=SelectionMode.None,
             VerticalOptions=LayoutOptions.Fill,
             HorizontalOptions=LayoutOptions.Fill,
             ItemTemplate=new DataTemplate(() => {
-                var label = new Label {
+                var ラベル = new Label {
                     FontSize=11,
                     TextColor=Color.FromArgb("#0F172A"),
                     LineBreakMode=LineBreakMode.WordWrap,
                     Margin=new Thickness(0),
                     Padding=new Thickness(0,2),
                 };
-                label.SetBinding(Label.TextProperty,".");
-                label.BindingContextChanged+=(_,_) => {
-                    var isHighlighted = label.BindingContext is string text
-                        &&text.StartsWith(RunnerViewModel.HighlightedLogEntryPrefix,StringComparison.Ordinal);
-                    label.FontAttributes=isHighlighted ? FontAttributes.Bold : FontAttributes.None;
-                    label.TextColor=isHighlighted ? Color.FromArgb("#DC2626") : Color.FromArgb("#0F172A");
+                ラベル.SetBinding(Label.TextProperty,".");
+                ラベル.BindingContextChanged+=(_,_) => {
+                    var 強調中か = ラベル.BindingContext is string テキスト
+                        &&テキスト.StartsWith(実行ビューモデル.強調ログ項目接頭辞,StringComparison.Ordinal);
+                    ラベル.FontAttributes=強調中か ? FontAttributes.Bold : FontAttributes.None;
+                    ラベル.TextColor=強調中か ? Color.FromArgb("#DC2626") : Color.FromArgb("#0F172A");
                 };
-                return label;
+                return ラベル;
             }),
             ItemsLayout=new LinearItemsLayout(ItemsLayoutOrientation.Vertical) {
                 ItemSpacing=0,
             },
         };
-        logList.SetBinding(ItemsView.ItemsSourceProperty,nameof(RunnerViewModel.LogEntries));
+        ログ一覧.SetBinding(ItemsView.ItemsSourceProperty,nameof(実行ビューモデル.ログ項目一覧));
 
         return new Border {
             Stroke=Color.FromArgb("#CBD5E1"),
             StrokeThickness=1,
             BackgroundColor=Color.FromArgb("#F8FAFC"),
             Padding=new Thickness(8),
-            Content=logList,
+            Content=ログ一覧,
         };
     }
 
-    private View CreateImprovementPromptView() {
-        var copyButton = new Button {
+    private View 改善プロンプトビューを作成() {
+        var コピーボタン = new Button {
             Text="⧉",
             WidthRequest=30,
             HeightRequest=28,
@@ -3279,12 +2758,12 @@ public sealed partial class MainPage:ContentPage {
             TextColor=Color.FromArgb("#0F172A"),
             BackgroundColor=Color.FromArgb("#E2E8F0"),
         };
-        copyButton.SetBinding(Button.CommandProperty,nameof(RunnerViewModel.CopyImprovementPromptCommand));
-        copyButton.SetBinding(IsEnabledProperty,nameof(RunnerViewModel.CanCopyImprovementPrompt));
-        ToolTipProperties.SetText(copyButton,"改善プロンプトをコピー");
-        ConfigurePressFeedback(copyButton);
+        コピーボタン.SetBinding(Button.CommandProperty,nameof(実行ビューモデル.改善プロンプトコピーコマンド));
+        コピーボタン.SetBinding(IsEnabledProperty,nameof(実行ビューモデル.改善プロンプトをコピー可能か));
+        ToolTipProperties.SetText(コピーボタン,"改善プロンプトをコピー");
+        押下フィードバックを設定(コピーボタン);
 
-        var title = new Label {
+        var タイトル = new Label {
             Text="改善プロンプト",
             FontSize=12,
             FontAttributes=FontAttributes.Bold,
@@ -3292,7 +2771,7 @@ public sealed partial class MainPage:ContentPage {
             VerticalTextAlignment=TextAlignment.Center,
             LineBreakMode=LineBreakMode.TailTruncation,
         };
-        var header = new Grid {
+        var 見出し = new Grid {
             ColumnDefinitions= {
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Star },
@@ -3300,10 +2779,10 @@ public sealed partial class MainPage:ContentPage {
             ColumnSpacing=6,
             Padding=new Thickness(0,0,0,6),
         };
-        header.Add(copyButton,0,0);
-        header.Add(title,1,0);
+        見出し.Add(コピーボタン,0,0);
+        見出し.Add(タイトル,1,0);
 
-        var promptText = new Editor {
+        var プロンプト文 = new Editor {
             FontSize=11,
             TextColor=Color.FromArgb("#0F172A"),
             BackgroundColor=Colors.White,
@@ -3313,98 +2792,98 @@ public sealed partial class MainPage:ContentPage {
             HorizontalOptions=LayoutOptions.Fill,
             VerticalOptions=LayoutOptions.Fill,
         };
-        promptText.SetBinding(Editor.TextProperty,new Binding(nameof(RunnerViewModel.ImprovementPromptText),BindingMode.TwoWay));
-        var promptBorder = new Border {
+        プロンプト文.SetBinding(Editor.TextProperty,new Binding(nameof(実行ビューモデル.改善プロンプト文字列),BindingMode.TwoWay));
+        var プロンプト境界 = new Border {
             Stroke=Color.FromArgb("#CBD5E1"),
             StrokeThickness=1,
             BackgroundColor=Colors.White,
             Padding=new Thickness(6),
-            Content=promptText,
+            Content=プロンプト文,
         };
-        var content = new Grid {
+        var 内容 = new Grid {
             RowDefinitions= {
                 new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Star },
             },
             RowSpacing=4,
         };
-        content.Add(header,0,0);
-        content.Add(promptBorder,0,1);
+        内容.Add(見出し,0,0);
+        内容.Add(プロンプト境界,0,1);
         return new Border {
             Stroke=Color.FromArgb("#CBD5E1"),
             StrokeThickness=1,
             BackgroundColor=Color.FromArgb("#F8FAFC"),
             Padding=new Thickness(8),
-            Content=content,
+            Content=内容,
         };
     }
 
-    private VerticalStackLayout CreateCpuSectionList(string itemsSourcePath) {
-        var layout = new VerticalStackLayout {
+    private VerticalStackLayout CPU区分一覧を作成(string 項目ソースパス) {
+        var レイアウト = new VerticalStackLayout {
             Spacing=10,
         };
-        BindableLayout.SetItemTemplate(layout,new DataTemplate(this.CreateCpuSectionView));
-        layout.SetBinding(BindableLayout.ItemsSourceProperty,itemsSourcePath);
-        return layout;
+        BindableLayout.SetItemTemplate(レイアウト,new DataTemplate(this.CPU区分ビューを作成));
+        レイアウト.SetBinding(BindableLayout.ItemsSourceProperty,項目ソースパス);
+        return レイアウト;
     }
 
-    private View CreateCpuSectionView() {
-        var header = new Border {
+    private View CPU区分ビューを作成() {
+        var 見出し = new Border {
             Stroke=Color.FromArgb("#CBD5E1"),
             StrokeThickness=1,
             BackgroundColor=Color.FromArgb("#F8FAFC"),
             Padding=new Thickness(6,3),
         };
-        var headerGrid = new Grid {
+        var 見出しグリッド = new Grid {
             ColumnDefinitions= {
-                new ColumnDefinition { Width = new GridLength(CpuLogicalCheckColumnWidth) },
+                new ColumnDefinition { Width = new GridLength(CPU論理チェック列幅) },
                 new ColumnDefinition { Width = new GridLength(24) },
                 new ColumnDefinition { Width = GridLength.Star },
             },
             ColumnSpacing=4,
             HorizontalOptions=LayoutOptions.Fill,
         };
-        var sectionCheck = this.CreateCpuCheckBox();
-        sectionCheck.InputTransparent=true;
-        sectionCheck.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(nameof(CpuTableSection.State),BindingMode.OneWay,converter: new CpuSelectionStateToBoolConverter()));
-        var sectionCheckHost = new Grid {
+        var 区分チェック = this.CPUチェックボックスを作成();
+        区分チェック.InputTransparent=true;
+        区分チェック.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(nameof(CPU表区分.状態),BindingMode.OneWay,converter: new CPU選択状態真偽値コンバーター()));
+        var 区分チェックホスト = new Grid {
             BackgroundColor=Colors.Transparent,
             HorizontalOptions=LayoutOptions.Fill,
             VerticalOptions=LayoutOptions.Fill,
         };
-        sectionCheckHost.Add(sectionCheck,0,0);
-        sectionCheckHost.GestureRecognizers.Add(new TapGestureRecognizer {
+        区分チェックホスト.Add(区分チェック,0,0);
+        区分チェックホスト.GestureRecognizers.Add(new TapGestureRecognizer {
             Command=new Command(() => {
-                if(header.BindingContext is CpuTableSection section) {
-                    this.viewModel?.ToggleCpuSection(section);
+                if(見出し.BindingContext is CPU表区分 区分) {
+                    this.ビューモデル?.CPU区分を切り替え(区分);
                 }
             }),
         });
-        var badge = this.CreateCoreBadge();
-        badge.SetBinding(BackgroundColorProperty,nameof(CpuTableSection.BadgeBackgroundColor));
-        if(badge.Content is Image badgeImage) {
-            badgeImage.SetBinding(
+        var バッジ = this.コアバッジを作成();
+        バッジ.SetBinding(BackgroundColorProperty,nameof(CPU表区分.バッジ背景色));
+        if(バッジ.Content is Image バッジ画像) {
+            バッジ画像.SetBinding(
                 Image.SourceProperty,
-                new Binding(nameof(CpuTableSection.BadgeImageSource),converter: new ImageFileSourceConverter()));
+                new Binding(nameof(CPU表区分.バッジ画像ソース),converter: new 画像ファイルソースコンバーター()));
         }
-        var title = new Label {
+        var タイトル = new Label {
             FontSize=12,
             FontAttributes=FontAttributes.Bold,
             TextColor=Color.FromArgb("#0F172A"),
             VerticalTextAlignment=TextAlignment.Center,
             LineBreakMode=LineBreakMode.TailTruncation,
         };
-        title.SetBinding(Label.TextProperty,nameof(CpuTableSection.Title));
-        headerGrid.Add(sectionCheckHost,0,0);
-        headerGrid.Add(badge,1,0);
-        headerGrid.Add(title,2,0);
-        header.Content=headerGrid;
+        タイトル.SetBinding(Label.TextProperty,nameof(CPU表区分.タイトル));
+        見出しグリッド.Add(区分チェックホスト,0,0);
+        見出しグリッド.Add(バッジ,1,0);
+        見出しグリッド.Add(タイトル,2,0);
+        見出し.Content=見出しグリッド;
 
-        StartupDiagnostics.WriteSyncfusionAssemblies("CreateCpuSectionView before SfDataGrid");
-        var CPUGrid = new SfDataGrid {
+        起動診断.Syncfusionアセンブリを書き込む("CPU区分ビュー作成前のSfDataGrid");
+        var CPUグリッド = new SfDataGrid {
             AutoGenerateColumnsMode=AutoGenerateColumnsMode.None,
-            RowHeight=CpuGridRowHeight,
-            HeaderRowHeight=CpuGridHeaderRowHeight,
+            RowHeight=CPUグリッド行高さ,
+            HeaderRowHeight=CPUグリッド見出し行高さ,
             AllowTriStateSorting=false,
             SortingMode=DataGridSortingMode.None,
             SelectionMode=DataGridSelectionMode.Extended,
@@ -3415,102 +2894,100 @@ public sealed partial class MainPage:ContentPage {
             GridLinesVisibility=GridLinesVisibility.Both,
             DefaultColumnWidth=56,
         };
-        this.RegisterDataGridUpdateBatchTarget(CPUGrid);
-        this.ConfigureDataGridLines(CPUGrid,showCellFocus:true);
-        var sectionLayout = new VerticalStackLayout {
+        this.データグリッド更新バッチ対象を登録(CPUグリッド);
+        this.データグリッド線を構成(CPUグリッド,セルフォーカスを表示するか: true);
+        var 区分レイアウト = new VerticalStackLayout {
             Spacing=3,
             Children= {
-                header,
-                CPUGrid,
+                見出し,
+                CPUグリッド,
             },
         };
-        CPUGrid.SetBinding(SfDataGrid.ItemsSourceProperty,nameof(CpuTableSection.Rows));
-        void ConfigureCpuGridBindingContext(){
-            if(CPUGrid.BindingContext is not CpuTableSection section) {
+        CPUグリッド.SetBinding(SfDataGrid.ItemsSourceProperty,nameof(CPU表区分.行一覧));
+        void CPUグリッドバインドコンテキストを構成() {
+            if(CPUグリッド.BindingContext is not CPU表区分 区分) {
                 return;
             }
 
-            CPUGrid.AutomationId="CPU.Grid."+section.CoreKind;
-            this.RebuildCpuDataGridColumns(CPUGrid,section);
-            var selectionController=new CpuCheckSelectionController(
-                CPUGrid,
-                cpus => this.viewModel?.ToggleCpuChecks(cpus));
-            CPUGrid.SelectionController=selectionController;
-            GridKeyboardFocusBehavior.Attach(CPUGrid);
-            CPUGrid.HeightRequest=CpuSectionGridHeaderHeight+(section.Rows.Count*CpuSectionRowHeight)+CpuSectionGridExtraHeight;
-            if(section.CoreKind==CpuCoreKind.Performance) {
-                var maxWidth = this.GetCpuRightEdgeWidth(section);
-                CPUGrid.MaximumWidthRequest=maxWidth;
-                CPUGrid.WidthRequest=maxWidth;
-                CPUGrid.HorizontalOptions=LayoutOptions.Start;
-                header.WidthRequest=maxWidth;
-                header.MaximumWidthRequest=maxWidth;
-                header.HorizontalOptions=LayoutOptions.Start;
-                sectionLayout.WidthRequest=maxWidth;
-                sectionLayout.MaximumWidthRequest=maxWidth;
-                sectionLayout.HorizontalOptions=LayoutOptions.Start;
-            }
-            else if(section.CoreKind==CpuCoreKind.Efficiency) {
-                var maxWidth = this.GetCpuVisibleWidth(section,4);
-                CPUGrid.MaximumWidthRequest=maxWidth;
-                CPUGrid.WidthRequest=maxWidth;
-                CPUGrid.HorizontalOptions=LayoutOptions.Start;
-                header.WidthRequest=maxWidth;
-                header.MaximumWidthRequest=maxWidth;
-                header.HorizontalOptions=LayoutOptions.Start;
-                sectionLayout.WidthRequest=maxWidth;
-                sectionLayout.MaximumWidthRequest=maxWidth;
-                sectionLayout.HorizontalOptions=LayoutOptions.Start;
-            }
-            else {
-                CPUGrid.HorizontalOptions=LayoutOptions.Fill;
-                header.ClearValue(WidthRequestProperty);
-                header.ClearValue(MaximumWidthRequestProperty);
-                header.HorizontalOptions=LayoutOptions.Fill;
-                sectionLayout.ClearValue(WidthRequestProperty);
-                sectionLayout.ClearValue(MaximumWidthRequestProperty);
-                sectionLayout.HorizontalOptions=LayoutOptions.Fill;
+            CPUグリッド.AutomationId="CPU.グリッド."+区分.コア種別;
+            this.CPUデータグリッド列を再構築(CPUグリッド,区分);
+            var 選択コントローラー = new CPUチェック選択コントローラー(
+                CPUグリッド,
+                CPU一覧 => this.ビューモデル?.CPUチェックを切り替え(CPU一覧));
+            CPUグリッド.SelectionController=選択コントローラー;
+            グリッドキーボードフォーカス動作.取り付ける(CPUグリッド);
+            CPUグリッド.HeightRequest=CPU区分グリッド見出し高さ+(区分.行一覧.Count*CPU区分行高さ)+CPU区分グリッド追加高さ;
+            if(区分.コア種別==CPUコア種別.高性能) {
+                var 最大幅 = this.CPU右端幅を取得(区分);
+                CPUグリッド.MaximumWidthRequest=最大幅;
+                CPUグリッド.WidthRequest=最大幅;
+                CPUグリッド.HorizontalOptions=LayoutOptions.Start;
+                見出し.WidthRequest=最大幅;
+                見出し.MaximumWidthRequest=最大幅;
+                見出し.HorizontalOptions=LayoutOptions.Start;
+                区分レイアウト.WidthRequest=最大幅;
+                区分レイアウト.MaximumWidthRequest=最大幅;
+                区分レイアウト.HorizontalOptions=LayoutOptions.Start;
+            } else if(区分.コア種別==CPUコア種別.高効率) {
+                var 最大幅 = this.CPU表示幅を取得(区分,4);
+                CPUグリッド.MaximumWidthRequest=最大幅;
+                CPUグリッド.WidthRequest=最大幅;
+                CPUグリッド.HorizontalOptions=LayoutOptions.Start;
+                見出し.WidthRequest=最大幅;
+                見出し.MaximumWidthRequest=最大幅;
+                見出し.HorizontalOptions=LayoutOptions.Start;
+                区分レイアウト.WidthRequest=最大幅;
+                区分レイアウト.MaximumWidthRequest=最大幅;
+                区分レイアウト.HorizontalOptions=LayoutOptions.Start;
+            } else {
+                CPUグリッド.HorizontalOptions=LayoutOptions.Fill;
+                見出し.ClearValue(WidthRequestProperty);
+                見出し.ClearValue(MaximumWidthRequestProperty);
+                見出し.HorizontalOptions=LayoutOptions.Fill;
+                区分レイアウト.ClearValue(WidthRequestProperty);
+                区分レイアウト.ClearValue(MaximumWidthRequestProperty);
+                区分レイアウト.HorizontalOptions=LayoutOptions.Fill;
             }
         }
-        CPUGrid.BindingContextChanged+=(_,_) => ConfigureCpuGridBindingContext();
-        ConfigureCpuGridBindingContext();
-        CPUGrid.SelectionChanging+=(_,args) => {
-            if(this.selectionSuppressedGrids.Contains(CPUGrid)){
-                args.Cancel=true;
+        CPUグリッド.BindingContextChanged+=(_,_) => CPUグリッドバインドコンテキストを構成();
+        CPUグリッドバインドコンテキストを構成();
+        CPUグリッド.SelectionChanging+=(_,イベント引数) => {
+            if(this.選択抑止グリッド一覧.Contains(CPUグリッド)) {
+                イベント引数.Cancel=true;
                 return;
             }
-            if(args.AddedRows is { } addedRows){
-                for(var index=addedRows.Count-1;index>=0;index--){
-                    if(addedRows[index] is SelectedCellInfo cell&&!CpuCheckSelectionController.IsSelectableCpuCell(cell)){
-                        addedRows.RemoveAt(index);
+            if(イベント引数.AddedRows is { } 追加行一覧) {
+                for(var インデックス = 追加行一覧.Count-1;インデックス>=0;インデックス--) {
+                    if(追加行一覧[インデックス] is SelectedCellInfo セル&&!CPUチェック選択コントローラー.選択可能なCPUセルか(セル)) {
+                        追加行一覧.RemoveAt(インデックス);
                     }
                 }
             }
         };
 
-        return sectionLayout;
+        return 区分レイアウト;
     }
 
-    private void RebuildCpuDataGridColumns(SfDataGrid grid,CpuTableSection section) {
-        grid.Columns.Clear();
-        grid.Columns.Add(this.CreateCpuCoreColumn(section));
-        foreach(var column in section.Columns) {
-            grid.Columns.Add(this.CreateCpuLogicalColumn(grid,column));
+    private void CPUデータグリッド列を再構築(SfDataGrid グリッド,CPU表区分 区分) {
+        グリッド.Columns.Clear();
+        グリッド.Columns.Add(this.CPUコア列を作成(区分));
+        foreach(var 列 in 区分.列一覧) {
+            グリッド.Columns.Add(this.CPU論理列を作成(グリッド,列));
         }
     }
 
-    private DataGridTemplateColumn CreateCpuCoreColumn(CpuTableSection section) {
+    private DataGridTemplateColumn CPUコア列を作成(CPU表区分 区分) {
         return new DataGridTemplateColumn {
-            MappingName=nameof(CpuTableRow.Label),
+            MappingName=nameof(CPU表行.ラベル),
             HeaderText="コア",
-            Width=this.GetCpuCoreColumnWidth(section),
+            Width=this.CPUコア列幅を取得(区分),
             AllowSorting=false,
             AllowFocus=false,
-            HeaderTemplate=this.CreateCpuSimpleHeaderTemplate("コア"),
+            HeaderTemplate=this.CPU単純見出しテンプレートを作成("コア"),
             CellTemplate=new DataTemplate(() => {
-                var layout = new Grid {
+                var レイアウト = new Grid {
                     ColumnDefinitions= {
-                        new ColumnDefinition { Width = new GridLength(CpuLogicalCheckColumnWidth) },
+                        new ColumnDefinition { Width = new GridLength(CPU論理チェック列幅) },
                         new ColumnDefinition { Width = new GridLength(24) },
                         new ColumnDefinition { Width = GridLength.Star },
                     },
@@ -3519,114 +2996,114 @@ public sealed partial class MainPage:ContentPage {
                     HorizontalOptions=LayoutOptions.Fill,
                     VerticalOptions=LayoutOptions.Fill,
                 };
-                var check = this.CreateCpuCheckBox();
-                check.InputTransparent=true;
-                check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(nameof(CpuTableRow.IsChecked),BindingMode.OneWay));
-                var badge = this.CreateCoreBadge();
-                badge.SetBinding(BackgroundColorProperty,nameof(CpuTableRow.BadgeBackgroundColor));
-                if(badge.Content is Image badgeImage) {
-                    badgeImage.SetBinding(
+                var チェック = this.CPUチェックボックスを作成();
+                チェック.InputTransparent=true;
+                チェック.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(nameof(CPU表行.チェック済みか),BindingMode.OneWay));
+                var バッジ = this.コアバッジを作成();
+                バッジ.SetBinding(BackgroundColorProperty,nameof(CPU表行.バッジ背景色));
+                if(バッジ.Content is Image バッジ画像) {
+                    バッジ画像.SetBinding(
                         Image.SourceProperty,
-                        new Binding(nameof(CpuTableRow.BadgeImageSource),converter: new ImageFileSourceConverter()));
+                        new Binding(nameof(CPU表行.バッジ画像ソース),converter: new 画像ファイルソースコンバーター()));
                 }
-                var label = new Label {
-                    FontSize=CpuGridCellFontSize,
+                var ラベル = new Label {
+                    FontSize=CPUグリッドセル文字寸法,
                     TextColor=Color.FromArgb("#334155"),
                     HorizontalTextAlignment=TextAlignment.Start,
                     VerticalTextAlignment=TextAlignment.Center,
                     LineBreakMode=LineBreakMode.TailTruncation,
                 };
-                label.SetBinding(Label.TextProperty,nameof(CpuTableRow.Label));
-                layout.Add(check,0,0);
-                layout.Add(badge,1,0);
-                layout.Add(label,2,0);
-                var tap = new TapGestureRecognizer();
-                tap.Tapped+=(_,_) => {
-                    if(layout.BindingContext is CpuTableRow row) {
-                        this.viewModel?.ToggleCpuRow(row);
+                ラベル.SetBinding(Label.TextProperty,nameof(CPU表行.ラベル));
+                レイアウト.Add(チェック,0,0);
+                レイアウト.Add(バッジ,1,0);
+                レイアウト.Add(ラベル,2,0);
+                var タップ = new TapGestureRecognizer();
+                タップ.Tapped+=(_,_) => {
+                    if(レイアウト.BindingContext is CPU表行 行) {
+                        this.ビューモデル?.CPU行を切り替え(行);
                     }
                 };
-                layout.GestureRecognizers.Add(tap);
-                return layout;
+                レイアウト.GestureRecognizers.Add(タップ);
+                return レイアウト;
             }),
         };
     }
 
-    private double GetCpuCoreColumnWidth(CpuTableSection section) {
-        var labelWidth = section.Rows.Count==0
+    private double CPUコア列幅を取得(CPU表区分 区分) {
+        var ラベル幅 = 区分.行一覧.Count==0
             ? 24
-            : section.Rows.Max(static row => row.Label.Length)*7;
-        var baseWidth = Math.Max(180,CpuLogicalCheckColumnWidth+24+labelWidth+42);
-        return section.CoreKind switch {
-            CpuCoreKind.Performance or CpuCoreKind.Efficiency => Math.Max(1,baseWidth*0.65),
-            _ => baseWidth,
+            : 区分.行一覧.Max(static 行 => 行.ラベル.Length)*7;
+        var 基本幅 = Math.Max(180,CPU論理チェック列幅+24+ラベル幅+42);
+        return 区分.コア種別 switch {
+            CPUコア種別.高性能 or CPUコア種別.高効率 => Math.Max(1,基本幅*0.65),
+            _ => 基本幅,
         };
     }
 
-    private double GetCpuRightEdgeWidth(CpuTableSection section) {
-        return this.GetCpuCoreColumnWidth(section)
-            +section.Columns.Count*CpuLogicalColumnWidth
-            +2*CpuLogicalCheckColumnWidth;
+    private double CPU右端幅を取得(CPU表区分 区分) {
+        return this.CPUコア列幅を取得(区分)
+            +区分.列一覧.Count*CPU論理列幅
+            +2*CPU論理チェック列幅;
     }
 
-    private double GetCpuVisibleWidth(CpuTableSection section,int logicalColumnCount) {
-        return this.GetCpuCoreColumnWidth(section)
-            +Math.Min(section.Columns.Count,logicalColumnCount)*CpuLogicalColumnWidth
-            +2*CpuLogicalCheckColumnWidth;
+    private double CPU表示幅を取得(CPU表区分 区分,int 論理列数) {
+        return this.CPUコア列幅を取得(区分)
+            +Math.Min(区分.列一覧.Count,論理列数)*CPU論理列幅
+            +2*CPU論理チェック列幅;
     }
 
-    private DataGridTemplateColumn CreateCpuLogicalColumn(SfDataGrid grid,CpuTableColumn column) {
-        var cellPath = nameof(CpuTableRow.GridCells)+"["+column.Index+"]";
+    private DataGridTemplateColumn CPU論理列を作成(SfDataGrid グリッド,CPU表列 列) {
+        var セルパス = nameof(CPU表行.グリッドセル一覧)+"["+列.インデックス+"]";
         return new DataGridTemplateColumn {
-            MappingName="Cpu"+column.Index,
-            HeaderText=column.HeaderText,
-            Width=CpuLogicalColumnWidth,
+            MappingName="CPU"+列.インデックス,
+            HeaderText=列.タイトル,
+            Width=CPU論理列幅,
             AllowSorting=false,
-            HeaderTemplate=this.CreateCpuColumnHeaderTemplate(column),
+            HeaderTemplate=this.CPU列見出しテンプレートを作成(列),
             CellTemplate=new DataTemplate(() => {
-                var layout = new Grid {
+                var レイアウト = new Grid {
                     ColumnDefinitions= {
-                        new ColumnDefinition { Width = new GridLength(CpuLogicalCheckColumnWidth) },
+                        new ColumnDefinition { Width = new GridLength(CPU論理チェック列幅) },
                         new ColumnDefinition { Width = new GridLength(18) },
                         new ColumnDefinition { Width = new GridLength(24) },
-                        new ColumnDefinition { Width = new GridLength(CpuLogicalNumberWidth) },
+                        new ColumnDefinition { Width = new GridLength(CPU論理番号幅) },
                         new ColumnDefinition { Width = GridLength.Star },
                     },
                     ColumnSpacing=2,
                     HorizontalOptions=LayoutOptions.Fill,
                     VerticalOptions=LayoutOptions.Center,
                 };
-                layout.SetBinding(IsVisibleProperty,new Binding(cellPath,converter: new NullToBoolConverter()));
-                var check = this.CreateCpuCheckBox();
-                check.AutomationId="CPU.CellCheck";
-                check.InputTransparent=true;
-                check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(cellPath+"."+nameof(CpuTableCell.IsSelected),BindingMode.OneWay));
-                var checkHost=new Grid {
+                レイアウト.SetBinding(IsVisibleProperty,new Binding(セルパス,converter: new ヌル判定コンバーター()));
+                var チェック = this.CPUチェックボックスを作成();
+                チェック.AutomationId="CPU.セルチェック";
+                チェック.InputTransparent=true;
+                チェック.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(セルパス+"."+nameof(CPU表セル.選択中か),BindingMode.OneWay));
+                var チェックホスト = new Grid {
                     BackgroundColor=Colors.Transparent,
                     HorizontalOptions=LayoutOptions.Fill,
                     VerticalOptions=LayoutOptions.Fill,
                 };
-                checkHost.Add(check,0,0);
-                var checkTap=new TapGestureRecognizer();
-                checkTap.Tapped+=(_,_) => {
-                    if(layout.BindingContext is CpuTableRow row
-                        &&column.Index<row.GridCells.Count
-                        &&row.GridCells[column.Index] is { } cell) {
-                        this.viewModel?.ToggleCpu(cell.Cpu);
+                チェックホスト.Add(チェック,0,0);
+                var チェックタップ = new TapGestureRecognizer();
+                チェックタップ.Tapped+=(_,_) => {
+                    if(レイアウト.BindingContext is CPU表行 行
+                        &&列.インデックス<行.グリッドセル一覧.Count
+                        &&行.グリッドセル一覧[列.インデックス] is { } セル) {
+                        this.ビューモデル?.CPUを切り替え(セル.CPU);
                     }
                 };
-                checkHost.GestureRecognizers.Add(checkTap);
-                this.SuppressSelectionWhileChecking(checkHost,grid);
-                var spinner = new ActivityIndicator {
+                チェックホスト.GestureRecognizers.Add(チェックタップ);
+                this.チェック中の選択を抑止(チェックホスト,グリッド);
+                var スピナー = new ActivityIndicator {
                     WidthRequest=14,
                     HeightRequest=14,
                     Color=Color.FromArgb("#2563EB"),
                     VerticalOptions=LayoutOptions.Center,
                     HorizontalOptions=LayoutOptions.Center,
                 };
-                spinner.SetBinding(ActivityIndicator.IsRunningProperty,new Binding(cellPath+"."+nameof(CpuTableCell.IsRunningJob)));
-                spinner.SetBinding(IsVisibleProperty,new Binding(cellPath+"."+nameof(CpuTableCell.IsRunningJob)));
-                var statusIcon = new Image {
+                スピナー.SetBinding(ActivityIndicator.IsRunningProperty,new Binding(セルパス+"."+nameof(CPU表セル.ジョブ実行中か)));
+                スピナー.SetBinding(IsVisibleProperty,new Binding(セルパス+"."+nameof(CPU表セル.ジョブ実行中か)));
+                var 状態アイコン = new Image {
                     WidthRequest=14,
                     HeightRequest=14,
                     InputTransparent=true,
@@ -3634,50 +3111,50 @@ public sealed partial class MainPage:ContentPage {
                     VerticalOptions=LayoutOptions.Center,
                     Aspect=Aspect.AspectFit,
                 };
-                statusIcon.SetBinding(
+                状態アイコン.SetBinding(
                     Image.SourceProperty,
-                    new Binding(cellPath+"."+nameof(CpuTableCell.StatusImageSource),converter: new ImageFileSourceConverter()));
-                statusIcon.SetBinding(IsVisibleProperty,cellPath+"."+nameof(CpuTableCell.IsStatusImageVisible));
-                var badge = this.CreateCoreBadge();
-                badge.SetBinding(BackgroundColorProperty,cellPath+"."+nameof(CpuTableCell.BadgeBackgroundColor));
-                if(badge.Content is Image badgeImage) {
-                    badgeImage.SetBinding(
+                    new Binding(セルパス+"."+nameof(CPU表セル.状態画像ソース),converter: new 画像ファイルソースコンバーター()));
+                状態アイコン.SetBinding(IsVisibleProperty,セルパス+"."+nameof(CPU表セル.状態画像表示中か));
+                var バッジ = this.コアバッジを作成();
+                バッジ.SetBinding(BackgroundColorProperty,セルパス+"."+nameof(CPU表セル.バッジ背景色));
+                if(バッジ.Content is Image バッジ画像) {
+                    バッジ画像.SetBinding(
                         Image.SourceProperty,
-                        new Binding(cellPath+"."+nameof(CpuTableCell.CoreKindImageSource),converter: new ImageFileSourceConverter()));
+                        new Binding(セルパス+"."+nameof(CPU表セル.コア種別画像ソース),converter: new 画像ファイルソースコンバーター()));
                 }
-                var numberLabel = new Label {
-                    FontSize=CpuGridCellFontSize,
+                var 番号ラベル = new Label {
+                    FontSize=CPUグリッドセル文字寸法,
                     TextColor=Color.FromArgb("#0F172A"),
                     HorizontalTextAlignment=TextAlignment.Start,
                     VerticalTextAlignment=TextAlignment.Center,
                     LineBreakMode=LineBreakMode.TailTruncation,
                 };
-                numberLabel.SetBinding(Label.TextProperty,cellPath+"."+nameof(CpuTableCell.LogicalProcessorText));
-                numberLabel.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(CpuTableCell.LogicalProcessorText));
-                var statusLabel = new Label {
+                番号ラベル.SetBinding(Label.TextProperty,セルパス+"."+nameof(CPU表セル.論理プロセッサ文字列));
+                番号ラベル.SetBinding(ToolTipProperties.TextProperty,セルパス+"."+nameof(CPU表セル.論理プロセッサ文字列));
+                var 状態ラベル = new Label {
                     FontSize=10,
                     TextColor=Color.FromArgb("#334155"),
                     HorizontalTextAlignment=TextAlignment.Start,
                     VerticalTextAlignment=TextAlignment.Center,
                     LineBreakMode=LineBreakMode.TailTruncation,
                 };
-                statusLabel.SetBinding(Label.TextProperty,cellPath+"."+nameof(CpuTableCell.CellStatusText));
-                statusLabel.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(CpuTableCell.DisplayText));
-                layout.SetBinding(ToolTipProperties.TextProperty,cellPath+"."+nameof(CpuTableCell.DisplayText));
-                layout.Add(checkHost,0,0);
-                layout.Add(statusIcon,1,0);
-                layout.Add(spinner,1,0);
-                layout.Add(badge,2,0);
-                layout.Add(numberLabel,3,0);
-                layout.Add(statusLabel,4,0);
-                return layout;
+                状態ラベル.SetBinding(Label.TextProperty,セルパス+"."+nameof(CPU表セル.セル状態文));
+                状態ラベル.SetBinding(ToolTipProperties.TextProperty,セルパス+"."+nameof(CPU表セル.表示文字列));
+                レイアウト.SetBinding(ToolTipProperties.TextProperty,セルパス+"."+nameof(CPU表セル.表示文字列));
+                レイアウト.Add(チェックホスト,0,0);
+                レイアウト.Add(状態アイコン,1,0);
+                レイアウト.Add(スピナー,1,0);
+                レイアウト.Add(バッジ,2,0);
+                レイアウト.Add(番号ラベル,3,0);
+                レイアウト.Add(状態ラベル,4,0);
+                return レイアウト;
             }),
         };
     }
 
-    private DataTemplate CreateCpuSimpleHeaderTemplate(string text) {
+    private DataTemplate CPU単純見出しテンプレートを作成(string テキスト) {
         return new DataTemplate(() => new Label {
-            Text=text,
+            Text=テキスト,
             FontSize=10,
             FontAttributes=FontAttributes.Bold,
             TextColor=Color.FromArgb("#0F172A"),
@@ -3689,28 +3166,28 @@ public sealed partial class MainPage:ContentPage {
         });
     }
 
-    private DataTemplate CreateCpuColumnHeaderTemplate(CpuTableColumn column) {
+    private DataTemplate CPU列見出しテンプレートを作成(CPU表列 列) {
         return new DataTemplate(() => {
-            var layout = new Grid {
+            var レイアウト = new Grid {
                 ColumnDefinitions= {
-                    new ColumnDefinition { Width = new GridLength(CpuLogicalCheckColumnWidth) },
+                    new ColumnDefinition { Width = new GridLength(CPU論理チェック列幅) },
                     new ColumnDefinition { Width = GridLength.Star },
                 },
                 HorizontalOptions=LayoutOptions.Fill,
                 VerticalOptions=LayoutOptions.Fill,
                 BackgroundColor=Color.FromArgb("#F1F5F9"),
             };
-            var check = this.CreateCpuCheckBox();
-            check.InputTransparent=true;
-            check.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(nameof(CpuTableColumn.IsChecked),BindingMode.OneWay,source: column));
-            var checkHost = new Grid {
+            var チェック = this.CPUチェックボックスを作成();
+            チェック.InputTransparent=true;
+            チェック.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(nameof(CPU表列.チェック済みか),BindingMode.OneWay,source: 列));
+            var チェックホスト = new Grid {
                 BackgroundColor=Colors.Transparent,
                 HorizontalOptions=LayoutOptions.Fill,
                 VerticalOptions=LayoutOptions.Fill,
             };
-            checkHost.Add(check,0,0);
-            layout.Add(checkHost,0,0);
-            layout.Add(new Label {
+            チェックホスト.Add(チェック,0,0);
+            レイアウト.Add(チェックホスト,0,0);
+            レイアウト.Add(new Label {
                 Text="論理コア",
                 FontSize=10,
                 FontAttributes=FontAttributes.Bold,
@@ -3720,161 +3197,149 @@ public sealed partial class MainPage:ContentPage {
                 LineBreakMode=LineBreakMode.TailTruncation,
                 Padding=new Thickness(2,0),
             },1,0);
-            var tap = new TapGestureRecognizer();
-            tap.Tapped+=(_,_) => {
-                if(column.Section is { } section) {
-                    this.viewModel?.ToggleCpuColumn(section,column.Index);
+            var タップ = new TapGestureRecognizer();
+            タップ.Tapped+=(_,_) => {
+                if(列.区分 is { } 区分) {
+                    this.ビューモデル?.CPU列を切り替え(区分,列.インデックス);
                 }
             };
-            checkHost.GestureRecognizers.Add(tap);
-            return layout;
+            チェックホスト.GestureRecognizers.Add(タップ);
+            return レイアウト;
         });
     }
 
-    private SfCheckBox CreateCpuCheckBox() =>
-        this.CreateSfCheckBox(CpuCheckBoxWidth,CpuCheckBoxHeight);
+    private SfCheckBox CPUチェックボックスを作成() =>
+        this.Syncfusionチェックボックスを作成(CPUチェックボックス幅,CPUチェックボックス高さ);
 
-    private SfCheckBox CreateSfCheckBox(double width,double height,bool isThreeState = false) {
+    private SfCheckBox Syncfusionチェックボックスを作成(double 幅,double 高さ,bool 三状態か = false) {
         return new SfCheckBox {
-            WidthRequest=width,
-            HeightRequest=height,
-            MinimumWidthRequest=width,
-            MinimumHeightRequest=height,
-            IsThreeState=isThreeState,
+            WidthRequest=幅,
+            HeightRequest=高さ,
+            MinimumWidthRequest=幅,
+            MinimumHeightRequest=高さ,
+            IsThreeState=三状態か,
             HorizontalOptions=LayoutOptions.Center,
             VerticalOptions=LayoutOptions.Center,
             Margin=new Thickness(0),
         };
     }
 
-    private void ConfigureDataGridLines(SfDataGrid grid,bool showRowFocus = false,bool showCellFocus = false) {
-        var lineColor = Color.FromArgb("#CBD5E1");
-        var style=new DataGridStyle {
-            GridLineColor=lineColor,
-            HeaderGridLineColor=lineColor,
+    private void データグリッド線を構成(SfDataGrid グリッド,bool 行フォーカスを表示するか = false,bool セルフォーカスを表示するか = false) {
+        var 線色 = Color.FromArgb("#CBD5E1");
+        var スタイル = new DataGridStyle {
+            GridLineColor=線色,
+            HeaderGridLineColor=線色,
             GridLineStrokeThickness=1,
             HeaderGridLineStrokeThickness=1,
         };
-        if(showRowFocus) {
-            style.CurrentRowHighlightColor=Color.FromArgb("#7C3AED");
-            style.CurrentCellBorderWidth=2;
-        }else if(showCellFocus) {
-            style.CurrentCellBorderColor=Color.FromArgb("#7C3AED");
-            style.CurrentCellBorderWidth=2;
+        if(行フォーカスを表示するか) {
+            スタイル.CurrentRowHighlightColor=Color.FromArgb("#7C3AED");
+            スタイル.CurrentCellBorderWidth=2;
+        } else if(セルフォーカスを表示するか) {
+            スタイル.CurrentCellBorderColor=Color.FromArgb("#7C3AED");
+            スタイル.CurrentCellBorderWidth=2;
         }
-        grid.DefaultStyle=style;
+        グリッド.DefaultStyle=スタイル;
     }
 
-    private Color GetBenchmarkGridSelectionColor(BenchmarkSourceTabViewState? state) {
-        var tab=state?.Definition.Tab??this.viewModel?.SelectedSourceDefinition.Tab;
-        if(tab is { } sourceTab
-            &&this.benchmarkGridsBySourceTab.TryGetValue(sourceTab,out var grid)
-            &&grid.DefaultStyle.SelectionBackground is SolidColorBrush brush) {
-            return brush.Color;
-        }
-
-        return Color.FromArgb("#EADDFF");
-    }
-
-    private void ConfigureDataGridScrollBars(SfDataGrid grid) {
-        void Apply() {
-            var visualContainer = grid.GetVisualContainer();
-            if(visualContainer is null) {
+    private void データグリッドスクロールバーを構成(SfDataGrid グリッド) {
+        void 適用() {
+            var 表示コンテナー = グリッド.GetVisualContainer();
+            if(表示コンテナー is null) {
                 return;
             }
 
-            this.ApplyDataGridScrollBarSize(visualContainer);
-            this.TryInvokeMember(visualContainer,"UpdateScrollBars");
-            visualContainer.InvalidateMeasure();
+            this.データグリッドスクロールバー寸法を適用(表示コンテナー);
+            this.メンバー呼び出しを試行(表示コンテナー,"UpdateScrollBars");
+            表示コンテナー.InvalidateMeasure();
         }
 
-        void ApplySafely() {
+        void 安全に適用() {
             try {
-                Apply();
-            }
-            catch(Exception ex) {
-                StartupDiagnostics.Write("Failed to apply benchmark grid scroll bar size.",ex);
+                適用();
+            } catch(Exception 例外) {
+                起動診断.書き込む("ベンチマークグリッドのスクロールバー寸法適用に失敗しました。",例外);
             }
         }
 
-        async void ApplyNowAndLater() {
-            ApplySafely();
+        async void 即時および遅延適用() {
+            安全に適用();
             await Task.Delay(100);
-            StartupDiagnostics.BeginInvokeOnMainThread("benchmark grid scroll bar apply",ApplySafely);
+            起動診断.メインスレッドで呼び出し開始("ベンチマークグリッドスクロールバー適用",安全に適用);
         }
 
-        grid.Loaded+=(_,_) => ApplyNowAndLater();
-        grid.HandlerChanged+=(_,_) => StartupDiagnostics.BeginInvokeOnMainThread("benchmark grid scroll bar handler changed",ApplyNowAndLater);
-        grid.SizeChanged+=(_,_) => StartupDiagnostics.BeginInvokeOnMainThread("benchmark grid scroll bar size changed",ApplySafely);
+        グリッド.Loaded+=(_,_) => 即時および遅延適用();
+        グリッド.HandlerChanged+=(_,_) => 起動診断.メインスレッドで呼び出し開始("ベンチマークグリッドスクロールバーハンドラー変更",即時および遅延適用);
+        グリッド.SizeChanged+=(_,_) => 起動診断.メインスレッドで呼び出し開始("ベンチマークグリッドスクロールバー寸法変更",安全に適用);
     }
 
-    private void ApplyDataGridScrollBarSize(object visualContainer) {
-        this.TrySetMemberValue(visualContainer,"ScrollerWidth",BenchmarkScrollBarSize);
-        this.TrySetMemberValue(visualContainer,"ScrollerHeight",BenchmarkScrollBarSize);
+    private void データグリッドスクロールバー寸法を適用(object 表示コンテナー) {
+        this.メンバー値設定を試行(表示コンテナー,"ScrollerWidth",ベンチマークスクロールバー寸法);
+        this.メンバー値設定を試行(表示コンテナー,"ScrollerHeight",ベンチマークスクロールバー寸法);
 
-        if(this.TryGetMemberValue(visualContainer,"HorizontalScrollbar") is { } horizontalScrollbar) {
-            this.TrySetMemberValue(horizontalScrollbar,"Height",BenchmarkScrollBarSize);
-            this.TrySetMemberValue(horizontalScrollbar,"HeightRequest",BenchmarkScrollBarSize);
-            this.TrySetMemberValue(horizontalScrollbar,"MinimumHeightRequest",BenchmarkScrollBarSize);
-            this.TrySetMemberValue(horizontalScrollbar,"ScrollerHeight",BenchmarkScrollBarSize);
+        if(this.メンバー値取得を試行(表示コンテナー,"HorizontalScrollbar") is { } 水平スクロールバー) {
+            this.メンバー値設定を試行(水平スクロールバー,"Height",ベンチマークスクロールバー寸法);
+            this.メンバー値設定を試行(水平スクロールバー,"HeightRequest",ベンチマークスクロールバー寸法);
+            this.メンバー値設定を試行(水平スクロールバー,"MinimumHeightRequest",ベンチマークスクロールバー寸法);
+            this.メンバー値設定を試行(水平スクロールバー,"ScrollerHeight",ベンチマークスクロールバー寸法);
         }
 
-        if(this.TryGetMemberValue(visualContainer,"VerticalScrollbar") is { } verticalScrollbar) {
-            this.TrySetMemberValue(verticalScrollbar,"Width",BenchmarkScrollBarSize);
-            this.TrySetMemberValue(verticalScrollbar,"WidthRequest",BenchmarkScrollBarSize);
-            this.TrySetMemberValue(verticalScrollbar,"MinimumWidthRequest",BenchmarkScrollBarSize);
-            this.TrySetMemberValue(verticalScrollbar,"ScrollerWidth",BenchmarkScrollBarSize);
+        if(this.メンバー値取得を試行(表示コンテナー,"VerticalScrollbar") is { } 垂直スクロールバー) {
+            this.メンバー値設定を試行(垂直スクロールバー,"Width",ベンチマークスクロールバー寸法);
+            this.メンバー値設定を試行(垂直スクロールバー,"WidthRequest",ベンチマークスクロールバー寸法);
+            this.メンバー値設定を試行(垂直スクロールバー,"MinimumWidthRequest",ベンチマークスクロールバー寸法);
+            this.メンバー値設定を試行(垂直スクロールバー,"ScrollerWidth",ベンチマークスクロールバー寸法);
         }
     }
 
-    private object? TryGetMemberValue(object target,string name) {
-        const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic;
-        var property = target.GetType().GetProperty(name,flags);
-        if(property is not null&&property.CanRead) {
-            return property.GetValue(target);
+    private object? メンバー値取得を試行(object 対象,string 名前) {
+        const System.Reflection.BindingFlags フラグ = System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic;
+        var プロパティ = 対象.GetType().GetProperty(名前,フラグ);
+        if(プロパティ is not null&&プロパティ.CanRead) {
+            return プロパティ.GetValue(対象);
         }
 
-        return target.GetType().GetField(name,flags)?.GetValue(target);
+        return 対象.GetType().GetField(名前,フラグ)?.GetValue(対象);
     }
 
-    private void TrySetMemberValue(object target,string name,double value) {
-        const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic;
-        var property = target.GetType().GetProperty(name,flags);
-        if(property is not null&&property.CanWrite) {
-            property.SetValue(target,this.ConvertMemberValue(value,property.PropertyType));
+    private void メンバー値設定を試行(object 対象,string 名前,double 値) {
+        const System.Reflection.BindingFlags フラグ = System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic;
+        var プロパティ = 対象.GetType().GetProperty(名前,フラグ);
+        if(プロパティ is not null&&プロパティ.CanWrite) {
+            プロパティ.SetValue(対象,this.メンバー値を変換(値,プロパティ.PropertyType));
             return;
         }
 
-        var field = target.GetType().GetField(name,flags);
-        field?.SetValue(target,this.ConvertMemberValue(value,field.FieldType));
+        var フィールド = 対象.GetType().GetField(名前,フラグ);
+        フィールド?.SetValue(対象,this.メンバー値を変換(値,フィールド.FieldType));
     }
 
-    private object ConvertMemberValue(double value,Type type) {
-        var targetType = Nullable.GetUnderlyingType(type)??type;
-        if(targetType==typeof(double)) {
-            return value;
+    private object メンバー値を変換(double 値,Type 型) {
+        var 対象型 = Nullable.GetUnderlyingType(型)??型;
+        if(対象型==typeof(double)) {
+            return 値;
         }
 
-        if(targetType==typeof(float)) {
-            return (float)value;
+        if(対象型==typeof(float)) {
+            return (float)値;
         }
 
-        if(targetType==typeof(int)) {
-            return (int)value;
+        if(対象型==typeof(int)) {
+            return (int)値;
         }
 
-        return Convert.ChangeType(value,targetType);
+        return Convert.ChangeType(値,対象型);
     }
 
-    private void TryInvokeMember(object target,string name,params object[] arguments) {
-        const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic;
-        var method = target.GetType()
-            .GetMethods(flags)
-            .FirstOrDefault(item => item.Name==name&&item.GetParameters().Length==arguments.Length);
-        method?.Invoke(target,arguments);
+    private void メンバー呼び出しを試行(object 対象,string 名前,params object[] 引数一覧) {
+        const System.Reflection.BindingFlags フラグ = System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic;
+        var メソッド = 対象.GetType()
+            .GetMethods(フラグ)
+            .FirstOrDefault(項目 => 項目.Name==名前&&項目.GetParameters().Length==引数一覧.Length);
+        メソッド?.Invoke(対象,引数一覧);
     }
 
-    private Border CreateCoreBadge() {
+    private Border コアバッジを作成() {
         return new Border {
             WidthRequest=20,
             HeightRequest=18,
@@ -3890,217 +3355,143 @@ public sealed partial class MainPage:ContentPage {
             },
         };
     }
-
-    private Label CreateSelectionStateBox() {
-        return new Label {
-            FontSize=10,
-            FontAttributes=FontAttributes.Bold,
-            TextColor=Color.FromArgb("#0F172A"),
-            BackgroundColor=Colors.White,
-            HorizontalTextAlignment=TextAlignment.Center,
-            VerticalTextAlignment=TextAlignment.Center,
-            WidthRequest=26,
-            HeightRequest=18,
-            LineBreakMode=LineBreakMode.TailTruncation,
-        };
-    }
-
-    private View CreateResultsView() {
-        var resultList = new CollectionView {
-            SelectionMode=SelectionMode.None,
-            ItemTemplate=new DataTemplate(this.CreateResultRow),
-            ItemsLayout=new LinearItemsLayout(ItemsLayoutOrientation.Vertical) {
-                ItemSpacing=0,
-            },
-        };
-        resultList.SetBinding(ItemsView.ItemsSourceProperty,nameof(RunnerViewModel.VisibleResultItems));
-        resultList.IsVisible=false;
-        return resultList;
-    }
-
-    private View CreateResultRow() {
-        var grid = new Grid {
-            Padding=new Thickness(0),
-            HeightRequest=22,
-            ColumnDefinitions= {
-                new ColumnDefinition { Width = new GridLength(2.0,GridUnitType.Star) },
-                new ColumnDefinition { Width = new GridLength(0.8,GridUnitType.Star) },
-                new ColumnDefinition { Width = new GridLength(0.4,GridUnitType.Star) },
-                new ColumnDefinition { Width = new GridLength(0.8,GridUnitType.Star) },
-                new ColumnDefinition { Width = new GridLength(1.1,GridUnitType.Star) },
-                new ColumnDefinition { Width = new GridLength(1.0,GridUnitType.Star) },
-            },
-            ColumnSpacing=6,
-        };
-        grid.Add(this.BoundCell(nameof(BenchmarkResultItem.Name),11,TextAlignment.Start),0,0);
-        grid.Add(this.BoundCell(nameof(BenchmarkResultItem.Status),11,TextAlignment.Start),1,0);
-        grid.Add(this.BoundCell(nameof(BenchmarkResultItem.ResultCheckText),11,TextAlignment.Center),2,0);
-        grid.Add(this.BoundCell(nameof(BenchmarkResultItem.ResultSeedText),11,TextAlignment.End),3,0);
-        grid.Add(this.BoundCell(nameof(BenchmarkResultItem.Mean),11,TextAlignment.End),4,0);
-        grid.Add(this.BoundCell(nameof(BenchmarkResultItem.AllocatedBytes),11,TextAlignment.End),5,0);
-        return grid;
-    }
-
-    private Label BoundCell(string propertyName,double fontSize,TextAlignment alignment) {
-        var label = new Label {
-            FontSize=fontSize,
-            TextColor=Color.FromArgb("#1E293B"),
-            LineBreakMode=LineBreakMode.TailTruncation,
-            HorizontalTextAlignment=alignment,
-            VerticalTextAlignment=TextAlignment.Center,
-            Margin=new Thickness(0),
-            Padding=new Thickness(1,0),
-        };
-        label.SetBinding(Label.TextProperty,propertyName);
-        return label;
-    }
 }
-public sealed class BenchmarkCircularProgressView:GraphicsView {
-    public static readonly BindableProperty ProgressProperty = BindableProperty.Create(
-        nameof(Progress),
+public sealed class ベンチマーク円形進行ビュー:GraphicsView {
+    public static readonly BindableProperty 進行プロパティ = BindableProperty.Create(
+        nameof(進行度),
         typeof(double),
-        typeof(BenchmarkCircularProgressView),
+        typeof(ベンチマーク円形進行ビュー),
         0d,
-        propertyChanged:static (bindable,_,_) => ((BenchmarkCircularProgressView)bindable).Invalidate());
+        propertyChanged: static (バインド可能オブジェクト,_,_) => ((ベンチマーク円形進行ビュー)バインド可能オブジェクト).Invalidate());
 
-    public static readonly BindableProperty ProgressColorProperty = BindableProperty.Create(
-        nameof(ProgressColor),
+    public static readonly BindableProperty 進行色プロパティ = BindableProperty.Create(
+        nameof(進行色),
         typeof(Color),
-        typeof(BenchmarkCircularProgressView),
-        DefaultProgressColor,
-        propertyChanged:static (bindable,_,_) => ((BenchmarkCircularProgressView)bindable).Invalidate());
+        typeof(ベンチマーク円形進行ビュー),
+        既定進行色,
+        propertyChanged: static (バインド可能オブジェクト,_,_) => ((ベンチマーク円形進行ビュー)バインド可能オブジェクト).Invalidate());
 
-    public static readonly BindableProperty OutlineColorProperty = BindableProperty.Create(
-        nameof(OutlineColor),
+    public static readonly BindableProperty 輪郭色プロパティ = BindableProperty.Create(
+        nameof(輪郭色),
         typeof(Color),
-        typeof(BenchmarkCircularProgressView),
-        DefaultOutlineColor,
-        propertyChanged:static (bindable,_,_) => ((BenchmarkCircularProgressView)bindable).Invalidate());
+        typeof(ベンチマーク円形進行ビュー),
+        既定輪郭色,
+        propertyChanged: static (バインド可能オブジェクト,_,_) => ((ベンチマーク円形進行ビュー)バインド可能オブジェクト).Invalidate());
 
-    private static readonly Color TrackColor=Color.FromArgb("#CBD5E1");
-    private static readonly Color DefaultProgressColor=Color.FromArgb("#F97316");
-    private static readonly Color DefaultOutlineColor=Color.FromArgb("#64748B");
+    private static readonly Color トラック色 = Color.FromArgb("#CBD5E1");
+    private static readonly Color 既定進行色 = Color.FromArgb("#F97316");
+    private static readonly Color 既定輪郭色 = Color.FromArgb("#64748B");
 
-    public BenchmarkCircularProgressView() {
-        this.Drawable=new BenchmarkCircularProgressDrawable(this);
+    public ベンチマーク円形進行ビュー() {
+        this.Drawable=new ベンチマーク円形進行描画(this);
         this.Loaded+=(_,_) => this.Invalidate();
         this.SizeChanged+=(_,_) => this.Invalidate();
     }
 
-    public double Progress{
-        get => (double)this.GetValue(ProgressProperty);
-        set => this.SetValue(ProgressProperty,value);
+    public double 進行度 {
+        get => (double)this.GetValue(進行プロパティ);
+        set => this.SetValue(進行プロパティ,value);
     }
 
-    public Color ProgressColor{
-        get => (Color)this.GetValue(ProgressColorProperty);
-        set => this.SetValue(ProgressColorProperty,value);
+    public Color 進行色 {
+        get => (Color)this.GetValue(進行色プロパティ);
+        set => this.SetValue(進行色プロパティ,value);
     }
 
-    public Color OutlineColor{
-        get => (Color)this.GetValue(OutlineColorProperty);
-        set => this.SetValue(OutlineColorProperty,value);
+    public Color 輪郭色 {
+        get => (Color)this.GetValue(輪郭色プロパティ);
+        set => this.SetValue(輪郭色プロパティ,value);
     }
 
-    private sealed class BenchmarkCircularProgressDrawable(BenchmarkCircularProgressView owner):IDrawable {
-        public void Draw(ICanvas canvas,RectF dirtyRect) {
-            var size=MathF.Min(dirtyRect.Width,dirtyRect.Height);
-            if(size<=0) {
+    private sealed class ベンチマーク円形進行描画(ベンチマーク円形進行ビュー 所有者):IDrawable {
+        public void Draw(ICanvas キャンバス,RectF 描画領域) {
+            var 寸法 = MathF.Min(描画領域.Width,描画領域.Height);
+            if(寸法<=0) {
                 return;
             }
 
-            var strokeSize=MathF.Max(1.25f,size*0.11f);
-            var radius=MathF.Max(0,size/2f-strokeSize/2f);
-            var centerX=dirtyRect.X+dirtyRect.Width/2f;
-            var centerY=dirtyRect.Y+dirtyRect.Height/2f;
-            canvas.FillColor=TrackColor;
-            canvas.FillCircle(centerX,centerY,radius);
+            var 線幅 = MathF.Max(1.25f,寸法*0.11f);
+            var 半径 = MathF.Max(0,寸法/2f-線幅/2f);
+            var 中心横座標 = 描画領域.X+描画領域.Width/2f;
+            var 中心縦座標 = 描画領域.Y+描画領域.Height/2f;
+            キャンバス.FillColor=トラック色;
+            キャンバス.FillCircle(中心横座標,中心縦座標,半径);
 
-            var progress=Math.Clamp(owner.Progress,0,1);
-            if(progress>0) {
-                canvas.FillColor=owner.ProgressColor;
-                if(progress>=1) {
-                    canvas.FillCircle(centerX,centerY,radius);
-                }else{
-                    canvas.FillPath(CreateProgressPath(centerX,centerY,radius,progress));
+            var 進行 = Math.Clamp(所有者.進行度,0,1);
+            if(進行>0) {
+                キャンバス.FillColor=所有者.進行色;
+                if(進行>=1) {
+                    キャンバス.FillCircle(中心横座標,中心縦座標,半径);
+                } else {
+                    キャンバス.FillPath(進行パスを作成(中心横座標,中心縦座標,半径,進行));
                 }
             }
 
-            canvas.StrokeColor=owner.OutlineColor;
-            canvas.StrokeSize=strokeSize;
-            canvas.DrawCircle(centerX,centerY,radius);
-            if(progress<=0) {
+            キャンバス.StrokeColor=所有者.輪郭色;
+            キャンバス.StrokeSize=線幅;
+            キャンバス.DrawCircle(中心横座標,中心縦座標,半径);
+            if(進行<=0) {
                 return;
             }
         }
 
-        private static PathF CreateProgressPath(float centerX,float centerY,float radius,double progress) {
-            var path = new PathF();
-            var startAngle = -90d;
-            var sweep = 360d*progress;
-            var steps = Math.Max(2,(int)Math.Ceiling(sweep/12d));
-            path.MoveTo(centerX,centerY);
-            for(var index=0;index<=steps;index++) {
-                var angle = (float)((startAngle+(sweep*index/steps))*Math.PI/180d);
-                path.LineTo(
-                    centerX+(MathF.Cos(angle)*radius),
-                    centerY+(MathF.Sin(angle)*radius));
+        private static PathF 進行パスを作成(float 中心横座標,float 中心縦座標,float 半径,double 進行) {
+            var パス = new PathF();
+            var 開始角度 = -90d;
+            var 掃引角 = 360d*進行;
+            var 分割数 = Math.Max(2,(int)Math.Ceiling(掃引角/12d));
+            パス.MoveTo(中心横座標,中心縦座標);
+            for(var インデックス = 0;インデックス<=分割数;インデックス++) {
+                var 角度 = (float)((開始角度+(掃引角*インデックス/分割数))*Math.PI/180d);
+                パス.LineTo(
+                    中心横座標+(MathF.Cos(角度)*半径),
+                    中心縦座標+(MathF.Sin(角度)*半径));
             }
-            path.Close();
-            return path;
+            パス.Close();
+            return パス;
         }
     }
 
 }
 
-public sealed class CountIsZeroConverter:IValueConverter {
-    public object Convert(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture) {
-        return value is int count&&count==0;
+public sealed class ヌル判定コンバーター:IValueConverter {
+    public object Convert(object? 値,Type 対象型,object? パラメーター,System.Globalization.CultureInfo カルチャー) {
+        return 値 is not null;
     }
 
-    public object ConvertBack(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture) {
+    public object ConvertBack(object? 値,Type 対象型,object? パラメーター,System.Globalization.CultureInfo カルチャー) {
         throw new NotSupportedException();
     }
 }
 
-public sealed class NullToBoolConverter:IValueConverter {
-    public object Convert(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture) {
-        return value is not null;
+public sealed class 有効時不透明度コンバーター:IValueConverter {
+    public object Convert(object? 値,Type 対象型,object? パラメーター,System.Globalization.CultureInfo カルチャー) {
+        return 値 is true ? 1d : 0.35d;
     }
 
-    public object ConvertBack(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture) {
+    public object ConvertBack(object? 値,Type 対象型,object? パラメーター,System.Globalization.CultureInfo カルチャー) {
         throw new NotSupportedException();
     }
 }
 
-public sealed class EnabledOpacityConverter:IValueConverter {
-    public object Convert(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture) {
-        return value is true ? 1d : 0.35d;
-    }
-
-    public object ConvertBack(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture) {
-        throw new NotSupportedException();
-    }
-}
-
-public sealed class ImageFileSourceConverter:IValueConverter {
-    public object? Convert(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture) {
-        return value is string path&&!string.IsNullOrWhiteSpace(path)
-            ? ImageSource.FromFile(path)
+public sealed class 画像ファイルソースコンバーター:IValueConverter {
+    public object? Convert(object? 値,Type 対象型,object? パラメーター,System.Globalization.CultureInfo カルチャー) {
+        return 値 is string パス&&!string.IsNullOrWhiteSpace(パス)
+            ? ImageSource.FromFile(パス)
             : null;
     }
 
-    public object ConvertBack(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture) {
+    public object ConvertBack(object? 値,Type 対象型,object? パラメーター,System.Globalization.CultureInfo カルチャー) {
         throw new NotSupportedException();
     }
 }
 
-public sealed class CpuSelectionStateToBoolConverter:IValueConverter {
-    public object Convert(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture) {
-        return value is CpuSelectionState.Checked;
+public sealed class CPU選択状態真偽値コンバーター:IValueConverter {
+    public object Convert(object? 値,Type 対象型,object? パラメーター,System.Globalization.CultureInfo カルチャー) {
+        return 値 is CPU選択状態.チェック済み;
     }
 
-    public object ConvertBack(object? value,Type targetType,object? parameter,System.Globalization.CultureInfo culture) {
+    public object ConvertBack(object? 値,Type 対象型,object? パラメーター,System.Globalization.CultureInfo カルチャー) {
         throw new NotSupportedException();
     }
 }

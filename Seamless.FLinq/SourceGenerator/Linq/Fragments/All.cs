@@ -16,7 +16,7 @@ All_predicate は source.All(predicate) を、最初に false になった要素
   - source が TryGetSpan 可能なら span loop を試し、だめなら MoveNext loop に戻る。
   - Range + 単純 predicate は RangePredicateOptimizer でより短い inline にできる。
 */
-public class All_predicate(int 番号, Enumerable source, FuncFragment predicate) : BufferedScalar(番号, "bool") {
+public class All_predicate(int 番号,Enumerable source,FuncFragment predicate):BufferedScalar(番号,"bool") {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -31,15 +31,15 @@ public class All_predicate(int 番号, Enumerable source, FuncFragment predicate
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
             ? RangePredicateOptimizer.RenderAll(range,predicate,番号,destVar,destType)
-                ?? (TryRenderDirectLambda(predicate) is { } rangeLambda
-                    ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"All",rangeLambda) ??this.RenderComputeInline(destVar,destType)
+                ??(TryRenderDirectLambda(predicate) is { } rangeLambda
+                    ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"All",rangeLambda)??this.RenderComputeInline(destVar,destType)
                     : this.RenderComputeInline(destVar,destType))
         : TryRenderDirectLambda(predicate) is { } lambda
-            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"All",lambda) ??this.RenderComputeInline(destVar,destType)
+            ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"All",lambda)??this.RenderComputeInline(destVar,destType)
             : this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers {
         get {
-            var (preCode, condExpr) =this.FuncInvokeConditionStatic(predicate, nameof(predicate),this.temp,this.item);
+            var (preCode,condExpr)=this.FuncInvokeConditionStatic(predicate,nameof(predicate),this.temp,this.item);
             var predicateCheck = string.IsNullOrEmpty(preCode)
                 ? $"if(!{WrapConditionExpression(condExpr)})"
                 : $"{preCode}\n        if(!{WrapConditionExpression(condExpr)})";

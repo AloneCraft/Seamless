@@ -14,8 +14,8 @@ internal static class StressScript {
             throw new ArgumentOutOfRangeException(nameof(count));
         var rng = new Random(seed);
         var pool = new int[range];
-        for(var i = 0; i<range; i++) pool[i]=i;
-        for(var i = 0; i<count; i++) {
+        for(var i = 0;i<range;i++) pool[i]=i;
+        for(var i = 0;i<count;i++) {
             var j = rng.Next(i,range);
             (pool[i],pool[j])=(pool[j],pool[i]);
         }
@@ -28,7 +28,7 @@ internal static class StressScript {
     public static bool[] RemoveMask(int seed,int length,double removeRate) {
         var rng = new Random(seed);
         var mask = new bool[length];
-        for(var i = 0; i<length; i++)
+        for(var i = 0;i<length;i++)
             mask[i]=rng.NextDouble()<removeRate;
         return mask;
     }

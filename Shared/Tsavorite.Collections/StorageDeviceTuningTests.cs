@@ -21,12 +21,10 @@ public class StorageDeviceTuningTests {
 
             Assert.True(devices.LogDevice.SectorSize>0);
             Assert.True(devices.ObjectLogDevice.SectorSize>0);
-        }
-        finally {
+        } finally {
             try {
                 Directory.Delete(directoryPath,recursive: true);
-            }
-            catch {
+            } catch {
             }
         }
     }

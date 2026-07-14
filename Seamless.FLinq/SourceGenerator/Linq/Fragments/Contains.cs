@@ -1,7 +1,8 @@
 namespace Seamless.FLinq.Linq.Fragments;
-public class Contains(int 番号, Enumerable source, string value, string resultType) : BufferedScalar(番号, resultType) {
+
+public class Contains(int 番号,Enumerable source,string value,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length == 1;
+        method.Parameters.Length==1;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -13,8 +14,8 @@ public class Contains(int 番号, Enumerable source, string value, string result
         ??this.RenderDirectSpanContainsInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,value);
     private string? RenderDirectSpanContainsInline(string destVar,string destType) {
-        var span=$"__span{this.result}";
-        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span = $"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
             var comparer=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
             var __value={{value}};
             {{destVar}}=false;
@@ -27,12 +28,12 @@ public class Contains(int 番号, Enumerable source, string value, string result
             """);
     }
     private string? RenderRangeContainsInline(string destVar,string destType) {
-        if(source is not RangeRoot range || source.ElementType!="int") {
+        if(source is not RangeRoot range||source.ElementType!="int") {
             return null;
         }
-        var start=$"__start{番号}";
-        var count=$"__count{番号}";
-        var target=$"__value{番号}";
+        var start = $"__start{番号}";
+        var count = $"__count{番号}";
+        var target = $"__value{番号}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -68,9 +69,9 @@ public class Contains(int 番号, Enumerable source, string value, string result
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-public class Contains_comparer(int 番号, Enumerable source, string value, string comparer, string resultType) : BufferedScalar(番号, resultType) {
+public class Contains_comparer(int 番号,Enumerable source,string value,string comparer,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length == 2;
+        method.Parameters.Length==2;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -81,8 +82,8 @@ public class Contains_comparer(int 番号, Enumerable source, string value, stri
         this.RenderDirectSpanContainsComparerInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,value,comparer);
     private string? RenderDirectSpanContainsComparerInline(string destVar,string destType) {
-        var span=$"__span{this.result}";
-        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span = $"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
             var __comparer={{comparer}};
             __comparer??=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
             var __value={{value}};

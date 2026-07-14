@@ -18,15 +18,13 @@ partial class ValueEnumerableExtensions {
 
         if(e.TryGetSpan(out var span)) {
             return [.. span];
-        }
-        else {
+        } else {
             if(e.TryGetNonEnumeratedCount(out var count)) {
                 var array = GC.AllocateUninitializedArray<TSource>(count);
 
                 if(e.TryCopyTo(array,offset: 0)) {
                     return ImmutableCollectionsMarshal.AsImmutableArray(array);
-                }
-                else {
+                } else {
                     var i = 0;
                     while(e.TryGetNext(out var current)) {
                         array[i]=current;
@@ -34,8 +32,7 @@ partial class ValueEnumerableExtensions {
                     }
                     return ImmutableCollectionsMarshal.AsImmutableArray(array);
                 }
-            }
-            else {
+            } else {
                 var builder = ImmutableArray.CreateBuilder<TSource>();
                 while(e.TryGetNext(out var current)) {
                     builder.Add(current);
@@ -51,8 +48,7 @@ partial class ValueEnumerableExtensions {
 
         if(e.TryGetSpan(out var span)) {
             return [.. span];
-        }
-        else {
+        } else {
             var builder = ImmutableList.CreateBuilder<TSource>();
             while(e.TryGetNext(out var current)) {
                 builder.Add(current);
@@ -72,8 +68,7 @@ partial class ValueEnumerableExtensions {
             foreach(var current in span) {
                 builder.Add(keySelector(current),current);
             }
-        }
-        else {
+        } else {
             while(e.TryGetNext(out var current)) {
                 builder.Add(keySelector(current),current);
             }
@@ -93,8 +88,7 @@ partial class ValueEnumerableExtensions {
             foreach(var current in span) {
                 builder.Add(keySelector(current),elementSelector(current));
             }
-        }
-        else {
+        } else {
             while(e.TryGetNext(out var current)) {
                 builder.Add(keySelector(current),elementSelector(current));
             }
@@ -114,8 +108,7 @@ partial class ValueEnumerableExtensions {
             foreach(var current in span) {
                 builder.Add(current.Key,current.Value);
             }
-        }
-        else {
+        } else {
             while(e.TryGetNext(out var current)) {
                 builder.Add(current.Key,current.Value);
             }
@@ -135,8 +128,7 @@ partial class ValueEnumerableExtensions {
             foreach(var current in span) {
                 builder.Add(keySelector(current),current);
             }
-        }
-        else {
+        } else {
             while(e.TryGetNext(out var current)) {
                 builder.Add(keySelector(current),current);
             }
@@ -156,8 +148,7 @@ partial class ValueEnumerableExtensions {
             foreach(var current in span) {
                 builder.Add(keySelector(current),elementSelector(current));
             }
-        }
-        else {
+        } else {
             while(e.TryGetNext(out var current)) {
                 builder.Add(keySelector(current),elementSelector(current));
             }
@@ -177,8 +168,7 @@ partial class ValueEnumerableExtensions {
             foreach(var current in span) {
                 builder.Add(current.Key,current.Value);
             }
-        }
-        else {
+        } else {
             while(e.TryGetNext(out var current)) {
                 builder.Add(current.Key,current.Value);
             }
@@ -193,8 +183,7 @@ partial class ValueEnumerableExtensions {
 
         if(e.TryGetSpan(out var span)) {
             return ImmutableHashSet.Create(equalityComparer,span);
-        }
-        else {
+        } else {
             var builder = ImmutableHashSet.CreateBuilder<TSource>(equalityComparer);
 
             while(e.TryGetNext(out var current)) {
@@ -211,8 +200,7 @@ partial class ValueEnumerableExtensions {
 
         if(e.TryGetSpan(out var span)) {
             return ImmutableSortedSet.Create(comparer,span);
-        }
-        else {
+        } else {
             var builder = ImmutableSortedSet.CreateBuilder<TSource>(comparer);
 
             while(e.TryGetNext(out var current)) {

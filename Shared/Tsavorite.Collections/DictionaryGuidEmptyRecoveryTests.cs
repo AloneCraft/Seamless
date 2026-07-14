@@ -1,5 +1,6 @@
-using Tsavorite.core;
 using System.Diagnostics.CodeAnalysis;
+
+using Tsavorite.core;
 #if BENCHMARK_PROJECT
 namespace Benchmark.Tsavorite.Collections;
 #else
@@ -12,7 +13,7 @@ namespace Tsavorite.Collections;
 public class DictionaryGuidEmptyRecoveryTests {
     private static string CreateFolder() => TestPath.Directory<DictionaryGuidEmptyRecoveryTests>();
 
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     [SuppressMessage("Interoperability","CA1416:Validate platform compatibility",Justification = "Test uses configured local devices.")]
     public void SaveLogOnly_LoadWithExplicitToken() {
         var folder = CreateFolder();
@@ -41,7 +42,7 @@ public class DictionaryGuidEmptyRecoveryTests {
         }
     }
 
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     [SuppressMessage("Interoperability","CA1416:Validate platform compatibility",Justification = "Test uses configured local devices.")]
     public void SaveLogOnly_LoadLatest() {
         var folder = CreateFolder();

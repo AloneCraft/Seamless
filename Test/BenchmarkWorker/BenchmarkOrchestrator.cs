@@ -3,139 +3,139 @@ using UI;
 namespace Test.BenchmarkWorker;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
-public sealed class BenchmarkOrchestrator{
-    private const int PreviousCompletedAxisCount = 1024;
-    private const int RunningAxisCount = 2048;
-    private const int FixedBenchmarkAxisCount = BenchmarkWorkloadAxis.DefaultLoopCount;
-    private const double FastLeftMeanNanoseconds = 876_100;
-    private const double SlowRightMeanNanoseconds = 1_406_300;
-    private const double BaselineMeanNanoseconds = 900_000;
-    private const double CurrentLeftMeanNanoseconds = 1_200_000;
-    private const double CurrentRightMeanNanoseconds = 1_300_000;
+public sealed class ベンチマークオーケストレーター {
+    private const int 前回完了軸数 = 1024;
+    private const int 実行中軸数 = 2048;
+    private const int 固定ベンチマーク軸数 = ベンチマーク作業軸.既定ループ回数;
+    private const double 高速左平均ナノ秒 = 876_100;
+    private const double 低速右平均ナノ秒 = 1_406_300;
+    private const double 基準平均ナノ秒 = 900_000;
+    private const double 今回左平均ナノ秒 = 1_200_000;
+    private const double 今回右平均ナノ秒 = 1_300_000;
 
     [Fact]
-    public void StateManager_Load_MarksRunningJobsAsFailed(){
-        var root = CreateTempRoot();
-        var stateManager = new BenchmarkStateManager(root);
-        var runRoot = Path.Combine(root,"run");
-        var state = new ProgressState{
-            RunId="run",
-            RunRoot=runRoot,
-            CreatedAt=DateTimeOffset.UtcNow,
-            UpdatedAt=DateTimeOffset.UtcNow,
-            ElementCounts=[128],
-            Jobs=[
-                new BenchmarkJob{
-                    JobId="job",
-                    Project="System.Array.FLinq",
-                    AssemblyName="Assembly",
-                    TypeFullName="Type",
-                    MethodName="Where",
-                    ElementCount=128,
-                    Status=JobStatus.Running,
+    public void 仕様確認01() {
+        var ルート = 一時ルートを作成();
+        var 状態マネージャー = new ベンチマーク状態マネージャー(ルート);
+        var 実行ルート = Path.Combine(ルート,"実行処理");
+        var 状態 = new 進行状態 {
+            実行ID="実行処理",
+            実行ルート=実行ルート,
+            作成日時=DateTimeOffset.UtcNow,
+            更新日時=DateTimeOffset.UtcNow,
+            要素数一覧= [128],
+            ジョブ一覧= [
+                new ベンチマークジョブ{
+                    ジョブID="ジョブ",
+                    プロジェクト="System.Array.FLinq",
+                    アセンブリ名="Assembly",
+                    型完全名="Type",
+                    メソッド名="Where",
+                    要素数=128,
+                    状態=ジョブ状態.実行中,
                 },
             ],
         };
 
-        stateManager.Save(state);
-        var loaded = stateManager.Load(runRoot);
+        状態マネージャー.保存(状態);
+        var 読込結果 = 状態マネージャー.読み込む(実行ルート);
 
-        var job = Assert.Single(loaded!.Jobs);
-        Assert.Equal(JobStatus.Failed,job.Status);
-        Assert.Contains("Crash/OOM",job.FailureReason,StringComparison.Ordinal);
+        var ジョブ = Assert.Single(読込結果!.ジョブ一覧);
+        Assert.Equal(ジョブ状態.失敗,ジョブ.状態);
+        Assert.Contains("クラッシュ",ジョブ.失敗理由,StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task Orchestrator_RunAsync_CancelWaitsForStragglerWorkerBeforeReturning(){
-        var root = CreateTempRoot();
-        var stateManager = new global::UI.BenchmarkStateManager(root);
-        var cts = new CancellationTokenSource();
-        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var releaseWorker = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var runner = new DelayedFakeRunner(async (job,_) => {
-            started.TrySetResult();
-            //実プロセスの後始末に時間がかかる状況を模す(cancellationToken自体は監視しない)
-            await releaseWorker.Task;
-            cts.Token.ThrowIfCancellationRequested();
-            return CompletedResult(job);
+    public async Task 仕様確認02() {
+        var ルート = 一時ルートを作成();
+        var 状態マネージャー = new global::UI.ベンチマーク状態マネージャー(ルート);
+        var 取消元 = new CancellationTokenSource();
+        var 開始通知 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ワーカー解放通知 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var 実行器 = new 遅延偽実行器(async (ジョブ,_) => {
+            開始通知.TrySetResult();
+            // 実プロセスの後始末に時間がかかる状況を模す（キャンセルトークン自体は監視しない）。
+            await ワーカー解放通知.Task;
+            取消元.Token.ThrowIfCancellationRequested();
+            return 完了結果を作成(ジョブ);
         });
-        var orchestrator = new global::UI.BenchmarkOrchestrator(stateManager,runner);
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(状態マネージャー,実行器);
 
-        var runTask = orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","Where")],
+        var 実行タスク = オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","Where")],
                 [0],
                 [1],
                 TimeSpan.FromSeconds(30),
                 TimeSpan.FromSeconds(30)),
             _ => { },
             _ => { },
-            cts.Token);
+            取消元.Token);
 
-        await started.Task;
-        cts.Cancel();
+        await 開始通知.Task;
+        取消元.Cancel();
         await Task.Delay(50);
         {
-            //ワーカーがまだ後始末中の間は、外側のRunAsyncは戻ってこない(=待たずに戻る競合状態が無い)ことを確認する
-            Assert.False(runTask.IsCompleted);
+            // ワーカーがまだ後始末中の間は、外側の実行Asyncは戻ってこない（待たずに戻る競合状態がない）ことを確認する。
+            Assert.False(実行タスク.IsCompleted);
         }
 
-        releaseWorker.TrySetResult();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => runTask);
+        ワーカー解放通知.TrySetResult();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => 実行タスク);
 
-        var runRoot = Directory.GetDirectories(root).Single();
-        var stateAfterCancel = new global::UI.BenchmarkStateManager(root).Load(runRoot)!;
+        var 実行ルート = Directory.GetDirectories(ルート).Single();
+        var 取消後状態 = new global::UI.ベンチマーク状態マネージャー(ルート).読み込む(実行ルート)!;
         {
-            //外側のRunAsyncが戻った時点でRunningのまま残っているジョブが無いことを確認する
-            Assert.DoesNotContain(stateAfterCancel.Jobs,static job => job.Status==JobStatus.Running);
+            // 外側の実行Asyncが戻った時点で実行中のまま残っているジョブがないことを確認する。
+            Assert.DoesNotContain(取消後状態.ジョブ一覧,static ジョブ => ジョブ.状態==ジョブ状態.実行中);
         }
 
-        var resumeRunner = new FakeRunner((job,_) => CompletedResult(job));
-        var resumeOrchestrator = new global::UI.BenchmarkOrchestrator(new global::UI.BenchmarkStateManager(root),resumeRunner);
-        await resumeOrchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","Where")],
+        var 再開実行器 = new 偽実行器((ジョブ,_) => 完了結果を作成(ジョブ));
+        var 再開オーケストレーター = new global::UI.ベンチマークオーケストレーター(new global::UI.ベンチマーク状態マネージャー(ルート),再開実行器);
+        await 再開オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","Where")],
                 [0],
                 [1],
                 TimeSpan.FromSeconds(30),
                 TimeSpan.FromSeconds(30),
-                RunRootOverride: runRoot),
+                実行ルート上書き: 実行ルート),
             _ => { },
             _ => { },
             CancellationToken.None);
 
-        var resumedState = new global::UI.BenchmarkStateManager(root).Load(runRoot)!;
+        var 再開状態 = new global::UI.ベンチマーク状態マネージャー(ルート).読み込む(実行ルート)!;
         {
-            //Resume直後にLoad()のクラッシュ復旧ロジックがFailedへ誤確定させず、正しくCompletedになることを確認する
-            Assert.DoesNotContain(resumedState.Jobs,static job => job.Status==JobStatus.Failed);
-            Assert.Contains(resumedState.Jobs,static job => job.Status==JobStatus.Completed);
+            // 再開直後に読込のクラッシュ復旧ロジックが失敗へ誤確定させず、正しく完了になることを確認する。
+            Assert.DoesNotContain(再開状態.ジョブ一覧,static ジョブ => ジョブ.状態==ジョブ状態.失敗);
+            Assert.Contains(再開状態.ジョブ一覧,static ジョブ => ジョブ.状態==ジョブ状態.完了);
         }
     }
 
     [Fact]
-    public async Task Orchestrator_RunAsync_CreatesBenchmarkByElementMatrix(){
-        var root = CreateTempRoot();
-        var runner = new FakeRunner((job,_) => new BenchmarkJobRunResult(
-            job.Project,
-            job.MethodName,
-            job.TypeFullName,
-            BenchmarkWorkloadAxis.GetAxisCount(job),
+    public async Task 仕様確認03() {
+        var ルート = 一時ルートを作成();
+        var 実行器 = new 偽実行器((ジョブ,_) => new ベンチマークジョブ実行結果(
+            ジョブ.プロジェクト,
+            ジョブ.メソッド名,
+            ジョブ.型完全名,
+            ベンチマーク作業軸.軸数を取得(ジョブ),
             "Completed",
             "100 ns",
             string.Empty,
             string.Empty,
-                BenchmarkWorkloadAxis.GetAxisCount(job)>=256 ? 60_000_000_000 : 100,
+                ベンチマーク作業軸.軸数を取得(ジョブ)>=256 ? 60_000_000_000 : 100,
             0,
             0,
             0,
             0,
-            job.ArtifactFolder,
+            ジョブ.成果物フォルダー,
             string.Empty));
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","Where"),ケースを作成("System.Array.ZLinq","Where")],
                 [0],
                 [128,256],
                 TimeSpan.FromSeconds(1),
@@ -144,79 +144,79 @@ public sealed class BenchmarkOrchestrator{
             _ => { },
             CancellationToken.None);
 
-        var state = LoadOnlyState(root);
-        Assert.Equal(3,state.Jobs.Count);
-        Assert.All(state.Jobs,static job => Assert.Equal(JobStatus.Completed,job.Status));
+        var 状態 = 唯一の状態を読み込む(ルート);
+        Assert.Equal(3,状態.ジョブ一覧.Count);
+        Assert.All(状態.ジョブ一覧,static ジョブ => Assert.Equal(ジョブ状態.完了,ジョブ.状態));
     }
 
     [Fact]
-    public async Task Orchestrator_RunAsync_CreatesJobsForBothSystemArrayProjects(){
-        var root = CreateTempRoot();
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var runner = new FakeRunner((job,_) => CompletedResult(job));
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+    public async Task 仕様確認04() {
+        var ルート = 一時ルートを作成();
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        var 実行器 = new 偽実行器((ジョブ,_) => 完了結果を作成(ジョブ));
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
                 [
-                    new BenchmarkCase(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Benchmark.System.Linq.Enumerable.FLinqInt32","Aggregate_func"),
-                    new BenchmarkCase(sourceTab.RightProject,sourceTab.RightAssemblyName,"Benchmark.System.Linq.Enumerable.ZLinqInt32","Aggregate_func"),
+                    new ベンチマークケース(ソースタブ.左プロジェクト,ソースタブ.左アセンブリ名,"Benchmark.System.Linq.Enumerable.FLinqInt32","Aggregate_func"),
+                    new ベンチマークケース(ソースタブ.右プロジェクト,ソースタブ.右アセンブリ名,"Benchmark.System.Linq.Enumerable.ZLinqInt32","Aggregate_func"),
                 ],
                 [0],
                 [1],
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
-                ExecutionProfile:BenchmarkExecutionProfile.Accurate,
-                SourceTab:sourceTab.Tab),
+                実行プロファイル: ベンチマーク実行プロファイル.正確,
+                ソースタブ: ソースタブ.タブ),
             _ => { },
             _ => { },
             CancellationToken.None);
 
-        var state = LoadOnlyState(root);
+        var 状態 = 唯一の状態を読み込む(ルート);
 
-        Assert.Equal(2,state.Jobs.Count);
-        Assert.Contains(state.Jobs,job => job.Project==sourceTab.LeftProject&&job.Status is JobStatus.Completed or JobStatus.Failed);
-        Assert.Contains(state.Jobs,job => job.Project==sourceTab.RightProject&&job.Status is JobStatus.Completed or JobStatus.Failed);
+        Assert.Equal(2,状態.ジョブ一覧.Count);
+        Assert.Contains(状態.ジョブ一覧,ジョブ => ジョブ.プロジェクト==ソースタブ.左プロジェクト&&ジョブ.状態 is ジョブ状態.完了 or ジョブ状態.失敗);
+        Assert.Contains(状態.ジョブ一覧,ジョブ => ジョブ.プロジェクト==ソースタブ.右プロジェクト&&ジョブ.状態 is ジョブ状態.完了 or ジョブ状態.失敗);
     }
 
     [Fact]
-    public async Task Orchestrator_RunAsync_UsesAssemblyToResolveSharedSeamlessLinqSourceTab(){
-        var root = CreateTempRoot();
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SeamlessTsavorite);
-        var runner = new FakeRunner((job,_) => CompletedResult(job));
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+    public async Task 仕様確認05() {
+        var ルート = 一時ルートを作成();
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.SeamlessTsavorite);
+        var 実行器 = new 偽実行器((ジョブ,_) => 完了結果を作成(ジョブ));
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
                 [
-                    new BenchmarkCase(sourceTab.RightProject,sourceTab.RightAssemblyName,"Benchmark.Tsavorite.Linq.Enumerable.LinqInt32","Aggregate_func"),
+                    new ベンチマークケース(ソースタブ.右プロジェクト,ソースタブ.右アセンブリ名,"Benchmark.Tsavorite.Linq.Enumerable.LinqInt32","Aggregate_func"),
                 ],
                 [0],
                 [1],
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
-                ExecutionProfile:BenchmarkExecutionProfile.Accurate,
-                SourceTab:sourceTab.Tab),
+                実行プロファイル: ベンチマーク実行プロファイル.正確,
+                ソースタブ: ソースタブ.タブ),
             _ => { },
             _ => { },
             CancellationToken.None);
 
-        var job = Assert.Single(LoadOnlyState(root).Jobs);
-        Assert.Equal(sourceTab.Tab,job.SourceTab);
-        Assert.Equal(sourceTab.RightProject,job.Project);
-        Assert.Equal(sourceTab.RightAssemblyName,job.AssemblyName);
-        Assert.True(job.Status is JobStatus.Completed or JobStatus.Failed);
+        var ジョブ = Assert.Single(唯一の状態を読み込む(ルート).ジョブ一覧);
+        Assert.Equal(ソースタブ.タブ,ジョブ.ソースタブ);
+        Assert.Equal(ソースタブ.右プロジェクト,ジョブ.プロジェクト);
+        Assert.Equal(ソースタブ.右アセンブリ名,ジョブ.アセンブリ名);
+        Assert.True(ジョブ.状態 is ジョブ状態.完了 or ジョブ状態.失敗);
     }
 
     [Fact]
-    public async Task Orchestrator_RunAsync_CreatesNumberedRunRootAndNFiles(){
-        var root = CreateTempRoot();
-        var runner = new FakeRunner((job,_) => CompletedResult(job));
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+    public async Task 仕様確認06() {
+        var ルート = 一時ルートを作成();
+        var 実行器 = new 偽実行器((ジョブ,_) => 完了結果を作成(ジョブ));
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        var result = await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
+        var 結果 = await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","Where"),ケースを作成("System.Array.ZLinq","Where")],
                 [0],
                 [1,2],
                 TimeSpan.FromSeconds(1),
@@ -225,47 +225,47 @@ public sealed class BenchmarkOrchestrator{
             _ => { },
             CancellationToken.None);
 
-        Assert.Equal(Path.Combine(root,"000001"),result.RunRoot);
-        Assert.Empty(Directory.EnumerateFiles(result.RunRoot,"*.csv",SearchOption.AllDirectories));
-        var state = new BenchmarkStateManager(root).Load(result.RunRoot)!;
-        Assert.Equal(1,state.RunNumber);
+        Assert.Equal(Path.Combine(ルート,"000001"),結果.実行ルート);
+        Assert.Empty(Directory.EnumerateFiles(結果.実行ルート,"*.csv",SearchOption.AllDirectories));
+        var 状態 = new ベンチマーク状態マネージャー(ルート).読み込む(結果.実行ルート)!;
+        Assert.Equal(1,状態.実行番号);
     }
 
     [Fact]
-    public async Task Orchestrator_RunAsync_UsesSelectedRunRoot(){
-        var root = CreateTempRoot();
-        var runRoot = Path.Combine(root,"000001");
-        var runner = new FakeRunner((job,_) => CompletedResult(job));
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+    public async Task 仕様確認07() {
+        var ルート = 一時ルートを作成();
+        var 実行ルート = Path.Combine(ルート,"000001");
+        var 実行器 = new 偽実行器((ジョブ,_) => 完了結果を作成(ジョブ));
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        var result = await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","Where")],
+        var 結果 = await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","Where")],
                 [0],
                 [1],
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
-                RunRootOverride: runRoot),
+                実行ルート上書き: 実行ルート),
             _ => { },
             _ => { },
             CancellationToken.None);
 
-        Assert.Equal(runRoot,result.RunRoot);
-        Assert.Single(Directory.GetDirectories(root));
-        Assert.Empty(Directory.EnumerateFiles(runRoot,"*.csv",SearchOption.AllDirectories));
+        Assert.Equal(実行ルート,結果.実行ルート);
+        Assert.Single(Directory.GetDirectories(ルート));
+        Assert.Empty(Directory.EnumerateFiles(実行ルート,"*.csv",SearchOption.AllDirectories));
     }
 
     [Fact]
-    public async Task Orchestrator_RunAsync_DoesNotCrashWhenParallelJobsPersistProgress(){
-        var root = CreateTempRoot();
+    public async Task 仕様確認08() {
+        var ルート = 一時ルートを作成();
         // 各ケースが1軸目で閾値超過して止まるよう、平均値を閾値(1ms)より大きくする。
-        var runner = new DelayedFakeRunner(async (job,_) => {
+        var 実行器 = new 遅延偽実行器(async (ジョブ,_) => {
             await Task.Delay(10);
-            return new BenchmarkJobRunResult(
-                job.Project,
-                job.MethodName,
-                job.TypeFullName,
-                BenchmarkWorkloadAxis.GetAxisCount(job),
+            return new ベンチマークジョブ実行結果(
+                ジョブ.プロジェクト,
+                ジョブ.メソッド名,
+                ジョブ.型完全名,
+                ベンチマーク作業軸.軸数を取得(ジョブ),
                 "Completed",
                 "2 ms",
                 string.Empty,
@@ -275,20 +275,20 @@ public sealed class BenchmarkOrchestrator{
                 0,
                 0,
                 0,
-                job.ArtifactFolder,
+                ジョブ.成果物フォルダー,
                 string.Empty);
         });
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
                 [
-                    Case("System.Array.FLinq","Where"),
-                    Case("System.Array.ZLinq","Where"),
-                    Case("System.Array.FLinq","Select"),
-                    Case("System.Array.ZLinq","Select"),
-                    Case("System.Array.FLinq","Count"),
-                    Case("System.Array.ZLinq","Count"),
+                    ケースを作成("System.Array.FLinq","Where"),
+                    ケースを作成("System.Array.ZLinq","Where"),
+                    ケースを作成("System.Array.FLinq","Select"),
+                    ケースを作成("System.Array.ZLinq","Select"),
+                    ケースを作成("System.Array.FLinq","Count"),
+                    ケースを作成("System.Array.ZLinq","Count"),
                 ],
                 [0,1,2,3],
                 [128],
@@ -298,100 +298,100 @@ public sealed class BenchmarkOrchestrator{
             _ => { },
             CancellationToken.None);
 
-        var state = LoadOnlyState(root);
-        Assert.Equal(6,state.Jobs.Count);
-        Assert.All(state.Jobs,static job => Assert.Equal(JobStatus.Completed,job.Status));
-        Assert.Empty(Directory.GetFiles(state.RunRoot,"*.tmp"));
+        var 状態 = 唯一の状態を読み込む(ルート);
+        Assert.Equal(6,状態.ジョブ一覧.Count);
+        Assert.All(状態.ジョブ一覧,static ジョブ => Assert.Equal(ジョブ状態.完了,ジョブ.状態));
+        Assert.Empty(Directory.GetFiles(状態.実行ルート,"*.tmp"));
     }
 
     [Fact]
-    public async Task Orchestrator_RunAsync_PersistsExecutionProfileInStateAndSummary(){
-        var root = CreateTempRoot();
-        var runner = new FakeRunner((job,_) => CompletedResult(job));
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+    public async Task 仕様確認09() {
+        var ルート = 一時ルートを作成();
+        var 実行器 = new 偽実行器((ジョブ,_) => 完了結果を作成(ジョブ));
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","Where")],
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","Where")],
                 [0],
                 [128],
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
-                ExecutionProfile: BenchmarkExecutionProfile.Fast),
+                実行プロファイル: ベンチマーク実行プロファイル.高速),
             _ => { },
             _ => { },
             CancellationToken.None);
 
-        var state = LoadOnlyState(root);
-        Assert.Equal(BenchmarkExecutionProfile.Fast,state.ExecutionProfile);
-        Assert.False(File.Exists(Path.Combine(state.RunRoot,"BenchmarkRunSummary.txt")));
+        var 状態 = 唯一の状態を読み込む(ルート);
+        Assert.Equal(ベンチマーク実行プロファイル.高速,状態.実行プロファイル);
+        Assert.False(File.Exists(Path.Combine(状態.実行ルート,"BenchmarkRunSummary.txt")));
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_PinsEachDisplayedPairRowToOneCpuWhileSpreadingRowsAcrossFreeCpus(){
-        var root = CreateTempRoot();
-        var observed = new List<(string Method,string Project,int ElementCount,int Cpu)>();
-        var gate = new object();
-        var runner = new FakeRunner((job,cpu) => {
-            lock(gate) {
-                observed.Add((job.MethodName,job.Project,BenchmarkWorkloadAxis.GetAxisCount(job),cpu));
+    public async Task 仕様確認10() {
+        var ルート = 一時ルートを作成();
+        var 観測 = new List<(string メソッド,string プロジェクト,int 要素数,int CPU)>();
+        var 排他 = new object();
+        var 実行器 = new 偽実行器((ジョブ,CPU) => {
+            lock(排他) {
+                観測.Add((ジョブ.メソッド名,ジョブ.プロジェクト,ベンチマーク作業軸.軸数を取得(ジョブ),CPU));
             }
 
-            return CompletedResult(job,BenchmarkWorkloadAxis.GetAxisCount(job)>=2 ? 60_000_000_000 : 100);
+            return 完了結果を作成(ジョブ,ベンチマーク作業軸.軸数を取得(ジョブ)>=2 ? 60_000_000_000 : 100);
         });
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
                 [
-                    Case("System.Array.FLinq","Where"),
-                    Case("System.Array.ZLinq","Where"),
-                    Case("System.Array.FLinq","Select"),
-                    Case("System.Array.ZLinq","Select"),
-                    Case("System.Array.FLinq","Count"),
-                    Case("System.Array.ZLinq","Count"),
+                    ケースを作成("System.Array.FLinq","Where"),
+                    ケースを作成("System.Array.ZLinq","Where"),
+                    ケースを作成("System.Array.FLinq","Select"),
+                    ケースを作成("System.Array.ZLinq","Select"),
+                    ケースを作成("System.Array.FLinq","Count"),
+                    ケースを作成("System.Array.ZLinq","Count"),
                 ],
                 [10,20],
                 [1,2],
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
-                ExecutionProfile: BenchmarkExecutionProfile.Accurate),
+                実行プロファイル: ベンチマーク実行プロファイル.正確),
             _ => { },
             _ => { },
             CancellationToken.None);
 
         //各計測は選択された論理CPU(10/20)のいずれかで実行される。
-        Assert.All(observed,static item => Assert.True(item.Cpu is 10 or 20));
+        Assert.All(観測,static 項目 => Assert.True(項目.CPU is 10 or 20));
         //表示行(=FLinq/ZLinqペア×メソッド)は空きCPUへ分配され、両方のCPUが使われる。
-        Assert.Contains(10,observed.Select(static item => item.Cpu));
-        Assert.Contains(20,observed.Select(static item => item.Cpu));
-        foreach(var group in observed.GroupBy(static item => item.Method)) {
+        Assert.Contains(10,観測.Select(static 項目 => 項目.CPU));
+        Assert.Contains(20,観測.Select(static 項目 => 項目.CPU));
+        foreach(var グループ in 観測.GroupBy(static 項目 => 項目.メソッド)) {
             //1つの表示行は左右プロジェクトを含めて開始から完了まで同じ1コアに固定される。
-            Assert.Single(group.Select(static item => item.Cpu).Distinct());
-            //左列でLoopCountを校正し、右列は確定した同一LoopCountだけを実行する。
+            Assert.Single(グループ.Select(static 項目 => 項目.CPU).Distinct());
+            // 左列でループ回数を較正し、右列は確定した同一ループ回数だけを実行する。
             Assert.Equal(
                 [
                     ("System.Array.FLinq",1),
                     ("System.Array.FLinq",2),
                     ("System.Array.ZLinq",2),
                 ],
-                group.Select(static item => (item.Project,item.ElementCount)).ToArray());
+                グループ.Select(static 項目 => (項目.プロジェクト,項目.要素数)).ToArray());
         }
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_WritesMixedSourceTabsToSourceFolders(){
-        var root = CreateTempRoot();
-        var runner = new FakeRunner((job,_) => CompletedResult(job));
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+    public async Task 仕様確認11() {
+        var ルート = 一時ルートを作成();
+        var 実行器 = new 偽実行器((ジョブ,_) => 完了結果を作成(ジョブ));
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
                 [
-                    Case("System.Array.FLinq","Where"),
-                    Case("System.Array.ZLinq","Where"),
-                    Case("System.List.FLinq","Where"),
-                    Case("System.List.ZLinq","Where"),
+                    ケースを作成("System.Array.FLinq","Where"),
+                    ケースを作成("System.Array.ZLinq","Where"),
+                    ケースを作成("System.List.FLinq","Where"),
+                    ケースを作成("System.List.ZLinq","Where"),
                 ],
                 [0],
                 [1],
@@ -401,101 +401,101 @@ public sealed class BenchmarkOrchestrator{
             _ => { },
             CancellationToken.None);
 
-        var state = LoadOnlyState(root);
-        Assert.Empty(Directory.EnumerateFiles(state.RunRoot,"*.csv",SearchOption.AllDirectories));
-        Assert.Contains(state.Jobs,static job => job.SourceTab==BenchmarkSourceTab.SystemArray);
-        Assert.Contains(state.Jobs,static job => job.SourceTab==BenchmarkSourceTab.SystemList);
+        var 状態 = 唯一の状態を読み込む(ルート);
+        Assert.Empty(Directory.EnumerateFiles(状態.実行ルート,"*.csv",SearchOption.AllDirectories));
+        Assert.Contains(状態.ジョブ一覧,static ジョブ => ジョブ.ソースタブ==ベンチマークソースタブ.System配列);
+        Assert.Contains(状態.ジョブ一覧,static ジョブ => ジョブ.ソースタブ==ベンチマークソースタブ.Systemリスト);
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_UsesLiveProviderForRowsNotStartedYet(){
-        var root = CreateTempRoot();
-        var selected = new List<BenchmarkCase> { Case("System.Array.FLinq","A") };
-        var observed = new List<string>();
-        var runner = new FakeRunner((job,_) => {
-            observed.Add(job.MethodName);
-            if(job.MethodName=="A") {
-                selected=new List<BenchmarkCase> {
-                    Case("System.Array.FLinq","A"),
-                    Case("System.Array.FLinq","B"),
+    public async Task 仕様確認12() {
+        var ルート = 一時ルートを作成();
+        var 選択済み = new List<ベンチマークケース> { ケースを作成("System.Array.FLinq","A") };
+        var 観測 = new List<string>();
+        var 実行器 = new 偽実行器((ジョブ,_) => {
+            観測.Add(ジョブ.メソッド名);
+            if(ジョブ.メソッド名=="A") {
+                選択済み=new List<ベンチマークケース> {
+                    ケースを作成("System.Array.FLinq","A"),
+                    ケースを作成("System.Array.FLinq","B"),
                 };
             }
 
-            return CompletedResult(job);
+            return 完了結果を作成(ジョブ);
         });
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                selected,
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                選択済み,
                 [0],
                 [1],
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
-                BenchmarkProvider: () => selected),
+                ベンチマーク取得器: () => 選択済み),
             _ => { },
             _ => { },
             CancellationToken.None);
 
-        Assert.Equal(["A","B"],observed);
+        Assert.Equal(["A","B"],観測);
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_SkipsDeselectedRowsNotStartedYet(){
-        var root = CreateTempRoot();
-        var selected = new List<BenchmarkCase> {
-            Case("System.Array.FLinq","A"),
-            Case("System.Array.FLinq","B"),
+    public async Task 仕様確認13() {
+        var ルート = 一時ルートを作成();
+        var 選択済み = new List<ベンチマークケース> {
+            ケースを作成("System.Array.FLinq","A"),
+            ケースを作成("System.Array.FLinq","B"),
         };
-        var observed = new List<string>();
-        var runner = new FakeRunner((job,_) => {
-            observed.Add(job.MethodName);
-            if(job.MethodName=="A") {
-                selected=new List<BenchmarkCase> { Case("System.Array.FLinq","A") };
+        var 観測 = new List<string>();
+        var 実行器 = new 偽実行器((ジョブ,_) => {
+            観測.Add(ジョブ.メソッド名);
+            if(ジョブ.メソッド名=="A") {
+                選択済み=new List<ベンチマークケース> { ケースを作成("System.Array.FLinq","A") };
             }
 
-            return CompletedResult(job);
+            return 完了結果を作成(ジョブ);
         });
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                selected,
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                選択済み,
                 [0],
                 [1],
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
-                BenchmarkProvider: () => selected),
+                ベンチマーク取得器: () => 選択済み),
             _ => { },
             _ => { },
             CancellationToken.None);
 
-        Assert.Equal(["A"],observed);
+        Assert.Equal(["A"],観測);
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_FastRunsUnpersistedWarmupBeforeMeasuredN(){
-        var root = CreateTempRoot();
-        var observed = new List<(bool Warmup,string Project,int ElementCount)>();
-        var runner = new FakeRunner((job,_) => {
-            observed.Add((job.JobId.EndsWith("|warmup",StringComparison.Ordinal),job.Project,BenchmarkWorkloadAxis.GetAxisCount(job)));
-            return CompletedResult(job,BenchmarkWorkloadAxis.GetAxisCount(job)>=2 ? 60_000_000_000 : 100);
+    public async Task 仕様確認14() {
+        var ルート = 一時ルートを作成();
+        var 観測 = new List<(bool ウォームアップか,string プロジェクト,int 要素数)>();
+        var 実行器 = new 偽実行器((ジョブ,_) => {
+            観測.Add((ジョブ.ジョブID.EndsWith("|warmup",StringComparison.Ordinal),ジョブ.プロジェクト,ベンチマーク作業軸.軸数を取得(ジョブ)));
+            return 完了結果を作成(ジョブ,ベンチマーク作業軸.軸数を取得(ジョブ)>=2 ? 60_000_000_000 : 100);
         });
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","Where"),ケースを作成("System.Array.ZLinq","Where")],
                 [0],
                 [1,2],
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
-                ExecutionProfile: BenchmarkExecutionProfile.Fast),
+                実行プロファイル: ベンチマーク実行プロファイル.高速),
             _ => { },
             _ => { },
             CancellationToken.None);
 
-        // 左列を校正した後、右列は確定LoopCountでだけウォームアップ・実測する。
+        // 左列を較正した後、右列は確定したループ回数でだけウォームアップ・実測する。
         Assert.Equal(
             [
                 (true,"System.Array.FLinq",1),
@@ -504,49 +504,49 @@ public sealed class BenchmarkOrchestrator{
                 (true,"System.Array.ZLinq",1),
                 (false,"System.Array.ZLinq",2),
             ],
-            observed);
-        var state = LoadOnlyState(root);
-        Assert.Equal(3,state.Jobs.Count);
-        Assert.DoesNotContain(state.Jobs,static job => job.JobId.EndsWith("|warmup",StringComparison.Ordinal));
-        Assert.Empty(Directory.EnumerateFiles(state.RunRoot,"*.csv",SearchOption.AllDirectories));
+            観測);
+        var 状態 = 唯一の状態を読み込む(ルート);
+        Assert.Equal(3,状態.ジョブ一覧.Count);
+        Assert.DoesNotContain(状態.ジョブ一覧,static ジョブ => ジョブ.ジョブID.EndsWith("|warmup",StringComparison.Ordinal));
+        Assert.Empty(Directory.EnumerateFiles(状態.実行ルート,"*.csv",SearchOption.AllDirectories));
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_AccurateDoesNotRunWarmup(){
-        var root = CreateTempRoot();
-        var observed = new List<bool>();
-        var runner = new FakeRunner((job,_) => {
-            observed.Add(job.JobId.EndsWith("|warmup",StringComparison.Ordinal));
-            return CompletedResult(job);
+    public async Task 仕様確認15() {
+        var ルート = 一時ルートを作成();
+        var 観測 = new List<bool>();
+        var 実行器 = new 偽実行器((ジョブ,_) => {
+            観測.Add(ジョブ.ジョブID.EndsWith("|warmup",StringComparison.Ordinal));
+            return 完了結果を作成(ジョブ);
         });
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","Where"),ケースを作成("System.Array.ZLinq","Where")],
                 [0],
                 [1],
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
-                ExecutionProfile: BenchmarkExecutionProfile.Accurate),
+                実行プロファイル: ベンチマーク実行プロファイル.正確),
             _ => { },
             _ => { },
             CancellationToken.None);
 
-        Assert.Equal([false,false],observed);
+        Assert.Equal([false,false],観測);
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_WarmupFailurePersistsMeasuredNAsFailedAndStopsProject(){
-        var root = CreateTempRoot();
-        var runner = new FakeRunner((job,_) => job.JobId.EndsWith("|warmup",StringComparison.Ordinal)
-            ? new BenchmarkJobRunResult(
-                job.Project,
-                job.MethodName,
-                job.TypeFullName,
-                BenchmarkWorkloadAxis.GetAxisCount(job),
+    public async Task 仕様確認16() {
+        var ルート = 一時ルートを作成();
+        var 実行器 = new 偽実行器((ジョブ,_) => ジョブ.ジョブID.EndsWith("|warmup",StringComparison.Ordinal)
+            ? new ベンチマークジョブ実行結果(
+                ジョブ.プロジェクト,
+                ジョブ.メソッド名,
+                ジョブ.型完全名,
+                ベンチマーク作業軸.軸数を取得(ジョブ),
                 "Failed",
-                "Warmup failed",
+                "ウォームアップ失敗",
                 string.Empty,
                 string.Empty,
                 null,
@@ -554,412 +554,409 @@ public sealed class BenchmarkOrchestrator{
                 null,
                 null,
                 1,
-                job.ArtifactFolder,
+                ジョブ.成果物フォルダー,
                 "warmup boom")
-            : CompletedResult(job));
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+            : 完了結果を作成(ジョブ));
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","Where"),ケースを作成("System.Array.ZLinq","Where")],
                 [0],
                 [1,2],
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
-                ExecutionProfile: BenchmarkExecutionProfile.Fast),
+                実行プロファイル: ベンチマーク実行プロファイル.高速),
             _ => { },
             _ => { },
             CancellationToken.None);
 
         // ウォームアップ失敗は当該側を失敗確定し、同じ比較行の反対側へは進まない。
-        var state = LoadOnlyState(root);
-        Assert.Single(state.Jobs);
-        Assert.Contains(state.Jobs,static job => job.Project=="System.Array.FLinq");
-        Assert.All(state.Jobs,static job => {
-            Assert.Equal(1,BenchmarkWorkloadAxis.GetAxisCount(job));
-            Assert.Equal(JobStatus.Failed,job.Status);
-            Assert.Contains("warmup boom",job.FailureReason,StringComparison.Ordinal);
+        var 状態 = 唯一の状態を読み込む(ルート);
+        Assert.Single(状態.ジョブ一覧);
+        Assert.Contains(状態.ジョブ一覧,static ジョブ => ジョブ.プロジェクト=="System.Array.FLinq");
+        Assert.All(状態.ジョブ一覧,static ジョブ => {
+            Assert.Equal(1,ベンチマーク作業軸.軸数を取得(ジョブ));
+            Assert.Equal(ジョブ状態.失敗,ジョブ.状態);
+            Assert.Contains("warmup boom",ジョブ.失敗理由,StringComparison.Ordinal);
         });
-        Assert.False(File.Exists(Path.Combine(state.RunRoot,"System.Array","N1.csv")));
+        Assert.False(File.Exists(Path.Combine(状態.実行ルート,"System.Array","N1.csv")));
     }
 
     [Fact]
-    public async Task Orchestrator_RunAsync_UsesChangedCpuSelectionForLaterJobs(){
-        var root = CreateTempRoot();
-        var cpus = new[] { 0 };
-        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var observed = new List<int>();
-        var gate = new object();
-        var runner = new DelayedFakeRunner(async (job,cpu) => {
-            lock(gate) {
-                observed.Add(cpu);
+    public async Task 仕様確認17() {
+        var ルート = 一時ルートを作成();
+        var CPU一覧 = new[] { 0 };
+        var 開始通知 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var 解放通知 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var 観測 = new List<int>();
+        var 排他 = new object();
+        var 実行器 = new 遅延偽実行器(async (ジョブ,CPU) => {
+            lock(排他) {
+                観測.Add(CPU);
             }
 
-            if(job.MethodName=="A") {
-                started.SetResult();
-                await release.Task;
+            if(ジョブ.メソッド名=="A") {
+                開始通知.SetResult();
+                await 解放通知.Task;
             }
 
-            return CompletedResult(job);
+            return 完了結果を作成(ジョブ);
         });
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
-        var run = orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","A"),Case("System.Array.FLinq","B")],
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
+        var 実行処理 = オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","A"),ケースを作成("System.Array.FLinq","B")],
                 [0],
                 [1],
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
-                () => cpus),
+                () => CPU一覧),
             _ => { },
             _ => { },
             CancellationToken.None);
 
-        await started.Task;
-        cpus=[1];
-        release.SetResult();
-        await run;
+        await 開始通知.Task;
+        CPU一覧= [1];
+        解放通知.SetResult();
+        await 実行処理;
 
-        Assert.Equal([0,1],observed);
+        Assert.Equal([0,1],観測);
     }
 
     [Fact]
-    public async Task Orchestrator_RunAsync_RemovedCpuFinishesCurrentJobOnly(){
-        var root = CreateTempRoot();
-        var cpus = new[] { 0,1 };
-        var cpuOneStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var releaseCpuOne = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var observed = new List<int>();
-        var gate = new object();
-        var runner = new DelayedFakeRunner(async (job,cpu) => {
-            lock(gate) {
-                observed.Add(cpu);
+    public async Task 仕様確認18() {
+        var ルート = 一時ルートを作成();
+        var CPU一覧 = new[] { 0,1 };
+        var CPU一開始通知 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var CPU一解放通知 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var 観測 = new List<int>();
+        var 排他 = new object();
+        var 実行器 = new 遅延偽実行器(async (ジョブ,CPU) => {
+            lock(排他) {
+                観測.Add(CPU);
             }
 
-            if(cpu==1) {
-                cpuOneStarted.SetResult();
-                await releaseCpuOne.Task;
+            if(CPU==1) {
+                CPU一開始通知.SetResult();
+                await CPU一解放通知.Task;
             } else {
                 await Task.Delay(40);
             }
 
-            return CompletedResult(job);
+            return 完了結果を作成(ジョブ);
         });
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
-        var run = orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","A"),Case("System.Array.FLinq","B"),Case("System.Array.FLinq","C"),Case("System.Array.FLinq","D")],
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
+        var 実行処理 = オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","A"),ケースを作成("System.Array.FLinq","B"),ケースを作成("System.Array.FLinq","C"),ケースを作成("System.Array.FLinq","D")],
                 [0,1],
                 [1],
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
-                () => cpus),
+                () => CPU一覧),
             _ => { },
             _ => { },
             CancellationToken.None);
 
-        await cpuOneStarted.Task;
-        cpus=[0];
-        releaseCpuOne.SetResult();
-        await run;
+        await CPU一開始通知.Task;
+        CPU一覧= [0];
+        CPU一解放通知.SetResult();
+        await 実行処理;
 
-        var cpuOneRuns = observed.Count(static cpu => cpu==1);
-        Assert.Equal(1,cpuOneRuns);
-        Assert.All(LoadOnlyState(root).Jobs,static job => Assert.Equal(JobStatus.Completed,job.Status));
+        var CPU一実行一覧 = 観測.Count(static CPU => CPU==1);
+        Assert.Equal(1,CPU一実行一覧);
+        Assert.All(唯一の状態を読み込む(ルート).ジョブ一覧,static ジョブ => Assert.Equal(ジョブ状態.完了,ジョブ.状態));
     }
 
     [Fact]
-    public async Task Orchestrator_RunAsync_NotifiesDynamicRunnerWhenCpuSelectionChanges(){
-        var root = CreateTempRoot();
-        var cpus = new[] { 0,1 };
-        var cpuOneStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var releaseCpuOne = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var runner = new DynamicFakeRunner(async (job,cpu) => {
-            if(cpu==1) {
-                cpuOneStarted.SetResult();
-                await releaseCpuOne.Task;
+    public async Task 仕様確認19() {
+        var ルート = 一時ルートを作成();
+        var CPU一覧 = new[] { 0,1 };
+        var CPU一開始通知 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var CPU一解放通知 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var 実行器 = new 動的偽実行器(async (ジョブ,CPU) => {
+            if(CPU==1) {
+                CPU一開始通知.SetResult();
+                await CPU一解放通知.Task;
             } else {
                 await Task.Delay(40);
             }
 
-            return CompletedResult(job);
+            return 完了結果を作成(ジョブ);
         });
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
-        var run = orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","A"),Case("System.Array.FLinq","B"),Case("System.Array.FLinq","C"),Case("System.Array.FLinq","D")],
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
+        var 実行処理 = オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","A"),ケースを作成("System.Array.FLinq","B"),ケースを作成("System.Array.FLinq","C"),ケースを作成("System.Array.FLinq","D")],
                 [0,1],
                 [1],
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
-                () => cpus),
+                () => CPU一覧),
             _ => { },
             _ => { },
             CancellationToken.None);
 
-        await cpuOneStarted.Task;
-        cpus=[0];
-        releaseCpuOne.SetResult();
-        await run;
+        await CPU一開始通知.Task;
+        CPU一覧= [0];
+        CPU一解放通知.SetResult();
+        await 実行処理;
 
-        Assert.Contains(runner.AppliedCpuSets,static item => item.SequenceEqual([0]));
+        Assert.Contains(実行器.適用済みCPU集合一覧,static 項目 => 項目.SequenceEqual([0]));
     }
 
     [Fact]
-    public async Task Orchestrator_RunAsync_AddedCpuJoinsRemainingJobs(){
-        var root = CreateTempRoot();
-        var cpus = new[] { 0 };
-        var firstStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var releaseFirst = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var observed = new List<int>();
-        var gate = new object();
-        var runner = new DelayedFakeRunner(async (job,cpu) => {
-            lock(gate) {
-                observed.Add(cpu);
+    public async Task 仕様確認20() {
+        var ルート = 一時ルートを作成();
+        var CPU一覧 = new[] { 0 };
+        var 先頭開始通知 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var 先頭解放通知 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var 観測 = new List<int>();
+        var 排他 = new object();
+        var 実行器 = new 遅延偽実行器(async (ジョブ,CPU) => {
+            lock(排他) {
+                観測.Add(CPU);
             }
 
-            if(job.MethodName=="A") {
-                firstStarted.SetResult();
-                await releaseFirst.Task;
+            if(ジョブ.メソッド名=="A") {
+                先頭開始通知.SetResult();
+                await 先頭解放通知.Task;
             } else {
                 await Task.Delay(40);
             }
 
-            return CompletedResult(job);
+            return 完了結果を作成(ジョブ);
         });
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
-        var run = orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","A"),Case("System.Array.FLinq","B"),Case("System.Array.FLinq","C"),Case("System.Array.FLinq","D")],
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
+        var 実行処理 = オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","A"),ケースを作成("System.Array.FLinq","B"),ケースを作成("System.Array.FLinq","C"),ケースを作成("System.Array.FLinq","D")],
                 [0],
                 [1],
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
-                () => cpus),
+                () => CPU一覧),
             _ => { },
             _ => { },
             CancellationToken.None);
 
-        await firstStarted.Task;
-        cpus=[0,1];
-        releaseFirst.SetResult();
-        await run;
+        await 先頭開始通知.Task;
+        CPU一覧= [0,1];
+        先頭解放通知.SetResult();
+        await 実行処理;
 
-        Assert.Contains(1,observed);
-        Assert.All(LoadOnlyState(root).Jobs,static job => Assert.Equal(JobStatus.Completed,job.Status));
+        Assert.Contains(1,観測);
+        Assert.All(唯一の状態を読み込む(ルート).ジョブ一覧,static ジョブ => Assert.Equal(ジョブ状態.完了,ジョブ.状態));
     }
 
     [Fact]
-    public async Task StateManager_Save_IsSafeWhenCalledConcurrently(){
-        var root = CreateTempRoot();
-        var runRoot = Path.Combine(root,"run");
-        var stateManager = new BenchmarkStateManager(root);
-        var state = new ProgressState{
-            RunId="run",
-            RunRoot=runRoot,
-            CreatedAt=DateTimeOffset.UtcNow,
-            UpdatedAt=DateTimeOffset.UtcNow,
-            ElementCounts=[128],
-            Jobs=[
-                CompletedJob("System.Array.FLinq","Where",128),
-                CompletedJob("System.Array.ZLinq","Where",128),
+    public async Task 仕様確認21() {
+        var ルート = 一時ルートを作成();
+        var 実行ルート = Path.Combine(ルート,"実行処理");
+        var 状態マネージャー = new ベンチマーク状態マネージャー(ルート);
+        var 状態 = new 進行状態 {
+            実行ID="実行処理",
+            実行ルート=実行ルート,
+            作成日時=DateTimeOffset.UtcNow,
+            更新日時=DateTimeOffset.UtcNow,
+            要素数一覧= [128],
+            ジョブ一覧= [
+                完了ジョブを作成("System.Array.FLinq","Where",128),
+                完了ジョブを作成("System.Array.ZLinq","Where",128),
             ],
         };
 
-        await Task.WhenAll(Enumerable.Range(0,32).Select(_ => Task.Run(() => stateManager.Save(state))));
+        await Task.WhenAll(Enumerable.Range(0,32).Select(_ => Task.Run(() => 状態マネージャー.保存(状態))));
 
-        var loaded = stateManager.Load(runRoot);
-        Assert.NotNull(loaded);
-        Assert.Equal(2,loaded.Jobs.Count);
-        Assert.Empty(Directory.GetFiles(runRoot,"*.tmp"));
+        var 読込結果 = 状態マネージャー.読み込む(実行ルート);
+        Assert.NotNull(読込結果);
+        Assert.Equal(2,読込結果.ジョブ一覧.Count);
+        Assert.Empty(Directory.GetFiles(実行ルート,"*.tmp"));
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_ResumedStateDoesNotRunUnselectedProjects(){
-        var root = CreateTempRoot();
-        var stateManager = new BenchmarkStateManager(root);
-        var runRoot = Path.Combine(root,"run");
-        var state = new ProgressState{
-            RunId="run",
-            RunRoot=runRoot,
-            CreatedAt=DateTimeOffset.UtcNow,
-            UpdatedAt=DateTimeOffset.UtcNow,
-            ElementCounts=[1],
-            AdaptiveThresholdNanoseconds=1_000_000,
-            AdaptiveStates=[
-                new AdaptiveBenchmarkState { MethodName="Where" },
+    public async Task 仕様確認22() {
+        var ルート = 一時ルートを作成();
+        var 状態マネージャー = new ベンチマーク状態マネージャー(ルート);
+        var 実行ルート = Path.Combine(ルート,"実行処理");
+        var 状態 = new 進行状態 {
+            実行ID="実行処理",
+            実行ルート=実行ルート,
+            作成日時=DateTimeOffset.UtcNow,
+            更新日時=DateTimeOffset.UtcNow,
+            要素数一覧= [1],
+            適応しきい値ナノ秒=1_000_000,
+            適応状態一覧= [
+                new 適応ベンチマーク状態 { メソッド名="Where" },
             ],
-            Jobs=[
-                new BenchmarkJob{
-                    JobId="system",
-                    Project="System.Array.FLinq",
-                    AssemblyName="Assembly",
-                    TypeFullName="Type",
-                    MethodName="Where",
-                    ElementCount=1,
-                    Status=JobStatus.Pending,
+            ジョブ一覧= [
+                new ベンチマークジョブ{
+                    ジョブID="system",
+                    プロジェクト="System.Array.FLinq",
+                    アセンブリ名="Assembly",
+                    型完全名="Type",
+                    メソッド名="Where",
+                    要素数=1,
+                    状態=ジョブ状態.保留,
                 },
-                new BenchmarkJob{
-                    JobId="persisted",
-                    Project="Seamless.Persisted.FLinq",
-                    AssemblyName="Assembly",
-                    TypeFullName="Type",
-                    MethodName="Where",
-                    ElementCount=1,
-                    Status=JobStatus.Pending,
+                new ベンチマークジョブ{
+                    ジョブID="永続化",
+                    プロジェクト="Seamless.Persisted.FLinq",
+                    アセンブリ名="Assembly",
+                    型完全名="Type",
+                    メソッド名="Where",
+                    要素数=1,
+                    状態=ジョブ状態.保留,
                 },
             ],
         };
-        var observedProjects = new List<string>();
-        var runner = new FakeRunner((job,_) => {
-            observedProjects.Add(job.Project);
-            return CompletedResult(job);
+        var 観測プロジェクト一覧 = new List<string>();
+        var 実行器 = new 偽実行器((ジョブ,_) => {
+            観測プロジェクト一覧.Add(ジョブ.プロジェクト);
+            return 完了結果を作成(ジョブ);
         });
-        stateManager.Save(state);
-        stateManager.SaveLatestRun(runRoot);
-        var orchestrator = new global::UI.BenchmarkOrchestrator(stateManager,runner);
+        状態マネージャー.保存(状態);
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(状態マネージャー,実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","Where")],
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","Where")],
                 [0],
                 [1],
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
-                RunRootOverride: runRoot),
+                実行ルート上書き: 実行ルート),
             _ => { },
             _ => { },
             CancellationToken.None);
 
-        var loaded = stateManager.Load(runRoot)!;
-        Assert.Equal(["System.Array.FLinq"],observedProjects);
-        Assert.All(loaded.Jobs,static job => Assert.Equal("System.Array.FLinq",job.Project));
+        var 読込結果 = 状態マネージャー.読み込む(実行ルート)!;
+        Assert.Equal(["System.Array.FLinq"],観測プロジェクト一覧);
+        Assert.All(読込結果.ジョブ一覧,static ジョブ => Assert.Equal("System.Array.FLinq",ジョブ.プロジェクト));
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_ResumedStateUsesRequestedThreshold(){
-        var root = CreateTempRoot();
-        var stateManager = new BenchmarkStateManager(root);
-        var runRoot = Path.Combine(root,"run");
-        var completedJob = CompletedJob("System.Array.FLinq","Where",1);
-        completedJob.Mean="10.56 ms";
-        completedJob.MeanNanoseconds=10_560_000;
-        var state = new ProgressState{
-            RunId="run",
-            RunRoot=runRoot,
-            CreatedAt=DateTimeOffset.UtcNow,
-            UpdatedAt=DateTimeOffset.UtcNow,
-            ElementCounts=[1,2],
-            AdaptiveThresholdNanoseconds=1_000_000,
-            AdaptiveStates=[
-                new AdaptiveBenchmarkState { MethodName="Where" },
+    public async Task 仕様確認23() {
+        var ルート = 一時ルートを作成();
+        var 状態マネージャー = new ベンチマーク状態マネージャー(ルート);
+        var 実行ルート = Path.Combine(ルート,"実行処理");
+        var 完了ジョブ = 完了ジョブを作成("System.Array.FLinq","Where",1);
+        完了ジョブ.平均="10.56 ms";
+        完了ジョブ.平均ナノ秒=10_560_000;
+        var 状態 = new 進行状態 {
+            実行ID="実行処理",
+            実行ルート=実行ルート,
+            作成日時=DateTimeOffset.UtcNow,
+            更新日時=DateTimeOffset.UtcNow,
+            要素数一覧= [1,2],
+            適応しきい値ナノ秒=1_000_000,
+            適応状態一覧= [
+                new 適応ベンチマーク状態 { メソッド名="Where" },
             ],
-            Jobs=[
-                completedJob,
+            ジョブ一覧= [
+                完了ジョブ,
             ],
         };
-        var observedElementCounts = new List<int>();
-        var runner = new FakeRunner((job,_) => {
-            if(!job.JobId.EndsWith("|warmup",StringComparison.Ordinal)){
-                observedElementCounts.Add(BenchmarkWorkloadAxis.GetAxisCount(job));
+        var 観測要素数一覧 = new List<int>();
+        var 実行器 = new 偽実行器((ジョブ,_) => {
+            if(!ジョブ.ジョブID.EndsWith("|warmup",StringComparison.Ordinal)) {
+                観測要素数一覧.Add(ベンチマーク作業軸.軸数を取得(ジョブ));
             }
-            return CompletedResult(job);
+            return 完了結果を作成(ジョブ);
         });
-        stateManager.Save(state);
-        stateManager.SaveLatestRun(runRoot);
-        var orchestrator = new global::UI.BenchmarkOrchestrator(stateManager,runner);
+        状態マネージャー.保存(状態);
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(状態マネージャー,実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","Where")],
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","Where")],
                 [0],
                 [1,2],
                 TimeSpan.FromMilliseconds(1024),
                 TimeSpan.FromSeconds(30),
-                RunRootOverride: runRoot),
+                実行ルート上書き: 実行ルート),
             _ => { },
             _ => { },
             CancellationToken.None);
 
-        var loaded = stateManager.Load(runRoot)!;
-        Assert.Equal(1_024_000_000,loaded.AdaptiveThresholdNanoseconds);
-        Assert.Equal([2],observedElementCounts);
+        var 読込結果 = 状態マネージャー.読み込む(実行ルート)!;
+        Assert.Equal(1_024_000_000,読込結果.適応しきい値ナノ秒);
+        Assert.Equal([2],観測要素数一覧);
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_RestartFromRequestedElementCountRerunsCompletedJobs(){
-        var root = CreateTempRoot();
-        var stateManager = new BenchmarkStateManager(root);
-        var runRoot = Path.Combine(root,"run");
-        var state = new ProgressState{
-            RunId="run",
-            RunRoot=runRoot,
-            CreatedAt=DateTimeOffset.UtcNow,
-            UpdatedAt=DateTimeOffset.UtcNow,
-            ElementCounts=[1,2],
-            AdaptiveThresholdNanoseconds=1_000_000_000,
-            AdaptiveStates=[
-                new AdaptiveBenchmarkState { MethodName="Where" },
+    public async Task 仕様確認24() {
+        var ルート = 一時ルートを作成();
+        var 状態マネージャー = new ベンチマーク状態マネージャー(ルート);
+        var 実行ルート = Path.Combine(ルート,"実行処理");
+        var 状態 = new 進行状態 {
+            実行ID="実行処理",
+            実行ルート=実行ルート,
+            作成日時=DateTimeOffset.UtcNow,
+            更新日時=DateTimeOffset.UtcNow,
+            要素数一覧= [1,2],
+            適応しきい値ナノ秒=1_000_000_000,
+            適応状態一覧= [
+                new 適応ベンチマーク状態 { メソッド名="Where" },
             ],
-            Jobs=[
-                CompletedJob("System.Array.FLinq","Where",1),
-                CompletedJob("System.Array.FLinq","Where",2),
+            ジョブ一覧= [
+                完了ジョブを作成("System.Array.FLinq","Where",1),
+                完了ジョブを作成("System.Array.FLinq","Where",2),
             ],
         };
-        var observedElementCounts = new List<int>();
-        var runner = new FakeRunner((job,_) => {
-            observedElementCounts.Add(BenchmarkWorkloadAxis.GetAxisCount(job));
-            return CompletedResult(job);
+        var 観測要素数一覧 = new List<int>();
+        var 実行器 = new 偽実行器((ジョブ,_) => {
+            観測要素数一覧.Add(ベンチマーク作業軸.軸数を取得(ジョブ));
+            return 完了結果を作成(ジョブ);
         });
-        stateManager.Save(state);
-        stateManager.SaveLatestRun(runRoot);
-        var orchestrator = new global::UI.BenchmarkOrchestrator(stateManager,runner);
+        状態マネージャー.保存(状態);
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(状態マネージャー,実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","Where")],
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","Where")],
                 [0],
                 [1,2],
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30),
-                RestartFromRequestedElementCount: true,
-                RunRootOverride: runRoot),
+                要求要素数から再開するか: true,
+                実行ルート上書き: 実行ルート),
             _ => { },
             _ => { },
             CancellationToken.None);
 
-        Assert.Equal([1],observedElementCounts);
+        Assert.Equal([1],観測要素数一覧);
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_MeasuresRightOnlyAtLeftFinalLoopCount(){
-        var root = CreateTempRoot();
-        var runner = new FakeRunner((job,_) => {
-            var thresholdLoopCount=job.Project=="System.Array.ZLinq" ? 256 : 512;
-            var mean = BenchmarkWorkloadAxis.GetAxisCount(job)>=thresholdLoopCount ? 2_000_000_000d : 100d;
-            return new BenchmarkJobRunResult(
-                job.Project,
-                job.MethodName,
-                job.TypeFullName,
-                BenchmarkWorkloadAxis.GetAxisCount(job),
+    public async Task 仕様確認25() {
+        var ルート = 一時ルートを作成();
+        var 実行器 = new 偽実行器((ジョブ,_) => {
+            var 閾値ループ回数 = ジョブ.プロジェクト=="System.Array.ZLinq" ? 256 : 512;
+            var 平均 = ベンチマーク作業軸.軸数を取得(ジョブ)>=閾値ループ回数 ? 2_000_000_000d : 100d;
+            return new ベンチマークジョブ実行結果(
+                ジョブ.プロジェクト,
+                ジョブ.メソッド名,
+                ジョブ.型完全名,
+                ベンチマーク作業軸.軸数を取得(ジョブ),
                 "Completed",
-                mean+" ns",
+                平均+" ns",
                 string.Empty,
                 string.Empty,
-                mean,
+                平均,
                 0,
                 0,
                 0,
                 0,
-                job.ArtifactFolder,
+                ジョブ.成果物フォルダー,
                 string.Empty);
         });
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","Where"),ケースを作成("System.Array.ZLinq","Where")],
                 [0],
                 [128,256,512],
                 TimeSpan.FromSeconds(1),
@@ -968,45 +965,45 @@ public sealed class BenchmarkOrchestrator{
             _ => { },
             CancellationToken.None);
 
-        // 左列が到達するまで右列を実測せず、右列は左列の最終LoopCountだけで測定する。
-        var state = LoadOnlyState(root);
+        // 左列が到達するまで右列を実測せず、右列は左列の最終ループ回数だけで測定する。
+        var 状態 = 唯一の状態を読み込む(ルート);
         Assert.Equal(
             [128,256,512],
-            state.Jobs.Where(static job => job.Project=="System.Array.FLinq").Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
+            状態.ジョブ一覧.Where(static ジョブ => ジョブ.プロジェクト=="System.Array.FLinq").Select(static ジョブ => ベンチマーク作業軸.軸数を取得(ジョブ)).Order().ToArray());
         Assert.Equal(
             [512],
-            state.Jobs.Where(static job => job.Project=="System.Array.ZLinq").Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
+            状態.ジョブ一覧.Where(static ジョブ => ジョブ.プロジェクト=="System.Array.ZLinq").Select(static ジョブ => ベンチマーク作業軸.軸数を取得(ジョブ)).Order().ToArray());
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_StopsPairAfterBothSidesExceedThreshold(){
-        var root = CreateTempRoot();
-        var runner = new FakeRunner((job,_) => {
-            var mean = BenchmarkWorkloadAxis.GetAxisCount(job)>=256&&job.Project.StartsWith("System",StringComparison.Ordinal)
+    public async Task 仕様確認26() {
+        var ルート = 一時ルートを作成();
+        var 実行器 = new 偽実行器((ジョブ,_) => {
+            var 平均 = ベンチマーク作業軸.軸数を取得(ジョブ)>=256&&ジョブ.プロジェクト.StartsWith("System",StringComparison.Ordinal)
                 ? 2_000_000d
                 : 100d;
-            return new BenchmarkJobRunResult(
-                job.Project,
-                job.MethodName,
-                job.TypeFullName,
-                BenchmarkWorkloadAxis.GetAxisCount(job),
+            return new ベンチマークジョブ実行結果(
+                ジョブ.プロジェクト,
+                ジョブ.メソッド名,
+                ジョブ.型完全名,
+                ベンチマーク作業軸.軸数を取得(ジョブ),
                 "Completed",
-                mean+" ns",
+                平均+" ns",
                 string.Empty,
                 string.Empty,
-                mean,
+                平均,
                 0,
                 0,
                 0,
                 0,
-                job.ArtifactFolder,
+                ジョブ.成果物フォルダー,
                 string.Empty);
         });
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","Where"),Case("System.Array.ZLinq","Where")],
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","Where"),ケースを作成("System.Array.ZLinq","Where")],
                 [0],
                 [128,256,512],
                 TimeSpan.FromMilliseconds(1),
@@ -1015,40 +1012,40 @@ public sealed class BenchmarkOrchestrator{
             _ => { },
             CancellationToken.None);
 
-        var state = LoadOnlyState(root);
-        Assert.Contains(state.Jobs,static job => job.Project=="System.Array.FLinq"&&BenchmarkWorkloadAxis.GetAxisCount(job)==256);
-        Assert.Contains(state.Jobs,static job => job.Project=="System.Array.ZLinq"&&BenchmarkWorkloadAxis.GetAxisCount(job)==256);
-        Assert.DoesNotContain(state.Jobs,static job => job.Project=="System.Array.FLinq"&&BenchmarkWorkloadAxis.GetAxisCount(job)==512);
-        Assert.DoesNotContain(state.Jobs,static job => job.Project=="System.Array.ZLinq"&&BenchmarkWorkloadAxis.GetAxisCount(job)==512);
+        var 状態 = 唯一の状態を読み込む(ルート);
+        Assert.Contains(状態.ジョブ一覧,static ジョブ => ジョブ.プロジェクト=="System.Array.FLinq"&&ベンチマーク作業軸.軸数を取得(ジョブ)==256);
+        Assert.Contains(状態.ジョブ一覧,static ジョブ => ジョブ.プロジェクト=="System.Array.ZLinq"&&ベンチマーク作業軸.軸数を取得(ジョブ)==256);
+        Assert.DoesNotContain(状態.ジョブ一覧,static ジョブ => ジョブ.プロジェクト=="System.Array.FLinq"&&ベンチマーク作業軸.軸数を取得(ジョブ)==512);
+        Assert.DoesNotContain(状態.ジョブ一覧,static ジョブ => ジョブ.プロジェクト=="System.Array.ZLinq"&&ベンチマーク作業軸.軸数を取得(ジョブ)==512);
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_StopsAfterThresholdExceededBeforeNextElementCount(){
-        var root = CreateTempRoot();
-        var runner = new FakeRunner((job,_) => {
-            var mean = BenchmarkWorkloadAxis.GetAxisCount(job)>=4 ? 2_000_000d : 100d;
-            return new BenchmarkJobRunResult(
-                job.Project,
-                job.MethodName,
-                job.TypeFullName,
-                BenchmarkWorkloadAxis.GetAxisCount(job),
+    public async Task 仕様確認27() {
+        var ルート = 一時ルートを作成();
+        var 実行器 = new 偽実行器((ジョブ,_) => {
+            var 平均 = ベンチマーク作業軸.軸数を取得(ジョブ)>=4 ? 2_000_000d : 100d;
+            return new ベンチマークジョブ実行結果(
+                ジョブ.プロジェクト,
+                ジョブ.メソッド名,
+                ジョブ.型完全名,
+                ベンチマーク作業軸.軸数を取得(ジョブ),
                 "Completed",
-                mean+" ns",
+                平均+" ns",
                 string.Empty,
                 string.Empty,
-                mean,
+                平均,
                 0,
                 0,
                 0,
                 0,
-                job.ArtifactFolder,
+                ジョブ.成果物フォルダー,
                 string.Empty);
         });
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","Where")],
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","Where")],
                 [0],
                 [1,2,4,8],
                 TimeSpan.FromMilliseconds(1),
@@ -1057,38 +1054,38 @@ public sealed class BenchmarkOrchestrator{
             _ => { },
             CancellationToken.None);
 
-        var state = LoadOnlyState(root);
-        Assert.Equal([1,2,4],state.Jobs.Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
-        Assert.DoesNotContain(state.Jobs,static job => BenchmarkWorkloadAxis.GetAxisCount(job)==8);
+        var 状態 = 唯一の状態を読み込む(ルート);
+        Assert.Equal([1,2,4],状態.ジョブ一覧.Select(static ジョブ => ベンチマーク作業軸.軸数を取得(ジョブ)).Order().ToArray());
+        Assert.DoesNotContain(状態.ジョブ一覧,static ジョブ => ベンチマーク作業軸.軸数を取得(ジョブ)==8);
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_DoublesPastRequestedElementCountsUntilThresholdExceeded(){
-        var root = CreateTempRoot();
-        var runner = new FakeRunner((job,_) => {
-            var mean = BenchmarkWorkloadAxis.GetAxisCount(job)>=262144 ? 2_000_000d : 100d;
-            return new BenchmarkJobRunResult(
-                job.Project,
-                job.MethodName,
-                job.TypeFullName,
-                BenchmarkWorkloadAxis.GetAxisCount(job),
+    public async Task 仕様確認28() {
+        var ルート = 一時ルートを作成();
+        var 実行器 = new 偽実行器((ジョブ,_) => {
+            var 平均 = ベンチマーク作業軸.軸数を取得(ジョブ)>=262144 ? 2_000_000d : 100d;
+            return new ベンチマークジョブ実行結果(
+                ジョブ.プロジェクト,
+                ジョブ.メソッド名,
+                ジョブ.型完全名,
+                ベンチマーク作業軸.軸数を取得(ジョブ),
                 "Completed",
-                mean+" ns",
+                平均+" ns",
                 string.Empty,
                 string.Empty,
-                mean,
+                平均,
                 0,
                 0,
                 0,
                 0,
-                job.ArtifactFolder,
+                ジョブ.成果物フォルダー,
                 string.Empty);
         });
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","Where")],
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","Where")],
                 [0],
                 [65536,131072],
                 TimeSpan.FromMilliseconds(1),
@@ -1097,47 +1094,47 @@ public sealed class BenchmarkOrchestrator{
             _ => { },
             CancellationToken.None);
 
-        var state = LoadOnlyState(root);
-        Assert.Equal([65536,131072,262144],state.Jobs.Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
-        Assert.DoesNotContain(262144,state.ElementCounts);
-        Assert.DoesNotContain(state.Jobs,static job => BenchmarkWorkloadAxis.GetAxisCount(job)==524288);
+        var 状態 = 唯一の状態を読み込む(ルート);
+        Assert.Equal([65536,131072,262144],状態.ジョブ一覧.Select(static ジョブ => ベンチマーク作業軸.軸数を取得(ジョブ)).Order().ToArray());
+        Assert.DoesNotContain(262144,状態.要素数一覧);
+        Assert.DoesNotContain(状態.ジョブ一覧,static ジョブ => ベンチマーク作業軸.軸数を取得(ジョブ)==524288);
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_CompletesWhenRightIsBelowThresholdAtSharedLoopCount(){
-        var root = CreateTempRoot();
-        var measured = new List<(string Project,int LoopCount)>();
-        var runner = new FakeRunner((job,_) => {
-            var loopCount=BenchmarkWorkloadAxis.GetAxisCount(job);
-            if(!job.JobId.EndsWith("|warmup",StringComparison.Ordinal)) {
-                measured.Add((job.Project,loopCount));
+    public async Task 仕様確認29() {
+        var ルート = 一時ルートを作成();
+        var 測定済み一覧 = new List<(string プロジェクト,int ループ回数)>();
+        var 実行器 = new 偽実行器((ジョブ,_) => {
+            var ループ回数 = ベンチマーク作業軸.軸数を取得(ジョブ);
+            if(!ジョブ.ジョブID.EndsWith("|warmup",StringComparison.Ordinal)) {
+                測定済み一覧.Add((ジョブ.プロジェクト,ループ回数));
             }
-            var reachesThreshold=string.Equals(job.Project,"System.Array.FLinq",StringComparison.Ordinal)
-                ? loopCount>=4
-                : loopCount>=8;
-            var totalNanoseconds=reachesThreshold ? 2_000_000d : 100d;
-            return new BenchmarkJobRunResult(
-                job.Project,
-                job.MethodName,
-                job.TypeFullName,
-                loopCount,
+            var 閾値到達か = string.Equals(ジョブ.プロジェクト,"System.Array.FLinq",StringComparison.Ordinal)
+                ? ループ回数>=4
+                : ループ回数>=8;
+            var 合計ナノ秒 = 閾値到達か ? 2_000_000d : 100d;
+            return new ベンチマークジョブ実行結果(
+                ジョブ.プロジェクト,
+                ジョブ.メソッド名,
+                ジョブ.型完全名,
+                ループ回数,
                 "Completed",
-                totalNanoseconds+" ns",
+                合計ナノ秒+" ns",
                 string.Empty,
                 string.Empty,
-                totalNanoseconds,
+                合計ナノ秒,
                 0,
                 0,
                 0,
                 0,
-                job.ArtifactFolder,
+                ジョブ.成果物フォルダー,
                 string.Empty);
         });
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","Any"),Case("System.Array.ZLinq","Any")],
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","Any"),ケースを作成("System.Array.ZLinq","Any")],
                 [0],
                 [1,2],
                 TimeSpan.FromMilliseconds(1),
@@ -1152,83 +1149,83 @@ public sealed class BenchmarkOrchestrator{
                 ("System.Array.FLinq",2),
                 ("System.Array.FLinq",4),("System.Array.ZLinq",4),
             ],
-            measured);
-        var finalJobs=LoadOnlyState(root).Jobs.Where(static job => BenchmarkWorkloadAxis.GetAxisCount(job)==4).ToArray();
-        Assert.Equal(2,finalJobs.Length);
-        Assert.All(finalJobs,static job => Assert.Equal(JobStatus.Completed,job.Status));
+            測定済み一覧);
+        var 最終ジョブ一覧 = 唯一の状態を読み込む(ルート).ジョブ一覧.Where(static ジョブ => ベンチマーク作業軸.軸数を取得(ジョブ)==4).ToArray();
+        Assert.Equal(2,最終ジョブ一覧.Length);
+        Assert.All(最終ジョブ一覧,static ジョブ => Assert.Equal(ジョブ状態.完了,ジョブ.状態));
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_KeepsDynamicLoopCountsIsolatedPerRowAcrossCpus(){
-        var root = CreateTempRoot();
-        var runner = new FakeRunner((job,_) => {
-            var loopCount=BenchmarkWorkloadAxis.GetAxisCount(job);
-            var thresholdLoopCount=job.MethodName=="A" ? 2 : 8;
-            return CompletedResult(job,loopCount>=thresholdLoopCount ? 2_000_000 : 100);
+    public async Task 仕様確認30() {
+        var ルート = 一時ルートを作成();
+        var 実行器 = new 偽実行器((ジョブ,_) => {
+            var ループ回数 = ベンチマーク作業軸.軸数を取得(ジョブ);
+            var 閾値ループ回数 = ジョブ.メソッド名=="A" ? 2 : 8;
+            return 完了結果を作成(ジョブ,ループ回数>=閾値ループ回数 ? 2_000_000 : 100);
         });
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
                 [
-                    Case("System.Array.FLinq","A"),Case("System.Array.ZLinq","A"),
-                    Case("System.Array.FLinq","Any"),Case("System.Array.ZLinq","Any"),
+                    ケースを作成("System.Array.FLinq","A"),ケースを作成("System.Array.ZLinq","A"),
+                    ケースを作成("System.Array.FLinq","Any"),ケースを作成("System.Array.ZLinq","Any"),
                 ],
                 [0,1],
                 [1],
                 TimeSpan.FromMilliseconds(1),
                 TimeSpan.FromSeconds(30),
-                ExecutionProfile:BenchmarkExecutionProfile.Accurate),
+                実行プロファイル: ベンチマーク実行プロファイル.正確),
             _ => { },
             _ => { },
             CancellationToken.None);
 
-        var state=LoadOnlyState(root);
-        Assert.Equal([1],state.ElementCounts);
+        var 状態 = 唯一の状態を読み込む(ルート);
+        Assert.Equal([1],状態.要素数一覧);
         Assert.Equal(
             [1,2,2],
-            state.Jobs.Where(static job => job.MethodName=="A").Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
+            状態.ジョブ一覧.Where(static ジョブ => ジョブ.メソッド名=="A").Select(static ジョブ => ベンチマーク作業軸.軸数を取得(ジョブ)).Order().ToArray());
         Assert.Equal(
             [1,2,4,8,8],
-            state.Jobs.Where(static job => job.MethodName=="Any").Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
+            状態.ジョブ一覧.Where(static ジョブ => ジョブ.メソッド名=="Any").Select(static ジョブ => ベンチマーク作業軸.軸数を取得(ジョブ)).Order().ToArray());
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_FailsLeftWhenIntMaxValueCannotReachThreshold(){
-        var root=CreateTempRoot();
-        var orchestrator=new global::UI.BenchmarkOrchestrator(
-            new BenchmarkStateManager(root),
-            new FakeRunner((job,_) => CompletedResult(job,100)));
+    public async Task 仕様確認31() {
+        var ルート = 一時ルートを作成();
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(
+            new ベンチマーク状態マネージャー(ルート),
+            new 偽実行器((ジョブ,_) => 完了結果を作成(ジョブ,100)));
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","Any"),Case("System.Array.ZLinq","Any")],
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","Any"),ケースを作成("System.Array.ZLinq","Any")],
                 [0],
                 [int.MaxValue],
                 TimeSpan.FromMilliseconds(1),
                 TimeSpan.FromSeconds(30),
-                ExecutionProfile:BenchmarkExecutionProfile.Accurate),
+                実行プロファイル: ベンチマーク実行プロファイル.正確),
             _ => { },
             _ => { },
             CancellationToken.None);
 
-        var jobs=LoadOnlyState(root).Jobs;
-        Assert.Single(jobs);
-        Assert.All(jobs,static job => {
-            Assert.Equal(JobStatus.Failed,job.Status);
-            Assert.Contains("int.MaxValue",job.FailureReason,StringComparison.Ordinal);
+        var ジョブ一覧 = 唯一の状態を読み込む(ルート).ジョブ一覧;
+        Assert.Single(ジョブ一覧);
+        Assert.All(ジョブ一覧,static ジョブ => {
+            Assert.Equal(ジョブ状態.失敗,ジョブ.状態);
+            Assert.Contains("int.MaxValue",ジョブ.失敗理由,StringComparison.Ordinal);
         });
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_FailedJobStopsBeforeDynamicElementCount(){
-        var root = CreateTempRoot();
-        var runner = new FakeRunner((job,_) => BenchmarkWorkloadAxis.GetAxisCount(job)==131072
-            ? new BenchmarkJobRunResult(
-                job.Project,
-                job.MethodName,
-                job.TypeFullName,
-                BenchmarkWorkloadAxis.GetAxisCount(job),
+    public async Task 仕様確認32() {
+        var ルート = 一時ルートを作成();
+        var 実行器 = new 偽実行器((ジョブ,_) => ベンチマーク作業軸.軸数を取得(ジョブ)==131072
+            ? new ベンチマークジョブ実行結果(
+                ジョブ.プロジェクト,
+                ジョブ.メソッド名,
+                ジョブ.型完全名,
+                ベンチマーク作業軸.軸数を取得(ジョブ),
                 "Failed",
                 string.Empty,
                 string.Empty,
@@ -1238,14 +1235,14 @@ public sealed class BenchmarkOrchestrator{
                 null,
                 null,
                 1,
-                job.ArtifactFolder,
+                ジョブ.成果物フォルダー,
                 "boom")
-            : CompletedResult(job,100));
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+            : 完了結果を作成(ジョブ,100));
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","Where")],
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","Where")],
                 [0],
                 [65536,131072],
                 TimeSpan.FromSeconds(1),
@@ -1254,64 +1251,64 @@ public sealed class BenchmarkOrchestrator{
             _ => { },
             CancellationToken.None);
 
-        var state = LoadOnlyState(root);
-        Assert.Equal([65536,131072],state.Jobs.Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Order().ToArray());
-        Assert.DoesNotContain(state.Jobs,static job => BenchmarkWorkloadAxis.GetAxisCount(job)==262144);
+        var 状態 = 唯一の状態を読み込む(ルート);
+        Assert.Equal([65536,131072],状態.ジョブ一覧.Select(static ジョブ => ベンチマーク作業軸.軸数を取得(ジョブ)).Order().ToArray());
+        Assert.DoesNotContain(状態.ジョブ一覧,static ジョブ => ベンチマーク作業軸.軸数を取得(ジョブ)==262144);
     }
 
     [Fact]
-    public async Task Orchestrator_AdaptiveMode_ScalableTabsStopAfterThreshold(){
-        var root = CreateTempRoot();
-        var runner = new FakeRunner((job,_) => {
-            var mean = 2_000_000d;
-            return new BenchmarkJobRunResult(
-                job.Project,
-                job.MethodName,
-                job.TypeFullName,
-                BenchmarkWorkloadAxis.GetAxisCount(job),
+    public async Task 仕様確認33() {
+        var ルート = 一時ルートを作成();
+        var 実行器 = new 偽実行器((ジョブ,_) => {
+            var 平均 = 2_000_000d;
+            return new ベンチマークジョブ実行結果(
+                ジョブ.プロジェクト,
+                ジョブ.メソッド名,
+                ジョブ.型完全名,
+                ベンチマーク作業軸.軸数を取得(ジョブ),
                 "Completed",
-                mean+" ns",
+                平均+" ns",
                 string.Empty,
                 string.Empty,
-                mean,
+                平均,
                 0,
                 0,
                 0,
                 0,
-                job.ArtifactFolder,
+                ジョブ.成果物フォルダー,
                 string.Empty);
         });
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
                 [
-                    CountCase("Scalable.Persisted.Set","Add",1024),
-                    CountCase("Scalable.Persisted.Set","Add",2048),
-                    CountCase("Scalable.Persisted.Set","Add",4096),
+                    Countケースを作成("Scalable.Persisted.Set","Add",1024),
+                    Countケースを作成("Scalable.Persisted.Set","Add",2048),
+                    Countケースを作成("Scalable.Persisted.Set","Add",4096),
                 ],
                 [0],
                 [1024,2048,4096],
                 TimeSpan.FromMilliseconds(1),
                 TimeSpan.FromSeconds(30),
-                SourceTab: BenchmarkSourceTab.ScalablePersistedSet),
+                ソースタブ: ベンチマークソースタブ.スケーラブル永続化セット),
             _ => { },
             _ => { },
             CancellationToken.None);
 
-        var state = LoadOnlyState(root);
-        Assert.Equal([1024],state.Jobs.Select(static job => BenchmarkWorkloadAxis.GetAxisCount(job)).Distinct().Order().ToArray());
-        Assert.All(state.Jobs,static job => Assert.Equal(JobStatus.Completed,job.Status));
+        var 状態 = 唯一の状態を読み込む(ルート);
+        Assert.Equal([1024],状態.ジョブ一覧.Select(static ジョブ => ベンチマーク作業軸.軸数を取得(ジョブ)).Distinct().Order().ToArray());
+        Assert.All(状態.ジョブ一覧,static ジョブ => Assert.Equal(ジョブ状態.完了,ジョブ.状態));
     }
 
     [Fact]
-    public async Task Orchestrator_RunAsync_TreatsCompletedWithoutStatisticsAsFailed(){
-        var root = CreateTempRoot();
-        var runner = new FakeRunner((job,_) => new BenchmarkJobRunResult(
-            job.Project,
-            job.MethodName,
-            job.TypeFullName,
-            BenchmarkWorkloadAxis.GetAxisCount(job),
+    public async Task 仕様確認34() {
+        var ルート = 一時ルートを作成();
+        var 実行器 = new 偽実行器((ジョブ,_) => new ベンチマークジョブ実行結果(
+            ジョブ.プロジェクト,
+            ジョブ.メソッド名,
+            ジョブ.型完全名,
+            ベンチマーク作業軸.軸数を取得(ジョブ),
             "Completed",
             string.Empty,
             string.Empty,
@@ -1321,13 +1318,13 @@ public sealed class BenchmarkOrchestrator{
             null,
             null,
             0,
-            job.ArtifactFolder,
+            ジョブ.成果物フォルダー,
             string.Empty));
-        var orchestrator = new global::UI.BenchmarkOrchestrator(new BenchmarkStateManager(root),runner);
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
 
-        await orchestrator.RunAsync(
-            new BenchmarkRunRequest(
-                [Case("System.Array.FLinq","Where")],
+        await オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [ケースを作成("System.Array.FLinq","Where")],
                 [0],
                 [1],
                 TimeSpan.FromMilliseconds(1),
@@ -1336,230 +1333,230 @@ public sealed class BenchmarkOrchestrator{
             _ => { },
             CancellationToken.None);
 
-        var job = Assert.Single(LoadOnlyState(root).Jobs);
-        Assert.Equal(JobStatus.Failed,job.Status);
-        Assert.Contains("without benchmark statistics",job.FailureReason,StringComparison.Ordinal);
+        var ジョブ = Assert.Single(唯一の状態を読み込む(ルート).ジョブ一覧);
+        Assert.Equal(ジョブ状態.失敗,ジョブ.状態);
+        Assert.Contains("ベンチマーク統計がありません",ジョブ.失敗理由,StringComparison.Ordinal);
     }
 
     [Fact]
-    public void BenchmarkElementCountLogic_BuildAdaptiveCandidates_StartsStandardLoopCountAtOne(){
-        var candidates = BenchmarkElementCountLogic.BuildAdaptiveCandidates(BenchmarkElementCounts.All,BenchmarkElementCounts.BaseElementCount);
+    public void 仕様確認35() {
+        var 候補一覧 = ベンチマーク要素数ロジック.適応候補を作成(ベンチマーク要素数一覧.全て,ベンチマーク要素数一覧.基本要素数);
 
-        Assert.Equal([BenchmarkWorkloadAxis.DefaultLoopCount],candidates);
+        Assert.Equal([ベンチマーク作業軸.既定ループ回数],候補一覧);
     }
 
     [Fact]
-    public void BenchmarkElementCounts_SeparatesStandardElementCountAndLoopCount(){
-        Assert.Equal([BenchmarkWorkloadAxis.DefaultLoopCount],BenchmarkElementCounts.All);
-        Assert.Equal([BenchmarkWorkloadAxis.DefaultLoopCount],BenchmarkElementCounts.DefaultInitial);
-        Assert.Equal(BenchmarkWorkloadAxis.StandardElementCount,BenchmarkElementCounts.BaseElementCount);
-        Assert.Equal(BenchmarkWorkloadAxis.DefaultLoopCount,FixedBenchmarkAxisCount);
-        Assert.Equal(BenchmarkWorkloadAxis.StandardElementCount,BenchmarkWorkloadAxis.ResolveElementCount(BenchmarkSourceTab.SystemArray,1));
-        Assert.Equal(4,BenchmarkWorkloadAxis.ResolveLoopCount(BenchmarkSourceTab.SystemArray,4));
-        Assert.Equal([BenchmarkWorkloadAxis.StandardElementCount],BenchmarkWorkloadAxis.ResolvePreparedElementCounts(BenchmarkSourceTab.SystemArray,[1,2,4]));
+    public void 仕様確認36() {
+        Assert.Equal([ベンチマーク作業軸.既定ループ回数],ベンチマーク要素数一覧.全て);
+        Assert.Equal([ベンチマーク作業軸.既定ループ回数],ベンチマーク要素数一覧.既定初期値);
+        Assert.Equal(ベンチマーク作業軸.標準要素数,ベンチマーク要素数一覧.基本要素数);
+        Assert.Equal(ベンチマーク作業軸.既定ループ回数,固定ベンチマーク軸数);
+        Assert.Equal(ベンチマーク作業軸.標準要素数,ベンチマーク作業軸.要素数を解決(ベンチマークソースタブ.System配列,1));
+        Assert.Equal(4,ベンチマーク作業軸.ループ回数を解決(ベンチマークソースタブ.System配列,4));
+        Assert.Equal([ベンチマーク作業軸.標準要素数],ベンチマーク作業軸.準備済み要素数を解決(ベンチマークソースタブ.System配列,[1,2,4]));
     }
 
     [Fact]
-    public void BenchmarkSkippedDisplayLogic_StopsWhenEitherPairSideExceedsThresholdAtSameElementCount(){
-        var systemTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
-        var persistedTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
-        BenchmarkElementMeasurement[] measurements = [
-            new(systemTab.LeftProject,"Where","","",128,"Completed",2_000_000,2_000_000),
-            new(systemTab.RightProject,"Where","","",128,"Completed",900_000,900_000),
-            new(systemTab.LeftProject,"Where","","",256,"Completed",900_000,900_000),
-            new(systemTab.RightProject,"Where","","",256,"Completed",2_000_000,2_000_000),
-            new(persistedTab.LeftProject,"Where","","",128,"Completed",2_000_000,2_000_000),
+    public void 仕様確認37() {
+        var システムタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.System配列);
+        var 永続化タブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.Seamless永続化);
+        ベンチマーク要素測定[] 測定一覧 = [
+            new(システムタブ.左プロジェクト,"Where","","",128,"Completed",2_000_000,2_000_000),
+            new(システムタブ.右プロジェクト,"Where","","",128,"Completed",900_000,900_000),
+            new(システムタブ.左プロジェクト,"Where","","",256,"Completed",900_000,900_000),
+            new(システムタブ.右プロジェクト,"Where","","",256,"Completed",2_000_000,2_000_000),
+            new(永続化タブ.左プロジェクト,"Where","","",128,"Completed",2_000_000,2_000_000),
         ];
 
-        var stoppedAt = BenchmarkSkippedDisplayLogic.FindPairStoppedAt(
-            measurements,
+        var 停止日時 = ベンチマークスキップ表示ロジック.ペア停止要素数を検索(
+            測定一覧,
             "Where",
-            systemTab.LeftProject,
+            システムタブ.左プロジェクト,
             512,
             1_000_000);
-        var oneSided = BenchmarkSkippedDisplayLogic.FindPairStoppedAt(
-            measurements,
+        var 片側 = ベンチマークスキップ表示ロジック.ペア停止要素数を検索(
+            測定一覧,
             "Where",
-            persistedTab.LeftProject,
+            永続化タブ.左プロジェクト,
             512,
             1_000_000);
 
-        Assert.Equal(128,stoppedAt);
-        Assert.Null(oneSided);
+        Assert.Equal(128,停止日時);
+        Assert.Null(片側);
     }
 
     [Fact]
-    public void BenchmarkSkippedDisplayLogic_UsesCellTypesForPairStop(){
-        BenchmarkElementMeasurement[] measurements = [
+    public void 仕様確認38() {
+        ベンチマーク要素測定[] 測定一覧 = [
             new("Left","Any","System.Array.FLinq","",128,"Completed",900_000,900_000),
             new("Right","Any","System.Array.ZLinq","",128,"Completed",2_000_000,2_000_000),
         ];
-        var leftCell = new BenchmarkTabProgressCell("Any","Left","System.Array.FLinq","",true,"row-1");
-        var rightCell = new BenchmarkTabProgressCell("Any","Right","System.Array.ZLinq","",true,"row-1");
+        var 左セル = new ベンチマークタブ進行セル("Any","Left","System.Array.FLinq","",true,"行-1");
+        var 右セル = new ベンチマークタブ進行セル("Any","Right","System.Array.ZLinq","",true,"行-1");
 
-        var stoppedAt = BenchmarkSkippedDisplayLogic.FindPairStoppedAt(
-            measurements,
-            leftCell,
-            rightCell,
+        var 停止日時 = ベンチマークスキップ表示ロジック.ペア停止要素数を検索(
+            測定一覧,
+            左セル,
+            右セル,
             256,
             1_000_000);
-        var completedByRight = BenchmarkPairCompletionLogic.HasSelectedPairThresholdCompletion(
-            measurements,
-            [leftCell,rightCell],
-            leftCell,
+        var 右で完了 = ベンチマークペア完了ロジック.選択ペアが閾値完了済みか(
+            測定一覧,
+            [左セル,右セル],
+            左セル,
             "Left",
             "Right",
             1_000_000);
 
-        Assert.Equal(128,stoppedAt);
-        Assert.True(completedByRight);
+        Assert.Equal(128,停止日時);
+        Assert.True(右で完了);
     }
 
     [Fact]
-    public void BenchmarkSkippedDisplayLogic_FindsLatestCompletedPairBeforeSelectedElementCount(){
-        var systemTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
-        const int selectedAxisCount=RunningAxisCount+1;
-        BenchmarkElementMeasurement[] measurements = [
-            new(systemTab.LeftProject,"AggregateBy_keySelector",PreviousCompletedAxisCount,"Completed",FastLeftMeanNanoseconds),
-            new(systemTab.RightProject,"AggregateBy_keySelector",PreviousCompletedAxisCount,"Completed",SlowRightMeanNanoseconds),
-            new(systemTab.LeftProject,"AggregateBy_keySelector",RunningAxisCount,"Completed",BaselineMeanNanoseconds),
-            new(systemTab.RightProject,"AggregateBy_keySelector",RunningAxisCount,"Running",BaselineMeanNanoseconds),
-            new(systemTab.LeftProject,"AggregateBy_keySelector",FixedBenchmarkAxisCount,"Completed",CurrentLeftMeanNanoseconds),
-            new(systemTab.RightProject,"AggregateBy_keySelector",FixedBenchmarkAxisCount,"Completed",CurrentRightMeanNanoseconds),
+    public void 仕様確認39() {
+        var システムタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.System配列);
+        const int 選択軸数 = 実行中軸数+1;
+        ベンチマーク要素測定[] 測定一覧 = [
+            new(システムタブ.左プロジェクト,"AggregateBy_keySelector",前回完了軸数,"Completed",高速左平均ナノ秒),
+            new(システムタブ.右プロジェクト,"AggregateBy_keySelector",前回完了軸数,"Completed",低速右平均ナノ秒),
+            new(システムタブ.左プロジェクト,"AggregateBy_keySelector",実行中軸数,"Completed",基準平均ナノ秒),
+            new(システムタブ.右プロジェクト,"AggregateBy_keySelector",実行中軸数,"Running",基準平均ナノ秒),
+            new(システムタブ.左プロジェクト,"AggregateBy_keySelector",固定ベンチマーク軸数,"Completed",今回左平均ナノ秒),
+            new(システムタブ.右プロジェクト,"AggregateBy_keySelector",固定ベンチマーク軸数,"Completed",今回右平均ナノ秒),
         ];
 
-        var stoppedAt = BenchmarkSkippedDisplayLogic.FindLatestCompletedPairElementCountBefore(
-            measurements,
+        var 停止日時 = ベンチマークスキップ表示ロジック.直前の完了ペア要素数を検索(
+            測定一覧,
             "AggregateBy_keySelector",
-            systemTab.LeftProject,
-            systemTab.RightProject,
-            selectedAxisCount);
-        var missingPair = BenchmarkSkippedDisplayLogic.FindLatestCompletedPairElementCountBefore(
-            measurements,
+            システムタブ.左プロジェクト,
+            システムタブ.右プロジェクト,
+            選択軸数);
+        var 欠測ペア = ベンチマークスキップ表示ロジック.直前の完了ペア要素数を検索(
+            測定一覧,
             "Aggregate_func",
-            systemTab.LeftProject,
-            systemTab.RightProject,
-            selectedAxisCount);
+            システムタブ.左プロジェクト,
+            システムタブ.右プロジェクト,
+            選択軸数);
 
-        Assert.Equal(PreviousCompletedAxisCount,stoppedAt);
-        Assert.Null(missingPair);
+        Assert.Equal(前回完了軸数,停止日時);
+        Assert.Null(欠測ペア);
     }
 
-    private static BenchmarkCase Case(string project,string method) =>
-        new(project,GetAssemblyName(project),"Type",method);
+    private static ベンチマークケース ケースを作成(string プロジェクト,string メソッド) =>
+        new(プロジェクト,アセンブリ名を取得(プロジェクト),"Type",メソッド);
 
-    private static BenchmarkCase CountCase(string project,string method,int count) {
-        var arguments = new BenchmarkArgument[] {
-            new("Count",count.ToString(global::System.Globalization.CultureInfo.InvariantCulture)),
+    private static ベンチマークケース Countケースを作成(string プロジェクト,string メソッド,int Count) {
+        var 引数一覧 = new ベンチマーク引数[] {
+            new("Count",Count.ToString(global::System.Globalization.CultureInfo.InvariantCulture)),
         };
-        return new BenchmarkCase(
-            project,
-            GetAssemblyName(project),
+        return new ベンチマークケース(
+            プロジェクト,
+            アセンブリ名を取得(プロジェクト),
             "Type",
-            method,
-            BenchmarkArgumentFormatting.CreateKey(arguments),
-            arguments);
+            メソッド,
+            ベンチマーク引数フォーマッター.キーを作成(引数一覧),
+            引数一覧);
     }
 
-    private static string GetAssemblyName(string project) {
-        var sourceTab=BenchmarkSourceTabs.TryGetByProject(project)
-            ??throw new InvalidDataException($"Test SourceTab could not be resolved uniquely. Project={project}");
-        return sourceTab.GetAssemblyName(project);
+    private static string アセンブリ名を取得(string プロジェクト) {
+        var ソースタブ = ベンチマークソースタブ一覧.プロジェクトから取得を試みる(プロジェクト)
+            ??throw new InvalidDataException($"テスト用ソースタブを一意に解決できませんでした。プロジェクト={プロジェクト}");
+        return ソースタブ.アセンブリ名を取得(プロジェクト);
     }
 
-    private static BenchmarkJob CompletedJob(string project,string method,int elementCount) =>
-        new(){
-            JobId=project+"|"+method+"|"+elementCount,
-            Project=project,
-            AssemblyName=GetAssemblyName(project),
-            TypeFullName="Type",
-            MethodName=method,
-            SourceTab=global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray,
-            ElementCount=global::UI.BenchmarkWorkloadAxis.ResolveElementCount(global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray,elementCount),
-            LoopCount=global::UI.BenchmarkWorkloadAxis.ResolveLoopCount(global::UI.BenchmarkSourceTabs.TryGetByProject(project)?.Tab??global::UI.BenchmarkSourceTab.SystemArray,elementCount),
-            Status=JobStatus.Completed,
-            Mean="100 ns",
-            MeanNanoseconds=100,
-            AllocatedBytes=0,
-            ExitCode=0,
-            ArtifactFolder=string.Empty,
-            StartedAt=DateTimeOffset.UtcNow,
-            FinishedAt=DateTimeOffset.UtcNow,
+    private static ベンチマークジョブ 完了ジョブを作成(string プロジェクト,string メソッド,int 要素数) =>
+        new() {
+            ジョブID=プロジェクト+"|"+メソッド+"|"+要素数,
+            プロジェクト=プロジェクト,
+            アセンブリ名=アセンブリ名を取得(プロジェクト),
+            型完全名="Type",
+            メソッド名=メソッド,
+            ソースタブ=global::UI.ベンチマークソースタブ一覧.プロジェクトから取得を試みる(プロジェクト)?.タブ??global::UI.ベンチマークソースタブ.System配列,
+            要素数=global::UI.ベンチマーク作業軸.要素数を解決(global::UI.ベンチマークソースタブ一覧.プロジェクトから取得を試みる(プロジェクト)?.タブ??global::UI.ベンチマークソースタブ.System配列,要素数),
+            ループ回数=global::UI.ベンチマーク作業軸.ループ回数を解決(global::UI.ベンチマークソースタブ一覧.プロジェクトから取得を試みる(プロジェクト)?.タブ??global::UI.ベンチマークソースタブ.System配列,要素数),
+            状態=ジョブ状態.完了,
+            平均="100 ns",
+            平均ナノ秒=100,
+            割り当てバイト数=0,
+            終了コード=0,
+            成果物フォルダー=string.Empty,
+            開始日時=DateTimeOffset.UtcNow,
+            終了日時=DateTimeOffset.UtcNow,
         };
 
-    private static BenchmarkJobRunResult CompletedResult(BenchmarkJob job,double totalNanoseconds = 60_000_000_000) =>
+    private static ベンチマークジョブ実行結果 完了結果を作成(ベンチマークジョブ ジョブ,double 合計ナノ秒 = 60_000_000_000) =>
         new(
-            job.Project,
-            job.MethodName,
-            job.TypeFullName,
-            BenchmarkWorkloadAxis.GetAxisCount(job),
+            ジョブ.プロジェクト,
+            ジョブ.メソッド名,
+            ジョブ.型完全名,
+            ベンチマーク作業軸.軸数を取得(ジョブ),
             "Completed",
-            totalNanoseconds+" ns",
+            合計ナノ秒+" ns",
             string.Empty,
             string.Empty,
-            totalNanoseconds,
+            合計ナノ秒,
             0,
             0,
             0,
             0,
-            job.ArtifactFolder,
+            ジョブ.成果物フォルダー,
             string.Empty);
 
-    private static string CreateTempRoot(){
-        var root = Path.Combine(AppContext.BaseDirectory,"BenchmarkOrchestratorTests",Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(root);
-        return root;
+    private static string 一時ルートを作成() {
+        var ルート = Path.Combine(AppContext.BaseDirectory,"BenchmarkOrchestratorTests",Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(ルート);
+        return ルート;
     }
 
-    private static ProgressState LoadOnlyState(string root){
-        var runRoot = Directory.GetDirectories(root).Single();
-        return new BenchmarkStateManager(root).Load(runRoot)!;
+    private static 進行状態 唯一の状態を読み込む(string ルート) {
+        var 実行ルート = Directory.GetDirectories(ルート).Single();
+        return new ベンチマーク状態マネージャー(ルート).読み込む(実行ルート)!;
     }
 
-    private sealed class FakeRunner(Func<BenchmarkJob,int,BenchmarkJobRunResult> run):IBenchmarkJobRunner{
-        public Task<BenchmarkJobRunResult> RunAsync(
-            BenchmarkJob job,
-            string runRoot,
-            int logicalCpu,
-            TimeSpan timeout,
-            CancellationToken cancellationToken){
-            job.ArtifactFolder=Path.Combine(runRoot,"artifacts",job.JobId);
-            return Task.FromResult(run(job,logicalCpu));
+    private sealed class 偽実行器(Func<ベンチマークジョブ,int,ベンチマークジョブ実行結果> 実行処理):Iベンチマークジョブ実行器 {
+        public Task<ベンチマークジョブ実行結果> 実行Async(
+            ベンチマークジョブ ジョブ,
+            string 実行ルート,
+            int 論理CPU,
+            TimeSpan タイムアウト,
+            CancellationToken キャンセルトークン) {
+            ジョブ.成果物フォルダー=Path.Combine(実行ルート,"artifacts",ジョブ.ジョブID);
+            return Task.FromResult(実行処理(ジョブ,論理CPU));
         }
     }
 
-    private sealed class DelayedFakeRunner(Func<BenchmarkJob,int,Task<BenchmarkJobRunResult>> run):IBenchmarkJobRunner{
-        public async Task<BenchmarkJobRunResult> RunAsync(
-            BenchmarkJob job,
-            string runRoot,
-            int logicalCpu,
-            TimeSpan timeout,
-            CancellationToken cancellationToken){
-            job.ArtifactFolder=Path.Combine(runRoot,"artifacts",job.JobId);
-            return await run(job,logicalCpu);
+    private sealed class 遅延偽実行器(Func<ベンチマークジョブ,int,Task<ベンチマークジョブ実行結果>> 実行処理):Iベンチマークジョブ実行器 {
+        public async Task<ベンチマークジョブ実行結果> 実行Async(
+            ベンチマークジョブ ジョブ,
+            string 実行ルート,
+            int 論理CPU,
+            TimeSpan タイムアウト,
+            CancellationToken キャンセルトークン) {
+            ジョブ.成果物フォルダー=Path.Combine(実行ルート,"artifacts",ジョブ.ジョブID);
+            return await 実行処理(ジョブ,論理CPU);
         }
     }
 
-    private sealed class DynamicFakeRunner(Func<BenchmarkJob,int,Task<BenchmarkJobRunResult>> run):IBenchmarkJobRunner,IBenchmarkDynamicCpuSetRunner{
-        private readonly object gate = new();
+    private sealed class 動的偽実行器(Func<ベンチマークジョブ,int,Task<ベンチマークジョブ実行結果>> 実行処理):Iベンチマークジョブ実行器, Iベンチマーク動的CPUセット実行器 {
+        private readonly object 排他 = new();
 
-        public List<int[]> AppliedCpuSets { get; } = [];
+        public List<int[]> 適用済みCPU集合一覧 { get; } = [];
 
-        public Task ApplyCpuSetAsync(IReadOnlyList<int> logicalCpus){
-            lock(this.gate) {
-                this.AppliedCpuSets.Add(logicalCpus.ToArray());
+        public Task CPUセットを適用Async(IReadOnlyList<int> 論理CPU一覧) {
+            lock(this.排他) {
+                this.適用済みCPU集合一覧.Add(論理CPU一覧.ToArray());
             }
             return Task.CompletedTask;
         }
 
-        public async Task<BenchmarkJobRunResult> RunAsync(
-            BenchmarkJob job,
-            string runRoot,
-            int logicalCpu,
-            TimeSpan timeout,
-            CancellationToken cancellationToken){
-            job.ArtifactFolder=Path.Combine(runRoot,"artifacts",job.JobId);
-            return await run(job,logicalCpu);
+        public async Task<ベンチマークジョブ実行結果> 実行Async(
+            ベンチマークジョブ ジョブ,
+            string 実行ルート,
+            int 論理CPU,
+            TimeSpan タイムアウト,
+            CancellationToken キャンセルトークン) {
+            ジョブ.成果物フォルダー=Path.Combine(実行ルート,"artifacts",ジョブ.ジョブID);
+            return await 実行処理(ジョブ,論理CPU);
         }
     }
 }

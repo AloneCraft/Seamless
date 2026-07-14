@@ -1,7 +1,7 @@
 namespace Test.System.Linq.Intercept.Optimization;
 
-public sealed class JoinHashing:OptimizationTestBase{
-    [Fact,Trait("Category","Unit")]
+public sealed class JoinHashing:OptimizationTestBase {
+    [Fact, Trait("Category","Unit")]
     public static void ComputedOuterKey() {
         AssertSequenceEqual(Outers().Join(Inners(),o => o.Key+GetOffset(),i => i.Key,(o,i) => o.Id+i.Id).ToList(),ComputedOuterKeyOptimized());
         AssertSequenceEqual(Outers().Join(Inners(),o => o.Key+GetOffset(),i => i.Key,(o,i) => o.Id+i.Id).ToList(),ComputedOuterKeyNoOptimized());
@@ -15,7 +15,7 @@ public sealed class JoinHashing:OptimizationTestBase{
     private static List<int> ComputedOuterKeyNoOptimized() =>
         Outers().Join(Inners(),o => o.Key+GetOffset(),i => i.Key,(o,i) => o.Id+i.Id).ToList();
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void DuplicateInnerKeysMultiBucket() {
         AssertSequenceEqual(Outers().Join(Inners(),o => o.Key,i => i.Key,(o,i) => o.Id*100+i.Id).ToList(),DuplicateInnerKeysMultiBucket_MatchOptimized());
         AssertSequenceEqual(Outers().Join(Inners(),o => o.Key,i => i.Key,(o,i) => o.Id*100+i.Id).ToList(),DuplicateInnerKeysMultiBucket_MatchNoOptimized());
@@ -39,9 +39,9 @@ public sealed class JoinHashing:OptimizationTestBase{
     private static List<int> DuplicateInnerKeysMultiBucket_NoMatchNoOptimized() =>
         Outers().Join(Inners(),o => o.Key+1000,i => i.Key,(o,i) => o.Id*100+i.Id).ToList();
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void JoinAnonymousResult() {
-        var expected=Outers().Join(Inners(),o => o.Key,i => i.Key,(o,i) => new{ O=o.Id,I=i.Id })
+        var expected = Outers().Join(Inners(),o => o.Key,i => i.Key,(o,i) => new { O = o.Id,I = i.Id })
             .Select(static item => $"{item.O}:{item.I}")
             .ToList();
         AssertSequenceEqual(expected,JoinAnonymousResultOptimized());
@@ -56,7 +56,7 @@ public sealed class JoinHashing:OptimizationTestBase{
     private static List<string> JoinAnonymousResultNoOptimized() =>
         Outers().Join(Inners(),o => o.Key,i => i.Key,(o,i) => $"{o.Id}:{i.Id}").ToList();
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void GroupJoinWithEmptyGroups() {
         AssertSequenceEqual(Outers().GroupJoin(Inners(),o => o.Key,i => i.Key,(o,g) => o.Id*1000+g.Select(static x => x.Id).Sum()).ToList(),GroupJoinWithEmptyGroupsOptimized());
         AssertSequenceEqual(Outers().GroupJoin(Inners(),o => o.Key,i => i.Key,(o,g) => o.Id*1000+g.Select(static x => x.Id).Sum()).ToList(),GroupJoinWithEmptyGroupsNoOptimized());

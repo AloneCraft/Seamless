@@ -5,11 +5,11 @@ namespace Common;
 #endif
 
 public class PersistedBase:PersistedBase<int> {
-    public PersistedBase(int count = 80_000):base(count) {
+    public PersistedBase(int count = 80_000) : base(count) {
     }
 }
 
-public class PersistedBase<T>(int count = 80_000):Base<T>(NormalizeCount(count)),IDisposable where T:notnull {
+public class PersistedBase<T>(int count = 80_000):Base<T>(NormalizeCount(count)), IDisposable where T : notnull {
     private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcCache = [];
     private readonly Dictionary<SourceCacheKey,SourceHandle<T>> src2Cache = [];
     private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcOneCache = [];
@@ -52,7 +52,7 @@ public class PersistedBase<T>(int count = 80_000):Base<T>(NormalizeCount(count))
         int scale,
         Dictionary<SourceCacheKey,SourceHandle<T>> cache,
         Func<int,T[]> factory) {
-        var length= this.CountForComparison(this.CountForTestTiming(this.count*scale));
+        var length = this.CountForComparison(this.CountForTestTiming(this.count*scale));
         var key = new SourceCacheKey(SourceKind.Src,length,BenchmarkExecutionMode.ReadRandomSourceSeed());
         if(cache.TryGetValue(key,out var handle)) {
             return handle.Set;
@@ -67,7 +67,7 @@ public class PersistedBase<T>(int count = 80_000):Base<T>(NormalizeCount(count))
         int length,
         Dictionary<SourceCacheKey,SourceHandle<T>> cache,
         Func<int,T[]> factory) {
-        var effectiveLength= this.CountForComparison(this.CountForTestTiming(length));
+        var effectiveLength = this.CountForComparison(this.CountForTestTiming(length));
         var key = new SourceCacheKey(SourceKind.SrcCount,effectiveLength,BenchmarkExecutionMode.ReadRandomSourceSeed());
         if(cache.TryGetValue(key,out var handle)) {
             return handle.Set;
@@ -78,18 +78,18 @@ public class PersistedBase<T>(int count = 80_000):Base<T>(NormalizeCount(count))
         return handle.Set;
     }
 
-    private SourceHandle<T> CreateSet<T>(IEnumerable<T> values) {
+    private SourceHandle<TItem> CreateSet<TItem>(IEnumerable<TItem> values) {
         var path = Path.Combine(this.rootPath,Guid.NewGuid().ToString("N"),"items.dat");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var count = values.TryGetNonEnumeratedCount(out var knownCount) ? knownCount : 80_000;
-        var set = Seamless.Persisted.Collections.Store.CreateSet<T>(
+        var set = Seamless.Persisted.Collections.Store.CreateSet<TItem>(
             path,
             InitialCapacity: Math.Max(1,count),
             InitialDataCapacity: Math.Max(4096,count*16));
         foreach(var value in values) {
             set.Add(value);
         }
-        return new SourceHandle<T>(path,set);
+        return new SourceHandle<TItem>(path,set);
     }
 
     private static T[] CreateRange(int start,int length) {
@@ -99,7 +99,7 @@ public class PersistedBase<T>(int count = 80_000):Base<T>(NormalizeCount(count))
         }
         if(BenchmarkExecutionMode.ReadRandomSourceSeed() is { } seed&&result.Length>1) {
             var random = new Random(seed^start^length);
-            for(var index=result.Length-1;index>0;index--) {
+            for(var index = result.Length-1;index>0;index--) {
                 var next = random.Next(index+1);
                 (result[index],result[next])=(result[next],result[index]);
             }
@@ -107,7 +107,7 @@ public class PersistedBase<T>(int count = 80_000):Base<T>(NormalizeCount(count))
         return result;
     }
 
-    private static void DisposeAll<T>(Dictionary<SourceCacheKey,SourceHandle<T>> cache) {
+    private static void DisposeAll<TItem>(Dictionary<SourceCacheKey,SourceHandle<TItem>> cache) {
         foreach(var handle in cache.Values) {
             handle.Dispose();
         }
@@ -119,17 +119,15 @@ public class PersistedBase<T>(int count = 80_000):Base<T>(NormalizeCount(count))
             if(Directory.Exists(path)) {
                 Directory.Delete(path,recursive: true);
             }
-        }
-        catch(IOException) {
-        }
-        catch(UnauthorizedAccessException) {
+        } catch(IOException) {
+        } catch(UnauthorizedAccessException) {
         }
     }
 
-    public sealed class SourceHandle<T>(
+    public sealed class SourceHandle<TItem>(
         string path,
-        Seamless.Persisted.Collections.Set<T> set):IDisposable {
-        public Seamless.Persisted.Collections.Set<T> Set { get; } = set;
+        Seamless.Persisted.Collections.Set<TItem> set):IDisposable {
+        public Seamless.Persisted.Collections.Set<TItem> Set { get; } = set;
 
         public void Dispose() {
             this.Set.Dispose();

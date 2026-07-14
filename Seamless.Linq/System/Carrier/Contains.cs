@@ -55,8 +55,7 @@ namespace Seamless.System.Carrier {
                     }
                     return false;
 #endif
-                }
-                else {
+                } else {
                     while(enumerator.TryGetNext(out var item)) {
                         if(EqualityComparer<TSource>.Default.Equals(item,value)) {
                             return true;
@@ -81,8 +80,7 @@ namespace Seamless.System.Carrier {
                             return true;
                         }
                     }
-                }
-                else {
+                } else {
                     while(enumerator.TryGetNext(out var item)) {
                         if(comparer.Equals(item,value)) {
                             return true;

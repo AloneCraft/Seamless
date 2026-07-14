@@ -24,18 +24,17 @@ public class ParallelRandomStressTests {
         return dir;
     }
     private static void TryCleanup(string dir) {
-        try { if(Directory.Exists(dir)) Directory.Delete(dir,recursive: true); }
-        catch { }
+        try { if(Directory.Exists(dir)) Directory.Delete(dir,recursive: true); } catch { }
     }
 
     /// <summary>キーをスレッド数で mod 分割する。</summary>
     private static int[][] Partition(int[] keys,int threads) {
         var buckets = new List<int>[threads];
-        for(var t = 0; t<threads; t++) buckets[t]=[];
-        for(var i = 0; i<keys.Length; i++)
+        for(var t = 0;t<threads;t++) buckets[t]= [];
+        for(var i = 0;i<keys.Length;i++)
             buckets[((uint)keys[i].GetHashCode())%(uint)threads].Add(keys[i]);
         var result = new int[threads][];
-        for(var t = 0; t<threads; t++) result[t]= [.. buckets[t]];
+        for(var t = 0;t<threads;t++) result[t]= [.. buckets[t]];
         return result;
     }
 
@@ -50,18 +49,18 @@ public class ParallelRandomStressTests {
             var keys = StressScript.SampleKeys(Seed,count*4,count);
             var removeMaskFlat = StressScript.RemoveMask(Seed^0x5a5a,count,RemoveRate);
             var keyToRemove = new Dictionary<int,bool>(count);
-            for(var i = 0; i<keys.Length; i++) keyToRemove[keys[i]]=removeMaskFlat[i];
+            for(var i = 0;i<keys.Length;i++) keyToRemove[keys[i]]=removeMaskFlat[i];
             var partitions = Partition(keys,ThreadCount);
             var expected = keys.ToDictionary(key => key,key => key*2);
             var expectedAfterRemove = new Dictionary<int,int>(expected);
-            for(var i = 0; i<keys.Length; i++) {
+            for(var i = 0;i<keys.Length;i++) {
                 if(removeMaskFlat[i])
                     expectedAfterRemove.Remove(keys[i]);
             }
             using(var logDevice = Devices.CreateLogDevice(logPath))
             using(var objDevice = Devices.CreateLogDevice(objPath))
             using(var store = Store.Create().Create<int,int>(logDevice,objDevice)) {
-                for(var r = 0; r<repeat; r++) {
+                for(var r = 0;r<repeat;r++) {
                     using(var dict = store.Create()) {
                         dict.Clear();
                     }
@@ -92,8 +91,7 @@ public class ParallelRandomStressTests {
                     }
                 }
             }
-        }
-        finally {
+        } finally {
             TryCleanup(temp);
         }
     }
@@ -112,24 +110,24 @@ public class ParallelRandomStressTests {
             var values = rawKeys.Select(k => "v"+k).ToArray();
             var keyToRemove = new Dictionary<string,bool>(count,StringComparer.Ordinal);
             var keyToValue = new Dictionary<string,string>(count,StringComparer.Ordinal);
-            for(var i = 0; i<keys.Length; i++) {
+            for(var i = 0;i<keys.Length;i++) {
                 keyToRemove[keys[i]]=removeMaskFlat[i];
                 keyToValue[keys[i]]=values[i];
             }
             var partitions = Partition([.. Enumerable.Range(0,keys.Length)],ThreadCount)
                 .Select(idxs => idxs.Select(i => keys[i]).ToArray()).ToArray();
             var expected = new Dictionary<string,string>(count,StringComparer.Ordinal);
-            for(var i = 0; i<keys.Length; i++)
+            for(var i = 0;i<keys.Length;i++)
                 expected[keys[i]]=values[i];
             var expectedAfterRemove = new Dictionary<string,string>(expected,StringComparer.Ordinal);
-            for(var i = 0; i<keys.Length; i++) {
+            for(var i = 0;i<keys.Length;i++) {
                 if(removeMaskFlat[i])
                     expectedAfterRemove.Remove(keys[i]);
             }
             using(var logDevice = Devices.CreateLogDevice(logPath))
             using(var objDevice = Devices.CreateLogDevice(objPath))
             using(var store = Store.Create().Create<string,string>(logDevice,objDevice,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy())) {
-                for(var r = 0; r<repeat; r++) {
+                for(var r = 0;r<repeat;r++) {
                     using(var dict = store.Create()) {
                         dict.Clear();
                     }
@@ -158,8 +156,7 @@ public class ParallelRandomStressTests {
                     }
                 }
             }
-        }
-        finally {
+        } finally {
             TryCleanup(temp);
         }
     }
@@ -175,18 +172,18 @@ public class ParallelRandomStressTests {
             var keys = StressScript.SampleKeys(Seed,count*4,count);
             var removeMaskFlat = StressScript.RemoveMask(Seed^0x5a5a,count,RemoveRate);
             var keyToRemove = new Dictionary<int,bool>(count);
-            for(var i = 0; i<keys.Length; i++) keyToRemove[keys[i]]=removeMaskFlat[i];
+            for(var i = 0;i<keys.Length;i++) keyToRemove[keys[i]]=removeMaskFlat[i];
             var partitions = Partition(keys,ThreadCount);
             var expected = new global::System.Collections.Generic.HashSet<int>(keys);
             var expectedAfterRemove = new global::System.Collections.Generic.HashSet<int>(expected);
-            for(var i = 0; i<keys.Length; i++) {
+            for(var i = 0;i<keys.Length;i++) {
                 if(removeMaskFlat[i])
                     expectedAfterRemove.Remove(keys[i]);
             }
             using(var logDevice = Devices.CreateLogDevice(logPath))
             using(var objDevice = Devices.CreateLogDevice(objPath))
             using(var store = Store.Create().Create<int>(logDevice,objDevice)) {
-                for(var r = 0; r<repeat; r++) {
+                for(var r = 0;r<repeat;r++) {
                     using(var set = store.Create()) {
                         set.Clear();
                     }
@@ -203,8 +200,7 @@ public class ParallelRandomStressTests {
                     using(var set = store.Create()) StressReferenceAssert.SetEquals(keys,expectedAfterRemove,key => set.Contains(key));
                 }
             }
-        }
-        finally {
+        } finally {
             TryCleanup(temp);
         }
     }
@@ -221,19 +217,19 @@ public class ParallelRandomStressTests {
             var removeMaskFlat = StressScript.RemoveMask(Seed^0x5a5a,count,RemoveRate);
             var keys = rawKeys.Select(k => "s"+k).ToArray();
             var keyToRemove = new Dictionary<string,bool>(count,StringComparer.Ordinal);
-            for(var i = 0; i<keys.Length; i++) keyToRemove[keys[i]]=removeMaskFlat[i];
+            for(var i = 0;i<keys.Length;i++) keyToRemove[keys[i]]=removeMaskFlat[i];
             var partitions = Partition([.. Enumerable.Range(0,keys.Length)],ThreadCount)
                 .Select(idxs => idxs.Select(i => keys[i]).ToArray()).ToArray();
             var expected = new global::System.Collections.Generic.HashSet<string>(keys,StringComparer.Ordinal);
             var expectedAfterRemove = new global::System.Collections.Generic.HashSet<string>(expected,StringComparer.Ordinal);
-            for(var i = 0; i<keys.Length; i++) {
+            for(var i = 0;i<keys.Length;i++) {
                 if(removeMaskFlat[i])
                     expectedAfterRemove.Remove(keys[i]);
             }
             using(var logDevice = Devices.CreateLogDevice(logPath))
             using(var objDevice = Devices.CreateLogDevice(objPath))
             using(var store = Store.Create().Create<string>(logDevice,objDevice,new MemoryPackSerializerStrategy())) {
-                for(var r = 0; r<repeat; r++) {
+                for(var r = 0;r<repeat;r++) {
                     using(var set = store.Create()) {
                         set.Clear();
                     }
@@ -250,8 +246,7 @@ public class ParallelRandomStressTests {
                     using(var set = store.Create()) StressReferenceAssert.SetEquals(keys,expectedAfterRemove,key => set.Contains(key));
                 }
             }
-        }
-        finally {
+        } finally {
             TryCleanup(temp);
         }
     }

@@ -5,9 +5,9 @@ namespace Test.System.Linq.Intercept.Chain1;
 public sealed class First(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void NoDelegate() {
-        var expected=Source().First();
-        this.AssertOptimized(expected,()=>NoDelegateOptimized(),0,0);
-        this.AssertOptimized(expected,()=>NoDelegateNoOptimized(),0,0);
+        var expected = Source().First();
+        this.AssertOptimized(expected,() => NoDelegateOptimized(),0,0);
+        this.AssertOptimized(expected,() => NoDelegateNoOptimized(),0,0);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
@@ -20,9 +20,9 @@ public sealed class First(ITestOutputHelper output):LinqChain1TestBase(output) {
 
     [Fact, Trait("Category","Unit")]
     public void predicate_Static() {
-        var expected=Source().First(static v => v>2);
-        this.AssertOptimized(expected,()=>predicate_StaticOptimized(),3,0);
-        this.AssertOptimized(expected,()=>predicate_StaticNoOptimized(),3,3);
+        var expected = Source().First(static v => v>2);
+        this.AssertOptimized(expected,() => predicate_StaticOptimized(),3,0);
+        this.AssertOptimized(expected,() => predicate_StaticNoOptimized(),3,3);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
@@ -35,9 +35,9 @@ public sealed class First(ITestOutputHelper output):LinqChain1TestBase(output) {
 
     [Fact, Trait("Category","Unit")]
     public void predicate_Nested() {
-        var expected=Source().First(p => Source().First(q => q==p)==p);
-        this.AssertOptimized(expected,()=>predicate_NestedOptimized(),1,0);
-        this.AssertOptimized(expected,()=>predicate_NestedNoOptimized(),1,1);
+        var expected = Source().First(p => Source().First(q => q==p)==p);
+        this.AssertOptimized(expected,() => predicate_NestedOptimized(),1,0);
+        this.AssertOptimized(expected,() => predicate_NestedNoOptimized(),1,1);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
@@ -50,9 +50,9 @@ public sealed class First(ITestOutputHelper output):LinqChain1TestBase(output) {
 
     [Fact, Trait("Category","Unit")]
     public void predicate_Lambda() {
-        var expected=Source().First(v => v>2);
-        this.AssertOptimized(expected,()=>predicate_LambdaOptimized(),3,0);
-        this.AssertOptimized(expected,()=>predicate_LambdaNoOptimized(),3,3);
+        var expected = Source().First(v => v>2);
+        this.AssertOptimized(expected,() => predicate_LambdaOptimized(),3,0);
+        this.AssertOptimized(expected,() => predicate_LambdaNoOptimized(),3,3);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
@@ -65,10 +65,10 @@ public sealed class First(ITestOutputHelper output):LinqChain1TestBase(output) {
 
     [Fact, Trait("Category","Unit")]
     public void predicate_Captured() {
-        var threshold=2;
-        var expected=Source().First(v => v>threshold);
-        this.AssertOptimized(expected,()=>predicate_CapturedOptimized(threshold),3,0);
-        this.AssertOptimized(expected,()=>predicate_CapturedNoOptimized(threshold),3,3);
+        var threshold = 2;
+        var expected = Source().First(v => v>threshold);
+        this.AssertOptimized(expected,() => predicate_CapturedOptimized(threshold),3,0);
+        this.AssertOptimized(expected,() => predicate_CapturedNoOptimized(threshold),3,3);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
@@ -81,25 +81,25 @@ public sealed class First(ITestOutputHelper output):LinqChain1TestBase(output) {
 
     [Fact, Trait("Category","Unit")]
     public void predicate_DelegateSyntax() {
-        var expected=Source().First(delegate(int v) { return v>2; });
-        this.AssertOptimized(expected,()=>predicate_DelegateSyntaxOptimized(),3,0);
-        this.AssertOptimized(expected,()=>predicate_DelegateSyntaxNoOptimized(),3,3);
+        var expected = Source().First(delegate (int v) { return v>2; });
+        this.AssertOptimized(expected,() => predicate_DelegateSyntaxOptimized(),3,0);
+        this.AssertOptimized(expected,() => predicate_DelegateSyntaxNoOptimized(),3,3);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
     private static int predicate_DelegateSyntaxOptimized() =>
-        Source().First(delegate(int v) { return v>2; });
+        Source().First(delegate (int v) { return v>2; });
 
     [LinqIntercept(false,LinqInstrumentation.Counter)]
     private static int predicate_DelegateSyntaxNoOptimized() =>
-        Source().First(delegate(int v) { return v>2; });
+        Source().First(delegate (int v) { return v>2; });
 
     [Fact, Trait("Category","Unit")]
     public void predicate_Variable() {
-        Func<int,bool> predicate=v => v>2;
-        var expected=Source().First(predicate);
-        this.AssertOptimized(expected,()=>predicate_VariableOptimized(predicate),3,3);
-        this.AssertOptimized(expected,()=>predicate_VariableNoOptimized(predicate),3,3);
+        Func<int,bool> predicate = v => v>2;
+        var expected = Source().First(predicate);
+        this.AssertOptimized(expected,() => predicate_VariableOptimized(predicate),3,3);
+        this.AssertOptimized(expected,() => predicate_VariableNoOptimized(predicate),3,3);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]

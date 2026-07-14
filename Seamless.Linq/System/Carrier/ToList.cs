@@ -20,8 +20,7 @@ namespace Seamless.System.Carrier {
                     }
                 }
                 return list;
-            }
-            else {
+            } else {
                 // list.Add is slow, avoid it.
 #if NETSTANDARD2_0
                 Span<TSource> initialBufferSpan = default;
@@ -79,13 +78,12 @@ namespace Seamless.System.Carrier {
 #endif
                 var span = CollectionsMarshal.AsSpan(list);
 
-                for(int i = 0; (uint)i<(uint)sourceSpan.Length; i++) {
+                for(int i = 0;(uint)i<(uint)sourceSpan.Length;i++) {
                     span[i]=selector(sourceSpan[i]);
                 }
 
                 return list;
-            }
-            else {
+            } else {
 #if NETSTANDARD2_0
                 Span<TResult> initialBufferSpan = default;
 #elif NET8_0_OR_GREATER
@@ -138,7 +136,7 @@ namespace Seamless.System.Carrier {
 #endif
             var span = CollectionsMarshal.AsSpan(list);
 
-            for(int i = 0; (uint)i<(uint)span.Length; i++) {
+            for(int i = 0;(uint)i<(uint)span.Length;i++) {
                 span[i]=selector(value);
                 value++;
             }
@@ -158,7 +156,7 @@ namespace Seamless.System.Carrier {
 #endif
             var span = CollectionsMarshal.AsSpan(list);
 
-            for(int i = 0; (uint)i<(uint)sourceArray.Length; i++) {
+            for(int i = 0;(uint)i<(uint)sourceArray.Length;i++) {
                 span[i]=selector(sourceArray[i]);
             }
 
@@ -177,7 +175,7 @@ namespace Seamless.System.Carrier {
 #endif
             var span = CollectionsMarshal.AsSpan(list);
 
-            for(int i = 0; (uint)i<(uint)sourceArray.Length; i++) {
+            for(int i = 0;(uint)i<(uint)sourceArray.Length;i++) {
                 span[i]=selector(sourceArray[i]);
             }
 

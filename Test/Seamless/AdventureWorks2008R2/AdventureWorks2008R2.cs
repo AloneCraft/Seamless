@@ -11,11 +11,11 @@ namespace Test.Seamless.AdventureWorks2008R2 {
     // View/TableFunction の LINQ 本体は *Query メソッドに置き、ラムダからそれを呼ぶ。
     [global::Seamless.Database.Database("AdventureWorks2008R2")]
     public sealed partial class AdventureWorks:global::Seamless.Database.DatabaseContainer {
-        public AdventureWorks():this(null) {
+        public AdventureWorks() : this(null) {
         }
 
         public AdventureWorks(global::Seamless.Database.DatabaseContainerOptions? options)
-            :base(options??(global::Seamless.Database.DatabaseContainerOptions.InMemory with { IndexSize=1L<<12,MemorySize=1L<<24 })) {
+            : base(options??(global::Seamless.Database.DatabaseContainerOptions.InMemory with { IndexSize=1L<<12,MemorySize=1L<<24 })) {
         }
 
         [global::Seamless.Database.Table("Sales.Customer")]
@@ -38,7 +38,7 @@ namespace Test.Seamless.AdventureWorks2008R2 {
 
         [global::Seamless.Database.View("Sales.vActiveCustomer")]
         public global::Seamless.Database.View<Records.ActiveCustomer> ActiveCustomers() {
-            return this.View(()=>this.ActiveCustomersQuery());
+            return this.View(() => this.ActiveCustomersQuery());
         }
 
         // Person.vStateProvinceCountryRegion 相当: join ビュー。
@@ -49,7 +49,7 @@ namespace Test.Seamless.AdventureWorks2008R2 {
 
         [global::Seamless.Database.View("Person.vStateProvinceCountryRegion")]
         public global::Seamless.Database.View<Records.StateProvinceCountryRegion> StateProvinceCountryRegions() {
-            return this.View(()=>this.StateProvinceCountryRegionsQuery());
+            return this.View(() => this.StateProvinceCountryRegionsQuery());
         }
 
         // dbo.ufnOrdersByCustomer 相当: テーブル関数。
@@ -61,7 +61,7 @@ namespace Test.Seamless.AdventureWorks2008R2 {
 
         [global::Seamless.Database.Function("dbo.ufnOrdersByCustomer")]
         public global::Seamless.Database.TableFunction<Records.SalesOrderSummary> OrdersByCustomer(int customerId) {
-            return this.TableFunction(()=>this.OrdersByCustomerQuery(customerId));
+            return this.TableFunction(() => this.OrdersByCustomerQuery(customerId));
         }
 
         // dbo.ufnCustomerTotalDue 相当: スカラー関数。
@@ -151,7 +151,8 @@ namespace Test.Seamless.AdventureWorks2008R2 {
     public sealed class AdventureWorksTests(AdventureWorksFixture fixture):IClassFixture<AdventureWorksFixture> {
         private AdventureWorks Database => fixture.Database;
 
-        [Fact] public void ActiveCustomers_View_MatchesBaseline() {
+        [Fact]
+        public void ActiveCustomers_View_MatchesBaseline() {
             var expected = Baseline.ActiveCustomers(this.Database);
             var view = this.Database.ActiveCustomers();
             Assert.Equal("ActiveCustomers",view.Name);
@@ -160,14 +161,16 @@ namespace Test.Seamless.AdventureWorks2008R2 {
             Assert.Same(view,this.Database.ActiveCustomers());
         }
 
-        [Fact] public void StateProvinceCountryRegions_View_MatchesBaseline() {
+        [Fact]
+        public void StateProvinceCountryRegions_View_MatchesBaseline() {
             var expected = Baseline.StateProvinceCountryRegions(this.Database);
             var view = this.Database.StateProvinceCountryRegions();
             Assert.Equal("Person.vStateProvinceCountryRegion",view.SqlName);
             Assert.Equal(expected,view.Select(row => (row.StateProvinceId,row.StateProvinceName,row.CountryRegionCode,row.CountryRegionName)).ToArray());
         }
 
-        [Fact] public void OrdersByCustomer_TableFunction_MatchesBaseline() {
+        [Fact]
+        public void OrdersByCustomer_TableFunction_MatchesBaseline() {
             var expected = Baseline.OrdersByCustomer(this.Database,1);
             var function = this.Database.OrdersByCustomer(1);
             Assert.Equal("dbo.ufnOrdersByCustomer",function.SqlName);
@@ -178,22 +181,25 @@ namespace Test.Seamless.AdventureWorks2008R2 {
             }
         }
 
-        [Fact] public void CustomerTotalDue_ScalarFunction_MatchesBaseline() {
+        [Fact]
+        public void CustomerTotalDue_ScalarFunction_MatchesBaseline() {
             Assert.Equal(Baseline.CustomerTotalDue(this.Database,1),this.Database.CustomerTotalDue(1));
             Assert.Equal(0m,this.Database.CustomerTotalDue(999));
         }
 
-        [Fact] public void DatabaseMetadata_FromGenerator() {
+        [Fact]
+        public void DatabaseMetadata_FromGenerator() {
             Assert.Equal("AdventureWorks2008R2",this.Database.DatabaseName);
             var objects = this.Database.DatabaseObjects;
-            Assert.Contains(objects,declaration => declaration is { Kind: global::Seamless.Database.DatabaseObjectKind.Table,MemberName: "Customers",SqlName: "Sales.Customer" });
-            Assert.Contains(objects,declaration => declaration is { Kind: global::Seamless.Database.DatabaseObjectKind.View,MemberName: "ActiveCustomers",SqlName: "Sales.vActiveCustomer" });
-            Assert.Contains(objects,declaration => declaration is { Kind: global::Seamless.Database.DatabaseObjectKind.TableFunction,MemberName: "OrdersByCustomer",SqlName: "dbo.ufnOrdersByCustomer" });
-            Assert.Contains(objects,declaration => declaration is { Kind: global::Seamless.Database.DatabaseObjectKind.ScalarFunction,MemberName: "CustomerTotalDue",SqlName: "dbo.ufnCustomerTotalDue" });
+            Assert.Contains(objects,declaration => declaration is { Kind: global::Seamless.Database.DatabaseObjectKind.Table, MemberName: "Customers", SqlName: "Sales.Customer" });
+            Assert.Contains(objects,declaration => declaration is { Kind: global::Seamless.Database.DatabaseObjectKind.View, MemberName: "ActiveCustomers", SqlName: "Sales.vActiveCustomer" });
+            Assert.Contains(objects,declaration => declaration is { Kind: global::Seamless.Database.DatabaseObjectKind.TableFunction, MemberName: "OrdersByCustomer", SqlName: "dbo.ufnOrdersByCustomer" });
+            Assert.Contains(objects,declaration => declaration is { Kind: global::Seamless.Database.DatabaseObjectKind.ScalarFunction, MemberName: "CustomerTotalDue", SqlName: "dbo.ufnCustomerTotalDue" });
             Assert.Equal(5,objects.Count(declaration => declaration.Kind==global::Seamless.Database.DatabaseObjectKind.Table));
         }
 
-        [Fact] public void StorageMode_PersistsUnderStorageDirectory() {
+        [Fact]
+        public void StorageMode_PersistsUnderStorageDirectory() {
             var directory = global::Seamless.Collections.TestPath.Directory<AdventureWorksTests>("storage");
             using(var database = new AdventureWorks(global::Seamless.Database.DatabaseContainerOptions.OnStorage(directory) with { IndexSize=1L<<12,MemorySize=1L<<24 })) {
                 AdventureWorksFixture.Seed(database);
@@ -203,7 +209,8 @@ namespace Test.Seamless.AdventureWorks2008R2 {
             }
         }
 
-        [Fact] public void ImportTables_FromImportSource() {
+        [Fact]
+        public void ImportTables_FromImportSource() {
             using var database = new AdventureWorks();
             database.EnsureTablesCreated();
             database.ImportTables(new SampleImportSource());
@@ -236,7 +243,7 @@ namespace Test.Seamless.AdventureWorks2008R2 {
                     }
                 }
                 rows.Sort(static (left,right) => left.CustomerId.CompareTo(right.CustomerId));
-                return [..rows];
+                return [.. rows];
             }
             public static (int StateProvinceId,string StateProvinceName,string CountryRegionCode,string CountryRegionName)[] StateProvinceCountryRegions(AdventureWorks database) {
                 var rows = new List<(int,string,string,string)>();
@@ -248,7 +255,7 @@ namespace Test.Seamless.AdventureWorks2008R2 {
                     }
                 }
                 rows.Sort(static (left,right) => left.Item1.CompareTo(right.Item1));
-                return [..rows];
+                return [.. rows];
             }
             public static (int SalesOrderId,decimal TotalDue)[] OrdersByCustomer(AdventureWorks database,int customerId) {
                 var rows = new List<(int SalesOrderId,decimal TotalDue)>();
@@ -258,7 +265,7 @@ namespace Test.Seamless.AdventureWorks2008R2 {
                     }
                 }
                 rows.Sort(static (left,right) => left.SalesOrderId.CompareTo(right.SalesOrderId));
-                return [..rows];
+                return [.. rows];
             }
             public static decimal CustomerTotalDue(AdventureWorks database,int customerId) {
                 var total = 0m;

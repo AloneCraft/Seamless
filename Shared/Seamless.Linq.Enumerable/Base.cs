@@ -1,22 +1,25 @@
 #if TSAVORITE || PERSISTED
-using OrderDependentBenchmark=Seamless.Linq.Shared.UnorderedBenchmarkDisabledAttribute;
+using OrderDependentBenchmark = Seamless.Linq.Shared.UnorderedBenchmarkDisabledAttribute;
 #else
-using OrderDependentBenchmark=BenchmarkDotNet.Attributes.BenchmarkAttribute;
+using OrderDependentBenchmark = BenchmarkDotNet.Attributes.BenchmarkAttribute;
 #endif
+
+// 旧形式の順序なしSet演算自体を比較対象に含めるベンチマークのため、呼び出し警告だけを局所的に抑制する。
+#pragma warning disable CS0618
 
 namespace Seamless.Linq.Shared;
 
 #if TSAVORITE || PERSISTED
-[AttributeUsage(AttributeTargets.Method,AllowMultiple=false)]
+[AttributeUsage(AttributeTargets.Method,AllowMultiple = false)]
 internal sealed class UnorderedBenchmarkDisabledAttribute:Attribute;
 #endif
 
 #if TSAVORITE
-public abstract class Base<T> : global::Common.TsavoriteBase<T> where T:notnull {
+public abstract class Base<T>:global::Common.TsavoriteBase<T> where T : notnull {
 #elif PERSISTED
-public abstract class Base<T> : global::Common.PersistedBase<T> where T:notnull {
+public abstract class Base<T>:global::Common.PersistedBase<T> where T : notnull {
 #else
-public abstract class Base<T>:global::Common.Base<T> where T:notnull {
+public abstract class Base<T>:global::Common.Base<T> where T : notnull {
 #endif
     private static void ExecuteOrderDependent(Action action) {
 #if (TSAVORITE || PERSISTED) && BENCH_AS_TEST
@@ -26,14 +29,14 @@ public abstract class Base<T>:global::Common.Base<T> where T:notnull {
 #endif
     }
 #if BENCH_AS_TEST
-    private const int Any_iterationCount=100;
-    private const int Empty_iterationCount=100;
-    private const int First_iterationCount=100;
-    private const int FirstOrDefault_iterationCount=100;
-    private const int Single_iterationCount=100;
-    private const int SingleOrDefault_iterationCount=100;
-    private const int TryGetNonEnumeratedCount_iterationCount=100;
-    private const int ElementAt_index_iterationCount=1;
+    private const int Any_iterationCount = 100;
+    private const int Empty_iterationCount = 100;
+    private const int First_iterationCount = 100;
+    private const int FirstOrDefault_iterationCount = 100;
+    private const int Single_iterationCount = 100;
+    private const int SingleOrDefault_iterationCount = 100;
+    private const int TryGetNonEnumeratedCount_iterationCount = 100;
+    private const int ElementAt_index_iterationCount = 1;
 #else
     private const int Any_iterationCount = 800_000;
     private const int Empty_iterationCount = 25_000;
@@ -121,7 +124,7 @@ public abstract class Base<T>:global::Common.Base<T> where T:notnull {
     private void Aggregate_func_Impl() {
         var source = this.srcCount(ImmediateFullScanCount).AsX<T>();
         if(typeof(T)==typeof(string)) {
-            var aggregate = source.Aggregate((HasValue:false,Sum:0),(acc,x) => (true,acc.Sum+Number(x)));
+            var aggregate = source.Aggregate((HasValue: false,Sum: 0),(acc,x) => (true,acc.Sum+Number(x)));
             if(!aggregate.HasValue) {
                 throw new InvalidOperationException("Sequence contains no elements.");
             }
@@ -166,7 +169,7 @@ public abstract class Base<T>:global::Common.Base<T> where T:notnull {
 
     [LinqIntercept(true)]
     private void Any_Impl() {
-        for(var a = 0; a<IterationCount(Any_iterationCount); a++)
+        for(var a = 0;a<IterationCount(Any_iterationCount);a++)
             this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<T>().Any());
     }
     // [Any_predicate]
@@ -224,7 +227,7 @@ public abstract class Base<T>:global::Common.Base<T> where T:notnull {
     [LinqIntercept(true)]
     private void Contains_value_Impl() {
         var value = this.MidpointValue(ImmediateShortCircuitCount);
-        for(var i = 0; i<IterationCount(Contains_value_iterationCount); i++) {
+        for(var i = 0;i<IterationCount(Contains_value_iterationCount);i++) {
             this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<T>().Contains(Value(value)));
         }
     }
@@ -274,7 +277,7 @@ public abstract class Base<T>:global::Common.Base<T> where T:notnull {
     [LinqIntercept(true)]
     private void ElementAt_index_Impl() {
         var index = this.MidpointIndex(ImmediateShortCircuitCount);
-        for(var i = 0; i<IterationCount(ElementAt_index_iterationCount); i++) {
+        for(var i = 0;i<IterationCount(ElementAt_index_iterationCount);i++) {
 #if SYSTEM_IENUMERABLE
             this.ElementAt_index_Core(index);
 #else
@@ -302,7 +305,7 @@ public abstract class Base<T>:global::Common.Base<T> where T:notnull {
 
     [LinqIntercept(true)]
     private void Empty_Impl() {
-        for(var i = 0; i<IterationCount(Empty_iterationCount); i++) {
+        for(var i = 0;i<IterationCount(Empty_iterationCount);i++) {
             global::System.Linq.Enumerable.Empty<T>().Consume(this.consumer);
         }
     }
@@ -326,7 +329,7 @@ public abstract class Base<T>:global::Common.Base<T> where T:notnull {
 
     [LinqIntercept(true)]
     private void First_Impl() {
-        for(var i = 0; i<IterationCount(First_iterationCount); i++) {
+        for(var i = 0;i<IterationCount(First_iterationCount);i++) {
             this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<T>().First());
         }
     }
@@ -336,7 +339,7 @@ public abstract class Base<T>:global::Common.Base<T> where T:notnull {
 
     [LinqIntercept(true)]
     private void FirstOrDefault_Impl() {
-        for(var i = 0; i<IterationCount(FirstOrDefault_iterationCount); i++) {
+        for(var i = 0;i<IterationCount(FirstOrDefault_iterationCount);i++) {
             this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<T>().FirstOrDefault());
         }
     }
@@ -609,7 +612,7 @@ public abstract class Base<T>:global::Common.Base<T> where T:notnull {
 
     [LinqIntercept(true)]
     private void Single_Impl() {
-        for(var i = 0; i<IterationCount(Single_iterationCount); i++) {
+        for(var i = 0;i<IterationCount(Single_iterationCount);i++) {
             this.consumer.Consume(this.srcOne(1).Single());
         }
     }
@@ -629,7 +632,7 @@ public abstract class Base<T>:global::Common.Base<T> where T:notnull {
 
     [LinqIntercept(true)]
     private void SingleOrDefault_Impl() {
-        for(var i = 0; i<IterationCount(SingleOrDefault_iterationCount); i++) {
+        for(var i = 0;i<IterationCount(SingleOrDefault_iterationCount);i++) {
             this.consumer.Consume(this.srcOne(1).SingleOrDefault());
         }
     }
@@ -761,8 +764,8 @@ public abstract class Base<T>:global::Common.Base<T> where T:notnull {
 
     [LinqIntercept(true)]
     private void TryGetNonEnumeratedCount_Impl() {
-        for(var i = 0; i<IterationCount(TryGetNonEnumeratedCount_iterationCount); i++) {
-            var result=global::System.Linq.Enumerable.TryGetNonEnumeratedCount(this.srcCount(ImmediateFullScanCount),out var count);
+        for(var i = 0;i<IterationCount(TryGetNonEnumeratedCount_iterationCount);i++) {
+            var result = global::System.Linq.Enumerable.TryGetNonEnumeratedCount(this.srcCount(ImmediateFullScanCount),out var count);
             ConsumeResult(this.consumer,result,count);
         }
     }
@@ -815,11 +818,9 @@ public abstract class Base<T>:global::Common.Base<T> where T:notnull {
     [LinqIntercept(true)]
     private void Zip_tuple_Impl() => this.srcCount(StreamShapeCount).AsX<T>().Zip(this.src2Count(StreamShapeCount).AsX<T>()).Consume(this.consumer);
 
-    internal int[]outer = [];
-    internal int[]inner = [];
-    private const int Threshold = 120;
-
-    internal int sourceCount;
+    internal int[] outer= [];
+    internal int[] inner= [];
+    internal int   sourceCount;
     protected Base(int count) : base(count) {
         this.Initialize();
     }
@@ -837,9 +838,9 @@ public abstract class Base<T>:global::Common.Base<T> where T:notnull {
         this.sourceCount=this.CountForComparison(this.CountForTestTiming(SourceShapeCount));
     }
 
-    private static int[]CreateSequentialArray(int count) {
-        var values=new int[count];
-        for(var index=0;index<count;index++) {
+    private static int[] CreateSequentialArray(int count) {
+        var values = new int[count];
+        for(var index = 0;index<count;index++) {
             values[index]=index;
         }
         return values;
@@ -863,7 +864,7 @@ public abstract class Base<T>:global::Common.Base<T> where T:notnull {
         this.srcCount(SourceShapeCount);
 #else
     [LinqIntercept(false)]
-    internal T[]sourceShape() =>
+    internal T[] sourceShape() =>
         this.srcCount(SourceShapeCount);
 #endif
 
@@ -871,20 +872,22 @@ public abstract class Base<T>:global::Common.Base<T> where T:notnull {
         consumer.Consume(result);
         if(result) {
             consumer.Consume(count);
-        }else{
+        } else {
             consumer.Consume(-1);
         }
     }
 
-    internal global::System.Collections.Generic.IEnumerable<int>YieldRange() {
-        for(var i = 1; i<=this.sourceCount; i++) {
+    internal global::System.Collections.Generic.IEnumerable<int> YieldRange() {
+        for(var i = 1;i<=this.sourceCount;i++) {
             yield return i;
         }
     }
 }
 
-public abstract class Array<T>(int count):Base<T>(count) where T:notnull;
-public abstract class IEnumerable<T>(int count):Base<T>(count) where T:notnull;
-public abstract class List<T>(int count):Base<T>(count) where T:notnull;
-public abstract class Persisted<T>(int count):Base<T>(count) where T:notnull;
-public abstract class Tsavorite<T>(int count):Base<T>(count) where T:notnull;
+public abstract class Array<T>(int count):Base<T>(count) where T : notnull;
+public abstract class IEnumerable<T>(int count):Base<T>(count) where T : notnull;
+public abstract class List<T>(int count):Base<T>(count) where T : notnull;
+public abstract class Persisted<T>(int count):Base<T>(count) where T : notnull;
+public abstract class Tsavorite<T>(int count):Base<T>(count) where T : notnull;
+
+#pragma warning restore CS0618

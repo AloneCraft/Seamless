@@ -1,5 +1,5 @@
 using Scalable.Collections;
-using Seamless.Serialization;
+
 using System.Collections.Concurrent;
 
 #if BENCHMARK_PROJECT
@@ -8,13 +8,13 @@ namespace Benchmark.Scalable.Persisted.Collections;
 namespace Scalable.Persisted.Collections;
 #endif
 
-public abstract class PersistedSetScalable<TProvider,T>
+public abstract class PersistedSetScalable<TProvider, T>
     :ScalableBenchmarkBase
     where TProvider : IHashSetValueProvider<T>
     where T : IEquatable<T> {
     private static readonly ConcurrentDictionary<string,Lazy<global::Seamless.Persisted.Collections.Set<T>>> SharedContainsSets = new(StringComparer.Ordinal);
 
-    [Benchmark,BenchTheory]
+    [Benchmark, BenchTheory]
     [BenchArguments(65536,1,4096)]
     [BenchArguments(131072,1,4096)]
     [BenchArguments(262144,1,4096)]
@@ -39,7 +39,7 @@ public abstract class PersistedSetScalable<TProvider,T>
         }
     }
 
-    [Benchmark,BenchTheory]
+    [Benchmark, BenchTheory]
     [BenchArguments(65536,1,4096)]
     [BenchArguments(131072,1,4096)]
     [BenchArguments(262144,1,4096)]
@@ -85,12 +85,12 @@ public abstract class PersistedSetScalable<TProvider,T>
     }
 }
 
-public abstract class PersistedListScalable<TStrategy,T>
+public abstract class PersistedListScalable<TStrategy, T>
     :ScalableBenchmarkBase
     where TStrategy : IListTestStrategy<T> {
     private static readonly ConcurrentDictionary<string,Lazy<ListHandle<T>>> SharedIndexerLists = new(StringComparer.Ordinal);
 
-    [Benchmark,BenchTheory]
+    [Benchmark, BenchTheory]
     [BenchArguments(65536,1,4096)]
     [BenchArguments(131072,1,4096)]
     [BenchArguments(262144,1,4096)]
@@ -115,7 +115,7 @@ public abstract class PersistedListScalable<TStrategy,T>
         }
     }
 
-    [Benchmark,BenchTheory]
+    [Benchmark, BenchTheory]
     [BenchArguments(65536,1,4096)]
     [BenchArguments(131072,1,4096)]
     [BenchArguments(262144,1,4096)]
@@ -133,7 +133,7 @@ public abstract class PersistedListScalable<TStrategy,T>
             foreach(var value in values) {
                 handle.List.Add(value);
             }
-            for(var i=0;i<count;i++) {
+            for(var i = 0;i<count;i++) {
                 handle.List.Remove();
             }
             Assert.Equal(0,handle.List.GetLongCount());
@@ -143,7 +143,7 @@ public abstract class PersistedListScalable<TStrategy,T>
         }
     }
 
-    [Benchmark,BenchTheory]
+    [Benchmark, BenchTheory]
     [BenchArguments(65536,1,4096)]
     [BenchArguments(131072,1,4096)]
     [BenchArguments(262144,1,4096)]
@@ -184,14 +184,14 @@ public abstract class PersistedListScalable<TStrategy,T>
     }
 }
 
-public abstract class PersistedBlittableDictionaryScalable<TProvider,TKey,TValue>
+public abstract class PersistedBlittableDictionaryScalable<TProvider, TKey, TValue>
     :ScalableBenchmarkBase
     where TProvider : IDictTestStrategy<TKey,TValue>
     where TKey : unmanaged, IEquatable<TKey>
     where TValue : unmanaged, IEquatable<TValue> {
     private static readonly ConcurrentDictionary<string,Lazy<global::Seamless.Persisted.Collections.Dictionary<TKey,TValue>>> SharedTryGetValueDictionaries = new(StringComparer.Ordinal);
 
-    [Benchmark,BenchTheory]
+    [Benchmark, BenchTheory]
     [BenchArguments(65536,1,4096)]
     [BenchArguments(131072,1,4096)]
     [BenchArguments(262144,1,4096)]
@@ -213,7 +213,7 @@ public abstract class PersistedBlittableDictionaryScalable<TProvider,TKey,TValue
         }
     }
 
-    [Benchmark,BenchTheory]
+    [Benchmark, BenchTheory]
     [BenchArguments(65536,1,4096)]
     [BenchArguments(131072,1,4096)]
     [BenchArguments(262144,1,4096)]
@@ -269,14 +269,14 @@ public abstract class PersistedBlittableDictionaryScalable<TProvider,TKey,TValue
     }
 }
 
-public abstract class PersistedSerializedDictionaryScalable<TProvider,TKey,TValue>
+public abstract class PersistedSerializedDictionaryScalable<TProvider, TKey, TValue>
     :ScalableBenchmarkBase
     where TProvider : IDictTestStrategy<TKey,TValue>
     where TKey : notnull, IEquatable<TKey>
     where TValue : IEquatable<TValue> {
     private static readonly ConcurrentDictionary<string,Lazy<global::Seamless.Persisted.Collections.Dictionary<TKey,TValue>>> SharedTryGetValueDictionaries = new(StringComparer.Ordinal);
 
-    [Benchmark,BenchTheory]
+    [Benchmark, BenchTheory]
     [BenchArguments(65536,1,4096)]
     [BenchArguments(131072,1,4096)]
     [BenchArguments(262144,1,4096)]
@@ -298,7 +298,7 @@ public abstract class PersistedSerializedDictionaryScalable<TProvider,TKey,TValu
         }
     }
 
-    [Benchmark,BenchTheory]
+    [Benchmark, BenchTheory]
     [BenchArguments(65536,1,4096)]
     [BenchArguments(131072,1,4096)]
     [BenchArguments(262144,1,4096)]
@@ -355,7 +355,7 @@ public abstract class PersistedSerializedDictionaryScalable<TProvider,TKey,TValu
 }
 
 internal static class ScalablePath {
-    public static string Create<TStrategy,TElement>(string tag) {
+    public static string Create<TStrategy, TElement>(string tag) {
         var directory = Path.Combine(
             Environment.CurrentDirectory,
             "Scalable",
@@ -372,7 +372,7 @@ internal static class ScalablePath {
             return;
         }
         try {
-            Directory.Delete(directory,recursive:true);
+            Directory.Delete(directory,recursive: true);
         } catch(IOException) {
         } catch(UnauthorizedAccessException) {
         }

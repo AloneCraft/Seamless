@@ -28,7 +28,7 @@ DefaultIfEmptyBase は source が空なら defaultValue を1件だけ返す enum
   - defaultValue ありは指定式を渡す。
   - 連続 DefaultIfEmpty は最内の defaultValue だけが意味を持つため RootSource へ畳み込む。
 */
-public abstract class DefaultIfEmptyBase(int 番号, Enumerable source) : Enumerable(番号) {
+public abstract class DefaultIfEmptyBase(int 番号,Enumerable source):Enumerable(番号) {
     private Enumerable Source => source;
     // 自身が表す既定値の式。最内でない場合は EffectiveDefaultValue 経由で無視される。
     protected abstract string OwnDefaultValue { get; }
@@ -113,8 +113,8 @@ public abstract class DefaultIfEmptyBase(int 番号, Enumerable source) : Enumer
         }
         return false;
         """;
-    public override string GetConsumeExecutionStatement(string consumerName){
-        if(this.RootSource is not RangeRoot range){
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        if(this.RootSource is not RangeRoot range) {
             return base.GetConsumeExecutionStatement(consumerName);
         }
         return $$"""
@@ -135,10 +135,10 @@ public abstract class DefaultIfEmptyBase(int 番号, Enumerable source) : Enumer
     public override string ElementType => this.RootSource.ElementType;
 }
 
-public class DefaultIfEmpty(int 番号, Enumerable source) : DefaultIfEmptyBase(番号, source) {
+public class DefaultIfEmpty(int 番号,Enumerable source):DefaultIfEmptyBase(番号,source) {
     protected override string OwnDefaultValue => "default!";
 }
 
-public class DefaultIfEmpty_defaultValue(int 番号, Enumerable source, string defaultValue) : DefaultIfEmptyBase(番号, source) {
+public class DefaultIfEmpty_defaultValue(int 番号,Enumerable source,string defaultValue):DefaultIfEmptyBase(番号,source) {
     protected override string OwnDefaultValue => defaultValue;
 }

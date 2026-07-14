@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis.Text;
 namespace Seamless.FLinq;
 
 [Generator]
-public sealed partial class FLinqIncrementalGenerator : IIncrementalGenerator {
+public sealed partial class FLinqIncrementalGenerator:IIncrementalGenerator {
     private const string InterceptsLocationAttributeSource = """
         #nullable enable
         namespace System.Runtime.CompilerServices {
@@ -57,18 +57,18 @@ public sealed partial class FLinqIncrementalGenerator : IIncrementalGenerator {
     public void Initialize(IncrementalGeneratorInitializationContext context) {
         var interceptTargets = context.SyntaxProvider
             .CreateSyntaxProvider(
-                static (node,_)=>node is InvocationExpressionSyntax,
-                static (syntaxContext,cancellationToken)=>Linq傍受対象生成(syntaxContext,cancellationToken))
-            .Where(static target=>target is not null)
-            .Select(static (target,_)=>target!);
+                static (node,_) => node is InvocationExpressionSyntax,
+                static (syntaxContext,cancellationToken) => Linq傍受対象生成(syntaxContext,cancellationToken))
+            .Where(static target => target is not null)
+            .Select(static (target,_) => target!);
 
-        context.RegisterPostInitializationOutput(static productionContext=>{
+        context.RegisterPostInitializationOutput(static productionContext => {
             productionContext.AddSource("InterceptsLocationAttribute.g.cs",SourceText.From(InterceptsLocationAttributeSource,Encoding.UTF8));
             productionContext.AddSource("LinqRewriteAttributes.g.cs",SourceText.From(LinqRewriteAttributesSource,Encoding.UTF8));
         });
 
         // FLINQ001 警告: グローバルな重複除去が必要なため Collect で一括処理（軽量）
-        context.RegisterSourceOutput(interceptTargets.Collect(),static (productionContext,interceptTargets)=>{
+        context.RegisterSourceOutput(interceptTargets.Collect(),static (productionContext,interceptTargets) => {
             if(interceptTargets.IsDefaultOrEmpty) {
                 return;
             }
@@ -81,7 +81,7 @@ public sealed partial class FLinqIncrementalGenerator : IIncrementalGenerator {
                 if(!reportedMethods.Add(methodKey)) {
                     continue;
                 }
-                var location = target.Method.Locations.FirstOrDefault() ?? target.Invocation.GetLocation();
+                var location = target.Method.Locations.FirstOrDefault()??target.Invocation.GetLocation();
                 productionContext.ReportDiagnostic(Diagnostic.Create(
                     匿名型警告Descriptor,
                     location,
@@ -92,12 +92,12 @@ public sealed partial class FLinqIncrementalGenerator : IIncrementalGenerator {
         // コード生成: ファイル単位で独立してキャッシュされる
         var perFileGroups = interceptTargets
             .Collect()
-            .SelectMany(static (targets,_)=>targets
+            .SelectMany(static (targets,_) => targets
                 .Distinct(LinqInterceptTargetComparer.Instance)
-                .GroupBy(static t=>t.SourcePath,StringComparer.Ordinal)
-                .Select(static g=>new PerFileInterceptGroup(g.Key,[..g])));
+                .GroupBy(static t => t.SourcePath,StringComparer.Ordinal)
+                .Select(static g => new PerFileInterceptGroup(g.Key,[.. g])));
 
-        context.RegisterSourceOutput(perFileGroups,static (productionContext,group)=>{
+        context.RegisterSourceOutput(perFileGroups,static (productionContext,group) => {
             var diagnostics = new List<Diagnostic>();
             var source = インターセプターソース構築(group.Targets,diagnostics);
             if(source.Length>0) {

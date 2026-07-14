@@ -16,8 +16,7 @@ namespace Seamless.System.Carrier {
                     dict.Add(item.Key,item.Value);
                 }
                 return dict;
-            }
-            else {
+            } else {
                 var dict = enumerator.TryGetNonEnumeratedCount(out var count)
                     ? new Dictionary<TKey,TValue>(count,comparer)
                     : new Dictionary<TKey,TValue>(comparer);
@@ -44,8 +43,7 @@ where TEnumerator : struct, IValueEnumerator<(TKey Key,TValue Value)> {
                     dict.Add(item.Key,item.Value);
                 }
                 return dict;
-            }
-            else {
+            } else {
                 var dict = enumerator.TryGetNonEnumeratedCount(out var count)
                     ? new Dictionary<TKey,TValue>(count,comparer)
                     : new Dictionary<TKey,TValue>(comparer);
@@ -74,8 +72,7 @@ where TEnumerator : struct, IValueEnumerator<(TKey Key,TValue Value)> {
                     dict.Add(keySelector(item),item);
                 }
                 return dict;
-            }
-            else {
+            } else {
                 var dict = enumerator.TryGetNonEnumeratedCount(out var count)
                     ? new Dictionary<TKey,TSource>(count,comparer)
                     : new Dictionary<TKey,TSource>(comparer);
@@ -105,8 +102,7 @@ where TEnumerator : struct, IValueEnumerator<(TKey Key,TValue Value)> {
                     dict.Add(keySelector(item),elementSelector(item));
                 }
                 return dict;
-            }
-            else {
+            } else {
                 var dict = enumerator.TryGetNonEnumeratedCount(out var count)
                     ? new Dictionary<TKey,TElement>(count,comparer)
                     : new Dictionary<TKey,TElement>(comparer);

@@ -107,8 +107,7 @@ namespace Seamless.System.Carrier {
                 if(resultCount==0) {
                     ArrayPool<TSource>.Shared.Return(array,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<TSource>());
                     this.buffer=RentedArrayBox<TSource>.Empty;
-                }
-                else {
+                } else {
                     RandomShared.PartialShuffle(array.AsSpan(0,count),resultCount);
                     this.buffer=new RentedArrayBox<TSource>(array,resultCount);
                 }

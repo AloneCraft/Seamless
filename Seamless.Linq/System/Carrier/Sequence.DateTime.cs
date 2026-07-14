@@ -9,17 +9,15 @@ namespace Seamless.System.Carrier {
 
                 // repeat one
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else if(step>=TimeSpan.Zero) // (T.IsPositive(step))
-            {
+            } else if(step>=TimeSpan.Zero) // (T.IsPositive(step))
+              {
                 if(endInclusive<start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
 
                 // increment pattern
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else {
+            } else {
                 if(endInclusive>start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
@@ -59,8 +57,7 @@ namespace Seamless.System.Carrier {
 
                 current=currentValue=next;
                 return true;
-            }
-            else {
+            } else {
                 var next = unchecked((DateTime)(currentValue+step));
 
                 if(next<=endInclusive||next>=currentValue) {
@@ -107,17 +104,15 @@ namespace Seamless.System.Carrier {
 
                 // repeat one
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else if(step>=TimeSpan.Zero) // (T.IsPositive(step))
-            {
+            } else if(step>=TimeSpan.Zero) // (T.IsPositive(step))
+              {
                 if(endInclusive<start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
 
                 // increment pattern
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else {
+            } else {
                 if(endInclusive>start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
@@ -161,8 +156,7 @@ namespace Seamless.System.Carrier {
 
                 current=currentValue=next;
                 return true;
-            }
-            else {
+            } else {
                 var next = unchecked((DateTimeOffset)(currentValue+step));
 
                 if(next<=endInclusive||next>=currentValue) {

@@ -1,11 +1,11 @@
 namespace UI;
 
-internal static class BenchmarkAppProfile {
+internal static class ベンチマークアプリプロファイル {
 #if SCALABLE_BENCHMARK
-    public const string Title = "Seamless Scalable Benchmark";
-    public const string WorkRootName = "Scalable";
+    public const string タイトル = "Seamless Scalable Benchmark";
+    public const string 作業ルート名 = "Scalable";
 #else
-    public const string Title = "Seamless Benchmark";
-    public const string WorkRootName = "Benchmark";
+    public const string タイトル = "Seamless Benchmark";
+    public const string 作業ルート名 = "Benchmark";
 #endif
 }

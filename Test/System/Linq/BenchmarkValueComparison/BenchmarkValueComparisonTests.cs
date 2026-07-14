@@ -20,23 +20,23 @@ public sealed class BenchmarkValueComparisonTests {
 
     [Fact]
     [global::Seamless.FLinq.LinqIntercept(false)]
-    public void Range_start_count_results_match(){
-        var flinq=BenchmarkTarget.Load("Benchmark.System.Linq.Enumerable.Range.FLinq","Benchmark.System.Linq.Enumerable.Range.FLinqInt32");
-        var zlinq=BenchmarkTarget.Load("Benchmark.System.Linq.Enumerable.Range.ZLinq","Benchmark.System.Linq.Enumerable.Range.ZLinqInt32");
-        var methodNames=DiscoverMethodNames(zlinq.Type,RangeTypeNamePrefix);
+    public void Range_start_count_results_match() {
+        var flinq = BenchmarkTarget.Load("Benchmark.System.Linq.Enumerable.Range.FLinq","Benchmark.System.Linq.Enumerable.Range.FLinqInt32");
+        var zlinq = BenchmarkTarget.Load("Benchmark.System.Linq.Enumerable.Range.ZLinq","Benchmark.System.Linq.Enumerable.Range.ZLinqInt32");
+        var methodNames = DiscoverMethodNames(zlinq.Type,RangeTypeNamePrefix);
         Assert.NotEmpty(methodNames);
-        var failures=new List<string>();
-        foreach(var elementCount in new[] { 1,17,257 }){
+        var failures = new List<string>();
+        foreach(var elementCount in new[] { 1,17,257 }) {
             flinq.EnableComparisonMode(elementCount);
             zlinq.EnableComparisonMode(elementCount);
-            var flinqInstance=flinq.CreateInstance();
-            var zlinqInstance=zlinq.CreateInstance();
-            foreach(var methodName in methodNames){
-                try{
-                    var expected=zlinq.Capture(zlinqInstance,methodName,invokeImpl:false);
-                    AddFailureIfDifferent(failures,methodName,"Range FLinq",0,elementCount,expected,flinq.Capture(flinqInstance,methodName,invokeImpl:false));
-                    AddFailureIfDifferent(failures,methodName,"Range FLinq private Impl",0,elementCount,expected,flinq.Capture(flinqInstance,methodName,invokeImpl:true));
-                }catch(Exception ex){
+            var flinqInstance = flinq.CreateInstance();
+            var zlinqInstance = zlinq.CreateInstance();
+            foreach(var methodName in methodNames) {
+                try {
+                    var expected = zlinq.Capture(zlinqInstance,methodName,invokeImpl: false);
+                    AddFailureIfDifferent(failures,methodName,"Range FLinq",0,elementCount,expected,flinq.Capture(flinqInstance,methodName,invokeImpl: false));
+                    AddFailureIfDifferent(failures,methodName,"Range FLinq private Impl",0,elementCount,expected,flinq.Capture(flinqInstance,methodName,invokeImpl: true));
+                } catch(Exception ex) {
                     failures.Add(methodName+" / ElementCount="+elementCount+": "+ex.GetType().FullName+": "+ex.Message);
                 }
             }
@@ -47,42 +47,42 @@ public sealed class BenchmarkValueComparisonTests {
     }
 
     [Fact]
-    public void List_zlinq_route_uses_from_list(){
-        var assembly=BenchmarkTarget.LoadAssemblyForTest("Benchmark.System.Linq.Enumerable.List.ZLinq");
-        var route=assembly.GetType("Seamless.Linq.Shared.Route",throwOnError:true)!;
-        var method=route.GetMethods(BindingFlags.Static|BindingFlags.Public|BindingFlags.NonPublic)
-            .Single(candidate=>candidate.Name=="AsX"&&candidate.GetParameters()[0].ParameterType.IsGenericType&&candidate.GetParameters()[0].ParameterType.GetGenericTypeDefinition()==typeof(List<>));
-        var enumeratorType=method.ReturnType.GetGenericArguments()[0];
+    public void List_zlinq_route_uses_from_list() {
+        var assembly = BenchmarkTarget.LoadAssemblyForTest("Benchmark.System.Linq.Enumerable.List.ZLinq");
+        var route = assembly.GetType("Seamless.Linq.Shared.Route",throwOnError: true)!;
+        var method = route.GetMethods(BindingFlags.Static|BindingFlags.Public|BindingFlags.NonPublic)
+            .Single(candidate => candidate.Name=="AsX"&&candidate.GetParameters()[0].ParameterType.IsGenericType&&candidate.GetParameters()[0].ParameterType.GetGenericTypeDefinition()==typeof(List<>));
+        var enumeratorType = method.ReturnType.GetGenericArguments()[0];
         Assert.Equal("ZLinq.Linq.FromList`1",enumeratorType.GetGenericTypeDefinition().FullName);
     }
 
     [global::Seamless.FLinq.LinqIntercept(false)]
     private void AssertBaseResultsMatch(string typeSuffix) {
-        var flinq=BenchmarkTarget.Load("Benchmark.System.Linq.Enumerable.FLinq","Benchmark.System.Linq.Enumerable.FLinq"+typeSuffix);
-        var zlinq=BenchmarkTarget.Load("Benchmark.System.Linq.Enumerable.ZLinq","Benchmark.System.Linq.Enumerable.ZLinq"+typeSuffix);
-        var targets=new[] { flinq,zlinq };
-        var seedBase=Random.Shared.Next();
-        var elementCountBase=Random.Shared.Next(384,2049);
+        var flinq = BenchmarkTarget.Load("Benchmark.System.Linq.Enumerable.FLinq","Benchmark.System.Linq.Enumerable.FLinq"+typeSuffix);
+        var zlinq = BenchmarkTarget.Load("Benchmark.System.Linq.Enumerable.ZLinq","Benchmark.System.Linq.Enumerable.ZLinq"+typeSuffix);
+        var targets = new[] { flinq,zlinq };
+        var seedBase = Random.Shared.Next();
+        var elementCountBase = Random.Shared.Next(384,2049);
 
         try {
-            var methodNames=DiscoverMethodNames(zlinq.Type);
-            var failures=new List<string>();
-            for(var iteration=0;iteration<ComparisonIterationCount;iteration++) {
-                var seed=unchecked(seedBase+iteration*1_000_003);
-                var elementCount=elementCountBase+iteration*97;
+            var methodNames = DiscoverMethodNames(zlinq.Type);
+            var failures = new List<string>();
+            for(var iteration = 0;iteration<ComparisonIterationCount;iteration++) {
+                var seed = unchecked(seedBase+iteration*1_000_003);
+                var elementCount = elementCountBase+iteration*97;
                 foreach(var target in targets) {
                     target.EnableComparisonMode(elementCount);
                 }
-                using var flinqSeed=flinq.UseRandomSourceSeed(seed);
-                using var zlinqSeed=zlinq.UseRandomSourceSeed(seed);
-                var flinqInstance=flinq.CreateInstance();
-                var zlinqInstance=zlinq.CreateInstance();
+                using var flinqSeed = flinq.UseRandomSourceSeed(seed);
+                using var zlinqSeed = zlinq.UseRandomSourceSeed(seed);
+                var flinqInstance = flinq.CreateInstance();
+                var zlinqInstance = zlinq.CreateInstance();
 
                 foreach(var methodName in methodNames) {
                     try {
-                        var expected=zlinq.Capture(zlinqInstance,methodName,invokeImpl:false);
-                        AddFailureIfDifferent(failures,methodName,"FLinq public",seed,elementCount,expected,flinq.Capture(flinqInstance,methodName,invokeImpl:false));
-                        AddFailureIfDifferent(failures,methodName,"FLinq private Impl",seed,elementCount,expected,flinq.Capture(flinqInstance,methodName,invokeImpl:true));
+                        var expected = zlinq.Capture(zlinqInstance,methodName,invokeImpl: false);
+                        AddFailureIfDifferent(failures,methodName,"FLinq public",seed,elementCount,expected,flinq.Capture(flinqInstance,methodName,invokeImpl: false));
+                        AddFailureIfDifferent(failures,methodName,"FLinq private Impl",seed,elementCount,expected,flinq.Capture(flinqInstance,methodName,invokeImpl: true));
                     } catch(Exception ex) {
                         failures.Add(methodName
                             +" / Seed="+seed
@@ -93,7 +93,7 @@ public sealed class BenchmarkValueComparisonTests {
             }
 
             if(failures.Count!=0) {
-                var message=new StringBuilder();
+                var message = new StringBuilder();
                 message.AppendLine("Benchmark value comparison failed.");
                 message.AppendLine("Failure count: "+failures.Count);
                 foreach(var failure in failures.Take(20)) {
@@ -115,10 +115,10 @@ public sealed class BenchmarkValueComparisonTests {
 
     [Fact]
     public void BenchmarkExecutionMode_UseElementCount_IsScoped() {
-        var target=BenchmarkTarget.Load("Benchmark.System.Linq.Enumerable.ZLinq","Benchmark.System.Linq.Enumerable.ZLinqInt32");
+        var target = BenchmarkTarget.Load("Benchmark.System.Linq.Enumerable.ZLinq","Benchmark.System.Linq.Enumerable.ZLinqInt32");
 
         Assert.Equal(128,target.ScaleElementCount(128));
-        using(var scope=target.UseElementCount(7,"1")) {
+        using(var scope = target.UseElementCount(7,"1")) {
             Assert.Equal(7,target.ScaleElementCount(128));
         }
         Assert.Equal(128,target.ScaleElementCount(128));
@@ -126,8 +126,8 @@ public sealed class BenchmarkValueComparisonTests {
 
     [Fact]
     public void BenchmarkExecutionMode_ElementCountEnvironment_IsReadPerCall() {
-        var target=BenchmarkTarget.Load("Benchmark.System.Linq.Enumerable.ZLinq","Benchmark.System.Linq.Enumerable.ZLinqInt32");
-        var previous=Environment.GetEnvironmentVariable(ElementCountEnvironmentVariable);
+        var target = BenchmarkTarget.Load("Benchmark.System.Linq.Enumerable.ZLinq","Benchmark.System.Linq.Enumerable.ZLinqInt32");
+        var previous = Environment.GetEnvironmentVariable(ElementCountEnvironmentVariable);
         try {
             Environment.SetEnvironmentVariable(ElementCountEnvironmentVariable,"3");
             Assert.Equal(3,target.ScaleElementCount(128));
@@ -138,10 +138,10 @@ public sealed class BenchmarkValueComparisonTests {
         }
     }
 
-    private static List<string> DiscoverMethodNames(Type type)=>DiscoverMethodNames(type,BaseTypeNamePrefix);
+    private static List<string> DiscoverMethodNames(Type type) => DiscoverMethodNames(type,BaseTypeNamePrefix);
 
     private static List<string> DiscoverMethodNames(Type type,string declaringTypePrefix) {
-        var names=new List<string>();
+        var names = new List<string>();
         foreach(var method in type.GetMethods(BindingFlags.Instance|BindingFlags.Public)) {
             if(method.DeclaringType?.FullName?.StartsWith(declaringTypePrefix,StringComparison.Ordinal)!=true) {
                 continue;
@@ -209,43 +209,43 @@ public sealed class BenchmarkValueComparisonTests {
         private BenchmarkTarget(Assembly assembly,Type type) {
             this.Assembly=assembly;
             this.Type=type;
-            this.benchmarkExecutionModeType=assembly.GetType(BenchmarkExecutionModeTypeName,throwOnError:true)!;
+            this.benchmarkExecutionModeType=assembly.GetType(BenchmarkExecutionModeTypeName,throwOnError: true)!;
             this.enableComparisonMode=this.benchmarkExecutionModeType.GetMethod(
                 "EnableComparisonMode",
                 BindingFlags.Static|BindingFlags.Public,
-                binder:null,
-                types:[typeof(int)],
-                modifiers:null)!;
+                binder: null,
+                types: [typeof(int)],
+                modifiers: null)!;
             this.disableComparisonMode=this.benchmarkExecutionModeType.GetMethod(
                 "DisableComparisonMode",
                 BindingFlags.Static|BindingFlags.Public,
-                binder:null,
-                types:Type.EmptyTypes,
-                modifiers:null)!;
+                binder: null,
+                types: Type.EmptyTypes,
+                modifiers: null)!;
             this.useElementCount=this.benchmarkExecutionModeType.GetMethod(
                 "UseElementCount",
                 BindingFlags.Static|BindingFlags.Public,
-                binder:null,
-                types:[typeof(int),typeof(string)],
-                modifiers:null)!;
+                binder: null,
+                types: [typeof(int),typeof(string)],
+                modifiers: null)!;
             this.useRandomSourceSeed=this.benchmarkExecutionModeType.GetMethod(
                 "UseRandomSourceSeed",
                 BindingFlags.Static|BindingFlags.Public,
-                binder:null,
-                types:[typeof(int)],
-                modifiers:null)!;
+                binder: null,
+                types: [typeof(int)],
+                modifiers: null)!;
             this.scaleElementCount=this.benchmarkExecutionModeType.GetMethod(
                 "ScaleElementCount",
                 BindingFlags.Static|BindingFlags.NonPublic,
-                binder:null,
-                types:[typeof(int)],
-                modifiers:null)!;
+                binder: null,
+                types: [typeof(int)],
+                modifiers: null)!;
             this.captureResult=type.GetMethod(
                 "CaptureBenchmarkMethodResult",
                 BindingFlags.Instance|BindingFlags.Public,
-                binder:null,
-                types:[typeof(string),typeof(bool)],
-                modifiers:null)!;
+                binder: null,
+                types: [typeof(string),typeof(bool)],
+                modifiers: null)!;
         }
 
         public Assembly Assembly { get; }
@@ -253,8 +253,8 @@ public sealed class BenchmarkValueComparisonTests {
         public Type Type { get; }
 
         public static BenchmarkTarget Load(string assemblyName,string typeName) {
-            var assembly=LoadAssembly(assemblyName);
-            var type=assembly.GetType(typeName,throwOnError:true)!;
+            var assembly = LoadAssembly(assemblyName);
+            var type = assembly.GetType(typeName,throwOnError: true)!;
             return new BenchmarkTarget(assembly,type);
         }
 
@@ -291,16 +291,16 @@ public sealed class BenchmarkValueComparisonTests {
                 }
             }
 
-            var assemblyPath=Path.Combine(AppContext.BaseDirectory,assemblyName+".dll");
+            var assemblyPath = Path.Combine(AppContext.BaseDirectory,assemblyName+".dll");
             if(File.Exists(assemblyPath)) {
                 return AssemblyLoadContext.Default.LoadFromAssemblyPath(assemblyPath);
             }
 
-            var workspace=FindWorkspaceRoot();
-            var configuration=AppContext.BaseDirectory.Contains(Path.DirectorySeparatorChar+"Debug"+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)
-                ?"Debug"
-                :"Release";
-            foreach(var projectRoot in new[]{Path.Combine(workspace,"Benchmark",assemblyName),Path.Combine(workspace,assemblyName)}) {
+            var workspace = FindWorkspaceRoot();
+            var configuration = AppContext.BaseDirectory.Contains(Path.DirectorySeparatorChar+"Debug"+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)
+                ? "Debug"
+                : "Release";
+            foreach(var projectRoot in new[] { Path.Combine(workspace,"Benchmark",assemblyName),Path.Combine(workspace,assemblyName) }) {
                 assemblyPath=Path.Combine(projectRoot,"bin",configuration,"net10.0",assemblyName+".dll");
                 if(File.Exists(assemblyPath)) {
                     return AssemblyLoadContext.Default.LoadFromAssemblyPath(assemblyPath);
@@ -310,13 +310,13 @@ public sealed class BenchmarkValueComparisonTests {
         }
 
         private static string FindWorkspaceRoot() {
-            var directory=new DirectoryInfo(AppContext.BaseDirectory);
+            var directory = new DirectoryInfo(AppContext.BaseDirectory);
             while(directory is not null&&!File.Exists(Path.Combine(directory.FullName,"Seamless.slnx"))) {
                 directory=directory.Parent;
             }
             return directory?.FullName??throw new DirectoryNotFoundException("Seamless.slnx was not found above "+AppContext.BaseDirectory+".");
         }
 
-        public static Assembly LoadAssemblyForTest(string assemblyName)=>LoadAssembly(assemblyName);
+        public static Assembly LoadAssemblyForTest(string assemblyName) => LoadAssembly(assemblyName);
     }
 }

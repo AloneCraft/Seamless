@@ -44,8 +44,7 @@ partial class ValueEnumerableExtensions {
                     }
                 }
                 return value;
-            }
-            else {
+            } else {
                 // value type
                 if(!enumerator.TryGetNext(out value)) {
                     Throws.NoElements();
@@ -60,8 +59,7 @@ partial class ValueEnumerableExtensions {
                     }
 
                     return value;
-                }
-                else {
+                } else {
                     while(enumerator.TryGetNext(out var current)) {
                         if(comparer.Compare(current,value)<0) {
                             value=current;
@@ -83,75 +81,62 @@ partial class ValueEnumerableExtensions {
             if(comparer!=Comparer<TSource>.Default) return MinSpanComparer(span,comparer);
             var result = SimdMinBinaryInteger(UnsafeSpanBitCast<TSource,byte>(span));
             return Unsafe.As<byte,TSource>(ref result);
-        }
-        else if(typeof(TSource)==typeof(sbyte)) {
+        } else if(typeof(TSource)==typeof(sbyte)) {
             if(comparer!=Comparer<TSource>.Default) return MinSpanComparer(span,comparer);
             var result = SimdMinBinaryInteger(UnsafeSpanBitCast<TSource,sbyte>(span));
             return Unsafe.As<sbyte,TSource>(ref result);
-        }
-        else if(typeof(TSource)==typeof(short)) {
+        } else if(typeof(TSource)==typeof(short)) {
             if(comparer!=Comparer<TSource>.Default) return MinSpanComparer(span,comparer);
             var result = SimdMinBinaryInteger(UnsafeSpanBitCast<TSource,short>(span));
             return Unsafe.As<short,TSource>(ref result);
-        }
-        else if(typeof(TSource)==typeof(ushort)) {
+        } else if(typeof(TSource)==typeof(ushort)) {
             if(comparer!=Comparer<TSource>.Default) return MinSpanComparer(span,comparer);
             var result = SimdMinBinaryInteger(UnsafeSpanBitCast<TSource,ushort>(span));
             return Unsafe.As<ushort,TSource>(ref result);
-        }
-        else if(typeof(TSource)==typeof(int)) {
+        } else if(typeof(TSource)==typeof(int)) {
             if(comparer!=Comparer<TSource>.Default) return MinSpanComparer(span,comparer);
             var result = SimdMinBinaryInteger(UnsafeSpanBitCast<TSource,int>(span));
             return Unsafe.As<int,TSource>(ref result);
-        }
-        else if(typeof(TSource)==typeof(uint)) {
+        } else if(typeof(TSource)==typeof(uint)) {
             if(comparer!=Comparer<TSource>.Default) return MinSpanComparer(span,comparer);
             var result = SimdMinBinaryInteger(UnsafeSpanBitCast<TSource,uint>(span));
             return Unsafe.As<uint,TSource>(ref result);
-        }
-        else if(typeof(TSource)==typeof(long)) {
+        } else if(typeof(TSource)==typeof(long)) {
             if(comparer!=Comparer<TSource>.Default) return MinSpanComparer(span,comparer);
             var result = SimdMinBinaryInteger(UnsafeSpanBitCast<TSource,long>(span));
             return Unsafe.As<long,TSource>(ref result);
-        }
-        else if(typeof(TSource)==typeof(ulong)) {
+        } else if(typeof(TSource)==typeof(ulong)) {
             if(comparer!=Comparer<TSource>.Default) return MinSpanComparer(span,comparer);
             var result = SimdMinBinaryInteger(UnsafeSpanBitCast<TSource,ulong>(span));
             return Unsafe.As<ulong,TSource>(ref result);
-        }
-        else if(typeof(TSource)==typeof(nint)) {
+        } else if(typeof(TSource)==typeof(nint)) {
             if(comparer!=Comparer<TSource>.Default) return MinSpanComparer(span,comparer);
             var result = SimdMinBinaryInteger(UnsafeSpanBitCast<TSource,nint>(span));
             return Unsafe.As<nint,TSource>(ref result);
-        }
-        else if(typeof(TSource)==typeof(nuint)) {
+        } else if(typeof(TSource)==typeof(nuint)) {
             if(comparer!=Comparer<TSource>.Default) return MinSpanComparer(span,comparer);
             var result = SimdMinBinaryInteger(UnsafeSpanBitCast<TSource,nuint>(span));
             return Unsafe.As<nuint,TSource>(ref result);
-        }
-        else if(typeof(TSource)==typeof(Int128)) {
+        } else if(typeof(TSource)==typeof(Int128)) {
             if(comparer!=Comparer<TSource>.Default) return MinSpanComparer(span,comparer);
             var result = SimdMinBinaryInteger(UnsafeSpanBitCast<TSource,Int128>(span));
             return Unsafe.As<Int128,TSource>(ref result);
-        }
-        else if(typeof(TSource)==typeof(UInt128)) {
+        } else if(typeof(TSource)==typeof(UInt128)) {
             if(comparer!=Comparer<TSource>.Default) return MinSpanComparer(span,comparer);
             var result = SimdMinBinaryInteger(UnsafeSpanBitCast<TSource,UInt128>(span));
             return Unsafe.As<UInt128,TSource>(ref result);
         }
         #endregion
-        // float/double: NaN を伝播させつつ SIMD 化する（NaN が 1 つでもあれば Min は NaN）。
-        else if(typeof(TSource)==typeof(double)) {
+          // float/double: NaN を伝播させつつ SIMD 化する（NaN が 1 つでもあれば Min は NaN）。
+          else if(typeof(TSource)==typeof(double)) {
             if(comparer!=Comparer<TSource>.Default) return MinSpanComparer(span,comparer);
             var result = SimdMinFloat(UnsafeSpanBitCast<TSource,double>(span));
             return Unsafe.As<double,TSource>(ref result);
-        }
-        else if(typeof(TSource)==typeof(float)) {
+        } else if(typeof(TSource)==typeof(float)) {
             if(comparer!=Comparer<TSource>.Default) return MinSpanComparer(span,comparer);
             var result = SimdMinFloat(UnsafeSpanBitCast<TSource,float>(span));
             return Unsafe.As<float,TSource>(ref result);
-        }
-        else {
+        } else {
             return MinSpanComparer(span,comparer);
         }
     }
@@ -176,8 +161,7 @@ partial class ValueEnumerableExtensions {
                 index++;
             }
             return value;
-        }
-        else {
+        } else {
             // value type
             if(span.Length==0) {
                 Throws.NoElements();
@@ -196,8 +180,7 @@ partial class ValueEnumerableExtensions {
                 }
 
                 return value;
-            }
-            else {
+            } else {
                 while((uint)index<(uint)span.Length) {
                     if(comparer.Compare(span[index],value)<0) {
                         value=span[index];
@@ -235,16 +218,15 @@ partial class ValueEnumerableExtensions {
             vectorResult=Vector.Min(lastOverlap,vectorResult);
 
             var result = vectorResult[0];
-            for(int i = 1; i<Vector<T>.Count; i++) {
+            for(int i = 1;i<Vector<T>.Count;i++) {
                 if(vectorResult[i]<result) {
                     result=vectorResult[i];
                 }
             }
             return result;
-        }
-        else {
+        } else {
             var result = span[0];
-            for(int i = 1; (uint)i<(uint)span.Length; i++) {
+            for(int i = 1;(uint)i<(uint)span.Length;i++) {
                 if(span[i]<result) {
                     result=span[i];
                 }
@@ -291,17 +273,16 @@ partial class ValueEnumerableExtensions {
             if(hasNaN) return T.NaN;
 
             var result = vectorResult[0];
-            for(int i = 1; i<Vector<T>.Count; i++) {
+            for(int i = 1;i<Vector<T>.Count;i++) {
                 if(vectorResult[i]<result) {
                     result=vectorResult[i];
                 }
             }
             return result;
-        }
-        else {
+        } else {
             var result = span[0];
             if(T.IsNaN(result)) return result;
-            for(int i = 1; (uint)i<(uint)span.Length; i++) {
+            for(int i = 1;(uint)i<(uint)span.Length;i++) {
                 var x = span[i];
                 if(T.IsNaN(x)) return x;
                 if(x<result) result=x;

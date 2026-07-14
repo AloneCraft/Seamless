@@ -1,5 +1,6 @@
 using Seamless.Tsavorite.Devices;
 using Seamless.Tsavorite.Stores;
+
 using Tsavorite.core;
 
 namespace Test.Seamless.Integrate;
@@ -84,7 +85,7 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
         var root = TestPath.Directory<TsavoriteCheckpointCapacity>(mode.Name);
         var descriptors = new StoreDescriptor[StoreCount];
         try {
-            for(var i=0;i<StoreCount;i++) {
+            for(var i = 0;i<StoreCount;i++) {
                 var descriptor = CreateDescriptor(root,i);
                 descriptors[i]=descriptor;
                 using var store = CreateAndPopulateStore(descriptor,i,mode);
@@ -93,7 +94,7 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
             Assert.Equal(2048,descriptors.Length*2);
             Assert.Equal(StoreCount,descriptors.Sum(static descriptor => CountDeviceFiles(descriptor.LogPath)+CountDeviceFiles(descriptor.ObjectLogPath)));
 
-            for(var i=0;i<StoreCount;i++) {
+            for(var i = 0;i<StoreCount;i++) {
                 using var handle = CreateRecoveryStore(descriptors[i],i);
                 LoadStore(handle.Store,descriptors[i].Token,mode);
                 AssertStoreData(handle.Store,i);
@@ -339,7 +340,7 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
     }
 
     private static CollectionStore CreateStore(global::Seamless.Tsavorite.Collections.Store factory,IDevice logDevice,IDevice objDevice,int index) =>
-        (index%4) switch{
+        (index%4) switch {
             0 => factory.Create<long,long>(logDevice,objDevice,new BlittableStrategy(),new BlittableStrategy()),
             1 => factory.Create<long>(logDevice,objDevice,new BlittableStrategy()),
             2 => factory.Create<long,string>(logDevice,objDevice,new BlittableStrategy(),new MemoryPackSerializerStrategy()),
@@ -399,28 +400,28 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
     }
 
     private static void FillDictionaryLongLong(global::Seamless.Tsavorite.Collections.IDictionary<long,long> dict,int count) {
-        for(var i=0;i<count;i++) {
+        for(var i = 0;i<count;i++) {
             dict.Add(i,i);
         }
     }
 
     private static void AssertDictionaryLongLong(global::Seamless.Tsavorite.Collections.IDictionary<long,long> dict,int count) {
         Assert.Equal(count,dict.Count);
-        for(var i=0;i<count;i++) {
+        for(var i = 0;i<count;i++) {
             Assert.True(dict.TryGetValue(i,out var value),$"Key {i} was not found.");
             Assert.Equal(i,value);
         }
     }
 
     private static void FillDictionaryLongString(global::Seamless.Tsavorite.Collections.IDictionary<long,string> dict,int count) {
-        for(var i=0;i<count;i++) {
+        for(var i = 0;i<count;i++) {
             dict.Add(i,"value_"+i.ToString(global::System.Globalization.CultureInfo.InvariantCulture));
         }
     }
 
     private static void AssertDictionaryLongString(global::Seamless.Tsavorite.Collections.IDictionary<long,string> dict,int count) {
         Assert.Equal(count,dict.Count);
-        for(var i=0;i<count;i++) {
+        for(var i = 0;i<count;i++) {
             Assert.True(dict.TryGetValue(i,out var value),$"Key {i} was not found.");
             Assert.Equal("value_"+i.ToString(global::System.Globalization.CultureInfo.InvariantCulture),value);
         }

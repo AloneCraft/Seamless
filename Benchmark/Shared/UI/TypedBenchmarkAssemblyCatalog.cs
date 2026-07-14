@@ -3,21 +3,21 @@ using System.Reflection;
 
 namespace UI;
 
-internal static class TypedBenchmarkAssemblyCatalog {
-    public static IReadOnlyDictionary<string,Assembly> Assemblies { get; } = CreateAssemblies();
+internal static class 型付きベンチマークアセンブリカタログ {
+    public static IReadOnlyDictionary<string,Assembly> アセンブリ一覧 { get; } = アセンブリ一覧を作成();
 
-    private static IReadOnlyDictionary<string,Assembly> CreateAssemblies() {
-        var anchorTypes = GetAnchorTypes();
-        return anchorTypes
-            .Select(static type => type.Assembly)
+    private static IReadOnlyDictionary<string,Assembly> アセンブリ一覧を作成() {
+        var アンカー型一覧 = アンカー型一覧を取得();
+        return アンカー型一覧
+            .Select(static 型 => 型.Assembly)
             .ToDictionary(
-                static assembly => assembly.GetName().Name
-                    ??throw new InvalidOperationException("Benchmark assembly name is empty."),
-                static assembly => assembly,
+                static アセンブリ => アセンブリ.GetName().Name
+                    ??throw new InvalidOperationException("ベンチマークアセンブリ名が空です。"),
+                static アセンブリ => アセンブリ,
                 StringComparer.OrdinalIgnoreCase);
     }
 
-    private static Type[] GetAnchorTypes() =>
+    private static Type[] アンカー型一覧を取得() =>
 #if SCALABLE_BENCHMARK
     [
         typeof(global::Benchmark.Scalable.Persisted.Collections.Set.SetInt32),

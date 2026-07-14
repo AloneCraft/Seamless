@@ -4,262 +4,299 @@ using System.Text;
 namespace UI;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
-internal static class BenchmarkImprovementCandidateBuilder{
-    public static IReadOnlyList<BenchmarkImprovementCandidate> BuildCandidates(ProgressState state){
-        var entries = CreateEntries(state).ToArray();
-        return BuildCandidates(entries);
+internal static class ベンチマーク改善候補ビルダー{
+    public const int 既定自動選択数=10;
+
+    public static IReadOnlyList<ベンチマーク改善候補>候補を構築(進行状態 状態){
+        return 候補を構築([状態]);
     }
 
-    public static IReadOnlyList<BenchmarkImprovementCandidate> BuildCandidatesFromComparisonRows(
-        IEnumerable<BenchmarkComparisonRow> rows,
-        int elementCount){
-        var entries = rows
-            .Where(static row => row.SourceTab is not null)
-            .Select(row => new BenchmarkImprovementEntry(
-                row.SourceTab,
-                BenchmarkImprovementCategoryClassifier.Classify(row.MethodName),
-                elementCount,
-                row))
-            .ToArray();
-        return BuildCandidates(entries);
+    public static IReadOnlyList<ベンチマーク改善候補>候補を構築(IEnumerable<進行状態>状態一覧){
+        var 項目一覧=状態一覧.SelectMany(項目を作成).ToArray();
+        return 候補を構築(項目一覧);
     }
 
-    private static IReadOnlyList<BenchmarkImprovementCandidate> BuildCandidates(IReadOnlyList<BenchmarkImprovementEntry> entries){
-        return entries
-            .GroupBy(static entry => CreateCandidateKey(entry.SourceTab,entry.Category,entry.Row.MethodName),StringComparer.OrdinalIgnoreCase)
-            .Select(static group => CreateCandidate(group.Key,group.ToArray()))
-            .Where(static candidate => candidate.回帰あり)
-            .OrderByDescending(static candidate => 回帰重要度を取得(candidate.時間シェア,candidate.メモリシェア))
-            .ThenBy(static candidate => candidate.SourceTab.Id,StringComparer.OrdinalIgnoreCase)
-            .ThenBy(static candidate => candidate.MethodName,StringComparer.OrdinalIgnoreCase)
+    public static IReadOnlyList<ベンチマーク改善候補>比較行から候補を構築(
+        IEnumerable<ベンチマーク比較行>行一覧,
+        int 要素数){
+        var 項目一覧=行一覧
+            .Where(static 行=>行.ソースタブ is not null)
+            .Select(行=>new ベンチマーク改善項目(
+                行.ソースタブ,
+                ベンチマーク改善カテゴリ分類器.分類(行.メソッド名),
+                要素数,
+                行))
+            .ToArray();
+        return 候補を構築(項目一覧);
+    }
+
+    private static IReadOnlyList<ベンチマーク改善候補>候補を構築(IReadOnlyList<ベンチマーク改善項目>項目一覧){
+        return 項目一覧
+            .GroupBy(static 項目=>候補キーを作成(項目.ソースタブ,項目.カテゴリ,項目.行.メソッド名),StringComparer.OrdinalIgnoreCase)
+            .Select(static グループ=>候補を作成(グループ.Key,グループ.ToArray()))
+            .Where(static 候補=>候補.回帰ありか)
+            .OrderByDescending(static 候補=>回帰重要度を取得(候補.時間シェア,候補.メモリシェア))
+            .ThenBy(static 候補=>候補.ソースタブ.ID,StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static 候補=>候補.メソッド名,StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
 
-    public static string BuildPrompt(IEnumerable<BenchmarkImprovementCandidate> candidates){
-        var selected = candidates
-            .OrderBy(static item => item.Category,StringComparer.OrdinalIgnoreCase)
-            .ThenByDescending(static item => 回帰重要度を取得(item.時間シェア,item.メモリシェア))
-            .ThenBy(static item => item.MethodName,StringComparer.OrdinalIgnoreCase)
+    public static IReadOnlySet<string>既定選択キーを作成(
+        IReadOnlyList<ベンチマーク改善候補>候補一覧,
+        int 取得数=既定自動選択数){
+        var 選択一覧=new global::System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach(var 候補 in 候補一覧
+            .Where(static 項目=>項目.時間回帰か)
+            .OrderByDescending(static 項目=>順位値を取得(項目.時間シェア))
+            .Take(取得数)){
+            選択一覧.Add(候補.キー);
+        }
+
+        foreach(var 候補 in 候補一覧
+            .Where(static 項目=>項目.メモリ回帰か)
+            .OrderByDescending(static 項目=>順位値を取得(項目.メモリシェア))
+            .Take(取得数)){
+            選択一覧.Add(候補.キー);
+        }
+
+        return 選択一覧;
+    }
+
+    public static string プロンプトを構築(IEnumerable<ベンチマーク改善候補>候補一覧){
+        var 選択一覧=候補一覧
+            .OrderBy(static 項目=>項目.カテゴリ,StringComparer.OrdinalIgnoreCase)
+            .ThenByDescending(static 項目=>回帰重要度を取得(項目.時間シェア,項目.メモリシェア))
+            .ThenBy(static 項目=>項目.メソッド名,StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        if(selected.Length==0){
+        if(選択一覧.Length==0){
             return "ベンチマーク改善プロンプト\n\n改善対象となる悪化候補がありません。\n";
         }
 
-        var builder = new StringBuilder();
-        builder.AppendLine("ベンチマーク改善プロンプト");
-        builder.AppendLine();
-        builder.AppendLine("目的: 以下の悪化候補すべてを、段階分けせず一気に実装・テスト・検証まで進めてください。");
-        builder.AppendLine("計画や調査だけで止まらず、コード変更と再測定可能な状態まで完了させてください。");
-        builder.AppendLine("比較は Left:Right のシェアです。Leftシェアが0.50より大きいほどLeft(FLinq)側の負荷が大きく、改善優先度が高いです。");
-        builder.AppendLine();
-        builder.AppendLine("改善制約:");
-        builder.AppendLine("- ベンチマークだけを速くする一般化できない特殊化を入れないでください。特定のメソッド名、型、引数値、N、データ内容、実行パス、Benchmark実行の検出を条件に処理を変えることは禁止です。");
-        builder.AppendLine("- すべての有効な入力に適用できるアルゴリズム、データアクセス、割り当て削減、特殊化規則として実装し、ベンチマーク外の複数サイズと異なるデータ分布でも効果と正しさを確認してください。");
-        builder.AppendLine("- 結果、列挙順、遅延実行、例外、破棄、デリゲートの副作用、公開API互換性を維持してください。必要な処理の省略、結果キャッシュの使い回し、検証やfallback計測の無効化で数値を改善してはいけません。");
-        builder.AppendLine("- 時間改善のためにメモリを無制限に増やしたり、メモリ改善のために時間を大幅に悪化させたりしないでください。MeanNanosecondsとAllocatedBytesを同時に比較してください。");
-        builder.AppendLine("- 空、1件、小規模、大規模、境界値、例外を送出するデリゲート、副作用を持つデリゲートを含む回帰テストを追加し、最適化経路と通常経路の結果一致を確認してください。");
-        builder.AppendLine("- 測定ノイズや一度だけの結果で成功と判断せず、同一条件の反復測定で改善が再現することを確認してください。");
-        builder.AppendLine();
-        builder.AppendLine("検証方針:");
-        builder.AppendLine("- 対象メソッドの単体テストを実行し、既存挙動を壊していないことを確認してください。");
-        builder.AppendLine("- 改善後に同じベンチマーク条件で再測定し、MeanNanoseconds と AllocatedBytes の差分を確認してください。");
-        builder.AppendLine("- 実行時 fallback カウンタ(LinqCounter.EnumerableFallback)が 0 のままであることも確認してください。");
-        builder.AppendLine();
+        var ビルダー=new StringBuilder();
+        ビルダー.AppendLine("ベンチマーク改善プロンプト");
+        ビルダー.AppendLine();
+        ビルダー.AppendLine("目的: 以下の悪化候補すべてを、段階分けせず一気に実装・テスト・検証まで進めてください。");
+        ビルダー.AppendLine("計画や調査だけで止まらず、コード変更と再測定可能な状態まで完了させてください。");
+        ビルダー.AppendLine("比較は左:右のシェアです。左シェアが0.50より大きいほど左(FLinq)側の負荷が大きく、改善優先度が高いです。");
+        ビルダー.AppendLine();
+        ビルダー.AppendLine("改善制約:");
+        ビルダー.AppendLine("- ベンチマークだけを速くする一般化できない特殊化を入れないでください。特定のメソッド名、型、引数値、Count、データ内容、実行パス、ベンチマーク実行の検出を条件に処理を変えることは禁止です。");
+        ビルダー.AppendLine("- すべての有効な入力に適用できるアルゴリズム、データアクセス、割り当て削減、特殊化規則として実装し、ベンチマーク外の複数サイズと異なるデータ分布でも効果と正しさを確認してください。");
+        ビルダー.AppendLine("- 結果、列挙順、遅延実行、例外、破棄、デリゲートの副作用、公開API互換性を維持してください。必要な処理の省略、結果キャッシュの使い回し、検証やフォールバック計測の無効化で数値を改善してはいけません。");
+        ビルダー.AppendLine("- 時間改善のためにメモリを無制限に増やしたり、メモリ改善のために時間を大幅に悪化させたりしないでください。平均ナノ秒と割り当てバイト数を同時に比較してください。");
+        ビルダー.AppendLine("- 空、1件、小規模、大規模、境界値、例外を送出するデリゲート、副作用を持つデリゲートを含む回帰テストを追加し、最適化経路と通常経路の結果一致を確認してください。");
+        ビルダー.AppendLine("- 測定ノイズや一度だけの結果で成功と判断せず、同一条件の反復測定で改善が再現することを確認してください。");
+        ビルダー.AppendLine();
+        ビルダー.AppendLine("検証方針:");
+        ビルダー.AppendLine("- 対象メソッドの単体テストを実行し、既存挙動を壊していないことを確認してください。");
+        ビルダー.AppendLine("- 改善後に同じベンチマーク条件で再測定し、平均ナノ秒と割り当てバイト数の差分を確認してください。");
+        ビルダー.AppendLine("- 実行時フォールバックカウンター(LinqCounter.EnumerableFallback)が0のままであることも確認してください。");
+        ビルダー.AppendLine();
 
-        foreach(var group in selected.GroupBy(static item => item.Category).OrderBy(static item => item.Key,StringComparer.OrdinalIgnoreCase)){
-            builder.AppendLine("## "+group.Key);
-            foreach(var candidate in group){
-                AppendCandidate(builder,candidate);
+        foreach(var グループ in 選択一覧.GroupBy(static 項目=>項目.カテゴリ).OrderBy(static 項目=>項目.Key,StringComparer.OrdinalIgnoreCase)){
+            ビルダー.AppendLine("## "+グループ.Key);
+            foreach(var 候補 in グループ){
+                候補を追記(ビルダー,候補);
             }
-            builder.AppendLine();
+            ビルダー.AppendLine();
         }
 
-        builder.AppendLine("調査手順:");
-        builder.AppendLine("- メソッド名とプロジェクト名で実装箇所を検索してください。");
-        builder.AppendLine("- 列挙処理、割り当て、分岐、バッファリング、特殊化漏れを重点的に確認してください。");
-        builder.AppendLine("- 変更は対象カテゴリに絞り、無関係なリファクタリングは避けてください。");
-        return builder.ToString();
+        ビルダー.AppendLine("調査手順:");
+        ビルダー.AppendLine("- メソッド名とプロジェクト名で実装箇所を検索してください。");
+        ビルダー.AppendLine("- 列挙処理、割り当て、分岐、バッファリング、特殊化漏れを重点的に確認してください。");
+        ビルダー.AppendLine("- 変更は対象カテゴリに絞り、無関係なリファクタリングは避けてください。");
+        return ビルダー.ToString();
     }
 
-    public static string CreateCandidateKey(BenchmarkSourceTabDefinition sourceTab,string category,string methodName) =>
-        sourceTab.Id+"|"+category+"|"+methodName+"|"+sourceTab.LeftProject+"|"+sourceTab.RightProject;
+    public static string 候補キーを作成(ベンチマークソースタブ定義 ソースタブ,string カテゴリ,string メソッド名)=>
+        ソースタブ.ID+"|"+カテゴリ+"|"+メソッド名+"|"+ソースタブ.左プロジェクト+"|"+ソースタブ.右プロジェクト;
 
-    private static BenchmarkImprovementCandidate CreateCandidate(string key,IReadOnlyList<BenchmarkImprovementEntry> entries){
-        var time = entries
-            .OrderByDescending(static item => 順位値を取得(item.Row.左右シェア.時間シェア))
-            .ThenBy(static item => item.ElementCount)
+    private static ベンチマーク改善候補 候補を作成(string キー,IReadOnlyList<ベンチマーク改善項目>項目一覧){
+        var 時間項目=項目一覧
+            .OrderByDescending(static 項目=>順位値を取得(項目.行.左右シェア.時間シェア))
+            .ThenBy(static 項目=>項目.要素数)
             .First();
-        var allocated = entries
-            .OrderByDescending(static item => 順位値を取得(item.Row.左右シェア.メモリシェア))
-            .ThenBy(static item => item.ElementCount)
+        var メモリ項目=項目一覧
+            .OrderByDescending(static 項目=>順位値を取得(項目.行.左右シェア.メモリシェア))
+            .ThenBy(static 項目=>項目.要素数)
             .First();
+        IReadOnlyList<ベンチマーク引数>引数一覧;
+        if(時間項目.行.引数一覧.Count>0){
+            引数一覧=時間項目.行.引数一覧;
+        }else{
+            引数一覧=メモリ項目.行.引数一覧;
+        }
         return new(
-            key,
-            time.SourceTab,
-            time.Category,
-            time.Row.MethodName,
-            time.Row.Benchmark,
-            time.ElementCount,
-            allocated.ElementCount,
-            time.Row.左右シェア.時間シェア,
-            allocated.Row.左右シェア.メモリシェア,
-            time.Row.Left,
-            time.Row.Right,
-            allocated.Row.Left,
-            allocated.Row.Right,
-            time.Row.TypeFullName,
-            FirstText(time.Row.ArgumentKey,allocated.Row.ArgumentKey),
-            time.Row.Arguments.Count>0 ? time.Row.Arguments : allocated.Row.Arguments);
+            キー,
+            時間項目.ソースタブ,
+            時間項目.カテゴリ,
+            時間項目.行.メソッド名,
+            時間項目.行.ベンチマーク,
+            時間項目.要素数,
+            メモリ項目.要素数,
+            時間項目.行.左右シェア.時間シェア,
+            メモリ項目.行.左右シェア.メモリシェア,
+            時間項目.行.左,
+            時間項目.行.右,
+            メモリ項目.行.左,
+            メモリ項目.行.右,
+            時間項目.行.型完全名,
+            最初の文字列(時間項目.行.引数キー,メモリ項目.行.引数キー),
+            引数一覧);
     }
 
-    private static IEnumerable<BenchmarkImprovementEntry> CreateEntries(ProgressState state){
-        foreach(var group in state.Jobs
-            .Where(static job => job.Status==JobStatus.Completed)
-            .GroupBy(static job => new { job.SourceTab,job.ElementCount })
-            .OrderBy(static group => BenchmarkSourceTabs.Get(group.Key.SourceTab).Id,StringComparer.OrdinalIgnoreCase)
-            .ThenBy(static group => group.Key.ElementCount)){
-            var sourceTab = BenchmarkSourceTabs.Get(group.Key.SourceTab);
-            var reportRows = group.Select(static job => job.ToReportRow()).ToArray();
-            if(reportRows.Length==0){
+    private static IEnumerable<ベンチマーク改善項目>項目を作成(進行状態 状態){
+        foreach(var グループ in 状態.ジョブ一覧
+            .Where(static ジョブ=>ジョブ.状態==ジョブ状態.完了)
+            .GroupBy(static ジョブ=>new{ジョブ.ソースタブ,ジョブ.要素数})
+            .OrderBy(static グループ=>ベンチマークソースタブ一覧.取得(グループ.Key.ソースタブ).ID,StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static グループ=>グループ.Key.要素数)){
+            var ソースタブ=ベンチマークソースタブ一覧.取得(グループ.Key.ソースタブ);
+            var 報告行一覧=グループ.Select(static ジョブ=>ジョブ.報告行に変換()).ToArray();
+            if(報告行一覧.Length==0){
                 continue;
             }
 
-            IReadOnlyList<BenchmarkComparisonRow> rows;
+            IReadOnlyList<ベンチマーク比較行>行一覧;
             try{
-                rows=BenchmarkComparisonFormatter.BuildComparisonRows(reportRows,sourceTab,group.Key.ElementCount);
+                行一覧=ベンチマーク比較フォーマッター.比較行を構築(報告行一覧,ソースタブ,グループ.Key.要素数);
             }catch(InvalidDataException){
                 continue;
             }
 
-            foreach(var row in rows){
-                yield return new BenchmarkImprovementEntry(
-                    sourceTab,
-                    BenchmarkImprovementCategoryClassifier.Classify(row.MethodName),
-                    group.Key.ElementCount,
-                    row);
+            foreach(var 行 in 行一覧){
+                yield return new ベンチマーク改善項目(
+                    ソースタブ,
+                    ベンチマーク改善カテゴリ分類器.分類(行.メソッド名),
+                    グループ.Key.要素数,
+                    行);
             }
         }
     }
 
-    private static void AppendCandidate(StringBuilder builder,BenchmarkImprovementCandidate candidate){
-        builder.AppendLine("- "+candidate.MethodName+" ("+candidate.SourceTab.DisplayName+")");
-        builder.AppendLine("  - 比較: "+candidate.SourceTab.LeftProject+" / "+candidate.SourceTab.RightProject);
-        builder.AppendLine("  - 時間差: N="+FormatElementCount(candidate.TimeElementCount)+" / シェア Left:Right "+シェアを整形(candidate.時間シェア)+" / Left "+FormatTime(candidate.TimeLeft.TimeNanoseconds)+" / Right "+FormatTime(candidate.TimeRight.TimeNanoseconds));
-        builder.AppendLine("  - メモリ差: N="+FormatElementCount(candidate.AllocatedElementCount)+" / シェア Left:Right "+シェアを整形(candidate.メモリシェア)+" / Left "+FormatAllocated(candidate.AllocatedLeft.AllocatedBytes)+" / Right "+FormatAllocated(candidate.AllocatedRight.AllocatedBytes));
-        if(!string.IsNullOrWhiteSpace(candidate.TypeFullName)){
-            builder.AppendLine("  - 型: "+candidate.TypeFullName);
+    private static void 候補を追記(StringBuilder ビルダー,ベンチマーク改善候補 候補){
+        ビルダー.AppendLine("- "+候補.メソッド名+" ("+候補.ソースタブ.表示名+")");
+        ビルダー.AppendLine("  - 比較: "+候補.ソースタブ.左プロジェクト+" / "+候補.ソースタブ.右プロジェクト);
+        ビルダー.AppendLine("  - 時間差: 要素数="+要素数を整形(候補.時間要素数)+" / シェア 左:右 "+シェアを整形(候補.時間シェア)+" / 左 "+時間を整形(候補.時間左.時間ナノ秒)+" / 右 "+時間を整形(候補.時間右.時間ナノ秒));
+        ビルダー.AppendLine("  - メモリ差: 要素数="+要素数を整形(候補.メモリ要素数)+" / シェア 左:右 "+シェアを整形(候補.メモリシェア)+" / 左 "+割り当てを整形(候補.メモリ左.割り当てバイト数)+" / 右 "+割り当てを整形(候補.メモリ右.割り当てバイト数));
+        if(!string.IsNullOrWhiteSpace(候補.型完全名)){
+            ビルダー.AppendLine("  - 型: "+候補.型完全名);
         }
-        if(!string.IsNullOrWhiteSpace(candidate.ArgumentKey)){
-            builder.AppendLine("  - 引数: "+candidate.ArgumentKey);
+        if(!string.IsNullOrWhiteSpace(候補.引数キー)){
+            ビルダー.AppendLine("  - 引数: "+候補.引数キー);
         }
-        builder.AppendLine("  - 検索ヒント: rg \""+candidate.MethodName+"|"+candidate.SourceTab.LeftProject+"|"+candidate.SourceTab.LeftAssemblyName+"\"");
+        ビルダー.AppendLine("  - 検索ヒント: rg \""+候補.メソッド名+"|"+候補.ソースタブ.左プロジェクト+"|"+候補.ソースタブ.左アセンブリ名+"\"");
     }
 
-    internal static double 順位値を取得(シェア値 share){
-        if(share.左シェア is { } value&&value>0.5){
-            return value;
+    internal static double 順位値を取得(シェア値 シェア){
+        if(シェア.左シェア is { } 値&&値>0.5){
+            return 値;
         }
         return double.NegativeInfinity;
     }
 
-    internal static double 回帰重要度を取得(シェア値 timeShare,シェア値 allocatedShare){
-        var timeSeverity=0.0;
-        if(timeShare.左シェア is { } timeLeft&&timeLeft>0.5){
-            timeSeverity=(timeLeft-0.5)*2;
+    internal static double 回帰重要度を取得(シェア値 時間シェア,シェア値 メモリシェア){
+        var 時間重要度=0.0;
+        if(時間シェア.左シェア is { } 時間左&&時間左>0.5){
+            時間重要度=(時間左-0.5)*2;
         }
-        var allocatedSeverity=0.0;
-        if(allocatedShare.左シェア is { } allocatedLeft&&allocatedLeft>0.5){
-            allocatedSeverity=(allocatedLeft-0.5)*2;
+        var メモリ重要度=0.0;
+        if(メモリシェア.左シェア is { } メモリ左&&メモリ左>0.5){
+            メモリ重要度=(メモリ左-0.5)*2;
         }
-        return Math.Max(timeSeverity,allocatedSeverity);
+        return Math.Max(時間重要度,メモリ重要度);
     }
 
-    internal static string シェアを整形(シェア値 share) => share.表示文字列;
+    internal static string シェアを整形(シェア値 シェア)=>シェア.表示文字列;
 
-    internal static string FormatTime(double? value) =>
-        value is { } number&&double.IsFinite(number)
-            ? BenchmarkFormatting.FormatNanoseconds(number)
-            : "-";
+    internal static string 時間を整形(double?値){
+        if(値 is { } 数値&&double.IsFinite(数値)){
+            return ベンチマークフォーマッター.ナノ秒を整形(数値);
+        }
+        return "-";
+    }
 
-    internal static string FormatAllocated(long? value) =>
-        value is { } number
-            ? BenchmarkFormatting.FormatBytes(number)
-            : "-";
+    internal static string 割り当てを整形(long?値){
+        if(値 is { } 数値){
+            return ベンチマークフォーマッター.バイト数を整形(数値);
+        }
+        return "-";
+    }
 
-    private static string FormatElementCount(int value) =>
-        value.ToString("N0",CultureInfo.InvariantCulture);
+    private static string 要素数を整形(int 値)=>
+        値.ToString("N0",CultureInfo.InvariantCulture);
 
-    private static string FirstText(params string?[] values) =>
-        values.FirstOrDefault(static value => !string.IsNullOrWhiteSpace(value))??string.Empty;
+    private static string 最初の文字列(params string?[]値一覧)=>
+        値一覧.FirstOrDefault(static 値=>!string.IsNullOrWhiteSpace(値))??string.Empty;
 
-    private sealed record BenchmarkImprovementEntry(
-        BenchmarkSourceTabDefinition SourceTab,
-        string Category,
-        int ElementCount,
-        BenchmarkComparisonRow Row);
+    private sealed record ベンチマーク改善項目(
+        ベンチマークソースタブ定義 ソースタブ,
+        string カテゴリ,
+        int 要素数,
+        ベンチマーク比較行 行);
 }
 
-internal static class BenchmarkImprovementCategoryClassifier{
-    public static string Classify(string methodName){
-        if(methodName.StartsWith("Aggregate",StringComparison.OrdinalIgnoreCase)){
-            return "Aggregate";
+internal static class ベンチマーク改善カテゴリ分類器{
+    public static string 分類(string メソッド名){
+        if(メソッド名.StartsWith("Aggregate",StringComparison.OrdinalIgnoreCase)){
+            return "集約";
         }
-        if(methodName.StartsWith("Any",StringComparison.OrdinalIgnoreCase)
-            ||methodName.StartsWith("All",StringComparison.OrdinalIgnoreCase)
-            ||methodName.StartsWith("Count",StringComparison.OrdinalIgnoreCase)
-            ||methodName.StartsWith("Contains",StringComparison.OrdinalIgnoreCase)){
-            return "Predicate/Count";
+        if(メソッド名.StartsWith("Any",StringComparison.OrdinalIgnoreCase)
+            ||メソッド名.StartsWith("All",StringComparison.OrdinalIgnoreCase)
+            ||メソッド名.StartsWith("Count",StringComparison.OrdinalIgnoreCase)
+            ||メソッド名.StartsWith("Contains",StringComparison.OrdinalIgnoreCase)){
+            return "述語/Count";
         }
-        if(methodName.StartsWith("Distinct",StringComparison.OrdinalIgnoreCase)
-            ||methodName.StartsWith("Except",StringComparison.OrdinalIgnoreCase)
-            ||methodName.StartsWith("Intersect",StringComparison.OrdinalIgnoreCase)
-            ||methodName.StartsWith("Union",StringComparison.OrdinalIgnoreCase)){
-            return "Set";
+        if(メソッド名.StartsWith("Distinct",StringComparison.OrdinalIgnoreCase)
+            ||メソッド名.StartsWith("Except",StringComparison.OrdinalIgnoreCase)
+            ||メソッド名.StartsWith("Intersect",StringComparison.OrdinalIgnoreCase)
+            ||メソッド名.StartsWith("Union",StringComparison.OrdinalIgnoreCase)){
+            return "集合";
         }
-        if(methodName.StartsWith("Order",StringComparison.OrdinalIgnoreCase)
-            ||methodName.StartsWith("Then",StringComparison.OrdinalIgnoreCase)){
-            return "Ordering";
+        if(メソッド名.StartsWith("Order",StringComparison.OrdinalIgnoreCase)
+            ||メソッド名.StartsWith("Then",StringComparison.OrdinalIgnoreCase)){
+            return "並べ替え";
         }
-        if(methodName.StartsWith("Select",StringComparison.OrdinalIgnoreCase)
-            ||methodName.StartsWith("Where",StringComparison.OrdinalIgnoreCase)){
-            return "Projection/Filter";
+        if(メソッド名.StartsWith("Select",StringComparison.OrdinalIgnoreCase)
+            ||メソッド名.StartsWith("Where",StringComparison.OrdinalIgnoreCase)){
+            return "射影/絞り込み";
         }
-        if(methodName.StartsWith("Group",StringComparison.OrdinalIgnoreCase)
-            ||methodName.StartsWith("ToLookup",StringComparison.OrdinalIgnoreCase)){
-            return "Grouping";
+        if(メソッド名.StartsWith("Group",StringComparison.OrdinalIgnoreCase)
+            ||メソッド名.StartsWith("ToLookup",StringComparison.OrdinalIgnoreCase)){
+            return "グループ化";
         }
-        if(methodName.StartsWith("Skip",StringComparison.OrdinalIgnoreCase)
-            ||methodName.StartsWith("Take",StringComparison.OrdinalIgnoreCase)
-            ||methodName.StartsWith("ElementAt",StringComparison.OrdinalIgnoreCase)){
-            return "Indexing";
+        if(メソッド名.StartsWith("Skip",StringComparison.OrdinalIgnoreCase)
+            ||メソッド名.StartsWith("Take",StringComparison.OrdinalIgnoreCase)
+            ||メソッド名.StartsWith("ElementAt",StringComparison.OrdinalIgnoreCase)){
+            return "インデックス操作";
         }
-        if(methodName.StartsWith("Append",StringComparison.OrdinalIgnoreCase)
-            ||methodName.StartsWith("Prepend",StringComparison.OrdinalIgnoreCase)
-            ||methodName.StartsWith("Concat",StringComparison.OrdinalIgnoreCase)){
-            return "Concatenation";
+        if(メソッド名.StartsWith("Append",StringComparison.OrdinalIgnoreCase)
+            ||メソッド名.StartsWith("Prepend",StringComparison.OrdinalIgnoreCase)
+            ||メソッド名.StartsWith("Concat",StringComparison.OrdinalIgnoreCase)){
+            return "連結";
         }
-        return "Other";
+        return "その他";
     }
 }
 
-public sealed record BenchmarkImprovementCandidate(
-    string Key,
-    BenchmarkSourceTabDefinition SourceTab,
-    string Category,
-    string MethodName,
-    string DisplayName,
-    int TimeElementCount,
-    int AllocatedElementCount,
+public sealed record ベンチマーク改善候補(
+    string キー,
+    ベンチマークソースタブ定義 ソースタブ,
+    string カテゴリ,
+    string メソッド名,
+    string 表示名,
+    int 時間要素数,
+    int メモリ要素数,
     シェア値 時間シェア,
     シェア値 メモリシェア,
-    ProjectMetrics TimeLeft,
-    ProjectMetrics TimeRight,
-    ProjectMetrics AllocatedLeft,
-    ProjectMetrics AllocatedRight,
-    string TypeFullName,
-    string ArgumentKey,
-    IReadOnlyList<BenchmarkArgument> Arguments){
-    public bool 時間回帰か => BenchmarkImprovementCandidateBuilder.順位値を取得(this.時間シェア)>0.5;
-    public bool メモリ回帰か => this.メモリシェア.左シェア>0.5;
-    public bool 回帰あり => this.時間回帰か||this.メモリ回帰か;
+    プロジェクト測定値 時間左,
+    プロジェクト測定値 時間右,
+    プロジェクト測定値 メモリ左,
+    プロジェクト測定値 メモリ右,
+    string 型完全名,
+    string 引数キー,
+    IReadOnlyList<ベンチマーク引数>引数一覧){
+    public bool 時間回帰か=>ベンチマーク改善候補ビルダー.順位値を取得(this.時間シェア)>0.5;
+    public bool メモリ回帰か=>this.メモリシェア.左シェア>0.5;
+    public bool 回帰ありか=>this.時間回帰か||this.メモリ回帰か;
 }

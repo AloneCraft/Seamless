@@ -74,8 +74,7 @@ namespace Seamless.System.Carrier {
                         accumulate=func(exists ? accumulate! : seed,item);
                     }
                     this.dictionary=dict;
-                }
-                else {
+                } else {
                     var capacityHint = this.source.TryGetNonEnumeratedCount(out var count)
                         ? Math.Min(count,1024)
                         : 0;
@@ -151,8 +150,7 @@ namespace Seamless.System.Carrier {
                         accumulate=func(exists ? accumulate! : seedSelector(key),item);
                     }
                     this.dictionary=dict;
-                }
-                else {
+                } else {
                     var capacityHint = this.source.TryGetNonEnumeratedCount(out var count)
                         ? Math.Min(count,1024)
                         : 0;

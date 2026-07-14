@@ -1,6 +1,6 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public class Shuffle(int 番号, Enumerable source) : BufferedSequence(番号, source.ElementType) {
+public class Shuffle(int 番号,Enumerable source):BufferedSequence(番号,source.ElementType) {
     protected override Enumerable PrimarySource => source;
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string StructMethod => string.Empty;

@@ -20,14 +20,14 @@ TakeWhile_predicate は predicate が false になった時点で永続的に終
   - predicate は inline/delegate/statement inline の各 FuncFragment 経路を使う。
   - index overload は index フィールドを増やし predicate(item, index) を呼ぶ。
 */
-public class TakeWhile_predicate(int 番号, Enumerable source, FuncFragment predicate) : Enumerable(番号) {
+public class TakeWhile_predicate(int 番号,Enumerable source,FuncFragment predicate):Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        !(method.Parameters.Length > 0 &&
+        !(method.Parameters.Length>0&&
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
     public override string GetEnumerableExpression =>
-        $"global::Seamless.System.Carrier.ValueEnumerableExtensions.TakeWhile({source.GetEnumerableExpression}, {predicate.DelegateConstructorArg ?? predicate.RenderAsLambda()})";
+        $"global::Seamless.System.Carrier.ValueEnumerableExtensions.TakeWhile({source.GetEnumerableExpression}, {predicate.DelegateConstructorArg??predicate.RenderAsLambda()})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
@@ -39,7 +39,7 @@ public class TakeWhile_predicate(int 番号, Enumerable source, FuncFragment pre
     public override string GetEnumeratorFields => "private bool done = false;";
     public override string GetTryGetNextBody {
         get {
-            var (preCode, condExpr) =this.FuncInvokeCondition(predicate, nameof(predicate),this.temp,this.item);
+            var (preCode,condExpr)=this.FuncInvokeCondition(predicate,nameof(predicate),this.temp,this.item);
             var predicateCheck = string.IsNullOrEmpty(preCode)
                 ? $"if(!{WrapConditionExpression(condExpr)})"
                 : $"{preCode}\n        if(!{WrapConditionExpression(condExpr)})";
@@ -64,9 +64,9 @@ public class TakeWhile_predicate(int 番号, Enumerable source, FuncFragment pre
     public override string ElementType => source.ElementType;
 }
 
-public class TakeWhile_indexPredicate(int id, Enumerable source, FuncFragment predicate) : TakeWhile_predicate(id, source, predicate) {
+public class TakeWhile_indexPredicate(int id,Enumerable source,FuncFragment predicate):TakeWhile_predicate(id,source,predicate) {
     public static new bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length > 0 &&
+        method.Parameters.Length>0&&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     public override string GetEnumeratorExpression =>
         $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
@@ -78,7 +78,7 @@ public class TakeWhile_indexPredicate(int id, Enumerable source, FuncFragment pr
         """;
     public override string GetTryGetNextBody {
         get {
-            var (preCode, condExpr) =this.FuncInvokeCondition(predicate, nameof(predicate),this.temp,this.item,this.a);
+            var (preCode,condExpr)=this.FuncInvokeCondition(predicate,nameof(predicate),this.temp,this.item,this.a);
             var predicateCheck = string.IsNullOrEmpty(preCode)
                 ? $"if(!{WrapConditionExpression(condExpr)})"
                 : $"{preCode}\n        if(!{WrapConditionExpression(condExpr)})";
@@ -101,24 +101,24 @@ public class TakeWhile_indexPredicate(int id, Enumerable source, FuncFragment pr
         }
     }
     public override string GetConsumeExecutionStatement(string consumerName) {
-        var sourceName=$"__takeWhileSource{id}";
-        var spanName=$"__takeWhileSpan{id}";
-        var itemName=$"__takeWhileItem{id}";
-        var indexName=$"__takeWhileIndex{id}";
-        var directSpanExpression=source.GetDirectSpanExpression(sourceName);
-        var localDeclarations=string.Join("\n",new[]{
+        var sourceName = $"__takeWhileSource{id}";
+        var spanName = $"__takeWhileSpan{id}";
+        var itemName = $"__takeWhileItem{id}";
+        var indexName = $"__takeWhileIndex{id}";
+        var directSpanExpression = source.GetDirectSpanExpression(sourceName);
+        var localDeclarations = string.Join("\n",new[]{
             this.HoistedLocalDeclarations(predicate),
             this.StaticDelegateLocalDeclarations(predicate),
-        }.Where(static text=>!string.IsNullOrEmpty(text)));
-        var localDeclarationBlock=string.IsNullOrEmpty(localDeclarations)
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var localDeclarationBlock = string.IsNullOrEmpty(localDeclarations)
             ? string.Empty
             : localDeclarations+"\n";
         var (spanPreCode,spanCondExpr)=this.FuncInvokeConditionStatic(predicate,nameof(predicate),this.temp,itemName,indexName);
-        var spanPredicate=string.IsNullOrEmpty(spanPreCode)
+        var spanPredicate = string.IsNullOrEmpty(spanPreCode)
             ? $"if(!{WrapConditionExpression(spanCondExpr)})"
             : $"{spanPreCode}\n            if(!{WrapConditionExpression(spanCondExpr)})";
         var (loopPreCode,loopCondExpr)=this.FuncInvokeConditionStatic(predicate,nameof(predicate),this.temp,itemName,indexName);
-        var loopPredicate=string.IsNullOrEmpty(loopPreCode)
+        var loopPredicate = string.IsNullOrEmpty(loopPreCode)
             ? $"if(!{WrapConditionExpression(loopCondExpr)})"
             : $"{loopPreCode}\n            if(!{WrapConditionExpression(loopCondExpr)})";
 

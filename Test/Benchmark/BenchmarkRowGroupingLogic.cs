@@ -2,478 +2,484 @@ using UI;
 
 namespace Test.Benchmark;
 
-public sealed class BenchmarkRowGroupingLogic{
+public sealed class ベンチマーク行グループ化ロジック {
     [Fact]
-    public void CreateRowsKeepsSingleComparisonRowWhenEachProjectHasOneMethod(){
-        var sourceTab=ComparisonSourceTab();
-        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
+    public void 仕様確認01() {
+        var ソースタブ = 比較ソースタブを作成();
+        var 行一覧 = global::UI.ベンチマーク行グループ化ロジック.行を作成(
             [
-                Case(sourceTab.LeftProject,"Left.Assembly","Left.Route","Where"),
-                Case(sourceTab.RightProject,"Right.Assembly","Right.Route","Where"),
+                ケースを作成(ソースタブ.左プロジェクト,"Left.Assembly","Left.Route","Where"),
+                ケースを作成(ソースタブ.右プロジェクト,"Right.Assembly","Right.Route","Where"),
             ],
-            sourceTab);
+            ソースタブ);
 
-        var row = Assert.Single(rows);
-        Assert.Equal("Where",row.MethodName);
-        Assert.True(row.CasesByProject.ContainsKey(sourceTab.LeftProject));
-        Assert.True(row.CasesByProject.ContainsKey(sourceTab.RightProject));
+        var 行 = Assert.Single(行一覧);
+        Assert.Equal("Where",行.メソッド名);
+        Assert.True(行.プロジェクト別ケース.ContainsKey(ソースタブ.左プロジェクト));
+        Assert.True(行.プロジェクト別ケース.ContainsKey(ソースタブ.右プロジェクト));
     }
 
     [Fact]
-    public void CreateRowsSplitsSameProjectMethodByType(){
-        var sourceTab=ComparisonSourceTab();
-        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
+    public void 仕様確認02() {
+        var ソースタブ = 比較ソースタブを作成();
+        var 行一覧 = global::UI.ベンチマーク行グループ化ロジック.行を作成(
             [
-                Case(sourceTab.LeftProject,"Left.Assembly","Left.TypeA","Where"),
-                Case(sourceTab.LeftProject,"Left.Assembly","Left.TypeB","Where"),
-                Case(sourceTab.RightProject,"Right.Assembly","Right.TypeA","Where"),
-                Case(sourceTab.RightProject,"Right.Assembly","Right.TypeB","Where"),
+                ケースを作成(ソースタブ.左プロジェクト,"Left.Assembly","Left.TypeA","Where"),
+                ケースを作成(ソースタブ.左プロジェクト,"Left.Assembly","Left.TypeB","Where"),
+                ケースを作成(ソースタブ.右プロジェクト,"Right.Assembly","Right.TypeA","Where"),
+                ケースを作成(ソースタブ.右プロジェクト,"Right.Assembly","Right.TypeB","Where"),
             ],
-            sourceTab);
+            ソースタブ);
 
-        Assert.Equal(2,rows.Count);
-        Assert.NotEqual(rows[0].RowKey,rows[1].RowKey);
-        Assert.All(rows,row => Assert.Equal("Where",row.MethodName));
-        Assert.All(rows,row => Assert.Equal("Where",row.BenchmarkName));
+        Assert.Equal(2,行一覧.Count);
+        Assert.NotEqual(行一覧[0].行キー,行一覧[1].行キー);
+        Assert.All(行一覧,行 => Assert.Equal("Where",行.メソッド名));
+        Assert.All(行一覧,行 => Assert.Equal("Where",行.ベンチマーク名));
     }
 
     [Fact]
-    public void CreateRowsSplitsSameProjectMethodByArgumentKey(){
-        var sourceTab=ComparisonSourceTab();
-        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
+    public void 仕様確認03() {
+        var ソースタブ = 比較ソースタブを作成();
+        var 行一覧 = global::UI.ベンチマーク行グループ化ロジック.行を作成(
             [
-                Case(sourceTab.LeftProject,"Left.Assembly","Left.TypeA","Add","Count=1",[new BenchmarkArgument("Count","1")]),
-                Case(sourceTab.LeftProject,"Left.Assembly","Left.TypeA","Add","Count=2",[new BenchmarkArgument("Count","2")]),
-                Case(sourceTab.RightProject,"Right.Assembly","Right.TypeA","Add","Count=1",[new BenchmarkArgument("Count","1")]),
-                Case(sourceTab.RightProject,"Right.Assembly","Right.TypeA","Add","Count=2",[new BenchmarkArgument("Count","2")]),
+                ケースを作成(ソースタブ.左プロジェクト,"Left.Assembly","Left.TypeA","Add","Count=1",[new ベンチマーク引数("Count","1")]),
+                ケースを作成(ソースタブ.左プロジェクト,"Left.Assembly","Left.TypeA","Add","Count=2",[new ベンチマーク引数("Count","2")]),
+                ケースを作成(ソースタブ.右プロジェクト,"Right.Assembly","Right.TypeA","Add","Count=1",[new ベンチマーク引数("Count","1")]),
+                ケースを作成(ソースタブ.右プロジェクト,"Right.Assembly","Right.TypeA","Add","Count=2",[new ベンチマーク引数("Count","2")]),
             ],
-            sourceTab);
+            ソースタブ);
 
-        Assert.Equal(2,rows.Count);
-        Assert.NotEqual(rows[0].RowKey,rows[1].RowKey);
-        Assert.Contains(rows,row => row.RowKey.Contains("Count=1",StringComparison.Ordinal));
-        Assert.Contains(rows,row => row.RowKey.Contains("Count=2",StringComparison.Ordinal));
-        Assert.All(rows,row => Assert.Equal("Add",row.MethodName));
+        Assert.Equal(2,行一覧.Count);
+        Assert.NotEqual(行一覧[0].行キー,行一覧[1].行キー);
+        Assert.Contains(行一覧,行 => 行.行キー.Contains("Count=1",StringComparison.Ordinal));
+        Assert.Contains(行一覧,行 => 行.行キー.Contains("Count=2",StringComparison.Ordinal));
+        Assert.All(行一覧,行 => Assert.Equal("Add",行.メソッド名));
     }
 
     [Fact]
-    public void CreateRowsUsesScalableListTypeInBenchmarkName(){
-        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalablePersistedList);
-        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
+    public void 仕様確認04() {
+        var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.スケーラブル永続化リスト);
+        var 行一覧 = global::UI.ベンチマーク行グループ化ロジック.行を作成(
             [
-                Case(sourceTab.LeftProject,"Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.List.ListString","Add"),
-                Case(sourceTab.LeftProject,"Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.List.ListInt32","Add"),
-                Case(sourceTab.LeftProject,"Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.List.ListBoolean","Add"),
+                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.List.ListString","Add"),
+                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.List.ListInt32","Add"),
+                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.List.ListBoolean","Add"),
             ],
-            sourceTab);
+            ソースタブ);
 
-        Assert.Contains(rows,row => row.BenchmarkName=="<string>.Add");
-        Assert.Contains(rows,row => row.BenchmarkName=="<int>.Add");
-        Assert.Contains(rows,row => row.BenchmarkName=="<System.Boolean>.Add");
-        Assert.All(rows,row => Assert.Equal("Add",row.MethodName));
+        Assert.Contains(行一覧,行 => 行.ベンチマーク名=="<string>.Add");
+        Assert.Contains(行一覧,行 => 行.ベンチマーク名=="<int>.Add");
+        Assert.Contains(行一覧,行 => 行.ベンチマーク名=="<System.Boolean>.Add");
+        Assert.All(行一覧,行 => Assert.Equal("Add",行.メソッド名));
     }
 
     [Fact]
-    public void CreateRowsUsesScalableDictionaryKeyAndValueTypesInBenchmarkName(){
-        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalableTsavoriteDictionary);
-        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
+    public void 仕様確認05() {
+        var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.スケーラブルTsavorite辞書);
+        var 行一覧 = global::UI.ベンチマーク行グループ化ロジック.行を作成(
             [
-                Case(sourceTab.LeftProject,"Benchmark.Scalable.Tsavorite.Collections","Benchmark.Scalable.Tsavorite.Collections.Dictionary.DictionaryStringInt32","Add"),
-                Case(sourceTab.LeftProject,"Benchmark.Scalable.Tsavorite.Collections","Benchmark.Scalable.Tsavorite.Collections.Dictionary.DictionaryManagedStructManagedStruct","Add"),
+                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.Scalable.Tsavorite.Collections","Benchmark.Scalable.Tsavorite.Collections.Dictionary.DictionaryStringInt32","Add"),
+                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.Scalable.Tsavorite.Collections","Benchmark.Scalable.Tsavorite.Collections.Dictionary.DictionaryManagedStructManagedStruct","Add"),
             ],
-            sourceTab);
+            ソースタブ);
 
-        Assert.Contains(rows,row => row.BenchmarkName=="<string,int>.Add");
-        Assert.Contains(rows,row => row.BenchmarkName=="<ManagedStruct,ManagedStruct>.Add");
-        Assert.All(rows,row => Assert.Equal("Add",row.MethodName));
+        Assert.Contains(行一覧,行 => 行.ベンチマーク名=="<string,int>.Add");
+        Assert.Contains(行一覧,行 => 行.ベンチマーク名=="<ManagedStruct,ManagedStruct>.Add");
+        Assert.All(行一覧,行 => Assert.Equal("Add",行.メソッド名));
     }
 
     [Fact]
-    public void CreateRowsUsesSeamlessPersistedTypeInBenchmarkName(){
-        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
-        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
+    public void 仕様確認06() {
+        var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.Seamless永続化);
+        var 行一覧 = global::UI.ベンチマーク行グループ化ロジック.行を作成(
             [
-                Case(sourceTab.LeftProject,"Benchmark.Persisted.Linq.Enumerable.FLinq","Benchmark.Persisted.Linq.Enumerable.FLinqInt32","Aggregate_func"),
-                Case(sourceTab.LeftProject,"Benchmark.Persisted.Linq.Enumerable.FLinq","Benchmark.Persisted.Linq.Enumerable.FLinqString","Aggregate_func"),
-                Case(sourceTab.RightProject,"Benchmark.Persisted.Linq.Enumerable.Linq","Benchmark.Persisted.Linq.Enumerable.LinqInt32","Aggregate_func"),
-                Case(sourceTab.RightProject,"Benchmark.Persisted.Linq.Enumerable.Linq","Benchmark.Persisted.Linq.Enumerable.LinqString","Aggregate_func"),
+                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.Persisted.Linq.Enumerable.FLinq","Benchmark.Persisted.Linq.Enumerable.FLinqInt32","Aggregate_func"),
+                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.Persisted.Linq.Enumerable.FLinq","Benchmark.Persisted.Linq.Enumerable.FLinqString","Aggregate_func"),
+                ケースを作成(ソースタブ.右プロジェクト,"Benchmark.Persisted.Linq.Enumerable.Linq","Benchmark.Persisted.Linq.Enumerable.LinqInt32","Aggregate_func"),
+                ケースを作成(ソースタブ.右プロジェクト,"Benchmark.Persisted.Linq.Enumerable.Linq","Benchmark.Persisted.Linq.Enumerable.LinqString","Aggregate_func"),
             ],
-            sourceTab);
+            ソースタブ);
 
-        Assert.Contains(rows,row => row.BenchmarkName=="<int>.Aggregate_func");
-        Assert.Contains(rows,row => row.BenchmarkName=="<string>.Aggregate_func");
-        Assert.All(rows,row => Assert.Equal("Aggregate_func",row.MethodName));
+        Assert.Contains(行一覧,行 => 行.ベンチマーク名=="<int>.Aggregate_func");
+        Assert.Contains(行一覧,行 => 行.ベンチマーク名=="<string>.Aggregate_func");
+        Assert.All(行一覧,行 => Assert.Equal("Aggregate_func",行.メソッド名));
     }
 
     [Fact]
-    public void CreateRowsUsesSeamlessTsavoriteTypeInBenchmarkName(){
-        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessTsavorite);
-        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
+    public void 仕様確認07() {
+        var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.SeamlessTsavorite);
+        var 行一覧 = global::UI.ベンチマーク行グループ化ロジック.行を作成(
             [
-                Case(sourceTab.LeftProject,"Benchmark.Tsavorite.Linq.Enumerable.FLinq","Benchmark.Tsavorite.Linq.Enumerable.FLinqInt32","All_predicate"),
-                Case(sourceTab.LeftProject,"Benchmark.Tsavorite.Linq.Enumerable.FLinq","Benchmark.Tsavorite.Linq.Enumerable.FLinqString","All_predicate"),
-                Case(sourceTab.RightProject,"Benchmark.Tsavorite.Linq.Enumerable.Linq","Benchmark.Tsavorite.Linq.Enumerable.LinqInt32","All_predicate"),
-                Case(sourceTab.RightProject,"Benchmark.Tsavorite.Linq.Enumerable.Linq","Benchmark.Tsavorite.Linq.Enumerable.LinqString","All_predicate"),
+                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.Tsavorite.Linq.Enumerable.FLinq","Benchmark.Tsavorite.Linq.Enumerable.FLinqInt32","All_predicate"),
+                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.Tsavorite.Linq.Enumerable.FLinq","Benchmark.Tsavorite.Linq.Enumerable.FLinqString","All_predicate"),
+                ケースを作成(ソースタブ.右プロジェクト,"Benchmark.Tsavorite.Linq.Enumerable.Linq","Benchmark.Tsavorite.Linq.Enumerable.LinqInt32","All_predicate"),
+                ケースを作成(ソースタブ.右プロジェクト,"Benchmark.Tsavorite.Linq.Enumerable.Linq","Benchmark.Tsavorite.Linq.Enumerable.LinqString","All_predicate"),
             ],
-            sourceTab);
+            ソースタブ);
 
-        Assert.Contains(rows,row => row.BenchmarkName=="<int>.All_predicate");
-        Assert.Contains(rows,row => row.BenchmarkName=="<string>.All_predicate");
-        Assert.All(rows,row => Assert.Equal("All_predicate",row.MethodName));
+        Assert.Contains(行一覧,行 => 行.ベンチマーク名=="<int>.All_predicate");
+        Assert.Contains(行一覧,行 => 行.ベンチマーク名=="<string>.All_predicate");
+        Assert.All(行一覧,行 => Assert.Equal("All_predicate",行.メソッド名));
     }
 
     [Fact]
-    public void CreateRowsUsesPersistedRightAssemblyWhenSeamlessLinqProjectIsShared(){
-        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
-        var otherTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessTsavorite);
-        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
+    public void 仕様確認08() {
+        var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.Seamless永続化);
+        var 別タブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.SeamlessTsavorite);
+        var 行一覧 = global::UI.ベンチマーク行グループ化ロジック.行を作成(
             [
-                Case(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Benchmark.Persisted.Linq.Enumerable.FLinqInt32","AggregateBy_keySelector"),
-                Case(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Benchmark.Persisted.Linq.Enumerable.FLinqString","AggregateBy_keySelector"),
-                Case(sourceTab.RightProject,sourceTab.RightAssemblyName,"Benchmark.Persisted.Linq.Enumerable.LinqInt32","AggregateBy_keySelector"),
-                Case(sourceTab.RightProject,sourceTab.RightAssemblyName,"Benchmark.Persisted.Linq.Enumerable.LinqString","AggregateBy_keySelector"),
-                Case(sourceTab.RightProject,otherTab.RightAssemblyName,"Benchmark.Tsavorite.Linq.Enumerable.LinqInt32","AggregateBy_keySelector"),
-                Case(sourceTab.RightProject,otherTab.RightAssemblyName,"Benchmark.Tsavorite.Linq.Enumerable.LinqString","AggregateBy_keySelector"),
+                ケースを作成(ソースタブ.左プロジェクト,ソースタブ.左アセンブリ名,"Benchmark.Persisted.Linq.Enumerable.FLinqInt32","AggregateBy_keySelector"),
+                ケースを作成(ソースタブ.左プロジェクト,ソースタブ.左アセンブリ名,"Benchmark.Persisted.Linq.Enumerable.FLinqString","AggregateBy_keySelector"),
+                ケースを作成(ソースタブ.右プロジェクト,ソースタブ.右アセンブリ名,"Benchmark.Persisted.Linq.Enumerable.LinqInt32","AggregateBy_keySelector"),
+                ケースを作成(ソースタブ.右プロジェクト,ソースタブ.右アセンブリ名,"Benchmark.Persisted.Linq.Enumerable.LinqString","AggregateBy_keySelector"),
+                ケースを作成(ソースタブ.右プロジェクト,別タブ.右アセンブリ名,"Benchmark.Tsavorite.Linq.Enumerable.LinqInt32","AggregateBy_keySelector"),
+                ケースを作成(ソースタブ.右プロジェクト,別タブ.右アセンブリ名,"Benchmark.Tsavorite.Linq.Enumerable.LinqString","AggregateBy_keySelector"),
             ],
-            sourceTab);
+            ソースタブ);
 
-        Assert.Equal(2,rows.Count);
-        Assert.Contains(rows,row => row.BenchmarkName=="<int>.AggregateBy_keySelector");
-        Assert.Contains(rows,row => row.BenchmarkName=="<string>.AggregateBy_keySelector");
-        Assert.All(rows,row => Assert.Equal(sourceTab.RightAssemblyName,row.CasesByProject[sourceTab.RightProject].AssemblyName));
+        Assert.Equal(2,行一覧.Count);
+        Assert.Contains(行一覧,行 => 行.ベンチマーク名=="<int>.AggregateBy_keySelector");
+        Assert.Contains(行一覧,行 => 行.ベンチマーク名=="<string>.AggregateBy_keySelector");
+        Assert.All(行一覧,行 => Assert.Equal(ソースタブ.右アセンブリ名,行.プロジェクト別ケース[ソースタブ.右プロジェクト].アセンブリ名));
     }
 
     [Fact]
-    public void CreateRowsUsesTsavoriteRightAssemblyWhenSeamlessLinqProjectIsShared(){
-        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessTsavorite);
-        var otherTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
-        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
+    public void 仕様確認09() {
+        var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.SeamlessTsavorite);
+        var 別タブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.Seamless永続化);
+        var 行一覧 = global::UI.ベンチマーク行グループ化ロジック.行を作成(
             [
-                Case(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Benchmark.Tsavorite.Linq.Enumerable.FLinqInt32","AggregateBy_keySelector"),
-                Case(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Benchmark.Tsavorite.Linq.Enumerable.FLinqString","AggregateBy_keySelector"),
-                Case(sourceTab.RightProject,otherTab.RightAssemblyName,"Benchmark.Persisted.Linq.Enumerable.LinqInt32","AggregateBy_keySelector"),
-                Case(sourceTab.RightProject,otherTab.RightAssemblyName,"Benchmark.Persisted.Linq.Enumerable.LinqString","AggregateBy_keySelector"),
-                Case(sourceTab.RightProject,sourceTab.RightAssemblyName,"Benchmark.Tsavorite.Linq.Enumerable.LinqInt32","AggregateBy_keySelector"),
-                Case(sourceTab.RightProject,sourceTab.RightAssemblyName,"Benchmark.Tsavorite.Linq.Enumerable.LinqString","AggregateBy_keySelector"),
+                ケースを作成(ソースタブ.左プロジェクト,ソースタブ.左アセンブリ名,"Benchmark.Tsavorite.Linq.Enumerable.FLinqInt32","AggregateBy_keySelector"),
+                ケースを作成(ソースタブ.左プロジェクト,ソースタブ.左アセンブリ名,"Benchmark.Tsavorite.Linq.Enumerable.FLinqString","AggregateBy_keySelector"),
+                ケースを作成(ソースタブ.右プロジェクト,別タブ.右アセンブリ名,"Benchmark.Persisted.Linq.Enumerable.LinqInt32","AggregateBy_keySelector"),
+                ケースを作成(ソースタブ.右プロジェクト,別タブ.右アセンブリ名,"Benchmark.Persisted.Linq.Enumerable.LinqString","AggregateBy_keySelector"),
+                ケースを作成(ソースタブ.右プロジェクト,ソースタブ.右アセンブリ名,"Benchmark.Tsavorite.Linq.Enumerable.LinqInt32","AggregateBy_keySelector"),
+                ケースを作成(ソースタブ.右プロジェクト,ソースタブ.右アセンブリ名,"Benchmark.Tsavorite.Linq.Enumerable.LinqString","AggregateBy_keySelector"),
             ],
-            sourceTab);
+            ソースタブ);
 
-        Assert.Equal(2,rows.Count);
-        Assert.Contains(rows,row => row.BenchmarkName=="<int>.AggregateBy_keySelector");
-        Assert.Contains(rows,row => row.BenchmarkName=="<string>.AggregateBy_keySelector");
-        Assert.All(rows,row => Assert.Equal(sourceTab.RightAssemblyName,row.CasesByProject[sourceTab.RightProject].AssemblyName));
+        Assert.Equal(2,行一覧.Count);
+        Assert.Contains(行一覧,行 => 行.ベンチマーク名=="<int>.AggregateBy_keySelector");
+        Assert.Contains(行一覧,行 => 行.ベンチマーク名=="<string>.AggregateBy_keySelector");
+        Assert.All(行一覧,行 => Assert.Equal(ソースタブ.右アセンブリ名,行.プロジェクト別ケース[ソースタブ.右プロジェクト].アセンブリ名));
     }
 
     [Fact]
-    public void CreateRowsDoesNotFallbackToAnotherAssemblyForSharedProject(){
-        var persisted=BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
-        var tsavorite=BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessTsavorite);
-        var rows=global::UI.BenchmarkRowGroupingLogic.CreateRows(
+    public void 仕様確認10() {
+        var 永続化 = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.Seamless永続化);
+        var Tsavorite = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.SeamlessTsavorite);
+        var 行一覧 = global::UI.ベンチマーク行グループ化ロジック.行を作成(
             [
-                Case(persisted.LeftProject,persisted.LeftAssemblyName,"Benchmark.Persisted.Linq.Enumerable.FLinqClassInt32","AggregateBy_keySelector","Persisted<ClassInt32>"),
-                Case(persisted.RightProject,persisted.RightAssemblyName,"Benchmark.Persisted.Linq.Enumerable.LinqClassInt32","AggregateBy_keySelector","Persisted<ClassInt32>"),
-                Case(tsavorite.RightProject,tsavorite.RightAssemblyName,"Benchmark.Tsavorite.Linq.Enumerable.LinqClassInt32","AggregateBy_keySelector","Tsavorite<ClassInt32>"),
+                ケースを作成(永続化.左プロジェクト,永続化.左アセンブリ名,"Benchmark.Persisted.Linq.Enumerable.FLinqClassInt32","AggregateBy_keySelector","Persisted<ClassInt32>"),
+                ケースを作成(永続化.右プロジェクト,永続化.右アセンブリ名,"Benchmark.Persisted.Linq.Enumerable.LinqClassInt32","AggregateBy_keySelector","Persisted<ClassInt32>"),
+                ケースを作成(Tsavorite.右プロジェクト,Tsavorite.右アセンブリ名,"Benchmark.Tsavorite.Linq.Enumerable.LinqClassInt32","AggregateBy_keySelector","Tsavorite<ClassInt32>"),
             ],
-            persisted);
+            永続化);
 
-        var row=Assert.Single(rows);
-        Assert.True(row.CasesByProject.ContainsKey(persisted.LeftProject));
-        Assert.True(row.CasesByProject.ContainsKey(persisted.RightProject));
-        Assert.All(row.CasesByProject.Values,benchmark => Assert.True(persisted.ContainsCase(benchmark)));
+        var 行 = Assert.Single(行一覧);
+        Assert.True(行.プロジェクト別ケース.ContainsKey(永続化.左プロジェクト));
+        Assert.True(行.プロジェクト別ケース.ContainsKey(永続化.右プロジェクト));
+        Assert.All(行.プロジェクト別ケース.Values,ベンチマーク => Assert.True(永続化.ケースを含むか(ベンチマーク)));
     }
 
     [Fact]
-    public void CreateRowsKeepsOneSidedCaseFromExactAssembly(){
-        var persisted=BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
-        var rows=global::UI.BenchmarkRowGroupingLogic.CreateRows(
+    public void 仕様確認11() {
+        var 永続化 = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.Seamless永続化);
+        var 行一覧 = global::UI.ベンチマーク行グループ化ロジック.行を作成(
             [
-                Case(persisted.LeftProject,persisted.LeftAssemblyName,"Benchmark.Persisted.Linq.Enumerable.FLinqClassInt32","AggregateBy_keySelector","Persisted<ClassInt32>"),
+                ケースを作成(永続化.左プロジェクト,永続化.左アセンブリ名,"Benchmark.Persisted.Linq.Enumerable.FLinqClassInt32","AggregateBy_keySelector","Persisted<ClassInt32>"),
             ],
-            persisted);
+            永続化);
 
-        var row=Assert.Single(rows);
-        Assert.True(row.CasesByProject.ContainsKey(persisted.LeftProject));
-        Assert.False(row.CasesByProject.ContainsKey(persisted.RightProject));
+        var 行 = Assert.Single(行一覧);
+        Assert.True(行.プロジェクト別ケース.ContainsKey(永続化.左プロジェクト));
+        Assert.False(行.プロジェクト別ケース.ContainsKey(永続化.右プロジェクト));
     }
 
     [Fact]
-    public void CreateRowsUsesStandardMethod1TypeInBenchmarkName(){
-        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
-        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
+    public void 仕様確認12() {
+        var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.System配列);
+        var 行一覧 = global::UI.ベンチマーク行グループ化ロジック.行を作成(
             [
-                Case(sourceTab.LeftProject,"Benchmark.System.Linq.Enumerable.FLinq","Benchmark.System.Linq.Enumerable.FLinqInt32","Any"),
-                Case(sourceTab.LeftProject,"Benchmark.System.Linq.Enumerable.FLinq","Benchmark.System.Linq.Enumerable.FLinqString","Any"),
-                Case(sourceTab.RightProject,"Benchmark.System.Linq.Enumerable.ZLinq","Benchmark.System.Linq.Enumerable.ZLinqInt32","Any"),
-                Case(sourceTab.RightProject,"Benchmark.System.Linq.Enumerable.ZLinq","Benchmark.System.Linq.Enumerable.ZLinqString","Any"),
+                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.System.Linq.Enumerable.FLinq","Benchmark.System.Linq.Enumerable.FLinqInt32","Any"),
+                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.System.Linq.Enumerable.FLinq","Benchmark.System.Linq.Enumerable.FLinqString","Any"),
+                ケースを作成(ソースタブ.右プロジェクト,"Benchmark.System.Linq.Enumerable.ZLinq","Benchmark.System.Linq.Enumerable.ZLinqInt32","Any"),
+                ケースを作成(ソースタブ.右プロジェクト,"Benchmark.System.Linq.Enumerable.ZLinq","Benchmark.System.Linq.Enumerable.ZLinqString","Any"),
             ],
-            sourceTab);
+            ソースタブ);
 
-        Assert.Equal(2,rows.Count);
-        Assert.Contains(rows,row => row.BenchmarkName=="<int>.Any");
-        Assert.Contains(rows,row => row.BenchmarkName=="<string>.Any");
-        Assert.All(rows,row => Assert.Equal("Any",row.MethodName));
+        Assert.Equal(2,行一覧.Count);
+        Assert.Contains(行一覧,行 => 行.ベンチマーク名=="<int>.Any");
+        Assert.Contains(行一覧,行 => 行.ベンチマーク名=="<string>.Any");
+        Assert.All(行一覧,行 => Assert.Equal("Any",行.メソッド名));
     }
 
     [Fact]
-    public void CreateRowsKeepsSystemArrayRightProjectAfterAssemblyFiltering(){
-        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
-        var rows = global::UI.BenchmarkRowGroupingLogic.CreateRows(
+    public void 仕様確認13() {
+        var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.System配列);
+        var 行一覧 = global::UI.ベンチマーク行グループ化ロジック.行を作成(
             [
-                Case(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"Benchmark.System.Linq.Enumerable.FLinqInt32","Aggregate_func"),
-                Case(sourceTab.RightProject,sourceTab.RightAssemblyName,"Benchmark.System.Linq.Enumerable.ZLinqInt32","Aggregate_func"),
+                ケースを作成(ソースタブ.左プロジェクト,ソースタブ.左アセンブリ名,"Benchmark.System.Linq.Enumerable.FLinqInt32","Aggregate_func"),
+                ケースを作成(ソースタブ.右プロジェクト,ソースタブ.右アセンブリ名,"Benchmark.System.Linq.Enumerable.ZLinqInt32","Aggregate_func"),
             ],
-            sourceTab);
+            ソースタブ);
 
-        var row = Assert.Single(rows);
+        var 行 = Assert.Single(行一覧);
 
-        Assert.True(row.CasesByProject.ContainsKey(sourceTab.LeftProject));
-        Assert.True(row.CasesByProject.ContainsKey(sourceTab.RightProject));
-        Assert.Equal(sourceTab.RightAssemblyName,row.CasesByProject[sourceTab.RightProject].AssemblyName);
+        Assert.True(行.プロジェクト別ケース.ContainsKey(ソースタブ.左プロジェクト));
+        Assert.True(行.プロジェクト別ケース.ContainsKey(ソースタブ.右プロジェクト));
+        Assert.Equal(ソースタブ.右アセンブリ名,行.プロジェクト別ケース[ソースタブ.右プロジェクト].アセンブリ名);
     }
 
     [Fact]
-    public void BuildComparisonRowsUsesTypeOnlyForDuplicateProjectMethods(){
-        var sourceTab = BenchmarkSourceTabs.Default;
-        var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
+    public void 仕様確認14() {
+        var ソースタブ = ベンチマークソースタブ一覧.既定;
+        var 行一覧 = ベンチマーク比較フォーマッター.比較行を構築(
             [
-                Report(sourceTab.LeftProject,"Where","Left.Route",10),
-                Report(sourceTab.RightProject,"Where","Right.Route",20),
+                報告行を作成(ソースタブ.左プロジェクト,"Where","Left.Route",10),
+                報告行を作成(ソースタブ.右プロジェクト,"Where","Right.Route",20),
             ],
-            sourceTab);
+            ソースタブ);
 
-        var row = Assert.Single(rows);
-        Assert.Equal("Where",row.Benchmark);
-        Assert.Equal(string.Empty,row.TypeFullName);
+        var 行 = Assert.Single(行一覧);
+        Assert.Equal("Where",行.ベンチマーク);
+        Assert.Equal(string.Empty,行.型完全名);
     }
 
     [Fact]
-    public void BuildComparisonRowsSplitsDuplicateProjectMethodsByShortType(){
-        var sourceTab = BenchmarkSourceTabs.Default;
-        var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
+    public void 仕様確認15() {
+        var ソースタブ = ベンチマークソースタブ一覧.既定;
+        var 行一覧 = ベンチマーク比較フォーマッター.比較行を構築(
             [
-                Report(sourceTab.LeftProject,"Where","Left.TypeA",10),
-                Report(sourceTab.LeftProject,"Where","Left.TypeB",11),
-                Report(sourceTab.RightProject,"Where","Right.TypeA",20),
-                Report(sourceTab.RightProject,"Where","Right.TypeB",21),
+                報告行を作成(ソースタブ.左プロジェクト,"Where","Left.TypeA",10),
+                報告行を作成(ソースタブ.左プロジェクト,"Where","Left.TypeB",11),
+                報告行を作成(ソースタブ.右プロジェクト,"Where","Right.TypeA",20),
+                報告行を作成(ソースタブ.右プロジェクト,"Where","Right.TypeB",21),
             ],
-            sourceTab);
+            ソースタブ);
 
-        Assert.Equal(2,rows.Count);
-        Assert.Contains(rows,row => row.TypeFullName=="TypeA");
-        Assert.Contains(rows,row => row.TypeFullName=="TypeB");
+        Assert.Equal(2,行一覧.Count);
+        Assert.Contains(行一覧,行 => 行.型完全名=="TypeA");
+        Assert.Contains(行一覧,行 => 行.型完全名=="TypeB");
     }
 
     [Fact]
-    public void BuildComparisonRowsKeepsScalableTypeForSingleMethod(){
-        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalablePersistedList);
-        var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
+    public void 仕様確認16() {
+        var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.スケーラブル永続化リスト);
+        var 行一覧 = ベンチマーク比較フォーマッター.比較行を構築(
             [
-                Report(sourceTab.LeftProject,"Add","Benchmark.Scalable.Persisted.Collections.List.ListInt32",10),
+                報告行を作成(ソースタブ.左プロジェクト,"Add","Benchmark.Scalable.Persisted.Collections.List.ListInt32",10),
             ],
-            sourceTab);
+            ソースタブ);
 
-        var row = Assert.Single(rows);
-        Assert.Equal("<int>.Add",row.Benchmark);
-        Assert.Equal("ListInt32",row.TypeFullName);
+        var 行 = Assert.Single(行一覧);
+        Assert.Equal("<int>.Add",行.ベンチマーク);
+        Assert.Equal("ListInt32",行.型完全名);
     }
 
     [Fact]
-    public void BuildComparisonRowsUsesScalableSetFullNameWithElementCount(){
-        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalableTsavoriteSet);
-        var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
+    public void 仕様確認17() {
+        var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.スケーラブルTsavoriteセット);
+        var 行一覧 = ベンチマーク比較フォーマッター.比較行を構築(
             [
-                Report(sourceTab.LeftProject,"Add","Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32",20),
+                報告行を作成(ソースタブ.左プロジェクト,"Add","Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32",20),
             ],
-            sourceTab,
+            ソースタブ,
             131072);
 
-        var row = Assert.Single(rows);
-        Assert.Equal("<int>.Add",row.Benchmark);
-        Assert.Equal("Add",row.MethodName);
-        Assert.Equal("SetInt32",row.TypeFullName);
+        var 行 = Assert.Single(行一覧);
+        Assert.Equal("<int>.Add",行.ベンチマーク);
+        Assert.Equal("Add",行.メソッド名);
+        Assert.Equal("SetInt32",行.型完全名);
     }
 
     [Fact]
-    public void BuildComparisonRowsUsesScalableDictionaryFullNameWithElementCount(){
-        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalableTsavoriteDictionary);
-        var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
+    public void 仕様確認18() {
+        var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.スケーラブルTsavorite辞書);
+        var 行一覧 = ベンチマーク比較フォーマッター.比較行を構築(
             [
-                Report(sourceTab.LeftProject,"Add","Benchmark.Scalable.Tsavorite.Collections.Dictionary.DictionaryStringInt32",20),
+                報告行を作成(ソースタブ.左プロジェクト,"Add","Benchmark.Scalable.Tsavorite.Collections.Dictionary.DictionaryStringInt32",20),
             ],
-            sourceTab,
+            ソースタブ,
             131072);
 
-        var row = Assert.Single(rows);
+        var 行 = Assert.Single(行一覧);
 
-        Assert.Equal("<string,int>.Add",row.Benchmark);
-        Assert.Equal("Add",row.MethodName);
-        Assert.Equal("DictionaryStringInt32",row.TypeFullName);
+        Assert.Equal("<string,int>.Add",行.ベンチマーク);
+        Assert.Equal("Add",行.メソッド名);
+        Assert.Equal("DictionaryStringInt32",行.型完全名);
     }
 
     [Fact]
-    public void BuildComparisonRowsUsesSeamlessPersistedType(){
-        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
-        var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
+    public void 仕様確認19() {
+        var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.Seamless永続化);
+        var 行一覧 = ベンチマーク比較フォーマッター.比較行を構築(
             [
-                Report(sourceTab.LeftProject,"Aggregate_func","Benchmark.Persisted.Linq.Enumerable.FLinqInt32",20),
+                報告行を作成(ソースタブ.左プロジェクト,"Aggregate_func","Benchmark.Persisted.Linq.Enumerable.FLinqInt32",20),
             ],
-            sourceTab);
+            ソースタブ);
 
-        var row = Assert.Single(rows);
+        var 行 = Assert.Single(行一覧);
 
-        Assert.Equal("<int>.Aggregate_func",row.Benchmark);
-        Assert.Equal("Aggregate_func",row.MethodName);
-        Assert.Equal("int",row.TypeFullName);
+        Assert.Equal("<int>.Aggregate_func",行.ベンチマーク);
+        Assert.Equal("Aggregate_func",行.メソッド名);
+        Assert.Equal("int",行.型完全名);
     }
 
     [Fact]
-    public void BuildComparisonRowsPairsStandardMethod1ProjectsByType(){
-        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
-        var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
+    public void 仕様確認20() {
+        var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.System配列);
+        var 行一覧 = ベンチマーク比較フォーマッター.比較行を構築(
             [
-                Report(sourceTab.LeftProject,"Any","Benchmark.System.Linq.Enumerable.FLinqInt32",10),
-                Report(sourceTab.RightProject,"Any","Benchmark.System.Linq.Enumerable.ZLinqInt32",20),
-                Report(sourceTab.LeftProject,"Any","Benchmark.System.Linq.Enumerable.FLinqString",30),
-                Report(sourceTab.RightProject,"Any","Benchmark.System.Linq.Enumerable.ZLinqString",40),
+                報告行を作成(ソースタブ.左プロジェクト,"Any","Benchmark.System.Linq.Enumerable.FLinqInt32",10),
+                報告行を作成(ソースタブ.右プロジェクト,"Any","Benchmark.System.Linq.Enumerable.ZLinqInt32",20),
+                報告行を作成(ソースタブ.左プロジェクト,"Any","Benchmark.System.Linq.Enumerable.FLinqString",30),
+                報告行を作成(ソースタブ.右プロジェクト,"Any","Benchmark.System.Linq.Enumerable.ZLinqString",40),
             ],
-            sourceTab);
+            ソースタブ);
 
-        Assert.Equal(2,rows.Count);
-        var intRow=Assert.Single(rows,row => row.TypeFullName=="int");
-        var stringRow=Assert.Single(rows,row => row.TypeFullName=="string");
+        Assert.Equal(2,行一覧.Count);
+        var 整数行 = Assert.Single(行一覧,行 => 行.型完全名=="int");
+        var 文字列行 = Assert.Single(行一覧,行 => 行.型完全名=="string");
 
-        Assert.Equal("<int>.Any",intRow.Benchmark);
-        Assert.Equal(10,intRow.GetProject(sourceTab.LeftProject).TimeNanoseconds);
-        Assert.Equal(20,intRow.GetProject(sourceTab.RightProject).TimeNanoseconds);
-        Assert.Equal("<string>.Any",stringRow.Benchmark);
-        Assert.Equal(30,stringRow.GetProject(sourceTab.LeftProject).TimeNanoseconds);
-        Assert.Equal(40,stringRow.GetProject(sourceTab.RightProject).TimeNanoseconds);
+        Assert.Equal("<int>.Any",整数行.ベンチマーク);
+        Assert.Equal(10,整数行.プロジェクトを取得(ソースタブ.左プロジェクト).時間ナノ秒);
+        Assert.Equal(20,整数行.プロジェクトを取得(ソースタブ.右プロジェクト).時間ナノ秒);
+        Assert.Equal("<string>.Any",文字列行.ベンチマーク);
+        Assert.Equal(30,文字列行.プロジェクトを取得(ソースタブ.左プロジェクト).時間ナノ秒);
+        Assert.Equal(40,文字列行.プロジェクトを取得(ソースタブ.右プロジェクト).時間ナノ秒);
     }
 
     [Fact]
-    public void BuildComparisonRowsMapsLegacyMethod1TypeToInt(){
-        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
-        var rows = BenchmarkComparisonFormatter.BuildComparisonRows(
+    public void 仕様確認21() {
+        var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.System配列);
+        var 行一覧 = ベンチマーク比較フォーマッター.比較行を構築(
             [
-                Report(sourceTab.LeftProject,"Any","Benchmark.System.Linq.Enumerable.FLinq",10),
-                Report(sourceTab.RightProject,"Any","Benchmark.System.Linq.Enumerable.ZLinq",20),
+                報告行を作成(ソースタブ.左プロジェクト,"Any","Benchmark.System.Linq.Enumerable.FLinq",10),
+                報告行を作成(ソースタブ.右プロジェクト,"Any","Benchmark.System.Linq.Enumerable.ZLinq",20),
             ],
-            sourceTab);
+            ソースタブ);
 
-        var row=Assert.Single(rows);
+        var 行 = Assert.Single(行一覧);
 
-        Assert.Equal("<int>.Any",row.Benchmark);
-        Assert.Equal("int",row.TypeFullName);
-        Assert.Equal(10,row.GetProject(sourceTab.LeftProject).TimeNanoseconds);
-        Assert.Equal(20,row.GetProject(sourceTab.RightProject).TimeNanoseconds);
+        Assert.Equal("<int>.Any",行.ベンチマーク);
+        Assert.Equal("int",行.型完全名);
+        Assert.Equal(10,行.プロジェクトを取得(ソースタブ.左プロジェクト).時間ナノ秒);
+        Assert.Equal(20,行.プロジェクトを取得(ソースタブ.右プロジェクト).時間ナノ秒);
     }
 
     [Fact]
-    public void ComparisonRowMatchRequiresArgumentKey(){
-        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.ScalableTsavoriteSet);
-        var arguments = new BenchmarkArgument[] {
+    public void 仕様確認22() {
+        var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.スケーラブルTsavoriteセット);
+        var 引数一覧 = new ベンチマーク引数[] {
             new("Count","131072"),
             new("Index","131072"),
         };
-        var cases = new BenchmarkComparisonRowMatchCase[] {
-            new("Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32",BenchmarkArgumentFormatting.CreateKey(arguments)),
+        var ケース一覧 = new ベンチマーク比較行一致ケース[] {
+            new("Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32",ベンチマーク引数フォーマッター.キーを作成(引数一覧)),
         };
-        var exact = new BenchmarkComparisonRow(
+        var 完全一致 = new ベンチマーク比較行(
             "<int>.Add",
-            sourceTab,
-            ProjectMetrics.FromMeasurement(10,0),
-            ProjectMetrics.Missing) {
-            MethodName="Add",
-            TypeFullName="SetInt32",
-            ArgumentKey=BenchmarkArgumentFormatting.CreateKey(arguments),
-            Arguments=arguments,
+            ソースタブ,
+            プロジェクト測定値.測定から作成(10,0),
+            プロジェクト測定値.欠測) {
+            メソッド名="Add",
+            型完全名="SetInt32",
+            引数キー=ベンチマーク引数フォーマッター.キーを作成(引数一覧),
+            引数一覧=引数一覧,
         };
-        var differentArgument = exact with {
-            ArgumentKey="Count=262144,Index=131072",
-            Arguments=[
-                new BenchmarkArgument("Count","262144"),
-                new BenchmarkArgument("Index","131072"),
+        var 別引数 = 完全一致 with {
+            引数キー="Count=262144,Index=131072",
+            引数一覧= [
+                new ベンチマーク引数("Count","262144"),
+                new ベンチマーク引数("Index","131072"),
             ],
         };
-        var emptyArgument = exact with {
-            ArgumentKey=string.Empty,
-            Arguments=[],
+        var 空引数 = 完全一致 with {
+            引数キー=string.Empty,
+            引数一覧= [],
         };
 
-        Assert.True(BenchmarkComparisonRowMatchLogic.IsMatch("Add","<int>.Add",sourceTab.Tab,cases,exact));
-        Assert.False(BenchmarkComparisonRowMatchLogic.IsMatch("Add","<int>.Add",sourceTab.Tab,cases,differentArgument));
-        Assert.False(BenchmarkComparisonRowMatchLogic.IsMatch("Add","<int>.Add",sourceTab.Tab,cases,emptyArgument));
+        Assert.True(ベンチマーク比較行一致ロジック.一致か("Add","<int>.Add",ソースタブ.タブ,ケース一覧,完全一致));
+        Assert.False(ベンチマーク比較行一致ロジック.一致か("Add","<int>.Add",ソースタブ.タブ,ケース一覧,別引数));
+        Assert.False(ベンチマーク比較行一致ロジック.一致か("Add","<int>.Add",ソースタブ.タブ,ケース一覧,空引数));
     }
 
     [Fact]
-    public void ComparisonRowMatchRequiresTypeForSeamlessPersistedAndTsavorite(){
+    public void 仕様確認23() {
         {
-            var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
-            var cases = new BenchmarkComparisonRowMatchCase[] {
+            var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.Seamless永続化);
+            var ケース一覧 = new ベンチマーク比較行一致ケース[] {
                 new("Benchmark.Persisted.Linq.Enumerable.FLinqInt32",string.Empty),
             };
-            var exact = new BenchmarkComparisonRow(
+            var 完全一致 = new ベンチマーク比較行(
                 "<int>.Aggregate_func",
-                sourceTab,
-                ProjectMetrics.FromMeasurement(10,0),
-                ProjectMetrics.Missing) {
-                MethodName="Aggregate_func",
-                TypeFullName="int",
+                ソースタブ,
+                プロジェクト測定値.測定から作成(10,0),
+                プロジェクト測定値.欠測) {
+                メソッド名="Aggregate_func",
+                型完全名="int",
             };
-            var otherType = exact with {
-                Benchmark="<string>.Aggregate_func",
-                TypeFullName="string",
+            var 別型 = 完全一致 with {
+                ベンチマーク="<string>.Aggregate_func",
+                型完全名="string",
             };
 
-            Assert.True(BenchmarkComparisonRowMatchLogic.IsMatch("Aggregate_func","<int>.Aggregate_func",sourceTab.Tab,cases,exact));
-            Assert.False(BenchmarkComparisonRowMatchLogic.IsMatch("Aggregate_func","<int>.Aggregate_func",sourceTab.Tab,cases,otherType));
+            Assert.True(ベンチマーク比較行一致ロジック.一致か("Aggregate_func","<int>.Aggregate_func",ソースタブ.タブ,ケース一覧,完全一致));
+            Assert.False(ベンチマーク比較行一致ロジック.一致か("Aggregate_func","<int>.Aggregate_func",ソースタブ.タブ,ケース一覧,別型));
         }
         {
-            var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessTsavorite);
-            var cases = new BenchmarkComparisonRowMatchCase[] {
+            var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.SeamlessTsavorite);
+            var ケース一覧 = new ベンチマーク比較行一致ケース[] {
                 new("Benchmark.Tsavorite.Linq.Enumerable.FLinqInt32",string.Empty),
             };
-            var exact = new BenchmarkComparisonRow(
+            var 完全一致 = new ベンチマーク比較行(
                 "<int>.All_predicate",
-                sourceTab,
-                ProjectMetrics.FromMeasurement(10,0),
-                ProjectMetrics.Missing) {
-                MethodName="All_predicate",
-                TypeFullName="int",
+                ソースタブ,
+                プロジェクト測定値.測定から作成(10,0),
+                プロジェクト測定値.欠測) {
+                メソッド名="All_predicate",
+                型完全名="int",
             };
-            var otherType = exact with {
-                Benchmark="<string>.All_predicate",
-                TypeFullName="string",
+            var 別型 = 完全一致 with {
+                ベンチマーク="<string>.All_predicate",
+                型完全名="string",
             };
 
-            Assert.True(BenchmarkComparisonRowMatchLogic.IsMatch("All_predicate","<int>.All_predicate",sourceTab.Tab,cases,exact));
-            Assert.False(BenchmarkComparisonRowMatchLogic.IsMatch("All_predicate","<int>.All_predicate",sourceTab.Tab,cases,otherType));
+            Assert.True(ベンチマーク比較行一致ロジック.一致か("All_predicate","<int>.All_predicate",ソースタブ.タブ,ケース一覧,完全一致));
+            Assert.False(ベンチマーク比較行一致ロジック.一致か("All_predicate","<int>.All_predicate",ソースタブ.タブ,ケース一覧,別型));
         }
     }
 
     [Fact]
-    public void DefaultComparisonRowGetProjectReturnsMissing(){
-        var row = default(BenchmarkComparisonRow);
+    public void 仕様確認24() {
+        var 行 = default(ベンチマーク比較行);
 
-        var metrics = row.GetProject(BenchmarkSourceTabs.Default.LeftProject);
+        var 指標一覧 = 行.プロジェクトを取得(ベンチマークソースタブ一覧.既定.左プロジェクト);
 
-        Assert.False(metrics.HasMeasuredValue);
+        Assert.False(指標一覧.測定値ありか);
     }
 
     [Fact]
-    public void CreateGenericTypeTextReadsTypedBenchmarkClassSuffix(){
-        Assert.Equal("int",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("Benchmark.Persisted.Linq.Enumerable.FLinqInt32"));
-        Assert.Equal("string",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("Benchmark.Persisted.Linq.Enumerable.LinqString"));
-        Assert.Equal("int",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("Benchmark.Tsavorite.Linq.Enumerable.FLinqInt32"));
-        Assert.Equal("string",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("Benchmark.Tsavorite.Linq.Enumerable.LinqString"));
-        Assert.Equal("int",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("Benchmark.System.Linq.Enumerable.FLinqInt32"));
-        Assert.Equal("string",ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("Benchmark.System.Linq.Enumerable.ZLinqString"));
-        Assert.Equal(string.Empty,ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText("System.Array.FLinq"));
+    public void 仕様確認25() {
+        Assert.Equal("int",スケーラブルベンチマーク名フォーマッター.ベンチマーク型表示を作成("Benchmark.Persisted.Linq.Enumerable.FLinqInt32"));
+        Assert.Equal("string",スケーラブルベンチマーク名フォーマッター.ベンチマーク型表示を作成("Benchmark.Persisted.Linq.Enumerable.LinqString"));
+        Assert.Equal("int",スケーラブルベンチマーク名フォーマッター.ベンチマーク型表示を作成("Benchmark.Tsavorite.Linq.Enumerable.FLinqInt32"));
+        Assert.Equal("string",スケーラブルベンチマーク名フォーマッター.ベンチマーク型表示を作成("Benchmark.Tsavorite.Linq.Enumerable.LinqString"));
+        Assert.Equal("int",スケーラブルベンチマーク名フォーマッター.ベンチマーク型表示を作成("Benchmark.System.Linq.Enumerable.FLinqInt32"));
+        Assert.Equal("string",スケーラブルベンチマーク名フォーマッター.ベンチマーク型表示を作成("Benchmark.System.Linq.Enumerable.ZLinqString"));
+        Assert.Equal("int",スケーラブルベンチマーク名フォーマッター.ベンチマーク型表示を作成("Benchmark.Optimization.All.ArrayInt32"));
+        Assert.Equal("ClassInt32",スケーラブルベンチマーク名フォーマッター.ベンチマーク型表示を作成("Benchmark.Optimization.All.ArrayClassInt32"));
+        Assert.Equal("int",スケーラブルベンチマーク名フォーマッター.ベンチマーク型表示を作成("Benchmark.Optimization.All.IEnumerableInt32"));
+        Assert.Equal("int",スケーラブルベンチマーク名フォーマッター.ベンチマーク型表示を作成("Benchmark.Optimization.All.Range_start_count"));
+        Assert.Equal("int",スケーラブルベンチマーク名フォーマッター.ベンチマーク型表示を作成("Benchmark.Optimization.All.PersistedInt32"));
+        Assert.Equal("ClassInt32",スケーラブルベンチマーク名フォーマッター.ベンチマーク型表示を作成("Benchmark.Optimization.All.TsavoriteClassInt32"));
+        Assert.Equal(string.Empty,スケーラブルベンチマーク名フォーマッター.ベンチマーク型表示を作成("System.Array.FLinq"));
     }
 
-    private static BenchmarkSourceTabDefinition ComparisonSourceTab() =>
+    private static ベンチマークソースタブ定義 比較ソースタブを作成() =>
         new(
-            BenchmarkSourceTab.OptimizationRewrite,
+            ベンチマークソースタブ.最適化書き換え,
             "Test.Comparison",
             "Test",
             "Left",
@@ -483,26 +489,26 @@ public sealed class BenchmarkRowGroupingLogic{
             "Right",
             "Right.Assembly");
 
-    private static BenchmarkCase Case(string project,string assembly,string type,string method,string benchmarkPath = "") =>
-        new(project,assembly,type,method,benchmarkPath);
+    private static ベンチマークケース ケースを作成(string プロジェクト,string アセンブリ,string 型,string メソッド,string ベンチマークパス = "") =>
+        new(プロジェクト,アセンブリ,型,メソッド,ベンチマークパス);
 
-    private static BenchmarkCase Case(string project,string assembly,string type,string method,string argumentKey,IReadOnlyList<BenchmarkArgument> arguments) =>
-        new(project,assembly,type,method,argumentKey,arguments);
+    private static ベンチマークケース ケースを作成(string プロジェクト,string アセンブリ,string 型,string メソッド,string 引数キー,IReadOnlyList<ベンチマーク引数> 引数一覧) =>
+        new(プロジェクト,アセンブリ,型,メソッド,引数キー,引数一覧);
 
-    private static ReportRow Report(string project,string method,string type,double mean) =>
+    private static 報告行 報告行を作成(string プロジェクト,string メソッド,string 型,double 平均) =>
         new(
-            project,
-            method,
-            type,
-            method,
+            プロジェクト,
+            メソッド,
+            型,
+            メソッド,
             "Completed",
-            mean.ToString(global::System.Globalization.CultureInfo.InvariantCulture),
+            平均.ToString(global::System.Globalization.CultureInfo.InvariantCulture),
             string.Empty,
             string.Empty,
             "0",
             string.Empty,
             string.Empty,
-            mean,
+            平均,
             0,
             0,
             0,
@@ -517,6 +523,3 @@ public sealed class BenchmarkRowGroupingLogic{
             0);
 
 }
-
-
-

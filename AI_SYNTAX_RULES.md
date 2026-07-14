@@ -72,6 +72,18 @@ class A:IDisposable{
         }
     }
 }
+```
+
+## UI コードの日本語命名
+
+- Seamless 独自の UI コードでは、型、メソッド、プロパティ、フィールド、引数、ローカル変数、列挙値、イベント、AutomationId、JSON キーを日本語で命名してください。
+- 技術的な接尾語はカタカナ表記にし、非同期メソッドの接尾語 `Async` は維持してください。
+- `bool` を表す名前は疑問形の `～か` とし、イベント処理メソッドは `～時` としてください。
+- 名前空間、プロジェクト名、アセンブリ名、ファイル名、フォルダー名、外部 API、製品タイトルは日本語化しません。
+- MAUI の起動規約に属する `App`、`MainPage`、`MauiProgram`、`Program`、`AppDelegate` は維持してください。
+- `UI`、`DB`、`CPU`、`JSON`、`ID`、`FLinq` などの略語、Benchmark 引数名の `Count`、`Index`、`Page`、`Segment`、`Memory`、`Fraction`、`Initial`、`Data`、Worker の CLI 引数名と環境変数名は維持してください。
+- `Index` などの英語維持は実際の Benchmark 引数名・DB列名を表す場合だけに限定し、一般的な技術接尾語やローカル変数では `インデックス` のようにカタカナ表記にしてください。
+- 表示文言とコード上の概念名を一致させ、画面上で日本語にした独自概念には英語名の互換ラッパーを残さないでください。
 
 ## Collection And LINQ Constraints
 

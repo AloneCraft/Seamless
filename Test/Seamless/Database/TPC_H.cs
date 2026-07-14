@@ -1,4 +1,5 @@
 using System.Globalization;
+
 using DatabaseObjectKind = Seamless.Database.DatabaseObjectKind;
 
 // ReSharper disable InconsistentNaming
@@ -16,10 +17,10 @@ namespace Test.Seamless.Database.TPC_H {
     [global::Seamless.FLinq.LinqIntercept(false)]
     [global::Seamless.Database.Database("TPCH")]
     public sealed partial class Container:global::Seamless.Database.DatabaseContainer {
-        public Container():this(null) {
+        public Container() : this(null) {
         }
 
-        public Container(global::Seamless.Database.DatabaseContainerOptions? options):base(options??DefaultOptions()) {
+        public Container(global::Seamless.Database.DatabaseContainerOptions? options) : base(options??DefaultOptions()) {
         }
 
         private static global::Seamless.Database.DatabaseContainerOptions DefaultOptions() =>
@@ -446,7 +447,7 @@ namespace Test.Seamless.Database.TPC_H {
 
         [global::Seamless.Database.View("tpch.vNationNames")]
         public global::Seamless.Database.View<string> NationNames() {
-            return this.View(()=>this.NationNamesQuery());
+            return this.View(() => this.NationNamesQuery());
         }
 
         [global::Seamless.FLinq.LinqIntercept(true)]
@@ -455,7 +456,7 @@ namespace Test.Seamless.Database.TPC_H {
 
         [global::Seamless.Database.Function("tpch.fnOrdersByCustomer")]
         public global::Seamless.Database.TableFunction<int> OrdersByCustomer(int customerKey) {
-            return this.TableFunction(()=>this.OrdersByCustomerQuery(customerKey));
+            return this.TableFunction(() => this.OrdersByCustomerQuery(customerKey));
         }
 
         [global::Seamless.FLinq.LinqIntercept(true)]
@@ -500,7 +501,7 @@ namespace Test.Seamless.Database.TPC_H {
                 container.nations.Add(new Records.nation(nation.Key,nation.Name,nation.RegionKey,"tpch nation"));
             }
 
-            for(var supplierKey = 1; supplierKey<=supplierCount; supplierKey++) {
+            for(var supplierKey = 1;supplierKey<=supplierCount;supplierKey++) {
                 var nationKey = nations[random.Next(nations.Length)].Key;
                 var item = new Records.supplier(
                     supplierKey,
@@ -513,7 +514,7 @@ namespace Test.Seamless.Database.TPC_H {
                 container.suppliers.Add(item);
             }
 
-            for(var customerKey = 1; customerKey<=customerCount; customerKey++) {
+            for(var customerKey = 1;customerKey<=customerCount;customerKey++) {
                 var nationKey = nations[random.Next(nations.Length)].Key;
                 container.customers.Add(new Records.customer(
                     customerKey,
@@ -527,7 +528,7 @@ namespace Test.Seamless.Database.TPC_H {
             }
 
             var partSuppliers = new Dictionary<int,int[]>(partCount);
-            for(var partKey = 1; partKey<=partCount; partKey++) {
+            for(var partKey = 1;partKey<=partCount;partKey++) {
                 var partName = partKey%7==0 ? $"forest part {partKey}" : $"part {partKey}";
                 var brand = $"Brand#{(partKey%55)+1:D2}";
                 var containerName = Containers[random.Next(Containers.Length)];
@@ -544,7 +545,7 @@ namespace Test.Seamless.Database.TPC_H {
                     "tpch part"));
 
                 var suppKeys = new int[4];
-                for(var slot = 0; slot<suppKeys.Length; slot++) {
+                for(var slot = 0;slot<suppKeys.Length;slot++) {
                     var suppKey = ((partKey*37)+(slot*53))%supplierCount+1;
                     while(Array.IndexOf(suppKeys,suppKey)>=0) {
                         suppKey=suppKey==supplierCount ? 1 : suppKey+1;
@@ -560,12 +561,12 @@ namespace Test.Seamless.Database.TPC_H {
                 partSuppliers[partKey]=suppKeys;
             }
 
-            for(var orderKey = 1; orderKey<=orderCount; orderKey++) {
+            for(var orderKey = 1;orderKey<=orderCount;orderKey++) {
                 var customerKey = random.Next(1,customerCount+1);
                 var orderDate = RandomDateInt(random,new DateTime(1992,1,1),new DateTime(1998,8,2));
                 var lineCount = random.Next(1,8);
                 decimal total = 0m;
-                for(var lineNumber = 1; lineNumber<=lineCount; lineNumber++) {
+                for(var lineNumber = 1;lineNumber<=lineCount;lineNumber++) {
                     var partKey = random.Next(1,partCount+1);
                     var suppChoices = partSuppliers[partKey];
                     var suppKey = suppChoices[random.Next(suppChoices.Length)];
@@ -623,12 +624,12 @@ namespace Test.Seamless.Database.TPC_H {
             (21,"SAUDI ARABIA",4),(22,"VIETNAM",2),(23,"RUSSIA",3),(24,"UNITED KINGDOM",3),(25,"UNITED STATES",1)
         ];
 
-        private static readonly string[] Segments =["AUTOMOBILE","BUILDING","FURNITURE","HOUSEHOLD","MACHINERY"];
-        private static readonly string[] Priorities =["1-URGENT","2-HIGH","3-MEDIUM","4-NOT SPECIFIED","5-LOW"];
-        private static readonly string[] ReturnFlags =["R","A","N"];
-        private static readonly string[] ShipModes =["REG AIR","AIR","RAIL","SHIP","TRUCK","MAIL","FOB"];
-        private static readonly string[] ShipInstructs =["DELIVER IN PERSON","COLLECT COD","NONE","TAKE BACK RETURN"];
-        private static readonly string[] Containers =["SM BOX","SM PACK","MED BOX","MED BAG","LG BOX","JUMBO PACK"];
+        private static readonly string[] Segments = ["AUTOMOBILE","BUILDING","FURNITURE","HOUSEHOLD","MACHINERY"];
+        private static readonly string[] Priorities = ["1-URGENT","2-HIGH","3-MEDIUM","4-NOT SPECIFIED","5-LOW"];
+        private static readonly string[] ReturnFlags = ["R","A","N"];
+        private static readonly string[] ShipModes = ["REG AIR","AIR","RAIL","SHIP","TRUCK","MAIL","FOB"];
+        private static readonly string[] ShipInstructs = ["DELIVER IN PERSON","COLLECT COD","NONE","TAKE BACK RETURN"];
+        private static readonly string[] Containers = ["SM BOX","SM PACK","MED BOX","MED BAG","LG BOX","JUMBO PACK"];
         private static readonly string[] PartTypes = [
             "SMALL BRASS","MEDIUM POLISHED","LARGE ANODIZED","PROMO BURNISHED","ECONOMY BRASS","STANDARD POLISHED"
         ];
@@ -674,8 +675,8 @@ namespace Test.Seamless.Database.TPC_H {
             var suffix = querySyntax ? "Query" : "Method";
             var methodName = $"{prefix}{query}{suffix}";
             var method = typeof(Container).GetMethod(methodName,global::System.Reflection.BindingFlags.Instance|global::System.Reflection.BindingFlags.Public)
-                ?? throw new ArgumentOutOfRangeException(nameof(query));
-            var rows = (IEnumerable<string>)(method.Invoke(container,[]) ?? Array.Empty<string>());
+                ??throw new ArgumentOutOfRangeException(nameof(query));
+            var rows = (IEnumerable<string>)(method.Invoke(container,[])??Array.Empty<string>());
             var result = rows.ToArray();
             Array.Sort(result,StringComparer.Ordinal);
             return result;
@@ -809,7 +810,8 @@ namespace Test.Seamless.Database.TPC_H {
         // ── 宣言的 View / TableFunction / スカラー関数の検証 ─────────────
         // ベースラインは LINQ を使わない手続きコードで計算し、FLinq 展開経路と一致することを確かめる。
 
-        [Fact] public void NationNames_View_MatchesBaseline() {
+        [Fact]
+        public void NationNames_View_MatchesBaseline() {
             var expected = Baseline.NationNames(this.Container);
             var view = this.Container.NationNames();
             Assert.Equal("NationNames",view.Name);
@@ -818,7 +820,8 @@ namespace Test.Seamless.Database.TPC_H {
             Assert.Same(view,this.Container.NationNames());
         }
 
-        [Fact] public void OrdersByCustomer_TableFunction_MatchesBaseline() {
+        [Fact]
+        public void OrdersByCustomer_TableFunction_MatchesBaseline() {
             var expected = Baseline.OrdersByCustomer(this.Container,1);
             var function = this.Container.OrdersByCustomer(1);
             Assert.Equal("OrdersByCustomer",function.Name);
@@ -826,21 +829,24 @@ namespace Test.Seamless.Database.TPC_H {
             Assert.Equal(expected,function.ToArray());
         }
 
-        [Fact] public void TotalAccountBalance_ScalarFunction_MatchesBaseline() {
+        [Fact]
+        public void TotalAccountBalance_ScalarFunction_MatchesBaseline() {
             Assert.Equal(Baseline.TotalAccountBalance(this.Container),this.Container.TotalAccountBalance());
         }
 
-        [Fact] public void DatabaseMetadata_FromGenerator() {
+        [Fact]
+        public void DatabaseMetadata_FromGenerator() {
             Assert.Equal("TPCH",this.Container.DatabaseName);
             var objects = this.Container.DatabaseObjects;
-            Assert.Contains(objects,declaration => declaration is { Kind: DatabaseObjectKind.Table,MemberName: "lineitems",SqlName: "lineitem" });
-            Assert.Contains(objects,declaration => declaration is { Kind: DatabaseObjectKind.View,MemberName: "NationNames",SqlName: "tpch.vNationNames" });
-            Assert.Contains(objects,declaration => declaration is { Kind: DatabaseObjectKind.TableFunction,MemberName: "OrdersByCustomer",SqlName: "tpch.fnOrdersByCustomer" });
-            Assert.Contains(objects,declaration => declaration is { Kind: DatabaseObjectKind.ScalarFunction,MemberName: "TotalAccountBalance",SqlName: "tpch.fnTotalAccountBalance" });
+            Assert.Contains(objects,declaration => declaration is { Kind: DatabaseObjectKind.Table, MemberName: "lineitems", SqlName: "lineitem" });
+            Assert.Contains(objects,declaration => declaration is { Kind: DatabaseObjectKind.View, MemberName: "NationNames", SqlName: "tpch.vNationNames" });
+            Assert.Contains(objects,declaration => declaration is { Kind: DatabaseObjectKind.TableFunction, MemberName: "OrdersByCustomer", SqlName: "tpch.fnOrdersByCustomer" });
+            Assert.Contains(objects,declaration => declaration is { Kind: DatabaseObjectKind.ScalarFunction, MemberName: "TotalAccountBalance", SqlName: "tpch.fnTotalAccountBalance" });
             Assert.Equal(8,objects.Count(declaration => declaration.Kind==DatabaseObjectKind.Table));
         }
 
-        [Fact] public void ImportTables_FromImportSource() {
+        [Fact]
+        public void ImportTables_FromImportSource() {
             using var container = new Container(global::Seamless.Database.DatabaseContainerOptions.InMemory with { IndexSize=1L<<12,MemorySize=1L<<24 });
             container.EnsureTablesCreated();
             container.ImportTables(new RegionImportSource());
@@ -873,7 +879,7 @@ namespace Test.Seamless.Database.TPC_H {
                     names.Add(nation.n_name);
                 }
                 names.Sort(Comparer<string>.Default);
-                return [..names];
+                return [.. names];
             }
             public static int[] OrdersByCustomer(Container container,int customerKey) {
                 var orderKeys = new List<int>();
@@ -883,7 +889,7 @@ namespace Test.Seamless.Database.TPC_H {
                     }
                 }
                 orderKeys.Sort();
-                return [..orderKeys];
+                return [.. orderKeys];
             }
             public static decimal TotalAccountBalance(Container container) {
                 var total = 0m;

@@ -15,12 +15,12 @@ public sealed partial class FLinqIncrementalGenerator {
     /// ドット区切り名前空間の 1 つ上の親名前空間を返す。最上位（ドット無し）なら空文字列。
     /// </summary>
     private static string 親名前空間取得(string 名前空間) {
-        var i=名前空間.LastIndexOf('.');
+        var i = 名前空間.LastIndexOf('.');
         return i<0 ? string.Empty : 名前空間[..i];
     }
 
     private static string インターセプターソース構築(ImmutableArray<Linq傍受対象型> targets,List<Diagnostic> diagnostics) {
-        var builder=new StringBuilder();
+        var builder = new StringBuilder();
         builder.AppendLine("#nullable enable annotations");
         builder.AppendLine("#nullable disable warnings");
         builder.AppendLine("#pragma warning disable CS0414, CS0649");
@@ -28,16 +28,16 @@ public sealed partial class FLinqIncrementalGenerator {
 
         // このファイルで生成する匿名型→record struct 透過置換のレジストリを用意し、
         // ネストした静的メソッド群（関数式フラグメント生成 等）から ThreadStatic 経由で参照させる。
-        var anonRegistry=new AnonymousStructRecordRegistry(
+        var anonRegistry = new AnonymousStructRecordRegistry(
             AnonRecordFileToken(targets.IsDefaultOrEmpty ? string.Empty : targets[0].SourcePath));
-        var previousRegistry=_anonRegistry;
+        var previousRegistry = _anonRegistry;
         _anonRegistry=anonRegistry;
         try {
             foreach(var namespaceGroup in targets.GroupBy(static target => インターセプト名前空間取得(target.EnclosingType),
                         StringComparer.Ordinal)) {
                 builder.AppendLine();
                 builder.AppendLine($"namespace {namespaceGroup.Key} {{");
-                var originalNamespace=namespaceGroup.Key.StartsWith("Intercept.",StringComparison.Ordinal)
+                var originalNamespace = namespaceGroup.Key.StartsWith("Intercept.",StringComparison.Ordinal)
                     ? namespaceGroup.Key["Intercept.".Length..]
                     : string.Empty;
                 if(!string.IsNullOrWhiteSpace(originalNamespace)) {
@@ -46,7 +46,7 @@ public sealed partial class FLinqIncrementalGenerator {
                     // 解決できるよう、元の名前空間とその全祖先を using として出力する。
                     // 生成側の名前空間が Intercept.Test... のように元の先頭セグメントを内包するため、
                     // 素の using だと相対解決で Intercept.Test... を指してしまう。global:: で明示する。
-                    for(var ns=originalNamespace; !string.IsNullOrEmpty(ns); ns=親名前空間取得(ns)) {
+                    for(var ns = originalNamespace;!string.IsNullOrEmpty(ns);ns=親名前空間取得(ns)) {
                         builder.AppendLine($"    using global::{ns};");
                     }
 
@@ -54,21 +54,20 @@ public sealed partial class FLinqIncrementalGenerator {
                 }
                 foreach(var typeGroup in namespaceGroup.GroupBy(
                             static target => target.EnclosingType.ToDisplayString(完全修飾形式),StringComparer.Ordinal)) {
-                    var typeTargets=typeGroup.ToImmutableArray();
-                    var typeSource=インターセプター型ソース構築(typeTargets,diagnostics);
+                    var typeTargets = typeGroup.ToImmutableArray();
+                    var typeSource = インターセプター型ソース構築(typeTargets,diagnostics);
                     インデント付き追記(builder,typeSource,"    ");
                 }
                 builder.AppendLine("}");
             }
             // 匿名型置換で割り当てた record struct 定義をグローバル名前空間のホルダークラスとして出力する。
-            var holder=anonRegistry.RenderHolder();
+            var holder = anonRegistry.RenderHolder();
             if(!string.IsNullOrEmpty(holder)) {
                 builder.AppendLine();
                 builder.Append(holder);
             }
             return builder.ToString();
-        }
-        finally {
+        } finally {
             _anonRegistry=previousRegistry;
         }
     }
@@ -86,24 +85,24 @@ public sealed partial class FLinqIncrementalGenerator {
     private static string インターセプター型ソース構築(ImmutableArray<Linq傍受対象型> targets,List<Diagnostic> diagnostics) {
         var builder = new StringBuilder();
         var typeStack = 型スタック取得(targets[0].EnclosingType);
-        var interceptorTypeName=string.Join("_",typeStack.Select(static type=>SanitizeIdentifier(type.Name)));
+        var interceptorTypeName = string.Join("_",typeStack.Select(static type => SanitizeIdentifier(type.Name)));
         builder.AppendLine($"internal static partial class {interceptorTypeName} {{");
 
         var emittedMethodNames = new HashSet<string>(StringComparer.Ordinal);
         var emittedUnsafeAccessors = new HashSet<string>(StringComparer.Ordinal);
         foreach(var target in targets) {
-            if(target.OptimizeLinq){
-                var seenUnorderedInvocations=new HashSet<int>();
-                foreach(var syntaxReference in target.Method.DeclaringSyntaxReferences){
-                    var syntax=syntaxReference.GetSyntax();
-                    var unorderedSemanticModel=target.SemanticModel.Compilation.GetSemanticModel(syntax.SyntaxTree);
-                    foreach(var unorderedInvocation in syntax.DescendantNodes().OfType<InvocationExpressionSyntax>()){
+            if(target.OptimizeLinq) {
+                var seenUnorderedInvocations = new HashSet<int>();
+                foreach(var syntaxReference in target.Method.DeclaringSyntaxReferences) {
+                    var syntax = syntaxReference.GetSyntax();
+                    var unorderedSemanticModel = target.SemanticModel.Compilation.GetSemanticModel(syntax.SyntaxTree);
+                    foreach(var unorderedInvocation in syntax.DescendantNodes().OfType<InvocationExpressionSyntax>()) {
                         if(!seenUnorderedInvocations.Add(unorderedInvocation.SpanStart)
-                            ||!TryGetUnorderedInvocation(unorderedSemanticModel,unorderedInvocation,out var unorderedMethodName,out var unorderedSourceType,out var explicitOptIn)){
+                            ||!TryGetUnorderedInvocation(unorderedSemanticModel,unorderedInvocation,out var unorderedMethodName,out var unorderedSourceType,out var explicitOptIn)) {
                             continue;
                         }
                         diagnostics.Add(Diagnostic.Create(
-                            explicitOptIn?UnorderedOperationOptInDescriptor:UnorderedOperationWarningDescriptor,
+                            explicitOptIn ? UnorderedOperationOptInDescriptor : UnorderedOperationWarningDescriptor,
                             unorderedInvocation.GetLocation(),
                             unorderedMethodName,
                             unorderedSourceType));
@@ -112,7 +111,7 @@ public sealed partial class FLinqIncrementalGenerator {
             }
             try {
                 if(target.IsLocalMethodInterception) {
-                    using var optimizationScope=LinqOptimizationContext.Enter(target.Optimizations);
+                    using var optimizationScope = LinqOptimizationContext.Enter(target.Optimizations);
                     var ローカル静的メソッド群 = string.Empty;
                     var ローカル本体 = string.Empty;
                     var builtLocalMethodBody = target.OptimizeLinq
@@ -142,12 +141,12 @@ public sealed partial class FLinqIncrementalGenerator {
                     builder.AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining|global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]");
                     builder.AppendLine($"    {target.InterceptsLocationAttributeText}");
                     builder.AppendLine($"    public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}){target.TypeParameterConstraintClause} {{");
-                    if(未対応Enumerableメソッド一覧取得(target) is { Count: > 0 } unsupportedMethods) {
-                        var loc1 = target.Method.Locations.FirstOrDefault() ?? target.Invocation.GetLocation();
+                    if(未対応Enumerableメソッド一覧取得(target) is { Count:>0 } unsupportedMethods) {
+                        var loc1 = target.Method.Locations.FirstOrDefault()??target.Invocation.GetLocation();
                         diagnostics.Add(Diagnostic.Create(展開失敗警告Descriptor,loc1,target.Method.Name));
                         インデント付き追記(builder,RenderUnsupportedLocalMethodBody(unsupportedMethods),"        ");
                     } else {
-                        var loc2 = target.Method.Locations.FirstOrDefault() ?? target.Invocation.GetLocation();
+                        var loc2 = target.Method.Locations.FirstOrDefault()??target.Invocation.GetLocation();
                         diagnostics.Add(Diagnostic.Create(展開失敗警告Descriptor,loc2,target.Method.Name));
                         インデント付き追記(builder,RenderUninlineableLocalMethodBody(target),"        ");
                     }
@@ -164,7 +163,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 }
 
                 emittedMethodNames.Add(target.MethodName);
-                var locEx = target.Method.Locations.FirstOrDefault() ?? target.Invocation.GetLocation();
+                var locEx = target.Method.Locations.FirstOrDefault()??target.Invocation.GetLocation();
                 diagnostics.Add(Diagnostic.Create(展開失敗警告Descriptor,locEx,target.Method.Name));
                 インターセプターXmlコメント追加(builder,target);
                 builder.AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining|global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]");
@@ -187,7 +186,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// </summary>
     private static List<INamedTypeSymbol> 型スタック取得(INamedTypeSymbol type) {
         var stack = new List<INamedTypeSymbol>();
-        for(INamedTypeSymbol? current = type; current is not null; current = current.ContainingType) {
+        for(INamedTypeSymbol? current = type;current is not null;current=current.ContainingType) {
             stack.Add(current);
         }
         stack.Reverse();
@@ -232,19 +231,19 @@ public sealed partial class FLinqIncrementalGenerator {
         var method = target.Method;
         var methodName = Xmlテキストエスケープ(method.Name);
         string content;
-        if(型が公開アクセス可能か(method.ContainingType)){
+        if(型が公開アクセス可能か(method.ContainingType)) {
             var typeCref = Xml属性値エスケープ(method.ContainingType.ToDisplayString(cref形式));
-            content = $"<c>{methodName}()</c> in <see cref=\"{typeCref}\"/>";
-        }else{
+            content=$"<c>{methodName}()</c> in <see cref=\"{typeCref}\"/>";
+        } else {
             var fqn = Xmlテキストエスケープ(メソッドCref構築(method));
-            content = $"<c>{fqn}</c>";
+            content=$"<c>{fqn}</c>";
         }
         builder.AppendLine($"    /// <summary>Intercepts {content}.</summary>");
     }
 
     private static bool 型が公開アクセス可能か(INamedTypeSymbol type) {
-        for(var t = type; t is not null; t = t.ContainingType){
-            if(t.DeclaredAccessibility is not(Accessibility.Public or Accessibility.Internal)){
+        for(var t = type;t is not null;t=t.ContainingType) {
+            if(t.DeclaredAccessibility is not (Accessibility.Public or Accessibility.Internal)) {
                 return false;
             }
         }
@@ -253,7 +252,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
     private static string メソッドCref構築(IMethodSymbol method) {
         var containingType = method.ContainingType.ToDisplayString(cref形式);
-        var parameters = string.Join(",",method.Parameters.Select(static parameter=>parameter.Type.ToDisplayString(cref形式)));
+        var parameters = string.Join(",",method.Parameters.Select(static parameter => parameter.Type.ToDisplayString(cref形式)));
         return $"{containingType}.{method.Name}({parameters})";
     }
 
@@ -284,7 +283,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return $"throw global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"{methodName}\",\"Forwarding is disabled for methods that contain System.Linq.Enumerable calls.\");";
     }
     private static string RenderUnsupportedDirectMethodBody(Linq傍受対象型 target,string? detail = null) {
-        var methodName = target.Method.ReducedFrom?.ToDisplayString(完全修飾形式) ?? target.Method.ToDisplayString(完全修飾形式);
+        var methodName = target.Method.ReducedFrom?.ToDisplayString(完全修飾形式)??target.Method.ToDisplayString(完全修飾形式);
         var message = $"Direct interception could not inline '{methodName}' inside '{target.ContainingMethodName}'.";
         if(!string.IsNullOrWhiteSpace(detail)) {
             message=$"{message} {detail}";

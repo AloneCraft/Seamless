@@ -5,28 +5,27 @@ namespace Persisted.Collections;
 #endif
 
 public class Set {
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void ManagedSerializedSet_Distinct_SortsAndDeduplicates() {
         var path = CreatePath("managed-view-set");
         try {
             using var set = new global::Seamless.Persisted.Collections.SerializedSet<ManagedStruct>(path,initialCapacity: 1,initialDataCapacity: 128);
-            set.Add(new ManagedStruct { Name = "bravo" });
-            set.Add(new ManagedStruct { Name = "alpha" });
-            set.Add(new ManagedStruct { Name = "alpha" });
+            set.Add(new ManagedStruct { Name="bravo" });
+            set.Add(new ManagedStruct { Name="alpha" });
+            set.Add(new ManagedStruct { Name="alpha" });
 
             var same = set.Compact();
 
             Assert.Same(set,same);
             Assert.Equal(2L,set.Count);
-            Assert.Equal(new ManagedStruct { Name = "alpha" },set[0]);
-            Assert.Equal(new ManagedStruct { Name = "bravo" },set[1]);
-        }
-        finally {
+            Assert.Equal(new ManagedStruct { Name="alpha" },set[0]);
+            Assert.Equal(new ManagedStruct { Name="bravo" },set[1]);
+        } finally {
             TryDeleteDirectory(path);
         }
     }
 
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void UnmanagedBlittableSet_Distinct_SortsAndDeduplicates() {
         var path = CreatePath("unmanaged-view-set");
         try {
@@ -44,37 +43,35 @@ public class Set {
             Assert.Equal(1,set[0]);
             Assert.Equal(3,set[1]);
             Assert.Equal(5,set[2]);
-        }
-        finally {
+        } finally {
             TryDeleteDirectory(path);
         }
     }
 
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void ManagedFacadeSet_UsesSerializedStorageAndReadOnlySetContract() {
         var path = CreatePath("managed-facade-set");
         try {
             using var set = new global::Seamless.Persisted.Collections.Set<ManagedStruct>(path,initialCapacity: 1,initialDataCapacity: 128);
-            set.Add(new ManagedStruct { Name = "bravo" });
-            set.Add(new ManagedStruct { Name = "alpha" });
-            set.Add(new ManagedStruct { Name = "alpha" });
+            set.Add(new ManagedStruct { Name="bravo" });
+            set.Add(new ManagedStruct { Name="alpha" });
+            set.Add(new ManagedStruct { Name="alpha" });
 
             set.Compact();
 
             global::Seamless.Collections.ISet<ManagedStruct> contract = set;
             Assert.Equal(2,contract.Count);
-            Assert.True(contract.Contains(new ManagedStruct { Name = "alpha" }));
+            Assert.True(contract.Contains(new ManagedStruct { Name="alpha" }));
             Assert.True(contract.SetEquals([
                 new ManagedStruct { Name = "alpha" },
                 new ManagedStruct { Name = "bravo" },
             ]));
-        }
-        finally {
+        } finally {
             TryDeleteDirectory(path);
         }
     }
 
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void UnmanagedFacadeSet_UsesBlittableStorageAndReadOnlySetContract() {
         var path = CreatePath("unmanaged-facade-set");
         try {
@@ -91,8 +88,7 @@ public class Set {
             Assert.Equal(3,contract.Count);
             Assert.True(contract.Contains(1));
             Assert.True(contract.SetEquals([1,3,5]));
-        }
-        finally {
+        } finally {
             TryDeleteDirectory(path);
         }
     }
@@ -108,10 +104,8 @@ public class Set {
             return;
         try {
             Directory.Delete(directoryPath,recursive: true);
-        }
-        catch(IOException) {
-        }
-        catch(UnauthorizedAccessException) {
+        } catch(IOException) {
+        } catch(UnauthorizedAccessException) {
         }
     }
 }

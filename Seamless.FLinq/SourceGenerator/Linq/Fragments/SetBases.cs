@@ -107,8 +107,7 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
         }
         if(!operation.PreloadSecondFirst) {
             this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
-        }
-        else {
+        } else {
             TraversalSupport.AppendHashSetInitialization(builder,setName,source.ElementType,secondName,this.Comparer);
         }
         if(!operation.PreloadSecondFirst) {
@@ -295,8 +294,7 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
             builder.AppendLine($"            if({j}>={secondSpan}.Length||{secondSpan}[{j}]!={value}){{");
             builder.AppendLine($"                {consumerName}.Consume({value});");
             builder.AppendLine("            }");
-        }
-        else {
+        } else {
             builder.AppendLine($"            if({j}<{secondSpan}.Length&&{secondSpan}[{j}]=={value}){{");
             builder.AppendLine($"                {consumerName}.Consume({value});");
             builder.AppendLine("            }");
@@ -342,8 +340,7 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
             builder.AppendLine($"{indent}        if({j}>={secondSpan}.Length||{secondSpan}[{j}]!={value}){{");
             builder.AppendLine($"{indent}            {consumerName}.Consume({value});");
             builder.AppendLine($"{indent}        }}");
-        }
-        else {
+        } else {
             builder.AppendLine($"{indent}        if({j}<{secondSpan}.Length&&{secondSpan}[{j}]=={value}){{");
             builder.AppendLine($"{indent}            {consumerName}.Consume({value});");
             builder.AppendLine($"{indent}        }}");
@@ -497,8 +494,7 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
             }
             if(!operation.PreloadSecondFirst) {
                 this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
-            }
-            else {
+            } else {
                 TraversalSupport.AppendHashSetInitialization(builder,setName,FuncReturnTypeName(keySelector),secondName,this.Comparer);
             }
             if(!operation.PreloadSecondFirst) {
@@ -527,8 +523,7 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
         }
         if(!operation.PreloadSecondFirst) {
             this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
-        }
-        else {
+        } else {
             TraversalSupport.AppendHashSetInitialization(builder,setName,FuncReturnTypeName(keySelector),secondName,this.Comparer);
         }
         this.AppendSetByCollectLoop(builder,secondName,setName);
@@ -636,8 +631,7 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
             builder.AppendLine($"            if({j}>={secondSpan}.Length||{secondSpan}[{j}]!={value}){{");
             builder.AppendLine($"                {consumerName}.Consume({value});");
             builder.AppendLine("            }");
-        }
-        else {
+        } else {
             builder.AppendLine($"            if({j}<{secondSpan}.Length&&{secondSpan}[{j}]=={value}){{");
             builder.AppendLine($"                {consumerName}.Consume({value});");
             builder.AppendLine("            }");
@@ -683,8 +677,7 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
             builder.AppendLine($"{indent}        if({j}>={secondSpan}.Length||{secondSpan}[{j}]!={value}){{");
             builder.AppendLine($"{indent}            {consumerName}.Consume({value});");
             builder.AppendLine($"{indent}        }}");
-        }
-        else {
+        } else {
             builder.AppendLine($"{indent}        if({j}<{secondSpan}.Length&&{secondSpan}[{j}]=={value}){{");
             builder.AppendLine($"{indent}            {consumerName}.Consume({value});");
             builder.AppendLine($"{indent}        }}");

@@ -1,680 +1,660 @@
-using System.Diagnostics;
-using System.Collections.Concurrent;
 using Seamless.Collections;
 using Seamless.Persisted.Collections;
-using Seamless.Serialization;
-using Seamless.Tsavorite.Collections;
 using Seamless.Tsavorite.Devices;
-using Store = Seamless.Tsavorite.Collections.Store;
-using TsavoriteDictionary = Seamless.Tsavorite.Collections.IDictionary<int,int>;
+
+using System.Collections.Concurrent;
+using System.Diagnostics;
+
+using ストア型 = Seamless.Tsavorite.Collections.Store;
 
 namespace Benchmark.Tsavorite.ParameterSweep;
 
-public sealed class ParameterSweepRunner {
-    public async Task<IReadOnlyList<ParameterSweepResult>> RunAsync(
-        IReadOnlyList<ParameterSweepCase> cases,
-        ParameterSweepRunOptions? options = null,
-        IProgress<ParameterSweepResult>? progress = null,
-        CancellationToken cancellationToken = default) {
-        ArgumentNullException.ThrowIfNull(cases);
-        var actualOptions = options??new();
-        ParameterSweepPlan.ValidateOptions(actualOptions);
-        var runId = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmssfff",System.Globalization.CultureInfo.InvariantCulture);
-        var results = new List<ParameterSweepResult>(cases.Count);
-        foreach(var item in cases) {
-            cancellationToken.ThrowIfCancellationRequested();
-            var result = await this.RunCaseAsync(runId,item,actualOptions,cancellationToken);
-            results.Add(result);
-            progress?.Report(result);
+public sealed class パラメータスイープ実行器 {
+    public async Task<IReadOnlyList<パラメータスイープ結果>> 実行Async(
+        IReadOnlyList<パラメータスイープケース> ケース一覧,
+        パラメータスイープ実行オプション? オプション = null,
+        IProgress<パラメータスイープ結果>? 進捗 = null,
+        CancellationToken キャンセルトークン = default) {
+        ArgumentNullException.ThrowIfNull(ケース一覧);
+        var 実オプション = オプション??new();
+        パラメータスイープ計画.オプションを検証(実オプション);
+        var 実行ID = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmssfff",System.Globalization.CultureInfo.InvariantCulture);
+        var 結果一覧 = new List<パラメータスイープ結果>(ケース一覧.Count);
+        foreach(var ケース in ケース一覧) {
+            キャンセルトークン.ThrowIfCancellationRequested();
+            var 結果 = await this.ケースを実行Async(実行ID,ケース,実オプション,キャンセルトークン);
+            結果一覧.Add(結果);
+            進捗?.Report(結果);
         }
-        return results;
+        return 結果一覧;
     }
 
-    public Task<ParameterSweepResult> RunCaseAsync(
-        ParameterSweepCase item,
-        ParameterSweepRunOptions? options = null,
-        CancellationToken cancellationToken = default) {
-        ArgumentNullException.ThrowIfNull(item);
-        var actualOptions = options??new();
-        ParameterSweepPlan.ValidateOptions(actualOptions);
-        var runId = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmssfff",System.Globalization.CultureInfo.InvariantCulture);
-        return this.RunCaseAsync(runId,item,actualOptions,cancellationToken);
+    public Task<パラメータスイープ結果> ケースを実行Async(
+        パラメータスイープケース ケース,
+        パラメータスイープ実行オプション? オプション = null,
+        CancellationToken キャンセルトークン = default) {
+        ArgumentNullException.ThrowIfNull(ケース);
+        var 実オプション = オプション??new();
+        パラメータスイープ計画.オプションを検証(実オプション);
+        var 実行ID = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmssfff",System.Globalization.CultureInfo.InvariantCulture);
+        return this.ケースを実行Async(実行ID,ケース,実オプション,キャンセルトークン);
     }
 
-    private Task<ParameterSweepResult> RunCaseAsync(
-        string runId,
-        ParameterSweepCase item,
-        ParameterSweepRunOptions options,
-        CancellationToken cancellationToken) => Task.Run(() => this.RunCase(runId,item,options,cancellationToken),CancellationToken.None);
+    private Task<パラメータスイープ結果> ケースを実行Async(
+        string 実行ID,
+        パラメータスイープケース ケース,
+        パラメータスイープ実行オプション オプション,
+        CancellationToken キャンセルトークン) => Task.Run(() => this.ケースを実行(実行ID,ケース,オプション,キャンセルトークン),CancellationToken.None);
 
-    private ParameterSweepResult RunCase(
-        string runId,
-        ParameterSweepCase item,
-        ParameterSweepRunOptions options,
-        CancellationToken cancellationToken) {
-        var measuredAt = DateTimeOffset.UtcNow;
+    private パラメータスイープ結果 ケースを実行(
+        string 実行ID,
+        パラメータスイープケース ケース,
+        パラメータスイープ実行オプション オプション,
+        CancellationToken キャンセルトークン) {
+        var 計測日時 = DateTimeOffset.UtcNow;
         try {
-            ParameterSweepSettingsValidator.Validate(item.Settings);
-            using var workload = ParameterSweepWorkloadFactory.Create(item,options);
-            return this.RunWorkload(runId,measuredAt,item,workload,options,cancellationToken);
-        }
-        catch(Exception ex) when(ex is ArgumentException or NotSupportedException) {
-            return CreateFailure(runId,measuredAt,item,ParameterSweepFailureKind.InvalidConfiguration,ex);
-        }
-        catch(OutOfMemoryException ex) {
-            return CreateFailure(runId,measuredAt,item,ClassifyOutOfMemory(ex),ex);
-        }
-        catch(Exception ex) {
-            return CreateFailure(runId,measuredAt,item,ParameterSweepFailureKind.Exception,ex);
+            パラメータスイープ設定バリデーター.検証(ケース.設定);
+            using var ワークロード = パラメータスイープワークロードファクトリー.作成(ケース,オプション);
+            return this.ワークロードを実行(実行ID,計測日時,ケース,ワークロード,オプション,キャンセルトークン);
+        } catch(Exception 例外) when(例外 is ArgumentException or NotSupportedException) {
+            return 失敗結果を作成(実行ID,計測日時,ケース,パラメータスイープ失敗種別.無効な構成,例外);
+        } catch(OutOfMemoryException 例外) {
+            return 失敗結果を作成(実行ID,計測日時,ケース,メモリ不足を分類(例外),例外);
+        } catch(Exception 例外) {
+            return 失敗結果を作成(実行ID,計測日時,ケース,パラメータスイープ失敗種別.例外,例外);
         }
     }
 
-    private ParameterSweepResult RunWorkload(
-        string runId,
-        DateTimeOffset measuredAt,
-        ParameterSweepCase item,
-        IParameterSweepWorkload workload,
-        ParameterSweepRunOptions options,
-        CancellationToken cancellationToken) {
-        var cpuNumbers = options.LogicalCpus.Count==0 ? [null] : options.LogicalCpus.Select(static cpu => (int?)cpu).ToArray();
-        var workers = cpuNumbers.Select((cpu,index) => new ParameterSweepWorkerExecution(index,cpu,workload.CreateWorker())).ToArray();
-        foreach(var worker in workers) {
-            worker.WorkerCount=workers.Length;
+    private パラメータスイープ結果 ワークロードを実行(
+        string 実行ID,
+        DateTimeOffset 計測日時,
+        パラメータスイープケース ケース,
+        Iパラメータスイープワークロード ワークロード,
+        パラメータスイープ実行オプション オプション,
+        CancellationToken キャンセルトークン) {
+        var CPU番号一覧 = オプション.論理CPU一覧.Count==0 ? [null] : オプション.論理CPU一覧.Select(static CPU => (int?)CPU).ToArray();
+        var ワーカー一覧 = CPU番号一覧.Select((CPU,番号) => new パラメータスイープワーカー実行(番号,CPU,ワークロード.ワーカーを作成())).ToArray();
+        foreach(var ワーカー in ワーカー一覧) {
+            ワーカー.ワーカー数=ワーカー一覧.Length;
         }
-        using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var addStarted = new ManualResetEventSlim(false);
-        var addCompleted = new CountdownEvent(workers.Length);
-        var lookupStarted = new ManualResetEventSlim(false);
-        var lookupCompleted = new CountdownEvent(workers.Length);
-        var ready = new CountdownEvent(workers.Length);
-        var failures = new ConcurrentQueue<ParameterSweepWorkerFailure>();
-        var startedAt = Stopwatch.StartNew();
-        var threads = workers.Select(worker => this.CreateWorkerThread(
-            worker,
-            options,
-            startedAt,
-            linkedCancellation,
-            ready,
-            addStarted,
-            addCompleted,
-            lookupStarted,
-            lookupCompleted,
-            failures)).ToArray();
-        foreach(var thread in threads) {
-            thread.Start();
+        using var 連結キャンセルソース = CancellationTokenSource.CreateLinkedTokenSource(キャンセルトークン);
+        var 追加開始 = new ManualResetEventSlim(false);
+        var 追加完了 = new CountdownEvent(ワーカー一覧.Length);
+        var 検索開始 = new ManualResetEventSlim(false);
+        var 検索完了 = new CountdownEvent(ワーカー一覧.Length);
+        var 準備完了 = new CountdownEvent(ワーカー一覧.Length);
+        var 失敗一覧 = new ConcurrentQueue<パラメータスイープワーカー失敗>();
+        var ケースストップウォッチ = Stopwatch.StartNew();
+        var スレッド一覧 = ワーカー一覧.Select(ワーカー => this.ワーカースレッドを作成(
+            ワーカー,
+            オプション,
+            ケースストップウォッチ,
+            連結キャンセルソース,
+            準備完了,
+            追加開始,
+            追加完了,
+            検索開始,
+            検索完了,
+            失敗一覧)).ToArray();
+        foreach(var スレッド in スレッド一覧) {
+            スレッド.Start();
         }
-        ready.Wait(CancellationToken.None);
-        var addStopwatch = Stopwatch.StartNew();
-        addStarted.Set();
-        addCompleted.Wait(CancellationToken.None);
-        addStopwatch.Stop();
-        var lookupStopwatch = Stopwatch.StartNew();
-        lookupStarted.Set();
-        lookupCompleted.Wait(CancellationToken.None);
-        lookupStopwatch.Stop();
-        foreach(var thread in threads) {
-            thread.Join();
+        準備完了.Wait(CancellationToken.None);
+        var 追加ストップウォッチ = Stopwatch.StartNew();
+        追加開始.Set();
+        追加完了.Wait(CancellationToken.None);
+        追加ストップウォッチ.Stop();
+        var 検索ストップウォッチ = Stopwatch.StartNew();
+        検索開始.Set();
+        検索完了.Wait(CancellationToken.None);
+        検索ストップウォッチ.Stop();
+        foreach(var スレッド in スレッド一覧) {
+            スレッド.Join();
         }
-        var workerMetrics = workers.Select(worker => worker.CreateMetric()).ToArray();
-        var firstFailure = failures.TryPeek(out var failure) ? failure : null;
-        var count = workerMetrics.Sum(static metric => metric.AddOperationCount);
-        var failureKind = firstFailure?.Kind??ParameterSweepFailureKind.Completed;
-        var failureMessage = firstFailure?.Message??string.Empty;
-        var lookupCount = workerMetrics.Sum(static metric => metric.LookupOperationCount);
-        double? lookupMean = lookupCount>0&&failureKind==ParameterSweepFailureKind.Completed
-            ? lookupStopwatch.Elapsed.TotalMilliseconds*1_000_000/lookupCount
+        var ワーカー指標一覧 = ワーカー一覧.Select(ワーカー => ワーカー.指標を作成()).ToArray();
+        var 先頭失敗 = 失敗一覧.TryPeek(out var 失敗) ? 失敗 : null;
+        var 追加Count = ワーカー指標一覧.Sum(static 指標 => 指標.追加操作Count);
+        var 失敗種別 = 先頭失敗?.種別??パラメータスイープ失敗種別.完了;
+        var 失敗メッセージ = 先頭失敗?.メッセージ??string.Empty;
+        var 検索Count = ワーカー指標一覧.Sum(static 指標 => 指標.検索操作Count);
+        double? 検索平均 = 検索Count>0&&失敗種別==パラメータスイープ失敗種別.完了
+            ? 検索ストップウォッチ.Elapsed.TotalMilliseconds*1_000_000/検索Count
             : null;
-        return CreateResult(
-            runId,
-            measuredAt,
-            item,
-            count,
-            workload.EntryCount,
-            failureKind,
-            failureMessage,
-            addStopwatch.Elapsed.TotalMilliseconds,
-            lookupMean) with {
-                WorkerMetrics=workerMetrics,
-                CpuSetKey=string.Join(",",cpuNumbers.Where(static cpu => cpu is not null).Select(static cpu => cpu!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture))),
-                ConcurrencyLevel=workers.Length,
-            };
+        return 結果を作成(
+            実行ID,
+            計測日時,
+            ケース,
+            追加Count,
+            ワークロード.エントリCount,
+            失敗種別,
+            失敗メッセージ,
+            追加ストップウォッチ.Elapsed.TotalMilliseconds,
+            検索平均) with {
+            ワーカー指標一覧=ワーカー指標一覧,
+            CPUセットキー=string.Join(",",CPU番号一覧.Where(static CPU => CPU is not null).Select(static CPU => CPU!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture))),
+            並行数=ワーカー一覧.Length,
+        };
     }
 
-    private Thread CreateWorkerThread(
-        ParameterSweepWorkerExecution worker,
-        ParameterSweepRunOptions options,
-        Stopwatch caseStopwatch,
-        CancellationTokenSource cancellation,
-        CountdownEvent ready,
-        ManualResetEventSlim addStarted,
-        CountdownEvent addCompleted,
-        ManualResetEventSlim lookupStarted,
-        CountdownEvent lookupCompleted,
-        ConcurrentQueue<ParameterSweepWorkerFailure> failures) => new(() => {
+    private Thread ワーカースレッドを作成(
+        パラメータスイープワーカー実行 ワーカー,
+        パラメータスイープ実行オプション オプション,
+        Stopwatch ケースストップウォッチ,
+        CancellationTokenSource キャンセルソース,
+        CountdownEvent 準備完了,
+        ManualResetEventSlim 追加開始,
+        CountdownEvent 追加完了,
+        ManualResetEventSlim 検索開始,
+        CountdownEvent 検索完了,
+        ConcurrentQueue<パラメータスイープワーカー失敗> 失敗一覧) => new(() => {
             try {
-                ParameterSweepCpuAffinity.TryApplyCurrentThread(worker.LogicalCpu);
-                ready.Signal();
-                addStarted.Wait();
-                this.RunAddPhase(worker,options,caseStopwatch,cancellation,failures);
-                addCompleted.Signal();
-                lookupStarted.Wait();
-                this.RunLookupPhase(worker,options,caseStopwatch,cancellation,failures);
-            }
-            catch(Exception ex) {
-                this.RecordFailure(worker,ClassifyFailure(ex),ex.Message,cancellation,failures);
-                if(ready.CurrentCount>0) {
-                    ready.Signal();
+                パラメータスイープCPUアフィニティ.現在のスレッドへの適用を試みる(ワーカー.論理CPU);
+                準備完了.Signal();
+                追加開始.Wait();
+                this.追加フェーズを実行(ワーカー,オプション,ケースストップウォッチ,キャンセルソース,失敗一覧);
+                追加完了.Signal();
+                検索開始.Wait();
+                this.検索フェーズを実行(ワーカー,オプション,ケースストップウォッチ,キャンセルソース,失敗一覧);
+            } catch(Exception 例外) {
+                this.失敗を記録(ワーカー,失敗を分類(例外),例外.Message,キャンセルソース,失敗一覧);
+                if(準備完了.CurrentCount>0) {
+                    準備完了.Signal();
                 }
-                if(addCompleted.CurrentCount>0) {
-                    addCompleted.Signal();
+                if(追加完了.CurrentCount>0) {
+                    追加完了.Signal();
                 }
-            }
-            finally {
-                lookupCompleted.Signal();
-                worker.Dispose();
+            } finally {
+                検索完了.Signal();
+                ワーカー.Dispose();
             }
         }) {
             IsBackground=true,
-            Name="TsavoriteParameterSweep"+(worker.LogicalCpu?.ToString(System.Globalization.CultureInfo.InvariantCulture)??"Worker"),
+            Name="TsavoriteParameterSweep"+(ワーカー.論理CPU?.ToString(System.Globalization.CultureInfo.InvariantCulture)??"Worker"),
         };
 
-    private void RunAddPhase(
-        ParameterSweepWorkerExecution worker,
-        ParameterSweepRunOptions options,
-        Stopwatch caseStopwatch,
-        CancellationTokenSource cancellation,
-        ConcurrentQueue<ParameterSweepWorkerFailure> failures) {
-        if(cancellation.IsCancellationRequested) {
+    private void 追加フェーズを実行(
+        パラメータスイープワーカー実行 ワーカー,
+        パラメータスイープ実行オプション オプション,
+        Stopwatch ケースストップウォッチ,
+        CancellationTokenSource キャンセルソース,
+        ConcurrentQueue<パラメータスイープワーカー失敗> 失敗一覧) {
+        if(キャンセルソース.IsCancellationRequested) {
             return;
         }
-        var stopwatch = Stopwatch.StartNew();
+        var ストップウォッチ = Stopwatch.StartNew();
         try {
-            var range = CreateRange(options.MaxSuccessfulCount,worker.Index,worker.WorkerCount);
-            for(var index=range.Start;index<range.End;index++) {
-                this.ThrowIfStopped(caseStopwatch,options,cancellation.Token);
-                worker.Workload.Add((int)index);
-                worker.AddOperationCount++;
+            var 範囲 = 範囲を作成(オプション.最大成功Count,ワーカー.番号,ワーカー.ワーカー数);
+            for(var 番号 = 範囲.開始;番号<範囲.終了;番号++) {
+                this.停止時に例外を送出(ケースストップウォッチ,オプション,キャンセルソース.Token);
+                ワーカー.ワークロード.追加((int)番号);
+                ワーカー.追加操作Count++;
             }
-        }
-        catch(Exception ex) {
-            this.RecordFailure(worker,ClassifyFailure(ex),ex.Message,cancellation,failures);
-        }
-        finally {
-            stopwatch.Stop();
-            worker.AddElapsedMilliseconds=stopwatch.Elapsed.TotalMilliseconds;
+        } catch(Exception 例外) {
+            this.失敗を記録(ワーカー,失敗を分類(例外),例外.Message,キャンセルソース,失敗一覧);
+        } finally {
+            ストップウォッチ.Stop();
+            ワーカー.追加経過ミリ秒=ストップウォッチ.Elapsed.TotalMilliseconds;
         }
     }
 
-    private void RunLookupPhase(
-        ParameterSweepWorkerExecution worker,
-        ParameterSweepRunOptions options,
-        Stopwatch caseStopwatch,
-        CancellationTokenSource cancellation,
-        ConcurrentQueue<ParameterSweepWorkerFailure> failures) {
-        if(cancellation.IsCancellationRequested) {
+    private void 検索フェーズを実行(
+        パラメータスイープワーカー実行 ワーカー,
+        パラメータスイープ実行オプション オプション,
+        Stopwatch ケースストップウォッチ,
+        CancellationTokenSource キャンセルソース,
+        ConcurrentQueue<パラメータスイープワーカー失敗> 失敗一覧) {
+        if(キャンセルソース.IsCancellationRequested) {
             return;
         }
-        var probes = Math.Min(options.MaxSuccessfulCount,options.LookupProbeCount);
-        var stopwatch = Stopwatch.StartNew();
+        var 試行Count = Math.Min(オプション.最大成功Count,オプション.検索試行Count);
+        var ストップウォッチ = Stopwatch.StartNew();
         try {
-            var range = CreateRange(probes,worker.Index,worker.WorkerCount);
-            for(var probe=range.Start;probe<range.End;probe++) {
-                this.ThrowIfStopped(caseStopwatch,options,cancellation.Token);
-                var valueIndex = (int)(probe*options.MaxSuccessfulCount/probes);
-                if(!worker.Workload.Lookup(valueIndex)) {
-                    throw new InvalidOperationException("Lookup did not find every inserted probe.");
+            var 範囲 = 範囲を作成(試行Count,ワーカー.番号,ワーカー.ワーカー数);
+            for(var 試行番号 = 範囲.開始;試行番号<範囲.終了;試行番号++) {
+                this.停止時に例外を送出(ケースストップウォッチ,オプション,キャンセルソース.Token);
+                var 値インデックス = (int)(試行番号*オプション.最大成功Count/試行Count);
+                if(!ワーカー.ワークロード.検索で見つかるか(値インデックス)) {
+                    throw new InvalidOperationException("追加済みの値を検索できませんでした。");
                 }
-                worker.LookupOperationCount++;
+                ワーカー.検索操作Count++;
             }
-        }
-        catch(Exception ex) {
-            this.RecordFailure(worker,ClassifyFailure(ex),ex.Message,cancellation,failures);
-        }
-        finally {
-            stopwatch.Stop();
-            worker.LookupElapsedMilliseconds=stopwatch.Elapsed.TotalMilliseconds;
+        } catch(Exception 例外) {
+            this.失敗を記録(ワーカー,失敗を分類(例外),例外.Message,キャンセルソース,失敗一覧);
+        } finally {
+            ストップウォッチ.Stop();
+            ワーカー.検索経過ミリ秒=ストップウォッチ.Elapsed.TotalMilliseconds;
         }
     }
 
-    private void ThrowIfStopped(Stopwatch stopwatch,ParameterSweepRunOptions options,CancellationToken cancellationToken) {
-        cancellationToken.ThrowIfCancellationRequested();
-        if(stopwatch.Elapsed>=options.PerCaseTimeout) {
-            throw new TimeoutException("Per-case timeout reached.");
+    private void 停止時に例外を送出(Stopwatch ストップウォッチ,パラメータスイープ実行オプション オプション,CancellationToken キャンセルトークン) {
+        キャンセルトークン.ThrowIfCancellationRequested();
+        if(ストップウォッチ.Elapsed>=オプション.ケース別タイムアウト) {
+            throw new TimeoutException("ケース別タイムアウトに達しました。");
         }
     }
 
-    private void RecordFailure(
-        ParameterSweepWorkerExecution worker,
-        ParameterSweepFailureKind failureKind,
-        string message,
-        CancellationTokenSource cancellation,
-        ConcurrentQueue<ParameterSweepWorkerFailure> failures) {
-        worker.FailureKind=failureKind;
-        worker.FailureMessage=message;
-        failures.Enqueue(new(failureKind,message));
-        cancellation.Cancel();
+    private void 失敗を記録(
+        パラメータスイープワーカー実行 ワーカー,
+        パラメータスイープ失敗種別 失敗種別,
+        string メッセージ,
+        CancellationTokenSource キャンセルソース,
+        ConcurrentQueue<パラメータスイープワーカー失敗> 失敗一覧) {
+        ワーカー.失敗種別=失敗種別;
+        ワーカー.失敗メッセージ=メッセージ;
+        失敗一覧.Enqueue(new(失敗種別,メッセージ));
+        キャンセルソース.Cancel();
     }
 
-    private static ParameterSweepRange CreateRange(long total,int workerIndex,int workerCount) {
-        var start=total*workerIndex/workerCount;
-        var end=total*(workerIndex+1)/workerCount;
-        return new(start,end);
+    private static パラメータスイープ範囲 範囲を作成(long 合計,int ワーカーインデックス,int ワーカーCount) {
+        var 開始 = 合計*ワーカーインデックス/ワーカーCount;
+        var 終了 = 合計*(ワーカーインデックス+1)/ワーカーCount;
+        return new(開始,終了);
     }
 
-    private static ParameterSweepResult CreateFailure(
-        string runId,
-        DateTimeOffset measuredAt,
-        ParameterSweepCase item,
-        ParameterSweepFailureKind failureKind,
-        Exception ex) =>
-        CreateResult(
-            runId,
-            measuredAt,
-            item,
+    private static パラメータスイープ結果 失敗結果を作成(
+        string 実行ID,
+        DateTimeOffset 計測日時,
+        パラメータスイープケース ケース,
+        パラメータスイープ失敗種別 失敗種別,
+        Exception 例外) =>
+        結果を作成(
+            実行ID,
+            計測日時,
+            ケース,
             0,
             0,
-            failureKind,
-            ex.GetType().Name+": "+ex.Message,
+            失敗種別,
+            例外.GetType().Name+": "+例外.Message,
             0,
             null);
 
-    private static ParameterSweepResult CreateResult(
-        string runId,
-        DateTimeOffset measuredAt,
-        ParameterSweepCase item,
-        long maxSuccessfulCount,
-        long entryCount,
-        ParameterSweepFailureKind failureKind,
-        string failureMessage,
-        double addElapsedMilliseconds,
-        double? lookupMeanNanoseconds) =>
+    private static パラメータスイープ結果 結果を作成(
+        string 実行ID,
+        DateTimeOffset 計測日時,
+        パラメータスイープケース ケース,
+        long 最大成功Count,
+        long エントリCount,
+        パラメータスイープ失敗種別 失敗種別,
+        string 失敗メッセージ,
+        double 追加経過ミリ秒,
+        double? 検索平均ナノ秒) =>
         new(
-            runId,
-            measuredAt,
-            item.CaseName,
-            item.Collection,
-            item.GenericName,
-            item.Backend,
-            item.Sweep,
-            item.Settings.IndexSize,
-            item.Settings.PageSize,
-            item.Settings.SegmentSize,
-            item.Settings.MemorySize,
-            item.Settings.MutableFraction,
-            maxSuccessfulCount,
-            entryCount,
-            failureKind,
-            failureMessage,
-            addElapsedMilliseconds,
-            lookupMeanNanoseconds);
+            実行ID,
+            計測日時,
+            ケース.ケース名,
+            ケース.コレクション,
+            ケース.ジェネリック名,
+            ケース.バックエンド,
+            ケース.スイープ軸,
+            ケース.設定.Indexサイズ,
+            ケース.設定.Pageサイズ,
+            ケース.設定.Segmentサイズ,
+            ケース.設定.Memoryサイズ,
+            ケース.設定.可変Fraction,
+            最大成功Count,
+            エントリCount,
+            失敗種別,
+            失敗メッセージ,
+            追加経過ミリ秒,
+            検索平均ナノ秒);
 
-    private static ParameterSweepFailureKind ClassifyOutOfMemory(OutOfMemoryException ex) {
-        var message = ex.Message;
-        return message.Contains("log",StringComparison.OrdinalIgnoreCase)
-            ||message.Contains("Tsavorite",StringComparison.OrdinalIgnoreCase)
-            ? ParameterSweepFailureKind.LogFull
-            : ParameterSweepFailureKind.OutOfMemory;
+    private static パラメータスイープ失敗種別 メモリ不足を分類(OutOfMemoryException 例外) {
+        var メッセージ = 例外.Message;
+        return メッセージ.Contains("log",StringComparison.OrdinalIgnoreCase)
+            ||メッセージ.Contains("Tsavorite",StringComparison.OrdinalIgnoreCase)
+            ? パラメータスイープ失敗種別.ログ満杯
+            : パラメータスイープ失敗種別.メモリ不足;
     }
 
-    private static ParameterSweepFailureKind ClassifyFailure(Exception ex) => ex switch {
-        TimeoutException => ParameterSweepFailureKind.Timeout,
-        OutOfMemoryException outOfMemory => ClassifyOutOfMemory(outOfMemory),
-        ArgumentException or NotSupportedException => ParameterSweepFailureKind.InvalidConfiguration,
-        _ => ParameterSweepFailureKind.Exception,
+    private static パラメータスイープ失敗種別 失敗を分類(Exception 例外) => 例外 switch {
+        TimeoutException => パラメータスイープ失敗種別.タイムアウト,
+        OutOfMemoryException メモリ不足例外 => メモリ不足を分類(メモリ不足例外),
+        ArgumentException or NotSupportedException => パラメータスイープ失敗種別.無効な構成,
+        _ => パラメータスイープ失敗種別.例外,
     };
 
-    private readonly record struct ParameterSweepRange(long Start,long End);
+    private readonly record struct パラメータスイープ範囲(long 開始,long 終了);
 
-    private sealed record ParameterSweepWorkerFailure(ParameterSweepFailureKind Kind,string Message);
+    private sealed record パラメータスイープワーカー失敗(パラメータスイープ失敗種別 種別,string メッセージ);
 
-    private sealed class ParameterSweepWorkerExecution(int index,int? logicalCpu,IParameterSweepWorker workload):IDisposable {
-        public int Index { get; } = index;
-        public int? LogicalCpu { get; } = logicalCpu;
-        public IParameterSweepWorker Workload { get; } = workload;
-        public int WorkerCount { get; set; }
-        public long AddOperationCount { get; set; }
-        public double AddElapsedMilliseconds { get; set; }
-        public long LookupOperationCount { get; set; }
-        public double LookupElapsedMilliseconds { get; set; }
-        public ParameterSweepFailureKind FailureKind { get; set; } = ParameterSweepFailureKind.Completed;
-        public string FailureMessage { get; set; } = string.Empty;
+    private sealed class パラメータスイープワーカー実行(int 番号,int? 論理CPU,Iパラメータスイープワーカー ワークロード):IDisposable {
+        public int 番号 { get; } = 番号;
+        public int? 論理CPU { get; } = 論理CPU;
+        public Iパラメータスイープワーカー ワークロード { get; } = ワークロード;
+        public int ワーカー数 { get; set; }
+        public long 追加操作Count { get; set; }
+        public double 追加経過ミリ秒 { get; set; }
+        public long 検索操作Count { get; set; }
+        public double 検索経過ミリ秒 { get; set; }
+        public パラメータスイープ失敗種別 失敗種別 { get; set; } = パラメータスイープ失敗種別.完了;
+        public string 失敗メッセージ { get; set; } = string.Empty;
 
-        public ParameterSweepWorkerMetric CreateMetric() => new(
-            this.LogicalCpu,
-            this.AddOperationCount,
-            this.AddElapsedMilliseconds,
-            this.LookupOperationCount,
-            this.LookupElapsedMilliseconds,
-            this.FailureKind,
-            this.FailureMessage);
+        public パラメータスイープワーカー指標 指標を作成() => new(
+            this.論理CPU,
+            this.追加操作Count,
+            this.追加経過ミリ秒,
+            this.検索操作Count,
+            this.検索経過ミリ秒,
+            this.失敗種別,
+            this.失敗メッセージ);
 
-        public void Dispose() => this.Workload.Dispose();
+        public void Dispose() => this.ワークロード.Dispose();
     }
 }
 
-internal static class ParameterSweepSettingsValidator {
-    public static void Validate(ParameterSweepSettings settings) {
-        ValidatePowerOfTwo(settings.IndexSize,nameof(settings.IndexSize));
-        ValidatePowerOfTwo(settings.PageSize,nameof(settings.PageSize));
-        ValidatePowerOfTwo(settings.SegmentSize,nameof(settings.SegmentSize));
-        ValidatePowerOfTwo(settings.MemorySize,nameof(settings.MemorySize));
-        if(settings.IndexSize<64) {
-            throw new ArgumentOutOfRangeException(nameof(settings.IndexSize));
+internal static class パラメータスイープ設定バリデーター {
+    public static void 検証(パラメータスイープ設定 設定) {
+        二の累乗を検証(設定.Indexサイズ,nameof(設定.Indexサイズ));
+        二の累乗を検証(設定.Pageサイズ,nameof(設定.Pageサイズ));
+        二の累乗を検証(設定.Segmentサイズ,nameof(設定.Segmentサイズ));
+        二の累乗を検証(設定.Memoryサイズ,nameof(設定.Memoryサイズ));
+        if(設定.Indexサイズ<64) {
+            throw new ArgumentOutOfRangeException(nameof(設定.Indexサイズ));
         }
-        if(settings.PageSize<4096) {
-            throw new ArgumentOutOfRangeException(nameof(settings.PageSize));
+        if(設定.Pageサイズ<4096) {
+            throw new ArgumentOutOfRangeException(nameof(設定.Pageサイズ));
         }
-        if(settings.PageSize>settings.SegmentSize) {
-            throw new ArgumentOutOfRangeException(nameof(settings.SegmentSize));
+        if(設定.Pageサイズ>設定.Segmentサイズ) {
+            throw new ArgumentOutOfRangeException(nameof(設定.Segmentサイズ));
         }
-        if(settings.MemorySize<2*settings.PageSize) {
-            throw new ArgumentOutOfRangeException(nameof(settings.MemorySize));
+        if(設定.Memoryサイズ<2*設定.Pageサイズ) {
+            throw new ArgumentOutOfRangeException(nameof(設定.Memoryサイズ));
         }
-        if(double.IsNaN(settings.MutableFraction)||settings.MutableFraction<0||settings.MutableFraction>1) {
-            throw new ArgumentOutOfRangeException(nameof(settings.MutableFraction));
-        }
-    }
-
-    private static void ValidatePowerOfTwo(long value,string name) {
-        if(value<=0||(value&(value-1))!=0) {
-            throw new ArgumentOutOfRangeException(name);
-        }
-    }
-}
-
-internal interface IParameterSweepWorkload:IDisposable {
-    long EntryCount { get; }
-    IParameterSweepWorker CreateWorker();
-}
-
-internal interface IParameterSweepWorker:IDisposable {
-    void Add(int index);
-    bool Lookup(int index);
-}
-
-internal static class ParameterSweepWorkloadFactory {
-    public static IParameterSweepWorkload Create(ParameterSweepCase item,ParameterSweepRunOptions options) =>
-        item.Collection switch {
-            ParameterSweepCollectionKind.HashSet => CreateHashSet(item,options),
-            ParameterSweepCollectionKind.Set => CreateSet(item,options),
-            ParameterSweepCollectionKind.Dictionary => CreateDictionary(item,options),
-            _ => throw new ArgumentOutOfRangeException(nameof(item)),
-        };
-
-    private static IParameterSweepWorkload CreateHashSet(ParameterSweepCase item,ParameterSweepRunOptions options) =>
-        item.GenericName switch {
-            "Int32" => new HashSetWorkload<int>(item,options,static index => index),
-            "String" => new HashSetWorkload<string>(item,options,static index => "K"+index),
-            "UnmanagedStruct" => new HashSetWorkload<UnmanagedStruct>(item,options,static index => new() { Value=index }),
-            "ManagedStruct" => new HashSetWorkload<ManagedStruct>(item,options,static index => new() { Name="N"+index }),
-            "ManagedClass" => new HashSetWorkload<ManagedClass>(item,options,static index => new() { Name="C"+index }),
-            _ => throw new ArgumentOutOfRangeException(nameof(item.GenericName),item.GenericName,null),
-        };
-
-    private static IParameterSweepWorkload CreateSet(ParameterSweepCase item,ParameterSweepRunOptions options) =>
-        item.GenericName switch {
-            "UnmanagedSetRecord" => new SetWorkload<int,ParameterSweepUnmanagedSetRecord>(item,options,static index => new(index,index)),
-            "ManagedSetRecord" => new SetWorkload<int,ParameterSweepManagedSetRecord>(item,options,static index => new(index,"N"+index)),
-            _ => throw new ArgumentOutOfRangeException(nameof(item.GenericName),item.GenericName,null),
-        };
-
-    private static IParameterSweepWorkload CreateDictionary(ParameterSweepCase item,ParameterSweepRunOptions options) =>
-        item.GenericName switch {
-            "String/String" => new DictionaryWorkload<string,string>(item,options,static index => "K"+index,static index => "V"+index),
-            "String/Int32" => new DictionaryWorkload<string,int>(item,options,static index => "K"+index,static index => index),
-            "Int32/String" => new DictionaryWorkload<int,string>(item,options,static index => index,static index => "V"+index),
-            "Int32/Int32" => new DictionaryWorkload<int,int>(item,options,static index => index,static index => index),
-            "UnmanagedStruct/UnmanagedStruct" => new DictionaryWorkload<UnmanagedStruct,UnmanagedStruct>(item,options,static index => new() { Value=index },static index => new() { Value=index }),
-            "ManagedStruct/ManagedStruct" => new DictionaryWorkload<ManagedStruct,ManagedStruct>(item,options,static index => new() { Name="K"+index },static index => new() { Name="V"+index }),
-            "ManagedClass/ManagedClass" => new DictionaryWorkload<ManagedClass,ManagedClass>(item,options,static index => new() { Name="K"+index },static index => new() { Name="V"+index }),
-            _ => throw new ArgumentOutOfRangeException(nameof(item.GenericName),item.GenericName,null),
-        };
-}
-
-internal abstract class WorkloadBase:IDisposable {
-    private readonly string? storageDirectory;
-    protected IDisposable? Store { get; set; }
-    private bool disposed;
-
-    protected WorkloadBase(ParameterSweepCase item,ParameterSweepRunOptions options) {
-        if(item.Backend==ParameterSweepBackend.Storage) {
-            var root = options.WorkDirectory??Path.Combine(Path.GetTempPath(),"Seamless","TsavoriteParameterSweep");
-            this.storageDirectory=Path.Combine(root,Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(this.storageDirectory);
+        if(double.IsNaN(設定.可変Fraction)||設定.可変Fraction<0||設定.可変Fraction>1) {
+            throw new ArgumentOutOfRangeException(nameof(設定.可変Fraction));
         }
     }
 
-    public abstract long EntryCount { get; }
+    private static void 二の累乗を検証(long 値,string 名前) {
+        if(値<=0||(値&(値-1))!=0) {
+            throw new ArgumentOutOfRangeException(名前);
+        }
+    }
+}
+
+internal interface Iパラメータスイープワークロード:IDisposable {
+    long エントリCount { get; }
+    Iパラメータスイープワーカー ワーカーを作成();
+}
+
+internal interface Iパラメータスイープワーカー:IDisposable {
+    void 追加(int 番号);
+    bool 検索で見つかるか(int 番号);
+}
+
+internal static class パラメータスイープワークロードファクトリー {
+    public static Iパラメータスイープワークロード 作成(パラメータスイープケース ケース,パラメータスイープ実行オプション オプション) =>
+        ケース.コレクション switch {
+            パラメータスイープコレクション種別.ハッシュセット => ハッシュセットを作成(ケース,オプション),
+            パラメータスイープコレクション種別.セット => セットを作成(ケース,オプション),
+            パラメータスイープコレクション種別.辞書 => 辞書を作成(ケース,オプション),
+            _ => throw new ArgumentOutOfRangeException(nameof(ケース)),
+        };
+
+    private static Iパラメータスイープワークロード ハッシュセットを作成(パラメータスイープケース ケース,パラメータスイープ実行オプション オプション) =>
+        ケース.ジェネリック名 switch {
+            "Int32" => new ハッシュセットワークロード<int>(ケース,オプション,static 番号 => 番号),
+            "String" => new ハッシュセットワークロード<string>(ケース,オプション,static 番号 => "K"+番号),
+            "UnmanagedStruct" => new ハッシュセットワークロード<UnmanagedStruct>(ケース,オプション,static 番号 => new() { Value=番号 }),
+            "ManagedStruct" => new ハッシュセットワークロード<ManagedStruct>(ケース,オプション,static 番号 => new() { Name="N"+番号 }),
+            "ManagedClass" => new ハッシュセットワークロード<ManagedClass>(ケース,オプション,static 番号 => new() { Name="C"+番号 }),
+            _ => throw new ArgumentOutOfRangeException(nameof(ケース.ジェネリック名),ケース.ジェネリック名,null),
+        };
+
+    private static Iパラメータスイープワークロード セットを作成(パラメータスイープケース ケース,パラメータスイープ実行オプション オプション) =>
+        ケース.ジェネリック名 switch {
+            "非管理セットレコード" => new セットワークロード<int,パラメータスイープ非管理セットレコード>(ケース,オプション,static 番号 => new(番号,番号)),
+            "管理セットレコード" => new セットワークロード<int,パラメータスイープ管理セットレコード>(ケース,オプション,static 番号 => new(番号,"N"+番号)),
+            _ => throw new ArgumentOutOfRangeException(nameof(ケース.ジェネリック名),ケース.ジェネリック名,null),
+        };
+
+    private static Iパラメータスイープワークロード 辞書を作成(パラメータスイープケース ケース,パラメータスイープ実行オプション オプション) =>
+        ケース.ジェネリック名 switch {
+            "String/String" => new 辞書ワークロード<string,string>(ケース,オプション,static 番号 => "K"+番号,static 番号 => "V"+番号),
+            "String/Int32" => new 辞書ワークロード<string,int>(ケース,オプション,static 番号 => "K"+番号,static 番号 => 番号),
+            "Int32/String" => new 辞書ワークロード<int,string>(ケース,オプション,static 番号 => 番号,static 番号 => "V"+番号),
+            "Int32/Int32" => new 辞書ワークロード<int,int>(ケース,オプション,static 番号 => 番号,static 番号 => 番号),
+            "UnmanagedStruct/UnmanagedStruct" => new 辞書ワークロード<UnmanagedStruct,UnmanagedStruct>(ケース,オプション,static 番号 => new() { Value=番号 },static 番号 => new() { Value=番号 }),
+            "ManagedStruct/ManagedStruct" => new 辞書ワークロード<ManagedStruct,ManagedStruct>(ケース,オプション,static 番号 => new() { Name="K"+番号 },static 番号 => new() { Name="V"+番号 }),
+            "ManagedClass/ManagedClass" => new 辞書ワークロード<ManagedClass,ManagedClass>(ケース,オプション,static 番号 => new() { Name="K"+番号 },static 番号 => new() { Name="V"+番号 }),
+            _ => throw new ArgumentOutOfRangeException(nameof(ケース.ジェネリック名),ケース.ジェネリック名,null),
+        };
+}
+
+internal abstract class ワークロード基底:IDisposable {
+    private readonly string? ストレージディレクトリ;
+    protected IDisposable? 破棄対象 { get; set; }
+    private bool 破棄済みか;
+
+    protected ワークロード基底(パラメータスイープケース ケース,パラメータスイープ実行オプション オプション) {
+        if(ケース.バックエンド==パラメータスイープバックエンド.ストレージ) {
+            var ルート = オプション.作業ディレクトリ??Path.Combine(Path.GetTempPath(),"Seamless","TsavoriteParameterSweep");
+            this.ストレージディレクトリ=Path.Combine(ルート,Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(this.ストレージディレクトリ);
+        }
+    }
+
+    public abstract long エントリCount { get; }
 
     public void Dispose() {
-        if(this.disposed) {
+        if(this.破棄済みか) {
             return;
         }
-        this.disposed=true;
-        this.DisposeCore();
-        this.Store?.Dispose();
-        if(this.storageDirectory is not null&&Directory.Exists(this.storageDirectory)) {
+        this.破棄済みか=true;
+        this.中核を破棄();
+        this.破棄対象?.Dispose();
+        if(this.ストレージディレクトリ is not null&&Directory.Exists(this.ストレージディレクトリ)) {
             try {
-                Directory.Delete(this.storageDirectory,true);
-            }
-            catch(IOException) {
-            }
-            catch(UnauthorizedAccessException) {
+                Directory.Delete(this.ストレージディレクトリ,true);
+            } catch(IOException) {
+            } catch(UnauthorizedAccessException) {
             }
         }
     }
 
-    protected abstract void DisposeCore();
+    protected abstract void 中核を破棄();
 
-    protected Store CreateStore(ParameterSweepCase item,ParameterSweepRunOptions options,out TsavoriteStorageDevicePair? devices) {
-        var settings = item.Settings;
-        var store = Seamless.Tsavorite.Collections.Store.Create(
-            IndexSize: settings.IndexSize,
-            PageSize: settings.PageSize,
-            SegmentSize: settings.SegmentSize,
-            MemorySize: settings.MemorySize,
-            MutableFraction: settings.MutableFraction);
-        if(item.Backend==ParameterSweepBackend.Memory) {
-            devices=null;
-            return store;
+    protected ストア型 ストアを作成(パラメータスイープケース ケース,パラメータスイープ実行オプション オプション,out TsavoriteStorageDevicePair? デバイス) {
+        var 設定 = ケース.設定;
+        var ストア = Seamless.Tsavorite.Collections.Store.Create(
+            IndexSize: 設定.Indexサイズ,
+            PageSize: 設定.Pageサイズ,
+            SegmentSize: 設定.Segmentサイズ,
+            MemorySize: 設定.Memoryサイズ,
+            MutableFraction: 設定.可変Fraction);
+        if(ケース.バックエンド==パラメータスイープバックエンド.メモリ) {
+            デバイス=null;
+            return ストア;
         }
-        var directory = this.storageDirectory??throw new InvalidOperationException("Storage directory was not initialized.");
-        var tuning = new StorageTuning(
+        var ディレクトリ = this.ストレージディレクトリ??throw new InvalidOperationException("ストレージディレクトリが初期化されていません。");
+        var チューニング = new StorageTuning(
             FileAccess.ReadWrite,
             StorageAccessPattern.Sequential,
             StorageBufferingMode.Buffered);
-        devices=TsavoriteStorageDevices.CreatePair(
-            Path.Combine(directory,"log.data"),
-            Path.Combine(directory,"objectlog.data"),
-            tuning,
-            deleteOnClose:true,
-            capacity: options.StorageDeviceCapacity);
-        return store;
+        デバイス=TsavoriteStorageDevices.CreatePair(
+            Path.Combine(ディレクトリ,"log.data"),
+            Path.Combine(ディレクトリ,"objectlog.data"),
+            チューニング,
+            deleteOnClose: true,
+            capacity: オプション.ストレージデバイス容量);
+        return ストア;
     }
 }
 
-internal sealed class HashSetWorkload<TKey>:WorkloadBase,IParameterSweepWorkload
-    where TKey : IEquatable<TKey> {
-    private readonly Func<int,TKey> keyFactory;
-    private readonly Seamless.Tsavorite.Stores.HashSetStore<TKey> store;
+internal sealed class ハッシュセットワークロード<Tキー>:ワークロード基底, Iパラメータスイープワークロード
+    where Tキー : IEquatable<Tキー> {
+    private readonly Func<int,Tキー> キーファクトリー;
+    private readonly Seamless.Tsavorite.Stores.HashSetStore<Tキー> ストア;
 
-    public HashSetWorkload(ParameterSweepCase item,ParameterSweepRunOptions options,Func<int,TKey> keyFactory) : base(item,options) {
-        this.keyFactory=keyFactory;
-        var storeFactory = this.CreateStore(item,options,out var devices);
+    public ハッシュセットワークロード(パラメータスイープケース ケース,パラメータスイープ実行オプション オプション,Func<int,Tキー> キーファクトリー) : base(ケース,オプション) {
+        this.キーファクトリー=キーファクトリー;
+        var ストアファクトリー = this.ストアを作成(ケース,オプション,out var デバイス);
         try {
-            this.store = item.Backend==ParameterSweepBackend.Storage
-                ? storeFactory.Create<TKey>(devices!.Value.LogDevice,devices.Value.ObjectLogDevice)
-                : storeFactory.Create<TKey>();
-            this.Store=this.store;
-        }
-        catch {
-            devices?.Dispose();
+            this.ストア=ケース.バックエンド==パラメータスイープバックエンド.ストレージ
+                ? ストアファクトリー.Create<Tキー>(デバイス!.Value.LogDevice,デバイス.Value.ObjectLogDevice)
+                : ストアファクトリー.Create<Tキー>();
+            this.破棄対象=this.ストア;
+        } catch {
+            デバイス?.Dispose();
             throw;
         }
     }
 
-    public override long EntryCount => this.store.Store.EntryCount;
+    public override long エントリCount => this.ストア.Store.EntryCount;
 
-    public IParameterSweepWorker CreateWorker() => new HashSetWorker<TKey>(this.store.Create(),this.keyFactory);
+    public Iパラメータスイープワーカー ワーカーを作成() => new ハッシュセットワーカー<Tキー>(this.ストア.Create(),this.キーファクトリー);
 
-    protected override void DisposeCore() {
+    protected override void 中核を破棄() {
     }
 }
 
-internal sealed class SetWorkload<TKey,TRecord>:WorkloadBase,IParameterSweepWorkload
-    where TKey : IEquatable<TKey>
-    where TRecord : IRecord<TKey> {
-    private readonly Func<int,TRecord> recordFactory;
-    private readonly Seamless.Tsavorite.Stores.SetStore<TKey,TRecord> store;
+internal sealed class セットワークロード<Tキー, Tレコード>:ワークロード基底, Iパラメータスイープワークロード
+    where Tキー : IEquatable<Tキー>
+    where Tレコード : IRecord<Tキー> {
+    private readonly Func<int,Tレコード> レコードファクトリー;
+    private readonly Seamless.Tsavorite.Stores.SetStore<Tキー,Tレコード> ストア;
 
-    public SetWorkload(ParameterSweepCase item,ParameterSweepRunOptions options,Func<int,TRecord> recordFactory) : base(item,options) {
-        this.recordFactory=recordFactory;
-        var storeFactory = this.CreateStore(item,options,out var devices);
+    public セットワークロード(パラメータスイープケース ケース,パラメータスイープ実行オプション オプション,Func<int,Tレコード> レコードファクトリー) : base(ケース,オプション) {
+        this.レコードファクトリー=レコードファクトリー;
+        var ストアファクトリー = this.ストアを作成(ケース,オプション,out var デバイス);
         try {
-            this.store = item.Backend==ParameterSweepBackend.Storage
-                ? storeFactory.CreateSet<TKey,TRecord>(devices!.Value.LogDevice,devices.Value.ObjectLogDevice)
-                : storeFactory.CreateSet<TKey,TRecord>();
-            this.Store=this.store;
-        }
-        catch {
-            devices?.Dispose();
+            this.ストア=ケース.バックエンド==パラメータスイープバックエンド.ストレージ
+                ? ストアファクトリー.CreateSet<Tキー,Tレコード>(デバイス!.Value.LogDevice,デバイス.Value.ObjectLogDevice)
+                : ストアファクトリー.CreateSet<Tキー,Tレコード>();
+            this.破棄対象=this.ストア;
+        } catch {
+            デバイス?.Dispose();
             throw;
         }
     }
 
-    public override long EntryCount => this.store.Store.EntryCount;
+    public override long エントリCount => this.ストア.Store.EntryCount;
 
-    public IParameterSweepWorker CreateWorker() => new SetWorker<TKey,TRecord>(this.store.Create(),this.recordFactory);
+    public Iパラメータスイープワーカー ワーカーを作成() => new セットワーカー<Tキー,Tレコード>(this.ストア.Create(),this.レコードファクトリー);
 
-    protected override void DisposeCore() {
+    protected override void 中核を破棄() {
     }
 }
 
-internal sealed class DictionaryWorkload<TKey,TValue>:WorkloadBase,IParameterSweepWorkload
-    where TKey : IEquatable<TKey>
-    where TValue : IEquatable<TValue> {
-    private readonly Func<int,TKey> keyFactory;
-    private readonly Func<int,TValue> valueFactory;
-    private readonly Seamless.Tsavorite.Stores.DictionaryStore<TKey,TValue> store;
+internal sealed class 辞書ワークロード<Tキー, T値>:ワークロード基底, Iパラメータスイープワークロード
+    where Tキー : IEquatable<Tキー>
+    where T値 : IEquatable<T値> {
+    private readonly Func<int,Tキー> キーファクトリー;
+    private readonly Func<int,T値> 値ファクトリー;
+    private readonly Seamless.Tsavorite.Stores.DictionaryStore<Tキー,T値> ストア;
 
-    public DictionaryWorkload(
-        ParameterSweepCase item,
-        ParameterSweepRunOptions options,
-        Func<int,TKey> keyFactory,
-        Func<int,TValue> valueFactory) : base(item,options) {
-        this.keyFactory=keyFactory;
-        this.valueFactory=valueFactory;
-        var storeFactory = this.CreateStore(item,options,out var devices);
+    public 辞書ワークロード(
+        パラメータスイープケース ケース,
+        パラメータスイープ実行オプション オプション,
+        Func<int,Tキー> キーファクトリー,
+        Func<int,T値> 値ファクトリー) : base(ケース,オプション) {
+        this.キーファクトリー=キーファクトリー;
+        this.値ファクトリー=値ファクトリー;
+        var ストアファクトリー = this.ストアを作成(ケース,オプション,out var デバイス);
         try {
-            this.store = item.Backend==ParameterSweepBackend.Storage
-                ? storeFactory.Create<TKey,TValue>(devices!.Value.LogDevice,devices.Value.ObjectLogDevice)
-                : storeFactory.Create<TKey,TValue>();
-            this.Store=this.store;
-        }
-        catch {
-            devices?.Dispose();
+            this.ストア=ケース.バックエンド==パラメータスイープバックエンド.ストレージ
+                ? ストアファクトリー.Create<Tキー,T値>(デバイス!.Value.LogDevice,デバイス.Value.ObjectLogDevice)
+                : ストアファクトリー.Create<Tキー,T値>();
+            this.破棄対象=this.ストア;
+        } catch {
+            デバイス?.Dispose();
             throw;
         }
     }
 
-    public override long EntryCount => this.store.Store.EntryCount;
+    public override long エントリCount => this.ストア.Store.EntryCount;
 
-    public IParameterSweepWorker CreateWorker() => new DictionaryWorker<TKey,TValue>(this.store.Create(),this.keyFactory,this.valueFactory);
+    public Iパラメータスイープワーカー ワーカーを作成() => new 辞書ワーカー<Tキー,T値>(this.ストア.Create(),this.キーファクトリー,this.値ファクトリー);
 
-    protected override void DisposeCore() {
+    protected override void 中核を破棄() {
     }
 }
 
-internal sealed class HashSetWorker<TKey>(Seamless.Tsavorite.Collections.HashSet<TKey> set,Func<int,TKey> keyFactory):IParameterSweepWorker
-    where TKey:IEquatable<TKey> {
-    public void Add(int index) => set.Add(keyFactory(index));
+internal sealed class ハッシュセットワーカー<Tキー>(Seamless.Tsavorite.Collections.HashSet<Tキー> セット,Func<int,Tキー> キーファクトリー):Iパラメータスイープワーカー
+    where Tキー : IEquatable<Tキー> {
+    public void 追加(int 番号) => セット.Add(キーファクトリー(番号));
 
-    public bool Lookup(int index) => set.Contains(keyFactory(index));
+    public bool 検索で見つかるか(int 番号) => セット.Contains(キーファクトリー(番号));
 
-    public void Dispose() => set.Dispose();
+    public void Dispose() => セット.Dispose();
 }
 
-internal sealed class SetWorker<TKey,TRecord>(Seamless.Tsavorite.Collections.Set<TKey,TRecord> set,Func<int,TRecord> recordFactory):IParameterSweepWorker
-    where TKey:IEquatable<TKey>
-    where TRecord:IRecord<TKey> {
-    public void Add(int index) => set.Add(recordFactory(index));
+internal sealed class セットワーカー<Tキー, Tレコード>(Seamless.Tsavorite.Collections.Set<Tキー,Tレコード> セット,Func<int,Tレコード> レコードファクトリー):Iパラメータスイープワーカー
+    where Tキー : IEquatable<Tキー>
+    where Tレコード : IRecord<Tキー> {
+    public void 追加(int 番号) => セット.Add(レコードファクトリー(番号));
 
-    public bool Lookup(int index) => set.ContainsKey(recordFactory(index).Key);
+    public bool 検索で見つかるか(int 番号) => セット.ContainsKey(レコードファクトリー(番号).Key);
 
-    public void Dispose() => set.Dispose();
+    public void Dispose() => セット.Dispose();
 }
 
-internal sealed class DictionaryWorker<TKey,TValue>(Seamless.Tsavorite.Collections.IDictionary<TKey,TValue> dictionary,Func<int,TKey> keyFactory,Func<int,TValue> valueFactory):IParameterSweepWorker
-    where TKey:IEquatable<TKey>
-    where TValue:IEquatable<TValue> {
-    public void Add(int index) => dictionary.Add(keyFactory(index),valueFactory(index));
+internal sealed class 辞書ワーカー<Tキー, T値>(Seamless.Tsavorite.Collections.IDictionary<Tキー,T値> 辞書,Func<int,Tキー> キーファクトリー,Func<int,T値> 値ファクトリー):Iパラメータスイープワーカー
+    where Tキー : IEquatable<Tキー>
+    where T値 : IEquatable<T値> {
+    public void 追加(int 番号) => 辞書.Add(キーファクトリー(番号),値ファクトリー(番号));
 
-    public bool Lookup(int index) => dictionary.TryGetValue(keyFactory(index),out _);
+    public bool 検索で見つかるか(int 番号) => 辞書.TryGetValue(キーファクトリー(番号),out _);
 
-    public void Dispose() => dictionary.Dispose();
+    public void Dispose() => 辞書.Dispose();
 }
 
-internal static class ParameterSweepCpuAffinity {
-    public static void TryApplyCurrentThread(int? logicalCpu) {
-        if(logicalCpu is not { } cpu||cpu<0) {
+internal static class パラメータスイープCPUアフィニティ {
+    public static void 現在のスレッドへの適用を試みる(int? 論理CPU) {
+        if(論理CPU is not { } CPU||CPU<0) {
             return;
         }
         if(OperatingSystem.IsWindows()) {
-            TryApplyWindows(cpu);
-        }else if(OperatingSystem.IsLinux()) {
-            TryApplyLinux(cpu);
+            Windowsへの適用を試みる(CPU);
+        } else if(OperatingSystem.IsLinux()) {
+            Linuxへの適用を試みる(CPU);
         }
     }
 
-    private static void TryApplyWindows(int logicalCpu) {
+    private static void Windowsへの適用を試みる(int 論理CPU) {
         try {
-            var remaining=logicalCpu;
-            var groupCount=GetActiveProcessorGroupCount();
-            for(ushort group=0;group<groupCount;group++) {
-                var count=(int)GetActiveProcessorCount(group);
-                if(remaining>=count) {
-                    remaining-=count;
+            var 残り = 論理CPU;
+            var グループCount = GetActiveProcessorGroupCount();
+            for(ushort グループ = 0;グループ<グループCount;グループ++) {
+                var 追加Count = (int)GetActiveProcessorCount(グループ);
+                if(残り>=追加Count) {
+                    残り-=追加Count;
                     continue;
                 }
-                var affinity=new GroupAffinity {
-                    Mask=new UIntPtr(1UL<<remaining),
-                    Group=group,
+                var アフィニティ = new GroupAffinity {
+                    Mask=new UIntPtr(1UL<<残り),
+                    Group=グループ,
                 };
-                _=SetThreadGroupAffinity(GetCurrentThread(),ref affinity,IntPtr.Zero);
+                _=SetThreadGroupAffinity(GetCurrentThread(),ref アフィニティ,IntPtr.Zero);
                 return;
             }
-        }
-        catch(DllNotFoundException) {
-        }
-        catch(EntryPointNotFoundException) {
+        } catch(DllNotFoundException) {
+        } catch(EntryPointNotFoundException) {
         }
     }
 
-    private static void TryApplyLinux(int logicalCpu) {
-        var size=Math.Max(8,(logicalCpu/8)+1);
-        var cpuSet=System.Runtime.InteropServices.Marshal.AllocHGlobal(size);
+    private static void Linuxへの適用を試みる(int 論理CPU) {
+        var サイズ = Math.Max(8,(論理CPU/8)+1);
+        var CPUセット = System.Runtime.InteropServices.Marshal.AllocHGlobal(サイズ);
         try {
-            for(var index=0;index<size;index++) {
-                System.Runtime.InteropServices.Marshal.WriteByte(cpuSet,index,0);
+            for(var 番号 = 0;番号<サイズ;番号++) {
+                System.Runtime.InteropServices.Marshal.WriteByte(CPUセット,番号,0);
             }
-            var byteIndex=logicalCpu/8;
-            var current=System.Runtime.InteropServices.Marshal.ReadByte(cpuSet,byteIndex);
-            System.Runtime.InteropServices.Marshal.WriteByte(cpuSet,byteIndex,(byte)(current|(1<<(logicalCpu%8))));
-            _=sched_setaffinity(0,(nuint)size,cpuSet);
-        }
-        catch(DllNotFoundException) {
-        }
-        catch(EntryPointNotFoundException) {
-        }
-        finally {
-            System.Runtime.InteropServices.Marshal.FreeHGlobal(cpuSet);
+            var バイトインデックス = 論理CPU/8;
+            var 現在値 = System.Runtime.InteropServices.Marshal.ReadByte(CPUセット,バイトインデックス);
+            System.Runtime.InteropServices.Marshal.WriteByte(CPUセット,バイトインデックス,(byte)(現在値|(1<<(論理CPU%8))));
+            _=sched_setaffinity(0,(nuint)サイズ,CPUセット);
+        } catch(DllNotFoundException) {
+        } catch(EntryPointNotFoundException) {
+        } finally {
+            System.Runtime.InteropServices.Marshal.FreeHGlobal(CPUセット);
         }
     }
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll")]
     private static extern IntPtr GetCurrentThread();
 
-    [System.Runtime.InteropServices.DllImport("kernel32.dll",SetLastError=true)]
+    [System.Runtime.InteropServices.DllImport("kernel32.dll",SetLastError = true)]
     private static extern bool SetThreadGroupAffinity(IntPtr threadHandle,ref GroupAffinity groupAffinity,IntPtr previousGroupAffinity);
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll")]
@@ -683,7 +663,7 @@ internal static class ParameterSweepCpuAffinity {
     [System.Runtime.InteropServices.DllImport("kernel32.dll")]
     private static extern uint GetActiveProcessorCount(ushort groupNumber);
 
-    [System.Runtime.InteropServices.DllImport("libc",SetLastError=true)]
+    [System.Runtime.InteropServices.DllImport("libc",SetLastError = true)]
     private static extern int sched_setaffinity(int pid,nuint cpusetsize,IntPtr mask);
 
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]

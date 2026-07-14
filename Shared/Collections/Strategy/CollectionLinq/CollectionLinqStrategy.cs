@@ -1,10 +1,9 @@
 namespace Collection.Strategy.CollectionLinq;
 
-public interface ICollectionLinqStrategy<TSource,TElement,TKey,TValue>
+public interface ICollectionLinqStrategy<TSource, TElement, TKey, TValue>
     where TSource : IDisposable
     where TKey : IEquatable<TKey>
-    where TValue : IEquatable<TValue>
-{
+    where TValue : IEquatable<TValue> {
     static abstract TSource Create(int count);
     static abstract TSource CreateSecond(int count);
     static abstract IEnumerable<TElement> AsEnumerable(TSource source);
@@ -15,11 +14,10 @@ public interface ICollectionLinqStrategy<TSource,TElement,TKey,TValue>
     static abstract int ValueNumber(TValue value);
 }
 
-public interface IDictionaryLinqStrategy<TSource,TElement,TKey,TValue>:ICollectionLinqStrategy<TSource,TElement,TKey,TValue>
+public interface IDictionaryLinqStrategy<TSource, TElement, TKey, TValue>:ICollectionLinqStrategy<TSource,TElement,TKey,TValue>
     where TSource : IDisposable
     where TKey : IEquatable<TKey>
-    where TValue : IEquatable<TValue>
-{
+    where TValue : IEquatable<TValue> {
     static abstract IEnumerable<TKey> Keys(TSource source);
     static abstract IEnumerable<TValue> Values(TSource source);
 }

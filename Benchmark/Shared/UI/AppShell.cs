@@ -1,12 +1,12 @@
 namespace UI;
 
-public sealed class AppShell:Shell {
-    public AppShell(MainPage page) {
-        StartupDiagnostics.Write("AppShell constructor started.");
+public sealed class アプリシェル:Shell {
+    public アプリシェル(MainPage ページ) {
+        起動診断.書き込む("アプリシェルの初期化を開始しました。");
         this.Items.Add(new ShellContent {
             Title="Benchmark",
-            Content=page,
+            Content=ページ,
         });
-        StartupDiagnostics.Write("AppShell constructor completed.");
+        起動診断.書き込む("アプリシェルの初期化が完了しました。");
     }
 }

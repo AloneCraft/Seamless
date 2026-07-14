@@ -5,7 +5,7 @@ using System.Text;
 namespace Test.System.Linq.Intercept;
 
 public sealed class DynamicLinqRunnerReport(ITestOutputHelper output) {
-    [Fact,Trait("Category","DynamicLinq")]
+    [Fact, Trait("Category","DynamicLinq")]
     public void RandomSmokeReport() {
         var repoRoot = FindRepoRoot(AppContext.BaseDirectory);
         var runnerProject = Path.Combine(repoRoot,"DynamicLinq.Runner","DynamicLinq.Runner.csproj");
@@ -22,7 +22,7 @@ public sealed class DynamicLinqRunnerReport(ITestOutputHelper output) {
         foreach(var line in reportText.Replace("\r\n","\n").Split('\n')) {
             output.WriteLine(line);
         }
-        if(!string.IsNullOrWhiteSpace(report.Artifact) && Directory.Exists(report.Artifact)) {
+        if(!string.IsNullOrWhiteSpace(report.Artifact)&&Directory.Exists(report.Artifact)) {
             File.WriteAllText(Path.Combine(report.Artifact,"report.txt"),reportText,Encoding.UTF8);
         }
 
@@ -40,7 +40,7 @@ public sealed class DynamicLinqRunnerReport(ITestOutputHelper output) {
 
         builder.AppendLine("Slowest FLinq/System ratio");
         AppendRows(builder,report.Rows
-            .Where(static row => row.Status!="SKIP_VERIFY" && row.SystemNs>0)
+            .Where(static row => row.Status!="SKIP_VERIFY"&&row.SystemNs>0)
             .OrderByDescending(static row => row.Ratio)
             .ThenByDescending(static row => row.FLinqNs)
             .Take(10));
@@ -55,7 +55,7 @@ public sealed class DynamicLinqRunnerReport(ITestOutputHelper output) {
         if(report.Failed>0) {
             builder.AppendLine();
             builder.AppendLine("Failed cases");
-            AppendRows(builder,report.Rows.Where(static row => row.Status!="OK" && row.Status!="SKIP_VERIFY"));
+            AppendRows(builder,report.Rows.Where(static row => row.Status!="OK"&&row.Status!="SKIP_VERIFY"));
         }
 
         if(report.Rows.Count==0) {
@@ -103,12 +103,12 @@ public sealed class DynamicLinqRunnerReport(ITestOutputHelper output) {
             startInfo.ArgumentList.Add(arg);
         }
 
-        using var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Could not start dotnet.");
+        using var process = Process.Start(startInfo)??throw new InvalidOperationException("Could not start dotnet.");
         var output = new StringBuilder();
         output.Append(process.StandardOutput.ReadToEnd());
         output.Append(process.StandardError.ReadToEnd());
         if(!process.WaitForExit((int)TimeSpan.FromMinutes(10).TotalMilliseconds)) {
-            process.Kill(entireProcessTree:true);
+            process.Kill(entireProcessTree: true);
             throw new TimeoutException("DynamicLinq.Runner did not finish within 10 minutes.");
         }
         return new ProcessResult(process.ExitCode,output.ToString());
@@ -118,13 +118,13 @@ public sealed class DynamicLinqRunnerReport(ITestOutputHelper output) {
         var result = new List<string>();
         var current = new StringBuilder();
         var inQuotes = false;
-        for(var index = 0; index<args.Length; index++) {
+        for(var index = 0;index<args.Length;index++) {
             var c = args[index];
             if(c=='"') {
                 inQuotes=!inQuotes;
                 continue;
             }
-            if(char.IsWhiteSpace(c) && !inQuotes) {
+            if(char.IsWhiteSpace(c)&&!inQuotes) {
                 if(current.Length>0) {
                     result.Add(current.ToString());
                     current.Clear();
@@ -145,7 +145,7 @@ public sealed class DynamicLinqRunnerReport(ITestOutputHelper output) {
         public int Total => this.Rows.Count;
         public int Ok => this.Rows.Count(static row => row.Status=="OK");
         public int SkipVerify => this.Rows.Count(static row => row.Status=="SKIP_VERIFY");
-        public int Failed => this.Rows.Count(static row => row.Status!="OK" && row.Status!="SKIP_VERIFY");
+        public int Failed => this.Rows.Count(static row => row.Status!="OK"&&row.Status!="SKIP_VERIFY");
 
         public static DynamicLinqReport Parse(string output) {
             var artifact = string.Empty;
@@ -159,11 +159,11 @@ public sealed class DynamicLinqRunnerReport(ITestOutputHelper output) {
                     artifact=line["Artifacts kept:".Length..].Trim();
                     continue;
                 }
-                if(line.Length==0 || line.StartsWith("name,type,",StringComparison.Ordinal)) {
+                if(line.Length==0||line.StartsWith("name,type,",StringComparison.Ordinal)) {
                     continue;
                 }
                 var parts = line.Split(',');
-                if((parts.Length!=27 && parts.Length!=30) || !int.TryParse(parts[2],NumberStyles.Integer,CultureInfo.InvariantCulture,out _)) {
+                if((parts.Length!=27&&parts.Length!=30)||!int.TryParse(parts[2],NumberStyles.Integer,CultureInfo.InvariantCulture,out _)) {
                     continue;
                 }
                 rows.Add(DynamicLinqRow.Parse(parts));

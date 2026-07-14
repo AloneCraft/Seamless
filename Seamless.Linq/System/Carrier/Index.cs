@@ -30,7 +30,7 @@ namespace Seamless.System.Carrier {
             if(this.source.TryGetSpan(out var span)) {
                 if(EnumeratorHelper.TryGetSlice(span,offset,destination.Length,out var slice)) {
                     var index = offset.GetOffset(span.Length);
-                    for(var i = 0; (uint)i<(uint)slice.Length; i++) {
+                    for(var i = 0;(uint)i<(uint)slice.Length;i++) {
                         destination[i]=(index,slice[i]);
                         checked { index++; }
                     }

@@ -1,5 +1,6 @@
-using System.Text;
 using Microsoft.CodeAnalysis;
+
+using System.Text;
 namespace Test.SourceGenerator;
 
 internal static class GeneratedSourceAssert {
@@ -13,8 +14,8 @@ internal static class GeneratedSourceAssert {
             return;
         }
 
-        var details = BuildFailureMessage(message, generatedSource, diagnostics);
-        WriteFailureOutput(output, details);
+        var details = BuildFailureMessage(message,generatedSource,diagnostics);
+        WriteFailureOutput(output,details);
         Assert.Fail(details);
     }
 
@@ -22,12 +23,12 @@ internal static class GeneratedSourceAssert {
         IReadOnlyCollection<Diagnostic> diagnostics,
         string generatedSource,
         ITestOutputHelper? output) {
-        if(diagnostics.Count == 0) {
+        if(diagnostics.Count==0) {
             return;
         }
 
-        var details = BuildFailureMessage("Source generator diagnostics contained errors.", generatedSource, diagnostics);
-        WriteFailureOutput(output, details);
+        var details = BuildFailureMessage("Source generator diagnostics contained errors.",generatedSource,diagnostics);
+        WriteFailureOutput(output,details);
         Assert.Fail(details);
     }
 
@@ -38,7 +39,7 @@ internal static class GeneratedSourceAssert {
         var builder = new StringBuilder();
         builder.AppendLine(message);
 
-        if(diagnostics is { Count: > 0 }) {
+        if(diagnostics is { Count:>0 }) {
             builder.AppendLine();
             builder.AppendLine("Diagnostics:");
             foreach(var diagnostic in diagnostics) {
@@ -52,12 +53,12 @@ internal static class GeneratedSourceAssert {
         return builder.ToString();
     }
 
-    private static void WriteFailureOutput(ITestOutputHelper? output, string details) {
+    private static void WriteFailureOutput(ITestOutputHelper? output,string details) {
         if(output is null) {
             return;
         }
 
-        foreach(var line in details.Replace("\r\n", "\n").Split('\n')) {
+        foreach(var line in details.Replace("\r\n","\n").Split('\n')) {
             output.WriteLine(line);
         }
     }

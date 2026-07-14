@@ -1,143 +1,137 @@
-using System.Globalization;
 using MemoryPack;
+
 using Seamless.Collections;
+
+using System.Globalization;
 
 namespace Benchmark.Tsavorite.ParameterSweep;
 
-public enum ParameterSweepCollectionKind {
-    HashSet,
-    Set,
-    Dictionary,
+public enum パラメータスイープコレクション種別 {
+    ハッシュセット,
+    セット,
+    辞書,
 }
 
-public enum ParameterSweepBackend {
-    Memory,
-    Storage,
+public enum パラメータスイープバックエンド {
+    メモリ,
+    ストレージ,
 }
 
-public enum ParameterSweepAxis {
-    IndexSize,
-    MemorySize,
-    PageSize,
-    SegmentSize,
+public enum パラメータスイープ軸 {
+    Indexサイズ,
+    Memoryサイズ,
+    Pageサイズ,
+    Segmentサイズ,
 }
 
-public enum ParameterSweepFailureKind {
-    Completed,
-    LogFull,
-    OutOfMemory,
-    Timeout,
-    InvalidConfiguration,
-    Exception,
+public enum パラメータスイープ失敗種別 {
+    完了,
+    ログ満杯,
+    メモリ不足,
+    タイムアウト,
+    無効な構成,
+    例外,
 }
 
-public readonly record struct ParameterSweepSettings(
-    long IndexSize,
-    long PageSize,
-    long SegmentSize,
-    long MemorySize,
-    double MutableFraction);
+public readonly record struct パラメータスイープ設定(
+    long Indexサイズ,
+    long Pageサイズ,
+    long Segmentサイズ,
+    long Memoryサイズ,
+    double 可変Fraction);
 
-public sealed record ParameterSweepCase(
-    string CaseName,
-    ParameterSweepCollectionKind Collection,
-    string GenericName,
-    ParameterSweepBackend Backend,
-    ParameterSweepAxis Sweep,
-    ParameterSweepSettings Settings);
+public sealed record パラメータスイープケース(
+    string ケース名,
+    パラメータスイープコレクション種別 コレクション,
+    string ジェネリック名,
+    パラメータスイープバックエンド バックエンド,
+    パラメータスイープ軸 スイープ軸,
+    パラメータスイープ設定 設定);
 
-public sealed record ParameterSweepResult(
-    string RunId,
-    DateTimeOffset MeasuredAt,
-    string CaseName,
-    ParameterSweepCollectionKind Collection,
-    string GenericName,
-    ParameterSweepBackend Backend,
-    ParameterSweepAxis Sweep,
-    long IndexSize,
-    long PageSize,
-    long SegmentSize,
-    long MemorySize,
-    double MutableFraction,
-    long MaxSuccessfulCount,
-    long EntryCount,
-    ParameterSweepFailureKind FailureKind,
-    string FailureMessage,
-    double AddElapsedMilliseconds,
-    double? LookupMeanNanoseconds) {
-    public IReadOnlyList<ParameterSweepWorkerMetric> WorkerMetrics { get; init; } = [];
-    public string CpuSetKey { get; init; } = string.Empty;
-    public int ConcurrencyLevel { get; init; } = 1;
+public sealed record パラメータスイープ結果(
+    string 実行ID,
+    DateTimeOffset 計測日時,
+    string ケース名,
+    パラメータスイープコレクション種別 コレクション,
+    string ジェネリック名,
+    パラメータスイープバックエンド バックエンド,
+    パラメータスイープ軸 スイープ軸,
+    long Indexサイズ,
+    long Pageサイズ,
+    long Segmentサイズ,
+    long Memoryサイズ,
+    double 可変Fraction,
+    long 最大成功Count,
+    long エントリCount,
+    パラメータスイープ失敗種別 失敗種別,
+    string 失敗メッセージ,
+    double 追加経過ミリ秒,
+    double? 検索平均ナノ秒) {
+    public IReadOnlyList<パラメータスイープワーカー指標> ワーカー指標一覧 { get; init; } = [];
+    public string CPUセットキー { get; init; } = string.Empty;
+    public int 並行数 { get; init; } = 1;
 }
 
-public sealed record ParameterSweepWorkerMetric(
-    int? LogicalCpu,
-    long AddOperationCount,
-    double AddElapsedMilliseconds,
-    long LookupOperationCount,
-    double LookupElapsedMilliseconds,
-    ParameterSweepFailureKind FailureKind,
-    string FailureMessage) {
-    public double AddOperationsPerSecond => this.AddElapsedMilliseconds>0
-        ? this.AddOperationCount*1000/this.AddElapsedMilliseconds
-        : 0;
-    public double LookupOperationsPerSecond => this.LookupElapsedMilliseconds>0
-        ? this.LookupOperationCount*1000/this.LookupElapsedMilliseconds
-        : 0;
-}
+public sealed record パラメータスイープワーカー指標(
+    int? 論理CPU,
+    long 追加操作Count,
+    double 追加経過ミリ秒,
+    long 検索操作Count,
+    double 検索経過ミリ秒,
+    パラメータスイープ失敗種別 失敗種別,
+    string 失敗メッセージ);
 
-public sealed record ParameterSweepComparisonRow(
-    ParameterSweepResult Current,
-    ParameterSweepResult? Baseline,
-    long? MaxCountDelta,
-    double? AddElapsedRatio,
-    double? LookupRatio,
-    bool FailureKindChanged);
+public sealed record パラメータスイープ比較行(
+    パラメータスイープ結果 今回,
+    パラメータスイープ結果? 前回,
+    long? 最大Count差分,
+    double? 今回追加時間シェア,
+    double? 前回追加時間シェア,
+    double? 今回検索時間シェア,
+    double? 前回検索時間シェア,
+    bool 失敗種別変更か);
 
 [MemoryPackable]
-public readonly partial record struct ParameterSweepUnmanagedSetRecord(int Key,long Value):IRecord<int>;
+public readonly partial record struct パラメータスイープ非管理セットレコード(int Key,long 値):IRecord<int>;
 
 [MemoryPackable]
-public readonly partial record struct ParameterSweepManagedSetRecord(int Key,string Name):IRecord<int>;
+public readonly partial record struct パラメータスイープ管理セットレコード(int Key,string 名前):IRecord<int>;
 
-public static class ParameterSweepFormatting {
-    public static string FormatSize(long value) {
-        if(value%(1L<<30)==0&&value>=1L<<30) {
-            return (value>>30).ToString(CultureInfo.InvariantCulture)+"G";
+public static class パラメータスイープフォーマッター {
+    public static string サイズを整形(long 値) {
+        if(値%(1L<<30)==0&&値>=1L<<30) {
+            return (値>>30).ToString(CultureInfo.InvariantCulture)+"G";
         }
-        if(value%(1L<<20)==0&&value>=1L<<20) {
-            return (value>>20).ToString(CultureInfo.InvariantCulture)+"M";
+        if(値%(1L<<20)==0&&値>=1L<<20) {
+            return (値>>20).ToString(CultureInfo.InvariantCulture)+"M";
         }
-        if(value%(1L<<10)==0&&value>=1L<<10) {
-            return (value>>10).ToString(CultureInfo.InvariantCulture)+"K";
+        if(値%(1L<<10)==0&&値>=1L<<10) {
+            return (値>>10).ToString(CultureInfo.InvariantCulture)+"K";
         }
-        return value.ToString(CultureInfo.InvariantCulture);
+        return 値.ToString(CultureInfo.InvariantCulture);
     }
 
-    public static string CreateCaseName(
-        ParameterSweepCollectionKind collection,
-        string genericName,
-        ParameterSweepBackend backend,
-        ParameterSweepAxis axis,
-        ParameterSweepSettings settings) =>
-        collection+"<"+genericName+">."
-        +backend+"."
-        +axis+"_"
-        +CreateParameterSuffix(settings);
+    public static string ケース名を作成(
+        パラメータスイープコレクション種別 コレクション,
+        string ジェネリック名,
+        パラメータスイープバックエンド バックエンド,
+        パラメータスイープ軸 スイープ軸,
+        パラメータスイープ設定 設定) =>
+        コレクション+"<"+ジェネリック名+">."
+        +バックエンド+"."
+        +スイープ軸+"_"
+        +パラメーター接尾辞を作成(設定);
 
-    public static string CreateMethodName(string genericName,string methodName,ParameterSweepSettings settings) =>
-        "<"+genericName+">."+methodName+"_"+CreateParameterSuffix(settings);
+    public static string パラメーター接尾辞を作成(パラメータスイープ設定 設定) =>
+        固定長で整形(設定.Indexサイズ,6)
+        +"_"+固定長で整形(設定.Pageサイズ,7)
+        +"_"+固定長で整形(設定.Segmentサイズ,7)
+        +"_"+固定長で整形(設定.Memoryサイズ,7)
+        +"_"+Fractionを整形(設定.可変Fraction);
 
-    public static string CreateParameterSuffix(ParameterSweepSettings settings) =>
-        FormatFixed(settings.IndexSize,6)
-        +"_"+FormatFixed(settings.PageSize,7)
-        +"_"+FormatFixed(settings.SegmentSize,7)
-        +"_"+FormatFixed(settings.MemorySize,7)
-        +"_"+FormatFraction(settings.MutableFraction);
+    private static string 固定長で整形(long 値,int 幅) =>
+        値.ToString("D"+幅.ToString(CultureInfo.InvariantCulture),CultureInfo.InvariantCulture);
 
-    private static string FormatFixed(long value,int width) =>
-        value.ToString("D"+width.ToString(CultureInfo.InvariantCulture),CultureInfo.InvariantCulture);
-
-    private static string FormatFraction(double value) =>
-        ((int)Math.Round(value*10,MidpointRounding.AwayFromZero)).ToString("D2",CultureInfo.InvariantCulture);
+    private static string Fractionを整形(double 値) =>
+        ((int)Math.Round(値*10,MidpointRounding.AwayFromZero)).ToString("D2",CultureInfo.InvariantCulture);
 }

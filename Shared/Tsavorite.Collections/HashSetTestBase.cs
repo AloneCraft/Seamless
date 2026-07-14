@@ -8,7 +8,7 @@ namespace Tsavorite.Collections;
 public abstract class HashSetTestBase<TStrategy, T>
     where TStrategy : IHashSetTestStrategy<T>
     where T : IEquatable<T> {
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void IsReadOnly() {
         using var h = TStrategy.CreateMemorySet();
         ICollection<T> set = h.Set;
@@ -17,7 +17,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.False(set.IsReadOnly);
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Add() {
         {
             // コメント文字化け修正済み
@@ -108,7 +108,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.Throws<ArgumentNullException>(() => h.Set.IntersectWith((global::Seamless.Tsavorite.Collections.HashSet<T>)null!));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void IsSubsetOf() {
         {
             // コメント文字化け修正済み
@@ -129,7 +129,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.False(h.Set.IsSubsetOf(other.Set));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void IsSupersetOf() {
         {
             // コメント文字化け修正済み
@@ -150,7 +150,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.False(h.Set.IsSupersetOf(other.Set));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void IsProperSubsetOf() {
         {
             // コメント文字化け修正済み
@@ -170,7 +170,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.False(h.Set.IsProperSubsetOf(other.Set));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void IsProperSupersetOf() {
         {
             // コメント文字化け修正済み
@@ -190,7 +190,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.False(h.Set.IsProperSupersetOf(other.Set));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Overlaps() {
         {
             // コメント文字化け修正済み
@@ -210,7 +210,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.False(h.Set.Overlaps(other.Set));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void SetEquals() {
         {
             // コメント文字化け修正済み
@@ -273,7 +273,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.Throws<ArgumentNullException>(() => h.Set.UnionWith((global::Seamless.Tsavorite.Collections.HashSet<T>)null!));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void WithOverloads_AcceptConcreteHashSetSystemISetAndEnumerable() {
         {
             using var h = TStrategy.CreateMemorySet();
@@ -314,7 +314,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.True(h.Set.Contains(TStrategy.Elem(3)));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Contains() {
         {
             // コメント文字化け修正済み
@@ -328,7 +328,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.False(h.Set.Contains(TStrategy.Elem(99)));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Remove() {
         {
             // コメント文字化け修正済み
@@ -343,7 +343,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.False(h.Set.Remove(TStrategy.Elem(99)));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Clear() {
         using var h = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
@@ -353,7 +353,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.Empty(h.Set);
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Count() {
         using var h = TStrategy.CreateMemorySet();
         h.Set.Add(TStrategy.Elem(1));
@@ -363,7 +363,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.Equal(2,h.Set.Count);
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void GetEnumerator() {
         {
             // コメント文字化け修正済み
@@ -388,7 +388,7 @@ public abstract class HashSetTestBase<TStrategy, T>
             Assert.Equal(1,count);
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Dispose() {
         var h = TStrategy.CreateMemorySet();
         var set = h.Set;

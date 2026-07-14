@@ -1,4 +1,5 @@
 using System.Runtime.Versioning;
+
 using Tsavorite.core;
 #if BENCHMARK_PROJECT
 namespace Benchmark.Tsavorite.Collections;
@@ -27,7 +28,7 @@ public class StoreCheckpoint {
         using var store = Store.Create().Create<int>();
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await store.SaveLogOnlyAsync(ct: ct));
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Save_Load_HashSet_DataPersistsAndRestores() {
         var folder = CreateFolder();
         var checkpointDir = folder+"_checkpoint";
@@ -59,7 +60,7 @@ public class StoreCheckpoint {
             Assert.False(set.Contains(99));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public async Task SaveAsync_LoadAsync_HashSet_DataPersistsAndRestores() {
         var ct = CancellationToken.None;
         var folder = CreateFolder();
@@ -90,7 +91,7 @@ public class StoreCheckpoint {
             Assert.False(set.Contains(99));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public async Task SaveAsync_LoadAsync_Dictionary_DataPersistsAndRestores() {
         var ct = CancellationToken.None;
         var folder = CreateFolder();
@@ -118,7 +119,7 @@ public class StoreCheckpoint {
             Assert.False(dict.ContainsKey(99));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public async Task SaveAsync_LoadAsync_HashSet_RecoveryIndexRestoresAndContainsWorks() {
         var ct = CancellationToken.None;
         var folder = CreateFolder();
@@ -129,7 +130,7 @@ public class StoreCheckpoint {
             using var objDevice = Devices.CreateLogDevice(folder+"_obj");
             using var store = Store.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
             using var set = store.Create();
-            for(var i = 0; i<100; i++) set.Add(i);
+            for(var i = 0;i<100;i++) set.Add(i);
             token=await store.SaveAsync(ct: ct);
         }
         {
@@ -138,11 +139,11 @@ public class StoreCheckpoint {
             using var store = Store.Create(CheckpointDir: checkpointDir).Create<int>(logDevice,objDevice);
             await store.LoadAsync(token,ct);
             using var set = store.Create();
-            for(var i = 0; i<100; i++) Assert.True(set.Contains(i),$"Contains({i}) failed after recovery");
+            for(var i = 0;i<100;i++) Assert.True(set.Contains(i),$"Contains({i}) failed after recovery");
             Assert.False(set.Contains(999));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416:Validate platform compatibility",Justification = "Cross-platform test fixture")]
     public async Task SaveAsync_LoadAsync_Dictionary_RecoveryIndexRestoresAndReadWorks() {
         var ct = CancellationToken.None;
@@ -154,7 +155,7 @@ public class StoreCheckpoint {
             using var objDevice = Devices.CreateLogDevice(folder+"_obj");
             using var store = Store.Create(CheckpointDir: checkpointDir).Create<int,string>(logDevice,objDevice);
             using var dict = store.Create();
-            for(var i = 0; i<50; i++) dict.Add(i,$"val_{i}");
+            for(var i = 0;i<50;i++) dict.Add(i,$"val_{i}");
             token=await store.SaveAsync(ct: ct);
         }
         {
@@ -163,7 +164,7 @@ public class StoreCheckpoint {
             using var store = Store.Create(CheckpointDir: checkpointDir).Create<int,string>(logDevice,objDevice);
             await store.LoadAsync(token,ct);
             using var dict = store.Create();
-            for(var i = 0; i<50; i++) {
+            for(var i = 0;i<50;i++) {
                 Assert.True(dict.ContainsKey(i),$"ContainsKey({i}) failed after recovery");
                 Assert.Equal($"val_{i}",dict[i]);
             }
@@ -171,7 +172,7 @@ public class StoreCheckpoint {
         }
     }
 
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Save_Load_Dictionary_ExpandsRecoveryIndexSizeByEntryCount() {
         const long initialIndexSize = 64;
         const int entryCount = 100;
@@ -188,7 +189,7 @@ public class StoreCheckpoint {
             using var store = factory.Create<int,string>(logDevice,objDevice);
             using var dict = store.Create();
 
-            for(var i = 0; i<entryCount; i++)
+            for(var i = 0;i<entryCount;i++)
                 dict.Add(i,$"val_{i}");
 
             token=store.Save();
@@ -205,14 +206,14 @@ public class StoreCheckpoint {
             using var dict = store.Create();
 
             Assert.Equal(entryCount,dict.GetLongCount());
-            for(var i = 0; i<entryCount; i++) {
+            for(var i = 0;i<entryCount;i++) {
                 Assert.True(dict.ContainsKey(i),$"ContainsKey({i}) failed after resize-aware recovery");
                 Assert.Equal($"val_{i}",dict[i]);
             }
         }
     }
 
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void SaveLogOnly_LoadLatest_Dictionary_ExpandsRecoveryIndexSizeByEntryCount() {
         const long initialIndexSize = 64;
         const int entryCount = 100;
@@ -228,7 +229,7 @@ public class StoreCheckpoint {
             using var store = factory.Create<int,string>(logDevice,objDevice);
             using var dict = store.Create();
 
-            for(var i = 0; i<entryCount; i++)
+            for(var i = 0;i<entryCount;i++)
                 dict.Add(i,$"val_{i}");
 
             _=store.SaveLogOnly();
@@ -245,7 +246,7 @@ public class StoreCheckpoint {
             using var dict = store.Create();
 
             Assert.Equal(entryCount,dict.GetLongCount());
-            for(var i = 0; i<entryCount; i++) {
+            for(var i = 0;i<entryCount;i++) {
                 Assert.True(dict.ContainsKey(i),$"ContainsKey({i}) failed after latest resize-aware recovery");
                 Assert.Equal($"val_{i}",dict[i]);
             }
@@ -327,7 +328,7 @@ public class StoreCheckpoint {
             base.ReadAsync(segmentId,sourceAddress,destinationAddress,readLength,callback,callbackContext);
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public async Task SaveLogOnlyAsync_LoadAsync_HashSet_DataPersistsAndRestores() {
         var ct = CancellationToken.None;
         var folder = CreateFolder();
@@ -357,7 +358,7 @@ public class StoreCheckpoint {
             Assert.False(set.Contains(99));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public async Task SaveLogOnlyAsync_LoadAsync_Dictionary_DataPersistsAndRestores() {
         var ct = CancellationToken.None;
         var folder = CreateFolder();

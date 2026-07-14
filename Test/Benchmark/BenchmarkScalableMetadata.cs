@@ -1,53 +1,54 @@
-using UI;
 using System.Reflection;
+
+using UI;
 
 namespace Test.Benchmark;
 
-public sealed class BenchmarkScalableMetadata {
+public sealed class ベンチマークスケーラブルメタデータ {
     [Fact]
-    public void ScalableSourceTabs_AreSetDictionaryAndPersistedList() {
+    public void スケーラブルソースタブはセット辞書永続化リストで構成される() {
         Assert.Equal(
             [
-                BenchmarkSourceTabs.ScalablePersistedSetId,
-                BenchmarkSourceTabs.ScalableTsavoriteSetId,
-                BenchmarkSourceTabs.ScalablePersistedDictionaryId,
-                BenchmarkSourceTabs.ScalableTsavoriteDictionaryId,
-                BenchmarkSourceTabs.ScalablePersistedListId,
+                ベンチマークソースタブ一覧.スケーラブル永続化セットID,
+                ベンチマークソースタブ一覧.スケーラブルTsavoriteセットID,
+                ベンチマークソースタブ一覧.スケーラブル永続化辞書ID,
+                ベンチマークソースタブ一覧.スケーラブルTsavorite辞書ID,
+                ベンチマークソースタブ一覧.スケーラブル永続化リストID,
             ],
-            BenchmarkSourceTabs.ScalableAll.Select(static tab => tab.Id).ToArray());
+            ベンチマークソースタブ一覧.スケーラブル全て.Select(static タブ => タブ.ID).ToArray());
 
-        var set = BenchmarkSourceTabs.ScalableAll[0];
-        Assert.Equal("Current",set.LeftHeader);
-        Assert.Equal("Previous",set.RightHeader);
-        Assert.Equal("Scalable.Persisted.Set.Previous",set.RightProject);
+        var セット = ベンチマークソースタブ一覧.スケーラブル全て[0];
+        Assert.Equal("今回",セット.左見出し);
+        Assert.Equal("前回",セット.右見出し);
+        Assert.Equal("Scalable.Persisted.Set.Previous",セット.右プロジェクト);
 
-        var list = BenchmarkSourceTabs.ScalableAll[4];
-        Assert.Equal("Scalable.Persisted.List",list.LeftProject);
-        Assert.Equal("Scalable.Persisted.List.Previous",list.RightProject);
-        Assert.Equal(2,list.ProjectOrder.Count);
+        var リスト = ベンチマークソースタブ一覧.スケーラブル全て[4];
+        Assert.Equal("Scalable.Persisted.List",リスト.左プロジェクト);
+        Assert.Equal("Scalable.Persisted.List.Previous",リスト.右プロジェクト);
+        Assert.Equal(2,リスト.プロジェクト順.Count);
     }
 
     [Fact]
-    public void ScalableCatalog_ContainsOnlyScalableProjects() {
-        Assert.All(BenchmarkCatalog.ScalableProjects,project => {
-            Assert.StartsWith("Scalable.",project.DisplayName,StringComparison.Ordinal);
-            Assert.StartsWith("Benchmark.Scalable.",project.AssemblyName,StringComparison.Ordinal);
-            Assert.StartsWith("Benchmark.Scalable.",project.TypePrefix,StringComparison.Ordinal);
+    public void スケーラブルカタログはスケーラブルプロジェクトだけを含む() {
+        Assert.All(ベンチマークカタログ.スケーラブルプロジェクト一覧,プロジェクト => {
+            Assert.StartsWith("Scalable.",プロジェクト.表示名,StringComparison.Ordinal);
+            Assert.StartsWith("Benchmark.Scalable.",プロジェクト.アセンブリ名,StringComparison.Ordinal);
+            Assert.StartsWith("Benchmark.Scalable.",プロジェクト.型接頭辞,StringComparison.Ordinal);
         });
-        Assert.DoesNotContain(BenchmarkCatalog.ScalableProjects,static project => project.AssemblyName=="Benchmark.Persisted.Collections");
-        Assert.DoesNotContain(BenchmarkCatalog.ScalableProjects,static project => project.AssemblyName=="Benchmark.Tsavorite.Collections");
+        Assert.DoesNotContain(ベンチマークカタログ.スケーラブルプロジェクト一覧,static プロジェクト => プロジェクト.アセンブリ名=="Benchmark.Persisted.Collections");
+        Assert.DoesNotContain(ベンチマークカタログ.スケーラブルプロジェクト一覧,static プロジェクト => プロジェクト.アセンブリ名=="Benchmark.Tsavorite.Collections");
     }
 
     [Fact]
-    public void ScalableElementCounts_AreLargeEightStepRange() {
-        var type = Assembly.Load(new AssemblyName("Benchmark.Scalable.Persisted.Collections"))
+    public void スケーラブル要素数は大規模な8段階である() {
+        var 型 = Assembly.Load(new AssemblyName("Benchmark.Scalable.Persisted.Collections"))
             .GetType("Scalable.Collections.ScalableElementCounts",throwOnError: true)!;
-        var all = ((IEnumerable<int>)type.GetProperty("All")!.GetValue(null)!).ToArray();
-        var defaultInitial = ((IEnumerable<int>)type.GetProperty("DefaultInitial")!.GetValue(null)!).ToArray();
-        var baseElementCount = (int)type.GetField("BaseElementCount")!.GetValue(null)!;
+        var 全て = ((IEnumerable<int>)型.GetProperty("All")!.GetValue(null)!).ToArray();
+        var 既定初期値 = ((IEnumerable<int>)型.GetProperty("DefaultInitial")!.GetValue(null)!).ToArray();
+        var 基本要素数 = (int)型.GetField("BaseElementCount")!.GetValue(null)!;
 
-        Assert.Equal([65536,131072,262144,524288,1048576,2097152,4194304,8388608],all);
-        Assert.Equal([65536],defaultInitial);
-        Assert.Equal(65536,baseElementCount);
+        Assert.Equal([65536,131072,262144,524288,1048576,2097152,4194304,8388608],全て);
+        Assert.Equal([65536],既定初期値);
+        Assert.Equal(65536,基本要素数);
     }
 }

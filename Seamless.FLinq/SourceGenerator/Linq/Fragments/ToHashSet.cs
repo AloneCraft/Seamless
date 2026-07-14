@@ -18,29 +18,29 @@ ToHashSetBase は ToHashSet overload 群の共通基底。
   - comparer ありは constructor/Compute に comparer を渡す。
   - RangeRoot<int> は start+i を直接 Add する inline を生成する。
 */
-public abstract class ToHashSetBase(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType){
-    protected override Enumerable PrimarySource=>source;
-    public override string StructMethod=>string.Empty;
-    protected override string StructSources=>source.GetEnumeratorStruct;
-    protected override string GetEnumeratorDisposeBody=>string.Empty;
+public abstract class ToHashSetBase(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+    protected override Enumerable PrimarySource => source;
+    public override string StructMethod => string.Empty;
+    protected override string StructSources => source.GetEnumeratorStruct;
+    protected override string GetEnumeratorDisposeBody => string.Empty;
 }
 
-public class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSetBase(番号,source,resultType){
-    public static bool IsApplicableOverload(IMethodSymbol method)=>method.Parameters.Length==0;
-    public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {this.e}";
-    protected override string ComputeExpression=>$"Compute({this.e})";
-    public override string? RenderInlineComputation(string destVar,string destType)=>
+public class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSetBase(番号,source,resultType) {
+    public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length==0;
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
+    protected override string ComputeExpression => $"Compute({this.e})";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeToHashSetInline(destVar,destType)
         ??this.RenderDirectSpanToHashSetInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanToHashSetInline(string destVar,string destType) {
-        var sourceName=$"__hashSetSource{番号}";
-        var directSpanExpression=source.GetDirectSpanExpression(sourceName);
+        var sourceName = $"__hashSetSource{番号}";
+        var directSpanExpression = source.GetDirectSpanExpression(sourceName);
         if(directSpanExpression is null) {
             return null;
         }
-        var spanName=$"__hashSetSpan{番号}";
+        var spanName = $"__hashSetSpan{番号}";
         return $$"""
             {{destType}} {{destVar}};
             using(var {{sourceName}}={{source.GetEnumeratorExpression}}) {
@@ -53,14 +53,14 @@ public class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSet
             """;
     }
     private string? RenderRangeToHashSetInline(string destVar,string destType) {
-        if(source is not RangeRoot range || source.ElementType!="int") {
+        if(source is not RangeRoot range||source.ElementType!="int") {
             return null;
         }
 
-        var start=$"__start{番号}";
-        var count=$"__count{番号}";
-        var index=$"__i{番号}";
-        var value=$"__value{番号}";
+        var start = $"__start{番号}";
+        var count = $"__count{番号}";
+        var index = $"__i{番号}";
+        var value = $"__value{番号}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -74,7 +74,7 @@ public class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSet
             }
             """;
     }
-    protected override string ComputeMembers=>$$"""
+    protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source){
             global::System.Collections.Generic.HashSet<{{source.ElementType}}> result;
@@ -93,25 +93,25 @@ public class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSet
         """;
 }
 
-public class ToHashSet_comparer(int 番号,Enumerable source,string comparer,string resultType):ToHashSetBase(番号,source,resultType){
-    public static bool IsApplicableOverload(IMethodSymbol method)=>
+public class ToHashSet_comparer(int 番号,Enumerable source,string comparer,string resultType):ToHashSetBase(番号,source,resultType) {
+    public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length==1&&method.Parameters[0].Name=="comparer";
-    public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{comparer})";
-    public override string GetEnumeratorPrimaryConstructorParameters=>
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{comparer})";
+    public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
-    protected override string ComputeExpression=>$"Compute({this.e},comparer)";
-    public override string? RenderInlineComputation(string destVar,string destType)=>
+    protected override string ComputeExpression => $"Compute({this.e},comparer)";
+    public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeToHashSetInline(destVar,destType)
         ??this.RenderDirectSpanToHashSetInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,comparer);
     private string? RenderDirectSpanToHashSetInline(string destVar,string destType) {
-        var sourceName=$"__hashSetSource{番号}";
-        var directSpanExpression=source.GetDirectSpanExpression(sourceName);
+        var sourceName = $"__hashSetSource{番号}";
+        var directSpanExpression = source.GetDirectSpanExpression(sourceName);
         if(directSpanExpression is null) {
             return null;
         }
-        var spanName=$"__hashSetSpan{番号}";
-        var comparerVar=$"__comparer{番号}";
+        var spanName = $"__hashSetSpan{番号}";
+        var comparerVar = $"__comparer{番号}";
         return $$"""
             {{destType}} {{destVar}};
             using(var {{sourceName}}={{source.GetEnumeratorExpression}}) {
@@ -125,15 +125,15 @@ public class ToHashSet_comparer(int 番号,Enumerable source,string comparer,str
             """;
     }
     private string? RenderRangeToHashSetInline(string destVar,string destType) {
-        if(source is not RangeRoot range || source.ElementType!="int") {
+        if(source is not RangeRoot range||source.ElementType!="int") {
             return null;
         }
 
-        var start=$"__start{番号}";
-        var count=$"__count{番号}";
-        var comparerVar=$"__comparer{番号}";
-        var index=$"__i{番号}";
-        var value=$"__value{番号}";
+        var start = $"__start{番号}";
+        var count = $"__count{番号}";
+        var comparerVar = $"__comparer{番号}";
+        var index = $"__i{番号}";
+        var value = $"__value{番号}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -148,7 +148,7 @@ public class ToHashSet_comparer(int 番号,Enumerable source,string comparer,str
             }
             """;
     }
-    protected override string ComputeMembers=>$$"""
+    protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
             global::System.Collections.Generic.HashSet<{{source.ElementType}}> result;

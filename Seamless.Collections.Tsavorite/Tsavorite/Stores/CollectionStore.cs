@@ -1,15 +1,15 @@
 using Seamless.Tsavorite.Devices;
 namespace Seamless.Tsavorite.Stores;
 
-public abstract class CollectionStore{
+public abstract class CollectionStore {
     /// <summary>CollectionStoreの境界条件を検証する。</summary>
     [Conditional("DEBUG")]
-    private protected static void AssertIsPowerOfTwo(long value,string paramName){
+    private protected static void AssertIsPowerOfTwo(long value,string paramName) {
         Debug.Assert(value>0,$"{paramName} must be positive");
         Debug.Assert((value&(value-1))==0,$"{paramName} must be a power of 2, but was {value}");
     }
 
-    private protected static void ValidatePowerOfTwo(long value,string paramName){
+    private protected static void ValidatePowerOfTwo(long value,string paramName) {
         if(value<=0)
             throw new ArgumentOutOfRangeException(paramName,$"{paramName} must be positive.");
         if((value&(value-1))!=0)
@@ -74,7 +74,7 @@ public abstract partial class CollectionStore<
     TStoreFunctions,
     TAllocator
 >
-    :CollectionStore, IDisposable    where TStoreFunctions : IStoreFunctions
+    :CollectionStore, IDisposable where TStoreFunctions : IStoreFunctions
     where TAllocator : IAllocator<TStoreFunctions> {
     private protected KVSettings Settings { get; private set; }
     public readonly TsavoriteKV<TStoreFunctions,TAllocator> Store;
@@ -129,8 +129,7 @@ public abstract partial class CollectionStore<
         long objectLogSegmentSize;
         if(ObjectLogDevice.Capacity<0) {
             objectLogSegmentSize=ObjectLogSegmentSize??Const.MinObjectLogCapacity;
-        }
-        else {
+        } else {
             objectLogSegmentSize=ObjectLogSegmentSize??ObjectLogDevice.Capacity;
             if(ObjectLogDevice.Capacity%objectLogSegmentSize!=0)
                 throw new ArgumentOutOfRangeException(nameof(ObjectLogSegmentSize),$"ObjectLogDevice.Capacity must be a multiple of ObjectLogSegmentSize ({objectLogSegmentSize}), but was {ObjectLogDevice.Capacity}.");
@@ -180,11 +179,10 @@ public abstract partial class CollectionStore<
                 return token;
             }
             throw new InvalidOperationException($"{nameof(Save)}Checkpoint failed.");
-        }catch{
+        } catch {
             this.CheckpointFailed=true;
             throw;
-        }
-        finally {
+        } finally {
             this.ReleaseCheckpoint();
         }
     }
@@ -203,11 +201,10 @@ public abstract partial class CollectionStore<
                 return token;
             }
             throw new InvalidOperationException($"{nameof(SaveLogOnly)}Checkpoint failed.");
-        }catch{
+        } catch {
             this.CheckpointFailed=true;
             throw;
-        }
-        finally {
+        } finally {
             this.ReleaseCheckpoint();
         }
     }

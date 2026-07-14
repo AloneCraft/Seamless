@@ -49,45 +49,45 @@ public sealed partial class FLinqIncrementalGenerator {
         // 生成インターセプターから明示的な例外を返すことで、未対応ケースを隠さない。
         if(method.MethodKind!=MethodKind.Ordinary
             // Partial method/ctor/operator などは現在のローカルメソッド再構成対象外。
-            || method.ContainingType is null
+            ||method.ContainingType is null
             // 所属型がないと interceptor 側で this/型名を再現できない。
-            || (method.ContainingType.IsGenericType && !再現可能なジェネリック含有型か(method))
+            ||(method.ContainingType.IsGenericType&&!再現可能なジェネリック含有型か(method))
             // ジェネリック型メンバーは生成メソッド側へ型パラメータを漏らしやすいので原則除外。
             // ただし「再現可能な単純ジェネリック含有型（例: Base<T> where T:notnull）」かつ
             // 傍受メソッドと補助 struct へ含有型の型パラメーターを伝播できる単純な形を許可する。
             // ラムダを含む場合も、生成コードから参照可能なメンバーだけで閉じられるなら展開対象にする。
             // （メソッド自身の型パラメーターのみ持つジェネリックメソッドは、冒頭で OriginalDefinition
             // に正規化済みなので通過する。呼び出し側で確定した型引数はインターセプター経由で解決される）
-            || (!method.IsStatic && (method.IsAbstract || method.IsVirtual || method.IsOverride))
+            ||(!method.IsStatic&&(method.IsAbstract||method.IsVirtual||method.IsOverride))
             // 仮想呼び出しを intercept すると動的ディスパッチを壊すのでそのまま残す。
-            || ContainsGeneratedTypeAccessibilityRisk(method.ContainingType)
+            ||ContainsGeneratedTypeAccessibilityRisk(method.ContainingType)
             // private/protected な入れ子型は生成コードから参照できずコンパイル不能になる。
-            || method.ContainingType.IsRefLikeType
+            ||method.ContainingType.IsRefLikeType
             // ref struct を interceptor 引数/receiver として扱う経路は未対応。
-            || method.ContainingType.IsStatic
+            ||method.ContainingType.IsStatic
             // static クラスのメンバーは生成コードで型パラメータとして使用できないため除外。
-            || (!method.IsStatic && method.ContainingType.IsValueType)
+            ||(!method.IsStatic&&method.ContainingType.IsValueType)
             // 値型 instance method は receiver のコピー/boxing 差異が大きいためまだ除外。
-            || method.DeclaringSyntaxReferences.Length==0
+            ||method.DeclaringSyntaxReferences.Length==0
             // ソース本体がないメソッドは「内部に LINQ があるか」を判定できない。
-            || ContainsAnonymousType(method.ReturnType)
+            ||ContainsAnonymousType(method.ReturnType)
             // 匿名型戻り値は生成メソッドの署名に出せない。
-            || ContainsGeneratedTypeAccessibilityRisk(method.ReturnType)
+            ||ContainsGeneratedTypeAccessibilityRisk(method.ReturnType)
             // 非公開戻り値型も生成コードから見えない。
-            || method.ReturnType.IsRefLikeType
+            ||method.ReturnType.IsRefLikeType
             // ref-like 戻り値の forward/inline は寿命制約を満たしにくい。
-            || ContainsExternalTypeParameter(method.ReturnType,method.TypeParameters)
+            ||ContainsExternalTypeParameter(method.ReturnType,method.TypeParameters)
             // 戻り値にメソッド外の型パラメータが残ると生成側の静的メソッドで閉じられない。
             // メソッド自身の型パラメーター（TAnonymous 等）は許可する。
-            || method.Parameters.Any(static parameter=>parameter.RefKind!=RefKind.None)
+            ||method.Parameters.Any(static parameter => parameter.RefKind!=RefKind.None)
             // ref/out/in は aliasing を壊しやすいのでいったん除外。
-            || method.Parameters.Any(static parameter=>ContainsAnonymousType(parameter.Type))
+            ||method.Parameters.Any(static parameter => ContainsAnonymousType(parameter.Type))
             // 匿名型引数も署名へ出せない。
-            || method.Parameters.Any(static parameter=>ContainsGeneratedTypeAccessibilityRisk(parameter.Type))
+            ||method.Parameters.Any(static parameter => ContainsGeneratedTypeAccessibilityRisk(parameter.Type))
             // 非公開型引数は生成コードから参照できない。
-            || method.Parameters.Any(static parameter=>parameter.Type.IsRefLikeType)
+            ||method.Parameters.Any(static parameter => parameter.Type.IsRefLikeType)
             // ref struct 引数は寿命制約を再現しにくい。
-            || method.Parameters.Any(static parameter=>ContainsTypeParameter(parameter.Type))) {
+            ||method.Parameters.Any(static parameter => ContainsTypeParameter(parameter.Type))) {
             // 引数にメソッド自身のものも含め型パラメータが残ると、生成される補助 struct が
             // その型パラメータを宣言できず再生成対象外になる。引数は非ジェネリックのみ許可する。
             return false;
@@ -109,7 +109,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
         var optimizeLinq = LinqRewrite判定(method,context.SemanticModel.Compilation);
         var counterInstrumentation = LinqInstrumentation判定(method,context.SemanticModel.Compilation);
-        if(!optimizeLinq && !counterInstrumentation) {
+        if(!optimizeLinq&&!counterInstrumentation) {
             return false;
         }
 
@@ -128,7 +128,7 @@ public sealed partial class FLinqIncrementalGenerator {
         var character = invocationLineSpan.StartLinePosition.Character+1;
         var identifier = SanitizeIdentifier($"{method.Name}_{System.IO.Path.GetFileNameWithoutExtension(invocationLineSpan.Path)}_{containingMethod.Name}_{line}_{character}");
         var parameterSpecs = method.Parameters
-            .Select(static parameter=>new InterceptParameterSpec(parameter.Name,parameter.Type.ToDisplayString(完全修飾形式),parameter.RefKind))
+            .Select(static parameter => new InterceptParameterSpec(parameter.Name,parameter.Type.ToDisplayString(完全修飾形式),parameter.RefKind))
             .ToArray();
 
         // 含有型がジェネリックなら、その型パラメーターを傍受メソッド（別クラスのジェネリック静的メソッド）へ移す。
@@ -140,10 +140,10 @@ public sealed partial class FLinqIncrementalGenerator {
         var allTypeParameters = containingTypeParameters.AddRange(method.TypeParameters);
         var methodTypeParameterNames = allTypeParameters.Length==0
             ? null
-            : allTypeParameters.Select(static t=>t.Name).ToArray();
+            : allTypeParameters.Select(static t => t.Name).ToArray();
         var typeParameterConstraintClause = 型パラメーター制約節生成(allTypeParameters);
 
-        target = new Linq傍受対象型(
+        target=new Linq傍受対象型(
             identifier,
             containingMethod.Name,
             interceptsLocationAttributeText,
@@ -166,7 +166,7 @@ public sealed partial class FLinqIncrementalGenerator {
     // 型パラメーターと制約を再現できる単純ケースだけ許可する。
     private static bool 再現可能なジェネリック含有型か(IMethodSymbol method) {
         // 入れ子（外側）にジェネリック型があると生成静的メソッド側で閉じられないので未対応。
-        for(var outer = method.ContainingType.ContainingType; outer is not null; outer = outer.ContainingType) {
+        for(var outer = method.ContainingType.ContainingType;outer is not null;outer=outer.ContainingType) {
             if(outer.IsGenericType) {
                 return false;
             }
@@ -218,7 +218,7 @@ public sealed partial class FLinqIncrementalGenerator {
             return methodOverride;
         }
 
-        for(var type=method.ContainingType;type is not null;type=type.ContainingType) {
+        for(var type = method.ContainingType;type is not null;type=type.ContainingType) {
             if(TryGetLinqRewriteOverride(type.GetAttributes(),out var typeOverride)) {
                 return typeOverride;
             }
@@ -236,7 +236,7 @@ public sealed partial class FLinqIncrementalGenerator {
             if(attribute.AttributeClass?.Name=="LinqInterceptAttribute") {
                 // [LinqIntercept(true)]=展開、[LinqIntercept(false)]=非展開。
                 shouldRewrite=attribute.ConstructorArguments.Length>0
-                    && attribute.ConstructorArguments[0].Value is bool intercept && intercept;
+                    &&attribute.ConstructorArguments[0].Value is bool intercept&&intercept;
                 return true;
             }
         }
@@ -249,28 +249,28 @@ public sealed partial class FLinqIncrementalGenerator {
             return methodInstrumentation;
         }
 
-        for(var type=method.ContainingType;type is not null;type=type.ContainingType) {
+        for(var type = method.ContainingType;type is not null;type=type.ContainingType) {
             if(TryGetLinqInstrumentation(type.GetAttributes(),out var typeInstrumentation)) {
                 return typeInstrumentation;
             }
         }
 
         return TryGetLinqInstrumentation(compilation.Assembly.GetAttributes(),out var assemblyInstrumentation)
-            && assemblyInstrumentation;
+            &&assemblyInstrumentation;
     }
 
     private static LinqOptimizations LinqOptimizations判定(IMethodSymbol method,Compilation compilation) {
         if(TryGetLinqOptimizations(method.GetAttributes(),out var methodOptimizations)) {
             return methodOptimizations;
         }
-        for(var type=method.ContainingType;type is not null;type=type.ContainingType) {
+        for(var type = method.ContainingType;type is not null;type=type.ContainingType) {
             if(TryGetLinqOptimizations(type.GetAttributes(),out var typeOptimizations)) {
                 return typeOptimizations;
             }
         }
         return TryGetLinqOptimizations(compilation.Assembly.GetAttributes(),out var assemblyOptimizations)
-            ?assemblyOptimizations
-            :LinqOptimizations.All;
+            ? assemblyOptimizations
+            : LinqOptimizations.All;
     }
 
     private static bool TryGetLinqOptimizations(ImmutableArray<AttributeData> attributes,out LinqOptimizations optimizations) {
@@ -314,8 +314,8 @@ public sealed partial class FLinqIncrementalGenerator {
 
     private static bool HasCounterInstrumentation(object? value) =>
         value switch {
-            int intValue => (intValue & 1)!=0,
-            long longValue => (longValue & 1L)!=0,
+            int intValue => (intValue&1)!=0,
+            long longValue => (longValue&1L)!=0,
             _ => false,
         };
 
@@ -329,8 +329,8 @@ public sealed partial class FLinqIncrementalGenerator {
     private static ローカルメソッドLinq解析結果 ローカルメソッドLinq解析取得(IMethodSymbol method,Compilation compilation) {
         var cache = ローカルメソッドLinq解析キャッシュ.GetValue(
             compilation,
-            static _=>new System.Collections.Concurrent.ConcurrentDictionary<IMethodSymbol,ローカルメソッドLinq解析結果>(SymbolEqualityComparer.Default));
-        return cache.GetOrAdd(method,static (method,compilation)=>ローカルメソッドLinq解析実行(method,compilation),compilation);
+            static _ => new System.Collections.Concurrent.ConcurrentDictionary<IMethodSymbol,ローカルメソッドLinq解析結果>(SymbolEqualityComparer.Default));
+        return cache.GetOrAdd(method,static (method,compilation) => ローカルメソッドLinq解析実行(method,compilation),compilation);
     }
 
     /// <summary>
@@ -370,7 +370,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 continue;
             }
 
-            var definition = invokedMethod.ReducedFrom ?? invokedMethod;
+            var definition = invokedMethod.ReducedFrom??invokedMethod;
             // target 判定では「Fragment 化できる LINQ か」ではなく
             // 「System.Linq.Enumerable を呼んでいるか」だけを見る。
             // これにより Cast/Append など未対応 or 一部未構築のケースも intercept され、
@@ -382,20 +382,20 @@ public sealed partial class FLinqIncrementalGenerator {
             // 静的呼び出し（SystemEnumerable.Method(source, ...)）は基本的に最適化対象外。
             // ただし Range/Repeat/Empty は「ソース生成 root」なので、Consume 直ループ等へ落とせる。
             if(invokedMethod.ReducedFrom is null
-                && !method.ReturnsVoid
-                && IsKnownEnumerableRootMethod(definition)) {
+                &&!method.ReturnsVoid
+                &&IsKnownEnumerableRootMethod(definition)) {
                 continue;
             }
             if(invokedMethod.ReducedFrom is null
-                && !IsKnownEnumerableRootMethod(definition)
-                && definition.Name!="TryGetNonEnumeratedCount") {
+                &&!IsKnownEnumerableRootMethod(definition)
+                &&definition.Name!="TryGetNonEnumeratedCount") {
                 continue;
             }
 
             // out/ref パラメータを持つメソッド（TryGetNonEnumeratedCount 等）は
             // Fragment 化できないため解析対象外とする。
-            if(definition.Parameters.Any(static p=>p.RefKind != RefKind.None)
-                && definition.Name!="TryGetNonEnumeratedCount") {
+            if(definition.Parameters.Any(static p => p.RefKind!=RefKind.None)
+                &&definition.Name!="TryGetNonEnumeratedCount") {
                 continue;
             }
 
@@ -408,8 +408,8 @@ public sealed partial class FLinqIncrementalGenerator {
             // 戻り値型・型引数・パラメータのいずれかに匿名型が含まれていればアウト。
             if(!hasAnonymousTypeLinq) {
                 if(ContainsAnonymousType(invokedMethod.ReturnType)
-                    || invokedMethod.TypeArguments.Any(ContainsAnonymousType)
-                    || invokedMethod.Parameters.Any(static p=>ContainsAnonymousType(p.Type))) {
+                    ||invokedMethod.TypeArguments.Any(ContainsAnonymousType)
+                    ||invokedMethod.Parameters.Any(static p => ContainsAnonymousType(p.Type))) {
                     hasAnonymousTypeLinq=true;
                 }
             }
@@ -423,13 +423,13 @@ public sealed partial class FLinqIncrementalGenerator {
                     ? methodSyntax.ExpressionBody.Expression.DescendantNodesAndSelf()
                     : [];
             if(queryBodyNodes.OfType<QueryExpressionSyntax>().Any()) {
-                hasEnumerableCall = true;
+                hasEnumerableCall=true;
             }
         }
 
         return new ローカルメソッドLinq解析結果(
             hasEnumerableCall,
-            [..unsupportedMethods.OrderBy(static methodName=>methodName,StringComparer.Ordinal)],
+            [.. unsupportedMethods.OrderBy(static methodName => methodName,StringComparer.Ordinal)],
             hasAnonymousTypeLinq);
     }
 
@@ -449,15 +449,15 @@ public sealed partial class FLinqIncrementalGenerator {
 
         foreach(var invocation in invocationNodes) {
             if(invocation.Expression is MemberAccessExpressionSyntax { Name: { } memberName }
-                && SystemLinqEnumerableMethodNames.Contains(memberName.Identifier.ValueText)) {
+                &&SystemLinqEnumerableMethodNames.Contains(memberName.Identifier.ValueText)) {
                 return true;
             }
             if(invocation.Expression is IdentifierNameSyntax identifierName
-                && SystemLinqEnumerableMethodNames.Contains(identifierName.Identifier.ValueText)) {
+                &&SystemLinqEnumerableMethodNames.Contains(identifierName.Identifier.ValueText)) {
                 return true;
             }
             if(invocation.Expression is GenericNameSyntax genericName
-                && SystemLinqEnumerableMethodNames.Contains(genericName.Identifier.ValueText)) {
+                &&SystemLinqEnumerableMethodNames.Contains(genericName.Identifier.ValueText)) {
                 return true;
             }
         }
@@ -498,7 +498,7 @@ public sealed partial class FLinqIncrementalGenerator {
         var isMarker = symbol.Name=="DatabaseGenerator";
         var isPartial = declaration.Modifiers.Any(SyntaxKind.PartialKeyword);
         var isContainerCandidate = symbol.TypeKind==TypeKind.Class;
-        if(!isMarker && !isPartial && !isContainerCandidate) {
+        if(!isMarker&&!isPartial&&!isContainerCandidate) {
             return null;
         }
 

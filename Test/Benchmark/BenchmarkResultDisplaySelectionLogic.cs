@@ -2,68 +2,68 @@ using UI;
 
 namespace Test.Benchmark;
 
-public sealed class BenchmarkResultDisplaySelectionLogic{
-    private static readonly BenchmarkSourceTabDefinition SourceTab=BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
-    private const string TypeFullName="Benchmark.System.Linq.Enumerable.FLinq.Sample";
+public sealed class ベンチマーク結果表示選択ロジック {
+    private static readonly ベンチマークソースタブ定義 ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.System配列);
+    private const string 型完全名 = "Benchmark.System.Linq.Enumerable.FLinq.Sample";
 
     [Fact]
-    public void IsResultSelected(){
-        var result = Result(SourceTab.LeftProject,"Aggregate",TypeFullName,"Count=1");
+    public void 結果を選択中か() {
+        var 結果 = 結果を作成(ソースタブ.左プロジェクト,"Aggregate",型完全名,"Count=1");
         {
             //選択中の一致セルだけ表示対象にする
-            Assert.True(global::UI.BenchmarkResultDisplaySelectionLogic.IsResultSelected(
-                result,
+            Assert.True(global::UI.ベンチマーク結果表示選択ロジック.結果を選択中か(
+                結果,
                 [
-                    new BenchmarkResultSelectionCell(SourceTab.LeftProject,"Aggregate","Sample","Count=1",true,true),
-                    new BenchmarkResultSelectionCell(SourceTab.RightProject,"Aggregate",TypeFullName,"Count=1",true,false),
+                    new ベンチマーク結果選択セル(ソースタブ.左プロジェクト,"Aggregate","Sample","Count=1",true,true),
+                    new ベンチマーク結果選択セル(ソースタブ.右プロジェクト,"Aggregate",型完全名,"Count=1",true,false),
                 ]));
         }
         {
             //完了済み結果でも現在未選択なら表示対象にしない
-            Assert.False(global::UI.BenchmarkResultDisplaySelectionLogic.IsResultSelected(
-                result,
+            Assert.False(global::UI.ベンチマーク結果表示選択ロジック.結果を選択中か(
+                結果,
                 [
-                    new BenchmarkResultSelectionCell(SourceTab.LeftProject,"Aggregate","Sample","Count=1",true,false),
+                    new ベンチマーク結果選択セル(ソースタブ.左プロジェクト,"Aggregate","Sample","Count=1",true,false),
                 ]));
         }
         {
             //別引数の結果を混ぜない
-            Assert.False(global::UI.BenchmarkResultDisplaySelectionLogic.IsResultSelected(
-                result,
+            Assert.False(global::UI.ベンチマーク結果表示選択ロジック.結果を選択中か(
+                結果,
                 [
-                    new BenchmarkResultSelectionCell(SourceTab.LeftProject,"Aggregate","Sample","Count=2",true,true),
+                    new ベンチマーク結果選択セル(ソースタブ.左プロジェクト,"Aggregate","Sample","Count=2",true,true),
                 ]));
         }
     }
 
     [Fact]
-    public void IsResultSelected_FollowsCurrentCellSelection(){
-        var result = Result(SourceTab.LeftProject,"Aggregate",TypeFullName,"Count=1");
-        BenchmarkResultSelectionCell[] selected = [
-            new(SourceTab.LeftProject,"Aggregate","Sample","Count=1",true,true),
+    public void 仕様確認01() {
+        var 結果 = 結果を作成(ソースタブ.左プロジェクト,"Aggregate",型完全名,"Count=1");
+        ベンチマーク結果選択セル[] 選択済み = [
+            new(ソースタブ.左プロジェクト,"Aggregate","Sample","Count=1",true,true),
         ];
-        BenchmarkResultSelectionCell[] unselected = [
-            new(SourceTab.LeftProject,"Aggregate","Sample","Count=1",true,false),
+        ベンチマーク結果選択セル[] 未選択 = [
+            new(ソースタブ.左プロジェクト,"Aggregate","Sample","Count=1",true,false),
         ];
 
-        Assert.True(global::UI.BenchmarkResultDisplaySelectionLogic.IsResultSelected(result,selected));
-        Assert.False(global::UI.BenchmarkResultDisplaySelectionLogic.IsResultSelected(result,unselected));
-        Assert.True(global::UI.BenchmarkResultDisplaySelectionLogic.IsResultSelected(result,selected));
+        Assert.True(global::UI.ベンチマーク結果表示選択ロジック.結果を選択中か(結果,選択済み));
+        Assert.False(global::UI.ベンチマーク結果表示選択ロジック.結果を選択中か(結果,未選択));
+        Assert.True(global::UI.ベンチマーク結果表示選択ロジック.結果を選択中か(結果,選択済み));
     }
 
-    private static BenchmarkResultItem Result(string project,string method,string typeFullName,string argumentKey) =>
-        new(new BenchmarkJob{
-            Project=project,
-            AssemblyName=SourceTab.GetAssemblyName(project),
-            MethodName=method,
-            TypeFullName=typeFullName,
-            ArgumentKey=argumentKey,
-            SourceTab=BenchmarkSourceTab.SystemArray,
-            ElementCount=4096,
-            LoopCount=1,
-            Status=JobStatus.Completed,
-            MeanNanoseconds=100,
-            AllocatedBytes=10,
-            ExitCode=0,
+    private static ベンチマーク結果項目 結果を作成(string プロジェクト,string メソッド,string 型完全名,string 引数キー) =>
+        new(new ベンチマークジョブ {
+            プロジェクト=プロジェクト,
+            アセンブリ名=ソースタブ.アセンブリ名を取得(プロジェクト),
+            メソッド名=メソッド,
+            型完全名=型完全名,
+            引数キー=引数キー,
+            ソースタブ=ベンチマークソースタブ.System配列,
+            要素数=4096,
+            ループ回数=1,
+            状態=ジョブ状態.完了,
+            平均ナノ秒=100,
+            割り当てバイト数=10,
+            終了コード=0,
         });
 }

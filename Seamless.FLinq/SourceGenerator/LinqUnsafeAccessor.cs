@@ -7,7 +7,7 @@ public sealed partial class FLinqIncrementalGenerator {
     // 閉じられるようにする。集めた型パラメーターは傍受メソッド（ジェネリック静的メソッド）のスコープに
     // 存在するので、宣言（<T> ... where T:notnull）と呼び出し（accessor<T>(...)）の両方でそのまま使える。
     // 型パラメーターが無ければ ("","") を返し、従来どおり非ジェネリックなアクセサになる。
-    private static (string TypeParameterList, string ConstraintClause) アクセサ型パラメータ(params ITypeSymbol?[] types) {
+    private static (string TypeParameterList,string ConstraintClause) アクセサ型パラメータ(params ITypeSymbol?[] types) {
         var collected = new List<ITypeParameterSymbol>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         void Collect(ITypeSymbol? type) {
@@ -49,8 +49,8 @@ public sealed partial class FLinqIncrementalGenerator {
 
     // アクセサ署名に現れる型（含有型・戻り値・各引数）をまとめて返す。型パラメータ収集の入力に使う。
     private static ITypeSymbol?[] アクセサ署名型集合(IMethodSymbol method) {
-        var types = new List<ITypeSymbol?> { method.ContainingType, method.ReturnsVoid ? null : method.ReturnType };
-        types.AddRange(method.Parameters.Select(static parameter=>parameter.Type));
+        var types = new List<ITypeSymbol?> { method.ContainingType,method.ReturnsVoid ? null : method.ReturnType };
+        types.AddRange(method.Parameters.Select(static parameter => parameter.Type));
         return types.ToArray();
     }
 
@@ -67,18 +67,18 @@ public sealed partial class FLinqIncrementalGenerator {
         var targetTypeName = field.ContainingType.ToDisplayString(完全修飾形式);
         var fieldTypeName = field.Type.ToDisplayString(完全修飾形式);
         // 含有型/フィールド型がジェネリック（例: Base<T>）ならアクセサをジェネリック extern にする。
-        var (accessorTypeParameters,accessorConstraints) = アクセサ型パラメータ(field.ContainingType,field.Type);
+        var (accessorTypeParameters,accessorConstraints)=アクセサ型パラメータ(field.ContainingType,field.Type);
         string accessorCode;
         string callExpr;
         if(field.IsStatic) {
-            accessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.StaticField, Name = \"{field.Name}\")]\nprivate static extern ref {fieldTypeName} {accessorName}{accessorTypeParameters}({targetTypeName}? _){accessorConstraints};";
-            callExpr = $"{accessorName}{accessorTypeParameters}(null)";
+            accessorCode=$"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.StaticField, Name = \"{field.Name}\")]\nprivate static extern ref {fieldTypeName} {accessorName}{accessorTypeParameters}({targetTypeName}? _){accessorConstraints};";
+            callExpr=$"{accessorName}{accessorTypeParameters}(null)";
         } else {
             var receiverExpr = memberAccess.Expression is ThisExpressionSyntax
                 ? "@this"
                 : RenderExpressionForGeneratedMethod(memberAccess.Expression,semanticModel,field.ContainingType,unsafeAccessorCollector);
-            accessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = \"{field.Name}\")]\nprivate static extern ref {fieldTypeName} {accessorName}{accessorTypeParameters}({targetTypeName} @this){accessorConstraints};";
-            callExpr = $"{accessorName}{accessorTypeParameters}({receiverExpr})";
+            accessorCode=$"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = \"{field.Name}\")]\nprivate static extern ref {fieldTypeName} {accessorName}{accessorTypeParameters}({targetTypeName} @this){accessorConstraints};";
+            callExpr=$"{accessorName}{accessorTypeParameters}({receiverExpr})";
         }
         unsafeAccessorCollector?.Add(accessorCode);
         return callExpr;
@@ -103,7 +103,7 @@ public sealed partial class FLinqIncrementalGenerator {
         var delegateTypeName = delegateType.ToDisplayString(完全修飾形式);
         var declaringType = method.ContainingType.ToDisplayString(完全修飾形式);
         // public インスタンスメソッド: @this.Method として直接バインド（リフレクション不要）
-        if(!method.IsStatic && CanAccessFromGeneratedCode(method)) {
+        if(!method.IsStatic&&CanAccessFromGeneratedCode(method)) {
             return $"(({delegateTypeName}){receiver}.{method.Name})";
         }
         // 非 public インスタンスメソッド: UnsafeAccessor 経由のラムダでデリゲート生成（リフレクション不要）
@@ -114,10 +114,10 @@ public sealed partial class FLinqIncrementalGenerator {
             foreach(var param in method.Parameters) {
                 paramParts.Add(ParameterDeclarationForAccessor(param));
             }
-            var (accessorTypeParameters,accessorConstraints) = アクセサ型パラメータ(アクセサ署名型集合(method));
+            var (accessorTypeParameters,accessorConstraints)=アクセサ型パラメータ(アクセサ署名型集合(method));
             var accessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = \"{method.Name}\")]\nprivate static extern {returnTypeName} {accessorName}{accessorTypeParameters}({string.Join(", ",paramParts)}){accessorConstraints};";
             unsafeAccessorCollector?.Add(accessorCode);
-            var paramNames = method.Parameters.Select(static (_, i)=>$"__a{i}").ToArray();
+            var paramNames = method.Parameters.Select(static (_,i) => $"__a{i}").ToArray();
             var paramList = string.Join(", ",paramNames);
             var argList = string.Join(", ",new[] { receiver }.Concat(paramNames));
             return $"(({delegateTypeName})(({paramList})=>{accessorName}{accessorTypeParameters}({argList})))";
@@ -136,12 +136,12 @@ public sealed partial class FLinqIncrementalGenerator {
             foreach(var param in method.Parameters) {
                 paramParts.Add($"{param.Type.ToDisplayString(完全修飾形式)} {param.Name}");
             }
-            var (accessorTypeParameters,accessorConstraints) = アクセサ型パラメータ(アクセサ署名型集合(method));
+            var (accessorTypeParameters,accessorConstraints)=アクセサ型パラメータ(アクセサ署名型集合(method));
             var accessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.StaticMethod, Name = \"{method.Name}\")]\nprivate static extern {returnTypeName} {accessorName}{accessorTypeParameters}({string.Join(", ",paramParts)}){accessorConstraints};";
             unsafeAccessorCollector?.Add(accessorCode);
-            var paramNames = method.Parameters.Select(static (_, i)=>$"__a{i}").ToArray();
+            var paramNames = method.Parameters.Select(static (_,i) => $"__a{i}").ToArray();
             var lambdaParams = string.Join(", ",paramNames);
-            var lambdaArgs = "null" + (paramNames.Length > 0 ? ", " + string.Join(", ",paramNames) : string.Empty);
+            var lambdaArgs = "null"+(paramNames.Length>0 ? ", "+string.Join(", ",paramNames) : string.Empty);
             return $"(({delegateTypeName})(({lambdaParams})=>{accessorName}{accessorTypeParameters}({lambdaArgs})))";
         }
     }

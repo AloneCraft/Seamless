@@ -1,5 +1,3 @@
-using Microsoft.Maui;
-
 namespace Benchmark.Tsavorite.ParameterSweep.UI.WinUI;
 
 public partial class App:MauiWinUIApplication {

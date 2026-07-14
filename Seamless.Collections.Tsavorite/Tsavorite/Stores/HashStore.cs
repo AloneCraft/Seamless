@@ -117,8 +117,7 @@ public readonly struct Store {
 
                 indexSize=Math.Max(minimumIndexSize,GetIndexSizeForCapacity(metadata.EntryCount,minimumIndexSize));
                 return true;
-            }
-            catch {
+            } catch {
             }
         }
 

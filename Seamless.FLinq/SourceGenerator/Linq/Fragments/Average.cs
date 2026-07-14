@@ -22,13 +22,13 @@ Average は source.Average() / Average(selector) を、sum と count を持つ C
   - int の span source は AverageIntSimd を使う。
   - selector 付きは selector の戻り値型で accumulator 方針を決める。
 */
-public class Average(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
+public class Average(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
     private bool UseDecimalAccumulator => source.ElementType=="decimal";
     private bool UseDoubleAccumulator =>
         source.ElementType=="int"
-        || source.ElementType=="long"
-        || source.ElementType=="float"
-        || source.ElementType=="double";
+        ||source.ElementType=="long"
+        ||source.ElementType=="float"
+        ||source.ElementType=="double";
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -40,9 +40,9 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
         ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"Average")
         ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanAverageInline(string destVar,string destType) {
-        var span=$"__span{this.result}";
+        var span = $"__span{this.result}";
         if(this.UseDecimalAccumulator) {
-            return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+            return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
                 if({{spanName}}.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
                 var sum=0m;
                 foreach(var item in {{spanName}}) sum+=item;
@@ -51,19 +51,19 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
         }
         if(this.UseDoubleAccumulator) {
             if(source.ElementType=="int") {
-                return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+                return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
                     if({{spanName}}.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
                     {{destVar}}=({{resultType}})global::Seamless.System.Carrier.ValueEnumerableExtensions.AverageIntSimd({{spanName}});
                     """);
             }
-            return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+            return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
                 if({{spanName}}.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
                 double sum=0;
                 foreach(var item in {{spanName}}) sum+=item;
                 {{destVar}}=({{resultType}})(sum/{{spanName}}.Length);
                 """);
         }
-        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
             if({{spanName}}.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
             {{resultType}} sum=default!;
             foreach(var item in {{spanName}}) sum+=item;
@@ -166,14 +166,14 @@ public class Average(int 番号, Enumerable source, string resultType) : Buffere
     }
 }
 
-public class Average_selector(int 番号, Enumerable source, FuncFragment selector, string resultType) : BufferedScalar(番号, resultType) {
+public class Average_selector(int 番号,Enumerable source,FuncFragment selector,string resultType):BufferedScalar(番号,resultType) {
     private string SelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(selector)}>";
     private bool UseDecimalAccumulator => FuncReturnTypeName(selector)=="decimal";
     private bool UseDoubleAccumulator =>
         FuncReturnTypeName(selector)=="int"
-        || FuncReturnTypeName(selector)=="long"
-        || FuncReturnTypeName(selector)=="float"
-        || FuncReturnTypeName(selector)=="double";
+        ||FuncReturnTypeName(selector)=="long"
+        ||FuncReturnTypeName(selector)=="float"
+        ||FuncReturnTypeName(selector)=="double";
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(selector,nameof(selector));
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -185,7 +185,7 @@ public class Average_selector(int 番号, Enumerable source, FuncFragment select
         $"Compute({this.e}{this.ClosureArgsSuffix(selector)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderComputeInline(destVar,destType)
-        ?? (TryRenderDirectLambda(selector) is { } lambda
+        ??(TryRenderDirectLambda(selector) is { } lambda
             ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Average",lambda)
             : null);
     protected override string ComputeMembers => this.BuildComputeMembers();

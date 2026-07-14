@@ -24,19 +24,19 @@ DistinctBase は source.Distinct(comparer) を HashSet で既出判定する enu
   TryGetNonEnumeratedCount で HashSet capacity を見積もる。Consume 直結では TraversalSupport による
   span/while ループを使い、current フィールド更新を省いて consumer.Consume(value) へ直接渡す。
 */
-internal abstract class DistinctBase(int 番号,Enumerable source,string comparer):Enumerable(番号),ConsumeDirectExecutionFragment{
-    protected override Enumerable PrimarySource=>source;
-    private string Comparer=>ComparerExpressionSupport.RenderEqualityComparer(comparer,source.ElementType);
-    public override string StructMethod=>string.Empty;
-    public override string GetEnumerableExpression=>$"global::Seamless.System.Carrier.ValueEnumerableExtensions.Distinct({source.GetEnumerableExpression},{this.Comparer})";
-    public override string GetEnumeratorStruct=>$$"""
+internal abstract class DistinctBase(int 番号,Enumerable source,string comparer):Enumerable(番号), ConsumeDirectExecutionFragment {
+    protected override Enumerable PrimarySource => source;
+    private string Comparer => ComparerExpressionSupport.RenderEqualityComparer(comparer,source.ElementType);
+    public override string StructMethod => string.Empty;
+    public override string GetEnumerableExpression => $"global::Seamless.System.Carrier.ValueEnumerableExtensions.Distinct({source.GetEnumerableExpression},{this.Comparer})";
+    public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{this.Comparer})";
-    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
-    public override string GetEnumeratorConstructor=>$"this.{this.lookup}=CreateLookup({this.e},comparer);";
-    public override string GetEnumeratorFields=>$$"""
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{this.Comparer})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
+    public override string GetEnumeratorConstructor => $"this.{this.lookup}=CreateLookup({this.e},comparer);";
+    public override string GetEnumeratorFields => $$"""
         private global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}> {{this.lookup}};
         private static global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
             // Distinct は列挙途中で set を更新し続けるため、ここでは root の型に応じた span 判定を入れない。
@@ -48,7 +48,7 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
             }
         }
         """;
-    public override string GetTryGetNextBody=>$$"""
+    public override string GetTryGetNextBody => $$"""
         while({{this.e}}.TryGetNext(out var {{this.item}})){
             if(this.{{this.lookup}}.Add({{this.item}})){
                 current=this.{{this.currentValue}}={{this.item}};
@@ -58,12 +58,12 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
         current=default!;
         return false;
         """;
-    public override string GetCurrentExpression=> this.currentValue;
-    public override string ElementType=>source.ElementType;
-    protected override string GetEnumeratorDisposeBody=>$"{this.lookup}.Dispose();\n{this.e}.Dispose();";
-    public override string GetConsumeExecutionStatement(string consumerName){
-        var sourceName=$"__src{番号}";
-        var builder=new StringBuilder();
+    public override string GetCurrentExpression => this.currentValue;
+    public override string ElementType => source.ElementType;
+    protected override string GetEnumeratorDisposeBody => $"{this.lookup}.Dispose();\n{this.e}.Dispose();";
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        var sourceName = $"__src{番号}";
+        var builder = new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
         if(ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,source.ElementType)&&IsInt32Type(source.ElementType)&&source.CanTryProvideSpan) {
             this.AppendSortedIntDistinctFastPath(builder,sourceName,consumerName);
@@ -78,9 +78,9 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
     }
 
     private void AppendSortedIntDistinctFastPath(StringBuilder builder,string sourceName,string consumerName) {
-        var spanName=$"__distinctSpan{番号}";
-        var sortedName=$"__distinctSorted{番号}";
-        var directSpanExpression=source.GetDirectSpanExpression(sourceName);
+        var spanName = $"__distinctSpan{番号}";
+        var sortedName = $"__distinctSorted{番号}";
+        var directSpanExpression = source.GetDirectSpanExpression(sourceName);
         if(directSpanExpression is not null) {
             builder.AppendLine($"var {spanName}={directSpanExpression};");
             AppendSortedIntDistinctFastPathBody(builder,spanName,sortedName,consumerName,string.Empty);
@@ -126,8 +126,8 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
 
     private static bool IsInt32Type(string typeName) =>
         string.Equals(typeName,"int",StringComparison.Ordinal)
-        || string.Equals(typeName,"System.Int32",StringComparison.Ordinal)
-        || string.Equals(typeName,"global::System.Int32",StringComparison.Ordinal);
+        ||string.Equals(typeName,"System.Int32",StringComparison.Ordinal)
+        ||string.Equals(typeName,"global::System.Int32",StringComparison.Ordinal);
 }
 
 /*
@@ -149,20 +149,20 @@ DistinctByBase は keySelector(item) の結果を HashSet に入れ、初めて�
   - keySelector が identity かつ型/比較器が合う連続 DistinctBy は direct consume を前段へ統合できる。
   - key の範囲が小さい int と分かる場合、HashSet ではなく bool[] seen を使う direct consume を生成する。
 */
-internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment keySelector,string comparer):Enumerable(番号),ConsumeDirectExecutionFragment{
-    protected override Enumerable PrimarySource=>source;
-    private FuncFragment KeySelector=>keySelector;
-    private string Comparer=>ComparerExpressionSupport.RenderEqualityComparer(comparer,FuncReturnTypeName(keySelector));
-    public override string StructMethod=> this.FuncSupport(keySelector,nameof(keySelector));
-    public override string GetEnumerableExpression=>$"global::Seamless.System.Carrier.ValueEnumerableExtensions.DistinctBy({source.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{this.Comparer})";
-    public override string GetEnumeratorStruct=>$$"""
+internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment keySelector,string comparer):Enumerable(番号), ConsumeDirectExecutionFragment {
+    protected override Enumerable PrimarySource => source;
+    private FuncFragment KeySelector => keySelector;
+    private string Comparer => ComparerExpressionSupport.RenderEqualityComparer(comparer,FuncReturnTypeName(keySelector));
+    public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
+    public override string GetEnumerableExpression => $"global::Seamless.System.Carrier.ValueEnumerableExtensions.DistinctBy({source.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{this.Comparer})";
+    public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{this.Comparer}{this.ClosureArgsSuffix(keySelector)})";
-    public override string GetEnumeratorPrimaryConstructorParameters=>$"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector)}";
-    public override string GetEnumeratorConstructor=>$"this.{this.lookup}=CreateLookup({this.e},comparer);";
-    public override string GetEnumeratorFields=>$$"""
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{this.Comparer}{this.ClosureArgsSuffix(keySelector)})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector)}";
+    public override string GetEnumeratorConstructor => $"this.{this.lookup}=CreateLookup({this.e},comparer);";
+    public override string GetEnumeratorFields => $$"""
         private global::Seamless.System.Carrier.HashSetSlim<{{FuncReturnTypeName(keySelector)}}> {{this.lookup}};
         private static global::Seamless.System.Carrier.HashSetSlim<{{FuncReturnTypeName(keySelector)}}> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer){
             // DistinctBy も同じで、span 走査かどうかの判定はここではしない。
@@ -170,7 +170,7 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
             {{this.CreateLookupBody(FuncReturnTypeName(keySelector))}}
         }
         """;
-    public override string GetTryGetNextBody=>$$"""
+    public override string GetTryGetNextBody => $$"""
         while({{this.e}}.TryGetNext(out var {{this.item}})){
             {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
             {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),this.key,this.item)}}
@@ -182,19 +182,19 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
         current=default!;
         return false;
         """;
-    public override string GetCurrentExpression=> this.currentValue;
-    public override string ElementType=>source.ElementType;
-    protected override string GetEnumeratorDisposeBody=>$"{this.lookup}.Dispose();\n{this.e}.Dispose();";
-    public override string GetConsumeExecutionStatement(string consumerName){
+    public override string GetCurrentExpression => this.currentValue;
+    public override string ElementType => source.ElementType;
+    protected override string GetEnumeratorDisposeBody => $"{this.lookup}.Dispose();\n{this.e}.Dispose();";
+    public override string GetConsumeExecutionStatement(string consumerName) {
         if(source is DistinctByBase previous
             &&this.CanMergeWith(previous)) {
             return previous.GetConsumeExecutionStatement(consumerName);
         }
-        var sourceName=$"__src{番号}";
-        var keyName=$"__key{番号}";
-        var builder=new StringBuilder();
+        var sourceName = $"__src{番号}";
+        var keyName = $"__key{番号}";
+        var builder = new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
-        var hoistedDeclarations= this.HoistedLocalDeclarations(keySelector);
+        var hoistedDeclarations = this.HoistedLocalDeclarations(keySelector);
         if(!string.IsNullOrEmpty(hoistedDeclarations)) {
             builder.AppendLine(hoistedDeclarations);
         }
@@ -225,16 +225,16 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
 
     private bool CanMergeWith(DistinctByBase previous) {
         if(this.KeySelector.ContainsAnchor
-            || previous.KeySelector.ContainsAnchor
-            || !string.Equals(this.Comparer,previous.Comparer,StringComparison.Ordinal)
+            ||previous.KeySelector.ContainsAnchor
+            ||!string.Equals(this.Comparer,previous.Comparer,StringComparison.Ordinal)
             ||this.KeySelector.RequiresStatementInlining
-            || previous.KeySelector.RequiresStatementInlining
+            ||previous.KeySelector.RequiresStatementInlining
             ||this.KeySelector.ParameterNames.Length!=previous.KeySelector.ParameterNames.Length
             ||this.KeySelector.ParameterTypeNames.Length!=previous.KeySelector.ParameterTypeNames.Length
             ||this.KeySelector.ReturnTypeName!=previous.KeySelector.ReturnTypeName) {
             return false;
         }
-        for(var index=0; index<this.KeySelector.ParameterTypeNames.Length; index++) {
+        for(var index = 0;index<this.KeySelector.ParameterTypeNames.Length;index++) {
             if(this.KeySelector.ParameterTypeNames[index]!=previous.KeySelector.ParameterTypeNames[index]) {
                 return false;
             }

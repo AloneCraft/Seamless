@@ -48,7 +48,7 @@ namespace Seamless.System.Carrier {
             // Iterate inlining
             if(this.source.TryGetSpan(out var span)) {
                 if(EnumeratorHelper.TryGetSlice(span,offset,destination.Length,out var slice)) {
-                    for(var i = 0; (uint)i<(uint)slice.Length; i++) {
+                    for(var i = 0;(uint)i<(uint)slice.Length;i++) {
                         destination[i]=this.selector(slice[i]);
                     }
                     return true;
@@ -163,7 +163,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<TResult> destination,Index offset) {
             if(EnumeratorHelper.TryGetSliceRange(this.count,offset,destination.Length,out var fillStart,out var fillCount)) {
                 var value = this.start+fillStart;
-                for(int i = 0; i<fillCount; i++) {
+                for(int i = 0;i<fillCount;i++) {
                     destination[i]=this.selector(value);
                     value++;
                 }
@@ -249,7 +249,7 @@ namespace Seamless.System.Carrier {
             }
 
             if(EnumeratorHelper.TryGetSlice<TSource>(this.source.AsSpan(),offset,destination.Length,out var slice)) {
-                for(var i = 0; (uint)i<(uint)slice.Length; i++) {
+                for(var i = 0;(uint)i<(uint)slice.Length;i++) {
                     destination[i]=this.selector(slice[i]);
                 }
                 return true;
@@ -333,7 +333,7 @@ namespace Seamless.System.Carrier {
 
         public bool TryCopyTo(scoped Span<TResult> destination,Index offset) {
             if(EnumeratorHelper.TryGetSlice<TSource>(CollectionsMarshal.AsSpan(this.source),offset,destination.Length,out var slice)) {
-                for(var i = 0; (uint)i<(uint)slice.Length; i++) {
+                for(var i = 0;(uint)i<(uint)slice.Length;i++) {
                     destination[i]=this.selector(slice[i]);
                 }
                 return true;

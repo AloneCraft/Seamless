@@ -113,17 +113,13 @@ namespace Seamless.System.Carrier {
         public FromEnumerable(IEnumerable<T> source) {
             if(source.GetType()==typeof(T[])) {
                 this.iterator=ArrayIterator<T>.Instance;
-            }
-            else if(source.GetType()==typeof(List<T>)) {
+            } else if(source.GetType()==typeof(List<T>)) {
                 this.iterator=ListIterator<T>.Instance;
-            }
-            else if(source is IReadOnlyList<T>) {
+            } else if(source is IReadOnlyList<T>) {
                 this.iterator=IReadOnlyListIterator<T>.Instance;
-            }
-            else if(source is IList<T>) {
+            } else if(source is IList<T>) {
                 this.iterator=IListIterator<T>.Instance;
-            }
-            else {
+            } else {
                 this.iterator=EnumerableIterator<T>.Instance;
             }
 
@@ -633,8 +629,7 @@ namespace Seamless.System.Carrier {
                     slice.CopyTo(destination);
                     return true;
                 }
-            }
-            else {
+            } else {
                 if(EnumeratorHelper.TryGetSliceRange(checked((int)source.Length),offset,destination.Length,out var start,out var count)) {
                     source.Slice(start,count).CopyTo(destination);
                     return true;

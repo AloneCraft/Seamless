@@ -19,8 +19,7 @@ public class SetOperationStressTests {
         return dir;
     }
     private static void TryCleanup(string dir) {
-        try { if(Directory.Exists(dir)) Directory.Delete(dir,recursive: true); }
-        catch { }
+        try { if(Directory.Exists(dir)) Directory.Delete(dir,recursive: true); } catch { }
     }
 
     private static void RunUnmanagedIntSetOp(
@@ -47,7 +46,7 @@ public class SetOperationStressTests {
             using(var setA = storeA.Create())
             using(var setB = storeB.Create()) {
                 try {
-                    for(var r = 0; r<repeat; r++) {
+                    for(var r = 0;r<repeat;r++) {
                         setA.Clear();
                         setB.Clear();
                         foreach(var k in keysA) setA.Add(k);
@@ -79,14 +78,12 @@ public class SetOperationStressTests {
                         }
                         StressReferenceAssert.SetEquals(probeKeys,expected,key => setA.Contains(key));
                     }
-                }
-                finally {
+                } finally {
                     storeA.Store.Log.FlushAndEvict(wait: true);
                     storeB.Store.Log.FlushAndEvict(wait: true);
                 }
             }
-        }
-        finally {
+        } finally {
             TryCleanup(temp);
         }
     }
@@ -138,7 +135,7 @@ public class SetOperationStressTests {
             using(var setA = storeA.Create())
             using(var setB = storeB.Create()) {
                 try {
-                    for(var r = 0; r<repeat; r++) {
+                    for(var r = 0;r<repeat;r++) {
                         setA.Clear();
                         setB.Clear();
                         foreach(var k in keysA) setA.Add(k);
@@ -165,14 +162,12 @@ public class SetOperationStressTests {
                         }
                         StressReferenceAssert.SetEquals(probeKeys,expected,key => setA.Contains(key));
                     }
-                }
-                finally {
+                } finally {
                     storeA.Store.Log.FlushAndEvict(wait: true);
                     storeB.Store.Log.FlushAndEvict(wait: true);
                 }
             }
-        }
-        finally {
+        } finally {
             TryCleanup(temp);
         }
     }

@@ -1,6 +1,6 @@
 namespace Seamless.Persisted.Collections;
 
-internal interface IPersistedDictionary<TKey,TValue>:IReadOnlyDictionary<TKey,TValue>, IDisposable
+internal interface IPersistedDictionary<TKey, TValue>:IReadOnlyDictionary<TKey,TValue>, IDisposable
     where TKey : notnull {
     string Path { get; }
     void Add(TKey key,TValue value);
@@ -8,7 +8,7 @@ internal interface IPersistedDictionary<TKey,TValue>:IReadOnlyDictionary<TKey,TV
     void SetDisposeAction(Action? action);
 }
 
-public sealed class Dictionary<TKey,TValue>:IReadOnlyDictionary<TKey,TValue>, IDisposable
+public sealed class Dictionary<TKey, TValue>:IReadOnlyDictionary<TKey,TValue>, IDisposable
     where TKey : notnull {
     private readonly IPersistedDictionary<TKey,TValue> dictionary;
 
@@ -50,7 +50,7 @@ public sealed class Dictionary<TKey,TValue>:IReadOnlyDictionary<TKey,TValue>, ID
 
     private static IPersistedDictionary<TKey,TValue> CreateCore(string path,long initialCapacity,long initialDataCapacity,StorageTuning? tuning) {
         if(!RuntimeHelpers.IsReferenceOrContainsReferences<TKey>()&&!RuntimeHelpers.IsReferenceOrContainsReferences<TValue>()) {
-            var type=typeof(BlittableDictionary<,>).MakeGenericType(typeof(TKey),typeof(TValue));
+            var type = typeof(BlittableDictionary<,>).MakeGenericType(typeof(TKey),typeof(TValue));
             return (IPersistedDictionary<TKey,TValue>)Activator.CreateInstance(type,path,initialCapacity,initialDataCapacity,tuning)!;
         }
 
@@ -58,8 +58,8 @@ public sealed class Dictionary<TKey,TValue>:IReadOnlyDictionary<TKey,TValue>, ID
     }
 }
 
-public class SerializedDictionary<TKey,TValue>
-    : SerializedDictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>
+public class SerializedDictionary<TKey, TValue>
+    :SerializedDictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>
     where TKey : struct
     where TValue : struct {
     public SerializedDictionary(string path,long initialCapacity = 16,long initialDataCapacity = 4096)
@@ -71,8 +71,8 @@ public class SerializedDictionary<TKey,TValue>
     }
 }
 
-public sealed class BlittableDictionary<TKey,TValue>
-    : SerializedDictionary<TKey,TValue,BlittableSerializer<TKey>,BlittableSerializer<TValue>>
+public sealed class BlittableDictionary<TKey, TValue>
+    :SerializedDictionary<TKey,TValue,BlittableSerializer<TKey>,BlittableSerializer<TValue>>
     where TKey : unmanaged
     where TValue : unmanaged {
     public BlittableDictionary(string path,long initialCapacity = 16,long initialDataCapacity = 4096)
@@ -84,8 +84,8 @@ public sealed class BlittableDictionary<TKey,TValue>
     }
 }
 
-public class SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>
-    : SerializedList<SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>.Entry,SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>.EntrySerializer>, IPersistedDictionary<TKey,TValue>
+public class SerializedDictionary<TKey, TValue, TKeySerializer, TValueSerializer>
+    :SerializedList<SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>.Entry,SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>.EntrySerializer>, IPersistedDictionary<TKey,TValue>
     where TKey : notnull
     where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
@@ -147,7 +147,7 @@ public class SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>
 
     public bool TryGetValue(TKey key,[MaybeNullWhen(false)] out TValue value) {
         var comparer = EqualityComparer<TKey>.Default;
-        for(var index = this.GetLongCount()-1; index>=0; index--) {
+        for(var index = this.GetLongCount()-1;index>=0;index--) {
             var entry = this[index];
             if(comparer.Equals(entry.Key,key)) {
                 value=entry.Value;
@@ -197,7 +197,7 @@ public class SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>
             var leftBytes = TKeySerializer.Serialize(ref left);
             var rightBytes = TKeySerializer.Serialize(ref right);
             var length = Math.Min(leftBytes.Length,rightBytes.Length);
-            for(var index = 0; index<length; index++) {
+            for(var index = 0;index<length;index++) {
                 var comparison = leftBytes[index].CompareTo(rightBytes[index]);
                 if(comparison!=0) {
                     return comparison;

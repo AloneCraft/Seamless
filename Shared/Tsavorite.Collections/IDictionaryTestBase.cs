@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+
 using Tsavorite.core;
 #if BENCHMARK_PROJECT
 namespace Benchmark.Tsavorite.Collections;
@@ -13,7 +14,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
     where TValue : IEquatable<TValue> {
     private string CreateDiskFolder() =>
         TestPath.Directory(this);
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void IsReadOnly() {
         using var sh = TStrategy.CreateMemoryStore();
         using var rawDict = sh.NewDict();
@@ -47,11 +48,11 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
             Assert.Throws<OutOfMemoryException>((Action)(() => {
-                for(var i = 0; ; i++) dict.Add(TStrategy.K(i),TStrategy.V(i));
+                for(var i = 0;;i++) dict.Add(TStrategy.K(i),TStrategy.V(i));
             }));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Add_KeyValuePair() {
         {
             // IDictionaryの動作を検証する。
@@ -62,7 +63,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.True(dict.ContainsKey(TStrategy.K(5)));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Contains() {
         {
             // コメント文字化け修正済み
@@ -117,7 +118,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Throws<ArgumentException>(() => dict.CopyTo(new KeyValuePair<TKey,TValue>[1],0));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void ToList() {
         using var sh = TStrategy.CreateMemoryStore();
         using var rawDict = sh.NewDict();
@@ -166,7 +167,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Throws<NotSupportedException>(() => dict.Values.Add(TStrategy.V(3)));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void ContainsKey() {
         {
             // コメント文字化け修正済み
@@ -184,7 +185,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.False(dict.ContainsKey(TStrategy.K(999)));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void TryGetValue() {
         {
             // コメント文字化け修正済み
@@ -252,11 +253,11 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
             Assert.Throws<OutOfMemoryException>((Action)(() => {
-                for(var i = 0; ; i++) dict[TStrategy.K(i)]=TStrategy.V(i);
+                for(var i = 0;;i++) dict[TStrategy.K(i)]=TStrategy.V(i);
             }));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Remove() {
         {
             // コメント文字化け修正済み
@@ -283,7 +284,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.True(dict.Remove(TStrategy.K(1)));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Remove_KeyValuePair() {
         {
             // コメント文字化け修正済み
@@ -315,7 +316,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.False(removed);
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Clear() {
         using var sh = TStrategy.CreateMemoryStore();
         using var rawDict = sh.NewDict();
@@ -328,7 +329,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Empty(dict);
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Count() {
         using var sh = TStrategy.CreateMemoryStore();
         using var rawDict = sh.NewDict();
@@ -340,7 +341,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             Assert.Equal(2,dict.Count);
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void GetEnumerator() {
         {
             // IDictionaryの動作を検証する。
@@ -384,11 +385,11 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
             Assert.Throws<OutOfMemoryException>((Action)(() => {
-                for(var i = 0; ; i++) dict.Add(TStrategy.K(i),TStrategy.V(i));
+                for(var i = 0;;i++) dict.Add(TStrategy.K(i),TStrategy.V(i));
             }));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     [SuppressMessage("Interoperability","CA1416:Validate platform compatibility",Justification = "Cross-platform test fixture")]
     public void SaveLoad() {
         var folder = this.CreateDiskFolder();

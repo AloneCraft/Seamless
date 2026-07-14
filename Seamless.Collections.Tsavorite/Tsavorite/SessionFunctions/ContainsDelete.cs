@@ -23,7 +23,7 @@ public readonly struct ContainsDelete:
     [ExcludeFromCodeCoverage]
     public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref bool output,ref RMWInfo rmwInfo) {
         // NeedInitialUpdate は false を返すため到達しない。
-    throw new NotSupportedException();
+        throw new NotSupportedException();
     }
     // Delete API は使わず、RMW で Tombstone を挿入する。
     public bool InPlaceUpdater(ref LogRecord logRecord,ref EqualityEmpty input,ref bool output,ref RMWInfo rmwInfo) {
@@ -34,7 +34,7 @@ public readonly struct ContainsDelete:
     [ExcludeFromCodeCoverage]
     public void PostInitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref bool output,ref RMWInfo rmwInfo) {
         // NeedInitialUpdate は false を返すため到達しない。
-    throw new NotSupportedException();
+        throw new NotSupportedException();
     }
     public bool NeedCopyUpdate<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input,ref bool output,ref RMWInfo rmwInfo) where TSourceLogRecord : ISourceLogRecord {
         return true;
@@ -47,7 +47,7 @@ public readonly struct ContainsDelete:
     [ExcludeFromCodeCoverage]
     public bool PostCopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref bool output,ref RMWInfo rmwInfo) where TSourceLogRecord : ISourceLogRecord {
         // CopyUpdater は false を返すため到達しない。
-    throw new NotSupportedException();
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public bool InPlaceWriter(ref LogRecord logRecord,ref EqualityEmpty input,ReadOnlySpan<byte> srcValue,ref bool output,ref UpsertInfo upsertInfo) {
@@ -153,7 +153,7 @@ public readonly struct ContainsDelete:
         where TKey : IKey{
 #endif
         // NeedInitialUpdate は false を返すため到達しない。
-    throw new NotSupportedException();
+        throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,ReadOnlySpan<byte> value,ref EqualityEmpty input)

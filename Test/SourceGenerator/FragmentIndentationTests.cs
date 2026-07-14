@@ -1,5 +1,6 @@
-using System.Text.RegularExpressions;
 using Seamless.FLinq;
+
+using System.Text.RegularExpressions;
 namespace Test.SourceGenerator;
 
 [LinqIntercept(false)]
@@ -42,7 +43,7 @@ public sealed class FragmentIndentationTests(ITestOutputHelper output) {
     [Fact]
     public void GroupJoin_KeySelectorAssignment_KeepsTryGetNextBlockIndent() {
         var generated = GeneratedSource(GroupJoinSource);
-        var lines = generated.Replace("\r\n", "\n").Split('\n');
+        var lines = generated.Replace("\r\n","\n").Split('\n');
 
         this.AssertAssignmentAligned(
             lines,
@@ -59,35 +60,35 @@ public sealed class FragmentIndentationTests(ITestOutputHelper output) {
 
     [Fact]
     public void FragmentRawStrings_DoNotDirectlyEmbedFuncAssignStatements() {
-        var fragmentsRoot = FindRepositoryPath("Seamless.FLinq", "SourceGenerator", "Linq", "Fragments");
-        var offenders = Directory.EnumerateFiles(fragmentsRoot, "*.cs", SearchOption.AllDirectories)
-            .Where(static path => !path.EndsWith($"{Path.DirectorySeparatorChar}Pipeline.cs", StringComparison.Ordinal))
+        var fragmentsRoot = FindRepositoryPath("Seamless.FLinq","SourceGenerator","Linq","Fragments");
+        var offenders = Directory.EnumerateFiles(fragmentsRoot,"*.cs",SearchOption.AllDirectories)
+            .Where(static path => !path.EndsWith($"{Path.DirectorySeparatorChar}Pipeline.cs",StringComparison.Ordinal))
             .SelectMany(static path => File.ReadLines(path)
-                .Select((line, index) => (Path: path, Line: index + 1, Text: line))
-                .Where(static entry => Regex.IsMatch(entry.Text, @"\{\{\s*this\.FuncAssign(?:Current|Static|Inline)?\(")))
-            .Select(static entry => $"{Path.GetRelativePath(FindRepositoryRoot(), entry.Path)}:{entry.Line}: {entry.Text.Trim()}")
+                .Select((line,index) => (Path: path,Line: index+1,Text: line))
+                .Where(static entry => Regex.IsMatch(entry.Text,@"\{\{\s*this\.FuncAssign(?:Current|Static|Inline)?\(")))
+            .Select(static entry => $"{Path.GetRelativePath(FindRepositoryRoot(),entry.Path)}:{entry.Line}: {entry.Text.Trim()}")
             .ToArray();
 
         GeneratedSourceAssert.True(
-            offenders.Length == 0,
-            "Direct FuncAssign raw string embeds remain:\n" + string.Join("\n", offenders),
+            offenders.Length==0,
+            "Direct FuncAssign raw string embeds remain:\n"+string.Join("\n",offenders),
             string.Empty,
             output);
     }
 
-    private void AssertAssignmentAligned(string[] lines, string assignmentPattern, string beforePattern, string afterPattern) {
-        var generated = string.Join(Environment.NewLine, lines);
-        var assignmentIndex = Array.FindIndex(lines, line => Regex.IsMatch(line, assignmentPattern));
+    private void AssertAssignmentAligned(string[] lines,string assignmentPattern,string beforePattern,string afterPattern) {
+        var generated = string.Join(Environment.NewLine,lines);
+        var assignmentIndex = Array.FindIndex(lines,line => Regex.IsMatch(line,assignmentPattern));
 
         GeneratedSourceAssert.True(
-            assignmentIndex >= 0,
+            assignmentIndex>=0,
             $"Assignment line was not generated: {assignmentPattern}",
             generated,
             output);
 
         var assignmentIndent = LeadingWhitespace(lines[assignmentIndex]);
-        var beforeLine = lines.Take(assignmentIndex).LastOrDefault(line => Regex.IsMatch(line, beforePattern));
-        var afterLine = lines.Skip(assignmentIndex + 1).FirstOrDefault(line => Regex.IsMatch(line, afterPattern));
+        var beforeLine = lines.Take(assignmentIndex).LastOrDefault(line => Regex.IsMatch(line,beforePattern));
+        var afterLine = lines.Skip(assignmentIndex+1).FirstOrDefault(line => Regex.IsMatch(line,afterPattern));
 
         GeneratedSourceAssert.True(
             beforeLine is not null,
@@ -101,19 +102,19 @@ public sealed class FragmentIndentationTests(ITestOutputHelper output) {
             output);
 
         GeneratedSourceAssert.True(
-            assignmentIndent.Length >= LeadingWhitespace(beforeLine!).Length,
+            assignmentIndent.Length>=LeadingWhitespace(beforeLine!).Length,
             $"Assignment indentation was shallower than the preceding line: {assignmentPattern}",
             generated,
             output);
         GeneratedSourceAssert.True(
-            assignmentIndent.Length >= LeadingWhitespace(afterLine!).Length,
+            assignmentIndent.Length>=LeadingWhitespace(afterLine!).Length,
             $"Assignment indentation was shallower than the following line: {assignmentPattern}",
             generated,
             output);
     }
 
     private static string GeneratedSource(string source) {
-        var comp = GeneratorTestHelpers.CreateCompilation([("Container.cs", source)]);
+        var comp = GeneratorTestHelpers.CreateCompilation([("Container.cs",source)]);
         var driver = GeneratorTestHelpers.CreateDriver().RunGenerators(comp);
         var result = driver.GetRunResult();
 
@@ -129,15 +130,15 @@ public sealed class FragmentIndentationTests(ITestOutputHelper output) {
 
     private static string FindRepositoryPath(params string[] segments) {
         var root = FindRepositoryRoot();
-        return Path.Combine([root, .. segments]);
+        return Path.Combine([root,.. segments]);
     }
 
     private static string FindRepositoryRoot() {
         for(var directory = new DirectoryInfo(AppContext.BaseDirectory);
             directory is not null;
-            directory = directory.Parent) {
-            if(File.Exists(Path.Combine(directory.FullName, "Seamless.slnx"))
-                && Directory.Exists(Path.Combine(directory.FullName, "Seamless.FLinq"))) {
+            directory=directory.Parent) {
+            if(File.Exists(Path.Combine(directory.FullName,"Seamless.slnx"))
+                &&Directory.Exists(Path.Combine(directory.FullName,"Seamless.FLinq"))) {
                 return directory.FullName;
             }
         }

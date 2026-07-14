@@ -1,6 +1,7 @@
 namespace Seamless.FLinq.Linq.Fragments;
-public class LastOrDefault(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
-    public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length == 0;
+
+public class LastOrDefault(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+    public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length==0;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -13,17 +14,17 @@ public class LastOrDefault(int 番号, Enumerable source, string resultType) : B
         ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"LastOrDefault")
         ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanLastOrDefaultInline(string destVar,string destType) {
-        var span=$"__span{this.result}";
-        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span = $"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
             {{destVar}}={{spanName}}.Length==0 ? default! : {{spanName}}[{{spanName}}.Length-1];
             """);
     }
     private string? RenderRangeLastOrDefaultInline(string destVar,string destType) {
-        if(source is not RangeRoot range || source.ElementType!="int") {
+        if(source is not RangeRoot range||source.ElementType!="int") {
             return null;
         }
-        var start=$"__start{番号}";
-        var count=$"__count{番号}";
+        var start = $"__start{番号}";
+        var count = $"__count{番号}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -52,9 +53,9 @@ public class LastOrDefault(int 番号, Enumerable source, string resultType) : B
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-public class LastOrDefault_defaultValue(int 番号, Enumerable source, string defaultValue, string resultType) : BufferedScalar(番号, resultType) {
+public class LastOrDefault_defaultValue(int 番号,Enumerable source,string defaultValue,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length == 1 && method.Parameters[0].Type.TypeKind != TypeKind.Delegate;
+        method.Parameters.Length==1&&method.Parameters[0].Type.TypeKind!=TypeKind.Delegate;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -66,17 +67,17 @@ public class LastOrDefault_defaultValue(int 番号, Enumerable source, string de
         ??this.RenderDirectSpanLastOrDefaultDefaultValueInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,defaultValue);
     private string? RenderDirectSpanLastOrDefaultDefaultValueInline(string destVar,string destType) {
-        var span=$"__span{this.result}";
-        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span = $"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
             {{destVar}}={{spanName}}.Length==0 ? {{defaultValue}} : {{spanName}}[{{spanName}}.Length-1];
             """);
     }
     private string? RenderRangeLastOrDefaultDefaultValueInline(string destVar,string destType) {
-        if(source is not RangeRoot range || source.ElementType!="int") {
+        if(source is not RangeRoot range||source.ElementType!="int") {
             return null;
         }
-        var start=$"__start{番号}";
-        var count=$"__count{番号}";
+        var start = $"__start{番号}";
+        var count = $"__count{番号}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -105,11 +106,11 @@ public class LastOrDefault_defaultValue(int 番号, Enumerable source, string de
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-public class LastOrDefault_predicate(int 番号, Enumerable source, FuncFragment predicate, string resultType) : BufferedScalar(番号, resultType) {
+public class LastOrDefault_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length > 0 && method.Parameters[0].Type.TypeKind == TypeKind.Delegate;
+        method.Parameters.Length>0&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate;
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => this.FuncSupport(predicate, nameof(predicate));
+    public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
         $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
@@ -121,19 +122,19 @@ public class LastOrDefault_predicate(int 番号, Enumerable source, FuncFragment
         $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeLastOrDefaultPredicateInline(destVar,destType)
-        ?? (TryRenderDirectLambda(predicate) is { } lambda
+        ??(TryRenderDirectLambda(predicate) is { } lambda
             ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"LastOrDefault",lambda)
             : this.RenderComputeInline(destVar,destType));
     private string? RenderRangeLastOrDefaultPredicateInline(string destVar,string destType) {
         if(source is not RangeRoot range
-            || source.ElementType!="int"
-            || !predicate.CanInlineAssign
-            || predicate.RequiresStatementInlining) {
+            ||source.ElementType!="int"
+            ||!predicate.CanInlineAssign
+            ||predicate.RequiresStatementInlining) {
             return null;
         }
-        var start=$"__start{番号}";
-        var count=$"__count{番号}";
-        var index=$"__i{番号}";
+        var start = $"__start{番号}";
+        var count = $"__count{番号}";
+        var index = $"__i{番号}";
         return $$"""
             {{destType}} {{destVar}}=default!;
             {
@@ -175,7 +176,7 @@ public class LastOrDefault_predicate(int 番号, Enumerable source, FuncFragment
                 while(source.MoveNext()) {
                     var {{this.item}} = source.Current;
                     bool {{this.temp}} = default!;
-                    {{this.FuncAssignStaticIndented("        ",predicate, nameof(predicate),this.temp,this.item)}}
+                    {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}) result = {{this.item}};
                 }
                 return result;

@@ -3,241 +3,238 @@ using System.Globalization;
 namespace UI;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
-internal static class BenchmarkComparisonFormatter{
-    public static readonly string[] ProjectOrder =
-        BenchmarkSourceTabs.All
-            .SelectMany(static tab => tab.ProjectOrder)
+internal static class ベンチマーク比較フォーマッター{
+    public static readonly string[] プロジェクト順=
+        ベンチマークソースタブ一覧.全て
+            .SelectMany(static タブ=>タブ.プロジェクト順)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-    public static readonly ComparisonPairDefinition[] PairDefinitions =
-        BenchmarkSourceTabs.All
-            .Select(static tab => new ComparisonPairDefinition(
-                tab.Id,
-                tab.DisplayName,
-                tab.LeftProject+"/"+tab.RightProject,
-                tab.LeftProject,
-                tab.RightProject))
-            .ToArray();
-
-    public static IReadOnlyList<BenchmarkComparisonRow> BuildComparisonRows(IReadOnlyList<ReportRow> rows){
-        var tab = rows
-            .Select(row => BenchmarkSourceTabs.TryGetByProject(row.Project))
-            .FirstOrDefault(static item => item is not null)
-            ??throw new InvalidDataException("Benchmark SourceTab could not be resolved uniquely from report projects: "+string.Join(", ",rows.Select(static row => row.Project).Distinct(StringComparer.OrdinalIgnoreCase)));
-        return BuildComparisonRows(rows,tab);
+    public static IReadOnlyList<ベンチマーク比較行>比較行を構築(IReadOnlyList<報告行>行一覧){
+        var タブ=行一覧
+            .Select(行=>ベンチマークソースタブ一覧.プロジェクトから取得を試みる(行.プロジェクト))
+            .FirstOrDefault(static 項目=>項目 is not null)
+            ??ベンチマークソースタブ一覧.既定;
+        return 比較行を構築(行一覧,タブ);
     }
 
-    public static IReadOnlyList<BenchmarkComparisonRow> BuildComparisonRows(
-        IReadOnlyList<ReportRow> rows,
-        BenchmarkSourceTabDefinition sourceTab,
-        int elementCount = 0){
-        var rowsByMethod = new Dictionary<string,BenchmarkComparisonBucket>(StringComparer.OrdinalIgnoreCase);
-        var duplicatedProjectMethods = rows
-            .GroupBy(static row => row.Project+"|"+row.Method,StringComparer.OrdinalIgnoreCase)
-            .Where(static group => group.Select(static row => row.TypeFullName).Distinct(StringComparer.OrdinalIgnoreCase).Count()>1)
-            .Select(static group => group.Key)
+    public static IReadOnlyList<ベンチマーク比較行>比較行を構築(
+        IReadOnlyList<報告行>行一覧,
+        ベンチマークソースタブ定義 ソースタブ,
+        int 要素数=0){
+        var メソッド別行=new Dictionary<string,ベンチマーク比較バケット>(StringComparer.OrdinalIgnoreCase);
+        var 重複プロジェクトメソッド=行一覧
+            .GroupBy(static 行=>行.プロジェクト+"|"+行.メソッド,StringComparer.OrdinalIgnoreCase)
+            .Where(static グループ=>グループ.Select(static 行=>行.型完全名).Distinct(StringComparer.OrdinalIgnoreCase).Count()>1)
+            .Select(static グループ=>グループ.Key)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach(var row in rows){
-            if(!sourceTab.ContainsProject(row.Project)){
-                throw new InvalidDataException($"Unknown benchmark project for {sourceTab.Id}: {row.Project}");
+        foreach(var 行 in 行一覧){
+            if(!ソースタブ.プロジェクトを含むか(行.プロジェクト)){
+                throw new InvalidDataException($"{ソースタブ.ID} に未知のベンチマークプロジェクトがあります: {行.プロジェクト}");
             }
 
-            var typeDiscriminator = CreateTypeDiscriminator(sourceTab,row,duplicatedProjectMethods);
-            var key = CreateComparisonKey(row.Method,typeDiscriminator,row.ArgumentKey);
-            if(!rowsByMethod.TryGetValue(key,out var bucket)){
-                bucket = new BenchmarkComparisonBucket(row.Method,typeDiscriminator,row.TypeFullName,row.ArgumentKey,row.Arguments);
-                rowsByMethod.Add(key,bucket);
+            var 型識別子=型識別子を作成(ソースタブ,行,重複プロジェクトメソッド);
+            var キー=比較キーを作成(行.メソッド,型識別子,行.引数キー);
+            if(!メソッド別行.TryGetValue(キー,out var バケット)){
+                バケット=new ベンチマーク比較バケット(行.メソッド,型識別子,行.型完全名,行.引数キー,行.引数一覧);
+                メソッド別行.Add(キー,バケット);
             }
 
-            bucket.MetricsByProject[NormalizeProjectName(row.Project,sourceTab)] = CreateMetrics(row);
+            バケット.プロジェクト別測定値[プロジェクト名を正規化(行.プロジェクト,ソースタブ)]=測定値を作成(行);
         }
 
-        return rowsByMethod
-            .OrderBy(static item => item.Value.Method,StringComparer.OrdinalIgnoreCase)
-            .ThenBy(static item => item.Value.TypeFullName,StringComparer.OrdinalIgnoreCase)
-            .ThenBy(static item => item.Value.ArgumentKey,StringComparer.OrdinalIgnoreCase)
-            .Select(item => CreateRow(
-                CreateBenchmarkName(item.Value,sourceTab,elementCount),
-                item.Value.Method,
-                item.Value.TypeFullName,
-                item.Value.MetricsByProject,
-                sourceTab,
-                item.Value.ArgumentKey,
-                item.Value.Arguments))
+        return メソッド別行
+            .OrderBy(static 項目=>項目.Value.メソッド,StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static 項目=>項目.Value.型完全名,StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static 項目=>項目.Value.引数キー,StringComparer.OrdinalIgnoreCase)
+            .Select(項目=>比較行を作成(
+                ベンチマーク名を作成(項目.Value,ソースタブ,要素数),
+                項目.Value.メソッド,
+                項目.Value.型完全名,
+                項目.Value.プロジェクト別測定値,
+                ソースタブ,
+                項目.Value.引数キー,
+                項目.Value.引数一覧))
             .ToArray();
     }
 
-    public static シェア値 時間シェアを計算(ProjectMetrics left,ProjectMetrics right){
-        if(!left.HasMeasuredValue||!right.HasMeasuredValue||left.TimeNanoseconds is not { } leftValue||right.TimeNanoseconds is not { } rightValue){
+    public static シェア値 時間シェアを計算(プロジェクト測定値 左,プロジェクト測定値 右){
+        if(!左.測定値ありか||!右.測定値ありか||左.時間ナノ秒 is not { } 左値||右.時間ナノ秒 is not { } 右値){
             return シェア値.欠測;
         }
 
-        return シェア値.時間から作成(leftValue,rightValue);
+        return シェア値.時間から作成(左値,右値);
     }
 
-    public static シェア値 メモリシェアを計算(ProjectMetrics left,ProjectMetrics right){
-        if(!left.HasMeasuredValue||!right.HasMeasuredValue||left.AllocatedBytes is not { } leftValue||right.AllocatedBytes is not { } rightValue){
+    public static シェア値 メモリシェアを計算(プロジェクト測定値 左,プロジェクト測定値 右){
+        if(!左.測定値ありか||!右.測定値ありか||左.割り当てバイト数 is not { } 左値||右.割り当てバイト数 is not { } 右値){
             return シェア値.欠測;
         }
-        return シェア値.メモリから作成(leftValue,rightValue);
+        return シェア値.メモリから作成(左値,右値);
     }
 
-    public static シェア比較 シェア比較を作成(BenchmarkComparisonRow row,ComparisonPairDefinition pair){
-        var left = row.GetProject(pair.LeftProject);
-        var right = row.GetProject(pair.RightProject);
+    public static シェア比較 シェア比較を作成(ベンチマーク比較行 行,比較ペア定義 ペア){
+        var 左=行.プロジェクトを取得(ペア.左プロジェクト);
+        var 右=行.プロジェクトを取得(ペア.右プロジェクト);
         return new シェア比較(
-            pair,
-            left,
-            right,
-            時間シェアを計算(left,right),
-            メモリシェアを計算(left,right));
+            ペア,
+            左,
+            右,
+            時間シェアを計算(左,右),
+            メモリシェアを計算(左,右));
     }
 
-    private static BenchmarkComparisonRow CreateRow(
-        string benchmark,
-        string method,
-        string typeFullName,
-        IReadOnlyDictionary<string,ProjectMetrics> metrics,
-        BenchmarkSourceTabDefinition sourceTab,
-        string argumentKey = "",
-        IReadOnlyList<BenchmarkArgument>? arguments = null){
-        var left = metrics.GetValueOrDefault(sourceTab.LeftProject);
-        var right = metrics.GetValueOrDefault(sourceTab.RightProject);
-        var row = new BenchmarkComparisonRow(
-            benchmark,
-            sourceTab,
-            left,
-            right);
-        return row with{
-            MethodName = method,
-            TypeFullName = typeFullName,
-            ArgumentKey = argumentKey,
-            Arguments = arguments??[],
-            左右シェア = シェア比較を作成(row,new ComparisonPairDefinition(
-                sourceTab.Id,
-                sourceTab.DisplayName,
-                sourceTab.LeftProject+"/"+sourceTab.RightProject,
-                sourceTab.LeftProject,
-                sourceTab.RightProject)),
+    private static ベンチマーク比較行 比較行を作成(
+        string ベンチマーク,
+        string メソッド,
+        string 型完全名,
+        IReadOnlyDictionary<string,プロジェクト測定値>測定値一覧,
+        ベンチマークソースタブ定義 ソースタブ,
+        string 引数キー="",
+        IReadOnlyList<ベンチマーク引数>?引数一覧=null){
+        var 左=測定値一覧.GetValueOrDefault(ソースタブ.左プロジェクト);
+        var 右=測定値一覧.GetValueOrDefault(ソースタブ.右プロジェクト);
+        var 行=new ベンチマーク比較行(
+            ベンチマーク,
+            ソースタブ,
+            左,
+            右);
+        return 行 with{
+            メソッド名=メソッド,
+            型完全名=型完全名,
+            引数キー=引数キー,
+            引数一覧=引数一覧??[],
+            左右シェア=シェア比較を作成(行,new 比較ペア定義(
+                ソースタブ.ID,
+                ソースタブ.表示名,
+                ソースタブ.左プロジェクト+"/"+ソースタブ.右プロジェクト,
+                ソースタブ.左プロジェクト,
+                ソースタブ.右プロジェクト)),
         };
     }
 
-    private static string CreateBenchmarkName(
-        BenchmarkComparisonBucket bucket,
-        BenchmarkSourceTabDefinition sourceTab,
-        int elementCount) =>
-        CreateBenchmarkNameCore(bucket,sourceTab);
+    private static string ベンチマーク名を作成(
+        ベンチマーク比較バケット バケット,
+        ベンチマークソースタブ定義 ソースタブ,
+        int 要素数)=>
+        ベンチマーク名を作成する本体(バケット,ソースタブ);
 
-    private static string CreateBenchmarkNameCore(
-        BenchmarkComparisonBucket bucket,
-        BenchmarkSourceTabDefinition sourceTab) {
-        if(!ScalableBenchmarkNameFormatter.UsesTypedBenchmarkName(sourceTab.Tab)) {
-            return bucket.Method;
+    private static string ベンチマーク名を作成する本体(
+        ベンチマーク比較バケット バケット,
+        ベンチマークソースタブ定義 ソースタブ){
+        if(!スケーラブルベンチマーク名フォーマッター.型付きベンチマーク名を使うか(ソースタブ.タブ)){
+            return バケット.メソッド;
         }
-        if(!ScalableBenchmarkNameFormatter.IsScalableSourceTab(sourceTab.Tab)
-            &&!string.IsNullOrWhiteSpace(bucket.TypeFullName)) {
-            return "<"+bucket.TypeFullName+">."+bucket.Method;
+        if(!スケーラブルベンチマーク名フォーマッター.スケーラブルソースタブか(ソースタブ.タブ)
+            &&!string.IsNullOrWhiteSpace(バケット.型完全名)){
+            return "<"+バケット.型完全名+">."+バケット.メソッド;
         }
-        return ScalableBenchmarkNameFormatter.CreateBenchmarkName(bucket.SourceTypeFullName,bucket.Method);
+        return スケーラブルベンチマーク名フォーマッター.ベンチマーク名を作成(バケット.元の型完全名,バケット.メソッド);
     }
 
-    private static string CreateTypeDiscriminator(
-        BenchmarkSourceTabDefinition sourceTab,
-        ReportRow row,
-        System.Collections.Generic.ISet<string> duplicatedProjectMethods) {
-        if(ScalableBenchmarkNameFormatter.UsesTypedBenchmarkName(sourceTab.Tab)) {
-            if(ScalableBenchmarkNameFormatter.IsScalableSourceTab(sourceTab.Tab)) {
-                return ScalableBenchmarkNameFormatter.ShortTypeName(row.TypeFullName);
+    private static string 型識別子を作成(
+        ベンチマークソースタブ定義 ソースタブ,
+        報告行 行,
+        System.Collections.Generic.ISet<string>重複プロジェクトメソッド){
+        if(スケーラブルベンチマーク名フォーマッター.型付きベンチマーク名を使うか(ソースタブ.タブ)){
+            if(スケーラブルベンチマーク名フォーマッター.スケーラブルソースタブか(ソースタブ.タブ)){
+                return スケーラブルベンチマーク名フォーマッター.型短名(行.型完全名);
             }
-            var method1Type=ScalableBenchmarkNameFormatter.CreateLegacyMethod1ComparisonTypeText(row.TypeFullName);
-            if(!string.IsNullOrWhiteSpace(method1Type)) {
-                return method1Type;
+            var メソッド1型=スケーラブルベンチマーク名フォーマッター.従来メソッド1比較型表示を作成(行.型完全名);
+            if(!string.IsNullOrWhiteSpace(メソッド1型)){
+                return メソッド1型;
             }
-            if(duplicatedProjectMethods.Contains(row.Project+"|"+row.Method)) {
-                return ScalableBenchmarkNameFormatter.ShortTypeName(row.TypeFullName);
+            if(重複プロジェクトメソッド.Contains(行.プロジェクト+"|"+行.メソッド)){
+                return スケーラブルベンチマーク名フォーマッター.型短名(行.型完全名);
             }
             return string.Empty;
         }
-        if(duplicatedProjectMethods.Contains(row.Project+"|"+row.Method)) {
-            return ScalableBenchmarkNameFormatter.ShortTypeName(row.TypeFullName);
+        if(重複プロジェクトメソッド.Contains(行.プロジェクト+"|"+行.メソッド)){
+            return スケーラブルベンチマーク名フォーマッター.型短名(行.型完全名);
         }
         return string.Empty;
     }
 
-    private static string CreateComparisonKey(string method,string typeFullName,string argumentKey) =>
-        method+"|"+typeFullName+"|"+argumentKey;
+    private static string 比較キーを作成(string メソッド,string 型完全名,string 引数キー)=>
+        メソッド+"|"+型完全名+"|"+引数キー;
 
-    private sealed class BenchmarkComparisonBucket{
-        public BenchmarkComparisonBucket(
-            string method,
-            string typeFullName,
-            string sourceTypeFullName,
-            string argumentKey,
-            IReadOnlyList<BenchmarkArgument> arguments){
-            this.Method=method;
-            this.TypeFullName=typeFullName;
-            this.SourceTypeFullName=sourceTypeFullName;
-            this.ArgumentKey=argumentKey;
-            this.Arguments=arguments;
+    private sealed class ベンチマーク比較バケット{
+        public ベンチマーク比較バケット(
+            string メソッド,
+            string 型完全名,
+            string 元の型完全名,
+            string 引数キー,
+            IReadOnlyList<ベンチマーク引数>引数一覧){
+            this.メソッド=メソッド;
+            this.型完全名=型完全名;
+            this.元の型完全名=元の型完全名;
+            this.引数キー=引数キー;
+            this.引数一覧=引数一覧;
         }
 
-        public string Method { get; }
-        public string TypeFullName { get; }
-        public string SourceTypeFullName { get; }
-        public string ArgumentKey { get; }
-        public IReadOnlyList<BenchmarkArgument> Arguments { get; }
-        public Dictionary<string,ProjectMetrics> MetricsByProject { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public string メソッド{get;}
+        public string 型完全名{get;}
+        public string 元の型完全名{get;}
+        public string 引数キー{get;}
+        public IReadOnlyList<ベンチマーク引数>引数一覧{get;}
+        public Dictionary<string,プロジェクト測定値>プロジェクト別測定値{get;}=new(StringComparer.OrdinalIgnoreCase);
     }
 
-    private static ProjectMetrics CreateMetrics(ReportRow row){
-        if(!string.Equals(row.Status,"Completed",StringComparison.OrdinalIgnoreCase)){
-            return ProjectMetrics.Missing;
+    private static プロジェクト測定値 測定値を作成(報告行 行){
+        if(!string.Equals(行.状態,ジョブ状態名.保存値に変換(ジョブ状態.完了),StringComparison.OrdinalIgnoreCase)){
+            return プロジェクト測定値.欠測;
         }
 
-        var time = row.MeanNanoseconds>0 ? row.MeanNanoseconds : (double?)null;
-        var allocated = string.IsNullOrWhiteSpace(row.AllocatedBytes) ? null : (long?)row.AllocatedBytesValue;
-        return ProjectMetrics.FromMeasurement(time,allocated);
+        double?時間=null;
+        if(行.平均ナノ秒>0){
+            時間=行.平均ナノ秒;
+        }
+        long?割り当て=null;
+        if(!string.IsNullOrWhiteSpace(行.割り当てバイト数文字列)){
+            割り当て=行.割り当てバイト数値;
+        }
+        return プロジェクト測定値.測定から作成(時間,割り当て);
     }
 
-    private static string NormalizeProjectName(string project,BenchmarkSourceTabDefinition sourceTab){
-        if(string.Equals(project,sourceTab.LeftProject,StringComparison.OrdinalIgnoreCase)){
-            return sourceTab.LeftProject;
+    private static string プロジェクト名を正規化(string プロジェクト,ベンチマークソースタブ定義 ソースタブ){
+        if(string.Equals(プロジェクト,ソースタブ.左プロジェクト,StringComparison.OrdinalIgnoreCase)){
+            return ソースタブ.左プロジェクト;
         }
 
-        if(string.Equals(project,sourceTab.RightProject,StringComparison.OrdinalIgnoreCase)){
-            return sourceTab.RightProject;
+        if(string.Equals(プロジェクト,ソースタブ.右プロジェクト,StringComparison.OrdinalIgnoreCase)){
+            return ソースタブ.右プロジェクト;
         }
 
-        return project;
+        return プロジェクト;
     }
-
 }
 
-public readonly record struct ProjectMetrics(double? TimeNanoseconds,long? AllocatedBytes,bool HasValue){
-    public static readonly ProjectMetrics Missing = new(null,null,false);
+public readonly record struct プロジェクト測定値(double?時間ナノ秒,long?割り当てバイト数,bool 値ありか){
+    public static readonly プロジェクト測定値 欠測=new(null,null,false);
 
-    public bool HasMeasuredValue => this.HasValue&&this.TimeNanoseconds is not null;
+    public bool 測定値ありか=>this.値ありか&&this.時間ナノ秒 is not null;
 
-    public static ProjectMetrics FromMeasurement(double? timeNanoseconds,long? allocatedBytes) =>
-        timeNanoseconds is null
-            ? Missing
-            : new ProjectMetrics(timeNanoseconds,allocatedBytes,true);
+    public static プロジェクト測定値 測定から作成(double?時間ナノ秒,long?割り当てバイト数){
+        if(時間ナノ秒 is null){
+            return 欠測;
+        }
+        return new プロジェクト測定値(時間ナノ秒,割り当てバイト数,true);
+    }
 }
 
 public readonly record struct シェア値(
-    double? 左シェア,
-    double? 右シェア,
+    double?左シェア,
+    double?右シェア,
     string 表示文字列,
     シェア判定 判定){
-    public static readonly シェア値 欠測 = new(null,null,"-",シェア判定.なし);
+    public static readonly シェア値 欠測=new(null,null,"-",シェア判定.なし);
 
-    public bool 欠測か => this.左シェア is null||this.右シェア is null;
+    public bool 欠測か=>this.左シェア is null||this.右シェア is null;
 
-    public static シェア値 時間から作成(double 左値,double 右値) =>
+    public static シェア値 時間から作成(double 左値,double 右値)=>
         作成(左値,右値,true);
 
-    public static シェア値 メモリから作成(long 左値,long 右値) =>
+    public static シェア値 メモリから作成(long 左値,long 右値)=>
         作成(左値,右値,false);
 
     public static シェア値 左シェアから作成(double 左シェア){
@@ -248,7 +245,7 @@ public readonly record struct シェア値(
         return シェアから作成(左シェア,1-左シェア,厳密判定(左シェア));
     }
 
-    private static シェア値 作成(double 左値,double 右値,bool 時間判定){
+    private static シェア値 作成(double 左値,double 右値,bool 時間判定か){
         if(!double.IsFinite(左値)||!double.IsFinite(右値)||左値<0||右値<0){
             return 欠測;
         }
@@ -264,7 +261,7 @@ public readonly record struct シェア値(
         var 左シェア=左値/合計;
         var 右シェア=右値/合計;
         シェア判定 判定;
-        if(時間判定){
+        if(時間判定か){
             判定=時間判定を取得(左値,右値);
         }else{
             判定=厳密判定(左シェア);
@@ -316,65 +313,60 @@ public readonly record struct シェア値(
     }
 }
 
-public readonly record struct BenchmarkShareGaugeState(double LeftFraction,double RightFraction,bool HasColoredBar){
-    public static BenchmarkShareGaugeState FromShare(シェア値 share){
-        if(share.欠測か||share.左シェア is not { } left||share.右シェア is not { } right||left+right<=0){
+public readonly record struct ベンチマークシェアゲージ状態(double 左割合,double 右割合,bool 色付きバーがあるか){
+    public static ベンチマークシェアゲージ状態 シェアから作成(シェア値 シェア){
+        if(シェア.欠測か||シェア.左シェア is not { } 左||シェア.右シェア is not { } 右||左+右<=0){
             return new(0,0,false);
         }
-        return new(Math.Clamp(left,0,1),Math.Clamp(right,0,1),true);
+        return new(Math.Clamp(左,0,1),Math.Clamp(右,0,1),true);
     }
 }
 
 public readonly record struct シェア比較(
-    ComparisonPairDefinition Definition,
-    ProjectMetrics Left,
-    ProjectMetrics Right,
+    比較ペア定義 定義,
+    プロジェクト測定値 左,
+    プロジェクト測定値 右,
     シェア値 時間シェア,
     シェア値 メモリシェア);
 
-public readonly record struct BenchmarkComparisonRow(
-    string Benchmark,
-    BenchmarkSourceTabDefinition SourceTab,
-    ProjectMetrics Left,
-    ProjectMetrics Right){
-    public string MethodName { get; init; } = Benchmark;
-    public string TypeFullName { get; init; } = string.Empty;
-    public string ArgumentKey { get; init; } = string.Empty;
-    public IReadOnlyList<BenchmarkArgument> Arguments { get; init; } = [];
-    public シェア比較 左右シェア { get; init; }
+public readonly record struct ベンチマーク比較行(
+    string ベンチマーク,
+    ベンチマークソースタブ定義 ソースタブ,
+    プロジェクト測定値 左,
+    プロジェクト測定値 右){
+    public string メソッド名{get;init;}=ベンチマーク;
+    public string 型完全名{get;init;}=string.Empty;
+    public string 引数キー{get;init;}=string.Empty;
+    public IReadOnlyList<ベンチマーク引数>引数一覧{get;init;}=[];
+    public シェア比較 左右シェア{get;init;}
 
-    public ProjectMetrics GetProject(string project){
-        if(this.SourceTab is null){
-            return ProjectMetrics.Missing;
+    public プロジェクト測定値 プロジェクトを取得(string プロジェクト){
+        if(this.ソースタブ is null){
+            return プロジェクト測定値.欠測;
         }
 
-        if(string.Equals(project,this.SourceTab.LeftProject,StringComparison.OrdinalIgnoreCase)){
-            return this.Left;
+        if(string.Equals(プロジェクト,this.ソースタブ.左プロジェクト,StringComparison.OrdinalIgnoreCase)){
+            return this.左;
         }
 
-        if(string.Equals(project,this.SourceTab.RightProject,StringComparison.OrdinalIgnoreCase)){
-            return this.Right;
+        if(string.Equals(プロジェクト,this.ソースタブ.右プロジェクト,StringComparison.OrdinalIgnoreCase)){
+            return this.右;
         }
 
-        return ProjectMetrics.Missing;
+        return プロジェクト測定値.欠測;
     }
-
-    public シェア比較 GetPair(string key) =>
-        string.Equals(key,this.SourceTab.Id,StringComparison.OrdinalIgnoreCase)
-            ? this.左右シェア
-            : default;
 }
 
-public readonly record struct ComparisonPairDefinition(
-    string Key,
-    string DisplayName,
-    string TooltipText,
-    string LeftProject,
-    string RightProject);
+public readonly record struct 比較ペア定義(
+    string キー,
+    string 表示名,
+    string ツールチップ文字列,
+    string 左プロジェクト,
+    string 右プロジェクト);
 
-internal static class BenchmarkComparisonPairs{
-    public static IReadOnlyList<string>? GetPairProjects(string project) =>
-        BenchmarkSourceTabs.TryGetByProject(project)?.ProjectOrder;
+internal static class ベンチマーク比較ペア{
+    public static IReadOnlyList<string>?ペアプロジェクトを取得(string プロジェクト)=>
+        ベンチマークソースタブ一覧.プロジェクトから取得を試みる(プロジェクト)?.プロジェクト順;
 }
 
 public enum シェア判定{

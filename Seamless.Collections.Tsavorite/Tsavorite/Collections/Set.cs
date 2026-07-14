@@ -1,11 +1,11 @@
 namespace Seamless.Tsavorite.Collections;
 
-public interface ISetIterateStrategy<TSelf,TRecord>
-    where TSelf:struct,ISetIterateStrategy<TSelf,TRecord>{
+public interface ISetIterateStrategy<TSelf, TRecord>
+    where TSelf : struct, ISetIterateStrategy<TSelf,TRecord> {
     static abstract bool Invoke(ref TSelf self,TRecord item);
 }
 
-public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,AutoSerializer<TRecord>>,ISet<TKey,TRecord>, IMemoryCollection<TRecord>
+public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,AutoSerializer<TRecord>>, ISet<TKey,TRecord>, IMemoryCollection<TRecord>
     where TRecord : IRecord<TKey> {
     private readonly IDisposable? ownedStore;
     internal Set(CollectionStore<TKey,TRecord> collectionStore,IDisposable? ownedStore = null) : base(collectionStore) {
@@ -184,12 +184,12 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
         return new Enumerator<ValueIterator,TRecord>(this.ReadSession,new(),this.Store.Log.TailAddress,this);
     }
     public void Iterate<TStrategy>(ref TStrategy strategy)
-        where TStrategy:struct,ISetIterateStrategy<TStrategy,TRecord>{
+        where TStrategy : struct, ISetIterateStrategy<TStrategy,TRecord> {
         this.VerifyThreadAffinity();
-        var iterator=new IterateLookupAdapter<TStrategy>(strategy);
-        var cursor=0L;
-        this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor:false);
-        this.ReadSession.BasicContext.CompletePending(wait:true);
+        var iterator = new IterateLookupAdapter<TStrategy>(strategy);
+        var cursor = 0L;
+        this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+        this.ReadSession.BasicContext.CompletePending(wait: true);
         strategy=iterator.Strategy;
     }
     IEnumerator<TRecord> IEnumerable<TRecord>.GetEnumerator() => this.GetEnumerator();
@@ -200,21 +200,21 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
     }
 
     private sealed class IterateLookupAdapter<TStrategy>(TStrategy strategy):IScanIteratorFunctions
-        where TStrategy:struct,ISetIterateStrategy<TStrategy,TRecord>{
-        public TStrategy Strategy=strategy;
+        where TStrategy : struct, ISetIterateStrategy<TStrategy,TRecord> {
+        public TStrategy Strategy = strategy;
 
         public bool Reader<TSourceLogRecord>(
             in TSourceLogRecord logRecord,
             RecordMetadata recordMetadata,
             long numberOfRecords,
             out CursorRecordResult cursorRecordResult)
-            where TSourceLogRecord:ISourceLogRecord{
-            if(logRecord.Info.Tombstone){
+            where TSourceLogRecord : ISourceLogRecord {
+            if(logRecord.Info.Tombstone) {
                 cursorRecordResult=CursorRecordResult.Skip;
                 return true;
             }
-            var item=AutoSerializer<TRecord>.Deserialize(logRecord.ValueSpan);
-            if(TStrategy.Invoke(ref this.Strategy,item)){
+            var item = AutoSerializer<TRecord>.Deserialize(logRecord.ValueSpan);
+            if(TStrategy.Invoke(ref this.Strategy,item)) {
                 cursorRecordResult=CursorRecordResult.Accept;
                 return true;
             }
@@ -222,16 +222,16 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
             return true;
         }
 
-        public bool OnStart(long beginAddress,long endAddress)=>true;
-        public void OnStop(bool completed,long numberOfRecords){}
-        public void OnException(Exception exception,long numberOfRecords){}
+        public bool OnStart(long beginAddress,long endAddress) => true;
+        public void OnStop(bool completed,long numberOfRecords) { }
+        public void OnException(Exception exception,long numberOfRecords) { }
     }
 }
 
 
 
 
-public class Set<TRecord> : HashSet<TRecord> {
+public class Set<TRecord>:HashSet<TRecord> {
     internal Set(CollectionStore<TRecord,EqualityEmpty> collectionStore,IDisposable? ownedStore = null) : base(collectionStore,ownedStore) {
     }
 }

@@ -19,7 +19,7 @@ public partial class KindDictionarySize(ITestOutputHelper output) {
         TDict dict)
         where TDict : global::Seamless.Tsavorite.Collections.IDictionary<int,int> {
         var begin = getTailAddress();
-        for(var i = 0; i<N; i++) dict.Add(i,i);
+        for(var i = 0;i<N;i++) dict.Add(i,i);
         return getTailAddress()-begin;
     }
 

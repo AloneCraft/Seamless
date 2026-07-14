@@ -4,8 +4,7 @@ namespace Seamless.System.Carrier;
 // Most of the time we use class instead of struct because objects are kept in the heap.
 // Since we're only using it for duplicate checking in set operations, having `bool Add` is sufficient.
 [EditorBrowsable(EditorBrowsableState.Never)]
-public sealed class HashSetSlim<T> : IDisposable
-{
+public sealed class HashSetSlim<T>:IDisposable {
     private const int MinimumSize = 16; // minimum arraypool size(power of 2)
     private const double LoadFactor = 0.72;
     private readonly IEqualityComparer<T> comparer;
@@ -16,183 +15,159 @@ public sealed class HashSetSlim<T> : IDisposable
     private int resizeThreshold;
 
     public HashSetSlim(IEqualityComparer<T>? comparer)
-        : this(MinimumSize, comparer)
-    {
+        : this(MinimumSize,comparer) {
     }
 
-    public HashSetSlim(int capacity, IEqualityComparer<T>? comparer)
-    {
-        var requestedCapacity = Math.Max(capacity, 0);
+    public HashSetSlim(int capacity,IEqualityComparer<T>? comparer) {
+        var requestedCapacity = Math.Max(capacity,0);
         var bucketCapacity = requestedCapacity==0
             ? MinimumSize
-            : (int)Math.Ceiling((requestedCapacity + 1) / LoadFactor);
-        capacity = Math.Max((int)BitOperations.RoundUpToPowerOf2((uint)bucketCapacity), MinimumSize);
+            : (int)Math.Ceiling((requestedCapacity+1)/LoadFactor);
+        capacity=Math.Max((int)BitOperations.RoundUpToPowerOf2((uint)bucketCapacity),MinimumSize);
 
-        this.comparer = comparer ?? EqualityComparer<T>.Default;
-        this.buckets = ArrayPool<int>.Shared.Rent(capacity);
-        this.entries = ArrayPool<Entry>.Shared.Rent(capacity);
-        this.bucketsLength = capacity;
-        this.resizeThreshold = (int)(this.bucketsLength * LoadFactor);
+        this.comparer=comparer??EqualityComparer<T>.Default;
+        this.buckets=ArrayPool<int>.Shared.Rent(capacity);
+        this.entries=ArrayPool<Entry>.Shared.Rent(capacity);
+        this.bucketsLength=capacity;
+        this.resizeThreshold=(int)(this.bucketsLength*LoadFactor);
         this.buckets.AsSpan().Clear(); // 0-clear.
     }
 
-    public bool Add(T item)
-    {
+    public bool Add(T item) {
         var hashCode = this.InternalGetHashCode(item);
         ref var bucket = ref this.buckets[this.GetBucketIndex(hashCode)];
-        var index = bucket - 1;
+        var index = bucket-1;
 
         // lookup phase
-        while (index != -1)
-        {
+        while(index!=-1) {
             ref var entry = ref this.entries[index];
-            if (entry.HashCode == hashCode &&this.comparer.Equals(entry.Value, item))
-            {
+            if(entry.HashCode==hashCode&&this.comparer.Equals(entry.Value,item)) {
                 return false;
             }
-            index = entry.Next;
+            index=entry.Next;
         }
 
         // add phase
-        if(this.entryIndex>=this.resizeThreshold)
-        {
+        if(this.entryIndex>=this.resizeThreshold) {
             this.Resize();
             // Need to recalculate bucket after resize
-            bucket = ref this.buckets[this.GetBucketIndex(hashCode)];
+            bucket=ref this.buckets[this.GetBucketIndex(hashCode)];
         }
 
         ref var newEntry = ref this.entries[this.entryIndex];
-        newEntry.HashCode = hashCode;
-        newEntry.Value = item;
-        newEntry.Next = bucket - 1;
+        newEntry.HashCode=hashCode;
+        newEntry.Value=item;
+        newEntry.Next=bucket-1;
 
-        bucket =this.entryIndex + 1;
+        bucket=this.entryIndex+1;
         this.entryIndex++;
 
         return true;
     }
 
-    public bool Contains(T item)
-    {
+    public bool Contains(T item) {
         var hashCode = this.InternalGetHashCode(item);
-        var index = this.buckets[this.GetBucketIndex(hashCode)] - 1;
+        var index = this.buckets[this.GetBucketIndex(hashCode)]-1;
 
-        while (index != -1)
-        {
+        while(index!=-1) {
             ref var entry = ref this.entries[index];
-            if (entry.HashCode == hashCode &&this.comparer.Equals(entry.Value, item))
-            {
+            if(entry.HashCode==hashCode&&this.comparer.Equals(entry.Value,item)) {
                 return true;
             }
-            index = entry.Next;
+            index=entry.Next;
         }
 
         return false;
     }
-    private void Resize()
-    {
-        var newSize = BitOperations.RoundUpToPowerOf2((uint)this.entries.Length * 2);
+    private void Resize() {
+        var newSize = BitOperations.RoundUpToPowerOf2((uint)this.entries.Length*2);
         var newEntries = ArrayPool<Entry>.Shared.Rent((int)newSize);
         var newBuckets = ArrayPool<int>.Shared.Rent((int)newSize);
-        this.bucketsLength = (int)newSize; // guarantees PowerOf2
-        this.resizeThreshold = (int)(this.bucketsLength * LoadFactor);
+        this.bucketsLength=(int)newSize; // guarantees PowerOf2
+        this.resizeThreshold=(int)(this.bucketsLength*LoadFactor);
         newBuckets.AsSpan().Clear(); // 0-clear.
 
         // Copy entries
-        Array.Copy(this.entries, newEntries,this.entryIndex);
+        Array.Copy(this.entries,newEntries,this.entryIndex);
 
-        for (int i = 0; i <this.entryIndex; i++)
-        {
+        for(int i = 0;i<this.entryIndex;i++) {
             ref var entry = ref newEntries[i];
             var bucketIndex = this.GetBucketIndex(entry.HashCode);
 
             ref var bucket = ref newBuckets[bucketIndex];
-            entry.Next = bucket - 1;
-            bucket = i + 1;
+            entry.Next=bucket-1;
+            bucket=i+1;
         }
 
         // return old arrays
-        ArrayPool<int>.Shared.Return(this.buckets, clearArray: false);
-        ArrayPool<Entry>.Shared.Return(this.entries, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<Entry>());
+        ArrayPool<int>.Shared.Return(this.buckets,clearArray: false);
+        ArrayPool<Entry>.Shared.Return(this.entries,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<Entry>());
 
         // assign new arrays
-        this.entries = newEntries;
-        this.buckets = newBuckets;
+        this.entries=newEntries;
+        this.buckets=newBuckets;
     }
 
     // special use case for Intercept, only call after completely constructed(don't call Add after Remove called).
-    public bool Remove(T item)
-    {
+    public bool Remove(T item) {
         var hashCode = this.InternalGetHashCode(item);
         ref var bucket = ref this.buckets[this.GetBucketIndex(hashCode)];
-        var index = bucket - 1;
+        var index = bucket-1;
         var lastIndex = -1;
 
         // lookup phase
-        while (index != -1)
-        {
+        while(index!=-1) {
             ref var entry = ref this.entries[index];
-            if (entry.HashCode == hashCode &&this.comparer.Equals(entry.Value, item))
-            {
-                if (lastIndex == -1)
-                {
+            if(entry.HashCode==hashCode&&this.comparer.Equals(entry.Value,item)) {
+                if(lastIndex==-1) {
                     // This is the first entry in the bucket
-                    bucket = entry.Next + 1;
-                }
-                else
-                {
+                    bucket=entry.Next+1;
+                } else {
                     // Link the previous entry to the next one, skipping this entry
-                    this.entries[lastIndex].Next = entry.Next;
+                    this.entries[lastIndex].Next=entry.Next;
                 }
 
                 // Clear the removed entry's value
-                if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
-                {
-                    entry.Value = default!;
+                if(RuntimeHelpers.IsReferenceOrContainsReferences<T>()) {
+                    entry.Value=default!;
                 }
 
                 return true;
             }
 
-            lastIndex = index;
-            index = entry.Next;
+            lastIndex=index;
+            index=entry.Next;
         }
 
         return false;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private uint InternalGetHashCode(T key)
-    {
+    private uint InternalGetHashCode(T key) {
         // allows null.
-        return (uint)((key is null) ? 0 : this.comparer.GetHashCode(key) & 0x7FFFFFFF);
+        return (uint)((key is null) ? 0 : this.comparer.GetHashCode(key)&0x7FFFFFFF);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int GetBucketIndex(uint hashCode)
-    {
-        return (int)(hashCode & (this.bucketsLength - 1));
+    private int GetBucketIndex(uint hashCode) {
+        return (int)(hashCode&(this.bucketsLength-1));
     }
 
     // return to pool
-    public void Dispose()
-    {
-        if (this.buckets != null)
-        {
-            ArrayPool<int>.Shared.Return(this.buckets, clearArray: false);
-            this.buckets = null!;
+    public void Dispose() {
+        if(this.buckets!=null) {
+            ArrayPool<int>.Shared.Return(this.buckets,clearArray: false);
+            this.buckets=null!;
         }
-        if (this.entries != null)
-        {
-            ArrayPool<Entry>.Shared.Return(this.entries, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<Entry>());
-            this.entries = null!;
+        if(this.entries!=null) {
+            ArrayPool<Entry>.Shared.Return(this.entries,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<Entry>());
+            this.entries=null!;
         }
     }
 
     [StructLayout(LayoutKind.Auto)]
     [DebuggerDisplay("HashCode = {HashCode}, Value = {Value}, Next = {Next}")]
-    private struct Entry
-    {
+    private struct Entry {
         public uint HashCode;
         public T Value;
         public int Next; // next is index of entries, -1 is end of chain

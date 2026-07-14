@@ -53,8 +53,7 @@ public struct ValueEnumerator<TEnumerator, T>(TEnumerator enumerator):IEnumerato
     public bool MoveNext() {
         if(this.enumerator.TryGetNext(out this.current)) {
             return true;
-        }
-        else {
+        } else {
             this.current=default!;
             return false;
         }
@@ -107,8 +106,7 @@ internal static class ValueEnumerableDebuggerDisplayHelper // avoid <T> for asse
             if(genericsStart!=-1) {
                 var name = type.Name.Substring(0,genericsStart);
                 sb.Append(name);
-            }
-            else {
+            } else {
                 sb.Append(type.Name);
             }
             if(!parent.IsGenericType&&
@@ -121,8 +119,7 @@ internal static class ValueEnumerableDebuggerDisplayHelper // avoid <T> for asse
         }
         if(type.Name is "FromRange" or "FromRange2" or "FromRangeDateTime" or "FromRangeDateTimeTo") {
             sb.Append(type.Name);
-        }
-        else {
+        } else {
             sb.Append("<");
             sb.Append(type.Name);
             sb.Append(">");

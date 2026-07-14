@@ -21,7 +21,7 @@ ToArray は source.ToArray() を、件数/Span/InlineArray/ArrayPool の順で�
   - RangeRoot<int> は count サイズの配列を確保して start+i を直接代入する。
   - array/list/ICollection 由来の DirectEnumerableExpression は専用 hybrid inline を生成する。
 */
-public class ToArray(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
+public class ToArray(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
     // スタック上で受ける InlineArray の要素数。これ以内なら ArrayPool に一切触れない。
     private const int InlineCapacity = 16;
     protected override Enumerable PrimarySource => source;
@@ -43,8 +43,8 @@ public class ToArray(int 番号, Enumerable source, string resultType) : Buffere
         ??this.RenderDirectEnumerableToArrayHybridInline(source,destVar,destType)
         ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanToArrayInline(string destVar,string destType) {
-        var span=$"__span{this.result}";
-        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span = $"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
             if({{spanName}}.Length==0) {
                 {{destVar}}=global::System.Array.Empty<{{source.ElementType}}>();
             } else {
@@ -55,13 +55,13 @@ public class ToArray(int 番号, Enumerable source, string resultType) : Buffere
             """);
     }
     private string? RenderRangeToArrayInline(string destVar,string destType) {
-        if(source is not RangeRoot range || source.ElementType!="int") {
+        if(source is not RangeRoot range||source.ElementType!="int") {
             return null;
         }
 
-        var start=$"__start{番号}";
-        var count=$"__count{番号}";
-        var index=$"__i{番号}";
+        var start = $"__start{番号}";
+        var count = $"__count{番号}";
+        var index = $"__i{番号}";
         return $$"""
             {{destType}} {{destVar}};
             {

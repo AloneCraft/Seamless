@@ -11,7 +11,7 @@ public partial record struct ManagedSetRecord(int Key,string Name):global::Seaml
 public readonly record struct UnmanagedSetRecord(int Key,long Value):global::Seamless.Collections.IRecord<int>;
 
 public class Set {
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void ManagedSet_AddTryGetRemove_UsesRecordKey() {
         using var store = Store.Create().CreateSet<int,ManagedSetRecord>();
         using var set = store.Create();
@@ -30,7 +30,7 @@ public class Set {
         Assert.False(set.ContainsKey(1));
     }
 
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void ManagedSet_UnionWith_KeepsExistingRecordForDuplicateKey() {
         using var store = Store.Create().CreateSet<int,ManagedSetRecord>();
         using var otherStore = Store.Create().CreateSet<int,ManagedSetRecord>();
@@ -54,7 +54,7 @@ public class Set {
         Assert.Equal(added,foundAdded);
     }
 
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void UnmanagedSet_AddTryGetRemove_UsesRecordKey() {
         using var store = Store.Create().CreateSet<int,UnmanagedSetRecord>();
         using var set = store.Create();
@@ -71,7 +71,7 @@ public class Set {
         Assert.False(set.ContainsKey(7));
     }
 
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void ManagedSet_EnumerationDoesNotReturnRemovedOrDuplicateRecords() {
         using var store = Store.Create().CreateSet<int,ManagedSetRecord>();
         using var set = store.Create();
@@ -82,7 +82,7 @@ public class Set {
         for(var i = 0;i<32;i+=4)
             Assert.True(set.Add(new(i,"r"+i)));
 
-        var expectedKeys = Enumerable.Range(0,32).Where(static i => (i&1)!=0 || (i&3)==0).ToHashSet();
+        var expectedKeys = Enumerable.Range(0,32).Where(static i => (i&1)!=0||(i&3)==0).ToHashSet();
         var actualKeys = new global::System.Collections.Generic.HashSet<int>();
         foreach(var record in set)
             Assert.True(actualKeys.Add(record.Key),$"Duplicate key {record.Key} was returned.");
@@ -99,7 +99,7 @@ public class Set {
         Assert.True(!actualKeys.Contains(2));
     }
 
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void ManagedSet_FunctionalOperations_WithManagedSet_KeepReturnTypesAndValues() {
         using var store = Store.Create().CreateSet<int,ManagedSetRecord>();
         using var otherStore = Store.Create().CreateSet<int,ManagedSetRecord>();
@@ -145,7 +145,7 @@ public class Set {
         Assert.Equal(2,other.Count);
     }
 
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void ManagedSet_FunctionalOperations_WithManagedHashSet_KeepReturnTypesAndValues() {
         using var store = Store.Create().CreateSet<int,ManagedSetRecord>();
         using var set = store.Create();
@@ -178,7 +178,7 @@ public class Set {
         Assert.True(symmetric.Contains(3));
     }
 
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void UnmanagedSet_FunctionalOperations_WithUnmanagedSet_KeepReturnTypesAndValues() {
         using var store = Store.Create().CreateSet<int,UnmanagedSetRecord>();
         using var otherStore = Store.Create().CreateSet<int,UnmanagedSetRecord>();
@@ -221,7 +221,7 @@ public class Set {
         Assert.Equal(charlie,symmetricCharlie);
     }
 
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void UnmanagedSet_FunctionalOperations_WithUnmanagedHashSet_KeepReturnTypesAndValues() {
         using var store = Store.Create().CreateSet<int,UnmanagedSetRecord>();
         using var set = store.Create();

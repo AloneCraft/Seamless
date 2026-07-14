@@ -1,11 +1,11 @@
 internal static class ComparerExpressionSupport {
     public static bool IsDefaultEqualityComparer(string comparer,string typeName) =>
         IsNull(comparer)
-        || IsDefaultComparerExpression(comparer,typeName,"EqualityComparer");
+        ||IsDefaultComparerExpression(comparer,typeName,"EqualityComparer");
 
     public static bool IsDefaultOrderComparer(string comparer,string typeName) =>
         IsNull(comparer)
-        || IsDefaultComparerExpression(comparer,typeName,"Comparer");
+        ||IsDefaultComparerExpression(comparer,typeName,"Comparer");
 
     public static string RenderEqualityComparer(string comparer,string typeName) =>
         IsDefaultComparerExpression(comparer,typeName,"EqualityComparer")
@@ -21,11 +21,11 @@ internal static class ComparerExpressionSupport {
         string.Equals(comparer,"null",System.StringComparison.Ordinal);
 
     private static bool IsDefaultComparerExpression(string comparer,string typeName,string comparerTypeName) {
-        var normalized=Normalize(comparer);
+        var normalized = Normalize(comparer);
         foreach(var candidateType in CandidateTypeNames(typeName)) {
             if(string.Equals(normalized,$"{comparerTypeName}<{candidateType}>.Default",System.StringComparison.Ordinal)
-                || string.Equals(normalized,$"System.Collections.Generic.{comparerTypeName}<{candidateType}>.Default",System.StringComparison.Ordinal)
-                || string.Equals(normalized,$"global::System.Collections.Generic.{comparerTypeName}<{candidateType}>.Default",System.StringComparison.Ordinal)) {
+                ||string.Equals(normalized,$"System.Collections.Generic.{comparerTypeName}<{candidateType}>.Default",System.StringComparison.Ordinal)
+                ||string.Equals(normalized,$"global::System.Collections.Generic.{comparerTypeName}<{candidateType}>.Default",System.StringComparison.Ordinal)) {
                 return true;
             }
         }
@@ -46,6 +46,6 @@ internal static class ComparerExpressionSupport {
 
     private static bool IsInt32Type(string typeName) =>
         string.Equals(typeName,"int",System.StringComparison.Ordinal)
-        || string.Equals(typeName,"System.Int32",System.StringComparison.Ordinal)
-        || string.Equals(typeName,"global::System.Int32",System.StringComparison.Ordinal);
+        ||string.Equals(typeName,"System.Int32",System.StringComparison.Ordinal)
+        ||string.Equals(typeName,"global::System.Int32",System.StringComparison.Ordinal);
 }

@@ -1,102 +1,100 @@
-using UI;
-
 namespace Test.Benchmark;
 
-public sealed class BenchmarkTestSleepJobRunner{
+public sealed class ベンチマークテスト待機ジョブ実行器 {
     [Fact]
-    public async Task RunAsync(){
-        var runner = new global::UI.BenchmarkTestSleepJobRunner(TimeSpan.FromMilliseconds(1));
-        var job = new global::UI.BenchmarkJob{
-            Project="Test.Project",
-            AssemblyName="Test.Assembly",
-            TypeFullName="Test.Type",
-            MethodName="Sleep",
-            SourceTab=global::UI.BenchmarkSourceTab.SystemArray,
-            ElementCount=1,
-            LoopCount=1,
-            PreparedElementCounts=[1],
+    public async Task 実行Async() {
+        var 実行器 = new global::UI.ベンチマークテスト待機ジョブ実行器(TimeSpan.FromMilliseconds(1));
+        var ジョブ = new global::UI.ベンチマークジョブ {
+            プロジェクト="Test.プロジェクト",
+            アセンブリ名="Test.Assembly",
+            型完全名="Test.Type",
+            メソッド名="Sleep",
+            ソースタブ=global::UI.ベンチマークソースタブ.System配列,
+            要素数=1,
+            ループ回数=1,
+            準備済み要素数一覧= [1],
         };
-        var runRoot = Path.Combine(Path.GetTempPath(),"Seamless-TestSleepJobRunner-"+Guid.NewGuid().ToString("N"));
+        var 実行ルート = Path.Combine(Path.GetTempPath(),"Seamless-TestSleepJobRunner-"+Guid.NewGuid().ToString("N"));
 
-        var result = await runner.RunAsync(job,runRoot,0,TimeSpan.FromSeconds(5),CancellationToken.None);
+        var 結果 = await 実行器.実行Async(ジョブ,実行ルート,0,TimeSpan.FromSeconds(5),CancellationToken.None);
 
-        Assert.Equal("Completed",result.Status);
-        Assert.Equal("Test.Project",result.Project);
-        Assert.Equal("Sleep",result.Method);
-        Assert.NotNull(result.MeanNanoseconds);
-        Assert.Equal(0,result.AllocatedBytes);
-        Assert.Equal("test",result.ResultDigest);
+        Assert.Equal("Completed",結果.状態);
+        Assert.Equal("Test.プロジェクト",結果.プロジェクト);
+        Assert.Equal("Sleep",結果.メソッド);
+        Assert.NotNull(結果.平均ナノ秒);
+        Assert.Equal(0,結果.割り当てバイト数);
+        Assert.Equal("test",結果.結果ダイジェスト);
     }
 
     [Fact]
-    public async Task RunAsync_IEnumerableSourceTabCreatesArtifactDirectory(){
-        var runner=new global::UI.BenchmarkTestSleepJobRunner(TimeSpan.FromMilliseconds(1));
-        var job=new global::UI.BenchmarkJob{
-            Project="System.IEnumerable.FLinq",
-            AssemblyName="Benchmark.System.Linq.Enumerable.IEnumerable.FLinq",
-            TypeFullName="Benchmark.System.Linq.Enumerable.IEnumerable.FLinqInt32",
-            MethodName="Any",
-            SourceTab=global::UI.BenchmarkSourceTab.SystemIEnumerable,
-            ElementCount=4_096,
-            LoopCount=1,
-            PreparedElementCounts=[4_096],
+    public async Task 仕様確認01() {
+        var 実行器 = new global::UI.ベンチマークテスト待機ジョブ実行器(TimeSpan.FromMilliseconds(1));
+        var ジョブ = new global::UI.ベンチマークジョブ {
+            プロジェクト="System.IEnumerable.FLinq",
+            アセンブリ名="Benchmark.System.Linq.Enumerable.IEnumerable.FLinq",
+            型完全名="Benchmark.System.Linq.Enumerable.IEnumerable.FLinqInt32",
+            メソッド名="Any",
+            ソースタブ=global::UI.ベンチマークソースタブ.SystemIEnumerable,
+            要素数=4_096,
+            ループ回数=1,
+            準備済み要素数一覧= [4_096],
         };
-        var runRoot=Path.Combine(Path.GetTempPath(),"Seamless-IEnumerableSourceTab-"+Guid.NewGuid().ToString("N"));
-        try{
-            var result=await runner.RunAsync(job,runRoot,0,TimeSpan.FromSeconds(5),CancellationToken.None);
+        var 実行ルート = Path.Combine(Path.GetTempPath(),"Seamless-IEnumerableSourceTab-"+Guid.NewGuid().ToString("N"));
+        try {
+            var 結果 = await 実行器.実行Async(ジョブ,実行ルート,0,TimeSpan.FromSeconds(5),CancellationToken.None);
 
-            Assert.Equal("Completed",result.Status);
-            Assert.True(Directory.Exists(result.ArtifactFolder));
-            Assert.Contains("System.Collections.Generic.IEnumerable__",result.ArtifactFolder,StringComparison.Ordinal);
-        }finally{
-            if(Directory.Exists(runRoot)){
-                Directory.Delete(runRoot,true);
+            Assert.Equal("Completed",結果.状態);
+            Assert.True(Directory.Exists(結果.成果物フォルダー));
+            Assert.Contains("System.Collections.Generic.IEnumerable__",結果.成果物フォルダー,StringComparison.Ordinal);
+        } finally {
+            if(Directory.Exists(実行ルート)) {
+                Directory.Delete(実行ルート,true);
             }
         }
     }
 
     [Fact]
-    public async Task RunAsync_ObservesCancellation(){
-        var runner = new global::UI.BenchmarkTestSleepJobRunner(TimeSpan.FromSeconds(5));
-        var job = new global::UI.BenchmarkJob{
-            Project="Test.Project",
-            AssemblyName="Test.Assembly",
-            TypeFullName="Test.Type",
-            MethodName="Sleep",
-            SourceTab=global::UI.BenchmarkSourceTab.SystemArray,
-            ElementCount=1,
-            LoopCount=1,
-            PreparedElementCounts=[1],
+    public async Task 仕様確認02() {
+        var 実行器 = new global::UI.ベンチマークテスト待機ジョブ実行器(TimeSpan.FromSeconds(5));
+        var ジョブ = new global::UI.ベンチマークジョブ {
+            プロジェクト="Test.プロジェクト",
+            アセンブリ名="Test.Assembly",
+            型完全名="Test.Type",
+            メソッド名="Sleep",
+            ソースタブ=global::UI.ベンチマークソースタブ.System配列,
+            要素数=1,
+            ループ回数=1,
+            準備済み要素数一覧= [1],
         };
-        var runRoot = Path.Combine(Path.GetTempPath(),"Seamless-TestSleepJobRunner-"+Guid.NewGuid().ToString("N"));
-        using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
+        var 実行ルート = Path.Combine(Path.GetTempPath(),"Seamless-TestSleepJobRunner-"+Guid.NewGuid().ToString("N"));
+        using var 取消 = new CancellationTokenSource();
+        取消.Cancel();
 
         await Assert.ThrowsAsync<TaskCanceledException>(
-            () => runner.RunAsync(job,runRoot,0,TimeSpan.FromSeconds(5),cancellation.Token));
+            () => 実行器.実行Async(ジョブ,実行ルート,0,TimeSpan.FromSeconds(5),取消.Token));
     }
 
     [Fact]
-    public async Task RunAsync_InfiniteModeWaitsUntilCancellation(){
-        var runner = new global::UI.BenchmarkTestSleepJobRunner(TimeSpan.FromMilliseconds(1),true);
-        var job = new global::UI.BenchmarkJob{
-            Project="Test.Project",
-            AssemblyName="Test.Assembly",
-            TypeFullName="Test.Type",
-            MethodName="Sleep",
-            SourceTab=global::UI.BenchmarkSourceTab.SystemArray,
-            ElementCount=1,
-            LoopCount=1,
-            PreparedElementCounts=[1],
+    public async Task 仕様確認03() {
+        var 実行器 = new global::UI.ベンチマークテスト待機ジョブ実行器(TimeSpan.FromMilliseconds(1),true);
+        var ジョブ = new global::UI.ベンチマークジョブ {
+            プロジェクト="Test.プロジェクト",
+            アセンブリ名="Test.Assembly",
+            型完全名="Test.Type",
+            メソッド名="Sleep",
+            ソースタブ=global::UI.ベンチマークソースタブ.System配列,
+            要素数=1,
+            ループ回数=1,
+            準備済み要素数一覧= [1],
         };
-        var runRoot = Path.Combine(Path.GetTempPath(),"Seamless-TestSleepJobRunner-"+Guid.NewGuid().ToString("N"));
-        using var cancellation = new CancellationTokenSource();
+        var 実行ルート = Path.Combine(Path.GetTempPath(),"Seamless-TestSleepJobRunner-"+Guid.NewGuid().ToString("N"));
+        using var 取消 = new CancellationTokenSource();
 
-        var runTask = runner.RunAsync(job,runRoot,0,TimeSpan.FromSeconds(5),cancellation.Token);
-        var firstCompleted = await Task.WhenAny(runTask,Task.Delay(50));
-        Assert.NotSame(runTask,firstCompleted);
+        var 実行タスク = 実行器.実行Async(ジョブ,実行ルート,0,TimeSpan.FromSeconds(5),取消.Token);
+        var 先頭完了通知 = await Task.WhenAny(実行タスク,Task.Delay(50));
+        Assert.NotSame(実行タスク,先頭完了通知);
 
-        cancellation.Cancel();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await runTask);
+        取消.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await 実行タスク);
     }
 }

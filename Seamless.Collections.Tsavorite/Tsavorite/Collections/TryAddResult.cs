@@ -1,6 +1,6 @@
 namespace Seamless.Tsavorite.Collections;
 
-public enum TryAddResult{
+public enum TryAddResult {
     Success,
     LogFull,
     KeyAlreadyExists,

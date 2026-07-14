@@ -4,20 +4,20 @@ namespace Test.System.Linq.Intercept.Chain2;
 public sealed class Where_Count(ITestOutputHelper output):LinqChain2TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void Static() {
-        var expected=Source().Where(static v => v>2).Count();
-        this.MeasureOptimized(nameof(StaticOptimized),()=>StaticOptimized(expected));
-        this.MeasureOptimized(nameof(StaticNoOptimized),()=>StaticNoOptimized(expected));
+        var expected = Source().Where(static v => v>2).Count();
+        this.MeasureOptimized(nameof(StaticOptimized),() => StaticOptimized(expected));
+        this.MeasureOptimized(nameof(StaticNoOptimized),() => StaticNoOptimized(expected));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void StaticOptimized(dynamic expected) {
-        var actual=Source().Where(static v => v>2).Count();
-                Assert.Equal(expected,actual);
+        var actual = Source().Where(static v => v>2).Count();
+        Assert.Equal(expected,actual);
     }
 
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static void StaticNoOptimized(dynamic expected) {
-        var actual=Source().Where(static v => v>2).Count();
-                Assert.Equal(expected,actual);
+        var actual = Source().Where(static v => v>2).Count();
+        Assert.Equal(expected,actual);
     }
 }

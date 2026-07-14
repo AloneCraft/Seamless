@@ -6,8 +6,8 @@ public static class GeneratorHelpers {
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
         genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.ExpandNullable
-            | SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier
-            | SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
+            |SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier
+            |SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
 
     public static readonly SymbolDisplayFormat cref形式 = new(
         globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
@@ -25,8 +25,8 @@ public static class GeneratorHelpers {
     /// <paramref name="builder"/> に追記する。空行はインデントなしで出力する。
     /// CRLF・LF のどちらにも対応する。
     /// </summary>
-    public static void インデント付き追記(StringBuilder builder, string value, string indent) {
-        foreach(var line in value.Replace("\r\n", "\n").Split('\n')) {
+    public static void インデント付き追記(StringBuilder builder,string value,string indent) {
+        foreach(var line in value.Replace("\r\n","\n").Split('\n')) {
             if(line.Length==0) {
                 builder.AppendLine();
                 continue;
@@ -42,7 +42,7 @@ public static class GeneratorHelpers {
     /// データベーススキーマの生成ソース出力でコンパクト化のために使う。
     /// </summary>
     public static string 空行除去(string source) {
-        var lines = source.Replace("\r\n", "\n").Split('\n');
+        var lines = source.Replace("\r\n","\n").Split('\n');
         var builder = new StringBuilder(source.Length);
         var firstWritten = true;
         foreach(var line in lines) {

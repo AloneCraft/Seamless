@@ -1,12 +1,14 @@
-using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+
 using Seamless.FLinq;
+
+using System.Collections.Immutable;
 
 namespace Test.SourceGenerator;
 
 internal static class GeneratorTestHelpers {
-    public static readonly CSharpParseOptions ParseOptions=new CSharpParseOptions(LanguageVersion.Preview);
+    public static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.Preview);
 
     public static CSharpGeneratorDriver CreateDriver() {
         return CSharpGeneratorDriver.Create(
@@ -18,11 +20,11 @@ internal static class GeneratorTestHelpers {
     }
 
     public static CSharpCompilation CreateCompilation(IEnumerable<(string fileName,string source)> sources) {
-        var options=new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
+        var options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
             .WithNullableContextOptions(NullableContextOptions.Enable);
-        var references=GetNetCoreReferences();
-        var syntaxTrees=sources
-            .Select(s=>CSharpSyntaxTree.ParseText(s.source,ParseOptions,path: s.fileName))
+        var references = GetNetCoreReferences();
+        var syntaxTrees = sources
+            .Select(s => CSharpSyntaxTree.ParseText(s.source,ParseOptions,path: s.fileName))
             .ToArray();
 
         return CSharpCompilation.Create(
@@ -33,11 +35,11 @@ internal static class GeneratorTestHelpers {
     }
 
     private static ImmutableArray<MetadataReference> GetNetCoreReferences() {
-        var trustedAssemblies=AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string ?? string.Empty;
-        var refs=trustedAssemblies
+        var trustedAssemblies = AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string??string.Empty;
+        var refs = trustedAssemblies
             .Split(Path.PathSeparator)
-            .Where(p=>!string.IsNullOrWhiteSpace(p) && File.Exists(p))
-            .Select(p=>(MetadataReference)MetadataReference.CreateFromFile(p))
+            .Where(p => !string.IsNullOrWhiteSpace(p)&&File.Exists(p))
+            .Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))
             .Append(MetadataReference.CreateFromFile(typeof(global::Seamless.Linq.GeneratedCodeHelpers).Assembly.Location))
             .ToImmutableArray();
         return refs;

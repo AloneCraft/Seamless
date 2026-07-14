@@ -1,183 +1,177 @@
 namespace Test.Benchmark;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
-public sealed class BenchmarkRunSession{
+public sealed class ベンチマーク実行セッション {
     [Fact]
-    public void UpsertResult_ReplacesSameResultKey(){
-        var session = new global::UI.BenchmarkRunSession();
+    public void 仕様確認01() {
+        var セッション = new global::UI.ベンチマーク実行セッション();
 
-        session.UpsertResult(Result("System.Array.FLinq","Aggregate",64,100));
-        session.UpsertResult(Result("System.Array.FLinq","Aggregate",64,250));
+        セッション.結果を更新または追加(結果を作成("System.Array.FLinq","Aggregate",64,100));
+        セッション.結果を更新または追加(結果を作成("System.Array.FLinq","Aggregate",64,250));
 
-        var result = Assert.Single(session.GetResults(global::UI.BenchmarkSourceTab.SystemArray));
-        Assert.Equal(1,session.Count);
-        Assert.Equal(250,result.MeanNanoseconds);
+        var 結果 = Assert.Single(セッション.結果を取得(global::UI.ベンチマークソースタブ.System配列));
+        Assert.Equal(1,セッション.件数);
+        Assert.Equal(250,結果.平均ナノ秒);
     }
 
     [Fact]
-    public void GetResults_SeparatesSourceTabs(){
-        var session = new global::UI.BenchmarkRunSession();
+    public void 仕様確認02() {
+        var セッション = new global::UI.ベンチマーク実行セッション();
 
-        session.UpsertResult(Result("System.Array.FLinq","Aggregate",64,100));
-        session.UpsertResult(Result("System.Range.FLinq","Aggregate",64,200));
+        セッション.結果を更新または追加(結果を作成("System.Array.FLinq","Aggregate",64,100));
+        セッション.結果を更新または追加(結果を作成("System.Range.FLinq","Aggregate",64,200));
 
-        var arrayResult = Assert.Single(session.GetResults(global::UI.BenchmarkSourceTab.SystemArray));
-        var rangeResult = Assert.Single(session.GetResults(global::UI.BenchmarkSourceTab.SystemRange));
-        Assert.Equal("System.Array.FLinq",arrayResult.Project);
-        Assert.Equal("System.Range.FLinq",rangeResult.Project);
+        var 配列結果 = Assert.Single(セッション.結果を取得(global::UI.ベンチマークソースタブ.System配列));
+        var 範囲結果 = Assert.Single(セッション.結果を取得(global::UI.ベンチマークソースタブ.System範囲));
+        Assert.Equal("System.Array.FLinq",配列結果.プロジェクト);
+        Assert.Equal("System.Range.FLinq",範囲結果.プロジェクト);
     }
 
     [Fact]
-    public void GetElementCounts_ReturnsDistinctSortedCountsForSourceTab(){
-        var session = new global::UI.BenchmarkRunSession();
+    public void 仕様確認03() {
+        var セッション = new global::UI.ベンチマーク実行セッション();
 
-        session.UpsertResult(Result("System.Array.FLinq","Aggregate",64,100));
-        session.UpsertResult(Result("System.Array.ZLinq","Aggregate",16,200));
-        session.UpsertResult(Result("System.Range.FLinq","Aggregate",4,300));
+        セッション.結果を更新または追加(結果を作成("System.Array.FLinq","Aggregate",64,100));
+        セッション.結果を更新または追加(結果を作成("System.Array.ZLinq","Aggregate",16,200));
+        セッション.結果を更新または追加(結果を作成("System.Range.FLinq","Aggregate",4,300));
 
-        Assert.Equal([16,64],session.GetElementCounts(global::UI.BenchmarkSourceTab.SystemArray));
+        Assert.Equal([16,64],セッション.要素数一覧を取得(global::UI.ベンチマークソースタブ.System配列));
     }
 
     [Fact]
-    public void ClearRunningResults_RemovesRunningAndKeepsTerminalResults(){
-        var session = new global::UI.BenchmarkRunSession();
+    public void 仕様確認04() {
+        var セッション = new global::UI.ベンチマーク実行セッション();
 
-        session.UpsertResult(Result("System.Array.FLinq","Aggregate",64,100));
-        session.UpsertResult(RunningResult("System.Array.ZLinq","Aggregate",64));
+        セッション.結果を更新または追加(結果を作成("System.Array.FLinq","Aggregate",64,100));
+        セッション.結果を更新または追加(実行中結果を作成("System.Array.ZLinq","Aggregate",64));
 
-        session.ClearRunningResults();
+        セッション.実行中結果をクリア();
 
-        var result = Assert.Single(session.GetResults(global::UI.BenchmarkSourceTab.SystemArray));
-        Assert.Equal("System.Array.FLinq",result.Project);
-        Assert.Equal("Completed",result.Status);
+        var 結果 = Assert.Single(セッション.結果を取得(global::UI.ベンチマークソースタブ.System配列));
+        Assert.Equal("System.Array.FLinq",結果.プロジェクト);
+        Assert.Equal("Completed",結果.状態);
     }
 
     [Fact]
-    public void ClearRunningResults_RemovesOnlyRunningVersionOfSameResultKey(){
-        var session = new global::UI.BenchmarkRunSession();
+    public void 仕様確認05() {
+        var セッション = new global::UI.ベンチマーク実行セッション();
 
-        session.UpsertResult(RunningResult("System.Array.FLinq","Aggregate",64));
+        セッション.結果を更新または追加(実行中結果を作成("System.Array.FLinq","Aggregate",64));
 
-        session.ClearRunningResults();
+        セッション.実行中結果をクリア();
 
-        Assert.Empty(session.GetResults(global::UI.BenchmarkSourceTab.SystemArray));
-        Assert.Equal(0,session.Count);
+        Assert.Empty(セッション.結果を取得(global::UI.ベンチマークソースタブ.System配列));
+        Assert.Equal(0,セッション.件数);
     }
 
     [Fact]
-    public void ToProgressState_CreatesJobsAndSelectionSnapshot(){
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var session = new global::UI.BenchmarkRunSession();
-        session.UpsertResult(Result("System.Array.FLinq","Aggregate",64,100,"Array.Type","Count=64",[new global::UI.BenchmarkArgument("Count","64")]));
+    public void 仕様確認06() {
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        var セッション = new global::UI.ベンチマーク実行セッション();
+        セッション.結果を更新または追加(結果を作成("System.Array.FLinq","Aggregate",64,100,"Array.Type","Count=64",[new global::UI.ベンチマーク引数("Count","64")]));
 
-        var state = session.ToProgressState(
-            "run-42",
-            global::UI.BenchmarkExecutionProfile.Fast,
-            sourceTab,
+        var 状態 = セッション.進行状態に変換(
+            "実行処理-42",
+            global::UI.ベンチマーク実行プロファイル.高速,
+            ソースタブ,
             TimeSpan.FromMilliseconds(1),
-            new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase){
-                ["SystemArray|row|left"]=true,
+            new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase) {
+                ["System配列|行"]=true,
             },
-            new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase){
-                ["SystemArray|row"]=true,
-            },
-            result => new global::UI.BenchmarkCase(result.Project,sourceTab.LeftAssemblyName,result.TypeFullName,result.Method,result.ArgumentKey,result.Arguments));
+            結果 => new global::UI.ベンチマークケース(結果.プロジェクト,ソースタブ.左アセンブリ名,結果.型完全名,結果.メソッド,結果.引数キー,結果.引数一覧));
 
-        var job = Assert.Single(state.Jobs);
-        Assert.Equal(global::UI.BenchmarkExecutionProfile.Fast,state.ExecutionProfile);
-        Assert.Equal(global::UI.BenchmarkSourceTab.SystemArray,state.SourceTab);
-        Assert.Equal([64],state.ElementCounts);
-        Assert.Equal(sourceTab.LeftAssemblyName,job.AssemblyName);
-        Assert.Equal("Array.Type",job.TypeFullName);
-        Assert.Equal("Count=64",job.ArgumentKey);
-        Assert.True(state.BenchmarkSelection.ProjectCellSelections["SystemArray|row|left"]);
-        Assert.True(state.BenchmarkSelection.RowSelections["SystemArray|row"]);
+        var ジョブ = Assert.Single(状態.ジョブ一覧);
+        Assert.Equal(global::UI.ベンチマーク実行プロファイル.高速,状態.実行プロファイル);
+        Assert.Equal(global::UI.ベンチマークソースタブ.System配列,状態.ソースタブ);
+        Assert.Equal([64],状態.要素数一覧);
+        Assert.Equal(ソースタブ.左アセンブリ名,ジョブ.アセンブリ名);
+        Assert.Equal("Array.Type",ジョブ.型完全名);
+        Assert.Equal("Count=64",ジョブ.引数キー);
+        Assert.True(状態.ベンチマーク選択.行選択["System配列|行"]);
     }
 
     [Fact]
-    public void ToProgressState_UsesBenchmarkAssemblyToResolveSharedSeamlessLinqSourceTab(){
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SeamlessTsavorite);
-        var session = new global::UI.BenchmarkRunSession();
-        session.UpsertResult(Result(
-            sourceTab.RightProject,
+    public void 仕様確認07() {
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.SeamlessTsavorite);
+        var セッション = new global::UI.ベンチマーク実行セッション();
+        セッション.結果を更新または追加(結果を作成(
+            ソースタブ.右プロジェクト,
             "Aggregate_func",
             64,
             100,
             "Benchmark.Tsavorite.Linq.Enumerable.LinqInt32",
-            sourceTab:sourceTab.Tab));
+            ソースタブ: ソースタブ.タブ));
 
-        var state = session.ToProgressState(
-            "run-42",
-            global::UI.BenchmarkExecutionProfile.Fast,
-            sourceTab,
+        var 状態 = セッション.進行状態に変換(
+            "実行処理-42",
+            global::UI.ベンチマーク実行プロファイル.高速,
+            ソースタブ,
             TimeSpan.FromMilliseconds(1),
             new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase),
-            new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase),
-            result => new global::UI.BenchmarkCase(
-                result.Project,
-                sourceTab.RightAssemblyName,
-                result.TypeFullName,
-                result.Method,
-                result.ArgumentKey,
-                result.Arguments));
+            結果 => new global::UI.ベンチマークケース(
+                結果.プロジェクト,
+                ソースタブ.右アセンブリ名,
+                結果.型完全名,
+                結果.メソッド,
+                結果.引数キー,
+                結果.引数一覧));
 
-        var job = Assert.Single(state.Jobs);
-        Assert.Equal(sourceTab.Tab,job.SourceTab);
-        Assert.Equal(sourceTab.RightProject,job.Project);
-        Assert.Equal(sourceTab.RightAssemblyName,job.AssemblyName);
+        var ジョブ = Assert.Single(状態.ジョブ一覧);
+        Assert.Equal(ソースタブ.タブ,ジョブ.ソースタブ);
+        Assert.Equal(ソースタブ.右プロジェクト,ジョブ.プロジェクト);
+        Assert.Equal(ソースタブ.右アセンブリ名,ジョブ.アセンブリ名);
     }
 
     [Fact]
-    public void ToProgressState_ThrowsWhenBenchmarkTypeIsUnresolved(){
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var session = new global::UI.BenchmarkRunSession();
-        session.UpsertResult(Result("System.Array.FLinq","Aggregate",64,100,"int"));
+    public void 仕様確認08() {
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        var セッション = new global::UI.ベンチマーク実行セッション();
+        セッション.結果を更新または追加(結果を作成("System.Array.FLinq","Aggregate",64,100,"int"));
 
-        Assert.Throws<InvalidDataException>(() => session.ToProgressState(
-            "run-42",
-            global::UI.BenchmarkExecutionProfile.Fast,
-            sourceTab,
+        Assert.Throws<InvalidDataException>(() => セッション.進行状態に変換(
+            "実行処理-42",
+            global::UI.ベンチマーク実行プロファイル.高速,
+            ソースタブ,
             TimeSpan.FromMilliseconds(1),
-            new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase),
             new Dictionary<string,bool>(StringComparer.OrdinalIgnoreCase),
             _ => null));
     }
 
-    private static global::UI.BenchmarkResultItem Result(
-        string project,
-        string method,
-        int elementCount,
-        double mean,
-        string typeFullName = "Sample.Type",
-        string argumentKey = "",
-        IReadOnlyList<global::UI.BenchmarkArgument>? arguments = null,
-        global::UI.BenchmarkSourceTab? sourceTab = null) =>
+    private static global::UI.ベンチマーク結果項目 結果を作成(
+        string プロジェクト,
+        string メソッド,
+        int 要素数,
+        double 平均,
+        string 型完全名 = "Sample.Type",
+        string 引数キー = "",
+        IReadOnlyList<global::UI.ベンチマーク引数>? 引数一覧 = null,
+        global::UI.ベンチマークソースタブ? ソースタブ = null) =>
         new(
-            project,
-            method,
-            global::UI.ProjectMetrics.FromMeasurement(mean,128),
-            elementCount,
-            typeFullName,
-            argumentKey,
-            arguments,
-            sourceTab){
+            プロジェクト,
+            メソッド,
+            global::UI.プロジェクト測定値.測定から作成(平均,128),
+            要素数,
+            型完全名,
+            引数キー,
+            引数一覧,
+            ソースタブ) {
         };
 
-    private static global::UI.BenchmarkResultItem RunningResult(
-        string project,
-        string method,
-        int elementCount,
-        string typeFullName = "Sample.Type",
-        string argumentKey = "") =>
-        new(new global::UI.BenchmarkJob{
-            Project=project,
-            MethodName=method,
-            TypeFullName=typeFullName,
-            SourceTab=global::UI.BenchmarkSourceTab.SystemArray,
-            ElementCount=elementCount,
-            LoopCount=elementCount,
-            ArgumentKey=argumentKey,
-            Status=global::UI.JobStatus.Running,
-            StartedAt=DateTimeOffset.UtcNow,
+    private static global::UI.ベンチマーク結果項目 実行中結果を作成(
+        string プロジェクト,
+        string メソッド,
+        int 要素数,
+        string 型完全名 = "Sample.Type",
+        string 引数キー = "") =>
+        new(new global::UI.ベンチマークジョブ {
+            プロジェクト=プロジェクト,
+            メソッド名=メソッド,
+            型完全名=型完全名,
+            ソースタブ=global::UI.ベンチマークソースタブ.System配列,
+            要素数=要素数,
+            ループ回数=要素数,
+            引数キー=引数キー,
+            状態=global::UI.ジョブ状態.実行中,
+            開始日時=DateTimeOffset.UtcNow,
         });
 }

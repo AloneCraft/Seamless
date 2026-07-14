@@ -1,6 +1,5 @@
 using Collection.Helper.CollectionLinq;
 using Collection.Strategy.CollectionLinq;
-using Seamless.Serialization;
 
 #if BENCHMARK_PROJECT
 namespace Benchmark.Persisted.Collections.Strategy.CollectionLinq;
@@ -9,8 +8,7 @@ namespace Persisted.Collections.Strategy.CollectionLinq;
 #endif
 
 public sealed class PersistedSetLinqSource<T>(string path,global::Seamless.Persisted.Collections.Set<T> set):IDisposable
-    where T : IEquatable<T>
-{
+    where T : IEquatable<T> {
     public global::Seamless.Persisted.Collections.Set<T> Set { get; } = set;
 
     public void Dispose() {
@@ -19,8 +17,7 @@ public sealed class PersistedSetLinqSource<T>(string path,global::Seamless.Persi
     }
 }
 
-public sealed class PersistedListLinqSource<T>(string path,ListHandle<T> handle):IDisposable
-{
+public sealed class PersistedListLinqSource<T>(string path,ListHandle<T> handle):IDisposable {
     public global::Seamless.Persisted.Collections.PersistedList<T> List => handle.List;
 
     public void Dispose() {
@@ -29,13 +26,12 @@ public sealed class PersistedListLinqSource<T>(string path,ListHandle<T> handle)
     }
 }
 
-public sealed class PersistedDictionaryLinqSource<TKey,TValue>(
+public sealed class PersistedDictionaryLinqSource<TKey, TValue>(
     string path,
     IReadOnlyDictionary<TKey,TValue> dictionary,
     IDisposable disposable):IDisposable
     where TKey : IEquatable<TKey>
-    where TValue : IEquatable<TValue>
-{
+    where TValue : IEquatable<TValue> {
     public IReadOnlyDictionary<TKey,TValue> Dictionary { get; } = dictionary;
 
     public void Dispose() {
@@ -44,11 +40,10 @@ public sealed class PersistedDictionaryLinqSource<TKey,TValue>(
     }
 }
 
-public readonly struct PersistedSetCollectionLinqStrategy<TProvider,TElement>
+public readonly struct PersistedSetCollectionLinqStrategy<TProvider, TElement>
     :ICollectionLinqStrategy<PersistedSetLinqSource<TElement>,TElement,TElement,TElement>
     where TProvider : IHashSetValueProvider<TElement>
-    where TElement : IEquatable<TElement>
-{
+    where TElement : IEquatable<TElement> {
     public static PersistedSetLinqSource<TElement> Create(int count) =>
         CreateRange(nameof(Create),1,count);
 
@@ -84,11 +79,10 @@ public readonly struct PersistedSetCollectionLinqStrategy<TProvider,TElement>
     }
 }
 
-public readonly struct PersistedListCollectionLinqStrategy<TListStrategy,TElement>
+public readonly struct PersistedListCollectionLinqStrategy<TListStrategy, TElement>
     :ICollectionLinqStrategy<PersistedListLinqSource<TElement>,TElement,TElement,TElement>
     where TListStrategy : IListTestStrategy<TElement>
-    where TElement : IEquatable<TElement>
-{
+    where TElement : IEquatable<TElement> {
     public static PersistedListLinqSource<TElement> Create(int count) =>
         CreateRange(nameof(Create),1,count);
 
@@ -123,12 +117,11 @@ public readonly struct PersistedListCollectionLinqStrategy<TListStrategy,TElemen
     }
 }
 
-public readonly struct PersistedBlittableDictionaryCollectionLinqStrategy<TProvider,TKey,TValue>
+public readonly struct PersistedBlittableDictionaryCollectionLinqStrategy<TProvider, TKey, TValue>
     :IDictionaryLinqStrategy<PersistedDictionaryLinqSource<TKey,TValue>,KeyValuePair<TKey,TValue>,TKey,TValue>
     where TProvider : IDictTestStrategy<TKey,TValue>
     where TKey : unmanaged, IEquatable<TKey>
-    where TValue : unmanaged, IEquatable<TValue>
-{
+    where TValue : unmanaged, IEquatable<TValue> {
     public static PersistedDictionaryLinqSource<TKey,TValue> Create(int count) =>
         CreateRange(nameof(Create),1,count);
 
@@ -175,12 +168,11 @@ public readonly struct PersistedBlittableDictionaryCollectionLinqStrategy<TProvi
     }
 }
 
-public readonly struct PersistedSerializedDictionaryCollectionLinqStrategy<TProvider,TKey,TValue>
+public readonly struct PersistedSerializedDictionaryCollectionLinqStrategy<TProvider, TKey, TValue>
     :IDictionaryLinqStrategy<PersistedDictionaryLinqSource<TKey,TValue>,KeyValuePair<TKey,TValue>,TKey,TValue>
     where TProvider : IDictTestStrategy<TKey,TValue>
     where TKey : notnull, IEquatable<TKey>
-    where TValue : IEquatable<TValue>
-{
+    where TValue : IEquatable<TValue> {
     public static PersistedDictionaryLinqSource<TKey,TValue> Create(int count) =>
         CreateRange(nameof(Create),1,count);
 
@@ -228,7 +220,7 @@ public readonly struct PersistedSerializedDictionaryCollectionLinqStrategy<TProv
 }
 
 internal static class PersistedCollectionLinqPaths {
-    public static string CreatePath<TStrategy,TElement>(string tag) {
+    public static string CreatePath<TStrategy, TElement>(string tag) {
         var directoryPath = Path.Combine(
             Environment.CurrentDirectory,
             typeof(TStrategy).Name,
@@ -245,10 +237,8 @@ internal static class PersistedCollectionLinqPaths {
         }
         try {
             Directory.Delete(directoryPath,recursive: true);
-        }
-        catch(IOException) {
-        }
-        catch(UnauthorizedAccessException) {
+        } catch(IOException) {
+        } catch(UnauthorizedAccessException) {
         }
     }
 }

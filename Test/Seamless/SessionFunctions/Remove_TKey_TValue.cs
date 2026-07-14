@@ -1,4 +1,5 @@
 using Seamless.Tsavorite.Stores;
+
 using Tsavorite.core;
 namespace Test.Seamless.SessionFunctions;
 
@@ -42,7 +43,7 @@ public abstract class RemoveTKeyTValueTests<TKey, TValue>
         var (dict,store)=this.CreateDiskSpill(logDevice,objDevice);
         using var _store = store;
         using var _dict = dict;
-        for(var a = 0; a<300; a++) dict[this.Key(a)]=this.Value(a);
+        for(var a = 0;a<300;a++) dict[this.Key(a)]=this.Value(a);
         Assert.True(dict.Remove(this.Key(0),out var value));
         Assert.Equal(this.Value(0),value);
     }

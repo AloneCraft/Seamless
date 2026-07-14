@@ -1,9 +1,9 @@
 namespace Seamless.Collections;
 
-public interface IUnorderedEnumerable<out T>:IEnumerable<T>{
+public interface IUnorderedEnumerable<out T>:IEnumerable<T> {
 }
 
-public interface ISet<T>:IReadOnlySet<T>,IUnorderedEnumerable<T>{
+public interface ISet<T>:IReadOnlySet<T>, IUnorderedEnumerable<T> {
     long GetLongCount() => this.Count;
 
     bool IReadOnlySet<T>.IsSubsetOf(IEnumerable<T> other) {
@@ -37,7 +37,7 @@ public interface ISet<T>:IReadOnlySet<T>,IUnorderedEnumerable<T>{
     }
 }
 
-public interface ISet<in TKey, TRecord> : ISet<TRecord>
+public interface ISet<in TKey, TRecord>:ISet<TRecord>
     where TRecord : IRecord<TKey> {
     bool ContainsKey(TKey key);
     bool TryGetValue(TKey key,[MaybeNullWhen(false)] out TRecord value);

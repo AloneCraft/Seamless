@@ -1,34 +1,30 @@
 namespace Seamless.System.Carrier.Internal;
 
 // Intending to use internal, but making it public so it can be used as a helper when creating own operators.
-public static class EnumeratorHelper
-{
-    public static bool TryGetSliceRange(int sourceLength, Index offset, int destinationLength, out int start, out int count)
-    {
+public static class EnumeratorHelper {
+    public static bool TryGetSliceRange(int sourceLength,Index offset,int destinationLength,out int start,out int count) {
         var sourceOffset = offset.GetOffset(sourceLength);
-        if (unchecked((uint)sourceOffset) < sourceLength)
-        {
-            start = sourceOffset;
-            count = Math.Min(sourceLength - sourceOffset, destinationLength);
+        if(unchecked((uint)sourceOffset)<sourceLength) {
+            start=sourceOffset;
+            count=Math.Min(sourceLength-sourceOffset,destinationLength);
             return true;
         }
 
-        start = 0;
-        count = 0;
+        start=0;
+        count=0;
         return false;
     }
 
-    public static bool TryGetSlice<T>(ReadOnlySpan<T> source, Index offset, int destinationLength, out ReadOnlySpan<T> slice)
-    {
+    public static bool TryGetSlice<T>(ReadOnlySpan<T> source,Index offset,int destinationLength,out ReadOnlySpan<T> slice) {
         var sourceOffset = offset.GetOffset(source.Length);
-        if (unchecked((uint)sourceOffset) < source.Length) // zero length is not allowed.
+        if(unchecked((uint)sourceOffset)<source.Length) // zero length is not allowed.
         {
-            var count = Math.Min(source.Length - sourceOffset, destinationLength);
-            slice = source.Slice(sourceOffset, count);
+            var count = Math.Min(source.Length-sourceOffset,destinationLength);
+            slice=source.Slice(sourceOffset,count);
             return true;
         }
 
-        slice = default;
+        slice=default;
         return false;
     }
 
@@ -41,119 +37,101 @@ public static class EnumeratorHelper
         , allows ref struct
 #endif
     {
-        return enumerator.TryGetNonEnumeratedCount(out var count) && count > 0 ? count : 0;
+        return enumerator.TryGetNonEnumeratedCount(out var count)&&count>0 ? count : 0;
     }
 
-    public static bool TryConsumeGetAt<TEnumerator, T>(ref TEnumerator enumerator, Index offset, out T value)
+    public static bool TryConsumeGetAt<TEnumerator, T>(ref TEnumerator enumerator,Index offset,out T value)
         where TEnumerator : struct, IValueEnumerator<T>
 #if NET9_0_OR_GREATER
         , allows ref struct
 #endif
     {
-        if (offset.IsFromEnd)
-        {
-            if (offset.Value == 1)
-            {
-                return TryConsumeGetLast(ref enumerator, out value);
+        if(offset.IsFromEnd) {
+            if(offset.Value==1) {
+                return TryConsumeGetLast(ref enumerator,out value);
+            } else {
+                return TryConsumeGetFromLast(ref enumerator,offset.Value,out value);
             }
-            else
-            {
-                return TryConsumeGetFromLast(ref enumerator, offset.Value, out value);
-            }
-        }
-        else
-        {
-            if (offset.Value == 0)
-            {
-                return TryConsumeGetFirst(ref enumerator, out value);
-            }
-            else
-            {
-                return TryConsumeGetAt(ref enumerator, offset.Value, out value);
+        } else {
+            if(offset.Value==0) {
+                return TryConsumeGetFirst(ref enumerator,out value);
+            } else {
+                return TryConsumeGetAt(ref enumerator,offset.Value,out value);
             }
         }
     }
-    private static bool TryConsumeGetFirst<TEnumerator, T>(ref TEnumerator enumerator, out T first)
+    private static bool TryConsumeGetFirst<TEnumerator, T>(ref TEnumerator enumerator,out T first)
        where TEnumerator : struct, IValueEnumerator<T>
 #if NET9_0_OR_GREATER
        , allows ref struct
 #endif
     {
-        if (enumerator.TryGetNext(out var item))
-        {
-            first = item;
+        if(enumerator.TryGetNext(out var item)) {
+            first=item;
             return true;
         }
 
-        first = default!;
+        first=default!;
         return false;
     }
-    private static bool TryConsumeGetAt<TEnumerator, T>(ref TEnumerator enumerator, int index, out T value)
+    private static bool TryConsumeGetAt<TEnumerator, T>(ref TEnumerator enumerator,int index,out T value)
        where TEnumerator : struct, IValueEnumerator<T>
 #if NET9_0_OR_GREATER
        , allows ref struct
 #endif
     {
         var i = 0;
-        while (enumerator.TryGetNext(out var item))
-        {
-            if (i++ == index)
-            {
-                value = item;
+        while(enumerator.TryGetNext(out var item)) {
+            if(i++==index) {
+                value=item;
                 return true;
             }
         }
-        value = default!;
+        value=default!;
         return false;
     }
-    private static bool TryConsumeGetLast<TEnumerator, T>(ref TEnumerator enumerator, out T last)
+    private static bool TryConsumeGetLast<TEnumerator, T>(ref TEnumerator enumerator,out T last)
        where TEnumerator : struct, IValueEnumerator<T>
 #if NET9_0_OR_GREATER
        , allows ref struct
 #endif
     {
-        if (enumerator.TryGetNext(out var item))
-        {
-            while (enumerator.TryGetNext(out var next))
-            {
-                item = next;
+        if(enumerator.TryGetNext(out var item)) {
+            while(enumerator.TryGetNext(out var next)) {
+                item=next;
             }
-            last = item;
+            last=item;
             return true;
         }
 
-        last = default!;
+        last=default!;
         return false;
     }
-    private static bool TryConsumeGetFromLast<TEnumerator, T>(ref TEnumerator enumerator, int indexFromEnd, out T value)
+    private static bool TryConsumeGetFromLast<TEnumerator, T>(ref TEnumerator enumerator,int indexFromEnd,out T value)
        where TEnumerator : struct, IValueEnumerator<T>
 #if NET9_0_OR_GREATER
        , allows ref struct
 #endif
     {
-        if (indexFromEnd == 0)
-        {
-            value = default!;
+        if(indexFromEnd==0) {
+            value=default!;
             return false;
         }
 
         using var q = new ValueQueue<T>(4);
-        while (enumerator.TryGetNext(out var current))
-        {
-            if (q.Count == indexFromEnd)
-            {
+        while(enumerator.TryGetNext(out var current)) {
+            if(q.Count==indexFromEnd) {
                 q.Dequeue();
             }
             q.Enqueue(current);
         }
 
-        if (q.Count == indexFromEnd)
-        {
-            value = q.Dequeue();
+        if(q.Count==indexFromEnd) {
+            value=q.Dequeue();
             return true;
         }
 
-        value = default!;
+        value=default!;
         return false;
     }
 }

@@ -16,8 +16,8 @@ First は source.First() を、最初の1要素だけ読む Compute に変換す
   - predicate 付きは predicate(item) が true の最初の item を返す。
   - predicate が直接 lambda 化できる場合は DirectEnumerableExpression 経由で System.Linq.First へ委譲できる。
 */
-public class First(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
-    public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length == 0;
+public class First(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+    public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length==0;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -31,12 +31,12 @@ public class First(int 番号, Enumerable source, string resultType) : BufferedS
         ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"First")
         ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanFirstInline(string destVar,string destType) {
-        var sourceName=$"__firstSource{番号}";
-        var directSpanExpression=source.GetDirectSpanExpression(sourceName);
+        var sourceName = $"__firstSource{番号}";
+        var directSpanExpression = source.GetDirectSpanExpression(sourceName);
         if(directSpanExpression is null) {
             return null;
         }
-        var spanName=$"__firstSpan{番号}";
+        var spanName = $"__firstSpan{番号}";
         return $$"""
             {{destType}} {{destVar}};
             using(var {{sourceName}}={{source.GetEnumeratorExpression}}) {
@@ -56,9 +56,9 @@ public class First(int 番号, Enumerable source, string resultType) : BufferedS
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-public class First_predicate(int 番号, Enumerable source, FuncFragment predicate, string resultType) : BufferedScalar(番号, resultType) {
+public class First_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length > 0 && method.Parameters[0].Type.TypeKind == TypeKind.Delegate;
+        method.Parameters.Length>0&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate;
     private string PredicateFuncType => $"global::System.Func<{source.ElementType}, bool>";
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));

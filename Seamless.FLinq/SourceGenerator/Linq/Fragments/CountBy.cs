@@ -15,14 +15,14 @@ CountBy は key ごとの出現数を数え、KeyValuePair<TKey,int> 相当を�
 設計意図:
   GroupBy(...).Select(g => (g.Key, g.Count())) より、group の List を作らず count だけを Dictionary に保持する。
 */
-public class CountBy(int 番号, Enumerable source, FuncFragment keySelector) : Enumerable(番号) {
+public class CountBy(int 番号,Enumerable source,FuncFragment keySelector):Enumerable(番号) {
     private bool UsesPooledIntMap => IsInt32Type(FuncReturnTypeName(keySelector));
     private string KeySelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(keySelector)}>";
     protected override Enumerable PrimarySource => source;
     private static string CapacityExpression(string sourceCountExpression) => sourceCountExpression;
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumerableExpression =>
-        $"global::Seamless.System.Carrier.ValueEnumerableExtensions.CountBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg ?? keySelector.RenderAsLambda()})";
+        $"global::Seamless.System.Carrier.ValueEnumerableExtensions.CountBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
@@ -204,6 +204,6 @@ public class CountBy(int 番号, Enumerable source, FuncFragment keySelector) : 
 
     private static bool IsInt32Type(string typeName) =>
         string.Equals(typeName,"int",StringComparison.Ordinal)
-        || string.Equals(typeName,"System.Int32",StringComparison.Ordinal)
-        || string.Equals(typeName,"global::System.Int32",StringComparison.Ordinal);
+        ||string.Equals(typeName,"System.Int32",StringComparison.Ordinal)
+        ||string.Equals(typeName,"global::System.Int32",StringComparison.Ordinal);
 }

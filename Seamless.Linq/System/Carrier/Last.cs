@@ -7,8 +7,7 @@ namespace Seamless.System.Carrier {
                 return TryGetLast<TEnumerator,TSource>(ref enumerator,out var value)
                 ? value
                 : Throws.NoElements<TSource>();
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }
@@ -21,8 +20,7 @@ namespace Seamless.System.Carrier {
                 return TryGetLast<TEnumerator,TSource>(ref enumerator,predicate,out var value)
                 ? value
                 : Throws.NoMatch<TSource>();
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }
@@ -34,8 +32,7 @@ namespace Seamless.System.Carrier {
                 return TryGetLast<TEnumerator,TSource>(ref enumerator,out var value)
                 ? value
                 : default;
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }
@@ -47,8 +44,7 @@ namespace Seamless.System.Carrier {
                 return TryGetLast<TEnumerator,TSource>(ref enumerator,out var value)
                 ? value
                 : defaultValue;
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }
@@ -61,8 +57,7 @@ namespace Seamless.System.Carrier {
                 return TryGetLast<TEnumerator,TSource>(ref enumerator,predicate,out var value)
                 ? value
                 : default;
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }
@@ -75,8 +70,7 @@ namespace Seamless.System.Carrier {
                 return TryGetLast<TEnumerator,TSource>(ref enumerator,predicate,out var value)
                 ? value
                 : defaultValue;
-            }
-            finally {
+            } finally {
                 enumerator.Dispose();
             }
         }
@@ -110,7 +104,7 @@ namespace Seamless.System.Carrier {
             where TEnumerator : struct, IValueEnumerator<TSource> {
             if(source.TryGetSpan(out var span)) {
                 // search from last
-                for(var i = span.Length-1; i>=0; i--) {
+                for(var i = span.Length-1;i>=0;i--) {
                     ref readonly var v = ref span[i];
                     if(predicate(v)) {
                         value=v;

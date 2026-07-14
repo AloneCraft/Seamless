@@ -12,13 +12,12 @@ partial class ValueEnumerableExtensions {
                 }
 
                 var result = span[0];
-                for(int i = 1; (uint)i<(uint)span.Length; i++) {
+                for(int i = 1;(uint)i<(uint)span.Length;i++) {
                     result=func(result,span[i]);
                 }
 
                 return result;
-            }
-            else {
+            } else {
                 if(!enumerator.TryGetNext(out var result)) {
                     Throws.NoElements<TSource>();
                 }
@@ -44,8 +43,7 @@ partial class ValueEnumerableExtensions {
                 }
 
                 return result;
-            }
-            else {
+            } else {
 
                 var result = seed;
                 while(enumerator.TryGetNext(out var current)) {
@@ -70,8 +68,7 @@ partial class ValueEnumerableExtensions {
                 }
 
                 return resultSelector(result);
-            }
-            else {
+            } else {
                 var result = seed;
                 while(enumerator.TryGetNext(out var current)) {
                     result=func(result,current);

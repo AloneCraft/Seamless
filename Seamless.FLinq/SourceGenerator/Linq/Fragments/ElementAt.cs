@@ -1,8 +1,8 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public class ElementAt(int 番号, Enumerable source, string index, string resultType) : BufferedScalar(番号, resultType) {
+public class ElementAt(int 番号,Enumerable source,string index,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_Int32;
+        method.Parameters.Length==1&&method.Parameters[0].Type.SpecialType==SpecialType.System_Int32;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -14,8 +14,8 @@ public class ElementAt(int 番号, Enumerable source, string index, string resul
         ??this.RenderDirectSpanElementAtInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,index);
     private string? RenderDirectSpanElementAtInline(string destVar,string destType) {
-        var span=$"__span{this.result}";
-        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span = $"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
             var __idx={{index}};
             if(__idx<0) throw new global::System.ArgumentOutOfRangeException("index");
             if((uint)__idx>=(uint){{spanName}}.Length) throw new global::System.ArgumentOutOfRangeException("index");
@@ -23,12 +23,12 @@ public class ElementAt(int 番号, Enumerable source, string index, string resul
             """);
     }
     private string? RenderRangeElementAtInline(string destVar,string destType) {
-        if(source is not RangeRoot range || source.ElementType!="int") {
+        if(source is not RangeRoot range||source.ElementType!="int") {
             return null;
         }
-        var start=$"__start{番号}";
-        var count=$"__count{番号}";
-        var idx=$"__idx{番号}";
+        var start = $"__start{番号}";
+        var count = $"__count{番号}";
+        var idx = $"__idx{番号}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -65,10 +65,10 @@ public class ElementAt(int 番号, Enumerable source, string index, string resul
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-public class ElementAt_index(int 番号, Enumerable source, string index, string resultType) : BufferedScalar(番号, resultType) {
+public class ElementAt_index(int 番号,Enumerable source,string index,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length == 1
-        && method.Parameters[0].Type is INamedTypeSymbol {
+        method.Parameters.Length==1
+        &&method.Parameters[0].Type is INamedTypeSymbol {
             Name: "Index",
             ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true }
         };
@@ -83,20 +83,20 @@ public class ElementAt_index(int 番号, Enumerable source, string index, string
         ??this.RenderDirectSpanElementAtIndexInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,index);
     private string? RenderDirectSpanElementAtIndexInline(string destVar,string destType) {
-        var span=$"__span{this.result}";
-        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span = $"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
             var __idx=({{index}}).GetOffset({{spanName}}.Length);
             if((uint)__idx>=(uint){{spanName}}.Length) throw new global::System.ArgumentOutOfRangeException("index");
             {{destVar}}={{spanName}}[__idx];
             """);
     }
     private string? RenderRangeElementAtIndexInline(string destVar,string destType) {
-        if(source is not RangeRoot range || source.ElementType!="int") {
+        if(source is not RangeRoot range||source.ElementType!="int") {
             return null;
         }
-        var start=$"__start{番号}";
-        var count=$"__count{番号}";
-        var idx=$"__idx{番号}";
+        var start = $"__start{番号}";
+        var count = $"__count{番号}";
+        var idx = $"__idx{番号}";
         return $$"""
             {{destType}} {{destVar}};
             {

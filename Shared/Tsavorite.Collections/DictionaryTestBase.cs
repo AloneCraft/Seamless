@@ -12,7 +12,7 @@ public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTes
     where TValue : IEquatable<TValue> {
     private string CreateDiskFolder() =>
         TestPath.Directory(this);
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void TryAdd() {
         {
             // 新規キーの追加は Success
@@ -41,7 +41,7 @@ public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTes
             Assert.Equal(TryAddResult.KeyAlreadyExists,dict.TryAdd(TStrategy.K(0),TStrategy.V(1)));
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Remove_key_value() {
         {
             // 存在するキーは削除値を返す
@@ -62,7 +62,7 @@ public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTes
             Assert.Equal(default,value);
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void Dispose() {
         var sh = TStrategy.CreateMemoryStore();
         var dict = sh.NewDict();
@@ -75,7 +75,7 @@ public abstract class DictionaryTestBase<TStrategy, TKey, TValue>:IDictionaryTes
             sh.Dispose();
         }
     }
-    [BenchFact,Benchmark]
+    [BenchFact, Benchmark]
     public void EntryCount() {
         using var sh = TStrategy.CreateMemoryStore();
         using var dict = sh.NewDict();

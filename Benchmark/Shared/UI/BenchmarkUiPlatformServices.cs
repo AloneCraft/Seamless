@@ -1,23 +1,20 @@
-using Microsoft.Maui.ApplicationModel;
-using Microsoft.Maui.Storage;
-
 namespace UI;
 
-internal interface IBenchmarkUiDispatcher{
-    void BeginInvoke(Action action);
+internal interface IベンチマークUIディスパッチャー {
+    void 呼び出し開始(Action 処理);
 }
 
-internal sealed class MauiBenchmarkUiDispatcher:IBenchmarkUiDispatcher{
-    public void BeginInvoke(Action action) => StartupDiagnostics.BeginInvokeOnMainThread("IBenchmarkUiDispatcher.BeginInvoke",action);
+internal sealed class MauiベンチマークUIディスパッチャー:IベンチマークUIディスパッチャー {
+    public void 呼び出し開始(Action 処理) => 起動診断.メインスレッドで呼び出し開始("IベンチマークUIディスパッチャー.呼び出し開始",処理);
 }
 
-internal interface IBenchmarkUiPreferences{
-    string Get(string key,string defaultValue);
-    void Set(string key,string value);
+internal interface IベンチマークUI設定 {
+    string 取得(string キー,string 既定値);
+    void 設定(string キー,string 値);
 }
 
-internal sealed class MauiBenchmarkUiPreferences:IBenchmarkUiPreferences{
-    public string Get(string key,string defaultValue) => Preferences.Default.Get(key,defaultValue);
+internal sealed class MauiベンチマークUI設定:IベンチマークUI設定 {
+    public string 取得(string キー,string 既定値) => Preferences.Default.Get(キー,既定値);
 
-    public void Set(string key,string value) => Preferences.Default.Set(key,value);
+    public void 設定(string キー,string 値) => Preferences.Default.Set(キー,値);
 }

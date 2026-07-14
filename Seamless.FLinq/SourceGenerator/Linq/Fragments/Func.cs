@@ -1,4 +1,5 @@
 using Microsoft.CodeAnalysis.CSharp;
+
 using System.Text.RegularExpressions;
 namespace Seamless.FLinq.Linq.Fragments;
 
@@ -28,13 +29,13 @@ public abstract class FuncFragment {
     private string? hoistedLocalReceiver;
 
     // delegate 戻り値型名。
-    public string ReturnTypeName="void";
+    public string ReturnTypeName = "void";
     // delegate 引数型名一覧。
-    public string[] ParameterTypeNames=[];
+    public string[] ParameterTypeNames = [];
     // delegate 引数名一覧。
-    public string[] ParameterNames=[];
+    public string[] ParameterNames = [];
     // closure なしで struct 内へ直接式を展開できるかどうか。
-    public bool CanGenerateMethod=true;
+    public bool CanGenerateMethod = true;
     // 代入文として展開できるかどうか。
     // ループ本体で `current = selector(item);` のような形を作るとき、
     // いったん helper メソッドを呼ばずにラムダ本体をその場へ埋め込むために使う。
@@ -42,10 +43,10 @@ public abstract class FuncFragment {
     // static ラムダの本体を保持する。
     // これをそのまま使うのではなく、実引数へ置換して
     // `result0.Add(p + 1)` や `if ((p * 10) > 20)` のような式へ落とす。
-    public string InlineBody=string.Empty;
+    public string InlineBody = string.Empty;
     // ラムダがキャプチャしているローカル変数・外側パラメータ一覧（ラムダ引数は除く）。
     // struct closure 時に primary ctor へそのまま渡して backing field 化する。
-    public (string Name, string TypeName)[] CapturedLocals = [];
+    public (string Name,string TypeName)[] CapturedLocals = [];
     public HoistedLocal[] HoistedLocals = [];
     // ラムダ本体内のフィールド・static メソッドアクセス用に生成した UnsafeAccessor extern 宣言コード。
     // Fragment.CollectAllUnsafeAccessorCodes() で収集して補助クラスに出力される。
@@ -69,7 +70,7 @@ public abstract class FuncFragment {
     }
 
     public string RenderInlineAssignWithHoistedReceiver(string receiver,string destination,int number,params string[] arguments) {
-        var previousReceiver= this.hoistedLocalReceiver;
+        var previousReceiver = this.hoistedLocalReceiver;
         this.hoistedLocalReceiver=receiver;
         try {
             return this.RenderInlineAssign(destination,number,arguments);
@@ -79,7 +80,7 @@ public abstract class FuncFragment {
     }
 
     public string RenderInlineExpressionWithHoistedReceiver(string receiver,params string[] arguments) {
-        var previousReceiver= this.hoistedLocalReceiver;
+        var previousReceiver = this.hoistedLocalReceiver;
         this.hoistedLocalReceiver=receiver;
         try {
             return this.RenderInlineExpression(arguments);
@@ -104,7 +105,7 @@ public abstract class FuncFragment {
         if(this.DelegateConstructorArg is { } delegateConstructorArg) {
             return delegateConstructorArg;
         }
-        if(this.RequiresStatementInlining || string.IsNullOrWhiteSpace(this.InlineBody)) {
+        if(this.RequiresStatementInlining||string.IsNullOrWhiteSpace(this.InlineBody)) {
             throw new InvalidOperationException("Lambda expression rendering is not supported.");
         }
         var parameters = this.ParameterNames.Length==1
@@ -116,40 +117,40 @@ public abstract class FuncFragment {
     // 代入文向け inline 展開の共通処理。
     protected string RenderInlineAssignCore(string destination,int number,params string[] arguments) {
         var builder = new StringBuilder();
-        var rewrittenBody= this.InlineBody;
-        for(var index = 0; index<arguments.Length; index++) {
+        var rewrittenBody = this.InlineBody;
+        for(var index = 0;index<arguments.Length;index++) {
             var arg = arguments[index];
             string replacement;
             if(IsSimpleExpression(arg)) {
                 // 単純な識別子・メンバーアクセスは副作用なし → 一時変数不要で直接展開する。
-                replacement = arg;
+                replacement=arg;
             } else {
                 // メソッド呼び出し等の副作用のある式は多重評価を避けるため一時変数へ退避する。
                 // 例えば selector(GetValue()) をそのまま展開すると GetValue() が複数回評価されうる。
-                var tempName=$"__arg{number}_{SanitizeLocalName(destination)}_{index}";
+                var tempName = $"__arg{number}_{SanitizeLocalName(destination)}_{index}";
                 builder.AppendLine($"var {tempName}={arg};");
-                replacement = tempName;
+                replacement=tempName;
             }
-            if(index<this.ParameterNames.Length && !string.IsNullOrWhiteSpace(this.ParameterNames[index])) {
+            if(index<this.ParameterNames.Length&&!string.IsNullOrWhiteSpace(this.ParameterNames[index])) {
                 rewrittenBody=ReplaceParameterReference(rewrittenBody,this.ParameterNames[index],replacement);
             }
         }
 
         rewrittenBody=this.QualifyHoistedLocalReferences(rewrittenBody);
         builder.Append($"{destination}={rewrittenBody};");
-        this.ContainsAnchor |= AnchorAnalysis.LooksLikeAnchorText(rewrittenBody);
+        this.ContainsAnchor|=AnchorAnalysis.LooksLikeAnchorText(rewrittenBody);
         return builder.ToString();
     }
 
     // 識別子・ドット区切りメンバーアクセスだけからなる式は副作用がなく一時変数不要。
     private static bool IsSimpleExpression(string expr) =>
-        Regex.IsMatch(expr, @"^[@\w\.]+$");
+        Regex.IsMatch(expr,@"^[@\w\.]+$");
 
     // 式位置向け inline 展開の共通処理。
     protected string RenderInlineExpressionCore(params string[] arguments) {
-        var rewrittenBody= this.InlineBody;
-        for(var index = 0; index<arguments.Length; index++) {
-            if(index<this.ParameterNames.Length && !string.IsNullOrWhiteSpace(this.ParameterNames[index])) {
+        var rewrittenBody = this.InlineBody;
+        for(var index = 0;index<arguments.Length;index++) {
+            if(index<this.ParameterNames.Length&&!string.IsNullOrWhiteSpace(this.ParameterNames[index])) {
                 // 条件式や Add 引数のような「式の中」に埋め込む場合は、
                 // helper メソッド呼び出し `StructX_selector.selector(value)` を残さず、
                 // ラムダ引数名を実引数へ直接置換して式そのものを作る。
@@ -160,16 +161,16 @@ public abstract class FuncFragment {
         }
 
         rewrittenBody=this.QualifyHoistedLocalReferences(rewrittenBody);
-        this.ContainsAnchor |= AnchorAnalysis.LooksLikeAnchorText(rewrittenBody);
+        this.ContainsAnchor|=AnchorAnalysis.LooksLikeAnchorText(rewrittenBody);
         return CanOmitOuterParentheses(rewrittenBody) ? rewrittenBody : $"({rewrittenBody})";
     }
 
     private string QualifyHoistedLocalReferences(string text) {
-        if(string.IsNullOrEmpty(this.hoistedLocalReceiver) ||this.HoistedLocals.Length==0) {
+        if(string.IsNullOrEmpty(this.hoistedLocalReceiver)||this.HoistedLocals.Length==0) {
             return text;
         }
 
-        var rewritten=text;
+        var rewritten = text;
         foreach(var hoistedLocal in this.HoistedLocals) {
             rewritten=Regex.Replace(
                 rewritten,
@@ -183,7 +184,7 @@ public abstract class FuncFragment {
 
     protected static string ReplaceParameterReferences(string text,string[] parameterNames,string[] arguments) {
         var rewritten = text;
-        for(var index = 0; index<parameterNames.Length && index<arguments.Length; index++) {
+        for(var index = 0;index<parameterNames.Length&&index<arguments.Length;index++) {
             if(string.IsNullOrWhiteSpace(parameterNames[index])) {
                 continue;
             }

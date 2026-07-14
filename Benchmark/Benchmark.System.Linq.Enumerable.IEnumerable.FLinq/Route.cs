@@ -7,6 +7,6 @@ namespace Benchmark.System.Linq.Enumerable.IEnumerable {
 
 namespace Seamless.Linq.Shared {
     internal static class Route {
-        public static global::System.Collections.Generic.IEnumerable<T> AsX<T>(this global::System.Collections.Generic.IEnumerable<T> source)=>source;
+        public static global::System.Collections.Generic.IEnumerable<T> AsX<T>(this global::System.Collections.Generic.IEnumerable<T> source) => source;
     }
 }

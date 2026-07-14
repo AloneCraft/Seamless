@@ -2,7 +2,7 @@ using Seamless.FLinq;
 namespace Test.System.Linq.Intercept.Instrumentation;
 
 public sealed class Counter {
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void SelectSelectSelectWhere_counts_logical_and_physical() {
         using var scope = LinqCounterScope.Start();
 
@@ -18,7 +18,7 @@ public sealed class Counter {
         Assert.Equal(0,scope.Counter.PhysicalDelegate);
     }
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void SelectSelectSelectWhere_NoOptimized_counts_physical_delegates() {
         using var scope = LinqCounterScope.Start();
 
@@ -30,7 +30,7 @@ public sealed class Counter {
         Assert.Equal(20,scope.Counter.PhysicalDelegate);
     }
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void Join_counts_lookup_and_probe_work() {
         using var scope = LinqCounterScope.Start();
 
@@ -47,7 +47,7 @@ public sealed class Counter {
         Assert.Equal(0,scope.Counter.PhysicalDelegate);
     }
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void Join_NoOptimized_counts_physical_delegates() {
         using var scope = LinqCounterScope.Start();
 
@@ -59,7 +59,7 @@ public sealed class Counter {
         Assert.Equal(10,scope.Counter.PhysicalDelegate);
     }
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void TryGetNonEnumeratedCount_counts_explicit_call() {
         using var scope = LinqCounterScope.Start();
 
@@ -70,7 +70,7 @@ public sealed class Counter {
         Assert.Equal(1,scope.Counter.TryGetNonEnumeratedCount);
     }
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static async Task CounterScope_can_share_counter_across_parallel_tasks() {
         using var scope = LinqCounterScope.Start();
         var counter = scope.Counter;
@@ -113,19 +113,19 @@ public sealed class Counter {
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
     private static List<int> JoinOptimized() =>
-        new[]{1,2,3}
+        new[] { 1,2,3 }
             .Join([2,2,3,4],static outer => outer,static inner => inner,static (outer,inner) => outer+inner)
             .ToList();
 
     [LinqIntercept(false,LinqInstrumentation.Counter)]
     private static List<int> JoinNoOptimized() =>
-        new[]{1,2,3}
+        new[] { 1,2,3 }
             .Join([2,2,3,4],static outer => outer,static inner => inner,static (outer,inner) => outer+inner)
             .ToList();
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
     private static (bool Success,int Count) TryGetNonEnumeratedCountOptimized() {
-        var success = new[]{1,2,3}.TryGetNonEnumeratedCount(out var count);
+        var success = new[] { 1,2,3 }.TryGetNonEnumeratedCount(out var count);
         return (success,count);
     }
 }

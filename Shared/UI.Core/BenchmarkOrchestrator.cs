@@ -5,217 +5,216 @@ using System.Globalization;
 namespace UI;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
-internal sealed class BenchmarkOrchestrator(
-    BenchmarkStateManager stateManager,
-    IBenchmarkJobRunner jobRunner) {
-    private readonly Lock stateGate = new();
-    public async Task<BenchmarkOrchestratorResult> RunAsync(
-        BenchmarkRunRequest request,
-        Action<BenchmarkProgressUpdate> progress,
-        Action<string> statusChanged,
-        CancellationToken cancellationToken) {
-        var state = !string.IsNullOrWhiteSpace(request.RunRootOverride)
-            ? stateManager.Load(request.RunRootOverride)??this.CreateState(request)
-            : this.CreateState(request);
-        this.ReconcileStateWithRequest(state,request);
-        stateManager.SaveLatestRun(state.RunRoot);
-        stateManager.Save(state);
+internal sealed class ベンチマークオーケストレーター(
+    ベンチマーク状態マネージャー 状態マネージャー,
+    Iベンチマークジョブ実行器 ジョブ実行器) {
+    private readonly Lock 状態排他 = new();
+    public async Task<ベンチマークオーケストレーター結果> 実行Async(
+        ベンチマーク実行要求 要求,
+        Action<ベンチマーク進行更新> 進行通知,
+        Action<string> 状態変更時,
+        CancellationToken キャンセルトークン) {
+        var 状態 = !string.IsNullOrWhiteSpace(要求.実行ルート上書き)
+            ? 状態マネージャー.読み込む(要求.実行ルート上書き)??this.状態を作成(要求)
+            : this.状態を作成(要求);
+        this.状態を要求と同期(状態,要求);
+        状態マネージャー.保存(状態);
 
         try {
-            await this.RunAdaptiveAsync(state,request,progress,statusChanged,cancellationToken);
-        } catch(OperationCanceledException) when(cancellationToken.IsCancellationRequested) {
-            foreach(var job in state.Jobs.Where(static job => job.Status==JobStatus.Running)) {
-                job.Status=JobStatus.Pending;
-                job.AssignedLogicalCpu=null;
-                job.StartedAt=null;
-                job.FailureReason=string.Empty;
+            await this.適応実行Async(状態,要求,進行通知,状態変更時,キャンセルトークン);
+        } catch(OperationCanceledException) when(キャンセルトークン.IsCancellationRequested) {
+            foreach(var ジョブ in 状態.ジョブ一覧.Where(static ジョブ=>ジョブ.状態==ジョブ状態.実行中)) {
+                ジョブ.状態=ジョブ状態.保留;
+                ジョブ.割り当て論理CPU=null;
+                ジョブ.開始日時=null;
+                ジョブ.失敗理由=string.Empty;
             }
-            stateManager.Save(state);
+            状態マネージャー.保存(状態);
             throw;
         }
 
-        return new BenchmarkOrchestratorResult(state.RunRoot,state);
+        return new ベンチマークオーケストレーター結果(状態.実行ルート,状態);
     }
 
-    private async Task RunAdaptiveAsync(
-        ProgressState state,
-        BenchmarkRunRequest request,
-        Action<BenchmarkProgressUpdate> progress,
-        Action<string> statusChanged,
-        CancellationToken cancellationToken) {
-        var queue = new ConcurrentQueue<AdaptiveMethodRow>();
-        var queuedKeys = new global::System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var completedKeys = new global::System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        await this.RunDynamicAdaptiveRowsAsync(
-            state,
-            queue,
-            queuedKeys,
-            completedKeys,
-            request,
-            progress,
-            statusChanged,
-            cancellationToken);
+    private async Task 適応実行Async(
+        進行状態 状態,
+        ベンチマーク実行要求 要求,
+        Action<ベンチマーク進行更新> 進行通知,
+        Action<string> 状態変更時,
+        CancellationToken キャンセルトークン) {
+        var キュー = new ConcurrentQueue<適応メソッド行>();
+        var キュー済みキー一覧 = new global::System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var 完了キー一覧 = new global::System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        await this.動的適応行を実行Async(
+            状態,
+            キュー,
+            キュー済みキー一覧,
+            完了キー一覧,
+            要求,
+            進行通知,
+            状態変更時,
+            キャンセルトークン);
     }
 
-    private async Task RunDynamicAdaptiveRowsAsync(
-        ProgressState state,
-        ConcurrentQueue<AdaptiveMethodRow> queue,
-        global::System.Collections.Generic.HashSet<string> queuedKeys,
-        global::System.Collections.Generic.HashSet<string> completedKeys,
-        BenchmarkRunRequest request,
-        Action<BenchmarkProgressUpdate> progress,
-        Action<string> statusChanged,
-        CancellationToken cancellationToken) {
-        var running = 0;
-        var workers = new Dictionary<int,AdaptiveWorker>();
+    private async Task 動的適応行を実行Async(
+        進行状態 状態,
+        ConcurrentQueue<適応メソッド行> キュー,
+        global::System.Collections.Generic.HashSet<string> キュー済みキー一覧,
+        global::System.Collections.Generic.HashSet<string> 完了キー一覧,
+        ベンチマーク実行要求 要求,
+        Action<ベンチマーク進行更新> 進行通知,
+        Action<string> 状態変更時,
+        CancellationToken キャンセルトークン) {
+        var 実行中数 = 0;
+        var ワーカー一覧 = new Dictionary<int,適応ワーカー>();
         try {
             while(true) {
-                cancellationToken.ThrowIfCancellationRequested();
-                foreach(var worker in workers.Where(static item => item.Value.IsCompleted).ToArray()) {
-                    if(worker.Value.Task.IsFaulted) {
-                        await worker.Value.Task;
+                キャンセルトークン.ThrowIfCancellationRequested();
+                foreach(var ワーカー in ワーカー一覧.Where(static 項目=>項目.Value.完了か).ToArray()) {
+                    if(ワーカー.Value.タスク.IsFaulted) {
+                        await ワーカー.Value.タスク;
                     }
 
-                    lock(queuedKeys) {
-                        completedKeys.Add(worker.Value.RowKey);
+                    lock(キュー済みキー一覧) {
+                        完了キー一覧.Add(ワーカー.Value.行キー);
                     }
 
-                    workers.Remove(worker.Key);
+                    ワーカー一覧.Remove(ワーカー.Key);
                 }
 
-                this.EnqueueCurrentAdaptiveRows(state,queue,queuedKeys,completedKeys,request);
-                var currentCpus = GetCurrentCpus(request);
-                if(jobRunner is IBenchmarkDynamicCpuSetRunner dynamicCpuSetRunner) {
-                    await dynamicCpuSetRunner.ApplyCpuSetAsync(currentCpus);
+                this.現在の適応行をキューへ追加(状態,キュー,キュー済みキー一覧,完了キー一覧,要求);
+                var 現在CPU一覧 = 現在CPU一覧を取得(要求);
+                if(ジョブ実行器 is Iベンチマーク動的CPUセット実行器 動的CPUセット実行器) {
+                    await 動的CPUセット実行器.CPUセットを適用Async(現在CPU一覧);
                 }
 
-                foreach(var cpu in currentCpus) {
-                    if(workers.ContainsKey(cpu)) {
+                foreach(var CPU in 現在CPU一覧) {
+                    if(ワーカー一覧.ContainsKey(CPU)) {
                         continue;
                     }
 
-                    if(!this.TryDequeueCurrentAdaptiveRow(state,queue,queuedKeys,request,out var row)) {
+                    if(!this.現在の適応行取得を試みる(状態,キュー,キュー済みキー一覧,要求,out var 行)) {
                         continue;
                     }
 
-                    workers.Add(cpu,new AdaptiveWorker(row.Key,Task.Run(async () => {
-                        Interlocked.Increment(ref running);
-                        System.Diagnostics.Debug.WriteLine($"[Orchestrator] worker start cpu={cpu} row={row.Key}");
+                    ワーカー一覧.Add(CPU,new 適応ワーカー(行.キー,Task.Run(async () => {
+                        Interlocked.Increment(ref 実行中数);
+                        System.Diagnostics.Debug.WriteLine($"[オーケストレーター] ワーカー開始 CPU={CPU} 行={行.キー}");
                         try {
-                            await this.RunAdaptiveMethodRowAsync(state,row,cpu,request,progress,statusChanged,cancellationToken);
-                            System.Diagnostics.Debug.WriteLine($"[Orchestrator] worker end cpu={cpu} row={row.Key}");
-                        } catch(Exception ex) {
-                            System.Diagnostics.Debug.WriteLine($"[Orchestrator] worker FAULTED cpu={cpu} row={row.Key}: {ex}");
+                            await this.適応メソッド行を実行Async(状態,行,CPU,要求,進行通知,状態変更時,キャンセルトークン);
+                            System.Diagnostics.Debug.WriteLine($"[オーケストレーター] ワーカー終了 CPU={CPU} 行={行.キー}");
+                        } catch(Exception 例外) {
+                            System.Diagnostics.Debug.WriteLine($"[オーケストレーター] ワーカー失敗 CPU={CPU} 行={行.キー}: {例外}");
                             throw;
                         } finally {
-                            Interlocked.Decrement(ref running);
+                            Interlocked.Decrement(ref 実行中数);
                         }
-                    },cancellationToken)));
+                    },キャンセルトークン)));
                 }
 
-                if(queue.IsEmpty&&Volatile.Read(ref running)==0&&workers.Count==0) {
+                if(キュー.IsEmpty&&Volatile.Read(ref 実行中数)==0&&ワーカー一覧.Count==0) {
                     break;
                 }
 
-                await Task.Delay(25,cancellationToken);
+                await Task.Delay(25,キャンセルトークン);
             }
 
-            await Task.WhenAll(workers.Values.Select(static worker => worker.Task));
+            await Task.WhenAll(ワーカー一覧.Values.Select(static ワーカー=>ワーカー.タスク));
         } finally {
             // キャンセルで while を抜けた場合でも、置き去りのワーカーが自身の状態復帰
-            // (Pendingへの巻き戻し・state保存)を終えるまで待つ。待たずに戻ると、呼び出し元の
-            // Pause完了直後にResumeした際、まだRunningのジョブをBenchmarkStateManager.Loadの
-            // クラッシュ復旧ロジックがFailedへ誤確定させてしまう。
+            // （保留への巻き戻し・状態保存）を終えるまで待つ。待たずに戻ると、呼び出し元が
+            // 一時停止完了直後に再開した際、まだ実行中のジョブを状態マネージャーの読み込み処理が
+            // クラッシュ復旧対象と判断し、失敗へ誤確定させてしまう。
             try {
-                await Task.WhenAll(workers.Values.Select(static worker => worker.Task)).ConfigureAwait(false);
+                await Task.WhenAll(ワーカー一覧.Values.Select(static ワーカー=>ワーカー.タスク)).ConfigureAwait(false);
             } catch {
-                // 個々のworkerの例外はここでは無視する(状態復帰は各worker自身で完了済み)。
+                // 個々のワーカーの例外はここでは無視する（状態復帰は各ワーカー自身で完了済み）。
                 // 元の例外(キャンセル等)を隠さないため握りつぶす。
             }
         }
     }
 
-    private async Task RunAdaptiveMethodRowAsync(
-        ProgressState state,
-        AdaptiveMethodRow row,
-        int logicalCpu,
-        BenchmarkRunRequest request,
-        Action<BenchmarkProgressUpdate> progress,
-        Action<string> statusChanged,
-        CancellationToken cancellationToken) {
-        if(BenchmarkWorkloadAxis.UsesLoopCount(row.SourceTab)) {
-            await this.RunLeftCalibratedLoopCountRowAsync(state,row,logicalCpu,request,progress,statusChanged,cancellationToken);
+    private async Task 適応メソッド行を実行Async(
+        進行状態 状態,
+        適応メソッド行 行,
+        int 論理CPU,
+        ベンチマーク実行要求 要求,
+        Action<ベンチマーク進行更新> 進行通知,
+        Action<string> 状態変更時,
+        CancellationToken キャンセルトークン) {
+        if(ベンチマーク作業軸.ループ回数を使うか(行.ソースタブ)) {
+            await this.左較正ループ回数行を実行Async(状態,行,論理CPU,要求,進行通知,状態変更時,キャンセルトークン);
             return;
         }
 
-        await this.RunScalableRowAsync(state,row,logicalCpu,request,progress,statusChanged,cancellationToken);
+        await this.スケーラブル行を実行Async(状態,行,論理CPU,要求,進行通知,状態変更時,キャンセルトークン);
     }
 
-    private async Task RunLeftCalibratedLoopCountRowAsync(
-        ProgressState state,
-        AdaptiveMethodRow row,
-        int logicalCpu,
-        BenchmarkRunRequest request,
-        Action<BenchmarkProgressUpdate> progress,
-        Action<string> statusChanged,
-        CancellationToken cancellationToken){
-        if(row.Cases.Count==0){
+    private async Task 左較正ループ回数行を実行Async(
+        進行状態 状態,
+        適応メソッド行 行,
+        int 論理CPU,
+        ベンチマーク実行要求 要求,
+        Action<ベンチマーク進行更新> 進行通知,
+        Action<string> 状態変更時,
+        CancellationToken キャンセルトークン) {
+        if(行.ケース一覧.Count==0) {
             return;
         }
 
-        var warmedUpCases=new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
-        var calibrationCase=row.Cases[0];
-        var synchronizedCases=row.Cases.Skip(1).ToArray();
-        foreach(var loopCount in EnumerateAdaptiveLoopCounts(state)){
-            cancellationToken.ThrowIfCancellationRequested();
-            var calibrationJob=this.GetExistingAdaptiveJobs(state,[calibrationCase],loopCount).FirstOrDefault();
-            if(calibrationJob is { Status:JobStatus.Failed }){
+        var ウォームアップ済みケース一覧 = new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+        var 較正ケース = 行.ケース一覧[0];
+        var 同期ケース一覧 = 行.ケース一覧.Skip(1).ToArray();
+        foreach(var ループ回数 in 適応ループ回数を列挙(状態)) {
+            キャンセルトークン.ThrowIfCancellationRequested();
+            var 較正ジョブ = this.既存適応ジョブ一覧を取得(状態,[較正ケース],ループ回数).FirstOrDefault();
+            if(較正ジョブ is { 状態: ジョブ状態.失敗 }) {
                 return;
             }
 
-            if(!IsCalibrationCompleted(calibrationJob,state.AdaptiveThresholdNanoseconds)){
-                calibrationJob=this.GetOrCreateAdaptiveJobs(state,[calibrationCase],loopCount).Single();
-                if(calibrationJob.Status==JobStatus.Pending){
-                    var warmupFailure=await this.RunWarmupIfNeededAsync(state,calibrationCase,row.SourceTab,logicalCpu,request,warmedUpCases,statusChanged,cancellationToken);
-                    if(warmupFailure is not null){
-                        this.MarkWarmupFailure(state,calibrationCase,loopCount,logicalCpu,warmupFailure,progress);
+            if(!較正完了か(較正ジョブ,状態.適応しきい値ナノ秒)) {
+                較正ジョブ=this.適応ジョブ一覧を取得または作成(状態,[較正ケース],ループ回数).Single();
+                if(較正ジョブ.状態==ジョブ状態.保留) {
+                    var ウォームアップ失敗 = await this.必要ならウォームアップを実行Async(状態,較正ケース,行.ソースタブ,論理CPU,要求,ウォームアップ済みケース一覧,状態変更時,キャンセルトークン);
+                    if(ウォームアップ失敗 is not null) {
+                        this.ウォームアップ失敗を記録(状態,較正ケース,ループ回数,論理CPU,ウォームアップ失敗,進行通知);
                         return;
                     }
 
-                    statusChanged($"Measuring {calibrationJob.MethodName} {CreateAxisStatusText(calibrationJob)}: {calibrationJob.Project} / CPU {logicalCpu}");
-                    await this.RunJobAsync(state,calibrationJob,logicalCpu,request.JobTimeout,progress,cancellationToken);
+                    状態変更時($"測定中 {較正ジョブ.メソッド名} {軸状態文を作成(較正ジョブ)}: {較正ジョブ.プロジェクト} / CPU {論理CPU}");
+                    await this.ジョブを実行Async(状態,較正ジョブ,論理CPU,要求.ジョブタイムアウト,進行通知,キャンセルトークン);
                 }
 
-                if(calibrationJob.Status!=JobStatus.Completed){
+                if(較正ジョブ.状態!=ジョブ状態.完了) {
                     return;
                 }
-                if(!IsCalibrationCompleted(calibrationJob,state.AdaptiveThresholdNanoseconds)){
-                    if(loopCount==int.MaxValue){
-                        this.MarkTargetDurationUnreachable(state,[calibrationJob],progress);
+                if(!較正完了か(較正ジョブ,状態.適応しきい値ナノ秒)) {
+                    if(ループ回数==int.MaxValue) {
+                        this.目標時間到達不能を記録(状態,[較正ジョブ],進行通知);
                         return;
                     }
                     continue;
                 }
             }
 
-            foreach(var benchmark in synchronizedCases){
-                var job=this.GetOrCreateAdaptiveJobs(state,[benchmark],loopCount).Single();
-                if(job.Status==JobStatus.Failed){
+            foreach(var ベンチマーク in 同期ケース一覧) {
+                var ジョブ = this.適応ジョブ一覧を取得または作成(状態,[ベンチマーク],ループ回数).Single();
+                if(ジョブ.状態==ジョブ状態.失敗) {
                     return;
                 }
-                if(job.Status==JobStatus.Completed){
+                if(ジョブ.状態==ジョブ状態.完了) {
                     continue;
                 }
 
-                var warmupFailure=await this.RunWarmupIfNeededAsync(state,benchmark,row.SourceTab,logicalCpu,request,warmedUpCases,statusChanged,cancellationToken);
-                if(warmupFailure is not null){
-                    this.MarkWarmupFailure(state,benchmark,loopCount,logicalCpu,warmupFailure,progress);
+                var ウォームアップ失敗 = await this.必要ならウォームアップを実行Async(状態,ベンチマーク,行.ソースタブ,論理CPU,要求,ウォームアップ済みケース一覧,状態変更時,キャンセルトークン);
+                if(ウォームアップ失敗 is not null) {
+                    this.ウォームアップ失敗を記録(状態,ベンチマーク,ループ回数,論理CPU,ウォームアップ失敗,進行通知);
                     return;
                 }
 
-                statusChanged($"Measuring {job.MethodName} {CreateAxisStatusText(job)}: {job.Project} / CPU {logicalCpu}");
-                await this.RunJobAsync(state,job,logicalCpu,request.JobTimeout,progress,cancellationToken);
-                if(job.Status!=JobStatus.Completed){
+                状態変更時($"測定中 {ジョブ.メソッド名} {軸状態文を作成(ジョブ)}: {ジョブ.プロジェクト} / CPU {論理CPU}");
+                await this.ジョブを実行Async(状態,ジョブ,論理CPU,要求.ジョブタイムアウト,進行通知,キャンセルトークン);
+                if(ジョブ.状態!=ジョブ状態.完了) {
                     return;
                 }
             }
@@ -223,756 +222,654 @@ internal sealed class BenchmarkOrchestrator(
         }
     }
 
-    private async Task<string?> RunWarmupIfNeededAsync(ProgressState state,BenchmarkCase benchmark,BenchmarkSourceTab sourceTab,int logicalCpu,BenchmarkRunRequest request,global::System.Collections.Generic.HashSet<string>warmedUpCases,Action<string>statusChanged,CancellationToken cancellationToken){
-        if(!ShouldRunWarmup(request.ExecutionProfile)||!warmedUpCases.Add(CreateBenchmarkKey(benchmark))){
+    private async Task<string?> 必要ならウォームアップを実行Async(進行状態 状態,ベンチマークケース ベンチマーク,ベンチマークソースタブ ソースタブ,int 論理CPU,ベンチマーク実行要求 要求,global::System.Collections.Generic.HashSet<string> ウォームアップ済みケース一覧,Action<string> 状態変更時,CancellationToken キャンセルトークン) {
+        if(!ウォームアップを実行するか(要求.実行プロファイル)||!ウォームアップ済みケース一覧.Add(ベンチマークキーを作成(ベンチマーク))) {
             return null;
         }
 
-        var failure=await this.RunWarmupCaseAsync(state,benchmark,sourceTab,logicalCpu,request,statusChanged,cancellationToken);
-        return failure?.FailureReason;
+        var 失敗=await this.ウォームアップケースを実行Async(状態,ベンチマーク,ソースタブ,論理CPU,要求,状態変更時,キャンセルトークン);
+        return 失敗?.失敗理由;
     }
 
-    private static bool IsCalibrationCompleted(BenchmarkJob? job,double thresholdNanoseconds) =>
-        job is { Status:JobStatus.Completed,MeanNanoseconds:{ } total }&&total>=thresholdNanoseconds;
+    private static bool 較正完了か(ベンチマークジョブ? ジョブ,double 閾値ナノ秒) =>
+        ジョブ is { 状態: ジョブ状態.完了, 平均ナノ秒: { } 合計 }&&合計>=閾値ナノ秒;
 
-    private async Task RunLoopCountRowAsync(
-        ProgressState state,
-        AdaptiveMethodRow row,
-        int logicalCpu,
-        BenchmarkRunRequest request,
-        Action<BenchmarkProgressUpdate> progress,
-        Action<string> statusChanged,
-        CancellationToken cancellationToken) {
-        var warmedUpCases=new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
-        foreach(var loopCount in EnumerateAdaptiveLoopCounts(state)) {
-            cancellationToken.ThrowIfCancellationRequested();
-            if(this.HasFailedRowCase(state,row)) {
-                return;
-            }
-
-            var existingJobs = this.GetExistingAdaptiveJobs(state,row.Cases,loopCount);
-            if(IsCompletedTargetBatch(existingJobs,row.Cases,state.AdaptiveThresholdNanoseconds)) {
-                return;
-            }
-
-            foreach(var benchmark in row.Cases) {
-                var caseKey = CreateBenchmarkKey(benchmark);
-                if(existingJobs.Any(job => SameCase(benchmark,job)&&job.Status!=JobStatus.Pending)
-                    ||!warmedUpCases.Add(caseKey)
-                    ||!ShouldRunWarmup(request.ExecutionProfile)) {
+    private async Task スケーラブル行を実行Async(
+        進行状態 状態,
+        適応メソッド行 行,
+        int 論理CPU,
+        ベンチマーク実行要求 要求,
+        Action<ベンチマーク進行更新> 進行通知,
+        Action<string> 状態変更時,
+        CancellationToken キャンセルトークン) {
+        foreach(var ベンチマーク in 行.ケース一覧) {
+            キャンセルトークン.ThrowIfCancellationRequested();
+            var ウォームアップ済みか = false;
+            foreach(var 要素数 in 適応要素数を列挙(状態,行)) {
+                キャンセルトークン.ThrowIfCancellationRequested();
+                var ベンチマークケース = 適応ケースを解決(行,ベンチマーク,要素数);
+                if(ベンチマークケース is null) {
                     continue;
                 }
 
-                var warmupFailure = await this.RunWarmupCaseAsync(
-                    state,
-                    benchmark,
-                    row.SourceTab,
-                    logicalCpu,
-                    request,
-                    statusChanged,
-                    cancellationToken);
-                if(warmupFailure is not null) {
-                    this.MarkWarmupFailure(
-                        state,
-                        warmupFailure.Benchmark,
-                        loopCount,
-                        logicalCpu,
-                        warmupFailure.FailureReason,
-                        progress);
-                    return;
-                }
-            }
-
-            var jobs = this.GetOrCreateAdaptiveJobs(state,row.Cases,loopCount);
-            foreach(var benchmark in row.Cases) {
-                var job = jobs.FirstOrDefault(item => SameCase(benchmark,item));
-                if(job is null||job.Status!=JobStatus.Pending) {
-                    continue;
-                }
-
-                statusChanged($"実行中 {job.MethodName} {CreateAxisStatusText(job)}: {job.Project} / CPU {logicalCpu}");
-                await this.RunJobAsync(state,job,logicalCpu,request.JobTimeout,progress,cancellationToken);
-                if(job.Status!=JobStatus.Completed) {
-                    return;
-                }
-            }
-
-            var completedJobs = this.GetExistingAdaptiveJobs(state,row.Cases,loopCount);
-            if(IsCompletedTargetBatch(completedJobs,row.Cases,state.AdaptiveThresholdNanoseconds)) {
-                return;
-            }
-
-            if(loopCount==int.MaxValue) {
-                this.MarkTargetDurationUnreachable(state,completedJobs,progress);
-                return;
-            }
-        }
-    }
-
-    private async Task RunScalableRowAsync(
-        ProgressState state,
-        AdaptiveMethodRow row,
-        int logicalCpu,
-        BenchmarkRunRequest request,
-        Action<BenchmarkProgressUpdate> progress,
-        Action<string> statusChanged,
-        CancellationToken cancellationToken) {
-        foreach(var benchmark in row.Cases) {
-            cancellationToken.ThrowIfCancellationRequested();
-            var warmedUp = false;
-            foreach(var elementCount in EnumerateAdaptiveElementCounts(state,row)) {
-                cancellationToken.ThrowIfCancellationRequested();
-                var benchmarkCase = ResolveAdaptiveCase(row,benchmark,elementCount);
-                if(benchmarkCase is null) {
-                    continue;
-                }
-
-                if(this.IsAdaptiveCaseStopped(state,row.SourceTab,benchmarkCase)) {
+                if(this.適応ケースが停止済みか(状態,行.ソースタブ,ベンチマークケース)) {
                     break;
                 }
 
-                var existingJobs = this.GetExistingAdaptiveJobs(state,[benchmarkCase],elementCount);
-                if(existingJobs.Count>0&&existingJobs.All(static job => job.Status!=JobStatus.Pending)) {
+                var 既存ジョブ一覧 = this.既存適応ジョブ一覧を取得(状態,[ベンチマークケース],要素数);
+                if(既存ジョブ一覧.Count>0&&既存ジョブ一覧.All(static ジョブ => ジョブ.状態!=ジョブ状態.保留)) {
                     continue;
                 }
 
-                if(!warmedUp&&!IsScalableSourceTab(row.SourceTab)&&ShouldRunWarmup(request.ExecutionProfile)) {
-                    warmedUp=true;
-                    var warmupFailure = await this.RunWarmupCaseAsync(
-                        state,
-                        benchmarkCase,
-                        row.SourceTab,
-                        logicalCpu,
-                        request,
-                        statusChanged,
-                        cancellationToken);
-                    if(warmupFailure is not null) {
-                        this.MarkWarmupFailure(
-                            state,
-                            warmupFailure.Benchmark,
-                            elementCount,
-                            logicalCpu,
-                            warmupFailure.FailureReason,
-                            progress);
+                if(!ウォームアップ済みか&&!スケーラブルソースタブか(行.ソースタブ)&&ウォームアップを実行するか(要求.実行プロファイル)) {
+                    ウォームアップ済みか=true;
+                    var ウォームアップ失敗 = await this.ウォームアップケースを実行Async(
+                        状態,
+                        ベンチマークケース,
+                        行.ソースタブ,
+                        論理CPU,
+                        要求,
+                        状態変更時,
+                        キャンセルトークン);
+                    if(ウォームアップ失敗 is not null) {
+                        this.ウォームアップ失敗を記録(
+                            状態,
+                            ウォームアップ失敗.ベンチマーク,
+                            要素数,
+                            論理CPU,
+                            ウォームアップ失敗.失敗理由,
+                            進行通知);
                         break;
                     }
                 }
 
-                var jobs = this.GetOrCreateAdaptiveJobs(state,[benchmarkCase],elementCount);
-                var job = jobs.FirstOrDefault(static job => job.Status==JobStatus.Pending);
-                if(job is null) {
+                var ジョブ一覧 = this.適応ジョブ一覧を取得または作成(状態,[ベンチマークケース],要素数);
+                var ジョブ = ジョブ一覧.FirstOrDefault(static ジョブ => ジョブ.状態==ジョブ状態.保留);
+                if(ジョブ is null) {
                     continue;
                 }
 
-                statusChanged($"実行中 {job.MethodName} {CreateAxisStatusText(job)}: {job.Project} / CPU {logicalCpu}");
-                await this.RunJobAsync(state,job,logicalCpu,request.JobTimeout,progress,cancellationToken);
-                if(job.Status is JobStatus.Pending or JobStatus.Running) {
+                状態変更時($"実行中 {ジョブ.メソッド名} {軸状態文を作成(ジョブ)}: {ジョブ.プロジェクト} / CPU {論理CPU}");
+                await this.ジョブを実行Async(状態,ジョブ,論理CPU,要求.ジョブタイムアウト,進行通知,キャンセルトークン);
+                if(ジョブ.状態 is ジョブ状態.保留 or ジョブ状態.実行中) {
                     break;
                 }
             }
         }
     }
 
-    private static IEnumerable<int> EnumerateAdaptiveLoopCounts(ProgressState state) {
-        var seeds = state.ElementCounts
-            .Where(static count => count>0)
+    private static IEnumerable<int> 適応ループ回数を列挙(進行状態 状態) {
+        var 初期値一覧 = 状態.要素数一覧
+            .Where(static 値 => 値>0)
             .Distinct()
             .Order()
             .ToArray();
-        var last = 0;
-        foreach(var count in seeds) {
-            last=count;
-            yield return count;
+        var 最後の値 = 0;
+        foreach(var 値 in 初期値一覧) {
+            最後の値=値;
+            yield return 値;
         }
 
-        while(last>0&&last<int.MaxValue) {
-            last=last>int.MaxValue/2 ? int.MaxValue : last*2;
-            yield return last;
+        while(最後の値>0&&最後の値<int.MaxValue) {
+            最後の値=最後の値>int.MaxValue/2 ? int.MaxValue : 最後の値*2;
+            yield return 最後の値;
         }
     }
 
-    private static BenchmarkCase? ResolveAdaptiveCase(AdaptiveMethodRow row,BenchmarkCase benchmark,int elementCount) {
-        if(!IsScalableSourceTab(row.SourceTab)) {
-            return benchmark;
+    private static ベンチマークケース? 適応ケースを解決(適応メソッド行 行,ベンチマークケース ベンチマーク,int 要素数) {
+        if(!スケーラブルソースタブか(行.ソースタブ)) {
+            return ベンチマーク;
         }
 
-        if(benchmark.CountArgument==elementCount) {
-            return benchmark;
+        if(ベンチマーク.Count引数==要素数) {
+            return ベンチマーク;
         }
 
-        return benchmark.CountArgument>0
-            ? CloneWithCountArgument(benchmark,elementCount)
+        return ベンチマーク.Count引数>0
+            ? Count引数を変更して複製(ベンチマーク,要素数)
             : null;
     }
 
-    private static IEnumerable<int> EnumerateAdaptiveElementCounts(ProgressState state,AdaptiveMethodRow row) {
-        var seeds = GetAdaptiveElementCounts(state,row)
-            .Where(static count => count>0)
+    private static IEnumerable<int> 適応要素数を列挙(進行状態 状態,適応メソッド行 行) {
+        var 初期値一覧 = 適応要素数一覧を取得(状態,行)
+            .Where(static 値 => 値>0)
             .Distinct()
             .Order()
             .ToArray();
-        var last = 0;
-        foreach(var count in seeds) {
-            last=count;
-            yield return count;
+        var 最後の値 = 0;
+        foreach(var 値 in 初期値一覧) {
+            最後の値=値;
+            yield return 値;
         }
 
-        if(last!=BenchmarkElementCounts.All[^1]) {
+        if(最後の値!=ベンチマーク要素数一覧.全て[^1]) {
             yield break;
         }
 
-        while(last>0&&last<int.MaxValue) {
-            if(last>int.MaxValue/2) {
-                last=int.MaxValue;
-            }else{
-                last*=2;
+        while(最後の値>0&&最後の値<int.MaxValue) {
+            if(最後の値>int.MaxValue/2) {
+                最後の値=int.MaxValue;
+            } else {
+                最後の値*=2;
             }
 
-            yield return last;
+            yield return 最後の値;
         }
     }
 
-    private static IReadOnlyList<int> GetAdaptiveElementCounts(ProgressState state,AdaptiveMethodRow row) {
-        if(!IsScalableSourceTab(row.SourceTab)) {
-            return state.ElementCounts;
+    private static IReadOnlyList<int> 適応要素数一覧を取得(進行状態 状態,適応メソッド行 行) {
+        if(!スケーラブルソースタブか(行.ソースタブ)) {
+            return 状態.要素数一覧;
         }
 
-        var counts = row.Cases
-            .Select(static benchmark => benchmark.CountArgument)
-            .Where(static count => count>0)
+        var 値一覧 = 行.ケース一覧
+            .Select(static ベンチマーク => ベンチマーク.Count引数)
+            .Where(static 値 => 値>0)
             .Distinct()
             .Order()
             .ToArray();
-        return counts.Length>0 ? counts : state.ElementCounts;
+        return 値一覧.Length>0 ? 値一覧 : 状態.要素数一覧;
     }
 
-    private static BenchmarkCase CloneWithCountArgument(BenchmarkCase benchmark,int elementCount) {
-        var arguments = benchmark.Arguments
-            .Select(argument => string.Equals(argument.Name,"Count",StringComparison.OrdinalIgnoreCase)
-                ? new BenchmarkArgument(argument.Name,elementCount.ToString(CultureInfo.InvariantCulture))
-                : argument)
+    private static ベンチマークケース Count引数を変更して複製(ベンチマークケース ベンチマーク,int 要素数) {
+        var 引数一覧 = ベンチマーク.引数一覧
+            .Select(引数=>string.Equals(引数.名前,"Count",StringComparison.OrdinalIgnoreCase)
+                ? new ベンチマーク引数(引数.名前,要素数.ToString(CultureInfo.InvariantCulture))
+                : 引数)
             .ToArray();
-        return new BenchmarkCase(
-            benchmark.Project,
-            benchmark.AssemblyName,
-            benchmark.TypeFullName,
-            benchmark.MethodName,
-            BenchmarkArgumentFormatting.CreateKey(arguments),
-            arguments,
-            benchmark.BenchmarkPath,
-            benchmark.BenchmarkTypeText){
-            BindingRowIndex=benchmark.BindingRowIndex,
+        return new ベンチマークケース(
+            ベンチマーク.プロジェクト,
+            ベンチマーク.アセンブリ名,
+            ベンチマーク.型完全名,
+            ベンチマーク.メソッド名,
+            ベンチマーク引数フォーマッター.キーを作成(引数一覧),
+            引数一覧) {
+            バインド行インデックス=ベンチマーク.バインド行インデックス,
         };
     }
 
-    private async Task<WarmupFailure?> RunWarmupCaseAsync(
-        ProgressState state,
-        BenchmarkCase benchmark,
-        BenchmarkSourceTab sourceTab,
-        int logicalCpu,
-        BenchmarkRunRequest request,
-        Action<string> statusChanged,
-        CancellationToken cancellationToken) {
-        cancellationToken.ThrowIfCancellationRequested();
-        var warmupJob = CreateJob(benchmark,1,sourceTab,state.ElementCounts,-1);
-        warmupJob.JobId=warmupJob.JobId+"|warmup";
-        statusChanged($"ウォームアップ {benchmark.MethodName} "+CreateAxisStatusText(warmupJob)+$": {benchmark.Project} / CPU {logicalCpu}");
+    private async Task<ウォームアップ失敗?> ウォームアップケースを実行Async(
+        進行状態 状態,
+        ベンチマークケース ベンチマーク,
+        ベンチマークソースタブ ソースタブ,
+        int 論理CPU,
+        ベンチマーク実行要求 要求,
+        Action<string> 状態変更時,
+        CancellationToken キャンセルトークン) {
+        キャンセルトークン.ThrowIfCancellationRequested();
+        var ウォームアップジョブ = ジョブを作成(ベンチマーク,1,ソースタブ,状態.要素数一覧,-1);
+        ウォームアップジョブ.ジョブID=ウォームアップジョブ.ジョブID+"|warmup";
+        状態変更時($"ウォームアップ {ベンチマーク.メソッド名} "+軸状態文を作成(ウォームアップジョブ)+$": {ベンチマーク.プロジェクト} / CPU {論理CPU}");
         try {
-            var result = await jobRunner.RunAsync(
-                warmupJob,
-                state.RunRoot,
-                logicalCpu,
-                request.JobTimeout,
-                cancellationToken);
-            if(!IsCompletedMeasurement(result)) {
-                return new WarmupFailure(
-                    benchmark,
-                    FirstText(
-                        result.Log,
-                        string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-                            ? "Warmup completed without benchmark statistics."
-                            : $"Warmup returned status {result.Status}."));
+            var 結果 = await ジョブ実行器.実行Async(
+                ウォームアップジョブ,
+                状態.実行ルート,
+                論理CPU,
+                要求.ジョブタイムアウト,
+                キャンセルトークン);
+            if(!測定完了か(結果)) {
+                return new ウォームアップ失敗(
+                    ベンチマーク,
+                    最初の文字列を取得(
+                        結果.ログ,
+                        ジョブ状態名.保存値と一致するか(結果.状態,ジョブ状態.完了)
+                            ? "ウォームアップは完了しましたが、ベンチマーク統計がありません。"
+                            : $"ウォームアップが状態 {結果.状態} を返しました。"));
             }
 
-            TryDeleteDirectory(result.ArtifactFolder);
-        } catch(Exception ex) when(ex is not OperationCanceledException) {
-            return new WarmupFailure(benchmark,ex.ToString());
+            ディレクトリ削除を試みる(結果.成果物フォルダー);
+        } catch(Exception 例外) when(例外 is not OperationCanceledException) {
+            return new ウォームアップ失敗(ベンチマーク,例外.ToString());
         }
 
         return null;
     }
 
-    private async Task RunJobAsync(
-        ProgressState state,
-        BenchmarkJob job,
-        int logicalCpu,
-        TimeSpan timeout,
-        Action<BenchmarkProgressUpdate> progress,
-        CancellationToken cancellationToken) {
-        job.Status=JobStatus.Running;
-        job.AssignedLogicalCpu=logicalCpu;
-        job.StartedAt=DateTimeOffset.UtcNow;
-        job.FinishedAt=null;
-        job.FailureReason=string.Empty;
-        stateManager.Save(state);
-        progress(new BenchmarkProgressUpdate(state,job));
+    private async Task ジョブを実行Async(
+        進行状態 状態,
+        ベンチマークジョブ ジョブ,
+        int 論理CPU,
+        TimeSpan タイムアウト,
+        Action<ベンチマーク進行更新> 進行通知,
+        CancellationToken キャンセルトークン) {
+        ジョブ.状態=ジョブ状態.実行中;
+        ジョブ.割り当て論理CPU=論理CPU;
+        ジョブ.開始日時=DateTimeOffset.UtcNow;
+        ジョブ.終了日時=null;
+        ジョブ.失敗理由=string.Empty;
+        状態マネージャー.保存(状態);
+        進行通知(new ベンチマーク進行更新(状態,ジョブ));
 
         try {
-            System.Diagnostics.Debug.WriteLine($"[Orchestrator] RunJobAsync start cpu={logicalCpu} method={job.MethodName} elements={job.ElementCount}");
-            var jobStopwatch = Stopwatch.StartNew();
-            var result = await jobRunner.RunAsync(job,state.RunRoot,logicalCpu,timeout,cancellationToken);
-            jobStopwatch.Stop();
-            System.Diagnostics.Debug.WriteLine($"[Orchestrator] RunJobAsync end cpu={logicalCpu} method={job.MethodName} status={result.Status} elapsed={jobStopwatch.Elapsed.TotalMilliseconds:0.0}ms");
-            var completed = string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-                &&result.MeanNanoseconds is not null;
-            job.Status=completed
-                ? JobStatus.Completed
-                : JobStatus.Failed;
-            job.Mean=result.Mean;
-            if(result.LoopCount>0){
-                job.LoopCount=result.LoopCount;
+            System.Diagnostics.Debug.WriteLine($"[オーケストレーター] ジョブを実行Async 開始 CPU={論理CPU} メソッド={ジョブ.メソッド名} 要素数={ジョブ.要素数}");
+            var ジョブストップウォッチ = Stopwatch.StartNew();
+            var 結果 = await ジョブ実行器.実行Async(ジョブ,状態.実行ルート,論理CPU,タイムアウト,キャンセルトークン);
+            ジョブストップウォッチ.Stop();
+            System.Diagnostics.Debug.WriteLine($"[オーケストレーター] ジョブを実行Async 終了 CPU={論理CPU} メソッド={ジョブ.メソッド名} 状態={結果.状態} 経過時間={ジョブストップウォッチ.Elapsed.TotalMilliseconds:0.0}ms");
+            var 完了か = ジョブ状態名.保存値と一致するか(結果.状態,ジョブ状態.完了)
+                &&結果.平均ナノ秒 is not null;
+            ジョブ.状態=完了か
+                ? ジョブ状態.完了
+                : ジョブ状態.失敗;
+            ジョブ.平均=結果.平均;
+            if(結果.ループ回数>0) {
+                ジョブ.ループ回数=結果.ループ回数;
             }
-            job.Error=result.Error;
-            job.StdDev=result.StdDev;
-            job.MeanNanoseconds=result.MeanNanoseconds;
-            job.ErrorNanoseconds=result.ErrorNanoseconds;
-            job.StdDevNanoseconds=result.StdDevNanoseconds;
-            job.AllocatedBytes=result.AllocatedBytes;
-            job.RandomSeed=result.RandomSeed;
-            job.ResultDigest=result.ResultDigest;
-            job.DiagnosticCounters=result.DiagnosticCounters.ToList();
-            job.ExitCode=result.ExitCode;
-            job.ArtifactFolder=result.ArtifactFolder;
-            if(job.Status==JobStatus.Failed) {
-                job.FailureReason=FirstText(
-                    result.Log,
-                    string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-                        ? "Worker completed without benchmark statistics."
-                        : $"Worker returned status {result.Status}.");
+            ジョブ.誤差=結果.誤差;
+            ジョブ.標準偏差=結果.標準偏差;
+            ジョブ.平均ナノ秒=結果.平均ナノ秒;
+            ジョブ.誤差ナノ秒=結果.誤差ナノ秒;
+            ジョブ.標準偏差ナノ秒=結果.標準偏差ナノ秒;
+            ジョブ.割り当てバイト数=結果.割り当てバイト数;
+            ジョブ.乱数シード=結果.乱数シード;
+            ジョブ.結果ダイジェスト=結果.結果ダイジェスト;
+            ジョブ.診断カウンター一覧=結果.診断カウンター一覧.ToList();
+            ジョブ.終了コード=結果.終了コード;
+            ジョブ.成果物フォルダー=結果.成果物フォルダー;
+            if(ジョブ.状態==ジョブ状態.失敗) {
+                ジョブ.失敗理由=最初の文字列を取得(
+                    結果.ログ,
+                    ジョブ状態名.保存値と一致するか(結果.状態,ジョブ状態.完了)
+                        ? "ワーカーは完了しましたが、ベンチマーク統計がありません。"
+                        : $"ワーカーが状態 {結果.状態} を返しました。");
             }
-        } catch(OperationCanceledException) when(cancellationToken.IsCancellationRequested) {
-            job.Status=JobStatus.Pending;
-            job.AssignedLogicalCpu=null;
-            job.StartedAt=null;
+        } catch(OperationCanceledException) when(キャンセルトークン.IsCancellationRequested) {
+            ジョブ.状態=ジョブ状態.保留;
+            ジョブ.割り当て論理CPU=null;
+            ジョブ.開始日時=null;
             throw;
-        } catch(Exception ex) {
-            job.Status=JobStatus.Failed;
-            job.ExitCode=1;
-            job.FailureReason=ex.ToString();
+        } catch(Exception 例外) {
+            ジョブ.状態=ジョブ状態.失敗;
+            ジョブ.終了コード=1;
+            ジョブ.失敗理由=例外.ToString();
         } finally {
-            if(job.Status!=JobStatus.Pending) {
-                job.FinishedAt=DateTimeOffset.UtcNow;
+            if(ジョブ.状態!=ジョブ状態.保留) {
+                ジョブ.終了日時=DateTimeOffset.UtcNow;
             }
-            stateManager.Save(state);
-            progress(new BenchmarkProgressUpdate(state,job));
+            状態マネージャー.保存(状態);
+            進行通知(new ベンチマーク進行更新(状態,ジョブ));
         }
     }
 
-    private ProgressState CreateState(BenchmarkRunRequest request) {
-        var now = DateTimeOffset.UtcNow;
-        var runRoot = string.IsNullOrWhiteSpace(request.RunRootOverride)
-            ? this.CreateNextRunRoot()
-            : request.RunRootOverride;
-        var state = new ProgressState {
-            RunId=Guid.NewGuid().ToString("N",CultureInfo.InvariantCulture),
-            ExecutionProfile=request.ExecutionProfile,
-            RunRoot=runRoot,
-            RunNumber=BenchmarkStateManager.TryParseRunNumber(runRoot),
-            SourceTab=request.SourceTab,
-            ElementCounts=request.ElementCounts.Distinct().Order().ToList(),
-            AdaptiveThresholdNanoseconds=request.AdaptiveThreshold.TotalMilliseconds*1_000_000,
-            CreatedAt=now,
-            UpdatedAt=now,
+    private 進行状態 状態を作成(ベンチマーク実行要求 要求) {
+        var 現在日時 = DateTimeOffset.UtcNow;
+        var 実行ルート = string.IsNullOrWhiteSpace(要求.実行ルート上書き)
+            ? this.次の実行ルートを作成()
+            : 要求.実行ルート上書き;
+        var 状態 = new 進行状態 {
+            実行ID=Guid.NewGuid().ToString("N",CultureInfo.InvariantCulture),
+            実行プロファイル=要求.実行プロファイル,
+            実行ルート=実行ルート,
+            実行番号=ベンチマーク状態マネージャー.実行番号の解析を試みる(実行ルート),
+            ソースタブ=要求.ソースタブ,
+            要素数一覧=要求.要素数一覧.Distinct().Order().ToList(),
+            適応しきい値ナノ秒=要求.適応しきい値.TotalMilliseconds*1_000_000,
+            作成日時=現在日時,
+            更新日時=現在日時,
         };
-        if(state.ElementCounts.Count==0) {
-            state.ElementCounts=BenchmarkElementCounts.DefaultInitial.ToList();
+        if(状態.要素数一覧.Count==0) {
+            状態.要素数一覧=ベンチマーク要素数一覧.既定初期値.ToList();
         }
 
-        state.AdaptiveStates=this.CreateAdaptiveRows(state,request)
-            .Select(static row => row.Key)
+        状態.適応状態一覧=this.適応行一覧を作成(状態,要求)
+            .Select(static 行=>行.キー)
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(static key => key,StringComparer.OrdinalIgnoreCase)
-            .Select(static key => new AdaptiveBenchmarkState { MethodName=key })
+            .OrderBy(static キー => キー,StringComparer.OrdinalIgnoreCase)
+            .Select(static キー => new 適応ベンチマーク状態 { メソッド名=キー })
             .ToList();
-        return state;
+        return 状態;
     }
 
-    private string CreateNextRunRoot() => stateManager.CreateNextRunRoot();
+    private string 次の実行ルートを作成() => 状態マネージャー.次の実行ルートを作成();
 
-    private void ReconcileStateWithRequest(ProgressState state,BenchmarkRunRequest request) {
-        if(state.RunNumber<=0){
-            state.RunNumber=BenchmarkStateManager.TryParseRunNumber(state.RunRoot);
+    private void 状態を要求と同期(進行状態 状態,ベンチマーク実行要求 要求) {
+        if(状態.実行番号<=0) {
+            状態.実行番号=ベンチマーク状態マネージャー.実行番号の解析を試みる(状態.実行ルート);
         }
-        state.ExecutionProfile=request.ExecutionProfile;
-        state.SourceTab=request.SourceTab;
-        state.AdaptiveThresholdNanoseconds=request.AdaptiveThreshold.TotalMilliseconds*1_000_000;
-        state.ElementCounts=request.ElementCounts.Distinct().Order().ToList();
-        if(state.ElementCounts.Count==0){
-            state.ElementCounts=BenchmarkElementCounts.DefaultInitial.ToList();
+        状態.実行プロファイル=要求.実行プロファイル;
+        状態.ソースタブ=要求.ソースタブ;
+        状態.適応しきい値ナノ秒=要求.適応しきい値.TotalMilliseconds*1_000_000;
+        状態.要素数一覧=要求.要素数一覧.Distinct().Order().ToList();
+        if(状態.要素数一覧.Count==0) {
+            状態.要素数一覧=ベンチマーク要素数一覧.既定初期値.ToList();
         }
-        if(state.Jobs.Count>0) {
-            state.Jobs=state.Jobs
-                .Where(job => request.Benchmarks.Any(benchmark => SameCase(benchmark,job)))
+        if(状態.ジョブ一覧.Count>0) {
+            状態.ジョブ一覧=状態.ジョブ一覧
+                .Where(ジョブ => 要求.ベンチマーク一覧.Any(ベンチマーク => 同じケースか(ベンチマーク,ジョブ)))
                 .ToList();
         }
 
-        if(request.RestartFromRequestedElementCount&&state.ElementCounts.Count>0){
-            ResetJobsFromElementCount(state,state.ElementCounts[0]);
+        if(要求.要求要素数から再開するか&&状態.要素数一覧.Count>0) {
+            指定要素数以降のジョブをリセット(状態,状態.要素数一覧[0]);
         }
 
-        var requestedMethods = this.CreateAdaptiveRows(state,request)
-            .Select(static row => row.Key)
+        var 要求メソッド一覧 = this.適応行一覧を作成(状態,要求)
+            .Select(static 行=>行.キー)
             .ToHashSet(StringComparer.Ordinal);
-        state.AdaptiveStates=state.AdaptiveStates
-            .Where(adaptiveState => requestedMethods.Contains(adaptiveState.MethodName))
+        状態.適応状態一覧=状態.適応状態一覧
+            .Where(適応状態 => 要求メソッド一覧.Contains(適応状態.メソッド名))
             .ToList();
-        foreach(var key in requestedMethods.Where(key => state.AdaptiveStates.All(item => !string.Equals(item.MethodName,key,StringComparison.Ordinal)))) {
-            state.AdaptiveStates.Add(new AdaptiveBenchmarkState { MethodName=key });
+        foreach(var キー in 要求メソッド一覧.Where(キー => 状態.適応状態一覧.All(項目 => !string.Equals(項目.メソッド名,キー,StringComparison.Ordinal)))) {
+            状態.適応状態一覧.Add(new 適応ベンチマーク状態 { メソッド名=キー });
         }
     }
 
-    private static void ResetJobsFromElementCount(ProgressState state,int elementCount){
-        foreach(var job in state.Jobs.Where(job => BenchmarkWorkloadAxis.GetAxisCount(job)>=elementCount)){
-            job.Status=JobStatus.Pending;
-            job.AssignedLogicalCpu=null;
-            job.StartedAt=null;
-            job.FinishedAt=null;
-            job.FailureReason=string.Empty;
-            job.Mean=string.Empty;
-            job.Error=string.Empty;
-            job.StdDev=string.Empty;
-            job.MeanNanoseconds=null;
-            job.ErrorNanoseconds=null;
-            job.StdDevNanoseconds=null;
-            job.AllocatedBytes=null;
-            job.ExitCode=0;
-            job.ArtifactFolder=string.Empty;
+    private static void 指定要素数以降のジョブをリセット(進行状態 状態,int 要素数) {
+        foreach(var ジョブ in 状態.ジョブ一覧.Where(ジョブ => ベンチマーク作業軸.軸数を取得(ジョブ)>=要素数)) {
+            ジョブ.状態=ジョブ状態.保留;
+            ジョブ.割り当て論理CPU=null;
+            ジョブ.開始日時=null;
+            ジョブ.終了日時=null;
+            ジョブ.失敗理由=string.Empty;
+            ジョブ.平均=string.Empty;
+            ジョブ.誤差=string.Empty;
+            ジョブ.標準偏差=string.Empty;
+            ジョブ.平均ナノ秒=null;
+            ジョブ.誤差ナノ秒=null;
+            ジョブ.標準偏差ナノ秒=null;
+            ジョブ.割り当てバイト数=null;
+            ジョブ.終了コード=0;
+            ジョブ.成果物フォルダー=string.Empty;
         }
     }
 
-    private IReadOnlyList<BenchmarkJob> GetOrCreateAdaptiveJobs(ProgressState state,IReadOnlyList<BenchmarkCase> cases,int elementCount) {
-        lock(this.stateGate) {
-            var existing = state.Jobs
-                .Where(job => BenchmarkWorkloadAxis.GetAxisCount(job)==elementCount&&cases.Any(item => SameCase(item,job)))
+    private IReadOnlyList<ベンチマークジョブ>適応ジョブ一覧を取得または作成(進行状態 状態,IReadOnlyList<ベンチマークケース>ケース一覧,int 要素数) {
+        lock(this.状態排他) {
+            var 既存一覧 = 状態.ジョブ一覧
+                .Where(ジョブ=>ベンチマーク作業軸.軸数を取得(ジョブ)==要素数&&ケース一覧.Any(項目=>同じケースか(項目,ジョブ)))
                 .ToArray();
-            if(existing.Length==cases.Count) {
-                return existing;
+            if(既存一覧.Length==ケース一覧.Count) {
+                return 既存一覧;
             }
 
-            foreach(var benchmark in cases) {
-                if(state.Jobs.Any(job => BenchmarkWorkloadAxis.GetAxisCount(job)==elementCount&&SameCase(benchmark,job))) {
+            foreach(var ベンチマーク in ケース一覧) {
+                if(状態.ジョブ一覧.Any(ジョブ => ベンチマーク作業軸.軸数を取得(ジョブ)==要素数&&同じケースか(ベンチマーク,ジョブ))) {
                     continue;
                 }
 
-                state.Jobs.Add(CreateJob(benchmark,elementCount,GetBenchmarkSourceTab(benchmark),state.ElementCounts,state.NextRunItemIndex++));
+                状態.ジョブ一覧.Add(ジョブを作成(ベンチマーク,要素数,ベンチマークソースタブを取得(ベンチマーク,状態.ソースタブ),状態.要素数一覧,状態.次の実行項目インデックス++));
             }
 
-            stateManager.Save(state);
-            return state.Jobs
-                .Where(job => BenchmarkWorkloadAxis.GetAxisCount(job)==elementCount&&cases.Any(item => SameCase(item,job)))
+            状態マネージャー.保存(状態);
+            return 状態.ジョブ一覧
+                .Where(ジョブ=>ベンチマーク作業軸.軸数を取得(ジョブ)==要素数&&ケース一覧.Any(項目=>同じケースか(項目,ジョブ)))
                 .ToArray();
         }
     }
 
-    private IReadOnlyList<BenchmarkJob> GetExistingAdaptiveJobs(ProgressState state,IReadOnlyList<BenchmarkCase> cases,int elementCount) {
-        lock(this.stateGate) {
-            return state.Jobs
-                .Where(job => BenchmarkWorkloadAxis.GetAxisCount(job)==elementCount&&cases.Any(item => SameCase(item,job)))
+    private IReadOnlyList<ベンチマークジョブ>既存適応ジョブ一覧を取得(進行状態 状態,IReadOnlyList<ベンチマークケース>ケース一覧,int 要素数) {
+        lock(this.状態排他) {
+            return 状態.ジョブ一覧
+                .Where(ジョブ=>ベンチマーク作業軸.軸数を取得(ジョブ)==要素数&&ケース一覧.Any(項目=>同じケースか(項目,ジョブ)))
                 .ToArray();
         }
     }
 
-    private void MarkWarmupFailure(
-        ProgressState state,
-        BenchmarkCase benchmark,
-        int elementCount,
-        int logicalCpu,
-        string failureReason,
-        Action<BenchmarkProgressUpdate> progress) {
-        BenchmarkJob job;
-        lock(this.stateGate) {
-            job=state.Jobs.FirstOrDefault(item => BenchmarkWorkloadAxis.GetAxisCount(item)==elementCount&&SameCase(benchmark,item))
-                ??CreateJob(benchmark,elementCount,GetBenchmarkSourceTab(benchmark),state.ElementCounts,state.NextRunItemIndex++);
-            if(!state.Jobs.Contains(job)) {
-                state.Jobs.Add(job);
+    private void ウォームアップ失敗を記録(
+        進行状態 状態,
+        ベンチマークケース ベンチマーク,
+        int 要素数,
+        int 論理CPU,
+        string 失敗理由,
+        Action<ベンチマーク進行更新> 進行通知) {
+        ベンチマークジョブ ジョブ;
+        lock(this.状態排他) {
+            ジョブ=状態.ジョブ一覧.FirstOrDefault(項目 => ベンチマーク作業軸.軸数を取得(項目)==要素数&&同じケースか(ベンチマーク,項目))
+                ??ジョブを作成(ベンチマーク,要素数,ベンチマークソースタブを取得(ベンチマーク,状態.ソースタブ),状態.要素数一覧,状態.次の実行項目インデックス++);
+            if(!状態.ジョブ一覧.Contains(ジョブ)) {
+                状態.ジョブ一覧.Add(ジョブ);
             }
 
-            job.Status=JobStatus.Failed;
-            job.AssignedLogicalCpu=logicalCpu;
-            job.StartedAt=DateTimeOffset.UtcNow;
-            job.FinishedAt=DateTimeOffset.UtcNow;
-            job.Mean="Warmup failed";
-            job.Error=string.Empty;
-            job.StdDev=string.Empty;
-            job.MeanNanoseconds=null;
-            job.ErrorNanoseconds=null;
-            job.StdDevNanoseconds=null;
-            job.AllocatedBytes=null;
-            job.ExitCode=1;
-            job.FailureReason=FirstText(failureReason,"Warmup failed.");
-            stateManager.Save(state);
+            ジョブ.状態=ジョブ状態.失敗;
+            ジョブ.割り当て論理CPU=論理CPU;
+            ジョブ.開始日時=DateTimeOffset.UtcNow;
+            ジョブ.終了日時=DateTimeOffset.UtcNow;
+            ジョブ.平均="ウォームアップ失敗";
+            ジョブ.誤差=string.Empty;
+            ジョブ.標準偏差=string.Empty;
+            ジョブ.平均ナノ秒=null;
+            ジョブ.誤差ナノ秒=null;
+            ジョブ.標準偏差ナノ秒=null;
+            ジョブ.割り当てバイト数=null;
+            ジョブ.終了コード=1;
+            ジョブ.失敗理由=最初の文字列を取得(失敗理由,"ウォームアップに失敗しました。");
+            状態マネージャー.保存(状態);
         }
 
-        progress(new BenchmarkProgressUpdate(state,job));
+        進行通知(new ベンチマーク進行更新(状態,ジョブ));
     }
 
-    private static BenchmarkJob CreateJob(
-        BenchmarkCase benchmark,
-        int elementCount,
-        BenchmarkSourceTab sourceTab,
-        IEnumerable<int> preparedElementCounts,
-        int runItemIndex) =>
+    private static ベンチマークジョブ ジョブを作成(
+        ベンチマークケース ベンチマーク,
+        int 要素数,
+        ベンチマークソースタブ ソースタブ,
+        IEnumerable<int> 準備済み要素数一覧,
+        int 実行項目インデックス) =>
         new() {
-            JobId=CreateJobId(benchmark,sourceTab,elementCount),
-            Project=benchmark.Project,
-            AssemblyName=benchmark.AssemblyName,
-            TypeFullName=benchmark.TypeFullName,
-            BenchmarkTypeText=benchmark.BenchmarkTypeText,
-            MethodName=benchmark.MethodName,
-            ArgumentKey=benchmark.ArgumentKey,
-            Arguments=benchmark.Arguments.ToList(),
-            SourceTab=sourceTab,
-            ElementCount=BenchmarkWorkloadAxis.ResolveElementCount(sourceTab,elementCount),
-            LoopCount=BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab,elementCount),
-            PreparedElementCounts=BenchmarkWorkloadAxis.ResolvePreparedElementCounts(sourceTab,preparedElementCounts).ToList(),
-            RunItemIndex=runItemIndex,
-            BindingRowIndex=benchmark.BindingRowIndex,
+            ジョブID=ジョブIDを作成(ベンチマーク,ソースタブ,要素数),
+            プロジェクト=ベンチマーク.プロジェクト,
+            アセンブリ名=ベンチマーク.アセンブリ名,
+            型完全名=ベンチマーク.型完全名,
+            メソッド名=ベンチマーク.メソッド名,
+            引数キー=ベンチマーク.引数キー,
+            引数一覧=ベンチマーク.引数一覧.ToList(),
+            ソースタブ=ソースタブ,
+            要素数=ベンチマーク作業軸.要素数を解決(ソースタブ,要素数),
+            ループ回数=ベンチマーク作業軸.ループ回数を解決(ソースタブ,要素数),
+            準備済み要素数一覧=ベンチマーク作業軸.準備済み要素数を解決(ソースタブ,準備済み要素数一覧).ToList(),
+            実行項目インデックス=実行項目インデックス,
+            バインド行インデックス=ベンチマーク.バインド行インデックス,
         };
 
-    private static string CreateJobId(BenchmarkCase benchmark,BenchmarkSourceTab sourceTab,int axisCount) =>
-        string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey,BenchmarkWorkloadAxis.ResolveElementCount(sourceTab,axisCount),BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab,axisCount));
+    private static string ジョブIDを作成(ベンチマークケース ベンチマーク,ベンチマークソースタブ ソースタブ,int 軸数)=>
+        string.Join("|",ベンチマーク.プロジェクト,ベンチマーク.アセンブリ名,ベンチマーク.型完全名,ベンチマーク.メソッド名,ベンチマーク.引数キー,ベンチマーク作業軸.要素数を解決(ソースタブ,軸数),ベンチマーク作業軸.ループ回数を解決(ソースタブ,軸数));
 
-    private static string CreateBenchmarkKey(BenchmarkCase benchmark) =>
-        string.Join("|",benchmark.Project,benchmark.AssemblyName,benchmark.TypeFullName,benchmark.MethodName,benchmark.ArgumentKey);
+    private static string ベンチマークキーを作成(ベンチマークケース ベンチマーク) =>
+        string.Join("|",ベンチマーク.プロジェクト,ベンチマーク.アセンブリ名,ベンチマーク.型完全名,ベンチマーク.メソッド名,ベンチマーク.引数キー);
 
-    private void EnqueueCurrentAdaptiveRows(
-        ProgressState state,
-        ConcurrentQueue<AdaptiveMethodRow> queue,
-        global::System.Collections.Generic.HashSet<string> queuedKeys,
-        global::System.Collections.Generic.HashSet<string> completedKeys,
-        BenchmarkRunRequest request) {
-        foreach(var row in this.CreateAdaptiveRows(state,request)) {
-            lock(queuedKeys) {
-                if(queuedKeys.Contains(row.Key)||completedKeys.Contains(row.Key)) {
+    private void 現在の適応行をキューへ追加(
+        進行状態 状態,
+        ConcurrentQueue<適応メソッド行> キュー,
+        global::System.Collections.Generic.HashSet<string> キュー済みキー一覧,
+        global::System.Collections.Generic.HashSet<string> 完了キー一覧,
+        ベンチマーク実行要求 要求) {
+        foreach(var 行 in this.適応行一覧を作成(状態,要求)) {
+            lock(キュー済みキー一覧) {
+                if(キュー済みキー一覧.Contains(行.キー)||完了キー一覧.Contains(行.キー)) {
                     continue;
                 }
 
-                queuedKeys.Add(row.Key);
-                queue.Enqueue(row);
+                キュー済みキー一覧.Add(行.キー);
+                キュー.Enqueue(行);
             }
         }
     }
 
-    private bool TryDequeueCurrentAdaptiveRow(
-        ProgressState state,
-        ConcurrentQueue<AdaptiveMethodRow> queue,
-        global::System.Collections.Generic.HashSet<string> queuedKeys,
-        BenchmarkRunRequest request,
-        out AdaptiveMethodRow row) {
-        while(queue.TryDequeue(out var candidate)) {
-            var current = this.CreateAdaptiveRows(state,request)
-                .FirstOrDefault(item => string.Equals(item.Key,candidate.Key,StringComparison.OrdinalIgnoreCase));
-            if(current is not null) {
-                row=current;
+    private bool 現在の適応行取得を試みる(
+        進行状態 状態,
+        ConcurrentQueue<適応メソッド行> キュー,
+        global::System.Collections.Generic.HashSet<string> キュー済みキー一覧,
+        ベンチマーク実行要求 要求,
+        out 適応メソッド行 行) {
+        while(キュー.TryDequeue(out var 候補)) {
+            var 現在 = this.適応行一覧を作成(状態,要求)
+                .FirstOrDefault(項目=>string.Equals(項目.キー,候補.キー,StringComparison.OrdinalIgnoreCase));
+            if(現在 is not null) {
+                行=現在;
                 return true;
             }
 
-            lock(queuedKeys) {
-                queuedKeys.Remove(candidate.Key);
+            lock(キュー済みキー一覧) {
+                キュー済みキー一覧.Remove(候補.キー);
             }
         }
 
-        row=null!;
+        行=null!;
         return false;
     }
 
-    private IReadOnlyList<AdaptiveMethodRow> CreateAdaptiveRows(ProgressState state,BenchmarkRunRequest request) {
-        var jobs = this.GetJobsSnapshot(state);
-        var benchmarks = (request.BenchmarkProvider?.Invoke()??request.Benchmarks)
-            .Concat(jobs.Select(static job => job.ToBenchmarkCase()))
-            .Where(static benchmark => !string.IsNullOrWhiteSpace(benchmark.TypeFullName))
-            .GroupBy(CreateBenchmarkKey,StringComparer.Ordinal)
-            .Select(static group => group.First())
+    private IReadOnlyList<適応メソッド行> 適応行一覧を作成(進行状態 状態,ベンチマーク実行要求 要求) {
+        var ジョブ一覧 = this.ジョブスナップショットを取得(状態);
+        var ベンチマーク一覧 = (要求.ベンチマーク取得器?.Invoke()??要求.ベンチマーク一覧)
+            .Concat(ジョブ一覧.Select(static ジョブ => ジョブ.ベンチマークケースに変換()))
+            .Where(static ベンチマーク => !string.IsNullOrWhiteSpace(ベンチマーク.型完全名))
+            .GroupBy(ベンチマークキーを作成,StringComparer.Ordinal)
+            .Select(static グループ => グループ.First())
             .ToArray();
-        return benchmarks
-            .Select((benchmark,index) => new { Benchmark=benchmark, Index=index })
-            .GroupBy(item => GetBenchmarkSourceTab(item.Benchmark))
-            .OrderBy(static group => group.Min(static item => item.Index))
-            .SelectMany(group => {
-                var sourceTab=BenchmarkSourceTabs.Get(group.Key);
-                return BenchmarkRowGroupingLogic.CreateRows(group.OrderBy(static item => item.Index).Select(static item => item.Benchmark).ToArray(),sourceTab)
-                    .Select(row => new AdaptiveMethodRow(
-                        row.RowKey,
-                        sourceTab.Tab,
-                        row.MethodName,
-                        sourceTab.ProjectOrder
-                            .Where(project => row.CasesByProject.ContainsKey(project))
-                            .Select(project => row.CasesByProject[project])
+        return ベンチマーク一覧
+            .Select((ベンチマーク,インデックス) => new { ベンチマーク,インデックス })
+            .GroupBy(項目 => ベンチマークソースタブを取得(項目.ベンチマーク,要求.ソースタブ))
+            .OrderBy(static グループ => グループ.Min(static 項目 => 項目.インデックス))
+            .SelectMany(グループ => {
+                var ソースタブ = ベンチマークソースタブ一覧.取得(グループ.Key);
+                return ベンチマーク行グループ化ロジック.行を作成(グループ.OrderBy(static 項目 => 項目.インデックス).Select(static 項目 => 項目.ベンチマーク).ToArray(),ソースタブ)
+                    .Select(行 => new 適応メソッド行(
+                        行.行キー,
+                        ソースタブ.タブ,
+                        行.メソッド名,
+                        ソースタブ.プロジェクト順
+                            .Where(プロジェクト=>行.プロジェクト別ケース.ContainsKey(プロジェクト))
+                            .Select(プロジェクト=>行.プロジェクト別ケース[プロジェクト])
                             .ToArray()));
             })
             .ToArray();
     }
 
-    private static BenchmarkSourceTab GetBenchmarkSourceTab(BenchmarkCase benchmark) {
-        var sourceTab=BenchmarkSourceTabs.GetByProjectAndAssembly(benchmark.Project,benchmark.AssemblyName);
-        if(!sourceTab.ContainsCase(benchmark)){
-            throw new InvalidDataException(
-                "Benchmark case does not belong to the resolved SourceTab. SourceTab="+sourceTab.Id
-                +" Project="+benchmark.Project
-                +" Assembly="+benchmark.AssemblyName
-                +" Type="+benchmark.TypeFullName);
-        }
-        return sourceTab.Tab;
-    }
+    private static ベンチマークソースタブ ベンチマークソースタブを取得(ベンチマークケース ベンチマーク,ベンチマークソースタブ 代替ソースタブ) =>
+        ベンチマークソースタブ一覧.プロジェクトとアセンブリから取得を試みる(ベンチマーク.プロジェクト,ベンチマーク.アセンブリ名)?.タブ??代替ソースタブ;
 
-    private static bool SameCase(BenchmarkCase benchmark,BenchmarkJob job) =>
-        string.Equals(benchmark.Project,job.Project,StringComparison.OrdinalIgnoreCase)
-        &&string.Equals(benchmark.AssemblyName,job.AssemblyName,StringComparison.Ordinal)
-        &&string.Equals(benchmark.TypeFullName,job.TypeFullName,StringComparison.Ordinal)
-        &&string.Equals(benchmark.MethodName,job.MethodName,StringComparison.Ordinal)
-        &&string.Equals(benchmark.ArgumentKey,job.ArgumentKey,StringComparison.Ordinal);
+    private static bool 同じケースか(ベンチマークケース ベンチマーク,ベンチマークジョブ ジョブ) =>
+        string.Equals(ベンチマーク.プロジェクト,ジョブ.プロジェクト,StringComparison.OrdinalIgnoreCase)
+        &&string.Equals(ベンチマーク.アセンブリ名,ジョブ.アセンブリ名,StringComparison.Ordinal)
+        &&string.Equals(ベンチマーク.型完全名,ジョブ.型完全名,StringComparison.Ordinal)
+        &&string.Equals(ベンチマーク.メソッド名,ジョブ.メソッド名,StringComparison.Ordinal)
+        &&string.Equals(ベンチマーク.引数キー,ジョブ.引数キー,StringComparison.Ordinal);
 
-    private bool HasFailedRowCase(ProgressState state,AdaptiveMethodRow row) {
-        var jobs = this.GetJobsSnapshot(state);
-        return row.Cases.Any(benchmark => jobs.Any(job => SameCase(benchmark,job)&&job.Status==JobStatus.Failed));
-    }
-
-    private static bool IsCompletedTargetBatch(
-        IReadOnlyList<BenchmarkJob> jobs,
-        IReadOnlyList<BenchmarkCase> cases,
-        double thresholdNanoseconds) =>
-        cases.Count>0
-        &&cases.All(benchmark => jobs.Any(job =>
-            SameCase(benchmark,job)
-            &&job.Status==JobStatus.Completed
-            &&job.MeanNanoseconds is { } mean
-            &&mean>=thresholdNanoseconds));
-
-    private void MarkTargetDurationUnreachable(
-        ProgressState state,
-        IReadOnlyList<BenchmarkJob> jobs,
-        Action<BenchmarkProgressUpdate> progress) {
-        const string reason = "ループ回数がint.MaxValueに達しても目標測定時間へ到達できませんでした。";
-        BenchmarkJob[] failedJobs;
-        lock(this.stateGate) {
-            failedJobs=jobs.Where(static job => job.Status==JobStatus.Completed).ToArray();
-            foreach(var job in failedJobs) {
-                job.Status=JobStatus.Failed;
-                job.ExitCode=1;
-                job.FailureReason=reason;
+    private void 目標時間到達不能を記録(
+        進行状態 状態,
+        IReadOnlyList<ベンチマークジョブ> ジョブ一覧,
+        Action<ベンチマーク進行更新> 進行通知) {
+        const string 理由 = "ループ回数がint.MaxValueに達しても目標測定時間へ到達できませんでした。";
+        ベンチマークジョブ[] 失敗ジョブ一覧;
+        lock(this.状態排他) {
+            失敗ジョブ一覧=ジョブ一覧.Where(static ジョブ => ジョブ.状態==ジョブ状態.完了).ToArray();
+            foreach(var ジョブ in 失敗ジョブ一覧) {
+                ジョブ.状態=ジョブ状態.失敗;
+                ジョブ.終了コード=1;
+                ジョブ.失敗理由=理由;
             }
-            stateManager.Save(state);
+            状態マネージャー.保存(状態);
         }
 
-        foreach(var job in failedJobs) {
-            progress(new BenchmarkProgressUpdate(state,job));
-        }
-    }
-
-    private bool IsAdaptiveCaseStopped(ProgressState state,BenchmarkSourceTab sourceTab,BenchmarkCase benchmark) {
-        var jobs = this.GetJobsSnapshot(state);
-        return IsAdaptiveCaseFailed(jobs,sourceTab,benchmark)
-            ||IsAdaptiveCaseOverThreshold(state,jobs,sourceTab,benchmark);
-    }
-
-    private static bool IsAdaptiveCaseFailed(IReadOnlyList<BenchmarkJob> jobs,BenchmarkSourceTab sourceTab,BenchmarkCase benchmark) =>
-        jobs.Any(job => SameAdaptiveSeries(sourceTab,benchmark,job)&&job.Status==JobStatus.Failed);
-
-    private static bool IsAdaptiveCaseOverThreshold(ProgressState state,IReadOnlyList<BenchmarkJob> jobs,BenchmarkSourceTab sourceTab,BenchmarkCase benchmark) =>
-        jobs.Any(job =>
-            SameAdaptiveSeries(sourceTab,benchmark,job)
-            &&job.Status==JobStatus.Completed
-            &&job.MeanNanoseconds is { } mean
-            &&mean>=state.AdaptiveThresholdNanoseconds);
-
-    private static bool SameAdaptiveSeries(BenchmarkSourceTab sourceTab,BenchmarkCase benchmark,BenchmarkJob job) {
-        if(!IsScalableSourceTab(sourceTab)) {
-            return SameCase(benchmark,job);
-        }
-
-        return string.Equals(benchmark.Project,job.Project,StringComparison.OrdinalIgnoreCase)
-            &&string.Equals(benchmark.AssemblyName,job.AssemblyName,StringComparison.Ordinal)
-            &&string.Equals(benchmark.TypeFullName,job.TypeFullName,StringComparison.Ordinal)
-            &&string.Equals(benchmark.MethodName,job.MethodName,StringComparison.Ordinal);
-    }
-
-    private IReadOnlyList<BenchmarkJob> GetJobsSnapshot(ProgressState state) {
-        lock(this.stateGate) {
-            return state.Jobs.ToArray();
+        foreach(var ジョブ in 失敗ジョブ一覧) {
+            進行通知(new ベンチマーク進行更新(状態,ジョブ));
         }
     }
 
-    private static bool IsScalableSourceTab(BenchmarkSourceTab sourceTab) =>
-        BenchmarkWorkloadAxis.IsScalableSourceTab(sourceTab);
+    private bool 適応ケースが停止済みか(進行状態 状態,ベンチマークソースタブ ソースタブ,ベンチマークケース ベンチマーク) {
+        var ジョブ一覧 = this.ジョブスナップショットを取得(状態);
+        return 適応ケースが失敗済みか(ジョブ一覧,ソースタブ,ベンチマーク)
+            ||適応ケースが閾値超過か(状態,ジョブ一覧,ソースタブ,ベンチマーク);
+    }
 
-    private static string CreateAxisStatusText(BenchmarkJob job) =>
-        BenchmarkWorkloadAxis.UsesLoopCount(job.SourceTab)
-            ? "ループ回数="+job.LoopCount.ToString(CultureInfo.InvariantCulture)+" / N="+job.ElementCount.ToString(CultureInfo.InvariantCulture)
-            : "N="+job.ElementCount.ToString(CultureInfo.InvariantCulture);
+    private static bool 適応ケースが失敗済みか(IReadOnlyList<ベンチマークジョブ> ジョブ一覧,ベンチマークソースタブ ソースタブ,ベンチマークケース ベンチマーク) =>
+        ジョブ一覧.Any(ジョブ => 同じ適応系列か(ソースタブ,ベンチマーク,ジョブ)&&ジョブ.状態==ジョブ状態.失敗);
 
-    private static IReadOnlyList<int> NormalizeCpus(IReadOnlyList<int> cpus) =>
-        cpus.Count==0 ? [0] : cpus.Distinct().Order().ToArray();
+    private static bool 適応ケースが閾値超過か(進行状態 状態,IReadOnlyList<ベンチマークジョブ> ジョブ一覧,ベンチマークソースタブ ソースタブ,ベンチマークケース ベンチマーク) =>
+        ジョブ一覧.Any(ジョブ =>
+            同じ適応系列か(ソースタブ,ベンチマーク,ジョブ)
+            &&ジョブ.状態==ジョブ状態.完了
+            &&ジョブ.平均ナノ秒 is { } 平均
+            &&平均>=状態.適応しきい値ナノ秒);
 
-    private static IReadOnlyList<int> GetCurrentCpus(BenchmarkRunRequest request) =>
-        NormalizeCpus(request.LogicalCpuProvider?.Invoke()??request.LogicalCpus);
+    private static bool 同じ適応系列か(ベンチマークソースタブ ソースタブ,ベンチマークケース ベンチマーク,ベンチマークジョブ ジョブ) {
+        if(!スケーラブルソースタブか(ソースタブ)) {
+            return 同じケースか(ベンチマーク,ジョブ);
+        }
 
-    private static bool ShouldRunWarmup(BenchmarkExecutionProfile executionProfile) =>
-        executionProfile is BenchmarkExecutionProfile.Fast or BenchmarkExecutionProfile.Intermediate;
+        return string.Equals(ベンチマーク.プロジェクト,ジョブ.プロジェクト,StringComparison.OrdinalIgnoreCase)
+            &&string.Equals(ベンチマーク.アセンブリ名,ジョブ.アセンブリ名,StringComparison.Ordinal)
+            &&string.Equals(ベンチマーク.型完全名,ジョブ.型完全名,StringComparison.Ordinal)
+            &&string.Equals(ベンチマーク.メソッド名,ジョブ.メソッド名,StringComparison.Ordinal);
+    }
 
-    private static bool IsCompletedMeasurement(BenchmarkJobRunResult result) =>
-        string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)
-        &&result.MeanNanoseconds is not null;
+    private IReadOnlyList<ベンチマークジョブ> ジョブスナップショットを取得(進行状態 状態) {
+        lock(this.状態排他) {
+            return 状態.ジョブ一覧.ToArray();
+        }
+    }
 
-    private static void TryDeleteDirectory(string path) {
-        try{
-            if(!string.IsNullOrWhiteSpace(path)&&Directory.Exists(path)){
-                Directory.Delete(path,recursive:true);
+    private static bool スケーラブルソースタブか(ベンチマークソースタブ ソースタブ) =>
+        ベンチマーク作業軸.スケーラブルソースタブか(ソースタブ);
+
+    private static string 軸状態文を作成(ベンチマークジョブ ジョブ) =>
+        ベンチマーク作業軸.ループ回数を使うか(ジョブ.ソースタブ)
+            ? "ループ回数="+ジョブ.ループ回数.ToString(CultureInfo.InvariantCulture)+" / 要素数="+ジョブ.要素数.ToString(CultureInfo.InvariantCulture)
+            : "要素数="+ジョブ.要素数.ToString(CultureInfo.InvariantCulture);
+
+    private static IReadOnlyList<int> CPU一覧を正規化(IReadOnlyList<int> CPU一覧) =>
+        CPU一覧.Count==0 ? [0] : CPU一覧.Distinct().Order().ToArray();
+
+    private static IReadOnlyList<int> 現在CPU一覧を取得(ベンチマーク実行要求 要求) =>
+        CPU一覧を正規化(要求.論理CPU取得器?.Invoke()??要求.論理CPU一覧);
+
+    private static bool ウォームアップを実行するか(ベンチマーク実行プロファイル 実行プロファイル) =>
+        実行プロファイル is ベンチマーク実行プロファイル.高速 or ベンチマーク実行プロファイル.中間;
+
+    private static bool 測定完了か(ベンチマークジョブ実行結果 結果) =>
+        string.Equals(結果.状態,ジョブ状態名.保存値に変換(ジョブ状態.完了),StringComparison.OrdinalIgnoreCase)
+        &&結果.平均ナノ秒 is not null;
+
+    private static void ディレクトリ削除を試みる(string パス) {
+        try {
+            if(!string.IsNullOrWhiteSpace(パス)&&Directory.Exists(パス)) {
+                Directory.Delete(パス,recursive: true);
             }
-        }catch(IOException){
-        }catch(UnauthorizedAccessException){
+        } catch(IOException) {
+        } catch(UnauthorizedAccessException) {
         }
     }
 
-    private static string FirstText(params string[] values) =>
-        values.FirstOrDefault(static value => !string.IsNullOrWhiteSpace(value))??string.Empty;
+    private static string 最初の文字列を取得(params string[] 値一覧) =>
+        値一覧.FirstOrDefault(static 値 => !string.IsNullOrWhiteSpace(値))??string.Empty;
 
-    private sealed record AdaptiveMethodRow(
-        string Key,
-        BenchmarkSourceTab SourceTab,
-        string MethodName,
-        IReadOnlyList<BenchmarkCase> Cases);
+    private sealed record 適応メソッド行(
+        string キー,
+        ベンチマークソースタブ ソースタブ,
+        string メソッド名,
+        IReadOnlyList<ベンチマークケース> ケース一覧);
 
-    private sealed record AdaptiveWorker(string RowKey,Task Task) {
-        public bool IsCompleted => this.Task.IsCompleted;
+    private sealed record 適応ワーカー(string 行キー,Task タスク) {
+        public bool 完了か=>this.タスク.IsCompleted;
     }
 
-    private sealed record WarmupFailure(
-        BenchmarkCase Benchmark,
-        string FailureReason);
+    private sealed record ウォームアップ失敗(
+        ベンチマークケース ベンチマーク,
+        string 失敗理由);
 }
 
 [global::Seamless.FLinq.LinqIntercept(false)]
-internal static class BenchmarkElementCounts {
+internal static class ベンチマーク要素数一覧 {
 #if SCALABLE_BENCHMARK
-    private const int BaseElementCountExponent = 16;
-    private const int FirstElementCountExponent = 16;
-    private const int ElementCountExponentCount = 8;
+    private const int 基本要素数指数=16;
+    private const int 最初要素数指数=16;
+    private const int 要素数指数個数=8;
 #else
-    private const int BaseElementCountExponent = 12;
+    private const int 基本要素数指数=12;
 #endif
-    internal const int BaseElementCount = 1<<BaseElementCountExponent;
+    internal const int 基本要素数=1<<基本要素数指数;
 
 #if SCALABLE_BENCHMARK
-    public static IReadOnlyList<int> All { get; } =
-        Enumerable.Range(FirstElementCountExponent,ElementCountExponentCount).Select(static exponent => 1<<exponent).ToArray();
+    public static IReadOnlyList<int>全て{get;}=
+        Enumerable.Range(最初要素数指数,要素数指数個数).Select(static 指数=>1<<指数).ToArray();
 
-    public static IReadOnlyList<int> DefaultInitial { get; } =
-        [BaseElementCount];
+    public static IReadOnlyList<int>既定初期値{get;}=
+        [基本要素数];
 #else
-    public static IReadOnlyList<int> All { get; } =
-        [BenchmarkWorkloadAxis.DefaultLoopCount];
+    public static IReadOnlyList<int>全て{get;}=
+        [ベンチマーク作業軸.既定ループ回数];
 
-    public static IReadOnlyList<int> DefaultInitial { get; } =
-        [BenchmarkWorkloadAxis.DefaultLoopCount];
+    public static IReadOnlyList<int>既定初期値{get;}=
+        [ベンチマーク作業軸.既定ループ回数];
 #endif
 }

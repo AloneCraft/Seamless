@@ -1,7 +1,7 @@
 namespace Test.System.Linq.Intercept.Optimization;
 
-public sealed class SelectManyFusion:OptimizationTestBase{
-    [Fact,Trait("Category","Unit")]
+public sealed class SelectManyFusion:OptimizationTestBase {
+    [Fact, Trait("Category","Unit")]
     public static void NestedFlatten() {
         AssertSequenceEqual(Outer().SelectMany(static a => Inner().SelectMany(b => new[] { a+b,a-b })).ToList(),NestedFlatten_NonEmptyOptimized());
         AssertSequenceEqual(Outer().SelectMany(static a => Inner().SelectMany(b => new[] { a+b,a-b })).ToList(),NestedFlatten_NonEmptyNoOptimized());
@@ -25,7 +25,7 @@ public sealed class SelectManyFusion:OptimizationTestBase{
     private static List<int> NestedFlatten_EmptyNoOptimized() =>
         EmptyOuter().SelectMany(static a => Inner().SelectMany(b => new[] { a+b,a-b })).ToList();
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void CollectionSelectorResultSelectorFused() {
         AssertSequenceEqual(Outer().SelectMany(static a => Inner(),static (a,b) => a+b).ToList(),CollectionSelectorResultSelectorFusedOptimized());
         AssertSequenceEqual(Outer().SelectMany(static a => Inner(),static (a,b) => a+b).ToList(),CollectionSelectorResultSelectorFusedNoOptimized());
@@ -39,7 +39,7 @@ public sealed class SelectManyFusion:OptimizationTestBase{
     private static List<int> CollectionSelectorResultSelectorFusedNoOptimized() =>
         Outer().SelectMany(static a => Inner(),static (a,b) => a+b).ToList();
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void PredicatePushdown() {
         AssertSequenceEqual(Outer().SelectMany(static a => Inner()).Where(static x => x>Limit()).ToList(),PredicatePushdown_MatchOptimized());
         AssertSequenceEqual(Outer().SelectMany(static a => Inner()).Where(static x => x>Limit()).ToList(),PredicatePushdown_MatchNoOptimized());
@@ -63,7 +63,7 @@ public sealed class SelectManyFusion:OptimizationTestBase{
     private static List<int> PredicatePushdown_NoMatchNoOptimized() =>
         Outer().SelectMany(static a => Inner()).Where(static x => x>1000).ToList();
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void IndexSelectorOverload() {
         AssertSequenceEqual(Outer().SelectMany(static (a,i) => new[] { a,i }).ToList(),IndexSelectorOverloadOptimized());
         AssertSequenceEqual(Outer().SelectMany(static (a,i) => new[] { a,i }).ToList(),IndexSelectorOverloadNoOptimized());

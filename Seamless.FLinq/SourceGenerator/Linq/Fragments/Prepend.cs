@@ -14,7 +14,7 @@ Prepend は source.Prepend(value) を、追加要素を先に返してから sou
 設計意図:
   連続 Prepend は先頭側から FlattenedElements に畳み込み、source の enumerator は1つだけ保持する。
 */
-public class Prepend(int 番号, Enumerable source, string element) : Enumerable(番号) {
+public class Prepend(int 番号,Enumerable source,string element):Enumerable(番号) {
     private Enumerable Source => source;
     private string ElementExpression => element;
     private Enumerable RootSource => this.Source is Prepend prepend ? prepend.RootSource : this.Source;
@@ -50,7 +50,7 @@ public class Prepend(int 番号, Enumerable source, string element) : Enumerable
     public override string GetTryGetNextBody {
         get {
             var builder = new StringBuilder();
-            for(var i = 0; i <this.FlattenedElements.Count; i++) {
+            for(var i = 0;i<this.FlattenedElements.Count;i++) {
                 builder.AppendLine($"if(this.{this.state}=={i}) {{");
                 builder.AppendLine($"    this.{this.state}={i+1};");
                 builder.AppendLine($"    current=this.{this.currentValue}=element{i};");

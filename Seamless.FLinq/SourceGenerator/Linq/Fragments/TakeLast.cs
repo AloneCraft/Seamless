@@ -1,8 +1,8 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public class TakeLast(int 番号, Enumerable source, string takeCount) : Enumerable(番号) {
+public class TakeLast(int 番号,Enumerable source,string takeCount):Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length==1 && method.Parameters[0].Type.SpecialType==SpecialType.System_Int32;
+        method.Parameters.Length==1&&method.Parameters[0].Type.SpecialType==SpecialType.System_Int32;
     private Enumerable Source => source;
     private string TakeCountExpression => takeCount;
     private Enumerable RootSource => this.Source is TakeLast takeLast ? takeLast.RootSource : this.Source;
@@ -83,8 +83,8 @@ public class TakeLast(int 番号, Enumerable source, string takeCount) : Enumera
     public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => this.RootSource.ElementType;
     public override string GetConsumeExecutionStatement(string consumerName) {
-        var sourceName=$"__takeLastSource{番号}";
-        var spanExpression=this.RootSource.GetDirectSpanExpression(sourceName);
+        var sourceName = $"__takeLastSource{番号}";
+        var spanExpression = this.RootSource.GetDirectSpanExpression(sourceName);
         if(spanExpression is not null) {
             return $$"""
                 using var {{sourceName}}={{this.RootSource.GetEnumeratorExpression}};
@@ -96,16 +96,16 @@ public class TakeLast(int 番号, Enumerable source, string takeCount) : Enumera
                 }
                 """;
         }
-        if(this.RootSource is not RangeRoot range ||this.RootSource.ElementType!="int") {
+        if(this.RootSource is not RangeRoot range||this.RootSource.ElementType!="int") {
             return base.GetConsumeExecutionStatement(consumerName);
         }
 
-        var start=$"__start{番号}";
-        var count=$"__count{番号}";
-        var take=$"__take{番号}";
-        var actual=$"__actual{番号}";
-        var skip=$"__skip{番号}";
-        var index=$"__i{番号}";
+        var start = $"__start{番号}";
+        var count = $"__count{番号}";
+        var take = $"__take{番号}";
+        var actual = $"__actual{番号}";
+        var skip = $"__skip{番号}";
+        var index = $"__i{番号}";
         return $$"""
             {
                 var {{start}}={{range.StartExpression}};

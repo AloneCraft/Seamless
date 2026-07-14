@@ -1,7 +1,7 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public class SingleOrDefault(int 番号, Enumerable source, string resultType) : BufferedScalar(番号, resultType) {
-    public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length == 0;
+public class SingleOrDefault(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+    public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length==0;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -17,8 +17,8 @@ public class SingleOrDefault(int 番号, Enumerable source, string resultType) :
             ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault")
         ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanSingleOrDefaultInline(string destVar,string destType) {
-        var span=$"__span{this.result}";
-        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span = $"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
             if({{spanName}}.Length==0) {
                 {{destVar}}=default!;
             } else {
@@ -49,9 +49,9 @@ public class SingleOrDefault(int 番号, Enumerable source, string resultType) :
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-public class SingleOrDefault_defaultValue(int 番号, Enumerable source, string defaultValue, string resultType) : BufferedScalar(番号, resultType) {
+public class SingleOrDefault_defaultValue(int 番号,Enumerable source,string defaultValue,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length == 1 && method.Parameters[0].Type.TypeKind != TypeKind.Delegate;
+        method.Parameters.Length==1&&method.Parameters[0].Type.TypeKind!=TypeKind.Delegate;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -66,8 +66,8 @@ public class SingleOrDefault_defaultValue(int 番号, Enumerable source, string 
             : this.RenderDirectSpanSingleOrDefaultDefaultInline(destVar,destType)
             ??this.RenderComputeInline(destVar,destType,defaultValue);
     private string? RenderDirectSpanSingleOrDefaultDefaultInline(string destVar,string destType) {
-        var span=$"__span{this.result}";
-        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span = $"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
             if({{spanName}}.Length==0) {
                 {{destVar}}={{defaultValue}};
             } else {
@@ -98,11 +98,11 @@ public class SingleOrDefault_defaultValue(int 番号, Enumerable source, string 
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-public class SingleOrDefault_predicate(int 番号, Enumerable source, FuncFragment predicate, string resultType) : BufferedScalar(番号, resultType) {
+public class SingleOrDefault_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length > 0 && method.Parameters[0].Type.TypeKind == TypeKind.Delegate;
+        method.Parameters.Length>0&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate;
     protected override Enumerable PrimarySource => source;
-    public override string StructMethod => this.FuncSupport(predicate, nameof(predicate));
+    public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
         $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
@@ -115,7 +115,7 @@ public class SingleOrDefault_predicate(int 番号, Enumerable source, FuncFragme
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
             ? RangePredicateOptimizer.RenderSingleOrDefault(range,predicate,番号,destVar,destType)
-                ?? (TryRenderDirectLambda(predicate) is { } rangeLambda
+                ??(TryRenderDirectLambda(predicate) is { } rangeLambda
                     ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"SingleOrDefault",rangeLambda)
                     : this.RenderComputeInline(destVar,destType))
         : (TryRenderDirectLambda(predicate) is { } lambda
@@ -130,7 +130,7 @@ public class SingleOrDefault_predicate(int 番号, Enumerable source, FuncFragme
                 source.TryGetSpan(out var __span);
                 foreach(var {{this.item}} in __span){
                     bool {{this.temp}}=default!;
-                    {{this.FuncAssignStaticIndented("        ",predicate, nameof(predicate),this.temp,this.item)}}
+                    {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}) {
                         if(found) throw new global::System.InvalidOperationException("Sequence contains more than one matching element");
                         value={{this.item}};
@@ -148,7 +148,7 @@ public class SingleOrDefault_predicate(int 番号, Enumerable source, FuncFragme
                 while(source.MoveNext()) {
                     var {{this.item}} = source.Current;
                     bool {{this.temp}} = default!;
-                    {{this.FuncAssignStaticIndented("        ",predicate, nameof(predicate),this.temp,this.item)}}
+                    {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}) {
                         if(found) throw new global::System.InvalidOperationException("Sequence contains more than one matching element");
                         value = {{this.item}};

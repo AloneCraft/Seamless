@@ -1,6 +1,8 @@
+using Seamless.FLinq;
+
 using System.Collections;
 using System.Globalization;
-using Seamless.FLinq;
+
 using ZLinq;
 
 using SystemEnumerable = System.Linq.Enumerable;

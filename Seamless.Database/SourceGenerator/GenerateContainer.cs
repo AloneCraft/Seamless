@@ -17,12 +17,12 @@ public sealed class DatabaseContainerGenerator:IIncrementalGenerator {
     public void Initialize(IncrementalGeneratorInitializationContext context) {
         var containers = context.SyntaxProvider
             .CreateSyntaxProvider(
-                static (node,_)=>node is ClassDeclarationSyntax{BaseList:not null}declaration&&declaration.Modifiers.Any(SyntaxKind.PartialKeyword),
-                static (syntaxContext,_)=>コンテナ対象生成(syntaxContext))
-            .Where(static target=>target is not null)
-            .Select(static (target,_)=>target!);
+                static (node,_) => node is ClassDeclarationSyntax { BaseList: not null } declaration&&declaration.Modifiers.Any(SyntaxKind.PartialKeyword),
+                static (syntaxContext,_) => コンテナ対象生成(syntaxContext))
+            .Where(static target => target is not null)
+            .Select(static (target,_) => target!);
 
-        context.RegisterSourceOutput(containers.Collect(),static (productionContext,targets)=>{
+        context.RegisterSourceOutput(containers.Collect(),static (productionContext,targets) => {
             if(targets.IsDefaultOrEmpty) {
                 return;
             }
@@ -106,25 +106,22 @@ public sealed class DatabaseContainerGenerator:IIncrementalGenerator {
                 case IPropertySymbol property: {
                     if(データベース型一致(property.Type,"Table",out var tableRecord)) {
                         var sqlName = 属性名取得(property.GetAttributes(),"TableAttribute")??property.Name;
-                        builder.Add(new("Table",property.Name,sqlName,tableRecord,isTable:true));
-                    }
-                    else if(データベース型一致(property.Type,"View",out var viewRecord)) {
+                        builder.Add(new("Table",property.Name,sqlName,tableRecord,isTable: true));
+                    } else if(データベース型一致(property.Type,"View",out var viewRecord)) {
                         var sqlName = 属性名取得(property.GetAttributes(),"ViewAttribute")??property.Name;
-                        builder.Add(new("View",property.Name,sqlName,viewRecord,isTable:false));
+                        builder.Add(new("View",property.Name,sqlName,viewRecord,isTable: false));
                     }
                     break;
                 }
-                case IMethodSymbol{MethodKind:MethodKind.Ordinary}method: {
+                case IMethodSymbol { MethodKind: MethodKind.Ordinary } method: {
                     if(データベース型一致(method.ReturnType,"View",out var viewRecord)) {
                         var sqlName = 属性名取得(method.GetAttributes(),"ViewAttribute")??method.Name;
-                        builder.Add(new("View",method.Name,sqlName,viewRecord,isTable:false));
-                    }
-                    else if(データベース型一致(method.ReturnType,"TableFunction",out var functionRecord)) {
+                        builder.Add(new("View",method.Name,sqlName,viewRecord,isTable: false));
+                    } else if(データベース型一致(method.ReturnType,"TableFunction",out var functionRecord)) {
                         var sqlName = 属性名取得(method.GetAttributes(),"FunctionAttribute")??method.Name;
-                        builder.Add(new("TableFunction",method.Name,sqlName,functionRecord,isTable:false));
-                    }
-                    else if(属性名取得(method.GetAttributes(),"FunctionAttribute") is string scalarSqlName) {
-                        builder.Add(new("ScalarFunction",method.Name,scalarSqlName,method.ReturnType.ToDisplayString(完全修飾形式),isTable:false));
+                        builder.Add(new("TableFunction",method.Name,sqlName,functionRecord,isTable: false));
+                    } else if(属性名取得(method.GetAttributes(),"FunctionAttribute") is string scalarSqlName) {
+                        builder.Add(new("ScalarFunction",method.Name,scalarSqlName,method.ReturnType.ToDisplayString(完全修飾形式),isTable: false));
                     }
                     break;
                 }
@@ -134,7 +131,7 @@ public sealed class DatabaseContainerGenerator:IIncrementalGenerator {
     }
 
     private static bool データベース型一致(ITypeSymbol type,string genericName,out string recordTypeName) {
-        if(type is INamedTypeSymbol{IsGenericType:true}named
+        if(type is INamedTypeSymbol { IsGenericType: true } named
             &&named.OriginalDefinition.Name==genericName
             &&named.OriginalDefinition.ContainingNamespace.ToDisplayString()==DatabaseNamespace
             &&named.TypeArguments.Length==1) {
@@ -167,7 +164,7 @@ public sealed class DatabaseContainerGenerator:IIncrementalGenerator {
         }
         builder.AppendLine($"{indent}    public override global::System.Collections.Generic.IReadOnlyList<global::Seamless.Database.DatabaseObjectDeclaration> DatabaseObjects=>GeneratedDatabaseObjects;");
 
-        var tables = declarations.Where(static declaration=>declaration.IsTable).ToImmutableArray();
+        var tables = declarations.Where(static declaration => declaration.IsTable).ToImmutableArray();
         builder.AppendLine($"{indent}    /// <summary>全テーブル実体を生成する。スキーマ作成に相当する設計時操作。</summary>");
         builder.AppendLine($"{indent}    public void EnsureTablesCreated() {{");
         foreach(var table in tables) {

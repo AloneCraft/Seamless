@@ -3,8 +3,8 @@ namespace Test.System.Linq.Intercept;
 internal static class LinqCounterDiagnostics {
     public static void EmitExpected(string label,long expectedLogicalDelegate,long expectedPhysicalDelegate,LinqCounter counter) {
         if(expectedLogicalDelegate==0
-            && expectedPhysicalDelegate==0
-            && IsEmpty(counter)) {
+            &&expectedPhysicalDelegate==0
+            &&IsEmpty(counter)) {
             return;
         }
 
@@ -67,23 +67,23 @@ internal static class LinqCounterDiagnostics {
 
     private static bool IsEmpty(LinqCounter counter) =>
         counter.PhysicalMoveNext==0
-        && counter.LogicalOperations==0
-        && counter.LogicalWhere==0
-        && counter.LogicalSelect==0
-        && counter.LogicalSelectManyOuter==0
-        && counter.LogicalSelectManyInner==0
-        && counter.LogicalJoinOuter==0
-        && counter.LogicalJoinInner==0
-        && counter.LogicalGroupJoinOuter==0
-        && counter.LogicalGroupJoinInner==0
-        && counter.LogicalLeftJoinOuter==0
-        && counter.LogicalLeftJoinInner==0
-        && counter.LogicalRightJoinOuter==0
-        && counter.LogicalRightJoinInner==0
-        && counter.HashBuild==0
-        && counter.HashProbe==0
-        && counter.BufferAdd==0
-        && counter.TryGetNonEnumeratedCount==0
-        && counter.LogicalDelegate==0
-        && counter.PhysicalDelegate==0;
+        &&counter.LogicalOperations==0
+        &&counter.LogicalWhere==0
+        &&counter.LogicalSelect==0
+        &&counter.LogicalSelectManyOuter==0
+        &&counter.LogicalSelectManyInner==0
+        &&counter.LogicalJoinOuter==0
+        &&counter.LogicalJoinInner==0
+        &&counter.LogicalGroupJoinOuter==0
+        &&counter.LogicalGroupJoinInner==0
+        &&counter.LogicalLeftJoinOuter==0
+        &&counter.LogicalLeftJoinInner==0
+        &&counter.LogicalRightJoinOuter==0
+        &&counter.LogicalRightJoinInner==0
+        &&counter.HashBuild==0
+        &&counter.HashProbe==0
+        &&counter.BufferAdd==0
+        &&counter.TryGetNonEnumeratedCount==0
+        &&counter.LogicalDelegate==0
+        &&counter.PhysicalDelegate==0;
 }

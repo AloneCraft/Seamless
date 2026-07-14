@@ -1,6 +1,6 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public class OfType(int 番号, Enumerable source, string resultElementType) : Enumerable(番号) {
+public class OfType(int 番号,Enumerable source,string resultElementType):Enumerable(番号) {
     protected override Enumerable PrimarySource => source;
     private bool IsIdentityType => string.Equals(resultElementType,source.ElementType,StringComparison.Ordinal);
     internal Enumerable Source => source;
@@ -9,12 +9,12 @@ public class OfType(int 番号, Enumerable source, string resultElementType) : E
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => this.IsIdentityType ? source.DirectEnumerableExpression : null;
     public override string? NonEnumeratedCountExpression => this.IsIdentityType ? source.NonEnumeratedCountExpression : null;
-    public override bool CountPreserving => this.IsIdentityType && source.CountPreserving;
-    public override bool CanProvideSpan => this.IsIdentityType && source.CanProvideSpan;
-    public override bool CanTryProvideSpan => this.IsIdentityType && source.CanTryProvideSpan;
+    public override bool CountPreserving => this.IsIdentityType&&source.CountPreserving;
+    public override bool CanProvideSpan => this.IsIdentityType&&source.CanProvideSpan;
+    public override bool CanTryProvideSpan => this.IsIdentityType&&source.CanTryProvideSpan;
     public override string GetEnumerableExpression => this.IsIdentityType
         ? source.GetEnumerableExpression
-        : this.DirectEnumerableExpression ?? base.GetEnumerableExpression;
+        : this.DirectEnumerableExpression??base.GetEnumerableExpression;
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
@@ -50,7 +50,7 @@ public class OfType(int 番号, Enumerable source, string resultElementType) : E
         if(this.DirectEnumerableExpression is not { } directEnumerable) {
             return base.GetConsumeExecutionStatement(consumerName);
         }
-        var valueName=$"__cv{番号}";
+        var valueName = $"__cv{番号}";
         return $$"""
             foreach(var {{valueName}} in {{directEnumerable}}) {
                 {{consumerName}}.Consume({{valueName}});

@@ -5,6 +5,6 @@ namespace Benchmark.System.Linq.Enumerable.Range {
 
 namespace Seamless.Linq.Shared {
     internal static class RangeX {
-        public static ValueEnumerable<ZLinq.Linq.FromRange,int>Create(int start,int count)=>ValueEnumerable.Range(start,count);
+        public static ValueEnumerable<ZLinq.Linq.FromRange,int> Create(int start,int count) => ValueEnumerable.Range(start,count);
     }
 }

@@ -1,37 +1,37 @@
 namespace Test.System.Linq.Intercept.FragmentCoverage;
 
 public sealed class LongCount {
-    [Fact,Trait("Category","Unit")]
-    public static void noArg(){
+    [Fact, Trait("Category","Unit")]
+    public static void noArg() {
         GeneratedInterceptorAssert.ContainsMethod<LongCount>(nameof(noArgImpl));
-        var expected=new[]{1,2,3,4}.LongCount();
-        var actual=noArgImpl();
+        var expected = new[] { 1,2,3,4 }.LongCount();
+        var actual = noArgImpl();
         Assert.Equal(expected,actual);
     }
-    private static long noArgImpl(){
-        return new[]{1,2,3,4}.LongCount();
+    private static long noArgImpl() {
+        return new[] { 1,2,3,4 }.LongCount();
     }
 
-    [Fact,Trait("Category","Unit")]
-    public static void predicate(){
+    [Fact, Trait("Category","Unit")]
+    public static void predicate() {
         GeneratedInterceptorAssert.ContainsMethod<LongCount>(nameof(predicateImpl));
-        var expected=new[]{1,2,3,4}.LongCount(static v => v>2);
-        var actual=predicateImpl();
+        var expected = new[] { 1,2,3,4 }.LongCount(static v => v>2);
+        var actual = predicateImpl();
         Assert.Equal(expected,actual);
     }
-    private static long predicateImpl(){
-        return new[]{1,2,3,4}.LongCount(static v => v>2);
+    private static long predicateImpl() {
+        return new[] { 1,2,3,4 }.LongCount(static v => v>2);
     }
 
-    [Fact,Trait("Category","Unit")]
-    public static void noArg_enumerable(){
+    [Fact, Trait("Category","Unit")]
+    public static void noArg_enumerable() {
         GeneratedInterceptorAssert.ContainsMethod<LongCount>(nameof(noArg_enumerableImpl));
-        var expected=new[]{1,2,3,4}.LongCount();
-        var actual=noArg_enumerableImpl();
+        var expected = new[] { 1,2,3,4 }.LongCount();
+        var actual = noArg_enumerableImpl();
         Assert.Equal(expected,actual);
     }
-    private static long noArg_enumerableImpl(){
-        IEnumerable<int>src=[1,2,3,4];
+    private static long noArg_enumerableImpl() {
+        IEnumerable<int> src = [1,2,3,4];
         return src.LongCount();
     }
 }

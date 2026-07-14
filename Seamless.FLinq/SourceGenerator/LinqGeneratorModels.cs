@@ -2,21 +2,21 @@ namespace Seamless.FLinq;
 
 [Flags]
 internal enum LinqOptimizations {
-    None=0,
-    Rewrite=1,
-    PipelineFusion=2,
-    PredicatePushdown=4,
-    All=Rewrite|PipelineFusion|PredicatePushdown,
+    None = 0,
+    Rewrite = 1,
+    PipelineFusion = 2,
+    PredicatePushdown = 4,
+    All = Rewrite|PipelineFusion|PredicatePushdown,
 }
 
 internal static class LinqOptimizationContext {
-    [ThreadStatic]private static LinqOptimizations current;
-    [ThreadStatic]private static bool initialized;
+    [ThreadStatic] private static LinqOptimizations current;
+    [ThreadStatic] private static bool initialized;
 
     public static LinqOptimizations Current => initialized ? current : LinqOptimizations.All;
 
     public static Scope Enter(LinqOptimizations value) {
-        var previous=Current;
+        var previous = Current;
         current=value;
         initialized=true;
         return new(previous);
@@ -31,20 +31,20 @@ internal static class LinqOptimizationContext {
 }
 
 public sealed partial class FLinqIncrementalGenerator {
-    private static readonly DiagnosticDescriptor UnorderedOperationWarningDescriptor=new(
-        id:"FLINQ003",
-        title:"unordered Setで順序依存LINQが使用されています",
-        messageFormat:"'{0}'はunordered source '{1}'に直接適用できません。IEnumerable<T>へのinline castまたはAsEnumerable()で明示的にopt-inしてください。",
-        category:"Seamless.Usage",
-        defaultSeverity:DiagnosticSeverity.Warning,
-        isEnabledByDefault:true);
-    private static readonly DiagnosticDescriptor UnorderedOperationOptInDescriptor=new(
-        id:"FLINQ004",
-        title:"unordered Setの標準sequence意味論へopt-inしています",
-        messageFormat:"'{0}'はunordered source '{1}'の現在の列挙順で実行されます。順序は永続的ではありません。",
-        category:"Seamless.Usage",
-        defaultSeverity:DiagnosticSeverity.Info,
-        isEnabledByDefault:true);
+    private static readonly DiagnosticDescriptor UnorderedOperationWarningDescriptor = new(
+        id: "FLINQ003",
+        title: "unordered Setで順序依存LINQが使用されています",
+        messageFormat: "'{0}'はunordered source '{1}'に直接適用できません。IEnumerable<T>へのinline castまたはAsEnumerable()で明示的にopt-inしてください。",
+        category: "Seamless.Usage",
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+    private static readonly DiagnosticDescriptor UnorderedOperationOptInDescriptor = new(
+        id: "FLINQ004",
+        title: "unordered Setの標準sequence意味論へopt-inしています",
+        messageFormat: "'{0}'はunordered source '{1}'の現在の列挙順で実行されます。順序は永続的ではありません。",
+        category: "Seamless.Usage",
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
 
     private sealed class フラグメント候補 {
         public required Type FragmentType { get; init; }
@@ -52,7 +52,7 @@ public sealed partial class FLinqIncrementalGenerator {
         public required string MethodName { get; init; }
         public required string VariantName { get; init; }
         public required ParameterInfo[] Parameters { get; init; }
-        public Func<IMethodSymbol, bool>? IsApplicableOverload { get; init; }
+        public Func<IMethodSymbol,bool>? IsApplicableOverload { get; init; }
     }
 
     private static readonly SymbolDisplayFormat 完全修飾形式 = new(
@@ -60,8 +60,8 @@ public sealed partial class FLinqIncrementalGenerator {
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
         genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.ExpandNullable
-            | SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier
-            | SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
+            |SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier
+            |SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
     private static readonly SymbolDisplayFormat cref形式 = new(
         globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
@@ -72,7 +72,7 @@ public sealed partial class FLinqIncrementalGenerator {
     private static readonly IReadOnlyDictionary<string,ImmutableArray<フラグメント候補>> フラグメント候補一覧 = フラグメント候補一覧構築();
     private static readonly IReadOnlySet<string> SystemLinqEnumerableMethodNames = typeof(global::System.Linq.Enumerable)
         .GetMethods(BindingFlags.Public|BindingFlags.Static)
-        .Select(static method=>method.Name)
+        .Select(static method => method.Name)
         .ToHashSet(StringComparer.Ordinal);
     private static readonly ConditionalWeakTable<Compilation,System.Collections.Concurrent.ConcurrentDictionary<IMethodSymbol,ローカルメソッドLinq解析結果>> ローカルメソッドLinq解析キャッシュ = new();
 
@@ -124,15 +124,15 @@ public sealed partial class FLinqIncrementalGenerator {
             if(ReferenceEquals(this,other)) return true;
             return string.Equals(this.InterceptsLocationAttributeText,other.InterceptsLocationAttributeText,StringComparison.Ordinal);
         }
-        public override bool Equals(object? obj)=>obj is Linq傍受対象型 other &&this.Equals(other);
-        public override int GetHashCode()=> this.InterceptsLocationAttributeText.GetHashCode(StringComparison.Ordinal);
+        public override bool Equals(object? obj) => obj is Linq傍受対象型 other&&this.Equals(other);
+        public override int GetHashCode() => this.InterceptsLocationAttributeText.GetHashCode(StringComparison.Ordinal);
         private string Identifier { get; } = identifier;
         public string ContainingMethodName { get; } = containingMethodName;
         public string InterceptsLocationAttributeText { get; } = interceptsLocationAttributeText;
         public IMethodSymbol Method { get; } = method;
         private IMethodSymbol TemplateMethod { get; } = templateMethod;
         public InvocationExpressionSyntax Invocation { get; } = invocation;
-        public string SourcePath=> this.Invocation.SyntaxTree.FilePath;
+        public string SourcePath => this.Invocation.SyntaxTree.FilePath;
         public INamedTypeSymbol EnclosingType { get; } = enclosingType;
         public SemanticModel SemanticModel { get; } = semanticModel;
         private InterceptParameterSpec[] Parameters { get; } = parameters;
@@ -140,7 +140,7 @@ public sealed partial class FLinqIncrementalGenerator {
         private string? ExplicitSourceElementTypeName { get; } = sourceElementTypeName;
         private string[] MethodTypeParameters { get; } = methodTypeParameterNames?? [];
         // 傍受メソッドに付ける where 制約節（例: " where T : notnull"）。含有型がジェネリックのとき使う。
-        public string TypeParameterConstraintClause { get; } = typeParameterConstraintClause?? string.Empty;
+        public string TypeParameterConstraintClause { get; } = typeParameterConstraintClause??string.Empty;
         // 含有型がジェネリックか。展開失敗時に throw スタブではなく「傍受を出さない（元実装のまま）」へ倒すために使う。
         public bool ContainingTypeIsGeneric => this.Method.ContainingType.IsGenericType;
         public bool IsLocalMethodInterception { get; } = isLocalMethodInterception;
@@ -164,7 +164,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 return sourceType.TypeArguments[0].ToDisplayString(完全修飾形式);
             }
         }
-        public string ReturnTypeName=> this.Method.ReturnsVoid ? "void" : this.Method.ReturnType.ToDisplayString(完全修飾形式);
+        public string ReturnTypeName => this.Method.ReturnsVoid ? "void" : this.Method.ReturnType.ToDisplayString(完全修飾形式);
         public string InterceptorParameterList {
             get {
                 if(this.IsLocalMethodInterception) {
@@ -172,30 +172,30 @@ public sealed partial class FLinqIncrementalGenerator {
                     if(!this.Method.IsStatic) {
                         parameters.Add($"this {this.Method.ContainingType.ToDisplayString(完全修飾形式)} @this");
                     }
-                    parameters.AddRange(this.Parameters.Select(static parameter=>parameter.Declaration));
+                    parameters.AddRange(this.Parameters.Select(static parameter => parameter.Declaration));
                     return string.Join(", ",parameters);
                 }
                 return $"this global::System.Collections.Generic.IEnumerable<{this.SourceElementTypeName}> source{this.MethodParameterList}";
             }
         }
-        private string MethodParameterList=> this.Parameters.Length==0
+        private string MethodParameterList => this.Parameters.Length==0
             ? string.Empty
-            : ", "+string.Join(", ",this.Parameters.Select(static parameter=>parameter.Declaration));
-        public string MethodTypeParameterList=> this.MethodTypeParameters.Length==0
+            : ", "+string.Join(", ",this.Parameters.Select(static parameter => parameter.Declaration));
+        public string MethodTypeParameterList => this.MethodTypeParameters.Length==0
             ? string.Empty
             : "<"+string.Join(", ",this.MethodTypeParameters)+">";
-        public string MethodName=>$"{(this.OptimizeLinq ? "OptimizedLinq" : "MeasuredLinq")}_{this.Identifier}";
+        public string MethodName => $"{(this.OptimizeLinq ? "OptimizedLinq" : "MeasuredLinq")}_{this.Identifier}";
     }
     private sealed class InterceptParameterSpec(string name,string typeName,RefKind refKind = RefKind.None) {
         private string Name { get; } = name;
         private string TypeName { get; } = typeName;
         private RefKind RefKind { get; } = refKind;
-        public string Declaration=>$"{this.RefKindModifier}{this.TypeName} {this.Name}";
-        private string RefKindModifier=> this.RefKind switch {
-            RefKind.Ref=>"ref ",
-            RefKind.Out=>"out ",
-            RefKind.In=>"in ",
-            _=>string.Empty,
+        public string Declaration => $"{this.RefKindModifier}{this.TypeName} {this.Name}";
+        private string RefKindModifier => this.RefKind switch {
+            RefKind.Ref => "ref ",
+            RefKind.Out => "out ",
+            RefKind.In => "in ",
+            _ => string.Empty,
         };
     }
     private sealed class LambdaSpec(string returnTypeName,string[] parameterTypeNames,string[] parameterNames,string body) {
@@ -204,13 +204,13 @@ public sealed partial class FLinqIncrementalGenerator {
         public string[] ParameterNames { get; } = parameterNames;
         public string Body { get; } = body;
     }
-    private sealed class LinqInterceptTargetComparer : IEqualityComparer<Linq傍受対象型> {
+    private sealed class LinqInterceptTargetComparer:IEqualityComparer<Linq傍受対象型> {
         public static readonly LinqInterceptTargetComparer Instance = new();
         public bool Equals(Linq傍受対象型? x,Linq傍受対象型? y) {
             if(ReferenceEquals(x,y)) {
                 return true;
             }
-            if(x is null || y is null) {
+            if(x is null||y is null) {
                 return false;
             }
             return x.InterceptsLocationAttributeText==y.InterceptsLocationAttributeText;
@@ -232,7 +232,7 @@ public sealed partial class FLinqIncrementalGenerator {
             }
             return true;
         }
-        public override bool Equals(object? obj)=>obj is PerFileInterceptGroup other &&this.Equals(other);
+        public override bool Equals(object? obj) => obj is PerFileInterceptGroup other&&this.Equals(other);
         public override int GetHashCode() {
             var hc = StringComparer.Ordinal.GetHashCode(this.SourcePath);
             foreach(var t in this.Targets) {

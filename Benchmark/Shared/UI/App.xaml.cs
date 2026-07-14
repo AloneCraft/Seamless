@@ -1,54 +1,54 @@
 namespace UI;
 
 public partial class App:Application {
-    private bool closeConfirmed;
-    private bool closeInProgress;
-    private readonly Page? startupPage;
+    private bool 終了確認状態か;
+    private bool 終了処理中か;
+    private readonly Page? 起動ページ;
 
-    public App(AppShell appShell) {
-        try{
-            StartupDiagnostics.Write("App constructor started.");
+    public App(アプリシェル アプリシェル) {
+        try {
+            起動診断.書き込む("Appの初期化を開始しました。");
             this.InitializeComponent();
-            this.startupPage=appShell;
-            StartupDiagnostics.Write("App constructor completed.");
-        }catch(Exception ex){
-            StartupDiagnostics.Write("App constructor failed.",ex);
-            this.startupPage=StartupDiagnostics.CreateErrorPage("Benchmark startup failed",ex);
+            this.起動ページ=アプリシェル;
+            起動診断.書き込む("Appの初期化が完了しました。");
+        } catch(Exception 例外) {
+            起動診断.書き込む("Appの初期化に失敗しました。",例外);
+            this.起動ページ=起動診断.エラーページを作成("ベンチマークの起動に失敗しました",例外);
         }
     }
 
-    protected override Window CreateWindow(IActivationState? activationState) =>
-        new(this.startupPage??StartupDiagnostics.CreateErrorPage("Benchmark startup failed",new InvalidOperationException("Startup page was not initialized.")));
+    protected override Window CreateWindow(IActivationState? 有効化状態) =>
+        new(this.起動ページ??起動診断.エラーページを作成("ベンチマークの起動に失敗しました",new InvalidOperationException("起動ページが初期化されていません。")));
 
-    public async Task<bool> RequestCloseAsync(){
-        if(this.closeConfirmed||this.closeInProgress){
-            return this.closeConfirmed;
+    public async Task<bool> 終了を要求Async() {
+        if(this.終了確認状態か||this.終了処理中か) {
+            return this.終了確認状態か;
         }
 
-        var page = GetMainPage();
-        if(page is null){
-            this.closeConfirmed=true;
+        var ページ = メインページを取得();
+        if(ページ is null) {
+            this.終了確認状態か=true;
             return true;
         }
 
-        this.closeInProgress=true;
-        try{
-            if(await page.RequestCloseAsync()){
-                this.closeConfirmed=true;
+        this.終了処理中か=true;
+        try {
+            if(await ページ.終了を要求Async()) {
+                this.終了確認状態か=true;
                 return true;
             }
 
             return false;
-        }finally{
-            this.closeInProgress=false;
+        } finally {
+            this.終了処理中か=false;
         }
     }
 
-    public bool IsCloseConfirmed => this.closeConfirmed;
+    public bool 終了確認済みか => this.終了確認状態か;
 
-    private static MainPage? GetMainPage(){
-        if(Shell.Current?.CurrentPage is MainPage page){
-            return page;
+    private static MainPage? メインページを取得() {
+        if(Shell.Current?.CurrentPage is MainPage ページ) {
+            return ページ;
         }
 
         return null;

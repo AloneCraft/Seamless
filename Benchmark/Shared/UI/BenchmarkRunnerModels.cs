@@ -1,281 +1,286 @@
-using System.Globalization;
-using System.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
+
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using CommunityToolkit.Mvvm.ComponentModel;
+using System.ComponentModel;
+using System.Globalization;
 
 namespace UI;
 
-public enum BenchmarkTab{
-    Cpu,
-    Chart,
+public enum ベンチマークタブ {
+    CPU,
+    チャート,
 }
 
-public enum BenchmarkLowerTab{
-    Cpu,
-    Log,
-    ImprovementPrompt,
+public enum ベンチマーク下段タブ {
+    CPU,
+    ログ,
+    改善プロンプト,
 }
 
-public enum BenchmarkMetricKind{
-    Time,
-    Allocated,
+public enum ベンチマーク指標種別 {
+    時間,
+    割り当て,
 }
 
-public enum BenchmarkGridSortColumn{
-    BenchmarkType,
-    BenchmarkMethod,
-    BenchmarkName,
-    LogicalCpu,
+public enum ベンチマークチャートモード {
+    要素比較,
+}
+
+public enum ベンチマークグリッドソート列 {
+    ベンチマーク型,
+    ベンチマークメソッド,
+    ベンチマーク名,
+    論理CPU,
     ループ回数,
-    ArgumentCount,
-    ArgumentIndex,
-    ArgumentPage,
-    ArgumentSegment,
-    ArgumentMemory,
-    ArgumentFraction,
-    ArgumentInitial,
-    ArgumentData,
+    引数Count,
+    引数インデックス,
+    引数ページ,
+    引数セグメント,
+    引数メモリ,
+    引数割合,
+    引数初期値,
+    引数データ,
     左日時,
-    LeftTime,
-    LeftAllocated,
+    左時間,
+    左割り当て,
     時間シェア,
     メモリシェア,
     右日時,
-    RightTime,
-    RightAllocated,
+    右時間,
+    右割り当て,
 }
 
-public sealed class BenchmarkSortRule:ObservableObject{
-    private BenchmarkGridSortColumn column;
-    private bool descending;
+public sealed class ベンチマークソート規則:ObservableObject {
+    private ベンチマークグリッドソート列 列値;
+    private bool 降順か値;
 
-    public BenchmarkSortRule(BenchmarkGridSortColumn column,bool descending = false){
-        this.column=column;
-        this.descending=descending;
+    public ベンチマークソート規則(ベンチマークグリッドソート列 列,bool 降順か値 = false) {
+        this.列値=列;
+        this.降順か値=降順か値;
     }
 
-    public BenchmarkGridSortColumn Column{
-        get => this.column;
-        set{
-            if(this.SetProperty(ref this.column,value)){
-                this.OnPropertyChanged(nameof(this.ColumnText));
+    public ベンチマークグリッドソート列 列 {
+        get => this.列値;
+        set {
+            if(this.SetProperty(ref this.列値,value)) {
+                this.OnPropertyChanged(nameof(this.列文字列));
             }
         }
     }
 
-    public bool Descending{
-        get => this.descending;
-        set{
-            if(this.SetProperty(ref this.descending,value)){
-                this.OnPropertyChanged(nameof(this.DirectionText));
+    public bool 降順か {
+        get => this.降順か値;
+        set {
+            if(this.SetProperty(ref this.降順か値,value)) {
+                this.OnPropertyChanged(nameof(this.方向文字列));
             }
         }
     }
 
-    public string ColumnText => GetColumnText(this.Column);
+    public string 列文字列 => 列文字列を取得(this.列);
 
-    public string DirectionText => this.Descending ? "降順" : "昇順";
+    public string 方向文字列 => this.降順か ? "降順" : "昇順";
 
-    public static string GetColumnText(BenchmarkGridSortColumn column) =>
-        column switch{
-            BenchmarkGridSortColumn.BenchmarkType => "型",
-            BenchmarkGridSortColumn.BenchmarkMethod => "ベンチマーク",
-            BenchmarkGridSortColumn.BenchmarkName => "ベンチマーク",
-            BenchmarkGridSortColumn.LogicalCpu => "CPU",
-            BenchmarkGridSortColumn.ループ回数 => "ループ回数",
-            BenchmarkGridSortColumn.ArgumentCount => "Count",
-            BenchmarkGridSortColumn.ArgumentIndex => "Index",
-            BenchmarkGridSortColumn.ArgumentPage => "Page",
-            BenchmarkGridSortColumn.ArgumentSegment => "Segment",
-            BenchmarkGridSortColumn.ArgumentMemory => "Memory",
-            BenchmarkGridSortColumn.ArgumentFraction => "Fraction",
-            BenchmarkGridSortColumn.ArgumentInitial => "Initial",
-            BenchmarkGridSortColumn.ArgumentData => "Data",
-            BenchmarkGridSortColumn.左日時 => "Left 日時",
-            BenchmarkGridSortColumn.LeftTime => "Left 時間",
-            BenchmarkGridSortColumn.LeftAllocated => "Left メモリ",
-            BenchmarkGridSortColumn.時間シェア => "時間シェア",
-            BenchmarkGridSortColumn.メモリシェア => "メモリシェア",
-            BenchmarkGridSortColumn.右日時 => "Right 日時",
-            BenchmarkGridSortColumn.RightTime => "Right 時間",
-            BenchmarkGridSortColumn.RightAllocated => "Right メモリ",
-            _ => column.ToString(),
+    public static string 列文字列を取得(ベンチマークグリッドソート列 列) =>
+        列 switch {
+            ベンチマークグリッドソート列.ベンチマーク型 => "型",
+            ベンチマークグリッドソート列.ベンチマークメソッド => "ベンチマーク",
+            ベンチマークグリッドソート列.ベンチマーク名 => "ベンチマーク",
+            ベンチマークグリッドソート列.論理CPU => "CPU",
+            ベンチマークグリッドソート列.ループ回数 => "ループ回数",
+            ベンチマークグリッドソート列.引数Count => "Count",
+            ベンチマークグリッドソート列.引数インデックス => "Index",
+            ベンチマークグリッドソート列.引数ページ => "Page",
+            ベンチマークグリッドソート列.引数セグメント => "Segment",
+            ベンチマークグリッドソート列.引数メモリ => "Memory",
+            ベンチマークグリッドソート列.引数割合 => "Fraction",
+            ベンチマークグリッドソート列.引数初期値 => "Initial",
+            ベンチマークグリッドソート列.引数データ => "Data",
+            ベンチマークグリッドソート列.左日時 => "左 日時",
+            ベンチマークグリッドソート列.左時間 => "左 時間",
+            ベンチマークグリッドソート列.左割り当て => "左 メモリ",
+            ベンチマークグリッドソート列.時間シェア => "時間シェア",
+            ベンチマークグリッドソート列.メモリシェア => "メモリシェア",
+            ベンチマークグリッドソート列.右日時 => "右 日時",
+            ベンチマークグリッドソート列.右時間 => "右 時間",
+            ベンチマークグリッドソート列.右割り当て => "右 メモリ",
+            _ => 列.ToString(),
         };
 }
 
-public sealed record BenchmarkSortColumnOption(BenchmarkGridSortColumn Column,string DisplayName);
+public sealed record ベンチマークソート列選択肢(ベンチマークグリッドソート列 列,string 表示名);
 
-/// <summary>選択/非選択タブヘッダーの配色を一元管理する。3つのタブストリップ(ソース/下段/チャート診断)で共有する。</summary>
-public static class BenchmarkTabHeaderStyle{
-    public static FontAttributes GetFontAttributes(bool isSelected) => isSelected ? FontAttributes.Bold : FontAttributes.None;
-    public static Color GetTextColor(bool isSelected) => isSelected ? Color.FromArgb("#0F172A") : Color.FromArgb("#475569");
-    public static Color GetBackgroundColor(bool isSelected) => isSelected ? Colors.White : Color.FromArgb("#F1F5F9");
-    public static Brush GetStroke(bool isSelected) => new SolidColorBrush(isSelected ? Color.FromArgb("#0F766E") : Color.FromArgb("#CBD5E1"));
+/// <概要>選択/非選択タブヘッダーの配色を一元管理する。3つのタブストリップ(ソース/下段/チャート診断)で共有する。</概要>
+public static class ベンチマークタブ見出しスタイル {
+    public static FontAttributes フォント属性を取得(bool 選択中か値) => 選択中か値 ? FontAttributes.Bold : FontAttributes.None;
+    public static Color 文字色を取得(bool 選択中か値) => 選択中か値 ? Color.FromArgb("#0F172A") : Color.FromArgb("#475569");
+    public static Color 背景色を取得(bool 選択中か値) => 選択中か値 ? Colors.White : Color.FromArgb("#F1F5F9");
+    public static Brush 枠線を取得(bool 選択中か値) => new SolidColorBrush(選択中か値 ? Color.FromArgb("#0F766E") : Color.FromArgb("#CBD5E1"));
 }
 
-/// <summary>タブヘッダーの選択状態を持つ共通基底。SourceTabOption と TabHeaderOption が実装する。</summary>
-public abstract class TabHeaderOptionBase:ObservableObject{
-    private bool isSelected;
+/// <概要>タブヘッダーの選択状態を持つ共通基底。ソースタブ選択肢 と タブ見出し選択肢 が実装する。</概要>
+public abstract class タブ見出し選択肢基底:ObservableObject {
+    private bool 選択中か値;
 
-    public bool IsSelected{
-        get => this.isSelected;
-        private set{
-            if(this.SetProperty(ref this.isSelected,value)){
-                this.OnPropertyChanged(nameof(this.HeaderFontAttributes));
-                this.OnPropertyChanged(nameof(this.HeaderTextColor));
-                this.OnPropertyChanged(nameof(this.HeaderBackgroundColor));
-                this.OnPropertyChanged(nameof(this.HeaderStroke));
+    public bool 選択中か {
+        get => this.選択中か値;
+        private set {
+            if(this.SetProperty(ref this.選択中か値,value)) {
+                this.OnPropertyChanged(nameof(this.見出しフォント属性));
+                this.OnPropertyChanged(nameof(this.見出し文字色));
+                this.OnPropertyChanged(nameof(this.見出し背景色));
+                this.OnPropertyChanged(nameof(this.見出し枠線));
             }
         }
     }
 
-    public abstract string HeaderText { get; }
-    public FontAttributes HeaderFontAttributes => BenchmarkTabHeaderStyle.GetFontAttributes(this.IsSelected);
-    public Color HeaderTextColor => BenchmarkTabHeaderStyle.GetTextColor(this.IsSelected);
-    public Color HeaderBackgroundColor => BenchmarkTabHeaderStyle.GetBackgroundColor(this.IsSelected);
-    public Brush HeaderStroke => BenchmarkTabHeaderStyle.GetStroke(this.IsSelected);
+    public abstract string 見出し文字列 { get; }
+    public FontAttributes 見出しフォント属性 => ベンチマークタブ見出しスタイル.フォント属性を取得(this.選択中か);
+    public Color 見出し文字色 => ベンチマークタブ見出しスタイル.文字色を取得(this.選択中か);
+    public Color 見出し背景色 => ベンチマークタブ見出しスタイル.背景色を取得(this.選択中か);
+    public Brush 見出し枠線 => ベンチマークタブ見出しスタイル.枠線を取得(this.選択中か);
 
-    public void SetSelected(bool value){
-        this.IsSelected=value;
-    }
-}
-
-/// <summary>進捗リング等の付帯情報を持たない、静的タイトルのタブヘッダー(下段/チャート診断タブ用)。</summary>
-public sealed class TabHeaderOption:TabHeaderOptionBase{
-    public TabHeaderOption(string headerText){
-        this.HeaderText=headerText;
-    }
-
-    public override string HeaderText { get; }
-}
-
-public sealed class SourceTabOption:TabHeaderOptionBase{
-    private static readonly Color RunningIndicatorColor=Color.FromArgb("#00FF00");
-    private static readonly Color CompletedProgressOutlineColor=Color.FromArgb("#22C55E");
-    private static readonly Color DefaultProgressOutlineColor=Color.FromArgb("#64748B");
-    private BenchmarkTabProgress progress;
-    private bool isRunning;
-    private bool isFinalCompleted;
-    private bool treatsCompletedProgressAsFinalCompleted;
-    private string ベンチマークシェア概要短縮文字列 = BenchmarkImprovementPromptBuilder.概要を作成([]).ShortDisplayText;
-
-    public SourceTabOption(BenchmarkSourceTabDefinition definition){
-        this.Definition=definition;
-    }
-
-    public BenchmarkSourceTabDefinition Definition { get; }
-    public BenchmarkSourceTab Tab => this.Definition.Tab;
-    public string Id => this.Definition.Id;
-    public string DisplayName => this.Definition.DisplayName;
-    public BenchmarkTabProgress Progress{
-        get => this.progress;
-        private set{
-            if(this.SetProperty(ref this.progress,value)){
-                this.OnPropertyChanged(nameof(this.HeaderText));
-                this.OnPropertyChanged(nameof(this.HasProgress));
-                this.OnPropertyChanged(nameof(this.IsCompleted));
-                this.OnPropertyChanged(nameof(this.IsCompletionIconVisible));
-                this.OnPropertyChanged(nameof(this.CompletionIconSource));
-                this.OnPropertyChanged(nameof(this.ProgressFraction));
-                this.OnPropertyChanged(nameof(this.ProgressText));
-                this.OnPropertyChanged(nameof(this.ProgressSummaryText));
-                this.OnPropertyChanged(nameof(this.ProgressTooltipText));
-                this.OnPropertyChanged(nameof(this.ProgressOutlineColor));
-            }
-        }
-    }
-    public override string HeaderText => this.DisplayName;
-    public bool HasProgress => this.Progress.Total>0;
-    public bool IsCompleted => this.Progress.Total>0&&this.Progress.Completed>=this.Progress.Total;
-    public bool IsFinalCompleted{
-        get => this.isFinalCompleted;
-        private set{
-            if(this.SetProperty(ref this.isFinalCompleted,value)){
-                this.OnPropertyChanged(nameof(this.IsCompletionIconVisible));
-                this.OnPropertyChanged(nameof(this.CompletionIconSource));
-                this.OnPropertyChanged(nameof(this.ProgressTooltipText));
-            }
-        }
-    }
-    public bool TreatsCompletedProgressAsFinalCompleted{
-        get => this.treatsCompletedProgressAsFinalCompleted;
-        private set{
-            if(this.SetProperty(ref this.treatsCompletedProgressAsFinalCompleted,value)){
-                this.OnPropertyChanged(nameof(this.IsCompletionIconVisible));
-                this.OnPropertyChanged(nameof(this.CompletionIconSource));
-                this.OnPropertyChanged(nameof(this.ProgressTooltipText));
-            }
-        }
-    }
-    public bool IsCompletionIconVisible => (this.IsCompleted||this.IsFinalCompleted)&&!this.IsRunning;
-    public string CompletionIconSource => this.IsFinalCompleted||this.IsCompleted
-        ? BenchmarkStatusImageNames.FinalCompleted
-        : BenchmarkStatusImageNames.Completed;
-    public double ProgressFraction => this.Progress.Total<=0 ? 0 : this.Progress.Fraction;
-    public string ProgressText => this.Progress.Total<=0 ? "0/0" : this.Progress.FractionText;
-    public string ベンチマークシェア概要短縮表示{
-        get => this.ベンチマークシェア概要短縮文字列;
-        private set{
-            if(this.SetProperty(ref this.ベンチマークシェア概要短縮文字列,value)){
-                this.OnPropertyChanged(nameof(this.ProgressSummaryText));
-                this.OnPropertyChanged(nameof(this.ProgressTooltipText));
-            }
-        }
-    }
-    public string ProgressSummaryText => this.CreateProgressPrefix()+","+this.ベンチマークシェア概要短縮表示;
-    public string ProgressTooltipText => this.ProgressSummaryText;
-    public Color ProgressOutlineColor => this.IsRunning
-        ? RunningIndicatorColor
-        : this.IsCompleted ? CompletedProgressOutlineColor : DefaultProgressOutlineColor;
-    public bool IsRunning{
-        get => this.isRunning;
-        private set{
-            if(this.SetProperty(ref this.isRunning,value)){
-                this.OnPropertyChanged(nameof(this.ProgressOutlineColor));
-                this.OnPropertyChanged(nameof(this.ProgressSummaryText));
-                this.OnPropertyChanged(nameof(this.ProgressTooltipText));
-                this.OnPropertyChanged(nameof(this.IsCompletionIconVisible));
-                this.OnPropertyChanged(nameof(this.CompletionIconSource));
-            }
-        }
-    }
-
-    public void ベンチマークシェア概要短縮表示を設定(string value){
-        this.ベンチマークシェア概要短縮表示=value;
-    }
-
-    private string CreateProgressPrefix() => this.IsRunning
-        ? "実行中 "+this.ProgressText
-        : this.IsCompleted ? "完了 "+this.ProgressText : "確定 "+this.ProgressText;
-
-    public void SetProgress(BenchmarkTabProgress value){
-        this.Progress=value;
-        if(value.Total<=0||value.Completed<value.Total){
-            this.SetTreatsCompletedProgressAsFinalCompleted(false);
-            this.SetFinalCompleted(false);
-        }
-    }
-
-    public void SetFinalCompleted(bool value){
-        this.IsFinalCompleted=value;
-    }
-
-    public void SetTreatsCompletedProgressAsFinalCompleted(bool value){
-        this.TreatsCompletedProgressAsFinalCompleted=value;
-    }
-
-    public void SetRunning(bool value){
-        this.IsRunning=value;
+    public void 選択状態を設定(bool 値) {
+        this.選択中か=値;
     }
 }
 
-public sealed class ObservableRangeCollection<T>:ObservableCollection<T>{
-    public void ReplaceRange(IEnumerable<T> items){
+/// <概要>進捗リング等の付帯情報を持たない、静的タイトルのタブヘッダー(下段/チャート診断タブ用)。</概要>
+public sealed class タブ見出し選択肢:タブ見出し選択肢基底 {
+    public タブ見出し選択肢(string 見出し文字列値) {
+        this.見出し文字列=見出し文字列値;
+    }
+
+    public override string 見出し文字列 { get; }
+}
+
+public sealed class ソースタブ選択肢:タブ見出し選択肢基底 {
+    private static readonly Color 実行中インジケーター色 = Color.FromArgb("#00FF00");
+    private static readonly Color 完了進行外枠色 = Color.FromArgb("#22C55E");
+    private static readonly Color 既定進行外枠色 = Color.FromArgb("#64748B");
+    private ベンチマークタブ進行 進行値;
+    private bool 実行中か値;
+    private bool 最終完了か値;
+    private bool 完了進行を最終完了として扱うか値;
+    private string ベンチマークシェア概要短文値 = ベンチマーク改善プロンプトビルダー.概要を作成([]).短縮表示文字列;
+
+    public ソースタブ選択肢(ベンチマークソースタブ定義 定義) {
+        this.定義=定義;
+    }
+
+    public ベンチマークソースタブ定義 定義 { get; }
+    public ベンチマークソースタブ タブ => this.定義.タブ;
+    public string ID => this.定義.ID;
+    public string 表示名 => this.定義.表示名;
+    public ベンチマークタブ進行 進行 {
+        get => this.進行値;
+        private set {
+            if(this.SetProperty(ref this.進行値,value)) {
+                this.OnPropertyChanged(nameof(this.見出し文字列));
+                this.OnPropertyChanged(nameof(this.進行ありか));
+                this.OnPropertyChanged(nameof(this.完了か));
+                this.OnPropertyChanged(nameof(this.完了アイコン表示中か));
+                this.OnPropertyChanged(nameof(this.完了アイコンソース));
+                this.OnPropertyChanged(nameof(this.進行割合));
+                this.OnPropertyChanged(nameof(this.進行文字列));
+                this.OnPropertyChanged(nameof(this.進行概要文字列));
+                this.OnPropertyChanged(nameof(this.進行ツールチップ文字列));
+                this.OnPropertyChanged(nameof(this.進行外枠色));
+            }
+        }
+    }
+    public override string 見出し文字列 => this.表示名;
+    public bool 進行ありか => this.進行.合計数>0;
+    public bool 完了か => this.進行.合計数>0&&this.進行.完了数>=this.進行.合計数;
+    public bool 最終完了か {
+        get => this.最終完了か値;
+        private set {
+            if(this.SetProperty(ref this.最終完了か値,value)) {
+                this.OnPropertyChanged(nameof(this.完了アイコン表示中か));
+                this.OnPropertyChanged(nameof(this.完了アイコンソース));
+                this.OnPropertyChanged(nameof(this.進行ツールチップ文字列));
+            }
+        }
+    }
+    public bool 完了進行を最終完了として扱うか {
+        get => this.完了進行を最終完了として扱うか値;
+        private set {
+            if(this.SetProperty(ref this.完了進行を最終完了として扱うか値,value)) {
+                this.OnPropertyChanged(nameof(this.完了アイコン表示中か));
+                this.OnPropertyChanged(nameof(this.完了アイコンソース));
+                this.OnPropertyChanged(nameof(this.進行ツールチップ文字列));
+            }
+        }
+    }
+    public bool 完了アイコン表示中か => (this.完了か||this.最終完了か)&&!this.実行中か;
+    public string 完了アイコンソース => this.最終完了か||this.完了か
+        ? ベンチマーク状態画像名.最終完了
+        : ベンチマーク状態画像名.完了;
+    public double 進行割合 => this.進行.合計数<=0 ? 0 : this.進行.割合;
+    public string 進行文字列 => this.進行.合計数<=0 ? "0/0" : this.進行.割合文字列;
+    public string ベンチマークシェア概要短文 {
+        get => this.ベンチマークシェア概要短文値;
+        private set {
+            if(this.SetProperty(ref this.ベンチマークシェア概要短文値,value)) {
+                this.OnPropertyChanged(nameof(this.進行概要文字列));
+                this.OnPropertyChanged(nameof(this.進行ツールチップ文字列));
+            }
+        }
+    }
+    public string 進行概要文字列 => this.進行接頭辞を作成()+","+this.ベンチマークシェア概要短文;
+    public string 進行ツールチップ文字列 => this.進行概要文字列;
+    public Color 進行外枠色 => this.実行中か
+        ? 実行中インジケーター色
+        : this.完了か ? 完了進行外枠色 : 既定進行外枠色;
+    public bool 実行中か {
+        get => this.実行中か値;
+        private set {
+            if(this.SetProperty(ref this.実行中か値,value)) {
+                this.OnPropertyChanged(nameof(this.進行外枠色));
+                this.OnPropertyChanged(nameof(this.進行概要文字列));
+                this.OnPropertyChanged(nameof(this.進行ツールチップ文字列));
+                this.OnPropertyChanged(nameof(this.完了アイコン表示中か));
+                this.OnPropertyChanged(nameof(this.完了アイコンソース));
+            }
+        }
+    }
+
+    public void ベンチマークシェア概要短文を設定(string 値) {
+        this.ベンチマークシェア概要短文=値;
+    }
+
+    private string 進行接頭辞を作成() => this.実行中か
+        ? "実行中 "+this.進行文字列
+        : this.完了か ? "完了 "+this.進行文字列 : "確定 "+this.進行文字列;
+
+    public void 進行を設定(ベンチマークタブ進行 値) {
+        this.進行=値;
+        if(値.合計数<=0||値.完了数<値.合計数) {
+            this.完了進行の最終完了扱いを設定(false);
+            this.最終完了状態を設定(false);
+        }
+    }
+
+    public void 最終完了状態を設定(bool 値) {
+        this.最終完了か=値;
+    }
+
+    public void 完了進行の最終完了扱いを設定(bool 値) {
+        this.完了進行を最終完了として扱うか=値;
+    }
+
+    public void 実行中状態を設定(bool 値) {
+        this.実行中か=値;
+    }
+}
+
+public sealed class 監視可能範囲コレクション<T項目>:ObservableCollection<T項目> {
+    public void 範囲を置換(IEnumerable<T項目> 項目一覧) {
         this.CheckReentrancy();
         this.Items.Clear();
-        foreach(var item in items){
-            this.Items.Add(item);
+        foreach(var 項目 in 項目一覧) {
+            this.Items.Add(項目);
         }
         this.OnPropertyChanged(new PropertyChangedEventArgs(nameof(this.Count)));
         this.OnPropertyChanged(new PropertyChangedEventArgs("Item[]"));
@@ -283,1963 +288,2098 @@ public sealed class ObservableRangeCollection<T>:ObservableCollection<T>{
     }
 }
 
-public sealed class BenchmarkSourceTabViewState:ObservableObject{
-    private string ベンチマークシェア概要文字列 = string.Empty;
-    private bool? isBenchmarkSelectionChecked;
+public sealed class ベンチマークソースタブ表示状態:ObservableObject {
+    private double チャート高さ値 = 300;
+    private string ベンチマークシェア概要文値 = string.Empty;
+    private bool? ベンチマーク選択状態値;
+    private string チャート空理由文字列値 = "ベンチマークを実行するか、保存済み DB 実行を選択してください。";
+    private string チャート空理由ツールチップ文字列値 = "計測結果または保存済み DB 実行が選択されると比較チャートを表示します。";
 
-    public BenchmarkSourceTabViewState(BenchmarkSourceTabDefinition definition){
-        this.Definition=definition;
+    public ベンチマークソースタブ表示状態(ベンチマークソースタブ定義 定義) {
+        this.定義=定義;
     }
 
-    public BenchmarkSourceTabDefinition Definition { get; }
-    public ObservableRangeCollection<BenchmarkTableRow> Rows { get; } = [];
-    public ObservableCollection<BenchmarkDiagnosticRow> LatencyHotspotRows { get; } = [];
-    public ObservableCollection<BenchmarkDiagnosticRow> AllocationDiagnosticRows { get; } = [];
-    public ObservableCollection<BenchmarkDiagnosticRow> CpuTimelineRows { get; } = [];
-    public ObservableCollection<BenchmarkRankedRatioPoint> 時間シェアワースト点 { get; } = [];
-    public ObservableCollection<BenchmarkRankedRatioPoint> メモリシェアワースト点 { get; } = [];
-    public ObservableCollection<BenchmarkCategoryRatioPoint> カテゴリシェア点 { get; } = [];
-    public ObservableCollection<BenchmarkBadgeItem> MissingFailureBadges { get; } = [];
-    public ObservableCollection<BenchmarkQualityGaugePoint> MeasurementQualityGauges { get; } = [];
-    public ObservableCollection<BenchmarkBadgeItem> FallbackDiagnosticBadges { get; } = [];
-    public ObservableCollection<BenchmarkTrendSeries> HistoryTrendSeries { get; } = [];
-    public ObservableCollection<BenchmarkTrendSeries> ScaleTrendSeries { get; } = [];
-    public IReadOnlyList<BenchmarkComparisonRow> ComparisonRows { get; set; } = [];
+    public ベンチマークソースタブ定義 定義 { get; }
+    public 監視可能範囲コレクション<ベンチマーク表行> 行一覧 { get; } = [];
+    public ObservableCollection<チャート比較点> チャート点一覧 { get; } = [];
+    public Dictionary<string,int> 行キー別チャート点インデックス { get; } = new(StringComparer.OrdinalIgnoreCase);
+    internal HashSet<チャート比較点> UI選択チャート棒一覧 { get; } = [];
+    internal HashSet<ベンチマーク表行> 更新対象チャート行一覧 { get; } = [];
+    internal bool チャート全体再構築が必要か { get; set; } = true;
+    public ObservableCollection<ベンチマーク診断行> 遅延ホットスポット行一覧 { get; } = [];
+    public ObservableCollection<ベンチマーク診断行> 割り当て診断行一覧 { get; } = [];
+    public ObservableCollection<ベンチマーク診断行> CPUタイムライン行一覧 { get; } = [];
+    public IReadOnlyList<ベンチマーク比較行> 比較行一覧 { get; set; } = [];
 
-    public bool? IsBenchmarkSelectionChecked{
-        get => this.isBenchmarkSelectionChecked;
-        set => this.SetProperty(ref this.isBenchmarkSelectionChecked,value);
+    internal event EventHandler? チャート選択変更時;
+
+    internal void チャート選択変更を通知() => this.チャート選択変更時?.Invoke(this,EventArgs.Empty);
+
+    public bool? ベンチマーク選択状態 {
+        get => this.ベンチマーク選択状態値;
+        set => this.SetProperty(ref this.ベンチマーク選択状態値,value);
     }
 
-    public string ベンチマークシェア概要表示{
-        get => this.ベンチマークシェア概要文字列;
-        set => this.SetProperty(ref this.ベンチマークシェア概要文字列,value);
+    public double チャート高さ {
+        get => this.チャート高さ値;
+        set => this.SetProperty(ref this.チャート高さ値,value);
     }
 
+    public string ベンチマークシェア概要文 {
+        get => this.ベンチマークシェア概要文値;
+        set => this.SetProperty(ref this.ベンチマークシェア概要文値,value);
+    }
+
+    public string チャート空理由文字列 {
+        get => this.チャート空理由文字列値;
+        set => this.SetProperty(ref this.チャート空理由文字列値,value);
+    }
+
+    public string チャート空理由ツールチップ文字列 {
+        get => this.チャート空理由ツールチップ文字列値;
+        set => this.SetProperty(ref this.チャート空理由ツールチップ文字列値,value);
+    }
 }
 
-public sealed record ExecutionProfileOption(string DisplayName,BenchmarkExecutionProfile Profile);
+public sealed record 実行プロファイル選択肢(string 表示名,ベンチマーク実行プロファイル プロファイル);
 
-public sealed record ScaleOption(string DisplayName,string RunValue);
+public sealed record 指標選択肢(string 表示名,ベンチマーク指標種別 種別);
 
-public sealed record ResultElementCountOption(int Value,string DisplayName);
+public sealed record チャートモード選択肢(string 表示名,ベンチマークチャートモード モード);
 
-public sealed record ThresholdOption(string DisplayName,int Milliseconds);
+public sealed record 結果要素数選択肢(int 値,string 表示名);
 
-public sealed record BenchmarkDiagnosticRow(
-    string Category,
-    string Method,
-    string WorstN,
-    string RatioText,
-    string LeftText,
-    string RightText,
-    string DetailText);
+public sealed record 閾値選択肢(string 表示名,int ミリ秒);
 
-public sealed record BenchmarkAutoScrollRequest(BenchmarkSourceTab SourceTab,string MethodName,string RowKey,int Sequence);
+public sealed record ベンチマーク診断行(
+    string カテゴリ,
+    string メソッド,
+    string ワースト件数,
+    string シェア文字列,
+    string 左文字列,
+    string 右文字列,
+    string 詳細文字列);
 
-public readonly record struct BenchmarkSortValue(string? Text,double? Number,bool IsMissing){
-    public static BenchmarkSortValue FromText(string text) => new(text,null,string.IsNullOrWhiteSpace(text));
+public sealed record ベンチマーク自動スクロール要求(ベンチマークソースタブ ソースタブ,string メソッド名,string 行キー,int 連番);
 
-    public static BenchmarkSortValue FromMetric(ProjectMetrics metrics,BenchmarkMetricKind kind){
-        if(!metrics.HasMeasuredValue){
-            return Missing;
+public sealed class ベンチマーク改善候補行:ObservableObject {
+    private bool 選択中か値;
+
+    public ベンチマーク改善候補行(ベンチマーク改善候補 候補,bool 選択中か値) {
+        this.候補=候補;
+        this.選択中か値=選択中か値;
+    }
+
+    public event EventHandler? 選択変更時;
+
+    internal ベンチマーク改善候補 候補 { get; }
+    public string キー => this.候補.キー;
+
+    public bool 選択中か {
+        get => this.選択中か値;
+        set {
+            if(this.SetProperty(ref this.選択中か値,value)) {
+                this.選択変更時?.Invoke(this,EventArgs.Empty);
+            }
+        }
+    }
+}
+
+public readonly record struct ベンチマークソート値(string? 文字列,double? 数値,bool 欠測か) {
+    public static ベンチマークソート値 文字列から作成(string 文字列) => new(文字列,null,string.IsNullOrWhiteSpace(文字列));
+
+    public static ベンチマークソート値 指標から作成(プロジェクト測定値 測定値値,ベンチマーク指標種別 種別) {
+        if(!測定値値.測定値ありか) {
+            return 欠測;
         }
 
-        return kind==BenchmarkMetricKind.Time
-            ? FromNumber(metrics.TimeNanoseconds)
-            : FromNumber(metrics.AllocatedBytes);
+        return 種別==ベンチマーク指標種別.時間
+            ? 数値から作成(測定値値.時間ナノ秒)
+            : 数値から作成(測定値値.割り当てバイト数);
     }
 
-    public static BenchmarkSortValue シェアから作成(シェア値 share) =>
-        FromNumber(share.左シェア);
+    public static ベンチマークソート値 シェアから作成(シェア値 シェア) =>
+        数値から作成(シェア.左シェア);
 
-    public static BenchmarkSortValue 日時から作成(DateTimeOffset? value) =>
-        FromNumber(value?.ToUnixTimeMilliseconds());
+    public static ベンチマークソート値 日時から作成(DateTimeOffset? 値) =>
+        数値から作成(値?.ToUnixTimeMilliseconds());
 
-    public static BenchmarkSortValue FromNumber(double? value){
-        return value is { } number&&double.IsFinite(number)
-            ? new(null,number,false)
-            : Missing;
+    public static ベンチマークソート値 数値から作成(double? 値) {
+        return 値 is { } 数値&&double.IsFinite(数値)
+            ? new(null,数値,false)
+            : 欠測;
     }
 
-    public static BenchmarkSortValue FromFiniteOrInfinity(double? value){
-        return value is { } number&&!double.IsNaN(number)
-            ? new(null,number,false)
-            : Missing;
-    }
+    public static readonly ベンチマークソート値 欠測 = new(null,null,true);
 
-    public static readonly BenchmarkSortValue Missing = new(null,null,true);
-
-    public static int Compare(BenchmarkSortValue left,BenchmarkSortValue right,bool descending){
-        if(left.IsMissing&&right.IsMissing){
+    public static int 比較(ベンチマークソート値 左,ベンチマークソート値 右,bool 降順か値) {
+        if(左.欠測か&&右.欠測か) {
             return 0;
         }
 
-        if(left.IsMissing){
+        if(左.欠測か) {
             return 1;
         }
 
-        if(right.IsMissing){
+        if(右.欠測か) {
             return -1;
         }
 
-        var result = left.Number is { } leftNumber&&right.Number is { } rightNumber
-            ? leftNumber.CompareTo(rightNumber)
-            : string.Compare(left.Text,right.Text,StringComparison.OrdinalIgnoreCase);
-        return descending ? -result : result;
+        var 結果 = 左.数値 is { } 左数値&&右.数値 is { } 右数値
+            ? 左数値.CompareTo(右数値)
+            : string.Compare(左.文字列,右.文字列,StringComparison.OrdinalIgnoreCase);
+        return 降順か値 ? -結果 : 結果;
     }
 }
 
-public sealed class BenchmarkProjectCell:ObservableObject{
-    private static readonly Color DefaultExecutionTextColor = Color.FromArgb("#334155");
-    private static readonly Color DefaultMetricTextColor = Color.FromArgb("#1E293B");
-    private static readonly Color FailureExecutionTextColorValue = Color.FromArgb("#DC2626");
-    private const string MissingMetadataText = "CPU/日時不明";
+public sealed class ベンチマークプロジェクトセル:ObservableObject {
+    private static readonly Color 既定実行文字色 = Color.FromArgb("#334155");
+    private static readonly Color 既定指標文字色 = Color.FromArgb("#1E293B");
+    private static readonly Color 失敗実行文字色値 = Color.FromArgb("#DC2626");
+    private const string メタデータ欠測文字列 = "CPU/日時不明";
 
-    private bool isSelected;
-    private bool isUiSelected;
-    private bool isFailed;
-    private bool isCompletedWithoutMeasurement;
-    private string statusImageSource;
-    private string statusText;
-    private string elementCountText = string.Empty;
-    private string executionText = string.Empty;
-    private string failureExecutionText = string.Empty;
-    private string failureReasonText = string.Empty;
-    private string executionTooltipText = string.Empty;
-    private string resultCheckText = string.Empty;
-    private string resultSeedText = string.Empty;
-    private string logicalProcessorText = string.Empty;
-    private string coreKindLabel = string.Empty;
-    private string coreKindImageSource = string.Empty;
-    private string timeText = string.Empty;
-    private string allocatedText = string.Empty;
-    private Color executionTextColor = DefaultExecutionTextColor;
-    private Color metricTextColor = DefaultMetricTextColor;
-    private FontAttributes executionFontAttributes;
-    private FontAttributes metricFontAttributes;
-    private bool isRunning;
-    private bool hasCpuDisplay;
-    private BenchmarkProjectLiveState liveState;
-    private DateTimeOffset? lastMeasuredAt;
-    private int? lastSuccessfulElementCount;
-    private int? lastLoopCount;
-    private double? lastTotalNanoseconds;
-    private int? lastFailedElementCount;
-    private DateTimeOffset? lastFailedAt;
-    private BenchmarkMeasurementHighlightState measurementHighlightState;
-    private ProjectMetrics metrics = ProjectMetrics.Missing;
-    private Color badgeBackgroundColor = Color.FromArgb("#E2E8F0");
-    private Color badgeTextColor = Color.FromArgb("#334155");
-    private bool isRowFinalCompleted;
+    private readonly ベンチマーク表行 親行;
+    private bool UI選択中か値;
+    private bool 失敗か値;
+    private bool 測定なし完了か値;
+    private string 状態画像ソース値;
+    private string 状態文字列値;
+    private string 要素数文字列値 = string.Empty;
+    private string 実行文字列値 = string.Empty;
+    private string 失敗実行文字列値 = string.Empty;
+    private string 失敗理由文字列値 = string.Empty;
+    private string 実行ツールチップ文字列値 = string.Empty;
+    private string 結果確認文字列値 = string.Empty;
+    private string 結果シード文字列値 = string.Empty;
+    private string 論理プロセッサ文字列値 = string.Empty;
+    private string コア種別ラベル値 = string.Empty;
+    private string コア種別画像ソース値 = string.Empty;
+    private string 時間文字列値 = string.Empty;
+    private string 割り当て文字列値 = string.Empty;
+    private Color 実行文字色値 = 既定実行文字色;
+    private Color 指標文字色値 = 既定指標文字色;
+    private FontAttributes 実行フォント属性値;
+    private FontAttributes 指標フォント属性値;
+    private bool 実行中か値;
+    private bool CPU表示ありか値;
+    private ベンチマークプロジェクト実行状態 実行時状態値;
+    private DateTimeOffset? 最終測定日時値;
+    private int? 最終成功要素数値;
+    private int? 最終ループ回数値;
+    private double? 最終合計ナノ秒値;
+    private int? 最終失敗要素数値;
+    private DateTimeOffset? 最終失敗日時値;
+    private ベンチマーク測定強調状態 測定強調状態値;
+    private プロジェクト測定値 測定値値 = プロジェクト測定値.欠測;
+    private Color バッジ背景色値 = Color.FromArgb("#E2E8F0");
+    private Color バッジ文字色値 = Color.FromArgb("#334155");
+    private bool 行最終完了か値;
 
-    public BenchmarkProjectCell(string project,bool hasCase){
-        this.Project=project;
-        this.HasCase=hasCase;
-        this.isSelected=hasCase;
-        this.statusImageSource=hasCase ? BenchmarkStatusImageNames.Waiting : string.Empty;
-        this.statusText=hasCase?"待機":"対象なし";
-        this.executionText=hasCase?string.Empty:"対象なし";
+    public ベンチマークプロジェクトセル(ベンチマーク表行 親行,string プロジェクト,bool ケースありか) {
+        this.親行=親行;
+        this.プロジェクト=プロジェクト;
+        this.ケースありか=ケースありか;
+        this.状態画像ソース値=ケースありか ? ベンチマーク状態画像名.待機中 : string.Empty;
+        this.状態文字列値=ケースありか ? "待機" : "対象なし";
+        this.実行文字列値=ケースありか ? string.Empty : "対象なし";
     }
 
-    public event EventHandler? UiSelectionChanged;
+    public event EventHandler? UI選択変更時;
 
-    public string Project { get; }
-    public bool HasCase { get; }
-    public ProjectMetrics Metrics => this.metrics;
-    public DateTimeOffset? LastMeasuredAt => this.lastMeasuredAt;
-    public DateTimeOffset? 最新表示日時{
-        get{
-            if(this.lastMeasuredAt is null){
-                return this.lastFailedAt;
+    public string プロジェクト { get; }
+    public bool ケースありか { get; }
+    public プロジェクト測定値 測定値 => this.測定値値;
+    public DateTimeOffset? 最終測定日時 => this.最終測定日時値;
+    public DateTimeOffset? 最新表示日時 {
+        get {
+            if(this.最終測定日時値 is null) {
+                return this.最終失敗日時値;
             }
-            if(this.lastFailedAt is null||this.lastMeasuredAt>=this.lastFailedAt){
-                return this.lastMeasuredAt;
+            if(this.最終失敗日時値 is null||this.最終測定日時値>=this.最終失敗日時値) {
+                return this.最終測定日時値;
             }
-            return this.lastFailedAt;
+            return this.最終失敗日時値;
         }
     }
-    public int? LastSuccessfulElementCount => this.lastSuccessfulElementCount;
-    public int? LastLoopCount => this.lastLoopCount;
-    public double? LastTotalNanoseconds => this.lastTotalNanoseconds;
-    public string TimeTooltipText => CreateTimeTooltip(this.TimeText,this.lastTotalNanoseconds,this.lastLoopCount);
-    public int? LastFailedElementCount => this.lastFailedElementCount;
-    public DateTimeOffset? LastFailedAt => this.lastFailedAt;
-    public BenchmarkMeasurementHighlightState MeasurementHighlightState => this.measurementHighlightState;
+    public int? 最終成功要素数 => this.最終成功要素数値;
+    public int? 最終ループ回数 => this.最終ループ回数値;
+    public double? 最終合計ナノ秒 => this.最終合計ナノ秒値;
+    public string 時間ツールチップ文字列 => 時間ツールチップを作成(this.時間文字列,this.最終合計ナノ秒値,this.最終ループ回数値);
+    public int? 最終失敗要素数 => this.最終失敗要素数値;
+    public DateTimeOffset? 最終失敗日時 => this.最終失敗日時値;
+    public ベンチマーク測定強調状態 測定強調状態 => this.測定強調状態値;
 
-    public bool IsSelected{
-        get => this.isSelected;
-        set{
-            if(this.SetProperty(ref this.isSelected,this.HasCase&&value)){
-                this.RefreshStatusDisplay();
-            }
-        }
+    public bool 実行予定か => this.親行.選択中か&&this.ケースありか;
+
+    public void 行選択変更を反映() {
+        this.状態表示を更新();
     }
 
-    public bool IsUiSelected{
-        get => this.isUiSelected;
-        set{
-            if(this.SetProperty(ref this.isUiSelected,this.HasCase&&value)){
-                this.UiSelectionChanged?.Invoke(this,EventArgs.Empty);
+    public bool UI選択中か {
+        get => this.UI選択中か値;
+        set {
+            if(this.SetProperty(ref this.UI選択中か値,this.ケースありか&&value)) {
+                this.UI選択変更時?.Invoke(this,EventArgs.Empty);
             }
         }
     }
 
-    public string StatusImageSource{
-        get => this.statusImageSource;
-        private set => this.SetProperty(ref this.statusImageSource,value);
+    public string 状態画像ソース {
+        get => this.状態画像ソース値;
+        private set => this.SetProperty(ref this.状態画像ソース値,value);
     }
 
-    public bool IsStatusIconVisible => !string.IsNullOrWhiteSpace(this.StatusImageSource)&&!this.IsRunningVisual;
+    public bool 状態アイコン表示中か => !string.IsNullOrWhiteSpace(this.状態画像ソース)&&!this.実行中表示か;
 
-    public string StatusText{
-        get => this.statusText;
-        private set => this.SetProperty(ref this.statusText,value);
+    public string 状態文字列 {
+        get => this.状態文字列値;
+        private set => this.SetProperty(ref this.状態文字列値,value);
     }
 
-    public string ElementCountText{
-        get => this.elementCountText;
-        private set => this.SetProperty(ref this.elementCountText,value);
+    public string 要素数文字列 {
+        get => this.要素数文字列値;
+        private set => this.SetProperty(ref this.要素数文字列値,value);
     }
 
-    public string ExecutionText{
-        get => this.executionText;
-        private set => this.SetProperty(ref this.executionText,value);
+    public string 実行文字列 {
+        get => this.実行文字列値;
+        private set => this.SetProperty(ref this.実行文字列値,value);
     }
 
-    public string FailureExecutionText{
-        get => this.failureExecutionText;
-        private set => this.SetProperty(ref this.failureExecutionText,value);
+    public string 失敗実行文字列 {
+        get => this.失敗実行文字列値;
+        private set => this.SetProperty(ref this.失敗実行文字列値,value);
     }
 
-    public string ExecutionTooltipText{
-        get => this.executionTooltipText;
-        private set => this.SetProperty(ref this.executionTooltipText,value);
+    public string 実行ツールチップ文字列 {
+        get => this.実行ツールチップ文字列値;
+        private set => this.SetProperty(ref this.実行ツールチップ文字列値,value);
     }
 
-    public string ResultCheckText{
-        get => this.resultCheckText;
-        private set => this.SetProperty(ref this.resultCheckText,value);
+    public string 結果確認文字列 {
+        get => this.結果確認文字列値;
+        private set => this.SetProperty(ref this.結果確認文字列値,value);
     }
 
-    public string ResultSeedText{
-        get => this.resultSeedText;
-        private set => this.SetProperty(ref this.resultSeedText,value);
+    public string 結果シード文字列 {
+        get => this.結果シード文字列値;
+        private set => this.SetProperty(ref this.結果シード文字列値,value);
     }
 
-    public string LogicalProcessorText{
-        get => this.logicalProcessorText;
-        private set => this.SetProperty(ref this.logicalProcessorText,value);
+    public string 論理プロセッサ文字列 {
+        get => this.論理プロセッサ文字列値;
+        private set => this.SetProperty(ref this.論理プロセッサ文字列値,value);
     }
 
-    public string CoreKindLabel{
-        get => this.coreKindLabel;
-        private set => this.SetProperty(ref this.coreKindLabel,value);
+    public string コア種別ラベル {
+        get => this.コア種別ラベル値;
+        private set => this.SetProperty(ref this.コア種別ラベル値,value);
     }
 
-    public string CoreKindImageSource{
-        get => this.coreKindImageSource;
-        private set => this.SetProperty(ref this.coreKindImageSource,value);
+    public string コア種別画像ソース {
+        get => this.コア種別画像ソース値;
+        private set => this.SetProperty(ref this.コア種別画像ソース値,value);
     }
 
-    public string TimeText{
-        get => this.timeText;
-        private set => this.SetProperty(ref this.timeText,value);
+    public string 時間文字列 {
+        get => this.時間文字列値;
+        private set => this.SetProperty(ref this.時間文字列値,value);
     }
 
-    public string AllocatedText{
-        get => this.allocatedText;
-        private set => this.SetProperty(ref this.allocatedText,value);
+    public string 割り当て文字列 {
+        get => this.割り当て文字列値;
+        private set => this.SetProperty(ref this.割り当て文字列値,value);
     }
 
-    public Color ExecutionTextColor{
-        get => this.executionTextColor;
-        private set => this.SetProperty(ref this.executionTextColor,value);
+    public Color 実行文字色 {
+        get => this.実行文字色値;
+        private set => this.SetProperty(ref this.実行文字色値,value);
     }
 
-    public Color FailureExecutionTextColor => FailureExecutionTextColorValue;
+    public Color 失敗実行文字色 => 失敗実行文字色値;
 
-    public Color MetricTextColor{
-        get => this.metricTextColor;
-        private set => this.SetProperty(ref this.metricTextColor,value);
+    public Color 指標文字色 {
+        get => this.指標文字色値;
+        private set => this.SetProperty(ref this.指標文字色値,value);
     }
 
-    public FontAttributes ExecutionFontAttributes{
-        get => this.executionFontAttributes;
-        private set => this.SetProperty(ref this.executionFontAttributes,value);
+    public FontAttributes 実行フォント属性 {
+        get => this.実行フォント属性値;
+        private set => this.SetProperty(ref this.実行フォント属性値,value);
     }
 
-    public FontAttributes MetricFontAttributes{
-        get => this.metricFontAttributes;
-        private set => this.SetProperty(ref this.metricFontAttributes,value);
+    public FontAttributes 指標フォント属性 {
+        get => this.指標フォント属性値;
+        private set => this.SetProperty(ref this.指標フォント属性値,value);
     }
 
-    public bool IsRunning{
-        get => this.isRunning;
-        private set{
-            if(this.SetProperty(ref this.isRunning,value)){
-                this.RefreshStatusDisplay();
+    public bool 実行中か {
+        get => this.実行中か値;
+        private set {
+            if(this.SetProperty(ref this.実行中か値,value)) {
+                this.状態表示を更新();
             }
         }
     }
 
-    public bool HasCpuDisplay{
-        get => this.hasCpuDisplay;
-        private set => this.SetProperty(ref this.hasCpuDisplay,value);
+    public bool CPU表示ありか {
+        get => this.CPU表示ありか値;
+        private set => this.SetProperty(ref this.CPU表示ありか値,value);
     }
 
-    public Color BadgeBackgroundColor{
-        get => this.badgeBackgroundColor;
-        private set => this.SetProperty(ref this.badgeBackgroundColor,value);
+    public Color バッジ背景色 {
+        get => this.バッジ背景色値;
+        private set => this.SetProperty(ref this.バッジ背景色値,value);
     }
 
-    public Color BadgeTextColor{
-        get => this.badgeTextColor;
-        private set => this.SetProperty(ref this.badgeTextColor,value);
+    public Color バッジ文字色 {
+        get => this.バッジ文字色値;
+        private set => this.SetProperty(ref this.バッジ文字色値,value);
     }
 
-    public BenchmarkProjectLiveState LiveState{
-        get => this.liveState;
-        private set{
-            if(this.SetProperty(ref this.liveState,value)){
-                this.OnPropertyChanged(nameof(this.IsPendingVisual));
-                this.OnPropertyChanged(nameof(this.IsRunningVisual));
-                this.OnPropertyChanged(nameof(this.IsStatusIconVisible));
+    public ベンチマークプロジェクト実行状態 実行時状態 {
+        get => this.実行時状態値;
+        private set {
+            if(this.SetProperty(ref this.実行時状態値,value)) {
+                this.OnPropertyChanged(nameof(this.待機表示か));
+                this.OnPropertyChanged(nameof(this.実行中表示か));
+                this.OnPropertyChanged(nameof(this.状態アイコン表示中か));
             }
         }
     }
 
-    public bool IsPendingVisual => BenchmarkProjectLiveStateLogic.IsPending(this.LiveState,this.Metrics.HasMeasuredValue);
+    public bool 待機表示か => ベンチマークプロジェクト実行状態ロジック.待機中か(this.実行時状態,this.測定値.測定値ありか);
 
-    public bool IsRunningVisual => BenchmarkProjectLiveStateLogic.IsRunning(this.LiveState);
+    public bool 実行中表示か => ベンチマークプロジェクト実行状態ロジック.実行中か(this.実行時状態);
 
-    public bool IsRowFinalCompleted => this.isRowFinalCompleted;
+    public bool 行最終完了か => this.行最終完了か値;
 
-    public void SetRowFinalCompleted(bool value){
-        if(this.SetProperty(ref this.isRowFinalCompleted,value,nameof(this.IsRowFinalCompleted))){
-            this.RefreshStatusDisplay();
+    public void 行最終完了状態を設定(bool 値) {
+        if(this.SetProperty(ref this.行最終完了か値,値,nameof(this.行最終完了か))) {
+            this.状態表示を更新();
         }
     }
 
-    public void ApplyMetrics(ProjectMetrics value,bool preserveRetainedDisplay = false){
-        // preserveRetainedDisplay=true のときは、完了済みセルを Missing/待機に戻さない。
+    public void 測定値を適用(プロジェクト測定値 値,bool 維持表示を保持するか = false) {
+        // 維持表示を保持するか=true のときは、完了済みセルを欠測/待機に戻さない。
         // 途中で比較行が欠けても、最後に見えていた確定値を画面上に残す。
-        if(!value.HasMeasuredValue&&preserveRetainedDisplay&&(this.metrics.HasMeasuredValue||this.isCompletedWithoutMeasurement||this.IsRunning)){
-            this.isFailed=false;
-            if(this.IsRunning){
-                this.LiveState=BenchmarkProjectLiveState.Running;
-            }else{
-                this.isCompletedWithoutMeasurement=!this.metrics.HasMeasuredValue;
-                this.LiveState=BenchmarkProjectLiveState.Completed;
+        if(!値.測定値ありか&&維持表示を保持するか&&(this.測定値値.測定値ありか||this.測定なし完了か値||this.実行中か)) {
+            this.失敗か値=false;
+            if(this.実行中か) {
+                this.実行時状態=ベンチマークプロジェクト実行状態.実行中;
+            } else {
+                this.測定なし完了か値=!this.測定値値.測定値ありか;
+                this.実行時状態=ベンチマークプロジェクト実行状態.完了;
             }
-            this.OnPropertyChanged(nameof(this.IsPendingVisual));
-            this.RefreshStatusDisplay();
+            this.OnPropertyChanged(nameof(this.待機表示か));
+            this.状態表示を更新();
             return;
         }
 
-        if(!value.HasMeasuredValue){
-            this.SetMetrics(ProjectMetrics.Missing);
-            this.isFailed=false;
-            this.isCompletedWithoutMeasurement=false;
-            this.TimeText=string.Empty;
-            this.AllocatedText=string.Empty;
-            this.ElementCountText=string.Empty;
-            this.ExecutionText=string.Empty;
-            this.FailureExecutionText=string.Empty;
-            this.failureReasonText=string.Empty;
-            this.ExecutionTooltipText=string.Empty;
-            this.ResultCheckText=string.Empty;
-            this.ResultSeedText=string.Empty;
-            this.ClearCpuDisplay();
-            this.ApplyMeasurementHighlight(BenchmarkMeasurementHighlightState.None);
-            this.OnPropertyChanged(nameof(this.IsPendingVisual));
-            this.RefreshStatusDisplay();
+        if(!値.測定値ありか) {
+            this.測定値を設定(プロジェクト測定値.欠測);
+            this.失敗か値=false;
+            this.測定なし完了か値=false;
+            this.時間文字列=string.Empty;
+            this.割り当て文字列=string.Empty;
+            this.要素数文字列=string.Empty;
+            this.実行文字列=string.Empty;
+            this.失敗実行文字列=string.Empty;
+            this.失敗理由文字列値=string.Empty;
+            this.実行ツールチップ文字列=string.Empty;
+            this.結果確認文字列=string.Empty;
+            this.結果シード文字列=string.Empty;
+            this.CPU表示をクリア();
+            this.測定強調を適用(ベンチマーク測定強調状態.なし);
+            this.OnPropertyChanged(nameof(this.待機表示か));
+            this.状態表示を更新();
             return;
         }
 
-        this.SetMetrics(value);
-        this.isCompletedWithoutMeasurement=false;
-        this.TimeText=FormatTime(value);
-        this.AllocatedText=FormatAllocated(value);
-        this.OnPropertyChanged(nameof(this.IsPendingVisual));
-        if(value.HasMeasuredValue){
-            this.isFailed=false;
+        this.測定値を設定(値);
+        this.測定なし完了か値=false;
+        this.時間文字列=時間を整形(値);
+        this.割り当て文字列=割り当てを整形(値);
+        this.OnPropertyChanged(nameof(this.待機表示か));
+        if(値.測定値ありか) {
+            this.失敗か値=false;
         }
-        this.RefreshStatusDisplay();
+        this.状態表示を更新();
     }
 
-    public void ApplyStoredResult(BenchmarkStoredResult result){
-        var measuredAt = result.SourceUpdatedAt??result.MeasuredAt;
-        this.lastMeasuredAt=measuredAt;
-        var resultMetrics = result.ToProjectMetrics();
-        if(resultMetrics.HasMeasuredValue){
-            this.ApplySuccessfulDisplay(resultMetrics,result.ElementCount,measuredAt,BenchmarkMeasurementHighlightState.None);
-            this.ClearFailureDisplay();
-        }else{
-            this.ApplyMetrics(resultMetrics);
-            if(string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase)){
-                this.ApplyFailureDisplay(result.ElementCount,measuredAt,string.Empty);
-            }else if(string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase)){
-                this.isCompletedWithoutMeasurement=true;
-                this.ElementCountText=FormatElementCount(result.ElementCount);
-                this.ExecutionText=FormatTimestamp(measuredAt);
-                this.RefreshExecutionTooltipText();
+    public void 保存結果を適用(ベンチマーク保存結果 結果) {
+        var 測定日時 = 結果.元データ更新日時??結果.測定日時;
+        this.最終測定日時値=測定日時;
+        var 結果測定値 = 結果.プロジェクト測定値に変換();
+        if(結果測定値.測定値ありか) {
+            this.成功表示を適用(結果測定値,結果.要素数,測定日時,ベンチマーク測定強調状態.なし);
+            this.失敗表示をクリア();
+        } else {
+            this.測定値を適用(結果測定値);
+            if(string.Equals(結果.状態,"Failed",StringComparison.OrdinalIgnoreCase)) {
+                this.失敗表示を適用(結果.要素数,測定日時,string.Empty);
+            } else if(string.Equals(結果.状態,"Completed",StringComparison.OrdinalIgnoreCase)) {
+                this.測定なし完了か値=true;
+                this.要素数文字列=要素数を整形(結果.要素数);
+                this.実行文字列=日時を整形(測定日時);
+                this.実行ツールチップ文字列を更新();
             }
         }
-        this.IsRunning=false;
-        this.isFailed=string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase);
-        this.ResultCheckText=string.Empty;
-        this.ResultSeedText=string.Empty;
-        this.LiveState=BenchmarkProjectLiveState.Idle;
-        this.ClearCpuDisplay();
-        this.ApplyMeasurementHighlight(BenchmarkMeasurementHighlightState.None);
-        this.RefreshStatusDisplay();
+        this.実行中か=false;
+        this.失敗か値=string.Equals(結果.状態,"Failed",StringComparison.OrdinalIgnoreCase);
+        this.結果確認文字列=string.Empty;
+        this.結果シード文字列=string.Empty;
+        this.実行時状態=ベンチマークプロジェクト実行状態.待機中;
+        this.CPU表示をクリア();
+        this.測定強調を適用(ベンチマーク測定強調状態.なし);
+        this.状態表示を更新();
     }
 
-    public void ApplyRunResult(BenchmarkResultItem result,CpuSelectionItem? cpu,DateTimeOffset completedAt,bool highlightCompleted = true){
-        var isCompleted = string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase);
-        var isFailed = string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase);
-        var isRunning = string.Equals(result.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase);
-        if(isRunning){
+    public void 実行結果を適用(ベンチマーク結果項目 結果,CPU選択項目? CPU,DateTimeOffset 完了日時,bool 完了を強調するか = true) {
+        var 完了か = string.Equals(結果.状態,"Completed",StringComparison.OrdinalIgnoreCase);
+        var 失敗か値 = string.Equals(結果.状態,"Failed",StringComparison.OrdinalIgnoreCase);
+        var 実行中か値 = ジョブ状態名.保存値と一致するか(結果.状態,ジョブ状態.実行中);
+        if(実行中か値) {
             // Running は確定値の更新ではなく、実行中の状態表示だけを切り替える。
-            this.IsRunning=true;
-            this.isFailed=false;
-            this.isCompletedWithoutMeasurement=false;
-            this.FailureExecutionText=string.Empty;
-            this.failureReasonText=string.Empty;
-            if(result.ElementCount>0){
-                this.ElementCountText=FormatElementCount(result.ElementCount);
+            this.実行中か=true;
+            this.失敗か値=false;
+            this.測定なし完了か値=false;
+            this.失敗実行文字列=string.Empty;
+            this.失敗理由文字列値=string.Empty;
+            if(結果.要素数>0) {
+                this.要素数文字列=要素数を整形(結果.要素数);
             }
-            this.lastLoopCount=result.LoopCount;
-            this.OnPropertyChanged(nameof(this.LastLoopCount));
-            this.OnPropertyChanged(nameof(this.TimeTooltipText));
-            this.ExecutionText=FormatTimestamp(BenchmarkRunTimestampDisplayLogic.ResolveRunningTimestamp(result.StartedAt,completedAt));
-            this.RefreshExecutionTooltipText();
-            this.ApplyCpuDisplay(cpu);
-            this.LiveState=BenchmarkProjectLiveState.Running;
-            this.RefreshStatusDisplay();
+            this.最終ループ回数値=結果.ループ回数;
+            this.OnPropertyChanged(nameof(this.最終ループ回数));
+            this.OnPropertyChanged(nameof(this.時間ツールチップ文字列));
+            this.実行文字列=日時を整形(ベンチマーク実行日時表示ロジック.実行中日時を解決(結果.開始日時,完了日時));
+            this.実行ツールチップ文字列を更新();
+            this.CPU表示を適用(CPU);
+            this.実行時状態=ベンチマークプロジェクト実行状態.実行中;
+            this.状態表示を更新();
             return;
         }
 
-        this.ResultCheckText=result.ResultCheckText;
-        this.ResultSeedText=result.ResultSeedText;
+        this.結果確認文字列=結果.結果確認文字列;
+        this.結果シード文字列=結果.結果シード文字列;
 
-        if(result.ElementCount<=0){
-            // ElementCount=0 の callback は比較表/チャートの確定データとして扱わない。
-            this.IsRunning=false;
-            this.ApplyCpuDisplay(cpu,preserveWhenNull:true);
-            this.LiveState=this.Metrics.HasMeasuredValue||this.isCompletedWithoutMeasurement
-                ? BenchmarkProjectLiveState.Completed
-                : BenchmarkProjectLiveState.Idle;
-            this.RefreshStatusDisplay();
+        if(結果.要素数<=0) {
+            // 要素数=0 の コールバック は比較表/チャートの確定データとして扱わない。
+            this.実行中か=false;
+            this.CPU表示を適用(CPU,欠測時に維持するか: true);
+            this.実行時状態=this.測定値.測定値ありか||this.測定なし完了か値
+                ? ベンチマークプロジェクト実行状態.完了
+                : ベンチマークプロジェクト実行状態.待機中;
+            this.状態表示を更新();
             return;
         }
 
-        if(isCompleted&&result.MeanNanoseconds is not null){
+        if(完了か&&結果.平均ナノ秒 is not null) {
             // Completed かつ測定値ありだけが、棒グラフと表の確定値を更新する。
-            this.isFailed=false;
-            this.isCompletedWithoutMeasurement=false;
-            this.lastMeasuredAt=completedAt;
-            this.ApplySuccessfulDisplay(
-                ProjectMetrics.FromMeasurement(result.MeanNanoseconds,result.AllocatedBytesValue),
-                result.ElementCount,
-                completedAt,
-                highlightCompleted ? BenchmarkMeasurementHighlightState.Fresh : BenchmarkMeasurementHighlightState.None);
-            this.lastLoopCount=result.LoopCount;
-            this.lastTotalNanoseconds=result.TotalNanoseconds;
-            this.OnPropertyChanged(nameof(this.LastLoopCount));
-            this.OnPropertyChanged(nameof(this.LastTotalNanoseconds));
-            this.OnPropertyChanged(nameof(this.TimeTooltipText));
-            this.ClearFailureDisplay();
-        }else if(isCompleted){
+            this.失敗か値=false;
+            this.測定なし完了か値=false;
+            this.最終測定日時値=完了日時;
+            this.成功表示を適用(
+                プロジェクト測定値.測定から作成(結果.平均ナノ秒,結果.割り当てバイト数値),
+                結果.要素数,
+                完了日時,
+                完了を強調するか ? ベンチマーク測定強調状態.新規 : ベンチマーク測定強調状態.なし);
+            this.最終ループ回数値=結果.ループ回数;
+            this.最終合計ナノ秒値=結果.合計ナノ秒;
+            this.OnPropertyChanged(nameof(this.最終ループ回数));
+            this.OnPropertyChanged(nameof(this.最終合計ナノ秒));
+            this.OnPropertyChanged(nameof(this.時間ツールチップ文字列));
+            this.失敗表示をクリア();
+        } else if(完了か) {
             // Completed でも測定値がない場合は、待機に戻さず「測定値なし」として終端表示する。
-            this.isFailed=false;
-            this.isCompletedWithoutMeasurement=true;
-            this.lastMeasuredAt=completedAt;
-            this.ElementCountText=FormatElementCount(result.ElementCount);
-            this.ExecutionText=FormatTimestamp(completedAt);
-            this.RefreshExecutionTooltipText();
-            this.ClearFailureDisplay();
-        }else if(isFailed){
-            this.isFailed=true;
-            this.isCompletedWithoutMeasurement=false;
-            this.lastMeasuredAt=completedAt;
-            this.ApplyFailureDisplay(result.ElementCount,completedAt,result.FailureReason);
+            this.失敗か値=false;
+            this.測定なし完了か値=true;
+            this.最終測定日時値=完了日時;
+            this.要素数文字列=要素数を整形(結果.要素数);
+            this.実行文字列=日時を整形(完了日時);
+            this.実行ツールチップ文字列を更新();
+            this.失敗表示をクリア();
+        } else if(失敗か値) {
+            this.失敗か値=true;
+            this.測定なし完了か値=false;
+            this.最終測定日時値=完了日時;
+            this.失敗表示を適用(結果.要素数,完了日時,結果.失敗理由);
         }
-        this.IsRunning=false;
-        this.ApplyCpuDisplay(cpu,preserveWhenNull:true);
-        this.LiveState=isCompleted
-            ? BenchmarkProjectLiveState.Completed
-            : BenchmarkProjectLiveState.Idle;
-        this.RefreshStatusDisplay();
+        this.実行中か=false;
+        this.CPU表示を適用(CPU,欠測時に維持するか: true);
+        this.実行時状態=完了か
+            ? ベンチマークプロジェクト実行状態.完了
+            : ベンチマークプロジェクト実行状態.待機中;
+        this.状態表示を更新();
     }
 
     // 保存Runロードでは、DBの1行を画面グリッド1行としてそのまま復元する。
     // CPU/日時/要素数も現在のCPUリストやカタログに再照合せず、保存値を表示値として反映する。
-    public void ApplySnapshotResult(BenchmarkResultItem result,int? cpuNumber,DateTimeOffset? measuredAt){
-        this.ApplySnapshotResult(result,null,cpuNumber,measuredAt);
+    public void スナップショット結果を適用(ベンチマーク結果項目 結果,int? CPU番号,DateTimeOffset? 測定日時) {
+        this.スナップショット結果を適用(結果,null,CPU番号,測定日時);
     }
 
-    public void ApplySnapshotResult(BenchmarkResultItem result,CpuSelectionItem? cpu,int? cpuNumber,DateTimeOffset? measuredAt){
-        var isCompleted = string.Equals(result.Status,"Completed",StringComparison.OrdinalIgnoreCase);
-        var isFailed = string.Equals(result.Status,"Failed",StringComparison.OrdinalIgnoreCase);
-        this.ResultCheckText=result.ResultCheckText;
-        this.ResultSeedText=result.ResultSeedText;
-        this.IsRunning=false;
-        this.LiveState=isCompleted
-            ? BenchmarkProjectLiveState.Completed
-            : BenchmarkProjectLiveState.Idle;
-        if(isCompleted&&result.MeanNanoseconds is not null){
-            this.SetMetrics(ProjectMetrics.FromMeasurement(result.MeanNanoseconds,result.AllocatedBytesValue));
-            this.isFailed=false;
-            this.isCompletedWithoutMeasurement=false;
-            this.lastSuccessfulElementCount=result.ElementCount>0 ? result.ElementCount : null;
-            this.lastLoopCount=result.LoopCount;
-            this.lastTotalNanoseconds=result.TotalNanoseconds;
-            this.OnPropertyChanged(nameof(this.LastLoopCount));
-            this.OnPropertyChanged(nameof(this.LastTotalNanoseconds));
-            this.lastMeasuredAt=measuredAt;
-            this.TimeText=FormatTime(this.metrics);
-            this.AllocatedText=FormatAllocated(this.metrics);
-            this.ElementCountText=result.ElementCount>0 ? FormatElementCount(result.ElementCount) : string.Empty;
-            this.ExecutionText=measuredAt is { } completedAt ? FormatTimestamp(completedAt) : string.Empty;
-            this.ClearFailureDisplay();
-            this.OnPropertyChanged(nameof(this.TimeTooltipText));
-        }else if(isCompleted){
-            this.SetMetrics(ProjectMetrics.Missing);
-            this.isFailed=false;
-            this.isCompletedWithoutMeasurement=true;
-            this.lastSuccessfulElementCount=result.ElementCount>0 ? result.ElementCount : null;
-            this.lastMeasuredAt=measuredAt;
-            this.TimeText=string.Empty;
-            this.AllocatedText=string.Empty;
-            this.ElementCountText=result.ElementCount>0 ? FormatElementCount(result.ElementCount) : string.Empty;
-            this.ExecutionText=measuredAt is { } completedAt ? FormatTimestamp(completedAt) : string.Empty;
-            this.ClearFailureDisplay();
-        }else if(isFailed){
-            this.SetMetrics(ProjectMetrics.Missing);
-            this.isFailed=true;
-            this.isCompletedWithoutMeasurement=false;
-            this.lastFailedElementCount=result.ElementCount>0 ? result.ElementCount : null;
-            this.lastFailedAt=measuredAt;
-            this.lastMeasuredAt=measuredAt;
-            this.TimeText=string.Empty;
-            this.AllocatedText=string.Empty;
-            this.ElementCountText=result.ElementCount>0 ? FormatElementCount(result.ElementCount) : string.Empty;
-            this.FailureExecutionText=measuredAt is { } failedAt ? "  "+FormatTimestamp(failedAt) : string.Empty;
-            this.failureReasonText=BenchmarkFailureDisplayLogic.CreateTooltipReason(result.FailureReason);
-            this.ExecutionText=string.Empty;
-        }else{
-            this.ApplyMetrics(ProjectMetrics.Missing);
+    public void スナップショット結果を適用(ベンチマーク結果項目 結果,CPU選択項目? CPU,int? CPU番号,DateTimeOffset? 測定日時) {
+        var 完了か = string.Equals(結果.状態,"Completed",StringComparison.OrdinalIgnoreCase);
+        var 失敗か値 = string.Equals(結果.状態,"Failed",StringComparison.OrdinalIgnoreCase);
+        this.結果確認文字列=結果.結果確認文字列;
+        this.結果シード文字列=結果.結果シード文字列;
+        this.実行中か=false;
+        this.実行時状態=完了か
+            ? ベンチマークプロジェクト実行状態.完了
+            : ベンチマークプロジェクト実行状態.待機中;
+        if(完了か&&結果.平均ナノ秒 is not null) {
+            this.測定値を設定(プロジェクト測定値.測定から作成(結果.平均ナノ秒,結果.割り当てバイト数値));
+            this.失敗か値=false;
+            this.測定なし完了か値=false;
+            this.最終成功要素数値=結果.要素数>0 ? 結果.要素数 : null;
+            this.最終ループ回数値=結果.ループ回数;
+            this.最終合計ナノ秒値=結果.合計ナノ秒;
+            this.OnPropertyChanged(nameof(this.最終ループ回数));
+            this.OnPropertyChanged(nameof(this.最終合計ナノ秒));
+            this.最終測定日時値=測定日時;
+            this.時間文字列=時間を整形(this.測定値値);
+            this.割り当て文字列=割り当てを整形(this.測定値値);
+            this.要素数文字列=結果.要素数>0 ? 要素数を整形(結果.要素数) : string.Empty;
+            this.実行文字列=測定日時 is { } 完了日時 ? 日時を整形(完了日時) : string.Empty;
+            this.失敗表示をクリア();
+            this.OnPropertyChanged(nameof(this.時間ツールチップ文字列));
+        } else if(完了か) {
+            this.測定値を設定(プロジェクト測定値.欠測);
+            this.失敗か値=false;
+            this.測定なし完了か値=true;
+            this.最終成功要素数値=結果.要素数>0 ? 結果.要素数 : null;
+            this.最終測定日時値=測定日時;
+            this.時間文字列=string.Empty;
+            this.割り当て文字列=string.Empty;
+            this.要素数文字列=結果.要素数>0 ? 要素数を整形(結果.要素数) : string.Empty;
+            this.実行文字列=測定日時 is { } 完了日時 ? 日時を整形(完了日時) : string.Empty;
+            this.失敗表示をクリア();
+        } else if(失敗か値) {
+            this.測定値を設定(プロジェクト測定値.欠測);
+            this.失敗か値=true;
+            this.測定なし完了か値=false;
+            this.最終失敗要素数値=結果.要素数>0 ? 結果.要素数 : null;
+            this.最終失敗日時値=測定日時;
+            this.最終測定日時値=測定日時;
+            this.時間文字列=string.Empty;
+            this.割り当て文字列=string.Empty;
+            this.要素数文字列=結果.要素数>0 ? 要素数を整形(結果.要素数) : string.Empty;
+            this.失敗実行文字列=測定日時 is { } 失敗日時 ? "  "+日時を整形(失敗日時) : string.Empty;
+            this.失敗理由文字列値=ベンチマーク失敗表示ロジック.ツールチップ理由を作成(結果.失敗理由);
+            this.実行文字列=string.Empty;
+        } else {
+            this.測定値を適用(プロジェクト測定値.欠測);
         }
 
-        if(cpu is not null){
-            this.ApplyCpuDisplay(cpu);
-        }else{
-            this.ApplyCpuNumberDisplay(cpuNumber);
+        if(CPU is not null) {
+            this.CPU表示を適用(CPU);
+        } else {
+            this.CPU番号表示を適用(CPU番号);
         }
-        this.ApplyMeasurementHighlight(BenchmarkMeasurementHighlightState.None);
-        this.RefreshExecutionTooltipText();
-        this.RefreshStatusDisplay();
+        this.測定強調を適用(ベンチマーク測定強調状態.なし);
+        this.実行ツールチップ文字列を更新();
+        this.状態表示を更新();
     }
 
-    public void ApplyResultCheck(string checkText,string seedText){
-        this.ResultCheckText=checkText;
-        this.ResultSeedText=seedText;
+    public void 結果確認を適用(string 確認文字列,string シード文字列) {
+        this.結果確認文字列=確認文字列;
+        this.結果シード文字列=シード文字列;
     }
 
-    public void ApplySkipped(int stoppedAtElementCount,ProjectMetrics stoppedMetrics){
-        this.ApplySkipped(stoppedAtElementCount,stoppedMetrics,null,null,false);
+    public void スキップを適用(int 停止要素数,プロジェクト測定値 停止時測定値) {
+        this.スキップを適用(停止要素数,停止時測定値,null,null,false);
     }
 
-    public void ApplySkipped(int stoppedAtElementCount,ProjectMetrics stoppedMetrics,CpuSelectionItem? cpu,DateTimeOffset? measuredAt,bool metadataMissing){
-        // adaptive で止まった行は、低い N の completed metrics をそのまま表示する。
-        this.SetMetrics(stoppedMetrics);
-        this.isCompletedWithoutMeasurement=false;
-        this.TimeText=FormatTime(stoppedMetrics);
-        this.AllocatedText=FormatAllocated(stoppedMetrics);
-        this.IsRunning=false;
-        this.isFailed=false;
-        this.lastSuccessfulElementCount=stoppedAtElementCount;
-        this.lastMeasuredAt=measuredAt;
-        this.ElementCountText=FormatElementCount(stoppedAtElementCount);
+    public void スキップを適用(int 停止要素数,プロジェクト測定値 停止時測定値,CPU選択項目? CPU,DateTimeOffset? 測定日時,bool メタデータ欠測か) {
+        // adaptive で止まった行は、低い N の completed 測定値値 をそのまま表示する。
+        this.測定値を設定(停止時測定値);
+        this.測定なし完了か値=false;
+        this.時間文字列=時間を整形(停止時測定値);
+        this.割り当て文字列=割り当てを整形(停止時測定値);
+        this.実行中か=false;
+        this.失敗か値=false;
+        this.最終成功要素数値=停止要素数;
+        this.最終測定日時値=測定日時;
+        this.要素数文字列=要素数を整形(停止要素数);
         // 日時と論理コアは独立に判定する: 片方のメタデータが欠けていても、判明している方は表示し続ける。
-        this.ExecutionText=measuredAt is null ? MissingMetadataText : FormatTimestamp(measuredAt.Value);
-        this.FailureExecutionText=string.Empty;
-        this.ApplyCpuDisplay(cpu,preserveWhenNull:true);
-        this.RefreshExecutionTooltipText();
-        this.ApplyMeasurementHighlight(BenchmarkMeasurementHighlightState.None);
-        this.LiveState=BenchmarkProjectLiveState.Completed;
-        this.OnPropertyChanged(nameof(this.IsPendingVisual));
-        this.OnPropertyChanged(nameof(this.LastSuccessfulElementCount));
-        this.RefreshStatusDisplay();
+        this.実行文字列=測定日時 is null ? メタデータ欠測文字列 : 日時を整形(測定日時.Value);
+        this.失敗実行文字列=string.Empty;
+        this.CPU表示を適用(CPU,欠測時に維持するか: true);
+        this.実行ツールチップ文字列を更新();
+        this.測定強調を適用(ベンチマーク測定強調状態.なし);
+        this.実行時状態=ベンチマークプロジェクト実行状態.完了;
+        this.OnPropertyChanged(nameof(this.待機表示か));
+        this.OnPropertyChanged(nameof(this.最終成功要素数));
+        this.状態表示を更新();
     }
 
-    public void ClearLiveState(){
-        this.IsRunning=false;
-        this.LiveState=this.Metrics.HasMeasuredValue||this.isCompletedWithoutMeasurement
-            ? BenchmarkProjectLiveState.Completed
-            : BenchmarkProjectLiveState.Idle;
-        this.RefreshStatusDisplay();
+    public void 実行時状態をクリア() {
+        this.実行中か=false;
+        this.実行時状態=this.測定値.測定値ありか||this.測定なし完了か値
+            ? ベンチマークプロジェクト実行状態.完了
+            : ベンチマークプロジェクト実行状態.待機中;
+        this.状態表示を更新();
     }
 
-    public void RetainCompletedHighlightForRunningElement(int runningElementCount){
-        this.ApplyMeasurementHighlight(BenchmarkMeasurementHighlightLogic.AdvanceForRunningElement(
-            this.MeasurementHighlightState,
-            this.LastSuccessfulElementCount,
-            runningElementCount));
+    public void 実行要素の完了強調を維持(int 実行要素数) {
+        this.測定強調を適用(ベンチマーク測定強調ロジック.実行要素数へ進める(
+            this.測定強調状態,
+            this.最終成功要素数,
+            実行要素数));
     }
 
-    public void ClearRunHighlight(){
-        this.ApplyMeasurementHighlight(BenchmarkMeasurementHighlightLogic.ClearAfterRun(this.MeasurementHighlightState));
+    public void 実行強調をクリア() {
+            this.測定強調を適用(ベンチマーク測定強調ロジック.実行後にクリア());
     }
 
-    public void ClearMetrics(){
-        this.SetMetrics(ProjectMetrics.Missing);
-        this.isFailed=false;
-        this.isCompletedWithoutMeasurement=false;
-        this.lastSuccessfulElementCount=null;
-        this.lastLoopCount=null;
-        this.lastTotalNanoseconds=null;
-        this.OnPropertyChanged(nameof(this.LastLoopCount));
-        this.OnPropertyChanged(nameof(this.LastTotalNanoseconds));
-        this.OnPropertyChanged(nameof(this.TimeTooltipText));
-        this.lastMeasuredAt=null;
-        this.lastFailedElementCount=null;
-        this.lastFailedAt=null;
-        this.failureReasonText=string.Empty;
-        this.TimeText=string.Empty;
-        this.AllocatedText=string.Empty;
-        this.ElementCountText=string.Empty;
-        this.ClearLiveState();
-        if(this.HasCase){
-            this.StatusImageSource=BenchmarkStatusImageNames.Waiting;
-            this.StatusText="待機";
-        this.ExecutionText=string.Empty;
-        this.FailureExecutionText=string.Empty;
-        this.failureReasonText=string.Empty;
-        this.ExecutionTooltipText=string.Empty;
-        this.ResultCheckText=string.Empty;
-        this.ResultSeedText=string.Empty;
-        this.ClearCpuDisplay();
-            this.ApplyMeasurementHighlight(BenchmarkMeasurementHighlightState.None);
-            this.RefreshStatusDisplay();
+    public void 測定値をクリア() {
+        this.測定値を設定(プロジェクト測定値.欠測);
+        this.失敗か値=false;
+        this.測定なし完了か値=false;
+        this.最終成功要素数値=null;
+        this.最終ループ回数値=null;
+        this.最終合計ナノ秒値=null;
+        this.OnPropertyChanged(nameof(this.最終ループ回数));
+        this.OnPropertyChanged(nameof(this.最終合計ナノ秒));
+        this.OnPropertyChanged(nameof(this.時間ツールチップ文字列));
+        this.最終測定日時値=null;
+        this.最終失敗要素数値=null;
+        this.最終失敗日時値=null;
+        this.失敗理由文字列値=string.Empty;
+        this.時間文字列=string.Empty;
+        this.割り当て文字列=string.Empty;
+        this.要素数文字列=string.Empty;
+        this.実行時状態をクリア();
+        if(this.ケースありか) {
+            this.状態画像ソース=ベンチマーク状態画像名.待機中;
+            this.状態文字列="待機";
+            this.実行文字列=string.Empty;
+            this.失敗実行文字列=string.Empty;
+            this.失敗理由文字列値=string.Empty;
+            this.実行ツールチップ文字列=string.Empty;
+            this.結果確認文字列=string.Empty;
+            this.結果シード文字列=string.Empty;
+            this.CPU表示をクリア();
+            this.測定強調を適用(ベンチマーク測定強調状態.なし);
+            this.状態表示を更新();
         }
     }
 
-    private void ApplySuccessfulDisplay(
-        ProjectMetrics value,
-        int elementCount,
-        DateTimeOffset measuredAt,
-        BenchmarkMeasurementHighlightState highlightState){
-        this.SetMetrics(value);
-        this.isFailed=false;
-        this.isCompletedWithoutMeasurement=false;
-        this.lastSuccessfulElementCount=elementCount;
-        this.lastMeasuredAt=measuredAt;
-        this.TimeText=FormatTime(value);
-        this.AllocatedText=FormatAllocated(value);
-        this.ElementCountText=FormatElementCount(elementCount);
-        this.ExecutionText=FormatTimestamp(measuredAt);
-        this.RefreshExecutionTooltipText();
-        this.ApplyMeasurementHighlight(highlightState);
-        this.OnPropertyChanged(nameof(this.IsPendingVisual));
-        this.OnPropertyChanged(nameof(this.LastSuccessfulElementCount));
+    private void 成功表示を適用(
+        プロジェクト測定値 値,
+        int 要素数,
+        DateTimeOffset 測定日時,
+        ベンチマーク測定強調状態 強調状態) {
+        this.測定値を設定(値);
+        this.失敗か値=false;
+        this.測定なし完了か値=false;
+        this.最終成功要素数値=要素数;
+        this.最終測定日時値=測定日時;
+        this.時間文字列=時間を整形(値);
+        this.割り当て文字列=割り当てを整形(値);
+        this.要素数文字列=要素数を整形(要素数);
+        this.実行文字列=日時を整形(測定日時);
+        this.実行ツールチップ文字列を更新();
+        this.測定強調を適用(強調状態);
+        this.OnPropertyChanged(nameof(this.待機表示か));
+        this.OnPropertyChanged(nameof(this.最終成功要素数));
     }
 
-    private void SetMetrics(ProjectMetrics value){
-        this.metrics=value;
-        this.OnPropertyChanged(nameof(this.Metrics));
+    private void 測定値を設定(プロジェクト測定値 値) {
+        this.測定値値=値;
+        this.OnPropertyChanged(nameof(this.測定値));
     }
 
-    private void ApplyFailureDisplay(int elementCount,DateTimeOffset failedAt,string failureReason){
-        this.isFailed=true;
-        this.isCompletedWithoutMeasurement=false;
-        this.lastFailedElementCount=elementCount;
-        this.lastFailedAt=failedAt;
-        this.failureReasonText=BenchmarkFailureDisplayLogic.CreateTooltipReason(failureReason);
-        this.ElementCountText=FormatElementCount(elementCount);
-        this.FailureExecutionText="  "+FormatTimestamp(failedAt);
-        this.RefreshExecutionTooltipText();
+    private void 失敗表示を適用(int 要素数,DateTimeOffset 失敗日時,string 失敗理由) {
+        this.失敗か値=true;
+        this.測定なし完了か値=false;
+        this.最終失敗要素数値=要素数;
+        this.最終失敗日時値=失敗日時;
+        this.失敗理由文字列値=ベンチマーク失敗表示ロジック.ツールチップ理由を作成(失敗理由);
+        this.要素数文字列=要素数を整形(要素数);
+        this.失敗実行文字列="  "+日時を整形(失敗日時);
+        this.実行ツールチップ文字列を更新();
     }
 
-    private void ClearFailureDisplay(){
-        this.lastFailedElementCount=null;
-        this.lastFailedAt=null;
-        this.failureReasonText=string.Empty;
-        this.FailureExecutionText=string.Empty;
-        this.RefreshExecutionTooltipText();
+    private void 失敗表示をクリア() {
+        this.最終失敗要素数値=null;
+        this.最終失敗日時値=null;
+        this.失敗理由文字列値=string.Empty;
+        this.失敗実行文字列=string.Empty;
+        this.実行ツールチップ文字列を更新();
     }
 
-    private void RefreshExecutionTooltipText(){
-        var failureText = this.lastFailedElementCount is { } failedN&&this.lastFailedAt is { } failedAt
-            ? "失敗 "+FormatElementCount(failedN)+" "+FormatTimestamp(failedAt)
+    private void 実行ツールチップ文字列を更新() {
+        var 失敗文字列 = this.最終失敗要素数値 is { } 失敗要素数&&this.最終失敗日時値 is { } 失敗日時
+            ? "失敗 "+要素数を整形(失敗要素数)+" "+日時を整形(失敗日時)
             : string.Empty;
-        this.ExecutionTooltipText=string.Join(
+        this.実行ツールチップ文字列=string.Join(
             Environment.NewLine,
-            new[] { FormatElementTooltip(this.ElementCountText,this.ExecutionText),failureText,this.failureReasonText }.Where(static text => !string.IsNullOrWhiteSpace(text)));
+            new[] { 要素ツールチップを整形(this.要素数文字列,this.実行文字列),失敗文字列,this.失敗理由文字列値 }.Where(static 文字列 => !string.IsNullOrWhiteSpace(文字列)));
     }
 
-    private void ApplyMeasurementHighlight(BenchmarkMeasurementHighlightState value){
-        if(this.SetProperty(ref this.measurementHighlightState,value,nameof(this.MeasurementHighlightState))){
-            this.OnPropertyChanged(nameof(this.MeasurementHighlightState));
+    private void 測定強調を適用(ベンチマーク測定強調状態 値) {
+        if(this.SetProperty(ref this.測定強調状態値,値,nameof(this.測定強調状態))) {
+            this.OnPropertyChanged(nameof(this.測定強調状態));
         }
 
-        this.ExecutionTextColor=DefaultExecutionTextColor;
-        this.MetricTextColor=DefaultMetricTextColor;
-        this.ExecutionFontAttributes=FontAttributes.None;
-        this.MetricFontAttributes=FontAttributes.None;
+        this.実行文字色=既定実行文字色;
+        this.指標文字色=既定指標文字色;
+        this.実行フォント属性=FontAttributes.None;
+        this.指標フォント属性=FontAttributes.None;
     }
 
-    private void RefreshStatusDisplay(){
-        var kind = BenchmarkStatusImageLogic.GetProjectKind(new BenchmarkStatusImageInput(
-            this.HasCase,
-            this.IsRunning,
-            this.isFailed,
-            this.Metrics.HasMeasuredValue,
-            this.isCompletedWithoutMeasurement,
-            this.IsSelected,
-            this.IsRowFinalCompleted));
-        this.StatusImageSource=BenchmarkStatusImageNames.FromKind(kind);
-        if(!this.HasCase){
-            this.StatusText="対象なし";
-        }else if(this.IsRunning){
-            this.StatusText="実行中";
-        }else if(this.isFailed){
-            this.StatusText="失敗";
-        }else if(this.Metrics.HasMeasuredValue){
-            this.StatusText="完了";
-        }else if(this.isCompletedWithoutMeasurement){
-            this.StatusText="測定値なし";
-        }else if(this.IsSelected){
-            this.StatusText="待機";
-        }else{
-            this.StatusText="予定なし";
+    private void 状態表示を更新() {
+        var 種別 = ベンチマーク状態画像ロジック.プロジェクト画像種別を取得(new ベンチマーク状態画像入力(
+            this.ケースありか,
+            this.実行中か,
+            this.失敗か値,
+            this.測定値.測定値ありか,
+            this.測定なし完了か値,
+            this.実行予定か,
+            this.行最終完了か));
+        this.状態画像ソース=ベンチマーク状態画像名.種別から取得(種別);
+        if(!this.ケースありか) {
+            this.状態文字列="対象なし";
+        } else if(this.実行中か) {
+            this.状態文字列="実行中";
+        } else if(this.失敗か値) {
+            this.状態文字列="失敗";
+        } else if(this.測定値.測定値ありか) {
+            this.状態文字列="完了";
+        } else if(this.測定なし完了か値) {
+            this.状態文字列="測定値なし";
+        } else if(this.実行予定か) {
+            this.状態文字列="待機";
+        } else {
+            this.状態文字列="予定なし";
         }
 
-        this.OnPropertyChanged(nameof(this.IsStatusIconVisible));
+        this.OnPropertyChanged(nameof(this.状態アイコン表示中か));
     }
 
-    private static string FormatElementCount(int elementCount) =>
-        elementCount.ToString(CultureInfo.InvariantCulture);
+    private static string 要素数を整形(int 要素数) =>
+        要素数.ToString(CultureInfo.InvariantCulture);
 
-    private static string FormatTimestamp(DateTimeOffset timestamp) =>
-        BenchmarkTimestampDisplay.FormatLocal(timestamp);
+    private static string 日時を整形(DateTimeOffset 日時) =>
+        ベンチマーク日時表示.ローカル日時を整形(日時);
 
-    private static string FormatElementTooltip(string elementCountText,string timestampText) =>
-        string.IsNullOrWhiteSpace(elementCountText)
-            ? timestampText
-            : string.IsNullOrWhiteSpace(timestampText)
-                ? elementCountText
-                : elementCountText+" "+timestampText;
+    private static string 要素ツールチップを整形(string 要素数文字列値,string 日時文字列) =>
+        string.IsNullOrWhiteSpace(要素数文字列値)
+            ? 日時文字列
+            : string.IsNullOrWhiteSpace(日時文字列)
+                ? 要素数文字列値
+                : 要素数文字列値+" "+日時文字列;
 
-    private static string FormatTime(ProjectMetrics metrics){
-        return metrics.HasMeasuredValue&&metrics.TimeNanoseconds is { } value
-            ? BenchmarkFormatting.FormatNanoseconds(value)
+    private static string 時間を整形(プロジェクト測定値 測定値値) {
+        return 測定値値.測定値ありか&&測定値値.時間ナノ秒 is { } 値
+            ? ベンチマークフォーマッター.ナノ秒を整形(値)
             : string.Empty;
     }
 
-    private static string CreateTimeTooltip(string perOperationText,double? totalNanoseconds,int? loopCount){
-        if(string.IsNullOrWhiteSpace(perOperationText)){
+    private static string 時間ツールチップを作成(string 一回あたり文字列,double? 合計ナノ秒,int? ループ回数) {
+        if(string.IsNullOrWhiteSpace(一回あたり文字列)) {
             return string.Empty;
         }
 
-        var values=new List<string>{"1回あたり: "+perOperationText};
-        if(totalNanoseconds is { } total){
-            values.Add("最終バッチ合計: "+BenchmarkFormatting.FormatNanoseconds(total));
+        var 値一覧 = new List<string> { "1回あたり: "+一回あたり文字列 };
+        if(合計ナノ秒 is { } 合計) {
+            値一覧.Add("最終バッチ合計: "+ベンチマークフォーマッター.ナノ秒を整形(合計));
         }
-        if(loopCount is { } loop&&loop>0){
-            values.Add("ループ回数: "+loop.ToString(CultureInfo.InvariantCulture));
+        if(ループ回数 is { } ループ&&ループ>0) {
+            値一覧.Add("ループ回数: "+ループ.ToString(CultureInfo.InvariantCulture));
         }
-        return string.Join(Environment.NewLine,values);
+        return string.Join(Environment.NewLine,値一覧);
     }
 
-    private void ApplyCpuDisplay(CpuSelectionItem? cpu,bool preserveWhenNull = false){
-        if(cpu is null){
+    private void CPU表示を適用(CPU選択項目? CPU,bool 欠測時に維持するか = false) {
+        if(CPU is null) {
             // 終端状態の適用で CPU を解決できなかった場合は、実行中に表示していた論理コアを保持する
             // (実装未完了などで測定値が無くても、実行したコアは変わらないため表示し続ける)。
-            if(!preserveWhenNull){
-                this.ClearCpuDisplay();
+            if(!欠測時に維持するか) {
+                this.CPU表示をクリア();
             }
             return;
         }
 
-        this.HasCpuDisplay=true;
-        this.LogicalProcessorText=cpu.LogicalProcessorText;
-        this.CoreKindLabel=cpu.CoreKindLabel;
-        this.CoreKindImageSource=cpu.CoreKindImageSource;
-        this.BadgeBackgroundColor=cpu.BadgeBackgroundColor;
-        this.BadgeTextColor=cpu.BadgeTextColor;
+        this.CPU表示ありか=true;
+        this.論理プロセッサ文字列=CPU.論理プロセッサ文字列;
+        this.コア種別ラベル=CPU.コア種別ラベル;
+        this.コア種別画像ソース=CPU.コア種別画像ソース;
+        this.バッジ背景色=CPU.バッジ背景色;
+        this.バッジ文字色=CPU.バッジ文字色;
     }
 
-    private void ApplyCpuNumberDisplay(int? cpuNumber){
-        if(cpuNumber is not { } value){
-            this.ClearCpuDisplay();
+    private void CPU番号表示を適用(int? CPU番号) {
+        if(CPU番号 is not { } 値) {
+            this.CPU表示をクリア();
             return;
         }
 
-        this.HasCpuDisplay=true;
-        this.LogicalProcessorText=value.ToString(CultureInfo.InvariantCulture);
-        this.CoreKindLabel=string.Empty;
-        this.CoreKindImageSource=string.Empty;
-        this.BadgeBackgroundColor=Color.FromArgb("#E2E8F0");
-        this.BadgeTextColor=Color.FromArgb("#334155");
+        this.CPU表示ありか=true;
+        this.論理プロセッサ文字列=値.ToString(CultureInfo.InvariantCulture);
+        this.コア種別ラベル=string.Empty;
+        this.コア種別画像ソース=string.Empty;
+        this.バッジ背景色=Color.FromArgb("#E2E8F0");
+        this.バッジ文字色=Color.FromArgb("#334155");
     }
 
-    private void ClearCpuDisplay(){
-        this.HasCpuDisplay=false;
-        this.LogicalProcessorText=string.Empty;
-        this.CoreKindLabel=string.Empty;
-        this.CoreKindImageSource=string.Empty;
-        this.BadgeBackgroundColor=Color.FromArgb("#E2E8F0");
-        this.BadgeTextColor=Color.FromArgb("#334155");
+    private void CPU表示をクリア() {
+        this.CPU表示ありか=false;
+        this.論理プロセッサ文字列=string.Empty;
+        this.コア種別ラベル=string.Empty;
+        this.コア種別画像ソース=string.Empty;
+        this.バッジ背景色=Color.FromArgb("#E2E8F0");
+        this.バッジ文字色=Color.FromArgb("#334155");
     }
 
-    private static string FormatAllocated(ProjectMetrics metrics){
-        return metrics.HasMeasuredValue&&metrics.AllocatedBytes is { } value
-            ? BenchmarkFormatting.FormatBytes(value)
+    private static string 割り当てを整形(プロジェクト測定値 測定値値) {
+        return 測定値値.測定値ありか&&測定値値.割り当てバイト数 is { } 値
+            ? ベンチマークフォーマッター.バイト数を整形(値)
             : string.Empty;
     }
 }
 
-public sealed class BenchmarkColumnSelectionGroup:ObservableObject{
-    private bool? isChecked;
-    private string headerText;
+public sealed class ベンチマーク列選択グループ:ObservableObject {
+    private string 見出し文字列値;
 
-    public BenchmarkColumnSelectionGroup(string id,string headerText,IReadOnlyList<string> columnKeys){
-        this.Id=id;
-        this.headerText=headerText;
-        this.ColumnKeys=columnKeys;
+    public ベンチマーク列選択グループ(string ID,string 見出し文字列値,IReadOnlyList<string> 列キー一覧) {
+        this.ID=ID;
+        this.見出し文字列値=見出し文字列値;
+        this.列キー一覧=列キー一覧;
     }
 
-    public string Id { get; }
-    public string HeaderText{
-        get => this.headerText;
-        private set => this.SetProperty(ref this.headerText,value);
+    public string ID { get; }
+    public string 見出し文字列 {
+        get => this.見出し文字列値;
+        private set => this.SetProperty(ref this.見出し文字列値,value);
     }
-    public IReadOnlyList<string> ColumnKeys { get; }
+    public IReadOnlyList<string> 列キー一覧 { get; }
 
-    public bool? IsChecked{
-        get => this.isChecked;
-        set => this.SetProperty(ref this.isChecked,value);
-    }
-
-    public void SetHeaderText(string value){
-        this.HeaderText=value;
+    public void 見出し文字列を設定(string 値) {
+        this.見出し文字列=値;
     }
 }
 
-public sealed class BenchmarkTableRow:ObservableObject{
-    private bool isSelected;
-    private bool isUiSelected;
-    private bool? isSelectionChecked;
+public sealed class ベンチマーク表行:ObservableObject {
+    private bool 選択中か値;
+    private bool UI選択中か値;
+    private bool? 選択チェック状態値;
     private string 時間シェア文字列 = string.Empty;
     private string メモリシェア文字列 = string.Empty;
-    private string stopNText = string.Empty;
-    private Color stopNTextColor = DefaultStopNTextColor;
-    private FontAttributes stopNFontAttributes;
-    private string leftTimeText = string.Empty;
-    private string leftAllocatedText = string.Empty;
-    private string rightTimeText = string.Empty;
-    private string rightAllocatedText = string.Empty;
-    private string benchmarkName = string.Empty;
-    private string benchmarkTypeText = string.Empty;
-    private string benchmarkMethodText = string.Empty;
-    private readonly string snapshotBenchmarkTypeText;
-    private bool hasCpuDisplay;
-    private string logicalProcessorText = string.Empty;
-    private string coreKindLabel = string.Empty;
-    private string coreKindImageSource = string.Empty;
-    private Color badgeBackgroundColor = Color.FromArgb("#E2E8F0");
-    private Color badgeTextColor = Color.FromArgb("#334155");
-    private double? logicalCpuSortValue;
-    private bool isFinalCompleted;
-    private static readonly Color DefaultStopNTextColor = Color.FromArgb("#334155");
+    private string 停止要素数文字列値 = string.Empty;
+    private Color 停止要素数文字色値 = 既定停止要素数文字色;
+    private FontAttributes 停止要素数フォント属性値;
+    private string 左時間文字列値 = string.Empty;
+    private string 左割り当て文字列値 = string.Empty;
+    private string 右時間文字列値 = string.Empty;
+    private string 右割り当て文字列値 = string.Empty;
+    private string ベンチマーク名値 = string.Empty;
+    private string ベンチマーク型文字列値 = string.Empty;
+    private string ベンチマークメソッド文字列値 = string.Empty;
+    private readonly string スナップショットベンチマーク型文字列;
+    private bool CPU表示ありか値;
+    private string 論理プロセッサ文字列値 = string.Empty;
+    private string コア種別ラベル値 = string.Empty;
+    private string コア種別画像ソース値 = string.Empty;
+    private Color バッジ背景色値 = Color.FromArgb("#E2E8F0");
+    private Color バッジ文字色値 = Color.FromArgb("#334155");
+    private double? 論理CPUソート値値;
+    private bool 最終完了か値;
+    private static readonly Color 既定停止要素数文字色 = Color.FromArgb("#334155");
 
-    public BenchmarkTableRow(
-        string rowKey,
-        string methodName,
-        string benchmarkName,
-        BenchmarkSourceTabDefinition sourceTab,
-        IReadOnlyDictionary<string,BenchmarkCase> casesByProject)
-        : this(rowKey,methodName,benchmarkName,sourceTab,casesByProject,string.Empty){
+    public ベンチマーク表行(
+        string 行キー,
+        string メソッド名,
+        string ベンチマーク名値,
+        ベンチマークソースタブ定義 ソースタブ,
+        IReadOnlyDictionary<string,ベンチマークケース> プロジェクト別ケース)
+        : this(行キー,メソッド名,ベンチマーク名値,ソースタブ,プロジェクト別ケース,string.Empty) {
     }
 
-    public BenchmarkTableRow(
-        string rowKey,
-        string methodName,
-        string benchmarkName,
-        BenchmarkSourceTabDefinition sourceTab,
-        IReadOnlyDictionary<string,BenchmarkCase> casesByProject,
-        string snapshotBenchmarkTypeText){
-        this.RowKey=rowKey;
-        this.MethodName=methodName;
-        this.benchmarkName=benchmarkName;
+    public ベンチマーク表行(
+        string 行キー,
+        string メソッド名,
+        string ベンチマーク名値,
+        ベンチマークソースタブ定義 ソースタブ,
+        IReadOnlyDictionary<string,ベンチマークケース> プロジェクト別ケース,
+        string スナップショットベンチマーク型文字列) {
+        this.行キー=行キー;
+        this.メソッド名=メソッド名;
+        this.ベンチマーク名値=ベンチマーク名値;
         // 保存Runの「型」は完全型名ではなく、グリッドの型列に出す表示文字列。
-        // CreateBenchmarkTypeText("int") のような再フォーマットを通すと空になるため、明示値を保持する。
-        this.snapshotBenchmarkTypeText=snapshotBenchmarkTypeText;
-        this.SourceTab=sourceTab;
-        this.CasesByProject=casesByProject;
-        this.RefreshBenchmarkDisplayParts();
-        this.LeftCell=this.CreateCell(sourceTab.LeftProject);
-        this.RightCell=this.CreateCell(sourceTab.RightProject);
-        foreach(var cell in this.ProjectCells){
-            cell.UiSelectionChanged+=this.OnCellUiSelectionChanged;
-            cell.PropertyChanged+=this.OnCellPropertyChanged;
+        // ベンチマーク型文字列を作成("int") のような再フォーマットを通すと空になるため、明示値を保持する。
+        this.スナップショットベンチマーク型文字列=スナップショットベンチマーク型文字列;
+        this.ソースタブ=ソースタブ;
+        this.プロジェクト別ケース=プロジェクト別ケース;
+        this.ベンチマーク表示部分を更新();
+        // セルの初期状態表示（待機/対象なし）が親行の選択を参照するため、セル生成前に行選択を確定する。
+        this.実行対象ありか=プロジェクト別ケース.ContainsKey(ソースタブ.左プロジェクト)||プロジェクト別ケース.ContainsKey(ソースタブ.右プロジェクト);
+        this.選択中か値=this.実行対象ありか;
+        this.選択チェック状態値=this.選択中か値;
+        this.左セル=this.セルを作成(ソースタブ.左プロジェクト);
+        this.右セル=this.セルを作成(ソースタブ.右プロジェクト);
+        foreach(var セル in this.プロジェクトセル一覧) {
+            セル.UI選択変更時+=this.セルUI選択変更時;
+            セル.PropertyChanged+=this.セルプロパティ変更時;
         }
-        this.RefreshUiSelectionState();
+        this.UI選択状態を更新();
     }
 
-    public string RowKey { get; }
-    public string MethodName { get; }
-    public string BenchmarkName{
-        get => this.benchmarkName;
-        private set{
-            if(this.SetProperty(ref this.benchmarkName,value)){
-                this.RefreshBenchmarkDisplayParts();
+    public string 行キー { get; }
+    public string メソッド名 { get; }
+    public string ベンチマーク名 {
+        get => this.ベンチマーク名値;
+        private set {
+            if(this.SetProperty(ref this.ベンチマーク名値,value)) {
+                this.ベンチマーク表示部分を更新();
             }
         }
     }
-    public string BenchmarkTypeText{
-        get => this.benchmarkTypeText;
-        private set => this.SetProperty(ref this.benchmarkTypeText,value);
+    public string ベンチマーク型文字列 {
+        get => this.ベンチマーク型文字列値;
+        private set => this.SetProperty(ref this.ベンチマーク型文字列値,value);
     }
-    public string BenchmarkMethodText{
-        get => this.benchmarkMethodText;
-        private set => this.SetProperty(ref this.benchmarkMethodText,value);
+    public string ベンチマークメソッド文字列 {
+        get => this.ベンチマークメソッド文字列値;
+        private set => this.SetProperty(ref this.ベンチマークメソッド文字列値,value);
     }
 
-    private static string CreateTimeTooltip(string perOperationText,double? totalNanoseconds,int? loopCount){
-        if(string.IsNullOrWhiteSpace(perOperationText)){
+    private static string 時間ツールチップを作成(string 一回あたり文字列,double? 合計ナノ秒,int? ループ回数) {
+        if(string.IsNullOrWhiteSpace(一回あたり文字列)) {
             return string.Empty;
         }
 
-        var values=new List<string>{"1回あたり: "+perOperationText};
-        if(totalNanoseconds is { } total){
-            values.Add("最終バッチ合計: "+BenchmarkFormatting.FormatNanoseconds(total));
+        var 値一覧 = new List<string> { "1回あたり: "+一回あたり文字列 };
+        if(合計ナノ秒 is { } 合計) {
+            値一覧.Add("最終バッチ合計: "+ベンチマークフォーマッター.ナノ秒を整形(合計));
         }
-        if(loopCount is { } loop&&loop>0){
-            values.Add("ループ回数: "+loop.ToString(CultureInfo.InvariantCulture));
+        if(ループ回数 is { } ループ&&ループ>0) {
+            値一覧.Add("ループ回数: "+ループ.ToString(CultureInfo.InvariantCulture));
         }
-        return string.Join(Environment.NewLine,values);
+        return string.Join(Environment.NewLine,値一覧);
     }
-    public TextDecorations BenchmarkIdentityTextDecorations =>
-        this.ProjectCells.Any(static cell => cell.HasCase)
+    public TextDecorations ベンチマーク識別文字装飾 =>
+        this.プロジェクトセル一覧.Any(static セル => セル.ケースありか)
             ? TextDecorations.None
             : TextDecorations.Strikethrough;
-    public bool HasCpuDisplay{
-        get => this.hasCpuDisplay;
-        private set => this.SetProperty(ref this.hasCpuDisplay,value);
+    public bool CPU表示ありか {
+        get => this.CPU表示ありか値;
+        private set => this.SetProperty(ref this.CPU表示ありか値,value);
     }
-    public string LogicalProcessorText{
-        get => this.logicalProcessorText;
-        private set => this.SetProperty(ref this.logicalProcessorText,value);
+    public string 論理プロセッサ文字列 {
+        get => this.論理プロセッサ文字列値;
+        private set => this.SetProperty(ref this.論理プロセッサ文字列値,value);
     }
-    public string CoreKindLabel{
-        get => this.coreKindLabel;
-        private set => this.SetProperty(ref this.coreKindLabel,value);
+    public string コア種別ラベル {
+        get => this.コア種別ラベル値;
+        private set => this.SetProperty(ref this.コア種別ラベル値,value);
     }
-    public string CoreKindImageSource{
-        get => this.coreKindImageSource;
-        private set => this.SetProperty(ref this.coreKindImageSource,value);
+    public string コア種別画像ソース {
+        get => this.コア種別画像ソース値;
+        private set => this.SetProperty(ref this.コア種別画像ソース値,value);
     }
-    public Color BadgeBackgroundColor{
-        get => this.badgeBackgroundColor;
-        private set => this.SetProperty(ref this.badgeBackgroundColor,value);
+    public Color バッジ背景色 {
+        get => this.バッジ背景色値;
+        private set => this.SetProperty(ref this.バッジ背景色値,value);
     }
-    public Color BadgeTextColor{
-        get => this.badgeTextColor;
-        private set => this.SetProperty(ref this.badgeTextColor,value);
+    public Color バッジ文字色 {
+        get => this.バッジ文字色値;
+        private set => this.SetProperty(ref this.バッジ文字色値,value);
     }
-    public string CpuTooltipText => this.HasCpuDisplay
-        ? (string.IsNullOrWhiteSpace(this.CoreKindLabel) ? "CPU" : this.CoreKindLabel)+" / CPU "+this.LogicalProcessorText
+    public string CPUツールチップ文字列 => this.CPU表示ありか
+        ? (string.IsNullOrWhiteSpace(this.コア種別ラベル) ? "CPU" : this.コア種別ラベル)+" / CPU "+this.論理プロセッサ文字列
         : string.Empty;
-    public string LoopCountText{
-        get{
-            var left=this.LeftCell.LastLoopCount;
-            var right=this.RightCell.LastLoopCount;
-            if(left is { } leftValue&&right is { } rightValue&&leftValue==rightValue){
-                return leftValue.ToString(CultureInfo.InvariantCulture);
+    public string ループ回数文字列 {
+        get {
+            var 左 = this.左セル.最終ループ回数;
+            var 右 = this.右セル.最終ループ回数;
+            if(左 is { } 左値&&右 is { } 右値&&左値==右値) {
+                return 左値.ToString(CultureInfo.InvariantCulture);
             }
-            if(left is { } leftOnly&&right is { } rightOnly){
-                return leftOnly.ToString(CultureInfo.InvariantCulture)+":"+rightOnly.ToString(CultureInfo.InvariantCulture);
+            if(左 is { } 左のみか&&右 is { } 右のみか) {
+                return 左のみか.ToString(CultureInfo.InvariantCulture)+":"+右のみか.ToString(CultureInfo.InvariantCulture);
             }
-            if(left is { } leftOnlyValue){
-                return leftOnlyValue.ToString(CultureInfo.InvariantCulture)+":-";
+            if(左 is { } 左のみ値) {
+                return 左のみ値.ToString(CultureInfo.InvariantCulture)+":-";
             }
-            if(right is { } rightOnlyValue){
-                return "-:"+rightOnlyValue.ToString(CultureInfo.InvariantCulture);
+            if(右 is { } 右のみ値) {
+                return "-:"+右のみ値.ToString(CultureInfo.InvariantCulture);
             }
             return string.Empty;
         }
     }
-    public int? 共通ループ回数{
-        get{
-            var left=this.LeftCell.LastLoopCount;
-            var right=this.RightCell.LastLoopCount;
-            if(left is { } leftValue&&right is { } rightValue&&leftValue==rightValue){
-                return leftValue;
+    public int? 共通ループ回数 {
+        get {
+            var 左 = this.左セル.最終ループ回数;
+            var 右 = this.右セル.最終ループ回数;
+            if(左 is { } 左値&&右 is { } 右値&&左値==右値) {
+                return 左値;
             }
             return null;
         }
     }
-    public string LoopCountTooltipText{
-        get{
-            if(string.IsNullOrWhiteSpace(this.LoopCountText)){
+    public string ループ回数ツールチップ文字列 {
+        get {
+            if(string.IsNullOrWhiteSpace(this.ループ回数文字列)) {
                 return string.Empty;
             }
-            if(this.共通ループ回数 is not null){
-                return "左右共通の最終ループ回数: "+this.LoopCountText;
+            if(this.共通ループ回数 is not null) {
+                return "左右共通の最終ループ回数: "+this.ループ回数文字列;
             }
-            return "Left:Right の最終ループ回数。左右不一致のためソート比較不能: "+this.LoopCountText;
+            return "左:右 の最終ループ回数。左右不一致のためソート比較不能: "+this.ループ回数文字列;
         }
     }
-    public double? LogicalCpuSortValue{
-        get => this.logicalCpuSortValue;
-        private set => this.SetProperty(ref this.logicalCpuSortValue,value);
+    public double? 論理CPUソート値 {
+        get => this.論理CPUソート値値;
+        private set => this.SetProperty(ref this.論理CPUソート値値,value);
     }
-    public BenchmarkSourceTabDefinition SourceTab { get; }
-    public IReadOnlyDictionary<string,BenchmarkCase> CasesByProject { get; }
-    public BenchmarkProjectCell LeftCell { get; }
-    public BenchmarkProjectCell RightCell { get; }
-    internal BenchmarkGridSnapshotItem? LoadedSnapshot { get; set; }
-    internal int GridDisplayIndex { get; set; } = -1;
-    public string CountArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Count);
-    public string IndexArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Index);
-    public string PageArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Page);
-    public string SegmentArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Segment);
-    public string MemoryArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Memory);
-    public string FractionArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Fraction);
-    public string InitialArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Initial);
-    public string DataArgument => this.GetArgumentValue(ScalableBenchmarkArgumentColumn.Data);
+    public ベンチマークソースタブ定義 ソースタブ { get; }
+    public IReadOnlyDictionary<string,ベンチマークケース> プロジェクト別ケース { get; }
+    public ベンチマークプロジェクトセル 左セル { get; }
+    public ベンチマークプロジェクトセル 右セル { get; }
+    public チャート比較点? チャート棒 { get; internal set; }
+    internal ベンチマークグリッドスナップショット項目? 読込済みスナップショット { get; set; }
+    internal int チャート点インデックス { get; set; } = -1;
+    internal int グリッド表示インデックス { get; set; } = -1;
+    public string Count引数 => this.引数値を取得(スケーラブルベンチマーク引数列.Count);
+    public string Index引数 => this.引数値を取得(スケーラブルベンチマーク引数列.Index);
+    public string Page引数 => this.引数値を取得(スケーラブルベンチマーク引数列.Page);
+    public string Segment引数 => this.引数値を取得(スケーラブルベンチマーク引数列.Segment);
+    public string Memory引数 => this.引数値を取得(スケーラブルベンチマーク引数列.Memory);
+    public string 割合引数 => this.引数値を取得(スケーラブルベンチマーク引数列.Fraction);
+    public string Initial引数 => this.引数値を取得(スケーラブルベンチマーク引数列.Initial);
+    public string Data引数 => this.引数値を取得(スケーラブルベンチマーク引数列.Data);
 
-    public bool IsSelected{
-        get => this.isSelected;
-        set => this.SetProperty(ref this.isSelected,value);
-    }
+    public bool 実行対象ありか { get; }
 
-    public bool IsUiSelected{
-        get => this.isUiSelected;
-        private set => this.SetProperty(ref this.isUiSelected,value);
-    }
-
-    public bool IsLeftUiSelected => this.LeftCell.IsUiSelected;
-    public bool IsRightUiSelected => this.RightCell.IsUiSelected;
-    public bool IsLeftPartialUiSelected => this.LeftCell.IsUiSelected&&!this.IsUiSelected;
-    public bool IsRightPartialUiSelected => this.RightCell.IsUiSelected&&!this.IsUiSelected;
-
-    public bool? IsSelectionChecked{
-        get => this.isSelectionChecked;
-        private set => this.SetProperty(ref this.isSelectionChecked,value);
+    public bool 選択中か {
+        get => this.選択中か値;
+        set {
+            this.SetProperty(ref this.選択中か値,value&&this.実行対象ありか);
+            this.選択チェック状態=this.選択中か値;
+            foreach(var セル in this.プロジェクトセル一覧) {
+                セル.行選択変更を反映();
+            }
+        }
     }
 
-    public bool IsFinalCompleted{
-        get => this.isFinalCompleted;
-        private set{
-            if(this.SetProperty(ref this.isFinalCompleted,value)){
-                foreach(var cell in this.ProjectCells){
-                    cell.SetRowFinalCompleted(value);
+    public bool UI選択中か {
+        get => this.UI選択中か値;
+        private set => this.SetProperty(ref this.UI選択中か値,value);
+    }
+
+    public bool 左UI選択中か => this.左セル.UI選択中か;
+    public bool 右UI選択中か => this.右セル.UI選択中か;
+    public bool 左部分UI選択中か => this.左セル.UI選択中か&&!this.UI選択中か;
+    public bool 右部分UI選択中か => this.右セル.UI選択中か&&!this.UI選択中か;
+
+    public bool? 選択チェック状態 {
+        get => this.選択チェック状態値;
+        private set => this.SetProperty(ref this.選択チェック状態値,value);
+    }
+
+    public bool 最終完了か {
+        get => this.最終完了か値;
+        private set {
+            if(this.SetProperty(ref this.最終完了か値,value)) {
+                foreach(var セル in this.プロジェクトセル一覧) {
+                    セル.行最終完了状態を設定(value);
                 }
             }
         }
     }
 
-    public string 時間シェア表示{
+    public string 時間シェア表示 {
         get => this.時間シェア文字列;
         private set => this.SetProperty(ref this.時間シェア文字列,value);
     }
 
-    public string メモリシェア表示{
+    public string メモリシェア表示 {
         get => this.メモリシェア文字列;
         private set => this.SetProperty(ref this.メモリシェア文字列,value);
     }
 
-    public BenchmarkShareGaugeState 時間シェアゲージ =>
-        BenchmarkShareGaugeState.FromShare(this.表示時間シェアを取得());
+    public ベンチマークシェアゲージ状態 時間シェアゲージ =>
+        ベンチマークシェアゲージ状態.シェアから作成(this.表示時間シェアを取得());
 
-    public BenchmarkShareGaugeState メモリシェアゲージ =>
-        BenchmarkShareGaugeState.FromShare(this.表示メモリシェアを取得());
+    public ベンチマークシェアゲージ状態 メモリシェアゲージ =>
+        ベンチマークシェアゲージ状態.シェアから作成(this.表示メモリシェアを取得());
 
-    public string StopNText => string.IsNullOrWhiteSpace(this.stopNText)
-        ? this.ElementCountText
-        : this.stopNText;
+    public string 停止要素数文字列 => string.IsNullOrWhiteSpace(this.停止要素数文字列値)
+        ? this.要素数文字列
+        : this.停止要素数文字列値;
 
-    public double? ElementCountSortValue{
-        get{
-            var values = new[] {
-                this.LeftCell.LastSuccessfulElementCount,
-                this.RightCell.LastSuccessfulElementCount,
-            }.Where(static value => value is not null).Select(static value => (double)value!.Value).ToArray();
-            return values.Length==0 ? null : values.Max();
+    private string 要素数文字列 {
+        get {
+            var 左 = this.左セル.要素数文字列;
+            var 右 = this.右セル.要素数文字列;
+            if(string.Equals(左,右,StringComparison.Ordinal)) {
+                return 左;
+            }
+
+            if(string.IsNullOrWhiteSpace(左)) {
+                return 右;
+            }
+
+            if(string.IsNullOrWhiteSpace(右)) {
+                return 左;
+            }
+
+            return 左+"/"+右;
         }
     }
 
-    private string ElementCountText{
-        get{
-            var left = this.LeftCell.ElementCountText;
-            var right = this.RightCell.ElementCountText;
-            if(string.Equals(left,right,StringComparison.Ordinal)){
-                return left;
-            }
-
-            if(string.IsNullOrWhiteSpace(left)){
-                return right;
-            }
-
-            if(string.IsNullOrWhiteSpace(right)){
-                return left;
-            }
-
-            return left+"/"+right;
-        }
+    public Color 停止要素数文字色 {
+        get => this.停止要素数文字色値;
+        private set => this.SetProperty(ref this.停止要素数文字色値,value);
     }
 
-    public Color StopNTextColor{
-        get => this.stopNTextColor;
-        private set => this.SetProperty(ref this.stopNTextColor,value);
+    public FontAttributes 停止要素数フォント属性 {
+        get => this.停止要素数フォント属性値;
+        private set => this.SetProperty(ref this.停止要素数フォント属性値,value);
     }
 
-    public FontAttributes StopNFontAttributes{
-        get => this.stopNFontAttributes;
-        private set => this.SetProperty(ref this.stopNFontAttributes,value);
+    public string 左時間文字列 {
+        get => this.左時間文字列値;
+        private set => this.SetProperty(ref this.左時間文字列値,value);
     }
 
-    public string LeftTimeText{
-        get => this.leftTimeText;
-        private set => this.SetProperty(ref this.leftTimeText,value);
+    public string 左割り当て文字列 {
+        get => this.左割り当て文字列値;
+        private set => this.SetProperty(ref this.左割り当て文字列値,value);
     }
 
-    public string LeftAllocatedText{
-        get => this.leftAllocatedText;
-        private set => this.SetProperty(ref this.leftAllocatedText,value);
+    public string 右時間文字列 {
+        get => this.右時間文字列値;
+        private set => this.SetProperty(ref this.右時間文字列値,value);
     }
 
-    public string RightTimeText{
-        get => this.rightTimeText;
-        private set => this.SetProperty(ref this.rightTimeText,value);
+    public string 右割り当て文字列 {
+        get => this.右割り当て文字列値;
+        private set => this.SetProperty(ref this.右割り当て文字列値,value);
     }
 
-    public string RightAllocatedText{
-        get => this.rightAllocatedText;
-        private set => this.SetProperty(ref this.rightAllocatedText,value);
-    }
-
-    public IReadOnlyList<BenchmarkCase> GetRunCases(){
+    public IReadOnlyList<ベンチマークケース> 実行ケースを取得() {
         // 保存Runスナップショットの型列は表示値であり、worker実行用の完全型名ではない。
-        // 現行カタログへ一意接続できなかったセルは TypeFullName を空にして保持し、計測キューには入れない。
-        if(!this.IsSelected){
+        // 現行カタログへ一意接続できなかったセルは 型完全名 を空にして保持し、計測キューには入れない。
+        if(!this.選択中か) {
             return [];
         }
 
-        return this.ProjectCells
-            .Where(static cell => cell.HasCase&&cell.IsSelected)
-            .Select(cell => this.CasesByProject[cell.Project])
-            .Where(static benchmark => !string.IsNullOrWhiteSpace(benchmark.TypeFullName))
+        return this.プロジェクトセル一覧
+            .Where(static セル => セル.ケースありか)
+            .Select(セル => this.プロジェクト別ケース[セル.プロジェクト])
+            .Where(static ベンチマーク => !string.IsNullOrWhiteSpace(ベンチマーク.型完全名))
             .ToArray();
     }
 
-    public IEnumerable<BenchmarkProjectCell> ProjectCells{
-        get{
-            yield return this.LeftCell;
-            yield return this.RightCell;
+    public IEnumerable<ベンチマークプロジェクトセル> プロジェクトセル一覧 {
+        get {
+            yield return this.左セル;
+            yield return this.右セル;
         }
     }
 
-    public BenchmarkProjectCell? GetProjectCell(string project) =>
-        this.ProjectCells.FirstOrDefault(cell => string.Equals(cell.Project,project,StringComparison.OrdinalIgnoreCase));
+    public ベンチマークプロジェクトセル? プロジェクトセルを取得(string プロジェクト) =>
+        this.プロジェクトセル一覧.FirstOrDefault(セル => string.Equals(セル.プロジェクト,プロジェクト,StringComparison.OrdinalIgnoreCase));
 
-    public void RefreshSelectionState(){
-        var state = GetSelectionState(this.ProjectCells);
-        this.IsSelectionChecked=state;
-        this.IsSelected=state is true or null;
+    public void UI選択状態を更新() {
+        this.UI選択中か=ベンチマーク行UI選択ロジック.行全体を選択中か(
+            this.プロジェクトセル一覧.Select(static セル => new ベンチマーク行UI選択セル(セル.ケースありか,セル.UI選択中か)));
+        this.OnPropertyChanged(nameof(this.左UI選択中か));
+        this.OnPropertyChanged(nameof(this.右UI選択中か));
+        this.OnPropertyChanged(nameof(this.左部分UI選択中か));
+        this.OnPropertyChanged(nameof(this.右部分UI選択中か));
     }
 
-    public void RefreshUiSelectionState(){
-        this.IsUiSelected=BenchmarkRowUiSelectionLogic.IsWholeRowSelected(
-            this.ProjectCells.Select(static cell => new BenchmarkRowUiSelectionCell(cell.HasCase,cell.IsUiSelected)));
-        this.OnPropertyChanged(nameof(this.IsLeftUiSelected));
-        this.OnPropertyChanged(nameof(this.IsRightUiSelected));
-        this.OnPropertyChanged(nameof(this.IsLeftPartialUiSelected));
-        this.OnPropertyChanged(nameof(this.IsRightPartialUiSelected));
+    public void 最終完了状態を設定(bool 最終完了か) {
+        this.最終完了か=最終完了か;
     }
 
-    public void SetFinalCompleted(bool value){
-        this.IsFinalCompleted=value;
+    private void セルUI選択変更時(object? 送信元,EventArgs 引数) {
+        this.UI選択状態を更新();
     }
 
-    private void OnCellUiSelectionChanged(object? sender,EventArgs args){
-        this.RefreshUiSelectionState();
-    }
-
-    private void OnCellPropertyChanged(object? sender,PropertyChangedEventArgs args){
-        if(args.PropertyName==nameof(BenchmarkProjectCell.ElementCountText)){
-            this.OnPropertyChanged(nameof(this.StopNText));
+    private void セルプロパティ変更時(object? 送信元,PropertyChangedEventArgs 引数) {
+        if(引数.PropertyName==nameof(ベンチマークプロジェクトセル.要素数文字列)) {
+            this.OnPropertyChanged(nameof(this.停止要素数文字列));
         }
-        if(args.PropertyName==nameof(BenchmarkProjectCell.LastLoopCount)){
-            this.OnPropertyChanged(nameof(this.LoopCountText));
-            this.OnPropertyChanged(nameof(this.LoopCountTooltipText));
+        if(引数.PropertyName==nameof(ベンチマークプロジェクトセル.最終ループ回数)) {
+            this.OnPropertyChanged(nameof(this.ループ回数文字列));
+            this.OnPropertyChanged(nameof(this.ループ回数ツールチップ文字列));
         }
     }
 
-    private static bool? GetSelectionState(IEnumerable<BenchmarkProjectCell> cells){
-        var targets = cells.Where(static cell => cell.HasCase).ToArray();
-        if(targets.Length==0){
-            return false;
-        }
-
-        var selected = targets.Count(static cell => cell.IsSelected);
-        return selected==0
-            ? false
-            : selected==targets.Length
-                ? true
-                : null;
-    }
-
-    public void ApplyStoredResult(BenchmarkStoredResult result){
-        if(this.GetProjectCell(result.Project) is { } cell){
-            cell.ApplyStoredResult(result);
-            this.SetProjectMetricText(result.Project,FormatTime(cell.Metrics),FormatAllocated(cell.Metrics));
+    public void 保存結果を適用(ベンチマーク保存結果 結果) {
+        if(this.プロジェクトセルを取得(結果.プロジェクト) is { } セル) {
+            セル.保存結果を適用(結果);
+            this.プロジェクト指標文字列を設定(結果.プロジェクト,時間を整形(セル.測定値),割り当てを整形(セル.測定値));
             this.表示シェアを更新();
         }
     }
 
-    public void ApplyRunResult(BenchmarkResultItem result,CpuSelectionItem? cpu,DateTimeOffset completedAt,bool highlightCompleted = true){
-        this.ApplyCpuDisplay(cpu,preserveWhenNull:true);
-        if(this.GetProjectCell(result.Project) is { } cell){
-            cell.ApplyRunResult(result,cpu,completedAt,highlightCompleted);
-            this.SetProjectMetricText(result.Project,FormatTime(cell.Metrics),FormatAllocated(cell.Metrics));
+    public void 実行結果を適用(ベンチマーク結果項目 結果,CPU選択項目? CPU,DateTimeOffset 完了日時,bool 完了を強調するか = true) {
+        this.CPU表示を適用(CPU,欠測時に維持するか: true);
+        if(this.プロジェクトセルを取得(結果.プロジェクト) is { } セル) {
+            セル.実行結果を適用(結果,CPU,完了日時,完了を強調するか);
+            this.プロジェクト指標文字列を設定(結果.プロジェクト,時間を整形(セル.測定値),割り当てを整形(セル.測定値));
             this.表示シェアを更新();
         }
     }
 
-    public void ApplySnapshotResult(BenchmarkResultItem result,int? cpuNumber,DateTimeOffset? measuredAt){
-        this.ApplySnapshotResult(result,null,cpuNumber,measuredAt);
+    public void スナップショット結果を適用(ベンチマーク結果項目 結果,int? CPU番号,DateTimeOffset? 測定日時) {
+        this.スナップショット結果を適用(結果,null,CPU番号,測定日時);
     }
 
-    public void ApplySnapshotResult(BenchmarkResultItem result,CpuSelectionItem? cpu,int? cpuNumber,DateTimeOffset? measuredAt){
-        if(cpu is not null){
-            this.ApplyCpuDisplay(cpu,preserveWhenNull:true);
-        }else{
-            this.ApplyCpuNumberDisplay(cpuNumber);
+    public void スナップショット結果を適用(ベンチマーク結果項目 結果,CPU選択項目? CPU,int? CPU番号,DateTimeOffset? 測定日時) {
+        if(CPU is not null) {
+            this.CPU表示を適用(CPU,欠測時に維持するか: true);
+        } else {
+            this.CPU番号表示を適用(CPU番号);
         }
-        if(this.GetProjectCell(result.Project) is { } cell){
-            cell.ApplySnapshotResult(result,cpu,cpuNumber,measuredAt);
-            this.SetProjectMetricText(result.Project,FormatTime(cell.Metrics),FormatAllocated(cell.Metrics));
+        if(this.プロジェクトセルを取得(結果.プロジェクト) is { } セル) {
+            セル.スナップショット結果を適用(結果,CPU,CPU番号,測定日時);
+            this.プロジェクト指標文字列を設定(結果.プロジェクト,時間を整形(セル.測定値),割り当てを整形(セル.測定値));
             this.表示シェアを更新();
         }
     }
 
-    public void ApplySnapshotResult(string project,BenchmarkResultItem result,int? cpuNumber,DateTimeOffset? measuredAt){
-        this.ApplySnapshotResult(project,result,null,cpuNumber,measuredAt);
+    public void スナップショット結果を適用(string プロジェクト,ベンチマーク結果項目 結果,int? CPU番号,DateTimeOffset? 測定日時) {
+        this.スナップショット結果を適用(プロジェクト,結果,null,CPU番号,測定日時);
     }
 
-    public void ApplySnapshotResult(string project,BenchmarkResultItem result,CpuSelectionItem? cpu,int? cpuNumber,DateTimeOffset? measuredAt){
-        if(cpu is not null){
-            this.ApplyCpuDisplay(cpu,preserveWhenNull:true);
-        }else{
-            this.ApplyCpuNumberDisplay(cpuNumber);
+    public void スナップショット結果を適用(string プロジェクト,ベンチマーク結果項目 結果,CPU選択項目? CPU,int? CPU番号,DateTimeOffset? 測定日時) {
+        if(CPU is not null) {
+            this.CPU表示を適用(CPU,欠測時に維持するか: true);
+        } else {
+            this.CPU番号表示を適用(CPU番号);
         }
-        if(this.GetProjectCell(project) is { } cell){
-            cell.ApplySnapshotResult(result,cpu,cpuNumber,measuredAt);
-            this.SetProjectMetricText(project,FormatTime(cell.Metrics),FormatAllocated(cell.Metrics));
+        if(this.プロジェクトセルを取得(プロジェクト) is { } セル) {
+            セル.スナップショット結果を適用(結果,CPU,CPU番号,測定日時);
+            this.プロジェクト指標文字列を設定(プロジェクト,時間を整形(セル.測定値),割り当てを整形(セル.測定値));
             this.表示シェアを更新();
         }
     }
 
-    public void ApplyResultCheck(string project,string checkText,string seedText){
-        this.GetProjectCell(project)?.ApplyResultCheck(checkText,seedText);
+    public void 結果確認を適用(string プロジェクト,string 確認文字列,string シード文字列) {
+        this.プロジェクトセルを取得(プロジェクト)?.結果確認を適用(確認文字列,シード文字列);
     }
 
-    public void ApplySkipped(string project,int stoppedAtElementCount,ProjectMetrics stoppedMetrics){
-        this.ApplySkipped(project,stoppedAtElementCount,stoppedMetrics,null,null,false);
+    public void スキップを適用(string プロジェクト,int 停止要素数,プロジェクト測定値 停止時測定値) {
+        this.スキップを適用(プロジェクト,停止要素数,停止時測定値,null,null,false);
     }
 
-    public void ApplySkipped(string project,int stoppedAtElementCount,ProjectMetrics stoppedMetrics,CpuSelectionItem? cpu,DateTimeOffset? measuredAt,bool metadataMissing){
-        this.ApplyCpuDisplay(cpu,preserveWhenNull:true);
-        if(this.GetProjectCell(project) is { } cell){
-            cell.ApplySkipped(stoppedAtElementCount,stoppedMetrics,cpu,measuredAt,metadataMissing);
+    public void スキップを適用(string プロジェクト,int 停止要素数,プロジェクト測定値 停止時測定値,CPU選択項目? CPU,DateTimeOffset? 測定日時,bool メタデータ欠測か) {
+        this.CPU表示を適用(CPU,欠測時に維持するか: true);
+        if(this.プロジェクトセルを取得(プロジェクト) is { } セル) {
+            セル.スキップを適用(停止要素数,停止時測定値,CPU,測定日時,メタデータ欠測か);
         }
 
-        this.SetProjectMetricText(project,FormatTime(stoppedMetrics),FormatAllocated(stoppedMetrics));
+        this.プロジェクト指標文字列を設定(プロジェクト,時間を整形(停止時測定値),割り当てを整形(停止時測定値));
         this.表示シェアを更新();
     }
 
-    public void ApplyPairStopped(string leftProject,string rightProject,int stoppedAtElementCount,bool highlight){
-        var text = stoppedAtElementCount.ToString(CultureInfo.InvariantCulture);
-        if(IsPair(leftProject,rightProject,this.SourceTab.LeftProject,this.SourceTab.RightProject)){
-            this.stopNText=text;
-            this.ApplyStopNStyle(highlight);
-            this.OnPropertyChanged(nameof(this.StopNText));
-            this.OnPropertyChanged(nameof(this.StopNTextColor));
-            this.OnPropertyChanged(nameof(this.StopNFontAttributes));
+    public void ペア停止を適用(string 左プロジェクト,string 右プロジェクト,int 停止要素数,bool 強調するか) {
+        var 文字列 = 停止要素数.ToString(CultureInfo.InvariantCulture);
+        if(ペアか(左プロジェクト,右プロジェクト,this.ソースタブ.左プロジェクト,this.ソースタブ.右プロジェクト)) {
+            this.停止要素数文字列値=文字列;
+            this.停止要素数スタイルを適用(強調するか);
+            this.OnPropertyChanged(nameof(this.停止要素数文字列));
+            this.OnPropertyChanged(nameof(this.停止要素数文字色));
+            this.OnPropertyChanged(nameof(this.停止要素数フォント属性));
         }
     }
 
-    public void ClearLiveState(){
-        foreach(var cell in this.ProjectCells){
-            cell.ClearLiveState();
+    public void 実行時状態をクリア() {
+        foreach(var セル in this.プロジェクトセル一覧) {
+            セル.実行時状態をクリア();
         }
     }
 
-    public void RetainCompletedHighlightsForRunningElement(int runningElementCount){
-        foreach(var cell in this.ProjectCells){
-            cell.RetainCompletedHighlightForRunningElement(runningElementCount);
+    public void 実行要素の完了強調を維持(int 実行要素数) {
+        foreach(var セル in this.プロジェクトセル一覧) {
+            セル.実行要素の完了強調を維持(実行要素数);
         }
     }
 
-    public void ClearRunHighlights(){
-        foreach(var cell in this.ProjectCells){
-            cell.ClearRunHighlight();
+    public void 実行強調をクリア() {
+        foreach(var セル in this.プロジェクトセル一覧) {
+            セル.実行強調をクリア();
         }
     }
 
-    public void ClearResultDisplay(){
-        this.ClearComparison(false);
-        this.SetFinalCompleted(false);
-        this.ClearCpuDisplay();
+    public void 結果表示をクリア() {
+        this.比較をクリア(false);
+        this.最終完了状態を設定(false);
+        this.CPU表示をクリア();
     }
 
-    public void ClearUnselectedResultDisplays(){
-        foreach(var cell in this.ProjectCells){
-            if(!cell.IsSelected){
-                cell.ClearMetrics();
+    public void 未選択結果表示をクリア() {
+        foreach(var セル in this.プロジェクトセル一覧) {
+            if(!this.選択中か||!セル.ケースありか) {
+                セル.測定値をクリア();
             }
         }
-        this.LeftTimeText=FormatTime(this.LeftCell.Metrics);
-        this.LeftAllocatedText=FormatAllocated(this.LeftCell.Metrics);
-        this.RightTimeText=FormatTime(this.RightCell.Metrics);
-        this.RightAllocatedText=FormatAllocated(this.RightCell.Metrics);
+        this.左時間文字列=時間を整形(this.左セル.測定値);
+        this.左割り当て文字列=割り当てを整形(this.左セル.測定値);
+        this.右時間文字列=時間を整形(this.右セル.測定値);
+        this.右割り当て文字列=割り当てを整形(this.右セル.測定値);
         this.表示シェアを更新();
     }
 
-    public void ApplyComparison(BenchmarkComparisonRow? row,bool preserveRetainedDisplay = false){
-        if(row is null){
-            this.ClearComparison(preserveRetainedDisplay);
+    public void 比較を適用(ベンチマーク比較行? 行,bool 維持表示を保持するか = false) {
+        if(行 is null) {
+            this.比較をクリア(維持表示を保持するか);
             return;
         }
 
-        var value = row.Value;
+        var 値 = 行.Value;
         // 比較行の値があるときだけ比較ラベルを更新し、セルの保持値は別に残す。
-        this.ClearStopNText();
-        var left = value.GetProject(this.SourceTab.LeftProject);
-        var right = value.GetProject(this.SourceTab.RightProject);
-        this.LeftCell.ApplyMetrics(left,preserveRetainedDisplay);
-        this.RightCell.ApplyMetrics(right,preserveRetainedDisplay);
-        this.LeftTimeText=FormatTime(this.LeftCell.Metrics);
-        this.LeftAllocatedText=FormatAllocated(this.LeftCell.Metrics);
-        this.RightTimeText=FormatTime(this.RightCell.Metrics);
-        this.RightAllocatedText=FormatAllocated(this.RightCell.Metrics);
+        this.停止要素数文字列をクリア();
+        var 左 = 値.プロジェクトを取得(this.ソースタブ.左プロジェクト);
+        var 右 = 値.プロジェクトを取得(this.ソースタブ.右プロジェクト);
+        this.左セル.測定値を適用(左,維持表示を保持するか);
+        this.右セル.測定値を適用(右,維持表示を保持するか);
+        this.左時間文字列=時間を整形(this.左セル.測定値);
+        this.左割り当て文字列=割り当てを整形(this.左セル.測定値);
+        this.右時間文字列=時間を整形(this.右セル.測定値);
+        this.右割り当て文字列=割り当てを整形(this.右セル.測定値);
         this.表示シェアを更新();
     }
 
-    public BenchmarkSortValue GetSortValue(BenchmarkGridSortColumn column){
-        return column switch{
-            BenchmarkGridSortColumn.BenchmarkType => BenchmarkSortValue.FromText(this.BenchmarkTypeText),
-            BenchmarkGridSortColumn.BenchmarkMethod => BenchmarkSortValue.FromText(this.BenchmarkMethodText),
-            BenchmarkGridSortColumn.BenchmarkName => BenchmarkSortValue.FromText(this.BenchmarkName),
-            BenchmarkGridSortColumn.LogicalCpu => BenchmarkSortValue.FromNumber(this.LogicalCpuSortValue),
-            BenchmarkGridSortColumn.ループ回数 => BenchmarkSortValue.FromNumber(this.共通ループ回数),
-            BenchmarkGridSortColumn.ArgumentCount => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.CountArgument)),
-            BenchmarkGridSortColumn.ArgumentIndex => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.IndexArgument)),
-            BenchmarkGridSortColumn.ArgumentPage => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.PageArgument)),
-            BenchmarkGridSortColumn.ArgumentSegment => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.SegmentArgument)),
-            BenchmarkGridSortColumn.ArgumentMemory => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.MemoryArgument)),
-            BenchmarkGridSortColumn.ArgumentFraction => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.FractionArgument)),
-            BenchmarkGridSortColumn.ArgumentInitial => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.InitialArgument)),
-            BenchmarkGridSortColumn.ArgumentData => BenchmarkSortValue.FromNumber(ParseArgumentNumber(this.DataArgument)),
-            BenchmarkGridSortColumn.左日時 => BenchmarkSortValue.日時から作成(this.LeftCell.最新表示日時),
-            BenchmarkGridSortColumn.LeftTime => BenchmarkSortValue.FromMetric(this.LeftCell.Metrics,BenchmarkMetricKind.Time),
-            BenchmarkGridSortColumn.LeftAllocated => BenchmarkSortValue.FromMetric(this.LeftCell.Metrics,BenchmarkMetricKind.Allocated),
-            BenchmarkGridSortColumn.時間シェア => BenchmarkSortValue.シェアから作成(this.表示時間シェアを取得()),
-            BenchmarkGridSortColumn.メモリシェア => BenchmarkSortValue.シェアから作成(this.表示メモリシェアを取得()),
-            BenchmarkGridSortColumn.右日時 => BenchmarkSortValue.日時から作成(this.RightCell.最新表示日時),
-            BenchmarkGridSortColumn.RightTime => BenchmarkSortValue.FromMetric(this.RightCell.Metrics,BenchmarkMetricKind.Time),
-            BenchmarkGridSortColumn.RightAllocated => BenchmarkSortValue.FromMetric(this.RightCell.Metrics,BenchmarkMetricKind.Allocated),
-            _ => BenchmarkSortValue.Missing,
+    public ベンチマークソート値 ソート値を取得(ベンチマークグリッドソート列 列) {
+        return 列 switch {
+            ベンチマークグリッドソート列.ベンチマーク型 => ベンチマークソート値.文字列から作成(this.ベンチマーク型文字列),
+            ベンチマークグリッドソート列.ベンチマークメソッド => ベンチマークソート値.文字列から作成(this.ベンチマークメソッド文字列),
+            ベンチマークグリッドソート列.ベンチマーク名 => ベンチマークソート値.文字列から作成(this.ベンチマーク名),
+            ベンチマークグリッドソート列.論理CPU => ベンチマークソート値.数値から作成(this.論理CPUソート値),
+            ベンチマークグリッドソート列.ループ回数 => ベンチマークソート値.数値から作成(this.共通ループ回数),
+            ベンチマークグリッドソート列.引数Count => ベンチマークソート値.数値から作成(引数数値を解析(this.Count引数)),
+            ベンチマークグリッドソート列.引数インデックス => ベンチマークソート値.数値から作成(引数数値を解析(this.Index引数)),
+            ベンチマークグリッドソート列.引数ページ => ベンチマークソート値.数値から作成(引数数値を解析(this.Page引数)),
+            ベンチマークグリッドソート列.引数セグメント => ベンチマークソート値.数値から作成(引数数値を解析(this.Segment引数)),
+            ベンチマークグリッドソート列.引数メモリ => ベンチマークソート値.数値から作成(引数数値を解析(this.Memory引数)),
+            ベンチマークグリッドソート列.引数割合 => ベンチマークソート値.数値から作成(引数数値を解析(this.割合引数)),
+            ベンチマークグリッドソート列.引数初期値 => ベンチマークソート値.数値から作成(引数数値を解析(this.Initial引数)),
+            ベンチマークグリッドソート列.引数データ => ベンチマークソート値.数値から作成(引数数値を解析(this.Data引数)),
+            ベンチマークグリッドソート列.左日時 => ベンチマークソート値.日時から作成(this.左セル.最新表示日時),
+            ベンチマークグリッドソート列.左時間 => ベンチマークソート値.指標から作成(this.左セル.測定値,ベンチマーク指標種別.時間),
+            ベンチマークグリッドソート列.左割り当て => ベンチマークソート値.指標から作成(this.左セル.測定値,ベンチマーク指標種別.割り当て),
+            ベンチマークグリッドソート列.時間シェア => ベンチマークソート値.シェアから作成(this.表示時間シェアを取得()),
+            ベンチマークグリッドソート列.メモリシェア => ベンチマークソート値.シェアから作成(this.表示メモリシェアを取得()),
+            ベンチマークグリッドソート列.右日時 => ベンチマークソート値.日時から作成(this.右セル.最新表示日時),
+            ベンチマークグリッドソート列.右時間 => ベンチマークソート値.指標から作成(this.右セル.測定値,ベンチマーク指標種別.時間),
+            ベンチマークグリッドソート列.右割り当て => ベンチマークソート値.指標から作成(this.右セル.測定値,ベンチマーク指標種別.割り当て),
+            _ => ベンチマークソート値.欠測,
         };
     }
 
-    private void ClearComparison(bool preserveRetainedDisplay){
+    private void 比較をクリア(bool 維持表示を保持するか) {
         this.時間シェア表示=string.Empty;
         this.メモリシェア表示=string.Empty;
-        this.stopNText=string.Empty;
-        if(preserveRetainedDisplay){
+        this.停止要素数文字列値=string.Empty;
+        if(維持表示を保持するか) {
             // 実行中/完了後は、比較行が消えてもセルの確定値を維持する。
-            this.LeftTimeText=FormatTime(this.LeftCell.Metrics);
-            this.LeftAllocatedText=FormatAllocated(this.LeftCell.Metrics);
-            this.RightTimeText=FormatTime(this.RightCell.Metrics);
-            this.RightAllocatedText=FormatAllocated(this.RightCell.Metrics);
+            this.左時間文字列=時間を整形(this.左セル.測定値);
+            this.左割り当て文字列=割り当てを整形(this.左セル.測定値);
+            this.右時間文字列=時間を整形(this.右セル.測定値);
+            this.右割り当て文字列=割り当てを整形(this.右セル.測定値);
             this.表示シェアを更新();
-        }else{
-            this.LeftTimeText=string.Empty;
-            this.LeftAllocatedText=string.Empty;
-            this.RightTimeText=string.Empty;
-            this.RightAllocatedText=string.Empty;
+        } else {
+            this.左時間文字列=string.Empty;
+            this.左割り当て文字列=string.Empty;
+            this.右時間文字列=string.Empty;
+            this.右割り当て文字列=string.Empty;
         }
-        this.OnPropertyChanged(nameof(this.StopNText));
-        foreach(var cell in this.ProjectCells){
-            if(!preserveRetainedDisplay){
-                cell.ClearMetrics();
+        this.OnPropertyChanged(nameof(this.停止要素数文字列));
+        foreach(var セル in this.プロジェクトセル一覧) {
+            if(!維持表示を保持するか) {
+                セル.測定値をクリア();
             }
         }
     }
 
-    private void 表示シェアを更新(){
-        var timeShare=this.表示時間シェアを取得();
-        var memoryShare=this.表示メモリシェアを取得();
-        var warning=string.Empty;
-        if(BenchmarkAcceptancePolicy.回帰か(this.SourceTab.Tab,timeShare)){
-            warning=" ⚠";
-        }
-        this.時間シェア表示=timeShare.表示文字列+warning;
-        this.メモリシェア表示=memoryShare.表示文字列;
+    private void 表示シェアを更新() {
+        var 時間シェア = this.表示時間シェアを取得();
+        var メモリシェア = this.表示メモリシェアを取得();
+        var 警告 = ベンチマーク受け入れ方針.回帰か(this.ソースタブ.タブ,時間シェア) ? " ⚠" : "";
+        this.時間シェア表示=時間シェア.表示文字列+警告;
+        this.メモリシェア表示=メモリシェア.表示文字列;
         this.OnPropertyChanged(nameof(this.時間シェアゲージ));
         this.OnPropertyChanged(nameof(this.メモリシェアゲージ));
     }
 
     private シェア値 表示時間シェアを取得() =>
-        BenchmarkComparisonFormatter.時間シェアを計算(this.LeftCell.Metrics,this.RightCell.Metrics);
+        ベンチマーク比較フォーマッター.時間シェアを計算(this.左セル.測定値,this.右セル.測定値);
 
     private シェア値 表示メモリシェアを取得() =>
-        BenchmarkComparisonFormatter.メモリシェアを計算(this.LeftCell.Metrics,this.RightCell.Metrics);
+        ベンチマーク比較フォーマッター.メモリシェアを計算(this.左セル.測定値,this.右セル.測定値);
 
-    private void SetProjectMetricText(string project,string timeText,string allocatedText){
-        if(string.Equals(project,this.SourceTab.LeftProject,StringComparison.OrdinalIgnoreCase)){
-            this.LeftTimeText=timeText;
-            this.LeftAllocatedText=allocatedText;
-        }else if(string.Equals(project,this.SourceTab.RightProject,StringComparison.OrdinalIgnoreCase)){
-            this.RightTimeText=timeText;
-            this.RightAllocatedText=allocatedText;
+    private void プロジェクト指標文字列を設定(string プロジェクト,string 時間文字列値,string 割り当て文字列値) {
+        if(string.Equals(プロジェクト,this.ソースタブ.左プロジェクト,StringComparison.OrdinalIgnoreCase)) {
+            this.左時間文字列=時間文字列値;
+            this.左割り当て文字列=割り当て文字列値;
+        } else if(string.Equals(プロジェクト,this.ソースタブ.右プロジェクト,StringComparison.OrdinalIgnoreCase)) {
+            this.右時間文字列=時間文字列値;
+            this.右割り当て文字列=割り当て文字列値;
         }
     }
 
-    private void ClearStopNText(){
-        this.stopNText=string.Empty;
-        this.ApplyStopNStyle(false);
-        this.OnPropertyChanged(nameof(this.StopNText));
+    private void 停止要素数文字列をクリア() {
+        this.停止要素数文字列値=string.Empty;
+        this.停止要素数スタイルを適用(false);
+        this.OnPropertyChanged(nameof(this.停止要素数文字列));
     }
 
-    private void ApplyCpuDisplay(CpuSelectionItem? cpu,bool preserveWhenNull = false){
-        if(cpu is null){
-            if(!preserveWhenNull){
-                this.ClearCpuDisplay();
+    private void CPU表示を適用(CPU選択項目? CPU,bool 欠測時に維持するか = false) {
+        if(CPU is null) {
+            if(!欠測時に維持するか) {
+                this.CPU表示をクリア();
             }
             return;
         }
 
-        this.HasCpuDisplay=true;
-        this.LogicalProcessorText=cpu.LogicalProcessorText;
-        this.CoreKindLabel=cpu.CoreKindLabel;
-        this.CoreKindImageSource=cpu.CoreKindImageSource;
-        this.BadgeBackgroundColor=cpu.BadgeBackgroundColor;
-        this.BadgeTextColor=cpu.BadgeTextColor;
-        this.LogicalCpuSortValue=cpu.LogicalProcessorIndex;
-        this.OnPropertyChanged(nameof(this.CpuTooltipText));
+        this.CPU表示ありか=true;
+        this.論理プロセッサ文字列=CPU.論理プロセッサ文字列;
+        this.コア種別ラベル=CPU.コア種別ラベル;
+        this.コア種別画像ソース=CPU.コア種別画像ソース;
+        this.バッジ背景色=CPU.バッジ背景色;
+        this.バッジ文字色=CPU.バッジ文字色;
+        this.論理CPUソート値=CPU.論理プロセッサインデックス;
+        this.OnPropertyChanged(nameof(this.CPUツールチップ文字列));
     }
 
-    private void ApplyCpuNumberDisplay(int? cpuNumber){
-        if(cpuNumber is not { } value){
-            this.ClearCpuDisplay();
+    private void CPU番号表示を適用(int? CPU番号) {
+        if(CPU番号 is not { } 値) {
+            this.CPU表示をクリア();
             return;
         }
 
-        this.HasCpuDisplay=true;
-        this.LogicalProcessorText=value.ToString(CultureInfo.InvariantCulture);
-        this.CoreKindLabel=string.Empty;
-        this.CoreKindImageSource=string.Empty;
-        this.BadgeBackgroundColor=Color.FromArgb("#E2E8F0");
-        this.BadgeTextColor=Color.FromArgb("#334155");
-        this.LogicalCpuSortValue=value;
-        this.OnPropertyChanged(nameof(this.CpuTooltipText));
+        this.CPU表示ありか=true;
+        this.論理プロセッサ文字列=値.ToString(CultureInfo.InvariantCulture);
+        this.コア種別ラベル=string.Empty;
+        this.コア種別画像ソース=string.Empty;
+        this.バッジ背景色=Color.FromArgb("#E2E8F0");
+        this.バッジ文字色=Color.FromArgb("#334155");
+        this.論理CPUソート値=値;
+        this.OnPropertyChanged(nameof(this.CPUツールチップ文字列));
     }
 
-    private void ClearCpuDisplay(){
-        this.HasCpuDisplay=false;
-        this.LogicalProcessorText=string.Empty;
-        this.CoreKindLabel=string.Empty;
-        this.CoreKindImageSource=string.Empty;
-        this.BadgeBackgroundColor=Color.FromArgb("#E2E8F0");
-        this.BadgeTextColor=Color.FromArgb("#334155");
-        this.LogicalCpuSortValue=null;
-        this.OnPropertyChanged(nameof(this.CpuTooltipText));
+    private void CPU表示をクリア() {
+        this.CPU表示ありか=false;
+        this.論理プロセッサ文字列=string.Empty;
+        this.コア種別ラベル=string.Empty;
+        this.コア種別画像ソース=string.Empty;
+        this.バッジ背景色=Color.FromArgb("#E2E8F0");
+        this.バッジ文字色=Color.FromArgb("#334155");
+        this.論理CPUソート値=null;
+        this.OnPropertyChanged(nameof(this.CPUツールチップ文字列));
     }
 
-    private void ApplyStopNStyle(bool highlight){
-        this.StopNTextColor=DefaultStopNTextColor;
-        this.StopNFontAttributes=FontAttributes.None;
+    private void 停止要素数スタイルを適用(bool 強調するか) {
+        this.停止要素数文字色=既定停止要素数文字色;
+        this.停止要素数フォント属性=FontAttributes.None;
     }
 
-    private static bool IsPair(string leftProject,string rightProject,string expectedLeft,string expectedRight) =>
-        string.Equals(leftProject,expectedLeft,StringComparison.OrdinalIgnoreCase)
-        &&string.Equals(rightProject,expectedRight,StringComparison.OrdinalIgnoreCase);
+    private static bool ペアか(string 左プロジェクト,string 右プロジェクト,string 期待左プロジェクト,string 期待右プロジェクト) =>
+        string.Equals(左プロジェクト,期待左プロジェクト,StringComparison.OrdinalIgnoreCase)
+        &&string.Equals(右プロジェクト,期待右プロジェクト,StringComparison.OrdinalIgnoreCase);
 
-    private BenchmarkProjectCell CreateCell(string project) =>
-        new(project,this.CasesByProject.ContainsKey(project));
+    private ベンチマークプロジェクトセル セルを作成(string プロジェクト) =>
+        new(this,プロジェクト,this.プロジェクト別ケース.ContainsKey(プロジェクト));
 
-    public void RefreshBenchmarkName(int elementCount) {
-        var typeFullName = this.FirstTypeFullName();
-        this.BenchmarkName=ScalableBenchmarkNameFormatter.CreateBenchmarkName(typeFullName,this.MethodName);
+    public void ベンチマーク名を更新(int 要素数) {
+        var 型完全名 = this.先頭型完全名を取得();
+        this.ベンチマーク名=スケーラブルベンチマーク名フォーマッター.ベンチマーク名を作成(型完全名,this.メソッド名);
     }
 
-    private void RefreshBenchmarkDisplayParts(){
-        var typeFullName = this.FirstTypeFullName();
-        var typeText=this.FirstBenchmarkTypeText();
-        if(string.IsNullOrWhiteSpace(typeText)&&!string.IsNullOrWhiteSpace(this.snapshotBenchmarkTypeText)){
-            typeText=this.snapshotBenchmarkTypeText;
+    private void ベンチマーク表示部分を更新() {
+        var 型完全名 = this.先頭型完全名を取得();
+        var 型文字列 = スケーラブルベンチマーク名フォーマッター.ベンチマーク型表示を作成(型完全名);
+        if(!string.IsNullOrWhiteSpace(this.スナップショットベンチマーク型文字列)) {
+            型文字列=this.スナップショットベンチマーク型文字列;
         }
-        if(string.IsNullOrWhiteSpace(typeText)){
-            typeText=ScalableBenchmarkNameFormatter.CreateBenchmarkTypeText(typeFullName);
+        if(string.IsNullOrWhiteSpace(型文字列)) {
+            型文字列=型文字列を抽出(this.ベンチマーク名値);
         }
-        if(string.IsNullOrWhiteSpace(typeText)){
-            typeText=ExtractTypeText(this.benchmarkName);
-        }
-        this.BenchmarkTypeText=typeText;
-        this.BenchmarkMethodText=this.MethodName;
+        this.ベンチマーク型文字列=型文字列;
+        this.ベンチマークメソッド文字列=this.メソッド名;
     }
 
-    private string FirstTypeFullName(){
-        foreach(var project in this.SourceTab.ProjectOrder){
-            if(this.CasesByProject.TryGetValue(project,out var benchmark)&&!string.IsNullOrWhiteSpace(benchmark.TypeFullName)){
-                return benchmark.TypeFullName;
+    private string 先頭型完全名を取得() {
+        foreach(var プロジェクト in this.ソースタブ.プロジェクト順) {
+            if(this.プロジェクト別ケース.TryGetValue(プロジェクト,out var ベンチマーク)&&!string.IsNullOrWhiteSpace(ベンチマーク.型完全名)) {
+                return ベンチマーク.型完全名;
             }
         }
 
         return string.Empty;
     }
 
-    private string FirstBenchmarkTypeText(){
-        foreach(var project in this.SourceTab.ProjectOrder){
-            if(this.CasesByProject.TryGetValue(project,out var benchmark)&&!string.IsNullOrWhiteSpace(benchmark.BenchmarkTypeText)){
-                return benchmark.BenchmarkTypeText;
-            }
-        }
-        return string.Empty;
-    }
-
-    private static string ExtractTypeText(string benchmarkName){
-        if(string.IsNullOrWhiteSpace(benchmarkName)||benchmarkName[0]!='<'){
+    private static string 型文字列を抽出(string ベンチマーク名値) {
+        if(string.IsNullOrWhiteSpace(ベンチマーク名値)||ベンチマーク名値[0]!='<') {
             return string.Empty;
         }
 
-        var end = benchmarkName.IndexOf('>');
-        return end>1
-            ? benchmarkName[1..end]
+        var 終端 = ベンチマーク名値.IndexOf('>');
+        return 終端>1
+            ? ベンチマーク名値[1..終端]
             : string.Empty;
     }
 
-    private string GetArgumentValue(ScalableBenchmarkArgumentColumn column) =>
-        this.CasesByProject.Values
-            .Select(item => ScalableBenchmarkNameFormatter.GetDisplayArgumentValue(this.SourceTab,item.Arguments,column))
-            .FirstOrDefault(static value => !string.IsNullOrWhiteSpace(value))??string.Empty;
+    private string 引数値を取得(スケーラブルベンチマーク引数列 列) =>
+        this.プロジェクト別ケース.Values
+            .Select(項目 => スケーラブルベンチマーク名フォーマッター.表示引数値を取得(this.ソースタブ,項目.引数一覧,列))
+            .FirstOrDefault(static 値 => !string.IsNullOrWhiteSpace(値))??string.Empty;
 
-    public string BenchmarkArgumentTooltipText => BenchmarkArgumentTooltipFormatter.CreateArgumentTooltip(this);
+    public string ベンチマーク引数ツールチップ文字列 => ベンチマーク引数ツールチップフォーマッター.引数ツールチップを作成(this);
 
-    private static double? ParseArgumentNumber(string text) =>
-        double.TryParse(text,NumberStyles.Float,CultureInfo.InvariantCulture,out var value)
-            ? value
+    private static double? 引数数値を解析(string 文字列) =>
+        double.TryParse(文字列,NumberStyles.Float,CultureInfo.InvariantCulture,out var 値)
+            ? 値
             : null;
 
-    private static string FormatTime(ProjectMetrics metrics){
-        return metrics.HasMeasuredValue&&metrics.TimeNanoseconds is { } value
-            ? BenchmarkFormatting.FormatNanoseconds(value)
+    private static string 時間を整形(プロジェクト測定値 測定値値) {
+        return 測定値値.測定値ありか&&測定値値.時間ナノ秒 is { } 値
+            ? ベンチマークフォーマッター.ナノ秒を整形(値)
             : string.Empty;
     }
 
-    private static string FormatAllocated(ProjectMetrics metrics){
-        return metrics.HasMeasuredValue&&metrics.AllocatedBytes is { } value
-            ? BenchmarkFormatting.FormatBytes(value)
+    private static string 割り当てを整形(プロジェクト測定値 測定値値) {
+        return 測定値値.測定値ありか&&測定値値.割り当てバイト数 is { } 値
+            ? ベンチマークフォーマッター.バイト数を整形(値)
             : string.Empty;
     }
 
 }
 
-internal static class BenchmarkArgumentTooltipFormatter {
-    public static string CreateArgumentTooltip(BenchmarkTableRow row) {
-        var items = BenchmarkArgumentColumns.Get(row.SourceTab)
-            .Select(column => (column.ToString(),GetArgumentValue(row,column)))
+internal static class ベンチマーク引数ツールチップフォーマッター {
+    public static string 引数ツールチップを作成(ベンチマーク表行 行) {
+        var 項目一覧 = ベンチマーク引数列一覧.取得(行.ソースタブ)
+            .Select(列 => (列.ToString(),引数値を取得(行,列)))
             .ToArray();
-        var summary = items
-            .Where(static item => item.Item1 is "Count" or "Memory" or "Initial")
+        var 概要 = 項目一覧
+            .Where(static 項目 => 項目.Item1 is "Count" or "Memory" or "Initial")
             .ToArray();
-        var summaryText = string.Join(
+        var 概要文字列 = string.Join(
             " / ",
-            summary
-                .Where(static item => !string.IsNullOrWhiteSpace(item.Item2))
-                .Select(static item => item.Item1+"="+item.Item2));
-        var detailText = string.Join(
+            概要
+                .Where(static 項目 => !string.IsNullOrWhiteSpace(項目.Item2))
+                .Select(static 項目 => 項目.Item1+"="+項目.Item2));
+        var 詳細文字列 = string.Join(
             " / ",
-            items
-                .Where(static item => !string.IsNullOrWhiteSpace(item.Item2))
-                .Select(static item => item.Item1+"="+item.Item2));
-        if(string.IsNullOrWhiteSpace(summaryText)) {
-            return detailText;
+            項目一覧
+                .Where(static 項目 => !string.IsNullOrWhiteSpace(項目.Item2))
+                .Select(static 項目 => 項目.Item1+"="+項目.Item2));
+        if(string.IsNullOrWhiteSpace(概要文字列)) {
+            return 詳細文字列;
         }
 
-        return string.IsNullOrWhiteSpace(detailText)
-            ? summaryText
-            : summaryText+"\n"+detailText;
+        return string.IsNullOrWhiteSpace(詳細文字列)
+            ? 概要文字列
+            : 概要文字列+"\n"+詳細文字列;
     }
 
-    private static string GetArgumentValue(BenchmarkTableRow row,ScalableBenchmarkArgumentColumn column) =>
-        column switch{
-            ScalableBenchmarkArgumentColumn.Count => row.CountArgument,
-            ScalableBenchmarkArgumentColumn.Index => row.IndexArgument,
-            ScalableBenchmarkArgumentColumn.Page => row.PageArgument,
-            ScalableBenchmarkArgumentColumn.Segment => row.SegmentArgument,
-            ScalableBenchmarkArgumentColumn.Memory => row.MemoryArgument,
-            ScalableBenchmarkArgumentColumn.Fraction => row.FractionArgument,
-            ScalableBenchmarkArgumentColumn.Initial => row.InitialArgument,
-            ScalableBenchmarkArgumentColumn.Data => row.DataArgument,
+    private static string 引数値を取得(ベンチマーク表行 行,スケーラブルベンチマーク引数列 列) =>
+        列 switch {
+            スケーラブルベンチマーク引数列.Count => 行.Count引数,
+            スケーラブルベンチマーク引数列.Index => 行.Index引数,
+            スケーラブルベンチマーク引数列.Page => 行.Page引数,
+            スケーラブルベンチマーク引数列.Segment => 行.Segment引数,
+            スケーラブルベンチマーク引数列.Memory => 行.Memory引数,
+            スケーラブルベンチマーク引数列.Fraction => 行.割合引数,
+            スケーラブルベンチマーク引数列.Initial => 行.Initial引数,
+            スケーラブルベンチマーク引数列.Data => 行.Data引数,
             _ => string.Empty,
         };
 }
 
-public sealed class CpuSelectionItem:ObservableObject{
-    private bool isSelected;
-    private string runStatusText = "待機";
-    private string statusImageSource = BenchmarkStatusImageNames.CpuIdle;
-    private string currentJobText = string.Empty;
-    private bool isRunningJob;
+public sealed class CPU選択項目:ObservableObject {
+    private bool 選択中か値;
+    private string 実行状態文字列値 = "待機";
+    private string 状態画像ソース値 = ベンチマーク状態画像名.CPU待機中;
+    private string 現在ジョブ文字列値 = string.Empty;
+    private bool ジョブ実行中か値;
 
-    public CpuSelectionItem(int logicalProcessorIndex,CpuCoreKind coreKind,int physicalCoreIndex,int kindCoreIndex,bool isSelected){
-        this.LogicalProcessorIndex=logicalProcessorIndex;
-        this.CoreKind=coreKind;
-        this.PhysicalCoreIndex=physicalCoreIndex;
-        this.KindCoreIndex=kindCoreIndex;
-        this.isSelected=isSelected;
+    public CPU選択項目(int 論理プロセッサインデックス,CPUコア種別 コア種別,int 物理コアインデックス,int 種別内コアインデックス,bool 選択中か値) {
+        this.論理プロセッサインデックス=論理プロセッサインデックス;
+        this.コア種別=コア種別;
+        this.物理コアインデックス=物理コアインデックス;
+        this.種別内コアインデックス=種別内コアインデックス;
+        this.選択中か値=選択中か値;
     }
 
-    public int LogicalProcessorIndex { get; }
-    public CpuCoreKind CoreKind { get; }
-    public int PhysicalCoreIndex { get; }
-    public int KindCoreIndex { get; }
-    public string CoreLabel => this.CoreKind switch{
-        CpuCoreKind.Performance => "P"+this.KindCoreIndex,
-        CpuCoreKind.Efficiency => "E"+this.KindCoreIndex,
-        _ => "Core "+this.PhysicalCoreIndex,
+    public int 論理プロセッサインデックス { get; }
+    public CPUコア種別 コア種別 { get; }
+    public int 物理コアインデックス { get; }
+    public int 種別内コアインデックス { get; }
+    public string コアラベル => this.コア種別 switch {
+        CPUコア種別.高性能 => "P"+this.種別内コアインデックス,
+        CPUコア種別.高効率 => "E"+this.種別内コアインデックス,
+        _ => "コア "+this.物理コアインデックス,
     };
-    public string CoreKindLabel => this.CoreKind switch{
-        CpuCoreKind.Performance => "P",
-        CpuCoreKind.Efficiency => "E",
+    public string コア種別ラベル => this.コア種別 switch {
+        CPUコア種別.高性能 => "P",
+        CPUコア種別.高効率 => "E",
         _ => "U",
     };
-    public string CoreKindImageSource => BenchmarkCpuCoreImageNames.FromCoreKind(this.CoreKind);
-    public string DisplayName => "CPU "+this.LogicalProcessorIndex+" ("+this.CoreLabel+")";
-    public string RunStatusText{
-        get => this.runStatusText;
-        private set => this.SetProperty(ref this.runStatusText,value);
+    public string コア種別画像ソース => ベンチマークCPUコア画像名.コア種別から取得(this.コア種別);
+    public string 表示名 => "CPU "+this.論理プロセッサインデックス+" ("+this.コアラベル+")";
+    public string 実行状態文 {
+        get => this.実行状態文字列値;
+        private set => this.SetProperty(ref this.実行状態文字列値,value);
     }
-    public string StatusImageSource{
-        get => this.statusImageSource;
-        private set => this.SetProperty(ref this.statusImageSource,value);
+    public string 状態画像ソース {
+        get => this.状態画像ソース値;
+        private set => this.SetProperty(ref this.状態画像ソース値,value);
     }
-    public string CurrentJobText{
-        get => this.currentJobText;
-        private set => this.SetProperty(ref this.currentJobText,value);
+    public string 現在ジョブ文 {
+        get => this.現在ジョブ文字列値;
+        private set => this.SetProperty(ref this.現在ジョブ文字列値,value);
     }
-    public bool IsRunningJob{
-        get => this.isRunningJob;
-        private set => this.SetProperty(ref this.isRunningJob,value);
+    public bool ジョブ実行中か {
+        get => this.ジョブ実行中か値;
+        private set => this.SetProperty(ref this.ジョブ実行中か値,value);
     }
-    public string StatusDisplayText =>
-        this.LogicalProcessorIndex.ToString(CultureInfo.InvariantCulture)
-        +" "+this.CoreKindLabel
-        +" "+this.RunStatusText
-        +(string.IsNullOrWhiteSpace(this.CurrentJobText) ? string.Empty : " "+this.CurrentJobText);
-    public string LogicalProcessorText => this.LogicalProcessorIndex.ToString(CultureInfo.InvariantCulture);
-    public string CellStatusText => BenchmarkCpuStatusImageLogic.GetCellStatusText(this.RunStatusText,this.CurrentJobText);
-    public Color BadgeBackgroundColor => this.CoreKind switch{
-        CpuCoreKind.Performance => Color.FromArgb("#DBEAFE"),
-        CpuCoreKind.Efficiency => Color.FromArgb("#DCFCE7"),
+    public string 状態表示文 =>
+        this.論理プロセッサインデックス.ToString(CultureInfo.InvariantCulture)
+        +" "+this.コア種別ラベル
+        +" "+this.実行状態文
+        +(string.IsNullOrWhiteSpace(this.現在ジョブ文) ? string.Empty : " "+this.現在ジョブ文);
+    public string 論理プロセッサ文字列 => this.論理プロセッサインデックス.ToString(CultureInfo.InvariantCulture);
+    public string セル状態文 => ベンチマークCPU状態画像ロジック.セル状態文を取得(this.実行状態文,this.現在ジョブ文);
+    public Color バッジ背景色 => this.コア種別 switch {
+        CPUコア種別.高性能 => Color.FromArgb("#DBEAFE"),
+        CPUコア種別.高効率 => Color.FromArgb("#DCFCE7"),
         _ => Color.FromArgb("#E2E8F0"),
     };
-    public Color BadgeTextColor => this.CoreKind switch{
-        CpuCoreKind.Performance => Color.FromArgb("#1D4ED8"),
-        CpuCoreKind.Efficiency => Color.FromArgb("#15803D"),
+    public Color バッジ文字色 => this.コア種別 switch {
+        CPUコア種別.高性能 => Color.FromArgb("#1D4ED8"),
+        CPUコア種別.高効率 => Color.FromArgb("#15803D"),
         _ => Color.FromArgb("#334155"),
     };
 
-    public bool IsSelected{
-        get => this.isSelected;
-        set => this.SetProperty(ref this.isSelected,value);
+    public bool 選択中か {
+        get => this.選択中か値;
+        set => this.SetProperty(ref this.選択中か値,value);
     }
 
-    public void ApplyJob(BenchmarkResultItem item){
-        this.IsRunningJob=string.Equals(item.Status,JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase);
-        this.StatusImageSource=BenchmarkCpuStatusImageLogic.GetImageSource(item.Status);
-        this.RunStatusText=BenchmarkCpuStatusImageLogic.GetStatusText(item.Status);
-        this.CurrentJobText=item.Project+" / "+item.Method+" / "+item.ElementCount.ToString(CultureInfo.InvariantCulture);
-        this.OnPropertyChanged(nameof(this.StatusDisplayText));
-        this.OnPropertyChanged(nameof(this.CellStatusText));
+    public void ジョブを適用(ベンチマーク結果項目 項目) {
+        this.ジョブ実行中か=ジョブ状態名.保存値と一致するか(項目.状態,ジョブ状態.実行中);
+        this.状態画像ソース=ベンチマークCPU状態画像ロジック.画像ソースを取得(項目.状態);
+        this.実行状態文=ベンチマークCPU状態画像ロジック.状態文を取得(項目.状態);
+        this.現在ジョブ文=項目.プロジェクト+" / "+項目.メソッド+" / "+項目.要素数.ToString(CultureInfo.InvariantCulture);
+        this.OnPropertyChanged(nameof(this.状態表示文));
+        this.OnPropertyChanged(nameof(this.セル状態文));
     }
 
-    public void ClearJob(){
-        this.IsRunningJob=false;
-        this.StatusImageSource=BenchmarkStatusImageNames.CpuIdle;
-        this.RunStatusText="待機";
-        this.CurrentJobText=string.Empty;
-        this.OnPropertyChanged(nameof(this.StatusDisplayText));
-        this.OnPropertyChanged(nameof(this.CellStatusText));
+    public void ジョブをクリア() {
+        this.ジョブ実行中か=false;
+        this.状態画像ソース=ベンチマーク状態画像名.CPU待機中;
+        this.実行状態文="待機";
+        this.現在ジョブ文=string.Empty;
+        this.OnPropertyChanged(nameof(this.状態表示文));
+        this.OnPropertyChanged(nameof(this.セル状態文));
     }
 }
 
-public sealed class CpuTableCell:ObservableObject{
-    private bool isSelected;
+public sealed class CPU表セル:ObservableObject {
+    private bool 選択中か値;
 
-    public CpuTableCell(CpuSelectionItem cpu){
-        this.Cpu=cpu;
-        this.isSelected=cpu.IsSelected;
-        cpu.PropertyChanged+=(_,args) => {
-            if(args.PropertyName==nameof(CpuSelectionItem.IsSelected)){
-                this.IsSelected=cpu.IsSelected;
-            }else if(args.PropertyName==nameof(CpuSelectionItem.StatusDisplayText)
-                ||args.PropertyName==nameof(CpuSelectionItem.CurrentJobText)
-                ||args.PropertyName==nameof(CpuSelectionItem.StatusImageSource)
-                ||args.PropertyName==nameof(CpuSelectionItem.RunStatusText)
-                ||args.PropertyName==nameof(CpuSelectionItem.IsRunningJob)){
-                this.OnPropertyChanged(nameof(this.DisplayText));
-                this.OnPropertyChanged(nameof(this.LogicalProcessorText));
-                this.OnPropertyChanged(nameof(this.CoreKindLabel));
-                this.OnPropertyChanged(nameof(this.CellStatusText));
-                this.OnPropertyChanged(nameof(this.BadgeBackgroundColor));
-                this.OnPropertyChanged(nameof(this.BadgeTextColor));
-                this.OnPropertyChanged(nameof(this.IsRunningJob));
-                this.OnPropertyChanged(nameof(this.StatusImageSource));
-                this.OnPropertyChanged(nameof(this.IsStatusImageVisible));
+    public CPU表セル(CPU選択項目 CPU) {
+        this.CPU=CPU;
+        this.選択中か値=CPU.選択中か;
+        CPU.PropertyChanged+=(_,引数) => {
+            if(引数.PropertyName==nameof(CPU選択項目.選択中か)) {
+                this.選択中か=CPU.選択中か;
+            } else if(引数.PropertyName==nameof(CPU選択項目.状態表示文)
+                ||引数.PropertyName==nameof(CPU選択項目.現在ジョブ文)
+                ||引数.PropertyName==nameof(CPU選択項目.状態画像ソース)
+                ||引数.PropertyName==nameof(CPU選択項目.実行状態文)
+                ||引数.PropertyName==nameof(CPU選択項目.ジョブ実行中か)) {
+                this.OnPropertyChanged(nameof(this.表示文字列));
+                this.OnPropertyChanged(nameof(this.論理プロセッサ文字列));
+                this.OnPropertyChanged(nameof(this.セル状態文));
+                this.OnPropertyChanged(nameof(this.バッジ背景色));
+                this.OnPropertyChanged(nameof(this.ジョブ実行中か));
+                this.OnPropertyChanged(nameof(this.状態画像ソース));
+                this.OnPropertyChanged(nameof(this.状態画像表示中か));
             }
         };
     }
 
-    public CpuSelectionItem Cpu { get; }
-    public string DisplayText => this.Cpu.StatusDisplayText;
-    public string LogicalProcessorText => this.Cpu.LogicalProcessorText;
-    public string CoreKindLabel => this.Cpu.CoreKindLabel;
-    public string CoreKindImageSource => this.Cpu.CoreKindImageSource;
-    public string CellStatusText => this.Cpu.CellStatusText;
-    public string StatusImageSource => this.Cpu.StatusImageSource;
-    public bool IsStatusImageVisible => !this.IsRunningJob&&!string.IsNullOrWhiteSpace(this.StatusImageSource);
-    public Color BadgeBackgroundColor => this.Cpu.BadgeBackgroundColor;
-    public Color BadgeTextColor => this.Cpu.BadgeTextColor;
-    public bool IsRunningJob => this.Cpu.IsRunningJob;
+    public CPU選択項目 CPU { get; }
+    public string 表示文字列 => this.CPU.状態表示文;
+    public string 論理プロセッサ文字列 => this.CPU.論理プロセッサ文字列;
+    public string コア種別画像ソース => this.CPU.コア種別画像ソース;
+    public string セル状態文 => this.CPU.セル状態文;
+    public string 状態画像ソース => this.CPU.状態画像ソース;
+    public bool 状態画像表示中か => !this.ジョブ実行中か&&!string.IsNullOrWhiteSpace(this.状態画像ソース);
+    public Color バッジ背景色 => this.CPU.バッジ背景色;
+    public bool ジョブ実行中か => this.CPU.ジョブ実行中か;
 
-    public bool IsSelected{
-        get => this.isSelected;
-        set{
-            if(this.SetProperty(ref this.isSelected,value)){
-                if(this.Cpu.IsSelected!=value){
-                    this.Cpu.IsSelected=value;
+    public bool 選択中か {
+        get => this.選択中か値;
+        set {
+            if(this.SetProperty(ref this.選択中か値,value)) {
+                if(this.CPU.選択中か!=value) {
+                    this.CPU.選択中か=value;
                 }
             }
         }
     }
 }
 
-public sealed class CpuTableRow:ObservableObject{
-    private CpuSelectionState state;
+public sealed class CPU表行:ObservableObject {
+    private CPU選択状態 状態値;
 
-    public CpuTableRow(string label,CpuCoreKind coreKind,IReadOnlyList<CpuTableCell> cells,int columnCount){
-        this.Label=label;
-        this.CoreKind=coreKind;
-        this.Cells=cells;
-        this.GridCells=cells
-            .Cast<CpuTableCell?>()
-            .Concat(Enumerable.Repeat<CpuTableCell?>(null,Math.Max(0,columnCount-cells.Count)))
+    public CPU表行(string ラベル,CPUコア種別 コア種別,IReadOnlyList<CPU表セル> セル一覧,int 列数) {
+        this.ラベル=ラベル;
+        this.コア種別=コア種別;
+        this.セル一覧=セル一覧;
+        this.グリッドセル一覧=セル一覧
+            .Cast<CPU表セル?>()
+            .Concat(Enumerable.Repeat<CPU表セル?>(null,Math.Max(0,列数-セル一覧.Count)))
             .ToArray();
-        foreach(var cell in cells){
-            cell.PropertyChanged+=(_,args) => {
-                if(args.PropertyName==nameof(CpuTableCell.IsSelected)){
-                    this.RefreshState();
+        foreach(var セル in セル一覧) {
+            セル.PropertyChanged+=(_,引数) => {
+                if(引数.PropertyName==nameof(CPU表セル.選択中か)) {
+                    this.状態を更新();
                 }
             };
         }
-        this.RefreshState();
+        this.状態を更新();
     }
 
-    public string Label { get; }
-    public CpuCoreKind CoreKind { get; }
-    public IReadOnlyList<CpuTableCell> Cells { get; }
-    public IReadOnlyList<CpuTableCell?> GridCells { get; }
-    public CpuSelectionState State{
-        get => this.state;
-        private set{
-            if(this.SetProperty(ref this.state,value)){
-                this.OnPropertyChanged(nameof(this.IsChecked));
+    public string ラベル { get; }
+    public CPUコア種別 コア種別 { get; }
+    public IReadOnlyList<CPU表セル> セル一覧 { get; }
+    public IReadOnlyList<CPU表セル?> グリッドセル一覧 { get; }
+    public CPU選択状態 状態 {
+        get => this.状態値;
+        private set {
+            if(this.SetProperty(ref this.状態値,value)) {
+                this.OnPropertyChanged(nameof(this.チェック済みか));
             }
         }
     }
-    public bool IsChecked{
-        get => this.State==CpuSelectionState.Checked;
-        set{
-            foreach(var cell in this.Cells){
-                cell.IsSelected=value;
+    public bool チェック済みか {
+        get => this.状態==CPU選択状態.チェック済み;
+        set {
+            foreach(var セル in this.セル一覧) {
+                セル.選択中か=value;
             }
         }
     }
-    public string BadgeText => this.CoreKind switch{
-        CpuCoreKind.Performance => "P",
-        CpuCoreKind.Efficiency => "E",
-        _ => "U",
-    };
-    public string BadgeImageSource => BenchmarkCpuCoreImageNames.FromCoreKind(this.CoreKind);
-    public Color BadgeBackgroundColor => this.CoreKind switch{
-        CpuCoreKind.Performance => Color.FromArgb("#DBEAFE"),
-        CpuCoreKind.Efficiency => Color.FromArgb("#DCFCE7"),
+    public string バッジ画像ソース => ベンチマークCPUコア画像名.コア種別から取得(this.コア種別);
+    public Color バッジ背景色 => this.コア種別 switch {
+        CPUコア種別.高性能 => Color.FromArgb("#DBEAFE"),
+        CPUコア種別.高効率 => Color.FromArgb("#DCFCE7"),
         _ => Color.FromArgb("#E2E8F0"),
     };
-    public Color BadgeTextColor => this.CoreKind switch{
-        CpuCoreKind.Performance => Color.FromArgb("#1D4ED8"),
-        CpuCoreKind.Efficiency => Color.FromArgb("#15803D"),
-        _ => Color.FromArgb("#475569"),
-    };
-
-    public void RefreshState(){
-        this.State=GetState(this.Cells);
+    public void 状態を更新() {
+        this.状態=状態を取得(this.セル一覧);
     }
 
-    private static CpuSelectionState GetState(IReadOnlyList<CpuTableCell> cells){
-        if(cells.Count==0){
-            return CpuSelectionState.Unchecked;
+    private static CPU選択状態 状態を取得(IReadOnlyList<CPU表セル> セル一覧) {
+        if(セル一覧.Count==0) {
+            return CPU選択状態.未チェック;
         }
 
-        var selected = cells.Count(static cell => cell.IsSelected);
-        return selected==0
-            ? CpuSelectionState.Unchecked
-            : selected==cells.Count
-                ? CpuSelectionState.Checked
-                : CpuSelectionState.Mixed;
+        var 選択数 = セル一覧.Count(static セル => セル.選択中か);
+        return 選択数==0
+            ? CPU選択状態.未チェック
+            : 選択数==セル一覧.Count
+                ? CPU選択状態.チェック済み
+                : CPU選択状態.混在;
     }
 }
 
-public sealed class CpuTableColumn:ObservableObject{
-    public CpuTableColumn(int index,string title){
-        this.Index=index;
-        this.Title=title;
+public sealed class CPU表列:ObservableObject {
+    public CPU表列(int インデックス,string タイトル) {
+        this.インデックス=インデックス;
+        this.タイトル=タイトル;
     }
 
-    public int Index { get; }
-    public string Title { get; }
-    public CpuTableSection? Section { get; internal set; }
-    public string StateText => this.Section?.GetColumnState(this.Index) switch{
-        CpuSelectionState.Checked => "X",
-        CpuSelectionState.Mixed => "-",
-        _ => string.Empty,
-    };
-    public string StateGlyph => this.Section?.GetColumnState(this.Index) switch{
-        CpuSelectionState.Checked => "[X]",
-        CpuSelectionState.Mixed => "[-]",
-        _ => "[ ]",
-    };
-    public bool IsChecked => this.Section?.GetColumnState(this.Index)==CpuSelectionState.Checked;
-    public string DisplayText => string.IsNullOrEmpty(this.StateText) ? this.Title : this.StateText+" "+this.Title;
-    public string HeaderText => "T"+this.Index;
+    public int インデックス { get; }
+    public string タイトル { get; }
+    public CPU表区分? 区分 { get; internal set; }
+    public bool チェック済みか => this.区分?.列状態を取得(this.インデックス)==CPU選択状態.チェック済み;
 
-    public void Refresh(){
-        this.OnPropertyChanged(nameof(this.StateText));
-        this.OnPropertyChanged(nameof(this.StateGlyph));
-        this.OnPropertyChanged(nameof(this.IsChecked));
-        this.OnPropertyChanged(nameof(this.DisplayText));
+    public void 更新() {
+        this.OnPropertyChanged(nameof(this.チェック済みか));
     }
 }
 
-public sealed class CpuTableSection:ObservableObject{
-    private CpuSelectionState state;
+public sealed class CPU表区分:ObservableObject {
+    private CPU選択状態 状態値;
 
-    public CpuTableSection(string title,CpuCoreKind coreKind,IReadOnlyList<CpuTableColumn> columns,IReadOnlyList<CpuTableRow> rows){
-        this.Title=title;
-        this.CoreKind=coreKind;
-        this.Columns=columns;
-        this.Rows=rows;
-        foreach(var column in columns){
-            column.Section=this;
+    public CPU表区分(string タイトル,CPUコア種別 コア種別,IReadOnlyList<CPU表列> 列一覧,IReadOnlyList<CPU表行> 行一覧) {
+        this.タイトル=タイトル;
+        this.コア種別=コア種別;
+        this.列一覧=列一覧;
+        this.行一覧=行一覧;
+        foreach(var 列 in 列一覧) {
+            列.区分=this;
         }
-        this.RefreshState();
-        foreach(var cell in rows.SelectMany(static row => row.Cells)){
-            cell.PropertyChanged+=(_,args) => {
-                if(args.PropertyName==nameof(CpuTableCell.IsSelected)){
-                    this.RefreshState();
+        this.状態を更新();
+        foreach(var セル in 行一覧.SelectMany(static 行 => 行.セル一覧)) {
+            セル.PropertyChanged+=(_,引数) => {
+                if(引数.PropertyName==nameof(CPU表セル.選択中か)) {
+                    this.状態を更新();
                 }
             };
         }
     }
 
-    public string Title { get; }
-    public CpuCoreKind CoreKind { get; }
-    public IReadOnlyList<CpuTableColumn> Columns { get; }
-    public IReadOnlyList<CpuTableRow> Rows { get; }
-    public IEnumerable<CpuTableCell> Cells => this.Rows.SelectMany(static row => row.Cells);
+    public string タイトル { get; }
+    public CPUコア種別 コア種別 { get; }
+    public IReadOnlyList<CPU表列> 列一覧 { get; }
+    public IReadOnlyList<CPU表行> 行一覧 { get; }
+    public IEnumerable<CPU表セル> セル一覧 => this.行一覧.SelectMany(static 行 => 行.セル一覧);
 
-    public CpuSelectionState State{
-        get => this.state;
-        private set{
-            if(this.SetProperty(ref this.state,value)){
-                this.OnPropertyChanged(nameof(this.StateText));
-                this.OnPropertyChanged(nameof(this.StateGlyph));
+    public CPU選択状態 状態 {
+        get => this.状態値;
+        private set {
+            if(this.SetProperty(ref this.状態値,value)) {
             }
         }
     }
 
-    public string StateText => this.State switch{
-        CpuSelectionState.Checked => "X",
-        CpuSelectionState.Mixed => "-",
-        _ => string.Empty,
-    };
-    public string StateGlyph => this.State switch{
-        CpuSelectionState.Checked => "[X]",
-        CpuSelectionState.Mixed => "[-]",
-        _ => "[ ]",
-    };
-    public string BadgeText => this.CoreKind switch{
-        CpuCoreKind.Performance => "P",
-        CpuCoreKind.Efficiency => "E",
-        _ => "U",
-    };
-    public string BadgeImageSource => BenchmarkCpuCoreImageNames.FromCoreKind(this.CoreKind);
-    public Color BadgeBackgroundColor => this.CoreKind switch{
-        CpuCoreKind.Performance => Color.FromArgb("#DBEAFE"),
-        CpuCoreKind.Efficiency => Color.FromArgb("#DCFCE7"),
+    public string バッジ画像ソース => ベンチマークCPUコア画像名.コア種別から取得(this.コア種別);
+    public Color バッジ背景色 => this.コア種別 switch {
+        CPUコア種別.高性能 => Color.FromArgb("#DBEAFE"),
+        CPUコア種別.高効率 => Color.FromArgb("#DCFCE7"),
         _ => Color.FromArgb("#E2E8F0"),
     };
-    public Color BadgeTextColor => this.CoreKind switch{
-        CpuCoreKind.Performance => Color.FromArgb("#1D4ED8"),
-        CpuCoreKind.Efficiency => Color.FromArgb("#15803D"),
-        _ => Color.FromArgb("#475569"),
-    };
-
-    public CpuSelectionState GetColumnState(int columnIndex){
-        var cells = this.Rows
-            .Where(row => columnIndex<row.Cells.Count)
-            .Select(row => row.Cells[columnIndex])
+    public CPU選択状態 列状態を取得(int 列インデックス) {
+        var セル一覧 = this.行一覧
+            .Where(行 => 列インデックス<行.セル一覧.Count)
+            .Select(行 => 行.セル一覧[列インデックス])
             .ToArray();
-        return GetState(cells);
+        return 状態を取得(セル一覧);
     }
 
-    public void RefreshState(){
-        this.State=GetState(this.Cells.ToArray());
-        foreach(var row in this.Rows){
-            row.RefreshState();
+    public void 状態を更新() {
+        this.状態=状態を取得(this.セル一覧.ToArray());
+        foreach(var 行 in this.行一覧) {
+            行.状態を更新();
         }
-        foreach(var column in this.Columns){
-            column.Refresh();
+        foreach(var 列 in this.列一覧) {
+            列.更新();
         }
     }
 
-    private static CpuSelectionState GetState(IReadOnlyList<CpuTableCell> cells){
-        if(cells.Count==0){
-            return CpuSelectionState.Unchecked;
+    private static CPU選択状態 状態を取得(IReadOnlyList<CPU表セル> セル一覧) {
+        if(セル一覧.Count==0) {
+            return CPU選択状態.未チェック;
         }
 
-        var selected = cells.Count(static cell => cell.IsSelected);
-        return selected==0
-            ? CpuSelectionState.Unchecked
-            : selected==cells.Count
-                ? CpuSelectionState.Checked
-                : CpuSelectionState.Mixed;
+        var 選択数 = セル一覧.Count(static セル => セル.選択中か);
+        return 選択数==0
+            ? CPU選択状態.未チェック
+            : 選択数==セル一覧.Count
+                ? CPU選択状態.チェック済み
+                : CPU選択状態.混在;
     }
 }
 
-public enum CpuSelectionState{
-    Unchecked,
-    Mixed,
-    Checked,
+public enum CPU選択状態 {
+    未チェック,
+    混在,
+    チェック済み,
 }
-public sealed record BenchmarkRunReport(string? RunRoot);
+
+public sealed class チャート比較点 {
+    public チャート比較点(
+        string ベンチマーク,
+        string 表示名,
+        double 左値,
+        double 右値,
+        string 左文字列,
+        string 右文字列,
+        string ツールチップ文字列,
+        double? 左シェア)
+        : this(ベンチマーク,表示名,string.Empty,表示名,false,false,左値,右値,左文字列,右文字列,ツールチップ文字列,左シェア,false,false,false,false,false,false,null) {
+    }
+
+    public チャート比較点(
+        string ベンチマーク,
+        string 表示名,
+        string グループ表示名,
+        string 行表示名,
+        bool グループ先頭か,
+        bool グループ末尾か,
+        double 左値,
+        double 右値,
+        string 左文字列,
+        string 右文字列,
+        string ツールチップ文字列,
+        double? 左シェア)
+        : this(ベンチマーク,表示名,グループ表示名,行表示名,グループ先頭か,グループ末尾か,左値,右値,左文字列,右文字列,ツールチップ文字列,左シェア,false,false,false,false,false,false,null) {
+    }
+
+    private チャート比較点(
+        string ベンチマーク,
+        string 表示名,
+        string グループ表示名,
+        string 行表示名,
+        bool グループ先頭か,
+        bool グループ末尾か,
+        double 左値,
+        double 右値,
+        string 左文字列,
+        string 右文字列,
+        string ツールチップ文字列,
+        double? 左シェア,
+        bool 実行中か値,
+        bool 左UI選択中か,
+        bool 右UI選択中か,
+        bool 行UI選択中か,
+        bool 左フォールバックか,
+        bool 右フォールバックか,
+        ベンチマーク表行? 行) {
+        this.ベンチマーク=ベンチマーク;
+        this.基本表示名=表示名;
+        this.グループ表示名=グループ表示名;
+        this.行表示名=行表示名;
+        this.グループ先頭か=グループ先頭か;
+        this.グループ末尾か=グループ末尾か;
+        this.左値=左値;
+        this.右値=右値;
+        this.左文字列=左文字列;
+        this.右文字列=右文字列;
+        this.ツールチップ文字列=ツールチップ文字列;
+        this.左シェア=左シェア;
+        this.実行中か=実行中か値;
+        this.左UI選択中か=左UI選択中か;
+        this.右UI選択中か=右UI選択中か;
+        this.行UI選択中か=行UI選択中か;
+        this.左フォールバックか=左フォールバックか;
+        this.右フォールバックか=右フォールバックか;
+        this.行=行;
+    }
+
+    public string ベンチマーク { get; private set; }
+    public string 基本表示名 { get; private set; }
+    public string 表示名 => this.実行中か
+        ? "● "+this.基本表示名
+        : this.基本表示名;
+    public string グループ表示名 { get; private set; }
+    public string 行表示名 { get; private set; }
+    public bool グループ先頭か { get; private set; }
+    public bool グループ末尾か { get; private set; }
+    public double 左値 { get; private set; }
+    public double 右値 { get; private set; }
+    public string 左文字列 { get; private set; }
+    public string 右文字列 { get; private set; }
+    public string ツールチップ文字列 { get; private set; }
+    public double? 左シェア { get; private set; }
+    public bool 実行中か { get; private set; }
+    public bool 左UI選択中か { get; private set; }
+    public bool 右UI選択中か { get; private set; }
+    public bool 行UI選択中か { get; private set; }
+    public bool 左フォールバックか { get; private set; }
+    public bool 右フォールバックか { get; private set; }
+    public ベンチマーク表行? 行 { get; private set; }
+
+    internal void 行を関連付け(ベンチマーク表行 行) => this.行=行;
+
+    internal void 行の関連付けを解除(ベンチマーク表行 行) {
+        if(ReferenceEquals(this.行,行)) {
+            this.行=null;
+        }
+    }
+
+    internal void コピー元を適用(チャート比較点 コピー元) {
+        this.ベンチマーク=コピー元.ベンチマーク;
+        this.基本表示名=コピー元.基本表示名;
+        this.グループ表示名=コピー元.グループ表示名;
+        this.行表示名=コピー元.行表示名;
+        this.グループ先頭か=コピー元.グループ先頭か;
+        this.グループ末尾か=コピー元.グループ末尾か;
+        this.左値=コピー元.左値;
+        this.右値=コピー元.右値;
+        this.左文字列=コピー元.左文字列;
+        this.右文字列=コピー元.右文字列;
+        this.ツールチップ文字列=コピー元.ツールチップ文字列;
+        this.左シェア=コピー元.左シェア;
+        this.実行中か=コピー元.実行中か;
+        this.左UI選択中か=コピー元.左UI選択中か;
+        this.右UI選択中か=コピー元.右UI選択中か;
+        this.行UI選択中か=コピー元.行UI選択中か;
+        this.左フォールバックか=コピー元.左フォールバックか;
+        this.右フォールバックか=コピー元.右フォールバックか;
+    }
+
+    public チャート比較点 実行中状態を反映(bool 実行中か値) =>
+        new(
+            this.ベンチマーク,
+            this.基本表示名,
+            this.グループ表示名,
+            this.行表示名,
+            this.グループ先頭か,
+            this.グループ末尾か,
+            this.左値,
+            this.右値,
+            this.左文字列,
+            this.右文字列,
+            this.ツールチップ文字列,
+            this.左シェア,
+            実行中か値,
+            this.左UI選択中か,
+            this.右UI選択中か,
+            this.行UI選択中か,
+            this.左フォールバックか,
+            this.右フォールバックか,
+            this.行);
+
+    public チャート比較点 UI選択を反映(bool 左UI選択中か,bool 右UI選択中か,bool 行UI選択中か) =>
+        new(
+            this.ベンチマーク,
+            this.基本表示名,
+            this.グループ表示名,
+            this.行表示名,
+            this.グループ先頭か,
+            this.グループ末尾か,
+            this.左値,
+            this.右値,
+            this.左文字列,
+            this.右文字列,
+            this.ツールチップ文字列,
+            this.左シェア,
+            this.実行中か,
+            左UI選択中か,
+            右UI選択中か,
+            行UI選択中か,
+            this.左フォールバックか,
+            this.右フォールバックか,
+            this.行);
+
+    public チャート比較点 フォールバック状態を反映(bool 左フォールバックか,bool 右フォールバックか) =>
+        new(
+            this.ベンチマーク,
+            this.基本表示名,
+            this.グループ表示名,
+            this.行表示名,
+            this.グループ先頭か,
+            this.グループ末尾か,
+            this.左値,
+            this.右値,
+            this.左文字列,
+            this.右文字列,
+            this.ツールチップ文字列,
+            this.左シェア,
+            this.実行中か,
+            this.左UI選択中か,
+            this.右UI選択中か,
+            this.行UI選択中か,
+            左フォールバックか,
+            右フォールバックか,
+            this.行);
+
+}
+
+public sealed record ベンチマーク実行報告(string? 実行ルート);

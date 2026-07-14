@@ -1,7 +1,7 @@
 namespace Test.System.Linq.Intercept.Optimization;
 
-public sealed class CountComparisonToAny:OptimizationTestBase{
-    [Fact,Trait("Category","Unit")]
+public sealed class CountComparisonToAny:OptimizationTestBase {
+    [Fact, Trait("Category","Unit")]
     public static void GreaterThanZero() {
         Assert.Equal(Numbers().Count()>0,GreaterThanZero_NonEmptyOptimized());
         Assert.Equal(Numbers().Count()>0,GreaterThanZero_NonEmptyNoOptimized());
@@ -21,7 +21,7 @@ public sealed class CountComparisonToAny:OptimizationTestBase{
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool GreaterThanZero_EmptyNoOptimized() => EmptyNumbers().Count()>0;
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void EqualsZero() {
         Assert.Equal(Numbers().Count()==0,EqualsZero_NonEmptyOptimized());
         Assert.Equal(Numbers().Count()==0,EqualsZero_NonEmptyNoOptimized());
@@ -41,7 +41,7 @@ public sealed class CountComparisonToAny:OptimizationTestBase{
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool EqualsZero_EmptyNoOptimized() => EmptyNumbers().Count()==0;
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void OtherForms() {
         Assert.Equal(Numbers().Count()>=1,OtherForms_GreaterThanOrEqualOneOptimized());
         Assert.Equal(Numbers().Count()>=1,OtherForms_GreaterThanOrEqualOneNoOptimized());
@@ -93,7 +93,7 @@ public sealed class CountComparisonToAny:OptimizationTestBase{
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool OtherForms_ZeroEqualsCountNoOptimized() => 0==EmptyNumbers().Count();
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void LongCountForm() {
         Assert.Equal(Numbers().LongCount()>0,LongCountFormOptimized());
         Assert.Equal(Numbers().LongCount()>0,LongCountFormNoOptimized());
@@ -105,7 +105,7 @@ public sealed class CountComparisonToAny:OptimizationTestBase{
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static bool LongCountFormNoOptimized() => Numbers().LongCount()>0;
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public static void WithPredicate() {
         Assert.Equal(Numbers().Where(static x => x>4).Count()>0,WithPredicate_WhereMatchOptimized());
         Assert.Equal(Numbers().Where(static x => x>4).Count()>0,WithPredicate_WhereMatchNoOptimized());

@@ -2,28 +2,28 @@ namespace Common;
 
 [Flags]
 public enum LinqOptimizations {
-    None=0,
-    Rewrite=1,
-    PipelineFusion=2,
-    PredicatePushdown=4,
-    All=Rewrite|PipelineFusion|PredicatePushdown,
+    None = 0,
+    Rewrite = 1,
+    PipelineFusion = 2,
+    PredicatePushdown = 4,
+    All = Rewrite|PipelineFusion|PredicatePushdown,
 }
 
 #if PERSISTED || TSAVORITE
 [global::MemoryPack.MemoryPackable]
 #endif
-public sealed partial class ClassInt32:IEquatable<ClassInt32>,IComparable<ClassInt32>,global::System.Numerics.IEqualityOperators<ClassInt32,ClassInt32,bool> {
-    public int Value{get;init;}
-    public bool Equals(ClassInt32? other)=>other is not null&&this.Value==other.Value;
-    public int CompareTo(ClassInt32? other)=>other is null?1:this.Value.CompareTo(other.Value);
-    public override bool Equals(object? obj)=>obj is ClassInt32 value&&this.Equals(value);
-    public override int GetHashCode()=>this.Value;
-    public override string ToString()=>this.Value.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
-    public static bool operator==(ClassInt32? left,ClassInt32? right)=>left?.Equals(right)??right is null;
-    public static bool operator!=(ClassInt32? left,ClassInt32? right)=>!(left==right);
+public sealed partial class ClassInt32:IEquatable<ClassInt32>, IComparable<ClassInt32>, global::System.Numerics.IEqualityOperators<ClassInt32,ClassInt32,bool> {
+    public int Value { get; init; }
+    public bool Equals(ClassInt32? other) => other is not null&&this.Value==other.Value;
+    public int CompareTo(ClassInt32? other) => other is null ? 1 : this.Value.CompareTo(other.Value);
+    public override bool Equals(object? obj) => obj is ClassInt32 value&&this.Equals(value);
+    public override int GetHashCode() => this.Value;
+    public override string ToString() => this.Value.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
+    public static bool operator ==(ClassInt32? left,ClassInt32? right) => left?.Equals(right)??right is null;
+    public static bool operator !=(ClassInt32? left,ClassInt32? right) => !(left==right);
 }
 
-[AttributeUsage(AttributeTargets.Method,AllowMultiple=false)]
+[AttributeUsage(AttributeTargets.Method,AllowMultiple = false)]
 public sealed class LinqInterceptAttribute(bool optimizeLinq):Attribute {
     public bool OptimizeLinq { get; } = optimizeLinq;
     public LinqOptimizations Optimizations { get; set; } = LinqOptimizations.All;
@@ -45,7 +45,7 @@ public enum BenchmarkSourceUsage {
     All = Src|Src2|SrcOne|Nested|SourceShape,
 }
 
-[AttributeUsage(AttributeTargets.Method,AllowMultiple=false)]
+[AttributeUsage(AttributeTargets.Method,AllowMultiple = false)]
 public sealed class BenchmarkSourceUsageAttribute(BenchmarkSourceUsage usage):Attribute {
     public BenchmarkSourceUsage Usage { get; } = usage;
 }
@@ -70,11 +70,11 @@ public static class BenchmarkExecutionMode {
 #endif
         ;
 
-    public static bool IsComparisonMode => ComparisonElementLimit.Value is > 0;
+    public static bool IsComparisonMode => ComparisonElementLimit.Value is >0;
 
     public static bool IsElementCountScoped =>
-        ElementCountOverride.Value is > 0
-        ||ReadElementCount() is > 0;
+        ElementCountOverride.Value is >0
+        ||ReadElementCount() is >0;
 
     public static void EnableTestMode() => AppContext.SetData(TestModeKey,true);
 
@@ -114,7 +114,7 @@ public static class BenchmarkExecutionMode {
     }
 
     internal static int LimitForComparison(int elementCount) =>
-        ComparisonElementLimit.Value is > 0 and var limit
+        ComparisonElementLimit.Value is >0 and var limit
             ? Math.Min(elementCount,limit)
             : elementCount;
 
@@ -222,13 +222,13 @@ public sealed class Consumer {
     }
 
     internal string EndDigestCapture() {
-        var capture= this.digestCapture??throw new InvalidOperationException("Digest capture is not active.");
+        var capture = this.digestCapture??throw new InvalidOperationException("Digest capture is not active.");
         this.digestCapture=null;
         return capture.End();
     }
 
     internal static string CreateSingleDigest(string normalized) {
-        var capture=new DigestCapture(static value => value?.ToString()??string.Empty);
+        var capture = new DigestCapture(static value => value?.ToString()??string.Empty);
         capture.Add(normalized);
         return capture.End();
     }
@@ -241,7 +241,7 @@ public sealed class Consumer {
         private long count;
 
         public void Add(object? value) {
-            var normalized=normalize(value);
+            var normalized = normalize(value);
             this.count++;
             if(this.first.Count<DigestSampleCount) {
                 this.first.Add(normalized);
@@ -251,15 +251,15 @@ public sealed class Consumer {
             }
             this.last.Enqueue(normalized);
 
-            var bytes=System.Text.Encoding.UTF8.GetBytes(normalized);
-            var lengthBytes=new byte[4];
+            var bytes = System.Text.Encoding.UTF8.GetBytes(normalized);
+            var lengthBytes = new byte[4];
             System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(lengthBytes,bytes.Length);
             this.hash.AppendData(lengthBytes);
             this.hash.AppendData(bytes);
         }
 
         public string End() {
-            var hashText=Convert.ToHexString(this.hash.GetHashAndReset());
+            var hashText = Convert.ToHexString(this.hash.GetHashAndReset());
             this.hash.Dispose();
             return "count="+this.count
                 +";sha256="+hashText
@@ -283,15 +283,15 @@ public enum SourceKind {
 public readonly record struct SourceCacheKey(SourceKind Kind,int Length,int? RandomSeed);
 
 public class Base:Base<int> {
-    protected Base(int count = -1):base(count) {
+    protected Base(int count = -1) : base(count) {
     }
 }
 
-public class Base<T> where T:notnull {
+public class Base<T> where T : notnull {
     private const int BenchmarkDefaultCount = 10_000_000;
     private const int TestDefaultCount = 80_000;
     private static readonly object MissingResult = new();
-    private static readonly object SourceCacheSync = new();
+    private static readonly Lock SourceCacheSync = new();
     private static readonly Dictionary<SourceCacheKey,T[]> SourceCache = [];
     private static readonly Dictionary<SourceCacheKey,List<T>> ListSourceCache = [];
 
@@ -300,7 +300,7 @@ public class Base<T> where T:notnull {
     private protected readonly int count;
 
     protected Base(int count = -1) =>
-        this.count=count>=0?count:(BenchmarkExecutionMode.IsTestMode?TestDefaultCount:BenchmarkDefaultCount);
+        this.count=count>=0 ? count : (BenchmarkExecutionMode.IsTestMode ? TestDefaultCount : BenchmarkDefaultCount);
 
     [GlobalSetup]
     public void PrepareBenchmarkSources() {
@@ -309,15 +309,15 @@ public class Base<T> where T:notnull {
 #else
         var preparedElementCounts = BenchmarkExecutionMode.ReadPreparedElementCounts();
         foreach(var elementCount in preparedElementCounts) {
-            _ = this.srcCount(elementCount);
-            _ = this.src2Count(elementCount);
+            _=this.srcCount(elementCount);
+            _=this.src2Count(elementCount);
         }
-        _ = this.srcOne(1);
+        _=this.srcOne(1);
 #endif
     }
 
     private protected int CountForTestTiming(int benchmarkCount) =>
-        BenchmarkExecutionMode.ScaleElementCount(BenchmarkExecutionMode.IsTestMode? this.count :benchmarkCount);
+        BenchmarkExecutionMode.ScaleElementCount(BenchmarkExecutionMode.IsTestMode ? this.count : benchmarkCount);
 
     private protected int CountForComparison(int elementCount) =>
         BenchmarkExecutionMode.LimitForComparison(elementCount);
@@ -334,15 +334,15 @@ public class Base<T> where T:notnull {
             throw new ArgumentException("Method name is required.",nameof(methodName));
         }
 
-        var method=invokeImpl
-            ? FindInstanceMethodInHierarchy(this.GetType(),methodName+"_Impl",nonPublic:true)
+        var method = invokeImpl
+            ? FindInstanceMethodInHierarchy(this.GetType(),methodName+"_Impl",nonPublic: true)
             : FindBenchmarkMethod(this.GetType(),methodName);
 
         this.Result=MissingResult;
         this.consumer.BeginDigestCapture(Normalize);
-        object? returnValue=null;
-        Exception? invocationError=null;
-        var consumed=string.Empty;
+        object? returnValue = null;
+        Exception? invocationError = null;
+        var consumed = string.Empty;
         try {
             returnValue=method.Invoke(this,arguments);
         } catch(System.Reflection.TargetInvocationException ex) when(ex.InnerException is not null) {
@@ -365,12 +365,12 @@ public class Base<T> where T:notnull {
         return consumed;
     }
 
-    protected void AssertResults(Action linq,Action flinq,Action noOptimized,Action zlinq) {
+    protected void AssertResults(Action linq,Action FLinq,Action noOptimized,Action zlinq) {
         var expected = this.CaptureResult(linq);
 #if TSAVORITE_LINQ_COUNTER
         using var optimizedScope = global::Seamless.Linq.LinqCounterScope.Start();
 #endif
-        var flinqResult = this.CaptureResult(flinq);
+        var flinqResult = this.CaptureResult(FLinq);
 #if TSAVORITE_LINQ_COUNTER
         using var noOptimizedScope = global::Seamless.Linq.LinqCounterScope.Start();
 #endif
@@ -388,12 +388,12 @@ public class Base<T> where T:notnull {
 #endif
     }
 
-    protected void AssertResults(Action linq,Action flinq,Action noOptimized) {
+    protected void AssertResults(Action linq,Action FLinq,Action noOptimized) {
         var expected = this.CaptureResult(linq);
 #if TSAVORITE_LINQ_COUNTER
         using var optimizedScope = global::Seamless.Linq.LinqCounterScope.Start();
 #endif
-        var flinqResult = this.CaptureResult(flinq);
+        var flinqResult = this.CaptureResult(FLinq);
 #if TSAVORITE_LINQ_COUNTER
         using var noOptimizedScope = global::Seamless.Linq.LinqCounterScope.Start();
 #endif
@@ -413,7 +413,7 @@ public class Base<T> where T:notnull {
         this.Result=MissingResult;
         this.consumer.BeginCapture();
         action();
-        var consumed= this.consumer.EndCapture();
+        var consumed = this.consumer.EndCapture();
         return !ReferenceEquals(MissingResult,this.Result)
             ? Normalize(this.Result)
             : Normalize(consumed);
@@ -456,7 +456,7 @@ public class Base<T> where T:notnull {
     }
 
     private static string NormalizeEnumerable(System.Collections.IEnumerable enumerable) {
-        var values=new List<string>();
+        var values = new List<string>();
         foreach(var item in enumerable) {
             values.Add(Normalize(item));
         }
@@ -464,7 +464,7 @@ public class Base<T> where T:notnull {
     }
 
     private static string NormalizeDictionary(System.Collections.IDictionary dictionary) {
-        var values=new List<string>();
+        var values = new List<string>();
         foreach(System.Collections.DictionaryEntry entry in dictionary) {
             values.Add(Normalize(entry.Key)+"="+Normalize(entry.Value));
         }
@@ -473,7 +473,7 @@ public class Base<T> where T:notnull {
     }
 
     private static bool TryGetKey(object instance,out object? key) {
-        var property=instance.GetType().GetProperty("Key");
+        var property = instance.GetType().GetProperty("Key");
         if(property is null) {
             key=null;
             return false;
@@ -483,7 +483,7 @@ public class Base<T> where T:notnull {
     }
 
     private static System.Reflection.MethodInfo FindBenchmarkMethod(Type type,string methodName) {
-        var method=FindInstanceMethodInHierarchy(type,methodName,nonPublic:false);
+        var method = FindInstanceMethodInHierarchy(type,methodName,nonPublic: false);
         if(!HasAttribute(method,"BenchmarkAttribute")) {
             throw new MissingMethodException(type.FullName,methodName+" [Benchmark]");
         }
@@ -491,11 +491,11 @@ public class Base<T> where T:notnull {
     }
 
     private static System.Reflection.MethodInfo FindInstanceMethodInHierarchy(Type type,string methodName,bool nonPublic) {
-        var flags=System.Reflection.BindingFlags.Instance
+        var flags = System.Reflection.BindingFlags.Instance
             |System.Reflection.BindingFlags.DeclaredOnly
-            |(nonPublic?System.Reflection.BindingFlags.NonPublic:System.Reflection.BindingFlags.Public);
-        for(var current=type;current is not null;current=current.BaseType!) {
-            var method=current.GetMethod(methodName,flags);
+            |(nonPublic ? System.Reflection.BindingFlags.NonPublic : System.Reflection.BindingFlags.Public);
+        for(var current = type;current is not null;current=current.BaseType!) {
+            var method = current.GetMethod(methodName,flags);
             if(method is null) {
                 continue;
             }
@@ -515,7 +515,7 @@ public class Base<T> where T:notnull {
     }
 
     protected IEnumerable<T> srcMinusPlus(int scale) {
-        var length= this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(this.count*scale));
+        var length = this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(this.count*scale));
         for(var a = 0;a<length;a+=2) {
             yield return FromInt(-a);
             yield return FromInt(+a);
@@ -523,7 +523,7 @@ public class Base<T> where T:notnull {
     }
 
     protected internal IEnumerable<T> srcMinusPlusCount(int elementCount) {
-        var length= this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount));
+        var length = this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount));
         for(var a = 0;a<length;a+=2) {
             yield return FromInt(-a);
             yield return FromInt(+a);
@@ -589,12 +589,12 @@ public class Base<T> where T:notnull {
 #endif
 
     private T[] GetOrCreate(int scale,SourceKind kind,Func<int,T[]> factory) {
-        var length= this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(this.count*scale));
+        var length = this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(this.count*scale));
         return GetOrCreate(new SourceCacheKey(kind,length,BenchmarkExecutionMode.ReadRandomSourceSeed()),factory);
     }
 
     private T[] GetOrCreateByLength(int elementCount,SourceKind kind,Func<int,T[]> factory) {
-        var effectiveLength= this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount));
+        var effectiveLength = this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount));
         return GetOrCreate(new SourceCacheKey(kind,effectiveLength,BenchmarkExecutionMode.ReadRandomSourceSeed()),factory);
     }
 
@@ -611,12 +611,12 @@ public class Base<T> where T:notnull {
     }
 
     private List<T> GetOrCreateList(int scale,SourceKind kind,Func<int,List<T>> factory) {
-        var length= this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(this.count*scale));
+        var length = this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(this.count*scale));
         return GetOrCreateList(new SourceCacheKey(kind,length,BenchmarkExecutionMode.ReadRandomSourceSeed()),factory);
     }
 
     private List<T> GetOrCreateListByLength(int elementCount,SourceKind kind,Func<int,List<T>> factory) {
-        var effectiveLength= this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount));
+        var effectiveLength = this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount));
         return GetOrCreateList(new SourceCacheKey(kind,effectiveLength,BenchmarkExecutionMode.ReadRandomSourceSeed()),factory);
     }
 
@@ -657,7 +657,7 @@ public class Base<T> where T:notnull {
 
     private static int CreateRandomSeed(int seed,SourceKind kind,int start,int length) {
         unchecked {
-            var value=seed;
+            var value = seed;
             value=(value*397)^(int)kind;
             value=(value*397)^start;
             value=(value*397)^length;
@@ -667,7 +667,7 @@ public class Base<T> where T:notnull {
 
     private static IEnumerable<T> CreateSourceEnumerable(int start,int length,SourceKind kind) {
         var key = new SourceCacheKey(kind,length,BenchmarkExecutionMode.ReadRandomSourceSeed());
-        var values=GetOrCreate(key,_ => CreateRange(start,length,kind));
+        var values = GetOrCreate(key,_ => CreateRange(start,length,kind));
         foreach(var value in values) {
             yield return value;
         }
@@ -675,7 +675,7 @@ public class Base<T> where T:notnull {
 
     private static void Shuffle(T[] values,int seed) {
         var random = new Random(seed);
-        for(var i=values.Length-1;i>0;i--) {
+        for(var i = values.Length-1;i>0;i--) {
             var j = random.Next(i+1);
             (values[i],values[j])=(values[j],values[i]);
         }
@@ -689,7 +689,7 @@ public class Base<T> where T:notnull {
             return (T)(object)FormatStringValue(value);
         }
         if(typeof(T)==typeof(global::Common.ClassInt32)) {
-            return (T)(object)new global::Common.ClassInt32{Value=value};
+            return (T)(object)new global::Common.ClassInt32 { Value=value };
         }
 
         throw new NotSupportedException(typeof(T).FullName);
@@ -701,24 +701,24 @@ public class Base<T> where T:notnull {
         }
         if(value is string text) {
             if(text.Length is 9) {
-                var total=0;
+                var total = 0;
                 for(var i = 0;i<9;i++) {
                     var digit = text[i]-'0';
-                    if((uint)digit > 9) {
+                    if((uint)digit>9) {
                         return int.Parse(text,System.Globalization.CultureInfo.InvariantCulture);
                     }
-                    total = (total*10)+digit;
+                    total=(total*10)+digit;
                 }
                 return total;
             }
             if(text.Length is 10&&text[0]=='-') {
-                var total=0;
+                var total = 0;
                 for(var i = 1;i<10;i++) {
                     var digit = text[i]-'0';
-                    if((uint)digit > 9) {
+                    if((uint)digit>9) {
                         return int.Parse(text,System.Globalization.CultureInfo.InvariantCulture);
                     }
-                    total = (total*10)+digit;
+                    total=(total*10)+digit;
                 }
                 return -total;
             }
@@ -741,7 +741,7 @@ public class Base<T> where T:notnull {
                 return value.ToString("D9",System.Globalization.CultureInfo.InvariantCulture);
             }
             var buffer = new char[9];
-            for(var index = 8; index >= 0; index--) {
+            for(var index = 8;index>=0;index--) {
                 buffer[index]=(char)('0'+(value%10));
                 value/=10;
             }
@@ -751,10 +751,10 @@ public class Base<T> where T:notnull {
             return value.ToString("D9",System.Globalization.CultureInfo.InvariantCulture);
         }
 
-        value = -value;
+        value=-value;
         var negativeBuffer = new char[10];
         negativeBuffer[0]='-';
-        for(var index = 9; index >= 1; index--) {
+        for(var index = 9;index>=1;index--) {
             negativeBuffer[index]=(char)('0'+(value%10));
             value/=10;
         }

@@ -80,9 +80,8 @@ namespace Seamless.System.Carrier {
                     this.isCompleted=true;
                 }
                 return true;
-            }
-            else // noSpan
-            {
+            } else // noSpan
+              {
                 this.index=0;
                 current=null!;
                 while(this.source.TryGetNext(out var value)) {

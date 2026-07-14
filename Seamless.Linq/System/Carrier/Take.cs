@@ -104,11 +104,9 @@ namespace Seamless.System.Carrier {
 
             if(knownCount.HasValue) {
                 this.InitializeWithKnownCount(knownCount.Value);
-            }
-            else if(!this.Range.Start.IsFromEnd&&!this.Range.End.IsFromEnd) {
+            } else if(!this.Range.Start.IsFromEnd&&!this.Range.End.IsFromEnd) {
                 this.InitializeBothFromStart();
-            }
-            else {
+            } else {
                 this.InitializeWithUnknownCount();
             }
         }
@@ -142,13 +140,11 @@ namespace Seamless.System.Carrier {
                 if(this.Range.End.Value>0) {
                     this.FromEndQueueSize=this.Range.End.Value;
                 }
-            }
-            else if(this.Range.Start.IsFromEnd&&!this.Range.End.IsFromEnd) {
+            } else if(this.Range.Start.IsFromEnd&&!this.Range.End.IsFromEnd) {
                 this.SkipIndex=0;
                 this.Remains=-1;
                 this.FromEndQueueSize=Math.Max(1,this.Range.Start.Value);
-            }
-            else {
+            } else {
                 this.SkipIndex=0;
                 var maxCount = this.Range.Start.Value-this.Range.End.Value;
                 this.Remains=maxCount<=0 ? 0 : -1;
@@ -228,8 +224,7 @@ namespace Seamless.System.Carrier {
 
             if(this.source.TryGetNonEnumeratedCount(out var count)) {
                 this.rangeProcessor.Initialize(count);
-            }
-            else {
+            } else {
                 this.rangeProcessor.Initialize();
             }
 
@@ -547,8 +542,7 @@ namespace Seamless.System.Carrier {
             int newSkipCount;
             if(count>0&&this.skipCount>int.MaxValue-count) {
                 newSkipCount=int.MaxValue;
-            }
-            else {
+            } else {
                 newSkipCount=this.skipCount+count;
             }
 

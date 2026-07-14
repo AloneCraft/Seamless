@@ -1,1500 +1,1490 @@
 #if NET10_0_OR_GREATER && WINDOWS
-using System.Collections.Concurrent;
 using Seamless.UI.Storage;
+
+using System.Collections.Concurrent;
 
 namespace Test.Benchmark.Pattern;
 
-public sealed class RunnerViewModel{
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public void BenchmarkAssemblyRegistrations_ExactSet_IsAccepted(){
-        var projects = new global::UI.BenchmarkProject[] {
-            new("Left","Benchmark.Left"),
-            new("Left duplicate","benchmark.left"),
-            new("Right","Benchmark.Right"),
+public sealed class 実行ビューモデル {
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void ベンチマークアセンブリ登録_完全一致集合を受け入れる() {
+        var プロジェクト一覧 = new global::UI.ベンチマークプロジェクト[] {
+            new("左","Benchmark.Left"),
+            new("左の重複","benchmark.left"),
+            new("右","Benchmark.Right"),
         };
 
-        global::UI.BenchmarkCatalog.ValidateAssemblyRegistrations(
-            projects,
+        global::UI.ベンチマークカタログ.アセンブリ登録を検証(
+            プロジェクト一覧,
             ["BENCHMARK.LEFT","Benchmark.Right"]);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public void BenchmarkAssemblyRegistrations_Mismatch_ReportsMissingAndUnexpected(){
-        var projects = new global::UI.BenchmarkProject[] {
-            new("Left","Benchmark.Left"),
-            new("Right","Benchmark.Right"),
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void ベンチマークアセンブリ登録_不一致時に不足と予期しない項目を報告する() {
+        var プロジェクト一覧 = new global::UI.ベンチマークプロジェクト[] {
+            new("左","Benchmark.Left"),
+            new("右","Benchmark.Right"),
         };
 
-        var exception = Assert.Throws<InvalidOperationException>(() =>
-            global::UI.BenchmarkCatalog.ValidateAssemblyRegistrations(
-                projects,
+        var 例外 = Assert.Throws<InvalidOperationException>(() =>
+            global::UI.ベンチマークカタログ.アセンブリ登録を検証(
+                プロジェクト一覧,
                 ["Benchmark.Left","Benchmark.Unexpected"]));
 
-        Assert.Contains("Benchmark.Right",exception.Message,StringComparison.Ordinal);
-        Assert.Contains("Benchmark.Unexpected",exception.Message,StringComparison.Ordinal);
+        Assert.Contains("Benchmark.Right",例外.Message,StringComparison.Ordinal);
+        Assert.Contains("Benchmark.Unexpected",例外.Message,StringComparison.Ordinal);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task Arrayタブの全てのベンチマークにチェックして1msで実行(){
-        // UI操作: Arrayタブを前提に「全て選択」し、「Run実行」を押下する。
-        // 観測: 選択セルでCPU実行中アイコンが出ること、FinalCompletedへ遷移すること、進捗 Completed/Total が一致することを確認する。
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        viewModel.SelectAllCommand.Execute(null);
-        var targets = GetSelectedCells(viewModel);
-        var running = TrackRunningIcons(targets);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 配列タブの全ベンチマークをチェックして1msで実行() {
+        // UI操作: 配列タブを前提に「全て選択」し、「計測」を押下する。
+        // 観測: 選択セルでCPU実行中アイコンが出ること、最終完了へ遷移すること、完了数と合計数が一致することを確認する。
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        ビューモデル.全選択コマンド.Execute(null);
+        var 対象一覧 = 選択セル一覧を取得(ビューモデル);
+        var 実行中追跡 = 実行中アイコンを追跡(対象一覧);
 
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => 対象一覧.All(最終完了か));
 
-        Assert.Contains(viewModel.BenchmarkRows,row => row.HasCpuDisplay);
-        Assert.All(targets,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
-        Assert.Equal(targets.Count,viewModel.SelectedSourceTab.Progress.Completed);
-        Assert.Equal(targets.Count,viewModel.SelectedSourceTab.Progress.Total);
+        Assert.Contains(ビューモデル.ベンチマーク行一覧,行 => 行.CPU表示ありか);
+        Assert.All(対象一覧,セル => Assert.Equal(global::UI.ベンチマーク状態画像名.最終完了,セル.状態画像ソース));
+        Assert.Equal(対象一覧.Count,ビューモデル.選択ソースタブ.進行.完了数);
+        Assert.Equal(対象一覧.Count,ビューモデル.選択ソースタブ.進行.合計数);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task MultipleSourceTabs_RunOnce_FinalCompletedForAllSelectedTabs(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        fixture.RunService.EmitAllElementCounts=true;
-        var arrayTab = viewModel.SourceTabs.First(option => option.Definition.Tab==global::UI.BenchmarkSourceTab.SystemArray);
-        var enumerableTab = viewModel.SourceTabs.First(option => option.Definition.Tab==global::UI.BenchmarkSourceTab.SystemRange);
-        var listTab = viewModel.SourceTabs.First(option => option.Definition.Tab==global::UI.BenchmarkSourceTab.SystemList);
-        var arrayState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemArray);
-        var enumerableState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemRange);
-        var listState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemList);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 複数ソースタブ_一回の実行で選択済み全タブが最終完了する() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        フィクスチャ.実行サービス.全要素数を送信するか=true;
+        var 配列タブ = ビューモデル.ソースタブ一覧.First(選択肢 => 選択肢.定義.タブ==global::UI.ベンチマークソースタブ.System配列);
+        var 列挙タブ = ビューモデル.ソースタブ一覧.First(選択肢 => 選択肢.定義.タブ==global::UI.ベンチマークソースタブ.System範囲);
+        var リストタブ = ビューモデル.ソースタブ一覧.First(選択肢 => 選択肢.定義.タブ==global::UI.ベンチマークソースタブ.Systemリスト);
+        var 配列状態 = ビューモデル.ソースタブ表示状態を取得(global::UI.ベンチマークソースタブ.System配列);
+        var 列挙状態 = ビューモデル.ソースタブ表示状態を取得(global::UI.ベンチマークソースタブ.System範囲);
+        var リスト状態 = ビューモデル.ソースタブ表示状態を取得(global::UI.ベンチマークソースタブ.Systemリスト);
 
-        viewModel.SelectedSourceTab=arrayTab;
-        viewModel.SelectAllCommand.Execute(null);
-        var arrayTargets = GetSelectedCells(arrayState);
+        ビューモデル.選択ソースタブ=配列タブ;
+        ビューモデル.全選択コマンド.Execute(null);
+        var 配列対象一覧 = 選択セル一覧を取得(配列状態);
 
-        viewModel.SelectedSourceTab=enumerableTab;
-        viewModel.SelectAllCommand.Execute(null);
-        var enumerableTargets = GetSelectedCells(enumerableState);
+        ビューモデル.選択ソースタブ=列挙タブ;
+        ビューモデル.全選択コマンド.Execute(null);
+        var 列挙対象一覧 = 選択セル一覧を取得(列挙状態);
 
-        viewModel.SelectedSourceTab=listTab;
-        viewModel.SelectAllCommand.Execute(null);
-        var listTargets = GetSelectedCells(listState);
-        var allTargets = arrayTargets.Concat(enumerableTargets).Concat(listTargets).ToArray();
+        ビューモデル.選択ソースタブ=リストタブ;
+        ビューモデル.全選択コマンド.Execute(null);
+        var リスト対象一覧 = 選択セル一覧を取得(リスト状態);
+        var 全対象一覧 = 配列対象一覧.Concat(列挙対象一覧).Concat(リスト対象一覧).ToArray();
 
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => allTargets.All(IsFinalCompleted));
-        await WaitUntilOrContinueAsync(() =>
-            arrayTab.CompletionIconSource==global::UI.BenchmarkStatusImageNames.FinalCompleted
-            &&enumerableTab.CompletionIconSource==global::UI.BenchmarkStatusImageNames.FinalCompleted
-            &&listTab.CompletionIconSource==global::UI.BenchmarkStatusImageNames.FinalCompleted);
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => 全対象一覧.All(最終完了か));
+        await 条件成立まで待機または続行Async(() =>
+            配列タブ.完了アイコンソース==global::UI.ベンチマーク状態画像名.最終完了
+            &&列挙タブ.完了アイコンソース==global::UI.ベンチマーク状態画像名.最終完了
+            &&リストタブ.完了アイコンソース==global::UI.ベンチマーク状態画像名.最終完了);
 
-        Assert.All(arrayTargets,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
-        Assert.All(enumerableTargets,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
-        Assert.All(listTargets,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
-        AssertFinalCompletedTab(arrayTab);
-        AssertFinalCompletedTab(enumerableTab);
-        AssertFinalCompletedTab(listTab);
+        Assert.All(配列対象一覧,セル => Assert.Equal(global::UI.ベンチマーク状態画像名.最終完了,セル.状態画像ソース));
+        Assert.All(列挙対象一覧,セル => Assert.Equal(global::UI.ベンチマーク状態画像名.最終完了,セル.状態画像ソース));
+        Assert.All(リスト対象一覧,セル => Assert.Equal(global::UI.ベンチマーク状態画像名.最終完了,セル.状態画像ソース));
+        タブが最終完了したことを検証(配列タブ);
+        タブが最終完了したことを検証(列挙タブ);
+        タブが最終完了したことを検証(リストタブ);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task 履歴シェアはフォーカス行のLeftとRightの2系列だけを返す(){
-        var fixture=await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var row=fixture.ViewModel.BenchmarkRows.Single(item => item.MethodName=="AggregateBy_keySelector");
-        var run=fixture.Store.CreateRun(new(
-            UiRunAppKind.Benchmark,
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 履歴シェアはフォーカス行の左と右の2系列だけを返す() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var 行 = フィクスチャ.ビューモデル.ベンチマーク行一覧.Single(項目 => 項目.メソッド名=="AggregateBy_keySelector");
+        var 左ケース = 行.プロジェクト別ケース[行.ソースタブ.左プロジェクト];
+        var 右ケース = 行.プロジェクト別ケース[行.ソースタブ.右プロジェクト];
+        var 実行 = フィクスチャ.ストア.実行を作成(new(
+            UI実行アプリ種別.ベンチマーク,
             "history",
             "Fast",
-            row.SourceTab.Id,
+            行.ソースタブ.ID,
             DateTimeOffset.UtcNow));
-        fixture.Store.SaveBenchmarkSnapshotItems(run.RunId,[new(
-            row.SourceTab.Id,
-            row.BenchmarkTypeText,
-            row.MethodName,
+        フィクスチャ.ストア.ベンチマークスナップショット項目を保存(実行.実行ID,[new(
+            行.ソースタブ.ID,
+            行.ベンチマーク型文字列,
+            行.メソッド名,
             0,
             true,
-            new(UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,20,30),
-            new(UiRunStatus.Completed,string.Empty,DateTimeOffset.UtcNow,80,70))]);
-        fixture.Store.SetRunStatus(run.RunId,UiRunStatus.Completed);
+            new(UI実行状態.完了,string.Empty,DateTimeOffset.UtcNow,20,30),
+            new(UI実行状態.完了,string.Empty,DateTimeOffset.UtcNow,80,70),
+            new(
+                左ケース.アセンブリ名,
+                左ケース.型完全名,
+                左ケース.メソッド名,
+                左ケース.引数キー,
+                System.Text.Json.JsonSerializer.Serialize(左ケース.引数一覧)),
+            new(
+                右ケース.アセンブリ名,
+                右ケース.型完全名,
+                右ケース.メソッド名,
+                右ケース.引数キー,
+                System.Text.Json.JsonSerializer.Serialize(右ケース.引数一覧))) ]);
+        フィクスチャ.ストア.実行状態を設定(実行.実行ID,UI実行状態.完了);
 
-        var series=fixture.ViewModel.LoadShareHistory(row,UiShareMetric.Time);
+        var 系列一覧 = フィクスチャ.ビューモデル.シェア履歴を読み込む(行,UIシェア指標.時間);
 
         Assert.Collection(
-            series,
-            left => {
-                Assert.Equal("Left",left.SeriesLabel);
-                Assert.Equal(0.2,Assert.Single(left.Points).Y,12);
+            系列一覧,
+            左 => {
+                Assert.Equal("左",左.系列名);
+                Assert.Equal(0.2,Assert.Single(左.点一覧).縦軸値,12);
             },
-            right => {
-                Assert.Equal("Right",right.SeriesLabel);
-                Assert.Equal(0.8,Assert.Single(right.Points).Y,12);
+            右 => {
+                Assert.Equal("右",右.系列名);
+                Assert.Equal(0.8,Assert.Single(右.点一覧).縦軸値,12);
             });
     }
 
-    private static void AssertFinalCompletedTab(global::UI.SourceTabOption option){
+    private static void タブが最終完了したことを検証(global::UI.ソースタブ選択肢 選択肢) {
         Assert.True(
-            option.CompletionIconSource==global::UI.BenchmarkStatusImageNames.FinalCompleted,
-            option.DisplayName
-            +" icon="+option.CompletionIconSource
-            +" progress="+option.Progress.Completed+"/"+option.Progress.Total
-            +" isCompleted="+option.IsCompleted
-            +" isFinalCompleted="+option.IsFinalCompleted);
+            選択肢.完了アイコンソース==global::UI.ベンチマーク状態画像名.最終完了,
+            選択肢.表示名
+            +" アイコン="+選択肢.完了アイコンソース
+            +" 進行="+選択肢.進行.完了数+"/"+選択肢.進行.合計数
+            +" 完了か="+選択肢.完了か
+            +" 最終完了か="+選択肢.最終完了か);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public void SourceTabCompletionIcon_UsesCompletedUntilFinalCompleted(){
-        var option = new global::UI.SourceTabOption(global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray));
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void ソースタブ完了アイコン_最終完了まで完了表示を使う() {
+        var 選択肢 = new global::UI.ソースタブ選択肢(global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列));
 
-        option.SetProgress(new global::UI.BenchmarkTabProgress(1,1));
-        option.SetFinalCompleted(false);
+        選択肢.進行を設定(new global::UI.ベンチマークタブ進行(1,1));
+        選択肢.最終完了状態を設定(false);
 
-        Assert.True(option.IsCompletionIconVisible);
-        Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,option.CompletionIconSource);
+        Assert.True(選択肢.完了アイコン表示中か);
+        Assert.Equal(global::UI.ベンチマーク状態画像名.最終完了,選択肢.完了アイコンソース);
 
-        option.SetFinalCompleted(true);
+        選択肢.最終完了状態を設定(true);
 
-        Assert.True(option.IsCompletionIconVisible);
-        Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,option.CompletionIconSource);
+        Assert.True(選択肢.完了アイコン表示中か);
+        Assert.Equal(global::UI.ベンチマーク状態画像名.最終完了,選択肢.完了アイコンソース);
 
-        option.SetProgress(new global::UI.BenchmarkTabProgress(0,1));
-        option.SetFinalCompleted(true);
+        選択肢.進行を設定(new global::UI.ベンチマークタブ進行(0,1));
+        選択肢.最終完了状態を設定(true);
 
-        Assert.True(option.IsCompletionIconVisible);
-        Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,option.CompletionIconSource);
+        Assert.True(選択肢.完了アイコン表示中か);
+        Assert.Equal(global::UI.ベンチマーク状態画像名.最終完了,選択肢.完了アイコンソース);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task Initialize_WithRecoveredPausedRunAndNewSelection_AllowsRunHistorySelection(){
-        var fixture = await ViewModelFixture.CreateAsync(
-            global::UI.BenchmarkSourceTab.SystemArray,
-            store => SeedPausedSelectedRun(store));
-        var viewModel = fixture.ViewModel;
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 初期化_復元した一時停止実行と新規選択で実行履歴を選択できる() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(
+            global::UI.ベンチマークソースタブ.System配列,
+            ストア => 一時停止した選択実行を初期登録(ストア));
+        var ビューモデル = フィクスチャ.ビューモデル;
 
-        Assert.Equal(0,viewModel.SelectedRunOption?.UiRunId);
-        Assert.Equal(0,viewModel.SelectedRunOption?.RunNumber);
-        Assert.Equal("新規",viewModel.SelectedRunOption?.DisplayName);
-        var selectedRunOption = viewModel.SelectedRunOption;
-        Assert.Contains(viewModel.RunOptions.ToArray(),option => ReferenceEquals(option,selectedRunOption));
-        Assert.False(viewModel.IsBenchmarkPaused);
-        Assert.True(viewModel.CanSelectRunHistory);
-        Assert.True(viewModel.CanChangeBenchmarkConditions);
-        Assert.True(viewModel.CanCreateNewGrid);
+        Assert.Equal(0,ビューモデル.選択実行選択肢?.UI実行ID);
+        Assert.Equal(0,ビューモデル.選択実行選択肢?.実行番号);
+        Assert.Equal("新規",ビューモデル.選択実行選択肢?.表示名);
+        var 選択実行選択肢 = ビューモデル.選択実行選択肢;
+        Assert.Contains(ビューモデル.実行選択肢一覧.ToArray(),選択肢 => ReferenceEquals(選択肢,選択実行選択肢));
+        Assert.False(ビューモデル.ベンチマーク一時停止中か);
+        Assert.True(ビューモデル.実行履歴を選択可能か);
+        Assert.True(ビューモデル.ベンチマーク条件を変更可能か);
+        Assert.True(ビューモデル.新規グリッド作成可能か);
     }
 
-    private static void SeedPausedSelectedRun(UiRunStore store){
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var run = store.CreateRun(new(
-            UiRunAppKind.Benchmark,
+    private static void 一時停止した選択実行を初期登録(global::Seamless.UI.Storage.UI実行ストア ストア) {
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        var 実行 = ストア.実行を作成(new(
+            UI実行アプリ種別.ベンチマーク,
             "Recovered",
-            global::UI.BenchmarkExecutionProfile.Test.ToString(),
-            sourceTab.Tab.ToString(),
+            global::UI.ベンチマーク実行プロファイル.テスト.ToString(),
+            ソースタブ.タブ.ToString(),
             DateTimeOffset.UtcNow));
-        store.SetRunStatus(run.RunId,UiRunStatus.Paused,"Recovered test run.");
-        store.SaveRunSettings(run.RunId,"RecoveredRoot",[4096],1_000_000,[]);
-        store.SaveBenchmarkSnapshotItems(run.RunId,[
+        ストア.実行状態を設定(実行.実行ID,UI実行状態.一時停止中,"復元テスト実行。");
+        ストア.実行設定を保存(実行.実行ID,"RecoveredRoot",[4096],1_000_000,[]);
+        ストア.ベンチマークスナップショット項目を保存(実行.実行ID,[
             new(
-                sourceTab.Id,
+                ソースタブ.ID,
                 "int",
                 "AggregateBy_keySelector",
                 0,
                 true,
-                new(UiRunStatus.Queued,string.Empty,null,null,null),
-                new(UiRunStatus.Queued,string.Empty,null,null,null)),
+                new(UI実行状態.待機中,string.Empty,null,null,null),
+                new(UI実行状態.待機中,string.Empty,null,null,null)),
         ]);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public void SnapshotTableRow_UsesStoredDisplayType(){
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var cases = new Dictionary<string,global::UI.BenchmarkCase>(StringComparer.OrdinalIgnoreCase) {
-            [sourceTab.LeftProject]=new(sourceTab.LeftProject,sourceTab.LeftAssemblyName,"int","AggregateBy_keySelector"),
-            [sourceTab.RightProject]=new(sourceTab.RightProject,sourceTab.RightAssemblyName,"int","AggregateBy_keySelector"),
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void スナップショット表行_保存済み表示型を使う() {
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        var ケース一覧 = new Dictionary<string,global::UI.ベンチマークケース>(StringComparer.OrdinalIgnoreCase) {
+            [ソースタブ.左プロジェクト]=new(ソースタブ.左プロジェクト,ソースタブ.左アセンブリ名,"int","AggregateBy_keySelector"),
+            [ソースタブ.右プロジェクト]=new(ソースタブ.右プロジェクト,ソースタブ.右アセンブリ名,"int","AggregateBy_keySelector"),
         };
-        var row = new global::UI.BenchmarkTableRow(
+        var 行 = new global::UI.ベンチマーク表行(
             "int|AggregateBy_keySelector",
             "AggregateBy_keySelector",
             "AggregateBy_keySelector",
-            sourceTab,
-            cases,
+            ソースタブ,
+            ケース一覧,
             "int");
 
-        Assert.Equal("int",row.BenchmarkTypeText);
-        Assert.Equal("AggregateBy_keySelector",row.BenchmarkMethodText);
+        Assert.Equal("int",行.ベンチマーク型文字列);
+        Assert.Equal("AggregateBy_keySelector",行.ベンチマークメソッド文字列);
 
-        var measuredAt = new DateTimeOffset(2026,7,8,13,39,31,TimeSpan.Zero);
-        var result = new global::UI.BenchmarkResultItem(new global::UI.BenchmarkJob{
-            Project=sourceTab.LeftProject,
-            AssemblyName=sourceTab.LeftAssemblyName,
-            TypeFullName="int",
-            MethodName="AggregateBy_keySelector",
-            SourceTab=sourceTab.Tab,
-            ElementCount=4096,
-            LoopCount=global::UI.BenchmarkWorkloadAxis.DefaultLoopCount,
-            Status=global::UI.JobStatus.Completed,
-            AssignedLogicalCpu=0,
-            StartedAt=measuredAt,
-            FinishedAt=measuredAt,
-            MeanNanoseconds=1_000_000,
-            AllocatedBytes=1024,
-            ExitCode=0,
+        var 計測日時 = new DateTimeOffset(2026,7,8,13,39,31,TimeSpan.Zero);
+        var 結果 = new global::UI.ベンチマーク結果項目(new global::UI.ベンチマークジョブ {
+            プロジェクト=ソースタブ.左プロジェクト,
+            アセンブリ名=ソースタブ.左アセンブリ名,
+            型完全名="int",
+            メソッド名="AggregateBy_keySelector",
+            ソースタブ=ソースタブ.タブ,
+            要素数=4096,
+            ループ回数=global::UI.ベンチマーク作業軸.既定ループ回数,
+            状態=global::UI.ジョブ状態.完了,
+            割り当て論理CPU=0,
+            開始日時=計測日時,
+            終了日時=計測日時,
+            平均ナノ秒=1_000_000,
+            割り当てバイト数=1024,
+            終了コード=0,
         });
-        row.ApplySnapshotResult(sourceTab.LeftProject,result,0,measuredAt);
+        行.スナップショット結果を適用(ソースタブ.左プロジェクト,結果,0,計測日時);
 
-        Assert.Equal("4096",row.LeftCell.ElementCountText);
-        Assert.NotEmpty(row.LeftCell.ExecutionText);
-        Assert.True(row.LeftCell.HasCpuDisplay);
-        Assert.Equal("0",row.LeftCell.LogicalProcessorText);
-        Assert.NotEmpty(row.LeftTimeText);
+        Assert.Equal("4096",行.左セル.要素数文字列);
+        Assert.NotEmpty(行.左セル.実行文字列);
+        Assert.True(行.左セル.CPU表示ありか);
+        Assert.Equal("0",行.左セル.論理プロセッサ文字列);
+        Assert.NotEmpty(行.左時間文字列);
 
-        row.RefreshBenchmarkName(4096);
+        行.ベンチマーク名を更新(4096);
 
-        Assert.Equal("int",row.BenchmarkTypeText);
-        Assert.Equal("AggregateBy_keySelector",row.BenchmarkMethodText);
-        Assert.Equal(TextDecorations.None,row.BenchmarkIdentityTextDecorations);
+        Assert.Equal("int",行.ベンチマーク型文字列);
+        Assert.Equal("AggregateBy_keySelector",行.ベンチマークメソッド文字列);
+        Assert.Equal(TextDecorations.None,行.ベンチマーク識別文字装飾);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public void SnapshotTableRow_StrikesThroughTypeAndMethodWhenNoBenchmarkCaseExists(){
-        var sourceTab=global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var row=new global::UI.BenchmarkTableRow(
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void スナップショット表行_ベンチマークケース不在時に型とメソッドへ取消線を表示する() {
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        var 行 = new global::UI.ベンチマーク表行(
             "int|MissingMethod",
             "MissingMethod",
             "MissingMethod",
-            sourceTab,
-            new Dictionary<string,global::UI.BenchmarkCase>(StringComparer.OrdinalIgnoreCase),
+            ソースタブ,
+            new Dictionary<string,global::UI.ベンチマークケース>(StringComparer.OrdinalIgnoreCase),
             "int");
 
-        Assert.All(row.ProjectCells,static cell => Assert.False(cell.HasCase));
-        Assert.Equal(TextDecorations.Strikethrough,row.BenchmarkIdentityTextDecorations);
+        Assert.All(行.プロジェクトセル一覧,static セル => Assert.False(セル.ケースありか));
+        Assert.Equal(TextDecorations.Strikethrough,行.ベンチマーク識別文字装飾);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public void TableRow_DisplaysTargetNoneForMissingSide(){
-        var sourceTab=global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var leftCase=new global::UI.BenchmarkCase(
-            sourceTab.LeftProject,
-            sourceTab.LeftAssemblyName,
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void 表行_欠けた側に対象なしを表示する() {
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        var 左ケース = new global::UI.ベンチマークケース(
+            ソースタブ.左プロジェクト,
+            ソースタブ.左アセンブリ名,
             "Benchmark.System.Linq.Enumerable.FLinqInt32",
             "Aggregate_func");
-        var row=new global::UI.BenchmarkTableRow(
+        var 行 = new global::UI.ベンチマーク表行(
             "int|Aggregate_func",
             "Aggregate_func",
             "Aggregate_func",
-            sourceTab,
-            new Dictionary<string,global::UI.BenchmarkCase>(StringComparer.OrdinalIgnoreCase){
-                [sourceTab.LeftProject]=leftCase,
+            ソースタブ,
+            new Dictionary<string,global::UI.ベンチマークケース>(StringComparer.OrdinalIgnoreCase) {
+                [ソースタブ.左プロジェクト]=左ケース,
             });
 
-        Assert.True(row.LeftCell.HasCase);
-        Assert.Empty(row.LeftCell.ExecutionText);
-        Assert.False(row.RightCell.HasCase);
-        Assert.Equal("対象なし",row.RightCell.ExecutionText);
-        Assert.Equal("対象なし",row.RightCell.StatusText);
-        Assert.False(row.RightCell.IsStatusIconVisible);
+        Assert.True(行.左セル.ケースありか);
+        Assert.Empty(行.左セル.実行文字列);
+        Assert.False(行.右セル.ケースありか);
+        Assert.Equal("対象なし",行.右セル.実行文字列);
+        Assert.Equal("対象なし",行.右セル.状態文字列);
+        Assert.False(行.右セル.状態アイコン表示中か);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public void TableRow_DisplaysCatalogParentTypeArgumentForThenBy(){
-        var sourceTab=global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemRange);
-        var leftCase=new global::UI.BenchmarkCase(
-            sourceTab.LeftProject,
-            sourceTab.LeftAssemblyName,
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void 表行_ThenByのカタログ親型引数を表示する() {
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System範囲);
+        var 左ケース = new global::UI.ベンチマークケース(
+            ソースタブ.左プロジェクト,
+            ソースタブ.左アセンブリ名,
             "Seamless.Linq.Shared.Range_start_count+OrderBy_keySelector_chain",
             "ThenBy_keySelector",
-            "Range_start_count.OrderBy_keySelector",
-            "int");
-        var row=new global::UI.BenchmarkTableRow(
+            "Range_start_count.OrderBy_keySelector");
+        var 行 = new global::UI.ベンチマーク表行(
             "int|ThenBy_keySelector",
             "ThenBy_keySelector",
             "Range_start_count.OrderBy_keySelector.ThenBy_keySelector",
-            sourceTab,
-            new Dictionary<string,global::UI.BenchmarkCase>(StringComparer.OrdinalIgnoreCase){
-                [sourceTab.LeftProject]=leftCase,
-            });
+            ソースタブ,
+            new Dictionary<string,global::UI.ベンチマークケース>(StringComparer.OrdinalIgnoreCase) {
+                [ソースタブ.左プロジェクト]=左ケース,
+            },
+            "int");
 
-        Assert.Equal("int",row.BenchmarkTypeText);
+        Assert.Equal("int",行.ベンチマーク型文字列);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public void RowSelectionHeader_ReflectsPartialCellSelection(){
-        var row = CreateArrayBenchmarkRow("AggregateBy_keySelector");
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void 行チェック切替で選択チェック状態が真偽を循環する() {
+        var 行 = 配列ベンチマーク行を作成("AggregateBy_keySelector");
 
-        row.LeftCell.IsSelected=true;
-        row.RightCell.IsSelected=true;
-        row.RefreshSelectionState();
+        行.選択中か=true;
 
-        Assert.True(row.IsSelectionChecked);
-        Assert.True(row.IsSelected);
+        Assert.True(行.選択チェック状態);
+        Assert.True(行.選択中か);
+        Assert.True(行.左セル.実行予定か);
+        Assert.True(行.右セル.実行予定か);
 
-        row.RightCell.IsSelected=false;
-        row.RefreshSelectionState();
+        行.選択中か=false;
 
-        Assert.Null(row.IsSelectionChecked);
-        Assert.True(row.IsSelected);
-
-        row.LeftCell.IsSelected=false;
-        row.RefreshSelectionState();
-
-        Assert.False(row.IsSelectionChecked);
-        Assert.False(row.IsSelected);
+        Assert.False(行.選択チェック状態);
+        Assert.False(行.選択中か);
+        Assert.False(行.左セル.実行予定か);
+        Assert.False(行.右セル.実行予定か);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task GridRowSelection_UpdatesUiSelectionWithoutChangingExecutionCheck(){
-        var fixture=await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel=fixture.ViewModel;
-        var definition=global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var state=new global::UI.BenchmarkSourceTabViewState(definition);
-        var row=CreateArrayBenchmarkRow("AggregateBy_keySelector");
-        var executionCheck=row.IsSelectionChecked;
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task グリッド行選択_実行チェックを変えずUI選択を更新する() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        var 定義 = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        var 状態 = new global::UI.ベンチマークソースタブ表示状態(定義);
+        var 行 = 配列ベンチマーク行を作成("AggregateBy_keySelector");
+        var 実行チェック中か = 行.選択チェック状態;
 
-        viewModel.SynchronizeBenchmarkRowUiSelection(state,[row],[]);
+        ビューモデル.ベンチマーク行UI選択を同期(状態,[行],[]);
 
-        Assert.True(row.IsUiSelected);
-        Assert.Equal(executionCheck,row.IsSelectionChecked);
+        Assert.True(行.UI選択中か);
+        Assert.Equal(実行チェック中か,行.選択チェック状態);
 
-        viewModel.SynchronizeBenchmarkRowUiSelection(state,[],[row]);
+        ビューモデル.ベンチマーク行UI選択を同期(状態,[],[行]);
 
-        Assert.False(row.IsUiSelected);
-        Assert.Equal(executionCheck,row.IsSelectionChecked);
+        Assert.False(行.UI選択中か);
+        Assert.Equal(実行チェック中か,行.選択チェック状態);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public void BindingRowIndex_IsPreservedFromJobToResultAndCase(){
-        var sourceTab=global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var job=new global::UI.BenchmarkJob{
-            Project=sourceTab.LeftProject,
-            AssemblyName=sourceTab.LeftAssemblyName,
-            TypeFullName=sourceTab.LeftTypePrefix+".Sample",
-            SourceTab=sourceTab.Tab,
-            BindingRowIndex=7,
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void バインド行インデックス_ジョブから結果とケースまで保持される() {
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        var ジョブ = new global::UI.ベンチマークジョブ {
+            プロジェクト=ソースタブ.左プロジェクト,
+            アセンブリ名=ソースタブ.左アセンブリ名,
+            型完全名=ソースタブ.左型接頭辞+".Sample",
+            ソースタブ=ソースタブ.タブ,
+            バインド行インデックス=7,
         };
 
-        var result=new global::UI.BenchmarkResultItem(job);
-        var benchmark=job.ToBenchmarkCase();
+        var 結果 = new global::UI.ベンチマーク結果項目(ジョブ);
+        var ベンチマーク = ジョブ.ベンチマークケースに変換();
 
-        Assert.Equal(7,result.BindingRowIndex);
-        Assert.Equal(7,benchmark.BindingRowIndex);
+        Assert.Equal(7,結果.バインド行インデックス);
+        Assert.Equal(7,ベンチマーク.バインド行インデックス);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task CpuSpaceTargets_AllOnTurnsOffAndMixedTurnsOn(){
-        var fixture=await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var targets=new[]{
-            new global::UI.CpuSelectionItem(0,global::UI.CpuCoreKind.Performance,0,0,true),
-            new global::UI.CpuSelectionItem(1,global::UI.CpuCoreKind.Performance,0,1,true),
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task CPU空白対象_全選択は解除し混在は選択する() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var 対象一覧 = new[]{
+            new global::UI.CPU選択項目(0,global::UI.CPUコア種別.高性能,0,0,true),
+            new global::UI.CPU選択項目(1,global::UI.CPUコア種別.高性能,0,1,true),
         };
 
-        foreach(var cpu in targets){
-            cpu.IsSelected=true;
+        foreach(var CPU in 対象一覧) {
+            CPU.選択中か=true;
         }
-        fixture.ViewModel.ToggleCpuChecks(targets);
-        Assert.All(targets,static cpu => Assert.False(cpu.IsSelected));
+        フィクスチャ.ビューモデル.CPUチェックを切り替え(対象一覧);
+        Assert.All(対象一覧,static CPU => Assert.False(CPU.選択中か));
 
-        targets[0].IsSelected=true;
-        fixture.ViewModel.ToggleCpuChecks(targets);
-        Assert.All(targets,static cpu => Assert.True(cpu.IsSelected));
+        対象一覧[0].選択中か=true;
+        フィクスチャ.ビューモデル.CPUチェックを切り替え(対象一覧);
+        Assert.All(対象一覧,static CPU => Assert.True(CPU.選択中か));
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public void RunningResult_AppliesToRightZLinqCell(){
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var row = CreateArrayBenchmarkRow("Aggregate_seed_func_resultSelector");
-        var result = CreateArrayResult(
-            sourceTab.RightProject,
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void 実行中結果_右ZLinqセルへ適用される() {
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        var 行 = 配列ベンチマーク行を作成("Aggregate_seed_func_resultSelector");
+        var 結果 = 配列結果を作成(
+            ソースタブ.右プロジェクト,
             "Aggregate_seed_func_resultSelector",
-            global::UI.JobStatus.Running,
-            runItemIndex:1);
+            global::UI.ジョブ状態.実行中,
+            実行項目インデックス: 1);
 
-        row.ApplyRunResult(result,null,DateTimeOffset.Now);
+        行.実行結果を適用(結果,null,DateTimeOffset.Now);
 
-        Assert.True(row.RightCell.IsRunningVisual);
-        Assert.False(row.LeftCell.IsRunningVisual);
-        Assert.Equal(global::UI.BenchmarkStatusImageNames.CpuRunning,row.RightCell.StatusImageSource);
+        Assert.True(行.右セル.実行中表示か);
+        Assert.False(行.左セル.実行中表示か);
+        Assert.Equal(global::UI.ベンチマーク状態画像名.CPU実行中,行.右セル.状態画像ソース);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public void RunningResult_AppliesToLeftFLinqCell(){
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var row = CreateArrayBenchmarkRow("Aggregate_seed_func_resultSelector");
-        var result = CreateArrayResult(
-            sourceTab.LeftProject,
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void 実行中結果_左FLinqセルへ適用される() {
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        var 行 = 配列ベンチマーク行を作成("Aggregate_seed_func_resultSelector");
+        var 結果 = 配列結果を作成(
+            ソースタブ.左プロジェクト,
             "Aggregate_seed_func_resultSelector",
-            global::UI.JobStatus.Running,
-            runItemIndex:0);
+            global::UI.ジョブ状態.実行中,
+            実行項目インデックス: 0);
 
-        row.ApplyRunResult(result,null,DateTimeOffset.Now);
+        行.実行結果を適用(結果,null,DateTimeOffset.Now);
 
-        Assert.True(row.LeftCell.IsRunningVisual);
-        Assert.False(row.RightCell.IsRunningVisual);
-        Assert.Equal(global::UI.BenchmarkStatusImageNames.CpuRunning,row.LeftCell.StatusImageSource);
+        Assert.True(行.左セル.実行中表示か);
+        Assert.False(行.右セル.実行中表示か);
+        Assert.Equal(global::UI.ベンチマーク状態画像名.CPU実行中,行.左セル.状態画像ソース);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task RunEventPipeline_KeepsZLinqRunningBeforeImmediateTerminal(){
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var pipeline = new global::UI.BenchmarkRunEventPipeline();
-        var running = CreateArrayResult(sourceTab.RightProject,"Aggregate_seed_func_resultSelector",global::UI.JobStatus.Running,runItemIndex:1);
-        var completed = CreateArrayResult(sourceTab.RightProject,"Aggregate_seed_func_resultSelector",global::UI.JobStatus.Completed,runItemIndex:1);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 実行イベントパイプライン_ZLinqの即時終端前に実行中状態を保持する() {
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        var パイプライン = new global::UI.ベンチマーク実行イベントパイプライン();
+        var 実行中追跡 = 配列結果を作成(ソースタブ.右プロジェクト,"Aggregate_seed_func_resultSelector",global::UI.ジョブ状態.実行中,実行項目インデックス: 1);
+        var 完了結果 = 配列結果を作成(ソースタブ.右プロジェクト,"Aggregate_seed_func_resultSelector",global::UI.ジョブ状態.完了,実行項目インデックス: 1);
 
-        pipeline.Post(new global::UI.BenchmarkRunEvent(running,1,null,DateTimeOffset.UtcNow));
-        pipeline.Post(new global::UI.BenchmarkRunEvent(completed,1,null,DateTimeOffset.UtcNow));
-        var snapshot = await WaitForPipelineSnapshotAsync(pipeline);
+        パイプライン.イベントを送信(new global::UI.ベンチマーク実行イベント(実行中追跡,1,null,DateTimeOffset.UtcNow));
+        パイプライン.イベントを送信(new global::UI.ベンチマーク実行イベント(完了結果,1,null,DateTimeOffset.UtcNow));
+        var スナップショット = await パイプラインスナップショットを待機Async(パイプライン);
 
-        Assert.Contains(snapshot.RunningUpdates,item =>
-            string.Equals(item.Result.Project,sourceTab.RightProject,StringComparison.OrdinalIgnoreCase)
-            &&string.Equals(item.Result.Status,global::UI.JobStatus.Running.ToString(),StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(snapshot.TerminalResults,item =>
-            string.Equals(item.Result.Project,sourceTab.RightProject,StringComparison.OrdinalIgnoreCase)
-            &&string.Equals(item.Result.Status,"Completed",StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(スナップショット.実行中更新一覧,項目 =>
+            string.Equals(項目.結果.プロジェクト,ソースタブ.右プロジェクト,StringComparison.OrdinalIgnoreCase)
+            &&global::UI.ジョブ状態名.保存値と一致するか(項目.結果.状態,global::UI.ジョブ状態.実行中));
+        Assert.Contains(スナップショット.終端結果一覧,項目 =>
+            string.Equals(項目.結果.プロジェクト,ソースタブ.右プロジェクト,StringComparison.OrdinalIgnoreCase)
+            &&string.Equals(項目.結果.状態,"Completed",StringComparison.OrdinalIgnoreCase));
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task RunEventPipeline_SeparatesFLinqAndZLinqRunningKeys(){
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var pipeline = new global::UI.BenchmarkRunEventPipeline();
-        var left = CreateArrayResult(sourceTab.LeftProject,"Aggregate_seed_func_resultSelector",global::UI.JobStatus.Running,runItemIndex:0);
-        var right = CreateArrayResult(sourceTab.RightProject,"Aggregate_seed_func_resultSelector",global::UI.JobStatus.Running,runItemIndex:1);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 実行イベントパイプライン_FLinqとZLinqの実行中キーを分離する() {
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        var パイプライン = new global::UI.ベンチマーク実行イベントパイプライン();
+        var 左 = 配列結果を作成(ソースタブ.左プロジェクト,"Aggregate_seed_func_resultSelector",global::UI.ジョブ状態.実行中,実行項目インデックス: 0);
+        var 右 = 配列結果を作成(ソースタブ.右プロジェクト,"Aggregate_seed_func_resultSelector",global::UI.ジョブ状態.実行中,実行項目インデックス: 1);
 
-        pipeline.Post(new global::UI.BenchmarkRunEvent(left,1,null,DateTimeOffset.UtcNow));
-        pipeline.Post(new global::UI.BenchmarkRunEvent(right,1,null,DateTimeOffset.UtcNow));
-        var snapshot = await WaitForPipelineSnapshotAsync(pipeline);
+        パイプライン.イベントを送信(new global::UI.ベンチマーク実行イベント(左,1,null,DateTimeOffset.UtcNow));
+        パイプライン.イベントを送信(new global::UI.ベンチマーク実行イベント(右,1,null,DateTimeOffset.UtcNow));
+        var スナップショット = await パイプラインスナップショットを待機Async(パイプライン);
 
-        Assert.Contains(snapshot.RunningUpdates,item => string.Equals(item.Result.Project,sourceTab.LeftProject,StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(snapshot.RunningUpdates,item => string.Equals(item.Result.Project,sourceTab.RightProject,StringComparison.OrdinalIgnoreCase));
-        Assert.Equal(2,snapshot.RunningUpdates.Count);
+        Assert.Contains(スナップショット.実行中更新一覧,項目 => string.Equals(項目.結果.プロジェクト,ソースタブ.左プロジェクト,StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(スナップショット.実行中更新一覧,項目 => string.Equals(項目.結果.プロジェクト,ソースタブ.右プロジェクト,StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(2,スナップショット.実行中更新一覧.Count);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task CompletedRun_SelectsSavedDatabaseRunWithoutUnsavedOption(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        viewModel.SelectAllCommand.Execute(null);
-        var targets = GetSelectedCells(viewModel);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 完了実行_未保存選択肢を残さず保存済みDB実行を選択する() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        ビューモデル.全選択コマンド.Execute(null);
+        var 対象一覧 = 選択セル一覧を取得(ビューモデル);
 
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
-        await SaveCurrentRunAsync(viewModel);
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => 対象一覧.All(最終完了か));
+        await 今回実行を保存Async(ビューモデル);
 
-        var savedRun = viewModel.SelectedRunOption!;
-        Assert.True(savedRun.UiRunId>0);
-        Assert.Contains(viewModel.RunOptions,option => ReferenceEquals(option,savedRun));
-        Assert.NotEqual("未保存",savedRun.DisplayName);
-        Assert.Contains("/",savedRun.DisplayName);
-        Assert.True(savedRun.TotalJobs>0);
-        Assert.All(viewModel.RunOptions,option => Assert.NotEqual("未保存",option.DisplayName));
-        Assert.All(targets,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
+        var 保存済み実行 = ビューモデル.選択実行選択肢!;
+        Assert.True(保存済み実行.UI実行ID>0);
+        Assert.Contains(ビューモデル.実行選択肢一覧,選択肢 => ReferenceEquals(選択肢,保存済み実行));
+        Assert.NotEqual("未保存",保存済み実行.表示名);
+        Assert.Contains("/",保存済み実行.表示名);
+        Assert.True(保存済み実行.総ジョブ数>0);
+        Assert.All(ビューモデル.実行選択肢一覧,選択肢 => Assert.NotEqual("未保存",選択肢.表示名));
+        Assert.All(対象一覧,セル => Assert.Equal(global::UI.ベンチマーク状態画像名.最終完了,セル.状態画像ソース));
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task CompletedRun_NewGridDeletesUnsavedTemporaryRun(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        viewModel.SelectAllCommand.Execute(null);
-        var targets = GetSelectedCells(viewModel);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 完了実行_新規グリッドで未保存一時実行を削除する() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        ビューモデル.全選択コマンド.Execute(null);
+        var 対象一覧 = 選択セル一覧を取得(ビューモデル);
 
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
-        await WaitUntilAsync(() => fixture.Store.ListRuns(UiRunAppKind.Benchmark).Count==1);
-        var temporaryRunId = fixture.Store.ListRuns(UiRunAppKind.Benchmark).Single().RunId;
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => 対象一覧.All(最終完了か));
+        await 条件成立まで待機Async(() => フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク).Count==1);
+        var 一時実行ID = フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク).Single().実行ID;
 
-        Assert.True(viewModel.CanSaveDatabase);
-        Assert.DoesNotContain(viewModel.RunOptions,option => option.UiRunId==temporaryRunId);
+        Assert.True(ビューモデル.DB保存可能か);
+        Assert.DoesNotContain(ビューモデル.実行選択肢一覧,選択肢 => 選択肢.UI実行ID==一時実行ID);
 
-        viewModel.NewGridCommand.Execute(null);
+        ビューモデル.新規グリッドコマンド.Execute(null);
 
-        await WaitUntilAsync(() => fixture.Store.ListRuns(UiRunAppKind.Benchmark).All(run => run.RunId!=temporaryRunId));
-        Assert.Empty(fixture.Store.ListRuns(UiRunAppKind.Benchmark));
+        await 条件成立まで待機Async(() => フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク).All(実行 => 実行.実行ID!=一時実行ID));
+        Assert.Empty(フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク));
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task CompletedRun_SaveDatabasePromotesTemporaryRunAndKeepsSameRun(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        viewModel.SelectAllCommand.Execute(null);
-        var targets = GetSelectedCells(viewModel);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 完了実行_DB保存で一時実行を昇格し同じ実行を維持する() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        ビューモデル.全選択コマンド.Execute(null);
+        var 対象一覧 = 選択セル一覧を取得(ビューモデル);
 
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
-        await WaitUntilAsync(() => fixture.Store.ListRuns(UiRunAppKind.Benchmark).Count==1);
-        var temporaryRunId = fixture.Store.ListRuns(UiRunAppKind.Benchmark).Single().RunId;
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => 対象一覧.All(最終完了か));
+        await 条件成立まで待機Async(() => フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク).Count==1);
+        var 一時実行ID = フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク).Single().実行ID;
 
-        await SaveCurrentRunAsync(viewModel);
+        await 今回実行を保存Async(ビューモデル);
 
-        var savedRun = viewModel.SelectedRunOption!;
-        await WaitUntilAsync(() => fixture.Store.ListRuns(UiRunAppKind.Benchmark).Any(run => run.RunId==temporaryRunId)
-            &&viewModel.RunOptions.Any(option => option.UiRunId==temporaryRunId));
-        Assert.True(savedRun.UiRunId>0);
-        Assert.Equal(temporaryRunId,savedRun.UiRunId);
-        Assert.Single(fixture.Store.ListRuns(UiRunAppKind.Benchmark));
+        var 保存済み実行 = ビューモデル.選択実行選択肢!;
+        await 条件成立まで待機Async(() => フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク).Any(実行 => 実行.実行ID==一時実行ID)
+            &&ビューモデル.実行選択肢一覧.Any(選択肢 => 選択肢.UI実行ID==一時実行ID));
+        Assert.True(保存済み実行.UI実行ID>0);
+        Assert.Equal(一時実行ID,保存済み実行.UI実行ID);
+        Assert.Single(フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク));
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task CompletedRun_LoadSavedRunDeletesUnsavedTemporaryRun(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        viewModel.SelectAllCommand.Execute(null);
-        var firstTargets = GetSelectedCells(viewModel);
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => firstTargets.All(IsFinalCompleted));
-        await SaveCurrentRunAsync(viewModel);
-        var savedRun = viewModel.SelectedRunOption!;
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 完了実行_保存済み実行の読込で未保存一時実行を削除する() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        ビューモデル.全選択コマンド.Execute(null);
+        var 最初の対象一覧 = 選択セル一覧を取得(ビューモデル);
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => 最初の対象一覧.All(最終完了か));
+        await 今回実行を保存Async(ビューモデル);
+        var 保存済み実行 = ビューモデル.選択実行選択肢!;
 
-        viewModel.NewGridCommand.Execute(null);
-        await WaitUntilAsync(() => viewModel.SelectedRunOption?.UiRunId==0);
-        viewModel.SelectAllCommand.Execute(null);
-        var secondTargets = GetSelectedCells(viewModel);
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => secondTargets.All(IsFinalCompleted));
-        await WaitUntilAsync(() => fixture.Store.ListRuns(UiRunAppKind.Benchmark).Count==2);
-        var temporaryRunId = fixture.Store.ListRuns(UiRunAppKind.Benchmark)
-            .Single(run => run.RunId!=savedRun.UiRunId)
-            .RunId;
+        ビューモデル.新規グリッドコマンド.Execute(null);
+        await 条件成立まで待機Async(() => ビューモデル.選択実行選択肢?.UI実行ID==0);
+        ビューモデル.全選択コマンド.Execute(null);
+        var 次の対象一覧 = 選択セル一覧を取得(ビューモデル);
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => 次の対象一覧.All(最終完了か));
+        await 条件成立まで待機Async(() => フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク).Count==2);
+        var 一時実行ID = フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク)
+            .Single(実行 => 実行.実行ID!=保存済み実行.UI実行ID)
+            .実行ID;
 
-        viewModel.SelectedRunOption=savedRun;
+        ビューモデル.選択実行選択肢=保存済み実行;
 
-        await WaitUntilAsync(() => fixture.Store.ListRuns(UiRunAppKind.Benchmark).All(run => run.RunId!=temporaryRunId)
-            &&fixture.Store.ListRuns(UiRunAppKind.Benchmark).Any(run => run.RunId==savedRun.UiRunId));
-        await WaitUntilAsync(() => !viewModel.IsRunHistoryLoading&&viewModel.CanSelectRunHistory);
-        Assert.Single(fixture.Store.ListRuns(UiRunAppKind.Benchmark));
-        Assert.Equal(savedRun.UiRunId,fixture.Store.ListRuns(UiRunAppKind.Benchmark).Single().RunId);
+        await 条件成立まで待機Async(() => フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク).All(実行 => 実行.実行ID!=一時実行ID)
+            &&フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク).Any(実行 => 実行.実行ID==保存済み実行.UI実行ID));
+        await 条件成立まで待機Async(() => !ビューモデル.実行履歴読込中か&&ビューモデル.実行履歴を選択可能か);
+        Assert.Single(フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク));
+        Assert.Equal(保存済み実行.UI実行ID,フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク).Single().実行ID);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task CompletedRun_RerunDeletesPreviousTemporaryRun(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        viewModel.SelectAllCommand.Execute(null);
-        var firstTargets = GetSelectedCells(viewModel);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 完了実行_再実行で前の一時実行を削除する() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        ビューモデル.全選択コマンド.Execute(null);
+        var 最初の対象一覧 = 選択セル一覧を取得(ビューモデル);
 
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => firstTargets.All(IsFinalCompleted));
-        await WaitUntilAsync(() => fixture.Store.ListRuns(UiRunAppKind.Benchmark).Count==1);
-        var firstTemporaryRunId = fixture.Store.ListRuns(UiRunAppKind.Benchmark).Single().RunId;
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => 最初の対象一覧.All(最終完了か));
+        await 条件成立まで待機Async(() => フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク).Count==1);
+        var 最初の一時実行ID = フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク).Single().実行ID;
 
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => fixture.Store.ListRuns(UiRunAppKind.Benchmark).Any(run => run.RunId!=firstTemporaryRunId));
-        await WaitUntilAsync(() => fixture.Store.ListRuns(UiRunAppKind.Benchmark).All(run => run.RunId!=firstTemporaryRunId));
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク).Any(実行 => 実行.実行ID!=最初の一時実行ID));
+        await 条件成立まで待機Async(() => フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク).All(実行 => 実行.実行ID!=最初の一時実行ID));
 
-        var remainingRun = fixture.Store.ListRuns(UiRunAppKind.Benchmark).Single();
-        Assert.NotEqual(firstTemporaryRunId,remainingRun.RunId);
-        Assert.True(viewModel.CanSaveDatabase);
+        var 残存実行 = フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク).Single();
+        Assert.NotEqual(最初の一時実行ID,残存実行.実行ID);
+        Assert.True(ビューモデル.DB保存可能か);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task CompletedRun_CanReloadSavedDatabaseRunAfterNewSelection(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        viewModel.SelectAllCommand.Execute(null);
-        var targets = GetSelectedCells(viewModel);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 完了実行_新規選択後に保存済みDB実行を再読込できる() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        ビューモデル.全選択コマンド.Execute(null);
+        var 対象一覧 = 選択セル一覧を取得(ビューモデル);
 
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
-        await SaveCurrentRunAsync(viewModel);
-        var savedRun = viewModel.SelectedRunOption!;
-        var dataGridBatchEvents = new List<bool>();
-        viewModel.DataGridUpdateBatchChanged+=(_,args) => dataGridBatchEvents.Add(args.IsBeginning);
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => 対象一覧.All(最終完了か));
+        await 今回実行を保存Async(ビューモデル);
+        var 保存済み実行 = ビューモデル.選択実行選択肢!;
+        var データグリッド一括イベント一覧 = new List<bool>();
+        ビューモデル.データグリッド更新バッチ変更時+=(_,イベント引数) => データグリッド一括イベント一覧.Add(イベント引数.開始時か);
 
-        viewModel.NewGridCommand.Execute(null);
-        await WaitUntilAsync(() => targets.All(static cell => cell.StatusImageSource==global::UI.BenchmarkStatusImageNames.Waiting));
-        Assert.Equal("新規",viewModel.SelectedRunOption?.DisplayName);
+        ビューモデル.新規グリッドコマンド.Execute(null);
+        await 条件成立まで待機Async(() => 対象一覧.All(static セル => セル.状態画像ソース==global::UI.ベンチマーク状態画像名.待機中));
+        Assert.Equal("新規",ビューモデル.選択実行選択肢?.表示名);
 
-        AssertNewGridCatalogDisplay(viewModel);
-        viewModel.SelectedRunOption=savedRun;
-        Assert.True(viewModel.IsRunHistoryLoading);
-        Assert.False(viewModel.CanSelectRunHistory);
-        await WaitUntilAsync(() => viewModel.ResultItems.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)));
-        await WaitUntilAsync(() => !viewModel.IsRunHistoryLoading&&viewModel.CanSelectRunHistory);
+        新規グリッドのカタログ表示を検証(ビューモデル);
+        ビューモデル.選択実行選択肢=保存済み実行;
+        Assert.True(ビューモデル.実行履歴読込中か);
+        Assert.False(ビューモデル.実行履歴を選択可能か);
+        await 条件成立まで待機Async(() => ビューモデル.結果項目一覧.Any(static 項目 => string.Equals(項目.状態,"Completed",StringComparison.OrdinalIgnoreCase)));
+        await 条件成立まで待機Async(() => !ビューモデル.実行履歴読込中か&&ビューモデル.実行履歴を選択可能か);
 
-        Assert.NotEmpty(viewModel.BenchmarkRows);
-        Assert.True(viewModel.ResultItems.Count>0);
-        var completedResults = viewModel.ResultItems
-            .Where(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase))
+        Assert.NotEmpty(ビューモデル.ベンチマーク行一覧);
+        Assert.True(ビューモデル.結果項目一覧.Count>0);
+        var 完了結果一覧 = ビューモデル.結果項目一覧
+            .Where(static 項目 => string.Equals(項目.状態,"Completed",StringComparison.OrdinalIgnoreCase))
             .ToArray();
-        Assert.All(completedResults,item => Assert.True(item.ElementCount>0));
-        Assert.All(completedResults,item => Assert.NotNull(item.AssignedLogicalCpu));
-        Assert.Contains(viewModel.ResultItems,item => viewModel.SelectedSourceTab.Definition.ContainsProject(item.Project));
-        await WaitUntilOrContinueAsync(() => GetSelectedCells(viewModel).All(HasLoadedCellMetadata));
-        var loadedTargets = GetSelectedCells(viewModel);
-        Assert.All(loadedTargets,cell => Assert.True(HasLoadedCellMetadata(cell),CreateCellMetadataMessage(viewModel,cell)));
-        var loadedRows = viewModel.BenchmarkRows
-            .Where(static row => row.ProjectCells.Any(static cell => cell.HasCase&&cell.IsSelected))
+        Assert.All(完了結果一覧,項目 => Assert.True(項目.要素数>0));
+        Assert.All(完了結果一覧,項目 => Assert.NotNull(項目.割り当て論理CPU));
+        Assert.Contains(ビューモデル.結果項目一覧,項目 => ビューモデル.選択ソースタブ.定義.プロジェクトを含むか(項目.プロジェクト));
+        await 条件成立まで待機または続行Async(() => 選択セル一覧を取得(ビューモデル).All(読込済みセルメタデータがあるか));
+        var 読込対象一覧 = 選択セル一覧を取得(ビューモデル);
+        Assert.All(読込対象一覧,セル => Assert.True(読込済みセルメタデータがあるか(セル),セルメタデータメッセージを作成(ビューモデル,セル)));
+        var 読込行一覧 = ビューモデル.ベンチマーク行一覧
+            .Where(static 行 => 行.選択中か&&行.プロジェクトセル一覧.Any(static セル => セル.ケースありか))
             .ToArray();
-        Assert.All(loadedRows,row => Assert.Equal("int",row.BenchmarkTypeText));
-        Assert.All(loadedRows,AssertLoadedRowHasPairMetrics);
+        Assert.All(読込行一覧,行 => Assert.Equal("int",行.ベンチマーク型文字列));
+        Assert.All(読込行一覧,読込行にペア測定値があることを検証);
 
-        Assert.Equal(savedRun.UiRunId,viewModel.SelectedRunOption?.UiRunId);
-        Assert.NotEmpty(viewModel.ResultItems);
-        Assert.True(dataGridBatchEvents.Count>=2);
-        Assert.Equal(0,dataGridBatchEvents.Aggregate(0,(depth,isBeginning) => isBeginning ? depth+1 : depth-1));
-        Assert.True(dataGridBatchEvents.First());
-        Assert.False(dataGridBatchEvents.Last());
+        Assert.Equal(保存済み実行.UI実行ID,ビューモデル.選択実行選択肢?.UI実行ID);
+        Assert.NotEmpty(ビューモデル.結果項目一覧);
+        Assert.True(データグリッド一括イベント一覧.Count>=2);
+        Assert.Equal(0,データグリッド一括イベント一覧.Aggregate(0,(深さ,開始か) => 開始か ? 深さ+1 : 深さ-1));
+        Assert.True(データグリッド一括イベント一覧.First());
+        Assert.False(データグリッド一括イベント一覧.Last());
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task LoadedSavedDatabaseRun_RunAgain_PreservesSavedCheckState(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        SelectProjectGroup(viewModel,"Left");
-        var targets = GetSelectedCells(viewModel);
-        var savedSelectedCount = targets.Count;
-        Assert.True(savedSelectedCount>0);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 読込済み保存DB実行_再実行でも保存済みチェック状態を保持する() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        現在タブを全選択(ビューモデル);
+        var 対象一覧 = 選択セル一覧を取得(ビューモデル);
+        var 保存済み選択数 = 対象一覧.Count;
+        Assert.True(保存済み選択数>0);
 
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
-        await SaveCurrentRunAsync(viewModel);
-        var savedRun = viewModel.SelectedRunOption!;
-        var runCount = fixture.RunService.ObservedRestartFromRequestedElementCount.Count;
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => 対象一覧.All(最終完了か));
+        await 今回実行を保存Async(ビューモデル);
+        var 保存済み実行 = ビューモデル.選択実行選択肢!;
+        var 実行回数 = フィクスチャ.実行サービス.要求要素数から再開する指定一覧.Count;
 
-        viewModel.NewGridCommand.Execute(null);
-        await WaitUntilAsync(() => targets.All(static cell => cell.StatusImageSource==global::UI.BenchmarkStatusImageNames.Waiting));
-        viewModel.SelectedRunOption=savedRun;
-        await WaitUntilAsync(() => !viewModel.IsRunHistoryLoading
-            &&viewModel.ResultItems.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)));
+        ビューモデル.新規グリッドコマンド.Execute(null);
+        await 条件成立まで待機Async(() => 対象一覧.All(static セル => セル.状態画像ソース==global::UI.ベンチマーク状態画像名.待機中));
+        ビューモデル.選択実行選択肢=保存済み実行;
+        await 条件成立まで待機Async(() => !ビューモデル.実行履歴読込中か
+            &&ビューモデル.結果項目一覧.Any(static 項目 => string.Equals(項目.状態,"Completed",StringComparison.OrdinalIgnoreCase)));
 
-        Assert.True(viewModel.RunCommand.CanExecute(null),$"Status={viewModel.StatusText} CanRun={viewModel.CanRunBenchmark} Selected={GetSelectedCells(viewModel).Count} Option={viewModel.SelectedRunOption?.DisplayName}");
-        await viewModel.RunCommand.ExecuteAsync(null);
+        Assert.True(ビューモデル.実行コマンド.CanExecute(null),$"状態={ビューモデル.状態文字列} 実行可能か={ビューモデル.ベンチマークを実行可能か} 選択数={選択セル一覧を取得(ビューモデル).Count} 選択肢={ビューモデル.選択実行選択肢?.表示名}");
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
 
-        await WaitUntilOrContinueAsync(() => fixture.RunService.ObservedRestartFromRequestedElementCount.Count==runCount+1);
+        await 条件成立まで待機または続行Async(() => フィクスチャ.実行サービス.要求要素数から再開する指定一覧.Count==実行回数+1);
         Assert.True(
-            fixture.RunService.ObservedRestartFromRequestedElementCount.Count==runCount+1,
-            $"Status={viewModel.StatusText} CanRun={viewModel.CanRunBenchmark} Selected={GetSelectedCells(viewModel).Count} Option={viewModel.SelectedRunOption?.DisplayName}");
-        Assert.Equal("新規",viewModel.SelectedRunOption?.DisplayName);
-        Assert.Equal(savedSelectedCount,GetSelectedCells(viewModel).Count);
-        Assert.Equal(savedSelectedCount,fixture.RunService.ObservedBenchmarkCounts[^1]);
+            フィクスチャ.実行サービス.要求要素数から再開する指定一覧.Count==実行回数+1,
+            $"状態={ビューモデル.状態文字列} 実行可能か={ビューモデル.ベンチマークを実行可能か} 選択数={選択セル一覧を取得(ビューモデル).Count} 選択肢={ビューモデル.選択実行選択肢?.表示名}");
+        Assert.Equal("新規",ビューモデル.選択実行選択肢?.表示名);
+        Assert.Equal(保存済み選択数,選択セル一覧を取得(ビューモデル).Count);
+        Assert.Equal(保存済み選択数,フィクスチャ.実行サービス.観測ベンチマーク数一覧[^1]);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task RowCheck_RunUsesOnlyCheckedRowPairs(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        var row = viewModel.BenchmarkRows.First(static row => row.LeftCell.HasCase&&row.RightCell.HasCase);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 行チェック_実行はチェック済み行ペアだけを使う() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        var 行 = ビューモデル.ベンチマーク行一覧.First(static 行 => 行.左セル.ケースありか&&行.右セル.ケースありか);
 
-        viewModel.ToggleBenchmarkRow(row);
+        ビューモデル.ベンチマーク行を切り替え(行);
 
-        Assert.True(viewModel.HasSelectedBenchmarkCells);
-        Assert.True(row.IsSelected);
-        Assert.True(row.LeftCell.IsSelected);
-        Assert.True(row.RightCell.IsSelected);
-        Assert.Equal(2,GetSelectedCells(viewModel).Count);
+        Assert.True(ビューモデル.選択ベンチマークセルありか);
+        Assert.True(行.選択中か);
+        Assert.True(行.左セル.実行予定か);
+        Assert.True(行.右セル.実行予定か);
+        Assert.Equal(2,選択セル一覧を取得(ビューモデル).Count);
 
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilOrContinueAsync(() => fixture.RunService.ObservedBenchmarkCounts.Count>0);
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機または続行Async(() => フィクスチャ.実行サービス.観測ベンチマーク数一覧.Count>0);
 
-        Assert.Equal(2,fixture.RunService.ObservedBenchmarkCounts[^1]);
+        Assert.Equal(2,フィクスチャ.実行サービス.観測ベンチマーク数一覧[^1]);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task LoadedSavedDatabaseRun_ShowsAllSnapshotRowsAndRestoresCpuDisplay(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        var initialRowCount = viewModel.BenchmarkRows.Count;
-        var selectedRows = viewModel.BenchmarkRows.Take(1).ToArray();
-        Assert.Single(selectedRows);
-        foreach(var row in selectedRows){
-            viewModel.ToggleBenchmarkRow(row);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 読込済み保存DB実行_全スナップショット行を表示しCPU表示を復元する() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        var 初期行数 = ビューモデル.ベンチマーク行一覧.Count;
+        var 選択行一覧 = ビューモデル.ベンチマーク行一覧.Take(1).ToArray();
+        Assert.Single(選択行一覧);
+        foreach(var 行 in 選択行一覧) {
+            ビューモデル.ベンチマーク行を切り替え(行);
         }
 
-        var selectedCells = GetSelectedCells(viewModel);
-        Assert.Equal(2,selectedCells.Count);
+        var 選択セル一覧 = 選択セル一覧を取得(ビューモデル);
+        Assert.Equal(2,選択セル一覧.Count);
 
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => selectedCells.All(IsFinalCompleted));
-        await WaitUntilAsync(() => fixture.Store.ListRuns(UiRunAppKind.Benchmark).Count==1);
-        var temporaryRunId = fixture.Store.ListRuns(UiRunAppKind.Benchmark).Single().RunId;
-        await WaitUntilAsync(() => fixture.Store.ListBenchmarkSnapshotItems(temporaryRunId).Count>selectedRows.Length);
-        await SaveCurrentRunAsync(viewModel);
-        var savedRun = viewModel.SelectedRunOption!;
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => 選択セル一覧.All(最終完了か));
+        await 条件成立まで待機Async(() => フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク).Count==1);
+        var 一時実行ID = フィクスチャ.ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク).Single().実行ID;
+        await 条件成立まで待機Async(() => フィクスチャ.ストア.ベンチマークスナップショット項目一覧を取得(一時実行ID).Count>選択行一覧.Length);
+        await 今回実行を保存Async(ビューモデル);
+        var 保存済み実行 = ビューモデル.選択実行選択肢!;
 
-        viewModel.NewGridCommand.Execute(null);
-        await WaitUntilAsync(() => viewModel.BenchmarkRows.Count>0&&GetSelectedCells(viewModel).Count==0);
-        viewModel.SelectedRunOption=savedRun;
-        await WaitUntilAsync(() => !viewModel.IsRunHistoryLoading
-            &&viewModel.ResultItems.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)));
+        ビューモデル.新規グリッドコマンド.Execute(null);
+        await 条件成立まで待機Async(() => ビューモデル.ベンチマーク行一覧.Count>0&&選択セル一覧を取得(ビューモデル).Count==0);
+        ビューモデル.選択実行選択肢=保存済み実行;
+        await 条件成立まで待機Async(() => !ビューモデル.実行履歴読込中か
+            &&ビューモデル.結果項目一覧.Any(static 項目 => string.Equals(項目.状態,"Completed",StringComparison.OrdinalIgnoreCase)));
 
-        var loadedRows = viewModel.BenchmarkRows.ToArray();
-        Assert.Equal(initialRowCount,loadedRows.Length);
-        Assert.Single(loadedRows,static row => row.IsSelected);
-        Assert.Contains(loadedRows,row => !row.IsSelected);
-        Assert.All(loadedRows.Where(static row => row.IsSelected),row => {
-            AssertLoadedRowHasPairMetrics(row);
-            Assert.True(row.LeftCell.HasCpuDisplay,CreateCellMetadataMessage(viewModel,row.LeftCell));
-            Assert.True(row.RightCell.HasCpuDisplay,CreateCellMetadataMessage(viewModel,row.RightCell));
-            Assert.False(string.IsNullOrWhiteSpace(row.LeftCell.CoreKindImageSource),CreateCellMetadataMessage(viewModel,row.LeftCell));
-            Assert.False(string.IsNullOrWhiteSpace(row.RightCell.CoreKindImageSource),CreateCellMetadataMessage(viewModel,row.RightCell));
+        var 読込行一覧 = ビューモデル.ベンチマーク行一覧.ToArray();
+        Assert.Equal(初期行数,読込行一覧.Length);
+        Assert.Single(読込行一覧,static 行 => 行.選択中か);
+        Assert.Contains(読込行一覧,行 => !行.選択中か);
+        Assert.All(読込行一覧.Where(static 行 => 行.選択中か),行 => {
+            読込行にペア測定値があることを検証(行);
+            Assert.True(行.左セル.CPU表示ありか,セルメタデータメッセージを作成(ビューモデル,行.左セル));
+            Assert.True(行.右セル.CPU表示ありか,セルメタデータメッセージを作成(ビューモデル,行.右セル));
+            Assert.False(string.IsNullOrWhiteSpace(行.左セル.コア種別画像ソース),セルメタデータメッセージを作成(ビューモデル,行.左セル));
+            Assert.False(string.IsNullOrWhiteSpace(行.右セル.コア種別画像ソース),セルメタデータメッセージを作成(ビューモデル,行.右セル));
         });
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task LoadedSavedDatabaseRun_ResultElementCountChange_KeepsPartialSelectionAndSavedRun(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        fixture.RunService.EmitAllElementCounts=true;
-        SelectProjectGroup(viewModel,"Left");
-        Assert.All(viewModel.BenchmarkRows,row => Assert.True(row.IsSelectionChecked));
-        Assert.Null(viewModel.IsAllBenchmarkSelectionChecked);
-        var targets = GetSelectedCells(viewModel);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 読込済み保存DB実行_結果要素数変更後も部分選択と保存済み実行を維持する() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        フィクスチャ.実行サービス.全要素数を送信するか=true;
+        現在タブを全選択(ビューモデル);
+        Assert.All(ビューモデル.ベンチマーク行一覧,行 => Assert.True(行.選択チェック状態));
+        Assert.Null(ビューモデル.全ベンチマーク選択状態);
+        var 対象一覧 = 選択セル一覧を取得(ビューモデル);
 
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => viewModel.ResultItems.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)));
-        Assert.All(viewModel.BenchmarkRows,row => {
-            Assert.True(row.LeftCell.IsSelected);
-            Assert.True(row.RightCell.IsSelected);
-            Assert.True(row.IsSelectionChecked);
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => ビューモデル.結果項目一覧.Any(static 項目 => string.Equals(項目.状態,"Completed",StringComparison.OrdinalIgnoreCase)));
+        Assert.All(ビューモデル.ベンチマーク行一覧,行 => {
+            Assert.True(行.左セル.実行予定か);
+            Assert.True(行.右セル.実行予定か);
+            Assert.True(行.選択チェック状態);
         });
-        await SaveCurrentRunAsync(viewModel);
-        var savedRun = viewModel.SelectedRunOption!;
+        await 今回実行を保存Async(ビューモデル);
+        var 保存済み実行 = ビューモデル.選択実行選択肢!;
 
-        viewModel.NewGridCommand.Execute(null);
-        await WaitUntilAsync(() => GetSelectedCells(viewModel).Count==0);
-        viewModel.SelectedRunOption=savedRun;
-        await WaitUntilAsync(() => !viewModel.IsRunHistoryLoading
-            &&viewModel.ResultItems.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase))
-            &&viewModel.ResultElementCountOptions.Count>0);
+        ビューモデル.新規グリッドコマンド.Execute(null);
+        await 条件成立まで待機Async(() => 選択セル一覧を取得(ビューモデル).Count==0);
+        ビューモデル.選択実行選択肢=保存済み実行;
+        await 条件成立まで待機Async(() => !ビューモデル.実行履歴読込中か
+            &&ビューモデル.結果項目一覧.Any(static 項目 => string.Equals(項目.状態,"Completed",StringComparison.OrdinalIgnoreCase))
+            &&ビューモデル.結果要素数選択肢一覧.Count>0);
 
-        Assert.Equal(savedRun.UiRunId,viewModel.SelectedRunOption?.UiRunId);
-        Assert.All(viewModel.BenchmarkRows,row => {
-            Assert.True(row.LeftCell.IsSelected);
-            Assert.True(row.RightCell.IsSelected);
-            Assert.True(row.IsSelectionChecked);
-            Assert.True(row.IsSelected);
+        Assert.Equal(保存済み実行.UI実行ID,ビューモデル.選択実行選択肢?.UI実行ID);
+        Assert.All(ビューモデル.ベンチマーク行一覧,行 => {
+            Assert.True(行.左セル.実行予定か);
+            Assert.True(行.右セル.実行予定か);
+            Assert.True(行.選択チェック状態);
+            Assert.True(行.選択中か);
         });
-        Assert.False(viewModel.IsAllBenchmarkSelectionChecked);
+        Assert.False(ビューモデル.全ベンチマーク選択状態);
 
-        viewModel.SelectedResultElementCount=viewModel.ResultElementCountOptions.First();
+        ビューモデル.選択結果要素数=ビューモデル.結果要素数選択肢一覧.First();
 
-        Assert.Equal(savedRun.UiRunId,viewModel.SelectedRunOption?.UiRunId);
-        Assert.All(viewModel.BenchmarkRows,row => Assert.True(row.IsSelectionChecked));
-        Assert.False(viewModel.IsAllBenchmarkSelectionChecked);
+        Assert.Equal(保存済み実行.UI実行ID,ビューモデル.選択実行選択肢?.UI実行ID);
+        Assert.All(ビューモデル.ベンチマーク行一覧,行 => Assert.True(行.選択チェック状態));
+        Assert.False(ビューモデル.全ベンチマーク選択状態);
 
-        viewModel.ToggleBenchmarkCellCheck(viewModel.BenchmarkRows[0],"Right");
+        ビューモデル.ベンチマーク行を切り替え(ビューモデル.ベンチマーク行一覧[0]);
 
-        Assert.Equal(savedRun.UiRunId,viewModel.SelectedRunOption?.UiRunId);
+        Assert.Equal(保存済み実行.UI実行ID,ビューモデル.選択実行選択肢?.UI実行ID);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task CompletedRun_CanSelectEarlierSavedDatabaseRunWithoutRestart(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        viewModel.SelectAllCommand.Execute(null);
-        var targets = GetSelectedCells(viewModel);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 完了実行_再起動せず以前の保存済みDB実行を選択できる() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        ビューモデル.全選択コマンド.Execute(null);
+        var 対象一覧 = 選択セル一覧を取得(ビューモデル);
 
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
-        await SaveCurrentRunAsync(viewModel);
-        var firstRunId = viewModel.SelectedRunOption!.UiRunId;
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => 対象一覧.All(最終完了か));
+        await 今回実行を保存Async(ビューモデル);
+        var 最初の実行ID = ビューモデル.選択実行選択肢!.UI実行ID;
 
-        viewModel.NewGridCommand.Execute(null);
-        await WaitUntilAsync(() => targets.All(static cell => cell.StatusImageSource==global::UI.BenchmarkStatusImageNames.Waiting));
-        viewModel.SelectAllCommand.Execute(null);
+        ビューモデル.新規グリッドコマンド.Execute(null);
+        await 条件成立まで待機Async(() => 対象一覧.All(static セル => セル.状態画像ソース==global::UI.ベンチマーク状態画像名.待機中));
+        ビューモデル.全選択コマンド.Execute(null);
 
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
-        await SaveCurrentRunAsync(viewModel);
-        await WaitUntilAsync(() => viewModel.SelectedRunOption is { UiRunId:>0 }&&viewModel.SelectedRunOption.UiRunId!=firstRunId);
-        var firstRun = viewModel.RunOptions.First(option => option.UiRunId==firstRunId);
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => 対象一覧.All(最終完了か));
+        await 今回実行を保存Async(ビューモデル);
+        await 条件成立まで待機Async(() => ビューモデル.選択実行選択肢 is { UI実行ID:>0 }&&ビューモデル.選択実行選択肢.UI実行ID!=最初の実行ID);
+        var 最初の実行 = ビューモデル.実行選択肢一覧.First(選択肢 => 選択肢.UI実行ID==最初の実行ID);
 
-        viewModel.SelectedRunOption=firstRun;
-        await WaitUntilAsync(() => viewModel.SelectedRunOption?.UiRunId==firstRunId
-            &&viewModel.ResultItems.Any(static item => string.Equals(item.Status,"Completed",StringComparison.OrdinalIgnoreCase)));
-        await WaitUntilAsync(() => !viewModel.IsRunHistoryLoading&&viewModel.CanSelectRunHistory);
+        ビューモデル.選択実行選択肢=最初の実行;
+        await 条件成立まで待機Async(() => ビューモデル.選択実行選択肢?.UI実行ID==最初の実行ID
+            &&ビューモデル.結果項目一覧.Any(static 項目 => string.Equals(項目.状態,"Completed",StringComparison.OrdinalIgnoreCase)));
+        await 条件成立まで待機Async(() => !ビューモデル.実行履歴読込中か&&ビューモデル.実行履歴を選択可能か);
 
-        Assert.Equal(firstRunId,viewModel.SelectedRunOption?.UiRunId);
-        Assert.NotEmpty(viewModel.ResultItems);
+        Assert.Equal(最初の実行ID,ビューモデル.選択実行選択肢?.UI実行ID);
+        Assert.NotEmpty(ビューモデル.結果項目一覧);
     }
 
 #if DEBUG
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task ClearRunHistoryCommand_DeletesHistoryAndResetsDisplay(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        viewModel.SelectAllCommand.Execute(null);
-        var targets = GetSelectedCells(viewModel);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 実行履歴クリアコマンド_履歴を削除し表示をリセットする() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        ビューモデル.全選択コマンド.Execute(null);
+        var 対象一覧 = 選択セル一覧を取得(ビューモデル);
 
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => viewModel.ResultItems.Count>0&&targets.All(IsFinalCompleted));
-        await SaveCurrentRunAsync(viewModel);
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => ビューモデル.結果項目一覧.Count>0&&対象一覧.All(最終完了か));
+        await 今回実行を保存Async(ビューモデル);
 
-        Assert.True(viewModel.ClearRunHistoryCommand.CanExecute(null));
-        await viewModel.ClearRunHistoryCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => viewModel.RunOptions.Count==1
-            &&viewModel.SelectedRunOption?.DisplayName=="新規"
-            &&viewModel.ResultItems.Count==0
-            &&targets.All(static cell => cell.StatusImageSource==global::UI.BenchmarkStatusImageNames.Waiting));
+        Assert.True(ビューモデル.実行履歴クリアコマンド.CanExecute(null));
+        await ビューモデル.実行履歴クリアコマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => ビューモデル.実行選択肢一覧.Count==1
+            &&ビューモデル.選択実行選択肢?.表示名=="新規"
+            &&ビューモデル.結果項目一覧.Count==0
+            &&対象一覧.All(static セル => セル.状態画像ソース==global::UI.ベンチマーク状態画像名.待機中));
 
-        Assert.Single(viewModel.RunOptions);
-        Assert.Equal("新規",viewModel.SelectedRunOption?.DisplayName);
-        Assert.Empty(viewModel.ResultItems);
-        Assert.All(targets,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.Waiting,cell.StatusImageSource));
+        Assert.Single(ビューモデル.実行選択肢一覧);
+        Assert.Equal("新規",ビューモデル.選択実行選択肢?.表示名);
+        Assert.Empty(ビューモデル.結果項目一覧);
+        Assert.All(対象一覧,セル => Assert.Equal(global::UI.ベンチマーク状態画像名.待機中,セル.状態画像ソース));
     }
 #endif
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task ArrayタブのFLinqのベンチマークにチェックして1msで実行(){
-        // UI操作: ArrayタブでFLinq側グループを選択し、「Run実行」を押下する。
-        // 観測: 左列（FLinq）セルのCPU実行中→FinalCompletedの遷移を確認する。関連する右列（ZLinq）行とのペア表示整合も含めて確認する。
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        SelectProjectGroup(viewModel,"Left");
-        var fLinqCells = viewModel.BenchmarkRows.Select(static row => row.LeftCell).Where(static cell => cell.HasCase).ToArray();
-        var zLinqCells = viewModel.BenchmarkRows.Select(static row => row.RightCell).Where(static cell => cell.HasCase).ToArray();
-        var allObservedCells = fLinqCells.Concat(zLinqCells).ToArray();
-        var running = TrackRunningIcons(allObservedCells);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 配列タブのFLinqベンチマークをチェックして1msで実行() {
+        // UI操作: 配列タブでFLinq側グループを選択し、「計測」を押下する。
+        // 観測: 左列（FLinq）セルのCPU実行中から最終完了への遷移を確認する。関連する右列（ZLinq）行とのペア表示整合も含めて確認する。
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        現在タブを全選択(ビューモデル);
+        var FLinqセル一覧 = ビューモデル.ベンチマーク行一覧.Select(static 行 => 行.左セル).Where(static セル => セル.ケースありか).ToArray();
+        var ZLinqセル一覧 = ビューモデル.ベンチマーク行一覧.Select(static 行 => 行.右セル).Where(static セル => セル.ケースありか).ToArray();
+        var 全観測セル一覧 = FLinqセル一覧.Concat(ZLinqセル一覧).ToArray();
+        var 実行中追跡 = 実行中アイコンを追跡(全観測セル一覧);
 
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => allObservedCells.All(IsFinalCompleted));
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => 全観測セル一覧.All(最終完了か));
 
-        Assert.All(fLinqCells,cell => Assert.Contains(cell,running));
-        Assert.All(fLinqCells,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
-        Assert.All(zLinqCells,cell => Assert.Contains(cell,running));
-        Assert.All(zLinqCells,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
-        Assert.Equal(allObservedCells.Length,viewModel.SelectedSourceTab.Progress.Completed);
-        Assert.Equal(allObservedCells.Length,viewModel.SelectedSourceTab.Progress.Total);
+        Assert.All(FLinqセル一覧,セル => Assert.Contains(セル,実行中追跡));
+        Assert.All(FLinqセル一覧,セル => Assert.Equal(global::UI.ベンチマーク状態画像名.最終完了,セル.状態画像ソース));
+        Assert.All(ZLinqセル一覧,セル => Assert.Contains(セル,実行中追跡));
+        Assert.All(ZLinqセル一覧,セル => Assert.Equal(global::UI.ベンチマーク状態画像名.最終完了,セル.状態画像ソース));
+        Assert.Equal(全観測セル一覧.Length,ビューモデル.選択ソースタブ.進行.完了数);
+        Assert.Equal(全観測セル一覧.Length,ビューモデル.選択ソースタブ.進行.合計数);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task ArrayタブのZLinqのベンチマークにチェックして1msで実行(){
-        // UI操作: ArrayタブでZLinq側グループを選択し、「Run実行」を押下する。
-        // 観測: 右列（ZLinq）セルのCPU実行中アイコンとFinalCompleted遷移、進捗 Completed/Total を確認する。
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        SelectProjectGroup(viewModel,"Right");
-        var zLinqCells = viewModel.BenchmarkRows.Select(static row => row.RightCell).Where(static cell => cell.HasCase).ToArray();
-        var allObservedCells = viewModel.BenchmarkRows.SelectMany(static row => row.ProjectCells).Where(static cell => cell.HasCase).ToArray();
-        var running = TrackRunningIcons(allObservedCells);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 配列タブのZLinqベンチマークをチェックして1msで実行() {
+        // UI操作: 配列タブでZLinq側グループを選択し、「計測」を押下する。
+        // 観測: 右列（ZLinq）セルのCPU実行中アイコンと最終完了への遷移、完了数と合計数を確認する。
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        現在タブを全選択(ビューモデル);
+        var ZLinqセル一覧 = ビューモデル.ベンチマーク行一覧.Select(static 行 => 行.右セル).Where(static セル => セル.ケースありか).ToArray();
+        var 全観測セル一覧 = ビューモデル.ベンチマーク行一覧.SelectMany(static 行 => 行.プロジェクトセル一覧).Where(static セル => セル.ケースありか).ToArray();
+        var 実行中追跡 = 実行中アイコンを追跡(全観測セル一覧);
 
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => allObservedCells.All(IsFinalCompleted));
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => 全観測セル一覧.All(最終完了か));
 
-        Assert.All(allObservedCells,cell => Assert.Contains(cell,running));
-        Assert.All(allObservedCells,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
-        Assert.Equal(allObservedCells.Length,viewModel.SelectedSourceTab.Progress.Completed);
-        Assert.Equal(allObservedCells.Length,viewModel.SelectedSourceTab.Progress.Total);
+        Assert.All(全観測セル一覧,セル => Assert.Contains(セル,実行中追跡));
+        Assert.All(全観測セル一覧,セル => Assert.Equal(global::UI.ベンチマーク状態画像名.最終完了,セル.状態画像ソース));
+        Assert.Equal(全観測セル一覧.Length,ビューモデル.選択ソースタブ.進行.完了数);
+        Assert.Equal(全観測セル一覧.Length,ビューモデル.選択ソースタブ.進行.合計数);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task IEnumerableタブの全てのベンチマークにチェックして1msで実行(){
-        // UI操作: IEnumerable（Range）ベンチマーク一覧で「全て選択」し、「Run実行」を押下する。
-        // 観測: 対象セルのCPU状態アイコンとFinalCompleted遷移、進捗 Completed/Total を確認する。
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemRange);
-        var viewModel = fixture.ViewModel;
-        viewModel.SelectAllCommand.Execute(null);
-        var targets = GetSelectedCells(viewModel);
-        var fLinqCells = viewModel.BenchmarkRows.Select(static row => row.LeftCell).Where(static cell => cell.HasCase).ToArray();
-        var running = TrackRunningIcons(targets);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task IEnumerableタブの全ベンチマークをチェックして1msで実行() {
+        // UI操作: IEnumerable（Range）ベンチマーク一覧で「全て選択」し、「計測」を押下する。
+        // 観測: 対象セルのCPU状態アイコンと最終完了への遷移、完了数と合計数を確認する。
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System範囲);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        ビューモデル.全選択コマンド.Execute(null);
+        var 対象一覧 = 選択セル一覧を取得(ビューモデル);
+        var FLinqセル一覧 = ビューモデル.ベンチマーク行一覧.Select(static 行 => 行.左セル).Where(static セル => セル.ケースありか).ToArray();
+        var 実行中追跡 = 実行中アイコンを追跡(対象一覧);
 
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => 対象一覧.All(最終完了か));
 
-        Assert.All(fLinqCells,cell => Assert.Contains(cell,running));
-        Assert.All(fLinqCells,cell => Assert.Equal(global::UI.BenchmarkStatusImageNames.FinalCompleted,cell.StatusImageSource));
-        Assert.Equal(targets.Count,viewModel.SelectedSourceTab.Progress.Completed);
-        Assert.Equal(targets.Count,viewModel.SelectedSourceTab.Progress.Total);
+        Assert.All(FLinqセル一覧,セル => Assert.Contains(セル,実行中追跡));
+        Assert.All(FLinqセル一覧,セル => Assert.Equal(global::UI.ベンチマーク状態画像名.最終完了,セル.状態画像ソース));
+        Assert.Equal(対象一覧.Count,ビューモデル.選択ソースタブ.進行.完了数);
+        Assert.Equal(対象一覧.Count,ビューモデル.選択ソースタブ.進行.合計数);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task SourceTabの列ヘッダーまとめチェックは他タブへ同期しない(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        var arrayState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemArray);
-        var rangeState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemRange);
-        var rangeTabOption = viewModel.SourceTabs.First(option => option.Definition.Tab==global::UI.BenchmarkSourceTab.SystemRange);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task ソースタブの全選択は他タブへ同期しない() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        var 配列状態 = ビューモデル.ソースタブ表示状態を取得(global::UI.ベンチマークソースタブ.System配列);
+        var 範囲状態 = ビューモデル.ソースタブ表示状態を取得(global::UI.ベンチマークソースタブ.System範囲);
+        var 範囲タブ選択肢 = ビューモデル.ソースタブ一覧.First(選択肢 => 選択肢.定義.タブ==global::UI.ベンチマークソースタブ.System範囲);
 
-        //ArrayタブでLeft(FLinq)ヘッダーをまとめチェックしても、Rangeタブの行や進捗ゲージには反映されない
-        SelectProjectGroup(viewModel,"Left");
+        // 配列タブで全選択しても、Rangeタブの行や進行ゲージには反映されない。
+        現在タブを全選択(ビューモデル);
 
-        Assert.All(arrayState.Rows,row => Assert.True(row.LeftCell.IsSelected));
-        Assert.All(rangeState.Rows,row => Assert.False(row.LeftCell.IsSelected));
+        Assert.All(配列状態.行一覧,行 => Assert.True(行.左セル.実行予定か));
+        Assert.All(範囲状態.行一覧,行 => Assert.False(行.左セル.実行予定か));
 
-        //Rangeタブへ切替えても、LeftCell.IsSelectedはfalseのまま(同期しない)
-        viewModel.SelectedSourceTab=rangeTabOption;
+        // Rangeタブへ切り替えても、左セルの選択状態は偽のまま（同期しない）。
+        ビューモデル.選択ソースタブ=範囲タブ選択肢;
 
-        Assert.All(rangeState.Rows,row => Assert.False(row.LeftCell.IsSelected));
-        Assert.All(arrayState.Rows,row => Assert.True(row.LeftCell.IsSelected));
+        Assert.All(範囲状態.行一覧,行 => Assert.False(行.左セル.実行予定か));
+        Assert.All(配列状態.行一覧,行 => Assert.True(行.左セル.実行予定か));
 
-        //Rangeタブ側でまとめチェックした場合は、Rangeタブだけに反映される
-        SelectProjectGroup(viewModel,"Left");
+        // Rangeタブ側で全選択した場合は、Rangeタブだけに反映される。
+        現在タブを全選択(ビューモデル);
 
-        Assert.All(rangeState.Rows,row => Assert.True(row.LeftCell.IsSelected));
-        Assert.All(arrayState.Rows,row => Assert.True(row.LeftCell.IsSelected));
+        Assert.All(範囲状態.行一覧,行 => Assert.True(行.左セル.実行予定か));
+        Assert.All(配列状態.行一覧,行 => Assert.True(行.左セル.実行予定か));
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task Sourceタブの個別セルチェックは他タブへ同期しない(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        var arrayState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemArray);
-        var rangeState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemRange);
-
-        viewModel.ToggleBenchmarkCellCheck(arrayState.Rows[0],"Left");
-
-        Assert.True(arrayState.Rows[0].LeftCell.IsSelected);
-        Assert.All(rangeState.Rows,row => Assert.False(row.LeftCell.IsSelected));
-    }
-
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task SourceTab切替でも緑クリック選択をタブ毎に保持する(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        var arrayState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemArray);
-        var rangeState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemRange);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task ソースタブ切替でも緑クリック選択をタブ毎に保持する() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        var 配列状態 = ビューモデル.ソースタブ表示状態を取得(global::UI.ベンチマークソースタブ.System配列);
+        var 範囲状態 = ビューモデル.ソースタブ表示状態を取得(global::UI.ベンチマークソースタブ.System範囲);
         {
             //1タブ目の1行目を緑選択し、2タブ目へ漏れず1タブ目には保持されることを確認する
-            viewModel.SynchronizeBenchmarkRowUiSelection(arrayState,[arrayState.Rows[0]],[]);
-            Assert.True(arrayState.Rows[0].IsUiSelected);
+            ビューモデル.ベンチマーク行UI選択を同期(配列状態,[配列状態.行一覧[0]],[]);
+            Assert.True(配列状態.行一覧[0].UI選択中か);
 
-            viewModel.SelectedSourceTab=viewModel.SourceTabs.First(option => option.Definition.Tab==global::UI.BenchmarkSourceTab.SystemRange);
+            ビューモデル.選択ソースタブ=ビューモデル.ソースタブ一覧.First(選択肢 => 選択肢.定義.タブ==global::UI.ベンチマークソースタブ.System範囲);
 
-            Assert.All(rangeState.Rows,static row => Assert.False(row.IsUiSelected));
-            Assert.True(arrayState.Rows[0].IsUiSelected);
+            Assert.All(範囲状態.行一覧,static 行 => Assert.False(行.UI選択中か));
+            Assert.True(配列状態.行一覧[0].UI選択中か);
         }
         {
             //2タブ目の2行目を緑選択しても1タブ目へ混線せず、1タブ目へ戻ると選択が復元されていることを確認する
-            viewModel.SynchronizeBenchmarkRowUiSelection(rangeState,[rangeState.Rows[1]],[]);
+            ビューモデル.ベンチマーク行UI選択を同期(範囲状態,[範囲状態.行一覧[1]],[]);
 
-            Assert.True(rangeState.Rows[1].IsUiSelected);
-            Assert.False(rangeState.Rows[0].IsUiSelected);
-            Assert.True(arrayState.Rows[0].IsUiSelected);
+            Assert.True(範囲状態.行一覧[1].UI選択中か);
+            Assert.False(範囲状態.行一覧[0].UI選択中か);
+            Assert.True(配列状態.行一覧[0].UI選択中か);
 
-            viewModel.SelectedSourceTab=viewModel.SourceTabs.First(option => option.Definition.Tab==global::UI.BenchmarkSourceTab.SystemArray);
+            ビューモデル.選択ソースタブ=ビューモデル.ソースタブ一覧.First(選択肢 => 選択肢.定義.タブ==global::UI.ベンチマークソースタブ.System配列);
 
-            Assert.True(arrayState.Rows[0].IsUiSelected);
-            Assert.False(arrayState.Rows[1].IsUiSelected);
+            Assert.True(配列状態.行一覧[0].UI選択中か);
+            Assert.False(配列状態.行一覧[1].UI選択中か);
         }
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task 選択タブとずれた行への緑クリック選択はその行のタブへ適用される(){
-        //切替保留などで表示タブとVM選択タブが食い違っても、クリックされた行が属するタブのstateへ適用されることを確認する
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        var arrayState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemArray);
-        var rangeState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemRange);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 選択タブとずれた行への緑クリック選択はその行のタブへ適用される() {
+        // 切替保留などで表示タブとビューモデルの選択タブが食い違っても、クリックされた行が属するタブの表示状態へ適用されることを確認する。
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        var 配列状態 = ビューモデル.ソースタブ表示状態を取得(global::UI.ベンチマークソースタブ.System配列);
+        var 範囲状態 = ビューモデル.ソースタブ表示状態を取得(global::UI.ベンチマークソースタブ.System範囲);
 
-        viewModel.SynchronizeBenchmarkRowUiSelection(rangeState,[rangeState.Rows[1]],[]);
+        ビューモデル.ベンチマーク行UI選択を同期(範囲状態,[範囲状態.行一覧[1]],[]);
 
-        Assert.True(rangeState.Rows[1].IsUiSelected);
-        Assert.All(arrayState.Rows,static row => Assert.False(row.IsUiSelected));
+        Assert.True(範囲状態.行一覧[1].UI選択中か);
+        Assert.All(配列状態.行一覧,static 行 => Assert.False(行.UI選択中か));
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task 完了後にもう一度実行できる(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        viewModel.SelectAllCommand.Execute(null);
-        var targets = GetSelectedCells(viewModel);
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 完了後にもう一度実行できる() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        ビューモデル.全選択コマンド.Execute(null);
+        var 対象一覧 = 選択セル一覧を取得(ビューモデル);
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => 対象一覧.All(最終完了か));
         {
-            //完了後にRunボタンが有効で、2回目の実行が実際に開始(CPU実行中を再通過)して完了することを確認する
-            Assert.True(viewModel.RunCommand.CanExecute(null));
-            var running = TrackRunningIcons(targets);
-            await viewModel.RunCommand.ExecuteAsync(null);
-            await WaitUntilAsync(() => targets.All(IsFinalCompleted));
-            Assert.All(targets,cell => Assert.Contains(cell,running));
+            // 完了後に計測ボタンが有効で、2回目の実行が実際に開始（CPU実行中を再通過）して完了することを確認する。
+            Assert.True(ビューモデル.実行コマンド.CanExecute(null));
+            var 実行中追跡 = 実行中アイコンを追跡(対象一覧);
+            await ビューモデル.実行コマンド.ExecuteAsync(null);
+            await 条件成立まで待機Async(() => 対象一覧.All(最終完了か));
+            Assert.All(対象一覧,セル => Assert.Contains(セル,実行中追跡));
         }
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task 完了後の選択変更にRunボタン活性が追従する(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        viewModel.SelectAllCommand.Execute(null);
-        var targets = GetSelectedCells(viewModel);
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 完了後の選択変更に実行ボタン活性が追従する() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        ビューモデル.全選択コマンド.Execute(null);
+        var 対象一覧 = 選択セル一覧を取得(ビューモデル);
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => 対象一覧.All(最終完了か));
         {
             //完了後に選択を全解除するとボタン活性もライブに追従する(凍結スナップショットを見ない)ことを確認する
-            viewModel.ClearSelectionCommand.Execute(null);
-            Assert.False(viewModel.HasSelectedBenchmarkCells);
-            Assert.False(viewModel.RunCommand.CanExecute(null));
+            ビューモデル.選択クリアコマンド.Execute(null);
+            Assert.False(ビューモデル.選択ベンチマークセルありか);
+            Assert.False(ビューモデル.実行コマンド.CanExecute(null));
         }
         {
             //再選択で活性が復帰し、実行が実際に走ることを確認する
-            viewModel.SelectAllCommand.Execute(null);
-            Assert.True(viewModel.HasSelectedBenchmarkCells);
-            Assert.True(viewModel.RunCommand.CanExecute(null));
-            var reselected = GetSelectedCells(viewModel);
-            var running = TrackRunningIcons(reselected);
-            await viewModel.RunCommand.ExecuteAsync(null);
-            await WaitUntilAsync(() => reselected.All(IsFinalCompleted));
-            Assert.Contains(viewModel.BenchmarkRows,row => row.HasCpuDisplay);
+            ビューモデル.全選択コマンド.Execute(null);
+            Assert.True(ビューモデル.選択ベンチマークセルありか);
+            Assert.True(ビューモデル.実行コマンド.CanExecute(null));
+            var 再選択値 = 選択セル一覧を取得(ビューモデル);
+            var 実行中追跡 = 実行中アイコンを追跡(再選択値);
+            await ビューモデル.実行コマンド.ExecuteAsync(null);
+            await 条件成立まで待機Async(() => 再選択値.All(最終完了か));
+            Assert.Contains(ビューモデル.ベンチマーク行一覧,行 => 行.CPU表示ありか);
         }
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task フレッシュ実行では全リスタート指定が渡る(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        viewModel.SelectAllCommand.Execute(null);
-        var targets = GetSelectedCells(viewModel);
-        await viewModel.RunCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => targets.All(IsFinalCompleted));
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task フレッシュ実行では全リスタート指定が渡る() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        ビューモデル.全選択コマンド.Execute(null);
+        var 対象一覧 = 選択セル一覧を取得(ビューモデル);
+        await ビューモデル.実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => 対象一覧.All(最終完了か));
         {
-            //フレッシュ実行(初回)ではtrueが渡ることを確認する
-            Assert.Equal([true],fixture.RunService.ObservedRestartFromRequestedElementCount);
+            // 新規実行（初回）では真が渡ることを確認する。
+            Assert.Equal([true],フィクスチャ.実行サービス.要求要素数から再開する指定一覧);
         }
     }
 
 #if DEBUG
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task 一時停止後に計測すると再実行されtrueを渡す(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        viewModel.SelectAllCommand.Execute(null);
-        var runTask = viewModel.RunInfiniteCommand.ExecuteAsync(null);
-        //IsBenchmarkRunActiveはDB保存の待ち合わせより前に立つため、実際にFakeRunServiceへ到達するまで待つ
-        await WaitUntilAsync(() => fixture.RunService.ObservedRestartFromRequestedElementCount.Count>0);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 一時停止後に計測すると再実行され真を渡す() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        ビューモデル.全選択コマンド.Execute(null);
+        var 実行タスク = ビューモデル.無限実行コマンド.ExecuteAsync(null);
+        // ベンチマーク実行有効かはDB保存の待ち合わせより前に立つため、実際に偽実行サービスへ到達するまで待つ。
+        await 条件成立まで待機Async(() => フィクスチャ.実行サービス.要求要素数から再開する指定一覧.Count>0);
 
-        await viewModel.PauseCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => viewModel.IsBenchmarkPaused);
-        await runTask;
+        await ビューモデル.一時停止コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => ビューモデル.ベンチマーク一時停止中か);
+        await 実行タスク;
         {
             //一時停止後の計測が実際に実行を開始・完了することを確認する
-            Assert.True(viewModel.RunCommand.CanExecute(null));
-            var targets = GetSelectedCells(viewModel);
-            var running = TrackRunningIcons(targets);
-            await viewModel.RunCommand.ExecuteAsync(null);
-            await WaitUntilAsync(() => targets.All(IsFinalCompleted));
-            Assert.All(targets,cell => Assert.Contains(cell,running));
+            Assert.True(ビューモデル.実行コマンド.CanExecute(null));
+            var 対象一覧 = 選択セル一覧を取得(ビューモデル);
+            var 実行中追跡 = 実行中アイコンを追跡(対象一覧);
+            await ビューモデル.実行コマンド.ExecuteAsync(null);
+            await 条件成立まで待機Async(() => 対象一覧.All(最終完了か));
+            Assert.All(対象一覧,セル => Assert.Contains(セル,実行中追跡));
         }
         {
-            //新仕様では再開導線を使わず、計測は再実行としてrestartFromRequestedElementCount=trueで渡ることを確認する
-            Assert.Equal([true,true],fixture.RunService.ObservedRestartFromRequestedElementCount);
+            // 新仕様では再開導線を使わず、計測は再実行として要求要素数から再開する指定に真が渡ることを確認する。
+            Assert.Equal([true,true],フィクスチャ.実行サービス.要求要素数から再開する指定一覧);
         }
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task 停止後にもう一度実行できる(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        viewModel.SelectAllCommand.Execute(null);
-        var runTask = viewModel.RunInfiniteCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => viewModel.IsBenchmarkRunActive);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 停止後にもう一度実行できる() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        ビューモデル.全選択コマンド.Execute(null);
+        var 実行タスク = ビューモデル.無限実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => ビューモデル.ベンチマーク実行有効か);
 
-        await viewModel.StopCommand.ExecuteAsync(null);
-        await runTask;
+        await ビューモデル.停止コマンド.ExecuteAsync(null);
+        await 実行タスク;
         {
-            //停止後にRunボタンが有効で、再実行が実際に開始・完了することを確認する
-            Assert.True(viewModel.RunCommand.CanExecute(null));
-            var targets = GetSelectedCells(viewModel);
-            var running = TrackRunningIcons(targets);
-            await viewModel.RunCommand.ExecuteAsync(null);
-            await WaitUntilAsync(() => targets.All(IsFinalCompleted));
-            Assert.All(targets,cell => Assert.Contains(cell,running));
+            // 停止後に計測ボタンが有効で、再実行が実際に開始・完了することを確認する。
+            Assert.True(ビューモデル.実行コマンド.CanExecute(null));
+            var 対象一覧 = 選択セル一覧を取得(ビューモデル);
+            var 実行中追跡 = 実行中アイコンを追跡(対象一覧);
+            await ビューモデル.実行コマンド.ExecuteAsync(null);
+            await 条件成立まで待機Async(() => 対象一覧.All(最終完了か));
+            Assert.All(対象一覧,セル => Assert.Contains(セル,実行中追跡));
         }
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task RunInfiniteCommand_FollowsRunAndPauseState(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 無限実行コマンド_実行と一時停止状態に追従する() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
 
-        Assert.False(viewModel.RunInfiniteCommand.CanExecute(null));
+        Assert.False(ビューモデル.無限実行コマンド.CanExecute(null));
 
-        viewModel.SelectAllCommand.Execute(null);
+        ビューモデル.全選択コマンド.Execute(null);
 
-        Assert.True(viewModel.RunInfiniteCommand.CanExecute(null));
+        Assert.True(ビューモデル.無限実行コマンド.CanExecute(null));
 
-        var runTask = viewModel.RunInfiniteCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => viewModel.IsBenchmarkRunActive);
+        var 実行タスク = ビューモデル.無限実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => ビューモデル.ベンチマーク実行有効か);
 
-        Assert.False(viewModel.RunInfiniteCommand.CanExecute(null));
+        Assert.False(ビューモデル.無限実行コマンド.CanExecute(null));
 
-        await viewModel.PauseCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => viewModel.IsBenchmarkPaused);
+        await ビューモデル.一時停止コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => ビューモデル.ベンチマーク一時停止中か);
 
-        Assert.True(viewModel.RunInfiniteCommand.CanExecute(null));
+        Assert.True(ビューモデル.無限実行コマンド.CanExecute(null));
 
-        await viewModel.StopCommand.ExecuteAsync(null);
-        await runTask;
+        await ビューモデル.停止コマンド.ExecuteAsync(null);
+        await 実行タスク;
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task BenchmarkConditions_DisablesThresholdChangesDuringActiveAndPausedRun(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        var initialThreshold = viewModel.SelectedThreshold;
-        var alternateThreshold = viewModel.ThresholdOptions.First(option => !ReferenceEquals(option,initialThreshold));
-        viewModel.SelectAllCommand.Execute(null);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task ベンチマーク条件_実行中と一時停止中はしきい値変更を無効にする() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        var 初期しきい値 = ビューモデル.選択閾値;
+        var 代替しきい値 = ビューモデル.閾値選択肢一覧.First(選択肢 => !ReferenceEquals(選択肢,初期しきい値));
+        ビューモデル.全選択コマンド.Execute(null);
 
-        Assert.True(viewModel.CanChangeBenchmarkConditions);
+        Assert.True(ビューモデル.ベンチマーク条件を変更可能か);
 
-        var runTask = viewModel.RunInfiniteCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => viewModel.IsBenchmarkRunActive);
+        var 実行タスク = ビューモデル.無限実行コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => ビューモデル.ベンチマーク実行有効か);
 
-        Assert.False(viewModel.CanChangeBenchmarkConditions);
-        viewModel.SelectedThreshold=alternateThreshold;
-        Assert.Same(initialThreshold,viewModel.SelectedThreshold);
+        Assert.False(ビューモデル.ベンチマーク条件を変更可能か);
+        ビューモデル.選択閾値=代替しきい値;
+        Assert.Same(初期しきい値,ビューモデル.選択閾値);
 
-        await viewModel.PauseCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => viewModel.IsBenchmarkPaused);
+        await ビューモデル.一時停止コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => ビューモデル.ベンチマーク一時停止中か);
 
-        Assert.False(viewModel.CanChangeBenchmarkConditions);
-        viewModel.SelectedThreshold=alternateThreshold;
-        Assert.Same(initialThreshold,viewModel.SelectedThreshold);
+        Assert.False(ビューモデル.ベンチマーク条件を変更可能か);
+        ビューモデル.選択閾値=代替しきい値;
+        Assert.Same(初期しきい値,ビューモデル.選択閾値);
 
-        await viewModel.StopCommand.ExecuteAsync(null);
-        await runTask;
+        await ビューモデル.停止コマンド.ExecuteAsync(null);
+        await 実行タスク;
 
-        Assert.True(viewModel.CanChangeBenchmarkConditions);
-        viewModel.SelectedThreshold=alternateThreshold;
-        Assert.Same(alternateThreshold,viewModel.SelectedThreshold);
+        Assert.True(ビューモデル.ベンチマーク条件を変更可能か);
+        ビューモデル.選択閾値=代替しきい値;
+        Assert.Same(代替しきい値,ビューモデル.選択閾値);
     }
 #endif
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task AllBenchmarkSelectionCommand_AppliesToEverySourceTab(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        var states = new[]{
-            viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemArray),
-            viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemRange),
-            viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemList),
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 全ベンチマーク選択コマンド_全ソースタブへ適用する() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        var 状態一覧 = new[]{
+            ビューモデル.ソースタブ表示状態を取得(global::UI.ベンチマークソースタブ.System配列),
+            ビューモデル.ソースタブ表示状態を取得(global::UI.ベンチマークソースタブ.System範囲),
+            ビューモデル.ソースタブ表示状態を取得(global::UI.ベンチマークソースタブ.Systemリスト),
         };
 
-        viewModel.SelectAllCommand.Execute(null);
+        ビューモデル.全選択コマンド.Execute(null);
 
-        Assert.True(viewModel.IsAllBenchmarkSelectionChecked);
-        Assert.All(states,state => Assert.All(state.Rows,row => {
-            Assert.True(row.IsSelectionChecked);
-            Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.True(cell.IsSelected));
+        Assert.True(ビューモデル.全ベンチマーク選択状態);
+        Assert.All(状態一覧,状態 => Assert.All(状態.行一覧,行 => {
+            Assert.True(行.選択チェック状態);
+            Assert.All(行.プロジェクトセル一覧.Where(static セル => セル.ケースありか),セル => Assert.True(セル.実行予定か));
         }));
 
-        viewModel.ToggleBenchmarkCellCheck(states[1].Rows[0],"Left");
+        ビューモデル.ベンチマーク行を切り替え(状態一覧[1].行一覧[0]);
 
-        Assert.Null(viewModel.IsAllBenchmarkSelectionChecked);
+        Assert.Null(ビューモデル.全ベンチマーク選択状態);
 
-        viewModel.ClearSelectionCommand.Execute(null);
+        ビューモデル.選択クリアコマンド.Execute(null);
 
-        Assert.False(viewModel.IsAllBenchmarkSelectionChecked);
-        Assert.All(states,state => Assert.All(state.Rows,row => {
-            Assert.False(row.IsSelectionChecked);
-            Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.False(cell.IsSelected));
+        Assert.False(ビューモデル.全ベンチマーク選択状態);
+        Assert.All(状態一覧,状態 => Assert.All(状態.行一覧,行 => {
+            Assert.False(行.選択チェック状態);
+            Assert.All(行.プロジェクトセル一覧.Where(static セル => セル.ケースありか),セル => Assert.False(セル.実行予定か));
         }));
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task BenchmarkRowSelectionHeader_CyclesMixedTrueFalseAndRestoresMixed(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var row = fixture.ViewModel.BenchmarkRows.First(row => row.LeftCell.HasCase&&row.RightCell.HasCase);
-        SetRowSelection(row,leftSelected:true,rightSelected:false);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task ベンチマーク行選択ヘッダー_行チェックを切り替えると真偽を循環する() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var 行 = フィクスチャ.ビューモデル.ベンチマーク行一覧.First(行 => 行.左セル.ケースありか&&行.右セル.ケースありか);
+        行.選択中か=false;
 
-        Assert.Null(row.IsSelectionChecked);
+        Assert.False(行.選択チェック状態);
 
-        fixture.ViewModel.ToggleBenchmarkRow(row);
+        フィクスチャ.ビューモデル.ベンチマーク行を切り替え(行);
 
-        Assert.True(row.IsSelectionChecked);
-        Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.True(cell.IsSelected));
+        Assert.True(行.選択チェック状態);
+        Assert.All(行.プロジェクトセル一覧.Where(static セル => セル.ケースありか),セル => Assert.True(セル.実行予定か));
 
-        fixture.ViewModel.ToggleBenchmarkRow(row);
+        フィクスチャ.ビューモデル.ベンチマーク行を切り替え(行);
 
-        Assert.False(row.IsSelectionChecked);
-        Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.False(cell.IsSelected));
+        Assert.False(行.選択チェック状態);
+        Assert.All(行.プロジェクトセル一覧.Where(static セル => セル.ケースありか),セル => Assert.False(セル.実行予定か));
 
-        fixture.ViewModel.ToggleBenchmarkRow(row);
+        フィクスチャ.ビューモデル.ベンチマーク行を切り替え(行);
 
-        Assert.True(row.IsSelectionChecked);
-        Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.True(cell.IsSelected));
+        Assert.True(行.選択チェック状態);
+        Assert.All(行.プロジェクトセル一覧.Where(static セル => セル.ケースありか),セル => Assert.True(セル.実行予定か));
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task TabBenchmarkSelectionHeader_CyclesOnlySourceTabAndDoesNotSelectOtherTabs(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        var arrayState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemArray);
-        var rangeState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemRange);
-        var listState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemList);
-        viewModel.ClearSelectionCommand.Execute(null);
-        var arrayRow = arrayState.Rows.First(row => row.LeftCell.HasCase&&row.RightCell.HasCase);
-        SetRowSelection(arrayRow,leftSelected:true,rightSelected:false);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task タブベンチマーク選択ヘッダー_対象ソースタブだけを循環し他タブを選択しない() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        var 配列状態 = ビューモデル.ソースタブ表示状態を取得(global::UI.ベンチマークソースタブ.System配列);
+        var 範囲状態 = ビューモデル.ソースタブ表示状態を取得(global::UI.ベンチマークソースタブ.System範囲);
+        var リスト状態 = ビューモデル.ソースタブ表示状態を取得(global::UI.ベンチマークソースタブ.Systemリスト);
+        ビューモデル.選択クリアコマンド.Execute(null);
+        var 配列行 = 配列状態.行一覧.First(行 => 行.左セル.ケースありか&&行.右セル.ケースありか);
+        配列行.選択中か=true;
 
-        Assert.Null(arrayState.IsBenchmarkSelectionChecked);
-        Assert.False(rangeState.IsBenchmarkSelectionChecked);
-        Assert.False(listState.IsBenchmarkSelectionChecked);
-        Assert.Null(viewModel.IsAllBenchmarkSelectionChecked);
+        Assert.Null(配列状態.ベンチマーク選択状態);
+        Assert.False(範囲状態.ベンチマーク選択状態);
+        Assert.False(リスト状態.ベンチマーク選択状態);
+        Assert.Null(ビューモデル.全ベンチマーク選択状態);
 
-        viewModel.ToggleAllBenchmarkSelection(arrayState.Definition);
+        ビューモデル.全ベンチマーク選択を切り替える(配列状態.定義);
 
-        Assert.True(arrayState.IsBenchmarkSelectionChecked);
-        Assert.False(rangeState.IsBenchmarkSelectionChecked);
-        Assert.False(listState.IsBenchmarkSelectionChecked);
-        Assert.Null(viewModel.IsAllBenchmarkSelectionChecked);
-        Assert.All(arrayState.Rows,row => {
-            Assert.True(row.IsSelectionChecked);
-            Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.True(cell.IsSelected));
+        Assert.True(配列状態.ベンチマーク選択状態);
+        Assert.False(範囲状態.ベンチマーク選択状態);
+        Assert.False(リスト状態.ベンチマーク選択状態);
+        Assert.Null(ビューモデル.全ベンチマーク選択状態);
+        Assert.All(配列状態.行一覧,行 => {
+            Assert.True(行.選択チェック状態);
+            Assert.All(行.プロジェクトセル一覧.Where(static セル => セル.ケースありか),セル => Assert.True(セル.実行予定か));
         });
-        Assert.All(rangeState.Rows,row => {
-            Assert.False(row.IsSelectionChecked);
-            Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.False(cell.IsSelected));
+        Assert.All(範囲状態.行一覧,行 => {
+            Assert.False(行.選択チェック状態);
+            Assert.All(行.プロジェクトセル一覧.Where(static セル => セル.ケースありか),セル => Assert.False(セル.実行予定か));
         });
 
-        viewModel.ToggleAllBenchmarkSelection(arrayState.Definition);
+        ビューモデル.全ベンチマーク選択を切り替える(配列状態.定義);
 
-        Assert.False(arrayState.IsBenchmarkSelectionChecked);
-        Assert.False(rangeState.IsBenchmarkSelectionChecked);
-        Assert.False(listState.IsBenchmarkSelectionChecked);
-        Assert.False(viewModel.IsAllBenchmarkSelectionChecked);
+        Assert.False(配列状態.ベンチマーク選択状態);
+        Assert.False(範囲状態.ベンチマーク選択状態);
+        Assert.False(リスト状態.ベンチマーク選択状態);
+        Assert.False(ビューモデル.全ベンチマーク選択状態);
 
-        viewModel.ToggleAllBenchmarkSelection(arrayState.Definition);
+        ビューモデル.全ベンチマーク選択を切り替える(配列状態.定義);
 
-        Assert.True(arrayState.IsBenchmarkSelectionChecked);
-        Assert.False(rangeState.IsBenchmarkSelectionChecked);
-        Assert.False(listState.IsBenchmarkSelectionChecked);
-        Assert.Null(viewModel.IsAllBenchmarkSelectionChecked);
-        Assert.True(arrayRow.IsSelectionChecked);
-        Assert.True(arrayRow.LeftCell.IsSelected);
-        Assert.True(arrayRow.RightCell.IsSelected);
-        Assert.All(rangeState.Rows,row => {
-            Assert.False(row.IsSelectionChecked);
-            Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.False(cell.IsSelected));
+        Assert.True(配列状態.ベンチマーク選択状態);
+        Assert.False(範囲状態.ベンチマーク選択状態);
+        Assert.False(リスト状態.ベンチマーク選択状態);
+        Assert.Null(ビューモデル.全ベンチマーク選択状態);
+        Assert.True(配列行.選択チェック状態);
+        Assert.True(配列行.左セル.実行予定か);
+        Assert.True(配列行.右セル.実行予定か);
+        Assert.All(範囲状態.行一覧,行 => {
+            Assert.False(行.選択チェック状態);
+            Assert.All(行.プロジェクトセル一覧.Where(static セル => セル.ケースありか),セル => Assert.False(セル.実行予定か));
         });
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public async Task AllBenchmarkSelectionHeader_CyclesMixedTrueFalseAndRestoresMixedAcrossTabs(){
-        var fixture = await ViewModelFixture.CreateAsync(global::UI.BenchmarkSourceTab.SystemArray);
-        var viewModel = fixture.ViewModel;
-        var arrayState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemArray);
-        var rangeState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemRange);
-        var listState = viewModel.GetSourceTabViewState(global::UI.BenchmarkSourceTab.SystemList);
-        var states = new[]{arrayState,rangeState,listState};
-        viewModel.ClearSelectionCommand.Execute(null);
-        var arrayRow = arrayState.Rows.First(row => row.LeftCell.HasCase&&row.RightCell.HasCase);
-        var rangeRow = rangeState.Rows.First(row => row.LeftCell.HasCase&&row.RightCell.HasCase);
-        SetRowSelection(arrayRow,leftSelected:true,rightSelected:false);
-        SetRowSelection(rangeRow,leftSelected:false,rightSelected:true);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task 全ベンチマーク選択ヘッダー_タブをまたいで混在から真と偽を循環して混在へ戻る() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        var 配列状態 = ビューモデル.ソースタブ表示状態を取得(global::UI.ベンチマークソースタブ.System配列);
+        var 範囲状態 = ビューモデル.ソースタブ表示状態を取得(global::UI.ベンチマークソースタブ.System範囲);
+        var リスト状態 = ビューモデル.ソースタブ表示状態を取得(global::UI.ベンチマークソースタブ.Systemリスト);
+        var 状態一覧 = new[] { 配列状態,範囲状態,リスト状態 };
+        ビューモデル.選択クリアコマンド.Execute(null);
+        var 配列行 = 配列状態.行一覧.First(行 => 行.左セル.ケースありか&&行.右セル.ケースありか);
+        var 範囲行 = 範囲状態.行一覧.First(行 => 行.左セル.ケースありか&&行.右セル.ケースありか);
+        配列行.選択中か=true;
+        範囲行.選択中か=true;
 
-        viewModel.ToggleAllBenchmarkSelection();
+        ビューモデル.全ベンチマーク選択を切り替える();
 
-        Assert.True(viewModel.IsAllBenchmarkSelectionChecked);
-        Assert.All(states,state => Assert.All(state.Rows,row => {
-            Assert.True(row.IsSelectionChecked);
-            Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.True(cell.IsSelected));
+        Assert.True(ビューモデル.全ベンチマーク選択状態);
+        Assert.All(状態一覧,状態 => Assert.All(状態.行一覧,行 => {
+            Assert.True(行.選択チェック状態);
+            Assert.All(行.プロジェクトセル一覧.Where(static セル => セル.ケースありか),セル => Assert.True(セル.実行予定か));
         }));
 
-        viewModel.ToggleAllBenchmarkSelection();
+        ビューモデル.全ベンチマーク選択を切り替える();
 
-        Assert.False(viewModel.IsAllBenchmarkSelectionChecked);
-        Assert.All(states,state => Assert.All(state.Rows,row => {
-            Assert.False(row.IsSelectionChecked);
-            Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.False(cell.IsSelected));
+        Assert.False(ビューモデル.全ベンチマーク選択状態);
+        Assert.All(状態一覧,状態 => Assert.All(状態.行一覧,行 => {
+            Assert.False(行.選択チェック状態);
+            Assert.All(行.プロジェクトセル一覧.Where(static セル => セル.ケースありか),セル => Assert.False(セル.実行予定か));
         }));
 
-        viewModel.ToggleAllBenchmarkSelection();
+        ビューモデル.全ベンチマーク選択を切り替える();
 
-        Assert.True(viewModel.IsAllBenchmarkSelectionChecked);
-        Assert.True(arrayRow.IsSelectionChecked);
-        Assert.True(rangeRow.IsSelectionChecked);
-        Assert.True(arrayRow.LeftCell.IsSelected);
-        Assert.True(arrayRow.RightCell.IsSelected);
-        Assert.True(rangeRow.LeftCell.IsSelected);
-        Assert.True(rangeRow.RightCell.IsSelected);
-        Assert.All(listState.Rows,row => {
-            Assert.True(row.IsSelectionChecked);
-            Assert.All(row.ProjectCells.Where(static cell => cell.HasCase),cell => Assert.True(cell.IsSelected));
+        Assert.True(ビューモデル.全ベンチマーク選択状態);
+        Assert.True(配列行.選択チェック状態);
+        Assert.True(範囲行.選択チェック状態);
+        Assert.True(配列行.左セル.実行予定か);
+        Assert.True(配列行.右セル.実行予定か);
+        Assert.True(範囲行.左セル.実行予定か);
+        Assert.True(範囲行.右セル.実行予定か);
+        Assert.All(リスト状態.行一覧,行 => {
+            Assert.True(行.選択チェック状態);
+            Assert.All(行.プロジェクトセル一覧.Where(static セル => セル.ケースありか),セル => Assert.True(セル.実行予定か));
         });
     }
 
-    private static void SelectProjectGroup(global::UI.ViewModels.RunnerViewModel viewModel,string groupId){
-        foreach(var row in viewModel.BenchmarkRows){
-            foreach(var cell in row.ProjectCells){
-                cell.IsSelected=false;
-            }
-            row.RefreshSelectionState();
+    private static void 現在タブを全選択(global::UI.ViewModels.実行ビューモデル ビューモデル) {
+        foreach(var 行 in ビューモデル.ベンチマーク行一覧) {
+            行.選択中か=false;
         }
-        viewModel.ToggleAllBenchmarkSelection(viewModel.SelectedSourceDefinition);
+        ビューモデル.全ベンチマーク選択を切り替える(ビューモデル.選択ソース定義);
     }
 
-    private static void SetRowSelection(global::UI.BenchmarkTableRow row,bool leftSelected,bool rightSelected){
-        row.LeftCell.IsSelected=leftSelected;
-        row.RightCell.IsSelected=rightSelected;
-        row.RefreshSelectionState();
-    }
-
-    private static IReadOnlyList<global::UI.BenchmarkProjectCell> GetSelectedCells(global::UI.ViewModels.RunnerViewModel viewModel) =>
-        viewModel.BenchmarkRows
-            .SelectMany(static row => row.ProjectCells)
-            .Where(static cell => cell.HasCase&&cell.IsSelected)
+    private static IReadOnlyList<global::UI.ベンチマークプロジェクトセル> 選択セル一覧を取得(global::UI.ViewModels.実行ビューモデル ビューモデル) =>
+        ビューモデル.ベンチマーク行一覧
+            .Where(static 行 => 行.選択中か)
+            .SelectMany(static 行 => 行.プロジェクトセル一覧)
+            .Where(static セル => セル.ケースありか)
             .ToArray();
 
-    private static IReadOnlyList<global::UI.BenchmarkProjectCell> GetSelectedCells(global::UI.BenchmarkSourceTabViewState state) =>
-        state.Rows
-            .SelectMany(static row => row.ProjectCells)
-            .Where(static cell => cell.HasCase&&cell.IsSelected)
+    private static IReadOnlyList<global::UI.ベンチマークプロジェクトセル> 選択セル一覧を取得(global::UI.ベンチマークソースタブ表示状態 状態) =>
+        状態.行一覧
+            .Where(static 行 => 行.選択中か)
+            .SelectMany(static 行 => 行.プロジェクトセル一覧)
+            .Where(static セル => セル.ケースありか)
             .ToArray();
 
-    private static void AssertNewGridCatalogDisplay(global::UI.ViewModels.RunnerViewModel viewModel){
-        Assert.NotEmpty(viewModel.BenchmarkRows);
-        Assert.Empty(viewModel.ResultItems);
-        Assert.Empty(viewModel.VisibleResultItems);
-        Assert.Empty(viewModel.ResultElementCountOptions);
-        Assert.Empty(GetSelectedCells(viewModel));
-        var cells = viewModel.BenchmarkRows
-            .SelectMany(static row => row.ProjectCells)
-            .Where(static cell => cell.HasCase)
+    private static void 新規グリッドのカタログ表示を検証(global::UI.ViewModels.実行ビューモデル ビューモデル) {
+        Assert.NotEmpty(ビューモデル.ベンチマーク行一覧);
+        Assert.Empty(ビューモデル.結果項目一覧);
+        Assert.Empty(ビューモデル.表示結果項目一覧);
+        Assert.Empty(ビューモデル.結果要素数選択肢一覧);
+        Assert.Empty(選択セル一覧を取得(ビューモデル));
+        var セル一覧 = ビューモデル.ベンチマーク行一覧
+            .SelectMany(static 行 => 行.プロジェクトセル一覧)
+            .Where(static セル => セル.ケースありか)
             .ToArray();
-        Assert.NotEmpty(cells);
-        Assert.All(cells,static cell => {
-            Assert.False(cell.IsSelected);
-            Assert.False(cell.HasCpuDisplay);
-            Assert.True(string.IsNullOrEmpty(cell.StatusImageSource)||cell.StatusImageSource==global::UI.BenchmarkStatusImageNames.Waiting);
+        Assert.NotEmpty(セル一覧);
+        Assert.All(セル一覧,static セル => {
+            Assert.False(セル.実行予定か);
+            Assert.False(セル.CPU表示ありか);
+            Assert.True(string.IsNullOrEmpty(セル.状態画像ソース)||セル.状態画像ソース==global::UI.ベンチマーク状態画像名.待機中);
         });
     }
 
-    private static void AssertLoadedRowHasPairMetrics(global::UI.BenchmarkTableRow row){
-        Assert.False(string.IsNullOrWhiteSpace(row.LeftTimeText),"Left time was not restored for "+row.RowKey);
-        Assert.False(string.IsNullOrWhiteSpace(row.RightTimeText),"Right time was not restored for "+row.RowKey);
-        Assert.True(row.LeftCell.Metrics.HasMeasuredValue,"Left metrics were not restored for "+row.RowKey);
-        Assert.True(row.RightCell.Metrics.HasMeasuredValue,"Right metrics were not restored for "+row.RowKey);
+    private static void 読込行にペア測定値があることを検証(global::UI.ベンチマーク表行 行) {
+        Assert.False(string.IsNullOrWhiteSpace(行.左時間文字列),"左時間が復元されていません: "+行.行キー);
+        Assert.False(string.IsNullOrWhiteSpace(行.右時間文字列),"右時間が復元されていません: "+行.行キー);
+        Assert.True(行.左セル.測定値.測定値ありか,"左指標が復元されていません: "+行.行キー);
+        Assert.True(行.右セル.測定値.測定値ありか,"右指標が復元されていません: "+行.行キー);
     }
 
-    private static ConcurrentDictionary<global::UI.BenchmarkProjectCell,byte> TrackRunningIcons(IEnumerable<global::UI.BenchmarkProjectCell> cells){
-        var running = new ConcurrentDictionary<global::UI.BenchmarkProjectCell,byte>();
-        foreach(var cell in cells){
-            if(cell.StatusImageSource==global::UI.BenchmarkStatusImageNames.CpuRunning){
-                running.TryAdd(cell,0);
+    private static ConcurrentDictionary<global::UI.ベンチマークプロジェクトセル,byte> 実行中アイコンを追跡(IEnumerable<global::UI.ベンチマークプロジェクトセル> セル一覧) {
+        var 実行中追跡 = new ConcurrentDictionary<global::UI.ベンチマークプロジェクトセル,byte>();
+        foreach(var セル in セル一覧) {
+            if(セル.状態画像ソース==global::UI.ベンチマーク状態画像名.CPU実行中) {
+                実行中追跡.TryAdd(セル,0);
             }
-            cell.PropertyChanged+=(_,args) => {
-                if(args.PropertyName==nameof(global::UI.BenchmarkProjectCell.StatusImageSource)
-                    &&cell.StatusImageSource==global::UI.BenchmarkStatusImageNames.CpuRunning){
-                    running.TryAdd(cell,0);
+            セル.PropertyChanged+=(_,イベント引数) => {
+                if(イベント引数.PropertyName==nameof(global::UI.ベンチマークプロジェクトセル.状態画像ソース)
+                    &&セル.状態画像ソース==global::UI.ベンチマーク状態画像名.CPU実行中) {
+                    実行中追跡.TryAdd(セル,0);
                 }
             };
         }
 
-        return running;
+        return 実行中追跡;
     }
 
-    private static bool IsFinalCompleted(global::UI.BenchmarkProjectCell cell) =>
-        cell.StatusImageSource==global::UI.BenchmarkStatusImageNames.FinalCompleted;
+    private static bool 最終完了か(global::UI.ベンチマークプロジェクトセル セル) =>
+        セル.状態画像ソース==global::UI.ベンチマーク状態画像名.最終完了;
 
-    private static bool HasLoadedCellMetadata(global::UI.BenchmarkProjectCell cell) =>
-        !string.IsNullOrWhiteSpace(cell.ElementCountText)
-        &&!string.IsNullOrWhiteSpace(cell.ExecutionText)
-        &&cell.HasCpuDisplay
-        &&!string.IsNullOrWhiteSpace(cell.LogicalProcessorText);
+    private static bool 読込済みセルメタデータがあるか(global::UI.ベンチマークプロジェクトセル セル) =>
+        !string.IsNullOrWhiteSpace(セル.要素数文字列)
+        &&!string.IsNullOrWhiteSpace(セル.実行文字列)
+        &&セル.CPU表示ありか
+        &&!string.IsNullOrWhiteSpace(セル.論理プロセッサ文字列);
 
-    private static string CreateCellMetadataMessage(global::UI.ViewModels.RunnerViewModel viewModel,global::UI.BenchmarkProjectCell cell) =>
-        "Cell metadata was not restored. ElementCount='"+cell.ElementCountText
-        +"' Execution='"+cell.ExecutionText
-        +"' HasCpu='"+cell.HasCpuDisplay
-        +"' Cpu='"+cell.LogicalProcessorText
-        +"' Time='"+cell.TimeText
-        +"' Memory='"+cell.AllocatedText
-        +"' Status='"+cell.StatusImageSource
-        +"' CellProject='"+cell.Project
-        +"' RowMethod='"+(viewModel.BenchmarkRows.FirstOrDefault(row => row.ProjectCells.Contains(cell))?.MethodName??"-")
-        +"' RowType='"+(viewModel.BenchmarkRows.FirstOrDefault(row => row.ProjectCells.Contains(cell))?.BenchmarkTypeText??"-")
-        +"' RowKey='"+(viewModel.BenchmarkRows.FirstOrDefault(row => row.ProjectCells.Contains(cell))?.RowKey??"-")
-        +"' RowLeftTime='"+(viewModel.BenchmarkRows.FirstOrDefault(row => row.ProjectCells.Contains(cell))?.LeftTimeText??"-")
-        +"' RowRightTime='"+(viewModel.BenchmarkRows.FirstOrDefault(row => row.ProjectCells.Contains(cell))?.RightTimeText??"-")
-        +"' Results='"+string.Join(";",viewModel.ResultItems.Take(8).Select(static item => item.Project+"/"+item.Method+"/Status="+item.Status+"/N="+item.AxisCount+"/CPU="+(item.AssignedLogicalCpu?.ToString()??"-")+"/Mean="+(item.MeanNanoseconds?.ToString(System.Globalization.CultureInfo.InvariantCulture)??"-")))+"'";
+    private static string セルメタデータメッセージを作成(global::UI.ViewModels.実行ビューモデル ビューモデル,global::UI.ベンチマークプロジェクトセル セル) =>
+        "セルメタデータが復元されていません。要素数='"+セル.要素数文字列
+        +"' 実行='"+セル.実行文字列
+        +"' CPU表示ありか='"+セル.CPU表示ありか
+        +"' CPU='"+セル.論理プロセッサ文字列
+        +"' 時間='"+セル.時間文字列
+        +"' メモリ='"+セル.割り当て文字列
+        +"' 状態='"+セル.状態画像ソース
+        +"' セルプロジェクト='"+セル.プロジェクト
+        +"' 行メソッド='"+(ビューモデル.ベンチマーク行一覧.FirstOrDefault(行 => 行.プロジェクトセル一覧.Contains(セル))?.メソッド名??"-")
+        +"' 行型='"+(ビューモデル.ベンチマーク行一覧.FirstOrDefault(行 => 行.プロジェクトセル一覧.Contains(セル))?.ベンチマーク型文字列??"-")
+        +"' 行キー='"+(ビューモデル.ベンチマーク行一覧.FirstOrDefault(行 => 行.プロジェクトセル一覧.Contains(セル))?.行キー??"-")
+        +"' 行左時間='"+(ビューモデル.ベンチマーク行一覧.FirstOrDefault(行 => 行.プロジェクトセル一覧.Contains(セル))?.左時間文字列??"-")
+        +"' 行右時間='"+(ビューモデル.ベンチマーク行一覧.FirstOrDefault(行 => 行.プロジェクトセル一覧.Contains(セル))?.右時間文字列??"-")
+        +"' 結果一覧='"+string.Join(";",ビューモデル.結果項目一覧.Take(8).Select(static 項目 => 項目.プロジェクト+"/"+項目.メソッド+"/状態="+項目.状態+"/N="+項目.軸数+"/CPU="+(項目.割り当て論理CPU?.ToString()??"-")+"/平均="+(項目.平均ナノ秒?.ToString(System.Globalization.CultureInfo.InvariantCulture)??"-")))+"'";
 
-    private static async Task<global::UI.BenchmarkUiSnapshot> WaitForPipelineSnapshotAsync(global::UI.BenchmarkRunEventPipeline pipeline){
-        var metrics = new global::UI.BenchmarkPipelineMetrics(0,0,0,0,0,0,0,0,0,0,0,0,0,0);
-        for(var index=0;index<50;index++){
-            if(pipeline.TryCreateUiSnapshot(metrics,out var snapshot)){
-                return snapshot;
+    private static async Task<global::UI.ベンチマークUIスナップショット> パイプラインスナップショットを待機Async(global::UI.ベンチマーク実行イベントパイプライン パイプライン) {
+        var 指標 = new global::UI.ベンチマークパイプライン指標(0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+        for(var インデックス = 0;インデックス<50;インデックス++) {
+            if(パイプライン.UIスナップショットを作成できるか(指標,out var スナップショット)) {
+                return スナップショット;
             }
 
             await Task.Delay(20);
         }
 
-        throw new TimeoutException("Pipeline snapshot was not produced.");
+        throw new TimeoutException("パイプラインスナップショットが生成されませんでした。");
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public void BenchmarkSortValue_シェアは丸め前の左値で比較し欠測は常に末尾になる(){
-        var roundedHigh=global::UI.BenchmarkSortValue.シェアから作成(global::UI.シェア値.メモリから作成(995,5));
-        var roundedLow=global::UI.BenchmarkSortValue.シェアから作成(global::UI.シェア値.メモリから作成(994,6));
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void ベンチマークソート値_シェアは丸め前の左値で比較し欠測は常に末尾になる() {
+        var 丸め前高値 = global::UI.ベンチマークソート値.シェアから作成(global::UI.シェア値.メモリから作成(995,5));
+        var 丸め前低値 = global::UI.ベンチマークソート値.シェアから作成(global::UI.シェア値.メモリから作成(994,6));
 
-        Assert.Equal(0.995,roundedHigh.Number!.Value,12);
-        Assert.True(global::UI.BenchmarkSortValue.Compare(roundedLow,roundedHigh,false)<0);
-        Assert.True(global::UI.BenchmarkSortValue.Compare(global::UI.BenchmarkSortValue.Missing,roundedHigh,false)>0);
-        Assert.True(global::UI.BenchmarkSortValue.Compare(global::UI.BenchmarkSortValue.Missing,roundedHigh,true)>0);
+        Assert.Equal(0.995,丸め前高値.数値!.Value,12);
+        Assert.True(global::UI.ベンチマークソート値.比較(丸め前低値,丸め前高値,false)<0);
+        Assert.True(global::UI.ベンチマークソート値.比較(global::UI.ベンチマークソート値.欠測,丸め前高値,false)>0);
+        Assert.True(global::UI.ベンチマークソート値.比較(global::UI.ベンチマークソート値.欠測,丸め前高値,true)>0);
     }
 
-    [Fact,Trait("Category","BenchmarkUI"),Trait("Source","Pattern")]
-    public void BenchmarkTableRow_日時とループ回数を新契約で表示しソートする(){
-        var row=CreateArrayBenchmarkRow("Any");
-        var sourceTab=row.SourceTab;
-        var oldTime=DateTimeOffset.UtcNow.AddMinutes(-2);
-        var newTime=DateTimeOffset.UtcNow;
-        row.ApplySnapshotResult(sourceTab.LeftProject,CreateArrayResult(sourceTab.LeftProject,"Any",global::UI.JobStatus.Completed,0,2),0,oldTime);
-        row.ApplySnapshotResult(sourceTab.RightProject,CreateArrayResult(sourceTab.RightProject,"Any",global::UI.JobStatus.Completed,1,4),0,newTime);
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void ベンチマーク表行_日時とループ回数を新契約で表示しソートする() {
+        var 行 = 配列ベンチマーク行を作成("Any");
+        var ソースタブ = 行.ソースタブ;
+        var 旧日時 = DateTimeOffset.UtcNow.AddMinutes(-2);
+        var 新日時 = DateTimeOffset.UtcNow;
+        行.スナップショット結果を適用(ソースタブ.左プロジェクト,配列結果を作成(ソースタブ.左プロジェクト,"Any",global::UI.ジョブ状態.完了,0,2),0,旧日時);
+        行.スナップショット結果を適用(ソースタブ.右プロジェクト,配列結果を作成(ソースタブ.右プロジェクト,"Any",global::UI.ジョブ状態.完了,1,4),0,新日時);
 
-        Assert.Equal("2:4",row.LoopCountText);
-        Assert.Null(row.共通ループ回数);
-        Assert.True(row.GetSortValue(global::UI.BenchmarkGridSortColumn.ループ回数).IsMissing);
-        Assert.Equal(oldTime.ToUnixTimeMilliseconds(),row.GetSortValue(global::UI.BenchmarkGridSortColumn.左日時).Number);
-        Assert.Equal(newTime.ToUnixTimeMilliseconds(),row.GetSortValue(global::UI.BenchmarkGridSortColumn.右日時).Number);
+        Assert.Equal("2:4",行.ループ回数文字列);
+        Assert.Null(行.共通ループ回数);
+        Assert.True(行.ソート値を取得(global::UI.ベンチマークグリッドソート列.ループ回数).欠測か);
+        Assert.Equal(旧日時.ToUnixTimeMilliseconds(),行.ソート値を取得(global::UI.ベンチマークグリッドソート列.左日時).数値);
+        Assert.Equal(新日時.ToUnixTimeMilliseconds(),行.ソート値を取得(global::UI.ベンチマークグリッドソート列.右日時).数値);
     }
 
-    private static global::UI.BenchmarkTableRow CreateArrayBenchmarkRow(string methodName){
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var cases = new Dictionary<string,global::UI.BenchmarkCase>(StringComparer.OrdinalIgnoreCase) {
-            [sourceTab.LeftProject]=new(sourceTab.LeftProject,sourceTab.LeftAssemblyName,CreateArrayTypeFullName(sourceTab.LeftProject),methodName),
-            [sourceTab.RightProject]=new(sourceTab.RightProject,sourceTab.RightAssemblyName,CreateArrayTypeFullName(sourceTab.RightProject),methodName),
+    private static global::UI.ベンチマーク表行 配列ベンチマーク行を作成(string メソッド名) {
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        var ケース一覧 = new Dictionary<string,global::UI.ベンチマークケース>(StringComparer.OrdinalIgnoreCase) {
+            [ソースタブ.左プロジェクト]=new(ソースタブ.左プロジェクト,ソースタブ.左アセンブリ名,配列型完全名を作成(ソースタブ.左プロジェクト),メソッド名),
+            [ソースタブ.右プロジェクト]=new(ソースタブ.右プロジェクト,ソースタブ.右アセンブリ名,配列型完全名を作成(ソースタブ.右プロジェクト),メソッド名),
         };
-        return new global::UI.BenchmarkTableRow("int|"+methodName,methodName,methodName,sourceTab,cases,"int");
+        return new global::UI.ベンチマーク表行("int|"+メソッド名,メソッド名,メソッド名,ソースタブ,ケース一覧,"int");
     }
 
-    private static global::UI.BenchmarkResultItem CreateArrayResult(
-        string project,
-        string methodName,
-        global::UI.JobStatus status,
-        int runItemIndex,
-        int loopCount=global::UI.BenchmarkWorkloadAxis.DefaultLoopCount){
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var now = DateTimeOffset.UtcNow;
-        return new global::UI.BenchmarkResultItem(new global::UI.BenchmarkJob{
-            Project=project,
-            AssemblyName=sourceTab.GetAssemblyName(project),
-            TypeFullName=CreateArrayTypeFullName(project),
-            MethodName=methodName,
-            SourceTab=sourceTab.Tab,
-            ElementCount=4096,
-            LoopCount=loopCount,
-            Status=status,
-            AssignedLogicalCpu=0,
-            StartedAt=now,
-            FinishedAt=status==global::UI.JobStatus.Completed ? now : null,
-            MeanNanoseconds=status==global::UI.JobStatus.Completed ? 1_000_000 : null,
-            AllocatedBytes=status==global::UI.JobStatus.Completed ? 1024 : null,
-            ExitCode=status==global::UI.JobStatus.Completed ? 0 : null,
-            RunItemIndex=runItemIndex,
+    private static global::UI.ベンチマーク結果項目 配列結果を作成(
+        string プロジェクト,
+        string メソッド名,
+        global::UI.ジョブ状態 状態,
+        int 実行項目インデックス,
+        int ループ回数 = global::UI.ベンチマーク作業軸.既定ループ回数) {
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        var 現在日時 = DateTimeOffset.UtcNow;
+        return new global::UI.ベンチマーク結果項目(new global::UI.ベンチマークジョブ {
+            プロジェクト=プロジェクト,
+            アセンブリ名=ソースタブ.アセンブリ名を取得(プロジェクト),
+            型完全名=配列型完全名を作成(プロジェクト),
+            メソッド名=メソッド名,
+            ソースタブ=ソースタブ.タブ,
+            要素数=4096,
+            ループ回数=ループ回数,
+            状態=状態,
+            割り当て論理CPU=0,
+            開始日時=現在日時,
+            終了日時=状態==global::UI.ジョブ状態.完了 ? 現在日時 : null,
+            平均ナノ秒=状態==global::UI.ジョブ状態.完了 ? 1_000_000 : null,
+            割り当てバイト数=状態==global::UI.ジョブ状態.完了 ? 1024 : null,
+            終了コード=状態==global::UI.ジョブ状態.完了 ? 0 : null,
+            実行項目インデックス=実行項目インデックス,
         });
     }
 
-    private static string CreateArrayTypeFullName(string project) =>
-        project.Contains("ZLinq",StringComparison.OrdinalIgnoreCase)
+    private static string 配列型完全名を作成(string プロジェクト) =>
+        プロジェクト.Contains("ZLinq",StringComparison.OrdinalIgnoreCase)
             ? "Benchmark.System.Linq.Enumerable.ZLinq.ZLinqInt32"
             : "Benchmark.System.Linq.Enumerable.FLinq.FLinqInt32";
 
-    private static async Task SaveCurrentRunAsync(global::UI.ViewModels.RunnerViewModel viewModel){
-        if(viewModel.SelectedRunOption is { UiRunId:>0 }&&!viewModel.IsRefreshing&&viewModel.CanSelectRunHistory){
+    private static async Task 今回実行を保存Async(global::UI.ViewModels.実行ビューモデル ビューモデル) {
+        if(ビューモデル.選択実行選択肢 is { UI実行ID:>0 }&&!ビューモデル.更新中か&&ビューモデル.実行履歴を選択可能か) {
             return;
         }
 
-        await WaitUntilAsync(() => viewModel.CanSaveDatabase&&viewModel.SaveDatabaseCommand.CanExecute(null));
-        await viewModel.SaveDatabaseCommand.ExecuteAsync(null);
-        await WaitUntilAsync(() => viewModel.SelectedRunOption is { UiRunId:>0 }
-            &&!viewModel.IsRefreshing
-            &&viewModel.CanSelectRunHistory);
+        await 条件成立まで待機Async(() => ビューモデル.DB保存可能か&&ビューモデル.DB保存コマンド.CanExecute(null));
+        await ビューモデル.DB保存コマンド.ExecuteAsync(null);
+        await 条件成立まで待機Async(() => ビューモデル.選択実行選択肢 is { UI実行ID:>0 }
+            &&!ビューモデル.更新中か
+            &&ビューモデル.実行履歴を選択可能か);
     }
 
-    private static async Task WaitUntilAsync(Func<bool> condition){
-        for(var index=0;index<60;index++){
-            if(condition()){
+    private static async Task 条件成立まで待機Async(Func<bool> 条件) {
+        for(var インデックス = 0;インデックス<60;インデックス++) {
+            if(条件()) {
                 return;
             }
 
             await Task.Delay(50);
         }
 
-        Assert.True(condition());
+        Assert.True(条件());
     }
 
-    private static async Task WaitUntilOrContinueAsync(Func<bool> condition){
-        for(var index=0;index<60;index++){
-            if(condition()){
+    private static async Task 条件成立まで待機または続行Async(Func<bool> 条件) {
+        for(var インデックス = 0;インデックス<60;インデックス++) {
+            if(条件()) {
                 return;
             }
 
@@ -1502,198 +1492,261 @@ public sealed class RunnerViewModel{
         }
     }
 
-    private sealed class ViewModelFixture{
-        private ViewModelFixture(global::UI.ViewModels.RunnerViewModel viewModel,FakeRunService runService,UiRunStore store){
-            this.ViewModel=viewModel;
-            this.RunService=runService;
-            this.Store=store;
+    private sealed class ビューモデルフィクスチャ:IAsyncDisposable {
+        private readonly string ストアパス;
+        private readonly string ベンチマークルート;
+        private int 破棄済みか;
+
+        private ビューモデルフィクスチャ(
+            global::UI.ViewModels.実行ビューモデル ビューモデル,
+            偽実行サービス 実行サービス,
+            global::Seamless.UI.Storage.UI実行ストア ストア,
+            string ストアパス,
+            string ベンチマークルート) {
+            this.ビューモデル=ビューモデル;
+            this.実行サービス=実行サービス;
+            this.ストア=ストア;
+            this.ストアパス=ストアパス;
+            this.ベンチマークルート=ベンチマークルート;
         }
 
-        public global::UI.ViewModels.RunnerViewModel ViewModel { get; }
-        public FakeRunService RunService { get; }
-        public UiRunStore Store { get; }
+        public global::UI.ViewModels.実行ビューモデル ビューモデル { get; }
+        public 偽実行サービス 実行サービス { get; }
+        public global::Seamless.UI.Storage.UI実行ストア ストア { get; }
 
-        public static async Task<ViewModelFixture> CreateAsync(global::UI.BenchmarkSourceTab sourceTab,Action<UiRunStore>? configureStore = null){
-            var cases = CreateCatalogCases();
-            var storePath = Path.Combine(Path.GetTempPath(),"Seamless-Test-Benchmark-UI-"+Guid.NewGuid().ToString("N")+".db");
-            var store = new UiRunStore(storePath);
-            store.EnsureSchema();
-            configureStore?.Invoke(store);
-            var runService = new FakeRunService(cases);
-            var viewModel = new global::UI.ViewModels.RunnerViewModel(
-                new FakeCatalogService(cases),
-                new FakeCpuTopologyService(),
-                runService,
-                new global::UI.BenchmarkComparisonService(new global::UI.BenchmarkResultService()),
-                store,
-                Path.Combine(Path.GetTempPath(),"Seamless-Test-Benchmark-UI-"+Guid.NewGuid().ToString("N")),
-                new ImmediateDispatcher(),
-                new InMemoryPreferences());
-            await viewModel.InitializeAsync();
-            viewModel.SelectedSourceTab=viewModel.SourceTabs.First(option => option.Definition.Tab==sourceTab);
-            viewModel.SelectedExecutionProfile=viewModel.ExecutionProfiles.FirstOrDefault(option => option.Profile==global::UI.BenchmarkExecutionProfile.Test)
-                ??viewModel.ExecutionProfiles.First();
-            viewModel.SelectedThreshold=viewModel.ThresholdOptions.First(option => option.Milliseconds==1);
-            viewModel.ClearSelectionCommand.Execute(null);
-            return new(viewModel,runService,store);
+        public static async Task<ビューモデルフィクスチャ> 作成Async(global::UI.ベンチマークソースタブ ソースタブ,Action<global::Seamless.UI.Storage.UI実行ストア>? ストア構成処理 = null) {
+            var ケース一覧 = カタログケース一覧を作成();
+            var ストアパス = Path.Combine(Path.GetTempPath(),"Seamless-Test-Benchmark-UI-"+Guid.NewGuid().ToString("N")+".db");
+            var ストア = new global::Seamless.UI.Storage.UI実行ストア(ストアパス);
+            ストア.スキーマを確認();
+            ストア構成処理?.Invoke(ストア);
+            var 実行サービス = new 偽実行サービス(ケース一覧);
+            var ベンチマークルート = Path.Combine(Path.GetTempPath(),"Seamless-Test-Benchmark-UI-"+Guid.NewGuid().ToString("N"));
+            var ビューモデル = new global::UI.ViewModels.実行ビューモデル(
+                new 偽カタログサービス(ケース一覧),
+                new 偽CPUトポロジーサービス(),
+                実行サービス,
+                new global::UI.ベンチマーク比較サービス(new global::UI.ベンチマーク結果サービス()),
+                ストア,
+                ベンチマークルート,
+                new 即時ディスパッチャー(),
+                new メモリ内設定(),
+                false);
+            await ビューモデル.初期化Async();
+            ビューモデル.選択ソースタブ=ビューモデル.ソースタブ一覧.First(選択肢 => 選択肢.定義.タブ==ソースタブ);
+            ビューモデル.選択実行プロファイル=ビューモデル.実行プロファイル一覧.FirstOrDefault(選択肢 => 選択肢.プロファイル==global::UI.ベンチマーク実行プロファイル.テスト)
+                ??ビューモデル.実行プロファイル一覧.First();
+            ビューモデル.選択閾値=ビューモデル.閾値選択肢一覧.First(選択肢 => 選択肢.ミリ秒==1);
+            ビューモデル.選択クリアコマンド.Execute(null);
+            return new(ビューモデル,実行サービス,ストア,ストアパス,ベンチマークルート);
         }
 
-        private static IReadOnlyList<global::UI.BenchmarkCase> CreateCatalogCases(){
-            var array = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-            var enumerable = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemRange);
-            var list = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemList);
+        public async ValueTask DisposeAsync() {
+            if(Interlocked.Exchange(ref this.破棄済みか,1)==1) {
+                return;
+            }
+
+            await this.ビューモデル.終了準備Async();
+            global::Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            await 一時ファイルを削除Async(this.ストアパス);
+            await 一時ファイルを削除Async(this.ストアパス+"-wal");
+            await 一時ファイルを削除Async(this.ストアパス+"-shm");
+            await 一時ディレクトリを削除Async(this.ベンチマークルート);
+        }
+
+        private static async Task 一時ファイルを削除Async(string パス) {
+            var 絶対パス = 一時パスを検証(パス);
+            await 一時パスを削除Async(() => File.Delete(絶対パス));
+        }
+
+        private static async Task 一時ディレクトリを削除Async(string パス) {
+            var 絶対パス = 一時パスを検証(パス);
+            await 一時パスを削除Async(() => {
+                if(Directory.Exists(絶対パス)) {
+                    Directory.Delete(絶対パス,true);
+                }
+            });
+        }
+
+        private static async Task 一時パスを削除Async(Action 削除処理) {
+            const int 最大試行回数 = 40;
+            for(var 試行 = 1;試行<=最大試行回数;試行++) {
+                try {
+                    削除処理();
+                    return;
+                } catch(IOException) when(試行<最大試行回数) {
+                    global::Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+                    await Task.Delay(50);
+                }
+            }
+        }
+
+        private static string 一時パスを検証(string パス) {
+            var 絶対パス = Path.GetFullPath(パス);
+            var 一時ルート = Path.GetFullPath(Path.GetTempPath());
+            if(!絶対パス.StartsWith(一時ルート,StringComparison.OrdinalIgnoreCase)) {
+                throw new InvalidOperationException("テスト一時パスが一時ディレクトリ外です: "+絶対パス);
+            }
+
+            return 絶対パス;
+        }
+
+        private static IReadOnlyList<global::UI.ベンチマークケース> カタログケース一覧を作成() {
+            var 配列定義 = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+            var 列挙定義 = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System範囲);
+            var リスト定義 = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.Systemリスト);
             return [
-                CreateCase(array.LeftProject,array.LeftAssemblyName,"Benchmark.System.Linq.Enumerable.FLinqInt32","AggregateBy_keySelector"),
-                CreateCase(array.RightProject,array.RightAssemblyName,"Benchmark.System.Linq.Enumerable.ZLinqInt32","AggregateBy_keySelector"),
-                CreateCase(array.LeftProject,array.LeftAssemblyName,"Benchmark.System.Linq.Enumerable.FLinqInt32","Select_selector"),
-                CreateCase(array.RightProject,array.RightAssemblyName,"Benchmark.System.Linq.Enumerable.ZLinqInt32","Select_selector"),
-                CreateCase(enumerable.LeftProject,enumerable.LeftAssemblyName,"Benchmark.System.Linq.Enumerable.Range.FLinqInt32","AggregateBy_keySelector"),
-                CreateCase(enumerable.RightProject,enumerable.RightAssemblyName,"Benchmark.System.Linq.Enumerable.Range.ZLinqInt32","AggregateBy_keySelector"),
-                CreateCase(enumerable.LeftProject,enumerable.LeftAssemblyName,"Benchmark.System.Linq.Enumerable.Range.FLinqInt32","Select_selector"),
-                CreateCase(enumerable.RightProject,enumerable.RightAssemblyName,"Benchmark.System.Linq.Enumerable.Range.ZLinqInt32","Select_selector"),
-                CreateCase(list.LeftProject,list.LeftAssemblyName,"Benchmark.System.Linq.Enumerable.List.FLinqInt32","AggregateBy_keySelector"),
-                CreateCase(list.RightProject,list.RightAssemblyName,"Benchmark.System.Linq.Enumerable.List.ZLinqInt32","AggregateBy_keySelector"),
-                CreateCase(list.LeftProject,list.LeftAssemblyName,"Benchmark.System.Linq.Enumerable.List.FLinqInt32","Select_selector"),
-                CreateCase(list.RightProject,list.RightAssemblyName,"Benchmark.System.Linq.Enumerable.List.ZLinqInt32","Select_selector"),
+                ケースを作成(配列定義.左プロジェクト,配列定義.左アセンブリ名,"Benchmark.System.Linq.Enumerable.FLinqInt32","AggregateBy_keySelector"),
+                ケースを作成(配列定義.右プロジェクト,配列定義.右アセンブリ名,"Benchmark.System.Linq.Enumerable.ZLinqInt32","AggregateBy_keySelector"),
+                ケースを作成(配列定義.左プロジェクト,配列定義.左アセンブリ名,"Benchmark.System.Linq.Enumerable.FLinqInt32","Select_selector"),
+                ケースを作成(配列定義.右プロジェクト,配列定義.右アセンブリ名,"Benchmark.System.Linq.Enumerable.ZLinqInt32","Select_selector"),
+                ケースを作成(列挙定義.左プロジェクト,列挙定義.左アセンブリ名,"Benchmark.System.Linq.Enumerable.Range.FLinqInt32","AggregateBy_keySelector"),
+                ケースを作成(列挙定義.右プロジェクト,列挙定義.右アセンブリ名,"Benchmark.System.Linq.Enumerable.Range.ZLinqInt32","AggregateBy_keySelector"),
+                ケースを作成(列挙定義.左プロジェクト,列挙定義.左アセンブリ名,"Benchmark.System.Linq.Enumerable.Range.FLinqInt32","Select_selector"),
+                ケースを作成(列挙定義.右プロジェクト,列挙定義.右アセンブリ名,"Benchmark.System.Linq.Enumerable.Range.ZLinqInt32","Select_selector"),
+                ケースを作成(リスト定義.左プロジェクト,リスト定義.左アセンブリ名,"Benchmark.System.Linq.Enumerable.List.FLinqInt32","AggregateBy_keySelector"),
+                ケースを作成(リスト定義.右プロジェクト,リスト定義.右アセンブリ名,"Benchmark.System.Linq.Enumerable.List.ZLinqInt32","AggregateBy_keySelector"),
+                ケースを作成(リスト定義.左プロジェクト,リスト定義.左アセンブリ名,"Benchmark.System.Linq.Enumerable.List.FLinqInt32","Select_selector"),
+                ケースを作成(リスト定義.右プロジェクト,リスト定義.右アセンブリ名,"Benchmark.System.Linq.Enumerable.List.ZLinqInt32","Select_selector"),
             ];
         }
 
-        private static global::UI.BenchmarkCase CreateCase(string project,string assemblyName,string typeFullName,string methodName) =>
-            new(project,assemblyName,typeFullName,methodName);
+        private static global::UI.ベンチマークケース ケースを作成(string プロジェクト,string アセンブリ名,string 型完全名,string メソッド名) =>
+            new(プロジェクト,アセンブリ名,型完全名,メソッド名);
     }
 
-    private sealed class FakeCatalogService(IReadOnlyList<global::UI.BenchmarkCase> cases):global::UI.IBenchmarkCatalogService{
-        public Task<IReadOnlyList<global::UI.BenchmarkCase>> LoadAsync(CancellationToken cancellationToken) =>
-            Task.FromResult(cases);
+    private sealed class 偽カタログサービス(IReadOnlyList<global::UI.ベンチマークケース> ケース一覧):global::UI.Iベンチマークカタログサービス {
+        public Task<IReadOnlyList<global::UI.ベンチマークケース>> 読込Async(CancellationToken キャンセルトークン) =>
+            Task.FromResult(ケース一覧);
     }
 
-    private sealed class FakeCpuTopologyService:global::UI.ICpuTopologyService{
-        public IReadOnlyList<global::UI.CpuSelectionItem> Load() => [
-            new(0,global::UI.CpuCoreKind.Performance,0,0,true),
+    private sealed class 偽CPUトポロジーサービス:global::UI.ICPUトポロジーサービス {
+        public IReadOnlyList<global::UI.CPU選択項目> 読み込む() => [
+            new(0,global::UI.CPUコア種別.高性能,0,0,true),
         ];
     }
 
-    private sealed class FakeRunService(IReadOnlyList<global::UI.BenchmarkCase> allCases):global::UI.IBenchmarkRunService{
-        public List<bool> ObservedRestartFromRequestedElementCount { get; } = [];
-        public List<int> ObservedBenchmarkCounts { get; } = [];
-        public bool EmitAllElementCounts { get; set; }
+    private sealed class 偽実行サービス(IReadOnlyList<global::UI.ベンチマークケース> 全ケース一覧):global::UI.Iベンチマーク実行サービス {
+        public List<bool> 要求要素数から再開する指定一覧 { get; } = [];
+        public List<int> 観測ベンチマーク数一覧 { get; } = [];
+        public bool 全要素数を送信するか { get; set; }
 
-        public async Task<global::UI.BenchmarkRunReport> RunAsync(
-            IReadOnlyList<global::UI.BenchmarkCase> benchmarks,
-            IReadOnlyList<int> logicalCpus,
-            Func<IReadOnlyList<int>> logicalCpuProvider,
-            IReadOnlyList<int> elementCounts,
-            global::UI.BenchmarkSourceTab sourceTab,
-            global::UI.BenchmarkExecutionProfile executionProfile,
-            TimeSpan adaptiveThreshold,
-            bool restartFromRequestedElementCount,
-            string? runRootOverride,
-            Func<IReadOnlyList<global::UI.BenchmarkCase>>? benchmarkProvider,
-            Action<global::UI.BenchmarkResultItem> resultReceived,
-            Action<string> statusChanged,
-            global::UI.BenchmarkRunExecutionOptions? executionOptions,
-            CancellationToken cancellationToken){
-            this.ObservedRestartFromRequestedElementCount.Add(restartFromRequestedElementCount);
-            this.ObservedBenchmarkCounts.Add(benchmarks.Count);
-            var emitCases = this.CreateEmitCases(benchmarks,sourceTab);
-            var logicalCpu = logicalCpus.FirstOrDefault();
-            var preparedElementCounts = this.EmitAllElementCounts&&elementCounts.Count>0 ? elementCounts.ToArray() : [1];
-            var emittedElementCounts = preparedElementCounts;
-            foreach(var elementCount in emittedElementCounts){
-                foreach(var benchmark in emitCases){
-                    var benchmarkSourceTab = ResolveSourceTab(benchmark,sourceTab);
-                    cancellationToken.ThrowIfCancellationRequested();
-                    resultReceived(CreateResult(benchmark,benchmarkSourceTab,global::UI.JobStatus.Running,logicalCpu,null,elementCount,preparedElementCounts));
-                    if(executionOptions?.UseInfiniteTestRunner==true){
-                        await Task.Delay(Timeout.InfiniteTimeSpan,cancellationToken);
+        public async Task<global::UI.ベンチマーク実行報告> 実行Async(
+            IReadOnlyList<global::UI.ベンチマークケース> ベンチマーク一覧,
+            IReadOnlyList<int> 論理CPU一覧,
+            Func<IReadOnlyList<int>> 論理CPU取得器,
+            IReadOnlyList<int> 要素数一覧,
+            global::UI.ベンチマークソースタブ ソースタブ,
+            global::UI.ベンチマーク実行プロファイル 実行プロファイル,
+            TimeSpan 適応しきい値,
+            bool 要求要素数から再開するか,
+            string? 実行ルート上書き,
+            Func<IReadOnlyList<global::UI.ベンチマークケース>>? ベンチマーク取得器,
+            Action<global::UI.ベンチマーク結果項目> 結果受信時,
+            Action<string> 状態変更時,
+            global::UI.ベンチマーク実行オプション? 実行オプション,
+            CancellationToken キャンセルトークン) {
+            this.要求要素数から再開する指定一覧.Add(要求要素数から再開するか);
+            this.観測ベンチマーク数一覧.Add(ベンチマーク一覧.Count);
+            var 送信ケース一覧 = this.送信ケース一覧を作成(ベンチマーク一覧,ソースタブ);
+            var 論理CPU = 論理CPU一覧.FirstOrDefault();
+            var 準備済み要素数一覧 = this.全要素数を送信するか&&要素数一覧.Count>0 ? 要素数一覧.ToArray() : [1];
+            var 送信要素数一覧 = 準備済み要素数一覧;
+            foreach(var 要素数 in 送信要素数一覧) {
+                foreach(var ベンチマーク in 送信ケース一覧) {
+                    var ベンチマークソースタブ = ソースタブを解決(ベンチマーク,ソースタブ);
+                    キャンセルトークン.ThrowIfCancellationRequested();
+                    結果受信時(結果を作成(ベンチマーク,ベンチマークソースタブ,global::UI.ジョブ状態.実行中,論理CPU,null,要素数,準備済み要素数一覧));
+                    if(実行オプション?.無限テスト実行器を使うか==true) {
+                        await Task.Delay(Timeout.InfiniteTimeSpan,キャンセルトークン);
                     }
-                    resultReceived(CreateResult(benchmark,benchmarkSourceTab,global::UI.JobStatus.Completed,logicalCpu,adaptiveThreshold.TotalMilliseconds*1_000_000,elementCount,preparedElementCounts));
+                    結果受信時(結果を作成(ベンチマーク,ベンチマークソースタブ,global::UI.ジョブ状態.完了,論理CPU,適応しきい値.TotalMilliseconds*1_000_000,要素数,準備済み要素数一覧));
                 }
             }
-            statusChanged("Completed");
-            return new global::UI.BenchmarkRunReport(runRootOverride);
+            状態変更時("Completed");
+            return new global::UI.ベンチマーク実行報告(実行ルート上書き);
         }
 
-        private IReadOnlyList<global::UI.BenchmarkCase> CreateEmitCases(
-            IReadOnlyList<global::UI.BenchmarkCase> selected,
-            global::UI.BenchmarkSourceTab sourceTab){
-            var source = global::UI.BenchmarkSourceTabs.Get(sourceTab);
-            var map = new Dictionary<string,global::UI.BenchmarkCase>(StringComparer.OrdinalIgnoreCase);
-            foreach(var benchmark in selected){
-                Add(benchmark);
-                var pairProject = string.Equals(benchmark.Project,source.LeftProject,StringComparison.OrdinalIgnoreCase)
-                    ? source.RightProject
-                    : source.LeftProject;
-                var pair = allCases.FirstOrDefault(candidate =>
-                    string.Equals(candidate.Project,pairProject,StringComparison.OrdinalIgnoreCase)
-                    &&string.Equals(candidate.MethodName,benchmark.MethodName,StringComparison.OrdinalIgnoreCase)
-                    &&string.Equals(candidate.ArgumentKey,benchmark.ArgumentKey,StringComparison.OrdinalIgnoreCase));
-                if(pair is not null){
-                    Add(pair);
+        private IReadOnlyList<global::UI.ベンチマークケース> 送信ケース一覧を作成(
+            IReadOnlyList<global::UI.ベンチマークケース> 選択一覧,
+            global::UI.ベンチマークソースタブ ソースタブ) {
+            var ソース定義 = global::UI.ベンチマークソースタブ一覧.取得(ソースタブ);
+            var 対応表 = new Dictionary<string,global::UI.ベンチマークケース>(StringComparer.OrdinalIgnoreCase);
+            foreach(var ベンチマーク in 選択一覧) {
+                追加(ベンチマーク);
+                var ペアプロジェクト = string.Equals(ベンチマーク.プロジェクト,ソース定義.左プロジェクト,StringComparison.OrdinalIgnoreCase)
+                    ? ソース定義.右プロジェクト
+                    : ソース定義.左プロジェクト;
+                var ペア = 全ケース一覧.FirstOrDefault(候補 =>
+                    string.Equals(候補.プロジェクト,ペアプロジェクト,StringComparison.OrdinalIgnoreCase)
+                    &&string.Equals(候補.メソッド名,ベンチマーク.メソッド名,StringComparison.OrdinalIgnoreCase)
+                    &&string.Equals(候補.引数キー,ベンチマーク.引数キー,StringComparison.OrdinalIgnoreCase));
+                if(ペア is not null) {
+                    追加(ペア);
                 }
             }
 
-            return map.Values.ToArray();
+            return 対応表.Values.ToArray();
 
-            void Add(global::UI.BenchmarkCase benchmark){
-                map.TryAdd(benchmark.Project+"|"+benchmark.TypeFullName+"|"+benchmark.MethodName+"|"+benchmark.ArgumentKey,benchmark);
+            void 追加(global::UI.ベンチマークケース ベンチマーク) {
+                対応表.TryAdd(ベンチマーク.プロジェクト+"|"+ベンチマーク.型完全名+"|"+ベンチマーク.メソッド名+"|"+ベンチマーク.引数キー,ベンチマーク);
             }
         }
 
-        private static global::UI.BenchmarkSourceTab ResolveSourceTab(global::UI.BenchmarkCase benchmark,global::UI.BenchmarkSourceTab fallback) =>
-            global::UI.BenchmarkSourceTabs.TryGetByProjectAndAssembly(benchmark.Project,benchmark.AssemblyName)?.Tab??fallback;
+        private static global::UI.ベンチマークソースタブ ソースタブを解決(global::UI.ベンチマークケース ベンチマーク,global::UI.ベンチマークソースタブ フォールバック) =>
+            global::UI.ベンチマークソースタブ一覧.プロジェクトとアセンブリから取得を試みる(ベンチマーク.プロジェクト,ベンチマーク.アセンブリ名)?.タブ??フォールバック;
 
-        private static global::UI.BenchmarkResultItem CreateResult(
-            global::UI.BenchmarkCase benchmark,
-            global::UI.BenchmarkSourceTab sourceTab,
-            global::UI.JobStatus status,
-            int logicalCpu,
-            double? meanNanoseconds,
-            int elementCount = 1,
-            IReadOnlyList<int>? preparedElementCounts = null){
-            var job = new global::UI.BenchmarkJob{
-                Project=benchmark.Project,
-                AssemblyName=benchmark.AssemblyName,
-                TypeFullName=benchmark.TypeFullName,
-                MethodName=benchmark.MethodName,
-                ArgumentKey=benchmark.ArgumentKey,
-                Arguments=benchmark.Arguments.ToList(),
-                SourceTab=sourceTab,
-                ElementCount=global::UI.BenchmarkWorkloadAxis.ResolveElementCount(sourceTab,elementCount),
-                LoopCount=global::UI.BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab,elementCount),
-                PreparedElementCounts=preparedElementCounts?.ToList()??[elementCount],
-                Status=status,
-                AssignedLogicalCpu=logicalCpu,
-                StartedAt=DateTimeOffset.Now,
-                FinishedAt=status==global::UI.JobStatus.Completed ? DateTimeOffset.Now : null,
-                MeanNanoseconds=meanNanoseconds,
-                AllocatedBytes=status==global::UI.JobStatus.Completed ? 0 : null,
-                ExitCode=status==global::UI.JobStatus.Completed ? 0 : null,
-                ResultDigest=status==global::UI.JobStatus.Completed ? "test" : string.Empty,
-                ResultCheckText=status==global::UI.JobStatus.Completed ? "OK" : string.Empty,
-                BindingRowIndex=benchmark.BindingRowIndex,
+        private static global::UI.ベンチマーク結果項目 結果を作成(
+            global::UI.ベンチマークケース ベンチマーク,
+            global::UI.ベンチマークソースタブ ソースタブ,
+            global::UI.ジョブ状態 状態,
+            int 論理CPU,
+            double? 平均ナノ秒,
+            int 要素数 = 1,
+            IReadOnlyList<int>? 準備済み要素数一覧 = null) {
+            var ジョブ = new global::UI.ベンチマークジョブ {
+                プロジェクト=ベンチマーク.プロジェクト,
+                アセンブリ名=ベンチマーク.アセンブリ名,
+                型完全名=ベンチマーク.型完全名,
+                メソッド名=ベンチマーク.メソッド名,
+                引数キー=ベンチマーク.引数キー,
+                引数一覧=ベンチマーク.引数一覧.ToList(),
+                ソースタブ=ソースタブ,
+                要素数=global::UI.ベンチマーク作業軸.要素数を解決(ソースタブ,要素数),
+                ループ回数=global::UI.ベンチマーク作業軸.ループ回数を解決(ソースタブ,要素数),
+                準備済み要素数一覧=準備済み要素数一覧?.ToList()?? [要素数],
+                状態=状態,
+                割り当て論理CPU=論理CPU,
+                開始日時=DateTimeOffset.Now,
+                終了日時=状態==global::UI.ジョブ状態.完了 ? DateTimeOffset.Now : null,
+                平均ナノ秒=平均ナノ秒,
+                割り当てバイト数=状態==global::UI.ジョブ状態.完了 ? 0 : null,
+                終了コード=状態==global::UI.ジョブ状態.完了 ? 0 : null,
+                結果ダイジェスト=状態==global::UI.ジョブ状態.完了 ? "test" : string.Empty,
+                結果確認文字列=状態==global::UI.ジョブ状態.完了 ? "OK" : string.Empty,
+                バインド行インデックス=ベンチマーク.バインド行インデックス,
             };
-            return new global::UI.BenchmarkResultItem(job);
+            return new global::UI.ベンチマーク結果項目(ジョブ);
         }
     }
 
-    private sealed class ImmediateDispatcher:global::UI.IBenchmarkUiDispatcher{
-        private readonly object gate = new();
+    private sealed class 即時ディスパッチャー:global::UI.IベンチマークUIディスパッチャー {
+        private readonly object 排他 = new();
 
-        public void BeginInvoke(Action action) {
-            lock(this.gate){
-                action();
+        public void 呼び出し開始(Action 処理) {
+            lock(this.排他) {
+                処理();
             }
         }
     }
 
-    private sealed class InMemoryPreferences:global::UI.IBenchmarkUiPreferences{
-        private readonly Dictionary<string,string> values = new(StringComparer.OrdinalIgnoreCase);
+    private sealed class メモリ内設定:global::UI.IベンチマークUI設定 {
+        private readonly Dictionary<string,string> 値一覧 = new(StringComparer.OrdinalIgnoreCase);
 
-        public string Get(string key,string defaultValue) =>
-            this.values.TryGetValue(key,out var value) ? value : defaultValue;
+        public string 取得(string キー,string 既定値) =>
+            this.値一覧.TryGetValue(キー,out var 値) ? 値 : 既定値;
 
-        public void Set(string key,string value) => this.values[key]=value;
+        public void 設定(string キー,string 値) => this.値一覧[キー]=値;
     }
 }
 #endif

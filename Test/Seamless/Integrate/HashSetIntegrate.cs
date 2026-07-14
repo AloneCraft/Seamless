@@ -1,4 +1,5 @@
 using Seamless.Tsavorite.Stores;
+
 using Tsavorite.core;
 
 namespace Test.Seamless.Integrate;
@@ -26,7 +27,7 @@ public abstract class HashSetStorageBoundaryTests<TKey>(ITestOutputHelper output
             using var store = this.CreateStore(logDevice,objDevice);
             using var set = store.Create();
 
-            for(var i = 0; i<DataSize; i++) {
+            for(var i = 0;i<DataSize;i++) {
                 Assert.True(set.Add(this.MakeKey(i)));
             }
 
@@ -36,8 +37,7 @@ public abstract class HashSetStorageBoundaryTests<TKey>(ITestOutputHelper output
 
             this.AssertContainsAll(set,DataSize);
             this.output.WriteLine($"Verified {DataSize} hash set keys across storage flush/evict.");
-        }
-        finally {
+        } finally {
             try { Directory.Delete(storeDir,true); } catch { }
         }
     }
@@ -54,7 +54,7 @@ public abstract class HashSetStorageBoundaryTests<TKey>(ITestOutputHelper output
         using(var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(storeDir,"obj"),deleteOnClose: false))
         using(var store = this.CreateStore(logDevice,objDevice,checkpointDir))
         using(var set = store.Create()) {
-            for(var i = 0; i<DataSize; i++) {
+            for(var i = 0;i<DataSize;i++) {
                 set.Add(this.MakeKey(i));
             }
 
@@ -64,8 +64,7 @@ public abstract class HashSetStorageBoundaryTests<TKey>(ITestOutputHelper output
 
         using(var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(storeDir,"log"),deleteOnClose: false))
         using(var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(storeDir,"obj"),deleteOnClose: false))
-        using(var store = this.CreateStore(logDevice,objDevice,checkpointDir,recovery: true,token: token))
-        {
+        using(var store = this.CreateStore(logDevice,objDevice,checkpointDir,recovery: true,token: token)) {
             store.Load(token);
             using var set = store.Create();
             this.AssertContainsAll(set,DataSize);
@@ -77,7 +76,7 @@ public abstract class HashSetStorageBoundaryTests<TKey>(ITestOutputHelper output
 
     private void AssertContainsAll(IHashSet<TKey> set,int count) {
         Assert.Equal(count,set.Count);
-        for(var i = 0; i<count; i++) {
+        for(var i = 0;i<count;i++) {
             Assert.True(set.Contains(this.MakeKey(i)),$"Key {this.MakeKey(i)} was not found.");
         }
     }

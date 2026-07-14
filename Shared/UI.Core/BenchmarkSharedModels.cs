@@ -3,113 +3,112 @@ using System.Runtime.CompilerServices;
 
 namespace UI;
 
-public abstract class BenchmarkBindableObject:INotifyPropertyChanged{
-    public event PropertyChangedEventHandler? PropertyChanged;
+public abstract class ベンチマークバインド可能オブジェクト:INotifyPropertyChanged{
+    public event PropertyChangedEventHandler?PropertyChanged;
 
-    protected bool SetProperty<T>(ref T field,T value,[CallerMemberName] string? propertyName = null){
-        if(EqualityComparer<T>.Default.Equals(field,value)){
+    protected bool プロパティを設定<T値>(ref T値 フィールド,T値 値,[CallerMemberName]string?プロパティ名=null){
+        if(EqualityComparer<T値>.Default.Equals(フィールド,値)){
             return false;
         }
 
-        field=value;
-        this.OnPropertyChanged(propertyName);
+        フィールド=値;
+        this.プロパティ変更時(プロパティ名);
         return true;
     }
 
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null){
-        PropertyChanged?.Invoke(this,new PropertyChangedEventArgs(propertyName));
+    protected void プロパティ変更時([CallerMemberName]string?プロパティ名=null){
+        this.PropertyChanged?.Invoke(this,new PropertyChangedEventArgs(プロパティ名));
     }
 }
 
-// Shared models for Worker and the Uno runner.
-// Runner must not redefine these model types (for example CpuCoreInfo / ReportRow).
-public enum CpuCoreKind{
-    Performance,
-    Efficiency,
-    Unknown,
+// ワーカーとUI実行器で共有するモデル。実行器側で再定義しないこと。
+public enum CPUコア種別{
+    高性能,
+    高効率,
+    不明,
 }
 
-public sealed class CpuCoreInfo:BenchmarkBindableObject{
-    private bool isSelected;
+public sealed class CPUコア情報:ベンチマークバインド可能オブジェクト{
+    private bool 選択中値;
 
-    public CpuCoreInfo(
-        int logicalProcessorIndex,
-        CpuCoreKind coreKind,
-        int physicalCoreIndex,
-        int kindCoreIndex,
-        long affinityMask,
-        bool supportsAffinity){
-        this.LogicalProcessorIndex=logicalProcessorIndex;
-        this.CoreKind=coreKind;
-        this.PhysicalCoreIndex=physicalCoreIndex;
-        this.KindCoreIndex=kindCoreIndex;
-        this.AffinityMask=affinityMask;
-        this.SupportsAffinity=supportsAffinity;
-        this.isSelected=false;
+    public CPUコア情報(
+        int 論理プロセッサインデックス,
+        CPUコア種別 コア種別,
+        int 物理コアインデックス,
+        int 種別内コアインデックス,
+        long アフィニティマスク,
+        bool アフィニティ対応か){
+        this.論理プロセッサインデックス=論理プロセッサインデックス;
+        this.コア種別=コア種別;
+        this.物理コアインデックス=物理コアインデックス;
+        this.種別内コアインデックス=種別内コアインデックス;
+        this.アフィニティマスク=アフィニティマスク;
+        this.アフィニティ対応か=アフィニティ対応か;
+        this.選択中値=false;
     }
 
-    public int LogicalProcessorIndex { get; }
-    public CpuCoreKind CoreKind { get; }
-    public int PhysicalCoreIndex { get; }
-    public int KindCoreIndex { get; }
-    public long AffinityMask { get; }
-    public bool SupportsAffinity { get; }
-    public string GroupDisplayText => this.CoreLabel;
-    public string CpuDisplayText => $"{this.LogicalProcessorIndex}({this.GroupDisplayText})";
+    public int 論理プロセッサインデックス{get;}
+    public CPUコア種別 コア種別{get;}
+    public int 物理コアインデックス{get;}
+    public int 種別内コアインデックス{get;}
+    public long アフィニティマスク{get;}
+    public bool アフィニティ対応か{get;}
+    public string グループ表示文字列=>this.コアラベル;
+    public string CPU表示文字列=>$"{this.論理プロセッサインデックス}({this.グループ表示文字列})";
 
-    public bool IsSelected{
-        get => this.isSelected;
+    public bool 選択中か{
+        get=>this.選択中値;
         set{
-            if(this.SetProperty(ref this.isSelected,value)){
-                this.OnPropertyChanged(nameof(this.CheckGlyph));
+            if(this.プロパティを設定(ref this.選択中値,value)){
+                this.プロパティ変更時(nameof(this.チェック記号));
             }
         }
     }
 
-    public string DisplayText => this.CpuDisplayText;
-    public string CheckGlyph => this.isSelected ?"X":string.Empty;
-    public string CoreLabel => this.CoreKind switch{
-        CpuCoreKind.Performance => $"P{this.KindCoreIndex}",
-        CpuCoreKind.Efficiency => $"E{this.KindCoreIndex}",
-        _ => $"Core {this.PhysicalCoreIndex}",
+    public string 表示文字列=>this.CPU表示文字列;
+    public string チェック記号{
+        get{
+            if(this.選択中値){
+                return "X";
+            }
+            return string.Empty;
+        }
+    }
+
+    public string コアラベル=>this.コア種別 switch{
+        CPUコア種別.高性能=>$"Pコア{this.種別内コアインデックス}",
+        CPUコア種別.高効率=>$"Eコア{this.種別内コアインデックス}",
+        _=>$"不明なコア{this.物理コアインデックス}",
     };
-    public string AffinityText => this.SupportsAffinity
-        ? $"mask {this.AffinityMask}"
-        : "affinity unsupported";
+
 }
 
-internal sealed record CpuRowItem(
-    CpuCoreInfo? Column0,
-    CpuCoreInfo? Column1,
-    CpuCoreInfo? Column2,
-    CpuCoreInfo? Column3);
-
-public sealed record ReportRow(
-    string Project,
-    string Method,
-    string TypeFullName,
-    string FullFunctionName,
-    string Status,
-    string Mean,
-    string Error,
-    string StdDev,
-    string AllocatedBytes,
-    string PeakRssBytes,
-    string EstimatedPeakRssBytes,
-    double MeanNanoseconds,
-    double ErrorNanoseconds,
-    double StdDevNanoseconds,
-    long AllocatedBytesValue,
-    long PeakRssBytesValue,
-    long EstimatedPeakRssBytesValue,
-    string LogicalCpu,
-    string Core,
-    string CpuDisplay,
-    string StartedAt,
-    string FinishedAt,
-    string ArtifactFolder,
-    int? ExitCode,
-    string ArgumentKey = "",
-    IReadOnlyList<BenchmarkArgument>? ArgumentValues = null){
-    public IReadOnlyList<BenchmarkArgument> Arguments { get; } = ArgumentValues??[];
+public sealed record 報告行(
+    string プロジェクト,
+    string メソッド,
+    string 型完全名,
+    string 完全関数名,
+    string 状態,
+    string 平均,
+    string 誤差,
+    string 標準偏差,
+    string 割り当てバイト数文字列,
+    string 最大RSSバイト数文字列,
+    string 推定最大RSSバイト数文字列,
+    double 平均ナノ秒,
+    double 誤差ナノ秒,
+    double 標準偏差ナノ秒,
+    long 割り当てバイト数値,
+    long 最大RSSバイト数値,
+    long 推定最大RSSバイト数値,
+    string 論理CPU,
+    string コア,
+    string CPU表示,
+    string 開始日時文字列,
+    string 終了日時文字列,
+    string 成果物フォルダー,
+    int?終了コード,
+    string 引数キー="",
+    IReadOnlyList<ベンチマーク引数>?引数値一覧=null){
+    public IReadOnlyList<ベンチマーク引数>引数一覧{get;}=引数値一覧??[];
 }

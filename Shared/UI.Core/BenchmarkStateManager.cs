@@ -1,99 +1,81 @@
-using System.Globalization;
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Text.Json;
 
 namespace UI;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
-internal sealed class BenchmarkStateManager {
-    private static readonly JsonSerializerOptions JsonOptions = new() {
+internal sealed class ベンチマーク状態マネージャー{
+    private static readonly JsonSerializerOptions JSONオプション=new(){
         WriteIndented=true,
     };
 
-    private readonly object fileGate = new();
-    private readonly string benchmarkRoot;
-    private static readonly ConcurrentDictionary<string,ProgressState> States = new(StringComparer.OrdinalIgnoreCase);
-    private static readonly ConcurrentDictionary<string,string> LatestRuns = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object ファイルゲート=new();
+    private readonly string ベンチマークルート;
+    private static readonly ConcurrentDictionary<string,進行状態>状態一覧=new(StringComparer.OrdinalIgnoreCase);
 
-    public BenchmarkStateManager(string benchmarkRoot) {
-        this.benchmarkRoot=benchmarkRoot;
+    public ベンチマーク状態マネージャー(string ベンチマークルート){
+        this.ベンチマークルート=ベンチマークルート;
     }
 
-    public string BenchmarkRoot => this.benchmarkRoot;
-
-    public string CreateNextRunRoot(){
-        Directory.CreateDirectory(this.benchmarkRoot);
-        var next = Directory.EnumerateDirectories(this.benchmarkRoot)
-            .Select(static path => TryParseRunNumber(path))
+    public string 次の実行ルートを作成(){
+        Directory.CreateDirectory(this.ベンチマークルート);
+        var 次番号=Directory.EnumerateDirectories(this.ベンチマークルート)
+            .Select(static パス=>実行番号の解析を試みる(パス))
             .DefaultIfEmpty(0)
             .Max()+1;
         while(true){
-            var runRoot = Path.Combine(this.benchmarkRoot,next.ToString("D6",CultureInfo.InvariantCulture));
-            if(!Directory.Exists(runRoot)){
-                Directory.CreateDirectory(runRoot);
-                return runRoot;
+            var 実行ルート=Path.Combine(this.ベンチマークルート,次番号.ToString("D6",CultureInfo.InvariantCulture));
+            if(!Directory.Exists(実行ルート)){
+                Directory.CreateDirectory(実行ルート);
+                return 実行ルート;
             }
 
-            next++;
+            次番号++;
         }
     }
 
-    public static int TryParseRunNumber(string runRoot){
-        var name = Path.GetFileName(Path.TrimEndingDirectorySeparator(runRoot));
-        return name.Length==6&&int.TryParse(name,NumberStyles.None,CultureInfo.InvariantCulture,out var number)
-            ? number
-            : 0;
+    public static int 実行番号の解析を試みる(string 実行ルート){
+        var 名前=Path.GetFileName(Path.TrimEndingDirectorySeparator(実行ルート));
+        if(名前.Length==6&&int.TryParse(名前,NumberStyles.None,CultureInfo.InvariantCulture,out var 番号)){
+            return 番号;
+        }
+        return 0;
     }
 
-    public ProgressState? LoadLatestUnfinished() {
-        if(!LatestRuns.TryGetValue(this.benchmarkRoot,out var runRoot)||string.IsNullOrWhiteSpace(runRoot)) {
+    public 進行状態?読み込む(string 実行ルート){
+        if(!状態一覧.TryGetValue(実行ルート,out var 状態)){
             return null;
         }
 
-        var state = this.Load(runRoot);
-        return state is not null&&state.HasUnfinishedJobs ? state : null;
+        状態=複製(状態);
+        var 変更ありか=false;
+        foreach(var ジョブ in 状態.ジョブ一覧.Where(static ジョブ=>ジョブ.状態 is ジョブ状態.実行中 or ジョブ状態.一時停止)){
+            ジョブ.状態=ジョブ状態.失敗;
+            ジョブ.失敗理由="クラッシュ、メモリ不足、または実行中・一時停止中のプロセス終了を検出しました。";
+            ジョブ.終了日時=DateTimeOffset.UtcNow;
+            変更ありか=true;
+        }
+
+        if(変更ありか){
+            状態.更新日時=DateTimeOffset.UtcNow;
+            this.保存(状態);
+        }
+
+        return 状態;
     }
 
-    public ProgressState? Load(string runRoot) {
-        if(!States.TryGetValue(runRoot,out var state)) {
-            return null;
-        }
-
-        state=Clone(state);
-        var changed = false;
-        foreach(var job in state.Jobs.Where(static job => job.Status is JobStatus.Running or JobStatus.Paused)) {
-            job.Status=JobStatus.Failed;
-            job.FailureReason="Crash/OOM or process termination while job was Running or Paused.";
-            job.FinishedAt=DateTimeOffset.UtcNow;
-            changed=true;
-        }
-
-        if(changed) {
-            state.UpdatedAt=DateTimeOffset.UtcNow;
-            this.Save(state);
-        }
-
-        return state;
-    }
-
-    public void Save(ProgressState state) {
-        lock(this.fileGate){
-            state.UpdatedAt=DateTimeOffset.UtcNow;
-            Directory.CreateDirectory(state.RunRoot);
-            States[state.RunRoot]=Clone(state);
+    public void 保存(進行状態 状態){
+        lock(this.ファイルゲート){
+            状態.更新日時=DateTimeOffset.UtcNow;
+            Directory.CreateDirectory(状態.実行ルート);
+            状態一覧[状態.実行ルート]=複製(状態);
         }
     }
 
-    public void SaveLatestRun(string runRoot) {
-        lock(this.fileGate){
-            Directory.CreateDirectory(this.benchmarkRoot);
-            LatestRuns[this.benchmarkRoot]=runRoot;
-        }
-    }
-
-    private static ProgressState Clone(ProgressState source) {
-        var json = JsonSerializer.Serialize(source,JsonOptions);
-        return JsonSerializer.Deserialize<ProgressState>(json,JsonOptions)
-            ??throw new InvalidDataException("Progress state is empty.");
+    private static 進行状態 複製(進行状態 元){
+        var JSON=JsonSerializer.Serialize(元,JSONオプション);
+        return JsonSerializer.Deserialize<進行状態>(JSON,JSONオプション)
+            ??throw new InvalidDataException("進行状態が空です。");
     }
 }

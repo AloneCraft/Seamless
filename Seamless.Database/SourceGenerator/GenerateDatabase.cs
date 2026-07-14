@@ -3,16 +3,16 @@ using static Seamless.SourceGenerator.GeneratorHelpers;
 namespace Seamless.Database.SourceGenerator;
 
 [Generator]
-public sealed class DatabaseSchemaGenerator : IIncrementalGenerator {
+public sealed class DatabaseSchemaGenerator:IIncrementalGenerator {
     public void Initialize(IncrementalGeneratorInitializationContext context) {
         var typeTargets = context.SyntaxProvider
             .CreateSyntaxProvider(
-                static (node,_)=>node is TypeDeclarationSyntax,
-                static (syntaxContext,_)=>型対象生成(syntaxContext))
-            .Where(static target=>target is not null)
-            .Select(static (target,_)=>target!);
+                static (node,_) => node is TypeDeclarationSyntax,
+                static (syntaxContext,_) => 型対象生成(syntaxContext))
+            .Where(static target => target is not null)
+            .Select(static (target,_) => target!);
 
-        context.RegisterSourceOutput(typeTargets.Collect(),static (productionContext,typeTargets)=>{
+        context.RegisterSourceOutput(typeTargets.Collect(),static (productionContext,typeTargets) => {
             if(!typeTargets.IsDefaultOrEmpty) {
                 var databaseSource = データベースソース構築(typeTargets);
                 if(databaseSource.Length>0) {
@@ -35,7 +35,7 @@ public sealed class DatabaseSchemaGenerator : IIncrementalGenerator {
         var isMarker = symbol.Name=="DatabaseGenerator";
         var isPartial = declaration.Modifiers.Any(SyntaxKind.PartialKeyword);
         var isContainerCandidate = symbol.TypeKind==TypeKind.Class;
-        if(!isMarker && !isPartial && !isContainerCandidate) {
+        if(!isMarker&&!isPartial&&!isContainerCandidate) {
             return null;
         }
 
@@ -130,14 +130,12 @@ public sealed class DatabaseSchemaGenerator : IIncrementalGenerator {
             indentedBuilder.AppendLine($"    public {symbol.Name}({string.Join(", ",properties.Select(static property => $"{property.Type.ToDisplayString(完全修飾形式)} {パラメーター名取得(property)}"))}) {{");
             if(unmanagedProperties.Length>0) {
                 indentedBuilder.AppendLine($"        this._u=new({string.Join(", ",unmanagedProperties.Select(static property => パラメーター名取得(property)))});");
-            }
-            else {
+            } else {
                 indentedBuilder.AppendLine("        this._u=new();");
             }
             if(managedProperties.Length>0) {
                 indentedBuilder.AppendLine($"        this._m=new({string.Join(", ",managedProperties.Select(static property => パラメーター名取得(property)))});");
-            }
-            else {
+            } else {
                 indentedBuilder.AppendLine("        this._m=new();");
             }
             indentedBuilder.AppendLine("    }");

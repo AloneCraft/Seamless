@@ -1,7 +1,8 @@
 namespace Seamless.FLinq.Linq.Fragments;
-public class ElementAtOrDefault(int 番号, Enumerable source, string index, string resultType) : BufferedScalar(番号, resultType) {
+
+public class ElementAtOrDefault(int 番号,Enumerable source,string index,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_Int32;
+        method.Parameters.Length==1&&method.Parameters[0].Type.SpecialType==SpecialType.System_Int32;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -13,19 +14,19 @@ public class ElementAtOrDefault(int 番号, Enumerable source, string index, str
         ??this.RenderDirectSpanElementAtOrDefaultInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,index);
     private string? RenderDirectSpanElementAtOrDefaultInline(string destVar,string destType) {
-        var span=$"__span{this.result}";
-        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span = $"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
             var __idx={{index}};
             {{destVar}}=(uint)__idx<(uint){{spanName}}.Length ? {{spanName}}[__idx] : default!;
             """);
     }
     private string? RenderRangeElementAtOrDefaultInline(string destVar,string destType) {
-        if(source is not RangeRoot range || source.ElementType!="int") {
+        if(source is not RangeRoot range||source.ElementType!="int") {
             return null;
         }
-        var start=$"__start{番号}";
-        var count=$"__count{番号}";
-        var idx=$"__idx{番号}";
+        var start = $"__start{番号}";
+        var count = $"__count{番号}";
+        var idx = $"__idx{番号}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -61,10 +62,10 @@ public class ElementAtOrDefault(int 番号, Enumerable source, string index, str
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-public class ElementAtOrDefault_index(int 番号, Enumerable source, string index, string resultType) : BufferedScalar(番号, resultType) {
+public class ElementAtOrDefault_index(int 番号,Enumerable source,string index,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length == 1
-        && method.Parameters[0].Type is INamedTypeSymbol {
+        method.Parameters.Length==1
+        &&method.Parameters[0].Type is INamedTypeSymbol {
             Name: "Index",
             ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true }
         };
@@ -79,19 +80,19 @@ public class ElementAtOrDefault_index(int 番号, Enumerable source, string inde
         ??this.RenderDirectSpanElementAtOrDefaultIndexInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,index);
     private string? RenderDirectSpanElementAtOrDefaultIndexInline(string destVar,string destType) {
-        var span=$"__span{this.result}";
-        return this.RenderSpanInline(source,destVar,destType,span,spanName=>$$"""
+        var span = $"__span{this.result}";
+        return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
             var __idx=({{index}}).GetOffset({{spanName}}.Length);
             {{destVar}}=(uint)__idx<(uint){{spanName}}.Length ? {{spanName}}[__idx] : default!;
             """);
     }
     private string? RenderRangeElementAtOrDefaultIndexInline(string destVar,string destType) {
-        if(source is not RangeRoot range || source.ElementType!="int") {
+        if(source is not RangeRoot range||source.ElementType!="int") {
             return null;
         }
-        var start=$"__start{番号}";
-        var count=$"__count{番号}";
-        var idx=$"__idx{番号}";
+        var start = $"__start{番号}";
+        var count = $"__count{番号}";
+        var idx = $"__idx{番号}";
         return $$"""
             {{destType}} {{destVar}};
             {

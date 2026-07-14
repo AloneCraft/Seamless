@@ -59,8 +59,7 @@ partial class ValueEnumerableExtensions {
                 span[i]=current;
                 i++;
             }
-        }
-        else {
+        } else {
             while(enumerator.TryGetNext(out var item)) {
                 list.Add(item);
             }

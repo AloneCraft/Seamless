@@ -3,7 +3,7 @@ using System.Reflection;
 namespace Test.SourceGenerator;
 
 public sealed class LinqFragmentCoverageTests {
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public void SystemLinqEnumerablePublicMethodsHaveFragmentOrPipelineSupport() {
         var assembly = typeof(global::Seamless.FLinq.FLinqIncrementalGenerator).Assembly;
         var fragmentTypeNames = new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);

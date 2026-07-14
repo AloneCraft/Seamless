@@ -1,18 +1,21 @@
-using System.Buffers.Binary;
 using Garnet.common;
+
 using global::System.Diagnostics.CodeAnalysis;
+
+using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+
 using Tsavorite.core;
 
-// ファイルスコープ型エイリアス
-using TStoreFuncs = Tsavorite.core.StoreFunctions<
-    Tsavorite.core.SpanByteComparer,
-    Tsavorite.core.DefaultRecordTriggers>;
 using TAlloc = Tsavorite.core.SpanByteAllocator<
     Tsavorite.core.StoreFunctions<
         Tsavorite.core.SpanByteComparer,
         Tsavorite.core.DefaultRecordTriggers>>;
+// ファイルスコープ型エイリアス
+using TStoreFuncs = Tsavorite.core.StoreFunctions<
+    Tsavorite.core.SpanByteComparer,
+    Tsavorite.core.DefaultRecordTriggers>;
 
 namespace Test;
 
@@ -279,8 +282,7 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
                     cursorRecordResult=
                         CursorRecordResult.Skip|
                         CursorRecordResult.EndBatch;
-                }
-                else {
+                } else {
                     cursorRecordResult=
                         CursorRecordResult.Skip|
                         CursorRecordResult.EndBatch|
@@ -396,8 +398,7 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
             if(completedOutputs.Next()) {
                 status=completedOutputs.Current.Status;
                 output=completedOutputs.Current.Output;
-            }
-            else {
+            } else {
             }
         }
         return status;
@@ -488,7 +489,7 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
         using var store = CreateStore(settings);
         using var session = CreateSession(store);
         var expected = new Dictionary<int,int>(totalKeys);
-        for(var i = 0; i<totalKeys; i++) {
+        for(var i = 0;i<totalKeys;i++) {
             var value = i+1;
             UpsertValue(session,i,value);
             expected.Add(i,value);
@@ -560,7 +561,7 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
         using var scanSession = CreateSession(store);
         using var upsertSession = CreateSession(store);
         var expected = new Dictionary<int,int>(Count);
-        for(var i = 0; i<Count; i++) {
+        for(var i = 0;i<Count;i++) {
             var value = i+1;
             UpsertValue(scanSession,i,value);
             expected.Add(i,value);

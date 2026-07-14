@@ -68,8 +68,7 @@ namespace Seamless.System.Carrier {
                         checked { count+=1; }
                     }
                     this.dictionary=dict;
-                }
-                else {
+                } else {
                     var capacityHint = this.source.TryGetNonEnumeratedCount(out var sourceCount)
                         ? Math.Min(sourceCount,1024)
                         : 0;

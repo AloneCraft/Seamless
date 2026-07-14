@@ -1,10 +1,10 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public class OrderBy(int 番号, Enumerable source, FuncFragment keySelector) : OrderBy_comparer(番号, source, keySelector, "null") { }
-public class OrderByDescending(int 番号, Enumerable source, FuncFragment keySelector) : OrderByDescending_comparer(番号, source, keySelector, "null") { }
+public class OrderBy(int 番号,Enumerable source,FuncFragment keySelector):OrderBy_comparer(番号,source,keySelector,"null") { }
+public class OrderByDescending(int 番号,Enumerable source,FuncFragment keySelector):OrderByDescending_comparer(番号,source,keySelector,"null") { }
 
-public class OrderBy_comparer(int 番号, Enumerable source, FuncFragment keySelector, string comparer) : OrderingBase(番号, source, keySelector, comparer, descending: false) { }
-public class OrderByDescending_comparer(int 番号, Enumerable source, FuncFragment keySelector, string comparer) : OrderingBase(番号, source, keySelector, comparer, descending: true) { }
+public class OrderBy_comparer(int 番号,Enumerable source,FuncFragment keySelector,string comparer):OrderingBase(番号,source,keySelector,comparer,descending: false) { }
+public class OrderByDescending_comparer(int 番号,Enumerable source,FuncFragment keySelector,string comparer):OrderingBase(番号,source,keySelector,comparer,descending: true) { }
 
 /*
 OrderingBase は OrderBy/ThenBy 系を、全件 buffer + stable sort + buffer enumerator に変換する。
@@ -25,7 +25,7 @@ OrderingBase は OrderBy/ThenBy 系を、全件 buffer + stable sort + buffer en
   - source が既に OrderingBase の場合、一次 key と二次 key を SortItem に同居させる。
   - originalIndex を最後に比較し、System.Linq と同じ安定ソートの結果にする。
 */
-public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment keySelector, string comparer, bool descending) : Enumerable(番号) {
+public abstract class OrderingBase(int 番号,Enumerable source,FuncFragment keySelector,string comparer,bool descending):Enumerable(番号) {
     // チェーン（ThenBy）検出用に一次ソースを公開
     internal FuncFragment OwnKeySelector => keySelector;
     internal string OwnComparer => ComparerExpressionSupport.RenderOrderComparer(comparer,FuncReturnTypeName(keySelector));
@@ -38,7 +38,7 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
     private Enumerable UnorderedSource {
         get {
             Enumerable s = source;
-            while(s is OrderingBase oo) s = oo.OwnSource;
+            while(s is OrderingBase oo) s=oo.OwnSource;
             return s;
         }
     }
@@ -49,8 +49,8 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
 
     public override string StructMethod =>
         this.PrimaryOrdering is { } po
-            ? JoinStaticMethods(this.FuncSupport(keySelector, nameof(keySelector)),this.FuncSupport(po.OwnKeySelector, "primaryKeySelector"))
-            : this.FuncSupport(keySelector, nameof(keySelector));
+            ? JoinStaticMethods(this.FuncSupport(keySelector,nameof(keySelector)),this.FuncSupport(po.OwnKeySelector,"primaryKeySelector"))
+            : this.FuncSupport(keySelector,nameof(keySelector));
 
     public override string GetEnumeratorStruct => $$"""
         {{this.UnorderedSource.GetEnumeratorStruct}}
@@ -59,17 +59,17 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
 
     public override string GetEnumeratorExpression =>
         this.PrimaryOrdering is { } po
-            ? $"new {this.EnumeratorTypeName}({this.UnorderedSource.GetEnumeratorExpression}, {this.OwnComparer}, {po.OwnComparer}{this.ClosureArgsSuffix(keySelector, po.OwnKeySelector)})"
+            ? $"new {this.EnumeratorTypeName}({this.UnorderedSource.GetEnumeratorExpression}, {this.OwnComparer}, {po.OwnComparer}{this.ClosureArgsSuffix(keySelector,po.OwnKeySelector)})"
             : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.OwnComparer}{this.ClosureArgsSuffix(keySelector)})";
 
     public override string GetEnumeratorPrimaryConstructorParameters =>
         this.PrimaryOrdering is { } po
-            ? $"TEnum source, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(keySelector)}>? comparer, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(po.OwnKeySelector)}>? primaryComparer{this.ClosurePrimaryCtorSuffix(keySelector, po.OwnKeySelector)}"
+            ? $"TEnum source, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(keySelector)}>? comparer, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(po.OwnKeySelector)}>? primaryComparer{this.ClosurePrimaryCtorSuffix(keySelector,po.OwnKeySelector)}"
             : $"TEnum source, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector)}";
 
     public override string GetEnumeratorConstructor =>
         this.PrimaryOrdering is { } po
-            ? $"this.Build(comparer,primaryComparer{this.ClosureArgsSuffixForCtorBody(keySelector, po.OwnKeySelector)});"
+            ? $"this.Build(comparer,primaryComparer{this.ClosureArgsSuffixForCtorBody(keySelector,po.OwnKeySelector)});"
             : $"this.Build(comparer{this.ClosureArgsSuffixForCtorBody(keySelector)});";
 
     public override string GetEnumeratorFields =>
@@ -248,7 +248,7 @@ public abstract class OrderingBase(int 番号, Enumerable source, FuncFragment k
             this.indexMap![this.count]=this.count;
             this.count++;
         }
-        private void Build(global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(keySelector)}}>? comparer,global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(po.OwnKeySelector)}}>? primaryComparer{{this.ClosureMethodParameterSuffix(keySelector, po.OwnKeySelector)}}) {
+        private void Build(global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(keySelector)}}>? comparer,global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(po.OwnKeySelector)}}>? primaryComparer{{this.ClosureMethodParameterSuffix(keySelector,po.OwnKeySelector)}}) {
             comparer ??= global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
             primaryComparer ??= global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(po.OwnKeySelector)}}>.Default;
             try {

@@ -1,111 +1,113 @@
+using Microsoft.Maui.LifecycleEvents;
+
+using Seamless.UI.Storage;
+
 using Syncfusion.Maui.Core.Hosting;
 using Syncfusion.Maui.Toolkit.Hosting;
-using Microsoft.Maui.LifecycleEvents;
-using Seamless.UI.Storage;
+
 using UI.ViewModels;
 
 namespace UI;
 
 public static class MauiProgram {
-    private const string SyncfusionLicenseKey = "Ngo9BigBOggjHTQxAR8/V1JHaF1cXmhOYVFzWmFZfVhgdl9HYVZRRmYuP1ZhSXxVdkNhXH9cc3VVR2VZUUV9XEE=";
+    private const string Syncfusionライセンスキー = "Ngo9BigBOggjHTQxAR8/V1JHaF1cXmhOYVFzWmFZfVhgdl9HYVZRRmYuP1ZhSXxVdkNhXH9cc3VVR2VZUUV9XEE=";
 
-    private static async Task HandleWindowClosingAsync(Microsoft.UI.Xaml.Window window,App app){
-        try{
-            if(await app.RequestCloseAsync()){
-                window.DispatcherQueue.TryEnqueue(window.Close);
+    private static async Task ウィンドウ終了時Async(Microsoft.UI.Xaml.Window ウィンドウ,App アプリ) {
+        try {
+            if(await アプリ.終了を要求Async()) {
+                ウィンドウ.DispatcherQueue.TryEnqueue(ウィンドウ.Close);
             }
-        }catch(Exception ex){
-            StartupDiagnostics.Write("Window closing flow failed.",ex);
+        } catch(Exception 例外) {
+            起動診断.書き込む("ウィンドウ終了処理に失敗しました。",例外);
         }
     }
 
     public static MauiApp CreateMauiApp() {
-        StartupDiagnostics.InstallGlobalHandlers();
-        StartupDiagnostics.Write("CreateMauiApp started.");
-        StartupDiagnostics.WriteSyncfusionAssemblies("CreateMauiApp started");
-        if(!string.IsNullOrWhiteSpace(SyncfusionLicenseKey)) {
-            Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(SyncfusionLicenseKey);
+        起動診断.グローバルハンドラーを設定();
+        起動診断.書き込む("CreateMauiAppを開始しました。");
+        起動診断.Syncfusionアセンブリを書き込む("CreateMauiApp開始");
+        if(!string.IsNullOrWhiteSpace(Syncfusionライセンスキー)) {
+            Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(Syncfusionライセンスキー);
         }
-        StartupDiagnostics.WriteSyncfusionAssemblies("Syncfusion license registered");
+        起動診断.Syncfusionアセンブリを書き込む("Syncfusionライセンス登録完了");
 
-        var builder = MauiApp.CreateBuilder();
-        builder
+        var ビルダー = MauiApp.CreateBuilder();
+        ビルダー
             .UseMauiApp<App>()
             .ConfigureSyncfusionCore()
             .ConfigureSyncfusionToolkit()
-            .ConfigureLifecycleEvents(events => {
+            .ConfigureLifecycleEvents(イベント => {
 #if WINDOWS
-                events.AddWindows(windows => {
-                    windows.OnWindowCreated(window => {
-                        window.AppWindow.Closing+=(sender,args) => {
-                            if(Application.Current is not App app){
+                イベント.AddWindows(Windowsイベント => {
+                    Windowsイベント.OnWindowCreated(ウィンドウ => {
+                        ウィンドウ.AppWindow.Closing+=(送信元,引数) => {
+                            if(Application.Current is not App アプリ) {
                                 return;
                             }
 
-                            if(app.IsCloseConfirmed){
+                            if(アプリ.終了確認済みか) {
                                 return;
                             }
 
-                            args.Cancel=true;
-                            _=HandleWindowClosingAsync(window,app);
+                            引数.Cancel=true;
+                            _=ウィンドウ終了時Async(ウィンドウ,アプリ);
                         };
                     });
                 });
 #endif
             });
-        ConfigureServices(builder.Services);
+        サービスを構成(ビルダー.Services);
 
-        var app = builder.Build();
-        StartupDiagnostics.WriteSyncfusionAssemblies("CreateMauiApp completed");
-        StartupDiagnostics.Write("CreateMauiApp completed.");
-        return app;
+        var アプリ = ビルダー.Build();
+        起動診断.Syncfusionアセンブリを書き込む("CreateMauiApp完了");
+        起動診断.書き込む("CreateMauiAppが完了しました。");
+        return アプリ;
     }
 
-    private static void ConfigureServices(IServiceCollection services) {
-        services.AddSingleton<AppShell>();
-        services.AddSingleton<MainPage>();
-        services.AddSingleton<IBenchmarkCatalogService,BenchmarkCatalogService>();
-        services.AddSingleton<ICpuTopologyService,CpuTopologyService>();
-        services.AddSingleton<IBenchmarkResultService,BenchmarkResultService>();
-        services.AddSingleton<IBenchmarkComparisonService,BenchmarkComparisonService>();
-        services.AddSingleton<IBenchmarkQueueService,BenchmarkQueueService>();
-        services.AddSingleton<IBenchmarkWorkerProcessService,BenchmarkWorkerProcessService>();
-        services.AddSingleton<IBenchmarkRunService,BenchmarkRunService>();
-        services.AddSingleton<IBenchmarkUiDispatcher,MauiBenchmarkUiDispatcher>();
-        services.AddSingleton<IBenchmarkUiPreferences,MauiBenchmarkUiPreferences>();
-        services.AddSingleton(static _ => new UiRunStore(
+    private static void サービスを構成(IServiceCollection サービス) {
+        サービス.AddSingleton<アプリシェル>();
+        サービス.AddSingleton<MainPage>();
+        サービス.AddSingleton<Iベンチマークカタログサービス,ベンチマークカタログサービス>();
+        サービス.AddSingleton<ICPUトポロジーサービス,CPUトポロジーサービス>();
+        サービス.AddSingleton<Iベンチマーク結果サービス,ベンチマーク結果サービス>();
+        サービス.AddSingleton<Iベンチマーク比較サービス,ベンチマーク比較サービス>();
+        サービス.AddSingleton<Iベンチマークワーカープロセスサービス,ベンチマークワーカープロセスサービス>();
+        サービス.AddSingleton<Iベンチマーク実行サービス,ベンチマーク実行サービス>();
+        サービス.AddSingleton<IベンチマークUIディスパッチャー,MauiベンチマークUIディスパッチャー>();
+        サービス.AddSingleton<IベンチマークUI設定,MauiベンチマークUI設定>();
+        サービス.AddSingleton(static _ => new UI実行ストア(
 #if SCALABLE_BENCHMARK
-            UiRunDatabasePathResolver.Resolve(UiRunAppKind.ScalableBenchmark,FindSolutionRoot()),
-            UiRunAppKind.ScalableBenchmark));
+            UI実行DBパスリゾルバー.解決(UI実行アプリ種別.スケーラブルベンチマーク,ソリューションルートを検索()),
+            UI実行アプリ種別.スケーラブルベンチマーク));
 #else
-            UiRunDatabasePathResolver.Resolve(UiRunAppKind.Benchmark,FindSolutionRoot()),
-            UiRunAppKind.Benchmark));
+            UI実行DBパスリゾルバー.解決(UI実行アプリ種別.ベンチマーク,ソリューションルートを検索()),
+            UI実行アプリ種別.ベンチマーク));
 #endif
-        services.AddSingleton(static provider => new RunnerViewModel(
-            provider.GetRequiredService<IBenchmarkCatalogService>(),
-            provider.GetRequiredService<ICpuTopologyService>(),
-            provider.GetRequiredService<IBenchmarkRunService>(),
-            provider.GetRequiredService<IBenchmarkComparisonService>(),
-            provider.GetRequiredService<UiRunStore>(),
-            CreateBenchmarkRoot(),
-            provider.GetRequiredService<IBenchmarkUiDispatcher>(),
-            provider.GetRequiredService<IBenchmarkUiPreferences>()));
+        サービス.AddSingleton(static 提供元 => new 実行ビューモデル(
+            提供元.GetRequiredService<Iベンチマークカタログサービス>(),
+            提供元.GetRequiredService<ICPUトポロジーサービス>(),
+            提供元.GetRequiredService<Iベンチマーク実行サービス>(),
+            提供元.GetRequiredService<Iベンチマーク比較サービス>(),
+            提供元.GetRequiredService<UI実行ストア>(),
+            ベンチマークルートを作成(),
+            提供元.GetRequiredService<IベンチマークUIディスパッチャー>(),
+            提供元.GetRequiredService<IベンチマークUI設定>()));
     }
 
-    private static string CreateBenchmarkRoot() =>
+    private static string ベンチマークルートを作成() =>
         Path.Combine(
-            FindSolutionRoot()??Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            ソリューションルートを検索()??Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Work",
-            BenchmarkAppProfile.WorkRootName);
+            ベンチマークアプリプロファイル.作業ルート名);
 
-    private static string? FindSolutionRoot() {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while(directory is not null) {
-            if(File.Exists(Path.Combine(directory.FullName,"Seamless.slnx"))) {
-                return directory.FullName;
+    private static string? ソリューションルートを検索() {
+        var ディレクトリ = new DirectoryInfo(AppContext.BaseDirectory);
+        while(ディレクトリ is not null) {
+            if(File.Exists(Path.Combine(ディレクトリ.FullName,"Seamless.slnx"))) {
+                return ディレクトリ.FullName;
             }
 
-            directory=directory.Parent;
+            ディレクトリ=ディレクトリ.Parent;
         }
 
         return null;

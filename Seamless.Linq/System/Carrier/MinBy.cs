@@ -16,8 +16,7 @@ namespace Seamless.System.Carrier {
                 {
                     if(default(TSource) is null) {
                         return default;
-                    }
-                    else {
+                    } else {
                         Throws.NoElements();
                     }
                 }
@@ -47,8 +46,7 @@ namespace Seamless.System.Carrier {
                             value=current;
                         }
                     }
-                }
-                else {
+                } else {
                     // value type
                     if(comparer==Comparer<TKey>.Default) {
                         while(enumerator.TryGetNext(out var current)) {
@@ -60,8 +58,7 @@ namespace Seamless.System.Carrier {
                         }
 
                         return value;
-                    }
-                    else {
+                    } else {
                         while(enumerator.TryGetNext(out var current)) {
                             var currentKey = keySelector(current);
                             if(comparer.Compare(currentKey,key)<0) {

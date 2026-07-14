@@ -135,13 +135,11 @@ partial class ValueEnumerableExtensions {
 
                 if(typeof(TSource)==typeof(int)) {
                     return AverageIntSimd(UnsafeSpanBitCast<TSource,int>(span));
-                }
-                else {
+                } else {
                     var sum = SumSpan(span);
                     return double.CreateChecked(sum)/(double)span.Length;
                 }
-            }
-            else {
+            } else {
                 if(!enumerator.TryGetNext(out var sum)) // store first value
                 {
                     Throws.NoElements();

@@ -51,7 +51,7 @@ namespace Test.SourceGenerator {
                 }
                 inspectedFileCount++;
                 var index = 0;
-                foreach(var marker in new[]{"LinqInterceptorFailure(","UnsupportedLinqExpansion("}) {
+                foreach(var marker in new[] { "LinqInterceptorFailure(","UnsupportedLinqExpansion(" }) {
                     index=0;
                     while((index=text.IndexOf(marker,index,StringComparison.Ordinal))>=0) {
                         var lineNumber = CountLines(text,index);
@@ -76,7 +76,7 @@ namespace Test.SourceGenerator {
 
         private static int CountLines(string text,int position) {
             var lines = 1;
-            for(var index = 0; index<position; index++) {
+            for(var index = 0;index<position;index++) {
                 if(text[index]=='\n') {
                     lines++;
                 }

@@ -54,8 +54,7 @@ namespace Seamless.System.Carrier {
                     // If we want to accept null keys, we should create a lookup with null keys and join them.
                     // However, this behavior matches the official dotnet implementation.
                     this.outerLookup=Lookup.CreateForJoin(ref this.source,outerKeySelector,comparer);
-                }
-                finally {
+                } finally {
                     this.source.Dispose();
                 }
             }
@@ -67,8 +66,7 @@ namespace Seamless.System.Carrier {
                     current=resultSelector(this.currentGroup[this.currentGroupIndex],this.currentInner);
                     this.currentGroupIndex++;
                     return true;
-                }
-                else {
+                } else {
                     this.currentGroup=null;
                 }
             }
@@ -81,8 +79,7 @@ namespace Seamless.System.Carrier {
                     this.currentGroup=group;
                     this.currentGroupIndex=0;
                     goto ITERATE;
-                }
-                else {
+                } else {
                     // The difference with Join is how nulls are handled.
                     current=resultSelector(default,value);
                     return true;

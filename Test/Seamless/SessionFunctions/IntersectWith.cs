@@ -20,7 +20,7 @@ public sealed class ManagedIntersectWith:IntersectWith<string,global::Seamless.T
     protected override void ExpectedWith(global::System.Collections.Generic.HashSet<string> set,global::System.Collections.Generic.HashSet<string> other) => set.IntersectWith(other);
 
     [Fact, Trait("Category","Unit")]
-    [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416",Justification="Storage-backed Tsavorite test path is Windows-only in this workspace")]
+    [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416",Justification = "Storage-backed Tsavorite test path is Windows-only in this workspace")]
     public void FlushAndEvict後もIntersectWithで共通要素だけ残る() {
         var folderA = TestPath.Directory(this,"A");
         var folderB = TestPath.Directory(this,"B");
@@ -65,7 +65,7 @@ public sealed class UnmanagedIntersectWith:IntersectWith<int,global::Seamless.Ts
     protected override void ExpectedWith(global::System.Collections.Generic.HashSet<int> set,global::System.Collections.Generic.HashSet<int> other) => set.IntersectWith(other);
 
     [Fact, Trait("Category","Unit")]
-    [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416",Justification="Storage-backed Tsavorite test path is Windows-only in this workspace")]
+    [global::System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability","CA1416",Justification = "Storage-backed Tsavorite test path is Windows-only in this workspace")]
     public void FlushAndEvict後もIntersectWithで共通要素だけ残る() {
         var folderA = TestPath.Directory(this,"A");
         var folderB = TestPath.Directory(this,"B");

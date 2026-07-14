@@ -8,7 +8,7 @@ public sealed class EnumerableComparisonCatalogTests {
         }
     }
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public void BenchmarkMethodNames_cover_current_chain1_surface() {
         var chain1Directory = Path.Combine(AppContext.BaseDirectory,"..","..","..","System","Linq","Intercept","Chain1");
         var actualMethodNames = Directory
@@ -25,7 +25,7 @@ public sealed class EnumerableComparisonCatalogTests {
         Assert.Equal(expectedMethodNames,actualMethodNames);
     }
 
-    [Theory,Trait("Category","Unit"),MemberData(nameof(BenchmarkMethodNames))]
+    [Theory, Trait("Category","Unit"), MemberData(nameof(BenchmarkMethodNames))]
     public void BenchmarkMethodNames_match_enumerable_result(string methodName) {
         var expected = EnumerableComparisonCatalog.Normalize(EnumerableComparisonCatalog.RunSystem(methodName));
         using var optimizedScope = LinqCounterScope.Start();

@@ -21,9 +21,9 @@ constructor 引数:
   - predicate が匿名型や delegate 保持対象なら this.predicateDelegate.Invoke(item) になる。
   - Where_indexPredicate は index をフィールドで増やし、predicate(item, index) を呼ぶ。
 */
-public class Where_predicate(int 番号, Enumerable source, FuncFragment predicate) : Enumerable(番号) {
+public class Where_predicate(int 番号,Enumerable source,FuncFragment predicate):Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        !(method.Parameters.Length > 0 &&
+        !(method.Parameters.Length>0&&
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     protected override Enumerable PrimarySource => source;
     internal Enumerable Source => source;
@@ -40,7 +40,7 @@ public class Where_predicate(int 番号, Enumerable source, FuncFragment predica
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody {
         get {
-            var (preCode, condExpr) =this.FuncInvokeCondition(predicate, nameof(predicate),this.temp,this.item);
+            var (preCode,condExpr)=this.FuncInvokeCondition(predicate,nameof(predicate),this.temp,this.item);
             var predicateCheck = string.IsNullOrEmpty(preCode)
                 ? $"if(!{WrapConditionExpression(condExpr)})"
                 : $"{preCode}\n        if(!{WrapConditionExpression(condExpr)})";
@@ -83,8 +83,8 @@ Where_WithInlinedScalarPredicate は predicate 本体が LINQ scalar を返す�
 設計意図:
   lambda 内の Any/Count などを System.Linq 呼び出しのまま残さず、外側 item を使う内側 Fragment として再帰的に生成する。
 */
-public class Where_WithInlinedScalarPredicate(int 番号, Enumerable source, Fragment scalarFrag, string outerParamName)
-    : Enumerable(番号) {
+public class Where_WithInlinedScalarPredicate(int 番号,Enumerable source,Fragment scalarFrag,string outerParamName)
+    :Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) => false;
     public override string ElementType => source.ElementType;
     protected override Enumerable PrimarySource => source;
@@ -126,37 +126,37 @@ public class Where_WithInlinedScalarPredicate(int 番号, Enumerable source, Fra
         BuildInvocationFragmentDelegate buildInvocation,
         TryGetLambdaBodyDelegate tryGetLambdaBody,
         GetLambdaParametersDelegate getLambdaParameters) {
-        fragment = null!;
-        staticMethods = string.Empty;
+        fragment=null!;
+        staticMethods=string.Empty;
         if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method) return false;
-        var definition = method.ReducedFrom ?? method;
-        if(definition.Name != "Where"
-            || definition.ContainingType.ToDisplayString() != "System.Linq.Enumerable")
+        var definition = method.ReducedFrom??method;
+        if(definition.Name!="Where"
+            ||definition.ContainingType.ToDisplayString()!="System.Linq.Enumerable")
             return false;
-        if(invocation.ArgumentList.Arguments.Count != 1
-            || invocation.Expression is not MemberAccessExpressionSyntax { Expression: var sourceExpression })
+        if(invocation.ArgumentList.Arguments.Count!=1
+            ||invocation.Expression is not MemberAccessExpressionSyntax { Expression: var sourceExpression })
             return false;
         var predicateArg = invocation.ArgumentList.Arguments[0].Expression;
         if(predicateArg is not LambdaExpressionSyntax lambda) return false;
-        if(!tryGetLambdaBody(lambda, out var lambdaBody)) return false;
+        if(!tryGetLambdaBody(lambda,out var lambdaBody)) return false;
         var outerParams = getLambdaParameters(lambda);
-        if(outerParams.Count != 1) return false;
+        if(outerParams.Count!=1) return false;
         var outerParamName = outerParams[0];
         if(lambdaBody is not InvocationExpressionSyntax innerInvocation) return false;
         if(semanticModel.GetSymbolInfo(innerInvocation).Symbol is not IMethodSymbol innerMethod) return false;
-        if((innerMethod.ReducedFrom ?? innerMethod).ContainingType.ToDisplayString() != "System.Linq.Enumerable") return false;
+        if((innerMethod.ReducedFrom??innerMethod).ContainingType.ToDisplayString()!="System.Linq.Enumerable") return false;
         var snapshot = uniqueNumber;
         var whereNumber = snapshot++;
-        if(!buildEnumerable(semanticModel, sourceExpression, containingType, ref snapshot, out var outerSource, out var outerSourceStaticMethods, unsafeAccessorCollector))
+        if(!buildEnumerable(semanticModel,sourceExpression,containingType,ref snapshot,out var outerSource,out var outerSourceStaticMethods,unsafeAccessorCollector))
             return false;
-        if(!buildInvocation(semanticModel, innerInvocation, containingType, ref snapshot, out var innerFrag, out var innerStaticMethods, unsafeAccessorCollector))
+        if(!buildInvocation(semanticModel,innerInvocation,containingType,ref snapshot,out var innerFrag,out var innerStaticMethods,unsafeAccessorCollector))
             return false;
         if(innerFrag is not Scalar)
             return false;
-        var whereFrag = new Where_WithInlinedScalarPredicate(whereNumber, outerSource, innerFrag, outerParamName);
-        fragment = whereFrag;
-        uniqueNumber = snapshot;
-        staticMethods = JoinStaticMethods(outerSourceStaticMethods, innerStaticMethods);
+        var whereFrag = new Where_WithInlinedScalarPredicate(whereNumber,outerSource,innerFrag,outerParamName);
+        fragment=whereFrag;
+        uniqueNumber=snapshot;
+        staticMethods=JoinStaticMethods(outerSourceStaticMethods,innerStaticMethods);
         return true;
     }
 }
@@ -171,9 +171,9 @@ Where_indexPredicate は source.Where((item, index) => 条件) 用。
 通常版との差分:
   index フィールドを -1 で持ち、source から要素を1つ読むたびに checked なしで増やして predicate に渡す。
 */
-public class Where_indexPredicate(int 番号, Enumerable source, FuncFragment predicate) : Where_predicate(番号, source, predicate) {
+public class Where_indexPredicate(int 番号,Enumerable source,FuncFragment predicate):Where_predicate(番号,source,predicate) {
     public static new bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length > 0 &&
+        method.Parameters.Length>0&&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     public override string GetEnumeratorExpression =>
         $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
@@ -184,7 +184,7 @@ public class Where_indexPredicate(int 番号, Enumerable source, FuncFragment pr
         """;
     public override string GetTryGetNextBody {
         get {
-            var (preCode, condExpr) =this.FuncInvokeCondition(predicate, nameof(predicate),this.temp,this.item,this.a);
+            var (preCode,condExpr)=this.FuncInvokeCondition(predicate,nameof(predicate),this.temp,this.item,this.a);
             var predicateCheck = string.IsNullOrEmpty(preCode)
                 ? $"if(!{WrapConditionExpression(condExpr)})"
                 : $"{preCode}\n        if(!{WrapConditionExpression(condExpr)})";

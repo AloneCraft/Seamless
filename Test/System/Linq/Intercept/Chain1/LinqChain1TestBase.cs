@@ -22,15 +22,15 @@ public abstract class LinqChain1TestBase(ITestOutputHelper output) {
         Assert.Equal(expected,actual);
     }
 
-    public void AssertOptimized<T>(T expected,Func<T> actualFactory,long logicalDelegate,long physicalDelegate,[global::System.Runtime.CompilerServices.CallerMemberName] string label="") {
+    public void AssertOptimized<T>(T expected,Func<T> actualFactory,long logicalDelegate,long physicalDelegate,[global::System.Runtime.CompilerServices.CallerMemberName] string label = "") {
         this.AssertOptimized(label,expected,actualFactory,logicalDelegate,physicalDelegate);
     }
 
     public void AssertOptimized<T>(string label,T expected,Func<T> actualFactory,long logicalDelegate,long physicalDelegate) {
-        using var scope=LinqCounterScope.Start();
-        var actual=actualFactory();
+        using var scope = LinqCounterScope.Start();
+        var actual = actualFactory();
         EmitCounterDiagnostics(label,logicalDelegate,physicalDelegate,scope.Counter);
-        var message=$"{label}: delegate expected(log/phys)={logicalDelegate}/{physicalDelegate}, actual(log/phys)={scope.Counter.LogicalDelegate}/{scope.Counter.PhysicalDelegate}; logical ops={scope.Counter.LogicalOperations}, moveNext={scope.Counter.PhysicalMoveNext}";
+        var message = $"{label}: delegate expected(log/phys)={logicalDelegate}/{physicalDelegate}, actual(log/phys)={scope.Counter.LogicalDelegate}/{scope.Counter.PhysicalDelegate}; logical ops={scope.Counter.LogicalOperations}, moveNext={scope.Counter.PhysicalMoveNext}";
         output.WriteLine(message);
         Console.WriteLine(message);
         global::System.Diagnostics.Trace.WriteLine(message);
@@ -40,10 +40,10 @@ public abstract class LinqChain1TestBase(ITestOutputHelper output) {
     }
 
     public void MeasureOptimized(string label,Action action) {
-        using var scope=LinqCounterScope.Start();
+        using var scope = LinqCounterScope.Start();
         action();
         LinqCounterDiagnostics.EmitActual(label,scope.Counter);
-        var message=$"{label}: delegate(log/phys)={scope.Counter.LogicalDelegate}/{scope.Counter.PhysicalDelegate}; logical ops={scope.Counter.LogicalOperations}, moveNext={scope.Counter.PhysicalMoveNext}";
+        var message = $"{label}: delegate(log/phys)={scope.Counter.LogicalDelegate}/{scope.Counter.PhysicalDelegate}; logical ops={scope.Counter.LogicalOperations}, moveNext={scope.Counter.PhysicalMoveNext}";
         output.WriteLine(message);
         Console.WriteLine(message);
         global::System.Diagnostics.Trace.WriteLine(message);
@@ -54,11 +54,11 @@ public abstract class LinqChain1TestBase(ITestOutputHelper output) {
     }
 
     public static void AssertNestedSequenceEqual<T>(IEnumerable<IEnumerable<T>> expected,IEnumerable<IEnumerable<T>> actual) {
-        using var expectedEnumerator=expected.GetEnumerator();
-        using var actualEnumerator=actual.GetEnumerator();
+        using var expectedEnumerator = expected.GetEnumerator();
+        using var actualEnumerator = actual.GetEnumerator();
         while(true) {
-            var hasExpected=expectedEnumerator.MoveNext();
-            var hasActual=actualEnumerator.MoveNext();
+            var hasExpected = expectedEnumerator.MoveNext();
+            var hasActual = actualEnumerator.MoveNext();
             Assert.Equal(hasExpected,hasActual);
             if(!hasExpected) {
                 return;
@@ -68,12 +68,12 @@ public abstract class LinqChain1TestBase(ITestOutputHelper output) {
         }
     }
 
-    public static void AssertGroupSequenceEqual<TKey,TElement>(IEnumerable<IGrouping<TKey,TElement>> expected,IEnumerable<IGrouping<TKey,TElement>> actual) {
-        using var expectedEnumerator=expected.GetEnumerator();
-        using var actualEnumerator=actual.GetEnumerator();
+    public static void AssertGroupSequenceEqual<TKey, TElement>(IEnumerable<IGrouping<TKey,TElement>> expected,IEnumerable<IGrouping<TKey,TElement>> actual) {
+        using var expectedEnumerator = expected.GetEnumerator();
+        using var actualEnumerator = actual.GetEnumerator();
         while(true) {
-            var hasExpected=expectedEnumerator.MoveNext();
-            var hasActual=actualEnumerator.MoveNext();
+            var hasExpected = expectedEnumerator.MoveNext();
+            var hasActual = actualEnumerator.MoveNext();
             Assert.Equal(hasExpected,hasActual);
             if(!hasExpected) {
                 return;
@@ -84,8 +84,8 @@ public abstract class LinqChain1TestBase(ITestOutputHelper output) {
         }
     }
 
-    public static void AssertDictionaryEqual<TKey,TValue>(global::System.Collections.Generic.IDictionary<TKey,TValue> expected,global::System.Collections.Generic.IDictionary<TKey,TValue> actual)
-        where TKey:notnull {
+    public static void AssertDictionaryEqual<TKey, TValue>(global::System.Collections.Generic.IDictionary<TKey,TValue> expected,global::System.Collections.Generic.IDictionary<TKey,TValue> actual)
+        where TKey : notnull {
         Assert.Equal(expected.Count,actual.Count);
         foreach(var (key,value) in expected) {
             Assert.True(actual.TryGetValue(key,out var actualValue));
@@ -93,7 +93,7 @@ public abstract class LinqChain1TestBase(ITestOutputHelper output) {
         }
     }
 
-    public static void AssertLookupEqual<TKey,TElement>(ILookup<TKey,TElement> expected,ILookup<TKey,TElement> actual) {
+    public static void AssertLookupEqual<TKey, TElement>(ILookup<TKey,TElement> expected,ILookup<TKey,TElement> actual) {
         Assert.Equal(expected.Count,actual.Count);
         foreach(var group in expected) {
             Assert.Equal(group,actual[group.Key]);

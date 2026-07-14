@@ -20,10 +20,8 @@ public static class TestPath {
         if(global::System.IO.Directory.Exists(path)) {
             try {
                 global::System.IO.Directory.Delete(path,recursive: true);
-            }
-            catch(IOException) {
-            }
-            catch(UnauthorizedAccessException) {
+            } catch(IOException) {
+            } catch(UnauthorizedAccessException) {
             }
         }
 

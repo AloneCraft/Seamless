@@ -1,9 +1,9 @@
 namespace Test.System.Linq.Intercept.Optimization;
 
-public sealed class ReverseIdentityAfterJoin:OptimizationTestBase{
-    [Fact,Trait("Category","Unit")]
+public sealed class ReverseIdentityAfterJoin:OptimizationTestBase {
+    [Fact, Trait("Category","Unit")]
     public static void LeftJoinReverseReverseToArray() {
-        var expected=Numbers().Distinct().Take(4).LeftJoin(SecondNumbers(),static x => x%3,static y => y%3,static (x,y) => x+y).Reverse().Reverse().ToArray();
+        var expected = Numbers().Distinct().Take(4).LeftJoin(SecondNumbers(),static x => x%3,static y => y%3,static (x,y) => x+y).Reverse().Reverse().ToArray();
         AssertSequenceEqual(expected,LeftJoinReverseReverseToArrayOptimized());
         AssertSequenceEqual(expected,LeftJoinReverseReverseToArrayNoOptimized());
     }

@@ -4,7 +4,7 @@ namespace Test.System.Linq.Intercept.Optimization;
 // 意味保存を検証するテスト群の共通基底。Chain1 と同じ「expected=完全修飾 SystemEnumerable（非 intercept）/
 // actual=拡張メソッド形（intercept）」の対比で比較する。actual は `.Consume(Consumer<T>)` で駆動して
 // チェーンへ余計な LINQ メソッドを足さない（Consumer/ConsumeSupport は親名前空間にある）。
-public abstract class OptimizationTestBase{
+public abstract class OptimizationTestBase {
     public static int[] Outer() => [1,2,3,4,5];
     public static int[] Inner() => [10,20,30];
     public static int[] EmptyOuter() => [];
@@ -36,7 +36,7 @@ public abstract class OptimizationTestBase{
     // null 混在（Where 順入替の安全ゲート抑止ケース用）。
     public static string?[] WithNulls() => ["abc",null,"de",null,"fghi"];
 
-    public static void AssertSequenceEqual<T>(IEnumerable<T> expected,IEnumerable<T> actual){
+    public static void AssertSequenceEqual<T>(IEnumerable<T> expected,IEnumerable<T> actual) {
         Assert.Equal(expected,actual);
     }
 }

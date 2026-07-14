@@ -9,17 +9,17 @@ namespace Seamless.FLinq;
 //   5. RecordToAnonymousRewriter: new __R(p:expr1,q:expr2)→new{p=expr1,q=expr2}
 // 解析できないケースでは式を変えずに返す(安全側)。
 internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
-    private const string R="__R";
+    private const string R = "__R";
     // 匿名型→struct record。new{p,q}→new __R(p:p,q:q)。1要素はunwrap。
     private sealed class AnonymousToRecordRewriter:CSharpSyntaxRewriter {
         public override SyntaxNode? VisitAnonymousObjectCreationExpression(AnonymousObjectCreationExpressionSyntax node) {
-            var init=node.Initializers;
+            var init = node.Initializers;
             if(init.Count==1) return this.Visit(init[0].Expression);
-            var args=init.Select(i=>{
-                var name=MemberName(i);
-                var expr=(ExpressionSyntax)this.Visit(i.Expression)!;
-                var arg=SyntaxFactory.Argument(expr);
-                return string.IsNullOrEmpty(name)?arg:arg.WithNameColon(SyntaxFactory.NameColon(SyntaxFactory.IdentifierName(name)));
+            var args = init.Select(i => {
+                var name = MemberName(i);
+                var expr = (ExpressionSyntax)this.Visit(i.Expression)!;
+                var arg = SyntaxFactory.Argument(expr);
+                return string.IsNullOrEmpty(name) ? arg : arg.WithNameColon(SyntaxFactory.NameColon(SyntaxFactory.IdentifierName(name)));
             });
             return SyntaxFactory.ObjectCreationExpression(SyntaxFactory.IdentifierName(R),SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(args)),null);
         }
@@ -29,10 +29,10 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
     private sealed class RecordToAnonymousRewriter:CSharpSyntaxRewriter {
         public override SyntaxNode? VisitObjectCreationExpression(ObjectCreationExpressionSyntax node) {
             if(node.Type is not IdentifierNameSyntax id||id.Identifier.ValueText!=R) return base.VisitObjectCreationExpression(node);
-            var members=node.ArgumentList!.Arguments.Select(a=>{
-                var expr=(ExpressionSyntax)this.Visit(a.Expression)!;
+            var members = node.ArgumentList!.Arguments.Select(a => {
+                var expr = (ExpressionSyntax)this.Visit(a.Expression)!;
                 if(a.NameColon is null) return SyntaxFactory.AnonymousObjectMemberDeclarator(expr);
-                var name=a.NameColon.Name.Identifier.ValueText;
+                var name = a.NameColon.Name.Identifier.ValueText;
                 if(expr is IdentifierNameSyntax eid&&eid.Identifier.ValueText==name)
                     return SyntaxFactory.AnonymousObjectMemberDeclarator(expr);
                 return SyntaxFactory.AnonymousObjectMemberDeclarator(SyntaxFactory.NameEquals(SyntaxFactory.IdentifierName(name)),expr);
@@ -46,7 +46,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         private int transparentNumber;
         public override SyntaxNode? VisitQueryExpression(QueryExpressionSyntax node) =>
             CanLowerQuery(node) ? this.LowerQueryExpression(node) : base.VisitQueryExpression(node);
-        private static bool CanLowerQuery(QueryExpressionSyntax query) => CanLowerQueryBody(query.Body) && CanLowerAdvancedShape(query);
+        private static bool CanLowerQuery(QueryExpressionSyntax query) => CanLowerQueryBody(query.Body)&&CanLowerAdvancedShape(query);
         private static bool CanLowerQueryBody(QueryBodySyntax body) {
             if(body.SelectOrGroup is not SelectClauseSyntax and not GroupClauseSyntax) {
                 return false;
@@ -54,7 +54,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
             if(body.Clauses.Any(static clause => clause is not WhereClauseSyntax and not OrderByClauseSyntax and not LetClauseSyntax and not FromClauseSyntax and not JoinClauseSyntax)) {
                 return false;
             }
-            return body.Continuation is null || CanLowerQueryBody(body.Continuation.Body);
+            return body.Continuation is null||CanLowerQueryBody(body.Continuation.Body);
         }
         // 以前は多段 join / 複数 from / group+継続 / let / this ソースを封印していたが、
         // 各 Lower* は state.Bindings をフラット再射影する作りで原理的に多段連鎖可能であり、
@@ -105,7 +105,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         }
         private ExpressionSyntax LowerOrderByClause(ExpressionSyntax source,QueryState state,OrderByClauseSyntax orderByClause) {
             var orderings = orderByClause.Orderings;
-            for(var i=0;i<orderings.Count;i++) {
+            for(var i = 0;i<orderings.Count;i++) {
                 var ordering = orderings[i];
                 var descending = ordering.AscendingOrDescendingKeyword.IsKind(SyntaxKind.DescendingKeyword);
                 var method = i==0
@@ -156,7 +156,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
                 (ExpressionSyntax)this.Visit(joinClause.RightExpression)!);
             var resultBindings = state.Bindings.ToDictionary(static pair => pair.Key,static pair => pair.Value,StringComparer.Ordinal);
             var method = joinClause.Into is null ? "Join" : "GroupJoin";
-            var resultName = joinClause.Into?.Identifier.ValueText ?? joinClause.Identifier.ValueText;
+            var resultName = joinClause.Into?.Identifier.ValueText??joinClause.Identifier.ValueText;
             resultBindings[resultName]=SyntaxFactory.IdentifierName(resultName);
             var resultTuple = CreateTransparentTuple(resultBindings);
             var resultSelector = CreateLambda(
@@ -204,10 +204,10 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         }
         private static bool IsReservedTupleElementName(string name) =>
             name=="Rest"
-            || name.Length>4
-            && name.StartsWith("Item",StringComparison.Ordinal)
-            && name[4] is >= '1' and <= '9'
-            && name.Skip(5).All(static c => c is >= '0' and <= '9');
+            ||name.Length>4
+            &&name.StartsWith("Item",StringComparison.Ordinal)
+            &&name[4] is >='1' and <='9'
+            &&name.Skip(5).All(static c => c is >='0' and <='9');
         private static LambdaExpressionSyntax CreateLambda(string parameterName,TypeSyntax? parameterType,ExpressionSyntax body) {
             if(parameterType is null) {
                 return SyntaxFactory.SimpleLambdaExpression(SyntaxFactory.Parameter(SyntaxFactory.Identifier(parameterName)),body);
@@ -239,25 +239,25 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
                         SyntaxFactory.IdentifierName(pair.Value)),
                     StringComparer.Ordinal));
             public ExpressionSyntax Rewrite(ExpressionSyntax expression) =>
-                new QueryBindingRewriter(this.Bindings).Visit(expression) as ExpressionSyntax ?? expression;
+                new QueryBindingRewriter(this.Bindings).Visit(expression) as ExpressionSyntax??expression;
         }
         private sealed class QueryBindingRewriter(IReadOnlyDictionary<string,ExpressionSyntax> bindings):CSharpSyntaxRewriter {
             public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node) {
-                if(!bindings.TryGetValue(node.Identifier.ValueText,out var replacement) || IsNonValueIdentifier(node)) {
+                if(!bindings.TryGetValue(node.Identifier.ValueText,out var replacement)||IsNonValueIdentifier(node)) {
                     return base.VisitIdentifierName(node);
                 }
                 return replacement.WithTriviaFrom(node);
             }
             private static bool IsNonValueIdentifier(IdentifierNameSyntax node) =>
-                node.Parent is MemberAccessExpressionSyntax memberAccess && memberAccess.Name==node
-                || node.Parent is NameEqualsSyntax
-                || node.Parent is NameColonSyntax
-                || node.Parent is MemberBindingExpressionSyntax;
+                node.Parent is MemberAccessExpressionSyntax memberAccess&&memberAccess.Name==node
+                ||node.Parent is NameEqualsSyntax
+                ||node.Parent is NameColonSyntax
+                ||node.Parent is MemberBindingExpressionSyntax;
         }
     }
     // 拡張メソッド→静的メソッド。a.Select(b)→Enumerable.Select(a,b)。
     private sealed class ExtensionToStaticRewriter:CSharpSyntaxRewriter {
-        private static readonly HashSet<string> Methods=new(StringComparer.Ordinal){
+        private static readonly HashSet<string> Methods = new(StringComparer.Ordinal){
             "Select","SelectMany","Where","OrderBy","OrderByDescending","ThenBy","ThenByDescending",
             "GroupBy","Join","GroupJoin","Zip","Distinct","DistinctBy","Union","UnionBy",
             "Intersect","IntersectBy","Except","ExceptBy","Concat","Append","Prepend",
@@ -269,22 +269,22 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         };
         public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node) {
             if(node.Expression is MemberAccessExpressionSyntax m&&Methods.Contains(m.Name.Identifier.ValueText)) {
-                var recv=(ExpressionSyntax)this.Visit(m.Expression)!;
-                var args=node.ArgumentList.Arguments.Select(a=>(ArgumentSyntax)this.Visit(a)!);
+                var recv = (ExpressionSyntax)this.Visit(m.Expression)!;
+                var args = node.ArgumentList.Arguments.Select(a => (ArgumentSyntax)this.Visit(a)!);
                 return SyntaxFactory.InvocationExpression(
                     SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,SyntaxFactory.IdentifierName("Enumerable"),m.Name),
-                    SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(new[]{SyntaxFactory.Argument(recv)}.Concat(args))));
+                    SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(new[] { SyntaxFactory.Argument(recv) }.Concat(args))));
             }
             return base.VisitInvocationExpression(node);
         }
     }
-    private static readonly HashSet<string> PushWhereThroughUnaryMethods=new(StringComparer.Ordinal){
+    private static readonly HashSet<string> PushWhereThroughUnaryMethods = new(StringComparer.Ordinal){
         "Distinct","DistinctBy","Order","OrderBy","OrderDescending","OrderByDescending","Reverse",
     };
-    private static readonly HashSet<string> PushWhereThroughFirstSourceMethods=new(StringComparer.Ordinal){
+    private static readonly HashSet<string> PushWhereThroughFirstSourceMethods = new(StringComparer.Ordinal){
         "Except","ExceptBy","Intersect","IntersectBy",
     };
-    private static readonly HashSet<string> PushWhereThroughBothSourceMethods=new(StringComparer.Ordinal){
+    private static readonly HashSet<string> PushWhereThroughBothSourceMethods = new(StringComparer.Ordinal){
         "Concat","Union",
     };
     /// <summary>
@@ -292,7 +292,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
     /// 匿名型→struct record→拡張→静的変換→Where押し下げ→struct record→匿名型。
     /// </summary>
     public static ExpressionSyntax FullOptimize(ExpressionSyntax expression) {
-        var e=new AnonymousToRecordRewriter().Visit(expression) as ExpressionSyntax??expression;
+        var e = new AnonymousToRecordRewriter().Visit(expression) as ExpressionSyntax??expression;
         e=new QueryToExtensionMethodRewriter().Visit(e) as ExpressionSyntax??e;
         e=new ExtensionToStaticRewriter().Visit(e) as ExpressionSyntax??e;
         if((LinqOptimizationContext.Current&LinqOptimizations.PredicatePushdown)!=0) {
@@ -300,12 +300,12 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         }
         return new RecordToAnonymousRewriter().Visit(e) as ExpressionSyntax??e;
     }
-    public static TSyntax RewriteQueriesToExtensionMethods<TSyntax>(TSyntax syntax) where TSyntax:SyntaxNode {
-        return new QueryToExtensionMethodRewriter().Visit(syntax) as TSyntax ?? syntax;
+    public static TSyntax RewriteQueriesToExtensionMethods<TSyntax>(TSyntax syntax) where TSyntax : SyntaxNode {
+        return new QueryToExtensionMethodRewriter().Visit(syntax) as TSyntax??syntax;
     }
     /// <summary>匿名型→struct record→匿名型の往復変換（最適化なし）。</summary>
     public static ExpressionSyntax RewriteAnonymousTypes(ExpressionSyntax expression) {
-        var e=new AnonymousToRecordRewriter().Visit(expression) as ExpressionSyntax??expression;
+        var e = new AnonymousToRecordRewriter().Visit(expression) as ExpressionSyntax??expression;
         return new RecordToAnonymousRewriter().Visit(e) as ExpressionSyntax??e;
     }
     // Where押し下げのみ。
@@ -314,8 +314,8 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
     }
     // 子ノードを先に処理し変化がある限り再訪する。
     public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node) {
-        var rewritten=(InvocationExpressionSyntax)base.VisitInvocationExpression(node)!;
-        var optimized=TryOptimizeInvocation(rewritten);
+        var rewritten = (InvocationExpressionSyntax)base.VisitInvocationExpression(node)!;
+        var optimized = TryOptimizeInvocation(rewritten);
         if(optimized is null||SyntaxFactory.AreEquivalent(optimized,rewritten)) return rewritten;
         return this.VisitInvocationExpression(optimized);
     }
@@ -338,10 +338,10 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
     private static InvocationExpressionSyntax? TryPushWhereThroughSelect(SequenceCallInfo sc,LambdaExpressionSyntax wl) {
         if(sc.Arguments.Count<1||sc.Arguments[0].Expression is not LambdaExpressionSyntax sl) return null;
         if(!TryLiftPredicate(wl,sl,out var lb,out var refs)) return null;
-        var sp=GetLambdaParameterNames(sl);
+        var sp = GetLambdaParameterNames(sl);
         if(sp.Count!=1||refs.Count>1) return null;
         if(refs.Count==1&&!refs.Contains(sp[0])) return null;
-        return RebuildCall(sc,CreateSequenceCall(sc.Source,"Where",RecreateLambda(sl,lb)),sc.Arguments.Select(static a=>a.Expression));
+        return RebuildCall(sc,CreateSequenceCall(sc.Source,"Where",RecreateLambda(sl,lb)),sc.Arguments.Select(static a => a.Expression));
     }
     // SelectManyはouter/innerどちらだけの依存かで押し下げ先を決定。
     private static InvocationExpressionSyntax? TryPushWhereThroughSelectMany(SequenceCallInfo smc,LambdaExpressionSyntax wl) {
@@ -349,13 +349,13 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
             ||smc.Arguments[0].Expression is not LambdaExpressionSyntax cs
             ||smc.Arguments[1].Expression is not LambdaExpressionSyntax rs) return null;
         if(!TryLiftPredicate(wl,rs,out var lb,out var refs)) return null;
-        var rp=GetLambdaParameterNames(rs);
+        var rp = GetLambdaParameterNames(rs);
         if(rp.Count!=2) return null;
         if(refs.Count==0||refs.SetEquals([rp[0]])) {
-            return RebuildCall(smc,CreateSequenceCall(smc.Source,"Where",RecreateLambdaWithParameter(rp[0],lb)),smc.Arguments.Select(static a=>a.Expression));
+            return RebuildCall(smc,CreateSequenceCall(smc.Source,"Where",RecreateLambdaWithParameter(rp[0],lb)),smc.Arguments.Select(static a => a.Expression));
         }
         if(!refs.SetEquals([rp[1]])||!TryGetLambdaBody(cs,out var cb)) return null;
-        var ra=smc.Arguments.Select(static a=>a.Expression).ToArray();
+        var ra = smc.Arguments.Select(static a => a.Expression).ToArray();
         ra[0]=RecreateLambda(cs,CreateSequenceCall(cb,"Where",RecreateLambdaWithParameter(rp[1],lb)));
         return RebuildCall(smc,smc.Source,ra);
     }
@@ -363,86 +363,86 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
     private static InvocationExpressionSyntax? TryPushWhereThroughBinaryCarrier(SequenceCallInfo c,LambdaExpressionSyntax wl,int rsi) {
         if(c.Arguments.Count<=rsi||c.Arguments[rsi].Expression is not LambdaExpressionSyntax rs) return null;
         if(!TryLiftPredicate(wl,rs,out var lb,out var refs)) return null;
-        var rp=GetLambdaParameterNames(rs);
+        var rp = GetLambdaParameterNames(rs);
         if(rp.Count!=2) return null;
         if(refs.Count==0||refs.SetEquals([rp[0]]))
-            return RebuildCall(c,CreateSequenceCall(c.Source,"Where",RecreateLambdaWithParameter(rp[0],lb)),c.Arguments.Select(static a=>a.Expression));
+            return RebuildCall(c,CreateSequenceCall(c.Source,"Where",RecreateLambdaWithParameter(rp[0],lb)),c.Arguments.Select(static a => a.Expression));
         if(!refs.SetEquals([rp[1]])) return null;
-        var ra=c.Arguments.Select(static a=>a.Expression).ToArray();
+        var ra = c.Arguments.Select(static a => a.Expression).ToArray();
         ra[0]=CreateSequenceCall(ra[0],"Where",RecreateLambdaWithParameter(rp[1],lb));
         return RebuildCall(c,c.Source,ra);
     }
     // Unary系/FirstSource系: sourceの前にWhereを挿入。
     private static InvocationExpressionSyntax PushWhereBeforeSource(SequenceCallInfo c,LambdaExpressionSyntax wl) {
-        return RebuildCall(c,CreateSequenceCall(c.Source,"Where",wl),c.Arguments.Select(static a=>a.Expression));
+        return RebuildCall(c,CreateSequenceCall(c.Source,"Where",wl),c.Arguments.Select(static a => a.Expression));
     }
     // Concat/Union: 左右両sourceにWhereを適用。
     private static InvocationExpressionSyntax TryPushWhereThroughBothSources(SequenceCallInfo c,LambdaExpressionSyntax wl) {
         if(c.Arguments.Count==0) return c.Invocation;
-        var ra=c.Arguments.Select(static a=>a.Expression).ToArray();
+        var ra = c.Arguments.Select(static a => a.Expression).ToArray();
         ra[0]=CreateSequenceCall(ra[0],"Where",wl);
         return RebuildCall(c,CreateSequenceCall(c.Source,"Where",wl),ra);
     }
     // carrierからpredicateを持ち上げるコア。sentinel名へrenameしてからmember展開。
     private static bool TryLiftPredicate(LambdaExpressionSyntax pl,LambdaExpressionSyntax sl,out ExpressionSyntax lb,out HashSet<string> refs) {
-        lb=null!;refs=new HashSet<string>(StringComparer.Ordinal);
-        var pp=GetLambdaParameterNames(pl);
+        lb=null!; refs=new HashSet<string>(StringComparer.Ordinal);
+        var pp = GetLambdaParameterNames(pl);
         if(pp.Count!=1||!TryGetLambdaBody(pl,out var pb)||!TryGetLambdaBody(sl,out var sb)||!CarrierShape.TryCreate(sb,out var cs)) return false;
-        const string sentinel="__Tsavorite_predicate_root";
+        const string sentinel = "__Tsavorite_predicate_root";
         if(new ParameterRenameRewriter(pp[0],sentinel).Visit(pb) is not ExpressionSyntax rpb) return false;
         if(new CarrierAccessRewriter(sentinel,cs).Visit(rpb) is not ExpressionSyntax rb) return false;
         if(ContainsIdentifier(rb,sentinel)) return false;
         refs=CollectParameterReferences(rb,GetLambdaParameterNames(sl));
-        lb=rb;return true;
+        lb=rb; return true;
     }
     private static HashSet<string> CollectParameterReferences(ExpressionSyntax e,IReadOnlyList<string> pn) {
-        var c=new HashSet<string>(pn,StringComparer.Ordinal);
-        var m=new HashSet<string>(StringComparer.Ordinal);
+        var c = new HashSet<string>(pn,StringComparer.Ordinal);
+        var m = new HashSet<string>(StringComparer.Ordinal);
         foreach(var id in e.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>())
             if(c.Contains(id.Identifier.ValueText)) m.Add(id.Identifier.ValueText);
         return m;
     }
-    private static bool ContainsIdentifier(ExpressionSyntax e,string name)=>
-        e.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>().Any(id=>string.Equals(id.Identifier.ValueText,name,StringComparison.Ordinal));
+    private static bool ContainsIdentifier(ExpressionSyntax e,string name) =>
+        e.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>().Any(id => string.Equals(id.Identifier.ValueText,name,StringComparison.Ordinal));
     private static LambdaExpressionSyntax RecreateLambda(LambdaExpressionSyntax t,ExpressionSyntax body) {
-        var p=GetLambdaParameterNames(t);
+        var p = GetLambdaParameterNames(t);
         if(p.Count==1&&t is SimpleLambdaExpressionSyntax)
             return SyntaxFactory.SimpleLambdaExpression(SyntaxFactory.Parameter(SyntaxFactory.Identifier(p[0])),body);
-        return SyntaxFactory.ParenthesizedLambdaExpression(SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(p.Select(static n=>SyntaxFactory.Parameter(SyntaxFactory.Identifier(n))))),body);
+        return SyntaxFactory.ParenthesizedLambdaExpression(SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(p.Select(static n => SyntaxFactory.Parameter(SyntaxFactory.Identifier(n))))),body);
     }
-    private static LambdaExpressionSyntax RecreateLambdaWithParameter(string name,ExpressionSyntax body)=>
+    private static LambdaExpressionSyntax RecreateLambdaWithParameter(string name,ExpressionSyntax body) =>
         SyntaxFactory.SimpleLambdaExpression(SyntaxFactory.Parameter(SyntaxFactory.Identifier(name)),body);
     private static bool TryGetLambdaBody(LambdaExpressionSyntax l,out ExpressionSyntax body) {
-        if(l.Body is ExpressionSyntax eb){body=eb;return true;}
-        body=null!;return false;
+        if(l.Body is ExpressionSyntax eb) { body=eb; return true; }
+        body=null!; return false;
     }
     private static IReadOnlyList<string> GetLambdaParameterNames(LambdaExpressionSyntax l) {
-        if(l is SimpleLambdaExpressionSyntax s) return[s.Parameter.Identifier.ValueText];
-        if(l is ParenthesizedLambdaExpressionSyntax p) return p.ParameterList.Parameters.Select(static x=>x.Identifier.ValueText).ToArray();
-        return[];
+        if(l is SimpleLambdaExpressionSyntax s) return [s.Parameter.Identifier.ValueText];
+        if(l is ParenthesizedLambdaExpressionSyntax p) return p.ParameterList.Parameters.Select(static x => x.Identifier.ValueText).ToArray();
+        return [];
     }
-    private static InvocationExpressionSyntax RebuildCall(SequenceCallInfo c,ExpressionSyntax src,IEnumerable<ExpressionSyntax> args)=>CreateSequenceCall(src,c.MethodName,args);
+    private static InvocationExpressionSyntax RebuildCall(SequenceCallInfo c,ExpressionSyntax src,IEnumerable<ExpressionSyntax> args) => CreateSequenceCall(src,c.MethodName,args);
     private static InvocationExpressionSyntax CreateSequenceCall(ExpressionSyntax src,string method,IEnumerable<ExpressionSyntax> args) {
-        var ma=SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,Wrap(src),SyntaxFactory.IdentifierName(method));
-        return SyntaxFactory.InvocationExpression(ma,SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(args.Select(static a=>SyntaxFactory.Argument(a)))));
+        var ma = SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,Wrap(src),SyntaxFactory.IdentifierName(method));
+        return SyntaxFactory.InvocationExpression(ma,SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(args.Select(static a => SyntaxFactory.Argument(a)))));
     }
-    private static InvocationExpressionSyntax CreateSequenceCall(ExpressionSyntax src,string method,params ExpressionSyntax[] args)=>CreateSequenceCall(src,method,(IEnumerable<ExpressionSyntax>)args);
+    private static InvocationExpressionSyntax CreateSequenceCall(ExpressionSyntax src,string method,params ExpressionSyntax[] args) => CreateSequenceCall(src,method,(IEnumerable<ExpressionSyntax>)args);
     private static ExpressionSyntax Wrap(ExpressionSyntax e) {
         e=Strip(e);
         return e is IdentifierNameSyntax or GenericNameSyntax or QualifiedNameSyntax or AliasQualifiedNameSyntax
             or LiteralExpressionSyntax or ThisExpressionSyntax or BaseExpressionSyntax
             or MemberAccessExpressionSyntax or InvocationExpressionSyntax or ElementAccessExpressionSyntax
-            ?e:SyntaxFactory.ParenthesizedExpression(e);
+            ? e : SyntaxFactory.ParenthesizedExpression(e);
     }
     private static ExpressionSyntax Strip(ExpressionSyntax e) {
         while(e is ParenthesizedExpressionSyntax p) e=p.Expression;
         return e;
     }
     private static bool TryGetSequenceCallInfo(InvocationExpressionSyntax inv,out SequenceCallInfo call) {
-        if(inv.Expression is not MemberAccessExpressionSyntax ma){call=default;return false;}
-        var name=ma.Name.Identifier.ValueText;
+        if(inv.Expression is not MemberAccessExpressionSyntax ma) { call=default; return false; }
+        var name = ma.Name.Identifier.ValueText;
         if(IsStaticEnumerableReceiver(ma.Expression)) {
-            if(inv.ArgumentList.Arguments.Count==0){call=default;return false;}
+            if(inv.ArgumentList.Arguments.Count==0) { call=default; return false; }
             call=new(inv,name,Strip(inv.ArgumentList.Arguments[0].Expression),inv.ArgumentList.Arguments.Skip(1).ToArray());
             return true;
         }
@@ -450,7 +450,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         return true;
     }
     private static bool IsStaticEnumerableReceiver(ExpressionSyntax e) {
-        var t=Strip(e).ToString();
+        var t = Strip(e).ToString();
         return string.Equals(t,"Enumerable",StringComparison.Ordinal)
             ||string.Equals(t,"SystemEnumerable",StringComparison.Ordinal)
             ||t.EndsWith(".Enumerable",StringComparison.Ordinal);
@@ -458,19 +458,19 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
     // 匿名型プロパティ名を取得。NameEquals優先、なければ式から推論。
     private static string MemberName(AnonymousObjectMemberDeclaratorSyntax i) {
         if(i.NameEquals is not null) return i.NameEquals.Name.Identifier.ValueText;
-        return InferName(i.Expression,out var n)?n:string.Empty;
+        return InferName(i.Expression,out var n) ? n : string.Empty;
     }
     private static bool InferName(ExpressionSyntax e,out string name) {
         e=Strip(e);
-        if(e is IdentifierNameSyntax id){name=id.Identifier.ValueText;return true;}
-        if(e is MemberAccessExpressionSyntax m){name=m.Name.Identifier.ValueText;return true;}
-        name=string.Empty;return false;
+        if(e is IdentifierNameSyntax id) { name=id.Identifier.ValueText; return true; }
+        if(e is MemberAccessExpressionSyntax m) { name=m.Name.Identifier.ValueText; return true; }
+        name=string.Empty; return false;
     }
     private readonly struct SequenceCallInfo(InvocationExpressionSyntax invocation,string methodName,ExpressionSyntax source,ArgumentSyntax[] arguments) {
-        public InvocationExpressionSyntax Invocation{get;}=invocation;
-        public string MethodName{get;}=methodName;
-        public ExpressionSyntax Source{get;}=source;
-        public IReadOnlyList<ArgumentSyntax> Arguments{get;}=arguments;
+        public InvocationExpressionSyntax Invocation { get; } = invocation;
+        public string MethodName { get; } = methodName;
+        public ExpressionSyntax Source { get; } = source;
+        public IReadOnlyList<ArgumentSyntax> Arguments { get; } = arguments;
     }
     // selector/result selectorが作るcarrierの形を表す抽象モデル。
     // anonymous type, struct record(__R), tuple等「データ保持だけの形」を対象にする。
@@ -480,62 +480,62 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
             expression=Strip(expression);
             // 匿名型: new{p,q}
             if(expression is AnonymousObjectCreationExpressionSyntax anon) {
-                var members=new Dictionary<string,CarrierShape>(StringComparer.Ordinal);
+                var members = new Dictionary<string,CarrierShape>(StringComparer.Ordinal);
                 foreach(var i in anon.Initializers) {
-                    var name=MemberName(i);
-                    if(string.IsNullOrWhiteSpace(name)||!TryCreate(i.Expression,out var ms)){shape=null!;return false;}
+                    var name = MemberName(i);
+                    if(string.IsNullOrWhiteSpace(name)||!TryCreate(i.Expression,out var ms)) { shape=null!; return false; }
                     members[name]=ms;
                 }
-                shape=new ObjectCarrierShape(members);return true;
+                shape=new ObjectCarrierShape(members); return true;
             }
             // struct record: new __R(p:expr,q:expr)
             if(expression is ObjectCreationExpressionSyntax oc
                 &&oc.Type is IdentifierNameSyntax rid&&rid.Identifier.ValueText==R
                 &&oc.ArgumentList is not null) {
-                var members=new Dictionary<string,CarrierShape>(StringComparer.Ordinal);
+                var members = new Dictionary<string,CarrierShape>(StringComparer.Ordinal);
                 foreach(var a in oc.ArgumentList.Arguments) {
-                    var name=a.NameColon?.Name.Identifier.ValueText??string.Empty;
-                    if(string.IsNullOrEmpty(name)||!TryCreate(a.Expression,out var ms)){shape=null!;return false;}
+                    var name = a.NameColon?.Name.Identifier.ValueText??string.Empty;
+                    if(string.IsNullOrEmpty(name)||!TryCreate(a.Expression,out var ms)) { shape=null!; return false; }
                     members[name]=ms;
                 }
-                shape=new ObjectCarrierShape(members);return true;
+                shape=new ObjectCarrierShape(members); return true;
             }
             // tuple: (a,b)
             if(expression is TupleExpressionSyntax te)
-                return TryCreateTupleShape(te.Arguments.Select(static a=>a.Expression).ToArray(),te.Arguments.Select(GetTupleAliases).ToArray(),out shape);
+                return TryCreateTupleShape(te.Arguments.Select(static a => a.Expression).ToArray(),te.Arguments.Select(GetTupleAliases).ToArray(),out shape);
             // ValueTuple/Tupleコンストラクタ
             if(expression is ObjectCreationExpressionSyntax oc2&&oc2.ArgumentList is not null&&TryGetTupleTypeAliases(oc2.Type,oc2.ArgumentList.Arguments.Count,out var ta))
-                return TryCreateTupleShape(oc2.ArgumentList.Arguments.Select(static a=>a.Expression).ToArray(),ta,out shape);
+                return TryCreateTupleShape(oc2.ArgumentList.Arguments.Select(static a => a.Expression).ToArray(),ta,out shape);
             // implicit new()
             if(expression is ImplicitObjectCreationExpressionSyntax io) {
-                var aliases=Enumerable.Range(0,io.ArgumentList.Arguments.Count).Select(static _=>Array.Empty<string>()).ToArray();
-                return TryCreateTupleShape(io.ArgumentList.Arguments.Select(static a=>a.Expression).ToArray(),aliases,out shape);
+                var aliases = Enumerable.Range(0,io.ArgumentList.Arguments.Count).Select(static _ => Array.Empty<string>()).ToArray();
+                return TryCreateTupleShape(io.ArgumentList.Arguments.Select(static a => a.Expression).ToArray(),aliases,out shape);
             }
-            if(IsLiftableLeaf(expression)){shape=new LeafCarrierShape(expression);return true;}
-            shape=null!;return false;
+            if(IsLiftableLeaf(expression)) { shape=new LeafCarrierShape(expression); return true; }
+            shape=null!; return false;
         }
         private static bool TryCreateTupleShape(ExpressionSyntax[] elems,string[][] aliases,out CarrierShape shape) {
-            var members=new Dictionary<string,CarrierShape>(StringComparer.Ordinal);
-            for(var i=0;i<elems.Length;i++) {
-                if(!TryCreate(elems[i],out var es)){shape=null!;return false;}
+            var members = new Dictionary<string,CarrierShape>(StringComparer.Ordinal);
+            for(var i = 0;i<elems.Length;i++) {
+                if(!TryCreate(elems[i],out var es)) { shape=null!; return false; }
                 members[$"Item{i+1}"]=es;
                 foreach(var a in aliases[i]) if(!string.IsNullOrWhiteSpace(a)) members[a]=es;
             }
-            shape=new ObjectCarrierShape(members);return true;
+            shape=new ObjectCarrierShape(members); return true;
         }
         private static string[] GetTupleAliases(ArgumentSyntax a) {
-            if(a.NameColon is not null) return[a.NameColon.Name.Identifier.ValueText];
-            return InferName(a.Expression,out var n)?[n]:[];
+            if(a.NameColon is not null) return [a.NameColon.Name.Identifier.ValueText];
+            return InferName(a.Expression,out var n) ? [n] : [];
         }
         private static bool TryGetTupleTypeAliases(TypeSyntax type,int count,out string[][] aliases) {
-            aliases=Enumerable.Range(0,count).Select(static _=>Array.Empty<string>()).ToArray();
+            aliases=Enumerable.Range(0,count).Select(static _ => Array.Empty<string>()).ToArray();
             type=type switch {
-                QualifiedNameSyntax q=>q.Right,
-                AliasQualifiedNameSyntax aq=>aq.Name,
-                _=>type,
+                QualifiedNameSyntax q => q.Right,
+                AliasQualifiedNameSyntax aq => aq.Name,
+                _ => type,
             };
             if(type is TupleTypeSyntax tt) {
-                aliases=tt.Elements.Select(static e=>string.IsNullOrWhiteSpace(e.Identifier.ValueText)?[]:new[]{e.Identifier.ValueText}).ToArray();
+                aliases=tt.Elements.Select(static e => string.IsNullOrWhiteSpace(e.Identifier.ValueText) ? [] : new[] { e.Identifier.ValueText }).ToArray();
                 return tt.Elements.Count==count;
             }
             if(type is GenericNameSyntax gn&&gn.Identifier.ValueText is "ValueTuple" or "Tuple")
@@ -547,20 +547,20 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
             e=Strip(e);
             return e switch {
                 IdentifierNameSyntax or LiteralExpressionSyntax or ThisExpressionSyntax
-                    or BaseExpressionSyntax or DefaultExpressionSyntax or TypeOfExpressionSyntax=>true,
-                MemberAccessExpressionSyntax m=>IsLiftableLeaf(m.Expression),
-                ElementAccessExpressionSyntax ea=>IsLiftableLeaf(ea.Expression)&&ea.ArgumentList.Arguments.All(static a=>IsLiftableLeaf(a.Expression)),
-                CastExpressionSyntax c=>IsLiftableLeaf(c.Expression),
-                _=>false,
+                    or BaseExpressionSyntax or DefaultExpressionSyntax or TypeOfExpressionSyntax => true,
+                MemberAccessExpressionSyntax m => IsLiftableLeaf(m.Expression),
+                ElementAccessExpressionSyntax ea => IsLiftableLeaf(ea.Expression)&&ea.ArgumentList.Arguments.All(static a => IsLiftableLeaf(a.Expression)),
+                CastExpressionSyntax c => IsLiftableLeaf(c.Expression),
+                _ => false,
             };
         }
     }
     private sealed class LeafCarrierShape(ExpressionSyntax expression):CarrierShape {
-        public override bool TryResolve(IReadOnlyList<string> path,out ExpressionSyntax e) {e=expression;return path.Count==0;}
+        public override bool TryResolve(IReadOnlyList<string> path,out ExpressionSyntax e) { e=expression; return path.Count==0; }
     }
     private sealed class ObjectCarrierShape(Dictionary<string,CarrierShape> members):CarrierShape {
         public override bool TryResolve(IReadOnlyList<string> path,out ExpressionSyntax e) {
-            if(path.Count==0||!members.TryGetValue(path[0],out var next)){e=null!;return path.Count==0&&false;}
+            if(path.Count==0||!members.TryGetValue(path[0],out var next)) { e=null!; return path.Count==0&&false; }
             return next.TryResolve(path.Skip(1).ToArray(),out e);
         }
     }
@@ -578,17 +578,17 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         }
         private bool TryGetPath(ExpressionSyntax e,out IReadOnlyList<string> path) {
             e=Strip(e);
-            if(e is IdentifierNameSyntax id&&string.Equals(id.Identifier.ValueText,rootName,StringComparison.Ordinal)){path=[];return true;}
+            if(e is IdentifierNameSyntax id&&string.Equals(id.Identifier.ValueText,rootName,StringComparison.Ordinal)) { path= []; return true; }
             if(e is MemberAccessExpressionSyntax ma&&this.TryGetPath(ma.Expression,out var pp)) {
-                var parts=pp.ToList();parts.Add(ma.Name.Identifier.ValueText);path=parts;return true;
+                var parts = pp.ToList(); parts.Add(ma.Name.Identifier.ValueText); path=parts; return true;
             }
-            path=[];return false;
+            path= []; return false;
         }
     }
     // parameter名のrename rewriter。
     private sealed class ParameterRenameRewriter(string from,string to):CSharpSyntaxRewriter {
         public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node) {
-            return string.Equals(node.Identifier.ValueText,from,StringComparison.Ordinal)?SyntaxFactory.IdentifierName(to):base.VisitIdentifierName(node);
+            return string.Equals(node.Identifier.ValueText,from,StringComparison.Ordinal) ? SyntaxFactory.IdentifierName(to) : base.VisitIdentifierName(node);
         }
     }
 }

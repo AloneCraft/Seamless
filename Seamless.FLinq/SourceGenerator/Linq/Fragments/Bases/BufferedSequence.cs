@@ -23,7 +23,7 @@ BufferedSequence は OrderBy/Shuffle など「一度 List に構築してから�
   遅延評価の外形は保ったまま、最初の MoveNext 前に並べ替えやシャッフルの全体構築を済ませる。
   BuildMembers に SortItem や比較 delegate などの補助メンバーを差し込める。
 */
-public abstract class BufferedSequence(int 番号,string elementType) : Enumerable(番号) {
+public abstract class BufferedSequence(int 番号,string elementType):Enumerable(番号) {
     protected abstract string BuildExpression { get; }
     protected virtual string BuildMembers => string.Empty;
     public override string GetEnumeratorStruct => $$"""

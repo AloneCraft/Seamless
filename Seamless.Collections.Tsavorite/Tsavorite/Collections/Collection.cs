@@ -287,16 +287,13 @@ public abstract class Collection<
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
             try {
                 if(!CompletedOutputs.Next()) {
-                }
-                else {
+                } else {
                     Status=CompletedOutputs.Current.Status;
                 }
-            }
-            finally {
+            } finally {
                 DisposeCompletedOutputs(ref CompletedOutputs);
             }
-        }
-        else {
+        } else {
         }
         return Status;
     }
@@ -326,17 +323,14 @@ public abstract class Collection<
             Session.BasicContext.CompletePendingWithOutputs(out var CompletedOutputs,wait: true);
             try {
                 if(!CompletedOutputs.Next()) {
-                }
-                else {
+                } else {
                     Status=CompletedOutputs.Current.Status;
                     Output=CompletedOutputs.Current.Output;
                 }
-            }
-            finally {
+            } finally {
                 DisposeCompletedOutputs(ref CompletedOutputs);
             }
-        }
-        else {
+        } else {
         }
         return Status;
     }
@@ -345,8 +339,7 @@ public abstract class Collection<
     ) {
         try {
             completedOutputs.Dispose();
-        }
-        catch(NullReferenceException) {
+        } catch(NullReferenceException) {
             // Tsavorite 2.0 beta can throw while clearing heap fields for a completed
             // disk record whose heap object was never populated. The operation result
             // has already been consumed; do not turn that cleanup bug into an Add/Read failure.
@@ -368,8 +361,7 @@ public abstract class Collection<
             return;
         try {
             Directory.Delete(directoryPath,recursive: true);
-        }
-        catch {
+        } catch {
         }
     }
     private protected interface IIterateLookupForEachStrategy<TSelf>
@@ -580,8 +572,7 @@ public abstract class Collection<
         if(disposing) {
             this.DisposeAdditionalSessions();
             this.DisposeCoreSessions();
-        }
-        else {
+        } else {
         }
         this.disposed=true;
     }
@@ -593,8 +584,8 @@ public abstract class Collection<
         if(global::System.Threading.Interlocked.CompareExchange(ref this.ThreadAffinityWarningRaised,1,0)!=0)
             return;
         Debug.WriteLine(
-            $"[Tsavorite] Thread-affinity warning: {this.GetType().Name} should be used from thread {this.ThreadOwnerManagedThreadId}, " +
-            $"current thread {Environment.CurrentManagedThreadId} at {operation}. " +
+            $"[Tsavorite] Thread-affinity warning: {this.GetType().Name} should be used from thread {this.ThreadOwnerManagedThreadId}, "+
+            $"current thread {Environment.CurrentManagedThreadId} at {operation}. "+
             "Create a new collection instance from Store.Create() for each thread.");
     }
     private struct IterateLookupIsSubsetOf<TCollection>(TCollection other):IScanIteratorFunctions
@@ -838,8 +829,7 @@ public abstract class Collection<
                 }
             }
             Session.BasicContext.CompletePending(wait: true);
-        }
-        finally {
+        } finally {
             DeleteTemporaryWorkListPath(workListPath);
         }
     }
@@ -963,8 +953,7 @@ public abstract class Collection<
             }
             ReadOnlySpan<byte> KeyBytes = logRecord.KeyBytes;
             if(other.PrivateProtectedContainsKey(KeyBytes)) {
-            }
-            else {
+            } else {
                 keysToExpire.AddRawBytes(KeyBytes);
             }
             cursorRecordResult=CursorRecordResult.Accept;
@@ -988,9 +977,9 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
     ContainsDelete,//TDeleteFunctions
     SpanByteStoreFunctions,//TStoreFunctions
     SpanByteStoreAllocator//TAllocator
->    where TKeySerializer : ISerializer<TKey>
+> where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
-    public sealed class KeyIterator:IterateLookupIteratorFunctions_List<TKey>,ICreate<KeyIterator> {
+    public sealed class KeyIterator:IterateLookupIteratorFunctions_List<TKey>, ICreate<KeyIterator> {
         public static KeyIterator Create() => new();
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TKeySerializer.Deserialize(logRecord.Key);
@@ -999,7 +988,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
         private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TKeySerializer.Deserialize(logRecord.Key);
     }
-    private protected sealed class ValueIterator:IterateLookupIteratorFunctions_List<TValue>,ICreate<ValueIterator> {
+    private protected sealed class ValueIterator:IterateLookupIteratorFunctions_List<TValue>, ICreate<ValueIterator> {
         public static ValueIterator Create() => new();
         private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
             TValueSerializer.Deserialize(logRecord.ValueSpan);

@@ -52,8 +52,7 @@ namespace Seamless.System.Carrier {
             if(this.innerLookup==null) {
                 try {
                     this.innerLookup=Lookup.CreateForJoin(ref this.inner,innerKeySelector,comparer);
-                }
-                finally {
+                } finally {
                     this.inner.Dispose();
                 }
             }
@@ -69,8 +68,7 @@ namespace Seamless.System.Carrier {
                     current=resultSelector(this.currentOuter,this.currentGroup[this.currentGroupIndex]);
                     this.currentGroupIndex++;
                     return true;
-                }
-                else {
+                } else {
                     this.currentGroup=null;
                 }
             }

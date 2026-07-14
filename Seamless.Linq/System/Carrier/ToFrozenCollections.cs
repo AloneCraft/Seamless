@@ -19,8 +19,7 @@ partial class ValueEnumerableExtensions {
                 // dotnet ToFrozenDictionary(kvp) uses indexer to avoid duplicate throw
                 dict[pair.Key]=pair.Value;
             }
-        }
-        else {
+        } else {
             dict=e.TryGetNonEnumeratedCount(out var count)
                 ? new Dictionary<TKey,TValue>(count,comparer)
                 : new Dictionary<TKey,TValue>(comparer);

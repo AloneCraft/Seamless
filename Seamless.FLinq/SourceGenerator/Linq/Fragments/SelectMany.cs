@@ -26,7 +26,7 @@ SelectManyBase は外側 source と、各外側要素から作る内側 sequence
   - index selector 付きは外側要素を読むたびに index を増やす。
   - SelectMany_WithInlinedInner は内側 LINQ チェーンを具象 struct enumerator のまま保持する。
 */
-public abstract class SelectManyBase(int 番号, Enumerable source) : Enumerable(番号) {
+public abstract class SelectManyBase(int 番号,Enumerable source):Enumerable(番号) {
     internal static bool TryBuildInlined(
         SemanticModel semanticModel,
         InvocationExpressionSyntax invocation,
@@ -38,47 +38,47 @@ public abstract class SelectManyBase(int 番号, Enumerable source) : Enumerable
         BuildEnumerableFragmentDelegate buildEnumerable,
         TryGetLambdaBodyDelegate tryGetLambdaBody,
         GetLambdaParametersDelegate getLambdaParameters) {
-        fragment = null!;
-        staticMethods = string.Empty;
+        fragment=null!;
+        staticMethods=string.Empty;
         if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method) return false;
-        var definition = method.ReducedFrom ?? method;
-        if(definition.Name != "SelectMany"
-            || definition.ContainingType.ToDisplayString() != "System.Linq.Enumerable")
+        var definition = method.ReducedFrom??method;
+        if(definition.Name!="SelectMany"
+            ||definition.ContainingType.ToDisplayString()!="System.Linq.Enumerable")
             return false;
-        if(invocation.ArgumentList.Arguments.Count != 1
-            || invocation.Expression is not MemberAccessExpressionSyntax { Expression: var sourceExpression })
+        if(invocation.ArgumentList.Arguments.Count!=1
+            ||invocation.Expression is not MemberAccessExpressionSyntax { Expression: var sourceExpression })
             return false;
         var selectorArg = invocation.ArgumentList.Arguments[0].Expression;
         if(selectorArg is not LambdaExpressionSyntax lambda) return false;
-        if(!tryGetLambdaBody(lambda, out var lambdaBody)) return false;
+        if(!tryGetLambdaBody(lambda,out var lambdaBody)) return false;
         var outerParams = getLambdaParameters(lambda);
-        if(outerParams.Count != 1) return false;
+        if(outerParams.Count!=1) return false;
         var outerParamName = outerParams[0];
         var dataFlow = semanticModel.AnalyzeDataFlow(lambdaBody);
-        if(dataFlow?.Succeeded == true
-            && dataFlow.DataFlowsIn.Any(symbol =>
-                (symbol is ILocalSymbol || symbol is IParameterSymbol)
-                && symbol.Name != outerParamName
-                && symbol.Name != "this")) {
+        if(dataFlow?.Succeeded==true
+            &&dataFlow.DataFlowsIn.Any(symbol =>
+                (symbol is ILocalSymbol||symbol is IParameterSymbol)
+                &&symbol.Name!=outerParamName
+                &&symbol.Name!="this")) {
             return false;
         }
         var snapshot = uniqueNumber;
         var smNumber = snapshot++;
-        if(!buildEnumerable(semanticModel, sourceExpression, containingType, ref snapshot, out var outerSource, out var outerSourceStaticMethods, unsafeAccessorCollector))
+        if(!buildEnumerable(semanticModel,sourceExpression,containingType,ref snapshot,out var outerSource,out var outerSourceStaticMethods,unsafeAccessorCollector))
             return false;
-        if(!buildEnumerable(semanticModel, lambdaBody, containingType, ref snapshot, out var innerFrag, out var innerStaticMethods, unsafeAccessorCollector))
+        if(!buildEnumerable(semanticModel,lambdaBody,containingType,ref snapshot,out var innerFrag,out var innerStaticMethods,unsafeAccessorCollector))
             return false;
         // 要素型が TResult ジェネリックパラメータのままだと SelectMany_WithInlinedInner のアウタ struct で
         // 型解決できないため、通常の SelectMany デリゲートパスへフォールバックする。
         // 匿名型レジストリ有効時は内側ラムダが record struct 置換されて具象型名になるため通常ここは通らず、
         // registry-mapped できないラムダ形（本体ルートが匿名生成式でない等）の安全網として残している。
-        if(innerFrag.ElementType == "TResult")
+        if(innerFrag.ElementType=="TResult")
             return false;
-        var smFrag = new SelectMany_WithInlinedInner(smNumber, outerSource, innerFrag, outerParamName);
-        fragment = smFrag;
-        uniqueNumber = snapshot;
-        staticMethods = JoinStaticMethods(outerSourceStaticMethods, innerStaticMethods);
-        staticMethods = JoinStaticMethods(staticMethods, smFrag.StructMethod);
+        var smFrag = new SelectMany_WithInlinedInner(smNumber,outerSource,innerFrag,outerParamName);
+        fragment=smFrag;
+        uniqueNumber=snapshot;
+        staticMethods=JoinStaticMethods(outerSourceStaticMethods,innerStaticMethods);
+        staticMethods=JoinStaticMethods(staticMethods,smFrag.StructMethod);
         return true;
     }
     protected override Enumerable PrimarySource => source;
@@ -140,16 +140,16 @@ SelectMany_selector は collection selector だけを持つ標準形。
   - selector が item に依存する場合、各 outerValue ごとに selector(outerValue).GetEnumerator() を作る。
   - 匿名型など delegate 保持が必要な場合は selectorDelegate.Invoke(outerValue).GetEnumerator() にする。
 */
-public class SelectMany_selector(int 番号, Enumerable source, FuncFragment selector) : SelectManyBase(番号, source) {
+public class SelectMany_selector(int 番号,Enumerable source,FuncFragment selector):SelectManyBase(番号,source) {
     private string SelectorFuncType => $"global::System.Func<{source.ElementType}, global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>>";
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length == 1 &&
+        method.Parameters.Length==1&&
         !(method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     private bool UseResultTypeParam => selector.RequiresResultTypeParameter;
     private bool IsHoistable =>
-        !selector.CanInvokeAsDelegate &&
-        selector.CanInlineAssign &&
-        !selector.RenderInlineExpression("__TsavoriteHoistProbe__").Contains("__TsavoriteHoistProbe__") &&
+        !selector.CanInvokeAsDelegate&&
+        selector.CanInlineAssign&&
+        !selector.RenderInlineExpression("__TsavoriteHoistProbe__").Contains("__TsavoriteHoistProbe__")&&
         !selector.ContainsAnchor;
     protected override string CollectionElementType =>
         this.UseResultTypeParam ? "TResult" : SequenceElementTypeName(FuncReturnTypeName(selector));
@@ -171,7 +171,7 @@ public class SelectMany_selector(int 番号, Enumerable source, FuncFragment sel
     public override string StructMethod =>
         this.UseResultTypeParam
             ? JoinStaticMethods(selector.SupportingMemberSources,this.FactorySource)
-            : this.IsHoistable ? selector.SupportingMemberSources : this.FuncSupport(selector, nameof(selector));
+            : this.IsHoistable ? selector.SupportingMemberSources : this.FuncSupport(selector,nameof(selector));
     public override string GetEnumeratorExpression =>
         this.IsHoistable
             ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {selector.RenderInlineExpression("__unused__")})"
@@ -197,9 +197,9 @@ public class SelectMany_selector(int 番号, Enumerable source, FuncFragment sel
     protected override string CurrentValueAssignmentFromInner => $"current = this.{this.currentValue} = {this.item};";
 }
 
-public class SelectMany_indexSelector(int 番号, Enumerable source, FuncFragment selector) : SelectManyBase(番号, source) {
+public class SelectMany_indexSelector(int 番号,Enumerable source,FuncFragment selector):SelectManyBase(番号,source) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length == 1 &&
+        method.Parameters.Length==1&&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     public override string StructMethod => this.FuncSupport(selector,nameof(selector));
     public override string GetEnumeratorExpression =>
@@ -219,9 +219,9 @@ public class SelectMany_indexSelector(int 番号, Enumerable source, FuncFragmen
     public override string ElementType => this.CollectionElementType;
 }
 
-public class SelectMany_selector_resultSelector(int 番号, Enumerable source, FuncFragment collectionSelector, FuncFragment resultSelector) : SelectManyBase(番号, source) {
+public class SelectMany_selector_resultSelector(int 番号,Enumerable source,FuncFragment collectionSelector,FuncFragment resultSelector):SelectManyBase(番号,source) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length == 2 &&
+        method.Parameters.Length==2&&
         !(method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     public override string StructMethod => $$"""
         {{this.FuncSupport(collectionSelector,nameof(collectionSelector))}}
@@ -265,8 +265,8 @@ SelectMany_WithInlinedInner は collection selector の内側 LINQ を Fragment 
 設計意図:
   innerEnumerator を IEnumerator<T>? にせず具象 struct 型で持つことで、interface dispatch と delegate 呼び出しを避ける。
 */
-public class SelectMany_WithInlinedInner(int 番号, Enumerable source, Enumerable innerFragment, string outerParamName)
-    : SelectManyBase(番号, source) {
+public class SelectMany_WithInlinedInner(int 番号,Enumerable source,Enumerable innerFragment,string outerParamName)
+    :SelectManyBase(番号,source) {
 
     public static bool IsApplicableOverload(IMethodSymbol method) => false;
     private string InnerEnumeratorTypeName => innerFragment.EnumeratorTypeName;
@@ -338,9 +338,9 @@ public class SelectMany_WithInlinedInner(int 番号, Enumerable source, Enumerab
         $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
 }
 
-public class SelectMany_indexSelector_resultSelector(int 番号, Enumerable source, FuncFragment collectionSelector, FuncFragment resultSelector) : SelectManyBase(番号, source) {
+public class SelectMany_indexSelector_resultSelector(int 番号,Enumerable source,FuncFragment collectionSelector,FuncFragment resultSelector):SelectManyBase(番号,source) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length == 2 &&
+        method.Parameters.Length==2&&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     public override string StructMethod => $$"""
         {{this.FuncSupport(collectionSelector,nameof(collectionSelector))}}

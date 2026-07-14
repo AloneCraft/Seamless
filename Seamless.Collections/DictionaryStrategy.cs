@@ -1,5 +1,6 @@
-using Seamless.Tsavorite.Collections;
 using Seamless.Serialization;
+using Seamless.Tsavorite.Collections;
+
 using Tsavorite.core;
 namespace Seamless.Collections;
 

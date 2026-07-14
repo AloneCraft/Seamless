@@ -15,17 +15,15 @@ namespace Seamless.System.Carrier {
 
                 // repeat one
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else if(step>=0) // (T.IsPositive(step))
-            {
+            } else if(step>=0) // (T.IsPositive(step))
+              {
                 if(endInclusive<start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
 
                 // increment pattern
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else {
+            } else {
                 if(endInclusive>start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
@@ -65,8 +63,7 @@ namespace Seamless.System.Carrier {
 
                 current=currentValue=next;
                 return true;
-            }
-            else {
+            } else {
                 var next = unchecked((Byte)(currentValue+step));
 
                 if(next<=endInclusive||next>=currentValue) {
@@ -168,17 +165,15 @@ namespace Seamless.System.Carrier {
 
                 // repeat one
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else if(step>=0) // (T.IsPositive(step))
-            {
+            } else if(step>=0) // (T.IsPositive(step))
+              {
                 if(endInclusive<start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
 
                 // increment pattern
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else {
+            } else {
                 if(endInclusive>start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
@@ -218,8 +213,7 @@ namespace Seamless.System.Carrier {
 
                 current=currentValue=next;
                 return true;
-            }
-            else {
+            } else {
                 var next = unchecked((SByte)(currentValue+step));
 
                 if(next<=endInclusive||next>=currentValue) {
@@ -321,17 +315,15 @@ namespace Seamless.System.Carrier {
 
                 // repeat one
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else if(step>=0) // (T.IsPositive(step))
-            {
+            } else if(step>=0) // (T.IsPositive(step))
+              {
                 if(endInclusive<start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
 
                 // increment pattern
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else {
+            } else {
                 if(endInclusive>start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
@@ -371,8 +363,7 @@ namespace Seamless.System.Carrier {
 
                 current=currentValue=next;
                 return true;
-            }
-            else {
+            } else {
                 var next = unchecked((UInt16)(currentValue+step));
 
                 if(next<=endInclusive||next>=currentValue) {
@@ -474,17 +465,15 @@ namespace Seamless.System.Carrier {
 
                 // repeat one
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else if(step>=0) // (T.IsPositive(step))
-            {
+            } else if(step>=0) // (T.IsPositive(step))
+              {
                 if(endInclusive<start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
 
                 // increment pattern
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else {
+            } else {
                 if(endInclusive>start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
@@ -524,8 +513,7 @@ namespace Seamless.System.Carrier {
 
                 current=currentValue=next;
                 return true;
-            }
-            else {
+            } else {
                 var next = unchecked((Int16)(currentValue+step));
 
                 if(next<=endInclusive||next>=currentValue) {
@@ -627,17 +615,15 @@ namespace Seamless.System.Carrier {
 
                 // repeat one
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else if(step>=0) // (T.IsPositive(step))
-            {
+            } else if(step>=0) // (T.IsPositive(step))
+              {
                 if(endInclusive<start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
 
                 // increment pattern
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else {
+            } else {
                 if(endInclusive>start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
@@ -677,8 +663,7 @@ namespace Seamless.System.Carrier {
 
                 current=currentValue=next;
                 return true;
-            }
-            else {
+            } else {
                 var next = unchecked((UInt32)(currentValue+step));
 
                 if(next<=endInclusive||next>=currentValue) {
@@ -780,17 +765,15 @@ namespace Seamless.System.Carrier {
 
                 // repeat one
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else if(step>=0) // (T.IsPositive(step))
-            {
+            } else if(step>=0) // (T.IsPositive(step))
+              {
                 if(endInclusive<start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
 
                 // increment pattern
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else {
+            } else {
                 if(endInclusive>start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
@@ -830,8 +813,7 @@ namespace Seamless.System.Carrier {
 
                 current=currentValue=next;
                 return true;
-            }
-            else {
+            } else {
                 var next = unchecked((Int32)(currentValue+step));
 
                 if(next<=endInclusive||next>=currentValue) {
@@ -933,17 +915,15 @@ namespace Seamless.System.Carrier {
 
                 // repeat one
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else if(step>=0) // (T.IsPositive(step))
-            {
+            } else if(step>=0) // (T.IsPositive(step))
+              {
                 if(endInclusive<start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
 
                 // increment pattern
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else {
+            } else {
                 if(endInclusive>start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
@@ -983,8 +963,7 @@ namespace Seamless.System.Carrier {
 
                 current=currentValue=next;
                 return true;
-            }
-            else {
+            } else {
                 var next = unchecked((UInt64)(currentValue+step));
 
                 if(next<=endInclusive||next>=currentValue) {
@@ -1086,17 +1065,15 @@ namespace Seamless.System.Carrier {
 
                 // repeat one
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else if(step>=0) // (T.IsPositive(step))
-            {
+            } else if(step>=0) // (T.IsPositive(step))
+              {
                 if(endInclusive<start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
 
                 // increment pattern
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else {
+            } else {
                 if(endInclusive>start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
@@ -1136,8 +1113,7 @@ namespace Seamless.System.Carrier {
 
                 current=currentValue=next;
                 return true;
-            }
-            else {
+            } else {
                 var next = unchecked((Int64)(currentValue+step));
 
                 if(next<=endInclusive||next>=currentValue) {
@@ -1239,17 +1215,15 @@ namespace Seamless.System.Carrier {
 
                 // repeat one
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else if(step>=0) // (T.IsPositive(step))
-            {
+            } else if(step>=0) // (T.IsPositive(step))
+              {
                 if(endInclusive<start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
 
                 // increment pattern
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else {
+            } else {
                 if(endInclusive>start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
@@ -1289,8 +1263,7 @@ namespace Seamless.System.Carrier {
 
                 current=currentValue=next;
                 return true;
-            }
-            else {
+            } else {
                 var next = unchecked((Char)(currentValue+step));
 
                 if(next<=endInclusive||next>=currentValue) {
@@ -1394,17 +1367,15 @@ namespace Seamless.System.Carrier {
 
                 // repeat one
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else if(step>=0) // (T.IsPositive(step))
-            {
+            } else if(step>=0) // (T.IsPositive(step))
+              {
                 if(endInclusive<start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
 
                 // increment pattern
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else {
+            } else {
                 if(endInclusive>start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
@@ -1444,8 +1415,7 @@ namespace Seamless.System.Carrier {
 
                 current=currentValue=next;
                 return true;
-            }
-            else {
+            } else {
                 var next = unchecked((Single)(currentValue+step));
 
                 if(next<=endInclusive||next>=currentValue) {
@@ -1496,17 +1466,15 @@ namespace Seamless.System.Carrier {
 
                 // repeat one
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else if(step>=0) // (T.IsPositive(step))
-            {
+            } else if(step>=0) // (T.IsPositive(step))
+              {
                 if(endInclusive<start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
 
                 // increment pattern
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else {
+            } else {
                 if(endInclusive>start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
@@ -1546,8 +1514,7 @@ namespace Seamless.System.Carrier {
 
                 current=currentValue=next;
                 return true;
-            }
-            else {
+            } else {
                 var next = unchecked((Double)(currentValue+step));
 
                 if(next<=endInclusive||next>=currentValue) {
@@ -1596,17 +1563,15 @@ namespace Seamless.System.Carrier {
 
                 // repeat one
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else if(step>=0) // (T.IsPositive(step))
-            {
+            } else if(step>=0) // (T.IsPositive(step))
+              {
                 if(endInclusive<start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
 
                 // increment pattern
                 return new(new(start,endInclusive,step,isIncrement: true));
-            }
-            else {
+            } else {
                 if(endInclusive>start) {
                     Throws.ArgumentOutOfRange(nameof(endInclusive));
                 }
@@ -1646,8 +1611,7 @@ namespace Seamless.System.Carrier {
 
                 current=currentValue=next;
                 return true;
-            }
-            else {
+            } else {
                 var next = unchecked((Decimal)(currentValue+step));
 
                 if(next<=endInclusive||next>=currentValue) {

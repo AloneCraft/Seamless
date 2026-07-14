@@ -1,4 +1,5 @@
 using Seamless.FLinq;
+
 using Test.System.Linq.Intercept;
 
 namespace Test.Seamless.Tsavorite.Linq.Enumerable;
@@ -28,8 +29,7 @@ public class FLinqNativeIterateTests {
             Assert.DoesNotContain("MemoryExtensions.AsSpan",generated);
             Assert.DoesNotContain("CollectionsMarshal.AsSpan",generated);
             Assert.DoesNotContain(".GetSpan();",generated);
-        }
-        finally {
+        } finally {
             source=null;
         }
     }
@@ -53,8 +53,7 @@ public class FLinqNativeIterateTests {
 
             AssertNativeIterateGenerated(nameof(CountEvenImpl));
             AssertNativeIterateGenerated(nameof(AnyEvenImpl));
-        }
-        finally {
+        } finally {
             source=null;
         }
     }
@@ -69,21 +68,20 @@ public class FLinqNativeIterateTests {
         source=set;
         try {
             Assert.True(AllLessThanFiveImpl());
-            Assert.Throws<NotSupportedException>(()=>{ _=DirectFirstOrDefaultGreaterThanTwoImpl(); });
+            Assert.Throws<NotSupportedException>(() => { _=DirectFirstOrDefaultGreaterThanTwoImpl(); });
             Assert.Equal(3,ExplicitFirstOrDefaultGreaterThanTwoImpl());
 
             AssertNativeIterateGenerated(nameof(AllLessThanFiveImpl));
             AssertNativeIterateGenerated(nameof(ExplicitFirstOrDefaultGreaterThanTwoImpl));
-        }
-        finally {
+        } finally {
             source=null;
         }
     }
 
-    [Fact,Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public void TsavoriteHashSetRoot_UsesNativeIterateForMaterializeAndHashTerminals() {
-        using var store=Store.Create().CreateHashSet<int>();
-        using var set=store.Create();
+        using var store = Store.Create().CreateHashSet<int>();
+        using var set = store.Create();
         foreach(var value in new[] { 1,2,3,4 })
             set.Add(value);
 
@@ -98,8 +96,7 @@ public class FLinqNativeIterateTests {
             AssertNativeMaterializeGenerated(nameof(ToListImpl),"List=new global::System.Collections.Generic.List");
             AssertNativeMaterializeGenerated(nameof(SumImpl),"state.Sum+=");
             AssertNativeMaterializeGenerated(nameof(ToDictionaryImpl),"Dictionary=new");
-        }
-        finally {
+        } finally {
             source=null;
         }
     }
@@ -122,25 +119,25 @@ public class FLinqNativeIterateTests {
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
     private static int ExplicitFirstOrDefaultGreaterThanTwoImpl() =>
-        Source().AsEnumerable().Where(static value=>value>2).FirstOrDefault();
+        Source().AsEnumerable().Where(static value => value>2).FirstOrDefault();
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
-    private static int[] ToArrayImpl()=>
-        Source().Where(static value=>value%2==0).Select(static value=>value*10).ToArray();
+    private static int[] ToArrayImpl() =>
+        Source().Where(static value => value%2==0).Select(static value => value*10).ToArray();
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
-    private static List<int> ToListImpl()=>
-        Source().Where(static value=>value%2!=0).ToList();
+    private static List<int> ToListImpl() =>
+        Source().Where(static value => value%2!=0).ToList();
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
-    private static int SumImpl()=>Source().Sum();
+    private static int SumImpl() => Source().Sum();
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
-    private static Dictionary<int,int> ToDictionaryImpl()=>
-        Source().ToDictionary(static value=>value,static value=>value*2);
+    private static Dictionary<int,int> ToDictionaryImpl() =>
+        Source().ToDictionary(static value => value,static value => value*2);
 
     private static global::Seamless.Tsavorite.Collections.HashSet<int> Source() =>
-        source ?? throw new InvalidOperationException("Source was not initialized.");
+        source??throw new InvalidOperationException("Source was not initialized.");
 
     private static void AssertNativeIterateGenerated(string methodName) {
         var generated = GeneratedInterceptorAssert.SourceFor<FLinqNativeIterateTests>(methodName);
@@ -154,7 +151,7 @@ public class FLinqNativeIterateTests {
     }
 
     private static void AssertNativeMaterializeGenerated(string methodName,string shape) {
-        var generated=GeneratedInterceptorAssert.SourceFor<FLinqNativeIterateTests>(methodName);
+        var generated = GeneratedInterceptorAssert.SourceFor<FLinqNativeIterateTests>(methodName);
         Assert.Contains("IHashSetIterateStrategy",generated);
         Assert.Contains(".Iterate(ref __TsavoriteHashSetIterateState",generated);
         Assert.Contains(shape,generated);

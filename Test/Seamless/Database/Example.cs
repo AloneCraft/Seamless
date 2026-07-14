@@ -1,6 +1,8 @@
+using MemoryPack;
+
 using System.Buffers;
 using System.Runtime.CompilerServices;
-using MemoryPack;
+
 using Test.Seamless.Database.Example.Keys;
 namespace Test.Seamless.Database.Example {
 
@@ -45,12 +47,12 @@ namespace Test.Seamless.Database.Example {
         }
     }
     namespace Records {
-        #pragma warning disable CS0282
+#pragma warning disable CS0282
         public partial struct Type0 {
             public int Column2 { get; } = Column2;
             public string Column3 { get; } = Column3;
         }
-        #pragma warning restore CS0282
+#pragma warning restore CS0282
     }
 
     namespace Keys {

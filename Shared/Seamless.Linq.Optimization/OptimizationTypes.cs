@@ -1,4 +1,4 @@
-namespace Benchmark.Optimization.Rewrite{
+namespace Benchmark.Optimization.Rewrite {
     public sealed class ArrayInt32:global::Seamless.Linq.Optimization.ArrayRewrite<int>;
     public sealed class ArrayClassInt32:global::Seamless.Linq.Optimization.ArrayRewrite<global::Common.ClassInt32>;
     public sealed class IEnumerableInt32:global::Seamless.Linq.Optimization.EnumerableRewrite<int>;
@@ -11,7 +11,7 @@ namespace Benchmark.Optimization.Rewrite{
     public sealed class TsavoriteInt32:global::Seamless.Linq.Optimization.TsavoriteRewrite<int>;
     public sealed class TsavoriteClassInt32:global::Seamless.Linq.Optimization.TsavoriteRewrite<global::Common.ClassInt32>;
 }
-namespace Benchmark.Optimization.PipelineFusion{
+namespace Benchmark.Optimization.PipelineFusion {
     public sealed class ArrayInt32:global::Seamless.Linq.Optimization.ArrayPipeline<int>;
     public sealed class ArrayClassInt32:global::Seamless.Linq.Optimization.ArrayPipeline<global::Common.ClassInt32>;
     public sealed class IEnumerableInt32:global::Seamless.Linq.Optimization.EnumerablePipeline<int>;
@@ -24,7 +24,7 @@ namespace Benchmark.Optimization.PipelineFusion{
     public sealed class TsavoriteInt32:global::Seamless.Linq.Optimization.TsavoritePipeline<int>;
     public sealed class TsavoriteClassInt32:global::Seamless.Linq.Optimization.TsavoritePipeline<global::Common.ClassInt32>;
 }
-namespace Benchmark.Optimization.PredicatePushdown{
+namespace Benchmark.Optimization.PredicatePushdown {
     public sealed class ArrayInt32:global::Seamless.Linq.Optimization.ArrayPushdown<int>;
     public sealed class ArrayClassInt32:global::Seamless.Linq.Optimization.ArrayPushdown<global::Common.ClassInt32>;
     public sealed class IEnumerableInt32:global::Seamless.Linq.Optimization.EnumerablePushdown<int>;

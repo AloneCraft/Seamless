@@ -2,56 +2,56 @@ using UI;
 
 namespace Test.Benchmark;
 
-public sealed class BenchmarkTabProgressLogic{
+public sealed class ベンチマークタブ進行ロジック {
     [Fact]
-    public void CreateCellsFromSelectedCases_UsesRunSelectionSnapshotForSourceTab(){
-        var sourceTab = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
+    public void 仕様確認01() {
+        var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.System配列);
 
-        var cells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases(
+        var セル一覧 = global::UI.ベンチマークタブ進行元ロジック.選択ケースからセルを作成(
             [
-                Case("System.Array.FLinq","System.Array","Where","Count=4096"),
-                Case("System.Array.ZLinq","System.Array","Where","Count=4096"),
-                Case("System.List.FLinq","System.Collections.Generic.List","Where","Count=4096"),
-                Case("System.Array.FLinq","System.Array","Where","Count=4096"),
+                ケースを作成("System.Array.FLinq","System.Array","Where","Count=4096"),
+                ケースを作成("System.Array.ZLinq","System.Array","Where","Count=4096"),
+                ケースを作成("System.List.FLinq","System.Collections.Generic.List","Where","Count=4096"),
+                ケースを作成("System.Array.FLinq","System.Array","Where","Count=4096"),
             ],
-            sourceTab);
+            ソースタブ);
 
-        Assert.Equal(2,cells.Count);
-        Assert.All(cells,static cell => Assert.True(cell.IsSelected));
-        Assert.Contains(cells,static cell => cell.Project=="System.Array.FLinq");
-        Assert.Contains(cells,static cell => cell.Project=="System.Array.ZLinq");
-        Assert.Single(cells.Select(static cell => cell.PairKey).Distinct(StringComparer.OrdinalIgnoreCase));
-        Assert.All(cells,static cell => Assert.False(string.IsNullOrWhiteSpace(cell.PairKey)));
+        Assert.Equal(2,セル一覧.Count);
+        Assert.All(セル一覧,static セル => Assert.True(セル.選択中か));
+        Assert.Contains(セル一覧,static セル => セル.プロジェクト=="System.Array.FLinq");
+        Assert.Contains(セル一覧,static セル => セル.プロジェクト=="System.Array.ZLinq");
+        Assert.Single(セル一覧.Select(static セル => セル.ペアキー).Distinct(StringComparer.OrdinalIgnoreCase));
+        Assert.All(セル一覧,static セル => Assert.False(string.IsNullOrWhiteSpace(セル.ペアキー)));
     }
 
     [Fact]
-    public void CreateCellsFromSelectedCases_SeparatesSharedSeamlessLinqProjectByAssembly(){
-        var persisted = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessPersisted);
-        var tsavorite = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SeamlessTsavorite);
-        var persistedCase = Case(
-            persisted.RightProject,
-            persisted.RightAssemblyName,
+    public void 仕様確認02() {
+        var 永続化 = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.Seamless永続化);
+        var Tsavorite = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.SeamlessTsavorite);
+        var 永続化ケース = ケースを作成(
+            永続化.右プロジェクト,
+            永続化.右アセンブリ名,
             "Benchmark.Persisted.Linq.Enumerable.LinqInt32",
             "Aggregate_func",
             "");
-        var tsavoriteCase = Case(
-            tsavorite.RightProject,
-            tsavorite.RightAssemblyName,
+        var Tsavoriteケース = ケースを作成(
+            Tsavorite.右プロジェクト,
+            Tsavorite.右アセンブリ名,
             "Benchmark.Tsavorite.Linq.Enumerable.LinqInt32",
             "Aggregate_func",
             "");
 
         {
-            var persistedCells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases([persistedCase],persisted);
-            var tsavoriteCells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases([persistedCase],tsavorite);
+            var 永続化セル一覧 = global::UI.ベンチマークタブ進行元ロジック.選択ケースからセルを作成([永続化ケース],永続化);
+            var Tsavoriteセル一覧 = global::UI.ベンチマークタブ進行元ロジック.選択ケースからセルを作成([永続化ケース],Tsavorite);
 
-            Assert.Single(persistedCells);
-            Assert.Empty(tsavoriteCells);
-            var persistedProgress = global::UI.BenchmarkTabProgressLogic.Calculate(
-                persistedCells,
+            Assert.Single(永続化セル一覧);
+            Assert.Empty(Tsavoriteセル一覧);
+            var 永続化進行 = global::UI.ベンチマークタブ進行ロジック.進行を計算(
+                永続化セル一覧,
                 [
-                    new BenchmarkElementMeasurement(
-                        persisted.RightProject,
+                    new ベンチマーク要素測定(
+                        永続化.右プロジェクト,
                         "Aggregate_func",
                         "Benchmark.Persisted.Linq.Enumerable.LinqInt32",
                         "",
@@ -60,15 +60,15 @@ public sealed class BenchmarkTabProgressLogic{
                         2_000_000,
                         2_000_000),
                 ],
-                persisted.LeftProject,
-                persisted.RightProject,
+                永続化.左プロジェクト,
+                永続化.右プロジェクト,
                 4096,
                 1_000_000);
-            var tsavoriteProgress = global::UI.BenchmarkTabProgressLogic.Calculate(
-                tsavoriteCells,
+            var Tsavorite進行 = global::UI.ベンチマークタブ進行ロジック.進行を計算(
+                Tsavoriteセル一覧,
                 [
-                    new BenchmarkElementMeasurement(
-                        persisted.RightProject,
+                    new ベンチマーク要素測定(
+                        永続化.右プロジェクト,
                         "Aggregate_func",
                         "Benchmark.Persisted.Linq.Enumerable.LinqInt32",
                         "",
@@ -76,354 +76,352 @@ public sealed class BenchmarkTabProgressLogic{
                         "Completed",
                         2_000_000),
                 ],
-                tsavorite.LeftProject,
-                tsavorite.RightProject,
+                Tsavorite.左プロジェクト,
+                Tsavorite.右プロジェクト,
                 4096,
                 1_000_000);
 
-            Assert.Equal(1,persistedProgress.Completed);
-            Assert.Equal(1,persistedProgress.Total);
-            Assert.Equal(0,tsavoriteProgress.Completed);
-            Assert.Equal(0,tsavoriteProgress.Total);
+            Assert.Equal(1,永続化進行.完了数);
+            Assert.Equal(1,永続化進行.合計数);
+            Assert.Equal(0,Tsavorite進行.完了数);
+            Assert.Equal(0,Tsavorite進行.合計数);
         }
         {
-            var persistedCells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases([tsavoriteCase],persisted);
-            var tsavoriteCells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases([tsavoriteCase],tsavorite);
+            var 永続化セル一覧 = global::UI.ベンチマークタブ進行元ロジック.選択ケースからセルを作成([Tsavoriteケース],永続化);
+            var Tsavoriteセル一覧 = global::UI.ベンチマークタブ進行元ロジック.選択ケースからセルを作成([Tsavoriteケース],Tsavorite);
 
-            Assert.Empty(persistedCells);
-            Assert.Single(tsavoriteCells);
+            Assert.Empty(永続化セル一覧);
+            Assert.Single(Tsavoriteセル一覧);
         }
         {
-            var persistedCells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases([persistedCase,tsavoriteCase],persisted);
-            var tsavoriteCells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases([persistedCase,tsavoriteCase],tsavorite);
+            var 永続化セル一覧 = global::UI.ベンチマークタブ進行元ロジック.選択ケースからセルを作成([永続化ケース,Tsavoriteケース],永続化);
+            var Tsavoriteセル一覧 = global::UI.ベンチマークタブ進行元ロジック.選択ケースからセルを作成([永続化ケース,Tsavoriteケース],Tsavorite);
 
-            Assert.Single(persistedCells);
-            Assert.Single(tsavoriteCells);
-            Assert.Contains(persistedCells,cell => cell.TypeFullName=="Benchmark.Persisted.Linq.Enumerable.LinqInt32");
-            Assert.Contains(tsavoriteCells,cell => cell.TypeFullName=="Benchmark.Tsavorite.Linq.Enumerable.LinqInt32");
+            Assert.Single(永続化セル一覧);
+            Assert.Single(Tsavoriteセル一覧);
+            Assert.Contains(永続化セル一覧,セル => セル.型完全名=="Benchmark.Persisted.Linq.Enumerable.LinqInt32");
+            Assert.Contains(Tsavoriteセル一覧,セル => セル.型完全名=="Benchmark.Tsavorite.Linq.Enumerable.LinqInt32");
         }
     }
 
     [Fact]
-    public void Calculate_UsesSelectedCellsAsDenominator(){
-        var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
+    public void 仕様確認03() {
+        var 進行 = global::UI.ベンチマークタブ進行ロジック.進行を計算(
             [
-                new BenchmarkTabProgressCell("Where","Left",true),
-                new BenchmarkTabProgressCell("Where","Right",false),
-                new BenchmarkTabProgressCell("Select","Left",true),
+                new ベンチマークタブ進行セル("Where","Left",true),
+                new ベンチマークタブ進行セル("Where","Right",false),
+                new ベンチマークタブ進行セル("Select","Left",true),
             ],
             [
-                new BenchmarkElementMeasurement("Left","Where","","",4096,"Completed",1_000_000,1_000_000),
-                new BenchmarkElementMeasurement("Right","Where","","",4096,"Completed",100,100),
+                new ベンチマーク要素測定("Left","Where","","",4096,"Completed",1_000_000,1_000_000),
+                new ベンチマーク要素測定("Right","Where","","",4096,"Completed",100,100),
             ],
             "Left",
             "Right",
             8192,
             1_000_000);
 
-        Assert.Equal(1,progress.Completed);
-        Assert.Equal(2,progress.Total);
-        Assert.Equal("1/2",progress.FractionText);
-        Assert.Equal(0.5,progress.Fraction);
+        Assert.Equal(1,進行.完了数);
+        Assert.Equal(2,進行.合計数);
+        Assert.Equal("1/2",進行.割合文字列);
+        Assert.Equal(0.5,進行.割合);
     }
 
     [Fact]
-    public void Calculate_DoesNotCompleteShortCompletedCellsWithoutPairThreshold(){
-        var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
+    public void 仕様確認04() {
+        var 進行 = global::UI.ベンチマークタブ進行ロジック.進行を計算(
             [
-                new BenchmarkTabProgressCell("Where","Left",true),
-                new BenchmarkTabProgressCell("Where","Right",true),
+                new ベンチマークタブ進行セル("Where","Left",true),
+                new ベンチマークタブ進行セル("Where","Right",true),
             ],
             [
-                new BenchmarkElementMeasurement("Left","Where","","",4096,"Completed",100,100),
-                new BenchmarkElementMeasurement("Right","Where","","",4096,"Completed",200,200),
+                new ベンチマーク要素測定("Left","Where","","",4096,"Completed",100,100),
+                new ベンチマーク要素測定("Right","Where","","",4096,"Completed",200,200),
             ],
             "Left",
             "Right",
             8192,
             1_000_000);
 
-        Assert.Equal(0,progress.Completed);
-        Assert.Equal(2,progress.Total);
+        Assert.Equal(0,進行.完了数);
+        Assert.Equal(2,進行.合計数);
     }
 
     [Fact]
-    public void Calculate_DoesNotTreatFiveOfSixCellsAsComplete(){
-        var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
+    public void 仕様確認05() {
+        var 進行 = global::UI.ベンチマークタブ進行ロジック.進行を計算(
             [
-                new BenchmarkTabProgressCell("A","Left","Type.A","",true,"row-a"),
-                new BenchmarkTabProgressCell("A","Right","Type.A","",true,"row-a"),
-                new BenchmarkTabProgressCell("B","Left","Type.B","",true,"row-b"),
-                new BenchmarkTabProgressCell("B","Right","Type.B","",true,"row-b"),
-                new BenchmarkTabProgressCell("C","Left","Type.C","",true,"row-c"),
-                new BenchmarkTabProgressCell("C","Right","Type.C","",true,"row-c"),
+                new ベンチマークタブ進行セル("A","Left","Type.A","",true,"行-a"),
+                new ベンチマークタブ進行セル("A","Right","Type.A","",true,"行-a"),
+                new ベンチマークタブ進行セル("B","Left","Type.B","",true,"行-b"),
+                new ベンチマークタブ進行セル("B","Right","Type.B","",true,"行-b"),
+                new ベンチマークタブ進行セル("C","Left","Type.C","",true,"行-c"),
+                new ベンチマークタブ進行セル("C","Right","Type.C","",true,"行-c"),
             ],
             [
-                new BenchmarkElementMeasurement("Left","A","Type.A","",4096,"Completed",2_000_000,2_000_000),
-                new BenchmarkElementMeasurement("Right","A","Type.A","",4096,"Completed",2_000_000,2_000_000),
-                new BenchmarkElementMeasurement("Left","B","Type.B","",4096,"Completed",2_000_000,2_000_000),
-                new BenchmarkElementMeasurement("Right","B","Type.B","",4096,"Completed",2_000_000,2_000_000),
-                new BenchmarkElementMeasurement("Left","C","Type.C","",4096,"Failed",null),
+                new ベンチマーク要素測定("Left","A","Type.A","",4096,"Completed",2_000_000,2_000_000),
+                new ベンチマーク要素測定("Right","A","Type.A","",4096,"Completed",2_000_000,2_000_000),
+                new ベンチマーク要素測定("Left","B","Type.B","",4096,"Completed",2_000_000,2_000_000),
+                new ベンチマーク要素測定("Right","B","Type.B","",4096,"Completed",2_000_000,2_000_000),
+                new ベンチマーク要素測定("Left","C","Type.C","",4096,"Failed",null),
             ],
             "Left",
             "Right",
             4096,
             1_000_000);
 
-        Assert.Equal(5,progress.Completed);
-        Assert.Equal(6,progress.Total);
-        Assert.Equal("5/6",progress.FractionText);
-        Assert.NotEqual(1,progress.Fraction);
+        Assert.Equal(5,進行.完了数);
+        Assert.Equal(6,進行.合計数);
+        Assert.Equal("5/6",進行.割合文字列);
+        Assert.NotEqual(1,進行.割合);
     }
 
     [Fact]
-    public void Calculate_KeepsMultiTabPartialRunIncompleteAcrossTabSwitch(){
-        var array = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
-        var range = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemRange);
-        var list = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemList);
-        var selectedCases = new[]{
-            Case(array.LeftProject,"System.Array","Aggregate_func",""),
-            Case(array.RightProject,"System.Array","Aggregate_func",""),
-            Case(array.LeftProject,"System.Array","AggregateBy_keySelector",""),
-            Case(array.RightProject,"System.Array","AggregateBy_keySelector",""),
-            Case(range.LeftProject,"System.Collections.Generic.IEnumerable","Aggregate_seed_func",""),
-            Case(range.RightProject,"System.Collections.Generic.IEnumerable","Aggregate_seed_func",""),
-            Case(range.LeftProject,"System.Collections.Generic.IEnumerable","Aggregate_seed_func_resultSelector",""),
-            Case(range.RightProject,"System.Collections.Generic.IEnumerable","Aggregate_seed_func_resultSelector",""),
-            Case(list.LeftProject,"System.Collections.Generic.List","All_predicate",""),
-            Case(list.RightProject,"System.Collections.Generic.List","All_predicate",""),
-            Case(list.LeftProject,"System.Collections.Generic.List","Any",""),
-            Case(list.RightProject,"System.Collections.Generic.List","Any",""),
+    public void 仕様確認06() {
+        var 配列 = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.System配列);
+        var 範囲 = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.System範囲);
+        var リスト = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.Systemリスト);
+        var 選択ケース一覧 = new[]{
+            ケースを作成(配列.左プロジェクト,"System.Array","Aggregate_func",""),
+            ケースを作成(配列.右プロジェクト,"System.Array","Aggregate_func",""),
+            ケースを作成(配列.左プロジェクト,"System.Array","AggregateBy_keySelector",""),
+            ケースを作成(配列.右プロジェクト,"System.Array","AggregateBy_keySelector",""),
+            ケースを作成(範囲.左プロジェクト,"System.Collections.Generic.IEnumerable","Aggregate_seed_func",""),
+            ケースを作成(範囲.右プロジェクト,"System.Collections.Generic.IEnumerable","Aggregate_seed_func",""),
+            ケースを作成(範囲.左プロジェクト,"System.Collections.Generic.IEnumerable","Aggregate_seed_func_resultSelector",""),
+            ケースを作成(範囲.右プロジェクト,"System.Collections.Generic.IEnumerable","Aggregate_seed_func_resultSelector",""),
+            ケースを作成(リスト.左プロジェクト,"System.Collections.Generic.List","All_predicate",""),
+            ケースを作成(リスト.右プロジェクト,"System.Collections.Generic.List","All_predicate",""),
+            ケースを作成(リスト.左プロジェクト,"System.Collections.Generic.List","Any",""),
+            ケースを作成(リスト.右プロジェクト,"System.Collections.Generic.List","Any",""),
         };
 
-        var listCells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases(selectedCases,list);
-        var listMeasurements = new[]{
-            new BenchmarkElementMeasurement(list.LeftProject,"All_predicate","System.Collections.Generic.List","",4096,"Completed",2_000_000,2_000_000),
-            new BenchmarkElementMeasurement(list.RightProject,"All_predicate","System.Collections.Generic.List","",4096,"Completed",2_000_000,2_000_000),
+        var リストセル一覧 = global::UI.ベンチマークタブ進行元ロジック.選択ケースからセルを作成(選択ケース一覧,リスト);
+        var リスト測定一覧 = new[]{
+            new ベンチマーク要素測定(リスト.左プロジェクト,"All_predicate","System.Collections.Generic.List","",4096,"Completed",2_000_000,2_000_000),
+            new ベンチマーク要素測定(リスト.右プロジェクト,"All_predicate","System.Collections.Generic.List","",4096,"Completed",2_000_000,2_000_000),
         };
-        var listProgress = global::UI.BenchmarkTabProgressLogic.Calculate(
-            listCells,
-            listMeasurements,
-            list.LeftProject,
-            list.RightProject,
+        var リスト進行 = global::UI.ベンチマークタブ進行ロジック.進行を計算(
+            リストセル一覧,
+            リスト測定一覧,
+            リスト.左プロジェクト,
+            リスト.右プロジェクト,
             4096,
             1_000_000);
 
-        Assert.Equal(2,listProgress.Completed);
-        Assert.Equal(4,listProgress.Total);
-        Assert.NotEqual(1,listProgress.Fraction);
+        Assert.Equal(2,リスト進行.完了数);
+        Assert.Equal(4,リスト進行.合計数);
+        Assert.NotEqual(1,リスト進行.割合);
 
-        var arrayCells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases(selectedCases,array);
-        var arrayProgress = global::UI.BenchmarkTabProgressLogic.Calculate(
-            arrayCells,
+        var 配列セル一覧 = global::UI.ベンチマークタブ進行元ロジック.選択ケースからセルを作成(選択ケース一覧,配列);
+        var 配列進行 = global::UI.ベンチマークタブ進行ロジック.進行を計算(
+            配列セル一覧,
             [
-                new BenchmarkElementMeasurement(array.LeftProject,"Aggregate_func","System.Array","",4096,"Completed",2_000_000,2_000_000),
-                new BenchmarkElementMeasurement(array.RightProject,"Aggregate_func","System.Array","",4096,"Completed",2_000_000,2_000_000),
+                new ベンチマーク要素測定(配列.左プロジェクト,"Aggregate_func","System.Array","",4096,"Completed",2_000_000,2_000_000),
+                new ベンチマーク要素測定(配列.右プロジェクト,"Aggregate_func","System.Array","",4096,"Completed",2_000_000,2_000_000),
             ],
-            array.LeftProject,
-            array.RightProject,
+            配列.左プロジェクト,
+            配列.右プロジェクト,
             4096,
             1_000_000);
 
-        Assert.Equal(2,arrayProgress.Completed);
-        Assert.Equal(4,arrayProgress.Total);
+        Assert.Equal(2,配列進行.完了数);
+        Assert.Equal(4,配列進行.合計数);
 
-        var restoredListProgress = global::UI.BenchmarkTabProgressLogic.Calculate(
-            listCells,
-            listMeasurements,
-            list.LeftProject,
-            list.RightProject,
+        var 復元リスト進行 = global::UI.ベンチマークタブ進行ロジック.進行を計算(
+            リストセル一覧,
+            リスト測定一覧,
+            リスト.左プロジェクト,
+            リスト.右プロジェクト,
             4096,
             1_000_000);
 
-        Assert.Equal(listProgress.Completed,restoredListProgress.Completed);
-        Assert.Equal(listProgress.Total,restoredListProgress.Total);
-        Assert.NotEqual(1,restoredListProgress.Fraction);
+        Assert.Equal(リスト進行.完了数,復元リスト進行.完了数);
+        Assert.Equal(リスト進行.合計数,復元リスト進行.合計数);
+        Assert.NotEqual(1,復元リスト進行.割合);
     }
 
     [Fact]
-    public void Calculate_RestoresCompletedInactiveTabFromSavedRunJobs(){
-        var array = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemArray);
-        var list = BenchmarkSourceTabs.Get(BenchmarkSourceTab.SystemList);
-        var selectedCases = new[]{
-            Case(array.LeftProject,"System.Array","Aggregate_func",""),
-            Case(array.RightProject,"System.Array","Aggregate_func",""),
-            Case(list.LeftProject,"System.Collections.Generic.List","All_predicate",""),
-            Case(list.RightProject,"System.Collections.Generic.List","All_predicate",""),
+    public void 仕様確認07() {
+        var 配列 = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.System配列);
+        var リスト = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.Systemリスト);
+        var 選択ケース一覧 = new[]{
+            ケースを作成(配列.左プロジェクト,"System.Array","Aggregate_func",""),
+            ケースを作成(配列.右プロジェクト,"System.Array","Aggregate_func",""),
+            ケースを作成(リスト.左プロジェクト,"System.Collections.Generic.List","All_predicate",""),
+            ケースを作成(リスト.右プロジェクト,"System.Collections.Generic.List","All_predicate",""),
         };
-        var savedState = new ProgressState {
-            SourceTab=list.Tab,
-            Jobs=[
-                CompletedJob(list.LeftProject,list.LeftAssemblyName,"System.Collections.Generic.List","All_predicate",4096),
-                CompletedJob(list.RightProject,list.RightAssemblyName,"System.Collections.Generic.List","All_predicate",4096),
+        var 保存状態 = new 進行状態 {
+            ソースタブ=リスト.タブ,
+            ジョブ一覧= [
+                完了ジョブを作成(リスト.左プロジェクト,リスト.左アセンブリ名,"System.Collections.Generic.List","All_predicate",4096),
+                完了ジョブを作成(リスト.右プロジェクト,リスト.右アセンブリ名,"System.Collections.Generic.List","All_predicate",4096),
             ],
         };
-        var listCells = global::UI.BenchmarkTabProgressSourceLogic.CreateCellsFromSelectedCases(selectedCases,list);
-        var listMeasurements = savedState.Jobs
-            .Where(job => job.SourceTab==list.Tab)
-            .Select(static job => new BenchmarkResultItem(job))
-            .Select(static item => new BenchmarkElementMeasurement(
-                item.Project,
-                item.Method,
-                item.TypeFullName,
-                item.ArgumentKey,
-                item.AxisCount,
-                item.Status,
-                item.MeanNanoseconds,
-                item.TotalNanoseconds))
+        var リストセル一覧 = global::UI.ベンチマークタブ進行元ロジック.選択ケースからセルを作成(選択ケース一覧,リスト);
+        var リスト測定一覧 = 保存状態.ジョブ一覧
+            .Where(ジョブ => ジョブ.ソースタブ==リスト.タブ)
+            .Select(static ジョブ => new ベンチマーク結果項目(ジョブ))
+            .Select(static 項目 => new ベンチマーク要素測定(
+                項目.プロジェクト,
+                項目.メソッド,
+                項目.型完全名,
+                項目.引数キー,
+                項目.軸数,
+                項目.状態,
+                項目.平均ナノ秒,
+                項目.合計ナノ秒))
             .ToArray();
 
-        var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
-            listCells,
-            listMeasurements,
-            list.LeftProject,
-            list.RightProject,
+        var 進行 = global::UI.ベンチマークタブ進行ロジック.進行を計算(
+            リストセル一覧,
+            リスト測定一覧,
+            リスト.左プロジェクト,
+            リスト.右プロジェクト,
             4096,
             1_000_000);
 
-        Assert.Equal(2,progress.Completed);
-        Assert.Equal(2,progress.Total);
-        Assert.Equal(1,progress.Fraction);
+        Assert.Equal(2,進行.完了数);
+        Assert.Equal(2,進行.合計数);
+        Assert.Equal(1,進行.割合);
     }
 
     [Fact]
-    public void Calculate_TreatsFailedCellsAsTerminal(){
-        var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
+    public void 仕様確認08() {
+        var 進行 = global::UI.ベンチマークタブ進行ロジック.進行を計算(
             [
-                new BenchmarkTabProgressCell("Where","Left",true),
+                new ベンチマークタブ進行セル("Where","Left",true),
             ],
             [
-                new BenchmarkElementMeasurement("Left","Where",4096,"Failed",null),
+                new ベンチマーク要素測定("Left","Where",4096,"Failed",null),
             ],
             "Left",
             "Right",
             8192,
             1_000_000);
 
-        Assert.Equal(1,progress.Completed);
-        Assert.Equal(1,progress.Total);
+        Assert.Equal(1,進行.完了数);
+        Assert.Equal(1,進行.合計数);
     }
 
     [Fact]
-    public void Calculate_TreatsAdaptiveThresholdStopAsTerminalForSelectedPairCells(){
-        var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
+    public void 仕様確認09() {
+        var 進行 = global::UI.ベンチマークタブ進行ロジック.進行を計算(
             [
-                new BenchmarkTabProgressCell("Where","Left",true),
-                new BenchmarkTabProgressCell("Where","Right",true),
+                new ベンチマークタブ進行セル("Where","Left",true),
+                new ベンチマークタブ進行セル("Where","Right",true),
             ],
             [
-                new BenchmarkElementMeasurement("Left","Where","","",4096,"Completed",2_000_000,2_000_000),
-                new BenchmarkElementMeasurement("Right","Where","","",4096,"Completed",100,100),
+                new ベンチマーク要素測定("Left","Where","","",4096,"Completed",2_000_000,2_000_000),
+                new ベンチマーク要素測定("Right","Where","","",4096,"Completed",100,100),
             ],
             "Left",
             "Right",
             8192,
             1_000_000);
 
-        Assert.Equal(2,progress.Completed);
-        Assert.Equal(2,progress.Total);
+        Assert.Equal(2,進行.完了数);
+        Assert.Equal(2,進行.合計数);
     }
 
     [Fact]
-    public void Calculate_TreatsRightThresholdAsPairCompletionWhenPairKeyMatches(){
-        var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
+    public void 仕様確認10() {
+        var 進行 = global::UI.ベンチマークタブ進行ロジック.進行を計算(
             [
-                new BenchmarkTabProgressCell("Any","Left","System.Array.FLinq","",true,"row-1"),
-                new BenchmarkTabProgressCell("Any","Right","System.Array.ZLinq","",true,"row-1"),
+                new ベンチマークタブ進行セル("Any","Left","System.Array.FLinq","",true,"行-1"),
+                new ベンチマークタブ進行セル("Any","Right","System.Array.ZLinq","",true,"行-1"),
             ],
             [
-                new BenchmarkElementMeasurement("Left","Any","System.Array.FLinq","",4096,"Completed",100,100),
-                new BenchmarkElementMeasurement("Right","Any","System.Array.ZLinq","",4096,"Completed",2_000_000,2_000_000),
+                new ベンチマーク要素測定("Left","Any","System.Array.FLinq","",4096,"Completed",100,100),
+                new ベンチマーク要素測定("Right","Any","System.Array.ZLinq","",4096,"Completed",2_000_000,2_000_000),
             ],
             "Left",
             "Right",
             4096,
             1_000_000);
 
-        Assert.Equal(2,progress.Completed);
-        Assert.Equal(2,progress.Total);
+        Assert.Equal(2,進行.完了数);
+        Assert.Equal(2,進行.合計数);
     }
 
     [Fact]
-    public void Calculate_DoesNotCompleteOtherRowWithDifferentPairKey(){
-        var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
+    public void 仕様確認11() {
+        var 進行 = global::UI.ベンチマークタブ進行ロジック.進行を計算(
             [
-                new BenchmarkTabProgressCell("Any","Left","System.Array.FLinq","",true,"row-1"),
-                new BenchmarkTabProgressCell("Any","Right","System.Array.ZLinq","",true,"row-2"),
+                new ベンチマークタブ進行セル("Any","Left","System.Array.FLinq","",true,"行-1"),
+                new ベンチマークタブ進行セル("Any","Right","System.Array.ZLinq","",true,"行-2"),
             ],
             [
-                new BenchmarkElementMeasurement("Left","Any","System.Array.FLinq","",4096,"Completed",100,100),
-                new BenchmarkElementMeasurement("Right","Any","System.Array.ZLinq","",4096,"Completed",2_000_000,2_000_000),
+                new ベンチマーク要素測定("Left","Any","System.Array.FLinq","",4096,"Completed",100,100),
+                new ベンチマーク要素測定("Right","Any","System.Array.ZLinq","",4096,"Completed",2_000_000,2_000_000),
             ],
             "Left",
             "Right",
             4096,
             1_000_000);
 
-        Assert.Equal(1,progress.Completed);
-        Assert.Equal(2,progress.Total);
+        Assert.Equal(1,進行.完了数);
+        Assert.Equal(2,進行.合計数);
     }
 
     [Fact]
-    public void Calculate_DoesNotCompleteDifferentScalableTypeWithSameMethod(){
-        var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
+    public void 仕様確認12() {
+        var 進行 = global::UI.ベンチマークタブ進行ロジック.進行を計算(
             [
-                new BenchmarkTabProgressCell("Add","Scalable.Persisted.List","Benchmark.Scalable.Persisted.Collections.List.ListString",true),
+                new ベンチマークタブ進行セル("Add","Scalable.Persisted.List","Benchmark.Scalable.Persisted.Collections.List.ListString",true),
             ],
             [
-                new BenchmarkElementMeasurement("Scalable.Persisted.List","Add","Benchmark.Scalable.Persisted.Collections.List.ListInt32",4096,"Completed",100),
+                new ベンチマーク要素測定("Scalable.Persisted.List","Add","Benchmark.Scalable.Persisted.Collections.List.ListInt32",4096,"Completed",100),
             ],
             "Scalable.Persisted.List",
             "Scalable.Persisted.List.Previous",
             8192,
             1_000_000);
 
-        Assert.Equal(0,progress.Completed);
-        Assert.Equal(1,progress.Total);
+        Assert.Equal(0,進行.完了数);
+        Assert.Equal(1,進行.合計数);
     }
 
     [Fact]
-    public void Calculate_DoesNotCompleteDifferentArgumentKeyWithSameMethodAndType(){
-        var progress = global::UI.BenchmarkTabProgressLogic.Calculate(
+    public void 仕様確認13() {
+        var 進行 = global::UI.ベンチマークタブ進行ロジック.進行を計算(
             [
-                new BenchmarkTabProgressCell("Add","Left","Type","Count=2",true),
-                new BenchmarkTabProgressCell("Add","Right","Type","Count=2",true),
+                new ベンチマークタブ進行セル("Add","Left","Type","Count=2",true),
+                new ベンチマークタブ進行セル("Add","Right","Type","Count=2",true),
             ],
             [
-                new BenchmarkElementMeasurement("Left","Add","Type","Count=1",4096,"Completed",2_000_000,2_000_000),
-                new BenchmarkElementMeasurement("Right","Add","Type","Count=1",4096,"Completed",100,100),
+                new ベンチマーク要素測定("Left","Add","Type","Count=1",4096,"Completed",2_000_000,2_000_000),
+                new ベンチマーク要素測定("Right","Add","Type","Count=1",4096,"Completed",100,100),
             ],
             "Left",
             "Right",
             4096,
             1_000_000);
 
-        Assert.Equal(0,progress.Completed);
-        Assert.Equal(2,progress.Total);
+        Assert.Equal(0,進行.完了数);
+        Assert.Equal(2,進行.合計数);
     }
 
-    private static BenchmarkCase Case(string project,string type,string method,string argumentKey) =>
-        new(project,ResolveAssemblyName(project),type,method,argumentKey,[]);
+    private static ベンチマークケース ケースを作成(string プロジェクト,string 型,string メソッド,string 引数キー) =>
+        new(プロジェクト,アセンブリ名を解決(プロジェクト),型,メソッド,引数キー,[]);
 
-    private static BenchmarkCase Case(string project,string assemblyName,string type,string method,string argumentKey) =>
-        new(project,assemblyName,type,method,argumentKey,[]);
+    private static ベンチマークケース ケースを作成(string プロジェクト,string アセンブリ名,string 型,string メソッド,string 引数キー) =>
+        new(プロジェクト,アセンブリ名,型,メソッド,引数キー,[]);
 
-    private static BenchmarkJob CompletedJob(string project,string assemblyName,string typeFullName,string method,int elementCount) =>
-        new(){
-            Project=project,
-            AssemblyName=assemblyName,
-            TypeFullName=typeFullName,
-            MethodName=method,
-            SourceTab=BenchmarkSourceTabs.TryGetByProjectAndAssembly(project,assemblyName)?.Tab??BenchmarkSourceTab.SystemArray,
-            ElementCount=elementCount,
-            LoopCount=1,
-            Status=JobStatus.Completed,
-            MeanNanoseconds=2_000_000,
+    private static ベンチマークジョブ 完了ジョブを作成(string プロジェクト,string アセンブリ名,string 型完全名,string メソッド,int 要素数) =>
+        new() {
+            プロジェクト=プロジェクト,
+            アセンブリ名=アセンブリ名,
+            型完全名=型完全名,
+            メソッド名=メソッド,
+            ソースタブ=ベンチマークソースタブ一覧.プロジェクトとアセンブリから取得を試みる(プロジェクト,アセンブリ名)?.タブ??ベンチマークソースタブ.System配列,
+            要素数=要素数,
+            ループ回数=1,
+            状態=ジョブ状態.完了,
+            平均ナノ秒=2_000_000,
         };
 
-    private static string ResolveAssemblyName(string project) =>
-        BenchmarkSourceTabs.TryGetByProject(project)?.GetAssemblyName(project)??"Test.Assembly";
+    private static string アセンブリ名を解決(string プロジェクト) =>
+        ベンチマークソースタブ一覧.プロジェクトから取得を試みる(プロジェクト)?.アセンブリ名を取得(プロジェクト)??"Test.Assembly";
 }
-
-
 

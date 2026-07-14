@@ -3,7 +3,7 @@ namespace Seamless.FLinq.Linq.Fragments;
 
 internal static class RangePredicateOptimizer {
     public static string RenderAny(RangeRoot range,int number,string destVar,string destType) {
-        var count=$"__count{number}";
+        var count = $"__count{number}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -14,7 +14,7 @@ internal static class RangePredicateOptimizer {
     }
 
     public static string RenderAny(RepeatRoot repeat,int number,string destVar,string destType) {
-        var count=$"__count{number}";
+        var count = $"__count{number}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -25,8 +25,8 @@ internal static class RangePredicateOptimizer {
     }
 
     public static string? RenderFirst(RangeRoot range,int number,string destVar,string destType) {
-        var start=$"__start{number}";
-        var count=$"__count{number}";
+        var start = $"__start{number}";
+        var count = $"__count{number}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -39,8 +39,8 @@ internal static class RangePredicateOptimizer {
     }
 
     public static string? RenderSingle(RangeRoot range,int number,string destVar,string destType) {
-        var start=$"__start{number}";
-        var count=$"__count{number}";
+        var start = $"__start{number}";
+        var count = $"__count{number}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -54,8 +54,8 @@ internal static class RangePredicateOptimizer {
     }
 
     public static string? RenderSingleOrDefault(RangeRoot range,int number,string destVar,string destType,string defaultValue = "default!") {
-        var start=$"__start{number}";
-        var count=$"__count{number}";
+        var start = $"__start{number}";
+        var count = $"__count{number}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -68,8 +68,8 @@ internal static class RangePredicateOptimizer {
     }
 
     public static string? RenderSingle(RepeatRoot repeat,int number,string destVar,string destType) {
-        var value=$"__value{number}";
-        var count=$"__count{number}";
+        var value = $"__value{number}";
+        var count = $"__count{number}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -83,8 +83,8 @@ internal static class RangePredicateOptimizer {
     }
 
     public static string? RenderSingleOrDefault(RepeatRoot repeat,int number,string destVar,string destType,string defaultValue = "default!") {
-        var value=$"__value{number}";
-        var count=$"__count{number}";
+        var value = $"__value{number}";
+        var count = $"__count{number}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -98,14 +98,14 @@ internal static class RangePredicateOptimizer {
 
     public static string? RenderSingle(RangeRoot range,FuncFragment predicate,int number,string destVar,string destType) {
         if(!TryExtractComparison(predicate,out var comparison)
-            || comparison.Operator!=ComparisonOperator.Equal) {
+            ||comparison.Operator!=ComparisonOperator.Equal) {
             return null;
         }
 
-        var start=$"__start{number}";
-        var count=$"__count{number}";
-        var last=$"__last{number}";
-        var value=$"__cmp{number}";
+        var start = $"__start{number}";
+        var count = $"__count{number}";
+        var last = $"__last{number}";
+        var value = $"__cmp{number}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -121,14 +121,14 @@ internal static class RangePredicateOptimizer {
 
     public static string? RenderSingleOrDefault(RangeRoot range,FuncFragment predicate,int number,string destVar,string destType,string defaultValue = "default!") {
         if(!TryExtractComparison(predicate,out var comparison)
-            || comparison.Operator!=ComparisonOperator.Equal) {
+            ||comparison.Operator!=ComparisonOperator.Equal) {
             return null;
         }
 
-        var start=$"__start{number}";
-        var count=$"__count{number}";
-        var last=$"__last{number}";
-        var value=$"__cmp{number}";
+        var start = $"__start{number}";
+        var count = $"__count{number}";
+        var last = $"__last{number}";
+        var value = $"__cmp{number}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -142,9 +142,9 @@ internal static class RangePredicateOptimizer {
     }
 
     public static string? RenderMinMax(RangeRoot range,int number,string destVar,string destType,bool max) {
-        var start=$"__start{number}";
-        var count=$"__count{number}";
-        var value=max
+        var start = $"__start{number}";
+        var count = $"__count{number}";
+        var value = max
             ? $"(long){start} + {count} - 1L"
             : $"(long){start}";
         return $$"""
@@ -163,10 +163,10 @@ internal static class RangePredicateOptimizer {
             return null;
         }
 
-        var start=$"__start{number}";
-        var count=$"__count{number}";
-        var last=$"__last{number}";
-        var value=$"__cmp{number}";
+        var start = $"__start{number}";
+        var count = $"__count{number}";
+        var last = $"__last{number}";
+        var value = $"__cmp{number}";
         return $$"""
             {{destType}} {{destVar}};
             {
@@ -181,10 +181,10 @@ internal static class RangePredicateOptimizer {
 
     public static string? RenderAny(RangeRoot range,FuncFragment predicate,int number,string destVar,string destType) {
         if(TryExtractComparison(predicate,out var comparison)) {
-            var start=$"__start{number}";
-            var count=$"__count{number}";
-            var last=$"__last{number}";
-            var value=$"__cmp{number}";
+            var start = $"__start{number}";
+            var count = $"__count{number}";
+            var last = $"__last{number}";
+            var value = $"__cmp{number}";
             return $$"""
                 {{destType}} {{destVar}};
                 {
@@ -198,8 +198,8 @@ internal static class RangePredicateOptimizer {
         }
 
         if(TryExtractParity(predicate,out var wantEven)) {
-            var start=$"__start{number}";
-            var count=$"__count{number}";
+            var start = $"__start{number}";
+            var count = $"__count{number}";
             var parity = wantEven ? "0" : "1";
             return $$"""
                 {{destType}} {{destVar}};
@@ -216,9 +216,9 @@ internal static class RangePredicateOptimizer {
 
     public static string? RenderCount(RangeRoot range,FuncFragment predicate,int number,string destVar,string destType) {
         if(TryExtractParity(predicate,out var wantEven)) {
-            var start=$"__start{number}";
-            var count=$"__count{number}";
-            var matched=$"__matched{number}";
+            var start = $"__start{number}";
+            var count = $"__count{number}";
+            var matched = $"__matched{number}";
             var parity = wantEven ? "0" : "1";
             return $$"""
                 {{destType}} {{destVar}};
@@ -233,11 +233,11 @@ internal static class RangePredicateOptimizer {
         }
 
         if(TryExtractComparison(predicate,out var comparison)) {
-            var start=$"__start{number}";
-            var count=$"__count{number}";
-            var last=$"__last{number}";
-            var value=$"__cmp{number}";
-            var matched=$"__matched{number}";
+            var start = $"__start{number}";
+            var count = $"__count{number}";
+            var last = $"__last{number}";
+            var value = $"__cmp{number}";
+            var matched = $"__matched{number}";
             return $$"""
                 {{destType}} {{destVar}};
                 {
@@ -290,19 +290,19 @@ internal static class RangePredicateOptimizer {
     private static bool TryExtractComparison(FuncFragment predicate,out RangeComparison comparison) {
         comparison=default;
         if(!CanInspect(predicate)
-            || predicate.ParameterNames.Length!=1
-            || TryParseExpression(predicate.InlineBody) is not BinaryExpressionSyntax binary
-            || !TryGetComparisonOperator(binary.Kind(),out var op)) {
+            ||predicate.ParameterNames.Length!=1
+            ||TryParseExpression(predicate.InlineBody) is not BinaryExpressionSyntax binary
+            ||!TryGetComparisonOperator(binary.Kind(),out var op)) {
             return false;
         }
 
-        var parameterName=predicate.ParameterNames[0];
-        if(IsParameter(binary.Left,parameterName) && !ContainsParameter(binary.Right,parameterName)) {
+        var parameterName = predicate.ParameterNames[0];
+        if(IsParameter(binary.Left,parameterName)&&!ContainsParameter(binary.Right,parameterName)) {
             comparison=new RangeComparison(op,binary.Right.ToString());
             return true;
         }
 
-        if(IsParameter(binary.Right,parameterName) && !ContainsParameter(binary.Left,parameterName)) {
+        if(IsParameter(binary.Right,parameterName)&&!ContainsParameter(binary.Left,parameterName)) {
             comparison=new RangeComparison(Invert(op),binary.Left.ToString());
             return true;
         }
@@ -313,18 +313,18 @@ internal static class RangePredicateOptimizer {
     private static bool TryExtractParity(FuncFragment predicate,out bool wantEven) {
         wantEven=false;
         if(!CanInspect(predicate)
-            || predicate.ParameterNames.Length!=1
-            || TryParseExpression(predicate.InlineBody) is not BinaryExpressionSyntax binary
-            || binary.Kind() is not (SyntaxKind.EqualsExpression or SyntaxKind.NotEqualsExpression)) {
+            ||predicate.ParameterNames.Length!=1
+            ||TryParseExpression(predicate.InlineBody) is not BinaryExpressionSyntax binary
+            ||binary.Kind() is not (SyntaxKind.EqualsExpression or SyntaxKind.NotEqualsExpression)) {
             return false;
         }
 
-        var parameterName=predicate.ParameterNames[0];
-        if(TryExtractBitAndOne(binary.Left,parameterName) && TryGetSmallInteger(binary.Right,out var right)) {
+        var parameterName = predicate.ParameterNames[0];
+        if(TryExtractBitAndOne(binary.Left,parameterName)&&TryGetSmallInteger(binary.Right,out var right)) {
             return TryMapParity(binary.Kind(),right,out wantEven);
         }
 
-        if(TryExtractBitAndOne(binary.Right,parameterName) && TryGetSmallInteger(binary.Left,out var left)) {
+        if(TryExtractBitAndOne(binary.Right,parameterName)&&TryGetSmallInteger(binary.Left,out var left)) {
             return TryMapParity(binary.Kind(),left,out wantEven);
         }
 
@@ -337,7 +337,7 @@ internal static class RangePredicateOptimizer {
             return false;
         }
 
-        wantEven = equalityKind==SyntaxKind.EqualsExpression
+        wantEven=equalityKind==SyntaxKind.EqualsExpression
             ? value==0
             : value!=0;
         return true;
@@ -345,21 +345,21 @@ internal static class RangePredicateOptimizer {
 
     private static bool TryExtractBitAndOne(ExpressionSyntax expression,string parameterName) {
         expression=Unwrap(expression);
-        if(expression is not BinaryExpressionSyntax binary || binary.Kind()!=SyntaxKind.BitwiseAndExpression) {
+        if(expression is not BinaryExpressionSyntax binary||binary.Kind()!=SyntaxKind.BitwiseAndExpression) {
             return false;
         }
 
-        return (IsParameter(binary.Left,parameterName) && TryGetSmallInteger(binary.Right,out var right) && right==1)
-            || (IsParameter(binary.Right,parameterName) && TryGetSmallInteger(binary.Left,out var left) && left==1);
+        return (IsParameter(binary.Left,parameterName)&&TryGetSmallInteger(binary.Right,out var right)&&right==1)
+            ||(IsParameter(binary.Right,parameterName)&&TryGetSmallInteger(binary.Left,out var left)&&left==1);
     }
 
     private static bool CanInspect(FuncFragment predicate) =>
         predicate.CanInlineAssign
-        && !predicate.RequiresStatementInlining
-        && !string.IsNullOrWhiteSpace(predicate.InlineBody);
+        &&!predicate.RequiresStatementInlining
+        &&!string.IsNullOrWhiteSpace(predicate.InlineBody);
 
     private static ExpressionSyntax? TryParseExpression(string expression) {
-        var parsed=SyntaxFactory.ParseExpression(expression);
+        var parsed = SyntaxFactory.ParseExpression(expression);
         return parsed.ContainsDiagnostics ? null : Unwrap(parsed);
     }
 
@@ -373,16 +373,16 @@ internal static class RangePredicateOptimizer {
 
     private static bool IsParameter(ExpressionSyntax expression,string parameterName) =>
         Unwrap(expression) is IdentifierNameSyntax identifier
-        && string.Equals(identifier.Identifier.ValueText,parameterName,StringComparison.Ordinal);
+        &&string.Equals(identifier.Identifier.ValueText,parameterName,StringComparison.Ordinal);
 
     private static bool ContainsParameter(ExpressionSyntax expression,string parameterName) =>
         expression.DescendantNodesAndSelf()
             .OfType<IdentifierNameSyntax>()
-            .Any(identifier=>string.Equals(identifier.Identifier.ValueText,parameterName,StringComparison.Ordinal));
+            .Any(identifier => string.Equals(identifier.Identifier.ValueText,parameterName,StringComparison.Ordinal));
 
     private static bool TryGetSmallInteger(ExpressionSyntax expression,out int value) {
         expression=Unwrap(expression);
-        if(expression is LiteralExpressionSyntax literal && literal.Token.Value is int intValue) {
+        if(expression is LiteralExpressionSyntax literal&&literal.Token.Value is int intValue) {
             value=intValue;
             return true;
         }

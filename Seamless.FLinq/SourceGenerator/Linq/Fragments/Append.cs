@@ -18,7 +18,7 @@ Append は source.Append(value) を、source を読み切った後に追加要�
 設計意図:
   連続 Append は FlattenedElements へ畳み込み、ネストした enumerator を作らず1つの state フィールドで処理する。
 */
-public class Append(int 番号, Enumerable source, string element) : Enumerable(番号) {
+public class Append(int 番号,Enumerable source,string element):Enumerable(番号) {
     private Enumerable Source => source;
     private string ElementExpression => element;
     private Enumerable RootSource => this.Source is Append append ? append.RootSource : this.Source;
@@ -61,7 +61,7 @@ public class Append(int 番号, Enumerable source, string element) : Enumerable(
             builder.AppendLine("    }");
             builder.AppendLine($"    this.{this.state}=1;");
             builder.AppendLine("}");
-            for(var i = 0; i <this.FlattenedElements.Count; i++) {
+            for(var i = 0;i<this.FlattenedElements.Count;i++) {
                 builder.AppendLine($"if(this.{this.state}=={i+1}) {{");
                 builder.AppendLine($"    this.{this.state}={i+2};");
                 builder.AppendLine($"    current=this.{this.currentValue}=element{i};");

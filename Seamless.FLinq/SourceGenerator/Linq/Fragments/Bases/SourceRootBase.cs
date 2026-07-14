@@ -1,20 +1,20 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
 [Flags]
-public enum SourceCapability{
-    None=0,
-    KnownCount=1,
-    DirectSpan=1<<1,
-    Indexable=1<<2,
-    ChunkStreaming=1<<3,
-    NativeIterate=1<<4,
-    Unordered=1<<5,
+public enum SourceCapability {
+    None = 0,
+    KnownCount = 1,
+    DirectSpan = 1<<1,
+    Indexable = 1<<2,
+    ChunkStreaming = 1<<3,
+    NativeIterate = 1<<4,
+    Unordered = 1<<5,
 }
 
-public abstract class SourceRootBase(int number,string sourceExpression):Enumerable(number){
-    public string SourceExpression{get;}=sourceExpression;
-    public abstract SourceCapability Capabilities{get;}
-    public bool HasCapability(SourceCapability capability)=>(this.Capabilities&capability)==capability;
+public abstract class SourceRootBase(int number,string sourceExpression):Enumerable(number) {
+    public string SourceExpression { get; } = sourceExpression;
+    public abstract SourceCapability Capabilities { get; }
+    public bool HasCapability(SourceCapability capability) => (this.Capabilities&capability)==capability;
 }
 
 public abstract class EnumeratorRootBase(
@@ -24,25 +24,25 @@ public abstract class EnumeratorRootBase(
 public abstract class DirectSpanRootBase(
     int number,
     string sourceExpression,
-    string elementType):SourceRootBase(number,sourceExpression){
-    protected abstract string SourceTypeName{get;}
+    string elementType):SourceRootBase(number,sourceExpression) {
+    protected abstract string SourceTypeName { get; }
     protected abstract string CountExpression(string sourceName);
     protected abstract string RemainingCountExpression(string sourceName,string indexName);
     protected abstract string SpanExpression(string sourceName,string startExpression);
-    protected virtual string IndexTypeName=>"int";
-    protected virtual string ElementExpression(string sourceName,string indexName)=>$"{sourceName}[{indexName}]";
+    protected virtual string IndexTypeName => "int";
+    protected virtual string ElementExpression(string sourceName,string indexName) => $"{sourceName}[{indexName}]";
 
-    public override SourceCapability Capabilities=>
+    public override SourceCapability Capabilities =>
         SourceCapability.KnownCount|SourceCapability.DirectSpan|SourceCapability.Indexable|SourceCapability.ChunkStreaming;
-    public override bool CanProvideSpan=>true;
-    public override string? GetDirectSpanExpression(string enumeratorName)=>$"{enumeratorName}.GetSpan()";
-    public override string? NonEnumeratedCountExpression=>this.CountExpression(this.SourceExpression);
-    public override bool CountPreserving=>true;
-    public override string StructMethod=>string.Empty;
-    public override string GetEnumeratorExpression=>$"new {this.EnumeratorTypeName}({this.SourceExpression})";
-    public override string GetEnumeratorPrimaryConstructorParameters=>$"{this.SourceTypeName} source";
-    public override string GetEnumeratorFields=>$"private {this.IndexTypeName} {this.e}=-1;";
-    public override string GetTryGetNextBody=>$$"""
+    public override bool CanProvideSpan => true;
+    public override string? GetDirectSpanExpression(string enumeratorName) => $"{enumeratorName}.GetSpan()";
+    public override string? NonEnumeratedCountExpression => this.CountExpression(this.SourceExpression);
+    public override bool CountPreserving => true;
+    public override string StructMethod => string.Empty;
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({this.SourceExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"{this.SourceTypeName} source";
+    public override string GetEnumeratorFields => $"private {this.IndexTypeName} {this.e}=-1;";
+    public override string GetTryGetNextBody => $$"""
         if(++{{this.e}}<{{this.CountExpression("source")}}){
             current={{this.ElementExpression("source",this.e)}};
             return true;
@@ -50,9 +50,9 @@ public abstract class DirectSpanRootBase(
         current=default!;
         return false;
         """;
-    public override string GetCurrentExpression=>"Current";
-    public override string ElementType=>elementType;
-    public override string GetEnumeratorStruct=>$$"""
+    public override string GetCurrentExpression => "Current";
+    public override string ElementType => elementType;
+    public override string GetEnumeratorStruct => $$"""
         private struct {{this.Struct}}{{this.StructTypeParameters}}:global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>,global::System.Collections.Generic.IEnumerator<{{elementType}}>{
             private {{this.SourceTypeName}} source;
             private {{this.IndexTypeName}} {{this.e}}=-1;
@@ -103,14 +103,14 @@ public abstract class ProviderNativeRootBase(
     string sourceExpression,
     string elementType,
     string enumeratorTypeName,
-    bool useEnumerableInterface):Root(number,sourceExpression,elementType,enumeratorTypeName,useEnumerableInterface){
-    public override SourceCapability Capabilities=>
+    bool useEnumerableInterface):Root(number,sourceExpression,elementType,enumeratorTypeName,useEnumerableInterface) {
+    public override SourceCapability Capabilities =>
         SourceCapability.KnownCount|SourceCapability.ChunkStreaming|SourceCapability.NativeIterate|SourceCapability.Unordered;
-    public virtual string NativeCountExpression=>$"{this.SourceExpression}.Count";
-    public override string? NonEnumeratedCountExpression=>this.NativeCountExpression;
-    public abstract string ProviderName{get;}
-    public abstract string SourceVariablePrefix{get;}
-    public abstract string StrategyInterfaceTypeName{get;}
-    public virtual string NativeOperationName=>"Iterate";
-    public virtual string NativeExecutionMethodName=>"Iterate";
+    public virtual string NativeCountExpression => $"{this.SourceExpression}.Count";
+    public override string? NonEnumeratedCountExpression => this.NativeCountExpression;
+    public abstract string ProviderName { get; }
+    public abstract string SourceVariablePrefix { get; }
+    public abstract string StrategyInterfaceTypeName { get; }
+    public virtual string NativeOperationName => "Iterate";
+    public virtual string NativeExecutionMethodName => "Iterate";
 }

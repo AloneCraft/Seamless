@@ -21,9 +21,9 @@ Skip は source.Skip(count) を、初回 TryGetNext で count 件だけ読み捨
   - count < 0 は constructor で 0 に丸める。
   - 連続 Skip は RootSource へ畳み込み、count は previous + current を int.MaxValue 上限で合成する。
 */
-public class Skip(int 番号, Enumerable source, string skipCount) : Enumerable(番号) {
+public class Skip(int 番号,Enumerable source,string skipCount):Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
-        method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_Int32;
+        method.Parameters.Length==1&&method.Parameters[0].Type.SpecialType==SpecialType.System_Int32;
     private Enumerable Source => source;
     private string SkipCountExpression => skipCount;
     private Enumerable RootSource => this.Source is Skip skip ? skip.RootSource : this.Source;
@@ -60,8 +60,8 @@ public class Skip(int 番号, Enumerable source, string skipCount) : Enumerable(
     public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => this.Source.ElementType;
     public override string GetConsumeExecutionStatement(string consumerName) {
-        var sourceName=$"__skipSource{番号}";
-        var spanExpression=this.RootSource.GetDirectSpanExpression(sourceName);
+        var sourceName = $"__skipSource{番号}";
+        var spanExpression = this.RootSource.GetDirectSpanExpression(sourceName);
         if(spanExpression is null) {
             return base.GetConsumeExecutionStatement(consumerName);
         }

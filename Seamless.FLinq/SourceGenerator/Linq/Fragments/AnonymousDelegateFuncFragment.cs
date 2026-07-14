@@ -5,7 +5,7 @@ namespace Seamless.FLinq.Linq.Fragments;
 internal sealed class AnonymousDelegateFuncFragment(
     string delegateTypeName,
     string delegateFieldName,
-    string delegateConstructorArg): LambdaFunc {
+    string delegateConstructorArg):LambdaFunc {
     // CanInlineAssign はフィールド（デフォルト false）のため override 不要
     public override bool CanInvokeAsDelegate => true;
     public override bool RequiresResultTypeParameter => true;

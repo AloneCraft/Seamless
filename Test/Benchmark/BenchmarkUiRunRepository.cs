@@ -3,229 +3,229 @@ using Seamless.UI.Storage;
 namespace Test.Benchmark;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
-public sealed class BenchmarkUiRunRepository{
+public sealed class ベンチマークUI実行リポジトリ {
     [Fact]
-    public async Task QueueSaveBenchmarkSnapshotItems_RestoresResultItemsFromDatabase(){
-        var store = new global::Seamless.UI.Storage.UiRunStore(CreateDatabasePath());
-        var repository = new global::UI.BenchmarkUiRunRepository(store);
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var runId = await repository.CreateRunAsync(UiRunAppKind.Benchmark,"Benchmark","Fast",sourceTab.Tab);
-        var result = Result(sourceTab.LeftProject,sourceTab.Tab,"Aggregate",64,123.5,"Sample.Type","Count=64",[new global::UI.BenchmarkArgument("Count","64")]);
-        repository.QueueSaveRunSettings(runId,string.Empty,[64],TimeSpan.Zero,[]);
+    public async Task 仕様確認01() {
+        var ストア = new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成());
+        var リポジトリ = new global::UI.ベンチマークUI実行リポジトリ(ストア);
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        var 実行ID = await リポジトリ.実行を作成Async(UI実行アプリ種別.ベンチマーク,"Benchmark","Fast",ソースタブ.タブ);
+        var 結果 = 結果を作成(ソースタブ.左プロジェクト,ソースタブ.タブ,"Aggregate",64,123.5,"Sample.Type","Count=64",[new global::UI.ベンチマーク引数("Count","64")]);
+        リポジトリ.実行設定保存を予約(実行ID,string.Empty,[64],TimeSpan.Zero,[]);
 
-        repository.QueueSaveBenchmarkSnapshotItems(runId,[
-            Snapshot(runId!.Value,sourceTab,"int","Aggregate",7,CompletedSide(result),EmptySide(sourceTab.RightProject,sourceTab.Tab,"Sample.Type","Aggregate")),
+        リポジトリ.ベンチマークスナップショット項目保存を予約(実行ID,[
+            スナップショットを作成(実行ID!.Value,ソースタブ,"int","Aggregate",7,完了側を作成(結果),空側を作成(ソースタブ.右プロジェクト,ソースタブ.タブ,"Sample.Type","Aggregate")),
         ]);
 
-        await repository.FlushAsync();
-        Assert.Contains(store.ListMetrics(runId!.Value),static item => item.MetricName=="MeanNanoseconds");
-        Assert.Equal("int",Assert.Single(repository.LoadBenchmarkSnapshotItems(runId.Value)).TypeName);
-        var loaded = repository.LoadResultItems(runId!.Value,DateTimeOffset.UtcNow,sourceTab)
-            .Single(static item => item.MeanNanoseconds is not null);
-        Assert.Equal(sourceTab.LeftProject,loaded.Project);
-        Assert.Empty(loaded.TypeFullName);
-        Assert.Equal(global::UI.BenchmarkWorkloadAxis.ResolveElementCount(sourceTab.Tab,64),loaded.ElementCount);
-        Assert.Equal(global::UI.BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab.Tab,64),loaded.LoopCount);
-        Assert.Equal(123.5,loaded.MeanNanoseconds);
-        Assert.Equal(123.5*global::UI.BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab.Tab,64),loaded.TotalNanoseconds);
-        Assert.Equal(7,loaded.AssignedLogicalCpu);
+        await リポジトリ.保存完了を待機Async();
+        Assert.Contains(ストア.指標一覧を取得(実行ID!.Value),static 項目 => 項目.指標名=="平均ナノ秒");
+        Assert.Equal("int",Assert.Single(リポジトリ.ベンチマークスナップショット項目一覧を読み込む(実行ID.Value)).型名);
+        var 読込結果 = リポジトリ.結果項目一覧を読み込む(実行ID!.Value,ソースタブ)
+            .Single(static 項目 => 項目.平均ナノ秒 is not null);
+        Assert.Equal(ソースタブ.左プロジェクト,読込結果.プロジェクト);
+        Assert.Equal("Sample.Type",読込結果.型完全名);
+        Assert.Equal(global::UI.ベンチマーク作業軸.要素数を解決(ソースタブ.タブ,64),読込結果.要素数);
+        Assert.Equal(global::UI.ベンチマーク作業軸.ループ回数を解決(ソースタブ.タブ,64),読込結果.ループ回数);
+        Assert.Equal(123.5,読込結果.平均ナノ秒);
+        Assert.Equal(123.5*global::UI.ベンチマーク作業軸.ループ回数を解決(ソースタブ.タブ,64),読込結果.合計ナノ秒);
+        Assert.Equal(7,読込結果.割り当て論理CPU);
     }
 
     [Fact]
-    public async Task QueueSaveBenchmarkSnapshotItems_RejectsEmptyTypeName(){
-        var store=new global::Seamless.UI.Storage.UiRunStore(CreateDatabasePath());
-        var repository=new global::UI.BenchmarkUiRunRepository(store);
-        var sourceTab=global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemRange);
-        var runId=await repository.CreateRunAsync(UiRunAppKind.Benchmark,"Benchmark","Fast",sourceTab.Tab);
-        var snapshot=Snapshot(
-            runId!.Value,
-            sourceTab,
+    public async Task 仕様確認02() {
+        var ストア = new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成());
+        var リポジトリ = new global::UI.ベンチマークUI実行リポジトリ(ストア);
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System範囲);
+        var 実行ID = await リポジトリ.実行を作成Async(UI実行アプリ種別.ベンチマーク,"Benchmark","Fast",ソースタブ.タブ);
+        var スナップショット = スナップショットを作成(
+            実行ID!.Value,
+            ソースタブ,
             string.Empty,
             "ThenBy_keySelector",
             7,
-            EmptySide(sourceTab.LeftProject,sourceTab.Tab,"Sample.Type","ThenBy_keySelector"),
-            EmptySide(sourceTab.RightProject,sourceTab.Tab,"Sample.Type","ThenBy_keySelector"));
+            空側を作成(ソースタブ.左プロジェクト,ソースタブ.タブ,"Sample.Type","ThenBy_keySelector"),
+            空側を作成(ソースタブ.右プロジェクト,ソースタブ.タブ,"Sample.Type","ThenBy_keySelector"));
 
-        var exception=Assert.Throws<InvalidDataException>(() => repository.QueueSaveBenchmarkSnapshotItems(runId,[snapshot]));
+        var 例外 = Assert.Throws<InvalidDataException>(() => リポジトリ.ベンチマークスナップショット項目保存を予約(実行ID,[スナップショット]));
 
-        Assert.Contains("System.Range",exception.Message,StringComparison.Ordinal);
-        Assert.Contains("ThenBy_keySelector",exception.Message,StringComparison.Ordinal);
-        Assert.Empty(store.ListBenchmarkSnapshotItems(runId.Value));
+        Assert.Contains("System.Range",例外.Message,StringComparison.Ordinal);
+        Assert.Contains("ThenBy_keySelector",例外.Message,StringComparison.Ordinal);
+        Assert.Empty(ストア.ベンチマークスナップショット項目一覧を取得(実行ID.Value));
     }
 
     [Fact]
-    public async Task QueueSaveBenchmarkSnapshotItems_ReplacesMeasurementForSameGridRow(){
-        var store = new global::Seamless.UI.Storage.UiRunStore(CreateDatabasePath());
-        var repository = new global::UI.BenchmarkUiRunRepository(store);
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var runId = await repository.CreateRunAsync(UiRunAppKind.Benchmark,"Benchmark","Fast",sourceTab.Tab);
-        repository.QueueSaveRunSettings(runId,string.Empty,[64],TimeSpan.Zero,[]);
+    public async Task 仕様確認03() {
+        var ストア = new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成());
+        var リポジトリ = new global::UI.ベンチマークUI実行リポジトリ(ストア);
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        var 実行ID = await リポジトリ.実行を作成Async(UI実行アプリ種別.ベンチマーク,"Benchmark","Fast",ソースタブ.タブ);
+        リポジトリ.実行設定保存を予約(実行ID,string.Empty,[64],TimeSpan.Zero,[]);
 
-        repository.QueueSaveBenchmarkSnapshotItems(runId,[
-            Snapshot(runId!.Value,sourceTab,"Sample.Type","Aggregate",7,CompletedSide(Result(sourceTab.LeftProject,sourceTab.Tab,"Aggregate",64,100,"Sample.Type","Count=64",[new global::UI.BenchmarkArgument("Count","64")])),EmptySide(sourceTab.RightProject,sourceTab.Tab,"Sample.Type","Aggregate")),
+        リポジトリ.ベンチマークスナップショット項目保存を予約(実行ID,[
+            スナップショットを作成(実行ID!.Value,ソースタブ,"Sample.Type","Aggregate",7,完了側を作成(結果を作成(ソースタブ.左プロジェクト,ソースタブ.タブ,"Aggregate",64,100,"Sample.Type","Count=64",[new global::UI.ベンチマーク引数("Count","64")])),空側を作成(ソースタブ.右プロジェクト,ソースタブ.タブ,"Sample.Type","Aggregate")),
         ]);
-        await repository.FlushAsync();
-        Assert.Contains(store.ListMetrics(runId!.Value),static item => item.MetricName=="MeanNanoseconds"&&Math.Abs(item.NumericValue-100)<0.001);
+        await リポジトリ.保存完了を待機Async();
+        Assert.Contains(ストア.指標一覧を取得(実行ID!.Value),static 項目 => 項目.指標名=="平均ナノ秒"&&Math.Abs(項目.数値-100)<0.001);
 
-        repository.QueueSaveBenchmarkSnapshotItems(runId,[
-            Snapshot(runId!.Value,sourceTab,"Sample.Type","Aggregate",7,CompletedSide(Result(sourceTab.LeftProject,sourceTab.Tab,"Aggregate",64,250,"Sample.Type","Count=64",[new global::UI.BenchmarkArgument("Count","64")])),EmptySide(sourceTab.RightProject,sourceTab.Tab,"Sample.Type","Aggregate")),
+        リポジトリ.ベンチマークスナップショット項目保存を予約(実行ID,[
+            スナップショットを作成(実行ID!.Value,ソースタブ,"Sample.Type","Aggregate",7,完了側を作成(結果を作成(ソースタブ.左プロジェクト,ソースタブ.タブ,"Aggregate",64,250,"Sample.Type","Count=64",[new global::UI.ベンチマーク引数("Count","64")])),空側を作成(ソースタブ.右プロジェクト,ソースタブ.タブ,"Sample.Type","Aggregate")),
         ]);
 
-        await repository.FlushAsync();
-        var metrics = store.ListMetrics(runId!.Value).Where(static item => item.MetricName=="MeanNanoseconds").ToArray();
-        Assert.Single(metrics);
-        Assert.Equal(250,metrics[0].NumericValue);
+        await リポジトリ.保存完了を待機Async();
+        var 指標一覧 = ストア.指標一覧を取得(実行ID!.Value).Where(static 項目 => 項目.指標名=="平均ナノ秒").ToArray();
+        Assert.Single(指標一覧);
+        Assert.Equal(250,指標一覧[0].数値);
     }
 
     [Fact]
-    public async Task LoadResultItems_DoesNotPersistExecutableTypeIdentity(){
-        var store = new global::Seamless.UI.Storage.UiRunStore(CreateDatabasePath(),UiRunAppKind.ScalableBenchmark);
-        var repository = new global::UI.BenchmarkUiRunRepository(store);
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.ScalableTsavoriteSet);
-        var runId = await repository.CreateRunAsync(UiRunAppKind.ScalableBenchmark,"Scalable","Fast",sourceTab.Tab);
-        var result = Result(sourceTab.LeftProject,sourceTab.Tab,"Add",262144,500,"SetInt32",string.Empty,[]);
-        repository.QueueSaveRunSettings(runId,string.Empty,[262144],TimeSpan.Zero,[]);
+    public async Task 結果項目一覧読込は実行型識別情報を保持する() {
+        var ストア = new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成(),UI実行アプリ種別.スケーラブルベンチマーク);
+        var リポジトリ = new global::UI.ベンチマークUI実行リポジトリ(ストア);
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.スケーラブルTsavoriteセット);
+        var 実行ID = await リポジトリ.実行を作成Async(UI実行アプリ種別.スケーラブルベンチマーク,"Scalable","Fast",ソースタブ.タブ);
+        var 結果 = 結果を作成(ソースタブ.左プロジェクト,ソースタブ.タブ,"Add",262144,500,"SetInt32",string.Empty,[]);
+        リポジトリ.実行設定保存を予約(実行ID,string.Empty,[262144],TimeSpan.Zero,[]);
 
-        repository.QueueSaveBenchmarkSnapshotItems(runId,[
-            Snapshot(runId!.Value,sourceTab,"SetInt32","Add",7,CompletedSide(result),EmptySide(sourceTab.RightProject,sourceTab.Tab,"SetInt32","Add")),
+        リポジトリ.ベンチマークスナップショット項目保存を予約(実行ID,[
+            スナップショットを作成(実行ID!.Value,ソースタブ,"SetInt32","Add",7,完了側を作成(結果),空側を作成(ソースタブ.右プロジェクト,ソースタブ.タブ,"SetInt32","Add")),
         ]);
 
-        await repository.FlushAsync();
-        Assert.Contains(store.ListMetrics(runId!.Value),static item => item.MetricName=="MeanNanoseconds");
-        var loaded = repository.LoadResultItems(runId!.Value,DateTimeOffset.UtcNow,sourceTab)
-            .Single(static item => item.MeanNanoseconds is not null);
-        Assert.Empty(loaded.TypeFullName);
-        Assert.Equal("Add",loaded.Method);
-        Assert.Empty(loaded.ArgumentKey);
+        await リポジトリ.保存完了を待機Async();
+        Assert.Contains(ストア.指標一覧を取得(実行ID!.Value),static 項目 => 項目.指標名=="平均ナノ秒");
+        var 読込結果 = リポジトリ.結果項目一覧を読み込む(実行ID!.Value,ソースタブ)
+            .Single(static 項目 => 項目.平均ナノ秒 is not null);
+        Assert.Equal("SetInt32",読込結果.型完全名);
+        Assert.Equal("Add",読込結果.メソッド);
+        Assert.Equal(string.Empty,読込結果.引数キー);
     }
 
     [Fact]
-    public async Task QueueDeleteRun_SkipsLaterWritesForSameRun(){
-        var store = new global::Seamless.UI.Storage.UiRunStore(CreateDatabasePath());
-        var repository = new global::UI.BenchmarkUiRunRepository(store);
-        var sourceTab = global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.SystemArray);
-        var runId = await repository.CreateRunAsync(UiRunAppKind.Benchmark,"Benchmark","Fast",sourceTab.Tab);
-        var snapshot = Snapshot(
-            runId!.Value,
-            sourceTab,
+    public async Task 仕様確認04() {
+        var ストア = new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成());
+        var リポジトリ = new global::UI.ベンチマークUI実行リポジトリ(ストア);
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        var 実行ID = await リポジトリ.実行を作成Async(UI実行アプリ種別.ベンチマーク,"Benchmark","Fast",ソースタブ.タブ);
+        var スナップショット = スナップショットを作成(
+            実行ID!.Value,
+            ソースタブ,
             "Sample.Type",
             "Aggregate",
             7,
-            CompletedSide(Result(sourceTab.LeftProject,sourceTab.Tab,"Aggregate",64,123.5,"Sample.Type","Count=64",[new global::UI.BenchmarkArgument("Count","64")])),
-            EmptySide(sourceTab.RightProject,sourceTab.Tab,"Sample.Type","Aggregate"));
+            完了側を作成(結果を作成(ソースタブ.左プロジェクト,ソースタブ.タブ,"Aggregate",64,123.5,"Sample.Type","Count=64",[new global::UI.ベンチマーク引数("Count","64")])),
+            空側を作成(ソースタブ.右プロジェクト,ソースタブ.タブ,"Sample.Type","Aggregate"));
 
-        repository.QueueDeleteRun(runId);
-        repository.QueueSaveRunSettings(runId,string.Empty,[64],TimeSpan.Zero,[]);
-        repository.QueueSaveBenchmarkSnapshotItems(runId,[snapshot]);
+        リポジトリ.実行削除を予約(実行ID);
+        リポジトリ.実行設定保存を予約(実行ID,string.Empty,[64],TimeSpan.Zero,[]);
+        リポジトリ.ベンチマークスナップショット項目保存を予約(実行ID,[スナップショット]);
 
-        await repository.FlushAsync();
+        await リポジトリ.保存完了を待機Async();
 
-        Assert.Empty(store.ListRuns(UiRunAppKind.Benchmark));
-        Assert.Empty(store.ListBenchmarkSnapshotItems(runId.Value));
-        Assert.Empty(store.ListMetrics(runId.Value));
+        Assert.Empty(ストア.実行一覧を取得(UI実行アプリ種別.ベンチマーク));
+        Assert.Empty(ストア.ベンチマークスナップショット項目一覧を取得(実行ID.Value));
+        Assert.Empty(ストア.指標一覧を取得(実行ID.Value));
     }
 
     [Fact]
-    public async Task FindPreviousResult_UsesRunFixedScalableBaseline(){
-        var store=new global::Seamless.UI.Storage.UiRunStore(CreateDatabasePath(),UiRunAppKind.ScalableBenchmark);
-        var repository=new global::UI.BenchmarkUiRunRepository(store);
-        var sourceTab=global::UI.BenchmarkSourceTabs.Get(global::UI.BenchmarkSourceTab.ScalableTsavoriteSet);
-        const string typeFullName="Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32";
-        var arguments=new[]{
-            new global::UI.BenchmarkArgument("Count","262144"),
-            new global::UI.BenchmarkArgument("Index","64"),
-            new global::UI.BenchmarkArgument("Page","32"),
-            new global::UI.BenchmarkArgument("Segment","16"),
-            new global::UI.BenchmarkArgument("Memory","1024"),
-            new global::UI.BenchmarkArgument("Fraction","0.5"),
+    public async Task 仕様確認05() {
+        var ストア = new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成(),UI実行アプリ種別.スケーラブルベンチマーク);
+        var リポジトリ = new global::UI.ベンチマークUI実行リポジトリ(ストア);
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.スケーラブルTsavoriteセット);
+        const string 型完全名 = "Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32";
+        var 引数一覧 = new[]{
+            new global::UI.ベンチマーク引数("Count","262144"),
+            new global::UI.ベンチマーク引数("Index","64"),
+            new global::UI.ベンチマーク引数("Page","32"),
+            new global::UI.ベンチマーク引数("Segment","16"),
+            new global::UI.ベンチマーク引数("Memory","1024"),
+            new global::UI.ベンチマーク引数("Fraction","0.5"),
         };
-        const string argumentKey="Count=262144,Index=64,Page=32,Segment=16,Memory=1024,Fraction=0.5";
-        var firstRunId=await repository.CreateRunAsync(UiRunAppKind.ScalableBenchmark,"first","Fast",sourceTab.Tab);
-        var result=Result(sourceTab.LeftProject,sourceTab.Tab,"Add",262144,500,typeFullName,argumentKey,arguments);
-        repository.QueueSaveBenchmarkSnapshotItems(firstRunId,[Snapshot(firstRunId!.Value,sourceTab,"int","Add",7,CompletedSide(result),EmptySide(sourceTab.RightProject,sourceTab.Tab,"int","Add"))]);
-        await repository.FlushAsync();
-        store.SetRunStatus(firstRunId.Value,UiRunStatus.Completed);
+        const string 引数キー = "Count=262144,Index=64,Page=32,Segment=16,Memory=1024,Fraction=0.5";
+        var 初回実行ID = await リポジトリ.実行を作成Async(UI実行アプリ種別.スケーラブルベンチマーク,"先頭","Fast",ソースタブ.タブ);
+        var 結果 = 結果を作成(ソースタブ.左プロジェクト,ソースタブ.タブ,"Add",262144,500,型完全名,引数キー,引数一覧);
+        リポジトリ.ベンチマークスナップショット項目保存を予約(初回実行ID,[スナップショットを作成(初回実行ID!.Value,ソースタブ,"int","Add",7,完了側を作成(結果),空側を作成(ソースタブ.右プロジェクト,ソースタブ.タブ,"int","Add"))]);
+        await リポジトリ.保存完了を待機Async();
+        ストア.実行状態を設定(初回実行ID.Value,UI実行状態.完了);
 
-        var currentRunId=await repository.CreateRunAsync(UiRunAppKind.ScalableBenchmark,"current","Fast",sourceTab.Tab);
-        var previous=repository.FindPreviousResult(UiRunAppKind.ScalableBenchmark,sourceTab,"Add",sourceTab.LeftProject,typeFullName,262144,null,argumentKey,currentRunId);
+        var 今回実行ID = await リポジトリ.実行を作成Async(UI実行アプリ種別.スケーラブルベンチマーク,"今回","Fast",ソースタブ.タブ);
+        var 前回 = リポジトリ.前回結果を検索(UI実行アプリ種別.スケーラブルベンチマーク,ソースタブ,"Add",ソースタブ.左プロジェクト,型完全名,262144,null,引数キー,今回実行ID);
 
-        Assert.NotNull(previous);
-        Assert.Equal(500,previous.MeanNanoseconds);
-        Assert.Equal(argumentKey,previous.ArgumentKey);
-        Assert.Equal(firstRunId,store.GetPreviousRunId(currentRunId!.Value));
+        Assert.NotNull(前回);
+        Assert.Equal(500,前回.平均ナノ秒);
+        Assert.Equal(引数キー,前回.引数キー);
+        Assert.Equal(初回実行ID,ストア.前回実行IDを取得(今回実行ID!.Value));
     }
 
-    private static global::UI.BenchmarkGridSnapshotItem Snapshot(
-        long runId,
-        global::UI.BenchmarkSourceTabDefinition sourceTab,
-        string typeName,
-        string benchmarkName,
-        int? cpuNumber,
-        global::UI.BenchmarkGridSnapshotSide left,
-        global::UI.BenchmarkGridSnapshotSide right) =>
-        new(runId,0,sourceTab.Id,typeName,benchmarkName,cpuNumber,true,left,right);
+    private static global::UI.ベンチマークグリッドスナップショット項目 スナップショットを作成(
+        long 実行ID,
+        global::UI.ベンチマークソースタブ定義 ソースタブ,
+        string 型名,
+        string ベンチマーク名,
+        int? CPU番号,
+        global::UI.ベンチマークグリッドスナップショット側 左,
+        global::UI.ベンチマークグリッドスナップショット側 右) =>
+        new(実行ID,0,ソースタブ.ID,型名,ベンチマーク名,CPU番号,true,左,右);
 
-    private static global::UI.BenchmarkGridSnapshotSide CompletedSide(global::UI.BenchmarkResultItem result) =>
+    private static global::UI.ベンチマークグリッドスナップショット側 完了側を作成(global::UI.ベンチマーク結果項目 結果) =>
         new(
-            UiRunStatus.Completed,
+            UI実行状態.完了,
             string.Empty,
-            result.StartedAt,
-            result.MeanNanoseconds,
-            result.AllocatedBytesValue,
-            result,
-            new global::UI.BenchmarkCase(result.Project,"Assembly",result.TypeFullName,result.Method,result.ArgumentKey,result.Arguments));
+            結果.開始日時,
+            結果.平均ナノ秒,
+            結果.割り当てバイト数値,
+            結果,
+            new global::UI.ベンチマークケース(結果.プロジェクト,"Assembly",結果.型完全名,結果.メソッド,結果.引数キー,結果.引数一覧));
 
-    private static global::UI.BenchmarkGridSnapshotSide EmptySide(
-        string project,
-        global::UI.BenchmarkSourceTab sourceTab,
-        string typeName,
-        string benchmarkName) =>
+    private static global::UI.ベンチマークグリッドスナップショット側 空側を作成(
+        string プロジェクト,
+        global::UI.ベンチマークソースタブ ソースタブ,
+        string 型名,
+        string ベンチマーク名) =>
         new(
-            UiRunStatus.Queued,
+            UI実行状態.待機中,
             string.Empty,
             null,
             null,
             null,
-            Result(project,sourceTab,benchmarkName,0,0,typeName,string.Empty,[]),
-            new global::UI.BenchmarkCase(project,"Assembly",typeName,benchmarkName));
+            結果を作成(プロジェクト,ソースタブ,ベンチマーク名,0,0,型名,string.Empty,[]),
+            new global::UI.ベンチマークケース(プロジェクト,"Assembly",型名,ベンチマーク名));
 
-    private static global::UI.BenchmarkResultItem Result(
-        string project,
-        global::UI.BenchmarkSourceTab sourceTab,
-        string method,
-        int elementCount,
-        double mean,
-        string typeFullName,
-        string argumentKey,
-        IReadOnlyList<global::UI.BenchmarkArgument>? arguments = null){
-        var loopCount = global::UI.BenchmarkWorkloadAxis.ResolveLoopCount(sourceTab,elementCount);
-        return new(new global::UI.BenchmarkJob{
-            Project=project,
-            MethodName=method,
-            TypeFullName=typeFullName,
-            SourceTab=sourceTab,
-            ElementCount=global::UI.BenchmarkWorkloadAxis.ResolveElementCount(sourceTab,elementCount),
-            LoopCount=loopCount,
-            ArgumentKey=argumentKey,
-            Arguments=arguments?.ToList()??[],
-            Status=global::UI.JobStatus.Completed,
-            MeanNanoseconds=ToStoredTotal(sourceTab,loopCount,mean),
-            AllocatedBytes=ToStoredTotal(sourceTab,loopCount,1024),
-            StartedAt=DateTimeOffset.UtcNow,
-            AssignedLogicalCpu=7,
-            ExitCode=0,
+    private static global::UI.ベンチマーク結果項目 結果を作成(
+        string プロジェクト,
+        global::UI.ベンチマークソースタブ ソースタブ,
+        string メソッド,
+        int 要素数,
+        double 平均,
+        string 型完全名,
+        string 引数キー,
+        IReadOnlyList<global::UI.ベンチマーク引数>? 引数一覧 = null) {
+        var ループ回数 = global::UI.ベンチマーク作業軸.ループ回数を解決(ソースタブ,要素数);
+        return new(new global::UI.ベンチマークジョブ {
+            プロジェクト=プロジェクト,
+            メソッド名=メソッド,
+            型完全名=型完全名,
+            ソースタブ=ソースタブ,
+            要素数=global::UI.ベンチマーク作業軸.要素数を解決(ソースタブ,要素数),
+            ループ回数=ループ回数,
+            引数キー=引数キー,
+            引数一覧=引数一覧?.ToList()?? [],
+            状態=global::UI.ジョブ状態.完了,
+            平均ナノ秒=保存合計へ変換(ソースタブ,ループ回数,平均),
+            割り当てバイト数=保存合計へ変換(ソースタブ,ループ回数,1024),
+            開始日時=DateTimeOffset.UtcNow,
+            割り当て論理CPU=7,
+            終了コード=0,
         });
     }
 
-    private static double ToStoredTotal(global::UI.BenchmarkSourceTab sourceTab,int loopCount,double perOperation) =>
-        global::UI.BenchmarkWorkloadAxis.UsesLoopCount(sourceTab)&&loopCount>1 ? perOperation*loopCount : perOperation;
+    private static double 保存合計へ変換(global::UI.ベンチマークソースタブ ソースタブ,int ループ回数,double 操作単位) =>
+        global::UI.ベンチマーク作業軸.ループ回数を使うか(ソースタブ)&&ループ回数>1 ? 操作単位*ループ回数 : 操作単位;
 
-    private static long ToStoredTotal(global::UI.BenchmarkSourceTab sourceTab,int loopCount,long perOperation) =>
-        global::UI.BenchmarkWorkloadAxis.UsesLoopCount(sourceTab)&&loopCount>1 ? perOperation*loopCount : perOperation;
+    private static long 保存合計へ変換(global::UI.ベンチマークソースタブ ソースタブ,int ループ回数,long 操作単位) =>
+        global::UI.ベンチマーク作業軸.ループ回数を使うか(ソースタブ)&&ループ回数>1 ? 操作単位*ループ回数 : 操作単位;
 
-    private static string CreateDatabasePath(){
-        var root = Path.Combine(AppContext.BaseDirectory,"BenchmarkUiRunRepositoryTests",Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(root);
-        return Path.Combine(root,"Benchmark.db");
+    private static string DBパスを作成() {
+        var ルート = Path.Combine(AppContext.BaseDirectory,"BenchmarkUiRunRepositoryTests",Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(ルート);
+        return Path.Combine(ルート,"Benchmark.db");
     }
 }
