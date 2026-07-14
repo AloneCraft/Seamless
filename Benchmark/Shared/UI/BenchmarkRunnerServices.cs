@@ -63,7 +63,7 @@ internal static class ベンチマークCPUトポロジープロバイダー {
     }
 
     private static IReadOnlyList<CPUコア情報> フォールバックを読み込む(bool アフィニティ対応か) {
-        return Enumerable.Range(0,Environment.ProcessorCount)
+        return global::System.Linq.Enumerable.Range(0,Environment.ProcessorCount)
             .Select(番号 => CPUを作成(番号,CPUコア種別.不明,番号,番号,アフィニティ対応か))
             .ToArray();
     }
@@ -125,7 +125,7 @@ internal static class ベンチマークCPUトポロジープロバイダー {
         const string CPUルート = "/sys/devices/system/cpu";
         var オンライン一覧 = LinuxオンラインCPU一覧を読む(Path.Combine(CPUルート,"online"));
         if(オンライン一覧.Count==0) {
-            オンライン一覧=Enumerable.Range(0,Environment.ProcessorCount).ToArray();
+            オンライン一覧=global::System.Linq.Enumerable.Range(0,Environment.ProcessorCount).ToArray();
         }
 
         var グループ一覧 = オンライン一覧

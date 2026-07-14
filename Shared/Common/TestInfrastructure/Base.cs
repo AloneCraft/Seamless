@@ -10,15 +10,15 @@ public enum LinqOptimizations {
 }
 
 #if PERSISTED || TSAVORITE
-[global::MemoryPack.MemoryPackable]
+[MemoryPack.MemoryPackable]
 #endif
-public sealed partial class ClassInt32:IEquatable<ClassInt32>, IComparable<ClassInt32>, global::System.Numerics.IEqualityOperators<ClassInt32,ClassInt32,bool> {
+public sealed partial class ClassInt32:IEquatable<ClassInt32>, IComparable<ClassInt32>, System.Numerics.IEqualityOperators<ClassInt32,ClassInt32,bool> {
     public int Value { get; init; }
     public bool Equals(ClassInt32? other) => other is not null&&this.Value==other.Value;
     public int CompareTo(ClassInt32? other) => other is null ? 1 : this.Value.CompareTo(other.Value);
     public override bool Equals(object? obj) => obj is ClassInt32 value&&this.Equals(value);
     public override int GetHashCode() => this.Value;
-    public override string ToString() => this.Value.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
+    public override string ToString() => this.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
     public static bool operator ==(ClassInt32? left,ClassInt32? right) => left?.Equals(right)??right is null;
     public static bool operator !=(ClassInt32? left,ClassInt32? right) => !(left==right);
 }
@@ -688,8 +688,8 @@ public class Base<T> where T : notnull {
         if(typeof(T)==typeof(string)) {
             return (T)(object)FormatStringValue(value);
         }
-        if(typeof(T)==typeof(global::Common.ClassInt32)) {
-            return (T)(object)new global::Common.ClassInt32 { Value=value };
+        if(typeof(T)==typeof(ClassInt32)) {
+            return (T)(object)new ClassInt32 { Value=value };
         }
 
         throw new NotSupportedException(typeof(T).FullName);
@@ -725,7 +725,7 @@ public class Base<T> where T : notnull {
 
             return int.Parse(text,System.Globalization.CultureInfo.InvariantCulture);
         }
-        if(value is global::Common.ClassInt32 reference) {
+        if(value is ClassInt32 reference) {
             return reference.Value;
         }
 

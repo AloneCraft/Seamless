@@ -111,8 +111,19 @@ public static class ベンチマークカタログ{
         メソッド.GetCustomAttribute<BenchmarkAttribute>() is not null;
 
     private static string ベンチマークパスを作成(Type 型) {
-        return 型.BaseType is { } 基底型 ? 直接基底型を整形(基底型) : string.Empty;
+        if(型.BaseType is not { } 基底型) {
+            return string.Empty;
+        }
+        if(Array書き換え型か(基底型)) {
+            return "Array<"+string.Join(",",基底型.GetGenericArguments().Select(要素型を整形))+">";
+        }
+        return 直接基底型を整形(基底型);
     }
+
+    private static bool Array書き換え型か(Type 型) =>
+        型.Namespace=="Seamless.Linq.Optimization"
+        &&型.Name.Split('`')[0]=="Rewrite"
+        &&型.DeclaringType?.Name.Split('`')[0]=="Array";
 
     private static string 直接基底型を整形(Type 型) {
         var 名前 = チェーン型名を正規化(型.Name.Split('`')[0]);

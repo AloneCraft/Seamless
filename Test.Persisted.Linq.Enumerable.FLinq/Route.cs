@@ -2,7 +2,7 @@ namespace Test.Persisted.Linq.Enumerable {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
     public sealed class FLinqInt32():global::Seamless.Linq.Shared.Persisted<int>(80_000);
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public sealed class FLinqClassInt32():global::Seamless.Linq.Shared.Persisted<global::Common.ClassInt32>(80_000);
+    public sealed class FLinqClassInt32():global::Seamless.Linq.Shared.Persisted<ClassInt32>(80_000);
 }
 
 namespace Seamless.Linq.Shared {

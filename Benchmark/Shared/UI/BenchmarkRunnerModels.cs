@@ -1794,9 +1794,7 @@ public sealed class ベンチマーク表行:ObservableObject {
         new(this,プロジェクト,this.プロジェクト別ケース.ContainsKey(プロジェクト));
 
     public void ベンチマーク名を更新(int 要素数) {
-        var ベンチマークパス = this.プロジェクト別ケース.Values
-            .Select(static ベンチマーク => ベンチマーク.ベンチマークパス)
-            .FirstOrDefault(static パス => !string.IsNullOrWhiteSpace(パス));
+        var ベンチマークパス = this.先頭ベンチマークパスを取得();
         if(!string.IsNullOrWhiteSpace(ベンチマークパス)) {
             this.ベンチマーク名=ベンチマークパス+"."+this.メソッド名;
             return;
@@ -1815,8 +1813,18 @@ public sealed class ベンチマーク表行:ObservableObject {
             型文字列=型文字列を抽出(this.ベンチマーク名値);
         }
         this.ベンチマーク型文字列=型文字列;
-        this.ベンチマークメソッド文字列=this.メソッド名;
+        var ベンチマークパス = this.先頭ベンチマークパスを取得();
+        if(string.IsNullOrWhiteSpace(ベンチマークパス)) {
+            this.ベンチマークメソッド文字列=this.メソッド名;
+        }else{
+            this.ベンチマークメソッド文字列=ベンチマークパス+"."+this.メソッド名;
+        }
     }
+
+    private string 先頭ベンチマークパスを取得() =>
+        this.プロジェクト別ケース.Values
+            .Select(static ベンチマーク => ベンチマーク.ベンチマークパス)
+            .FirstOrDefault(static パス => !string.IsNullOrWhiteSpace(パス))??string.Empty;
 
     private string 先頭型完全名を取得() {
         foreach(var プロジェクト in this.ソースタブ.プロジェクト順) {

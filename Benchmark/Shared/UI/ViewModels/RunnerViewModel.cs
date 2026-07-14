@@ -8993,7 +8993,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         }
 
         var 列数 = グループ一覧.Max(static グループ => グループ.Length);
-        var 列一覧 = Enumerable.Range(0,列数)
+        var 列一覧 = global::System.Linq.Enumerable.Range(0,列数)
             .Select(static インデックス => new CPU表列(インデックス,"選択"))
             .ToArray();
         var 行一覧 = グループ一覧

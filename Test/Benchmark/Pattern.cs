@@ -265,6 +265,49 @@ public sealed class 実行ビューモデル {
     }
 
     [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void ベンチマーク表行_パス付きメソッド名を表示する() {
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.最適化書き換え);
+        {
+            // int型のArray書き換えを表示する。
+            var ケース一覧 = new Dictionary<string,global::UI.ベンチマークケース>(StringComparer.OrdinalIgnoreCase) {
+                [ソースタブ.左プロジェクト]=new(ソースタブ.左プロジェクト,ソースタブ.左アセンブリ名,"Benchmark.Optimization.Rewrite.ArrayInt32","Where_predicate_Count","Array<int>"),
+                [ソースタブ.右プロジェクト]=new(ソースタブ.右プロジェクト,ソースタブ.右アセンブリ名,"Benchmark.Optimization.Rewrite.ArrayInt32","Where_predicate_Count","Array<int>"),
+            };
+            var 行 = new global::UI.ベンチマーク表行(
+                "Array<int>|Where_predicate_Count",
+                "Where_predicate_Count",
+                "Where_predicate_Count",
+                ソースタブ,
+                ケース一覧);
+
+            Assert.Equal("int",行.ベンチマーク型文字列);
+            Assert.Equal("Array<int>.Where_predicate_Count",行.ベンチマークメソッド文字列);
+            行.ベンチマーク名を更新(4096);
+            Assert.Equal("Array<int>.Where_predicate_Count",行.ベンチマーク名);
+            Assert.Equal("Array<int>.Where_predicate_Count",行.ベンチマークメソッド文字列);
+        }
+        {
+            // ClassInt32型のArray書き換えを表示する。
+            var ケース一覧 = new Dictionary<string,global::UI.ベンチマークケース>(StringComparer.OrdinalIgnoreCase) {
+                [ソースタブ.左プロジェクト]=new(ソースタブ.左プロジェクト,ソースタブ.左アセンブリ名,"Benchmark.Optimization.Rewrite.ArrayClassInt32","Where_predicate_Count","Array<ClassInt32>"),
+                [ソースタブ.右プロジェクト]=new(ソースタブ.右プロジェクト,ソースタブ.右アセンブリ名,"Benchmark.Optimization.Rewrite.ArrayClassInt32","Where_predicate_Count","Array<ClassInt32>"),
+            };
+            var 行 = new global::UI.ベンチマーク表行(
+                "Array<ClassInt32>|Where_predicate_Count",
+                "Where_predicate_Count",
+                "Where_predicate_Count",
+                ソースタブ,
+                ケース一覧);
+
+            Assert.Equal("ClassInt32",行.ベンチマーク型文字列);
+            Assert.Equal("Array<ClassInt32>.Where_predicate_Count",行.ベンチマークメソッド文字列);
+            行.ベンチマーク名を更新(4096);
+            Assert.Equal("Array<ClassInt32>.Where_predicate_Count",行.ベンチマーク名);
+            Assert.Equal("Array<ClassInt32>.Where_predicate_Count",行.ベンチマークメソッド文字列);
+        }
+    }
+
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
     public void スナップショット表行_ベンチマークケース不在時に型とメソッドへ取消線を表示する() {
         var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
         var 行 = new global::UI.ベンチマーク表行(
