@@ -122,26 +122,26 @@ partial class ValueEnumerableExtensions {
             fixed(char* destPointer = str.AsSpan()) {
                 Span<char> dest = new Span<char>(destPointer,finalLength);
                 source[0]?.CopyTo(dest);
-                dest=dest.Slice(source[0]?.Length??0);
+                dest=dest[(source[0]?.Length??0)..];
 
                 if(separator.Length==0) {
                     for(int i = 1;(uint)i<(uint)source.Length;i++) {
                         source[i]?.CopyTo(dest);
-                        dest=dest.Slice(source[i]?.Length??0);
+                        dest=dest[(source[i]?.Length??0)..];
                     }
                 } else if(separator.Length==1) {
                     var charSeparator = separator[0];
                     for(int i = 1;(uint)i<(uint)source.Length;i++) {
                         dest[0]=charSeparator;
-                        source[i]?.CopyTo(dest.Slice(1));
-                        dest=dest.Slice((source[i]?.Length??0)+1);
+                        source[i]?.CopyTo(dest[1..]);
+                        dest=dest[((source[i]?.Length??0)+1)..];
                     }
                 } else {
                     for(int i = 1;(uint)i<(uint)source.Length;i++) {
                         separator.CopyTo(dest);
-                        dest=dest.Slice(separator.Length);
+                        dest=dest[separator.Length..];
                         source[i]?.CopyTo(dest);
-                        dest=dest.Slice(source[i]?.Length??0);
+                        dest=dest[(source[i]?.Length??0)..];
                     }
                 }
             }

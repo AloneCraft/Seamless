@@ -48,7 +48,7 @@ public sealed class MemoryOnlyDevice(long Capacity,byte[]? BackingBuffer = null)
     /// <param name="callback"></param>
     /// <param name="result"></param>
     public override void RemoveSegmentAsync(int segment,AsyncCallback callback,IAsyncResult result) {
-        Trace.WriteLine(nameof(RemoveSegmentAsync));
+        Trace.WriteLine(nameof(this.RemoveSegmentAsync));
     }
 
     private void ThrowIfDisposed() {

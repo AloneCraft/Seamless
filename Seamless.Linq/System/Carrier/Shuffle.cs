@@ -31,7 +31,7 @@ namespace Seamless.System.Carrier {
                 if(destination.Length>=count) {
                     // and ok to copy then shuffle.
                     if(this.source.TryCopyTo(destination,0)) {
-                        RandomShared.Shuffle(destination.Slice(0,count));
+                        RandomShared.Shuffle(destination[..count]);
                         return true;
                     }
                 }

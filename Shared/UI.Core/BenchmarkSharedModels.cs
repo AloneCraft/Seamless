@@ -28,33 +28,23 @@ public enum CPUコア種別{
     不明,
 }
 
-public sealed class CPUコア情報:ベンチマークバインド可能オブジェクト{
-    private bool 選択中値;
-
-    public CPUコア情報(
-        int 論理プロセッサインデックス,
-        CPUコア種別 コア種別,
-        int 物理コアインデックス,
-        int 種別内コアインデックス,
-        long アフィニティマスク,
-        bool アフィニティ対応か){
-        this.論理プロセッサインデックス=論理プロセッサインデックス;
-        this.コア種別=コア種別;
-        this.物理コアインデックス=物理コアインデックス;
-        this.種別内コアインデックス=種別内コアインデックス;
-        this.アフィニティマスク=アフィニティマスク;
-        this.アフィニティ対応か=アフィニティ対応か;
-        this.選択中値=false;
-    }
-
-    public int 論理プロセッサインデックス{get;}
-    public CPUコア種別 コア種別{get;}
-    public int 物理コアインデックス{get;}
-    public int 種別内コアインデックス{get;}
-    public long アフィニティマスク{get;}
-    public bool アフィニティ対応か{get;}
-    public string グループ表示文字列=>this.コアラベル;
-    public string CPU表示文字列=>$"{this.論理プロセッサインデックス}({this.グループ表示文字列})";
+public sealed class CPUコア情報(
+    int     論理プロセッサインデックス,
+    CPUコア種別 コア種別,
+    int     物理コアインデックス,
+    int     種別内コアインデックス,
+    long    アフィニティマスク,
+    bool    アフィニティ対応か)
+    :ベンチマークバインド可能オブジェクト {
+    private bool    選択中値=false;
+    public  int     論理プロセッサインデックス {get;}=論理プロセッサインデックス;
+    public  CPUコア種別 コア種別          {get;}=コア種別;
+    public  int     物理コアインデックス    {get;}=物理コアインデックス;
+    public  int     種別内コアインデックス   {get;}=種別内コアインデックス;
+    public  long    アフィニティマスク     {get;}=アフィニティマスク;
+    public  bool    アフィニティ対応か     {get;}=アフィニティ対応か;
+    public  string  グループ表示文字列     =>this.コアラベル;
+    public  string  CPU表示文字列      =>$"{this.論理プロセッサインデックス}({this.グループ表示文字列})";
 
     public bool 選択中か{
         get=>this.選択中値;

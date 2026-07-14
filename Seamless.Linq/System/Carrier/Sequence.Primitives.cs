@@ -101,7 +101,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<Byte> destination,Index offset) {
             if(this.TryGetNonEnumeratedCount(out var count)) {
                 if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,out var fillCount)) {
-                    FillIncremental(destination.Slice(0,fillCount),(Byte)(currentValue+(Byte)fillStart));
+                    FillIncremental(destination[..fillCount],(Byte)(currentValue+(Byte)fillStart));
                     return true;
                 }
             }
@@ -251,7 +251,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<SByte> destination,Index offset) {
             if(this.TryGetNonEnumeratedCount(out var count)) {
                 if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,out var fillCount)) {
-                    FillIncremental(destination.Slice(0,fillCount),(SByte)(currentValue+(SByte)fillStart));
+                    FillIncremental(destination[..fillCount],(SByte)(currentValue+(SByte)fillStart));
                     return true;
                 }
             }
@@ -401,7 +401,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<UInt16> destination,Index offset) {
             if(this.TryGetNonEnumeratedCount(out var count)) {
                 if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,out var fillCount)) {
-                    FillIncremental(destination.Slice(0,fillCount),(UInt16)(currentValue+(UInt16)fillStart));
+                    FillIncremental(destination[..fillCount],(UInt16)(currentValue+(UInt16)fillStart));
                     return true;
                 }
             }
@@ -551,7 +551,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<Int16> destination,Index offset) {
             if(this.TryGetNonEnumeratedCount(out var count)) {
                 if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,out var fillCount)) {
-                    FillIncremental(destination.Slice(0,fillCount),(Int16)(currentValue+(Int16)fillStart));
+                    FillIncremental(destination[..fillCount],(Int16)(currentValue+(Int16)fillStart));
                     return true;
                 }
             }
@@ -701,7 +701,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<UInt32> destination,Index offset) {
             if(this.TryGetNonEnumeratedCount(out var count)) {
                 if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,out var fillCount)) {
-                    FillIncremental(destination.Slice(0,fillCount),(UInt32)(currentValue+(UInt32)fillStart));
+                    FillIncremental(destination[..fillCount],(UInt32)(currentValue+(UInt32)fillStart));
                     return true;
                 }
             }
@@ -851,7 +851,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<Int32> destination,Index offset) {
             if(this.TryGetNonEnumeratedCount(out var count)) {
                 if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,out var fillCount)) {
-                    FillIncremental(destination.Slice(0,fillCount),(Int32)(currentValue+(Int32)fillStart));
+                    FillIncremental(destination[..fillCount],(Int32)(currentValue+(Int32)fillStart));
                     return true;
                 }
             }
@@ -1001,7 +1001,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<UInt64> destination,Index offset) {
             if(this.TryGetNonEnumeratedCount(out var count)) {
                 if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,out var fillCount)) {
-                    FillIncremental(destination.Slice(0,fillCount),(UInt64)(currentValue+(UInt64)fillStart));
+                    FillIncremental(destination[..fillCount],(UInt64)(currentValue+(UInt64)fillStart));
                     return true;
                 }
             }
@@ -1151,7 +1151,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<Int64> destination,Index offset) {
             if(this.TryGetNonEnumeratedCount(out var count)) {
                 if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,out var fillCount)) {
-                    FillIncremental(destination.Slice(0,fillCount),(Int64)(currentValue+(Int64)fillStart));
+                    FillIncremental(destination[..fillCount],(Int64)(currentValue+(Int64)fillStart));
                     return true;
                 }
             }
@@ -1301,7 +1301,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(scoped Span<Char> destination,Index offset) {
             if(this.TryGetNonEnumeratedCount(out var count)) {
                 if(EnumeratorHelper.TryGetSliceRange(count,offset,destination.Length,out var fillStart,out var fillCount)) {
-                    FillIncremental(destination.Slice(0,fillCount),(Char)(currentValue+(Char)fillStart));
+                    FillIncremental(destination[..fillCount],(Char)(currentValue+(Char)fillStart));
                     return true;
                 }
             }

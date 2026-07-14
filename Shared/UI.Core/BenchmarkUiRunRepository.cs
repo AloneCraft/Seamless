@@ -5,19 +5,12 @@ using System.Text.Json;
 namespace UI;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
-internal sealed class ベンチマークUI実行リポジトリ{
-    private readonly UI実行ストア ストア;
-    private readonly object キュー排他=new();
-    private Task キュー末尾=Task.CompletedTask;
-    private readonly System.Collections.Generic.HashSet<long>破棄済み実行ID一覧=[];
-    private readonly Action<string,Exception?>ログ;
-
-    public ベンチマークUI実行リポジトリ(UI実行ストア ストア,Action<string,Exception?>?ログ=null){
-        this.ストア=ストア;
-        this.ログ=ログ??((_,_)=>{
-        });
-    }
-
+internal sealed class ベンチマークUI実行リポジトリ(UI実行ストア ストア,Action<string,Exception?>? ログ=null) {
+    private readonly object                                   キュー排他     =new();
+    private          Task                                     キュー末尾     =Task.CompletedTask;
+    private readonly System.Collections.Generic.HashSet<long> 破棄済み実行ID一覧=[];
+    private readonly Action<string,Exception?>                ログ        =ログ??((_,_)=>{
+    });
     public async Task<long?>実行を作成Async(
         UI実行アプリ種別 アプリ種別,
         string 表示名,
@@ -25,8 +18,8 @@ internal sealed class ベンチマークUI実行リポジトリ{
         ベンチマークソースタブ ソースタブ){
         try{
             return await this.永続化を実行Async(()=>{
-                this.ストア.スキーマを確認();
-                var 実行=this.ストア.実行を作成(new(
+                ストア.スキーマを確認();
+                var 実行=ストア.実行を作成(new(
                     アプリ種別,
                     表示名,
                     実行プロファイル,
@@ -51,7 +44,7 @@ internal sealed class ベンチマークUI実行リポジトリ{
                 if(this.実行を破棄済みか(値)){
                     return;
                 }
-                this.ストア.実行状態を設定(値,状態,メッセージ);
+                ストア.実行状態を設定(値,状態,メッセージ);
             },
             "UI DBの実行状態更新に失敗しました。");
     }
@@ -72,7 +65,7 @@ internal sealed class ベンチマークUI実行リポジトリ{
                 if(this.実行を破棄済みか(値)){
                     return;
                 }
-                this.ストア.実行設定を保存(値,実行ルート,要素数一覧,適応閾値ナノ秒,論理CPU一覧);
+                ストア.実行設定を保存(値,実行ルート,要素数一覧,適応閾値ナノ秒,論理CPU一覧);
             },
             "UI DBのベンチマーク実行設定保存に失敗しました。");
     }
@@ -98,7 +91,7 @@ internal sealed class ベンチマークUI実行リポジトリ{
                 if(this.実行を破棄済みか(値)){
                     return;
                 }
-                this.ストア.フォールバック診断を保存(値,書込一覧,DateTimeOffset.UtcNow);
+                ストア.フォールバック診断を保存(値,書込一覧,DateTimeOffset.UtcNow);
             },
             "UI DBのベンチマーク診断保存に失敗しました。");
     }
@@ -134,7 +127,7 @@ internal sealed class ベンチマークUI実行リポジトリ{
                 if(this.実行を破棄済みか(値)){
                     return;
                 }
-                this.ストア.ベンチマークスナップショット項目を保存(値,書込一覧);
+                ストア.ベンチマークスナップショット項目を保存(値,書込一覧);
             },
             "UI DBのベンチマークスナップショット保存に失敗しました。");
     }
@@ -148,14 +141,14 @@ internal sealed class ベンチマークUI実行リポジトリ{
             this.破棄済み実行ID一覧.Add(値);
         }
         this.永続化を予約(
-            ()=>this.ストア.実行を削除(値),
+            ()=>ストア.実行を削除(値),
             "UI DBの実行削除に失敗しました。");
     }
 
     public IReadOnlyList<ベンチマーク結果項目>結果項目一覧を読み込む(
         UI実行アプリ種別 アプリ種別,
         ベンチマークソースタブ定義 ソースタブ)=>
-        this.ストア.実行一覧を取得(アプリ種別)
+        ストア.実行一覧を取得(アプリ種別)
             .Where(実行=>string.Equals(実行.タブ名,ソースタブ.タブ.ToString(),StringComparison.OrdinalIgnoreCase))
             .SelectMany(実行=>this.結果項目一覧を読み込む(実行.実行ID,ソースタブ))
             .ToArray();
@@ -189,7 +182,7 @@ internal sealed class ベンチマークUI実行リポジトリ{
         string 引数キー,
         long? 今回実行ID=null){
         if(アプリ種別==UI実行アプリ種別.スケーラブルベンチマーク&&今回実行ID is { } 実行ID){
-            if(this.ストア.前回実行IDを取得(実行ID) is not { } 前回実行ID){
+            if(ストア.前回実行IDを取得(実行ID) is not { } 前回実行ID){
                 return null;
             }
             var 型名=スケーラブルベンチマーク名フォーマッター.ジェネリック型表示を作成(型完全名);
@@ -222,7 +215,7 @@ internal sealed class ベンチマークUI実行リポジトリ{
     }
 
     public IReadOnlyList<ベンチマークグリッドスナップショット項目>ベンチマークスナップショット項目一覧を読み込む(long 実行ID){
-        var 記録一覧=this.ストア.ベンチマークスナップショット項目一覧を取得(実行ID);
+        var 記録一覧=ストア.ベンチマークスナップショット項目一覧を取得(実行ID);
         const int 軸数=ベンチマーク要素数一覧.基本要素数;
         var 項目一覧=new List<ベンチマークグリッドスナップショット項目>(記録一覧.Count);
         for(var インデックス=0;インデックス<記録一覧.Count;インデックス++){

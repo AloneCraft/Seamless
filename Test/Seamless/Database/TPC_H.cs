@@ -16,13 +16,10 @@ namespace Test.Seamless.Database.TPC_H {
     // クエリ本体(Q01..Q22 と *Query メソッド)は通常の C# メソッドとして書き、呼び出し箇所で FLinq が展開する。
     [global::Seamless.FLinq.LinqIntercept(false)]
     [global::Seamless.Database.Database("TPCH")]
-    public sealed partial class Container:global::Seamless.Database.DatabaseContainer {
+    public sealed partial class Container(global::Seamless.Database.DatabaseContainerOptions? options)
+        :global::Seamless.Database.DatabaseContainer(options??DefaultOptions()) {
         public Container() : this(null) {
         }
-
-        public Container(global::Seamless.Database.DatabaseContainerOptions? options) : base(options??DefaultOptions()) {
-        }
-
         private static global::Seamless.Database.DatabaseContainerOptions DefaultOptions() =>
             global::Seamless.Database.DatabaseContainerOptions.OnStorage(Path.Combine(Environment.CurrentDirectory,typeof(Container).FullName!)) with {
                 IndexSize=1L<<12,

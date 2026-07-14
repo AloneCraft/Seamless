@@ -805,8 +805,8 @@ public abstract class Collection<
             TAllocator
         > {
         ArgumentNullException.ThrowIfNull(other);
-        self.VerifyThreadAffinity(nameof(IntersectWith));
-        other.VerifyThreadAffinity(nameof(IntersectWith));
+        self.VerifyThreadAffinity(nameof(this.IntersectWith));
+        other.VerifyThreadAffinity(nameof(this.IntersectWith));
         var ReadSession = self.ReadSession;
         var workListPath = CreateTemporaryWorkListPath("intersect-with");
         try {
@@ -861,7 +861,7 @@ public abstract class Collection<
             EqualityEmpty,
             EqualityEmpty
         > {
-        other.VerifyThreadAffinity(nameof(SymmetricExceptWith));
+        other.VerifyThreadAffinity(nameof(this.SymmetricExceptWith));
         var strategy = new RmwSessionForEachStrategy<TSessionFunctions>(Session);
         ForEach(other,ref strategy);
         Session.BasicContext.CompletePending(wait: true);
@@ -893,7 +893,7 @@ public abstract class Collection<
             EqualityEmpty,
             EqualityEmpty
         > {
-        other.VerifyThreadAffinity(nameof(ExceptWith));
+        other.VerifyThreadAffinity(nameof(this.ExceptWith));
         var strategy = new DeleteSessionForEachStrategy<TSessionFunctions>(Session);
         ForEach(other,ref strategy);
         Session.BasicContext.CompletePending(wait: true);
@@ -925,7 +925,7 @@ public abstract class Collection<
             bool,
             EqualityEmpty
         > {
-        other.VerifyThreadAffinity(nameof(UnionWith));
+        other.VerifyThreadAffinity(nameof(this.UnionWith));
         var strategy = new UpsertLogRecordForEachStrategy<TSessionFunctions>(Session);
         ForEach(other,ref strategy);
         Session.BasicContext.CompletePending(wait: true);
@@ -1130,15 +1130,15 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
     private protected Collection(CollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
     }
     public bool ContainsKey(TKey Key) {
-        this.VerifyThreadAffinity(nameof(ContainsKey));
+        this.VerifyThreadAffinity(nameof(this.ContainsKey));
         return this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
     }
     public bool Contains(TKey Key) {
-        this.VerifyThreadAffinity(nameof(Contains));
+        this.VerifyThreadAffinity(nameof(this.Contains));
         return this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
     }
     private protected override unsafe Status Read(TKey Key,out TValue Value) {
-        this.VerifyThreadAffinity(nameof(Read));
+        this.VerifyThreadAffinity(nameof(this.Read));
         var KeyBytes = TKeySerializer.Serialize(ref Key);
         var Session = this.ReadSession;
         TValue Output = default!;
@@ -1170,7 +1170,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
         return Output;
     }
     private protected override unsafe TryAddResult PrivateTryAdd(TKey key,TValue value) {
-        this.VerifyThreadAffinity(nameof(PrivateTryAdd));
+        this.VerifyThreadAffinity(nameof(this.PrivateTryAdd));
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var serializedValueSize = TValueSerializer.Serialize(ref value).Length;
         if(this.WouldOverflowMutable(KeyBytes.Length,serializedValueSize))
@@ -1190,7 +1190,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
     }
 
     private protected unsafe void PrivateUpsert(TKey key,TValue value) {
-        this.VerifyThreadAffinity(nameof(PrivateUpsert));
+        this.VerifyThreadAffinity(nameof(this.PrivateUpsert));
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var ValueBytes = TValueSerializer.Serialize(ref value);
         if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))

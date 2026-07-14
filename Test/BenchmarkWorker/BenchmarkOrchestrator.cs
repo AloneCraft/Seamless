@@ -415,10 +415,10 @@ public sealed class ベンチマークオーケストレーター {
         var 実行器 = new 偽実行器((ジョブ,_) => {
             観測.Add(ジョブ.メソッド名);
             if(ジョブ.メソッド名=="A") {
-                選択済み=new List<ベンチマークケース> {
+                選択済み=[
                     ケースを作成("System.Array.FLinq","A"),
                     ケースを作成("System.Array.FLinq","B"),
-                };
+                ];
             }
 
             return 完了結果を作成(ジョブ);
@@ -451,7 +451,7 @@ public sealed class ベンチマークオーケストレーター {
         var 実行器 = new 偽実行器((ジョブ,_) => {
             観測.Add(ジョブ.メソッド名);
             if(ジョブ.メソッド名=="A") {
-                選択済み=new List<ベンチマークケース> { ケースを作成("System.Array.FLinq","A") };
+                選択済み=[ケースを作成("System.Array.FLinq","A")];
             }
 
             return 完了結果を作成(ジョブ);

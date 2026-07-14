@@ -11,22 +11,22 @@ public sealed class Dictionary(ITestOutputHelper output) {
 
     [Fact]
     public void FlushAndEvict_managed() {
-        this.FlushAndEvict(Managed,nameof(FlushAndEvict_managed));
+        this.FlushAndEvict(Managed,nameof(this.FlushAndEvict_managed));
     }
 
     [Fact]
     public void FlushAndEvict_unmanaged() {
-        this.FlushAndEvict(Unmanaged,nameof(FlushAndEvict_unmanaged));
+        this.FlushAndEvict(Unmanaged,nameof(this.FlushAndEvict_unmanaged));
     }
 
     [Fact]
     public void Checkpoint_managed() {
-        this.Checkpoint(Managed,nameof(Checkpoint_managed));
+        this.Checkpoint(Managed,nameof(this.Checkpoint_managed));
     }
 
     [Fact]
     public void Checkpoint_unmanaged() {
-        this.Checkpoint(Unmanaged,nameof(Checkpoint_unmanaged));
+        this.Checkpoint(Unmanaged,nameof(this.Checkpoint_unmanaged));
     }
 
     private void FlushAndEvict<TKey, TValue>(DictionaryScenario<TKey,TValue> scenario,string methodName)

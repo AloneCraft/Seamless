@@ -1,13 +1,9 @@
 namespace Seamless.Linq.Shared;
 
 /// <summary>2個のLINQ演算子、または生成rootと1個の演算子を組み合わせるベンチマークです。</summary>
-public abstract class Range_start_count:global::Common.Base<int> {
+public abstract class Range_start_count(int count):global::Common.Base<int>(count) {
     private const int ElementCount = 4_096;
-
-    protected Range_start_count(int count) : base(count) {
-    }
-
-    private int CountFor(int count) => this.EffectiveSourceCount(count);
+    private       int CountFor(int count) => this.EffectiveSourceCount(count);
 
     [BenchFact, Benchmark] public void Consume() => this.Consume_Impl();
     [LinqIntercept(true)] private void Consume_Impl() => RangeX.Create(1,this.CountFor(ElementCount)).Consume(this.consumer);
@@ -170,14 +166,12 @@ public abstract class Range_start_count:global::Common.Base<int> {
     [BenchFact, Benchmark] public void Zip_tuple() => this.Zip_tuple_Impl();
     [LinqIntercept(true)] private void Zip_tuple_Impl() { var length = this.CountFor(ElementCount); RangeX.Create(1,length).Zip(RangeX.Create(1,length)).Consume(this.consumer); }
 
-    public sealed class OrderBy_keySelector_chain:global::Common.Base<int> {
-        private const int ElementCount = 4_096;
-        public OrderBy_keySelector_chain() : base(ElementCount) {
-        }
-        private int CountFor(int count) => this.EffectiveSourceCount(count);
-        [BenchFact, Benchmark] public void ThenBy_keySelector() => this.ThenBy_keySelector_Impl();
-        [LinqIntercept(true)] private void ThenBy_keySelector_Impl() => RangeX.Create(1,this.CountFor(ElementCount)).OrderBy(static x => x%1000).ThenBy(static x => x).Consume(this.consumer);
-        [BenchFact, Benchmark] public void ThenByDescending_keySelector() => this.ThenByDescending_keySelector_Impl();
-        [LinqIntercept(true)] private void ThenByDescending_keySelector_Impl() => RangeX.Create(1,this.CountFor(ElementCount)).OrderBy(static x => x%1000).ThenByDescending(static x => x).Consume(this.consumer);
+    public sealed class OrderBy_keySelector_chain():global::Common.Base<int>(ElementCount) {
+        private const                  int  ElementCount = 4_096;
+        private                        int  CountFor(int count)                 => this.EffectiveSourceCount(count);
+        [BenchFact, Benchmark] public  void ThenBy_keySelector()                => this.ThenBy_keySelector_Impl();
+        [LinqIntercept(true)]  private void ThenBy_keySelector_Impl()           => RangeX.Create(1,this.CountFor(ElementCount)).OrderBy(static x => x%1000).ThenBy(static x => x).Consume(this.consumer);
+        [BenchFact, Benchmark] public  void ThenByDescending_keySelector()      => this.ThenByDescending_keySelector_Impl();
+        [LinqIntercept(true)]  private void ThenByDescending_keySelector_Impl() => RangeX.Create(1,this.CountFor(ElementCount)).OrderBy(static x => x%1000).ThenByDescending(static x => x).Consume(this.consumer);
     }
 }

@@ -4,21 +4,13 @@ namespace Common;
 #pragma warning disable xUnit1013
 #endif
 
-public class TsavoriteBase:TsavoriteBase<int> {
-    public TsavoriteBase(int count = 80_000) : base(count) {
-    }
-}
+public class TsavoriteBase(int count=80_000):TsavoriteBase<int>(count);
 
-public class TsavoriteBase<T>:Base<T>, IDisposable where T : notnull {
-    private readonly int ElementCount;
-    private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcCache = [];
-    private readonly Dictionary<SourceCacheKey,SourceHandle<T>> src2Cache = [];
+public class TsavoriteBase<T>(int elementCount=80_000):Base<T>(NormalizeCount(elementCount)),IDisposable
+where T : notnull {
+    private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcCache    = [];
+    private readonly Dictionary<SourceCacheKey,SourceHandle<T>> src2Cache   = [];
     private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcOneCache = [];
-
-    public TsavoriteBase(int count = 80_000) : base(NormalizeCount(count)) {
-        this.ElementCount=count;
-    }
-
     protected new global::Seamless.Tsavorite.Collections.HashSet<T> src(int scale) =>
         this.GetOrCreate(scale,this.srcCache,static length => CreateRange(1,length));
 
@@ -55,7 +47,7 @@ public class TsavoriteBase<T>:Base<T>, IDisposable where T : notnull {
         int scale,
         Dictionary<SourceCacheKey,SourceHandle<T>> cache,
         Func<int,T[]> factory) {
-        var length = this.CountForComparison(this.CountForTestTiming(this.ElementCount*scale));
+        var length = this.CountForComparison(this.CountForTestTiming(elementCount*scale));
         var key = new SourceCacheKey(SourceKind.Src,length,BenchmarkExecutionMode.ReadRandomSourceSeed());
         if(cache.TryGetValue(key,out var handle)) {
             return handle.Set;

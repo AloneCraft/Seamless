@@ -5,27 +5,21 @@ using System.Text.Json;
 namespace UI;
 
 [global::Seamless.FLinq.LinqIntercept(false)]
-internal sealed class ベンチマーク状態マネージャー{
+internal sealed class ベンチマーク状態マネージャー(string ベンチマークルート) {
     private static readonly JsonSerializerOptions JSONオプション=new(){
         WriteIndented=true,
     };
 
-    private readonly object ファイルゲート=new();
-    private readonly string ベンチマークルート;
-    private static readonly ConcurrentDictionary<string,進行状態>状態一覧=new(StringComparer.OrdinalIgnoreCase);
-
-    public ベンチマーク状態マネージャー(string ベンチマークルート){
-        this.ベンチマークルート=ベンチマークルート;
-    }
-
+    private readonly        object                            ファイルゲート=new();
+    private static readonly ConcurrentDictionary<string,進行状態> 状態一覧   =new(StringComparer.OrdinalIgnoreCase);
     public string 次の実行ルートを作成(){
-        Directory.CreateDirectory(this.ベンチマークルート);
-        var 次番号=Directory.EnumerateDirectories(this.ベンチマークルート)
+        Directory.CreateDirectory(ベンチマークルート);
+        var 次番号=Directory.EnumerateDirectories(ベンチマークルート)
             .Select(static パス=>実行番号の解析を試みる(パス))
             .DefaultIfEmpty(0)
             .Max()+1;
         while(true){
-            var 実行ルート=Path.Combine(this.ベンチマークルート,次番号.ToString("D6",CultureInfo.InvariantCulture));
+            var 実行ルート=Path.Combine(ベンチマークルート,次番号.ToString("D6",CultureInfo.InvariantCulture));
             if(!Directory.Exists(実行ルート)){
                 Directory.CreateDirectory(実行ルート);
                 return 実行ルート;

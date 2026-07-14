@@ -22,7 +22,7 @@ internal ref struct SegmentedArrayProvider<T> {
         var span = this.currentSegment;
         var index = this.countInCurrentSegment;
         if((uint)index<(uint)span.Length) {
-            return span.Slice(index);
+            return span[index..];
         } else {
             this.Expand();
             return this.currentSegment;
@@ -57,13 +57,13 @@ internal ref struct SegmentedArrayProvider<T> {
         if(segmentIndex!=0) {
             var first = this.initialBuffer;
             first.CopyTo(destination);
-            destination=destination.Slice(first.Length);
+            destination=destination[first.Length..];
 
             segmentIndex--;
             if(segmentIndex!=0) // skip for last
             {
 #if NET8_0_OR_GREATER
-                ReadOnlySpan<T[]> segmentSpan = ((ReadOnlySpan<T[]>)this.segments).Slice(0,segmentIndex);
+                ReadOnlySpan<T[]> segmentSpan = ((ReadOnlySpan<T[]>)this.segments)[..segmentIndex];
 #else
                 ReadOnlySpan<T[]> segmentSpan = segments.AsSpan().Slice(0, segmentIndex);
 #endif
@@ -71,7 +71,7 @@ internal ref struct SegmentedArrayProvider<T> {
                     // copy full segments
                     var segment = array.AsSpan();
                     segment.CopyTo(destination);
-                    destination=destination.Slice(segment.Length);
+                    destination=destination[segment.Length..];
 
                     // return to pool
                     ArrayPool<T>.Shared.Return(array,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
@@ -87,7 +87,7 @@ internal ref struct SegmentedArrayProvider<T> {
             ArrayPool<T>.Shared.Return(lastSegment,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
         } else {
             // only copy initial buffer
-            this.currentSegment.Slice(0,this.countInCurrentSegment).CopyTo(destination);
+            this.currentSegment[..this.countInCurrentSegment].CopyTo(destination);
         }
     }
 }

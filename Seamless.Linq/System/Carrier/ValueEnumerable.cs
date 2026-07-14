@@ -104,7 +104,7 @@ internal static class ValueEnumerableDebuggerDisplayHelper // avoid <T> for asse
             }
             var genericsStart = type.Name.IndexOf('`');
             if(genericsStart!=-1) {
-                var name = type.Name.Substring(0,genericsStart);
+                var name = type.Name[..genericsStart];
                 sb.Append(name);
             } else {
                 sb.Append(type.Name);

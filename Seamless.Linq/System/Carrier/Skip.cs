@@ -52,7 +52,7 @@ namespace Seamless.System.Carrier {
                     return false;
                 }
 
-                return this.source.TryCopyTo(destination.Slice(0,elementsToCopy),sourceOffset);
+                return this.source.TryCopyTo(destination[..elementsToCopy],sourceOffset);
             }
 
             return false;
@@ -64,7 +64,7 @@ namespace Seamless.System.Carrier {
                     span=default;
                     return true;
                 }
-                span=span.Slice(this.skipCount);
+                span=span[this.skipCount..];
                 return true;
             }
 

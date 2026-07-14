@@ -26,7 +26,7 @@ public abstract class PersistedSetScalable<TProvider, T>
     public long Add(long Count,long Initial,long Data) {
         var count = checked((int)Count);
         var values = GetSharedValues<PersistedSetScalable<TProvider,T>,T>(count,static index => TProvider.Create(index));
-        var path = ScalablePath.Create<TProvider,T>(nameof(Add));
+        var path = ScalablePath.Create<TProvider,T>(nameof(this.Add));
         try {
             using var set = global::Seamless.Persisted.Collections.Store.CreateSet<T>(path,InitialCapacity: Initial,InitialDataCapacity: Data);
             foreach(var value in values) {
@@ -102,7 +102,7 @@ public abstract class PersistedListScalable<TStrategy, T>
     public long Add(long Count,long Initial,long Data) {
         var count = checked((int)Count);
         var values = GetSharedValues<PersistedListScalable<TStrategy,T>,T>(count,static index => TStrategy.Elem(index));
-        var path = ScalablePath.Create<TStrategy,T>(nameof(Add));
+        var path = ScalablePath.Create<TStrategy,T>(nameof(this.Add));
         try {
             using var handle = TStrategy.CreateList(path,initialCapacity: Initial,initialDataCapacity: Data);
             foreach(var value in values) {
@@ -127,7 +127,7 @@ public abstract class PersistedListScalable<TStrategy, T>
     public long Remove(long Count,long Initial,long Data) {
         var count = checked((int)Count);
         var values = GetSharedValues<PersistedListScalable<TStrategy,T>,T>(count,static index => TStrategy.Elem(index));
-        var path = ScalablePath.Create<TStrategy,T>(nameof(Remove));
+        var path = ScalablePath.Create<TStrategy,T>(nameof(this.Remove));
         try {
             using var handle = TStrategy.CreateList(path,initialCapacity: Initial,initialDataCapacity: Data);
             foreach(var value in values) {
@@ -202,7 +202,7 @@ public abstract class PersistedBlittableDictionaryScalable<TProvider, TKey, TVal
     [BenchArguments(8388608,1,4096)]
     public long Add(long Count,long Initial,long Data) {
         var count = checked((int)Count);
-        var path = ScalablePath.Create<TProvider,KeyValuePair<TKey,TValue>>(nameof(Add));
+        var path = ScalablePath.Create<TProvider,KeyValuePair<TKey,TValue>>(nameof(this.Add));
         try {
             using var dictionary = global::Seamless.Persisted.Collections.Store.CreateDictionary<TKey,TValue>(path,InitialCapacity: Initial,InitialDataCapacity: Data);
             AddRange(dictionary,count);
@@ -287,7 +287,7 @@ public abstract class PersistedSerializedDictionaryScalable<TProvider, TKey, TVa
     [BenchArguments(8388608,1,4096)]
     public long Add(long Count,long Initial,long Data) {
         var count = checked((int)Count);
-        var path = ScalablePath.Create<TProvider,KeyValuePair<TKey,TValue>>(nameof(Add));
+        var path = ScalablePath.Create<TProvider,KeyValuePair<TKey,TValue>>(nameof(this.Add));
         try {
             using var dictionary = global::Seamless.Persisted.Collections.Store.CreateDictionary<TKey,TValue>(path,InitialCapacity: Initial,InitialDataCapacity: Data);
             AddRange(dictionary,count);

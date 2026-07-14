@@ -108,7 +108,7 @@ namespace Seamless.System.Carrier {
                 if(destination.Length>=count) {
                     // and ok to copy then sort.
                     if(this.source.TryCopyTo(destination,0)) {
-                        this.Sort(destination.Slice(0,count));
+                        this.Sort(destination[..count]);
                         return true;
                     }
                 }

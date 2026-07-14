@@ -158,26 +158,18 @@ internal static class ベンチマーク比較フォーマッター{
     private static string 比較キーを作成(string メソッド,string 型完全名,string 引数キー)=>
         メソッド+"|"+型完全名+"|"+引数キー;
 
-    private sealed class ベンチマーク比較バケット{
-        public ベンチマーク比較バケット(
-            string メソッド,
-            string 型完全名,
-            string 元の型完全名,
-            string 引数キー,
-            IReadOnlyList<ベンチマーク引数>引数一覧){
-            this.メソッド=メソッド;
-            this.型完全名=型完全名;
-            this.元の型完全名=元の型完全名;
-            this.引数キー=引数キー;
-            this.引数一覧=引数一覧;
-        }
-
-        public string メソッド{get;}
-        public string 型完全名{get;}
-        public string 元の型完全名{get;}
-        public string 引数キー{get;}
-        public IReadOnlyList<ベンチマーク引数>引数一覧{get;}
-        public Dictionary<string,プロジェクト測定値>プロジェクト別測定値{get;}=new(StringComparer.OrdinalIgnoreCase);
+    private sealed class ベンチマーク比較バケット(
+        string                  メソッド,
+        string                  型完全名,
+        string                  元の型完全名,
+        string                  引数キー,
+        IReadOnlyList<ベンチマーク引数> 引数一覧) {
+        public string                       メソッド       {get;}=メソッド;
+        public string                       型完全名       {get;}=型完全名;
+        public string                       元の型完全名     {get;}=元の型完全名;
+        public string                       引数キー       {get;}=引数キー;
+        public IReadOnlyList<ベンチマーク引数>      引数一覧       {get;}=引数一覧;
+        public Dictionary<string,プロジェクト測定値> プロジェクト別測定値 {get;}=[with(StringComparer.OrdinalIgnoreCase)];
     }
 
     private static プロジェクト測定値 測定値を作成(報告行 行){

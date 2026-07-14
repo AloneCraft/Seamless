@@ -42,7 +42,7 @@ namespace Seamless.System.Carrier {
 
         public bool TryGetSpan(out ReadOnlySpan<TSource> span) {
             if(this.source.TryGetSpan(out span)) {
-                span=span.Slice(0,Math.Min(span.Length,this.takeCount));
+                span=span[..Math.Min(span.Length,this.takeCount)];
                 return true;
             }
 
@@ -67,7 +67,7 @@ namespace Seamless.System.Carrier {
                     : actualTakeCount-sourceOffset;
 
                 var elementsToCopy = Math.Min(remainingElements,destination.Length);
-                return this.source.TryCopyTo(destination.Slice(0,elementsToCopy),sourceOffset);
+                return this.source.TryCopyTo(destination[..elementsToCopy],sourceOffset);
             }
 
             return false;
@@ -432,7 +432,7 @@ namespace Seamless.System.Carrier {
                     return false;
                 }
 
-                return this.source.TryCopyTo(destination.Slice(0,elementsToCopy),sourceOffset);
+                return this.source.TryCopyTo(destination[..elementsToCopy],sourceOffset);
             }
 
             return false;
@@ -442,7 +442,7 @@ namespace Seamless.System.Carrier {
             if(this.source.TryGetSpan(out span)) {
                 // First apply take limit
                 if(span.Length>this.takeCount) {
-                    span=span.Slice(0,this.takeCount);
+                    span=span[..this.takeCount];
                 }
 
                 // Then skip elements
@@ -451,7 +451,7 @@ namespace Seamless.System.Carrier {
                     return true;
                 }
 
-                span=span.Slice(this.skipCount);
+                span=span[this.skipCount..];
                 return true;
             }
 

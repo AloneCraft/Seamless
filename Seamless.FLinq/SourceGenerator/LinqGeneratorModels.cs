@@ -74,7 +74,7 @@ public sealed partial class FLinqIncrementalGenerator {
         .GetMethods(BindingFlags.Public|BindingFlags.Static)
         .Select(static method => method.Name)
         .ToHashSet(StringComparer.Ordinal);
-    private static readonly ConditionalWeakTable<Compilation,System.Collections.Concurrent.ConcurrentDictionary<IMethodSymbol,ローカルメソッドLinq解析結果>> ローカルメソッドLinq解析キャッシュ = new();
+    private static readonly ConditionalWeakTable<Compilation,System.Collections.Concurrent.ConcurrentDictionary<IMethodSymbol,ローカルメソッドLinq解析結果>> ローカルメソッドLinq解析キャッシュ = [];
 
     // 匿名型を含む LINQ が検出されたとき、インターセプト元のメソッドに対して発行する警告。
     // 匿名型は生成メソッドの署名に出せないため完全なフラグメント最適化ができず、

@@ -104,8 +104,8 @@ internal sealed class ベンチマーク実行イベントパイプライン {
         AllowSynchronousContinuations=false,
     });
     private readonly object 状態ゲート = new();
-    private readonly Dictionary<string,ベンチマーク実行イベント> キー別実行中 = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> 変更実行中キー一覧 = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string,ベンチマーク実行イベント> キー別実行中 = [with(StringComparer.OrdinalIgnoreCase)];
+    private readonly HashSet<string> 変更実行中キー一覧 = [with(StringComparer.OrdinalIgnoreCase)];
     private readonly List<ベンチマーク実行イベント> 終端直前実行中更新一覧 = [];
     private readonly Queue<ベンチマーク実行イベント> 終端結果一覧 = new();
     private long 受信イベント数;
@@ -258,29 +258,23 @@ internal sealed class ベンチマーク実行イベントパイプライン {
             結果.割り当て論理CPU?.ToString(global::System.Globalization.CultureInfo.InvariantCulture)??"-");
 }
 
-internal sealed class ベンチマークUI診断 {
-    private readonly Action<string,Exception?> ログ;
-    private long 受信イベント数;
-    private long 描画イベント数;
-    private long ディスパッチャー停止数;
-    private double 最終ディスパッチャー遅延ミリ秒;
-    private double 最終描画ミリ秒;
-    private double 最終永続化ミリ秒;
-    private int 実行中更新数;
-    private int 終端滞留数;
-    private int 保留永続化イベント数;
-    private int 有効実行中数;
-    private int 変更実行中数;
-    private int 適用終端数;
-    private long 統合実行中イベント数;
-    private long 消費イベント数;
-    private CancellationTokenSource? ハートビートキャンセル;
-    private Task? ハートビートタスク;
-
-    public ベンチマークUI診断(Action<string,Exception?> ログ) {
-        this.ログ=ログ;
-    }
-
+internal sealed class ベンチマークUI診断(Action<string,Exception?> ログ) {
+    private          long                      受信イベント数;
+    private          long                      描画イベント数;
+    private          long                      ディスパッチャー停止数;
+    private          double                    最終ディスパッチャー遅延ミリ秒;
+    private          double                    最終描画ミリ秒;
+    private          double                    最終永続化ミリ秒;
+    private          int                       実行中更新数;
+    private          int                       終端滞留数;
+    private          int                       保留永続化イベント数;
+    private          int                       有効実行中数;
+    private          int                       変更実行中数;
+    private          int                       適用終端数;
+    private          long                      統合実行中イベント数;
+    private          long                      消費イベント数;
+    private          CancellationTokenSource?  ハートビートキャンセル;
+    private          Task?                     ハートビートタスク;
     public void ハートビートを開始(IベンチマークUIディスパッチャー ディスパッチャー) {
         if(this.ハートビートキャンセル is not null) {
             return;
@@ -305,7 +299,7 @@ internal sealed class ベンチマークUI診断 {
                     if(!string.IsNullOrEmpty(報告)) {
                         System.Diagnostics.Debug.WriteLine("[UI][予算] "+報告);
                         // Trace出力だけではMAUIアプリ実行時にユーザーが確認できないため、startup.logにも残す。
-                        this.ログ("[UI][予算] "+報告,null);
+                        ログ("[UI][予算] "+報告,null);
                     }
                 }
 
@@ -316,7 +310,7 @@ internal sealed class ベンチマークUI診断 {
                     if(遅延>ベンチマークパイプライン定数.UI応答目標ミリ秒) {
                         Interlocked.Increment(ref this.ディスパッチャー停止数);
                         this.最終ディスパッチャー遅延ミリ秒=遅延;
-                        this.ログ("ベンチマークUIディスパッチャーが停止しました: "+遅延.ToString("0.0",global::System.Globalization.CultureInfo.InvariantCulture)+"ms",null);
+                        ログ("ベンチマークUIディスパッチャーが停止しました: "+遅延.ToString("0.0",global::System.Globalization.CultureInfo.InvariantCulture)+"ms",null);
                         System.Diagnostics.Debug.WriteLine($"[UI][ハートビート] 停止間隔={遅延:0.0}ms");
                     }
                 });
@@ -394,24 +388,12 @@ internal sealed class ベンチマークUI診断 {
     }
 }
 
-internal sealed class ベンチマークUI描画スケジューラー {
-    private readonly IベンチマークUIディスパッチャー ディスパッチャー;
-    private readonly ベンチマーク実行イベントパイプライン パイプライン;
-    private readonly ベンチマークUI診断 診断;
-    private readonly Action<ベンチマークUIスナップショット> 適用;
-    private int 予約済みか;
-
-    public ベンチマークUI描画スケジューラー(
-        IベンチマークUIディスパッチャー ディスパッチャー,
-        ベンチマーク実行イベントパイプライン パイプライン,
-        ベンチマークUI診断 診断,
-        Action<ベンチマークUIスナップショット> 適用) {
-        this.ディスパッチャー=ディスパッチャー;
-        this.パイプライン=パイプライン;
-        this.診断=診断;
-        this.適用=適用;
-    }
-
+internal sealed class ベンチマークUI描画スケジューラー(
+    IベンチマークUIディスパッチャー        ディスパッチャー,
+    ベンチマーク実行イベントパイプライン       パイプライン,
+    ベンチマークUI診断               診断,
+    Action<ベンチマークUIスナップショット> 適用) {
+    private          int                      予約済みか;
     public void 描画を要求() {
         if(Interlocked.Exchange(ref this.予約済みか,1)==1) {
             return;
@@ -419,50 +401,40 @@ internal sealed class ベンチマークUI描画スケジューラー {
 
         _=Task.Run(async () => {
             await Task.Delay(ベンチマークパイプライン定数.UI描画間隔ミリ秒);
-            this.ディスパッチャー.呼び出し開始(this.一回描画);
+            ディスパッチャー.呼び出し開始(this.一回描画);
         });
     }
 
     public void 即時反映() {
-        this.ディスパッチャー.呼び出し開始(this.一回描画);
+        ディスパッチャー.呼び出し開始(this.一回描画);
     }
 
     private void 一回描画() {
         Interlocked.Exchange(ref this.予約済みか,0);
-        var 指標 = this.診断.指標を作成(0,this.パイプライン.保留数,0);
-        if(this.パイプライン.UIスナップショットを作成できるか(指標,out var スナップショット)) {
+        var 指標 = 診断.指標を作成(0,パイプライン.保留数,0);
+        if(パイプライン.UIスナップショットを作成できるか(指標,out var スナップショット)) {
             var ストップウォッチ = Stopwatch.StartNew();
-            this.適用(スナップショット);
+            適用(スナップショット);
             ストップウォッチ.Stop();
-            this.診断.描画を記録(
+            診断.描画を記録(
                 ストップウォッチ.Elapsed.TotalMilliseconds,
                 スナップショット.指標,
                 スナップショット.実行中更新一覧.Count+スナップショット.終端結果一覧.Count);
             UIスレッド予算.記録("描画合計",ストップウォッチ.Elapsed.TotalMilliseconds);
         }
 
-        if(this.パイプライン.保留ありか) {
+        if(パイプライン.保留ありか) {
             this.描画を要求();
         }
     }
 }
 
-internal sealed class ベンチマーク永続化バッチ処理 {
-    private readonly IベンチマークUIディスパッチャー ディスパッチャー;
-    private readonly ベンチマークUI診断 診断;
-    private readonly Action<IReadOnlyList<ベンチマーク永続化項目>> 永続化;
-    private readonly ConcurrentQueue<ベンチマーク永続化項目> キュー = new();
-    private int 予約済みか;
-
-    public ベンチマーク永続化バッチ処理(
-        IベンチマークUIディスパッチャー ディスパッチャー,
-        ベンチマークUI診断 診断,
-        Action<IReadOnlyList<ベンチマーク永続化項目>> 永続化) {
-        this.ディスパッチャー=ディスパッチャー;
-        this.診断=診断;
-        this.永続化=永続化;
-    }
-
+internal sealed class ベンチマーク永続化バッチ処理(
+    IベンチマークUIディスパッチャー                  ディスパッチャー,
+    ベンチマークUI診断                         診断,
+    Action<IReadOnlyList<ベンチマーク永続化項目>> 永続化) {
+    private readonly ConcurrentQueue<ベンチマーク永続化項目>       キュー     = new();
+    private          int                                予約済みか;
     public void 追加(ベンチマーク永続化項目 項目) {
         this.キュー.Enqueue(項目);
         this.反映を要求(ベンチマークパイプライン定数.永続化バッチ間隔ミリ秒);
@@ -483,14 +455,14 @@ internal sealed class ベンチマーク永続化バッチ処理 {
                 await Task.Delay(遅延ミリ秒);
             }
 
-            this.ディスパッチャー.呼び出し開始(this.UIスレッドで反映);
+            ディスパッチャー.呼び出し開始(this.UIスレッドで反映);
         });
     }
 
     private void UIスレッドで反映() {
         Interlocked.Exchange(ref this.予約済みか,0);
         if(this.キュー.IsEmpty) {
-            this.診断.永続化を記録(0,0);
+            診断.永続化を記録(0,0);
             return;
         }
 
@@ -500,9 +472,9 @@ internal sealed class ベンチマーク永続化バッチ処理 {
         }
 
         var ストップウォッチ = Stopwatch.StartNew();
-        this.永続化(項目一覧);
+        永続化(項目一覧);
         ストップウォッチ.Stop();
-        this.診断.永続化を記録(ストップウォッチ.Elapsed.TotalMilliseconds,this.キュー.Count);
+        診断.永続化を記録(ストップウォッチ.Elapsed.TotalMilliseconds,this.キュー.Count);
         UIスレッド予算.記録("永続化フラッシュ",ストップウォッチ.Elapsed.TotalMilliseconds);
     }
 }

@@ -4,7 +4,14 @@ namespace UI;
 
 public sealed record ベンチマーク引数(string 名前,string 値);
 
-public sealed class ベンチマークケース{
+public sealed class ベンチマークケース(
+    string                  プロジェクト,
+    string                  アセンブリ名,
+    string                  型完全名,
+    string                  メソッド名,
+    string                  引数キー,
+    IReadOnlyList<ベンチマーク引数> 引数一覧,
+    string                  ベンチマークパス="") {
     public ベンチマークケース(
         string プロジェクト,
         string アセンブリ名,
@@ -13,34 +20,16 @@ public sealed class ベンチマークケース{
         string ベンチマークパス="")
         :this(プロジェクト,アセンブリ名,型完全名,メソッド名,string.Empty,[],ベンチマークパス){
     }
-
-    public ベンチマークケース(
-        string プロジェクト,
-        string アセンブリ名,
-        string 型完全名,
-        string メソッド名,
-        string 引数キー,
-        IReadOnlyList<ベンチマーク引数>引数一覧,
-        string ベンチマークパス=""){
-        this.プロジェクト=プロジェクト;
-        this.アセンブリ名=アセンブリ名;
-        this.型完全名=型完全名;
-        this.メソッド名=メソッド名;
-        this.引数キー=引数キー;
-        this.引数一覧=引数一覧;
-        this.ベンチマークパス=ベンチマークパス;
-    }
-
-    public string プロジェクト{get;}
-    public string アセンブリ名{get;}
-    public string 型完全名{get;}
-    public string メソッド名{get;}
-    public string 引数キー{get;}
-    public IReadOnlyList<ベンチマーク引数>引数一覧{get;}
-    public string ベンチマークパス{get;}
-    public int バインド行インデックス{get;init;}=-1;
-    public string 表示名=>$"{this.プロジェクト} / {this.メソッド名}";
-    public int Count引数=>ベンチマーク引数フォーマッター.整数を取得(this.引数一覧,"Count");
+    public string                  プロジェクト      {get;}     =プロジェクト;
+    public string                  アセンブリ名      {get;}     =アセンブリ名;
+    public string                  型完全名        {get;}     =型完全名;
+    public string                  メソッド名       {get;}     =メソッド名;
+    public string                  引数キー        {get;}     =引数キー;
+    public IReadOnlyList<ベンチマーク引数> 引数一覧        {get;}     =引数一覧;
+    public string                  ベンチマークパス    {get;}     =ベンチマークパス;
+    public int                     バインド行インデックス {get;init;}=-1;
+    public string                  表示名         =>$"{this.プロジェクト} / {this.メソッド名}";
+    public int                     Count引数     =>ベンチマーク引数フォーマッター.整数を取得(this.引数一覧,"Count");
 }
 
 public enum ジョブ状態{
@@ -281,7 +270,7 @@ public interface Iベンチマークジョブ実行器{
 }
 
 internal sealed class 進行ベンチマーク選択状態{
-    public Dictionary<string,bool>行選択{get;set;}=new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string,bool>行選択{get;set;}=[with(StringComparer.OrdinalIgnoreCase)];
 }
 
 public interface Iベンチマーク動的CPUセット実行器{

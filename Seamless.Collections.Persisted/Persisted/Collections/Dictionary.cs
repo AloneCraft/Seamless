@@ -8,18 +8,18 @@ internal interface IPersistedDictionary<TKey, TValue>:IReadOnlyDictionary<TKey,T
     void SetDisposeAction(Action? action);
 }
 
-public sealed class Dictionary<TKey, TValue>:IReadOnlyDictionary<TKey,TValue>, IDisposable
-    where TKey : notnull {
-    private readonly IPersistedDictionary<TKey,TValue> dictionary;
-
-    public Dictionary(string path,long initialCapacity = 16,long initialDataCapacity = 4096,StorageTuning? tuning = null) {
-        this.dictionary=CreateCore(path,initialCapacity,initialDataCapacity,tuning);
-    }
-
-    public string Path => this.dictionary.Path;
-    public IEnumerable<TKey> Keys => this.dictionary.Keys;
-    public IEnumerable<TValue> Values => this.dictionary.Values;
-    public int Count => this.dictionary.Count;
+public sealed class Dictionary<TKey,TValue>(
+    string         path,
+    long           initialCapacity    =16,
+    long           initialDataCapacity=4096,
+    StorageTuning? tuning             =null)
+    :IReadOnlyDictionary<TKey,TValue>,IDisposable
+where TKey : notnull {
+    private readonly IPersistedDictionary<TKey,TValue> dictionary=CreateCore(path,initialCapacity,initialDataCapacity,tuning);
+    public           string                            Path   => this.dictionary.Path;
+    public           IEnumerable<TKey>                 Keys   => this.dictionary.Keys;
+    public           IEnumerable<TValue>               Values => this.dictionary.Values;
+    public           int                               Count  => this.dictionary.Count;
     public TValue this[TKey key] => this.dictionary[key];
 
     public void Add(TKey key,TValue value) =>

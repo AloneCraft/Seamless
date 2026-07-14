@@ -10,14 +10,13 @@ namespace Test.Seamless.AdventureWorks2008R2 {
     // FLinq は「LINQ を含む通常メソッドの呼び出し箇所」を展開するため、
     // View/TableFunction の LINQ 本体は *Query メソッドに置き、ラムダからそれを呼ぶ。
     [global::Seamless.Database.Database("AdventureWorks2008R2")]
-    public sealed partial class AdventureWorks:global::Seamless.Database.DatabaseContainer {
+    public sealed partial class AdventureWorks(global::Seamless.Database.DatabaseContainerOptions? options)
+        :global::Seamless.Database.DatabaseContainer(
+            options??(global::Seamless.Database.DatabaseContainerOptions.InMemory with {
+                IndexSize=1L<<12,MemorySize=1L<<24
+            })) {
         public AdventureWorks() : this(null) {
         }
-
-        public AdventureWorks(global::Seamless.Database.DatabaseContainerOptions? options)
-            : base(options??(global::Seamless.Database.DatabaseContainerOptions.InMemory with { IndexSize=1L<<12,MemorySize=1L<<24 })) {
-        }
-
         [global::Seamless.Database.Table("Sales.Customer")]
         public global::Seamless.Database.Table<Records.Customer> Customers => this.Table<Records.Customer>();
         [global::Seamless.Database.Table("Sales.SalesOrderHeader")]

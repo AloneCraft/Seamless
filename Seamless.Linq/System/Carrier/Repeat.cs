@@ -28,7 +28,7 @@ namespace Seamless.System.Carrier {
 
         public bool TryCopyTo(Span<T> destination,Index offset) {
             if(EnumeratorHelper.TryGetSliceRange(_count,offset,destination.Length,out var _,out var fillCount)) {
-                destination.Slice(0,fillCount).Fill(_element); // Span.Fill using SIMD
+                destination[..fillCount].Fill(_element); // Span.Fill using SIMD
                 return true;
             }
 

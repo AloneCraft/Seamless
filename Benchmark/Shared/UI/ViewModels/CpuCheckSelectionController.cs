@@ -6,16 +6,11 @@ namespace UI;
 /// <summary>
 /// SfDataGrid の標準セル選択へ、修飾なしスペースキーのチェック操作だけを追加します。
 /// </summary>
-internal sealed class CPUチェック選択コントローラー:DataGridCellSelectionController {
-    private readonly グリッドチェック選択動作<CPU選択項目> チェック選択;
-
-    public CPUチェック選択コントローラー(SfDataGrid データグリッド,Action<IReadOnlyList<CPU選択項目>> チェックを切り替える)
-        : base(データグリッド) {
-        this.チェック選択=new グリッドチェック選択動作<CPU選択項目>(
-            () => 選択CPUを取得(データグリッド),
-            チェックを切り替える);
-    }
-
+internal sealed class CPUチェック選択コントローラー(SfDataGrid データグリッド,Action<IReadOnlyList<CPU選択項目>> チェックを切り替える)
+    :DataGridCellSelectionController(データグリッド) {
+    private readonly グリッドチェック選択動作<CPU選択項目> チェック選択=new(
+        () => 選択CPUを取得(データグリッド),
+        チェックを切り替える);
     protected override void ProcessKeyDown(KeyEventArgs 引数,bool コントロールキー押下か,bool シフトキー押下か) {
         if(this.チェック選択.キー押下を処理(引数,コントロールキー押下か,シフトキー押下か)) {
             return;

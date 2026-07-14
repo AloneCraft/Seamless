@@ -6,26 +6,19 @@ namespace UI;
 /// <summary>
 /// SfDataGrid の標準行選択へ、チェック操作と選択差分通知だけを追加します。
 /// </summary>
-internal sealed class ベンチマークチェック選択コントローラー:DataGridRowSelectionController {
-    private readonly グリッドチェック選択動作<ベンチマーク表行> チェック選択;
-    private readonly Action<IReadOnlyList<ベンチマーク表行>,IReadOnlyList<ベンチマーク表行>> 選択を同期;
-
-    public ベンチマークチェック選択コントローラー(
-        SfDataGrid データグリッド,
-        Action<IReadOnlyList<ベンチマーク表行>> 行を切り替える,
-        Action<IReadOnlyList<ベンチマーク表行>,IReadOnlyList<ベンチマーク表行>> 選択を同期)
-        : base(データグリッド) {
-        this.チェック選択=new グリッドチェック選択動作<ベンチマーク表行>(
-            () => 選択行を取得(データグリッド.SelectedRows).ToArray(),
-            行を切り替える);
-        this.選択を同期=選択を同期;
-    }
-
+internal sealed class ベンチマークチェック選択コントローラー(
+    SfDataGrid                                              データグリッド,
+    Action<IReadOnlyList<ベンチマーク表行>>                         行を切り替える,
+    Action<IReadOnlyList<ベンチマーク表行>,IReadOnlyList<ベンチマーク表行>> 選択を同期)
+    :DataGridRowSelectionController(データグリッド) {
+    private readonly グリッドチェック選択動作<ベンチマーク表行>                                  チェック選択=new(
+        () => 選択行を取得(データグリッド.SelectedRows).ToArray(),
+        行を切り替える);
     internal void 選択変更を処理(DataGridSelectionChangedEventArgs 引数) {
         var 追加行 = 選択行を取得(引数.AddedRows).ToArray();
         var 削除行 = 選択行を取得(引数.RemovedRows).ToArray();
         if(追加行.Length!=0||削除行.Length!=0) {
-            this.選択を同期(追加行,削除行);
+            選択を同期(追加行,削除行);
         }
         this.キーボードフォーカスを予約();
     }

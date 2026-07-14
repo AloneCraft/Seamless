@@ -225,7 +225,7 @@ public sealed class DatabaseSchemaGenerator:IIncrementalGenerator {
         if(name.Length==1) {
             return char.ToLowerInvariant(name[0]).ToString();
         }
-        return char.ToLowerInvariant(name[0])+name.Substring(1);
+        return char.ToLowerInvariant(name[0])+name[1..];
     }
 
     private static bool 名前空間一致判定(string candidateNamespace,string rootNamespace,string childNamespace) {

@@ -213,15 +213,10 @@ public static class LinqCounterScope {
         return new Scope(previous,active);
     }
 
-    public readonly struct Scope:IDisposable {
-        private readonly LinqCounter? previous;
-        public Scope(LinqCounter? previous,LinqCounter counter) {
-            this.previous=previous;
-            this.Counter=counter;
-        }
-        public LinqCounter Counter { get; }
+    public readonly struct Scope(LinqCounter? previous,LinqCounter counter):IDisposable {
+        public           LinqCounter  Counter { get; }=counter;
         public void Dispose() {
-            CurrentCounter.Value=this.previous;
+            CurrentCounter.Value=previous;
         }
     }
 }

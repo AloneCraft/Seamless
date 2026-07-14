@@ -4,10 +4,7 @@ namespace Common;
 #pragma warning disable xUnit1013
 #endif
 
-public class PersistedBase:PersistedBase<int> {
-    public PersistedBase(int count = 80_000) : base(count) {
-    }
-}
+public class PersistedBase(int count=80_000):PersistedBase<int>(count);
 
 public class PersistedBase<T>(int count = 80_000):Base<T>(NormalizeCount(count)), IDisposable where T : notnull {
     private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcCache = [];

@@ -178,7 +178,7 @@ public abstract partial class CollectionStore<
                 this.WriteRecoveryIndexMetadata(token);
                 return token;
             }
-            throw new InvalidOperationException($"{nameof(Save)}Checkpoint failed.");
+            throw new InvalidOperationException($"{nameof(this.Save)}Checkpoint failed.");
         } catch {
             this.CheckpointFailed=true;
             throw;
@@ -200,7 +200,7 @@ public abstract partial class CollectionStore<
                 this.WriteRecoveryIndexMetadata(token);
                 return token;
             }
-            throw new InvalidOperationException($"{nameof(SaveLogOnly)}Checkpoint failed.");
+            throw new InvalidOperationException($"{nameof(this.SaveLogOnly)}Checkpoint failed.");
         } catch {
             this.CheckpointFailed=true;
             throw;

@@ -18,7 +18,7 @@ public abstract class HashSetStorageBoundaryTests<TKey>(ITestOutputHelper output
 
     [Fact]
     public void FlushAndEvict後も検索が正しい() {
-        var storeDir = this.TestDir(nameof(FlushAndEvict後も検索が正しい));
+        var storeDir = this.TestDir(nameof(this.FlushAndEvict後も検索が正しい));
         Directory.CreateDirectory(storeDir);
 
         try {
@@ -44,8 +44,8 @@ public abstract class HashSetStorageBoundaryTests<TKey>(ITestOutputHelper output
 
     [Fact]
     public void Checkpoint復元後も検索が正しい() {
-        var storeDir = this.TestDir(nameof(Checkpoint復元後も検索が正しい));
-        var checkpointDir = Path.Combine(storeDir,"checkpoint");
+        var storeDir     = this.TestDir(nameof(this.Checkpoint復元後も検索が正しい));
+        var checkpointDir= Path.Combine(storeDir,"checkpoint");
         Directory.CreateDirectory(storeDir);
         Directory.CreateDirectory(checkpointDir);
 

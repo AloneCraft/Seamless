@@ -1,10 +1,7 @@
 namespace Seamless.Persisted.Collections;
 
-public class AppendOnlyList<T>:AppendOnlyList<T,MemoryPackSerializer<T>> {
-    public AppendOnlyList(string path,long initialDataCapacity = 4096,StorageTuning? tuning = null)
-        : base(path,initialDataCapacity,tuning) {
-    }
-}
+public class AppendOnlyList<T>(string path,long initialDataCapacity=4096,StorageTuning? tuning=null)
+    :AppendOnlyList<T,MemoryPackSerializer<T>>(path,initialDataCapacity,tuning);
 
 public class AppendOnlyList<T, TSerializer>:IEnumerable<T>, IDisposable
     where TSerializer : ISerializer<T> {

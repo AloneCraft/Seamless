@@ -7,18 +7,12 @@ namespace Seamless.Database;
 /// Table 実体は Tsavorite ストアで、<see cref="DatabaseContainerOptions"/> により
 /// メモリ範囲内運用とストレージ利用を切り替える。
 /// </summary>
-public abstract class DatabaseContainer:IDisposable {
-    private readonly System.Collections.Generic.Dictionary<string,IDisposable> tables = new(StringComparer.Ordinal);
-    private readonly System.Collections.Generic.Dictionary<string,object> views = new(StringComparer.Ordinal);
-    private readonly object gate = new();
-    private bool disposed;
-
-    protected DatabaseContainer(DatabaseContainerOptions? options = null) {
-        this.Options=options??DatabaseContainerOptions.InMemory;
-    }
-
-    public DatabaseContainerOptions Options { get; }
-
+public abstract class DatabaseContainer(DatabaseContainerOptions? options=null):IDisposable {
+    private readonly System.Collections.Generic.Dictionary<string,IDisposable> tables= new(StringComparer.Ordinal);
+    private readonly System.Collections.Generic.Dictionary<string,object>      views = new(StringComparer.Ordinal);
+    private readonly object                                                    gate  = new();
+    private          bool                                                      disposed;
+    public           DatabaseContainerOptions                                  Options { get; }=options??DatabaseContainerOptions.InMemory;
     /// <summary>SQL Server 互換のデータベース名。[Database]属性があれば generator が override を生成する。</summary>
     public virtual string DatabaseName => this.GetType().Name;
 

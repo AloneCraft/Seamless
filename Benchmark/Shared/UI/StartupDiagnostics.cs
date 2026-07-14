@@ -253,16 +253,10 @@ internal static class 起動診断 {
         };
     }
 
-    private sealed class 購読解除:IDisposable {
-        private readonly Action<string> 追記時処理;
-
-        public 購読解除(Action<string> 追記時処理) {
-            this.追記時処理=追記時処理;
-        }
-
+    private sealed class 購読解除(Action<string> 追記時処理):IDisposable {
         public void Dispose() {
             lock(排他) {
-                購読者一覧.Remove(this.追記時処理);
+                購読者一覧.Remove(追記時処理);
             }
         }
     }

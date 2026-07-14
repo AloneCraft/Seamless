@@ -1451,6 +1451,53 @@ public sealed class 実行ビューモデル {
     }
 
     [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task ベンチマークグリッド_型列を削除して列幅を再配分する() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var ビューモデル = フィクスチャ.ビューモデル;
+        var 固定列定義取得メソッド = typeof(global::UI.MainPage).GetMethod(
+            "ベンチマーク固定列UI一覧を取得",
+            System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.NonPublic);
+        Assert.NotNull(固定列定義取得メソッド);
+        var 固定列定義一覧 = Assert.IsAssignableFrom<System.Collections.IEnumerable>(固定列定義取得メソッド.Invoke(null,null))
+            .Cast<object>()
+            .Select(static 定義 => {
+                var 型 = 定義.GetType();
+                var 見出し = Assert.IsType<string>(型.GetProperty("見出し")!.GetValue(定義));
+                var 幅 = Assert.IsType<double>(型.GetProperty("幅")!.GetValue(定義));
+                return (見出し,幅);
+            })
+            .ToArray();
+        Assert.DoesNotContain(固定列定義一覧,static 定義 => 定義.見出し=="型");
+        var ベンチマーク列 = Assert.Single(固定列定義一覧,static 定義 => 定義.見出し=="ベンチマーク");
+        Assert.Equal(320d,ベンチマーク列.幅);
+        var 日時列幅 = typeof(global::UI.MainPage).GetField(
+            "ベンチマーク_日時",
+            System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.NonPublic);
+        Assert.NotNull(日時列幅);
+        Assert.Equal(132d,Assert.IsType<double>(日時列幅.GetRawConstantValue()));
+
+        Assert.DoesNotContain(
+            ビューモデル.ベンチマークソート列選択肢一覧,
+            static 選択肢 => 選択肢.列==global::UI.ベンチマークグリッドソート列.ベンチマーク型);
+        ビューモデル.ベンチマークソート規則をリセット();
+        Assert.Collection(
+            ビューモデル.ベンチマークソート規則一覧,
+            static 規則 => Assert.Equal(global::UI.ベンチマークグリッドソート列.ベンチマークメソッド,規則.列));
+        var 有効ソート規則作成メソッド = typeof(global::UI.ViewModels.実行ビューモデル).GetMethod(
+            "有効ソート規則を作成",
+            System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+        Assert.NotNull(有効ソート規則作成メソッド);
+        var 復元ソート規則一覧 = Assert.IsAssignableFrom<IReadOnlyList<global::UI.ベンチマークソート規則>>(
+            有効ソート規則作成メソッド.Invoke(ビューモデル,[new[] {
+                new global::UI.ベンチマークソート規則(global::UI.ベンチマークグリッドソート列.ベンチマーク型),
+                new global::UI.ベンチマークソート規則(global::UI.ベンチマークグリッドソート列.ベンチマークメソッド),
+            }]));
+        Assert.Collection(
+            復元ソート規則一覧,
+            static 規則 => Assert.Equal(global::UI.ベンチマークグリッドソート列.ベンチマークメソッド,規則.列));
+    }
+
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
     public void ベンチマークソート値_シェアは丸め前の左値で比較し欠測は常に末尾になる() {
         var 丸め前高値 = global::UI.ベンチマークソート値.シェアから作成(global::UI.シェア値.メモリから作成(995,5));
         var 丸め前低値 = global::UI.ベンチマークソート値.シェアから作成(global::UI.シェア値.メモリから作成(994,6));
@@ -1801,7 +1848,7 @@ public sealed class 実行ビューモデル {
     }
 
     private sealed class メモリ内設定:global::UI.IベンチマークUI設定 {
-        private readonly Dictionary<string,string> 値一覧 = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string,string> 値一覧 = [with(StringComparer.OrdinalIgnoreCase)];
 
         public string 取得(string キー,string 既定値) =>
             this.値一覧.TryGetValue(キー,out var 値) ? 値 : 既定値;

@@ -476,8 +476,8 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
     [InlineData(1024)]
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
     public void DiskBacked_Enumerator_PowerOfTwoDataSizes(int totalKeys) {
-        var folder = Path.Combine(Environment.CurrentDirectory,nameof(DiskBacked_Enumerator_PowerOfTwoDataSizes));
-        using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: false,preallocateFile: true);
+        var       folder   = Path.Combine(Environment.CurrentDirectory,nameof(this.DiskBacked_Enumerator_PowerOfTwoDataSizes));
+        using var logDevice= Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: false,preallocateFile: true);
         using var settings = new KVSettings {
             IndexSize=64,
             PageSize=1L<<12,       // 4 KB
@@ -547,8 +547,8 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
     [InlineData(2048)]
     [SuppressMessage("Interoperability","CA1416:プラットフォームの互換性",Justification = "<互換性>")]
     public void DiskSpill_UpsertFromChunk_PendingHandled(int Count) {
-        var folder = Path.Combine(Environment.CurrentDirectory,nameof(DiskSpill_UpsertFromChunk_PendingHandled));
-        using var logDevice = Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: false,preallocateFile: true);
+        var       folder   = Path.Combine(Environment.CurrentDirectory,nameof(this.DiskSpill_UpsertFromChunk_PendingHandled));
+        using var logDevice= Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: false,preallocateFile: true);
         using var settings = new KVSettings {
             IndexSize=64,
             PageSize=1L<<12,    // 4 KB

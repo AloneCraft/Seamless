@@ -123,7 +123,7 @@ namespace Seamless.System.Carrier {
         public bool TryCopyTo(Span<int> destination,Index offset) {
             if(EnumeratorHelper.TryGetSliceRange(this.count,offset,destination.Length,out var fillStart,
                    out var fillCount)) {
-                FillIncremental(destination.Slice(0,fillCount),this.start+fillStart);
+                FillIncremental(destination[..fillCount],this.start+fillStart);
                 return true;
             }
 
@@ -351,7 +351,7 @@ namespace Seamless.System.Carrier {
 
             if(EnumeratorHelper.TryGetSliceRange(this.count,offset,destination.Length,out var fillStart,
                    out var fillCount)) {
-                FromRange.FillIncremental(destination.Slice(0,fillCount),this.start+fillStart);
+                FromRange.FillIncremental(destination[..fillCount],this.start+fillStart);
                 return true;
             }
 

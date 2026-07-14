@@ -51,15 +51,9 @@ public enum ベンチマークグリッドソート列 {
     右割り当て,
 }
 
-public sealed class ベンチマークソート規則:ObservableObject {
-    private ベンチマークグリッドソート列 列値;
-    private bool 降順か値;
-
-    public ベンチマークソート規則(ベンチマークグリッドソート列 列,bool 降順か値 = false) {
-        this.列値=列;
-        this.降順か値=降順か値;
-    }
-
+public sealed class ベンチマークソート規則(ベンチマークグリッドソート列 列,bool 降順か値=false):ObservableObject {
+    private ベンチマークグリッドソート列 列値  =列;
+    private bool           降順か値=降順か値;
     public ベンチマークグリッドソート列 列 {
         get => this.列値;
         set {
@@ -147,32 +141,23 @@ public abstract class タブ見出し選択肢基底:ObservableObject {
 }
 
 /// <概要>進捗リング等の付帯情報を持たない、静的タイトルのタブヘッダー(下段/チャート診断タブ用)。</概要>
-public sealed class タブ見出し選択肢:タブ見出し選択肢基底 {
-    public タブ見出し選択肢(string 見出し文字列値) {
-        this.見出し文字列=見出し文字列値;
-    }
-
-    public override string 見出し文字列 { get; }
+public sealed class タブ見出し選択肢(string 見出し文字列値):タブ見出し選択肢基底 {
+    public override string 見出し文字列 { get; }=見出し文字列値;
 }
 
-public sealed class ソースタブ選択肢:タブ見出し選択肢基底 {
-    private static readonly Color 実行中インジケーター色 = Color.FromArgb("#00FF00");
-    private static readonly Color 完了進行外枠色 = Color.FromArgb("#22C55E");
-    private static readonly Color 既定進行外枠色 = Color.FromArgb("#64748B");
-    private ベンチマークタブ進行 進行値;
-    private bool 実行中か値;
-    private bool 最終完了か値;
-    private bool 完了進行を最終完了として扱うか値;
-    private string ベンチマークシェア概要短文値 = ベンチマーク改善プロンプトビルダー.概要を作成([]).短縮表示文字列;
-
-    public ソースタブ選択肢(ベンチマークソースタブ定義 定義) {
-        this.定義=定義;
-    }
-
-    public ベンチマークソースタブ定義 定義 { get; }
-    public ベンチマークソースタブ タブ => this.定義.タブ;
-    public string ID => this.定義.ID;
-    public string 表示名 => this.定義.表示名;
+public sealed class ソースタブ選択肢(ベンチマークソースタブ定義 定義):タブ見出し選択肢基底 {
+    private static readonly Color         実行中インジケーター色= Color.FromArgb("#00FF00");
+    private static readonly Color         完了進行外枠色    = Color.FromArgb("#22C55E");
+    private static readonly Color         既定進行外枠色    = Color.FromArgb("#64748B");
+    private                 ベンチマークタブ進行    進行値;
+    private                 bool          実行中か値;
+    private                 bool          最終完了か値;
+    private                 bool          完了進行を最終完了として扱うか値;
+    private                 string        ベンチマークシェア概要短文値 = ベンチマーク改善プロンプトビルダー.概要を作成([]).短縮表示文字列;
+    public                  ベンチマークソースタブ定義 定義  { get; }=定義;
+    public                  ベンチマークソースタブ   タブ  => this.定義.タブ;
+    public                  string        ID  => this.定義.ID;
+    public                  string        表示名 => this.定義.表示名;
     public ベンチマークタブ進行 進行 {
         get => this.進行値;
         private set {
@@ -288,28 +273,23 @@ public sealed class 監視可能範囲コレクション<T項目>:ObservableColl
     }
 }
 
-public sealed class ベンチマークソースタブ表示状態:ObservableObject {
-    private double チャート高さ値 = 300;
-    private string ベンチマークシェア概要文値 = string.Empty;
-    private bool? ベンチマーク選択状態値;
-    private string チャート空理由文字列値 = "ベンチマークを実行するか、保存済み DB 実行を選択してください。";
-    private string チャート空理由ツールチップ文字列値 = "計測結果または保存済み DB 実行が選択されると比較チャートを表示します。";
-
-    public ベンチマークソースタブ表示状態(ベンチマークソースタブ定義 定義) {
-        this.定義=定義;
-    }
-
-    public ベンチマークソースタブ定義 定義 { get; }
-    public 監視可能範囲コレクション<ベンチマーク表行> 行一覧 { get; } = [];
-    public ObservableCollection<チャート比較点> チャート点一覧 { get; } = [];
-    public Dictionary<string,int> 行キー別チャート点インデックス { get; } = new(StringComparer.OrdinalIgnoreCase);
-    internal HashSet<チャート比較点> UI選択チャート棒一覧 { get; } = [];
-    internal HashSet<ベンチマーク表行> 更新対象チャート行一覧 { get; } = [];
-    internal bool チャート全体再構築が必要か { get; set; } = true;
-    public ObservableCollection<ベンチマーク診断行> 遅延ホットスポット行一覧 { get; } = [];
-    public ObservableCollection<ベンチマーク診断行> 割り当て診断行一覧 { get; } = [];
-    public ObservableCollection<ベンチマーク診断行> CPUタイムライン行一覧 { get; } = [];
-    public IReadOnlyList<ベンチマーク比較行> 比較行一覧 { get; set; } = [];
+public sealed class ベンチマークソースタブ表示状態(ベンチマークソースタブ定義 定義):ObservableObject {
+    private  double                          チャート高さ値      = 300;
+    private  string                          ベンチマークシェア概要文値= string.Empty;
+    private  bool?                           ベンチマーク選択状態値;
+    private  string                          チャート空理由文字列値      = "ベンチマークを実行するか、保存済み DB 実行を選択してください。";
+    private  string                          チャート空理由ツールチップ文字列値= "計測結果または保存済み DB 実行が選択されると比較チャートを表示します。";
+    public   ベンチマークソースタブ定義                   定義              { get; }     =定義;
+    public   監視可能範囲コレクション<ベンチマーク表行>          行一覧             { get; }     = [];
+    public   ObservableCollection<チャート比較点>   チャート点一覧         { get; }     = [];
+    public   Dictionary<string,int>          行キー別チャート点インデックス { get; }     = [with(StringComparer.OrdinalIgnoreCase)];
+    internal HashSet<チャート比較点>                UI選択チャート棒一覧     { get; }     = [];
+    internal HashSet<ベンチマーク表行>               更新対象チャート行一覧     { get; }     = [];
+    internal bool                            チャート全体再構築が必要か   { get; set; }= true;
+    public   ObservableCollection<ベンチマーク診断行> 遅延ホットスポット行一覧    { get; }     = [];
+    public   ObservableCollection<ベンチマーク診断行> 割り当て診断行一覧       { get; }     = [];
+    public   ObservableCollection<ベンチマーク診断行> CPUタイムライン行一覧    { get; }     = [];
+    public   IReadOnlyList<ベンチマーク比較行>        比較行一覧           { get; set; }= [];
 
     internal event EventHandler? チャート選択変更時;
 
@@ -362,18 +342,12 @@ public sealed record ベンチマーク診断行(
 
 public sealed record ベンチマーク自動スクロール要求(ベンチマークソースタブ ソースタブ,string メソッド名,string 行キー,int 連番);
 
-public sealed class ベンチマーク改善候補行:ObservableObject {
-    private bool 選択中か値;
-
-    public ベンチマーク改善候補行(ベンチマーク改善候補 候補,bool 選択中か値) {
-        this.候補=候補;
-        this.選択中か値=選択中か値;
-    }
-
+public sealed class ベンチマーク改善候補行(ベンチマーク改善候補 候補,bool 選択中か値):ObservableObject {
+    private bool               選択中か値=選択中か値;
     public event EventHandler? 選択変更時;
 
-    internal ベンチマーク改善候補 候補 { get; }
-    public string キー => this.候補.キー;
+    internal ベンチマーク改善候補 候補 { get; }=候補;
+    public   string     キー => this.候補.キー;
 
     public bool 選択中か {
         get => this.選択中か値;
@@ -1141,22 +1115,14 @@ public sealed class ベンチマークプロジェクトセル:ObservableObject 
     }
 }
 
-public sealed class ベンチマーク列選択グループ:ObservableObject {
-    private string 見出し文字列値;
-
-    public ベンチマーク列選択グループ(string ID,string 見出し文字列値,IReadOnlyList<string> 列キー一覧) {
-        this.ID=ID;
-        this.見出し文字列値=見出し文字列値;
-        this.列キー一覧=列キー一覧;
-    }
-
-    public string ID { get; }
+public sealed class ベンチマーク列選択グループ(string id,string 見出し文字列値,IReadOnlyList<string> 列キー一覧):ObservableObject {
+    private string 見出し文字列値=見出し文字列値;
+    public  string ID { get; }=id;
     public string 見出し文字列 {
         get => this.見出し文字列値;
         private set => this.SetProperty(ref this.見出し文字列値,value);
     }
-    public IReadOnlyList<string> 列キー一覧 { get; }
-
+    public IReadOnlyList<string> 列キー一覧 { get; }=列キー一覧;
     public void 見出し文字列を設定(string 値) {
         this.見出し文字列=値;
     }
@@ -1914,25 +1880,17 @@ internal static class ベンチマーク引数ツールチップフォーマッ�
         };
 }
 
-public sealed class CPU選択項目:ObservableObject {
-    private bool 選択中か値;
-    private string 実行状態文字列値 = "待機";
-    private string 状態画像ソース値 = ベンチマーク状態画像名.CPU待機中;
-    private string 現在ジョブ文字列値 = string.Empty;
-    private bool ジョブ実行中か値;
-
-    public CPU選択項目(int 論理プロセッサインデックス,CPUコア種別 コア種別,int 物理コアインデックス,int 種別内コアインデックス,bool 選択中か値) {
-        this.論理プロセッサインデックス=論理プロセッサインデックス;
-        this.コア種別=コア種別;
-        this.物理コアインデックス=物理コアインデックス;
-        this.種別内コアインデックス=種別内コアインデックス;
-        this.選択中か値=選択中か値;
-    }
-
-    public int 論理プロセッサインデックス { get; }
-    public CPUコア種別 コア種別 { get; }
-    public int 物理コアインデックス { get; }
-    public int 種別内コアインデックス { get; }
+public sealed class CPU選択項目(int 論理プロセッサインデックス,CPUコア種別 コア種別,int 物理コアインデックス,int 種別内コアインデックス,bool 選択中か値)
+    :ObservableObject {
+    private bool    選択中か値    =選択中か値;
+    private string  実行状態文字列値 = "待機";
+    private string  状態画像ソース値 = ベンチマーク状態画像名.CPU待機中;
+    private string  現在ジョブ文字列値= string.Empty;
+    private bool    ジョブ実行中か値;
+    public  int     論理プロセッサインデックス { get; }=論理プロセッサインデックス;
+    public  CPUコア種別 コア種別          { get; }=コア種別;
+    public  int     物理コアインデックス    { get; }=物理コアインデックス;
+    public  int     種別内コアインデックス   { get; }=種別内コアインデックス;
     public string コアラベル => this.コア種別 switch {
         CPUコア種別.高性能 => "P"+this.種別内コアインデックス,
         CPUコア種別.高効率 => "E"+this.種別内コアインデックス,
@@ -2115,16 +2073,11 @@ public sealed class CPU表行:ObservableObject {
     }
 }
 
-public sealed class CPU表列:ObservableObject {
-    public CPU表列(int インデックス,string タイトル) {
-        this.インデックス=インデックス;
-        this.タイトル=タイトル;
-    }
-
-    public int インデックス { get; }
-    public string タイトル { get; }
-    public CPU表区分? 区分 { get; internal set; }
-    public bool チェック済みか => this.区分?.列状態を取得(this.インデックス)==CPU選択状態.チェック済み;
+public sealed class CPU表列(int インデックス,string タイトル):ObservableObject {
+    public int     インデックス  { get; }=インデックス;
+    public string  タイトル    { get; }=タイトル;
+    public CPU表区分? 区分      { get; internal set; }
+    public bool    チェック済みか => this.区分?.列状態を取得(this.インデックス)==CPU選択状態.チェック済み;
 
     public void 更新() {
         this.OnPropertyChanged(nameof(this.チェック済みか));

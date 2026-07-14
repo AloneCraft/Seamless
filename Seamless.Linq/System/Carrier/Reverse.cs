@@ -32,7 +32,7 @@ namespace Seamless.System.Carrier {
                 if(destination.Length>=count) {
                     // and ok to copy then reverse.
                     if(this.source.TryCopyTo(destination,0)) {
-                        MemoryExtensions.Reverse(destination.Slice(0,count));
+                        MemoryExtensions.Reverse(destination[..count]);
                         return true;
                     }
                 }

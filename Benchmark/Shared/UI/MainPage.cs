@@ -20,8 +20,7 @@ public sealed partial class MainPage:ContentPage {
     private const double ベンチマーク上部全選択領域幅 = ベンチマーク集約チェックボックス寸法+4;
     // ベンチマーク進捗概要バッジの幅
     private const double ベンチマーク進行概要バッジ幅 = 280;
-    private const double ベンチマーク_型 = 80;
-    private const double ベンチマーク_ベンチマーク = 240;
+    private const double ベンチマーク_ベンチマーク = 320;
     private const double ベンチマークCPU = 58;
     private const double ベンチマーク_ループ = 64;
     // ベンチマーク引数列の幅
@@ -32,7 +31,7 @@ public sealed partial class MainPage:ContentPage {
     private const double ベンチマークメモリ引数列幅 = 96;
     // ベンチマーク簡易引数列の幅
     private const double ベンチマークコンパクト引数列幅 = 64;
-    private const double ベンチマーク_日時 = 176;
+    private const double ベンチマーク_日時 = 132;
     private const double 時間 = 78;
     private const double メモリ = 78;
     // ベンチマークのペア停止回数列の幅
@@ -1112,7 +1111,7 @@ public sealed partial class MainPage:ContentPage {
         };
         if(this.ビューモデル is not null) {
             this.ビューモデル.PropertyChanged+=(_,イベント引数) => {
-                if(イベント引数.PropertyName is nameof(実行ビューモデル.選択ソースタブ) or nameof(実行ビューモデル.ベンチマーク型列ありか)) {
+                if(イベント引数.PropertyName==nameof(実行ビューモデル.選択ソースタブ)) {
                     起動診断.メインスレッドで呼び出し開始("ソースタブのビューモデルプロパティ "+イベント引数.PropertyName,() => {
                         this.ソースタブビュー選択を同期();
                         選択中ソースタブ内容を保証();
@@ -1616,7 +1615,7 @@ public sealed partial class MainPage:ContentPage {
         var 選択肢一覧 = new[] { new タブ見出し選択肢("時間シェア"),new タブ見出し選択肢("メモリシェア") };
         var 時間ホスト = new Grid { BackgroundColor=Colors.White };
         var メモリホスト = new Grid { BackgroundColor=Colors.White };
-        タブ一覧.Items=new TabItemCollection {
+        タブ一覧.Items=[
             new SfTabItem {
                 Header="時間シェア",
                 HeaderContent=this.タブ見出しを作成(選択肢一覧[0],() => タブ一覧.SelectedIndex=0),
@@ -1629,7 +1628,7 @@ public sealed partial class MainPage:ContentPage {
                 FontSize=12,
                 Content=メモリホスト,
             },
-        };
+        ];
         選択肢一覧[0].選択状態を設定(true);
         ベンチマーク表行? フォーカス行 = null;
         SfCartesianChart? 時間チャート = null;
@@ -1868,8 +1867,9 @@ public sealed partial class MainPage:ContentPage {
         グリッド.StackedHeaderRows.Add(プロジェクト見出し行);
 
         グリッド.Columns.Add(this.チェック列を作成(グリッド,ソースタブ));
-        グリッド.Columns.Add(this.テキスト列を作成("型",nameof(ベンチマーク表行.ベンチマーク型文字列),ベンチマークグリッドソート列.ベンチマーク型,ベンチマーク_型,TextAlignment.End));
-        グリッド.Columns.Add(this.テキスト列を作成("ベンチマーク",nameof(ベンチマーク表行.ベンチマークメソッド文字列),ベンチマークグリッドソート列.ベンチマークメソッド,ベンチマーク_ベンチマーク,TextAlignment.End));
+        foreach(var 列 in ベンチマーク固定列UI一覧を取得()) {
+            グリッド.Columns.Add(this.テキスト列を作成(列.見出し,列.プロパティ,列.ソート列,列.幅,列.配置));
+        }
         var CPUマッピング = nameof(ベンチマーク表行.論理プロセッサ文字列);
         グリッド.Columns.Add(this.CPU列を作成(CPUマッピング));
         var ループマッピング = nameof(ベンチマーク表行.ループ回数文字列);
@@ -2013,7 +2013,6 @@ public sealed partial class MainPage:ContentPage {
         IReadOnlyList<string> 引数マッピング一覧) {
         var 基本マッピング一覧 = new List<string> {
             nameof(ベンチマーク表行.選択チェック状態),
-            nameof(ベンチマーク表行.ベンチマーク型文字列),
             nameof(ベンチマーク表行.ベンチマークメソッド文字列),
             CPUマッピング,
             ループマッピング,
@@ -2142,6 +2141,21 @@ public sealed partial class MainPage:ContentPage {
             スケーラブルベンチマーク引数列.Data => new("Data",nameof(ベンチマーク表行.Data引数),ベンチマークグリッドソート列.引数データ,ベンチマークコンパクト引数列幅),
             _ => throw new ArgumentOutOfRangeException(nameof(列)),
         };
+
+    private static IReadOnlyList<ベンチマーク固定列UI> ベンチマーク固定列UI一覧を取得() =>
+        [new(
+            "ベンチマーク",
+            nameof(ベンチマーク表行.ベンチマークメソッド文字列),
+            ベンチマークグリッドソート列.ベンチマークメソッド,
+            ベンチマーク_ベンチマーク,
+            TextAlignment.End)];
+
+    private readonly record struct ベンチマーク固定列UI(
+        string 見出し,
+        string プロパティ,
+        ベンチマークグリッドソート列 ソート列,
+        double 幅,
+        TextAlignment 配置);
 
     private readonly record struct ベンチマーク引数列UI(
         string 見出し,

@@ -22,7 +22,7 @@ public sealed class Set<T>:Seamless.Collections.ISet<T>, IDisposable {
     public void Add(T item) => this.list.Add(item);
 
     public Set<T> Compact() {
-        this.list.GetType().GetMethod(nameof(Compact),Type.EmptyTypes)!.Invoke(this.list,null);
+        this.list.GetType().GetMethod(nameof(this.Compact),Type.EmptyTypes)!.Invoke(this.list,null);
         return this;
     }
 
@@ -57,20 +57,22 @@ public sealed class Set<T>:Seamless.Collections.ISet<T>, IDisposable {
     }
 }
 
-public class SerializedSet<T>:SerializedSet<T,MemoryPackSerializer<T>>
-    where T : struct {
-    public SerializedSet(string path,long initialCapacity = 16,long initialDataCapacity = 4096,StorageTuning? tuning = null)
-        : base(path,initialCapacity,initialDataCapacity,tuning) {
-    }
-}
+public class SerializedSet<T>(
+    string         path,
+    long           initialCapacity    =16,
+    long           initialDataCapacity=4096,
+    StorageTuning? tuning             =null)
+    :SerializedSet<T,MemoryPackSerializer<T>>(path,initialCapacity,initialDataCapacity,tuning)
+where T : struct;
 
-public class SerializedSet<T, TSerializer>:SerializedList<T,TSerializer>, IReadOnlySet<T>
-    where TSerializer : ISerializer<T> {
-    public SerializedSet(string path,long initialCapacity = 16,long initialDataCapacity = 4096,StorageTuning? tuning = null)
-        : base(path,initialCapacity,initialDataCapacity,tuning) {
-    }
-
-    public SerializedSet<T,TSerializer> Compact() {
+public class SerializedSet<T,TSerializer>(
+    string         path,
+    long           initialCapacity    =16,
+    long           initialDataCapacity=4096,
+    StorageTuning? tuning             =null)
+    :SerializedList<T,TSerializer>(path,initialCapacity,initialDataCapacity,tuning),IReadOnlySet<T>
+where TSerializer : ISerializer<T> {
+        public SerializedSet<T,TSerializer> Compact() {
         this.DuplicateRemoval();
         return this;
     }
@@ -93,9 +95,10 @@ public class SerializedSet<T, TSerializer>:SerializedList<T,TSerializer>, IReadO
     public bool SetEquals(IEnumerable<T> other) => new global::System.Collections.Generic.HashSet<T>(this).SetEquals(other);
 }
 
-public sealed class BlittableSet<T>:SerializedSet<T,BlittableSerializer<T>>
-    where T : unmanaged {
-    public BlittableSet(string path,long initialCapacity = 16,long initialDataCapacity = 4096,StorageTuning? tuning = null)
-        : base(path,initialCapacity,initialDataCapacity,tuning) {
-    }
-}
+public sealed class BlittableSet<T>(
+    string         path,
+    long           initialCapacity    =16,
+    long           initialDataCapacity=4096,
+    StorageTuning? tuning             =null)
+    :SerializedSet<T,BlittableSerializer<T>>(path,initialCapacity,initialDataCapacity,tuning)
+where T : unmanaged;

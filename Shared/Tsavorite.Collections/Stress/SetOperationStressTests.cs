@@ -58,19 +58,19 @@ public class SetOperationStressTests {
                         expected.UnionWith(keysB);
                         switch(opName) {
                             case "IntersectWith":
-                                expected=new global::System.Collections.Generic.HashSet<int>(keysA);
+                                expected=[with(keysA)];
                                 expected.IntersectWith(keysB);
                                 break;
                             case "SymmetricExceptWith":
-                                expected=new global::System.Collections.Generic.HashSet<int>(keysA);
+                                expected=[with(keysA)];
                                 expected.SymmetricExceptWith(keysB);
                                 break;
                             case "UnionWith":
-                                expected=new global::System.Collections.Generic.HashSet<int>(keysA);
+                                expected=[with(keysA)];
                                 expected.UnionWith(keysB);
                                 break;
                             case "ExceptWith":
-                                expected=new global::System.Collections.Generic.HashSet<int>(keysA);
+                                expected=[with(keysA)];
                                 expected.ExceptWith(keysB);
                                 break;
                             default:

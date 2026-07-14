@@ -257,11 +257,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// 未保存ベンチマーク結果ありか値 フィールドです。
     /// </summary>
     private bool 内部未保存ベンチマーク結果ありか;
-    /// <summary>
-    /// ベンチマーク型列ありか値 フィールドです。
-    /// </summary>
-    private bool 内部ベンチマーク型列ありか = true;
-    /// <summary>
     /// 現在ソート列値 フィールドです。
     /// </summary>
     private ベンチマークグリッドソート列 現在ソート列値 = ベンチマークグリッドソート列.ベンチマークメソッド;
@@ -285,23 +280,23 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// <summary>
     /// ベンチマーク行選択状態 フィールドです。
     /// </summary>
-    private readonly Dictionary<string,bool> ベンチマーク行選択状態 = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string,bool> ベンチマーク行選択状態 = [with(StringComparer.OrdinalIgnoreCase)];
     /// <summary>
     /// 改善候補選択状態 フィールドです。
     /// </summary>
-    private readonly Dictionary<string,bool> 改善候補選択状態 = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string,bool> 改善候補選択状態 = [with(StringComparer.OrdinalIgnoreCase)];
     /// <summary>
     /// プロジェクトメソッド別ベンチマークケース フィールドです。
     /// </summary>
-    private readonly Dictionary<string,ベンチマークケース> プロジェクトメソッド別ベンチマークケース = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string,ベンチマークケース> プロジェクトメソッド別ベンチマークケース = [with(StringComparer.OrdinalIgnoreCase)];
     /// <summary>
     /// 結果キー別ベンチマーク行 フィールドです。
     /// </summary>
-    private readonly Dictionary<string,ベンチマーク表行> 結果キー別ベンチマーク行 = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string,ベンチマーク表行> 結果キー別ベンチマーク行 = [with(StringComparer.OrdinalIgnoreCase)];
     /// <summary>
     /// プロジェクトメソッド別ベンチマーク行 フィールドです。
     /// </summary>
-    private readonly Dictionary<string,ベンチマーク表行> プロジェクトメソッド別ベンチマーク行 = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string,ベンチマーク表行> プロジェクトメソッド別ベンチマーク行 = [with(StringComparer.OrdinalIgnoreCase)];
     /// <summary>
     /// ソースタブ実行中状態 フィールドです。
     /// </summary>
@@ -349,7 +344,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// <summary>
     /// 報告済みメタデータ警告 フィールドです。
     /// </summary>
-    private readonly HashSet<string> 報告済みメタデータ警告 = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> 報告済みメタデータ警告 = [with(StringComparer.OrdinalIgnoreCase)];
     /// <summary>
     /// 実行状態ゲート フィールドです。
     /// </summary>
@@ -857,15 +852,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     public bool 現在ソート降順か {
         get => this.内部現在ソート降順か;
         private set => this.SetProperty(ref this.内部現在ソート降順か,value);
-    }
-
-    /// <summary>
-    /// ベンチマーク型列ありか プロパティです。
-    /// </summary>
-    /// <value>ベンチマーク型列ありか の値を取得/設定します。</value>
-    public bool ベンチマーク型列ありか {
-        get => this.内部ベンチマーク型列ありか;
-        private set => this.SetProperty(ref this.内部ベンチマーク型列ありか,value);
     }
 
     /// <summary>
@@ -5816,16 +5802,14 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// IDisposable プロパティです。
     /// </summary>
     /// <value>IDisposable の値を取得/設定します。</value>
-    private sealed class データグリッド更新バッチスコープ:IDisposable {
-        private readonly 実行ビューモデル 所有者;
-        private bool 破棄済みか;
-        public データグリッド更新バッチスコープ(実行ビューモデル 所有者) => this.所有者=所有者;
+    private sealed class データグリッド更新バッチスコープ(実行ビューモデル 所有者):IDisposable {
+        private          bool     破棄済みか;
         public void Dispose() {
             if(this.破棄済みか) {
                 return;
             }
             this.破棄済みか=true;
-            this.所有者.データグリッド更新バッチを終了();
+            所有者.データグリッド更新バッチを終了();
         }
     }
 
@@ -5863,16 +5847,14 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// IDisposable プロパティです。
     /// </summary>
     /// <value>IDisposable の値を取得/設定します。</value>
-    private sealed class チャート更新バッチスコープ:IDisposable {
-        private readonly 実行ビューモデル 所有者;
-        private bool 破棄済みか;
-        public チャート更新バッチスコープ(実行ビューモデル 所有者) => this.所有者=所有者;
+    private sealed class チャート更新バッチスコープ(実行ビューモデル 所有者):IDisposable {
+        private          bool     破棄済みか;
         public void Dispose() {
             if(this.破棄済みか) {
                 return;
             }
             this.破棄済みか=true;
-            this.所有者.チャート更新バッチを終了();
+            所有者.チャート更新バッチを終了();
         }
     }
 
@@ -8738,7 +8720,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// ベンチマークソート列を更新 メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
     private void ベンチマークソート列を更新() {
-        this.ベンチマーク型列ありか=true;
         this.ベンチマークソート列選択肢を更新();
         var 規則一覧 = this.有効ソート規則を作成(this.ベンチマークソート規則一覧).ToArray();
         if(規則一覧.Length==0) {
@@ -8763,9 +8744,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// </summary>
     /// <returns>処理結果を返却します。</returns>
     private IEnumerable<ベンチマークグリッドソート列> 利用可能ソート列を作成() {
-        if(this.ベンチマーク型列ありか) {
-            yield return ベンチマークグリッドソート列.ベンチマーク型;
-        }
         yield return ベンチマークグリッドソート列.ベンチマークメソッド;
         yield return ベンチマークグリッドソート列.論理CPU;
         foreach(var 列 in ベンチマーク引数列一覧.取得(this.選択ソース定義)) {
@@ -8822,16 +8800,8 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// 既定ソート規則を作成 メソッドを実行し、結果を算出して返却します。
     /// </summary>
     /// <returns>処理結果を返却します。</returns>
-    private IReadOnlyList<ベンチマークソート規則> 既定ソート規則を作成() {
-        if(this.ベンチマーク型列ありか) {
-            return [
-                new ベンチマークソート規則(ベンチマークグリッドソート列.ベンチマーク型),
-                new ベンチマークソート規則(ベンチマークグリッドソート列.ベンチマークメソッド),
-            ];
-        }
-
-        return [new ベンチマークソート規則(ベンチマークグリッドソート列.ベンチマークメソッド)];
-    }
+    private IReadOnlyList<ベンチマークソート規則> 既定ソート規則を作成() =>
+        [new ベンチマークソート規則(ベンチマークグリッドソート列.ベンチマークメソッド)];
 
     /// <summary>
     /// ベンチマークソート規則を既定へ戻す メソッドを実行し、副作用として内部状態を更新または描画反映します。

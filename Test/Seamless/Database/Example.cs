@@ -72,10 +72,8 @@ namespace Test.Seamless.Database.Example {
             public static void Deserialize(ref MemoryPackReader reader,scoped ref Key0 value) {
                 value=new(reader.ReadVarIntInt32(),reader.ReadString()!);
             }
-            public readonly ref struct Stack {
-                private readonly ReadOnlySpan<byte> data;
-                public Stack(ReadOnlySpan<byte> input) => this.data=input;
-
+            public readonly ref struct Stack(ReadOnlySpan<byte> input) {
+                private readonly ReadOnlySpan<byte> data=input;
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 public static implicit operator Key0(Stack view) =>
                     MemoryPackSerializer.Deserialize<Key0>(view.data)!
@@ -91,10 +89,8 @@ namespace Test.Seamless.Database.Example {
             public Type0(int Column0,string Column1,int Column2,string Column3) : this(new Key0(Column0,Column1),Column2,Column3) {
             }
 
-            public readonly ref struct Stack {
-                private readonly ReadOnlySpan<byte> data;
-                public Stack(ReadOnlySpan<byte> input) => this.data=input;
-
+            public readonly ref struct Stack(ReadOnlySpan<byte> input) {
+                private readonly ReadOnlySpan<byte> data=input;
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 public static implicit operator Type0(Stack view) =>
                     MemoryPackSerializer.Deserialize<Type0>(view.data)!

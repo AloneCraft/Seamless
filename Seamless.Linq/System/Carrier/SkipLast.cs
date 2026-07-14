@@ -66,7 +66,7 @@ namespace Seamless.System.Carrier {
                     return false;
                 }
 
-                return this.source.TryCopyTo(destination.Slice(0,elementsToCopy),sourceOffset);
+                return this.source.TryCopyTo(destination[..elementsToCopy],sourceOffset);
             }
 
             return false;
