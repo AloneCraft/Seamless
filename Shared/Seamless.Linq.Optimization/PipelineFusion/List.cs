@@ -1,5 +1,5 @@
-namespace Seamless.Linq.Optimization;
-public abstract class EnumerablePipeline<T>(int count = 4_096):EnumerableSource<T>(count) where T : notnull {
+namespace Seamless.Linq.Optimization.PipelineFusion;
+public abstract class List<T>(int count = 4_096):ListSource<T>(count) where T : notnull {
     [BenchFact, Benchmark] public void Where_predicate_Select_selector() => this.Where_predicate_Select_selector_Impl();
     [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Where_predicate_Select_selector_Impl() => this.Source().Where(static value => (ToInt(value)&1)==0).Select(static value => ToInt(value)*2).Consume(this.consumer);
 }

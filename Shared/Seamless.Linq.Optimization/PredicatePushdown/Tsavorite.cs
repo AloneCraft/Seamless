@@ -1,5 +1,5 @@
-namespace Seamless.Linq.Optimization;
-public abstract class TsavoritePushdown<T>(int count = 4_096):global::Common.TsavoriteBase<T>(count) where T : notnull {
+namespace Seamless.Linq.Optimization.PredicatePushdown;
+public abstract class Tsavorite<T>(int count = 4_096):global::Common.TsavoriteBase<T>(count) where T : notnull {
     [BenchFact, Benchmark] public void Select_selector_Where_predicate() => this.Select_selector_Where_predicate_Impl();
     [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Select_selector_Where_predicate_Impl() => this.srcCount(4_096).Select(static value => (Value: value,Number: ToInt(value))).Where(static value => (value.Number&1)==0).Consume(this.consumer);
 }

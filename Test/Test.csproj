@@ -48,6 +48,7 @@
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
+    <ProjectReference Include="..\Benchmark\Benchmark.Optimization.All\Benchmark.Optimization.All.csproj" />
   </ItemGroup>
   <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'!='true'">
     <Compile Remove="BenchmarkWorker\BenchmarkGridKeyLogic.cs" />
@@ -80,6 +81,7 @@
   <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'">
     <Compile Remove="**\*.cs" />
     <Compile Include="Benchmark\Pattern.cs" />
+    <Compile Include="Benchmark\BenchmarkDisplayName.cs" />
     <Compile Include="Benchmark\シェア値.cs" />
     <Compile Include="Benchmark\BenchmarkImprovementPromptBuilder.cs" />
     <Compile Include="BenchmarkWorker\BenchmarkGridKeyLogic.cs" />
