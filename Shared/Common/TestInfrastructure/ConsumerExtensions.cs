@@ -1,4 +1,3 @@
-using ZLinq;
 namespace Common;
 
 internal static class ConsumerExtensions {
@@ -8,8 +7,8 @@ internal static class ConsumerExtensions {
         }
     }
 
-    public static void Consume<TEnumerator, T>(this ValueEnumerable<TEnumerator,T> source,Consumer consumer)
-        where TEnumerator : struct, IValueEnumerator<T>, allows ref struct {
+    public static void Consume<TEnumerator, T>(this global::ZLinq.ValueEnumerable<TEnumerator,T> source,Consumer consumer)
+        where TEnumerator : struct, global::ZLinq.IValueEnumerator<T>, allows ref struct {
         using var e = source.Enumerator;
         while(e.TryGetNext(out var item)) {
             consumer.Consume(item);

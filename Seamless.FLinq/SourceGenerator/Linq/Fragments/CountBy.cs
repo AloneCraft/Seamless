@@ -22,7 +22,7 @@ public class CountBy(int 番号,Enumerable source,FuncFragment keySelector):Enum
     private static string CapacityExpression(string sourceCountExpression) => sourceCountExpression;
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumerableExpression =>
-        $"global::Seamless.System.Carrier.ValueEnumerableExtensions.CountBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()})";
+        $"global::Seamless.Linq.Enumerable.CountBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}

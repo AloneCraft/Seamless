@@ -24,6 +24,26 @@
     <EmitCompilerGeneratedFiles>false</EmitCompilerGeneratedFiles>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="artifacts\**" />
+    <Compile Remove="TestResults\**" />
+    <Compile Remove="Work\**" />
+    <EmbeddedResource Remove="artifacts\**" />
+    <EmbeddedResource Remove="TestResults\**" />
+    <EmbeddedResource Remove="Work\**" />
+    <MauiCss Remove="artifacts\**" />
+    <MauiCss Remove="TestResults\**" />
+    <MauiCss Remove="Work\**" />
+    <MauiXaml Remove="artifacts\**" />
+    <MauiXaml Remove="TestResults\**" />
+    <MauiXaml Remove="Work\**" />
+    <None Remove="artifacts\**" />
+    <None Remove="TestResults\**" />
+    <None Remove="Work\**" />
+    <Page Remove="artifacts\**" />
+    <Page Remove="TestResults\**" />
+    <Page Remove="Work\**" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -49,6 +69,7 @@
   <ItemGroup>
     <Using Include="Xunit" />
     <ProjectReference Include="..\Benchmark\Benchmark.Optimization.All\Benchmark.Optimization.All.csproj" />
+    <ProjectReference Include="..\Seamless.Linq.Analyzers\Seamless.Linq.Analyzers.csproj" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'!='true'">
     <Compile Remove="BenchmarkWorker\BenchmarkGridKeyLogic.cs" />
@@ -81,6 +102,7 @@
   <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'">
     <Compile Remove="**\*.cs" />
     <Compile Include="Benchmark\Pattern.cs" />
+    <Compile Include="Benchmark\BenchmarkThreeSeriesDisplay.cs" />
     <Compile Include="Benchmark\BenchmarkDisplayName.cs" />
     <Compile Include="Benchmark\シェア値.cs" />
     <Compile Include="Benchmark\BenchmarkImprovementPromptBuilder.cs" />
@@ -105,8 +127,15 @@
     <ApplicationDefinition Remove="..\Benchmark\Shared\UI\Platforms\Windows\App.xaml" />
     <Compile Remove="..\Benchmark\Shared\UI\Platforms\Windows\App.xaml.cs" />
   </ItemGroup>
-  <Target Name="CleanCompilerGeneratedFiles" BeforeTargets="CoreCompile" Condition="'$(EmitCompilerGeneratedFiles)'=='true'">
-    <RemoveDir Directories="$(CompilerGeneratedFilesOutputPath)" />
-  </Target>
+  <ItemGroup>
+    <PRIResource Remove="Work\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <PRIResource Remove="TestResults\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <PRIResource Remove="artifacts\**" />
+  </ItemGroup>
+
 </Project>
 

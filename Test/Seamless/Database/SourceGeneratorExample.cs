@@ -203,9 +203,10 @@ namespace Test.Seamless.Database.Database0 {
             var インターセプト後 = 置き換え先メソッド(new int[3],new int[2]);
             static List<int> 置き換え先メソッド(int[] outer,int[] inner) {
                 var result0 = new List<int>();
-                var Lookup = new LookupImpl<int,int>(EqualityComparer<int>.Default);
+                var lookupBuilder = new LookupBuilder<int,int>(EqualityComparer<int>.Default);
                 foreach(var item in inner)
-                    Lookup.Add(StructJoin.innerKeySelector1(item),item);
+                    lookupBuilder.Add(StructJoin.innerKeySelector1(item),item);
+                var Lookup = lookupBuilder.BuildAndClear();
                 foreach(var outerItem in outer) {
                     foreach(var innerItem in Lookup[StructJoin.outerKeySelector0(outerItem)]) {
                         var resultSelectorItem = StructJoin.resultSelector2(outerItem,innerItem);
@@ -228,9 +229,10 @@ namespace Test.Seamless.Database.Database0 {
             var インターセプト前 = new int[3].Where(p => p%2==0).Join(new int[2],o => o*2,i => i*3,(o,i) => o+i);
             var インターセプト後 = 置き換え先メソッド(new int[3],new int[2]);
             static List<int> 置き換え先メソッド(int[] outer,int[] inner) {
-                var Lookup = new LookupImpl<int,int>(EqualityComparer<int>.Default);
+                var lookupBuilder = new LookupBuilder<int,int>(EqualityComparer<int>.Default);
                 foreach(var item0 in inner)
-                    Lookup.Add(StructWhereJoin.innerKeySelector2(item0),item0);
+                    lookupBuilder.Add(StructWhereJoin.innerKeySelector2(item0),item0);
+                var Lookup = lookupBuilder.BuildAndClear();
                 var result0 = new List<int>();
                 foreach(var item0 in new int[3]) {
                     if(!StructWhereJoin.predicate0(item0)) continue;

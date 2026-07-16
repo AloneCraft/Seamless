@@ -59,7 +59,7 @@ internal static class TraversalSupport {
         var countName = $"__count_{setName}";
         if(capacityHint is not null) {
             builder.AppendLine("global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();");
-            builder.AppendLine($"using var {setName}=new global::Seamless.System.Carrier.HashSetSlim<{elementType}>({capacityHint},(global::System.Collections.Generic.IEqualityComparer<{elementType}>?){comparer});");
+            builder.AppendLine($"using var {setName}=new global::Seamless.Linq.HashSetSlim<{elementType}>({capacityHint},(global::System.Collections.Generic.IEqualityComparer<{elementType}>?){comparer});");
             return;
         }
         var hasCountName = $"__hasCount_{setName}";
@@ -67,8 +67,8 @@ internal static class TraversalSupport {
         builder.AppendLine($"var {hasCountName}={enumeratorName}.TryGetNonEnumeratedCount(out {countName});");
         builder.AppendLine($"if({hasCountName}) global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();");
         builder.AppendLine($"using var {setName}={hasCountName}");
-        builder.AppendLine($"    ? new global::Seamless.System.Carrier.HashSetSlim<{elementType}>({countName},(global::System.Collections.Generic.IEqualityComparer<{elementType}>?){comparer})");
-        builder.AppendLine($"    : new global::Seamless.System.Carrier.HashSetSlim<{elementType}>((global::System.Collections.Generic.IEqualityComparer<{elementType}>?){comparer});");
+        builder.AppendLine($"    ? new global::Seamless.Linq.HashSetSlim<{elementType}>({countName},(global::System.Collections.Generic.IEqualityComparer<{elementType}>?){comparer})");
+        builder.AppendLine($"    : new global::Seamless.Linq.HashSetSlim<{elementType}>((global::System.Collections.Generic.IEqualityComparer<{elementType}>?){comparer});");
     }
 
     public static string IndentBlock(string text,string indent) {

@@ -173,11 +173,12 @@ public sealed class CPUプリセットカタログ {
         var 行一覧 = new[]{
             報告行を作成("System.Array.FLinq","Select","Completed",5,10),
             報告行を作成("System.Array.ZLinq","Select","Completed",4,0),
+            報告行を作成("System.Array.Linq","Select","Completed",8,0),
         };
 
         var 比較 = Assert.Single(ベンチマーク比較フォーマッター.比較行を構築(行一覧));
 
-        Assert.Equal("0.56:0.44",比較.左右シェア.時間シェア.表示文字列);
+        Assert.Equal("0.38:0.62",比較.左右シェア.時間シェア.表示文字列);
         Assert.Equal("1.00:0.00",比較.左右シェア.メモリシェア.表示文字列);
         Assert.Equal(ベンチマークソースタブ.System配列,比較.ソースタブ.タブ);
     }
@@ -187,13 +188,14 @@ public sealed class CPUプリセットカタログ {
         var 行一覧 = ベンチマーク比較フォーマッター.比較行を構築([
             報告行を作成("System.Array.FLinq","Select","Completed",5,10),
             報告行を作成("System.Array.ZLinq","Select","Completed",4,0),
+            報告行を作成("System.Array.Linq","Select","Completed",8,0),
         ]);
 
         var 読込項目 = Assert.Single(行一覧);
 
         Assert.Equal(5,読込項目.左.時間ナノ秒);
         Assert.Equal(0,読込項目.右.割り当てバイト数);
-        Assert.Equal("0.56:0.44",読込項目.左右シェア.時間シェア.表示文字列);
+        Assert.Equal("0.38:0.62",読込項目.左右シェア.時間シェア.表示文字列);
     }
 
     [Fact]
@@ -201,6 +203,7 @@ public sealed class CPUプリセットカタログ {
         var 行一覧 = ベンチマーク比較フォーマッター.比較行を構築([
             報告行を作成("System.Array.FLinq","Select","Failed",5,10),
             報告行を作成("System.Array.ZLinq","Select","Completed",4,0),
+            報告行を作成("System.Array.Linq","Select","Completed",8,0),
         ]);
 
         var 比較 = Assert.Single(行一覧);
@@ -214,6 +217,7 @@ public sealed class CPUプリセットカタログ {
         var 行一覧 = ベンチマーク比較フォーマッター.比較行を構築([
             報告行を作成("System.Array.FLinq","Select","Completed",0,10),
             報告行を作成("System.Array.ZLinq","Select","Completed",4,0),
+            報告行を作成("System.Array.Linq","Select","Completed",8,0),
         ]);
 
         var 比較 = Assert.Single(行一覧);
@@ -228,6 +232,7 @@ public sealed class CPUプリセットカタログ {
         var 読込項目 = Assert.Single(ベンチマーク比較フォーマッター.比較行を構築([
             報告行を作成("System.Array.FLinq","Select","Completed",0,10),
             報告行を作成("System.Array.ZLinq","Select","Completed",4,0),
+            報告行を作成("System.Array.Linq","Select","Completed",8,0),
         ]));
 
         Assert.False(読込項目.左.測定値ありか);
@@ -240,6 +245,7 @@ public sealed class CPUプリセットカタログ {
         var 読込項目 = Assert.Single(ベンチマーク比較フォーマッター.比較行を構築([
             報告行を作成("System.Array.FLinq","Select","Completed",4400,0),
             報告行を作成("System.Array.ZLinq","Select","Completed",6800,0),
+            報告行を作成("System.Array.Linq","Select","Completed",9000,0),
         ]));
 
         Assert.Equal(0,読込項目.左.割り当てバイト数);

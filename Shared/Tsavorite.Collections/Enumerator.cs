@@ -317,8 +317,8 @@ public class Enumerator {
                     set.Add(value);
                 store.Store.Log.FlushAndEvict(wait: true);
                 //global::Seamless.Tsavorite.Const.Chunk_Length
-                var enumerated = new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
-                var e = set.GetEnumerator();
+                var       enumerated= new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+                using var e         = set.GetEnumerator();
                 while(e.MoveNext())
                     enumerated.Add(e.Current);
                 Assert.Equal(expected.Length,enumerated.Count);

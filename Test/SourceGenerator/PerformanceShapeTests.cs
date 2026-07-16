@@ -32,7 +32,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             !generated.Contains("global::System.Math.Min(__span.Length,1999)",StringComparison.Ordinal)
             &&!generated.Contains("global::System.Math.Min(__count,1999)",StringComparison.Ordinal)
             &&generated.Contains("var __capacity=__hasSpan",StringComparison.Ordinal)
-            &&generated.Contains("new global::Seamless.System.Carrier.LookupBuilder<int,int>(__capacity,null)",StringComparison.Ordinal)
+            &&generated.Contains("new global::Seamless.Linq.LookupBuilder<int,int>(__capacity,null)",StringComparison.Ordinal)
             &&generated.Contains("DictionarySlim<int,int>(global::System.Math.Min(__span.Length,1024))",StringComparison.Ordinal)
             &&generated.Contains("DictionarySlim<int,int>(global::System.Math.Min(__count,1024))",StringComparison.Ordinal),
             "Modulo key selectors must use the same input-derived capacity as general selectors.",
@@ -74,7 +74,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             &&!method.Contains("__countBySeen",StringComparison.Ordinal)
             &&!method.Contains("global::System.Buffers.ArrayPool<bool>.Shared.Rent(1999)",StringComparison.Ordinal)
             &&generated.Contains("TryGetSpan(out var __span)",StringComparison.Ordinal)
-            &&generated.Contains("new global::Seamless.System.Carrier.Internal.DictionarySlim<int,int>",StringComparison.Ordinal)
+            &&generated.Contains("new global::Seamless.Linq.Internal.DictionarySlim<int,int>",StringComparison.Ordinal)
             &&generated.Contains("__hashKeys",StringComparison.Ordinal),
             "Modulo selectors must not select a dedicated small-range consume implementation.",
             generated,
@@ -419,8 +419,8 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             compact.Contains(".Length)!=0",StringComparison.Ordinal)
             &&compact.Contains("=(long)(src.Length);",StringComparison.Ordinal)
             &&compact.Contains(".Compute(__s",StringComparison.Ordinal)
-            &&!generated.Contains("global::Seamless.System.Carrier.IValueEnumerator<bool>",StringComparison.Ordinal)
-            &&!generated.Contains("global::Seamless.System.Carrier.IValueEnumerator<long>",StringComparison.Ordinal),
+            &&!generated.Contains("global::Seamless.Linq.IValueEnumerator<bool>",StringComparison.Ordinal)
+            &&!generated.Contains("global::Seamless.Linq.IValueEnumerator<long>",StringComparison.Ordinal),
             "Scalar terminals should use source facts or static Compute inline without scalar enumerator structs.",
             generated,
             output);
@@ -457,7 +457,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             generated.Contains(".Compute(__s",StringComparison.Ordinal)
             &&generated.Contains("var count = 0;",StringComparison.Ordinal)
             &&!generated.Contains("long count = 0;",StringComparison.Ordinal)
-            &&!generated.Contains("global::Seamless.System.Carrier.IValueEnumerator<long>",StringComparison.Ordinal),
+            &&!generated.Contains("global::Seamless.Linq.IValueEnumerator<long>",StringComparison.Ordinal),
             "Predicate scalar terminals consumed as arguments should use static Compute inline without scalar enumerator structs.",
             generated,
             output);
@@ -516,7 +516,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains("global::Seamless.System.Carrier.HashSetSlim<int>",StringComparison.Ordinal)
+            generated.Contains("global::Seamless.Linq.HashSetSlim<int>",StringComparison.Ordinal)
             &&generated.Contains("using var __lk",StringComparison.Ordinal)
             &&!generated.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal),
             "Distinct fallback should use pooled HashSetSlim for internal duplicate tracking.",
@@ -554,7 +554,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains("global::Seamless.System.Carrier.HashSetSlim<int>",StringComparison.Ordinal)
+            generated.Contains("global::Seamless.Linq.HashSetSlim<int>",StringComparison.Ordinal)
             &&generated.Contains(".Remove(value)",StringComparison.Ordinal)
             &&!generated.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal),
             "Union/Except/Intersect internal sets should use HashSetSlim.",
@@ -703,7 +703,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains("global::Seamless.System.Carrier.HashSetSlim<string>",StringComparison.Ordinal)
+            generated.Contains("global::Seamless.Linq.HashSetSlim<string>",StringComparison.Ordinal)
             &&!generated.Contains("global::System.Collections.Generic.HashSet<string>",StringComparison.Ordinal),
             "UnionBy/ExceptBy/IntersectBy internal key sets should use HashSetSlim.",
             generated,
@@ -726,7 +726,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains("global::Seamless.System.Carrier.HashSetSlim<int>",StringComparison.Ordinal)
+            generated.Contains("global::Seamless.Linq.HashSetSlim<int>",StringComparison.Ordinal)
             &&generated.Contains(".Contains(",StringComparison.Ordinal)
             &&generated.Contains(".Dispose();",StringComparison.Ordinal)
             &&!generated.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal),
@@ -752,7 +752,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal)
-            &&!generated.Contains("global::Seamless.System.Carrier.HashSetSlim<int>",StringComparison.Ordinal),
+            &&!generated.Contains("global::Seamless.Linq.HashSetSlim<int>",StringComparison.Ordinal),
             "ToHashSet must keep returning System.Collections.Generic.HashSet<T>.",
             generated,
             output);

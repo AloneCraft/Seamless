@@ -30,21 +30,39 @@ internal static class LinqOptimizationContext {
     }
 }
 
+// 現在レンダリング中の傍受対象（Linq傍受対象型）が持つ「含有型＋メソッド自身」の
+// 型パラメータ名を、深くネストしたフラグメント構築コードへスレッドローカルに伝える。
+// 外側型パラメータ名(containingType) は含有型の階層しか見えないため、
+// FormatGroupBy<T> のようなメソッド自身がジェネリックなローカルメソッド傍受では
+// このアンビエント値がないと補助 struct が <T> を失う。
+internal static class InterceptedMethodTypeParameterContext {
+    [ThreadStatic] private static string[]? current;
+
+    public static string[]? Current => current;
+
+    public static Scope Enter(string[] value) {
+        var previous = current;
+        current=value;
+        return new(previous);
+    }
+
+    internal readonly struct Scope(string[]? previous):IDisposable {
+        public void Dispose() {
+            current=previous;
+        }
+    }
+}
+
 public sealed partial class FLinqIncrementalGenerator {
-    private static readonly DiagnosticDescriptor UnorderedOperationWarningDescriptor = new(
-        id: "FLINQ003",
-        title: "unordered Setで順序依存LINQが使用されています",
-        messageFormat: "'{0}'はunordered source '{1}'に直接適用できません。IEnumerable<T>へのinline castまたはAsEnumerable()で明示的にopt-inしてください。",
-        category: "Seamless.Usage",
-        defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
-    private static readonly DiagnosticDescriptor UnorderedOperationOptInDescriptor = new(
-        id: "FLINQ004",
-        title: "unordered Setの標準sequence意味論へopt-inしています",
-        messageFormat: "'{0}'はunordered source '{1}'の現在の列挙順で実行されます。順序は永続的ではありません。",
-        category: "Seamless.Usage",
-        defaultSeverity: DiagnosticSeverity.Info,
-        isEnabledByDefault: true);
+    private static readonly DiagnosticDescriptor 署名生成不能Descriptor = new(
+        id: "FLINQ005",
+        title: "generic interceptor署名を生成できません",
+        messageFormat: "'{0}' のgeneric interceptor署名を合法に再現できません: {1}",
+        category: "Tsavorite.Performance",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "外側から内側までの型パラメーターまたはwhere制約を生成コードから参照できないため、明示的に[LinqIntercept(false)]でopt-outしない限りビルドを禁止します.",
+        customTags: [WellKnownDiagnosticTags.NotConfigurable]);
 
     private sealed class フラグメント候補 {
         public required Type FragmentType { get; init; }
@@ -138,11 +156,12 @@ public sealed partial class FLinqIncrementalGenerator {
         private InterceptParameterSpec[] Parameters { get; } = parameters;
         public ローカルメソッドLinq解析結果 LinqAnalysis { get; } = linqAnalysis??ローカルメソッドLinq解析結果.Empty;
         private string? ExplicitSourceElementTypeName { get; } = sourceElementTypeName;
-        private string[] MethodTypeParameters { get; } = methodTypeParameterNames?? [];
+        // 含有型の型パラメータ＋メソッド自身の型パラメータ（全型パラメーター取得 の結果）。
+        // 傍受メソッド本体の再構成中、補助 struct を <T> でパラメータ化するために
+        // InterceptedMethodTypeParameterContext 経由でアンビエントに参照される。
+        public string[] MethodTypeParameters { get; } = methodTypeParameterNames?? [];
         // 傍受メソッドに付ける where 制約節（例: " where T : notnull"）。含有型がジェネリックのとき使う。
         public string TypeParameterConstraintClause { get; } = typeParameterConstraintClause??string.Empty;
-        // 含有型がジェネリックか。展開失敗時に throw スタブではなく「傍受を出さない（元実装のまま）」へ倒すために使う。
-        public bool ContainingTypeIsGeneric => this.Method.ContainingType.IsGenericType;
         public bool IsLocalMethodInterception { get; } = isLocalMethodInterception;
         public bool OptimizeLinq { get; } = optimizeLinq;
         public LinqOptimizations Optimizations => LinqOptimizations判定(this.Method,this.SemanticModel.Compilation);
@@ -186,6 +205,7 @@ public sealed partial class FLinqIncrementalGenerator {
             : "<"+string.Join(", ",this.MethodTypeParameters)+">";
         public string MethodName => $"{(this.OptimizeLinq ? "OptimizedLinq" : "MeasuredLinq")}_{this.Identifier}";
     }
+    private sealed record Linq傍受探索結果(Linq傍受対象型? Target,Diagnostic? Diagnostic);
     private sealed class InterceptParameterSpec(string name,string typeName,RefKind refKind = RefKind.None) {
         private string Name { get; } = name;
         private string TypeName { get; } = typeName;

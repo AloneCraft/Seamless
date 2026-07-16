@@ -7,11 +7,6 @@ using System.Globalization;
 
 namespace UI;
 
-public enum ベンチマークタブ {
-    CPU,
-    チャート,
-}
-
 public enum ベンチマーク下段タブ {
     CPU,
     ログ,
@@ -21,10 +16,6 @@ public enum ベンチマーク下段タブ {
 public enum ベンチマーク指標種別 {
     時間,
     割り当て,
-}
-
-public enum ベンチマークチャートモード {
-    要素比較,
 }
 
 public enum ベンチマークグリッドソート列 {
@@ -44,6 +35,11 @@ public enum ベンチマークグリッドソート列 {
     左日時,
     左時間,
     左割り当て,
+    左速度,
+    中央日時,
+    中央時間,
+    中央割り当て,
+    中央速度,
     時間シェア,
     メモリシェア,
     右日時,
@@ -94,6 +90,11 @@ public sealed class ベンチマークソート規則(ベンチマークグリ�
             ベンチマークグリッドソート列.左日時 => "左 日時",
             ベンチマークグリッドソート列.左時間 => "左 時間",
             ベンチマークグリッドソート列.左割り当て => "左 メモリ",
+            ベンチマークグリッドソート列.左速度 => "左 速度",
+            ベンチマークグリッドソート列.中央日時 => "中央 日時",
+            ベンチマークグリッドソート列.中央時間 => "中央 時間",
+            ベンチマークグリッドソート列.中央割り当て => "中央 メモリ",
+            ベンチマークグリッドソート列.中央速度 => "中央 速度",
             ベンチマークグリッドソート列.時間シェア => "時間シェア",
             ベンチマークグリッドソート列.メモリシェア => "メモリシェア",
             ベンチマークグリッドソート列.右日時 => "右 日時",
@@ -105,7 +106,7 @@ public sealed class ベンチマークソート規則(ベンチマークグリ�
 
 public sealed record ベンチマークソート列選択肢(ベンチマークグリッドソート列 列,string 表示名);
 
-/// <概要>選択/非選択タブヘッダーの配色を一元管理する。3つのタブストリップ(ソース/下段/チャート診断)で共有する。</概要>
+/// <概要>選択/非選択タブヘッダーの配色を一元管理する。2つのタブストリップ(ソース/下段)で共有する。</概要>
 public static class ベンチマークタブ見出しスタイル {
     public static FontAttributes フォント属性を取得(bool 選択中か値) => 選択中か値 ? FontAttributes.Bold : FontAttributes.None;
     public static Color 文字色を取得(bool 選択中か値) => 選択中か値 ? Color.FromArgb("#0F172A") : Color.FromArgb("#475569");
@@ -140,7 +141,7 @@ public abstract class タブ見出し選択肢基底:ObservableObject {
     }
 }
 
-/// <概要>進捗リング等の付帯情報を持たない、静的タイトルのタブヘッダー(下段/チャート診断タブ用)。</概要>
+/// <概要>進捗リング等の付帯情報を持たない、静的タイトルのタブヘッダー(下段タブ用)。</概要>
 public sealed class タブ見出し選択肢(string 見出し文字列値):タブ見出し選択肢基底 {
     public override string 見出し文字列 { get; }=見出し文字列値;
 }
@@ -274,35 +275,15 @@ public sealed class 監視可能範囲コレクション<T項目>:ObservableColl
 }
 
 public sealed class ベンチマークソースタブ表示状態(ベンチマークソースタブ定義 定義):ObservableObject {
-    private  double                          チャート高さ値      = 300;
     private  string                          ベンチマークシェア概要文値= string.Empty;
     private  bool?                           ベンチマーク選択状態値;
-    private  string                          チャート空理由文字列値      = "ベンチマークを実行するか、保存済み DB 実行を選択してください。";
-    private  string                          チャート空理由ツールチップ文字列値= "計測結果または保存済み DB 実行が選択されると比較チャートを表示します。";
     public   ベンチマークソースタブ定義                   定義              { get; }     =定義;
     public   監視可能範囲コレクション<ベンチマーク表行>          行一覧             { get; }     = [];
-    public   ObservableCollection<チャート比較点>   チャート点一覧         { get; }     = [];
-    public   Dictionary<string,int>          行キー別チャート点インデックス { get; }     = [with(StringComparer.OrdinalIgnoreCase)];
-    internal HashSet<チャート比較点>                UI選択チャート棒一覧     { get; }     = [];
-    internal HashSet<ベンチマーク表行>               更新対象チャート行一覧     { get; }     = [];
-    internal bool                            チャート全体再構築が必要か   { get; set; }= true;
-    public   ObservableCollection<ベンチマーク診断行> 遅延ホットスポット行一覧    { get; }     = [];
-    public   ObservableCollection<ベンチマーク診断行> 割り当て診断行一覧       { get; }     = [];
-    public   ObservableCollection<ベンチマーク診断行> CPUタイムライン行一覧    { get; }     = [];
     public   IReadOnlyList<ベンチマーク比較行>        比較行一覧           { get; set; }= [];
-
-    internal event EventHandler? チャート選択変更時;
-
-    internal void チャート選択変更を通知() => this.チャート選択変更時?.Invoke(this,EventArgs.Empty);
 
     public bool? ベンチマーク選択状態 {
         get => this.ベンチマーク選択状態値;
         set => this.SetProperty(ref this.ベンチマーク選択状態値,value);
-    }
-
-    public double チャート高さ {
-        get => this.チャート高さ値;
-        set => this.SetProperty(ref this.チャート高さ値,value);
     }
 
     public string ベンチマークシェア概要文 {
@@ -310,35 +291,13 @@ public sealed class ベンチマークソースタブ表示状態(ベンチマ�
         set => this.SetProperty(ref this.ベンチマークシェア概要文値,value);
     }
 
-    public string チャート空理由文字列 {
-        get => this.チャート空理由文字列値;
-        set => this.SetProperty(ref this.チャート空理由文字列値,value);
-    }
-
-    public string チャート空理由ツールチップ文字列 {
-        get => this.チャート空理由ツールチップ文字列値;
-        set => this.SetProperty(ref this.チャート空理由ツールチップ文字列値,value);
-    }
 }
 
 public sealed record 実行プロファイル選択肢(string 表示名,ベンチマーク実行プロファイル プロファイル);
 
-public sealed record 指標選択肢(string 表示名,ベンチマーク指標種別 種別);
-
-public sealed record チャートモード選択肢(string 表示名,ベンチマークチャートモード モード);
-
 public sealed record 結果要素数選択肢(int 値,string 表示名);
 
 public sealed record 閾値選択肢(string 表示名,int ミリ秒);
-
-public sealed record ベンチマーク診断行(
-    string カテゴリ,
-    string メソッド,
-    string ワースト件数,
-    string シェア文字列,
-    string 左文字列,
-    string 右文字列,
-    string 詳細文字列);
 
 public sealed record ベンチマーク自動スクロール要求(ベンチマークソースタブ ソースタブ,string メソッド名,string 行キー,int 連番);
 
@@ -738,7 +697,7 @@ public sealed class ベンチマークプロジェクトセル:ObservableObject 
         this.結果シード文字列=結果.結果シード文字列;
 
         if(結果.要素数<=0) {
-            // 要素数=0 の コールバック は比較表/チャートの確定データとして扱わない。
+            // 要素数=0 の コールバック は比較表の確定データとして扱わない。
             this.実行中か=false;
             this.CPU表示を適用(CPU,欠測時に維持するか: true);
             this.実行時状態=this.測定値.測定値ありか||this.測定なし完了か値
@@ -749,7 +708,7 @@ public sealed class ベンチマークプロジェクトセル:ObservableObject 
         }
 
         if(完了か&&結果.平均ナノ秒 is not null) {
-            // Completed かつ測定値ありだけが、棒グラフと表の確定値を更新する。
+            // Completed かつ測定値ありだけが、表の確定値を更新する。
             this.失敗か値=false;
             this.測定なし完了か値=false;
             this.最終測定日時値=完了日時;
@@ -1139,6 +1098,8 @@ public sealed class ベンチマーク表行:ObservableObject {
     private FontAttributes 停止要素数フォント属性値;
     private string 左時間文字列値 = string.Empty;
     private string 左割り当て文字列値 = string.Empty;
+    private string 中央時間文字列値 = string.Empty;
+    private string 中央割り当て文字列値 = string.Empty;
     private string 右時間文字列値 = string.Empty;
     private string 右割り当て文字列値 = string.Empty;
     private string ベンチマーク名値 = string.Empty;
@@ -1181,10 +1142,11 @@ public sealed class ベンチマーク表行:ObservableObject {
         this.プロジェクト別ケース=プロジェクト別ケース;
         this.ベンチマーク表示部分を更新();
         // セルの初期状態表示（待機/対象なし）が親行の選択を参照するため、セル生成前に行選択を確定する。
-        this.実行対象ありか=プロジェクト別ケース.ContainsKey(ソースタブ.左プロジェクト)||プロジェクト別ケース.ContainsKey(ソースタブ.右プロジェクト);
+        this.実行対象ありか=プロジェクト別ケース.ContainsKey(ソースタブ.左プロジェクト)||(!string.IsNullOrWhiteSpace(ソースタブ.中央プロジェクト)&&プロジェクト別ケース.ContainsKey(ソースタブ.中央プロジェクト))||プロジェクト別ケース.ContainsKey(ソースタブ.右プロジェクト);
         this.選択中か値=this.実行対象ありか;
         this.選択チェック状態値=this.選択中か値;
         this.左セル=this.セルを作成(ソースタブ.左プロジェクト);
+        this.中央セル=this.セルを作成(ソースタブ.中央プロジェクト);
         this.右セル=this.セルを作成(ソースタブ.右プロジェクト);
         foreach(var セル in this.プロジェクトセル一覧) {
             セル.UI選択変更時+=this.セルUI選択変更時;
@@ -1304,10 +1266,9 @@ public sealed class ベンチマーク表行:ObservableObject {
     public ベンチマークソースタブ定義 ソースタブ { get; }
     public IReadOnlyDictionary<string,ベンチマークケース> プロジェクト別ケース { get; }
     public ベンチマークプロジェクトセル 左セル { get; }
+    public ベンチマークプロジェクトセル 中央セル { get; }
     public ベンチマークプロジェクトセル 右セル { get; }
-    public チャート比較点? チャート棒 { get; internal set; }
     internal ベンチマークグリッドスナップショット項目? 読込済みスナップショット { get; set; }
-    internal int チャート点インデックス { get; set; } = -1;
     internal int グリッド表示インデックス { get; set; } = -1;
     public string Count引数 => this.引数値を取得(スケーラブルベンチマーク引数列.Count);
     public string Index引数 => this.引数値を取得(スケーラブルベンチマーク引数列.Index);
@@ -1337,8 +1298,10 @@ public sealed class ベンチマーク表行:ObservableObject {
     }
 
     public bool 左UI選択中か => this.左セル.UI選択中か;
+    public bool 中央UI選択中か => this.中央セル.UI選択中か;
     public bool 右UI選択中か => this.右セル.UI選択中か;
     public bool 左部分UI選択中か => this.左セル.UI選択中か&&!this.UI選択中か;
+    public bool 中央部分UI選択中か => this.中央セル.UI選択中か&&!this.UI選択中か;
     public bool 右部分UI選択中か => this.右セル.UI選択中か&&!this.UI選択中か;
 
     public bool? 選択チェック状態 {
@@ -1417,6 +1380,20 @@ public sealed class ベンチマーク表行:ObservableObject {
         private set => this.SetProperty(ref this.左割り当て文字列値,value);
     }
 
+    public string 中央時間文字列 {
+        get => this.中央時間文字列値;
+        private set => this.SetProperty(ref this.中央時間文字列値,value);
+    }
+
+    public string 中央割り当て文字列 {
+        get => this.中央割り当て文字列値;
+        private set => this.SetProperty(ref this.中央割り当て文字列値,value);
+    }
+
+    public string 左速度文字列 => 速度を整形(this.左セル.測定値,this.右セル.測定値);
+
+    public string 中央速度文字列 => 速度を整形(this.中央セル.測定値,this.右セル.測定値);
+
     public string 右時間文字列 {
         get => this.右時間文字列値;
         private set => this.SetProperty(ref this.右時間文字列値,value);
@@ -1444,6 +1421,9 @@ public sealed class ベンチマーク表行:ObservableObject {
     public IEnumerable<ベンチマークプロジェクトセル> プロジェクトセル一覧 {
         get {
             yield return this.左セル;
+            if(!string.IsNullOrWhiteSpace(this.ソースタブ.中央プロジェクト)) {
+                yield return this.中央セル;
+            }
             yield return this.右セル;
         }
     }
@@ -1455,8 +1435,10 @@ public sealed class ベンチマーク表行:ObservableObject {
         this.UI選択中か=ベンチマーク行UI選択ロジック.行全体を選択中か(
             this.プロジェクトセル一覧.Select(static セル => new ベンチマーク行UI選択セル(セル.ケースありか,セル.UI選択中か)));
         this.OnPropertyChanged(nameof(this.左UI選択中か));
+        this.OnPropertyChanged(nameof(this.中央UI選択中か));
         this.OnPropertyChanged(nameof(this.右UI選択中か));
         this.OnPropertyChanged(nameof(this.左部分UI選択中か));
+        this.OnPropertyChanged(nameof(this.中央部分UI選択中か));
         this.OnPropertyChanged(nameof(this.右部分UI選択中か));
     }
 
@@ -1549,7 +1531,7 @@ public sealed class ベンチマーク表行:ObservableObject {
 
     public void ペア停止を適用(string 左プロジェクト,string 右プロジェクト,int 停止要素数,bool 強調するか) {
         var 文字列 = 停止要素数.ToString(CultureInfo.InvariantCulture);
-        if(ペアか(左プロジェクト,右プロジェクト,this.ソースタブ.左プロジェクト,this.ソースタブ.右プロジェクト)) {
+        if(隣接ペアか(左プロジェクト,右プロジェクト,this.ソースタブ.プロジェクト順)) {
             this.停止要素数文字列値=文字列;
             this.停止要素数スタイルを適用(強調するか);
             this.OnPropertyChanged(nameof(this.停止要素数文字列));
@@ -1593,6 +1575,8 @@ public sealed class ベンチマーク表行:ObservableObject {
         }
         this.左時間文字列=時間を整形(this.左セル.測定値);
         this.左割り当て文字列=割り当てを整形(this.左セル.測定値);
+        this.中央時間文字列=時間を整形(this.中央セル.測定値);
+        this.中央割り当て文字列=割り当てを整形(this.中央セル.測定値);
         this.右時間文字列=時間を整形(this.右セル.測定値);
         this.右割り当て文字列=割り当てを整形(this.右セル.測定値);
         this.表示シェアを更新();
@@ -1608,11 +1592,15 @@ public sealed class ベンチマーク表行:ObservableObject {
         // 比較行の値があるときだけ比較ラベルを更新し、セルの保持値は別に残す。
         this.停止要素数文字列をクリア();
         var 左 = 値.プロジェクトを取得(this.ソースタブ.左プロジェクト);
+        var 中央 = 値.プロジェクトを取得(this.ソースタブ.中央プロジェクト);
         var 右 = 値.プロジェクトを取得(this.ソースタブ.右プロジェクト);
         this.左セル.測定値を適用(左,維持表示を保持するか);
+        this.中央セル.測定値を適用(中央,維持表示を保持するか);
         this.右セル.測定値を適用(右,維持表示を保持するか);
         this.左時間文字列=時間を整形(this.左セル.測定値);
         this.左割り当て文字列=割り当てを整形(this.左セル.測定値);
+        this.中央時間文字列=時間を整形(this.中央セル.測定値);
+        this.中央割り当て文字列=割り当てを整形(this.中央セル.測定値);
         this.右時間文字列=時間を整形(this.右セル.測定値);
         this.右割り当て文字列=割り当てを整形(this.右セル.測定値);
         this.表示シェアを更新();
@@ -1636,6 +1624,11 @@ public sealed class ベンチマーク表行:ObservableObject {
             ベンチマークグリッドソート列.左日時 => ベンチマークソート値.日時から作成(this.左セル.最新表示日時),
             ベンチマークグリッドソート列.左時間 => ベンチマークソート値.指標から作成(this.左セル.測定値,ベンチマーク指標種別.時間),
             ベンチマークグリッドソート列.左割り当て => ベンチマークソート値.指標から作成(this.左セル.測定値,ベンチマーク指標種別.割り当て),
+            ベンチマークグリッドソート列.左速度 => ベンチマークソート値.数値から作成(速度を計算(this.左セル.測定値,this.右セル.測定値)),
+            ベンチマークグリッドソート列.中央日時 => ベンチマークソート値.日時から作成(this.中央セル.最新表示日時),
+            ベンチマークグリッドソート列.中央時間 => ベンチマークソート値.指標から作成(this.中央セル.測定値,ベンチマーク指標種別.時間),
+            ベンチマークグリッドソート列.中央割り当て => ベンチマークソート値.指標から作成(this.中央セル.測定値,ベンチマーク指標種別.割り当て),
+            ベンチマークグリッドソート列.中央速度 => ベンチマークソート値.数値から作成(速度を計算(this.中央セル.測定値,this.右セル.測定値)),
             ベンチマークグリッドソート列.時間シェア => ベンチマークソート値.シェアから作成(this.表示時間シェアを取得()),
             ベンチマークグリッドソート列.メモリシェア => ベンチマークソート値.シェアから作成(this.表示メモリシェアを取得()),
             ベンチマークグリッドソート列.右日時 => ベンチマークソート値.日時から作成(this.右セル.最新表示日時),
@@ -1659,6 +1652,8 @@ public sealed class ベンチマーク表行:ObservableObject {
         } else {
             this.左時間文字列=string.Empty;
             this.左割り当て文字列=string.Empty;
+            this.中央時間文字列=string.Empty;
+            this.中央割り当て文字列=string.Empty;
             this.右時間文字列=string.Empty;
             this.右割り当て文字列=string.Empty;
         }
@@ -1676,6 +1671,14 @@ public sealed class ベンチマーク表行:ObservableObject {
         var 警告 = ベンチマーク受け入れ方針.回帰か(this.ソースタブ.タブ,時間シェア) ? " ⚠" : "";
         this.時間シェア表示=時間シェア.表示文字列+警告;
         this.メモリシェア表示=メモリシェア.表示文字列;
+        this.左時間文字列=時間を整形(this.左セル.測定値);
+        this.中央時間文字列=時間を整形(this.中央セル.測定値);
+        this.右時間文字列=時間を整形(this.右セル.測定値);
+        this.左割り当て文字列=警告付き割り当てを整形(this.左セル.測定値,this.右セル.測定値);
+        this.中央割り当て文字列=警告付き割り当てを整形(this.中央セル.測定値,this.右セル.測定値);
+        this.右割り当て文字列=割り当てを整形(this.右セル.測定値);
+        this.OnPropertyChanged(nameof(this.左速度文字列));
+        this.OnPropertyChanged(nameof(this.中央速度文字列));
         this.OnPropertyChanged(nameof(this.時間シェアゲージ));
         this.OnPropertyChanged(nameof(this.メモリシェアゲージ));
     }
@@ -1690,10 +1693,36 @@ public sealed class ベンチマーク表行:ObservableObject {
         if(string.Equals(プロジェクト,this.ソースタブ.左プロジェクト,StringComparison.OrdinalIgnoreCase)) {
             this.左時間文字列=時間文字列値;
             this.左割り当て文字列=割り当て文字列値;
+        } else if(string.Equals(プロジェクト,this.ソースタブ.中央プロジェクト,StringComparison.OrdinalIgnoreCase)) {
+            this.中央時間文字列=時間文字列値;
+            this.中央割り当て文字列=割り当て文字列値;
         } else if(string.Equals(プロジェクト,this.ソースタブ.右プロジェクト,StringComparison.OrdinalIgnoreCase)) {
             this.右時間文字列=時間文字列値;
             this.右割り当て文字列=割り当て文字列値;
         }
+    }
+
+    private static double? 速度を計算(プロジェクト測定値 対象,プロジェクト測定値 SystemLinq) {
+        if(!対象.測定値ありか||!SystemLinq.測定値ありか||対象.時間ナノ秒 is not { } 対象時間||SystemLinq.時間ナノ秒 is not { } 基準時間||対象時間<=0) {
+            return null;
+        }
+        return 基準時間/対象時間;
+    }
+
+    private static string 速度を整形(プロジェクト測定値 対象,プロジェクト測定値 SystemLinq) {
+        if(速度を計算(対象,SystemLinq) is not { } 速度) {
+            return string.Empty;
+        }
+        var 警告=対象.時間ナノ秒>SystemLinq.時間ナノ秒*1.03 ? " ⚠" : string.Empty;
+        return 速度.ToString("0.00",CultureInfo.InvariantCulture)+"x"+警告;
+    }
+
+    private static string 警告付き割り当てを整形(プロジェクト測定値 対象,プロジェクト測定値 SystemLinq) {
+        var 表示=割り当てを整形(対象);
+        if(string.IsNullOrWhiteSpace(表示)||!SystemLinq.測定値ありか||対象.割り当てバイト数 is not { } 対象値||SystemLinq.割り当てバイト数 is not { } 基準値) {
+            return 表示;
+        }
+        return 対象値>基準値 ? 表示+" ⚠" : 表示;
     }
 
     private void 停止要素数文字列をクリア() {
@@ -1752,9 +1781,15 @@ public sealed class ベンチマーク表行:ObservableObject {
         this.停止要素数フォント属性=FontAttributes.None;
     }
 
-    private static bool ペアか(string 左プロジェクト,string 右プロジェクト,string 期待左プロジェクト,string 期待右プロジェクト) =>
-        string.Equals(左プロジェクト,期待左プロジェクト,StringComparison.OrdinalIgnoreCase)
-        &&string.Equals(右プロジェクト,期待右プロジェクト,StringComparison.OrdinalIgnoreCase);
+    private static bool 隣接ペアか(string 左プロジェクト,string 右プロジェクト,IReadOnlyList<string>プロジェクト順) {
+        for(var インデックス = 0;インデックス<プロジェクト順.Count-1;インデックス++) {
+            if(string.Equals(プロジェクト順[インデックス],左プロジェクト,StringComparison.OrdinalIgnoreCase)
+                &&string.Equals(プロジェクト順[インデックス+1],右プロジェクト,StringComparison.OrdinalIgnoreCase)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     private ベンチマークプロジェクトセル セルを作成(string プロジェクト) =>
         new(this,プロジェクト,this.プロジェクト別ケース.ContainsKey(プロジェクト));
@@ -2161,196 +2196,6 @@ public enum CPU選択状態 {
     未チェック,
     混在,
     チェック済み,
-}
-
-public sealed class チャート比較点 {
-    public チャート比較点(
-        string ベンチマーク,
-        string 表示名,
-        double 左値,
-        double 右値,
-        string 左文字列,
-        string 右文字列,
-        string ツールチップ文字列,
-        double? 左シェア)
-        : this(ベンチマーク,表示名,string.Empty,表示名,false,false,左値,右値,左文字列,右文字列,ツールチップ文字列,左シェア,false,false,false,false,false,false,null) {
-    }
-
-    public チャート比較点(
-        string ベンチマーク,
-        string 表示名,
-        string グループ表示名,
-        string 行表示名,
-        bool グループ先頭か,
-        bool グループ末尾か,
-        double 左値,
-        double 右値,
-        string 左文字列,
-        string 右文字列,
-        string ツールチップ文字列,
-        double? 左シェア)
-        : this(ベンチマーク,表示名,グループ表示名,行表示名,グループ先頭か,グループ末尾か,左値,右値,左文字列,右文字列,ツールチップ文字列,左シェア,false,false,false,false,false,false,null) {
-    }
-
-    private チャート比較点(
-        string ベンチマーク,
-        string 表示名,
-        string グループ表示名,
-        string 行表示名,
-        bool グループ先頭か,
-        bool グループ末尾か,
-        double 左値,
-        double 右値,
-        string 左文字列,
-        string 右文字列,
-        string ツールチップ文字列,
-        double? 左シェア,
-        bool 実行中か値,
-        bool 左UI選択中か,
-        bool 右UI選択中か,
-        bool 行UI選択中か,
-        bool 左フォールバックか,
-        bool 右フォールバックか,
-        ベンチマーク表行? 行) {
-        this.ベンチマーク=ベンチマーク;
-        this.基本表示名=表示名;
-        this.グループ表示名=グループ表示名;
-        this.行表示名=行表示名;
-        this.グループ先頭か=グループ先頭か;
-        this.グループ末尾か=グループ末尾か;
-        this.左値=左値;
-        this.右値=右値;
-        this.左文字列=左文字列;
-        this.右文字列=右文字列;
-        this.ツールチップ文字列=ツールチップ文字列;
-        this.左シェア=左シェア;
-        this.実行中か=実行中か値;
-        this.左UI選択中か=左UI選択中か;
-        this.右UI選択中か=右UI選択中か;
-        this.行UI選択中か=行UI選択中か;
-        this.左フォールバックか=左フォールバックか;
-        this.右フォールバックか=右フォールバックか;
-        this.行=行;
-    }
-
-    public string ベンチマーク { get; private set; }
-    public string 基本表示名 { get; private set; }
-    public string 表示名 => this.実行中か
-        ? "● "+this.基本表示名
-        : this.基本表示名;
-    public string グループ表示名 { get; private set; }
-    public string 行表示名 { get; private set; }
-    public bool グループ先頭か { get; private set; }
-    public bool グループ末尾か { get; private set; }
-    public double 左値 { get; private set; }
-    public double 右値 { get; private set; }
-    public string 左文字列 { get; private set; }
-    public string 右文字列 { get; private set; }
-    public string ツールチップ文字列 { get; private set; }
-    public double? 左シェア { get; private set; }
-    public bool 実行中か { get; private set; }
-    public bool 左UI選択中か { get; private set; }
-    public bool 右UI選択中か { get; private set; }
-    public bool 行UI選択中か { get; private set; }
-    public bool 左フォールバックか { get; private set; }
-    public bool 右フォールバックか { get; private set; }
-    public ベンチマーク表行? 行 { get; private set; }
-
-    internal void 行を関連付け(ベンチマーク表行 行) => this.行=行;
-
-    internal void 行の関連付けを解除(ベンチマーク表行 行) {
-        if(ReferenceEquals(this.行,行)) {
-            this.行=null;
-        }
-    }
-
-    internal void コピー元を適用(チャート比較点 コピー元) {
-        this.ベンチマーク=コピー元.ベンチマーク;
-        this.基本表示名=コピー元.基本表示名;
-        this.グループ表示名=コピー元.グループ表示名;
-        this.行表示名=コピー元.行表示名;
-        this.グループ先頭か=コピー元.グループ先頭か;
-        this.グループ末尾か=コピー元.グループ末尾か;
-        this.左値=コピー元.左値;
-        this.右値=コピー元.右値;
-        this.左文字列=コピー元.左文字列;
-        this.右文字列=コピー元.右文字列;
-        this.ツールチップ文字列=コピー元.ツールチップ文字列;
-        this.左シェア=コピー元.左シェア;
-        this.実行中か=コピー元.実行中か;
-        this.左UI選択中か=コピー元.左UI選択中か;
-        this.右UI選択中か=コピー元.右UI選択中か;
-        this.行UI選択中か=コピー元.行UI選択中か;
-        this.左フォールバックか=コピー元.左フォールバックか;
-        this.右フォールバックか=コピー元.右フォールバックか;
-    }
-
-    public チャート比較点 実行中状態を反映(bool 実行中か値) =>
-        new(
-            this.ベンチマーク,
-            this.基本表示名,
-            this.グループ表示名,
-            this.行表示名,
-            this.グループ先頭か,
-            this.グループ末尾か,
-            this.左値,
-            this.右値,
-            this.左文字列,
-            this.右文字列,
-            this.ツールチップ文字列,
-            this.左シェア,
-            実行中か値,
-            this.左UI選択中か,
-            this.右UI選択中か,
-            this.行UI選択中か,
-            this.左フォールバックか,
-            this.右フォールバックか,
-            this.行);
-
-    public チャート比較点 UI選択を反映(bool 左UI選択中か,bool 右UI選択中か,bool 行UI選択中か) =>
-        new(
-            this.ベンチマーク,
-            this.基本表示名,
-            this.グループ表示名,
-            this.行表示名,
-            this.グループ先頭か,
-            this.グループ末尾か,
-            this.左値,
-            this.右値,
-            this.左文字列,
-            this.右文字列,
-            this.ツールチップ文字列,
-            this.左シェア,
-            this.実行中か,
-            左UI選択中か,
-            右UI選択中か,
-            行UI選択中か,
-            this.左フォールバックか,
-            this.右フォールバックか,
-            this.行);
-
-    public チャート比較点 フォールバック状態を反映(bool 左フォールバックか,bool 右フォールバックか) =>
-        new(
-            this.ベンチマーク,
-            this.基本表示名,
-            this.グループ表示名,
-            this.行表示名,
-            this.グループ先頭か,
-            this.グループ末尾か,
-            this.左値,
-            this.右値,
-            this.左文字列,
-            this.右文字列,
-            this.ツールチップ文字列,
-            this.左シェア,
-            this.実行中か,
-            this.左UI選択中か,
-            this.右UI選択中か,
-            this.行UI選択中か,
-            左フォールバックか,
-            右フォールバックか,
-            this.行);
-
 }
 
 public sealed record ベンチマーク実行報告(string? 実行ルート);

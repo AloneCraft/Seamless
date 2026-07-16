@@ -37,8 +37,8 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
     protected string InnerElementType => this.innerSource.ElementType;
     protected string OuterElementType => this.outerSource.ElementType;
     protected string BuildLookupBody(bool skipNullKeyCheck,string logicalInnerCounterMethod) => skipNullKeyCheck ? $$"""
-        private static global::Seamless.System.Carrier.Lookup<{{this.InnerKeyType}},{{this.InnerElementType}}> BuildLookup(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
-            var __lookupBuilder=new global::Seamless.System.Carrier.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(0,comparer,true);
+        private static global::Seamless.Linq.Lookup<{{this.InnerKeyType}},{{this.InnerElementType}}> BuildLookup(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
+            var __lookupBuilder=new global::Seamless.Linq.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(0,comparer,true);
             using var {{this.innerEnumerator}}=inner;
             while({{this.innerEnumerator}}.MoveNext()){
                 {{this.CounterCall(logicalInnerCounterMethod)}}
@@ -55,8 +55,8 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
             return __lookupBuilder.BuildPooledAndClear();
         }
         """ : $$"""
-        private static global::Seamless.System.Carrier.Lookup<{{this.InnerKeyType}},{{this.InnerElementType}}> BuildLookup(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
-            var __lookupBuilder=new global::Seamless.System.Carrier.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(0,comparer,true);
+        private static global::Seamless.Linq.Lookup<{{this.InnerKeyType}},{{this.InnerElementType}}> BuildLookup(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
+            var __lookupBuilder=new global::Seamless.Linq.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(0,comparer,true);
             using var {{this.innerEnumerator}}=inner;
             while({{this.innerEnumerator}}.MoveNext()){
                 {{this.CounterCall(logicalInnerCounterMethod)}}
@@ -72,7 +72,7 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
         """;
     protected static string BuildFactorySource(string structName,string factoryMethodName,string outerTypeName,string innerTypeName,string resultTypeName,string comparerTypeName,string outerCtorSuffix,string innerCtorSuffix,string resultCtorSuffix,string outerFactoryArgsSuffix,string innerFactoryArgsSuffix,string resultFactoryArgsSuffix,bool useResultTypeParam) => !useResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
-        private static global::Seamless.System.Carrier.ValueEnumerable<{{structName}}<TOuterEnum,TInnerEnum,TResult>,TResult> {{factoryMethodName}}<TOuterEnum,TInnerEnum,TResult>(TOuterEnum outer,TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{comparerTypeName}}>? comparer{{outerCtorSuffix}}{{innerCtorSuffix}}{{resultCtorSuffix}})
+        private static global::Seamless.Linq.ValueEnumerable<{{structName}}<TOuterEnum,TInnerEnum,TResult>,TResult> {{factoryMethodName}}<TOuterEnum,TInnerEnum,TResult>(TOuterEnum outer,TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{comparerTypeName}}>? comparer{{outerCtorSuffix}}{{innerCtorSuffix}}{{resultCtorSuffix}})
             where TOuterEnum : struct, global::System.Collections.Generic.IEnumerator<{{outerTypeName}}>
             where TInnerEnum : struct, global::System.Collections.Generic.IEnumerator<{{innerTypeName}}>
             => new(new {{structName}}<TOuterEnum,TInnerEnum,TResult>(outer,inner,comparer{{outerFactoryArgsSuffix}}{{innerFactoryArgsSuffix}}{{resultFactoryArgsSuffix}}));

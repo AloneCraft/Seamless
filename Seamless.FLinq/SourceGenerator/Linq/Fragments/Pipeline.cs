@@ -56,7 +56,8 @@ public sealed class PipelineBuildServices(
     Func<ExpressionSyntax,string> renderExpression,
     PipelineElementTypeGetter tryGetEnumerableElementType,
     Func<ITypeSymbol,bool> containsAnonymousType,
-    Func<string,string,string> joinStaticMethods) {
+    Func<string,string,string> joinStaticMethods,
+    string[] outerTypeParameters) {
     public SymbolDisplayFormat FullyQualifiedFormat { get; } = fullyQualifiedFormat;
     public PipelineEnumerableBuilder BuildEnumerable { get; } = buildEnumerable;
     public PipelineFuncBuilder BuildFunc { get; } = buildFunc;
@@ -65,6 +66,7 @@ public sealed class PipelineBuildServices(
     public PipelineElementTypeGetter TryGetEnumerableElementType { get; } = tryGetEnumerableElementType;
     public Func<ITypeSymbol,bool> ContainsAnonymousType { get; } = containsAnonymousType;
     public Func<string,string,string> JoinStaticMethods { get; } = joinStaticMethods;
+    public string[] OuterTypeParameters { get; } = outerTypeParameters;
 }
 
 public static class PipelineBuilder {
@@ -164,7 +166,9 @@ public static class PipelineBuilder {
                 return false;
             }
             uniqueNumber=snapshot;
-            staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
+            fragment.PropagateOuterTypeParameters(services.OuterTypeParameters);
+            fragment.PropagateOuterTypeParameters(services.OuterTypeParameters);
+        staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
             return true;
         }
         var allowSingleStage = invocations.Count==1
@@ -193,7 +197,9 @@ public static class PipelineBuilder {
                 return false;
             }
             uniqueNumber=snapshot;
-            staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
+            fragment.PropagateOuterTypeParameters(services.OuterTypeParameters);
+            fragment.PropagateOuterTypeParameters(services.OuterTypeParameters);
+        staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
             return true;
         }
 
@@ -213,6 +219,7 @@ public static class PipelineBuilder {
             fragment=pipeline;
         }
         uniqueNumber=snapshot;
+        fragment.PropagateOuterTypeParameters(services.OuterTypeParameters);
         staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
         // 安全網: 匿名型→record struct 置換で取りこぼした生の匿名型表示（<anonymous type: ...>）が
         // 生成コードに残ると不正な C# になるため、その場合はフュージョンを諦めて従来の例外スタブへフォールバックする。
@@ -1873,9 +1880,9 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
     }
     protected override string StructTypeConstraints {
         get {
-            var constraints = new List<string> { $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.System.Carrier.IValueEnumerator<{source.ElementType}>" };
+            var constraints = new List<string> { $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.Linq.IValueEnumerator<{source.ElementType}>" };
             foreach(var (second,index) in this.SecondSources.Select(static (second,index) => (second,index))) {
-                constraints.Add($"where {SecondTypeParameterName(index)} : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>, global::Seamless.System.Carrier.IValueEnumerator<{second.ElementType}>");
+                constraints.Add($"where {SecondTypeParameterName(index)} : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>, global::Seamless.Linq.IValueEnumerator<{second.ElementType}>");
             }
             return string.Join("\n    ",constraints);
         }
@@ -2480,13 +2487,13 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
                         builder.AppendLine($"private int {this.StateName(index)} = -1;");
                     }
                 } else if(stage.Kind is PipelineStageKind.Distinct or PipelineStageKind.DistinctBy) {
-                    builder.AppendLine($"private global::Seamless.System.Carrier.HashSetSlim<{ComparerKeyType(stage)}> {this.SetName(index)};");
+                    builder.AppendLine($"private global::Seamless.Linq.HashSetSlim<{ComparerKeyType(stage)}> {this.SetName(index)};");
                 } else if(stage.Kind is PipelineStageKind.Union or PipelineStageKind.UnionBy) {
-                    builder.AppendLine($"private global::Seamless.System.Carrier.HashSetSlim<{ComparerKeyType(stage)}> {this.SetName(index)};");
+                    builder.AppendLine($"private global::Seamless.Linq.HashSetSlim<{ComparerKeyType(stage)}> {this.SetName(index)};");
                     builder.AppendLine($"private bool {this.StateName(index)} = false;");
                 } else if(stage.Kind is PipelineStageKind.Except or PipelineStageKind.Intersect or PipelineStageKind.ExceptBy or PipelineStageKind.IntersectBy) {
-                    builder.AppendLine($"private global::Seamless.System.Carrier.HashSetSlim<{ComparerKeyType(stage)}> {this.SecondSetName(index)};");
-                    builder.AppendLine($"private global::Seamless.System.Carrier.HashSetSlim<{ComparerKeyType(stage)}> {this.SetName(index)};");
+                    builder.AppendLine($"private global::Seamless.Linq.HashSetSlim<{ComparerKeyType(stage)}> {this.SecondSetName(index)};");
+                    builder.AppendLine($"private global::Seamless.Linq.HashSetSlim<{ComparerKeyType(stage)}> {this.SetName(index)};");
                     builder.AppendLine($"private bool {this.StateName(index)} = false;");
                 } else if(stage.Kind is PipelineStageKind.Concat or PipelineStageKind.Append or PipelineStageKind.Prepend) {
                     builder.AppendLine($"private int {this.StateName(index)} = 0;");

@@ -56,7 +56,7 @@ public sealed class ベンチマーク選択キューロジック {
         {
             var 永続化 = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.Seamless永続化);
             var Tsavorite = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.SeamlessTsavorite);
-            Assert.Equal(永続化.右プロジェクト,Tsavorite.右プロジェクト);
+            Assert.NotEqual(永続化.右プロジェクト,Tsavorite.右プロジェクト);
             var カタログ = new[]{
                 new global::UI.ベンチマークケース(永続化.右プロジェクト,永続化.右アセンブリ名,"Benchmark.Persisted.Linq.Enumerable.LinqInt32","Sum"),
                 new global::UI.ベンチマークケース(Tsavorite.右プロジェクト,Tsavorite.右アセンブリ名,"Benchmark.Tsavorite.Linq.Enumerable.LinqInt32","Sum"),

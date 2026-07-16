@@ -1,9 +1,9 @@
-namespace Test.Seamless.System.Carrier;
+namespace Test.Seamless.Linq;
 
 public sealed class HashSetSlimTests {
     [Fact]
     public void AddContainsRemoveRespectComparerAndNull() {
-        using var set = new global::Seamless.System.Carrier.HashSetSlim<string>(global::System.StringComparer.OrdinalIgnoreCase);
+        using var set = new global::Seamless.Linq.HashSetSlim<string>(global::System.StringComparer.OrdinalIgnoreCase);
 
         Assert.True(set.Add("A"));
         Assert.False(set.Add("a"));
@@ -20,7 +20,7 @@ public sealed class HashSetSlimTests {
 
     [Fact]
     public void GrowKeepsAddedValues() {
-        using var set = new global::Seamless.System.Carrier.HashSetSlim<int>(1,null);
+        using var set = new global::Seamless.Linq.HashSetSlim<int>(1,null);
 
         for(var i = 0;i<256;i++) {
             Assert.True(set.Add(i));

@@ -10,4 +10,18 @@
     <Title>Seamless LINQ Runtime</Title>
     <Description>Value-enumerable LINQ runtime used by Seamless and FLinq generated code.</Description>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Artifacts\**" />
+    <Compile Remove="Work\**" />
+    <EmbeddedResource Remove="Artifacts\**" />
+    <EmbeddedResource Remove="Work\**" />
+    <None Remove="Artifacts\**" />
+    <None Remove="Work\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Seamless.Collections.Persisted\Seamless.Collections.Persisted.csproj" />
+    <ProjectReference Include="..\Seamless.Collections.Tsavorite\Seamless.Collections.Tsavorite.csproj" />
+    <ProjectReference Include="..\Seamless.Linq.Analyzers\Seamless.Linq.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <None Include="..\Seamless.Linq.Analyzers\bin\$(Configuration)\netstandard2.0\Seamless.Linq.Analyzers.dll" Pack="true" PackagePath="analyzers\dotnet\cs" Visible="false" />
+  </ItemGroup>
 </Project>

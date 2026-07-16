@@ -91,24 +91,8 @@ public sealed partial class FLinqIncrementalGenerator {
         var emittedMethodNames = new HashSet<string>(StringComparer.Ordinal);
         var emittedUnsafeAccessors = new HashSet<string>(StringComparer.Ordinal);
         foreach(var target in targets) {
-            if(target.OptimizeLinq) {
-                var seenUnorderedInvocations = new HashSet<int>();
-                foreach(var syntaxReference in target.Method.DeclaringSyntaxReferences) {
-                    var syntax = syntaxReference.GetSyntax();
-                    var unorderedSemanticModel = target.SemanticModel.Compilation.GetSemanticModel(syntax.SyntaxTree);
-                    foreach(var unorderedInvocation in syntax.DescendantNodes().OfType<InvocationExpressionSyntax>()) {
-                        if(!seenUnorderedInvocations.Add(unorderedInvocation.SpanStart)
-                            ||!TryGetUnorderedInvocation(unorderedSemanticModel,unorderedInvocation,out var unorderedMethodName,out var unorderedSourceType,out var explicitOptIn)) {
-                            continue;
-                        }
-                        diagnostics.Add(Diagnostic.Create(
-                            explicitOptIn ? UnorderedOperationOptInDescriptor : UnorderedOperationWarningDescriptor,
-                            unorderedInvocation.GetLocation(),
-                            unorderedMethodName,
-                            unorderedSourceType));
-                    }
-                }
-            }
+            using var 型パラメータースコープ = InterceptedMethodTypeParameterContext.Enter(target.MethodTypeParameters);
+
             try {
                 if(target.IsLocalMethodInterception) {
                     using var optimizationScope = LinqOptimizationContext.Enter(target.Optimizations);
@@ -131,12 +115,6 @@ public sealed partial class FLinqIncrementalGenerator {
                         continue;
                     }
 
-                    if(target.ContainingTypeIsGeneric) {
-                        // ジェネリック含有型は段階対応中。展開できないケースは throw スタブを出さず、
-                        // 傍受自体を諦めて元実装（素の System.Linq）をそのまま実行させる（遅いが正しい）。
-                        continue;
-                    }
-
                     インターセプターXmlコメント追加(builder,target);
                     builder.AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining|global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]");
                     builder.AppendLine($"    {target.InterceptsLocationAttributeText}");
@@ -154,10 +132,6 @@ public sealed partial class FLinqIncrementalGenerator {
                     builder.AppendLine();
                 }
             } catch(Exception ex) {
-                if(target.ContainingTypeIsGeneric) {
-                    // ジェネリック含有型は段階対応中。展開時例外は throw スタブ化せず傍受を諦める（元実装のまま）。
-                    continue;
-                }
                 if(emittedMethodNames.Contains(target.MethodName)) {
                     continue;
                 }

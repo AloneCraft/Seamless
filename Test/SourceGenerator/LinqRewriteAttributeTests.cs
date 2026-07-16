@@ -35,6 +35,58 @@ public class LinqRewriteAttributeTests(ITestOutputHelper output) {
         }
         """;
 
+    private const string NestedGenericContainingTypeRewrite = """
+        using System.Linq;
+        namespace Sample;
+        public static class Route {
+            public static T[] AsX<T>(this T[] source) => source;
+        }
+        public class Outer<T> where T:notnull {
+            public class Inner<U> where U:class,new() {
+                private readonly T[] source=[];
+                private int CountItems() => this.source.AsX<T>().Count(static value => value is not null);
+                public int Run(U value) => value is null ? 0 : this.CountItems();
+            }
+        }
+        """;
+
+    private const string PrivateConstraintRewrite = """
+        using System.Linq;
+        namespace Sample;
+        public class Host {
+            private class Constraint { }
+            private int CountItems<T>(T[] source) where T:Constraint => source.Count();
+            public int Run() => this.CountItems(System.Array.Empty<Constraint>());
+        }
+        """;
+
+    private const string PrivateConstraintOptOut = """
+        using System.Linq;
+        using Seamless.FLinq;
+        namespace Sample;
+        public class Host {
+            private class Constraint { }
+            [LinqIntercept(false)]
+            private int CountItems<T>(T[] source) where T:Constraint => source.Count();
+            public int Run() => this.CountItems(System.Array.Empty<Constraint>());
+        }
+        """;
+
+    private const string GenericFragmentFailure = """
+        using System.Collections;
+        using System.Collections.Generic;
+        using System.Linq;
+        namespace Sample;
+        public sealed class Weird<T>:IEnumerable<T> {
+            public IEnumerator<T> GetEnumerator() => ((IEnumerable<T>)System.Array.Empty<T>()).GetEnumerator();
+            IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+        }
+        public class Container<T> where T:notnull {
+            private static bool Accept(T value) => value is not null;
+            private int CountItems(Weird<T> source) => source.Where(Accept).Count();
+            public int Run(Weird<T> source) => this.CountItems(source);
+        }
+        """;
     private const string CounterWithoutOptimization = """
         using System.Linq;
         using Seamless.FLinq;
@@ -116,6 +168,41 @@ public class LinqRewriteAttributeTests(ITestOutputHelper output) {
     }
 
     [Fact]
+    public void NestedGenericContainingType_ConstraintsCompileAfterGeneration() {
+        var (result,outputCompilation)=RunGenerator(NestedGenericContainingTypeRewrite);
+        var generated=GeneratedText(result);
+        Assert.Contains("CountItems_",generated,StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            outputCompilation.GetDiagnostics().Where(static diagnostic => diagnostic.Id!="CS9137"),
+            static diagnostic => diagnostic.Severity==global::Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
+    }
+
+    [Fact]
+    public void PrivateConstraint_ReportsNotConfigurableFLINQ005() {
+        var (result,_)=RunGenerator(PrivateConstraintRewrite);
+        var diagnostic=Assert.Single(result.Diagnostics.Where(static diagnostic => diagnostic.Id=="FLINQ005"));
+        Assert.Equal(global::Microsoft.CodeAnalysis.DiagnosticSeverity.Error,diagnostic.Severity);
+        Assert.Contains(global::Microsoft.CodeAnalysis.WellKnownDiagnosticTags.NotConfigurable,diagnostic.Descriptor.CustomTags);
+    }
+
+    [Fact]
+    public void PrivateConstraint_WithOptOut_DoesNotReportFLINQ005() {
+        var (result,_)=RunGenerator(PrivateConstraintOptOut);
+        Assert.DoesNotContain(result.Diagnostics,static diagnostic => diagnostic.Id=="FLINQ005");
+        Assert.DoesNotContain("CountItems_",GeneratedText(result),StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GenericFragmentFailure_ReportsFLINQ002AndEmitsThrowStub() {
+        var (result,outputCompilation)=RunGenerator(GenericFragmentFailure);
+        var diagnostic=Assert.Single(result.Diagnostics.Where(static diagnostic => diagnostic.Id=="FLINQ002"));
+        Assert.Equal(global::Microsoft.CodeAnalysis.DiagnosticSeverity.Warning,diagnostic.Severity);
+        Assert.Contains("UnsupportedLinqExpansion",GeneratedText(result),StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            outputCompilation.GetDiagnostics().Where(static diagnostic => diagnostic.Id!="CS9137"),
+            static diagnostic => diagnostic.Severity==global::Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
+    }
+    [Fact]
     public void CounterInstrumentation_WithNoLinqOptimization_IsIntercepted() {
         var generated = GeneratedSource(CounterWithoutOptimization);
         GeneratedSourceAssert.True(
@@ -168,6 +255,17 @@ public class LinqRewriteAttributeTests(ITestOutputHelper output) {
             output);
     }
 
+    private static (global::Microsoft.CodeAnalysis.GeneratorDriverRunResult Result,global::Microsoft.CodeAnalysis.Compilation OutputCompilation) RunGenerator(string source) {
+        var compilation=GeneratorTestHelpers.CreateCompilation([("Container.cs",source)]);
+        global::Microsoft.CodeAnalysis.GeneratorDriver driver=GeneratorTestHelpers.CreateDriver();
+        driver=driver.RunGeneratorsAndUpdateCompilation(compilation,out var outputCompilation,out _);
+        return (driver.GetRunResult(),outputCompilation);
+    }
+
+    private static string GeneratedText(global::Microsoft.CodeAnalysis.GeneratorDriverRunResult result) =>
+        string.Concat(result.Results
+            .SelectMany(static generatorResult => generatorResult.GeneratedSources)
+            .Select(static generatedSource => generatedSource.SourceText.ToString()));
     private static string GeneratedSource(string source) {
         var comp = GeneratorTestHelpers.CreateCompilation([("Container.cs",source)]);
         var driver = GeneratorTestHelpers.CreateDriver().RunGenerators(comp);

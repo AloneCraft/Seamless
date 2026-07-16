@@ -30,18 +30,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// </summary>
     private const int 外部実行番号 = -2;
     /// <summary>
-    /// ベンチマークチャート行高さ フィールドです。
-    /// </summary>
-    private const double ベンチマークチャート行高さ = 24;
-    /// <summary>
-    /// ベンチマークチャート垂直余白 フィールドです。
-    /// </summary>
-    private const double ベンチマークチャート垂直余白 = 82;
-    /// <summary>
-    /// ベンチマークチャート最小高さ フィールドです。
-    /// </summary>
-    private const double ベンチマークチャート最小高さ = 120;
-    /// <summary>
     /// ベンチマークソート設定キー フィールドです。
     /// </summary>
     private const string ベンチマークソート設定キー = "Seamless.SortRules.v1";
@@ -148,10 +136,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// </summary>
     private bool 内部選択ベンチマークセルありか;
     /// <summary>
-    /// 選択タブ値 フィールドです。
-    /// </summary>
-    private ベンチマークタブ 選択タブ値 = ベンチマークタブ.CPU;
-    /// <summary>
     /// 選択ソースタブ値 フィールドです。
     /// </summary>
     private ソースタブ選択肢 選択ソースタブ値;
@@ -176,21 +160,9 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// </summary>
     private ベンチマーク実行選択肢? 選択実行選択肢値;
     /// <summary>
-    /// 選択指標値 フィールドです。
-    /// </summary>
-    private 指標選択肢 選択指標値;
-    /// <summary>
-    /// 選択チャートモード値 フィールドです。
-    /// </summary>
-    private チャートモード選択肢 選択チャートモード値;
-    /// <summary>
     /// 選択結果要素数値 フィールドです。
     /// </summary>
     private 結果要素数選択肢? 選択結果要素数値;
-    /// <summary>
-    /// 選択結果要素数インデックス値 フィールドです。
-    /// </summary>
-    private double 選択結果要素数インデックス値;
     /// <summary>
     /// 現在要素数文字列値 フィールドです。
     /// </summary>
@@ -350,11 +322,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// </summary>
     private readonly object 実行状態ゲート = new();
     /// <summary>
-    /// 有効チャートメソッド名 フィールドです。
-    /// </summary>
-    private string 有効チャートメソッド名 = string.Empty;
-    private string 適用済み有効チャートメソッド名 = string.Empty;
-    /// <summary>
     /// 保留実行状態文字列 フィールドです。
     /// </summary>
     private string 保留実行状態文字列 = string.Empty;
@@ -493,15 +460,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         this.選択実行選択肢値=初期実行選択肢;
         this.閾値選択肢一覧=閾値選択肢を作成();
         this.選択閾値値=this.閾値選択肢一覧[0];
-        this.測定値= [
-            new 指標選択肢("時間",ベンチマーク指標種別.時間),
-            new 指標選択肢("メモリ",ベンチマーク指標種別.割り当て),
-        ];
-        this.選択指標値=this.測定値[0];
-        this.チャートモード一覧= [
-            new チャートモード選択肢("要素数比較",ベンチマークチャートモード.要素比較),
-        ];
-        this.選択チャートモード値=this.チャートモード一覧[0];
         this.全選択コマンド=new RelayCommand(
             () => this.全ベンチマーク選択を設定(true),
             () => this.ベンチマーク選択を変更できるか);
@@ -520,7 +478,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         this.一時停止コマンド=new AsyncRelayCommand(this.一時停止Async,() => this.ベンチマークを停止可能か);
         this.キャンセルコマンド=new RelayCommand(this.キャンセル);
         this.改善プロンプトコピーコマンド=new AsyncRelayCommand(this.改善プロンプトをコピーAsync,() => this.改善プロンプトをコピー可能か);
-        this.チャート表示コマンド=new RelayCommand(() => this.選択タブ=ベンチマークタブ.チャート);
         if(起動診断を有効にするか) {
             起動診断.既存ログから初期化();
             this.ログ文字列値=起動診断.ログ文字列を取得();
@@ -581,6 +538,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<ベンチマーク列選択グループ> ベンチマークプロジェクト選択グループ一覧を作成() => [
         new("左",this.選択ソース定義.左見出し,["左"]),
+        new("中央",this.選択ソース定義.中央見出し,["中央"]),
         new("右",this.選択ソース定義.右見出し,["右"]),
     ];
 
@@ -591,6 +549,8 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         foreach(var グループ in this.ベンチマークプロジェクト選択グループ一覧) {
             if(グループ.ID=="左") {
                 グループ.見出し文字列を設定(this.選択ソース定義.左見出し);
+            } else if(グループ.ID=="中央") {
+                グループ.見出し文字列を設定(this.選択ソース定義.中央見出し);
             } else if(グループ.ID=="右") {
                 グループ.見出し文字列を設定(this.選択ソース定義.右見出し);
             }
@@ -638,26 +598,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// <value>改善候補一覧 の値を取得/設定します。</value>
     public ObservableCollection<ベンチマーク改善候補行> 改善候補一覧 { get; } = [];
     /// <summary>
-    /// 遅延ホットスポット行一覧 プロパティです。
-    /// </summary>
-    /// <value>遅延ホットスポット行一覧 の値を取得/設定します。</value>
-    public ObservableCollection<ベンチマーク診断行> 遅延ホットスポット行一覧 => this.選択ソースタブ表示状態.遅延ホットスポット行一覧;
-    /// <summary>
-    /// 割り当て診断行一覧 プロパティです。
-    /// </summary>
-    /// <value>割り当て診断行一覧 の値を取得/設定します。</value>
-    public ObservableCollection<ベンチマーク診断行> 割り当て診断行一覧 => this.選択ソースタブ表示状態.割り当て診断行一覧;
-    /// <summary>
-    /// CPUタイムライン行一覧 プロパティです。
-    /// </summary>
-    /// <value>CPUタイムライン行一覧 の値を取得/設定します。</value>
-    public ObservableCollection<ベンチマーク診断行> CPUタイムライン行一覧 => this.選択ソースタブ表示状態.CPUタイムライン行一覧;
-    /// <summary>
-    /// パイプライン診断行一覧 プロパティです。
-    /// </summary>
-    /// <value>パイプライン診断行一覧 の値を取得/設定します。</value>
-    public ObservableCollection<ベンチマーク診断行> パイプライン診断行一覧 { get; } = [];
-    /// <summary>
     /// 高性能CPU区分一覧 プロパティです。
     /// </summary>
     /// <value>高性能CPU区分一覧 の値を取得/設定します。</value>
@@ -682,13 +622,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// </summary>
     /// <value>ベンチマークソート列選択肢一覧 の値を取得/設定します。</value>
     public ObservableCollection<ベンチマークソート列選択肢> ベンチマークソート列選択肢一覧 { get; } = [];
-    /// <summary>
-    /// チャート点一覧 プロパティです。
-    /// </summary>
-    /// <value>チャート点一覧 の値を取得/設定します。</value>
-    public ObservableCollection<チャート比較点> チャート点一覧 => this.選択ソースタブ表示状態.チャート点一覧;
-    public string チャート空理由文字列 => this.選択ソースタブ表示状態.チャート空理由文字列;
-    public string チャート空理由ツールチップ文字列 => this.選択ソースタブ表示状態.チャート空理由ツールチップ文字列;
     /// <summary>
     /// 結果要素数選択肢一覧 プロパティです。
     /// </summary>
@@ -744,16 +677,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// </summary>
     /// <value>実行プロファイル一覧 の値を取得/設定します。</value>
     public IReadOnlyList<実行プロファイル選択肢> 実行プロファイル一覧 { get; }
-    /// <summary>
-    /// 測定値 プロパティです。
-    /// </summary>
-    /// <value>測定値 の値を取得/設定します。</value>
-    public IReadOnlyList<指標選択肢> 測定値 { get; }
-    /// <summary>
-    /// チャートモード一覧 プロパティです。
-    /// </summary>
-    /// <value>チャートモード一覧 の値を取得/設定します。</value>
-    public IReadOnlyList<チャートモード選択肢> チャートモード一覧 { get; }
     /// <summary>
     /// 閾値選択肢一覧 プロパティです。
     /// </summary>
@@ -821,12 +744,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// </summary>
     /// <value>改善プロンプトコピーコマンド の値を取得/設定します。</value>
     public IAsyncRelayCommand 改善プロンプトコピーコマンド { get; }
-    /// <summary>
-    /// チャート表示コマンド プロパティです。
-    /// </summary>
-    /// <value>チャート表示コマンド の値を取得/設定します。</value>
-    public IRelayCommand チャート表示コマンド { get; }
-
     /// <summary>
     /// 状態文字列 プロパティです。
     /// </summary>
@@ -1406,25 +1323,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     }
 
     /// <summary>
-    /// 選択タブ プロパティです。
-    /// </summary>
-    /// <value>選択タブ の値を取得/設定します。</value>
-    public ベンチマークタブ 選択タブ {
-        get => this.選択タブ値;
-        set {
-            if(this.SetProperty(ref this.選択タブ値,value)) {
-                this.OnPropertyChanged(nameof(this.チャート表示中か));
-            }
-        }
-    }
-
-    /// <summary>
-    /// チャート表示中か プロパティです。
-    /// </summary>
-    /// <value>チャート表示中か の値を取得/設定します。</value>
-    public bool チャート表示中か => this.選択タブ==ベンチマークタブ.チャート;
-
-    /// <summary>
     /// 選択下段タブ プロパティです。
     /// </summary>
     /// <value>選択下段タブ の値を取得/設定します。</value>
@@ -1494,17 +1392,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     public ベンチマーク自動スクロール要求? 最新ベンチマーク自動スクロール要求 { get; private set; }
 
     /// <summary>
-    /// チャート左凡例ラベル プロパティです。
-    /// </summary>
-    /// <value>チャート左凡例ラベル の値を取得/設定します。</value>
-    public string チャート左凡例ラベル => チャート凡例ラベルを取得(this.選択比較ペア.左プロジェクト);
-    /// <summary>
-    /// チャート右凡例ラベル プロパティです。
-    /// </summary>
-    /// <value>チャート右凡例ラベル の値を取得/設定します。</value>
-    public string チャート右凡例ラベル => チャート凡例ラベルを取得(this.選択比較ペア.右プロジェクト);
-
-    /// <summary>
     /// ソースタブを選択Async メソッドを実行し、結果を算出して返却します。
     /// </summary>
     /// <param name="選択肢">選択肢 を指定して実行条件を制御します。</param>
@@ -1532,24 +1419,15 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         this.ソースタブ選択適用中か=true;
         this.選択実行読込要求を無効化();
         try {
-            using(this.チャート更新バッチを開始()) {
+            using(this.進行更新バッチを開始()) {
                 if(this.SetProperty(ref this.選択ソースタブ値,選択肢)) {
                     変更ありか=true;
                     this.ソースタブ表示選択を適用();
                     this.OnPropertyChanged(nameof(this.選択ソースタブ表示状態));
                     this.OnPropertyChanged(nameof(this.ベンチマーク行一覧));
-                    this.OnPropertyChanged(nameof(this.チャート点一覧));
-                    this.OnPropertyChanged(nameof(this.チャート空理由文字列));
-                    this.OnPropertyChanged(nameof(this.チャート空理由ツールチップ文字列));
-                    this.OnPropertyChanged(nameof(this.チャート高さ));
                     this.OnPropertyChanged(nameof(this.ベンチマークシェア概要文));
-                    this.OnPropertyChanged(nameof(this.遅延ホットスポット行一覧));
-                    this.OnPropertyChanged(nameof(this.割り当て診断行一覧));
-                    this.OnPropertyChanged(nameof(this.CPUタイムライン行一覧));
                     this.OnPropertyChanged(nameof(this.選択比較ペア));
                     this.OnPropertyChanged(nameof(this.選択ソース定義));
-                    this.OnPropertyChanged(nameof(this.チャート左凡例ラベル));
-                    this.OnPropertyChanged(nameof(this.チャート右凡例ラベル));
                     this.OnPropertyChanged(nameof(this.ベンチマーク選択を変更できるか));
                     this.ベンチマークプロジェクト見出し文字列を更新();
                     // タブ切替では DB もカタログも再読み込みせず、メモリ上のカタログと結果バッファだけで再構築する。
@@ -1651,61 +1529,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     }
 
     /// <summary>
-    /// 選択指標 プロパティです。
-    /// </summary>
-    /// <value>選択指標 の値を取得/設定します。</value>
-    public 指標選択肢 選択指標 {
-        get => this.選択指標値;
-        set {
-            if(this.SetProperty(ref this.選択指標値,value)) {
-                this.全ソースタブチャートを更新();
-                this.OnPropertyChanged(nameof(this.時間指標選択中か));
-                this.OnPropertyChanged(nameof(this.割り当て指標選択中か));
-            }
-        }
-    }
-
-    /// <summary>
-    /// 時間指標選択中か プロパティです。
-    /// </summary>
-    /// <value>時間指標選択中か の値を取得/設定します。</value>
-    public bool 時間指標選択中か {
-        get => this.選択指標.種別==ベンチマーク指標種別.時間;
-        set {
-            if(value) {
-                this.指標を設定(ベンチマーク指標種別.時間);
-            }
-        }
-    }
-
-    /// <summary>
-    /// 割り当て指標選択中か プロパティです。
-    /// </summary>
-    /// <value>割り当て指標選択中か の値を取得/設定します。</value>
-    public bool 割り当て指標選択中か {
-        get => this.選択指標.種別==ベンチマーク指標種別.割り当て;
-        set {
-            if(value) {
-                this.指標を設定(ベンチマーク指標種別.割り当て);
-            }
-        }
-    }
-
-    /// <summary>
-    /// 選択チャートモード プロパティです。
-    /// </summary>
-    /// <value>選択チャートモード の値を取得/設定します。</value>
-    public チャートモード選択肢 選択チャートモード {
-        get => this.選択チャートモード値;
-        set {
-            if(this.SetProperty(ref this.選択チャートモード値,value)) {
-                this.OnPropertyChanged(nameof(this.チャート要素スライダー表示中か));
-                this.全ソースタブチャートを更新();
-            }
-        }
-    }
-
-    /// <summary>
     /// 選択結果要素数 プロパティです。
     /// </summary>
     /// <value>選択結果要素数 の値を取得/設定します。</value>
@@ -1716,11 +1539,9 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                 if(value is not null) {
                     this.現在要素数文字列=要素数文字列を整形(value.値);
                 }
-                this.選択結果要素数インデックスを同期();
                 if(!this.結果要素数適用中か) {
                     this.表示結果を更新();
                     this.選択要素数を表へ適用();
-                    this.チャートを更新();
                 }
                 if(!this.UI状態適用中か&&!this.結果要素数適用中か&&!this.ベンチマーク実行中か) {
                     this.UI状態を保存();
@@ -1730,59 +1551,12 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     }
 
     /// <summary>
-    /// 選択結果要素数インデックス プロパティです。
-    /// </summary>
-    /// <value>選択結果要素数インデックス の値を取得/設定します。</value>
-    public double 選択結果要素数インデックス {
-        get => this.選択結果要素数インデックス値;
-        set {
-            var 丸め値 = Math.Round(value,MidpointRounding.AwayFromZero);
-            var 制限値 = Math.Clamp(丸め値,0,this.チャート要素数スライダー最大値);
-            if(this.SetProperty(ref this.選択結果要素数インデックス値,制限値)) {
-                this.インデックスで結果要素数を選択((int)制限値);
-            }
-        }
-    }
-
-    /// <summary>
-    /// チャート要素数スライダー最大値 プロパティです。
-    /// </summary>
-    /// <value>チャート要素数スライダー最大値 の値を取得/設定します。</value>
-    public double チャート要素数スライダー最大値 => Math.Max(0,this.結果要素数選択肢一覧.Count-1);
-
-    /// <summary>
-    /// チャート要素スライダー表示中か プロパティです。
-    /// </summary>
-    /// <value>チャート要素スライダー表示中か の値を取得/設定します。</value>
-    public bool チャート要素スライダー表示中か => this.結果要素数選択肢一覧.Count>1&&this.選択チャートモード.モード==ベンチマークチャートモード.要素比較;
-
-    /// <summary>
-    /// 選択チャート要素数文字列 プロパティです。
-    /// </summary>
-    /// <value>選択チャート要素数文字列 の値を取得/設定します。</value>
-    public string 選択チャート要素数文字列 => this.選択結果要素数?.表示名??"-";
-
-    /// <summary>
     /// 現在要素数文字列 プロパティです。
     /// </summary>
     /// <value>現在要素数文字列 の値を取得/設定します。</value>
     public string 現在要素数文字列 {
         get => this.現在要素数文字列値;
         private set => this.SetProperty(ref this.現在要素数文字列値,value);
-    }
-
-    /// <summary>
-    /// チャート高さ プロパティです。
-    /// </summary>
-    /// <value>チャート高さ の値を取得/設定します。</value>
-    public double チャート高さ {
-        get => this.選択ソースタブ表示状態.チャート高さ;
-        private set {
-            if(Math.Abs(this.選択ソースタブ表示状態.チャート高さ-value)>0.001) {
-                this.選択ソースタブ表示状態.チャート高さ=value;
-                this.OnPropertyChanged();
-            }
-        }
     }
 
     /// <summary>
@@ -2111,27 +1885,12 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         ベンチマークソースタブ表示状態 状態,
         IReadOnlyList<ベンチマーク表行> 追加行一覧,
         IReadOnlyList<ベンチマーク表行> 削除済み行一覧) {
-        var 選択変更ありか = false;
-
         foreach(var 削除済み in 削除済み行一覧) {
             行UI選択を設定(削除済み,false);
-            if(削除済み.チャート棒 is { } チャートバー) {
-                状態.UI選択チャート棒一覧.Remove(チャートバー);
-            }
-            選択変更ありか=true;
         }
 
         foreach(var 追加 in 追加行一覧) {
             行UI選択を設定(追加,true);
-            if(追加.チャート棒 is { } チャートバー) {
-                状態.UI選択チャート棒一覧.Add(チャートバー);
-            }
-            選択変更ありか=true;
-        }
-
-        if(選択変更ありか) {
-            UIスレッド予算.記録("chart-selection-series-update-count",0);
-            状態.チャート選択変更を通知();
         }
     }
 
@@ -2349,13 +2108,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                 this.ベンチマーク選択表示を更新();
             }
         };
-        foreach(var セル in 行.プロジェクトセル一覧) {
-            セル.PropertyChanged+=(_,引数) => {
-                if(引数.PropertyName==nameof(ベンチマークプロジェクトセル.測定値)) {
-                    this.ソースタブ表示状態を取得(行.ソースタブ.タブ).更新対象チャート行一覧.Add(行);
-                }
-            };
-        }
     }
 
     /// <summary>
@@ -2414,54 +2166,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                 &&選択中か);
     }
 
-    public event EventHandler? シェア履歴変更;
-
-    public IReadOnlyList<ベンチマーク傾向系列> シェア履歴を読み込む(ベンチマーク表行 行,UIシェア指標 指標) {
-        ArgumentNullException.ThrowIfNull(行);
-        try {
-            var ベンチマークケース = 行.プロジェクト別ケース.Values.FirstOrDefault();
-            if(ベンチマークケース is null) {
-                throw new InvalidDataException(
-                    "シェア履歴には厳密なベンチマークケースが必要です。タブ="+行.ソースタブ.ID
-                    +" 型="+行.ベンチマーク型文字列
-                    +" ベンチマーク="+行.メソッド名);
-            }
-            var ケース書込 = new UIベンチマークスナップショットケース書込(
-                ベンチマークケース.アセンブリ名,
-                ベンチマークケース.型完全名,
-                ベンチマークケース.メソッド名,
-                ベンチマークケース.引数キー,
-                JsonSerializer.Serialize(ベンチマークケース.引数一覧));
-
-            var 点一覧 = this.UI実行ストア.シェア履歴を取得(
-                new(
-                    UI実行アプリ種別を取得(),
-                    行.ソースタブ.ID,
-                    行.ベンチマーク型文字列,
-                    行.メソッド名,
-                    ケース書込),
-                指標,
-                1000);
-            var スケーラブルか = UI実行アプリ種別を取得()==UI実行アプリ種別.スケーラブルベンチマーク;
-            var 左ラベル = スケーラブルか ? "今回" : "左";
-            var 右ラベル = スケーラブルか ? "前回" : "右";
-            return [
-                new(左ラベル,点一覧.Select(static 点 => new ベンチマーク傾向点(点.実行ID,点.左シェア)).ToArray()),
-                new(右ラベル,点一覧.Select(static 点 => new ベンチマーク傾向点(点.実行ID,点.右シェア)).ToArray()),
-            ];
-        } catch(Exception 例外) {
-            起動診断.書き込む(
-                "フォーカス行のシェア履歴読み込みに失敗しました。タブ="+行.ソースタブ.ID
-                +" 型="+行.ベンチマーク型文字列
-                +" ベンチマーク="+行.メソッド名
-                +" 指標="+指標,
-                例外);
-            throw;
-        }
-    }
-
-    private void シェア履歴変更を通知() =>
-        this.シェア履歴変更?.Invoke(this,EventArgs.Empty);
 
     private static bool? 行選択状態を取得(IEnumerable<ベンチマーク表行> 行一覧) {
         var 対象一覧 = 行一覧.Where(static 行 => 行.プロジェクトセル一覧.Any(static セル => セル.ケースありか)).ToArray();
@@ -2661,7 +2365,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             this.実行選択肢一覧.Add(新規実行選択肢);
             this.選択実行選択肢を設定(新規実行選択肢,false,false);
             this.新規実行用に全現在実行結果をクリア();
-            this.シェア履歴変更を通知();
             this.状態文字列="履歴を消去しました";
             起動診断.書き込む("ベンチマーク実行履歴をクリアしました。");
         } catch(Exception 例外) {
@@ -2906,27 +2609,30 @@ public sealed partial class 実行ビューモデル:ObservableObject {
 
     private ベンチマークグリッドスナップショット項目? ベンチマークグリッドスナップショット項目を作成(ベンチマーク表行 行,int 順序,IReadOnlyList<ベンチマーク結果項目> 結果一覧) {
         行.プロジェクト別ケース.TryGetValue(行.ソースタブ.左プロジェクト,out var 左ベンチマーク);
+        行.プロジェクト別ケース.TryGetValue(行.ソースタブ.中央プロジェクト,out var 中央ベンチマーク);
         行.プロジェクト別ケース.TryGetValue(行.ソースタブ.右プロジェクト,out var 右ベンチマーク);
-        if(左ベンチマーク is null&&右ベンチマーク is null) {
+        if(左ベンチマーク is null&&中央ベンチマーク is null&&右ベンチマーク is null) {
             return null;
         }
 
         var 左結果 = 左ベンチマーク is null ? null : this.スナップショット結果を検索(行,左ベンチマーク,結果一覧);
+        var 中央結果 = 中央ベンチマーク is null ? null : this.スナップショット結果を検索(行,中央ベンチマーク,結果一覧);
         var 右結果 = 右ベンチマーク is null ? null : this.スナップショット結果を検索(行,右ベンチマーク,結果一覧);
         var 左CPU = 左結果?.割り当て論理CPU??CPU番号を解析(行.左セル.論理プロセッサ文字列);
+        var 中央CPU = 中央結果?.割り当て論理CPU??CPU番号を解析(行.中央セル.論理プロセッサ文字列);
         var 右CPU = 右結果?.割り当て論理CPU??CPU番号を解析(行.右セル.論理プロセッサ文字列);
-        if(左CPU is { } 左CPU値&&右CPU is { } 右CPU値&&左CPU値!=右CPU値) {
+        var CPU一覧 = new[]{左CPU,中央CPU,右CPU}.Where(static CPU => CPU.HasValue).Select(static CPU => CPU!.Value).Distinct().ToArray();
+        if(CPU一覧.Length>1) {
             起動診断.書き込む(
                 "ベンチマークスナップショットのCPUが一致しません。実行スナップショットには行共通CPUを保存します。"
                 +" ソースタブ="+行.ソースタブ.ID
                 +" 型="+行.ベンチマーク型文字列
                 +" ベンチマーク="+行.メソッド名
-                +" 左CPU="+左CPU値.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                +" 右CPU="+右CPU値.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                +" CPU="+string.Join(",",CPU一覧));
         }
 
-        var CPU番号 = 左CPU??右CPU;
-        var 型名 = スナップショット型名を解決(行,左ベンチマーク,右ベンチマーク);
+        var CPU番号 = 左CPU??中央CPU??右CPU;
+        var 型名 = スナップショット型名を解決(行,左ベンチマーク,中央ベンチマーク,右ベンチマーク);
         if(string.IsNullOrWhiteSpace(型名)) {
             起動診断.書き込む(
                 "ベンチマークスナップショットの型表示が空です。"
@@ -2935,6 +2641,9 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         }
 
         var 左側 = this.ベンチマークグリッドスナップショット側を作成(行,行.左セル,左ベンチマーク,左結果);
+        var 中央側 = string.IsNullOrWhiteSpace(行.ソースタブ.中央プロジェクト)
+            ? null
+            : this.ベンチマークグリッドスナップショット側を作成(行,行.中央セル,中央ベンチマーク,中央結果);
         var 右側 = this.ベンチマークグリッドスナップショット側を作成(行,行.右セル,右ベンチマーク,右結果);
 
         return new ベンチマークグリッドスナップショット項目(
@@ -2946,18 +2655,20 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             CPU番号,
             行.選択中か,
             左側.状態==UI実行状態.完了 ? 左側 : this.空ベンチマークグリッドスナップショット側を作成(行,行.左セル,左ベンチマーク),
-            右側.状態==UI実行状態.完了 ? 右側 : this.空ベンチマークグリッドスナップショット側を作成(行,行.右セル,右ベンチマーク));
+            右側.状態==UI実行状態.完了 ? 右側 : this.空ベンチマークグリッドスナップショット側を作成(行,行.右セル,右ベンチマーク),
+            中央側?.状態==UI実行状態.完了 ? 中央側 : 中央側 is null ? null : this.空ベンチマークグリッドスナップショット側を作成(行,行.中央セル,中央ベンチマーク));
     }
 
     private static string スナップショット型名を解決(
         ベンチマーク表行 行,
         ベンチマークケース? 左ベンチマーク,
+        ベンチマークケース? 中央ベンチマーク,
         ベンチマークケース? 右ベンチマーク) {
         if(!string.IsNullOrWhiteSpace(行.ベンチマーク型文字列)) {
             return 行.ベンチマーク型文字列;
         }
 
-        foreach(var ベンチマーク in new[]{左ベンチマーク,右ベンチマーク}) {
+        foreach(var ベンチマーク in new[]{左ベンチマーク,中央ベンチマーク,右ベンチマーク}) {
             if(ベンチマーク is null||string.IsNullOrWhiteSpace(ベンチマーク.型完全名)) {
                 continue;
             }
@@ -3225,7 +2936,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         if(保存DB実行選択肢か(this.選択実行選択肢)&&this.結果項目一覧.Count>0&&!this.ベンチマーク実行有効か) {
             this.表示結果を更新();
             this.ソースタブ進行を更新();
-            this.チャートを更新(false);
             return;
         }
 
@@ -3239,7 +2949,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                 this.スキップセルを適用(選択値要素数.値);
             }
             this.最終完了状態を更新();
-            this.チャートを更新(false);
             this.ソースタブ進行を更新();
         } finally {
             this.ベンチマーク選択表示更新中か=false;
@@ -3328,14 +3037,13 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                                 タブ入力一覧[インデックス].状態.比較行一覧=計算結果[インデックス];
                                 this.ベンチマークシェア概要を更新(タブ入力一覧[インデックス].状態);
                             }
-                            // 新しいComparisonRowsを行/スキップセル/完了状態/チャートへ反映する。もう次のtickが
+                            // 新しいComparisonRowsを行/スキップセル/完了状態へ反映する。もう次のtickが
                             // 来ない（停止中実行の閲覧時など）場合でもここで確定させないと表示が更新されないまま残る。
                             this.比較行を全表へ適用();
                             if(選択値要素数 is { } スキップ済み要素数) {
                                 this.スキップセルを適用(スキップ済み要素数);
                             }
                             this.最終完了状態を更新();
-                            this.チャートを更新();
                         });
                     } else if(タスク.IsFaulted) {
                         起動診断.書き込む("バックグラウンドでの表示結果からの全比較行更新に失敗しました。",タスク.Exception);
@@ -3824,7 +3532,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             this.新規実行用の新規実行選択肢を選択();
             this.最終完了状態をクリア();
         }
-        this.選択タブ=ベンチマークタブ.CPU;
         this.選択下段タブ=ベンチマーク下段タブ.CPU;
         this.実行キャンセル?.Cancel();
         var 実行キャンセルソース = new CancellationTokenSource();
@@ -3861,14 +3568,9 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             }
             this.ソースタブ実行中状態をクリア();
             this.OnPropertyChanged(nameof(this.ベンチマーク選択を変更できるか));
-            this.有効チャートメソッド名=string.Empty;
-            this.チャートを更新();
             if(this.選択結果要素数 is null) {
                 this.現在要素数文字列="1";
             }
-            this.OnPropertyChanged(nameof(this.チャート要素数スライダー最大値));
-            this.OnPropertyChanged(nameof(this.チャート要素スライダー表示中か));
-            this.OnPropertyChanged(nameof(this.選択チャート要素数文字列));
             this.ソースタブ進行を更新();
             this.現在ベンチマーク選択を取得();
             this.UI実行リポジトリ.実行設定保存を予約(UI実行ID,実行ルート,初期要素件数一覧,適応閾値,初期論理CPU一覧);
@@ -3948,7 +3650,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             }
             if(現在実行か) {
                 this.実行中か=false;
-                this.有効チャートメソッド名=string.Empty;
                 this.有効実行ソースタブ=null;
                 this.OnPropertyChanged(nameof(this.ベンチマーク選択を変更できるか));
             }
@@ -4002,12 +3703,10 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                 this.ソースタブ進行を更新();
             }
             this.改善プロンプトを更新();
-            this.チャートを更新();
             if(現在実行か&&UI実行ID is { } 最終実行ID) {
                 this.UI実行リポジトリ.ベンチマークスナップショット項目保存を予約(最終実行ID,this.ベンチマークグリッドスナップショット項目一覧を作成());
                 if(正常完了か) {
                     await this.UI実行リポジトリ.保存完了を待機Async();
-                    this.シェア履歴変更を通知();
                     if(保存DB実行から開始するか) {
                         this.新規実行用の新規実行選択肢を選択(false);
                     } else {
@@ -4150,7 +3849,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             this.UI実行リポジトリ.ベンチマークスナップショット項目保存を予約(実行ID,スナップショット項目一覧);
             this.UI実行状態をキューへ追加(実行ID,UI実行状態.完了,"ベンチマークグリッドスナップショットを保存しました。");
             await this.UI実行リポジトリ.保存完了を待機Async();
-            this.シェア履歴変更を通知();
             this.未保存UI実行ID=null;
             this.有効UI実行ID=null;
             this.選択実行状態キャッシュ=null;
@@ -4188,7 +3886,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             this.ピッカー用選択実行選択肢変更を通知();
         }
         this.新規グリッドカタログ表示を復元();
-        this.シェア履歴変更を通知();
         this.状態文字列="新規グリッドにしました";
     }
 
@@ -4268,7 +3965,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// <param name="項目一覧">項目一覧 を指定して実行条件を制御します。</param>
     private void ベンチマーク結果一覧保存をキューへ追加(IReadOnlyList<ベンチマーク永続化項目> 項目一覧) {
         if(項目一覧.Count==0) {
-            this.診断行を同期(this.パイプライン診断行一覧,this.パイプライン診断.行一覧を作成());
             return;
         }
 
@@ -4286,7 +3982,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                 }
             }
         });
-        this.診断行を同期(this.パイプライン診断行一覧,this.パイプライン診断.行一覧を作成());
     }
 
     private IReadOnlyList<ベンチマーク結果項目> 永続化用グリッドスナップショット結果を作成(IReadOnlyList<ベンチマーク永続化項目> 項目一覧) {
@@ -4407,7 +4102,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// <param name="スナップショット">スナップショット を指定して実行条件を制御します。</param>
     private void 実行UIスナップショットを適用(ベンチマークUIスナップショット スナップショット) {
         if(!スナップショット.更新ありか) {
-            this.診断行を同期(this.パイプライン診断行一覧,this.パイプライン診断.行一覧を作成());
             return;
         }
 
@@ -4418,46 +4112,25 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         });
         UIスレッド予算.計測("terminal-apply",() => {
             foreach(var 項目 in スナップショット.終端結果一覧) {
-                var 変更タブ = this.終了スナップショット結果を適用(項目);
-                if(変更タブ is { } タブ) {
-                    // チャート再構築はここでは起動しない。パイプラインのチャートを更新するか(1000ms集約)で
-                    // まとめてflushする。tick(100ms)毎に起動するとUIスレッドの反映コスト
-                    // (SyncChartPoints+診断行Clear/Add)だけで飽和し、入力を受け付けなくなる。
-                    this.変更チャート保留タブ.Add(タブ);
-                }
+                this.終了スナップショット結果を適用(項目);
             }
         });
         if(スナップショット.進捗を更新するか) {
             UIスレッド予算.計測("progress-dispatch",this.実行中結果用ソースタブ進行を更新);
         }
-        if(スナップショット.チャートを更新するか) {
+        if(スナップショット.終端結果一覧.Count>0) {
             if(this.ベンチマーク実行有効か) {
                 UIスレッド予算.計測("completion-dispatch",this.最終完了状態を更新);
-                if(this.変更チャート保留タブ.Count>0) {
-                    var タブ一覧 = this.変更チャート保留タブ.ToArray();
-                    this.変更チャート保留タブ.Clear();
-                    UIスレッド予算.計測("chart-dispatch",() => {
-                        foreach(var タブ in タブ一覧) {
-                            this.チャートを更新本体(this.ソースタブ表示状態を取得(タブ),false);
-                        }
-                    });
-                }
             } else {
-                this.変更チャート保留タブ.Clear();
                 UIスレッド予算.計測("idle-refresh",() => {
                     this.結果確認を更新(this.選択ソース定義.タブ);
                     this.表示結果を更新();
                     this.選択要素数を表へ適用();
-                    this.チャートを更新();
-                    // 実行終了後に持ち越された終端イベントの反映後、完全完了アイコンとバッジを
-                    // 再計算する。これらは実行中(実行中)分岐でしか更新されないため、ここが無いと
-                    // 最終ステップの確定表示が永遠に反映されない。
                     this.最終完了状態を更新();
                     this.ソースタブ進行を更新();
                 });
             }
         }
-        this.診断行を同期(this.パイプライン診断行一覧,this.パイプライン診断.行一覧を作成());
         this.保留最終ライブ表示クリアの適用を試みる();
         this.実行後表示確定の適用を試みる();
     }
@@ -4495,7 +4168,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             CPU,
             DateTimeOffset.Now,
             自動スクロールを要求するか: false,
-            チャートを更新するか: false,
             完了強調を維持するか: false);
     }
 
@@ -4504,9 +4176,9 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// </summary>
     /// <param name="項目">項目 を指定して実行条件を制御します。</param>
     /// <returns>処理結果を返却します。</returns>
-    private ベンチマークソースタブ? 終了スナップショット結果を適用(ベンチマーク実行イベント 項目) {
+    private void 終了スナップショット結果を適用(ベンチマーク実行イベント 項目) {
         if(項目.実行世代!=this.実行結果世代) {
-            return null;
+            return;
         }
 
         var 結果 = 項目.結果;
@@ -4531,7 +4203,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             CPU?.ジョブを適用(結果);
             this.ソースタブ実行中結果を適用(結果);
         }
-        ベンチマークソースタブ? 変更チャートタブ = null;
         if(結果.軸数>0) {
             this.現在実行結果項目を追加または更新(結果);
             if(結果.ソースタブ==this.選択ソース定義.タブ) {
@@ -4542,13 +4213,11 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             if(ライブ表示有効か) {
                 var 行 = this.ベンチマーク行を検索(結果);
                 行?.実行結果を適用(結果,CPU,DateTimeOffset.Now);
-                変更チャートタブ=結果.ソースタブ;
             }
         }
         this.終了状態保存保留ありか=true;
         this.未保存ベンチマーク結果ありか=true;
         this.ベンチマーク結果保存をキューへ追加(結果,項目.実行世代,項目.UI実行ID);
-        return 変更チャートタブ;
     }
 
     /// <summary>
@@ -4631,8 +4300,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         }
         if(表示タブ結果か&&実行中結果か) {
             this.ベンチマーク自動スクロールを要求(結果ソースタブ,結果.メソッド,行?.行キー??string.Empty);
-            this.有効チャートメソッド名=行?.行キー??結果.メソッド;
-            this.チャート実行中状態を適用();
             this.実行要素の完了強調を維持(結果.軸数);
             行?.実行結果を適用(結果,CPU,DateTimeOffset.Now);
             return;
@@ -4655,8 +4322,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         var 完了日時 = DateTimeOffset.Now;
         if(表示タブ結果か) {
             行?.実行結果を適用(結果,CPU,完了日時);
-            if(終端結果か) {
-            }
         }
         if(終端結果か) {
             this.終了状態保存保留ありか=true;
@@ -4665,10 +4330,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             if(表示タブ結果か) {
                 this.選択要素数を表へ適用();
                 行?.実行結果を適用(結果,CPU,完了日時);
-                if(string.Equals(this.有効チャートメソッド名,行?.行キー??結果.メソッド,StringComparison.OrdinalIgnoreCase)) {
-                    this.有効チャートメソッド名=string.Empty;
-                }
-                this.チャートを更新();
                 this.最終完了状態を更新();
             }
             this.ベンチマーク結果保存をキューへ追加(結果,実行世代,UI実行ID);
@@ -4702,7 +4363,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             this.割当CPUを検索(結果),
             DateTimeOffset.Now,
             自動スクロールを要求するか: true,
-            チャートを更新するか: true,
             完了強調を維持するか: true);
     }
 
@@ -4711,7 +4371,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         CPU選択項目? CPU,
         DateTimeOffset 観測日時,
         bool 自動スクロールを要求するか,
-        bool チャートを更新するか,
         bool 完了強調を維持するか) {
         var 行 = this.ベンチマーク行を検索(結果);
         if(行 is null) {
@@ -4719,12 +4378,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             if(自動スクロールを要求するか) {
                 this.ベンチマーク自動スクロールを要求(結果.ソースタブ,結果.メソッド,string.Empty);
             }
-
-            this.有効チャートメソッド名=結果.メソッド;
-            if(チャートを更新するか) {
-                this.チャート実行中状態を適用();
-            }
-
             return;
         }
 
@@ -4733,28 +4386,15 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             if(自動スクロールを要求するか) {
                 this.ベンチマーク自動スクロールを要求(結果.ソースタブ,結果.メソッド,行.行キー);
             }
-
-            this.有効チャートメソッド名=行.行キー;
-            if(チャートを更新するか) {
-                this.チャート実行中状態を適用();
-            }
-
             return;
         }
 
         if(自動スクロールを要求するか) {
             this.ベンチマーク自動スクロールを要求(結果.ソースタブ,結果.メソッド,行.行キー);
         }
-
-        this.有効チャートメソッド名=行.行キー;
-        if(チャートを更新するか) {
-            this.チャート実行中状態を適用();
-        }
-
         if(完了強調を維持するか) {
             this.実行要素の完了強調を維持(結果.軸数);
         }
-
         行.実行結果を適用(結果,CPU,観測日時);
     }
 
@@ -4843,7 +4483,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
 
     /// <summary>
     /// 実行終了後、パイプラインの持ち越し終端イベントが全て反映された時点で一度だけ
-    /// 表示の最終化(値の再描画+完全完了アイコン+バッジ+チャート)を行います。
+    /// 表示の最終化(値の再描画+完全完了アイコン+バッジ)を行います。
     /// 最終ステップの結果は実行終了後に描画されることがあり、実行中(実行中)分岐の
     /// 最終完了状態を更新 ではそれらを確定表示へ反映できないためです。
     /// </summary>
@@ -4868,7 +4508,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             this.結果確認を更新(this.選択ソース定義.タブ);
             this.表示結果を更新();
             this.選択要素数を表へ適用();
-            this.チャートを更新();
             this.ソースタブ進行を同期適用();
             this.最終完了状態を同期適用();
         });
@@ -5148,8 +4787,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         foreach(var 項目 in 並び替え済み) {
             this.結果要素数選択肢一覧.Add(項目);
         }
-        this.OnPropertyChanged(nameof(this.チャート要素数スライダー最大値));
-        this.OnPropertyChanged(nameof(this.チャート要素スライダー表示中か));
         if(!this.実行中か&&this.選択結果要素数 is null) {
             this.選択結果要素数=this.結果要素数選択肢一覧.FirstOrDefault();
         }
@@ -5188,48 +4825,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             this.結果要素数選択肢一覧.Add(new 結果要素数選択肢(要素数,this.結果要素数表示名を整形(要素数)));
         }
 
-        this.OnPropertyChanged(nameof(this.チャート要素数スライダー最大値));
-        this.OnPropertyChanged(nameof(this.チャート要素スライダー表示中か));
         this.選択結果要素数=this.結果要素数選択肢一覧.LastOrDefault();
-        this.選択結果要素数インデックスを同期();
-    }
-
-    /// <summary>
-    /// インデックスで結果要素数を選択 メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    /// <param name="インデックス">インデックス を指定して実行条件を制御します。</param>
-    private void インデックスで結果要素数を選択(int インデックス) {
-        if(this.結果要素数選択肢一覧.Count==0) {
-            if(this.選択結果要素数 is not null) {
-                this.選択結果要素数=null;
-            }
-            return;
-        }
-
-        var 制限値 = Math.Clamp(インデックス,0,this.結果要素数選択肢一覧.Count-1);
-        var 選択肢 = this.結果要素数選択肢一覧[制限値];
-        if(this.選択結果要素数!=選択肢) {
-            this.選択結果要素数=選択肢;
-        }
-    }
-
-    /// <summary>
-    /// 選択結果要素数インデックスを同期 メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    private void 選択結果要素数インデックスを同期() {
-        var インデックス = this.選択結果要素数 is null
-            ? 0
-            : this.結果要素数選択肢一覧.IndexOf(this.選択結果要素数);
-        if(インデックス<0) {
-            インデックス=0;
-        }
-
-        if(Math.Abs(this.選択結果要素数インデックス値-インデックス)>0.001) {
-            this.選択結果要素数インデックス値=インデックス;
-            this.OnPropertyChanged(nameof(this.選択結果要素数インデックス));
-        }
-        this.OnPropertyChanged(nameof(this.選択チャート要素数文字列));
-        this.OnPropertyChanged(nameof(this.チャート要素スライダー表示中か));
     }
 
     /// <summary>
@@ -5383,7 +4979,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         this.選択要素数を表へ適用();
         this.現在実行結果を表へ適用(結果一覧);
         this.改善プロンプトを更新();
-        this.チャートを更新();
         this.ソースタブ進行を更新();
         return true;
     }
@@ -5413,7 +5008,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             this.現在要素数文字列="-";
             this.ベンチマーク結果表示をクリア();
             this.改善プロンプト文字列=string.Empty;
-            this.全ソースタブチャートを更新(false);
             this.ソースタブ進行を更新();
             this.ツールバーコマンド状態を更新();
         }
@@ -5456,20 +5050,9 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             状態.比較行一覧= [];
             状態.ベンチマークシェア概要文=string.Empty;
             this.ソースタブ選択肢を取得(状態.定義.タブ).ベンチマークシェア概要短文を設定(ベンチマーク改善プロンプトビルダー.概要を作成([]).短縮表示文字列);
-            this.ベンチマークチャート点を同期(状態,[]);
-            this.チャート空理由を更新(状態,[],[]);
-            状態.遅延ホットスポット行一覧.Clear();
-            状態.割り当て診断行一覧.Clear();
-            状態.CPUタイムライン行一覧.Clear();
         }
         this.全体ベンチマークシェア概要を更新();
         this.OnPropertyChanged(nameof(this.ベンチマークシェア概要文));
-        this.OnPropertyChanged(nameof(this.チャート点一覧));
-        this.OnPropertyChanged(nameof(this.チャート空理由文字列));
-        this.OnPropertyChanged(nameof(this.チャート空理由ツールチップ文字列));
-        this.OnPropertyChanged(nameof(this.遅延ホットスポット行一覧));
-        this.OnPropertyChanged(nameof(this.割り当て診断行一覧));
-        this.OnPropertyChanged(nameof(this.CPUタイムライン行一覧));
     }
 
     /// <summary>
@@ -5736,17 +5319,9 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     }
 
     /// <summary>
-    /// チャート更新バッチ深度 フィールドです。
+    /// 進行更新バッチ深度 フィールドです。
     /// </summary>
-    private int チャート更新バッチ深度;
-    /// <summary>
-    /// チャート更新保留中か フィールドです。
-    /// </summary>
-    private bool チャート更新保留中か;
-    /// <summary>
-    /// チャート更新時に既存を維持するか フィールドです。
-    /// </summary>
-    private bool チャート更新時に既存を維持するか = true;
+    private int 進行更新バッチ深度;
     /// <summary>
     /// 進行更新保留中か フィールドです。
     /// </summary>
@@ -5818,28 +5393,22 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// 必 要 に 応 じ て 副 作 用 と し て 内 部 状 態 や 表 示 へ 反 映 し ま す 。
     /// </summary>
     /// <returns>処 理 結 果 を 返 却 し ま す 。</returns>
-    private IDisposable チャート更新バッチを開始() {
-        this.チャート更新バッチ深度++;
-        return new チャート更新バッチスコープ(this);
+    private IDisposable 進行更新バッチを開始() {
+        this.進行更新バッチ深度++;
+        return new 進行更新バッチスコープ(this);
     }
 
     /// <summary>
-    /// チャート更新バッチを終了 メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// 進行更新バッチを終了 メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
-    private void チャート更新バッチを終了() {
-        this.チャート更新バッチ深度--;
-        if(this.チャート更新バッチ深度>0) {
+    private void 進行更新バッチを終了() {
+        this.進行更新バッチ深度--;
+        if(this.進行更新バッチ深度>0) {
             return;
         }
         if(this.進行更新保留中か) {
             this.進行更新保留中か=false;
             this.ソースタブ進行を更新本体();
-        }
-        if(this.チャート更新保留中か) {
-            var 維持するか = this.チャート更新時に既存を維持するか;
-            this.チャート更新保留中か=false;
-            this.チャート更新時に既存を維持するか=true;
-            this.全ソースタブチャートを更新(維持するか);
         }
     }
 
@@ -5847,14 +5416,14 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// IDisposable プロパティです。
     /// </summary>
     /// <value>IDisposable の値を取得/設定します。</value>
-    private sealed class チャート更新バッチスコープ(実行ビューモデル 所有者):IDisposable {
+    private sealed class 進行更新バッチスコープ(実行ビューモデル 所有者):IDisposable {
         private          bool     破棄済みか;
         public void Dispose() {
             if(this.破棄済みか) {
                 return;
             }
             this.破棄済みか=true;
-            所有者.チャート更新バッチを終了();
+            所有者.進行更新バッチを終了();
         }
     }
 
@@ -5862,7 +5431,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// ソースタブ進行を更新 メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
     private void ソースタブ進行を更新() {
-        if(this.チャート更新バッチ深度>0) {
+        if(this.進行更新バッチ深度>0) {
             this.進行更新保留中か=true;
             return;
         }
@@ -5873,7 +5442,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// 実行中結果用ソースタブ進行を更新 メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
     private void 実行中結果用ソースタブ進行を更新() {
-        if(this.チャート更新バッチ深度>0) {
+        if(this.進行更新バッチ深度>0) {
             this.進行更新保留中か=true;
             return;
         }
@@ -6207,8 +5776,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                     }
                     this.読込ベンチマークスナップショット項目を適用(結果一覧);
                     this.進行状態からベンチマーク選択を適用(this.選択実行状態を読み込む());
-                    this.シェア履歴変更を通知();
-                } finally {
+                        } finally {
                     this.実行履歴読込を完了(要求トークン);
                 }
             });
@@ -6223,7 +5791,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         this.実行結果世代=unchecked(this.実行結果世代+1);
         this.比較行要求トークン=unchecked(this.比較行要求トークン+1);
         this.比較行更新保留中か=false;
-        using(this.チャート更新バッチを開始())
+        using(this.進行更新バッチを開始())
         using(this.データグリッド更新バッチを開始()) {
             this.結果項目一覧.Clear();
             this.表示結果項目一覧.Clear();
@@ -6244,6 +5812,10 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                         var 項目 = 状態項目一覧[インデックス];
                         this.ベンチマーク行を購読(行);
                         this.結果項目一覧.Add(this.読込スナップショット結果項目を作成(状態.定義,項目,状態.定義.左プロジェクト,項目.左));
+                        if(項目.中央 is { } 中央&& !string.IsNullOrWhiteSpace(状態.定義.中央プロジェクト)) {
+                            this.結果項目一覧.Add(this.読込スナップショット結果項目を作成(状態.定義,項目,状態.定義.中央プロジェクト,中央));
+                            this.読込ベンチマークスナップショット側を適用(行,状態.定義.中央プロジェクト,項目.CPU番号,中央);
+                        }
                         this.結果項目一覧.Add(this.読込スナップショット結果項目を作成(状態.定義,項目,状態.定義.右プロジェクト,項目.右));
                         this.読込ベンチマークスナップショット側を適用(行,状態.定義.左プロジェクト,項目.CPU番号,項目.左);
                         this.読込ベンチマークスナップショット側を適用(行,状態.定義.右プロジェクト,項目.CPU番号,項目.右);
@@ -6284,10 +5856,9 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             this.全比較行を読込結果項目から更新(this.結果項目一覧.ToArray());
             this.ソースタブ進行を更新();
             this.改善プロンプトを更新();
-            this.全ソースタブチャートを更新(false);
             this.現在ソートを適用();
         }
-        // チャート/進捗/ソートなどの通常UI更新後、スナップショットのセル値を最後に再適用する。
+        // 進捗/ソートなどの通常UI更新後、スナップショットのセル値を最後に再適用する。
         // 保存済み実行の表示ではこのDB行単位の復元が正であり、比較表示用の行再計算は正規読込経路ではない。
         this.ベンチマーク選択適用中か=true;
         try {
@@ -6314,6 +5885,9 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     private void 読込スナップショットグリッド表示欠落を記録() {
         foreach(var (項目,行,ソースタブ) in this.スナップショットバインディングを列挙()) {
             this.読込スナップショットグリッド表示欠落を記録(項目,行,ソースタブ.左プロジェクト,項目.左,行.左セル);
+            if(項目.中央 is { } 中央&& !string.IsNullOrWhiteSpace(ソースタブ.中央プロジェクト)) {
+                this.読込スナップショットグリッド表示欠落を記録(項目,行,ソースタブ.中央プロジェクト,中央,行.中央セル);
+            }
             this.読込スナップショットグリッド表示欠落を記録(項目,行,ソースタブ.右プロジェクト,項目.右,行.右セル);
         }
     }
@@ -6347,9 +5921,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         return スナップショット結果項目を作成(
             ソースタブ,
             プロジェクト,
-            string.Equals(プロジェクト,ソースタブ.左プロジェクト,StringComparison.OrdinalIgnoreCase)
-                ? ソースタブ.左アセンブリ名
-                : ソースタブ.右アセンブリ名,
+            ソースタブ.アセンブリ名を取得(プロジェクト),
             項目.型名,
             側.ベンチマーク?.メソッド名??項目.ベンチマーク名,
             側.ベンチマーク?.引数キー??string.Empty,
@@ -6366,6 +5938,9 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     private void ベンチマークスナップショット項目を行へ適用() {
         foreach(var (項目,行,ソースタブ) in this.スナップショットバインディングを列挙()) {
             this.読込ベンチマークスナップショット側を適用(行,ソースタブ.左プロジェクト,項目.CPU番号,項目.左);
+            if(項目.中央 is { } 中央&& !string.IsNullOrWhiteSpace(ソースタブ.中央プロジェクト)) {
+                this.読込ベンチマークスナップショット側を適用(行,ソースタブ.中央プロジェクト,項目.CPU番号,中央);
+            }
             this.読込ベンチマークスナップショット側を適用(行,ソースタブ.右プロジェクト,項目.CPU番号,項目.右);
         }
     }
@@ -6379,20 +5954,25 @@ public sealed partial class 実行ビューモデル:ObservableObject {
 
     private void ベンチマークスナップショット最終完了状態を適用() {
         foreach(var (項目,行,ソースタブ) in this.スナップショットバインディングを列挙()) {
-            var 測定一覧 = new[] {
+            var 測定一覧 = new List<ベンチマーク要素測定> {
                 スナップショット測定を作成(項目.左.結果項目),
-                スナップショット測定を作成(項目.右.結果項目),
             };
-            var 左セル = 進行セルを作成(行,ソースタブ.左プロジェクト,true);
-            var 右セル = 進行セルを作成(行,ソースタブ.右プロジェクト,true);
+            var 進行セル一覧 = new List<ベンチマークタブ進行セル> {
+                進行セルを作成(行,ソースタブ.左プロジェクト,true),
+            };
+            if(項目.中央 is { } 中央&& !string.IsNullOrWhiteSpace(ソースタブ.中央プロジェクト)) {
+                測定一覧.Add(スナップショット測定を作成(中央.結果項目));
+                進行セル一覧.Add(進行セルを作成(行,ソースタブ.中央プロジェクト,true));
+            }
+            測定一覧.Add(スナップショット測定を作成(項目.右.結果項目));
+            進行セル一覧.Add(進行セルを作成(行,ソースタブ.右プロジェクト,true));
             var 閾値ナノ秒 = this.適応閾値を取得().TotalMilliseconds*1_000_000;
             var 最終完了か = ベンチマーク作業軸.ループ回数を使うか(ソースタブ.タブ)
-                ? ベンチマーク行完了ロジック.ループ回数最終完了か(測定一覧,左セル,右セル,閾値ナノ秒)
-                : ベンチマーク行完了ロジック.最終完了か(
+                ? ベンチマーク行完了ロジック.ループ回数タブ最終完了か(測定一覧,進行セル一覧,閾値ナノ秒)
+                : ベンチマーク行完了ロジック.タブ最終完了か(
                     測定一覧,
-                    左セル,
-                    右セル,
-                    Math.Max(項目.左.結果項目.軸数,項目.右.結果項目.軸数),
+                    進行セル一覧,
+                    測定一覧.Max(static 測定 => 測定.要素数),
                     閾値ナノ秒);
             行.最終完了状態を設定(項目.選択中か&&最終完了か);
         }
@@ -6428,6 +6008,11 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                 var ケース一覧 = new Dictionary<string,ベンチマークケース>(StringComparer.OrdinalIgnoreCase);
                 if(this.現在スナップショットケースを解決(ソースタブ,ソースタブ.左プロジェクト,項目,項目.左.ベンチマーク) is { } 左ベンチマーク) {
                     ケース一覧[ソースタブ.左プロジェクト]=左ベンチマーク;
+                }
+                if(項目.中央 is { } 中央
+                    &&!string.IsNullOrWhiteSpace(ソースタブ.中央プロジェクト)
+                    &&this.現在スナップショットケースを解決(ソースタブ,ソースタブ.中央プロジェクト,項目,中央.ベンチマーク) is { } 中央ベンチマーク) {
+                    ケース一覧[ソースタブ.中央プロジェクト]=中央ベンチマーク;
                 }
                 if(this.現在スナップショットケースを解決(ソースタブ,ソースタブ.右プロジェクト,項目,項目.右.ベンチマーク) is { } 右ベンチマーク) {
                     ケース一覧[ソースタブ.右プロジェクト]=右ベンチマーク;
@@ -6493,7 +6078,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             : null;
 
     private static string スナップショット引数キーを取得(ベンチマークグリッドスナップショット項目 項目) =>
-        項目.左.ベンチマーク?.引数キー??項目.右.ベンチマーク?.引数キー??string.Empty;
+        項目.左.ベンチマーク?.引数キー??項目.中央?.ベンチマーク?.引数キー??項目.右.ベンチマーク?.引数キー??string.Empty;
 
     private static string スナップショット行キーを作成(string 型名,string ベンチマーク名,string 引数キー) =>
         型名+"|"+ベンチマーク名+"|"+引数キー;
@@ -6517,7 +6102,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
 
         this.選択実行DB読込中か=true;
         try {
-            using(this.チャート更新バッチを開始())
+            using(this.進行更新バッチを開始())
             using(this.データグリッド更新バッチを開始()) {
                 var 実行 = this.選択実行選択肢;
                 var 保存DB実行か = 保存DB実行選択肢か(実行);
@@ -6563,9 +6148,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                 this.表示結果を更新();
                 this.現在ソートを適用();
                 this.改善プロンプトを更新();
-                this.チャートを更新(false);
-                this.シェア履歴変更を通知();
-            }
+                    }
         } catch(Exception 例外) {
             起動診断.書き込む("ベンチマーク実行DBの読み込みに失敗しました。",例外);
             this.状態文字列="DB読み込み失敗: "+例外.Message;
@@ -6591,8 +6174,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             foreach(var 項目 in 並び替え済み) {
                 this.結果要素数選択肢一覧.Add(項目);
             }
-            this.OnPropertyChanged(nameof(this.チャート要素数スライダー最大値));
-            this.OnPropertyChanged(nameof(this.チャート要素スライダー表示中か));
         }
 
         this.結果要素数適用中か=true;
@@ -6973,7 +6554,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
 
         var 現在日時 = DateTimeOffset.UtcNow;
         if(this.ベンチマーク実行有効か&&現在日時-this.最終完了通知日時<最終完了通知間隔) {
-            // 実行中はチャートを更新するか(1秒毎)で再度呼ばれるため、スキップしても収束する。
+            // 実行中は後続の進捗更新でも再度呼ばれるため、スキップしても収束する。
             return;
         }
 
@@ -7358,9 +6939,19 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     private IReadOnlyList<(string 左プロジェクト,string 右プロジェクト)> ベンチマークペア一覧を取得() =>
         ベンチマークペア一覧を作成(this.選択ソース定義);
 
-    private static IReadOnlyList<(string 左プロジェクト,string 右プロジェクト)> ベンチマークペア一覧を作成(ベンチマークソースタブ定義 ソースタブ) => [
-        (ソースタブ.左プロジェクト,ソースタブ.右プロジェクト),
-    ];
+    private static IReadOnlyList<(string 左プロジェクト,string 右プロジェクト)> ベンチマークペア一覧を作成(ベンチマークソースタブ定義 ソースタブ) {
+        if(string.IsNullOrWhiteSpace(ソースタブ.中央プロジェクト)) {
+            return [(ソースタブ.左プロジェクト,ソースタブ.右プロジェクト)];
+        }
+
+        // 中央列(ZLinq/ValueLinq)を持つタブでは、中央にケースが無い行でも従来どおり左右ペアで完了判定できるよう、
+        // 左右ペアを必ず含めたうえで中央を絡めた隣接ペアを追加する。
+        return [
+            (ソースタブ.左プロジェクト,ソースタブ.右プロジェクト),
+            (ソースタブ.左プロジェクト,ソースタブ.中央プロジェクト),
+            (ソースタブ.中央プロジェクト,ソースタブ.右プロジェクト),
+        ];
+    }
 
     /// <summary>
     /// 行の型完全名を取得 メソッドを実行し、結果を算出して返却します。
@@ -7682,568 +7273,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         ベンチマーク引数キー一致ロジック.厳密一致か(左,右);
 
     /// <summary>
-    /// 測定点なし時に既存を維持するか プロパティです。
-    /// </summary>
-    /// <value>測定点なし時に既存を維持するか の値を取得/設定します。</value>
-    private void チャートを更新(bool 測定点なし時に既存を維持するか = true) {
-        this.選択ソースタブ表示状態.チャート全体再構築が必要か=true;
-        if(this.チャート更新バッチ深度>0) {
-            this.チャート更新保留中か=true;
-            this.チャート更新時に既存を維持するか&=測定点なし時に既存を維持するか;
-            return;
-        }
-        this.チャートを更新本体(測定点なし時に既存を維持するか);
-    }
-
-    /// <summary>
-    /// 測定点なし時に既存を維持するか プロパティです。
-    /// </summary>
-    /// <value>測定点なし時に既存を維持するか の値を取得/設定します。</value>
-    private void チャートを更新本体(bool 測定点なし時に既存を維持するか = true) {
-        this.チャートを更新本体(this.選択ソースタブ表示状態,測定点なし時に既存を維持するか);
-    }
-
-    /// <summary>
-    /// 測定点なし時に既存を維持するか プロパティです。
-    /// </summary>
-    /// <value>測定点なし時に既存を維持するか の値を取得/設定します。</value>
-    private void 全ソースタブチャートを更新(bool 測定点なし時に既存を維持するか = true) {
-        foreach(var 状態 in this.ソースタブ表示状態一覧値) {
-            状態.チャート全体再構築が必要か=true;
-            this.チャートを更新本体(状態,測定点なし時に既存を維持するか);
-        }
-        this.OnPropertyChanged(nameof(this.チャート点一覧));
-        this.OnPropertyChanged(nameof(this.チャート空理由文字列));
-        this.OnPropertyChanged(nameof(this.チャート空理由ツールチップ文字列));
-        this.OnPropertyChanged(nameof(this.チャート高さ));
-        this.OnPropertyChanged(nameof(this.遅延ホットスポット行一覧));
-        this.OnPropertyChanged(nameof(this.割り当て診断行一覧));
-        this.OnPropertyChanged(nameof(this.CPUタイムライン行一覧));
-    }
-
-    /// <summary>
-    /// チャート更新要求トークン フィールドです。
-    /// </summary>
-    private int チャート更新要求トークン;
-    /// <summary>
-    /// チャート状態排他 フィールドです。
-    /// </summary>
-    private readonly object チャート状態排他 = new();
-    /// <summary>
-    /// チャート更新中か フィールドです。
-    /// </summary>
-    private bool チャート更新中か;
-    /// <summary>
-    /// チャート更新保留タブ フィールドです。
-    /// </summary>
-    private readonly HashSet<ベンチマークソースタブ> チャート更新保留タブ = [];
-    /// <summary>
-    /// 変更チャート保留タブ フィールドです。
-    /// </summary>
-    private readonly HashSet<ベンチマークソースタブ> 変更チャート保留タブ = [];
-
-    /// <summary>
-    /// 測定点なし時に既存を維持するか プロパティです。
-    /// </summary>
-    /// <value>測定点なし時に既存を維持するか の値を取得/設定します。</value>
-    private void チャートを更新本体(ベンチマークソースタブ表示状態 状態,bool 測定点なし時に既存を維持するか = true) {
-        if(!this.ベンチマーク実行有効か) {
-            // 非実行中は 比較行一覧 キャッシュを使う軽い同期パス。
-            this.比較行からチャートを適用(状態,this.要素比較行を構築(状態));
-            return;
-        }
-
-        // 実行中の比較行再構築は結果ごとの選択判定・整形・DB参照（前回結果を検索）を含み重い。
-        // 現在実行セッション に触れるスナップショット取得だけをUIスレッドで済ませ、比較行と
-        // 診断行の計算はバックグラウンドで行う。チャートポイント構築は行の可変状態
-        // (選択・実行中表示)を読むため、反映側(UIスレッド)に残す。
-        if(this.チャート更新中か) {
-            this.チャート更新保留タブ.Add(状態.定義.タブ);
-            return;
-        }
-
-        var 定義 = 状態.定義;
-        var セッション結果一覧 = this.現在実行結果項目一覧を取得(定義.タブ);
-        var 全結果一覧 = this.現在実行セッション.全結果を取得();
-        var 選択値要素数 = this.選択結果要素数?.値;
-        var トークン = ++this.チャート更新要求トークン;
-        var 世代 = this.実行結果世代;
-        this.チャート更新中か=true;
-        var ストップウォッチ = Stopwatch.StartNew();
-        Task.Run(() => {
-            var 行一覧 = 選択値要素数 is { } 要素数
-                ? this.実行投影サービス.要素数の比較行を構築(セッション結果一覧,定義,要素数,this.比較用報告行を作成)
-                : this.実行投影サービス.最新比較行を構築(セッション結果一覧,定義,this.比較用報告行を作成);
-            return (
-                行一覧: 行一覧,
-                遅延行一覧: this.読取可能指標診断行を構築(定義,行一覧,ベンチマーク指標種別.時間),
-                割り当て行一覧: this.読取可能指標診断行を構築(定義,行一覧,ベンチマーク指標種別.割り当て),
-                タイムライン行一覧: CPUタイムライン行を構築(全結果一覧));
-        })
-            .ContinueWith(タスク => {
-                UIスレッド予算.記録("bg:chart",ストップウォッチ.Elapsed.TotalMilliseconds);
-                this.UIディスパッチャー.呼び出し開始(() => {
-                    this.チャート更新中か=false;
-                    if(トークン==this.チャート更新要求トークン&&世代==this.実行結果世代&&!タスク.IsFaulted) {
-                        var 計算結果 = タスク.Result;
-                        UIスレッド予算.計測("chart-apply",() => {
-                            状態.比較行一覧=計算結果.行一覧;
-                            this.ベンチマークシェア概要を更新(状態);
-                            IReadOnlyList<チャート比較点> 点一覧;
-                            if(状態.チャート全体再構築が必要か) {
-                                点一覧=this.ベンチマークチャート点を構築(状態,計算結果.行一覧);
-                                this.ベンチマークチャート点を同期(状態,点一覧);
-                            } else {
-                                this.変更チャート行を反映(状態,計算結果.行一覧);
-                                点一覧=状態.チャート点一覧;
-                            }
-                            状態.チャート高さ=Math.Max(ベンチマークチャート最小高さ,点一覧.Count*ベンチマークチャート行高さ+ベンチマークチャート垂直余白);
-                            this.チャート空理由を更新(状態,計算結果.行一覧,点一覧);
-                            this.診断行を同期(状態.遅延ホットスポット行一覧,計算結果.遅延行一覧);
-                            this.診断行を同期(状態.割り当て診断行一覧,計算結果.割り当て行一覧);
-                            this.診断行を同期(状態.CPUタイムライン行一覧,計算結果.タイムライン行一覧);
-                        });
-                    } else if(タスク.IsFaulted) {
-                        起動診断.書き込む("バックグラウンドでのチャート更新に失敗しました。",タスク.Exception);
-                    }
-
-                    if(this.チャート更新保留タブ.Count>0) {
-                        var タブ一覧 = this.チャート更新保留タブ.ToArray();
-                        this.チャート更新保留タブ.Clear();
-                        foreach(var タブ in タブ一覧) {
-                            this.チャートを更新本体(this.ソースタブ表示状態を取得(タブ),false);
-                        }
-                    }
-                });
-            },TaskScheduler.Default);
-    }
-
-    /// <summary>
-    /// 比較行からチャートを適用 メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    /// <param name="状態">状態 を指定して実行条件を制御します。</param>
-    /// <param name="行一覧">行一覧 を指定して実行条件を制御します。</param>
-    private void 比較行からチャートを適用(ベンチマークソースタブ表示状態 状態,IReadOnlyList<ベンチマーク比較行> 行一覧) {
-        状態.比較行一覧=行一覧;
-        this.ベンチマークシェア概要を更新(状態);
-        var 点一覧 = this.ベンチマークチャート点を構築(状態,行一覧);
-        this.ベンチマークチャート点を同期(状態,点一覧);
-        状態.チャート高さ=Math.Max(ベンチマークチャート最小高さ,点一覧.Count*ベンチマークチャート行高さ+ベンチマークチャート垂直余白);
-        this.チャート空理由を更新(状態,行一覧,点一覧);
-        this.診断表示を更新(状態,行一覧);
-    }
-
-    private void チャート空理由を更新(ベンチマークソースタブ表示状態 状態,IReadOnlyList<ベンチマーク比較行> 行一覧,IReadOnlyList<チャート比較点> 点一覧) {
-        var 理由 = this.チャート空理由を作成(状態,行一覧,点一覧);
-        状態.チャート空理由文字列=理由.文字列;
-        状態.チャート空理由ツールチップ文字列=理由.ツールチップ;
-        if(ReferenceEquals(状態,this.選択ソースタブ表示状態)) {
-            this.OnPropertyChanged(nameof(this.チャート空理由文字列));
-            this.OnPropertyChanged(nameof(this.チャート空理由ツールチップ文字列));
-        }
-    }
-
-    private (string 文字列,string ツールチップ) チャート空理由を作成(
-        ベンチマークソースタブ表示状態 状態,
-        IReadOnlyList<ベンチマーク比較行> 行一覧,
-        IReadOnlyList<チャート比較点> 点一覧) {
-        if(点一覧.Count>0) {
-            return (string.Empty,string.Empty);
-        }
-
-        var ソースタブ = 状態.定義;
-        var 選択値要素数 = this.選択結果要素数?.表示名??"-";
-        var 選択値実行 = this.選択実行選択肢?.表示名??"-";
-        var ツールチップ = "タブ: "+ソースタブ.表示名+"\n"
-            +"実行: "+選択値実行+"\n"
-            +"選択軸: "+選択値要素数+"\n"
-            +"表示結果: "+this.結果項目一覧.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)+"\n"
-            +"比較行: "+行一覧.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
-
-        if(!this.選択ライブベンチマークセルがあるか(ソースタブ)) {
-            return ("選択中のベンチマークがありません。",ツールチップ+"\n原因: このタブで選択済みのベンチマークセルがありません。");
-        }
-
-        if(this.ベンチマーク実行有効か) {
-            return ("計測結果を待っています。",ツールチップ+"\n原因: 実行中ですが、まだ比較チャートに使える完了結果がありません。");
-        }
-
-        var タブ結果ありか = this.現在実行セッション.ソースタブ結果があるか(ソースタブ.タブ)||this.結果項目一覧.Any(結果 => ソースタブ.プロジェクトを含むか(結果.プロジェクト));
-        if(!タブ結果ありか) {
-            if(this.選択実行選択肢 is null||新規実行選択肢か(this.選択実行選択肢)) {
-                return ("ベンチマークを実行するか、保存済み DB 実行を選択してください。",ツールチップ+"\n原因: 現在のタブに表示できる結果がまだありません。");
-            }
-
-            return ("保存済み DB 実行に表示できる完了結果がありません。",ツールチップ+"\n原因: 選択した保存済み実行から、このタブの完了結果を復元できませんでした。");
-        }
-
-        if(行一覧.Count==0) {
-            return ("比較できる完了結果がありません。",ツールチップ+"\n原因: 選択状態、軸、または結果ステータスの条件に合う比較行がありません。");
-        }
-
-        return ("比較ペアの両側に有効な値がありません。",ツールチップ+"\n原因: 比較行はありますが、左右のどちらかまたは両方に計測値がありません。");
-    }
-
-    /// <summary>
-    /// 診断表示を更新 メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    /// <param name="行一覧">行一覧 を指定して実行条件を制御します。</param>
-    private void 診断表示を更新(IReadOnlyList<ベンチマーク比較行> 行一覧) {
-        this.診断表示を更新(this.選択ソースタブ表示状態,行一覧);
-    }
-
-    /// <summary>
-    /// 診断表示を更新 メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    /// <param name="状態">状態 を指定して実行条件を制御します。</param>
-    /// <param name="行一覧">行一覧 を指定して実行条件を制御します。</param>
-    private void 診断表示を更新(ベンチマークソースタブ表示状態 状態,IReadOnlyList<ベンチマーク比較行> 行一覧) {
-        this.診断行を同期(状態.遅延ホットスポット行一覧,this.読取可能指標診断行を構築(状態.定義,行一覧,ベンチマーク指標種別.時間));
-        this.診断行を同期(状態.割り当て診断行一覧,this.読取可能指標診断行を構築(状態.定義,行一覧,ベンチマーク指標種別.割り当て));
-        this.診断行を同期(状態.CPUタイムライン行一覧,this.CPUタイムライン行を構築());
-    }
-
-    /// <summary>
-    /// 読取可能指標診断行を構築 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="ソースタブ">ソースタブ を指定して実行条件を制御します。</param>
-    /// <param name="行一覧">行一覧 を指定して実行条件を制御します。</param>
-    /// <param name="指標">指標 を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private IReadOnlyList<ベンチマーク診断行> 読取可能指標診断行を構築(ベンチマークソースタブ定義 ソースタブ,IReadOnlyList<ベンチマーク比較行> 行一覧,ベンチマーク指標種別 指標) {
-        return 行一覧
-            .Select(行 => {
-                var 左 = 行.プロジェクトを取得(ソースタブ.左プロジェクト);
-                var 右 = 行.プロジェクトを取得(ソースタブ.右プロジェクト);
-                var 左値 = 指標==ベンチマーク指標種別.時間 ? 左.時間ナノ秒 : 左.割り当てバイト数;
-                var 右値 = 指標==ベンチマーク指標種別.時間 ? 右.時間ナノ秒 : 右.割り当てバイト数;
-                var シェア = 左値 is { } 左番号&&右値 is { } 右番号
-                    ? 指標==ベンチマーク指標種別.時間
-                        ? シェア値.時間から作成(左番号,右番号)
-                        : シェア値.メモリから作成((long)左番号,(long)右番号)
-                    : シェア値.欠測;
-                return new {
-                    行 = 行,
-                    左値 = 左値,
-                    右値 = 右値,
-                    シェア = シェア,
-                };
-            })
-            .Where(項目 => 項目.左値 is not null&&項目.右値 is not null)
-            .OrderByDescending(項目 => 項目.シェア.左シェア??double.NegativeInfinity)
-            .ThenByDescending(項目 => 項目.左値??0)
-            .Take(40)
-            .Select(項目 => new ベンチマーク診断行(
-                指標==ベンチマーク指標種別.時間 ? "時間" : "メモリ",
-                ベンチマークフォーマッター.名前を短縮(項目.行.ベンチマーク),
-                this.選択結果要素数?.表示名??"-",
-                項目.シェア.表示文字列,
-                指標を整形(項目.左値,指標),
-                指標を整形(項目.右値,指標),
-                ソースタブ.左プロジェクト+" / "+ソースタブ.右プロジェクト+" / "+項目.行.メソッド名))
-            .ToArray();
-    }
-
-    /// <summary>
-    /// CPUタイムライン行を構築 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <returns>処理結果を返却します。</returns>
-    private IReadOnlyList<ベンチマーク診断行> CPUタイムライン行を構築() {
-        return CPUタイムライン行を構築(this.現在実行セッション.全結果を取得());
-    }
-
-    /// <summary>
-    /// CPUタイムライン行を構築 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="全結果一覧">全結果一覧 を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private static IReadOnlyList<ベンチマーク診断行> CPUタイムライン行を構築(IReadOnlyList<ベンチマーク結果項目> 全結果一覧) {
-        return 全結果一覧
-            .OrderByDescending(static 項目 => 項目.開始日時??DateTimeOffset.MinValue)
-            .ThenBy(static 項目 => 項目.プロジェクト,StringComparer.OrdinalIgnoreCase)
-            .Take(80)
-            .Select(static 項目 => new ベンチマーク診断行(
-                項目.状態,
-                ベンチマークフォーマッター.名前を短縮(項目.メソッド),
-                項目.軸数>0 ? 項目.軸数.ToString(System.Globalization.CultureInfo.InvariantCulture) : "-",
-                項目.割り当て論理CPU is { } CPU ? "CPU "+CPU.ToString(System.Globalization.CultureInfo.InvariantCulture) : "CPU -",
-                項目.平均,
-                項目.割り当てバイト数文字列,
-                項目.プロジェクト+" / "+(string.IsNullOrWhiteSpace(項目.型完全名) ? 項目.メソッド : 項目.型完全名)))
-            .ToArray();
-    }
-
-    /// <summary>
-    /// 診断行を同期 メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    /// <param name="対象">対象 を指定して実行条件を制御します。</param>
-    /// <param name="行一覧">行一覧 を指定して実行条件を制御します。</param>
-    private void 診断行を同期(ObservableCollection<ベンチマーク診断行> 対象,IReadOnlyList<ベンチマーク診断行> 行一覧) {
-        // 内容が同一ならClear/Addの通知(Syncfusion再レイアウト)自体を発生させない。
-        if(対象.Count==行一覧.Count) {
-            var 同一か = true;
-            for(var インデックス = 0;インデックス<行一覧.Count;インデックス++) {
-                if(!Equals(対象[インデックス],行一覧[インデックス])) {
-                    同一か=false;
-                    break;
-                }
-            }
-            if(同一か) {
-                return;
-            }
-        }
-
-        対象.Clear();
-        foreach(var 行 in 行一覧) {
-            対象.Add(行);
-        }
-    }
-
-    /// <summary>
-    /// チャート点を同期 メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    /// <param name="点一覧">点一覧 を指定して実行条件を制御します。</param>
-    private void チャート点を同期(IReadOnlyList<チャート比較点> 点一覧) {
-        this.チャート点を同期(this.チャート点一覧,点一覧);
-    }
-
-    private void ベンチマークチャート点を同期(
-        ベンチマークソースタブ表示状態 状態,
-        IReadOnlyList<チャート比較点> 点一覧) {
-        lock(this.チャート状態排他) {
-            UIスレッド予算.計測("chart-structural-rebuild",() => {
-                foreach(var 点 in 状態.チャート点一覧) {
-                    if(点.行 is not { } 行) {
-                        continue;
-                    }
-
-                    if(ReferenceEquals(行.チャート棒,点)) {
-                        行.チャート棒=null;
-                        行.チャート点インデックス=-1;
-                    }
-                    点.行の関連付けを解除(行);
-                }
-
-                this.チャート点を同期(状態.チャート点一覧,点一覧);
-                状態.更新対象チャート行一覧.Clear();
-                状態.チャート全体再構築が必要か=false;
-                this.チャート点インデックスを再構築(状態);
-            });
-        }
-        UIスレッド予算.記録("chart-structural-rebuild-count",点一覧.Count);
-    }
-
-    private void 変更チャート行を反映(
-        ベンチマークソースタブ表示状態 状態,
-        IReadOnlyList<ベンチマーク比較行> 比較行一覧値) {
-        lock(this.チャート状態排他) {
-            if(状態.更新対象チャート行一覧.Count==0) {
-                return;
-            }
-
-            var 変更行一覧 = 状態.更新対象チャート行一覧.ToArray();
-            状態.更新対象チャート行一覧.Clear();
-            UIスレッド予算.記録("chart-dirty-row-count",変更行一覧.Length);
-            UIスレッド予算.計測("chart-dirty-flush",() => {
-                foreach(var 行 in 変更行一覧) {
-                    if(行.チャート棒 is { } チャートバー
-                        &&(行.チャート点インデックス<0
-                            ||行.チャート点インデックス>=状態.チャート点一覧.Count
-                            ||!ReferenceEquals(状態.チャート点一覧[行.チャート点インデックス],チャートバー))) {
-                        var 点一覧 = this.ベンチマークチャート点を構築(状態,比較行一覧値);
-                        this.ベンチマークチャート点を同期(状態,点一覧);
-                        return;
-                    }
-
-                    this.変更チャート行を更新(状態,行,比較行一覧値);
-                }
-            });
-        }
-    }
-
-    private void 変更チャート行を更新(
-        ベンチマークソースタブ表示状態 状態,
-        ベンチマーク表行 行,
-        IReadOnlyList<ベンチマーク比較行> 比較行一覧値) {
-        var 候補 = this.ベンチマークチャート点を作成(行,比較行一覧値,状態.定義);
-        if(候補 is null) {
-            this.チャート棒を削除(状態,行);
-            return;
-        }
-
-        if(行.チャート棒 is { } チャートバー) {
-            チャートバー.コピー元を適用(候補);
-            状態.チャート点一覧[行.チャート点インデックス]=チャートバー;
-            UIスレッド予算.記録("chart-dirty-bar-update-count",1);
-            return;
-        }
-
-        var 挿入インデックス = 0;
-        while(挿入インデックス<状態.チャート点一覧.Count
-            &&状態.チャート点一覧[挿入インデックス].行 is { } 既存行
-            &&既存行.グリッド表示インデックス>行.グリッド表示インデックス) {
-            挿入インデックス++;
-        }
-        状態.チャート点一覧.Insert(挿入インデックス,候補);
-        UIスレッド予算.記録("chart-dirty-bar-update-count",1);
-        this.指定位置からチャート点を再採番(状態,挿入インデックス);
-        if(行.UI選択中か) {
-            状態.UI選択チャート棒一覧.Add(候補);
-            状態.チャート選択変更を通知();
-        }
-    }
-
-    private void チャート棒を削除(ベンチマークソースタブ表示状態 状態,ベンチマーク表行 行) {
-        if(行.チャート棒 is not { } チャートバー) {
-            return;
-        }
-
-        var インデックス = 行.チャート点インデックス;
-        if(インデックス<0||インデックス>=状態.チャート点一覧.Count||!ReferenceEquals(状態.チャート点一覧[インデックス],チャートバー)) {
-            状態.チャート全体再構築が必要か=true;
-            return;
-        }
-
-        状態.UI選択チャート棒一覧.Remove(チャートバー);
-        状態.チャート点一覧.RemoveAt(インデックス);
-        UIスレッド予算.記録("チャート更新行数",1);
-        状態.行キー別チャート点インデックス.Remove(行.行キー);
-        行.チャート棒=null;
-        行.チャート点インデックス=-1;
-        チャートバー.行の関連付けを解除(行);
-        this.指定位置からチャート点を再採番(状態,インデックス);
-        状態.チャート選択変更を通知();
-    }
-
-    private void 指定位置からチャート点を再採番(ベンチマークソースタブ表示状態 状態,int 開始インデックス) {
-        for(var インデックス = 開始インデックス;インデックス<状態.チャート点一覧.Count;インデックス++) {
-            var 点 = 状態.チャート点一覧[インデックス];
-            状態.行キー別チャート点インデックス[点.ベンチマーク]=インデックス;
-            if(点.行 is not { } 行) {
-                continue;
-            }
-
-            行.チャート棒=点;
-            行.チャート点インデックス=インデックス;
-        }
-    }
-
-    /// <summary>
-    /// チャート点を同期 メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    /// <param name="対象">対象 を指定して実行条件を制御します。</param>
-    /// <param name="点一覧">点一覧 を指定して実行条件を制御します。</param>
-    private void チャート点を同期(ObservableCollection<チャート比較点> 対象,IReadOnlyList<チャート比較点> 点一覧) {
-        if(対象.Count!=点一覧.Count) {
-            対象.Clear();
-            foreach(var 点 in 点一覧) {
-                対象.Add(点);
-            }
-
-            return;
-        }
-
-        for(var インデックス = 0;インデックス<点一覧.Count;インデックス++) {
-            var 点 = 点一覧[インデックス];
-            var 現在 = 対象[インデックス];
-            if(現在 is not null
-                &&ReferenceEquals(現在.行,点.行)
-                &&現在.ベンチマーク==点.ベンチマーク
-                &&現在.表示名==点.表示名
-                &&Math.Abs(現在.左値-点.左値)<0.000001
-                &&Math.Abs(現在.右値-点.右値)<0.000001
-                &&現在.左文字列==点.左文字列
-                &&現在.右文字列==点.右文字列
-                &&現在.ツールチップ文字列==点.ツールチップ文字列
-                &&現在.左フォールバックか==点.左フォールバックか
-                &&現在.右フォールバックか==点.右フォールバックか
-                &&現在.左UI選択中か==点.左UI選択中か
-                &&現在.右UI選択中か==点.右UI選択中か
-                &&現在.行UI選択中か==点.行UI選択中か) {
-                continue;
-            }
-
-            対象[インデックス]=点;
-        }
-    }
-
-    /// <summary>
-    /// ベンチマークチャート点を構築 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="行一覧">行一覧 を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private IReadOnlyList<チャート比較点> ベンチマークチャート点を構築(IReadOnlyList<ベンチマーク比較行> 行一覧) {
-        return this.ベンチマークチャート点を構築(this.選択ソースタブ表示状態,行一覧);
-    }
-
-    /// <summary>
-    /// ベンチマークチャート点を構築 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="状態">状態 を指定して実行条件を制御します。</param>
-    /// <param name="行一覧">行一覧 を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private IReadOnlyList<チャート比較点> ベンチマークチャート点を構築(ベンチマークソースタブ表示状態 状態,IReadOnlyList<ベンチマーク比較行> 行一覧) {
-        var 行スナップショット = 状態.行一覧.ToArray();
-        var グリッド順序点一覧 = 行スナップショット
-            .Select(行 => this.ベンチマークチャート点を作成(行,行一覧,状態.定義))
-            .Where(static 点 => 点 is not null)
-            .Select(static 点 => 点!)
-            .ToArray();
-        return グリッド順序点一覧;
-    }
-
-    /// <summary>
-    /// ベンチマークチャート点を作成 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="行">行 を指定して実行条件を制御します。</param>
-    /// <param name="行一覧">行一覧 を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private チャート比較点? ベンチマークチャート点を作成(
-        ベンチマーク表行 行,
-        IReadOnlyList<ベンチマーク比較行> 行一覧) =>
-        this.ベンチマークチャート点を作成(行,行一覧,this.選択ソース定義);
-
-    /// <summary>
-    /// ベンチマークチャート点を作成 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="行">行 を指定して実行条件を制御します。</param>
-    /// <param name="行一覧">行一覧 を指定して実行条件を制御します。</param>
-    /// <param name="ソースタブ">ソースタブ を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private チャート比較点? ベンチマークチャート点を作成(
-        ベンチマーク表行 行,
-        IReadOnlyList<ベンチマーク比較行> 行一覧,
-        ベンチマークソースタブ定義 ソースタブ) {
-        var 比較行 = 比較行を検索(行,行一覧);
-        var 左 = this.チャート測定値を取得(行,ソースタブ.左プロジェクト,比較行);
-        var 右 = this.チャート測定値を取得(行,ソースタブ.右プロジェクト,比較行);
-        var 左値 = 指標値を取得(左,this.選択指標.種別);
-        var 右値 = 指標値を取得(右,this.選択指標.種別);
-        if(左値 is not null&&右値 is not null) {
-            var 測定済み点 = this.チャートUI選択を適用(行,this.チャート比較点を作成(行,左値,右値,ソースタブ.ペア));
-            return this.チャート実行中状態を適用(測定済み点);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// 比較行を検索 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="行">行 を指定して実行条件を制御します。</param>
-    /// <param name="行一覧">行一覧 を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private static ベンチマーク比較行? 比較行を検索(ベンチマーク表行 行,IReadOnlyList<ベンチマーク比較行> 行一覧) {
-        foreach(var 項目 in 行一覧) {
-            if(比較行が一致するか(行,項目)) {
-                return 項目;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
     /// 比較行が一致するか メソッドを実行し、結果を算出して返却します。
     /// </summary>
     /// <param name="行">行 を指定して実行条件を制御します。</param>
@@ -8256,232 +7285,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             行.ソースタブ.タブ,
             行.プロジェクト別ケース.Values.Select(static ベンチマーク => new ベンチマーク比較行一致ケース(ベンチマーク.型完全名,ベンチマーク.引数キー)),
             項目);
-
-    /// <summary>
-    /// チャート比較点を作成 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="行">行 を指定して実行条件を制御します。</param>
-    /// <param name="左値">左値 を指定して実行条件を制御します。</param>
-    /// <param name="右値">右値 を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private チャート比較点 チャート比較点を作成(ベンチマーク表行 行,double? 左値,double? 右値) =>
-        this.チャート比較点を作成(行.行キー,行.ベンチマーク名,左値,右値,行,this.選択比較ペア);
-
-    /// <summary>
-    /// チャート比較点を作成 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="行">行 を指定して実行条件を制御します。</param>
-    /// <param name="左値">左値 を指定して実行条件を制御します。</param>
-    /// <param name="右値">右値 を指定して実行条件を制御します。</param>
-    /// <param name="ペア">ペア を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private チャート比較点 チャート比較点を作成(ベンチマーク表行 行,double? 左値,double? 右値,比較ペア選択肢 ペア) =>
-        this.チャート比較点を作成(行.行キー,行.ベンチマーク名,左値,右値,行,ペア);
-
-    /// <summary>
-    /// チャート比較点を作成 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="ベンチマーク">ベンチマーク を指定して実行条件を制御します。</param>
-    /// <param name="表示名">表示名 を指定して実行条件を制御します。</param>
-    /// <param name="左値">左値 を指定して実行条件を制御します。</param>
-    /// <param name="右値">右値 を指定して実行条件を制御します。</param>
-    /// <param name="行">行 を指定して実行条件を制御します。</param>
-    /// <param name="ペア">ペア を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private チャート比較点 チャート比較点を作成(string ベンチマーク,string 表示名,double? 左値,double? 右値,ベンチマーク表行 行,比較ペア選択肢 ペア) {
-        var 左番号 = Math.Max(0,左値??0);
-        var 右番号 = Math.Max(0,右値??0);
-        var 左フォールバックか = this.チャート指標フォールバックか(行,ペア.左プロジェクト,左値);
-        var 右フォールバックか = this.チャート指標フォールバックか(行,ペア.右プロジェクト,右値);
-        var メモリか = this.選択指標.種別==ベンチマーク指標種別.割り当て;
-        var シェア = メモリか
-            ? シェア値.メモリから作成((long)左番号,(long)右番号)
-            : シェア値.時間から作成(左番号,右番号);
-        var 左シェア文字列 = シェア.左シェア?.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)??"-";
-        var 右シェア文字列 = シェア.右シェア?.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)??"-";
-        var 指標名 = this.選択指標.種別==ベンチマーク指標種別.時間 ? "時間" : "メモリ";
-        var フォールバックツールチップ = this.チャートフォールバックツールチップを作成(ペア,左フォールバックか,右フォールバックか);
-        var 短縮名 = ベンチマークフォーマッター.名前を短縮(表示名);
-        var ツールチップ = "ベンチマーク: "+表示名
-            +(string.Equals(短縮名,表示名,StringComparison.OrdinalIgnoreCase) ? string.Empty : "\n表示名: "+短縮名)
-            +"\n"
-            +ペア.左プロジェクト+" "+指標名+": "+先頭文字列を取得(指標を整形(左値,this.選択指標.種別),"-")+"\n"
-            +ペア.右プロジェクト+" "+指標名+": "+先頭文字列を取得(指標を整形(右値,this.選択指標.種別),"-")
-            +"\nシェア: "+ペア.左プロジェクト+" "+左シェア文字列+" / "+ペア.右プロジェクト+" "+右シェア文字列
-            +フォールバックツールチップ
-            +(string.IsNullOrWhiteSpace(ベンチマーク引数ツールチップフォーマッター.引数ツールチップを作成(行))
-                ? string.Empty
-                : "\n"+ベンチマーク引数ツールチップフォーマッター.引数ツールチップを作成(行));
-        var 点 = new チャート比較点(
-            ベンチマーク,
-            ベンチマークフォーマッター.名前を短縮(表示名),
-            左番号,
-            右番号,
-            左シェア文字列,
-            右シェア文字列,
-            ツールチップ,
-            シェア.左シェア)
-            .フォールバック状態を反映(左フォールバックか,右フォールバックか);
-        点.行を関連付け(行);
-        return 点;
-    }
-
-    private bool チャート指標フォールバックか(ベンチマーク表行 行,string プロジェクト,double? 指標値) {
-        if(指標値 is null) {
-            return false;
-        }
-        if(this.選択結果要素数 is not { } 選択値要素数) {
-            return false;
-        }
-        if(this.表示に今回実行メモリを使うか(this.選択ソース定義)) {
-            return false;
-        }
-
-        var 型完全名 = 行の型完全名を取得(行,プロジェクト);
-        var 引数キー = 行の引数キーを取得(行,プロジェクト);
-        return !this.結果があるか(行.メソッド名,プロジェクト,型完全名,選択値要素数.値,引数キー);
-    }
-
-    private string チャートフォールバックツールチップを作成(比較ペア選択肢 ペア,bool 左フォールバックか,bool 右フォールバックか) {
-        if(!左フォールバックか&&!右フォールバックか) {
-            return string.Empty;
-        }
-
-        var 選択値要素数 = this.選択結果要素数?.表示名??"-";
-        if(左フォールバックか&&右フォールバックか) {
-            return "\nフォールバック: "+ペア.左プロジェクト+" / "+ペア.右プロジェクト+" は選択軸 "+選択値要素数+" ではなく最新完了結果を使用";
-        }
-        if(左フォールバックか) {
-            return "\nフォールバック: "+ペア.左プロジェクト+" は選択軸 "+選択値要素数+" ではなく最新完了結果を使用";
-        }
-
-        return "\nフォールバック: "+ペア.右プロジェクト+" は選択軸 "+選択値要素数+" ではなく最新完了結果を使用";
-    }
-
-    /// <summary>
-    /// チャート実行中状態を適用 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="点">点 を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private チャート比較点 チャート実行中状態を適用(チャート比較点 点) =>
-        点.実行中状態を反映(
-            this.ベンチマーク実行有効か&&string.Equals(点.ベンチマーク,this.有効チャートメソッド名,StringComparison.OrdinalIgnoreCase));
-
-    /// <summary>
-    /// チャートUI選択を適用 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="行">行 を指定して実行条件を制御します。</param>
-    /// <param name="点">点 を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private チャート比較点 チャートUI選択を適用(ベンチマーク表行 行,チャート比較点 点) =>
-        点.UI選択を反映(行.左セル.UI選択中か,行.右セル.UI選択中か,行.UI選択中か);
-
-    private void チャート点インデックスを再構築(ベンチマークソースタブ表示状態 状態) {
-        状態.行キー別チャート点インデックス.Clear();
-        状態.UI選択チャート棒一覧.Clear();
-        for(var インデックス = 0;インデックス<状態.行一覧.Count;インデックス++) {
-            var 行 = 状態.行一覧[インデックス];
-            行.チャート棒=null;
-            行.チャート点インデックス=-1;
-            行.グリッド表示インデックス=インデックス;
-        }
-        for(var インデックス = 0;インデックス<状態.チャート点一覧.Count;インデックス++) {
-            var 点 = 状態.チャート点一覧[インデックス];
-            状態.行キー別チャート点インデックス[点.ベンチマーク]=インデックス;
-            if(点.行 is not { } 行) {
-                continue;
-            }
-
-            行.チャート棒=点;
-            行.チャート点インデックス=インデックス;
-            if(行.UI選択中か) {
-                状態.UI選択チャート棒一覧.Add(点);
-            }
-        }
-        状態.チャート選択変更を通知();
-    }
-
-    /// <summary>
-    /// チャート実行中状態を適用 メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    private void チャート実行中状態を適用() {
-        var 状態 = this.選択ソースタブ表示状態;
-        this.チャート実行中状態を適用(状態,this.適用済み有効チャートメソッド名,false);
-        this.チャート実行中状態を適用(状態,this.有効チャートメソッド名,this.ベンチマーク実行有効か);
-        this.適用済み有効チャートメソッド名=this.有効チャートメソッド名;
-    }
-
-    private void チャート実行中状態を適用(ベンチマークソースタブ表示状態 状態,string 行キー,bool 実行中か) {
-        if(string.IsNullOrWhiteSpace(行キー)
-            ||!状態.行キー別チャート点インデックス.TryGetValue(行キー,out var インデックス)
-            ||インデックス<0
-            ||インデックス>=状態.チャート点一覧.Count) {
-            return;
-        }
-
-        var 点 = 状態.チャート点一覧[インデックス];
-        var 次 = 点.実行中状態を反映(実行中か);
-        点.コピー元を適用(次);
-        状態.チャート点一覧[インデックス]=点;
-    }
-
-    /// <summary>
-    /// チャート測定値を取得 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="行">行 を指定して実行条件を制御します。</param>
-    /// <param name="プロジェクト">プロジェクト を指定して実行条件を制御します。</param>
-    /// <param name="比較行">比較行 を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private プロジェクト測定値 チャート測定値を取得(
-        ベンチマーク表行 行,
-        string プロジェクト,
-        ベンチマーク比較行? 比較行) {
-        if(this.選択結果要素数 is not null) {
-            var 比較指標一覧 = 比較行?.プロジェクトを取得(プロジェクト)??プロジェクト測定値.欠測;
-            if(比較指標一覧.測定値ありか) {
-                return 比較指標一覧;
-            }
-
-            var 維持済み指標一覧 = 行.プロジェクトセルを取得(プロジェクト)?.測定値;
-            if(維持済み指標一覧 is { 測定値ありか: true }) {
-                return 維持済み指標一覧.Value;
-            }
-
-            return プロジェクト測定値.欠測;
-        }
-
-        var セル指標一覧 = 行.プロジェクトセルを取得(プロジェクト)?.測定値;
-        if(セル指標一覧 is { 測定値ありか: true }) {
-            return セル指標一覧.Value;
-        }
-
-        return 比較行?.プロジェクトを取得(プロジェクト)??プロジェクト測定値.欠測;
-    }
-
-    /// <summary>
-    /// 要素比較行を構築 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <returns>処理結果を返却します。</returns>
-    private IReadOnlyList<ベンチマーク比較行> 要素比較行を構築() {
-        return this.要素比較行を構築(this.選択ソースタブ表示状態);
-    }
-
-    /// <summary>
-    /// 要素比較行を構築 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="状態">状態 を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private IReadOnlyList<ベンチマーク比較行> 要素比較行を構築(ベンチマークソースタブ表示状態 状態) {
-        var ソースタブ = 状態.定義;
-        var 選択値要素数 = this.選択結果要素数?.値;
-        if(!this.ベンチマーク実行有効か) {
-            return 状態.比較行一覧;
-        }
-
-        return 選択値要素数 is { } 要素数
-            ? this.要素数の現在実行比較行を構築(ソースタブ,要素数)
-            : this.現在実行比較行を構築(ソースタブ);
-    }
 
     /// <summary>
     /// 選択要素数の報告行を作成 メソッドを実行し、結果を算出して返却します。
@@ -8608,65 +7411,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             引数一覧);
 
     /// <summary>
-    /// 指標値を取得 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="項目">項目 を指定して実行条件を制御します。</param>
-    /// <param name="指標">指標 を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private static double? 指標値を取得(ベンチマーク結果項目? 項目,ベンチマーク指標種別 指標) {
-        if(項目 is null) {
-            return null;
-        }
-
-        return 指標==ベンチマーク指標種別.時間
-            ? 項目.平均ナノ秒
-            : 項目.割り当てバイト数値;
-    }
-
-    /// <summary>
-    /// 指標値を取得 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="指標一覧">指標一覧 を指定して実行条件を制御します。</param>
-    /// <param name="指標">指標 を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private static double? 指標値を取得(プロジェクト測定値 指標一覧,ベンチマーク指標種別 指標) {
-        if(!指標一覧.測定値ありか) {
-            return null;
-        }
-
-        return 指標==ベンチマーク指標種別.時間
-            ? 指標一覧.時間ナノ秒
-            : 指標一覧.割り当てバイト数;
-    }
-
-    /// <summary>
-    /// 指標を整形 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="値">値 を指定して実行条件を制御します。</param>
-    /// <param name="指標">指標 を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private static string 指標を整形(double? 値,ベンチマーク指標種別 指標) {
-        if(値 is null) {
-            return string.Empty;
-        }
-
-        return 指標==ベンチマーク指標種別.時間
-            ? ベンチマークフォーマッター.ナノ秒を整形(値)
-            : ベンチマークフォーマッター.バイト数を整形((long)Math.Round(値.Value,MidpointRounding.AwayFromZero));
-    }
-
-    /// <summary>
-    /// 指標を設定 メソッドを実行し、副作用として内部状態を更新または描画反映します。
-    /// </summary>
-    /// <param name="種別">種別 を指定して実行条件を制御します。</param>
-    private void 指標を設定(ベンチマーク指標種別 種別) {
-        var 選択肢 = this.測定値.First(項目 => 項目.種別==種別);
-        if(!ReferenceEquals(this.選択指標値,選択肢)) {
-            this.選択指標=選択肢;
-        }
-    }
-
-    /// <summary>
     /// ログ文字列を追加 メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
     /// <param name="文字列">文字列 を指定して実行条件を制御します。</param>
@@ -8694,27 +7438,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// 強調ログ項目接頭辞 フィールドです。
     /// </summary>
     internal const string 強調ログ項目接頭辞 = "⚠ ";
-
-    /// <summary>
-    /// 先頭文字列を取得 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="値一覧">値一覧 を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private static string 先頭文字列を取得(params string[] 値一覧) {
-        return 値一覧.FirstOrDefault(static 値 => !string.IsNullOrWhiteSpace(値))??string.Empty;
-    }
-
-    /// <summary>
-    /// チャート凡例ラベルを取得 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="プロジェクト">プロジェクト を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private static string チャート凡例ラベルを取得(string プロジェクト) =>
-        ベンチマークソースタブ一覧.プロジェクトから取得を試みる(プロジェクト) is { } タブ
-            ? string.Equals(プロジェクト,タブ.左プロジェクト,StringComparison.OrdinalIgnoreCase)
-                ? タブ.左見出し
-                : タブ.右見出し
-            : プロジェクト;
 
     /// <summary>
     /// ベンチマークソート列を更新 メソッドを実行し、副作用として内部状態を更新または描画反映します。
@@ -8762,6 +7485,13 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         yield return ベンチマークグリッドソート列.左日時;
         yield return ベンチマークグリッドソート列.左時間;
         yield return ベンチマークグリッドソート列.左割り当て;
+        if(!string.IsNullOrWhiteSpace(this.選択ソース定義.中央プロジェクト)) {
+            yield return ベンチマークグリッドソート列.左速度;
+            yield return ベンチマークグリッドソート列.中央日時;
+            yield return ベンチマークグリッドソート列.中央時間;
+            yield return ベンチマークグリッドソート列.中央割り当て;
+            yield return ベンチマークグリッドソート列.中央速度;
+        }
         yield return ベンチマークグリッドソート列.時間シェア;
         yield return ベンチマークグリッドソート列.メモリシェア;
         yield return ベンチマークグリッドソート列.右日時;
@@ -8904,7 +7634,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                     .ToArray();
                 状態.行一覧.範囲を置換(並び替え済み);
             }
-            this.全ソースタブチャートを更新();
         }
     }
 

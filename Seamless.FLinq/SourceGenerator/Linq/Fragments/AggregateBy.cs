@@ -28,7 +28,7 @@ public class AggregateBy(int 番号,Enumerable source,FuncFragment keySelector,s
         {{this.FuncSupport(func,nameof(func))}}
         """;
     public override string GetEnumerableExpression =>
-        $"global::Seamless.System.Carrier.ValueEnumerableExtensions.AggregateBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()}, {seed}, {func.DelegateConstructorArg??func.RenderAsLambda()})";
+        $"global::Seamless.Linq.Enumerable.AggregateBy({source.GetEnumerableExpression}, {keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()}, {seed}, {func.DelegateConstructorArg??func.RenderAsLambda()})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
@@ -38,13 +38,13 @@ public class AggregateBy(int 番号,Enumerable source,FuncFragment keySelector,s
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector,func)}";
     public override string GetEnumeratorFields => $$"""
-        private global::Seamless.System.Carrier.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>? {{this.lookup}};
-        private global::Seamless.System.Carrier.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>.Enumerator {{this.innerEnumerator}};
+        private global::Seamless.Linq.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>? {{this.lookup}};
+        private global::Seamless.Linq.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>.Enumerator {{this.innerEnumerator}};
         """;
     public override string GetTryGetNextBody => $$"""
         if(this.{{this.lookup}} is null) {
             if({{this.e}}.TryGetSpan(out var __span)) {
-                this.{{this.lookup}}=new global::Seamless.System.Carrier.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>({{CapacityExpression("__span.Length")}});
+                this.{{this.lookup}}=new global::Seamless.Linq.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>({{CapacityExpression("__span.Length")}});
                 for(var __i=0;__i<__span.Length;__i++) {
                     var {{this.item}}=__span[__i];
                     {{this.KeyType}} {{this.key}}=default!;
@@ -57,9 +57,9 @@ public class AggregateBy(int 番号,Enumerable source,FuncFragment keySelector,s
                 }
             }else{
                 if({{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
-                    this.{{this.lookup}}=new global::Seamless.System.Carrier.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>({{CapacityExpression("__count")}});
+                    this.{{this.lookup}}=new global::Seamless.Linq.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>({{CapacityExpression("__count")}});
                 }else{
-                    this.{{this.lookup}}=new global::Seamless.System.Carrier.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>();
+                    this.{{this.lookup}}=new global::Seamless.Linq.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>();
                 }
                 while({{this.e}}.MoveNext()) {
                     var {{this.item}}={{this.e}}.Current;

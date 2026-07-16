@@ -7,6 +7,9 @@
     <SharedGUID>{2C38B4D1-E5B8-4D1A-8C41-F2EFDB834719}</SharedGUID>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)**\*.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Helper\CollectionLinq\CollectionLinqNumber.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Helper\CollectionLinq\CollectionLinqSourceSizing.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Strategy\CollectionLinq\CollectionLinqStrategy.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Strategy\CollectionLinq\IDictionaryLinqStrategy.cs" />
   </ItemGroup>
 </Project>

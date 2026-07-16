@@ -13,11 +13,3 @@ public interface ICollectionLinqStrategy<TSource, TElement, TKey, TValue>
     static abstract int KeyNumber(TKey key);
     static abstract int ValueNumber(TValue value);
 }
-
-public interface IDictionaryLinqStrategy<TSource, TElement, TKey, TValue>:ICollectionLinqStrategy<TSource,TElement,TKey,TValue>
-    where TSource : IDisposable
-    where TKey : IEquatable<TKey>
-    where TValue : IEquatable<TValue> {
-    static abstract IEnumerable<TKey> Keys(TSource source);
-    static abstract IEnumerable<TValue> Values(TSource source);
-}

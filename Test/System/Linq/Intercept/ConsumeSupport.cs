@@ -1,4 +1,4 @@
-using Seamless.System.Carrier;
+using Seamless.Linq;
 namespace Test.System.Linq.Intercept;
 
 // Chain1/Chain2 用の記録 Consumer。`.ToList()` だと LINQ メソッドが 1 個増えてしまうため、

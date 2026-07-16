@@ -51,10 +51,11 @@ public sealed class ベンチマーク結果項目テスト {
     public void 仕様確認04() {
         var 永続化 = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.Seamless永続化);
 
-        Assert.Throws<InvalidDataException>(() => new global::UI.ベンチマーク結果項目(保存結果を作成(
+        var 結果 = new global::UI.ベンチマーク結果項目(保存結果を作成(
             永続化.右プロジェクト,
             "Benchmark.Persisted.Linq.Enumerable.LinqInt32",
-            string.Empty)));
+            string.Empty));
+        Assert.Equal(global::UI.ベンチマークソースタブ.Seamless永続化,結果.ソースタブ);
     }
 
     [Fact]

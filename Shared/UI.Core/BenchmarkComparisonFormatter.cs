@@ -93,12 +93,14 @@ internal static class ベンチマーク比較フォーマッター{
         string 引数キー="",
         IReadOnlyList<ベンチマーク引数>?引数一覧=null){
         var 左=測定値一覧.GetValueOrDefault(ソースタブ.左プロジェクト);
+        var 中央=測定値一覧.GetValueOrDefault(ソースタブ.中央プロジェクト);
         var 右=測定値一覧.GetValueOrDefault(ソースタブ.右プロジェクト);
         var 行=new ベンチマーク比較行(
             ベンチマーク,
             ソースタブ,
             左,
-            右);
+            右,
+            中央);
         return 行 with{
             メソッド名=メソッド,
             型完全名=型完全名,
@@ -191,6 +193,10 @@ internal static class ベンチマーク比較フォーマッター{
     private static string プロジェクト名を正規化(string プロジェクト,ベンチマークソースタブ定義 ソースタブ){
         if(string.Equals(プロジェクト,ソースタブ.左プロジェクト,StringComparison.OrdinalIgnoreCase)){
             return ソースタブ.左プロジェクト;
+        }
+
+        if(string.Equals(プロジェクト,ソースタブ.中央プロジェクト,StringComparison.OrdinalIgnoreCase)){
+            return ソースタブ.中央プロジェクト;
         }
 
         if(string.Equals(プロジェクト,ソースタブ.右プロジェクト,StringComparison.OrdinalIgnoreCase)){
@@ -325,7 +331,8 @@ public readonly record struct ベンチマーク比較行(
     string ベンチマーク,
     ベンチマークソースタブ定義 ソースタブ,
     プロジェクト測定値 左,
-    プロジェクト測定値 右){
+    プロジェクト測定値 右,
+    プロジェクト測定値 中央=default){
     public string メソッド名{get;init;}=ベンチマーク;
     public string 型完全名{get;init;}=string.Empty;
     public string 引数キー{get;init;}=string.Empty;
@@ -339,6 +346,10 @@ public readonly record struct ベンチマーク比較行(
 
         if(string.Equals(プロジェクト,this.ソースタブ.左プロジェクト,StringComparison.OrdinalIgnoreCase)){
             return this.左;
+        }
+
+        if(string.Equals(プロジェクト,this.ソースタブ.中央プロジェクト,StringComparison.OrdinalIgnoreCase)){
+            return this.中央;
         }
 
         if(string.Equals(プロジェクト,this.ソースタブ.右プロジェクト,StringComparison.OrdinalIgnoreCase)){
@@ -357,8 +368,15 @@ public readonly record struct 比較ペア定義(
     string 右プロジェクト);
 
 internal static class ベンチマーク比較ペア{
-    public static IReadOnlyList<string>?ペアプロジェクトを取得(string プロジェクト)=>
-        ベンチマークソースタブ一覧.プロジェクトから取得を試みる(プロジェクト)?.プロジェクト順;
+    public static IReadOnlyList<string>?ペアプロジェクトを取得(string プロジェクト){
+        if(ベンチマークソースタブ一覧.プロジェクトから取得を試みる(プロジェクト) is not { } ソースタブ){
+            return null;
+        }
+        return !string.IsNullOrWhiteSpace(ソースタブ.中央プロジェクト)
+            &&string.Equals(プロジェクト,ソースタブ.中央プロジェクト,StringComparison.OrdinalIgnoreCase)
+                ? [ソースタブ.中央プロジェクト,ソースタブ.右プロジェクト]
+                : [ソースタブ.左プロジェクト,ソースタブ.右プロジェクト];
+    }
 }
 
 public enum シェア判定{

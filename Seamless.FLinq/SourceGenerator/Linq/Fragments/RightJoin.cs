@@ -13,7 +13,7 @@ internal class RightJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         : this.EnumeratorTypeNameWithOuter(this.outerSource.EnumeratorTypeName,this.innerSource.EnumeratorTypeName);
     private string FactorySource => !this.UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
-        private static global::Seamless.System.Carrier.ValueEnumerable<{{this.Struct}}<TOuterEnum,TInnerEnum,TResult>,TResult> {{this.FactoryMethodName}}<TOuterEnum,TInnerEnum,TResult>(TOuterEnum outer,TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(this.outerKey)}}>? comparer{{this.ClosurePrimaryCtorSuffix(this.outerKey,this.innerKey,this.resultSelector)}})
+        private static global::Seamless.Linq.ValueEnumerable<{{this.Struct}}<TOuterEnum,TInnerEnum,TResult>,TResult> {{this.FactoryMethodName}}<TOuterEnum,TInnerEnum,TResult>(TOuterEnum outer,TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(this.outerKey)}}>? comparer{{this.ClosurePrimaryCtorSuffix(this.outerKey,this.innerKey,this.resultSelector)}})
             where TOuterEnum:struct,global::System.Collections.Generic.IEnumerator<{{this.outerSource.ElementType}}>
             where TInnerEnum:struct,global::System.Collections.Generic.IEnumerator<{{this.innerSource.ElementType}}>
             => new(new {{this.Struct}}<TOuterEnum,TInnerEnum,TResult>(outer,inner,comparer{{this.ClosureArgsSuffixForFactory(this.outerKey,this.innerKey,this.resultSelector)}}));
@@ -33,16 +33,16 @@ internal class RightJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
     public override string GetEnumerableExpression => this.UseResultTypeParam ? $"{this.FactoryMethodName}({this.outerSource.GetEnumeratorExpression},{this.innerSource.GetEnumeratorExpression},{this.comparerExpression}{this.ClosureArgsSuffix(this.outerKey,this.innerKey,this.resultSelector)})" : base.GetEnumerableExpression;
     public override string GetEnumeratorConstructor => $"this.{this.lookup}=BuildOuterLookup(this.{this.e},this.comparer{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)});";
     public override string GetEnumeratorFields => $$"""
-        private global::Seamless.System.Carrier.Lookup<{{FuncReturnTypeName(this.outerKey)}},{{this.outerSource.ElementType}}> {{this.lookup}};
-        private global::Seamless.System.Carrier.Grouping<{{FuncReturnTypeName(this.outerKey)}},{{this.outerSource.ElementType}}>? {{this.group}};
+        private global::Seamless.Linq.Lookup<{{FuncReturnTypeName(this.outerKey)}},{{this.outerSource.ElementType}}> {{this.lookup}};
+        private global::Seamless.Linq.Grouping<{{FuncReturnTypeName(this.outerKey)}},{{this.outerSource.ElementType}}>? {{this.group}};
         private int {{this.groupIndex}};
         private int {{this.state}};
         private {{this.innerSource.ElementType}} {{this.outerValue}};
         private static bool IsNullKey<TKey>(TKey key){
             return key is null;
         }
-        private static global::Seamless.System.Carrier.Lookup<{{FuncReturnTypeName(this.outerKey)}},{{this.outerSource.ElementType}}> BuildOuterLookup(TOuterEnum outer,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(this.outerKey)}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
-            var __lookupBuilder=new global::Seamless.System.Carrier.LookupBuilder<{{FuncReturnTypeName(this.outerKey)}},{{this.outerSource.ElementType}}>(comparer);
+        private static global::Seamless.Linq.Lookup<{{FuncReturnTypeName(this.outerKey)}},{{this.outerSource.ElementType}}> BuildOuterLookup(TOuterEnum outer,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(this.outerKey)}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
+            var __lookupBuilder=new global::Seamless.Linq.LookupBuilder<{{FuncReturnTypeName(this.outerKey)}},{{this.outerSource.ElementType}}>(comparer);
             using var {{this.e}}=outer;
             while({{this.e}}.MoveNext()){
                 {{this.CounterCall("IncrementLogicalRightJoinOuter")}}

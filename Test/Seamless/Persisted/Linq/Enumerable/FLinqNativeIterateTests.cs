@@ -45,7 +45,10 @@ public class FLinqNativeIterateTests {
 
             source=set;
             Assert.True(AllLessThanFiveImpl());
-            Assert.Throws<NotSupportedException>(() => { _=DirectFirstOrDefaultGreaterThanTwoImpl(); });
+            // 順序なしSetへの直接的な順序依存演算は、以前はFLinq側のFLINQ003/004でランタイム例外を投げていたが、
+            // その判定はSeamless.Linq.Analyzers側のコンパイル時診断(SEAMLINQ001/002)へ移管された。
+            // FLinqのnative iterate自体は AsEnumerable() の有無に関わらず同じ結果を返す。
+            Assert.Equal(3,DirectFirstOrDefaultGreaterThanTwoImpl());
             Assert.Equal(3,ExplicitFirstOrDefaultGreaterThanTwoImpl());
 
             AssertNativeIterateGenerated(nameof(AllLessThanFiveImpl));

@@ -12,19 +12,19 @@ public class PersistedBase<T>(int count = 80_000):Base<T>(NormalizeCount(count))
     private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcOneCache = [];
     private readonly string rootPath = Path.Combine(AppContext.BaseDirectory,"persisted-benchmark",Guid.NewGuid().ToString("N"));
 
-    protected new Seamless.Persisted.Collections.Set<T> src(int scale) =>
+    protected internal new Seamless.Persisted.Collections.Set<T> src(int scale) =>
         this.GetOrCreate(scale,this.srcCache,static length => CreateRange(1,length));
 
-    protected new Seamless.Persisted.Collections.Set<T> srcCount(int elementCount) =>
+    protected internal new Seamless.Persisted.Collections.Set<T> srcCount(int elementCount) =>
         this.GetOrCreateByLength(elementCount,this.srcCache,static length => CreateRange(1,length));
 
-    protected new Seamless.Persisted.Collections.Set<T> src2(int scale) =>
+    protected internal new Seamless.Persisted.Collections.Set<T> src2(int scale) =>
         this.GetOrCreate(scale,this.src2Cache,static length => CreateRange(length/2+1,length/2));
 
-    protected new Seamless.Persisted.Collections.Set<T> src2Count(int elementCount) =>
+    protected internal new Seamless.Persisted.Collections.Set<T> src2Count(int elementCount) =>
         this.GetOrCreateByLength(elementCount,this.src2Cache,static length => CreateRange(length/2+1,length/2));
 
-    protected new Seamless.Persisted.Collections.Set<T> srcOne(int scale) =>
+    protected internal new Seamless.Persisted.Collections.Set<T> srcOne(int scale) =>
         this.GetOrCreate(scale,this.srcOneCache,static _ => [FromInt(0)]);
 
     [GlobalCleanup]
@@ -75,6 +75,7 @@ public class PersistedBase<T>(int count = 80_000):Base<T>(NormalizeCount(count))
         return handle.Set;
     }
 
+    [LinqIntercept(false)]
     private SourceHandle<TItem> CreateSet<TItem>(IEnumerable<TItem> values) {
         var path = Path.Combine(this.rootPath,Guid.NewGuid().ToString("N"),"items.dat");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);

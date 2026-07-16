@@ -3,7 +3,7 @@ namespace Seamless.FLinq;
 
 public sealed partial class FLinqIncrementalGenerator {
 
-    private static Linq傍受対象型? Linq傍受対象生成(GeneratorSyntaxContext context,CancellationToken cancellationToken) {
+    private static Linq傍受探索結果? Linq傍受対象生成(GeneratorSyntaxContext context,CancellationToken cancellationToken) {
         //呼び出しである必要がある
         if(context.Node is not InvocationExpressionSyntax invocation) {
             return null;
@@ -13,9 +13,13 @@ public sealed partial class FLinqIncrementalGenerator {
             return null;
         }
 
-        return TryCreateLocalMethodInterceptionTarget(context,invocation,method,cancellationToken,out var localMethodTarget)
-            ? localMethodTarget
-            : null;
+        if(TryCreateLocalMethodInterceptionTarget(context,invocation,method,cancellationToken,out var localMethodTarget,out var diagnostic)) {
+            return new(localMethodTarget,null);
+        }
+        if(diagnostic is not null) {
+            return new(null,diagnostic);
+        }
+        return null;
     }
 
     private static bool TryCreateLocalMethodInterceptionTarget(
@@ -23,8 +27,10 @@ public sealed partial class FLinqIncrementalGenerator {
         InvocationExpressionSyntax invocation,
         IMethodSymbol method,
         CancellationToken cancellationToken,
-        out Linq傍受対象型? target) {
+        out Linq傍受対象型? target,
+        out Diagnostic? diagnostic) {
         target=null;
+        diagnostic=null;
 
         // 呼び出し側で型引数が確定済みのジェネリックメソッド呼び出し（例: Foo<int>(...)）も、
         // 未構築の定義（OriginalDefinition）に正規化してから以降の判定・生成を行う。
@@ -51,13 +57,7 @@ public sealed partial class FLinqIncrementalGenerator {
             // Partial method/ctor/operator などは現在のローカルメソッド再構成対象外。
             ||method.ContainingType is null
             // 所属型がないと interceptor 側で this/型名を再現できない。
-            ||(method.ContainingType.IsGenericType&&!再現可能なジェネリック含有型か(method))
-            // ジェネリック型メンバーは生成メソッド側へ型パラメータを漏らしやすいので原則除外。
-            // ただし「再現可能な単純ジェネリック含有型（例: Base<T> where T:notnull）」かつ
-            // 傍受メソッドと補助 struct へ含有型の型パラメーターを伝播できる単純な形を許可する。
-            // ラムダを含む場合も、生成コードから参照可能なメンバーだけで閉じられるなら展開対象にする。
-            // （メソッド自身の型パラメーターのみ持つジェネリックメソッドは、冒頭で OriginalDefinition
-            // に正規化済みなので通過する。呼び出し側で確定した型引数はインターセプター経由で解決される）
+
             ||(!method.IsStatic&&(method.IsAbstract||method.IsVirtual||method.IsOverride))
             // 仮想呼び出しを intercept すると動的ディスパッチを壊すのでそのまま残す。
             ||ContainsGeneratedTypeAccessibilityRisk(method.ContainingType)
@@ -76,20 +76,15 @@ public sealed partial class FLinqIncrementalGenerator {
             // 非公開戻り値型も生成コードから見えない。
             ||method.ReturnType.IsRefLikeType
             // ref-like 戻り値の forward/inline は寿命制約を満たしにくい。
-            ||ContainsExternalTypeParameter(method.ReturnType,method.TypeParameters)
-            // 戻り値にメソッド外の型パラメータが残ると生成側の静的メソッドで閉じられない。
-            // メソッド自身の型パラメーター（TAnonymous 等）は許可する。
+
             ||method.Parameters.Any(static parameter => parameter.RefKind!=RefKind.None)
             // ref/out/in は aliasing を壊しやすいのでいったん除外。
             ||method.Parameters.Any(static parameter => ContainsAnonymousType(parameter.Type))
             // 匿名型引数も署名へ出せない。
             ||method.Parameters.Any(static parameter => ContainsGeneratedTypeAccessibilityRisk(parameter.Type))
             // 非公開型引数は生成コードから参照できない。
-            ||method.Parameters.Any(static parameter => parameter.Type.IsRefLikeType)
+            ||method.Parameters.Any(static parameter => parameter.Type.IsRefLikeType)) {
             // ref struct 引数は寿命制約を再現しにくい。
-            ||method.Parameters.Any(static parameter => ContainsTypeParameter(parameter.Type))) {
-            // 引数にメソッド自身のものも含め型パラメータが残ると、生成される補助 struct が
-            // その型パラメータを宣言できず再生成対象外になる。引数は非ジェネリックのみ許可する。
             return false;
         }
 
@@ -110,6 +105,11 @@ public sealed partial class FLinqIncrementalGenerator {
         var optimizeLinq = LinqRewrite判定(method,context.SemanticModel.Compilation);
         var counterInstrumentation = LinqInstrumentation判定(method,context.SemanticModel.Compilation);
         if(!optimizeLinq&&!counterInstrumentation) {
+            return false;
+        }
+
+        if(!全型パラメーター取得(method,out var allTypeParameters,out var signatureFailureReason)) {
+            diagnostic=Diagnostic.Create(署名生成不能Descriptor,invocation.GetLocation(),method.Name,signatureFailureReason);
             return false;
         }
 
@@ -134,10 +134,7 @@ public sealed partial class FLinqIncrementalGenerator {
         // 含有型がジェネリックなら、その型パラメーターを傍受メソッド（別クラスのジェネリック静的メソッド）へ移す。
         // これでレシーバ型 this Base<T> と要素型 T を生成側で名指しできる。
         // 型パラメーターの順序は「含有型 → メソッド自身」。制約（where）も同順で再現する。
-        var containingTypeParameters = method.ContainingType.IsGenericType
-            ? method.ContainingType.TypeParameters
-            : ImmutableArray<ITypeParameterSymbol>.Empty;
-        var allTypeParameters = containingTypeParameters.AddRange(method.TypeParameters);
+
         var methodTypeParameterNames = allTypeParameters.Length==0
             ? null
             : allTypeParameters.Select(static t => t.Name).ToArray();
@@ -162,26 +159,58 @@ public sealed partial class FLinqIncrementalGenerator {
         return true;
     }
 
-    // 含有型がジェネリックでも、生成側（別クラスのジェネリック静的メソッド）で
-    // 型パラメーターと制約を再現できる単純ケースだけ許可する。
-    private static bool 再現可能なジェネリック含有型か(IMethodSymbol method) {
-        // 入れ子（外側）にジェネリック型があると生成静的メソッド側で閉じられないので未対応。
-        for(var outer = method.ContainingType.ContainingType;outer is not null;outer=outer.ContainingType) {
-            if(outer.IsGenericType) {
-                return false;
-            }
+    // 外側から内側の含有型、最後にメソッド自身の順で型パラメーターを収集する。
+    private static bool 全型パラメーター取得(
+        IMethodSymbol method,
+        out ImmutableArray<ITypeParameterSymbol> typeParameters,
+        out string failureReason) {
+        var typeStack = new Stack<INamedTypeSymbol>();
+        for(var type = method.ContainingType;type is not null;type=type.ContainingType) {
+            typeStack.Push(type);
         }
-        // 制約に非公開型が現れると生成コードから参照できない。
-        foreach(var typeParameter in method.ContainingType.TypeParameters) {
-            foreach(var constraint in typeParameter.ConstraintTypes) {
-                if(ContainsGeneratedTypeAccessibilityRisk(constraint)) {
+
+        var builder = ImmutableArray.CreateBuilder<ITypeParameterSymbol>();
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        while(typeStack.Count>0) {
+            var type = typeStack.Pop();
+            foreach(var typeParameter in type.TypeParameters) {
+                if(!型パラメーター追加(typeParameter,builder,names,out failureReason)) {
+                    typeParameters=[];
                     return false;
                 }
             }
         }
+        foreach(var typeParameter in method.TypeParameters) {
+            if(!型パラメーター追加(typeParameter,builder,names,out failureReason)) {
+                typeParameters=[];
+                return false;
+            }
+        }
+
+        typeParameters=builder.ToImmutable();
+        failureReason=string.Empty;
         return true;
     }
 
+    private static bool 型パラメーター追加(
+        ITypeParameterSymbol typeParameter,
+        ImmutableArray<ITypeParameterSymbol>.Builder builder,
+        HashSet<string> names,
+        out string failureReason) {
+        if(!names.Add(typeParameter.Name)) {
+            failureReason=$"型パラメーター名 '{typeParameter.Name}' が外側と内側で重複しています";
+            return false;
+        }
+        foreach(var constraint in typeParameter.ConstraintTypes) {
+            if(ContainsGeneratedTypeAccessibilityRisk(constraint)) {
+                failureReason=$"型パラメーター '{typeParameter.Name}' の制約型 '{constraint.ToDisplayString()}' を生成コードから参照できません";
+                return false;
+            }
+        }
+        builder.Add(typeParameter);
+        failureReason=string.Empty;
+        return true;
+    }
     // 型パラメーターの where 制約節を生成する（例: " where T : notnull"）。
     private static string 型パラメーター制約節生成(ImmutableArray<ITypeParameterSymbol> typeParameters) {
         var clauses = new List<string>();

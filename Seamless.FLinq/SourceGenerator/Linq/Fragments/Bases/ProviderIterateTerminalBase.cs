@@ -32,7 +32,10 @@ public abstract class ProviderNativeExecutionBase(
     string?                     terminalComparer   =null)
     :Scalar(number),DirectExecutionFragment {
     private readonly   int        number          =number;
-    private            string     StateTypeName => $"{this.Struct}_{providerName}{operationName}State";
+    private string StateTypeBaseName => $"{this.Struct}_{providerName}{operationName}State";
+    private string StateTypeName => this.OuterTypeParameters.Length==0
+        ? this.StateTypeBaseName
+        : $"{this.StateTypeBaseName}<{string.Join(", ",this.OuterTypeParameters)}>";
     protected override Enumerable PrimarySource => pipeline;
 
     protected static bool CanCreateFor(PipelineEnumerable pipeline,PipelineTerminalKind terminalKind) =>
@@ -166,7 +169,7 @@ public abstract class ProviderNativeExecutionBase(
         }
         var parameters = this.ClosureParameters().ToArray();
         if(parameters.Length>0) {
-            builder.AppendLine($"    public {this.StateTypeName}({string.Join(", ",parameters.Select(static p => $"{p.TypeName} {p.Name}"))}) {{");
+            builder.AppendLine($"    public {this.StateTypeBaseName}({string.Join(", ",parameters.Select(static p => $"{p.TypeName} {p.Name}"))}) {{");
             foreach(var parameter in parameters) {
                 builder.AppendLine($"        this.{parameter.Name}={parameter.Name};");
             }
@@ -180,7 +183,7 @@ public abstract class ProviderNativeExecutionBase(
             builder.AppendLine("        this.Value=default!;");
             builder.AppendLine("    }");
         } else if(pipeline.Stages.Any(static stage => stage.UsesIndex)) {
-            builder.AppendLine($"    public {this.StateTypeName}() {{");
+            builder.AppendLine($"    public {this.StateTypeBaseName}() {{");
             foreach(var (stage,index) in pipeline.Stages.Select(static (stage,index) => (stage,index))) {
                 if(stage.UsesIndex) {
                     builder.AppendLine($"        this.{this.IndexFieldName(index)}=-1;");

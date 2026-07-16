@@ -1,5 +1,5 @@
-global using Seamless.System.Carrier;
-global using Seamless.System.Carrier.Internal;
+global using Seamless.Linq;
+global using Seamless.Linq.Internal;
 
 global using System;
 global using System.Buffers;

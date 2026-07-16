@@ -532,52 +532,52 @@ public class Base<T> where T : notnull {
 
 #if SYSTEM_IENUMERABLE
     [LinqIntercept(false)]
-    protected IEnumerable<T> src(int scale) =>
+    protected internal IEnumerable<T> src(int scale) =>
         CreateSourceEnumerable(1,this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(this.count*scale)),SourceKind.Src);
 
     [LinqIntercept(false)]
-    protected IEnumerable<T> srcCount(int elementCount) =>
+    protected internal IEnumerable<T> srcCount(int elementCount) =>
         CreateSourceEnumerable(1,this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount)),SourceKind.SrcCount);
 
     [LinqIntercept(false)]
-    protected IEnumerable<T> src2(int scale) {
+    protected internal IEnumerable<T> src2(int scale) {
         var length = this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(this.count*scale));
         return CreateSourceEnumerable(length/2+1,length/2,SourceKind.Src2);
     }
 
     [LinqIntercept(false)]
-    protected IEnumerable<T> src2Count(int elementCount) {
+    protected internal IEnumerable<T> src2Count(int elementCount) {
         var length = this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(elementCount));
         return CreateSourceEnumerable(length/2+1,length/2,SourceKind.Src2Count);
     }
 
     [LinqIntercept(false)]
-    protected IEnumerable<T> srcOne(int scale) => [FromInt(0)];
+    protected internal IEnumerable<T> srcOne(int scale) => [FromInt(0)];
 #elif SYSTEM_LIST
     [LinqIntercept(false)]
-    protected List<T> src(int scale) => this.GetOrCreateList(scale,SourceKind.Src,CreateSourceList);
+    protected internal List<T> src(int scale) => this.GetOrCreateList(scale,SourceKind.Src,CreateSourceList);
 
     [LinqIntercept(false)]
-    protected List<T> srcCount(int elementCount) => this.GetOrCreateListByLength(elementCount,SourceKind.SrcCount,CreateSourceList);
+    protected internal List<T> srcCount(int elementCount) => this.GetOrCreateListByLength(elementCount,SourceKind.SrcCount,CreateSourceList);
 
     [LinqIntercept(false)]
-    protected List<T> src2(int scale) => this.GetOrCreateList(scale,SourceKind.Src2,CreateSecondSourceList);
+    protected internal List<T> src2(int scale) => this.GetOrCreateList(scale,SourceKind.Src2,CreateSecondSourceList);
 
     [LinqIntercept(false)]
-    protected List<T> src2Count(int elementCount) => this.GetOrCreateListByLength(elementCount,SourceKind.Src2Count,CreateSecondSourceList);
+    protected internal List<T> src2Count(int elementCount) => this.GetOrCreateListByLength(elementCount,SourceKind.Src2Count,CreateSecondSourceList);
 
     [LinqIntercept(false)]
-    protected List<T> srcOne(int scale) =>
+    protected internal List<T> srcOne(int scale) =>
         this.GetOrCreateListByLength(1,SourceKind.SrcOne,static _ => [FromInt(0)]);
 #else
     [LinqIntercept(false)]
-    protected T[] src(int scale) => this.GetOrCreate(scale,SourceKind.Src,CreateSourceArray);
+    protected internal T[] src(int scale) => this.GetOrCreate(scale,SourceKind.Src,CreateSourceArray);
 
     [LinqIntercept(false)]
     protected internal T[] srcCount(int elementCount) => this.GetOrCreateByLength(elementCount,SourceKind.SrcCount,CreateSourceArray);
 
     [LinqIntercept(false)]
-    protected T[] src2(int scale) => this.GetOrCreate(scale,SourceKind.Src2,CreateSecondSourceArray);
+    protected internal T[] src2(int scale) => this.GetOrCreate(scale,SourceKind.Src2,CreateSecondSourceArray);
 
     [LinqIntercept(false)]
     protected internal T[] src2Count(int elementCount) => this.GetOrCreateByLength(elementCount,SourceKind.Src2Count,CreateSecondSourceArray);

@@ -36,6 +36,91 @@ public sealed class 実行ビューモデル {
     }
 
     [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void ベンチマークアセンブリ登録_標準プロジェクト一覧は中央列を含む全アセンブリを受け入れる() {
+        var 中央アセンブリ名一覧 = global::UI.ベンチマークソースタブ一覧.標準全て
+            .Select(static タブ => タブ.中央アセンブリ名)
+            .Where(static 名前 => !string.IsNullOrWhiteSpace(名前))
+            .ToArray();
+        Assert.NotEmpty(中央アセンブリ名一覧);
+
+        var 登録一覧 = global::UI.ベンチマークカタログ.標準プロジェクト一覧
+            .Select(static プロジェクト => プロジェクト.アセンブリ名)
+            .ToArray();
+
+        global::UI.ベンチマークカタログ.アセンブリ登録を検証(
+            global::UI.ベンチマークカタログ.標準プロジェクト一覧,
+            登録一覧);
+        Assert.All(中央アセンブリ名一覧,名前 => Assert.Contains(名前,登録一覧,StringComparer.OrdinalIgnoreCase));
+    }
+
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void ベンチマークアセンブリ登録_中央列を持たないタブも成功する() {
+        var 最適化プロジェクト一覧 = new global::UI.ベンチマークプロジェクト[] {
+            new("左","Benchmark.Optimization.All"),
+            new("右","Benchmark.Optimization.NoRewrite"),
+        };
+
+        global::UI.ベンチマークカタログ.アセンブリ登録を検証(
+            最適化プロジェクト一覧,
+            ["Benchmark.Optimization.All","Benchmark.Optimization.NoRewrite"]);
+    }
+
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void ベンチマークアセンブリ登録_未知の余分なアセンブリは失敗し続ける() {
+        var 例外 = Assert.Throws<InvalidOperationException>(() =>
+            global::UI.ベンチマークカタログ.アセンブリ登録を検証(
+                global::UI.ベンチマークカタログ.標準プロジェクト一覧,
+                global::UI.ベンチマークカタログ.標準プロジェクト一覧
+                    .Select(static プロジェクト => プロジェクト.アセンブリ名)
+                    .Append("Benchmark.Unexpected.Truly")));
+
+        Assert.Contains("Benchmark.Unexpected.Truly",例外.Message,StringComparison.Ordinal);
+    }
+
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void ペア停止を適用_中央プロジェクトを含む隣接ペアでも停止表示を更新する() {
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
+        {
+            // (左,中央)ペアでの停止適用が反映されることを確認する。
+            var 行 = 配列ベンチマーク行を作成("AggregateBy_keySelector");
+            行.ペア停止を適用(ソースタブ.左プロジェクト,ソースタブ.中央プロジェクト,4096,true);
+            Assert.Equal("4096",行.停止要素数文字列);
+        }
+        {
+            // (中央,右)ペアでの停止適用も反映されることを確認する。
+            var 行 = 配列ベンチマーク行を作成("AggregateBy_keySelector");
+            行.ペア停止を適用(ソースタブ.中央プロジェクト,ソースタブ.右プロジェクト,2048,true);
+            Assert.Equal("2048",行.停止要素数文字列);
+        }
+        {
+            // 隣接しない組み合わせでは反映されないことを確認する(回帰防止)。
+            var 行 = 配列ベンチマーク行を作成("AggregateBy_keySelector");
+            var 適用前 = 行.停止要素数文字列;
+            行.ペア停止を適用("Unrelated.Left","Unrelated.Right",1024,true);
+            Assert.Equal(適用前,行.停止要素数文字列);
+        }
+    }
+
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void ペア停止を適用_2系列タブでも従来どおり左右ペアで停止表示を更新する() {
+        var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.最適化書き換え);
+        var ケース一覧 = new Dictionary<string,global::UI.ベンチマークケース>(StringComparer.OrdinalIgnoreCase) {
+            [ソースタブ.左プロジェクト]=new(ソースタブ.左プロジェクト,ソースタブ.左アセンブリ名,"Benchmark.Optimization.Rewrite.ArrayInt32","Where_predicate_Count","Array<int>"),
+            [ソースタブ.右プロジェクト]=new(ソースタブ.右プロジェクト,ソースタブ.右アセンブリ名,"Benchmark.Optimization.Rewrite.ArrayInt32","Where_predicate_Count","Array<int>"),
+        };
+        var 行 = new global::UI.ベンチマーク表行(
+            "int|Where_predicate_Count",
+            "Where_predicate_Count",
+            "Where_predicate_Count",
+            ソースタブ,
+            ケース一覧);
+
+        行.ペア停止を適用(ソースタブ.左プロジェクト,ソースタブ.右プロジェクト,8192,true);
+
+        Assert.Equal("8192",行.停止要素数文字列);
+    }
+
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
     public async Task 配列タブの全ベンチマークをチェックして1msで実行() {
         // UI操作: 配列タブを前提に「全て選択」し、「計測」を押下する。
         // 観測: 選択セルでCPU実行中アイコンが出ること、最終完了へ遷移すること、完了数と合計数が一致することを確認する。
@@ -94,53 +179,6 @@ public sealed class 実行ビューモデル {
         タブが最終完了したことを検証(リストタブ);
     }
 
-    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
-    public async Task 履歴シェアはフォーカス行の左と右の2系列だけを返す() {
-        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
-        var 行 = フィクスチャ.ビューモデル.ベンチマーク行一覧.Single(項目 => 項目.メソッド名=="AggregateBy_keySelector");
-        var 左ケース = 行.プロジェクト別ケース[行.ソースタブ.左プロジェクト];
-        var 右ケース = 行.プロジェクト別ケース[行.ソースタブ.右プロジェクト];
-        var 実行 = フィクスチャ.ストア.実行を作成(new(
-            UI実行アプリ種別.ベンチマーク,
-            "history",
-            "Fast",
-            行.ソースタブ.ID,
-            DateTimeOffset.UtcNow));
-        フィクスチャ.ストア.ベンチマークスナップショット項目を保存(実行.実行ID,[new(
-            行.ソースタブ.ID,
-            行.ベンチマーク型文字列,
-            行.メソッド名,
-            0,
-            true,
-            new(UI実行状態.完了,string.Empty,DateTimeOffset.UtcNow,20,30),
-            new(UI実行状態.完了,string.Empty,DateTimeOffset.UtcNow,80,70),
-            new(
-                左ケース.アセンブリ名,
-                左ケース.型完全名,
-                左ケース.メソッド名,
-                左ケース.引数キー,
-                System.Text.Json.JsonSerializer.Serialize(左ケース.引数一覧)),
-            new(
-                右ケース.アセンブリ名,
-                右ケース.型完全名,
-                右ケース.メソッド名,
-                右ケース.引数キー,
-                System.Text.Json.JsonSerializer.Serialize(右ケース.引数一覧))) ]);
-        フィクスチャ.ストア.実行状態を設定(実行.実行ID,UI実行状態.完了);
-
-        var 系列一覧 = フィクスチャ.ビューモデル.シェア履歴を読み込む(行,UIシェア指標.時間);
-
-        Assert.Collection(
-            系列一覧,
-            左 => {
-                Assert.Equal("左",左.系列名);
-                Assert.Equal(0.2,Assert.Single(左.点一覧).縦軸値,12);
-            },
-            右 => {
-                Assert.Equal("右",右.系列名);
-                Assert.Equal(0.8,Assert.Single(右.点一覧).縦軸値,12);
-            });
-    }
 
     private static void タブが最終完了したことを検証(global::UI.ソースタブ選択肢 選択肢) {
         Assert.True(

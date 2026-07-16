@@ -55,17 +55,25 @@ public sealed partial class FLinqIncrementalGenerator:IIncrementalGenerator {
         """;
 
     public void Initialize(IncrementalGeneratorInitializationContext context) {
-        var interceptTargets = context.SyntaxProvider
+        var discoveryResults = context.SyntaxProvider
             .CreateSyntaxProvider(
                 static (node,_) => node is InvocationExpressionSyntax,
                 static (syntaxContext,cancellationToken) => Linq傍受対象生成(syntaxContext,cancellationToken))
-            .Where(static target => target is not null)
-            .Select(static (target,_) => target!);
+            .Where(static result => result is not null)
+            .Select(static (result,_) => result!);
+        var interceptTargets = discoveryResults
+            .Where(static result => result.Target is not null)
+            .Select(static (result,_) => result.Target!);
+        var discoveryDiagnostics = discoveryResults
+            .Where(static result => result.Diagnostic is not null)
+            .Select(static (result,_) => result.Diagnostic!);
 
         context.RegisterPostInitializationOutput(static productionContext => {
             productionContext.AddSource("InterceptsLocationAttribute.g.cs",SourceText.From(InterceptsLocationAttributeSource,Encoding.UTF8));
             productionContext.AddSource("LinqRewriteAttributes.g.cs",SourceText.From(LinqRewriteAttributesSource,Encoding.UTF8));
         });
+        context.RegisterSourceOutput(discoveryDiagnostics,static (productionContext,diagnostic) =>
+            productionContext.ReportDiagnostic(diagnostic));
 
         // FLINQ001 警告: グローバルな重複除去が必要なため Collect で一括処理（軽量）
         context.RegisterSourceOutput(interceptTargets.Collect(),static (productionContext,interceptTargets) => {

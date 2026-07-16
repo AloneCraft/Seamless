@@ -53,7 +53,7 @@ public abstract class DirectSpanRootBase(
     public override string GetCurrentExpression => "Current";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}}{{this.StructTypeParameters}}:global::Seamless.System.Carrier.IValueEnumerator<{{elementType}}>,global::System.Collections.Generic.IEnumerator<{{elementType}}>{
+        private struct {{this.Struct}}{{this.StructTypeParameters}}:global::Seamless.Linq.IValueEnumerator<{{elementType}}>,global::System.Collections.Generic.IEnumerator<{{elementType}}>{
             private {{this.SourceTypeName}} source;
             private {{this.IndexTypeName}} {{this.e}}=-1;
             public {{this.Struct}}({{this.SourceTypeName}} source){this.source=source;}

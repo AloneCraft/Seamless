@@ -1,6 +1,6 @@
 namespace Seamless.Tsavorite.Collections;
 
-public interface ISetIterateStrategy<TSelf, TRecord>
+public interface ISetIterateStrategy<TSelf,in TRecord>
     where TSelf : struct, ISetIterateStrategy<TSelf,TRecord> {
     static abstract bool Invoke(ref TSelf self,TRecord item);
 }
@@ -179,6 +179,43 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
         if(disposing)
             this.ownedStore?.Dispose();
     }
+    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+    public struct ValueEnumerator {
+        private Set<TKey,TRecord>? source;
+        private Enumerator<ValueIterator,TRecord> enumerator;
+        private bool initialized;
+
+        internal ValueEnumerator(Set<TKey,TRecord> source) {
+            this.source=source;
+            this.enumerator=default;
+            this.initialized=false;
+        }
+
+        public bool TryGetNext(out TRecord current) {
+            if(!this.initialized) {
+                var source=this.source!;
+                source.VerifyThreadAffinity();
+                this.enumerator=new(source.ReadSession,new(),source.Store.Log.TailAddress,source);
+                this.initialized=true;
+            }
+            if(this.enumerator.MoveNext()) {
+                current=this.enumerator.Current;
+                return true;
+            }
+            Unsafe.SkipInit(out current);
+            return false;
+        }
+
+        public void Dispose() {
+            if(this.initialized) {
+                this.enumerator.Dispose();
+            }
+            this.source=null;
+        }
+    }
+
+    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+    public ValueEnumerator GetValueEnumerator() => new(this);
     public IEnumerator<TRecord> GetEnumerator() {
         this.VerifyThreadAffinity();
         return new Enumerator<ValueIterator,TRecord>(this.ReadSession,new(),this.Store.Log.TailAddress,this);

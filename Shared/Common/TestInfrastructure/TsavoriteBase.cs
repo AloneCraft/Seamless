@@ -11,19 +11,19 @@ where T : notnull {
     private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcCache    = [];
     private readonly Dictionary<SourceCacheKey,SourceHandle<T>> src2Cache   = [];
     private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcOneCache = [];
-    protected new global::Seamless.Tsavorite.Collections.HashSet<T> src(int scale) =>
+    protected internal new global::Seamless.Tsavorite.Collections.HashSet<T> src(int scale) =>
         this.GetOrCreate(scale,this.srcCache,static length => CreateRange(1,length));
 
-    protected new global::Seamless.Tsavorite.Collections.HashSet<T> srcCount(int elementCount) =>
+    protected internal new global::Seamless.Tsavorite.Collections.HashSet<T> srcCount(int elementCount) =>
         this.GetOrCreateByLength(elementCount,this.srcCache,static length => CreateRange(1,length));
 
-    protected new global::Seamless.Tsavorite.Collections.HashSet<T> src2(int scale) =>
+    protected internal new global::Seamless.Tsavorite.Collections.HashSet<T> src2(int scale) =>
         this.GetOrCreate(scale,this.src2Cache,static length => CreateRange(length/2+1,length/2));
 
-    protected new global::Seamless.Tsavorite.Collections.HashSet<T> src2Count(int elementCount) =>
+    protected internal new global::Seamless.Tsavorite.Collections.HashSet<T> src2Count(int elementCount) =>
         this.GetOrCreateByLength(elementCount,this.src2Cache,static length => CreateRange(length/2+1,length/2));
 
-    protected new global::Seamless.Tsavorite.Collections.HashSet<T> srcOne(int scale) =>
+    protected internal new global::Seamless.Tsavorite.Collections.HashSet<T> srcOne(int scale) =>
         this.GetOrCreate(scale,this.srcOneCache,static _ => [FromInt(0)]);
 
     [GlobalCleanup]
@@ -90,6 +90,7 @@ where T : notnull {
         return result;
     }
 
+    [LinqIntercept(false)]
     private static SourceHandle<T> CreateSet(IEnumerable<T> values) {
         var count = values.TryGetNonEnumeratedCount(out var knownCount) ? knownCount : 80_000;
         var store = Seamless.Tsavorite.Collections.Store.Create(

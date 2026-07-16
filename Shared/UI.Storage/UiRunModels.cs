@@ -15,19 +15,6 @@ public enum UI実行状態{
     失敗,
 }
 
-public enum UIシェア指標{
-    時間,
-    メモリ,
-}
-
-public sealed record UIシェア履歴条件(
-    UI実行アプリ種別 アプリ種別,
-    string タブ名,
-    string 型名,
-    string ベンチマーク名,
-    UIベンチマークスナップショットケース書込? ベンチマークケース = null);
-
-public sealed record UIシェア履歴点(long 実行ID,double 左シェア,double 右シェア);
 
 public sealed record UI実行作成要求(
     UI実行アプリ種別 アプリ種別,
@@ -115,7 +102,9 @@ public sealed record UIベンチマークスナップショット項目書込(
     UIベンチマークグリッド側書込 左,
     UIベンチマークグリッド側書込 右,
     UIベンチマークスナップショットケース書込? 左ケース = null,
-    UIベンチマークスナップショットケース書込? 右ケース = null);
+    UIベンチマークスナップショットケース書込? 右ケース = null,
+    UIベンチマークグリッド側書込? 中央 = null,
+    UIベンチマークスナップショットケース書込? 中央ケース = null);
 
 public sealed record UIベンチマークグリッド側記録(
     UI実行状態 状態,
@@ -138,7 +127,9 @@ public sealed record UIベンチマークスナップショット項目記録(
     UIベンチマークグリッド側記録 左,
     UIベンチマークグリッド側記録 右,
     UIベンチマークスナップショットケース書込? 左ケース = null,
-    UIベンチマークスナップショットケース書込? 右ケース = null);
+    UIベンチマークスナップショットケース書込? 右ケース = null,
+    UIベンチマークグリッド側記録? 中央 = null,
+    UIベンチマークスナップショットケース書込? 中央ケース = null);
 
 public sealed record UI実行設定記録(
     long 実行ID,

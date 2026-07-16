@@ -10,6 +10,14 @@
     <Title>Seamless Serialization</Title>
     <Description>Serialization contracts and built-in serializers for Seamless storage packages.</Description>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Artifacts\**" />
+    <Compile Remove="Work\**" />
+    <EmbeddedResource Remove="Artifacts\**" />
+    <EmbeddedResource Remove="Work\**" />
+    <None Remove="Artifacts\**" />
+    <None Remove="Work\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.*" />

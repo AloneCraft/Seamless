@@ -2,6 +2,7 @@ using Seamless.Tsavorite.Devices;
 
 namespace Seamless.Tsavorite.Stores;
 
+// KEYED-RECORD-CODEC-TODO: TRecord currently persists its TKey as well as the Tsavorite key. Revisit a generated keyed-record codec that constructs TRecord from TKey and deserializes only the remaining fields.
 public class SetStore<TKey, TRecord>:CollectionStore<TKey,TRecord>
     where TRecord : IRecord<TKey> {
     internal SetStore(long indexSize,long pageSize,long segmentSize,long memorySize,double mutableFraction) :

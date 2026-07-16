@@ -53,7 +53,7 @@ public class Average(int 番号,Enumerable source,string resultType):BufferedSca
             if(source.ElementType=="int") {
                 return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
                     if({{spanName}}.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                    {{destVar}}=({{resultType}})global::Seamless.System.Carrier.ValueEnumerableExtensions.AverageIntSimd({{spanName}});
+                    {{destVar}}=({{resultType}})global::Seamless.Linq.Enumerable.AverageIntSimd({{spanName}});
                     """);
             }
             return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
@@ -108,7 +108,7 @@ public class Average(int 番号,Enumerable source,string resultType):BufferedSca
                         private static {{resultType}} Compute(TEnum source) {
                             source.TryGetSpan(out var __span);
                             if(__span.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                            return ({{resultType}})global::Seamless.System.Carrier.ValueEnumerableExtensions.AverageIntSimd(__span);
+                            return ({{resultType}})global::Seamless.Linq.Enumerable.AverageIntSimd(__span);
                         }
                         """
                     : $$"""

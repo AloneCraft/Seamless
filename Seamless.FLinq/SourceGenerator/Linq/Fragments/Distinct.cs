@@ -28,7 +28,7 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
     protected override Enumerable PrimarySource => source;
     private string Comparer => ComparerExpressionSupport.RenderEqualityComparer(comparer,source.ElementType);
     public override string StructMethod => string.Empty;
-    public override string GetEnumerableExpression => $"global::Seamless.System.Carrier.ValueEnumerableExtensions.Distinct({source.GetEnumerableExpression},{this.Comparer})";
+    public override string GetEnumerableExpression => $"global::Seamless.Linq.Enumerable.Distinct({source.GetEnumerableExpression},{this.Comparer})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
@@ -37,14 +37,14 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     public override string GetEnumeratorConstructor => $"this.{this.lookup}=CreateLookup({this.e},comparer);";
     public override string GetEnumeratorFields => $$"""
-        private global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}> {{this.lookup}};
-        private static global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
+        private global::Seamless.Linq.HashSetSlim<{{source.ElementType}}> {{this.lookup}};
+        private static global::Seamless.Linq.HashSetSlim<{{source.ElementType}}> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
             // Distinct は列挙途中で set を更新し続けるため、ここでは root の型に応じた span 判定を入れない。
             // 生成時点で root が span 直走査できる場合は上位の consumer 専用 lowering が選ばれ、それ以外はこの enumerator 経路に落ちる。
             if(source.TryGetNonEnumeratedCount(out var {{this.count}})){
-                return new global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}>({{this.count}},comparer);
+                return new global::Seamless.Linq.HashSetSlim<{{source.ElementType}}>({{this.count}},comparer);
             }else{
-                return new global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}>(comparer);
+                return new global::Seamless.Linq.HashSetSlim<{{source.ElementType}}>(comparer);
             }
         }
         """;
@@ -154,7 +154,7 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
     private FuncFragment KeySelector => keySelector;
     private string Comparer => ComparerExpressionSupport.RenderEqualityComparer(comparer,FuncReturnTypeName(keySelector));
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
-    public override string GetEnumerableExpression => $"global::Seamless.System.Carrier.ValueEnumerableExtensions.DistinctBy({source.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{this.Comparer})";
+    public override string GetEnumerableExpression => $"global::Seamless.Linq.Enumerable.DistinctBy({source.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{this.Comparer})";
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
@@ -163,8 +163,8 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector)}";
     public override string GetEnumeratorConstructor => $"this.{this.lookup}=CreateLookup({this.e},comparer);";
     public override string GetEnumeratorFields => $$"""
-        private global::Seamless.System.Carrier.HashSetSlim<{{FuncReturnTypeName(keySelector)}}> {{this.lookup}};
-        private static global::Seamless.System.Carrier.HashSetSlim<{{FuncReturnTypeName(keySelector)}}> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer){
+        private global::Seamless.Linq.HashSetSlim<{{FuncReturnTypeName(keySelector)}}> {{this.lookup}};
+        private static global::Seamless.Linq.HashSetSlim<{{FuncReturnTypeName(keySelector)}}> CreateLookup(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer){
             // DistinctBy も同じで、span 走査かどうかの判定はここではしない。
             // コンパイル時に root 形状が分かる場合は上位で専用生成されるため、ここは汎用経路として最小状態だけを保持する。
             {{this.CreateLookupBody(FuncReturnTypeName(keySelector))}}
@@ -217,9 +217,9 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
     private string CreateLookupBody(string keyType) =>
         $$"""
         if(source.TryGetNonEnumeratedCount(out var {{this.count}})){
-            return new global::Seamless.System.Carrier.HashSetSlim<{{keyType}}>({{this.count}},comparer);
+            return new global::Seamless.Linq.HashSetSlim<{{keyType}}>({{this.count}},comparer);
         }else{
-            return new global::Seamless.System.Carrier.HashSetSlim<{{keyType}}>(comparer);
+            return new global::Seamless.Linq.HashSetSlim<{{keyType}}>(comparer);
         }
         """;
 

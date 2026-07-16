@@ -13,6 +13,11 @@
     <NoWarn>$(NoWarn);BDN1400</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="Work\**" />
+    <EmbeddedResource Remove="Work\**" />
+    <None Remove="Work\**" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageReference Include="coverlet.collector" Version="6.0.4">
       <PrivateAssets>all</PrivateAssets>

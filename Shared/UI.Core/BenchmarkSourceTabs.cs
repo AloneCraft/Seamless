@@ -32,9 +32,13 @@ public sealed record ベンチマークソースタブ定義(
     string 右見出し,
     string 右アセンブリ名,
     string 左型接頭辞="",
-    string 右型接頭辞=""){
+    string 右型接頭辞="",
+    string 中央プロジェクト="",
+    string 中央見出し="",
+    string 中央アセンブリ名="",
+    string 中央型接頭辞=""){
     public IReadOnlyList<string>プロジェクト順{get;}=
-        new[]{左プロジェクト,右プロジェクト}.Where(static プロジェクト=>!string.IsNullOrWhiteSpace(プロジェクト)).ToArray();
+        new[]{左プロジェクト,中央プロジェクト,右プロジェクト}.Where(static プロジェクト=>!string.IsNullOrWhiteSpace(プロジェクト)).ToArray();
 
     public 比較ペア選択肢 ペア=>new(
         this.ID,
@@ -61,6 +65,8 @@ public sealed record ベンチマークソースタブ定義(
         string 接頭辞;
         if(string.Equals(ベンチマーク.プロジェクト,this.左プロジェクト,StringComparison.OrdinalIgnoreCase)){
             接頭辞=this.左型接頭辞;
+        }else if(string.Equals(ベンチマーク.プロジェクト,this.中央プロジェクト,StringComparison.OrdinalIgnoreCase)){
+            接頭辞=this.中央型接頭辞;
         }else{
             接頭辞=this.右型接頭辞;
         }
@@ -70,6 +76,10 @@ public sealed record ベンチマークソースタブ定義(
     public string アセンブリ名を取得(string プロジェクト){
         if(string.Equals(プロジェクト,this.左プロジェクト,StringComparison.OrdinalIgnoreCase)){
             return this.左アセンブリ名;
+        }
+
+        if(string.Equals(プロジェクト,this.中央プロジェクト,StringComparison.OrdinalIgnoreCase)){
+            return this.中央アセンブリ名;
         }
 
         if(string.Equals(プロジェクト,this.右プロジェクト,StringComparison.OrdinalIgnoreCase)){
@@ -160,9 +170,12 @@ public static class ベンチマークソースタブ一覧{
             "System.Array.FLinq",
             "FLinq",
             "Benchmark.System.Linq.Enumerable.FLinq",
-            "System.Array.ZLinq",
-            "ZLinq",
-            "Benchmark.System.Linq.Enumerable.ZLinq"),
+            "System.Array.Linq",
+            "System.Linq",
+            "Benchmark.System.Linq.Enumerable.Linq",
+            中央プロジェクト:"System.Array.ZLinq",
+            中央見出し:"ZLinq",
+            中央アセンブリ名:"Benchmark.System.Linq.Enumerable.ZLinq"),
         new(
             ベンチマークソースタブ.SystemIEnumerable,
             SystemIEnumerableID,
@@ -170,9 +183,12 @@ public static class ベンチマークソースタブ一覧{
             "System.IEnumerable.FLinq",
             "FLinq",
             "Benchmark.System.Linq.Enumerable.IEnumerable.FLinq",
-            "System.IEnumerable.ZLinq",
-            "ZLinq",
-            "Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq"),
+            "System.IEnumerable.Linq",
+            "System.Linq",
+            "Benchmark.System.Linq.Enumerable.IEnumerable.Linq",
+            中央プロジェクト:"System.IEnumerable.ZLinq",
+            中央見出し:"ZLinq",
+            中央アセンブリ名:"Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq"),
         new(
             ベンチマークソースタブ.System範囲,
             System範囲ID,
@@ -180,9 +196,12 @@ public static class ベンチマークソースタブ一覧{
             "System.Range.FLinq",
             "FLinq",
             "Benchmark.System.Linq.Enumerable.Range.FLinq",
-            "System.Range.ZLinq",
-            "ZLinq",
-            "Benchmark.System.Linq.Enumerable.Range.ZLinq"),
+            "System.Range.Linq",
+            "System.Linq",
+            "Benchmark.System.Linq.Enumerable.Range.Linq",
+            中央プロジェクト:"System.Range.ZLinq",
+            中央見出し:"ZLinq",
+            中央アセンブリ名:"Benchmark.System.Linq.Enumerable.Range.ZLinq"),
         new(
             ベンチマークソースタブ.Systemリスト,
             SystemリストID,
@@ -190,9 +209,12 @@ public static class ベンチマークソースタブ一覧{
             "System.List.FLinq",
             "FLinq",
             "Benchmark.System.Linq.Enumerable.List.FLinq",
-            "System.List.ZLinq",
-            "ZLinq",
-            "Benchmark.System.Linq.Enumerable.List.ZLinq"),
+            "System.List.Linq",
+            "System.Linq",
+            "Benchmark.System.Linq.Enumerable.List.Linq",
+            中央プロジェクト:"System.List.ZLinq",
+            中央見出し:"ZLinq",
+            中央アセンブリ名:"Benchmark.System.Linq.Enumerable.List.ZLinq"),
         new(
             ベンチマークソースタブ.Seamless永続化,
             Seamless永続化ID,
@@ -200,9 +222,12 @@ public static class ベンチマークソースタブ一覧{
             "Seamless.Persisted.FLinq",
             "FLinq",
             "Benchmark.Persisted.Linq.Enumerable.FLinq",
-            "Seamless.Linq",
-            "Linq",
-            "Benchmark.Persisted.Linq.Enumerable.Linq"),
+            "Seamless.Persisted.Linq",
+            "System.Linq",
+            "Benchmark.Persisted.Linq.Enumerable.Linq",
+            中央プロジェクト:"Seamless.Persisted.ValueLinq",
+            中央見出し:"ValueLinq",
+            中央アセンブリ名:"Benchmark.Persisted.Linq.Enumerable.ValueLinq"),
         new(
             ベンチマークソースタブ.SeamlessTsavorite,
             SeamlessTsavoriteID,
@@ -210,9 +235,12 @@ public static class ベンチマークソースタブ一覧{
             "Seamless.Tsavorite.FLinq",
             "FLinq",
             "Benchmark.Tsavorite.Linq.Enumerable.FLinq",
-            "Seamless.Linq",
-            "Linq",
-            "Benchmark.Tsavorite.Linq.Enumerable.Linq"),
+            "Seamless.Tsavorite.Linq",
+            "System.Linq",
+            "Benchmark.Tsavorite.Linq.Enumerable.Linq",
+            中央プロジェクト:"Seamless.Tsavorite.ValueLinq",
+            中央見出し:"ValueLinq",
+            中央アセンブリ名:"Benchmark.Tsavorite.Linq.Enumerable.ValueLinq"),
     ];
 
 #if SCALABLE_BENCHMARK

@@ -10,7 +10,7 @@ AnonymousExitToList は匿名型要素の ToList を direct execution だけで�
   source.Select(x => new { x.Id }).ToList()
 
 生成例:
-  var result = ValueEnumerableExtensions.ToList(sourceValueEnumerable);
+  var result = Enumerable.ToList(sourceValueEnumerable);
 
 設計意図:
   匿名型の名前は生成メソッドの戻り値型や補助 struct に書けないため、var と型推論に寄せる。
@@ -22,7 +22,7 @@ internal sealed class AnonymousExitToList(int 番号,Enumerable source):Scalar(�
     public override string GetTryGetNextBody => string.Empty;
     public override string GetCurrentExpression => string.Empty;
     public string GetDirectExecutionStatement(string actualVariableName,string actualTypeName) =>
-        $"var {actualVariableName}=global::Seamless.System.Carrier.ValueEnumerableExtensions.ToList({source.GetEnumerableExpression});";
+        $"var {actualVariableName}=global::Seamless.Linq.Enumerable.ToList({source.GetEnumerableExpression});";
 }
 
 /*

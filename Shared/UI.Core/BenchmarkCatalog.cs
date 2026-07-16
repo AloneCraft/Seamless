@@ -18,8 +18,9 @@ public static class ベンチマークカタログ{
     public static IReadOnlyList<ベンチマークプロジェクト>標準プロジェクト一覧{get;}=ベンチマークソースタブ一覧.標準全て
         .SelectMany(static タブ=>new[]{
             new ベンチマークプロジェクト(タブ.左プロジェクト,タブ.左アセンブリ名,タブ.左型接頭辞),
+            new ベンチマークプロジェクト(タブ.中央プロジェクト,タブ.中央アセンブリ名,タブ.中央型接頭辞),
             new ベンチマークプロジェクト(タブ.右プロジェクト,タブ.右アセンブリ名,タブ.右型接頭辞),
-        })
+        }.Where(static プロジェクト=>!string.IsNullOrWhiteSpace(プロジェクト.アセンブリ名)))
         .Concat([
         new("Persisted コレクション","Benchmark.Persisted.Collections"),
         new("Tsavorite コレクション","Benchmark.Tsavorite.Collections"),

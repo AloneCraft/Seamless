@@ -86,7 +86,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         if(!this.IsReceiverOfEnumerableCall(node)) return false;
         if(name=="AsEnumerable"&&args.Count==0) {
             var receiverType = this.model.GetTypeInfo(receiver).Type??this.model.GetTypeInfo(receiver).ConvertedType;
-            if(global::Seamless.SourceGenerator.UnorderedLinqOperatorPolicy.IsUnorderedSourceType(receiverType)) {
+            if(UnorderedSourceSafety.IsUnorderedSourceType(receiverType)) {
                 return false;
             }
             result=this.Visit(receiver) as SyntaxNode??receiver;

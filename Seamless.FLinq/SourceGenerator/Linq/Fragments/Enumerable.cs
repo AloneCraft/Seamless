@@ -44,7 +44,7 @@ public abstract class Enumerable(int 番号):Fragment(番号), ConsumeDirectExec
     public virtual string? NonEnumeratedCountExpression => null;
     public virtual bool CountPreserving => false;
     // interceptor が IEnumerable<T> を返すときに使う ValueEnumerable 構築式。
-    public virtual string GetEnumerableExpression => $"new global::Seamless.System.Carrier.ValueEnumerable<{this.EnumeratorTypeName}, {this.ElementType}>({this.GetEnumeratorExpression})";
+    public virtual string GetEnumerableExpression => $"new global::Seamless.Linq.ValueEnumerable<{this.EnumeratorTypeName}, {this.ElementType}>({this.GetEnumeratorExpression})";
     // 既定では下流の enumerator を Dispose する。
     protected virtual string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
     // enumerable 系は要素型を Current とする enumerator struct を共通生成する。

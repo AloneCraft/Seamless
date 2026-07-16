@@ -10,6 +10,14 @@
     <Title>Seamless Persisted Collections</Title>
     <Description>File-backed persisted collections for Seamless.</Description>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Artifacts\**" />
+    <Compile Remove="Work\**" />
+    <EmbeddedResource Remove="Artifacts\**" />
+    <EmbeddedResource Remove="Work\**" />
+    <None Remove="Artifacts\**" />
+    <None Remove="Work\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Seamless.Abstractions\Seamless.Abstractions.csproj" />

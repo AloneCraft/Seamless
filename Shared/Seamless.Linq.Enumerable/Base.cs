@@ -803,7 +803,7 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     public void Where_SourceShape() => this.Where_SourceShape_Impl();
 
     [LinqIntercept(true)]
-    private void Where_SourceShape_Impl() => this.sourceShape().AsX<T>().Where(static x => IsEven(x)).Consume(this.consumer);
+    private void Where_SourceShape_Impl() => this.srcCount(SourceShapeCount).AsX<T>().Where(static x => IsEven(x)).Consume(this.consumer);
     // [Zip_second]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]
@@ -845,28 +845,6 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
         }
         return values;
     }
-
-#if SYSTEM_IENUMERABLE
-    [LinqIntercept(false)]
-    private global::System.Collections.Generic.IEnumerable<T> sourceShape() =>
-        this.srcCount(SourceShapeCount);
-#elif SYSTEM_LIST
-    [LinqIntercept(false)]
-    private global::System.Collections.Generic.List<T> sourceShape() =>
-        this.srcCount(SourceShapeCount);
-#elif PERSISTED
-    [LinqIntercept(false)]
-    private Seamless.Persisted.Collections.Set<T> sourceShape() =>
-        this.srcCount(SourceShapeCount);
-#elif TSAVORITE
-    [LinqIntercept(false)]
-    private global::Seamless.Tsavorite.Collections.HashSet<T> sourceShape() =>
-        this.srcCount(SourceShapeCount);
-#else
-    [LinqIntercept(false)]
-    internal T[] sourceShape() =>
-        this.srcCount(SourceShapeCount);
-#endif
 
     internal static void ConsumeResult(global::Common.Consumer consumer,bool result,int count) {
         consumer.Consume(result);

@@ -266,6 +266,41 @@ public partial class HashSet<TKey> {
             SymmetricExceptWith//TFunctions
         >(new());
     }
+    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+    public struct ValueEnumerator {
+        private HashSet<TKey>? source;
+        private Enumerator<KeyIterator,TKey> enumerator;
+        private bool initialized;
+
+        internal ValueEnumerator(HashSet<TKey> source) {
+            this.source=source;
+            this.enumerator=default;
+            this.initialized=false;
+        }
+
+        public bool TryGetNext(out TKey current) {
+            if(!this.initialized) {
+                this.enumerator=this.source!.GetEnumerator();
+                this.initialized=true;
+            }
+            if(this.enumerator.MoveNext()) {
+                current=this.enumerator.Current;
+                return true;
+            }
+            Unsafe.SkipInit(out current);
+            return false;
+        }
+
+        public void Dispose() {
+            if(this.initialized) {
+                this.enumerator.Dispose();
+            }
+            this.source=null;
+        }
+    }
+
+    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+    public ValueEnumerator GetValueEnumerator() => new(this);
     public Enumerator<
         KeyIterator,
         TKey

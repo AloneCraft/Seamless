@@ -1,6 +1,5 @@
 using Syncfusion.Maui.Buttons;
 using Syncfusion.Maui.DataGrid;
-using Syncfusion.Maui.Toolkit.Charts;
 using Syncfusion.Maui.Toolkit.TabView;
 
 using System.Collections.ObjectModel;
@@ -1439,8 +1438,7 @@ public sealed partial class MainPage:ContentPage {
                 new RowDefinition { Height = GridLength.Star },
             },
             ColumnDefinitions= {
-                new ColumnDefinition { Width = new GridLength(5,GridUnitType.Star) },
-                new ColumnDefinition { Width = new GridLength(5,GridUnitType.Star) },
+                new ColumnDefinition { Width = GridLength.Star },
             },
             RowSpacing=1,
             ColumnSpacing=6,
@@ -1466,12 +1464,10 @@ public sealed partial class MainPage:ContentPage {
         };
         Grid.SetColumn(概要,1);
         グリッド.Add(概要ホスト,0,0);
-        グリッド.SetColumnSpan(概要ホスト,2);
 
         var ベンチマークグリッド = this.ベンチマークグリッドを作成(状態);
         ベンチマークグリッド.VerticalOptions=LayoutOptions.Fill;
         グリッド.Add(ベンチマークグリッド,0,1);
-        グリッド.Add(this.履歴シェアタブビューを作成(状態,ベンチマークグリッド),1,1);
         return グリッド;
     }
 
@@ -1600,168 +1596,6 @@ public sealed partial class MainPage:ContentPage {
         +(区分.行一覧.Count*CPU区分行高さ)
         +CPU区分グリッド追加高さ;
 
-    private View 履歴シェアタブビューを作成(ベンチマークソースタブ表示状態? 状態,SfDataGrid ベンチマークグリッド) {
-        var タブ一覧 = new SfTabView {
-            TabBarHeight=28,
-            TabBarBackground=Color.FromArgb("#F1F5F9"),
-            IndicatorBackground=Color.FromArgb("#0F766E"),
-            HeaderItemSpacing=1,
-            EnableSwiping=false,
-            ContentTransitionDuration=0,
-            BackgroundColor=Colors.White,
-            VerticalOptions=LayoutOptions.Fill,
-        };
-        this.コンパクトタブビューを構成(タブ一覧,false);
-        var 選択肢一覧 = new[] { new タブ見出し選択肢("時間シェア"),new タブ見出し選択肢("メモリシェア") };
-        var 時間ホスト = new Grid { BackgroundColor=Colors.White };
-        var メモリホスト = new Grid { BackgroundColor=Colors.White };
-        タブ一覧.Items=[
-            new SfTabItem {
-                Header="時間シェア",
-                HeaderContent=this.タブ見出しを作成(選択肢一覧[0],() => タブ一覧.SelectedIndex=0),
-                FontSize=12,
-                Content=時間ホスト,
-            },
-            new SfTabItem {
-                Header="メモリシェア",
-                HeaderContent=this.タブ見出しを作成(選択肢一覧[1],() => タブ一覧.SelectedIndex=1),
-                FontSize=12,
-                Content=メモリホスト,
-            },
-        ];
-        選択肢一覧[0].選択状態を設定(true);
-        ベンチマーク表行? フォーカス行 = null;
-        SfCartesianChart? 時間チャート = null;
-        SfCartesianChart? メモリチャート = null;
-        var 時間更新必要か = true;
-        var メモリ更新必要か = true;
-
-        SfCartesianChart チャートを作成(string 縦軸タイトル) {
-            var チャート = new SfCartesianChart {
-                TooltipBehavior=new ChartTooltipBehavior { FontSize=12,Duration=4 },
-                Legend=new ChartLegend(),
-                VerticalOptions=LayoutOptions.Fill,
-            };
-            チャート.XAxes.Add(new NumericalAxis { Title=new ChartAxisTitle { Text="実行ID" },Interval=1 });
-            チャート.YAxes.Add(new NumericalAxis {
-                Title=new ChartAxisTitle { Text=縦軸タイトル },
-                Minimum=0,
-                Maximum=1,
-            });
-            return チャート;
-        }
-
-        void 再読み込み(UIシェア指標 指標) {
-            var チャート = 指標==UIシェア指標.時間 ? 時間チャート : メモリチャート;
-            if(チャート is null) {
-                return;
-            }
-            チャート.Series.Clear();
-            if(フォーカス行 is null||this.ビューモデル is null) {
-                return;
-            }
-            var 系列一覧 = this.ビューモデル.シェア履歴を読み込む(フォーカス行,指標);
-            for(var インデックス = 0;インデックス<系列一覧.Count;インデックス++) {
-                var 系列 = 系列一覧[インデックス];
-                チャート.Series.Add(new LineSeries {
-                    Label=系列.系列名,
-                    XBindingPath=nameof(ベンチマーク傾向点.横軸値),
-                    YBindingPath=nameof(ベンチマーク傾向点.縦軸値),
-                    ItemsSource=系列.点一覧,
-                    Fill=new SolidColorBrush(Color.FromArgb(インデックス==0 ? "#2563EB" : "#F97316")),
-                    StrokeWidth=2,
-                });
-            }
-            if(指標==UIシェア指標.時間) {
-                時間更新必要か=false;
-            } else {
-                メモリ更新必要か=false;
-            }
-        }
-
-        void 表示チャートを保証() {
-            if(フォーカス行 is null) {
-                return;
-            }
-            if(タブ一覧.SelectedIndex==1) {
-                if(メモリチャート is null) {
-                    メモリチャート=チャートを作成("メモリシェア");
-                    メモリホスト.Add(メモリチャート,0,0);
-                }
-                if(メモリ更新必要か) {
-                    再読み込み(UIシェア指標.メモリ);
-                }
-                return;
-            }
-            if(時間チャート is null) {
-                時間チャート=チャートを作成("時間シェア");
-                時間ホスト.Add(時間チャート,0,0);
-            }
-            if(時間更新必要か) {
-                再読み込み(UIシェア指標.時間);
-            }
-        }
-
-        void フォーカス行を設定(ベンチマーク表行? 行) {
-            if(ReferenceEquals(フォーカス行,行)) {
-                return;
-            }
-            フォーカス行=行;
-            時間更新必要か=true;
-            メモリ更新必要か=true;
-            表示チャートを保証();
-        }
-
-        ベンチマークグリッド.SelectionChanged+=(_,イベント引数) => {
-            var 行 = ベンチマークグリッド.CurrentRow as ベンチマーク表行
-                ??ベンチマークチェック選択コントローラー.選択行を取得(イベント引数.AddedRows).LastOrDefault();
-            if(行 is not null) {
-                フォーカス行を設定(行);
-            }
-        };
-        if(this.ビューモデル is not null) {
-            this.ビューモデル.シェア履歴変更+=(_,_) => {
-                時間更新必要か=true;
-                メモリ更新必要か=true;
-                起動診断.メインスレッドで呼び出し開始("シェア履歴更新",() => {
-                    var 現在行 = ベンチマークグリッド.CurrentRow as ベンチマーク表行;
-                    var 解決済み行 = 現在行 is not null&&状態?.行一覧.Contains(現在行)==true
-                        ? 現在行
-                        : 状態?.行一覧.FirstOrDefault(行 => フォーカス行 is not null
-                            &&string.Equals(行.行キー,フォーカス行.行キー,StringComparison.OrdinalIgnoreCase))
-                            ??状態?.行一覧.FirstOrDefault(static 行 =>
-                                行.左セル.測定値.測定値ありか&&行.右セル.測定値.測定値ありか);
-                    if(解決済み行 is null) {
-                        時間チャート?.Series.Clear();
-                        return;
-                    }
-                    if(!ReferenceEquals(フォーカス行,解決済み行)) {
-                        フォーカス行を設定(解決済み行);
-                    }
-                    表示チャートを保証();
-                });
-            };
-        }
-        タブ一覧.PropertyChanged+=(_,イベント引数) => {
-            if(イベント引数.PropertyName!=nameof(SfTabView.SelectedIndex)) {
-                return;
-            }
-            for(var インデックス = 0;インデックス<選択肢一覧.Length;インデックス++) {
-                選択肢一覧[インデックス].選択状態を設定(インデックス==タブ一覧.SelectedIndex);
-            }
-            表示チャートを保証();
-        };
-        タブ一覧.Loaded+=(_,_) => {
-            var 初期行 = 状態?.行一覧.FirstOrDefault(static 行 =>
-                行.左セル.測定値.測定値ありか&&行.右セル.測定値.測定値ありか);
-            if(初期行 is not null&&ベンチマークグリッド.SelectionController is ベンチマークチェック選択コントローラー 選択コントローラー) {
-                選択コントローラー.単一選択(初期行);
-            }
-            フォーカス行を設定(初期行??ベンチマークグリッド.CurrentRow as ベンチマーク表行);
-            表示チャートを保証();
-        };
-        return タブ一覧;
-    }
     private View ベンチマークグリッドを作成() =>
         this.ベンチマークグリッドを作成(this.ビューモデル?.選択ソースタブ表示状態);
 
@@ -1876,27 +1710,36 @@ public sealed partial class MainPage:ContentPage {
         グリッド.Columns.Add(this.テキスト列を作成("ループ回数",ループマッピング,ベンチマークグリッドソート列.ループ回数,ベンチマーク_ループ,TextAlignment.End));
         var 引数マッピング一覧 = this.引数列を追加(グリッド,ソースタブ);
         this.ベンチマーク基本積層見出しを追加(プロジェクト見出し行,CPUマッピング,ループマッピング,引数マッピング一覧);
-        var スケーラブルか = ソースタブ.ID.StartsWith("Scalable",StringComparison.OrdinalIgnoreCase);
-        string 左見出し;
-        string 右見出し;
-        if(スケーラブルか) {
-            左見出し="今回";
-            右見出し="前回";
+        var 三列か=!string.IsNullOrWhiteSpace(ソースタブ.中央プロジェクト);
+        if(三列か) {
+            var 左マッピング一覧=this.プロジェクト列を追加(グリッド,nameof(ベンチマーク表行.左セル),ベンチマークグリッドソート列.左日時,ベンチマークグリッドソート列.左時間,ベンチマークグリッドソート列.左割り当て).ToList();
+            var 左速度マッピング=nameof(ベンチマーク表行.左速度文字列);
+            グリッド.Columns.Add(this.テキスト列を作成("速度",左速度マッピング,ベンチマークグリッドソート列.左速度,時間,TextAlignment.End));
+            左マッピング一覧.Add(左速度マッピング);
+            var 中央マッピング一覧=this.プロジェクト列を追加(グリッド,nameof(ベンチマーク表行.中央セル),ベンチマークグリッドソート列.中央日時,ベンチマークグリッドソート列.中央時間,ベンチマークグリッドソート列.中央割り当て).ToList();
+            var 中央速度マッピング=nameof(ベンチマーク表行.中央速度文字列);
+            グリッド.Columns.Add(this.テキスト列を作成("速度",中央速度マッピング,ベンチマークグリッドソート列.中央速度,時間,TextAlignment.End));
+            中央マッピング一覧.Add(中央速度マッピング);
+            var 右マッピング一覧=this.プロジェクト列を追加(グリッド,nameof(ベンチマーク表行.右セル),ベンチマークグリッドソート列.右日時,ベンチマークグリッドソート列.右時間,ベンチマークグリッドソート列.右割り当て);
+            this.ベンチマークプロジェクト選択グループを追加(プロジェクト見出し行,this.ベンチマークプロジェクト選択グループを取得("左",ソースタブ.左見出し),左マッピング一覧,ソースタブ);
+            this.ベンチマークプロジェクト選択グループを追加(プロジェクト見出し行,this.ベンチマークプロジェクト選択グループを取得("中央",ソースタブ.中央見出し),中央マッピング一覧,ソースタブ);
+            this.ベンチマークプロジェクト選択グループを追加(プロジェクト見出し行,this.ベンチマークプロジェクト選択グループを取得("右",ソースタブ.右見出し),右マッピング一覧,ソースタブ);
         } else {
-            左見出し="左";
-            右見出し="右";
+            var スケーラブルか = ソースタブ.ID.StartsWith("Scalable",StringComparison.OrdinalIgnoreCase);
+            var 左見出し=スケーラブルか ? "今回" : "左";
+            var 右見出し=スケーラブルか ? "前回" : "右";
+            var シェア見出し = 左見出し+":"+右見出し;
+            var 左マッピング一覧 = this.プロジェクト列を追加(グリッド,nameof(ベンチマーク表行.左セル),ベンチマークグリッドソート列.左日時,ベンチマークグリッドソート列.左時間,ベンチマークグリッドソート列.左割り当て);
+            var 時間シェアマッピング = nameof(ベンチマーク表行.時間シェア表示);
+            var メモリシェアマッピング = nameof(ベンチマーク表行.メモリシェア表示);
+            グリッド.Columns.Add(this.シェアゲージ列を作成(シェア見出し,時間シェアマッピング,nameof(ベンチマーク表行.時間シェアゲージ),ベンチマークグリッドソート列.時間シェア,時間シェア));
+            グリッド.Columns.Add(this.シェアゲージ列を作成(シェア見出し,メモリシェアマッピング,nameof(ベンチマーク表行.メモリシェアゲージ),ベンチマークグリッドソート列.メモリシェア,メモリシェア));
+            var 右マッピング一覧 = this.プロジェクト列を追加(グリッド,nameof(ベンチマーク表行.右セル),ベンチマークグリッドソート列.右日時,ベンチマークグリッドソート列.右時間,ベンチマークグリッドソート列.右割り当て);
+            this.ベンチマークプロジェクト選択グループを追加(プロジェクト見出し行,this.ベンチマークプロジェクト選択グループを取得("左",左見出し),左マッピング一覧,ソースタブ);
+            this.ベンチマークシェアヘッダーを追加(プロジェクト見出し行,時間シェアマッピング,"時間シェア");
+            this.ベンチマークシェアヘッダーを追加(プロジェクト見出し行,メモリシェアマッピング,"メモリシェア");
+            this.ベンチマークプロジェクト選択グループを追加(プロジェクト見出し行,this.ベンチマークプロジェクト選択グループを取得("右",右見出し),右マッピング一覧,ソースタブ);
         }
-        var シェア見出し = 左見出し+":"+右見出し;
-        var 左マッピング一覧 = this.プロジェクト列を追加(グリッド,nameof(ベンチマーク表行.左セル),ベンチマークグリッドソート列.左日時,ベンチマークグリッドソート列.左時間,ベンチマークグリッドソート列.左割り当て);
-        var 時間シェアマッピング = nameof(ベンチマーク表行.時間シェア表示);
-        var メモリシェアマッピング = nameof(ベンチマーク表行.メモリシェア表示);
-        グリッド.Columns.Add(this.シェアゲージ列を作成(シェア見出し,時間シェアマッピング,nameof(ベンチマーク表行.時間シェアゲージ),ベンチマークグリッドソート列.時間シェア,時間シェア));
-        グリッド.Columns.Add(this.シェアゲージ列を作成(シェア見出し,メモリシェアマッピング,nameof(ベンチマーク表行.メモリシェアゲージ),ベンチマークグリッドソート列.メモリシェア,メモリシェア));
-        var 右マッピング一覧 = this.プロジェクト列を追加(グリッド,nameof(ベンチマーク表行.右セル),ベンチマークグリッドソート列.右日時,ベンチマークグリッドソート列.右時間,ベンチマークグリッドソート列.右割り当て);
-        this.ベンチマークプロジェクト選択グループを追加(プロジェクト見出し行,this.ベンチマークプロジェクト選択グループを取得("左",左見出し),左マッピング一覧,ソースタブ);
-        this.ベンチマークシェアヘッダーを追加(プロジェクト見出し行,時間シェアマッピング,"時間シェア");
-        this.ベンチマークシェアヘッダーを追加(プロジェクト見出し行,メモリシェアマッピング,"メモリシェア");
-        this.ベンチマークプロジェクト選択グループを追加(プロジェクト見出し行,this.ベンチマークプロジェクト選択グループを取得("右",右見出し),右マッピング一覧,ソースタブ);
     }
 
     private void ベンチマークグリッドセルダブルタップ時(object? 送信元,DataGridCellDoubleTappedEventArgs イベント引数) {
@@ -1958,6 +1801,10 @@ public sealed partial class MainPage:ContentPage {
             nameof(ベンチマーク表行.メモリシェア表示) => 行.メモリシェア表示,
             nameof(ベンチマーク表行.左時間文字列) => 行.左時間文字列,
             nameof(ベンチマーク表行.左割り当て文字列) => 行.左割り当て文字列,
+            nameof(ベンチマーク表行.左速度文字列) => 行.左速度文字列,
+            nameof(ベンチマーク表行.中央時間文字列) => 行.中央時間文字列,
+            nameof(ベンチマーク表行.中央割り当て文字列) => 行.中央割り当て文字列,
+            nameof(ベンチマーク表行.中央速度文字列) => 行.中央速度文字列,
             nameof(ベンチマーク表行.右時間文字列) => 行.右時間文字列,
             nameof(ベンチマーク表行.右割り当て文字列) => 行.右割り当て文字列,
             "左セル確認" => 行.左セル.実行文字列,

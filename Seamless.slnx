@@ -1,23 +1,29 @@
 <Solution>
   <Folder Name="/Benchmark/">
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.FLinq/Benchmark.System.Linq.Enumerable.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.Linq/Benchmark.System.Linq.Enumerable.Linq.csproj" />
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.ZLinq/Benchmark.System.Linq.Enumerable.ZLinq.csproj" />
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.Range.FLinq/Benchmark.System.Linq.Enumerable.Range.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.Range.Linq/Benchmark.System.Linq.Enumerable.Range.Linq.csproj" />
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.List.ZLinq/Benchmark.System.Linq.Enumerable.List.ZLinq.csproj" />
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.Range.ZLinq/Benchmark.System.Linq.Enumerable.Range.ZLinq.csproj" />
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.IEnumerable.FLinq/Benchmark.System.Linq.Enumerable.IEnumerable.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.IEnumerable.Linq/Benchmark.System.Linq.Enumerable.IEnumerable.Linq.csproj" />
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq/Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Optimization.All/Benchmark.Optimization.All.csproj" />
     <Project Path="Benchmark/Benchmark.Optimization.NoRewrite/Benchmark.Optimization.NoRewrite.csproj" />
     <Project Path="Benchmark/Benchmark.Optimization.NoPipelineFusion/Benchmark.Optimization.NoPipelineFusion.csproj" />
     <Project Path="Benchmark/Benchmark.Optimization.NoPredicatePushdown/Benchmark.Optimization.NoPredicatePushdown.csproj" />
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.List.FLinq/Benchmark.System.Linq.Enumerable.List.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.List.Linq/Benchmark.System.Linq.Enumerable.List.Linq.csproj" />
     <Project Path="Benchmark/Benchmark.Persisted.Collections/Benchmark.Persisted.Collections.csproj" />
     <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.FLinq/Benchmark.Persisted.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.Linq/Benchmark.Persisted.Linq.Enumerable.Linq.csproj" />
+    <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.ValueLinq/Benchmark.Persisted.Linq.Enumerable.ValueLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.FLinq/Benchmark.Tsavorite.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.Linq/Benchmark.Tsavorite.Linq.Enumerable.Linq.csproj" />
+    <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.ValueLinq/Benchmark.Tsavorite.Linq.Enumerable.ValueLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.ParameterSweep/Benchmark.Tsavorite.ParameterSweep.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Tsavorite.ParameterSweep.UI.csproj" />
     <Project Path="Benchmark/Benchmark.Scalable.Persisted.Collections/Benchmark.Scalable.Persisted.Collections.csproj" />
@@ -75,6 +81,7 @@
   <Folder Name="/SourceGenerator/">
     <Project Path="Seamless.Database/Seamless.Database.csproj" />
     <Project Path="Seamless.FLinq/Seamless.FLinq.csproj" />
+    <Project Path="Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj" />
     <Project Path="Seamless.SourceGenerator/Seamless.SourceGenerator.csproj" />
   </Folder>
   <Folder Name="/Tests/">

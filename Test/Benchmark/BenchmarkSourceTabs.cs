@@ -41,7 +41,7 @@ public sealed class ベンチマークソースタブテスト {
         var 永続化 = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.Seamless永続化);
         var Tsavorite = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.SeamlessTsavorite);
 
-        Assert.Null(global::UI.ベンチマークソースタブ一覧.プロジェクトから取得を試みる(永続化.右プロジェクト));
+        Assert.Equal(永続化,global::UI.ベンチマークソースタブ一覧.プロジェクトから取得を試みる(永続化.右プロジェクト));
         Assert.Equal(永続化,global::UI.ベンチマークソースタブ一覧.プロジェクトとアセンブリから取得を試みる(永続化.右プロジェクト,永続化.右アセンブリ名));
         Assert.Equal(Tsavorite,global::UI.ベンチマークソースタブ一覧.プロジェクトとアセンブリから取得を試みる(Tsavorite.右プロジェクト,Tsavorite.右アセンブリ名));
         Assert.Null(global::UI.ベンチマークソースタブ一覧.プロジェクトとアセンブリから取得を試みる(永続化.右プロジェクト,"Wrong.Assembly"));

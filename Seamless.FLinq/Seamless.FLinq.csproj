@@ -19,10 +19,6 @@
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.3.0" PrivateAssets="all" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="..\Seamless.SourceGenerator\SourceGenerator\UnorderedLinqOperatorPolicy.cs" Link="SourceGenerator\UnorderedLinqOperatorPolicy.cs" />
-  </ItemGroup>
-
   <!-- Roslyn アナライザーとして参照プロジェクトを同時に読み込む -->
   <Target Name="GetDependencyTargetPaths" DependsOnTargets="ResolveReferences">
     <ItemGroup>

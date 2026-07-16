@@ -9,7 +9,6 @@ internal static class ベンチマークパイプライン定数 {
     public const int UIハートビート間隔ミリ秒 = 50;
     public const int UI描画間隔ミリ秒 = 100;
     public const int 進捗更新間隔ミリ秒 = 500;
-    public const int チャート更新間隔ミリ秒 = 1000;
     public const int 永続化バッチ間隔ミリ秒 = 1000;
     public const int 一回の最大終端結果数 = 6;
 }
@@ -76,9 +75,8 @@ internal sealed record ベンチマークUIスナップショット(
     IReadOnlyList<ベンチマーク実行イベント> 実行中更新一覧,
     IReadOnlyList<ベンチマーク実行イベント> 終端結果一覧,
     bool 進捗を更新するか,
-    bool チャートを更新するか,
     ベンチマークパイプライン指標 指標) {
-    public bool 更新ありか => this.実行中更新一覧.Count>0||this.終端結果一覧.Count>0||this.進捗を更新するか||this.チャートを更新するか;
+    public bool 更新ありか => this.実行中更新一覧.Count>0||this.終端結果一覧.Count>0||this.進捗を更新するか;
 }
 
 internal sealed record ベンチマークパイプライン指標(
@@ -112,9 +110,7 @@ internal sealed class ベンチマーク実行イベントパイプライン {
     private long 消費イベント数;
     private long 描画イベント数;
     private long 統合実行中イベント数;
-    private bool チャート変更ありか;
     private DateTimeOffset 最終進捗スナップショット日時 = DateTimeOffset.MinValue;
-    private DateTimeOffset 最終チャートスナップショット日時 = DateTimeOffset.MinValue;
 
     public ベンチマーク実行イベントパイプライン() {
         _=Task.Run(this.消費Async);
@@ -131,7 +127,6 @@ internal sealed class ベンチマーク実行イベントパイプライン {
             this.変更実行中キー一覧.Clear();
             this.終端直前実行中更新一覧.Clear();
             this.終端結果一覧.Clear();
-            this.チャート変更ありか=false;
         }
     }
 
@@ -158,13 +153,6 @@ internal sealed class ベンチマーク実行イベントパイプライン {
                 this.最終進捗スナップショット日時=現在日時;
             }
 
-            var チャートを更新するか = false;
-            if(this.チャート変更ありか&&現在日時-this.最終チャートスナップショット日時>=TimeSpan.FromMilliseconds(ベンチマークパイプライン定数.チャート更新間隔ミリ秒)) {
-                チャートを更新するか=true;
-                this.チャート変更ありか=false;
-                this.最終チャートスナップショット日時=現在日時;
-            }
-
             var 現在指標 = 指標 with {
                 受信イベント数=Interlocked.Read(ref this.受信イベント数),
                 消費イベント数=Interlocked.Read(ref this.消費イベント数),
@@ -176,7 +164,7 @@ internal sealed class ベンチマーク実行イベントパイプライン {
                 変更実行中数=実行中一覧.Count,
                 適用終端数=終端一覧.Count,
             };
-            スナップショット=new ベンチマークUIスナップショット(実行中一覧,終端一覧,進捗を更新するか,チャートを更新するか,現在指標);
+            スナップショット=new ベンチマークUIスナップショット(実行中一覧,終端一覧,進捗を更新するか,現在指標);
             if(!スナップショット.更新ありか) {
                 return false;
             }
@@ -193,7 +181,7 @@ internal sealed class ベンチマーク実行イベントパイプライン {
             }
 
             lock(this.状態ゲート) {
-                return this.変更実行中キー一覧.Count>0||this.終端結果一覧.Count>0||this.チャート変更ありか;
+                return this.変更実行中キー一覧.Count>0||this.終端結果一覧.Count>0;
             }
         }
     }
@@ -228,7 +216,6 @@ internal sealed class ベンチマーク実行イベントパイプライン {
                         this.キー別実行中.Remove(キー);
                         this.変更実行中キー一覧.Remove(キー);
                         this.終端結果一覧.Enqueue(項目);
-                        this.チャート変更ありか=true;
                     }
                 }
             }
@@ -376,16 +363,6 @@ internal sealed class ベンチマークUI診断(Action<string,Exception?> ロ�
             this.変更実行中数,
             this.適用終端数);
 
-    public IReadOnlyList<ベンチマーク診断行> 行一覧を作成() {
-        var 指標 = this.指標を作成(this.実行中更新数,this.終端滞留数,this.保留永続化イベント数);
-        return [
-            new ベンチマーク診断行("UI","ディスパッチャー遅延","目標",ベンチマークパイプライン定数.UI応答目標ミリ秒.ToString(global::System.Globalization.CultureInfo.InvariantCulture)+"ms",指標.最終ディスパッチャー遅延ミリ秒.ToString("0.0",global::System.Globalization.CultureInfo.InvariantCulture)+"ms",指標.ディスパッチャー停止数.ToString(global::System.Globalization.CultureInfo.InvariantCulture),"ハートビート目標を超えた最後のディスパッチャー遅延。"),
-            new ベンチマーク診断行("UI","描画バッチ","実行中",指標.実行中更新数.ToString(global::System.Globalization.CultureInfo.InvariantCulture),指標.最終描画ミリ秒.ToString("0.0",global::System.Globalization.CultureInfo.InvariantCulture)+"ms",指標.描画イベント数.ToString(global::System.Globalization.CultureInfo.InvariantCulture),"非ブロッキングの100msスナップショット描画。"),
-            new ベンチマーク診断行("UI","変更実行中","有効",指標.変更実行中数.ToString(global::System.Globalization.CultureInfo.InvariantCulture),指標.有効実行中数.ToString(global::System.Globalization.CultureInfo.InvariantCulture),指標.適用終端数.ToString(global::System.Globalization.CultureInfo.InvariantCulture),"最後のスナップショットで適用した変更中・実行中・終端項目。"),
-            new ベンチマーク診断行("イベント","統合実行中","Count",指標.統合実行中イベント数.ToString(global::System.Globalization.CultureInfo.InvariantCulture),指標.受信イベント数.ToString(global::System.Globalization.CultureInfo.InvariantCulture),指標.消費イベント数.ToString(global::System.Globalization.CultureInfo.InvariantCulture),"キーごとに古い実行中更新を破棄した数。"),
-            new ベンチマーク診断行("イベント","終端滞留","Count",指標.終端滞留数.ToString(global::System.Globalization.CultureInfo.InvariantCulture),指標.保留永続化イベント数.ToString(global::System.Globalization.CultureInfo.InvariantCulture),指標.最終永続化ミリ秒.ToString("0.0",global::System.Globalization.CultureInfo.InvariantCulture)+"ms","完了／失敗の滞留とSQLiteバッチ。")
-        ];
-    }
 }
 
 internal sealed class ベンチマークUI描画スケジューラー(

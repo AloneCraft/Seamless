@@ -51,7 +51,7 @@ internal class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment ke
                 var __capacity=__hasSpan
                     ? {{CapacityExpression(keySelector,"__span.Length")}}
                     : source.TryGetNonEnumeratedCount(out var __count) ? {{CapacityExpression(keySelector,"__count")}} : 0;
-                var builder=new global::Seamless.System.Carrier.LookupBuilder<{{FuncReturnTypeName(keySelector)}},{{source.ElementType}}>(__capacity,null);
+                var builder=new global::Seamless.Linq.LookupBuilder<{{FuncReturnTypeName(keySelector)}},{{source.ElementType}}>(__capacity,null);
                 try {
                 if(__hasSpan) {
                     for(var __i=0;__i<__span.Length;__i++) {
@@ -97,7 +97,7 @@ internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source
                 var __capacity=__hasSpan
                     ? {{CapacityExpression(keySelector,"__span.Length")}}
                     : source.TryGetNonEnumeratedCount(out var __count) ? {{CapacityExpression(keySelector,"__count")}} : 0;
-                var builder=new global::Seamless.System.Carrier.LookupBuilder<{{FuncReturnTypeName(keySelector)}},{{FuncReturnTypeName(elementSelector)}}>(__capacity,null);
+                var builder=new global::Seamless.Linq.LookupBuilder<{{FuncReturnTypeName(keySelector)}},{{FuncReturnTypeName(elementSelector)}}>(__capacity,null);
                 try {
                 if(__hasSpan) {
                     for(var __i=0;__i<__span.Length;__i++) {
@@ -148,7 +148,7 @@ internal class ToLookup_keySelector_comparer(int 番号,Enumerable source,FuncFr
                 var __capacity=__hasSpan
                     ? {{CapacityExpression(keySelector,"__span.Length")}}
                     : source.TryGetNonEnumeratedCount(out var __count) ? {{CapacityExpression(keySelector,"__count")}} : 0;
-                var builder=new global::Seamless.System.Carrier.LookupBuilder<{{FuncReturnTypeName(keySelector)}},{{source.ElementType}}>(__capacity,comparer);
+                var builder=new global::Seamless.Linq.LookupBuilder<{{FuncReturnTypeName(keySelector)}},{{source.ElementType}}>(__capacity,comparer);
                 try {
                 if(__hasSpan) {
                     for(var __i=0;__i<__span.Length;__i++) {
@@ -195,7 +195,7 @@ internal class ToLookup_keySelector_elementSelector_comparer(int 番号,Enumerab
                 var __capacity=__hasSpan
                     ? {{CapacityExpression(keySelector,"__span.Length")}}
                     : source.TryGetNonEnumeratedCount(out var __count) ? {{CapacityExpression(keySelector,"__count")}} : 0;
-                var builder=new global::Seamless.System.Carrier.LookupBuilder<{{FuncReturnTypeName(keySelector)}},{{FuncReturnTypeName(elementSelector)}}>(__capacity,comparer);
+                var builder=new global::Seamless.Linq.LookupBuilder<{{FuncReturnTypeName(keySelector)}},{{FuncReturnTypeName(elementSelector)}}>(__capacity,comparer);
                 try {
                 if(__hasSpan) {
                     for(var __i=0;__i<__span.Length;__i++) {

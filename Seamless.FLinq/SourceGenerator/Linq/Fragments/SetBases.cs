@@ -27,7 +27,7 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
     public override string StructMethod => string.Empty;
     protected override string StructTypeParameters => this.StructTypeParametersWithOuter("TEnum1","TEnum2");
     protected override string StructTypeConstraints =>
-        $"where TEnum1:struct,global::System.Collections.Generic.IEnumerator<{source.ElementType}>,global::Seamless.System.Carrier.IValueEnumerator<{source.ElementType}>\n    where TEnum2:struct,global::System.Collections.Generic.IEnumerator<{second.ElementType}>,global::Seamless.System.Carrier.IValueEnumerator<{second.ElementType}>";
+        $"where TEnum1:struct,global::System.Collections.Generic.IEnumerator<{source.ElementType}>,global::Seamless.Linq.IValueEnumerator<{source.ElementType}>\n    where TEnum2:struct,global::System.Collections.Generic.IEnumerator<{second.ElementType}>,global::Seamless.Linq.IValueEnumerator<{second.ElementType}>";
     public override string EnumeratorTypeName => this.EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
@@ -37,17 +37,17 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{second.GetEnumeratorExpression},{this.Comparer})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source,TEnum2 second,global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     public override string GetEnumeratorFields => operation.PreloadSecondFirst ? $$"""
-            private readonly global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}> {{this.lookup}};
+            private readonly global::Seamless.Linq.HashSetSlim<{{source.ElementType}}> {{this.lookup}};
             private bool {{this.yielded}};
-            private static global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}> CreateLookup(TEnum2 source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
+            private static global::Seamless.Linq.HashSetSlim<{{source.ElementType}}> CreateLookup(TEnum2 source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
                 if(source.TryGetNonEnumeratedCount(out var {{this.count}})){
-                    return new global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}>({{this.count}},comparer);
+                    return new global::Seamless.Linq.HashSetSlim<{{source.ElementType}}>({{this.count}},comparer);
                 }else{
-                    return new global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}>(comparer);
+                    return new global::Seamless.Linq.HashSetSlim<{{source.ElementType}}>(comparer);
                 }
             }
             """ : $$"""
-            private readonly global::Seamless.System.Carrier.HashSetSlim<{{source.ElementType}}> {{this.lookup}};
+            private readonly global::Seamless.Linq.HashSetSlim<{{source.ElementType}}> {{this.lookup}};
             private bool {{this.yielded}};
             """;
     public override string GetEnumeratorConstructor => operation.PreloadSecondFirst
@@ -151,12 +151,12 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
         builder.AppendLine($"var {secondHasCount}={secondName}.TryGetNonEnumeratedCount(out {secondCount});");
         builder.AppendLine($"if({sourceHasCount}||{secondHasCount}) global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();");
         builder.AppendLine($"using var {setName}={sourceHasCount}&&{secondHasCount}");
-        builder.AppendLine($"    ? new global::Seamless.System.Carrier.HashSetSlim<{source.ElementType}>({sourceCount}+{secondCount},(global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>?){this.Comparer})");
+        builder.AppendLine($"    ? new global::Seamless.Linq.HashSetSlim<{source.ElementType}>({sourceCount}+{secondCount},(global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>?){this.Comparer})");
         builder.AppendLine($"    : {sourceHasCount}");
-        builder.AppendLine($"        ? new global::Seamless.System.Carrier.HashSetSlim<{source.ElementType}>({sourceCount},(global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>?){this.Comparer})");
+        builder.AppendLine($"        ? new global::Seamless.Linq.HashSetSlim<{source.ElementType}>({sourceCount},(global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>?){this.Comparer})");
         builder.AppendLine($"        : {secondHasCount}");
-        builder.AppendLine($"            ? new global::Seamless.System.Carrier.HashSetSlim<{source.ElementType}>({secondCount},(global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>?){this.Comparer})");
-        builder.AppendLine($"            : new global::Seamless.System.Carrier.HashSetSlim<{source.ElementType}>((global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>?){this.Comparer});");
+        builder.AppendLine($"            ? new global::Seamless.Linq.HashSetSlim<{source.ElementType}>({secondCount},(global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>?){this.Comparer})");
+        builder.AppendLine($"            : new global::Seamless.Linq.HashSetSlim<{source.ElementType}>((global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>?){this.Comparer});");
     }
 
     private bool CanUseSortedIntSetFastPath() =>
@@ -381,7 +381,7 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     protected override string StructTypeParameters => this.StructTypeParametersWithOuter("TEnum1","TEnum2");
     protected override string StructTypeConstraints =>
-        $"where TEnum1:struct,global::System.Collections.Generic.IEnumerator<{source.ElementType}>,global::Seamless.System.Carrier.IValueEnumerator<{source.ElementType}>\n    where TEnum2:struct,global::System.Collections.Generic.IEnumerator<{second.ElementType}>,global::Seamless.System.Carrier.IValueEnumerator<{second.ElementType}>";
+        $"where TEnum1:struct,global::System.Collections.Generic.IEnumerator<{source.ElementType}>,global::Seamless.Linq.IValueEnumerator<{source.ElementType}>\n    where TEnum2:struct,global::System.Collections.Generic.IEnumerator<{second.ElementType}>,global::Seamless.Linq.IValueEnumerator<{second.ElementType}>";
     public override string EnumeratorTypeName => this.EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
@@ -391,13 +391,13 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{second.GetEnumeratorExpression},{this.Comparer}{this.ClosureArgsSuffix(keySelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source,TEnum2 second,global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector)}";
     public override string GetEnumeratorFields => $$"""
-        private readonly global::Seamless.System.Carrier.HashSetSlim<{{FuncReturnTypeName(keySelector)}}> {{this.lookup}};
+        private readonly global::Seamless.Linq.HashSetSlim<{{FuncReturnTypeName(keySelector)}}> {{this.lookup}};
         private byte {{this.state}};
-        private static global::Seamless.System.Carrier.HashSetSlim<{{FuncReturnTypeName(keySelector)}}> CreateLookup(TEnum2 source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer){
+        private static global::Seamless.Linq.HashSetSlim<{{FuncReturnTypeName(keySelector)}}> CreateLookup(TEnum2 source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer){
             if(source.TryGetNonEnumeratedCount(out var {{this.count}})){
-                return new global::Seamless.System.Carrier.HashSetSlim<{{FuncReturnTypeName(keySelector)}}>({{this.count}},comparer);
+                return new global::Seamless.Linq.HashSetSlim<{{FuncReturnTypeName(keySelector)}}>({{this.count}},comparer);
             }else{
-                return new global::Seamless.System.Carrier.HashSetSlim<{{FuncReturnTypeName(keySelector)}}>(comparer);
+                return new global::Seamless.Linq.HashSetSlim<{{FuncReturnTypeName(keySelector)}}>(comparer);
             }
         }
         """;
@@ -542,12 +542,12 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
         builder.AppendLine($"var {secondHasCount}={secondName}.TryGetNonEnumeratedCount(out {secondCount});");
         builder.AppendLine($"if({sourceHasCount}||{secondHasCount}) global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();");
         builder.AppendLine($"using var {setName}={sourceHasCount}&&{secondHasCount}");
-        builder.AppendLine($"    ? new global::Seamless.System.Carrier.HashSetSlim<{keyType}>({sourceCount}+{secondCount},(global::System.Collections.Generic.IEqualityComparer<{keyType}>?){this.Comparer})");
+        builder.AppendLine($"    ? new global::Seamless.Linq.HashSetSlim<{keyType}>({sourceCount}+{secondCount},(global::System.Collections.Generic.IEqualityComparer<{keyType}>?){this.Comparer})");
         builder.AppendLine($"    : {sourceHasCount}");
-        builder.AppendLine($"        ? new global::Seamless.System.Carrier.HashSetSlim<{keyType}>({sourceCount},(global::System.Collections.Generic.IEqualityComparer<{keyType}>?){this.Comparer})");
+        builder.AppendLine($"        ? new global::Seamless.Linq.HashSetSlim<{keyType}>({sourceCount},(global::System.Collections.Generic.IEqualityComparer<{keyType}>?){this.Comparer})");
         builder.AppendLine($"        : {secondHasCount}");
-        builder.AppendLine($"            ? new global::Seamless.System.Carrier.HashSetSlim<{keyType}>({secondCount},(global::System.Collections.Generic.IEqualityComparer<{keyType}>?){this.Comparer})");
-        builder.AppendLine($"            : new global::Seamless.System.Carrier.HashSetSlim<{keyType}>((global::System.Collections.Generic.IEqualityComparer<{keyType}>?){this.Comparer});");
+        builder.AppendLine($"            ? new global::Seamless.Linq.HashSetSlim<{keyType}>({secondCount},(global::System.Collections.Generic.IEqualityComparer<{keyType}>?){this.Comparer})");
+        builder.AppendLine($"            : new global::Seamless.Linq.HashSetSlim<{keyType}>((global::System.Collections.Generic.IEqualityComparer<{keyType}>?){this.Comparer});");
     }
     private void AppendSetByCollectLoop(StringBuilder builder,string enumeratorName,string setName) {
         TraversalSupport.AppendTraversalLoop(builder,enumeratorName,second.ElementType,"value",$$"""

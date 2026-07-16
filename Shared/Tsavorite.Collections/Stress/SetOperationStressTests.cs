@@ -37,51 +37,50 @@ public class SetOperationStressTests {
             var objB = Path.Combine(temp,"objB");
             var probeKeys = new global::System.Collections.Generic.HashSet<int>(keysA);
             probeKeys.UnionWith(keysB);
-            using(var logDevA = Devices.CreateLogDevice(logA))
-            using(var objDevA = Devices.CreateLogDevice(objA))
-            using(var logDevB = Devices.CreateLogDevice(logB))
-            using(var objDevB = Devices.CreateLogDevice(objB))
-            using(var storeA = Store.Create().Create<int>(logDevA,objDevA))
-            using(var storeB = Store.Create().Create<int>(logDevB,objDevB))
-            using(var setA = storeA.Create())
-            using(var setB = storeB.Create()) {
-                try {
-                    for(var r = 0;r<repeat;r++) {
-                        setA.Clear();
-                        setB.Clear();
-                        foreach(var k in keysA) setA.Add(k);
-                        foreach(var k in keysB) setB.Add(k);
-                        storeA.Store.Log.FlushAndEvict(wait: true);
-                        storeB.Store.Log.FlushAndEvict(wait: true);
-                        op(setA,setB);
-                        var expected = new global::System.Collections.Generic.HashSet<int>(keysA);
-                        expected.UnionWith(keysB);
-                        switch(opName) {
-                            case "IntersectWith":
-                                expected=[with(keysA)];
-                                expected.IntersectWith(keysB);
-                                break;
-                            case "SymmetricExceptWith":
-                                expected=[with(keysA)];
-                                expected.SymmetricExceptWith(keysB);
-                                break;
-                            case "UnionWith":
-                                expected=[with(keysA)];
-                                expected.UnionWith(keysB);
-                                break;
-                            case "ExceptWith":
-                                expected=[with(keysA)];
-                                expected.ExceptWith(keysB);
-                                break;
-                            default:
-                                throw new ArgumentOutOfRangeException(nameof(opName),opName,null);
-                        }
-                        StressReferenceAssert.SetEquals(probeKeys,expected,key => setA.Contains(key));
-                    }
-                } finally {
+            using var logDevA= Devices.CreateLogDevice(logA);
+            using var objDevA= Devices.CreateLogDevice(objA);
+            using var logDevB= Devices.CreateLogDevice(logB);
+            using var objDevB= Devices.CreateLogDevice(objB);
+            using var storeA = Store.Create().Create<int>(logDevA,objDevA);
+            using var storeB = Store.Create().Create<int>(logDevB,objDevB);
+            using var setA   = storeA.Create();
+            using var setB   = storeB.Create();
+            try {
+                for(var r = 0;r<repeat;r++) {
+                    setA.Clear();
+                    setB.Clear();
+                    foreach(var k in keysA) setA.Add(k);
+                    foreach(var k in keysB) setB.Add(k);
                     storeA.Store.Log.FlushAndEvict(wait: true);
                     storeB.Store.Log.FlushAndEvict(wait: true);
+                    op(setA,setB);
+                    var expected = new global::System.Collections.Generic.HashSet<int>(keysA);
+                    expected.UnionWith(keysB);
+                    switch(opName) {
+                        case "IntersectWith":
+                            expected=[with(keysA)];
+                            expected.IntersectWith(keysB);
+                            break;
+                        case "SymmetricExceptWith":
+                            expected=[with(keysA)];
+                            expected.SymmetricExceptWith(keysB);
+                            break;
+                        case "UnionWith":
+                            expected=[with(keysA)];
+                            expected.UnionWith(keysB);
+                            break;
+                        case "ExceptWith":
+                            expected=[with(keysA)];
+                            expected.ExceptWith(keysB);
+                            break;
+                        default:
+                            throw new ArgumentOutOfRangeException(nameof(opName),opName,null);
+                    }
+                    StressReferenceAssert.SetEquals(probeKeys,expected,key => setA.Contains(key));
                 }
+            } finally {
+                storeA.Store.Log.FlushAndEvict(wait: true);
+                storeB.Store.Log.FlushAndEvict(wait: true);
             }
         } finally {
             TryCleanup(temp);
@@ -126,46 +125,45 @@ public class SetOperationStressTests {
             var objB = Path.Combine(temp,"objB");
             var probeKeys = new global::System.Collections.Generic.HashSet<string>(keysA,StringComparer.Ordinal);
             probeKeys.UnionWith(keysB);
-            using(var logDevA = Devices.CreateLogDevice(logA))
-            using(var objDevA = Devices.CreateLogDevice(objA))
-            using(var logDevB = Devices.CreateLogDevice(logB))
-            using(var objDevB = Devices.CreateLogDevice(objB))
-            using(var storeA = Store.Create().Create<string>(logDevA,objDevA,new MemoryPackSerializerStrategy()))
-            using(var storeB = Store.Create().Create<string>(logDevB,objDevB,new MemoryPackSerializerStrategy()))
-            using(var setA = storeA.Create())
-            using(var setB = storeB.Create()) {
-                try {
-                    for(var r = 0;r<repeat;r++) {
-                        setA.Clear();
-                        setB.Clear();
-                        foreach(var k in keysA) setA.Add(k);
-                        foreach(var k in keysB) setB.Add(k);
-                        storeA.Store.Log.FlushAndEvict(wait: true);
-                        storeB.Store.Log.FlushAndEvict(wait: true);
-                        op(setA,setB);
-                        var expected = new global::System.Collections.Generic.HashSet<string>(keysA,StringComparer.Ordinal);
-                        switch(opName) {
-                            case "IntersectWith":
-                                expected.IntersectWith(keysB);
-                                break;
-                            case "SymmetricExceptWith":
-                                expected.SymmetricExceptWith(keysB);
-                                break;
-                            case "UnionWith":
-                                expected.UnionWith(keysB);
-                                break;
-                            case "ExceptWith":
-                                expected.ExceptWith(keysB);
-                                break;
-                            default:
-                                throw new ArgumentOutOfRangeException(nameof(opName),opName,null);
-                        }
-                        StressReferenceAssert.SetEquals(probeKeys,expected,key => setA.Contains(key));
-                    }
-                } finally {
+            using var logDevA= Devices.CreateLogDevice(logA);
+            using var objDevA= Devices.CreateLogDevice(objA);
+            using var logDevB= Devices.CreateLogDevice(logB);
+            using var objDevB= Devices.CreateLogDevice(objB);
+            using var storeA = Store.Create().Create<string>(logDevA,objDevA,new MemoryPackSerializerStrategy());
+            using var storeB = Store.Create().Create<string>(logDevB,objDevB,new MemoryPackSerializerStrategy());
+            using var setA   = storeA.Create();
+            using var setB   = storeB.Create();
+            try {
+                for(var r = 0;r<repeat;r++) {
+                    setA.Clear();
+                    setB.Clear();
+                    foreach(var k in keysA) setA.Add(k);
+                    foreach(var k in keysB) setB.Add(k);
                     storeA.Store.Log.FlushAndEvict(wait: true);
                     storeB.Store.Log.FlushAndEvict(wait: true);
+                    op(setA,setB);
+                    var expected = new global::System.Collections.Generic.HashSet<string>(keysA,StringComparer.Ordinal);
+                    switch(opName) {
+                        case "IntersectWith":
+                            expected.IntersectWith(keysB);
+                            break;
+                        case "SymmetricExceptWith":
+                            expected.SymmetricExceptWith(keysB);
+                            break;
+                        case "UnionWith":
+                            expected.UnionWith(keysB);
+                            break;
+                        case "ExceptWith":
+                            expected.ExceptWith(keysB);
+                            break;
+                        default:
+                            throw new ArgumentOutOfRangeException(nameof(opName),opName,null);
+                    }
+                    StressReferenceAssert.SetEquals(probeKeys,expected,key => setA.Contains(key));
                 }
+            } finally {
+                storeA.Store.Log.FlushAndEvict(wait: true);
+                storeB.Store.Log.FlushAndEvict(wait: true);
             }
         } finally {
             TryCleanup(temp);

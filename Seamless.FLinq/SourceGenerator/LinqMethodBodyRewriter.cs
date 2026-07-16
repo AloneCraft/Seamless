@@ -11,10 +11,21 @@ public sealed partial class FLinqIncrementalGenerator {
     // 傍受メソッドへ移した含有型（例: Base<T>）の型パラメータ名。
     // 生成する補助 struct を <T> でパラメータ化するために Fragment ツリーへ伝播する。
     // 非ジェネリック含有型では空配列。
-    private static string[] 外側型パラメータ名(INamedTypeSymbol containingType) =>
-        containingType.IsGenericType
-            ? containingType.TypeParameters.Select(static typeParameter => typeParameter.Name).ToArray()
-            : [];
+    // InterceptedMethodTypeParameterContext が有効なら、含有型の階層に加えて
+    // 傍受対象メソッド自身の型パラメータ（例: FormatGroupBy<T> の T）も含めた値を優先する。
+    private static string[] 外側型パラメータ名(INamedTypeSymbol containingType) {
+        if(InterceptedMethodTypeParameterContext.Current is { } ambient) {
+            return ambient;
+        }
+        var containingTypes = new Stack<INamedTypeSymbol>();
+        for(var current = containingType;current is not null;current=current.ContainingType) {
+            containingTypes.Push(current);
+        }
+        return containingTypes
+            .SelectMany(static type => type.TypeParameters)
+            .Select(static typeParameter => typeParameter.Name)
+            .ToArray();
+    }
 
     /// <summary>
     /// インターセプト対象メソッドの本体を丸ごと再構成し、文中の LINQ 呼び出しを Fragment 実行へ差し替える。
@@ -106,9 +117,11 @@ public sealed partial class FLinqIncrementalGenerator {
         // フラグメントツリーおよびソース式から UnsafeAccessor 宣言を収集し、補助クラスの外（クラス直下）に追記する。
         // これにより、インターセプタメソッド本体から短い名前で直接参照できる。
         // emittedUnsafeAccessors が渡された場合はクラスレベルで重複しないようフィルタする。
+        var generatedCodeWithoutAccessors = 静的メソッド群+"\n"+本体;
         var unsafeAccessorCodes = generatedFragments
             .SelectMany(static fragment => fragment.CollectAllUnsafeAccessorCodes())
             .Concat(sourceUnsafeAccessorCollector)
+            .Where(code => UnsafeAccessorIsReferenced(code,generatedCodeWithoutAccessors))
             .Where(code => emittedUnsafeAccessors?.Add(code)??true)
             .ToList();
         if(unsafeAccessorCodes.Count>0) {
@@ -116,6 +129,14 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         return true;
+    }
+
+    private static bool UnsafeAccessorIsReferenced(string accessorCode,string generatedCode) {
+        var match = System.Text.RegularExpressions.Regex.Match(
+            accessorCode,
+            @"\b(__[A-Za-z0-9_]+)(?:<[^>\r\n]+>)?\s*\(",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        return match.Success&&generatedCode.Contains(match.Groups[1].Value,StringComparison.Ordinal);
     }
 
     /// <summary>

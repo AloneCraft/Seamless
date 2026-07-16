@@ -36,12 +36,6 @@ public sealed partial class FLinqIncrementalGenerator {
         var definition = method.ReducedFrom??method;
         var methodName = definition.Name;
 
-        if(TryGetUnorderedInvocation(semanticModel,invocation,out var unorderedMethod,out var unorderedSourceType,out var explicitOptIn)
-            &&!explicitOptIn) {
-            fragment=new UnorderedOperation(uniqueNumber++,unorderedMethod,unorderedSourceType);
-            return true;
-        }
-
         if(TryBuildKnownEnumerableRootFromSystemInvocation(
             semanticModel,
             invocation,
@@ -83,7 +77,8 @@ public sealed partial class FLinqIncrementalGenerator {
                     return false;
                 },
                 ContainsAnonymousType,
-                静的メソッドコード連結),
+                静的メソッドコード連結,
+                外側型パラメータ名(containingType)),
             unsafeAccessorCollector)) {
             return true;
         }
@@ -140,16 +135,21 @@ public sealed partial class FLinqIncrementalGenerator {
             列挙式フラグメント生成,
             関数式フラグメント生成,
             (name,variant,n,extraArgs) => {
+                // ここで構築した Fragment の StructMethod は呼び出し元（Any.TryBuildWithPredicate）が
+                // 直後に文字列化するため、他の候補生成経路と同様にここで外側型パラメータを確定させる。
+                // 後段の PropagateContainingTypeName 呼び出しでは StructMethod 文字列化に間に合わない。
+                Fragment? built = null;
                 if(extraArgs is [Enumerable sourceFragment]
                     &&TryCreateBackendNativeIterateFragment(name,variant,n,sourceFragment,null,[n,.. extraArgs],out var nativeFragment)) {
-                    return nativeFragment;
-                }
-                if(extraArgs is [Enumerable sourceFragmentWithPredicate,FuncFragment predicateFragment]
+                    built=nativeFragment;
+                } else if(extraArgs is [Enumerable sourceFragmentWithPredicate,FuncFragment predicateFragment]
                     &&TryCreateBackendNativeIterateFragment(name,variant,n,sourceFragmentWithPredicate,predicateFragment,[n,.. extraArgs],out var nativePredicateFragment)) {
-                    return nativePredicateFragment;
+                    built=nativePredicateFragment;
+                } else if(フラグメント候補選択(name,variant,out var c)) {
+                    built=(Fragment?)c.Constructor.Invoke([n,.. extraArgs]);
                 }
-                if(!フラグメント候補選択(name,variant,out var c)) return null;
-                return (Fragment?)c.Constructor.Invoke([n,.. extraArgs]);
+                built?.PropagateOuterTypeParameters(外側型パラメータ名(containingType));
+                return built;
             });
 
     /// <summary>

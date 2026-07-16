@@ -9,4 +9,12 @@
     <Title>Seamless Abstractions</Title>
     <Description>Minimal public contracts shared by Seamless packages.</Description>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Artifacts\**" />
+    <Compile Remove="Work\**" />
+    <EmbeddedResource Remove="Artifacts\**" />
+    <EmbeddedResource Remove="Work\**" />
+    <None Remove="Artifacts\**" />
+    <None Remove="Work\**" />
+  </ItemGroup>
 </Project>

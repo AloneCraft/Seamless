@@ -24,36 +24,36 @@ public static class SetOperationStrategies {
         public bool PreloadSecondFirst => false;
         public string SourceAcceptMethod => "Add";
         public string GetEnumerableExpression(Enumerable source,Enumerable second,string comparer) =>
-            $"global::Seamless.System.Carrier.ValueEnumerableExtensions.Union({source.GetEnumerableExpression},{second.GetEnumerableExpression},{comparer})";
+            $"global::Seamless.Linq.Enumerable.Union({source.GetEnumerableExpression},{second.GetEnumerableExpression},{comparer})";
     }
     private sealed class ExceptStrategy:ISetOperationStrategy {
         public bool PreloadSecondFirst => true;
         public string SourceAcceptMethod => "Add";
         public string GetEnumerableExpression(Enumerable source,Enumerable second,string comparer) =>
-            $"global::Seamless.System.Carrier.ValueEnumerableExtensions.Except({source.GetEnumerableExpression},{second.GetEnumerableExpression},{comparer})";
+            $"global::Seamless.Linq.Enumerable.Except({source.GetEnumerableExpression},{second.GetEnumerableExpression},{comparer})";
     }
     private sealed class IntersectStrategy:ISetOperationStrategy {
         public bool PreloadSecondFirst => true;
         public string SourceAcceptMethod => "Remove";
         public string GetEnumerableExpression(Enumerable source,Enumerable second,string comparer) =>
-            $"global::Seamless.System.Carrier.ValueEnumerableExtensions.Intersect({source.GetEnumerableExpression},{second.GetEnumerableExpression},{comparer})";
+            $"global::Seamless.Linq.Enumerable.Intersect({source.GetEnumerableExpression},{second.GetEnumerableExpression},{comparer})";
     }
     private sealed class ByUnionStrategy:ISetByOperationStrategy {
         public bool PreloadSecondFirst => false;
         public string SourceAcceptMethod => "Add";
         public string GetEnumerableExpression(Enumerable source,Enumerable second,FuncFragment keySelector,string comparer) =>
-            $"global::Seamless.System.Carrier.ValueEnumerableExtensions.UnionBy({source.GetEnumerableExpression},{second.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{comparer})";
+            $"global::Seamless.Linq.Enumerable.UnionBy({source.GetEnumerableExpression},{second.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{comparer})";
     }
     private sealed class ByExceptStrategy:ISetByOperationStrategy {
         public bool PreloadSecondFirst => true;
         public string SourceAcceptMethod => "Add";
         public string GetEnumerableExpression(Enumerable source,Enumerable second,FuncFragment keySelector,string comparer) =>
-            $"global::Seamless.System.Carrier.ValueEnumerableExtensions.ExceptBy({source.GetEnumerableExpression},{second.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{comparer})";
+            $"global::Seamless.Linq.Enumerable.ExceptBy({source.GetEnumerableExpression},{second.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{comparer})";
     }
     private sealed class ByIntersectStrategy:ISetByOperationStrategy {
         public bool PreloadSecondFirst => true;
         public string SourceAcceptMethod => "Remove";
         public string GetEnumerableExpression(Enumerable source,Enumerable second,FuncFragment keySelector,string comparer) =>
-            $"global::Seamless.System.Carrier.ValueEnumerableExtensions.IntersectBy({source.GetEnumerableExpression},{second.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{comparer})";
+            $"global::Seamless.Linq.Enumerable.IntersectBy({source.GetEnumerableExpression},{second.GetEnumerableExpression},{keySelector.DelegateConstructorArg??keySelector.RenderAsLambda()},{comparer})";
     }
 }
