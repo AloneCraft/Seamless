@@ -121,6 +121,32 @@ public sealed class 実行ビューモデル {
     }
 
     [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task ソート列選択肢_3列タブは左右個別の時間メモリシェアを提供し旧速度列を含まない() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
+        var 列一覧 = フィクスチャ.ビューモデル.ベンチマークソート列選択肢一覧.Select(static 選択肢 => 選択肢.列).ToArray();
+
+        Assert.Contains(global::UI.ベンチマークグリッドソート列.左時間シェア,列一覧);
+        Assert.Contains(global::UI.ベンチマークグリッドソート列.左メモリシェア,列一覧);
+        Assert.Contains(global::UI.ベンチマークグリッドソート列.中央時間シェア,列一覧);
+        Assert.Contains(global::UI.ベンチマークグリッドソート列.中央メモリシェア,列一覧);
+        Assert.DoesNotContain(global::UI.ベンチマークグリッドソート列.左速度,列一覧);
+        Assert.DoesNotContain(global::UI.ベンチマークグリッドソート列.中央速度,列一覧);
+    }
+
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public async Task ソート列選択肢_2列タブは従来の時間シェアとメモリシェアのみを提供する() {
+        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.最適化書き換え);
+        var 列一覧 = フィクスチャ.ビューモデル.ベンチマークソート列選択肢一覧.Select(static 選択肢 => 選択肢.列).ToArray();
+
+        Assert.Contains(global::UI.ベンチマークグリッドソート列.時間シェア,列一覧);
+        Assert.Contains(global::UI.ベンチマークグリッドソート列.メモリシェア,列一覧);
+        Assert.DoesNotContain(global::UI.ベンチマークグリッドソート列.左時間シェア,列一覧);
+        Assert.DoesNotContain(global::UI.ベンチマークグリッドソート列.左メモリシェア,列一覧);
+        Assert.DoesNotContain(global::UI.ベンチマークグリッドソート列.中央時間シェア,列一覧);
+        Assert.DoesNotContain(global::UI.ベンチマークグリッドソート列.中央メモリシェア,列一覧);
+    }
+
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
     public async Task 配列タブの全ベンチマークをチェックして1msで実行() {
         // UI操作: 配列タブを前提に「全て選択」し、「計測」を押下する。
         // 観測: 選択セルでCPU実行中アイコンが出ること、最終完了へ遷移すること、完了数と合計数が一致することを確認する。

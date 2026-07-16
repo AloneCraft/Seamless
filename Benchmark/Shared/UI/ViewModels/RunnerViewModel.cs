@@ -7486,11 +7486,13 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         yield return ベンチマークグリッドソート列.左時間;
         yield return ベンチマークグリッドソート列.左割り当て;
         if(!string.IsNullOrWhiteSpace(this.選択ソース定義.中央プロジェクト)) {
-            yield return ベンチマークグリッドソート列.左速度;
+            yield return ベンチマークグリッドソート列.左時間シェア;
+            yield return ベンチマークグリッドソート列.左メモリシェア;
             yield return ベンチマークグリッドソート列.中央日時;
             yield return ベンチマークグリッドソート列.中央時間;
             yield return ベンチマークグリッドソート列.中央割り当て;
-            yield return ベンチマークグリッドソート列.中央速度;
+            yield return ベンチマークグリッドソート列.中央時間シェア;
+            yield return ベンチマークグリッドソート列.中央メモリシェア;
         }
         yield return ベンチマークグリッドソート列.時間シェア;
         yield return ベンチマークグリッドソート列.メモリシェア;

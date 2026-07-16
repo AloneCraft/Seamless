@@ -45,6 +45,11 @@ public enum ベンチマークグリッドソート列 {
     右日時,
     右時間,
     右割り当て,
+    // 3列タブの速度表示廃止に伴い左速度/中央速度は未使用化。保存済みソート設定(整数シリアライズ)の列挙値ズレを避けるため削除しない。
+    左時間シェア,
+    左メモリシェア,
+    中央時間シェア,
+    中央メモリシェア,
 }
 
 public sealed class ベンチマークソート規則(ベンチマークグリッドソート列 列,bool 降順か値=false):ObservableObject {
@@ -100,6 +105,10 @@ public sealed class ベンチマークソート規則(ベンチマークグリ�
             ベンチマークグリッドソート列.右日時 => "右 日時",
             ベンチマークグリッドソート列.右時間 => "右 時間",
             ベンチマークグリッドソート列.右割り当て => "右 メモリ",
+            ベンチマークグリッドソート列.左時間シェア => "左 時間シェア",
+            ベンチマークグリッドソート列.左メモリシェア => "左 メモリシェア",
+            ベンチマークグリッドソート列.中央時間シェア => "中央 時間シェア",
+            ベンチマークグリッドソート列.中央メモリシェア => "中央 メモリシェア",
             _ => 列.ToString(),
         };
 }
@@ -1093,6 +1102,10 @@ public sealed class ベンチマーク表行:ObservableObject {
     private bool? 選択チェック状態値;
     private string 時間シェア文字列 = string.Empty;
     private string メモリシェア文字列 = string.Empty;
+    private string 左時間シェア文字列 = string.Empty;
+    private string 左メモリシェア文字列 = string.Empty;
+    private string 中央時間シェア文字列 = string.Empty;
+    private string 中央メモリシェア文字列 = string.Empty;
     private string 停止要素数文字列値 = string.Empty;
     private Color 停止要素数文字色値 = 既定停止要素数文字色;
     private FontAttributes 停止要素数フォント属性値;
@@ -1336,6 +1349,38 @@ public sealed class ベンチマーク表行:ObservableObject {
     public ベンチマークシェアゲージ状態 メモリシェアゲージ =>
         ベンチマークシェアゲージ状態.シェアから作成(this.表示メモリシェアを取得());
 
+    public string 左時間シェア表示 {
+        get => this.左時間シェア文字列;
+        private set => this.SetProperty(ref this.左時間シェア文字列,value);
+    }
+
+    public string 左メモリシェア表示 {
+        get => this.左メモリシェア文字列;
+        private set => this.SetProperty(ref this.左メモリシェア文字列,value);
+    }
+
+    public string 中央時間シェア表示 {
+        get => this.中央時間シェア文字列;
+        private set => this.SetProperty(ref this.中央時間シェア文字列,value);
+    }
+
+    public string 中央メモリシェア表示 {
+        get => this.中央メモリシェア文字列;
+        private set => this.SetProperty(ref this.中央メモリシェア文字列,value);
+    }
+
+    public ベンチマークシェアゲージ状態 左時間シェアゲージ =>
+        ベンチマークシェアゲージ状態.シェアから作成(this.表示左時間シェアを取得());
+
+    public ベンチマークシェアゲージ状態 左メモリシェアゲージ =>
+        ベンチマークシェアゲージ状態.シェアから作成(this.表示左メモリシェアを取得());
+
+    public ベンチマークシェアゲージ状態 中央時間シェアゲージ =>
+        ベンチマークシェアゲージ状態.シェアから作成(this.表示中央時間シェアを取得());
+
+    public ベンチマークシェアゲージ状態 中央メモリシェアゲージ =>
+        ベンチマークシェアゲージ状態.シェアから作成(this.表示中央メモリシェアを取得());
+
     public string 停止要素数文字列 => string.IsNullOrWhiteSpace(this.停止要素数文字列値)
         ? this.要素数文字列
         : this.停止要素数文字列値;
@@ -1389,10 +1434,6 @@ public sealed class ベンチマーク表行:ObservableObject {
         get => this.中央割り当て文字列値;
         private set => this.SetProperty(ref this.中央割り当て文字列値,value);
     }
-
-    public string 左速度文字列 => 速度を整形(this.左セル.測定値,this.右セル.測定値);
-
-    public string 中央速度文字列 => 速度を整形(this.中央セル.測定値,this.右セル.測定値);
 
     public string 右時間文字列 {
         get => this.右時間文字列値;
@@ -1624,16 +1665,18 @@ public sealed class ベンチマーク表行:ObservableObject {
             ベンチマークグリッドソート列.左日時 => ベンチマークソート値.日時から作成(this.左セル.最新表示日時),
             ベンチマークグリッドソート列.左時間 => ベンチマークソート値.指標から作成(this.左セル.測定値,ベンチマーク指標種別.時間),
             ベンチマークグリッドソート列.左割り当て => ベンチマークソート値.指標から作成(this.左セル.測定値,ベンチマーク指標種別.割り当て),
-            ベンチマークグリッドソート列.左速度 => ベンチマークソート値.数値から作成(速度を計算(this.左セル.測定値,this.右セル.測定値)),
             ベンチマークグリッドソート列.中央日時 => ベンチマークソート値.日時から作成(this.中央セル.最新表示日時),
             ベンチマークグリッドソート列.中央時間 => ベンチマークソート値.指標から作成(this.中央セル.測定値,ベンチマーク指標種別.時間),
             ベンチマークグリッドソート列.中央割り当て => ベンチマークソート値.指標から作成(this.中央セル.測定値,ベンチマーク指標種別.割り当て),
-            ベンチマークグリッドソート列.中央速度 => ベンチマークソート値.数値から作成(速度を計算(this.中央セル.測定値,this.右セル.測定値)),
             ベンチマークグリッドソート列.時間シェア => ベンチマークソート値.シェアから作成(this.表示時間シェアを取得()),
             ベンチマークグリッドソート列.メモリシェア => ベンチマークソート値.シェアから作成(this.表示メモリシェアを取得()),
             ベンチマークグリッドソート列.右日時 => ベンチマークソート値.日時から作成(this.右セル.最新表示日時),
             ベンチマークグリッドソート列.右時間 => ベンチマークソート値.指標から作成(this.右セル.測定値,ベンチマーク指標種別.時間),
             ベンチマークグリッドソート列.右割り当て => ベンチマークソート値.指標から作成(this.右セル.測定値,ベンチマーク指標種別.割り当て),
+            ベンチマークグリッドソート列.左時間シェア => ベンチマークソート値.シェアから作成(this.表示左時間シェアを取得()),
+            ベンチマークグリッドソート列.左メモリシェア => ベンチマークソート値.シェアから作成(this.表示左メモリシェアを取得()),
+            ベンチマークグリッドソート列.中央時間シェア => ベンチマークソート値.シェアから作成(this.表示中央時間シェアを取得()),
+            ベンチマークグリッドソート列.中央メモリシェア => ベンチマークソート値.シェアから作成(this.表示中央メモリシェアを取得()),
             _ => ベンチマークソート値.欠測,
         };
     }
@@ -1677,14 +1720,38 @@ public sealed class ベンチマーク表行:ObservableObject {
         this.左割り当て文字列=警告付き割り当てを整形(this.左セル.測定値,this.右セル.測定値);
         this.中央割り当て文字列=警告付き割り当てを整形(this.中央セル.測定値,this.右セル.測定値);
         this.右割り当て文字列=割り当てを整形(this.右セル.測定値);
-        this.OnPropertyChanged(nameof(this.左速度文字列));
-        this.OnPropertyChanged(nameof(this.中央速度文字列));
+
+        var 左時間シェア = this.表示左時間シェアを取得();
+        var 中央時間シェア = this.表示中央時間シェアを取得();
+        var 左時間警告 = 相手より3パーセント以上遅いか(this.左セル.測定値,this.中央セル.測定値) ? " ⚠" : "";
+        var 中央時間警告 = 相手より3パーセント以上遅いか(this.中央セル.測定値,this.右セル.測定値) ? " ⚠" : "";
+        this.左時間シェア表示=左時間シェア.表示文字列+左時間警告;
+        this.中央時間シェア表示=中央時間シェア.表示文字列+中央時間警告;
+        this.左メモリシェア表示=this.表示左メモリシェアを取得().表示文字列;
+        this.中央メモリシェア表示=this.表示中央メモリシェアを取得().表示文字列;
+
         this.OnPropertyChanged(nameof(this.時間シェアゲージ));
         this.OnPropertyChanged(nameof(this.メモリシェアゲージ));
+        this.OnPropertyChanged(nameof(this.左時間シェアゲージ));
+        this.OnPropertyChanged(nameof(this.左メモリシェアゲージ));
+        this.OnPropertyChanged(nameof(this.中央時間シェアゲージ));
+        this.OnPropertyChanged(nameof(this.中央メモリシェアゲージ));
     }
 
     private シェア値 表示時間シェアを取得() =>
         ベンチマーク比較フォーマッター.時間シェアを計算(this.左セル.測定値,this.右セル.測定値);
+
+    private シェア値 表示左時間シェアを取得() =>
+        ベンチマーク比較フォーマッター.時間シェアを計算(this.左セル.測定値,this.中央セル.測定値);
+
+    private シェア値 表示左メモリシェアを取得() =>
+        ベンチマーク比較フォーマッター.メモリシェアを計算(this.左セル.測定値,this.中央セル.測定値);
+
+    private シェア値 表示中央時間シェアを取得() =>
+        ベンチマーク比較フォーマッター.時間シェアを計算(this.中央セル.測定値,this.右セル.測定値);
+
+    private シェア値 表示中央メモリシェアを取得() =>
+        ベンチマーク比較フォーマッター.メモリシェアを計算(this.中央セル.測定値,this.右セル.測定値);
 
     private シェア値 表示メモリシェアを取得() =>
         ベンチマーク比較フォーマッター.メモリシェアを計算(this.左セル.測定値,this.右セル.測定値);
@@ -1702,19 +1769,11 @@ public sealed class ベンチマーク表行:ObservableObject {
         }
     }
 
-    private static double? 速度を計算(プロジェクト測定値 対象,プロジェクト測定値 SystemLinq) {
-        if(!対象.測定値ありか||!SystemLinq.測定値ありか||対象.時間ナノ秒 is not { } 対象時間||SystemLinq.時間ナノ秒 is not { } 基準時間||対象時間<=0) {
-            return null;
+    private static bool 相手より3パーセント以上遅いか(プロジェクト測定値 対象,プロジェクト測定値 相手) {
+        if(!対象.測定値ありか||!相手.測定値ありか||対象.時間ナノ秒 is not { } 対象時間||相手.時間ナノ秒 is not { } 相手時間) {
+            return false;
         }
-        return 基準時間/対象時間;
-    }
-
-    private static string 速度を整形(プロジェクト測定値 対象,プロジェクト測定値 SystemLinq) {
-        if(速度を計算(対象,SystemLinq) is not { } 速度) {
-            return string.Empty;
-        }
-        var 警告=対象.時間ナノ秒>SystemLinq.時間ナノ秒*1.03 ? " ⚠" : string.Empty;
-        return 速度.ToString("0.00",CultureInfo.InvariantCulture)+"x"+警告;
+        return 対象時間>相手時間*1.03;
     }
 
     private static string 警告付き割り当てを整形(プロジェクト測定値 対象,プロジェクト測定値 SystemLinq) {
