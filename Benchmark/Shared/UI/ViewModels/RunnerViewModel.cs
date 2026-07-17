@@ -990,7 +990,9 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// ソート規則編集可能か プロパティです。
     /// </summary>
     /// <value>ソート規則編集可能か の値を取得/設定します。</value>
-    public bool ソート規則編集可能か => !this.ベンチマーク実行有効か;
+    public bool ソート規則編集可能か =>
+        !this.ベンチマーク一時停止中か
+        &&(!this.ベンチマーク実行有効か||this.選択ソース定義.タブ!=this.有効実行ソースタブ);
 
     /// <summary>
     /// 実行ボタン文字列 プロパティです。
@@ -1427,6 +1429,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                     this.OnPropertyChanged(nameof(this.ベンチマークシェア概要文));
                     this.OnPropertyChanged(nameof(this.選択比較ペア));
                     this.OnPropertyChanged(nameof(this.選択ソース定義));
+                    this.OnPropertyChanged(nameof(this.ソート規則編集可能か));
                     this.OnPropertyChanged(nameof(this.ベンチマーク選択を変更できるか));
                     this.ベンチマークプロジェクト見出し文字列を更新();
                     // タブ切替では DB もカタログも再読み込みせず、メモリ上のカタログと結果バッファだけで再構築する。
@@ -7600,13 +7603,17 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// 現在ソートを適用 メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
     private void 現在ソートを適用() {
-        if(this.ベンチマーク実行有効か||this.ベンチマーク一時停止中か) {
-            // 実行中／一時停止中は行の並び替えを行わない（インデックス主導更新の前提: 行位置を固定する）。
+        if(this.ベンチマーク一時停止中か) {
+            // 一時停止中は再開対象の行位置を保持するため、並び替えを行わない。
             return;
         }
         using(this.データグリッド更新バッチを開始()) {
             var ソート規則一覧 = this.有効ソート規則を取得();
             foreach(var 状態 in this.ソースタブ表示状態一覧値) {
+                if(this.ベンチマーク実行有効か&&状態.定義.タブ==this.有効実行ソースタブ) {
+                    // 実行対象タブだけ行位置を固定する（インデックス主導更新の前提）。
+                    continue;
+                }
                 if(状態.行一覧.Count<2) {
                     continue;
                 }
