@@ -117,6 +117,8 @@ public sealed class ベンチマークジョブ{
     public ベンチマークソースタブ ソースタブ{get;set;}=ベンチマークソースタブ.System配列;
     public int 要素数{get;set;}
     public int ループ回数{get;set;}=ベンチマーク作業軸.既定ループ回数;
+    public bool 開放ループ較正か{get;set;}
+    public double?較正閾値ナノ秒{get;set;}
     public List<int>準備済み要素数一覧{get;set;}=[];
     public ジョブ状態 状態{get;set;}=ジョブ状態.保留;
     public int?割り当て論理CPU{get;set;}

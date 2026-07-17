@@ -153,6 +153,51 @@ static ワーカー結果メッセージ ベンチマークを実行(
         using var ランダムソーススコープ = ランダムソースシードスコープを開始(ベンチマーク型.Assembly,ランダムシード);
         var 引数値一覧 = ベンチマーク引数フォーマッター.オブジェクト一覧に変換(タスク.引数);
         var 結果ダイジェスト = ベンチマーク結果ダイジェストを取得(ベンチマーク型,タスク.メソッド名,引数値一覧);
+        if(タスク.開放ループ較正か&&タスク.較正閾値ナノ秒 is { } 較正閾値ナノ秒) {
+            // 較正ケースはBenchmarkDotNetを介さず、開放ループの実測値をそのまま結果として返す(高速プロファイルと同じ計測方式)。
+            // ウォームアップ・統計処理・外れ値除去の厳密さは失うが、固定コスト(Reflection.Emitラップ・エンジン起動)を1回分節約できる。
+            var プローブメソッド = ベンチマークメソッドを解決(ベンチマーク型,タスク.メソッド名);
+            var プローブインスタンス = プローブメソッド.IsStatic ? null : Activator.CreateInstance(ベンチマーク型);
+            var プローブ呼出 = 引数値一覧.Length==0
+                ? プローブメソッド.IsStatic
+                    ? (Action)プローブメソッド.CreateDelegate(typeof(Action))
+                    : (Action)プローブメソッド.CreateDelegate(typeof(Action),プローブインスタンス)
+                : () => プローブメソッド.Invoke(プローブインスタンス,引数値一覧);
+            プローブ呼出();
+            var 割当前バイト数 = GC.GetAllocatedBytesForCurrentThread();
+            var 反復回数 = 0;
+            var プローブストップウォッチ = Stopwatch.StartNew();
+            while(プローブストップウォッチ.Elapsed.TotalMilliseconds*1_000_000d<較正閾値ナノ秒) {
+                プローブ呼出();
+                反復回数++;
+            }
+
+            プローブストップウォッチ.Stop();
+            var 割当後バイト数 = GC.GetAllocatedBytesForCurrentThread();
+            var プローブ割当バイト数 = Math.Max(0,割当後バイト数-割当前バイト数);
+            var 実測ループ回数 = Math.Max(1,反復回数);
+            Environment.SetEnvironmentVariable(ループ回数環境変数名,実測ループ回数.ToString(CultureInfo.InvariantCulture));
+            var プローブ平均ナノ秒 = プローブストップウォッチ.Elapsed.TotalMilliseconds*1_000_000d;
+            var プローブログ = ログ書込.ToString();
+            File.WriteAllText(ログパス,プローブログ,Encoding.UTF8);
+            return new ワーカー結果メッセージ(
+                タスク.タスクID,
+                "Completed",
+                ナノ秒を整形(プローブ平均ナノ秒),
+                string.Empty,
+                string.Empty,
+                プローブ平均ナノ秒,
+                null,
+                null,
+                プローブ割当バイト数,
+                0,
+                タスク.成果物フォルダー,
+                プローブログ,
+                ランダムシード,
+                結果ダイジェスト,
+                実測ループ回数: 実測ループ回数);
+        }
+
         var 設定 = ManualConfig
             .Create(ベンチマークワーカーランタイム.設定を作成(タスク.成果物フォルダー,ループ回数))
             .AddFilter(new ワーカータスクフィルター(タスク));
@@ -248,9 +293,19 @@ static ワーカー結果メッセージ 高速ベンチマークを実行(
             : () => メソッド.Invoke(インスタンス,引数値一覧);
         ベンチマーク呼出();
         var 割当前バイト数 = GC.GetAllocatedBytesForCurrentThread();
+        int? 実測ループ回数 = null;
         var ストップウォッチ = Stopwatch.StartNew();
-        for(var 反復番号 = 0;反復番号<ループ回数;反復番号++) {
-            ベンチマーク呼出();
+        if(タスク.開放ループ較正か&&タスク.較正閾値ナノ秒 is { } 較正閾値ナノ秒) {
+            var 反復回数 = 0;
+            while(ストップウォッチ.Elapsed.TotalMilliseconds*1_000_000d<較正閾値ナノ秒) {
+                ベンチマーク呼出();
+                反復回数++;
+            }
+            実測ループ回数=反復回数;
+        } else {
+            for(var 反復番号 = 0;反復番号<ループ回数;反復番号++) {
+                ベンチマーク呼出();
+            }
         }
         ストップウォッチ.Stop();
         var 割当後バイト数 = GC.GetAllocatedBytesForCurrentThread();
@@ -283,7 +338,8 @@ static ワーカー結果メッセージ 高速ベンチマークを実行(
             string.Empty,
             ランダムシード,
             結果ダイジェスト,
-            診断カウンター);
+            診断カウンター,
+            実測ループ回数);
     } catch(Exception 例外) when(例外 is not OperationCanceledException) {
         var 実例外 = 例外 is TargetInvocationException { InnerException: { } 内部例外 } ? 内部例外 : 例外;
         Directory.CreateDirectory(タスク.成果物フォルダー);
@@ -539,7 +595,9 @@ internal sealed record ワーカータスクメッセージ(
     int ループ回数,
     string 要素倍率,
     string 成果物フォルダー,
-    int? 割り当て論理CPU = null);
+    int? 割り当て論理CPU = null,
+    bool 開放ループ較正か = false,
+    double? 較正閾値ナノ秒 = null);
 
 internal sealed record ベンチマーク引数(string 名前,string 値);
 
@@ -577,7 +635,8 @@ internal sealed record ワーカー結果メッセージ(
     string ログ,
     int? ランダムシード,
     string 結果ダイジェスト,
-    IReadOnlyList<ベンチマーク診断カウンター>? 診断カウンター = null);
+    IReadOnlyList<ベンチマーク診断カウンター>? 診断カウンター = null,
+    int? 実測ループ回数 = null);
 internal sealed class 空ディスポーザブル:IDisposable {
     public static 空ディスポーザブル インスタンス { get; } = new();
 

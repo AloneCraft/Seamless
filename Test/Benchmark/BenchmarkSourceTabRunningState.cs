@@ -66,6 +66,27 @@ public sealed class ベンチマークソースタブ実行中状態 {
         Assert.False(状態.実行中か(ベンチマークソースタブ.Systemリスト));
     }
 
+    [Fact]
+    public void 仕様確認07() {
+        var 状態 = new global::UI.ベンチマークソースタブ実行中状態();
+        状態.適用(結果を作成(ベンチマークソースタブ.System配列,"System.Array","Where",4096,0,ジョブ状態.実行中));
+        状態.適用(結果を作成(ベンチマークソースタブ.Systemリスト,"System.Collections.Generic.List","Where",4096,1,ジョブ状態.実行中));
+
+        // 複数タブが同時実行中でも、指定したタブだけを個別にクリアできる(他タブは影響を受けない)。
+        Assert.True(状態.タブの実行中状態をクリア(ベンチマークソースタブ.System配列));
+
+        Assert.False(状態.実行中か(ベンチマークソースタブ.System配列));
+        Assert.True(状態.実行中か(ベンチマークソースタブ.Systemリスト));
+    }
+
+    [Fact]
+    public void 仕様確認08() {
+        var 状態 = new global::UI.ベンチマークソースタブ実行中状態();
+
+        // 対象タブに実行中エントリが無ければ何もせず false を返す。
+        Assert.False(状態.タブの実行中状態をクリア(ベンチマークソースタブ.System配列));
+    }
+
     private static ベンチマーク結果項目 結果を作成(
         ベンチマークソースタブ ソースタブ,
         string プロジェクト,

@@ -374,7 +374,7 @@ public sealed class ベンチマーク永続ワーカープロセスサービス
         using var 連結ソース = CancellationTokenSource.CreateLinkedTokenSource(キャンセルトークン,タイムアウトソース.Token);
         this.実行中ジョブ数一覧.AddOrUpdate(論理CPU,1,static (_,件数) => 件数+1);
         try {
-            var 結果 = await セッション.実行Async(ジョブ.ベンチマークケースに変換(),ジョブ.ソースタブ,ジョブ.準備済み要素数一覧,ジョブ.要素数,ジョブ.ループ回数,"1",連結ソース.Token);
+            var 結果 = await セッション.実行Async(ジョブ.ベンチマークケースに変換(),ジョブ.ソースタブ,ジョブ.準備済み要素数一覧,ジョブ.要素数,ジョブ.ループ回数,"1",連結ソース.Token,ジョブ.開放ループ較正か,ジョブ.較正閾値ナノ秒);
             return 結果 with { 実行項目インデックス=ジョブ.実行項目インデックス };
         } catch(OperationCanceledException) {
             await this.セッションを再設定Async(論理CPU,セッション);

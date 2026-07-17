@@ -306,6 +306,12 @@ internal sealed class ベンチマークソースタブ実行中状態 {
         }
     }
 
+    public bool タブの実行中状態をクリア(ベンチマークソースタブ タブ) {
+        lock(this.同期排他) {
+            return this.実行中ジョブ一覧.RemoveWhere(ジョブ => ジョブ.ソースタブ==タブ)>0;
+        }
+    }
+
     private static ベンチマークソースタブ実行中ジョブ ジョブを作成(ベンチマーク結果項目 結果) =>
         new(
             結果.ソースタブ,

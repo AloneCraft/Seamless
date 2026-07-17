@@ -13,7 +13,7 @@ public sealed class ベンチマークワーカークライアント:Iベンチ�
         int 論理CPU,
         TimeSpan タイムアウト,
         CancellationToken キャンセルトークン) =>
-        this.実行Async(ジョブ.ベンチマークケースに変換(),実行ルート,ジョブ.ソースタブ,ジョブ.準備済み要素数一覧,ジョブ.要素数,ジョブ.ループ回数,"1",論理CPU,タイムアウト,キャンセルトークン);
+        this.実行Async(ジョブ.ベンチマークケースに変換(),実行ルート,ジョブ.ソースタブ,ジョブ.準備済み要素数一覧,ジョブ.要素数,ジョブ.ループ回数,"1",論理CPU,タイムアウト,キャンセルトークン,ジョブ.開放ループ較正か,ジョブ.較正閾値ナノ秒);
 
     public async Task<ベンチマークジョブ実行結果> 実行Async(
         ベンチマークケース ベンチマーク,
@@ -25,13 +25,15 @@ public sealed class ベンチマークワーカークライアント:Iベンチ�
         string 要素倍率,
         int 論理CPU,
         TimeSpan タイムアウト,
-        CancellationToken キャンセルトークン) {
+        CancellationToken キャンセルトークン,
+        bool 開放ループ較正か = false,
+        double? 較正閾値ナノ秒 = null) {
         using var タイムアウトソース = new CancellationTokenSource(タイムアウト);
         using var 連結ソース = CancellationTokenSource.CreateLinkedTokenSource(キャンセルトークン,タイムアウトソース.Token);
         var 有効トークン = 連結ソース.Token;
         try {
             await using var セッション = await this.セッション開始Async(実行ルート,論理CPU,有効トークン);
-            var 結果 = await セッション.実行Async(ベンチマーク,ソースタブ,準備済み要素数一覧,要素数,ループ回数,要素倍率,有効トークン);
+            var 結果 = await セッション.実行Async(ベンチマーク,ソースタブ,準備済み要素数一覧,要素数,ループ回数,要素倍率,有効トークン,開放ループ較正か,較正閾値ナノ秒);
             await セッション.終了Async(有効トークン);
             return 結果;
         } catch(OperationCanceledException) {
@@ -212,7 +214,9 @@ public sealed class ベンチマーク高速ワーカーセッション:IAsyncDi
             ループ回数,
             "1",
             成果物フォルダー,
-            論理CPU);
+            論理CPU,
+            ジョブ.開放ループ較正か,
+            ジョブ.較正閾値ナノ秒);
         using var 登録 = キャンセルトークン.Register(() => {
             this.終了();
             完了ソース.TrySetCanceled(キャンセルトークン);
@@ -247,7 +251,7 @@ public sealed class ベンチマーク高速ワーカーセッション:IAsyncDi
                 結果.結果ダイジェスト,
                 ベンチマーク.引数キー,
                 ベンチマーク.引数一覧,
-                ループ回数,
+                結果.実測ループ回数??ループ回数,
                 ジョブ.実行項目インデックス,
                 結果.診断カウンター);
         } catch {
@@ -363,7 +367,9 @@ public sealed class ベンチマークワーカーセッション:IAsyncDisposab
         int 要素数,
         int ループ回数,
         string 要素倍率,
-        CancellationToken キャンセルトークン) {
+        CancellationToken キャンセルトークン,
+        bool 開放ループ較正か = false,
+        double? 較正閾値ナノ秒 = null) {
         if(this.終了済みか) {
             throw new ObjectDisposedException(nameof(ベンチマークワーカーセッション));
         }
@@ -382,7 +388,9 @@ public sealed class ベンチマークワーカーセッション:IAsyncDisposab
             要素数,
             ループ回数,
             要素倍率,
-            成果物フォルダー);
+            成果物フォルダー,
+            開放ループ較正か: 開放ループ較正か,
+            較正閾値ナノ秒: 較正閾値ナノ秒);
 
         try {
             System.Diagnostics.Debug.WriteLine($"[ワーカー] 実行Async送信 PID={this.プロセス.Id} メソッド={ベンチマーク.メソッド名} 要素数={要素数}");
@@ -414,7 +422,7 @@ public sealed class ベンチマークワーカーセッション:IAsyncDisposab
                 結果.結果ダイジェスト,
                 ベンチマーク.引数キー,
                 ベンチマーク.引数一覧,
-                ループ回数,
+                結果.実測ループ回数??ループ回数,
                 診断カウンター値一覧: 結果.診断カウンター);
         } catch(OperationCanceledException) {
             this.終了();
@@ -477,7 +485,9 @@ internal sealed record ワーカータスクメッセージ(
     int ループ回数,
     string 要素倍率,
     string 成果物フォルダー,
-    int? 割り当て論理CPU = null);
+    int? 割り当て論理CPU = null,
+    bool 開放ループ較正か = false,
+    double? 較正閾値ナノ秒 = null);
 
 internal sealed record ワーカー結果メッセージ(
     string タスクID,
@@ -494,4 +504,5 @@ internal sealed record ワーカー結果メッセージ(
     string ログ,
     int? ランダムシード = null,
     string 結果ダイジェスト = "",
-    IReadOnlyList<ベンチマーク診断カウンター>? 診断カウンター = null);
+    IReadOnlyList<ベンチマーク診断カウンター>? 診断カウンター = null,
+    int? 実測ループ回数 = null);
