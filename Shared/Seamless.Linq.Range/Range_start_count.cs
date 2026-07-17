@@ -166,12 +166,8 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     [BenchFact, Benchmark] public void Zip_tuple() => this.Zip_tuple_Impl();
     [LinqIntercept(true)] private void Zip_tuple_Impl() { var length = this.CountFor(ElementCount); RangeX.Create(1,length).Zip(RangeX.Create(1,length)).Consume(this.consumer); }
 
-    public sealed class OrderBy_keySelector_chain():global::Common.Base<int>(ElementCount) {
-        private const                  int  ElementCount = 4_096;
-        private                        int  CountFor(int count)                 => this.EffectiveSourceCount(count);
-        [BenchFact, Benchmark] public  void ThenBy_keySelector()                => this.ThenBy_keySelector_Impl();
-        [LinqIntercept(true)]  private void ThenBy_keySelector_Impl()           => RangeX.Create(1,this.CountFor(ElementCount)).OrderBy(static x => x%1000).ThenBy(static x => x).Consume(this.consumer);
-        [BenchFact, Benchmark] public  void ThenByDescending_keySelector()      => this.ThenByDescending_keySelector_Impl();
-        [LinqIntercept(true)]  private void ThenByDescending_keySelector_Impl() => RangeX.Create(1,this.CountFor(ElementCount)).OrderBy(static x => x%1000).ThenByDescending(static x => x).Consume(this.consumer);
-    }
+    [BenchFact, Benchmark] public void ThenBy_keySelector() => this.ThenBy_keySelector_Impl();
+    [LinqIntercept(true)] private void ThenBy_keySelector_Impl() => RangeX.Create(1,this.CountFor(ElementCount)).OrderBy(static x => x%1000).ThenBy(static x => x).Consume(this.consumer);
+    [BenchFact, Benchmark] public void ThenByDescending_keySelector() => this.ThenByDescending_keySelector_Impl();
+    [LinqIntercept(true)] private void ThenByDescending_keySelector_Impl() => RangeX.Create(1,this.CountFor(ElementCount)).OrderBy(static x => x%1000).ThenByDescending(static x => x).Consume(this.consumer);
 }

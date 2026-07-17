@@ -1014,7 +1014,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         &&!this.選択実行DB読込中か
         &&!this.実行選択肢選択適用中か
         &&!this.ベンチマーク実行中か
-        &&this.選択論理CPUを取得().Count>0
         &&(this.選択ベンチマークセルありか||保存DB実行選択肢か(this.選択実行選択肢));
 
     /// <summary>

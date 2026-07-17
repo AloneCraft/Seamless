@@ -302,7 +302,7 @@ internal sealed class ベンチマークUI診断(Action<string,Exception?> ロ�
                     }
                 });
             }
-        });
+        },キャンセルソース.Token);
     }
 
     public async Task ハートビートを停止Async() {
@@ -312,7 +312,7 @@ internal sealed class ベンチマークUI診断(Action<string,Exception?> ロ�
         }
 
         this.ハートビートキャンセル=null;
-        キャンセルソース.Cancel();
+        await キャンセルソース.CancelAsync();
         var ハートビートタスク = this.ハートビートタスク;
         this.ハートビートタスク=null;
         try {

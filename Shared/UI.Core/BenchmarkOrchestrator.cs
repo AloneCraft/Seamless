@@ -808,7 +808,7 @@ internal sealed class ベンチマークオーケストレーター(
             : "要素数="+ジョブ.要素数.ToString(CultureInfo.InvariantCulture);
 
     private static IReadOnlyList<int> CPU一覧を正規化(IReadOnlyList<int> CPU一覧) =>
-        CPU一覧.Count==0 ? [0] : CPU一覧.Distinct().Order().ToArray();
+        CPU一覧.Distinct().Order().ToArray();
 
     private static IReadOnlyList<int> 現在CPU一覧を取得(ベンチマーク実行要求 要求) =>
         CPU一覧を正規化(要求.論理CPU取得器?.Invoke()??要求.論理CPU一覧);

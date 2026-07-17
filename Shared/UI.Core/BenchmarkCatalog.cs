@@ -127,6 +127,12 @@ public static class ベンチマークカタログ{
         &&型.DeclaringType?.Name.Split('`')[0]=="Array";
 
     private static string 直接基底型を整形(Type 型) {
+        if(型.IsNested&&型.DeclaringType is { } 宣言型) {
+            var 閉じた宣言型 = 宣言型.IsGenericTypeDefinition&&型.IsGenericType
+                ? 宣言型.MakeGenericType(型.GetGenericArguments())
+                : 宣言型;
+            return 直接基底型を整形(閉じた宣言型)+"."+チェーン型名を正規化(型.Name.Split('`')[0]);
+        }
         var 名前 = チェーン型名を正規化(型.Name.Split('`')[0]);
         if(!型.IsGenericType) {
             return 名前;
