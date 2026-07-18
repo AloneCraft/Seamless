@@ -1117,6 +1117,9 @@ public sealed class ベンチマーク列選択グループ(string id,string 見
 }
 
 public sealed class ベンチマーク表行:ObservableObject {
+    private static readonly Color 既定指標文字色 = Color.FromArgb("#1E293B");
+    private static readonly Color 高性能指標文字色 = Color.FromArgb("#2563EB");
+    private static readonly Color 低性能指標文字色 = Color.FromArgb("#DC2626");
     private bool 選択中か値;
     private bool UI選択中か値;
     private bool? 選択チェック状態値;
@@ -1440,30 +1443,42 @@ public sealed class ベンチマーク表行:ObservableObject {
         private set => this.SetProperty(ref this.左時間文字列値,value);
     }
 
+    public Color 左時間文字色 => 比較指標文字色を取得(this.左セル.測定値.時間ナノ秒,this.右セル.測定値.時間ナノ秒);
+
     public string 左割り当て文字列 {
         get => this.左割り当て文字列値;
         private set => this.SetProperty(ref this.左割り当て文字列値,value);
     }
+
+    public Color 左メモリ文字色 => 比較指標文字色を取得(this.左セル.測定値.割り当てバイト数,this.右セル.測定値.割り当てバイト数);
 
     public string 中央時間文字列 {
         get => this.中央時間文字列値;
         private set => this.SetProperty(ref this.中央時間文字列値,value);
     }
 
+    public Color 中央時間文字色 => 既定指標文字色;
+
     public string 中央割り当て文字列 {
         get => this.中央割り当て文字列値;
         private set => this.SetProperty(ref this.中央割り当て文字列値,value);
     }
+
+    public Color 中央メモリ文字色 => 既定指標文字色;
 
     public string 右時間文字列 {
         get => this.右時間文字列値;
         private set => this.SetProperty(ref this.右時間文字列値,value);
     }
 
+    public Color 右時間文字色 => 比較指標文字色を取得(this.右セル.測定値.時間ナノ秒,this.左セル.測定値.時間ナノ秒);
+
     public string 右割り当て文字列 {
         get => this.右割り当て文字列値;
         private set => this.SetProperty(ref this.右割り当て文字列値,value);
     }
+
+    public Color 右メモリ文字色 => 比較指標文字色を取得(this.右セル.測定値.割り当てバイト数,this.左セル.測定値.割り当てバイト数);
 
     public IReadOnlyList<ベンチマークケース> 実行ケースを取得() {
         // 保存Runスナップショットの型列は表示値であり、worker実行用の完全型名ではない。
@@ -1739,25 +1754,23 @@ public sealed class ベンチマーク表行:ObservableObject {
     private void 表示シェアを更新() {
         var 時間シェア = this.表示時間シェアを取得();
         var メモリシェア = this.表示メモリシェアを取得();
-        var 警告 = ベンチマーク受け入れ方針.回帰か(this.ソースタブ.タブ,時間シェア) ? " ⚠" : "";
-        this.時間シェア表示=時間シェア.表示文字列+警告;
+        this.時間シェア表示=時間シェア.表示文字列;
         this.メモリシェア表示=メモリシェア.表示文字列;
         this.左時間文字列=時間を整形(this.左セル.測定値);
         this.中央時間文字列=時間を整形(this.中央セル.測定値);
         this.右時間文字列=時間を整形(this.右セル.測定値);
-        this.左割り当て文字列=警告付き割り当てを整形(this.左セル.測定値,this.右セル.測定値);
-        this.中央割り当て文字列=警告付き割り当てを整形(this.中央セル.測定値,this.右セル.測定値);
+        this.左割り当て文字列=割り当てを整形(this.左セル.測定値);
+        this.中央割り当て文字列=割り当てを整形(this.中央セル.測定値);
         this.右割り当て文字列=割り当てを整形(this.右セル.測定値);
 
         var 左時間シェア = this.表示左時間シェアを取得();
         var 中央時間シェア = this.表示中央時間シェアを取得();
-        var 左時間警告 = 相手より3パーセント以上遅いか(this.左セル.測定値,this.右セル.測定値) ? " ⚠" : "";
-        var 中央時間警告 = 相手より3パーセント以上遅いか(this.中央セル.測定値,this.右セル.測定値) ? " ⚠" : "";
-        this.左時間シェア表示=左時間シェア.表示文字列+左時間警告;
-        this.中央時間シェア表示=中央時間シェア.表示文字列+中央時間警告;
+        this.左時間シェア表示=左時間シェア.表示文字列;
+        this.中央時間シェア表示=中央時間シェア.表示文字列;
         this.左メモリシェア表示=this.表示左メモリシェアを取得().表示文字列;
         this.中央メモリシェア表示=this.表示中央メモリシェアを取得().表示文字列;
 
+        this.比較指標文字色を更新();
         this.OnPropertyChanged(nameof(this.時間シェアゲージ));
         this.OnPropertyChanged(nameof(this.メモリシェアゲージ));
         this.OnPropertyChanged(nameof(this.左時間シェアゲージ));
@@ -1765,7 +1778,6 @@ public sealed class ベンチマーク表行:ObservableObject {
         this.OnPropertyChanged(nameof(this.中央時間シェアゲージ));
         this.OnPropertyChanged(nameof(this.中央メモリシェアゲージ));
     }
-
     private シェア値 表示時間シェアを取得() =>
         ベンチマーク比較フォーマッター.時間シェアを計算(this.左セル.測定値,this.右セル.測定値);
 
@@ -1797,21 +1809,24 @@ public sealed class ベンチマーク表行:ObservableObject {
         }
     }
 
-    private static bool 相手より3パーセント以上遅いか(プロジェクト測定値 対象,プロジェクト測定値 相手) {
-        if(!対象.測定値ありか||!相手.測定値ありか||対象.時間ナノ秒 is not { } 対象時間||相手.時間ナノ秒 is not { } 相手時間) {
-            return false;
-        }
-        return 対象時間>相手時間*1.03;
+    private void 比較指標文字色を更新() {
+        this.OnPropertyChanged(nameof(this.左時間文字色));
+        this.OnPropertyChanged(nameof(this.左メモリ文字色));
+        this.OnPropertyChanged(nameof(this.中央時間文字色));
+        this.OnPropertyChanged(nameof(this.中央メモリ文字色));
+        this.OnPropertyChanged(nameof(this.右時間文字色));
+        this.OnPropertyChanged(nameof(this.右メモリ文字色));
     }
 
-    private static string 警告付き割り当てを整形(プロジェクト測定値 対象,プロジェクト測定値 SystemLinq) {
-        var 表示=割り当てを整形(対象);
-        if(string.IsNullOrWhiteSpace(表示)||!SystemLinq.測定値ありか||対象.割り当てバイト数 is not { } 対象値||SystemLinq.割り当てバイト数 is not { } 基準値) {
-            return 表示;
+    private static Color 比較指標文字色を取得<T>(T? 対象,T? 相手) where T:struct,IComparable<T> {
+        if(対象 is not { } 対象値||相手 is not { } 相手値){
+            return 既定指標文字色;
         }
-        return 対象値>基準値 ? 表示+" ⚠" : 表示;
+        if(対象値.CompareTo(相手値)==0){
+            return 既定指標文字色;
+        }
+        return 対象値.CompareTo(相手値)<0 ? 高性能指標文字色 : 低性能指標文字色;
     }
-
     private void 停止要素数文字列をクリア() {
         this.停止要素数文字列値=string.Empty;
         this.停止要素数スタイルを適用(false);

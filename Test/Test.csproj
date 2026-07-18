@@ -104,6 +104,7 @@
     <Compile Include="Benchmark\Pattern.cs" />
     <Compile Include="Benchmark\BenchmarkThreeSeriesDisplay.cs" />
     <Compile Include="Benchmark\BenchmarkTabProgressLogic.cs" />
+    <Compile Include="Benchmark\BenchmarkFastWorkerSession.cs" />
     <Compile Include="Benchmark\BenchmarkDisplayName.cs" />
     <Compile Include="Benchmark\シェア値.cs" />
     <Compile Include="Benchmark\BenchmarkImprovementPromptBuilder.cs" />

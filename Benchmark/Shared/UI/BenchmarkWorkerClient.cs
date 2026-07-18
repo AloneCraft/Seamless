@@ -321,12 +321,19 @@ public sealed class ベンチマーク高速ワーカーセッション:IAsyncDi
                     完了ソース.TrySetResult(結果);
                 }
             }
+            if(!this.終了ソース.IsCancellationRequested) {
+                this.保留中ジョブを例外で完了する(new InvalidOperationException("高速ベンチマークワーカーが結果を返さず終了しました。"));
+            }
         } catch(OperationCanceledException) {
         } catch(Exception 例外) {
-            foreach(var 組 in this.保留一覧.ToArray()) {
-                if(this.保留一覧.TryRemove(組.Key,out var 完了ソース)) {
-                    完了ソース.TrySetException(例外);
-                }
+            this.保留中ジョブを例外で完了する(例外);
+        }
+    }
+
+    private void 保留中ジョブを例外で完了する(Exception 例外) {
+        foreach(var 組 in this.保留一覧.ToArray()) {
+            if(this.保留一覧.TryRemove(組.Key,out var 完了ソース)) {
+                完了ソース.TrySetException(例外);
             }
         }
     }
