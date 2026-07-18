@@ -137,6 +137,30 @@ public sealed class ベンチマーク実行セッション {
             _ => null));
     }
 
+    [Fact]
+    public void 仕様確認09() {
+        // ループ回数タブでは、同一ケースのCompleted結果を別の軸数で追加すると旧軸のエントリが破棄される。
+        // 較正ジッターで軸数が変わった際に、行完了判定へ複数の軸数が混在供給されるのを防ぐ。
+        var セッション = new global::UI.ベンチマーク実行セッション();
+
+        セッション.結果を更新または追加(結果を作成("System.Array.FLinq","Aggregate",64,100));
+        セッション.結果を更新または追加(結果を作成("System.Array.FLinq","Aggregate",16,200));
+
+        var 結果 = Assert.Single(セッション.結果を取得(global::UI.ベンチマークソースタブ.System配列));
+        Assert.Equal(16,結果.軸数);
+    }
+
+    [Fact]
+    public void 仕様確認10() {
+        // スケーラブルタブは複数要素数が正当な軸なので、同一ケースでも別軸のエントリは破棄されない。
+        var セッション = new global::UI.ベンチマーク実行セッション();
+
+        セッション.結果を更新または追加(結果を作成("Scalable.Set","Add",65536,100,ソースタブ: global::UI.ベンチマークソースタブ.スケーラブルセット));
+        セッション.結果を更新または追加(結果を作成("Scalable.Set","Add",131072,200,ソースタブ: global::UI.ベンチマークソースタブ.スケーラブルセット));
+
+        Assert.Equal(2,セッション.結果を取得(global::UI.ベンチマークソースタブ.スケーラブルセット).Count);
+    }
+
     private static global::UI.ベンチマーク結果項目 結果を作成(
         string プロジェクト,
         string メソッド,

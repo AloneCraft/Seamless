@@ -37,7 +37,26 @@ internal sealed class ベンチマーク実行セッション{
 
     public void 結果を更新または追加(ベンチマーク結果項目 結果){
         lock(this.ゲート){
-            this.結果一覧[ベンチマーク実行結果キー.作成(結果)]=結果;
+            var キー=ベンチマーク実行結果キー.作成(結果);
+            if(ベンチマーク作業軸.ループ回数を使うか(結果.ソースタブ)
+                &&string.Equals(結果.状態,ジョブ状態名.保存値に変換(ジョブ状態.完了),StringComparison.OrdinalIgnoreCase)){
+                // ループ回数タブでは1ケースにつき最新計測の軸数(ループ回数)だけが有効。
+                // 較正のジッターで軸数が変わった際に旧軸のエントリが残ると、行完了判定の
+                // 左右軸数比較が永久に不一致となるため、他軸の既存エントリをここで破棄する。
+                // (スケーラブルタブは複数要素数が正当な軸なので対象外)
+                foreach(var 既存キー in this.結果一覧.Keys
+                    .Where(既存=>既存.要素数!=キー.要素数
+                        &&既存.ソースタブ==キー.ソースタブ
+                        &&string.Equals(既存.プロジェクト,キー.プロジェクト,StringComparison.OrdinalIgnoreCase)
+                        &&string.Equals(既存.型完全名,キー.型完全名,StringComparison.Ordinal)
+                        &&string.Equals(既存.メソッド,キー.メソッド,StringComparison.Ordinal)
+                        &&string.Equals(既存.引数キー,キー.引数キー,StringComparison.Ordinal))
+                    .ToArray()){
+                    this.結果一覧.Remove(既存キー);
+                }
+            }
+
+            this.結果一覧[キー]=結果;
         }
     }
 
@@ -229,7 +248,10 @@ internal sealed class ベンチマーク実行セッション{
             平均=結果.平均,
             誤差=結果.誤差ナノ秒?.ToString(CultureInfo.InvariantCulture)??string.Empty,
             標準偏差=結果.標準偏差ナノ秒?.ToString(CultureInfo.InvariantCulture)??string.Empty,
-            平均ナノ秒=結果.平均ナノ秒,
+            // ジョブ.平均ナノ秒はループ回数タブでは「ループ合計時間」を意味する(較正完了かの閾値比較や
+            // 結果項目の合計ナノ秒がこの前提)。結果.平均ナノ秒は操作単位へ正規化済み(合計÷ループ回数)の
+            // 表示値なので、そのまま戻すと再構築を経由した行だけ閾値判定が1/Nに縮んで完了扱いにならない。
+            平均ナノ秒=結果.合計ナノ秒??結果.平均ナノ秒,
             誤差ナノ秒=結果.誤差ナノ秒,
             標準偏差ナノ秒=結果.標準偏差ナノ秒,
             割り当てバイト数=結果.割り当てバイト数値,

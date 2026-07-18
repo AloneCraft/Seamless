@@ -672,7 +672,6 @@ public sealed partial class MainPage:ContentPage {
         };
         foreach(var (文言,画像ソース) in new[] {
             ("待機",ベンチマーク状態画像名.待機中),
-            ("指定回数完了",ベンチマーク状態画像名.完了),
             ("完全完了",ベンチマーク状態画像名.最終完了),
             ("失敗",ベンチマーク状態画像名.失敗),
             ("測定値なし",ベンチマーク状態画像名.測定なし),
@@ -1948,7 +1947,8 @@ public sealed partial class MainPage:ContentPage {
             },
             RowSpacing=1,
             Padding=new Thickness(1,0),
-            BackgroundColor=Color.FromArgb("#F8FAFC"),
+            // 他列と同じく透明にして、行選択時のハイライト色がシェアセルにも透けるようにする。
+            BackgroundColor=Colors.Transparent,
             Children={ テキスト,トラック },
         };
         Grid.SetRow(トラック,1);
@@ -3191,6 +3191,7 @@ public sealed partial class MainPage:ContentPage {
             this.メンバー値設定を試行(水平スクロールバー,"HeightRequest",ベンチマークスクロールバー寸法);
             this.メンバー値設定を試行(水平スクロールバー,"MinimumHeightRequest",ベンチマークスクロールバー寸法);
             this.メンバー値設定を試行(水平スクロールバー,"ScrollerHeight",ベンチマークスクロールバー寸法);
+            this.スクロールバー常時表示を適用(水平スクロールバー);
         }
 
         if(this.メンバー値取得を試行(表示コンテナー,"VerticalScrollbar") is { } 垂直スクロールバー) {
@@ -3198,7 +3199,16 @@ public sealed partial class MainPage:ContentPage {
             this.メンバー値設定を試行(垂直スクロールバー,"WidthRequest",ベンチマークスクロールバー寸法);
             this.メンバー値設定を試行(垂直スクロールバー,"MinimumWidthRequest",ベンチマークスクロールバー寸法);
             this.メンバー値設定を試行(垂直スクロールバー,"ScrollerWidth",ベンチマークスクロールバー寸法);
+            this.スクロールバー常時表示を適用(垂直スクロールバー);
         }
+    }
+
+    private void スクロールバー常時表示を適用(object スクロールバー) {
+        // ScrollBarVisibility.Always を設定してもWinUI側のオートハイドで薄く消えるため、
+        // 内部スクロールバーの可視性関連プロパティを存在するものだけベストエフォートで強制する。
+        this.メンバー値設定を試行(スクロールバー,"IsVisible",true);
+        this.メンバー値設定を試行(スクロールバー,"AutoHide",false);
+        this.メンバー値設定を試行(スクロールバー,"Opacity",1d);
     }
 
     private object? メンバー値取得を試行(object 対象,string 名前) {
@@ -3221,6 +3231,20 @@ public sealed partial class MainPage:ContentPage {
 
         var フィールド = 対象.GetType().GetField(名前,フラグ);
         フィールド?.SetValue(対象,this.メンバー値を変換(値,フィールド.FieldType));
+    }
+
+    private void メンバー値設定を試行(object 対象,string 名前,bool 値) {
+        const System.Reflection.BindingFlags フラグ = System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic;
+        var プロパティ = 対象.GetType().GetProperty(名前,フラグ);
+        if(プロパティ is not null&&プロパティ.CanWrite&&プロパティ.PropertyType==typeof(bool)) {
+            プロパティ.SetValue(対象,値);
+            return;
+        }
+
+        var フィールド = 対象.GetType().GetField(名前,フラグ);
+        if(フィールド is not null&&フィールド.FieldType==typeof(bool)) {
+            フィールド.SetValue(対象,値);
+        }
     }
 
     private object メンバー値を変換(double 値,Type 型) {

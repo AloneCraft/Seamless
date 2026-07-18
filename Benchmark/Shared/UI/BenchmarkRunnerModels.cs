@@ -209,9 +209,7 @@ public sealed class ソースタブ選択肢(ベンチマークソースタブ�
         }
     }
     public bool 完了アイコン表示中か => (this.完了か||this.最終完了か)&&!this.実行中か;
-    public string 完了アイコンソース => this.最終完了か||this.完了か
-        ? ベンチマーク状態画像名.最終完了
-        : ベンチマーク状態画像名.完了;
+    public string 完了アイコンソース => ベンチマーク状態画像名.最終完了;
     public double 進行割合 => this.進行.合計数<=0 ? 0 : this.進行.割合;
     public string 進行文字列 => this.進行.合計数<=0 ? "0/0" : this.進行.割合文字列;
     public string ベンチマークシェア概要短文 {
@@ -416,6 +414,7 @@ public sealed class ベンチマークプロジェクトセル:ObservableObject 
     private Color バッジ背景色値 = Color.FromArgb("#E2E8F0");
     private Color バッジ文字色値 = Color.FromArgb("#334155");
     private bool 行最終完了か値;
+    private bool 今回実行待機中か値;
 
     public ベンチマークプロジェクトセル(ベンチマーク表行 親行,string プロジェクト,bool ケースありか) {
         this.親行=親行;
@@ -602,6 +601,13 @@ public sealed class ベンチマークプロジェクトセル:ObservableObject 
         }
     }
 
+    public void 今回実行待機を設定(bool 値) {
+        if(this.今回実行待機中か値!=値) {
+            this.今回実行待機中か値=値;
+            this.状態表示を更新();
+        }
+    }
+
     public void 測定値を適用(プロジェクト測定値 値,bool 維持表示を保持するか = false) {
         // 維持表示を保持するか=true のときは、完了済みセルを欠測/待機に戻さない。
         // 途中で比較行が欠けても、最後に見えていた確定値を画面上に残す。
@@ -678,6 +684,8 @@ public sealed class ベンチマークプロジェクトセル:ObservableObject 
     }
 
     public void 実行結果を適用(ベンチマーク結果項目 結果,CPU選択項目? CPU,DateTimeOffset 完了日時,bool 完了を強調するか = true) {
+        // 今回実行の結果(実行中/終端いずれも)が届いた時点で、実行待ちの時計表示は終わり。
+        this.今回実行待機中か値=false;
         var 完了か = string.Equals(結果.状態,"Completed",StringComparison.OrdinalIgnoreCase);
         var 失敗か値 = string.Equals(結果.状態,"Failed",StringComparison.OrdinalIgnoreCase);
         var 実行中か値 = ジョブ状態名.保存値と一致するか(結果.状態,ジョブ状態.実行中);
@@ -858,6 +866,7 @@ public sealed class ベンチマークプロジェクトセル:ObservableObject 
 
     public void 実行時状態をクリア() {
         this.実行中か=false;
+        this.今回実行待機中か値=false;
         this.実行時状態=this.測定値.測定値ありか||this.測定なし完了か値
             ? ベンチマークプロジェクト実行状態.完了
             : ベンチマークプロジェクト実行状態.待機中;
@@ -980,7 +989,8 @@ public sealed class ベンチマークプロジェクトセル:ObservableObject 
             this.測定値.測定値ありか,
             this.測定なし完了か値,
             this.実行予定か,
-            this.行最終完了か));
+            this.行最終完了か,
+            this.今回実行待機中か値));
         this.状態画像ソース=ベンチマーク状態画像名.種別から取得(種別);
         if(!this.ケースありか) {
             this.状態文字列="対象なし";
@@ -1584,6 +1594,14 @@ public sealed class ベンチマーク表行:ObservableObject {
     public void 実行時状態をクリア() {
         foreach(var セル in this.プロジェクトセル一覧) {
             セル.実行時状態をクリア();
+        }
+    }
+
+    public void 今回実行待機を設定(bool 値) {
+        foreach(var セル in this.プロジェクトセル一覧) {
+            if(セル.ケースありか) {
+                セル.今回実行待機を設定(値);
+            }
         }
     }
 

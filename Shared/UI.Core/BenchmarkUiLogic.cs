@@ -16,7 +16,6 @@ public enum ベンチマーク状態画像種別 {
     なし,
     待機中,
     実行中,
-    完了,
     最終完了,
     失敗,
     測定なし,
@@ -24,7 +23,6 @@ public enum ベンチマーク状態画像種別 {
 
 internal static class ベンチマーク状態画像名 {
     public const string 待機中="status_waiting.png";
-    public const string 完了="status_completed.png";
     public const string 最終完了="status_final_completed.png";
     public const string 失敗="status_failed.png";
     public const string 測定なし="status_no_measurement.png";
@@ -34,7 +32,6 @@ internal static class ベンチマーク状態画像名 {
     public static string 種別から取得(ベンチマーク状態画像種別 種別)=>
         種別 switch {
             ベンチマーク状態画像種別.待機中=>待機中,
-            ベンチマーク状態画像種別.完了=>完了,
             ベンチマーク状態画像種別.最終完了=>最終完了,
             ベンチマーク状態画像種別.失敗=>失敗,
             ベンチマーク状態画像種別.測定なし=>測定なし,
@@ -62,7 +59,8 @@ internal readonly record struct ベンチマーク状態画像入力(
     bool 測定値ありか,
     bool 測定なし完了か,
     bool 実行予定か,
-    bool 行最終完了か);
+    bool 行最終完了か,
+    bool 今回実行待機中か=false);
 
 internal static class ベンチマーク状態画像ロジック {
     public static ベンチマーク状態画像種別 プロジェクト画像種別を取得(ベンチマーク状態画像入力 入力) {
@@ -74,14 +72,20 @@ internal static class ベンチマーク状態画像ロジック {
             return ベンチマーク状態画像種別.実行中;
         }
 
+        if(入力.今回実行待機中か) {
+            // 今回の実行対象に選ばれているがまだ計測が届いていないセルは、
+            // 前回実行の値(維持表示)があっても完了系アイコンではなく待機(時計)を表示する。
+            return ベンチマーク状態画像種別.待機中;
+        }
+
         if(入力.失敗か) {
             return ベンチマーク状態画像種別.失敗;
         }
 
         if(入力.測定値ありか) {
-            return 入力.行最終完了か
-                ? ベンチマーク状態画像種別.最終完了
-                : ベンチマーク状態画像種別.完了;
+            // 開放ループ較正でループ回数の段階(1,2,4...)が廃止されたため、
+            // 「指定回数完了」の中間段階は設けず測定値があれば完全完了として扱う。
+            return ベンチマーク状態画像種別.最終完了;
         }
 
         if(入力.測定なし完了か) {
@@ -97,7 +101,7 @@ internal static class ベンチマークCPU状態画像ロジック {
         string.Equals(状態,ジョブ状態名.保存値に変換(ジョブ状態.実行中),StringComparison.OrdinalIgnoreCase)
             ? ベンチマーク状態画像名.CPU実行中
             : string.Equals(状態,ジョブ状態名.保存値に変換(ジョブ状態.完了),StringComparison.OrdinalIgnoreCase)
-                ? ベンチマーク状態画像名.完了
+                ? ベンチマーク状態画像名.最終完了
                 : string.Equals(状態,ジョブ状態名.保存値に変換(ジョブ状態.失敗),StringComparison.OrdinalIgnoreCase)
                     ? ベンチマーク状態画像名.失敗
                     : ベンチマーク状態画像名.CPU待機中;
