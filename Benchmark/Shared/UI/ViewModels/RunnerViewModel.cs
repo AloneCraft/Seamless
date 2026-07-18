@@ -290,6 +290,10 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// </summary>
     private IReadOnlyList<ベンチマークケース> 現在実行選択ベンチマークケース一覧 = [];
     /// <summary>
+    /// 実行開始時に固定する、タブ別の選択済み進行セルです。
+    /// </summary>
+    private IReadOnlyDictionary<ベンチマークソースタブ,IReadOnlyList<ベンチマークタブ進行セル>> 現在実行タブ別進行セル一覧 = new Dictionary<ベンチマークソースタブ,IReadOnlyList<ベンチマークタブ進行セル>>();
+    /// <summary>
     /// 選択論理CPU一覧 フィールドです。
     /// </summary>
     private int[] 選択論理CPU一覧 = [];
@@ -2583,9 +2587,12 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// 今回実行ベンチマーク選択スナップショットを更新 メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
     private void 今回実行ベンチマーク選択スナップショットを更新() {
-        Volatile.Write(
-            ref this.現在実行選択ベンチマークケース一覧,
-            this.全タブから選択ベンチマークケースを作成());
+        var 選択ケース一覧=this.全タブから選択ベンチマークケースを作成();
+        var タブ別進行セル一覧=this.ソースタブ一覧.ToDictionary(
+            static 選択肢=>選択肢.定義.タブ,
+            選択肢=>(IReadOnlyList<ベンチマークタブ進行セル>)ベンチマークタブ進行元ロジック.選択ケースからセルを作成(選択ケース一覧,選択肢.定義));
+        Volatile.Write(ref this.現在実行選択ベンチマークケース一覧,選択ケース一覧);
+        Volatile.Write(ref this.現在実行タブ別進行セル一覧,タブ別進行セル一覧);
     }
 
     /// <summary>
@@ -5666,9 +5673,9 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// <param name="ソースタブ">ソースタブ を指定して実行条件を制御します。</param>
     /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<ベンチマークタブ進行セル> 進行セル一覧を作成(ベンチマークソースタブ定義 ソースタブ) {
-        var 現在実行セル一覧 = this.現在実行進行セル一覧を作成(ソースタブ);
-        if(現在実行セル一覧.Count>0) {
-            return 現在実行セル一覧;
+        var 実行計画を使用するか=this.ベンチマーク実行有効か||this.現在実行セッション.結果ありか;
+        if(実行計画を使用するか) {
+            return this.現在実行進行セル一覧を作成(ソースタブ);
         }
 
         var 状態 = this.ソースタブ表示状態を取得(ソースタブ.タブ);
@@ -5699,10 +5706,10 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             return [];
         }
 
-        var 選択値ケース一覧 = this.現在実行選択ベンチマークケース一覧を取得();
-        return 選択値ケース一覧.Count==0
-            ? []
-            : ベンチマークタブ進行元ロジック.選択ケースからセルを作成(選択値ケース一覧,ソースタブ);
+        var タブ別進行セル一覧=Volatile.Read(ref this.現在実行タブ別進行セル一覧);
+        return タブ別進行セル一覧.TryGetValue(ソースタブ.タブ,out var セル一覧)
+            ? セル一覧
+            : [];
     }
 
     /// <summary>

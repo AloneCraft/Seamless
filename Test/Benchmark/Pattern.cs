@@ -224,17 +224,20 @@ public sealed class 実行ビューモデル {
         選択肢.最終完了状態を設定(false);
 
         Assert.True(選択肢.完了アイコン表示中か);
+        Assert.False(選択肢.進行リング表示中か);
         Assert.Equal(global::UI.ベンチマーク状態画像名.最終完了,選択肢.完了アイコンソース);
 
         選択肢.最終完了状態を設定(true);
 
         Assert.True(選択肢.完了アイコン表示中か);
+        Assert.False(選択肢.進行リング表示中か);
         Assert.Equal(global::UI.ベンチマーク状態画像名.最終完了,選択肢.完了アイコンソース);
 
         選択肢.進行を設定(new global::UI.ベンチマークタブ進行(0,1));
         選択肢.最終完了状態を設定(true);
 
         Assert.True(選択肢.完了アイコン表示中か);
+        Assert.False(選択肢.進行リング表示中か);
         Assert.Equal(global::UI.ベンチマーク状態画像名.最終完了,選択肢.完了アイコンソース);
     }
 

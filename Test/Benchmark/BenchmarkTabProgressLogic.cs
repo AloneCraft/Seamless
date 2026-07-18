@@ -402,6 +402,37 @@ public sealed class ベンチマークタブ進行ロジック {
         Assert.Equal(2,進行.合計数);
     }
 
+    [Fact]
+    public void 全標準とScalableタブの選択ケースはタブ別に進捗へ固定できる() {
+        var 定義一覧=ベンチマークソースタブ一覧.標準全て
+            .Concat(ベンチマークソースタブ一覧.スケーラブル全て)
+            .ToArray();
+        var ケース一覧=定義一覧
+            .SelectMany(定義=>定義.プロジェクト順.Select(プロジェクト=>new ベンチマークケース(
+                プロジェクト,
+                定義.アセンブリ名を取得(プロジェクト),
+                型完全名を作成(定義,プロジェクト),
+                "Execute",
+                "")))
+            .ToArray();
+
+        foreach(var 定義 in 定義一覧) {
+            var セル一覧=ベンチマークタブ進行元ロジック.選択ケースからセルを作成(ケース一覧,定義);
+
+            Assert.Equal(定義.プロジェクト順.Count,セル一覧.Count);
+            Assert.All(セル一覧,セル=>Assert.Contains(セル.プロジェクト,定義.プロジェクト順));
+            Assert.All(セル一覧,static セル=>Assert.True(セル.選択中か));
+        }
+    }
+
+    private static string 型完全名を作成(ベンチマークソースタブ定義 定義,string プロジェクト) {
+        var 接頭辞=プロジェクト==定義.左プロジェクト
+            ? 定義.左型接頭辞
+            : プロジェクト==定義.中央プロジェクト
+                ? 定義.中央型接頭辞
+                : 定義.右型接頭辞;
+        return string.IsNullOrWhiteSpace(接頭辞) ? "Test.Sample" : 接頭辞+"Sample";
+    }
     private static ベンチマークケース ケースを作成(string プロジェクト,string 型,string メソッド,string 引数キー) =>
         new(プロジェクト,アセンブリ名を解決(プロジェクト),型,メソッド,引数キー,[]);
 

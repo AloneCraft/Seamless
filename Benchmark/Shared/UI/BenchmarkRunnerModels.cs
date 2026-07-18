@@ -176,11 +176,13 @@ public sealed class ソースタブ選択肢(ベンチマークソースタブ�
                 this.OnPropertyChanged(nameof(this.進行ありか));
                 this.OnPropertyChanged(nameof(this.完了か));
                 this.OnPropertyChanged(nameof(this.完了アイコン表示中か));
+                this.OnPropertyChanged(nameof(this.進行リング表示中か));
                 this.OnPropertyChanged(nameof(this.完了アイコンソース));
                 this.OnPropertyChanged(nameof(this.進行割合));
                 this.OnPropertyChanged(nameof(this.進行文字列));
                 this.OnPropertyChanged(nameof(this.進行概要文字列));
                 this.OnPropertyChanged(nameof(this.進行ツールチップ文字列));
+                this.OnPropertyChanged(nameof(this.進行自動化状態));
                 this.OnPropertyChanged(nameof(this.進行外枠色));
             }
         }
@@ -193,6 +195,7 @@ public sealed class ソースタブ選択肢(ベンチマークソースタブ�
         private set {
             if(this.SetProperty(ref this.最終完了か値,value)) {
                 this.OnPropertyChanged(nameof(this.完了アイコン表示中か));
+                this.OnPropertyChanged(nameof(this.進行リング表示中か));
                 this.OnPropertyChanged(nameof(this.完了アイコンソース));
                 this.OnPropertyChanged(nameof(this.進行ツールチップ文字列));
             }
@@ -203,12 +206,14 @@ public sealed class ソースタブ選択肢(ベンチマークソースタブ�
         private set {
             if(this.SetProperty(ref this.完了進行を最終完了として扱うか値,value)) {
                 this.OnPropertyChanged(nameof(this.完了アイコン表示中か));
+                this.OnPropertyChanged(nameof(this.進行リング表示中か));
                 this.OnPropertyChanged(nameof(this.完了アイコンソース));
                 this.OnPropertyChanged(nameof(this.進行ツールチップ文字列));
             }
         }
     }
     public bool 完了アイコン表示中か => (this.完了か||this.最終完了か)&&!this.実行中か;
+    public bool 進行リング表示中か => this.進行ありか&&!this.完了アイコン表示中か;
     public string 完了アイコンソース => ベンチマーク状態画像名.最終完了;
     public double 進行割合 => this.進行.合計数<=0 ? 0 : this.進行.割合;
     public string 進行文字列 => this.進行.合計数<=0 ? "0/0" : this.進行.割合文字列;
@@ -223,6 +228,9 @@ public sealed class ソースタブ選択肢(ベンチマークソースタブ�
     }
     public string 進行概要文字列 => this.進行接頭辞を作成()+","+this.ベンチマークシェア概要短文;
     public string 進行ツールチップ文字列 => this.進行概要文字列;
+    public string 進行自動化状態 => this.進行ありか
+        ? this.進行接頭辞を作成()
+        : "未選択";
     public Color 進行外枠色 => this.実行中か
         ? 実行中インジケーター色
         : this.完了か ? 完了進行外枠色 : 既定進行外枠色;
@@ -230,10 +238,12 @@ public sealed class ソースタブ選択肢(ベンチマークソースタブ�
         get => this.実行中か値;
         private set {
             if(this.SetProperty(ref this.実行中か値,value)) {
+                this.OnPropertyChanged(nameof(this.進行自動化状態));
                 this.OnPropertyChanged(nameof(this.進行外枠色));
                 this.OnPropertyChanged(nameof(this.進行概要文字列));
                 this.OnPropertyChanged(nameof(this.進行ツールチップ文字列));
                 this.OnPropertyChanged(nameof(this.完了アイコン表示中か));
+                this.OnPropertyChanged(nameof(this.進行リング表示中か));
                 this.OnPropertyChanged(nameof(this.完了アイコンソース));
             }
         }
@@ -1741,7 +1751,7 @@ public sealed class ベンチマーク表行:ObservableObject {
 
         var 左時間シェア = this.表示左時間シェアを取得();
         var 中央時間シェア = this.表示中央時間シェアを取得();
-        var 左時間警告 = 相手より3パーセント以上遅いか(this.左セル.測定値,this.中央セル.測定値) ? " ⚠" : "";
+        var 左時間警告 = 相手より3パーセント以上遅いか(this.左セル.測定値,this.右セル.測定値) ? " ⚠" : "";
         var 中央時間警告 = 相手より3パーセント以上遅いか(this.中央セル.測定値,this.右セル.測定値) ? " ⚠" : "";
         this.左時間シェア表示=左時間シェア.表示文字列+左時間警告;
         this.中央時間シェア表示=中央時間シェア.表示文字列+中央時間警告;
@@ -1760,10 +1770,10 @@ public sealed class ベンチマーク表行:ObservableObject {
         ベンチマーク比較フォーマッター.時間シェアを計算(this.左セル.測定値,this.右セル.測定値);
 
     private シェア値 表示左時間シェアを取得() =>
-        ベンチマーク比較フォーマッター.時間シェアを計算(this.左セル.測定値,this.中央セル.測定値);
+        ベンチマーク比較フォーマッター.時間シェアを計算(this.左セル.測定値,this.右セル.測定値);
 
     private シェア値 表示左メモリシェアを取得() =>
-        ベンチマーク比較フォーマッター.メモリシェアを計算(this.左セル.測定値,this.中央セル.測定値);
+        ベンチマーク比較フォーマッター.メモリシェアを計算(this.左セル.測定値,this.右セル.測定値);
 
     private シェア値 表示中央時間シェアを取得() =>
         ベンチマーク比較フォーマッター.時間シェアを計算(this.中央セル.測定値,this.右セル.測定値);

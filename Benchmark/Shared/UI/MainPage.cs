@@ -1289,7 +1289,7 @@ public sealed partial class MainPage:ContentPage {
         };
         進行.SetBinding(ベンチマーク円形進行ビュー.進行プロパティ,new Binding(nameof(ソースタブ選択肢.進行割合),source: 選択肢));
         進行.SetBinding(ベンチマーク円形進行ビュー.輪郭色プロパティ,new Binding(nameof(ソースタブ選択肢.進行外枠色),source: 選択肢));
-        進行.SetBinding(IsVisibleProperty,new Binding(nameof(ソースタブ選択肢.進行ありか),source: 選択肢));
+        進行.SetBinding(IsVisibleProperty,new Binding(nameof(ソースタブ選択肢.進行リング表示中か),source: 選択肢));
         進行.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(ソースタブ選択肢.進行ツールチップ文字列),source: 選択肢));
         var 完了アイコン = new Image {
             WidthRequest=14,
@@ -1313,6 +1313,10 @@ public sealed partial class MainPage:ContentPage {
             },
         };
         進行ホスト.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(ソースタブ選択肢.進行ツールチップ文字列),source: 選択肢));
+        進行ホスト.SetBinding(IsVisibleProperty,new Binding(nameof(ソースタブ選択肢.進行ありか),source: 選択肢));
+        進行ホスト.SetBinding(SemanticProperties.DescriptionProperty,new Binding(nameof(ソースタブ選択肢.進行自動化状態),source: 選択肢));
+        進行ホスト.AutomationId="ベンチマーク.ソースタブ進捗."+選択肢.定義.タブ;
+        AutomationProperties.SetIsInAccessibleTree(進行ホスト,true);
         var スピナー = new ActivityIndicator {
             WidthRequest=14,
             HeightRequest=14,
@@ -1715,12 +1719,14 @@ public sealed partial class MainPage:ContentPage {
                 nameof(ベンチマーク表行.左時間シェア表示),
                 nameof(ベンチマーク表行.左時間シェアゲージ),
                 static 行=>行.左時間シェアゲージ,
-                ベンチマークグリッドソート列.左時間シェア);
+                ベンチマークグリッドソート列.左時間シェア,
+                "時間シェア（左:右）");
             var 左メモリシェア指定=new ベンチマークシェア列指定(
                 nameof(ベンチマーク表行.左メモリシェア表示),
                 nameof(ベンチマーク表行.左メモリシェアゲージ),
                 static 行=>行.左メモリシェアゲージ,
-                ベンチマークグリッドソート列.左メモリシェア);
+                ベンチマークグリッドソート列.左メモリシェア,
+                "メモリシェア（左:右）");
             var 左マッピング一覧=this.プロジェクト列とシェアを追加(
                 グリッド,nameof(ベンチマーク表行.左セル),
                 ベンチマークグリッドソート列.左日時,ベンチマークグリッドソート列.左時間,左時間シェア指定,
@@ -1730,12 +1736,14 @@ public sealed partial class MainPage:ContentPage {
                 nameof(ベンチマーク表行.中央時間シェア表示),
                 nameof(ベンチマーク表行.中央時間シェアゲージ),
                 static 行=>行.中央時間シェアゲージ,
-                ベンチマークグリッドソート列.中央時間シェア);
+                ベンチマークグリッドソート列.中央時間シェア,
+                "時間シェア（中央:右）");
             var 中央メモリシェア指定=new ベンチマークシェア列指定(
                 nameof(ベンチマーク表行.中央メモリシェア表示),
                 nameof(ベンチマーク表行.中央メモリシェアゲージ),
                 static 行=>行.中央メモリシェアゲージ,
-                ベンチマークグリッドソート列.中央メモリシェア);
+                ベンチマークグリッドソート列.中央メモリシェア,
+                "メモリシェア（中央:右）");
             var 中央マッピング一覧=this.プロジェクト列とシェアを追加(
                 グリッド,nameof(ベンチマーク表行.中央セル),
                 ベンチマークグリッドソート列.中央日時,ベンチマークグリッドソート列.中央時間,中央時間シェア指定,
@@ -1758,7 +1766,8 @@ public sealed partial class MainPage:ContentPage {
                 nameof(ベンチマーク表行.メモリシェア表示),
                 nameof(ベンチマーク表行.メモリシェアゲージ),
                 static 行=>行.メモリシェアゲージ,
-                ベンチマークグリッドソート列.メモリシェア);
+                ベンチマークグリッドソート列.メモリシェア,
+                "メモリシェア");
             var 左マッピング一覧=this.プロジェクト列とシェアを追加(
                 グリッド,nameof(ベンチマーク表行.左セル),
                 ベンチマークグリッドソート列.左日時,ベンチマークグリッドソート列.左時間,時間シェア指定,
@@ -1871,7 +1880,11 @@ public sealed partial class MainPage:ContentPage {
                 var チェックタップ = new TapGestureRecognizer();
                 チェックタップ.Tapped+=(_,_) => {
                     if(レイアウト.BindingContext is ベンチマーク表行 行) {
-                        this.ビューモデル?.ベンチマーク行を切り替え(行);
+                        if(グリッド.SelectionController is ベンチマークチェック選択コントローラー 選択コントローラー) {
+                            選択コントローラー.チェッククリックを処理(行);
+                        } else {
+                            this.ビューモデル?.ベンチマーク行を切り替え(行);
+                        }
                     }
                 };
                 チェックホスト.GestureRecognizers.Add(チェックタップ);
@@ -2041,7 +2054,8 @@ public sealed partial class MainPage:ContentPage {
         string テキストマッピング,
         string ゲージプロパティ名,
         Func<ベンチマーク表行,ベンチマークシェアゲージ状態> ゲージ選択,
-        ベンチマークグリッドソート列 ソート列);
+        ベンチマークグリッドソート列 ソート列,
+        string 見出し="時間シェア");
 
     private IReadOnlyList<string> プロジェクト列とシェアを追加(
         SfDataGrid グリッド,
@@ -2056,9 +2070,9 @@ public sealed partial class MainPage:ContentPage {
         var 割り当てマッピング = セルパス+"割り当て";
         グリッド.Columns.Add(this.プロジェクト日時列を作成(日時マッピング,セルパス,日時ソート列));
         グリッド.Columns.Add(this.プロジェクトテキスト列を作成("時間",時間マッピング,セルパス,セルパス+"."+nameof(ベンチマークプロジェクトセル.時間文字列),時間ソート列,時間,TextAlignment.End));
-        グリッド.Columns.Add(this.シェアゲージ列を作成("時間シェア",時間シェア指定.テキストマッピング,時間シェア指定.ゲージプロパティ名,時間シェア指定.ゲージ選択,時間シェア指定.ソート列,時間シェア));
+        グリッド.Columns.Add(this.シェアゲージ列を作成(時間シェア指定.見出し,時間シェア指定.テキストマッピング,時間シェア指定.ゲージプロパティ名,時間シェア指定.ゲージ選択,時間シェア指定.ソート列,時間シェア));
         グリッド.Columns.Add(this.プロジェクトテキスト列を作成("メモリ",割り当てマッピング,セルパス,セルパス+"."+nameof(ベンチマークプロジェクトセル.割り当て文字列),割り当てソート列,メモリ,TextAlignment.End));
-        グリッド.Columns.Add(this.シェアゲージ列を作成("メモリシェア",メモリシェア指定.テキストマッピング,メモリシェア指定.ゲージプロパティ名,メモリシェア指定.ゲージ選択,メモリシェア指定.ソート列,メモリシェア));
+        グリッド.Columns.Add(this.シェアゲージ列を作成(メモリシェア指定.見出し,メモリシェア指定.テキストマッピング,メモリシェア指定.ゲージプロパティ名,メモリシェア指定.ゲージ選択,メモリシェア指定.ソート列,メモリシェア));
         return [日時マッピング,時間マッピング,時間シェア指定.テキストマッピング,割り当てマッピング,メモリシェア指定.テキストマッピング];
     }
 

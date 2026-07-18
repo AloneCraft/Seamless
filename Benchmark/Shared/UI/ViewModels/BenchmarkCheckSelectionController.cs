@@ -38,6 +38,21 @@ internal sealed class ベンチマークチェック選択コントローラー(
         }
     }
 
+    /// <summary>
+    /// チェックボックスのクリックを、現在のグリッド選択を壊さずに処理します。
+    /// 選択範囲内の行なら Space と同じく範囲全体を、範囲外ならその行だけを切り替えます。
+    /// </summary>
+    internal void チェッククリックを処理(ベンチマーク表行 行) {
+        var 選択行一覧=選択行を取得(this.DataGrid?.SelectedRows)
+            .Distinct()
+            .ToArray();
+        var 対象一覧=選択行一覧.Contains(行)
+            ? 選択行一覧
+            : [行];
+        行を切り替える(対象一覧);
+        this.キーボードフォーカスを予約();
+    }
+
     internal void キーボードフォーカスを予約() {
         if(this.DataGrid is not { } データグリッド) {
             return;
