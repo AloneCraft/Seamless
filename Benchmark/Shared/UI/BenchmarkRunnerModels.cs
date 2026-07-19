@@ -1727,7 +1727,6 @@ public sealed class ベンチマーク表行:ObservableObject {
             this.左割り当て文字列=割り当てを整形(this.左セル.測定値);
             this.右時間文字列=時間を整形(this.右セル.測定値);
             this.右割り当て文字列=割り当てを整形(this.右セル.測定値);
-            this.表示シェアを更新();
         } else {
             this.左時間文字列=string.Empty;
             this.左割り当て文字列=string.Empty;
@@ -1742,6 +1741,9 @@ public sealed class ベンチマーク表行:ObservableObject {
                 セル.測定値をクリア();
             }
         }
+        // セルの測定値を確定させた後に呼ぶことで、左:右/中央:右のシェア表示・ゲージも
+        // (欠測クリア時は空に、維持時は現在値に)最新の状態へ揃える。
+        this.表示シェアを更新();
     }
 
     private void 表示シェアを更新() {
