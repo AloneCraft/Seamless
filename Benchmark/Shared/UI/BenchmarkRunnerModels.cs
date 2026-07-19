@@ -177,6 +177,7 @@ public sealed class ソースタブ選択肢(ベンチマークソースタブ�
                 this.OnPropertyChanged(nameof(this.完了か));
                 this.OnPropertyChanged(nameof(this.完了アイコン表示中か));
                 this.OnPropertyChanged(nameof(this.進行リング表示中か));
+                this.OnPropertyChanged(nameof(this.実行スピナー表示中か));
                 this.OnPropertyChanged(nameof(this.完了アイコンソース));
                 this.OnPropertyChanged(nameof(this.進行割合));
                 this.OnPropertyChanged(nameof(this.進行文字列));
@@ -196,6 +197,7 @@ public sealed class ソースタブ選択肢(ベンチマークソースタブ�
             if(this.SetProperty(ref this.最終完了か値,value)) {
                 this.OnPropertyChanged(nameof(this.完了アイコン表示中か));
                 this.OnPropertyChanged(nameof(this.進行リング表示中か));
+                this.OnPropertyChanged(nameof(this.実行スピナー表示中か));
                 this.OnPropertyChanged(nameof(this.完了アイコンソース));
                 this.OnPropertyChanged(nameof(this.進行ツールチップ文字列));
             }
@@ -207,14 +209,16 @@ public sealed class ソースタブ選択肢(ベンチマークソースタブ�
             if(this.SetProperty(ref this.完了進行を最終完了として扱うか値,value)) {
                 this.OnPropertyChanged(nameof(this.完了アイコン表示中か));
                 this.OnPropertyChanged(nameof(this.進行リング表示中か));
+                this.OnPropertyChanged(nameof(this.実行スピナー表示中か));
                 this.OnPropertyChanged(nameof(this.完了アイコンソース));
                 this.OnPropertyChanged(nameof(this.進行ツールチップ文字列));
             }
         }
     }
-    public bool 完了アイコン表示中か => (this.完了か||this.最終完了か)&&!this.実行中か;
+    public bool 完了アイコン表示中か => this.完了か||this.最終完了か;
     public bool 進行リング表示中か => this.進行ありか&&!this.完了アイコン表示中か;
-    public string 完了アイコンソース => ベンチマーク状態画像名.最終完了;
+    public bool 実行スピナー表示中か => this.進行ありか&&this.実行中か&&!this.完了アイコン表示中か;
+    public string 完了アイコンソース => ベンチマーク状態画像名.完了;
     public double 進行割合 => this.進行.合計数<=0 ? 0 : this.進行.割合;
     public string 進行文字列 => this.進行.合計数<=0 ? "0/0" : this.進行.割合文字列;
     public string ベンチマークシェア概要短文 {
@@ -244,6 +248,7 @@ public sealed class ソースタブ選択肢(ベンチマークソースタブ�
                 this.OnPropertyChanged(nameof(this.進行ツールチップ文字列));
                 this.OnPropertyChanged(nameof(this.完了アイコン表示中か));
                 this.OnPropertyChanged(nameof(this.進行リング表示中か));
+                this.OnPropertyChanged(nameof(this.実行スピナー表示中か));
                 this.OnPropertyChanged(nameof(this.完了アイコンソース));
             }
         }
@@ -255,18 +260,24 @@ public sealed class ソースタブ選択肢(ベンチマークソースタブ�
 
     private string 進行接頭辞を作成() => this.実行中か
         ? "実行中 "+this.進行文字列
-        : this.完了か ? "完了 "+this.進行文字列 : "確定 "+this.進行文字列;
+        : this.完了アイコン表示中か ? "完了 "+this.進行文字列 : "待機 "+this.進行文字列;
 
     public void 進行を設定(ベンチマークタブ進行 値) {
         this.進行=値;
-        if(値.合計数<=0||値.完了数<値.合計数) {
-            this.完了進行の最終完了扱いを設定(false);
-            this.最終完了状態を設定(false);
+        if(this.完了か) {
+            this.実行中か=false;
+            return;
         }
+
+        this.完了進行の最終完了扱いを設定(false);
+        this.最終完了状態を設定(false);
     }
 
     public void 最終完了状態を設定(bool 値) {
         this.最終完了か=値;
+        if(値) {
+            this.実行中か=false;
+        }
     }
 
     public void 完了進行の最終完了扱いを設定(bool 値) {
@@ -274,6 +285,10 @@ public sealed class ソースタブ選択肢(ベンチマークソースタブ�
     }
 
     public void 実行中状態を設定(bool 値) {
+        if(値&&(this.完了か||this.最終完了か)) {
+            return;
+        }
+
         this.実行中か=値;
     }
 }
@@ -1255,46 +1270,12 @@ public sealed class ベンチマーク表行:ObservableObject {
     public string CPUツールチップ文字列 => this.CPU表示ありか
         ? (string.IsNullOrWhiteSpace(this.コア種別ラベル) ? "CPU" : this.コア種別ラベル)+" / CPU "+this.論理プロセッサ文字列
         : string.Empty;
-    public string ループ回数文字列 {
-        get {
-            var 左 = this.左セル.最終ループ回数;
-            var 右 = this.右セル.最終ループ回数;
-            if(左 is { } 左値&&右 is { } 右値&&左値==右値) {
-                return 左値.ToString(CultureInfo.InvariantCulture);
-            }
-            if(左 is { } 左のみか&&右 is { } 右のみか) {
-                return 左のみか.ToString(CultureInfo.InvariantCulture)+":"+右のみか.ToString(CultureInfo.InvariantCulture);
-            }
-            if(左 is { } 左のみ値) {
-                return 左のみ値.ToString(CultureInfo.InvariantCulture)+":-";
-            }
-            if(右 is { } 右のみ値) {
-                return "-:"+右のみ値.ToString(CultureInfo.InvariantCulture);
-            }
-            return string.Empty;
-        }
-    }
-    public int? 共通ループ回数 {
-        get {
-            var 左 = this.左セル.最終ループ回数;
-            var 右 = this.右セル.最終ループ回数;
-            if(左 is { } 左値&&右 is { } 右値&&左値==右値) {
-                return 左値;
-            }
-            return null;
-        }
-    }
-    public string ループ回数ツールチップ文字列 {
-        get {
-            if(string.IsNullOrWhiteSpace(this.ループ回数文字列)) {
-                return string.Empty;
-            }
-            if(this.共通ループ回数 is not null) {
-                return "左右共通の最終ループ回数: "+this.ループ回数文字列;
-            }
-            return "左:右 の最終ループ回数。左右不一致のためソート比較不能: "+this.ループ回数文字列;
-        }
-    }
+    public int? 行ループ回数 =>
+        this.右セル.最終ループ回数??this.中央セル.最終ループ回数??this.左セル.最終ループ回数;
+    public string ループ回数文字列 =>
+        this.行ループ回数 is { } 値 ? 値.ToString(CultureInfo.InvariantCulture) : string.Empty;
+    public string ループ回数ツールチップ文字列 =>
+        string.IsNullOrWhiteSpace(this.ループ回数文字列) ? string.Empty : "最終ループ回数: "+this.ループ回数文字列;
     public double? 論理CPUソート値 {
         get => this.論理CPUソート値値;
         private set => this.SetProperty(ref this.論理CPUソート値値,value);
@@ -1443,42 +1424,54 @@ public sealed class ベンチマーク表行:ObservableObject {
         private set => this.SetProperty(ref this.左時間文字列値,value);
     }
 
-    public Color 左時間文字色 => 比較指標文字色を取得(this.左セル.測定値.時間ナノ秒,this.右セル.測定値.時間ナノ秒);
+    public Color 左時間文字色 => this.三列表示か
+        ? 三列比較指標文字色を取得(this.左セル.測定値.時間ナノ秒,this.左セル.測定値.時間ナノ秒,this.中央セル.測定値.時間ナノ秒,this.右セル.測定値.時間ナノ秒)
+        : 比較指標文字色を取得(this.左セル.測定値.時間ナノ秒,this.右セル.測定値.時間ナノ秒);
 
     public string 左割り当て文字列 {
         get => this.左割り当て文字列値;
         private set => this.SetProperty(ref this.左割り当て文字列値,value);
     }
 
-    public Color 左メモリ文字色 => 比較指標文字色を取得(this.左セル.測定値.割り当てバイト数,this.右セル.測定値.割り当てバイト数);
+    public Color 左メモリ文字色 => this.三列表示か
+        ? 三列比較指標文字色を取得(this.左セル.測定値.割り当てバイト数,this.左セル.測定値.割り当てバイト数,this.中央セル.測定値.割り当てバイト数,this.右セル.測定値.割り当てバイト数)
+        : 比較指標文字色を取得(this.左セル.測定値.割り当てバイト数,this.右セル.測定値.割り当てバイト数);
 
     public string 中央時間文字列 {
         get => this.中央時間文字列値;
         private set => this.SetProperty(ref this.中央時間文字列値,value);
     }
 
-    public Color 中央時間文字色 => 既定指標文字色;
+    public Color 中央時間文字色 => this.三列表示か
+        ? 三列比較指標文字色を取得(this.中央セル.測定値.時間ナノ秒,this.左セル.測定値.時間ナノ秒,this.中央セル.測定値.時間ナノ秒,this.右セル.測定値.時間ナノ秒)
+        : 既定指標文字色;
 
     public string 中央割り当て文字列 {
         get => this.中央割り当て文字列値;
         private set => this.SetProperty(ref this.中央割り当て文字列値,value);
     }
 
-    public Color 中央メモリ文字色 => 既定指標文字色;
+    public Color 中央メモリ文字色 => this.三列表示か
+        ? 三列比較指標文字色を取得(this.中央セル.測定値.割り当てバイト数,this.左セル.測定値.割り当てバイト数,this.中央セル.測定値.割り当てバイト数,this.右セル.測定値.割り当てバイト数)
+        : 既定指標文字色;
 
     public string 右時間文字列 {
         get => this.右時間文字列値;
         private set => this.SetProperty(ref this.右時間文字列値,value);
     }
 
-    public Color 右時間文字色 => 比較指標文字色を取得(this.右セル.測定値.時間ナノ秒,this.左セル.測定値.時間ナノ秒);
+    public Color 右時間文字色 => this.三列表示か
+        ? 三列比較指標文字色を取得(this.右セル.測定値.時間ナノ秒,this.左セル.測定値.時間ナノ秒,this.中央セル.測定値.時間ナノ秒,this.右セル.測定値.時間ナノ秒)
+        : 比較指標文字色を取得(this.右セル.測定値.時間ナノ秒,this.左セル.測定値.時間ナノ秒);
 
     public string 右割り当て文字列 {
         get => this.右割り当て文字列値;
         private set => this.SetProperty(ref this.右割り当て文字列値,value);
     }
 
-    public Color 右メモリ文字色 => 比較指標文字色を取得(this.右セル.測定値.割り当てバイト数,this.左セル.測定値.割り当てバイト数);
+    public Color 右メモリ文字色 => this.三列表示か
+        ? 三列比較指標文字色を取得(this.右セル.測定値.割り当てバイト数,this.左セル.測定値.割り当てバイト数,this.中央セル.測定値.割り当てバイト数,this.右セル.測定値.割り当てバイト数)
+        : 比較指標文字色を取得(this.右セル.測定値.割り当てバイト数,this.左セル.測定値.割り当てバイト数);
 
     public IReadOnlyList<ベンチマークケース> 実行ケースを取得() {
         // 保存Runスナップショットの型列は表示値であり、worker実行用の完全型名ではない。
@@ -1696,7 +1689,7 @@ public sealed class ベンチマーク表行:ObservableObject {
             ベンチマークグリッドソート列.ベンチマークメソッド => ベンチマークソート値.文字列から作成(this.ベンチマークメソッド文字列),
             ベンチマークグリッドソート列.ベンチマーク名 => ベンチマークソート値.文字列から作成(this.ベンチマーク名),
             ベンチマークグリッドソート列.論理CPU => ベンチマークソート値.数値から作成(this.論理CPUソート値),
-            ベンチマークグリッドソート列.ループ回数 => ベンチマークソート値.数値から作成(this.共通ループ回数),
+            ベンチマークグリッドソート列.ループ回数 => ベンチマークソート値.数値から作成(this.行ループ回数),
             ベンチマークグリッドソート列.引数Count => ベンチマークソート値.数値から作成(引数数値を解析(this.Count引数)),
             ベンチマークグリッドソート列.引数インデックス => ベンチマークソート値.数値から作成(引数数値を解析(this.Index引数)),
             ベンチマークグリッドソート列.引数ページ => ベンチマークソート値.数値から作成(引数数値を解析(this.Page引数)),
@@ -1818,6 +1811,39 @@ public sealed class ベンチマーク表行:ObservableObject {
         this.OnPropertyChanged(nameof(this.右メモリ文字色));
     }
 
+    private bool 三列表示か => !string.IsNullOrWhiteSpace(this.ソースタブ.中央プロジェクト);
+
+    private static Color 三列比較指標文字色を取得<T>(T? 対象,T? 左,T? 中央,T? 右) where T:struct,IComparable<T> {
+        if(対象 is not { } 対象値||左 is not { } 左値||中央 is not { } 中央値||右 is not { } 右値) {
+            return 既定指標文字色;
+        }
+
+        var 最小値=左値;
+        if(中央値.CompareTo(最小値)<0) {
+            最小値=中央値;
+        }
+        if(右値.CompareTo(最小値)<0) {
+            最小値=右値;
+        }
+
+        var 最大値=左値;
+        if(中央値.CompareTo(最大値)>0) {
+            最大値=中央値;
+        }
+        if(右値.CompareTo(最大値)>0) {
+            最大値=右値;
+        }
+
+        var 最小値個数=(左値.CompareTo(最小値)==0 ? 1 : 0)+(中央値.CompareTo(最小値)==0 ? 1 : 0)+(右値.CompareTo(最小値)==0 ? 1 : 0);
+        var 最大値個数=(左値.CompareTo(最大値)==0 ? 1 : 0)+(中央値.CompareTo(最大値)==0 ? 1 : 0)+(右値.CompareTo(最大値)==0 ? 1 : 0);
+        if(対象値.CompareTo(最小値)==0&&最小値個数==1) {
+            return 高性能指標文字色;
+        }
+        if(対象値.CompareTo(最大値)==0&&最大値個数==1) {
+            return 低性能指標文字色;
+        }
+        return 既定指標文字色;
+    }
     private static Color 比較指標文字色を取得<T>(T? 対象,T? 相手) where T:struct,IComparable<T> {
         if(対象 is not { } 対象値||相手 is not { } 相手値){
             return 既定指標文字色;

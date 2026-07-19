@@ -14,9 +14,10 @@ internal sealed class ベンチマークチェック選択コントローラー(
     private readonly グリッドチェック選択動作<ベンチマーク表行>                                  チェック選択=new(
         () => 選択行を取得(データグリッド.SelectedRows).ToArray(),
         行を切り替える);
+
     internal void 選択変更を処理(DataGridSelectionChangedEventArgs 引数) {
-        var 追加行 = 選択行を取得(引数.AddedRows).ToArray();
-        var 削除行 = 選択行を取得(引数.RemovedRows).ToArray();
+        var 追加行=選択行を取得(引数.AddedRows).ToArray();
+        var 削除行=選択行を取得(引数.RemovedRows).ToArray();
         if(追加行.Length!=0||削除行.Length!=0) {
             選択を同期(追加行,削除行);
         }
@@ -42,8 +43,8 @@ internal sealed class ベンチマークチェック選択コントローラー(
     /// チェックボックスのクリックを、現在のグリッド選択を壊さずに処理します。
     /// 選択範囲内の行なら Space と同じく範囲全体を、範囲外ならその行だけを切り替えます。
     /// </summary>
-    internal void チェッククリックを処理(ベンチマーク表行 行) {
-        var 選択行一覧=選択行を取得(this.DataGrid?.SelectedRows)
+    internal void チェッククリックを処理(ベンチマーク表行 行,IReadOnlyList<ベンチマーク表行>? 選択スナップショット=null) {
+        var 選択行一覧=(選択スナップショット??選択行を取得(this.DataGrid?.SelectedRows).ToArray())
             .Distinct()
             .ToArray();
         var 対象一覧=選択行一覧.Contains(行)

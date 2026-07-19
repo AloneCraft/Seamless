@@ -23,7 +23,8 @@ public enum ベンチマーク状態画像種別 {
 
 internal static class ベンチマーク状態画像名 {
     public const string 待機中="status_waiting.png";
-    public const string 最終完了="status_final_completed.png";
+    public const string 完了="status_completed.png";
+    public const string 最終完了=完了;
     public const string 失敗="status_failed.png";
     public const string 測定なし="status_no_measurement.png";
     public const string CPU待機中="status_cpu_idle.png";

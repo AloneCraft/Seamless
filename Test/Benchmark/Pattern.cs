@@ -242,6 +242,68 @@ public sealed class 実行ビューモデル {
     }
 
     [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void ソースタブ進捗_待機実行停止完了を排他的に表示する() {
+        var 選択肢 = new global::UI.ソースタブ選択肢(global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列));
+
+        Assert.False(選択肢.進行リング表示中か);
+        Assert.False(選択肢.実行スピナー表示中か);
+        Assert.False(選択肢.完了アイコン表示中か);
+
+        選択肢.進行を設定(new global::UI.ベンチマークタブ進行(0,2));
+
+        Assert.True(選択肢.進行リング表示中か);
+        Assert.False(選択肢.実行スピナー表示中か);
+        Assert.False(選択肢.完了アイコン表示中か);
+        Assert.Equal("待機 0/2",選択肢.進行自動化状態);
+
+        選択肢.実行中状態を設定(true);
+        選択肢.進行を設定(new global::UI.ベンチマークタブ進行(1,2));
+
+        Assert.True(選択肢.進行リング表示中か);
+        Assert.True(選択肢.実行スピナー表示中か);
+        Assert.False(選択肢.完了アイコン表示中か);
+        Assert.Equal("実行中 1/2",選択肢.進行自動化状態);
+
+        選択肢.実行中状態を設定(false);
+
+        Assert.True(選択肢.進行リング表示中か);
+        Assert.False(選択肢.実行スピナー表示中か);
+        Assert.False(選択肢.完了アイコン表示中か);
+        Assert.Equal("待機 1/2",選択肢.進行自動化状態);
+
+        選択肢.実行中状態を設定(true);
+        選択肢.進行を設定(new global::UI.ベンチマークタブ進行(2,2));
+
+        Assert.False(選択肢.進行リング表示中か);
+        Assert.False(選択肢.実行スピナー表示中か);
+        Assert.True(選択肢.完了アイコン表示中か);
+        Assert.Equal("完了 2/2",選択肢.進行自動化状態);
+
+        選択肢.実行中状態を設定(true);
+
+        Assert.False(選択肢.進行リング表示中か);
+        Assert.False(選択肢.実行スピナー表示中か);
+        Assert.True(選択肢.完了アイコン表示中か);
+        Assert.Equal("完了 2/2",選択肢.進行自動化状態);
+    }
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void ソースタブ進捗_並列実行では完了済みと実行中を独立表示する() {
+        var 完了済み = new global::UI.ソースタブ選択肢(global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列));
+        var 実行中 = new global::UI.ソースタブ選択肢(global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.SystemIEnumerable));
+
+        完了済み.進行を設定(new global::UI.ベンチマークタブ進行(1,1));
+        完了済み.実行中状態を設定(false);
+        実行中.進行を設定(new global::UI.ベンチマークタブ進行(1,2));
+        実行中.実行中状態を設定(true);
+
+        Assert.True(完了済み.完了アイコン表示中か);
+        Assert.False(完了済み.進行リング表示中か);
+        Assert.False(完了済み.実行スピナー表示中か);
+        Assert.False(実行中.完了アイコン表示中か);
+        Assert.True(実行中.進行リング表示中か);
+        Assert.True(実行中.実行スピナー表示中か);
+    }
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
     public async Task 初期化_復元した一時停止実行と新規選択で実行履歴を選択できる() {
         await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(
             global::UI.ベンチマークソースタブ.System配列,
@@ -1584,9 +1646,9 @@ public sealed class 実行ビューモデル {
         行.スナップショット結果を適用(ソースタブ.左プロジェクト,配列結果を作成(ソースタブ.左プロジェクト,"Any",global::UI.ジョブ状態.完了,0,2),0,旧日時);
         行.スナップショット結果を適用(ソースタブ.右プロジェクト,配列結果を作成(ソースタブ.右プロジェクト,"Any",global::UI.ジョブ状態.完了,1,4),0,新日時);
 
-        Assert.Equal("2:4",行.ループ回数文字列);
-        Assert.Null(行.共通ループ回数);
-        Assert.True(行.ソート値を取得(global::UI.ベンチマークグリッドソート列.ループ回数).欠測か);
+        Assert.Equal("4",行.ループ回数文字列);
+        Assert.Equal(4,行.行ループ回数);
+        Assert.Equal(4,行.ソート値を取得(global::UI.ベンチマークグリッドソート列.ループ回数).数値);
         Assert.Equal(旧日時.ToUnixTimeMilliseconds(),行.ソート値を取得(global::UI.ベンチマークグリッドソート列.左日時).数値);
         Assert.Equal(新日時.ToUnixTimeMilliseconds(),行.ソート値を取得(global::UI.ベンチマークグリッドソート列.右日時).数値);
     }

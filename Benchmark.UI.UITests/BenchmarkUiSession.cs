@@ -49,6 +49,9 @@ internal sealed class ベンチマークUIセッション:IDisposable {
         });
     }
 
+    public void チェックボックスをクリック(IWebElement チェック) {
+        チェック.Click();
+    }
     public void 通常セルをクリック(IWebElement 行チェック,string? 修飾キー = null) {
         var 操作 = new Actions(this.ドライバー);
         if(修飾キー is not null) {

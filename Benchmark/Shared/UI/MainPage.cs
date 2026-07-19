@@ -89,6 +89,13 @@ public sealed partial class MainPage:ContentPage {
     private readonly List<SfDataGrid> データグリッド更新バッチ対象一覧 = [];
     private readonly HashSet<SfDataGrid> データグリッド更新バッチ開始済み対象一覧 = [];
     private readonly HashSet<SfDataGrid> 選択抑止グリッド一覧 = [];
+    private readonly Dictionary<SfDataGrid,チェック選択操作状態> チェック選択操作状態一覧=[];
+    private int チェック選択操作番号;
+
+    private sealed class チェック選択操作状態(int 操作番号,IReadOnlyList<object> 選択スナップショット) {
+        public int 操作番号 { get; }=操作番号;
+        public IReadOnlyList<object> 選択スナップショット { get; }=選択スナップショット;
+    }
     private readonly Dictionary<ベンチマークソースタブ,SfDataGrid> ソースタブ別ベンチマークグリッド = [];
     private SfDataGrid? ベンチマークグリッド;
     private SfTabView? ソースタブビュー;
@@ -672,7 +679,7 @@ public sealed partial class MainPage:ContentPage {
         };
         foreach(var (文言,画像ソース) in new[] {
             ("待機",ベンチマーク状態画像名.待機中),
-            ("完全完了",ベンチマーク状態画像名.最終完了),
+            ("完了",ベンチマーク状態画像名.完了),
             ("失敗",ベンチマーク状態画像名.失敗),
             ("測定値なし",ベンチマーク状態画像名.測定なし),
             ("CPU 高性能",ベンチマークCPUコア画像名.高性能),
@@ -1291,6 +1298,8 @@ public sealed partial class MainPage:ContentPage {
         進行.SetBinding(ベンチマーク円形進行ビュー.輪郭色プロパティ,new Binding(nameof(ソースタブ選択肢.進行外枠色),source: 選択肢));
         進行.SetBinding(IsVisibleProperty,new Binding(nameof(ソースタブ選択肢.進行リング表示中か),source: 選択肢));
         進行.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(ソースタブ選択肢.進行ツールチップ文字列),source: 選択肢));
+        進行.AutomationId="ベンチマーク.ソースタブ進捗リング."+選択肢.定義.タブ;
+        AutomationProperties.SetIsInAccessibleTree(進行,true);
         var 完了アイコン = new Image {
             WidthRequest=14,
             HeightRequest=14,
@@ -1301,6 +1310,8 @@ public sealed partial class MainPage:ContentPage {
         完了アイコン.SetBinding(Image.SourceProperty,new Binding(nameof(ソースタブ選択肢.完了アイコンソース),source: 選択肢,converter: new 画像ファイルソースコンバーター()));
         完了アイコン.SetBinding(IsVisibleProperty,new Binding(nameof(ソースタブ選択肢.完了アイコン表示中か),source: 選択肢));
         完了アイコン.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(ソースタブ選択肢.進行ツールチップ文字列),source: 選択肢));
+        完了アイコン.AutomationId="ベンチマーク.ソースタブ進捗完了."+選択肢.定義.タブ;
+        AutomationProperties.SetIsInAccessibleTree(完了アイコン,true);
         var 進行ホスト = new Grid {
             WidthRequest=18,
             HeightRequest=18,
@@ -1323,22 +1334,36 @@ public sealed partial class MainPage:ContentPage {
             VerticalOptions=LayoutOptions.Center,
             HorizontalOptions=LayoutOptions.Center,
             Color=Color.FromArgb("#00FF00"),
+            InputTransparent=true,
         };
-        スピナー.SetBinding(ActivityIndicator.IsRunningProperty,new Binding(nameof(ソースタブ選択肢.実行中か),source: 選択肢));
-        スピナー.SetBinding(IsVisibleProperty,new Binding(nameof(ソースタブ選択肢.実行中か),source: 選択肢));
-        スピナー.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(ソースタブ選択肢.進行ツールチップ文字列),source: 選択肢));
+        スピナー.SetBinding(ActivityIndicator.IsRunningProperty,new Binding(nameof(ソースタブ選択肢.実行スピナー表示中か),source: 選択肢));
+        スピナー.SetBinding(IsVisibleProperty,new Binding(nameof(ソースタブ選択肢.実行スピナー表示中か),source: 選択肢));
+        スピナー.AutomationId="ベンチマーク.ソースタブ実行スピナー."+選択肢.定義.タブ;
+        AutomationProperties.SetIsInAccessibleTree(スピナー,true);
+        var スピナーホスト自動化要素 = new Button {
+            WidthRequest=16,
+            HeightRequest=18,
+            MinimumWidthRequest=0,
+            MinimumHeightRequest=0,
+            Padding=new Thickness(0),
+            BorderWidth=0,
+            BackgroundColor=Colors.Transparent,
+            InputTransparent=true,
+        };
+        スピナーホスト自動化要素.AutomationId="ベンチマーク.ソースタブ実行スピナーホスト."+選択肢.定義.タブ;
+        AutomationProperties.SetIsInAccessibleTree(スピナーホスト自動化要素,true);
         var スピナーホスト = new Grid {
             WidthRequest=16,
             HeightRequest=18,
             VerticalOptions=LayoutOptions.Center,
             HorizontalOptions=LayoutOptions.Center,
             Margin=new Thickness(0,0,4,0),
+            InputTransparent=true,
             Children= {
+                スピナーホスト自動化要素,
                 スピナー,
             },
         };
-        スピナーホスト.SetBinding(ToolTipProperties.TextProperty,new Binding(nameof(ソースタブ選択肢.進行ツールチップ文字列),source: 選択肢));
-
         var 見出し = this.タブ見出しを作成(
             選択肢,
             () => {
@@ -1879,12 +1904,16 @@ public sealed partial class MainPage:ContentPage {
                 チェックホスト.Add(チェック,0,0);
                 var チェックタップ = new TapGestureRecognizer();
                 チェックタップ.Tapped+=(_,_) => {
-                    if(レイアウト.BindingContext is ベンチマーク表行 行) {
-                        if(グリッド.SelectionController is ベンチマークチェック選択コントローラー 選択コントローラー) {
-                            選択コントローラー.チェッククリックを処理(行);
-                        } else {
-                            this.ビューモデル?.ベンチマーク行を切り替え(行);
+                    try {
+                        if(レイアウト.BindingContext is ベンチマーク表行 行) {
+                            if(グリッド.SelectionController is ベンチマークチェック選択コントローラー 選択コントローラー) {
+                                選択コントローラー.チェッククリックを処理(行,this.チェック開始時選択を取得<ベンチマーク表行>(グリッド));
+                            } else {
+                                this.ビューモデル?.ベンチマーク行を切り替え(行);
+                            }
                         }
+                    } finally {
+                        this.チェック操作を完了(グリッド);
                     }
                 };
                 チェックホスト.GestureRecognizers.Add(チェックタップ);
@@ -2442,11 +2471,41 @@ public sealed partial class MainPage:ContentPage {
 
     private void チェック中の選択を抑止(View チェックホスト,SfDataGrid グリッド) {
         var ポインター = new PointerGestureRecognizer();
-        ポインター.PointerPressed+=(_,_) => this.選択抑止グリッド一覧.Add(グリッド);
-        ポインター.PointerReleased+=(_,_) => チェックホスト.Dispatcher.Dispatch(
-            () => this.選択抑止グリッド一覧.Remove(グリッド));
-        ポインター.PointerExited+=(_,_) => this.選択抑止グリッド一覧.Remove(グリッド);
+        ポインター.PointerPressed+=(_,_) => {
+            this.選択抑止グリッド一覧.Add(グリッド);
+            var 選択スナップショット=グリッド.SelectionController is CPUチェック選択コントローラー
+                ? グリッド.GetSelectedCells().Cast<object>().ToArray()
+                : グリッド.SelectedRows.Cast<object>().ToArray();
+            this.チェック選択操作状態一覧[グリッド]=new チェック選択操作状態(++this.チェック選択操作番号,選択スナップショット);
+        };
+        ポインター.PointerReleased+=(_,_) => {
+            if(!this.チェック選択操作状態一覧.TryGetValue(グリッド,out var 状態)) {
+                return;
+            }
+            var 操作番号=状態.操作番号;
+            チェックホスト.Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(100),
+                () => this.チェック操作を終了(グリッド,操作番号));
+        };
+        ポインター.PointerExited+=(_,_) => this.チェック操作を終了(グリッド);
         チェックホスト.GestureRecognizers.Add(ポインター);
+    }
+
+    private IReadOnlyList<T>? チェック開始時選択を取得<T>(SfDataGrid グリッド) {
+        if(!this.チェック選択操作状態一覧.TryGetValue(グリッド,out var 状態)) {
+            return null;
+        }
+        return 状態.選択スナップショット.OfType<T>().ToArray();
+    }
+
+    private void チェック操作を完了(SfDataGrid グリッド) => this.チェック操作を終了(グリッド);
+
+    private void チェック操作を終了(SfDataGrid グリッド,int? 操作番号=null) {
+        if(操作番号 is { } 対象操作番号
+            &&(!this.チェック選択操作状態一覧.TryGetValue(グリッド,out var 状態)||状態.操作番号!=対象操作番号)) {
+            return;
+        }
+        this.選択抑止グリッド一覧.Remove(グリッド);
+        this.チェック選択操作状態一覧.Remove(グリッド);
     }
 
     private DataGridTemplateColumn テキスト列を作成(string 見出し,string プロパティ,ベンチマークグリッドソート列 ソート列,double 幅,TextAlignment 配置,Color? 背景色 = null) {
@@ -2898,19 +2957,19 @@ public sealed partial class MainPage:ContentPage {
 
     private void CPUデータグリッド列を再構築(SfDataGrid グリッド,CPU表区分 区分) {
         グリッド.Columns.Clear();
-        グリッド.Columns.Add(this.CPUコア列を作成(区分));
+        グリッド.Columns.Add(this.CPUコア列を作成(グリッド,区分));
         foreach(var 列 in 区分.列一覧) {
             グリッド.Columns.Add(this.CPU論理列を作成(グリッド,列));
         }
     }
 
-    private DataGridTemplateColumn CPUコア列を作成(CPU表区分 区分) {
+    private DataGridTemplateColumn CPUコア列を作成(SfDataGrid グリッド,CPU表区分 区分) {
         return new DataGridTemplateColumn {
             MappingName=nameof(CPU表行.ラベル),
             HeaderText="コア",
             Width=this.CPUコア列幅を取得(区分),
             AllowSorting=false,
-            AllowFocus=false,
+            AllowFocus=true,
             HeaderTemplate=this.CPU単純見出しテンプレートを作成("コア"),
             CellTemplate=new DataTemplate(() => {
                 var レイアウト = new Grid {
@@ -2925,8 +2984,31 @@ public sealed partial class MainPage:ContentPage {
                     VerticalOptions=LayoutOptions.Fill,
                 };
                 var チェック = this.CPUチェックボックスを作成();
+                チェック.AutomationId="CPU.コア行チェック";
                 チェック.InputTransparent=true;
                 チェック.SetBinding(SfCheckBox.IsCheckedProperty,new Binding(nameof(CPU表行.チェック済みか),BindingMode.OneWay));
+                var チェックホスト = new Grid {
+                    BackgroundColor=Colors.Transparent,
+                    HorizontalOptions=LayoutOptions.Fill,
+                    VerticalOptions=LayoutOptions.Fill,
+                };
+                チェックホスト.Add(チェック,0,0);
+                var チェックタップ = new TapGestureRecognizer();
+                チェックタップ.Tapped+=(_,_) => {
+                    try {
+                        if(レイアウト.BindingContext is CPU表行 行) {
+                            if(グリッド.SelectionController is CPUチェック選択コントローラー 選択コントローラー) {
+                                選択コントローラー.コアチェッククリックを処理(行,this.チェック開始時選択を取得<SelectedCellInfo>(グリッド));
+                            } else {
+                                this.ビューモデル?.CPU行を切り替え(行);
+                            }
+                        }
+                    } finally {
+                        this.チェック操作を完了(グリッド);
+                    }
+                };
+                チェックホスト.GestureRecognizers.Add(チェックタップ);
+                this.チェック中の選択を抑止(チェックホスト,グリッド);
                 var バッジ = this.コアバッジを作成();
                 バッジ.SetBinding(BackgroundColorProperty,nameof(CPU表行.バッジ背景色));
                 if(バッジ.Content is Image バッジ画像) {
@@ -2942,16 +3024,9 @@ public sealed partial class MainPage:ContentPage {
                     LineBreakMode=LineBreakMode.TailTruncation,
                 };
                 ラベル.SetBinding(Label.TextProperty,nameof(CPU表行.ラベル));
-                レイアウト.Add(チェック,0,0);
+                レイアウト.Add(チェックホスト,0,0);
                 レイアウト.Add(バッジ,1,0);
                 レイアウト.Add(ラベル,2,0);
-                var タップ = new TapGestureRecognizer();
-                タップ.Tapped+=(_,_) => {
-                    if(レイアウト.BindingContext is CPU表行 行) {
-                        this.ビューモデル?.CPU行を切り替え(行);
-                    }
-                };
-                レイアウト.GestureRecognizers.Add(タップ);
                 return レイアウト;
             }),
         };
@@ -3014,10 +3089,15 @@ public sealed partial class MainPage:ContentPage {
                 チェックホスト.Add(チェック,0,0);
                 var チェックタップ = new TapGestureRecognizer();
                 チェックタップ.Tapped+=(_,_) => {
-                    if(レイアウト.BindingContext is CPU表行 行
-                        &&列.インデックス<行.グリッドセル一覧.Count
-                        &&行.グリッドセル一覧[列.インデックス] is { } セル) {
-                        this.ビューモデル?.CPUを切り替え(セル.CPU);
+                    try {
+                        if(レイアウト.BindingContext is CPU表行 行
+                            &&列.インデックス<行.グリッドセル一覧.Count
+                            &&行.グリッドセル一覧[列.インデックス] is not null
+                            &&グリッド.SelectionController is CPUチェック選択コントローラー 選択コントローラー) {
+                            選択コントローラー.チェッククリックを処理(行,列.インデックス,this.チェック開始時選択を取得<SelectedCellInfo>(グリッド));
+                        }
+                    } finally {
+                        this.チェック操作を完了(グリッド);
                     }
                 };
                 チェックホスト.GestureRecognizers.Add(チェックタップ);

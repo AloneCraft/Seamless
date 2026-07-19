@@ -126,4 +126,34 @@ public sealed class ソースタブUIテスト {
             セッション.自動化IDチェック状態を待機(全タブチェック,false);
         }
     }
-}
+
+    [ベンチマークUI自動化ファクト属性]
+    public void 全ソースタブの実行スピナーホストは固定幅で存在する() {
+        using var セッション = new ベンチマークUIセッション();
+        var アプリパス = Environment.GetEnvironmentVariable("BENCHMARK_UI_APP_PATH")??string.Empty;
+        var タブ一覧 = Path.GetFileNameWithoutExtension(アプリパス).Contains("Scalable",StringComparison.OrdinalIgnoreCase)
+            ? new[] {
+                "スケーラブル永続化セット",
+                "スケーラブルTsavoriteセット",
+                "スケーラブル永続化辞書",
+                "スケーラブルTsavorite辞書",
+                "スケーラブル永続化リスト",
+            }
+            : [
+                "最適化書き換え",
+                "最適化パイプライン融合",
+                "最適化述語押し下げ",
+                "System配列",
+                "SystemIEnumerable",
+                "System範囲",
+                "Systemリスト",
+                "Seamless永続化",
+                "SeamlessTsavorite",
+            ];
+        var ホスト幅一覧 = タブ一覧
+            .Select(タブ => セッション.自動化IDを待機(ベンチマークUI自動化ID.ソースタブ実行スピナーホスト(タブ)).Size.Width)
+            .ToArray();
+
+        Assert.All(ホスト幅一覧,static 幅 => Assert.True(幅>0));
+        Assert.Single(ホスト幅一覧.Distinct());
+    }}

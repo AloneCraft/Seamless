@@ -240,4 +240,12 @@ public sealed class ベンチマーク状態画像ロジック {
         Assert.Equal(ベンチマーク状態画像種別.実行中,種別);
     }
 
+    [Fact, Trait("Category","Unit")]
+    public void 完了画像は単一チェック生成PNGを使用する() {
+        Assert.Equal("status_completed.png",global::UI.ベンチマーク状態画像名.完了);
+        Assert.Equal(global::UI.ベンチマーク状態画像名.完了,global::UI.ベンチマーク状態画像名.最終完了);
+        Assert.Equal(
+            global::UI.ベンチマーク状態画像名.完了,
+            global::UI.ベンチマークCPU状態画像ロジック.画像ソースを取得("Completed"));
+    }
 }

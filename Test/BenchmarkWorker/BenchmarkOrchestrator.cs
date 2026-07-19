@@ -372,11 +372,11 @@ public sealed class ベンチマークオーケストレーター {
         foreach(var グループ in 観測.GroupBy(static 項目 => 項目.メソッド)) {
             //1つの表示行は左右プロジェクトを含めて開始から完了まで同じ1コアに固定される。
             Assert.Single(グループ.Select(static 項目 => 項目.CPU).Distinct());
-            // 左列は単発の開放ループ較正(1回のディスパッチ)で実測ループ回数を確定し、右列は確定したループ回数でだけ実行する。
+            // 右列は単発の開放ループ較正(1回のディスパッチ)で実測ループ回数を確定し、左列は確定したループ回数でだけ実行する。
             Assert.Equal(
                 [
-                    ("System.Array.FLinq",1),
-                    ("System.Array.ZLinq",2),
+                    ("System.Array.ZLinq",1),
+                    ("System.Array.FLinq",2),
                 ],
                 グループ.Select(static 項目 => (項目.プロジェクト,項目.要素数)).ToArray());
         }
@@ -501,13 +501,13 @@ public sealed class ベンチマークオーケストレーター {
             _ => { },
             CancellationToken.None);
 
-        // 左列は単発の開放ループ較正(1回のディスパッチ)で実測ループ回数を確定し、右列は確定したループ回数でだけウォームアップ・実測する。
+        // 右列は単発の開放ループ較正(1回のディスパッチ)で実測ループ回数を確定し、左列は確定したループ回数でだけウォームアップ・実測する。
         Assert.Equal(
             [
-                (true,"System.Array.FLinq",1),
-                (false,"System.Array.FLinq",1),
                 (true,"System.Array.ZLinq",1),
-                (false,"System.Array.ZLinq",2),
+                (false,"System.Array.ZLinq",1),
+                (true,"System.Array.FLinq",1),
+                (false,"System.Array.FLinq",2),
             ],
             観測);
         var 状態 = 唯一の状態を読み込む(ルート);
@@ -579,7 +579,7 @@ public sealed class ベンチマークオーケストレーター {
         // ウォームアップ失敗は当該側を失敗確定し、同じ比較行の反対側へは進まない。
         var 状態 = 唯一の状態を読み込む(ルート);
         Assert.Single(状態.ジョブ一覧);
-        Assert.Contains(状態.ジョブ一覧,static ジョブ => ジョブ.プロジェクト=="System.Array.FLinq");
+        Assert.Contains(状態.ジョブ一覧,static ジョブ => ジョブ.プロジェクト=="System.Array.ZLinq");
         Assert.All(状態.ジョブ一覧,static ジョブ => {
             Assert.Equal(1,ベンチマーク作業軸.軸数を取得(ジョブ));
             Assert.Equal(ジョブ状態.失敗,ジョブ.状態);
@@ -955,7 +955,7 @@ public sealed class ベンチマークオーケストレーター {
             _ => { },
             CancellationToken.None);
 
-        // 左列は単発ディスパッチで実測ループ回数(512)を確定し、右列は同じループ回数だけ測定する。
+        // 右列は単発ディスパッチで実測ループ回数(512)を確定し、左列は同じループ回数だけ測定する。
         var 状態 = 唯一の状態を読み込む(ルート);
         Assert.Equal(
             [512],
@@ -1050,7 +1050,7 @@ public sealed class ベンチマークオーケストレーター {
                 測定済み一覧.Add((ジョブ.プロジェクト,ベンチマーク作業軸.軸数を取得(ジョブ)));
             }
 
-            // 較正ケース(FLinq)は単発の開放ループ較正で実測ループ回数(4)を返し、同期ケース(ZLinq)はその値をそのまま使って計測する。
+            // 較正ケース(ZLinq)は単発の開放ループ較正で実測ループ回数(4)を返し、同期ケース(FLinq)はその値をそのまま使って計測する。
             return ジョブ.開放ループ較正か
                 ? 完了結果を作成(ジョブ,2_000_000) with { ループ回数=4 }
                 : 完了結果を作成(ジョブ);
@@ -1070,8 +1070,8 @@ public sealed class ベンチマークオーケストレーター {
 
         Assert.Equal(
             [
-                ("System.Array.FLinq",1),
-                ("System.Array.ZLinq",4),
+                ("System.Array.ZLinq",1),
+                ("System.Array.FLinq",4),
             ],
             測定済み一覧);
         var 最終ジョブ一覧 = 唯一の状態を読み込む(ルート).ジョブ一覧.Where(static ジョブ => ベンチマーク作業軸.軸数を取得(ジョブ)==4).ToArray();
@@ -1110,7 +1110,7 @@ public sealed class ベンチマークオーケストレーター {
 
         var 状態 = 唯一の状態を読み込む(ルート);
         Assert.Equal([1],状態.要素数一覧);
-        // 左列(較正ケース)は単発の開放ループ較正で実測ループ回数を確定し、右列は確定したループ回数だけを実行する。
+        // 右列(較正ケース)は単発の開放ループ較正で実測ループ回数を確定し、左列は確定したループ回数だけを実行する。
         Assert.Equal(
             [2,2],
             状態.ジョブ一覧.Where(static ジョブ => ジョブ.メソッド名=="A").Select(static ジョブ => ベンチマーク作業軸.軸数を取得(ジョブ)).Order().ToArray());
@@ -1349,10 +1349,10 @@ public sealed class ベンチマークオーケストレーター {
         var ルート = 一時ルートを作成();
         var 状態マネージャー = new ベンチマーク状態マネージャー(ルート);
         var 実行ルート = Path.Combine(ルート,"実行処理");
-        var 較正ジョブ = 完了ジョブを作成("System.Array.FLinq","Where",1);
+        var 較正ジョブ = 完了ジョブを作成("System.Array.ZLinq","Where",1);
         較正ジョブ.ループ回数=500_000;
         較正ジョブ.平均ナノ秒=2_000_000_000;
-        var 同期ジョブ = 完了ジョブを作成("System.Array.ZLinq","Where",1);
+        var 同期ジョブ = 完了ジョブを作成("System.Array.FLinq","Where",1);
         同期ジョブ.ループ回数=500_000;
         同期ジョブ.平均ナノ秒=2_000_000_000;
         var 状態 = new 進行状態 {
@@ -1399,7 +1399,7 @@ public sealed class ベンチマークオーケストレーター {
         var ルート = 一時ルートを作成();
         var 状態マネージャー = new ベンチマーク状態マネージャー(ルート);
         var 実行ルート = Path.Combine(ルート,"実行処理");
-        var 較正ジョブ = 完了ジョブを作成("System.Array.FLinq","Where",1);
+        var 較正ジョブ = 完了ジョブを作成("System.Array.ZLinq","Where",1);
         較正ジョブ.ループ回数=1_000; // 旧実測値。現在の閾値には未達。
         較正ジョブ.平均ナノ秒=100;
         var 状態 = new 進行状態 {
@@ -1444,10 +1444,10 @@ public sealed class ベンチマークオーケストレーター {
         var ルート = 一時ルートを作成();
         var 状態マネージャー = new ベンチマーク状態マネージャー(ルート);
         var 実行ルート = Path.Combine(ルート,"実行処理");
-        var 較正ジョブ = 完了ジョブを作成("System.Array.FLinq","Where",1);
+        var 較正ジョブ = 完了ジョブを作成("System.Array.ZLinq","Where",1);
         較正ジョブ.ループ回数=300_000;
         較正ジョブ.平均ナノ秒=2_000_000_000; // 現在の閾値を既に満たしている。
-        var 同期ジョブ = 完了ジョブを作成("System.Array.ZLinq","Where",1);
+        var 同期ジョブ = 完了ジョブを作成("System.Array.FLinq","Where",1);
         同期ジョブ.ループ回数=250_000; // 較正ジョブとループ回数が食い違っている(過去のパス由来)。
         同期ジョブ.平均ナノ秒=1_600_000_000;
         var 状態 = new 進行状態 {
@@ -1486,7 +1486,7 @@ public sealed class ベンチマークオーケストレーター {
 
         // 較正ジョブは既に閾値を満たしているため再計測されず、ループ回数が食い違っていた
         // 同期ジョブだけが較正ジョブと同じループ回数で測り直される。
-        Assert.Equal(["System.Array.ZLinq"],再計測されたプロジェクト一覧);
+        Assert.Equal(["System.Array.FLinq"],再計測されたプロジェクト一覧);
         var 読込結果 = 状態マネージャー.読み込む(実行ルート)!;
         Assert.Equal(2,読込結果.ジョブ一覧.Count);
         Assert.All(読込結果.ジョブ一覧,static ジョブ => Assert.Equal(300_000,ジョブ.ループ回数));
@@ -1499,9 +1499,9 @@ public sealed class ベンチマークオーケストレーター {
         var ルート = 一時ルートを作成();
         var 状態マネージャー = new ベンチマーク状態マネージャー(ルート);
         var 実行ルート = Path.Combine(ルート,"実行処理");
-        var 較正ジョブ = 完了ジョブを作成("System.Array.FLinq","Where",1);
+        var 較正ジョブ = 完了ジョブを作成("System.Array.ZLinq","Where",1);
         較正ジョブ.平均ナノ秒=2_000_000_000; // 軸数1で既に閾値到達済み。
-        var 旧同期ジョブ = 完了ジョブを作成("System.Array.ZLinq","Where",8); // 過去パスの確定軸数8で完了した残留ジョブ。
+        var 旧同期ジョブ = 完了ジョブを作成("System.Array.FLinq","Where",8); // 過去パスの確定軸数8で完了した残留ジョブ。
         var 状態 = new 進行状態 {
             実行ID="実行処理",
             実行ルート=実行ルート,
@@ -1534,12 +1534,66 @@ public sealed class ベンチマークオーケストレーター {
             CancellationToken.None);
 
         // 同期ケースは確定軸数(1)で測り直され、旧軸数(8)のジョブは破棄される。
-        Assert.Equal(["System.Array.ZLinq"],実行済みプロジェクト一覧);
+        Assert.Equal(["System.Array.FLinq"],実行済みプロジェクト一覧);
         var 読込結果 = 状態マネージャー.読み込む(実行ルート)!;
         Assert.Equal(2,読込結果.ジョブ一覧.Count);
         Assert.All(読込結果.ジョブ一覧,static ジョブ => Assert.Equal(1,ベンチマーク作業軸.軸数を取得(ジョブ)));
     }
 
+    [Fact]
+    public async Task タブ境界では残り1件と次タブ7件を8CPUで同時実行する() {
+        var ルート = 一時ルートを作成();
+        var 開始通知 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var 解放通知 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var 排他 = new object();
+        var 同時実行タブ一覧 = new List<ベンチマークソースタブ>();
+        var 実行器 = new 遅延偽実行器(async (ジョブ,_) => {
+            lock(排他) {
+                同時実行タブ一覧.Add(ジョブ.ソースタブ);
+                if(同時実行タブ一覧.Count==8) {
+                    開始通知.TrySetResult();
+                }
+            }
+
+            await 解放通知.Task;
+            return 完了結果を作成(ジョブ);
+        });
+        var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new ベンチマーク状態マネージャー(ルート),実行器);
+        var 実行タスク = オーケストレーター.実行Async(
+            new ベンチマーク実行要求(
+                [
+                    ケースを作成("System.Array.FLinq","ArrayLast"),
+                    ケースを作成("System.List.FLinq","List01"),
+                    ケースを作成("System.List.FLinq","List02"),
+                    ケースを作成("System.List.FLinq","List03"),
+                    ケースを作成("System.List.FLinq","List04"),
+                    ケースを作成("System.List.FLinq","List05"),
+                    ケースを作成("System.List.FLinq","List06"),
+                    ケースを作成("System.List.FLinq","List07"),
+                ],
+                [0,1,2,3,4,5,6,7],
+                [1],
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(30),
+                実行プロファイル: ベンチマーク実行プロファイル.高速),
+            _ => { },
+            _ => { },
+            CancellationToken.None);
+        try {
+            await 開始通知.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            ベンチマークソースタブ[] 観測;
+            lock(排他) {
+                観測=同時実行タブ一覧.ToArray();
+            }
+
+            Assert.Equal(1,観測.Count(static タブ => タブ==ベンチマークソースタブ.System配列));
+            Assert.Equal(7,観測.Count(static タブ => タブ==ベンチマークソースタブ.Systemリスト));
+        } finally {
+            解放通知.TrySetResult();
+        }
+
+        await 実行タスク;
+    }
     private static ベンチマークケース ケースを作成(string プロジェクト,string メソッド) =>
         new(プロジェクト,アセンブリ名を取得(プロジェクト),"Type",メソッド);
 

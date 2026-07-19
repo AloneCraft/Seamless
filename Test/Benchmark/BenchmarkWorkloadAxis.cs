@@ -13,7 +13,7 @@ public sealed class ベンチマーク作業軸テスト {
         var ルート = Path.Combine(Path.GetTempPath(),"SeamlessLoopAxis",Guid.NewGuid().ToString("N"));
         try {
             var タブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
-            var 実行器 = new 校正済み実行器(タブ.左プロジェクト,332_000,114_000);
+            var 実行器 = new 校正済み実行器(タブ.右プロジェクト,332_000,114_000);
             var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new global::UI.ベンチマーク状態マネージャー(ルート),実行器);
             var 結果 = await オーケストレーター.実行Async(
                 new global::UI.ベンチマーク実行要求(
@@ -30,8 +30,8 @@ public sealed class ベンチマーク作業軸テスト {
                 _ => { },
                 CancellationToken.None);
 
-            Assert.Equal([1,2,4],結果.状態.ジョブ一覧.Where(ジョブ => ジョブ.プロジェクト==タブ.左プロジェクト).Select(ジョブ => ジョブ.ループ回数).Order().ToArray());
-            Assert.Equal([4],結果.状態.ジョブ一覧.Where(ジョブ => ジョブ.プロジェクト==タブ.右プロジェクト).Select(ジョブ => ジョブ.ループ回数).ToArray());
+            Assert.Equal([1,2,4],結果.状態.ジョブ一覧.Where(ジョブ => ジョブ.プロジェクト==タブ.右プロジェクト).Select(ジョブ => ジョブ.ループ回数).Order().ToArray());
+            Assert.Equal([4],結果.状態.ジョブ一覧.Where(ジョブ => ジョブ.プロジェクト==タブ.左プロジェクト).Select(ジョブ => ジョブ.ループ回数).ToArray());
             Assert.All(結果.状態.ジョブ一覧,ジョブ => {
                 Assert.Equal(4_096,ジョブ.要素数);
                 Assert.Equal([4_096],ジョブ.準備済み要素数一覧);
@@ -43,9 +43,9 @@ public sealed class ベンチマーク作業軸テスト {
         }
     }
 
-    private sealed class 校正済み実行器(string 左プロジェクト,double 左ナノ秒,double 右ナノ秒):global::UI.Iベンチマークジョブ実行器 {
+    private sealed class 校正済み実行器(string 較正プロジェクト,double 較正ナノ秒,double 同期ナノ秒):global::UI.Iベンチマークジョブ実行器 {
         public Task<global::UI.ベンチマークジョブ実行結果> 実行Async(global::UI.ベンチマークジョブ ジョブ,string 実行ルート,int 論理CPU,TimeSpan タイムアウト,CancellationToken キャンセルトークン) {
-            var 呼出単位 = ジョブ.プロジェクト==左プロジェクト ? 左ナノ秒 : 右ナノ秒;
+            var 呼出単位 = ジョブ.プロジェクト==較正プロジェクト ? 較正ナノ秒 : 同期ナノ秒;
             return Task.FromResult(new global::UI.ベンチマークジョブ実行結果(
                 ジョブ.プロジェクト,
                 ジョブ.メソッド名,

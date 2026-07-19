@@ -143,14 +143,14 @@ internal sealed class ベンチマークオーケストレーター(
         Action<string> 状態変更時,
         CancellationToken キャンセルトークン) {
         if(ベンチマーク作業軸.ループ回数を使うか(行.ソースタブ)) {
-            await this.左較正ループ回数行を実行Async(状態,行,論理CPU,要求,進行通知,状態変更時,キャンセルトークン);
+            await this.右較正ループ回数行を実行Async(状態,行,論理CPU,要求,進行通知,状態変更時,キャンセルトークン);
             return;
         }
 
         await this.スケーラブル行を実行Async(状態,行,論理CPU,要求,進行通知,状態変更時,キャンセルトークン);
     }
 
-    private async Task 左較正ループ回数行を実行Async(
+    private async Task 右較正ループ回数行を実行Async(
         進行状態 状態,
         適応メソッド行 行,
         int 論理CPU,
@@ -163,8 +163,8 @@ internal sealed class ベンチマークオーケストレーター(
         }
 
         var ウォームアップ済みケース一覧 = new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
-        var 較正ケース = 行.ケース一覧[0];
-        var 同期ケース一覧 = 行.ケース一覧.Skip(1).ToArray();
+        var 較正ケース = 行.ケース一覧[^1];
+        var 同期ケース一覧 = 行.ケース一覧.Take(行.ケース一覧.Count-1).ToArray();
 
         if(要求.実行プロファイル is ベンチマーク実行プロファイル.高速 or ベンチマーク実行プロファイル.正確 or ベンチマーク実行プロファイル.中間) {
             await this.開放ループ較正で行を実行Async(状態,行,較正ケース,同期ケース一覧,論理CPU,要求,ウォームアップ済みケース一覧,進行通知,状態変更時,キャンセルトークン);
