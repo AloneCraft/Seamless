@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 namespace Seamless.UI.Storage;
 
 public sealed class UI実行ストア{
-    private const int ベンチマークスキーマ版=22;
+    private const int ベンチマークスキーマ版=23;
     private const int 既存スキーマ版=20;
     private int スキーマ版=>this.アプリ種別==UI実行アプリ種別.ベンチマーク ? ベンチマークスキーマ版 : 既存スキーマ版;
     private readonly string DBパス;
@@ -34,7 +34,7 @@ public sealed class UI実行ストア{
             }
             using var 接続=this.接続を開く();
             using var トランザクション=ロック再試行付きでトランザクションを開始(接続);
-            共通テーブルを作成(接続,トランザクション);
+            共通テーブルを作成(接続,トランザクション,this.アプリ種別);
             アプリテーブルを作成(接続,トランザクション,this.アプリ種別);
             分析ビューを作成(接続,トランザクション,this.アプリ種別);
             非クエリを実行(接続,トランザクション,$"PRAGMA user_version={スキーマ版};");
@@ -43,13 +43,30 @@ public sealed class UI実行ストア{
         }
     }
 
-    private static void 共通テーブルを作成(SqliteConnection 接続,SqliteTransaction トランザクション){
+    private static void 共通テーブルを作成(SqliteConnection 接続,SqliteTransaction トランザクション,UI実行アプリ種別 アプリ種別){
+        if(アプリ種別==UI実行アプリ種別.ベンチマーク){
+            非クエリを実行(接続,トランザクション,"""
+                CREATE TABLE "実行"(
+                    "実行ID" INTEGER PRIMARY KEY AUTOINCREMENT,
+                    "表示名" TEXT NOT NULL,
+                    "状態" TEXT NOT NULL,
+                    "実行プロファイル" TEXT NOT NULL,
+                    "タブ名" TEXT NOT NULL,
+                    "更新日時" TEXT NOT NULL,
+                    "実行ルート" TEXT NOT NULL DEFAULT '',
+                    "要素数一覧" TEXT NOT NULL DEFAULT '',
+                    "計測時間ns" REAL NOT NULL DEFAULT 0,
+                    "論理CPU一覧" TEXT NOT NULL DEFAULT ''
+                );
+                CREATE INDEX "索引_実行_更新日時" ON "実行"("更新日時");
+                """);
+            return;
+        }
         非クエリを実行(接続,トランザクション,"""
             CREATE TABLE "実行"(
                 "実行ID" INTEGER PRIMARY KEY AUTOINCREMENT,
                 "表示名" TEXT NOT NULL,
                 "状態" TEXT NOT NULL,
-                "状態メッセージ" TEXT NOT NULL DEFAULT '',
                 "実行プロファイル" TEXT NOT NULL,
                 "タブ名" TEXT NOT NULL,
                 "更新日時" TEXT NOT NULL,
@@ -59,17 +76,6 @@ public sealed class UI実行ストア{
                 "論理CPU一覧" TEXT NOT NULL DEFAULT '',
                 "前回実行ID" INTEGER NULL,
                 FOREIGN KEY("前回実行ID") REFERENCES "実行"("実行ID") ON DELETE SET NULL
-            );
-            CREATE TABLE "診断カウンター"(
-                "実行ID" INTEGER NOT NULL,
-                "タブ名" TEXT NOT NULL DEFAULT '',
-                "プロジェクト名" TEXT NOT NULL,
-                "ベンチマーク" TEXT NOT NULL,
-                "引数キー" TEXT NOT NULL DEFAULT '',
-                "カウンター名" TEXT NOT NULL,
-                "カウンター値" REAL NOT NULL,
-                "記録日時" TEXT NOT NULL,
-                FOREIGN KEY("実行ID") REFERENCES "実行"("実行ID") ON DELETE CASCADE
             );
             CREATE INDEX "索引_実行_更新日時" ON "実行"("更新日時");
             """);
@@ -83,7 +89,7 @@ public sealed class UI実行ストア{
                     "タブ名" TEXT NOT NULL,
                     "型" TEXT NOT NULL,
                     "ベンチマーク" TEXT NOT NULL,
-                    "メソッド名" TEXT NOT NULL DEFAULT '',
+                    "CPU番号" INTEGER NULL,
                     "引数キー" TEXT NOT NULL DEFAULT '',
                     "引数JSON" TEXT NOT NULL DEFAULT '',
                     "左アセンブリ名" TEXT NOT NULL DEFAULT '',
@@ -92,7 +98,6 @@ public sealed class UI実行ストア{
                     "中央型完全名" TEXT NOT NULL DEFAULT '',
                     "右アセンブリ名" TEXT NOT NULL DEFAULT '',
                     "右型完全名" TEXT NOT NULL DEFAULT '',
-                    "CPU番号" INTEGER NULL,
                     "行チェック" INTEGER NOT NULL DEFAULT 0,
                     "左状態" TEXT NOT NULL,
                     "左失敗理由" TEXT NOT NULL DEFAULT '',
@@ -116,7 +121,7 @@ public sealed class UI実行ストア{
                 );
                 CREATE INDEX "索引_ベンチマーク_実行ID" ON "ベンチマーク"("実行ID");
                 CREATE UNIQUE INDEX "一意索引_ベンチマーク_行" ON "ベンチマーク"(
-                    "実行ID","タブ名","型","ベンチマーク","メソッド名","引数キー"
+                    "実行ID","タブ名","型","ベンチマーク","引数キー"
                 );
                 """);
             return;
@@ -172,7 +177,7 @@ public sealed class UI実行ストア{
         if(アプリ種別==UI実行アプリ種別.ベンチマーク){
             非クエリを実行(接続,トランザクション,"""
                 CREATE VIEW "履歴時間シェア" AS
-                SELECT r."実行ID",r."更新日時",b."タブ名",b."型",b."ベンチマーク",b."アセンブリ名",b."型完全名",b."メソッド名",b."引数キー",b."引数JSON",
+                SELECT r."実行ID",r."更新日時",b."タブ名",b."型",b."ベンチマーク",b."引数キー",b."引数JSON",
                     b."左時間ns",b."右時間ns",
                     CASE WHEN b."左時間ns"=0 AND b."右時間ns"=0 THEN 0.0 ELSE CAST(b."左時間ns" AS REAL)/(b."左時間ns"+b."右時間ns") END AS "左シェア",
                     CASE WHEN b."左時間ns"=0 AND b."右時間ns"=0 THEN 0.0 ELSE CAST(b."右時間ns" AS REAL)/(b."左時間ns"+b."右時間ns") END AS "右シェア"
@@ -180,7 +185,7 @@ public sealed class UI実行ストア{
                 WHERE b."左状態"='Completed' AND b."右状態"='Completed'
                   AND b."左時間ns" IS NOT NULL AND b."右時間ns" IS NOT NULL AND b."左時間ns">=0 AND b."右時間ns">=0;
                 CREATE VIEW "履歴メモリシェア" AS
-                SELECT r."実行ID",r."更新日時",b."タブ名",b."型",b."ベンチマーク",b."アセンブリ名",b."型完全名",b."メソッド名",b."引数キー",b."引数JSON",
+                SELECT r."実行ID",r."更新日時",b."タブ名",b."型",b."ベンチマーク",b."引数キー",b."引数JSON",
                     b."左メモリバイト",b."右メモリバイト",
                     CASE WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0.0 ELSE CAST(b."左メモリバイト" AS REAL)/(b."左メモリバイト"+b."右メモリバイト") END AS "左シェア",
                     CASE WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0.0 ELSE CAST(b."右メモリバイト" AS REAL)/(b."左メモリバイト"+b."右メモリバイト") END AS "右シェア"
@@ -225,36 +230,43 @@ public sealed class UI実行ストア{
             前回実行ID=前回コマンド.ExecuteScalar() as long?;
         }
         using var コマンド=接続.CreateCommand();
-        コマンド.CommandText="""
-            INSERT INTO "実行"("表示名","状態","状態メッセージ","実行プロファイル","タブ名","更新日時","前回実行ID")
-            VALUES($name,'Queued','',$profile,$tab,$at,$previous);SELECT last_insert_rowid();
-            """;
+        if(this.アプリ種別==UI実行アプリ種別.ベンチマーク){
+            コマンド.CommandText="""
+                INSERT INTO "実行"("表示名","状態","実行プロファイル","タブ名","更新日時")
+                VALUES($name,'Queued',$profile,$tab,$at);SELECT last_insert_rowid();
+                """;
+        }else{
+            コマンド.CommandText="""
+                INSERT INTO "実行"("表示名","状態","実行プロファイル","タブ名","更新日時","前回実行ID")
+                VALUES($name,'Queued',$profile,$tab,$at,$previous);SELECT last_insert_rowid();
+                """;
+            コマンド.Parameters.AddWithValue("$previous",DB値へ(前回実行ID));
+        }
         コマンド.Parameters.AddWithValue("$name",要求.表示名);
         コマンド.Parameters.AddWithValue("$profile",要求.実行プロファイル);
         コマンド.Parameters.AddWithValue("$tab",要求.タブ名);
         コマンド.Parameters.AddWithValue("$at",日時を文字列へ(要求.作成日時));
-        コマンド.Parameters.AddWithValue("$previous",DB値へ(前回実行ID));
         var 実行ID=(long)(ロック再試行付きでスカラーを実行(コマンド)??0L);
-        return new(実行ID,要求.アプリ種別,要求.表示名,UI実行状態.待機中,要求.実行プロファイル,要求.タブ名,要求.作成日時,string.Empty);
+        return new(実行ID,要求.アプリ種別,要求.表示名,UI実行状態.待機中,要求.実行プロファイル,要求.タブ名,要求.作成日時);
     }
 
     public void 実行状態を設定(long 実行ID,UI実行状態 状態,string メッセージ = ""){
         this.スキーマを確認();
         using var 接続=this.接続を開く();
         using var コマンド=接続.CreateCommand();
-        コマンド.CommandText="UPDATE \"実行\" SET \"状態\"=$status,\"状態メッセージ\"=$message,\"更新日時\"=$at WHERE \"実行ID\"=$id;";
+        コマンド.CommandText="UPDATE \"実行\" SET \"状態\"=$status,\"更新日時\"=$at WHERE \"実行ID\"=$id;";
         コマンド.Parameters.AddWithValue("$id",実行ID);
         コマンド.Parameters.AddWithValue("$status",状態を文字列へ(状態));
-        コマンド.Parameters.AddWithValue("$message",メッセージ);
         コマンド.Parameters.AddWithValue("$at",日時を文字列へ(DateTimeOffset.UtcNow));
         ロック再試行付きで実行(()=>コマンド.ExecuteNonQuery());
     }
 
     public void 実行設定を保存(long 実行ID,string 実行ルート,IReadOnlyList<int> 要素数一覧,double 適応閾値ナノ秒,IReadOnlyList<int> 論理CPU一覧){
         this.スキーマを確認();
+        var 閾値列名=this.アプリ種別==UI実行アプリ種別.ベンチマーク ? "計測時間ns" : "適応閾値ns";
         using var 接続=this.接続を開く();
         using var コマンド=接続.CreateCommand();
-        コマンド.CommandText="UPDATE \"実行\" SET \"実行ルート\"=$root,\"要素数一覧\"=$counts,\"適応閾値ns\"=$threshold,\"論理CPU一覧\"=$cpus,\"更新日時\"=$at WHERE \"実行ID\"=$id;";
+        コマンド.CommandText=$"UPDATE \"実行\" SET \"実行ルート\"=$root,\"要素数一覧\"=$counts,\"{閾値列名}\"=$threshold,\"論理CPU一覧\"=$cpus,\"更新日時\"=$at WHERE \"実行ID\"=$id;";
         コマンド.Parameters.AddWithValue("$id",実行ID);
         コマンド.Parameters.AddWithValue("$root",実行ルート);
         コマンド.Parameters.AddWithValue("$counts",string.Join(",",要素数一覧));
@@ -266,9 +278,10 @@ public sealed class UI実行ストア{
 
     public UI実行設定記録? 実行設定を取得(long 実行ID){
         this.スキーマを確認();
+        var 閾値列名=this.アプリ種別==UI実行アプリ種別.ベンチマーク ? "計測時間ns" : "適応閾値ns";
         using var 接続=this.接続を開く();
         using var コマンド=接続.CreateCommand();
-        コマンド.CommandText="SELECT \"実行ID\",\"実行ルート\",\"要素数一覧\",\"適応閾値ns\",\"論理CPU一覧\" FROM \"実行\" WHERE \"実行ID\"=$id;";
+        コマンド.CommandText=$"SELECT \"実行ID\",\"実行ルート\",\"要素数一覧\",\"{閾値列名}\",\"論理CPU一覧\" FROM \"実行\" WHERE \"実行ID\"=$id;";
         コマンド.Parameters.AddWithValue("$id",実行ID);
         using var 読取器=コマンド.ExecuteReader();
         return 読取器.Read() ? new(読取器.GetInt64(0),読取器.GetString(1),読取器.GetString(2),読取器.GetDouble(3),読取器.GetString(4)) : null;
@@ -305,14 +318,13 @@ public sealed class UI実行ストア{
                 var 共通識別=項目.左ケース??項目.中央ケース??項目.右ケース
                     ??new(string.Empty,string.Empty,項目.ベンチマーク名,string.Empty,string.Empty);
                 コマンド.CommandText="""
-                    INSERT OR REPLACE INTO "ベンチマーク"("実行ID","タブ名","型","ベンチマーク","メソッド名","引数キー","引数JSON",
+                    INSERT OR REPLACE INTO "ベンチマーク"("実行ID","タブ名","型","ベンチマーク","引数キー","引数JSON",
                         "左アセンブリ名","左型完全名","中央アセンブリ名","中央型完全名","右アセンブリ名","右型完全名","CPU番号","行チェック",
                         "左状態","左失敗理由","左日時","左時間ns","左メモリバイト","左ループ回数","中央状態","中央失敗理由","中央日時","中央時間ns","中央メモリバイト","中央ループ回数","右状態","右失敗理由","右日時","右時間ns","右メモリバイト","右ループ回数")
-                    VALUES($id,$tab,$type,$benchmark,$method,$argumentKey,$argumentsJson,
+                    VALUES($id,$tab,$type,$benchmark,$argumentKey,$argumentsJson,
                         $leftAssembly,$leftFullType,$middleAssembly,$middleFullType,$rightAssembly,$rightFullType,$cpu,$selected,
                         $leftStatus,$leftFailure,$leftAt,$leftMean,$leftBytes,$leftLoops,$middleStatus,$middleFailure,$middleAt,$middleMean,$middleBytes,$middleLoops,$rightStatus,$rightFailure,$rightAt,$rightMean,$rightBytes,$rightLoops);
                     """;
-                コマンド.Parameters.AddWithValue("$method",共通識別.メソッド名);
                 コマンド.Parameters.AddWithValue("$argumentKey",共通識別.引数キー);
                 コマンド.Parameters.AddWithValue("$argumentsJson",共通識別.引数JSON);
                 コマンド.Parameters.AddWithValue("$leftAssembly",項目.左ケース?.アセンブリ名??string.Empty);
@@ -349,7 +361,7 @@ public sealed class UI実行ストア{
         using var コマンド=接続.CreateCommand();
         コマンド.CommandText="""
             SELECT "実行ID","タブ名","型","ベンチマーク","CPU番号","行チェック",
-                "メソッド名","引数キー","引数JSON",
+                "引数キー","引数JSON",
                 "左アセンブリ名","左型完全名","中央アセンブリ名","中央型完全名","右アセンブリ名","右型完全名",
                 "左状態","左失敗理由","左日時","左時間ns","左メモリバイト","左ループ回数",
                 "中央状態","中央失敗理由","中央日時","中央時間ns","中央メモリバイト","中央ループ回数",
@@ -360,15 +372,15 @@ public sealed class UI実行ストア{
         using var 読取器=コマンド.ExecuteReader();
         var 項目一覧=new List<UIベンチマークスナップショット項目記録>();
         while(読取器.Read()){
-            var メソッド名=読取器.GetString(6);
-            var 引数キー=読取器.GetString(7);
-            var 引数JSON=読取器.GetString(8);
-            var 左識別=側識別を読む(読取器,9,メソッド名,引数キー,引数JSON);
-            var 中央識別=側識別を読む(読取器,11,メソッド名,引数キー,引数JSON);
-            var 右識別=側識別を読む(読取器,13,メソッド名,引数キー,引数JSON);
+            var ベンチマーク名=読取器.GetString(3);
+            var 引数キー=読取器.GetString(6);
+            var 引数JSON=読取器.GetString(7);
+            var 左識別=側識別を読む(読取器,8,ベンチマーク名,引数キー,引数JSON);
+            var 中央識別=側識別を読む(読取器,10,ベンチマーク名,引数キー,引数JSON);
+            var 右識別=側識別を読む(読取器,12,ベンチマーク名,引数キー,引数JSON);
             項目一覧.Add(new(読取器.GetInt64(0),読取器.GetString(1),読取器.GetString(2),読取器.GetString(3),読取器.IsDBNull(4) ? null : 読取器.GetInt32(4),読取器.GetInt32(5)!=0,
-                側を読む(読取器,15,読取器.IsDBNull(20) ? null : 読取器.GetInt32(20)),側を読む(読取器,27,読取器.IsDBNull(32) ? null : 読取器.GetInt32(32)),左識別,右識別,
-                側を読む(読取器,21,読取器.IsDBNull(26) ? null : 読取器.GetInt32(26)),中央識別));
+                側を読む(読取器,14,読取器.IsDBNull(19) ? null : 読取器.GetInt32(19)),側を読む(読取器,26,読取器.IsDBNull(31) ? null : 読取器.GetInt32(31)),左識別,右識別,
+                側を読む(読取器,20,読取器.IsDBNull(25) ? null : 読取器.GetInt32(25)),中央識別));
         }
         return 項目一覧;
     }
@@ -418,37 +430,13 @@ public sealed class UI実行ストア{
         this.スキーマを確認();
         using var 接続=this.接続を開く();
         using var コマンド=接続.CreateCommand();
-        コマンド.CommandText="SELECT \"実行ID\",\"表示名\",\"状態\",\"実行プロファイル\",\"タブ名\",\"更新日時\",\"状態メッセージ\" FROM \"実行\" ORDER BY \"更新日時\" DESC,\"実行ID\" DESC;";
+        コマンド.CommandText="SELECT \"実行ID\",\"表示名\",\"状態\",\"実行プロファイル\",\"タブ名\",\"更新日時\" FROM \"実行\" ORDER BY \"更新日時\" DESC,\"実行ID\" DESC;";
         using var 読取器=コマンド.ExecuteReader();
         var 実行一覧=new List<UI実行記録>();
         while(読取器.Read()){
-            実行一覧.Add(new(読取器.GetInt64(0),this.アプリ種別,読取器.GetString(1),文字列を状態へ(読取器.GetString(2)),読取器.GetString(3),読取器.GetString(4),文字列を日時へ(読取器.GetString(5)),読取器.GetString(6)));
+            実行一覧.Add(new(読取器.GetInt64(0),this.アプリ種別,読取器.GetString(1),文字列を状態へ(読取器.GetString(2)),読取器.GetString(3),読取器.GetString(4),文字列を日時へ(読取器.GetString(5))));
         }
         return 実行一覧;
-    }
-
-    public void フォールバック診断を保存(long 実行ID,IReadOnlyList<UIフォールバック診断書込> 診断一覧,DateTimeOffset? 記録日時 = null){
-        this.スキーマを確認();
-        var 時刻=記録日時??DateTimeOffset.UtcNow;
-        using var 接続=this.接続を開く();
-        using var トランザクション=ロック再試行付きでトランザクションを開始(接続);
-        foreach(var 診断 in 診断一覧){
-            using var コマンド=接続.CreateCommand();コマンド.Transaction=トランザクション;
-            コマンド.CommandText="INSERT INTO \"診断カウンター\"(\"実行ID\",\"タブ名\",\"プロジェクト名\",\"ベンチマーク\",\"引数キー\",\"カウンター名\",\"カウンター値\",\"記録日時\") VALUES($id,$tab,$project,$method,$key,$name,$value,$at);";
-            コマンド.Parameters.AddWithValue("$id",実行ID);コマンド.Parameters.AddWithValue("$tab",診断.タブ名);
-            コマンド.Parameters.AddWithValue("$project",診断.プロジェクト);コマンド.Parameters.AddWithValue("$method",診断.メソッド);
-            コマンド.Parameters.AddWithValue("$key",診断.引数キー);コマンド.Parameters.AddWithValue("$name",診断.カウンター名);
-            コマンド.Parameters.AddWithValue("$value",診断.カウンター値);コマンド.Parameters.AddWithValue("$at",日時を文字列へ(時刻));コマンド.ExecuteNonQuery();
-        }
-        トランザクション.Commit();
-    }
-
-    public IReadOnlyList<UIフォールバック診断記録> フォールバック診断一覧を取得(long 実行ID){
-        this.スキーマを確認();using var 接続=this.接続を開く();using var コマンド=接続.CreateCommand();
-        コマンド.CommandText="SELECT \"実行ID\",\"タブ名\",\"プロジェクト名\",\"ベンチマーク\",\"引数キー\",\"カウンター名\",\"カウンター値\",\"記録日時\" FROM \"診断カウンター\" WHERE \"実行ID\"=$id ORDER BY \"プロジェクト名\",\"ベンチマーク\",\"引数キー\",\"カウンター名\";";
-        コマンド.Parameters.AddWithValue("$id",実行ID);using var 読取器=コマンド.ExecuteReader();var 一覧=new List<UIフォールバック診断記録>();
-        while(読取器.Read()){一覧.Add(new(読取器.GetInt64(0),読取器.GetString(1),読取器.GetString(2),読取器.GetString(3),読取器.GetString(4),null,読取器.GetString(5),読取器.GetDouble(6),文字列を日時へ(読取器.GetString(7))));}
-        return 一覧;
     }
 
     public IReadOnlyList<UI指標値記録> 指標一覧を取得(long 実行ID){
@@ -462,16 +450,13 @@ public sealed class UI実行ストア{
     }
 
     public void 全記録を削除(){
-        this.スキーマを確認();using var 接続=this.接続を開く();using var コマンド=接続.CreateCommand();コマンド.CommandText="DELETE FROM \"診断カウンター\";DELETE FROM \"ベンチマーク\";DELETE FROM \"実行\";";コマンド.ExecuteNonQuery();
+        this.スキーマを確認();using var 接続=this.接続を開く();using var コマンド=接続.CreateCommand();コマンド.CommandText="DELETE FROM \"ベンチマーク\";DELETE FROM \"実行\";";コマンド.ExecuteNonQuery();
     }
 
     public IReadOnlyList<IReadOnlyDictionary<string,object?>> 分析ビューを照会(string ビュー名,int 上限 = 1000){
-        if(ビュー名 is "履歴時間シェア" or "履歴メモリシェア" or "スケーラブル履歴" or "スケーラブル前回シェア"){
-            this.スキーマを確認();using var 接続=this.接続を開く();using var コマンド=接続.CreateCommand();コマンド.CommandText=$"SELECT * FROM \"{ビュー名}\" ORDER BY \"実行ID\" DESC LIMIT $limit;";コマンド.Parameters.AddWithValue("$limit",上限);using var 読取器=コマンド.ExecuteReader();var 行一覧=new List<IReadOnlyDictionary<string,object?>>();
-            while(読取器.Read()){var 値一覧=new Dictionary<string,object?>(StringComparer.OrdinalIgnoreCase);for(var 位置=0;位置<読取器.FieldCount;位置++){値一覧[読取器.GetName(位置)]=読取器.IsDBNull(位置) ? null : 読取器.GetValue(位置);}行一覧.Add(値一覧);}return 行一覧;
-        }
-        if(ビュー名!="ベンチマークフォールバック診断"){return [];}
-        return this.実行一覧を取得().SelectMany(実行=>this.フォールバック診断一覧を取得(実行.実行ID)).OrderByDescending(static 項目=>項目.記録日時).Take(上限).Select(static 項目=>(IReadOnlyDictionary<string,object?>)new Dictionary<string,object?>{{"実行ID",項目.実行ID},{"タブ名",項目.タブ名},{"プロジェクト",項目.プロジェクト},{"メソッド",項目.メソッド},{"引数キー",項目.引数キー},{"カウンター名",項目.カウンター名},{"カウンター値",項目.カウンター値},{"記録日時",項目.記録日時}}).ToArray();
+        if(ビュー名 is not ("履歴時間シェア" or "履歴メモリシェア" or "スケーラブル履歴" or "スケーラブル前回シェア")){return [];}
+        this.スキーマを確認();using var 接続=this.接続を開く();using var コマンド=接続.CreateCommand();コマンド.CommandText=$"SELECT * FROM \"{ビュー名}\" ORDER BY \"実行ID\" DESC LIMIT $limit;";コマンド.Parameters.AddWithValue("$limit",上限);using var 読取器=コマンド.ExecuteReader();var 行一覧=new List<IReadOnlyDictionary<string,object?>>();
+        while(読取器.Read()){var 値一覧=new Dictionary<string,object?>(StringComparer.OrdinalIgnoreCase);for(var 位置=0;位置<読取器.FieldCount;位置++){値一覧[読取器.GetName(位置)]=読取器.IsDBNull(位置) ? null : 読取器.GetValue(位置);}行一覧.Add(値一覧);}return 行一覧;
     }
 
 
@@ -485,7 +470,37 @@ public sealed class UI実行ストア{
     }
 
     private        long                  保存済みスキーマ版を読む()                                                                {try{using var 接続=this.作成せず接続を開く();using var コマンド=接続.CreateCommand();コマンド.CommandText="PRAGMA user_version;";return (long)(コマンド.ExecuteScalar()??0L);}catch(SqliteException){return 0;}}
-    private        bool                  想定スキーマ形状か()                                                                   {try{using var 接続=this.作成せず接続を開く();using var コマンド=接続.CreateCommand();コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','ベンチマーク','診断カウンター');";if((long)(コマンド.ExecuteScalar()??0L)!=3L){return false;}コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('実行') WHERE name IN('状態メッセージ','要素数一覧','適応閾値ns');";if((long)(コマンド.ExecuteScalar()??0L)!=3L){return false;}if(this.アプリ種別==UI実行アプリ種別.パラメータスイープ){コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('コレクション','ジェネリック','バックエンド','スイープ','Indexサイズ','Pageサイズ','Segmentサイズ','Memoryサイズ','可変Fraction','最大成功Count','エントリCount');";return (long)(コマンド.ExecuteScalar()??0L)==11L;}if(this.アプリ種別==UI実行アプリ種別.スケーラブルベンチマーク){コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('スケーラブル履歴','スケーラブル前回シェア');";return (long)(コマンド.ExecuteScalar()??0L)==2L;}コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('左アセンブリ名','左型完全名','中央アセンブリ名','中央型完全名','右アセンブリ名','右型完全名','メソッド名','引数キー','引数JSON','左ループ回数','中央状態','中央失敗理由','中央日時','中央時間ns','中央メモリバイト','中央ループ回数','右ループ回数');";if((long)(コマンド.ExecuteScalar()??0L)!=17L){return false;}コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('履歴時間シェア','履歴メモリシェア');";return (long)(コマンド.ExecuteScalar()??0L)==2L;}catch(SqliteException){return false;}}
+    private        bool                  想定スキーマ形状か(){
+        try{
+            using var 接続=this.作成せず接続を開く();using var コマンド=接続.CreateCommand();
+            if(this.アプリ種別==UI実行アプリ種別.ベンチマーク){
+                コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','ベンチマーク');";
+                if((long)(コマンド.ExecuteScalar()??0L)!=2L){return false;}
+                コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='診断カウンター';";
+                if((long)(コマンド.ExecuteScalar()??0L)!=0L){return false;}
+                コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('実行') WHERE name IN('要素数一覧','計測時間ns','論理CPU一覧');";
+                if((long)(コマンド.ExecuteScalar()??0L)!=3L){return false;}
+                コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('実行') WHERE name IN('状態メッセージ','適応閾値ns','前回実行ID');";
+                if((long)(コマンド.ExecuteScalar()??0L)!=0L){return false;}
+                コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('左アセンブリ名','左型完全名','中央アセンブリ名','中央型完全名','右アセンブリ名','右型完全名','引数キー','引数JSON','左ループ回数','中央状態','中央失敗理由','中央日時','中央時間ns','中央メモリバイト','中央ループ回数','右ループ回数');";
+                if((long)(コマンド.ExecuteScalar()??0L)!=16L){return false;}
+                コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name='メソッド名';";
+                if((long)(コマンド.ExecuteScalar()??0L)!=0L){return false;}
+                コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('履歴時間シェア','履歴メモリシェア');";
+                return (long)(コマンド.ExecuteScalar()??0L)==2L;
+            }
+            コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','ベンチマーク','診断カウンター');";
+            if((long)(コマンド.ExecuteScalar()??0L)!=3L){return false;}
+            コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('実行') WHERE name IN('要素数一覧','適応閾値ns');";
+            if((long)(コマンド.ExecuteScalar()??0L)!=2L){return false;}
+            if(this.アプリ種別==UI実行アプリ種別.パラメータスイープ){
+                コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('コレクション','ジェネリック','バックエンド','スイープ','Indexサイズ','Pageサイズ','Segmentサイズ','Memoryサイズ','可変Fraction','最大成功Count','エントリCount');";
+                return (long)(コマンド.ExecuteScalar()??0L)==11L;
+            }
+            コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('スケーラブル履歴','スケーラブル前回シェア');";
+            return (long)(コマンド.ExecuteScalar()??0L)==2L;
+        }catch(SqliteException){return false;}
+    }
     private        SqliteConnection      接続を開く()                                                                       => this.接続を開く(SqliteOpenMode.ReadWriteCreate);
     private        SqliteConnection      作成せず接続を開く()                                                                   => this.接続を開く(SqliteOpenMode.ReadWrite);
     private        SqliteConnection      接続を開く(SqliteOpenMode                  モード)                                    {var       構築器 =new SqliteConnectionStringBuilder{DataSource=this.DBパス,Mode=モード,DefaultTimeout=30};var 接続=new SqliteConnection(構築器.ToString());接続.Open();using var コマンド=接続.CreateCommand();コマンド.CommandText="PRAGMA busy_timeout=30000;PRAGMA journal_mode=WAL;PRAGMA foreign_keys=ON;";コマンド.ExecuteNonQuery();return 接続;}

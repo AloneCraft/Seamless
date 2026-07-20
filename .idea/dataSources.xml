@@ -8,5 +8,12 @@
       <jdbc-url>jdbc:sqlite:G:\GitHub\Seamless\Work\UI\runs.db</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
+    <data-source source="LOCAL" name="Benchmark" uuid="3e31d739-2dde-4de4-a976-b3cea9e1ca7a">
+      <driver-ref>sqlite.xerial</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
+      <jdbc-url>jdbc:sqlite:$PROJECT_DIR$/Work/UI/Benchmark.db</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
   </component>
 </project>

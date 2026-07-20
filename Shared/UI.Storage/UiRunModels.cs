@@ -30,8 +30,7 @@ public sealed record UI実行記録(
     UI実行状態 状態,
     string 実行プロファイル,
     string タブ名,
-    DateTimeOffset 更新日時,
-    string 状態メッセージ);
+    DateTimeOffset 更新日時);
 
 public sealed record UIパラメータスイープ結果(
     long 実行ID,
@@ -52,28 +51,6 @@ public sealed record UIパラメータスイープ結果(
     double 追加経過ミリ秒,
     double? 検索平均ナノ秒,
     DateTimeOffset 計測日時);
-
-/// <summary>FLinqフォールバック実行時診断の書き込み値。</summary>
-public sealed record UIフォールバック診断書込(
-    string プロジェクト,
-    string メソッド,
-    string カウンター名,
-    double カウンター値){
-    public string タブ名{get;init;}=string.Empty;
-    public string 引数キー{get;init;}=string.Empty;
-    public long? 要素数{get;init;}
-}
-
-public sealed record UIフォールバック診断記録(
-    long 実行ID,
-    string タブ名,
-    string プロジェクト,
-    string メソッド,
-    string 引数キー,
-    long? 要素数,
-    string カウンター名,
-    double カウンター値,
-    DateTimeOffset 記録日時);
 
 public sealed record UIベンチマークグリッド側書込(
     UI実行状態 状態,

@@ -70,32 +70,6 @@ internal sealed class ベンチマークUI実行リポジトリ(UI実行スト�
             "UI DBのベンチマーク実行設定保存に失敗しました。");
     }
 
-    public void 結果診断保存を予約(ベンチマーク結果項目 結果,long? 実行ID){
-        if(!this.書込可能実行IDを取得する(実行ID,out var 値)
-            ||!string.Equals(結果.状態,ジョブ状態名.保存値に変換(ジョブ状態.完了),StringComparison.OrdinalIgnoreCase)
-            ||結果.診断カウンター一覧.Count==0){
-            return;
-        }
-
-        var 書込一覧=結果.診断カウンター一覧.Select(カウンター=>new UIフォールバック診断書込(
-            結果.プロジェクト,
-            結果.メソッド,
-            カウンター.カウンター名,
-            カウンター.カウンター値){
-            タブ名=ベンチマークソースタブ一覧.取得(結果.ソースタブ).ID,
-            引数キー=結果.引数キー,
-            要素数=結果.要素数,
-        }).ToArray();
-        this.永続化を予約(
-            ()=>{
-                if(this.実行を破棄済みか(値)){
-                    return;
-                }
-                ストア.フォールバック診断を保存(値,書込一覧,DateTimeOffset.UtcNow);
-            },
-            "UI DBのベンチマーク診断保存に失敗しました。");
-    }
-
     public void ベンチマークスナップショット項目保存を予約(
         long? 実行ID,
         IReadOnlyList<ベンチマークグリッドスナップショット項目>項目一覧){

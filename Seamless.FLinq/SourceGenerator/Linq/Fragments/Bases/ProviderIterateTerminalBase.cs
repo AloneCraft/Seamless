@@ -53,6 +53,10 @@ public abstract class ProviderNativeExecutionBase(
         terminalKind switch {
             ProviderIterateTerminalKind.All => terminalPredicate is not null,
             ProviderIterateTerminalKind.Contains => containsValue is not null,
+            // 段（Where 等）が無い素の Count は要素を1つも見なくても NonEnumeratedCountExpression
+            // （Set.Count 等の O(1) プロパティ）で答えられる。native iterate は全要素を
+            // materialize してしまうため、既に O(1) 経路がある場合はそちらへ譲る。
+            ProviderIterateTerminalKind.Count => pipeline.NonEnumeratedCountExpression is null,
             _ => true,
         }
         &&pipeline.Stages.All(static stage => PipelineStageCapabilityTable.SupportsProviderNativeIterate(stage.Kind))

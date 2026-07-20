@@ -4039,7 +4039,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                     continue;
                 }
 
-                this.UI実行リポジトリ.結果診断保存を予約(項目.結果,項目.UI実行ID);
                 var 行 = this.ベンチマーク行を検索(項目.結果);
                 if(行 is not null&&this.ベンチマークグリッドスナップショット項目を作成(行,0,グリッド結果一覧) is { } スナップショット項目) {
                     this.UI実行リポジトリ.ベンチマークスナップショット項目保存を予約(項目.UI実行ID,[スナップショット項目]);

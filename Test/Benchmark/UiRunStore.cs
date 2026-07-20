@@ -4,14 +4,17 @@ namespace Test.Benchmark;
 
 public sealed class UI実行ストア{
     [Fact]
-    public void スキーマを確認_通常DBを日本語スキーマ版22で3列作成する(){
+    public void スキーマを確認_通常DBを日本語スキーマ版23で2テーブル作成する(){
         var パス=DBパスを作成();
         new global::Seamless.UI.Storage.UI実行ストア(パス).スキーマを確認();
         using var 接続=開く(パス);
-        Assert.Equal(22L,スカラー<long>(接続,"PRAGMA user_version;"));
-        Assert.Equal(3L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','ベンチマーク','診断カウンター');"));
-        Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('Runs','Benchmark','Apps');"));
-        Assert.Equal(17L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('左アセンブリ名','左型完全名','中央アセンブリ名','中央型完全名','右アセンブリ名','右型完全名','メソッド名','引数キー','引数JSON','左ループ回数','中央状態','中央失敗理由','中央日時','中央時間ns','中央メモリバイト','中央ループ回数','右ループ回数');"));
+        Assert.Equal(23L,スカラー<long>(接続,"PRAGMA user_version;"));
+        Assert.Equal(2L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','ベンチマーク');"));
+        Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('Runs','Benchmark','Apps','診断カウンター');"));
+        Assert.Equal(16L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('左アセンブリ名','左型完全名','中央アセンブリ名','中央型完全名','右アセンブリ名','右型完全名','引数キー','引数JSON','左ループ回数','中央状態','中央失敗理由','中央日時','中央時間ns','中央メモリバイト','中央ループ回数','右ループ回数');"));
+        Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name='メソッド名';"));
+        Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('実行') WHERE name IN('状態メッセージ','適応閾値ns','前回実行ID');"));
+        Assert.Equal(1L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('実行') WHERE name='計測時間ns';"));
     }
 
     [Fact]
@@ -27,7 +30,7 @@ public sealed class UI実行ストア{
     }
 
     [Fact]
-    public void 実行設定を保存_状態メッセージと要素数を復元する(){
+    public void 実行設定を保存_要素数と計測時間とCPU一覧を復元する(){
         var ストア=new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成());
         var 実行=ストア.実行を作成(new(UI実行アプリ種別.ベンチマーク,"表示","Fast","System.Array",DateTimeOffset.UtcNow));
         ストア.実行設定を保存(実行.実行ID,"Root",[1024,4096],1000,[0,2]);
@@ -38,9 +41,9 @@ public sealed class UI実行ストア{
         Assert.Equal("0,2",設定.論理CPU一覧);
         var 読取実行=Assert.Single(ストア.実行一覧を取得());
         Assert.Equal(UI実行状態.一時停止中,読取実行.状態);
-        Assert.Equal("再開待ち",読取実行.状態メッセージ);
         using var 接続=開く(ストア.データベースパス);
         Assert.Equal("Paused",スカラー<string>(接続,"SELECT \"状態\" FROM \"実行\";"));
+        Assert.Equal(1000d,スカラー<double>(接続,"SELECT \"計測時間ns\" FROM \"実行\";"));
     }
 
     [Fact]
@@ -97,10 +100,12 @@ public sealed class UI実行ストア{
     public void 全記録を削除_関連記録を削除する(){
         var ストア=new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成());
         var 実行=ストア.実行を作成(new(UI実行アプリ種別.ベンチマーク,"表示","Fast","System.Array",DateTimeOffset.UtcNow));
-        ストア.フォールバック診断を保存(実行.実行ID,[new("Project","Method","Counter",1){タブ名="System.Array",引数キー="Count=1"}]);
-        Assert.NotEmpty(ストア.フォールバック診断一覧を取得(実行.実行ID));
+        var 日時=DateTimeOffset.Parse("2026-07-08T12:34:56+09:00",global::System.Globalization.CultureInfo.InvariantCulture);
+        ストア.ベンチマークスナップショット項目を保存(実行.実行ID,[new("System.Array","int","Any",17,true,
+            new(UI実行状態.完了,string.Empty,日時,20,200,8),new(UI実行状態.完了,string.Empty,日時,10,50,8))]);
+        Assert.NotEmpty(ストア.ベンチマークスナップショット項目一覧を取得(実行.実行ID));
         ストア.全記録を削除();
-        Assert.Empty(ストア.実行一覧を取得());Assert.Empty(ストア.フォールバック診断一覧を取得(実行.実行ID));
+        Assert.Empty(ストア.実行一覧を取得());Assert.Empty(ストア.ベンチマークスナップショット項目一覧を取得(実行.実行ID));
     }
 
     private static Microsoft.Data.Sqlite.SqliteConnection 開く(string パス){var 接続=new Microsoft.Data.Sqlite.SqliteConnection(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder{DataSource=パス}.ToString());接続.Open();return 接続;}

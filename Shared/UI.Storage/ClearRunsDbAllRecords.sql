@@ -3,7 +3,6 @@
 
 BEGIN IMMEDIATE;
 
-DELETE FROM "診断カウンター";
 DELETE FROM "ベンチマーク";
 DELETE FROM "実行";
 DELETE FROM sqlite_sequence;
