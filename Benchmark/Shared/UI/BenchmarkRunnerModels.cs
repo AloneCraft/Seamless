@@ -724,9 +724,6 @@ public sealed class ベンチマークプロジェクトセル:ObservableObject 
             if(結果.要素数>0) {
                 this.要素数文字列=要素数を整形(結果.要素数);
             }
-            this.最終ループ回数値=結果.ループ回数;
-            this.OnPropertyChanged(nameof(this.最終ループ回数));
-            this.OnPropertyChanged(nameof(this.時間ツールチップ文字列));
             this.実行文字列=日時を整形(ベンチマーク実行日時表示ロジック.実行中日時を解決(結果.開始日時,完了日時));
             this.実行ツールチップ文字列を更新();
             this.CPU表示を適用(CPU);
