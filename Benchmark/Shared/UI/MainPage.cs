@@ -104,6 +104,7 @@ public sealed partial class MainPage:ContentPage {
     private bool 一時停止中ツールバー点灯中か;
     private bool ソースタブビュー選択適用中か;
     private bool データグリッド更新バッチ購読済みか;
+    private bool 読込警告購読済みか;
     private ベンチマークソート規則? ドラッグ中ベンチマークソート規則;
 
     public MainPage(実行ビューモデル ビューモデル) {
@@ -114,6 +115,7 @@ public sealed partial class MainPage:ContentPage {
             this.ビューモデル=ビューモデル;
             this.BindingContext=this.ビューモデル;
             this.データグリッド更新バッチを購読();
+            this.読込警告を購読();
 
             var ツールバー = this.ツールバーを作成();
             var 内容 = this.ベンチマークパネル内容を作成();
@@ -141,6 +143,7 @@ public sealed partial class MainPage:ContentPage {
 
     private void アンロード時(object? 送信元,EventArgs イベント引数) {
         this.データグリッド更新バッチ購読を解除();
+        this.読込警告購読を解除();
         this.全データグリッドビュー更新バッチを終了();
     }
 
@@ -151,6 +154,7 @@ public sealed partial class MainPage:ContentPage {
 
         try {
             this.データグリッド更新バッチを購読();
+            this.読込警告を購読();
             起動診断.書き込む("MainPage初期化Asyncを開始しました。");
             await this.ビューモデル.初期化Async();
             起動診断.書き込む("MainPage初期化Asyncが完了しました。");
@@ -176,6 +180,32 @@ public sealed partial class MainPage:ContentPage {
 
         this.ビューモデル.データグリッド更新バッチ変更時-=this.データグリッド更新バッチ変更時;
         this.データグリッド更新バッチ購読済みか=false;
+    }
+
+    private void 読込警告を購読() {
+        if(this.ビューモデル is null||this.読込警告購読済みか) {
+            return;
+        }
+
+        this.ビューモデル.読込警告が発生した+=this.読込警告発生時;
+        this.読込警告購読済みか=true;
+    }
+
+    private void 読込警告購読を解除() {
+        if(this.ビューモデル is null||!this.読込警告購読済みか) {
+            return;
+        }
+
+        this.ビューモデル.読込警告が発生した-=this.読込警告発生時;
+        this.読込警告購読済みか=false;
+    }
+
+    private async void 読込警告発生時(object? 送信元,string メッセージ) {
+        try {
+            await this.DisplayAlertAsync("読み込み警告",メッセージ,"OK");
+        } catch(Exception 例外) {
+            起動診断.書き込む("読込警告ポップアップの表示に失敗しました。",例外);
+        }
     }
 
     private void データグリッド更新バッチ対象を登録(SfDataGrid グリッド) {
@@ -628,6 +658,14 @@ public sealed partial class MainPage:ContentPage {
             ToolTipProperties.TextProperty,
             nameof(実行ビューモデル.実行履歴クリアツールチップ文字列));
         実行履歴消去ボタン.Clicked+=async (_,_) => await this.実行履歴消去確認ダイアログを表示Async();
+        var 状態ラベル = new Label {
+            FontSize=12,
+            VerticalTextAlignment=TextAlignment.Center,
+            LineBreakMode=LineBreakMode.TailTruncation,
+            TextColor=Color.FromArgb("#334155"),
+            Margin=new Thickness(12,0,0,0),
+        };
+        状態ラベル.SetBinding(Label.TextProperty,nameof(実行ビューモデル.状態文字列));
         var グリッド = new Grid {
             Padding=new Thickness(8,4,8,3),
             RowDefinitions= {
@@ -646,6 +684,7 @@ public sealed partial class MainPage:ContentPage {
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Star },
             },
             ColumnSpacing=6,
         };
@@ -667,6 +706,7 @@ public sealed partial class MainPage:ContentPage {
         グリッド.Add(実行履歴ピッカー,9,0);
         グリッド.Add(実行履歴消去ボタン,10,0);
 #endif
+        グリッド.Add(状態ラベル,12,0);
         return グリッド;
     }
 

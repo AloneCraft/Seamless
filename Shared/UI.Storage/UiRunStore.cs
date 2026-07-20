@@ -294,7 +294,11 @@ public sealed class UI実行ストア{
                     """;
                 スケーラブル引数パラメータを追加(コマンド,引数);
             }else{
-                var 識別=項目.左ケース??項目.中央ケース??項目.右ケース??new(string.Empty,string.Empty,項目.ベンチマーク名,string.Empty,string.Empty);
+                // 左/中央/右は同じメソッドの異なる最適化バリアントを指すため識別情報を1組だけ保存する。
+                // どのサイドが null でも、型完全名が空でない(=反映で型を解決できた)サイドを優先し、
+                // 型情報が欠けたサイドに引きずられて全サイドの識別情報が空になるのを防ぐ。
+                var 識別=型完全名を優先した識別を選ぶ(項目.左ケース,項目.中央ケース,項目.右ケース)
+                    ??new(string.Empty,string.Empty,項目.ベンチマーク名,string.Empty,string.Empty);
                 コマンド.CommandText="""
                     INSERT OR REPLACE INTO "ベンチマーク"("実行ID","タブ名","型","ベンチマーク","アセンブリ名","型完全名","メソッド名","引数キー","引数JSON","CPU番号","行チェック",
                         "左状態","左失敗理由","左日時","左時間ns","左メモリバイト","左ループ回数","中央状態","中央失敗理由","中央日時","中央時間ns","中央メモリバイト","中央ループ回数","右状態","右失敗理由","右日時","右時間ns","右メモリバイト","右ループ回数")
@@ -470,6 +474,7 @@ public sealed class UI実行ストア{
     private static void                  ロック再試行付きで実行(Action                    処理)                                         {const int 試行回数=5;for(var 試行=1;試行<=試行回数;試行++){try{処理();return;}catch(SqliteException 例外)when(使用中またはロック中か(例外)                 &&試行<試行回数){Thread.Sleep(TimeSpan.FromMilliseconds(200*試行));}}}
     private static object?               ロック再試行付きでスカラーを実行(SqliteCommand        コマンド)                                       {const int 試行回数=5;for(var 試行=1;試行<=試行回数;試行++){try{return コマンド.ExecuteScalar();}catch(SqliteException 例外)when(使用中またはロック中か(例外) &&試行<試行回数){Thread.Sleep(TimeSpan.FromMilliseconds(200*試行));}}return コマンド.ExecuteScalar();}
     private static bool                  使用中またはロック中か(SqliteException           例外)                                         =>例外.SqliteErrorCode is 5 or 6;
+    private static UIベンチマークスナップショットケース書込? 型完全名を優先した識別を選ぶ(params UIベンチマークスナップショットケース書込?[] 候補一覧)=>候補一覧.FirstOrDefault(候補=>候補 is not null&&!string.IsNullOrWhiteSpace(候補.型完全名))??候補一覧.FirstOrDefault(候補=>候補 is not null);
     private static void                  側パラメータを追加(SqliteCommand               コマンド, string   接頭辞,  UIベンチマークグリッド側書込 側)     {コマンド.Parameters.AddWithValue("$"+接頭辞+"Status",状態を文字列へ(側.状態));コマンド.Parameters.AddWithValue("$"+接頭辞+"Failure",側.失敗理由);コマンド.Parameters.AddWithValue("$"+接頭辞+"At",DB値へ(側.計測日時));コマンド.Parameters.AddWithValue("$"+接頭辞+"Mean",DB値へ(側.平均ナノ秒));コマンド.Parameters.AddWithValue("$"+接頭辞+"Bytes",DB値へ(側.割当バイト));}
     private static UIベンチマークグリッド側記録       側を読む(SqliteDataReader                 読取器,  int      位置,   int?            ループ回数) =>new(文字列を状態へ(読取器.GetString(位置)),読取器.GetString(位置+1),読取器.IsDBNull(位置+2) ? null : 文字列を日時へ(読取器.GetString(位置+2)),読取器.IsDBNull(位置+3) ? null : 読取器.GetDouble(位置+3),読取器.IsDBNull(位置+4) ? null : 読取器.GetInt64(位置+4),ループ回数);
     private static void                  側指標を追加(List<UI指標値記録>                  一覧,   long     ジョブID,UIベンチマークグリッド側記録 側)     {var 日時=側.計測日時??DateTimeOffset.MinValue;if(側.平均ナノ秒 is { } 時間){一覧.Add(new(ジョブID,"平均ナノ秒",時間,"ns",日時));}if(側.割当バイト is { } メモリ){一覧.Add(new(ジョブID,"割当バイト",メモリ,"bytes",日時));}}

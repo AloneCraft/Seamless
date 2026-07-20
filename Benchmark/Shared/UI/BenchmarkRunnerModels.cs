@@ -1639,6 +1639,8 @@ public sealed class ベンチマーク表行:ObservableObject {
         this.比較をクリア(false);
         this.最終完了状態を設定(false);
         this.CPU表示をクリア();
+        // 行オブジェクトが「新規」で再利用された場合に、DBロード時の古いスナップショット参照が残らないようにする。
+        this.読込済みスナップショット=null;
     }
 
     public void 未選択結果表示をクリア() {
@@ -1925,13 +1927,19 @@ public sealed class ベンチマーク表行:ObservableObject {
         new(this,プロジェクト,this.プロジェクト別ケース.ContainsKey(プロジェクト));
 
     public void ベンチマーク名を更新(int 要素数) {
-        var ベンチマークパス = this.先頭ベンチマークパスを取得();
+        var ベンチマークパス = this.表示用ベンチマークパスを取得();
         if(!string.IsNullOrWhiteSpace(ベンチマークパス)) {
             this.ベンチマーク名=ベンチマークパス+"."+this.メソッド名;
             return;
         }
         var 型完全名 = this.先頭型完全名を取得();
         this.ベンチマーク名=スケーラブルベンチマーク名フォーマッター.ベンチマーク名を作成(型完全名,this.メソッド名);
+    }
+
+    // 保存済み実行のケースはベンチマークパス(カタログ由来)を持たないため、型列と同じ保存済み表示文字列で補う。
+    private string 表示用ベンチマークパスを取得() {
+        var ベンチマークパス = this.先頭ベンチマークパスを取得();
+        return !string.IsNullOrWhiteSpace(ベンチマークパス) ? ベンチマークパス : this.スナップショットベンチマーク型文字列;
     }
 
     private void ベンチマーク表示部分を更新() {
@@ -1944,7 +1952,7 @@ public sealed class ベンチマーク表行:ObservableObject {
             型文字列=型文字列を抽出(this.ベンチマーク名値);
         }
         this.ベンチマーク型文字列=型文字列;
-        var ベンチマークパス = this.先頭ベンチマークパスを取得();
+        var ベンチマークパス = this.表示用ベンチマークパスを取得();
         if(string.IsNullOrWhiteSpace(ベンチマークパス)) {
             this.ベンチマークメソッド文字列=this.メソッド名;
         }else{
@@ -1956,6 +1964,11 @@ public sealed class ベンチマーク表行:ObservableObject {
         this.プロジェクト別ケース.Values
             .Select(static ベンチマーク => ベンチマーク.ベンチマークパス)
             .FirstOrDefault(static パス => !string.IsNullOrWhiteSpace(パス))??string.Empty;
+
+    // ライブカタログに紐づく行(計測直後・新規グリッド)でのみ非空になる完全なベンチマークパス
+    // (例: "Tsavorite<ClassInt32>")。保存時にこの値を型名として永続化することで、
+    // ロード後の表示もライブ計測時と同じ形式にできる(保存済みDBには一切紐づかない)。
+    internal string 表示用ベンチマークパス => this.先頭ベンチマークパスを取得();
 
     private string 先頭型完全名を取得() {
         foreach(var プロジェクト in this.ソースタブ.プロジェクト順) {

@@ -263,12 +263,14 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     private readonly Dictionary<string,ベンチマークケース> プロジェクトメソッド別ベンチマークケース = [with(StringComparer.OrdinalIgnoreCase)];
     /// <summary>
     /// 結果キー別ベンチマーク行 フィールドです。
+    /// 値が null のキーは、複数行が同じキーに一致した(曖昧)ため意図的に無効化されたことを表す。
     /// </summary>
-    private readonly Dictionary<string,ベンチマーク表行> 結果キー別ベンチマーク行 = [with(StringComparer.OrdinalIgnoreCase)];
+    private readonly Dictionary<string,ベンチマーク表行?> 結果キー別ベンチマーク行 = [with(StringComparer.OrdinalIgnoreCase)];
     /// <summary>
     /// プロジェクトメソッド別ベンチマーク行 フィールドです。
+    /// 値が null のキーは、複数行が同じキーに一致した(曖昧)ため意図的に無効化されたことを表す。
     /// </summary>
-    private readonly Dictionary<string,ベンチマーク表行> プロジェクトメソッド別ベンチマーク行 = [with(StringComparer.OrdinalIgnoreCase)];
+    private readonly Dictionary<string,ベンチマーク表行?> プロジェクトメソッド別ベンチマーク行 = [with(StringComparer.OrdinalIgnoreCase)];
     /// <summary>
     /// ソースタブ実行中状態 フィールドです。
     /// </summary>
@@ -2046,7 +2048,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                 if(!スケーラブルソースタブか(行.ソースタブ.タブ)) {
                     this.ベンチマーク行インデックスを追加(行,ベンチマーク.プロジェクト,string.Empty,ベンチマーク.メソッド名,string.Empty);
                 }
-                this.プロジェクトメソッド別ベンチマーク行.TryAdd(ベンチマーク行メソッドプロジェクトインデックスキーを作成(行.ソースタブ.タブ,ベンチマーク.プロジェクト,ベンチマーク.メソッド名),行);
+                this.曖昧さを考慮して登録(this.プロジェクトメソッド別ベンチマーク行,ベンチマーク行メソッドプロジェクトインデックスキーを作成(行.ソースタブ.タブ,ベンチマーク.プロジェクト,ベンチマーク.メソッド名),行);
             }
         }
     }
@@ -2060,7 +2062,22 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// <param name="メソッド">メソッド を指定して実行条件を制御します。</param>
     /// <param name="引数キー">引数キー を指定して実行条件を制御します。</param>
     private void ベンチマーク行インデックスを追加(ベンチマーク表行 行,string プロジェクト,string 型完全名,string メソッド,string 引数キー) {
-        this.結果キー別ベンチマーク行.TryAdd(ベンチマーク行結果インデックスキーを作成(行.ソースタブ.タブ,プロジェクト,型完全名,メソッド,引数キー),行);
+        this.曖昧さを考慮して登録(this.結果キー別ベンチマーク行,ベンチマーク行結果インデックスキーを作成(行.ソースタブ.タブ,プロジェクト,型完全名,メソッド,引数キー),行);
+    }
+
+    /// <summary>
+    /// 同じキーに複数の異なる行が登録されようとした場合(例: ジェネリック型違いで同名メソッドを持つ行が
+    /// 型完全名なしのワイルドカードキー/プロジェクト+メソッド名キーで衝突する場合)、そのキーをどちらの行にも
+    /// 安全に紐付けられない「曖昧」な状態として無効化する(値をnullにする)。
+    /// </summary>
+    private void 曖昧さを考慮して登録(Dictionary<string,ベンチマーク表行?> 辞書,string キー,ベンチマーク表行 行) {
+        if(辞書.TryGetValue(キー,out var 既存)) {
+            if(既存 is not null&&!ReferenceEquals(既存,行)) {
+                辞書[キー]=null;
+            }
+            return;
+        }
+        辞書[キー]=行;
     }
 
     /// <summary>
@@ -2696,6 +2713,13 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         ベンチマークケース? 左ベンチマーク,
         ベンチマークケース? 中央ベンチマーク,
         ベンチマークケース? 右ベンチマーク) {
+        // ライブ計測時の表示(型.BaseTypeから整形した完全なパス、例:"Tsavorite<ClassInt32>")を
+        // そのまま型名として保存しておくと、ロード後も同じ表示形式を再現できる。
+        // スケーラブルタブは 前回結果を検索 が型名を短いトークンとして比較するため対象外とする。
+        if(!スケーラブルベンチマーク名フォーマッター.スケーラブルソースタブか(行.ソースタブ.タブ)
+            &&!string.IsNullOrWhiteSpace(行.表示用ベンチマークパス)) {
+            return 行.表示用ベンチマークパス;
+        }
         if(!string.IsNullOrWhiteSpace(行.ベンチマーク型文字列)) {
             return 行.ベンチマーク型文字列;
         }
@@ -2789,11 +2813,15 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             }
         }
 
+        // 引数キーの一致だけは緩めるが、型が明確に異なる場合(同じ型か が false)は
+        // 依然として除外する。これにより Tsavorite<int>/Tsavorite<ClassInt32> のような
+        // 型違いの混線は防ぎつつ、型情報が欠けているだけの正当なケースは救済する。
         for(var インデックス = 結果一覧.Count-1;インデックス>=0;インデックス--) {
             var 結果 = 結果一覧[インデックス];
             if(結果.ソースタブ==行.ソースタブ.タブ
                 &&string.Equals(結果.プロジェクト,ベンチマーク.プロジェクト,StringComparison.OrdinalIgnoreCase)
                 &&string.Equals(結果.メソッド,ベンチマーク.メソッド名,StringComparison.OrdinalIgnoreCase)
+                &&同じ型か(結果.型完全名,ベンチマーク.型完全名)
                 &&終了結果か(結果)) {
                 return 結果;
             }
@@ -3275,10 +3303,10 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         }
 
         return this.キーからベンチマーク行を解決(結果.ソースタブ,結果.プロジェクト,結果.型完全名,結果.メソッド,結果.引数キー)
-            ??this.ベンチマーク行一覧.FirstOrDefault(候補 => 行の結果か(候補,結果))
-            ??(スケーラブルソースタブか(結果.ソースタブ)||結果.ソースタブ!=this.選択ソース定義.タブ ? null : this.ベンチマーク行一覧.FirstOrDefault(候補 => string.Equals(候補.メソッド名,結果.メソッド,StringComparison.OrdinalIgnoreCase)
+            ??一意な候補行(this.ベンチマーク行一覧,候補 => 行の結果か(候補,結果))
+            ??(スケーラブルソースタブか(結果.ソースタブ)||結果.ソースタブ!=this.選択ソース定義.タブ ? null : 一意な候補行(this.ベンチマーク行一覧,候補 => string.Equals(候補.メソッド名,結果.メソッド,StringComparison.OrdinalIgnoreCase)
                 &&候補.プロジェクトセルを取得(結果.プロジェクト) is { ケースありか: true }))
-            ??(スケーラブルソースタブか(this.選択ソース定義.タブ)||!this.選択ソース定義.プロジェクトを含むか(結果.プロジェクト) ? null : this.ベンチマーク行一覧.FirstOrDefault(候補 => string.Equals(候補.メソッド名,結果.メソッド,StringComparison.OrdinalIgnoreCase)
+            ??(スケーラブルソースタブか(this.選択ソース定義.タブ)||!this.選択ソース定義.プロジェクトを含むか(結果.プロジェクト) ? null : 一意な候補行(this.ベンチマーク行一覧,候補 => string.Equals(候補.メソッド名,結果.メソッド,StringComparison.OrdinalIgnoreCase)
                 &&候補.プロジェクトセルを取得(結果.プロジェクト) is { ケースありか: true }));
     }
 
@@ -3296,11 +3324,30 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         }
 
         return this.キーからベンチマーク行を解決(ジョブ.ソースタブ,ジョブ.プロジェクト,ジョブ.型完全名,ジョブ.メソッド名,ジョブ.引数キー)
-            ??this.ベンチマーク行一覧.FirstOrDefault(候補 => 行のジョブか(候補,ジョブ))
-            ??(スケーラブルソースタブか(ジョブ.ソースタブ)||ジョブ.ソースタブ!=this.選択ソース定義.タブ ? null : this.ベンチマーク行一覧.FirstOrDefault(候補 => string.Equals(候補.メソッド名,ジョブ.メソッド名,StringComparison.OrdinalIgnoreCase)
+            ??一意な候補行(this.ベンチマーク行一覧,候補 => 行のジョブか(候補,ジョブ))
+            ??(スケーラブルソースタブか(ジョブ.ソースタブ)||ジョブ.ソースタブ!=this.選択ソース定義.タブ ? null : 一意な候補行(this.ベンチマーク行一覧,候補 => string.Equals(候補.メソッド名,ジョブ.メソッド名,StringComparison.OrdinalIgnoreCase)
                 &&候補.プロジェクトセルを取得(ジョブ.プロジェクト) is { ケースありか: true }))
-            ??(スケーラブルソースタブか(this.選択ソース定義.タブ)||!this.選択ソース定義.プロジェクトを含むか(ジョブ.プロジェクト) ? null : this.ベンチマーク行一覧.FirstOrDefault(候補 => string.Equals(候補.メソッド名,ジョブ.メソッド名,StringComparison.OrdinalIgnoreCase)
+            ??(スケーラブルソースタブか(this.選択ソース定義.タブ)||!this.選択ソース定義.プロジェクトを含むか(ジョブ.プロジェクト) ? null : 一意な候補行(this.ベンチマーク行一覧,候補 => string.Equals(候補.メソッド名,ジョブ.メソッド名,StringComparison.OrdinalIgnoreCase)
                 &&候補.プロジェクトセルを取得(ジョブ.プロジェクト) is { ケースありか: true }));
+    }
+
+    /// <summary>
+    /// 条件に一致する行が複数存在する場合は曖昧として null を返す(誤って別の行へ結果を紐付けないため)。
+    /// ジェネリック型違い(例: Tsavorite&lt;int&gt; / Tsavorite&lt;ClassInt32&gt;)で同名メソッドを持つ行が
+    /// 複数存在するケースで、型情報が欠落した結果/ジョブがどちらか一方へ誤配線されるのを防ぐ。
+    /// </summary>
+    private static ベンチマーク表行? 一意な候補行(IEnumerable<ベンチマーク表行> 候補一覧,Func<ベンチマーク表行,bool> 条件) {
+        ベンチマーク表行? 一致 = null;
+        foreach(var 候補 in 候補一覧) {
+            if(!条件(候補)) {
+                continue;
+            }
+            if(一致 is not null) {
+                return null;
+            }
+            一致 = 候補;
+        }
+        return 一致;
     }
 
     /// <summary>
@@ -3326,16 +3373,24 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// <param name="行">行 を指定して実行条件を制御します。</param>
     /// <returns>処理結果を返却します。</returns>
     private bool ベンチマーク行検索を試みる(ベンチマークソースタブ ソースタブ,string プロジェクト,string 型完全名,string メソッド,string 引数キー,out ベンチマーク表行 行) {
-        if(this.結果キー別ベンチマーク行.TryGetValue(ベンチマーク行結果インデックスキーを作成(ソースタブ,プロジェクト,型完全名,メソッド,引数キー),out 行!)) {
+        if(this.結果キー別ベンチマーク行.TryGetValue(ベンチマーク行結果インデックスキーを作成(ソースタブ,プロジェクト,型完全名,メソッド,引数キー),out var 完全一致行)&&完全一致行 is not null) {
+            行=完全一致行;
             return true;
         }
 
         if(!スケーラブルソースタブか(ソースタブ)
-            &&this.結果キー別ベンチマーク行.TryGetValue(ベンチマーク行結果インデックスキーを作成(ソースタブ,プロジェクト,string.Empty,メソッド,string.Empty),out 行!)) {
+            &&this.結果キー別ベンチマーク行.TryGetValue(ベンチマーク行結果インデックスキーを作成(ソースタブ,プロジェクト,string.Empty,メソッド,string.Empty),out var ワイルドカード行)&&ワイルドカード行 is not null) {
+            行=ワイルドカード行;
             return true;
         }
 
-        return this.プロジェクトメソッド別ベンチマーク行.TryGetValue(ベンチマーク行メソッドプロジェクトインデックスキーを作成(ソースタブ,プロジェクト,メソッド),out 行!);
+        if(this.プロジェクトメソッド別ベンチマーク行.TryGetValue(ベンチマーク行メソッドプロジェクトインデックスキーを作成(ソースタブ,プロジェクト,メソッド),out var プロジェクトメソッド行)&&プロジェクトメソッド行 is not null) {
+            行=プロジェクトメソッド行;
+            return true;
+        }
+
+        行=null!;
+        return false;
     }
 
     /// <summary>
@@ -3906,6 +3961,12 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         if(!this.新規グリッド作成可能か) {
             return;
         }
+
+        // 読込ベンチマークスナップショット項目を適用 と同様に、進行中/保留中の非同期比較行再計算が
+        // このクリアより後にUIスレッドで完了し、古い比較行データでセルを上書きしないよう無効化する。
+        this.実行結果世代=unchecked(this.実行結果世代+1);
+        this.比較行要求トークン=unchecked(this.比較行要求トークン+1);
+        this.比較行更新保留中か=false;
 
         var 新規実行選択肢 = this.実行選択肢一覧.FirstOrDefault(新規実行選択肢か);
         this.未保存ベンチマーク結果を破棄();
@@ -5389,6 +5450,12 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     internal event EventHandler<ベンチマークデータグリッド更新バッチイベント引数>? データグリッド更新バッチ変更時;
 
     /// <summary>
+    /// 保存済み実行の読込中に一部の行がスキップされたときに発生するイベントです。
+    /// イベント引数はユーザーへ表示するための詳細メッセージです。
+    /// </summary>
+    internal event EventHandler<string>? 読込警告が発生した;
+
+    /// <summary>
     /// 処 理 を 実 行 し 、 関 連 す る 状 態 や 表 示 を 更 新 し ま す 。
     /// 必 要 に 応 じ て 副 作 用 と し て 内 部 状 態 や 表 示 へ 反 映 し ま す 。
     /// </summary>
@@ -5801,12 +5868,13 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         var 要求トークン = this.実行履歴読込を開始();
         this.選択実行表示をクリア();
         Task.Run(() => {
+            var スキップ理由一覧 = new List<string>();
             try {
                 this.UI実行リポジトリ.保存完了を待機Async().GetAwaiter().GetResult();
-                var 項目一覧 = this.UI実行リポジトリ.ベンチマークスナップショット項目一覧を読み込む(実行.UI実行ID);
-                return (項目一覧: (IReadOnlyList<ベンチマークグリッドスナップショット項目>?)項目一覧,エラー: (Exception?)null);
+                var 項目一覧 = this.UI実行リポジトリ.ベンチマークスナップショット項目一覧を読み込む(実行.UI実行ID,スキップ理由一覧.Add);
+                return (項目一覧: (IReadOnlyList<ベンチマークグリッドスナップショット項目>?)項目一覧,エラー: (Exception?)null,スキップ理由一覧: (IReadOnlyList<string>)スキップ理由一覧);
             } catch(Exception 例外) {
-                return (項目一覧: (IReadOnlyList<ベンチマークグリッドスナップショット項目>?)null,エラー: 例外);
+                return (項目一覧: (IReadOnlyList<ベンチマークグリッドスナップショット項目>?)null,エラー: 例外,スキップ理由一覧: (IReadOnlyList<string>)スキップ理由一覧);
             }
         }).ContinueWith(タスク => {
             this.UIディスパッチャー.呼び出し開始(() => {
@@ -5821,6 +5889,12 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                     }
                     this.読込ベンチマークスナップショット項目を適用(結果一覧);
                     this.進行状態からベンチマーク選択を適用(this.選択実行状態を読み込む());
+                    if(タスク.Result.スキップ理由一覧.Count>0) {
+                        var メッセージ = タスク.Result.スキップ理由一覧.Count+"件の行を読み込めませんでした:\n"
+                            +string.Join("\n",タスク.Result.スキップ理由一覧);
+                        this.状態文字列 = タスク.Result.スキップ理由一覧.Count+"件の行を読み込めませんでした";
+                        this.読込警告が発生した?.Invoke(this,メッセージ);
+                    }
                         } finally {
                     this.実行履歴読込を完了(要求トークン);
                 }
@@ -6045,28 +6119,31 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             結果.平均ナノ秒,
             結果.合計ナノ秒);
 
+    // 保存済み実行の読込は「単純な読み込み」とする: 現在のライブカタログへ再照合せず、
+    // DBに保存されていたケース情報(プロジェクト・型完全名・メソッド・引数キー等)をそのまま使う。
+    // ライブカタログとの照合(型不明時の曖昧な一致を含みうる処理)は「新規」グリッド構築側だけの責務とする。
     private IEnumerable<ベンチマーク表行> スナップショット行を作成(ベンチマークソースタブ定義 ソースタブ,IReadOnlyList<ベンチマークグリッドスナップショット項目> 項目一覧) {
         return 項目一覧
             .Where(項目 => string.Equals(項目.ソースタブID,ソースタブ.ID,StringComparison.OrdinalIgnoreCase))
             .OrderBy(static 項目 => 項目.順序)
             .Select(項目 => {
                 var ケース一覧 = new Dictionary<string,ベンチマークケース>(StringComparer.OrdinalIgnoreCase);
-                if(this.現在スナップショットケースを解決(ソースタブ,ソースタブ.左プロジェクト,項目,項目.左.ベンチマーク) is { } 左ベンチマーク) {
+                if(保存ケースを取得(項目.左.ベンチマーク) is { } 左ベンチマーク) {
                     ケース一覧[ソースタブ.左プロジェクト]=左ベンチマーク;
                 }
                 if(項目.中央 is { } 中央
                     &&!string.IsNullOrWhiteSpace(ソースタブ.中央プロジェクト)
-                    &&this.現在スナップショットケースを解決(ソースタブ,ソースタブ.中央プロジェクト,項目,中央.ベンチマーク) is { } 中央ベンチマーク) {
+                    &&保存ケースを取得(中央.ベンチマーク) is { } 中央ベンチマーク) {
                     ケース一覧[ソースタブ.中央プロジェクト]=中央ベンチマーク;
                 }
-                if(this.現在スナップショットケースを解決(ソースタブ,ソースタブ.右プロジェクト,項目,項目.右.ベンチマーク) is { } 右ベンチマーク) {
+                if(保存ケースを取得(項目.右.ベンチマーク) is { } 右ベンチマーク) {
                     ケース一覧[ソースタブ.右プロジェクト]=右ベンチマーク;
                 }
-                var ベンチマーク名 = ケース一覧.Values.FirstOrDefault() is { } 現在ケース
-                    ? string.IsNullOrWhiteSpace(現在ケース.ベンチマークパス)
-                        ? スケーラブルベンチマーク名フォーマッター.ベンチマーク名を作成(ソースタブ,現在ケース.型完全名,項目.ベンチマーク名,0)
-                        : 現在ケース.ベンチマークパス+"."+項目.ベンチマーク名
-                    : 項目.ベンチマーク名;
+                // 表示名の型プレフィックス("Tsavorite<int>."等)も型列と同じ保存済み表示文字列(項目.型名)を使う。
+                // ライブカタログのベンチマークパスへ再照合すると、対応する型が見つからない場合に空へ落ちてしまう。
+                var ベンチマーク名 = string.IsNullOrWhiteSpace(項目.型名)
+                    ? 項目.ベンチマーク名
+                    : 項目.型名+"."+項目.ベンチマーク名;
                 var 行 = new ベンチマーク表行(
                     スナップショット行キーを作成(項目.型名,項目.ベンチマーク名,スナップショット引数キーを取得(項目)),
                     項目.ベンチマーク名,
@@ -6081,24 +6158,8 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             });
     }
 
-    private ベンチマークケース? 現在スナップショットケースを解決(
-        ベンチマークソースタブ定義 ソースタブ,
-        string プロジェクト,
-        ベンチマークグリッドスナップショット項目 項目,
-        ベンチマークケース? 保存ケース) {
-        var 引数キー = 保存ケース?.引数キー??string.Empty;
-        var 候補一覧 = this.プロジェクトメソッド別ベンチマークケース.Values
-            .Where(候補 =>
-                string.Equals(候補.プロジェクト,プロジェクト,StringComparison.OrdinalIgnoreCase)
-                &&string.Equals(候補.アセンブリ名,ソースタブ.アセンブリ名を取得(プロジェクト),StringComparison.OrdinalIgnoreCase)
-                &&string.Equals(候補.メソッド名,項目.ベンチマーク名,StringComparison.OrdinalIgnoreCase)
-                &&string.Equals(候補.引数キー,引数キー,StringComparison.OrdinalIgnoreCase)
-                &&string.Equals(スケーラブルベンチマーク名フォーマッター.ジェネリック型表示を作成(候補.型完全名),項目.型名,StringComparison.OrdinalIgnoreCase))
-            .Distinct()
-            .Take(2)
-            .ToArray();
-        return 候補一覧.Length==1 ? 候補一覧[0] : null;
-    }
+    private static ベンチマークケース? 保存ケースを取得(ベンチマークケース? 保存ケース) =>
+        保存ケース is not null&&!string.IsNullOrWhiteSpace(保存ケース.型完全名) ? 保存ケース : null;
 
     private void 読込ベンチマークスナップショット側を適用(
         ベンチマーク表行 行,
