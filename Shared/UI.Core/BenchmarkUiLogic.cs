@@ -223,31 +223,12 @@ internal static class ベンチマーク結果表示選択ロジック {
             &&セル.選択中か
             &&string.Equals(セル.プロジェクト,結果.プロジェクト,StringComparison.OrdinalIgnoreCase)
             &&string.Equals(セル.メソッド,結果.メソッド,StringComparison.OrdinalIgnoreCase)
-            &&同じ型か(結果.型完全名,セル.型完全名)
+            &&ベンチマーク型一致ロジック.同じ型か(結果.型完全名,セル.型完全名)
             &&同じ引数か(結果.引数キー,セル.引数キー));
-
-    private static bool 同じ型か(string 左,string 右) =>
-        string.IsNullOrWhiteSpace(右)
-            ? true
-            : !string.IsNullOrWhiteSpace(左)
-                &&(string.Equals(左,右,StringComparison.OrdinalIgnoreCase)
-                    ||string.Equals(型短名(左),右,StringComparison.OrdinalIgnoreCase)
-                    ||string.Equals(左,型短名(右),StringComparison.OrdinalIgnoreCase));
 
     private static bool 同じ引数か(string 左,string 右) =>
         string.IsNullOrWhiteSpace(右)
             ||string.Equals(左,右,StringComparison.OrdinalIgnoreCase);
-
-    private static string 型短名(string 型完全名) {
-        if(string.IsNullOrWhiteSpace(型完全名)) {
-            return string.Empty;
-        }
-
-        var インデックス = 型完全名.LastIndexOf('.');
-        return インデックス<0||インデックス==型完全名.Length-1
-            ? 型完全名
-            : 型完全名[(インデックス+1)..];
-    }
 }
 
 
@@ -412,6 +393,36 @@ internal static class ベンチマーク引数キー一致ロジック {
         string.Equals(左,右,StringComparison.OrdinalIgnoreCase);
 }
 
+// 左/中央/右それぞれの型完全名を保存するようになった(実行ID単位で識別情報を1組に集約しない)ため、
+// 「型完全名が空なら何にでも一致させる」曖昧許容は不要かつ危険(型違いの行が混線する原因だった)。
+// 空は空同士でのみ一致させる。非空同士は、完全一致に加えて名前空間を除いた短縮名同士の一致も許容する
+// (UI側のセル/行が型完全名を短縮名で保持している場合があるため。これは元々の挙動を維持する)。
+internal static class ベンチマーク型一致ロジック {
+    public static bool 同じ型か(string 左,string 右) {
+        if(string.IsNullOrWhiteSpace(左)||string.IsNullOrWhiteSpace(右)) {
+            return string.IsNullOrWhiteSpace(左)&&string.IsNullOrWhiteSpace(右);
+        }
+
+        return string.Equals(左,右,StringComparison.OrdinalIgnoreCase)
+            ||string.Equals(型短名(左),右,StringComparison.OrdinalIgnoreCase)
+            ||string.Equals(左,型短名(右),StringComparison.OrdinalIgnoreCase);
+    }
+
+    // 型完全名同士の完全一致のみを認める(短縮名への緩和をしない)厳密版。
+    // 前回結果検索のように、双方が同じ由来(カタログ解決済み)の型完全名同士を比較する箇所で使う。
+    public static bool 厳密に同じ型か(string 左,string 右) =>
+        string.IsNullOrWhiteSpace(左)
+            ? string.IsNullOrWhiteSpace(右)
+            : string.Equals(左,右,StringComparison.OrdinalIgnoreCase);
+
+    private static string 型短名(string 型完全名) {
+        var インデックス = 型完全名.LastIndexOf('.');
+        return インデックス<0||インデックス==型完全名.Length-1
+            ? 型完全名
+            : 型完全名[(インデックス+1)..];
+    }
+}
+
 internal static class ベンチマークペア完了ロジック {
     public static bool セルが終端か(
         IEnumerable<ベンチマーク要素測定> 測定一覧,
@@ -477,7 +488,7 @@ internal static class ベンチマークペア完了ロジック {
     public static bool セルの測定か(ベンチマーク要素測定 結果,ベンチマークタブ進行セル セル) =>
         string.Equals(結果.プロジェクト,セル.プロジェクト,StringComparison.OrdinalIgnoreCase)
         &&string.Equals(結果.メソッド,セル.メソッド,StringComparison.OrdinalIgnoreCase)
-        &&同じ型か(結果.型完全名,セル.型完全名)
+        &&ベンチマーク型一致ロジック.同じ型か(結果.型完全名,セル.型完全名)
         &&同じ引数か(結果.引数キー,セル.引数キー)
         &&結果.要素数>0;
 
@@ -505,7 +516,7 @@ internal static class ベンチマークペア完了ロジック {
                 &&string.Equals(左.ペアキー,右.ペアキー,StringComparison.OrdinalIgnoreCase);
         }
 
-        return 同じ型か(左.型完全名,右.型完全名)
+        return ベンチマーク型一致ロジック.同じ型か(左.型完全名,右.型完全名)
             &&同じ引数か(左.引数キー,右.引数キー);
     }
 
@@ -515,25 +526,6 @@ internal static class ベンチマークペア完了ロジック {
 
     private static bool 同じ引数か(string 左,string 右) =>
         ベンチマーク引数キー一致ロジック.厳密一致か(左,右);
-
-    private static bool 同じ型か(string 左,string 右) =>
-        string.IsNullOrWhiteSpace(右)
-            ? true
-            : !string.IsNullOrWhiteSpace(左)
-                &&(string.Equals(左,右,StringComparison.OrdinalIgnoreCase)
-                    ||string.Equals(型短名(左),右,StringComparison.OrdinalIgnoreCase)
-                    ||string.Equals(左,型短名(右),StringComparison.OrdinalIgnoreCase));
-
-    private static string 型短名(string 型完全名) {
-        if(string.IsNullOrWhiteSpace(型完全名)) {
-            return string.Empty;
-        }
-
-        var インデックス = 型完全名.LastIndexOf('.');
-        return インデックス<0||インデックス==型完全名.Length-1
-            ? 型完全名
-            : 型完全名[(インデックス+1)..];
-    }
 }
 
 internal static class ベンチマークタブ進行ロジック {

@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 namespace Seamless.UI.Storage;
 
 public sealed class UI実行ストア{
-    private const int ベンチマークスキーマ版=21;
+    private const int ベンチマークスキーマ版=22;
     private const int 既存スキーマ版=20;
     private int スキーマ版=>this.アプリ種別==UI実行アプリ種別.ベンチマーク ? ベンチマークスキーマ版 : 既存スキーマ版;
     private readonly string DBパス;
@@ -83,11 +83,15 @@ public sealed class UI実行ストア{
                     "タブ名" TEXT NOT NULL,
                     "型" TEXT NOT NULL,
                     "ベンチマーク" TEXT NOT NULL,
-                    "アセンブリ名" TEXT NOT NULL DEFAULT '',
-                    "型完全名" TEXT NOT NULL DEFAULT '',
                     "メソッド名" TEXT NOT NULL DEFAULT '',
                     "引数キー" TEXT NOT NULL DEFAULT '',
                     "引数JSON" TEXT NOT NULL DEFAULT '',
+                    "左アセンブリ名" TEXT NOT NULL DEFAULT '',
+                    "左型完全名" TEXT NOT NULL DEFAULT '',
+                    "中央アセンブリ名" TEXT NOT NULL DEFAULT '',
+                    "中央型完全名" TEXT NOT NULL DEFAULT '',
+                    "右アセンブリ名" TEXT NOT NULL DEFAULT '',
+                    "右型完全名" TEXT NOT NULL DEFAULT '',
                     "CPU番号" INTEGER NULL,
                     "行チェック" INTEGER NOT NULL DEFAULT 0,
                     "左状態" TEXT NOT NULL,
@@ -112,7 +116,7 @@ public sealed class UI実行ストア{
                 );
                 CREATE INDEX "索引_ベンチマーク_実行ID" ON "ベンチマーク"("実行ID");
                 CREATE UNIQUE INDEX "一意索引_ベンチマーク_行" ON "ベンチマーク"(
-                    "実行ID","タブ名","型","ベンチマーク","アセンブリ名","型完全名","メソッド名","引数キー","引数JSON"
+                    "実行ID","タブ名","型","ベンチマーク","メソッド名","引数キー"
                 );
                 """);
             return;
@@ -294,22 +298,29 @@ public sealed class UI実行ストア{
                     """;
                 スケーラブル引数パラメータを追加(コマンド,引数);
             }else{
-                // 左/中央/右は同じメソッドの異なる最適化バリアントを指すため識別情報を1組だけ保存する。
-                // どのサイドが null でも、型完全名が空でない(=反映で型を解決できた)サイドを優先し、
-                // 型情報が欠けたサイドに引きずられて全サイドの識別情報が空になるのを防ぐ。
-                var 識別=型完全名を優先した識別を選ぶ(項目.左ケース,項目.中央ケース,項目.右ケース)
+                // 左/中央/右は同じメソッド・同じ引数の異なる最適化バリアントを指すため、
+                // 行のグループ化ロジック自体が「同じメソッド名+同じ引数キー」でまとめる不変条件により、
+                // メソッド名・引数キー・引数JSONは常に同一(いずれか非nullのケースから1回だけ取得すればよい)。
+                // 一方、アセンブリ名・型完全名は左/中央/右で実体のクラスが異なるため、サイドごとに保存する。
+                var 共通識別=項目.左ケース??項目.中央ケース??項目.右ケース
                     ??new(string.Empty,string.Empty,項目.ベンチマーク名,string.Empty,string.Empty);
                 コマンド.CommandText="""
-                    INSERT OR REPLACE INTO "ベンチマーク"("実行ID","タブ名","型","ベンチマーク","アセンブリ名","型完全名","メソッド名","引数キー","引数JSON","CPU番号","行チェック",
+                    INSERT OR REPLACE INTO "ベンチマーク"("実行ID","タブ名","型","ベンチマーク","メソッド名","引数キー","引数JSON",
+                        "左アセンブリ名","左型完全名","中央アセンブリ名","中央型完全名","右アセンブリ名","右型完全名","CPU番号","行チェック",
                         "左状態","左失敗理由","左日時","左時間ns","左メモリバイト","左ループ回数","中央状態","中央失敗理由","中央日時","中央時間ns","中央メモリバイト","中央ループ回数","右状態","右失敗理由","右日時","右時間ns","右メモリバイト","右ループ回数")
-                    VALUES($id,$tab,$type,$benchmark,$assembly,$fullType,$method,$argumentKey,$argumentsJson,$cpu,$selected,
+                    VALUES($id,$tab,$type,$benchmark,$method,$argumentKey,$argumentsJson,
+                        $leftAssembly,$leftFullType,$middleAssembly,$middleFullType,$rightAssembly,$rightFullType,$cpu,$selected,
                         $leftStatus,$leftFailure,$leftAt,$leftMean,$leftBytes,$leftLoops,$middleStatus,$middleFailure,$middleAt,$middleMean,$middleBytes,$middleLoops,$rightStatus,$rightFailure,$rightAt,$rightMean,$rightBytes,$rightLoops);
                     """;
-                コマンド.Parameters.AddWithValue("$assembly",識別.アセンブリ名);
-                コマンド.Parameters.AddWithValue("$fullType",識別.型完全名);
-                コマンド.Parameters.AddWithValue("$method",識別.メソッド名);
-                コマンド.Parameters.AddWithValue("$argumentKey",識別.引数キー);
-                コマンド.Parameters.AddWithValue("$argumentsJson",識別.引数JSON);
+                コマンド.Parameters.AddWithValue("$method",共通識別.メソッド名);
+                コマンド.Parameters.AddWithValue("$argumentKey",共通識別.引数キー);
+                コマンド.Parameters.AddWithValue("$argumentsJson",共通識別.引数JSON);
+                コマンド.Parameters.AddWithValue("$leftAssembly",項目.左ケース?.アセンブリ名??string.Empty);
+                コマンド.Parameters.AddWithValue("$leftFullType",項目.左ケース?.型完全名??string.Empty);
+                コマンド.Parameters.AddWithValue("$middleAssembly",項目.中央ケース?.アセンブリ名??string.Empty);
+                コマンド.Parameters.AddWithValue("$middleFullType",項目.中央ケース?.型完全名??string.Empty);
+                コマンド.Parameters.AddWithValue("$rightAssembly",項目.右ケース?.アセンブリ名??string.Empty);
+                コマンド.Parameters.AddWithValue("$rightFullType",項目.右ケース?.型完全名??string.Empty);
                 var 中央=項目.中央??new UIベンチマークグリッド側書込(UI実行状態.待機中,string.Empty,null,null,null);
                 側パラメータを追加(コマンド,"middle",中央);
                 コマンド.Parameters.AddWithValue("$middleLoops",DB値へ(中央.ループ回数));
@@ -337,18 +348,27 @@ public sealed class UI実行ストア{
         using var 接続=this.接続を開く();
         using var コマンド=接続.CreateCommand();
         コマンド.CommandText="""
-            SELECT "実行ID","タブ名","型","ベンチマーク","CPU番号","行チェック","アセンブリ名","型完全名","メソッド名","引数キー","引数JSON",
-                "左状態","左失敗理由","左日時","左時間ns","左メモリバイト","左ループ回数","中央状態","中央失敗理由","中央日時","中央時間ns","中央メモリバイト","中央ループ回数","右状態","右失敗理由","右日時","右時間ns","右メモリバイト","右ループ回数"
+            SELECT "実行ID","タブ名","型","ベンチマーク","CPU番号","行チェック",
+                "メソッド名","引数キー","引数JSON",
+                "左アセンブリ名","左型完全名","中央アセンブリ名","中央型完全名","右アセンブリ名","右型完全名",
+                "左状態","左失敗理由","左日時","左時間ns","左メモリバイト","左ループ回数",
+                "中央状態","中央失敗理由","中央日時","中央時間ns","中央メモリバイト","中央ループ回数",
+                "右状態","右失敗理由","右日時","右時間ns","右メモリバイト","右ループ回数"
             FROM "ベンチマーク" WHERE "実行ID"=$id ORDER BY "タブ名","型","ベンチマーク","引数キー";
             """;
         コマンド.Parameters.AddWithValue("$id",実行ID);
         using var 読取器=コマンド.ExecuteReader();
         var 項目一覧=new List<UIベンチマークスナップショット項目記録>();
         while(読取器.Read()){
-            var 識別=new UIベンチマークスナップショットケース書込(読取器.GetString(6),読取器.GetString(7),読取器.GetString(8),読取器.GetString(9),読取器.GetString(10));
+            var メソッド名=読取器.GetString(6);
+            var 引数キー=読取器.GetString(7);
+            var 引数JSON=読取器.GetString(8);
+            var 左識別=側識別を読む(読取器,9,メソッド名,引数キー,引数JSON);
+            var 中央識別=側識別を読む(読取器,11,メソッド名,引数キー,引数JSON);
+            var 右識別=側識別を読む(読取器,13,メソッド名,引数キー,引数JSON);
             項目一覧.Add(new(読取器.GetInt64(0),読取器.GetString(1),読取器.GetString(2),読取器.GetString(3),読取器.IsDBNull(4) ? null : 読取器.GetInt32(4),読取器.GetInt32(5)!=0,
-                側を読む(読取器,11,読取器.IsDBNull(16) ? null : 読取器.GetInt32(16)),側を読む(読取器,23,読取器.IsDBNull(28) ? null : 読取器.GetInt32(28)),識別,識別,
-                側を読む(読取器,17,読取器.IsDBNull(22) ? null : 読取器.GetInt32(22)),識別));
+                側を読む(読取器,15,読取器.IsDBNull(20) ? null : 読取器.GetInt32(20)),側を読む(読取器,27,読取器.IsDBNull(32) ? null : 読取器.GetInt32(32)),左識別,右識別,
+                側を読む(読取器,21,読取器.IsDBNull(26) ? null : 読取器.GetInt32(26)),中央識別));
         }
         return 項目一覧;
     }
@@ -465,7 +485,7 @@ public sealed class UI実行ストア{
     }
 
     private        long                  保存済みスキーマ版を読む()                                                                {try{using var 接続=this.作成せず接続を開く();using var コマンド=接続.CreateCommand();コマンド.CommandText="PRAGMA user_version;";return (long)(コマンド.ExecuteScalar()??0L);}catch(SqliteException){return 0;}}
-    private        bool                  想定スキーマ形状か()                                                                   {try{using var 接続=this.作成せず接続を開く();using var コマンド=接続.CreateCommand();コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','ベンチマーク','診断カウンター');";if((long)(コマンド.ExecuteScalar()??0L)!=3L){return false;}コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('実行') WHERE name IN('状態メッセージ','要素数一覧','適応閾値ns');";if((long)(コマンド.ExecuteScalar()??0L)!=3L){return false;}if(this.アプリ種別==UI実行アプリ種別.パラメータスイープ){コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('コレクション','ジェネリック','バックエンド','スイープ','Indexサイズ','Pageサイズ','Segmentサイズ','Memoryサイズ','可変Fraction','最大成功Count','エントリCount');";return (long)(コマンド.ExecuteScalar()??0L)==11L;}if(this.アプリ種別==UI実行アプリ種別.スケーラブルベンチマーク){コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('スケーラブル履歴','スケーラブル前回シェア');";return (long)(コマンド.ExecuteScalar()??0L)==2L;}コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('アセンブリ名','型完全名','メソッド名','引数キー','引数JSON','左ループ回数','中央状態','中央失敗理由','中央日時','中央時間ns','中央メモリバイト','中央ループ回数','右ループ回数');";if((long)(コマンド.ExecuteScalar()??0L)!=13L){return false;}コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('履歴時間シェア','履歴メモリシェア');";return (long)(コマンド.ExecuteScalar()??0L)==2L;}catch(SqliteException){return false;}}
+    private        bool                  想定スキーマ形状か()                                                                   {try{using var 接続=this.作成せず接続を開く();using var コマンド=接続.CreateCommand();コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','ベンチマーク','診断カウンター');";if((long)(コマンド.ExecuteScalar()??0L)!=3L){return false;}コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('実行') WHERE name IN('状態メッセージ','要素数一覧','適応閾値ns');";if((long)(コマンド.ExecuteScalar()??0L)!=3L){return false;}if(this.アプリ種別==UI実行アプリ種別.パラメータスイープ){コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('コレクション','ジェネリック','バックエンド','スイープ','Indexサイズ','Pageサイズ','Segmentサイズ','Memoryサイズ','可変Fraction','最大成功Count','エントリCount');";return (long)(コマンド.ExecuteScalar()??0L)==11L;}if(this.アプリ種別==UI実行アプリ種別.スケーラブルベンチマーク){コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('スケーラブル履歴','スケーラブル前回シェア');";return (long)(コマンド.ExecuteScalar()??0L)==2L;}コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('左アセンブリ名','左型完全名','中央アセンブリ名','中央型完全名','右アセンブリ名','右型完全名','メソッド名','引数キー','引数JSON','左ループ回数','中央状態','中央失敗理由','中央日時','中央時間ns','中央メモリバイト','中央ループ回数','右ループ回数');";if((long)(コマンド.ExecuteScalar()??0L)!=17L){return false;}コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('履歴時間シェア','履歴メモリシェア');";return (long)(コマンド.ExecuteScalar()??0L)==2L;}catch(SqliteException){return false;}}
     private        SqliteConnection      接続を開く()                                                                       => this.接続を開く(SqliteOpenMode.ReadWriteCreate);
     private        SqliteConnection      作成せず接続を開く()                                                                   => this.接続を開く(SqliteOpenMode.ReadWrite);
     private        SqliteConnection      接続を開く(SqliteOpenMode                  モード)                                    {var       構築器 =new SqliteConnectionStringBuilder{DataSource=this.DBパス,Mode=モード,DefaultTimeout=30};var 接続=new SqliteConnection(構築器.ToString());接続.Open();using var コマンド=接続.CreateCommand();コマンド.CommandText="PRAGMA busy_timeout=30000;PRAGMA journal_mode=WAL;PRAGMA foreign_keys=ON;";コマンド.ExecuteNonQuery();return 接続;}
@@ -474,7 +494,15 @@ public sealed class UI実行ストア{
     private static void                  ロック再試行付きで実行(Action                    処理)                                         {const int 試行回数=5;for(var 試行=1;試行<=試行回数;試行++){try{処理();return;}catch(SqliteException 例外)when(使用中またはロック中か(例外)                 &&試行<試行回数){Thread.Sleep(TimeSpan.FromMilliseconds(200*試行));}}}
     private static object?               ロック再試行付きでスカラーを実行(SqliteCommand        コマンド)                                       {const int 試行回数=5;for(var 試行=1;試行<=試行回数;試行++){try{return コマンド.ExecuteScalar();}catch(SqliteException 例外)when(使用中またはロック中か(例外) &&試行<試行回数){Thread.Sleep(TimeSpan.FromMilliseconds(200*試行));}}return コマンド.ExecuteScalar();}
     private static bool                  使用中またはロック中か(SqliteException           例外)                                         =>例外.SqliteErrorCode is 5 or 6;
-    private static UIベンチマークスナップショットケース書込? 型完全名を優先した識別を選ぶ(params UIベンチマークスナップショットケース書込?[] 候補一覧)=>候補一覧.FirstOrDefault(候補=>候補 is not null&&!string.IsNullOrWhiteSpace(候補.型完全名))??候補一覧.FirstOrDefault(候補=>候補 is not null);
+    // アセンブリ名・型完全名が両方空ならその側にはケースが無かったとみなし null を返す。
+    // メソッド名・引数キー・引数JSONは左/中央/右で共通(行のグループ化ロジックにより保証される)。
+    private static UIベンチマークスナップショットケース書込? 側識別を読む(SqliteDataReader 読取器,int 位置,string メソッド名,string 引数キー,string 引数JSON){
+        var アセンブリ名=読取器.GetString(位置);
+        var 型完全名=読取器.GetString(位置+1);
+        return string.IsNullOrWhiteSpace(アセンブリ名)&&string.IsNullOrWhiteSpace(型完全名)
+            ? null
+            : new(アセンブリ名,型完全名,メソッド名,引数キー,引数JSON);
+    }
     private static void                  側パラメータを追加(SqliteCommand               コマンド, string   接頭辞,  UIベンチマークグリッド側書込 側)     {コマンド.Parameters.AddWithValue("$"+接頭辞+"Status",状態を文字列へ(側.状態));コマンド.Parameters.AddWithValue("$"+接頭辞+"Failure",側.失敗理由);コマンド.Parameters.AddWithValue("$"+接頭辞+"At",DB値へ(側.計測日時));コマンド.Parameters.AddWithValue("$"+接頭辞+"Mean",DB値へ(側.平均ナノ秒));コマンド.Parameters.AddWithValue("$"+接頭辞+"Bytes",DB値へ(側.割当バイト));}
     private static UIベンチマークグリッド側記録       側を読む(SqliteDataReader                 読取器,  int      位置,   int?            ループ回数) =>new(文字列を状態へ(読取器.GetString(位置)),読取器.GetString(位置+1),読取器.IsDBNull(位置+2) ? null : 文字列を日時へ(読取器.GetString(位置+2)),読取器.IsDBNull(位置+3) ? null : 読取器.GetDouble(位置+3),読取器.IsDBNull(位置+4) ? null : 読取器.GetInt64(位置+4),ループ回数);
     private static void                  側指標を追加(List<UI指標値記録>                  一覧,   long     ジョブID,UIベンチマークグリッド側記録 側)     {var 日時=側.計測日時??DateTimeOffset.MinValue;if(側.平均ナノ秒 is { } 時間){一覧.Add(new(ジョブID,"平均ナノ秒",時間,"ns",日時));}if(側.割当バイト is { } メモリ){一覧.Add(new(ジョブID,"割当バイト",メモリ,"bytes",日時));}}

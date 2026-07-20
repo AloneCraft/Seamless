@@ -2806,22 +2806,8 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             if(結果.ソースタブ==行.ソースタブ.タブ
                 &&string.Equals(結果.プロジェクト,ベンチマーク.プロジェクト,StringComparison.OrdinalIgnoreCase)
                 &&string.Equals(結果.メソッド,ベンチマーク.メソッド名,StringComparison.OrdinalIgnoreCase)
-                &&同じ型か(結果.型完全名,ベンチマーク.型完全名)
+                &&ベンチマーク型一致ロジック.同じ型か(結果.型完全名,ベンチマーク.型完全名)
                 &&同じ引数か(結果.引数キー,ベンチマーク.引数キー)
-                &&終了結果か(結果)) {
-                return 結果;
-            }
-        }
-
-        // 引数キーの一致だけは緩めるが、型が明確に異なる場合(同じ型か が false)は
-        // 依然として除外する。これにより Tsavorite<int>/Tsavorite<ClassInt32> のような
-        // 型違いの混線は防ぎつつ、型情報が欠けているだけの正当なケースは救済する。
-        for(var インデックス = 結果一覧.Count-1;インデックス>=0;インデックス--) {
-            var 結果 = 結果一覧[インデックス];
-            if(結果.ソースタブ==行.ソースタブ.タブ
-                &&string.Equals(結果.プロジェクト,ベンチマーク.プロジェクト,StringComparison.OrdinalIgnoreCase)
-                &&string.Equals(結果.メソッド,ベンチマーク.メソッド名,StringComparison.OrdinalIgnoreCase)
-                &&同じ型か(結果.型完全名,ベンチマーク.型完全名)
                 &&終了結果か(結果)) {
                 return 結果;
             }
@@ -3272,22 +3258,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// <value>引数キー の値を取得/設定します。</value>
     private static string ベンチマークケースキーを作成(string メソッド,string プロジェクト,string 型完全名,string 引数キー = "") =>
         ベンチマーク行グループ化ロジック.ケースキーを作成(プロジェクト,型完全名,メソッド,引数キー);
-
-    /// <summary>
-    /// 型短縮名を取得 メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="型完全名">型完全名 を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private static string 型短縮名を取得(string 型完全名) {
-        if(string.IsNullOrWhiteSpace(型完全名)) {
-            return string.Empty;
-        }
-
-        var インデックス = 型完全名.LastIndexOf('.');
-        return インデックス<0||インデックス==型完全名.Length-1
-            ? 型完全名
-            : 型完全名[(インデックス+1)..];
-    }
 
     /// <summary>
     /// ベンチマーク行を検索 メソッドを実行し、結果を算出して返却します。
@@ -7094,7 +7064,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     private bool 結果があるか(IReadOnlyList<ベンチマーク結果項目> 結果一覧,string メソッド,string プロジェクト,string 型完全名,int 要素数,string 引数キー = "") {
         return 結果一覧.Any(結果 => string.Equals(結果.メソッド,メソッド,StringComparison.OrdinalIgnoreCase)
                 &&string.Equals(結果.プロジェクト,プロジェクト,StringComparison.OrdinalIgnoreCase)
-                &&同じ型か(結果.型完全名,型完全名)
+                &&ベンチマーク型一致ロジック.同じ型か(結果.型完全名,型完全名)
                 &&同じ引数か(結果.引数キー,引数キー)
                 &&結果.軸数==要素数
                 &&string.Equals(結果.状態,"Completed",StringComparison.OrdinalIgnoreCase)
@@ -7175,7 +7145,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         var 選択値実行結果 = 結果一覧
             .LastOrDefault(項目 => string.Equals(項目.メソッド,メソッド,StringComparison.OrdinalIgnoreCase)
                 &&string.Equals(項目.プロジェクト,プロジェクト,StringComparison.OrdinalIgnoreCase)
-                &&同じ型か(項目.型完全名,型完全名)
+                &&ベンチマーク型一致ロジック.同じ型か(項目.型完全名,型完全名)
                 &&同じ引数か(項目.引数キー,引数キー)
                 &&項目.軸数==要素数
                 &&string.Equals(項目.状態,"Completed",StringComparison.OrdinalIgnoreCase)
@@ -7255,7 +7225,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             セル.ケースありか
             &&string.Equals(セル.プロジェクト,結果.プロジェクト,StringComparison.OrdinalIgnoreCase)
             &&string.Equals(行.メソッド名,結果.メソッド,StringComparison.OrdinalIgnoreCase)
-            &&同じ型か(行の型完全名を取得(行,セル.プロジェクト),結果.型完全名)
+            &&ベンチマーク型一致ロジック.同じ型か(行の型完全名を取得(行,セル.プロジェクト),結果.型完全名)
             &&同じ引数か(行の引数キーを取得(行,セル.プロジェクト),結果.引数キー));
     }
 
@@ -7346,7 +7316,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     private static bool 結果が一致するか(ベンチマーク結果項目 項目,string メソッド,string プロジェクト,string 型完全名,int 要素数,string 引数キー = "") =>
         string.Equals(項目.メソッド,メソッド,StringComparison.OrdinalIgnoreCase)
         &&string.Equals(項目.プロジェクト,プロジェクト,StringComparison.OrdinalIgnoreCase)
-        &&同じ型か(項目.型完全名,型完全名)
+        &&ベンチマーク型一致ロジック.同じ型か(項目.型完全名,型完全名)
         &&同じ引数か(項目.引数キー,引数キー)
         &&項目.軸数==要素数;
 
@@ -7356,20 +7326,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// <value>引数キー の値を取得/設定します。</value>
     private static string 結果識別キーを作成(string プロジェクト,string 型完全名,string メソッド,int 要素数,string 引数キー = "") =>
         string.Join("|",プロジェクト,型完全名,メソッド,引数キー,要素数.ToString(System.Globalization.CultureInfo.InvariantCulture));
-
-    /// <summary>
-    /// 同じ型か メソッドを実行し、結果を算出して返却します。
-    /// </summary>
-    /// <param name="左">左 を指定して実行条件を制御します。</param>
-    /// <param name="右">右 を指定して実行条件を制御します。</param>
-    /// <returns>処理結果を返却します。</returns>
-    private static bool 同じ型か(string 左,string 右) =>
-        string.IsNullOrWhiteSpace(右)
-            ? true
-            : !string.IsNullOrWhiteSpace(左)
-                &&(string.Equals(左,右,StringComparison.OrdinalIgnoreCase)
-                    ||string.Equals(型短縮名を取得(左),右,StringComparison.OrdinalIgnoreCase)
-                    ||string.Equals(左,型短縮名を取得(右),StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// 同じ引数か メソッドを実行し、結果を算出して返却します。

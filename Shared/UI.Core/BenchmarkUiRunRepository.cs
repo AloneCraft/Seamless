@@ -204,7 +204,7 @@ internal sealed class ベンチマークUI実行リポジトリ(UI実行スト�
         return this.結果項目一覧を読み込む(アプリ種別,ソースタブ)
             .Where(結果=>string.Equals(結果.メソッド,メソッド,StringComparison.OrdinalIgnoreCase)
                 &&string.Equals(結果.プロジェクト,プロジェクト,StringComparison.OrdinalIgnoreCase)
-                &&同じ型か(結果.型完全名,型完全名)
+                &&ベンチマーク型一致ロジック.厳密に同じ型か(結果.型完全名,型完全名)
                 &&ベンチマーク引数キー一致ロジック.厳密一致か(結果.引数キー,引数キー)
                 &&結果.軸数==要素数
                 &&string.Equals(結果.状態,ジョブ状態名.保存値に変換(ジョブ状態.完了),StringComparison.OrdinalIgnoreCase)
@@ -439,10 +439,6 @@ internal sealed class ベンチマークUI実行リポジトリ(UI実行スト�
         _=>throw new ArgumentOutOfRangeException(nameof(状態),状態,null),
     };
 
-    private static bool 同じ型か(string 左,string 右)=>
-        string.IsNullOrWhiteSpace(左)
-        ||string.IsNullOrWhiteSpace(右)
-        ||string.Equals(左,右,StringComparison.OrdinalIgnoreCase);
 }
 
 internal sealed record ベンチマークグリッドスナップショット側(

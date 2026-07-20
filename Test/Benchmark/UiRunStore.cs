@@ -4,14 +4,14 @@ namespace Test.Benchmark;
 
 public sealed class UI実行ストア{
     [Fact]
-    public void スキーマを確認_通常DBを日本語スキーマ版21で3列作成する(){
+    public void スキーマを確認_通常DBを日本語スキーマ版22で3列作成する(){
         var パス=DBパスを作成();
         new global::Seamless.UI.Storage.UI実行ストア(パス).スキーマを確認();
         using var 接続=開く(パス);
-        Assert.Equal(21L,スカラー<long>(接続,"PRAGMA user_version;"));
+        Assert.Equal(22L,スカラー<long>(接続,"PRAGMA user_version;"));
         Assert.Equal(3L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','ベンチマーク','診断カウンター');"));
         Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('Runs','Benchmark','Apps');"));
-        Assert.Equal(13L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('アセンブリ名','型完全名','メソッド名','引数キー','引数JSON','左ループ回数','中央状態','中央失敗理由','中央日時','中央時間ns','中央メモリバイト','中央ループ回数','右ループ回数');"));
+        Assert.Equal(17L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('左アセンブリ名','左型完全名','中央アセンブリ名','中央型完全名','右アセンブリ名','右型完全名','メソッド名','引数キー','引数JSON','左ループ回数','中央状態','中央失敗理由','中央日時','中央時間ns','中央メモリバイト','中央ループ回数','右ループ回数');"));
     }
 
     [Fact]
@@ -56,6 +56,27 @@ public sealed class UI実行ストア{
         Assert.Equal(15,Assert.IsType<UIベンチマークグリッド側記録>(項目.中央).平均ナノ秒);
         Assert.Equal(識別,項目.中央ケース);
         Assert.Equal(10,項目.右.平均ナノ秒);
+    }
+
+    [Fact]
+    public void ベンチマークスナップショット項目を保存_左中央右で型が異なっても個別に往復する(){
+        // Tsavorite等の実タブでは左(FLinq)/中央(ValueLinq)/右(System.Linq)がそれぞれ別アセンブリ・別クラスであるため、
+        // 型完全名が側ごとに異なる状態を正しく保存・復元できることを確認する(旧スキーマでは1組しか保存できず混線していた)。
+        var ストア=new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成());
+        var 実行=ストア.実行を作成(new(UI実行アプリ種別.ベンチマーク,"表示","Fast","Seamless.Tsavorite",DateTimeOffset.UtcNow));
+        var 日時=DateTimeOffset.Parse("2026-07-08T12:34:56+09:00",global::System.Globalization.CultureInfo.InvariantCulture);
+        var 左識別=new UIベンチマークスナップショットケース書込("Benchmark.Tsavorite.Linq.Enumerable.FLinq","Benchmark.Tsavorite.Linq.Enumerable.FLinqClassInt32","AggregateBy_keySelector","","[]");
+        var 中央識別=new UIベンチマークスナップショットケース書込("Benchmark.Tsavorite.Linq.Enumerable.ValueLinq","Benchmark.Tsavorite.Linq.Enumerable.ValueLinqClassInt32","AggregateBy_keySelector","","[]");
+        var 右識別=new UIベンチマークスナップショットケース書込("Benchmark.Tsavorite.Linq.Enumerable.Linq","Benchmark.Tsavorite.Linq.Enumerable.LinqClassInt32","AggregateBy_keySelector","","[]");
+        ストア.ベンチマークスナップショット項目を保存(実行.実行ID,[new("Seamless.Tsavorite","Tsavorite<ClassInt32>","AggregateBy_keySelector",7,true,
+            new(UI実行状態.完了,string.Empty,日時,20,200,1),new(UI実行状態.完了,string.Empty,日時,10,50,1),左識別,右識別,new(UI実行状態.完了,string.Empty,日時,15,75,1),中央識別)]);
+
+        var 項目=Assert.Single(ストア.ベンチマークスナップショット項目一覧を取得(実行.実行ID));
+        Assert.Equal(左識別,項目.左ケース);
+        Assert.Equal(中央識別,項目.中央ケース);
+        Assert.Equal(右識別,項目.右ケース);
+        Assert.NotEqual(項目.左ケース?.型完全名,項目.中央ケース?.型完全名);
+        Assert.NotEqual(項目.左ケース?.型完全名,項目.右ケース?.型完全名);
     }
 
 
