@@ -1,29 +1,50 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public class Shuffle(int 番号,Enumerable source):BufferedSequence(番号,source.ElementType) {
+/// <summary>
+/// System.Linq.Enumerable.Shuffle() 呼び出しをインターセプトし、
+/// Seamless.Linq.Shuffle<TEnumerator, TElement> へ委譲する Fragment。
+///
+/// 【変更前（独自実装）】
+///   List<T> + Random.Shared.Shuffle() によるバッファリング＋シャッフル
+///
+/// 【変更後（ランタイム委譲）】
+///   Seamless.Linq.Shuffle<TEnum, ElementType> をフィールドとして保持し、
+///   TryGetNext / TryGetNonEnumeratedCount / TryGetSpan / TryCopyTo / Dispose
+///   をすべて委譲する。
+///
+/// これにより:
+/// - ArrayPool (RentedArrayBox) 活用によるメモリ効率向上
+/// - ShuffleSkipTake 融合最適化の FLinq 経由での有効化
+/// - TryGetSpan / TryCopyTo 最適化の FLinq 経由での利用
+/// - 実装の単一化
+/// </summary>
+public class Shuffle(int 番号,Enumerable source):Enumerable(番号) {
     protected override Enumerable PrimarySource => source;
-    protected override string StructSources => source.GetEnumeratorStruct;
+    public override string ElementType => source.ElementType;
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum source";
-    protected override string BuildExpression => "Build(source)";
-    protected override string BuildMembers => $$"""
-        private static global::System.Collections.Generic.List<{{source.ElementType}}> Build(TEnum source) {
-            global::System.Collections.Generic.List<{{source.ElementType}}> result;
-            if(source.TryGetNonEnumeratedCount(out var __count)) {
-                result = new global::System.Collections.Generic.List<{{source.ElementType}}>(__count);
-            } else {
-                result = new global::System.Collections.Generic.List<{{source.ElementType}}>();
-            }
-            try {
-                while(source.TryGetNext(out var {{this.item}})) {
-                    result.Add({{this.item}});
-                }
-            } finally {
-                source.Dispose();
-            }
-            global::System.Random.Shared.Shuffle(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(result));
-            return result;
-        }
+    public override string GetEnumeratorFields => $$"""
+        private global::Seamless.Linq.Shuffle<TEnum, {{source.ElementType}}> {{this.e}};
         """;
+    public override string GetEnumeratorConstructor => $"this.{this.e} = new global::Seamless.Linq.Shuffle<TEnum, {source.ElementType}>(source);";
+    public override string GetTryGetNextBody => $$"""
+        if(this.{{this.e}}.TryGetNext(out var {{this.item}})) {
+            current = this.Current = {{this.item}};
+            return true;
+        }
+        current = default!;
+        return false;
+        """;
+    public override string GetCurrentExpression => this.currentValue;
+
+    // ランタイム Shuffle の TryGetNonEnumeratedCount / TryGetSpan / TryCopyTo を委譲
+    protected override string GetTryGetNonEnumeratedCountBody =>
+        $"return this.{this.e}.TryGetNonEnumeratedCount(out count);";
+    protected override string GetTryGetSpanBody =>
+        $"return this.{this.e}.TryGetSpan(out span);";
+    protected override string GetTryCopyToBody =>
+        $"return this.{this.e}.TryCopyTo(destination, __offset);";
+    protected override string GetEnumeratorDisposeBody =>
+        $"this.{this.e}.Dispose();";
 }
