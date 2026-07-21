@@ -34,19 +34,28 @@ public class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable seco
     }
     public override string InlineSupportingMembers => source.GetEnumeratorStruct+"\n"+second.GetEnumeratorStruct;
     protected override string ComputeMembers => source.CanProvideSpan&&second.CanProvideSpan
-        ? $$"""
-            {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
-                comparer??=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
-                source.TryGetSpan(out var __spanL);
-                second.TryGetSpan(out var __spanR);
-                if(__spanL.Length!=__spanR.Length) return false;
-                for(int __i=0;(uint)__i<(uint)__spanL.Length;__i++){
-                    if(!comparer.Equals(__spanL[__i],({{source.ElementType}})(object)__spanR[__i]!)) return false;
+        ? (source.ElementType==second.ElementType
+            ? $$"""
+                {{AggressiveInliningAttribute}}
+                private static {{resultType}} Compute(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
+                    source.TryGetSpan(out var __spanL);
+                    second.TryGetSpan(out var __spanR);
+                    return __spanL.SequenceEqual(__spanR, comparer);
                 }
-                return true;
-            }
-            """
+                """
+            : $$"""
+                {{AggressiveInliningAttribute}}
+                private static {{resultType}} Compute(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
+                    comparer??=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
+                    source.TryGetSpan(out var __spanL);
+                    second.TryGetSpan(out var __spanR);
+                    if(__spanL.Length!=__spanR.Length) return false;
+                    for(int __i=0;(uint)__i<(uint)__spanL.Length;__i++){
+                        if(!comparer.Equals(__spanL[__i],({{source.ElementType}})(object)__spanR[__i]!)) return false;
+                    }
+                    return true;
+                }
+                """)
         : $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {

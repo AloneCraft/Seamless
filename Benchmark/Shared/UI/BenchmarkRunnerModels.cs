@@ -2117,11 +2117,11 @@ public sealed class CPU選択項目(int 論理プロセッサインデックス,
         set => this.SetProperty(ref this.選択中か値,value);
     }
 
-    public void ジョブを適用(ベンチマーク結果項目 項目) {
+    public void ジョブを適用(ベンチマーク結果項目 項目,string? ベンチマーク表示文字列) {
         this.ジョブ実行中か=ジョブ状態名.保存値と一致するか(項目.状態,ジョブ状態.実行中);
         this.状態画像ソース=ベンチマークCPU状態画像ロジック.画像ソースを取得(項目.状態);
         this.実行状態文=ベンチマークCPU状態画像ロジック.状態文を取得(項目.状態);
-        this.現在ジョブ文=項目.プロジェクト+" / "+項目.メソッド+" / "+項目.要素数.ToString(CultureInfo.InvariantCulture);
+        this.現在ジョブ文=string.IsNullOrWhiteSpace(ベンチマーク表示文字列) ? 項目.メソッド : ベンチマーク表示文字列;
         this.OnPropertyChanged(nameof(this.状態表示文));
         this.OnPropertyChanged(nameof(this.セル状態文));
     }

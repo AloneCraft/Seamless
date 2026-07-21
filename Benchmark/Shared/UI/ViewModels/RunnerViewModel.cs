@@ -4214,7 +4214,8 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         var 結果 = 項目.結果;
         起動診断.パンくずを追加(this.結果パンくずを作成("実行中スナップショット結果",結果));
         var CPU = this.割当CPUを検索(結果);
-        CPU?.ジョブを適用(結果);
+        var 行 = this.ベンチマーク行を検索(結果);
+        CPU?.ジョブを適用(結果,行?.ベンチマークメソッド文字列);
         this.ソースタブ実行中結果を適用(結果);
         this.有効実行ソースタブを記録(結果.ソースタブ);
         if(結果.軸数>0) {
@@ -4263,8 +4264,9 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         // 行い、ライブ表示(CPUセル/タブ実行状態/行)には書かない。最終クリーンアップを最後の書き手にするため。
         var ライブ表示有効か = this.ベンチマーク実行有効か;
         var CPU = this.割当CPUを検索(結果);
+        var 行 = ライブ表示有効か ? this.ベンチマーク行を検索(結果) : null;
         if(ライブ表示有効か) {
-            CPU?.ジョブを適用(結果);
+            CPU?.ジョブを適用(結果,行?.ベンチマークメソッド文字列);
             this.ソースタブ実行中結果を適用(結果);
         }
         if(結果.軸数>0) {
@@ -4275,7 +4277,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                 this.結果要素数を登録(結果.軸数);
             }
             if(ライブ表示有効か) {
-                var 行 = this.ベンチマーク行を検索(結果);
                 行?.実行結果を適用(結果,CPU,DateTimeOffset.Now);
             }
         }
@@ -4336,8 +4337,9 @@ public sealed partial class 実行ビューモデル:ObservableObject {
 
         var 結果要素数ありか = 結果.軸数>0;
         var ソースタブ進行を更新するべきか = false;
+        var 行 = this.ベンチマーク行を検索(結果);
         if(実行中結果か||終端結果か) {
-            CPU?.ジョブを適用(結果);
+            CPU?.ジョブを適用(結果,行?.ベンチマークメソッド文字列);
             this.ソースタブ実行中結果を適用(結果);
         }
         if(実行中結果か) {
@@ -4357,7 +4359,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         if(表示タブ結果か&&結果.軸数>0) {
             this.現在要素数文字列=要素数文字列を整形(結果.軸数);
         }
-        var 行 = this.ベンチマーク行を検索(結果);
         if(実行中結果か&&結果要素数ありか) {
             this.現在実行結果項目を追加または更新(結果);
             ソースタブ進行を更新するべきか=true;

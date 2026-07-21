@@ -5,11 +5,17 @@ public sealed partial class FLinqIncrementalGenerator {
     private const string SeamlessLinqEnumerableTypeName = "Seamless.Linq.Enumerable";
     private const string SystemMemoryExtensionsTypeName = "System.MemoryExtensions";
 
+    // Span/ReadOnlySpan への暗黙変換により、T[] レシーバーでは System.Linq.Enumerable ではなく
+    // System.MemoryExtensions のオーバーロードへ解決されることがある(例: array.SequenceEqual(array2))。
+    // SequenceEqual は Fragment 側で候補登録済みのため、対象判定でも Enumerable 系と同格に扱う。
+    // Contains は IsSupportedLinqInvocation 側にのみ既存の特例があるため、ここでは踏襲しない
+    // (Enumerable系ゲートまで広げると Contains の別経路にある未検証の生成コードが有効化されてしまう)。
     private static bool IsSupportedLinqEnumerableMethod(IMethodSymbol method) {
         var definition = method.ReducedFrom??method;
         var containingType = definition.ContainingType.ToDisplayString();
         return containingType==SystemLinqEnumerableTypeName
-            ||containingType==SeamlessLinqEnumerableTypeName;
+            ||containingType==SeamlessLinqEnumerableTypeName
+            ||(definition.Name=="SequenceEqual"&&containingType==SystemMemoryExtensionsTypeName);
     }
 
     private static bool IsSupportedLinqInvocation(InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
@@ -21,7 +27,7 @@ public sealed partial class FLinqIncrementalGenerator {
         var containingType = definition.ContainingType.ToDisplayString();
         return containingType==SystemLinqEnumerableTypeName
             ||containingType==SeamlessLinqEnumerableTypeName
-            ||(definition.Name=="Contains"&&containingType==SystemMemoryExtensionsTypeName);
+            ||((definition.Name=="Contains"||definition.Name=="SequenceEqual")&&containingType==SystemMemoryExtensionsTypeName);
     }
 
     private static bool IsTsavoriteConcreteHashSetType(ITypeSymbol? type,out ITypeSymbol elementType) {
