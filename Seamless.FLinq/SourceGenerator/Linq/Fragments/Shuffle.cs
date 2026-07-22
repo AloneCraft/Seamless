@@ -22,6 +22,10 @@ public class Shuffle(int 番号,Enumerable source):Enumerable(番号) {
     protected override Enumerable PrimarySource => source;
     public override string ElementType => source.ElementType;
     public override string StructMethod => string.Empty;
+    public override string GetEnumeratorStruct => $$"""
+        {{source.GetEnumeratorStruct}}
+        {{base.GetEnumeratorStruct}}
+        """;
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum source";
     public override string GetEnumeratorFields => $$"""

@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 namespace Seamless.UI.Storage;
 
 public sealed class UI実行ストア{
-    private const int ベンチマークスキーマ版=23;
+    private const int ベンチマークスキーマ版=24;
     private const int 既存スキーマ版=20;
     private int スキーマ版=>this.アプリ種別==UI実行アプリ種別.ベンチマーク ? ベンチマークスキーマ版 : 既存スキーマ版;
     private readonly string DBパス;
@@ -82,50 +82,7 @@ public sealed class UI実行ストア{
     }
 
     private static void アプリテーブルを作成(SqliteConnection 接続,SqliteTransaction トランザクション,UI実行アプリ種別 アプリ種別){
-        if(アプリ種別==UI実行アプリ種別.ベンチマーク){
-            非クエリを実行(接続,トランザクション,"""
-                CREATE TABLE "ベンチマーク"(
-                    "実行ID" INTEGER NOT NULL,
-                    "タブ名" TEXT NOT NULL,
-                    "型" TEXT NOT NULL,
-                    "ベンチマーク" TEXT NOT NULL,
-                    "CPU番号" INTEGER NULL,
-                    "引数キー" TEXT NOT NULL DEFAULT '',
-                    "引数JSON" TEXT NOT NULL DEFAULT '',
-                    "左アセンブリ名" TEXT NOT NULL DEFAULT '',
-                    "左型完全名" TEXT NOT NULL DEFAULT '',
-                    "中央アセンブリ名" TEXT NOT NULL DEFAULT '',
-                    "中央型完全名" TEXT NOT NULL DEFAULT '',
-                    "右アセンブリ名" TEXT NOT NULL DEFAULT '',
-                    "右型完全名" TEXT NOT NULL DEFAULT '',
-                    "行チェック" INTEGER NOT NULL DEFAULT 0,
-                    "左状態" TEXT NOT NULL,
-                    "左失敗理由" TEXT NOT NULL DEFAULT '',
-                    "左日時" TEXT NULL,
-                    "左時間ns" REAL NULL,
-                    "左メモリバイト" INTEGER NULL,
-                    "左ループ回数" INTEGER NULL,
-                    "中央状態" TEXT NOT NULL,
-                    "中央失敗理由" TEXT NOT NULL DEFAULT '',
-                    "中央日時" TEXT NULL,
-                    "中央時間ns" REAL NULL,
-                    "中央メモリバイト" INTEGER NULL,
-                    "中央ループ回数" INTEGER NULL,
-                    "右状態" TEXT NOT NULL,
-                    "右失敗理由" TEXT NOT NULL DEFAULT '',
-                    "右日時" TEXT NULL,
-                    "右時間ns" REAL NULL,
-                    "右メモリバイト" INTEGER NULL,
-                    "右ループ回数" INTEGER NULL,
-                    FOREIGN KEY("実行ID") REFERENCES "実行"("実行ID") ON DELETE CASCADE
-                );
-                CREATE INDEX "索引_ベンチマーク_実行ID" ON "ベンチマーク"("実行ID");
-                CREATE UNIQUE INDEX "一意索引_ベンチマーク_行" ON "ベンチマーク"(
-                    "実行ID","タブ名","型","ベンチマーク","引数キー"
-                );
-                """);
-            return;
-        }
+        if(アプリ種別==UI実行アプリ種別.ベンチマーク){ BenchmarkTabStorage.作成(接続,トランザクション); return; }
         if(アプリ種別==UI実行アプリ種別.スケーラブルベンチマーク){
             非クエリを実行(接続,トランザクション,"""
                 CREATE TABLE "ベンチマーク"(
@@ -174,27 +131,7 @@ public sealed class UI実行ストア{
     }
 
     private static void 分析ビューを作成(SqliteConnection 接続,SqliteTransaction トランザクション,UI実行アプリ種別 アプリ種別){
-        if(アプリ種別==UI実行アプリ種別.ベンチマーク){
-            非クエリを実行(接続,トランザクション,"""
-                CREATE VIEW "履歴時間シェア" AS
-                SELECT r."実行ID",r."更新日時",b."タブ名",b."型",b."ベンチマーク",b."引数キー",b."引数JSON",
-                    b."左時間ns",b."右時間ns",
-                    CASE WHEN b."左時間ns"=0 AND b."右時間ns"=0 THEN 0.0 ELSE CAST(b."左時間ns" AS REAL)/(b."左時間ns"+b."右時間ns") END AS "左シェア",
-                    CASE WHEN b."左時間ns"=0 AND b."右時間ns"=0 THEN 0.0 ELSE CAST(b."右時間ns" AS REAL)/(b."左時間ns"+b."右時間ns") END AS "右シェア"
-                FROM "ベンチマーク" b INNER JOIN "実行" r ON r."実行ID"=b."実行ID"
-                WHERE b."左状態"='Completed' AND b."右状態"='Completed'
-                  AND b."左時間ns" IS NOT NULL AND b."右時間ns" IS NOT NULL AND b."左時間ns">=0 AND b."右時間ns">=0;
-                CREATE VIEW "履歴メモリシェア" AS
-                SELECT r."実行ID",r."更新日時",b."タブ名",b."型",b."ベンチマーク",b."引数キー",b."引数JSON",
-                    b."左メモリバイト",b."右メモリバイト",
-                    CASE WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0.0 ELSE CAST(b."左メモリバイト" AS REAL)/(b."左メモリバイト"+b."右メモリバイト") END AS "左シェア",
-                    CASE WHEN b."左メモリバイト"=0 AND b."右メモリバイト"=0 THEN 0.0 ELSE CAST(b."右メモリバイト" AS REAL)/(b."左メモリバイト"+b."右メモリバイト") END AS "右シェア"
-                FROM "ベンチマーク" b INNER JOIN "実行" r ON r."実行ID"=b."実行ID"
-                WHERE b."左状態"='Completed' AND b."右状態"='Completed'
-                  AND b."左メモリバイト" IS NOT NULL AND b."右メモリバイト" IS NOT NULL AND b."左メモリバイト">=0 AND b."右メモリバイト">=0;
-                """);
-            return;
-        }
+        if(アプリ種別==UI実行アプリ種別.ベンチマーク){ return; }
         if(アプリ種別==UI実行アプリ種別.スケーラブルベンチマーク){
             非クエリを実行(接続,トランザクション,"""
                 CREATE VIEW "スケーラブル履歴" AS
@@ -300,6 +237,11 @@ public sealed class UI実行ストア{
         this.スキーマを確認();
         using var 接続=this.接続を開く();
         using var トランザクション=ロック再試行付きでトランザクションを開始(接続);
+        if(this.アプリ種別==UI実行アプリ種別.ベンチマーク){
+            BenchmarkTabStorage.保存(接続,トランザクション,実行ID,項目一覧);
+            トランザクション.Commit();
+            return;
+        }
         foreach(var 項目 in 項目一覧){
             using var コマンド=接続.CreateCommand();
             コマンド.Transaction=トランザクション;
@@ -354,35 +296,10 @@ public sealed class UI実行ストア{
 
     public IReadOnlyList<UIベンチマークスナップショット項目記録> ベンチマークスナップショット項目一覧を取得(long 実行ID){
         this.スキーマを確認();
-        if(this.アプリ種別==UI実行アプリ種別.スケーラブルベンチマーク){
-            return this.スケーラブル項目一覧を取得(実行ID);
-        }
+        if(this.アプリ種別==UI実行アプリ種別.スケーラブルベンチマーク){ return this.スケーラブル項目一覧を取得(実行ID); }
+        if(this.アプリ種別!=UI実行アプリ種別.ベンチマーク){ return []; }
         using var 接続=this.接続を開く();
-        using var コマンド=接続.CreateCommand();
-        コマンド.CommandText="""
-            SELECT "実行ID","タブ名","型","ベンチマーク","CPU番号","行チェック",
-                "引数キー","引数JSON",
-                "左アセンブリ名","左型完全名","中央アセンブリ名","中央型完全名","右アセンブリ名","右型完全名",
-                "左状態","左失敗理由","左日時","左時間ns","左メモリバイト","左ループ回数",
-                "中央状態","中央失敗理由","中央日時","中央時間ns","中央メモリバイト","中央ループ回数",
-                "右状態","右失敗理由","右日時","右時間ns","右メモリバイト","右ループ回数"
-            FROM "ベンチマーク" WHERE "実行ID"=$id ORDER BY "タブ名","型","ベンチマーク","引数キー";
-            """;
-        コマンド.Parameters.AddWithValue("$id",実行ID);
-        using var 読取器=コマンド.ExecuteReader();
-        var 項目一覧=new List<UIベンチマークスナップショット項目記録>();
-        while(読取器.Read()){
-            var ベンチマーク名=読取器.GetString(3);
-            var 引数キー=読取器.GetString(6);
-            var 引数JSON=読取器.GetString(7);
-            var 左識別=側識別を読む(読取器,8,ベンチマーク名,引数キー,引数JSON);
-            var 中央識別=側識別を読む(読取器,10,ベンチマーク名,引数キー,引数JSON);
-            var 右識別=側識別を読む(読取器,12,ベンチマーク名,引数キー,引数JSON);
-            項目一覧.Add(new(読取器.GetInt64(0),読取器.GetString(1),読取器.GetString(2),読取器.GetString(3),読取器.IsDBNull(4) ? null : 読取器.GetInt32(4),読取器.GetInt32(5)!=0,
-                側を読む(読取器,14,読取器.IsDBNull(19) ? null : 読取器.GetInt32(19)),側を読む(読取器,26,読取器.IsDBNull(31) ? null : 読取器.GetInt32(31)),左識別,右識別,
-                側を読む(読取器,20,読取器.IsDBNull(25) ? null : 読取器.GetInt32(25)),中央識別));
-        }
-        return 項目一覧;
+        return BenchmarkTabStorage.読込(接続,実行ID);
     }
 
     public void パラメータスイープ結果を保存(UIパラメータスイープ結果 結果){
@@ -441,7 +358,7 @@ public sealed class UI実行ストア{
 
     public IReadOnlyList<UI指標値記録> 指標一覧を取得(long 実行ID){
         var 一覧=new List<UI指標値記録>();var ジョブID=1L;
-        foreach(var 項目 in this.ベンチマークスナップショット項目一覧を取得(実行ID)){側指標を追加(一覧,ジョブID++,項目.左);if(項目.中央 is { } 中央){側指標を追加(一覧,ジョブID++,中央);}側指標を追加(一覧,ジョブID++,項目.右);}
+        foreach(var 項目 in this.ベンチマークスナップショット項目一覧を取得(実行ID)){側指標を追加(一覧,ジョブID++,項目.左);if(項目.中央 is { } 中央){側指標を追加(一覧,ジョブID++,中央);}if(項目.追加 is { } 追加){側指標を追加(一覧,ジョブID++,追加);}側指標を追加(一覧,ジョブID++,項目.右);}
         return 一覧;
     }
 
@@ -450,11 +367,17 @@ public sealed class UI実行ストア{
     }
 
     public void 全記録を削除(){
-        this.スキーマを確認();using var 接続=this.接続を開く();using var コマンド=接続.CreateCommand();コマンド.CommandText="DELETE FROM \"ベンチマーク\";DELETE FROM \"実行\";";コマンド.ExecuteNonQuery();
+        this.スキーマを確認();
+        using var 接続=this.接続を開く();
+        using var トランザクション=ロック再試行付きでトランザクションを開始(接続);
+        if(this.アプリ種別==UI実行アプリ種別.ベンチマーク){ BenchmarkTabStorage.全削除(接続,トランザクション); }
+        else { using var コマンド=接続.CreateCommand();コマンド.Transaction=トランザクション;コマンド.CommandText="DELETE FROM \"ベンチマーク\";";コマンド.ExecuteNonQuery(); }
+        using var 実行削除=接続.CreateCommand();実行削除.Transaction=トランザクション;実行削除.CommandText="DELETE FROM \"実行\";";実行削除.ExecuteNonQuery();
+        トランザクション.Commit();
     }
 
     public IReadOnlyList<IReadOnlyDictionary<string,object?>> 分析ビューを照会(string ビュー名,int 上限 = 1000){
-        if(ビュー名 is not ("履歴時間シェア" or "履歴メモリシェア" or "スケーラブル履歴" or "スケーラブル前回シェア")){return [];}
+        if(ビュー名 is not ("スケーラブル履歴" or "スケーラブル前回シェア")){return [];}
         this.スキーマを確認();using var 接続=this.接続を開く();using var コマンド=接続.CreateCommand();コマンド.CommandText=$"SELECT * FROM \"{ビュー名}\" ORDER BY \"実行ID\" DESC LIMIT $limit;";コマンド.Parameters.AddWithValue("$limit",上限);using var 読取器=コマンド.ExecuteReader();var 行一覧=new List<IReadOnlyDictionary<string,object?>>();
         while(読取器.Read()){var 値一覧=new Dictionary<string,object?>(StringComparer.OrdinalIgnoreCase);for(var 位置=0;位置<読取器.FieldCount;位置++){値一覧[読取器.GetName(位置)]=読取器.IsDBNull(位置) ? null : 読取器.GetValue(位置);}行一覧.Add(値一覧);}return 行一覧;
     }
@@ -474,20 +397,8 @@ public sealed class UI実行ストア{
         try{
             using var 接続=this.作成せず接続を開く();using var コマンド=接続.CreateCommand();
             if(this.アプリ種別==UI実行アプリ種別.ベンチマーク){
-                コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','ベンチマーク');";
-                if((long)(コマンド.ExecuteScalar()??0L)!=2L){return false;}
-                コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='診断カウンター';";
-                if((long)(コマンド.ExecuteScalar()??0L)!=0L){return false;}
-                コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('実行') WHERE name IN('要素数一覧','計測時間ns','論理CPU一覧');";
-                if((long)(コマンド.ExecuteScalar()??0L)!=3L){return false;}
-                コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('実行') WHERE name IN('状態メッセージ','適応閾値ns','前回実行ID');";
-                if((long)(コマンド.ExecuteScalar()??0L)!=0L){return false;}
-                コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('左アセンブリ名','左型完全名','中央アセンブリ名','中央型完全名','右アセンブリ名','右型完全名','引数キー','引数JSON','左ループ回数','中央状態','中央失敗理由','中央日時','中央時間ns','中央メモリバイト','中央ループ回数','右ループ回数');";
-                if((long)(コマンド.ExecuteScalar()??0L)!=16L){return false;}
-                コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name='メソッド名';";
-                if((long)(コマンド.ExecuteScalar()??0L)!=0L){return false;}
-                コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('履歴時間シェア','履歴メモリシェア');";
-                return (long)(コマンド.ExecuteScalar()??0L)==2L;
+                コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行';";
+                return (long)(コマンド.ExecuteScalar()??0L)==1L&&BenchmarkTabStorage.想定形状か(接続);
             }
             コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','ベンチマーク','診断カウンター');";
             if((long)(コマンド.ExecuteScalar()??0L)!=3L){return false;}

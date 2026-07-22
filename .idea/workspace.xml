@@ -4,10 +4,31 @@
     <list default="true" id="c7260d12-37ac-443f-b541-40f8091022ae" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/dataSources.local.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources.local.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/dataSources.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources/8333e6f0-328f-43d9-b8c2-45678ab7a359.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/8333e6f0-328f-43d9-b8c2-45678ab7a359.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources/8333e6f0-328f-43d9-b8c2-45678ab7a359/storage_v2/_src_/schema/main.uQUzAA.zip" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/13d4504a-a229-4096-bbd8-bd57a22b24fe.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/13d4504a-a229-4096-bbd8-bd57a22b24fe/storage_v2/_src_/schema/main.uQUzAA.zip" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/3e31d739-2dde-4de4-a976-b3cea9e1ca7a.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/3e31d739-2dde-4de4-a976-b3cea9e1ca7a.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/3e31d739-2dde-4de4-a976-b3cea9e1ca7a/storage_v2/_src_/schema/main.uQUzAA.zip" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/3e31d739-2dde-4de4-a976-b3cea9e1ca7a/storage_v2/_src_/schema/main.uQUzAA.zip" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/dataSources/data_sources_history.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/data_sources_history.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/db-forest-config.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Benchmark.UI/Benchmark.UI.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Benchmark.UI/Benchmark.UI.csproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerModels.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerModels.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/MainPage.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/MainPage.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/TypedBenchmarkAssemblyCatalog.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/TypedBenchmarkAssemblyCatalog.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/ViewModels/RunnerViewModel.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/ViewModels/RunnerViewModel.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Database.md" beforeDir="false" afterPath="$PROJECT_DIR$/Database.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Document/UI/BenchmarkMeasurementSpecification.md" beforeDir="false" afterPath="$PROJECT_DIR$/Document/UI/BenchmarkMeasurementSpecification.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Shuffle.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Shuffle.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/LinqGeneratedCodeRendering.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/LinqGeneratedCodeRendering.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.slnx" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.slnx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/Seamless.Linq.Enumerable/Base.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/Seamless.Linq.Enumerable/Base.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkCatalog.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkCatalog.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkComparisonFormatter.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkComparisonFormatter.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkSourceTabs.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkSourceTabs.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkUiRunRepository.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkUiRunRepository.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/UI.Storage/UiRunModels.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Storage/UiRunModels.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/UI.Storage/UiRunStore.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Storage/UiRunStore.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Test/Test.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Test.csproj" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -31,7 +52,7 @@
     &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;sonnet5&quot;,
     &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
     &quot;last_opened_file_path&quot;: &quot;G:/GitHub/Seamless&quot;
   },

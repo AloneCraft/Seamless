@@ -194,6 +194,10 @@ internal static class スケーラブルベンチマーク名フォーマッタ�
         if(型名.StartsWith("Array",StringComparison.Ordinal)) {
             return 型トークンを整形(型接尾辞を正規化(型名["Array".Length..]));
         }
+        if(型名.StartsWith("IEnumerableFLinq",StringComparison.Ordinal)) {
+            return 型トークンを整形(型接尾辞を正規化(型名["IEnumerableFLinq".Length..]));
+        }
+
         if(型名.StartsWith("IEnumerable",StringComparison.Ordinal)) {
             return 型トークンを整形(型接尾辞を正規化(型名["IEnumerable".Length..]));
         }

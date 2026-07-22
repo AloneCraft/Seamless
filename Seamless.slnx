@@ -18,10 +18,12 @@
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.List.Linq/Benchmark.System.Linq.Enumerable.List.Linq.csproj" />
     <Project Path="Benchmark/Benchmark.Persisted.Collections/Benchmark.Persisted.Collections.csproj" />
     <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.FLinq/Benchmark.Persisted.Linq.Enumerable.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.IEnumerable.FLinq/Benchmark.Persisted.Linq.Enumerable.IEnumerable.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.Linq/Benchmark.Persisted.Linq.Enumerable.Linq.csproj" />
     <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.ValueLinq/Benchmark.Persisted.Linq.Enumerable.ValueLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.FLinq/Benchmark.Tsavorite.Linq.Enumerable.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq/Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.Linq/Benchmark.Tsavorite.Linq.Enumerable.Linq.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.ValueLinq/Benchmark.Tsavorite.Linq.Enumerable.ValueLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.ParameterSweep/Benchmark.Tsavorite.ParameterSweep.csproj" />
@@ -88,6 +90,7 @@
     <Project Path="DynamicLinq.Runner/DynamicLinq.Runner.csproj" />
     <Project Path="Test.Persisted.Collections/Test.Persisted.Collections.csproj" />
     <Project Path="Test.Persisted.Linq.Enumerable.FLinq/Test.Persisted.Linq.Enumerable.FLinq.csproj" />
+    <Project Path="Test.Persisted.Linq.Enumerable.IEnumerable.FLinq/Test.Persisted.Linq.Enumerable.IEnumerable.FLinq.csproj" />
     <Project Path="Test.Persisted.Linq.Enumerable.Linq/Test.Persisted.Linq.Enumerable.Linq.csproj" />
     <Project Path="Test.Persisted/Test.Persisted.csproj" />
     <Project Path="Test.Scalable.Persisted.Collections/Test.Scalable.Persisted.Collections.csproj" />
@@ -97,6 +100,7 @@
     <Project Path="Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj" />
     <Project Path="Test.Tsavorite.ParameterSweep/Test.Tsavorite.ParameterSweep.csproj" />
     <Project Path="Test.Tsavorite.Linq.Enumerable.FLinq/Test.Tsavorite.Linq.Enumerable.FLinq.csproj" />
+    <Project Path="Test.Tsavorite.Linq.Enumerable.IEnumerable.FLinq/Test.Tsavorite.Linq.Enumerable.IEnumerable.FLinq.csproj" />
     <Project Path="Test.Tsavorite.Linq.Enumerable.Linq/Test.Tsavorite.Linq.Enumerable.Linq.csproj" />
     <Project Path="Test.Persisted.Linq.Enumerable.ValueLinq/Test.Persisted.Linq.Enumerable.ValueLinq.csproj" />
     <Project Path="Test.Tsavorite.Linq.Enumerable.ValueLinq/Test.Tsavorite.Linq.Enumerable.ValueLinq.csproj" />

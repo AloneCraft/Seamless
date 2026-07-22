@@ -1,6 +1,6 @@
 # Database 仕様書統合
 
-## UI SQLite（通常Benchmark UIはスキーマ版23、Scalable UI/Parameter Sweep UIはスキーマ版20）
+## UI SQLite（通常Benchmark UIはスキーマ版24、Scalable UI/Parameter Sweep UIはスキーマ版20）
 
 UIの実行履歴は、アプリごとに独立した次のSQLite DBへ保存する。
 
@@ -10,11 +10,11 @@ UIの実行履歴は、アプリごとに独立した次のSQLite DBへ保存す
 | Scalable UI | `Work/UI/Benchmark.Scalable.db` | `スケーラブルベンチマーク` |
 | Parameter Sweep UI | `Work/UI/Benchmark.ParameterSweep.db` | `パラメータスイープ` |
 
-- `PRAGMA user_version` は、通常Benchmark UIは `23`、Scalable UI/Parameter Sweep UIは `20` とする。
+- `PRAGMA user_version` は、通常Benchmark UIは `24`、Scalable UI/Parameter Sweep UIは `20` とする。
 - DBパスは `UI実行DBパスリゾルバー` で解決する。
 - 旧スキーマからの自動移行や旧英語名との互換処理は持たない。既存DBは明示バックアップを作成して保持してから、本体・WAL・SHMを明示的に破棄する。起動時の自動処理に頼らず直接作成し、旧履歴を移行しないため、再作成直後のテーブルは空とする。
 - テーブル名、ビュー名、プロジェクト独自の列名は日本語とする。Benchmark引数である `Count`、`Initial`、`Data`、`Index`、`Page`、`Segment`、`Memory`、`Fraction` は英語を維持する。
-- `状態` はコード上の `UI実行状態` との明示変換を通し、`Queued`、`Running`、`Paused`、`Stopped`、`Completed`、`Failed` を保存する。通常UIの格納側を受け渡す境界値は `Left` / `Right` のままとし、それぞれ日本語の左右列へ展開する。汎用の側列はDBに持たない。
+- `状態` はコード上の `UI実行状態` との明示変換を通し、`Queued`、`Running`、`Paused`、`Stopped`、`Completed`、`Failed` を保存する。通常UIはタブのGrid見出しを接頭辞とする明示列へ保存し、固定のLeft/Center/Right列は持たない。
 - 診断カウンター(FLinq/ValueLinqフォールバック計測)を保存するテーブルは持たない。書き込み専用で読み出し側が存在しなかったため版23で廃止した。
 
 ### 実行テーブル
@@ -24,15 +24,14 @@ UIの実行履歴は、アプリごとに独立した次のSQLite DBへ保存す
 
 ### アプリ別のベンチマーク表
 
-- 通常Benchmark UI: `実行ID`、`タブ名`、`型`、`ベンチマーク`、`CPU番号`、`引数キー`、`引数JSON`、`左アセンブリ名`、`左型完全名`、`中央アセンブリ名`、`中央型完全名`、`右アセンブリ名`、`右型完全名`、`行チェック`、`左状態`、`左失敗理由`、`左日時`、`左時間ns`、`左メモリバイト`、`左ループ回数`、`中央状態`、`中央失敗理由`、`中央日時`、`中央時間ns`、`中央メモリバイト`、`中央ループ回数`、`右状態`、`右失敗理由`、`右日時`、`右時間ns`、`右メモリバイト`、`右ループ回数`。左(FLinq/ZLinq)/中央(ValueLinq)/右(System.Linq)は同じメソッド・同じ引数の異なる最適化バリアントを指すため、メソッド名の独立列は持たず `ベンチマーク` 列を共有する(版23で`メソッド名`列を廃止)。
-- Scalable UI: `実行ID`、`タブ名`、`型`、`ベンチマーク`、`Count`、`Initial`、`Data`、`Index`、`Page`、`Segment`、`Memory`、`Fraction`、`CPU番号`、`行チェック`、`今回状態`、`今回失敗理由`、`今回日時`、`今回時間ns`、`今回メモリバイト`。前回は `実行.前回実行ID` で結ぶ。
+- 通常Benchmark UI: 単一の `ベンチマーク` 表は持たず、`書き換え`、`パイプライン融合`、`述語プッシュダウン`、`Array`、`IEnumerable`、`Range`、`List`、`Persisted`、`Tsavorite` の9表を持つ。各表は `実行ID`、`型`、`ベンチマーク`、`CPU番号`、`引数キー`、`引数JSON`、`行チェック` と、当該Grid見出しを接頭辞にした `アセンブリ名`、`型完全名`、`状態`、`失敗理由`、`日時`、`時間ns`、`メモリバイト`、`ループ回数` を持つ。\n- Scalable UI: `実行ID`、`タブ名`、`型`、`ベンチマーク`、`Count`、`Initial`、`Data`、`Index`、`Page`、`Segment`、`Memory`、`Fraction`、`CPU番号`、`行チェック`、`今回状態`、`今回失敗理由`、`今回日時`、`今回時間ns`、`今回メモリバイト`。前回は `実行.前回実行ID` で結ぶ。
 - Parameter Sweep UI: `実行ID`、`ケース名`、`コレクション`、`ジェネリック`、`バックエンド`、`スイープ`、`Indexサイズ`、`Pageサイズ`、`Segmentサイズ`、`Memoryサイズ`、`可変Fraction`、`最大成功Count`、`エントリCount`、`失敗種別`、`失敗理由`、`追加時間ms`、`検索時間ns`、`測定日時`
 
-共通索引は `索引_実行_更新日時` と `索引_ベンチマーク_実行ID` とする。通常UIとScalable UIには、各アプリの厳密な行キーを対象にした `一意索引_ベンチマーク_行` も作成する(通常UIは `実行ID,タブ名,型,ベンチマーク,引数キー` の5列)。
+共通索引は `索引_実行_更新日時` とする。通常UIは各タブ表に `実行ID` 索引と、`実行ID,型,ベンチマーク,引数キー` の一意索引を持つ。
 
 ### 分析ビューと時間シェア
 
-- 通常Benchmark UIの `履歴時間シェア` と `履歴メモリシェア` は、実行情報、タブ・行の厳密識別列(タブ、型、ベンチマーク、引数キー、引数JSON)、左右の元測定値、`左シェア`、`右シェア` を返す。
+- 通常Benchmark UIは未使用の分析ビューを作成しない。
 - Scalable UIの `スケーラブル履歴` は今回の時間・メモリ元値を返す。`スケーラブル前回シェア` は `実行.前回実行ID` と8個のBenchmark引数を完全一致させ、今回／前回の時間・メモリ元値と各シェアを返す。
 - Parameter Sweep UIは分析ビューを持たない。
 - シェア対象の測定値は書き込み境界で非有限の実数をNULLへ変換し、ビューではNULLと負数を欠測として扱う。片側ゼロは `1.00:0.00` または `0.00:1.00`、両側ゼロは `0.00:0.00` とする。

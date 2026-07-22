@@ -545,6 +545,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     private IReadOnlyList<ベンチマーク列選択グループ> ベンチマークプロジェクト選択グループ一覧を作成() => [
         new("左",this.選択ソース定義.左見出し,["左"]),
         new("中央",this.選択ソース定義.中央見出し,["中央"]),
+        new("追加",this.選択ソース定義.追加見出し,["追加"]),
         new("右",this.選択ソース定義.右見出し,["右"]),
     ];
 
@@ -557,6 +558,8 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                 グループ.見出し文字列を設定(this.選択ソース定義.左見出し);
             } else if(グループ.ID=="中央") {
                 グループ.見出し文字列を設定(this.選択ソース定義.中央見出し);
+            } else if(グループ.ID=="追加") {
+                グループ.見出し文字列を設定(this.選択ソース定義.追加見出し);
             } else if(グループ.ID=="右") {
                 グループ.見出し文字列を設定(this.選択ソース定義.右見出し);
             }
@@ -2308,10 +2311,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             if(!項目.選択中か) {
                 continue;
             }
-            if(項目.左.状態 is UI実行状態.待機中 or UI実行状態.実行中 or UI実行状態.一時停止中) {
-                return true;
-            }
-            if(項目.右.状態 is UI実行状態.待機中 or UI実行状態.実行中 or UI実行状態.一時停止中) {
+            if(スナップショット側一覧を取得(項目).Any(static 側 => 側.状態 is UI実行状態.待機中 or UI実行状態.実行中 or UI実行状態.一時停止中)) {
                 return true;
             }
         }
@@ -2319,6 +2319,16 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         return false;
     }
 
+    private static IEnumerable<UIベンチマークグリッド側記録> スナップショット側一覧を取得(UIベンチマークスナップショット項目記録 項目) {
+        yield return 項目.左;
+        if(項目.中央 is { } 中央) {
+            yield return 中央;
+        }
+        if(項目.追加 is { } 追加) {
+            yield return 追加;
+        }
+        yield return 項目.右;
+    }
     /// <summary>
     /// 実行選択肢を作成 メソッドを実行し、結果を算出して返却します。
     /// </summary>
@@ -2330,19 +2340,24 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             ? 解析済みソースタブ
             : this.選択ソース定義.タブ;
         var 要素件数一覧 = ベンチマーク要素数一覧.既定初期値.ToArray();
-        var 完了ジョブ一覧 = スナップショット項目一覧
-            .SelectMany(static 項目 => new[] { 項目.左,項目.右 })
-            .Count(static 側 => 側.状態==UI実行状態.完了);
-        var 選択値ジョブ一覧 = スナップショット項目一覧
-            .Count(static 項目 => 項目.選択中か);
+        var 選択側一覧 = スナップショット項目一覧
+            .Where(static 項目 => 項目.選択中か)
+            .SelectMany(static 項目 => スナップショット側一覧を取得(項目))
+            .ToArray();
+        var 成功ジョブ数 = 選択側一覧.Count(static 側 => 側.状態==UI実行状態.完了);
+        var 失敗ジョブ数 = 選択側一覧.Count(static 側 => 側.状態==UI実行状態.失敗);
+        var 終端ジョブ数 = 成功ジョブ数+失敗ジョブ数;
+        var 選択値ジョブ一覧 = 選択側一覧.Length;
         var 実行プロファイル = Enum.TryParse<ベンチマーク実行プロファイル>(実行.実行プロファイル,true,out var 解析済みプロファイル)
             ? 解析済みプロファイル
             : this.選択実行プロファイル.プロファイル;
         var ラベル = 実行.更新日時.ToLocalTime().ToString("yyyy-MM-dd HH:mm",System.Globalization.CultureInfo.InvariantCulture)
             +" "
-            +完了ジョブ一覧.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            +終端ジョブ数.ToString(System.Globalization.CultureInfo.InvariantCulture)
             +"/"
-            +選択値ジョブ一覧.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            +選択値ジョブ一覧.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            +" (成功 "+成功ジョブ数.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            +",失敗 "+失敗ジョブ数.ToString(System.Globalization.CultureInfo.InvariantCulture)+")";
         return new ベンチマーク実行選択肢(
             unchecked((int)Math.Min(実行.実行ID,int.MaxValue)),
             実行.実行ID,
@@ -2351,8 +2366,8 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             実行プロファイル,
             実行.更新日時,
             実行.更新日時,
-            完了ジョブ一覧,
-            スナップショット項目一覧.Count*2,
+            終端ジョブ数,
+            選択値ジョブ一覧,
             要素件数一覧);
     }
 
@@ -2657,57 +2672,37 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     }
 
     private ベンチマークグリッドスナップショット項目? ベンチマークグリッドスナップショット項目を作成(ベンチマーク表行 行,int 順序,IReadOnlyList<ベンチマーク結果項目> 結果一覧) {
-        行.プロジェクト別ケース.TryGetValue(行.ソースタブ.左プロジェクト,out var 左ベンチマーク);
-        行.プロジェクト別ケース.TryGetValue(行.ソースタブ.中央プロジェクト,out var 中央ベンチマーク);
-        行.プロジェクト別ケース.TryGetValue(行.ソースタブ.右プロジェクト,out var 右ベンチマーク);
-        if(左ベンチマーク is null&&中央ベンチマーク is null&&右ベンチマーク is null) {
+        var 列値一覧=行.ソースタブ.列一覧.Select(列=>{
+            行.プロジェクト別ケース.TryGetValue(列.プロジェクト,out var ベンチマーク);
+            var セル=行.プロジェクトセルを取得(列.プロジェクト)!;
+            var 結果=ベンチマーク is null ? null : this.スナップショット結果を検索(行,ベンチマーク,結果一覧);
+            var CPU=結果?.割り当て論理CPU??CPU番号を解析(セル.論理プロセッサ文字列);
+            var 側=this.ベンチマークグリッドスナップショット側を作成(行,セル,ベンチマーク,結果);
+            return new { ベンチマーク,CPU,側 };
+        }).ToArray();
+        if(列値一覧.All(static 値=>値.ベンチマーク is null)) {
             return null;
         }
 
-        var 左結果 = 左ベンチマーク is null ? null : this.スナップショット結果を検索(行,左ベンチマーク,結果一覧);
-        var 中央結果 = 中央ベンチマーク is null ? null : this.スナップショット結果を検索(行,中央ベンチマーク,結果一覧);
-        var 右結果 = 右ベンチマーク is null ? null : this.スナップショット結果を検索(行,右ベンチマーク,結果一覧);
-        var 左CPU = 左結果?.割り当て論理CPU??CPU番号を解析(行.左セル.論理プロセッサ文字列);
-        var 中央CPU = 中央結果?.割り当て論理CPU??CPU番号を解析(行.中央セル.論理プロセッサ文字列);
-        var 右CPU = 右結果?.割り当て論理CPU??CPU番号を解析(行.右セル.論理プロセッサ文字列);
-        var CPU一覧 = new[]{左CPU,中央CPU,右CPU}.Where(static CPU => CPU.HasValue).Select(static CPU => CPU!.Value).Distinct().ToArray();
+        var CPU一覧=列値一覧.Select(static 値=>値.CPU).Where(static CPU=>CPU.HasValue).Select(static CPU=>CPU!.Value).Distinct().ToArray();
         if(CPU一覧.Length>1) {
-            起動診断.書き込む(
-                "ベンチマークスナップショットのCPUが一致しません。実行スナップショットには行共通CPUを保存します。"
-                +" ソースタブ="+行.ソースタブ.ID
-                +" 型="+行.ベンチマーク型文字列
-                +" ベンチマーク="+行.メソッド名
-                +" CPU="+string.Join(",",CPU一覧));
+            起動診断.書き込む("ベンチマークスナップショットのCPUが一致しません。実行スナップショットには行共通CPUを保存します。"
+                +" ソースタブ="+行.ソースタブ.ID+" 型="+行.ベンチマーク型文字列+" ベンチマーク="+行.メソッド名+" CPU="+string.Join(",",CPU一覧));
         }
 
-        var CPU番号 = 左CPU??中央CPU??右CPU;
-        var 型名 = スナップショット型名を解決(行,左ベンチマーク,中央ベンチマーク,右ベンチマーク);
+        var 左=列値一覧[0];
+        var 右=列値一覧[^1];
+        var 中央=列値一覧.Length>2 ? 列値一覧[1] : null;
+        var 追加=列値一覧.Length>3 ? 列値一覧[2] : null;
+        var 型名=スナップショット型名を解決(行,左.ベンチマーク,中央?.ベンチマーク,右.ベンチマーク);
         if(string.IsNullOrWhiteSpace(型名)) {
-            起動診断.書き込む(
-                "ベンチマークスナップショットの型表示が空です。"
-                +" ソースタブ="+行.ソースタブ.ID
-                +" ベンチマーク="+行.メソッド名);
+            起動診断.書き込む("ベンチマークスナップショットの型表示が空です。 ソースタブ="+行.ソースタブ.ID+" ベンチマーク="+行.メソッド名);
         }
-
-        var 左側 = this.ベンチマークグリッドスナップショット側を作成(行,行.左セル,左ベンチマーク,左結果);
-        var 中央側 = string.IsNullOrWhiteSpace(行.ソースタブ.中央プロジェクト)
-            ? null
-            : this.ベンチマークグリッドスナップショット側を作成(行,行.中央セル,中央ベンチマーク,中央結果);
-        var 右側 = this.ベンチマークグリッドスナップショット側を作成(行,行.右セル,右ベンチマーク,右結果);
 
         return new ベンチマークグリッドスナップショット項目(
-            0,
-            順序,
-            行.ソースタブ.ID,
-            型名,
-            行.メソッド名,
-            CPU番号,
-            行.選択中か,
-            左側.状態==UI実行状態.完了 ? 左側 : this.空ベンチマークグリッドスナップショット側を作成(行,行.左セル,左ベンチマーク),
-            右側.状態==UI実行状態.完了 ? 右側 : this.空ベンチマークグリッドスナップショット側を作成(行,行.右セル,右ベンチマーク),
-            中央側?.状態==UI実行状態.完了 ? 中央側 : 中央側 is null ? null : this.空ベンチマークグリッドスナップショット側を作成(行,行.中央セル,中央ベンチマーク));
+            0,順序,行.ソースタブ.ID,型名,行.メソッド名,列値一覧.Select(static 値=>値.CPU).FirstOrDefault(static CPU=>CPU.HasValue),行.選択中か,
+            左.側,右.側,中央?.側,追加?.側);
     }
-
     private static string スナップショット型名を解決(
         ベンチマーク表行 行,
         ベンチマークケース? 左ベンチマーク,
@@ -5905,6 +5900,10 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                             this.結果項目一覧.Add(this.読込スナップショット結果項目を作成(状態.定義,項目,状態.定義.中央プロジェクト,中央));
                             this.読込ベンチマークスナップショット側を適用(行,状態.定義.中央プロジェクト,項目.CPU番号,中央);
                         }
+                        if(項目.追加 is { } 追加&& !string.IsNullOrWhiteSpace(状態.定義.追加プロジェクト)) {
+                            this.結果項目一覧.Add(this.読込スナップショット結果項目を作成(状態.定義,項目,状態.定義.追加プロジェクト,追加));
+                            this.読込ベンチマークスナップショット側を適用(行,状態.定義.追加プロジェクト,項目.CPU番号,追加);
+                        }
                         this.結果項目一覧.Add(this.読込スナップショット結果項目を作成(状態.定義,項目,状態.定義.右プロジェクト,項目.右));
                         this.読込ベンチマークスナップショット側を適用(行,状態.定義.左プロジェクト,項目.CPU番号,項目.左);
                         this.読込ベンチマークスナップショット側を適用(行,状態.定義.右プロジェクト,項目.CPU番号,項目.右);
@@ -5977,6 +5976,9 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             if(項目.中央 is { } 中央&& !string.IsNullOrWhiteSpace(ソースタブ.中央プロジェクト)) {
                 this.読込スナップショットグリッド表示欠落を記録(項目,行,ソースタブ.中央プロジェクト,中央,行.中央セル);
             }
+            if(項目.追加 is { } 追加&& !string.IsNullOrWhiteSpace(ソースタブ.追加プロジェクト)) {
+                this.読込スナップショットグリッド表示欠落を記録(項目,行,ソースタブ.追加プロジェクト,追加,行.追加セル);
+            }
             this.読込スナップショットグリッド表示欠落を記録(項目,行,ソースタブ.右プロジェクト,項目.右,行.右セル);
         }
     }
@@ -6030,6 +6032,9 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             if(項目.中央 is { } 中央&& !string.IsNullOrWhiteSpace(ソースタブ.中央プロジェクト)) {
                 this.読込ベンチマークスナップショット側を適用(行,ソースタブ.中央プロジェクト,項目.CPU番号,中央);
             }
+            if(項目.追加 is { } 追加&& !string.IsNullOrWhiteSpace(ソースタブ.追加プロジェクト)) {
+                this.読込ベンチマークスナップショット側を適用(行,ソースタブ.追加プロジェクト,項目.CPU番号,追加);
+            }
             this.読込ベンチマークスナップショット側を適用(行,ソースタブ.右プロジェクト,項目.CPU番号,項目.右);
         }
     }
@@ -6053,6 +6058,10 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                 測定一覧.Add(スナップショット測定を作成(中央.結果項目));
                 進行セル一覧.Add(進行セルを作成(行,ソースタブ.中央プロジェクト,true));
             }
+                if(項目.追加 is { } 追加&& !string.IsNullOrWhiteSpace(ソースタブ.追加プロジェクト)) {
+                    測定一覧.Add(スナップショット測定を作成(追加.結果項目));
+                    進行セル一覧.Add(進行セルを作成(行,ソースタブ.追加プロジェクト,true));
+                }
             測定一覧.Add(スナップショット測定を作成(項目.右.結果項目));
             進行セル一覧.Add(進行セルを作成(行,ソースタブ.右プロジェクト,true));
             var 閾値ナノ秒 = this.適応閾値を取得().TotalMilliseconds*1_000_000;
@@ -6106,14 +6115,17 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                     &&保存ケースを取得(中央.ベンチマーク) is { } 中央ベンチマーク) {
                     ケース一覧[ソースタブ.中央プロジェクト]=中央ベンチマーク;
                 }
+                if(項目.追加 is { } 追加
+                    &&!string.IsNullOrWhiteSpace(ソースタブ.追加プロジェクト)
+                    &&保存ケースを取得(追加.ベンチマーク) is { } 追加ベンチマーク) {
+                    ケース一覧[ソースタブ.追加プロジェクト]=追加ベンチマーク;
+                }
                 if(保存ケースを取得(項目.右.ベンチマーク) is { } 右ベンチマーク) {
                     ケース一覧[ソースタブ.右プロジェクト]=右ベンチマーク;
                 }
                 // 表示名の型プレフィックス("Tsavorite<int>."等)も型列と同じ保存済み表示文字列(項目.型名)を使う。
                 // ライブカタログのベンチマークパスへ再照合すると、対応する型が見つからない場合に空へ落ちてしまう。
-                var ベンチマーク名 = string.IsNullOrWhiteSpace(項目.型名)
-                    ? 項目.ベンチマーク名
-                    : 項目.型名+"."+項目.ベンチマーク名;
+                var ベンチマーク名 = 項目.ベンチマーク名;
                 var 行 = new ベンチマーク表行(
                     スナップショット行キーを作成(項目.型名,項目.ベンチマーク名,スナップショット引数キーを取得(項目)),
                     項目.ベンチマーク名,
@@ -6154,7 +6166,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             : null;
 
     private static string スナップショット引数キーを取得(ベンチマークグリッドスナップショット項目 項目) =>
-        項目.左.ベンチマーク?.引数キー??項目.中央?.ベンチマーク?.引数キー??項目.右.ベンチマーク?.引数キー??string.Empty;
+        項目.左.ベンチマーク?.引数キー??項目.中央?.ベンチマーク?.引数キー??項目.追加?.ベンチマーク?.引数キー??項目.右.ベンチマーク?.引数キー??string.Empty;
 
     private static string スナップショット行キーを作成(string 型名,string ベンチマーク名,string 引数キー) =>
         型名+"|"+ベンチマーク名+"|"+引数キー;
@@ -6897,7 +6909,10 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         for(var インデックス = 0;インデックス<行一覧.Length;インデックス++) {
             var 行 = 行一覧[インデックス];
             var 行測定一覧 = 測定一覧別メソッド[行.メソッド名].ToArray();
-            結果一覧[インデックス]=ペア一覧.Any(ペア => {
+            var 対象ペア一覧=ペア一覧.Where(ペア=>
+                行.プロジェクトセルを取得(ペア.左プロジェクト)?.ケースありか==true
+                &&行.プロジェクトセルを取得(ペア.右プロジェクト)?.ケースありか==true).ToArray();
+            結果一覧[インデックス]=対象ペア一覧.Length>0&&対象ペア一覧.All(ペア => {
                 var 左セル = 進行セルを作成(行,ペア.左プロジェクト,true);
                 var 右セル = 進行セルを作成(行,ペア.右プロジェクト,true);
                 return ベンチマーク作業軸.ループ回数を使うか(行.ソースタブ.タブ)
@@ -7017,19 +7032,11 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     private IReadOnlyList<(string 左プロジェクト,string 右プロジェクト)> ベンチマークペア一覧を取得() =>
         ベンチマークペア一覧を作成(this.選択ソース定義);
 
-    private static IReadOnlyList<(string 左プロジェクト,string 右プロジェクト)> ベンチマークペア一覧を作成(ベンチマークソースタブ定義 ソースタブ) {
-        if(string.IsNullOrWhiteSpace(ソースタブ.中央プロジェクト)) {
-            return [(ソースタブ.左プロジェクト,ソースタブ.右プロジェクト)];
-        }
+    private static IReadOnlyList<(string 左プロジェクト,string 右プロジェクト)> ベンチマークペア一覧を作成(ベンチマークソースタブ定義 ソースタブ) =>
+        ソースタブ.比較ペア一覧
+            .Select(static ペア=>(ペア.左プロジェクト,ペア.右プロジェクト))
+            .ToArray();
 
-        // 中央列(ZLinq/ValueLinq)を持つタブでは、中央にケースが無い行でも従来どおり左右ペアで完了判定できるよう、
-        // 左右ペアを必ず含めたうえで中央を絡めた隣接ペアを追加する。
-        return [
-            (ソースタブ.左プロジェクト,ソースタブ.右プロジェクト),
-            (ソースタブ.左プロジェクト,ソースタブ.中央プロジェクト),
-            (ソースタブ.中央プロジェクト,ソースタブ.右プロジェクト),
-        ];
-    }
 
     /// <summary>
     /// 行の型完全名を取得 メソッドを実行し、結果を算出して返却します。
@@ -7555,8 +7562,19 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             yield return ベンチマークグリッドソート列.中央日時;
             yield return ベンチマークグリッドソート列.中央時間;
             yield return ベンチマークグリッドソート列.中央割り当て;
-            yield return ベンチマークグリッドソート列.中央時間シェア;
-            yield return ベンチマークグリッドソート列.中央メモリシェア;
+            if(this.選択ソース定義.比較ペア一覧.Any(ペア=>ペア.最適化列キー=="中央")){
+                yield return ベンチマークグリッドソート列.中央時間シェア;
+                yield return ベンチマークグリッドソート列.中央メモリシェア;
+            }
+        }
+        if(!string.IsNullOrWhiteSpace(this.選択ソース定義.追加プロジェクト)) {
+            yield return ベンチマークグリッドソート列.追加日時;
+            yield return ベンチマークグリッドソート列.追加時間;
+            yield return ベンチマークグリッドソート列.追加割り当て;
+            if(this.選択ソース定義.比較ペア一覧.Any(ペア=>ペア.最適化列キー=="追加")){
+                yield return ベンチマークグリッドソート列.追加時間シェア;
+                yield return ベンチマークグリッドソート列.追加メモリシェア;
+            }
         }
         yield return ベンチマークグリッドソート列.時間シェア;
         yield return ベンチマークグリッドソート列.メモリシェア;

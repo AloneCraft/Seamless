@@ -470,7 +470,18 @@ public sealed partial class FLinqIncrementalGenerator {
             } else if(method.ReducedFrom is not null
                 &&(method.ReducedFrom??method).ContainingType.ToDisplayString()!="System.Linq.Enumerable"
                 &&invocation.Expression is MemberAccessExpressionSyntax extensionMemberAccess) {
-                if(TryRenderExtensionMethodInvocationExpression(method,invocation,extensionMemberAccess,semanticModel,containingType,unsafeAccessorCollector,replacementMap,out var inlineExtensionText)) {
+                var extensionDefinition=method.ReducedFrom??method;
+                var isIEnumerableRoute=extensionDefinition.Name=="AsX"
+                    &&method.ReturnType is INamedTypeSymbol { OriginalDefinition: var routeReturnDefinition }
+                    &&routeReturnDefinition.ToDisplayString()=="System.Collections.Generic.IEnumerable<T>";
+                if(isIEnumerableRoute
+                    &&TryCreateExtensionActualArgumentList(extensionDefinition,invocation,extensionMemberAccess,semanticModel,containingType,unsafeAccessorCollector,replacementMap,out var routeArguments)) {
+                    var typeArguments=method.TypeArguments.Length==0
+                        ?string.Empty
+                        :"<"+string.Join(",",method.TypeArguments.Select(static type=>type.ToDisplayString(完全修飾形式)))+">";
+                    var routeCall=extensionDefinition.ContainingType.ToDisplayString(完全修飾形式)+"."+extensionDefinition.Name+typeArguments+"("+string.Join(",",routeArguments)+")";
+                    text=ReplaceExpressionFragment(text,invocationText,routeCall);
+                } else if(TryRenderExtensionMethodInvocationExpression(method,invocation,extensionMemberAccess,semanticModel,containingType,unsafeAccessorCollector,replacementMap,out var inlineExtensionText)) {
                     text=ReplaceExpressionFragment(text,invocationText,inlineExtensionText);
                 } else {
                     text=ReplaceExpressionFragment(text,invocationText,RenderInlineFailureInvocationExpression(method));

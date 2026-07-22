@@ -21,6 +21,8 @@ public enum ベンチマークソースタブ{
 
 public sealed record 比較ペア選択肢(string キー,string 表示名,string 左プロジェクト,string 右プロジェクト);
 
+public sealed record ベンチマーク比較列定義(string キー,string プロジェクト,string 見出し,string アセンブリ名,string 型接頭辞="");
+
 public sealed record ベンチマークソースタブ定義(
     ベンチマークソースタブ タブ,
     string ID,
@@ -36,15 +38,37 @@ public sealed record ベンチマークソースタブ定義(
     string 中央プロジェクト="",
     string 中央見出し="",
     string 中央アセンブリ名="",
-    string 中央型接頭辞=""){
+    string 中央型接頭辞="",
+    string 追加プロジェクト="",
+    string 追加見出し="",
+    string 追加アセンブリ名="",
+    string 追加型接頭辞="",
+    IReadOnlyList<比較ペア定義>?比較ペア定義一覧=null){
+    public IReadOnlyList<ベンチマーク比較列定義>列一覧{get;}=
+        new ベンチマーク比較列定義[]{
+            new("左",左プロジェクト,左見出し,左アセンブリ名,左型接頭辞),
+            new("中央",中央プロジェクト,中央見出し,中央アセンブリ名,中央型接頭辞),
+            new("追加",追加プロジェクト,追加見出し,追加アセンブリ名,追加型接頭辞),
+            new("右",右プロジェクト,右見出し,右アセンブリ名,右型接頭辞),
+        }.Where(static 列=>!string.IsNullOrWhiteSpace(列.プロジェクト)).ToArray();
     public IReadOnlyList<string>プロジェクト順{get;}=
-        new[]{左プロジェクト,中央プロジェクト,右プロジェクト}.Where(static プロジェクト=>!string.IsNullOrWhiteSpace(プロジェクト)).ToArray();
-
+        new[]{左プロジェクト,中央プロジェクト,追加プロジェクト,右プロジェクト}.Where(static プロジェクト=>!string.IsNullOrWhiteSpace(プロジェクト)).ToArray();
     public 比較ペア選択肢 ペア=>new(
         this.ID,
         this.表示名,
         this.左プロジェクト,
         this.右プロジェクト);
+
+    public IReadOnlyList<比較ペア定義>比較ペア一覧{get;}=比較ペア定義一覧??(
+        string.IsNullOrWhiteSpace(中央プロジェクト)
+            ? [比較ペアを作成("左-右",左見出し,右見出し,左プロジェクト,右プロジェクト,"左","右")]
+            : [
+                比較ペアを作成("左-右",左見出し,右見出し,左プロジェクト,右プロジェクト,"左","右"),
+                比較ペアを作成("中央-右",中央見出し,右見出し,中央プロジェクト,右プロジェクト,"中央","右"),
+            ]);
+
+    private static 比較ペア定義 比較ペアを作成(string キー,string 左見出し,string 右見出し,string 左プロジェクト,string 右プロジェクト,string 最適化列キー,string 基準列キー)=>
+        new(キー,左見出し+" → "+右見出し,左見出し+" 対 "+右見出し,左プロジェクト,右プロジェクト,最適化列キー,基準列キー);
 
     public bool プロジェクトを含むか(string プロジェクト)=>
         this.プロジェクト順.Contains(プロジェクト,StringComparer.OrdinalIgnoreCase);
@@ -62,31 +86,12 @@ public sealed record ベンチマークソースタブ定義(
         if(!string.Equals(アセンブリ名,ベンチマーク.アセンブリ名,StringComparison.OrdinalIgnoreCase)){
             return false;
         }
-        string 接頭辞;
-        if(string.Equals(ベンチマーク.プロジェクト,this.左プロジェクト,StringComparison.OrdinalIgnoreCase)){
-            接頭辞=this.左型接頭辞;
-        }else if(string.Equals(ベンチマーク.プロジェクト,this.中央プロジェクト,StringComparison.OrdinalIgnoreCase)){
-            接頭辞=this.中央型接頭辞;
-        }else{
-            接頭辞=this.右型接頭辞;
-        }
+        var 接頭辞=this.列一覧.FirstOrDefault(列=>string.Equals(ベンチマーク.プロジェクト,列.プロジェクト,StringComparison.OrdinalIgnoreCase))?.型接頭辞??string.Empty;
         return string.IsNullOrWhiteSpace(接頭辞)||ベンチマーク.型完全名.StartsWith(接頭辞,StringComparison.Ordinal);
     }
 
     public string アセンブリ名を取得(string プロジェクト){
-        if(string.Equals(プロジェクト,this.左プロジェクト,StringComparison.OrdinalIgnoreCase)){
-            return this.左アセンブリ名;
-        }
-
-        if(string.Equals(プロジェクト,this.中央プロジェクト,StringComparison.OrdinalIgnoreCase)){
-            return this.中央アセンブリ名;
-        }
-
-        if(string.Equals(プロジェクト,this.右プロジェクト,StringComparison.OrdinalIgnoreCase)){
-            return this.右アセンブリ名;
-        }
-
-        return string.Empty;
+        return this.列一覧.FirstOrDefault(列=>string.Equals(プロジェクト,列.プロジェクト,StringComparison.OrdinalIgnoreCase))?.アセンブリ名??string.Empty;
     }
 }
 
@@ -220,27 +225,35 @@ public static class ベンチマークソースタブ一覧{
             Seamless永続化ID,
             "Persisted",
             "Seamless.Persisted.FLinq",
-            "FLinq",
+            "FLinq(Persisted)",
             "Benchmark.Persisted.Linq.Enumerable.FLinq",
             "Seamless.Persisted.Linq",
             "System.Linq",
             "Benchmark.Persisted.Linq.Enumerable.Linq",
             中央プロジェクト:"Seamless.Persisted.ValueLinq",
-            中央見出し:"ValueLinq",
-            中央アセンブリ名:"Benchmark.Persisted.Linq.Enumerable.ValueLinq"),
+            中央見出し:"ValueEnumerable",
+            中央アセンブリ名:"Benchmark.Persisted.Linq.Enumerable.ValueLinq",
+            追加プロジェクト:"Seamless.Persisted.IEnumerable.FLinq",
+            追加見出し:"FLinq(IEnumerable)",
+            追加アセンブリ名:"Benchmark.Persisted.Linq.Enumerable.IEnumerable.FLinq",
+             比較ペア定義一覧:[                  new("Native-ValueEnumerable","FLinq(Persisted) → ValueEnumerable","FLinq(Persisted) 対 ValueEnumerable","Seamless.Persisted.FLinq","Seamless.Persisted.ValueLinq","左","中央"),                  new("IEnumerable-SystemLinq","FLinq(IEnumerable) → System.Linq","FLinq(IEnumerable) 対 System.Linq","Seamless.Persisted.IEnumerable.FLinq","Seamless.Persisted.Linq","追加","右"),              ]),
         new(
             ベンチマークソースタブ.SeamlessTsavorite,
             SeamlessTsavoriteID,
             "Tsavorite",
             "Seamless.Tsavorite.FLinq",
-            "FLinq",
+            "FLinq(Tsavorite)",
             "Benchmark.Tsavorite.Linq.Enumerable.FLinq",
             "Seamless.Tsavorite.Linq",
             "System.Linq",
             "Benchmark.Tsavorite.Linq.Enumerable.Linq",
             中央プロジェクト:"Seamless.Tsavorite.ValueLinq",
-            中央見出し:"ValueLinq",
-            中央アセンブリ名:"Benchmark.Tsavorite.Linq.Enumerable.ValueLinq"),
+            中央見出し:"ValueEnumerable",
+            中央アセンブリ名:"Benchmark.Tsavorite.Linq.Enumerable.ValueLinq",
+            追加プロジェクト:"Seamless.Tsavorite.IEnumerable.FLinq",
+            追加見出し:"FLinq(IEnumerable)",
+            追加アセンブリ名:"Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq",
+             比較ペア定義一覧:[                  new("Native-ValueEnumerable","FLinq(Tsavorite) → ValueEnumerable","FLinq(Tsavorite) 対 ValueEnumerable","Seamless.Tsavorite.FLinq","Seamless.Tsavorite.ValueLinq","左","中央"),                  new("IEnumerable-SystemLinq","FLinq(IEnumerable) → System.Linq","FLinq(IEnumerable) 対 System.Linq","Seamless.Tsavorite.IEnumerable.FLinq","Seamless.Tsavorite.Linq","追加","右"),              ]),
     ];
 
 #if SCALABLE_BENCHMARK

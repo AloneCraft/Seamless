@@ -95,23 +95,24 @@ internal static class ベンチマーク比較フォーマッター{
         var 左=測定値一覧.GetValueOrDefault(ソースタブ.左プロジェクト);
         var 中央=測定値一覧.GetValueOrDefault(ソースタブ.中央プロジェクト);
         var 右=測定値一覧.GetValueOrDefault(ソースタブ.右プロジェクト);
+        var 追加=測定値一覧.GetValueOrDefault(ソースタブ.追加プロジェクト);
         var 行=new ベンチマーク比較行(
             ベンチマーク,
             ソースタブ,
             左,
             右,
-            中央);
+            中央,
+            追加);
+        var 比較一覧=ソースタブ.比較ペア一覧
+            .Select(ペア=>シェア比較を作成(行,ペア))
+            .ToArray();
         return 行 with{
             メソッド名=メソッド,
             型完全名=型完全名,
             引数キー=引数キー,
             引数一覧=引数一覧??[],
-            左右シェア=シェア比較を作成(行,new 比較ペア定義(
-                ソースタブ.ID,
-                ソースタブ.表示名,
-                ソースタブ.左プロジェクト+"/"+ソースタブ.右プロジェクト,
-                ソースタブ.左プロジェクト,
-                ソースタブ.右プロジェクト)),
+            左右シェア=比較一覧.FirstOrDefault(),
+            比較一覧=比較一覧,
         };
     }
 
@@ -332,12 +333,14 @@ public readonly record struct ベンチマーク比較行(
     ベンチマークソースタブ定義 ソースタブ,
     プロジェクト測定値 左,
     プロジェクト測定値 右,
-    プロジェクト測定値 中央=default){
+    プロジェクト測定値 中央=default,
+    プロジェクト測定値 追加=default){
     public string メソッド名{get;init;}=ベンチマーク;
     public string 型完全名{get;init;}=string.Empty;
     public string 引数キー{get;init;}=string.Empty;
     public IReadOnlyList<ベンチマーク引数>引数一覧{get;init;}=[];
     public シェア比較 左右シェア{get;init;}
+    public IReadOnlyList<シェア比較>比較一覧{get;init;}=[];
 
     public プロジェクト測定値 プロジェクトを取得(string プロジェクト){
         if(this.ソースタブ is null){
@@ -350,6 +353,10 @@ public readonly record struct ベンチマーク比較行(
 
         if(string.Equals(プロジェクト,this.ソースタブ.中央プロジェクト,StringComparison.OrdinalIgnoreCase)){
             return this.中央;
+        }
+
+        if(string.Equals(プロジェクト,this.ソースタブ.追加プロジェクト,StringComparison.OrdinalIgnoreCase)){
+            return this.追加;
         }
 
         if(string.Equals(プロジェクト,this.ソースタブ.右プロジェクト,StringComparison.OrdinalIgnoreCase)){
@@ -365,17 +372,19 @@ public readonly record struct 比較ペア定義(
     string 表示名,
     string ツールチップ文字列,
     string 左プロジェクト,
-    string 右プロジェクト);
+    string 右プロジェクト,
+    string 最適化列キー="",
+    string 基準列キー="");
 
 internal static class ベンチマーク比較ペア{
     public static IReadOnlyList<string>?ペアプロジェクトを取得(string プロジェクト){
         if(ベンチマークソースタブ一覧.プロジェクトから取得を試みる(プロジェクト) is not { } ソースタブ){
             return null;
         }
-        return !string.IsNullOrWhiteSpace(ソースタブ.中央プロジェクト)
-            &&string.Equals(プロジェクト,ソースタブ.中央プロジェクト,StringComparison.OrdinalIgnoreCase)
-                ? [ソースタブ.中央プロジェクト,ソースタブ.右プロジェクト]
-                : [ソースタブ.左プロジェクト,ソースタブ.右プロジェクト];
+        var ペア=ソースタブ.比較ペア一覧.FirstOrDefault(候補=>
+            string.Equals(候補.左プロジェクト,プロジェクト,StringComparison.OrdinalIgnoreCase)
+            ||string.Equals(候補.右プロジェクト,プロジェクト,StringComparison.OrdinalIgnoreCase));
+        return ペア.左プロジェクト is null ? null : [ペア.左プロジェクト,ペア.右プロジェクト];
     }
 }
 

@@ -50,6 +50,12 @@ public enum ベンチマークグリッドソート列 {
     左メモリシェア,
     中央時間シェア,
     中央メモリシェア,
+    // 既存の列挙値を保持するため、4列目の値は末尾へ追加する。
+    追加日時,
+    追加時間,
+    追加割り当て,
+    追加時間シェア,
+    追加メモリシェア,
 }
 
 public sealed class ベンチマークソート規則(ベンチマークグリッドソート列 列,bool 降順か値=false):ObservableObject {
@@ -109,6 +115,11 @@ public sealed class ベンチマークソート規則(ベンチマークグリ�
             ベンチマークグリッドソート列.左メモリシェア => "左 メモリシェア",
             ベンチマークグリッドソート列.中央時間シェア => "中央 時間シェア",
             ベンチマークグリッドソート列.中央メモリシェア => "中央 メモリシェア",
+            ベンチマークグリッドソート列.追加日時 => "追加 日時",
+            ベンチマークグリッドソート列.追加時間 => "追加 時間",
+            ベンチマークグリッドソート列.追加割り当て => "追加 メモリ",
+            ベンチマークグリッドソート列.追加時間シェア => "追加 時間シェア",
+            ベンチマークグリッドソート列.追加メモリシェア => "追加 メモリシェア",
             _ => 列.ToString(),
         };
 }
@@ -1141,6 +1152,8 @@ public sealed class ベンチマーク表行:ObservableObject {
     private string 左メモリシェア文字列 = string.Empty;
     private string 中央時間シェア文字列 = string.Empty;
     private string 中央メモリシェア文字列 = string.Empty;
+    private string 追加時間シェア文字列 = string.Empty;
+    private string 追加メモリシェア文字列 = string.Empty;
     private string 停止要素数文字列値 = string.Empty;
     private Color 停止要素数文字色値 = 既定停止要素数文字色;
     private FontAttributes 停止要素数フォント属性値;
@@ -1190,11 +1203,12 @@ public sealed class ベンチマーク表行:ObservableObject {
         this.プロジェクト別ケース=プロジェクト別ケース;
         this.ベンチマーク表示部分を更新();
         // セルの初期状態表示（待機/対象なし）が親行の選択を参照するため、セル生成前に行選択を確定する。
-        this.実行対象ありか=プロジェクト別ケース.ContainsKey(ソースタブ.左プロジェクト)||(!string.IsNullOrWhiteSpace(ソースタブ.中央プロジェクト)&&プロジェクト別ケース.ContainsKey(ソースタブ.中央プロジェクト))||プロジェクト別ケース.ContainsKey(ソースタブ.右プロジェクト);
+        this.実行対象ありか=ソースタブ.プロジェクト順.Any(プロジェクト別ケース.ContainsKey);
         this.選択中か値=this.実行対象ありか;
         this.選択チェック状態値=this.選択中か値;
         this.左セル=this.セルを作成(ソースタブ.左プロジェクト);
         this.中央セル=this.セルを作成(ソースタブ.中央プロジェクト);
+        this.追加セル=this.セルを作成(ソースタブ.追加プロジェクト);
         this.右セル=this.セルを作成(ソースタブ.右プロジェクト);
         foreach(var セル in this.プロジェクトセル一覧) {
             セル.UI選択変更時+=this.セルUI選択変更時;
@@ -1268,7 +1282,7 @@ public sealed class ベンチマーク表行:ObservableObject {
         ? (string.IsNullOrWhiteSpace(this.コア種別ラベル) ? "CPU" : this.コア種別ラベル)+" / CPU "+this.論理プロセッサ文字列
         : string.Empty;
     public int? 行ループ回数 =>
-        this.右セル.最終ループ回数??this.中央セル.最終ループ回数??this.左セル.最終ループ回数;
+        this.右セル.最終ループ回数??this.追加セル.最終ループ回数??this.中央セル.最終ループ回数??this.左セル.最終ループ回数;
     public string ループ回数文字列 =>
         this.行ループ回数 is { } 値 ? 値.ToString(CultureInfo.InvariantCulture) : string.Empty;
     public string ループ回数ツールチップ文字列 =>
@@ -1281,6 +1295,7 @@ public sealed class ベンチマーク表行:ObservableObject {
     public IReadOnlyDictionary<string,ベンチマークケース> プロジェクト別ケース { get; }
     public ベンチマークプロジェクトセル 左セル { get; }
     public ベンチマークプロジェクトセル 中央セル { get; }
+    public ベンチマークプロジェクトセル 追加セル { get; }
     public ベンチマークプロジェクトセル 右セル { get; }
     internal ベンチマークグリッドスナップショット項目? 読込済みスナップショット { get; set; }
     internal int グリッド表示インデックス { get; set; } = -1;
@@ -1370,6 +1385,22 @@ public sealed class ベンチマーク表行:ObservableObject {
         private set => this.SetProperty(ref this.中央メモリシェア文字列,value);
     }
 
+    public string 追加時間シェア表示 {
+        get => this.追加時間シェア文字列;
+        private set => this.SetProperty(ref this.追加時間シェア文字列,value);
+    }
+
+    public string 追加メモリシェア表示 {
+        get => this.追加メモリシェア文字列;
+        private set => this.SetProperty(ref this.追加メモリシェア文字列,value);
+    }
+
+    public ベンチマークシェアゲージ状態 追加時間シェアゲージ =>
+        ベンチマークシェアゲージ状態.シェアから作成(this.表示追加時間シェアを取得());
+
+    public ベンチマークシェアゲージ状態 追加メモリシェアゲージ =>
+        ベンチマークシェアゲージ状態.シェアから作成(this.表示追加メモリシェアを取得());
+
     public ベンチマークシェアゲージ状態 左時間シェアゲージ =>
         ベンチマークシェアゲージ状態.シェアから作成(this.表示左時間シェアを取得());
 
@@ -1421,54 +1452,66 @@ public sealed class ベンチマーク表行:ObservableObject {
         private set => this.SetProperty(ref this.左時間文字列値,value);
     }
 
-    public Color 左時間文字色 => this.三列表示か
-        ? 三列比較指標文字色を取得(this.左セル.測定値.時間ナノ秒,this.左セル.測定値.時間ナノ秒,this.中央セル.測定値.時間ナノ秒,this.右セル.測定値.時間ナノ秒)
-        : 比較指標文字色を取得(this.左セル.測定値.時間ナノ秒,this.右セル.測定値.時間ナノ秒);
+    public Color 左時間文字色 => this.四列表示か
+        ? this.四列比較指標文字色を取得("左",static 測定値=>測定値.時間ナノ秒)
+        : this.三列表示か
+            ? 三列比較指標文字色を取得(this.左セル.測定値.時間ナノ秒,this.左セル.測定値.時間ナノ秒,this.中央セル.測定値.時間ナノ秒,this.右セル.測定値.時間ナノ秒)
+            : 比較指標文字色を取得(this.左セル.測定値.時間ナノ秒,this.右セル.測定値.時間ナノ秒);
 
     public string 左割り当て文字列 {
         get => this.左割り当て文字列値;
         private set => this.SetProperty(ref this.左割り当て文字列値,value);
     }
 
-    public Color 左メモリ文字色 => this.三列表示か
-        ? 三列比較指標文字色を取得(this.左セル.測定値.割り当てバイト数,this.左セル.測定値.割り当てバイト数,this.中央セル.測定値.割り当てバイト数,this.右セル.測定値.割り当てバイト数)
-        : 比較指標文字色を取得(this.左セル.測定値.割り当てバイト数,this.右セル.測定値.割り当てバイト数);
+    public Color 左メモリ文字色 => this.四列表示か
+        ? this.四列比較指標文字色を取得("左",static 測定値=>測定値.割り当てバイト数)
+        : this.三列表示か
+            ? 三列比較指標文字色を取得(this.左セル.測定値.割り当てバイト数,this.左セル.測定値.割り当てバイト数,this.中央セル.測定値.割り当てバイト数,this.右セル.測定値.割り当てバイト数)
+            : 比較指標文字色を取得(this.左セル.測定値.割り当てバイト数,this.右セル.測定値.割り当てバイト数);
 
     public string 中央時間文字列 {
         get => this.中央時間文字列値;
         private set => this.SetProperty(ref this.中央時間文字列値,value);
     }
 
-    public Color 中央時間文字色 => this.三列表示か
-        ? 三列比較指標文字色を取得(this.中央セル.測定値.時間ナノ秒,this.左セル.測定値.時間ナノ秒,this.中央セル.測定値.時間ナノ秒,this.右セル.測定値.時間ナノ秒)
-        : 既定指標文字色;
+    public Color 中央時間文字色 => this.四列表示か
+        ? this.四列比較指標文字色を取得("中央",static 測定値=>測定値.時間ナノ秒)
+        : this.三列表示か
+            ? 三列比較指標文字色を取得(this.中央セル.測定値.時間ナノ秒,this.左セル.測定値.時間ナノ秒,this.中央セル.測定値.時間ナノ秒,this.右セル.測定値.時間ナノ秒)
+            : 既定指標文字色;
 
     public string 中央割り当て文字列 {
         get => this.中央割り当て文字列値;
         private set => this.SetProperty(ref this.中央割り当て文字列値,value);
     }
 
-    public Color 中央メモリ文字色 => this.三列表示か
-        ? 三列比較指標文字色を取得(this.中央セル.測定値.割り当てバイト数,this.左セル.測定値.割り当てバイト数,this.中央セル.測定値.割り当てバイト数,this.右セル.測定値.割り当てバイト数)
-        : 既定指標文字色;
+    public Color 中央メモリ文字色 => this.四列表示か
+        ? this.四列比較指標文字色を取得("中央",static 測定値=>測定値.割り当てバイト数)
+        : this.三列表示か
+            ? 三列比較指標文字色を取得(this.中央セル.測定値.割り当てバイト数,this.左セル.測定値.割り当てバイト数,this.中央セル.測定値.割り当てバイト数,this.右セル.測定値.割り当てバイト数)
+            : 既定指標文字色;
 
     public string 右時間文字列 {
         get => this.右時間文字列値;
         private set => this.SetProperty(ref this.右時間文字列値,value);
     }
 
-    public Color 右時間文字色 => this.三列表示か
-        ? 三列比較指標文字色を取得(this.右セル.測定値.時間ナノ秒,this.左セル.測定値.時間ナノ秒,this.中央セル.測定値.時間ナノ秒,this.右セル.測定値.時間ナノ秒)
-        : 比較指標文字色を取得(this.右セル.測定値.時間ナノ秒,this.左セル.測定値.時間ナノ秒);
+    public Color 右時間文字色 => this.四列表示か
+        ? this.四列比較指標文字色を取得("右",static 測定値=>測定値.時間ナノ秒)
+        : this.三列表示か
+            ? 三列比較指標文字色を取得(this.右セル.測定値.時間ナノ秒,this.左セル.測定値.時間ナノ秒,this.中央セル.測定値.時間ナノ秒,this.右セル.測定値.時間ナノ秒)
+            : 比較指標文字色を取得(this.右セル.測定値.時間ナノ秒,this.左セル.測定値.時間ナノ秒);
 
     public string 右割り当て文字列 {
         get => this.右割り当て文字列値;
         private set => this.SetProperty(ref this.右割り当て文字列値,value);
     }
 
-    public Color 右メモリ文字色 => this.三列表示か
-        ? 三列比較指標文字色を取得(this.右セル.測定値.割り当てバイト数,this.左セル.測定値.割り当てバイト数,this.中央セル.測定値.割り当てバイト数,this.右セル.測定値.割り当てバイト数)
-        : 比較指標文字色を取得(this.右セル.測定値.割り当てバイト数,this.左セル.測定値.割り当てバイト数);
+    public Color 右メモリ文字色 => this.四列表示か
+        ? this.四列比較指標文字色を取得("右",static 測定値=>測定値.割り当てバイト数)
+        : this.三列表示か
+            ? 三列比較指標文字色を取得(this.右セル.測定値.割り当てバイト数,this.左セル.測定値.割り当てバイト数,this.中央セル.測定値.割り当てバイト数,this.右セル.測定値.割り当てバイト数)
+            : 比較指標文字色を取得(this.右セル.測定値.割り当てバイト数,this.左セル.測定値.割り当てバイト数);
 
     public IReadOnlyList<ベンチマークケース> 実行ケースを取得() {
         // 保存Runスナップショットの型列は表示値であり、worker実行用の完全型名ではない。
@@ -1489,6 +1532,9 @@ public sealed class ベンチマーク表行:ObservableObject {
             yield return this.左セル;
             if(!string.IsNullOrWhiteSpace(this.ソースタブ.中央プロジェクト)) {
                 yield return this.中央セル;
+            }
+            if(!string.IsNullOrWhiteSpace(this.ソースタブ.追加プロジェクト)) {
+                yield return this.追加セル;
             }
             yield return this.右セル;
         }
@@ -1669,9 +1715,11 @@ public sealed class ベンチマーク表行:ObservableObject {
         this.停止要素数文字列をクリア();
         var 左 = 値.プロジェクトを取得(this.ソースタブ.左プロジェクト);
         var 中央 = 値.プロジェクトを取得(this.ソースタブ.中央プロジェクト);
+        var 追加 = 値.プロジェクトを取得(this.ソースタブ.追加プロジェクト);
         var 右 = 値.プロジェクトを取得(this.ソースタブ.右プロジェクト);
         this.左セル.測定値を適用(左,維持表示を保持するか);
         this.中央セル.測定値を適用(中央,維持表示を保持するか);
+        this.追加セル.測定値を適用(追加,維持表示を保持するか);
         this.右セル.測定値を適用(右,維持表示を保持するか);
         this.左時間文字列=時間を整形(this.左セル.測定値);
         this.左割り当て文字列=割り当てを整形(this.左セル.測定値);
@@ -1703,6 +1751,9 @@ public sealed class ベンチマーク表行:ObservableObject {
             ベンチマークグリッドソート列.中央日時 => ベンチマークソート値.日時から作成(this.中央セル.最新表示日時),
             ベンチマークグリッドソート列.中央時間 => ベンチマークソート値.指標から作成(this.中央セル.測定値,ベンチマーク指標種別.時間),
             ベンチマークグリッドソート列.中央割り当て => ベンチマークソート値.指標から作成(this.中央セル.測定値,ベンチマーク指標種別.割り当て),
+            ベンチマークグリッドソート列.追加日時 => ベンチマークソート値.日時から作成(this.追加セル.最新表示日時),
+            ベンチマークグリッドソート列.追加時間 => ベンチマークソート値.指標から作成(this.追加セル.測定値,ベンチマーク指標種別.時間),
+            ベンチマークグリッドソート列.追加割り当て => ベンチマークソート値.指標から作成(this.追加セル.測定値,ベンチマーク指標種別.割り当て),
             ベンチマークグリッドソート列.時間シェア => ベンチマークソート値.シェアから作成(this.表示時間シェアを取得()),
             ベンチマークグリッドソート列.メモリシェア => ベンチマークソート値.シェアから作成(this.表示メモリシェアを取得()),
             ベンチマークグリッドソート列.右日時 => ベンチマークソート値.日時から作成(this.右セル.最新表示日時),
@@ -1712,6 +1763,8 @@ public sealed class ベンチマーク表行:ObservableObject {
             ベンチマークグリッドソート列.左メモリシェア => ベンチマークソート値.シェアから作成(this.表示左メモリシェアを取得()),
             ベンチマークグリッドソート列.中央時間シェア => ベンチマークソート値.シェアから作成(this.表示中央時間シェアを取得()),
             ベンチマークグリッドソート列.中央メモリシェア => ベンチマークソート値.シェアから作成(this.表示中央メモリシェアを取得()),
+            ベンチマークグリッドソート列.追加時間シェア => ベンチマークソート値.シェアから作成(this.表示追加時間シェアを取得()),
+            ベンチマークグリッドソート列.追加メモリシェア => ベンチマークソート値.シェアから作成(this.表示追加メモリシェアを取得()),
             _ => ベンチマークソート値.欠測,
         };
     }
@@ -1760,6 +1813,9 @@ public sealed class ベンチマーク表行:ObservableObject {
         var 左時間シェア = this.表示左時間シェアを取得();
         var 中央時間シェア = this.表示中央時間シェアを取得();
         this.左時間シェア表示=左時間シェア.表示文字列;
+        var 追加時間シェア = this.表示追加時間シェアを取得();
+        this.追加時間シェア表示=追加時間シェア.表示文字列;
+        this.追加メモリシェア表示=this.表示追加メモリシェアを取得().表示文字列;
         this.中央時間シェア表示=中央時間シェア.表示文字列;
         this.左メモリシェア表示=this.表示左メモリシェアを取得().表示文字列;
         this.中央メモリシェア表示=this.表示中央メモリシェアを取得().表示文字列;
@@ -1771,24 +1827,44 @@ public sealed class ベンチマーク表行:ObservableObject {
         this.OnPropertyChanged(nameof(this.左メモリシェアゲージ));
         this.OnPropertyChanged(nameof(this.中央時間シェアゲージ));
         this.OnPropertyChanged(nameof(this.中央メモリシェアゲージ));
+        this.OnPropertyChanged(nameof(this.追加時間シェアゲージ));
+        this.OnPropertyChanged(nameof(this.追加メモリシェアゲージ));
     }
-    private シェア値 表示時間シェアを取得() =>
-        ベンチマーク比較フォーマッター.時間シェアを計算(this.左セル.測定値,this.右セル.測定値);
+    private シェア値 表示時間シェアを取得() => this.表示時間シェアを取得("左");
 
-    private シェア値 表示左時間シェアを取得() =>
-        ベンチマーク比較フォーマッター.時間シェアを計算(this.左セル.測定値,this.右セル.測定値);
+    private シェア値 表示時間シェアを取得(string 最適化列キー) {
+        var ペア=this.ソースタブ.比較ペア一覧.FirstOrDefault(候補=>string.Equals(候補.最適化列キー,最適化列キー,StringComparison.Ordinal));
+        if(string.IsNullOrWhiteSpace(ペア.左プロジェクト)){
+            return シェア値.欠測;
+        }
+        return ベンチマーク比較フォーマッター.時間シェアを計算(
+            this.プロジェクトセルを取得(ペア.左プロジェクト)?.測定値??プロジェクト測定値.欠測,
+            this.プロジェクトセルを取得(ペア.右プロジェクト)?.測定値??プロジェクト測定値.欠測);
+    }
 
-    private シェア値 表示左メモリシェアを取得() =>
-        ベンチマーク比較フォーマッター.メモリシェアを計算(this.左セル.測定値,this.右セル.測定値);
+    private シェア値 表示メモリシェアを取得() => this.表示メモリシェアを取得("左");
 
-    private シェア値 表示中央時間シェアを取得() =>
-        ベンチマーク比較フォーマッター.時間シェアを計算(this.中央セル.測定値,this.右セル.測定値);
+    private シェア値 表示メモリシェアを取得(string 最適化列キー) {
+        var ペア=this.ソースタブ.比較ペア一覧.FirstOrDefault(候補=>string.Equals(候補.最適化列キー,最適化列キー,StringComparison.Ordinal));
+        if(string.IsNullOrWhiteSpace(ペア.左プロジェクト)){
+            return シェア値.欠測;
+        }
+        return ベンチマーク比較フォーマッター.メモリシェアを計算(
+            this.プロジェクトセルを取得(ペア.左プロジェクト)?.測定値??プロジェクト測定値.欠測,
+            this.プロジェクトセルを取得(ペア.右プロジェクト)?.測定値??プロジェクト測定値.欠測);
+    }
 
-    private シェア値 表示中央メモリシェアを取得() =>
-        ベンチマーク比較フォーマッター.メモリシェアを計算(this.中央セル.測定値,this.右セル.測定値);
+    private シェア値 表示左時間シェアを取得() => this.表示時間シェアを取得("左");
 
-    private シェア値 表示メモリシェアを取得() =>
-        ベンチマーク比較フォーマッター.メモリシェアを計算(this.左セル.測定値,this.右セル.測定値);
+    private シェア値 表示左メモリシェアを取得() => this.表示メモリシェアを取得("左");
+
+    private シェア値 表示中央時間シェアを取得() => this.表示時間シェアを取得("中央");
+
+    private シェア値 表示中央メモリシェアを取得() => this.表示メモリシェアを取得("中央");
+
+    private シェア値 表示追加時間シェアを取得() => this.表示時間シェアを取得("追加");
+
+    private シェア値 表示追加メモリシェアを取得() => this.表示メモリシェアを取得("追加");
 
     private void プロジェクト指標文字列を設定(string プロジェクト,string 時間文字列値,string 割り当て文字列値) {
         if(string.Equals(プロジェクト,this.ソースタブ.左プロジェクト,StringComparison.OrdinalIgnoreCase)) {
@@ -1810,9 +1886,36 @@ public sealed class ベンチマーク表行:ObservableObject {
         this.OnPropertyChanged(nameof(this.中央メモリ文字色));
         this.OnPropertyChanged(nameof(this.右時間文字色));
         this.OnPropertyChanged(nameof(this.右メモリ文字色));
+        this.OnPropertyChanged(nameof(this.追加時間文字色));
+        this.OnPropertyChanged(nameof(this.追加メモリ文字色));
     }
 
+    public Color 追加時間文字色 => this.四列表示か
+        ? this.四列比較指標文字色を取得("追加",static 測定値=>測定値.時間ナノ秒)
+        : 既定指標文字色;
+
+    public Color 追加メモリ文字色 => this.四列表示か
+        ? this.四列比較指標文字色を取得("追加",static 測定値=>測定値.割り当てバイト数)
+        : 既定指標文字色;
+
     private bool 三列表示か => !string.IsNullOrWhiteSpace(this.ソースタブ.中央プロジェクト);
+    private bool 四列表示か => !string.IsNullOrWhiteSpace(this.ソースタブ.追加プロジェクト);
+
+    private Color 四列比較指標文字色を取得<T>(string 列キー,Func<プロジェクト測定値,T?> 指標を取得) where T:struct,IComparable<T> {
+        var ペア=this.ソースタブ.比較ペア一覧.FirstOrDefault(候補=>
+            string.Equals(候補.最適化列キー,列キー,StringComparison.Ordinal)
+            ||string.Equals(候補.基準列キー,列キー,StringComparison.Ordinal));
+        if(string.IsNullOrWhiteSpace(ペア.左プロジェクト)){
+            return 既定指標文字色;
+        }
+        var 対象プロジェクト=string.Equals(ペア.最適化列キー,列キー,StringComparison.Ordinal)
+            ? ペア.左プロジェクト
+            : ペア.右プロジェクト;
+        return 比較指標文字色を取得(
+            指標を取得(this.プロジェクトセルを取得(対象プロジェクト)?.測定値??プロジェクト測定値.欠測),
+            指標を取得(this.プロジェクトセルを取得(string.Equals(対象プロジェクト,ペア.左プロジェクト,StringComparison.OrdinalIgnoreCase) ? ペア.右プロジェクト : ペア.左プロジェクト)?.測定値??プロジェクト測定値.欠測));
+    }
+
 
     private static Color 三列比較指標文字色を取得<T>(T? 対象,T? 左,T? 中央,T? 右) where T:struct,IComparable<T> {
         if(対象 is not { } 対象値||左 is not { } 左値||中央 is not { } 中央値||右 is not { } 右値) {
@@ -1936,7 +2039,7 @@ public sealed class ベンチマーク表行:ObservableObject {
     // 保存済み実行のケースはベンチマークパス(カタログ由来)を持たないため、型列と同じ保存済み表示文字列で補う。
     private string 表示用ベンチマークパスを取得() {
         var ベンチマークパス = this.先頭ベンチマークパスを取得();
-        return !string.IsNullOrWhiteSpace(ベンチマークパス) ? ベンチマークパス : this.スナップショットベンチマーク型文字列;
+        return ベンチマークパス;
     }
 
     private void ベンチマーク表示部分を更新() {

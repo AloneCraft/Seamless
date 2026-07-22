@@ -22,7 +22,7 @@ public abstract class Base<T>:global::Common.PersistedBase<T> where T : notnull 
 public abstract class Base<T>:global::Common.Base<T> where T : notnull {
 #endif
     private static void ExecuteOrderDependent(Action action) {
-#if (TSAVORITE || PERSISTED) && BENCH_AS_TEST
+#if (TSAVORITE || PERSISTED) && BENCH_AS_TEST && !IENUMERABLE_ROOT
         global::Xunit.Assert.Throws<NotSupportedException>(action);
 #else
         action();

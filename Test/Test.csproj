@@ -54,12 +54,12 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />
     <PackageReference Include="Microsoft.Garnet" Version="2.0.1-beta.5" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'" />
-    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'" />
-    <PackageReference Include="Syncfusion.Licensing" Version="33.2.15" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'" />
-    <PackageReference Include="Syncfusion.Maui.Buttons" Version="33.2.15" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'" />
-    <PackageReference Include="Syncfusion.Maui.DataGrid" Version="33.2.15" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'" />
-    <PackageReference Include="Syncfusion.Maui.Toolkit" Version="1.0.10" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true' and '$(TargetFramework)'=='net10.0-windows'" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true' and '$(TargetFramework)'=='net10.0-windows'" />
+    <PackageReference Include="Syncfusion.Licensing" Version="33.2.15" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true' and '$(TargetFramework)'=='net10.0-windows'" />
+    <PackageReference Include="Syncfusion.Maui.Buttons" Version="33.2.15" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true' and '$(TargetFramework)'=='net10.0-windows'" />
+    <PackageReference Include="Syncfusion.Maui.DataGrid" Version="33.2.15" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true' and '$(TargetFramework)'=='net10.0-windows'" />
+    <PackageReference Include="Syncfusion.Maui.Toolkit" Version="1.0.10" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true' and '$(TargetFramework)'=='net10.0-windows'" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -71,15 +71,16 @@
     <ProjectReference Include="..\Benchmark\Benchmark.Optimization.All\Benchmark.Optimization.All.csproj" />
     <ProjectReference Include="..\Seamless.Linq.Analyzers\Seamless.Linq.Analyzers.csproj" PrivateAssets="all" />
   </ItemGroup>
-  <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'!='true'">
+  <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'!='true' or '$(TargetFramework)'!='net10.0-windows'">
     <Compile Remove="BenchmarkWorker\BenchmarkGridKeyLogic.cs" />
     <Compile Remove="Benchmark\BenchmarkFastWorkerSession.cs" />
+    <Compile Remove="Benchmark\WorkerAssemblyResolution.cs" />
     <Reference Include="ZLinq">
       <HintPath>$(NuGetPackageRoot)zlinq/1.5.6/lib/net10.0/ZLinq.dll</HintPath>
       <Private>true</Private>
     </Reference>
   </ItemGroup>
-  <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'!='true'">
+  <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'!='true' or '$(TargetFramework)'!='net10.0-windows'">
     <ProjectReference Include="..\DynamicLinq.Runner\DynamicLinq.Runner.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="..\Benchmark\Worker\Worker.csproj" />
     <ProjectReference Include="..\Benchmark\Benchmark.Scalable.Persisted.Collections\Benchmark.Scalable.Persisted.Collections.csproj" />
@@ -96,14 +97,18 @@
     <ProjectReference Include="..\Seamless.Database\Seamless.Database.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <Analyzer Include="..\Seamless.FLinq\bin\$(Configuration)\net10.0\Seamless.FLinq.dll" />
   </ItemGroup>
-  <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'!='true'">
+  <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'!='true' or '$(TargetFramework)'!='net10.0-windows'">
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
     <ProjectReference Include="..\Seamless.Collections\Seamless.Collections.csproj" />
   </ItemGroup>
-  <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'">
+  <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'=='true' and '$(TargetFramework)'=='net10.0-windows'">
     <Compile Remove="**\*.cs" />
     <Compile Include="Benchmark\Pattern.cs" />
     <Compile Include="Benchmark\BenchmarkThreeSeriesDisplay.cs" />
+    <Compile Include="Benchmark\BenchmarkFourSeriesDisplay.cs" />
+    <Compile Include="Benchmark\BenchmarkTabStorage.cs" />
+    <Compile Include="Benchmark\BenchmarkRowGroupingLogic.cs" />
+    <Compile Include="Benchmark\WorkerAssemblyResolution.cs" />
     <Compile Include="Benchmark\BenchmarkTabProgressLogic.cs" />
     <Compile Include="Benchmark\BenchmarkFastWorkerSession.cs" />
     <Compile Include="Benchmark\BenchmarkDisplayName.cs" />
@@ -123,10 +128,10 @@
     <Analyzer Include="..\Seamless.FLinq\bin\$(Configuration)\net10.0\Seamless.FLinq.dll" />
     <ProjectReference Include="..\Shared\UI.Storage\UI.Storage.csproj" />
   </ItemGroup>
-  <Import Project="..\Shared\UI.Core\UI.Core.projitems" Label="Shared" Condition="'$(EnableBenchmarkUiViewModelTests)'!='true'" />
-  <Import Project="..\Shared\DynamicLinq\DynamicLinq.projitems" Label="Shared" Condition="'$(EnableBenchmarkUiViewModelTests)'!='true'" />
-  <Import Project="..\Benchmark\Shared\UI\UI.projitems" Label="Shared" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'" />
-  <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'=='true'">
+  <Import Project="..\Shared\UI.Core\UI.Core.projitems" Label="Shared" Condition="'$(EnableBenchmarkUiViewModelTests)'!='true' or '$(TargetFramework)'!='net10.0-windows'" />
+  <Import Project="..\Shared\DynamicLinq\DynamicLinq.projitems" Label="Shared" Condition="'$(EnableBenchmarkUiViewModelTests)'!='true' or '$(TargetFramework)'!='net10.0-windows'" />
+  <Import Project="..\Benchmark\Shared\UI\UI.projitems" Label="Shared" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true' and '$(TargetFramework)'=='net10.0-windows'" />
+  <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'=='true' and '$(TargetFramework)'=='net10.0-windows'">
     <ApplicationDefinition Remove="..\Benchmark\Shared\UI\Platforms\Windows\App.xaml" />
     <Compile Remove="..\Benchmark\Shared\UI\Platforms\Windows\App.xaml.cs" />
   </ItemGroup>
