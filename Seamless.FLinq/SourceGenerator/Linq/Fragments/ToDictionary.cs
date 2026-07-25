@@ -59,28 +59,28 @@ internal abstract class ToDictionaryBase(int 番号,Enumerable source,string res
                 var {{sourceVar}}={{sourceExpression}};
                 global::System.Func<{{sourceType}},{{keyType}}> {{keySelectorVar}}={{keyLambda}};
                 {{elementSelectorDeclaration}}
-                if({{sourceVar}} is {{sourceType}}[] {{arrayVar}}) {
+                if({{sourceVar}} is {{sourceType}}[] {{arrayVar}}){
                     {{destVar}}=new({{arrayVar}}.Length,{{comparer}});
                     var {{spanVar}}=global::System.MemoryExtensions.AsSpan({{arrayVar}});
-                    for(var __i=0; __i<{{spanVar}}.Length; __i++) {
+                    for(var __i=0; __i<{{spanVar}}.Length; __i++){
                         var {{itemVar}}={{spanVar}}[__i];
                         {{destVar}}.Add({{keySelectorVar}}({{itemVar}}),{{addValue}});
                     }
-                } else if({{sourceVar}} is global::System.Collections.Generic.List<{{sourceType}}> {{listVar}}) {
+                } else if({{sourceVar}} is global::System.Collections.Generic.List<{{sourceType}}> {{listVar}}){
                     var {{spanVar}}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{listVar}});
                     {{destVar}}=new({{spanVar}}.Length,{{comparer}});
-                    for(var __i=0; __i<{{spanVar}}.Length; __i++) {
+                    for(var __i=0; __i<{{spanVar}}.Length; __i++){
                         var {{itemVar}}={{spanVar}}[__i];
                         {{destVar}}.Add({{keySelectorVar}}({{itemVar}}),{{addValue}});
                     }
-                } else if({{sourceVar}} is global::System.Collections.Generic.ICollection<{{sourceType}}> {{collectionVar}}) {
+                } else if({{sourceVar}} is global::System.Collections.Generic.ICollection<{{sourceType}}> {{collectionVar}}){
                     {{destVar}}=new({{collectionVar}}.Count,{{comparer}});
-                    foreach(var {{itemVar}} in {{collectionVar}}) {
+                    foreach(var {{itemVar}} in {{collectionVar}}){
                         {{destVar}}.Add({{keySelectorVar}}({{itemVar}}),{{addValue}});
                     }
-                } else {
+                }else{
                     {{destVar}}=new global::System.Collections.Generic.Dictionary<{{keyType}},{{valueType}}>({{comparer}});
-                    foreach(var {{itemVar}} in {{sourceVar}}) {
+                    foreach(var {{itemVar}} in {{sourceVar}}){
                         {{destVar}}.Add({{keySelectorVar}}({{itemVar}}),{{addValue}});
                     }
                 }
@@ -116,7 +116,7 @@ internal class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragmen
                 var {{start}}={{range.StartExpression}};
                 var {{count}}={{range.CountExpression}};
                 {{destVar}}=new({{count}});
-                for(var {{index}}=0;{{index}}<{{count}};{{index}}++) {
+                for(var {{index}}=0;{{index}}<{{count}};{{index}}++){
                     var {{value}}={{start}} + {{index}};
                     {{destVar}}.Add({{value}},{{value}});
                 }
@@ -184,7 +184,7 @@ internal class ToDictionary_keySelector_elementSelector(int 番号,Enumerable so
                 var {{start}}={{range.StartExpression}};
                 var {{count}}={{range.CountExpression}};
                 {{destVar}}=new({{count}});
-                for(var {{index}}=0;{{index}}<{{count}};{{index}}++) {
+                for(var {{index}}=0;{{index}}<{{count}};{{index}}++){
                     var {{value}}={{start}} + {{index}};
                     {{FuncReturnTypeName(elementSelector)}} {{element}}=default!;
             {{IndentLines(this.FuncAssign(elementSelector,nameof(elementSelector),element,value),"        ")}}
@@ -257,7 +257,7 @@ internal class ToDictionary_keySelector_comparer(int 番号,Enumerable source,Fu
                 var {{count}}={{range.CountExpression}};
                 var {{comparerVar}}={{comparer}};
                 {{destVar}}=new({{count}},{{comparerVar}});
-                for(var {{index}}=0;{{index}}<{{count}};{{index}}++) {
+                for(var {{index}}=0;{{index}}<{{count}};{{index}}++){
                     var {{value}}={{start}} + {{index}};
                     {{destVar}}.Add({{value}},{{value}});
                 }

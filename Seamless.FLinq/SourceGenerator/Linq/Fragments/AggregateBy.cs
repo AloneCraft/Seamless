@@ -42,31 +42,31 @@ internal class AggregateBy(int 番号,Enumerable source,FuncFragment keySelector
         private global::Seamless.Linq.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>.Enumerator {{this.innerEnumerator}};
         """;
     public override string GetTryGetNextBody => $$"""
-        if(this.{{this.lookup}} is null) {
-            if({{this.e}}.TryGetSpan(out var __span)) {
+        if(this.{{this.lookup}} is null){
+            if({{this.e}}.TryGetSpan(out var __span)){
                 this.{{this.lookup}}=new global::Seamless.Linq.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>({{CapacityExpression("__span.Length")}});
-                for(var __i=0;__i<__span.Length;__i++) {
+                for(var __i=0;__i<__span.Length;__i++){
                     var {{this.item}}=__span[__i];
                     {{this.KeyType}} {{this.key}}=default!;
                     {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     ref var __agg=ref this.{{this.lookup}}.GetValueRefOrAddDefault({{this.key}},out var __exists);
-                    if(!__exists) {
+                    if(!__exists){
                         __agg={{seed}};
                     }
                     {{this.FuncAssignIndented("            ",func,nameof(func),"__agg","__agg",this.item)}}
                 }
             }else{
-                if({{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
+                if({{this.e}}.TryGetNonEnumeratedCount(out var __count)){
                     this.{{this.lookup}}=new global::Seamless.Linq.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>({{CapacityExpression("__count")}});
                 }else{
                     this.{{this.lookup}}=new global::Seamless.Linq.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>();
                 }
-                while({{this.e}}.TryGetNext(out var __mn0)) {
+                while({{this.e}}.TryGetNext(out var __mn0)){
                     var {{this.item}}=__mn0;
                     {{this.KeyType}} {{this.key}}=default!;
                     {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     ref var __agg=ref this.{{this.lookup}}.GetValueRefOrAddDefault({{this.key}},out var __exists);
-                    if(!__exists) {
+                    if(!__exists){
                         __agg={{seed}};
                     }
                     {{this.FuncAssignIndented("            ",func,nameof(func),"__agg","__agg",this.item)}}
@@ -74,7 +74,7 @@ internal class AggregateBy(int 番号,Enumerable source,FuncFragment keySelector
             }
             this.{{this.innerEnumerator}}=this.{{this.lookup}}.GetEnumerator();
         }
-        if(this.{{this.innerEnumerator}}.TryGetNext(out var __kv)) {
+        if(this.{{this.innerEnumerator}}.TryGetNext(out var __kv)){
             current=this.{{this.currentValue}}=new {{resultElementType}}(__kv.Key,__kv.Value);
             return true;
         }

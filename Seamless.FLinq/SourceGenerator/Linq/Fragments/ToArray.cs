@@ -45,9 +45,9 @@ internal class ToArray(int 番号,Enumerable source,string resultType):BufferedS
     private string? RenderDirectSpanToArrayInline(string destVar,string destType) {
         var span = $"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
-            if({{spanName}}.Length==0) {
+            if({{spanName}}.Length==0){
                 {{destVar}}=global::System.Array.Empty<{{source.ElementType}}>();
-            } else {
+            }else{
                 {{destVar}}=global::System.GC.AllocateUninitializedArray<{{source.ElementType}}>({{spanName}}.Length);
                 global::Seamless.Linq.LinqCounterScope.IncrementFastCopyUsed();
                 {{spanName}}.CopyTo(global::System.MemoryExtensions.AsSpan({{destVar}}));
@@ -68,7 +68,7 @@ internal class ToArray(int 番号,Enumerable source,string resultType):BufferedS
                 var {{start}}={{range.StartExpression}};
                 var {{count}}={{range.CountExpression}};
                 {{destVar}}=new int[{{count}}];
-                for(var {{index}}=0;{{index}}<{{count}};{{index}}++) {
+                for(var {{index}}=0;{{index}}<{{count}};{{index}}++){
                     {{destVar}}[{{index}}]={{start}} + {{index}};
                 }
             }
@@ -77,11 +77,11 @@ internal class ToArray(int 番号,Enumerable source,string resultType):BufferedS
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source) {
+        private static {{resultType}} Compute(TEnum source){
             global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanCalled();
             source.TryGetSpan(out var __sourceSpan);
             global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanSucceeded();
-            if(__sourceSpan.Length==0) {
+            if(__sourceSpan.Length==0){
                 return global::System.Array.Empty<{{source.ElementType}}>();
             }
             var __result=global::System.GC.AllocateUninitializedArray<{{source.ElementType}}>(__sourceSpan.Length);
@@ -92,28 +92,28 @@ internal class ToArray(int 番号,Enumerable source,string resultType):BufferedS
         """
         : $$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source) {
+        private static {{resultType}} Compute(TEnum source){
             using var enumerator = source;
-            if(enumerator.TryGetNonEnumeratedCount(out var __count)) {
-                if(__count==0) {
+            if(enumerator.TryGetNonEnumeratedCount(out var __count)){
+                if(__count==0){
                     return global::System.Array.Empty<{{source.ElementType}}>();
                 }
                 var __result=global::System.GC.AllocateUninitializedArray<{{source.ElementType}}>(__count);
-                if(enumerator.TryCopyTo(global::System.MemoryExtensions.AsSpan(__result),0)) {
+                if(enumerator.TryCopyTo(global::System.MemoryExtensions.AsSpan(__result),0)){
                     global::Seamless.Linq.LinqCounterScope.IncrementFastCopyUsed();
                     return __result;
                 }
                 global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
                 var __i=0;
-                while(enumerator.TryGetNext(out var __mn80)) {
+                while(enumerator.TryGetNext(out var __mn80)){
                     __result[__i++]=__mn80;
                 }
                 return __result;
             }
             global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanCalled();
-            if(enumerator.TryGetSpan(out var __sourceSpan)) {
+            if(enumerator.TryGetSpan(out var __sourceSpan)){
                 global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanSucceeded();
-                if(__sourceSpan.Length==0) {
+                if(__sourceSpan.Length==0){
                     return global::System.Array.Empty<{{source.ElementType}}>();
                 }
                 var __result=global::System.GC.AllocateUninitializedArray<{{source.ElementType}}>(__sourceSpan.Length);
@@ -131,16 +131,16 @@ internal class ToArray(int 番号,Enumerable source,string resultType):BufferedS
             {{source.ElementType}}[]? __heap = null;
             var n = 0;
             try {
-                while(enumerator.TryGetNext(out var __mn81)) {
-                    if(__heap is null) {
-                        if(n < {{InlineCapacity}}) {
+                while(enumerator.TryGetNext(out var __mn81)){
+                    if(__heap is null){
+                        if(n < {{InlineCapacity}}){
                             __stack[n++] = __mn81;
                             continue;
                         }
                         // スタックバッファが満杯になったので ArrayPool へ移行する。
                         __heap = global::System.Buffers.ArrayPool<{{source.ElementType}}>.Shared.Rent({{InlineCapacity}} * 2);
                         __stack.CopyTo(__heap);
-                    } else if(n == __heap.Length) {
+                    } else if(n == __heap.Length){
                         var __next = global::System.Buffers.ArrayPool<{{source.ElementType}}>.Shared.Rent(__heap.Length * 2);
                         global::System.Array.Copy(__heap, __next, n);
                         global::System.Buffers.ArrayPool<{{source.ElementType}}>.Shared.Return(__heap, clearArray: true);
@@ -148,18 +148,18 @@ internal class ToArray(int 番号,Enumerable source,string resultType):BufferedS
                     }
                     __heap[n++] = __mn81;
                 }
-                if(n == 0) {
+                if(n == 0){
                     return global::System.Array.Empty<{{source.ElementType}}>();
                 }
                 var result = new {{source.ElementType}}[n];
-                if(__heap is null) {
+                if(__heap is null){
                     __stack.Slice(0, n).CopyTo(result);
-                } else {
+                }else{
                     global::System.Array.Copy(__heap, result, n);
                 }
                 return result;
             } finally {
-                if(__heap is not null) {
+                if(__heap is not null){
                     global::System.Buffers.ArrayPool<{{source.ElementType}}>.Shared.Return(__heap, clearArray: true);
                 }
             }

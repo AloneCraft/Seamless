@@ -36,10 +36,10 @@ internal class CountBy(int 番号,Enumerable source,FuncFragment keySelector):En
         private global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>.Enumerator {{this.innerEnumerator}};
         """;
     public override string GetTryGetNextBody => this.UsesPooledIntMap ? this.PooledIntMapTryGetNextBody : $$"""
-        if(this.{{this.lookup}} is null) {
-            if({{this.e}}.TryGetSpan(out var __span)) {
+        if(this.{{this.lookup}} is null){
+            if({{this.e}}.TryGetSpan(out var __span)){
                 this.{{this.lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>({{CapacityExpression("__span.Length")}});
-                for(var __i=0;__i<__span.Length;__i++) {
+                for(var __i=0;__i<__span.Length;__i++){
                     var {{this.item}}=__span[__i];
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
                     {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
@@ -47,12 +47,12 @@ internal class CountBy(int 番号,Enumerable source,FuncFragment keySelector):En
                     __cnt++;
                 }
             }else{
-                if({{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
+                if({{this.e}}.TryGetNonEnumeratedCount(out var __count)){
                     this.{{this.lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>({{CapacityExpression("__count")}});
                 }else{
                     this.{{this.lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>();
                 }
-                while({{this.e}}.TryGetNext(out var __mn20)) {
+                while({{this.e}}.TryGetNext(out var __mn20)){
                     var {{this.item}}=__mn20;
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
                     {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
@@ -62,7 +62,7 @@ internal class CountBy(int 番号,Enumerable source,FuncFragment keySelector):En
             }
             this.{{this.innerEnumerator}}=this.{{this.lookup}}.GetEnumerator();
         }
-        if(this.{{this.innerEnumerator}}.TryGetNext(out var __mn21)) {
+        if(this.{{this.innerEnumerator}}.TryGetNext(out var __mn21)){
             var __kv=__mn21;
             current=this.{{this.currentValue}}=new global::System.Collections.Generic.KeyValuePair<{{FuncReturnTypeName(keySelector)}}, global::System.Int32>(__kv.Key,__kv.Value);
             return true;
@@ -85,10 +85,10 @@ internal class CountBy(int 番号,Enumerable source,FuncFragment keySelector):En
         private int __hashCapacity;
         private int __hashEntryCount;
         private int __hashEnumerationIndex;
-        private void InitializePooledMap(int minimumCapacity) {
+        private void InitializePooledMap(int minimumCapacity){
             var capacity=16;
             var required=minimumCapacity<=0 ? 16L : global::System.Math.Min(1L<<30,(long)minimumCapacity*2);
-            while(capacity<required&&capacity<(1<<30)) {
+            while(capacity<required&&capacity<(1<<30)){
                 capacity<<=1;
             }
             this.__hashKeys=global::System.Buffers.ArrayPool<int>.Shared.Rent(capacity);
@@ -100,14 +100,14 @@ internal class CountBy(int 番号,Enumerable source,FuncFragment keySelector):En
             this.__hashEntryCount=0;
             this.__hashEnumerationIndex=0;
         }
-        private int FindPooledMapSlot(int key) {
+        private int FindPooledMapSlot(int key){
             var slot=(int)(unchecked((uint)key*2654435761u)&(uint)(this.__hashCapacity-1));
-            while(this.__hashUsed![slot]!=0&&this.__hashKeys![slot]!=key) {
+            while(this.__hashUsed![slot]!=0&&this.__hashKeys![slot]!=key){
                 slot=(slot+1)&(this.__hashCapacity-1);
             }
             return slot;
         }
-        private void GrowPooledMap() {
+        private void GrowPooledMap(){
             var oldKeys=this.__hashKeys!;
             var oldCounts=this.__hashCounts!;
             var oldOrder=this.__hashOrder!;
@@ -115,7 +115,7 @@ internal class CountBy(int 番号,Enumerable source,FuncFragment keySelector):En
             var oldCapacity=this.__hashCapacity;
             var oldEntryCount=this.__hashEntryCount;
             this.InitializePooledMap(oldCapacity);
-            for(var index=0;index<oldEntryCount;index++) {
+            for(var index=0;index<oldEntryCount;index++){
                 var oldSlot=oldOrder[index];
                 var key=oldKeys[oldSlot];
                 var slot=this.FindPooledMapSlot(key);
@@ -129,15 +129,15 @@ internal class CountBy(int 番号,Enumerable source,FuncFragment keySelector):En
             global::System.Buffers.ArrayPool<int>.Shared.Return(oldOrder,false);
             global::System.Buffers.ArrayPool<byte>.Shared.Return(oldUsed,true);
         }
-        private void AddPooledMap(int key) {
-            if(this.__hashKeys is null) {
+        private void AddPooledMap(int key){
+            if(this.__hashKeys is null){
                 this.InitializePooledMap(0);
             }
-            if((long)(this.__hashEntryCount+1)*10>=(long)this.__hashCapacity*7) {
+            if((long)(this.__hashEntryCount+1)*10>=(long)this.__hashCapacity*7){
                 this.GrowPooledMap();
             }
             var slot=this.FindPooledMapSlot(key);
-            if(this.__hashUsed![slot]!=0) {
+            if(this.__hashUsed![slot]!=0){
                 this.__hashCounts![slot]++;
                 return;
             }
@@ -146,20 +146,20 @@ internal class CountBy(int 番号,Enumerable source,FuncFragment keySelector):En
             this.__hashCounts![slot]=1;
             this.__hashOrder![this.__hashEntryCount++]=slot;
         }
-        private void DisposePooledMap() {
-            if(this.__hashKeys is not null) {
+        private void DisposePooledMap(){
+            if(this.__hashKeys is not null){
                 global::System.Buffers.ArrayPool<int>.Shared.Return(this.__hashKeys,false);
                 this.__hashKeys=null;
             }
-            if(this.__hashCounts is not null) {
+            if(this.__hashCounts is not null){
                 global::System.Buffers.ArrayPool<int>.Shared.Return(this.__hashCounts,false);
                 this.__hashCounts=null;
             }
-            if(this.__hashOrder is not null) {
+            if(this.__hashOrder is not null){
                 global::System.Buffers.ArrayPool<int>.Shared.Return(this.__hashOrder,false);
                 this.__hashOrder=null;
             }
-            if(this.__hashUsed is not null) {
+            if(this.__hashUsed is not null){
                 global::System.Buffers.ArrayPool<byte>.Shared.Return(this.__hashUsed,true);
                 this.__hashUsed=null;
             }
@@ -170,21 +170,21 @@ internal class CountBy(int 番号,Enumerable source,FuncFragment keySelector):En
         """;
 
     private string PooledIntMapTryGetNextBody => $$"""
-        if(this.__hashKeys is null) {
-            if({{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
+        if(this.__hashKeys is null){
+            if({{this.e}}.TryGetNonEnumeratedCount(out var __count)){
                 this.InitializePooledMap(__count);
             }else{
                 this.InitializePooledMap(0);
             }
-            if({{this.e}}.TryGetSpan(out var __span)) {
-                for(var __i=0;__i<__span.Length;__i++) {
+            if({{this.e}}.TryGetSpan(out var __span)){
+                for(var __i=0;__i<__span.Length;__i++){
                     var {{this.item}}=__span[__i];
                     int {{this.key}}=default!;
                     {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     this.AddPooledMap({{this.key}});
                 }
             }else{
-                while({{this.e}}.TryGetNext(out var __mn22)) {
+                while({{this.e}}.TryGetNext(out var __mn22)){
                     var {{this.item}}=__mn22;
                     int {{this.key}}=default!;
                     {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
@@ -192,7 +192,7 @@ internal class CountBy(int 番号,Enumerable source,FuncFragment keySelector):En
                 }
             }
         }
-        if(this.__hashEnumerationIndex<this.__hashEntryCount) {
+        if(this.__hashEnumerationIndex<this.__hashEntryCount){
             var __slot=this.__hashOrder![this.__hashEnumerationIndex++];
             current=this.{{this.currentValue}}=new global::System.Collections.Generic.KeyValuePair<int,global::System.Int32>(this.__hashKeys[__slot],this.__hashCounts![__slot]);
             return true;

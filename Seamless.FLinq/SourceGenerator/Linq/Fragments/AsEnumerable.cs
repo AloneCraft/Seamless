@@ -19,11 +19,11 @@ internal class AsEnumerable(int 番号,Enumerable source):Enumerable(番号) {
     protected override string GetTryGetSpanBody => $"return this.{this.e}.TryGetSpan(out span);";
     protected override string GetTryCopyToBody => $"return this.{this.e}.TryCopyTo(destination,__offset);";
     public override string GetTryGetNextBody => $$"""
-        if({{this.e}}.TryGetNext(out var __mn6)) {
+        if({{this.e}}.TryGetNext(out var __mn6)){
             current = this.{{this.currentValue}} = __mn6;
             return true;
         }
-        current = default!;
+        current=default!;
         return false;
         """;
     public override string ElementType => source.ElementType;

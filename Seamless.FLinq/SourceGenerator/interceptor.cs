@@ -9,7 +9,7 @@ public sealed partial class FLinqIncrementalGenerator:IIncrementalGenerator {
         namespace System.Runtime.CompilerServices {
             [global::System.AttributeUsage(global::System.AttributeTargets.Method,AllowMultiple=true)]
             internal sealed class InterceptsLocationAttribute : global::System.Attribute {
-                public InterceptsLocationAttribute(int version,string data) {
+                public InterceptsLocationAttribute(int version,string data){
                     this.Version=version;
                     this.Data=data;
                 }
@@ -37,11 +37,11 @@ public sealed partial class FLinqIncrementalGenerator:IIncrementalGenerator {
             }
             [global::System.AttributeUsage(global::System.AttributeTargets.Assembly|global::System.AttributeTargets.Class|global::System.AttributeTargets.Method,AllowMultiple=false)]
             internal sealed class LinqInterceptAttribute : global::System.Attribute {
-                public LinqInterceptAttribute(bool optimizeLinq) {
+                public LinqInterceptAttribute(bool optimizeLinq){
                     this.OptimizeLinq=optimizeLinq;
                     this.Intercept=optimizeLinq;
                 }
-                public LinqInterceptAttribute(bool optimizeLinq,LinqInstrumentation instrumentation) {
+                public LinqInterceptAttribute(bool optimizeLinq,LinqInstrumentation instrumentation){
                     this.OptimizeLinq=optimizeLinq;
                     this.Intercept=optimizeLinq;
                     this.Instrumentation=instrumentation;

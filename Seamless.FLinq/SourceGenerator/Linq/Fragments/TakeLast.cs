@@ -28,13 +28,13 @@ internal class TakeLast(int 番号,Enumerable source,string takeCount):Enumerabl
             """;
     public override string GetTryGetNextBody => this.RootSource.CanTryProvideSpan
         ? $$"""
-            if({{this.e}}.TryGetSpan(out var __span)) {
-                if(this.{{this.a}}<0) {
+            if({{this.e}}.TryGetSpan(out var __span)){
+                if(this.{{this.a}}<0){
                     var __spanCount=count<0?0:count;
                     this.{{this.a}}=__span.Length-global::System.Math.Min(__spanCount,__span.Length);
                     this.{{this.temp}}=__span.Length;
                 }
-                if((uint)this.{{this.a}}<(uint)this.{{this.temp}}) {
+                if((uint)this.{{this.a}}<(uint)this.{{this.temp}}){
                     current=this.{{this.currentValue}}=__span[this.{{this.a}}++];
                     return true;
                 }
@@ -42,18 +42,18 @@ internal class TakeLast(int 番号,Enumerable source,string takeCount):Enumerabl
                 return false;
             }
             var __takeCount=count<0?0:count;
-            if(this.{{this.lookup}} is null) {
+            if(this.{{this.lookup}} is null){
                 this.{{this.lookup}}=new global::System.Collections.Generic.Queue<{{this.RootSource.ElementType}}>(__takeCount);
-                if(__takeCount==0) {
+                if(__takeCount==0){
                     current=default!;
                     return false;
                 }
-                while({{this.e}}.TryGetNext(out var __mn76)) {
+                while({{this.e}}.TryGetNext(out var __mn76)){
                     if(this.{{this.lookup}}.Count==__takeCount) this.{{this.lookup}}.Dequeue();
                     this.{{this.lookup}}.Enqueue(__mn76);
                 }
             }
-            if(this.{{this.lookup}}.Count>0) {
+            if(this.{{this.lookup}}.Count>0){
                 current=this.{{this.currentValue}}=this.{{this.lookup}}.Dequeue();
                 return true;
             }
@@ -62,18 +62,18 @@ internal class TakeLast(int 番号,Enumerable source,string takeCount):Enumerabl
             """
         : $$"""
             var __c=count<0?0:count;
-            if(this.{{this.lookup}} is null) {
+            if(this.{{this.lookup}} is null){
                 this.{{this.lookup}}=new global::System.Collections.Generic.Queue<{{this.RootSource.ElementType}}>(__c);
-                if(__c==0) {
+                if(__c==0){
                     current=default!;
                     return false;
                 }
-                while({{this.e}}.TryGetNext(out var __mn77)) {
+                while({{this.e}}.TryGetNext(out var __mn77)){
                     if(this.{{this.lookup}}.Count==__c) this.{{this.lookup}}.Dequeue();
                     this.{{this.lookup}}.Enqueue(__mn77);
                 }
             }
-            if(this.{{this.lookup}}.Count>0) {
+            if(this.{{this.lookup}}.Count>0){
                 current=this.{{this.currentValue}}=this.{{this.lookup}}.Dequeue();
                 return true;
             }
@@ -112,7 +112,7 @@ internal class TakeLast(int 番号,Enumerable source,string takeCount):Enumerabl
                 var {{take}}={{this.EffectiveTakeCount}};
                 var {{actual}}=global::System.Math.Min({{count}},global::System.Math.Max(0,{{take}}));
                 var {{skip}}={{count}} - {{actual}};
-                for(var {{index}}=0;{{index}}<{{actual}};{{index}}++) {
+                for(var {{index}}=0;{{index}}<{{actual}};{{index}}++){
                     {{consumerName}}.Consume({{start}} + {{skip}} + {{index}});
                 }
             }

@@ -45,14 +45,14 @@ internal class TakeWhile_predicate(int 番号,Enumerable source,FuncFragment pre
                 : $"{preCode}\n        if(!{WrapConditionExpression(condExpr)})";
 
             return $$"""
-                if(this.done || !{{this.e}}.TryGetNext(out var __mn78)) {
-                    current = default!;
+                if(this.done || !{{this.e}}.TryGetNext(out var __mn78)){
+                    current=default!;
                     return false;
                 }
                 var {{this.item}} = __mn78;
                 {{predicateCheck}} {
                     this.done = true;
-                    current = default!;
+                    current=default!;
                     return false;
                 }
                 current = this.{{this.currentValue}} = {{this.item}};
@@ -83,15 +83,15 @@ internal class TakeWhile_indexPredicate(int id,Enumerable source,FuncFragment pr
                 : $"{preCode}\n        if(!{WrapConditionExpression(condExpr)})";
 
             return $$"""
-                if(this.done || !{{this.e}}.TryGetNext(out var __mn79)) {
-                    current = default!;
+                if(this.done || !{{this.e}}.TryGetNext(out var __mn79)){
+                    current=default!;
                     return false;
                 }
                 var {{this.item}} = __mn79;
                 this.{{this.a}}++;
                 {{predicateCheck}} {
                     this.done = true;
-                    current = default!;
+                    current=default!;
                     return false;
                 }
                 current = this.{{this.currentValue}} = {{this.item}};
@@ -128,7 +128,7 @@ internal class TakeWhile_indexPredicate(int id,Enumerable source,FuncFragment pr
                 var {{indexName}}=-1;
                 global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
                 var {{spanName}}={{directSpanExpression}};
-                for(var __i{{id}}=0;__i{{id}}<{{spanName}}.Length;__i{{id}}++) {
+                for(var __i{{id}}=0;__i{{id}}<{{spanName}}.Length;__i{{id}}++){
                     var {{itemName}}={{spanName}}[__i{{id}}];
                     {{indexName}}++;
                     {{spanPredicate}} {
@@ -144,9 +144,9 @@ internal class TakeWhile_indexPredicate(int id,Enumerable source,FuncFragment pr
             using var {{sourceName}}={{source.GetEnumeratorExpression}};
             var {{indexName}}=-1;
             global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanCalled();
-            if({{sourceName}}.TryGetSpan(out var {{spanName}})) {
+            if({{sourceName}}.TryGetSpan(out var {{spanName}})){
                 global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanSucceeded();
-                for(var __i{{id}}=0;__i{{id}}<{{spanName}}.Length;__i{{id}}++) {
+                for(var __i{{id}}=0;__i{{id}}<{{spanName}}.Length;__i{{id}}++){
                     var {{itemName}}={{spanName}}[__i{{id}}];
                     {{indexName}}++;
                     {{spanPredicate}} {
@@ -157,7 +157,7 @@ internal class TakeWhile_indexPredicate(int id,Enumerable source,FuncFragment pr
             }else{
                 global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanFailed();
                 global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
-                while({{sourceName}}.TryGetNext(out {{source.ElementType}} {{itemName}})) {
+                while({{sourceName}}.TryGetNext(out {{source.ElementType}} {{itemName}})){
                     {{indexName}}++;
                     {{loopPredicate}} {
                         break;

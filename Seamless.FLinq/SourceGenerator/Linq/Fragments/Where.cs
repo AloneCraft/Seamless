@@ -47,8 +47,8 @@ internal class Where_predicate(int 番号,Enumerable source,FuncFragment predica
 
             return $$"""
                 {{this.Start}}:
-                if(!{{this.e}}.TryGetNext(out var {{this.item}})) {
-                    current = default!;
+                if(!{{this.e}}.TryGetNext(out var {{this.item}})){
+                    current=default!;
                     return false;
                 }
                 {{this.CounterCall("IncrementLogicalWhere")}}
@@ -96,7 +96,7 @@ internal class Where_WithInlinedScalarPredicate(int 番号,Enumerable source,Fra
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
-        while({{this.e}}.TryGetNext(out var {{outerParamName}})) {
+        while({{this.e}}.TryGetNext(out var {{outerParamName}})){
             {{this.CounterCall("IncrementLogicalWhere")}}
             var {{this.item}} = {{scalarFrag.GetEnumeratorExpression}};
             {{this.item}}.TryGetNext(out var {{this.temp}});
@@ -106,7 +106,7 @@ internal class Where_WithInlinedScalarPredicate(int 番号,Enumerable source,Fra
             current = this.{{this.currentValue}};
             return true;
         }
-        current = default!;
+        current=default!;
         return false;
         """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
@@ -189,8 +189,8 @@ internal class Where_indexPredicate(int 番号,Enumerable source,FuncFragment pr
 
             return $$"""
                 {{this.Start}}:
-                if(!{{this.e}}.TryGetNext(out var {{this.item}})) {
-                    current = default!;
+                if(!{{this.e}}.TryGetNext(out var {{this.item}})){
+                    current=default!;
                     return false;
                 }
                 {{this.CounterCall("IncrementLogicalWhere")}}

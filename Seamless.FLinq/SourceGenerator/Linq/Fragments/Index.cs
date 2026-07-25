@@ -13,7 +13,7 @@ internal class Index(int 番号,Enumerable source):Enumerable(番号) {
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     public override string GetEnumeratorFields => $"private int {this.a}=0;";
     public override string GetTryGetNextBody => $$"""
-        if({{this.e}}.TryGetNext(out var __mn37)) {
+        if({{this.e}}.TryGetNext(out var __mn37)){
             current=this.{{this.currentValue}}=(this.{{this.a}}++,__mn37);
             return true;
         }
@@ -32,7 +32,7 @@ internal class Index(int 番号,Enumerable source):Enumerable(番号) {
             using var {{sourceName}}={{source.GetEnumeratorExpression}};
             global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
             var {{spanName}}={{directSpanExpression}};
-            for(var __i{{番号}}=0;__i{{番号}}<{{spanName}}.Length;__i{{番号}}++) {
+            for(var __i{{番号}}=0;__i{{番号}}<{{spanName}}.Length;__i{{番号}}++){
                 {{consumerName}}.Consume((__i{{番号}},{{spanName}}[__i{{番号}}]));
             }
             """;

@@ -40,7 +40,7 @@ internal class ElementAtOrDefault(int 番号,Enumerable source,string index,stri
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, int index) {
+            private static {{resultType}} Compute(TEnum source, int index){
                 if(index<0) return default!;
                 source.TryGetSpan(out var __span);
                 if((uint)index>=(uint)__span.Length) return default!;
@@ -49,10 +49,10 @@ internal class ElementAtOrDefault(int 番号,Enumerable source,string index,stri
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, int index) {
+            private static {{resultType}} Compute(TEnum source, int index){
                 if(index<0) return default!;
                 var currentIndex=0;
-                while(source.TryGetNext(out var __mn27)) {
+                while(source.TryGetNext(out var __mn27)){
                     if(currentIndex==index) return __mn27;
                     currentIndex++;
                 }
@@ -106,7 +106,7 @@ internal class ElementAtOrDefault_index(int 番号,Enumerable source,string inde
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, global::System.Index index) {
+            private static {{resultType}} Compute(TEnum source,global::System.Index index){
                 source.TryGetSpan(out var __span);
                 var idx=index.GetOffset(__span.Length);
                 if((uint)idx>=(uint)__span.Length) return default!;
@@ -115,11 +115,11 @@ internal class ElementAtOrDefault_index(int 番号,Enumerable source,string inde
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, global::System.Index index) {
-                if(!index.IsFromEnd) {
+            private static {{resultType}} Compute(TEnum source,global::System.Index index){
+                if(!index.IsFromEnd){
                     var idx=index.Value;
                     var currentIndex=0;
-                    while(source.TryGetNext(out var __mn28)) {
+                    while(source.TryGetNext(out var __mn28)){
                         if(currentIndex==idx) return __mn28;
                         currentIndex++;
                     }
@@ -129,7 +129,7 @@ internal class ElementAtOrDefault_index(int 番号,Enumerable source,string inde
                     if(n==0) return default!;
                     var count=0;
                     var buffer=new {{resultType}}[n];
-                    while(source.TryGetNext(out var __mn29)) {
+                    while(source.TryGetNext(out var __mn29)){
                         buffer[count%n]=__mn29;
                         count++;
                     }

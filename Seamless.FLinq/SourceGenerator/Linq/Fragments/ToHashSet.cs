@@ -43,10 +43,10 @@ internal class ToHashSet(int 番号,Enumerable source,string resultType):ToHashS
         var spanName = $"__hashSetSpan{番号}";
         return $$"""
             {{destType}} {{destVar}};
-            using(var {{sourceName}}={{source.GetEnumeratorExpression}}) {
+            using(var {{sourceName}}={{source.GetEnumeratorExpression}}){
                 var {{spanName}}={{directSpanExpression}};
                 {{destVar}}=new({{spanName}}.Length);
-                for(var __i{{番号}}=0;__i{{番号}}<{{spanName}}.Length;__i{{番号}}++) {
+                for(var __i{{番号}}=0;__i{{番号}}<{{spanName}}.Length;__i{{番号}}++){
                     {{destVar}}.Add({{spanName}}[__i{{番号}}]);
                 }
             }
@@ -67,7 +67,7 @@ internal class ToHashSet(int 番号,Enumerable source,string resultType):ToHashS
                 var {{start}}={{range.StartExpression}};
                 var {{count}}={{range.CountExpression}};
                 {{destVar}}=new({{count}});
-                for(var {{index}}=0;{{index}}<{{count}};{{index}}++) {
+                for(var {{index}}=0;{{index}}<{{count}};{{index}}++){
                     var {{value}}={{start}} + {{index}};
                     {{destVar}}.Add({{value}});
                 }
@@ -114,11 +114,11 @@ internal class ToHashSet_comparer(int 番号,Enumerable source,string comparer,s
         var comparerVar = $"__comparer{番号}";
         return $$"""
             {{destType}} {{destVar}};
-            using(var {{sourceName}}={{source.GetEnumeratorExpression}}) {
+            using(var {{sourceName}}={{source.GetEnumeratorExpression}}){
                 var {{spanName}}={{directSpanExpression}};
                 var {{comparerVar}}={{comparer}};
                 {{destVar}}=new({{spanName}}.Length,{{comparerVar}});
-                for(var __i{{番号}}=0;__i{{番号}}<{{spanName}}.Length;__i{{番号}}++) {
+                for(var __i{{番号}}=0;__i{{番号}}<{{spanName}}.Length;__i{{番号}}++){
                     {{destVar}}.Add({{spanName}}[__i{{番号}}]);
                 }
             }
@@ -141,7 +141,7 @@ internal class ToHashSet_comparer(int 番号,Enumerable source,string comparer,s
                 var {{count}}={{range.CountExpression}};
                 var {{comparerVar}}={{comparer}};
                 {{destVar}}=new({{count}},{{comparerVar}});
-                for(var {{index}}=0;{{index}}<{{count}};{{index}}++) {
+                for(var {{index}}=0;{{index}}<{{count}};{{index}}++){
                     var {{value}}={{start}} + {{index}};
                     {{destVar}}.Add({{value}});
                 }

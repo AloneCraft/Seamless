@@ -78,7 +78,7 @@ internal class Average(int 番号,Enumerable source,string resultType):BufferedS
             return source.CanProvideSpan
                 ? $$"""
                     {{AggressiveInliningAttribute}}
-                    private static {{resultType}} Compute(TEnum source) {
+                    private static {{resultType}} Compute(TEnum source){
                         var sum=0m;
                         source.TryGetSpan(out var __span);
                         if(__span.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
@@ -88,7 +88,7 @@ internal class Average(int 番号,Enumerable source,string resultType):BufferedS
                     """
                 : $$"""
                     {{AggressiveInliningAttribute}}
-                    private static {{resultType}} Compute(TEnum source) {
+                    private static {{resultType}} Compute(TEnum source){
                         long count=0;
                         var sum=0m;
                         while(source.TryGetNext(out var __mn7)){
@@ -105,7 +105,7 @@ internal class Average(int 番号,Enumerable source,string resultType):BufferedS
                 ? source.ElementType=="int"
                     ? $$"""
                         {{AggressiveInliningAttribute}}
-                        private static {{resultType}} Compute(TEnum source) {
+                        private static {{resultType}} Compute(TEnum source){
                             source.TryGetSpan(out var __span);
                             if(__span.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
                             return ({{resultType}})global::Seamless.Linq.Enumerable.AverageIntSimd(__span);
@@ -113,7 +113,7 @@ internal class Average(int 番号,Enumerable source,string resultType):BufferedS
                         """
                     : $$"""
                         {{AggressiveInliningAttribute}}
-                        private static {{resultType}} Compute(TEnum source) {
+                        private static {{resultType}} Compute(TEnum source){
                             double sum=0;
                             source.TryGetSpan(out var __span);
                             if(__span.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
@@ -123,7 +123,7 @@ internal class Average(int 番号,Enumerable source,string resultType):BufferedS
                         """
                 : $$"""
                     {{AggressiveInliningAttribute}}
-                    private static {{resultType}} Compute(TEnum source) {
+                    private static {{resultType}} Compute(TEnum source){
                         long count=0;
                         double sum=0;
                         while(source.TryGetNext(out var __mn8)){
@@ -138,7 +138,7 @@ internal class Average(int 番号,Enumerable source,string resultType):BufferedS
         return source.CanProvideSpan
             ? $$"""
                 {{AggressiveInliningAttribute}}
-                private static {{resultType}} Compute(TEnum source) {
+                private static {{resultType}} Compute(TEnum source){
                     long count=0;
                     {{resultType}} sum=default!;
                     source.TryGetSpan(out var __span);
@@ -152,7 +152,7 @@ internal class Average(int 番号,Enumerable source,string resultType):BufferedS
                 """
             : $$"""
                 {{AggressiveInliningAttribute}}
-                private static {{resultType}} Compute(TEnum source) {
+                private static {{resultType}} Compute(TEnum source){
                     long count=0;
                     {{resultType}} sum=default!;
                     while(source.TryGetNext(out var __mn9)){
@@ -196,7 +196,7 @@ internal class Average_selector(int 番号,Enumerable source,FuncFragment select
             return source.CanProvideSpan
                 ? $$"""
                     {{AggressiveInliningAttribute}}
-                    private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
+                    private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}){
                         var sum=0m;
                         source.TryGetSpan(out var __span);
                         if(__span.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
@@ -210,7 +210,7 @@ internal class Average_selector(int 番号,Enumerable source,FuncFragment select
                     """
                 : $$"""
                     {{AggressiveInliningAttribute}}
-                    private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
+                    private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}){
                         long count=0;
                         var sum=0m;
                         while(source.TryGetNext(out var __mn10)){
@@ -229,7 +229,7 @@ internal class Average_selector(int 番号,Enumerable source,FuncFragment select
             return source.CanProvideSpan
                 ? $$"""
                     {{AggressiveInliningAttribute}}
-                    private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
+                    private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}){
                         double sum=0;
                         source.TryGetSpan(out var __span);
                         if(__span.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
@@ -243,7 +243,7 @@ internal class Average_selector(int 番号,Enumerable source,FuncFragment select
                     """
                 : $$"""
                     {{AggressiveInliningAttribute}}
-                    private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
+                    private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}){
                         long count=0;
                         double sum=0;
                         while(source.TryGetNext(out var __mn11)){
@@ -261,7 +261,7 @@ internal class Average_selector(int 番号,Enumerable source,FuncFragment select
         return source.CanProvideSpan
             ? $$"""
                 {{AggressiveInliningAttribute}}
-                private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
+                private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}){
                     long count=0;
                     {{resultType}} sum=default!;
                     source.TryGetSpan(out var __span);
@@ -277,7 +277,7 @@ internal class Average_selector(int 番号,Enumerable source,FuncFragment select
                 """
             : $$"""
                 {{AggressiveInliningAttribute}}
-                private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
+                private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}){
                     long count=0;
                     {{resultType}} sum=default!;
                     while(source.TryGetNext(out var __mn12)){

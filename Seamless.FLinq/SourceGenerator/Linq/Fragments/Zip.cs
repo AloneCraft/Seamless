@@ -32,7 +32,7 @@ internal class Zip(int 番号,Enumerable source,Enumerable second):Enumerable(�
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {second.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second";
     public override string GetTryGetNextBody => $$"""
-        if(source.TryGetNext(out var __mn94)&&second.TryGetNext(out var __mn95)) {
+        if(source.TryGetNext(out var __mn94)&&second.TryGetNext(out var __mn95)){
             current=this.{{this.currentValue}}=(__mn94,__mn95);
             return true;
         }
@@ -58,7 +58,7 @@ internal class Zip3(int 番号,Enumerable source,Enumerable second,Enumerable th
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {second.GetEnumeratorExpression}, {third.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second, TEnum3 third";
     public override string GetTryGetNextBody => $$"""
-        if(source.TryGetNext(out var __mn96)&&second.TryGetNext(out var __mn97)&&third.TryGetNext(out var __mn98)) {
+        if(source.TryGetNext(out var __mn96)&&second.TryGetNext(out var __mn97)&&third.TryGetNext(out var __mn98)){
             current=this.{{this.currentValue}}=(__mn96,__mn97,__mn98);
             return true;
         }
@@ -97,7 +97,7 @@ internal class Zip_resultSelector(int 番号,Enumerable source,Enumerable second
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum1 source, TEnum2 second{this.ClosurePrimaryCtorSuffix(resultSelector)}";
     public override string GetTryGetNextBody => $$"""
-        if(source.TryGetNext(out var __mn99)&&second.TryGetNext(out var __mn100)) {
+        if(source.TryGetNext(out var __mn99)&&second.TryGetNext(out var __mn100)){
             var {{this.item}}=__mn99;
             var {{this.temp}}=__mn100;
             {{this.FuncAssignCurrentIndented("    ",resultSelector,nameof(resultSelector),this.currentValue,this.item,this.temp)}}

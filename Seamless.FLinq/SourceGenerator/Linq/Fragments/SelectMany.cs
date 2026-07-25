@@ -102,8 +102,8 @@ internal abstract class SelectManyBase(int 番号,Enumerable source):Enumerable(
         """;
     public override string GetTryGetNextBody => $$"""
         {{this.Start}}:
-        if(this.innerEnumerator is not null) {
-            if(this.innerEnumerator.MoveNext()) {
+        if(this.innerEnumerator is not null){
+            if(this.innerEnumerator.MoveNext()){
                 {{this.CounterCall("IncrementLogicalSelectManyInner")}}
                 var {{this.item}} = this.innerEnumerator.Current;
                 {{this.CurrentValueAssignmentFromInner}}
@@ -112,8 +112,8 @@ internal abstract class SelectManyBase(int 番号,Enumerable source):Enumerable(
             this.innerEnumerator.Dispose();
             this.innerEnumerator = null;
         }
-        if(!{{this.e}}.TryGetNext(out var {{this.outerValue}}Next)) {
-            current = default!;
+        if(!{{this.e}}.TryGetNext(out var {{this.outerValue}}Next)){
+            current=default!;
             return false;
         }
         {{this.MoveNextOuterPrologue}}
@@ -123,7 +123,7 @@ internal abstract class SelectManyBase(int 番号,Enumerable source):Enumerable(
         goto {{this.Start}};
         """;
     protected override string GetEnumeratorDisposeBody => $$"""
-        if(this.innerEnumerator is not null) {
+        if(this.innerEnumerator is not null){
             this.innerEnumerator.Dispose();
         }
         {{this.e}}.Dispose();
@@ -294,8 +294,8 @@ internal class SelectMany_WithInlinedInner(int 番号,Enumerable source,Enumerab
     // bool flag replaces the null check
     public override string GetTryGetNextBody => $$"""
         {{this.Start}}:
-        if(this.{{this.hasValue}}) {
-            if(this.innerEnumerator.TryGetNext(out var {{this.item}})) {
+        if(this.{{this.hasValue}}){
+            if(this.innerEnumerator.TryGetNext(out var {{this.item}})){
                 {{this.CounterCall("IncrementLogicalSelectManyInner")}}
                 {{this.CurrentValueAssignmentFromInner}}
                 return true;
@@ -303,8 +303,8 @@ internal class SelectMany_WithInlinedInner(int 番号,Enumerable source,Enumerab
             this.innerEnumerator.Dispose();
             this.{{this.hasValue}} = false;
         }
-        if(!{{this.e}}.TryGetNext(out var __mn50)) {
-            current = default!;
+        if(!{{this.e}}.TryGetNext(out var __mn50)){
+            current=default!;
             return false;
         }
         {{this.CounterCall("IncrementLogicalSelectManyOuter")}}
@@ -315,7 +315,7 @@ internal class SelectMany_WithInlinedInner(int 番号,Enumerable source,Enumerab
         """;
 
     protected override string GetEnumeratorDisposeBody => $$"""
-        if(this.{{this.hasValue}}) {
+        if(this.{{this.hasValue}}){
             this.innerEnumerator.Dispose();
         }
         {{this.e}}.Dispose();

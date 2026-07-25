@@ -145,21 +145,21 @@ internal class Root(int 番号,string sourceExpression,string elementType,string
         {
             private TEnum {{this.e}};
             public {{this.Struct}}(TEnum {{this.e}}) { this.{{this.e}} = {{this.e}}; }
-            public {{elementType}} Current { get; private set; } = default!;
+            public {{elementType}} Current{get;private set;}=default!;
             public bool TryGetNonEnumeratedCount(out int count) { count = 0; return false; }
             public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) { span = default; return false; }
-            public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) => false;
+            public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination,global::System.Index offset) => false;
             {{AggressiveInliningAttribute}}
-            public bool TryGetNext(out {{elementType}} current) {
-                if({{this.e}}.MoveNext()) {
+            public bool TryGetNext(out {{elementType}} current){
+                if({{this.e}}.MoveNext()){
                     current = this.Current = {{this.e}}.Current;
                     return true;
                 }
-                current = default!;
+                current=default!;
                 return false;
             }
             {{AggressiveInliningAttribute}}
-            public void Dispose() {
+            public void Dispose(){
                 {{this.e}}.Dispose();
             }
         }
@@ -170,35 +170,35 @@ internal class Root(int 番号,string sourceExpression,string elementType,string
         {
             private global::System.Collections.Generic.IEnumerable<{{elementType}}> source;
             private global::System.Collections.Generic.IEnumerator<{{elementType}}>? {{this.e}};
-            private int __index = -1;
+            private int __index=-1;
             public {{this.Struct}}(global::System.Collections.Generic.IEnumerable<{{elementType}}> source) { this.source = source; }
-            public {{elementType}} Current { get; private set; } = default!;
+            public {{elementType}} Current{get;private set;}=default!;
             {{AggressiveInliningAttribute}}
-            public bool TryGetNonEnumeratedCount(out int count) {
-                if(global::System.Linq.Enumerable.TryGetNonEnumeratedCount(source,out var sourceCount)) {
+            public bool TryGetNonEnumeratedCount(out int count){
+                if(global::System.Linq.Enumerable.TryGetNonEnumeratedCount(source,out var sourceCount)){
                     count = sourceCount - (__index + 1);
                     return true;
                 }
-                count = 0;
+                count=0;
                 return false;
             }
             {{AggressiveInliningAttribute}}
-            public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) {
+            public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span){
                 var start = __index + 1;
-                if(source is {{elementType}}[] array) {
+                if(source is {{elementType}}[] array){
                     span = global::System.MemoryExtensions.AsSpan(array, start);
                     return true;
                 }
-                if(source is global::System.Collections.Generic.List<{{elementType}}> list) {
+                if(source is global::System.Collections.Generic.List<{{elementType}}> list){
                     span = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(list).Slice(start);
                     return true;
                 }
-                span = default;
+                span=default;
                 return false;
             }
             {{AggressiveInliningAttribute}}
-            public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) {
-                if(!TryGetSpan(out var span)) {
+            public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination,global::System.Index offset){
+                if(!TryGetSpan(out var span)){
                     return false;
                 }
                 var start = offset.GetOffset(span.Length);
@@ -206,18 +206,18 @@ internal class Root(int 番号,string sourceExpression,string elementType,string
                 return true;
             }
             {{AggressiveInliningAttribute}}
-            public bool TryGetNext(out {{elementType}} current) {
+            public bool TryGetNext(out {{elementType}} current){
                 this.{{this.e}} ??= source.GetEnumerator();
-                if(this.{{this.e}}.MoveNext()) {
+                if(this.{{this.e}}.MoveNext()){
                     __index++;
                     current = this.Current = this.{{this.e}}.Current;
                     return true;
                 }
-                current = default!;
+                current=default!;
                 return false;
             }
             {{AggressiveInliningAttribute}}
-            public void Dispose() {
+            public void Dispose(){
                 this.{{this.e}}?.Dispose();
             }
         }
@@ -226,11 +226,11 @@ internal class Root(int 番号,string sourceExpression,string elementType,string
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
-        if({{this.e}}.MoveNext()) {
+        if({{this.e}}.MoveNext()){
             current = this.Current = {{this.e}}.Current;
             return true;
         }
-        current = default!;
+        current=default!;
         return false;
         """;
     public override string ElementType => elementType;
@@ -303,11 +303,11 @@ internal class DuckTypingRoot(int 番号,string sourceExpression,string elementT
     public override string GetEnumeratorPrimaryConstructorParameters => $"{concreteEnumeratorType} {this.e}";
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
-        if({{this.e}}.MoveNext()) {
+        if({{this.e}}.MoveNext()){
             current = this.Current = {{this.e}}.Current;
             return true;
         }
-        current = default!;
+        current=default!;
         return false;
         """;
     public override string ElementType => elementType;
@@ -316,21 +316,21 @@ internal class DuckTypingRoot(int 番号,string sourceExpression,string elementT
         {
             private {{concreteEnumeratorType}} {{this.e}};
             public {{this.Struct}}({{concreteEnumeratorType}} {{this.e}}) { this.{{this.e}} = {{this.e}}; }
-            public {{elementType}} Current { get; private set; } = default!;
+            public {{elementType}} Current{get;private set;}=default!;
             public bool TryGetNonEnumeratedCount(out int count) { count = 0; return false; }
             public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) { span = default; return false; }
-            public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) => false;
+            public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination,global::System.Index offset) => false;
             {{AggressiveInliningAttribute}}
-            public bool TryGetNext(out {{elementType}} current) {
-                if({{this.e}}.MoveNext()) {
+            public bool TryGetNext(out {{elementType}} current){
+                if({{this.e}}.MoveNext()){
                     current = this.Current = {{this.e}}.Current;
                     return true;
                 }
-                current = default!;
+                current=default!;
                 return false;
             }
             {{AggressiveInliningAttribute}}
-            public void Dispose() { }
+            public void Dispose(){}
         }
         """;
 }
@@ -360,7 +360,7 @@ internal sealed class RangeRoot(int 番号,string startExpression,string countEx
     public override string GetEnumeratorPrimaryConstructorParameters => "int start, int count";
     public override string GetEnumeratorFields => $"private int {this.e} = -1;";
     public override string GetTryGetNextBody => $$"""
-        if(++{{this.e}} < count) {
+        if(++{{this.e}} < count){
             current = this.Current = start + {{this.e}};
             return true;
         }
@@ -375,17 +375,17 @@ internal sealed class RangeRoot(int 番号,string startExpression,string countEx
             private int count;
             private int {{this.e}} = -1;
             public {{this.Struct}}(int start,int count) { this.start = start; this.count = count; }
-            public int Current { get; private set; } = default!;
+            public int Current{get;private set;}=default!;
             {{AggressiveInliningAttribute}}
-            public bool TryGetNonEnumeratedCount(out int count) {
+            public bool TryGetNonEnumeratedCount(out int count){
                 count = this.count - ({{this.e}} + 1);
                 return true;
             }
             public bool TryGetSpan(out global::System.ReadOnlySpan<int> span) { span = default; return false; }
-            public bool TryCopyTo(scoped global::System.Span<int> destination, global::System.Index offset) => false;
+            public bool TryCopyTo(scoped global::System.Span<int> destination,global::System.Index offset) => false;
             {{AggressiveInliningAttribute}}
-            public bool TryGetNext(out int current) {
-                if(++{{this.e}} < count) {
+            public bool TryGetNext(out int current){
+                if(++{{this.e}} < count){
                     current = this.Current = start + {{this.e}};
                     return true;
                 }
@@ -393,14 +393,14 @@ internal sealed class RangeRoot(int 番号,string startExpression,string countEx
                 return false;
             }
             {{AggressiveInliningAttribute}}
-            public void Dispose() { }
+            public void Dispose(){}
         }
         """;
     public override string GetConsumeExecutionStatement(string consumerName) => $$"""
         {
             var __start{{番号}}={{startExpression}};
             var __count{{番号}}={{countExpression}};
-            for(var __i{{番号}}=0;__i{{番号}}<__count{{番号}};__i{{番号}}++) {
+            for(var __i{{番号}}=0;__i{{番号}}<__count{{番号}};__i{{番号}}++){
                 {{consumerName}}.Consume(__start{{番号}} + __i{{番号}});
             }
         }
@@ -416,7 +416,7 @@ internal sealed class DescendingRangeRoot(int 番号,string startExpression,stri
     public override string GetEnumeratorPrimaryConstructorParameters => "int start, int count";
     public override string GetEnumeratorFields => $"private int {this.e} = -1;";
     public override string GetTryGetNextBody => $$"""
-        if(++{{this.e}} < count) {
+        if(++{{this.e}} < count){
             current = this.Current = start + count - 1 - {{this.e}};
             return true;
         }
@@ -431,17 +431,17 @@ internal sealed class DescendingRangeRoot(int 番号,string startExpression,stri
             private int count;
             private int {{this.e}} = -1;
             public {{this.Struct}}(int start,int count) { this.start = start; this.count = count; }
-            public int Current { get; private set; } = default!;
+            public int Current{get;private set;}=default!;
             {{AggressiveInliningAttribute}}
-            public bool TryGetNonEnumeratedCount(out int count) {
+            public bool TryGetNonEnumeratedCount(out int count){
                 count = this.count - ({{this.e}} + 1);
                 return true;
             }
             public bool TryGetSpan(out global::System.ReadOnlySpan<int> span) { span = default; return false; }
-            public bool TryCopyTo(scoped global::System.Span<int> destination, global::System.Index offset) => false;
+            public bool TryCopyTo(scoped global::System.Span<int> destination,global::System.Index offset) => false;
             {{AggressiveInliningAttribute}}
-            public bool TryGetNext(out int current) {
-                if(++{{this.e}} < count) {
+            public bool TryGetNext(out int current){
+                if(++{{this.e}} < count){
                     current = this.Current = start + count - 1 - {{this.e}};
                     return true;
                 }
@@ -449,14 +449,14 @@ internal sealed class DescendingRangeRoot(int 番号,string startExpression,stri
                 return false;
             }
             {{AggressiveInliningAttribute}}
-            public void Dispose() { }
+            public void Dispose(){}
         }
         """;
     public override string GetConsumeExecutionStatement(string consumerName) => $$"""
         {
             var __start{{番号}}={{startExpression}};
             var __count{{番号}}={{countExpression}};
-            for(var __i{{番号}}=__count{{番号}}-1;__i{{番号}}>=0;__i{{番号}}--) {
+            for(var __i{{番号}}=__count{{番号}}-1;__i{{番号}}>=0;__i{{番号}}--){
                 {{consumerName}}.Consume(__start{{番号}} + __i{{番号}});
             }
         }
@@ -482,7 +482,7 @@ internal sealed class EmptyRoot(int 番号,string elementType):Enumerable(番号
     public override string GetEnumeratorPrimaryConstructorParameters => string.Empty;
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
-        current = default!;
+        current=default!;
         return false;
         """;
     public override string ElementType => elementType;
@@ -491,24 +491,24 @@ internal sealed class EmptyRoot(int 番号,string elementType):Enumerable(番号
         {
             public {{elementType}} Current => default!;
             {{AggressiveInliningAttribute}}
-            public bool TryGetNonEnumeratedCount(out int count) {
-                count = 0;
+            public bool TryGetNonEnumeratedCount(out int count){
+                count=0;
                 return true;
             }
             {{AggressiveInliningAttribute}}
-            public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) {
+            public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span){
                 span = global::System.ReadOnlySpan<{{elementType}}>.Empty;
                 return true;
             }
             {{AggressiveInliningAttribute}}
-            public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) => true;
+            public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination,global::System.Index offset) => true;
             {{AggressiveInliningAttribute}}
-            public bool TryGetNext(out {{elementType}} current) {
-                current = default!;
+            public bool TryGetNext(out {{elementType}} current){
+                current=default!;
                 return false;
             }
             {{AggressiveInliningAttribute}}
-            public void Dispose() { }
+            public void Dispose(){}
         }
         """;
     public override string GetConsumeExecutionStatement(string consumerName) => string.Empty;
@@ -537,11 +537,11 @@ internal sealed class RepeatRoot(int 番号,string valueExpression,string countE
     public override string GetEnumeratorPrimaryConstructorParameters => $"{elementType} value, int count";
     public override string GetEnumeratorFields => $"private int {this.e} = -1;";
     public override string GetTryGetNextBody => $$"""
-        if(++{{this.e}} < count) {
+        if(++{{this.e}} < count){
             current = this.Current = value;
             return true;
         }
-        current = default!;
+        current=default!;
         return false;
         """;
     public override string ElementType => elementType;
@@ -552,32 +552,32 @@ internal sealed class RepeatRoot(int 番号,string valueExpression,string countE
             private int count;
             private int {{this.e}} = -1;
             public {{this.Struct}}({{elementType}} value,int count) { this.value = value; this.count = count; }
-            public {{elementType}} Current { get; private set; } = default!;
+            public {{elementType}} Current{get;private set;}=default!;
             {{AggressiveInliningAttribute}}
-            public bool TryGetNonEnumeratedCount(out int count) {
+            public bool TryGetNonEnumeratedCount(out int count){
                 count = this.count - ({{this.e}} + 1);
                 return true;
             }
             public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) { span = default; return false; }
-            public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) => false;
+            public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination,global::System.Index offset) => false;
             {{AggressiveInliningAttribute}}
-            public bool TryGetNext(out {{elementType}} current) {
-                if(++{{this.e}} < count) {
+            public bool TryGetNext(out {{elementType}} current){
+                if(++{{this.e}} < count){
                     current = this.Current = value;
                     return true;
                 }
-                current = default!;
+                current=default!;
                 return false;
             }
             {{AggressiveInliningAttribute}}
-            public void Dispose() { }
+            public void Dispose(){}
         }
         """;
     public override string GetConsumeExecutionStatement(string consumerName) => $$"""
         {
             var __value{{番号}}={{valueExpression}};
             var __count{{番号}}={{countExpression}};
-            for(var __i{{番号}}=0;__i{{番号}}<__count{{番号}};__i{{番号}}++) {
+            for(var __i{{番号}}=0;__i{{番号}}<__count{{番号}};__i{{番号}}++){
                 {{consumerName}}.Consume(__value{{番号}});
             }
         }
@@ -592,8 +592,8 @@ internal sealed class InfiniteSequenceRoot(int 番号,string startExpression,str
     public override string GetEnumeratorConstructor => $"ValidateNotNull(start, nameof(start));\nValidateNotNull(step, nameof(step));";
     public override string GetEnumeratorFields => $$"""
         private bool {{this.hasValue}};
-        private static void ValidateNotNull<T>(T value, string name) {
-            if(value is null) {
+        private static void ValidateNotNull<T>(T value, string name){
+            if(value is null){
                 throw new global::System.ArgumentNullException(name);
             }
         }
@@ -602,7 +602,7 @@ internal sealed class InfiniteSequenceRoot(int 番号,string startExpression,str
             => left + right;
         """;
     public override string GetTryGetNextBody => $$"""
-        if(!this.{{this.hasValue}}) {
+        if(!this.{{this.hasValue}}){
             this.{{this.hasValue}} = true;
             current = this.Current = start;
             return true;
@@ -642,37 +642,37 @@ internal sealed class SequenceRoot(int 番号,string startExpression,string endI
         private readonly bool {{this.state}};
         private static void Validate<T>(T start, T endInclusive, T step)
             where T : global::System.Numerics.INumber<T> {
-            if(start is null) {
+            if(start is null){
                 throw new global::System.ArgumentNullException(nameof(start));
             }
-            if(T.IsNaN(start)) {
+            if(T.IsNaN(start)){
                 throw new global::System.ArgumentOutOfRangeException(nameof(start));
             }
-            if(endInclusive is null) {
+            if(endInclusive is null){
                 throw new global::System.ArgumentNullException(nameof(endInclusive));
             }
-            if(T.IsNaN(endInclusive)) {
+            if(T.IsNaN(endInclusive)){
                 throw new global::System.ArgumentOutOfRangeException(nameof(endInclusive));
             }
-            if(step is null) {
+            if(step is null){
                 throw new global::System.ArgumentNullException(nameof(step));
             }
-            if(T.IsNaN(step)) {
+            if(T.IsNaN(step)){
                 throw new global::System.ArgumentOutOfRangeException(nameof(step));
             }
-            if(T.IsZero(step)) {
-                if(start != endInclusive) {
+            if(T.IsZero(step)){
+                if(start != endInclusive){
                     throw new global::System.ArgumentOutOfRangeException(nameof(step));
                 }
                 return;
             }
-            if(T.IsPositive(step)) {
-                if(endInclusive < start) {
+            if(T.IsPositive(step)){
+                if(endInclusive < start){
                     throw new global::System.ArgumentOutOfRangeException(nameof(endInclusive));
                 }
                 return;
             }
-            if(endInclusive > start) {
+            if(endInclusive > start){
                 throw new global::System.ArgumentOutOfRangeException(nameof(endInclusive));
             }
         }
@@ -696,20 +696,20 @@ internal sealed class SequenceRoot(int 番号,string startExpression,string endI
             => left != right;
         """;
     public override string GetTryGetNextBody => $$"""
-        if(!this.{{this.hasValue}}) {
+        if(!this.{{this.hasValue}}){
             this.{{this.hasValue}} = true;
             current = this.Current = start;
             return true;
         }
 
         var next = Add<{{elementType}}>(this.Current, step);
-        if(this.{{this.state}}) {
-            if(GreaterThanOrEqual<{{elementType}}>(next, endInclusive) || LessThanOrEqual<{{elementType}}>(next, this.Current)) {
-                if(Equal<{{elementType}}>(next, endInclusive) && NotEqual<{{elementType}}>(this.Current, next)) {
+        if(this.{{this.state}}){
+            if(GreaterThanOrEqual<{{elementType}}>(next, endInclusive) || LessThanOrEqual<{{elementType}}>(next, this.Current)){
+                if(Equal<{{elementType}}>(next, endInclusive) && NotEqual<{{elementType}}>(this.Current, next)){
                     current = this.Current = next;
                     return true;
                 }
-                current = default!;
+                current=default!;
                 return false;
             }
 
@@ -717,12 +717,12 @@ internal sealed class SequenceRoot(int 番号,string startExpression,string endI
             return true;
         }
 
-        if(LessThanOrEqual<{{elementType}}>(next, endInclusive) || GreaterThanOrEqual<{{elementType}}>(next, this.Current)) {
-            if(Equal<{{elementType}}>(next, endInclusive) && NotEqual<{{elementType}}>(this.Current, next)) {
+        if(LessThanOrEqual<{{elementType}}>(next, endInclusive) || GreaterThanOrEqual<{{elementType}}>(next, this.Current)){
+            if(Equal<{{elementType}}>(next, endInclusive) && NotEqual<{{elementType}}>(this.Current, next)){
                 current = this.Current = next;
                 return true;
             }
-            current = default!;
+            current=default!;
             return false;
         }
 
@@ -741,15 +741,15 @@ internal class NonGenericRoot(int 番号,string sourceExpression):Enumerable(番
     public override string GetEnumeratorConstructor => $"this.{this.e} = source.GetEnumerator();";
     public override string GetEnumeratorFields => $"private global::System.Collections.IEnumerator {this.e};";
     public override string GetTryGetNextBody => $$"""
-        if({{this.e}}.MoveNext()) {
+        if({{this.e}}.MoveNext()){
             current = this.Current = {{this.e}}.Current;
             return true;
         }
-        current = default!;
+        current=default!;
         return false;
         """;
     protected override string GetEnumeratorDisposeBody => $$"""
-        if({{this.e}} is global::System.IDisposable disposable) {
+        if({{this.e}} is global::System.IDisposable disposable){
             disposable.Dispose();
         }
         """;

@@ -46,8 +46,8 @@ internal abstract class BufferedScalar(int 番号,string resultType):Scalar(番�
         """;
     public override string GetEnumeratorConstructor => $"this.Current = {this.ComputeExpression};";
     public override string GetTryGetNextBody => $$"""
-        if(this.{{this.yielded}}) {
-            current = default!;
+        if(this.{{this.yielded}}){
+            current=default!;
             return false;
         }
         this.{{this.yielded}} = true;

@@ -44,7 +44,7 @@ internal class SkipWhile_predicate(int 番号,Enumerable source,FuncFragment pre
                 : $"{preCode}\n            if(this.skipping && {WrapConditionExpression(condExpr)})";
 
             return $$"""
-                while({{this.e}}.TryGetNext(out var __mn69)) {
+                while({{this.e}}.TryGetNext(out var __mn69)){
                     var {{this.item}} = __mn69;
                     {{predicateCheck}} {
                         continue;
@@ -53,7 +53,7 @@ internal class SkipWhile_predicate(int 番号,Enumerable source,FuncFragment pre
                     current = this.{{this.currentValue}} = {{this.item}};
                     return true;
                 }
-                current = default!;
+                current=default!;
                 return false;
                 """;
         }
@@ -89,14 +89,14 @@ internal class SkipWhile_predicate(int 番号,Enumerable source,FuncFragment pre
             global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
             var {{spanName}}={{directSpanExpression}};
             var {{offsetName}}=0;
-            for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++) {
+            for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++){
                 var {{itemName}}={{spanName}}[{{offsetName}}];
                 {{predicateCheck}} {
                     continue;
                 }
                 break;
             }
-            for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++) {
+            for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++){
                 var {{itemName}}={{spanName}}[{{offsetName}}];
                 {{consumerName}}.Consume({{itemName}});
             }
@@ -124,7 +124,7 @@ internal class SkipWhile_indexPredicate(int 番号,Enumerable source,FuncFragmen
                 : $"{preCode}\n            if(this.skipping && {WrapConditionExpression(condExpr)})";
 
             return $$"""
-                while({{this.e}}.TryGetNext(out var __mn70)) {
+                while({{this.e}}.TryGetNext(out var __mn70)){
                     var {{this.item}} = __mn70;
                     this.{{this.a}}++;
                     {{predicateCheck}} {
@@ -134,7 +134,7 @@ internal class SkipWhile_indexPredicate(int 番号,Enumerable source,FuncFragmen
                     current = this.{{this.currentValue}} = {{this.item}};
                     return true;
                 }
-                current = default!;
+                current=default!;
                 return false;
                 """;
         }
@@ -168,7 +168,7 @@ internal class SkipWhile_indexPredicate(int 番号,Enumerable source,FuncFragmen
             var {{spanName}}={{directSpanExpression}};
             var {{offsetName}}=0;
             var {{indexName}}=-1;
-            for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++) {
+            for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++){
                 var {{itemName}}={{spanName}}[{{offsetName}}];
                 {{indexName}}++;
                 {{predicateCheck}} {
@@ -176,7 +176,7 @@ internal class SkipWhile_indexPredicate(int 番号,Enumerable source,FuncFragmen
                 }
                 break;
             }
-            for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++) {
+            for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++){
                 var {{itemName}}={{spanName}}[{{offsetName}}];
                 {{consumerName}}.Consume({{itemName}});
             }

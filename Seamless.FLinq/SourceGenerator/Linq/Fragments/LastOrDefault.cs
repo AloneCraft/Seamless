@@ -37,14 +37,14 @@ internal class LastOrDefault(int 番号,Enumerable source,string resultType):Buf
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source) {
+            private static {{resultType}} Compute(TEnum source){
                 source.TryGetSpan(out var __span);
                 return __span.Length>0?__span[__span.Length-1]:default!;
             }
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source) {
+            private static {{resultType}} Compute(TEnum source){
                 {{resultType}} result=default!;
                 while(source.TryGetNext(out var __mn41)) result=__mn41;
                 return result;
@@ -90,14 +90,14 @@ internal class LastOrDefault_defaultValue(int 番号,Enumerable source,string de
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue) {
+            private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue){
                 source.TryGetSpan(out var __span);
                 return __span.Length>0?__span[__span.Length-1]:defaultValue;
             }
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue) {
+            private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue){
                 {{resultType}} result = defaultValue;
                 while(source.TryGetNext(out var __mn42)) result = __mn42;
                 return result;
@@ -140,11 +140,11 @@ internal class LastOrDefault_predicate(int 番号,Enumerable source,FuncFragment
             {
                 var {{start}}={{range.StartExpression}};
                 var {{count}}={{range.CountExpression}};
-                for(var {{index}}={{count}}-1;{{index}}>=0;{{index}}--) {
+                for(var {{index}}={{count}}-1;{{index}}>=0;{{index}}--){
                     var {{this.item}}={{start}} + {{index}};
                     bool {{this.temp}}=default!;
             {{IndentLines(this.FuncAssignStatic(predicate,nameof(predicate),this.temp,this.item),"        ")}}
-                    if({{this.temp}}) {
+                    if({{this.temp}}){
                         {{destVar}}={{this.item}};
                         break;
                     }
@@ -155,7 +155,7 @@ internal class LastOrDefault_predicate(int 番号,Enumerable source,FuncFragment
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 {{resultType}} result = default!;
                 source.TryGetSpan(out var __span);
                 for(var __i=__span.Length-1;__i>=0;__i--){
@@ -171,9 +171,9 @@ internal class LastOrDefault_predicate(int 番号,Enumerable source,FuncFragment
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 {{resultType}} result = default!;
-                while(source.TryGetNext(out var __mn43)) {
+                while(source.TryGetNext(out var __mn43)){
                     var {{this.item}} = __mn43;
                     bool {{this.temp}} = default!;
                     {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}

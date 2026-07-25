@@ -46,22 +46,22 @@ internal class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment ke
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => $$"""
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
                 var __hasSpan=source.TryGetSpan(out var __span);
                 var __capacity=__hasSpan
                     ? {{CapacityExpression(keySelector,"__span.Length")}}
                     : source.TryGetNonEnumeratedCount(out var __count) ? {{CapacityExpression(keySelector,"__count")}} : 0;
                 var builder=new global::Seamless.Linq.LookupBuilder<{{FuncReturnTypeName(keySelector)}},{{source.ElementType}}>(__capacity,null);
                 try {
-                if(__hasSpan) {
-                    for(var __i=0;__i<__span.Length;__i++) {
+                if(__hasSpan){
+                    for(var __i=0;__i<__span.Length;__i++){
                         var {{this.item}} = __span[__i];
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
                         {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                         builder.Add({{this.key}},{{this.item}});
                     }
-                } else {
-                    while(source.TryGetNext(out var __mn90)) {
+                }else{
+                    while(source.TryGetNext(out var __mn90)){
                         var {{this.item}} = __mn90;
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
                         {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
@@ -92,15 +92,15 @@ internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => $$"""
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector,elementSelector)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector,elementSelector)}}){
                 var __hasSpan=source.TryGetSpan(out var __span);
                 var __capacity=__hasSpan
                     ? {{CapacityExpression(keySelector,"__span.Length")}}
                     : source.TryGetNonEnumeratedCount(out var __count) ? {{CapacityExpression(keySelector,"__count")}} : 0;
                 var builder=new global::Seamless.Linq.LookupBuilder<{{FuncReturnTypeName(keySelector)}},{{FuncReturnTypeName(elementSelector)}}>(__capacity,null);
                 try {
-                if(__hasSpan) {
-                    for(var __i=0;__i<__span.Length;__i++) {
+                if(__hasSpan){
+                    for(var __i=0;__i<__span.Length;__i++){
                         var {{this.item}} = __span[__i];
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
                         {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
@@ -108,8 +108,8 @@ internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source
                         {{this.FuncAssignIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
                         builder.Add({{this.key}},{{this.temp}});
                     }
-                } else {
-                    while(source.TryGetNext(out var __mn91)) {
+                }else{
+                    while(source.TryGetNext(out var __mn91)){
                         var {{this.item}} = __mn91;
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
                         {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
@@ -143,22 +143,22 @@ internal class ToLookup_keySelector_comparer(int 番号,Enumerable source,FuncFr
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderComputeInline(destVar,destType,$"{comparer}{this.ClosureArgsSuffix(keySelector)}");
     protected override string ComputeMembers => $$"""
-            private static {{resultType}} Compute(TEnum source, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector)}}) {
+            private static {{resultType}} Compute(TEnum source, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector)}}){
                 var __hasSpan=source.TryGetSpan(out var __span);
                 var __capacity=__hasSpan
                     ? {{CapacityExpression(keySelector,"__span.Length")}}
                     : source.TryGetNonEnumeratedCount(out var __count) ? {{CapacityExpression(keySelector,"__count")}} : 0;
                 var builder=new global::Seamless.Linq.LookupBuilder<{{FuncReturnTypeName(keySelector)}},{{source.ElementType}}>(__capacity,comparer);
                 try {
-                if(__hasSpan) {
-                    for(var __i=0;__i<__span.Length;__i++) {
+                if(__hasSpan){
+                    for(var __i=0;__i<__span.Length;__i++){
                         var {{this.item}} = __span[__i];
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
                         {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                         builder.Add({{this.key}},{{this.item}});
                     }
-                } else {
-                    while(source.TryGetNext(out var __mn92)) {
+                }else{
+                    while(source.TryGetNext(out var __mn92)){
                         var {{this.item}} = __mn92;
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
                         {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
@@ -190,15 +190,15 @@ internal class ToLookup_keySelector_elementSelector_comparer(int 番号,Enumerab
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderComputeInline(destVar,destType,$"{comparer}{this.ClosureArgsSuffix(keySelector,elementSelector)}");
     protected override string ComputeMembers => $$"""
-            private static {{resultType}} Compute(TEnum source, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector,elementSelector)}}) {
+            private static {{resultType}} Compute(TEnum source, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector,elementSelector)}}){
                 var __hasSpan=source.TryGetSpan(out var __span);
                 var __capacity=__hasSpan
                     ? {{CapacityExpression(keySelector,"__span.Length")}}
                     : source.TryGetNonEnumeratedCount(out var __count) ? {{CapacityExpression(keySelector,"__count")}} : 0;
                 var builder=new global::Seamless.Linq.LookupBuilder<{{FuncReturnTypeName(keySelector)}},{{FuncReturnTypeName(elementSelector)}}>(__capacity,comparer);
                 try {
-                if(__hasSpan) {
-                    for(var __i=0;__i<__span.Length;__i++) {
+                if(__hasSpan){
+                    for(var __i=0;__i<__span.Length;__i++){
                         var {{this.item}} = __span[__i];
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
                         {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
@@ -206,8 +206,8 @@ internal class ToLookup_keySelector_elementSelector_comparer(int 番号,Enumerab
                         {{this.FuncAssignIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
                         builder.Add({{this.key}},{{this.temp}});
                     }
-                } else {
-                    while(source.TryGetNext(out var __mn93)) {
+                }else{
+                    while(source.TryGetNext(out var __mn93)){
                         var {{this.item}} = __mn93;
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
                         {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}

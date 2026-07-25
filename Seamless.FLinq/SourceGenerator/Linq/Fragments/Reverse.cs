@@ -50,11 +50,11 @@ internal class Reverse(int 番号,Enumerable source):Enumerable(番号) {
             // {{this.a}} は int.MinValue=未初期化 / -1=列挙完了 を区別する。
             // -1 を未初期化扱いにすると、TryGetNext を完了後も呼ぶ消費側（TraversalSupport の while ループ等）で
             // 末尾到達ごとに Length-1 へ再初期化して無限ループになる。
-            if(this.{{this.a}}==int.MinValue) {
-                if({{this.e}}.TryGetSpan(out var __span0)) {
+            if(this.{{this.a}}==int.MinValue){
+                if({{this.e}}.TryGetSpan(out var __span0)){
                     this.{{this.a}}=__span0.Length-1;
                 }else{
-                    if({{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
+                    if({{this.e}}.TryGetNonEnumeratedCount(out var __count)){
                         this.{{this.group}}=new global::System.Collections.Generic.List<{{this.RootSource.ElementType}}>(__count);
                     }else{
                         this.{{this.group}}=new global::System.Collections.Generic.List<{{this.RootSource.ElementType}}>();
@@ -63,8 +63,8 @@ internal class Reverse(int 番号,Enumerable source):Enumerable(番号) {
                     this.{{this.a}}=this.{{this.group}}.Count-1;
                 }
             }
-            if(this.{{this.a}}>=0) {
-                if({{this.e}}.TryGetSpan(out var __span)) {
+            if(this.{{this.a}}>=0){
+                if({{this.e}}.TryGetSpan(out var __span)){
                     current=this.{{this.currentValue}}=__span[this.{{this.a}}--];
                 }else{
                     current=this.{{this.currentValue}}=this.{{this.group}}![this.{{this.a}}--];
@@ -75,8 +75,8 @@ internal class Reverse(int 番号,Enumerable source):Enumerable(番号) {
             return false;
             """
         : $$"""
-            if(this.{{this.group}} is null) {
-                if({{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
+            if(this.{{this.group}} is null){
+                if({{this.e}}.TryGetNonEnumeratedCount(out var __count)){
                     this.{{this.group}}=new global::System.Collections.Generic.List<{{this.RootSource.ElementType}}>(__count);
                 }else{
                     this.{{this.group}}=new global::System.Collections.Generic.List<{{this.RootSource.ElementType}}>();
@@ -84,7 +84,7 @@ internal class Reverse(int 番号,Enumerable source):Enumerable(番号) {
                 while({{this.e}}.TryGetNext(out var __mn47)) this.{{this.group}}.Add(__mn47);
                 this.{{this.a}}=this.{{this.group}}.Count-1;
             }
-            if(this.{{this.a}}>=0) {
+            if(this.{{this.a}}>=0){
                 current=this.{{this.currentValue}}=this.{{this.group}}[this.{{this.a}}--];
                 return true;
             }
@@ -104,7 +104,7 @@ internal class Reverse(int 番号,Enumerable source):Enumerable(番号) {
                 using var {{sourceName}}={{this.RootSource.GetEnumeratorExpression}};
                 global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
                 var {{spanName}}={{directSpanExpression}};
-                for(var __i{{番号}}={{spanName}}.Length-1;__i{{番号}}>=0;__i{{番号}}--) {
+                for(var __i{{番号}}={{spanName}}.Length-1;__i{{番号}}>=0;__i{{番号}}--){
                     {{consumerName}}.Consume({{spanName}}[__i{{番号}}]);
                 }
                 """;

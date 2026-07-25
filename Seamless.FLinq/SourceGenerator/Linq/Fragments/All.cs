@@ -47,13 +47,13 @@ internal class All_predicate(int 番号,Enumerable source,FuncFragment predicate
             return source.CanTryProvideSpan
                 ? $$"""
                     {{AggressiveInliningAttribute}}
-                    private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+                    private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                         if(source.TryGetSpan(out var __span)){
                             foreach(var {{this.item}} in __span){
                                 {{predicateCheck}} return false;
                             }
                         }else{
-                            while(source.TryGetNext(out var __mn1)) {
+                            while(source.TryGetNext(out var __mn1)){
                                 var {{this.item}}=__mn1;
                                 {{predicateCheck}} return false;
                             }
@@ -63,8 +63,8 @@ internal class All_predicate(int 番号,Enumerable source,FuncFragment predicate
                     """
                 : $$"""
                     {{AggressiveInliningAttribute}}
-                    private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
-                        while(source.TryGetNext(out var __mn2)) {
+                    private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
+                        while(source.TryGetNext(out var __mn2)){
                             var {{this.item}}=__mn2;
                             {{predicateCheck}} return false;
                         }

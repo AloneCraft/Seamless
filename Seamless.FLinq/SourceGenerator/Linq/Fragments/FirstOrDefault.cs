@@ -37,14 +37,14 @@ internal class FirstOrDefault(int 番号,Enumerable source,string resultType):Bu
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source) {
+            private static {{resultType}} Compute(TEnum source){
                 source.TryGetSpan(out var __span);
                 return __span.Length>0?__span[0]:default!;
             }
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source) {
+            private static {{resultType}} Compute(TEnum source){
                 return source.TryGetNext(out var __mn32) ? __mn32 : default!;
             }
             """;
@@ -88,14 +88,14 @@ internal class FirstOrDefault_defaultValue(int 番号,Enumerable source,string d
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue) {
+            private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue){
                 source.TryGetSpan(out var __span);
                 return __span.Length>0?__span[0]:defaultValue;
             }
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue) {
+            private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue){
                 return source.TryGetNext(out var __mn33) ? __mn33 : defaultValue;
             }
             """;
@@ -136,11 +136,11 @@ internal class FirstOrDefault_predicate(int 番号,Enumerable source,FuncFragmen
         return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
             {{hoistedDeclarationBlock}}
             {{destVar}}=default!;
-            for(var {{index}}=0;{{index}}<{{spanName}}.Length;{{index}}++) {
+            for(var {{index}}=0;{{index}}<{{spanName}}.Length;{{index}}++){
                 var {{this.item}}={{spanName}}[{{index}}];
                 bool {{this.temp}}=default!;
             {{IndentLines(this.FuncAssignStatic(predicate,nameof(predicate),this.temp,this.item),"        ")}}
-                if({{this.temp}}) {
+                if({{this.temp}}){
                     {{destVar}}={{this.item}};
                     break;
                 }
@@ -162,11 +162,11 @@ internal class FirstOrDefault_predicate(int 番号,Enumerable source,FuncFragmen
             {
                 var {{start}}={{range.StartExpression}};
                 var {{count}}={{range.CountExpression}};
-                for(var {{index}}=0;{{index}}<{{count}};{{index}}++) {
+                for(var {{index}}=0;{{index}}<{{count}};{{index}}++){
                     var {{this.item}}={{start}} + {{index}};
                     bool {{this.temp}}=default!;
             {{IndentLines(this.FuncAssignStatic(predicate,nameof(predicate),this.temp,this.item),"        ")}}
-                    if({{this.temp}}) {
+                    if({{this.temp}}){
                         {{destVar}}={{this.item}};
                         break;
                     }
@@ -177,9 +177,9 @@ internal class FirstOrDefault_predicate(int 番号,Enumerable source,FuncFragmen
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 source.TryGetSpan(out var __span);
-                foreach(var {{this.item}} in __span) {
+                foreach(var {{this.item}} in __span){
                     bool {{this.temp}} = default!;
                     {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}) return {{this.item}};
@@ -189,8 +189,8 @@ internal class FirstOrDefault_predicate(int 番号,Enumerable source,FuncFragmen
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
-                while(source.TryGetNext(out var __mn34)) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
+                while(source.TryGetNext(out var __mn34)){
                     var {{this.item}} = __mn34;
                     bool {{this.temp}} = default!;
                     {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}

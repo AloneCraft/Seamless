@@ -42,16 +42,16 @@ internal class Take(int 番号,Enumerable source,string takeCount):Enumerable(�
         """;
     public override string GetEnumeratorConstructor => "if(this.count < 0) { this.count = 0; }";
     public override string GetTryGetNextBody => $$"""
-        if(this.{{this.a}} >= this.count) {
-            current = default!;
+        if(this.{{this.a}} >= this.count){
+            current=default!;
             return false;
         }
-        if({{this.e}}.TryGetNext(out var __mn75)) {
+        if({{this.e}}.TryGetNext(out var __mn75)){
             this.{{this.a}}++;
             current = this.{{this.currentValue}} = __mn75;
             return true;
         }
-        current = default!;
+        current=default!;
         return false;
         """;
     public override string ElementType => this.Source.ElementType;

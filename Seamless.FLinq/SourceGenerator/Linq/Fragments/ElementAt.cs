@@ -43,7 +43,7 @@ internal class ElementAt(int 番号,Enumerable source,string index,string result
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, int index) {
+            private static {{resultType}} Compute(TEnum source, int index){
                 if(index<0) throw new global::System.ArgumentOutOfRangeException(nameof(index));
                 source.TryGetSpan(out var __span);
                 if((uint)index>=(uint)__span.Length) throw new global::System.ArgumentOutOfRangeException(nameof(index));
@@ -52,10 +52,10 @@ internal class ElementAt(int 番号,Enumerable source,string index,string result
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, int index) {
+            private static {{resultType}} Compute(TEnum source, int index){
                 if(index<0) throw new global::System.ArgumentOutOfRangeException(nameof(index));
                 var currentIndex=0;
-                while(source.TryGetNext(out var __mn24)) {
+                while(source.TryGetNext(out var __mn24)){
                     if(currentIndex==index) return __mn24;
                     currentIndex++;
                 }
@@ -111,7 +111,7 @@ internal class ElementAt_index(int 番号,Enumerable source,string index,string 
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, global::System.Index index) {
+            private static {{resultType}} Compute(TEnum source,global::System.Index index){
                 source.TryGetSpan(out var __span);
                 var idx=index.GetOffset(__span.Length);
                 if((uint)idx>=(uint)__span.Length) throw new global::System.ArgumentOutOfRangeException(nameof(index));
@@ -120,11 +120,11 @@ internal class ElementAt_index(int 番号,Enumerable source,string index,string 
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, global::System.Index index) {
-                if(!index.IsFromEnd) {
+            private static {{resultType}} Compute(TEnum source,global::System.Index index){
+                if(!index.IsFromEnd){
                     var idx=index.Value;
                     var currentIndex=0;
-                    while(source.TryGetNext(out var __mn25)) {
+                    while(source.TryGetNext(out var __mn25)){
                         if(currentIndex==idx) return __mn25;
                         currentIndex++;
                     }
@@ -134,7 +134,7 @@ internal class ElementAt_index(int 番号,Enumerable source,string index,string 
                     if(n==0) throw new global::System.ArgumentOutOfRangeException(nameof(index));
                     var count=0;
                     var buffer=new {{resultType}}[n];
-                    while(source.TryGetNext(out var __mn26)) {
+                    while(source.TryGetNext(out var __mn26)){
                         buffer[count%n]=__mn26;
                         count++;
                     }

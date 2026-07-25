@@ -19,9 +19,9 @@ internal class SingleOrDefault(int 番号,Enumerable source,string resultType):B
     private string? RenderDirectSpanSingleOrDefaultInline(string destVar,string destType) {
         var span = $"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
-            if({{spanName}}.Length==0) {
+            if({{spanName}}.Length==0){
                 {{destVar}}=default!;
-            } else {
+            }else{
                 if({{spanName}}.Length>1) throw new global::System.InvalidOperationException("Sequence contains more than one element");
                 {{destVar}}={{spanName}}[0];
             }
@@ -30,7 +30,7 @@ internal class SingleOrDefault(int 番号,Enumerable source,string resultType):B
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source) {
+            private static {{resultType}} Compute(TEnum source){
                 source.TryGetSpan(out var __span);
                 if(__span.Length==0) return default!;
                 if(__span.Length>1) throw new global::System.InvalidOperationException("Sequence contains more than one element");
@@ -39,7 +39,7 @@ internal class SingleOrDefault(int 番号,Enumerable source,string resultType):B
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source) {
+            private static {{resultType}} Compute(TEnum source){
                 if(!source.TryGetNext(out var __mn56)) return default!;
                 {{resultType}} value = __mn56;
                 if(source.TryGetNext(out _)) throw new global::System.InvalidOperationException("Sequence contains more than one element");
@@ -68,9 +68,9 @@ internal class SingleOrDefault_defaultValue(int 番号,Enumerable source,string 
     private string? RenderDirectSpanSingleOrDefaultDefaultInline(string destVar,string destType) {
         var span = $"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
-            if({{spanName}}.Length==0) {
+            if({{spanName}}.Length==0){
                 {{destVar}}={{defaultValue}};
-            } else {
+            }else{
                 if({{spanName}}.Length>1) throw new global::System.InvalidOperationException("Sequence contains more than one element");
                 {{destVar}}={{spanName}}[0];
             }
@@ -79,7 +79,7 @@ internal class SingleOrDefault_defaultValue(int 番号,Enumerable source,string 
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue) {
+            private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue){
                 source.TryGetSpan(out var __span);
                 if(__span.Length==0) return defaultValue;
                 if(__span.Length>1) throw new global::System.InvalidOperationException("Sequence contains more than one element");
@@ -88,7 +88,7 @@ internal class SingleOrDefault_defaultValue(int 番号,Enumerable source,string 
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue) {
+            private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue){
                 if(!source.TryGetNext(out var __mn58)) return defaultValue;
                 {{resultType}} value = __mn58;
                 if(source.TryGetNext(out _)) throw new global::System.InvalidOperationException("Sequence contains more than one element");
@@ -124,14 +124,14 @@ internal class SingleOrDefault_predicate(int 番号,Enumerable source,FuncFragme
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 {{resultType}} value = default!;
                 bool found = false;
                 source.TryGetSpan(out var __span);
                 foreach(var {{this.item}} in __span){
                     bool {{this.temp}}=default!;
                     {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
-                    if({{this.temp}}) {
+                    if({{this.temp}}){
                         if(found) throw new global::System.InvalidOperationException("Sequence contains more than one matching element");
                         value={{this.item}};
                         found=true;
@@ -142,14 +142,14 @@ internal class SingleOrDefault_predicate(int 番号,Enumerable source,FuncFragme
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 {{resultType}} value = default!;
                 bool found = false;
-                while(source.TryGetNext(out var __mn60)) {
+                while(source.TryGetNext(out var __mn60)){
                     var {{this.item}} = __mn60;
                     bool {{this.temp}} = default!;
                     {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
-                    if({{this.temp}}) {
+                    if({{this.temp}}){
                         if(found) throw new global::System.InvalidOperationException("Sequence contains more than one matching element");
                         value = {{this.item}};
                         found = true;

@@ -20,7 +20,7 @@ internal class Contains(int 番号,Enumerable source,string value,string resultT
             var __value={{value}};
             {{destVar}}=false;
             foreach(var item in {{spanName}}){
-                if(comparer.Equals(item,__value)) {
+                if(comparer.Equals(item,__value)){
                     {{destVar}}=true;
                     break;
                 }
@@ -47,7 +47,7 @@ internal class Contains(int 番号,Enumerable source,string value,string resultT
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value) {
+            private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value){
                 var comparer=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
                 source.TryGetSpan(out var __span);
                 foreach(var item in __span){
@@ -58,7 +58,7 @@ internal class Contains(int 番号,Enumerable source,string value,string resultT
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value) {
+            private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value){
                 var comparer=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
                 while(source.TryGetNext(out var __mn16)){
                     if(comparer.Equals(__mn16,value)) return true;
@@ -89,7 +89,7 @@ internal class Contains_comparer(int 番号,Enumerable source,string value,strin
             var __value={{value}};
             {{destVar}}=false;
             foreach(var item in {{spanName}}){
-                if(__comparer.Equals(item,__value)) {
+                if(__comparer.Equals(item,__value)){
                     {{destVar}}=true;
                     break;
                 }
@@ -99,7 +99,7 @@ internal class Contains_comparer(int 番号,Enumerable source,string value,strin
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
+            private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
                 comparer??=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
                 source.TryGetSpan(out var __span);
                 foreach(var item in __span){
@@ -110,7 +110,7 @@ internal class Contains_comparer(int 番号,Enumerable source,string value,strin
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
+            private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
                 comparer??=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
                 while(source.TryGetNext(out var __mn17)){
                     if(comparer.Equals(__mn17,value)) return true;

@@ -43,18 +43,18 @@ internal class Skip(int 番号,Enumerable source,string skipCount):Enumerable(�
         """;
     public override string GetEnumeratorConstructor => "if(this.count < 0) { this.count = 0; }";
     public override string GetTryGetNextBody => $$"""
-        if(!this.skipped) {
+        if(!this.skipped){
             this.skipped = true;
             var remaining = this.count;
-            while(remaining > 0 && {{this.e}}.TryGetNext(out _)) {
+            while(remaining > 0 && {{this.e}}.TryGetNext(out _)){
                 remaining--;
             }
         }
-        if({{this.e}}.TryGetNext(out var __mn62)) {
+        if({{this.e}}.TryGetNext(out var __mn62)){
             current = this.{{this.currentValue}} = __mn62;
             return true;
         }
-        current = default!;
+        current=default!;
         return false;
         """;
     public override string ElementType => this.Source.ElementType;

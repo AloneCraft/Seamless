@@ -64,27 +64,27 @@ internal class Select_selector(int 番号,Enumerable source,FuncFragment selecto
     public override string GetEnumeratorFields => string.Empty;
     protected override string GetTryGetNonEnumeratedCountBody => $"return this.{this.e}.TryGetNonEnumeratedCount(out count);";
     protected override string GetTryCopyToBody => $$"""
-        if(!this.{{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
+        if(!this.{{this.e}}.TryGetNonEnumeratedCount(out var __count)){
             return false;
         }
         var __start = __offset.GetOffset(__count);
-        if(__start < 0 || __start > __count || destination.Length > __count - __start) {
+        if(__start < 0 || __start > __count || destination.Length > __count - __start){
             return false;
         }
-        if(this.{{this.e}}.TryGetSpan(out var __span)) {
-            for(var __i=0; __i<destination.Length; __i++) {
+        if(this.{{this.e}}.TryGetSpan(out var __span)){
+            for(var __i=0; __i<destination.Length; __i++){
                 var {{this.item}} = __span[__start + __i];
                 {{this.FuncAssignIndented("            ",selector,nameof(selector),"destination[__i]",this.item)}}
             }
             return true;
         }
-        for(var __i=0; __i<__start; __i++) {
-            if(!this.{{this.e}}.TryGetNext(out _)) {
+        for(var __i=0; __i<__start; __i++){
+            if(!this.{{this.e}}.TryGetNext(out _)){
                 return false;
             }
         }
-        for(var __i=0; __i<destination.Length; __i++) {
-            if(!this.{{this.e}}.TryGetNext(out var {{this.item}})) {
+        for(var __i=0; __i<destination.Length; __i++){
+            if(!this.{{this.e}}.TryGetNext(out var {{this.item}})){
                 return false;
             }
             {{this.FuncAssignIndented("        ",selector,nameof(selector),"destination[__i]",this.item)}}
@@ -92,12 +92,12 @@ internal class Select_selector(int 番号,Enumerable source,FuncFragment selecto
         return true;
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{this.e}}.TryGetNext(out var {{this.item}})) {
+        if({{this.e}}.TryGetNext(out var {{this.item}})){
             {{this.CounterCall("IncrementLogicalSelect")}}
             {{this.FuncAssignCurrentIndented("    ",selector,nameof(selector),$"this.{this.currentValue}",this.item)}}
             return true;
         }
-        current = default!;
+        current=default!;
         return false;
         """;
 }
@@ -136,7 +136,7 @@ internal class Select_WithInlinedScalar(int 番号,Enumerable source,Fragment sc
     public override bool CountPreserving => source.CountPreserving;
     protected override string GetTryGetNonEnumeratedCountBody => $"return this.{this.e}.TryGetNonEnumeratedCount(out count);";
     public override string GetTryGetNextBody => $$"""
-        if({{this.e}}.TryGetNext(out var {{outerParamName}})) {
+        if({{this.e}}.TryGetNext(out var {{outerParamName}})){
             {{this.CounterCall("IncrementLogicalSelect")}}
             var {{this.item}} = {{scalarFrag.GetEnumeratorExpression}};
             {{this.item}}.TryGetNext(out var {{this.temp}});
@@ -145,7 +145,7 @@ internal class Select_WithInlinedScalar(int 番号,Enumerable source,Fragment sc
             current = this.{{this.currentValue}};
             return true;
         }
-        current = default!;
+        current=default!;
         return false;
         """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
@@ -253,13 +253,13 @@ internal class Select_indexSelector(int 番号,Enumerable source,FuncFragment se
     public override string GetEnumeratorFields => $"private int {this.a} = -1;";
     protected override string GetTryGetNonEnumeratedCountBody => $"return this.{this.e}.TryGetNonEnumeratedCount(out count);";
     public override string GetTryGetNextBody => $$"""
-        if({{this.e}}.TryGetNext(out var {{this.item}})) {
+        if({{this.e}}.TryGetNext(out var {{this.item}})){
             {{this.CounterCall("IncrementLogicalSelect")}}
             this.{{this.a}}++;
             {{this.FuncAssignCurrentIndented("    ",selector,nameof(selector),$"this.{this.currentValue}",this.item,$"this.{this.a}")}}
             return true;
         }
-        current = default!;
+        current=default!;
         return false;
         """;
 }

@@ -23,11 +23,11 @@ internal class Cast(int 番号,Enumerable source,string resultElementType):Enume
         ? $"return this.{this.e}.TryCopyTo(destination,__offset);"
         : base.GetTryCopyToBody;
     public override string GetTryGetNextBody => $$"""
-        if({{this.e}}.TryGetNext(out var __mn13)) {
+        if({{this.e}}.TryGetNext(out var __mn13)){
             current = this.{{this.currentValue}} = ({{resultElementType}})__mn13!;
             return true;
         }
-        current = default!;
+        current=default!;
         return false;
         """;
     public override string ElementType => resultElementType;

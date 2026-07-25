@@ -1957,7 +1957,7 @@ internal sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyL
             using var {{sourceName}}={{source.GetEnumeratorExpression}};
             global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
             var {{spanName}}={{directSpanExpression}};
-            {{before}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++) {
+            {{before}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++){
                 var {{itemName}}={{spanName}}[__i{{this.result}}];
                 {{consumerName}}.Consume({{itemName}});
             }{{after}}
@@ -1986,10 +1986,10 @@ internal sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyL
             using var {{sourceName}}={{source.GetEnumeratorExpression}};
             global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
             var {{spanName}}={{directSpanExpression}};
-            if({{spanName}}.Length==0) {
+            if({{spanName}}.Length==0){
                 {{consumerName}}.Consume({{defaultValue}});
             }else{
-                for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++) {
+                for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++){
                     var {{itemName}}={{spanName}}[__i{{this.result}}];
                     {{consumerName}}.Consume({{itemName}});
                 }
@@ -2085,7 +2085,7 @@ internal sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyL
             using var {{sourceName}}={{source.GetEnumeratorExpression}};
             global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
             var {{spanName}}={{directSpanExpression}};
-            {{indexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++) {
+            {{indexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++){
                 var {{itemName}}={{spanName}}[__i{{this.result}}];
                 {{indexIncrement}}{{predicateCheck}} {
                     {{consumerName}}.Consume({{itemName}});
@@ -2170,7 +2170,7 @@ internal sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyL
             using var {{sourceName}}={{source.GetEnumeratorExpression}};
             global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
             var {{spanName}}={{directSpanExpression}};
-            {{indexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++) {
+            {{indexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++){
                 var {{itemName}}={{spanName}}[__i{{this.result}}];
                 {{indexIncrement}}{{stage.OutputType}} {{selectedName}}=default!;
             {{IndentLines(this.FuncAssign(selector,nameof(PipelineStageKind.Select),selectedName,arguments),"    ")}}
@@ -2227,7 +2227,7 @@ internal sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyL
             using var {{sourceName}}={{source.GetEnumeratorExpression}};
             global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
             var {{spanName}}={{directSpanExpression}};
-            {{indexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++) {
+            {{indexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++){
                 var {{itemName}}={{spanName}}[__i{{this.result}}];
                 {{indexIncrement}}{{predicateCheck}} {
                     break;
@@ -2289,14 +2289,14 @@ internal sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyL
                 global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
                 var {{spanName}}={{directSpanExpression}};
                 var {{skippingName}}=true;
-                {{indexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++) {
+                {{indexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++){
                     var {{itemName}}={{spanName}}[__i{{this.result}}];
-                    {{indexIncrement}}if({{skippingName}}) {
+                    {{indexIncrement}}if({{skippingName}}){
                         {{predicateCheck}} {
                             {{skippingName}}=false;
                         }
                     }
-                    if(!{{skippingName}}) {
+                    if(!{{skippingName}}){
                         {{consumerName}}.Consume({{itemName}});
                     }
                 }
@@ -2309,7 +2309,7 @@ internal sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyL
             global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
             var {{spanName}}={{directSpanExpression}};
             var {{offsetName}}=0;
-            {{indexDeclaration}}for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++) {
+            {{indexDeclaration}}for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++){
                 var {{itemName}}={{spanName}}[{{offsetName}}];
                 {{indexIncrement}}{{predicateCheck}} {
                     {{consumerName}}.Consume({{itemName}});
@@ -2317,7 +2317,7 @@ internal sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyL
                     break;
                 }
             }
-            for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++) {
+            for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++){
                 var {{itemName}}={{spanName}}[{{offsetName}}];
                 {{consumerName}}.Consume({{itemName}});
             }
@@ -2339,12 +2339,12 @@ internal sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyL
                     ? $$"""
                             var __groupEnd{{番号}}={{spanName}}.Length;
                             var __orderComparer{{番号}}=global::System.Collections.Generic.Comparer<{{primaryOrder.InputType}}>.Default;
-                            while(__groupEnd{{番号}}>0) {
+                            while(__groupEnd{{番号}}>0){
                                 var __groupStart{{番号}}=__groupEnd{{番号}}-1;
-                                while(__groupStart{{番号}}>0&&__orderComparer{{番号}}.Compare({{spanName}}[__groupStart{{番号}}-1],{{spanName}}[__groupEnd{{番号}}-1])==0) {
+                                while(__groupStart{{番号}}>0&&__orderComparer{{番号}}.Compare({{spanName}}[__groupStart{{番号}}-1],{{spanName}}[__groupEnd{{番号}}-1])==0){
                                     __groupStart{{番号}}--;
                                 }
-                                for(var __i=__groupStart{{番号}};__i<__groupEnd{{番号}};__i++) {
+                                for(var __i=__groupStart{{番号}};__i<__groupEnd{{番号}};__i++){
                                     var {{directItemName}}={{spanName}}[__i];
                                     {{consumerName}}.Consume({{directItemName}});
                                 }
@@ -2352,7 +2352,7 @@ internal sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyL
                             }
                         """
                     : $$"""
-                            for(var __i=0;__i<{{spanName}}.Length;__i++) {
+                            for(var __i=0;__i<{{spanName}}.Length;__i++){
                                 var {{directItemName}}={{spanName}}[__i];
                                 {{consumerName}}.Consume({{directItemName}});
                             }
@@ -2360,22 +2360,22 @@ internal sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyL
                 return $$"""
                     var {{handledName}}=false;
                     using var {{sourceName}}={{source.GetEnumeratorExpression}};
-                    if({{sourceName}}.TryGetSpan(out var {{spanName}})) {
+                    if({{sourceName}}.TryGetSpan(out var {{spanName}})){
                         var {{sortedName}}=true;
-                        for(var __i=1;__i<{{spanName}}.Length;__i++) {
-                            if({{this.SortedOrderOutOfOrderExpression(primaryOrder,spanName,"__i")}}) {
+                        for(var __i=1;__i<{{spanName}}.Length;__i++){
+                            if({{this.SortedOrderOutOfOrderExpression(primaryOrder,spanName,"__i")}}){
                                 {{sortedName}}=false;
                                 break;
                             }
                         }
-                        if({{sortedName}}) {
+                        if({{sortedName}}){
                     {{directConsumeLoop}}
                             {{handledName}}=true;
                         }
                     }
-                    if(!{{handledName}}) {
+                    if(!{{handledName}}){
                         using var {{fallbackName}}={{this.GetEnumeratorExpression}};
-                        while({{fallbackName}}.TryGetNext(out var {{directItemName}})) {
+                        while({{fallbackName}}.TryGetNext(out var {{directItemName}})){
                             {{consumerName}}.Consume({{directItemName}});
                         }
                     }
@@ -2423,7 +2423,7 @@ internal sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyL
 
         var itemName = $"__orderedItem{番号}";
         return $$"""
-            foreach(var {{itemName}} in {{expression}}) {
+            foreach(var {{itemName}} in {{expression}}){
                 {{consumerName}}.Consume({{itemName}});
             }
             """;
@@ -2557,15 +2557,15 @@ internal sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyL
             return builder.ToString().TrimEnd();
         }
     }
-    public override string GetTryGetNextBody => this.BuildLoop(this.e,"current = this.Current = {0};\nreturn true;","current = default!;\nreturn false;");
+    public override string GetTryGetNextBody => this.BuildLoop(this.e,"current=this.Current={0};\nreturn true;","current=default!;\nreturn false;");
     protected override string GetTryGetNonEnumeratedCountBody {
         get {
             if(this.SingleDefaultIfEmpty) {
                 return $$"""
-                    if(this.{{this.StateName(0)}}) {
+                    if(this.{{this.StateName(0)}}){
                         return this.{{this.e}}.TryGetNonEnumeratedCount(out count);
                     }
-                    if(this.{{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
+                    if(this.{{this.e}}.TryGetNonEnumeratedCount(out var __count)){
                         count=__count==0 ? 1 : __count;
                         return true;
                     }
@@ -2582,10 +2582,10 @@ internal sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyL
         get {
             if(this.SingleDefaultIfEmpty) {
                 return $$"""
-                    if(this.{{this.StateName(0)}}) {
+                    if(this.{{this.StateName(0)}}){
                         return this.{{this.e}}.TryGetSpan(out span);
                     }
-                    if(this.{{this.e}}.TryGetSpan(out span)&&span.Length!=0) {
+                    if(this.{{this.e}}.TryGetSpan(out span)&&span.Length!=0){
                         return true;
                     }
                     span=default;
@@ -2599,35 +2599,35 @@ internal sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyL
         get {
             if(this.SingleDefaultIfEmpty) {
                 return $$"""
-                    if(this.{{this.StateName(0)}}) {
+                    if(this.{{this.StateName(0)}}){
                         return this.{{this.e}}.TryCopyTo(destination,__offset);
                     }
-                    if(this.{{this.e}}.TryGetSpan(out var __span)&&__span.Length!=0) {
+                    if(this.{{this.e}}.TryGetSpan(out var __span)&&__span.Length!=0){
                         var __spanStart=__offset.GetOffset(__span.Length);
-                        if(__spanStart<0||__spanStart>__span.Length||destination.Length>__span.Length-__spanStart) {
+                        if(__spanStart<0||__spanStart>__span.Length||destination.Length>__span.Length-__spanStart){
                             return false;
                         }
                         __span.Slice(__spanStart,destination.Length).CopyTo(destination);
                         return true;
                     }
-                    if(this.{{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
-                        if(__count==0) {
+                    if(this.{{this.e}}.TryGetNonEnumeratedCount(out var __count)){
+                        if(__count==0){
                             var __defaultStart=__offset.GetOffset(1);
-                            if(__defaultStart<0||__defaultStart>1||destination.Length>1-__defaultStart) {
+                            if(__defaultStart<0||__defaultStart>1||destination.Length>1-__defaultStart){
                                 return false;
                             }
-                            if(destination.Length!=0) {
+                            if(destination.Length!=0){
                                 destination[0]={{stages[0].Value}};
                             }
                             return true;
                         }
                         var __copyStart=__offset.GetOffset(__count);
-                        if(__copyStart<0||__copyStart>__count||destination.Length>__count-__copyStart) {
+                        if(__copyStart<0||__copyStart>__count||destination.Length>__count-__copyStart){
                             return false;
                         }
                         return destination.Length==0||this.{{this.e}}.TryCopyTo(destination,__offset);
                     }
-                    if(this.{{this.e}}.TryCopyTo(destination,__offset)) {
+                    if(this.{{this.e}}.TryCopyTo(destination,__offset)){
                         return true;
                     }
                     return false;
@@ -2649,18 +2649,18 @@ internal sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyL
                 """;
             var body = this.BuildLoop(this.e,success,"return __i==destination.Length;");
             return $$"""
-                if(!this.{{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
+                if(!this.{{this.e}}.TryGetNonEnumeratedCount(out var __count)){
                     return false;
                 }
                 var __start = __offset.GetOffset(__count);
-                if(__start < 0 || __start > __count || destination.Length > __count - __start) {
+                if(__start < 0 || __start > __count || destination.Length > __count - __start){
                     return false;
                 }
-                if(destination.Length==0) {
+                if(destination.Length==0){
                     return true;
                 }
                 var __skip = __start;
-                var __i = 0;
+                var __i=0;
                 {{body}}
                 """;
         }
@@ -4187,7 +4187,7 @@ internal sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyL
             var secondaryOrder = orderStages[1];
             return $$"""
             private readonly struct {{this.SortItemName(orderIndex)}} {
-                public {{this.SortItemName(orderIndex)}}({{primaryOrder.InputType}} value,{{ComparerKeyType(primaryOrder)}} key,{{ComparerKeyType(secondaryOrder)}} secondKey,int index) {
+                public {{this.SortItemName(orderIndex)}}({{primaryOrder.InputType}} value,{{ComparerKeyType(primaryOrder)}} key,{{ComparerKeyType(secondaryOrder)}} secondKey,int index){
                     this.Value=value;
                     this.Key=key;
                     this.SecondKey=secondKey;
@@ -4202,7 +4202,7 @@ internal sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyL
         }
         return $$"""
         private readonly struct {{this.SortItemName(orderIndex)}} {
-            public {{this.SortItemName(orderIndex)}}({{primaryOrder.InputType}} value,{{ComparerKeyType(primaryOrder)}} key,int index) {
+            public {{this.SortItemName(orderIndex)}}({{primaryOrder.InputType}} value,{{ComparerKeyType(primaryOrder)}} key,int index){
                 this.Value=value;
                 this.Key=key;
                 this.Index=index;
@@ -4270,7 +4270,7 @@ internal sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyL
     private string GroupingType(int index,PipelineStage stage) => $$"""
         private sealed class {{this.GroupingName(index)}}:global::System.Linq.IGrouping<{{ComparerKeyType(stage)}},{{stage.InnerElementType}}> {
             private readonly global::System.Collections.Generic.List<{{stage.InnerElementType}}> values = new();
-            public {{this.GroupingName(index)}}({{ComparerKeyType(stage)}} key) {
+            public {{this.GroupingName(index)}}({{ComparerKeyType(stage)}} key){
                 this.Key=key;
             }
             public {{ComparerKeyType(stage)}} Key { get; }
@@ -4358,13 +4358,13 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         public {{this.ResultType}} Current { get; private set; }
         private bool {{this.yielded}} = false;
         {{AggressiveInliningAttribute}}
-        private static {{this.ResultType}} Compute(TEnum source) {
+        private static {{this.ResultType}} Compute(TEnum source){
             {{this.ComputeBody}}
         }
         """;
     public override string GetTryGetNextBody => $$"""
-        if(this.{{this.yielded}}) {
-            current = default!;
+        if(this.{{this.yielded}}){
+            current=default!;
             return false;
         }
         this.{{this.yielded}} = true;

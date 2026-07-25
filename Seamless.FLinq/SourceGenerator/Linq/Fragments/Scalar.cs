@@ -63,7 +63,7 @@ internal abstract class Scalar(int 番号):Fragment(番号) {
         if(directSpanExpression is not null) {
             return $$"""
                 {{destType}} {{destVar}};
-                using(var {{srcVar}}={{srcExpr}}) {
+                using(var {{srcVar}}={{srcExpr}}){
                     global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
                     var {{spanVar}}={{directSpanExpression}};
                     {{IndentLines(renderBody(spanVar),"    ")}}
@@ -76,7 +76,7 @@ internal abstract class Scalar(int 番号):Fragment(番号) {
 
         return $$"""
             {{destType}} {{destVar}};
-            using(var {{srcVar}}={{srcExpr}}) {
+            using(var {{srcVar}}={{srcExpr}}){
                 global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanCalled();
                 {{srcVar}}.TryGetSpan(out var {{spanVar}});
                 global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanSucceeded();

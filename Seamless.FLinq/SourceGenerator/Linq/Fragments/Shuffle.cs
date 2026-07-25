@@ -33,11 +33,11 @@ internal class Shuffle(int 番号,Enumerable source):Enumerable(番号) {
         """;
     public override string GetEnumeratorConstructor => $"this.{this.e} = new global::Seamless.Linq.Shuffle<TEnum, {source.ElementType}>(source);";
     public override string GetTryGetNextBody => $$"""
-        if(this.{{this.e}}.TryGetNext(out var {{this.item}})) {
+        if(this.{{this.e}}.TryGetNext(out var {{this.item}})){
             current = this.Current = {{this.item}};
             return true;
         }
-        current = default!;
+        current=default!;
         return false;
         """;
 

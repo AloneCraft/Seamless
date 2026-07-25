@@ -20,8 +20,8 @@ internal class Chunk(int 番号,Enumerable source,string size):Enumerable(番号
     public override string GetTryGetNextBody => source.CanTryProvideSpan
         ? $$"""
             if(size<=0) throw new global::System.ArgumentOutOfRangeException(nameof(size));
-            if({{this.e}}.TryGetSpan(out var __span)) {
-                if((uint)this.{{this.a}}<(uint)__span.Length) {
+            if({{this.e}}.TryGetSpan(out var __span)){
+                if((uint)this.{{this.a}}<(uint)__span.Length){
                     var len=global::System.Math.Min(size,__span.Length-this.{{this.a}});
                     current=this.{{this.currentValue}}=__span.Slice(this.{{this.a}},len).ToArray();
                     this.{{this.a}}+=len;
@@ -32,15 +32,15 @@ internal class Chunk(int 番号,Enumerable source,string size):Enumerable(番号
             }
             var __i=0;
             if(this.{{this.group}} is null) this.{{this.group}}=new {{source.ElementType}}[size];
-            while({{this.e}}.TryGetNext(out var __mn14)) {
+            while({{this.e}}.TryGetNext(out var __mn14)){
                 this.{{this.group}}[__i++]= __mn14;
-                if(__i==size) {
+                if(__i==size){
                     current=this.{{this.currentValue}}=this.{{this.group}};
                     this.{{this.group}}=new {{source.ElementType}}[size];
                     return true;
                 }
             }
-            if(__i>0) {
+            if(__i>0){
                 var __last=new {{source.ElementType}}[__i];
                 global::System.Array.Copy(this.{{this.group}},__last,__i);
                 current=this.{{this.currentValue}}=__last;
@@ -54,15 +54,15 @@ internal class Chunk(int 番号,Enumerable source,string size):Enumerable(番号
             if(size<=0) throw new global::System.ArgumentOutOfRangeException(nameof(size));
             var __i=0;
             if(this.{{this.group}} is null) this.{{this.group}}=new {{source.ElementType}}[size];
-            while({{this.e}}.TryGetNext(out var __mn15)) {
+            while({{this.e}}.TryGetNext(out var __mn15)){
                 this.{{this.group}}[__i++]= __mn15;
-                if(__i==size) {
+                if(__i==size){
                     current=this.{{this.currentValue}}=this.{{this.group}};
                     this.{{this.group}}=new {{source.ElementType}}[size];
                     return true;
                 }
             }
-            if(__i>0) {
+            if(__i>0){
                 var __last=new {{source.ElementType}}[__i];
                 global::System.Array.Copy(this.{{this.group}},__last,__i);
                 current=this.{{this.currentValue}}=__last;
@@ -94,7 +94,7 @@ internal class Chunk(int 番号,Enumerable source,string size):Enumerable(番号
             var {{spanName}}={{directSpanExpression}};
             var {{chunkSize}}={{size}};
             if({{chunkSize}}<=0) throw new global::System.ArgumentOutOfRangeException("size");
-            for(var {{offset}}=0;{{offset}}<{{spanName}}.Length;) {
+            for(var {{offset}}=0;{{offset}}<{{spanName}}.Length;){
                 var {{length}}=global::System.Math.Min({{chunkSize}},{{spanName}}.Length-{{offset}});
                 {{consumerName}}.Consume({{spanName}}.Slice({{offset}},{{length}}).ToArray());
                 {{offset}}+={{length}};
@@ -119,10 +119,10 @@ internal class Chunk(int 番号,Enumerable source,string size):Enumerable(番号
                 if({{chunkSize}}<=0) throw new global::System.ArgumentOutOfRangeException("size");
                 var {{start}}={{range.StartExpression}};
                 var {{count}}={{range.CountExpression}};
-                for(var {{offset}}=0;{{offset}}<{{count}};) {
+                for(var {{offset}}=0;{{offset}}<{{count}};){
                     var {{length}}=global::System.Math.Min({{chunkSize}},{{count}}-{{offset}});
                     var {{chunk}}=new int[{{length}}];
-                    for(var {{index}}=0;{{index}}<{{length}};{{index}}++) {
+                    for(var {{index}}=0;{{index}}<{{length}};{{index}}++){
                         {{chunk}}[{{index}}]={{start}} + {{offset}} + {{index}};
                     }
                     {{offset}}+={{length}};

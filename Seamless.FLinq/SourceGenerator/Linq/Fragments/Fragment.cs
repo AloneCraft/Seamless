@@ -541,11 +541,11 @@ internal abstract class Fragment(
             {{getSpan}}
             {{copyTo}}
                 {{AggressiveInliningAttribute}}
-                public bool TryGetNext(out {{currentType}} current) {
+                public bool TryGetNext(out {{currentType}} current){
             {{tryGetNextBody}}
                 }
                 {{AggressiveInliningAttribute}}
-                public void Dispose() {
+                public void Dispose(){
             {{dispose}}
                 }
             }

@@ -50,21 +50,21 @@ internal sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<
             private int count;
             {{this.ExclusionFields}}
             private int {{this.e}} = -1;
-            public {{this.Struct}}({{this.GetEnumeratorPrimaryConstructorParameters}}) {
+            public {{this.Struct}}({{this.GetEnumeratorPrimaryConstructorParameters}}){
                 this.start = start;
                 this.count = count;
                 {{this.ExclusionAssignments}}
             }
-            public int Current { get; private set; } = default!;
+            public int Current{get;private set;}=default!;
             public bool TryGetNonEnumeratedCount(out int count) { count = 0; return false; }
             public bool TryGetSpan(out global::System.ReadOnlySpan<int> span) { span = default; return false; }
-            public bool TryCopyTo(scoped global::System.Span<int> destination, global::System.Index offset) => false;
+            public bool TryCopyTo(scoped global::System.Span<int> destination,global::System.Index offset) => false;
             {{AggressiveInliningAttribute}}
-            public bool TryGetNext(out int current) {
+            public bool TryGetNext(out int current){
                 {{this.GetTryGetNextBody}}
             }
             {{AggressiveInliningAttribute}}
-            public void Dispose() { }
+            public void Dispose(){}
         }
         """;
     public override string GetConsumeExecutionStatement(string consumerName) {

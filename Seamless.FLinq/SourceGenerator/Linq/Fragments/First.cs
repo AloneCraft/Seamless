@@ -39,7 +39,7 @@ internal class First(int 番号,Enumerable source,string resultType):BufferedSca
         var spanName = $"__firstSpan{番号}";
         return $$"""
             {{destType}} {{destVar}};
-            using(var {{sourceName}}={{source.GetEnumeratorExpression}}) {
+            using(var {{sourceName}}={{source.GetEnumeratorExpression}}){
                 var {{spanName}}={{directSpanExpression}};
                 if({{spanName}}.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
                 {{destVar}}={{spanName}}[0];
@@ -48,7 +48,7 @@ internal class First(int 番号,Enumerable source,string resultType):BufferedSca
     }
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source) {
+        private static {{resultType}} Compute(TEnum source){
             if(source.TryGetNext(out var __mn30)) return __mn30;
             throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
         }
@@ -77,8 +77,8 @@ internal class First_predicate(int 番号,Enumerable source,FuncFragment predica
             : this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
-            while(source.TryGetNext(out var __mn31)) {
+        private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
+            while(source.TryGetNext(out var __mn31)){
                 var {{this.item}} = __mn31;
                 bool {{this.temp}} = default!;
                 {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}

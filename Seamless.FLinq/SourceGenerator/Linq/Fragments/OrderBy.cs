@@ -81,69 +81,69 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
         private int count;
         private int position = -1;
         private readonly struct IndexComparer(global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(keySelector)}}> comparer,{{FuncReturnTypeName(keySelector)}}[] keys) : global::System.Collections.Generic.IComparer<int> {
-            public int Compare(int left,int right) {
+            public int Compare(int left,int right){
                 var compare=comparer.Compare(keys[left],keys[right]);
                 if(compare!=0) return {{(descending ? "-compare" : "compare")}};
                 return left.CompareTo(right);
             }
         }
-        private static void ReturnArray<TArrayItem>(TArrayItem[]? array) {
-            if(array is not null) {
+        private static void ReturnArray<TArrayItem>(TArrayItem[]? array){
+            if(array is not null){
                 global::System.Buffers.ArrayPool<TArrayItem>.Shared.Return(array,clearArray: global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<TArrayItem>());
             }
         }
-        private void DisposeBuffers() {
+        private void DisposeBuffers(){
             ReturnArray(this.values);
             this.values=null;
             ReturnArray(this.keys);
             this.keys=null;
-            if(this.indexMap is not null) {
+            if(this.indexMap is not null){
                 global::System.Buffers.ArrayPool<int>.Shared.Return(this.indexMap,clearArray: false);
                 this.indexMap=null;
             }
             this.count=0;
             this.position=-1;
         }
-        private void EnsureCapacity(int minimum) {
-            if(this.values is not null && this.values.Length>=minimum) {
+        private void EnsureCapacity(int minimum){
+            if(this.values is not null && this.values.Length>=minimum){
                 return;
             }
             var capacity=this.values is null ? 4 : this.values.Length * 2;
-            if(capacity<minimum) {
+            if(capacity<minimum){
                 capacity=minimum;
             }
             var newValues=global::System.Buffers.ArrayPool<{{this.ElementType}}>.Shared.Rent(capacity);
             var newKeys=global::System.Buffers.ArrayPool<{{FuncReturnTypeName(keySelector)}}>.Shared.Rent(capacity);
             var newIndexMap=global::System.Buffers.ArrayPool<int>.Shared.Rent(capacity);
-            if(this.count!=0) {
+            if(this.count!=0){
                 global::System.Array.Copy(this.values!,newValues,this.count);
                 global::System.Array.Copy(this.keys!,newKeys,this.count);
                 global::System.Array.Copy(this.indexMap!,newIndexMap,this.count);
             }
             ReturnArray(this.values);
             ReturnArray(this.keys);
-            if(this.indexMap is not null) {
+            if(this.indexMap is not null){
                 global::System.Buffers.ArrayPool<int>.Shared.Return(this.indexMap,clearArray: false);
             }
             this.values=newValues;
             this.keys=newKeys;
             this.indexMap=newIndexMap;
         }
-        private void AddItem({{this.ElementType}} value,{{FuncReturnTypeName(keySelector)}} key) {
+        private void AddItem({{this.ElementType}} value,{{FuncReturnTypeName(keySelector)}} key){
             this.EnsureCapacity(this.count+1);
             this.values![this.count]=value;
             this.keys![this.count]=key;
             this.indexMap![this.count]=this.count;
             this.count++;
         }
-        private void Build(global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector)}}) {
+        private void Build(global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector)}}){
             comparer ??= global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
             try {
-                if(this.source.TryGetNonEnumeratedCount(out var __count) && __count>0) {
+                if(this.source.TryGetNonEnumeratedCount(out var __count) && __count>0){
                     this.EnsureCapacity(__count);
                 }
                 {{this.SortLoopSingle}}
-                if(this.count>1) {
+                if(this.count>1){
                     global::System.Array.Sort(this.indexMap!,0,this.count,new IndexComparer(comparer,this.keys!));
                 }
             }catch{
@@ -157,14 +157,14 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
     private string SortLoopSingle => this.UnorderedSource.CanProvideSpan
         ? $$"""
                 this.source.TryGetSpan(out var __span);
-                foreach(var {{this.item}} in __span) {
+                foreach(var {{this.item}} in __span){
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
                     {{this.FuncAssignIndented("                ",keySelector,nameof(keySelector),this.key,this.item)}}
                     this.AddItem({{this.item}},{{this.key}});
                 }
             """
         : $$"""
-                while(this.source.TryGetNext(out var {{this.item}})) {
+                while(this.source.TryGetNext(out var {{this.item}})){
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
                     {{this.FuncAssignIndented("                ",keySelector,nameof(keySelector),this.key,this.item)}}
                     this.AddItem({{this.item}},{{this.key}});
@@ -183,7 +183,7 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
             global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(keySelector)}}> comparer,
             {{FuncReturnTypeName(po.OwnKeySelector)}}[] primaryKeys,
             {{FuncReturnTypeName(keySelector)}}[] keys) : global::System.Collections.Generic.IComparer<int> {
-            public int Compare(int left,int right) {
+            public int Compare(int left,int right){
                 var primaryCompare=primaryComparer.Compare(primaryKeys[left],primaryKeys[right]);
                 if(primaryCompare!=0) return {{(po.OwnDescending ? "-primaryCompare" : "primaryCompare")}};
                 var compare=comparer.Compare(keys[left],keys[right]);
@@ -191,38 +191,38 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
                 return left.CompareTo(right);
             }
         }
-        private static void ReturnArray<TArrayItem>(TArrayItem[]? array) {
-            if(array is not null) {
+        private static void ReturnArray<TArrayItem>(TArrayItem[]? array){
+            if(array is not null){
                 global::System.Buffers.ArrayPool<TArrayItem>.Shared.Return(array,clearArray: global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<TArrayItem>());
             }
         }
-        private void DisposeBuffers() {
+        private void DisposeBuffers(){
             ReturnArray(this.values);
             this.values=null;
             ReturnArray(this.primaryKeys);
             this.primaryKeys=null;
             ReturnArray(this.keys);
             this.keys=null;
-            if(this.indexMap is not null) {
+            if(this.indexMap is not null){
                 global::System.Buffers.ArrayPool<int>.Shared.Return(this.indexMap,clearArray: false);
                 this.indexMap=null;
             }
             this.count=0;
             this.position=-1;
         }
-        private void EnsureCapacity(int minimum) {
-            if(this.values is not null && this.values.Length>=minimum) {
+        private void EnsureCapacity(int minimum){
+            if(this.values is not null && this.values.Length>=minimum){
                 return;
             }
             var capacity=this.values is null ? 4 : this.values.Length * 2;
-            if(capacity<minimum) {
+            if(capacity<minimum){
                 capacity=minimum;
             }
             var newValues=global::System.Buffers.ArrayPool<{{this.ElementType}}>.Shared.Rent(capacity);
             var newPrimaryKeys=global::System.Buffers.ArrayPool<{{FuncReturnTypeName(po.OwnKeySelector)}}>.Shared.Rent(capacity);
             var newKeys=global::System.Buffers.ArrayPool<{{FuncReturnTypeName(keySelector)}}>.Shared.Rent(capacity);
             var newIndexMap=global::System.Buffers.ArrayPool<int>.Shared.Rent(capacity);
-            if(this.count!=0) {
+            if(this.count!=0){
                 global::System.Array.Copy(this.values!,newValues,this.count);
                 global::System.Array.Copy(this.primaryKeys!,newPrimaryKeys,this.count);
                 global::System.Array.Copy(this.keys!,newKeys,this.count);
@@ -231,7 +231,7 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
             ReturnArray(this.values);
             ReturnArray(this.primaryKeys);
             ReturnArray(this.keys);
-            if(this.indexMap is not null) {
+            if(this.indexMap is not null){
                 global::System.Buffers.ArrayPool<int>.Shared.Return(this.indexMap,clearArray: false);
             }
             this.values=newValues;
@@ -239,7 +239,7 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
             this.keys=newKeys;
             this.indexMap=newIndexMap;
         }
-        private void AddItem({{this.ElementType}} value,{{FuncReturnTypeName(po.OwnKeySelector)}} primaryKey,{{FuncReturnTypeName(keySelector)}} key) {
+        private void AddItem({{this.ElementType}} value,{{FuncReturnTypeName(po.OwnKeySelector)}} primaryKey,{{FuncReturnTypeName(keySelector)}} key){
             this.EnsureCapacity(this.count+1);
             this.values![this.count]=value;
             this.primaryKeys![this.count]=primaryKey;
@@ -247,15 +247,15 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
             this.indexMap![this.count]=this.count;
             this.count++;
         }
-        private void Build(global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(keySelector)}}>? comparer,global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(po.OwnKeySelector)}}>? primaryComparer{{this.ClosureMethodParameterSuffix(keySelector,po.OwnKeySelector)}}) {
+        private void Build(global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(keySelector)}}>? comparer,global::System.Collections.Generic.IComparer<{{FuncReturnTypeName(po.OwnKeySelector)}}>? primaryComparer{{this.ClosureMethodParameterSuffix(keySelector,po.OwnKeySelector)}}){
             comparer ??= global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
             primaryComparer ??= global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(po.OwnKeySelector)}}>.Default;
             try {
-                if(this.source.TryGetNonEnumeratedCount(out var __count) && __count>0) {
+                if(this.source.TryGetNonEnumeratedCount(out var __count) && __count>0){
                     this.EnsureCapacity(__count);
                 }
                 {{this.SortLoopCombined(po)}}
-                if(this.count>1) {
+                if(this.count>1){
                     global::System.Array.Sort(this.indexMap!,0,this.count,new IndexComparer(primaryComparer,comparer,this.primaryKeys!,this.keys!));
                 }
             }catch{
@@ -269,7 +269,7 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
     private string SortLoopCombined(OrderingBase po) => this.UnorderedSource.CanProvideSpan
         ? $$"""
                 this.source.TryGetSpan(out var __span);
-                foreach(var {{this.item}} in __span) {
+                foreach(var {{this.item}} in __span){
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
                     {{this.FuncAssignIndented("                ",keySelector,nameof(keySelector),this.key,this.item)}}
                     {{FuncReturnTypeName(po.OwnKeySelector)}} {{this.a}}=default!;
@@ -278,7 +278,7 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
                 }
             """
         : $$"""
-                while(this.source.TryGetNext(out var {{this.item}})) {
+                while(this.source.TryGetNext(out var {{this.item}})){
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
                     {{this.FuncAssignIndented("                ",keySelector,nameof(keySelector),this.key,this.item)}}
                     {{FuncReturnTypeName(po.OwnKeySelector)}} {{this.a}}=default!;
@@ -289,7 +289,7 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
 
     protected override string GetTryGetNonEnumeratedCountBody => $$"""
         count=this.count-(this.position+1);
-        if(count<0) {
+        if(count<0){
             count=0;
         }
         return true;
@@ -297,7 +297,7 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
 
     public override string GetTryGetNextBody => $$"""
         var next=this.position+1;
-        if(next>=this.count || this.values is null || this.indexMap is null) {
+        if(next>=this.count || this.values is null || this.indexMap is null){
             current=default!;
             return false;
         }

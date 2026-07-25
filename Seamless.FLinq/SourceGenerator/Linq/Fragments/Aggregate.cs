@@ -51,8 +51,8 @@ internal class Aggregate_func(int 番号,Enumerable source,FuncFragment func):Sc
         private bool {{this.yielded}} = false;
         """;
     public override string GetTryGetNextBody => $$"""
-            if(this.{{this.yielded}}) {
-                current = default!;
+            if(this.{{this.yielded}}){
+                current=default!;
                 return false;
             }
             this.{{this.yielded}} = true;
@@ -116,8 +116,8 @@ internal class Aggregate_seed_func(int 番号,Enumerable source,string seed,Func
         private bool {{this.yielded}} = false;
         """;
     public override string GetTryGetNextBody => $$"""
-            if(this.{{this.yielded}}) {
-                current = default!;
+            if(this.{{this.yielded}}){
+                current=default!;
                 return false;
             }
             this.{{this.yielded}} = true;
@@ -187,8 +187,8 @@ internal class Aggregate_seed_func_resultSelector(int 番号,Enumerable source,s
         private bool {{this.yielded}} = false;
         """;
     public override string GetTryGetNextBody => $$"""
-            if(this.{{this.yielded}}) {
-                current = default!;
+            if(this.{{this.yielded}}){
+                current=default!;
                 return false;
             }
             this.{{this.yielded}} = true;

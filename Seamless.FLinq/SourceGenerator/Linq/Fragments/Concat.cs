@@ -36,14 +36,14 @@ internal class Concat(int 番号,Enumerable source,Enumerable second):Enumerable
         private bool {{this.hasValue}};
         """;
     public override string GetTryGetNextBody => $$"""
-        if(!this.{{this.hasValue}}) {
-            if(source.TryGetNext(out var __left)) {
+        if(!this.{{this.hasValue}}){
+            if(source.TryGetNext(out var __left)){
                 current=this.{{this.currentValue}}=__left;
                 return true;
             }
             this.{{this.hasValue}}=true;
         }
-        if(second.TryGetNext(out var __right)) {
+        if(second.TryGetNext(out var __right)){
             current=this.{{this.currentValue}}=({{source.ElementType}})(object)__right!;
             return true;
         }

@@ -48,12 +48,12 @@ internal abstract class DefaultIfEmptyBase(int 番号,Enumerable source):Enumera
         private bool {{this.yielded}};
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{this.e}}.TryGetNext(out var __mn23)) {
+        if({{this.e}}.TryGetNext(out var __mn23)){
             this.{{this.hasValue}}=true;
             current=this.{{this.currentValue}}=__mn23;
             return true;
         }
-        if(!this.{{this.hasValue}}&&!this.{{this.yielded}}) {
+        if(!this.{{this.hasValue}}&&!this.{{this.yielded}}){
             this.{{this.yielded}}=true;
             current=this.{{this.currentValue}}=defaultValue;
             return true;
@@ -64,8 +64,8 @@ internal abstract class DefaultIfEmptyBase(int 番号,Enumerable source):Enumera
     // 非空なら RootSource の件数、空なら既定値1個ぶんの 1 を返す。
     // bool を呼び出し側が確認する実行時 fast path のため安全（CanProvideSpan は false のまま）。
     protected override string GetTryGetNonEnumeratedCountBody => $$"""
-        if({{this.e}}.TryGetNonEnumeratedCount(out var __c)) {
-            if(__c==0) {
+        if({{this.e}}.TryGetNonEnumeratedCount(out var __c)){
+            if(__c==0){
                 count=1;
             }else{
                 count=__c;
@@ -76,39 +76,39 @@ internal abstract class DefaultIfEmptyBase(int 番号,Enumerable source):Enumera
         return false;
         """;
     protected override string GetTryGetSpanBody => $$"""
-        if({{this.e}}.TryGetSpan(out span)&&span.Length!=0) {
+        if({{this.e}}.TryGetSpan(out span)&&span.Length!=0){
             return true;
         }
         span=default;
         return false;
         """;
     protected override string GetTryCopyToBody => $$"""
-        if({{this.e}}.TryGetSpan(out var __span)&&__span.Length!=0) {
+        if({{this.e}}.TryGetSpan(out var __span)&&__span.Length!=0){
             var __spanStart=__offset.GetOffset(__span.Length);
-            if(__spanStart<0||__spanStart>__span.Length||destination.Length>__span.Length-__spanStart) {
+            if(__spanStart<0||__spanStart>__span.Length||destination.Length>__span.Length-__spanStart){
                 return false;
             }
             __span.Slice(__spanStart,destination.Length).CopyTo(destination);
             return true;
         }
-        if(!this.{{this.hasValue}}&&!this.{{this.yielded}}&&{{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
-            if(__count==0) {
+        if(!this.{{this.hasValue}}&&!this.{{this.yielded}}&&{{this.e}}.TryGetNonEnumeratedCount(out var __count)){
+            if(__count==0){
                 var __defaultStart=__offset.GetOffset(1);
-                if(__defaultStart<0||__defaultStart>1||destination.Length>1-__defaultStart) {
+                if(__defaultStart<0||__defaultStart>1||destination.Length>1-__defaultStart){
                     return false;
                 }
-                if(destination.Length!=0) {
+                if(destination.Length!=0){
                     destination[0]=defaultValue;
                 }
                 return true;
             }
             var __copyStart=__offset.GetOffset(__count);
-            if(__copyStart<0||__copyStart>__count||destination.Length>__count-__copyStart) {
+            if(__copyStart<0||__copyStart>__count||destination.Length>__count-__copyStart){
                 return false;
             }
             return destination.Length==0||{{this.e}}.TryCopyTo(destination,__offset);
         }
-        if({{this.e}}.TryCopyTo(destination,__offset)) {
+        if({{this.e}}.TryCopyTo(destination,__offset)){
             return true;
         }
         return false;

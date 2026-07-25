@@ -105,23 +105,23 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             var {{innerArrayName}}={{innerArrayExpression}};
             var {{lookupBuilderName}}=new global::Seamless.Linq.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>({{innerArrayName}}.Length,{{this.comparerExpression}},true);
             try {
-            for(var {{innerIndexName}}=0;{{innerIndexName}}<{{innerArrayName}}.Length;{{innerIndexName}}++) {
+            for(var {{innerIndexName}}=0;{{innerIndexName}}<{{innerArrayName}}.Length;{{innerIndexName}}++){
                 var {{innerItemName}}={{innerArrayName}}[{{innerIndexName}}];
                 {{this.InnerKeyType}} {{innerKeyName}}=default!;
                 {{this.FuncAssignStaticIndented("    ",this.innerKey,nameof(this.innerKey),innerKeyName,innerItemName)}}
-                if({{hasKeyName}}({{innerKeyName}})) {
+                if({{hasKeyName}}({{innerKeyName}})){
                     {{lookupBuilderName}}.Add({{innerKeyName}},{{innerItemName}});
                 }
             }
             var {{outerArrayName}}={{outerArrayExpression}};
-            for(var {{outerIndexName}}=0;{{outerIndexName}}<{{outerArrayName}}.Length;{{outerIndexName}}++) {
+            for(var {{outerIndexName}}=0;{{outerIndexName}}<{{outerArrayName}}.Length;{{outerIndexName}}++){
                 var {{outerItemName}}={{outerArrayName}}[{{outerIndexName}}];
                 {{this.InnerKeyType}} {{outerKeyName}}=default!;
                 {{this.FuncAssignStaticIndented("    ",this.outerKey,nameof(this.outerKey),outerKeyName,outerItemName)}}
                 if(!{{hasKeyName}}({{outerKeyName}})) continue;
                 var {{groupName}}={{lookupBuilderName}}.GetGroup({{outerKeyName}});
                 if({{groupName}} is null) continue;
-                for(var {{groupIndexName}}=0;{{groupIndexName}}<{{groupName}}.Count;{{groupIndexName}}++) {
+                for(var {{groupIndexName}}=0;{{groupIndexName}}<{{groupName}}.Count;{{groupIndexName}}++){
                     var {{innerItemName}}={{groupName}}[{{groupIndexName}}];
                     {{this.ElementType}} {{resultName}}=default!;
                     {{this.FuncAssignStaticIndented("        ",this.resultSelector,nameof(this.resultSelector),resultName,outerItemName,innerItemName)}}

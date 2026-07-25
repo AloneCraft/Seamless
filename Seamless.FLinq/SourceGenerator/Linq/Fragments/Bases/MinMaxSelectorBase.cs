@@ -40,7 +40,7 @@ internal abstract class MinMaxSelectorBase(int 番号,Enumerable source,FuncFrag
     protected override string ComputeMembers => source.CanTryProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}){
                 var comparer=global::System.Collections.Generic.Comparer<{{resultType}}>.Default;
                 {{resultType}} result=default!;
                 if(source.TryGetSpan(out var __span)){
@@ -71,7 +71,7 @@ internal abstract class MinMaxSelectorBase(int 番号,Enumerable source,FuncFrag
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}){
                 var comparer=global::System.Collections.Generic.Comparer<{{resultType}}>.Default;
                 {{source.ElementType}} {{this.item}};
                 {{resultType}} result=default!;

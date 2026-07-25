@@ -40,15 +40,15 @@ internal class Count(int 番号,Enumerable source,string resultType):BufferedSca
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source) {
+            private static {{resultType}} Compute(TEnum source){
                 source.TryGetSpan(out var __span);
                 return ({{resultType}})__span.Length;
             }
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source) {
-                if(source.TryGetNonEnumeratedCount(out var __count)) {
+            private static {{resultType}} Compute(TEnum source){
+                if(source.TryGetNonEnumeratedCount(out var __count)){
                     return ({{resultType}})__count;
                 }
                 {{resultType}} count=0;
@@ -105,10 +105,10 @@ internal class Count_predicate(int 番号,Enumerable source,FuncFragment predica
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 source.TryGetSpan(out var __span);
                 var count = 0;
-                for(var __i = 0; __i < __span.Length; __i++) {
+                for(var __i = 0; __i < __span.Length; __i++){
                     var {{this.item}} = __span[__i];
                     bool {{this.temp}} = default!;
                     {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
@@ -119,10 +119,10 @@ internal class Count_predicate(int 番号,Enumerable source,FuncFragment predica
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 {{resultType}} count = 0;
                 checked{
-                    while(source.TryGetNext(out var __mn19)) {
+                    while(source.TryGetNext(out var __mn19)){
                         var {{this.item}} = __mn19;
                         bool {{this.temp}} = default!;
                         {{this.FuncAssignStaticIndented("            ",predicate,nameof(predicate),this.temp,this.item)}}

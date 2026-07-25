@@ -37,7 +37,7 @@ internal class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable se
         ? (source.ElementType==second.ElementType
             ? $$"""
                 {{AggressiveInliningAttribute}}
-                private static {{resultType}} Compute(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
+                private static {{resultType}} Compute(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
                     source.TryGetSpan(out var __spanL);
                     second.TryGetSpan(out var __spanR);
                     return __spanL.SequenceEqual(__spanR, comparer);
@@ -45,7 +45,7 @@ internal class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable se
                 """
             : $$"""
                 {{AggressiveInliningAttribute}}
-                private static {{resultType}} Compute(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
+                private static {{resultType}} Compute(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
                     comparer??=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
                     source.TryGetSpan(out var __spanL);
                     second.TryGetSpan(out var __spanR);
@@ -58,7 +58,7 @@ internal class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable se
                 """)
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
+            private static {{resultType}} Compute(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
                 comparer??=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
                 while(true){
                     var hasLeft=source.TryGetNext(out var __mn51);

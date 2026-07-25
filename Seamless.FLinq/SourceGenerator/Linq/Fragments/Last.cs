@@ -59,7 +59,7 @@ internal class Last(int 番号,Enumerable source,string resultType):BufferedScal
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source) {
+            private static {{resultType}} Compute(TEnum source){
                 source.TryGetSpan(out var __span);
                 if(__span.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
                 return __span[__span.Length-1];
@@ -67,7 +67,7 @@ internal class Last(int 番号,Enumerable source,string resultType):BufferedScal
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source) {
+            private static {{resultType}} Compute(TEnum source){
                 var found=false;
                 {{resultType}} result=default!;
                 while(source.TryGetNext(out var __mn39)){
@@ -118,11 +118,11 @@ internal class Last_predicate(int 番号,Enumerable source,FuncFragment predicat
                 var {{start}}={{range.StartExpression}};
                 var {{count}}={{range.CountExpression}};
                 var {{found}}=false;
-                for(var {{index}}={{count}}-1;{{index}}>=0;{{index}}--) {
+                for(var {{index}}={{count}}-1;{{index}}>=0;{{index}}--){
                     var {{this.item}}={{start}} + {{index}};
                     bool {{this.temp}}=default!;
             {{IndentLines(this.FuncAssignStatic(predicate,nameof(predicate),this.temp,this.item),"        ")}}
-                    if({{this.temp}}) {
+                    if({{this.temp}}){
                         {{destVar}}={{this.item}};
                         {{found}}=true;
                         break;
@@ -135,7 +135,7 @@ internal class Last_predicate(int 番号,Enumerable source,FuncFragment predicat
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 var found=false;
                 {{resultType}} result=default!;
                 source.TryGetSpan(out var __span);
@@ -150,7 +150,7 @@ internal class Last_predicate(int 番号,Enumerable source,FuncFragment predicat
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 var found=false;
                 {{resultType}} result=default!;
                 while(source.TryGetNext(out var __mn40)){

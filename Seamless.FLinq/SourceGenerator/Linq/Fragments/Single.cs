@@ -45,7 +45,7 @@ internal class Single(int 番号,Enumerable source,string resultType):BufferedSc
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source) {
+            private static {{resultType}} Compute(TEnum source){
                 source.TryGetSpan(out var __span);
                 if(__span.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
                 if(__span.Length>1) throw new global::System.InvalidOperationException("Sequence contains more than one element");
@@ -54,7 +54,7 @@ internal class Single(int 番号,Enumerable source,string resultType):BufferedSc
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source) {
+            private static {{resultType}} Compute(TEnum source){
                 if(!source.TryGetNext(out var __mn53)) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
                 {{resultType}} value = __mn53;
                 if(source.TryGetNext(out _)) throw new global::System.InvalidOperationException("Sequence contains more than one element");
@@ -90,14 +90,14 @@ internal class Single_predicate(int 番号,Enumerable source,FuncFragment predic
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 {{resultType}} value = default!;
                 bool found = false;
                 source.TryGetSpan(out var __span);
                 foreach(var {{this.item}} in __span){
                     bool {{this.temp}}=default!;
                     {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
-                    if({{this.temp}}) {
+                    if({{this.temp}}){
                         if(found) throw new global::System.InvalidOperationException("Sequence contains more than one matching element");
                         value={{this.item}};
                         found=true;
@@ -109,14 +109,14 @@ internal class Single_predicate(int 番号,Enumerable source,FuncFragment predic
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 {{resultType}} value = default!;
                 bool found = false;
-                while(source.TryGetNext(out var __mn55)) {
+                while(source.TryGetNext(out var __mn55)){
                     var {{this.item}} = __mn55;
                     bool {{this.temp}} = default!;
                     {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
-                    if({{this.temp}}) {
+                    if({{this.temp}}){
                         if(found) throw new global::System.InvalidOperationException("Sequence contains more than one matching element");
                         value = {{this.item}};
                         found = true;

@@ -84,8 +84,8 @@ internal class Any(int 番号,Enumerable source):Scalar(番号) {
         var enumeratorName = $"__s{番号}";
         return $$"""
             {{destType}} {{destVar}};
-            using(var {{enumeratorName}}={{source.GetEnumeratorExpression}}) {
-                if({{enumeratorName}}.TryGetNonEnumeratedCount(out var __count{{番号}})) {
+            using(var {{enumeratorName}}={{source.GetEnumeratorExpression}}){
+                if({{enumeratorName}}.TryGetNonEnumeratedCount(out var __count{{番号}})){
                     {{destVar}}=__count{{番号}}!=0;
                 }else{
                     {{destVar}}={{enumeratorName}}.TryGetNext(out _);
@@ -102,12 +102,12 @@ internal class Any(int 番号,Enumerable source):Scalar(番号) {
         private bool {{this.yielded}} = false;
         """;
     public override string GetTryGetNextBody => $$"""
-        if(this.{{this.yielded}}) {
+        if(this.{{this.yielded}}){
             current = default;
             return false;
         }
         this.{{this.yielded}} = true;
-        if({{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
+        if({{this.e}}.TryGetNonEnumeratedCount(out var __count)){
             this.{{this.currentValue}} = __count != 0;
         }else{
             this.{{this.currentValue}} = {{this.e}}.TryGetNext(out _);
@@ -154,7 +154,7 @@ internal class Any_predicate(int 番号,Enumerable source,FuncFragment predicate
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+            private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 source.TryGetSpan(out var __span);
                 foreach(var {{this.item}} in __span){
                     bool {{this.temp}}=default!;
@@ -166,8 +166,8 @@ internal class Any_predicate(int 番号,Enumerable source,FuncFragment predicate
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
-                while(source.TryGetNext(out var __mn4)) {
+            private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
+                while(source.TryGetNext(out var __mn4)){
                     var {{this.item}}=__mn4;
                     bool {{this.temp}}=default!;
                     {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
@@ -194,9 +194,9 @@ internal class Any_indexPredicate(int 番号,Enumerable source,FuncFragment pred
         $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
-        private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
+        private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
             var {{this.a}}=0;
-            while(source.TryGetNext(out var __mn5)) {
+            while(source.TryGetNext(out var __mn5)){
                 var {{this.item}}=__mn5;
                 bool {{this.temp}}=default!;
                 {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item,this.a)}}
