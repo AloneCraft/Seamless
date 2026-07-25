@@ -70,7 +70,8 @@ internal sealed partial class PipelineEnumerable {
                     builder.AppendLine($"private global::System.Collections.Generic.List<{this.GroupValueType(index,stage)}>? {this.GroupItemsName(index)} = null;");
                     builder.AppendLine($"private int {this.StateName(index)} = 0;");
                 } else if(stage.Kind==PipelineStageKind.Reverse) {
-                    builder.AppendLine($"private global::System.Collections.Generic.List<{stage.OutputType}>? {this.ReverseItemsName(index)} = null;");
+                    builder.AppendLine($"private {stage.OutputType}[]? {this.ReverseItemsName(index)} = null;");
+                    builder.AppendLine($"private int {this.BufferCountName(index)} = 0;");
                     builder.AppendLine($"private int {this.StateName(index)} = 0;");
                 } else if(stage.Kind==PipelineStageKind.DefaultIfEmpty) {
                     builder.AppendLine($"private bool {this.StateName(index)} = false;");
@@ -87,10 +88,12 @@ internal sealed partial class PipelineEnumerable {
                 } else if(stage.Kind==PipelineStageKind.SkipLast) {
                     builder.AppendLine($"private global::System.Collections.Generic.Queue<{stage.OutputType}> {this.QueueName(index)} = new();");
                 } else if(stage.Kind==PipelineStageKind.TakeLast) {
-                    builder.AppendLine($"private global::System.Collections.Generic.List<{stage.OutputType}>? {this.ReverseItemsName(index)} = null;");
+                    builder.AppendLine($"private {stage.OutputType}[]? {this.ReverseItemsName(index)} = null;");
+                    builder.AppendLine($"private int {this.BufferCountName(index)} = 0;");
                     builder.AppendLine($"private int {this.StateName(index)} = 0;");
                 } else if(stage.Kind==PipelineStageKind.TakeRange) {
-                    builder.AppendLine($"private global::System.Collections.Generic.List<{stage.OutputType}>? {this.ReverseItemsName(index)} = null;");
+                    builder.AppendLine($"private {stage.OutputType}[]? {this.ReverseItemsName(index)} = null;");
+                    builder.AppendLine($"private int {this.BufferCountName(index)} = 0;");
                     builder.AppendLine($"private int {this.StateName(index)} = 0;");
                     builder.AppendLine($"private int {this.StateEndName(index)} = 0;");
                 }
@@ -249,6 +252,8 @@ internal sealed partial class PipelineEnumerable {
                     builder.AppendLine($"    global::System.Buffers.ArrayPool<int>.Shared.Return(this.{this.OrderIndexesName(index)},clearArray:false);");
                     builder.AppendLine($"    this.{this.OrderIndexesName(index)}=null;");
                     builder.AppendLine("}");
+                } else if(stages[index].Kind is PipelineStageKind.Reverse or PipelineStageKind.TakeLast or PipelineStageKind.TakeRange) {
+                    builder.AppendLine(PooledBufferSupport.Dispose(stages[index].OutputType,this.ReverseItemsName(index)));
                 }
             }
             foreach(var index in this.SecondSources.Select(static (_,index) => index)) {

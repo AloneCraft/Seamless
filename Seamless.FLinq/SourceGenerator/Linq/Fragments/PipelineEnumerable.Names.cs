@@ -162,6 +162,7 @@ internal sealed partial class PipelineEnumerable {
     private string GroupItemsName(int index) => $"__groups{this.item}_{index}";
     private string GroupName(int index) => $"__group{this.item}_{index}";
     private string ReverseItemsName(int index) => $"__reversed{this.item}_{index}";
+    private string BufferCountName(int index) => $"__bufCount{this.item}_{index}";
     private string EndLabel(int index) => $"__end{this.item}_{index}";
     private string KeyName(int index) => $"{this.key}_{index}";
     private bool StagesAfterNeedEndLabel(int index) =>
@@ -317,7 +318,7 @@ internal sealed partial class PipelineEnumerable {
         }
         """;
 
-    private static string IndentBlock(string text,string indent) {
+    internal static string IndentBlock(string text,string indent) {
         if(string.IsNullOrWhiteSpace(text)) {
             return string.Empty;
         }

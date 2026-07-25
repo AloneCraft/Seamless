@@ -24,6 +24,8 @@ internal class Reverse(int 番号,Enumerable source):Enumerable(番号) {
     private Enumerable Source => source;
     private Enumerable RootSource => this.Source is Reverse reverse ? reverse.RootSource : this.Source;
     private bool IsIdentity => this.Source is Reverse reverse&&!reverse.IsIdentity;
+    private string groupCount => $"{this.group}Count";
+    private string groupReturn => $"{this.group}Return";
     protected override Enumerable PrimarySource => this.RootSource;
     public override string StructMethod => string.Empty;
     public override string GetEnumerableExpression =>
@@ -43,8 +45,11 @@ internal class Reverse(int 番号,Enumerable source):Enumerable(番号) {
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     public override string GetEnumeratorFields => $$"""
         private int {{this.a}}=int.MinValue;
-        private global::System.Collections.Generic.List<{{this.RootSource.ElementType}}>? {{this.group}};
+        private {{this.RootSource.ElementType}}[]? {{this.group}};
+        private int {{this.groupCount}};
         """;
+    // span を取れない root（IEnumerable<T> 等）は全件バッファが要る。List<T> は要素数ぶんの
+    // GC ヒープ確保になるため、OrderBy と同じ ArrayPool 配管（PooledBufferSupport）を使う。
     public override string GetTryGetNextBody => this.RootSource.CanTryProvideSpan
         ? $$"""
             // {{this.a}} は int.MinValue=未初期化 / -1=列挙完了 を区別する。
@@ -54,13 +59,13 @@ internal class Reverse(int 番号,Enumerable source):Enumerable(番号) {
                 if({{this.e}}.TryGetSpan(out var __span0)){
                     this.{{this.a}}=__span0.Length-1;
                 }else{
-                    if({{this.e}}.TryGetNonEnumeratedCount(out var __count)){
-                        this.{{this.group}}=new global::System.Collections.Generic.List<{{this.RootSource.ElementType}}>(__count);
-                    }else{
-                        this.{{this.group}}=new global::System.Collections.Generic.List<{{this.RootSource.ElementType}}>();
+            {{PipelineEnumerable.IndentBlock(PooledBufferSupport.BuildStart(this.e,this.RootSource.ElementType,this.group,this.groupCount,this.groupReturn,$"{番号}"),"        ")}}
+                    while({{this.e}}.TryGetNext(out var __mn46)){
+            {{PipelineEnumerable.IndentBlock(PooledBufferSupport.Add(this.RootSource.ElementType,this.group,this.groupCount,"__mn46",$"{番号}"),"            ")}}
                     }
-                    while({{this.e}}.TryGetNext(out var __mn46)) this.{{this.group}}.Add(__mn46);
-                    this.{{this.a}}=this.{{this.group}}.Count-1;
+            {{PipelineEnumerable.IndentBlock(PooledBufferSupport.Commit(this.group,this.groupCount),"        ")}}
+                    this.{{this.a}}=this.{{this.groupCount}}-1;
+            {{PipelineEnumerable.IndentBlock(PooledBufferSupport.Finally(this.RootSource.ElementType,this.group,this.groupReturn),"        ")}}
                 }
             }
             if(this.{{this.a}}>=0){
@@ -76,13 +81,13 @@ internal class Reverse(int 番号,Enumerable source):Enumerable(番号) {
             """
         : $$"""
             if(this.{{this.group}} is null){
-                if({{this.e}}.TryGetNonEnumeratedCount(out var __count)){
-                    this.{{this.group}}=new global::System.Collections.Generic.List<{{this.RootSource.ElementType}}>(__count);
-                }else{
-                    this.{{this.group}}=new global::System.Collections.Generic.List<{{this.RootSource.ElementType}}>();
+            {{PipelineEnumerable.IndentBlock(PooledBufferSupport.BuildStart(this.e,this.RootSource.ElementType,this.group,this.groupCount,this.groupReturn,$"{番号}"),"    ")}}
+                while({{this.e}}.TryGetNext(out var __mn47)){
+            {{PipelineEnumerable.IndentBlock(PooledBufferSupport.Add(this.RootSource.ElementType,this.group,this.groupCount,"__mn47",$"{番号}"),"        ")}}
                 }
-                while({{this.e}}.TryGetNext(out var __mn47)) this.{{this.group}}.Add(__mn47);
-                this.{{this.a}}=this.{{this.group}}.Count-1;
+            {{PipelineEnumerable.IndentBlock(PooledBufferSupport.Commit(this.group,this.groupCount),"    ")}}
+                this.{{this.a}}=this.{{this.groupCount}}-1;
+            {{PipelineEnumerable.IndentBlock(PooledBufferSupport.Finally(this.RootSource.ElementType,this.group,this.groupReturn),"    ")}}
             }
             if(this.{{this.a}}>=0){
                 current=this.{{this.currentValue}}=this.{{this.group}}[this.{{this.a}}--];
@@ -90,6 +95,12 @@ internal class Reverse(int 番号,Enumerable source):Enumerable(番号) {
             }
             current=default!;
             return false;
+            """;
+    protected override string GetEnumeratorDisposeBody => this.IsIdentity
+        ? base.GetEnumeratorDisposeBody
+        : $$"""
+            {{this.e}}.Dispose();
+            {{PooledBufferSupport.Dispose(this.RootSource.ElementType,this.group)}}
             """;
     public override string ElementType => this.RootSource.ElementType;
     public override string GetConsumeExecutionStatement(string consumerName) {

@@ -395,6 +395,42 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
+    public void EnumerableReverseConsumeUsesPooledArrayNotList() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer<T>{
+                public void Consume(T item){
+                }
+            }
+            public static class ConsumeSupport{
+                public static void Consume<T>(this IEnumerable<T>source,Consumer<T>consumer){
+                    foreach(var item in source){
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public class Container{
+                private static void ReverseConsume(IEnumerable<int>src,Consumer<int>consumer)=>
+                    src.Reverse().Consume(consumer);
+                public void Run(IEnumerable<int>src,Consumer<int>consumer)=>ReverseConsume(src,consumer);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("global::System.Buffers.ArrayPool<int>.Shared.Rent",StringComparison.Ordinal)
+            &&generated.Contains("global::System.Buffers.ArrayPool<int>.Shared.Return",StringComparison.Ordinal)
+            &&!generated.Contains("new global::System.Collections.Generic.List<int>",StringComparison.Ordinal),
+            "Reverse().Consume(...) over a span-incapable source (IEnumerable<T>) — the exact shape benchmarks use — "
+            +"must buffer via pooled array, not List<T>.",
+            generated,
+            output);
+    }
+
+    [Fact]
     public void SingleStageArrayPipelinesConsumeDirectSpan() {
         const string source = """
             using System.Collections.Generic;

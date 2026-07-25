@@ -113,24 +113,30 @@ internal sealed partial class PipelineEnumerable {
 
     private string BuildReverseLoop(string enumeratorName,string successStatement,string endStatement,int reverseIndex) {
         var stage = stages[reverseIndex];
+        var elementType = stage.OutputType;
+        var fieldName = this.ReverseItemsName(reverseIndex);
+        var countField = this.BufferCountName(reverseIndex);
+        var suffix = $"{this.item}_{reverseIndex}";
+        var returnLocal = $"__bufReturn{suffix}";
         var builder = new StringBuilder();
-        builder.AppendLine($"if(this.{this.ReverseItemsName(reverseIndex)} is null) {{");
-        builder.AppendLine($"    var {this.ReverseItemsName(reverseIndex)}=new global::System.Collections.Generic.List<{stage.OutputType}>();");
-        builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
-        this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
+        builder.AppendLine($"if(this.{fieldName} is null) {{");
+        builder.AppendLine(IndentBlock(PooledBufferSupport.BuildStart(enumeratorName,elementType,fieldName,countField,returnLocal,suffix),"    "));
+        builder.AppendLine($"        while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+        this.AppendCounterCall(builder,"            ","IncrementPhysicalMoveNext");
         var currentName = this.ItemName(0);
         for(var index = 0;index<reverseIndex;index++) {
             currentName=this.AppendStage(builder,stages[index],currentName,index);
         }
-        builder.AppendLine($"        {this.ReverseItemsName(reverseIndex)}.Add({currentName});");
-        builder.AppendLine("    }");
-        builder.AppendLine($"    {this.ReverseItemsName(reverseIndex)}.Reverse();");
-        builder.AppendLine($"    this.{this.ReverseItemsName(reverseIndex)}={this.ReverseItemsName(reverseIndex)};");
-        builder.AppendLine($"    this.{this.StateName(reverseIndex)}=0;");
+        builder.AppendLine(IndentBlock(PooledBufferSupport.Add(elementType,fieldName,countField,currentName,suffix),"            "));
+        builder.AppendLine("        }");
+        builder.AppendLine($"        global::System.Array.Reverse({fieldName},0,{countField});");
+        builder.AppendLine(IndentBlock(PooledBufferSupport.Commit(fieldName,countField),"        "));
+        builder.AppendLine($"        this.{this.StateName(reverseIndex)}=0;");
+        builder.AppendLine(IndentBlock(PooledBufferSupport.Finally(elementType,fieldName,returnLocal),"    "));
         builder.AppendLine("}");
-        builder.AppendLine($"while(this.{this.StateName(reverseIndex)}<this.{this.ReverseItemsName(reverseIndex)}.Count) {{");
+        builder.AppendLine($"while(this.{this.StateName(reverseIndex)}<this.{countField}) {{");
         currentName=this.ItemName(reverseIndex+1);
-        builder.AppendLine($"    var {currentName}=this.{this.ReverseItemsName(reverseIndex)}[this.{this.StateName(reverseIndex)}++];");
+        builder.AppendLine($"    var {currentName}=this.{fieldName}[this.{this.StateName(reverseIndex)}++];");
         for(var index = reverseIndex+1;index<stages.Count;index++) {
             currentName=this.AppendStage(builder,stages[index],currentName,index);
         }
@@ -167,25 +173,33 @@ internal sealed partial class PipelineEnumerable {
     private string BuildTakeLastLoop(string enumeratorName,string successStatement,string endStatement,int takeLastIndex) {
         var stage = stages[takeLastIndex];
         var countOrd = this.CountOrdinal(takeLastIndex);
+        var elementType = stage.OutputType;
+        var fieldName = this.ReverseItemsName(takeLastIndex);
+        var countField = this.BufferCountName(takeLastIndex);
+        var suffix = $"{this.item}_{takeLastIndex}";
+        var returnLocal = $"__bufReturn{suffix}";
+        var takeNLocal = $"__takeN{suffix}";
+        var takeStartLocal = $"__takeStart{suffix}";
         var builder = new StringBuilder();
-        builder.AppendLine($"if(this.{this.ReverseItemsName(takeLastIndex)} is null) {{");
-        builder.AppendLine($"    var __tmpList=new global::System.Collections.Generic.List<{stage.OutputType}>();");
-        builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
-        this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
+        builder.AppendLine($"if(this.{fieldName} is null) {{");
+        builder.AppendLine(IndentBlock(PooledBufferSupport.BuildStart(enumeratorName,elementType,fieldName,countField,returnLocal,suffix),"    "));
+        builder.AppendLine($"        while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+        this.AppendCounterCall(builder,"            ","IncrementPhysicalMoveNext");
         var currentName = this.ItemName(0);
         for(var index = 0;index<takeLastIndex;index++) {
             currentName=this.AppendStage(builder,stages[index],currentName,index);
         }
-        builder.AppendLine($"        __tmpList.Add({currentName});");
-        builder.AppendLine("    }");
-        builder.AppendLine($"    var __takeN=global::System.Math.Max(0,global::System.Math.Min(global::System.Math.Max(0,{this.CountName(countOrd)}),__tmpList.Count));");
-        builder.AppendLine($"    var __takeStart=__tmpList.Count-__takeN;");
-        builder.AppendLine($"    this.{this.ReverseItemsName(takeLastIndex)}=__tmpList;");
-        builder.AppendLine($"    this.{this.StateName(takeLastIndex)}=__takeStart;");
+        builder.AppendLine(IndentBlock(PooledBufferSupport.Add(elementType,fieldName,countField,currentName,suffix),"            "));
+        builder.AppendLine("        }");
+        builder.AppendLine($"        var {takeNLocal}=global::System.Math.Max(0,global::System.Math.Min(global::System.Math.Max(0,{this.CountName(countOrd)}),{countField}));");
+        builder.AppendLine($"        var {takeStartLocal}={countField}-{takeNLocal};");
+        builder.AppendLine(IndentBlock(PooledBufferSupport.Commit(fieldName,countField),"        "));
+        builder.AppendLine($"        this.{this.StateName(takeLastIndex)}={takeStartLocal};");
+        builder.AppendLine(IndentBlock(PooledBufferSupport.Finally(elementType,fieldName,returnLocal),"    "));
         builder.AppendLine("}");
-        builder.AppendLine($"while(this.{this.StateName(takeLastIndex)}<this.{this.ReverseItemsName(takeLastIndex)}.Count) {{");
+        builder.AppendLine($"while(this.{this.StateName(takeLastIndex)}<this.{countField}) {{");
         currentName=this.ItemName(takeLastIndex+1);
-        builder.AppendLine($"    var {currentName}=this.{this.ReverseItemsName(takeLastIndex)}[this.{this.StateName(takeLastIndex)}++];");
+        builder.AppendLine($"    var {currentName}=this.{fieldName}[this.{this.StateName(takeLastIndex)}++];");
         for(var index = takeLastIndex+1;index<stages.Count;index++) {
             currentName=this.AppendStage(builder,stages[index],currentName,index);
         }
@@ -198,25 +212,33 @@ internal sealed partial class PipelineEnumerable {
     private string BuildTakeRangeLoop(string enumeratorName,string successStatement,string endStatement,int takeRangeIndex) {
         var stage = stages[takeRangeIndex];
         var rangeParamName = this.RangeName(this.RangeOrdinal(takeRangeIndex));
+        var elementType = stage.OutputType;
+        var fieldName = this.ReverseItemsName(takeRangeIndex);
+        var countField = this.BufferCountName(takeRangeIndex);
+        var suffix = $"{this.item}_{takeRangeIndex}";
+        var returnLocal = $"__bufReturn{suffix}";
+        var rangeOffLocal = $"__rangeOff{suffix}";
+        var rangeLenLocal = $"__rangeLen{suffix}";
         var builder = new StringBuilder();
-        builder.AppendLine($"if(this.{this.ReverseItemsName(takeRangeIndex)} is null) {{");
-        builder.AppendLine($"    var __tmpRange=new global::System.Collections.Generic.List<{stage.OutputType}>();");
-        builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
-        this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
+        builder.AppendLine($"if(this.{fieldName} is null) {{");
+        builder.AppendLine(IndentBlock(PooledBufferSupport.BuildStart(enumeratorName,elementType,fieldName,countField,returnLocal,suffix),"    "));
+        builder.AppendLine($"        while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+        this.AppendCounterCall(builder,"            ","IncrementPhysicalMoveNext");
         var currentName = this.ItemName(0);
         for(var index = 0;index<takeRangeIndex;index++) {
             currentName=this.AppendStage(builder,stages[index],currentName,index);
         }
-        builder.AppendLine($"        __tmpRange.Add({currentName});");
-        builder.AppendLine("    }");
-        builder.AppendLine($"    var (__rangeOff,__rangeLen)={rangeParamName}.GetOffsetAndLength(__tmpRange.Count);");
-        builder.AppendLine($"    this.{this.ReverseItemsName(takeRangeIndex)}=__tmpRange;");
-        builder.AppendLine($"    this.{this.StateName(takeRangeIndex)}=__rangeOff;");
-        builder.AppendLine($"    this.{this.StateEndName(takeRangeIndex)}=__rangeOff+__rangeLen;");
+        builder.AppendLine(IndentBlock(PooledBufferSupport.Add(elementType,fieldName,countField,currentName,suffix),"            "));
+        builder.AppendLine("        }");
+        builder.AppendLine($"        var ({rangeOffLocal},{rangeLenLocal})={rangeParamName}.GetOffsetAndLength({countField});");
+        builder.AppendLine(IndentBlock(PooledBufferSupport.Commit(fieldName,countField),"        "));
+        builder.AppendLine($"        this.{this.StateName(takeRangeIndex)}={rangeOffLocal};");
+        builder.AppendLine($"        this.{this.StateEndName(takeRangeIndex)}={rangeOffLocal}+{rangeLenLocal};");
+        builder.AppendLine(IndentBlock(PooledBufferSupport.Finally(elementType,fieldName,returnLocal),"    "));
         builder.AppendLine("}");
         builder.AppendLine($"while(this.{this.StateName(takeRangeIndex)}<this.{this.StateEndName(takeRangeIndex)}) {{");
         currentName=this.ItemName(takeRangeIndex+1);
-        builder.AppendLine($"    var {currentName}=this.{this.ReverseItemsName(takeRangeIndex)}[this.{this.StateName(takeRangeIndex)}++];");
+        builder.AppendLine($"    var {currentName}=this.{fieldName}[this.{this.StateName(takeRangeIndex)}++];");
         for(var index = takeRangeIndex+1;index<stages.Count;index++) {
             currentName=this.AppendStage(builder,stages[index],currentName,index);
         }
