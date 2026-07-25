@@ -549,6 +549,69 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
+    public void RangeSingleStageOperatorsConsumeDirectlyWithoutStateMachine() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer<T>{
+                public void Consume(T item){
+                }
+            }
+            public static class ConsumeSupport{
+                public static void Consume<T>(this IEnumerable<T>source,Consumer<T>consumer){
+                    foreach(var item in source){
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public class Container{
+                private static void AppendRange(Consumer<int>consumer)=>
+                    Enumerable.Range(1,4096).Append(0).Consume(consumer);
+                private static void PrependRange(Consumer<int>consumer)=>
+                    Enumerable.Range(1,4096).Prepend(0).Consume(consumer);
+                private static void ConcatRange(Consumer<int>consumer)=>
+                    Enumerable.Range(1,4096).Concat(Enumerable.Range(1,16)).Consume(consumer);
+                private static void WhereRange(Consumer<int>consumer)=>
+                    Enumerable.Range(1,4096).Where(static x=>(x&1)==0).Consume(consumer);
+                private static void TakeWhileIndexRange(Consumer<int>consumer)=>
+                    Enumerable.Range(1,4096).TakeWhile(static (x,i)=>i<2048).Consume(consumer);
+                private static void SkipWhileRange(Consumer<int>consumer)=>
+                    Enumerable.Range(1,4096).SkipWhile(static x=>x<2048).Consume(consumer);
+                private static void SkipWhileIndexRange(Consumer<int>consumer)=>
+                    Enumerable.Range(1,4096).SkipWhile(static (x,i)=>i<2048).Consume(consumer);
+                private static void DefaultIfEmptyRange(Consumer<int>consumer)=>
+                    Enumerable.Range(1,4096).DefaultIfEmpty(0).Consume(consumer);
+                public void Run(Consumer<int>consumer){
+                    AppendRange(consumer);
+                    PrependRange(consumer);
+                    ConcatRange(consumer);
+                    WhereRange(consumer);
+                    TakeWhileIndexRange(consumer);
+                    SkipWhileRange(consumer);
+                    SkipWhileIndexRange(consumer);
+                    DefaultIfEmptyRange(consumer);
+                }
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        foreach(var methodName in new[] {
+            "AppendRange","PrependRange","ConcatRange","WhereRange","DefaultIfEmptyRange",
+            "TakeWhileIndexRange","SkipWhileRange","SkipWhileIndexRange"
+        }) {
+            var method = GeneratedMethod(generated,methodName);
+            GeneratedSourceAssert.True(
+                method.Contains("for(",StringComparison.Ordinal)
+                &&!method.Contains("TryGetNext",StringComparison.Ordinal),
+                $"{methodName} over a Range source must consume via a direct start+index for loop, "
+                +"not a state-machine TryGetNext loop.",
+                generated,
+                output);
+        }
+    }
+
+    [Fact]
     public void SingleStageArrayPipelinesConsumeDirectSpan() {
         const string source = """
             using System.Collections.Generic;

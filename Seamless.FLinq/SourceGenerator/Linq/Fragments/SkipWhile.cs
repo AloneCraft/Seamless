@@ -63,6 +63,9 @@ internal class SkipWhile_predicate(int 番号,Enumerable source,FuncFragment pre
         if(predicate.ParameterTypeNames.Length!=1) {
             return base.GetConsumeExecutionStatement(consumerName);
         }
+        if(source is RangeRoot range) {
+            return this.RenderRangeConsume(consumerName,range);
+        }
         var sourceName = $"__skipWhileSource{番号}";
         var directSpanExpression = source.GetDirectSpanExpression(sourceName);
         if(directSpanExpression is null) {
@@ -99,6 +102,44 @@ internal class SkipWhile_predicate(int 番号,Enumerable source,FuncFragment pre
             for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++){
                 var {{itemName}}={{spanName}}[{{offsetName}}];
                 {{consumerName}}.Consume({{itemName}});
+            }
+            """;
+    }
+
+    // RangeRoot は start+i で値を計算できるので状態機械を経由せず直列 for ループにできる。
+    private protected string RenderRangeConsume(string consumerName,RangeRoot range) {
+        var rangeStartName = $"__skipWhileRangeStart{番号}";
+        var rangeCountName = $"__skipWhileRangeCount{番号}";
+        var rangeOffsetName = $"__skipWhileRangeOffset{番号}";
+        var rangeItemName = $"__skipWhileRangeItem{番号}";
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(predicate),
+            this.StaticDelegateLocalDeclarations(predicate),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var localDeclarationBlock = string.IsNullOrEmpty(localDeclarations)
+            ? string.Empty
+            : localDeclarations+"\n";
+        var (preCode,condExpr)=this.FuncInvokeConditionStatic(predicate,nameof(predicate),this.temp,rangeItemName);
+        var predicateCheck = string.IsNullOrEmpty(preCode)
+            ? $"if({WrapConditionExpression(condExpr)})"
+            : $"{preCode}\n            if({WrapConditionExpression(condExpr)})";
+
+        return $$"""
+            {{localDeclarationBlock}}
+            var {{rangeStartName}}={{range.StartExpression}};
+            var {{rangeCountName}}={{range.CountExpression}};
+            global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
+            var {{rangeOffsetName}}=0;
+            for(;{{rangeOffsetName}}<{{rangeCountName}};{{rangeOffsetName}}++){
+                var {{rangeItemName}}={{rangeStartName}}+{{rangeOffsetName}};
+                {{predicateCheck}} {
+                    continue;
+                }
+                break;
+            }
+            for(;{{rangeOffsetName}}<{{rangeCountName}};{{rangeOffsetName}}++){
+                var {{rangeItemName}}={{rangeStartName}}+{{rangeOffsetName}};
+                {{consumerName}}.Consume({{rangeItemName}});
             }
             """;
     }
@@ -140,6 +181,9 @@ internal class SkipWhile_indexPredicate(int 番号,Enumerable source,FuncFragmen
         }
     }
     public override string GetConsumeExecutionStatement(string consumerName) {
+        if(source is RangeRoot range) {
+            return this.RenderIndexRangeConsume(consumerName,range);
+        }
         var sourceName = $"__skipWhileSource{番号}";
         var directSpanExpression = source.GetDirectSpanExpression(sourceName);
         if(directSpanExpression is null) {
@@ -179,6 +223,47 @@ internal class SkipWhile_indexPredicate(int 番号,Enumerable source,FuncFragmen
             for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++){
                 var {{itemName}}={{spanName}}[{{offsetName}}];
                 {{consumerName}}.Consume({{itemName}});
+            }
+            """;
+    }
+
+    // RangeRoot は start+i で値を計算できるので状態機械を経由せず直列 for ループにできる。
+    private string RenderIndexRangeConsume(string consumerName,RangeRoot range) {
+        var rangeStartName = $"__skipWhileRangeStart{番号}";
+        var rangeCountName = $"__skipWhileRangeCount{番号}";
+        var rangeOffsetName = $"__skipWhileRangeOffset{番号}";
+        var rangeIndexName = $"__skipWhileRangeIndex{番号}";
+        var rangeItemName = $"__skipWhileRangeItem{番号}";
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(predicate),
+            this.StaticDelegateLocalDeclarations(predicate),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var localDeclarationBlock = string.IsNullOrEmpty(localDeclarations)
+            ? string.Empty
+            : localDeclarations+"\n";
+        var (preCode,condExpr)=this.FuncInvokeConditionStatic(predicate,nameof(predicate),this.temp,rangeItemName,rangeIndexName);
+        var predicateCheck = string.IsNullOrEmpty(preCode)
+            ? $"if({WrapConditionExpression(condExpr)})"
+            : $"{preCode}\n            if({WrapConditionExpression(condExpr)})";
+
+        return $$"""
+            {{localDeclarationBlock}}
+            var {{rangeStartName}}={{range.StartExpression}};
+            var {{rangeCountName}}={{range.CountExpression}};
+            global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
+            var {{rangeOffsetName}}=0;
+            var {{rangeIndexName}}=-1;
+            for(;{{rangeOffsetName}}<{{rangeCountName}};{{rangeOffsetName}}++){
+                var {{rangeItemName}}={{rangeStartName}}+{{rangeOffsetName}};
+                {{rangeIndexName}}++;
+                {{predicateCheck}} {
+                    continue;
+                }
+                break;
+            }
+            for(;{{rangeOffsetName}}<{{rangeCountName}};{{rangeOffsetName}}++){
+                var {{rangeItemName}}={{rangeStartName}}+{{rangeOffsetName}};
+                {{consumerName}}.Consume({{rangeItemName}});
             }
             """;
     }

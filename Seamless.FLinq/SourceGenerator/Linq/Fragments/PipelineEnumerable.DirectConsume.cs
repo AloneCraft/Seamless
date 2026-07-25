@@ -24,6 +24,24 @@ internal sealed partial class PipelineEnumerable {
             return null;
         }
 
+        if(source is RangeRoot range) {
+            var rangeStartName = $"__appendRangeStart{this.result}";
+            var rangeCountName = $"__appendRangeCount{this.result}";
+            var rangeItemName = $"__appendRangeItem{this.result}";
+            var rangeAppendValue = $"{consumerName}.Consume({value});";
+            var rangeBefore = stage.Kind==PipelineStageKind.Prepend ? rangeAppendValue+"\n" : string.Empty;
+            var rangeAfter = stage.Kind==PipelineStageKind.Append ? "\n"+rangeAppendValue : string.Empty;
+            return $$"""
+                var {{rangeStartName}}={{range.StartExpression}};
+                var {{rangeCountName}}={{range.CountExpression}};
+                global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
+                {{rangeBefore}}for(var __i{{this.result}}=0;__i{{this.result}}<{{rangeCountName}};__i{{this.result}}++){
+                    var {{rangeItemName}}={{rangeStartName}}+__i{{this.result}};
+                    {{consumerName}}.Consume({{rangeItemName}});
+                }{{rangeAfter}}
+                """;
+        }
+
         var sourceName = $"__appendSource{this.result}";
         var directSpanExpression = source.GetDirectSpanExpression(sourceName);
         if(directSpanExpression is null) {
@@ -54,6 +72,25 @@ internal sealed partial class PipelineEnumerable {
         var stage = stages[0];
         if(stage.Kind!=PipelineStageKind.DefaultIfEmpty||stage.Value is not { } defaultValue) {
             return null;
+        }
+
+        if(source is RangeRoot range) {
+            var rangeStartName = $"__defaultRangeStart{this.result}";
+            var rangeCountName = $"__defaultRangeCount{this.result}";
+            var rangeItemName = $"__defaultRangeItem{this.result}";
+            return $$"""
+                var {{rangeStartName}}={{range.StartExpression}};
+                var {{rangeCountName}}={{range.CountExpression}};
+                if({{rangeCountName}}==0){
+                    {{consumerName}}.Consume({{defaultValue}});
+                }else{
+                    global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
+                    for(var __i{{this.result}}=0;__i{{this.result}}<{{rangeCountName}};__i{{this.result}}++){
+                        var {{rangeItemName}}={{rangeStartName}}+__i{{this.result}};
+                        {{consumerName}}.Consume({{rangeItemName}});
+                    }
+                }
+                """;
         }
 
         var sourceName = $"__defaultSource{this.result}";
@@ -92,14 +129,35 @@ internal sealed partial class PipelineEnumerable {
         var sourceName = $"__concatSource{this.result}";
         var secondName = $"__concatSecond{this.result}";
         var builder = new StringBuilder();
-        builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
-        builder.AppendLine($"using var {secondName}={secondSource.GetEnumeratorExpression};");
+        this.AppendConcatEnumeratorDeclaration(builder,source,sourceName);
+        this.AppendConcatEnumeratorDeclaration(builder,secondSource,secondName);
         this.AppendConcatConsumeSource(builder,source,sourceName,consumerName,$"__concatLeftSpan{this.result}",$"__concatLeftItem{this.result}",source.ElementType);
         this.AppendConcatConsumeSource(builder,secondSource,secondName,consumerName,$"__concatRightSpan{this.result}",$"__concatRightItem{this.result}",stage.OutputType);
         return builder.ToString().TrimEnd();
     }
 
+    // RangeRoot は start+i で値を計算できるので enumerator の構築自体が要らない。
+    private void AppendConcatEnumeratorDeclaration(StringBuilder builder,Enumerable sourceFragment,string enumeratorName) {
+        if(sourceFragment is RangeRoot) {
+            return;
+        }
+        builder.AppendLine($"using var {enumeratorName}={sourceFragment.GetEnumeratorExpression};");
+    }
+
     private void AppendConcatConsumeSource(StringBuilder builder,Enumerable sourceFragment,string enumeratorName,string consumerName,string spanName,string itemName,string outputType) {
+        if(sourceFragment is RangeRoot range) {
+            var rangeStartName = $"{itemName}Start";
+            var rangeCountName = $"{itemName}Count";
+            builder.AppendLine($"var {rangeStartName}={range.StartExpression};");
+            builder.AppendLine($"var {rangeCountName}={range.CountExpression};");
+            builder.AppendLine("global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();");
+            builder.AppendLine($"for(var __i{this.result}=0;__i{this.result}<{rangeCountName};__i{this.result}++) {{");
+            builder.AppendLine($"    var {itemName}={rangeStartName}+__i{this.result};");
+            builder.AppendLine($"    {consumerName}.Consume({this.CastConcatItem(sourceFragment.ElementType,outputType,itemName)});");
+            builder.AppendLine("}");
+            return;
+        }
+
         var directSpanExpression = sourceFragment.GetDirectSpanExpression(enumeratorName);
         if(directSpanExpression is not null) {
             builder.AppendLine("global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();");
@@ -133,6 +191,43 @@ internal sealed partial class PipelineEnumerable {
             ||predicate.RequiresStatementInlining
             ||!predicate.CanInlineAssign) {
             return null;
+        }
+
+        if(source is RangeRoot range) {
+            var rangeStartName = $"__whereRangeStart{this.result}";
+            var rangeCountName = $"__whereRangeCount{this.result}";
+            var rangeItemName = $"__whereRangeItem{this.result}";
+            var rangeIndexName = $"__whereRangeIndex{this.result}";
+            var rangeArguments = stage.UsesIndex
+                ? new[] { rangeItemName,rangeIndexName }
+                : [rangeItemName];
+            var rangeIndexDeclaration = stage.UsesIndex
+                ? $"var {rangeIndexName}=-1;\n"
+                : string.Empty;
+            var rangeIndexIncrement = stage.UsesIndex
+                ? $"{rangeIndexName}++;\n    "
+                : string.Empty;
+            var (rangePreCode,rangeConditionExpr)=this.FuncInvokeCondition(predicate,nameof(PipelineStageKind.Where),this.temp,rangeArguments);
+            var rangePredicateCheck = string.IsNullOrEmpty(rangePreCode)
+                ? $"if({WrapConditionExpression(rangeConditionExpr)})"
+                : $"{rangePreCode}\n    if({WrapConditionExpression(rangeConditionExpr)})";
+            var rangeLocalDeclarations = string.Join("\n",new[]{
+                this.HoistedLocalDeclarations(predicate),
+                this.StaticDelegateLocalDeclarations(predicate),
+            }.Where(static value => !string.IsNullOrWhiteSpace(value)));
+
+            return $$"""
+                {{rangeLocalDeclarations}}
+                var {{rangeStartName}}={{range.StartExpression}};
+                var {{rangeCountName}}={{range.CountExpression}};
+                global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
+                {{rangeIndexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{rangeCountName}};__i{{this.result}}++){
+                    var {{rangeItemName}}={{rangeStartName}}+__i{{this.result}};
+                    {{rangeIndexIncrement}}{{rangePredicateCheck}} {
+                        {{consumerName}}.Consume({{rangeItemName}});
+                    }
+                }
+                """;
         }
 
         var sourceName = $"__whereSource{this.result}";
@@ -274,6 +369,47 @@ internal sealed partial class PipelineEnumerable {
             return null;
         }
 
+        if(source is RangeRoot range) {
+            var rangeStartName = $"__takeWhileRangeStart{this.result}";
+            var rangeCountName = $"__takeWhileRangeCount{this.result}";
+            var rangeItemName = $"__takeWhileRangeItem{this.result}";
+            var rangeIndexName = $"__takeWhileRangeIndex{this.result}";
+            var rangeArguments = stage.UsesIndex
+                ? new[] { rangeItemName,rangeIndexName }
+                : [rangeItemName];
+            var rangeIndexDeclaration = stage.UsesIndex
+                ? $"var {rangeIndexName}=-1;\n"
+                : string.Empty;
+            var rangeIndexIncrement = stage.UsesIndex
+                ? $"{rangeIndexName}++;\n    "
+                : string.Empty;
+            var rangeLocalDeclarations = string.Join("\n",new[]{
+                this.HoistedLocalDeclarations(predicate),
+                this.StaticDelegateLocalDeclarations(predicate),
+            }.Where(static text => !string.IsNullOrEmpty(text)));
+            var rangeLocalDeclarationBlock = string.IsNullOrEmpty(rangeLocalDeclarations)
+                ? string.Empty
+                : rangeLocalDeclarations+"\n";
+            var (rangePreCode,rangeConditionExpr)=this.FuncInvokeConditionStatic(predicate,nameof(PipelineStageKind.TakeWhile),this.temp,rangeArguments);
+            var rangePredicateCheck = string.IsNullOrEmpty(rangePreCode)
+                ? $"if(!{WrapConditionExpression(rangeConditionExpr)})"
+                : $"{rangePreCode}\n    if(!{WrapConditionExpression(rangeConditionExpr)})";
+
+            return $$"""
+                {{rangeLocalDeclarationBlock}}
+                var {{rangeStartName}}={{range.StartExpression}};
+                var {{rangeCountName}}={{range.CountExpression}};
+                global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
+                {{rangeIndexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{rangeCountName}};__i{{this.result}}++){
+                    var {{rangeItemName}}={{rangeStartName}}+__i{{this.result}};
+                    {{rangeIndexIncrement}}{{rangePredicateCheck}} {
+                        break;
+                    }
+                    {{consumerName}}.Consume({{rangeItemName}});
+                }
+                """;
+        }
+
         var sourceName = $"__takeWhileSource{this.result}";
         var directSpanExpression = source.GetDirectSpanExpression(sourceName);
         if(directSpanExpression is null) {
@@ -330,6 +466,10 @@ internal sealed partial class PipelineEnumerable {
             ||predicate.RequiresStatementInlining
             ||!predicate.CanInlineAssign) {
             return null;
+        }
+
+        if(source is RangeRoot range) {
+            return this.RenderSkipWhileRangeDirectConsume(consumerName,range,stage,predicate);
         }
 
         var sourceName = $"__skipWhileSource{this.result}";
@@ -402,6 +542,77 @@ internal sealed partial class PipelineEnumerable {
             for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++){
                 var {{itemName}}={{spanName}}[{{offsetName}}];
                 {{consumerName}}.Consume({{itemName}});
+            }
+            """;
+    }
+
+    // RangeRoot は start+i で値を計算できるので、SkipWhile も状態機械を経由せず直列 for ループにできる。
+    private string RenderSkipWhileRangeDirectConsume(string consumerName,RangeRoot range,PipelineStage stage,FuncFragment predicate) {
+        var rangeStartName = $"__skipWhileRangeStart{this.result}";
+        var rangeCountName = $"__skipWhileRangeCount{this.result}";
+        var rangeItemName = $"__skipWhileRangeItem{this.result}";
+        var rangeIndexName = $"__skipWhileRangeIndex{this.result}";
+        var rangeOffsetName = $"__skipWhileRangeOffset{this.result}";
+        var rangeArguments = stage.UsesIndex
+            ? new[] { rangeItemName,rangeIndexName }
+            : [rangeItemName];
+        var rangeIndexDeclaration = stage.UsesIndex
+            ? $"var {rangeIndexName}=-1;\n"
+            : string.Empty;
+        var rangeIndexIncrement = stage.UsesIndex
+            ? $"{rangeIndexName}++;\n        "
+            : string.Empty;
+        var rangeLocalDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(predicate),
+            this.StaticDelegateLocalDeclarations(predicate),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var rangeLocalDeclarationBlock = string.IsNullOrEmpty(rangeLocalDeclarations)
+            ? string.Empty
+            : rangeLocalDeclarations+"\n";
+        var (rangePreCode,rangeConditionExpr)=this.FuncInvokeConditionStatic(predicate,nameof(PipelineStageKind.SkipWhile),this.temp,rangeArguments);
+        var rangePredicateCheck = string.IsNullOrEmpty(rangePreCode)
+            ? $"if(!{WrapConditionExpression(rangeConditionExpr)})"
+            : $"{rangePreCode}\n            if(!{WrapConditionExpression(rangeConditionExpr)})";
+
+        if(stage.UsesIndex) {
+            var rangeSkippingName = $"__skipWhileRangeSkipping{this.result}";
+            return $$"""
+                {{rangeLocalDeclarationBlock}}
+                var {{rangeStartName}}={{range.StartExpression}};
+                var {{rangeCountName}}={{range.CountExpression}};
+                global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
+                var {{rangeSkippingName}}=true;
+                {{rangeIndexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{rangeCountName}};__i{{this.result}}++){
+                    var {{rangeItemName}}={{rangeStartName}}+__i{{this.result}};
+                    {{rangeIndexIncrement}}if({{rangeSkippingName}}){
+                        {{rangePredicateCheck}} {
+                            {{rangeSkippingName}}=false;
+                        }
+                    }
+                    if(!{{rangeSkippingName}}){
+                        {{consumerName}}.Consume({{rangeItemName}});
+                    }
+                }
+                """;
+        }
+
+        return $$"""
+            {{rangeLocalDeclarationBlock}}
+            var {{rangeStartName}}={{range.StartExpression}};
+            var {{rangeCountName}}={{range.CountExpression}};
+            global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
+            var {{rangeOffsetName}}=0;
+            {{rangeIndexDeclaration}}for(;{{rangeOffsetName}}<{{rangeCountName}};{{rangeOffsetName}}++){
+                var {{rangeItemName}}={{rangeStartName}}+{{rangeOffsetName}};
+                {{rangeIndexIncrement}}{{rangePredicateCheck}} {
+                    {{consumerName}}.Consume({{rangeItemName}});
+                    {{rangeOffsetName}}++;
+                    break;
+                }
+            }
+            for(;{{rangeOffsetName}}<{{rangeCountName}};{{rangeOffsetName}}++){
+                var {{rangeItemName}}={{rangeStartName}}+{{rangeOffsetName}};
+                {{consumerName}}.Consume({{rangeItemName}});
             }
             """;
     }

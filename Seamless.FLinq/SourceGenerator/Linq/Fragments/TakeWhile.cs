@@ -100,6 +100,9 @@ internal class TakeWhile_indexPredicate(int id,Enumerable source,FuncFragment pr
         }
     }
     public override string GetConsumeExecutionStatement(string consumerName) {
+        if(source is RangeRoot range) {
+            return this.RenderRangeConsume(consumerName,range);
+        }
         var sourceName = $"__takeWhileSource{id}";
         var spanName = $"__takeWhileSpan{id}";
         var itemName = $"__takeWhileItem{id}";
@@ -164,6 +167,41 @@ internal class TakeWhile_indexPredicate(int id,Enumerable source,FuncFragment pr
                     }
                     {{consumerName}}.Consume({{itemName}});
                 }
+            }
+            """;
+    }
+
+    // RangeRoot は start+i で値を計算できるので状態機械を経由せず直列 for ループにできる。
+    private string RenderRangeConsume(string consumerName,RangeRoot range) {
+        var rangeStartName = $"__takeWhileRangeStart{id}";
+        var rangeCountName = $"__takeWhileRangeCount{id}";
+        var rangeItemName = $"__takeWhileRangeItem{id}";
+        var rangeIndexName = $"__takeWhileRangeIndex{id}";
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(predicate),
+            this.StaticDelegateLocalDeclarations(predicate),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var localDeclarationBlock = string.IsNullOrEmpty(localDeclarations)
+            ? string.Empty
+            : localDeclarations+"\n";
+        var (preCode,condExpr)=this.FuncInvokeConditionStatic(predicate,nameof(predicate),this.temp,rangeItemName,rangeIndexName);
+        var predicateCheck = string.IsNullOrEmpty(preCode)
+            ? $"if(!{WrapConditionExpression(condExpr)})"
+            : $"{preCode}\n            if(!{WrapConditionExpression(condExpr)})";
+
+        return $$"""
+            {{localDeclarationBlock}}
+            var {{rangeStartName}}={{range.StartExpression}};
+            var {{rangeCountName}}={{range.CountExpression}};
+            global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
+            var {{rangeIndexName}}=-1;
+            for(var __i{{id}}=0;__i{{id}}<{{rangeCountName}};__i{{id}}++){
+                var {{rangeItemName}}={{rangeStartName}}+__i{{id}};
+                {{rangeIndexName}}++;
+                {{predicateCheck}} {
+                    break;
+                }
+                {{consumerName}}.Consume({{rangeItemName}});
             }
             """;
     }
