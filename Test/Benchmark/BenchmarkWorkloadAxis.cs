@@ -13,7 +13,7 @@ public sealed class ベンチマーク作業軸テスト {
         var ルート = Path.Combine(Path.GetTempPath(),"SeamlessLoopAxis",Guid.NewGuid().ToString("N"));
         try {
             var タブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
-            var 実行器 = new 校正済み実行器(タブ.右プロジェクト,332_000,114_000);
+            var 実行器 = new 校正済み実行器(タブ.右プロジェクト,332_000,114_000,4);
             var オーケストレーター = new global::UI.ベンチマークオーケストレーター(new global::UI.ベンチマーク状態マネージャー(ルート),実行器);
             var 結果 = await オーケストレーター.実行Async(
                 new global::UI.ベンチマーク実行要求(
@@ -30,7 +30,9 @@ public sealed class ベンチマーク作業軸テスト {
                 _ => { },
                 CancellationToken.None);
 
-            Assert.Equal([1,2,4],結果.状態.ジョブ一覧.Where(ジョブ => ジョブ.プロジェクト==タブ.右プロジェクト).Select(ジョブ => ジョブ.ループ回数).Order().ToArray());
+            // 右列(較正対象)は単発の開放ループ較正でワーカー実測のループ回数(4)を確定し、左列はその値でだけ測定する。
+            // 旧倍々探索の中間ティア(1,2)は発生しない。要素数はループ回数タブなので常に4096へ解決される。
+            Assert.Equal([4],結果.状態.ジョブ一覧.Where(ジョブ => ジョブ.プロジェクト==タブ.右プロジェクト).Select(ジョブ => ジョブ.ループ回数).Order().ToArray());
             Assert.Equal([4],結果.状態.ジョブ一覧.Where(ジョブ => ジョブ.プロジェクト==タブ.左プロジェクト).Select(ジョブ => ジョブ.ループ回数).ToArray());
             Assert.All(結果.状態.ジョブ一覧,ジョブ => {
                 Assert.Equal(4_096,ジョブ.要素数);
@@ -43,9 +45,23 @@ public sealed class ベンチマーク作業軸テスト {
         }
     }
 
-    private sealed class 校正済み実行器(string 較正プロジェクト,double 較正ナノ秒,double 同期ナノ秒):global::UI.Iベンチマークジョブ実行器 {
+    private sealed class 校正済み実行器(string 較正プロジェクト,double 較正ナノ秒,double 同期ナノ秒,int 実測ループ回数):global::UI.Iベンチマークジョブ実行器 {
         public Task<global::UI.ベンチマークジョブ実行結果> 実行Async(global::UI.ベンチマークジョブ ジョブ,string 実行ルート,int 論理CPU,TimeSpan タイムアウト,CancellationToken キャンセルトークン) {
-            var 呼出単位 = ジョブ.プロジェクト==較正プロジェクト ? 較正ナノ秒 : 同期ナノ秒;
+            double 呼出単位;
+            if(ジョブ.プロジェクト==較正プロジェクト){
+                呼出単位=較正ナノ秒;
+            }else{
+                呼出単位=同期ナノ秒;
+            }
+
+            // 開放ループ較正は単発プローブなので、ワーカーが実測したループ回数を結果に積んで返す。
+            int ループ回数;
+            if(ジョブ.開放ループ較正か){
+                ループ回数=実測ループ回数;
+            }else{
+                ループ回数=ジョブ.ループ回数;
+            }
+
             return Task.FromResult(new global::UI.ベンチマークジョブ実行結果(
                 ジョブ.プロジェクト,
                 ジョブ.メソッド名,
@@ -55,14 +71,14 @@ public sealed class ベンチマーク作業軸テスト {
                 string.Empty,
                 string.Empty,
                 string.Empty,
-                呼出単位*ジョブ.ループ回数,
+                呼出単位*ループ回数,
                 null,
                 null,
                 0,
                 0,
                 実行ルート,
                 string.Empty,
-                ループ回数: ジョブ.ループ回数));
+                ループ回数: ループ回数));
         }
     }
 }
