@@ -4,10 +4,10 @@ public sealed class ベンチマークソースタブテスト {
     [Fact]
     public void 仕様確認01() {
         Assert.Equal(
-            ["書き換え","パイプライン融合","述語プッシュダウン","Array","IEnumerable","Range","List","Persisted","Tsavorite"],
+            ["書き換え","パイプライン融合","述語プッシュダウン","Array","IEnumerable","Range","List","Persisted(Seamless)","Persisted(System)","Tsavorite(Seamless)","Tsavorite(System)"],
             global::UI.ベンチマークソースタブ一覧.標準全て.Select(static タブ => タブ.表示名));
         Assert.Equal(
-            ["Optimization.Rewrite","Optimization.PipelineFusion","Optimization.PredicatePushdown","System.Array","System.Collections.Generic.IEnumerable<>","System.Range","System.List","Seamless.Persisted","Seamless.Tsavorite"],
+            ["Optimization.Rewrite","Optimization.PipelineFusion","Optimization.PredicatePushdown","System.Array","System.Collections.Generic.IEnumerable<>","System.Range","System.List","Seamless.Persisted.Seamless","Seamless.Persisted.System","Seamless.Tsavorite.Seamless","Seamless.Tsavorite.System"],
             global::UI.ベンチマークソースタブ一覧.標準全て.Select(static タブ => タブ.ID));
     }
 

@@ -5,7 +5,7 @@ namespace Test.Benchmark;
 
 public class BenchmarkTabStorage {
     [Fact]
-    public void 通常Benchmarkのスキーマは9タブ表と見出し由来列を作成する() {
+    public void 通常Benchmarkのスキーマは11表と見出し由来の物理列を作成する() {
         var path=DBパスを作成();
         var store=new Storage.UI実行ストア(path);
         store.スキーマを確認();
@@ -16,77 +16,72 @@ public class BenchmarkTabStorage {
         command.CommandText="SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;";
         using var reader=command.ExecuteReader();
         var tables=new List<string>();
-        while(reader.Read()) tables.Add(reader.GetString(0));
-        Assert.All(new[]{"書き換え","パイプライン融合","述語プッシュダウン","Array","IEnumerable","Range","List","Persisted","Tsavorite"}, table=>Assert.Contains(table,tables));
+        while(reader.Read()){
+            tables.Add(reader.GetString(0));
+        }
 
-        foreach(var table in new[]{"書き換え","パイプライン融合","述語プッシュダウン","Array","IEnumerable","Range","List","Persisted","Tsavorite"}) {
+        var expected=new[]{"書き換え","パイプライン融合","述語プッシュダウン","Array","IEnumerable","Range","List","Persisted(Seamless)","Persisted(System)","Tsavorite(Seamless)","Tsavorite(System)"};
+        Assert.All(expected,table=>Assert.Contains(table,tables));
+        Assert.DoesNotContain("Persisted",tables);
+        Assert.DoesNotContain("Tsavorite",tables);
+        foreach(var table in expected){
             using var foreignKeyCommand=connection.CreateCommand();
             foreignKeyCommand.CommandText=$"SELECT on_delete FROM pragma_foreign_key_list('{table}') WHERE \"table\"='実行';";
             Assert.Equal("CASCADE",Assert.IsType<string>(foreignKeyCommand.ExecuteScalar()));
         }
-        using var columns=connection.CreateCommand();
-        columns.CommandText="SELECT name FROM pragma_table_info('Persisted');";
-        using var columnReader=columns.ExecuteReader();
-        var names=new List<string>();
-        while(columnReader.Read()) names.Add(columnReader.GetString(0));
-        Assert.Contains("FLinq(IEnumerable)_時間ns",names);
-        Assert.Contains("FLinq(Persisted)_型完全名",names);
-        Assert.True(names.IndexOf("FLinq(Persisted)_アセンブリ名")<names.IndexOf("ValueEnumerable_アセンブリ名"));
-        Assert.True(names.IndexOf("ValueEnumerable_アセンブリ名")<names.IndexOf("FLinq(IEnumerable)_アセンブリ名"));
-        Assert.True(names.IndexOf("FLinq(IEnumerable)_アセンブリ名")<names.IndexOf("System.Linq_アセンブリ名"));
+
+        var arrayColumns=列名を取得(connection,"Array");
+        Assert.Contains("Enumerable_アセンブリ名",arrayColumns);
+        Assert.DoesNotContain("System.Linq_アセンブリ名",arrayColumns);
+        var persistedColumns=列名を取得(connection,"Persisted(System)");
+        Assert.Contains("FLinq_アセンブリ名",persistedColumns);
+        Assert.Contains("Persisted(System)_アセンブリ名",persistedColumns);
+        Assert.DoesNotContain("ValueEnumerable_アセンブリ名",persistedColumns);
+        Assert.DoesNotContain("FLinq(IEnumerable)_アセンブリ名",persistedColumns);
     }
 
     [Fact]
-    public void Persistedの4列目は保存後に読み込める() {
+    public void 二列と三列の結果は保存後に読み戻せて実行削除で全表から消える() {
         var path=DBパスを作成();
         var store=new Storage.UI実行ストア(path);
-        var run=store.実行を作成(new(Storage.UI実行アプリ種別.ベンチマーク,"test","Fast","Seamless永続化",DateTimeOffset.UtcNow));
-        var completed=new Storage.UIベンチマークグリッド側書込(Storage.UI実行状態.完了,string.Empty,DateTimeOffset.UtcNow,12.5,64,4);
-        var identity=new Storage.UIベンチマークスナップショットケース書込("Assembly","Sample.Type","Where","Count=64","[]");
-        store.ベンチマークスナップショット項目を保存(run.実行ID,[new("Seamless.Persisted","Persisted<int>","Where",0,true,completed,completed,identity,identity,completed,identity,completed,identity)]);
+        var run=store.実行を作成(new(Storage.UI実行アプリ種別.ベンチマーク,"test","Fast","検証",DateTimeOffset.UtcNow));
+        var completed=new Storage.UIベンチマークグリッド側記録(Storage.UI実行状態.完了,string.Empty,DateTimeOffset.UtcNow,12.5,64,4);
+        var failed=new Storage.UIベンチマークグリッド側記録(Storage.UI実行状態.失敗,"worker failure",DateTimeOffset.UtcNow,null,null,4);
+        var leftIdentity=new Storage.UIベンチマークスナップショットケース書込("Left.Assembly","Left.Type","Where","Count=64","[]");
+        var rightIdentity=new Storage.UIベンチマークスナップショットケース書込("Right.Assembly","Right.Type","Where","Count=64","[]");
+        var centerIdentity=new Storage.UIベンチマークスナップショットケース書込("Center.Assembly","Center.Type","Where","Count=64","[]");
 
-        var item=Assert.Single(store.ベンチマークスナップショット項目一覧を取得(run.実行ID));
-        Assert.NotNull(item.中央);
-        Assert.NotNull(item.追加);
-        Assert.Equal(12.5,item.追加!.平均ナノ秒);
-        Assert.Equal("Sample.Type",item.追加ケース!.型完全名);
+        store.ベンチマークスナップショット項目を保存(run.実行ID,[
+            new("Seamless.Persisted.System","Persisted<int>","Where",0,true,completed,failed,leftIdentity,rightIdentity),
+            new("System.Array","Array<int>","Where",0,true,completed,completed,leftIdentity,rightIdentity,completed,centerIdentity),
+        ]);
+
+        var items=store.ベンチマークスナップショット項目一覧を取得(run.実行ID);
+        Assert.Equal(2,items.Count);
+        var persisted=Assert.Single(items.Where(item=>item.タブID=="Seamless.Persisted.System"));
+        Assert.Null(persisted.中央);
+        Assert.Null(persisted.追加);
+        Assert.Equal(Storage.UI実行状態.失敗,persisted.右.状態);
+        Assert.Equal("worker failure",persisted.右.失敗理由);
+        var array=Assert.Single(items.Where(item=>item.タブID=="System.Array"));
+        Assert.NotNull(array.中央);
+        Assert.Null(array.追加);
+
         store.実行を削除(run.実行ID);
         Assert.Empty(store.ベンチマークスナップショット項目一覧を取得(run.実行ID));
     }
 
-    [Fact]
-    public void PersistedのFLinqIEnumerable失敗は理由付きで往復する() {
-        var path=DBパスを作成();
-        var store=new Storage.UI実行ストア(path);
-        var run=store.実行を作成(new(Storage.UI実行アプリ種別.ベンチマーク,"test","Fast","Seamless永続化",DateTimeOffset.UtcNow));
-        var completed=new Storage.UIベンチマークグリッド側書込(Storage.UI実行状態.完了,string.Empty,DateTimeOffset.UtcNow,12.5,64,4);
-        const string failureReason="Worker assembly missing: Benchmark IEnumerable FLinq";
-        var failed=new Storage.UIベンチマークグリッド側書込(Storage.UI実行状態.失敗,failureReason,DateTimeOffset.UtcNow,null,null,4);
-        var identity=new Storage.UIベンチマークスナップショットケース書込("Assembly","Sample.Type","Where","Count=64","[]");
-        store.ベンチマークスナップショット項目を保存(run.実行ID,[new("Seamless.Persisted","Persisted<int>","Where",0,true,completed,completed,identity,identity,completed,identity,failed,identity)]);
-
-        var item=Assert.Single(store.ベンチマークスナップショット項目一覧を取得(run.実行ID));
-
-        Assert.NotNull(item.追加);
-        Assert.Equal(Storage.UI実行状態.失敗,item.追加!.状態);
-        Assert.Equal(failureReason,item.追加.失敗理由);
-        Assert.Null(item.追加.平均ナノ秒);
+    private static List<string> 列名を取得(SqliteConnection connection,string table) {
+        using var command=connection.CreateCommand();
+        command.CommandText=$"SELECT name FROM pragma_table_info('{table}');";
+        using var reader=command.ExecuteReader();
+        var result=new List<string>();
+        while(reader.Read()){
+            result.Add(reader.GetString(0));
+        }
+        return result;
     }
-    [Theory]
-    [InlineData("Optimization.Rewrite",false)]
-    [InlineData("System.Array",true)]
-    public void 二列と三列も見出し順で往復できる(string タブID,bool 中央あり) {
-        var path=DBパスを作成();
-        var store=new Storage.UI実行ストア(path);
-        var run=store.実行を作成(new(Storage.UI実行アプリ種別.ベンチマーク,"test","Fast","System配列",DateTimeOffset.UtcNow));
-        var completed=new Storage.UIベンチマークグリッド側書込(Storage.UI実行状態.完了,string.Empty,DateTimeOffset.UtcNow,12.5,64,4);
-        var identity=new Storage.UIベンチマークスナップショットケース書込("Assembly","Sample.Type","Where","Count=64","[]");
-        store.ベンチマークスナップショット項目を保存(run.実行ID,[new(タブID,"Sample","Where",0,true,completed,completed,identity,identity,中央あり ? completed : null,中央あり ? identity : null)]);
 
-        var item=Assert.Single(store.ベンチマークスナップショット項目一覧を取得(run.実行ID));
-        Assert.Equal(中央あり,item.中央 is not null);
-        Assert.Null(item.追加);
-    }
     private static string DBパスを作成() {
         var directory=Path.Combine(Path.GetTempPath(),"Seamless","BenchmarkTabStorage",Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);

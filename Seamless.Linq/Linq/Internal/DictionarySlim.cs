@@ -9,6 +9,9 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
     private const int MinimumSize = 16; // minimum arraypool size(power of 2)
     private const double LoadFactor = 0.72;
     private readonly IEqualityComparer<TKey> comparer;
+    // 既定コンパレータのときは true。値型では typeof(TKey).IsValueType が JIT で畳み込まれ、
+    // EqualityComparer<TKey>.Default 経由の静的呼び出しに devirtualize/inline される。
+    private readonly bool isDefaultComparer;
     private Entry[] entries;
     private int[] buckets; // bucket is index of entries, 1-based(0 for empty).
     private int bucketsLength; // power of 2
@@ -17,6 +20,7 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
 
     public DictionarySlim(IEqualityComparer<TKey>? comparer = null) {
         this.comparer=comparer??EqualityComparer<TKey>.Default;
+        this.isDefaultComparer=comparer is null||ReferenceEquals(comparer,EqualityComparer<TKey>.Default);
         this.buckets=ArrayPool<int>.Shared.Rent(MinimumSize);
         this.entries=ArrayPool<Entry>.Shared.Rent(MinimumSize);
         this.bucketsLength=MinimumSize;
@@ -26,6 +30,7 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
 
     public DictionarySlim(int capacity,IEqualityComparer<TKey>? comparer = null) {
         this.comparer=comparer??EqualityComparer<TKey>.Default;
+        this.isDefaultComparer=comparer is null||ReferenceEquals(comparer,EqualityComparer<TKey>.Default);
         var requestedCapacity = Math.Max(capacity,0);
         var bucketCapacity = requestedCapacity==0
             ? MinimumSize
@@ -46,7 +51,7 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
         // lookup phase
         while(index!=-1) {
             ref var entry = ref this.entries[index];
-            if(entry.HashCode==hashCode&&this.comparer.Equals(entry.Key,key)) {
+            if(entry.HashCode==hashCode&&this.KeyEquals(entry.Key,key)) {
                 exists=true;
                 return ref entry.Value;
             }
@@ -102,7 +107,18 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool KeyEquals(TKey x,TKey y) {
+        if(typeof(TKey).IsValueType&&this.isDefaultComparer) {
+            return EqualityComparer<TKey>.Default.Equals(x,y);
+        }
+        return this.comparer.Equals(x,y);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private uint InternalGetHashCode(TKey key) {
+        if(typeof(TKey).IsValueType&&this.isDefaultComparer) {
+            return (uint)(EqualityComparer<TKey>.Default.GetHashCode(key!)&0x7FFFFFFF);
+        }
         // allows null.
         return (uint)((key is null) ? 0 : this.comparer.GetHashCode(key)&0x7FFFFFFF);
     }

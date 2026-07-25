@@ -72,19 +72,17 @@ public class SerializedSet<T,TSerializer>(
     StorageTuning? tuning             =null)
     :SerializedList<T,TSerializer>(path,initialCapacity,initialDataCapacity,tuning),IReadOnlySet<T>
 where TSerializer : ISerializer<T> {
-        public SerializedSet<T,TSerializer> Compact() {
+    // 要素の serialize バイト列をキーとする mmap ハッシュ索引を維持し、Contains を O(1) 化する。
+    protected override bool UsesKeyIndex => true;
+
+    public SerializedSet<T,TSerializer> Compact() {
         this.DuplicateRemoval();
         return this;
     }
 
     public bool Contains(T item) {
-        var comparer = EqualityComparer<T>.Default;
-        foreach(var current in this) {
-            if(comparer.Equals(current,item)) {
-                return true;
-            }
-        }
-        return false;
+        var key = TSerializer.Serialize(ref item);
+        return this.TryLookupKey(key,out _);
     }
 
     public bool IsProperSubsetOf(IEnumerable<T> other) => new global::System.Collections.Generic.HashSet<T>(this).IsProperSubsetOf(other);

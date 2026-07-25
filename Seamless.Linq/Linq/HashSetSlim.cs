@@ -8,6 +8,9 @@ public sealed class HashSetSlim<T>:IDisposable {
     private const int MinimumSize = 16; // minimum arraypool size(power of 2)
     private const double LoadFactor = 0.72;
     private readonly IEqualityComparer<T> comparer;
+    // 既定コンパレータのときは true。値型では typeof(T).IsValueType が JIT で畳み込まれ、
+    // EqualityComparer<T>.Default 経由の静的呼び出しに devirtualize/inline される(フィールド仮想呼び出しを回避)。
+    private readonly bool isDefaultComparer;
     private Entry[] entries;
     private int[] buckets; // bucket is index of entries, 1-based(0 for empty).
     private int bucketsLength; // power of 2
@@ -26,6 +29,7 @@ public sealed class HashSetSlim<T>:IDisposable {
         capacity=Math.Max((int)BitOperations.RoundUpToPowerOf2((uint)bucketCapacity),MinimumSize);
 
         this.comparer=comparer??EqualityComparer<T>.Default;
+        this.isDefaultComparer=comparer is null||ReferenceEquals(comparer,EqualityComparer<T>.Default);
         this.buckets=ArrayPool<int>.Shared.Rent(capacity);
         this.entries=ArrayPool<Entry>.Shared.Rent(capacity);
         this.bucketsLength=capacity;
@@ -41,7 +45,7 @@ public sealed class HashSetSlim<T>:IDisposable {
         // lookup phase
         while(index!=-1) {
             ref var entry = ref this.entries[index];
-            if(entry.HashCode==hashCode&&this.comparer.Equals(entry.Value,item)) {
+            if(entry.HashCode==hashCode&&this.KeyEquals(entry.Value,item)) {
                 return false;
             }
             index=entry.Next;
@@ -71,7 +75,7 @@ public sealed class HashSetSlim<T>:IDisposable {
 
         while(index!=-1) {
             ref var entry = ref this.entries[index];
-            if(entry.HashCode==hashCode&&this.comparer.Equals(entry.Value,item)) {
+            if(entry.HashCode==hashCode&&this.KeyEquals(entry.Value,item)) {
                 return true;
             }
             index=entry.Next;
@@ -118,7 +122,7 @@ public sealed class HashSetSlim<T>:IDisposable {
         // lookup phase
         while(index!=-1) {
             ref var entry = ref this.entries[index];
-            if(entry.HashCode==hashCode&&this.comparer.Equals(entry.Value,item)) {
+            if(entry.HashCode==hashCode&&this.KeyEquals(entry.Value,item)) {
                 if(lastIndex==-1) {
                     // This is the first entry in the bucket
                     bucket=entry.Next+1;
@@ -143,7 +147,20 @@ public sealed class HashSetSlim<T>:IDisposable {
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool KeyEquals(T x,T y) {
+        if(typeof(T).IsValueType&&this.isDefaultComparer) {
+            return EqualityComparer<T>.Default.Equals(x,y);
+        }
+        return this.comparer.Equals(x,y);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private uint InternalGetHashCode(T key) {
+        if(typeof(T).IsValueType&&this.isDefaultComparer) {
+            // 値型では key は null になり得ず(Nullable<U> の空は Default.GetHashCode が 0 を返す)、
+            // Default.GetHashCode はプリミティブでビットハッシュに inline される。
+            return (uint)(EqualityComparer<T>.Default.GetHashCode(key!)&0x7FFFFFFF);
+        }
         // allows null.
         return (uint)((key is null) ? 0 : this.comparer.GetHashCode(key)&0x7FFFFFFF);
     }

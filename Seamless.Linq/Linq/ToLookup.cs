@@ -85,6 +85,9 @@ namespace Seamless.Linq {
         private const int MinimumSize = 16; // minimum arraypool size
         private const double LoadFactor = 0.72;
         private readonly IEqualityComparer<TKey> comparer;
+        // 既定コンパレータのときは true。値型では typeof(TKey).IsValueType が JIT で畳み込まれ、
+        // EqualityComparer<TKey>.Default 経由の静的呼び出しに devirtualize/inline される。
+        private readonly bool isDefaultComparer;
         private Grouping<TKey,TElement>[]? buckets;
         private int bucketsLength;
         private Grouping<TKey,TElement>? last;
@@ -96,6 +99,7 @@ namespace Seamless.Linq {
             this.groupCount=0;
             this.poolElements =false;
             this.comparer  =comparer??EqualityComparer<TKey>.Default;
+            this.isDefaultComparer=comparer is null||ReferenceEquals(comparer,EqualityComparer<TKey>.Default);
         }
 
         public LookupBuilder(int capacity,IEqualityComparer<TKey>? comparer) {
@@ -103,6 +107,7 @@ namespace Seamless.Linq {
             this.groupCount=0;
             this.poolElements =false;
             this.comparer  =comparer??EqualityComparer<TKey>.Default;
+            this.isDefaultComparer=comparer is null||ReferenceEquals(comparer,EqualityComparer<TKey>.Default);
             if(capacity<=0) {
                 this.buckets   =null;
                 this.bucketsLength=0;
@@ -125,7 +130,18 @@ namespace Seamless.Linq {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool KeyEquals(TKey x,TKey y) {
+            if(typeof(TKey).IsValueType&&this.isDefaultComparer) {
+                return EqualityComparer<TKey>.Default.Equals(x,y);
+            }
+            return this.comparer.Equals(x,y);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private uint InternalGetHashCode(TKey key) {
+            if(typeof(TKey).IsValueType&&this.isDefaultComparer) {
+                return (uint)(EqualityComparer<TKey>.Default.GetHashCode(key!)&0x7FFFFFFF);
+            }
             // allows null
             return (uint)((key is null) ? 0 : this.comparer.GetHashCode(key)&0x7FFFFFFF);
         }
@@ -161,7 +177,7 @@ namespace Seamless.Linq {
                 }
                 this.last=bucket;
             } else {
-                if(this.comparer.Equals(bucket.Key,key)) {
+                if(this.KeyEquals(bucket.Key,key)) {
                     bucket.Add(value);
                     return; // added existing group
                 }
@@ -170,7 +186,7 @@ namespace Seamless.Linq {
                 var previous = bucket;
                 var next = bucket.NextGroupInSameHashCode;
                 while(next!=null) {
-                    if(this.comparer.Equals(next.Key,key)) {
+                    if(this.KeyEquals(next.Key,key)) {
                         next.Add(value);
                         return; // added existing group
                     }
@@ -200,7 +216,7 @@ namespace Seamless.Linq {
             var hash =this.InternalGetHashCode(key);
             var group=this.buckets[this.GetBucketIndex(hash)];
             while(group is not null) {
-                if(this.comparer.Equals(group.Key,key)) return group;
+                if(this.KeyEquals(group.Key,key)) return group;
                 group=group.NextGroupInSameHashCode;
             }
             return null;
@@ -317,6 +333,9 @@ namespace Seamless.Linq {
         private readonly Grouping<TKey,TElement>? last;
         private readonly int count;
         private readonly IEqualityComparer<TKey> comparer;
+        // 既定コンパレータのときは true。値型では typeof(TKey).IsValueType が JIT で畳み込まれ、
+        // EqualityComparer<TKey>.Default 経由の静的呼び出しに devirtualize/inline される。
+        private readonly bool isDefaultComparer;
         private readonly int bucketCount;
         private Lookup() // for empty
         {
@@ -324,22 +343,23 @@ namespace Seamless.Linq {
             this.last    =null;
             this.count   =0;
             this.comparer=null!;
+            this.isDefaultComparer=true;
             this.bucketCount=0;
         }
 
         internal Lookup(Grouping<TKey,TElement>[]? groupings,Grouping<TKey,TElement>? last,int count,IEqualityComparer<TKey> comparer,int bucketCount,bool pooled) {
+            this.comparer=comparer;
+            this.isDefaultComparer=ReferenceEquals(comparer,EqualityComparer<TKey>.Default);
             if(groupings==null) {
                 this.groups=null;
                 this.last=null;
                 this.count=0;
-                this.comparer=comparer;
                 this.bucketCount=0;
                 return;
             }
             this.groups=groupings;
             this.count=count;
             this.last=last;
-            this.comparer=comparer;
             this.bucketCount=pooled ? -bucketCount : bucketCount;
         }
 
@@ -382,7 +402,7 @@ namespace Seamless.Linq {
 
             var group =this.groups[index];
             while(group is not null) {
-                if(this.comparer.Equals(group.Key,key)) {
+                if(this.KeyEquals(group.Key,key)) {
                     return group;
                 } else {
                     group=group.NextGroupInSameHashCode;
@@ -390,6 +410,14 @@ namespace Seamless.Linq {
             }
 
             return null;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool KeyEquals(TKey x,TKey y) {
+            if(typeof(TKey).IsValueType&&this.isDefaultComparer) {
+                return EqualityComparer<TKey>.Default.Equals(x,y);
+            }
+            return this.comparer.Equals(x,y);
         }
 
         public IEnumerator<IGrouping<TKey,TElement>> GetEnumerator() {
@@ -435,6 +463,9 @@ namespace Seamless.Linq {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private uint InternalGetHashCode(TKey key) {
+            if(typeof(TKey).IsValueType&&this.isDefaultComparer) {
+                return (uint)(EqualityComparer<TKey>.Default.GetHashCode(key!)&0x7FFFFFFF);
+            }
             // allows null.
             return (uint)((key is null) ? 0 : this.comparer.GetHashCode(key)&0x7FFFFFFF);
         }

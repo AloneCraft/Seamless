@@ -2,8 +2,11 @@ using System.IO.MemoryMappedFiles;
 namespace Seamless.Persisted.Collections;
 
 public class SerializedList<T>(string path,long initialCapacity = 16,long initialDataCapacity = 4096,StorageTuning? tuning = null):SerializedList<T,MemoryPackSerializer<T>>(path,initialCapacity,initialDataCapacity,tuning);
-public class SerializedList<T, TSerializer>:PersistedList<T> where TSerializer : ISerializer<T> {
+public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatcher where TSerializer : ISerializer<T> {
     private const long UnusedIndex = -1;
+    // Set/Dictionary が override して true にすると、レコードキー→データオフセットの mmap ハッシュ索引を維持する。
+    // これにより Contains/TryGetValue が O(n) 走査から O(1) 索引 lookup になる(技法 c/d)。
+    private PersistedHashIndex? keyIndex;
     private FileStream indexStream = null!;
     private MemoryMappedFile indexMappedFile = null!;
     private MemoryMappedViewAccessor indexAccessor = null!;
@@ -47,7 +50,51 @@ public class SerializedList<T, TSerializer>:PersistedList<T> where TSerializer :
         }
 
         this.ApplyTuning();
+        this.InitializeKeyIndex();
     }
+
+    // Set/Dictionary が override する。ExtractKeyBytes は payload からキーバイト範囲を切り出す(既定=payload 全体)。
+    protected virtual bool UsesKeyIndex => false;
+    protected virtual ReadOnlySpan<byte> ExtractKeyBytes(ReadOnlySpan<byte> recordPayload) => recordPayload;
+
+    private string HashIndexPath => this.Path+".hindex";
+
+    private void InitializeKeyIndex() {
+        if(!this.UsesKeyIndex)
+            return;
+        this.keyIndex=new PersistedHashIndex(this.HashIndexPath,this.Tuning,this.Count);
+        if(this.keyIndex.ListCountAtFlush==this.Count)
+            return; // 索引はデータと整合(高速 open)。不一致なら再構築。
+        this.RebuildKeyIndex();
+    }
+
+    private void RebuildKeyIndex() {
+        this.keyIndex!.Clear();
+        for(var index = 0L;index<this.Count;index++) {
+            var recordOffset = this.ReadIndexUnchecked(index);
+            var payload = this.ReadRecord(recordOffset);
+            var key = this.ExtractKeyBytes(payload);
+            this.keyIndex.Upsert(ByteRange.Hash(key),recordOffset,this,key);
+        }
+        this.keyIndex.SetListCount(this.Count);
+    }
+
+    // データオフセットのレコードキーと probe のキーバイト列を deserialize なしで透過比較する(技法 d)。
+    bool IPersistedKeyMatcher.KeyEqualsAt(long dataOffset,ReadOnlySpan<byte> probeKeyBytes) {
+        var payload = this.ReadRecord(dataOffset);
+        return ByteRange.Equals(this.ExtractKeyBytes(payload),probeKeyBytes);
+    }
+
+    // キーバイト列からデータオフセットを O(1) で解決する。索引未使用なら false。
+    protected bool TryLookupKey(ReadOnlySpan<byte> keyBytes,out long recordOffset) {
+        if(this.keyIndex is null) {
+            recordOffset=-1;
+            return false;
+        }
+        return this.keyIndex.TryGetOffset(ByteRange.Hash(keyBytes),this,keyBytes,out recordOffset);
+    }
+
+    protected long KeyIndexEntryCount => this.keyIndex?.EntryCount??0;
     public override void SetTuning(StorageTuning tuning) {
         this.ThrowIfDisposed();
         if(this.tuning.Equals(tuning))
@@ -102,6 +149,8 @@ public class SerializedList<T, TSerializer>:PersistedList<T> where TSerializer :
         this.Count=writeIndex;
         this.OnCountChanged();
         this.indexAccessor.Flush();
+        // データオフセットは不変なので索引は有効。件数だけ整合させる。
+        this.keyIndex?.SetListCount(this.Count);
     }
 
     private void LoadState() {
@@ -150,6 +199,7 @@ public class SerializedList<T, TSerializer>:PersistedList<T> where TSerializer :
         this.DataLength=0;
         this.OnCountChanged();
         this.InitializeIndexRange(0,this.Capacity);
+        this.keyIndex?.Clear(); // データ全書き換えでオフセットが変わるため索引を作り直す。
         foreach(var item in materialized) {
             this.Add(item);
         }
@@ -166,6 +216,12 @@ public class SerializedList<T, TSerializer>:PersistedList<T> where TSerializer :
         this.Count++;
         this.DataLength=recordOffset+recordLength;
         this.OnCountChanged();
+        if(this.keyIndex is not null) {
+            var key = this.ExtractKeyBytes(bytes);
+            // entryCount は Upsert が都度 header へ書く。listCount は reopen 検証専用のため
+            // 毎 Add では書かず Dispose/Rewrite/DuplicateRemoval 時にだけ確定する(書込みオーバーヘッド削減)。
+            this.keyIndex.Upsert(ByteRange.Hash(key),recordOffset,this,key);
+        }
     }
 
     private void EnsureIndexCapacity(long minimumCapacity) {
@@ -290,6 +346,11 @@ public class SerializedList<T, TSerializer>:PersistedList<T> where TSerializer :
     }
 
     protected override void DisposeCore() {
+        if(this.keyIndex is not null) {
+            this.keyIndex.SetListCount(this.Count);
+            this.keyIndex.Dispose();
+            this.keyIndex=null;
+        }
         this.indexAccessor.Flush();
         this.dataAccessor.Flush();
         this.indexAccessor.Dispose();
@@ -304,6 +365,9 @@ public class SerializedList<T, TSerializer>:PersistedList<T> where TSerializer :
         var bytes = this.ReadRecord(recordOffset);
         return TSerializer.Deserialize(bytes);
     }
+
+    // データオフセットのレコード payload(TSerializer が扱うバイト列)を読む。索引 lookup 後の値抽出に使う。
+    protected byte[] ReadRecordPayload(long recordOffset) => this.ReadRecord(recordOffset);
 
     private byte[] ReadRecord(long recordOffset) {
         var length = this.ReadRecordLength(recordOffset);

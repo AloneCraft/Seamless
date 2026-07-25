@@ -9,7 +9,9 @@ public enum ベンチマークソースタブ{
     System範囲,
     Systemリスト,
     Seamless永続化,
+    System永続化,
     SeamlessTsavorite,
+    SystemTsavorite,
     スケーラブルセット,
     スケーラブル辞書,
     スケーラブル永続化リスト,
@@ -103,8 +105,10 @@ public static class ベンチマークソースタブ一覧{
     public const string SystemIEnumerableID="System.Collections.Generic.IEnumerable<>";
     public const string System範囲ID="System.Range";
     public const string SystemリストID="System.List";
-    public const string Seamless永続化ID="Seamless.Persisted";
-    public const string SeamlessTsavoriteID="Seamless.Tsavorite";
+    public const string Seamless永続化ID="Seamless.Persisted.Seamless";
+    public const string System永続化ID="Seamless.Persisted.System";
+    public const string SeamlessTsavoriteID="Seamless.Tsavorite.Seamless";
+    public const string SystemTsavoriteID="Seamless.Tsavorite.System";
     public const string スケーラブル永続化セットID="Scalable.Persisted.Set";
     public const string スケーラブルTsavoriteセットID="Scalable.Tsavorite.Set";
     public const string スケーラブル永続化辞書ID="Scalable.Persisted.Dictionary";
@@ -176,7 +180,7 @@ public static class ベンチマークソースタブ一覧{
             "FLinq",
             "Benchmark.System.Linq.Enumerable.FLinq",
             "System.Array.Linq",
-            "System.Linq",
+            "Enumerable",
             "Benchmark.System.Linq.Enumerable.Linq",
             中央プロジェクト:"System.Array.ZLinq",
             中央見出し:"ZLinq",
@@ -189,7 +193,7 @@ public static class ベンチマークソースタブ一覧{
             "FLinq",
             "Benchmark.System.Linq.Enumerable.IEnumerable.FLinq",
             "System.IEnumerable.Linq",
-            "System.Linq",
+            "Enumerable",
             "Benchmark.System.Linq.Enumerable.IEnumerable.Linq",
             中央プロジェクト:"System.IEnumerable.ZLinq",
             中央見出し:"ZLinq",
@@ -202,7 +206,7 @@ public static class ベンチマークソースタブ一覧{
             "FLinq",
             "Benchmark.System.Linq.Enumerable.Range.FLinq",
             "System.Range.Linq",
-            "System.Linq",
+            "Enumerable",
             "Benchmark.System.Linq.Enumerable.Range.Linq",
             中央プロジェクト:"System.Range.ZLinq",
             中央見出し:"ZLinq",
@@ -215,7 +219,7 @@ public static class ベンチマークソースタブ一覧{
             "FLinq",
             "Benchmark.System.Linq.Enumerable.List.FLinq",
             "System.List.Linq",
-            "System.Linq",
+            "Enumerable",
             "Benchmark.System.Linq.Enumerable.List.Linq",
             中央プロジェクト:"System.List.ZLinq",
             中央見出し:"ZLinq",
@@ -223,37 +227,43 @@ public static class ベンチマークソースタブ一覧{
         new(
             ベンチマークソースタブ.Seamless永続化,
             Seamless永続化ID,
-            "Persisted",
+            "Persisted(Seamless)",
             "Seamless.Persisted.FLinq",
-            "FLinq(Persisted)",
+            "FLinq",
             "Benchmark.Persisted.Linq.Enumerable.FLinq",
+            "Seamless.Persisted.ValueLinq",
+            "Persisted(Seamless)",
+            "Benchmark.Persisted.Linq.Enumerable.ValueLinq"),
+        new(
+            ベンチマークソースタブ.System永続化,
+            System永続化ID,
+            "Persisted(System)",
+            "Seamless.Persisted.IEnumerable.FLinq",
+            "FLinq",
+            "Benchmark.Persisted.Linq.Enumerable.IEnumerable.FLinq",
             "Seamless.Persisted.Linq",
-            "System.Linq",
-            "Benchmark.Persisted.Linq.Enumerable.Linq",
-            中央プロジェクト:"Seamless.Persisted.ValueLinq",
-            中央見出し:"ValueEnumerable",
-            中央アセンブリ名:"Benchmark.Persisted.Linq.Enumerable.ValueLinq",
-            追加プロジェクト:"Seamless.Persisted.IEnumerable.FLinq",
-            追加見出し:"FLinq(IEnumerable)",
-            追加アセンブリ名:"Benchmark.Persisted.Linq.Enumerable.IEnumerable.FLinq",
-             比較ペア定義一覧:[                  new("Native-ValueEnumerable","FLinq(Persisted) → ValueEnumerable","FLinq(Persisted) 対 ValueEnumerable","Seamless.Persisted.FLinq","Seamless.Persisted.ValueLinq","左","中央"),                  new("IEnumerable-SystemLinq","FLinq(IEnumerable) → System.Linq","FLinq(IEnumerable) 対 System.Linq","Seamless.Persisted.IEnumerable.FLinq","Seamless.Persisted.Linq","追加","右"),              ]),
+            "Persisted(System)",
+            "Benchmark.Persisted.Linq.Enumerable.Linq"),
         new(
             ベンチマークソースタブ.SeamlessTsavorite,
             SeamlessTsavoriteID,
-            "Tsavorite",
+            "Tsavorite(Seamless)",
             "Seamless.Tsavorite.FLinq",
-            "FLinq(Tsavorite)",
+            "FLinq",
             "Benchmark.Tsavorite.Linq.Enumerable.FLinq",
+            "Seamless.Tsavorite.ValueLinq",
+            "Tsavorite(Seamless)",
+            "Benchmark.Tsavorite.Linq.Enumerable.ValueLinq"),
+        new(
+            ベンチマークソースタブ.SystemTsavorite,
+            SystemTsavoriteID,
+            "Tsavorite(System)",
+            "Seamless.Tsavorite.IEnumerable.FLinq",
+            "FLinq",
+            "Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq",
             "Seamless.Tsavorite.Linq",
-            "System.Linq",
-            "Benchmark.Tsavorite.Linq.Enumerable.Linq",
-            中央プロジェクト:"Seamless.Tsavorite.ValueLinq",
-            中央見出し:"ValueEnumerable",
-            中央アセンブリ名:"Benchmark.Tsavorite.Linq.Enumerable.ValueLinq",
-            追加プロジェクト:"Seamless.Tsavorite.IEnumerable.FLinq",
-            追加見出し:"FLinq(IEnumerable)",
-            追加アセンブリ名:"Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq",
-             比較ペア定義一覧:[                  new("Native-ValueEnumerable","FLinq(Tsavorite) → ValueEnumerable","FLinq(Tsavorite) 対 ValueEnumerable","Seamless.Tsavorite.FLinq","Seamless.Tsavorite.ValueLinq","左","中央"),                  new("IEnumerable-SystemLinq","FLinq(IEnumerable) → System.Linq","FLinq(IEnumerable) 対 System.Linq","Seamless.Tsavorite.IEnumerable.FLinq","Seamless.Tsavorite.Linq","追加","右"),              ]),
+            "Tsavorite(System)",
+            "Benchmark.Tsavorite.Linq.Enumerable.Linq"),
     ];
 
 #if SCALABLE_BENCHMARK

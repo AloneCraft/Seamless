@@ -95,14 +95,17 @@ public class SerializedDictionary<TKey, TValue, TKeySerializer, TValueSerializer
         public static ReadOnlySpan<byte> Serialize(ref Entry value) {
             var key = value.Key;
             var item = value.Value;
-            var keyBytes = TKeySerializer.Serialize(ref key).ToArray();
-            var valueBytes = TValueSerializer.Serialize(ref item).ToArray();
+            // key/value のバイト列は別々のローカルを指す(または MemoryPack の新規配列)ため
+            // 同時に有効。中間の .ToArray() を挟まず直接 record バッファへ書き込む(技法b:確保削減)。
+            var keyBytes = TKeySerializer.Serialize(ref key);
+            var valueBytes = TValueSerializer.Serialize(ref item);
             var bytes = new byte[sizeof(int)+keyBytes.Length+sizeof(int)+valueBytes.Length];
-            global::System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(0,sizeof(int)),keyBytes.Length);
-            keyBytes.CopyTo(bytes.AsSpan(sizeof(int)));
+            var span = bytes.AsSpan();
+            global::System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(span[..sizeof(int)],keyBytes.Length);
+            keyBytes.CopyTo(span[sizeof(int)..]);
             var valueLengthOffset = sizeof(int)+keyBytes.Length;
-            global::System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(valueLengthOffset,sizeof(int)),valueBytes.Length);
-            valueBytes.CopyTo(bytes.AsSpan(valueLengthOffset+sizeof(int)));
+            global::System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(span.Slice(valueLengthOffset,sizeof(int)),valueBytes.Length);
+            valueBytes.CopyTo(span[(valueLengthOffset+sizeof(int))..]);
             return bytes;
         }
 
@@ -133,9 +136,25 @@ public class SerializedDictionary<TKey, TValue, TKeySerializer, TValueSerializer
         : base(path,initialCapacity,initialDataCapacity,tuning) {
     }
 
+    // Entry payload=[keyLen][keyBytes][valLen][valBytes]。キーのバイト範囲を索引キーにする。
+    protected override bool UsesKeyIndex => true;
+
+    protected override ReadOnlySpan<byte> ExtractKeyBytes(ReadOnlySpan<byte> recordPayload) {
+        var keyLength = global::System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(recordPayload[..sizeof(int)]);
+        return recordPayload.Slice(sizeof(int),keyLength);
+    }
+
+    private static TValue ExtractValue(ReadOnlySpan<byte> recordPayload) {
+        var keyLength = global::System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(recordPayload[..sizeof(int)]);
+        var valueLengthOffset = sizeof(int)+keyLength;
+        var valueLength = global::System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(recordPayload.Slice(valueLengthOffset,sizeof(int)));
+        return TValueSerializer.Deserialize(recordPayload.Slice(valueLengthOffset+sizeof(int),valueLength));
+    }
+
     public IEnumerable<TKey> Keys => this.EnumerateLatest().Select(static pair => pair.Key);
     public IEnumerable<TValue> Values => this.EnumerateLatest().Select(static pair => pair.Value);
-    public new int Count => checked((int)this.EnumerateLatest().LongCount());
+    // 索引の相異キー数=BCL Dictionary.Count と同義。フル辞書構築を避け O(1) で返す。
+    public new int Count => checked((int)this.KeyIndexEntryCount);
 
     public TValue this[TKey key] => this.TryGetValue(key,out var value)
         ? value
@@ -143,16 +162,17 @@ public class SerializedDictionary<TKey, TValue, TKeySerializer, TValueSerializer
 
     public void Add(TKey key,TValue value) => this.Add(new Entry(key,value));
 
-    public bool ContainsKey(TKey key) => this.TryGetValue(key,out _);
+    public bool ContainsKey(TKey key) {
+        var keyBytes = TKeySerializer.Serialize(ref key);
+        return this.TryLookupKey(keyBytes,out _);
+    }
 
+    // O(1) 索引 lookup → 一致時のみ値のみ deserialize(キーは索引側でバイト透過比較=技法d)。
     public bool TryGetValue(TKey key,[MaybeNullWhen(false)] out TValue value) {
-        var comparer = EqualityComparer<TKey>.Default;
-        for(var index = this.GetLongCount()-1;index>=0;index--) {
-            var entry = this[index];
-            if(comparer.Equals(entry.Key,key)) {
-                value=entry.Value;
-                return true;
-            }
+        var keyBytes = TKeySerializer.Serialize(ref key);
+        if(this.TryLookupKey(keyBytes,out var recordOffset)) {
+            value=ExtractValue(this.ReadRecordPayload(recordOffset));
+            return true;
         }
         value=default;
         return false;

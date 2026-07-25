@@ -11,13 +11,14 @@ internal static class BenchmarkTabStorage {
         new("Optimization.Rewrite","書き換え",["全最適化","書き換え無効"]),
         new("Optimization.PipelineFusion","パイプライン融合",["全最適化","パイプライン融合無効"]),
         new("Optimization.PredicatePushdown","述語プッシュダウン",["全最適化","述語プッシュダウン無効"]),
-        new("System.Array","Array",["FLinq","ZLinq","System.Linq"]),
-        new("System.Collections.Generic.IEnumerable<>","IEnumerable",["FLinq","ZLinq","System.Linq"]),
-        new("System.Range","Range",["FLinq","ZLinq","System.Linq"]),
-        new("System.List","List",["FLinq","ZLinq","System.Linq"]),
-        new("Seamless.Persisted","Persisted",["FLinq(Persisted)","ValueEnumerable","FLinq(IEnumerable)","System.Linq"]),
-        new("Seamless.Tsavorite","Tsavorite",["FLinq(Tsavorite)","ValueEnumerable","FLinq(IEnumerable)","System.Linq"]),
-    ];
+        new("System.Array","Array",["FLinq","ZLinq","Enumerable"]),
+        new("System.Collections.Generic.IEnumerable<>","IEnumerable",["FLinq","ZLinq","Enumerable"]),
+        new("System.Range","Range",["FLinq","ZLinq","Enumerable"]),
+        new("System.List","List",["FLinq","ZLinq","Enumerable"]),
+        new("Seamless.Persisted.Seamless","Persisted(Seamless)",["FLinq","Persisted(Seamless)"]),
+        new("Seamless.Persisted.System","Persisted(System)",["FLinq","Persisted(System)"]),
+        new("Seamless.Tsavorite.Seamless","Tsavorite(Seamless)",["FLinq","Tsavorite(Seamless)"]),
+        new("Seamless.Tsavorite.System","Tsavorite(System)",["FLinq","Tsavorite(System)"]),    ];
 
     internal static IReadOnlyList<string> 表名一覧 => 定義一覧.Select(static 定義 => 定義.表名).ToArray();
 
