@@ -20,7 +20,7 @@ Last は source.Last() を、最後に見た値を保持する Compute に変換
   - RangeRoot<int> は start + count - 1 を inline する。
   - predicate 付き RangeRoot<int> は末尾側から逆向き loop を inline できる。
 */
-public class Last(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+internal class Last(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length==0;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
@@ -81,7 +81,7 @@ public class Last(int 番号,Enumerable source,string resultType):BufferedScalar
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-public class Last_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
+internal class Last_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length>0&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate;
     private string PredicateFuncType => $"global::System.Func<{source.ElementType}, bool>";

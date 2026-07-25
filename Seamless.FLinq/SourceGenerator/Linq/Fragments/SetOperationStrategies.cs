@@ -1,18 +1,18 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public interface ISetOperationStrategy {
+internal interface ISetOperationStrategy {
     bool PreloadSecondFirst { get; }
     string SourceAcceptMethod { get; }
     string GetEnumerableExpression(Enumerable source,Enumerable second,string comparer);
 }
 
-public interface ISetByOperationStrategy {
+internal interface ISetByOperationStrategy {
     bool PreloadSecondFirst { get; }
     string SourceAcceptMethod { get; }
     string GetEnumerableExpression(Enumerable source,Enumerable second,FuncFragment keySelector,string comparer);
 }
 
-public static class SetOperationStrategies {
+internal static class SetOperationStrategies {
     public static ISetOperationStrategy Union { get; } = new UnionStrategy();
     public static ISetOperationStrategy Except { get; } = new ExceptStrategy();
     public static ISetOperationStrategy Intersect { get; } = new IntersectStrategy();

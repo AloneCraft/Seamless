@@ -18,7 +18,7 @@ namespace Seamless.FLinq.Linq.Fragments;
 /// - TryGetSpan / TryCopyTo 最適化の FLinq 経由での利用
 /// - 実装の単一化
 /// </summary>
-public class Shuffle(int 番号,Enumerable source):Enumerable(番号) {
+internal class Shuffle(int 番号,Enumerable source):Enumerable(番号) {
     protected override Enumerable PrimarySource => source;
     public override string ElementType => source.ElementType;
     public override string StructMethod => string.Empty;

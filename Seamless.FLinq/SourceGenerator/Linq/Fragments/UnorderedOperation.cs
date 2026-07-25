@@ -1,6 +1,6 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public sealed class UnorderedOperation(
+internal sealed class UnorderedOperation(
     int number,
     string methodName,
     string sourceTypeName):Scalar(number), DirectExecutionFragment {

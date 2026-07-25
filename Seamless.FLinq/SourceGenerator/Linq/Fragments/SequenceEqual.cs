@@ -1,9 +1,9 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public class SequenceEqual(int 番号,Enumerable source,Enumerable second,string resultType)
+internal class SequenceEqual(int 番号,Enumerable source,Enumerable second,string resultType)
     :SequenceEqual_comparer(番号,source,second,"null",resultType);
 
-public class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable second,string comparer,string resultType):BufferedScalar(番号,resultType) {
+internal class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable second,string comparer,string resultType):BufferedScalar(番号,resultType) {
     public override string StructMethod => string.Empty;
     protected override string StructTypeParameters => this.StructTypeParametersWithOuter("TEnum1","TEnum2");
     protected override string StructTypeConstraints =>

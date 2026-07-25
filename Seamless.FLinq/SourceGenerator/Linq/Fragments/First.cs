@@ -16,7 +16,7 @@ First は source.First() を、最初の1要素だけ読む Compute に変換す
   - predicate 付きは predicate(item) が true の最初の item を返す。
   - predicate が直接 lambda 化できる場合は DirectEnumerableExpression 経由で System.Linq.First へ委譲できる。
 */
-public class First(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+internal class First(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length==0;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
@@ -56,7 +56,7 @@ public class First(int 番号,Enumerable source,string resultType):BufferedScala
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-public class First_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
+internal class First_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length>0&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate;
     private string PredicateFuncType => $"global::System.Func<{source.ElementType}, bool>";

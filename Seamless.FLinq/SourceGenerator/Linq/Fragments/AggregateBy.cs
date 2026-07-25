@@ -17,7 +17,7 @@ AggregateBy は key ごとに accumulator を持つ grouping 集約を生成す�
   - keySelector/func はそれぞれ FuncFragment として closure/delegate/inline に対応する。
   - resultElementType は返す KeyValuePair 相当の要素型を決める。
 */
-public class AggregateBy(int 番号,Enumerable source,FuncFragment keySelector,string seed,FuncFragment func,string resultElementType):Enumerable(番号) {
+internal class AggregateBy(int 番号,Enumerable source,FuncFragment keySelector,string seed,FuncFragment func,string resultElementType):Enumerable(番号) {
     protected override Enumerable PrimarySource => source;
     private string KeyType => FuncReturnTypeName(keySelector);
     private static string CapacityExpression(string sourceCountExpression) =>

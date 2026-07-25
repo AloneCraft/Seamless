@@ -1,6 +1,6 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public enum PipelineStageKind {
+internal enum PipelineStageKind {
     Where,
     Select,
     SelectMany,
@@ -34,7 +34,7 @@ public enum PipelineStageKind {
     TakeRange,
 }
 
-public enum PipelineTerminalKind {
+internal enum PipelineTerminalKind {
     ToList,
     ToArray,
     Count,
@@ -44,11 +44,11 @@ public enum PipelineTerminalKind {
     Sum,
 }
 
-public delegate bool PipelineEnumerableBuilder(ExpressionSyntax expression,ref int uniqueNumber,out Enumerable fragment,out string staticMethods);
-public delegate bool PipelineFuncBuilder(ExpressionSyntax expression,ITypeSymbol delegateType,ref int uniqueNumber,out FuncFragment func);
-public delegate bool PipelineElementTypeGetter(ITypeSymbol type,out ITypeSymbol elementType);
+internal delegate bool PipelineEnumerableBuilder(ExpressionSyntax expression,ref int uniqueNumber,out Enumerable fragment,out string staticMethods);
+internal delegate bool PipelineFuncBuilder(ExpressionSyntax expression,ITypeSymbol delegateType,ref int uniqueNumber,out FuncFragment func);
+internal delegate bool PipelineElementTypeGetter(ITypeSymbol type,out ITypeSymbol elementType);
 
-public sealed class PipelineBuildServices(
+internal sealed class PipelineBuildServices(
     SymbolDisplayFormat fullyQualifiedFormat,
     PipelineEnumerableBuilder buildEnumerable,
     PipelineFuncBuilder buildFunc,
@@ -69,7 +69,7 @@ public sealed class PipelineBuildServices(
     public string[] OuterTypeParameters { get; } = outerTypeParameters;
 }
 
-public static class PipelineBuilder {
+internal static class PipelineBuilder {
     public static bool TryBuild(
         SemanticModel semanticModel,
         InvocationExpressionSyntax invocation,
@@ -1766,7 +1766,7 @@ public static class PipelineBuilder {
         new($"Chain IR is not implemented for this LINQ chain: {reason}");
 }
 
-public sealed class PipelineStage(
+internal sealed class PipelineStage(
     PipelineStageKind kind,
     FuncFragment? func,
     string? value,
@@ -1803,7 +1803,7 @@ public sealed class PipelineStage(
         ||(value is not null&&AnchorAnalysis.LooksLikeAnchorText(value));
 }
 
-public interface DirectExecutionFragment {
+internal interface DirectExecutionFragment {
     string GetDirectExecutionStatement(string actualVariableName,string actualTypeName);
 }
 
@@ -1832,7 +1832,7 @@ PipelineEnumerable は Where/Select/Take/OrderBy など複数 stage を1つの e
   個別 Fragment を深くネストすると enumerator struct が段数分重なる。Pipeline は stage list を見て
   1つの Struct に state field と loop 分岐を集め、CountPreserving な場合は TryCopyTo もまとめて生成する。
 */
-public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyList<PipelineStage> stages,string elementType):Enumerable(番号) {
+internal sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyList<PipelineStage> stages,string elementType):Enumerable(番号) {
     private bool StagesCountPreserving => stages.All(static stage => stage.Kind is PipelineStageKind.Select or PipelineStageKind.AsEnumerable or PipelineStageKind.Cast);
     private bool SingleDefaultIfEmpty => stages.Count==1&&stages[0].Kind==PipelineStageKind.DefaultIfEmpty;
     protected override Enumerable PrimarySource => source;
@@ -4316,7 +4316,7 @@ PipelineTerminal は PipelineEnumerable の終端を scalar/direct execution と
   - ToList/ToArray/ToDictionary/Sum は direct execution 専用で、GetEnumeratorExpression は使わない。
   - ToDictionary は func1 を keySelector、func2 を elementSelector として扱い、comparerValue を constructor に渡す。
 */
-public sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,PipelineTerminalKind terminalKind,FuncFragment? func1 = null,FuncFragment? func2 = null,string? comparerValue = null):Scalar(番号), DirectExecutionFragment {
+internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,PipelineTerminalKind terminalKind,FuncFragment? func1 = null,FuncFragment? func2 = null,string? comparerValue = null):Scalar(番号), DirectExecutionFragment {
     protected override Enumerable PrimarySource => pipeline;
     private string ResultType {
         get {

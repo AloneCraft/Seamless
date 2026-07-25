@@ -22,7 +22,7 @@ constructor 引数:
   - 匿名型戻り値など型名を書けない場合は TResult factory を生成し、ValueEnumerable<Struct<TEnum,TResult>,TResult> で閉じる。
   - Select_indexSelector は index フィールドを増やして selector(item, index) を呼ぶ。
 */
-public class Select_selector(int 番号,Enumerable source,FuncFragment selector):Enumerable(番号) {
+internal class Select_selector(int 番号,Enumerable source,FuncFragment selector):Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         !(method.Parameters.Length>0&&
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
@@ -119,7 +119,7 @@ Select_WithInlinedScalar は selector 本体が LINQ scalar を返すとき、�
 設計意図:
   selector 内 LINQ を delegate 呼び出しに閉じ込めず、生成済み Fragment の TryGetNext で計算する。
 */
-public class Select_WithInlinedScalar(int 番号,Enumerable source,Fragment scalarFrag,string outerParamName,string elementType)
+internal class Select_WithInlinedScalar(int 番号,Enumerable source,Fragment scalarFrag,string outerParamName,string elementType)
     :Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) => false;
     public override string ElementType => elementType;
@@ -214,7 +214,7 @@ Select_indexSelector は source.Select((item, index) => 値) 用。
 通常版との差分:
   index を Enumerator フィールドとして保持し、各要素の selector 呼び出しに追加引数として渡す。
 */
-public class Select_indexSelector(int 番号,Enumerable source,FuncFragment selector):Enumerable(番号) {
+internal class Select_indexSelector(int 番号,Enumerable source,FuncFragment selector):Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length>0&&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };

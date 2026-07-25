@@ -1,6 +1,6 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public class ElementAtOrDefault(int 番号,Enumerable source,string index,string resultType):BufferedScalar(番号,resultType) {
+internal class ElementAtOrDefault(int 番号,Enumerable source,string index,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length==1&&method.Parameters[0].Type.SpecialType==SpecialType.System_Int32;
     protected override Enumerable PrimarySource => source;
@@ -62,7 +62,7 @@ public class ElementAtOrDefault(int 番号,Enumerable source,string index,string
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-public class ElementAtOrDefault_index(int 番号,Enumerable source,string index,string resultType):BufferedScalar(番号,resultType) {
+internal class ElementAtOrDefault_index(int 番号,Enumerable source,string index,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length==1
         &&method.Parameters[0].Type is INamedTypeSymbol {

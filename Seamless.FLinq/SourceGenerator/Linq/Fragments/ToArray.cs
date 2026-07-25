@@ -21,7 +21,7 @@ ToArray は source.ToArray() を、件数/Span/InlineArray/ArrayPool の順で�
   - RangeRoot<int> は count サイズの配列を確保して start+i を直接代入する。
   - array/list/ICollection 由来の DirectEnumerableExpression は専用 hybrid inline を生成する。
 */
-public class ToArray(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+internal class ToArray(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
     // スタック上で受ける InlineArray の要素数。これ以内なら ArrayPool に一切触れない。
     private const int InlineCapacity = 16;
     protected override Enumerable PrimarySource => source;

@@ -14,7 +14,7 @@ Prepend は source.Prepend(value) を、追加要素を先に返してから sou
 設計意図:
   連続 Prepend は先頭側から FlattenedElements に畳み込み、source の enumerator は1つだけ保持する。
 */
-public class Prepend(int 番号,Enumerable source,string element):Enumerable(番号) {
+internal class Prepend(int 番号,Enumerable source,string element):Enumerable(番号) {
     private Enumerable Source => source;
     private string ElementExpression => element;
     private Enumerable RootSource => this.Source is Prepend prepend ? prepend.RootSource : this.Source;

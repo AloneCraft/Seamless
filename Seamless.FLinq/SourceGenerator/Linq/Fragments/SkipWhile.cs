@@ -19,7 +19,7 @@ SkipWhile_predicate は predicate が true の間だけ読み捨て、その後�
   - index overload は読み捨て中も返却後も source から読むたびに index を増やす。
   - predicate が一度 false になると以後は predicate を見ずに要素を返す。
 */
-public class SkipWhile_predicate(int 番号,Enumerable source,FuncFragment predicate):Enumerable(番号) {
+internal class SkipWhile_predicate(int 番号,Enumerable source,FuncFragment predicate):Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         !(method.Parameters.Length>0&&
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
@@ -104,7 +104,7 @@ public class SkipWhile_predicate(int 番号,Enumerable source,FuncFragment predi
     }
 }
 
-public class SkipWhile_indexPredicate(int 番号,Enumerable source,FuncFragment predicate):SkipWhile_predicate(番号,source,predicate) {
+internal class SkipWhile_indexPredicate(int 番号,Enumerable source,FuncFragment predicate):SkipWhile_predicate(番号,source,predicate) {
     public static new bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length>0&&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };

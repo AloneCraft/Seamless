@@ -29,17 +29,17 @@ Root 系 Fragment は LINQ チェーンの最初の source を struct enumerator
 // PersistedListRoot だけなので、Bases ではなく本体ファイルへ置く（AI_SYNTAX_RULES の
 // File Layout Rules: 実質 1 系列専用の基底は対応する本体ファイルへ集約する）。
 // 複数ファイルから派生される ProviderNativeRootBase だけが Bases に残っている。
-public abstract class SourceRootBase(int number,string sourceExpression):Enumerable(number) {
+internal abstract class SourceRootBase(int number,string sourceExpression):Enumerable(number) {
     public string SourceExpression { get; } = sourceExpression;
     public abstract SourceCapability Capabilities { get; }
     public bool HasCapability(SourceCapability capability) => (this.Capabilities&capability)==capability;
 }
 
-public abstract class EnumeratorRootBase(
+internal abstract class EnumeratorRootBase(
     int number,
     string sourceExpression):SourceRootBase(number,sourceExpression);
 
-public abstract class DirectSpanRootBase(
+internal abstract class DirectSpanRootBase(
     int number,
     string sourceExpression,
     string elementType):SourceRootBase(number,sourceExpression) {
@@ -114,7 +114,7 @@ public abstract class DirectSpanRootBase(
 // enumeratorTypeName には具象 GetEnumerator() 戻り値型名を渡す。
 // IEnumerable<T>/配列の場合は IEnumerator<T>、List<T> 等の具象型の場合は List<T>.Enumerator 等の値型エニュメレータ名になる。
 // 構造体 Struct1<TEnum> は TEnum でパラメータ化され、呼び出し側で具体型引数により単相化される。
-public class Root(int 番号,string sourceExpression,string elementType,string enumeratorTypeName,bool useEnumerableInterface):EnumeratorRootBase(番号,sourceExpression) {
+internal class Root(int 番号,string sourceExpression,string elementType,string enumeratorTypeName,bool useEnumerableInterface):EnumeratorRootBase(番号,sourceExpression) {
     public override SourceCapability Capabilities => SourceCapability.ChunkStreaming;
     public override bool CanProvideSpan => false;
     public override bool CanTryProvideSpan => useEnumerableInterface;
@@ -251,7 +251,7 @@ ArrayRoot は配列 source 専用。IEnumerator<T> を作らず index で直接�
   TryGetSpan/TryCopyTo/TryGetNonEnumeratedCount を常に true にできるので、後続の ToArray/Count などが
   分岐なしに連続メモリ fast path を選べる。
 */
-public sealed class ArrayRoot(int 番号,string sourceExpression,string elementType):DirectSpanRootBase(番号,sourceExpression,elementType) {
+internal sealed class ArrayRoot(int 番号,string sourceExpression,string elementType):DirectSpanRootBase(番号,sourceExpression,elementType) {
     public override string? DirectArrayExpression => sourceExpression;
     protected override string SourceTypeName => $"{elementType}[]";
     protected override string CountExpression(string sourceName) => $"{sourceName}.Length";
@@ -276,7 +276,7 @@ CollectionsMarshal.AsSpan(list) を index で読む。
 設計意図:
   配列同様に TryGetSpan/TryCopyTo を提供し、Select/Where 後の materialize でもコピー系 fast path を維持する。
 */
-public sealed class ListRoot(int 番号,string sourceExpression,string elementType):DirectSpanRootBase(番号,sourceExpression,elementType) {
+internal sealed class ListRoot(int 番号,string sourceExpression,string elementType):DirectSpanRootBase(番号,sourceExpression,elementType) {
     protected override string SourceTypeName => $"global::System.Collections.Generic.List<{elementType}>";
     protected override string CountExpression(string sourceName) => $"{sourceName}.Count";
     protected override string RemainingCountExpression(string sourceName,string indexName) => $"{sourceName}.Count-({indexName}+1)";
@@ -288,7 +288,7 @@ public sealed class ListRoot(int 番号,string sourceExpression,string elementTy
 // TEnum の struct 制約が不要なため CS0315 が発生しない。
 // Dispose() は no-op。duck-typing で IDisposable も実装するなら IEnumerator<T> も実装するはずで、
 // その場合は通常の Root パスで処理されるため、ここには到達しない。
-public sealed class PersistedListRoot(int 番号,string sourceExpression,string elementType):DirectSpanRootBase(番号,sourceExpression,elementType) {
+internal sealed class PersistedListRoot(int 番号,string sourceExpression,string elementType):DirectSpanRootBase(番号,sourceExpression,elementType) {
     protected override string SourceTypeName => $"global::Seamless.Persisted.Collections.PersistedList<{elementType}>";
     protected override string IndexTypeName => "long";
     protected override string CountExpression(string sourceName) => $"{sourceName}.Count";
@@ -296,7 +296,7 @@ public sealed class PersistedListRoot(int 番号,string sourceExpression,string 
     protected override string SpanExpression(string sourceName,string startExpression) => $"{sourceName}.AsSpan({startExpression},checked((int)({sourceName}.Count-({startExpression}))))";
 }
 
-public class DuckTypingRoot(int 番号,string sourceExpression,string elementType,string concreteEnumeratorType):Enumerable(番号) {
+internal class DuckTypingRoot(int 番号,string sourceExpression,string elementType,string concreteEnumeratorType):Enumerable(番号) {
     public override string StructMethod => string.Empty;
     public override string EnumeratorTypeName => this.Struct;
     public override string GetEnumeratorExpression => $"new {this.Struct}({sourceExpression}.GetEnumerator())";
@@ -348,7 +348,7 @@ RangeRoot は Enumerable.Range(start, count) を collection なしで生成す�
   - Count/Any/First/Single/ToArray/ToList などは RangePredicateOptimizer や専用 inline でさらに短い式になる。
   - DescendingRangeRoot は Reverse(Range(...)) などで逆順計算に寄せる。
 */
-public sealed class RangeRoot(int 番号,string startExpression,string countExpression):Enumerable(番号) {
+internal sealed class RangeRoot(int 番号,string startExpression,string countExpression):Enumerable(番号) {
     internal string StartExpression => startExpression;
     internal string CountExpression => countExpression;
     public override string? NonEnumeratedCountExpression => countExpression;
@@ -407,7 +407,7 @@ public sealed class RangeRoot(int 番号,string startExpression,string countExpr
         """;
 }
 
-public sealed class DescendingRangeRoot(int 番号,string startExpression,string countExpression):Enumerable(番号) {
+internal sealed class DescendingRangeRoot(int 番号,string startExpression,string countExpression):Enumerable(番号) {
     public override string? NonEnumeratedCountExpression => countExpression;
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
@@ -473,7 +473,7 @@ EmptyRoot は Enumerable.Empty<T>() を「常に false を返す enumerator」�
 設計意図:
   空列挙は Consume direct execution では空文字列を返し、呼び出し元に不要な while を出さない。
 */
-public sealed class EmptyRoot(int 番号,string elementType):Enumerable(番号) {
+internal sealed class EmptyRoot(int 番号,string elementType):Enumerable(番号) {
     public override string? NonEnumeratedCountExpression => "0";
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
@@ -526,7 +526,7 @@ RepeatRoot は Enumerable.Repeat(value, count) を値と残数だけで生成す
 バリエーション:
   Count/Any/Single など要素値を見ない終端は count 式だけで結果を出せる。
 */
-public sealed class RepeatRoot(int 番号,string valueExpression,string countExpression,string elementType):Enumerable(番号) {
+internal sealed class RepeatRoot(int 番号,string valueExpression,string countExpression,string elementType):Enumerable(番号) {
     internal string ValueExpression => valueExpression;
     internal string CountExpression => countExpression;
     public override string? NonEnumeratedCountExpression => countExpression;
@@ -584,7 +584,7 @@ public sealed class RepeatRoot(int 番号,string valueExpression,string countExp
         """;
 }
 
-public sealed class InfiniteSequenceRoot(int 番号,string startExpression,string stepExpression,string elementType):Enumerable(番号) {
+internal sealed class InfiniteSequenceRoot(int 番号,string startExpression,string stepExpression,string elementType):Enumerable(番号) {
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.InfiniteSequence<{elementType}>({startExpression}, {stepExpression})";
     public override string GetEnumeratorExpression => $"new {this.Struct}({startExpression}, {stepExpression})";
@@ -628,7 +628,7 @@ SequenceRoot は start/end/step で表せる数列を生成する root。
 設計意図:
   RangeRoot より一般的な数列用。元 collection を持たず、境界判定と加算だけで TryGetNext を構成する。
 */
-public sealed class SequenceRoot(int 番号,string startExpression,string endInclusiveExpression,string stepExpression,string elementType):Enumerable(番号) {
+internal sealed class SequenceRoot(int 番号,string startExpression,string endInclusiveExpression,string stepExpression,string elementType):Enumerable(番号) {
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Sequence<{elementType}>({startExpression}, {endInclusiveExpression}, {stepExpression})";
     public override string GetEnumeratorExpression => $"new {this.Struct}({startExpression}, {endInclusiveExpression}, {stepExpression})";
@@ -734,7 +734,7 @@ public sealed class SequenceRoot(int 番号,string startExpression,string endInc
 }
 
 // Cast<T> の source は System.Collections.IEnumerable なので、generic Root とは別に object として流す。
-public class NonGenericRoot(int 番号,string sourceExpression):Enumerable(番号) {
+internal class NonGenericRoot(int 番号,string sourceExpression):Enumerable(番号) {
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({sourceExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => "global::System.Collections.IEnumerable source";

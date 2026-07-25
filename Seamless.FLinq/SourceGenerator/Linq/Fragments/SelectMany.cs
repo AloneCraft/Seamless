@@ -26,7 +26,7 @@ SelectManyBase は外側 source と、各外側要素から作る内側 sequence
   - index selector 付きは外側要素を読むたびに index を増やす。
   - SelectMany_WithInlinedInner は内側 LINQ チェーンを具象 struct enumerator のまま保持する。
 */
-public abstract class SelectManyBase(int 番号,Enumerable source):Enumerable(番号) {
+internal abstract class SelectManyBase(int 番号,Enumerable source):Enumerable(番号) {
     internal static bool TryBuildInlined(
         SemanticModel semanticModel,
         InvocationExpressionSyntax invocation,
@@ -141,7 +141,7 @@ SelectMany_selector は collection selector だけを持つ標準形。
   - selector が item に依存する場合、各 outerValue ごとに selector(outerValue).GetEnumerator() を作る。
   - 匿名型など delegate 保持が必要な場合は selectorDelegate.Invoke(outerValue).GetEnumerator() にする。
 */
-public class SelectMany_selector(int 番号,Enumerable source,FuncFragment selector):SelectManyBase(番号,source) {
+internal class SelectMany_selector(int 番号,Enumerable source,FuncFragment selector):SelectManyBase(番号,source) {
     private string SelectorFuncType => $"global::System.Func<{source.ElementType}, global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>>";
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length==1&&
@@ -198,7 +198,7 @@ public class SelectMany_selector(int 番号,Enumerable source,FuncFragment selec
     protected override string CurrentValueAssignmentFromInner => $"current = this.{this.currentValue} = {this.item};";
 }
 
-public class SelectMany_indexSelector(int 番号,Enumerable source,FuncFragment selector):SelectManyBase(番号,source) {
+internal class SelectMany_indexSelector(int 番号,Enumerable source,FuncFragment selector):SelectManyBase(番号,source) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length==1&&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
@@ -220,7 +220,7 @@ public class SelectMany_indexSelector(int 番号,Enumerable source,FuncFragment 
     public override string ElementType => this.CollectionElementType;
 }
 
-public class SelectMany_selector_resultSelector(int 番号,Enumerable source,FuncFragment collectionSelector,FuncFragment resultSelector):SelectManyBase(番号,source) {
+internal class SelectMany_selector_resultSelector(int 番号,Enumerable source,FuncFragment collectionSelector,FuncFragment resultSelector):SelectManyBase(番号,source) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length==2&&
         !(method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
@@ -266,7 +266,7 @@ SelectMany_WithInlinedInner は collection selector の内側 LINQ を Fragment 
 設計意図:
   innerEnumerator を IEnumerator<T>? にせず具象 struct 型で持つことで、interface dispatch と delegate 呼び出しを避ける。
 */
-public class SelectMany_WithInlinedInner(int 番号,Enumerable source,Enumerable innerFragment,string outerParamName)
+internal class SelectMany_WithInlinedInner(int 番号,Enumerable source,Enumerable innerFragment,string outerParamName)
     :SelectManyBase(番号,source) {
 
     public static bool IsApplicableOverload(IMethodSymbol method) => false;
@@ -339,7 +339,7 @@ public class SelectMany_WithInlinedInner(int 番号,Enumerable source,Enumerable
         $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
 }
 
-public class SelectMany_indexSelector_resultSelector(int 番号,Enumerable source,FuncFragment collectionSelector,FuncFragment resultSelector):SelectManyBase(番号,source) {
+internal class SelectMany_indexSelector_resultSelector(int 番号,Enumerable source,FuncFragment collectionSelector,FuncFragment resultSelector):SelectManyBase(番号,source) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length==2&&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };

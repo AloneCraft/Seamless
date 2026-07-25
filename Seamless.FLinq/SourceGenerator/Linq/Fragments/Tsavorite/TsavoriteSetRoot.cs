@@ -1,6 +1,6 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public sealed class TsavoriteSetRoot(
+internal sealed class TsavoriteSetRoot(
     int 番号,
     string sourceExpression,
     string elementType,

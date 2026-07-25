@@ -21,7 +21,7 @@ SetBase は Union/Except/Intersect など、要素そのものを key にする�
   - Except/Intersect は先に右側 set を作り、左側の Remove/Add など operation 固有の判定で返す。
   - direct consume では HashSet 初期化と TraversalSupport ループを出し、Enumerator.Current を経由しない。
 */
-public abstract class SetBase(int 番号,Enumerable source,Enumerable second,string comparer,ISetOperationStrategy operation):Enumerable(番号), ConsumeDirectExecutionFragment {
+internal abstract class SetBase(int 番号,Enumerable source,Enumerable second,string comparer,ISetOperationStrategy operation):Enumerable(番号), ConsumeDirectExecutionFragment {
     protected override Enumerable PrimarySource => source;
     private string Comparer => ComparerExpressionSupport.RenderEqualityComparer(comparer,source.ElementType);
     public override string StructMethod => string.Empty;
@@ -374,7 +374,7 @@ SetByBase は UnionBy/ExceptBy/IntersectBy など、keySelector(item) で集合�
   - UnionBy は右側も「同じ key が未出なら右要素を返す」状態を持つ。
   - non-identity では closure/delegate/hoisted local を constructor と direct consume の両方へ伝播する。
 */
-public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,FuncFragment keySelector,string comparer,ISetByOperationStrategy operation):Enumerable(番号), ConsumeDirectExecutionFragment {
+internal abstract class SetByBase(int 番号,Enumerable source,Enumerable second,FuncFragment keySelector,string comparer,ISetByOperationStrategy operation):Enumerable(番号), ConsumeDirectExecutionFragment {
     protected override Enumerable PrimarySource => source;
     private string Comparer => ComparerExpressionSupport.RenderEqualityComparer(comparer,FuncReturnTypeName(keySelector));
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));

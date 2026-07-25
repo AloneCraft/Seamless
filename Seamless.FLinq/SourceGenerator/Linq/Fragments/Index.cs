@@ -1,6 +1,6 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public class Index(int 番号,Enumerable source):Enumerable(番号) {
+internal class Index(int 番号,Enumerable source):Enumerable(番号) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     public override string GetEnumerableExpression =>

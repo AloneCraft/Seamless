@@ -19,7 +19,7 @@ ProviderNativeLookupTerminal は provider が O(1) の membership lookup を持�
   - 中間段が無い（Where/Select が挟まると比較対象が集合の要素でなくなる）
   - comparer 指定が無い（カスタム comparer は集合自身の等価と一致しない）
 */
-public sealed class ProviderNativeLookupTerminal(int 番号,string lookupExpression,string resultType)
+internal sealed class ProviderNativeLookupTerminal(int 番号,string lookupExpression,string resultType)
     :Scalar(番号), DirectExecutionFragment {
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorStruct => string.Empty;

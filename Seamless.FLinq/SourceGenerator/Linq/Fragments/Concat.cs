@@ -16,7 +16,7 @@ Concat は source.Concat(second) を、左を読み切ってから右へ切り�
   - 左右の要素型が異なる場合でも、最終 ElementType は左に合わせて cast する。
   - Dispose では両方の enumerator を破棄する。
 */
-public class Concat(int 番号,Enumerable source,Enumerable second):Enumerable(番号) {
+internal class Concat(int 番号,Enumerable source,Enumerable second):Enumerable(番号) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     public override string GetEnumerableExpression =>

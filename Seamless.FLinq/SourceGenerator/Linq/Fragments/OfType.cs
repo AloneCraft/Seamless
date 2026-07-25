@@ -1,6 +1,6 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public class OfType(int 番号,Enumerable source,string resultElementType):Enumerable(番号) {
+internal class OfType(int 番号,Enumerable source,string resultElementType):Enumerable(番号) {
     protected override Enumerable PrimarySource => source;
     private bool IsIdentityType => string.Equals(resultElementType,source.ElementType,StringComparison.Ordinal);
     internal Enumerable Source => source;

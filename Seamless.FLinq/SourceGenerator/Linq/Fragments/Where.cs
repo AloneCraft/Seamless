@@ -21,7 +21,7 @@ constructor 引数:
   - predicate が匿名型や delegate 保持対象なら this.predicateDelegate.Invoke(item) になる。
   - Where_indexPredicate は index をフィールドで増やし、predicate(item, index) を呼ぶ。
 */
-public class Where_predicate(int 番号,Enumerable source,FuncFragment predicate):Enumerable(番号) {
+internal class Where_predicate(int 番号,Enumerable source,FuncFragment predicate):Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         !(method.Parameters.Length>0&&
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
@@ -82,7 +82,7 @@ Where_WithInlinedScalarPredicate は predicate 本体が LINQ scalar を返す�
 設計意図:
   lambda 内の Any/Count などを System.Linq 呼び出しのまま残さず、外側 item を使う内側 Fragment として再帰的に生成する。
 */
-public class Where_WithInlinedScalarPredicate(int 番号,Enumerable source,Fragment scalarFrag,string outerParamName)
+internal class Where_WithInlinedScalarPredicate(int 番号,Enumerable source,Fragment scalarFrag,string outerParamName)
     :Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) => false;
     public override string ElementType => source.ElementType;
@@ -169,7 +169,7 @@ Where_indexPredicate は source.Where((item, index) => 条件) 用。
 通常版との差分:
   index フィールドを -1 で持ち、source から要素を1つ読むたびに checked なしで増やして predicate に渡す。
 */
-public class Where_indexPredicate(int 番号,Enumerable source,FuncFragment predicate):Where_predicate(番号,source,predicate) {
+internal class Where_indexPredicate(int 番号,Enumerable source,FuncFragment predicate):Where_predicate(番号,source,predicate) {
     public static new bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length>0&&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };

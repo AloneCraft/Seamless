@@ -26,7 +26,7 @@ BufferedScalar は「Compute で先に結果を作り、TryGetNext はその結�
   - ComputeMembers は span fast path、predicate 呼び出し、補助 Lookup 型などを追加する。
   - RenderComputeInline は Compute 呼び出しだけを呼び出し元へ直接埋め込む。
 */
-public abstract class BufferedScalar(int 番号,string resultType):Scalar(番号) {
+internal abstract class BufferedScalar(int 番号,string resultType):Scalar(番号) {
     protected abstract string ComputeExpression { get; }
     protected virtual string ComputeMembers => string.Empty;
     protected virtual string StructSources => string.Empty;

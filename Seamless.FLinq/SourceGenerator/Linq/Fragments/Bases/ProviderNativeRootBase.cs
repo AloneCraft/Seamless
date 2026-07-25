@@ -5,7 +5,7 @@ namespace Seamless.FLinq.Linq.Fragments;
 // 4 ファイルから使われる、実際に共有された基底なので Bases に置く。
 // Root 系のうちここ以外の基底（SourceRootBase / EnumeratorRootBase / DirectSpanRootBase）は
 // 派生が Root.cs 内だけなので Root.cs へ集約してある。
-public abstract class ProviderNativeRootBase(
+internal abstract class ProviderNativeRootBase(
     int number,
     string sourceExpression,
     string elementType,

@@ -1,10 +1,10 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public class OrderBy(int 番号,Enumerable source,FuncFragment keySelector):OrderBy_comparer(番号,source,keySelector,"null") { }
-public class OrderByDescending(int 番号,Enumerable source,FuncFragment keySelector):OrderByDescending_comparer(番号,source,keySelector,"null") { }
+internal class OrderBy(int 番号,Enumerable source,FuncFragment keySelector):OrderBy_comparer(番号,source,keySelector,"null") { }
+internal class OrderByDescending(int 番号,Enumerable source,FuncFragment keySelector):OrderByDescending_comparer(番号,source,keySelector,"null") { }
 
-public class OrderBy_comparer(int 番号,Enumerable source,FuncFragment keySelector,string comparer):OrderingBase(番号,source,keySelector,comparer,descending: false) { }
-public class OrderByDescending_comparer(int 番号,Enumerable source,FuncFragment keySelector,string comparer):OrderingBase(番号,source,keySelector,comparer,descending: true) { }
+internal class OrderBy_comparer(int 番号,Enumerable source,FuncFragment keySelector,string comparer):OrderingBase(番号,source,keySelector,comparer,descending: false) { }
+internal class OrderByDescending_comparer(int 番号,Enumerable source,FuncFragment keySelector,string comparer):OrderingBase(番号,source,keySelector,comparer,descending: true) { }
 
 /*
 OrderingBase は OrderBy/ThenBy 系を、全件 buffer + stable sort + buffer enumerator に変換する。
@@ -25,7 +25,7 @@ OrderingBase は OrderBy/ThenBy 系を、全件 buffer + stable sort + buffer en
   - source が既に OrderingBase の場合、一次 key と二次 key を SortItem に同居させる。
   - originalIndex を最後に比較し、System.Linq と同じ安定ソートの結果にする。
 */
-public abstract class OrderingBase(int 番号,Enumerable source,FuncFragment keySelector,string comparer,bool descending):Enumerable(番号) {
+internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment keySelector,string comparer,bool descending):Enumerable(番号) {
     // チェーン（ThenBy）検出用に一次ソースを公開
     internal FuncFragment OwnKeySelector => keySelector;
     internal string OwnComparer => ComparerExpressionSupport.RenderOrderComparer(comparer,FuncReturnTypeName(keySelector));

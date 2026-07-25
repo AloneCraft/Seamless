@@ -18,14 +18,14 @@ ToHashSetBase は ToHashSet overload 群の共通基底。
   - comparer ありは constructor/Compute に comparer を渡す。
   - RangeRoot<int> は start+i を直接 Add する inline を生成する。
 */
-public abstract class ToHashSetBase(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+internal abstract class ToHashSetBase(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
     protected override string GetEnumeratorDisposeBody => string.Empty;
 }
 
-public class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSetBase(番号,source,resultType) {
+internal class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSetBase(番号,source,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length==0;
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
@@ -93,7 +93,7 @@ public class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSet
         """;
 }
 
-public class ToHashSet_comparer(int 番号,Enumerable source,string comparer,string resultType):ToHashSetBase(番号,source,resultType) {
+internal class ToHashSet_comparer(int 番号,Enumerable source,string comparer,string resultType):ToHashSetBase(番号,source,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length==1&&method.Parameters[0].Name=="comparer";
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{comparer})";

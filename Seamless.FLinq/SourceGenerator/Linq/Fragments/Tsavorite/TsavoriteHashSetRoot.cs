@@ -6,7 +6,7 @@ terminal fragments. Tsavorite native terminals must call HashSet.Iterate(ref sta
 not raw log traversal or legacy unsafe delegate helpers, so generated LINQ sees the logical
 collection state instead of raw log records.
 */
-public sealed class TsavoriteHashSetRoot(
+internal sealed class TsavoriteHashSetRoot(
     int 番号,
     string sourceExpression,
     string elementType,

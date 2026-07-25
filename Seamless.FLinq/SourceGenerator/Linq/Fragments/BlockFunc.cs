@@ -10,7 +10,7 @@ namespace Seamless.FLinq.Linq.Fragments;
 // へ書き換え済みのブロック内文テキストが入る（書き換えは Interceptor 側の Roslyn rewriter が行う）。
 // RenderInlineAssign 時に __Tsavorite_DEST__ を代入先へ、__Tsavorite_LABEL__ を一意ラベルへ、
 // ラムダ引数名を実引数へ置換し、末尾にラベルを置いて「文の塊」を作る。
-public sealed class BlockFunc:FuncFragment {
+internal sealed class BlockFunc:FuncFragment {
     // 引数・dest・label 置換前のブロック内文テキスト。
     public string BlockBody = string.Empty;
 

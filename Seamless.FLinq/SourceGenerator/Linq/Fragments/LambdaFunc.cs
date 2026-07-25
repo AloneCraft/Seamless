@@ -1,6 +1,6 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public class LambdaFunc:FuncFragment {
+internal class LambdaFunc:FuncFragment {
     public override bool IsIdentity =>
         this.ParameterNames.Length==1
         &&!this.RequiresStatementInlining

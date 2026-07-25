@@ -1,6 +1,6 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public class LastOrDefault(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+internal class LastOrDefault(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length==0;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
@@ -53,7 +53,7 @@ public class LastOrDefault(int 番号,Enumerable source,string resultType):Buffe
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-public class LastOrDefault_defaultValue(int 番号,Enumerable source,string defaultValue,string resultType):BufferedScalar(番号,resultType) {
+internal class LastOrDefault_defaultValue(int 番号,Enumerable source,string defaultValue,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length==1&&method.Parameters[0].Type.TypeKind!=TypeKind.Delegate;
     protected override Enumerable PrimarySource => source;
@@ -106,7 +106,7 @@ public class LastOrDefault_defaultValue(int 番号,Enumerable source,string defa
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-public class LastOrDefault_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
+internal class LastOrDefault_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length>0&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate;
     protected override Enumerable PrimarySource => source;

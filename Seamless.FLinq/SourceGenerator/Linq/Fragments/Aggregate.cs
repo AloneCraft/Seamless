@@ -17,7 +17,7 @@ Aggregate_func は seed なし Aggregate(func) を、先頭要素を初期 accum
   - source が TryGetSpan 可能なら span foreach で先頭要素判定を行う。
   - func が delegate 保持対象なら inline direct computation 側で delegate local を用意して Invoke する。
 */
-public class Aggregate_func(int 番号,Enumerable source,FuncFragment func):Scalar(番号) {
+internal class Aggregate_func(int 番号,Enumerable source,FuncFragment func):Scalar(番号) {
     public override string InlineSupportingMembers => source.GetEnumeratorStruct;
     public override string? RenderInlineComputation(string destVar,string destType) {
         string srcExpr;
@@ -81,7 +81,7 @@ Aggregate_seed_func は Aggregate(seed, func) を、seed から始める畳み�
 seed なしとの差分:
   空 sequence でも seed を返すため NoElements 例外を出さない。
 */
-public class Aggregate_seed_func(int 番号,Enumerable source,string seed,FuncFragment func):Scalar(番号) {
+internal class Aggregate_seed_func(int 番号,Enumerable source,string seed,FuncFragment func):Scalar(番号) {
     public override string InlineSupportingMembers => source.GetEnumeratorStruct;
     public override string? RenderInlineComputation(string destVar,string destType) {
         string srcExpr;
@@ -146,7 +146,7 @@ Aggregate_seed_func_resultSelector は Aggregate(seed, func, resultSelector) を
   func と resultSelector の両方に closure/delegate/statement inline の可能性があるため、
   ClosureArgsSuffix と FuncAssign を2つ分組み合わせて生成する。
 */
-public class Aggregate_seed_func_resultSelector(int 番号,Enumerable source,string seed,FuncFragment func,FuncFragment resultSelector):Scalar(番号) {
+internal class Aggregate_seed_func_resultSelector(int 番号,Enumerable source,string seed,FuncFragment func,FuncFragment resultSelector):Scalar(番号) {
     public override string InlineSupportingMembers => source.GetEnumeratorStruct;
     public override string? RenderInlineComputation(string destVar,string destType) {
         string srcExpr;

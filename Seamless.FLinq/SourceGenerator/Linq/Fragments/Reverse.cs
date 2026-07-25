@@ -20,7 +20,7 @@ Reverse は source.Reverse() を、初回に逆順で読める状態を作って
   - span が無い場合は List に全件 buffer する。
   - 連続 Reverse は偶数回なら RootSource そのものへ畳み込む。
 */
-public class Reverse(int 番号,Enumerable source):Enumerable(番号) {
+internal class Reverse(int 番号,Enumerable source):Enumerable(番号) {
     private Enumerable Source => source;
     private Enumerable RootSource => this.Source is Reverse reverse ? reverse.RootSource : this.Source;
     private bool IsIdentity => this.Source is Reverse reverse&&!reverse.IsIdentity;

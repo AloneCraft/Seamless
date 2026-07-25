@@ -1,6 +1,6 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public class Contains(int 番号,Enumerable source,string value,string resultType):BufferedScalar(番号,resultType) {
+internal class Contains(int 番号,Enumerable source,string value,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length==1;
     protected override Enumerable PrimarySource => source;
@@ -69,7 +69,7 @@ public class Contains(int 番号,Enumerable source,string value,string resultTyp
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-public class Contains_comparer(int 番号,Enumerable source,string value,string comparer,string resultType):BufferedScalar(番号,resultType) {
+internal class Contains_comparer(int 番号,Enumerable source,string value,string comparer,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length==2;
     protected override Enumerable PrimarySource => source;

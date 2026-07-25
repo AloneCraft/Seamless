@@ -47,7 +47,7 @@ ToList は source.ToList() を、capacity hint と Span copy を使う Compute �
   - RangeRoot<int> は SetCount 後の Span に start+i を直接代入する。
   - DirectEnumerableExpression が array/list/ICollection なら hybrid inline で余分な enumerator を避ける。
 */
-public class ToList(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+internal class ToList(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;

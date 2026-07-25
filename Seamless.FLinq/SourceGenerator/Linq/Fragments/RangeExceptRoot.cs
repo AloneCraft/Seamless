@@ -1,6 +1,6 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<RangeRoot> exclusions):Enumerable(番号) {
+internal sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<RangeRoot> exclusions):Enumerable(番号) {
     internal RangeRoot SourceRange => source;
     internal IReadOnlyList<RangeRoot> Exclusions => exclusions;
     public override string StructMethod => string.Empty;

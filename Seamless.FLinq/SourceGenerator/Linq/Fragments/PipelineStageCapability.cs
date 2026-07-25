@@ -1,7 +1,7 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
 [Flags]
-public enum PipelineStageCapability {
+internal enum PipelineStageCapability {
     None = 0,
     Streaming = 1,
     CountPreserving = 1<<1,
@@ -14,7 +14,7 @@ public enum PipelineStageCapability {
     Grouping = 1<<8,
 }
 
-public static class PipelineStageCapabilityTable {
+internal static class PipelineStageCapabilityTable {
     public static PipelineStageCapability Get(PipelineStageKind kind) => kind switch {
         PipelineStageKind.Where => PipelineStageCapability.Streaming|PipelineStageCapability.Filtering,
         PipelineStageKind.Select => PipelineStageCapability.Streaming|PipelineStageCapability.CountPreserving|PipelineStageCapability.Projection,

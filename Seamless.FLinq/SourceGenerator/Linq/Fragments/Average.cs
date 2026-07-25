@@ -22,7 +22,7 @@ Average は source.Average() / Average(selector) を、sum と count を持つ C
   - int の span source は AverageIntSimd を使う。
   - selector 付きは selector の戻り値型で accumulator 方針を決める。
 */
-public class Average(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+internal class Average(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
     private bool UseDecimalAccumulator => source.ElementType=="decimal";
     private bool UseDoubleAccumulator =>
         source.ElementType=="int"
@@ -166,7 +166,7 @@ public class Average(int 番号,Enumerable source,string resultType):BufferedSca
     }
 }
 
-public class Average_selector(int 番号,Enumerable source,FuncFragment selector,string resultType):BufferedScalar(番号,resultType) {
+internal class Average_selector(int 番号,Enumerable source,FuncFragment selector,string resultType):BufferedScalar(番号,resultType) {
     private string SelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(selector)}>";
     private bool UseDecimalAccumulator => FuncReturnTypeName(selector)=="decimal";
     private bool UseDoubleAccumulator =>

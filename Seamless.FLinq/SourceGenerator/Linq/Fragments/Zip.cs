@@ -18,7 +18,7 @@ Zip は複数 source を同時に1件ずつ進め、どれかが尽きた時点�
   - Zip3 は3入力 tuple を返す。
   - resultSelector 付きは tuple ではなく resultSelector(v, v) を Current に入れる。
 */
-public class Zip(int 番号,Enumerable source,Enumerable second):Enumerable(番号) {
+internal class Zip(int 番号,Enumerable source,Enumerable second):Enumerable(番号) {
     public override string StructMethod => string.Empty;
     protected override string StructTypeParameters => this.StructTypeParametersWithOuter("TEnum1","TEnum2");
     protected override string StructTypeConstraints =>
@@ -43,7 +43,7 @@ public class Zip(int 番号,Enumerable source,Enumerable second):Enumerable(番�
     protected override string GetEnumeratorDisposeBody => "source.Dispose();\nsecond.Dispose();";
 }
 
-public class Zip3(int 番号,Enumerable source,Enumerable second,Enumerable third):Enumerable(番号) {
+internal class Zip3(int 番号,Enumerable source,Enumerable second,Enumerable third):Enumerable(番号) {
     public override string StructMethod => string.Empty;
     protected override string StructTypeParameters => this.StructTypeParametersWithOuter("TEnum1","TEnum2","TEnum3");
     protected override string StructTypeConstraints =>
@@ -80,7 +80,7 @@ Zip_resultSelector は Zip(second, resultSelector) 用。2つの Current を sel
 
 selector は通常の FuncFragment と同じく、inline/delegate/closure 付きの各経路を取る。
 */
-public class Zip_resultSelector(int 番号,Enumerable source,Enumerable second,FuncFragment resultSelector):Enumerable(番号) {
+internal class Zip_resultSelector(int 番号,Enumerable source,Enumerable second,FuncFragment resultSelector):Enumerable(番号) {
     private string ResultSelectorFuncType => $"global::System.Func<{source.ElementType}, {second.ElementType}, {FuncReturnTypeName(resultSelector)}>";
     public override string StructMethod => this.FuncSupport(resultSelector,nameof(resultSelector));
     protected override string StructTypeParameters => this.StructTypeParametersWithOuter("TEnum1","TEnum2");

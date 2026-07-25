@@ -24,7 +24,7 @@ Fragment は「LINQ 呼び出しをどの C# コードへ置き換えるか」�
   lambda の展開方法を所有する。FuncFragment は inline 可能なら式/代入へ展開し、匿名型など
   型名を書けない場合だけ delegate フィールド保持に切り替える。
 */
-public abstract class Fragment(
+internal abstract class Fragment(
     int 番号
 ) {
     private protected const string AggressiveInliningAttribute = "[global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining|global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]";

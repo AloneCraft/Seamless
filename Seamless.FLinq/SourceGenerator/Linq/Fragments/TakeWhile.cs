@@ -20,7 +20,7 @@ TakeWhile_predicate は predicate が false になった時点で永続的に終
   - predicate は inline/delegate/statement inline の各 FuncFragment 経路を使う。
   - index overload は index フィールドを増やし predicate(item, index) を呼ぶ。
 */
-public class TakeWhile_predicate(int 番号,Enumerable source,FuncFragment predicate):Enumerable(番号) {
+internal class TakeWhile_predicate(int 番号,Enumerable source,FuncFragment predicate):Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         !(method.Parameters.Length>0&&
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
@@ -63,7 +63,7 @@ public class TakeWhile_predicate(int 番号,Enumerable source,FuncFragment predi
     public override string ElementType => source.ElementType;
 }
 
-public class TakeWhile_indexPredicate(int id,Enumerable source,FuncFragment predicate):TakeWhile_predicate(id,source,predicate) {
+internal class TakeWhile_indexPredicate(int id,Enumerable source,FuncFragment predicate):TakeWhile_predicate(id,source,predicate) {
     public static new bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length>0&&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };

@@ -18,7 +18,7 @@ Single は source.Single() を、0件/2件以上を検出する Compute に変�
   - Range/Repeat は count 式だけで inline 判定できる。
   - predicate 付きは一致数を found flag で追跡し、2件目で例外にする。
 */
-public class Single(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+internal class Single(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length==0;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
@@ -64,7 +64,7 @@ public class Single(int 番号,Enumerable source,string resultType):BufferedScal
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-public class Single_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
+internal class Single_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>
         method.Parameters.Length>0&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate;
     protected override Enumerable PrimarySource => source;

@@ -1,6 +1,6 @@
 namespace Seamless.FLinq.Linq.Fragments;
 
-public sealed class PersistedSetRoot(
+internal sealed class PersistedSetRoot(
     int 番号,
     string sourceExpression,
     string elementType,

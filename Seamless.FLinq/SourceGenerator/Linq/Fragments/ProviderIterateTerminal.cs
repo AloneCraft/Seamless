@@ -5,7 +5,7 @@ namespace Seamless.FLinq.Linq.Fragments;
 // AI_SYNTAX_RULES の File Layout Rules（実質 1 系列専用の基底は本体ファイルへ集約する）に従い
 // Bases/ProviderIterateTerminalBase.cs から移してきた。
 
-public enum ProviderIterateTerminalKind {
+internal enum ProviderIterateTerminalKind {
     ToList,
     ToArray,
     Count,
@@ -18,7 +18,7 @@ public enum ProviderIterateTerminalKind {
     Contains,
 }
 
-public abstract class ProviderNativeExecutionBase(
+internal abstract class ProviderNativeExecutionBase(
     int                         number,
     PipelineEnumerable          pipeline,
     ProviderIterateTerminalKind terminalKind,
@@ -377,7 +377,7 @@ public abstract class ProviderNativeExecutionBase(
 }
 
 
-public sealed class ProviderIterateTerminal:ProviderNativeExecutionBase {
+internal sealed class ProviderIterateTerminal:ProviderNativeExecutionBase {
     private ProviderIterateTerminal(
         int number,
         PipelineEnumerable pipeline,

@@ -18,7 +18,7 @@ MinMaxSelectorBase は source.Min(selector) / Max(selector) を selector 結果�
   - source が TryGetSpan 可能なら span loop を試す。
   - direction により comparer.Compare(value, result) > 0 / < 0 を切り替える。
 */
-public abstract class MinMaxSelectorBase(int 番号,Enumerable source,FuncFragment selector,string resultType,string direction):BufferedScalar(番号,resultType) {
+internal abstract class MinMaxSelectorBase(int 番号,Enumerable source,FuncFragment selector,string resultType,string direction):BufferedScalar(番号,resultType) {
     private string SelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(selector)}>";
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(selector,nameof(selector));

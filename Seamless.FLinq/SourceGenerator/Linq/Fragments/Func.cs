@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using System.Text.RegularExpressions;
 namespace Seamless.FLinq.Linq.Fragments;
 
-public readonly record struct HoistedLocal(string Name,string TypeName,string ExpressionText);
+internal readonly record struct HoistedLocal(string Name,string TypeName,string ExpressionText);
 
 /*
 FuncFragment は predicate/selector/accumulator などの lambda を Fragment 内でどう呼ぶかを表す。
@@ -25,7 +25,7 @@ FuncFragment は predicate/selector/accumulator などの lambda を Fragment �
   - CanInvokeAsDelegate: 匿名型や delegate 保持が必要な場合、Enumerator のフィールドから Invoke する。
   - HoistedLocals: struct 内メンバーとして保持した一時値を this. 接頭辞付きに書き換える。
 */
-public abstract class FuncFragment {
+internal abstract class FuncFragment {
     private string? hoistedLocalReceiver;
 
     // delegate 戻り値型名。

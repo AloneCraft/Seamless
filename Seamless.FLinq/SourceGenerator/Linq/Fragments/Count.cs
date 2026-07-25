@@ -18,7 +18,7 @@ Count は Count/LongCount を件数取得 fast path 優先の Compute へ変換�
   - source が span を確実に返せる場合は span.Length を返す。
   - LongCount では TryGetNonEnumeratedCount が int なので long へ拡張する。
 */
-public class Count(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+internal class Count(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -78,7 +78,7 @@ Count_predicate は predicate が true の件数だけを checked で数える C
   - Range + 単純 predicate は RangePredicateOptimizer が式や短い loop へ inline できる。
   - predicate が直接 lambda として再表示できる場合は DirectEnumerableExpression 経由で System.Linq へ委譲できる。
 */
-public class Count_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
+internal class Count_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
     private string PredicateFuncType => $"global::System.Func<{source.ElementType}, bool>";
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));

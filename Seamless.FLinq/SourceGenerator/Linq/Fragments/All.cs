@@ -16,7 +16,7 @@ All_predicate は source.All(predicate) を、最初に false になった要素
   - source が TryGetSpan 可能なら span loop を試し、だめなら MoveNext loop に戻る。
   - Range + 単純 predicate は RangePredicateOptimizer でより短い inline にできる。
 */
-public class All_predicate(int 番号,Enumerable source,FuncFragment predicate):BufferedScalar(番号,"bool") {
+internal class All_predicate(int 番号,Enumerable source,FuncFragment predicate):BufferedScalar(番号,"bool") {
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
     protected override string StructSources => source.GetEnumeratorStruct;
