@@ -17,7 +17,9 @@ Sum は source.Sum() / Sum(selector) を checked 加算の Compute に変換す�
 バリエーション:
   - source が TryGetSpan 可能なら span loop を優先する。
   - selector 付きは各 item を FuncAssign で一時値へ写してから加算する。
-  - DirectEnumerableExpression + lambda 再表示可能なら System.Linq.Sum へ委譲できる。
+  - DirectEnumerableExpression + lambda 再表示可能なら RenderDirectEnumerableCallInline 経由で
+    BufferedScalar の Compute インライン展開に乗る(唯一の override である BufferedScalar.cs は
+    methodName を無視して FLinq 自身の Compute を埋め込むため、System.Linq への委譲ではない)。
 */
 internal class Sum(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
     protected override Enumerable PrimarySource => source;

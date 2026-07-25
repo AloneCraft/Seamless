@@ -14,7 +14,9 @@ First は source.First() を、最初の1要素だけ読む Compute に変換す
 バリエーション:
   - RangeRoot は start 式だけで inline できる。
   - predicate 付きは predicate(item) が true の最初の item を返す。
-  - predicate が直接 lambda 化できる場合は DirectEnumerableExpression 経由で System.Linq.First へ委譲できる。
+  - predicate が直接 lambda 化できる場合は DirectEnumerableExpression 経由で
+    BufferedScalar の Compute インライン展開に乗る(System.Linq への委譲ではない。
+    唯一の RenderDirectEnumerableCallInline override である BufferedScalar.cs 参照)。
 */
 internal class First(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
     public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length==0;

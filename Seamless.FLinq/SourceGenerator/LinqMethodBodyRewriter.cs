@@ -1221,7 +1221,6 @@ public sealed partial class FLinqIncrementalGenerator {
             expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap);
         // RenderStatementForGeneratedMethod と同じ後処理：this. → @this. への変換
         rendered=rendered
-            .Replace("SystemEnumerable.","global::System.Linq.Enumerable.",StringComparison.Ordinal)
             .Replace("this.","@this.",StringComparison.Ordinal);
         builder.AppendLine(methodReturnsVoid ? $"{rendered};" : $"return {rendered};");
         return true;

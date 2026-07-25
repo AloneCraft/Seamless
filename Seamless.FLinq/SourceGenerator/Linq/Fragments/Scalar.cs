@@ -14,7 +14,11 @@ Scalar は Count/First/ToArray など「シーケンスから単一結果を返�
 
 主な分岐:
   - RenderInlineComputation が非 null なら単一要素 enumerator を生成せず、呼び出し元へ直接文を出す。
-  - DirectEnumerableExpression がある source は System.Linq.Enumerable への軽い委譲や配列/List 専用 fast path を選べる。
+  - DirectEnumerableExpression がある source は RenderDirectEnumerableCallInline 経由で
+    Compute インライン展開や配列/List 専用 fast path を選べる(唯一の override である
+    BufferedScalar.cs は methodName を無視して FLinq 自身の Compute を埋め込むため、
+    System.Linq への委譲ではない。Scalar.cs:44 の RenderDirectEnumerableToArrayHybridInline は
+    Seamless.Linq.GeneratedCodeHelpers への委譲であり、これも System.Linq ではない)。
   - それ以外は BufferedScalar などが Compute(...) を持つ struct を生成する。
 
 設計意図:

@@ -45,7 +45,6 @@ public sealed partial class FLinqIncrementalGenerator {
     }
     /// <summary>
     /// 文のテキストを <paramref name="replacementMap"/>（LINQ 式テキスト → 一時変数名）で置換し、
-    /// <c>SystemEnumerable.</c> を <c>global::System.Linq.Enumerable.</c> に、
     /// <c>this.</c> を <c>@this.</c> に変換して返す。
     /// キーは長い順に置換することで部分一致による誤置換を防ぐ。
     /// </summary>
@@ -60,7 +59,6 @@ public sealed partial class FLinqIncrementalGenerator {
             }
         }
         return text
-            .Replace("SystemEnumerable.","global::System.Linq.Enumerable.",StringComparison.Ordinal)
             .Replace("this.","@this.",StringComparison.Ordinal);
     }
     private static string RenderStatementForGeneratedMethod(
@@ -98,7 +96,6 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         return text
-            .Replace("SystemEnumerable.","global::System.Linq.Enumerable.",StringComparison.Ordinal)
             .Replace("this.","@this.",StringComparison.Ordinal);
     }
 
@@ -304,13 +301,11 @@ public sealed partial class FLinqIncrementalGenerator {
     }
 
     /// <summary>
-    /// <see cref="NormalizeExpressionText"/> に加え、
-    /// <c>SystemEnumerable.</c> → <c>global::System.Linq.Enumerable.</c> および <c>this.</c> → <c>@this.</c> の変換も行う。
+    /// <see cref="NormalizeExpressionText"/> に加え、<c>this.</c> → <c>@this.</c> の変換も行う。
     /// 生成コードへ埋め込む式テキストの標準化に使う。
     /// </summary>
     private static string NormalizeGeneratedExpressionText(string value) =>
         NormalizeExpressionText(value)
-            .Replace("SystemEnumerable.","global::System.Linq.Enumerable.",StringComparison.Ordinal)
             .Replace("this.","@this.",StringComparison.Ordinal);
 
     private static string RenderArgumentForGeneratedMethod(
