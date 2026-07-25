@@ -12,7 +12,7 @@ ProviderNativeLookupTerminal は provider が O(1) の membership lookup を持�
 設計意図:
   従来は ProviderIterateTerminal が state struct + Invoke + Iterate 呼び出し（25〜30 行）を吐き、
   全要素を走査していた。Phase2-2 で Persisted の Set<T>.Contains は .hindex により O(1) になり、
-  ランタイム側（Internal/ProviderEnumerators.cs の TryContains）は既にそれを使っている。
+  ランタイム側（Seamless.Linq/Linq/Contains.cs の provider 特殊化オーバーロード）は既にそれを使っている。
   ここは生成側をランタイムの意味論に合わせるだけで、新しい等価性は導入しない。
 
 適用条件（満たさなければ従来の native scan へ落ちる。fallback で隠さない方針は維持）:

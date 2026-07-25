@@ -93,7 +93,7 @@ class A:IDisposable{
 
 ## File Layout Rules
 
-- `src/FLinq/SourceGenerator/Linq/Fragments` 配下の配置は、役割で分けてください。
+- `Seamless.FLinq/SourceGenerator/Linq/Fragments` 配下の配置は、役割で分けてください。
 - `Bases` には、`abstract` または `virtual` を持つ共通基底クラスだけを置いてください。
 - `Helpers` には、複数クラスから使う純粋な共通ヘルパーだけを置いてください。
 - 1 つのクラスからしか使われない共通処理は、可能ならそのクラスのファイル内に file-scoped でまとめてください。

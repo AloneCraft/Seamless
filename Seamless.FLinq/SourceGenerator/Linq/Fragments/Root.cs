@@ -25,6 +25,91 @@ Root 系 Fragment は LINQ チェーンの最初の source を struct enumerator
   - ArrayRoot/ListRoot: index 直走査 + TryGetSpan/TryCopyTo を常に提供する。
   - RangeRoot/RepeatRoot/SequenceRoot: 元の collection を持たず、値を計算で生成する。
 */
+// 以下 3 つは Root 系専用の基底。派生はこのファイル内の Root / ArrayRoot / ListRoot /
+// PersistedListRoot だけなので、Bases ではなく本体ファイルへ置く（AI_SYNTAX_RULES の
+// File Layout Rules: 実質 1 系列専用の基底は対応する本体ファイルへ集約する）。
+// 複数ファイルから派生される ProviderNativeRootBase だけが Bases に残っている。
+public abstract class SourceRootBase(int number,string sourceExpression):Enumerable(number) {
+    public string SourceExpression { get; } = sourceExpression;
+    public abstract SourceCapability Capabilities { get; }
+    public bool HasCapability(SourceCapability capability) => (this.Capabilities&capability)==capability;
+}
+
+public abstract class EnumeratorRootBase(
+    int number,
+    string sourceExpression):SourceRootBase(number,sourceExpression);
+
+public abstract class DirectSpanRootBase(
+    int number,
+    string sourceExpression,
+    string elementType):SourceRootBase(number,sourceExpression) {
+    protected abstract string SourceTypeName { get; }
+    protected abstract string CountExpression(string sourceName);
+    protected abstract string RemainingCountExpression(string sourceName,string indexName);
+    protected abstract string SpanExpression(string sourceName,string startExpression);
+    protected virtual string IndexTypeName => "int";
+    protected virtual string ElementExpression(string sourceName,string indexName) => $"{sourceName}[{indexName}]";
+
+    public override SourceCapability Capabilities =>
+        SourceCapability.KnownCount|SourceCapability.DirectSpan|SourceCapability.Indexable|SourceCapability.ChunkStreaming;
+    public override bool CanProvideSpan => true;
+    public override string? GetDirectSpanExpression(string enumeratorName) => $"{enumeratorName}.GetSpan()";
+    public override string? NonEnumeratedCountExpression => this.CountExpression(this.SourceExpression);
+    public override bool CountPreserving => true;
+    public override string StructMethod => string.Empty;
+    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({this.SourceExpression})";
+    public override string GetEnumeratorPrimaryConstructorParameters => $"{this.SourceTypeName} source";
+    public override string GetEnumeratorFields => $"private {this.IndexTypeName} {this.e}=-1;";
+    public override string GetTryGetNextBody => $$"""
+        if(++{{this.e}}<{{this.CountExpression("source")}}){
+            current={{this.ElementExpression("source",this.e)}};
+            return true;
+        }
+        current=default!;
+        return false;
+        """;
+    public override string ElementType => elementType;
+    public override string GetEnumeratorStruct => $$"""
+        private struct {{this.Struct}}{{this.StructTypeParameters}}:global::Seamless.Linq.IValueEnumerator<{{elementType}}>{
+            private {{this.SourceTypeName}} source;
+            private {{this.IndexTypeName}} {{this.e}}=-1;
+            public {{this.Struct}}({{this.SourceTypeName}} source){this.source=source;}
+            public {{elementType}} Current{get;private set;}=default!;
+            {{AggressiveInliningAttribute}}
+            public bool TryGetNonEnumeratedCount(out int count){
+                count={{this.RemainingCountExpression("source",this.e)}};
+                return true;
+            }
+            {{AggressiveInliningAttribute}}
+            public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span){
+                span=this.GetSpan();
+                return true;
+            }
+            {{AggressiveInliningAttribute}}
+            public global::System.ReadOnlySpan<{{elementType}}> GetSpan()
+                =>{{this.SpanExpression("source",$"{this.e}+1")}};
+            {{AggressiveInliningAttribute}}
+            public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination,global::System.Index offset){
+                var remaining=this.GetSpan();
+                var start=offset.GetOffset(remaining.Length);
+                remaining.Slice(start).CopyTo(destination);
+                return true;
+            }
+            {{AggressiveInliningAttribute}}
+            public bool TryGetNext(out {{elementType}} current){
+                if(++{{this.e}}<{{this.CountExpression("source")}}){
+                    current=this.Current={{this.ElementExpression("source",this.e)}};
+                    return true;
+                }
+                current=default!;
+                return false;
+            }
+            {{AggressiveInliningAttribute}}
+            public void Dispose(){}
+        }
+        """;
+}
+
 // Root は他の Fragment へ分解されない列挙ソースそのものを表す。
 // enumeratorTypeName には具象 GetEnumerator() 戻り値型名を渡す。
 // IEnumerable<T>/配列の場合は IEnumerator<T>、List<T> 等の具象型の場合は List<T>.Enumerator 等の値型エニュメレータ名になる。
