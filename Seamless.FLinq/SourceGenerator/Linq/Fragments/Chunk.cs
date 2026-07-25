@@ -72,7 +72,6 @@ public class Chunk(int 番号,Enumerable source,string size):Enumerable(番号) 
             current=default!;
             return false;
             """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => $"{source.ElementType}[]";
     public override string GetConsumeExecutionStatement(string consumerName) =>
         this.RenderRangeChunkConsume(consumerName)

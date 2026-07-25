@@ -58,7 +58,6 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
         current=default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => source.ElementType;
     protected override string GetEnumeratorDisposeBody => $"{this.lookup}.Dispose();\n{this.e}.Dispose();";
     public override string GetConsumeExecutionStatement(string consumerName) {
@@ -182,7 +181,6 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
         current=default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => source.ElementType;
     protected override string GetEnumeratorDisposeBody => $"{this.lookup}.Dispose();\n{this.e}.Dispose();";
     public override string GetConsumeExecutionStatement(string consumerName) {

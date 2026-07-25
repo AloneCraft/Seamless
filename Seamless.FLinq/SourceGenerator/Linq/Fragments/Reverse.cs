@@ -91,7 +91,6 @@ public class Reverse(int 番号,Enumerable source):Enumerable(番号) {
             current=default!;
             return false;
             """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => this.RootSource.ElementType;
     public override string GetConsumeExecutionStatement(string consumerName) {
         if(this.IsIdentity) {

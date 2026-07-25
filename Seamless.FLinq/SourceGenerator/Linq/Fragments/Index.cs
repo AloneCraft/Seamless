@@ -20,7 +20,6 @@ public class Index(int 番号,Enumerable source):Enumerable(番号) {
         current=default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => $"(int Index, {source.ElementType} Item)";
     public override string GetConsumeExecutionStatement(string consumerName) {
         var sourceName = $"__indexSource{番号}";

@@ -45,7 +45,6 @@ public abstract class OrderingBase(int 番号,Enumerable source,FuncFragment key
 
     protected override Enumerable PrimarySource => this.UnorderedSource;
     public override string ElementType => this.UnorderedSource.ElementType;
-    public override string GetCurrentExpression => this.currentValue;
 
     public override string StructMethod =>
         this.PrimaryOrdering is { } po

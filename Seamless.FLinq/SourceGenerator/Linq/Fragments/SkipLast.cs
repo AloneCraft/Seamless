@@ -86,7 +86,6 @@ public class SkipLast(int 番号,Enumerable source,string skipCount):Enumerable(
             current=default!;
             return false;
             """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => this.RootSource.ElementType;
     public override string GetConsumeExecutionStatement(string consumerName) {
         var sourceName = $"__skipLastSource{番号}";

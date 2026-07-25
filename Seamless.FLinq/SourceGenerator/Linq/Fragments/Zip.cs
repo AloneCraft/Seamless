@@ -39,7 +39,6 @@ public class Zip(int 番号,Enumerable source,Enumerable second):Enumerable(番�
         current=default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => $"({source.ElementType} First, {second.ElementType} Second)";
     protected override string GetEnumeratorDisposeBody => "source.Dispose();\nsecond.Dispose();";
 }
@@ -66,7 +65,6 @@ public class Zip3(int 番号,Enumerable source,Enumerable second,Enumerable thir
         current=default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => $"({source.ElementType} First, {second.ElementType} Second, {third.ElementType} Third)";
     protected override string GetEnumeratorDisposeBody => "source.Dispose();\nsecond.Dispose();\nthird.Dispose();";
 }
@@ -108,7 +106,6 @@ public class Zip_resultSelector(int 番号,Enumerable source,Enumerable second,F
         current=default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => FuncReturnTypeName(resultSelector);
     protected override string GetEnumeratorDisposeBody => "source.Dispose();\nsecond.Dispose();";
 }

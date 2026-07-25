@@ -80,7 +80,6 @@ public class TakeLast(int 番号,Enumerable source,string takeCount):Enumerable(
             current=default!;
             return false;
             """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => this.RootSource.ElementType;
     public override string GetConsumeExecutionStatement(string consumerName) {
         var sourceName = $"__takeLastSource{番号}";

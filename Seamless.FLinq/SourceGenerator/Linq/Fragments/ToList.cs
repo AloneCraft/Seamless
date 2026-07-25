@@ -20,7 +20,6 @@ internal sealed class AnonymousExitToList(int 番号,Enumerable source):Scalar(�
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorStruct => source.GetEnumeratorStruct;
     public override string GetTryGetNextBody => string.Empty;
-    public override string GetCurrentExpression => string.Empty;
     public string GetDirectExecutionStatement(string actualVariableName,string actualTypeName) =>
         $"var {actualVariableName}=global::Seamless.Linq.Enumerable.ToList({source.GetEnumerableExpression});";
 }

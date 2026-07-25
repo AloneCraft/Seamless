@@ -89,7 +89,6 @@ public abstract class SetBase(int 番号,Enumerable source,Enumerable second,str
             current=default!;
             return false;
             """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => source.ElementType;
     protected override string GetEnumeratorDisposeBody => $"{this.lookup}.Dispose();\nsource.Dispose();\nsecond.Dispose();";
     public override string GetConsumeExecutionStatement(string consumerName) {
@@ -474,7 +473,6 @@ public abstract class SetByBase(int 番号,Enumerable source,Enumerable second,F
             current=default!;
             return false;
             """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => source.ElementType;
     protected override string GetEnumeratorDisposeBody => $"{this.lookup}.Dispose();\nsource.Dispose();\nsecond.Dispose();";
     public override string GetConsumeExecutionStatement(string consumerName) {

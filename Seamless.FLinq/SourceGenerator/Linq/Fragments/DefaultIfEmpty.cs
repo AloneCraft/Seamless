@@ -131,7 +131,6 @@ public abstract class DefaultIfEmptyBase(int 番号,Enumerable source):Enumerabl
             }
             """;
     }
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => this.RootSource.ElementType;
 }
 

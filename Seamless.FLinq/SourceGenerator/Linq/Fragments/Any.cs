@@ -115,7 +115,6 @@ public class Any(int 番号,Enumerable source):Scalar(番号) {
         current = this.{{this.currentValue}};
         return true;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 

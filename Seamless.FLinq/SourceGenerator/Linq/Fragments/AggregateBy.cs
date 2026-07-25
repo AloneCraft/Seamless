@@ -81,7 +81,6 @@ public class AggregateBy(int 番号,Enumerable source,FuncFragment keySelector,s
         current=default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => resultElementType;
     protected override string GetEnumeratorDisposeBody => $"this.{this.lookup}?.Dispose(); {this.e}.Dispose();";
 

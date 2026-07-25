@@ -50,7 +50,6 @@ public abstract class DirectSpanRootBase(
         current=default!;
         return false;
         """;
-    public override string GetCurrentExpression => "Current";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
         private struct {{this.Struct}}{{this.StructTypeParameters}}:global::Seamless.Linq.IValueEnumerator<{{elementType}}>{

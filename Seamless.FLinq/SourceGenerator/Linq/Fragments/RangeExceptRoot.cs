@@ -43,7 +43,6 @@ public sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<Ra
             return builder.ToString().TrimEnd();
         }
     }
-    public override string GetCurrentExpression => "Current";
     public override string GetEnumeratorStruct => $$"""
         private struct {{this.Struct}} : global::Seamless.Linq.IValueEnumerator<int>
         {

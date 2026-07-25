@@ -26,6 +26,5 @@ public class AsEnumerable(int 番号,Enumerable source):Enumerable(番号) {
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => source.ElementType;
 }

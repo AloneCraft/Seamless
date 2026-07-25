@@ -2665,7 +2665,6 @@ public sealed class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyLis
                 """;
         }
     }
-    public override string GetCurrentExpression => this.currentValue;
     protected override string GetEnumeratorDisposeBody {
         get {
             var builder = new StringBuilder();
@@ -4372,7 +4371,6 @@ public sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pipe
         current = this.Current;
         return true;
         """;
-    public override string GetCurrentExpression => "Current";
     protected override string GetCurrentPropertyDeclaration(string currentType) => string.Empty;
     private string ComputeBody {
         get {

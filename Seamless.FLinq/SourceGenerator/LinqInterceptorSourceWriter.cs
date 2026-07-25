@@ -66,10 +66,67 @@ public sealed partial class FLinqIncrementalGenerator {
                 builder.AppendLine();
                 builder.Append(holder);
             }
-            return builder.ToString();
+            return 属性行を畳む(builder.ToString());
         } finally {
             _anonRegistry=previousRegistry;
         }
+    }
+
+    private const string MethodImpl属性接頭辞 = "[global::System.Runtime.CompilerServices.MethodImpl(";
+
+    /// <summary>
+    /// 単独行になっている MethodImpl 属性を、直後のメンバー宣言と同じ行へ畳む。
+    /// <br/>C# は属性をメンバー宣言と同一行に置けるため、シンボル・IL・列挙ロジックは変わらず
+    /// 行数だけが減る（生成コード全体の約 8%）。属性を出すテンプレートは 130 箇所以上あるので、
+    /// 個別に直さず出力の一本道であるここ 1 箇所で正規化する。
+    /// <br/>畳んだ行のインデントは「メンバー宣言側」に合わせる。次行が空行・別の属性・コメント・
+    /// ファイル末尾のときは畳まない。
+    /// </summary>
+    private static string 属性行を畳む(string ソース) {
+        if(ソース.IndexOf(MethodImpl属性接頭辞,StringComparison.Ordinal)<0) {
+            return ソース;
+        }
+
+        // 改行は "\r\n" と "\n" が混在しうる（AppendLine と raw string リテラル）。
+        // '\n' で分割すると各要素の末尾に '\r' が残るが、そのまま連結すれば元の改行が復元される。
+        var 行一覧 = ソース.Split('\n');
+        var ビルダー = new StringBuilder(ソース.Length);
+        for(var 行番号 = 0;行番号<行一覧.Length;行番号++) {
+            var 行 = 行一覧[行番号];
+            if(属性単独行か(行)&&行番号+1<行一覧.Length&&メンバー宣言行か(行一覧[行番号+1])) {
+                var 次行 = 行一覧[行番号+1];
+                ビルダー.Append(先頭空白を取得(次行)).Append(行.Trim()).Append(' ').Append(次行.TrimStart());
+                行番号++;
+            } else {
+                ビルダー.Append(行);
+            }
+            if(行番号<行一覧.Length-1) {
+                ビルダー.Append('\n');
+            }
+        }
+        return ビルダー.ToString();
+    }
+
+    private static bool 属性単独行か(string 行) {
+        var 内容 = 行.Trim();
+        return 内容.StartsWith(MethodImpl属性接頭辞,StringComparison.Ordinal)&&内容.EndsWith(")]",StringComparison.Ordinal);
+    }
+
+    private static bool メンバー宣言行か(string 行) {
+        var 内容 = 行.Trim();
+        if(内容.Length==0) {
+            return false;
+        }
+        // 別の属性やコメントへは畳まない。属性が連続する場合は元の並びを保つ。
+        return 内容[0]!='['&&!内容.StartsWith("//",StringComparison.Ordinal);
+    }
+
+    private static string 先頭空白を取得(string 行) {
+        var 位置 = 0;
+        while(位置<行.Length&&(行[位置]==' '||行[位置]=='\t')) {
+            位置++;
+        }
+        return 行[..位置];
     }
     /// <summary>
     /// 1 つの型に属するインターセプト対象群をまとめて <c>internal static class</c> ブロックへ出力する。

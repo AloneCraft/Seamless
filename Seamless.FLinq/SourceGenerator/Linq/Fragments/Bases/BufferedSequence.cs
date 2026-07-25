@@ -45,6 +45,5 @@ public abstract class BufferedSequence(int 番号,string elementType):Enumerable
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => elementType;
 }

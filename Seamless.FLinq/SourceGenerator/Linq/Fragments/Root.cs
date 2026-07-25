@@ -148,7 +148,6 @@ public class Root(int 番号,string sourceExpression,string elementType,string e
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => elementType;
 }
 
@@ -226,7 +225,6 @@ public class DuckTypingRoot(int 番号,string sourceExpression,string elementTyp
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
         private struct {{this.Struct}} : global::Seamless.Linq.IValueEnumerator<{{elementType}}>
@@ -284,7 +282,6 @@ public sealed class RangeRoot(int 番号,string startExpression,string countExpr
         current = default;
         return false;
         """;
-    public override string GetCurrentExpression => "Current";
     public override string ElementType => "int";
     public override string GetEnumeratorStruct => $$"""
         private struct {{this.Struct}} : global::Seamless.Linq.IValueEnumerator<int>
@@ -341,7 +338,6 @@ public sealed class DescendingRangeRoot(int 番号,string startExpression,string
         current = default;
         return false;
         """;
-    public override string GetCurrentExpression => "Current";
     public override string ElementType => "int";
     public override string GetEnumeratorStruct => $$"""
         private struct {{this.Struct}} : global::Seamless.Linq.IValueEnumerator<int>
@@ -404,7 +400,6 @@ public sealed class EmptyRoot(int 番号,string elementType):Enumerable(番号) 
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => "default!";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
         private struct {{this.Struct}}{{this.StructTypeParameters}} : global::Seamless.Linq.IValueEnumerator<{{elementType}}>
@@ -464,7 +459,6 @@ public sealed class RepeatRoot(int 番号,string valueExpression,string countExp
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => "Current";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
         private struct {{this.Struct}}{{this.StructTypeParameters}} : global::Seamless.Linq.IValueEnumerator<{{elementType}}>
@@ -532,7 +526,6 @@ public sealed class InfiniteSequenceRoot(int 番号,string startExpression,strin
         current = this.Current = start;
         return true;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => elementType;
     protected override string GetEnumeratorDisposeBody => string.Empty;
 }
@@ -651,7 +644,6 @@ public sealed class SequenceRoot(int 番号,string startExpression,string endInc
         current = this.Current = next;
         return true;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => elementType;
     protected override string GetEnumeratorDisposeBody => string.Empty;
 }
@@ -671,7 +663,6 @@ public class NonGenericRoot(int 番号,string sourceExpression):Enumerable(番�
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     protected override string GetEnumeratorDisposeBody => $$"""
         if({{this.e}} is global::System.IDisposable disposable) {
             disposable.Dispose();

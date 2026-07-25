@@ -41,7 +41,6 @@ public class OfType(int 番号,Enumerable source,string resultElementType):Enume
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => resultElementType;
     public override string GetConsumeExecutionStatement(string consumerName) {
         if(this.IsIdentityType) {

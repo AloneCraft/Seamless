@@ -280,8 +280,6 @@ public abstract class Fragment(
     public abstract string GetEnumeratorStruct { get; }
     // TryGetNext の本体コード片。
     public abstract string GetTryGetNextBody { get; }
-    // Current プロパティが返す式。
-    public abstract string GetCurrentExpression { get; }
     // 生成した enumerator struct の型名。PrimarySource が設定されると自動でジェネリック型名を返す。
     // 含有型がジェネリック（OuterTypeParameters 有り）なら、その型引数を先頭に付ける（例: Struct1<T> / Struct2<T, TEnum>）。
     public virtual string EnumeratorTypeName {

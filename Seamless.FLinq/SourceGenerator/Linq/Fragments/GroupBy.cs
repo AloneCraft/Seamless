@@ -121,7 +121,6 @@ internal class GroupBy_keySelector(int 番号,Enumerable source,FuncFragment key
         current=this.Current=__cur;
         return true;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => $"global::System.Linq.IGrouping<{this.KeyType}, {source.ElementType}>";
 }
 
@@ -169,7 +168,6 @@ internal class GroupBy_keySelector_resultSelector(
         {{this.FuncAssignCurrentIndented("",resultSelector,nameof(resultSelector),this.currentValue,"__cur.Key",$"(global::System.Collections.Generic.IEnumerable<{source.ElementType}>)__cur")}}
         return true;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string GetEnumerableExpression =>
         this.UseResultTypeParam
             ? $"{this.FactoryMethodName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector,resultSelector)})"
@@ -205,7 +203,6 @@ internal class GroupBy_keySelector_elementSelector(
         current=this.Current=__cur;
         return true;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => $"global::System.Linq.IGrouping<{this.KeyType}, {this.ElemType}>";
 }
 
@@ -255,7 +252,6 @@ internal class GroupBy_keySelector_elementSelector_resultSelector(
         {{this.FuncAssignCurrentIndented("",resultSelector,nameof(resultSelector),this.currentValue,"__cur.Key",$"(global::System.Collections.Generic.IEnumerable<{this.ElemType}>)__cur")}}
         return true;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string GetEnumerableExpression =>
         this.UseResultTypeParam
             ? $"{this.FactoryMethodName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector,elementSelector,resultSelector)})"

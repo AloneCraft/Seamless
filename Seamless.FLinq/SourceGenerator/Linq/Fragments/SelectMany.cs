@@ -122,7 +122,6 @@ public abstract class SelectManyBase(int 番号,Enumerable source):Enumerable(�
         this.innerEnumerator = {{this.CreateInnerEnumeratorExpression}};
         goto {{this.Start}};
         """;
-    public override string GetCurrentExpression => this.currentValue;
     protected override string GetEnumeratorDisposeBody => $$"""
         if(this.innerEnumerator is not null) {
             this.innerEnumerator.Dispose();

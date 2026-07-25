@@ -60,7 +60,6 @@ public class TakeWhile_predicate(int 番号,Enumerable source,FuncFragment predi
                 """;
         }
     }
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => source.ElementType;
 }
 

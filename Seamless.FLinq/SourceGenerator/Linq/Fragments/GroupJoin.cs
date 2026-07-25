@@ -63,7 +63,6 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         current=default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     protected override string GetEnumeratorDisposeBody => $"{this.lookup}.Dispose(); {this.e}.Dispose();";
 
     private bool CanBypassLookupForConsume() =>

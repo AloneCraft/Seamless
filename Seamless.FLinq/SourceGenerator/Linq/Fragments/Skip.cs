@@ -57,7 +57,6 @@ public class Skip(int 番号,Enumerable source,string skipCount):Enumerable(番�
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => this.Source.ElementType;
     public override string GetConsumeExecutionStatement(string consumerName) {
         var sourceName = $"__skipSource{番号}";

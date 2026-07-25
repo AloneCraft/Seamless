@@ -73,6 +73,5 @@ public class Append(int 番号,Enumerable source,string element):Enumerable(番�
             return builder.ToString();
         }
     }
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => source.ElementType;
 }

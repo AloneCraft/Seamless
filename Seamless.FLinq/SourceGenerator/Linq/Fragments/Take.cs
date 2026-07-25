@@ -54,7 +54,6 @@ public class Take(int 番号,Enumerable source,string takeCount):Enumerable(番�
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => this.Source.ElementType;
     public override string GetConsumeExecutionStatement(string consumerName) {
         var sourceName = $"__takeSource{番号}";

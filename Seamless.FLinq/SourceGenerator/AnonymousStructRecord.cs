@@ -227,7 +227,22 @@ public sealed partial class FLinqIncrementalGenerator {
     // SourcePath からファイル単位で一意な識別子トークンを作る。
     private static string AnonRecordFileToken(string sourcePath) {
         var name = System.IO.Path.GetFileNameWithoutExtension(sourcePath??string.Empty);
-        var hash = unchecked((uint)StringComparer.Ordinal.GetHashCode(sourcePath??string.Empty));
+        var hash = 安定ハッシュ(sourcePath??string.Empty);
         return $"{SanitizeIdentifier(name)}_{hash:x8}";
+    }
+
+    // 生成コードへ埋め込む識別子なので、プロセス間で安定したハッシュでなければならない。
+    // string.GetHashCode / StringComparer.Ordinal.GetHashCode は .NET のランダム化文字列ハッシュを
+    // 使うためプロセスごとに値が変わり、同じ入力から毎回違う型名が生成されてしまう
+    // （決定的ビルドが壊れ、生成物の差分比較もできなくなる）。FNV-1a で固定する。
+    private static uint 安定ハッシュ(string 値) {
+        unchecked {
+            var ハッシュ = 2166136261u;
+            foreach(var 文字 in 値) {
+                ハッシュ^=文字;
+                ハッシュ*=16777619u;
+            }
+            return ハッシュ;
+        }
     }
 }

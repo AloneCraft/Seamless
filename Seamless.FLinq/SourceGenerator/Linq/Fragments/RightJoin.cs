@@ -87,6 +87,5 @@ internal class RightJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         {{this.FuncAssignCurrentIndented("",this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",$"default({this.outerSource.ElementType})",this.outerValue)}}
         return true;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     protected override string GetEnumeratorDisposeBody => $"{this.lookup}.Dispose(); {this.innerEnumerator}.Dispose();";
 }

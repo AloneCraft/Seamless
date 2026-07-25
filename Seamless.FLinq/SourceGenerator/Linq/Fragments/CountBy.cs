@@ -76,7 +76,6 @@ public class CountBy(int 番号,Enumerable source,FuncFragment keySelector):Enum
             {{this.e}}.Dispose();
             """
         : base.GetEnumeratorDisposeBody;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => $"global::System.Collections.Generic.KeyValuePair<{FuncReturnTypeName(keySelector)}, global::System.Int32>";
     private string PooledIntMapFields => $$"""
         private int[]? __hashKeys;

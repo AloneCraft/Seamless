@@ -61,7 +61,6 @@ public class Where_predicate(int 番号,Enumerable source,FuncFragment predicate
                 """;
         }
     }
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => source.ElementType;
 }
 
@@ -110,7 +109,6 @@ public class Where_WithInlinedScalarPredicate(int 番号,Enumerable source,Fragm
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
 

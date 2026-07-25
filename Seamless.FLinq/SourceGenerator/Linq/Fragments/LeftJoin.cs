@@ -71,6 +71,5 @@ internal class LeftJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragmen
         {{this.FuncAssignCurrentIndented("",this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,$"default({this.innerSource.ElementType})")}}
         return true;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     protected override string GetEnumeratorDisposeBody => $"{this.lookup}.Dispose(); {this.e}.Dispose();";
 }

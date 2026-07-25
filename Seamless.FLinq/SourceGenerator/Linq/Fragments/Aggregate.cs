@@ -62,7 +62,6 @@ public class Aggregate_func(int 番号,Enumerable source,FuncFragment func):Scal
             current=this.{{this.currentValue}};
             return true;
             """;
-    public override string GetCurrentExpression => this.currentValue;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
@@ -129,7 +128,6 @@ public class Aggregate_seed_func(int 番号,Enumerable source,string seed,FuncFr
             current=this.{{this.currentValue}};
             return true;
             """;
-    public override string GetCurrentExpression => this.currentValue;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
@@ -201,7 +199,6 @@ public class Aggregate_seed_func_resultSelector(int 番号,Enumerable source,str
             current=this.{{this.currentValue}};
             return true;
             """;
-    public override string GetCurrentExpression => this.currentValue;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 

@@ -133,6 +133,5 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             }
             """;
     }
-    public override string GetCurrentExpression => this.currentValue;
     protected override string GetEnumeratorDisposeBody => $"{this.lookup}.Dispose(); {this.e}.Dispose();";
 }

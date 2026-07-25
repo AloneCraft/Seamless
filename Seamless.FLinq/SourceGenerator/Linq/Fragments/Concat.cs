@@ -50,7 +50,6 @@ public class Concat(int 番号,Enumerable source,Enumerable second):Enumerable(�
         current=default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => source.ElementType;
     protected override string GetEnumeratorDisposeBody => "source.Dispose();\nsecond.Dispose();";
     public override string GetConsumeExecutionStatement(string consumerName) {

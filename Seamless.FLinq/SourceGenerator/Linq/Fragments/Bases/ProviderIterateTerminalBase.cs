@@ -88,7 +88,6 @@ public abstract class ProviderNativeExecutionBase(
 
     public override string GetEnumeratorStruct => string.Empty;
     public override string GetTryGetNextBody => string.Empty;
-    public override string GetCurrentExpression => string.Empty;
 
     public string GetDirectExecutionStatement(string actualVariableName,string actualTypeName) {
         var sourceName = $"{sourceVariablePrefix}{this.number}";

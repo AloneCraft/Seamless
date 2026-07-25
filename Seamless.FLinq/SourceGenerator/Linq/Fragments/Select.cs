@@ -100,7 +100,6 @@ public class Select_selector(int 番号,Enumerable source,FuncFragment selector)
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
 }
 
 /*
@@ -149,7 +148,6 @@ public class Select_WithInlinedScalar(int 番号,Enumerable source,Fragment scal
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
 
@@ -264,5 +262,4 @@ public class Select_indexSelector(int 番号,Enumerable source,FuncFragment sele
         current = default!;
         return false;
         """;
-    public override string GetCurrentExpression => this.currentValue;
 }

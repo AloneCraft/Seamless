@@ -35,7 +35,6 @@ public abstract class BufferedScalar(int 番号,string resultType):Scalar(番号
         return this.RenderComputeInline(destVar,destType);
     }
     protected override string GetCurrentPropertyDeclaration(string currentType) => string.Empty;
-    public override string GetCurrentExpression => "Current";
     public override string GetEnumeratorStruct => $$"""
         {{this.StructSources}}
         {{this.DefineScalarEnumeratorStruct(resultType)}}
