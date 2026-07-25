@@ -5,10 +5,11 @@ public struct PersistedSetEnumerator<T>(global::Seamless.Persisted.Collections.S
     private global::Seamless.Persisted.Collections.PersistedList<T>.Enumerator enumerator;
     private bool initialized;
 
-    public bool TryContains(T value,out bool result) {
-        result=this.source!.Contains(value);
-        return true;
-    }
+    // O(1) の membership lookup は Contains.cs の型特殊化オーバーロードから使う。
+    // interface メンバにすると値型が constrained. callvirt で box されるため置かない。
+    [return: UnorderedEnumerable]
+    internal global::Seamless.Persisted.Collections.Set<T> GetSource() => this.source!;
+
     public bool TryGetNonEnumeratedCount(out int count) {
         if(!this.initialized) {
             count=this.source!.Count;
@@ -45,10 +46,11 @@ public struct TsavoriteHashSetEnumerator<T>(global::Seamless.Tsavorite.Collectio
     private global::Seamless.Tsavorite.Collections.HashSet<T>.ValueEnumerator enumerator;
     private bool initialized;
 
-    public bool TryContains(T value,out bool result) {
-        result=this.source!.Contains(value);
-        return true;
-    }
+    // O(1) の membership lookup は Contains.cs の型特殊化オーバーロードから使う。
+    // interface メンバにすると値型が constrained. callvirt で box されるため置かない。
+    [return: UnorderedEnumerable]
+    internal global::Seamless.Tsavorite.Collections.HashSet<T> GetSource() => this.source!;
+
     public bool TryGetNonEnumeratedCount(out int count) {
         if(!this.initialized) {
             count=this.source!.Count;
@@ -81,10 +83,11 @@ public struct TsavoriteSetEnumerator<TKey,TRecord>(global::Seamless.Tsavorite.Co
     private global::Seamless.Tsavorite.Collections.Set<TKey,TRecord>.ValueEnumerator enumerator;
     private bool initialized;
 
-    public bool TryContains(TRecord value,out bool result) {
-        result=this.source!.Contains(value);
-        return true;
-    }
+    // O(1) の membership lookup は Contains.cs の型特殊化オーバーロードから使う。
+    // interface メンバにすると値型が constrained. callvirt で box されるため置かない。
+    [return: UnorderedEnumerable]
+    internal global::Seamless.Tsavorite.Collections.Set<TKey,TRecord> GetSource() => this.source!;
+
     public bool TryGetNonEnumeratedCount(out int count) {
         if(!this.initialized) {
             count=this.source!.Count;

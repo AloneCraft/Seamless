@@ -16,14 +16,10 @@ public readonly struct ValueEnumerable<TEnumerator, T>(TEnumerator enumerator):I
 }
 // all implement types must be struct
 public interface IValueEnumerator<T>:IDisposable {
-    /// <summary>
-    /// Performs a non-consuming membership test only when the enumerator can preserve
-    /// the source collection's exact equality semantics.
-    /// </summary>
-    bool TryContains(T value,out bool result) {
-        result=false;
-        return false;
-    }
+    // ここに membership test（旧 TryContains）を default interface method として置いてはならない。
+    // 理由は下の3つと同じで、実測では Contains() 1 呼び出しあたり 24 バイト box していた。
+    // provider が O(1) の membership lookup を持つ場合は、interface メンバではなく
+    // Contains.cs の型特殊化オーバーロードで表現する（FromHashSet / FromSortedSet と同じ形）。
     /// <summary>
     /// Equivalent of IEnumerator.MoveNext + Current.
     /// </summary>

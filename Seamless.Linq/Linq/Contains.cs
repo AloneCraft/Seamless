@@ -32,6 +32,29 @@ namespace Seamless.Linq {
         }
 #endif
 
+        // Persisted / Tsavorite の provider は O(1) の membership lookup を持つ。
+        // これを IValueEnumerator の default interface method で表現すると、実装を持たない列挙子でも
+        // where TEnumerator:struct 経由の呼び出しが constrained. callvirt になり値型が box される
+        // （実測 24 バイト/呼び出し、RyuJIT は DIM を devirtualize しない）。上の FromHashSet /
+        // FromSortedSet / FromImmutableHashSet と同じく型特殊化オーバーロードで表現する。
+        // 呼び出し箇所が具象型を見ていないジェネリック文脈では汎用オーバーロードに束縛され、
+        // 結果は同じまま O(n) の全走査へ落ちる。リポジトリ内にその呼び出し箇所は無い。
+        public static Boolean Contains<TSource>(this ValueEnumerable<Internal.PersistedSetEnumerator<TSource>,TSource> source,TSource value) {
+            var innerCollection = source.Enumerator.GetSource();
+            return innerCollection.Contains(value);
+        }
+
+        public static Boolean Contains<TSource>(this ValueEnumerable<Internal.TsavoriteHashSetEnumerator<TSource>,TSource> source,TSource value) {
+            var innerCollection = source.Enumerator.GetSource();
+            return innerCollection.Contains(value);
+        }
+
+        public static Boolean Contains<TKey, TRecord>(this ValueEnumerable<Internal.TsavoriteSetEnumerator<TKey,TRecord>,TRecord> source,TRecord value)
+            where TRecord : global::Seamless.Collections.IRecord<TKey> {
+            var innerCollection = source.Enumerator.GetSource();
+            return innerCollection.Contains(value);
+        }
+
         public static Boolean Contains<TEnumerator, TSource>(this ValueEnumerable<TEnumerator,TSource> source,TSource value)
     where TEnumerator : struct, IValueEnumerator<TSource> {
             return ContainsCore(ref source,value);
@@ -39,9 +62,6 @@ namespace Seamless.Linq {
         private static Boolean ContainsCore<TEnumerator, TSource>(ref ValueEnumerable<TEnumerator,TSource> source,TSource value)
             where TEnumerator : struct, IValueEnumerator<TSource> {
                 using var enumerator = source.Enumerator;
-                if(enumerator.TryContains(value,out var directResult)) {
-                    return directResult;
-                }
                 if(enumerator.TryGetSpan(out var span)) {
 
 #if NET10_0_OR_GREATER
