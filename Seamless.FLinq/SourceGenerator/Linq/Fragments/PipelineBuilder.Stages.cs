@@ -1,0 +1,549 @@
+namespace Seamless.FLinq.Linq.Fragments;
+
+// 中間段の追加。
+internal static partial class PipelineBuilder {
+    private static bool TryAppendStage(
+        SemanticModel semanticModel,
+        InvocationExpressionSyntax invocation,
+        IMethodSymbol method,
+        PipelineBuildServices services,
+        ref int uniqueNumber,
+        List<PipelineStage> stages,
+        ref string currentElementType) {
+        var methodName = (method.ReducedFrom??method).Name;
+        switch(methodName) {
+            case "Where":
+                if(invocation.ArgumentList.Arguments.Count!=1
+                    ||method.Parameters.Length==0
+                    ||method.Parameters[0].Type is not INamedTypeSymbol { TypeArguments.Length: 2 or 3 } predicateType) {
+                    return false;
+                }
+                if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,predicateType,ref uniqueNumber,out var predicate)) {
+                    return false;
+                }
+                if(!services.CanUseFunc(predicate)) {
+                    return false;
+                }
+                stages.Add(new PipelineStage(PipelineStageKind.Where,predicate,null,currentElementType,currentElementType,usesIndex: predicateType.TypeArguments.Length==3));
+                return true;
+            case "Select":
+                if(invocation.ArgumentList.Arguments.Count!=1
+                    ||method.Parameters.Length==0
+                    ||method.Parameters[0].Type is not INamedTypeSymbol { TypeArguments.Length: 2 or 3 } selectorType) {
+                    return false;
+                }
+                if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,selectorType,ref uniqueNumber,out var selector)) {
+                    return false;
+                }
+                if(!services.CanUseFunc(selector)) {
+                    return false;
+                }
+                var selectElementType = selector.ReturnTypeName;
+                stages.Add(new PipelineStage(PipelineStageKind.Select,selector,null,currentElementType,selectElementType,usesIndex: selectorType.TypeArguments.Length==3));
+                currentElementType=selectElementType;
+                return true;
+            case "SelectMany":
+                return TryAppendSelectManyStage(semanticModel,invocation,method,services,ref uniqueNumber,stages,ref currentElementType);
+            case "Distinct":
+                return TryAppendDistinctStage(invocation,method,services,stages,currentElementType);
+            case "DistinctBy":
+                return TryAppendDistinctByStage(invocation,method,services,ref uniqueNumber,stages,currentElementType);
+            case "Union":
+                return TryAppendBinarySetStage(PipelineStageKind.Union,invocation,method,services,ref uniqueNumber,stages,currentElementType);
+            case "Except":
+                return TryAppendBinarySetStage(PipelineStageKind.Except,invocation,method,services,ref uniqueNumber,stages,currentElementType);
+            case "Intersect":
+                return TryAppendBinarySetStage(PipelineStageKind.Intersect,invocation,method,services,ref uniqueNumber,stages,currentElementType);
+            case "UnionBy":
+                return TryAppendBinarySetByStage(PipelineStageKind.UnionBy,invocation,method,services,ref uniqueNumber,stages,currentElementType);
+            case "ExceptBy":
+                return TryAppendBinarySetByStage(PipelineStageKind.ExceptBy,invocation,method,services,ref uniqueNumber,stages,currentElementType);
+            case "IntersectBy":
+                return TryAppendBinarySetByStage(PipelineStageKind.IntersectBy,invocation,method,services,ref uniqueNumber,stages,currentElementType);
+            case "Concat":
+                return TryAppendConcatStage(invocation,services,ref uniqueNumber,stages,currentElementType);
+            case "Append":
+                return TryAppendElementStage(PipelineStageKind.Append,invocation,services,stages,currentElementType);
+            case "Prepend":
+                return TryAppendElementStage(PipelineStageKind.Prepend,invocation,services,stages,currentElementType);
+            case "OrderBy":
+                return TryAppendOrderStage(PipelineStageKind.OrderBy,invocation,method,services,ref uniqueNumber,stages,currentElementType);
+            case "OrderByDescending":
+                return TryAppendOrderStage(PipelineStageKind.OrderByDescending,invocation,method,services,ref uniqueNumber,stages,currentElementType);
+            case "ThenBy":
+                return TryAppendOrderStage(PipelineStageKind.ThenBy,invocation,method,services,ref uniqueNumber,stages,currentElementType);
+            case "ThenByDescending":
+                return TryAppendOrderStage(PipelineStageKind.ThenByDescending,invocation,method,services,ref uniqueNumber,stages,currentElementType);
+            case "GroupBy":
+                return TryAppendGroupByStage(invocation,method,services,ref uniqueNumber,stages,ref currentElementType);
+            case "Reverse":
+                stages.Add(new PipelineStage(PipelineStageKind.Reverse,null,null,currentElementType,currentElementType));
+                return true;
+            case "DefaultIfEmpty":
+                return TryAppendDefaultIfEmptyStage(invocation,services,stages,currentElementType);
+            case "AsEnumerable":
+                stages.Add(new PipelineStage(PipelineStageKind.AsEnumerable,null,null,currentElementType,currentElementType));
+                return true;
+            case "Skip":
+                return TryAppendCountStage(PipelineStageKind.Skip,invocation,method,services,stages,currentElementType);
+            case "TakeWhile":
+                return TryAppendPredicateStage(PipelineStageKind.TakeWhile,invocation,method,services,ref uniqueNumber,stages,currentElementType);
+            case "SkipWhile":
+                return TryAppendPredicateStage(PipelineStageKind.SkipWhile,invocation,method,services,ref uniqueNumber,stages,currentElementType);
+            case "Cast":
+                return TryAppendTypeStage(PipelineStageKind.Cast,method,services,stages,ref currentElementType);
+            case "OfType":
+                return TryAppendTypeStage(PipelineStageKind.OfType,method,services,stages,ref currentElementType);
+            case "Order":
+            case "OrderDescending": {
+                var descending = methodName=="OrderDescending";
+                var kind = descending ? PipelineStageKind.OrderByDescending : PipelineStageKind.OrderBy;
+                var comparer = "null";
+                var containsAnchor = false;
+                if(invocation.ArgumentList.Arguments.Count==1
+                    &&method.Parameters.Length>=1) {
+                    var comparerExpression = invocation.ArgumentList.Arguments[0].Expression;
+                    comparer=services.RenderExpression(comparerExpression);
+                    containsAnchor=AnchorAnalysis.ContainsAnchor(comparerExpression,null);
+                } else if(invocation.ArgumentList.Arguments.Count>1) {
+                    return false;
+                }
+                // Func=null signals identity key (element itself)
+                stages.Add(new PipelineStage(kind,null,comparer,currentElementType,currentElementType,keyType: currentElementType,descending: descending,containsAnchor: containsAnchor));
+                return true;
+            }
+            case "SkipLast":
+                if(invocation.ArgumentList.Arguments.Count!=1
+                    ||method.Parameters.Length==0
+                    ||method.Parameters[0].Type.SpecialType!=SpecialType.System_Int32) {
+                    return false;
+                }
+                var skipLastExpression = invocation.ArgumentList.Arguments[0].Expression;
+                stages.Add(new PipelineStage(PipelineStageKind.SkipLast,null,services.RenderExpression(skipLastExpression),currentElementType,currentElementType,containsAnchor: AnchorAnalysis.ContainsAnchor(skipLastExpression,null)));
+                return true;
+            case "TakeLast":
+                if(invocation.ArgumentList.Arguments.Count!=1
+                    ||method.Parameters.Length==0
+                    ||method.Parameters[0].Type.SpecialType!=SpecialType.System_Int32) {
+                    return false;
+                }
+                var takeLastExpression = invocation.ArgumentList.Arguments[0].Expression;
+                stages.Add(new PipelineStage(PipelineStageKind.TakeLast,null,services.RenderExpression(takeLastExpression),currentElementType,currentElementType,containsAnchor: AnchorAnalysis.ContainsAnchor(takeLastExpression,null)));
+                return true;
+            case "Take":
+                if(invocation.ArgumentList.Arguments.Count!=1||method.Parameters.Length==0) {
+                    return false;
+                }
+                if(method.Parameters[0].Type.SpecialType==SpecialType.System_Int32) {
+                    return TryAppendCountStage(PipelineStageKind.Take,invocation,method,services,stages,currentElementType);
+                }
+                // Range overload
+                if(method.Parameters[0].Type.ToDisplayString()=="global::System.Range"
+                    ||method.Parameters[0].Type.ToDisplayString()=="System.Range") {
+                    var takeRangeExpression = invocation.ArgumentList.Arguments[0].Expression;
+                    stages.Add(new PipelineStage(PipelineStageKind.TakeRange,null,services.RenderExpression(takeRangeExpression),currentElementType,currentElementType,containsAnchor: AnchorAnalysis.ContainsAnchor(takeRangeExpression,null)));
+                    return true;
+                }
+                return false;
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryAppendCountStage(
+        PipelineStageKind kind,
+        InvocationExpressionSyntax invocation,
+        IMethodSymbol method,
+        PipelineBuildServices services,
+        List<PipelineStage> stages,
+        string currentElementType) {
+        if(invocation.ArgumentList.Arguments.Count!=1
+            ||method.Parameters.Length==0
+            ||method.Parameters[0].Type.SpecialType!=SpecialType.System_Int32) {
+            return false;
+        }
+        var countExpression = invocation.ArgumentList.Arguments[0].Expression;
+        var count = services.RenderExpression(countExpression);
+        stages.Add(new PipelineStage(kind,null,count,currentElementType,currentElementType,containsAnchor: AnchorAnalysis.ContainsAnchor(countExpression,null)));
+        return true;
+    }
+
+    private static bool TryAppendPredicateStage(
+        PipelineStageKind kind,
+        InvocationExpressionSyntax invocation,
+        IMethodSymbol method,
+        PipelineBuildServices services,
+        ref int uniqueNumber,
+        List<PipelineStage> stages,
+        string currentElementType) {
+        if(invocation.ArgumentList.Arguments.Count!=1
+            ||method.Parameters.Length==0
+            ||method.Parameters[0].Type is not INamedTypeSymbol { TypeArguments.Length: 2 or 3 } predicateType) {
+            return false;
+        }
+        if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,predicateType,ref uniqueNumber,out var predicate)
+            ||!services.CanUseFunc(predicate)) {
+            return false;
+        }
+        stages.Add(new PipelineStage(kind,predicate,null,currentElementType,currentElementType,usesIndex: predicateType.TypeArguments.Length==3));
+        return true;
+    }
+
+    private static bool TryAppendTypeStage(
+        PipelineStageKind kind,
+        IMethodSymbol method,
+        PipelineBuildServices services,
+        List<PipelineStage> stages,
+        ref string currentElementType) {
+        if(!services.TryGetEnumerableElementType(method.ReturnType,out var resultElementType)
+            ||services.ContainsAnonymousType(resultElementType)) {
+            return false;
+        }
+        var outputType = resultElementType.ToDisplayString(services.FullyQualifiedFormat);
+        stages.Add(new PipelineStage(kind,null,null,currentElementType,outputType));
+        currentElementType=outputType;
+        return true;
+    }
+
+    private static bool TryAppendSelectManyStage(
+        SemanticModel semanticModel,
+        InvocationExpressionSyntax invocation,
+        IMethodSymbol method,
+        PipelineBuildServices services,
+        ref int uniqueNumber,
+        List<PipelineStage> stages,
+        ref string currentElementType) {
+        // 匿名型要素は型名を生成コードに書けず ToList 等の終端で破綻するため、
+        // SelectMany インライン化（record struct 置換 + 出口 Select）のフォールバック経路へ委ねる。
+        if(method.TypeArguments.Any(services.ContainsAnonymousType)) {
+            return false;
+        }
+        if(invocation.ArgumentList.Arguments.Count is not (1 or 2)
+            ||method.Parameters.Length!=invocation.ArgumentList.Arguments.Count
+            ||method.Parameters[0].Type is not INamedTypeSymbol collectionSelectorType) {
+            return false;
+        }
+        var typeArgumentLength = collectionSelectorType.TypeArguments.Length;
+        if(typeArgumentLength is not (2 or 3)) {
+            return false;
+        }
+        var usesIndex = typeArgumentLength==3;
+        if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,method.Parameters[0].Type,ref uniqueNumber,out var collectionSelector)
+            ||!services.CanUseFunc(collectionSelector)
+            ||collectionSelector.RequiresStatementInlining) {
+            return false;
+        }
+        if(!TryGetSequenceElementType(collectionSelector.ReturnTypeName,out var innerElementType)) {
+            return false;
+        }
+        var innerIsArray = invocation.ArgumentList.Arguments[0].Expression is LambdaExpressionSyntax { Body: ExpressionSyntax collectionSelectorBodyExpr }
+            &&semanticModel.GetTypeInfo(collectionSelectorBodyExpr).Type is IArrayTypeSymbol;
+
+        FuncFragment? resultSelector = null;
+        var outputType = innerElementType;
+        if(invocation.ArgumentList.Arguments.Count==2) {
+            if(method.Parameters[1].Type is not INamedTypeSymbol { TypeArguments.Length: 3 }) {
+                return false;
+            }
+            if(!services.BuildFunc(invocation.ArgumentList.Arguments[1].Expression,method.Parameters[1].Type,ref uniqueNumber,out resultSelector)
+                ||!services.CanUseFunc(resultSelector)) {
+                return false;
+            }
+            outputType=resultSelector.ReturnTypeName;
+        }
+
+        stages.Add(new PipelineStage(
+            PipelineStageKind.SelectMany,
+            collectionSelector,
+            null,
+            currentElementType,
+            outputType,
+            secondFunc: resultSelector,
+            innerElementType: innerElementType,
+            keyType: null,
+            usesIndex: usesIndex,
+            innerIsArray: innerIsArray));
+        currentElementType=outputType;
+        return true;
+    }
+
+    private static bool TryGetSequenceElementType(string sequenceTypeName,out string elementTypeName) {
+        elementTypeName=string.Empty;
+        if(sequenceTypeName.EndsWith("[]",StringComparison.Ordinal)) {
+            elementTypeName=sequenceTypeName[..^2];
+            return true;
+        }
+        const string enumerablePrefix = "global::System.Collections.Generic.IEnumerable<";
+        if(sequenceTypeName.StartsWith(enumerablePrefix,StringComparison.Ordinal)
+            &&sequenceTypeName.EndsWith(">",StringComparison.Ordinal)) {
+            elementTypeName=sequenceTypeName[enumerablePrefix.Length..^1];
+            return true;
+        }
+        return false;
+    }
+
+    private static bool TryAppendDistinctStage(
+        InvocationExpressionSyntax invocation,
+        IMethodSymbol method,
+        PipelineBuildServices services,
+        List<PipelineStage> stages,
+        string currentElementType) {
+        if(invocation.ArgumentList.Arguments.Count>1) {
+            return false;
+        }
+        var comparer = "null";
+        var containsAnchor = false;
+        if(invocation.ArgumentList.Arguments.Count==1) {
+            if(method.Parameters.Length<1) {
+                return false;
+            }
+            var comparerExpression = invocation.ArgumentList.Arguments[0].Expression;
+            comparer=services.RenderExpression(comparerExpression);
+            containsAnchor=AnchorAnalysis.ContainsAnchor(comparerExpression,null);
+        }
+        stages.Add(new PipelineStage(PipelineStageKind.Distinct,null,comparer,currentElementType,currentElementType,keyType: currentElementType,containsAnchor: containsAnchor));
+        return true;
+    }
+
+    private static bool TryAppendDistinctByStage(
+        InvocationExpressionSyntax invocation,
+        IMethodSymbol method,
+        PipelineBuildServices services,
+        ref int uniqueNumber,
+        List<PipelineStage> stages,
+        string currentElementType) {
+        if(invocation.ArgumentList.Arguments.Count is not (1 or 2)
+            ||method.Parameters.Length<1
+            ||method.Parameters[0].Type is not INamedTypeSymbol { TypeArguments.Length: 2 }) {
+            return false;
+        }
+        if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,method.Parameters[0].Type,ref uniqueNumber,out var keySelector)
+            ||!services.CanUseFunc(keySelector)) {
+            return false;
+        }
+        var comparer = "null";
+        var containsAnchor = false;
+        if(invocation.ArgumentList.Arguments.Count==2) {
+            if(method.Parameters.Length<2) {
+                return false;
+            }
+            var comparerExpression = invocation.ArgumentList.Arguments[1].Expression;
+            comparer=services.RenderExpression(comparerExpression);
+            containsAnchor=AnchorAnalysis.ContainsAnchor(comparerExpression,null);
+        }
+        stages.Add(new PipelineStage(PipelineStageKind.DistinctBy,keySelector,comparer,currentElementType,currentElementType,keyType: keySelector.ReturnTypeName,containsAnchor: containsAnchor));
+        return true;
+    }
+
+    private static bool TryAppendBinarySetStage(
+        PipelineStageKind kind,
+        InvocationExpressionSyntax invocation,
+        IMethodSymbol method,
+        PipelineBuildServices services,
+        ref int uniqueNumber,
+        List<PipelineStage> stages,
+        string currentElementType) {
+        if(invocation.ArgumentList.Arguments.Count is not (1 or 2)
+            ||method.Parameters.Length<1) {
+            return false;
+        }
+        if(!services.BuildEnumerable(invocation.ArgumentList.Arguments[0].Expression,ref uniqueNumber,out var secondSource,out _)) {
+            return false;
+        }
+        var comparer = "null";
+        var containsAnchor = false;
+        if(invocation.ArgumentList.Arguments.Count==2) {
+            if(method.Parameters.Length<2) {
+                return false;
+            }
+            var comparerExpression = invocation.ArgumentList.Arguments[1].Expression;
+            comparer=services.RenderExpression(comparerExpression);
+            containsAnchor=AnchorAnalysis.ContainsAnchor(comparerExpression,null);
+        }
+        stages.Add(new PipelineStage(kind,null,comparer,currentElementType,currentElementType,secondSource: secondSource,keyType: currentElementType,containsAnchor: containsAnchor));
+        return true;
+    }
+
+    private static bool TryAppendBinarySetByStage(
+        PipelineStageKind kind,
+        InvocationExpressionSyntax invocation,
+        IMethodSymbol method,
+        PipelineBuildServices services,
+        ref int uniqueNumber,
+        List<PipelineStage> stages,
+        string currentElementType) {
+        if(invocation.ArgumentList.Arguments.Count is not (2 or 3)
+            ||method.Parameters.Length<2
+            ||method.Parameters[1].Type is not INamedTypeSymbol { TypeArguments.Length: 2 }) {
+            return false;
+        }
+        if(!services.BuildEnumerable(invocation.ArgumentList.Arguments[0].Expression,ref uniqueNumber,out var secondSource,out _)) {
+            return false;
+        }
+        if(!services.BuildFunc(invocation.ArgumentList.Arguments[1].Expression,method.Parameters[1].Type,ref uniqueNumber,out var keySelector)
+            ||!services.CanUseFunc(keySelector)) {
+            return false;
+        }
+        var comparer = "null";
+        var containsAnchor = false;
+        if(invocation.ArgumentList.Arguments.Count==3) {
+            if(method.Parameters.Length<3) {
+                return false;
+            }
+            var comparerExpression = invocation.ArgumentList.Arguments[2].Expression;
+            comparer=services.RenderExpression(comparerExpression);
+            containsAnchor=AnchorAnalysis.ContainsAnchor(comparerExpression,null);
+        }
+        stages.Add(new PipelineStage(kind,keySelector,comparer,currentElementType,currentElementType,secondSource: secondSource,keyType: keySelector.ReturnTypeName,containsAnchor: containsAnchor));
+        return true;
+    }
+
+    private static bool TryAppendConcatStage(
+        InvocationExpressionSyntax invocation,
+        PipelineBuildServices services,
+        ref int uniqueNumber,
+        List<PipelineStage> stages,
+        string currentElementType) {
+        if(invocation.ArgumentList.Arguments.Count!=1) {
+            return false;
+        }
+        if(!services.BuildEnumerable(invocation.ArgumentList.Arguments[0].Expression,ref uniqueNumber,out var secondSource,out _)) {
+            return false;
+        }
+        stages.Add(new PipelineStage(PipelineStageKind.Concat,null,null,currentElementType,currentElementType,secondSource: secondSource));
+        return true;
+    }
+
+    private static bool TryAppendElementStage(
+        PipelineStageKind kind,
+        InvocationExpressionSyntax invocation,
+        PipelineBuildServices services,
+        List<PipelineStage> stages,
+        string currentElementType) {
+        if(invocation.ArgumentList.Arguments.Count!=1) {
+            return false;
+        }
+        var elementExpression = invocation.ArgumentList.Arguments[0].Expression;
+        var element = services.RenderExpression(elementExpression);
+        stages.Add(new PipelineStage(kind,null,element,currentElementType,currentElementType,containsAnchor: AnchorAnalysis.ContainsAnchor(elementExpression,null)));
+        return true;
+    }
+
+    private static bool TryAppendDefaultIfEmptyStage(
+        InvocationExpressionSyntax invocation,
+        PipelineBuildServices services,
+        List<PipelineStage> stages,
+        string currentElementType) {
+        if(invocation.ArgumentList.Arguments.Count>1) {
+            return false;
+        }
+        var defaultValue = "default!";
+        var containsAnchor = false;
+        if(invocation.ArgumentList.Arguments.Count==1) {
+            var defaultValueExpression = invocation.ArgumentList.Arguments[0].Expression;
+            defaultValue=services.RenderExpression(defaultValueExpression);
+            containsAnchor=AnchorAnalysis.ContainsAnchor(defaultValueExpression,null);
+        }
+        stages.Add(new PipelineStage(PipelineStageKind.DefaultIfEmpty,null,defaultValue,currentElementType,currentElementType,containsAnchor: containsAnchor));
+        return true;
+    }
+
+    private static bool TryAppendOrderStage(
+        PipelineStageKind kind,
+        InvocationExpressionSyntax invocation,
+        IMethodSymbol method,
+        PipelineBuildServices services,
+        ref int uniqueNumber,
+        List<PipelineStage> stages,
+        string currentElementType) {
+        if(invocation.ArgumentList.Arguments.Count is not (1 or 2)
+            ||method.Parameters.Length<1
+            ||method.Parameters[0].Type is not INamedTypeSymbol { TypeArguments.Length: 2 }) {
+            return false;
+        }
+        if(kind is PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending
+            &&!stages.Any(static stage => stage.Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending)) {
+            return false;
+        }
+        if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,method.Parameters[0].Type,ref uniqueNumber,out var keySelector)
+            ||!services.CanUseFunc(keySelector)) {
+            return false;
+        }
+        var comparer = "null";
+        var containsAnchor = false;
+        if(invocation.ArgumentList.Arguments.Count==2) {
+            if(method.Parameters.Length<2) {
+                return false;
+            }
+            var comparerExpression = invocation.ArgumentList.Arguments[1].Expression;
+            comparer=services.RenderExpression(comparerExpression);
+            containsAnchor=AnchorAnalysis.ContainsAnchor(comparerExpression,null);
+        }
+        var descending = kind is PipelineStageKind.OrderByDescending or PipelineStageKind.ThenByDescending;
+        stages.Add(new PipelineStage(kind,keySelector,comparer,currentElementType,currentElementType,keyType: keySelector.ReturnTypeName,descending: descending,containsAnchor: containsAnchor));
+        return true;
+    }
+
+    private static bool TryAppendGroupByStage(
+        InvocationExpressionSyntax invocation,
+        IMethodSymbol method,
+        PipelineBuildServices services,
+        ref int uniqueNumber,
+        List<PipelineStage> stages,
+        ref string currentElementType) {
+        if(invocation.ArgumentList.Arguments.Count is <1 or >4
+            ||method.Parameters.Length<1
+            ||method.Parameters[0].Type is not INamedTypeSymbol { TypeArguments.Length: 2 }) {
+            return false;
+        }
+        if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,method.Parameters[0].Type,ref uniqueNumber,out var keySelector)
+            ||!services.CanUseFunc(keySelector)) {
+            return false;
+        }
+        FuncFragment? elementSelector = null;
+        FuncFragment? resultSelector = null;
+        var comparer = "null";
+        var containsAnchor = false;
+        for(var index = 1;index<invocation.ArgumentList.Arguments.Count;index++) {
+            if(method.Parameters.Length<=index) {
+                return false;
+            }
+            if(method.Parameters[index].Type is INamedTypeSymbol { TypeArguments.Length: 2 } elementFuncType) {
+                if(elementSelector is not null) {
+                    return false;
+                }
+                if(!services.BuildFunc(invocation.ArgumentList.Arguments[index].Expression,elementFuncType,ref uniqueNumber,out elementSelector)
+                    ||!services.CanUseFunc(elementSelector)) {
+                    return false;
+                }
+            } else if(method.Parameters[index].Type is INamedTypeSymbol { TypeArguments.Length: 3 } resultFuncType) {
+                if(resultSelector is not null) {
+                    return false;
+                }
+                if(!services.BuildFunc(invocation.ArgumentList.Arguments[index].Expression,resultFuncType,ref uniqueNumber,out resultSelector)
+                    ||!services.CanUseFunc(resultSelector)) {
+                    return false;
+                }
+            } else {
+                var comparerExpression = invocation.ArgumentList.Arguments[index].Expression;
+                comparer=services.RenderExpression(comparerExpression);
+                containsAnchor|=AnchorAnalysis.ContainsAnchor(comparerExpression,null);
+            }
+        }
+        var groupElementType = elementSelector?.ReturnTypeName??currentElementType;
+        var outputType = resultSelector?.ReturnTypeName??$"global::System.Linq.IGrouping<{keySelector.ReturnTypeName},{groupElementType}>";
+        stages.Add(new PipelineStage(
+            PipelineStageKind.GroupBy,
+            keySelector,
+            comparer,
+            currentElementType,
+            outputType,
+            secondFunc: elementSelector,
+            thirdFunc: resultSelector,
+            innerElementType: groupElementType,
+            keyType: keySelector.ReturnTypeName,
+            containsAnchor: containsAnchor));
+        currentElementType=outputType;
+        return true;
+    }
+}
