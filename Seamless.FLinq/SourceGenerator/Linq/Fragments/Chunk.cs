@@ -36,7 +36,7 @@ internal class Chunk(int 番号,Enumerable source,string size):Enumerable(番号
                 this.{{this.group}}[__i++]= __mn14;
                 if(__i==size){
                     current=this.{{this.currentValue}}=this.{{this.group}};
-                    this.{{this.group}}=new {{source.ElementType}}[size];
+                    this.{{this.group}}=null;
                     return true;
                 }
             }
@@ -58,7 +58,7 @@ internal class Chunk(int 番号,Enumerable source,string size):Enumerable(番号
                 this.{{this.group}}[__i++]= __mn15;
                 if(__i==size){
                     current=this.{{this.currentValue}}=this.{{this.group}};
-                    this.{{this.group}}=new {{source.ElementType}}[size];
+                    this.{{this.group}}=null;
                     return true;
                 }
             }
