@@ -465,60 +465,12 @@ internal sealed partial class PipelineEnumerable {
             }
         }
 
-        if(stages.Count==0
-            ||!stages.All(static stage => stage.Kind is PipelineStageKind.OrderBy
-                or PipelineStageKind.OrderByDescending
-                or PipelineStageKind.ThenBy
-                or PipelineStageKind.ThenByDescending)
-            ||stages[0].Kind is PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending
-            ||source.DirectEnumerableExpression is not { } sourceExpression) {
-            return null;
-        }
-
-        var expression = sourceExpression;
-        foreach(var stage in stages) {
-            var methodName = stage.Kind.ToString();
-            string argumentList;
-            if(stage.Func is { } func) {
-                if(TryRenderDirectLambda(func) is not { } lambda) {
-                    return null;
-                }
-                var comparerExpression = this.OrderComparerExpression(stage);
-                argumentList=stage.Value=="null"
-                    ? lambda
-                    : $"{lambda}, {comparerExpression}";
-            } else {
-                methodName=stage.Kind switch {
-                    PipelineStageKind.OrderBy => "Order",
-                    PipelineStageKind.OrderByDescending => "OrderDescending",
-                    _ => methodName
-                };
-                var comparerExpression = this.OrderComparerExpression(stage);
-                argumentList=stage.Value=="null"
-                    ? string.Empty
-                    : comparerExpression;
-            }
-            expression=string.IsNullOrEmpty(argumentList)
-                ? $"global::System.Linq.Enumerable.{methodName}({expression})"
-                : $"global::System.Linq.Enumerable.{methodName}({expression}, {argumentList})";
-        }
-
-        var itemName = $"__orderedItem{番号}";
-        return $$"""
-            foreach(var {{itemName}} in {{expression}}){
-                {{consumerName}}.Consume({{itemName}});
-            }
-            """;
-    }
-
-    private static string? TryRenderDirectLambda(FuncFragment func) {
-        if(func.CapturedLocals.Length!=0||func.HoistedLocals.Length!=0||func.RequiresStatementInlining) {
-            return null;
-        }
-        try {
-            return func.RenderAsLambda();
-        } catch(InvalidOperationException) {
-            return null;
-        }
+        // 全段が Order 系のときに System.Linq.Enumerable.OrderBy(...) へ丸ごと委譲していた経路は撤去した。
+        // 委譲は「展開が遅い」ことの隠蔽であって解決ではない。FLinq は同じアルゴリズムをインライン展開できる以上、
+        // 理論下限は System.Linq と同速であり、負けているなら展開側の欠陥として原因を潰すべきである。
+        // 実際、同じ OrderBy(keySelector) を Array/List タブは BuildOrderLoop の ArrayPool 経路で
+        // 160B・対 ZLinq 0.87 で通しており、委譲していた Range だけが 49,469B・1.04 で負けていた。
+        // 以降は base.GetConsumeExecutionStatement 経由で BuildOrderLoop の ArrayPool 経路へ落とす。
+        return null;
     }
 }

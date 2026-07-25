@@ -317,6 +317,84 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
+    public void RangeOrderByConsumeExpandsInsteadOfDelegatingToSystemLinq() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer<T>{
+                public void Consume(T item){
+                }
+            }
+            public static class ConsumeSupport{
+                public static void Consume<T>(this IEnumerable<T>source,Consumer<T>consumer){
+                    foreach(var item in source){
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public class Container{
+                private static void RangeOrderBy(Consumer<int>consumer)=>
+                    Enumerable.Range(1,4096).OrderBy(static x=>x%1000).Consume(consumer);
+                private static void RangeThenBy(Consumer<int>consumer)=>
+                    Enumerable.Range(1,4096).OrderBy(static x=>x%1000).ThenBy(static x=>x).Consume(consumer);
+                public void Run(Consumer<int>consumer){
+                    RangeOrderBy(consumer);
+                    RangeThenBy(consumer);
+                }
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            !generated.Contains("global::System.Linq.Enumerable.OrderBy(",StringComparison.Ordinal)
+            &&!generated.Contains("global::System.Linq.Enumerable.ThenBy(",StringComparison.Ordinal)
+            &&generated.Contains("__orderValues",StringComparison.Ordinal)
+            &&generated.Contains("__orderIndexes",StringComparison.Ordinal)
+            &&generated.Contains("global::System.Buffers.ArrayPool<int>.Shared.Rent",StringComparison.Ordinal),
+            "Keyed ordering over a Range source must expand into the pooled order loop instead of delegating back to System.Linq.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void RangeReverseConsumeComputesValuesWithoutBuffering() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer<T>{
+                public void Consume(T item){
+                }
+            }
+            public static class ConsumeSupport{
+                public static void Consume<T>(this IEnumerable<T>source,Consumer<T>consumer){
+                    foreach(var item in source){
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public class Container{
+                private static void RangeReverse(Consumer<int>consumer)=>
+                    Enumerable.Range(1,4096).Reverse().Consume(consumer);
+                public void Run(Consumer<int>consumer)=>RangeReverse(consumer);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var method = GeneratedMethod(generated,"RangeReverse");
+
+        GeneratedSourceAssert.True(
+            method.Contains("__reverseStart",StringComparison.Ordinal)
+            &&!method.Contains("new global::System.Collections.Generic.List<",StringComparison.Ordinal)
+            &&!method.Contains("TryGetNext",StringComparison.Ordinal),
+            "Reversing a Range for consumption should compute start+index directly instead of buffering every element.",
+            generated,
+            output);
+    }
+
+    [Fact]
     public void SingleStageArrayPipelinesConsumeDirectSpan() {
         const string source = """
             using System.Collections.Generic;

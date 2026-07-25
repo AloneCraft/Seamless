@@ -109,6 +109,19 @@ internal class Reverse(int 番号,Enumerable source):Enumerable(番号) {
                 }
                 """;
         }
+        if(this.RootSource is RangeRoot range) {
+            // Range は start+i で各要素を計算できるので、逆順消費にバッファは一切要らない。
+            // span を返せない root だからと List へ全件溜めると、要素数ぶんのヒープ確保が丸ごと無駄になる。
+            return $$"""
+                {
+                    var __reverseStart{{番号}}={{range.StartExpression}};
+                    var __reverseCount{{番号}}={{range.CountExpression}};
+                    for(var __i{{番号}}=__reverseCount{{番号}}-1;__i{{番号}}>=0;__i{{番号}}--){
+                        {{consumerName}}.Consume(__reverseStart{{番号}} + __i{{番号}});
+                    }
+                }
+                """;
+        }
         return base.GetConsumeExecutionStatement(consumerName);
     }
 }
