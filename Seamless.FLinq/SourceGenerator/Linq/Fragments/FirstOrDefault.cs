@@ -45,7 +45,7 @@ public class FirstOrDefault(int 番号,Enumerable source,string resultType):Buff
         : $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source) {
-                return source.MoveNext() ? source.Current : default!;
+                return source.TryGetNext(out var __mn32) ? __mn32 : default!;
             }
             """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
@@ -96,7 +96,7 @@ public class FirstOrDefault_defaultValue(int 番号,Enumerable source,string def
         : $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue) {
-                return source.MoveNext() ? source.Current : defaultValue;
+                return source.TryGetNext(out var __mn33) ? __mn33 : defaultValue;
             }
             """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
@@ -190,8 +190,8 @@ public class FirstOrDefault_predicate(int 番号,Enumerable source,FuncFragment 
         : $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
-                while(source.MoveNext()) {
-                    var {{this.item}} = source.Current;
+                while(source.TryGetNext(out var __mn34)) {
+                    var {{this.item}} = __mn34;
                     bool {{this.temp}} = default!;
                     {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}) return {{this.item}};

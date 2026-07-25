@@ -602,6 +602,19 @@ public sealed partial class FLinqIncrementalGenerator {
             }
             return false;
         }
+        // provider が O(1) の membership lookup を持つなら、Contains を全走査ではなく直接検索にする。
+        // 要素を変えない AsEnumerable だけは挟まってよい。Where/Select 等が入ると
+        // 比較対象が集合の要素でなくなるため従来の native scan へ落とす。
+        // comparer 指定がある場合も集合自身の等価とは一致しないので落とす。
+        if(terminalKind==ProviderIterateTerminalKind.Contains
+            &&stages.All(static stage => stage.Kind==PipelineStageKind.AsEnumerable)
+            &&containsComparer is null
+            &&containsValue is not null
+            &&root is ProviderNativeRootBase nativeRoot
+            &&nativeRoot.NativeContainsExpression(containsValue) is { } lookupExpression) {
+            fragment=new ProviderNativeLookupTerminal(number,lookupExpression,"bool");
+            return true;
+        }
         if(ProviderIterateTerminal.TryCreate(number,pipeline,terminalKind.Value,terminalPredicate,containsValue,containsComparer,out var providerTerminal)) {
             fragment=providerTerminal;
             return true;

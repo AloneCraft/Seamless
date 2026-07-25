@@ -58,8 +58,8 @@ internal static class GroupBySupport {
             }
             """;
         var addLoopWhile = $$"""
-            while({{enumeratorName}}.MoveNext()){
-                var {{itemName}}={{enumeratorName}}.Current;
+            while({{enumeratorName}}.TryGetNext(out var __mn35)){
+                var {{itemName}}=__mn35;
                 {{keyType}} {{keyName}}=default!;
                 {{IndentBlock(keyAssignCode,"                ")}}
                 {{IndentBlock(elementAssignCode,"                ")}}
@@ -142,14 +142,14 @@ internal class GroupBy_keySelector_resultSelector(
         this.UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
     protected override string StructTypeConstraints =>
         this.UseResultTypeParam
-            ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.Linq.IValueEnumerator<{source.ElementType}>"
+            ? $"where TEnum : struct, global::Seamless.Linq.IValueEnumerator<{source.ElementType}>"
             : base.StructTypeConstraints;
     public override string EnumeratorTypeName =>
         this.UseResultTypeParam ? $"{this.Struct}<{source.EnumeratorTypeName}, TResult>" : base.EnumeratorTypeName;
     private string FactorySource => !this.UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
         private static global::Seamless.Linq.ValueEnumerable<{{this.Struct}}<TEnum, TResult>, TResult> {{this.FactoryMethodName}}<TEnum, TResult>(TEnum source{{this.ClosurePrimaryCtorSuffix(keySelector,resultSelector)}})
-            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>, global::Seamless.Linq.IValueEnumerator<{{source.ElementType}}>
+            where TEnum : struct, global::Seamless.Linq.IValueEnumerator<{{source.ElementType}}>
             => new(new {{this.Struct}}<TEnum, TResult>(source{{this.ClosureArgsSuffixForFactory(keySelector,resultSelector)}}));
         """;
     public override string StructMethod => JoinStaticMethods(JoinStaticMethods(this.FuncSupport(keySelector,nameof(keySelector)),this.FuncSupport(resultSelector,nameof(resultSelector))),this.FactorySource);
@@ -228,14 +228,14 @@ internal class GroupBy_keySelector_elementSelector_resultSelector(
         this.UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
     protected override string StructTypeConstraints =>
         this.UseResultTypeParam
-            ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.Linq.IValueEnumerator<{source.ElementType}>"
+            ? $"where TEnum : struct, global::Seamless.Linq.IValueEnumerator<{source.ElementType}>"
             : base.StructTypeConstraints;
     public override string EnumeratorTypeName =>
         this.UseResultTypeParam ? $"{this.Struct}<{source.EnumeratorTypeName}, TResult>" : base.EnumeratorTypeName;
     private string FactorySource => !this.UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
         private static global::Seamless.Linq.ValueEnumerable<{{this.Struct}}<TEnum, TResult>, TResult> {{this.FactoryMethodName}}<TEnum, TResult>(TEnum source{{this.ClosurePrimaryCtorSuffix(keySelector,elementSelector,resultSelector)}})
-            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>, global::Seamless.Linq.IValueEnumerator<{{source.ElementType}}>
+            where TEnum : struct, global::Seamless.Linq.IValueEnumerator<{{source.ElementType}}>
             => new(new {{this.Struct}}<TEnum, TResult>(source{{this.ClosureArgsSuffixForFactory(keySelector,elementSelector,resultSelector)}}));
         """;
     public override string StructMethod => JoinStaticMethods(JoinStaticMethods(JoinStaticMethods(this.FuncSupport(keySelector,nameof(keySelector)),this.FuncSupport(elementSelector,nameof(elementSelector))),this.FuncSupport(resultSelector,nameof(resultSelector))),this.FactorySource);

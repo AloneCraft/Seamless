@@ -55,8 +55,8 @@ public class ElementAt(int 番号,Enumerable source,string index,string resultTy
             private static {{resultType}} Compute(TEnum source, int index) {
                 if(index<0) throw new global::System.ArgumentOutOfRangeException(nameof(index));
                 var currentIndex=0;
-                while(source.MoveNext()) {
-                    if(currentIndex==index) return source.Current;
+                while(source.TryGetNext(out var __mn24)) {
+                    if(currentIndex==index) return __mn24;
                     currentIndex++;
                 }
                 throw new global::System.ArgumentOutOfRangeException(nameof(index));
@@ -124,8 +124,8 @@ public class ElementAt_index(int 番号,Enumerable source,string index,string re
                 if(!index.IsFromEnd) {
                     var idx=index.Value;
                     var currentIndex=0;
-                    while(source.MoveNext()) {
-                        if(currentIndex==idx) return source.Current;
+                    while(source.TryGetNext(out var __mn25)) {
+                        if(currentIndex==idx) return __mn25;
                         currentIndex++;
                     }
                     throw new global::System.ArgumentOutOfRangeException(nameof(index));
@@ -134,8 +134,8 @@ public class ElementAt_index(int 番号,Enumerable source,string index,string re
                     if(n==0) throw new global::System.ArgumentOutOfRangeException(nameof(index));
                     var count=0;
                     var buffer=new {{resultType}}[n];
-                    while(source.MoveNext()) {
-                        buffer[count%n]=source.Current;
+                    while(source.TryGetNext(out var __mn26)) {
+                        buffer[count%n]=__mn26;
                         count++;
                     }
                     if(count<n) throw new global::System.ArgumentOutOfRangeException(nameof(index));

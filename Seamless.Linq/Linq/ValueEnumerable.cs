@@ -29,6 +29,12 @@ public interface IValueEnumerator<T>:IDisposable {
     /// </summary>
     bool TryGetNext(out T current);
     // for optimization
+    // 以下3つは default interface method にしてはならない。実装型が値型のとき、
+    // where TEnumerator:struct,IValueEnumerator<T> 経由の呼び出しは constrained. callvirt になり、
+    // 「実装を持たない」DIM では値型が box される。RyuJIT は DIM を devirtualize しないため
+    // （CORINFO_DEVIRTUALIZATION_FAILED_DIM）、.NET 10 の escape analysis でも消えない。
+    // 実測で 1 呼び出しあたり 24 バイトの割当を確認済み。加えて DIM は具象型のレシーバーからは
+    // 呼べないため、enumerator を具象 struct のローカルで持つ生成コードは CS1061 になる。
     /// <summary>
     /// Returns the length when processing time is not necessary.
     /// Always returns true if TryGetSpan or TryCopyTo returns true.

@@ -94,6 +94,8 @@ public abstract class SelectManyBase(int 番号,Enumerable source):Enumerable(�
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, {this.CollectionSelectorPrimaryConstructorParameter}";
+    // innerEnumerator はユーザーの IEnumerable<T> 由来なので IEnumerator<T> のまま。
+    // 生成 struct（{{this.e}}）だけが IValueEnumerator<T> へ移行している。
     public override string GetEnumeratorFields => $$"""
         private global::System.Collections.Generic.IEnumerator<{{this.CollectionElementType}}>? innerEnumerator = null;
         private {{source.ElementType}} {{this.outerValue}} = default!;
@@ -110,13 +112,13 @@ public abstract class SelectManyBase(int 番号,Enumerable source):Enumerable(�
             this.innerEnumerator.Dispose();
             this.innerEnumerator = null;
         }
-        if(!{{this.e}}.MoveNext()) {
+        if(!{{this.e}}.TryGetNext(out var {{this.outerValue}}Next)) {
             current = default!;
             return false;
         }
         {{this.MoveNextOuterPrologue}}
         {{this.CounterCall("IncrementLogicalSelectManyOuter")}}
-        this.{{this.outerValue}} = {{this.e}}.Current;
+        this.{{this.outerValue}} = {{this.outerValue}}Next;
         this.innerEnumerator = {{this.CreateInnerEnumeratorExpression}};
         goto {{this.Start}};
         """;
@@ -158,14 +160,14 @@ public class SelectMany_selector(int 番号,Enumerable source,FuncFragment selec
         this.UseResultTypeParam ? "<TEnum, TResult>" : base.StructTypeParameters;
     protected override string StructTypeConstraints =>
         this.UseResultTypeParam
-            ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>"
+            ? $"where TEnum : struct, global::Seamless.Linq.IValueEnumerator<{source.ElementType}>"
             : base.StructTypeConstraints;
     public override string EnumeratorTypeName =>
         this.UseResultTypeParam ? $"{this.Struct}<{source.EnumeratorTypeName}, TResult>" : base.EnumeratorTypeName;
     private string FactorySource => !this.UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
         private static global::Seamless.Linq.ValueEnumerable<{{this.Struct}}<TEnum, TResult>, TResult> {{this.FactoryMethodName}}<TEnum, TResult>(TEnum {{this.e}}{{this.ClosurePrimaryCtorSuffix(selector)}})
-            where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{source.ElementType}}>
+            where TEnum : struct, global::Seamless.Linq.IValueEnumerator<{{source.ElementType}}>
             => new(new {{this.Struct}}<TEnum, TResult>({{this.e}}{{this.ClosureArgsSuffixForFactory(selector)}}));
         """;
     public override string StructMethod =>
@@ -302,12 +304,12 @@ public class SelectMany_WithInlinedInner(int 番号,Enumerable source,Enumerable
             this.innerEnumerator.Dispose();
             this.{{this.hasValue}} = false;
         }
-        if(!{{this.e}}.MoveNext()) {
+        if(!{{this.e}}.TryGetNext(out var __mn50)) {
             current = default!;
             return false;
         }
         {{this.CounterCall("IncrementLogicalSelectManyOuter")}}
-        this.{{this.outerValue}} = {{this.e}}.Current;
+        this.{{this.outerValue}} = __mn50;
         this.innerEnumerator = {{this.CreateInnerEnumeratorExpression}};
         this.{{this.hasValue}} = true;
         goto {{this.Start}};

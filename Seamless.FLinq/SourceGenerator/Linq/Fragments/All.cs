@@ -53,8 +53,8 @@ public class All_predicate(int 番号,Enumerable source,FuncFragment predicate):
                                 {{predicateCheck}} return false;
                             }
                         }else{
-                            while(source.MoveNext()) {
-                                var {{this.item}}=source.Current;
+                            while(source.TryGetNext(out var __mn1)) {
+                                var {{this.item}}=__mn1;
                                 {{predicateCheck}} return false;
                             }
                         }
@@ -64,8 +64,8 @@ public class All_predicate(int 番号,Enumerable source,FuncFragment predicate):
                 : $$"""
                     {{AggressiveInliningAttribute}}
                     private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
-                        while(source.MoveNext()) {
-                            var {{this.item}}=source.Current;
+                        while(source.TryGetNext(out var __mn2)) {
+                            var {{this.item}}=__mn2;
                             {{predicateCheck}} return false;
                         }
                         return true;

@@ -12,8 +12,8 @@ BufferedSequence は OrderBy/Shuffle など「一度 List に構築してから�
       buffered = Build(source).GetEnumerator();
   }
   public bool TryGetNext(out T current) {
-      if(buffered.MoveNext()) {
-          current = buffered.Current;
+      if(buffered.TryGetNext(out var v)) {
+          current = v;
           return true;
       }
       return false;
@@ -37,8 +37,8 @@ public abstract class BufferedSequence(int 番号,string elementType):Enumerable
         """;
     public override string GetEnumeratorConstructor => $"this.{this.e} = ({this.BuildExpression}).GetEnumerator();";
     public override string GetTryGetNextBody => $$"""
-        if({{this.e}}.MoveNext()) {
-            this.Current = {{this.e}}.Current;
+        if({{this.e}}.TryGetNext(out var __mn101)) {
+            this.Current = __mn101;
             current = this.Current;
             return true;
         }

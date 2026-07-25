@@ -7,8 +7,8 @@ TakeWhile_predicate は predicate が false になった時点で永続的に終
   source.TakeWhile(x => x < limit)
 
 生成例:
-  if(done || !source.MoveNext()) return false;
-  var item = source.Current;
+  if(done || !source.TryGetNext(out var v)) return false;
+  var item = v;
   if(!predicate(item)) {
       done = true;
       return false;
@@ -45,11 +45,11 @@ public class TakeWhile_predicate(int 番号,Enumerable source,FuncFragment predi
                 : $"{preCode}\n        if(!{WrapConditionExpression(condExpr)})";
 
             return $$"""
-                if(this.done || !{{this.e}}.MoveNext()) {
+                if(this.done || !{{this.e}}.TryGetNext(out var __mn78)) {
                     current = default!;
                     return false;
                 }
-                var {{this.item}} = {{this.e}}.Current;
+                var {{this.item}} = __mn78;
                 {{predicateCheck}} {
                     this.done = true;
                     current = default!;
@@ -84,11 +84,11 @@ public class TakeWhile_indexPredicate(int id,Enumerable source,FuncFragment pred
                 : $"{preCode}\n        if(!{WrapConditionExpression(condExpr)})";
 
             return $$"""
-                if(this.done || !{{this.e}}.MoveNext()) {
+                if(this.done || !{{this.e}}.TryGetNext(out var __mn79)) {
                     current = default!;
                     return false;
                 }
-                var {{this.item}} = {{this.e}}.Current;
+                var {{this.item}} = __mn79;
                 this.{{this.a}}++;
                 {{predicateCheck}} {
                     this.done = true;

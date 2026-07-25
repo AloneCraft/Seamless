@@ -15,4 +15,7 @@ public sealed class TsavoriteHashSetRoot(
     public override string ProviderName => "TsavoriteHashSet";
     public override string SourceVariablePrefix => "__tsavoriteIterateSource";
     public override string StrategyInterfaceTypeName => "global::Seamless.Tsavorite.Collections.IHashSetIterateStrategy";
+    // HashSet<T>.Contains はハッシュ索引の直接検索。native scan の O(n) を回避する。
+    public override string? NativeContainsExpression(string valueExpression) =>
+        $"({this.SourceExpression}).Contains({valueExpression})";
 }

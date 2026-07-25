@@ -43,8 +43,8 @@ public class SkipLast(int 番号,Enumerable source,string skipCount):Enumerable(
             }
             var __c=count<0?0:count;
             if(__c==0) {
-                if({{this.e}}.MoveNext()) {
-                    current=this.{{this.currentValue}}={{this.e}}.Current;
+                if({{this.e}}.TryGetNext(out var __mn63)) {
+                    current=this.{{this.currentValue}}=__mn63;
                     return true;
                 }
                 current=default!;
@@ -52,11 +52,11 @@ public class SkipLast(int 番号,Enumerable source,string skipCount):Enumerable(
             }
             if(!this.{{this.yielded}}) {
                 this.{{this.lookup}}=new global::System.Collections.Generic.Queue<{{this.RootSource.ElementType}}>(__c+1);
-                while(this.{{this.lookup}}.Count<__c&&{{this.e}}.MoveNext()) this.{{this.lookup}}.Enqueue({{this.e}}.Current);
+                while(this.{{this.lookup}}.Count<__c&&{{this.e}}.TryGetNext(out var __mn64)) this.{{this.lookup}}.Enqueue(__mn64);
                 this.{{this.yielded}}=true;
             }
-            if(this.{{this.lookup}} is not null&&{{this.e}}.MoveNext()) {
-                this.{{this.lookup}}.Enqueue({{this.e}}.Current);
+            if(this.{{this.lookup}} is not null&&{{this.e}}.TryGetNext(out var __mn65)) {
+                this.{{this.lookup}}.Enqueue(__mn65);
                 current=this.{{this.currentValue}}=this.{{this.lookup}}.Dequeue();
                 return true;
             }
@@ -66,8 +66,8 @@ public class SkipLast(int 番号,Enumerable source,string skipCount):Enumerable(
         : $$"""
             var __c=count<0?0:count;
             if(__c==0) {
-                if({{this.e}}.MoveNext()) {
-                    current=this.{{this.currentValue}}={{this.e}}.Current;
+                if({{this.e}}.TryGetNext(out var __mn66)) {
+                    current=this.{{this.currentValue}}=__mn66;
                     return true;
                 }
                 current=default!;
@@ -75,11 +75,11 @@ public class SkipLast(int 番号,Enumerable source,string skipCount):Enumerable(
             }
             if(!this.{{this.yielded}}) {
                 this.{{this.lookup}}=new global::System.Collections.Generic.Queue<{{this.RootSource.ElementType}}>(__c+1);
-                while(this.{{this.lookup}}.Count<__c&&{{this.e}}.MoveNext()) this.{{this.lookup}}.Enqueue({{this.e}}.Current);
+                while(this.{{this.lookup}}.Count<__c&&{{this.e}}.TryGetNext(out var __mn67)) this.{{this.lookup}}.Enqueue(__mn67);
                 this.{{this.yielded}}=true;
             }
-            if(this.{{this.lookup}} is not null&&{{this.e}}.MoveNext()) {
-                this.{{this.lookup}}.Enqueue({{this.e}}.Current);
+            if(this.{{this.lookup}} is not null&&{{this.e}}.TryGetNext(out var __mn68)) {
+                this.{{this.lookup}}.Enqueue(__mn68);
                 current=this.{{this.currentValue}}=this.{{this.lookup}}.Dequeue();
                 return true;
             }

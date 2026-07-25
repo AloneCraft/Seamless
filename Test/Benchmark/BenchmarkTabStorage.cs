@@ -45,8 +45,8 @@ public class BenchmarkTabStorage {
         var path=DBパスを作成();
         var store=new Storage.UI実行ストア(path);
         var run=store.実行を作成(new(Storage.UI実行アプリ種別.ベンチマーク,"test","Fast","検証",DateTimeOffset.UtcNow));
-        var completed=new Storage.UIベンチマークグリッド側記録(Storage.UI実行状態.完了,string.Empty,DateTimeOffset.UtcNow,12.5,64,4);
-        var failed=new Storage.UIベンチマークグリッド側記録(Storage.UI実行状態.失敗,"worker failure",DateTimeOffset.UtcNow,null,null,4);
+        var completed=new Storage.UIベンチマークグリッド側書込(Storage.UI実行状態.完了,string.Empty,DateTimeOffset.UtcNow,12.5,64,4);
+        var failed=new Storage.UIベンチマークグリッド側書込(Storage.UI実行状態.失敗,"worker failure",DateTimeOffset.UtcNow,null,null,4);
         var leftIdentity=new Storage.UIベンチマークスナップショットケース書込("Left.Assembly","Left.Type","Where","Count=64","[]");
         var rightIdentity=new Storage.UIベンチマークスナップショットケース書込("Right.Assembly","Right.Type","Where","Count=64","[]");
         var centerIdentity=new Storage.UIベンチマークスナップショットケース書込("Center.Assembly","Center.Type","Where","Count=64","[]");
@@ -58,12 +58,12 @@ public class BenchmarkTabStorage {
 
         var items=store.ベンチマークスナップショット項目一覧を取得(run.実行ID);
         Assert.Equal(2,items.Count);
-        var persisted=Assert.Single(items.Where(item=>item.タブID=="Seamless.Persisted.System"));
+        var persisted=Assert.Single(items,item=>item.タブ名=="Seamless.Persisted.System");
         Assert.Null(persisted.中央);
         Assert.Null(persisted.追加);
         Assert.Equal(Storage.UI実行状態.失敗,persisted.右.状態);
         Assert.Equal("worker failure",persisted.右.失敗理由);
-        var array=Assert.Single(items.Where(item=>item.タブID=="System.Array"));
+        var array=Assert.Single(items,item=>item.タブ名=="System.Array");
         Assert.NotNull(array.中央);
         Assert.Null(array.追加);
 

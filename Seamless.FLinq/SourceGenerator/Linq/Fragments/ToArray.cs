@@ -10,7 +10,7 @@ ToArray は source.ToArray() を、件数/Span/InlineArray/ArrayPool の順で�
   if(source.TryGetNonEnumeratedCount(out var count)) {
       result = AllocateUninitializedArray<T>(count);
       if(source.TryCopyTo(result, 0)) return result;
-      while(source.MoveNext()) result[i++] = source.Current;
+      while(source.TryGetNext(out var v)) result[i++] = v;
   } else if(source.TryGetSpan(out var span)) {
       result = copy(span);
   } else {
@@ -105,8 +105,8 @@ public class ToArray(int 番号,Enumerable source,string resultType):BufferedSca
                 }
                 global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
                 var __i=0;
-                while(enumerator.MoveNext()) {
-                    __result[__i++]=enumerator.Current;
+                while(enumerator.TryGetNext(out var __mn80)) {
+                    __result[__i++]=__mn80;
                 }
                 return __result;
             }
@@ -131,10 +131,10 @@ public class ToArray(int 番号,Enumerable source,string resultType):BufferedSca
             {{source.ElementType}}[]? __heap = null;
             var n = 0;
             try {
-                while(enumerator.MoveNext()) {
+                while(enumerator.TryGetNext(out var __mn81)) {
                     if(__heap is null) {
                         if(n < {{InlineCapacity}}) {
-                            __stack[n++] = enumerator.Current;
+                            __stack[n++] = __mn81;
                             continue;
                         }
                         // スタックバッファが満杯になったので ArrayPool へ移行する。
@@ -146,7 +146,7 @@ public class ToArray(int 番号,Enumerable source,string resultType):BufferedSca
                         global::System.Buffers.ArrayPool<{{source.ElementType}}>.Shared.Return(__heap, clearArray: true);
                         __heap = __next;
                     }
-                    __heap[n++] = enumerator.Current;
+                    __heap[n++] = __mn81;
                 }
                 if(n == 0) {
                     return global::System.Array.Empty<{{source.ElementType}}>();

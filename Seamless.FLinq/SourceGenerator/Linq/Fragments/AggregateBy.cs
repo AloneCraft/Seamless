@@ -61,8 +61,8 @@ public class AggregateBy(int 番号,Enumerable source,FuncFragment keySelector,s
                 }else{
                     this.{{this.lookup}}=new global::Seamless.Linq.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>();
                 }
-                while({{this.e}}.MoveNext()) {
-                    var {{this.item}}={{this.e}}.Current;
+                while({{this.e}}.TryGetNext(out var __mn0)) {
+                    var {{this.item}}=__mn0;
                     {{this.KeyType}} {{this.key}}=default!;
                     {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     ref var __agg=ref this.{{this.lookup}}.GetValueRefOrAddDefault({{this.key}},out var __exists);

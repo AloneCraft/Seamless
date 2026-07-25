@@ -53,16 +53,11 @@ public abstract class DirectSpanRootBase(
     public override string GetCurrentExpression => "Current";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}}{{this.StructTypeParameters}}:global::Seamless.Linq.IValueEnumerator<{{elementType}}>,global::System.Collections.Generic.IEnumerator<{{elementType}}>{
+        private struct {{this.Struct}}{{this.StructTypeParameters}}:global::Seamless.Linq.IValueEnumerator<{{elementType}}>{
             private {{this.SourceTypeName}} source;
             private {{this.IndexTypeName}} {{this.e}}=-1;
             public {{this.Struct}}({{this.SourceTypeName}} source){this.source=source;}
             public {{elementType}} Current{get;private set;}=default!;
-            object? global::System.Collections.IEnumerator.Current=>Current;
-            {{AggressiveInliningAttribute}}
-            void global::System.Collections.IEnumerator.Reset()=>throw new global::System.NotSupportedException();
-            {{AggressiveInliningAttribute}}
-            public bool MoveNext()=>TryGetNext(out _);
             {{AggressiveInliningAttribute}}
             public bool TryGetNonEnumeratedCount(out int count){
                 count={{this.RemainingCountExpression("source",this.e)}};
@@ -113,4 +108,9 @@ public abstract class ProviderNativeRootBase(
     public abstract string StrategyInterfaceTypeName { get; }
     public virtual string NativeOperationName => "Iterate";
     public virtual string NativeExecutionMethodName => "Iterate";
+    // provider が O(1) の membership lookup を持つ場合に、その式を返す。
+    // 既定 null は「O(1) lookup 無し」で、呼び出し側は従来の native scan へ落ちる。
+    // Persisted の Set は Phase2-2 の .hindex 索引で Contains が O(1) になっており、
+    // ランタイム側（Internal/ProviderEnumerators.cs の TryContains）は既にこれを使っている。
+    public virtual string? NativeContainsExpression(string valueExpression) => null;
 }

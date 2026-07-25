@@ -279,7 +279,12 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output) {
             "TryGetNonEnumeratedCount",
             "TryCopyTo",
             "TryGetSpan",
-            "global::System.Collections.Generic.ICollection<int>",
+            // 型情報を失った IEnumerable<T> の materialize は、
+            // is T[] / is List<T> / is ICollection<T> / foreach のラダーを各コール地点へ
+            // 展開する代わりに GeneratedCodeHelpers の共通ラダーへ委譲する。
+            // ICollection<T> の実行時プローブはヘルパー内で行われるため、
+            // ここでは委譲そのものを確認する。
+            "global::Seamless.Linq.GeneratedCodeHelpers.ToArrayFromEnumerable<int>",
             "global::System.Runtime.InteropServices.CollectionsMarshal.SetCount",
             "global::System.GC.AllocateUninitializedArray<int>",
             "global::System.Buffers.ArrayPool<int>.Shared.Rent",

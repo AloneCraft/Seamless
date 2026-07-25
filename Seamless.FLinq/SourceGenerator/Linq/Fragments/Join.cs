@@ -6,15 +6,15 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         ? this.StructTypeParametersWithOuter("TOuterEnum","TInnerEnum","TResult")
         : this.StructTypeParametersWithOuter("TOuterEnum","TInnerEnum");
     protected override string StructTypeConstraints =>
-        $"where TOuterEnum:struct,global::System.Collections.Generic.IEnumerator<{this.outerSource.ElementType}>\n    where TInnerEnum:struct,global::System.Collections.Generic.IEnumerator<{this.innerSource.ElementType}>";
+        $"where TOuterEnum:struct,global::Seamless.Linq.IValueEnumerator<{this.outerSource.ElementType}>\n    where TInnerEnum:struct,global::Seamless.Linq.IValueEnumerator<{this.innerSource.ElementType}>";
     public override string EnumeratorTypeName => this.UseResultTypeParam
         ? this.EnumeratorTypeNameWithOuter(this.outerSource.EnumeratorTypeName,this.innerSource.EnumeratorTypeName,"TResult")
         : this.EnumeratorTypeNameWithOuter(this.outerSource.EnumeratorTypeName,this.innerSource.EnumeratorTypeName);
     private string FactorySource => !this.UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
         private static global::Seamless.Linq.ValueEnumerable<{{this.Struct}}<TOuterEnum,TInnerEnum,TResult>,TResult> {{this.FactoryMethodName}}<TOuterEnum,TInnerEnum,TResult>(TOuterEnum outer,TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(this.innerKey)}}>? comparer{{this.ClosurePrimaryCtorSuffix(this.outerKey,this.innerKey,this.resultSelector)}})
-            where TOuterEnum:struct,global::System.Collections.Generic.IEnumerator<{{this.outerSource.ElementType}}>
-            where TInnerEnum:struct,global::System.Collections.Generic.IEnumerator<{{this.innerSource.ElementType}}>
+            where TOuterEnum:struct,global::Seamless.Linq.IValueEnumerator<{{this.outerSource.ElementType}}>
+            where TInnerEnum:struct,global::Seamless.Linq.IValueEnumerator<{{this.innerSource.ElementType}}>
             => new(new {{this.Struct}}<TOuterEnum,TInnerEnum,TResult>(outer,inner,comparer{{this.ClosureArgsSuffixForFactory(this.outerKey,this.innerKey,this.resultSelector)}}));
         """;
     public override string StructMethod => JoinStaticMethods(JoinStaticMethods(JoinStaticMethods(
@@ -53,12 +53,12 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             {{this.group}}=null;
             {{this.state}}=0;
         }
-        if(!{{this.e}}.MoveNext()){
+        if(!{{this.e}}.TryGetNext(out var __mn38)){
             current=default!;
             return false;
         }
         {{this.CounterCall("IncrementLogicalJoinOuter")}}
-        {{this.outerValue}}={{this.e}}.Current;
+        {{this.outerValue}}=__mn38;
         {{FuncReturnTypeName(this.outerKey)}} {{this.key}}=default!;
         {{this.FuncAssignIndented("",this.outerKey,nameof(this.outerKey),this.key,this.outerValue)}}
         if(IsNullKey({{this.key}})){

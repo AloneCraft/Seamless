@@ -8,11 +8,11 @@ JoinBase は Join/GroupJoin/LeftJoin/RightJoin 系の lookup 構築を共有す�
 
 生成例:
   var lookup = BuildLookup(inner, comparer);
-  while(outer.MoveNext()) {
-      var outerKey = outerKeySelector(outer.Current);
+  while(outer.TryGetNext(out var v)) {
+      var outerKey = outerKeySelector(v);
       if(lookup.TryGetValue(outerKey, out var group)) {
           foreach(var innerItem in group) {
-              current = resultSelector(outer.Current, innerItem);
+              current = resultSelector(v, innerItem);
               return true;
           }
       }
@@ -40,9 +40,9 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
         private static global::Seamless.Linq.Lookup<{{this.InnerKeyType}},{{this.InnerElementType}}> BuildLookup(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
             var __lookupBuilder=new global::Seamless.Linq.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(0,comparer,true);
             using var {{this.innerEnumerator}}=inner;
-            while({{this.innerEnumerator}}.MoveNext()){
+            while({{this.innerEnumerator}}.TryGetNext(out var __mn102)){
                 {{this.CounterCall(logicalInnerCounterMethod)}}
-                var {{this.item}}={{this.innerEnumerator}}.Current;
+                var {{this.item}}=__mn102;
                 {{this.InnerKeyType}} {{this.key}}=default!;
                 {{this.FuncAssignStaticIndented("        ",this.innerKey,nameof(this.innerKey),this.key,this.item)}}
                 if(IsNullKey({{this.key}})){
@@ -58,9 +58,9 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
         private static global::Seamless.Linq.Lookup<{{this.InnerKeyType}},{{this.InnerElementType}}> BuildLookup(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
             var __lookupBuilder=new global::Seamless.Linq.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(0,comparer,true);
             using var {{this.innerEnumerator}}=inner;
-            while({{this.innerEnumerator}}.MoveNext()){
+            while({{this.innerEnumerator}}.TryGetNext(out var __mn103)){
                 {{this.CounterCall(logicalInnerCounterMethod)}}
-                var {{this.item}}={{this.innerEnumerator}}.Current;
+                var {{this.item}}=__mn103;
                 {{this.InnerKeyType}} {{this.key}}=default!;
                 {{this.FuncAssignStaticIndented("        ",this.innerKey,nameof(this.innerKey),this.key,this.item)}}
                 {{this.CounterCall("IncrementHashBuild")}}
@@ -73,8 +73,8 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
     protected static string BuildFactorySource(string structName,string factoryMethodName,string outerTypeName,string innerTypeName,string resultTypeName,string comparerTypeName,string outerCtorSuffix,string innerCtorSuffix,string resultCtorSuffix,string outerFactoryArgsSuffix,string innerFactoryArgsSuffix,string resultFactoryArgsSuffix,bool useResultTypeParam) => !useResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
         private static global::Seamless.Linq.ValueEnumerable<{{structName}}<TOuterEnum,TInnerEnum,TResult>,TResult> {{factoryMethodName}}<TOuterEnum,TInnerEnum,TResult>(TOuterEnum outer,TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{comparerTypeName}}>? comparer{{outerCtorSuffix}}{{innerCtorSuffix}}{{resultCtorSuffix}})
-            where TOuterEnum : struct, global::System.Collections.Generic.IEnumerator<{{outerTypeName}}>
-            where TInnerEnum : struct, global::System.Collections.Generic.IEnumerator<{{innerTypeName}}>
+            where TOuterEnum : struct, global::Seamless.Linq.IValueEnumerator<{{outerTypeName}}>
+            where TInnerEnum : struct, global::Seamless.Linq.IValueEnumerator<{{innerTypeName}}>
             => new(new {{structName}}<TOuterEnum,TInnerEnum,TResult>(outer,inner,comparer{{outerFactoryArgsSuffix}}{{innerFactoryArgsSuffix}}{{resultFactoryArgsSuffix}}));
         """;
 }

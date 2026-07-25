@@ -32,8 +32,8 @@ public class OfType(int 番号,Enumerable source,string resultElementType):Enume
         ? $"return this.{this.e}.TryCopyTo(destination,__offset);"
         : base.GetTryCopyToBody;
     public override string GetTryGetNextBody => $$"""
-        while({{this.e}}.MoveNext()) {
-            if({{this.e}}.Current is {{resultElementType}} {{this.item}}) {
+        while({{this.e}}.TryGetNext(out var __mn45)) {
+            if(__mn45 is {{resultElementType}} {{this.item}}) {
                 current = this.{{this.currentValue}} = {{this.item}};
                 return true;
             }

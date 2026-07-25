@@ -7,10 +7,10 @@ MinMaxByBase は source.MinBy(keySelector) / MaxBy(keySelector) を、最良 key
   source.MaxBy(x => x.Score)
 
 生成例:
-  if(!source.MoveNext()) throw NoElements();
-  bestElement = source.Current;
+  if(!source.TryGetNext(out var v)) throw NoElements();
+  bestElement = v;
   bestKey = keySelector(bestElement);
-  while(source.MoveNext()) {
+  while(source.TryGetNext(out var v)) {
       key = keySelector(item);
       if(comparer.Compare(key, bestKey) is better) {
           bestElement = item;
@@ -88,12 +88,12 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
         {{AggressiveInliningAttribute}}
         private static {{resultType}} ComputeEnumerator(TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
             var comparer=global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
-            if(!source.MoveNext()) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-            {{resultType}} bestElement=source.Current;
+            if(!source.TryGetNext(out var __mn104)) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+            {{resultType}} bestElement=__mn104;
             {{FuncReturnTypeName(keySelector)}} bestKey=default!;
             {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),"bestKey","bestElement")}}
-            while(source.MoveNext()){
-                var {{this.item}}=source.Current;
+            while(source.TryGetNext(out var __mn105)){
+                var {{this.item}}=__mn105;
                 {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
                 {{this.FuncAssignIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
                 if(comparer.Compare({{this.key}},bestKey){{this.CompareOp}}0){
@@ -108,12 +108,12 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
             var comparer=global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
-            if(!source.MoveNext()) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-            {{resultType}} bestElement=source.Current;
+            if(!source.TryGetNext(out var __mn106)) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+            {{resultType}} bestElement=__mn106;
             {{FuncReturnTypeName(keySelector)}} bestKey=default!;
             {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),"bestKey","bestElement")}}
-            while(source.MoveNext()){
-                var {{this.item}}=source.Current;
+            while(source.TryGetNext(out var __mn107)){
+                var {{this.item}}=__mn107;
                 {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
                 {{this.FuncAssignIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
                 if(comparer.Compare({{this.key}},bestKey){{this.CompareOp}}0){

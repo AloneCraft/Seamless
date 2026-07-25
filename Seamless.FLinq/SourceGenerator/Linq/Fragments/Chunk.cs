@@ -32,8 +32,8 @@ public class Chunk(int 番号,Enumerable source,string size):Enumerable(番号) 
             }
             var __i=0;
             if(this.{{this.group}} is null) this.{{this.group}}=new {{source.ElementType}}[size];
-            while({{this.e}}.MoveNext()) {
-                this.{{this.group}}[__i++]= {{this.e}}.Current;
+            while({{this.e}}.TryGetNext(out var __mn14)) {
+                this.{{this.group}}[__i++]= __mn14;
                 if(__i==size) {
                     current=this.{{this.currentValue}}=this.{{this.group}};
                     this.{{this.group}}=new {{source.ElementType}}[size];
@@ -54,8 +54,8 @@ public class Chunk(int 番号,Enumerable source,string size):Enumerable(番号) 
             if(size<=0) throw new global::System.ArgumentOutOfRangeException(nameof(size));
             var __i=0;
             if(this.{{this.group}} is null) this.{{this.group}}=new {{source.ElementType}}[size];
-            while({{this.e}}.MoveNext()) {
-                this.{{this.group}}[__i++]= {{this.e}}.Current;
+            while({{this.e}}.TryGetNext(out var __mn15)) {
+                this.{{this.group}}[__i++]= __mn15;
                 if(__i==size) {
                     current=this.{{this.currentValue}}=this.{{this.group}};
                     this.{{this.group}}=new {{source.ElementType}}[size];

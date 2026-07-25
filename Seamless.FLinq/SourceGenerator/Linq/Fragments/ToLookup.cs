@@ -61,8 +61,8 @@ internal class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment ke
                         builder.Add({{this.key}},{{this.item}});
                     }
                 } else {
-                    while(source.MoveNext()) {
-                        var {{this.item}} = source.Current;
+                    while(source.TryGetNext(out var __mn90)) {
+                        var {{this.item}} = __mn90;
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
                         {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                         builder.Add({{this.key}},{{this.item}});
@@ -109,8 +109,8 @@ internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source
                         builder.Add({{this.key}},{{this.temp}});
                     }
                 } else {
-                    while(source.MoveNext()) {
-                        var {{this.item}} = source.Current;
+                    while(source.TryGetNext(out var __mn91)) {
+                        var {{this.item}} = __mn91;
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
                         {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                         {{FuncReturnTypeName(elementSelector)}} {{this.temp}} = default!;
@@ -158,8 +158,8 @@ internal class ToLookup_keySelector_comparer(int 番号,Enumerable source,FuncFr
                         builder.Add({{this.key}},{{this.item}});
                     }
                 } else {
-                    while(source.MoveNext()) {
-                        var {{this.item}} = source.Current;
+                    while(source.TryGetNext(out var __mn92)) {
+                        var {{this.item}} = __mn92;
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
                         {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                         builder.Add({{this.key}},{{this.item}});
@@ -207,8 +207,8 @@ internal class ToLookup_keySelector_elementSelector_comparer(int 番号,Enumerab
                         builder.Add({{this.key}},{{this.temp}});
                     }
                 } else {
-                    while(source.MoveNext()) {
-                        var {{this.item}} = source.Current;
+                    while(source.TryGetNext(out var __mn93)) {
+                        var {{this.item}} = __mn93;
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
                         {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                         {{FuncReturnTypeName(elementSelector)}} {{this.temp}} = default!;

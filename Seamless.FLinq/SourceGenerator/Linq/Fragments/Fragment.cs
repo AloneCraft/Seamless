@@ -315,9 +315,16 @@ public abstract class Fragment(
     public virtual string GetEnumeratorConstructor => string.Empty;
     // enumerator struct の TryGetNonEnumeratedCount 本体。既定は非対応（false）。
     // bool 戻り値を呼び出し側が必ず確認する実行時 fast path のため、断片が安全に override 可能。
-    protected virtual string GetTryGetNonEnumeratedCountBody => "count = 0;\nreturn false;";
-    protected virtual string GetTryGetSpanBody => "span = default;\nreturn false;";
-    protected virtual string GetTryCopyToBody => "return false;";
+    // 本体が既定のままの断片は IValueEnumerator<T> の default interface method に委ね、
+    // DefineEnumeratorStructCore がメンバ自体を出力しない（生成コード量の削減）。
+    // 条件付き override が base.GetTryGetSpanBody へ落ちた場合も既定として扱えるよう、
+    // 判定は「フラグ」ではなく「描画済み本体と既定文字列の一致」で行う。
+    private protected const string DefaultTryGetNonEnumeratedCountBody = "count = 0;\nreturn false;";
+    private protected const string DefaultTryGetSpanBody = "span = default;\nreturn false;";
+    private protected const string DefaultTryCopyToBody = "return false;";
+    protected virtual string GetTryGetNonEnumeratedCountBody => DefaultTryGetNonEnumeratedCountBody;
+    protected virtual string GetTryGetSpanBody => DefaultTryGetSpanBody;
+    protected virtual string GetTryCopyToBody => DefaultTryCopyToBody;
     // Enumerable 断片が List<T> へ結果を積む共通形。
     private protected static string var_List(string name,string ElementType) =>
         $"var {name}=new global::System.Collections.Generic.List<{ElementType}>();";
@@ -510,30 +517,31 @@ public abstract class Fragment(
         var fields = IndentLines(this.GetEnumeratorFields,"    ");
         var ctor = IndentLines(ctorDecl,"    ");
         var currentPropDecl = this.GetCurrentPropertyDeclaration(currentType);
+        var nonEnumeratedCount = this.EnumeratorProbeMember(
+            () => this.GetTryGetNonEnumeratedCountBody,
+            DefaultTryGetNonEnumeratedCountBody,
+            "public bool TryGetNonEnumeratedCount(out int count)",
+            "public bool TryGetNonEnumeratedCount(out int count) { count = 0; return false; }");
+        var getSpan = this.EnumeratorProbeMember(
+            () => this.GetTryGetSpanBody,
+            DefaultTryGetSpanBody,
+            $"public bool TryGetSpan(out global::System.ReadOnlySpan<{currentType}> span)",
+            $"public bool TryGetSpan(out global::System.ReadOnlySpan<{currentType}> span) {{ span = default; return false; }}");
+        var copyTo = this.EnumeratorProbeMember(
+            () => this.GetTryCopyToBody,
+            DefaultTryCopyToBody,
+            $"public bool TryCopyTo(scoped global::System.Span<{currentType}> destination, global::System.Index __offset)",
+            $"public bool TryCopyTo(scoped global::System.Span<{currentType}> destination, global::System.Index __offset) => false;");
 
         return $$"""
-            {{this.GetEnumeratorStructDeclaration($"global::Seamless.Linq.IValueEnumerator<{currentType}>, global::System.Collections.Generic.IEnumerator<{currentType}>")}}
+            {{this.GetEnumeratorStructDeclaration($"global::Seamless.Linq.IValueEnumerator<{currentType}>")}}
             {{fieldsFromParams}}
             {{fields}}
             {{ctor}}
                 {{currentPropDecl}}
-                object? global::System.Collections.IEnumerator.Current => Current;
-                {{AggressiveInliningAttribute}}
-                void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
-                {{AggressiveInliningAttribute}}
-                public bool MoveNext() => TryGetNext(out _);
-                {{AggressiveInliningAttribute}}
-                public bool TryGetNonEnumeratedCount(out int count) {
-            {{IndentLines(this.RenderInstanceMember(() => this.GetTryGetNonEnumeratedCountBody),"        ")}}
-                }
-                {{AggressiveInliningAttribute}}
-                public bool TryGetSpan(out global::System.ReadOnlySpan<{{currentType}}> span) {
-            {{IndentLines(this.RenderInstanceMember(() => this.GetTryGetSpanBody),"        ")}}
-                }
-                {{AggressiveInliningAttribute}}
-                public bool TryCopyTo(scoped global::System.Span<{{currentType}}> destination, global::System.Index __offset) {
-            {{IndentLines(this.RenderInstanceMember(() => this.GetTryCopyToBody),"        ")}}
-                }
+            {{nonEnumeratedCount}}
+            {{getSpan}}
+            {{copyTo}}
                 {{AggressiveInliningAttribute}}
                 public bool TryGetNext(out {{currentType}} current) {
             {{tryGetNextBody}}
@@ -545,6 +553,34 @@ public abstract class Fragment(
             }
             """;
     }
+
+    // TryGetNonEnumeratedCount/TryGetSpan/TryCopyTo の出力。
+    // 本体が既定（常に false）のままなら 1 行の圧縮形で出す。1 struct あたり 11 行前後を削減できる。
+    //
+    // メンバ自体を省いて IValueEnumerator<T> の default interface method へ委ねる案は採らない。
+    // 理由は 2 つあり、どちらも実測・実験で確認済み:
+    //   1. DIM は「実装していないメンバ」なので constrained. callvirt となり値型が box される。
+    //      RyuJIT は DIM を devirtualize せず（CORINFO_DEVIRTUALIZATION_FAILED_DIM）、
+    //      .NET 10 の escape analysis でも消えない。実測で 24 バイト/呼び出しの割当が発生した。
+    //   2. DIM は具象型のレシーバーからは呼べない（インターフェース型か制約付き型引数のみ）。
+    //      生成コードは enumerator を具象 struct のローカルとして保持する箇所が多く、CS1061 になる。
+    // 既定本体でも AggressiveInlining を付けないのは、常に false を返すだけの本体は
+    // 属性が無くても JIT が確実にインライン化するため。
+    private string EnumeratorProbeMember(Func<string> render,string defaultBody,string signature,string compactMember) {
+        var rendered = this.RenderInstanceMember(render);
+        if(NormalizeMemberBody(rendered)==NormalizeMemberBody(defaultBody)) {
+            return $"    {compactMember}";
+        }
+        return $$"""
+                {{AggressiveInliningAttribute}}
+                {{signature}} {
+            {{IndentLines(rendered,"        ")}}
+                }
+            """;
+    }
+
+    private static string NormalizeMemberBody(string body) =>
+        body.Replace("\r\n","\n").Trim();
 
     private protected static string IndentLines(string text,string indent) {
         if(string.IsNullOrWhiteSpace(text)) return string.Empty;
@@ -581,9 +617,11 @@ public abstract class Fragment(
         }
     }
     // 生成 struct に付ける where 制約。PrimarySource が設定されると struct 制約付きの where 句になる。
+    // 生成 struct は IValueEnumerator<T> だけを実装する（IEnumerator<T> は実装しない）。
+    // foreach / IEnumerator が要る場面はランタイムの ValueEnumerator<TEnumerator,T> で包む。
     protected virtual string StructTypeConstraints =>
         this.PrimarySource is { } src
-            ? $"where TEnum : struct, global::System.Collections.Generic.IEnumerator<{src.ElementType}>, global::Seamless.Linq.IValueEnumerator<{src.ElementType}>"
+            ? $"where TEnum : struct, global::Seamless.Linq.IValueEnumerator<{src.ElementType}>"
             : string.Empty;
 
     private protected string GetEnumeratorStructDeclaration(string interfaceType) {

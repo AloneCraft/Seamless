@@ -8,7 +8,7 @@ Prepend は source.Prepend(value) を、追加要素を先に返してから sou
 生成例:
   if(state == 0) return b;
   if(state == 1) return a;
-  if(source.MoveNext()) return source.Current;
+  if(source.TryGetNext(out var v)) return v;
   return false;
 
 設計意図:
@@ -57,8 +57,8 @@ public class Prepend(int 番号,Enumerable source,string element):Enumerable(番
                 builder.AppendLine("    return true;");
                 builder.AppendLine("}");
             }
-            builder.AppendLine($"if({this.e}.MoveNext()) {{");
-            builder.AppendLine($"    current=this.{this.currentValue}={this.e}.Current;");
+            builder.AppendLine($"if({this.e}.TryGetNext(out var __prependNext{番号})) {{");
+            builder.AppendLine($"    current=this.{this.currentValue}=__prependNext{番号};");
             builder.AppendLine("    return true;");
             builder.AppendLine("}");
             builder.AppendLine("current=default!;");

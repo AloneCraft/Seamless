@@ -59,6 +59,94 @@ public class FLinqNativeIterateTests {
         }
     }
 
+    [Fact, Trait("Category","Unit")]
+    public void PersistedSetRoot_UsesNativeLookupForContains() {
+        var path = CreatePath();
+        try {
+            using var set = global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
+            foreach(var value in new[] { 1,2,3,4 })
+                set.Add(value);
+            set.Compact();
+
+            source=set;
+            {
+                //要素を変えない段しか無く comparer も無い Contains は .hindex による O(1) 直接検索になる
+                Assert.True(ContainsThreeImpl());
+                Assert.False(ContainsNineImpl());
+
+                var body = InterceptorBody(nameof(ContainsThreeImpl));
+                Assert.Contains(".Contains(3)",body);
+                Assert.DoesNotContain("PersistedSetIterateState",body);
+                Assert.DoesNotContain(".Iterate(ref",body);
+            }
+            {
+                //段が挟まると集合自身の等価では答えられないので従来の native iterate へ落ちる
+                Assert.True(WhereThenContainsImpl());
+
+                var body = InterceptorBody(nameof(WhereThenContainsImpl));
+                Assert.Contains("PersistedSetIterateState",body);
+                Assert.Contains(".Iterate(ref __PersistedSetIterateState",body);
+            }
+        } finally {
+            source=null;
+            TryDeleteDirectory(path);
+        }
+    }
+
+    [Fact, Trait("Category","Unit")]
+    public void PersistedSetRoot_UsesNativeIterateTerminalForCastAndOfType() {
+        var path = CreatePath();
+        try {
+            using var set = global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
+            foreach(var value in new[] { 1,2,3,4 })
+                set.Add(value);
+            set.Compact();
+
+            source=set;
+            {
+                //Cast は順序に依存しないので unordered な provider scan へ載る
+                Assert.Equal(4,CastToObjectCountImpl());
+
+                var body = InterceptorBody(nameof(CastToObjectCountImpl));
+                Assert.Contains("PersistedSetIterateState",body);
+                Assert.Contains(".Iterate(ref __PersistedSetIterateState",body);
+            }
+            {
+                //OfType も同様。スキップは per-item コールバックの return true で表現される
+                Assert.Equal(4,OfTypeIntCountImpl());
+
+                var body = InterceptorBody(nameof(OfTypeIntCountImpl));
+                Assert.Contains("PersistedSetIterateState",body);
+                Assert.Contains(".Iterate(ref __PersistedSetIterateState",body);
+            }
+        } finally {
+            source=null;
+            TryDeleteDirectory(path);
+        }
+    }
+
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static int CastToObjectCountImpl() =>
+        Source().AsEnumerable().Cast<object>().Count();
+
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static int OfTypeIntCountImpl() =>
+        Source().AsEnumerable().OfType<int>().Count();
+
+    // Source().Contains(x) は Set<T> 自身のインスタンスメソッドに束縛されるため LINQ 介入自体が起きない。
+    // FLinq が介入するのは AsEnumerable() を挟んで IEnumerable<T> として見える形。
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static bool ContainsThreeImpl() =>
+        Source().AsEnumerable().Contains(3);
+
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static bool ContainsNineImpl() =>
+        Source().AsEnumerable().Contains(9);
+
+    [LinqIntercept(true,LinqInstrumentation.Counter)]
+    private static bool WhereThenContainsImpl() =>
+        Source().AsEnumerable().Where(static value => value>2).Contains(3);
+
     [LinqIntercept(true,LinqInstrumentation.Counter)]
     private static bool AnyGreaterThanThreeImpl() =>
         Source().Where(static value => value>3).Any();
@@ -77,6 +165,20 @@ public class FLinqNativeIterateTests {
 
     private static global::Seamless.Persisted.Collections.Set<int> Source() =>
         source??throw new InvalidOperationException("Source was not initialized.");
+
+    // SourceFor はファイル全体を返すため、他メソッド分の生成コードが混ざる。
+    // 「この経路では出ないこと」を検証するには対象インターセプターの本体だけを切り出す必要がある。
+    private static string InterceptorBody(string methodName) {
+        var generated = GeneratedInterceptorAssert.SourceFor<FLinqNativeIterateTests>(methodName);
+        var marker = $"<c>{methodName}()</c>";
+        var start = generated.IndexOf(marker,StringComparison.Ordinal);
+        Assert.True(start>=0,$"Interceptor for {methodName} was not found in the generated source.");
+        var end = generated.IndexOf("/// <summary>",start,StringComparison.Ordinal);
+        if(end<0) {
+            end=generated.Length;
+        }
+        return generated[start..end];
+    }
 
     private static void AssertNativeIterateGenerated(string methodName) {
         var generated = GeneratedInterceptorAssert.SourceFor<FLinqNativeIterateTests>(methodName);

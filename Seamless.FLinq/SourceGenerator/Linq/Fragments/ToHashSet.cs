@@ -86,7 +86,7 @@ public class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSet
             if(source.TryGetSpan(out var __span)){
                 foreach(var item in __span) result.Add(item);
             }else{
-                while(source.MoveNext()) result.Add(source.Current);
+                while(source.TryGetNext(out var __mn86)) result.Add(__mn86);
             }
             return result;
         }
@@ -160,7 +160,7 @@ public class ToHashSet_comparer(int 番号,Enumerable source,string comparer,str
             if(source.TryGetSpan(out var __span)){
                 foreach(var item in __span) result.Add(item);
             }else{
-                while(source.MoveNext()) result.Add(source.Current);
+                while(source.TryGetNext(out var __mn87)) result.Add(__mn87);
             }
             return result;
         }

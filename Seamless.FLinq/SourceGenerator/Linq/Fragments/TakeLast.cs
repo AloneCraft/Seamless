@@ -48,9 +48,9 @@ public class TakeLast(int 番号,Enumerable source,string takeCount):Enumerable(
                     current=default!;
                     return false;
                 }
-                while({{this.e}}.MoveNext()) {
+                while({{this.e}}.TryGetNext(out var __mn76)) {
                     if(this.{{this.lookup}}.Count==__takeCount) this.{{this.lookup}}.Dequeue();
-                    this.{{this.lookup}}.Enqueue({{this.e}}.Current);
+                    this.{{this.lookup}}.Enqueue(__mn76);
                 }
             }
             if(this.{{this.lookup}}.Count>0) {
@@ -68,9 +68,9 @@ public class TakeLast(int 番号,Enumerable source,string takeCount):Enumerable(
                     current=default!;
                     return false;
                 }
-                while({{this.e}}.MoveNext()) {
+                while({{this.e}}.TryGetNext(out var __mn77)) {
                     if(this.{{this.lookup}}.Count==__c) this.{{this.lookup}}.Dequeue();
-                    this.{{this.lookup}}.Enqueue({{this.e}}.Current);
+                    this.{{this.lookup}}.Enqueue(__mn77);
                 }
             }
             if(this.{{this.lookup}}.Count>0) {

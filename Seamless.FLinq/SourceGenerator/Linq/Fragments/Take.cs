@@ -9,9 +9,9 @@ Take は source.Take(count) を、返した件数を数える enumerator へ変�
 
 生成例:
   if(returned >= count) return false;
-  if(source.MoveNext()) {
+  if(source.TryGetNext(out var v)) {
       returned++;
-      current = source.Current;
+      current = v;
       return true;
   }
   return false;
@@ -46,9 +46,9 @@ public class Take(int 番号,Enumerable source,string takeCount):Enumerable(番�
             current = default!;
             return false;
         }
-        if({{this.e}}.MoveNext()) {
+        if({{this.e}}.TryGetNext(out var __mn75)) {
             this.{{this.a}}++;
-            current = this.{{this.currentValue}} = {{this.e}}.Current;
+            current = this.{{this.currentValue}} = __mn75;
             return true;
         }
         current = default!;

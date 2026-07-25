@@ -11,9 +11,9 @@ DefaultIfEmptyBase は source が空なら defaultValue を1件だけ返す enum
   source.DefaultIfEmpty(value)
 
 生成例:
-  if(source.MoveNext()) {
+  if(source.TryGetNext(out var v)) {
       hasValue = true;
-      current = source.Current;
+      current = v;
       return true;
   }
   if(!hasValue && !yieldedDefault) {
@@ -48,9 +48,9 @@ public abstract class DefaultIfEmptyBase(int 番号,Enumerable source):Enumerabl
         private bool {{this.yielded}};
         """;
     public override string GetTryGetNextBody => $$"""
-        if({{this.e}}.MoveNext()) {
+        if({{this.e}}.TryGetNext(out var __mn23)) {
             this.{{this.hasValue}}=true;
-            current=this.{{this.currentValue}}={{this.e}}.Current;
+            current=this.{{this.currentValue}}=__mn23;
             return true;
         }
         if(!this.{{this.hasValue}}&&!this.{{this.yielded}}) {

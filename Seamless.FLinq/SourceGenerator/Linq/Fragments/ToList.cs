@@ -41,7 +41,7 @@ ToList は source.ToList() を、capacity hint と Span copy を使う Compute �
       copy span into internal array;
   } else {
       list = new List<T>();
-      while(source.MoveNext()) list.Add(source.Current);
+      while(source.TryGetNext(out var v)) list.Add(v);
   }
 
 バリエーション:
@@ -117,8 +117,8 @@ public class ToList(int 番号,Enumerable source,string resultType):BufferedScal
                 var __destination=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(__result);
                 if(!enumerator.TryCopyTo(__destination,0)) {
                     var __i=0;
-                    while(enumerator.MoveNext()) {
-                        __destination[__i++]=enumerator.Current;
+                    while(enumerator.TryGetNext(out var __mn88)) {
+                        __destination[__i++]=__mn88;
                     }
                 }
                 else {
@@ -138,7 +138,7 @@ public class ToList(int 番号,Enumerable source,string resultType):BufferedScal
             global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanFailed();
             global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
             __result=new global::System.Collections.Generic.List<{{source.ElementType}}>();
-            while(enumerator.MoveNext()) __result.Add(enumerator.Current);
+            while(enumerator.TryGetNext(out var __mn89)) __result.Add(__mn89);
             return __result;
         }
         """;

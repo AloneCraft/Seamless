@@ -6,10 +6,10 @@ MinMaxSelectorBase は source.Min(selector) / Max(selector) を selector 結果�
   source.Max(x => x.Score)
 
 生成例:
-  if(!source.MoveNext()) throw NoElements();
-  result = selector(source.Current);
-  while(source.MoveNext()) {
-      value = selector(source.Current);
+  if(!source.TryGetNext(out var v)) throw NoElements();
+  result = selector(v);
+  while(source.TryGetNext(out var v)) {
+      value = selector(v);
       if(comparer.Compare(value, result) is better) result = value;
   }
   return result;
@@ -56,11 +56,11 @@ public abstract class MinMaxSelectorBase(int 番号,Enumerable source,FuncFragme
                     }
                 }else{
                     {{source.ElementType}} {{this.item}};
-                    if(!source.MoveNext()) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                    {{this.item}}=source.Current;
+                    if(!source.TryGetNext(out var __mn108)) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+                    {{this.item}}=__mn108;
                     {{this.FuncAssignIndented("        ",selector,nameof(selector),"result",this.item)}}
-                    while(source.MoveNext()){
-                        {{this.item}}=source.Current;
+                    while(source.TryGetNext(out var __mn109)){
+                        {{this.item}}=__mn109;
                         {{resultType}} value=default!;
                         {{this.FuncAssignIndented("            ",selector,nameof(selector),"value",this.item)}}
                         if({{this.CompareCond}}) result=value;
@@ -75,11 +75,11 @@ public abstract class MinMaxSelectorBase(int 番号,Enumerable source,FuncFragme
                 var comparer=global::System.Collections.Generic.Comparer<{{resultType}}>.Default;
                 {{source.ElementType}} {{this.item}};
                 {{resultType}} result=default!;
-                if(!source.MoveNext()) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                {{this.item}}=source.Current;
+                if(!source.TryGetNext(out var __mn110)) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+                {{this.item}}=__mn110;
                 {{this.FuncAssignIndented("    ",selector,nameof(selector),"result",this.item)}}
-                while(source.MoveNext()){
-                    {{this.item}}=source.Current;
+                while(source.TryGetNext(out var __mn111)){
+                    {{this.item}}=__mn111;
                     {{resultType}} value=default!;
                     {{this.FuncAssignIndented("        ",selector,nameof(selector),"value",this.item)}}
                     if({{this.CompareCond}}) result=value;

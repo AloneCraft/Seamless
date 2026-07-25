@@ -7,7 +7,7 @@ Any は source.Any() を「件数 fast path か MoveNext 1回」で判定する 
 
 生成例:
   if(source.TryGetNonEnumeratedCount(out var count)) result = count != 0;
-  else result = source.MoveNext();
+  else result = source.TryGetNext(out var v);
 
 バリエーション:
   - Range/Repeat は count 式だけで inline 結果を出せる。
@@ -110,7 +110,7 @@ public class Any(int 番号,Enumerable source):Scalar(番号) {
         if({{this.e}}.TryGetNonEnumeratedCount(out var __count)) {
             this.{{this.currentValue}} = __count != 0;
         }else{
-            this.{{this.currentValue}} = {{this.e}}.MoveNext();
+            this.{{this.currentValue}} = {{this.e}}.TryGetNext(out _);
         }
         current = this.{{this.currentValue}};
         return true;
@@ -168,8 +168,8 @@ public class Any_predicate(int 番号,Enumerable source,FuncFragment predicate):
         : $$"""
             {{AggressiveInliningAttribute}}
             private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
-                while(source.MoveNext()) {
-                    var {{this.item}}=source.Current;
+                while(source.TryGetNext(out var __mn4)) {
+                    var {{this.item}}=__mn4;
                     bool {{this.temp}}=default!;
                     {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}) return true;
@@ -197,8 +197,8 @@ public class Any_indexPredicate(int 番号,Enumerable source,FuncFragment predic
         {{AggressiveInliningAttribute}}
         private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
             var {{this.a}}=0;
-            while(source.MoveNext()) {
-                var {{this.item}}=source.Current;
+            while(source.TryGetNext(out var __mn5)) {
+                var {{this.item}}=__mn5;
                 bool {{this.temp}}=default!;
                 {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item,this.a)}}
                 if({{this.temp}}) return true;

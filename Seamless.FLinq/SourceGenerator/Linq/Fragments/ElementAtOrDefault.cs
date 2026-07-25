@@ -52,8 +52,8 @@ public class ElementAtOrDefault(int 番号,Enumerable source,string index,string
             private static {{resultType}} Compute(TEnum source, int index) {
                 if(index<0) return default!;
                 var currentIndex=0;
-                while(source.MoveNext()) {
-                    if(currentIndex==index) return source.Current;
+                while(source.TryGetNext(out var __mn27)) {
+                    if(currentIndex==index) return __mn27;
                     currentIndex++;
                 }
                 return default!;
@@ -119,8 +119,8 @@ public class ElementAtOrDefault_index(int 番号,Enumerable source,string index,
                 if(!index.IsFromEnd) {
                     var idx=index.Value;
                     var currentIndex=0;
-                    while(source.MoveNext()) {
-                        if(currentIndex==idx) return source.Current;
+                    while(source.TryGetNext(out var __mn28)) {
+                        if(currentIndex==idx) return __mn28;
                         currentIndex++;
                     }
                     return default!;
@@ -129,8 +129,8 @@ public class ElementAtOrDefault_index(int 番号,Enumerable source,string index,
                     if(n==0) return default!;
                     var count=0;
                     var buffer=new {{resultType}}[n];
-                    while(source.MoveNext()) {
-                        buffer[count%n]=source.Current;
+                    while(source.TryGetNext(out var __mn29)) {
+                        buffer[count%n]=__mn29;
                         count++;
                     }
                     if(count<n) return default!;

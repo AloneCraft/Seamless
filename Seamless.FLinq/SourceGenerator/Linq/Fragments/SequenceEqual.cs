@@ -7,7 +7,7 @@ public class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable seco
     public override string StructMethod => string.Empty;
     protected override string StructTypeParameters => this.StructTypeParametersWithOuter("TEnum1","TEnum2");
     protected override string StructTypeConstraints =>
-        $"where TEnum1 : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>, global::Seamless.Linq.IValueEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>, global::Seamless.Linq.IValueEnumerator<{second.ElementType}>";
+        $"where TEnum1 : struct, global::Seamless.Linq.IValueEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::Seamless.Linq.IValueEnumerator<{second.ElementType}>";
     public override string EnumeratorTypeName => this.EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
     protected override string StructSources => source.GetEnumeratorStruct+"\n"+second.GetEnumeratorStruct;
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {second.GetEnumeratorExpression}, {comparer})";
@@ -61,11 +61,11 @@ public class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable seco
             private static {{resultType}} Compute(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
                 comparer??=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
                 while(true){
-                    var hasLeft=source.MoveNext();
-                    var hasRight=second.MoveNext();
+                    var hasLeft=source.TryGetNext(out var __mn51);
+                    var hasRight=second.TryGetNext(out var __mn52);
                     if(hasLeft!=hasRight) return false;
                     if(!hasLeft) return true;
-                    if(!comparer.Equals(source.Current,({{source.ElementType}})(object)second.Current!)) return false;
+                    if(!comparer.Equals(__mn51,({{source.ElementType}})(object)__mn52!)) return false;
                 }
             }
             """;

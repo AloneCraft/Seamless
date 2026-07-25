@@ -8,9 +8,9 @@ Single は source.Single() を、0件/2件以上を検出する Compute に変�
   source.Single(predicate)
 
 生成例:
-  if(!source.MoveNext()) throw NoElements();
-  var value = source.Current;
-  if(source.MoveNext()) throw MoreThanOneElement();
+  if(!source.TryGetNext(out var v)) throw NoElements();
+  var value = v;
+  if(source.TryGetNext(out var v)) throw MoreThanOneElement();
   return value;
 
 バリエーション:
@@ -55,9 +55,9 @@ public class Single(int 番号,Enumerable source,string resultType):BufferedScal
         : $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source) {
-                if(!source.MoveNext()) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                {{resultType}} value = source.Current;
-                if(source.MoveNext()) throw new global::System.InvalidOperationException("Sequence contains more than one element");
+                if(!source.TryGetNext(out var __mn53)) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+                {{resultType}} value = __mn53;
+                if(source.TryGetNext(out _)) throw new global::System.InvalidOperationException("Sequence contains more than one element");
                 return value;
             }
             """;
@@ -112,8 +112,8 @@ public class Single_predicate(int 番号,Enumerable source,FuncFragment predicat
             private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
                 {{resultType}} value = default!;
                 bool found = false;
-                while(source.MoveNext()) {
-                    var {{this.item}} = source.Current;
+                while(source.TryGetNext(out var __mn55)) {
+                    var {{this.item}} = __mn55;
                     bool {{this.temp}} = default!;
                     {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}) {

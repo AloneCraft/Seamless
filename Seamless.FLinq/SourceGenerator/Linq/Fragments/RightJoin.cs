@@ -7,15 +7,15 @@ internal class RightJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         ? this.StructTypeParametersWithOuter("TOuterEnum","TInnerEnum","TResult")
         : this.StructTypeParametersWithOuter("TOuterEnum","TInnerEnum");
     protected override string StructTypeConstraints =>
-        $"where TOuterEnum:struct,global::System.Collections.Generic.IEnumerator<{this.outerSource.ElementType}>\n    where TInnerEnum:struct,global::System.Collections.Generic.IEnumerator<{this.innerSource.ElementType}>";
+        $"where TOuterEnum:struct,global::Seamless.Linq.IValueEnumerator<{this.outerSource.ElementType}>\n    where TInnerEnum:struct,global::Seamless.Linq.IValueEnumerator<{this.innerSource.ElementType}>";
     public override string EnumeratorTypeName => this.UseResultTypeParam
         ? this.EnumeratorTypeNameWithOuter(this.outerSource.EnumeratorTypeName,this.innerSource.EnumeratorTypeName,"TResult")
         : this.EnumeratorTypeNameWithOuter(this.outerSource.EnumeratorTypeName,this.innerSource.EnumeratorTypeName);
     private string FactorySource => !this.UseResultTypeParam ? string.Empty : $$"""
         {{AggressiveInliningAttribute}}
         private static global::Seamless.Linq.ValueEnumerable<{{this.Struct}}<TOuterEnum,TInnerEnum,TResult>,TResult> {{this.FactoryMethodName}}<TOuterEnum,TInnerEnum,TResult>(TOuterEnum outer,TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(this.outerKey)}}>? comparer{{this.ClosurePrimaryCtorSuffix(this.outerKey,this.innerKey,this.resultSelector)}})
-            where TOuterEnum:struct,global::System.Collections.Generic.IEnumerator<{{this.outerSource.ElementType}}>
-            where TInnerEnum:struct,global::System.Collections.Generic.IEnumerator<{{this.innerSource.ElementType}}>
+            where TOuterEnum:struct,global::Seamless.Linq.IValueEnumerator<{{this.outerSource.ElementType}}>
+            where TInnerEnum:struct,global::Seamless.Linq.IValueEnumerator<{{this.innerSource.ElementType}}>
             => new(new {{this.Struct}}<TOuterEnum,TInnerEnum,TResult>(outer,inner,comparer{{this.ClosureArgsSuffixForFactory(this.outerKey,this.innerKey,this.resultSelector)}}));
         """;
     public override string StructMethod => JoinStaticMethods(JoinStaticMethods(JoinStaticMethods(
@@ -44,9 +44,9 @@ internal class RightJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         private static global::Seamless.Linq.Lookup<{{FuncReturnTypeName(this.outerKey)}},{{this.outerSource.ElementType}}> BuildOuterLookup(TOuterEnum outer,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(this.outerKey)}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
             var __lookupBuilder=new global::Seamless.Linq.LookupBuilder<{{FuncReturnTypeName(this.outerKey)}},{{this.outerSource.ElementType}}>(comparer);
             using var {{this.e}}=outer;
-            while({{this.e}}.MoveNext()){
+            while({{this.e}}.TryGetNext(out var __mn48)){
                 {{this.CounterCall("IncrementLogicalRightJoinOuter")}}
-                var {{this.item}}={{this.e}}.Current;
+                var {{this.item}}=__mn48;
                 {{FuncReturnTypeName(this.outerKey)}} {{this.key}}=default!;
                 {{this.FuncAssignStaticIndented("        ",this.outerKey,nameof(this.outerKey),this.key,this.item)}}
                 if(IsNullKey({{this.key}})){
@@ -70,12 +70,12 @@ internal class RightJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
             {{this.group}}=null;
             {{this.state}}=0;
         }
-        if(!{{this.innerEnumerator}}.MoveNext()){
+        if(!{{this.innerEnumerator}}.TryGetNext(out var __mn49)){
             current=default!;
             return false;
         }
         {{this.CounterCall("IncrementLogicalRightJoinInner")}}
-        {{this.outerValue}}={{this.innerEnumerator}}.Current;
+        {{this.outerValue}}=__mn49;
         {{FuncReturnTypeName(this.innerKey)}} {{this.key}}=default!;
         {{this.FuncAssignIndented("",this.innerKey,nameof(this.innerKey),this.key,this.outerValue)}}
         {{this.CounterCall("IncrementHashProbe")}}

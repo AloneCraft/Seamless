@@ -6,8 +6,8 @@ SkipWhile_predicate は predicate が true の間だけ読み捨て、その後�
   source.SkipWhile(x => x.IsHeader)
 
 生成例:
-  while(source.MoveNext()) {
-      var item = source.Current;
+  while(source.TryGetNext(out var v)) {
+      var item = v;
       if(skipping && predicate(item)) continue;
       skipping = false;
       current = item;
@@ -44,8 +44,8 @@ public class SkipWhile_predicate(int 番号,Enumerable source,FuncFragment predi
                 : $"{preCode}\n            if(this.skipping && {WrapConditionExpression(condExpr)})";
 
             return $$"""
-                while({{this.e}}.MoveNext()) {
-                    var {{this.item}} = {{this.e}}.Current;
+                while({{this.e}}.TryGetNext(out var __mn69)) {
+                    var {{this.item}} = __mn69;
                     {{predicateCheck}} {
                         continue;
                     }
@@ -125,8 +125,8 @@ public class SkipWhile_indexPredicate(int 番号,Enumerable source,FuncFragment 
                 : $"{preCode}\n            if(this.skipping && {WrapConditionExpression(condExpr)})";
 
             return $$"""
-                while({{this.e}}.MoveNext()) {
-                    var {{this.item}} = {{this.e}}.Current;
+                while({{this.e}}.TryGetNext(out var __mn70)) {
+                    var {{this.item}} = __mn70;
                     this.{{this.a}}++;
                     {{predicateCheck}} {
                         continue;

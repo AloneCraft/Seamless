@@ -59,7 +59,7 @@ public class Reverse(int 番号,Enumerable source):Enumerable(番号) {
                     }else{
                         this.{{this.group}}=new global::System.Collections.Generic.List<{{this.RootSource.ElementType}}>();
                     }
-                    while({{this.e}}.MoveNext()) this.{{this.group}}.Add({{this.e}}.Current);
+                    while({{this.e}}.TryGetNext(out var __mn46)) this.{{this.group}}.Add(__mn46);
                     this.{{this.a}}=this.{{this.group}}.Count-1;
                 }
             }
@@ -81,7 +81,7 @@ public class Reverse(int 番号,Enumerable source):Enumerable(番号) {
                 }else{
                     this.{{this.group}}=new global::System.Collections.Generic.List<{{this.RootSource.ElementType}}>();
                 }
-                while({{this.e}}.MoveNext()) this.{{this.group}}.Add({{this.e}}.Current);
+                while({{this.e}}.TryGetNext(out var __mn47)) this.{{this.group}}.Add(__mn47);
                 this.{{this.a}}=this.{{this.group}}.Count-1;
             }
             if(this.{{this.a}}>=0) {

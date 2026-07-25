@@ -38,51 +38,11 @@ public abstract class Scalar(int 番号):Fragment(番号) {
 
     protected virtual string? RenderDirectEnumerableCallInline(Enumerable source,string destVar,string destType,string methodName,params string[] arguments) => null;
 
+    // 型情報を失った IEnumerable<T> ソースの materialize は
+    // GeneratedCodeHelpers の共通ラダーへ委譲する（1 コール地点あたり 36 行 → 1 行）。
     protected string? RenderDirectEnumerableToArrayHybridInline(Enumerable source,string destVar,string destType) {
         if(source.DirectEnumerableExpression is not { } sourceExpression) return null;
-        var elementType = source.ElementType;
-        var sourceVar = $"__src{this.result}";
-        var arrayVar = $"__array{this.result}";
-        var listVar = $"__list{this.result}";
-        var collectionVar = $"__collection{this.result}";
-        var spanVar = $"__span{this.result}";
-        var countVar = $"__count{this.result}";
-        return $$"""
-            {{destType}} {{destVar}};
-            {
-                var {{sourceVar}}={{sourceExpression}};
-                if({{sourceVar}} is {{elementType}}[] {{arrayVar}}) {
-                    if({{arrayVar}}.Length==0) {
-                        {{destVar}}=global::System.Array.Empty<{{elementType}}>();
-                    } else {
-                        {{destVar}}=global::System.GC.AllocateUninitializedArray<{{elementType}}>({{arrayVar}}.Length);
-                        global::System.MemoryExtensions.AsSpan({{arrayVar}}).CopyTo(global::System.MemoryExtensions.AsSpan({{destVar}}));
-                    }
-                } else if({{sourceVar}} is global::System.Collections.Generic.List<{{elementType}}> {{listVar}}) {
-                    var {{spanVar}}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{listVar}});
-                    if({{spanVar}}.Length==0) {
-                        {{destVar}}=global::System.Array.Empty<{{elementType}}>();
-                    } else {
-                        {{destVar}}=global::System.GC.AllocateUninitializedArray<{{elementType}}>({{spanVar}}.Length);
-                        {{spanVar}}.CopyTo(global::System.MemoryExtensions.AsSpan({{destVar}}));
-                    }
-                } else if({{sourceVar}} is global::System.Collections.Generic.ICollection<{{elementType}}> {{collectionVar}}) {
-                    var {{countVar}}={{collectionVar}}.Count;
-                    if({{countVar}}==0) {
-                        {{destVar}}=global::System.Array.Empty<{{elementType}}>();
-                    } else {
-                        {{destVar}}=global::System.GC.AllocateUninitializedArray<{{elementType}}>({{countVar}});
-                        {{collectionVar}}.CopyTo({{destVar}},0);
-                    }
-                } else {
-                    var __fallbackList{{this.result}}=new global::System.Collections.Generic.List<{{elementType}}>();
-                    foreach(var __fallbackItem{{this.result}} in {{sourceVar}}) {
-                        __fallbackList{{this.result}}.Add(__fallbackItem{{this.result}});
-                    }
-                    {{destVar}}=__fallbackList{{this.result}}.ToArray();
-                }
-            }
-            """;
+        return $"{destType} {destVar}=global::Seamless.Linq.GeneratedCodeHelpers.ToArrayFromEnumerable<{source.ElementType}>({sourceExpression});";
     }
 
     protected string? RenderSpanInline(Enumerable source,string destVar,string destType,string spanVar,Func<string,string> renderBody) {
@@ -121,82 +81,6 @@ public abstract class Scalar(int 番号):Fragment(番号) {
                 {{srcVar}}.TryGetSpan(out var {{spanVar}});
                 global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanSucceeded();
                 {{IndentLines(renderBody(spanVar),"    ")}}
-            }
-            """;
-    }
-
-    protected string? RenderDirectEnumerableToListHybridInline(Enumerable source,string destVar,string destType) {
-        if(source.DirectEnumerableExpression is not { } sourceExpression) return null;
-        var elementType = source.ElementType;
-        var sourceVar = $"__src{this.result}";
-        var arrayVar = $"__array{this.result}";
-        var listVar = $"__list{this.result}";
-        var collectionVar = $"__collection{this.result}";
-        var sourceSpanVar = $"__sourceSpan{this.result}";
-        var resultSpanVar = $"__resultSpan{this.result}";
-        return $$"""
-            {{destType}} {{destVar}};
-            {
-                var {{sourceVar}}={{sourceExpression}};
-                if({{sourceVar}} is {{elementType}}[] {{arrayVar}}) {
-                    {{destVar}}=new({{arrayVar}}.Length);
-                    global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({{destVar}},{{arrayVar}}.Length);
-                    global::System.MemoryExtensions.AsSpan({{arrayVar}}).CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{destVar}}));
-                } else if({{sourceVar}} is global::System.Collections.Generic.List<{{elementType}}> {{listVar}}) {
-                    var {{sourceSpanVar}}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{listVar}});
-                    {{destVar}}=new({{sourceSpanVar}}.Length);
-                    global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({{destVar}},{{sourceSpanVar}}.Length);
-                    var {{resultSpanVar}}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{destVar}});
-                    {{sourceSpanVar}}.CopyTo({{resultSpanVar}});
-                } else if({{sourceVar}} is global::System.Collections.Generic.ICollection<{{elementType}}> {{collectionVar}}) {
-                    {{destVar}}=new({{collectionVar}});
-                } else {
-                    {{destVar}}=new global::System.Collections.Generic.List<{{elementType}}>();
-                    foreach(var __fallbackItem{{this.result}} in {{sourceVar}}) {
-                        {{destVar}}.Add(__fallbackItem{{this.result}});
-                    }
-                }
-            }
-            """;
-    }
-
-    protected string? RenderDirectEnumerableToHashSetHybridInline(Enumerable source,string destVar,string destType,string? comparerExpression = null) {
-        if(source.DirectEnumerableExpression is not { } sourceExpression) return null;
-        var elementType = source.ElementType;
-        var comparer = comparerExpression??"null";
-        var sourceVar = $"__src{this.result}";
-        var arrayVar = $"__array{this.result}";
-        var listVar = $"__list{this.result}";
-        var collectionVar = $"__collection{this.result}";
-        var spanVar = $"__span{this.result}";
-        var itemVar = $"__item{this.result}";
-        return $$"""
-            {{destType}} {{destVar}};
-            {
-                var {{sourceVar}}={{sourceExpression}};
-                if({{sourceVar}} is {{elementType}}[] {{arrayVar}}) {
-                    {{destVar}}=new({{arrayVar}}.Length,{{comparer}});
-                    var {{spanVar}}=global::System.MemoryExtensions.AsSpan({{arrayVar}});
-                    for(var __i=0; __i<{{spanVar}}.Length; __i++) {
-                        {{destVar}}.Add({{spanVar}}[__i]);
-                    }
-                } else if({{sourceVar}} is global::System.Collections.Generic.List<{{elementType}}> {{listVar}}) {
-                    var {{spanVar}}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{listVar}});
-                    {{destVar}}=new({{spanVar}}.Length,{{comparer}});
-                    for(var __i=0; __i<{{spanVar}}.Length; __i++) {
-                        {{destVar}}.Add({{spanVar}}[__i]);
-                    }
-                } else if({{sourceVar}} is global::System.Collections.Generic.ICollection<{{elementType}}> {{collectionVar}}) {
-                    {{destVar}}=new({{collectionVar}}.Count,{{comparer}});
-                    foreach(var {{itemVar}} in {{collectionVar}}) {
-                        {{destVar}}.Add({{itemVar}});
-                    }
-                } else {
-                    {{destVar}}=new global::System.Collections.Generic.HashSet<{{elementType}}>({{comparer}});
-                    foreach(var __fallbackItem{{this.result}} in {{sourceVar}}) {
-                        {{destVar}}.Add(__fallbackItem{{this.result}});
-                    }
-                }
             }
             """;
     }

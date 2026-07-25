@@ -241,6 +241,25 @@ public abstract class ProviderNativeExecutionBase(
                     : new[] { currentName };
                 GeneratedCodeWriter.AppendIndented(builder,this.FuncAssignStatic(stage.Func!,"Select",nextName,args),"    ");
                 currentName=nextName;
+                continue;
+            }
+            // Cast/OfType は順序に依存しないので unordered な provider scan へ載せられる。
+            // Invoke は per-item コールバックで戻り値が「走査を続けるか」なので、
+            // OfType のスキップは continue ではなく return true になる（Where と同形）。
+            // 入出力が同型なら変換も型判定も不要（OfType<int> を int 列に適用した場合の
+            // `is not int` は「絶対に一致しないパターン」として CS8518 になる）。
+            if(stage.Kind is PipelineStageKind.Cast or PipelineStageKind.OfType) {
+                if(stage.InputType==stage.OutputType) {
+                    continue;
+                }
+                var nextName = $"current{++currentIndex}";
+                if(stage.Kind==PipelineStageKind.Cast) {
+                    builder.AppendLine($"    var {nextName}=({stage.OutputType})(object?){currentName};");
+                } else {
+                    builder.AppendLine($"    if({currentName} is not {stage.OutputType} {nextName}) return true;");
+                }
+                currentName=nextName;
+                continue;
             }
         }
         if(terminalKind==ProviderIterateTerminalKind.ToList) {

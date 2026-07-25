@@ -142,8 +142,8 @@ public class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragment 
                 result=new();
             }
             if(!__hasSpan){
-                while(source.MoveNext()){
-                    var {{this.item}}=source.Current;
+                while(source.TryGetNext(out var __mn82)){
+                    var {{this.item}}=__mn82;
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
                     {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     result.Add({{this.key}},{{this.item}});
@@ -214,8 +214,8 @@ public class ToDictionary_keySelector_elementSelector(int 番号,Enumerable sour
                 result=new();
             }
             if(!__hasSpan){
-                while(source.MoveNext()){
-                    var {{this.item}}=source.Current;
+                while(source.TryGetNext(out var __mn83)){
+                    var {{this.item}}=__mn83;
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
                     {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     {{FuncReturnTypeName(elementSelector)}} {{this.temp}}=default!;
@@ -283,8 +283,8 @@ public class ToDictionary_keySelector_comparer(int 番号,Enumerable source,Func
                 result=new(comparer);
             }
             if(!__hasSpan){
-                while(source.MoveNext()){
-                    var {{this.item}}=source.Current;
+                while(source.TryGetNext(out var __mn84)){
+                    var {{this.item}}=__mn84;
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
                     {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     result.Add({{this.key}},{{this.item}});
@@ -324,8 +324,8 @@ public class ToDictionary_keySelector_elementSelector_comparer(int 番号,Enumer
                 result=new(comparer);
             }
             if(!__hasSpan){
-                while(source.MoveNext()){
-                    var {{this.item}}=source.Current;
+                while(source.TryGetNext(out var __mn85)){
+                    var {{this.item}}=__mn85;
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
                     {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     {{FuncReturnTypeName(elementSelector)}} {{this.temp}}=default!;

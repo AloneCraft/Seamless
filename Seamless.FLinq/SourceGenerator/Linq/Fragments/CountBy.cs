@@ -52,8 +52,8 @@ public class CountBy(int 番号,Enumerable source,FuncFragment keySelector):Enum
                 }else{
                     this.{{this.lookup}}=new global::System.Collections.Generic.Dictionary<{{FuncReturnTypeName(keySelector)}}, int>();
                 }
-                while({{this.e}}.MoveNext()) {
-                    var {{this.item}}={{this.e}}.Current;
+                while({{this.e}}.TryGetNext(out var __mn20)) {
+                    var {{this.item}}=__mn20;
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
                     {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     ref var __cnt=ref global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.{{this.lookup}},{{this.key}},out var __exists);
@@ -62,8 +62,8 @@ public class CountBy(int 番号,Enumerable source,FuncFragment keySelector):Enum
             }
             this.{{this.innerEnumerator}}=this.{{this.lookup}}.GetEnumerator();
         }
-        if(this.{{this.innerEnumerator}}.MoveNext()) {
-            var __kv=this.{{this.innerEnumerator}}.Current;
+        if(this.{{this.innerEnumerator}}.TryGetNext(out var __mn21)) {
+            var __kv=__mn21;
             current=this.{{this.currentValue}}=new global::System.Collections.Generic.KeyValuePair<{{FuncReturnTypeName(keySelector)}}, global::System.Int32>(__kv.Key,__kv.Value);
             return true;
         }
@@ -185,8 +185,8 @@ public class CountBy(int 番号,Enumerable source,FuncFragment keySelector):Enum
                     this.AddPooledMap({{this.key}});
                 }
             }else{
-                while({{this.e}}.MoveNext()) {
-                    var {{this.item}}={{this.e}}.Current;
+                while({{this.e}}.TryGetNext(out var __mn22)) {
+                    var {{this.item}}=__mn22;
                     int {{this.key}}=default!;
                     {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     this.AddPooledMap({{this.key}});

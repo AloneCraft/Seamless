@@ -60,8 +60,8 @@ public class Contains(int 番号,Enumerable source,string value,string resultTyp
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value) {
                 var comparer=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
-                while(source.MoveNext()){
-                    if(comparer.Equals(source.Current,value)) return true;
+                while(source.TryGetNext(out var __mn16)){
+                    if(comparer.Equals(__mn16,value)) return true;
                 }
                 return false;
             }
@@ -112,8 +112,8 @@ public class Contains_comparer(int 番号,Enumerable source,string value,string 
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer) {
                 comparer??=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
-                while(source.MoveNext()){
-                    if(comparer.Equals(source.Current,value)) return true;
+                while(source.TryGetNext(out var __mn17)){
+                    if(comparer.Equals(__mn17,value)) return true;
                 }
                 return false;
             }

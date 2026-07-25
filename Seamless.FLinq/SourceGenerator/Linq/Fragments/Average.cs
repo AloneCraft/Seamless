@@ -91,8 +91,8 @@ public class Average(int 番号,Enumerable source,string resultType):BufferedSca
                     private static {{resultType}} Compute(TEnum source) {
                         long count=0;
                         var sum=0m;
-                        while(source.MoveNext()){
-                            sum+=source.Current;
+                        while(source.TryGetNext(out var __mn7)){
+                            sum+=__mn7;
                             count++;
                         }
                         if(count==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
@@ -126,8 +126,8 @@ public class Average(int 番号,Enumerable source,string resultType):BufferedSca
                     private static {{resultType}} Compute(TEnum source) {
                         long count=0;
                         double sum=0;
-                        while(source.MoveNext()){
-                            sum+=source.Current;
+                        while(source.TryGetNext(out var __mn8)){
+                            sum+=__mn8;
                             count++;
                         }
                         if(count==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
@@ -155,8 +155,8 @@ public class Average(int 番号,Enumerable source,string resultType):BufferedSca
                 private static {{resultType}} Compute(TEnum source) {
                     long count=0;
                     {{resultType}} sum=default!;
-                    while(source.MoveNext()){
-                        sum+=source.Current;
+                    while(source.TryGetNext(out var __mn9)){
+                        sum+=__mn9;
                         count++;
                     }
                     if(count==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
@@ -213,8 +213,8 @@ public class Average_selector(int 番号,Enumerable source,FuncFragment selector
                     private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
                         long count=0;
                         var sum=0m;
-                        while(source.MoveNext()){
-                            var {{this.item}}=source.Current;
+                        while(source.TryGetNext(out var __mn10)){
+                            var {{this.item}}=__mn10;
                             {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
                             {{this.FuncAssignStaticIndented("        ",selector,nameof(selector),this.temp,this.item)}}
                             sum+={{this.temp}};
@@ -246,8 +246,8 @@ public class Average_selector(int 番号,Enumerable source,FuncFragment selector
                     private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
                         long count=0;
                         double sum=0;
-                        while(source.MoveNext()){
-                            var {{this.item}}=source.Current;
+                        while(source.TryGetNext(out var __mn11)){
+                            var {{this.item}}=__mn11;
                             {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
                             {{this.FuncAssignStaticIndented("        ",selector,nameof(selector),this.temp,this.item)}}
                             sum+={{this.temp}};
@@ -280,8 +280,8 @@ public class Average_selector(int 番号,Enumerable source,FuncFragment selector
                 private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
                     long count=0;
                     {{resultType}} sum=default!;
-                    while(source.MoveNext()){
-                        var {{this.item}}=source.Current;
+                    while(source.TryGetNext(out var __mn12)){
+                        var {{this.item}}=__mn12;
                         {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
                         {{this.FuncAssignStaticIndented("        ",selector,nameof(selector),this.temp,this.item)}}
                         sum+={{this.temp}};

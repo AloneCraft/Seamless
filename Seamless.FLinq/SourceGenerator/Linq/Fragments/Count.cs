@@ -10,7 +10,7 @@ Count は Count/LongCount を件数取得 fast path 優先の Compute へ変換�
 生成例:
   if(source.TryGetNonEnumeratedCount(out var count)) return (TResult)count;
   checked {
-      while(source.MoveNext()) count++;
+      while(source.TryGetNext(out var v)) count++;
   }
 
 バリエーション:
@@ -53,7 +53,7 @@ public class Count(int 番号,Enumerable source,string resultType):BufferedScala
                 }
                 {{resultType}} count=0;
                 checked{
-                    while(source.MoveNext()) count++;
+                    while(source.TryGetNext(out _)) count++;
                 }
                 return count;
             }
@@ -122,8 +122,8 @@ public class Count_predicate(int 番号,Enumerable source,FuncFragment predicate
             private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
                 {{resultType}} count = 0;
                 checked{
-                    while(source.MoveNext()) {
-                        var {{this.item}} = source.Current;
+                    while(source.TryGetNext(out var __mn19)) {
+                        var {{this.item}} = __mn19;
                         bool {{this.temp}} = default!;
                         {{this.FuncAssignStaticIndented("            ",predicate,nameof(predicate),this.temp,this.item)}}
                         if({{this.temp}}) count++;

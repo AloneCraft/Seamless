@@ -8,7 +8,7 @@ Append は source.Append(value) を、source を読み切った後に追加要�
 
 生成例:
   if(state == Source) {
-      if(source.MoveNext()) return source.Current;
+      if(source.TryGetNext(out var v)) return v;
       state = FirstAppend;
   }
   if(state == FirstAppend) return a;
@@ -55,8 +55,8 @@ public class Append(int 番号,Enumerable source,string element):Enumerable(番�
         get {
             var builder = new StringBuilder();
             builder.AppendLine($"if(this.{this.state}==0) {{");
-            builder.AppendLine($"    if({this.e}.MoveNext()) {{");
-            builder.AppendLine($"        current=this.{this.currentValue}={this.e}.Current;");
+            builder.AppendLine($"    if({this.e}.TryGetNext(out var __appendNext{番号})) {{");
+            builder.AppendLine($"        current=this.{this.currentValue}=__appendNext{番号};");
             builder.AppendLine("        return true;");
             builder.AppendLine("    }");
             builder.AppendLine($"    this.{this.state}=1;");

@@ -8,9 +8,9 @@ Last は source.Last() を、最後に見た値を保持する Compute に変換
 
 生成例:
   found = false;
-  while(source.MoveNext()) {
+  while(source.TryGetNext(out var v)) {
       found = true;
-      result = source.Current;
+      result = v;
   }
   if(!found) throw NoElements();
   return result;
@@ -70,9 +70,9 @@ public class Last(int 番号,Enumerable source,string resultType):BufferedScalar
             private static {{resultType}} Compute(TEnum source) {
                 var found=false;
                 {{resultType}} result=default!;
-                while(source.MoveNext()){
+                while(source.TryGetNext(out var __mn39)){
                     found=true;
-                    result=source.Current;
+                    result=__mn39;
                 }
                 if(!found) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
                 return result;
@@ -153,8 +153,8 @@ public class Last_predicate(int 番号,Enumerable source,FuncFragment predicate,
             private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
                 var found=false;
                 {{resultType}} result=default!;
-                while(source.MoveNext()){
-                    var {{this.item}}=source.Current;
+                while(source.TryGetNext(out var __mn40)){
+                    var {{this.item}}=__mn40;
                     bool {{this.temp}}=default!;
                     {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}){ found=true; result={{this.item}}; }

@@ -46,7 +46,7 @@ public class LastOrDefault(int 番号,Enumerable source,string resultType):Buffe
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source) {
                 {{resultType}} result=default!;
-                while(source.MoveNext()) result=source.Current;
+                while(source.TryGetNext(out var __mn41)) result=__mn41;
                 return result;
             }
             """;
@@ -99,7 +99,7 @@ public class LastOrDefault_defaultValue(int 番号,Enumerable source,string defa
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue) {
                 {{resultType}} result = defaultValue;
-                while(source.MoveNext()) result = source.Current;
+                while(source.TryGetNext(out var __mn42)) result = __mn42;
                 return result;
             }
             """;
@@ -173,8 +173,8 @@ public class LastOrDefault_predicate(int 番号,Enumerable source,FuncFragment p
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
                 {{resultType}} result = default!;
-                while(source.MoveNext()) {
-                    var {{this.item}} = source.Current;
+                while(source.TryGetNext(out var __mn43)) {
+                    var {{this.item}} = __mn43;
                     bool {{this.temp}} = default!;
                     {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}) result = {{this.item}};

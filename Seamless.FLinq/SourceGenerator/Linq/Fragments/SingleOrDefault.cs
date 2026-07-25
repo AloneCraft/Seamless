@@ -40,9 +40,9 @@ public class SingleOrDefault(int 番号,Enumerable source,string resultType):Buf
         : $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source) {
-                if(!source.MoveNext()) return default!;
-                {{resultType}} value = source.Current;
-                if(source.MoveNext()) throw new global::System.InvalidOperationException("Sequence contains more than one element");
+                if(!source.TryGetNext(out var __mn56)) return default!;
+                {{resultType}} value = __mn56;
+                if(source.TryGetNext(out _)) throw new global::System.InvalidOperationException("Sequence contains more than one element");
                 return value;
             }
             """;
@@ -89,9 +89,9 @@ public class SingleOrDefault_defaultValue(int 番号,Enumerable source,string de
         : $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue) {
-                if(!source.MoveNext()) return defaultValue;
-                {{resultType}} value = source.Current;
-                if(source.MoveNext()) throw new global::System.InvalidOperationException("Sequence contains more than one element");
+                if(!source.TryGetNext(out var __mn58)) return defaultValue;
+                {{resultType}} value = __mn58;
+                if(source.TryGetNext(out _)) throw new global::System.InvalidOperationException("Sequence contains more than one element");
                 return value;
             }
             """;
@@ -145,8 +145,8 @@ public class SingleOrDefault_predicate(int 番号,Enumerable source,FuncFragment
             private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
                 {{resultType}} value = default!;
                 bool found = false;
-                while(source.MoveNext()) {
-                    var {{this.item}} = source.Current;
+                while(source.TryGetNext(out var __mn60)) {
+                    var {{this.item}} = __mn60;
                     bool {{this.temp}} = default!;
                     {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}) {

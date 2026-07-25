@@ -13,8 +13,8 @@ public class Index(int 番号,Enumerable source):Enumerable(番号) {
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     public override string GetEnumeratorFields => $"private int {this.a}=0;";
     public override string GetTryGetNextBody => $$"""
-        if({{this.e}}.MoveNext()) {
-            current=this.{{this.currentValue}}=(this.{{this.a}}++,{{this.e}}.Current);
+        if({{this.e}}.TryGetNext(out var __mn37)) {
+            current=this.{{this.currentValue}}=(this.{{this.a}}++,__mn37);
             return true;
         }
         current=default!;

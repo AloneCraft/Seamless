@@ -10,10 +10,10 @@ Skip は source.Skip(count) を、初回 TryGetNext で count 件だけ読み捨
 生成例:
   if(!skipped) {
       skipped = true;
-      while(count-- > 0 && source.MoveNext()) {}
+      while(count-- > 0 && source.TryGetNext(out var v)) {}
   }
-  if(source.MoveNext()) {
-      current = source.Current;
+  if(source.TryGetNext(out var v)) {
+      current = v;
       return true;
   }
 
@@ -46,12 +46,12 @@ public class Skip(int 番号,Enumerable source,string skipCount):Enumerable(番�
         if(!this.skipped) {
             this.skipped = true;
             var remaining = this.count;
-            while(remaining > 0 && {{this.e}}.MoveNext()) {
+            while(remaining > 0 && {{this.e}}.TryGetNext(out _)) {
                 remaining--;
             }
         }
-        if({{this.e}}.MoveNext()) {
-            current = this.{{this.currentValue}} = {{this.e}}.Current;
+        if({{this.e}}.TryGetNext(out var __mn62)) {
+            current = this.{{this.currentValue}} = __mn62;
             return true;
         }
         current = default!;

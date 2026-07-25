@@ -7,9 +7,9 @@ Concat は source.Concat(second) を、左を読み切ってから右へ切り�
   first.Concat(second)
 
 生成例:
-  if(!readingSecond && first.MoveNext()) return first.Current;
+  if(!readingSecond && first.TryGetNext(out var v)) return v;
   readingSecond = true;
-  if(second.MoveNext()) return second.Current;
+  if(second.TryGetNext(out var v2)) return v2;
   return false;
 
 バリエーション:
@@ -23,7 +23,7 @@ public class Concat(int 番号,Enumerable source,Enumerable second):Enumerable(�
         $"global::Seamless.Linq.Enumerable.Concat({source.GetEnumerableExpression}, {second.GetEnumerableExpression})";
     protected override string StructTypeParameters => this.StructTypeParametersWithOuter("TEnum1","TEnum2");
     protected override string StructTypeConstraints =>
-        $"where TEnum1 : struct, global::System.Collections.Generic.IEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::System.Collections.Generic.IEnumerator<{second.ElementType}>";
+        $"where TEnum1 : struct, global::Seamless.Linq.IValueEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::Seamless.Linq.IValueEnumerator<{second.ElementType}>";
     public override string EnumeratorTypeName => this.EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
@@ -37,14 +37,14 @@ public class Concat(int 番号,Enumerable source,Enumerable second):Enumerable(�
         """;
     public override string GetTryGetNextBody => $$"""
         if(!this.{{this.hasValue}}) {
-            if(source.MoveNext()) {
-                current=this.{{this.currentValue}}=source.Current;
+            if(source.TryGetNext(out var __left)) {
+                current=this.{{this.currentValue}}=__left;
                 return true;
             }
             this.{{this.hasValue}}=true;
         }
-        if(second.MoveNext()) {
-            current=this.{{this.currentValue}}=({{source.ElementType}})(object)second.Current!;
+        if(second.TryGetNext(out var __right)) {
+            current=this.{{this.currentValue}}=({{source.ElementType}})(object)__right!;
             return true;
         }
         current=default!;

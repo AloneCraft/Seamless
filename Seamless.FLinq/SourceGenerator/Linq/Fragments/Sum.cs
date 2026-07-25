@@ -61,7 +61,7 @@ public class Sum(int 番号,Enumerable source,string resultType):BufferedScalar(
                     if(source.TryGetSpan(out var __span)){
                         for(var __i=0;__i<__span.Length;__i++) sum+=__span[__i];
                     }else{
-                        while(source.MoveNext()) sum+=source.Current;
+                        while(source.TryGetNext(out var __mn71)) sum+=__mn71;
                     }
                 }
                 return sum;
@@ -72,7 +72,7 @@ public class Sum(int 番号,Enumerable source,string resultType):BufferedScalar(
             private static {{resultType}} Compute(TEnum source) {
                 {{resultType}} sum = default!;
                 checked{
-                    while(source.MoveNext()) sum+=source.Current;
+                    while(source.TryGetNext(out var __mn72)) sum+=__mn72;
                 }
                 return sum;
             }
@@ -127,8 +127,8 @@ public class Sum_selector(int 番号,Enumerable source,FuncFragment selector,str
                             sum+={{this.temp}};
                         }
                     }else{
-                        while(source.MoveNext()){
-                            var {{this.item}}=source.Current;
+                        while(source.TryGetNext(out var __mn73)){
+                            var {{this.item}}=__mn73;
                             {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
                             {{this.FuncAssignIndented("                ",selector,nameof(selector),this.temp,this.item)}}
                             sum+={{this.temp}};
@@ -143,8 +143,8 @@ public class Sum_selector(int 番号,Enumerable source,FuncFragment selector,str
             private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}) {
                 {{resultType}} sum = default!;
                 checked{
-                    while(source.MoveNext()){
-                        var {{this.item}}=source.Current;
+                    while(source.TryGetNext(out var __mn74)){
+                        var {{this.item}}=__mn74;
                         {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
                         {{this.FuncAssignIndented("            ",selector,nameof(selector),this.temp,this.item)}}
                         sum+={{this.temp}};

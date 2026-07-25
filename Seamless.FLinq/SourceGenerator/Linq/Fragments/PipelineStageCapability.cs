@@ -41,6 +41,12 @@ public static class PipelineStageCapabilityTable {
         _ => PipelineStageCapability.None,
     };
 
+    // provider native scan（ProviderIterateTerminalBase.InvokeMethodSource）へ載せられる中間段。
+    // 描画側に対応する分岐が無い段をここへ足すと NotSupportedException になるので、両方を揃えて拡張すること。
+    // Take/Skip/TakeWhile/SkipWhile/TakeLast/SkipLast/OrderBy/Reverse は足さない。
+    // provider scan は SourceCapability.Unordered を宣言しており列挙順が保証されないため、
+    // 順序依存の段を通すと意味論が壊れる。
     public static bool SupportsProviderNativeIterate(PipelineStageKind kind) =>
-        kind is PipelineStageKind.Where or PipelineStageKind.Select or PipelineStageKind.AsEnumerable;
+        kind is PipelineStageKind.Where or PipelineStageKind.Select or PipelineStageKind.AsEnumerable
+            or PipelineStageKind.Cast or PipelineStageKind.OfType;
 }

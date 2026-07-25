@@ -8,7 +8,7 @@ First は source.First() を、最初の1要素だけ読む Compute に変換す
   source.First(predicate)
 
 生成例:
-  if(source.MoveNext()) return source.Current;
+  if(source.TryGetNext(out var v)) return v;
   throw NoElements();
 
 バリエーション:
@@ -49,7 +49,7 @@ public class First(int 番号,Enumerable source,string resultType):BufferedScala
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source) {
-            if(source.MoveNext()) return source.Current;
+            if(source.TryGetNext(out var __mn30)) return __mn30;
             throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
         }
         """;
@@ -78,8 +78,8 @@ public class First_predicate(int 番号,Enumerable source,FuncFragment predicate
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}) {
-            while(source.MoveNext()) {
-                var {{this.item}} = source.Current;
+            while(source.TryGetNext(out var __mn31)) {
+                var {{this.item}} = __mn31;
                 bool {{this.temp}} = default!;
                 {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
                 if({{this.temp}}) return {{this.item}};

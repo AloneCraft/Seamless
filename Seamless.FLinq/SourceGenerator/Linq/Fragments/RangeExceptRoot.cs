@@ -45,7 +45,7 @@ public sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<Ra
     }
     public override string GetCurrentExpression => "Current";
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Seamless.Linq.IValueEnumerator<int>, global::System.Collections.Generic.IEnumerator<int>
+        private struct {{this.Struct}} : global::Seamless.Linq.IValueEnumerator<int>
         {
             private int start;
             private int count;
@@ -57,22 +57,8 @@ public sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<Ra
                 {{this.ExclusionAssignments}}
             }
             public int Current { get; private set; } = default!;
-            object? global::System.Collections.IEnumerator.Current => Current;
-            {{AggressiveInliningAttribute}}
-            void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
-            {{AggressiveInliningAttribute}}
-            public bool MoveNext() => TryGetNext(out _);
-            {{AggressiveInliningAttribute}}
-            public bool TryGetNonEnumeratedCount(out int count) {
-                count = 0;
-                return false;
-            }
-            {{AggressiveInliningAttribute}}
-            public bool TryGetSpan(out global::System.ReadOnlySpan<int> span) {
-                span = default;
-                return false;
-            }
-            {{AggressiveInliningAttribute}}
+            public bool TryGetNonEnumeratedCount(out int count) { count = 0; return false; }
+            public bool TryGetSpan(out global::System.ReadOnlySpan<int> span) { span = default; return false; }
             public bool TryCopyTo(scoped global::System.Span<int> destination, global::System.Index offset) => false;
             {{AggressiveInliningAttribute}}
             public bool TryGetNext(out int current) {

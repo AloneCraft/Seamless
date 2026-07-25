@@ -55,28 +55,14 @@ public class Root(int 番号,string sourceExpression,string elementType,string e
     public override string GetEnumeratorStruct => useEnumerableInterface
         ? this.GetEnumerableInterfaceStruct()
         : $$"""
-        private struct {{this.Struct}}{{this.StructTypeParametersWithOuter("TEnum")}} : global::Seamless.Linq.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}}{{this.StructTypeParametersWithOuter("TEnum")}} : global::Seamless.Linq.IValueEnumerator<{{elementType}}>
             where TEnum : struct, global::System.Collections.Generic.IEnumerator<{{elementType}}>
         {
             private TEnum {{this.e}};
             public {{this.Struct}}(TEnum {{this.e}}) { this.{{this.e}} = {{this.e}}; }
             public {{elementType}} Current { get; private set; } = default!;
-            object? global::System.Collections.IEnumerator.Current => Current;
-            {{AggressiveInliningAttribute}}
-            void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
-            {{AggressiveInliningAttribute}}
-            public bool MoveNext() => TryGetNext(out _);
-            {{AggressiveInliningAttribute}}
-            public bool TryGetNonEnumeratedCount(out int count) {
-                count = 0;
-                return false;
-            }
-            {{AggressiveInliningAttribute}}
-            public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) {
-                span = default;
-                return false;
-            }
-            {{AggressiveInliningAttribute}}
+            public bool TryGetNonEnumeratedCount(out int count) { count = 0; return false; }
+            public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) { span = default; return false; }
             public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) => false;
             {{AggressiveInliningAttribute}}
             public bool TryGetNext(out {{elementType}} current) {
@@ -95,18 +81,13 @@ public class Root(int 番号,string sourceExpression,string elementType,string e
         """;
 
     private string GetEnumerableInterfaceStruct() => $$"""
-        private struct {{this.Struct}}{{this.StructTypeParameters}} : global::Seamless.Linq.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}}{{this.StructTypeParameters}} : global::Seamless.Linq.IValueEnumerator<{{elementType}}>
         {
             private global::System.Collections.Generic.IEnumerable<{{elementType}}> source;
             private global::System.Collections.Generic.IEnumerator<{{elementType}}>? {{this.e}};
             private int __index = -1;
             public {{this.Struct}}(global::System.Collections.Generic.IEnumerable<{{elementType}}> source) { this.source = source; }
             public {{elementType}} Current { get; private set; } = default!;
-            object? global::System.Collections.IEnumerator.Current => Current;
-            {{AggressiveInliningAttribute}}
-            void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
-            {{AggressiveInliningAttribute}}
-            public bool MoveNext() => TryGetNext(out _);
             {{AggressiveInliningAttribute}}
             public bool TryGetNonEnumeratedCount(out int count) {
                 if(global::System.Linq.Enumerable.TryGetNonEnumeratedCount(source,out var sourceCount)) {
@@ -248,27 +229,13 @@ public class DuckTypingRoot(int 番号,string sourceExpression,string elementTyp
     public override string GetCurrentExpression => this.currentValue;
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Seamless.Linq.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}} : global::Seamless.Linq.IValueEnumerator<{{elementType}}>
         {
             private {{concreteEnumeratorType}} {{this.e}};
             public {{this.Struct}}({{concreteEnumeratorType}} {{this.e}}) { this.{{this.e}} = {{this.e}}; }
             public {{elementType}} Current { get; private set; } = default!;
-            object? global::System.Collections.IEnumerator.Current => Current;
-            {{AggressiveInliningAttribute}}
-            void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
-            {{AggressiveInliningAttribute}}
-            public bool MoveNext() => TryGetNext(out _);
-            {{AggressiveInliningAttribute}}
-            public bool TryGetNonEnumeratedCount(out int count) {
-                count = 0;
-                return false;
-            }
-            {{AggressiveInliningAttribute}}
-            public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) {
-                span = default;
-                return false;
-            }
-            {{AggressiveInliningAttribute}}
+            public bool TryGetNonEnumeratedCount(out int count) { count = 0; return false; }
+            public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) { span = default; return false; }
             public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) => false;
             {{AggressiveInliningAttribute}}
             public bool TryGetNext(out {{elementType}} current) {
@@ -320,29 +287,19 @@ public sealed class RangeRoot(int 番号,string startExpression,string countExpr
     public override string GetCurrentExpression => "Current";
     public override string ElementType => "int";
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Seamless.Linq.IValueEnumerator<int>, global::System.Collections.Generic.IEnumerator<int>
+        private struct {{this.Struct}} : global::Seamless.Linq.IValueEnumerator<int>
         {
             private int start;
             private int count;
             private int {{this.e}} = -1;
             public {{this.Struct}}(int start,int count) { this.start = start; this.count = count; }
             public int Current { get; private set; } = default!;
-            object? global::System.Collections.IEnumerator.Current => Current;
-            {{AggressiveInliningAttribute}}
-            void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
-            {{AggressiveInliningAttribute}}
-            public bool MoveNext() => TryGetNext(out _);
             {{AggressiveInliningAttribute}}
             public bool TryGetNonEnumeratedCount(out int count) {
                 count = this.count - ({{this.e}} + 1);
                 return true;
             }
-            {{AggressiveInliningAttribute}}
-            public bool TryGetSpan(out global::System.ReadOnlySpan<int> span) {
-                span = default;
-                return false;
-            }
-            {{AggressiveInliningAttribute}}
+            public bool TryGetSpan(out global::System.ReadOnlySpan<int> span) { span = default; return false; }
             public bool TryCopyTo(scoped global::System.Span<int> destination, global::System.Index offset) => false;
             {{AggressiveInliningAttribute}}
             public bool TryGetNext(out int current) {
@@ -387,29 +344,19 @@ public sealed class DescendingRangeRoot(int 番号,string startExpression,string
     public override string GetCurrentExpression => "Current";
     public override string ElementType => "int";
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}} : global::Seamless.Linq.IValueEnumerator<int>, global::System.Collections.Generic.IEnumerator<int>
+        private struct {{this.Struct}} : global::Seamless.Linq.IValueEnumerator<int>
         {
             private int start;
             private int count;
             private int {{this.e}} = -1;
             public {{this.Struct}}(int start,int count) { this.start = start; this.count = count; }
             public int Current { get; private set; } = default!;
-            object? global::System.Collections.IEnumerator.Current => Current;
-            {{AggressiveInliningAttribute}}
-            void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
-            {{AggressiveInliningAttribute}}
-            public bool MoveNext() => TryGetNext(out _);
             {{AggressiveInliningAttribute}}
             public bool TryGetNonEnumeratedCount(out int count) {
                 count = this.count - ({{this.e}} + 1);
                 return true;
             }
-            {{AggressiveInliningAttribute}}
-            public bool TryGetSpan(out global::System.ReadOnlySpan<int> span) {
-                span = default;
-                return false;
-            }
-            {{AggressiveInliningAttribute}}
+            public bool TryGetSpan(out global::System.ReadOnlySpan<int> span) { span = default; return false; }
             public bool TryCopyTo(scoped global::System.Span<int> destination, global::System.Index offset) => false;
             {{AggressiveInliningAttribute}}
             public bool TryGetNext(out int current) {
@@ -460,14 +407,9 @@ public sealed class EmptyRoot(int 番号,string elementType):Enumerable(番号) 
     public override string GetCurrentExpression => "default!";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}}{{this.StructTypeParameters}} : global::Seamless.Linq.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}}{{this.StructTypeParameters}} : global::Seamless.Linq.IValueEnumerator<{{elementType}}>
         {
             public {{elementType}} Current => default!;
-            object? global::System.Collections.IEnumerator.Current => default;
-            {{AggressiveInliningAttribute}}
-            void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
-            {{AggressiveInliningAttribute}}
-            public bool MoveNext() => false;
             {{AggressiveInliningAttribute}}
             public bool TryGetNonEnumeratedCount(out int count) {
                 count = 0;
@@ -525,29 +467,19 @@ public sealed class RepeatRoot(int 番号,string valueExpression,string countExp
     public override string GetCurrentExpression => "Current";
     public override string ElementType => elementType;
     public override string GetEnumeratorStruct => $$"""
-        private struct {{this.Struct}}{{this.StructTypeParameters}} : global::Seamless.Linq.IValueEnumerator<{{elementType}}>, global::System.Collections.Generic.IEnumerator<{{elementType}}>
+        private struct {{this.Struct}}{{this.StructTypeParameters}} : global::Seamless.Linq.IValueEnumerator<{{elementType}}>
         {
             private {{elementType}} value;
             private int count;
             private int {{this.e}} = -1;
             public {{this.Struct}}({{elementType}} value,int count) { this.value = value; this.count = count; }
             public {{elementType}} Current { get; private set; } = default!;
-            object? global::System.Collections.IEnumerator.Current => Current;
-            {{AggressiveInliningAttribute}}
-            void global::System.Collections.IEnumerator.Reset() => throw new global::System.NotSupportedException();
-            {{AggressiveInliningAttribute}}
-            public bool MoveNext() => TryGetNext(out _);
             {{AggressiveInliningAttribute}}
             public bool TryGetNonEnumeratedCount(out int count) {
                 count = this.count - ({{this.e}} + 1);
                 return true;
             }
-            {{AggressiveInliningAttribute}}
-            public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) {
-                span = default;
-                return false;
-            }
-            {{AggressiveInliningAttribute}}
+            public bool TryGetSpan(out global::System.ReadOnlySpan<{{elementType}}> span) { span = default; return false; }
             public bool TryCopyTo(scoped global::System.Span<{{elementType}}> destination, global::System.Index offset) => false;
             {{AggressiveInliningAttribute}}
             public bool TryGetNext(out {{elementType}} current) {
