@@ -22,6 +22,16 @@ public static class GeneratedCodeHelpers {
     public static T ThrowUnorderedSourceOperation<T>(string methodName,string sourceType) =>
         throw UnorderedSourceOperation(methodName,sourceType);
 
+    // インデックス間接ソート(OrderBy/ThenBy の安定ソート実装)向け。
+    // Array.Sort(int[],int,int,IComparer<int>) は comparer をボクシングし、O(n log n) 回の
+    // Compare がインターフェース越し呼び出しのまま devirtualize されない。
+    // TComparer を struct 制約にして Span<int>.Sort<T,TComparer> へ渡すことで、
+    // 呼び出し地点ごとに専用インスタンス化が作られ Compare が devirtualize + インライン化される。
+    // struct 制約は「うっかりクラス comparer に戻す」回帰をコンパイルエラーで防ぐためのもの。
+    public static void SortIndexes<TComparer>(int[] indexes,int count,TComparer comparer)
+        where TComparer : struct, IComparer<int>
+        => indexes.AsSpan(0,count).Sort(comparer);
+
     // 型情報を失った IEnumerable<T> ソースを materialize する共通ラダー。
     // 以前は生成器が is T[] / is List<T> / is ICollection<T> / foreach の分岐を
     // 各コール地点へフル展開していたため、1 箇所あたり 25〜36 行を消費していた。

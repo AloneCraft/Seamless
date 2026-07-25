@@ -5,7 +5,7 @@ public sealed class ThenBy {
     public static void keySelector() {
         var generated = GeneratedInterceptorAssert.SourceFor<ThenBy>(nameof(keySelectorImpl));
         Assert.Contains("global::System.Buffers.ArrayPool<int>.Shared.Rent",generated);
-        Assert.Contains("global::System.Array.Sort(__orderIndexesLocal",generated);
+        Assert.Contains("global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes(__orderIndexesLocal",generated);
         Assert.Contains("__orderIndexComparer",generated);
         Assert.DoesNotContain("global::System.Collections.Generic.Comparer<int>.Create",generated);
         Assert.DoesNotContain("global::System.Collections.Generic.List<SortItem>",generated);

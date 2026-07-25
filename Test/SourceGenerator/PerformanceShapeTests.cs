@@ -520,6 +520,35 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
+    public void OrderByIndexSortUsesDevirtualizedComparer() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static List<int> OrderByMod(int[] src) =>
+                    src.OrderBy(static x => x%1000).ToList();
+                private static List<int> ThenByMod(int[] src) =>
+                    src.OrderBy(static x => x%1000).ThenBy(static x => x).ToList();
+                public void Run(int[] src) {
+                    _ = OrderByMod(src);
+                    _ = ThenByMod(src);
+                }
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes(",StringComparison.Ordinal)
+            &&!generated.Contains("global::System.Array.Sort(",StringComparison.Ordinal),
+            "OrderBy(keySelector)/ThenBy index sorting must go through GeneratedCodeHelpers.SortIndexes "
+            +"(devirtualized via a struct-constrained comparer) instead of Array.Sort with a boxed IComparer<int>.",
+            generated,
+            output);
+    }
+
+    [Fact]
     public void SingleStageArrayPipelinesConsumeDirectSpan() {
         const string source = """
             using System.Collections.Generic;
@@ -684,7 +713,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         GeneratedSourceAssert.True(
             generated.Contains("__orderValues",StringComparison.Ordinal)
             &&generated.Contains("__orderIndexes",StringComparison.Ordinal)
-            &&generated.Contains("global::System.Array.Sort(__orderIndexes",StringComparison.Ordinal)
+            &&generated.Contains("global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes(__orderIndexes",StringComparison.Ordinal)
             &&generated.Contains("global::System.Buffers.ArrayPool<int>.Shared.Rent",StringComparison.Ordinal)
             &&!generated.Contains("global::System.Collections.Generic.List<__sortitem",StringComparison.Ordinal),
             "BinarySet followed by Order/ThenBy should materialize accepted values directly into the pooled order buffer.",

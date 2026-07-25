@@ -150,7 +150,7 @@ internal sealed partial class PipelineEnumerable {
                 }
                 return args;
             });
-        builder.AppendLine($"{fallbackIndent}global::System.Array.Sort({indexesLocal},0,{countLocal},new {this.OrderIndexComparerName(orderIndex)}({string.Join(",",comparerArgs)}));");
+        builder.AppendLine($"{fallbackIndent}global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes({indexesLocal},{countLocal},new {this.OrderIndexComparerName(orderIndex)}({string.Join(",",comparerArgs)}));");
         if(this.CanUseDirectValueOrderSort(orderStages)) {
             builder.AppendLine("            }");
         }

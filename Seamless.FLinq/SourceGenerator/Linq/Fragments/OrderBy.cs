@@ -144,7 +144,7 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
                 }
                 {{this.SortLoopSingle}}
                 if(this.count>1){
-                    global::System.Array.Sort(this.indexMap!,0,this.count,new IndexComparer(comparer,this.keys!));
+                    global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes(this.indexMap!,this.count,new IndexComparer(comparer,this.keys!));
                 }
             }catch{
                 this.DisposeBuffers();
@@ -256,7 +256,7 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
                 }
                 {{this.SortLoopCombined(po)}}
                 if(this.count>1){
-                    global::System.Array.Sort(this.indexMap!,0,this.count,new IndexComparer(primaryComparer,comparer,this.primaryKeys!,this.keys!));
+                    global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes(this.indexMap!,this.count,new IndexComparer(primaryComparer,comparer,this.primaryKeys!,this.keys!));
                 }
             }catch{
                 this.DisposeBuffers();
