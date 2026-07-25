@@ -431,6 +431,40 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
+    public void SequenceEqualWithoutComparerAvoidsInterfaceDispatch() {
+        const string source = """
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static bool PrimitiveEquals(int[] left,int[] right) => left.SequenceEqual(right);
+                private static bool ReferenceEquals2(ClassKey[] left,ClassKey[] right) => left.SequenceEqual(right);
+                public void Run(int[] a,int[] b,ClassKey[] c,ClassKey[] d) {
+                    _ = PrimitiveEquals(a,b);
+                    _ = ReferenceEquals2(c,d);
+                }
+            }
+            public sealed class ClassKey:System.IEquatable<ClassKey> {
+                public bool Equals(ClassKey? other) => other is not null;
+                public override bool Equals(object? obj) => obj is ClassKey other&&this.Equals(other);
+                public override int GetHashCode() => 0;
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("global::System.MemoryExtensions.SequenceEqual(__spanL, __spanR);",StringComparison.Ordinal)
+            &&!generated.Contains("SequenceEqual(__spanL, __spanR, comparer)",StringComparison.Ordinal)
+            &&generated.Contains("global::System.Collections.Generic.EqualityComparer<global::Sample.ClassKey>.Default",StringComparison.Ordinal)
+            &&!generated.Contains("comparer.Equals(",StringComparison.Ordinal),
+            "SequenceEqual without an explicit comparer must avoid routing through the IEqualityComparer<T>? "
+            +"parameter: known primitives use the 2-arg vectorized overload, other types call "
+            +"EqualityComparer<T>.Default.Equals directly so the JIT can devirtualize on the closed generic type.",
+            generated,
+            output);
+    }
+
+    [Fact]
     public void SingleStageArrayPipelinesConsumeDirectSpan() {
         const string source = """
             using System.Collections.Generic;
