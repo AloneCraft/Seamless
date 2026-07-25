@@ -278,7 +278,8 @@ partial class Enumerable {
 
 #if NET8_0_OR_GREATER
 
-    internal static TSource SumSpan<TSource>(ReadOnlySpan<TSource> span)
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static TSource SumSpan<TSource>(ReadOnlySpan<TSource> span)
         where TSource : struct, INumber<TSource> {
         // SIMD Support: sbyte, short, int, long, byte, ushort, uint, ulong, double
 

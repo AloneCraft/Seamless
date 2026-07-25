@@ -465,6 +465,61 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
+    public void SumOverIntArrayUsesSimdSumSpan() {
+        const string source = """
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static int SumInts(int[] src) => src.Sum();
+                private static float SumFloats(float[] src) => src.Sum();
+                public void Run(int[] ints,float[] floats) {
+                    _ = SumInts(ints);
+                    _ = SumFloats(floats);
+                }
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("global::Seamless.Linq.Enumerable.SumSpan<int>(__span)",StringComparison.Ordinal)
+            &&!generated.Contains("global::Seamless.Linq.Enumerable.SumSpan<float>",StringComparison.Ordinal),
+            "Sum() over int should use the SIMD SumSpan helper; float must keep the scalar checked loop "
+            +"(SumSpan's fallback path does not reproduce System.Linq's double-accumulation semantics for float).",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void MaxMinOverListUsesSimdSpanNotRuntimeProbe() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static (int Max,int Min) ListMinMax(List<int> src) => (src.Max(),src.Min());
+                private static (int Max,int Min) ArrayMinMax(int[] src) => (src.Max(),src.Min());
+                public void Run(List<int> list,int[] array) {
+                    _ = ListMinMax(list);
+                    _ = ArrayMinMax(array);
+                }
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var listMethod = GeneratedMethod(generated,"ListMinMax");
+
+        GeneratedSourceAssert.True(
+            listMethod.Contains("global::Seamless.Linq.Enumerable.MaxSpan<int>",StringComparison.Ordinal)
+            &&listMethod.Contains("global::Seamless.Linq.Enumerable.MinSpan<int>",StringComparison.Ordinal)
+            &&!listMethod.Contains(".TryGetSpan(out var",StringComparison.Ordinal),
+            "Max/Min over a List<T> source should use the SIMD MaxSpan/MinSpan helpers via the direct span path, "
+            +"not the runtime TryGetSpan probe.",
+            generated,
+            output);
+    }
+
+    [Fact]
     public void SingleStageArrayPipelinesConsumeDirectSpan() {
         const string source = """
             using System.Collections.Generic;

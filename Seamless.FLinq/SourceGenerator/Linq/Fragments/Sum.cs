@@ -30,43 +30,73 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
         this.RenderDirectSpanSumInline(destVar,destType)
         ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"Sum")
         ??this.RenderComputeInline(destVar,destType);
+    // resultType==source.ElementType のときだけ SumSpan(INumber<T> 制約)へ委譲できる。
+    // float は SumSpan 内部が checked スカラーループへ落ちて System.Linq の
+    // 「double で蓄積してから float へ戻す」仕様と数値的に一致しなくなるため除外する。
+    private bool CanUseSumSpan => resultType==source.ElementType&&IsKnownSimdSumType(source.ElementType);
     private string? RenderDirectSpanSumInline(string destVar,string destType) {
         var span = $"__span{this.result}";
-        return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
-            {{resultType}} sum=default!;
-            checked{
-                for(var __i=0;__i<{{spanName}}.Length;__i++) sum+={{spanName}}[__i];
-            }
-            {{destVar}}=sum;
-            """);
+        return this.RenderSpanInline(source,destVar,destType,span,spanName => this.CanUseSumSpan
+            ? $$"""
+                {{destVar}}=global::Seamless.Linq.Enumerable.SumSpan<{{resultType}}>({{spanName}});
+                """
+            : $$"""
+                {{resultType}} sum=default!;
+                checked{
+                    for(var __i=0;__i<{{spanName}}.Length;__i++) sum+={{spanName}}[__i];
+                }
+                {{destVar}}=sum;
+                """);
     }
     protected override string ComputeMembers => source.CanProvideSpan
-        ? $$"""
-            {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source){
-                {{resultType}} sum = default!;
-                checked{
+        ? (this.CanUseSumSpan
+            ? $$"""
+                {{AggressiveInliningAttribute}}
+                private static {{resultType}} Compute(TEnum source){
                     source.TryGetSpan(out var __span);
-                    for(var __i=0;__i<__span.Length;__i++) sum+=__span[__i];
+                    return global::Seamless.Linq.Enumerable.SumSpan<{{resultType}}>(__span);
                 }
-                return sum;
-            }
-            """
-        : source.CanTryProvideSpan
-        ? $$"""
-            {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source){
-                {{resultType}} sum = default!;
-                checked{
-                    if(source.TryGetSpan(out var __span)){
+                """
+            : $$"""
+                {{AggressiveInliningAttribute}}
+                private static {{resultType}} Compute(TEnum source){
+                    {{resultType}} sum = default!;
+                    checked{
+                        source.TryGetSpan(out var __span);
                         for(var __i=0;__i<__span.Length;__i++) sum+=__span[__i];
-                    }else{
+                    }
+                    return sum;
+                }
+                """)
+        : source.CanTryProvideSpan
+        ? (this.CanUseSumSpan
+            ? $$"""
+                {{AggressiveInliningAttribute}}
+                private static {{resultType}} Compute(TEnum source){
+                    if(source.TryGetSpan(out var __span)){
+                        return global::Seamless.Linq.Enumerable.SumSpan<{{resultType}}>(__span);
+                    }
+                    {{resultType}} sum = default!;
+                    checked{
                         while(source.TryGetNext(out var __mn71)) sum+=__mn71;
                     }
+                    return sum;
                 }
-                return sum;
-            }
-            """
+                """
+            : $$"""
+                {{AggressiveInliningAttribute}}
+                private static {{resultType}} Compute(TEnum source){
+                    {{resultType}} sum = default!;
+                    checked{
+                        if(source.TryGetSpan(out var __span)){
+                            for(var __i=0;__i<__span.Length;__i++) sum+=__span[__i];
+                        }else{
+                            while(source.TryGetNext(out var __mn71)) sum+=__mn71;
+                        }
+                    }
+                    return sum;
+                }
+                """)
         : $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum source){
@@ -78,6 +108,19 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
             }
             """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+
+    private static bool IsKnownSimdSumType(string typeName) =>
+        // SumSpan(Seamless.Linq)の SIMD 対応型と一致させる。float は除外(コメント参照)。
+        typeName is "byte" or "sbyte"
+            or "short" or "ushort"
+            or "int" or "uint"
+            or "long" or "ulong"
+            or "double" or "decimal"
+            or "global::System.Byte" or "global::System.SByte"
+            or "global::System.Int16" or "global::System.UInt16"
+            or "global::System.Int32" or "global::System.UInt32"
+            or "global::System.Int64" or "global::System.UInt64"
+            or "global::System.Double" or "global::System.Decimal";
 }
 
 internal class Sum_selector(int 番号,Enumerable source,FuncFragment selector,string resultType):BufferedScalar(番号,resultType) {
