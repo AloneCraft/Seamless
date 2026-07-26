@@ -12,7 +12,23 @@ internal class Contains(int 番号,Enumerable source,string value,string resultT
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeContainsInline(destVar,destType)
         ??this.RenderDirectSpanContainsInline(destVar,destType)
+        ??this.RenderProviderNativeContainsInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,value);
+    // Persisted/Tsavorite の根(ProviderNativeRootBase)は mmap ハッシュ索引で Contains が O(1)
+    // (PersistedSetRoot.cs 参照: "Set<T>.Contains は .hindex で O(1)。native scan の O(n) を回避する")。
+    // 標準の Compute 経路は TryGetNext ベースの O(n) 線形走査で、要素ごとに逆シリアライズの実コストを
+    // 払うため(Count/ToHashSet と同根)、この O(1) ルックアップを直接埋め込む。
+    // comparer 指定がある場合は集合自身の等価とは一致しない可能性があるため対象外
+    // (Contains_comparer クラスはこの分岐を持たず、常に Compute 経路)。
+    private string? RenderProviderNativeContainsInline(string destVar,string destType) {
+        if(source is not ProviderNativeRootBase nativeRoot) {
+            return null;
+        }
+        if(nativeRoot.NativeContainsExpression(value) is not { } lookupExpression) {
+            return null;
+        }
+        return $"{destType} {destVar}={lookupExpression};";
+    }
     private string? RenderDirectSpanContainsInline(string destVar,string destType) {
         var span = $"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
