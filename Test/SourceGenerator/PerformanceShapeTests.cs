@@ -1181,6 +1181,33 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
+    public void SkipLastSlidingWindowUsesPooledValueQueue() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static int SkipLastAlone(IEnumerable<int> src) => src.SkipLast(4).Count();
+                private static int SkipLastFused(IEnumerable<int> src) => src.Where(static x => x>0).SkipLast(4).Count();
+                public void Run(IEnumerable<int> src) {
+                    _ = SkipLastAlone(src);
+                    _ = SkipLastFused(src);
+                }
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+
+        GeneratedSourceAssert.True(
+            generated.Contains("global::Seamless.Linq.ValueQueue<int>",StringComparison.Ordinal)
+            &&generated.Contains(".Dispose();",StringComparison.Ordinal)
+            &&!generated.Contains("global::System.Collections.Generic.Queue<",StringComparison.Ordinal),
+            "SkipLast sliding windows must use the pooled ValueQueue<T> and dispose it, never a GC-heap Queue<T>.",
+            generated,
+            output);
+    }
+
+    [Fact]
     public void DirectSpanScalarTerminalsAvoidRuntimeTryGetSpan() {
         const string source = """
             using System.Collections.Generic;

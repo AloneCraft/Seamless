@@ -1,6 +1,17 @@
-namespace Seamless.Linq.Internal;
+namespace Seamless.Linq;
 
-internal struct ValueQueue<T>(int capacity):IDisposable {
+/// <summary>
+/// ArrayPool&lt;T&gt;.Shared から借りた配列で回すリングキュー。
+/// SkipLast のような「直近 N 件のスライディングウィンドウ」向けで、
+/// Count/Enqueue/Dequeue は System.Collections.Generic.Queue&lt;T&gt; と同義。
+/// PooledArray&lt;T&gt; と同じく struct なので、コピーやボクシングをすると
+/// 同じ配列を複数回 ArrayPool へ返す危険がある。単一の所有者が持ち、
+/// 借りた後はコピーせずそのまま使って Dispose すること。
+/// default(ValueQueue&lt;T&gt;) は items が null で、Dispose は no-op になる
+/// （生成コードは「未初期化でも無条件に Dispose を呼べる」性質に依存している）。
+/// </summary>
+[EditorBrowsable(EditorBrowsableState.Never)]
+public struct ValueQueue<T>(int capacity):IDisposable {
     private T[] items = ArrayPool<T>.Shared.Rent(capacity);
     private int head = 0;
     private int tail = 0;

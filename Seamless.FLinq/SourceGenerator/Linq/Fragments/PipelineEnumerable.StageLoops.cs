@@ -155,6 +155,11 @@ internal sealed partial class PipelineEnumerable {
         for(var index = 0;index<skipLastIndex;index++) {
             currentName=this.AppendStage(builder,stages[index],currentName,index);
         }
+        // 初回だけ ArrayPool から借りる。容量は捨てる件数+1 で確定するので成長は起きない。
+        builder.AppendLine($"    if(!this.{this.StateName(skipLastIndex)}) {{");
+        builder.AppendLine($"        this.{this.QueueName(skipLastIndex)}=new global::Seamless.Linq.ValueQueue<{stages[skipLastIndex].OutputType}>(global::System.Math.Max(0,{this.CountName(countOrd)})+1);");
+        builder.AppendLine($"        this.{this.StateName(skipLastIndex)}=true;");
+        builder.AppendLine("    }");
         builder.AppendLine($"    this.{this.QueueName(skipLastIndex)}.Enqueue({currentName});");
         builder.AppendLine($"    if(this.{this.QueueName(skipLastIndex)}.Count > global::System.Math.Max(0,{this.CountName(countOrd)})) {{");
         var dequeueItem = this.ItemName(skipLastIndex+1);

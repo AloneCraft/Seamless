@@ -86,7 +86,10 @@ internal sealed partial class PipelineEnumerable {
                         builder.AppendLine($"private int {this.IndexName(index)} = -1;");
                     }
                 } else if(stage.Kind==PipelineStageKind.SkipLast) {
-                    builder.AppendLine($"private global::System.Collections.Generic.Queue<{stage.OutputType}> {this.QueueName(index)} = new();");
+                    // ArrayPool ベースの ValueQueue。フィールド初期化子は置かず、初回 Enqueue の
+                    // 直前まで借りない（未列挙のまま捨てられたときに取りこぼさないため）。
+                    builder.AppendLine($"private global::Seamless.Linq.ValueQueue<{stage.OutputType}> {this.QueueName(index)};");
+                    builder.AppendLine($"private bool {this.StateName(index)} = false;");
                 } else if(stage.Kind==PipelineStageKind.TakeLast) {
                     builder.AppendLine($"private {stage.OutputType}[]? {this.ReverseItemsName(index)} = null;");
                     builder.AppendLine($"private int {this.BufferCountName(index)} = 0;");
@@ -254,6 +257,9 @@ internal sealed partial class PipelineEnumerable {
                     builder.AppendLine("}");
                 } else if(stages[index].Kind is PipelineStageKind.Reverse or PipelineStageKind.TakeLast or PipelineStageKind.TakeRange) {
                     builder.AppendLine(PooledBufferSupport.Dispose(stages[index].OutputType,this.ReverseItemsName(index)));
+                } else if(stages[index].Kind==PipelineStageKind.SkipLast) {
+                    // default(ValueQueue<T>) は items が null で Dispose が no-op なので無条件で呼べる。
+                    builder.AppendLine($"this.{this.QueueName(index)}.Dispose();");
                 }
             }
             foreach(var index in this.SecondSources.Select(static (_,index) => index)) {
