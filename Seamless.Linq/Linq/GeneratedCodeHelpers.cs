@@ -73,4 +73,40 @@ public static class GeneratedCodeHelpers {
         return fallback.ToArray();
     }
 
+    // 件数も span も前もって出せないソース向けの ToList 実体。
+    // List<T>.Add の倍々成長は容量が尽きるたびに倍サイズの配列を新規確保して全件コピーするため、
+    // N 要素で合計およそ 2N の GC 確保になる（4096 要素・参照型で実測 65,504B、理想は 32,768B）。
+    // ここではスタック上の InlineArray16 と ArrayPool のセグメント連結で受けて成長時コピーを無くし、
+    // 総数が確定してから正確サイズの List を 1 本だけ確保する。
+    // アルゴリズムは ToList(ValueEnumerable<,>) の非 count 経路と同一だが、呼び出し地点では
+    // TryGetNonEnumeratedCount が false 確定なのでそのプローブは持ち込まない。
+    //
+    // enumerator は ref で受け、この中では Dispose しない。所有権は生成コード側の try-finally が持つ。
+    // 値渡しにしてはならない: OrderBy のようにコンストラクタでプール配列を借りる enumerator では、
+    // 呼び出し元のコピーと合わせて同じ配列を二重に Return してしまう。
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static List<TSource> ToListFromValueEnumerator<TEnumerator, TSource>(ref TEnumerator enumerator)
+        where TEnumerator : struct, IValueEnumerator<TSource> {
+        var initialBuffer = default(InlineArray16<TSource>);
+        Span<TSource> initialBufferSpan = initialBuffer;
+        var arrayBuilder = new SegmentedArrayProvider<TSource>(initialBufferSpan);
+        var span = arrayBuilder.GetSpan();
+        var i = 0;
+        while(enumerator.TryGetNext(out var item)) {
+            if(i==span.Length) {
+                arrayBuilder.Advance(i);
+                span=arrayBuilder.GetSpan();
+                i=0;
+            }
+            span[i]=item;
+            i++;
+        }
+        arrayBuilder.Advance(i);
+
+        var count = arrayBuilder.Count;
+        var list = new List<TSource>(count);
+        CollectionsMarshal.SetCount(list,count);
+        arrayBuilder.CopyToAndClear(CollectionsMarshal.AsSpan(list));
+        return list;
+    }
 }

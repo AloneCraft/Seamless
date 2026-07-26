@@ -1150,6 +1150,37 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
+    public void EnumerableToListUsesSegmentedBufferHelper() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static List<int> ToListFallback(IEnumerable<int> src) => src.ToList();
+                private static List<int> WhereToListFallback(IEnumerable<int> src) => src.Where(static x => x>0).ToList();
+                public void Run(IEnumerable<int> src) {
+                    _ = ToListFallback(src);
+                    _ = WhereToListFallback(src);
+                }
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var fused = GeneratedMethod(generated,"WhereToListFallback");
+
+        GeneratedSourceAssert.True(
+            generated.Contains("global::Seamless.Linq.GeneratedCodeHelpers.ToListFromValueEnumerator<TEnum,int>(ref enumerator)",StringComparison.Ordinal)
+            &&generated.Contains("enumerator.Dispose();",StringComparison.Ordinal)
+            &&fused.Contains("global::Seamless.Linq.GeneratedCodeHelpers.ToListFromValueEnumerator<",StringComparison.Ordinal)
+            &&fused.Contains("(ref ",StringComparison.Ordinal)
+            &&!generated.Contains("__result=new global::System.Collections.Generic.List<int>();",StringComparison.Ordinal)
+            &&!fused.Contains(".Add(__item",StringComparison.Ordinal),
+            "ToList slow paths must build through the pooled segmented helper instead of List<T>.Add growth, and the caller must keep enumerator ownership via try-finally.",
+            generated,
+            output);
+    }
+
+    [Fact]
     public void DirectSpanScalarTerminalsAvoidRuntimeTryGetSpan() {
         const string source = """
             using System.Collections.Generic;

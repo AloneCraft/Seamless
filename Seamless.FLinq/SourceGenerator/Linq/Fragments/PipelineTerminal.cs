@@ -227,20 +227,27 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             if(this.RenderDirectSpanPipelineToList(actualVariableName,actualTypeName) is { } directSpanPipeline) {
                 return directSpanPipeline;
             }
-            builder.AppendLine($"using var {this.EnumeratorName()}={pipeline.GetEnumeratorExpression};");
+            // using ではなく try-finally なのは、遅経路のヘルパーへ enumerator を ref で渡すため。
+            // using ローカルは読み取り専用で ref に渡せず、値渡しにするとコンストラクタで
+            // プール配列を借りる enumerator（OrderBy 等）で二重 Return になる。
             builder.AppendLine($"{actualTypeName} {actualVariableName};");
-            builder.AppendLine($"if({this.EnumeratorName()}.TryGetNonEnumeratedCount(out var __count{this.result})) {{");
-            builder.AppendLine($"    {actualVariableName}=new(__count{this.result});");
-            builder.AppendLine($"    global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({actualVariableName},__count{this.result});");
-            builder.AppendLine($"    var __destination{this.result}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({actualVariableName});");
-            builder.AppendLine($"    if(!{this.EnumeratorName()}.TryCopyTo(__destination{this.result},0)) {{");
-            builder.AppendLine($"        var __index{this.result}=0;");
-            builder.AppendLine($"        while({this.EnumeratorName()}.TryGetNext(out var __item{this.result})) __destination{this.result}[__index{this.result}++]=__item{this.result};");
-            builder.AppendLine("    }");
-            builder.AppendLine($"}}else{{");
-            builder.AppendLine($"    {actualVariableName}=new();");
-            builder.AppendLine($"    while({this.EnumeratorName()}.TryGetNext(out var __item{this.result})) {actualVariableName}.Add(__item{this.result});");
-            builder.AppendLine($"}}");
+            builder.AppendLine($"var {this.EnumeratorName()}={pipeline.GetEnumeratorExpression};");
+            builder.AppendLine("try {");
+            builder.AppendLine($"    if({this.EnumeratorName()}.TryGetNonEnumeratedCount(out var __count{this.result})) {{");
+            builder.AppendLine($"        {actualVariableName}=new(__count{this.result});");
+            builder.AppendLine($"        global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({actualVariableName},__count{this.result});");
+            builder.AppendLine($"        var __destination{this.result}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({actualVariableName});");
+            builder.AppendLine($"        if(!{this.EnumeratorName()}.TryCopyTo(__destination{this.result},0)) {{");
+            builder.AppendLine($"            var __index{this.result}=0;");
+            builder.AppendLine($"            while({this.EnumeratorName()}.TryGetNext(out var __item{this.result})) __destination{this.result}[__index{this.result}++]=__item{this.result};");
+            builder.AppendLine("        }");
+            builder.AppendLine($"    }}else{{");
+            builder.AppendLine($"        {actualVariableName}=global::Seamless.Linq.GeneratedCodeHelpers.ToListFromValueEnumerator<{pipeline.EnumeratorTypeName},{pipeline.ElementType}>(ref {this.EnumeratorName()});");
+            builder.AppendLine($"    }}");
+            builder.AppendLine("}");
+            builder.AppendLine("finally {");
+            builder.AppendLine($"    {this.EnumeratorName()}.Dispose();");
+            builder.AppendLine("}");
             return builder.ToString().TrimEnd();
         }
         if(terminalKind==PipelineTerminalKind.ToArray) {

@@ -39,8 +39,7 @@ ToList は source.ToList() を、capacity hint と Span copy を使う Compute �
       list = new List<T>(span.Length);
       copy span into internal array;
   } else {
-      list = new List<T>();
-      while(source.TryGetNext(out var v)) list.Add(v);
+      list = GeneratedCodeHelpers.ToListFromValueEnumerator(ref source);
   }
 
 バリエーション:
@@ -108,37 +107,43 @@ internal class ToList(int 番号,Enumerable source,string resultType):BufferedSc
         : $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source){
-            using var enumerator = source;
+            // using ではなく try-finally なのは、遅経路のヘルパーへ enumerator を ref で渡すため。
+            // using ローカルは読み取り専用で ref に渡せず、値渡しにするとコンストラクタで
+            // プール配列を借りる enumerator（OrderBy 等）で二重 Return になる。
+            var enumerator = source;
             global::System.Collections.Generic.List<{{source.ElementType}}> __result;
-            if(enumerator.TryGetNonEnumeratedCount(out var __count)){
-                __result=new global::System.Collections.Generic.List<{{source.ElementType}}>(__count);
-                global::System.Runtime.InteropServices.CollectionsMarshal.SetCount(__result,__count);
-                var __destination=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(__result);
-                if(!enumerator.TryCopyTo(__destination,0)){
-                    var __i=0;
-                    while(enumerator.TryGetNext(out var __mn88)){
-                        __destination[__i++]=__mn88;
+            try {
+                if(enumerator.TryGetNonEnumeratedCount(out var __count)){
+                    __result=new global::System.Collections.Generic.List<{{source.ElementType}}>(__count);
+                    global::System.Runtime.InteropServices.CollectionsMarshal.SetCount(__result,__count);
+                    var __destination=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(__result);
+                    if(!enumerator.TryCopyTo(__destination,0)){
+                        var __i=0;
+                        while(enumerator.TryGetNext(out var __mn88)){
+                            __destination[__i++]=__mn88;
+                        }
                     }
+                    else {
+                        global::Seamless.Linq.LinqCounterScope.IncrementFastCopyUsed();
+                    }
+                    return __result;
                 }
-                else {
+                global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanCalled();
+                if(enumerator.TryGetSpan(out var __sourceSpan)){
+                    global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanSucceeded();
+                    __result=new global::System.Collections.Generic.List<{{source.ElementType}}>(__sourceSpan.Length);
+                    global::System.Runtime.InteropServices.CollectionsMarshal.SetCount(__result,__sourceSpan.Length);
                     global::Seamless.Linq.LinqCounterScope.IncrementFastCopyUsed();
+                    __sourceSpan.CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(__result));
+                    return __result;
                 }
-                return __result;
+                global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanFailed();
+                global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
+                return global::Seamless.Linq.GeneratedCodeHelpers.ToListFromValueEnumerator<TEnum,{{source.ElementType}}>(ref enumerator);
             }
-            global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanCalled();
-            if(enumerator.TryGetSpan(out var __sourceSpan)){
-                global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanSucceeded();
-                __result=new global::System.Collections.Generic.List<{{source.ElementType}}>(__sourceSpan.Length);
-                global::System.Runtime.InteropServices.CollectionsMarshal.SetCount(__result,__sourceSpan.Length);
-                global::Seamless.Linq.LinqCounterScope.IncrementFastCopyUsed();
-                __sourceSpan.CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(__result));
-                return __result;
+            finally {
+                enumerator.Dispose();
             }
-            global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanFailed();
-            global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
-            __result=new global::System.Collections.Generic.List<{{source.ElementType}}>();
-            while(enumerator.TryGetNext(out var __mn89)) __result.Add(__mn89);
-            return __result;
         }
         """;
     protected override string GetEnumeratorDisposeBody => string.Empty;
