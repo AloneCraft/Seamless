@@ -1180,17 +1180,35 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             output);
     }
 
+    // 末尾ウィンドウ系は駆動方法で経路が分かれる。`.Consume(...)` のように後段が LINQ 終端でない形は
+    // 単独フラグメント（SkipLast.cs / TakeLast.cs）、`.Count()` のように LINQ 終端が続く形は
+    // 融合パイプライン段になる。どちらも GC ヒープの Queue<T> を使ってはならない。
     [Fact]
-    public void SkipLastSlidingWindowUsesPooledValueQueue() {
+    public void LastWindowOperatorsUsePooledBuffers() {
         const string source = """
             using System.Collections.Generic;
             using System.Linq;
             namespace Sample;
+            public sealed class Consumer<T> {
+                public void Consume(T item) {
+                }
+            }
+            public static class ConsumeSupport {
+                public static void Consume<T>(this IEnumerable<T> source, Consumer<T> consumer) {
+                    foreach(var item in source) {
+                        consumer.Consume(item);
+                    }
+                }
+            }
             public class Container {
-                private static int SkipLastAlone(IEnumerable<int> src) => src.SkipLast(4).Count();
+                private static void TakeLastAlone(IEnumerable<int> src, Consumer<int> consumer) => src.TakeLast(4).Consume(consumer);
+                private static void SkipLastAlone(IEnumerable<int> src, Consumer<int> consumer) => src.SkipLast(4).Consume(consumer);
+                private static int TakeLastFused(IEnumerable<int> src) => src.Where(static x => x>0).TakeLast(4).Count();
                 private static int SkipLastFused(IEnumerable<int> src) => src.Where(static x => x>0).SkipLast(4).Count();
-                public void Run(IEnumerable<int> src) {
-                    _ = SkipLastAlone(src);
+                public void Run(IEnumerable<int> src, Consumer<int> consumer) {
+                    TakeLastAlone(src,consumer);
+                    SkipLastAlone(src,consumer);
+                    _ = TakeLastFused(src);
                     _ = SkipLastFused(src);
                 }
             }
@@ -1202,7 +1220,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             generated.Contains("global::Seamless.Linq.ValueQueue<int>",StringComparison.Ordinal)
             &&generated.Contains(".Dispose();",StringComparison.Ordinal)
             &&!generated.Contains("global::System.Collections.Generic.Queue<",StringComparison.Ordinal),
-            "SkipLast sliding windows must use the pooled ValueQueue<T> and dispose it, never a GC-heap Queue<T>.",
+            "SkipLast/TakeLast windows must use pooled buffers and dispose them, never a GC-heap Queue<T>.",
             generated,
             output);
     }

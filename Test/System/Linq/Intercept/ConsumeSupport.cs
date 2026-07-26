@@ -13,7 +13,22 @@ internal sealed class Consumer<T> {
     }
 }
 
+// 割当計測用の Consumer。Items を溜めないので、計測対象そのものの割当だけを見られる。
+// Consumer<T> は List へ蓄積するため、割当を測る用途には使えない。
+internal sealed class CountingConsumer {
+    public int Count;
+    public void Consume(int item) {
+        this.Count++;
+    }
+}
+
 internal static class ConsumeSupport {
+    public static void Consume(this IEnumerable<int> source,CountingConsumer consumer) {
+        foreach(var item in source) {
+            consumer.Consume(item);
+        }
+    }
+
     public static void Consume<T>(this IEnumerable<T> source,Consumer<T> consumer) {
         foreach(var item in source) {
             consumer.Consume(item);

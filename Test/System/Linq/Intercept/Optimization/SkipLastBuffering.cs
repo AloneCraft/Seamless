@@ -9,6 +9,10 @@ namespace Test.System.Linq.Intercept.Optimization;
 public sealed class SkipLastBuffering:OptimizationTestBase {
     internal const int ElementCount = 4096;
     internal const int SkipCount = 1024;
+    private const int AttemptCount = 8;
+
+    // Items を溜めない Consumer。割当計測を汚さないよう static で持つ。
+    internal static readonly CountingConsumer Sink = new();
 
     // 件数も span も前もって出せないソース。SkipLast はスライディングウィンドウ経路へ落ちる。
     public static IEnumerable<int> Uncountable(int count) {
@@ -20,18 +24,47 @@ public sealed class SkipLastBuffering:OptimizationTestBase {
     [Fact, Trait("Category","Unit")]
     public static void SkipLast() {
         {
-            // 単独 SkipLast。ウォームアップ後はプールから借りるだけなので割当がほぼ消えること。
+            // 単独フラグメント経路（`.SkipLast(n).Consume(...)`）。後段が LINQ 終端でない形。
+            // ArrayPool.Shared は他のテストと共有で、並列実行中に暖めた配列を横取りされることがある。
+            // そのため数回試して最小値を採る。修正が無ければ毎回 GC ヒープへ確保するので最小値も跳ね上がり、
+            // ガードの検出力は落ちない。計測本体を Func<T> でラップしないこと（割当が計測から消える）。
             var naive = MeasureNaiveSkipLast();
-            _=WarmUpFLinqSkipLast();
-            var flinq = MeasureFLinqSkipLast();
+            var flinq = long.MaxValue;
+            for(var attempt = 0;attempt<AttemptCount;attempt++) {
+                WarmUpFLinqSkipLastConsume();
+                var allocated = MeasureFLinqSkipLastConsume();
+                if(allocated<flinq) {
+                    flinq=allocated;
+                }
+            }
+            Assert.True(naive>=4000,$"baseline sanity failed. naive={naive}");
+            Assert.True(flinq<=512,$"FLinq allocated too much. flinq={flinq} naive={naive}");
+        }
+        {
+            // 融合パイプライン段（`.SkipLast(n).Count()`）。
+            var naive = MeasureNaiveSkipLast();
+            var flinq = long.MaxValue;
+            for(var attempt = 0;attempt<AttemptCount;attempt++) {
+                _=WarmUpFLinqSkipLast();
+                var allocated = MeasureFLinqSkipLast();
+                if(allocated<flinq) {
+                    flinq=allocated;
+                }
+            }
             Assert.True(naive>=4000,$"baseline sanity failed. naive={naive}");
             Assert.True(flinq<=512,$"FLinq allocated too much. flinq={flinq} naive={naive}");
         }
         {
             // 融合パイプライン（Where を挟む）の SkipLast 段も同じ経路に乗ること。
             var naive = MeasureNaiveSkipLast();
-            _=WarmUpFLinqWhereSkipLast();
-            var flinq = MeasureFLinqWhereSkipLast();
+            var flinq = long.MaxValue;
+            for(var attempt = 0;attempt<AttemptCount;attempt++) {
+                _=WarmUpFLinqWhereSkipLast();
+                var allocated = MeasureFLinqWhereSkipLast();
+                if(allocated<flinq) {
+                    flinq=allocated;
+                }
+            }
             Assert.True(naive>=4000,$"baseline sanity failed. naive={naive}");
             Assert.True(flinq<=512,$"FLinq allocated too much. flinq={flinq} naive={naive}");
         }
@@ -66,6 +99,19 @@ public sealed class SkipLastBuffering:OptimizationTestBase {
     // `using var` で受けるためスコープがメソッド末尾までになり、同じメソッド内で
     // 暖機すると借りた配列が計測開始前に ArrayPool へ返らず、計測対象が
     // 空のプールから新規確保してしまう（プールの効果が見えなくなる）。
+    [global::Seamless.FLinq.LinqIntercept(true)]
+    private static void WarmUpFLinqSkipLastConsume() {
+        SkipLastBuffering.Uncountable(global::Test.System.Linq.Intercept.Optimization.SkipLastBuffering.ElementCount).SkipLast(global::Test.System.Linq.Intercept.Optimization.SkipLastBuffering.SkipCount).Consume(global::Test.System.Linq.Intercept.Optimization.SkipLastBuffering.Sink);
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(true)]
+    private static long MeasureFLinqSkipLastConsume() {
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        SkipLastBuffering.Uncountable(global::Test.System.Linq.Intercept.Optimization.SkipLastBuffering.ElementCount).SkipLast(global::Test.System.Linq.Intercept.Optimization.SkipLastBuffering.SkipCount).Consume(global::Test.System.Linq.Intercept.Optimization.SkipLastBuffering.Sink);
+        var allocated = GC.GetAllocatedBytesForCurrentThread()-before;
+        return allocated;
+    }
+
     [global::Seamless.FLinq.LinqIntercept(true)]
     private static int WarmUpFLinqSkipLast() =>
         SkipLastBuffering.Uncountable(global::Test.System.Linq.Intercept.Optimization.SkipLastBuffering.ElementCount).SkipLast(global::Test.System.Linq.Intercept.Optimization.SkipLastBuffering.SkipCount).Count();

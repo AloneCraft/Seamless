@@ -17,15 +17,29 @@ internal class TakeLast(int 番号,Enumerable source,string takeCount):Enumerabl
         """;
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({this.RootSource.GetEnumeratorExpression}, {this.EffectiveTakeCount})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int count";
+    // 末尾 N 件のバッファは ArrayPool ベースの ValueQueue で持つ。
+    // GC ヒープの Queue<T> だと要素数分の配列を毎回確保していた（ClassInt32・N=1024 で 8,216B）。
+    // ValueQueue は struct なのでオブジェクト確保もゼロだが、フィールド初期化子は置かずに
+    // 初回 TryGetNext まで借りない（未列挙のまま捨てられたときに取りこぼさないため）。
+    // 構築済みかどうかは {yielded} で持つ（null 判定が使えなくなるため）。
+    private string LookupField => $"private global::Seamless.Linq.ValueQueue<{this.RootSource.ElementType}> {this.lookup};";
     public override string GetEnumeratorFields => this.RootSource.CanTryProvideSpan
         ? $$"""
             private int {{this.a}}=-1;
             private int {{this.temp}};
-            private global::System.Collections.Generic.Queue<{{this.RootSource.ElementType}}>? {{this.lookup}};
+            {{this.LookupField}}
+            private bool {{this.yielded}};
             """
         : $$"""
-            private global::System.Collections.Generic.Queue<{{this.RootSource.ElementType}}>? {{this.lookup}};
+            {{this.LookupField}}
+            private bool {{this.yielded}};
             """;
+    // default(ValueQueue<T>) は items が null で Dispose が no-op になるため、
+    // 構築済み判定なしで無条件に呼んでよい。
+    protected override string GetEnumeratorDisposeBody => $$"""
+        this.{{this.lookup}}.Dispose();
+        {{this.e}}.Dispose();
+        """;
     public override string GetTryGetNextBody => this.RootSource.CanTryProvideSpan
         ? $$"""
             if({{this.e}}.TryGetSpan(out var __span)){
@@ -42,15 +56,15 @@ internal class TakeLast(int 番号,Enumerable source,string takeCount):Enumerabl
                 return false;
             }
             var __takeCount=count<0?0:count;
-            if(this.{{this.lookup}} is null){
-                this.{{this.lookup}}=new global::System.Collections.Generic.Queue<{{this.RootSource.ElementType}}>(__takeCount);
-                if(__takeCount==0){
-                    current=default!;
-                    return false;
-                }
-                while({{this.e}}.TryGetNext(out var __mn76)){
-                    if(this.{{this.lookup}}.Count==__takeCount) this.{{this.lookup}}.Dequeue();
-                    this.{{this.lookup}}.Enqueue(__mn76);
+            if(!this.{{this.yielded}}){
+                this.{{this.yielded}}=true;
+                // Rent(0) は Array.Empty<T>() を返すので 0 件では借りない。
+                if(__takeCount>0){
+                    this.{{this.lookup}}=new global::Seamless.Linq.ValueQueue<{{this.RootSource.ElementType}}>(__takeCount);
+                    while({{this.e}}.TryGetNext(out var __mn76)){
+                        if(this.{{this.lookup}}.Count==__takeCount) this.{{this.lookup}}.Dequeue();
+                        this.{{this.lookup}}.Enqueue(__mn76);
+                    }
                 }
             }
             if(this.{{this.lookup}}.Count>0){
@@ -62,15 +76,15 @@ internal class TakeLast(int 番号,Enumerable source,string takeCount):Enumerabl
             """
         : $$"""
             var __c=count<0?0:count;
-            if(this.{{this.lookup}} is null){
-                this.{{this.lookup}}=new global::System.Collections.Generic.Queue<{{this.RootSource.ElementType}}>(__c);
-                if(__c==0){
-                    current=default!;
-                    return false;
-                }
-                while({{this.e}}.TryGetNext(out var __mn77)){
-                    if(this.{{this.lookup}}.Count==__c) this.{{this.lookup}}.Dequeue();
-                    this.{{this.lookup}}.Enqueue(__mn77);
+            if(!this.{{this.yielded}}){
+                this.{{this.yielded}}=true;
+                // Rent(0) は Array.Empty<T>() を返すので 0 件では借りない。
+                if(__c>0){
+                    this.{{this.lookup}}=new global::Seamless.Linq.ValueQueue<{{this.RootSource.ElementType}}>(__c);
+                    while({{this.e}}.TryGetNext(out var __mn77)){
+                        if(this.{{this.lookup}}.Count==__c) this.{{this.lookup}}.Dequeue();
+                        this.{{this.lookup}}.Enqueue(__mn77);
+                    }
                 }
             }
             if(this.{{this.lookup}}.Count>0){
