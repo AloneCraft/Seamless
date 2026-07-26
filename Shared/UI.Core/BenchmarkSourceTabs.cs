@@ -37,38 +37,23 @@ public sealed record ベンチマークソースタブ定義(
     string 右アセンブリ名,
     string 左型接頭辞="",
     string 右型接頭辞="",
-    string 中央プロジェクト="",
-    string 中央見出し="",
-    string 中央アセンブリ名="",
-    string 中央型接頭辞="",
-    string 追加プロジェクト="",
-    string 追加見出し="",
-    string 追加アセンブリ名="",
-    string 追加型接頭辞="",
     IReadOnlyList<比較ペア定義>?比較ペア定義一覧=null){
     public IReadOnlyList<ベンチマーク比較列定義>列一覧{get;}=
         new ベンチマーク比較列定義[]{
             new("左",左プロジェクト,左見出し,左アセンブリ名,左型接頭辞),
-            new("中央",中央プロジェクト,中央見出し,中央アセンブリ名,中央型接頭辞),
-            new("追加",追加プロジェクト,追加見出し,追加アセンブリ名,追加型接頭辞),
             new("右",右プロジェクト,右見出し,右アセンブリ名,右型接頭辞),
         }.Where(static 列=>!string.IsNullOrWhiteSpace(列.プロジェクト)).ToArray();
     public IReadOnlyList<string>プロジェクト順{get;}=
-        new[]{左プロジェクト,中央プロジェクト,追加プロジェクト,右プロジェクト}.Where(static プロジェクト=>!string.IsNullOrWhiteSpace(プロジェクト)).ToArray();
+        new[]{左プロジェクト,右プロジェクト}.Where(static プロジェクト=>!string.IsNullOrWhiteSpace(プロジェクト)).ToArray();
     public 比較ペア選択肢 ペア=>new(
         this.ID,
         this.表示名,
         this.左プロジェクト,
         this.右プロジェクト);
 
-    public IReadOnlyList<比較ペア定義>比較ペア一覧{get;}=比較ペア定義一覧??(
-        string.IsNullOrWhiteSpace(中央プロジェクト)
-            ? [比較ペアを作成("左-右",左見出し,右見出し,左プロジェクト,右プロジェクト,"左","右")]
-            : [
-                比較ペアを作成("左-右",左見出し,右見出し,左プロジェクト,右プロジェクト,"左","右"),
-                比較ペアを作成("中央-右",中央見出し,右見出し,中央プロジェクト,右プロジェクト,"中央","右"),
-            ]);
-
+    public IReadOnlyList<比較ペア定義>比較ペア一覧{get;}=比較ペア定義一覧??[
+        比較ペアを作成("左-右",左見出し,右見出し,左プロジェクト,右プロジェクト,"左","右"),
+    ];
     private static 比較ペア定義 比較ペアを作成(string キー,string 左見出し,string 右見出し,string 左プロジェクト,string 右プロジェクト,string 最適化列キー,string 基準列キー)=>
         new(キー,左見出し+" → "+右見出し,左見出し+" 対 "+右見出し,左プロジェクト,右プロジェクト,最適化列キー,基準列キー);
 
@@ -179,12 +164,9 @@ public static class ベンチマークソースタブ一覧{
             "System.Array.FLinq",
             "FLinq",
             "Benchmark.System.Linq.Enumerable.FLinq",
-            "System.Array.Linq",
-            "Enumerable",
-            "Benchmark.System.Linq.Enumerable.Linq",
-            中央プロジェクト:"System.Array.ZLinq",
-            中央見出し:"ZLinq",
-            中央アセンブリ名:"Benchmark.System.Linq.Enumerable.ZLinq"),
+            "System.Array.ZLinq",
+            "ZLinq",
+            "Benchmark.System.Linq.Enumerable.ZLinq"),
         new(
             ベンチマークソースタブ.SystemIEnumerable,
             SystemIEnumerableID,
@@ -192,12 +174,9 @@ public static class ベンチマークソースタブ一覧{
             "System.IEnumerable.FLinq",
             "FLinq",
             "Benchmark.System.Linq.Enumerable.IEnumerable.FLinq",
-            "System.IEnumerable.Linq",
-            "Enumerable",
-            "Benchmark.System.Linq.Enumerable.IEnumerable.Linq",
-            中央プロジェクト:"System.IEnumerable.ZLinq",
-            中央見出し:"ZLinq",
-            中央アセンブリ名:"Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq"),
+            "System.IEnumerable.ZLinq",
+            "ZLinq",
+            "Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq"),
         new(
             ベンチマークソースタブ.System範囲,
             System範囲ID,
@@ -205,12 +184,9 @@ public static class ベンチマークソースタブ一覧{
             "System.Range.FLinq",
             "FLinq",
             "Benchmark.System.Linq.Enumerable.Range.FLinq",
-            "System.Range.Linq",
-            "Enumerable",
-            "Benchmark.System.Linq.Enumerable.Range.Linq",
-            中央プロジェクト:"System.Range.ZLinq",
-            中央見出し:"ZLinq",
-            中央アセンブリ名:"Benchmark.System.Linq.Enumerable.Range.ZLinq"),
+            "System.Range.ZLinq",
+            "ZLinq",
+            "Benchmark.System.Linq.Enumerable.Range.ZLinq"),
         new(
             ベンチマークソースタブ.Systemリスト,
             SystemリストID,
@@ -218,12 +194,9 @@ public static class ベンチマークソースタブ一覧{
             "System.List.FLinq",
             "FLinq",
             "Benchmark.System.Linq.Enumerable.List.FLinq",
-            "System.List.Linq",
-            "Enumerable",
-            "Benchmark.System.Linq.Enumerable.List.Linq",
-            中央プロジェクト:"System.List.ZLinq",
-            中央見出し:"ZLinq",
-            中央アセンブリ名:"Benchmark.System.Linq.Enumerable.List.ZLinq"),
+            "System.List.ZLinq",
+            "ZLinq",
+            "Benchmark.System.Linq.Enumerable.List.ZLinq"),
         new(
             ベンチマークソースタブ.Seamless永続化,
             Seamless永続化ID,

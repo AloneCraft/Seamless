@@ -36,25 +36,24 @@ public sealed class 実行ビューモデル {
     }
 
     [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
-    public void ベンチマークアセンブリ登録_標準プロジェクト一覧は中央列を含む全アセンブリを受け入れる() {
-        var 中央アセンブリ名一覧 = global::UI.ベンチマークソースタブ一覧.標準全て
-            .Select(static タブ => タブ.中央アセンブリ名)
+    public void ベンチマークアセンブリ登録_標準プロジェクト一覧は左右2列の全アセンブリを受け入れる() {
+        var 標準アセンブリ名一覧 = global::UI.ベンチマークソースタブ一覧.標準全て
+            .SelectMany(static タブ => タブ.列一覧.Select(static 列 => 列.アセンブリ名))
             .Where(static 名前 => !string.IsNullOrWhiteSpace(名前))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        Assert.NotEmpty(中央アセンブリ名一覧);
+        Assert.NotEmpty(標準アセンブリ名一覧);
 
         var 登録一覧 = global::UI.ベンチマークカタログ.標準プロジェクト一覧
             .Select(static プロジェクト => プロジェクト.アセンブリ名)
             .ToArray();
-
         global::UI.ベンチマークカタログ.アセンブリ登録を検証(
             global::UI.ベンチマークカタログ.標準プロジェクト一覧,
             登録一覧);
-        Assert.All(中央アセンブリ名一覧,名前 => Assert.Contains(名前,登録一覧,StringComparer.OrdinalIgnoreCase));
+        Assert.All(標準アセンブリ名一覧,名前 => Assert.Contains(名前,登録一覧,StringComparer.OrdinalIgnoreCase));
     }
-
     [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
-    public void ベンチマークアセンブリ登録_中央列を持たないタブも成功する() {
+    public void ベンチマークアセンブリ登録_2列タブも成功する() {
         var 最適化プロジェクト一覧 = new global::UI.ベンチマークプロジェクト[] {
             new("左","Benchmark.Optimization.All"),
             new("右","Benchmark.Optimization.NoRewrite"),
@@ -78,29 +77,16 @@ public sealed class 実行ビューモデル {
     }
 
     [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
-    public void ペア停止を適用_中央プロジェクトを含む隣接ペアでも停止表示を更新する() {
+    public void ペア停止を適用_左右ペアで停止表示を更新する() {
         var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
-        {
-            // (左,中央)ペアでの停止適用が反映されることを確認する。
-            var 行 = 配列ベンチマーク行を作成("AggregateBy_keySelector");
-            行.ペア停止を適用(ソースタブ.左プロジェクト,ソースタブ.中央プロジェクト,4096,true);
-            Assert.Equal("4096",行.停止要素数文字列);
-        }
-        {
-            // (中央,右)ペアでの停止適用も反映されることを確認する。
-            var 行 = 配列ベンチマーク行を作成("AggregateBy_keySelector");
-            行.ペア停止を適用(ソースタブ.中央プロジェクト,ソースタブ.右プロジェクト,2048,true);
-            Assert.Equal("2048",行.停止要素数文字列);
-        }
-        {
-            // 隣接しない組み合わせでは反映されないことを確認する(回帰防止)。
-            var 行 = 配列ベンチマーク行を作成("AggregateBy_keySelector");
-            var 適用前 = 行.停止要素数文字列;
-            行.ペア停止を適用("Unrelated.Left","Unrelated.Right",1024,true);
-            Assert.Equal(適用前,行.停止要素数文字列);
-        }
-    }
+        var 行 = 配列ベンチマーク行を作成("AggregateBy_keySelector");
+        行.ペア停止を適用(ソースタブ.左プロジェクト,ソースタブ.右プロジェクト,4096,true);
+        Assert.Equal("4096",行.停止要素数文字列);
 
+        var 適用前 = 行.停止要素数文字列;
+        行.ペア停止を適用("Unrelated.Left","Unrelated.Right",1024,true);
+        Assert.Equal(適用前,行.停止要素数文字列);
+    }
     [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
     public void ペア停止を適用_2系列タブでも従来どおり左右ペアで停止表示を更新する() {
         var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.最適化書き換え);
@@ -121,31 +107,13 @@ public sealed class 実行ビューモデル {
     }
 
     [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
-    public async Task ソート列選択肢_3列タブは左右個別の時間メモリシェアを提供し旧速度列を含まない() {
+    public async Task ソート列選択肢_2列タブは時間メモリシェアを提供し旧速度列を含まない() {
         await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.System配列);
-        var 列一覧 = フィクスチャ.ビューモデル.ベンチマークソート列選択肢一覧.Select(static 選択肢 => 選択肢.列).ToArray();
-
-        Assert.Contains(global::UI.ベンチマークグリッドソート列.左時間シェア,列一覧);
-        Assert.Contains(global::UI.ベンチマークグリッドソート列.左メモリシェア,列一覧);
-        Assert.Contains(global::UI.ベンチマークグリッドソート列.中央時間シェア,列一覧);
-        Assert.Contains(global::UI.ベンチマークグリッドソート列.中央メモリシェア,列一覧);
-        Assert.DoesNotContain(global::UI.ベンチマークグリッドソート列.左速度,列一覧);
-        Assert.DoesNotContain(global::UI.ベンチマークグリッドソート列.中央速度,列一覧);
-    }
-
-    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
-    public async Task ソート列選択肢_2列タブは従来の時間シェアとメモリシェアのみを提供する() {
-        await using var フィクスチャ = await ビューモデルフィクスチャ.作成Async(global::UI.ベンチマークソースタブ.最適化書き換え);
         var 列一覧 = フィクスチャ.ビューモデル.ベンチマークソート列選択肢一覧.Select(static 選択肢 => 選択肢.列).ToArray();
 
         Assert.Contains(global::UI.ベンチマークグリッドソート列.時間シェア,列一覧);
         Assert.Contains(global::UI.ベンチマークグリッドソート列.メモリシェア,列一覧);
-        Assert.DoesNotContain(global::UI.ベンチマークグリッドソート列.左時間シェア,列一覧);
-        Assert.DoesNotContain(global::UI.ベンチマークグリッドソート列.左メモリシェア,列一覧);
-        Assert.DoesNotContain(global::UI.ベンチマークグリッドソート列.中央時間シェア,列一覧);
-        Assert.DoesNotContain(global::UI.ベンチマークグリッドソート列.中央メモリシェア,列一覧);
     }
-
     [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
     public async Task 配列タブの全ベンチマークをチェックして1msで実行() {
         // UI操作: 配列タブを前提に「全て選択」し、「計測」を押下する。

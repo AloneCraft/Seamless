@@ -32,7 +32,7 @@ public sealed class ワーカーアセンブリ解決 {
             await using var セッション=new global::UI.ベンチマーク高速ワーカーセッション(プロセス,実行ルート);
             foreach(var ケース in 代表ケース一覧を取得()) {
                 var 結果=await セッション.実行Async(ケース,0,CancellationToken.None).WaitAsync(TimeSpan.FromMinutes(1));
-                Assert.Equal("Completed",結果.状態);
+                Assert.True(string.Equals("Completed",結果.状態,StringComparison.Ordinal),"状態="+結果.状態+" ログ="+結果.ログ);
                 Assert.True(File.Exists(Path.Combine(結果.成果物フォルダー,"fast-worker.log")));
             }
             await セッション.終了Async(CancellationToken.None);
@@ -46,14 +46,14 @@ public sealed class ワーカーアセンブリ解決 {
     }
 
     private static IEnumerable<global::UI.ベンチマークジョブ> 代表ケース一覧を取得() {
-        foreach(var タブ in new[] { global::UI.ベンチマークソースタブ.Seamless永続化,global::UI.ベンチマークソースタブ.SeamlessTsavorite }) {
+        foreach(var タブ in new[] { global::UI.ベンチマークソースタブ.System永続化,global::UI.ベンチマークソースタブ.SystemTsavorite }) {
             var 定義=global::UI.ベンチマークソースタブ一覧.取得(タブ);
-            var 型完全名=タブ==global::UI.ベンチマークソースタブ.Seamless永続化
+            var 型完全名=タブ==global::UI.ベンチマークソースタブ.System永続化
                 ? "Benchmark.Persisted.Linq.Enumerable.IEnumerableFLinqInt32"
                 : "Benchmark.Tsavorite.Linq.Enumerable.IEnumerableFLinqInt32";
             yield return new global::UI.ベンチマークジョブ {
-                プロジェクト=定義.追加プロジェクト,
-                アセンブリ名=定義.アセンブリ名を取得(定義.追加プロジェクト),
+                プロジェクト=定義.左プロジェクト,
+                アセンブリ名=定義.アセンブリ名を取得(定義.左プロジェクト),
                 型完全名=型完全名,
                 メソッド名="Count",
                 ソースタブ=タブ,

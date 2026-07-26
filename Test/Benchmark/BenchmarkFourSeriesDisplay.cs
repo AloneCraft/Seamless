@@ -1,7 +1,7 @@
 #if NET10_0_OR_GREATER && WINDOWS
 namespace Test.Benchmark;
 
-public sealed class ベンチマーク4系列表示 {
+public sealed class ベンチマークプロバイダー2系列表示 {
     [Theory,Trait("Category","BenchmarkUI")]
     [InlineData(global::UI.ベンチマークソースタブ.Seamless永続化,"Persisted(Seamless)","Seamless.Persisted.FLinq","Seamless.Persisted.ValueLinq","Persisted(Seamless)")]
     [InlineData(global::UI.ベンチマークソースタブ.System永続化,"Persisted(System)","Seamless.Persisted.IEnumerable.FLinq","Seamless.Persisted.Linq","Persisted(System)")]
@@ -13,8 +13,6 @@ public sealed class ベンチマーク4系列表示 {
         Assert.Equal(タブ名,定義.表示名);
         Assert.Equal(["FLinq",右見出し],定義.列一覧.Select(static 列=>列.見出し).ToArray());
         Assert.Equal([左プロジェクト,右プロジェクト],定義.プロジェクト順);
-        Assert.Empty(定義.中央プロジェクト);
-        Assert.Empty(定義.追加プロジェクト);
         var 比較=Assert.Single(定義.比較ペア一覧);
         Assert.Equal(左プロジェクト,比較.左プロジェクト);
         Assert.Equal(右プロジェクト,比較.右プロジェクト);
@@ -39,11 +37,11 @@ public sealed class ベンチマーク4系列表示 {
         行.スナップショット結果を適用(定義.左プロジェクト,結果を作成(定義,定義.左プロジェクト,100,100),0,日時);
         行.スナップショット結果を適用(定義.右プロジェクト,結果を作成(定義,定義.右プロジェクト,50,50),1,日時);
 
-        Assert.Equal("0.67:0.33",行.左時間シェア表示);
-        Assert.Equal("0.67:0.33",行.左メモリシェア表示);
+        Assert.Equal("0.67:0.33",行.時間シェア表示);
+        Assert.Equal("0.67:0.33",行.メモリシェア表示);
         Assert.Equal(Color.FromArgb("#DC2626"),行.左時間文字色);
         Assert.Equal(Color.FromArgb("#2563EB"),行.右時間文字色);
-        Assert.False(行.ソート値を取得(global::UI.ベンチマークグリッドソート列.左時間シェア).欠測か);
+        Assert.False(行.ソート値を取得(global::UI.ベンチマークグリッドソート列.時間シェア).欠測か);
     }
 
     private static global::UI.ベンチマーク結果項目 結果を作成(global::UI.ベンチマークソースタブ定義 定義,string プロジェクト,double 時間,long メモリ) =>

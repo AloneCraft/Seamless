@@ -93,16 +93,12 @@ internal static class ベンチマーク比較フォーマッター{
         string 引数キー="",
         IReadOnlyList<ベンチマーク引数>?引数一覧=null){
         var 左=測定値一覧.GetValueOrDefault(ソースタブ.左プロジェクト);
-        var 中央=測定値一覧.GetValueOrDefault(ソースタブ.中央プロジェクト);
         var 右=測定値一覧.GetValueOrDefault(ソースタブ.右プロジェクト);
-        var 追加=測定値一覧.GetValueOrDefault(ソースタブ.追加プロジェクト);
         var 行=new ベンチマーク比較行(
             ベンチマーク,
             ソースタブ,
             左,
-            右,
-            中央,
-            追加);
+            右);
         var 比較一覧=ソースタブ.比較ペア一覧
             .Select(ペア=>シェア比較を作成(行,ペア))
             .ToArray();
@@ -194,10 +190,6 @@ internal static class ベンチマーク比較フォーマッター{
     private static string プロジェクト名を正規化(string プロジェクト,ベンチマークソースタブ定義 ソースタブ){
         if(string.Equals(プロジェクト,ソースタブ.左プロジェクト,StringComparison.OrdinalIgnoreCase)){
             return ソースタブ.左プロジェクト;
-        }
-
-        if(string.Equals(プロジェクト,ソースタブ.中央プロジェクト,StringComparison.OrdinalIgnoreCase)){
-            return ソースタブ.中央プロジェクト;
         }
 
         if(string.Equals(プロジェクト,ソースタブ.右プロジェクト,StringComparison.OrdinalIgnoreCase)){
@@ -332,9 +324,7 @@ public readonly record struct ベンチマーク比較行(
     string ベンチマーク,
     ベンチマークソースタブ定義 ソースタブ,
     プロジェクト測定値 左,
-    プロジェクト測定値 右,
-    プロジェクト測定値 中央=default,
-    プロジェクト測定値 追加=default){
+    プロジェクト測定値 右){
     public string メソッド名{get;init;}=ベンチマーク;
     public string 型完全名{get;init;}=string.Empty;
     public string 引数キー{get;init;}=string.Empty;
@@ -349,14 +339,6 @@ public readonly record struct ベンチマーク比較行(
 
         if(string.Equals(プロジェクト,this.ソースタブ.左プロジェクト,StringComparison.OrdinalIgnoreCase)){
             return this.左;
-        }
-
-        if(string.Equals(プロジェクト,this.ソースタブ.中央プロジェクト,StringComparison.OrdinalIgnoreCase)){
-            return this.中央;
-        }
-
-        if(string.Equals(プロジェクト,this.ソースタブ.追加プロジェクト,StringComparison.OrdinalIgnoreCase)){
-            return this.追加;
         }
 
         if(string.Equals(プロジェクト,this.ソースタブ.右プロジェクト,StringComparison.OrdinalIgnoreCase)){

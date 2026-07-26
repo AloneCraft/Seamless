@@ -90,8 +90,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// <returns>処理結果を返却します。</returns>
     private IReadOnlyList<ベンチマーク列選択グループ> ベンチマークプロジェクト選択グループ一覧を作成() => [
         new("左",this.選択ソース定義.左見出し,["左"]),
-        new("中央",this.選択ソース定義.中央見出し,["中央"]),
-        new("追加",this.選択ソース定義.追加見出し,["追加"]),
         new("右",this.選択ソース定義.右見出し,["右"]),
     ];
 

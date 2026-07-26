@@ -17,20 +17,16 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.FLinq\Benchmark.System.Linq.Enumerable.FLinq.csproj" />
-    <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.Linq\Benchmark.System.Linq.Enumerable.Linq.csproj" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.ZLinq\Benchmark.System.Linq.Enumerable.ZLinq.csproj" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.IEnumerable.FLinq\Benchmark.System.Linq.Enumerable.IEnumerable.FLinq.csproj" />
-    <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.IEnumerable.Linq\Benchmark.System.Linq.Enumerable.IEnumerable.Linq.csproj" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq\Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq.csproj" />
     <ProjectReference Include="..\Benchmark.Optimization.All\Benchmark.Optimization.All.csproj" />
     <ProjectReference Include="..\Benchmark.Optimization.NoRewrite\Benchmark.Optimization.NoRewrite.csproj" />
     <ProjectReference Include="..\Benchmark.Optimization.NoPipelineFusion\Benchmark.Optimization.NoPipelineFusion.csproj" />
     <ProjectReference Include="..\Benchmark.Optimization.NoPredicatePushdown\Benchmark.Optimization.NoPredicatePushdown.csproj" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.Range.FLinq\Benchmark.System.Linq.Enumerable.Range.FLinq.csproj" />
-    <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.Range.Linq\Benchmark.System.Linq.Enumerable.Range.Linq.csproj" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.Range.ZLinq\Benchmark.System.Linq.Enumerable.Range.ZLinq.csproj" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.List.FLinq\Benchmark.System.Linq.Enumerable.List.FLinq.csproj" />
-    <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.List.Linq\Benchmark.System.Linq.Enumerable.List.Linq.csproj" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.List.ZLinq\Benchmark.System.Linq.Enumerable.List.ZLinq.csproj" />
     <ProjectReference Include="..\Benchmark.Persisted.Collections\Benchmark.Persisted.Collections.csproj" />
     <ProjectReference Include="..\Benchmark.Persisted.Linq.Enumerable.FLinq\Benchmark.Persisted.Linq.Enumerable.FLinq.csproj" />

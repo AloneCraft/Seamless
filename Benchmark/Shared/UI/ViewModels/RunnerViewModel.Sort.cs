@@ -290,26 +290,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         yield return ベンチマークグリッドソート列.左日時;
         yield return ベンチマークグリッドソート列.左時間;
         yield return ベンチマークグリッドソート列.左割り当て;
-        if(!string.IsNullOrWhiteSpace(this.選択ソース定義.中央プロジェクト)) {
-            yield return ベンチマークグリッドソート列.左時間シェア;
-            yield return ベンチマークグリッドソート列.左メモリシェア;
-            yield return ベンチマークグリッドソート列.中央日時;
-            yield return ベンチマークグリッドソート列.中央時間;
-            yield return ベンチマークグリッドソート列.中央割り当て;
-            if(this.選択ソース定義.比較ペア一覧.Any(ペア=>ペア.最適化列キー=="中央")){
-                yield return ベンチマークグリッドソート列.中央時間シェア;
-                yield return ベンチマークグリッドソート列.中央メモリシェア;
-            }
-        }
-        if(!string.IsNullOrWhiteSpace(this.選択ソース定義.追加プロジェクト)) {
-            yield return ベンチマークグリッドソート列.追加日時;
-            yield return ベンチマークグリッドソート列.追加時間;
-            yield return ベンチマークグリッドソート列.追加割り当て;
-            if(this.選択ソース定義.比較ペア一覧.Any(ペア=>ペア.最適化列キー=="追加")){
-                yield return ベンチマークグリッドソート列.追加時間シェア;
-                yield return ベンチマークグリッドソート列.追加メモリシェア;
-            }
-        }
         yield return ベンチマークグリッドソート列.時間シェア;
         yield return ベンチマークグリッドソート列.メモリシェア;
         yield return ベンチマークグリッドソート列.右日時;

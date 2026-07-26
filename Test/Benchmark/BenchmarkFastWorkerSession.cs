@@ -20,9 +20,9 @@ public sealed class ベンチマーク高速ワーカーセッション {
             Assert.Equal("ready",(await プロセス.StandardOutput.ReadLineAsync())?.Trim());
             await using var セッション=new global::UI.ベンチマーク高速ワーカーセッション(プロセス,実行ルート);
             var ジョブ=new global::UI.ベンチマークジョブ {
-                プロジェクト="System.Range.Linq",
-                アセンブリ名="Benchmark.System.Linq.Enumerable.Range.Linq",
-                型完全名="Benchmark.System.Linq.Enumerable.Range.LinqInt32",
+                プロジェクト="System.Range.ZLinq",
+                アセンブリ名="Benchmark.System.Linq.Enumerable.Range.ZLinq",
+                型完全名="Benchmark.System.Linq.Enumerable.Range.ZLinqInt32",
                 メソッド名="SequenceEqual_second",
                 ソースタブ=global::UI.ベンチマークソースタブ.System範囲,
                 要素数=4_096,

@@ -428,9 +428,7 @@ public sealed class ベンチマークタブ進行ロジック {
     private static string 型完全名を作成(ベンチマークソースタブ定義 定義,string プロジェクト) {
         var 接頭辞=プロジェクト==定義.左プロジェクト
             ? 定義.左型接頭辞
-            : プロジェクト==定義.中央プロジェクト
-                ? 定義.中央型接頭辞
-                : 定義.右型接頭辞;
+            : 定義.右型接頭辞;
         return string.IsNullOrWhiteSpace(接頭辞) ? "Test.Sample" : 接頭辞+"Sample";
     }
     private static ベンチマークケース ケースを作成(string プロジェクト,string 型,string メソッド,string 引数キー) =>

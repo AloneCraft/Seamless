@@ -123,22 +123,21 @@ public sealed class ベンチマーク行グループ化ロジック {
     }
 
     [Theory]
-    [InlineData(ベンチマークソースタブ.Seamless永続化,"Benchmark.Persisted.Linq.Enumerable")]
-    [InlineData(ベンチマークソースタブ.SeamlessTsavorite,"Benchmark.Tsavorite.Linq.Enumerable")]
-    public void FLinqIEnumerableのCountは4方式で同じ型行へ結合される(ベンチマークソースタブ タブ,string 名前空間) {
+    [InlineData(ベンチマークソースタブ.Seamless永続化,"Benchmark.Persisted.Linq.Enumerable","ValueLinq")]
+    [InlineData(ベンチマークソースタブ.System永続化,"Benchmark.Persisted.Linq.Enumerable","Linq")]
+    public void FLinqと右列は同じ型行へ結合される(ベンチマークソースタブ タブ,string 名前空間,string 右方式) {
         var ソースタブ=ベンチマークソースタブ一覧.取得(タブ);
         foreach(var メソッド名 in new[]{"Count","Count_predicate"}) {
             var 行一覧=global::UI.ベンチマーク行グループ化ロジック.行を作成(
                 [
                     ケースを作成(ソースタブ.左プロジェクト,ソースタブ.左アセンブリ名,名前空間+".FLinqInt32",メソッド名),
-                    ケースを作成(ソースタブ.中央プロジェクト,ソースタブ.中央アセンブリ名,名前空間+".ValueLinqInt32",メソッド名),
-                    ケースを作成(ソースタブ.追加プロジェクト,ソースタブ.追加アセンブリ名,名前空間+".IEnumerableFLinqInt32",メソッド名),
-                    ケースを作成(ソースタブ.右プロジェクト,ソースタブ.右アセンブリ名,名前空間+".LinqInt32",メソッド名),
+                    ケースを作成(ソースタブ.右プロジェクト,ソースタブ.右アセンブリ名,名前空間+"."+右方式+"Int32",メソッド名),
                 ],
                 ソースタブ);
 
             var 行=Assert.Single(行一覧);
-            Assert.Equal("<int>."+メソッド名,行.ベンチマーク名);
+            var 期待名=タブ==ベンチマークソースタブ.System永続化 ? メソッド名 : "<int>."+メソッド名;
+            Assert.Equal(期待名,行.ベンチマーク名);
             Assert.Equal(ソースタブ.プロジェクト順.Order(StringComparer.OrdinalIgnoreCase),行.プロジェクト別ケース.Keys.Order(StringComparer.OrdinalIgnoreCase));
         }
     }

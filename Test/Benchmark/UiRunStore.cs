@@ -4,37 +4,72 @@ namespace Test.Benchmark;
 
 public sealed class UI実行ストア{
     [Fact]
-    public void スキーマを確認_通常DBを日本語スキーマ版24で実行表とタブ別11表を作成する(){
+    public void スキーマを確認_通常DBを日本語スキーマ版25で実行表とタブ別11表を作成する(){
         var パス=DBパスを作成();
         new global::Seamless.UI.Storage.UI実行ストア(パス).スキーマを確認();
         using var 接続=開く(パス);
-        Assert.Equal(24L,スカラー<long>(接続,"PRAGMA user_version;"));
+        Assert.Equal(25L,スカラー<long>(接続,"PRAGMA user_version;"));
         Assert.Equal(1L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行';"));
         // 単一の「ベンチマーク」表は版24でタブ別11表へ分割済み。Persisted/Tsavorite は Seamless版・System版の2タブに分かれる。
         Assert.Equal(11L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('書き換え','パイプライン融合','述語プッシュダウン','Array','IEnumerable','Range','List','Persisted(Seamless)','Persisted(System)','Tsavorite(Seamless)','Tsavorite(System)');"));
         Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('Runs','Benchmark','Apps','診断カウンター','ベンチマーク','Persisted','Tsavorite');"));
         Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
         // 識別情報は側ごとに独立した列を持つ。1組を共有していた旧スキーマでは左中央右の型完全名が混線した。
-        Assert.Equal(6L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name IN('FLinq_アセンブリ名','FLinq_型完全名','ZLinq_アセンブリ名','ZLinq_型完全名','Enumerable_アセンブリ名','Enumerable_型完全名');"));
+        Assert.Equal(4L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name IN('FLinq_アセンブリ名','FLinq_型完全名','ZLinq_アセンブリ名','ZLinq_型完全名');"));
         Assert.Equal(7L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name IN('引数キー','引数JSON','ZLinq_状態','ZLinq_失敗理由','ZLinq_日時','ZLinq_時間ns','ZLinq_メモリバイト');"));
-        Assert.Equal(3L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name IN('FLinq_ループ回数','ZLinq_ループ回数','Enumerable_ループ回数');"));
-        Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name IN('メソッド名','左アセンブリ名','中央型完全名','右ループ回数');"));
+        Assert.Equal(2L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name IN('FLinq_ループ回数','ZLinq_ループ回数');"));
+        Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name IN('Enumerable_アセンブリ名','Enumerable_型完全名','メソッド名','左アセンブリ名','中央型完全名','右ループ回数');"));
         Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('実行') WHERE name IN('状態メッセージ','適応閾値ns','前回実行ID');"));
         Assert.Equal(1L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('実行') WHERE name='計測時間ns';"));
     }
 
     [Fact]
-    public void スキーマを確認_旧DBを暗黙変換しない(){
+    public void スキーマを確認_旧DBはバックアップ後に全体を再作成し旧データを読まない(){
         var パス=DBパスを作成();
-        using(var 接続=開く(パス)){using var コマンド=接続.CreateCommand();コマンド.CommandText="PRAGMA user_version=19;CREATE TABLE Runs(Id INTEGER);";コマンド.ExecuteNonQuery();}
+        using(var 接続=開く(パス)){
+            using var コマンド=接続.CreateCommand();
+            コマンド.CommandText="PRAGMA user_version=19;CREATE TABLE Runs(Id INTEGER);INSERT INTO Runs VALUES(1);";
+            コマンド.ExecuteNonQuery();
+        }
+
         var ストア=new global::Seamless.UI.Storage.UI実行ストア(パス);
-        var 例外=Assert.Throws<InvalidOperationException>(ストア.スキーマを確認);
-        Assert.Contains("バックアップ",例外.Message,StringComparison.Ordinal);
-        using var 読取接続=開く(パス);
-        Assert.Equal(19L,スカラー<long>(読取接続,"PRAGMA user_version;"));
-        Assert.Equal(1L,スカラー<long>(読取接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='Runs';"));
+        ストア.スキーマを確認();
+
+        using(var 接続=開く(パス)){
+            Assert.Equal(25L,スカラー<long>(接続,"PRAGMA user_version;"));
+            Assert.Equal(11L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','パイプライン融合','述語プッシュダウン','Array','IEnumerable','Range','List','Persisted(Seamless)','Persisted(System)','Tsavorite(Seamless)','Tsavorite(System)');"));
+            Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='Runs';"));
+        }
+
+        var バックアップ=Assert.Single(Directory.GetFiles(Path.GetDirectoryName(パス)!,Path.GetFileName(パス)+".*.bak"));
+        using var バックアップ接続=開く(バックアップ);
+        Assert.Equal(19L,スカラー<long>(バックアップ接続,"PRAGMA user_version;"));
+        Assert.Equal(1L,スカラー<long>(バックアップ接続,"SELECT COUNT(*) FROM Runs;"));
     }
 
+    [Fact]
+    public void スキーマを確認_版25でも旧3列形状ならバックアップ後に再作成する(){
+        var パス=DBパスを作成();
+        new global::Seamless.UI.Storage.UI実行ストア(パス).スキーマを確認();
+        using(var 接続=開く(パス)){
+            using var コマンド=接続.CreateCommand();
+            コマンド.CommandText="ALTER TABLE [Array] ADD COLUMN [Enumerable_アセンブリ名] TEXT;";
+            コマンド.ExecuteNonQuery();
+        }
+
+        new global::Seamless.UI.Storage.UI実行ストア(パス).スキーマを確認();
+
+        using(var 接続=開く(パス)){
+            Assert.Equal(25L,スカラー<long>(接続,"PRAGMA user_version;"));
+            Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name='Enumerable_アセンブリ名';"));
+            Assert.Equal(16L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name LIKE 'FLinq_%' OR name LIKE 'ZLinq_%';"));
+        }
+
+        var バックアップ=Assert.Single(Directory.GetFiles(Path.GetDirectoryName(パス)!,Path.GetFileName(パス)+".*.bak"));
+        using var バックアップ接続=開く(バックアップ);
+        Assert.Equal(25L,スカラー<long>(バックアップ接続,"PRAGMA user_version;"));
+        Assert.Equal(1L,スカラー<long>(バックアップ接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name='Enumerable_アセンブリ名';"));
+    }
     [Fact]
     public void 実行設定を保存_要素数と計測時間とCPU一覧を復元する(){
         var ストア=new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成());
@@ -57,40 +92,42 @@ public sealed class UI実行ストア{
         var ストア=new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成());
         var 実行=ストア.実行を作成(new(UI実行アプリ種別.ベンチマーク,"表示","Fast","System.Array",DateTimeOffset.UtcNow));
         var 日時=DateTimeOffset.Parse("2026-07-08T12:34:56+09:00",global::System.Globalization.CultureInfo.InvariantCulture);
-        var 識別=new UIベンチマークスナップショットケース書込("Left.Assembly","Sample.Type","Any","Count=100","[{\"名前\":\"Count\",\"値\":\"100\"}]");
-        ストア.ベンチマークスナップショット項目を保存(実行.実行ID,[new("System.Array","int","Any",17,true,
-            new(UI実行状態.完了,string.Empty,日時,20,200,8),new(UI実行状態.完了,string.Empty,日時,10,50,8),識別,識別,new(UI実行状態.完了,string.Empty,日時,15,75,8),識別)]);
-        var 項目=Assert.Single(ストア.ベンチマークスナップショット項目一覧を取得(実行.実行ID));
-        Assert.Equal(20,項目.左.平均ナノ秒);Assert.Equal(8,項目.左.ループ回数);Assert.Equal(識別,項目.左ケース);
-        Assert.Equal(15,Assert.IsType<UIベンチマークグリッド側記録>(項目.中央).平均ナノ秒);
-        Assert.Equal(識別,項目.中央ケース);
-        Assert.Equal(10,項目.右.平均ナノ秒);
-    }
+        var 左識別=new UIベンチマークスナップショットケース書込("Left.Assembly","Persisted<int>","Persisted<int>.Aggregate_func","Count=100","[{\"名前\":\"Count\",\"値\":\"100\"}]");
+        var 右識別=new UIベンチマークスナップショットケース書込("Right.Assembly","Persisted<int>","Persisted<int>.Aggregate_func","Count=100","[{\"名前\":\"Count\",\"値\":\"100\"}]");
+        ストア.ベンチマークスナップショット項目を保存(実行.実行ID,[new("System.Array","Persisted<int>","Persisted<int>.Aggregate_func",17,true,
+            new(UI実行状態.完了,string.Empty,日時,20,200,8),new(UI実行状態.完了,string.Empty,日時,10,50,8),左識別,右識別)]);
 
+        var 項目=Assert.Single(ストア.ベンチマークスナップショット項目一覧を取得(実行.実行ID));
+        Assert.Equal("Persisted<int>",項目.型名);
+        Assert.Equal("Persisted<int>.Aggregate_func",項目.ベンチマーク名);
+        Assert.Equal(20,項目.左.平均ナノ秒);
+        Assert.Equal(200,項目.左.割当バイト);
+        Assert.Equal(8,項目.左.ループ回数);
+        Assert.Equal(10,項目.右.平均ナノ秒);
+        Assert.Equal(50,項目.右.割当バイト);
+        Assert.Equal(左識別,項目.左ケース);
+        Assert.Equal(右識別,項目.右ケース);
+    }
     [Fact]
-    public void ベンチマークスナップショット項目を保存_左中央右で型が異なっても個別に往復する(){
-        // 3列タブでは左(FLinq)/中央(ZLinq)/右(Enumerable)がそれぞれ別アセンブリ・別クラスであるため、
-        // 型完全名が側ごとに異なる状態を正しく保存・復元できることを確認する(旧スキーマでは1組しか保存できず混線していた)。
-        // Persisted/Tsavorite は版24でSeamless版・System版の2列タブへ分割されたため、3側を持つ System.Array で検証する。
+    public void ベンチマークスナップショット項目を保存_型が異なる同名メソッドを別行として維持する(){
         var ストア=new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成());
         var 実行=ストア.実行を作成(new(UI実行アプリ種別.ベンチマーク,"表示","Fast","System.Array",DateTimeOffset.UtcNow));
         var 日時=DateTimeOffset.Parse("2026-07-08T12:34:56+09:00",global::System.Globalization.CultureInfo.InvariantCulture);
-        var 左識別=new UIベンチマークスナップショットケース書込("Benchmark.System.Linq.Enumerable.FLinq","Benchmark.System.Linq.Enumerable.FLinqClassInt32","AggregateBy_keySelector","","[]");
-        var 中央識別=new UIベンチマークスナップショットケース書込("Benchmark.System.Linq.Enumerable.ZLinq","Benchmark.System.Linq.Enumerable.ZLinqClassInt32","AggregateBy_keySelector","","[]");
-        var 右識別=new UIベンチマークスナップショットケース書込("Benchmark.System.Linq.Enumerable.Linq","Benchmark.System.Linq.Enumerable.LinqClassInt32","AggregateBy_keySelector","","[]");
-        ストア.ベンチマークスナップショット項目を保存(実行.実行ID,[new("System.Array","Array<ClassInt32>","AggregateBy_keySelector",7,true,
-            new(UI実行状態.完了,string.Empty,日時,20,200,1),new(UI実行状態.完了,string.Empty,日時,10,50,1),左識別,右識別,new(UI実行状態.完了,string.Empty,日時,15,75,1),中央識別)]);
+        var 永続化識別=new UIベンチマークスナップショットケース書込("Benchmark.System.Linq.Enumerable.FLinq","Persisted<int>","Persisted<int>.Aggregate_func","","[]");
+        var Tsavorite識別=new UIベンチマークスナップショットケース書込("Benchmark.System.Linq.Enumerable.ZLinq","Tsavorite<ClassInt32>","Tsavorite<ClassInt32>.Aggregate_func","","[]");
+        ストア.ベンチマークスナップショット項目を保存(実行.実行ID,[
+            new("System.Array","Persisted<int>","Persisted<int>.Aggregate_func",7,true,new(UI実行状態.完了,string.Empty,日時,20,200,1),new(UI実行状態.完了,string.Empty,日時,10,50,1),永続化識別,永続化識別),
+            new("System.Array","Tsavorite<ClassInt32>","Tsavorite<ClassInt32>.Aggregate_func",7,true,new(UI実行状態.完了,string.Empty,日時,30,300,1),new(UI実行状態.完了,string.Empty,日時,15,75,1),Tsavorite識別,Tsavorite識別)]);
 
-        var 項目=Assert.Single(ストア.ベンチマークスナップショット項目一覧を取得(実行.実行ID));
-        Assert.Equal(左識別,項目.左ケース);
-        Assert.Equal(中央識別,項目.中央ケース);
-        Assert.Equal(右識別,項目.右ケース);
-        Assert.NotEqual(項目.左ケース?.型完全名,項目.中央ケース?.型完全名);
-        Assert.NotEqual(項目.左ケース?.型完全名,項目.右ケース?.型完全名);
+        var 項目一覧=ストア.ベンチマークスナップショット項目一覧を取得(実行.実行ID);
+        Assert.Equal(2,項目一覧.Count);
+        var 永続化=Assert.Single(項目一覧,項目=>項目.型名=="Persisted<int>");
+        var Tsavorite=Assert.Single(項目一覧,項目=>項目.型名=="Tsavorite<ClassInt32>");
+        Assert.Equal("Persisted<int>.Aggregate_func",永続化.ベンチマーク名);
+        Assert.Equal("Tsavorite<ClassInt32>.Aggregate_func",Tsavorite.ベンチマーク名);
+        Assert.Equal(永続化識別,永続化.左ケース);
+        Assert.Equal(Tsavorite識別,Tsavorite.左ケース);
     }
-
-
-
     [Fact]
     public void パラメータスイープ_日本語列と英語保存値を往復する(){
         var ストア=new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成(),UI実行アプリ種別.パラメータスイープ);

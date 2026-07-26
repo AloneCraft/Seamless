@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 namespace Seamless.UI.Storage;
 
 public sealed class UI実行ストア{
-    private const int ベンチマークスキーマ版=24;
+    private const int ベンチマークスキーマ版=25;
     private const int 既存スキーマ版=20;
     private int スキーマ版=>this.アプリ種別==UI実行アプリ種別.ベンチマーク ? ベンチマークスキーマ版 : 既存スキーマ版;
     private readonly string DBパス;
@@ -26,11 +26,17 @@ public sealed class UI実行ストア{
             }
             Directory.CreateDirectory(Path.GetDirectoryName(this.DBパス)??".");
             if(File.Exists(this.DBパス)){
-                if(this.保存済みスキーマ版を読む()!=スキーマ版||!this.想定スキーマ形状か()){
-                    throw new InvalidOperationException("UI実行DBのスキーマが一致しません。明示的なバックアップ後にDBを再作成してください: "+this.DBパス);
+                var 既存スキーマ一致か=this.保存済みスキーマ版を読む()==スキーマ版&&this.想定スキーマ形状か();
+                if(!既存スキーマ一致か){
+                    if(this.アプリ種別==UI実行アプリ種別.ベンチマーク){
+                        this.旧ベンチマークDBをバックアップして削除();
+                    }else{
+                        throw new InvalidOperationException("UI実行DBのスキーマが一致しません。明示的なバックアップ後にDBを再作成してください: "+this.DBパス);
+                    }
+                }else{
+                    this.スキーマ確認済みか=true;
+                    return;
                 }
-                this.スキーマ確認済みか=true;
-                return;
             }
             using var 接続=this.接続を開く();
             using var トランザクション=ロック再試行付きでトランザクションを開始(接続);
@@ -253,31 +259,26 @@ public sealed class UI実行ストア{
                     """;
                 スケーラブル引数パラメータを追加(コマンド,引数);
             }else{
-                // 左/中央/右は同じメソッド・同じ引数の異なる最適化バリアントを指すため、
+                // 左/右は同じメソッド・同じ引数の異なる最適化バリアントを指すため、
                 // 行のグループ化ロジック自体が「同じメソッド名+同じ引数キー」でまとめる不変条件により、
                 // メソッド名・引数キー・引数JSONは常に同一(いずれか非nullのケースから1回だけ取得すればよい)。
-                // 一方、アセンブリ名・型完全名は左/中央/右で実体のクラスが異なるため、サイドごとに保存する。
-                var 共通識別=項目.左ケース??項目.中央ケース??項目.右ケース
+                // 一方、アセンブリ名・型完全名は左右で実体のクラスが異なるため、サイドごとに保存する。
+                var 共通識別=項目.左ケース??項目.右ケース
                     ??new(string.Empty,string.Empty,項目.ベンチマーク名,string.Empty,string.Empty);
                 コマンド.CommandText="""
                     INSERT OR REPLACE INTO "ベンチマーク"("実行ID","タブ名","型","ベンチマーク","引数キー","引数JSON",
-                        "左アセンブリ名","左型完全名","中央アセンブリ名","中央型完全名","右アセンブリ名","右型完全名","CPU番号","行チェック",
-                        "左状態","左失敗理由","左日時","左時間ns","左メモリバイト","左ループ回数","中央状態","中央失敗理由","中央日時","中央時間ns","中央メモリバイト","中央ループ回数","右状態","右失敗理由","右日時","右時間ns","右メモリバイト","右ループ回数")
+                        "左アセンブリ名","左型完全名","右アセンブリ名","右型完全名","CPU番号","行チェック",
+                        "左状態","左失敗理由","左日時","左時間ns","左メモリバイト","左ループ回数","右状態","右失敗理由","右日時","右時間ns","右メモリバイト","右ループ回数")
                     VALUES($id,$tab,$type,$benchmark,$argumentKey,$argumentsJson,
-                        $leftAssembly,$leftFullType,$middleAssembly,$middleFullType,$rightAssembly,$rightFullType,$cpu,$selected,
-                        $leftStatus,$leftFailure,$leftAt,$leftMean,$leftBytes,$leftLoops,$middleStatus,$middleFailure,$middleAt,$middleMean,$middleBytes,$middleLoops,$rightStatus,$rightFailure,$rightAt,$rightMean,$rightBytes,$rightLoops);
+                        $leftAssembly,$leftFullType,$rightAssembly,$rightFullType,$cpu,$selected,
+                        $leftStatus,$leftFailure,$leftAt,$leftMean,$leftBytes,$leftLoops,$rightStatus,$rightFailure,$rightAt,$rightMean,$rightBytes,$rightLoops);
                     """;
                 コマンド.Parameters.AddWithValue("$argumentKey",共通識別.引数キー);
                 コマンド.Parameters.AddWithValue("$argumentsJson",共通識別.引数JSON);
                 コマンド.Parameters.AddWithValue("$leftAssembly",項目.左ケース?.アセンブリ名??string.Empty);
                 コマンド.Parameters.AddWithValue("$leftFullType",項目.左ケース?.型完全名??string.Empty);
-                コマンド.Parameters.AddWithValue("$middleAssembly",項目.中央ケース?.アセンブリ名??string.Empty);
-                コマンド.Parameters.AddWithValue("$middleFullType",項目.中央ケース?.型完全名??string.Empty);
                 コマンド.Parameters.AddWithValue("$rightAssembly",項目.右ケース?.アセンブリ名??string.Empty);
                 コマンド.Parameters.AddWithValue("$rightFullType",項目.右ケース?.型完全名??string.Empty);
-                var 中央=項目.中央??new UIベンチマークグリッド側書込(UI実行状態.待機中,string.Empty,null,null,null);
-                側パラメータを追加(コマンド,"middle",中央);
-                コマンド.Parameters.AddWithValue("$middleLoops",DB値へ(中央.ループ回数));
                 側パラメータを追加(コマンド,"right",項目.右);
                 コマンド.Parameters.AddWithValue("$rightLoops",DB値へ(項目.右.ループ回数));
             }
@@ -358,7 +359,7 @@ public sealed class UI実行ストア{
 
     public IReadOnlyList<UI指標値記録> 指標一覧を取得(long 実行ID){
         var 一覧=new List<UI指標値記録>();var ジョブID=1L;
-        foreach(var 項目 in this.ベンチマークスナップショット項目一覧を取得(実行ID)){側指標を追加(一覧,ジョブID++,項目.左);if(項目.中央 is { } 中央){側指標を追加(一覧,ジョブID++,中央);}if(項目.追加 is { } 追加){側指標を追加(一覧,ジョブID++,追加);}側指標を追加(一覧,ジョブID++,項目.右);}
+        foreach(var 項目 in this.ベンチマークスナップショット項目一覧を取得(実行ID)){側指標を追加(一覧,ジョブID++,項目.左);側指標を追加(一覧,ジョブID++,項目.右);}
         return 一覧;
     }
 
@@ -419,9 +420,36 @@ public sealed class UI実行ストア{
     private static SqliteTransaction     ロック再試行付きでトランザクションを開始(SqliteConnection 接続)                                         {const int 試行回数=5;for(var 試行=1;試行<=試行回数;試行++){try{return 接続.BeginTransaction();}catch(SqliteException 例外)when(使用中またはロック中か(例外)&&試行<試行回数){Thread.Sleep(TimeSpan.FromMilliseconds(200*試行));}}return 接続.BeginTransaction();}
     private static void                  ロック再試行付きで実行(Action                    処理)                                         {const int 試行回数=5;for(var 試行=1;試行<=試行回数;試行++){try{処理();return;}catch(SqliteException 例外)when(使用中またはロック中か(例外)                 &&試行<試行回数){Thread.Sleep(TimeSpan.FromMilliseconds(200*試行));}}}
     private static object?               ロック再試行付きでスカラーを実行(SqliteCommand        コマンド)                                       {const int 試行回数=5;for(var 試行=1;試行<=試行回数;試行++){try{return コマンド.ExecuteScalar();}catch(SqliteException 例外)when(使用中またはロック中か(例外) &&試行<試行回数){Thread.Sleep(TimeSpan.FromMilliseconds(200*試行));}}return コマンド.ExecuteScalar();}
+    private void                          旧ベンチマークDBをバックアップして削除(){
+        this.WALを確定する();
+        SqliteConnection.ClearAllPools();
+        var 時刻=DateTime.UtcNow.ToString("yyyyMMdd_HHmmssfff",System.Globalization.CultureInfo.InvariantCulture);
+        var バックアップ=this.DBパス+"."+時刻+".bak";
+        var 連番=0;
+        while(File.Exists(バックアップ)){ 連番++; バックアップ=this.DBパス+"."+時刻+"_"+連番+".bak"; }
+        File.Copy(this.DBパス,バックアップ,false);
+        try{
+            foreach(var パス in new[]{this.DBパス,this.DBパス+"-wal",this.DBパス+"-shm"}){
+                if(File.Exists(パス)){ File.Delete(パス); }
+            }
+        }catch(Exception 例外){
+            try{
+                if(!File.Exists(this.DBパス)){ File.Copy(バックアップ,this.DBパス,true); }
+            }catch(Exception 復元例外){
+                throw new IOException("旧Benchmark DBの削除に失敗し、元DBの復元にも失敗しました: "+this.DBパス, new AggregateException(例外,復元例外));
+            }
+            throw new IOException("旧Benchmark DBの削除に失敗したため再作成を中止しました: "+this.DBパス,例外);
+        }
+    }
+    private void                          WALを確定する(){
+        using var 接続=this.作成せず接続を開く();
+        using var コマンド=接続.CreateCommand();
+        コマンド.CommandText="PRAGMA wal_checkpoint(TRUNCATE);";
+        コマンド.ExecuteNonQuery();
+    }
     private static bool                  使用中またはロック中か(SqliteException           例外)                                         =>例外.SqliteErrorCode is 5 or 6;
     // アセンブリ名・型完全名が両方空ならその側にはケースが無かったとみなし null を返す。
-    // メソッド名・引数キー・引数JSONは左/中央/右で共通(行のグループ化ロジックにより保証される)。
+    // メソッド名・引数キー・引数JSONは左/右で共通(行のグループ化ロジックにより保証される)。
     private static UIベンチマークスナップショットケース書込? 側識別を読む(SqliteDataReader 読取器,int 位置,string メソッド名,string 引数キー,string 引数JSON){
         var アセンブリ名=読取器.GetString(位置);
         var 型完全名=読取器.GetString(位置+1);
