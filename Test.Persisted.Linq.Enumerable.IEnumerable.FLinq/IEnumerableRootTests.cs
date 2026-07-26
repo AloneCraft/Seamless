@@ -4,6 +4,7 @@ namespace Test.Persisted.Linq.Enumerable;
 
 public sealed class IEnumerableRootTests {
     private static global::Seamless.Persisted.Collections.Set<int>? source;
+    private static global::Seamless.Persisted.Collections.Set<ClassInt32>? classSource;
 
     [Fact,Trait("Category","Unit")]
     public void PersistedSetRoute_UsesIEnumerableRootWithoutNativeIterateState() {
@@ -31,7 +32,148 @@ public sealed class IEnumerableRootTests {
     [LinqIntercept(true,LinqInstrumentation.Counter)]
     private static int CountEvenImpl()=>Source().AsX().Count(static value=>value%2==0);
 
+    // Benchmark.db の実測(実行ID=7)では Persisted<T>/Tsavorite<T> の Contains_value が
+    // FLinq 対 System.Linq で最大 142x のメモリ差・24x の時間差を示したが、同じ実行で
+    // Contains_value 自体が BenchmarkDotNet の "takes too long to run" で3件失敗してもいる。
+    // このテストは同一の Set<int> に対する Contains を隔離して比較する(GC.GetAllocatedBytesForCurrentThread
+    // を Func<T> でラップして呼ぶと割当が計測から消えることがあるため、必ず直接呼び出しで測る)。
+    // 結果: 4パターン全てで FLinq/raw の割当バイト数は一致(生成コード側に問題は無い、較正アーティファクトと判断)。
+    [Fact,Trait("Category","Unit")]
+    public void Contains_AllocatesNoMoreThanRawSystemLinq() {
+        var path=Path.Combine(Path.GetTempPath(),"Seamless-ContainsProbe-"+Guid.NewGuid().ToString("N"),"items.dat");
+        try {
+            using var set=global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity:1,InitialDataCapacity:4096);
+            const int count=2000;
+            for(var i=1;i<=count;i++)
+                set.Add(i);
+            set.Compact();
+            source=set;
+
+            for(var i=0;i<5;i++) {
+                _=FLinqContainsImpl(1);
+                _=RawContainsImpl(1);
+            }
+
+            foreach(var target in new[]{1,count/2,count,count+1}) {
+                GC.Collect();GC.WaitForPendingFinalizers();GC.Collect();
+                var beforeFlinq=GC.GetAllocatedBytesForCurrentThread();
+                var flinqResult=FLinqContainsImpl(target);
+                var flinqBytes=GC.GetAllocatedBytesForCurrentThread()-beforeFlinq;
+
+                GC.Collect();GC.WaitForPendingFinalizers();GC.Collect();
+                var beforeRaw=GC.GetAllocatedBytesForCurrentThread();
+                var rawResult=RawContainsImpl(target);
+                var rawBytes=GC.GetAllocatedBytesForCurrentThread()-beforeRaw;
+
+                Assert.Equal(rawResult,flinqResult);
+                Assert.True(flinqBytes<=rawBytes,
+                    $"target={target}: FLinq allocated {flinqBytes}B, raw System.Linq allocated {rawBytes}B.");
+            }
+        } finally {
+            source=null;
+            var directory=Path.GetDirectoryName(path);
+            if(!string.IsNullOrWhiteSpace(directory)&&Directory.Exists(directory))
+                Directory.Delete(directory,recursive:true);
+        }
+    }
+
+    private static bool FLinqContainsImpl(int value)=>Source().AsX().Contains(value);
+    [LinqIntercept(false)]
+    private static bool RawContainsImpl(int value)=>Source().AsX().Contains(value);
+
+    // Benchmark.db の実測(実行ID=7)では Persisted<int>/<ClassInt32> の Count() が 39〜4780x という
+    // 異常値を示した。生成コードは TryGetNext(out _) 経由で値を捨てるにもかかわらず必ず Current を読んでいた
+    // (Persisted の Current は list[index] 経由で GetItem を呼び、参照型は逆シリアライズで実コストがある)。
+    // このテストで直接呼び出し(GC.GetAllocatedBytesForCurrentThread を Func<T> でラップせず素の呼び出しで
+    // 前後を挟む)で計測したところ実際に再現した(ClassInt32・4096要素で約229KB、raw は約0)。
+    // Scalar.cs の RenderDirectEnumerableCountInline(型消去済み IEnumerable<T> ソース向けに
+    // TryGetNonEnumeratedCount → 駄目なら MoveNext だけのループへ inline、System.Linq.Enumerable.Count()
+    // 自身と同じアルゴリズムを Current を読まずに FLinq 自身の生成コードとして再現したもの)で解消した。
+    [Fact,Trait("Category","Unit")]
+    public void Count_AllocatesNoMoreThanRawSystemLinq() {
+        foreach(var compact in new[]{false,true}) {
+            var path=Path.Combine(Path.GetTempPath(),"Seamless-CountProbe-"+Guid.NewGuid().ToString("N"),"items.dat");
+            try {
+                using var set=global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity:1,InitialDataCapacity:4096);
+                const int count=2000;
+                for(var i=1;i<=count;i++)
+                    set.Add(i);
+                if(compact)
+                    set.Compact();
+                source=set;
+
+                for(var i=0;i<5;i++) {
+                    _=FLinqCountImpl();
+                    _=RawCountImpl();
+                }
+
+                GC.Collect();GC.WaitForPendingFinalizers();GC.Collect();
+                var beforeFlinq=GC.GetAllocatedBytesForCurrentThread();
+                var flinqResult=FLinqCountImpl();
+                var flinqBytes=GC.GetAllocatedBytesForCurrentThread()-beforeFlinq;
+
+                GC.Collect();GC.WaitForPendingFinalizers();GC.Collect();
+                var beforeRaw=GC.GetAllocatedBytesForCurrentThread();
+                var rawResult=RawCountImpl();
+                var rawBytes=GC.GetAllocatedBytesForCurrentThread()-beforeRaw;
+
+                Assert.Equal(rawResult,flinqResult);
+                Assert.True(flinqBytes<=rawBytes,
+                    $"int compact={compact}: FLinq allocated {flinqBytes}B, raw System.Linq allocated {rawBytes}B.");
+            } finally {
+                source=null;
+                var directory=Path.GetDirectoryName(path);
+                if(!string.IsNullOrWhiteSpace(directory)&&Directory.Exists(directory))
+                    Directory.Delete(directory,recursive:true);
+            }
+        }
+        foreach(var compact in new[]{false,true}) {
+            var path=Path.Combine(Path.GetTempPath(),"Seamless-CountProbeClass-"+Guid.NewGuid().ToString("N"),"items.dat");
+            try {
+                using var set=global::Seamless.Persisted.Collections.Store.CreateSet<ClassInt32>(path,InitialCapacity:1,InitialDataCapacity:4096);
+                const int count=2000;
+                for(var i=1;i<=count;i++)
+                    set.Add(new ClassInt32{Value=i});
+                if(compact)
+                    set.Compact();
+                classSource=set;
+
+                for(var i=0;i<5;i++) {
+                    _=FLinqCountClassImpl();
+                    _=RawCountClassImpl();
+                }
+
+                GC.Collect();GC.WaitForPendingFinalizers();GC.Collect();
+                var beforeFlinq=GC.GetAllocatedBytesForCurrentThread();
+                var flinqResult=FLinqCountClassImpl();
+                var flinqBytes=GC.GetAllocatedBytesForCurrentThread()-beforeFlinq;
+
+                GC.Collect();GC.WaitForPendingFinalizers();GC.Collect();
+                var beforeRaw=GC.GetAllocatedBytesForCurrentThread();
+                var rawResult=RawCountClassImpl();
+                var rawBytes=GC.GetAllocatedBytesForCurrentThread()-beforeRaw;
+
+                Assert.Equal(rawResult,flinqResult);
+                Assert.True(flinqBytes<=rawBytes,
+                    $"ClassInt32 compact={compact}: FLinq allocated {flinqBytes}B, raw System.Linq allocated {rawBytes}B.");
+            } finally {
+                classSource=null;
+                var directory=Path.GetDirectoryName(path);
+                if(!string.IsNullOrWhiteSpace(directory)&&Directory.Exists(directory))
+                    Directory.Delete(directory,recursive:true);
+            }
+        }
+    }
+
+    private static int FLinqCountImpl()=>Source().AsX().Count();
+    [LinqIntercept(false)]
+    private static int RawCountImpl()=>Source().AsX().Count();
+    private static int FLinqCountClassImpl()=>ClassSource().AsX().Count();
+    [LinqIntercept(false)]
+    private static int RawCountClassImpl()=>ClassSource().AsX().Count();
+
     private static global::Seamless.Persisted.Collections.Set<int> Source()=>source??throw new InvalidOperationException("Source was not initialized.");
+    private static global::Seamless.Persisted.Collections.Set<ClassInt32> ClassSource()=>classSource??throw new InvalidOperationException("classSource was not initialized.");
     private static string GeneratedFor(string methodName) {
         var project=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..",".."));
         var root=Path.Combine(project,"obj","Release","net10.0","generated");

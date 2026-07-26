@@ -49,6 +49,36 @@ internal abstract class Scalar(int 番号):Fragment(番号) {
         return $"{destType} {destVar}=global::Seamless.Linq.GeneratedCodeHelpers.ToArrayFromEnumerable<{source.ElementType}>({sourceExpression});";
     }
 
+    // 型情報を失った IEnumerable<T> ソースの件数計測を MoveNext だけのループへ inline する。
+    // TryGetNext(out _) 経由だと値を捨てる場合でも必ず Current を読んでしまい、Persisted のように
+    // Current の実装が逆シリアライズを伴うソースでは要素ごとに実コスト(割当)を払う羽目になる
+    // (実測: Persisted<ClassInt32> の Count() で 1 要素あたり約 56B、System.Linq.Enumerable.Count()
+    // は Current に一切触れないため同じ条件でほぼ 0B)。ここは System.Linq への委譲ではなく、
+    // 同じアルゴリズムを Current を読まない形で FLinq 自身がインライン展開している。
+    protected string? RenderDirectEnumerableCountInline(Enumerable source,string destVar,string destType) {
+        if(source.DirectEnumerableExpression is not { } sourceExpression) return null;
+        var srcVar = $"__cntSrc{this.result}";
+        var fastVar = $"__cntFast{this.result}";
+        var countVar = $"__count{this.result}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{srcVar}}={{sourceExpression}};
+                if(global::System.Linq.Enumerable.TryGetNonEnumeratedCount({{srcVar}},out var {{fastVar}})){
+                    {{destVar}}=({{destType}}){{fastVar}};
+                } else {
+                    {{destType}} {{countVar}}=0;
+                    using(var __e={{srcVar}}.GetEnumerator()){
+                        checked{
+                            while(__e.MoveNext()) {{countVar}}++;
+                        }
+                    }
+                    {{destVar}}={{countVar}};
+                }
+            }
+            """;
+    }
+
     protected string? RenderSpanInline(Enumerable source,string destVar,string destType,string spanVar,Func<string,string> renderBody) {
         string srcExpr;
         try {

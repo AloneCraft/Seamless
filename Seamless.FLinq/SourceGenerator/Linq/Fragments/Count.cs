@@ -35,7 +35,8 @@ internal class Count(int 番号,Enumerable source,string resultType):BufferedSca
         if(source.NonEnumeratedCountExpression is { } countExpression) {
             return $"{destType} {destVar}=({destType})({countExpression});";
         }
-        return this.RenderComputeInline(destVar,destType);
+        return this.RenderDirectEnumerableCountInline(source,destVar,destType)
+            ??this.RenderComputeInline(destVar,destType);
     }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""

@@ -33,6 +33,7 @@ internal class ToHashSet(int 番号,Enumerable source,string resultType):ToHashS
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeToHashSetInline(destVar,destType)
         ??this.RenderDirectSpanToHashSetInline(destVar,destType)
+        ??this.RenderProviderNativeToHashSetInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanToHashSetInline(string destVar,string destType) {
         var sourceName = $"__hashSetSource{番号}";
@@ -74,6 +75,29 @@ internal class ToHashSet(int 番号,Enumerable source,string resultType):ToHashS
             }
             """;
     }
+    // Persisted/Tsavorite の根(ProviderNativeRootBase)は Count プロパティで O(1) の件数を持つが、
+    // 生成 struct の TryGetNonEnumeratedCount はどのルートでも使える汎用実装のため、この能力を知らない。
+    // ComputeMembers の TryGetNonEnumeratedCount 経由に任せると事前サイズ決定に失敗し、HashSet<T> が
+    // 空から成長する分だけ余分に確保する(実測: Persisted<int> 2000要素で 1.85x 多く割り当てていた)。
+    // ここで NativeCountExpression を直接埋め込み、System.Linq への委譲ではなく FLinq 自身が
+    // 事前サイズ決定込みの inline を生成する。
+    private string? RenderProviderNativeToHashSetInline(string destVar,string destType) {
+        if(source is not ProviderNativeRootBase nativeRoot) {
+            return null;
+        }
+        var sourceName = $"__hashSetSource{番号}";
+        var countVar = $"__hashSetCount{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{countVar}}=checked((int)({{nativeRoot.NativeCountExpression}}));
+                {{destVar}}=new({{countVar}});
+                using(var {{sourceName}}={{source.GetEnumeratorExpression}}){
+                    while({{sourceName}}.TryGetNext(out var __item{{番号}})) {{destVar}}.Add(__item{{番号}});
+                }
+            }
+            """;
+    }
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(TEnum source){
@@ -103,6 +127,7 @@ internal class ToHashSet_comparer(int 番号,Enumerable source,string comparer,s
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeToHashSetInline(destVar,destType)
         ??this.RenderDirectSpanToHashSetInline(destVar,destType)
+        ??this.RenderProviderNativeToHashSetInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,comparer);
     private string? RenderDirectSpanToHashSetInline(string destVar,string destType) {
         var sourceName = $"__hashSetSource{番号}";
@@ -120,6 +145,26 @@ internal class ToHashSet_comparer(int 番号,Enumerable source,string comparer,s
                 {{destVar}}=new({{spanName}}.Length,{{comparerVar}});
                 for(var __i{{番号}}=0;__i{{番号}}<{{spanName}}.Length;__i{{番号}}++){
                     {{destVar}}.Add({{spanName}}[__i{{番号}}]);
+                }
+            }
+            """;
+    }
+    // ToHashSet(コメント参照)と同じ理由。comparer 付きは HashSet<T>(int,comparer) を直接呼ぶ。
+    private string? RenderProviderNativeToHashSetInline(string destVar,string destType) {
+        if(source is not ProviderNativeRootBase nativeRoot) {
+            return null;
+        }
+        var sourceName = $"__hashSetSource{番号}";
+        var countVar = $"__hashSetCount{番号}";
+        var comparerVar = $"__comparer{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{countVar}}=checked((int)({{nativeRoot.NativeCountExpression}}));
+                var {{comparerVar}}={{comparer}};
+                {{destVar}}=new({{countVar}},{{comparerVar}});
+                using(var {{sourceName}}={{source.GetEnumeratorExpression}}){
+                    while({{sourceName}}.TryGetNext(out var __item{{番号}})) {{destVar}}.Add(__item{{番号}});
                 }
             }
             """;

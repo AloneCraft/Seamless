@@ -959,6 +959,22 @@ public sealed partial class FLinqIncrementalGenerator {
                 builder.AppendLine(outDeclaration);
             }
             var resultName = variable.Identifier.ValueText;
+            // Persisted/Tsavorite の直接型ルート(ProviderNativeRootBase)は Count プロパティで O(1) の
+            // 件数を持つが、汎用 struct の TryGetNonEnumeratedCount はどのソースでも使える汎用実装のため
+            // 常に false を返す。Tsavorite.HashSet<T> は ICollection<T> を実装しているため、素の
+            // System.Linq.Enumerable.TryGetNonEnumeratedCount は true を返せる — 汎用 struct 経由に
+            // 委ねると素の呼び出しより悪い(false になる)結果を返す退行になるため、ここで NativeCountExpression
+            // を直接使う fast path へ分岐する。
+            if(sourceFragment is ProviderNativeRootBase nativeRoot) {
+                builder.AppendLine($"bool {resultName}=true;");
+                var nativeCounterCall = CounterCallForGeneratedMethod(semanticModel,invocation,"IncrementTryGetNonEnumeratedCount");
+                if(!string.IsNullOrEmpty(nativeCounterCall)) {
+                    builder.AppendLine(nativeCounterCall);
+                }
+                builder.AppendLine($"{outTarget}=checked((int)({nativeRoot.NativeCountExpression}));");
+                linqInvocationCount++;
+                return true;
+            }
             var enumeratorName = GetUniqueIdentifier($"__tryGetCount{linqInvocationCount}",usedNames);
             builder.AppendLine($"bool {resultName}=default;");
             builder.AppendLine($"using var {enumeratorName}={sourceFragment.GetEnumeratorExpression};");
@@ -981,6 +997,15 @@ public sealed partial class FLinqIncrementalGenerator {
             if(!string.IsNullOrWhiteSpace(outDeclaration)) {
                 builder.AppendLine(outDeclaration);
             }
+            if(sourceFragment is ProviderNativeRootBase nativeRoot) {
+                var nativeCounterCall = CounterCallForGeneratedMethod(semanticModel,expressionInvocation,"IncrementTryGetNonEnumeratedCount");
+                if(!string.IsNullOrEmpty(nativeCounterCall)) {
+                    builder.AppendLine(nativeCounterCall);
+                }
+                builder.AppendLine($"{outTarget}=checked((int)({nativeRoot.NativeCountExpression}));");
+                linqInvocationCount++;
+                return true;
+            }
             var enumeratorName = GetUniqueIdentifier($"__tryGetCount{linqInvocationCount}",usedNames);
             builder.AppendLine($"using var {enumeratorName}={sourceFragment.GetEnumeratorExpression};");
             var counterCall = CounterCallForGeneratedMethod(semanticModel,expressionInvocation,"IncrementTryGetNonEnumeratedCount");
@@ -1001,6 +1026,16 @@ public sealed partial class FLinqIncrementalGenerator {
 
             if(!string.IsNullOrWhiteSpace(outDeclaration)) {
                 builder.AppendLine(outDeclaration);
+            }
+            if(sourceFragment is ProviderNativeRootBase nativeRoot) {
+                var nativeCounterCall = CounterCallForGeneratedMethod(semanticModel,returnInvocation,"IncrementTryGetNonEnumeratedCount");
+                if(!string.IsNullOrEmpty(nativeCounterCall)) {
+                    builder.AppendLine(nativeCounterCall);
+                }
+                builder.AppendLine($"{outTarget}=checked((int)({nativeRoot.NativeCountExpression}));");
+                builder.AppendLine("return true;");
+                linqInvocationCount++;
+                return true;
             }
             var enumeratorName = GetUniqueIdentifier($"__tryGetCount{linqInvocationCount}",usedNames);
             builder.AppendLine($"using var {enumeratorName}={sourceFragment.GetEnumeratorExpression};");
