@@ -52,17 +52,23 @@ public class BenchmarkTabStorage {
         var centerIdentity=new Storage.UIベンチマークスナップショットケース書込("Center.Assembly","Center.Type","Where","Count=64","[]");
 
         store.ベンチマークスナップショット項目を保存(run.実行ID,[
-            new("Seamless.Persisted.System","Persisted<int>","Where",0,true,completed,failed,leftIdentity,rightIdentity),
+            new("Seamless.Persisted.System","Persisted<int>","Aggregate_func",0,true,completed,failed,leftIdentity,rightIdentity),
+            new("Seamless.Tsavorite.Seamless","Tsavorite<ClassInt32>","Aggregate_func",0,true,completed,completed,leftIdentity,rightIdentity),
             new("System.Array","Array<int>","Where",0,true,completed,completed,leftIdentity,rightIdentity,completed,centerIdentity),
         ]);
 
         var items=store.ベンチマークスナップショット項目一覧を取得(run.実行ID);
-        Assert.Equal(2,items.Count);
+        Assert.Equal(3,items.Count);
         var persisted=Assert.Single(items,item=>item.タブ名=="Seamless.Persisted.System");
+        Assert.Equal("Persisted<int>",persisted.型名);
+        Assert.Equal("Aggregate_func",persisted.ベンチマーク名);
         Assert.Null(persisted.中央);
         Assert.Null(persisted.追加);
         Assert.Equal(Storage.UI実行状態.失敗,persisted.右.状態);
         Assert.Equal("worker failure",persisted.右.失敗理由);
+        var tsavorite=Assert.Single(items,item=>item.タブ名=="Seamless.Tsavorite.Seamless");
+        Assert.Equal("Tsavorite<ClassInt32>",tsavorite.型名);
+        Assert.Equal("Aggregate_func",tsavorite.ベンチマーク名);
         var array=Assert.Single(items,item=>item.タブ名=="System.Array");
         Assert.NotNull(array.中央);
         Assert.Null(array.追加);

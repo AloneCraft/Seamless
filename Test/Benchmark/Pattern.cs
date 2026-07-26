@@ -359,7 +359,7 @@ public sealed class 実行ビューモデル {
             "int");
 
         Assert.Equal("int",行.ベンチマーク型文字列);
-        Assert.Equal("AggregateBy_keySelector",行.ベンチマークメソッド文字列);
+        Assert.Equal("int.AggregateBy_keySelector",行.ベンチマークメソッド文字列);
 
         var 計測日時 = new DateTimeOffset(2026,7,8,13,39,31,TimeSpan.Zero);
         var 結果 = new global::UI.ベンチマーク結果項目(new global::UI.ベンチマークジョブ {
@@ -389,8 +389,50 @@ public sealed class 実行ビューモデル {
         行.ベンチマーク名を更新(4096);
 
         Assert.Equal("int",行.ベンチマーク型文字列);
-        Assert.Equal("AggregateBy_keySelector",行.ベンチマークメソッド文字列);
+        Assert.Equal("int.AggregateBy_keySelector",行.ベンチマークメソッド文字列);
         Assert.Equal(TextDecorations.None,行.ベンチマーク識別文字装飾);
+    }
+
+    [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]
+    public void スナップショット表行_保存済み型を完全ベンチマーク名へ使う() {
+        {
+            var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.Seamless永続化);
+            var ケース一覧 = new Dictionary<string,global::UI.ベンチマークケース>(StringComparer.OrdinalIgnoreCase) {
+                [ソースタブ.左プロジェクト]=new(ソースタブ.左プロジェクト,ソースタブ.左アセンブリ名,"Benchmark.Persisted.Linq.Enumerable.LinqInt32","Aggregate_func"),
+                [ソースタブ.右プロジェクト]=new(ソースタブ.右プロジェクト,ソースタブ.右アセンブリ名,"Benchmark.Persisted.Linq.Enumerable.LinqInt32","Aggregate_func"),
+            };
+            var 行 = new global::UI.ベンチマーク表行(
+                "Persisted<int>|Aggregate_func",
+                "Aggregate_func",
+                "Aggregate_func",
+                ソースタブ,
+                ケース一覧,
+                "Persisted<int>");
+
+            Assert.Equal("Persisted<int>",行.ベンチマーク型文字列);
+            Assert.Equal("Persisted<int>.Aggregate_func",行.ベンチマークメソッド文字列);
+            行.ベンチマーク名を更新(4096);
+            Assert.Equal("Persisted<int>.Aggregate_func",行.ベンチマークメソッド文字列);
+        }
+        {
+            var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.SeamlessTsavorite);
+            var ケース一覧 = new Dictionary<string,global::UI.ベンチマークケース>(StringComparer.OrdinalIgnoreCase) {
+                [ソースタブ.左プロジェクト]=new(ソースタブ.左プロジェクト,ソースタブ.左アセンブリ名,"Benchmark.Tsavorite.Linq.Enumerable.LinqClassInt32","Aggregate_func"),
+                [ソースタブ.右プロジェクト]=new(ソースタブ.右プロジェクト,ソースタブ.右アセンブリ名,"Benchmark.Tsavorite.Linq.Enumerable.LinqClassInt32","Aggregate_func"),
+            };
+            var 行 = new global::UI.ベンチマーク表行(
+                "Tsavorite<ClassInt32>|Aggregate_func",
+                "Aggregate_func",
+                "Aggregate_func",
+                ソースタブ,
+                ケース一覧,
+                "Tsavorite<ClassInt32>");
+
+            Assert.Equal("Tsavorite<ClassInt32>",行.ベンチマーク型文字列);
+            Assert.Equal("Tsavorite<ClassInt32>.Aggregate_func",行.ベンチマークメソッド文字列);
+            行.ベンチマーク名を更新(4096);
+            Assert.Equal("Tsavorite<ClassInt32>.Aggregate_func",行.ベンチマークメソッド文字列);
+        }
     }
 
     [Fact, Trait("Category","BenchmarkUI"), Trait("Source","Pattern")]

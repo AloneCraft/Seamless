@@ -2039,7 +2039,15 @@ public sealed class ベンチマーク表行:ObservableObject {
     // 保存済み実行のケースはベンチマークパス(カタログ由来)を持たないため、型列と同じ保存済み表示文字列で補う。
     private string 表示用ベンチマークパスを取得() {
         var ベンチマークパス = this.先頭ベンチマークパスを取得();
-        return ベンチマークパス;
+        if(!string.IsNullOrWhiteSpace(ベンチマークパス)) {
+            return ベンチマークパス;
+        }
+
+        if(スケーラブルベンチマーク名フォーマッター.スケーラブルソースタブか(this.ソースタブ.タブ)) {
+            return string.Empty;
+        }
+
+        return this.スナップショットベンチマーク型文字列;
     }
 
     private void ベンチマーク表示部分を更新() {
