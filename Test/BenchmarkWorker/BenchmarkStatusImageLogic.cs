@@ -189,11 +189,11 @@ public sealed class ベンチマーク状態画像ロジック {
             0,
             "artifact-folder",
             理由,
-            "Benchmark.Scalable.Persisted.Collections.Dictionary.DictionaryStringInt32");
+            "Shared.Scalable.Persisted.Collections.Dictionary.DictionaryStringInt32");
 
         Assert.Contains("ベンチマークに失敗しました。",ログ,StringComparison.Ordinal);
         Assert.Contains("プロジェクト=Scalable.Tsavorite.Dictionary",ログ,StringComparison.Ordinal);
-        Assert.Contains("型=Benchmark.Scalable.Persisted.Collections.Dictionary.DictionaryStringInt32",ログ,StringComparison.Ordinal);
+        Assert.Contains("型=Shared.Scalable.Persisted.Collections.Dictionary.DictionaryStringInt32",ログ,StringComparison.Ordinal);
         Assert.Contains("要素数=65536",ログ,StringComparison.Ordinal);
         Assert.Contains("CPU=0",ログ,StringComparison.Ordinal);
         Assert.Contains("成果物=artifact-folder",ログ,StringComparison.Ordinal);

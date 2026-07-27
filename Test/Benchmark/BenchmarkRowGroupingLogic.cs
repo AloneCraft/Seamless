@@ -61,9 +61,9 @@ public sealed class ベンチマーク行グループ化ロジック {
         var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.スケーラブル永続化リスト);
         var 行一覧 = global::UI.ベンチマーク行グループ化ロジック.行を作成(
             [
-                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.List.ListString","Add"),
-                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.List.ListInt32","Add"),
-                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.List.ListBoolean","Add"),
+                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.Scalable.Persisted.Collections","Shared.Scalable.Persisted.Collections.List.ListString","Add"),
+                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.Scalable.Persisted.Collections","Shared.Scalable.Persisted.Collections.List.ListInt32","Add"),
+                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.Scalable.Persisted.Collections","Shared.Scalable.Persisted.Collections.List.ListBoolean","Add"),
             ],
             ソースタブ);
 
@@ -78,8 +78,8 @@ public sealed class ベンチマーク行グループ化ロジック {
         var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.スケーラブルTsavorite辞書);
         var 行一覧 = global::UI.ベンチマーク行グループ化ロジック.行を作成(
             [
-                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.Scalable.Tsavorite.Collections","Benchmark.Scalable.Tsavorite.Collections.Dictionary.DictionaryStringInt32","Add"),
-                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.Scalable.Tsavorite.Collections","Benchmark.Scalable.Tsavorite.Collections.Dictionary.DictionaryManagedStructManagedStruct","Add"),
+                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.Scalable.Tsavorite.Collections","Shared.Scalable.Tsavorite.Collections.Dictionary.DictionaryStringInt32","Add"),
+                ケースを作成(ソースタブ.左プロジェクト,"Benchmark.Scalable.Tsavorite.Collections","Shared.Scalable.Tsavorite.Collections.Dictionary.DictionaryManagedStructManagedStruct","Add"),
             ],
             ソースタブ);
 
@@ -287,7 +287,7 @@ public sealed class ベンチマーク行グループ化ロジック {
         var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.スケーラブル永続化リスト);
         var 行一覧 = ベンチマーク比較フォーマッター.比較行を構築(
             [
-                報告行を作成(ソースタブ.左プロジェクト,"Add","Benchmark.Scalable.Persisted.Collections.List.ListInt32",10),
+                報告行を作成(ソースタブ.左プロジェクト,"Add","Shared.Scalable.Persisted.Collections.List.ListInt32",10),
             ],
             ソースタブ);
 
@@ -301,7 +301,7 @@ public sealed class ベンチマーク行グループ化ロジック {
         var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.スケーラブルTsavoriteセット);
         var 行一覧 = ベンチマーク比較フォーマッター.比較行を構築(
             [
-                報告行を作成(ソースタブ.左プロジェクト,"Add","Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32",20),
+                報告行を作成(ソースタブ.左プロジェクト,"Add","Shared.Scalable.Tsavorite.Collections.Set.SetInt32",20),
             ],
             ソースタブ,
             131072);
@@ -317,7 +317,7 @@ public sealed class ベンチマーク行グループ化ロジック {
         var ソースタブ = ベンチマークソースタブ一覧.取得(ベンチマークソースタブ.スケーラブルTsavorite辞書);
         var 行一覧 = ベンチマーク比較フォーマッター.比較行を構築(
             [
-                報告行を作成(ソースタブ.左プロジェクト,"Add","Benchmark.Scalable.Tsavorite.Collections.Dictionary.DictionaryStringInt32",20),
+                報告行を作成(ソースタブ.左プロジェクト,"Add","Shared.Scalable.Tsavorite.Collections.Dictionary.DictionaryStringInt32",20),
             ],
             ソースタブ,
             131072);
@@ -395,7 +395,7 @@ public sealed class ベンチマーク行グループ化ロジック {
             new("Index","131072"),
         };
         var ケース一覧 = new ベンチマーク比較行一致ケース[] {
-            new("Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32",ベンチマーク引数フォーマッター.キーを作成(引数一覧)),
+            new("Shared.Scalable.Tsavorite.Collections.Set.SetInt32",ベンチマーク引数フォーマッター.キーを作成(引数一覧)),
         };
         var 完全一致 = new ベンチマーク比較行(
             "<int>.Add",

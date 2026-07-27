@@ -8,11 +8,11 @@ public sealed record ベンチマークプロジェクト(string 表示名,strin
 
 public static class ベンチマークカタログ{
     public static IReadOnlyList<ベンチマークプロジェクト>スケーラブルプロジェクト一覧{get;}=[
-        new("Scalable.Persisted.Set","Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.Set."),
-        new("Scalable.Tsavorite.Set","Benchmark.Scalable.Tsavorite.Collections","Benchmark.Scalable.Tsavorite.Collections.Set."),
-        new("Scalable.Persisted.Dictionary","Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.Dictionary."),
-        new("Scalable.Tsavorite.Dictionary","Benchmark.Scalable.Tsavorite.Collections","Benchmark.Scalable.Tsavorite.Collections.Dictionary."),
-        new("Scalable.Persisted.List","Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.List."),
+        new("Scalable.Persisted.Set","Benchmark.Scalable.Persisted.Collections","Shared.Scalable.Persisted.Collections.Set."),
+        new("Scalable.Tsavorite.Set","Benchmark.Scalable.Tsavorite.Collections","Shared.Scalable.Tsavorite.Collections.Set."),
+        new("Scalable.Persisted.Dictionary","Benchmark.Scalable.Persisted.Collections","Shared.Scalable.Persisted.Collections.Dictionary."),
+        new("Scalable.Tsavorite.Dictionary","Benchmark.Scalable.Tsavorite.Collections","Shared.Scalable.Tsavorite.Collections.Dictionary."),
+        new("Scalable.Persisted.List","Benchmark.Scalable.Persisted.Collections","Shared.Scalable.Persisted.Collections.List."),
     ];
 
     public static IReadOnlyList<ベンチマークプロジェクト>標準プロジェクト一覧{get;}=ベンチマークソースタブ一覧.標準全て

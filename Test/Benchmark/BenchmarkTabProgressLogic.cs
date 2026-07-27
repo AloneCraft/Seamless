@@ -368,10 +368,10 @@ public sealed class ベンチマークタブ進行ロジック {
     public void 仕様確認12() {
         var 進行 = global::UI.ベンチマークタブ進行ロジック.進行を計算(
             [
-                new ベンチマークタブ進行セル("Add","Scalable.Persisted.List","Benchmark.Scalable.Persisted.Collections.List.ListString",true),
+                new ベンチマークタブ進行セル("Add","Scalable.Persisted.List","Shared.Scalable.Persisted.Collections.List.ListString",true),
             ],
             [
-                new ベンチマーク要素測定("Scalable.Persisted.List","Add","Benchmark.Scalable.Persisted.Collections.List.ListInt32",4096,"Completed",100),
+                new ベンチマーク要素測定("Scalable.Persisted.List","Add","Shared.Scalable.Persisted.Collections.List.ListInt32",4096,"Completed",100),
             ],
             "Scalable.Persisted.List",
             "Scalable.Persisted.List.Previous",

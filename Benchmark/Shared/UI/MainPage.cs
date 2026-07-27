@@ -2088,7 +2088,7 @@ public sealed partial class MainPage:ContentPage {
             nameof(ベンチマーク表行.ベンチマークメソッド文字列),
             ベンチマークグリッドソート列.ベンチマークメソッド,
             ベンチマーク_ベンチマーク,
-            TextAlignment.End)];
+            TextAlignment.Start)];
 
     private readonly record struct ベンチマーク固定列UI(
         string 見出し,

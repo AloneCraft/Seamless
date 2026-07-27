@@ -130,7 +130,7 @@ public sealed class ベンチマークUI実行リポジトリ {
         var ストア = new global::UI.Storage.UI実行ストア(DBパスを作成(),UI実行アプリ種別.スケーラブルベンチマーク);
         var リポジトリ = new global::UI.ベンチマークUI実行リポジトリ(ストア);
         var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.スケーラブルTsavoriteセット);
-        const string 型完全名 = "Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32";
+        const string 型完全名 = "Shared.Scalable.Tsavorite.Collections.Set.SetInt32";
         var 引数一覧 = new[]{
             new global::UI.ベンチマーク引数("Count","262144"),
             new global::UI.ベンチマーク引数("Index","64"),
